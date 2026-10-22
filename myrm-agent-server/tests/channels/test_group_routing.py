@@ -41,6 +41,9 @@ class FakePairingStore:
     async def get_status(self, channel: str, sender_id: str) -> PairingStatus | None:
         return None
 
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> None:
+        return None
+
 
 class FakeAgentExecutor:
     """Records execute_stream calls for assertion."""

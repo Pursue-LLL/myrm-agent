@@ -45,7 +45,16 @@ vi.mock('@/services/system', () => ({
   },
 }));
 
-function makeStorageResponse() {
+const POPULATED_DB_BREAKDOWN = {
+  main_db_bytes: 1024 * 1024 * 350,
+  wal_bytes: 1024 * 1024 * 140,
+  shm_bytes: 1024 * 1024 * 10,
+  total_bytes: 1024 * 1024 * 500,
+};
+
+const EMPTY_DB_BREAKDOWN = { main_db_bytes: 0, wal_bytes: 0, shm_bytes: 0, total_bytes: 0 };
+
+function makeStorageResponse(dbBreakdown = POPULATED_DB_BREAKDOWN) {
   return {
     ok: true,
     json: async () => ({
@@ -53,16 +62,7 @@ function makeStorageResponse() {
       disk_total_bytes: 1024 * 1024 * 1024 * 20,
       disk_used_bytes: 1024 * 1024 * 1024 * 5,
       disk_free_bytes: 1024 * 1024 * 1024 * 15,
-      subdirs: [
-        { name: 'data.db', bytes: 1024 * 1024 * 500 }, // 500 MB
-        { name: 'qdrant', bytes: 1024 * 1024 * 100 },
-      ],
-      db_breakdown: {
-        main_db_bytes: 1024 * 1024 * 350,
-        wal_bytes: 1024 * 1024 * 140,
-        shm_bytes: 1024 * 1024 * 10,
-        total_bytes: 1024 * 1024 * 500,
-      },
+      db_breakdown: dbBreakdown,
     }),
   } as Response;
 }
@@ -73,11 +73,22 @@ describe('StorageCard - Database Optimization Flow', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStorageResponse()));
   });
 
-  it('renders database optimize button when data.db exists in storage subdirs', async () => {
+  it('renders database optimize button when the instance database holds data', async () => {
     render(<StorageCard onDataDirChange={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText('storageOptimizeTitle')).toBeInTheDocument();
     });
+  });
+
+  it('offers no database optimization before the instance database holds any data', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStorageResponse(EMPTY_DB_BREAKDOWN)));
+
+    render(<StorageCard onDataDirChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('/Users/test/.myrm')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('storageOptimizeTitle')).not.toBeInTheDocument();
   });
 
   it('triggers preflight check and displays breakdown when optimize button clicked', async () => {
@@ -162,8 +173,10 @@ describe('StorageCard - Database Optimization Flow', () => {
         create_backup: true,
       });
       expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('storageOptimizeSuccess'));
-      expect(screen.getByText('Reclaimed 367001600 bytes (70.0%) in 120ms')).toBeInTheDocument();
+      expect(screen.getByText('storageOptimizeSuccess:350.0 MB:70')).toBeInTheDocument();
     });
+    // The server's own English summary (bytes, milliseconds) is not shown next to the localized outcome.
+    expect(screen.queryByText(/367001600/)).not.toBeInTheDocument();
   });
 
   it('shows warning and disables execute button when background jobs are running', async () => {
@@ -191,12 +204,63 @@ describe('StorageCard - Database Optimization Flow', () => {
     fireEvent.click(screen.getByText('storageOptimizeTitle'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('2 active background job(s) running. Wait for completion before optimizing.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('storageOptimizeActiveJobsWarning')).toBeInTheDocument();
       const executeButtons = screen.getAllByRole('button');
       const submitBtn = executeButtons[executeButtons.length - 1];
       expect(submitBtn).toBeDisabled();
     });
+    // The server's English reason is replaced by the localized warning, not shown beside it.
+    expect(screen.queryByText(/active background job/)).not.toBeInTheDocument();
+  });
+
+  it('explains a failed preflight in the user language only', async () => {
+    vi.mocked(systemService.getStorageOptimizePreflight).mockRejectedValueOnce(
+      new Error('HTTP 500: sqlite3.OperationalError: database is locked'),
+    );
+
+    render(<StorageCard onDataDirChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('storageOptimizeTitle')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('storageOptimizeTitle'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledTimes(1);
+    });
+    expect(toast.error).toHaveBeenCalledWith('storageOptimizeFailed');
+  });
+
+  it('explains a failed optimization in the user language only', async () => {
+    vi.mocked(systemService.getStorageOptimizePreflight).mockResolvedValueOnce({
+      data_dir: '/Users/test/.myrm',
+      db_breakdown: POPULATED_DB_BREAKDOWN,
+      disk_free_bytes: 1024 * 1024 * 1024 * 15,
+      can_deep_optimize: true,
+      recommended_mode: 'deep',
+      active_background_jobs: 0,
+      is_safe_to_optimize: true,
+      reason: null,
+    });
+    vi.mocked(systemService.executeStorageOptimize).mockRejectedValueOnce(
+      new Error('HTTP 500: sqlite3.OperationalError: database is locked'),
+    );
+
+    render(<StorageCard onDataDirChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('storageOptimizeTitle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('storageOptimizeTitle'));
+    await waitFor(() => {
+      expect(screen.getByText('storageOptimizeModeDeep')).toBeInTheDocument();
+    });
+
+    const buttons = screen.getAllByRole('button');
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledTimes(1);
+    });
+    expect(toast.error).toHaveBeenCalledWith('storageOptimizeFailed');
   });
 });

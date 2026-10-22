@@ -42,6 +42,9 @@ class StubPairingStore:
     async def get_status(self, channel: str, sender_id: str) -> PairingStatus | None:
         return None
 
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> None:
+        return None
+
 
 class RecordingExecutor:
     def __init__(self) -> None:

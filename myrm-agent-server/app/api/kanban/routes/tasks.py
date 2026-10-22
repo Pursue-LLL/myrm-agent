@@ -6,6 +6,7 @@ app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
 app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务标题 / 描述 / 验收标准 / 结果 / 移交说明 / 驳回理由 / 回收理由)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -48,14 +49,51 @@ from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.model_resolver import validate_model_override
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
+from app.services.risk.refusal import reject_if_risky
 
 # ---------------------------------------------------------------------------
 # Task endpoints
 # ---------------------------------------------------------------------------
 
 
+def _criteria_texts(criteria: str | list[dict[str, str | int]] | None) -> list[str]:
+    """Prose parts of completion criteria: the plain string, or the ``semantic`` entries of the list form.
+
+    ``shell`` entries are commands to run, not text a model reads, so they are not screened.
+    """
+    if isinstance(criteria, str):
+        return [criteria]
+    if isinstance(criteria, list):
+        return [str(entry["criteria"]) for entry in criteria if entry.get("type") == "semantic" and "criteria" in entry]
+    return []
+
+
+def _metadata_texts(metadata: dict[str, object] | None) -> list[str]:
+    """Every string a handoff ``metadata`` mapping holds, nested lists and mappings included.
+
+    The next agent receives the handoff as JSON (``context_builder``), so each string in it is text a model reads.
+    """
+    texts: list[str] = []
+    pending: list[object] = [metadata]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, str):
+            texts.append(item)
+        elif isinstance(item, dict):
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+    return texts
+
+
 @router.post("/boards/{board_id}/tasks", response_model=TaskResponse, status_code=201)
 async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
+    await reject_if_risky(
+        body.title,
+        body.description,
+        *_criteria_texts(body.completion_criteria),
+        session_id=board_id,
+    )
     svc = get_kanban_service()
     board = await svc.get_board(board_id)
     if board is None:
@@ -135,6 +173,13 @@ async def get_task(task_id: str) -> TaskResponse:
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
+    await reject_if_risky(
+        body.title,
+        body.description,
+        body.result,
+        *_criteria_texts(body.completion_criteria),
+        session_id=task_id,
+    )
     svc = get_kanban_service()
     priority: TaskPriority | None = None
     if body.priority:
@@ -186,6 +231,7 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
 
 @router.post("/tasks/{task_id}/move", response_model=TaskResponse)
 async def move_task(task_id: str, body: TaskMoveRequest) -> TaskResponse:
+    await reject_if_risky(body.result, *_metadata_texts(body.metadata), session_id=task_id)
     try:
         target_status = TaskStatus(body.status)
     except ValueError:
@@ -208,6 +254,7 @@ async def move_task(task_id: str, body: TaskMoveRequest) -> TaskResponse:
             scheduled_until=body.scheduled_until,
             result=body.result,
             metadata=body.metadata,
+            assignee_agent_id=body.assignee_agent_id,
         )
     except DependencyUnmetError as exc:
         raise HTTPException(
@@ -242,6 +289,7 @@ async def approve_task(task_id: str, body: ApproveTaskRequest) -> TaskResponse:
 @router.post("/tasks/{task_id}/reject", response_model=TaskResponse)
 async def reject_task(task_id: str, body: RejectTaskRequest) -> TaskResponse:
     """Reject an IN_REVIEW task — sends it back to READY for rework."""
+    await reject_if_risky(body.reason, session_id=task_id)
     svc = get_kanban_service()
     try:
         task = await svc.reject_task(task_id, reason=body.reason, approver=body.approver)
@@ -281,6 +329,7 @@ async def promote_task(task_id: str, body: PromoteRequest) -> PromoteResponse:
 
 @router.post("/tasks/{task_id}/reclaim", response_model=ReclaimResponse)
 async def reclaim_task(task_id: str, body: ReclaimRequest) -> ReclaimResponse:
+    await reject_if_risky(body.reason, session_id=task_id)
     svc = get_kanban_service()
     try:
         task = await svc.reclaim_task(

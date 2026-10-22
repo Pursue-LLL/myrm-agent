@@ -21,10 +21,12 @@ Single-turn session state of the stream pipeline: the one object the stream_sess
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Literal
 
 from fastapi import Request
+from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -37,6 +39,7 @@ from app.services.agent.streaming_support.stream_collector import StreamContentC
 from app.services.chat.compact_service import CompactResult
 
 GRACE_PERIOD_SECONDS = 180.0
+ACTIVITY_STALE_SECONDS = 600.0
 
 
 @dataclass
@@ -52,7 +55,7 @@ class AgentStreamSession:
     registry: GlobalStreamRegistry
     collector: StreamContentCollector
     is_long_running_task: bool
-    goal_provider: object | None
+    goal_provider: GoalProvider | None
     extra_context: dict[str, object]
     routing_specialty: str | None = field(default=None)
     routing_reason: str | None = field(default=None)
@@ -62,6 +65,8 @@ class AgentStreamSession:
     had_fatal_error: bool = field(default=False)
     turn_capability_terminal_recorded: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
+    disconnect_monotonic: float | None = field(default=None)
+    last_activity_monotonic: float = field(default_factory=time.monotonic)
     migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)
     pre_reply_compact_result: CompactResult | None = field(default=None)
     pre_reply_compact_sse_sent: bool = field(default=False)

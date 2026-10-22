@@ -23,17 +23,19 @@ InboundMessage → ChannelAgentExecutor.execute_stream
 | `corpus.py` | FAQ 语料 CRUD + Qdrant 索引重建 |
 | `interceptor.py` | 零 LLM 语义拦截器（embedding + 双校验） |
 | `tracker.py` | 命中/未命中日志记录 + 分析统计 |
-| `factory.py` | FaqInterceptor 延迟单例工厂 |
+| `factory.py` | FaqInterceptor 延迟单例工厂（embedding 来自 WebUI retrieval 配置） |
 
 ## 依赖关系
 
 - `corpus.py` → `app.database.models.faq`, `myrm_agent_harness.toolkits.vector.base`, `myrm_agent_harness.toolkits.retriever.embedding.base`
 - `interceptor.py` → `corpus.py`, 同上 harness 组件
 - `tracker.py` → `app.database.models.faq.FaqHitLog`
-- `factory.py` → `interceptor.py`, `app.core.retriever.vector.defaults`
+- `factory.py` → `interceptor.py`, `app.core.retriever.vector.defaults`, `app.services.agent.platform_config.load_platform_retrieval_configs`
 
 ## 设计决策
 
 - **拦截位置**：`ChannelAgentExecutor.execute_stream` 中 `prepare_channel_execution` 之前，最大化跳过开销
 - **双校验**：top1 score ≥ threshold **且** top1-top2 gap ≥ min_score_gap，避免模糊匹配误触发
 - **不修改 harness**：复用 harness 的 EmbeddingService 和 VectorStore 接口，不引入反向依赖
+- **Embedding 来源**：只从 WebUI 检索设置（`load_platform_retrieval_configs`）取配置，与 Memory/Curator/Cron 同一通道；不读 `EMBEDDING_*` 进程环境变量，未配置时返回 `None` 让调用方走正常 Agent 执行
+- **配置热更新**：`reset_faq_interceptor()` 由 `PUT /api/v1/config/retrieval` 触发，改 embedding 无需重启服务

@@ -14,7 +14,7 @@ export const KNOWN_PERMISSIONS = [
   'file_read',
   'file_write',
   'mcp_invoke',
-  'code_interpreter_tool',
+  'code_interpreter',
   'browser_navigate',
   'browser_fill',
   'browser_upload',

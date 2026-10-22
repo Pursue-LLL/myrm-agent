@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - @/store/skill::useSkillStore (POS: 市场与本地技能数据)
+ * - @/components/primitives/popover, command (POS: 弹层与搜索列表基础组件)
+ *
+ * [OUTPUT]
+ * - KanbanSkillPicker: 任务技能多选（搜索 + 已选 chip；已保存但已找不到的 id 保留并标记为未知）
+ *
+ * [POS]
+ * 创建任务表单与任务详情共用的技能选择器。值保持逗号分隔字符串，与持久化的任务数据一致。
+ */
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';

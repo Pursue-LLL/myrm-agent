@@ -19,12 +19,13 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.utils.errors import internal_error, validation_error
@@ -46,6 +47,7 @@ TurnCapabilityFailureReason = Literal[
     "archive_restore_invalid",
     "abort",
     "server_error",
+    "risk_held",
     "unknown_error",
 ]
 
@@ -168,7 +170,7 @@ async def _maybe_prune_old_events(db: AsyncSession) -> int:
             .where(TurnCapabilityMetricEvent.created_at < cutoff)
             .execution_options(synchronize_session=False)
         )
-        result = await db.execute(prune_stmt)
+        result = cast(CursorResult[tuple[object, ...]], await db.execute(prune_stmt))
         await db.commit()
         _last_cleanup_at = now
         return int(result.rowcount or 0)

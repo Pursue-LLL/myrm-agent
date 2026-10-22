@@ -9,7 +9,6 @@
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
 - collect_workspace_merge_failures
-- collect_ttsr_intervention
 - merge_sources_list, source_dedup_key
 - string_keyed_dict, string_keyed_dicts
 
@@ -34,9 +33,10 @@ def parse_tool_end_result(event: dict[str, object]) -> object | None:
     result = event.get("result")
     if isinstance(result, str):
         try:
-            return json.loads(result)
+            parsed: object = json.loads(result)
         except json.JSONDecodeError:
             return None
+        return parsed
     return result
 
 
@@ -197,33 +197,6 @@ def collect_clarification_required(
     return clarification
 
 
-def collect_directory_request_required(
-    event: dict[str, object],
-) -> dict[str, object] | None:
-    """Build durable extra_data.directoryRequest from directory_request_required SSE."""
-    data = event.get("data")
-    if not isinstance(data, dict):
-        return None
-
-    payload = string_keyed_dict(data)
-    if payload is None:
-        return None
-
-    request = payload.get("request")
-    if not isinstance(request, dict):
-        return None
-
-    normalized_request = string_keyed_dict(request)
-    if normalized_request is None:
-        return None
-
-    return {
-        "answered": False,
-        "isResumeMode": True,
-        "request": normalized_request,
-    }
-
-
 def collect_plan_confirmation_status(
     data: dict[str, object],
 ) -> dict[str, object] | None:
@@ -330,49 +303,3 @@ def collect_workspace_merge_failures(
         if not isinstance(message, str) or not message.strip():
             continue
         target.append({"message": message.strip()})
-
-
-def collect_ttsr_intervention(
-    target: list[dict[str, object]],
-    data: object,
-) -> None:
-    """Append normalized TTSR rule intervention from a ttsr_triggered SSE payload."""
-    if not isinstance(data, dict):
-        return
-    rule_id = data.get("rule_id")
-    if not isinstance(rule_id, str) or not rule_id.strip():
-        rule_id = data.get("ruleId")
-    if not isinstance(rule_id, str) or not rule_id.strip():
-        return
-
-    rule_name = data.get("rule_name")
-    if not isinstance(rule_name, str) or not rule_name.strip():
-        rule_name = data.get("ruleName")
-    if not isinstance(rule_name, str) or not rule_name.strip():
-        rule_name = rule_id.strip()
-
-    reminder = data.get("reminder")
-    reminder_str = str(reminder).strip() if reminder is not None else ""
-
-    target_channel = data.get("target")
-    target_str = str(target_channel).strip() if isinstance(target_channel, str) and target_channel.strip() else "all"
-
-    retry_count = data.get("retry_count")
-    if not isinstance(retry_count, int):
-        retry_count = data.get("retryCount")
-    retry_count_int = int(retry_count) if isinstance(retry_count, int) and retry_count >= 0 else 1
-
-    max_retries = data.get("max_retries")
-    if not isinstance(max_retries, int):
-        max_retries = data.get("maxRetries")
-    max_retries_int = int(max_retries) if isinstance(max_retries, int) and max_retries >= 0 else 2
-
-    entry: dict[str, object] = {
-        "ruleId": rule_id.strip(),
-        "ruleName": rule_name.strip(),
-        "reminder": reminder_str,
-        "target": target_str,
-        "retryCount": retry_count_int,
-        "maxRetries": max_retries_int,
-    }
-    target.append(entry)

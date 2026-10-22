@@ -2,6 +2,7 @@
  * [INPUT]
  * @/lib/api::apiRequest,ApiError (POS: 前端统一请求入口)
  * @/services/wikiService::wikiService,buildWikiApiPath (POS: Frontend Wiki API client)
+ * @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的提问已有统一提示，失败提示据此跳过)
  * @/components/features/settings/sections/knowledge/wiki/WikiRawSourceTree::WikiRawSourceTree (POS: Wiki raw source file tree component)
  *
  * [OUTPUT]
@@ -27,6 +28,7 @@ import {
   IconWrench,
   IconDatabase,
   IconExplore,
+  IconStop,
   IconVideo,
 } from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
@@ -54,6 +56,7 @@ import {
   recordWikiQuerySubmitted,
 } from '@/services/wiki/evidenceMetrics';
 import { resolveWikiSectionLabel } from '@/services/wiki/sectionLabels';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
@@ -77,7 +80,14 @@ import { ObsidianVaultActions } from './ObsidianVaultActions';
 import MeetingNotesImportCard from './MeetingNotesImportCard';
 import DailyReviewCard from './DailyReviewCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
-import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
+import { useWikiMaintainRun, type WikiMaintainOutcome } from './useWikiMaintainRun';
+import {
+  healthReportFromMaintainResponse,
+  resolveHealthIssueNavigationTarget,
+  resolveMaintainFailureToastKey,
+  resolveMaintainProgressLabel,
+  resolveMaintainToast,
+} from './wiki/wikiSectionUtils';
 import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
 
 interface WikiStats {
@@ -144,9 +154,6 @@ function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string
 function maintainSkippedBadgeLabel(reason: string, translate: (key: string) => string): string {
   if (reason === 'compile_in_progress') {
     return translate('stats.lastMaintainSkippedCompile');
-  }
-  if (reason === 'no_llm_configured') {
-    return translate('stats.lastMaintainSkippedNoModel');
   }
   return translate('stats.lastMaintainSkipped');
 }
@@ -217,7 +224,6 @@ export function WikiSection() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileRun, setCompileRun] = useState<CompileRunStatus | null>(null);
   const [isResumingCompile, setIsResumingCompile] = useState(false);
-  const [isMaintaining, setIsMaintaining] = useState(false);
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isRepairingPublication, setIsRepairingPublication] = useState(false);
   const [isReindexingVectors, setIsReindexingVectors] = useState(false);
@@ -853,6 +859,8 @@ export function WikiSection() {
   };
 
   const ingestActivityRef = useRef(false);
+  // Set when this page handed a compile to the background worker; the first idle snapshot after it reports the end.
+  const compileRequestedRef = useRef(false);
   const refreshIngestTreesSilently = useCallback(async () => {
     try {
       const rawTree = await wikiService.getRawTree(agentScopeId);
@@ -878,13 +886,17 @@ export function WikiSection() {
       const active = snap.stats.processing > 0 || snap.stats.pending > 0 || snap.compile_run?.state === 'paused';
       if (ingestActivityRef.current && !active) {
         void loadStats();
+        if (compileRequestedRef.current) {
+          compileRequestedRef.current = false;
+          toast.success(t('success.compileFinished', { tab: t('tabs.pendingEdits') }));
+        }
       }
       ingestActivityRef.current = active;
     },
   });
 
-  const isWikiCompileBusy =
-    isCompiling || compileRun?.state === 'running' || (ingestSnapshot?.stats.processing ?? 0) > 0;
+  // `compileRun.state` is the circuit (running unless paused), not whether a compile is in flight: the queue says that.
+  const isWikiCompileBusy = isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0;
 
   const handleOpenSynthesisPending = () => {
     setPendingEditsInitialFilter('synthesis');
@@ -934,7 +946,9 @@ export function WikiSection() {
       toast.success(t('success.queryComplete'));
     } catch (error) {
       console.error('Query failed:', error);
-      toast.error(t('errors.queryFailed'));
+      if (!isRiskHeldError(error)) {
+        toast.error(t('errors.queryFailed'));
+      }
     } finally {
       setIsQuerying(false);
     }
@@ -945,29 +959,14 @@ export function WikiSection() {
     try {
       const result = await wikiService.compileWiki(agentScopeId);
       setCompileRun(result.compile_run ?? null);
+      compileRequestedRef.current = result.pending > 0;
       if (result.compile_run?.state === 'paused') {
         toast.warning(result.compile_run.pause_reason || t('compileRun.pausedDefaultReason'));
         handleWikiTabChange('queue');
+      } else if (result.pending > 0) {
+        toast.message(t('success.compileStarted', { count: result.pending }));
       } else {
-        const synthesisCount = result.synthesis_pending ?? 0;
-        toast.success(
-          synthesisCount > 0
-            ? t('success.compileSummaryWithSynthesis', {
-                published: result.articles_published,
-                pending: result.articles_pending,
-                blocked: result.articles_blocked,
-                synthesis: synthesisCount,
-              })
-            : t('success.compileSummary', {
-                published: result.articles_published,
-                pending: result.articles_pending,
-                blocked: result.articles_blocked,
-              }),
-        );
-        if (result.articles_pending > 0 || synthesisCount > 0) {
-          setPendingEditsInitialFilter(synthesisCount > 0 ? 'synthesis' : 'all');
-          handleWikiTabChange('pendingEdits');
-        }
+        toast.message(t('success.compileNothingNew'));
       }
       await loadStats();
     } catch (error) {
@@ -997,49 +996,43 @@ export function WikiSection() {
     }
   };
 
-  const handleMaintain = async () => {
-    setIsMaintaining(true);
+  const handleMaintainFinished = async (outcome: WikiMaintainOutcome) => {
+    if (outcome.kind === 'failure') {
+      toast.error(t(resolveMaintainFailureToastKey(outcome.reason)));
+      return;
+    }
+    const { result, mode } = outcome;
+    const summary = resolveMaintainToast(result, outcome.kind === 'cancelled');
+    toast[summary.variant](t(summary.key, summary.values));
+    setHealthReportExpanded(true);
+    await loadStats();
+    setHealthReport((prev) =>
+      healthReportFromMaintainResponse(result, mode, {
+        duplicate_groups_pending: prev?.duplicate_groups_pending ?? 0,
+        synthesis_pending: prev?.synthesis_pending ?? 0,
+      }),
+    );
+    setTreeSyncNonce((value) => value + 1);
+  };
+
+  const {
+    isRunning: isMaintaining,
+    progress: maintainProgress,
+    start: startMaintain,
+    cancel: cancelMaintain,
+    canCancel: canCancelMaintain,
+    isCancelling: isCancellingMaintain,
+  } = useWikiMaintainRun({ agentScopeId, onFinished: handleMaintainFinished });
+  const maintainProgressLabel = resolveMaintainProgressLabel(maintainProgress);
+
+  const handleMaintain = () => startMaintain(maintainMode);
+
+  const handleCancelMaintain = async () => {
     try {
-      const result = await wikiService.maintainWiki(maintainMode, agentScopeId);
-      const removed = result.raw_security_removed ?? 0;
-      if (removed > 0) {
-        const pathsJoined = (result.raw_security_removed_paths ?? []).join(', ');
-        const displayPaths = pathsJoined.length > 120 ? `${pathsJoined.slice(0, 117)}...` : pathsJoined;
-        toast.success(
-          t('success.maintainRemovedSensitive', {
-            count: removed,
-            paths: displayPaths,
-          }),
-        );
-      } else {
-        const openActions = result.open_actions_count ?? 0;
-        const fixed = result.issues_fixed ?? 0;
-        if (openActions > 0) {
-          toast.message(t('healthReport.maintainToastOpen', { open: openActions, fixed }));
-        } else if (fixed > 0) {
-          toast.success(t('success.maintainSummary', { found: result.issues_found, fixed }));
-        } else {
-          toast.success(t('success.maintainComplete'));
-        }
-      }
-      setHealthReportExpanded(true);
-      await loadStats();
-      setHealthReport((prev) =>
-        healthReportFromMaintainResponse(result, maintainMode, {
-          duplicate_groups_pending: prev?.duplicate_groups_pending ?? 0,
-          synthesis_pending: prev?.synthesis_pending ?? 0,
-        }),
-      );
-      setTreeSyncNonce((value) => value + 1);
+      await cancelMaintain();
     } catch (error) {
-      console.error('Maintain failed:', error);
-      if (error instanceof ApiError && error.code === 409) {
-        toast.error(t('errors.maintainCompileBusy'));
-      } else {
-        toast.error(t('errors.maintainFailed'));
-      }
-    } finally {
-      setIsMaintaining(false);
+      console.error('Failed to cancel wiki maintenance:', error);
+      toast.error(t('errors.maintainCancelFailed'));
     }
   };
 
@@ -1631,6 +1624,7 @@ export function WikiSection() {
                               >
                                 <div className="flex items-start gap-3">
                                   {thumbnailUrl ? (
+                                    // oxlint-disable-next-line next/no-img-element -- thumbnails are served by the backend asset endpoint, which next/image cannot optimize
                                     <img
                                       src={thumbnailUrl}
                                       alt=""
@@ -1801,17 +1795,38 @@ export function WikiSection() {
                     className="flex-1"
                   >
                     <IconGlow className="w-4 h-4 mr-2" />
-                    {isCompiling ? t('compiling') : t('actions.compile')}
+                    {isWikiCompileBusy ? t('compiling') : t('actions.compile')}
                   </Button>
-                  <Button
-                    onClick={handleMaintain}
-                    disabled={isMaintaining || isWikiCompileBusy}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <IconWrench className="w-4 h-4 mr-2" />
-                    {isMaintaining ? t('maintaining') : t('actions.maintain')}
-                  </Button>
+                  <div className="flex flex-1 gap-2">
+                    <Button
+                      onClick={handleMaintain}
+                      disabled={isMaintaining || isWikiCompileBusy}
+                      variant="outline"
+                      className="min-w-0 flex-1"
+                      data-testid="wiki-maintain-button"
+                    >
+                      <IconWrench className="w-4 h-4 mr-2 shrink-0" />
+                      <span className="truncate">
+                        {isMaintaining
+                          ? maintainProgressLabel
+                            ? t(maintainProgressLabel.key, maintainProgressLabel.values)
+                            : t('maintaining')
+                          : t('actions.maintain')}
+                      </span>
+                    </Button>
+                    {isMaintaining && (canCancelMaintain || isCancellingMaintain) && (
+                      <Button
+                        onClick={() => void handleCancelMaintain()}
+                        disabled={isCancellingMaintain}
+                        variant="outline"
+                        className="shrink-0"
+                        data-testid="wiki-maintain-cancel-button"
+                      >
+                        <IconStop className="w-4 h-4 mr-2" />
+                        {isCancellingMaintain ? t('actions.maintainCancelling') : t('actions.maintainCancel')}
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     onClick={handleRepairPageTypes}
                     disabled={isRepairingTypes}

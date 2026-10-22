@@ -1,3 +1,4 @@
+import asyncio
 import io
 
 import pytest
@@ -10,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.files.storage import router as storage_router
 from app.api.files.upload import router as upload_router
+from app.core.storage import files_service
 from app.database.connection import get_db
 from app.database.models import Base
 from app.middleware.max_body_size import MaxBodySizeMiddleware
@@ -119,3 +121,55 @@ def test_upload_exceeds_max_body_size(client):
     assert response.status_code == 413
     data = response.json()
     assert "Payload Too Large" in data.get("detail", "")
+
+
+def _stored_chat_binding(file_id: str) -> str | None:
+    stored = asyncio.run(files_service.get_file(file_id))
+    assert stored is not None
+    return stored.source_chat_id
+
+
+def test_upload_binds_to_the_incognito_chat_that_sent_it(client):
+    bound = client.post(
+        "/api/v1/files/upload",
+        data={"chat_id": "chat-incognito-1"},
+        files={"files": ("bound.txt", b"secret", "text/plain")},
+    )
+    free = client.post("/api/v1/files/upload", files={"files": ("free.txt", b"public", "text/plain")})
+
+    assert bound.status_code == free.status_code == 200
+    assert _stored_chat_binding(bound.json()["data"]["files"][0]["file_id"]) == "chat-incognito-1"
+    assert _stored_chat_binding(free.json()["data"]["files"][0]["file_id"]) is None
+
+
+def test_upload_treats_an_empty_chat_id_as_unbound(client):
+    response = client.post(
+        "/api/v1/files/upload",
+        data={"chat_id": ""},
+        files={"files": ("blank.txt", b"x", "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert _stored_chat_binding(response.json()["data"]["files"][0]["file_id"]) is None
+
+
+def test_upload_rejects_a_chat_id_longer_than_any_chat_row_holds(client):
+    response = client.post(
+        "/api/v1/files/upload",
+        data={"chat_id": "x" * 256},
+        files={"files": ("long.txt", b"x", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+def test_upload_treats_a_whitespace_chat_id_as_unbound(client):
+    """Otherwise the upload would be bound to a chat id no caller ever uses and the sweep would never reclaim it."""
+    response = client.post(
+        "/api/v1/files/upload",
+        data={"chat_id": "   "},
+        files={"files": ("spaces.txt", b"x", "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert _stored_chat_binding(response.json()["data"]["files"][0]["file_id"]) is None

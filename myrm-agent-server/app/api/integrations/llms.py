@@ -345,10 +345,19 @@ class ReachabilityResult(BaseModel):
     reachable: bool = Field(..., description="Whether the model endpoint is reachable")
     latency_ms: int | None = Field(default=None, description="Round-trip latency in milliseconds")
     error: str | None = Field(default=None, description="Error message if unreachable")
+    error_kind: Literal["none", "timeout", "provider_error"] = Field(
+        default="none",
+        description="Failure classification: 'timeout' when the probe deadline elapsed, 'provider_error' when the "
+        "provider answered with an error, 'none' on success",
+    )
     cached: bool = Field(default=False, description="Whether result came from cache")
 
 
 _REACHABILITY_CACHE_TTL_S = 30.0
+# Probe deadline for the reachability test. Real providers need well above the harness' 5 s default before the
+# first token lands (a measured MiniMax M3.1 Flash reply took 7.3 s), and a deadline shorter than the provider's
+# own first-token latency reports a healthy endpoint as unreachable.
+_REACHABILITY_PROBE_TIMEOUT_S = 15.0
 _reachability_cache: dict[str, tuple[float, ReachabilityResult]] = {}
 
 
@@ -361,8 +370,10 @@ def _cache_key(request: LLMVerifyRequest) -> str:
 async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     """Lightweight model reachability check using a single minimal prompt.
 
-    Faster and cheaper than /verify — uses ``lightweight_health_check``
-    which sends one minimal prompt and gives up after its deadline.
+    Faster and cheaper than /verify — uses ``probe_llm_health`` which sends one minimal prompt and gives up
+    after its deadline. The failure is classified (``timeout`` vs ``provider_error``) and the upstream reason is
+    preserved, so the caller can tell "the endpoint did not answer in time" apart from "the provider rejected
+    the request" instead of reading a generic "no response".
     Results are cached for 30 seconds to avoid redundant probes.
 
     Useful for local model (Ollama) configuration to quickly verify
@@ -390,20 +401,35 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
 
         await resolve_oauth_marker(kwargs)
         llm = await llm_tools.get_llm(**kwargs)
-        start = time.monotonic()
-        ok = await lightweight_health_check(llm, timeout_s=5.0)
-        elapsed_ms = int((time.monotonic() - start) * 1000)
 
-        result = ReachabilityResult(
-            reachable=ok,
-            latency_ms=elapsed_ms if ok else None,
-            error=None if ok else "Health check returned no response",
-        )
+        try:
+            from myrm_agent_harness.toolkits.llms.fallback.health_check import (
+                probe_llm_health,
+            )
+        except ImportError:
+            # Harness without the structured probe: fall back to the boolean probe so the endpoint keeps
+            # working instead of failing the whole request on an import error.
+            reachable = await lightweight_health_check(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
+            result = ReachabilityResult(
+                reachable=reachable,
+                latency_ms=None,
+                error=None if reachable else "Health check returned no response",
+                error_kind="none" if reachable else "provider_error",
+            )
+        else:
+            probe = await probe_llm_health(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
+            result = ReachabilityResult(
+                reachable=probe.ok,
+                latency_ms=probe.latency_ms,
+                error=probe.error,
+                error_kind=probe.error_kind,
+            )
 
     except Exception as e:
         result = ReachabilityResult(
             reachable=False,
-            error=f"{type(e).__name__}: {e!s}"[:200],
+            error=f"{type(e).__name__}: {e!s}"[:300],
+            error_kind="provider_error",
         )
 
     _reachability_cache[key] = (time.monotonic(), result)
@@ -868,45 +894,3 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
         )
 
     return success_response(data={"results": results})
-
-
-class ResetCircuitBreakerRequest(BaseModel):
-    key: str | None = Field(default=None, description="Specific provider/model key to reset, or null to reset all")
-
-
-@router.get("/circuit-breaker/status", response_model=StandardSuccessResponse)
-async def get_circuit_breaker_status() -> JSONResponse:
-    """Get real-time health and circuit breaker status across all providers and model endpoints.
-
-    Returns:
-        Aggregated circuit breaker snapshots including OPEN, HALF_OPEN, CLOSED states,
-        consecutive failures, and cooldown countdowns.
-    """
-    from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import get_circuit_breaker_registry
-
-    registry = get_circuit_breaker_registry()
-    stats = registry.get_all_stats()
-    return success_response(data={"breakers": stats})
-
-
-@router.post("/circuit-breaker/reset", response_model=StandardSuccessResponse)
-async def reset_circuit_breaker(request: ResetCircuitBreakerRequest | None = None) -> JSONResponse:
-    """Reset circuit breaker(s) to restore healthy routing.
-
-    Args:
-        request: Optional specific key to reset; if key is omitted or null, resets all.
-
-    Returns:
-        Number of reset circuit breakers or confirmation.
-    """
-    from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import get_circuit_breaker_registry
-
-    registry = get_circuit_breaker_registry()
-    key = request.key if request else None
-
-    if key:
-        success = registry.reset_one(key)
-        return success_response(data={"reset_count": 1 if success else 0, "key": key, "success": success})
-    else:
-        count = registry.reset_all()
-        return success_response(data={"reset_count": count, "success": True})

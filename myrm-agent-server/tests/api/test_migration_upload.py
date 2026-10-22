@@ -86,7 +86,6 @@ async def test_upload_empty_zip_returns_empty_sources(client: AsyncClient):
         "claude",
         "codex",
         "chatgpt",
-        "gemini",
         "gbrain",
         "pi",
         "plur",
@@ -167,3 +166,65 @@ async def test_upload_downgrades_authoritative_when_manifest_incomplete(client: 
     data = resp.json()
     assert data["source_manifest_authoritative"] is False
     assert [item["id"] for item in data["source_manifest"]] == ["hermes"]
+
+
+@pytest.mark.asyncio
+async def test_upload_plur_store_detected(client: AsyncClient):
+    payload = _make_zip(
+        {
+            ".plur/engrams.yaml": (
+                "engrams:\n"
+                "  - id: ENG-2026-05-06-001\n"
+                '    statement: "Deploys wait for migrations"\n'
+                "    type: architectural\n"
+                "    status: active\n"
+                "    scope: global\n"
+            )
+        }
+    )
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("plur.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [source["competitor"] for source in data["sources"]] == ["plur"]
+    assert data["sources"][0]["memory_count_estimate"] == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_archive_that_expands_beyond_budget(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A small compressed archive must not be able to fill the volume when expanded."""
+
+    monkeypatch.setattr("app.api.migration.upload.MAX_UNCOMPRESSED_BYTES", 4096)
+    payload = _make_zip({"big.txt": "0" * 8192})
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("data.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 400
+    assert "expands beyond" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_single_oversized_member(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr("app.api.migration.upload.MAX_UNCOMPRESSED_FILE_BYTES", 1024)
+    payload = _make_zip({"huge.bin": "x" * 4096})
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("data.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 400
+    assert "huge.bin" in resp.json()["detail"]

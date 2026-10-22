@@ -1,29 +1,52 @@
 /**
  * Myrm Agent Extension — Side Panel Chat UI
  *
- * Lightweight chat client that communicates with myrm-agent-server via HTTP+SSE.
- * Reuses existing server API endpoints — zero backend changes required.
+ * [INPUT]
+ * - server_client.js::createServerClient (POS: server location, credentials and health of the Side Panel)
+ * - sse.js::readSSE (POS: transport parsing of the agent stream)
+ * - approval.js::describeApproval (POS: decision logic of the approval flow: what to show, whether to approve)
+ * - approval_overlay.js::createApprovalOverlay (POS: DOM rendering of the approval card)
+ * - approval_notify.js::notifyApprovalPending (POS: system notification while an approval waits)
+ * - chat_view.js::createChatView (POS: DOM rendering of the conversation)
+ * - page_context.js::createPageContext (POS: active tab and selected text a message is asked about)
+ * - tool_steps.js::addToolStep (POS: DOM rendering of tool progress)
+ * - POST /api/v1/agents/agent-stream (SSE chat; with `resume_value` it answers a pending tool approval) and
+ *   POST /api/v1/agents/agent/{messageId}/cancel
  *
- * API contracts:
- * - POST /api/v1/agents/agent-stream → SSE streaming chat
- * - GET  /api/v1/chats/{chatId}/messages → message history
- * - POST /api/v1/agents/agent/{messageId}/cancel → cancel
- * - GET  /api/v1/agents/chat/{chatId}/attach → re-attach to active stream
+ * [OUTPUT]
+ * - None: the page's entry script; it wires the modules above to the Side Panel DOM.
+ *
+ * [POS] Controller of the Side Panel chat: turns user input and agent events into the stream, the approval flow and
+ * the input lock.
  */
+
+import { applyDocumentI18n, msg } from "../i18n.js";
+import {
+  buildResumeValue,
+  buildStreamBody,
+  clockTimeFormatter,
+  describeApproval,
+  isResumeConflict,
+  resolveApprovalCopy,
+} from "./approval.js";
+import { clearApprovalNotification, notifyApprovalPending } from "./approval_notify.js";
+import { createApprovalOverlay } from "./approval_overlay.js";
+import { createChatView } from "./chat_view.js";
+import { createPageContext } from "./page_context.js";
+import { createServerClient } from "./server_client.js";
+import { readSSE } from "./sse.js";
+import { addToolStep, updateLastToolStep } from "./tool_steps.js";
 
 // --- State ---
 
 const state = {
-  serverBaseUrl: "",
-  authToken: "",
   chatId: null,
   connected: false,
   streaming: false,
   abortController: null,
-  activeTab: null,
-  selectedText: null,
-  contextDismissed: false,
+  /** The approval waiting for an answer: `{ view, turn }`, `turn` being the assistant message it belongs to. */
   pendingApproval: null,
+  approvalExpiryTimer: null,
   currentMessageId: null,
 };
 
@@ -31,20 +54,13 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+const uiLanguage = chrome.i18n.getUILanguage();
+const formatClockTime = clockTimeFormatter(uiLanguage);
+
 const dom = {
   connDot: $("conn-dot"),
-  contextBar: $("context-bar"),
-  contextValue: $("context-value"),
-  contextDismiss: $("context-dismiss"),
-  selectionCtx: $("selection-ctx"),
-  selectionText: $("selection-text"),
-  messagesEl: $("messages"),
-  emptyState: $("empty-state"),
   streamingIndicator: $("streaming-indicator"),
   streamingLabel: $("streaming-label"),
-  approvalOverlay: $("approval-overlay"),
-  approvalTitle: $("approval-title"),
-  approvalDetail: $("approval-detail"),
   btnApprove: $("btn-approve"),
   btnReject: $("btn-reject"),
   notConnected: $("not-connected"),
@@ -57,68 +73,55 @@ const dom = {
   openPopupLink: $("open-popup-link"),
 };
 
+const server = createServerClient(setConnectionState);
+
+const chatView = createChatView({ messages: $("messages"), emptyState: $("empty-state") });
+
+const approvalOverlay = createApprovalOverlay({
+  root: $("approval-overlay"),
+  title: $("approval-title"),
+  list: $("approval-list"),
+  hint: $("approval-hint"),
+  deadline: $("approval-deadline"),
+  approve: dom.btnApprove,
+  reject: dom.btnReject,
+});
+
+const pageContext = createPageContext({
+  bar: $("context-bar"),
+  value: $("context-value"),
+  dismiss: $("context-dismiss"),
+  selectionBox: $("selection-ctx"),
+  selectionText: $("selection-text"),
+});
+
 // --- Init ---
 
 function init() {
+  document.documentElement.lang = uiLanguage;
+  applyDocumentI18n();
   setupEventListeners();
   listenForBackgroundMessages();
-  requestActiveTabContext();
-  loadConfig();
+  pageContext.start();
+  server.start();
 }
-
-function loadConfig() {
-  chrome.storage.local.get(["serverUrl", "authToken"], (data) => {
-    const wsUrl = data.serverUrl || "";
-    state.authToken = data.authToken || "";
-    state.serverBaseUrl = wsUrl
-      .replace(/^ws:/, "http:")
-      .replace(/^wss:/, "https:")
-      .replace(/\/api\/v1\/ws\/extension\/?$/, "")
-      .replace(/\/ws\/extension\/?$/, "")
-      .replace(/\/$/, "");
-
-    if (state.serverBaseUrl) {
-      checkConnection();
-    } else {
-      setConnectionState("disconnected");
-    }
-  });
-}
-
-chrome.storage.onChanged.addListener((changes) => {
-  if (changes.serverUrl || changes.authToken) loadConfig();
-});
 
 // --- Connection ---
-
-async function checkConnection() {
-  if (!state.serverBaseUrl) { setConnectionState("disconnected"); return; }
-  setConnectionState("connecting");
-  try {
-    const resp = await apiFetch("/api/v1/health", { method: "GET" });
-    setConnectionState(resp.ok ? "connected" : "error");
-  } catch {
-    setConnectionState("error");
-  }
-}
 
 function setConnectionState(status) {
   state.connected = status === "connected";
   dom.connDot.className = `connection-dot ${status}`;
   dom.notConnected.classList.toggle("visible", !state.connected);
   dom.inputArea.style.display = state.connected ? "block" : "none";
-  dom.btnSend.disabled = !state.connected;
+  syncInputLock();
 }
 
-// --- API helpers ---
-
-function apiFetch(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
-    ...(options.headers || {}),
-  };
-  return fetch(`${state.serverBaseUrl}${path}`, { ...options, headers });
+/** The input is closed while a turn streams and while an approval waits: a new message must not overtake the answer. */
+function syncInputLock() {
+  const locked = state.streaming || Boolean(state.pendingApproval);
+  dom.chatInput.disabled = locked;
+  dom.chatInput.placeholder = msg(state.pendingApproval ? "panelInputPaused" : "panelInputPlaceholder");
+  dom.btnSend.disabled = locked || !state.connected;
 }
 
 function generateId(prefix) {
@@ -129,239 +132,184 @@ function generateId(prefix) {
 
 async function sendMessage() {
   const input = dom.chatInput.value.trim();
-  if (!input || state.streaming) return;
+  if (!input || state.streaming || state.pendingApproval) return;
 
   dom.chatInput.value = "";
   autoResizeInput();
 
   if (!state.chatId) state.chatId = generateId("spc");
-  const messageId = generateId("sp");
-  state.currentMessageId = messageId;
 
-  let contextPrefix = "";
-  if (!state.contextDismissed && state.activeTab) {
-    contextPrefix = `[Current page: ${state.activeTab.title} — ${state.activeTab.url}]\n\n`;
-  }
-  if (state.selectedText) {
-    contextPrefix += `[Selected text: "${state.selectedText}"]\n\n`;
-  }
+  const query = pageContext.queryPrefix() + input;
+  chatView.addMessage("user", input);
+  pageContext.clearSelection();
 
-  addMessage("user", input);
-  clearSelection();
+  await streamTurn(chatView.createTurn(generateId("sp")), { query });
+}
+
+/**
+ * Streams `turn` from the server: a new message (`query`), or the answer to its pending approval (`resumeValue`).
+ * @returns {Promise<boolean>} true when an approval answer never reached the server, so it can be given again
+ */
+async function streamTurn(turn, { query = "", resumeValue } = {}) {
+  state.currentMessageId = turn.messageId;
   setStreaming(true);
-
-  const assistantEl = addMessage("assistant", "");
-  const contentEl = assistantEl.querySelector(".message-bubble");
-  let toolProgressEl = null;
   state.abortController = new AbortController();
+  let reachedServer = false;
 
   try {
-    const resp = await apiFetch("/api/v1/agents/agent-stream", {
+    const resp = await server.apiFetch("/api/v1/agents/agent-stream", {
       method: "POST",
-      body: JSON.stringify({
-        message_id: messageId,
-        chat_id: state.chatId,
-        query: contextPrefix + input,
-        action_mode: "agent",
-        multiplexed: false,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timestamp: Date.now() / 1000,
-      }),
+      body: JSON.stringify(
+        buildStreamBody({
+          messageId: turn.messageId,
+          chatId: state.chatId,
+          query,
+          resumeValue,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timestamp: Date.now() / 1000,
+        }),
+      ),
       signal: state.abortController.signal,
       headers: { Accept: "text/event-stream" },
     });
 
+    if (resumeValue && isResumeConflict(resp.status)) {
+      chatView.appendNotice(turn, msg("approvalHandledElsewhere"));
+      return false;
+    }
     if (!resp.ok) {
       const errText = await resp.text().catch(() => resp.statusText);
       throw new Error(`Server error ${resp.status}: ${errText}`);
     }
 
-    await consumeSSE(resp.body, contentEl, () => {
-      if (!toolProgressEl) {
-        toolProgressEl = document.createElement("div");
-        toolProgressEl.className = "tool-progress";
-        assistantEl.appendChild(toolProgressEl);
-      }
-      return toolProgressEl;
-    });
+    reachedServer = true;
+    await readSSE(resp.body, (event) => handleSSEEvent(event, turn));
   } catch (err) {
-    if (err.name !== "AbortError") {
-      contentEl.textContent = `Error: ${err.message}`;
-      contentEl.style.color = "var(--error)";
+    if (err.name === "AbortError") return false;
+    if (resumeValue && !reachedServer) {
+      chatView.appendNotice(turn, msg("approvalSendFailed"));
+      return true;
     }
+    console.error("Agent stream failed", err);
+    chatView.showError(turn, msg("panelStreamError"));
   } finally {
     setStreaming(false);
     state.abortController = null;
     state.currentMessageId = null;
-    scrollToBottom();
+    chatView.scrollToBottom();
   }
+  return false;
 }
 
-// --- SSE consumer ---
+// --- SSE events ---
 
-async function consumeSSE(body, contentEl, getToolEl) {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullContent = "";
+/** Both fields the server uses to say a message was refused because the chat's previous run is still going. */
+const AGENT_BUSY_ERROR_TYPE = "AgentBusyError";
+const AGENT_BUSY_STATUS = 409;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const data = line.slice(6).trim();
-      if (data === "[DONE]") return;
-      try {
-        const event = JSON.parse(data);
-        handleSSEEvent(event, getToolEl, (text) => {
-          fullContent += text;
-          contentEl.textContent = fullContent;
-          scrollToBottom();
-        });
-      } catch { /* skip malformed */ }
-    }
-  }
+/** @param {{ error_type?: unknown, status_code?: unknown }} event */
+function isAgentBusy(event) {
+  return event.error_type === AGENT_BUSY_ERROR_TYPE || event.status_code === AGENT_BUSY_STATUS;
 }
 
-function handleSSEEvent(event, getToolEl, appendText) {
+function handleSSEEvent(event, turn) {
   switch (event.type) {
     case "message":
-      if (event.data) appendText(typeof event.data === "string" ? event.data : "");
+      if (event.data) chatView.appendText(turn, typeof event.data === "string" ? event.data : "");
       break;
     case "message_end":
     case "agent_cancelled":
       notifyGlow(false);
       break;
     case "tool_start": {
-      const name = event.tool_name || "tool";
-      addToolStep(getToolEl(), name, "running");
-      dom.streamingLabel.textContent = `Using ${name}\u2026`;
+      const name = toolName(event);
+      addToolStep(chatView.toolContainer(turn), name, "running");
+      chatView.scrollToBottom();
+      dom.streamingLabel.textContent = msg("panelUsingTool", name);
       notifyGlow(true);
       break;
     }
-    case "tool_end": {
-      const name = event.tool_name || "tool";
-      updateLastToolStep(getToolEl(), name, "done");
-      dom.streamingLabel.textContent = "Thinking\u2026";
+    case "tool_end":
+      updateLastToolStep(chatView.toolContainer(turn), toolName(event), "done");
+      dom.streamingLabel.textContent = msg("panelThinking");
       break;
-    }
-    case "tool_failure": {
-      const name = event.tool_name || "tool";
-      updateLastToolStep(getToolEl(), name, "error");
+    case "tool_failure":
+      updateLastToolStep(chatView.toolContainer(turn), toolName(event), "error");
       break;
-    }
     case "tool_approval_request":
     case "approval_required":
-      showApproval(event);
-      break;
-    case "approval_processed":
-      hideApproval();
+      showApproval(event, turn);
       break;
     case "error":
-      if (event.error || event.data) appendText(`\n\nError: ${event.error || event.data}`);
+      // The raw error text is for developers: the chat only says what the user can act on.
+      if (event.error || event.data) {
+        console.error("Agent reported an error", event.error || event.data);
+        chatView.showError(turn, msg(isAgentBusy(event) ? "panelAgentBusy" : "panelStreamError"));
+      }
       break;
-    case "tasks_steps":
-    case "tool_heartbeat":
-    case "sources":
-    case "reasoning":
-    case "token_usage":
-    case "status":
-      break;
-    default: break;
   }
 }
 
-// --- Tool progress ---
-
-const TOOL_ICONS = { running: "◎", done: "✓", error: "✗" };
-
-function addToolStep(container, name, status) {
-  if (!container) return;
-  const step = document.createElement("div");
-  step.className = `tool-step ${status}`;
-  step.dataset.tool = name;
-  step.innerHTML = `<span class="icon">${TOOL_ICONS[status] || "◎"}</span><span class="name">${escapeHtml(name)}</span>`;
-  container.appendChild(step);
-  scrollToBottom();
-}
-
-function updateLastToolStep(container, name, status) {
-  if (!container) return;
-  const last = container.querySelector(".tool-step:last-child");
-  if (last) {
-    last.className = `tool-step ${status}`;
-    last.querySelector(".icon").textContent = TOOL_ICONS[status] || "◎";
-    if (name) last.querySelector(".name").textContent = name;
-  }
+function toolName(event) {
+  return event.tool_name || msg("panelToolFallback");
 }
 
 // --- Tool approval ---
 
-function showApproval(event) {
-  state.pendingApproval = event;
-  if (event.type === "tool_approval_request" && event.data) {
-    const action = event.data.actionRequests?.[0];
-    const requestId = event.data.extensions?.approval?.requestId;
-    state.pendingApproval._requestId = requestId;
-    dom.approvalTitle.textContent = `Approve: ${action?.action || "action"}`;
-    dom.approvalDetail.textContent = action?.description || JSON.stringify(action?.args || {}, null, 2);
-  } else {
-    const payload = event.data || {};
-    dom.approvalTitle.textContent = `Approval required`;
-    dom.approvalDetail.textContent = payload.message || JSON.stringify(payload, null, 2);
-  }
-  dom.approvalOverlay.classList.add("visible");
+/** `setTimeout` runs a delay above this at once, which would close the card the moment it opens. */
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+
+function showApproval(event, turn) {
+  renderApproval({ view: describeApproval(event, { language: uiLanguage }), turn });
+}
+
+function renderApproval(pending) {
+  const { view } = pending;
+  const copy = resolveApprovalCopy(view, msg, formatClockTime);
+  state.pendingApproval = pending;
+  approvalOverlay.show(view, copy);
+  syncInputLock();
+  approvalOverlay.focusSafeAnswer();
+  notifyApprovalPending(copy.deadline);
+  scheduleApprovalExpiry(pending, copy.expired);
+}
+
+/**
+ * At its deadline the server settles an unanswered approval itself, so the card must not keep asking: it closes and
+ * says so, which also reopens the input.
+ */
+function scheduleApprovalExpiry(pending, notice) {
+  clearTimeout(state.approvalExpiryTimer);
+  if (!pending.view.deadline) return;
+  const delay = Math.max(0, pending.view.deadline.atMs - Date.now());
+  if (delay > MAX_TIMER_DELAY_MS) return;
+  const expire = () => {
+    hideApproval();
+    chatView.appendNotice(pending.turn, notice);
+  };
+  state.approvalExpiryTimer = setTimeout(expire, delay);
 }
 
 function hideApproval() {
+  clearTimeout(state.approvalExpiryTimer);
   state.pendingApproval = null;
-  dom.approvalOverlay.classList.remove("visible");
+  approvalOverlay.hide();
+  clearApprovalNotification();
+  syncInputLock();
 }
 
+/**
+ * Answers the pending approval by resuming its turn; a request only the Web UI can answer is just dismissed.
+ * An answer that did not reach the server brings the approval back, unless a newer one has taken its place.
+ */
 async function respondApproval(approved) {
-  if (!state.pendingApproval) return;
-  const approvalId = state.pendingApproval._requestId;
+  const pending = state.pendingApproval;
+  if (!pending || state.streaming || (approved && !pending.view.canApprove)) return;
   hideApproval();
-  if (!approvalId) return;
-  try {
-    await apiFetch(`/api/v1/approvals/${approvalId}/resolve`, {
-      method: "POST",
-      body: JSON.stringify({ decision: approved ? "approve" : "deny" }),
-    });
-  } catch (err) {
-    console.error("[SidePanel] Approval response failed:", err);
-  }
-}
-
-// --- Messages UI ---
-
-function addMessage(role, content) {
-  dom.emptyState.style.display = "none";
-  const div = document.createElement("div");
-  div.className = `message ${role}`;
-  const bubble = document.createElement("div");
-  bubble.className = "message-bubble";
-  bubble.textContent = content;
-  div.appendChild(bubble);
-  dom.messagesEl.appendChild(div);
-  scrollToBottom();
-  return div;
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => { dom.messagesEl.scrollTop = dom.messagesEl.scrollHeight; });
-}
-
-function escapeHtml(text) {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
+  if (pending.view.kind !== "tool") return;
+  const resumeValue = buildResumeValue(approved, pending.view.interruptId);
+  const answerLost = await streamTurn(pending.turn, { resumeValue });
+  if (answerLost && !state.pendingApproval) renderApproval(pending);
 }
 
 // --- Streaming state ---
@@ -369,79 +317,35 @@ function escapeHtml(text) {
 function setStreaming(active) {
   state.streaming = active;
   dom.streamingIndicator.classList.toggle("visible", active);
-  dom.btnSend.disabled = active || !state.connected;
-  dom.chatInput.disabled = active;
-  dom.streamingLabel.textContent = "Thinking…";
-  if (!active) notifyGlow(false);
+  syncInputLock();
+  dom.btnApprove.disabled = active;
+  dom.btnReject.disabled = active;
+  dom.streamingLabel.textContent = msg("panelThinking");
+  if (active) return;
+  notifyGlow(false);
+  if (state.pendingApproval) approvalOverlay.focusSafeAnswer();
 }
 
 async function cancelStream() {
   if (state.abortController) state.abortController.abort();
   if (state.currentMessageId) {
-    apiFetch(`/api/v1/agents/agent/${state.currentMessageId}/cancel`, { method: "POST" }).catch(() => {});
+    server.apiFetch(`/api/v1/agents/agent/${state.currentMessageId}/cancel`, { method: "POST" }).catch(() => {});
   }
   setStreaming(false);
-}
-
-// --- Tab context ---
-
-function requestActiveTabContext() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0] && tabs[0].url && !tabs[0].url.startsWith("chrome://")) {
-      state.activeTab = { id: tabs[0].id, title: tabs[0].title || "", url: tabs[0].url };
-      showTabContext();
-    }
-  });
-  chrome.tabs.onActivated.addListener((info) => {
-    chrome.tabs.get(info.tabId, (tab) => {
-      if (tab && tab.url && !tab.url.startsWith("chrome://")) {
-        state.activeTab = { id: tab.id, title: tab.title || "", url: tab.url };
-        state.contextDismissed = false;
-        showTabContext();
-      }
-    });
-  });
-}
-
-function showTabContext() {
-  if (state.contextDismissed || !state.activeTab) return;
-  const title = state.activeTab.title || new URL(state.activeTab.url).hostname;
-  dom.contextValue.textContent = title.length > 50 ? title.slice(0, 47) + "…" : title;
-  dom.contextBar.classList.add("visible");
-}
-
-function hideTabContext() {
-  state.contextDismissed = true;
-  dom.contextBar.classList.remove("visible");
-}
-
-// --- Selected text ---
-
-function setSelection(text) {
-  if (!text || !text.trim()) return;
-  state.selectedText = text.trim().slice(0, 2000);
-  dom.selectionText.textContent = state.selectedText;
-  dom.selectionCtx.classList.add("visible");
-}
-
-function clearSelection() {
-  state.selectedText = null;
-  dom.selectionCtx.classList.remove("visible");
 }
 
 // --- Background message listener ---
 
 function listenForBackgroundMessages() {
-  chrome.runtime.onMessage.addListener((msg) => {
-    switch (msg.type) {
-      case "selected_text": setSelection(msg.text); break;
-      case "context_menu_query":
-        setSelection(msg.text);
-        dom.chatInput.value = msg.prompt || "";
-        dom.chatInput.focus();
+  chrome.runtime.onMessage.addListener((message) => {
+    switch (message.type) {
+      case "selected_text":
+        pageContext.setSelection(message.text);
         break;
-      case "connection_changed":
-        setConnectionState(msg.connected ? "connected" : "disconnected");
+      case "context_menu_query":
+        pageContext.setSelection(message.text);
+        dom.chatInput.value = message.prompt || "";
+        dom.chatInput.focus();
         break;
     }
   });
@@ -456,21 +360,25 @@ function notifyGlow(active) {
 function setupEventListeners() {
   dom.btnSend.addEventListener("click", sendMessage);
   dom.chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
   dom.chatInput.addEventListener("input", autoResizeInput);
-  dom.contextDismiss.addEventListener("click", hideTabContext);
   dom.btnNewChat.addEventListener("click", () => {
     state.chatId = null;
-    dom.messagesEl.innerHTML = "";
-    dom.emptyState.style.display = "";
-    dom.messagesEl.appendChild(dom.emptyState);
+    chatView.reset();
     if (state.abortController) state.abortController.abort();
+    hideApproval();
     setStreaming(false);
-    clearSelection();
+    pageContext.clearSelection();
   });
   dom.btnSettings.addEventListener("click", () => chrome.action.openPopup());
-  dom.openPopupLink.addEventListener("click", (e) => { e.preventDefault(); chrome.action.openPopup(); });
+  dom.openPopupLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.action.openPopup();
+  });
   dom.btnCancel.addEventListener("click", cancelStream);
   dom.btnApprove.addEventListener("click", () => respondApproval(true));
   dom.btnReject.addEventListener("click", () => respondApproval(false));

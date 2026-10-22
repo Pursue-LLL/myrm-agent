@@ -3,12 +3,15 @@
 [INPUT]
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, step_to_label (POS: Stream accumulation for channel turns.)
 - app.channels.types::ProgressUpdate, StreamingText, QuickReply, ToolStep (POS: Channel message types.)
+- llms.errors.classifier::ErrorKind (POS: LLM error classification)
 - agent_executor.deliverable::collect_channel_artifacts (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
-- iter_channel_stream_progress: maps harness stream events to channel progress yields;
-  capability_gap web_search not_configured|unreachable → ProgressUpdate
+- iter_channel_stream_progress: maps harness stream events to channel progress yields; answer text goes through
+  ``acc.draft`` so a recovery that replays the in-flight segment does not duplicate it;
+  capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
+  leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -20,6 +23,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass, field
+
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ProgressUpdate, QuickReply, StreamingText, ToolStep
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, step_to_label
@@ -44,6 +49,8 @@ async def iter_channel_stream_progress(
 
     async for event in events:
         event_type = event.get("type", "")
+        # Streams answer text and applies the restart contract (a recovery replays only the in-flight segment).
+        acc.draft.feed(event)
 
         if event_type == "fission_topology":
             yield event["data"]
@@ -64,8 +71,7 @@ async def iter_channel_stream_progress(
                 first_message_seen = True
                 yield ProgressUpdate(label="✍️ Writing response...")
 
-            acc.chunks.append(str(event["data"]))
-            yield StreamingText(text="".join(acc.chunks))
+            yield StreamingText(text=acc.draft.text)
 
         elif event_type == "sources" and isinstance(event.get("data"), list):
             raw_src = event.get("data")
@@ -148,9 +154,7 @@ async def iter_channel_stream_progress(
             await asyncio.to_thread(collect_channel_artifacts, event, acc)
 
         elif event_type == "error":
-            error_msg = str(event.get("error", "Unknown error"))
-            error_type = str(event.get("error_type", ""))
-            acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
+            _record_fatal_error(event, acc)
 
         elif event_type == "token_usage":
             data = event.get("data")
@@ -196,3 +200,14 @@ async def iter_channel_stream_progress(
             end_model = event.get("model")
             if isinstance(end_model, str) and end_model and not acc.model_name:
                 acc.model_name = end_model
+
+
+def _record_fatal_error(event: dict[str, object], acc: StreamAccumulator) -> None:
+    """Keep the raw error text for the operator log and the error kind that picks the member-facing wording."""
+    error_msg = str(event.get("error", "Unknown error"))
+    error_type = str(event.get("error_type", ""))
+    acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
+    try:
+        acc.error_kind = ErrorKind(event.get("error_kind"))
+    except ValueError:
+        acc.error_kind = ErrorKind.UNKNOWN

@@ -214,3 +214,39 @@ async def test_federated_multi_cube_query_api(test_app: FastAPI) -> None:
         ov = overview_res.json()
         assert ov["total_cubes"] >= 2
         assert ov["system_healthy"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_cube_records_api(test_app: FastAPI) -> None:
+    """Records written through a mount policy are listed per cube; unknown cubes 404."""
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        created = await client.post(
+            "/api/memory/cubes",
+            json={"name": "Records Cube", "scope_type": "agent_private", "owner_id": "agent-r", "is_read_only": False},
+        )
+        cube_id = created.json()["cube_id"]
+        await client.post(
+            "/api/memory/cubes/mount/agent-r",
+            json={
+                "readable_cube_ids": [cube_id],
+                "writable_cube_ids": [cube_id],
+                "default_write_cube_id": cube_id,
+                "strict_isolation": True,
+            },
+        )
+        written = await client.post(
+            "/api/memory/cubes/write",
+            json={"agent_id": "agent-r", "content": "Record listed via the records endpoint."},
+        )
+        assert written.json()["success"]
+
+        listed = await client.get(f"/api/memory/cubes/records/{cube_id}")
+        assert listed.status_code == 200
+        records = listed.json()
+        assert [r["content"] for r in records] == ["Record listed via the records endpoint."]
+        assert records[0]["cube_id"] == cube_id
+        assert isinstance(records[0]["created_at"], float)
+
+        missing = await client.get("/api/memory/cubes/records/no-such-cube")
+        assert missing.status_code == 404

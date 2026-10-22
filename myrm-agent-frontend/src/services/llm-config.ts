@@ -73,10 +73,14 @@ export const validateLLM = async (config: ModelConfig): Promise<ValidationResult
   }
 };
 
+export type ReachabilityErrorKind = 'none' | 'timeout' | 'provider_error';
+
 export interface ReachabilityResult {
   reachable: boolean;
   latency_ms: number | null;
   error: string | null;
+  /** Failure classification: 'timeout' (probe deadline elapsed) or 'provider_error' (upstream rejected the call). */
+  error_kind?: ReachabilityErrorKind | null;
   cached: boolean;
 }
 
@@ -120,10 +124,11 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
       reachable: res.reachable ?? false,
       latency_ms: res.latency_ms ?? null,
       error: res.error ?? null,
+      error_kind: res.error_kind ?? null,
       cached: res.cached ?? false,
     };
   } catch {
-    return { reachable: false, latency_ms: null, error: 'Network request failed', cached: false };
+    return { reachable: false, latency_ms: null, error: 'Network request failed', error_kind: null, cached: false };
   }
 };
 
@@ -806,42 +811,5 @@ export const validateExternalSecretReference = async (reference: string): Promis
     return res.data || { valid: false, error: 'Empty response' };
   } catch (e) {
     return { valid: false, error: e instanceof Error ? e.message : 'Request failed' };
-  }
-};
-
-export interface CircuitBreakerStat {
-  state: 'closed' | 'open' | 'half_open';
-  failure_count: number;
-  half_open_calls: number;
-  retry_after_ms: number;
-  last_failure_time?: number;
-  last_error_reason?: string | null;
-}
-
-export interface CircuitBreakersResponse {
-  breakers: Record<string, CircuitBreakerStat>;
-}
-
-export const fetchCircuitBreakersStatus = async (): Promise<Record<string, CircuitBreakerStat>> => {
-  try {
-    const res = await apiRequest<{ data: CircuitBreakersResponse }>('/integrations/llm/circuit-breaker/status');
-    return res.data?.breakers || {};
-  } catch {
-    return {};
-  }
-};
-
-export const resetCircuitBreaker = async (key?: string): Promise<{ reset_count: number; success: boolean }> => {
-  try {
-    const res = await apiRequest<{ data: { reset_count: number; success: boolean } }>(
-      '/integrations/llm/circuit-breaker/reset',
-      {
-        method: 'POST',
-        body: JSON.stringify(key ? { key } : {}),
-      },
-    );
-    return res.data || { reset_count: 0, success: false };
-  } catch {
-    return { reset_count: 0, success: false };
   }
 };

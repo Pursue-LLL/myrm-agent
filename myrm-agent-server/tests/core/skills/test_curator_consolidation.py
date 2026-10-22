@@ -1,14 +1,17 @@
 """Tests for curator consolidation integration.
 
-Tests the consolidation preview, execute, agent ref rewrite, and
-lock-based mutual exclusion with sweeps.
+Tests the consolidation preview and execute services and which skills they hand to the curator.
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Sequence
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.skills.curator.consolidation.executor import ConsolidationExecutor
 from myrm_agent_harness.agent.skills.curator.consolidation.types import (
     ConsolidationAction,
     ConsolidationActionType,
@@ -16,226 +19,16 @@ from myrm_agent_harness.agent.skills.curator.consolidation.types import (
     ConsolidationReport,
     ConsolidationResult,
 )
+from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
+from myrm_agent_harness.backends.skills.types import SkillMetadata
+
+from app.core.skills.creation.service import SkillCreationService
+from app.core.skills.curator.local_skills import LocalSkillScan
 
 
-class TestRewriteAgentSkillRefs:
-    """Tests for _rewrite_agent_skill_refs."""
-
-    @pytest.mark.asyncio
-    async def test_no_renames_returns_zero(self) -> None:
-        """When report has no successful merges, no refs should be rewritten."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        report = ConsolidationReport()
-        result = await _rewrite_agent_skill_refs(report)
-        assert result == 0
-
-    @pytest.mark.asyncio
-    async def test_failed_results_are_skipped(self) -> None:
-        """Failed consolidation results should not create rename mappings."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        action = ConsolidationAction(
-            action_type=ConsolidationActionType.MERGE,
-            target_skill="umbrella",
-            source_skills=("src_a",),
-            reasoning="test",
-        )
-        report = ConsolidationReport(
-            results=[
-                ConsolidationResult(action=action, success=False, error="some error"),
-            ]
-        )
-        result = await _rewrite_agent_skill_refs(report)
-        assert result == 0
-
-    @pytest.mark.asyncio
-    async def test_successful_merge_rewrites_refs(self) -> None:
-        """Successful merge should rewrite agent skill_ids."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        action = ConsolidationAction(
-            action_type=ConsolidationActionType.MERGE,
-            target_skill="git_operations",
-            source_skills=("git_commit", "git_push"),
-            reasoning="merge",
-        )
-        report = ConsolidationReport(
-            results=[
-                ConsolidationResult(
-                    action=action,
-                    success=True,
-                    archived_skills=("git_commit", "git_push"),
-                ),
-            ]
-        )
-
-        mock_profile = MagicMock()
-        mock_profile.skills = ["git_commit", "other_skill", "git_push"]
-        mock_profile.id = "agent-1"
-        mock_profile.display_name = "TestAgent"
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        from contextlib import asynccontextmanager
-
-        @asynccontextmanager
-        async def mock_get_session():
-            yield mock_session
-
-        with (
-            patch("app.database.connection.get_session", mock_get_session),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.list_profiles",
-                AsyncMock(return_value=[mock_profile]),
-            ),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.update_profile",
-                AsyncMock(),
-            ) as mock_update,
-        ):
-            result = await _rewrite_agent_skill_refs(report)
-
-        assert result == 1
-        mock_update.assert_called_once()
-        call_args = mock_update.call_args
-        new_skills = call_args[0][2]["skills"]
-        assert "git_commit" not in new_skills
-        assert "git_push" not in new_skills
-        assert "git_operations" in new_skills
-        assert "other_skill" in new_skills
-
-    @pytest.mark.asyncio
-    async def test_create_umbrella_also_rewrites(self) -> None:
-        """CREATE_UMBRELLA action should also trigger ref rewrite."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        action = ConsolidationAction(
-            action_type=ConsolidationActionType.CREATE_UMBRELLA,
-            target_skill="deploy_ops",
-            source_skills=("deploy_docker", "deploy_k8s"),
-            reasoning="create umbrella",
-            umbrella_description="test",
-        )
-        report = ConsolidationReport(
-            results=[
-                ConsolidationResult(
-                    action=action,
-                    success=True,
-                    archived_skills=("deploy_docker", "deploy_k8s"),
-                ),
-            ]
-        )
-
-        mock_profile = MagicMock()
-        mock_profile.skills = ["deploy_docker", "deploy_k8s", "unrelated"]
-        mock_profile.id = "agent-2"
-        mock_profile.display_name = "Agent2"
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        from contextlib import asynccontextmanager
-
-        @asynccontextmanager
-        async def mock_get_session():
-            yield mock_session
-
-        with (
-            patch("app.database.connection.get_session", mock_get_session),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.list_profiles",
-                AsyncMock(return_value=[mock_profile]),
-            ),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.update_profile",
-                AsyncMock(),
-            ) as mock_update,
-        ):
-            result = await _rewrite_agent_skill_refs(report)
-
-        assert result == 1
-        new_skills = mock_update.call_args[0][2]["skills"]
-        assert "deploy_ops" in new_skills
-        assert "deploy_docker" not in new_skills
-        assert "deploy_k8s" not in new_skills
-        assert "unrelated" in new_skills
-
-    @pytest.mark.asyncio
-    async def test_rewrite_handles_db_exception(self) -> None:
-        """Database error should be caught, returning 0."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        action = ConsolidationAction(
-            action_type=ConsolidationActionType.CREATE_UMBRELLA,
-            target_skill="umbrella",
-            source_skills=("a",),
-            reasoning="test",
-        )
-        report = ConsolidationReport(
-            results=[
-                ConsolidationResult(action=action, success=True, archived_skills=("a",)),
-            ]
-        )
-
-        from contextlib import asynccontextmanager
-
-        @asynccontextmanager
-        async def mock_get_session():
-            raise RuntimeError("DB connection failed")
-            yield  # type: ignore[misc]
-
-        with patch("app.database.connection.get_session", mock_get_session):
-            result = await _rewrite_agent_skill_refs(report)
-        assert result == 0
-
-    @pytest.mark.asyncio
-    async def test_no_change_needed_zero_updates(self) -> None:
-        """When agent has no matching skills, 0 should be returned."""
-        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
-
-        action = ConsolidationAction(
-            action_type=ConsolidationActionType.MERGE,
-            target_skill="umbrella",
-            source_skills=("old_skill",),
-            reasoning="merge",
-        )
-        report = ConsolidationReport(
-            results=[
-                ConsolidationResult(action=action, success=True, archived_skills=("old_skill",)),
-            ]
-        )
-
-        mock_profile = MagicMock()
-        mock_profile.skills = ["unrelated_a", "unrelated_b"]
-        mock_profile.id = "agent-3"
-        mock_profile.display_name = "Agent3"
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        from contextlib import asynccontextmanager
-
-        @asynccontextmanager
-        async def mock_get_session():
-            yield mock_session
-
-        with (
-            patch("app.database.connection.get_session", mock_get_session),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.list_profiles",
-                AsyncMock(return_value=[mock_profile]),
-            ),
-            patch(
-                "app.database.repositories.agent_repo.AgentRepository.update_profile",
-                AsyncMock(),
-            ) as mock_update,
-        ):
-            result = await _rewrite_agent_skill_refs(report)
-
-        assert result == 0
-        mock_update.assert_not_called()
+def _scan(skills: Sequence[SkillMetadata], installed: frozenset[str] = frozenset()) -> AsyncMock:
+    """A stand-in for ``scan_local_skills`` that returns the given skills."""
+    return AsyncMock(return_value=LocalSkillScan(skills=list(skills), installed_names=installed))
 
 
 class TestConsolidationPreview:
@@ -253,10 +46,7 @@ class TestConsolidationPreview:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([])),
         ):
             from app.core.skills.curator.consolidation import run_consolidation_preview
 
@@ -293,10 +83,7 @@ class TestConsolidationPreview:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[MagicMock() for _ in range(5)]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock() for _ in range(5)])),
             patch(
                 "myrm_agent_harness.agent.skills.curator.SkillCurator",
                 return_value=mock_curator_instance,
@@ -310,12 +97,12 @@ class TestConsolidationPreview:
         assert plan.actions[0].target_skill == "target"
 
 
-class TestConsolidationSparesBoundSkills:
-    """Preview and execute hand the skills bound by agents / cron jobs to the curator as protected."""
+class TestConsolidationSparesBoundAndInstalledSkills:
+    """Preview and execute hand the bound skills (agents / cron jobs) and the installed ones to the curator."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("dry_run", [True, False])
-    async def test_run_async_receives_protected_names(self, dry_run: bool) -> None:
+    async def test_run_async_receives_protected_and_installed_names(self, dry_run: bool) -> None:
         mock_curator_instance = MagicMock()
         mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), ConsolidationReport()))
 
@@ -324,10 +111,7 @@ class TestConsolidationSparesBoundSkills:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[MagicMock()]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock()], frozenset({"from-store"}))),
             patch(
                 "app.core.skills.curator.consolidation.bound_skill_names",
                 AsyncMock(return_value=frozenset({"bound"})),
@@ -338,4 +122,109 @@ class TestConsolidationSparesBoundSkills:
 
             await (run_consolidation_preview() if dry_run else run_consolidation_execute())
 
-        assert mock_curator_instance.run_async.call_args.kwargs["protected_names"] == frozenset({"bound"})
+        kwargs = mock_curator_instance.run_async.call_args.kwargs
+        assert kwargs["protected_names"] == frozenset({"bound"})
+        assert kwargs["installed_names"] == frozenset({"from-store"})
+
+
+class TestConsolidationExecute:
+    """Execute answers with what the curator did and nothing else: bound skills never take part, so no reference is rewritten."""
+
+    @pytest.mark.asyncio
+    async def test_execute_reports_exactly_what_the_curator_did(self) -> None:
+        action = ConsolidationAction(
+            action_type=ConsolidationActionType.MERGE,
+            target_skill="umbrella",
+            source_skills=("a", "b"),
+            reasoning="test",
+        )
+        report = ConsolidationReport(
+            results=[ConsolidationResult(action=action, success=True, archived_skills=("a", "b"))],
+            skills_before=5,
+            skills_after=4,
+            total_archived=2,
+        )
+        mock_curator_instance = MagicMock()
+        mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), report))
+
+        with (
+            patch(
+                "app.core.skills.curator.consolidation._get_consolidation_deps",
+                AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
+            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock()])),
+            patch("app.core.skills.curator.consolidation.bound_skill_names", AsyncMock(return_value=frozenset())),
+            patch("myrm_agent_harness.agent.skills.curator.SkillCurator", return_value=mock_curator_instance),
+        ):
+            from app.core.skills.curator.consolidation import run_consolidation_execute
+
+            result = await run_consolidation_execute()
+
+        assert result == {
+            "success_count": 1,
+            "failure_count": 0,
+            "total_archived": 2,
+            "total_created": 0,
+            "net_reduction": 1,
+            "summary": report.to_summary(),
+        }
+
+
+_USER_BODY = "# git_operations\n\nRule 1: never force push.\nRule 2: rebase before merge.\n"
+
+
+async def _save(service: SkillCreationService, name: str, body: str) -> SkillMetadata:
+    saved = await service.save_skill(name, f"---\nname: {name}\ndescription: {name} skill\n---\n{body}")
+    assert saved.success, saved.error
+    return SkillMetadata(name=name, description=f"{name} skill", storage_path=saved.saved_path)
+
+
+def _is_archived(skill: SkillMetadata) -> bool:
+    ledger = Path(skill.storage_path or "") / ".stats.json"
+    return ledger.exists() and json.loads(ledger.read_text(encoding="utf-8"))["lifecycle_status"] == "archived"
+
+
+def _umbrella(target: str) -> ConsolidationAction:
+    return ConsolidationAction(
+        action_type=ConsolidationActionType.CREATE_UMBRELLA,
+        target_skill=target,
+        source_skills=("git_commit", "git_push"),
+        reasoning="same domain",
+        umbrella_description="Git operations",
+    )
+
+
+class TestConsolidationThroughTheProductionWriteBackend:
+    """The executor against the real skill write backend, which replaces an existing skill on save."""
+
+    @pytest.mark.asyncio
+    async def test_umbrella_named_like_an_existing_skill_is_refused(self, tmp_path: Path) -> None:
+        service = SkillCreationService(base_path=tmp_path)
+        occupant = await _save(service, "git_operations", _USER_BODY)
+        commit = await _save(service, "git_commit", "# commit\n")
+        push = await _save(service, "git_push", "# push\n")
+        before = (tmp_path / "git_operations" / "SKILL.md").read_bytes()
+        executor = ConsolidationExecutor(service, SkillStatsCollector(), [occupant, commit, push])
+
+        report = await executor.execute([_umbrella("git_operations")])
+
+        assert (report.success_count, report.failure_count) == (0, 1)
+        assert (tmp_path / "git_operations" / "SKILL.md").read_bytes() == before
+        assert not _is_archived(commit)
+        assert not _is_archived(push)
+
+    @pytest.mark.asyncio
+    async def test_umbrella_with_a_free_name_is_created_and_the_sources_archived(self, tmp_path: Path) -> None:
+        service = SkillCreationService(base_path=tmp_path)
+        commit = await _save(service, "git_commit", "# commit\n")
+        push = await _save(service, "git_push", "# push\n")
+        executor = ConsolidationExecutor(service, SkillStatsCollector(), [commit, push])
+
+        report = await executor.execute([_umbrella("git_ops")])
+
+        assert (report.success_count, report.failure_count) == (1, 0)
+        umbrella = (tmp_path / "git_ops" / "SKILL.md").read_text(encoding="utf-8")
+        assert "name: git_ops" in umbrella
+        assert "- git_commit: git_commit skill" in umbrella
+        assert _is_archived(commit)
+        assert _is_archived(push)

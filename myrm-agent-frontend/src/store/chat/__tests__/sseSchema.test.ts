@@ -58,6 +58,6 @@ describe('sse schema', () => {
   });
 
   it('isKnownSseEventType covers harness pass-through without alias', () => {
-    expect(isKnownSseEventType('approval_intercepted')).toBe(true);
+    expect(isKnownSseEventType('tool_approval_request')).toBe(true);
   });
 });

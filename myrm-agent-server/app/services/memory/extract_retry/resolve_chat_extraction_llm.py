@@ -8,6 +8,7 @@ app.services.agent.profile.profile_resolver::AgentProfileResolver (POS: 统一�
 
 [OUTPUT]
 resolve_chat_extraction_llm: Returns (main_llm, extraction_llm) aligned with auto-extract.
+resolve_import_extraction_llm: Agent-scoped extraction model for the model-assisted import lane (no chat required).
 
 [POS]
 Business-layer SSOT for manual memory extract retry. Mirrors factory lite LLM resolution
@@ -179,6 +180,35 @@ def invalidate_platform_dedup_llm_cache() -> None:
 def reset_platform_dedup_llm_for_test() -> None:
     """Test-only alias for invalidate_platform_dedup_llm_cache."""
     invalidate_platform_dedup_llm_cache()
+
+
+async def resolve_import_extraction_llm(agent_id: str | None) -> "BaseChatModel | None":
+    """Model for the model-assisted import lane, or None when nothing is configured.
+
+    Mirrors the chat extraction resolution (agent model override, lite model,
+    context window enrichment) without requiring a chat, so the migration wizard
+    can offer model extraction before any conversation exists.
+    """
+    from app.ai_agents.general_agent.llm_factory import create_agent_llms
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.model_resolver import enrich_model_context_window
+
+    configs = await load_user_configs()
+    providers_dict = configs.providers_dict if configs else None
+    if not providers_dict:
+        return None
+
+    try:
+        model_cfg = await _resolve_main_model_cfg(agent_id, providers_dict, configs)
+        lite_model_cfg = await _resolve_lite_model_cfg(providers_dict)
+        model_cfg = enrich_model_context_window(model_cfg, providers_dict)
+        if lite_model_cfg is not None:
+            lite_model_cfg = enrich_model_context_window(lite_model_cfg, providers_dict)
+        llm, _, _, _, _ = await create_agent_llms(model_cfg, lite_model_cfg, None, None)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Import extraction model unavailable: %s", exc)
+        return None
+    return llm
 
 
 async def resolve_chat_extraction_llm(

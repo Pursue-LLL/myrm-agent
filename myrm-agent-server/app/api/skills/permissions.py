@@ -219,16 +219,10 @@ async def revoke_permissions(
     revoked_count = int(rc) if isinstance(rc, int) else 0
     logger.info(f"Revoked {revoked_count} permissions: user=sandbox, skill={skill_id}")
 
-    # Clear permission cache for this skill (local cache)
+    # The permission checker reads this process-wide cache on every tool call, so clearing it is the revocation.
     from app.services.skills.permission_service import clear_permission_cache
 
     clear_permission_cache(skill_id)
-
-    # Notify framework layer to invalidate permissions (real-time revocation)
-    from myrm_agent_harness.api.hooks import invalidate_permissions
-
-    invalidate_permissions("default", skill_id)
-    logger.info(f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}")
 
     return RevokePermissionsResponse(
         skill_id=skill_id,
@@ -372,14 +366,6 @@ async def bulk_revoke_by_permission_type(
 
     for skill_id in affected_skill_ids:
         clear_permission_cache(skill_id)
-
-    # Notify framework layer to invalidate permissions for all affected skills
-    from myrm_agent_harness.api.hooks import invalidate_permissions
-
-    for skill_id in affected_skill_ids:
-        invalidate_permissions("default", skill_id)
-
-    logger.info(f"Notified framework to invalidate {len(affected_skill_ids)} skills' permissions")
 
     return BulkRevokeByTypeResponse(
         permission_type=perm.value,

@@ -5,9 +5,11 @@ fastapi::APIRouter, Depends, HTTPException, Query (POS: FastAPI 路由与依赖�
 pydantic::BaseModel, Field (POS: 数据验证与序列化)
 app.api.dependencies::get_optional_llm_for_user, get_workspace_root (POS: 依赖注入函数)
 app.services.wiki::MemoryToWikiArchiver (POS: Memory→Wiki 自动归档服务)
+app.services.wiki.health_report_service::WikiHealthReportResponse (POS: 仅服务端的健康报告编排，结构化 GET 零 LLM，响应模型在此唯一定义)
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
 myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金库，ingest 端点延迟导入)
 app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝被风控规则拦下的 wiki 提问，先于任何检索与模型调用)
 
 [OUTPUT]
 router: Wiki API 路由器（完整增删改查、后台队列审核、批量导入、artifact 内容写入接口）
@@ -18,7 +20,7 @@ Artifact 内容写入接口
 
 [POS]
 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用：
-查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
+查询/编译/ingest wiki（维护 /maintain 见 maintain_routes.py）。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
 /import/* (批量导入经 harness raw_gate)、/ingest (artifact 内容写入)。
 """
 
@@ -48,10 +50,13 @@ from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
+from app.services.risk.refusal import reject_if_risky
 from app.services.wiki import MemoryToWikiArchiver
+from app.services.wiki.health_report_service import WikiHealthReportResponse
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawPublishResult
 
 logger = logging.getLogger(__name__)
 
@@ -171,14 +176,9 @@ class WikiQueryResponse(BaseModel):
 
 
 class WikiCompileResponse(BaseModel):
-    concepts_count: int
-    articles_generated: int
-    backlinks_created: int
-    duration_ms: int
-    articles_pending: int = 0
-    articles_published: int = 0
-    articles_blocked: int = 0
-    synthesis_pending: int = 0
+    """The compile has been handed to the background worker; its progress arrives on the ingest stream."""
+
+    pending: int
     compile_run: "CompileRunResponse | None" = None
 
 
@@ -190,38 +190,6 @@ class CompileRunResponse(BaseModel):
     facet_count: int = 0
     warning_count: int = 0
     survey_skipped: bool = False
-
-
-class WikiHealthIssueResponse(BaseModel):
-    issue_type: str
-    severity: str
-    location: str
-    description: str
-    action_kind: str
-    suggested_fix: str | None = None
-
-
-class WikiMaintenanceResponse(BaseModel):
-    issues_found: int
-    issues_fixed: int
-    connections_discovered: int
-    duration_ms: int
-    open_actions_count: int = 0
-    raw_security_removed: int = 0
-    raw_security_removed_paths: list[str] = Field(default_factory=list)
-    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
-
-
-class WikiHealthReportResponse(BaseModel):
-    mode: Literal["structural", "full"]
-    generated_at: str
-    open_actions_count: int
-    issues_found: int
-    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
-    drift_sampled: bool = False
-    drift_checked_at: str | None = None
-    duplicate_groups_pending: int = 0
-    synthesis_pending: int = 0
 
 
 class WikiStructuralIssuesResponse(BaseModel):
@@ -299,20 +267,20 @@ class WikiGraphResponse(BaseModel):
 
 class ConceptLinkItem(BaseModel):
     name: str
-    exists: bool = True
+    exists: bool
 
 
 class ConceptBacklinkItem(ConceptLinkItem):
-    context_snippet: str | None = None
-    heading: str | None = None
+    context_snippet: str | None
+    heading: str | None
 
 
 class ConceptLinksResponse(BaseModel):
     concept_name: str
-    outlinks: list[ConceptLinkItem] = Field(default_factory=list)
-    backlinks: list[ConceptBacklinkItem] = Field(default_factory=list)
-    outlinks_has_more: bool = False
-    backlinks_has_more: bool = False
+    outlinks: list[ConceptLinkItem]
+    backlinks: list[ConceptBacklinkItem]
+    outlinks_has_more: bool
+    backlinks_has_more: bool
 
 
 class WikiEditorSectionsResponse(BaseModel):
@@ -602,6 +570,7 @@ def _citation_sources_to_snippets(
     """Map harness citation SSOT dicts to REST response models."""
     snippets: list[WikiSourceSnippet] = []
     for entry in sources:
+        confidence = entry.get("claim_confidence") or 0.0
         snippets.append(
             WikiSourceSnippet(
                 path=str(entry.get("path", "")),
@@ -614,7 +583,7 @@ def _citation_sources_to_snippets(
                 evidence_path=str(entry.get("evidence_path", "")),
                 line_range=str(entry.get("line_range", "")),
                 claim_status=str(entry.get("claim_status", "")),
-                claim_confidence=float(entry.get("claim_confidence", 0.0) or 0.0),
+                claim_confidence=float(confidence) if isinstance(confidence, (int, float, str)) else 0.0,
                 snapshot_status=str(entry.get("snapshot_status", "")),
                 resource_uri=str(entry.get("resource_uri", "")),
                 superseded_from_uri=str(entry.get("superseded_from_uri", "")),
@@ -668,6 +637,8 @@ async def query_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiQueryResponse:
+    # Outside the try below, which turns every exception, the 400 refusal included, into a 500.
+    await reject_if_risky(request.question, session_id=agent_id)
     try:
         from app.services.wiki.knowledge_query_service import (
             execute_wiki_knowledge_query,
@@ -724,11 +695,17 @@ async def serve_wiki_asset(
     )
 
 
-@router.post("/compile", response_model=WikiCompileResponse)
+@router.post("/compile", response_model=WikiCompileResponse, status_code=202)
 async def compile_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiCompileResponse:
+    """Queue the sources that need compiling and wake the background worker, which every import also uses.
+
+    A compile makes sequential model calls for minutes, longer than a proxy or the control plane's circuit breaker
+    should be asked to wait on one request.
+    """
+    from app.services.wiki.asset_index_service import schedule_wiki_asset_index
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
     try:
@@ -739,21 +716,13 @@ async def compile_wiki(
                 status_code=409,
                 detail="Duplicate review required: resolve exact/normalized groups before compiling",
             )
-        result = await archiver._compiler.compile_all()
-        from app.services.wiki.asset_index_service import run_wiki_asset_index
-
-        await run_wiki_asset_index(archiver)
+        await archiver._compiler.enqueue_changed_sources()
+        archiver._compiler.start_background_worker()
+        schedule_wiki_asset_index(archiver, agent_id=agent_id)
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-        await _after_wiki_vault_mutation(archiver, "compile")
+        stats = archiver._queue.get_stats()
         return WikiCompileResponse(
-            concepts_count=result.concepts_count,
-            articles_generated=result.articles_generated,
-            backlinks_created=result.backlinks_created,
-            duration_ms=result.duration_ms,
-            articles_pending=result.articles_pending,
-            articles_published=result.articles_published,
-            articles_blocked=result.articles_blocked,
-            synthesis_pending=result.synthesis_pending,
+            pending=stats["pending"] + stats["processing"],
             compile_run=_compile_run_response(archiver),
         )
     except HTTPException:
@@ -761,58 +730,6 @@ async def compile_wiki(
     except Exception as e:
         logger.error(f"Wiki compilation failed: {e}")
         raise HTTPException(status_code=500, detail="Wiki compilation failed") from e
-
-
-@router.post("/maintain", response_model=WikiMaintenanceResponse)
-async def maintain_wiki(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
-    mode: Annotated[
-        Literal["structural", "full"],
-        Query(description="Maintenance intensity: structural (default) or full"),
-    ] = "structural",
-) -> WikiMaintenanceResponse:
-    try:
-        from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
-
-        from app.services.wiki.maintain import run_wiki_maintain_job
-
-        maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
-        result = await run_wiki_maintain_job(
-            llm=archiver._llm,
-            agent_id=agent_id,
-            mode=maintain_mode,
-        )
-        if result.skipped and result.skipped_reason == "compile_in_progress":
-            raise HTTPException(
-                status_code=409,
-                detail="Wiki compilation is in progress; maintain skipped",
-            )
-        return WikiMaintenanceResponse(
-            issues_found=result.issues_found,
-            issues_fixed=result.issues_fixed,
-            connections_discovered=result.connections_discovered,
-            duration_ms=result.duration_ms,
-            open_actions_count=result.open_actions_count,
-            raw_security_removed=result.raw_security_removed,
-            raw_security_removed_paths=list(result.raw_security_removed_paths),
-            issues=[
-                WikiHealthIssueResponse(
-                    issue_type=str(item["issue_type"]),
-                    severity=str(item["severity"]),
-                    location=str(item["location"]),
-                    description=str(item["description"]),
-                    action_kind=str(item["action_kind"]),
-                    suggested_fix=(str(item["suggested_fix"]) if item.get("suggested_fix") is not None else None),
-                )
-                for item in result.lint_issues
-            ],
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Wiki maintenance failed: {e}")
-        raise HTTPException(status_code=500, detail="Wiki maintenance failed") from e
 
 
 @router.get("/health-report", response_model=WikiHealthReportResponse)
@@ -1777,8 +1694,8 @@ async def get_queue_status(
     failed_items = archiver._queue.get_failed_items(limit=20)
     return QueueStatusResponse(
         stats=stats,
-        pending_items=items,
-        failed_items=failed_items,
+        pending_items=[dict(item) for item in items],
+        failed_items=[dict(item) for item in failed_items],
         compile_run=_compile_run_response(archiver),
     )
 
@@ -1849,7 +1766,7 @@ async def get_pending_edits(
     stats = archiver._pending_mgr.get_stats()
     stats["synthesis_pending"] = archiver._pending_mgr.count_synthesis_pending()
     edits = archiver._pending_mgr.get_pending_edits(limit=limit, offset=offset)
-    return PendingEditsResponse(stats=stats, pending_edits=edits)
+    return PendingEditsResponse(stats=stats, pending_edits=[dict(edit) for edit in edits])
 
 
 @router.post("/pending/{edit_id}/approve", response_model=OperationResult)
@@ -2235,7 +2152,10 @@ def get_wiki_graph(
         # Note: get_knowledge_graph is synchronous. By making this route `def` instead of `async def`,
         # FastAPI will automatically run it in a threadpool, preventing event loop blocking.
         graph = archiver._query_engine._indexer.get_knowledge_graph(center_node, depth, limit)
-        return WikiGraphResponse(nodes=graph["nodes"], edges=graph["edges"])
+        return WikiGraphResponse(
+            nodes=[GraphNodeItem.model_validate(node) for node in graph["nodes"]],
+            edges=[GraphEdgeItem.model_validate(edge) for edge in graph["edges"]],
+        )
     except Exception as e:
         logger.error(f"Wiki graph retrieval failed: {e}")
         raise HTTPException(status_code=500, detail="Wiki graph retrieval failed") from e
@@ -2399,7 +2319,7 @@ async def _publish_import_raw(
     *,
     on_conflict: Literal["skip", "supersede"],
     supersede_reason: str,
-):
+) -> RawPublishResult:
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
         RawConflictPolicy,
         RawGateError,
@@ -2443,7 +2363,7 @@ def _validate_import_conflict_options(
 
 
 def _track_import_publish_result(
-    result,
+    result: RawPublishResult,
     *,
     enqueued_paths: list[Path],
     conflict_paths: list[str],
@@ -3531,6 +3451,7 @@ async def finalize_live_meeting(
 
 from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
+from app.api.wiki.maintain_routes import router as wiki_maintain_router  # noqa: E402
 from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
 from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402
@@ -3538,6 +3459,7 @@ from app.api.wiki.writeback_routes import router as wiki_writeback_router  # noq
 
 register_ingest_stream_routes(router)
 router.include_router(wiki_clip_router)
+router.include_router(wiki_maintain_router)
 router.include_router(wiki_sources_router)
 router.include_router(wiki_obsidian_binding_router)
 router.include_router(wiki_governance_router)

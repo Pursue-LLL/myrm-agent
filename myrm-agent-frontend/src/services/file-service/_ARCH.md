@@ -6,7 +6,7 @@
 
 | 模块                      | 职责                                                           |
 | ------------------------- | -------------------------------------------------------------- |
-| `file.ts`（上级）         | `uploadFiles`、进度回调、`extractPdfContent` 等 **server API** |
+| `file.ts`（上级）         | `uploadFiles`、进度回调、`UploadOptions`（无痕会话绑定，经 `FileService.uploadFiles` 第四个参数透传）、`extractPdfContent` 等 **server API** |
 | `file-service/`（本目录） | Tauri 本地 FS vs Sandbox HTTP 的 **FileService 策略**          |
 
 ## 文件清单

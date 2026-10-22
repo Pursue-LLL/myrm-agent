@@ -19,11 +19,11 @@ import logging
 import uuid
 from typing import cast
 
+from myrm_agent_harness.agent.sub_agents.result_output import answer_text
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
 
 from app.core.security.privacy_settings import privacy_agent_params
 from app.core.utils.chat_utils import convert_chat_history
-from app.services.chat.chat_helpers import WAKEUP_MESSAGE_ID_PREFIX
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -52,44 +52,38 @@ class ServerWakeupHandler:
         """Process the wakeup event in a detached background task."""
         try:
             # 1. Format the result
+            answer = answer_text(result.result)
             status_str = "completed successfully" if result.success else "failed"
             content = f"Async subagent '{result.agent_type}' (task_id: {result.task_id}) {status_str}."
             if result.duration_seconds:
                 content += f" Duration: {result.duration_seconds:.1f}s."
             if result.error:
                 content += f"\nError: {result.error}"
-            elif result.result:
-                content += f"\nResult:\n{result.result}"
+            elif answer:
+                content += f"\nResult:\n{answer}"
 
             content += "\n\nPlease continue your workflow or provide the final answer to the user based on this result."
 
-            # 2. Append to chat history without overriding the existing prompt cache
-            # (We use ChatService to append a system/tool message)
-            from datetime import datetime, timezone
-
-            # Since this is an internal system message injected for the agent's eyes only,
-            # we use action_mode="system_event" or just append a user message with a specific format.
-            # But the best way is to append it as a system/tool completion.
-            # ChatService.ensure_chat_and_append_user_message is usually for human inputs.
-            # We'll use append_user_message but prefix it to make it clear it's a system notification.
-            system_notification = (
-                f"<system_notification type='async_result' task_id='{result.task_id}'>\n{content}\n</system_notification>"
+            # Delegate to AdaptiveWakeupService for bounded decision (FOLLOWUP, INJECT, DEGRADE, SUPPRESS)
+            from myrm_agent_harness.agent.coordination.adaptive_wakeup import (
+                WakeupEvent,
+                WakeupSourceType,
             )
 
-            await ChatService.ensure_chat_and_append_user_message(
-                chat_id=session_id,
-                content=system_notification,
-                sent_at=datetime.now(tz=timezone.utc),
-                sent_timezone="UTC",
-                message_id=f"{WAKEUP_MESSAGE_ID_PREFIX}{result.task_id}",
-                action_mode="general",
+            from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
+
+            event = WakeupEvent(
+                source_type=WakeupSourceType.SUBAGENT,
+                source_id=result.task_id,
+                session_id=session_id,
+                success=result.success,
+                summary=f"Subagent '{result.agent_type}' {status_str}",
+                duration_seconds=result.duration_seconds,
+                error=result.error,
+                details={"result_text": answer[:2000]},
             )
 
-            # 3. Trigger a background run
-            # We construct a synthetic AgentRequest and call the pipeline
-            # without an active HTTP Request object. We'll use a mocked Request or
-            # call the underlying agent factory directly.
-            await self._run_headless_agent(session_id, agent_id)
+            await get_adaptive_wakeup_service().handle_settlement(event, agent_id=agent_id)
 
         except Exception as e:
             logger.error(

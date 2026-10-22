@@ -6,8 +6,11 @@
 
 [OUTPUT]
 - The assistant turn completes and the tool result (``pong``) surfaces in the
-  persisted chat messages — proving org MCPs are wired into the live agent path
-  end to end (sync → merge → agent toolset → tool call → UI result).
+  persisted chat messages *and* in the rendered chat UI — proving org MCPs are
+  wired into the live agent path end to end (sync → merge → agent toolset →
+  tool call → UI result).
+- The persisted turn and the visible UI tail are printed (``E2E_LIVE_TURN_*``)
+  so a PASS carries proof of what the model actually returned.
 """
 
 from __future__ import annotations
@@ -47,6 +50,13 @@ E2E_PROMPT = (
     "最后回复 OK。"
 )
 TURN_WAIT_SEC = 120.0
+_EVIDENCE_CONTENT_CHARS = 400
+_EVIDENCE_METADATA_CHARS = 800
+# The prompt never contains "pong", so a match can only come from the tool result or the model's reply.
+_VISIBLE_PONG_JS = """(() => {
+  const text = document.body?.innerText || '';
+  return { hasPong: /pong/i.test(text), tail: text.slice(-400) };
+})()"""
 
 
 def _sync_org_mcp(api_url: str, servers: list[dict[str, object]]) -> None:
@@ -89,6 +99,20 @@ def _pong_evidence(messages: list[dict[str, object]]) -> str:
         if "pong" in text.lower():
             return f"{role}:{text[:120]}"
     return ""
+
+
+def _log_turn_evidence(chat_id: str, messages: list[dict[str, object]]) -> None:
+    """Print every persisted message so a PASS shows what the model actually returned."""
+    print(f"E2E_LIVE_TURN_EVIDENCE: chat={chat_id} messages={len(messages)}", flush=True)
+    for index, msg in enumerate(messages):
+        raw = msg.get("content")
+        content = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False, default=str)
+        metadata = json.dumps(msg.get("metadata") or {}, ensure_ascii=False, default=str)
+        print(
+            f"E2E_LIVE_TURN_EVIDENCE: #{index} role={msg.get('role')} "
+            f"content={content[:_EVIDENCE_CONTENT_CHARS]!r} metadata={metadata[:_EVIDENCE_METADATA_CHARS]}",
+            flush=True,
+        )
 
 
 def _extract_chat_id(url: str) -> str | None:
@@ -191,10 +215,16 @@ async def test_org_mcp_tool_invoked_in_live_chat(
             e2e_resource_ledger.register("chat", chat_id)
 
             messages = fetch_chat_messages(chat_id, api_url=api_url)
+            _log_turn_evidence(chat_id, messages)
             evidence = _pong_evidence(messages)
             assert evidence, (
                 f"Expected org MCP tool result 'pong' in chat {chat_id} messages; "
                 f"got {json.dumps(messages, ensure_ascii=False)[:2000]}"
+            )
+            visible = await chat.evaluate(_VISIBLE_PONG_JS, intent=EvaluateIntent.SYNC_PROBE)
+            print(f"E2E_LIVE_TURN_UI: {json.dumps(visible, ensure_ascii=False)}", flush=True)
+            assert isinstance(visible, dict) and visible.get("hasPong"), (
+                f"Persisted 'pong' evidence {evidence!r} is not visible in the chat UI for chat {chat_id}: {visible}"
             )
         finally:
             await asyncio.to_thread(client.close)

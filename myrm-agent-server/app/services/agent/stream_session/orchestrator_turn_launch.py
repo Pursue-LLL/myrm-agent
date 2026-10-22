@@ -4,6 +4,7 @@
 - app.services.agent.stream_session.orchestrator_turn_body::execute_agent_turn_after_reserve (POS: the turn itself)
 - app.services.agent.stream_session.orchestrator_turn_body::fail_buffered_turn (POS: terminal error SSE + cancel token release)
 - app.services.agent.stream_session.session_reservation::ChatSessionReservation (POS: chat reservation handed over to the stream)
+- app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears a reservation the stream never took over)
 
 [OUTPUT]
 - launch_early_buffered_stream: start the turn task, hand the reservation to the stream, return the SSE response or the multiplexed accepted JSON
@@ -27,7 +28,7 @@ from app.services.agent.stream_session.orchestrator_turn_body import (
     execute_agent_turn_after_reserve,
     fail_buffered_turn,
 )
-from app.services.agent.stream_session.session_reservation import ChatSessionReservation
+from app.services.agent.stream_session.session_reservation import ChatSessionReservation, release_unstreamed_reservation
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
@@ -113,9 +114,7 @@ async def launch_early_buffered_stream(
             # failure or cancel before the stream loop) must not leak — release
             # it so the chat is not stuck busy for subsequent turns.
             if request.chat_id:
-                from app.services.agent.gateway import get_agent_gateway
-
-                get_agent_gateway().release_if_reserved_only(request.chat_id)
+                release_unstreamed_reservation(request.chat_id, was_resume=request.resume_value is not None)
 
     task = asyncio.create_task(
         _background_turn(),

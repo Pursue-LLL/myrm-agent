@@ -241,6 +241,71 @@ class TestConsumeLoop:
         await router._consume_loop()
         await asyncio.sleep(0.05)
 
+    @pytest.mark.asyncio
+    async def test_message_failure_does_not_kill_loop(self) -> None:
+        """A handler error is isolated: the loop keeps consuming later messages."""
+        bus = _make_bus()
+        call_count = 0
+
+        async def side_effect() -> InboundMessage:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return _msg(content="boom", message_id="bad1")
+            if call_count == 2:
+                return _msg(content="ok", message_id="good1")
+            raise asyncio.CancelledError
+
+        bus.consume_inbound = AsyncMock(side_effect=side_effect)
+        router = _make_router(bus=bus)
+        router._running = True
+        router._dispatch_inbound_message = AsyncMock(side_effect=[RuntimeError("handler blew up"), None])
+        await router._consume_loop()
+
+        # Both messages were attempted: the first failure did not stop the second.
+        assert router._dispatch_inbound_message.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_dispatch_cancellation_propagates(self) -> None:
+        """A CancelledError is shutdown, not a message failure; it must not be swallowed."""
+        bus = _make_bus()
+
+        async def side_effect() -> InboundMessage:
+            return _msg(content="stop", message_id="c1")
+
+        bus.consume_inbound = AsyncMock(side_effect=side_effect)
+        router = _make_router(bus=bus)
+        router._running = True
+        router._dispatch_inbound_message = AsyncMock(side_effect=asyncio.CancelledError)
+        with pytest.raises(asyncio.CancelledError):
+            await router._consume_loop()
+
+    def test_consume_loop_alive_reflects_task_state(self) -> None:
+        router = _make_router()
+        assert router.is_consume_loop_alive() is False
+        router._running = True
+        done_task = MagicMock()
+        done_task.done.return_value = True
+        router._task = done_task
+        assert router.is_consume_loop_alive() is False
+        live_task = MagicMock()
+        live_task.done.return_value = False
+        router._task = live_task
+        assert router.is_consume_loop_alive() is True
+
+    @pytest.mark.asyncio
+    async def test_stop_after_loop_already_crashed_does_not_raise(self) -> None:
+        """A loop that died is already done; stop() must not await it and re-raise."""
+        router = _make_router()
+        await router.start()
+
+        crashed = asyncio.get_running_loop().create_future()
+        crashed.set_exception(RuntimeError("loop died"))
+        router._task = crashed  # type: ignore[assignment]
+
+        await router.stop()  # must not raise
+        assert router._task is None
+
 
 # ── Janitor ───────────────────────────────────────────────────────────
 

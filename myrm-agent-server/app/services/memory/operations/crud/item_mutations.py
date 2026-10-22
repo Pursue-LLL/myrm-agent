@@ -118,7 +118,12 @@ async def delete_memory_item(
 
     if soft_capable:
         collection = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
-        success = await manager.delete_memory(collection, [memory_id]) > 0
+        try:
+            success = await manager.delete_memory(collection, [memory_id]) > 0
+        except MemoryError as exc:
+            # The memory stayed visible on purpose (a previous model's copy could not be removed), so
+            # the user is told the delete failed and can retry instead of facing a bare 500.
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     elif mem_type == MemoryType.PROFILE:
         success = await manager.delete_profile(memory_id)
     elif mem_type == MemoryType.PROCEDURAL:

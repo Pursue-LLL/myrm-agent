@@ -36,7 +36,6 @@ from app.channels.core.allow_policy import (
     AllowPolicy,
 )
 from app.channels.core.events import EventEmitter
-from app.channels.core.metrics import ChannelMetrics
 from app.channels.core.rate_limit import (
     DISABLED_RATE_LIMIT,
     RateLimitConfig,
@@ -58,6 +57,7 @@ from app.channels.types import (
     IssueKind,
     IssueSeverity,
     OutboundMessage,
+    RenderStyle,
     StartMode,
 )
 
@@ -125,6 +125,7 @@ class BaseChannel(ABC, EventEmitter):
     display_name: str = ""
     credential_spec: ChannelCredentialSpec | None = None
     capabilities: ChannelCapabilities = ChannelCapabilities()
+    render_style: RenderStyle  # every concrete channel declares how its replies are rendered
     retry_config: RetryConfig = RetryConfig()
     allow_policy: AllowPolicy = SELECTIVE_POLICY
     rate_limit_config: RateLimitConfig = DISABLED_RATE_LIMIT
@@ -185,7 +186,6 @@ class BaseChannel(ABC, EventEmitter):
         self._inbound_handler: InboundHandler | None = None
         self.health = ChannelHealth()
         self.activity = ChannelActivity()
-        self.metrics = ChannelMetrics()
         self._bot_id: str = ""
         self._seen_msg_ids: OrderedDict[str, float] = OrderedDict()
         self._debounce_tasks: dict[str, asyncio.Task[None]] = {}
@@ -336,7 +336,8 @@ class BaseChannel(ABC, EventEmitter):
                 metadata={"job_name": "daily_report"}
             )
         """
-        metadata = kwargs.pop("metadata", None) or {}
+        raw_metadata = kwargs.pop("metadata", None)
+        metadata: dict[str, object] = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
         if thread_ts:
             metadata["thread_ts"] = thread_ts
 
@@ -346,7 +347,7 @@ class BaseChannel(ABC, EventEmitter):
                 recipient_id=recipient_id,
                 content=content,
                 user_id=user_id,
-                metadata=metadata if metadata else None,  # type: ignore[arg-type]
+                metadata=metadata or None,
                 **kwargs,  # type: ignore[arg-type]
             )
         )
@@ -518,7 +519,6 @@ class BaseChannel(ABC, EventEmitter):
             self._evict_expired_dedup(now)
 
         if not await self._rate_limiter.check_and_update(msg):
-            self.metrics.record_rate_limit_hit()
             logger.debug(
                 "Channel '%s': message from %s rate limited",
                 self.name,
@@ -544,7 +544,6 @@ class BaseChannel(ABC, EventEmitter):
     async def _dispatch_inbound(self, msg: InboundMessage) -> None:
         """Final dispatch to the registered handler."""
         self.activity.record_inbound()
-        self.metrics.record_message()
         if self._inbound_handler:
             await self._inbound_handler(msg)
         else:

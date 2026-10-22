@@ -1,5 +1,23 @@
 {
-  "extensionWidgets": {},
+  "extensionWidgets": {
+    "nanoContextTitle": "Nano-Context Usage",
+    "turns": "turns",
+    "todoTitle": "Quick Task Checklist",
+    "newTodoPlaceholder": "Add a quick task...",
+    "copyContent": "Copy Content",
+    "openExternal": "Open in new tab",
+    "download": "Download File",
+    "close": "Close",
+    "noImageSource": "No image source provided",
+    "pdfFallback": "PDF embedded preview not supported in this container",
+    "downloadPdf": "Download PDF to view directly",
+    "noPdfSource": "No PDF source URL available",
+    "unsupportedFormat": "Preview not available for this file type",
+    "testLatency": "Test Latency & Health",
+    "testing": "Testing...",
+    "retest": "Retest",
+    "unreachable": "Endpoint Unreachable"
+  },
   "gitWorktree": {
     "dirtyChanges": "Uncommitted changes",
     "worktrees": "Worktrees",
@@ -137,6 +155,7 @@
     "constraintsLabel": "Constraints (Must Not Violate)",
     "subgoals": "Subgoals",
     "addSubgoal": "Add Subgoal",
+    "removeSubgoal": "Remove subgoal",
     "subgoalPlaceholder": "Add acceptance criteria or sub-task...",
     "subgoalAdded": "Subgoal added",
     "subgoalRemoved": "Subgoal removed",
@@ -183,6 +202,13 @@
     "reasonBudgetExhausted": "Budget exhausted",
     "reasonWaitTimeout": "Wait timed out — paused",
     "reasonConvergence": "Completed after no new progress",
+    "reasonUsageLimit": "Usage limit reached",
+    "usageLimitWaiting": "Usage limit reached. Resumes automatically around {time}.",
+    "usageLimitWaitingNoTime": "Usage limit reached. Resumes automatically once it resets.",
+    "usageLimitPaused": "Paused by your usage limit, which resets around {time}. Resume once it has.",
+    "usageLimitPausedNoTime": "Paused by your usage limit. Resume once it has reset.",
+    "usageLimitRetryNow": "Retry now",
+    "usageLimitResume": "Resume",
     "draftSection": "Goal setup assistant",
     "draftObjectivePlaceholder": "Describe what you want the agent to achieve…",
     "suggestCriteria": "Suggest acceptance criteria",
@@ -208,7 +234,7 @@
     "goalActionSuccess_resume": "Goal resumed",
     "goalActionSuccess_cancel": "Goal cancelled",
     "goalActionSuccess_approve": "Goal approved",
-    "goalActionSuccess_reject": "Goal rejected",
+    "goalActionSuccess_reject": "Rejected, retrying",
     "goalActionSuccess_unwait": "Goal resumed",
     "stepProgress": "Step Progress",
     "cancel": "Cancel",
@@ -634,6 +660,9 @@
     "personality": {
       "title": "Communication Style",
       "description": "Choose how the agent communicates. This affects the tone and style of responses.",
+      "loadFailed": "Failed to load communication styles",
+      "retry": "Retry",
+      "exampleLabel": "Example reply",
       "category": {
         "practical": "Practical",
         "fun": "Fun & Roleplay"
@@ -1316,9 +1345,7 @@
         "statusGood": "Excellent accuracy: action space is lean; agent can call tools with minimal hallucination.",
         "staleSkillsNotice": "Reminder: {count} dormant skill(s) are hurting accuracy.",
         "smartPrune": "Prune dormant skills to free action space",
-        "smartPruneRunning": "Running curator sweep…",
-        "smartPruneSuccess": "Curator sweep complete — {stale} marked stale, {archived} archived",
-        "smartPruneFailed": "Curator sweep failed",
+        "smartPruneRunning": "Pruning action space...",
         "turn1CatalogTitle": "Turn 1 skill catalog",
         "turn1CatalogSummary": "{inline} inline · {hidden} hidden · search {searchState}",
         "turn1CatalogSearchOn": "ON",
@@ -1733,6 +1760,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "To pick up an item, press Space or Enter. While dragging, use the arrow keys to move it. Press Space or Enter again to drop it, or press Escape to cancel.",
+      "roleDescription": "draggable item",
+      "handleLabel": "Drag to reorder",
+      "unknownItem": "item",
+      "pickedUp": "Picked up “{item}”.",
+      "movedOver": "“{item}” is over “{target}”.",
+      "leftTarget": "“{item}” is no longer over a drop target.",
+      "backAtStart": "“{item}” is back at its starting position.",
+      "droppedOn": "“{item}” was dropped on “{target}”.",
+      "dropped": "“{item}” was dropped.",
+      "cancelled": "Dragging cancelled. “{item}” was returned to its original position."
+    },
     "keyValueEditor": {
       "keyPlaceholder": "Key",
       "valuePlaceholder": "Value"
@@ -2034,7 +2074,7 @@
       "triggerAria": "View work skills referenced in this reply ({count})",
       "title": "Work skills in this reply",
       "description": "Skills the agent loaded or consulted while answering. This does not change how future turns run.",
-      "partialBadge": "Partial load",
+      "partialBadge": "Bound only",
       "versionLabel": "Version",
       "hashLabel": "Content hash"
     },
@@ -2748,7 +2788,8 @@
       "attachments": "{count, plural, one {# attachment} other {# attachments}}",
       "editHint": "Enter to save · Shift+Enter for a new line · Esc to cancel",
       "reorder": "Drag to reorder",
-      "listLabel": "Queued messages"
+      "listLabel": "Queued messages",
+      "moveToTop": "Move to top"
     },
     "fileMention": {
       "title": "Workspace References",
@@ -2950,27 +2991,17 @@
       "submit": "Submit",
       "skip": "Skip",
       "submitFailed": "Failed to submit clarification. Please try again.",
+      "alreadyHandled": "This question timed out or was already handled on another device, and the assistant has moved on. Anything you entered is back in the message box.",
       "answered": "Clarification answered",
+      "answeredSkipped": "You skipped this question",
+      "answeredTimeout": "No answer in time. The assistant continued without one.",
+      "answeredSkippedUnconfirmed": "Confirmation skipped. The action was not approved.",
+      "answeredTimeoutUnconfirmed": "No confirmation in time. The action was not approved.",
+      "answeredHandled": "Timed out or already handled on another device. The assistant has moved on.",
+      "answeredHandledSignOff": "Timed out or already handled on another device. A confirmation left unanswered never counts as approval; check the assistant's next reply.",
       "expandOptions": "Show {count} more options",
       "collapseOptions": "Show fewer options",
       "recommendedBadge": "Recommended"
-    },
-    "directoryRequest": {
-      "title": "Directory access required",
-      "pathLabel": "Folder path",
-      "pathPlaceholder": "/Users/you/Documents/project",
-      "pathRequired": "Please enter a folder path",
-      "writableLabel": "Allow write access (needed to modify files)",
-      "grant": "Grant access",
-      "deny": "Deny",
-      "submitFailed": "Failed to submit directory response. Please try again.",
-      "answered": "Directory access resolved",
-      "chooseFolder": "Choose folder",
-      "browseFailed": "Could not open folder picker. Enter the path manually.",
-      "selectThis": "Use this folder",
-      "recent": "Recent",
-      "filter": "Filter folders",
-      "noSubdirs": "No subfolders here"
     },
     "sessionAccessRoots": {
       "label": "Extra folders",
@@ -2992,6 +3023,7 @@
       "confirmed": "Plan approved",
       "edited": "Plan updated & approved",
       "skipped": "Review skipped",
+      "handledElsewhere": "This plan was already handled elsewhere",
       "submitFailed": "Failed to submit plan response. Please try again.",
       "workflowTitle": "Dynamic Workflow Plan",
       "workflowBadge": "Review before execution",
@@ -3089,7 +3121,6 @@
       "nextTurnOnly": "Applies to the next message only",
       "overrideSkillsShort": "{skills} skills",
       "overrideMcpShort": "{mcps} MCP",
-      "overrideRemove": "Reset",
       "minimalMountNotice": "Mounting too many capabilities may dilute model focus. Consider narrowing to essential tools."
     },
     "samplePrompts": {
@@ -3167,8 +3198,7 @@
       "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
       "step3Title": "Smart Weekly Report",
       "step3Desc": "WeeklyReview blueprint aggregating metrics",
-      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
-      "oneClickAction": "Load Workflow Prompt"
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective."
     },
     "skillConnectorsPreflight": {
       "title": "Skill Connectors Preflight",
@@ -3503,6 +3533,79 @@
     "cacheResetNotice": "Cache reset: {reason}{tokens, plural, =0 {} other {, ~#k tokens uncached}}",
     "pdfParsedPages": "[PDF] {fileName}: parsed {parsed}/{total} pages",
     "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images",
+    "pdfFiguresTruncated": "[PDF] Included {kept} figures; this file contains more figures beyond the per-delivery limit, which were not sent",
+    "inFlightSteer": {
+      "subagentNotFound": "Target sub-agent not found",
+      "steerSent": "Steering instruction sent to {name}",
+      "steerFailed": "Failed to send the steering instruction",
+      "stopped": "Stopped {name}; the partial draft was kept",
+      "stopFailed": "Failed to stop the task"
+    },
+    "routeAgentDiscoverChip": {
+      "title": "Hand this work to a specialist agent",
+      "guardrailBadge": "Guardrails on",
+      "subtitle": "Coder, reviewer, researcher, architect and auditor agents are ready to take over.",
+      "action": "View specialists",
+      "dismiss": "Dismiss",
+      "specialists": {
+        "coder": "Coder",
+        "reviewer": "Reviewer",
+        "researcher": "Researcher",
+        "architect": "Architect",
+        "auditor": "Auditor"
+      }
+    },
+    "multiplexer": {
+      "sessionListTitle": "Sessions",
+      "panesCount": "panes",
+      "headlessBadge": "Headless",
+      "pendingDirectives": "pending directives",
+      "inspectLogTitle": "Live log",
+      "noLogs": "No output yet",
+      "artifactsLabel": "Artifacts",
+      "instructPlaceholder": "Send an instruction to this sub-agent...",
+      "sendInstruction": "Send",
+      "noSessions": "No active sessions"
+    },
+    "roleChainPresets": {
+      "title": "Role chain presets",
+      "badge": "Preset",
+      "chainAssembled": "\"{name}\" chain added to the input box",
+      "chains": {
+        "implement_review_fix": {
+          "name": "Implement, review, fix",
+          "desc": "The coder implements, the reviewer checks, the coder fixes - up to 3 rounds",
+          "prompt": "Use a role chain: first have a coder sub-agent implement the task, then have a code-reviewer sub-agent review it, then have the coder sub-agent fix the findings. Loop at most 3 rounds."
+        },
+        "clarify_scout_worker": {
+          "name": "Clarify, scout, execute",
+          "desc": "Clarify the goal, scout the codebase, then hand off to a worker",
+          "prompt": "Use a role chain: first clarify any ambiguity with me, then have a scout sub-agent explore the relevant code, then hand the findings to a worker sub-agent to complete the task."
+        },
+        "watchdog_guard": {
+          "name": "Watchdog guard",
+          "desc": "A watchdog audits every high-risk action before it runs",
+          "prompt": "Use a role chain: have a watchdog sub-agent audit every high-risk action (deleting files, network access, secrets) before it runs, and stop immediately on any violation."
+        },
+        "editorial_publish": {
+          "name": "Editorial publish",
+          "desc": "Draft, fact-check, then publish",
+          "prompt": "Use a role chain: first have a writer sub-agent draft the piece, then have a fact-checker sub-agent verify every claim and source, then have an editor sub-agent polish it and prepare it for publishing."
+        }
+      }
+    },
+    "topologyPruning": {
+      "tier1Badge": "Tier 1 · Frontier reasoning",
+      "tier2Badge": "Tier 2 · Strong base",
+      "tier3Badge": "Tier 3 · Fast and light",
+      "hybridFolded": "Hybrid folded",
+      "directFolded": "Folded to a direct run",
+      "savedTurnsTokens": "saves about {turns} turns and {tokens} tokens",
+      "fanoutMode": "Multi-agent fan-out",
+      "strategyAuto": "Auto",
+      "strategyDirect": "Direct only",
+      "strategyMultiAgent": "Always multi-agent"
+    },
     "pdfScannedPages": "[PDF] {fileName}: pages {pages} have no text layer and were sent as images",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)"
   },
@@ -4123,6 +4226,8 @@
     "skillManageRollbackFailed": "Could not undo those skill changes. Try again or roll back a version in Skill settings.",
     "skillManageRollbackCompensationFailed": "Undo could not finish safely. Open Settings → Skills → History and verify versions, then roll back manually if needed.",
     "skillManageRollbackAlreadyConsumed": "This batch was already undone or the rollback link expired. Use Skill settings → History if you still need an older version.",
+    "skillManageRollbackSuperseded": "A skill in this batch was changed again afterwards. Undo the newer change first, or restore a version in Skill settings → History.",
+    "skillManageRollbackSkillMissing": "A skill in this batch has since been deleted, so the batch can no longer be undone.",
     "skillManageUndoHintBody": "The assistant updated one or more skills in this reply. Open Task Steps below to undo those edits and restore the previous content.",
     "skillManageUndoHintAction": "Open Task Steps",
     "archiveRestoreResultSummary": "Restored {lines} line(s), {tokens} tokens.",
@@ -4265,6 +4370,7 @@
       "unknown": "Unknown Error",
       "hook_blocked": "Blocked by Rule",
       "estop": "Emergency Stop",
+      "output_limit": "Output Limit",
       "loop_guard": "Loop Limit",
       "sandbox_boundary": "Boundary Limit",
       "frequency_guard": "Rate Limited",
@@ -4377,6 +4483,7 @@
     },
     "title": "Memory Management",
     "description": "Manage memories AI learned from conversations",
+    "keywordModeHint": "Keyword memory mode: memories are retrieved by keyword. Configure an embedding model to enable semantic retrieval.",
     "scopeHierarchy": {
       "cardTitle": "Memory Scope Hierarchy",
       "cardSubtitle": "Visual boundary & lifecycle management for agent long-term knowledge",
@@ -4599,7 +4706,7 @@
     "enableConversationSearch": "Conversation History Search",
     "enableConversationSearchDesc": "When enabled, the assistant can search your past chats when you ask about earlier decisions or want to continue a previous topic. Off by default.",
     "incognitoMode": "Incognito Mode",
-    "incognitoModeDesc": "When enabled, this session does not read or write memory (global memory settings are unchanged). No traces remain after the chat.",
+    "incognitoModeDesc": "When enabled, this session does not read or write memory and stays out of your history and search. It is deleted automatically after more than an hour of inactivity. Your model provider still processes what you send.",
     "preCompactEnabled": "Pre-Compaction Memory Recall",
     "preCompactEnabledDesc": "Before context compression, automatically recall relevant durable memories into the active conversation.",
     "preCompactBudget": "Recall token budget",
@@ -4771,8 +4878,8 @@
       "deployMode": "Deploy mode",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
-      "vectorPersistenceHint": "Memory is running in temporary mode. Make sure no other Myrm window or process is using the same data folder and that the folder is writable, then restart.",
       "embeddingStatus": "Embedding",
+      "retrievalMode": "Memory recall mode",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
       "healthSnapshotStatus": "Health snapshot",
@@ -5184,14 +5291,6 @@
         }
       },
       "migrationTitle": "Migration Readiness",
-      "migrationAdapterStatusTitle": "Adapter readiness",
-      "migrationAdapterStatus": {
-        "ready": "Ready",
-        "planned": "Planned",
-        "missing": "Not available"
-      },
-      "migrationAdapterMissingHint": "{source} is not directly available yet. You can continue through compatible import formats in the migration wizard.",
-      "migrationAdapterOpenWizard": "Open import wizard",
       "trackedImports": "{count} tracked imports",
       "unmappedItems": "{count} unmapped items",
       "importCleanupPending": "{count} pending import reviews",
@@ -5308,7 +5407,9 @@
         "not_used": "Not used",
         "proxied_by_sandbox": "Sandbox proxy",
         "persistent": "Persistent",
-        "memory_fallback": "Memory mode (lost on restart)"
+        "memory_fallback": "Memory mode (lost on restart)",
+        "semantic": "Semantic recall",
+        "keyword": "Keyword recall"
       },
       "coverageStatus": {
         "not_tracked": "No external memory imports tracked",
@@ -5408,9 +5509,35 @@
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
       },
-      "conclusionAttribution": {
-        "deleteConfirm": "Delete conclusion \"{id}\"?"
-      }
+      "competitorMigration": {
+        "title": "Bring in your other assistants",
+        "description": "Finds Hermes, Claude Code or Codex data on this computer and carries their memories, skills and rules over.",
+        "scan": "Look for other assistants",
+        "scanning": "Looking…",
+        "empty": "Run a search to see which assistants on this computer can be imported.",
+        "foundCount": "{count, plural, =0 {No assistants found} one {# assistant found} other {# assistants found}}",
+        "found": "Found",
+        "notFound": "Not found",
+        "import": "Import",
+        "importing": "Importing…",
+        "resultTitle": "Imported successfully",
+        "memories": "{count, plural, one {# memory} other {# memories}}",
+        "skills": "{count, plural, one {# skill} other {# skills}}",
+        "rules": "{count, plural, one {# rule} other {# rules}}",
+        "sources": {
+          "hermes": "Memories, custom skills and settings",
+          "claude_code": "Your global and project rules",
+          "codex": "Shared rules and skills"
+        },
+        "errors": {
+          "scan": "Couldn't look for other assistants. Please try again.",
+          "import": "Couldn't import from this assistant. Please try again."
+        },
+        "backupHint": "Want to move this whole app to another device instead?",
+        "backupLink": "Open backup and restore"
+      },
+      "migrationOpenWizard": "Import memories",
+      "migrationSourcesTitle": "Supported sources"
     },
     "createDialog": {
       "title": "Add Memory",
@@ -5489,12 +5616,11 @@
       "total": "Total",
       "mapped": "Importable",
       "unmapped": "Unmapped",
-      "sourceBucket": "Source Bucket",
-      "targetBucket": "Target Bucket",
+      "sourceBucket": "From",
+      "targetBucket": "Imported as",
       "items": "Items",
       "status": "Status",
       "expiresAt": "Expires At",
-      "reviewHash": "Review Hash",
       "notAvailable": "Unavailable",
       "notMapped": "Not mapped",
       "warnings": "Warnings",
@@ -5506,7 +5632,6 @@
         "myrm_archive": "Myrm Memory Archive",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5515,8 +5640,17 @@
         "unknown": "Unknown source",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "Pasted memory"
       },
+      "previewTitle": "Parsed sample ({count})",
+      "previewHint": "Only a sample is shown. Importing brings in everything listed above.",
+      "previewTruncated": "Showing {shown} of {total} parsed entries.",
       "statuses": {
         "ready": "Every recognized item is mapped and ready to import.",
         "warning": "Some items cannot be mapped. Review uncovered items before confirming.",
@@ -5528,35 +5662,44 @@
         "partially_mapped": "Partial",
         "unsupported": "Unsupported",
         "dropped": "Dropped"
-      },
-      "warningMessages": {
-        "no_native_buckets": "No importable native memory bucket was found.",
-        "myrm_archive_memory_section_missing": "This Myrm archive does not contain an importable memory section.",
-        "myrm_archive_non_memory_sections_review_only": "This import path only writes the memory section. Use archive restore for shared context, conversation, replay, and audit sections.",
-        "agentmemory_version_unsupported": "This agentmemory export version has not been verified, so import is blocked.",
-        "agentmemory_too_many_sessions": "The agentmemory session count exceeds the import limit.",
-        "agentmemory_too_many_memories": "The agentmemory memory count exceeds the import limit.",
-        "agentmemory_too_many_summaries": "The agentmemory summary count exceeds the import limit.",
-        "agentmemory_too_many_observations": "The agentmemory observation count exceeds the import limit.",
-        "agentmemory_graph_skipped": "Knowledge graph nodes and edges are not written yet; supported relationship details are kept as metadata.",
-        "agentmemory_access_logs_skipped": "Access logs are operational telemetry and are not imported as user memories.",
-        "claude_code_too_many_lines": "The Claude Code transcript exceeds the maximum line limit. Only the first portion will be processed.",
-        "claude_code_too_many_entries": "The Claude Code transcript has too many entries after deduplication. Only the first portion will be processed.",
-        "claude_code_no_conversation_entries": "No user or assistant messages were found in this Claude Code transcript.",
-        "claude_code_no_lines": "The Claude Code transcript file contains no parseable lines.",
-        "hermes_no_files": "No Hermes memory files found (SOUL.md / MEMORY.md / USER.md).",
-        "hermes_api_keys_detected": "API keys detected in Hermes config — marked for manual configuration.",
-        "hermes_skills_detected": "Hermes skills detected — skills are handled through the skill migration review pipeline.",
-        "openclaw_no_sessions": "No OpenClaw session data found.",
-        "openclaw_no_memories": "No OpenClaw memory data found.",
-        "openclaw_skills_detected": "OpenClaw skills detected — skills are handled through the skill migration review pipeline.",
-        "cursor_no_rules": "No Cursor Rules configuration files found.",
-        "cursor_empty_payload": "Cursor data is empty — no importable rules or settings found.",
-        "codex_no_instructions": "No Codex instruction files found.",
-        "codex_empty_payload": "Codex data is empty — no importable instructions or settings found.",
-        "unsupported_source": "This source does not have a verified import adapter yet."
       }
     },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "Access logs are usage records, not memories, so they are not imported.",
+      "agentmemory_graph_skipped": "Knowledge-graph links are not imported yet; supported relationship details stay attached to each memory.",
+      "agentmemory_too_many_memories": "The agentmemory memory count exceeds the import limit.",
+      "agentmemory_too_many_observations": "The agentmemory observation count exceeds the import limit.",
+      "agentmemory_too_many_sessions": "The agentmemory session count exceeds the import limit.",
+      "agentmemory_too_many_summaries": "The agentmemory summary count exceeds the import limit.",
+      "agentmemory_version_unsupported": "This agentmemory export version has not been verified, so import is blocked.",
+      "chatgpt_no_conversations": "No conversations were found in this ChatGPT export.",
+      "claude_code_no_conversation_entries": "No user or assistant messages were found in this Claude Code transcript.",
+      "claude_code_no_lines": "The Claude Code transcript file contains no parseable lines.",
+      "claude_code_too_many_entries": "The Claude Code transcript has too many entries after deduplication. Only the first portion will be processed.",
+      "claude_code_too_many_lines": "The Claude Code transcript exceeds the maximum line limit. Only the first portion will be processed.",
+      "codex_empty_payload": "Codex data is empty — no importable instructions or settings found.",
+      "cursor_empty_payload": "Cursor data is empty — no importable rules or settings found.",
+      "gbrain_no_pages": "No gbrain pages were found in this export.",
+      "gemini_no_conversations": "No conversations were found in this Google Gemini export.",
+      "hermes_api_keys_detected": "API keys detected in Hermes config — marked for manual configuration.",
+      "hermes_skills_detected": "Hermes skills detected — skills are handled through the skill migration review pipeline.",
+      "mem0_no_memories_found": "No memories were found in this Mem0 export.",
+      "myrm_archive_memory_section_missing": "This Myrm archive does not contain an importable memory section.",
+      "myrm_archive_non_memory_sections_review_only": "This import path only writes the memory section. Use archive restore for shared context, conversation, replay, and audit sections.",
+      "no_native_buckets": "No importable memory entries were found in this file.",
+      "openclaw_skills_detected": "OpenClaw skills detected — skills are handled through the skill migration review pipeline.",
+      "pasted_empty": "Nothing could be parsed. Use the export prompt and paste its code block.",
+      "pasted_entries_over_limit": "One paste contained too many entries; split the export into several pastes.",
+      "pasted_text_too_large": "The pasted text is too large; split the export into several pastes.",
+      "plur_inactive_skipped": "Engrams that are not active were skipped.",
+      "plur_invalid_engrams": "Engrams without a statement were skipped.",
+      "plur_no_engrams_found": "No PLUR engrams were found in the store file.",
+      "trae_empty_payload": "No TRAE rules were found in this export.",
+      "unsupported_source": "This source cannot be imported yet.",
+      "windsurf_empty_payload": "No Windsurf memories were found in this export.",
+      "pasted_model_extraction_failed": "Model organization was not applied to this text, so it was parsed line by line instead."
+    },
+    "importDedupeHint": "Entries whose content already exists in memory are merged or skipped during import.",
     "migrationWizard": {
       "title": "Import from Other AI Assistants",
       "description": "Scan Hermes, OpenClaw, Claude Code, or Codex — persona goes to a new agent, facts to global memory, rules to workspace",
@@ -5649,7 +5792,8 @@
           "agent_config_manual": "Agent config",
           "no_importable_data": "Importable data",
           "cron_lane": "Scheduled tasks (cron)",
-          "kanban_not_migrated": "Kanban boards"
+          "kanban_not_migrated": "Kanban boards",
+          "credential_pool_migration": "Credential pool migration"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",
@@ -5669,11 +5813,10 @@
         "trustedSourceTitle": "External Extension & Skill Security Disclosure",
         "trustedSourceDesc": "Detected external extensions or skills to import. Skills have tool execution capabilities; malicious extensions could invoke system commands via prompt injection. In local/desktop mode, tools run with your OS permissions; cloud mode isolates them inside sandbox containers.",
         "trustedSourceConfirmLabel": "I acknowledge external skills have command execution potential and confirm this source is trusted",
-        "dryRunId": "Review ID",
         "expiresAt": "Expires at",
         "mappings": "Mapping Details",
-        "tableSource": "Source Bucket",
-        "tableTarget": "Target Bucket",
+        "tableSource": "From",
+        "tableTarget": "Imported as",
         "tableItems": "Items",
         "tableStatus": "Status",
         "warnings": "Warnings",
@@ -5697,7 +5840,46 @@
         "sessionsTitle": "Session Lane — {count} session(s) detected",
         "resumptionReady": "Ready for Resumption",
         "sessionsDesc": "Full conversational transcripts extracted from external assistant. Directly imported into your chat list, preserving sandbox paths and prompt cache affinity.",
-        "turnsCount": "{turns} turns · {tools} tool calls"
+        "turnsCount": "{turns} turns · {tools} tool calls",
+        "previewItemsTitle": "Sample of what will be imported ({count})",
+        "previewBucket": {
+          "profile": "Profile",
+          "procedural": "Rules",
+          "semantic": "Facts",
+          "episodic": "Episodes",
+          "conversation": "Dialogue",
+          "claim": "Verified",
+          "task_digest": "Task summaries",
+          "integration": "Integrations"
+        },
+        "pendingSkillsTruncated": "Only the first {kept} of {total} skills are imported; the rest are left out.",
+        "mappingStatus": {
+          "mapped": "Mapped",
+          "partially_mapped": "Partially mapped",
+          "unsupported": "Not imported",
+          "dropped": "Skipped"
+        },
+        "laneDetail": {
+          "instruction_persona": "{chars} chars of persona",
+          "instruction_global": "{chars} chars of global instructions",
+          "instruction_rules": "{count, plural, one {# rule file} other {# rule files}}",
+          "instruction_none": "No instruction content detected",
+          "instruction_large": "{chars} chars total, above the recommended size",
+          "memory_mapped": "{count, plural, one {# mapped item} other {# mapped items}}",
+          "memory_episodic_excluded": "episodic memories excluded",
+          "skill_pending": "{count, plural, one {# skill pending review} other {# skills pending review}}",
+          "skill_none": "No skills",
+          "credential_opt_in": "API keys available (optional import)",
+          "credential_no_providers": "API keys found, but no model providers configured",
+          "credential_none": "No API keys detected",
+          "cron_importable": "{importable, plural, one {# scheduled task} other {# scheduled tasks}} will import paused{skipped, plural, =0 {} other { · # skipped}}",
+          "cron_skipped": "{skipped, plural, one {# scheduled task} other {# scheduled tasks}} cannot be imported",
+          "cron_none": "No scheduled tasks detected",
+          "session_ready": "{count, plural, one {# session} other {# sessions}} ready to resume",
+          "session_skipped": "not imported"
+        },
+        "importSessionsLabel": "Also import {count, plural, one {# historical chat} other {# historical chats}}",
+        "importSessionsHint": "Turn off to bring over memories and assets only; your chats stay in the source agent."
       },
       "result": {
         "title": "Import Complete",
@@ -5781,7 +5963,7 @@
         "readinessRecheckFailed": "Could not refresh readiness status. Try again.",
         "rollbackDeleteAgentConfirm": "Also delete the agent created by this import?",
         "rollbackAgentDeleted": "Imported agent was removed",
-        "rollbackAvailable": "One-click rollback available",
+        "rollbackAvailable": "Rollback restores imported memories, instructions, and scheduled jobs. Imported chats stay in your history.",
         "done": "Done",
         "rollbackButton": "Rollback This Batch",
         "rollingBack": "Rolling back...",
@@ -5800,7 +5982,25 @@
           },
           "applyFailed": "Could not apply Second Brain preset",
           "vaultHint": "We detected this Obsidian vault from your Codex setup. Import Wiki will use this path automatically."
-        }
+        },
+        "verifyMemory": "Verify what was imported",
+        "verifyPrompt": "What do you remember about me from the memories that were just imported? Summarize the key points and flag anything that looks wrong or outdated."
+      },
+      "paste": {
+        "sourceName": "Pasted memory",
+        "title": "Paste from any AI",
+        "description": "For assistants without an export package (Claude, Gemini, DeepSeek, Copilot and others): copy the prompt into your old AI, then paste its answer here.",
+        "copyPrompt": "Copy export prompt",
+        "copied": "Copied",
+        "promptLabel": "View the export prompt",
+        "placeholder": "Paste the code block your old assistant produced…",
+        "modelLabel": "Organize with a model",
+        "modelDescription": "The text goes to the model configured for this agent; the result still needs your review before anything is saved.",
+        "previewButton": "Parse and preview",
+        "previewing": "Parsing…",
+        "previewFailed": "Could not parse the pasted text — fetch it again with the export prompt.",
+        "promptText": "Export my memory so I can import it into another assistant. Output exactly one code block. List every memory or fact you have stored about me, plus long-term context you learned from our conversations. Put each entry on its own line as: [YYYY-MM-DD] - entry (start the line with '- entry' when you do not know the date). Group entries under these four English headings, in this order: ## RULES (instructions about how to answer: tone, format, always/never), ## PROFILE (name, location, job, family, interests), ## FACTS (projects, tools, languages, recurring topics), ## PREFERENCES (corrections I made and habits I asked you to keep). Preserve my words verbatim; do not summarise, merge, or omit entries. Never include passwords, API keys, or access tokens. After the code block, state whether this is the complete list.",
+        "sizeHint": "Up to 4 MB per paste. Longer exports can be split into several pastes."
       }
     },
     "pendingReview": {
@@ -5896,7 +6096,7 @@
       "warningMessages": {
         "section_not_selected": "This section is not selected for restore.",
         "memory_section_invalid": "The memory section has an invalid shape.",
-        "no_native_buckets": "No restorable native memory bucket was found.",
+        "no_native_buckets": "No restorable memory section was found in this archive.",
         "shared_context_conflicts": "Some shared contexts already exist and will be skipped by safe merge.",
         "conversation_conflicts": "Some conversations already exist and will be skipped by safe merge.",
         "replay_conflicts": "Some replay turns already exist and will be skipped by safe merge.",
@@ -7287,6 +7487,7 @@
     "runSkipped": "Skipped",
     "runCircuitBreak": "Circuit Break",
     "circuitBreakBanner": "Runaway loop detected: execution halted and retries blocked to protect compute budget",
+    "skippedUsageLimit": "Usage limit reached. Runs again once it resets.",
     "circuitBreakTitle": "Runaway Loop Circuit Breaker",
     "circuitBreakDesc": "The agent encountered persistent identical errors in unattended mode. Execution was halted immediately to prevent wasted compute.",
     "runError": "Error",
@@ -7393,14 +7594,16 @@
     "addPath": "Add",
     "pathPlaceholder": "e.g. ~/reports or /tmp",
     "commonPaths": "Common:",
-    "securityDenied": "Security Denied",
+    "blockedBadge": "{count} blocked",
+    "blockedTitle": "Safety rules stopped {count, plural, one {# action} other {# actions}}",
+    "blockedMore": "and {count} more",
     "verificationPass": "Verified",
     "verificationFail": "Verify Failed",
     "verificationSkipped": "Verify Skipped",
     "verificationError": "Verify Error",
     "verificationSummary": "Delivery review",
     "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
-    "securityDeniedHint": "Some tools were denied by security policy. Configure required permissions in the Capability Fence above.",
+    "blockedHint": "If this job should be allowed to do these, adjust its Capability Fence or Allowed Paths in the job settings.",
     "connectorDegradedBadge": "Connector Degraded",
     "connectorFixSuggestion": "Troubleshooting Suggestion",
     "connectorHealthStatus": "Connector Health",
@@ -7422,11 +7625,11 @@
     "capability": {
       "web_search_tool": "Search Engine",
       "net_fetch": "Read Webpage",
-      "shell_exec": "Terminal Commands",
+      "shell_exec": "Running Processes",
       "file_read": "Read Files",
       "file_write": "Write Files",
       "mcp_invoke": "External Tools",
-      "code_interpreter_tool": "Run Code",
+      "code_interpreter": "Commands & Code",
       "browser_navigate": "Browser Navigate",
       "browser_fill": "Browser Fill Form",
       "browser_upload": "Browser Upload",
@@ -7436,11 +7639,11 @@
     "capabilityDesc": {
       "web_search_tool": "Search the internet for real-time information",
       "net_fetch": "Read and parse content from specified web pages",
-      "shell_exec": "Execute terminal commands on the server (high privilege)",
+      "shell_exec": "Send input to, read output from and stop running commands",
       "file_read": "Read file contents on the server",
       "file_write": "Create or modify files on the server",
       "mcp_invoke": "Invoke configured third-party tools and services",
-      "code_interpreter_tool": "Run Python code in a sandboxed environment",
+      "code_interpreter": "Run terminal commands and Python scripts on the server (high privilege)",
       "browser_navigate": "Navigate browser to URLs (internal IPs blocked by default)",
       "browser_fill": "Fill forms in browser pages",
       "browser_upload": "Upload files through browser",
@@ -7635,7 +7838,7 @@
     "triggerWebhookCurl": "cURL Example",
     "triggerWebhookAdd": "Add Webhook",
     "triggerEventLabel": "Event Triggers",
-    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern. Messages your access policy ignores (for example from unbound accounts, or in groups that are not enabled) never fire it.",
+    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern. Messages your access policy ignores (for example from unbound accounts, or in groups that are not enabled) never fire it. If the sender is not you, the job runs read-only: it can read files and search the web, but cannot change files, run commands or use your memory, and jobs bound to a workflow template are skipped.",
     "triggerEventPattern": "Pattern (regex)",
     "triggerEventPatternInvalid": "Invalid regex",
     "triggerEventChannel": "Channel (optional)",
@@ -7905,6 +8108,8 @@
     "bulkSuccess": "{count} tasks updated",
     "bulkPartialSuccess": "{succeeded} succeeded, {failed} failed",
     "bulkClearSelection": "Clear selection",
+    "selectTask": "Select task: {title}",
+    "detailsLoadError": "Failed to load task details",
     "forcePromoteTitle": "Dependencies Not Met",
     "forcePromoteDesc": "The following parent tasks are not yet completed:",
     "forcePromoteConfirm": "Force Promote",
@@ -8254,9 +8459,41 @@
       "actionBacklog": "Prioritize or schedule for execution",
       "actionDone": "Task completed successfully"
     },
+    "blockedReason": {
+      "parentMergeFailed": "A dependency's merge failed. Resolve it, then continue.",
+      "usageLimit": "Waiting for the model usage limit to reset. Resumes automatically.",
+      "batchPause": "Paused with its batch. Resumes when the batch resumes."
+    },
+    "blockKind": {
+      "human": "Needs you",
+      "scheduled": "Scheduled",
+      "external": "Waiting on an external event"
+    },
+    "autoUnblocking": "Auto-unblocking…",
     "cardActions": "Task actions",
     "deleteConfirmTitle": "Delete this task?",
-    "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically."
+    "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically.",
+    "taskHandoff": "Task handoff",
+    "collapse": "Collapse",
+    "delegateTask": "Hand over to another member",
+    "currentAssignee": "Current assignee",
+    "transferToAgent": "Hand over to (agent)",
+    "selectAgentPlaceholder": "Select the receiving agent",
+    "current": "current",
+    "targetStatus": "Status after handoff",
+    "statusReady": "Ready",
+    "statusBacklog": "Backlog",
+    "statusInReview": "In review",
+    "handoffSummary": "Handoff notes",
+    "handoffSummaryPlaceholder": "Describe what is done, what is blocking, or what the next member needs to do...",
+    "changedFilesMetadata": "Related or produced files (one per line or comma-separated)",
+    "submitting": "Handing over...",
+    "confirmHandoff": "Confirm handoff",
+    "handoffTimeline": "Handoff history",
+    "unknown": "Unknown",
+    "handoffSelectAgentRequired": "Select the agent that should receive the task",
+    "handoffSuccess": "Task handed over",
+    "handoffFailed": "Failed to hand over the task"
   },
   "channels": {
     "sectionTitle": "Message Channels",
@@ -9436,6 +9673,7 @@
       "send_message_generic": "Send a message"
     },
     "ask": {
+      "tool_generic": "Wanted to use {tool}",
       "file_read": "Wanted to read {filename}",
       "file_write": "Wanted to write {filename}",
       "file_write_ask": "Wanted to write {filename}",
@@ -9486,9 +9724,6 @@
     },
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
-    "deployApprovalTitle": "Confirm Artifact Deployment",
-    "deployApprovalArtifact": "Artifact",
-    "deployApprovalHint": "Approving will publish this artifact to Vercel and create a public URL.",
     "outboundDraftTitle": "Channel Reply Draft",
     "outboundDraftDescription": "AI generated a reply that needs your review before sending.",
     "outboundDraftOriginal": "Customer Message",
@@ -9545,7 +9780,6 @@
     "workspaceLabel": "Workspace",
     "expiresIn": "Expires in {seconds}s",
     "expired": "Expired",
-    "expiredToast": "Approval timed out — action was automatically rejected",
     "timeoutAutoDenied": "Approval timed out — action was automatically denied",
     "timeoutAutoApproved": "Approval timed out — action was automatically approved",
     "approve": "Approve",
@@ -9583,7 +9817,7 @@
     "handoverDialogTitle": "Waiting for You",
     "handoverDialogDescription": "The agent needs you to complete an action in the browser. Click \"Done\" when finished.",
     "resumeError": "Failed to resume execution. Please try again.",
-    "approvalExpired": "This approval has already been handled by timeout. No action needed.",
+    "approvalAlreadyHandled": "This approval already timed out or was handled on another device. No action needed.",
     "resolveError": "Failed to submit approval, please try again.",
     "browserSession": {
       "title": "Browser Session Operation",
@@ -9779,8 +10013,6 @@
     "retryFailed": "Retry failed, message may have expired",
     "pairingPending": "New pairing request from {sender} on {channel}",
     "goToApproval": "Go to approval",
-    "configHealthWarning": "Configuration issue detected: {items} not properly configured",
-    "goToSettings": "Go to settings",
     "newSkillDraft": "A new skill growth case is ready: {name}",
     "reviewDraft": "Open review",
     "messageDeadLettered": "Message delivery to {channel} failed permanently. Reason: {reason}",
@@ -9818,6 +10050,8 @@
     "databaseResetFailedNetwork": "Network request failed",
     "databaseDegradedTitle": "Local database is severely corrupted and cannot be recovered.",
     "databaseDegradedBody": "Running in temporary safe mode. New conversations will not be saved.",
+    "vectorDegradedTitle": "Memory isn't being saved",
+    "vectorDegradedDesc": "Your saved memories can't be opened right now, so new ones may be lost when you quit Myrm. Close any other open Myrm window and reopen the app. If this keeps happening, make sure your Myrm data folder is writable or restore from a backup.",
     "databaseResetting": "Resetting...",
     "databaseResetNow": "Reset database now",
     "undoConsolidation": "Undo",
@@ -9829,6 +10063,7 @@
     "kanbanTaskCompleted": "Kanban task completed",
     "kanbanTaskBlocked": "Kanban task blocked",
     "kanbanTaskFailed": "Kanban task failed",
+    "viewKanbanBoard": "View board",
     "taskCompleted": "{taskType} completed",
     "taskFailed": "{taskType} failed",
     "taskUnknownError": "Unknown error",
@@ -9838,9 +10073,6 @@
     "goalNeedsReview": "Goal Needs Review",
     "goalTerminal": "Goal Finished",
     "goalDequeued": "Next Goal Started",
-    "goalMemoryArchived": "Team memory updated ({count} architectural decisions archived)",
-    "goalMemoryPendingApproval": "Architectural decisions await approval ({count} items)",
-    "goalMemoryArchiveFailed": "Failed to archive architectural decisions to team memory",
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
@@ -9857,6 +10089,9 @@
     "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
     "reauthorize": "Reauthorize",
     "budgetFinalization": "Budget nearly exhausted — finalizing",
+    "backupFailureTitle": "Automatic backup isn't working",
+    "backupFailureBody": "Your recent automatic backups failed, so your data may not be protected. Check the backup folder and free disk space.",
+    "viewBackupSettings": "Backup settings",
     "healthAlertTip": "Tip: {tip}",
     "budgetRemaining": "{dimension} — ${remaining} remaining",
     "subagentStaleDescription": "No progress for {minutes} min · {tokens, number} tokens",
@@ -10291,6 +10526,37 @@
       "hint": "You can also wait for the system to automatically compress the context."
     }
   },
+  "taskAirbag": {
+    "ready": "Changes can be undone",
+    "changeCount": "{count, plural, one {# change} other {# changes}}",
+    "review": "Review / Undo",
+    "reviewHint": "Review file changes made while the goal ran, or undo them all",
+    "modalTitle": "Review and undo changes",
+    "modalSubtitle": "Your files were saved before the goal started, so you can restore them any time",
+    "externalNote": "Undo only restores workspace files. Database, container, network request and git push actions cannot be undone.",
+    "externalDetected": "Detected during this run: {effects}",
+    "modified": "Modified",
+    "added": "Added",
+    "deleted": "Deleted",
+    "fileListTitle": "Affected files ({count})",
+    "noChanges": "Your workspace matches how it was before the goal started.",
+    "keepChanges": "Keep changes",
+    "keeping": "Saving...",
+    "later": "Decide later",
+    "undoAll": "Undo all changes",
+    "undoing": "Undoing...",
+    "close": "Close",
+    "undoneTitle": "Changes undone",
+    "undone": "Your workspace files are back to how they were before the goal started.",
+    "undoneWithBackup": "Your workspace files are back to how they were before the goal started. The state before the undo is kept in File Snapshots.",
+    "undoFailedTitle": "Undo failed",
+    "undoFailed": "Could not restore the workspace. Check file permissions and try again.",
+    "undoErrorTitle": "Undo request failed",
+    "unknownError": "Unknown error",
+    "keptTitle": "Changes kept",
+    "kept": "The changes are confirmed and the undo option is closed.",
+    "keepFailedTitle": "Could not save your choice"
+  },
   "fileSnapshot": {
     "title": "File Snapshots",
     "restore": "Restore",
@@ -10324,7 +10590,8 @@
     "effects": {
       "database": "database changes",
       "container_cloud": "container or cloud operations",
-      "network_mutation": "network requests"
+      "network_mutation": "network requests",
+      "publish": "pushed or published content"
     },
     "externalEffectsTooltip": "This snapshot contains external operations ({effects}) that cannot be undone by file rollback",
     "restoreExternalWarning": "External operations ({effects}) were performed and cannot be undone by this restore",
@@ -10871,53 +11138,46 @@
     },
     "learningLoop": {
       "title": "Five-Ring Closed Learning Loop Status",
-      "subtitle": "Cross-domain continuous self-evolution topology and health observability",
-      "healthScore": "Loop Health Score",
+      "subtitle": "How your agent turns conversations into skills and memories",
       "refresh": "Refresh",
-      "optimal": "Optimal Operation",
-      "warning": "Attention Needed",
-      "degraded": "Degraded",
-      "totalLearnings": "Total Cognitive Assets",
+      "unavailable": "Unavailable",
       "ring1": {
         "name": "Reflection",
-        "stage": "Trace Mining & Anti-Patterns",
-        "desc": "Autonomous idle review of session execution traces to detect tool failures, friction cues, and corrections.",
-        "metricsTraces": "Traces Analyzed: {count}",
-        "metricsAntiPatterns": "Anti-Patterns: {count}"
+        "stage": "Learning from conversations",
+        "desc": "After a substantial task, the agent quietly looks back over the conversation for lessons worth keeping.",
+        "metricsSessions": "Sessions in the last {days} days: {count}"
       },
       "ring2": {
         "name": "Distillation",
-        "stage": "Skill Extraction & Proposals",
-        "desc": "Synthesizes automated FIX and DERIVED enhancement proposals based on verified empirical evidence.",
-        "metricsProposals": "Proposals: {count}",
-        "metricsApproved": "Approved: {count}"
+        "stage": "Turning lessons into skills",
+        "desc": "Reusable know-how is drafted as new or improved skills. Safe new skills apply on their own; the rest wait for you.",
+        "metricsCases": "Total cases: {count}",
+        "metricsAutoApplied": "Auto applied: {count}"
       },
       "ring3": {
         "name": "Advancement",
-        "stage": "Baseline Benchmarking & Regression Gates",
-        "desc": "Leverages Improvement Gate and EvalCase regression suites to ensure variants strictly outperform the baseline.",
-        "metricsEvals": "Evaluations: {count}",
-        "metricsBlocked": "Blocked Regressions: {count}",
-        "metricsBoost": "Improvement: +{pct}%"
+        "stage": "Review and safety gate",
+        "desc": "Every skill draft is safety-checked first. Drafts that need your decision, or were stopped, are counted here.",
+        "metricsPending": "Pending review: {count}",
+        "metricsBlocked": "Blocked: {count}"
       },
       "ring4": {
         "name": "Consolidation",
-        "stage": "Idle Maintenance & Memory Pruning",
-        "desc": "Memory Guardian daemon periodically deduplicates fragmented preferences, gracefully decays obsolete facts, and prunes noise.",
-        "metricsCycles": "Cycles: {count}",
-        "metricsMerged": "Merged & Deduped: {count}",
-        "metricsMemories": "Total Memories: {count}"
+        "stage": "Background memory upkeep",
+        "desc": "In the background, related memories are merged and outdated ones set aside so recall stays sharp.",
+        "metricsMemories": "Total memories: {count}"
       },
       "ring5": {
         "name": "Profiling",
-        "stage": "Cross-Session Recall & User Profiling",
-        "desc": "Continuously builds high-fidelity user persona with FTS5 and vector semantics for millisecond cross-session knowledge recall.",
-        "metricsIndexed": "Conversations Indexed: {count}",
-        "metricsDimensions": "Profile Dimensions: {count}"
+        "stage": "Recall across conversations",
+        "desc": "Past conversations stay searchable, and what the agent learns about you builds into a profile that carries across chats.",
+        "metricsConversations": "All conversations: {count}",
+        "metricsProfile": "Profile entries: {count}"
       },
       "discoveryChip": {
-        "growsWithYou": "The Agent that Grows with You · 5-Ring Closed Loop Active",
-        "stats": "{memories} memories consolidated · {skills} active skills",
+        "growsWithYou": "The Agent that Grows with You",
+        "loopName": "Five-Ring Closed Loop",
+        "memoriesCount": "{count, plural, one {# memory} other {# memories}}",
         "viewLoop": "View Learning Loop"
       }
     },
@@ -11111,7 +11371,7 @@
     "statusLabel": {
       "pending": "Pending",
       "running": "Running",
-      "verifying": "Verifying",
+      "blocked": "Needs review",
       "completed": "Completed",
       "failed": "Failed",
       "timed_out": "Timed out",
@@ -11123,6 +11383,9 @@
       "checkpoint": "Checkpoint"
     },
     "detailFallbackAgentType": "Subagent",
+    "detailConfidenceHigh": "High",
+    "detailConfidenceMedium": "Medium",
+    "detailConfidenceLow": "Low",
     "detailNoDescription": "No description provided",
     "detailDuration": "Duration",
     "detailTokens": "Tokens",
@@ -11146,6 +11409,7 @@
     "detailCopiedTaskDescription": "Task description copied to clipboard",
     "detailCompletedChecklist": "Completed Checklist",
     "detailErrorDiagnostic": "Error Diagnostic",
+    "detailBlockedNote": "Verification could not reach a conclusion, so this result is neither confirmed nor refuted. Review it yourself before relying on it.",
     "detailVerificationPassed": "Independent verification: passed",
     "detailVerificationFailed": "Independent verification: failed",
     "detailVerificationRounds": "Rounds: {rounds}/{maxRounds}",
@@ -11546,7 +11810,10 @@
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
       "abortedBadge": "aborted",
-      "historyActions": "Actions"
+      "historyActions": "Actions",
+      "alreadyRunning": "An evaluation is already running",
+      "evalStartFailed": "Failed to start the evaluation",
+      "abortSent": "Abort request sent"
     },
     "skillAb": {
       "title": "Skill A/B Evaluation Protocol",
@@ -12720,11 +12987,6 @@
     "statusFinalization": "Budget nearly exhausted — agent will conclude response",
     "statusExceeded": "Budget exceeded — execution blocked",
     "ecoModeHint": "Eco mode activated: optimizing context compression to save tokens",
-    "criticalPauseActive": "Critical Pause Awaiting Approval",
-    "autoDowngradedActive": "Automatically Downgraded to Economy Model",
-    "softGateActive": "Soft Spend Gate Triggered",
-    "tier1Label": "Spend Warning Notice",
-    "selfConfirmButton": "Confirm & Continue",
     "enableLabel": "Enable Budget Control",
     "enableDesc": "Multi-dimensional monitoring and limiting of LLM spend",
     "sessionLimit": "Session Limit",
@@ -13754,18 +14016,6 @@
     "closeBtn": "Close",
     "configureBtn": "Configure in Settings"
   },
-  "security": {
-    "taintedEgress": {
-      "title": "Sensitive Egress Intercepted",
-      "description": "An outbound network request containing sensitive credentials was intercepted.",
-      "destinationHost": "Destination Host",
-      "dataType": "Sensitive Data Type",
-      "detectedPattern": "Detected Pattern",
-      "trustSession": "Always trust this destination for this session (prevents future prompts)",
-      "approve": "Allow Outbound",
-      "reject": "Block & Deny"
-    }
-  },
   "ttsAudio": {
     "generatedSpeech": "Generated speech",
     "playbackFailed": "Audio playback failed — the file may have expired."
@@ -13966,6 +14216,11 @@
     "title": "Backup and restore",
     "subtitle": "Move everything in this app — chats, agents, skills, memory and settings — to another device, or keep a safe copy.",
     "unsupported": "Backup and restore isn't available in this deployment.",
+    "entry": {
+      "prompt": "Moving from another device, or already have a Myrm backup?",
+      "open": "Restore from a backup",
+      "close": "Not now"
+    },
     "export": {
       "title": "Create a backup",
       "description": "Packs your chats, agents, skills, memory and settings into one file you can restore on any device.",
@@ -13986,6 +14241,7 @@
       "keepSafe": "Keep this file somewhere safe. Anyone who has it can read your chats.",
       "keysSealed": "Your keys are sealed with your passphrase.",
       "notIncluded": "Not in this file. You'll enter these again after restoring:",
+      "unreadable": "{count, plural, one {# item couldn't be read and isn't in this file.} other {# items couldn't be read and aren't in this file.}} Close any app that may be using your files, then create the backup again.",
       "done": "Done",
       "discard": "Discard"
     },
@@ -14014,6 +14270,10 @@
         "wiki_pages": "Wiki pages",
         "cron_jobs": "Scheduled tasks"
       },
+      "madeAt": "Backup made {date}",
+      "nowCount": "Now {count}",
+      "losesHistory": "This backup has fewer chats or messages than this app has now. Restoring removes the difference.",
+      "incomplete": "This backup is incomplete: {count, plural, one {# item couldn't be read when it was made and is not included} other {# items couldn't be read when it was made and are not included}}. Anything it lacks will also be gone from this app after restoring.",
       "replaceWarning": "Restoring replaces what is in this app now with the contents of this backup. You can undo it afterwards.",
       "pausedJobs": "{count, plural, one {# scheduled task is paused until you turn it back on.} other {# scheduled tasks are paused until you turn them back on.}}",
       "missingPaths": "{count, plural, one {# folder or file referenced by your data doesn't exist on this device.} other {# folders or files referenced by your data don't exist on this device.}}",
@@ -14040,6 +14300,7 @@
       "sandbox": "The restore is applied while your workspace restarts. This takes a few seconds.",
       "manual": "Quit the app and start it again to apply the restore.",
       "failed": "Couldn't restart automatically. Please restart it yourself.",
+      "busy": "Tasks are still running. Wait for them to finish or stop them, then try again.",
       "now": "Restart now",
       "restarting": "Restarting…"
     },
@@ -14080,17 +14341,52 @@
       "operation_pending": "Another restore is already waiting for a restart. Restart first, then try again.",
       "passphrase_required": "This backup contains protected keys. Enter its passphrase to continue.",
       "restore_failed": "The restore couldn't be applied, and your previous data was put back.",
-      "restore_point_corrupt": "This restore point is damaged and can't be used.",
-      "restore_point_incomplete": "This restore point is missing files and can't be used.",
+      "restore_point_corrupt": "This snapshot is damaged and can't be used.",
+      "restore_point_incomplete": "This snapshot is missing files and can't be used.",
       "rollback_incomplete": "The restore didn't finish and some data couldn't be put back. Restore from a backup file to recover.",
       "secrets_unavailable": "Keys can't be included in a backup in this deployment.",
       "stage_failed": "We couldn't check this backup. Please try again.",
       "unknown_export": "This backup is no longer available. Please create it again.",
-      "unknown_restore_point": "This restore point no longer exists.",
+      "unknown_restore_point": "This snapshot no longer exists.",
       "unknown_session": "The upload was interrupted. Please start it again.",
       "unsupported_layout": "This backup was made by an incompatible version of the app.",
       "upload_incomplete": "The upload was interrupted. Please start it again.",
-      "wrong_passphrase": "That passphrase is incorrect."
+      "wrong_passphrase": "That passphrase is incorrect.",
+      "backup_dir_invalid": "That backup folder can't be used. Choose a different folder.",
+      "backup_dir_inside_state": "Choose a folder outside the app's own data folder, so backups survive a restore.",
+      "backup_dir_not_writable": "The app can't write to that folder. Choose a different folder.",
+      "backup_write_failed": "The backup couldn't be saved to the folder. Check that it is available and try again.",
+      "backup_unreadable": "The saved backup didn't pass a check and was discarded. Please try again.",
+      "backup_incomplete": "Some of your data couldn't be read, so this backup is incomplete. What could be saved was kept next to your earlier backups, which are untouched. Close any app that may be using your files and try again."
+    },
+    "auto": {
+      "title": "Automatic backup",
+      "description": "Saves a full copy of your chats, agents, skills, memory and settings on a schedule, so one bad update or mistake doesn't cost you everything.",
+      "enable": "Turn on automatic backup",
+      "running": "Backing up…",
+      "lastBackup": "Last backup {date} · {size}",
+      "noBackupYet": "No backup yet",
+      "folderUnavailable": "Can't reach the backup folder right now. Reconnect it, or choose a different folder.",
+      "overdue": "Your last backup is older than expected. Backups only run while the app is open, so keep it running around the scheduled time, or back up now.",
+      "frequency": "How often",
+      "frequencyOptions": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "keep": "Copies to keep",
+      "keepOption": "{count, plural, one {# copy} other {# copies}}",
+      "folder": "Folder",
+      "browse": "Browse",
+      "browseTitle": "Choose a folder for backups",
+      "apply": "Use this folder",
+      "useDefault": "Use default folder",
+      "defaultFolderHint": "These copies stay on this computer, so they won't help if it is lost or its disk fails. For real protection, choose a folder on another drive or a synced folder.",
+      "folderHint": "Earlier copies stay where they were; only new backups go to this folder.",
+      "backupNow": "Back up now",
+      "savedCopies": "{count, plural, one {# saved copy} other {# saved copies}}",
+      "restoreHint": "To restore one, choose its file under “Restore from a backup”.",
+      "notePlain": "Backups are ordinary, unencrypted files: anyone who can open the folder can read your chats. They never include logins, model keys or connections.",
+      "noteScope": "Memory Cloud Backup only protects your memories; this covers everything listed above."
     }
   },
   "questionNav": {
@@ -14140,7 +14436,7 @@
     "viewportMobile": "Mobile (375px)",
     "clickToAnnotate": "Annotate Element",
     "annotatingActive": "Annotating (Click Element)",
-    "approveAndHandoffSpec": "✨ Approve & Export spec.md",
+    "approveAndHandoffSpec": "Approve & Export spec.md",
     "specHandoffDone": "Spec Exported & Handoff Complete",
     "selectedElementLabel": "Selected Element",
     "commentPlaceholder": "Enter design refinement comments (e.g., gradient primary button, export table)...",
@@ -14225,7 +14521,8 @@
     "title": "Agent Template Marketplace",
     "subtitle": "Spin up a ready-made agent with preset tools and skills in one click",
     "stats": {
-      "total": "templates"
+      "total": "templates",
+      "filtered": "matching templates"
     },
     "searchPlaceholder": "Search templates by name or description...",
     "empty": {
@@ -14237,7 +14534,9 @@
       "individual": "Individual",
       "builtinTools": "built-in tools",
       "skills": "skills",
-      "cloneAction": "Use Template"
+      "cloneAction": "Use Template",
+      "paretoSavings": "Cost Reduction",
+      "useCases": "Key Scenarios"
     },
     "workbench": {
       "title": "Clone Agent from Template",
@@ -14249,7 +14548,17 @@
       "teamMembers": "Team members",
       "success": "Agent created",
       "cloning": "Creating agent...",
-      "cloneConfirm": "Create Agent"
+      "cloneConfirm": "Create Agent",
+      "namePlaceholder": "Leave blank to use default template name",
+      "error": "Failed to instantiate agent, please try again."
+    },
+    "categories": {
+      "all": "All Domains",
+      "engineering": "Engineering & Arch",
+      "office": "Enterprise Office",
+      "commerce": "E-Commerce Ops",
+      "team": "Multi-Agent Squads",
+      "general": "General Assistants"
     }
   },
   "commandMatrix": {
@@ -14285,7 +14594,14 @@
     "selfContainedBadge": "Single file, runs anywhere",
     "subtitle": "Single-file demos you can preview, copy and reuse",
     "title": "Template gallery",
-    "useTemplate": "Use this template"
+    "useTemplate": "Use this template",
+    "quickLaneSubtitle": "Click to craft an instant romantic or playful demo",
+    "celebration": "Birthdays & Festivals",
+    "interactive_fun": "Games & Interaction",
+    "romance_memory": "Romance & Milestones",
+    "utility_tools": "Party & Decision Tools",
+    "generative_art": "Fluid & Generative Art",
+    "promptPrefilled": "Inspiration prompt prefilled into input box"
   },
   "embedWidget": {
     "allowedOriginLabel": "Allowed origin",
@@ -14326,7 +14642,17 @@
     "title": "Reference",
     "slice": {
       "provenance": "Source",
-      "title": "Referenced content"
+      "title": "Referenced content",
+      "truncated": "Truncated to protect context token budget"
+    },
+    "searchPlaceholder": "Search files, sessions, artifacts, agents, or tasks...",
+    "dimensions": {
+      "all": "All",
+      "file": "Source Files",
+      "session": "Prior Sessions",
+      "artifact": "Artifacts",
+      "agent": "Agents",
+      "task": "Tasks"
     }
   },
   "reconnectProtocol": {
@@ -14340,7 +14666,12 @@
     "resyncing": "Resyncing",
     "statusDescription": "Shows how the live task stream recovers after a connection drop",
     "subscribingLive": "Subscribing to live stream",
-    "title": "Connection recovery"
+    "title": "Connection recovery",
+    "versionBadge": "Version v{version}",
+    "epochBadge": "Epoch: {epoch}",
+    "messagesCount": "Messages: {count}",
+    "activeTools": "Active Tools: {count}",
+    "latestTurn": "Latest Turn: {summary}"
   },
   "scratchpad": {
     "cancel": "Cancel",
@@ -14361,7 +14692,10 @@
     "targetProjectPlaceholder": "Target project directory",
     "title": "Quick scratchpad",
     "titlePlaceholder": "Note title (optional)",
-    "wordCount": "{words} words, {chars} characters, {lines} lines"
+    "wordCount": "{words} words, {chars} characters, {lines} lines",
+    "promoteDialogTitle": "Confirm Project Promotion",
+    "promoteDialogDesc": "System will automatically scaffold project directory, README, and provenance tracking file docs/scratchpad_origin.md into your workspace sandbox.",
+    "openScratchpad": "Quick Scratchpad"
   },
   "swarmExecution": {
     "activeCountLabel": "{count} active",
@@ -14408,7 +14742,17 @@
     "totalDuration": "Total {ms} ms",
     "totalTokens": "{tokens} tokens",
     "treeView": "Tree",
-    "waterfallView": "Waterfall"
+    "waterfallView": "Waterfall",
+    "totalSteps": "{count} Steps",
+    "runningSteps": "{count} Running",
+    "completedSteps": "{count} Done",
+    "failedSteps": "{count} Failed",
+    "interruptedSteps": "{count} Interrupted",
+    "ioMetrics": "IO & Token Metrics",
+    "inputChars": "Input chars: {count}",
+    "outputChars": "Output chars: {count}",
+    "tokensCount": "Tokens: Prompt {prompt} · Completion {completion}",
+    "emptyPayload": "No data attached"
   },
   "uiAlignment": {
     "addAnnotationTitle": "Add annotation",
@@ -14428,7 +14772,15 @@
     "selectedVariant": "Selected variant",
     "submitAnnotation": "Submit",
     "subtitle": "Compare variants side by side and annotate what to align",
-    "title": "UI alignment"
+    "title": "UI alignment",
+    "modern_bento": "Modern Bento",
+    "minimal_dark": "Minimal Dark",
+    "glassmorphism": "Glassmorphism",
+    "neo_brutalism": "Neo Brutalism",
+    "custom": "Custom Theme",
+    "selectVariant": "Select Variant",
+    "finalizeContractSuccess": "Visual Contract Finalized",
+    "tokensPalette": "Design Tokens"
   },
   "quadGraph": {
     "closeDrawer": "Close node details",
@@ -14455,7 +14807,11 @@
     "submitSteer": "Send steering instruction",
     "viewportSwitcherAria": "Switch graph viewport",
     "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out"
+    "zoomOut": "Zoom out",
+    "layerTask": "Task Graph",
+    "layerWorkflow": "Workflow Graph",
+    "layerTeam": "Team Graph",
+    "layerCommunication": "Comm Graph"
   },
   "externalLinkConfirm": {
     "title": "Open this link in your browser?",
@@ -14464,6 +14820,578 @@
     "urlLabel": "Link address",
     "cancel": "Cancel",
     "open": "Open in browser"
+  },
+  "adaptiveLayout": {
+    "grid": {
+      "foldableGolden": "Foldable Golden Dual-Panel Mode",
+      "mobileLandscape": "Mobile Landscape Pro Cockpit",
+      "desktopMultiPanel": "Multi-Panel Workspace",
+      "singlePanel": "Single Panel Mode",
+      "toggleLeft": "Toggle Left Sidebar",
+      "toggleRight": "Toggle Canvas Area",
+      "collapsePanel": "Collapse Panel",
+      "expandPanel": "Expand Panel",
+      "dragToResize": "Drag to resize panel proportions"
+    },
+    "terminalResize": {
+      "colsRows": "Terminal Matrix: {cols} Cols × {rows} Rows",
+      "autoNegotiating": "Adjusting terminal size...",
+      "resizeSuccess": "Terminal size updated"
+    }
+  },
+  "agentAssembler": {
+    "composerTitle": "Visual Modular Agent Assembler",
+    "composerSubtitle": "Block-Based Capability Composer & Sandbox Testbed",
+    "blockCatalogTitle": "Capability Blocks Pool",
+    "available": "blocks available",
+    "searchBlocks": "Search building blocks...",
+    "allCategories": "All",
+    "brain": "Brain",
+    "persona": "Persona",
+    "tools": "Tools",
+    "skills": "Skills",
+    "memory": "Memory",
+    "sandbox": "Sandbox",
+    "equip": "Equip",
+    "equipped": "Equipped",
+    "alreadyEquipped": "Already equipped in canvas",
+    "noBlocksFound": "No capability blocks found",
+    "agentNamePlaceholder": "Agent Blueprint Name (e.g. Full-Stack Lead)",
+    "agentDescPlaceholder": "Enter concise purpose and operational scope...",
+    "blueprintValid": "Blueprint Structurally Valid",
+    "blueprintInvalid": "Dependency Issues Detected",
+    "viewReport": "Report",
+    "hideReport": "Hide",
+    "assembledBlocks": "Equipped Capability Blocks",
+    "emptyCanvasTitle": "Assembly Canvas is Empty",
+    "emptyCanvasDesc": "Equip capability blocks from the left pool or apply a starter preset to begin assembling your autonomous agent.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "active": "Active",
+    "inactive": "Inactive",
+    "configure": "Configure",
+    "remove": "Remove",
+    "blockParameters": "Parameters & Injected Config",
+    "noExtraConfig": "Standard preset parameters applied.",
+    "playgroundTitle": "Sandbox Testbed & Dry-Run",
+    "testPromptLabel": "Test Instruction Prompt",
+    "testPromptPlaceholder": "Enter a test instruction to observe assembled agent decisions...",
+    "simulating": "Simulating...",
+    "runDryRun": "Run Dry-Run",
+    "predictedTools": "Predicted Activated Tools",
+    "noToolsTriggered": "No tools triggered (direct cognitive text output)",
+    "simulatedOutput": "Simulation Output",
+    "resolvedSystemPrompt": "Resolved Injected System Prompt",
+    "emptyDryRunHint": "Trigger a test dry-run to observe live sandbox behavior.",
+    "presets": "Presets:",
+    "export": "Export",
+    "exportJson": "Export Blueprint JSON",
+    "saveBlueprint": "Save Agent"
+  },
+  "agentAvatar": {
+    "modalTitle": "Agent Avatar Studio & Dice Lock",
+    "close": "Close",
+    "tabDice": "Deterministic Dice Roll",
+    "tabAi": "AI Generative Avatar",
+    "avatarLocked": "Avatar is locked",
+    "rollDice": "Randomize Avatar",
+    "unlockToRoll": "Unlock avatar to enable random dice roll",
+    "locked": "Locked",
+    "diceRoll": "Randomize",
+    "clickToUnlock": "Click to unlock avatar",
+    "clickToLock": "Click to lock avatar",
+    "stylePresets": "Style Preset",
+    "styleBeam": "Beam",
+    "stylePixel": "Pixel",
+    "styleCyberpunk": "Cyber",
+    "styleBauhaus": "Bauhaus",
+    "backgroundTone": "Background Tone",
+    "aiPromptLabel": "Avatar Persona Prompt",
+    "aiPromptPlaceholder": "Describe bot appearance or persona...",
+    "generating": "Generating...",
+    "generateAiCta": "Cast AI Avatar",
+    "cancel": "Cancel",
+    "saveAndLock": "Save & Lock Avatar"
+  },
+  "channelPairing": {
+    "wizard": {
+      "title": "Channel Visual Pairing Wizard",
+      "modelAgnosticBadge": "Model-Agnostic Engine · Zero-CLI Deterministic Flow",
+      "antiWorkbuddyNote": "Connect in one scan, no commands to type",
+      "antiWorkbuddyDesc": "No need to switch to expensive models or type technical setup commands in chat. Click a channel to generate a dynamic QR code for instant pairing.",
+      "waitingScan": "Please scan the dynamic QR code above with the client...",
+      "sessionExpiry": "Valid for 300 seconds",
+      "bindingSuccess": "Channel Authenticated and Token Bound Successfully!",
+      "bindingSuccessDesc": "Encrypted credentials securely saved to local sandbox. Channel is ready for delivery.",
+      "startPairing": "Start QR Pairing",
+      "confirmScanned": "Simulate Scan Completed",
+      "proceedPing": "Proceed to Ping Verification",
+      "done": "Done & Close"
+    },
+    "platforms": {
+      "wechat": {
+        "name": "WeChat",
+        "desc": "Mobile QR dynamic pairing, zero CLI commands",
+        "guide": "Open WeChat and scan QR to authorize"
+      },
+      "wecom": {
+        "name": "WeCom",
+        "desc": "Bitable or custom app webhook bridge",
+        "guide": "Scan QR in WeCom to confirm binding"
+      },
+      "feishu": {
+        "name": "Feishu / Lark",
+        "desc": "Custom bot and interactive card delivery",
+        "guide": "Scan QR in Feishu or authorize bot app"
+      },
+      "dingtalk": {
+        "name": "DingTalk",
+        "desc": "Group bot and secure dedicated delivery",
+        "guide": "Scan QR in DingTalk to connect bot"
+      },
+      "slack": {
+        "name": "Slack",
+        "desc": "Incoming Webhook & Bot Token",
+        "guide": "Complete handshake via Slack OAuth link"
+      },
+      "telegram": {
+        "name": "Telegram",
+        "desc": "BotFather token & long polling ingress",
+        "guide": "Send pairing verification code to bot"
+      }
+    },
+    "healthCheck": {
+      "title": "Connectivity Probe & Latency Test",
+      "modelAgnostic": "Deterministic",
+      "description": "Dispatches probe ping directly to channel endpoint and measures round-trip delivery latency in milliseconds.",
+      "targetLabel": "Recipient / Chat ID (Optional)",
+      "targetPlaceholder": "Leave blank to use paired default recipient",
+      "messageLabel": "Test Message",
+      "sendPing": "Send Test Ping",
+      "latency": "Round-trip Latency:",
+      "successTitle": "Connectivity Verification Succeeded",
+      "receiptLabel": "Receipt ID:",
+      "errorTitle": "Connectivity Probe Failed"
+    }
+  },
+  "commandPalette": {
+    "title": "Global Command Hub & Session Search",
+    "shortcutHint": "Press Cmd+K anytime",
+    "inputPlaceholder": "Type command, action, or search chat history...",
+    "groups": {
+      "actions": "Quick Controls & System Commands",
+      "history": "Chat Threads & Message History"
+    },
+    "actionsList": {
+      "switchModel": "Switch Active Model (/model)",
+      "switchModelDesc": "Adjust or switch baseline inference model",
+      "switchAgent": "Switch Specialized Agent (/agent)",
+      "switchAgentDesc": "Quickly switch to Code Architect, Tester, etc.",
+      "clearContext": "Clear Current Context (/clear)",
+      "clearContextDesc": "Reset working memory and multi-turn window",
+      "exportSession": "Export Offline HTML Bundle (/export)",
+      "exportSessionDesc": "Package multi-turn task into standalone interactive HTML",
+      "globalEstop": "Global Physical Emergency Stop (/estop)",
+      "globalEstopDesc": "Instantly abort all active background runs and subagents"
+    },
+    "historyEmpty": "No matching conversation found",
+    "searchingHistory": "Searching message history...",
+    "telemetry": {
+      "cacheHit": "Cache Hit",
+      "ttft": "TTFT Latency",
+      "throughput": "Live Throughput",
+      "estopBtn": "Global E-Stop",
+      "estopActivated": "Emergency Stop Activated. Active tasks halted."
+    },
+    "tabToAdopt": "Press Tab to adopt suggested prompt"
+  },
+  "factCheck": {
+    "bannerTitle": "Honesty Audit & Fact Verification",
+    "bannerWarning": "This draft contains {count} unverified placeholder data points. Replace them with real benchmarks before publishing",
+    "bannerSuccess": "All placeholder data points have been verified and replaced with real data",
+    "viewCheckSheet": "View Check Sheet",
+    "finalizeDraft": "Finalize Draft",
+    "drawerTitle": "Fact Check & Placeholder Ledger",
+    "drawerSubtitle": "Zero uncontrolled fabrication. Rigorously manage placeholder skeletons and verified facts",
+    "tabPlaceholders": "Pending Placeholders",
+    "tabVerified": "Verified Hard Facts",
+    "placeholderTag": "To Verify",
+    "verifiedTag": "Verified",
+    "contextLabel": "Context Snippet",
+    "inputRealValuePlaceholder": "Enter real benchmark value...",
+    "applyBtn": "Apply",
+    "applied": "Applied",
+    "replaceAllBtn": "Replace All & Finalize",
+    "sourceLabel": "Source",
+    "verifiedAtLabel": "Verified At",
+    "emptyPending": "Great! No unverified fabrication placeholders remain",
+    "emptyVerified": "No web-retrieval verification records attached",
+    "close": "Close"
+  },
+  "groupChat": {
+    "title": "Bot Mode Multi-Agent Group Chat Workspace",
+    "hermesParity": "Bot mode and peer-to-peer messaging",
+    "roomsTitle": "Collaboration Channels",
+    "createRoom": "Create New Room",
+    "roomNamePlaceholder": "Room name (e.g. Architecture War Room)",
+    "roomTopicPlaceholder": "Collaboration goal or room topic...",
+    "participantsTitle": "Room Participants & Roles",
+    "operatorLabel": "Workspace Director (Human)",
+    "botLabel": "Specialized Bot",
+    "composerPlaceholder": "Type instructions, press @ to mention specific agents...",
+    "sendBtn": "Send",
+    "peerTitle": "Canonical Peer Dialogue Archives",
+    "noMessages": "No messages yet. Type in composer and @ mention an agent to collaborate.",
+    "noArchives": "No peer-to-peer dialogues found",
+    "messagesCount": "messages",
+    "latencyLabel": "Roundtrip Latency",
+    "avatarLocked": "Deterministic Avatar Locked",
+    "presence": {
+      "idle": "Idle & Ready",
+      "reasoning": "Reasoning & Deliberating...",
+      "pass": "PASS (Silent Observation)",
+      "viewSkills": "View Skills & Persona",
+      "skillsTitle": "Mounted Skills & Tools",
+      "membersOnline": "specialists online"
+    },
+    "mention": {
+      "mentionTitle": "Mention & Assign Agent",
+      "filterPlaceholder": "Filter by role or name (e.g. @sec, @arch)...",
+      "noMatch": "No matching agents found",
+      "primaryTarget": "Primary Target"
+    },
+    "deliberation": {
+      "passBadge": "Evaluated: No action needed this turn, PASS (Listening)",
+      "expandPass": "Expand Reasoning",
+      "collapsePass": "Collapse",
+      "roleSpeaker": "Lead Speaker"
+    },
+    "needsYou": {
+      "needsYouTitle": "Human Intervention Required (NEEDS-YOU)",
+      "resolveNotice": "Deliberation reached a critical fork. Please steer the squad.",
+      "suggestedChips": "Suggested Directions:",
+      "customResponse": "Or enter custom decision instruction...",
+      "submitDecision": "Confirm Decision & Resume"
+    }
+  },
+  "machines": {
+    "title": "My Machines (Fleet Dashboard)",
+    "subtitle": "Connect and monitor your self-hosted machines and private compute nodes with real-time screen takeover",
+    "connectBtn": "Connect Machine",
+    "refreshBtn": "Refresh Fleet",
+    "statusOnline": "Online Ready",
+    "statusBusy": "Busy",
+    "statusOffline": "Offline",
+    "statusTakeover": "Human Takeover",
+    "cpuUsage": "CPU Load",
+    "memUsage": "Memory Usage",
+    "diskUsage": "Disk Usage",
+    "activeTasks": "Active Tasks",
+    "lastHeartbeat": "Heartbeat",
+    "liveScreen": "Live Screen",
+    "takeoverBtn": "Take Over Control",
+    "resumeBtn": "Hand Back to Agent",
+    "takingOverTitle": "Human Takeover Active",
+    "takingOverDesc": "Your mouse clicks and key inputs are relayed directly to the remote screen. Autonomous agent is paused",
+    "connectModalTitle": "Connect Self-Hosted Machine",
+    "connectModalSubtitle": "Run the one-line command below on your host terminal to connect securely in about 3 seconds",
+    "platformLabel": "Target Host OS",
+    "commandLabel": "1-Click Registration Command",
+    "copyCommand": "Copy Command",
+    "copied": "Copied",
+    "testingHeartbeat": "Waiting for the machine to connect...",
+    "handshakeSuccess": "Connected! The machine is now online",
+    "close": "Done",
+    "emptyCluster": "No self-hosted machines connected yet. Click the button above to onboard your first machine"
+  },
+  "memoryHub": {
+    "typeChatMemory": "Chat Memory",
+    "typeSkill": "Skill Artifact",
+    "typeWiki": "Wiki Knowledge",
+    "typeCodeGraph": "Code Graph",
+    "aclPrivate": "Private Enclave",
+    "aclTeam": "Team Shared",
+    "aclProject": "Project Bound",
+    "aclAll": "All Scopes",
+    "configureAcl": "Configure Access",
+    "equipped": "Equipped",
+    "equip": "Equip",
+    "equipmentLoadout": "Cognitive Memory Equipment Loadout",
+    "equipmentSubtitle": "Mounted memory assets active in the current cognitive loop",
+    "equippedSlotsCount": "slots",
+    "unequip": "Unequip",
+    "clickToMount": "Available for mount",
+    "aclDrawerTitle": "Granular Access Policy",
+    "selectAclScope": "Access Scope Isolation",
+    "aclTeamDesc": "Accessible and mountable by all agents in the current workspace.",
+    "aclPrivateDesc": "Strictly restricted to the owner agent and explicit allowed agent list.",
+    "aclProjectDesc": "Bounded exclusively to the active code repository and sandbox volume.",
+    "authorizedAgentsLabel": "Explicit Authorized Agent IDs (comma separated)",
+    "ownerAutoAuthorized": "The owner agent is always granted full access automatically.",
+    "cancel": "Cancel",
+    "saveAclPolicy": "Save Access Policy",
+    "hubTitle": "Agent Cognitive Memory Hub & Equipment Deck",
+    "hubSubtitle": "Four-tier memory asset catalog with granular access isolation and game-like loadout equipment",
+    "refresh": "Refresh",
+    "createAsset": "Capture Asset",
+    "tabAll": "All Assets",
+    "searchPlaceholder": "Search assets, tags, or descriptions...",
+    "emptyResults": "No cognitive assets match your filters",
+    "emptyResultsHint": "Try adjusting your search terms or create a new cognitive memory asset."
+  },
+  "memoryRecall": {
+    "drawerTitle": "Memory & Experience Recall Simulator",
+    "drawerSubtitle": "Benchmarking EvoX recall testing and governance center, verifying multi-channel candidate hits and in-place secondary governance",
+    "queryInputPlaceholder": "Enter test prompt or task command (e.g. debug Linux kernel deadlock, optimize React rerenders)...",
+    "simulateBtn": "Simulate Recall",
+    "simulatingBtn": "Searching...",
+    "totalMatched": "Matched Items",
+    "latency": "Latency",
+    "rrfScore": "RRF Score",
+    "bm25Score": "BM25 Lexical",
+    "vectorSim": "Vector Semantic",
+    "causalAffinity": "Causal Gene",
+    "confidenceWeight": "Confidence Weight",
+    "mustAvoidTrap": "Must-Avoid Trap",
+    "normalGene": "Positive Experience",
+    "statusActive": "Active",
+    "statusDisabled": "Disabled",
+    "statusLocked": "Locked",
+    "lockBtn": "Lock",
+    "unlockBtn": "Unlock",
+    "disableBtn": "Disable",
+    "enableBtn": "Enable",
+    "mergeDuplicateBtn": "Merge Duplicate",
+    "mergePrompt": "Enter target memory ID to merge into",
+    "emptyResults": "No matching memory items or experience genes found. Please try a different query.",
+    "close": "Close"
+  },
+  "mobileCockpit": {
+    "voiceStagedInput": {
+      "title": "Voice Staged Review",
+      "listening": "Listening...",
+      "tapToSpeak": "Tap microphone to dictate requirements",
+      "reviewHint": "Speech staged. Review or adjust with one hand before sending",
+      "placeholder": "Transcribed voice text will appear here...",
+      "retry": "Redictate",
+      "clear": "Clear",
+      "send": "Send Voice Message",
+      "cancel": "Dismiss",
+      "unsupported": "Voice recognition not supported in this browser"
+    },
+    "hitlApproval": {
+      "title": "Approval Needed",
+      "riskLevel": "Risk Level",
+      "riskLow": "Low Risk",
+      "riskMedium": "Medium Risk",
+      "riskHigh": "High Risk (Sensitive)",
+      "riskCritical": "Critical Risk (Destructive)",
+      "commandOrAction": "Action to Execute",
+      "affectedScope": "Scope Impact",
+      "approveYes": "Approve (Yes)",
+      "rejectNo": "Reject (No)",
+      "steerGuide": "Intervene (Steer)",
+      "steerPlaceholder": "Type correction instruction or guidance...",
+      "steerSubmit": "Send Guidance & Continue",
+      "rejectReasonPlaceholder": "Optional: reason for rejection...",
+      "rejectConfirm": "Confirm Rejection",
+      "processing": "Processing..."
+    },
+    "selectionList": {
+      "title": "Touch Option Selection",
+      "singleSelectHint": "Tap with one thumb to select directly",
+      "multiSelectHint": "Multiple options supported, tap to confirm",
+      "confirmSelection": "Confirm Selection",
+      "selectedCount": "{count} selected",
+      "clearAll": "Reset"
+    },
+    "actionBar": {
+      "quickVoice": "Voice Input",
+      "skills": "Skills (/)",
+      "stop": "Stop",
+      "stopping": "Stopping...",
+      "sessions": "Sessions",
+      "expand": "More"
+    }
+  },
+  "modelOverrides": {
+    "title": "Model Context & Pricing Overrides Manager",
+    "hermesParity": "Applies live at runtime",
+    "cloneTemplate": "Modern 2026 Baseline Model SKU Templates (Click to clone):",
+    "modelIdLabel": "Target Model ID / Alias",
+    "currencyLabel": "Pricing Currency",
+    "contextWindowLabel": "Context Window (tokens)",
+    "maxOutputLabel": "Max Output Tokens",
+    "inputPriceLabel": "Input Cost (per 1M tokens)",
+    "outputPriceLabel": "Output Cost (per 1M tokens)",
+    "calcTitle": "BYOK Live Token Economics & Cost Calculator",
+    "calcInputTokens": "Projected Input Tokens",
+    "calcOutputTokens": "Projected Output Tokens",
+    "calcComputeBtn": "Calculate Run Cost",
+    "activeOverrides": "Active Model Overrides:",
+    "loadToForm": "Edit",
+    "close": "Close",
+    "saveAndApply": "Save & Apply Live"
+  },
+  "roiDashboard": {
+    "cardTitle": "Productivity & Hours Saved ROI HUD",
+    "cardSubtitle": "Measurable white-collar labor substitution, compute costs & ROI multiplier",
+    "tabToday": "Today",
+    "tabWeek": "Week",
+    "tabAllTime": "All Time",
+    "rangeAriaLabel": "Switch metrics time range",
+    "hoursSavedLabel": "High-Friction Hours Handled",
+    "hoursUnit": "Hours",
+    "hoursEquivalenceHint": "Calculated at baseline ${rate}/h human wage",
+    "economicValueTitle": "Return on Investment (ROI)",
+    "humanValueLabel": "Substituted Human Value",
+    "tokenCostLabel": "Actual Token & Compute Cost",
+    "categoryBreakdownTitle": "Labor Savings Breakdown by Category",
+    "categoriesCount": "Categories",
+    "tasksCount": "{count} tasks",
+    "viewWeeklyDigest": "View Weekly Productivity Milestone Digest",
+    "weeklyDigestTitle": "Weekly Productivity Digest",
+    "digestSummarySnippet": "Automated {tasks} tasks, saving {hours} hours",
+    "closeDigest": "Close",
+    "completedTasks": "Total Automated Tasks",
+    "netHoursSaved": "Net Hours Saved",
+    "topAgent": "Top Performer Agent",
+    "preventedErrors": "Errors Prevented",
+    "routineCatalogTitle": "High-Yield Out-of-the-Box Routines",
+    "routineCatalogSubtitle": "Zero blank-canvas onboarding friction — execute proven high-yield workflows in one click",
+    "runRoutineBtn": "Run Routine",
+    "loadingRoutines": "Loading high-yield routine templates..."
+  },
+  "runtimeConsole": {
+    "title": "Runtime Console & Multi-Surface Projection Hub",
+    "mateclawParity": "Live view of run state and events",
+    "surfaces": {
+      "chat": "Chat View",
+      "runtimeConsole": "Runtime Console",
+      "deliverables": "Deliverables Board",
+      "audit": "Audit Ledger"
+    },
+    "attemptInspector": {
+      "title": "Attempt Transitions & Throughput Watermarks",
+      "attemptNumber": "Attempt #{number}",
+      "duration": "Duration",
+      "throughput": "Throughput",
+      "tokens": "Tokens Used",
+      "status": "Status",
+      "faultReason": "Diagnostic Fault Reason",
+      "diffSummary": "Virtual Diff Summary",
+      "noAttempts": "No attempts recorded"
+    },
+    "deliverablesSection": {
+      "title": "Deliverables & Artifact Matrix",
+      "noDeliverables": "No deliverables produced by this run yet"
+    },
+    "auditSection": {
+      "title": "Compliance & Permission Ledger",
+      "noAudit": "No security actions recorded"
+    },
+    "tokensTotal": "Accumulated Tokens",
+    "avgThroughput": "Avg Generation Rate",
+    "closeDrawer": "Close Console"
+  },
+  "sessionExport": {
+    "modalTitle": "Session Export & Interactive Share Bridge",
+    "tabDownloadHtml": "Interactive HTML Bundle",
+    "tabShareLink": "Read-Only Web Link",
+    "includeThinking": "Include Reasoning & Thinking Traces",
+    "includeToolCalls": "Include Tool Call Inputs & Outputs",
+    "themePreset": "Default HTML Theme",
+    "themeSystem": "System Auto",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "zeroDepHint": "Generated HTML is completely self-contained with inlined CSS & Vanilla JS. Opens offline in any browser.",
+    "linkExpiry": "Link Expiration Window",
+    "expiry7Days": "7 Days",
+    "expiry30Days": "30 Days",
+    "optionalPassword": "Optional Passcode Protection",
+    "passwordPlaceholder": "Leave empty for public link...",
+    "shareLinkReady": "Secure Share Link Ready",
+    "copied": "Copied",
+    "copy": "Copy",
+    "cancel": "Cancel",
+    "compiling": "Compiling...",
+    "compileAndDownload": "Compile & Download HTML",
+    "generating": "Generating...",
+    "generateLink": "Generate Share Link",
+    "secretsDetected": "{count} sensitive credentials detected",
+    "cleanNoSecrets": "Clean session: no credentials detected",
+    "redactionActiveHint": "API keys, passwords, and private IPs will be automatically scrubbed upon export.",
+    "redactionDisabledHint": "Warning: sensitive keys will be exported in plaintext.",
+    "autoRedact": "Auto-Redact"
+  },
+  "skillAlignment": {
+    "title": "Pre-Flight Preference Alignment",
+    "subtitle": "Align key design palettes, layouts, and interaction patterns before the Agent streams code to eliminate rework",
+    "planFirstTitle": "Plan Before Execute",
+    "planFirstDesc": "Enforce Agent to stream a structured wireframe plan first, awaiting your confirmation before coding",
+    "customPlaceholder": "Enter custom design requirements or additional preferences...",
+    "confirm": "Confirm Alignment & Start",
+    "cancel": "Skip & Generate Directly",
+    "previewPrompt": "Structured Prompt Constraints",
+    "openInBrowser": "Open in External Browser",
+    "openInBrowserDesc": "Render in native real browser, eliminating iframe CSP restrictions and anti-hotlinking broken images",
+    "opening": "Launching external browser...",
+    "opened": "Opened in external browser"
+  },
+  "skillSolidify": {
+    "title": "Solidify into Skill Wizard",
+    "subtitle": "Extract dynamic parameters and bundle your deliverable into standard 4-in-1 skill (SKILL.md + assets/ + references/)",
+    "stepParams": "1. Parameter Minimization",
+    "stepBundle": "2. Template & Assets Preview",
+    "stepConfirm": "3. Completion",
+    "paramHelp": "Parameter Minimization: Only dynamic variable slots are exposed as inputs, while skeleton, CSS, and animations remain locked",
+    "nameLabel": "Skill Machine Identifier",
+    "displayTitleLabel": "Display Title",
+    "descriptionLabel": "Skill Description",
+    "categoryLabel": "Category",
+    "planHint": "Mandate 'Plan Before Execute' in generated skill instructions",
+    "solidifyBtn": "Solidify & Export Bundle",
+    "solidifying": "Bundling 4-in-1 skill assets...",
+    "successTitle": "Skill Solidified Successfully!",
+    "successDesc": "Saved to your local skills library. You can reuse it in any new session and test it directly in an external browser",
+    "openPreview": "Test in External Browser",
+    "close": "Done"
+  },
+  "workflowTrace": {
+    "title": "Workflow Execution Traceability",
+    "subtitle": "5-stage full lifecycle visualization, holographic node audit snapshots, and breakpoint self-healing replay",
+    "stageIntake": "Intake & Alignment",
+    "stagePlanning": "Task Planning",
+    "stageDispatch": "Dispatch & Sandbox",
+    "stageExecution": "Execution & Validation",
+    "stageClosure": "Closure & Audit",
+    "statusPending": "Pending",
+    "statusRunning": "Running",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "statusRetrying": "Retrying",
+    "statusReplaying": "Replaying",
+    "totalTokens": "Total Tokens",
+    "totalDuration": "Total Duration",
+    "nodeAuditTitle": "Node Holographic Audit Snapshot",
+    "nodeAuditSubtitle": "Retaining isolated prompts, tool invocations, intermediate payloads, and 4D validation scores",
+    "inputPayload": "Input Parameters",
+    "outputPayload": "Intermediate Outputs",
+    "promptExcerpt": "Prompt Excerpt",
+    "toolsInvoked": "Tools Invoked",
+    "validationScoreTitle": "Four-Dimensional Validation Scorecard",
+    "completeness": "Completeness",
+    "accuracy": "Accuracy",
+    "compliance": "Compliance",
+    "relevance": "Relevance",
+    "compositeScore": "Composite Score",
+    "replayFromNodeBtn": "Replay From This Node",
+    "replayingBtn": "Replaying...",
+    "steerPromptPlaceholder": "Enter steer prompt or guidance (e.g. prioritize high-risk endpoints)...",
+    "overrideInputPlaceholder": "Enter JSON overrides...",
+    "replaySuccess": "Replay from breakpoint succeeded; earlier results were reused and the following steps refreshed",
+    "replayFailed": "Breakpoint replay failed",
+    "close": "Close"
   },
   "settings": {
     "providerBalance": {
@@ -14712,7 +15640,6 @@
         "subtitle": "Break free from proprietary closed ecosystems. Zero vendor lock-in, all assets transparent and portable.",
         "exportConfig": "Export Workspace Config",
         "exportMemory": "Backup Memories",
-        "exportTakeout": "Export All My Data",
         "points": {
           "decouplingTitle": "Model & Asset Decoupling",
           "decouplingDesc": "Hot-swap between Claude, DeepSeek, GPT, Gemini freely while 100% of your assets and skills remain intact.",
@@ -14975,7 +15902,8 @@
         "web_search": "Web & Search",
         "docs": "Documentation",
         "design": "Design",
-        "api": "API Tools"
+        "api": "API Tools",
+        "social": "Social Media"
       }
     },
     "integrationMemory": {
@@ -15269,7 +16197,7 @@
         "scenes": {
           "memory": "Memory",
           "workspace": "Workspace",
-          "offload": "Offload"
+          "offload": "Context offload"
         }
       },
       "telemetry": {
@@ -15747,7 +16675,7 @@
         "hitsEmpty": "No risk hits recorded",
         "hitPosition": "Characters {start}–{end}",
         "hitTimedOut": "Matching timed out; treated as a hit",
-        "blockedTitle": "Message blocked by risk rules",
+        "blockedTitle": "Content blocked by risk rules",
         "blockedDescription": "Matched: {rules}. To let it through, turn the rule off in Settings → Security Policy → Risk Rules.",
         "hitsRuleName": "Rule",
         "hitsSeverity": "Severity",
@@ -15806,13 +16734,17 @@
             "name": "Credential assignment",
             "desc": "Detect explicit password, secret, token, or API key assignment."
           },
+          "password_phrase": {
+            "name": "Password in a sentence",
+            "desc": "Detect a password stated in a sentence or after a label, such as 'my password is ...'. Verification codes are not blocked."
+          },
           "jwt_token_like": {
             "name": "JWT token",
             "desc": "Detect JWT-like bearer tokens."
           },
           "cookie_session_like": {
             "name": "Session / access token",
-            "desc": "Detect session IDs, access or refresh tokens, and authorization headers that carry a value."
+            "desc": "Detect session IDs, session cookies, access or refresh tokens, and authorization headers that carry a value."
           },
           "db_connection_string": {
             "name": "Database connection string",
@@ -16166,14 +17098,6 @@
       "keyPoolActive": "{count} keys participating in auto load balancing & failover",
       "poolStatsTitle": "Credential Pool Runtime Stats",
       "poolStatsTooltip": "View runtime call metrics, 429 rate limit errors, and cooldown status",
-      "circuitBreakerTitle": "Model Endpoint Health & Circuit Breakers",
-      "circuitBreakerHealthy": "All Endpoints Healthy",
-      "circuitBreakerWarning": "Open Circuit Detected",
-      "resetAllCircuitBreakers": "Reset All Breakers",
-      "resetThisBreaker": "Retry & Recover",
-      "resetCircuitBreakerSuccess": "Reset {count} circuit breaker endpoint(s)",
-      "noActiveCircuitBreakers": "All model providers and endpoints are in healthy ready state",
-      "failureCount": "Consecutive Failures: {count}",
       "poolCalls": "{count} calls",
       "poolRateLimits": "{count} rate limits",
       "poolInCooldown": "Cooldown ({seconds}s)",
@@ -16213,6 +17137,7 @@
       "checking": "Checking...",
       "reachable": "Reachable",
       "unreachable": "Unreachable",
+      "probeTimeout": "Connection timed out",
       "egressProxy": "Egress Proxy",
       "egressProxyPlaceholder": "e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:1080",
       "egressProxyDescription": "Configure a dedicated egress proxy for this provider to achieve IP isolation and anti-ban defense.",
@@ -16584,9 +17509,14 @@
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
         "dismiss": "Dismiss",
-        "orphanWarning": "{count} memories from a previous model need migration",
+        "orphanWarning": "{count, plural, one {# memory is not used in replies until it is migrated to the new embedding model} other {# memories are not used in replies until they are migrated to the new embedding model}}",
         "reindex": "Migrate",
         "reindexing": "Migrating...",
+        "reindexProgress": "Migrating memories... {done} of {total}",
+        "reindexDone": "{count, plural, one {# memory} other {# memories}} migrated to the new model",
+        "reindexUpToDate": "All memories are already on the new model",
+        "reindexPartial": "{migrated} migrated, {failed} could not be migrated. Try again to retry them.",
+        "reindexError": "Migration was interrupted. Try again to continue where it left off.",
         "rerankerModel": "Reranker Model",
         "rerankerModelDescription": "Search result reranking model for semantic ranking across knowledge base, memory, web search, and other capabilities",
         "provider": "Provider",
@@ -17108,6 +18038,10 @@
       "querying": "Querying...",
       "compiling": "Compiling...",
       "maintaining": "Maintaining...",
+      "maintainProgress": {
+        "driftReview": "Reviewing accuracy {done}/{total}",
+        "linkDiscovery": "Finding links {done}/{total}"
+      },
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
       "reindexingVectors": "Rebuilding vectors...",
@@ -17140,7 +18074,6 @@
         "lastMaintainSummary": "Fixed {fixed} · Found {found}",
         "lastMaintainSkipped": "Last run skipped",
         "lastMaintainSkippedCompile": "Last run skipped (compilation in progress)",
-        "lastMaintainSkippedNoModel": "Last run skipped (AI model not configured)",
         "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
         "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
         "assetsVisionHint": "Images were imported but are not searchable yet. Configure a Vision Fallback Model under Settings → Models to index them.",
@@ -17206,6 +18139,8 @@
         "refresh": "Refresh",
         "query": "Query",
         "compile": "Compile Wiki",
+        "maintainCancel": "Stop",
+        "maintainCancelling": "Stopping...",
         "maintain": "Maintain Wiki",
         "maintainModeLabel": "Maintenance mode",
         "maintainModeStructural": "Structural",
@@ -17234,8 +18169,10 @@
       "success": {
         "queryComplete": "Query completed successfully",
         "compileComplete": "Wiki compiled successfully",
-        "compileSummary": "Compile complete: {published} published, {pending} pending review, {blocked} not generated. Review pending drafts in the Pending Edits tab.",
-        "compileSummaryWithSynthesis": "Compile complete: {published} published, {pending} pending review, {synthesis} evolution synthesis, {blocked} not generated. Review evolution pages in Pending Edits → Evolution synthesis.",
+        "compileStarted": "Compiling in the background: {count, plural, one {# file} other {# files}} queued.",
+        "compileNothingNew": "Nothing new to compile.",
+        "compileFinished": "Compile complete. Anything waiting for your review is in the {tab} tab.",
+        "maintainCancelled": "Maintenance stopped. What was already done is kept.",
         "maintainComplete": "Wiki maintenance completed",
         "maintainSummary": "Maintenance complete: {found} found, {fixed} fixed",
         "maintainSummaryWithLinks": "Maintenance complete: {found} found, {fixed} fixed, {connections} new link(s)",
@@ -17254,6 +18191,8 @@
         "queryFailed": "Failed to query wiki",
         "compileFailed": "Failed to compile wiki",
         "compileBlockedByDedup": "Resolve exact or normalized duplicate groups before compiling",
+        "maintainCancelFailed": "Could not stop maintenance. Try again.",
+        "maintainAiUnavailable": "The AI model did not respond, so only structural checks ran. Check your model settings and try again.",
         "maintainFailed": "Failed to maintain wiki",
         "maintainCompileBusy": "Wiki is compiling. Try maintenance again after compile finishes.",
         "repairTypesFailed": "Failed to repair page types",
@@ -17369,7 +18308,13 @@
           "timeout": "Timeout",
           "io_missing": "Missing file",
           "cancelled": "Cancelled",
-          "embed_window_violation": "Embedding window exceeded"
+          "embed_window_violation": "Embedding window exceeded",
+          "context_overflow": "Content too long",
+          "safety_block": "Blocked by safety policy",
+          "format_error": "Request rejected",
+          "response_format_error": "Unusable model reply",
+          "model_not_found": "Model unavailable",
+          "challenge_blocked": "Blocked by provider"
         },
         "refresh": "Refresh",
         "refreshStale": "Queue status may be outdated. Check your connection and tap Refresh.",
@@ -17699,7 +18644,6 @@
       "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
       "emptyArchived": "No archived concepts.",
       "daysUnchanged": "Unchanged for {days} days",
-      "isolatedInArchive": "Isolated in archive/ directory",
       "extendButton": "Extend 90 Days",
       "archiveButton": "Archive",
       "reviveButton": "Revive",
@@ -17846,6 +18790,7 @@
         "importSelected": "Import Selected",
         "cancel": "Cancel",
         "alreadyInstalled": "Installed",
+        "urlReimportInstalledHint": "Skills marked as installed can be selected to replace your copy with the remote version. After import, use Undo in the notification if you need to revert.",
         "searching": "Searching...",
         "noResults": "No skills found",
         "noResultsDesc": "Try different keywords or describe your need differently",
@@ -17857,12 +18802,13 @@
         "updating": "Updating...",
         "updatedSuccess": "Updated {name}",
         "updateFailed": "Update failed",
-        "restorePreUpdateSkillMd": "Restore pre-update SKILL.md",
-        "restorePreUpdateSkillMdDesc": "Only the previous SKILL.md was saved. Other files from the update are not reverted.",
-        "restorePreUpdateSuccess": "Restored SKILL.md for {name}",
-        "restorePreUpdateSuccessDesc": "Reverted SKILL.md from snapshot ({count} file restored).",
-        "restorePreUpdateFailed": "Could not restore SKILL.md",
-        "restorePreUpdateFailedDesc": "The rollback batch may have expired or already been applied.",
+        "restorePreUpdateSkillMd": "Undo last update",
+        "restorePreUpdateSkillMdDesc": "Restores files saved before this update (text resources included, within size limits).",
+        "restorePreUpdateSuccess": "Restored previous version of {name}",
+        "restorePreUpdateSuccessDesc": "Reverted {count} saved file(s) from the pre-update snapshot.",
+        "restorePreUpdateFailed": "Could not undo the update",
+        "restorePreUpdateFailedDesc": "The undo snapshot may have expired or was already used.",
+        "snapshotTruncatedDesc": "Some large or non-text files were not included in the undo snapshot.",
         "updateAvailable": "Update",
         "scanning": "Scanning...",
         "previewFailed": "Preview failed",
@@ -18055,10 +19001,14 @@
         "resetFailed": "Failed to reset skill",
         "acceptUpstreamSuccess": "Upstream update applied",
         "acceptUpstreamFailed": "Failed to apply upstream update",
+        "undoLastReplace": "Undo last update",
+        "undoLastReplaceHint": "You can revert to the version saved right before the last update.",
+        "undoLastReplaceSuccess": "Previous version restored",
+        "undoLastReplaceFailed": "Could not undo the last update",
         "confirmResetTitle": "Reset to Default",
         "confirmResetDesc": "Your local modifications to \"{name}\" will be permanently overwritten with the bundled default version. This cannot be undone.",
         "confirmAcceptTitle": "Apply Upstream Update",
-        "confirmAcceptDesc": "Your local modifications to \"{name}\" will be replaced with the latest upstream version. This cannot be undone.",
+        "confirmAcceptDesc": "Your local modifications to \"{name}\" will be replaced with the latest upstream version. You can undo this update from the skill detail page afterward.",
         "confirmAction": "Continue",
         "cancelAction": "Cancel",
         "export": "Export"
@@ -18070,10 +19020,12 @@
         "doctor": {
           "titleAttention": "Skill Health Doctor: {count} issues detected",
           "titleHealthy": "Skill Health Doctor: Optimal",
-          "allHealthyDesc": "No wrong-but-frequent or hoarding bloat detected. All skills are healthy.",
+          "allHealthyDesc": "No skills that run often but keep failing. All skills are healthy.",
           "typeWrongButFrequent": "Wrong but Frequent",
-          "typeHoarding": "Library Bloat",
           "typeStalePinned": "Stale Pinned",
+          "findingWrongButFrequent": "Ran {count, plural, one {# time} other {# times}} with only {rate} success",
+          "findingStalePinned": "Pinned but unused for {days, plural, one {# day} other {# days}}",
+          "boundNote": "An agent, scheduled task or Kanban task is still bound to this skill, so it can't be archived here. Unbind it there first, or reset its stats after fixing the skill.",
           "actionUnpinArchive": "Unpin & Archive",
           "actionArchive": "Archive",
           "actionReset": "Reset Stats",
@@ -18082,6 +19034,11 @@
           "remediateSuccessDesc": "Successfully remediated skill {name}",
           "remediateFailedTitle": "Remediation Failed",
           "remediateFailedDesc": "Could not remediate this skill"
+        },
+        "historyReason": {
+          "inactive": "Not used for a long time",
+          "lowQuality": "Low success rate",
+          "overLimit": "Over the skill limit"
         },
         "enabled": "Enable Curator",
         "enabledDesc": "Periodically scan and manage skill lifecycle status",
@@ -18093,9 +19050,7 @@
         "gracePeriodDays": "Grace Period (days)",
         "gracePeriodDaysDesc": "New skills are exempt from curator for this period",
         "protectInstalled": "Protect Installed Skills",
-        "protectInstalledDesc": "Hub/registry skills will not be affected by the curator",
-        "maxSkills": "Max Active Skills",
-        "maxSkillsDesc": "When exceeded, least recently used skills are marked stale",
+        "protectInstalledDesc": "Skills installed from the store, and skills from other tools' skill folders, are left alone by the curator",
         "runNow": "Run Now",
         "runNowDesc": "Manually trigger a curator sweep",
         "running": "Running...",
@@ -18111,6 +19066,9 @@
         "triggerManual": "manual",
         "triggerBackground": "auto",
         "historyScanned": "{count} scanned",
+        "runSkippedReason": "No skill reached a threshold ({pinned} pinned, {protected} protected)",
+        "skippedPinned": "{count} left alone (pinned)",
+        "skippedProtected": "{count} left alone (protected)",
         "consolidation": {
           "title": "Skill Consolidation",
           "description": "Merge fragmented skills into class-level umbrella skills for better retrieval",
@@ -18130,7 +19088,7 @@
           "actionCreate": "Create umbrella",
           "actionDemote": "Demote to support files",
           "executeSuccess": "Consolidation complete",
-          "executeResult": "Archived {archived} skills, created {created} umbrellas. {agents} agent configs updated.",
+          "executeResult": "Archived {archived} skills, created {created} umbrellas.",
           "executeFailed": "Consolidation failed",
           "confirmTitle": "Confirm Consolidation",
           "confirmDesc": "This will merge {count} skill(s) into umbrella skills. Archived skills can be restored anytime."
@@ -18215,7 +19173,11 @@
         "sourceSaved": "SKILL.md updated successfully",
         "sourceSaveFailed": "Failed to save SKILL.md",
         "forceEnableFailed": "Force enable failed",
-        "securityReviewNote": "Security review: {recommendation}"
+        "securityReviewNote": "Security review: {recommendation}",
+        "sourceSavedWithVersion": "SKILL.md saved as version {version}",
+        "sourceSavedUndo": "Undo",
+        "sourceUndoSuccess": "Reverted to the previous version",
+        "sourceUndoFailed": "Failed to revert to the previous version"
       },
       "scanRisk": {
         "severity": {
@@ -18300,7 +19262,7 @@
           "total": "Total Cases",
           "pendingReview": "Pending Review",
           "autoApplied": "Auto Applied",
-          "blocked": "Blocked or Failed"
+          "blocked": "Blocked"
         },
         "listScopeHint": "Showing the latest {shown} of {total} cases",
         "filters": {
@@ -19669,7 +20631,6 @@
           "sessionEnd": "Session ended",
           "llmRequest": "Model request",
           "approvalRequest": "Approval requested",
-          "approvalIntercepted": "Approval intercepted",
           "toolFailure": "Tool failed",
           "error": "Error",
           "userInterruption": "Interrupted by user",
@@ -19756,18 +20717,19 @@
       "desktopModeOnly": "Desktop mode only",
       "desktopModeDescription": "System settings are only available in Tauri desktop client",
       "sandboxReset": {
-        "title": "Reset Container Environment",
-        "description": "Recreate the sandbox container to reset system-level state (global packages, system config). Your workspace files and chat history are preserved.",
+        "title": "Reset Sandbox Environment",
+        "description": "When the sandbox misbehaves or becomes unstable, restart it in one click and clear the Python packages the agent installed to return to a clean state. Your workspace files and chat history are not affected.",
         "button": "Reset Environment",
-        "confirmTitle": "Reset Container Environment?",
-        "confirmDescription": "This will destroy the current container and create a fresh one. Your workspace files (on the persistent volume), chat history, memory, and settings are preserved. Global packages and system-level changes will be reset. The environment will restart — this takes about 10-30 seconds.",
+        "confirmTitle": "Reset the sandbox environment?",
+        "confirmDescription": "The sandbox restarts and the Python packages the agent installed are cleared; the agent has to reinstall any it needs again. Your workspace files, chat history, memory, and settings are kept. The sandbox is unavailable for a short while during the reset.",
         "confirm": "Reset",
         "cancel": "Cancel",
         "preserved": "Preserved: workspace files, chat history, memory, settings",
-        "reset": "Reset: global packages (pip/apt), system config, container state",
+        "reset": "Reset: Python packages installed by the agent, temporary runtime state",
         "resetting": "Resetting...",
-        "success": "Container recreation initiated. The environment will restart shortly.",
-        "failed": "Failed to reset container environment"
+        "success": "Reset started. The sandbox will restart shortly.",
+        "failed": "Failed to reset the sandbox environment",
+        "busy": "Tasks are still running. Wait for them to finish or stop them, then try again."
       },
       "status": {
         "currentMode": "Current Mode"
@@ -20511,53 +21473,7 @@
       "wikiNegativeOutcomeRate": "Negative Outcome Rate",
       "wikiVerificationDwell": "Avg Verification Dwell",
       "wikiTelemetryDrops": "Telemetry Drops",
-      "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days",
-      "runtimeMeter": {
-        "title": "Runtime Cost & Resource Meter",
-        "description": "Real-time monitoring of free search quota reservoirs and browser automation compute to safeguard 24/7 task continuity",
-        "badge": "Whitebox Transparency",
-        "resetAll": "Recalibrate Reset",
-        "resetTooltip": "Manually recalibrate and restart monthly cycle counts",
-        "searchPool": "Search Quota Reservoir",
-        "monthlyStats": "Monthly Stats",
-        "unlimited": "Dedicated Line",
-        "depleted": "Quota Depleted (Switched)",
-        "warning": "Low Balance ({percent}%)",
-        "healthy": "Sufficient",
-        "callsUnit": "calls",
-        "browserTitle": "Browser Compute & Network Transfer",
-        "sandboxWorkloadTitle": "Sandbox & Automation Workload",
-        "localComputeFree": "Local Compute Free",
-        "codeSandboxCompute": "Code Sandbox Compute",
-        "executionsCount": "Executions: {count}",
-        "minutesUnit": "mins",
-        "totalWorkloadCompute": "Total Workload Active Time",
-        "allSandboxesCombined": "Code sandbox & browser automation total",
-        "estimatedCloudValue": "Cloud Equivalent Saved",
-        "savedBadge": "Saved",
-        "monthlySummary": "Monthly Summary",
-        "activeComputeTime": "Active Compute Time",
-        "sessionsCount": "Sessions: {count}",
-        "networkTransfer": "Network Transfer",
-        "requestsCount": "Requests: {count}",
-        "estimatedCost": "Estimated Sandbox Compute Cost",
-        "watchdogTip": "Equipped with an active 3-minute runaway watchdog. Stalled sessions are gracefully terminated to protect local CPU and cloud sandbox stability.",
-        "editLimitTitle": "Customize Quota Limit",
-        "editLimitDesc": "Adjust monthly warning threshold for {provider}",
-        "limitLabel": "Monthly Quota Limit (Calls)",
-        "cancel": "Cancel",
-        "save": "Save Settings",
-        "circuitBreakersTitle": "LLM Provider Circuit Breaker & Health",
-        "circuitBreakersDesc": "Real-time health telemetry and fault isolation state across LLM gateways",
-        "circuitAllHealthy": "All Providers Healthy",
-        "circuitStateClosed": "Connected",
-        "circuitStateOpen": "Circuit Tripped",
-        "circuitStateHalfOpen": "Probing Recovery",
-        "circuitFailures": "Failures: {count}",
-        "circuitRetryCooldown": "Retry in: {seconds}s",
-        "circuitResetOne": "Reset",
-        "circuitResetAll": "Reset All Circuits"
-      }
+      "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days"
     },
     "workingState": {
       "title": "Working Memory",
@@ -20675,8 +21591,8 @@
       "loadError": "Failed to load backups"
     },
     "remoteBackup": {
-      "title": "Cloud Backup Sync",
-      "description": "Automatically sync backups to WebDAV or S3-compatible cloud storage for cross-device data safety.",
+      "title": "Memory Cloud Backup",
+      "description": "Automatically sync your memories (profile, procedures, facts and past events) to WebDAV or S3-compatible cloud storage. Chats, skills and settings are not included — use Backup and restore for those.",
       "provider": "Storage Provider",
       "webdav": "WebDAV",
       "s3": "S3 Compatible",
@@ -21397,6 +22313,93 @@
         "exportCopied": "Copied!",
         "exportCopyFailed": "Copy failed. Check clipboard permissions.",
         "desktopOpenSettings": "Open System Settings",
+        "status": {
+          "pass": "OK",
+          "warn": "Warning",
+          "fail": "Error"
+        },
+        "technical": {
+          "toggle": "Technical details",
+          "component": "Component",
+          "message": "Message",
+          "detail": "Detail",
+          "measured": "Measured",
+          "expected": "Expected",
+          "cause": "Cause",
+          "fix": "Suggested fix"
+        },
+        "components": {
+          "generic": "System check",
+          "AgentColdStart": "Agent warm-up",
+          "AgentEngine": "Agent engine",
+          "AgentPromptCacheAlignment": "Prompt cache alignment",
+          "AgentStepBudget": "Agent step budget",
+          "Database": "Local database",
+          "DesktopControl": "Desktop control",
+          "DesktopLockedUse": "Locked use and privacy curtain",
+          "DLQ": "Message delivery",
+          "ExecutionCache": "Execution cache",
+          "GatewayRuntime": "App engine",
+          "HookSystem": "Automation hooks",
+          "Network": "Internet connection",
+          "OllamaContext": "Ollama context",
+          "OrphanSession": "Leftover sessions",
+          "SkillEcosystem": "Skill ecosystem",
+          "SupplyChainSecurity": "Dependency security",
+          "SystemExhaustion": "Swap and file handles",
+          "SystemResources": "System resources",
+          "Tokenizer": "Text tokenizer",
+          "TraceExportAudit": "Trace export audit",
+          "TraceExportSecurity": "Trace export security",
+          "VectorDB": "Memory search storage",
+          "WorkspaceStorage": "Workspace storage"
+        },
+        "hints": {
+          "generic": {
+            "warn": "Worth a look, but the app keeps working. Open technical details for specifics.",
+            "fail": "This check failed. Open technical details for the cause, then run the check again."
+          },
+          "AgentEngine": {
+            "fail": "The agent engine hit a critical error. Restart the app."
+          },
+          "Database": {
+            "fail": "The local database has a problem. Restart the app; if it keeps happening, export the report for support."
+          },
+          "DLQ": {
+            "warn": "Some messages could not be delivered or are piling up. Check your channel connections."
+          },
+          "GatewayRuntime": {
+            "warn": "The app engine is responding slowly right now. It usually recovers on its own.",
+            "fail": "The app engine is overloaded or not responding. Restart the app if it does not recover."
+          },
+          "Network": {
+            "fail": "Cannot reach the internet. Check your connection, proxy or firewall, then run the check again."
+          },
+          "SupplyChainSecurity": {
+            "warn": "A dependency has a known high-severity vulnerability. Update the app when a new version is available.",
+            "fail": "A dependency may be malicious or compromised. Update or reinstall the app and avoid entering sensitive data until then."
+          },
+          "SystemExhaustion": {
+            "warn": "Swap space or file handles are running high. Usually harmless unless the app slows down.",
+            "fail": "Memory or file handles are close to their limits. Close unused apps and restart the app if it slows down."
+          },
+          "SystemResources": {
+            "warn": "Memory, CPU or process count is running high, or cannot be monitored right now.",
+            "fail": "Memory, CPU or process count is critically high, or the check itself failed. Close unused apps and run it again."
+          },
+          "Tokenizer": {
+            "warn": "CJK (Chinese, Japanese, Korean) search is using a simpler fallback, so results may be less precise.",
+            "fail": "CJK (Chinese, Japanese, Korean) search may not work properly. Restart the app; if it continues, export the report for support."
+          },
+          "VectorDB": {
+            "warn": "Advanced memory search is unavailable because an optional component is not installed.",
+            "fail": "The memory search storage has a problem. Restart the app; if it continues, export the report for support."
+          },
+          "WorkspaceStorage": {
+            "warn": "Storage works, but the faster search tool (ripgrep) is not installed, so file search is slower.",
+            "fail": "The data folder has a problem (no write access, an error, or low disk space). Check permissions and free up space."
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."
@@ -21430,6 +22433,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "Desktop permission check failed."
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "New memories are not being saved permanently."
           }
         }
       },
@@ -21705,19 +22711,27 @@
     },
     "storageGovernance": {
       "title": "Agent Storage & State Governance",
-      "description": "Inspect SQLite/Qdrant volume breakdown, execute lock-free compaction, and manage time-travel state snapshots with one-click restore.",
+      "description": "See what is using your storage and manage state snapshots you can restore with one click.",
       "totalAgentStateSize": "Agent State Storage",
-      "healthyGrowth": "Storage growth is within healthy limits",
-      "growthWarning": "Storage volume approaching warning threshold, compaction recommended",
       "diskSpaceOverview": "Host Disk Overview",
       "freeDisk": "Available: {free}",
       "totalDisk": "Total: {total}",
-      "categoriesBreakdown": "Subsystem Breakdown",
-      "compactAndPurge": "Compact DB & Purge Orphan Snapshots",
-      "itemsCount": "{count} items",
-      "compactionSuccessTitle": "Compaction Complete",
-      "compactionSuccessDesc": "Successfully reclaimed {freed} disk space, WAL logs flushed.",
-      "compactionFailedTitle": "Compaction Failed",
+      "categoriesBreakdown": "Storage by Category",
+      "filesCount": "{count, plural, one {# file} other {# files}}",
+      "categories": {
+        "sqlite_database": "Chats & settings database",
+        "checkpoints": "Conversation state",
+        "workspaces": "Agent workspaces",
+        "vector_store": "Search index",
+        "memory_archive": "Long-term memory",
+        "event_logs": "Activity logs",
+        "sqlite_backups": "Database backups",
+        "snapshots": "State snapshots",
+        "other": "Other"
+      },
+      "loadFailedTitle": "Storage usage could not be measured",
+      "loadFailedDesc": "Something went wrong while measuring your data. Try again later.",
+      "loadFailedStaleDesc": "The figures below come from the last successful measurement and may be out of date.",
       "snapshotsAndRollback": "State Snapshots & Rollback",
       "snapshotsDesc": "Create immutable state snapshots prior to major upgrades or skill behavioral changes for instant rollback.",
       "snapshotLabelPlaceholder": "Snapshot label (e.g. Pre-upgrade backup)",
@@ -21725,13 +22739,17 @@
       "snapshotSuccessTitle": "Snapshot Created",
       "snapshotSuccessDesc": "Current persistent state has been archived as an immutable snapshot.",
       "snapshotFailedTitle": "Snapshot Failed",
+      "snapshotFailedDesc": "The snapshot could not be created. Try again later.",
       "restore": "Restore",
+      "deleteSnapshot": "Delete snapshot",
       "restoreSuccessTitle": "Restore scheduled",
       "restoreSuccessDesc": "The snapshot will be restored the next time the app starts. Your current data stays untouched until then.",
       "restoreFailedTitle": "Restoration Failed",
+      "restoreFailedDesc": "The snapshot could not be restored. Try again later.",
       "deleteSuccessTitle": "Snapshot Deleted",
       "deleteSuccessDesc": "Selected historical snapshot removed.",
-      "deleteFailedTitle": "Delete Failed"
+      "deleteFailedTitle": "Delete Failed",
+      "deleteFailedDesc": "The snapshot could not be deleted. Try again later."
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "Strategy",

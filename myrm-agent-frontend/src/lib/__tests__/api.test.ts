@@ -7,6 +7,12 @@ const resolveBackendUnreachableMessage = vi.fn<(...args: unknown[]) => Promise<s
   Promise.resolve('Backend not reachable. Run: myrm dev or myrm start.'),
 );
 
+const toastMock = vi.hoisted(() =>
+  Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+);
+
+vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
+
 vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => 'http://127.0.0.1:8080/api/v1',
   getBackendBaseUrl: () => 'http://127.0.0.1:8080',
@@ -354,5 +360,92 @@ describe('apiRequest local backend gate', () => {
       }),
     );
     localStorage.removeItem('auth_token');
+  });
+});
+
+describe('apiRequest risk-held refusal', () => {
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  const refusal = {
+    detail: {
+      code: 'risk_held',
+      message: 'Text held by a risk rule',
+      rules: [{ rule_id: 'api_key_like', display_name: 'API key or cloud credential pattern', severity: 'critical' }],
+    },
+  };
+
+  const respond = (status: number, body: unknown) => {
+    const text = () => Promise.resolve(JSON.stringify(body));
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status,
+      text,
+      clone: () => ({ text }),
+      headers: new Headers(),
+    });
+  };
+
+  beforeEach(async () => {
+    ensureLocalBackendReady.mockResolvedValue(true);
+    toastMock.error.mockClear();
+    toastMock.warning.mockClear();
+    const { setGlobalTranslator } = await import('@/services/i18nToastService');
+    setGlobalTranslator(
+      Object.assign(
+        (key: string, values?: Record<string, unknown>) =>
+          key === 'settings.securityPolicy.riskRules.blockedTitle'
+            ? 'Message blocked'
+            : key === 'settings.securityPolicy.riskRules.blockedDescription'
+              ? `Matched: ${String(values?.rules)}`
+              : key,
+        { has: () => false },
+      ),
+    );
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { location: { href: '', pathname: '/test', search: '', hash: '' } } as Window & typeof globalThis,
+    });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: vi.fn() as typeof fetch });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
+    vi.restoreAllMocks();
+  });
+
+  it('shows the localized held notice, not the server English sentence, every time the text is sent', async () => {
+    respond(400, refusal);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(apiRequest('/kanban/tasks/t1/comments', { method: 'POST' })).rejects.toMatchObject({
+        businessCode: 'risk_held',
+      });
+    }
+
+    await vi.waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(2));
+    expect(toastMock.error).toHaveBeenCalledWith('Message blocked', {
+      description: 'Matched: API key or cloud credential pattern',
+      duration: 10_000,
+    });
+    expect(toastMock.warning).not.toHaveBeenCalled();
+  });
+
+  it('shows no toast for a silent call', async () => {
+    respond(400, refusal);
+
+    await expect(apiRequest('/kanban/tasks/t1/comments', { method: 'POST', silent: true })).rejects.toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(toastMock.error).not.toHaveBeenCalled();
+  });
+
+  it('leaves any other error to the generic error toast', async () => {
+    respond(500, { detail: 'Scheduler unavailable' });
+
+    await expect(apiRequest('/cron', { method: 'POST' })).rejects.toBeDefined();
+
+    await vi.waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(1));
+    expect(toastMock.error).toHaveBeenCalledWith('Scheduler unavailable', expect.anything());
   });
 });

@@ -39,7 +39,7 @@ contract:
       is_required: true
     - step_id: findings_fingerprinted
       description: "Each finding structured with CWE and fingerprint hash"
-      validation_method: "Matches FindingItem schema with remediation snippet"
+      validation_method: "Each finding lists location, fingerprint, PoC evidence and a remediation snippet"
       is_required: true
   success_criteria: "All real vulnerabilities verified via sandbox PoC with 0% false positives, structured remediation guidance, and CWE classification."
   estimated_duration_seconds: 600

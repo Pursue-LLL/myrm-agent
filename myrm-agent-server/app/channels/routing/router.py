@@ -41,11 +41,10 @@ Also supports voice STT/TTS via voice_handler module.
 - channels.media.image_enrichment::enrich_image_inbound, has_image_attachment (POS: image attachment base64 enrichment)
 - channels.media.video_enrichment::enrich_video_inbound, has_video_attachment (POS: video attachment metadata enrichment)
 - channels.media.document_enrichment::enrich_document_inbound, has_document_attachment (POS: PDF/Office text extraction for IM)
-- services.risk.detection::get_detection_service (POS: stateful risk detection engine with compiled regex cache)
+- channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it)
 
 [OUTPUT]
 - AgentRouter: inbound message routing hub managing dedup, command dispatch, agent task lifecycle, and streaming progress
-- _record_inbound_risk_hits: fire-and-forget inbound risk audit persistence
 - _ActiveTask, _CleanupEntry, _RouterExecutionContext, _AgentTurnScratch: see `router_models.py`
 - Concurrency and dedup constants: see `router_constants.py`
 
@@ -91,7 +90,7 @@ from app.channels.delegation import (
     build_delegation_task,
     is_delegation_intent,
 )
-from app.channels.i18n import channel_t, get_text, resolve_message_locale
+from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.media.contact_enrichment import (
     enrich_contact_inbound,
     has_contact_attachment,
@@ -170,6 +169,7 @@ from app.channels.routing.context_buffer import (
 from app.channels.routing.graceful_degradation import (
     GracefulDegradationController,
 )
+from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
 from app.channels.routing.policy_resolver_support import is_admin_sender
@@ -231,6 +231,7 @@ from app.channels.voice.handler import (
 from app.core.cron.adapters.inbound_event_dispatch import (
     dispatch_cron_event_for_inbound_message,
 )
+from app.core.infra.background_task import spawn_observed_task
 
 logger = logging.getLogger(__name__)
 
@@ -370,12 +371,21 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         """Replace reaction policy at runtime (e.g. after channels config save)."""
         self._reaction_policy = policy
 
+    def is_consume_loop_alive(self) -> bool:
+        """Whether the consume loop task is still running; a finished task means it died."""
+        return self._running and self._task is not None and not self._task.done()
+
     async def start(self) -> None:
-        """Start the inbound message consumption loop."""
-        if self._running:
+        """Start the inbound message consumption loop.
+
+        Also the restart entry point: when the previous task has finished (a crash the
+        loop could not absorb) a new task starts, so the gateway health cycle can call
+        this to bring inbound routing back.
+        """
+        if self.is_consume_loop_alive():
             return
         self._running = True
-        self._task = asyncio.create_task(self._consume_loop())
+        self._task = spawn_observed_task(self._consume_loop(), name="agent_router_consume")
         self._start_janitor()
         logger.info("AgentRouter started (max_concurrent=%d)", _MAX_CONCURRENT_AGENTS)
 
@@ -395,11 +405,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         await self._stop_janitor()
 
         if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
+            if not self._task.done():
+                self._task.cancel()
+                try:
+                    await self._task
+                except asyncio.CancelledError:
+                    pass
             self._task = None
 
         self._seen_messages.clear()
@@ -408,7 +419,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
     def _start_janitor(self) -> None:
         if self._janitor_task is None or self._janitor_task.done():
-            self._janitor_task = asyncio.create_task(self._janitor_loop())
+            self._janitor_task = spawn_observed_task(self._janitor_loop(), name="agent_router_janitor")
 
     async def _stop_janitor(self) -> None:
         if self._janitor_task and not self._janitor_task.done():
@@ -571,6 +582,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         Uses CommandRegistry.resolve() for O(1) slash command dispatch instead
         of a linear if-elif chain. Approval commands are still checked first
         because they include non-slash shortcuts (1, y, yes, etc.).
+
+        One message is dispatched at a time in isolation: a handler error is logged and
+        the loop keeps consuming, so a single poisoned message cannot stop every channel.
         """
         while self._running:
             try:
@@ -580,184 +594,178 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             except asyncio.CancelledError:
                 break
 
-            if self._is_duplicate(msg):
-                logger.debug(
-                    "Duplicate message %s from %s, skipping",
+            try:
+                await self._dispatch_inbound_message(msg)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Inbound message dispatch failed (channel=%s, message_id=%s); continuing",
+                    msg.channel,
                     msg.message_id,
-                    msg.channel,
-                )
-                continue
-
-            if msg.is_group and self._topic_resolver is not None:
-                from app.channels.i18n import resolve_message_locale
-                from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
-
-                note_group_activity(
-                    msg.channel,
-                    msg.chat_id or msg.sender_id,
-                    msg.thread_id,
-                    msg.sender_id,
-                    msg.sender_name,
-                    resolve_message_locale(msg),
-                )
-                from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-
-                asyncio.create_task(
-                    scan_stalled_threads(
-                        bus=self._bus,
-                        resolve_topic=self._topic_resolver.resolve_topic,
-                        record_outbound=ChannelDataPlaneService.record_outbound,
-                    )
                 )
 
-            msg = await self._enrich_message_locale(msg)
+    async def _dispatch_inbound_message(self, msg: InboundMessage) -> None:
+        """Route one consumed message; the consume loop survives a failure here."""
+        if self._is_duplicate(msg):
+            logger.debug(
+                "Duplicate message %s from %s, skipping",
+                msg.message_id,
+                msg.channel,
+            )
+            return
 
-            # NOTE: inbound ledger persistence is single-sourced in PolicyResolver
-            # (group non-trigger / group trigger / DM trigger) with the resolved
-            # is_trigger semantics. A second unconditional write here would race
-            # those records and permanently mislabel observed messages as triggers.
+        if msg.is_group and self._topic_resolver is not None:
+            from app.channels.i18n import resolve_message_locale
+            from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
 
-            if (
-                msg.metadata.get("callback_prefix") == "act"
-                and isinstance(msg.content, str)
-                and msg.content.startswith("approval:")
-            ):
-                asyncio.create_task(self._handle_action_button_approval(msg))
-                continue
+            note_group_activity(
+                msg.channel,
+                msg.chat_id or msg.sender_id,
+                msg.thread_id,
+                msg.sender_id,
+                msg.sender_name,
+                resolve_message_locale(msg),
+            )
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
-            is_reaction = bool(msg.metadata.get("reaction"))
-            if is_reaction:
-                approval_cmd = parse_approval_command(msg.content)
-                if approval_cmd is not None and self._is_reaction_approval_valid(msg):
-                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
-                continue
+            asyncio.create_task(
+                scan_stalled_threads(
+                    bus=self._bus,
+                    resolve_topic=self._topic_resolver.resolve_topic,
+                    record_outbound=ChannelDataPlaneService.record_outbound,
+                )
+            )
 
+        msg = await self._enrich_message_locale(msg)
+
+        # NOTE: inbound ledger persistence is single-sourced in PolicyResolver
+        # (group non-trigger / group trigger / DM trigger) with the resolved
+        # is_trigger semantics. A second unconditional write here would race
+        # those records and permanently mislabel observed messages as triggers.
+
+        if msg.metadata.get("callback_prefix") == "act" and isinstance(msg.content, str) and msg.content.startswith("approval:"):
+            asyncio.create_task(self._handle_action_button_approval(msg))
+            return
+
+        is_reaction = bool(msg.metadata.get("reaction"))
+        if is_reaction:
             approval_cmd = parse_approval_command(msg.content)
-            if approval_cmd is not None:
-                if is_explicit_approval_command(msg.content) or self._has_pending_approval(msg):
-                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
-                    continue
+            if approval_cmd is not None and self._is_reaction_approval_valid(msg):
+                asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
+            return
 
-            resolved = self._registry.resolve(msg.content)
-            if resolved is not None:
-                handled = await self._dispatch_resolved(msg, resolved)
-                if handled:
-                    continue
+        approval_cmd = parse_approval_command(msg.content)
+        if approval_cmd is not None:
+            if is_explicit_approval_command(msg.content) or self._has_pending_approval(msg):
+                asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
+                return
 
-            if self._is_bang_command(msg.content):
-                asyncio.create_task(self._handle_bang_command(msg))
-                continue
+        resolved = self._registry.resolve(msg.content)
+        if resolved is not None:
+            handled = await self._dispatch_resolved(msg, resolved)
+            if handled:
+                return
 
-            # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy as a
-            # chat turn. The resolvers that enforce it run later and have side effects, hence the read-only check.
-            if await self._is_sender_admitted(msg):
-                await dispatch_cron_event_for_inbound_message(
-                    msg.content,
-                    msg.channel,
-                    msg.user_id or "",
+        if self._is_bang_command(msg.content):
+            asyncio.create_task(self._handle_bang_command(msg))
+            return
+
+        # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy and
+        # the same tool fence as a chat turn from that sender. The resolvers that enforce both run later and have
+        # side effects, hence the read-only checks.
+        if await self._is_sender_admitted(msg):
+            await dispatch_cron_event_for_inbound_message(
+                msg.content,
+                msg.channel,
+                msg.user_id or "",
+                untrusted=await self._is_untrusted_event_sender(msg),
+            )
+
+        # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
+        chat_id = msg.chat_id or msg.sender_id
+        session_key = routing_session_key(msg.channel, chat_id)
+        active = self._active_tasks.get(session_key)
+        clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
+        if active and active.steering_token and clean_content and not clean_content.startswith("/"):
+            mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
+            if mode in ("steer", "redirect") and await hold_risky_inbound(self._bus, msg, clean_content):
+                return
+            if mode == "steer":
+                active.steering_token.steer(clean_content)
+                preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
+                reply = OutboundMessage(
+                    channel=msg.channel,
+                    recipient_id=chat_id,
+                    content=get_text(msg, "steering_applied", preview=preview),
+                    user_id=msg.user_id or "",
+                    thread_id=msg.thread_id,
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
                 )
+                asyncio.create_task(self._bus.publish_outbound(reply))
+                return
+            elif mode == "redirect":
+                active.steering_token.redirect(clean_content)
+                preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
+                reply = OutboundMessage(
+                    channel=msg.channel,
+                    recipient_id=chat_id,
+                    content=get_text(msg, "steering_applied", preview=preview),
+                    user_id=msg.user_id or "",
+                    thread_id=msg.thread_id,
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                )
+                asyncio.create_task(self._bus.publish_outbound(reply))
+                return
 
-            # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
-            chat_id = msg.chat_id or msg.sender_id
-            session_key = routing_session_key(msg.channel, chat_id)
-            active = self._active_tasks.get(session_key)
-            clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
-            if active and active.steering_token and clean_content and not clean_content.startswith("/"):
-                mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
-                if mode == "steer":
-                    active.steering_token.steer(clean_content)
-                    preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
+        # Mobile-to-Desktop Asynchronous Task Delegation. A delegated run and its in-flight steering skip the
+        # per-turn identity pipeline (no DM policy, no untrusted-ingress fence), so only the owner may use them;
+        # anyone else's message continues as an ordinary turn below.
+        if msg.content and isinstance(msg.content, str):
+            is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
+            if is_delegated and confidence >= 0.85 and await self._check_admin_permission(msg):
+                if not clean_prompt:
                     reply = OutboundMessage(
                         channel=msg.channel,
                         recipient_id=chat_id,
-                        content=get_text(msg, "steering_applied", preview=preview),
-                        user_id=msg.user_id or "",
-                        thread_id=msg.thread_id,
-                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-                    )
-                    asyncio.create_task(self._bus.publish_outbound(reply))
-                    continue
-                elif mode == "redirect":
-                    active.steering_token.redirect(clean_content)
-                    preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
-                    reply = OutboundMessage(
-                        channel=msg.channel,
-                        recipient_id=chat_id,
-                        content=get_text(msg, "steering_applied", preview=preview),
-                        user_id=msg.user_id or "",
-                        thread_id=msg.thread_id,
-                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-                    )
-                    asyncio.create_task(self._bus.publish_outbound(reply))
-                    continue
-
-            # Mobile-to-Desktop Asynchronous Task Delegation. A delegated run and its in-flight steering skip the
-            # per-turn identity pipeline (no DM policy, no untrusted-ingress fence), so only the owner may use them;
-            # anyone else's message continues as an ordinary turn below.
-            if msg.content and isinstance(msg.content, str):
-                is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
-                if is_delegated and confidence >= 0.85 and await self._check_admin_permission(msg):
-                    if not clean_prompt:
-                        reply = OutboundMessage(
-                            channel=msg.channel,
-                            recipient_id=chat_id,
-                            content="⚠️ 请在委派指令后附带具体任务内容，例如：`/delegate 调研行业竞品并生成PPT`",
-                            user_id=msg.user_id or "",
-                            thread_id=msg.thread_id,
-                        )
-                        asyncio.create_task(self._bus.publish_outbound(reply))
-                        continue
-                    handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
-                    if handled_delegation:
-                        continue
-
-            # In-flight steering for active delegation task
-            user_id = msg.user_id or chat_id
-            active_del = self._delegation_coordinator.find_active_task(msg.channel, user_id)
-            if (
-                active_del
-                and msg.content
-                and isinstance(msg.content, str)
-                and not msg.content.startswith("/")
-                and not self._active_tasks.get(session_key)
-                and await self._check_admin_permission(msg)
-            ):
-                injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
-                if injected:
-                    reply = OutboundMessage(
-                        channel=msg.channel,
-                        recipient_id=chat_id,
-                        content=f"🎯 已将补充指引动态注入后台任务 `[{active_del.task_id}]`",
+                        content="⚠️ 请在委派指令后附带具体任务内容，例如：`/delegate 调研行业竞品并生成PPT`",
                         user_id=msg.user_id or "",
                         thread_id=msg.thread_id,
                     )
                     asyncio.create_task(self._bus.publish_outbound(reply))
-                    continue
+                    return
+                if await hold_risky_inbound(self._bus, msg, clean_prompt):
+                    return
+                handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
+                if handled_delegation:
+                    return
 
-            # Context Guard Ingress defense: evaluate inbound message length and transparently spill oversized texts
-            if msg.content and isinstance(msg.content, str) and not msg.content.startswith("/"):
-                try:
-                    from app.services.agent.context_guard_service import (
-                        ContextGuardService,
-                    )
+        # In-flight steering for active delegation task
+        user_id = msg.user_id or chat_id
+        active_del = self._delegation_coordinator.find_active_task(msg.channel, user_id)
+        if (
+            active_del
+            and msg.content
+            and isinstance(msg.content, str)
+            and not msg.content.startswith("/")
+            and not self._active_tasks.get(session_key)
+            and await self._check_admin_permission(msg)
+        ):
+            if await hold_risky_inbound(self._bus, msg, msg.content):
+                return
+            injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
+            if injected:
+                reply = OutboundMessage(
+                    channel=msg.channel,
+                    recipient_id=chat_id,
+                    content=f"🎯 已将补充指引动态注入后台任务 `[{active_del.task_id}]`",
+                    user_id=msg.user_id or "",
+                    thread_id=msg.thread_id,
+                )
+                asyncio.create_task(self._bus.publish_outbound(reply))
+                return
 
-                    guard_res = await ContextGuardService.guard_inbound_prompt(
-                        chat_id=chat_id,
-                        raw_prompt=msg.content,
-                        role="user",
-                    )
-                    if guard_res.spilled:
-                        logger.info(
-                            "ContextGuard mitigated inbound channel message for channel=%s chat_id=%s (%d chars -> spilled file)",
-                            msg.channel,
-                            chat_id,
-                            guard_res.original_char_count,
-                        )
-                        msg = dataclasses.replace(msg, content=guard_res.sanitized_content)
-                except Exception as guard_err:
-                    logger.warning("ContextGuard channel check failed: %s", guard_err)
-
-            self._gate.submit(msg)
+        self._gate.submit(msg)
 
     @property
     def delegation_coordinator(self) -> DelegationCoordinator:
@@ -865,6 +873,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             logger.warning("Admission check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
             return False
 
+    async def _is_untrusted_event_sender(self, msg: InboundMessage) -> bool:
+        """Whether a job this sender's message starts runs under the tool fence of an untrusted chat turn.
+
+        Fails closed (the sender counts as untrusted): the consume loop has no per-message guard.
+        """
+        try:
+            return await self._resolver.is_untrusted_event_sender(msg)
+        except Exception:
+            logger.warning("Trust check failed for %s/%s, treating as untrusted", msg.channel, msg.sender_id, exc_info=True)
+            return True
+
     async def _dispatch_resolved(
         self,
         msg: InboundMessage,
@@ -888,6 +907,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return True
 
         if cmd.kind == CommandKind.SYSTEM and action is not None:
+            # System commands act on their text directly (a background task, a goal, a kanban card, a steer), so they
+            # are screened here; agent-route and skill commands reach the gated agent path instead.
+            if await hold_risky_inbound(self._bus, msg, resolved.raw_args):
+                return True
             return await self._dispatch_system_command(msg, action, resolved.raw_args)
 
         if cmd.kind == CommandKind.AGENT_ROUTE:
@@ -1122,12 +1145,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         return False
 
+    def _acknowledge_inbound(self, journal_entry_id: str | None) -> None:
+        """Delete the journal entry of a message that needs no replay: it was handled, or held by the risk gate."""
+        if self._inbound_journal and journal_entry_id:
+            self._inbound_journal.acknowledge(journal_entry_id)
+
     async def _handle_merged(self, msg: InboundMessage) -> None:
         """Process a (possibly merged) inbound message with concurrency control.
 
         Called by SessionGate after debounce timer expires or pending queue drains.
-        Gate notification (on_task_complete) is in the outermost finally to
-        guarantee drain regardless of early return, exception, or cancellation.
+        The journal entry is acknowledged on every way out: the early returns before the ``try`` do it themselves, the
+        ``finally`` covers the rest (and notifies the gate, which also drains pending messages once this returns).
 
         ``exec_for_error`` is the InboundMessage passed to ``send_error_reply`` and
         used for ``channel`` on the outer ``cleanup_placeholder`` path: it matches
@@ -1218,6 +1246,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         if not is_resume and msg.content:
+            # The gate reads the text before the spill below shortens a long paste to a stub that hides its contents.
+            if await hold_risky_inbound(self._bus, msg, msg.content):
+                self._acknowledge_inbound(journal_entry_id)
+                return
+
             # Inbound ContextGuard protection for IM channels
             try:
                 from app.services.agent.context_guard_service import ContextGuardService
@@ -1239,30 +1272,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             except Exception as cg_err:
                 logger.warning("Channel ContextGuard check non-fatal error: %s", cg_err)
 
-            from app.services.risk.detection import get_detection_service
-
-            risk_service = get_detection_service()
-            if risk_service.rule_count > 0:
-                risk_result = risk_service.detect(msg.content)
-                if risk_result.blocked:
-                    locale = resolve_message_locale(msg)
-                    blocked_reply = OutboundMessage(
-                        channel=msg.channel,
-                        recipient_id=(msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id),
-                        content=channel_t(locale, "risk_inbound_blocked"),
-                        user_id=msg.user_id or "",
-                        reply_to_id=msg.message_id,
-                    )
-                    await self._bus.publish_outbound(blocked_reply)
-                    logger.info(
-                        "Inbound risk gate blocked message on channel '%s' from '%s': rules=%s",
-                        msg.channel,
-                        msg.sender_id,
-                        [m.display_name for m in risk_result.matches],
-                    )
-                    asyncio.ensure_future(_record_inbound_risk_hits(risk_result.matches, msg))
-                    return
-
         agent_route_resolved = self._registry.resolve(msg.content)
         if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:
             agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
@@ -1273,6 +1282,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 topic_cmd = parse_topic_args("bind", agent_id)
                 asyncio.create_task(self._handle_topic_command(msg, topic_cmd))
                 set_correlation_context(None)
+                self._acknowledge_inbound(journal_entry_id)
                 return
 
         try:
@@ -1313,7 +1323,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         )
 
                 except Exception as e:
-                    from app.channels.routing.message_effects import (
+                    from app.channels.routing.friendly_errors import (
                         friendly_error_message,
                     )
 
@@ -1353,28 +1363,5 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         )
                     await self._fx.send_error_reply(exec_for_error, friendly)
         finally:
-            if self._inbound_journal and journal_entry_id:
-                self._inbound_journal.acknowledge(journal_entry_id)
+            self._acknowledge_inbound(journal_entry_id)
             self._gate.on_task_complete(msg)
-
-
-async def _record_inbound_risk_hits(matches: tuple[object, ...], msg: InboundMessage) -> None:
-    """Fire-and-forget: persist risk hit records for inbound blocked messages."""
-    try:
-        import uuid
-
-        from app.platform_utils import get_session_factory
-        from app.services.risk.detection import get_detection_service
-
-        service = get_detection_service()
-        session_factory = get_session_factory()
-        async with session_factory() as db:
-            await service.record_hits(
-                db,
-                matches,  # type: ignore[arg-type]
-                trace_id=str(uuid.uuid4()),
-                session_id=msg.sender_id,
-            )
-            await db.commit()
-    except Exception:
-        logger.debug("Failed to record inbound risk hits (non-critical)", exc_info=True)

@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/components/primitives/dropdown-menu (POS: Radix 下拉菜单封装)
  * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: 悬停 / 聚焦 / 触屏三路径揭示契约)
+ * - ./kanban-card-gestures::ISOLATE_FROM_CARD (POS: 卡片内控件的手势隔离，触发器与 portal 菜单内容都要展开)
  * - ./kanban-styles::NEXT_STATUSES (POS: 各状态可流转的目标状态)
  * - ./kanban-transitions::moveLabelKey (POS: 状态流转入口文案)
  *
@@ -13,7 +14,6 @@
  */
 'use client';
 
-import type { SyntheticEvent } from 'react';
 import { DotsThree } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import {
@@ -25,6 +25,7 @@ import {
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
+import { ISOLATE_FROM_CARD } from './kanban-card-gestures';
 import { NEXT_STATUSES } from './kanban-styles';
 import { moveLabelKey } from './kanban-transitions';
 
@@ -37,18 +38,6 @@ interface KanbanTaskCardActionsProps {
   onSpecify: () => void;
   onDecompose: () => void;
 }
-
-const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
-
-/**
- * 卡片外层是 dnd-kit 的拖拽源并监听点击 / 双击，菜单触发器与（经 portal 冒泡回来的）菜单内容
- * 上的指针手势不能再交给卡片：否则按下触发器会起拖拽、双击会打开详情抽屉。
- */
-const ISOLATE_FROM_CARD = {
-  onPointerDown: stopPropagation,
-  onClick: stopPropagation,
-  onDoubleClick: stopPropagation,
-} as const;
 
 const ITEM_CLASS = 'pointer-coarse:min-h-11';
 

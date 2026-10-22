@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * 主题色写法门禁：`src/` 下的 ts / tsx / css 把主题变量包进 `hsl()` / `rgb()` 等颜色函数即失败（零容忍）。
+ * 主题色写法门禁（零容忍），`src/` 下的 ts / tsx / css 出现以下任一写法即失败：
+ * 1. 把主题变量包进 `hsl()` / `rgb()` 等颜色函数；
+ * 2. 使用 `globals.css` 未声明 `--color-*` 的语义色工具类（`text-warning`、`bg-success/10` …）。
  *
- * 背景与判定规则见 `theme-color-scan.ts`：这类写法不报错，只会让描边、填充、阴影静默失效，
+ * 背景与判定规则见 `theme-color-scan.ts`：这两类写法都不报错，只会让描边、填充、阴影、底色静默失效，
  * 单测与 jsdom 都看不见，所以必须在静态阶段拦住。测试文件不扫描（测试里会引用旧写法作说明）。
  *
  * 反向自检：扫描文件数为 0 时直接失败，而不是静默通过。
@@ -18,15 +20,21 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { walkSourceFiles } from './source-files.mjs';
-import { findWrappedThemeColorSites, isCompleteColorValue } from './theme-color-scan.ts';
+import {
+  findUndefinedSemanticColorSites,
+  findWrappedThemeColorSites,
+  isCompleteColorValue,
+  parseDeclaredColorTokens,
+} from './theme-color-scan.ts';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(rootDir, 'src');
-const globalsCss = join(srcDir, 'app', 'globals.css');
+const globalsCssPath = join(srcDir, 'app', 'globals.css');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 
 // 前提自检：规则只在“主题变量是完整颜色”时成立，否则宁可失败也不误拦合法写法。
-const primary = /--primary:\s*([^;]+);/.exec(readFileSync(globalsCss, 'utf8'))?.[1];
+const globalsCss = readFileSync(globalsCssPath, 'utf8');
+const primary = /--primary:\s*([^;]+);/.exec(globalsCss)?.[1];
 if (primary === undefined || !isCompleteColorValue(primary)) {
   console.error(
     `[theme-colors] 前提失效：globals.css 的 --primary 不是完整颜色（${primary ?? '未找到'}）。` +
@@ -35,12 +43,20 @@ if (primary === undefined || !isCompleteColorValue(primary)) {
   process.exit(1);
 }
 
+const declaredColorTokens = parseDeclaredColorTokens(globalsCss);
+
 let scannedFiles = 0;
 const violations = [];
+const undefinedTokenViolations = [];
 for (const file of walkSourceFiles(srcDir, SOURCE_EXTENSIONS)) {
   scannedFiles += 1;
-  for (const { line, text } of findWrappedThemeColorSites(readFileSync(file, 'utf8'))) {
-    violations.push(`${relative(rootDir, file)}:${line}  ${text}`);
+  const source = readFileSync(file, 'utf8');
+  const where = relative(rootDir, file);
+  for (const { line, text } of findWrappedThemeColorSites(source)) {
+    violations.push(`${where}:${line}  ${text}`);
+  }
+  for (const { line, text, token } of findUndefinedSemanticColorSites(source, declaredColorTokens)) {
+    undefinedTokenViolations.push(`${where}:${line}  ${text}（缺 --color-${token}）`);
   }
 }
 
@@ -63,4 +79,18 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`[theme-colors] 通过：扫描 ${scannedFiles} 个文件，无主题变量被包进颜色函数。`);
+if (undefinedTokenViolations.length > 0) {
+  console.error(
+    `[theme-colors] 发现 ${undefinedTokenViolations.length} 处使用了未声明主题颜色的工具类（Tailwind 不会生成对应样式）：`,
+  );
+  for (const violation of undefinedTokenViolations) {
+    console.error(`  ${violation}`);
+  }
+  console.error(
+    '\n处理方式：在 globals.css 的 @theme 里声明 --color-<name>，并在 :root 与 .dark 两套主题里定义对应变量（并核对对比度）；' +
+      '或改用已有的语义色。',
+  );
+  process.exit(1);
+}
+
+console.log(`[theme-colors] 通过：扫描 ${scannedFiles} 个文件，无主题变量被包进颜色函数，语义色工具类均已声明。`);

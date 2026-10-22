@@ -107,4 +107,16 @@ describe('kanbanChatBoard', () => {
       '/settings/kanban?source_chat=chat-1&board_id=board-9',
     );
   });
+
+  it('builds board deep link with the status column to land on, without a source chat', () => {
+    expect(buildKanbanBoardDeepLink({ boardId: 'board-9', status: 'failed' })).toBe(
+      '/settings/kanban?board_id=board-9&status=failed',
+    );
+  });
+
+  it('leaves out a blank source chat and a missing status', () => {
+    expect(buildKanbanBoardDeepLink({ sourceChatId: '  ', boardId: ' board-9 ' })).toBe(
+      '/settings/kanban?board_id=board-9',
+    );
+  });
 });

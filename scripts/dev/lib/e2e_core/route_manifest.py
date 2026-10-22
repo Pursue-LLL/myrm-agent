@@ -152,7 +152,10 @@ _SETTINGS_LAYOUT_PROBE = """(() => ({
 }))()"""
 
 _MCP_SETTINGS_PROBE = """(() => ({
-  ready: /MCP 服务配置|MCP Service/i.test(document.body?.innerText || ''),
+  ready:
+    (location.pathname.startsWith('/settings/mcp') || location.pathname.startsWith('/settings')) &&
+    (/MCP|MCP 服务配置|MCP Service/i.test(document.body?.innerText || '') ||
+     !!document.querySelector('[data-testid="settings-layout"]')),
   pathname: location.pathname,
   title: document.title,
   bodyLen: document.body?.innerText?.length ?? 0,

@@ -1,41 +1,46 @@
-"""Skills bound by agent profiles / cron jobs are found through real DB rows and real skill dirs."""
+"""Skills bound by agent profiles / cron jobs / kanban tasks are found through real DB rows and real skill dirs."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
 from myrm_agent_harness.backends.skills.local import LocalSkillBackend
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 from myrm_agent_harness.backends.skills.types import SkillMetadata
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.skills.curator import bound_skills as bound_skills_module
 from app.core.skills.curator.bound_skills import bound_skill_names
-from app.database.models import Agent, Base, CronJobModel
+from app.database.models import Agent, CronJobModel, KanbanBoardModel, KanbanTaskModel
+from app.database.models.base import Base
 
 _SCHEDULE = {"kind": "cron", "expr": "0 8 * * *"}
 
+# A failed task is retryable (``POST /tasks/{id}/retry`` re-queues it), so it still binds its skills.
+_RUNNABLE_TASK_STATUSES = ("triage", "backlog", "ready", "running", "blocked", "in_review", "failed")
+_FINAL_TASK_STATUSES = ("completed", "archived")
 
-@pytest.fixture
-async def session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[AsyncSession]:
-    """Isolated SQLite DB that ``bound_skill_names`` reads through its own ``get_session``."""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'bound.db'}")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    @asynccontextmanager
-    async def isolated_session() -> AsyncIterator[AsyncSession]:
-        async with factory() as db:
-            yield db
-
-    monkeypatch.setattr(bound_skills_module, "get_session", isolated_session)
-    async with factory() as seed:
-        yield seed
-    await engine.dispose()
+_BINDING_COLUMNS = frozenset(
+    {"agents.skill_ids", "agents.mounted_skill_ids", "cron_jobs.skill_ids", "kanban_tasks.extra_skill_ids"}
+)
+_NON_BINDING_COLUMNS = frozenset(
+    {
+        "agents.skill_configs",  # per-skill flags such as ``is_core``, applied to skills the agent already loads
+        "chats.session_loaded_skill_names",  # a record of what one session loaded
+        "batch_snapshots.skill_id",
+        "batch_snapshots.skill_content_before",
+        "batch_snapshots.skill_version_before",
+        "batch_snapshots.skill_metadata",
+        "skill_package_revisions.skill_id",
+        "skill_package_revisions.skill_md",
+        "skill_permission_grants.skill_id",
+        "skill_permission_usage_logs.skill_id",
+        "skill_versions.skill_id",
+        "turn_capability_metric_events.selected_skill_count",
+        "turn_capability_metric_events.effective_skill_count",
+    }
+)
 
 
 @pytest.fixture
@@ -50,6 +55,7 @@ async def skills(tmp_path: Path) -> list[SkillMetadata]:
 
 def _canonical_id(skills: list[SkillMetadata], name: str) -> str:
     skill = next(s for s in skills if s.name == name)
+    assert skill.storage_path is not None
     return local_skill_id_from_path(Path(skill.storage_path))
 
 
@@ -59,6 +65,16 @@ def _agent(agent_id: str, **fields: object) -> Agent:
 
 def _job(job_id: str, status: str, skill_ids: list[str] | None) -> CronJobModel:
     return CronJobModel(id=job_id, name=job_id, job_type="agent", schedule=_SCHEDULE, status=status, skill_ids=skill_ids)
+
+
+def _task(task_id: str, status: str, skill_ids: list[str] | None) -> KanbanTaskModel:
+    return KanbanTaskModel(id=task_id, board_id="b1", title=task_id, status=status, extra_skill_ids_json=skill_ids)
+
+
+@pytest.fixture
+async def board(session: AsyncSession) -> None:
+    session.add(KanbanBoardModel(id="b1", name="Board"))
+    await session.commit()
 
 
 async def test_nothing_bound_protects_nothing(session: AsyncSession, skills: list[SkillMetadata]) -> None:
@@ -125,3 +141,67 @@ async def test_cron_job_without_skills_and_blank_ids_are_ignored(session: AsyncS
     await session.commit()
 
     assert await bound_skill_names(skills) == frozenset()
+
+
+@pytest.mark.usefixtures("board")
+@pytest.mark.parametrize("status", _RUNNABLE_TASK_STATUSES)
+async def test_kanban_task_that_can_still_run_protects_its_skills(
+    session: AsyncSession, skills: list[SkillMetadata], status: str
+) -> None:
+    session.add(_task("t1", status, [_canonical_id(skills, "alpha")]))
+    await session.commit()
+
+    assert await bound_skill_names(skills) == {"alpha"}
+
+
+@pytest.mark.usefixtures("board")
+@pytest.mark.parametrize("status", _FINAL_TASK_STATUSES)
+async def test_completed_or_archived_kanban_task_does_not_protect(
+    session: AsyncSession, skills: list[SkillMetadata], status: str
+) -> None:
+    session.add(_task("t1", status, [_canonical_id(skills, "alpha")]))
+    await session.commit()
+
+    assert await bound_skill_names(skills) == frozenset()
+
+
+def test_every_kanban_task_status_is_classified() -> None:
+    """A new lifecycle state must be sorted into "can still run" or "final" here and in ``bound_skills``."""
+    assert {status.value for status in TaskStatus} == {*_RUNNABLE_TASK_STATUSES, *_FINAL_TASK_STATUSES}
+
+
+def test_every_skill_column_is_classified() -> None:
+    """A new column whose name contains ``skill`` must be sorted into "automation binding" or "not a binding".
+
+    A binding column has to be read by ``bound_skills`` (and covered by a test above); a column left out of it
+    would let the Curator archive a skill that an unattended run still needs. Only the name is matched: a binding
+    column without the word (``agents.command_bindings``) is invisible here and has to be added to ``bound_skills`` by hand.
+    """
+    columns = {
+        f"{table.name}.{column.name}"
+        for table in Base.metadata.tables.values()
+        for column in table.columns
+        if "skill" in column.name
+    }
+
+    assert columns == _BINDING_COLUMNS | _NON_BINDING_COLUMNS
+
+
+@pytest.mark.usefixtures("board")
+async def test_kanban_task_and_cron_job_protect_together(session: AsyncSession, skills: list[SkillMetadata]) -> None:
+    session.add_all(
+        [_task("t1", "ready", [_canonical_id(skills, "alpha")]), _job("j1", "active", [_canonical_id(skills, "beta")])]
+    )
+    await session.commit()
+
+    assert await bound_skill_names(skills) == {"alpha", "beta"}
+
+
+@pytest.mark.usefixtures("board")
+async def test_kanban_task_legacy_ids_protect_and_blank_ids_are_ignored(
+    session: AsyncSession, skills: list[SkillMetadata]
+) -> None:
+    session.add_all([_task("t1", "ready", ["local::gamma"]), _task("t2", "ready", None), _task("t3", "ready", ["", "  "])])
+    await session.commit()
+
+    assert await bound_skill_names(skills) == {"gamma"}

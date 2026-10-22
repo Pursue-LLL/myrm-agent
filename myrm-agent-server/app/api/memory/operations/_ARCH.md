@@ -17,12 +17,12 @@
 | `command_center_consolidation.py` | 模块 | 记忆合并回滚 API 操作层。将 Harness 层的 consolidation_rollback 逻辑暴露给设置页 UI。 | ✅ |
 | `command_center_diagnostics.py` | 模块 | 记忆指挥中心诊断与修复 API 操作层。包含 Memory Doctor 历史基准趋势与结构化白名单修复。 | ✅ |
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
-| `external_transcripts.py` | 模块 | 外部 Agent 转录记忆召回 API。支持本地目录扫描增量建索与云端批量文件增量同步 | ✅ |
+| `external_transcripts.py` | 模块 | 外部 Agent 转录记忆召回 API。支持本地目录扫描增量建索与云端批量文件增量同步；同步服务经 `get_external_transcript_sync_service` 注入（可替换 watermark 存储） | ✅ |
 | `guardian.py` | 模块 | 记忆守护者 API。`/overview` 单契约返回健康分、调度状态、守护策略（频率档位 + quiet window）、告警与晨间摘要（按最新完成维护窗口聚合）；手动维护触发支持 `safe/force` 契约；策略经 PUT 更新；健康/摘要读路径支持首访浏览器时区初始化，并在缺少客户端时区头时使用服务端本地时区兜底初始化（后续客户端头可自动纠偏）；守卫不可用告警聚合在 `/overview` 内返回；告警聚合采用按 frequency tier 自适应的最小事件阈值与 escalation 阈值策略（reason count + ratio）。 | ✅ |
 | `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影；审批透传审批者改写文本 `edited_content`（不可编辑的提案 → 400；提案所针对的记忆在入队后已变化 → 409 且提案保持待审），遗忘类提案批准即归档目标记忆（保留期内可恢复）；批准/拒绝（含批量）统一经 `pending_review` 写审计。 | ✅ |
 | `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致；裁决结果经 `pending_review.record_pending_event` 写入操作账本。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
-| `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |
+| `reindex.py` | 模块 | 嵌入模型迁移 API：`GET /reindex/estimate` 返回旧模型遗留、待迁移的记忆总数（`total_memories`，前端只用这个数）；`POST /reindex` 202 启动（已有同一嵌入模型的进行中则加入同一轮，另一模型的进行中返回 409；经 `services/memory/reindex_run.py` 后台执行，不占用请求）；`GET /reindex/status` 返回 idle/running/succeeded/failed 与 done/total/结果（migrated/skipped/failed）。 | ✅ |
 | `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |
 | `tool_guidance.py` | 模块 | 工具规约与动态经验 API。暴露工具黄金指南列表（JIT 合成）、人工置顶/取消置顶与规则清理端点。 | ✅ |
 | `working_state.py` | 模块 | Working State API — cross-session task continuity endpoint. 提供读/写/清除 `__working_state` Profile 属性的 HTTP 入口。 | ✅ |

@@ -161,26 +161,32 @@ export interface MemoryImportResponse {
   total_imported: number;
 }
 
-export type MemoryImportSource =
-  | 'auto'
-  | 'native_json'
-  | 'myrm_archive'
-  | 'agentmemory'
-  | 'gbrain'
-  | 'memweaver'
-  | 'claude_code_jsonl'
-  | 'hermes'
-  | 'openclaw'
-  | 'cursor_rules'
-  | 'codex'
-  | 'claude'
-  | 'windsurf'
-  | 'trae'
-  | 'mem0'
-  | 'pi'
-  | 'chatgpt'
-  | 'gemini'
-  | 'plur';
+/**
+ * Import source ids accepted by the server import pipeline, mirroring the
+ * server-side SSOT union in `app/schemas/memory/import_sources.py`.
+ */
+export const MEMORY_IMPORT_SOURCE_IDS = [
+  'native_json',
+  'myrm_archive',
+  'agentmemory',
+  'gbrain',
+  'plur',
+  'mem0',
+  'chatgpt',
+  'gemini',
+  'claude',
+  'claude_code_jsonl',
+  'cursor_rules',
+  'codex',
+  'windsurf',
+  'trae',
+  'hermes',
+  'openclaw',
+  'pi',
+  'pasted_memory',
+] as const;
+
+export type MemoryImportSource = 'auto' | (typeof MEMORY_IMPORT_SOURCE_IDS)[number];
 
 export interface MemoryImportMappingItem {
   source_bucket: string;
@@ -228,11 +234,17 @@ export interface MemoryImportMigrationOptions {
   apply_global_instructions?: boolean;
 }
 
+export interface MigrationLaneDetailPart {
+  code: string;
+  params: Record<string, string | number>;
+}
+
 export interface MigrationLanePreviewItem {
   lane: string;
   status: string;
   label: string;
   detail: string;
+  detail_parts?: MigrationLaneDetailPart[];
 }
 
 export interface TokenEconomicsComparison {
@@ -281,6 +293,7 @@ export interface MemoryImportDryRunResponse {
   expires_at: string;
   result: MemoryImportDryRunResult;
   pending_skills: MemoryImportPendingSkill[];
+  pending_skills_total: number;
   coverage_items: MemoryImportCoverageItem[];
   migration_lanes: MigrationLanePreviewItem[];
   token_economics?: TokenEconomicsComparison | null;
@@ -323,7 +336,7 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
 export interface MemoryImportReadinessIssue {
   code: string;
   severity: 'warning' | 'critical';
-  params: Record<string, string | number | boolean>;
+  params: Record<string, string | number>;
   settings_path?: string | null;
 }
 
@@ -340,7 +353,7 @@ export interface MemoryImportReadinessRecheckResponse {
 export interface MemoryImportRollbackWarning {
   code: string;
   severity: 'info' | 'warning' | 'error';
-  params: Record<string, string | number | boolean>;
+  params: Record<string, string | number>;
 }
 
 export interface MemoryImportRollbackPreviewResponse {
@@ -535,6 +548,7 @@ export const dryRunImportMemories = async (
   payload: Record<string, unknown>,
   source: MemoryImportSource = 'auto',
   migration?: MemoryImportMigrationOptions,
+  useModelExtraction = false,
 ): Promise<MemoryImportDryRunResponse> => {
   return apiRequest<MemoryImportDryRunResponse>('/memory/import/dry-run', {
     method: 'POST',
@@ -542,6 +556,7 @@ export const dryRunImportMemories = async (
       source,
       payload,
       skip_duplicates: true,
+      use_model_extraction: useModelExtraction,
       migration: migration ?? {
         clone_from_agent_id: 'builtin-general',
         include_episodic: false,

@@ -9,15 +9,10 @@
 """
 
 from app.config.deploy_mode import (
-    DatabaseMode,
     DeployMode,
     ModelSource,
-    QdrantMode,
-    get_database_mode,
     get_deploy_mode,
     get_embedding_mode,
-    get_qdrant_mode,
-    get_reranker_mode,
     is_local_mode,
     is_sandbox,
     is_webui_mode,
@@ -104,15 +99,6 @@ class TestWebUIMode:
         assert is_webui_remote_mode() is False
 
 
-class TestStaticModes:
-    def test_database_mode_always_sqlite(self) -> None:
-        assert get_database_mode() == DatabaseMode.SQLITE
-
-    def test_qdrant_mode_always_embedded(self) -> None:
-        assert get_qdrant_mode() == QdrantMode.EMBEDDED
-
+class TestEmbeddingMode:
     def test_embedding_mode_always_custom(self) -> None:
         assert get_embedding_mode() == ModelSource.CUSTOM
-
-    def test_reranker_mode_always_custom(self) -> None:
-        assert get_reranker_mode() == ModelSource.CUSTOM

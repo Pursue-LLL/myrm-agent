@@ -373,3 +373,289 @@ class TestSourceImportDryRunApi:
         buckets = {m["source_bucket"] for m in result["mappings"]}
         assert "windsurf_memories" in buckets
         assert "windsurf_settings" in buckets
+
+    def test_pi_explicit_manifest_source_is_accepted(self, client: TestClient, tmp_path: Path) -> None:
+        """The wizard sends the manifest import_source verbatim; it must never 422."""
+
+        root = tmp_path / ".pi" / "agent"
+        sessions_dir = root / "sessions"
+        sessions_dir.mkdir(parents=True)
+        (root / "AGENTS.md").write_text("You are Pi.", encoding="utf-8")
+        (sessions_dir / "s1.jsonl").write_text(
+            json.dumps({"id": "m1", "role": "user", "content": "Plan the release"}) + "\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "pi",
+            "payload": {"competitor": "pi", "root": str(root), "files": []},
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pi"
+
+    def test_plur_dry_run_uses_official_store_schema(self, client: TestClient, tmp_path: Path) -> None:
+        store = tmp_path / ".plur"
+        store.mkdir()
+        (store / "engrams.yaml").write_text(
+            "engrams:\n"
+            "  - id: ENG-2026-05-06-001\n"
+            '    statement: "Always use Pydantic v2 BaseModels with strict types"\n'
+            "    type: behavioral\n"
+            "    status: active\n"
+            "    scope: global\n"
+            "    domain: backend\n"
+            "  - id: ENG-2026-05-06-002\n"
+            '    statement: "Old deploy checklist superseded by the pipeline"\n'
+            "    type: procedural\n"
+            "    status: retired\n"
+            "    scope: global\n"
+            "    domain: ops\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "plur",
+            "payload": {"competitor": "plur", "root": str(store), "files": []},
+            "migration": {"include_episodic": False},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "plur"
+        assert result["summary"]["mapped_items"] == 1
+        assert result["summary"]["unmapped_items"] == 1
+        assert "plur_inactive_skipped" in result["warnings"]
+
+    def test_claude_dry_run_imports_auto_memory(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".claude"
+        root.mkdir()
+        (root / "CLAUDE.md").write_text("Be precise.", encoding="utf-8")
+        memory_dir = root / "projects" / "p" / "memory"
+        memory_dir.mkdir(parents=True)
+        (memory_dir / "feedback_no_git_confirm.md").write_text(
+            "---\n"
+            "name: no-git-confirm\n"
+            'description: "Don\'t ask for confirmation on git commands"\n'
+            "metadata:\n"
+            "  type: feedback\n"
+            "---\n\n"
+            "Don't ask for confirmation on git commands - execute directly.\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "claude",
+            "payload": {"competitor": "claude", "root": str(root), "files": []},
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "claude"
+        assert result["summary"]["mapped_items"] == 1
+        assert "Be precise." in (body.get("instruction_preview_persona") or "")
+
+    def test_pasted_memory_dry_run_parses_buckets(self, client: TestClient) -> None:
+        text = (
+            "```\n"
+            "## RULES\n"
+            "[2024-03-01] - Always answer in Chinese when I write in Chinese.\n"
+            "## PROFILE\n"
+            "[2024-01-15] - 我叫李雷，住在杭州。\n"
+            "## FACTS\n"
+            "- 项目 A 使用 React\n"
+            "```\n"
+        )
+        payload = {"source": "pasted_memory", "payload": {"_source": "pasted_memory", "text": text}}
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "pasted_memory"
+        assert result["summary"]["mapped_items"] == 3
+        assert set(result["normalized_data"]) <= {"profile", "procedural", "semantic"}
+        assert result["normalized_data"], "preview sample must reach the frontend"
+
+
+class TestSourceAccessAndSkillBudget:
+    @pytest.fixture(autouse=True)
+    def _local_mode(self) -> None:
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=True,
+        ):
+            yield  # type: ignore[misc]
+
+    def test_sandbox_host_path_is_rejected_with_422(self, client: TestClient, tmp_path: Path) -> None:
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "hermes", "root": str(tmp_path), "files": []},
+        }
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=False,
+        ):
+            resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 422
+        assert "archive" in resp.json()["detail"].lower()
+
+    def test_skill_payload_is_capped_and_reports_the_total(
+        self,
+        client: TestClient,
+        claude_fixture: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        second = claude_fixture / "skills" / "second"
+        second.mkdir(parents=True)
+        (second / "SKILL.md").write_text("---\nname: second\n---\nSecond skill", encoding="utf-8")
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.MAX_PENDING_SKILLS",
+            1,
+        )
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "claude", "root": str(claude_fixture), "files": []},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["pending_skills_total"] == 2
+        assert len(body["pending_skills"]) == 1
+
+
+class TestPasteModelLane:
+    """Model-assisted pastes reuse the review pipeline and degrade to parsing."""
+
+    def test_extracted_items_shape_the_review(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractedMemory, ExtractionResult
+        from myrm_agent_harness.toolkits.memory.types import MemoryType
+
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(_messages: object, _llm_func: object, *_args: object, **_kwargs: object) -> ExtractionResult:
+            return ExtractionResult(
+                memories=[
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROFILE,
+                        content="Prefers concise answers",
+                        confidence=0.9,
+                        importance=0.8,
+                        profile_key="tone",
+                        profile_value="concise",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROCEDURAL,
+                        content="Run tests before merge",
+                        confidence=0.8,
+                        importance=0.7,
+                        trigger="deploy",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.EPISODIC,
+                        content="Shipped the migration fix",
+                        confidence=0.7,
+                        importance=0.6,
+                    ),
+                ],
+            )
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "I prefer concise answers and want tests before merge."},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pasted_memory"
+        assert body["result"]["summary"]["mapped_items"] == 3
+        assert set(body["result"]["normalized_data"]) == {"profile", "procedural", "episodic"}
+        assert body["result"]["normalized_data"]["profile"][0]["content"] == "Prefers concise answers"
+        assert body["result"]["warnings"] == []
+
+    def test_long_paste_skips_the_model_call(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(*_args: object, **_kwargs: object) -> object:
+            raise AssertionError("the model must not be called for oversized pastes")
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        long_line = "## FACTS\n- Uses Postgres 17 and keeps long notes " + ("x" * 41_000)
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": long_line},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1
+
+    def test_falls_back_to_parsing_without_a_model(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _no_model(_agent_id: str | None) -> None:
+            return None
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _no_model,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "## FACTS\n- Uses Postgres 17"},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1

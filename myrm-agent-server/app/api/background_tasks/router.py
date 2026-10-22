@@ -10,6 +10,7 @@ shell jobs merge in-process harness registry with durable BackgroundJobStore.
 - app.core.channel_bridge.persistent_background::is_persistent_background (POS: metadata SSOT)
 - app.services.kanban::KanbanService (POS: Kanban business service)
 - app.services.agent.shell_background_tasks (POS: registry + Store facade)
+- app.services.risk.refusal::reject_if_risky (POS: refuses a steering instruction a risk rule holds)
 
 [OUTPUT]
 - router: FastAPI APIRouter with /background-tasks endpoints (list, get, cancel, steer, shell stdin)
@@ -43,6 +44,7 @@ from app.services.agent.shell_background_tasks import (
     shell_registry_is_ephemeral,
     write_shell_background_stdin,
 )
+from app.services.risk.refusal import reject_if_risky
 
 router = APIRouter(tags=["background-tasks"])
 
@@ -155,6 +157,7 @@ async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
                     break
 
         meta = task.metadata or {}
+        meta_chat_id = meta.get("chat_id")
         results.append(
             BackgroundTaskResponse(
                 kind="agent",
@@ -164,7 +167,7 @@ async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
                 created_at=created_at,
                 completed_at=completed_at,
                 result_preview=result_text,
-                chat_id=meta.get("chat_id"),
+                chat_id=meta_chat_id if isinstance(meta_chat_id, str) else None,
             )
         )
 
@@ -288,7 +291,8 @@ async def shell_background_stdin(task_id: str, body: ShellStdinRequest) -> dict[
 
 @router.post("/{task_id}/steer")
 async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, str]:
-    """Inject a steering instruction into a running background task."""
+    """Inject a steering instruction into a running background task; one a risk rule holds is refused first."""
+    await reject_if_risky(body.instruction, session_id=task_id)
     if task_id.startswith("shell:"):
         raise HTTPException(status_code=400, detail="Shell tasks do not support steering")
 

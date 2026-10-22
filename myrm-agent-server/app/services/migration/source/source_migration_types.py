@@ -72,6 +72,14 @@ class InstructionRollbackRecord:
 
 
 @dataclass(frozen=True)
+class LaneDetailPart:
+    """One localizable fragment of a lane detail line."""
+
+    code: str
+    params: dict[str, int | str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class MigrationLanePreview:
     """Content-safe preview row for the migration wizard."""
 
@@ -79,6 +87,7 @@ class MigrationLanePreview:
     status: str
     label: str
     detail: str
+    detail_parts: tuple[LaneDetailPart, ...] = ()
 
 
 INSTRUCTION_CHAR_WARN_THRESHOLD = 8000
@@ -111,33 +120,45 @@ def build_lane_previews(
     char_total = instruction_char_total(instruction)
 
     instruction_detail_parts: list[str] = []
+    instruction_parts: list[LaneDetailPart] = []
     if persona_len:
         instruction_detail_parts.append(f"agent persona ({persona_len} chars)")
+        instruction_parts.append(LaneDetailPart("instruction_persona", {"chars": persona_len}))
     if global_len:
         instruction_detail_parts.append(f"global supplement ({global_len} chars)")
+        instruction_parts.append(LaneDetailPart("instruction_global", {"chars": global_len}))
     if rules_count:
         instruction_detail_parts.append(f"{rules_count} workspace rule file(s)")
+        instruction_parts.append(LaneDetailPart("instruction_rules", {"count": rules_count}))
     instruction_detail = ", ".join(instruction_detail_parts) if instruction_detail_parts else "none detected"
+    if not instruction_parts:
+        instruction_parts.append(LaneDetailPart("instruction_none"))
     if char_total > INSTRUCTION_CHAR_WARN_THRESHOLD:
         instruction_detail += f"; {char_total} chars total (large — may increase token cost)"
+        instruction_parts.append(LaneDetailPart("instruction_large", {"chars": char_total}))
 
     instruction_status = "missing"
     if instruction_detail != "none detected":
         instruction_status = "warning" if char_total > INSTRUCTION_CHAR_WARN_THRESHOLD else "ready"
 
     memory_detail = f"{memory_mapped} mapped item(s)"
+    memory_parts = [LaneDetailPart("memory_mapped", {"count": memory_mapped})]
     if not include_episodic:
         memory_detail += ", episodic excluded"
+        memory_parts.append(LaneDetailPart("memory_episodic_excluded"))
 
     credential_status = "missing"
     credential_detail = "no keys in .env"
+    credential_parts = [LaneDetailPart("credential_none")]
     if has_api_keys:
         if providers_ready:
             credential_status = "manual"
             credential_detail = "API keys available (opt-in import)"
+            credential_parts = [LaneDetailPart("credential_opt_in")]
         else:
             credential_status = "critical"
             credential_detail = "API keys in .env but no model providers configured — set up providers first"
+            credential_parts = [LaneDetailPart("credential_no_providers")]
 
     return [
         MigrationLanePreview(
@@ -145,23 +166,29 @@ def build_lane_previews(
             status=instruction_status,
             label="instruction_lane",
             detail=instruction_detail,
+            detail_parts=tuple(instruction_parts),
         ),
         MigrationLanePreview(
             lane="memory",
             status=memory_status if memory_mapped else "missing",
             label="memory_lane",
             detail=memory_detail,
+            detail_parts=tuple(memory_parts),
         ),
         MigrationLanePreview(
             lane="skill",
             status="review" if skill_count else "missing",
             label="skill_lane",
             detail=f"{skill_count} skill(s) pending review" if skill_count else "no skills",
+            detail_parts=(
+                (LaneDetailPart("skill_pending", {"count": skill_count}),) if skill_count else (LaneDetailPart("skill_none"),)
+            ),
         ),
         MigrationLanePreview(
             lane="credential",
             status=credential_status,
             label="credential_lane",
             detail=credential_detail,
+            detail_parts=tuple(credential_parts),
         ),
     ]

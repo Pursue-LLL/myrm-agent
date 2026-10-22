@@ -43,6 +43,8 @@ from langchain_core.language_models import BaseChatModel
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.wiki.portability.vault_git import VaultGitCommitResult
+    from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
 
 from myrm_agent_harness.toolkits.wiki import (
     QueryResult,
@@ -51,6 +53,7 @@ from myrm_agent_harness.toolkits.wiki import (
     WikiConfig,
     WikiLinter,
     WikiQueryEngine,
+    WikiQueryMode,
     WikiStructure,
 )
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -59,11 +62,7 @@ logger = get_agent_logger(__name__)
 
 
 class MemoryToWikiArchiver:
-    """
-    Automatic Memory→Wiki archiving service.
-
-    Converts SessionNotes (compressed memory) into wiki articles.
-    """
+    """Automatic Memory→Wiki archiving service: converts SessionNotes (compressed memory) into wiki articles."""
 
     def __init__(
         self,
@@ -105,7 +104,7 @@ class MemoryToWikiArchiver:
         else:
             resolved_wiki_dir = resolve_wiki_vault_path()
 
-        merged_public_dirs: list[Path] = []
+        merged_public_dirs: list[Path | str] = []
         from app.platform_utils.deployment_capabilities import (
             get_deployment_capabilities,
         )
@@ -176,7 +175,7 @@ class MemoryToWikiArchiver:
         self._queue = self._compiler._queue
         self._pending_mgr = WikiPendingEditsManager(self._structure, indexer=indexer)
 
-        self._asset_indexer = None
+        self._asset_indexer: WikiAssetIndexer | None = None
 
         # Start the background drainer for this user's queue if primary vault write is enabled
         if hasattr(self._compiler, "start_background_worker") and callable(self._compiler.start_background_worker):
@@ -364,7 +363,7 @@ class MemoryToWikiArchiver:
         self,
         question: str,
         *,
-        query_mode: str | None = None,
+        query_mode: WikiQueryMode | None = None,
     ) -> QueryResult:
         """
         Query user's wiki knowledge base.
@@ -383,24 +382,15 @@ class MemoryToWikiArchiver:
             return await self._query_engine.query(question, query_config=effective_config)
         return await self._query_engine.query(question)
 
-    async def maintain_wiki(self) -> None:
-        """Run wiki maintenance (health checks + auto-repair)."""
-        await self._linter.lint_and_maintain()
-        logger.info("Wiki maintenance complete")
-
-    def commit_vault_git(self, reason: str):
+    def commit_vault_git(self, reason: str) -> VaultGitCommitResult:
         """Commit vault snapshot when local version control is enabled."""
-        from myrm_agent_harness.toolkits.wiki.portability.vault_git import (
-            VaultGitCommitResult,
-            maybe_commit_vault_git_snapshot,
-        )
+        from myrm_agent_harness.toolkits.wiki.portability.vault_git import maybe_commit_vault_git_snapshot
 
-        result: VaultGitCommitResult = maybe_commit_vault_git_snapshot(
+        return maybe_commit_vault_git_snapshot(
             self._structure,
             self._config,
             reason=reason,
         )
-        return result
 
     def get_wiki_path(self) -> Path:
         """Get the path to user's wiki directory."""

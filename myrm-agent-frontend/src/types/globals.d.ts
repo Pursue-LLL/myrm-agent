@@ -67,6 +67,13 @@ interface Window {
     updatedAt: number;
   };
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
+  __MYRM_E2E_SKILLS_DISCOVER__?: {
+    showInstallResultToast: (payload: {
+      skillName: string;
+      response: import('@/services/skill').DiscoveryInstallResponse;
+      marketUpdate: boolean;
+    }) => void;
+  };
   __MYRM_DEVICE_INSPECTOR_STORE__?: typeof import('@/store/useDeviceInspectorStore').default;
   __MYRM_E2E_CHAT__?: {
     __e2eFallback: boolean;

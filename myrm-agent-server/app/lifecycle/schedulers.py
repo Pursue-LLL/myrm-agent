@@ -7,6 +7,8 @@ import logging
 import platform
 from typing import TYPE_CHECKING
 
+from app.core.infra.background_task import spawn_observed_task
+
 if TYPE_CHECKING:
     from apscheduler import AsyncScheduler
 
@@ -113,6 +115,15 @@ async def start_cron_scheduler() -> None:
     except Exception as exc:
         logger.warning("Cron startup read-it-later hygiene failed: %s", exc)
 
+    try:
+        from app.services.onboarding.second_brain_preset import (
+            repair_wiki_delta_job_security,
+        )
+
+        await repair_wiki_delta_job_security()
+    except Exception as exc:
+        logger.warning("Cron startup wiki-delta job repair failed: %s", exc)
+
     await get_cron_scheduler().start()
     logger.info("Cron scheduler started")
 
@@ -144,11 +155,13 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Context cleanup scheduler started (daily at 03:00)")
                 # Run until cancelled
                 await asyncio.Event().wait()
 
-        _context_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
+        _context_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="context_cleanup")
 
     except Exception as e:
         logger.error(f"Failed to start context cleanup scheduler: {e}", exc_info=True)
@@ -260,10 +273,12 @@ async def start_approval_ttl_scheduler() -> None:
                     IntervalTrigger(minutes=5),
                     id="approval_ttl_cleanup",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Approval TTL scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
-        _approval_ttl_scheduler_task = asyncio.create_task(run_scheduler())
+        _approval_ttl_scheduler_task = spawn_observed_task(run_scheduler(), name="approval_ttl_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start approval TTL scheduler: %s", exc)
@@ -320,10 +335,12 @@ async def start_cancellation_cleanup_scheduler() -> None:
                     IntervalTrigger(minutes=10),
                     id="cancellation_token_cleanup",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("CancellationToken cleanup scheduler started (every 10 min)")
                 await asyncio.Event().wait()
 
-        _cancellation_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
+        _cancellation_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="cancellation_token_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start CancellationToken cleanup scheduler: %s", exc)
@@ -367,14 +384,13 @@ async def _db_maintenance_job() -> None:
     Tasks:
     1. SQLite WAL checkpoint — prevents WAL file unbounded growth
     2. Database backup — disaster recovery snapshot
-    3. Qdrant segment optimization — stable query performance
-    4. Memory import review cleanup — remove rollback-expired import sessions
-    5. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
-    6. Chat trash auto-purge — permanently delete chats trashed > 30 days
-    7. Kanban data GC — clean old events/runs/workspaces for terminal tasks
-    8. Artifact share registry GC — remove expired share records (TTL + retention)
-    9. Channel data plane GC — prune channel messages older than 30 days
-    10. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
+    3. Memory import review cleanup — remove rollback-expired import sessions
+    4. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
+    5. Chat trash auto-purge — permanently delete chats trashed > 30 days
+    6. Kanban data GC — clean old events/runs/workspaces for terminal tasks
+    7. Artifact share registry GC — remove expired share records (TTL + retention)
+    8. Channel data plane GC — prune channel messages older than 30 days
+    9. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
     """
     # SQLite WAL checkpoint
     try:
@@ -407,31 +423,6 @@ async def _db_maintenance_job() -> None:
             logger.info("Periodic database backup completed")
     except Exception as e:
         logger.warning("Periodic database backup failed: %s", e)
-
-    # Qdrant segment optimization (if store is active)
-    try:
-        from app.core.retriever.vector.defaults import create_default_vector_store
-
-        store = await create_default_vector_store()
-        if store is not None and hasattr(store, "_client"):
-            from qdrant_client import AsyncQdrantClient
-
-            client = store._client
-            if isinstance(client, AsyncQdrantClient):
-                collections = await client.get_collections()
-                for col in collections.collections:
-                    await client.update_collection(
-                        collection_name=col.name,
-                        optimizer_config={"indexing_threshold": 10000},
-                    )
-                logger.info(
-                    "Qdrant optimize: %d collections updated",
-                    len(collections.collections),
-                )
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning("Qdrant segment optimization failed: %s", e)
 
     # Memory import review cleanup
     try:
@@ -518,13 +509,27 @@ async def _db_maintenance_job() -> None:
 
 
 async def _incognito_cleanup_job() -> None:
-    """Incognito chat auto-purge: permanently delete incognito chats idle past the session window"""
+    """Incognito chat auto-purge: permanently delete idle web incognito chats that have no turn in flight"""
     try:
         from app.services.chat.chat_retention import purge_idle_incognito_chats
 
         await purge_idle_incognito_chats()
     except Exception as e:
         logger.warning("Incognito chat auto-purge failed: %s", e)
+
+
+async def _checkpoint_history_prune_job() -> None:
+    """Drop superseded checkpoint history and hand the freed space back to the filesystem."""
+    from app.services.system.checkpoint_history_service import run_checkpoint_history_prune
+
+    await run_checkpoint_history_prune()
+
+
+async def _instance_auto_backup_job() -> None:
+    """Hourly check of the scheduled whole-instance backup; starts one only when it is due."""
+    from app.services.instance_archive.auto_backup import run_auto_backup_tick
+
+    await run_auto_backup_tick()
 
 
 _db_maintenance_scheduler_task: asyncio.Task[None] | None = None
@@ -535,6 +540,8 @@ async def start_db_maintenance_scheduler() -> None:
     global _db_maintenance_scheduler, _db_maintenance_scheduler_task
 
     try:
+        from datetime import UTC, datetime, timedelta
+
         from apscheduler import AsyncScheduler
         from apscheduler.triggers.interval import IntervalTrigger
 
@@ -551,13 +558,28 @@ async def start_db_maintenance_scheduler() -> None:
                     IntervalTrigger(minutes=60),
                     id="incognito_cleanup",
                 )
+                # Delayed so the first pass over a long-grown checkpoint database does not compete with startup;
+                # it works in small lock-releasing batches, so conversations keep running meanwhile.
+                await scheduler.add_schedule(
+                    _checkpoint_history_prune_job,
+                    IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=10)),
+                    id="checkpoint_history_prune",
+                )
+                # First check a few minutes after boot (not at once) so a backup due from a closed period does
+                # not compete with startup; the due-ness itself comes from the recorded last completed backup.
+                await scheduler.add_schedule(
+                    _instance_auto_backup_job,
+                    IntervalTrigger(minutes=60, start_time=datetime.now(UTC) + timedelta(minutes=5)),
+                    id="instance_auto_backup",
+                )
                 global _db_maintenance_scheduler
                 _db_maintenance_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("DB maintenance scheduler started (every 6 hours)")
                 await asyncio.Event().wait()
 
-        _db_maintenance_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)")
+        _db_maintenance_scheduler_task = spawn_observed_task(run_scheduler(), name="db_maintenance")
 
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)
@@ -584,11 +606,12 @@ async def start_login_session_cleanup_scheduler() -> None:
                 )
                 global _login_session_cleanup_scheduler
                 _login_session_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Login session cleanup scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
-        _login_session_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Login session cleanup scheduler started (every 5min: remove expired sessions)")
+        _login_session_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="login_session_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start login session cleanup scheduler: %s", exc)
@@ -636,11 +659,12 @@ async def start_auth_log_cleanup_scheduler() -> None:
                 )
                 global _auth_log_cleanup_scheduler
                 _auth_log_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Auth log cleanup scheduler started (daily at 04:00)")
                 await asyncio.Event().wait()
 
-        _auth_log_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Auth log cleanup scheduler started (daily at 04:00: remove old archives)")
+        _auth_log_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="auth_log_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start auth log cleanup scheduler: %s", exc)
@@ -738,6 +762,26 @@ async def stop_kanban_dispatchers() -> None:
 _remote_backup_scheduler_task: asyncio.Task[None] | None = None
 
 
+def _section(config: dict[str, object], key: str) -> dict[str, object]:
+    section = config.get(key)
+    return section if isinstance(section, dict) else {}
+
+
+def _text(config: dict[str, object], key: str, default: str = "") -> str:
+    value = config.get(key)
+    return value if isinstance(value, str) else default
+
+
+def _flag(config: dict[str, object], key: str, default: bool) -> bool:
+    value = config.get(key)
+    return value if isinstance(value, bool) else default
+
+
+def _count(config: dict[str, object], key: str, default: int) -> int:
+    value = config.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+
 async def _remote_backup_auto_sync_job() -> None:
     """Periodic remote backup job. Reads config and syncs if enabled."""
     try:
@@ -754,12 +798,13 @@ async def _remote_backup_auto_sync_job() -> None:
         if not enabled or not auto_sync:
             return
 
-        provider = value.get("provider", "")
+        provider = _text(value, "provider")
         if not provider:
             return
 
         from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
         from app.services.memory.backup.backup_remote import (
+            RemoteBackupStrategy,
             S3BackupConfig,
             S3BackupStrategy,
             WebDAVBackupConfig,
@@ -767,30 +812,31 @@ async def _remote_backup_auto_sync_job() -> None:
         )
         from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
 
-        device_name = value.get("deviceName", "") or platform.node()
-        max_backups = value.get("maxBackups", 10)
+        device_name = _text(value, "deviceName") or platform.node()
+        max_backups = _count(value, "maxBackups", 10)
 
+        strategy: RemoteBackupStrategy
         if provider == "webdav":
-            webdav_cfg = value.get("webdav", {})
+            webdav_cfg = _section(value, "webdav")
             strategy = WebDAVBackupStrategy(
                 WebDAVBackupConfig(
-                    host=webdav_cfg.get("host", ""),
-                    username=webdav_cfg.get("username", ""),
-                    password=webdav_cfg.get("password", ""),
-                    path=webdav_cfg.get("path", "/myrm-backups"),
+                    host=_text(webdav_cfg, "host"),
+                    username=_text(webdav_cfg, "username"),
+                    password=_text(webdav_cfg, "password"),
+                    path=_text(webdav_cfg, "path", "/myrm-backups"),
                 )
             )
         elif provider == "s3":
-            s3_cfg = value.get("s3", {})
+            s3_cfg = _section(value, "s3")
             strategy = S3BackupStrategy(
                 S3BackupConfig(
-                    endpoint=s3_cfg.get("endpoint", ""),
-                    region=s3_cfg.get("region", ""),
-                    bucket=s3_cfg.get("bucket", ""),
-                    access_key_id=s3_cfg.get("accessKeyId", ""),
-                    secret_access_key=s3_cfg.get("secretAccessKey", ""),
-                    prefix=s3_cfg.get("prefix", "myrm-backups/"),
-                    force_path_style=s3_cfg.get("forcePathStyle", True),
+                    endpoint=_text(s3_cfg, "endpoint"),
+                    region=_text(s3_cfg, "region"),
+                    bucket=_text(s3_cfg, "bucket"),
+                    access_key_id=_text(s3_cfg, "accessKeyId"),
+                    secret_access_key=_text(s3_cfg, "secretAccessKey"),
+                    prefix=_text(s3_cfg, "prefix", "myrm-backups/"),
+                    force_path_style=_flag(s3_cfg, "forcePathStyle", True),
                 )
             )
         else:
@@ -832,10 +878,12 @@ async def start_remote_backup_scheduler() -> None:
                     IntervalTrigger(minutes=60),
                     id="remote_backup_auto_sync",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Remote backup auto-sync scheduler started (every 60 min)")
                 await asyncio.Event().wait()
 
-        _remote_backup_scheduler_task = asyncio.create_task(run_scheduler())
+        _remote_backup_scheduler_task = spawn_observed_task(run_scheduler(), name="remote_backup_auto_sync")
 
     except Exception as exc:
         logger.error("Failed to start remote backup scheduler: %s", exc)

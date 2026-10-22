@@ -8,11 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.database.dto import MessageDTO
-from app.services.agent.stream_session.stream_finalize import (
-    _mark_pending_clarification_answered,
-    finalize_agent_stream_session,
-)
+from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
+from app.services.agent.streaming_support.hitl_timeout import mark_pending_clarification_answered
 
 
 def _message(
@@ -72,7 +70,7 @@ async def test_mark_pending_clarification_answered_patches_latest_assistant() ->
             new_callable=AsyncMock,
         ) as mock_update,
     ):
-        await _mark_pending_clarification_answered("chat-clarify")
+        await mark_pending_clarification_answered("chat-clarify", None)
 
     mock_update.assert_awaited_once()
     assert mock_update.await_args.args[0] == "assistant-clarify"
@@ -104,7 +102,7 @@ async def test_mark_pending_clarification_answered_noop_when_already_answered() 
             new_callable=AsyncMock,
         ) as mock_update,
     ):
-        await _mark_pending_clarification_answered("chat-clarify")
+        await mark_pending_clarification_answered("chat-clarify", None)
 
     mock_update.assert_not_awaited()
 
@@ -143,7 +141,7 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
-            "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
+            "app.services.agent.stream_session.answered_cards.mark_pending_clarification_answered",
             new_callable=AsyncMock,
         ) as mock_mark,
     ):
@@ -155,7 +153,7 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
             clarification,
         )
 
-    mock_mark.assert_awaited_once_with("chat-clarify")
+    mock_mark.assert_awaited_once_with("chat-clarify", {"by": "user", "value": {"framework": "langchain"}})
 
 
 @pytest.mark.asyncio
@@ -193,7 +191,7 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
-            "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
+            "app.services.agent.stream_session.answered_cards.mark_pending_clarification_answered",
             new_callable=AsyncMock,
         ) as mock_mark,
     ):
@@ -205,4 +203,4 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
             clarification,
         )
 
-    mock_mark.assert_awaited_once_with("chat-clarify")
+    mock_mark.assert_awaited_once_with("chat-clarify", None)

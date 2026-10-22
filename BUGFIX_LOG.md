@@ -7831,3 +7831,339 @@ AssertionError: Browser state did not become ready:
 
 1. **就绪探针要探「目标元素」，不要探「外层容器」**：容器往往第一帧就在，拿它当 ready 等于把「页面开始加载」当成「页面已可用」；探针应命中真正要被操作的那个节点（这里是 `[data-section="skills"][data-active]`）。
 2. **桌面绿 ≠ 手机绿**：两个宽度跑同一条逻辑，但手机 iframe 会重新拉资源，落在骨架窗口里的概率更高——这正是此前「桌面两次通过、手机阶段未跑通」的成因，别把宽度差异当负载噪音。
+
+
+---
+
+## BUG-AGENT-2026-10-19-016: 缺语义拦截的用户提示分支引用了未绑定的 locale——错误路径自身抛 UnboundLocalError，结构化补救提示永远发不出去
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-19（跑 `tests/unit/services/agent/test_stream_loop_missing_semantics.py` 时两条用例同因失败） |
+| 修复日期 | 2026-10-19 |
+| 严重程度 | P2（用户可见：沙箱/安全依赖缺失时本该给出结构化补救提示，实际该路径直接抛 `UnboundLocalError`） |
+| 影响范围 | `myrm-agent-server/app/services/agent/stream_session/stream_loop.py`（`except` 段的错误提示构造） |
+| 出现次数 | 1（首次发现并一次性彻底修复） |
+| 关联 | 本地提交 `bcd614b37d`，未 push；用例 `tests/unit/services/agent/test_stream_loop_missing_semantics.py` |
+
+### 现象
+
+1. `./myrm test myrm-agent/myrm-agent-server/tests/unit/services/agent/ -q` → `44 passed, 2 failed`
+2. 失败栈：`UnboundLocalError: cannot access local variable 'lang' where it is not associated with a value`（`stream_loop.py` 的缺语义分支）
+3. 用户视角：缺少沙箱/安全组件时，本该收到 `missing_semantics_blocked` 的结构化错误卡片与补救提示，实际错误路径自身崩掉
+
+### 根因
+
+`lang = _stream_locale(getattr(session.params, "locale", None))` 只写在 `PrivacyFailClosedViolationError` 分支内；同一 `except` 段的 `MissingSemanticsBlockedError` 分支直接使用 `_GATE_BLOCKED_FIELDS[lang]`，进入该分支时变量从未绑定。
+
+### 修复
+
+把 locale 解析上移到 `except` 段首（两个分支共用），移除隐私分支内的重复赋值。
+
+### 回归
+
+`./myrm test myrm-agent/myrm-agent-server/tests/unit/services/agent/ -q` → **46 passed**（修前 44 passed + 2 failed）；`ruff check` 通过。
+
+### 踩坑经验
+
+错误处理段里的共享变量必须在段首绑定：只在某个分支里赋值、在另一个分支里使用，会让「兜底提示」这条最该靠谱的路径最不靠谱。
+
+---
+
+## BUG-AGENT-2026-10-21-001: 连接测试把所有失败都报成「无响应」——超时、凭据被拒、LiteLLM 路由写错三种故障无法区分
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-21 |
+| 修复日期 | 2026-10-21 |
+| 严重程度 | P1（用户可见：Settings「测试连接」对任何失败都只显示 `Health check returned no response`；真实可用的 provider 被 5s 截止判死，用户据此反复换 key、换模型） |
+| 影响范围 | `myrm-agent-harness/toolkits/llms/fallback/health_check.py`、`myrm-agent-server/app/api/integrations/llms.py`、`myrm-agent-frontend/src/services/llm-config.ts`、`src/components/features/settings/model-service/ProviderConfig.tsx`、`src/store/config/providerTypes.ts` |
+| 出现次数 | 1（首次发现并一次性彻底修复） |
+| 关联 | harness `e20191475`；server+frontend `fd1d8798ae`；测试 `f433ddf0dc` |
+
+### 现象
+
+1. 本机 `openai-like`（OpenCode Go）provider 点「测试连接」→ 界面只显示「不可达：无响应」，用户无法判断是 key 无效、模型名不对还是网络问题
+2. 真实可用的 `minimax` provider 同样被判失败：实测直连 `MiniMax-M3.1-Flash` 一次 `pong` 需 **7.34s**，而探测截止时间硬编码 **5s** → 健康端点被误判不可达
+3. 直接调 `/api/v1/integrations/llm/check-reachability` 验证：可用 provider 返回 `{"reachable": false, "error": "Health check returned no response"}`
+4. 自定义 provider（`id=openai-like`，`providerType=openai`）的模型名被拼成 `openai-like/<model>`，litellm 直接抛 `LLM Provider NOT provided`，该原因同样被压成「无响应」
+
+### 根因
+
+四层叠加：
+
+1. **harness 探测只返回布尔**：`lightweight_health_check()` 用 `except Exception → False` 吞掉全部失败原因，超时与 provider 报错不可区分（另：provider 自己抛的 `TimeoutError` 被误判成我们的截止时间）
+2. **截止时间与真实延迟不匹配**：5s 硬编码，未反映真实厂商首 token 延迟
+3. **server 把失败再压平**：`llms.py` 用 `except Exception` 兜底成 `Health check returned no response`
+4. **前端二次截断**：错误文案用 `truncate` 压成一行，用户看不到任何细节；`getLiteLLMModelName()` 对无生成映射的自定义 provider 直接用 provider id 当 LiteLLM 路由段，产出非法路由
+
+### 修复
+
+1. harness 新增 `probe_llm_health() → HealthProbeResult{ok, error_kind, error, latency_ms}`（`error_kind` 区分 `timeout`/`provider_error`，保留上游原因），`lightweight_health_check()` 保持布尔契约
+2. server 改用结构化探测，截止时间 5s → **15s**（覆盖真实厂商首 token），响应新增 `error_kind` 并原样透传上游原因
+3. 前端按 `error_kind` 显示「连接超时 / 不可达」（新增 i18n 键，6 语言齐备），错误文本改为可换行展示，不再截断
+4. `getLiteLLMModelName()` 路由解析补回落：内置 id 走生成映射；自定义 provider 无映射时回落到 `providerType`（legacy 行存裸 provider id，如 `openai`），不再产出 LiteLLM 不认识的路由
+
+### 回归
+
+- harness `tests/toolkits/llms` 全量 **2681 passed**（新增 5 例探测分类用例）
+- server `tests/api/integrations` **323 passed**（其中 2 例随契约变更更新）
+- frontend `src/services/config/__tests__` + `src/store/config/__tests__` + `model-service/__tests__` 共 **136 + 3 + 2** 全通过（新增服务层透传用例与组件渲染用例）
+- 实测对照（同接口）：修复前 `{"reachable": false, "error": "Health check returned no response"}` → 修复后 `{"reachable": false, "error_kind": "provider_error", "error": "AuthenticationError: ... Upstream request failed: Invalid credential"}`；可用 provider `{"reachable": true, "latency_ms": 3, "error_kind": "none"}`
+
+### 踩坑经验
+
+1. **「探测返回布尔」会把「慢」和「坏」压成同一个信号**——可诊断性是探测 API 的一等契约，不能靠日志补救；下游要做「告诉用户为什么」时，布尔就永远不够用
+2. **截止时间必须按真实延迟定标**：拿 5s 拍的默认值，会把「首 token 7s 的健康 provider」判成不可达，用户看到的红字反而是错的
+3. **自建 provider 的 LiteLLM 路由段要能回落**：provider id 不是 LiteLLM 路由，`providerType` 才是；不回落就会稳定命中 `LLM Provider NOT provided`
+
+---
+
+## BUG-AGENT-2026-10-21-002: 浏览器把「从未加载过的本地状态」写回服务端——用户的已启用 provider 与默认模型被静默清空
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-21（排查本机「本地实例突然没有任何可用模型」时定位） |
+| 修复日期 | 2026-10-21 |
+| 严重程度 | P1（数据丢失：服务端是权威配置，浏览器的一次陈旧写入就把用户配置替换掉；用户必须重新录入 API Key） |
+| 影响范围 | `myrm-agent-frontend/src/services/config/ConfigSyncManager.ts`、`src/store/useProviderStore.ts` |
+| 出现次数 | ≥3（当天共享开发机上被 E2E lane 与浏览器同步反复触发） |
+| 关联 | server+frontend `270e0b8f13`；全新实例放行 `01c679b02d` |
+
+### 现象
+
+1. 本机 `providers` / `defaultModelConfig` 被改写成「只剩一个没有 API Key 的 provider 行」，`/api/v1/config/readiness` 报 `config_load_failed`（`No default model configured`），本地实例彻底不可用
+2. 审计历史显示多次来源不同的写入：`deviceId=web`（浏览器同步）与 `deviceId=chrome-e2e`（E2E lane 直接 seed 后端 config）
+3. 恢复需要手工回滚：审计历史里能找回含 Key 的旧版本
+
+### 根因
+
+两条独立路径都能把「未从服务端加载过的本地状态」当成最新值写回：
+
+1. **离线队列重放绕过乐观锁**：`saveOfflineQueue` 用 `mergeChanges` 把 `expectedVersion` 覆盖成**当前** baseCache 版本，重放时又用同一逻辑改写一次 → 服务端收到的永远是「基于最新版本」的写入，乐观锁从不触发；队列里那份可能来自上一个会话的陈旧快照于是被直接接受
+2. **provider store 在配置未加载时写回**：`syncToManager()` 直接把 store 里的 provider 列表推给服务端；而 store 在服务端配置回来之前持有的是**内置种子默认值**（全部 provider 未启用），一次早到的 UI 动作就用默认值覆盖了服务端真实配置
+
+### 修复
+
+1. 离线队列合并改用 `mergeOfflineChanges()`：**保留最早的分叉基准版本**；重放前用 `partitionOfflineChanges()` 与服务端当前版本比对——服务端已前进即判过期，默认丢弃（保留服务端值），注册了冲突解决器时交由用户决定；可重放项携带自己的基准版本，让服务端乐观锁真正生效
+2. provider store 增加写回闸门：服务端配置未加载完成前只改本地、不写回；服务端**本就无** providers 配置（全新实例）时放行，保证首个 provider 配置能落库
+3. 配套：服务端 legacy 拆分行空值不再遮蔽 bundle（见 BUG-AGENT-2026-10-21-003）；E2E lane 的 seed 改为可逆（见 BUG-AGENT-2026-10-21-004）
+
+### 回归
+
+- 新增 `src/services/config/__tests__/ConfigSyncManager.offlineStaleness.test.ts`（4 例：过期不覆盖服务端 / 过期时问冲突解决器 / 未过期照常重放 / 重放携带基准版本）
+- 新增 `src/store/__tests__/useProviderStore.hydrationGuard.test.ts`（3 例：未加载不写回 / 全新实例允许首个写入 / 已加载后正常写回且推送服务端那份）
+- 既有 `ConfigSyncManager.offlineReplay.test.ts`、`providerSubscription.test.ts` 仍通过（后者补齐「先加载再写回」的真实生命周期）
+
+### 踩坑经验
+
+1. **乐观锁必须携带「改动所基于的版本」**：把 `expectedVersion` 换成「当前已知版本」，锁就等于没上——这是本次配置被反复抹掉的直接原因
+2. **任何写回前先问「这个值我从服务端加载过吗」**：没加载过的值写回去不是同步，是覆盖
+3. **「全新实例」与「配置未加载」必须分开**：前者种子即真相、允许写；后者真相未知、必须等——把两者当同一种情况，要么挡住首次配置，要么放行覆盖
+
+---
+
+## BUG-AGENT-2026-10-21-003: 空的 legacy `defaultModelConfig` 拆分行遮蔽 canonical `providers` bundle——整机报「未配置默认模型」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-21 |
+| 修复日期 | 2026-10-21 |
+| 严重程度 | P1（整机不可用：配置明明有默认模型，却全局报 `No default model configured`，warmup / 记忆维护 / 模型路由全部降级） |
+| 影响范围 | `myrm-agent-server/app/core/channel_bridge/config_loader.py` |
+| 出现次数 | ≥2（当天两次把本机实例打到该状态） |
+| 关联 | server `b228f4241b` |
+
+### 现象
+
+1. 服务端日志连续出现 `Failed to load user configs for readiness check: No default model configured. Please select a default model in Settings.`
+2. 启动期 warmup 直接跳过（`Memory import rollback recovery skipped`），技能进化运行时被判「未配置模型」停用
+3. 实际 `providers` bundle 里的 `defaultModelConfig` 明明是好的——但数据库里同时存在一条**空的** legacy 拆分行 `defaultModelConfig = {}`
+
+### 根因
+
+`config_loader.py` 无条件用 legacy 拆分行覆盖 bundle 里的 `defaultModelConfig`：
+
+```python
+default_model_cfg = config_map.get("defaultModelConfig")
+if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
+    providers_dict["defaultModelConfig"] = default_model_cfg
+```
+
+拆分行是历史遗留（迁移后应被删除），任何一次遗留/误写的空行都会**遮蔽** canonical bundle，整个实例随即失去默认模型。
+
+### 修复
+
+拆分行只在**确实带模型**时才覆盖 bundle（`and default_model_cfg`），空遗留行不再生效。
+
+### 回归
+
+- 新增 `tests/core/channel_bridge/test_config_loader.py::test_an_empty_legacy_split_row_does_not_shadow_the_bundle`
+- `tests/core/channel_bridge/test_config_loader.py` **35 passed**；`tests/api/integrations` **323 passed**
+- 实测：恢复后的本机实例 `readiness.provider=True`、`degraded=False`
+
+### 踩坑经验
+
+1. **「兼容旧结构」的分支必须判空**：旧键只在有内容时才权威，否则一条空遗留行就能让整机失效
+2. **双写结构的收敛要有唯一权威源**：bundle 是权威、拆分行是遗留，读侧必须让遗留让路，否则两条真相会互相打架
+
+---
+
+## BUG-AGENT-2026-10-21-004: LIVE Chrome E2E lane 把共享后端的 provider 配置永久替换成 E2E 端点——开发者的 provider 与 API Key 被覆盖后无法找回
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-21 |
+| 修复日期 | 2026-10-21 |
+| 严重程度 | P2（开发环境数据丢失：E2E 需要独占默认模型是设计使然，但「跑完测试把开发者的配置还回去」这一步缺失） |
+| 影响范围 | `myrm-agent-server/tests/support/e2e_provider_seed.py` |
+| 出现次数 | ≥3（共享开发机上当天反复发生） |
+| 关联 | server `b228f4241b` |
+
+### 现象
+
+1. 跑完一轮 LIVE Chrome E2E 后，共享后端的 `providers` 变成 E2E 端点（`http://127.0.0.1:20128/v1`）+ 一个测试 stub，开发者自己的 provider 行连同 **API Key** 一起消失
+2. 恢复只能靠服务端审计历史手工回滚（`/api/v1/config/providers/rollback/{version}`），且 `defaultModelConfig` 是**独立 key**，需单独回滚
+3. E2E 自身的 live-agent 用例又依赖「WebUI 默认模型 = E2E 端点」，因此不能简单地不写
+
+### 根因
+
+`seed_live_e2e_providers()` 只做「seed」，没有「还原」：E2E 必须独占默认模型（live-agent 用例不发 `modelSelection`），于是 E2E 的写入成为**单向覆盖**。
+
+### 修复
+
+1. seed 前把当前 provider 配置**快照**到 `MYRM_DATA_DIR/e2e-provider-seed.json`（首个 seed 进程快照，后续进程只计数）
+2. 每个 seed 进程退出时（`atexit`）计数减一，**最后一个**退出者把快照写回服务端并删除快照文件——引用计数保证并行 E2E lane 在最后一个退出前一直持有被 seed 的配置
+3. 另提供 `restore_provider_config(api_url)` 供显式 teardown 调用；还原失败只告警不阻断 lane
+
+### 回归
+
+- 实测往返（对真实 dev 后端）：seed 前 `[]` → seed 后 `['e2e-lane-stub']` → 退出还原后 `[]`，快照文件自动清理
+- 旁路手册同步补进 `scripts/dev/MAINTAINER_QUICKSTART.md`（审计历史查询 + 两个 key 的回滚命令 + 症状识别）
+
+### 踩坑经验
+
+1. **任何「独占共享资源」的测试 seed 都必须配还原**：E2E 要独占默认模型是对的，缺的是归还动作
+2. **还原要按最后一个执行者判定**，不能按最后一个启动者——否则并行 lane 会在同伴还在跑时把配置抢回去
+
+---
+
+## BUG-AGENT-2026-10-22-001: harness 并入单仓后丢了 63 个从未提交过的模块——服务端 import 链断裂，后端无法启动
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22（harness 从独立仓并入 `myrm-agent/myrm-agent-harness/` 之后，后端启动即失败） |
+| 修复日期 | 2026-10-22（特性作者补齐 harness 一侧后恢复；另修了镜像契约测试的旧路径） |
+| 严重程度 | P0（后端无法启动 → 整个本地实例不可用） |
+| 影响范围 | `myrm-agent-harness/src/myrm_agent_harness/**`（缺失 63 个模块）→ 69 个未被 git 跟踪的服务端文件引用它们（`app/services/agent/*_service.py`、`app/services/chat/command_matrix/*`、`app/api/system/*_api.py` 等） |
+| 出现次数 | 1（随合并一次性引入） |
+| 关联 | 归档仓 `myrm-agent-harness` 的 `backup/*` 分支与 `main` 均**不含**这些模块 → 它们只存在于旧工作树的未提交状态，旧工作树随目录删除一并消失 |
+
+### 现象
+
+```
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.coordination.autonomous_loop'
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.coordination.bot_mode'
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.context_management.capability_matrix'
+→ app/api/router.py 导入失败 → app 工厂无法构建 → 后端起不来
+```
+
+### 根因
+
+这些模块属于**尚未提交**的新特性（autonomous loop / bot mode / tri role / squad / swarm / observability 看板族）。
+合并时只带入了已提交的文件，未提交的那一半随旧工作树一起消失；服务端的对应文件也一直是未跟踪状态，
+所以两边现在都缺一半。
+
+### 修复
+
+1. **特性作者补齐 harness 一侧**（把旧工作树中 `myrm_agent_harness.agent.coordination.*`、
+   `myrm_agent_harness.agent.context_management.capability_matrix*`、
+   `myrm_agent_harness.observability.*`、`myrm_agent_harness.toolkits.swarm` 等 63 个模块放回
+   `myrm-agent/myrm-agent-harness/src/myrm_agent_harness/`）→ 后端 import 链恢复 ✓
+2. **镜像契约测试指向合并后的路径**（`tests/support/test_conftest_browser_cleanup_wiring.py` 仍按独立仓
+   布局拼 `parents[4]/myrm-agent-harness/...` → 合并后应为 `parents[3]/myrm-agent-harness/...` ✗ → 每次运行必红 ✗）→ 已修正 ✓
+
+**不要用「跳过缺失导入」的方式绕过**：那只会把「特性没落地」变成「运行时才炸」，属于掩盖式修复。
+
+**不要用「跳过缺失导入」的方式绕过**：那只会把「特性没落地」变成「运行时才炸」，属于掩盖式修复。
+
+### 缺失模块完整清单（63）
+
+```
+myrm_agent_harness.agent.context_management.capability_matrix
+myrm_agent_harness.agent.context_management.capability_matrix.models
+myrm_agent_harness.agent.context_management.scratchpad_promotion
+myrm_agent_harness.agent.coordination.autonomous_loop
+myrm_agent_harness.agent.coordination.bot_mode
+myrm_agent_harness.agent.coordination.multi_bot_focus
+myrm_agent_harness.agent.coordination.scope_guardrails
+myrm_agent_harness.agent.coordination.squad_composition
+myrm_agent_harness.agent.coordination.tri_role
+myrm_agent_harness.agent.coordination.wave_orchestrator
+myrm_agent_harness.agent.coordination.workspace_blueprint
+myrm_agent_harness.agent.creator_mode
+myrm_agent_harness.agent.skills.bundle_warmup
+myrm_agent_harness.observability.aborted_usage_ledger
+myrm_agent_harness.observability.active_skill_telemetry
+myrm_agent_harness.observability.agent_insights
+myrm_agent_harness.observability.agentic_traffic
+myrm_agent_harness.observability.ambient_auxiliary_accounting
+myrm_agent_harness.observability.audit_theater
+myrm_agent_harness.observability.cardinality_cap
+myrm_agent_harness.observability.code_freshness
+myrm_agent_harness.observability.composite_usage_ledger
+myrm_agent_harness.observability.context_breakdown
+myrm_agent_harness.observability.context_optimization
+myrm_agent_harness.observability.context_retrieval
+myrm_agent_harness.observability.coordination_friction
+myrm_agent_harness.observability.cron_doctor
+myrm_agent_harness.observability.cross_period_milestone
+myrm_agent_harness.observability.cumulative_delivery_budget
+myrm_agent_harness.observability.delegation_billing
+myrm_agent_harness.observability.delivery_dossier
+myrm_agent_harness.observability.deployment_funnel
+myrm_agent_harness.observability.diagnostic_stream
+myrm_agent_harness.observability.dual_domain_metering
+myrm_agent_harness.observability.durable_budget_ledger
+myrm_agent_harness.observability.enterprise_credit_cockpit
+myrm_agent_harness.observability.event_causality_lineage
+myrm_agent_harness.observability.evidence_cross_verification
+myrm_agent_harness.observability.knowledge_compounding
+myrm_agent_harness.observability.labor_acceleration
+myrm_agent_harness.observability.local_sink
+myrm_agent_harness.observability.memory_backend_metrics
+myrm_agent_harness.observability.multimodal_trace
+myrm_agent_harness.observability.org_spend_limit
+myrm_agent_harness.observability.otel_degrade
+myrm_agent_harness.observability.rate_limit_governor
+myrm_agent_harness.observability.rate_limit_split
+myrm_agent_harness.observability.reasoning_semantics
+myrm_agent_harness.observability.resource_metering
+myrm_agent_harness.observability.runtime_zombie_reaper
+myrm_agent_harness.observability.sandbox_hardware_telemetry
+myrm_agent_harness.observability.stream_metrics
+myrm_agent_harness.observability.timeline_visualizer
+myrm_agent_harness.observability.token_economics
+myrm_agent_harness.observability.turn_context_provenance
+myrm_agent_harness.observability.turn_usage
+myrm_agent_harness.observability.unattended_reliability
+myrm_agent_harness.observability.visual_flight_recorder
+myrm_agent_harness.observability.workflow_throttle
+myrm_agent_harness.toolkits.artifacts.delight_showcase
+myrm_agent_harness.toolkits.artifacts.embed_bridge
+myrm_agent_harness.toolkits.artifacts.ui_alignment
+myrm_agent_harness.toolkits.swarm
+```
+
+### 验证
+
+```bash
+cd myrm-agent/myrm-agent-server
+.venv/bin/python -c "import app.api.router as r; print(len(r.api_router.routes))"   # 正常导入
+./myrm test -n0 myrm-agent-server/tests/support/ myrm-agent-server/tests/api/integrations/   # 446 passed / 3 skipped
+./myrm ready                                                                   # backend healthy / client_hot
+```
+
+真机复核（2026-10-22）：`/api/v1/health` healthy；`/api/v1/config/readiness` provider=True、search=True、
+degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失效 provider 返回
+`error_kind=provider_error` + 上游原文 `Invalid credential`；真实 Agent 回合正常返回。

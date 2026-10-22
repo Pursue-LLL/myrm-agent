@@ -22,9 +22,12 @@ function mkNode(overrides: Partial<SubagentNode> & { task_id: string }): Subagen
 // ── toneForStatus ────────────────────────────────────────────────────
 
 describe('toneForStatus', () => {
-  it('maps running/verifying to active', () => {
+  it('maps running to active', () => {
     expect(toneForStatus('running')).toBe('active');
-    expect(toneForStatus('verifying')).toBe('active');
+  });
+
+  it('maps a node held back for review to warning rather than muted', () => {
+    expect(toneForStatus('blocked')).toBe('warning');
   });
 
   it('maps terminal failure statuses to danger', () => {

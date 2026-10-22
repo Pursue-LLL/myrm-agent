@@ -47,6 +47,9 @@ export default function SessionAdvisorPanel({
         const result = await askAdvisor(chatId, trimmed, selectionSnippet);
         if (result) {
           await loadMessages();
+        } else {
+          // A refused or failed ask must not eat what the user typed; a newer draft wins.
+          setInput((current) => current || trimmed);
         }
         return Boolean(result);
       } finally {

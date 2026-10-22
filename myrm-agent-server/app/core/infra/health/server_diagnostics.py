@@ -13,7 +13,7 @@
 - OllamaModelContextDiagnostic: Ollama 64K 上下文探针（别名重导出）。
 - AgentStepBudgetDiagnostic: Agent 步数预算探针（别名重导出）。
 - AgentPromptCacheAlignmentDiagnostic: Agent 前缀缓存对齐探针（别名重导出）。
-- SkillHoardingHealthDiagnostic: 技能库囤积与错但高频低质技能诊断探针（别名重导出）。
+- SkillQualityHealthDiagnostic: 错但高频低质技能诊断探针（别名重导出）。
 - ServerDiagnosticsManager: 聚合各类 Server 业务级探针的管理器。
 - run_server_diagnostics: 供 API 路由直接调用的快捷方法，返回业务层健康度列表。
 
@@ -40,7 +40,7 @@ from app.core.infra.health.agent_diagnostics import (
 from app.core.infra.health.desktop_locked_use_diagnostic import DesktopLockedUseDiagnostic
 from app.core.infra.health.session_diagnostics import OrphanSessionDiagnostic
 from app.core.infra.health.skill_diagnostics import (
-    SkillHoardingHealthDiagnostic,
+    SkillQualityHealthDiagnostic,
 )
 from app.core.infra.health.trace_security_diagnostic import TraceExportSecurityDiagnostic
 
@@ -54,7 +54,7 @@ __all__ = [
     "OllamaModelContextDiagnostic",
     "OrphanSessionDiagnostic",
     "ServerDiagnosticsManager",
-    "SkillHoardingHealthDiagnostic",
+    "SkillQualityHealthDiagnostic",
     "TraceExportSecurityDiagnostic",
     "run_server_diagnostics",
 ]
@@ -74,7 +74,7 @@ class DLQDiagnostic(DiagnosticProtocol):
             if gateway and gateway.bus:
                 failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
                 pending_count = await gateway.bus.durable_outbound.count_pending()
-                meta_data = {
+                meta_data: dict[str, object] = {
                     "failed_count": failed_count,
                     "pending_outbound_count": pending_count,
                 }
@@ -222,7 +222,7 @@ class ServerDiagnosticsManager:
             OllamaModelContextDiagnostic(),
             AgentStepBudgetDiagnostic(),
             AgentPromptCacheAlignmentDiagnostic(),
-            SkillHoardingHealthDiagnostic(),
+            SkillQualityHealthDiagnostic(),
             TraceExportSecurityDiagnostic(),
             OrphanSessionDiagnostic(),
         ]

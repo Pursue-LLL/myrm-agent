@@ -324,20 +324,17 @@ async def test_create_memory_manager_isolated_base_path_evicts_only_that_volume(
     assert manager_b in _memory_manager_cache.values()
 
 
-def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
+def test_resolve_context_binding_carries_default_bundle_contract() -> None:
     binding = resolve_context_binding(
         namespaces=None,
         agent_id="builder",
         channel_id=None,
         conversation_id="chat-1",
         task_id=None,
-        task_workspace_root="/tmp/project-a",
     )
-    assert binding.agent_overlay is not None
-    assert binding.agent_overlay.task_workspace_root == "/tmp/project-a"
-    assert binding.agent_overlay.memory_scenes_pinned is True
     assert binding.bundle_id == "default"
     assert binding.schema_version == 1
+    assert binding.volume_layout_version == 1
 
 
 @pytest.mark.asyncio

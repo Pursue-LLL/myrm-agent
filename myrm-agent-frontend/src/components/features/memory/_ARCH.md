@@ -53,7 +53,12 @@
 | `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor                                                                                                                                                                          | ✅    |
 | `MemoryCommandCenterChrome.tsx`         | 组件 | 命令中心顶栏、Tab 与搜索框                                                                                                                                                                               | ✅    |
 | `MemoryCommandCenterDoctorPanel.tsx`    | 组件 | 记忆系统 Doctor 诊断面板；含静态检查、可执行诊断、结构化 benchmark 指标卡片与历史趋势（最近 N 次 recall@5/ndcg@5/mrr/latency p50/p95 + 上次 delta + 类别通过率 + run 状态徽章 + embedding 模型漂移提示） | ✅    |
-| `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区 Tab 面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示、adapter readiness 可视化与 missing 状态迁移向导动作闭环）                                                               | ✅    |
+| `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区观察/治理/验证分区面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示与迁移入口编排）                                                               | ✅    |
+| `MemoryCommandCenterUnderstandSection.tsx` | 组件 | 「理解」分区面板：记忆能力卡片挂载与影响/冲突展示 | ✅    |
+| `MemoryCommandCenterObservationPanels.tsx` | 组件 | 只读观测子面板：影响行、实时事件流、运行时状态、成本与回放 | ✅    |
+| `MemoryCommandCenterGovernancePanels.tsx` | 组件 | 治理子面板：治理动作行、迁移覆盖与来源清单（manifest chips 深链导入向导）、整合回滚卡片 | ✅    |
+| `MemoryCommandCenterPrimitives.tsx`     | 组件 | 分区面板共用原子组件：版块、指标块、运行时行、空态 | ✅    |
+| `memoryCommandCenterFormat.ts`          | 组件 | 分区面板共用枚举守卫与文案格式化 | ✅    |
 
 ### dialogs/
 
@@ -149,7 +154,10 @@
 | 文件                                                | 职责                                                                         | I/O/P |
 | --------------------------------------------------- | ---------------------------------------------------------------------------- | ----- |
 | `__tests__/MemoryCommandCenterDoctorPanel.test.tsx` | Doctor 诊断面板渲染与健康指标卡测试                                          | ✅    |
-| `__tests__/MemoryCommandCenterPanels.test.tsx`      | migration adapter missing 状态动作闭环与渲染守卫测试                         | ✅    |
+| `__tests__/MemoryCommandCenterPanels.test.tsx`      | 迁移入口常显、manifest chips 深链与渲染守卫测试                              |
+| `__tests__/MemoryImportReviewDialog.test.tsx`       | 导入审阅弹窗：解析样例、告警文案与未知来源标签回退测试                        | ✅    |
+| `__tests__/MemoryCommandCenterSections.test.tsx`    | 观察/理解分区渲染、事件流回放入口守卫与影响/冲突空态测试                     | ✅    |
+| `__tests__/memoryCommandCenterFormat.test.ts`       | 命令中心文案格式化：枚举翻译与回显、操作类型与实时流描述分支、枚举守卫测试   | ✅    |
 | `__tests__/MemoryCard.ttl.test.tsx`                 | procedural 卡片 TTL 显示：未锁定显示过期天数、用户锁定（is_user_locked）隐藏 | ✅    |
 | `__tests__/PendingMemoryList.test.tsx`              | 待审批记忆列表批量操作测试                                                   | ✅    |
 | `__tests__/SharedContextPanel.test.tsx`             | 共享上下文面板测试                                                           | ✅    |

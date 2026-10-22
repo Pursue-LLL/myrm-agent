@@ -38,6 +38,10 @@ import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
 import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
+import {
+  ThinkingBudgetEffortSlider,
+  PermissionModeTierSwitcher,
+} from './thinking-permission';
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
@@ -75,11 +79,9 @@ import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
 import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
-import DirectoryApprovalInput from '../message-box/DirectoryApprovalInput';
 import SessionAccessRootsBar from './SessionAccessRootsBar';
 import ProjectBoundaryBadge from './ProjectBoundaryBadge';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
-import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -130,9 +132,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
   const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
   const pendingClarification = React.useMemo(() => findActivePendingClarification(messages), [messages]);
-  const pendingDirectoryRequest = React.useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
   const isComposerClarifyMode = pendingClarification !== null;
-  const isComposerDirectoryMode = pendingDirectoryRequest !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
   const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
 
@@ -520,13 +520,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                 form={pendingClarification.clarification.form}
                 variant="composer"
               />
-            ) : isComposerDirectoryMode && pendingDirectoryRequest ? (
-              <DirectoryApprovalInput
-                messageId={pendingDirectoryRequest.messageId}
-                answered={pendingDirectoryRequest.directoryRequest.answered}
-                isResumeMode={pendingDirectoryRequest.directoryRequest.isResumeMode}
-                request={pendingDirectoryRequest.directoryRequest.request}
-              />
             ) : (
               <>
                 <ProviderLowBalanceWarningHUD className="mb-2" />
@@ -611,6 +604,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <DeepSearchToggle />
                       <WorkflowModeToggle />
                       <BaseModelSelector />
+                      <ThinkingBudgetEffortSlider />
+                      <PermissionModeTierSwitcher />
                       <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
                       <GoalModeToggle />
                       <IncognitoModeToggle />

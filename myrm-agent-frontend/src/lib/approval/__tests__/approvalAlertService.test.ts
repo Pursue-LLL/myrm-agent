@@ -17,6 +17,7 @@ import { notifyIdleApproval, closeNotification, clearAllNotifications } from '..
 import { isTauriEnvironment } from '@/lib/tauri';
 import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 function makeRequest(overrides: Partial<ToolApprovalRequest> = {}): ToolApprovalRequest {
   return {
@@ -38,6 +39,7 @@ function makeRequest(overrides: Partial<ToolApprovalRequest> = {}): ToolApproval
 class MockNotification {
   static permission = 'granted';
   static requestPermission = vi.fn(() => Promise.resolve('granted' as NotificationPermission));
+  title: string;
   body: string;
   tag: string;
   requireInteraction: boolean;
@@ -45,6 +47,7 @@ class MockNotification {
   close = vi.fn();
 
   constructor(title: string, options?: NotificationOptions) {
+    this.title = title;
     this.body = options?.body ?? '';
     this.tag = options?.tag ?? '';
     this.requireInteraction = options?.requireInteraction ?? false;
@@ -106,6 +109,28 @@ describe('approvalAlertService', () => {
     it('sends browser notification for single request', () => {
       notifyIdleApproval([makeRequest()]);
       expect(mockNotificationInstances).toHaveLength(1);
+    });
+
+    it('titles the notification with the tool name and no emoji', () => {
+      notifyIdleApproval([makeRequest()]);
+      expect(mockNotificationInstances[0].title).toBe('Approval Pending - file_write_tool');
+    });
+
+    it('titles a notification for several requests by their count and no emoji', () => {
+      notifyIdleApproval([
+        makeRequest({ requestId: 'r1', batchId: 'b' }),
+        makeRequest({ requestId: 'r2', batchId: 'b' }),
+      ]);
+      expect(mockNotificationInstances[0].title).toBe('2 actions pending approval');
+    });
+
+    it('flashes the tab title between the original and plain text', () => {
+      document.title = 'My App';
+      notifyIdleApproval([makeRequest()]);
+      vi.advanceTimersByTime(1000);
+      expect(document.title).toBe('Approval Pending');
+      vi.advanceTimersByTime(1000);
+      expect(document.title).toBe('My App');
     });
 
     it('batches requests by batchId', () => {
@@ -183,6 +208,48 @@ describe('approvalAlertService', () => {
       vi.advanceTimersByTime(1000);
       clearAllNotifications();
       expect(document.title).toBe(title);
+    });
+  });
+
+  describe('approval queue', () => {
+    afterEach(() => {
+      useToolApprovalStore.getState().clearAll();
+    });
+
+    it('ends the alerts when the last waiting approval is answered', () => {
+      const title = document.title;
+      const request = makeRequest();
+      useToolApprovalStore.getState().addRequest(request);
+      notifyIdleApproval([request]);
+      vi.advanceTimersByTime(1000);
+      expect(document.title).not.toBe(title);
+
+      useToolApprovalStore.getState().removeRequest(request.requestId);
+
+      expect(mockNotificationInstances[0].close).toHaveBeenCalled();
+      expect(document.title).toBe(title);
+    });
+
+    it('keeps the alerts while another approval still waits', () => {
+      const first = makeRequest({ requestId: 'r1' });
+      const second = makeRequest({ requestId: 'r2' });
+      useToolApprovalStore.getState().addRequest(first);
+      useToolApprovalStore.getState().addRequest(second);
+      notifyIdleApproval([first, second]);
+
+      useToolApprovalStore.getState().removeRequest(first.requestId);
+
+      expect(mockNotificationInstances[0].close).not.toHaveBeenCalled();
+    });
+
+    it('ends the alerts when the queue is cleared', () => {
+      const request = makeRequest();
+      useToolApprovalStore.getState().addRequest(request);
+      notifyIdleApproval([request]);
+
+      useToolApprovalStore.getState().clearAll();
+
+      expect(mockNotificationInstances[0].close).toHaveBeenCalled();
     });
   });
 

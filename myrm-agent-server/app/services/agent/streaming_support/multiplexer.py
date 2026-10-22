@@ -31,6 +31,11 @@ class WorkspaceMultiplexer:
         self._subscribers: set[asyncio.Queue[str]] = set()
         self._orphan_buffer: list[str] = []
 
+    @property
+    def has_subscribers(self) -> bool:
+        """True if there is at least one active subscriber queue."""
+        return bool(self._subscribers)
+
     def _broadcast(self, sse_chunk: str) -> None:
         """Broadcast a pre-formatted SSE chunk to all subscribers (fire-and-forget)."""
         if not self._subscribers:

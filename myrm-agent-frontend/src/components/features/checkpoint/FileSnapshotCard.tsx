@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { RotateCcw, Eye, Trash, AlertTriangle } from 'lucide-react';
 import { FileSnapshotInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
+import { formatExternalEffects } from './externalEffectLabels';
 
 interface FileSnapshotCardProps {
   snapshot: FileSnapshotInfo;
@@ -23,9 +24,6 @@ const triggerLabels: Record<string, string> = {
   manual: 'Manual',
   pre_rollback: 'Pre-rollback',
 };
-
-const formatExternalEffects = (effects: string[], t: ReturnType<typeof useTranslations>): string =>
-  effects.map((effect) => (t.has(`effects.${effect}`) ? t(`effects.${effect}`) : effect)).join(', ');
 
 const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   snapshot,

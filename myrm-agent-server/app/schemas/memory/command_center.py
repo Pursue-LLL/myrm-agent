@@ -18,6 +18,8 @@ from typing import Literal
 from myrm_agent_harness.toolkits.memory import MemoryRepairExecutionResult
 from pydantic import BaseModel, Field
 
+from app.schemas.memory.import_sources import ImportSource
+
 
 class MemoryCommandOverview(BaseModel):
     """Top-level memory system counters."""
@@ -439,7 +441,7 @@ class MemoryCommandPlaneSummary(BaseModel):
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
 
 
-MemoryCommandMigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gemini", "gbrain", "pi", "plur"]
+MemoryCommandMigrationImportSource = ImportSource
 
 
 class MemoryCommandMigrationSourceManifestItem(BaseModel):
@@ -455,13 +457,11 @@ class MemoryCommandMigrationSourceManifestItem(BaseModel):
 class MemoryCommandMigrationProvenance(BaseModel):
     """Import/export provenance summary for memory migration visibility."""
 
-    supported_sources: list[str]
     source_manifest: list[MemoryCommandMigrationSourceManifestItem] = Field(default_factory=list)
     source_manifest_authoritative: bool = True
     tracked_imports: int = 0
     unmapped_items: int = 0
     coverage_status: Literal["not_tracked", "partial", "complete"] = "not_tracked"
-    adapter_status: dict[str, Literal["ready", "planned", "missing"]] = Field(default_factory=dict)
     last_import_batch_id: str | None = None
     verification_recommended: bool = False
     last_import_diagnostic_status: str | None = None
@@ -485,6 +485,7 @@ class MemoryCommandRuntimeStatus(BaseModel):
     vector_persistence: Literal["persistent", "memory_fallback", "unavailable"]
     graph_status: Literal["available", "unavailable"]
     embedding_status: Literal["custom", "unavailable"]
+    retrieval_mode: Literal["semantic", "keyword"]
     control_plane_status: Literal["not_used", "proxied_by_sandbox"]
     event_ledger_status: Literal["available", "unavailable"]
     health_snapshot_status: Literal["available", "unavailable"]

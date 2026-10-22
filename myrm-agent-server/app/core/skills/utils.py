@@ -7,9 +7,10 @@
 - normalize_skill_name: 技能名称标准化（统一 _skill 后缀）
 - resolve_skill_description: 技能描述回退（description → trigger_condition → name）
 - yaml_scalar: 把模型生成文本渲染为 YAML 双引号标量，供 SKILL.md frontmatter 使用
+- render_skill_md: 由 name/description/正文组装带安全 frontmatter 的 SKILL.md 文本（供安全扫描等只读校验使用）
 
 [POS]
-技能公共工具函数。名称标准化、描述回退与 frontmatter 标量转义的单一实现，避免各落盘路径重复。
+技能公共工具函数。名称标准化、描述回退与 frontmatter 标量转义的单一实现，避免各落盘/校验路径重复。
 """
 
 import json
@@ -66,6 +67,15 @@ def yaml_scalar(value: str) -> str:
     return json.dumps(value, ensure_ascii=False).replace("\x85", "\\x85")
 
 
+def render_skill_md(name: str, description: str, body: str) -> str:
+    """Assemble SKILL.md text from structured fields, with every frontmatter value YAML-safe.
+
+    Importers hold a skill's name and description already parsed; splicing them back raw would let a colon
+    or ``#`` in the description turn a valid skill into "Invalid YAML frontmatter" for whoever parses the text.
+    """
+    return f"---\nname: {yaml_scalar(name)}\ndescription: {yaml_scalar(description)}\n---\n{body}"
+
+
 def resolve_skill_description(description: str | None, trigger_condition: str | None, name: str) -> str:
     """Pick the text skill discovery matches on: the description, else when to use it, else the name."""
     for candidate in (description, trigger_condition):
@@ -75,4 +85,4 @@ def resolve_skill_description(description: str | None, trigger_condition: str | 
     return name
 
 
-__all__ = ["normalize_skill_name", "resolve_skill_description", "yaml_scalar"]
+__all__ = ["normalize_skill_name", "render_skill_md", "resolve_skill_description", "yaml_scalar"]

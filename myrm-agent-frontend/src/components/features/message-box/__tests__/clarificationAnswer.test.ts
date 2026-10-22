@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildStructuredClarificationAnswer } from '../clarificationAnswer';
+import { buildSingleClarificationAnswer, buildStructuredClarificationAnswer } from '../clarificationAnswer';
 import type { ClarificationForm } from '@/store/chat/types';
 
 const sampleForm: ClarificationForm = {
@@ -55,5 +55,24 @@ describe('buildStructuredClarificationAnswer', () => {
 
   it('returns null when no question has an answer', () => {
     expect(buildStructuredClarificationAnswer(sampleForm, {}, {})).toBeNull();
+  });
+});
+
+describe('buildSingleClarificationAnswer', () => {
+  it('returns a lone selection or lone free text as a plain string', () => {
+    expect(buildSingleClarificationAnswer('', ['langchain'])).toBe('langchain');
+    expect(buildSingleClarificationAnswer('  prefer v0.3  ', [])).toBe('prefer v0.3');
+  });
+
+  it('appends the trimmed free text after the selections', () => {
+    expect(buildSingleClarificationAnswer(' prefer v0.3 ', ['langchain', 'llamaindex'])).toEqual([
+      'langchain',
+      'llamaindex',
+      'prefer v0.3',
+    ]);
+  });
+
+  it('returns null when nothing was selected or typed', () => {
+    expect(buildSingleClarificationAnswer('   ', [])).toBeNull();
   });
 });

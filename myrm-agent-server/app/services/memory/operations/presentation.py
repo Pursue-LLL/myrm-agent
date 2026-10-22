@@ -13,12 +13,14 @@ memory_to_item / parse_memory_type
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from fastapi import HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryStatus, MemoryType
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
+    ClaimMemory,
     EpisodicMemory,
     ProceduralMemory,
     ProfileEntry,
@@ -58,7 +60,7 @@ def parse_memory_type(raw: str) -> MemoryType:
         raise HTTPException(status_code=400, detail=f"Invalid memory type: {raw}") from e
 
 
-def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) -> MemoryItem:
+def memory_to_item(memory: AnyMemory | ClaimMemory | ProfileEntry, memory_type: MemoryType) -> MemoryItem:
     """Convert a framework memory model to an API response item."""
     base_id = getattr(memory, "id", "")
     content = getattr(memory, "content", "")
@@ -143,6 +145,6 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
     is_exact = getattr(memory, "is_exact_fact", False) or bool(meta.get("is_exact_fact", False))
     idents = getattr(memory, "exact_identifiers", []) or meta.get("exact_identifiers", []) or []
     base["is_exact_fact"] = bool(is_exact)
-    base["exact_identifiers"] = list(idents)
+    base["exact_identifiers"] = list(idents) if isinstance(idents, Iterable) else []
 
-    return MemoryItem(**base)
+    return MemoryItem.model_validate(base)

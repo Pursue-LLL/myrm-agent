@@ -14,11 +14,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.kanban.router import router as kanban_router
 from app.core.skills.models import Skill
 from app.core.skills.store.service import skills_service
+from app.core.storage.types import SkillType
 from app.services.kanban import KanbanService
 
 

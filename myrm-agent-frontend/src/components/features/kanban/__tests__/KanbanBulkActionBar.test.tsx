@@ -51,6 +51,12 @@ describe('KanbanBulkActionBar archive and delete confirmation', () => {
     vi.mocked(bulkAction).mockResolvedValue(bulkResult());
   });
 
+  it('announces the selected count to assistive technology', () => {
+    renderBar();
+
+    expect(screen.getByRole('status').textContent).toBe('2 selected');
+  });
+
   it('archiving asks first with the selected count and sends nothing yet', async () => {
     const user = userEvent.setup();
     renderBar();

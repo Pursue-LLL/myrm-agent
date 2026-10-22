@@ -28,6 +28,10 @@ from tests.api.agent.utils import get_base_model_config
 
 pytestmark = pytest.mark.e2e
 
+# Reasoning models spend this budget on their chain of thought before the JSON answer starts
+# (~4k reasoning tokens for this prompt); a cap near that leaves the answer empty and the call skipped.
+_LIVE_MAX_TOKENS = 16384
+
 
 def _make_mature_manager() -> AsyncMock:
     """Manager stub satisfying the discovery maturity gate (avoid embedding/Qdrant)."""
@@ -100,7 +104,7 @@ async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,
         temperature=0,
-        max_tokens=4096,
+        max_tokens=_LIVE_MAX_TOKENS,
     )
 
     report = await run_pattern_discovery(_make_mature_manager(), llm)
@@ -146,7 +150,7 @@ async def test_pattern_discovery_skips_when_gate_not_met() -> None:
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,
         temperature=0,
-        max_tokens=4096,
+        max_tokens=_LIVE_MAX_TOKENS,
     )
 
     report = await run_pattern_discovery(manager, llm)

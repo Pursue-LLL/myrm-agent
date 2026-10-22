@@ -7,6 +7,24 @@ export type IngressRequirementSnapshot = {
   channels: Record<string, 'outbound' | 'inbound'>;
 };
 
+/** What the storage ledger attributes space to; the governance card carries one localized label per key. */
+export type StorageCategoryKey =
+  | 'sqlite_database'
+  | 'checkpoints'
+  | 'workspaces'
+  | 'vector_store'
+  | 'memory_archive'
+  | 'event_logs'
+  | 'sqlite_backups'
+  | 'snapshots'
+  | 'other';
+
+/**
+ * Measuring the space ledger walks every file under the state directory, so a large instance on a slow disk
+ * needs far more than the default request budget.
+ */
+const STORAGE_REPORT_TIMEOUT_MS = 120_000;
+
 export const systemService = {
   /**
    * Get the computed public ingress base URL.
@@ -46,7 +64,8 @@ export const systemService = {
   },
 
   /**
-   * Storage Governance APIs
+   * Storage Governance APIs. The report request is silent: the card renders its own localized failure state
+   * with a retry instead of a global error toast.
    */
   async getStorageGovernanceReport(): Promise<{
     total_storage_bytes: number;
@@ -54,12 +73,10 @@ export const systemService = {
     disk_free_bytes: number;
     disk_used_percentage: number;
     categories: Array<{
-      category: string;
-      display_name: string;
+      category: StorageCategoryKey;
       bytes: number;
       item_count: number;
       percentage: number;
-      details: Record<string, number>;
     }>;
     snapshots: Array<{
       snapshot_id: string;
@@ -69,32 +86,11 @@ export const systemService = {
       checksum: string;
       file_count: number;
     }>;
-    recommended_actions: string[];
-    is_growth_healthy: boolean;
     generated_at: string;
   }> {
-    return apiRequest(`/system/storage/governance?t=${Date.now()}`);
-  },
-
-  async executeStorageCompaction(options?: {
-    purge_orphan_checkpoints?: boolean;
-    incremental_pages?: number;
-  }): Promise<{
-    success: boolean;
-    initial_bytes: number;
-    final_bytes: number;
-    freed_bytes: number;
-    purged_checkpoints: number;
-    wal_truncated: boolean;
-    duration_ms: number;
-    message: string;
-  }> {
-    return apiRequest('/system/storage/compaction', {
-      method: 'POST',
-      body: JSON.stringify({
-        purge_orphan_checkpoints: options?.purge_orphan_checkpoints ?? true,
-        incremental_pages: options?.incremental_pages ?? 500,
-      }),
+    return apiRequest(`/system/storage/governance?t=${Date.now()}`, {
+      silent: true,
+      timeout: STORAGE_REPORT_TIMEOUT_MS,
     });
   },
 
@@ -116,9 +112,11 @@ export const systemService = {
     });
   },
 
+  /** The restore is queued and applied while the backend boots; `requires_restart` asks the caller to prompt a restart. */
   async restoreStateSnapshot(snapshotId: string): Promise<{
     success: boolean;
     message: string;
+    requires_restart: boolean;
   }> {
     return apiRequest(`/system/storage/snapshots/${snapshotId}/restore`, {
       method: 'POST',

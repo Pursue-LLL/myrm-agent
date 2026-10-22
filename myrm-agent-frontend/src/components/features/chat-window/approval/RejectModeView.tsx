@@ -12,9 +12,17 @@ interface RejectModeViewProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
+  isExpired: boolean;
 }
 
-export default function RejectModeView({ feedback, setFeedback, onConfirm, onCancel, isLoading }: RejectModeViewProps) {
+export default function RejectModeView({
+  feedback,
+  setFeedback,
+  onConfirm,
+  onCancel,
+  isLoading,
+  isExpired,
+}: RejectModeViewProps) {
   const t = useTranslations('toolApproval');
 
   return (
@@ -31,8 +39,9 @@ export default function RejectModeView({ feedback, setFeedback, onConfirm, onCan
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
         autoFocus
       />
+      {isExpired && <p className="text-xs font-medium text-destructive">{t('expired')}</p>}
       <div className="flex gap-2">
-        <Button size="sm" variant="destructive" onClick={onConfirm} disabled={isLoading}>
+        <Button size="sm" variant="destructive" onClick={onConfirm} disabled={isLoading || isExpired}>
           {t('confirmReject')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={isLoading}>

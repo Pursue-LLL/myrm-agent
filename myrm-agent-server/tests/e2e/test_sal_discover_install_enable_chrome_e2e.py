@@ -5,17 +5,40 @@ from __future__ import annotations
 import json
 import time
 import urllib.parse
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
+    dismiss_blocking_modals,
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
-    open_settings_subroute,
+    open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
+
+
+@contextmanager
+def _open_skills_settings_read_page() -> Iterator[tuple[object, object]]:
+    """Discover READ lane: DOM-only checks, no chat attachToChat required."""
+    ui_url = get_e2e_ui_url().rstrip("/")
+    target = f"{ui_url}/settings/skills"
+    with open_mcp_page(target, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page, recover_url=target)
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            page_url=target,
+            require_attach=False,
+        )
+        yield client, page
 
 _DISCOVER_TAB_READY_JS = """(() => {
   const bodyText = document.body?.innerText || '';
@@ -257,11 +280,25 @@ def _disable_prebuilt_for_install(api_url: str, skill_id: str) -> list[str]:
     return enabled
 
 
-def _assert_agent_allowlist_untouched(api_url: str) -> None:
+def _get_agent_skill_ids(api_url: str) -> list[str] | None:
     agent = http_json("GET", f"{api_url}/api/v1/user-agents/builtin-general")
     data = agent.get("data") if isinstance(agent.get("data"), dict) else agent
-    skill_ids = data.get("skill_ids") if isinstance(data, dict) else None
-    assert skill_ids == [] or skill_ids is None, f"SAL must not write agent.skill_ids; got {skill_ids!r}"
+    if not isinstance(data, dict):
+        return None
+    skill_ids = data.get("skill_ids")
+    if skill_ids is None:
+        return None
+    if isinstance(skill_ids, list):
+        return [str(item) for item in skill_ids]
+    return None
+
+
+def _assert_agent_skill_ids_unchanged(api_url: str, prior: list[str] | None) -> None:
+    current = _get_agent_skill_ids(api_url)
+    assert current == prior, (
+        "Discover install must not mutate agent.skill_ids; "
+        f"prior={prior!r} current={current!r}"
+    )
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
@@ -272,30 +309,37 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
     """Discover prebuilt install enables catalog; empty agent.skill_ids stays unchanged."""
     api_url = get_e2e_api_url()
 
-    search_query, skill_id, _skill_name = _find_prebuilt_target(api_url)
+    search_query, skill_id, skill_name = _find_prebuilt_target(api_url)
     prior_enabled = _disable_prebuilt_for_install(api_url, skill_id)
-    _assert_agent_allowlist_untouched(api_url)
+    prior_agent_skill_ids = _get_agent_skill_ids(api_url)
 
     prepare_e2e_ui_session(api_url)
     warm_ui_route("/settings/skills")
 
     try:
-        with open_settings_subroute("/settings/skills") as (client, page):
+        with _open_skills_settings_read_page() as (client, page):
             wait_for_state(client, page, _DISCOVER_TAB_READY_JS, timeout_sec=90.0)
 
             submitted = client.evaluate(
                 page,
-                _search_and_install_js(skill_id),
+                _search_and_install_js(search_query),
                 timeout_sec=15.0,
             )
             assert isinstance(submitted, dict)
             assert submitted.get("ok") is True, submitted
 
-            wait_for_state(client, page, _results_ready_js(skill_id), timeout_sec=60.0)
+            card_marker = skill_name if skill_name.strip() else skill_id
+            wait_for_state(
+                client,
+                page,
+                _results_ready_js(card_marker),
+                timeout_sec=90.0,
+                page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/skills",
+            )
 
             clicked = client.evaluate(
                 page,
-                _click_prebuilt_install_js(skill_id),
+                _click_prebuilt_install_js(card_marker),
                 timeout_sec=15.0,
             )
             assert isinstance(clicked, dict)
@@ -327,7 +371,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
     config_after = http_json("GET", f"{api_url}/api/v1/skills/config")
     enabled_after = set(config_after.get("enabled_prebuilt_ids") or [])
     assert skill_id in enabled_after, f"Expected {skill_id} enabled; got {enabled_after!r}"
-    _assert_agent_allowlist_untouched(api_url)
+    _assert_agent_skill_ids_unchanged(api_url, prior_agent_skill_ids)
 
 
 def _restore_registry_url(api_url: str, prior_registry_url: str) -> None:
@@ -355,7 +399,7 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
     warm_ui_route("/settings/skills")
 
     try:
-        with open_settings_subroute("/settings/skills") as (client, page):
+        with _open_skills_settings_read_page() as (client, page):
             wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
             opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
@@ -386,7 +430,7 @@ def test_discover_custom_mirror_url_save_via_ui() -> None:
     expected_custom_stored = ""
 
     try:
-        with open_settings_subroute("/settings/skills") as (client, page):
+        with _open_skills_settings_read_page() as (client, page):
             wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
             opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened

@@ -85,7 +85,7 @@ class ArchiveCheckpointMemoryExtension(AgentExtension):
     def get_tools(self) -> list[object] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None
 
 

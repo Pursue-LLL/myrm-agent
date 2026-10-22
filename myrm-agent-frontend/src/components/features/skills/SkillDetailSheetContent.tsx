@@ -47,10 +47,15 @@ import {
   getIntegrationSkillSettingsPath,
   hasIntegrationSettingsLink,
 } from '@/lib/skills/integrationOAuthDisplay';
-import { SkillVersionsPanel } from './SkillVersionsPanel';
+import { SkillDetailHistoryTabs } from './SkillDetailHistoryTabs';
 import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { saveSkillFile } from '@/services/skill/core';
+import {
+  getSkillVersionDetail,
+  listSkillVersions,
+  rollbackSkillVersion,
+} from '@/services/skill/optimization';
 import { useState, useEffect } from 'react';
 import {
   EvalCasesSection,
@@ -151,12 +156,50 @@ export function SkillDetailSheetContent({
     try {
       const res = await saveSkillFile(skill.id, 'SKILL.md', editorContent);
       if (res.status === 'ok') {
-        toast({
-          title: t('detail.sourceSaved'),
-          description: res.is_clean
-            ? undefined
-            : t('detail.securityReviewNote', { recommendation: res.trust_recommendation }),
-        });
+        const versionLabel =
+          res.version_number != null
+            ? t('detail.sourceSavedWithVersion', { version: res.version_number })
+            : t('detail.sourceSaved');
+        const undoPreviousVersion =
+          res.version_persisted && res.version_number != null && res.version_number > 1
+            ? res.version_number - 1
+            : null;
+
+        if (undoPreviousVersion != null) {
+          toast.success(versionLabel, {
+            description: res.is_clean
+              ? undefined
+              : t('detail.securityReviewNote', { recommendation: res.trust_recommendation }),
+            action: {
+              label: t('detail.sourceSavedUndo'),
+              onClick: () => {
+                void (async () => {
+                  try {
+                    await rollbackSkillVersion(skill.id, undoPreviousVersion);
+                    toast.success(t('detail.sourceUndoSuccess'));
+                    await reloadSkillContent();
+                    const versions = await listSkillVersions(skill.id, 5);
+                    const active = versions.versions.find((v) => v.is_active);
+                    if (active) {
+                      const detail = await getSkillVersionDetail(skill.id, active.version);
+                      setEditorContent(detail.content);
+                      setIsEditorDirty(false);
+                    }
+                  } catch {
+                    toast.error(t('detail.sourceUndoFailed'));
+                  }
+                })();
+              },
+            },
+          });
+        } else {
+          toast({
+            title: versionLabel,
+            description: res.is_clean
+              ? undefined
+              : t('detail.securityReviewNote', { recommendation: res.trust_recommendation }),
+          });
+        }
         setIsEditorDirty(false);
         reloadSkillContent();
       }
@@ -176,7 +219,7 @@ export function SkillDetailSheetContent({
     <div className="py-4 space-y-5">
       <p className="text-muted-foreground">{resolveSkillDescription(skill, t('detail.noDescription'))}</p>
 
-      <SkillVersionsPanel skillId={skill.id} onActivated={reloadSkillContent} />
+      <SkillDetailHistoryTabs skillId={skill.id} onContentChanged={reloadSkillContent} />
 
       {/* Availability warning */}
       {!skill.available && (
@@ -462,6 +505,21 @@ export function SkillDetailSheetContent({
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {skill.last_replace_batch_id && onLifecycleAction && (
+        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+          <span className="text-sm text-muted-foreground">{t('card.undoLastReplaceHint')}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => onLifecycleAction(skill, 'undo-last-replace')}
+          >
+            <Undo2 size={12} className="mr-1" />
+            {t('card.undoLastReplace')}
+          </Button>
         </div>
       )}
 

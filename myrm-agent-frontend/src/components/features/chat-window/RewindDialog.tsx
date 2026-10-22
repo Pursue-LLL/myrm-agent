@@ -13,7 +13,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Undo2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -70,6 +70,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
   const { toast } = useToast();
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
+  const rewindingRef = useRef(false);
   const [scope, setScope] = useState<RewindScope>('both');
   const [preview, setPreview] = useState<FilePreview>({
     status: 'checking',
@@ -160,6 +161,12 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       return;
     }
 
+    // A rewind mutates history and cannot be replayed, so two clicks in the same
+    // tick (a fast double-click, before React applies disabled) must not both fire.
+    if (rewindingRef.current) {
+      return;
+    }
+    rewindingRef.current = true;
     setIsRewinding(true);
     try {
       const response = await rewindToMessage(chatId, messageId, scope);
@@ -221,6 +228,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
         variant: 'destructive',
       });
     } finally {
+      rewindingRef.current = false;
       setIsRewinding(false);
     }
   };

@@ -239,14 +239,3 @@ class TestQueryWiki:
         assert isinstance(result, QueryResult)
         assert "no relevant information" in result.answer.lower()
         assert result.related_articles == []
-
-
-# ============================================================================
-# maintain_wiki
-# ============================================================================
-
-
-class TestMaintainWiki:
-    @pytest.mark.asyncio
-    async def test_maintain_runs(self, archiver: MemoryToWikiArchiver) -> None:
-        await archiver.maintain_wiki()

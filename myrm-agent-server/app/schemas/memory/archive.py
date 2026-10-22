@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.memory import (
 from pydantic import BaseModel, Field
 
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
+from app.schemas.memory.import_sources import ImportRequestSource
 
 MemoryImportReadinessIssueParam = str | int | float | bool
 
@@ -103,6 +104,13 @@ class MemoryArchiveRestoreRollbackResponse(BaseModel):
     result: MemoryArchiveRestoreRollbackResult
 
 
+class MigrationLaneDetailPart(BaseModel):
+    """One localizable fragment of a lane detail line."""
+
+    code: str
+    params: dict[str, int | str] = Field(default_factory=dict)
+
+
 class MigrationLanePreviewItem(BaseModel):
     """Content-safe four-lane migration preview row."""
 
@@ -110,6 +118,7 @@ class MigrationLanePreviewItem(BaseModel):
     status: str
     label: str
     detail: str
+    detail_parts: list[MigrationLaneDetailPart] = Field(default_factory=list)
 
 
 class MemoryImportMigrationOptions(BaseModel):
@@ -136,26 +145,16 @@ class MemoryImportMigrationOptions(BaseModel):
 class MemoryImportDryRunRequest(BaseModel):
     """Request to preview a memory import without persisting data."""
 
-    source: Literal[
-        "auto",
-        "native_json",
-        "myrm_archive",
-        "agentmemory",
-        "gbrain",
-        "memweaver",
-        "claude_code_jsonl",
-        "hermes",
-        "openclaw",
-        "cursor_rules",
-        "codex",
-        "claude",
-        "chatgpt",
-    ] = "auto"
+    source: ImportRequestSource = "auto"
     payload: dict[str, object] = Field(..., description="Raw memory export payload")
     skip_duplicates: bool = Field(True, description="Preview duplicate-safe import behavior")
     migration: MemoryImportMigrationOptions | None = Field(
         None,
         description="External assistant migration binding (instruction/memory lanes)",
+    )
+    use_model_extraction: bool = Field(
+        False,
+        description="Paste lane only: let the configured model distill free text before the review",
     )
 
 
@@ -200,6 +199,7 @@ class MemoryImportDryRunResponse(BaseModel):
     expires_at: datetime
     result: MemoryImportDryRunResult
     pending_skills: list[dict[str, object]] = Field(default_factory=list)
+    pending_skills_total: int = Field(default=0, description="Total skills found before the import cap")
     coverage_items: list[dict[str, str]] = Field(default_factory=list)
     migration_lanes: list[MigrationLanePreviewItem] = Field(default_factory=list)
     token_economics: TokenEconomicsComparison | None = Field(

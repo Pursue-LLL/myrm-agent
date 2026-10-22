@@ -183,12 +183,11 @@ Called from other HTTP trees or lifecycle hooks:
 | `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
 | `mascot/` | SSE from `services/agent/` stream (companion XP) |
-| `observability/` | Runtime quota metrics and meter service (`api/statistics/quota_runtime_router.py`) |
+| `observability/` | Task runtime observability services |
 | `repair/` | `api/health/` repair-action endpoints |
 | `locked_use/` | Computer Use / Tauri IPC orchestration |
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
-| `rules/` | TTSR zero-tax stream rules and boundary guards |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |

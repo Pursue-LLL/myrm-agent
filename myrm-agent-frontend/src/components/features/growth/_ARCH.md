@@ -16,7 +16,7 @@
 | `DailyJournal.tsx`             | 组件 | 日志视图（按天展示对话摘要）                                                                                                                               | ✅    |
 | `DailyWrapCard.tsx`            | 组件 | AI 日报摘要卡片（Daily Wrap），由 DailyJournal 使用                                                                                                        | ✅    |
 | `HealthRadar.tsx`              | 组件 | 记忆健康雷达图（多维度可视化）。图表颜色直接取 `var(--primary)` 等主题变量：变量里是完整颜色，包进 `hsl()` 会得到无效值（无描边、黑色填充）            | ✅    |
-| `LearningLoopFiveRingHub.tsx`  | 组件 | 五环闭环状态中心：五环拓扑卡片（每环是一个真正的按钮，回调把看板切到对应页签）、健康分与刷新；全部文案走 `growthDashboard.learningLoop`                         | ✅    |
+| `LearningLoopFiveRingHub.tsx`  | 组件 | 五环闭环状态中心：五环拓扑卡片（每环是一个真正的按钮，点击切到对应页签（第 3 环跳到设置里处理待审核案例的页面）；只展示接口返回的真实计数，来源不可读的环显示「暂不可用」，没有综合评分）与刷新；全部文案走 `growthDashboard.learningLoop`                         | ✅    |
 | `LearningTimeline.tsx`         | 组件 | 学习时间线面板：类型/时间过滤、稳定游标分页（请求序号防过期响应覆盖）、带确认的行内治理（乐观更新 + 失败回滚 + 撤销）                                     | ✅    |
 | `TimelineNodeCard.tsx`         | 组件 | 时间线单节点卡片与行内编辑表单（字段 label 与控件关联）；来源对话跳转；智能体只显示名称不外露 id；程序性规则不展示重要度；治理动作经回调交给父级，仅持有编辑草稿 | ✅    |
 | `useTimelineGovernance.ts`     | 辅助 | 时间线行内治理动作（保存编辑 / 删除记忆 / 归档或恢复技能）：乐观更新、失败回滚、撤销提示；重要度仅在用户拖动滑块后才提交，避免内容编辑静默改写                 | ✅    |

@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - @xyflow/react (POS: 节点图渲染)
+ * - @dagrejs/dagre (POS: 有向图分层布局)
+ * - @/lib/utils/a11y::activateOnKey (POS: 非原生按钮的键盘激活)
+ * - @/services/kanban::KanbanTask, TaskDependency, TaskStatus (POS: 看板 API 类型定义)
+ *
+ * [OUTPUT]
+ * - KanbanGraphView (default): 任务依赖 DAG 视图（Dagre 自上而下布局，running 节点脉冲、failed 节点抖动，连线按父任务状态着色，小地图同色）
+ *
+ * [POS]
+ * 看板「依赖图」标签页。节点点击回调给主视图打开详情抽屉；没有任务时显示空状态。
+ */
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -81,6 +94,7 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
           task.status === 'failed' && 'animate-shake',
         )}
         onClick={() => onSelect?.(task.task_id)}
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the card holds block-level progress and metadata rows, which cannot sit inside a native button
         role="button"
         tabIndex={0}
         onKeyDown={activateOnKey}

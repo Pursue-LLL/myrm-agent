@@ -417,12 +417,16 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
           ? ((data.data as Record<string, unknown>).snapshot_path as string)
           : undefined;
     const { default: useChatStore } = await import('@/store/useChatStore');
-    const chatId = useChatStore.getState().chatId;
-    if (chatId) {
-      await useChatStore.getState().refreshCompactionState(chatId, {
-        tokensSaved: data.tokens_saved,
-        snapshotPath,
-      });
+    // The milestone chip and the context lists it refreshes describe only the open chat, so a background chat's
+    // compaction must not write into them; the check runs after the lazy import so a switch during load is caught.
+    if (H.isStreamForOpenChat(ctx.state)) {
+      const chatId = useChatStore.getState().chatId;
+      if (chatId) {
+        await useChatStore.getState().refreshCompactionState(chatId, {
+          tokensSaved: data.tokens_saved,
+          snapshotPath,
+        });
+      }
     }
   }
   if (stepKey === 'archive_restore_blocked') {

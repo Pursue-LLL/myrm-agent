@@ -113,19 +113,39 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             logger.debug("send_tracked on '%s' did not deliver: %s", msg.channel, exc)
             return None
 
-    def _resolve_route(self, msg: OutboundMessage) -> _Route:
-        """Pick the delivery target; control-plane routing wins over any locally registered provider."""
+    def _route_target(self, channel_name: str, metadata: dict[str, object] | None) -> tuple[BaseChannel | None, str | None]:
+        """Resolve ``(channel, unavailable_reason)`` for one destination.
+
+        ``channel`` is ``None`` with no reason when control-plane egress takes over (cloud sandbox,
+        text only). Either way the reason, when set, means the destination cannot take the message now.
+        """
         from app.services.channels.cp_egress_client import should_route_via_control_plane
 
-        meta = msg.metadata if isinstance(msg.metadata, dict) else None
-        if should_route_via_control_plane(msg.channel, meta):
-            return _Route(channel=None)
-        channel = self._channels.get(msg.channel)
+        if should_route_via_control_plane(channel_name, metadata):
+            return None, None
+        channel = self._channels.get(channel_name)
         if channel is None:
-            return _Route(channel=None, unavailable=f"No channel registered for '{msg.channel}'")
+            return None, f"No channel registered for '{channel_name}'"
         if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            return _Route(channel=channel, unavailable=f"Channel '{msg.channel}' is {channel.status.value}")
-        return _Route(channel=channel)
+            return channel, f"Channel '{channel_name}' is {channel.status.value}"
+        return channel, None
+
+    def _resolve_route(self, msg: OutboundMessage) -> _Route:
+        """Pick the delivery target; control-plane routing wins over any locally registered provider."""
+        meta = msg.metadata if isinstance(msg.metadata, dict) else None
+        channel, unavailable = self._route_target(msg.channel, meta)
+        return _Route(channel=channel, unavailable=unavailable)
+
+    def can_deliver(self, channel: str) -> bool:
+        """Whether a delivery to ``channel`` would find a target right now (shares ``_route_target``).
+
+        Durable recovery consults this before re-injecting a record: a message whose channel is
+        unregistered, disabled or stopped would only be released again by the dispatch loop, so the
+        idle-recovery poll would spin on the same record. The obligation is kept on disk instead, and
+        ``enable_channel`` recovers it once the channel can accept deliveries.
+        """
+        _, unavailable = self._route_target(channel, None)
+        return unavailable is None
 
     async def _pace(self, channel_name: str, rate_limit: float) -> None:
         """Honor the channel's minimum interval between sends."""
@@ -151,17 +171,16 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         Success releases the durable obligation and updates activity. Failure is recorded (DLQ,
         permanent-failure callback) and re-raised; ``final_on_error`` marks it as not worth a DLQ retry.
         """
-        t0 = time.monotonic()
         try:
             await self._durable_outbound.mark_attempting(msg)
             message_id = await self._attempt_send(msg, route, label=label)
         except Exception as exc:
-            await self._settle_failure(msg, origin, route, exc, final_on_error=final_on_error)
+            await self._settle_failure(msg, origin, exc, final_on_error=final_on_error)
             raise
         await self._durable_outbound.ack(msg)
         discard_ephemeral_media(origin.media)
         if route.channel is not None:
-            route.channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
+            route.channel.activity.record_outbound()
         if route.capabilities.send_rate_limit > 0:
             self._last_send_times[msg.channel] = time.monotonic()
         return message_id
@@ -209,7 +228,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         self,
         msg: OutboundMessage,
         origin: OutboundMessage,
-        route: _Route,
         exc: Exception,
         *,
         final_on_error: bool,
@@ -218,8 +236,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
 
         Ephemeral files stay only while a failure record may still re-send them.
         """
-        if route.channel is not None:
-            route.channel.activity.record_error()
         logger.warning("Channel '%s' send failed: %s", msg.channel, exc)
 
         if isinstance(exc, ChannelSendError) and exc.accepted and exc.failed_attachments and msg.media:
@@ -260,44 +276,67 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             except asyncio.CancelledError:
                 break
 
-            origin = msg
-            route = self._resolve_route(origin)
-            channel = route.channel
-            if route.unavailable:
-                logger.log(
-                    logging.DEBUG if channel else logging.WARNING,
-                    "%s, retaining durable outbound obligation",
-                    route.unavailable,
-                )
-                self._release_unqueued(origin)
-                continue
-
-            if channel is not None and channel.health.circuit_open:
-                remaining = channel.health.circuit_open_until - time.monotonic()
-                logger.debug(
-                    "Channel '%s' circuit breaker open (%.1fs remaining), re-queuing",
-                    msg.channel,
-                    remaining,
-                )
-                self._outbound_seq += 1
-                self._outbound.put_nowait((msg.priority, self._outbound_seq, msg))
-                await asyncio.sleep(min(remaining, 1.0))
-                continue
-
-            msg = prepare_outbound(origin, route.capabilities, channel_name=origin.channel)
-            msg = await get_outbound_content_gate().evaluate_and_apply(msg)
-
-            limiter = self._limiters.get(msg.channel)
-            if limiter:
-                await limiter.acquire()
-            await self._pace(msg.channel, route.capabilities.send_rate_limit)
-
             try:
-                await self._deliver(msg, origin, route, label=f"send:{msg.channel}", final_on_error=False)
+                await self._dispatch_one(msg)
+            except asyncio.CancelledError:
+                raise
             except Exception as exc:
-                # Already logged and recorded by _deliver; only the channel health bookkeeping is left.
-                if channel is not None and not _is_partial_delivery(exc):
-                    channel.health.record_failure(str(exc))
-            else:
-                if channel is not None:
-                    channel.health.record_success()
+                # One poisoned message must not stop delivery for every channel. A pre-delivery failure
+                # (route resolution, gate, preparation, pacing) means the message never reached the
+                # channel, so it is settled as a failed send instead of merely released: releasing keeps
+                # the disk record pending and idle-timeout recovery re-injects it every cycle, spinning
+                # the loop. Settling acks the record, reports the failure once and preserves the payload
+                # for manual retry.
+                logger.exception("Outbound dispatch failed (channel=%s); settling failed send", msg.channel)
+                try:
+                    await self._record_outbound_failure(msg, str(exc), retries_exhausted=True)
+                except Exception:
+                    logger.exception("Could not settle the failed outbound message; releasing obligation")
+                    self._release_unqueued(msg)
+
+    async def _dispatch_one(self, msg: OutboundMessage) -> None:
+        """Route one dequeued message; the dispatch loop survives a failure raised here."""
+        outbound = self._outbound
+        assert outbound is not None
+
+        origin = msg
+        route = self._resolve_route(origin)
+        channel = route.channel
+        if route.unavailable:
+            logger.log(
+                logging.DEBUG if channel else logging.WARNING,
+                "%s, retaining durable outbound obligation",
+                route.unavailable,
+            )
+            self._release_unqueued(origin)
+            return
+
+        if channel is not None and channel.health.circuit_open:
+            remaining = channel.health.circuit_open_until - time.monotonic()
+            logger.debug(
+                "Channel '%s' circuit breaker open (%.1fs remaining), re-queuing",
+                msg.channel,
+                remaining,
+            )
+            self._outbound_seq += 1
+            outbound.put_nowait((msg.priority, self._outbound_seq, msg))
+            await asyncio.sleep(min(remaining, 1.0))
+            return
+
+        msg = prepare_outbound(origin, route.capabilities, channel_name=origin.channel)
+        msg = await get_outbound_content_gate().evaluate_and_apply(msg)
+
+        limiter = self._limiters.get(msg.channel)
+        if limiter:
+            await limiter.acquire()
+        await self._pace(msg.channel, route.capabilities.send_rate_limit)
+
+        try:
+            await self._deliver(msg, origin, route, label=f"send:{msg.channel}", final_on_error=False)
+        except Exception as exc:
+            # Already logged and recorded by _deliver; only the channel health bookkeeping is left.
+            if channel is not None and not _is_partial_delivery(exc):
+                channel.health.record_failure(str(exc))
+        else:
+            if channel is not None:
+                channel.health.record_success()

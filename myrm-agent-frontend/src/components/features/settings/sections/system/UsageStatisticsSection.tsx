@@ -20,10 +20,11 @@ import BudgetPolicySection from './BudgetPolicySection';
 import ChannelBudgetSection from './ChannelBudgetSection';
 import AgentCommerceBudgetSection from './AgentCommerceBudgetSection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
-import RuntimeCostMeterCard from './RuntimeCostMeterCard';
 import AgentUsageCard from './AgentUsageCard';
 import RoutingAnalyticsPanel, { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import SessionAnalyticsDialog from './SessionAnalyticsDialog';
+import { Download } from 'lucide-react';
+import { downloadUsageCsv } from './usageExport';
 import { localizeReactNode } from '@/lib/utils/locale';
 import {
   getDailyUsage,
@@ -151,18 +152,29 @@ function UsageStatisticsSection() {
       <ChannelBudgetSection />
       <AgentCommerceBudgetSection />
       <MemoryGuardianCard />
-      <RuntimeCostMeterCard />
       <SettingsSection
         title={t('title')}
         description={t('description')}
         action={
-          <button
-            onClick={fetchData}
-            className="p-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            title={t('refresh')}
-          >
-            <IconRefresh className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-testid="export-usage-csv-btn"
+              onClick={() => downloadUsageCsv(stats, daily)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border/60 hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="导出用量数据为 CSV 报表"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>导出 CSV</span>
+            </button>
+            <button
+              onClick={fetchData}
+              className="p-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title={t('refresh')}
+            >
+              <IconRefresh className="w-4 h-4" />
+            </button>
+          </div>
         }
       >
         {/* Overview cards */}
@@ -428,13 +440,15 @@ function UsageStatisticsSection() {
               <StatCard
                 icon={IconChat}
                 label={t('busiestDay')}
-                value={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][activity.busiest_day_of_week]}
+                value={(locale === 'zh'
+                  ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])[activity.busiest_day_of_week] || '-'}
                 colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
               />
               <StatCard
                 icon={IconChart}
                 label={t('busiestHour')}
-                value={`${activity.busiest_hour}:00`}
+                value={`${activity.busiest_hour}:00 (${activity.timezone || 'UTC'})`}
                 colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400"
               />
             </div>
@@ -456,7 +470,7 @@ function UsageStatisticsSection() {
                 <IconChart className="w-4 h-4 text-primary" />
                 {t('weekDistribution')}
               </div>
-              <WeekDistributionChart data={activity.by_day_of_week} />
+              <WeekDistributionChart data={activity.by_day_of_week} locale={locale} />
             </div>
 
             {/* Hour Distribution Line Chart */}

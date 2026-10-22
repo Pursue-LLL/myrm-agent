@@ -16,7 +16,7 @@ import { createAISearchStream } from '@/services/chat';
 import { connectionManager } from '@/services/ConnectionManager';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
-import { AgentBusyError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
@@ -81,6 +81,31 @@ function droppedStream(): Response {
 
 const refusedWith = (status: number, body: string) =>
   vi.mocked(createAISearchStream).mockResolvedValue(new Response(body, { status }));
+
+/** The production busy refusal: HTTP 200 whose event stream carries one AgentBusyError frame. */
+const busyResponse = (): Response =>
+  new Response(
+    `data: ${JSON.stringify({
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: REQUEST_ID,
+      data: 'Agent is busy processing another request for this session.',
+    })}\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
+
+/** The production risk refusal: HTTP 200 whose event stream carries one `risk_blocked` frame naming the rules. */
+const riskBlockedResponse = (): Response =>
+  new Response(
+    `data: ${JSON.stringify({
+      type: 'risk_blocked',
+      data: { rules: [{ rule_id: 'api_key_like', display_name: 'API key', severity: 'high' }] },
+    })}\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
+
+const RISK_NOTICE_KEY = 'settings.securityPolicy.riskRules.blockedTitle';
 
 /** Runs a request that waits between retries on a fake clock until it settles. */
 async function runWithRetries<T>(start: () => Promise<T>): Promise<T> {
@@ -262,11 +287,31 @@ describe('sendMessage failure handling', () => {
     });
 
     it('rejects with AgentBusyError and leaves the transcript alone when the server is busy', async () => {
-      refusedWith(409, 'busy');
+      vi.mocked(createAISearchStream).mockResolvedValue(busyResponse());
 
       await expect(resume()).rejects.toBeInstanceOf(AgentBusyError);
 
       expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+    });
+
+    it('stays undelivered, with the one risk notice, when a risk rule holds the answer', async () => {
+      vi.mocked(createAISearchStream).mockResolvedValue(riskBlockedResponse());
+
+      await expect(resume()).resolves.toBe(false);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+      expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
+    });
+
+    it('rejects with ApprovalAlreadyResolvedError, quietly and without a retry, when someone else already resolved the interrupt', async () => {
+      refusedWith(409, '{}');
+
+      await expect(resume()).rejects.toBeInstanceOf(ApprovalAlreadyResolvedError);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+      expect(showI18nToast).not.toHaveBeenCalled();
     });
   });
 
@@ -280,6 +325,16 @@ describe('sendMessage failure handling', () => {
       expect(createAISearchStream).not.toHaveBeenCalled();
       expect(transcript()).toEqual([]);
       expect(showI18nToast).toHaveBeenCalledTimes(1);
+    });
+
+    it('is undelivered and retracts its bubble, with the one risk notice and no retry, when a risk rule holds the text', async () => {
+      vi.mocked(createAISearchStream).mockResolvedValue(riskBlockedResponse());
+
+      await expect(send()).resolves.toBe(false);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([]);
+      expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
     });
 
     it('keeps retrying a workspace stream failure that looks like a dropped connection', async () => {

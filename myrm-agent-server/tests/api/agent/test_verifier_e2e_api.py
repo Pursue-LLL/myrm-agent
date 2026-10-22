@@ -5,7 +5,9 @@ Tests the Adversarial Verifier orchestration using the Chat API.
 
 import json
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from unittest.mock import patch
 
 import pytest
@@ -116,7 +118,15 @@ def perform_verifier_task(
     return full_answer, collected_data, business_events, verifier_events
 
 
-def _build_verifier_mock_patches():
+@dataclass
+class _VerifierTrace:
+    """What the scripted model observed while the real delegate, verifier and executor chain ran."""
+
+    verifier_bash_output: str = ""
+    delegate_result: str = ""
+
+
+def _build_verifier_mock_patches(trace: _VerifierTrace):
     from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 
     original_ainvoke = ChatLiteLLM.ainvoke
@@ -138,8 +148,22 @@ def _build_verifier_mock_patches():
             return await original_ainvoke(self, *args, **kwargs)
 
         if "Adversarial Sandbox Verifier" in messages_str:
-            if isinstance(last_message, ToolMessage) and last_message.name == "submit_verdict":
+            last_tool = last_message.name if isinstance(last_message, ToolMessage) else None
+            # The registry may expose the verdict tool as `submit_verdict_tool`.
+            if last_tool is not None and last_tool.startswith("submit_verdict"):
                 return AIMessage(content="Verification completed and verdict submitted.")
+            if last_tool != "bash_code_execute_tool":
+                return AIMessage(
+                    content="Running a command to observe the real output.",
+                    tool_calls=[
+                        {
+                            "name": "bash_code_execute_tool",
+                            "args": {"reason": "Observe the real output", "command": "echo Hello World"},
+                            "id": f"call_{uuid.uuid4().hex[:8]}",
+                        }
+                    ],
+                )
+            trace.verifier_bash_output = str(last_message.content)
             return AIMessage(
                 content="I have verified the output.",
                 tool_calls=[
@@ -173,6 +197,7 @@ def _build_verifier_mock_patches():
 
         if "<identity>" in first_msg_content:
             if "I have written and executed the python script" in messages_str:
+                trace.delegate_result = messages_str
                 return AIMessage(content="I have completed the task by delegating it.")
             return AIMessage(
                 content="Delegating task as requested...",
@@ -191,15 +216,6 @@ def _build_verifier_mock_patches():
             )
 
         return await original_ainvoke(self, *args, **kwargs)
-
-    from myrm_agent_harness.toolkits.code_execution.executors.readonly_proxy import (
-        ReadonlyExecutorProxy as _OriginalReadonlyExecutorProxy,
-    )
-
-    class _TestReadonlyExecutorProxy(_OriginalReadonlyExecutorProxy):
-        def __init__(self, inner: object) -> None:
-            super().__init__(inner)  # type: ignore[arg-type]
-            self.has_executed_code = True
 
     async def mock_resolve(self, type_id: str):
         from myrm_agent_harness.agent.sub_agents.types import (
@@ -221,18 +237,15 @@ def _build_verifier_mock_patches():
             "app.ai_agents.subagent_catalog.DatabaseSubagentCatalog.resolve",
             new=mock_resolve,
         ),
-        patch(
-            "myrm_agent_harness.toolkits.code_execution.executors.readonly_proxy.ReadonlyExecutorProxy",
-            _TestReadonlyExecutorProxy,
-        ),
     )
 
 
 @contextmanager
-def _verifier_mock_patches():
-    p1, p2, p3 = _build_verifier_mock_patches()
-    with p1, p2, p3:
-        yield
+def _verifier_mock_patches() -> Iterator[_VerifierTrace]:
+    trace = _VerifierTrace()
+    p1, p2 = _build_verifier_mock_patches(trace)
+    with p1, p2:
+        yield trace
 
 
 def _assert_no_fatal_errors(collected_data: list[dict[str, object]]) -> None:
@@ -264,9 +277,9 @@ class TestAdversarialVerifier:
         internal adversarial verifier stays hidden from UI events."""
         query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
 
-        with _verifier_mock_patches():
+        with _verifier_mock_patches() as trace:
             (
-                full_answer,
+                _full_answer,
                 collected_data,
                 business_events,
                 verifier_events,
@@ -276,5 +289,10 @@ class TestAdversarialVerifier:
         _assert_no_fatal_errors(collected_data)
         assert business_events > 0, "Expected the delegated business worker to appear as a visible subagent node"
         assert verifier_events == 0, "Internal verifier nodes must be hidden from user-facing UI events"
-        assert "PASS" in full_answer or "FAIL" in full_answer or len(full_answer) > 0
+        assert "Hello World" in trace.verifier_bash_output, (
+            "The read-only verifier must be able to run a real command and observe its output"
+        )
+        assert "Verification: PASS" in trace.delegate_result, (
+            "A verifier that ran a command and submitted PASS must be reflected in the delegate result"
+        )
         print("\n✅ Test Passed: Adversarial Verifier E2E Execution")

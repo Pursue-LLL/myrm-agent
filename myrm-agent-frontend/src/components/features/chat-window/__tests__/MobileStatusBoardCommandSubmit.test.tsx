@@ -67,6 +67,10 @@ vi.mock('@/components/features/chat-window/goals/useGoalPlanSync', () => ({
   useGoalPlanSync: vi.fn(),
 }));
 
+vi.mock('@/components/features/chat-window/goals/useGoalSync', () => ({
+  useGoalSync: vi.fn(),
+}));
+
 vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: () => ({ plan: null }),
 }));

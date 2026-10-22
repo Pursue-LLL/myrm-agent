@@ -48,7 +48,7 @@ async def test_prior_chat_reference_inlines_recall_document(
 
 
 @pytest.mark.asyncio
-async def test_prior_chat_reference_rejects_incognito(fts_db: AsyncSession) -> None:
+async def test_prior_chat_reference_rejects_web_incognito(fts_db: AsyncSession) -> None:
     from app.services.agent.params.mention import _build_mention_reference_context
 
     chat_id = await seed_chat_and_messages(fts_db)
@@ -65,6 +65,29 @@ async def test_prior_chat_reference_rejects_incognito(fts_db: AsyncSession) -> N
 
     assert 'error="incognito chats cannot be referenced"' in context
     assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_prior_chat_reference_allows_imported_transcript(fts_db: AsyncSession) -> None:
+    """An imported external transcript borrows the incognito flag only to stay out of the sidebar; the picker lists it."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    chat_id = await seed_chat_and_messages(fts_db)
+    await fts_db.execute(
+        text("UPDATE chats SET is_incognito = 1, source = 'external:claude_code' WHERE id = :chat_id"),
+        {"chat_id": chat_id},
+    )
+    await fts_db.commit()
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="prior_chat", path=chat_id, label="@chat:test")],
+        "/tmp/workspace",
+    )
+
+    assert 'type="prior-chat"' in context
+    assert "Docker deployment discussion" in context
+    assert warnings == []
+    assert tokens > 0
 
 
 @pytest.mark.asyncio

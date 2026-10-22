@@ -76,6 +76,7 @@ export interface DailyUsage {
 
 export interface DailyUsageResponse {
   days: number;
+  timezone?: string;
   start: string;
   end: string;
   daily: DailyUsage[];
@@ -103,17 +104,28 @@ export interface DailyActivity {
 
 /**
  * Global activity patterns across all sessions.
- * All time-based fields use UTC timezone for consistency.
+ * Timestamps and day buckets are aligned with user specified or local timezone.
  */
 export interface GlobalActivityPatterns {
-  timezone: string; // Timezone identifier (e.g., "UTC")
+  timezone: string; // Timezone identifier (e.g., "Asia/Shanghai", "UTC")
   daily_activities: DailyActivity[];
   by_day_of_week: Record<number, number>;
   by_hour: Record<number, number>;
   active_days: number;
   max_streak: number;
   busiest_day_of_week: number; // Day of week index (0=Monday, 6=Sunday)
-  busiest_hour: number; // Hour of day (0-23, UTC)
+  busiest_hour: number; // Hour of day (0-23 in user timezone)
+}
+
+/**
+ * Resolve client timezone using browser Intl API.
+ */
+export function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
 }
 
 export async function getUsageStatistics(start?: string, end?: string): Promise<UsageStats> {
@@ -128,18 +140,27 @@ export async function getUsageStatistics(start?: string, end?: string): Promise<
   return apiRequest<UsageStats>(`/statistics/usage${query ? `?${query}` : ''}`);
 }
 
-export async function getDailyUsage(days = 30): Promise<DailyUsageResponse> {
-  return apiRequest<DailyUsageResponse>(`/statistics/usage/daily?days=${days}`);
+export async function getDailyUsage(days = 30, timezone?: string): Promise<DailyUsageResponse> {
+  const tz = timezone || getUserTimezone();
+  const params = new URLSearchParams({ days: days.toString() });
+  if (tz) {
+    params.set('timezone', tz);
+  }
+  return apiRequest<DailyUsageResponse>(`/statistics/usage/daily?${params.toString()}`);
 }
 
 export async function getSessionUsage(limit = 20): Promise<SessionUsageResponse> {
   return apiRequest<SessionUsageResponse>(`/statistics/usage/sessions?limit=${limit}`);
 }
 
-export async function getGlobalActivityPatterns(timeRangeDays?: number): Promise<GlobalActivityPatterns> {
+export async function getGlobalActivityPatterns(timeRangeDays?: number, timezone?: string): Promise<GlobalActivityPatterns> {
+  const tz = timezone || getUserTimezone();
   const params = new URLSearchParams();
   if (timeRangeDays) {
     params.set('time_range_days', timeRangeDays.toString());
+  }
+  if (tz) {
+    params.set('timezone', tz);
   }
   const query = params.toString();
   return apiRequest<GlobalActivityPatterns>(`/statistics/activity${query ? `?${query}` : ''}`);
@@ -647,8 +668,9 @@ export interface GrowthDashboardData {
   skill_health: SkillHealthItem[];
 }
 
-export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData> {
-  return apiRequest<GrowthDashboardData>(`/statistics/growth-dashboard?days=${days}`);
+export async function getGrowthDashboard(days = 84, timezone?: string): Promise<GrowthDashboardData> {
+  const params = new URLSearchParams({ days: days.toString(), timezone: timezone || getUserTimezone() });
+  return apiRequest<GrowthDashboardData>(`/statistics/growth-dashboard?${params.toString()}`);
 }
 
 // ── Model-Specific Session Drilldown ────────────────────────────────
@@ -919,164 +941,43 @@ export async function archiveTimelineSkill(skillName: string, active = false): P
   );
 }
 
-// ── Learning Loop Five-Ring Status (Roadmap #55) ──────────────────────
+// ── Learning Loop Five-Ring Status ────────────────────────────────────
 
+/** Sessions recorded in the event log within the requested lookback window. */
 export interface Ring1ReflectionStatus {
-  total_traces_analyzed: number;
-  anti_patterns_detected: number;
-  recent_reflection_time: string | null;
-  is_active: boolean;
-  status: string;
+  sessions_in_window: number;
 }
 
+/** All-time skill-growth cases (same counters as the skill growth page) and those applied automatically. */
 export interface Ring2DistillationStatus {
-  proposals_generated: number;
-  proposals_approved: number;
-  proposals_pending: number;
-  proposals_rejected: number;
-  total_active_skills: number;
-  is_active: boolean;
-  status: string;
+  cases_total: number;
+  cases_auto_applied: number;
 }
 
+/** All-time skill-growth cases waiting for the user or stopped by the safety gate. */
 export interface Ring3AdvancementStatus {
-  evaluations_run: number;
-  regressions_blocked: number;
-  avg_score_boost_pct: number;
-  is_active: boolean;
-  status: string;
+  cases_pending_review: number;
+  cases_blocked: number;
 }
 
 export interface Ring4ConsolidationStatus {
-  consolidation_cycles: number;
-  memories_merged: number;
-  noise_pruned: number;
-  memory_health_score: number;
   total_memories: number;
-  is_active: boolean;
-  status: string;
 }
 
 export interface Ring5ProfilingStatus {
-  conversations_indexed: number;
-  profile_dimensions: number;
-  cross_session_recall_ready: boolean;
-  is_active: boolean;
-  status: string;
+  conversations: number;
+  profile_entries: number;
 }
 
+/** A ring is null when one of its sources could not be read. */
 export interface LearningLoopFiveRingStatusResponse {
-  ring1_reflection: Ring1ReflectionStatus;
-  ring2_distillation: Ring2DistillationStatus;
-  ring3_advancement: Ring3AdvancementStatus;
-  ring4_consolidation: Ring4ConsolidationStatus;
-  ring5_profiling: Ring5ProfilingStatus;
-  overall_loop_health_score: number;
-  overall_status: 'optimal' | 'warning' | 'degraded';
-  total_learnings_count: number;
-  summary_text: string;
+  ring1_reflection: Ring1ReflectionStatus | null;
+  ring2_distillation: Ring2DistillationStatus | null;
+  ring3_advancement: Ring3AdvancementStatus | null;
+  ring4_consolidation: Ring4ConsolidationStatus | null;
+  ring5_profiling: Ring5ProfilingStatus | null;
 }
 
 export async function getLearningLoopStatus(days = 30): Promise<LearningLoopFiveRingStatusResponse> {
   return apiRequest<LearningLoopFiveRingStatusResponse>(`/statistics/learning-loop/status?days=${days}`);
-}
-
-// ── Search Quota & Browser Runtime Meter ─────────────────────────────
-
-export interface SearchQuotaItem {
-  provider: string;
-  year_month: string;
-  used_count: number;
-  quota_limit: number;
-  remaining_count: number;
-  percentage: number;
-  is_metered: boolean;
-  is_depleted: boolean;
-  status: 'healthy' | 'warning' | 'critical' | 'depleted';
-  last_depleted_at: string | null;
-}
-
-export interface BrowserRuntimeSummary {
-  year_month: string;
-  session_count: number;
-  total_duration_minutes: number;
-  active_compute_minutes: number;
-  code_sandbox_compute_minutes?: number;
-  total_active_compute_minutes?: number;
-  code_sandbox_executions?: number;
-  total_bytes_transferred: number;
-  total_megabytes_transferred: number;
-  total_requests: number;
-  total_failed_requests: number;
-  estimated_compute_cost_usd: number;
-  estimated_cloud_value_saved_usd?: number;
-  is_local_mode?: boolean;
-}
-
-export interface RuntimeCostGaugeData {
-  year_month: string;
-  overall_search_health: 'healthy' | 'warning' | 'critical';
-  depleted_providers: string[];
-  critical_providers: string[];
-  warning_providers: string[];
-  search_quotas: SearchQuotaItem[];
-  browser_summary: BrowserRuntimeSummary;
-  is_burn_rate_alert: boolean;
-  burn_rate_message: string;
-}
-
-export async function getSearchQuotas(): Promise<SearchQuotaItem[]> {
-  return apiRequest<SearchQuotaItem[]>('/statistics/search-quotas');
-}
-
-export async function getBrowserRuntimeSummary(): Promise<BrowserRuntimeSummary> {
-  return apiRequest<BrowserRuntimeSummary>('/statistics/browser-runtime');
-}
-
-export async function getRuntimeCostGauge(): Promise<RuntimeCostGaugeData> {
-  return apiRequest<RuntimeCostGaugeData>('/statistics/runtime-cost-gauge');
-}
-
-export async function resetSearchQuota(provider?: string): Promise<{ reset_records_count: number }> {
-  return apiRequest<{ reset_records_count: number }>('/statistics/search-quotas/reset', {
-    method: 'POST',
-    body: JSON.stringify({ provider: provider ?? null }),
-  });
-}
-
-export async function updateSearchQuotaLimit(provider: string, quota_limit: number): Promise<void> {
-  await apiRequest('/statistics/search-quotas/limit', {
-    method: 'PUT',
-    body: JSON.stringify({ provider, quota_limit }),
-  });
-}
-
-export interface ProviderCircuitHealthItem {
-  provider: string;
-  state: 'closed' | 'open' | 'half_open';
-  health: 'healthy' | 'warning' | 'critical';
-  failure_count: number;
-  retry_after_ms: number;
-  half_open_calls: number;
-  timestamp: number;
-}
-
-export interface LLMProviderHealthResponse {
-  circuit_breakers: ProviderCircuitHealthItem[];
-}
-
-export async function getLLMProviderHealth(): Promise<LLMProviderHealthResponse> {
-  return apiRequest<LLMProviderHealthResponse>('/statistics/llm-provider-health');
-}
-
-export async function resetLLMProviderCircuit(
-  provider_or_key?: string,
-): Promise<{ success: boolean; reset_count: number; provider?: string | null }> {
-  return apiRequest<{ success: boolean; reset_count: number; provider?: string | null }>(
-    '/statistics/llm-provider-health/reset',
-    {
-      method: 'POST',
-      body: JSON.stringify({ provider_or_key: provider_or_key ?? null }),
-    },
-  );
 }

@@ -24,6 +24,27 @@ from .trajectory import router as trajectory_router
 from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
+from .zero_replay import router as zero_replay_router
+try:  # optional feature: its harness dependency may not be present yet
+    from .command_matrix import router as command_matrix_router
+except ImportError:  # pragma: no cover - optional feature degradation
+    command_matrix_router = None
+try:  # optional feature: its harness dependency may not be present yet
+    from .ui_alignment import router as ui_alignment_router
+except ImportError:  # pragma: no cover - optional feature degradation
+    ui_alignment_router = None
+try:  # optional feature: its harness dependency may not be present yet
+    from .delight_showcase import router as delight_showcase_router
+except ImportError:  # pragma: no cover - optional feature degradation
+    delight_showcase_router = None
+try:  # optional feature: its harness dependency may not be present yet
+    from .embed_bridge import router as embed_bridge_router
+except ImportError:  # pragma: no cover - optional feature degradation
+    embed_bridge_router = None
+try:  # optional feature: its harness dependency may not be present yet
+    from .swarm_hud import router as swarm_hud_router
+except ImportError:  # pragma: no cover - optional feature degradation
+    swarm_hud_router = None
 
 router = APIRouter()
 
@@ -32,6 +53,9 @@ router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)
 router.include_router(memory_extract_router)
+# Literal `/delight-templates` paths must be registered ahead of core's `/{chat_id}` pattern or that pattern answers them.
+if delight_showcase_router is not None:
+    router.include_router(delight_showcase_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)
@@ -49,6 +73,15 @@ router.include_router(replay_router)
 router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
 router.include_router(thought_control_router)
+router.include_router(zero_replay_router)
+if command_matrix_router is not None:
+    router.include_router(command_matrix_router)
+if ui_alignment_router is not None:
+    router.include_router(ui_alignment_router)
+if embed_bridge_router is not None:
+    router.include_router(embed_bridge_router)
+if swarm_hud_router is not None:
+    router.include_router(swarm_hud_router)
 
 __all__ = ["router"]
 

@@ -7,6 +7,7 @@ import uuid
 import httpx
 import pytest
 from httpx import ASGITransport
+from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -47,11 +48,9 @@ async def test_fork_context_branch_missing_snapshot_returns_400(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from myrm_agent_harness.runtime.paths import execution_paths
-
     root = tmp_path / "persistent"
     root.mkdir()
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(root / ".context"))
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
 
     chat_id = f"test-branch-missing-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)

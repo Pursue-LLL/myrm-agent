@@ -2,8 +2,8 @@
 
 定义文件的数据模型。
 
-注意：FilePurpose 枚举定义在存储层 (myrm_agent_harness.toolkits.storage.types)
-     因为它决定了文件的存储路径约定。
+注意：FilePurpose 枚举定义在存储键约定模块 (app.core.storage.types)，
+     因为它决定了文件的存储路径。
 """
 
 from __future__ import annotations
@@ -11,8 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from myrm_agent_harness.toolkits.storage.types import FilePurpose as FilePurpose
 from myrm_agent_harness.utils.coercion import parse_int
+
+from app.core.storage.types import FilePurpose
 
 
 @dataclass
@@ -28,9 +29,11 @@ class File:
     size: int  # 文件大小（字节）
     storage_path: str  # 存储路径
 
-    # 来源信息（仅 GENERATED 类型）
-    source_skill_id: str | None = None  # 生成此文件的技能
-    source_chat_id: str | None = None  # 生成此文件的会话
+    # 来源信息
+    source_skill_id: str | None = None  # 生成此文件的技能（GENERATED）
+    # GENERATED：生成此文件的会话或任务（chat id、`kanban:<task>`、`pdf-extract-<upload>`）；
+    # UPLOAD：上传时绑定的会话，仅无痕会话设置，该会话被清除时一并删除（见 chat_bound）
+    source_chat_id: str | None = None
 
     # 生命周期
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -86,4 +89,4 @@ class File:
         )
 
 
-__all__ = ["File", "FilePurpose"]
+__all__ = ["File"]

@@ -512,11 +512,19 @@ def _workspace_file_part(
             content_bytes = len(content.encode("utf-8"))
             if _can_inline(content_bytes, current_total_bytes):
                 return _xml_part(display_path, "document", content), content_bytes
+            return (
+                _xml_metadata(
+                    display_path,
+                    "document",
+                    f"Document too large ({_format_size(content_bytes)}), use file_read_tool to inspect if needed.",
+                ),
+                0,
+            )
         return (
             _xml_metadata(
                 display_path,
                 "document",
-                f"Document too large ({_format_size(file_size)})",
+                f"No extractable text ({_format_size(file_size)}), use file_read_tool to inspect if needed.",
             ),
             0,
         )
@@ -563,11 +571,19 @@ async def _stored_file_part(ref: MentionReferenceRequest, current_total_bytes: i
             parsed_bytes = len(parsed.encode("utf-8"))
             if _can_inline(parsed_bytes, current_total_bytes):
                 return _xml_part(display_path, "document", parsed), parsed_bytes
+            return (
+                _xml_metadata(
+                    display_path,
+                    "document",
+                    f"Document too large ({_format_size(parsed_bytes)}), use file_read_tool to inspect if needed.",
+                ),
+                0,
+            )
         return (
             _xml_metadata(
                 display_path,
                 "document",
-                f"Document too large ({_format_size(file.size)})",
+                f"No extractable text ({_format_size(file.size)}), use file_read_tool to inspect if needed.",
             ),
             0,
         )
@@ -794,7 +810,8 @@ async def _prior_chat_part(
     chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
     if chat is None:
         return _xml_error(display, "chat not found"), 0
-    if chat.is_incognito:
+    # Imported external transcripts carry the incognito flag only to stay out of the sidebar; they are real history.
+    if chat.is_incognito and chat.source == "web":
         return _xml_error(display, "incognito chats cannot be referenced"), 0
 
     row = await _load_prior_chat_document(chat_id)

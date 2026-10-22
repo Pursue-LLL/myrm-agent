@@ -347,7 +347,8 @@ async def test_router_delegation_failure_lifecycle_and_error_notification() -> N
     assert bus.publish_outbound.call_count >= 2
     err_outbound = bus.publish_outbound.call_args_list[-1][0][0]
     assert "执行失败" in err_outbound.content
-    assert "Sandbox container out of memory" in err_outbound.content
+    assert "Sandbox container out of memory" not in err_outbound.content
+    assert "[ref: " in err_outbound.content
 
     # Quota must be released despite failure
     assert router._delegation_guard.can_accept("telegram", "tg_user_err") is True

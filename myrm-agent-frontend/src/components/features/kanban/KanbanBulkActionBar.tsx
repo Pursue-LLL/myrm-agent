@@ -2,7 +2,8 @@
  * [INPUT]
  * - @/components/primitives/dropdown-menu (POS: Radix 下拉菜单封装，内容经 portal 渲染)
  * - ./kanban-transitions::isServerMoveAllowed (POS: 看板状态流转判定，服务端 move 守卫的镜像)
- * - @/services/kanban::bulkAction, BulkAction, TaskStatus (POS: 看板 API 请求与类型)
+ * - ./kanban-bulk::runBulkAction (POS: 批量请求与结果提示，批量拖拽共用)
+ * - @/services/kanban::BulkAction, TaskStatus (POS: 看板批量动作与状态类型)
  *
  * [OUTPUT]
  * - KanbanBulkActionBar (default): 多选任务后的批量移动 / 归档 / 重新分配 / 删除工具栏
@@ -16,7 +17,6 @@
 
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 import { X, Archive, ArrowRight, UserRound, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -26,7 +26,7 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { TaskStatus, BulkAction } from '@/services/kanban';
-import { bulkAction } from '@/services/kanban';
+import { runBulkAction } from './kanban-bulk';
 import { isServerMoveAllowed } from './kanban-transitions';
 
 interface KanbanBulkActionBarProps {
@@ -112,15 +112,10 @@ export default function KanbanBulkActionBar({
   const execute = async (action: BulkAction, params: Record<string, string> = {}, confirm = false) => {
     setLoading(true);
     try {
-      const result = await bulkAction(boardId, selectedIds, action, params, confirm);
-      if (result.failed > 0) {
-        toast.warning(t('bulkPartialSuccess', { succeeded: result.succeeded, failed: result.failed }));
-      } else {
-        toast.success(t('bulkSuccess', { count: result.succeeded }));
+      const failedTaskIds = await runBulkAction({ boardId, taskIds: selectedIds, action, params, confirm, t });
+      if (failedTaskIds) {
+        onComplete(failedTaskIds);
       }
-      onComplete(result.results.filter((item) => !item.success).map((item) => item.task_id));
-    } catch {
-      toast.error(t('updateError'));
     } finally {
       setLoading(false);
       setPendingConfirm(null);
@@ -144,7 +139,7 @@ export default function KanbanBulkActionBar({
       className="fixed inset-x-0 bottom-[4.5rem] mx-auto w-fit max-w-[calc(100vw-2rem)] z-50 animate-in slide-in-from-bottom-4 fade-in duration-200"
     >
       <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-xl border bg-background/95 backdrop-blur-sm shadow-lg whitespace-nowrap">
-        <span className="text-sm font-medium tabular-nums">{t('bulkSelected', { count: selectedIds.length })}</span>
+        <output className="text-sm font-medium tabular-nums">{t('bulkSelected', { count: selectedIds.length })}</output>
 
         <div className="w-px h-5 bg-border mx-1" />
 

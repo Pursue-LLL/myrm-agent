@@ -79,11 +79,14 @@ export const PortConflictModal: React.FC<PortConflictModalProps> = ({
     if (open) {
       if (initialData) {
         setData(initialData);
+        if (!initialData.is_in_use && onResolved) {
+          onResolved(port);
+        }
       } else {
         void fetchInspection();
       }
     }
-  }, [open, initialData, fetchInspection]);
+  }, [open, initialData, fetchInspection, onResolved, port]);
 
   const handleKillProcess = async (force: boolean) => {
     if (!data?.process) return;

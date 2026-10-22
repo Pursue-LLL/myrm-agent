@@ -19,7 +19,7 @@ app = build_minimal_app(preset="chats")
 
 
 @pytest.fixture(autouse=True)
-def _mock_checkpoint_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+def _mock_checkpoint_invalidation(monkeypatch: pytest.MonkeyPatch) -> None:
     """truncate_after_message syncs the LangGraph checkpoint after deletion.
 
     minimal_app does not inject a checkpointer, so the sync is replaced by a no-op
@@ -30,7 +30,7 @@ def _mock_checkpoint_sync(monkeypatch: pytest.MonkeyPatch) -> None:
         return 0
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _noop_sync,
     )
 

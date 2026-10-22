@@ -15,6 +15,7 @@ import { Wand2, Plug, FileText, Wrench, Globe, Search, X } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/shared/useToast';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { runCuratorSweep } from '@/services/skill';
 import type { ConfigCardType } from './AgentConfigCards';
 import { ActionSpaceAccuracyRadar, type Turn1CatalogPreview } from './ActionSpaceAccuracyRadar';
@@ -222,6 +223,9 @@ const AgentConfigEditDialog = ({
           body: JSON.stringify({ intent, locale: navigator.language || 'en-US', current_prompt: currentPrompt }),
         });
         if (!response.ok) {
+          if (await riskHeldErrorFromResponse(response)) {
+            return;
+          }
           if (response.status === 422) {
             const errorData = await response.json();
             toast({

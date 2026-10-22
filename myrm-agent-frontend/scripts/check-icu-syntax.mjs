@@ -16,7 +16,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { scanIcuMessages } from './icu-syntax-scan.ts';
+import { scanIcuMessages, scanTranslationArtifacts } from './icu-syntax-scan.ts';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const localesDir = join(rootDir, 'locales');
@@ -37,10 +37,20 @@ if (localeFiles.length === 0) {
 
 let scanned = 0;
 let invalidTotal = 0;
+let artifactTotal = 0;
 for (const file of localeFiles) {
   const locale = basename(file, '.json');
-  const result = scanIcuMessages(JSON.parse(readFileSync(join(localesDir, file), 'utf8')));
+  const tree = JSON.parse(readFileSync(join(localesDir, file), 'utf8'));
+  const result = scanIcuMessages(tree);
   scanned += result.scanned;
+  const artifacts = scanTranslationArtifacts(tree);
+  artifactTotal += artifacts.invalid.length;
+  if (artifacts.invalid.length > 0) {
+    console.error(`[icu-syntax] ${locale}: ${artifacts.invalid.length} 条文案残留机翻保护标记：`);
+    for (const { path, error } of artifacts.invalid.slice(0, MAX_LISTED_PER_LOCALE)) {
+      console.error(`    - ${path}: ${error}`);
+    }
+  }
   if (result.invalid.length === 0) {
     continue;
   }
@@ -56,9 +66,16 @@ for (const file of localeFiles) {
 if (scanned === 0) {
   fail('自检失败：未解析到任何文案，locale 文件结构可能已变——拒绝静默通过。');
 }
+if (artifactTotal > 0) {
+  console.error(
+    '\n处理方式：这些 `__BR_…__` / `__PHn__` 是机翻脚本给品牌 / 占位符加的临时记号，' +
+      '本该在翻译后还原成正常文字。把对应文案改成正常写法，记号不允许出现在用户界面上。',
+  );
+  process.exit(1);
+}
 if (invalidTotal > 0) {
   console.error(
-    "\n处理方式：插值变量写成 `{name}`；要原样显示的花括号 / 尖括号，把以它开头的片段用单引号括起来，" +
+    '\n处理方式：插值变量写成 `{name}`；要原样显示的花括号 / 尖括号，把以它开头的片段用单引号括起来，' +
       "如 `'{{secret:KEY}}'`、`'<token>'`、`[ '{\"a\": 1}' ]`（单引号必须紧贴 `{` `}` `<` `>`，否则不构成转义）。",
   );
   process.exit(1);

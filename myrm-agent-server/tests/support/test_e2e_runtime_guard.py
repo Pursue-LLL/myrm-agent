@@ -509,6 +509,8 @@ def test_snapshot_live_e2e_processes_empty_when_no_sessions(
         return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
 
     monkeypatch.setattr("e2e_session_runtime.registry.subprocess.run", _fake_run)
+    # The shared dev-gate coordinator lists every E2E running on this host, not just this test's sessions.
+    monkeypatch.setattr("e2e_session_runtime.registry._coordinator_live_rows", lambda: ())
 
     snapshot = snapshot_live_e2e_processes(
         agent_stream_lock_path=stream_lock,

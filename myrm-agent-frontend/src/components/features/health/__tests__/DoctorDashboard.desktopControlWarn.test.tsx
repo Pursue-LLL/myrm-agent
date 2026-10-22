@@ -9,7 +9,7 @@ import type { DoctorResponse } from '@/services/runtime-health';
 
 const mockGetRuntimeDoctor = vi.fn<() => Promise<DoctorResponse>>();
 
-const stableT = (key: string) => key;
+const stableT = Object.assign((key: string) => key, { has: () => true });
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -73,8 +73,8 @@ describe('DoctorDashboard DesktopControl WARN', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'desktopOpenSettings' })).toBeInTheDocument();
     });
-    expect(screen.getByText('DesktopControl')).toBeInTheDocument();
-    expect(screen.getByText('WARN')).toBeInTheDocument();
+    expect(screen.getByText('components.DesktopControl')).toBeInTheDocument();
+    expect(screen.getByText('status.warn')).toBeInTheDocument();
   });
 
   it('opens the accessibility deeplink when the settings button is clicked', async () => {
@@ -117,7 +117,7 @@ describe('DoctorDashboard DesktopControl WARN', () => {
     render(<DoctorDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('DesktopControl')).toBeInTheDocument();
+      expect(screen.getByText('components.DesktopControl')).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: 'desktopOpenSettings' })).not.toBeInTheDocument();
   });

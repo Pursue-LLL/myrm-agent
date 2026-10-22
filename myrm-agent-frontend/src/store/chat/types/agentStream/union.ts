@@ -11,7 +11,6 @@
 
 import type { AgentCancelledStreamEvent } from './part1';
 import type {
-  ApprovalProcessedStreamEvent,
   ApprovalRequiredStreamEvent,
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
@@ -21,7 +20,6 @@ import type {
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
   PhaseTransitionStreamEvent,
-  DirectoryRequestRequiredStreamEvent,
   ErrorStreamEvent,
   MessageStreamEvent,
   RateLimitThrottledStreamEvent,
@@ -69,9 +67,7 @@ import type {
   SubagentProgressStreamEvent,
   SubagentStaleStreamEvent,
   SubagentStartStreamEvent,
-  SubagentStatusUpdateStreamEvent,
   TeammateMessageStreamEvent,
-  ToolFallbackStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
   WorkingMemoryStreamEvent,
@@ -89,14 +85,11 @@ import type {
   FissionTopologyUpdateStreamEvent,
   PtcNotifyStreamEvent,
   ToolImageOutputStreamEvent,
-  ToolProgressStreamEvent,
-  TtsrTriggeredStreamEvent,
 } from './part3';
 
 export type AgentStreamEvent =
   | CatchupSnapshotStreamEvent
   | PtcNotifyStreamEvent
-  | ToolProgressStreamEvent
   | RateLimitUpdatedStreamEvent
   | RateLimitWarningStreamEvent
   | RateLimitThrottledStreamEvent
@@ -106,11 +99,9 @@ export type AgentStreamEvent =
   | ToolHeartbeatStreamEvent
   | SourcesStreamEvent
   | ToolApprovalRequestStreamEvent
-  | ApprovalProcessedStreamEvent
   | ApprovalRequiredStreamEvent
   | AsyncUserMessageStreamEvent
   | ClarificationRequiredStreamEvent
-  | DirectoryRequestRequiredStreamEvent
   | RedirectedStreamEvent
   | ArtifactFocusStreamEvent
   | RiskBlockedStreamEvent
@@ -148,7 +139,6 @@ export type AgentStreamEvent =
   | SubagentLogStreamEvent
   | SubagentCompletionStreamEvent
   | SubagentStaleStreamEvent
-  | SubagentStatusUpdateStreamEvent
   | TeammateMessageStreamEvent
   | FileDiffStreamEvent
   | FileMutationFailedStreamEvent
@@ -163,11 +153,9 @@ export type AgentStreamEvent =
   | DagStateUpdateStreamEvent
   | IterationLimitReachedStreamEvent
   | ContextOverflowResetStreamEvent
-  | ToolFallbackStreamEvent
   | ContextReferenceWarningStreamEvent
   | GoalStatusStreamEvent
   | FissionTopologyUpdateStreamEvent
   | VerificationVerdictStreamEvent
   | WorkingMemoryStreamEvent
-  | DesktopEnvelopeProgressStreamEvent
-  | TtsrTriggeredStreamEvent;
+  | DesktopEnvelopeProgressStreamEvent;

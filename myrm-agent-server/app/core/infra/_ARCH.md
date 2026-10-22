@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
+| `background_task.py` | 模块 | 长期存活 asyncio 后台任务的「启动 + 失败观测」：`spawn_observed_task`（起任务并挂 done callback；被模块全局持有的任务即使崩溃也永不触发 asyncio 的 "never retrieved" 报告，只能靠回调取回异常记 ERROR；取消是正常关闭路径，不算失败） | ✅ |
 | `cors_validator.py` | 模块 | CORS 配置和验证 | ✅ |
 | `frontend_launcher.py` | 模块 | Next.js standalone 前端启动器（环境检测、端口协调、毒性环境变量清洗、进程生命周期、崩溃重启） | ✅ |
 | `idle_handlers.py` | 模块 | Server-side idle task handlers: 上下文压缩实现（`register_all_idle_handlers`）。 | ✅ |

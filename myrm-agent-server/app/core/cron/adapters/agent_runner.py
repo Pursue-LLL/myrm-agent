@@ -32,7 +32,11 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.api.security import is_untrusted_ingress_active
+from myrm_agent_harness.core.security.audit import get_audit_entries
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     enter_cron_execution_context,
     exit_cron_execution_context,
@@ -49,7 +53,15 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
+from app.core.agent.run_activity import track_background_agent_run
+
+from .blocked_actions import blocked_actions_metadata
 from .injection_scan import scan_cron_prompt
+from .provider_window_deferral import usage_limit_deferral
+from .research_lease import grant_run_lease, release_run_lease
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +200,10 @@ def _derive_stop_reason_from_event(
     if not isinstance(event_type, str):
         return None
 
+    data = event.get("data")
+    detail = data if isinstance(data, dict) else None
+
     if event_type == "iteration_limit_reached":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         message = "Iteration limit reached"
         if detail is not None:
             limit = detail.get("limit")
@@ -208,7 +222,6 @@ def _derive_stop_reason_from_event(
         return payload
 
     if event_type == "engine_limit_reached":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         message = "Engine limit reached"
         if detail is not None:
             raw_message = detail.get("message")
@@ -224,7 +237,6 @@ def _derive_stop_reason_from_event(
         return payload_2
 
     if event_type == "agent_cancelled":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         reason = detail.get("reason") if detail else None
         payload_3: dict[str, object] = {
             "code": "agent_cancelled",
@@ -284,6 +296,7 @@ _DAILY_MAX_HISTORY_ENTRIES = 5
 _DAILY_OUTPUT_TRUNCATE_CHARS = 500
 _DAILY_CROSSDAY_SUMMARY_CHARS = 300
 _ONE_DAY = timedelta(days=1)
+_OVERLOAD_RETRY_DELAY = timedelta(seconds=60)
 
 
 def _build_effective_prompt(job: CronJob) -> str:
@@ -321,17 +334,21 @@ def resolve_trusted_desktop_keys(
 def _resolve_cron_enable_memory(
     enabled_builtin_tools: list[str],
     memory_settings: dict[str, object] | None,
+    *,
+    untrusted: bool,
 ) -> bool:
-    """Enable memory for cron only when both gates pass.
+    """Enable memory for cron only when all gates pass.
 
     1. The intersected tool set allows memory (``tools_allowed`` per-job
        allow-list, parallel to web_search/file/shell handling).
     2. The user-level memory master switch is on (``enableMemory`` personal
        setting), keeping cron consistent with channel/voice entry points.
+    3. The run was not started by an untrusted sender: memory here is the owner's,
+       so a stranger's run neither reads nor writes it.
     """
     from app.core.memory.proactive.settings import resolve_memory_enabled
 
-    return "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
+    return not untrusted and "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
 
 
 async def _resolve_cron_enable_web_search(
@@ -339,7 +356,7 @@ async def _resolve_cron_enable_web_search(
     enabled_builtin_tools: list[str],
     job: CronJob,
     search_is_user_configured: bool,
-    search_cfg: object,
+    search_cfg: SearchServiceConfig | None,
 ) -> bool:
     """Enable web_search for cron when policy allows it and search is configured."""
     if "web_search" not in enabled_builtin_tools or not search_is_user_configured:
@@ -348,7 +365,7 @@ async def _resolve_cron_enable_web_search(
         return True
     from app.core.channel_bridge.config_parsers import verify_search_service_available
 
-    return await verify_search_service_available(search_cfg)  # type: ignore[arg-type]
+    return await verify_search_service_available(search_cfg)
 
 
 async def _build_daily_context(job: CronJob) -> str:
@@ -435,6 +452,10 @@ class AgentJobRunner:
         self._situation_builder = situation_builder
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
+        with track_background_agent_run():
+            return await self._run_with_retries(job, context=context)
+
+    async def _run_with_retries(self, job: CronJob, *, context: str) -> JobResult:
         overload_reason = _memory_overload_reason()
         if overload_reason is not None:
             # Skip now, retry next tick: skipped runs don't consume retries or
@@ -444,12 +465,15 @@ class AgentJobRunner:
                 job.id,
                 overload_reason,
             )
-            return JobResult(success=False, skipped=True, skip_reason=overload_reason)
+            # A one-shot job has no next slot: without a retry time the skip would consume it.
+            retry_at = datetime.now(timezone.utc) + _OVERLOAD_RETRY_DELAY if job.schedule.kind is ScheduleKind.ONCE else None
+            return JobResult(success=False, skipped=True, skip_reason=overload_reason, retry_at=retry_at)
         last_result = JobResult(success=False, error="never executed")
 
         for attempt in range(1 + job.max_retries):
             last_result = await self._run_once(job, context=context)
-            if last_result.success:
+            if last_result.success or last_result.retry_at is not None:
+                # A deferral names the instant a repeat can succeed; retrying now only burns attempts.
                 return last_result
 
             # If circuit breaker was tripped, abort immediately — do not retry!
@@ -557,7 +581,15 @@ class AgentJobRunner:
         if await should_block_execution():
             return JobResult(success=False, error="daily budget exceeded (block policy)")
 
-        if job.chat_id:
+        # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
+        # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's
+        # chat, where it would run unfenced, and cannot be a workflow template, whose agents the lease cannot reach.
+        untrusted = is_untrusted_ingress_active()
+        if untrusted and job.workflow_template_id:
+            logger.info("Cron job %s: workflow template jobs do not run for a non-owner sender", job.id)
+            return JobResult(success=True, skipped=True, skip_reason="untrusted-workflow")
+
+        if job.chat_id and not untrusted:
             queued = await self._try_enqueue_if_goal_active(job, context=context)
             if queued:
                 return JobResult(
@@ -594,6 +626,7 @@ class AgentJobRunner:
             effective_prompt = f"{effective_prompt}\n\n{context}"
 
         cron_ctx_token = enter_cron_execution_context()
+        lease_session_key: str | None = None
         try:
             from app.ai_agents.agents import AgentFactory, GeneralAgentParams
             from app.core.channel_bridge.config_loader import load_user_configs
@@ -784,6 +817,17 @@ class AgentJobRunner:
 
                 await _ChatCrudMixin.ensure_chat_source(job.chat_id, "cron")
 
+            effective_allowed_roots = list(job.allowed_roots)
+            if job.project_id and not effective_allowed_roots:
+                try:
+                    from app.services.project.project_service import ProjectService
+
+                    project_model = await ProjectService.get_project(job.project_id)
+                    if project_model and project_model.workspace_path:
+                        effective_allowed_roots.append(project_model.workspace_path)
+                except Exception as exc:
+                    logger.warning("Failed to resolve project workspace for cron job %s: %s", job.id, exc)
+
             params = GeneralAgentParams(
                 query=effective_prompt,
                 model_cfg=model_cfg,
@@ -796,15 +840,16 @@ class AgentJobRunner:
                 search_service_cfg=user_cfgs.search_cfg,
                 chat_id=job.chat_id,
                 agent_id=job.agent_id,
+                project_id=job.project_id,
                 embedding_config=embedding_cfg,
                 reranker_config=reranker_cfg,
                 security_config_raw=security_config_raw,
                 agent_security_raw=agent_security_raw,
                 channel_name="cron",
                 declared_capabilities=job.required_capabilities,
-                declared_allowed_roots=job.allowed_roots,
+                declared_allowed_roots=tuple(effective_allowed_roots),
                 **cron_tool_flags,
-                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings),
+                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings, untrusted=untrusted),
                 enable_web_search=await _resolve_cron_enable_web_search(
                     enabled_builtin_tools=enabled_builtin_tools,
                     job=job,
@@ -834,34 +879,27 @@ class AgentJobRunner:
                 **privacy_agent_params(memory_settings),
             )
 
+            from app.ai_agents.event_log_injector import (
+                inject_event_log_config,
+                resolve_cron_event_log_session_id,
+            )
+
+            cron_event_log_sid = (
+                job.chat_id
+                if (job.session_target == SessionTarget.MAIN and job.chat_id)
+                else resolve_cron_event_log_session_id(str(job.id))
+            )
+            inject_event_log_config(params, session_id_override=cron_event_log_sid)
+
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
 
-            has_explicit_mutations = bool(
-                job.required_capabilities
-                and any(
-                    cap in job.required_capabilities
-                    for cap in ("shell_exec", "file_write", "git_push", "send_email")
-                )
-            )
-            is_research_or_unattended = getattr(job, "is_research", False) or not has_explicit_mutations
-            if is_research_or_unattended:
-                from myrm_agent_harness.core.security.readonly_research_sandbox import (
-                    ResearchModeEnum,
-                    get_readonly_research_sandbox_facade,
-                )
-
-                get_readonly_research_sandbox_facade().grant_research_lease(
-                    session_id=agent.approval_session_key,
-                    research_mode=ResearchModeEnum.AUTONOMOUS_RESEARCH,
-                    ttl_seconds=float(job.timeout_seconds or 300) + 60.0,
-                )
-
             timeout = job.timeout_seconds or 300
+            lease_session_key = grant_run_lease(agent, job, timeout_seconds=timeout, untrusted=untrusted)
             run_started_at = time.monotonic()
             model_name: str | None = getattr(agent.model_cfg, "model", None)
 
-            from myrm_agent_harness.agent.security import user_credentials_ctx
+            from myrm_agent_harness.core.security.types import user_credentials_ctx
 
             from app.services.agent.execution_cache import (
                 ExecutionMode,
@@ -919,7 +957,7 @@ class AgentJobRunner:
                         )
                     else:
                         result = await asyncio.wait_for(
-                            _consume_stream(agent, job, effective_prompt, runtime_context),
+                            _consume_stream(agent, job, effective_prompt, runtime_context, untrusted=untrusted),
                             timeout=timeout,
                         )
                     if cron_post_run_verify:
@@ -956,16 +994,6 @@ class AgentJobRunner:
                         agent_id=params.agent_id,
                         extra_context=runtime_context,
                     )
-                    try:
-                        from myrm_agent_harness.core.security.readonly_research_sandbox import (
-                            get_readonly_research_sandbox_facade,
-                        )
-
-                        ro_facade = get_readonly_research_sandbox_facade()
-                        ro_facade.revoke_lease(agent.approval_session_key)
-                        ro_facade.purge_ephemeral_overlay(agent.approval_session_key)
-                    except Exception as ro_err:
-                        logger.debug("Read-only research lease cleanup ignored: %s", ro_err)
 
                 await _finalize_heartbeat_follow_up_delivery(job, result)
 
@@ -984,20 +1012,30 @@ class AgentJobRunner:
                 error=f"agent timed out after {job.timeout_seconds or 300}s",
             )
         except Exception as exc:
-            from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
-
-            if isinstance(exc, RunawayCircuitBreakException):
-                logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
-                return JobResult(
-                    success=False,
-                    error=str(exc),
-                    circuit_broken=True,
-                    circuit_break_reason=str(exc),
-                )
-            logger.warning("Cron agent job %s failed: %s", job.id, exc)
-            return JobResult(success=False, error=str(exc))
+            return _failure_result(job, exc)
         finally:
+            if lease_session_key:
+                release_run_lease(lease_session_key)
             exit_cron_execution_context(cron_ctx_token)
+
+
+def _failure_result(job: CronJob, exc: Exception) -> JobResult:
+    """Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure)."""
+    from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
+
+    if isinstance(exc, RunawayCircuitBreakException):
+        logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
+        return JobResult(
+            success=False,
+            error=str(exc),
+            circuit_broken=True,
+        )
+    deferral = usage_limit_deferral(exc)
+    if deferral is not None:
+        logger.warning("Cron agent job %s hit a provider usage limit: %s", job.id, exc)
+        return deferral
+    logger.warning("Cron agent job %s failed: %s", job.id, exc)
+    return JobResult(success=False, error=str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -1007,14 +1045,13 @@ class AgentJobRunner:
 
 @dataclass
 class _StreamAccumulator:
-    chunks: list[str] = field(default_factory=list)
+    answer: AnswerDraft = field(default_factory=AnswerDraft)
     progress_steps: list[dict[str, object]] = field(default_factory=list)
     sources: list[dict[str, object]] = field(default_factory=list)
     usage: dict[str, int] | None = None
     error: str | None = None
     stop_reason: dict[str, object] | None = None
     circuit_broken: bool = False
-    circuit_break_reason: str | None = None
     _seen_indices: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
@@ -1025,7 +1062,7 @@ class _StreamAccumulator:
                 self.sources.append(src)
 
     def to_result(self, model: str | None = None) -> JobResult:
-        output = "".join(self.chunks)
+        output = self.answer.text
         metadata: dict[str, object] = {}
         if self.progress_steps:
             metadata["progressSteps"] = self.progress_steps
@@ -1038,20 +1075,15 @@ class _StreamAccumulator:
         if self.usage:
             metadata["usage"] = self.usage
 
-        from myrm_agent_harness.agent.security.audit import get_audit_entries
-
-        audit = get_audit_entries()
-        if audit:
-            metadata["securityAudit"] = [e.to_dict() for e in audit]
+        metadata.update(blocked_actions_metadata(get_audit_entries()))
 
         if self.error or self.circuit_broken:
             return JobResult(
                 success=False,
-                output=output or None,
+                output=output,
                 error=self.error or "Runaway circuit break triggered",
                 metadata=metadata or None,
                 circuit_broken=self.circuit_broken,
-                circuit_break_reason=self.circuit_break_reason,
             )
 
         return JobResult(
@@ -1093,7 +1125,8 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
                 len(history),
                 job.chat_id,
             )
-        return history
+        # The agent entry point types history entries loosely; re-wrap so the invariant list types line up.
+        return [list(entry) for entry in history]
     except Exception:
         logger.warning(
             "Cron job %s: failed to load thread history for chat %s",
@@ -1108,6 +1141,8 @@ async def _consume_stream(
     job: CronJob,
     effective_prompt: str,
     runtime_context: dict[str, object],
+    *,
+    untrusted: bool,
 ) -> JobResult:
     from app.ai_agents.general_agent import GeneralAgent
 
@@ -1115,7 +1150,8 @@ async def _consume_stream(
 
     acc = _StreamAccumulator()
     model_name: str | None = getattr(agent.model_cfg, "model", None)
-    chat_history = await _load_thread_history(job)
+    # The bound thread is the owner's private conversation; a non-owner's run never reads it.
+    chat_history = None if untrusted else await _load_thread_history(job)
 
     async for event in agent.process_stream(
         query=effective_prompt,
@@ -1128,26 +1164,17 @@ async def _consume_stream(
         if stop_reason is not None:
             acc.set_stop_reason(stop_reason)
 
-        if event_type == "message" and isinstance(event.get("data"), str):
-            acc.chunks.append(str(event["data"]))
-        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
-            total_toks = acc.usage.get("total_tokens") or (
-                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
-            )
-            if total_toks > 0:
-                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
-
-                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
-                acc.circuit_break_reason = str(error_msg)
         elif event_type == "tasks_steps":
             acc.progress_steps.append(
                 {
@@ -1188,26 +1215,17 @@ async def _consume_dynamic_workflow_stream(
         if stop_reason is not None:
             acc.set_stop_reason(stop_reason)
 
-        if event_type == "message" and isinstance(event.get("data"), str):
-            acc.chunks.append(str(event["data"]))
-        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
-            total_toks = acc.usage.get("total_tokens") or (
-                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
-            )
-            if total_toks > 0:
-                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
-
-                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
-                acc.circuit_break_reason = str(error_msg)
         elif event_type == "status":
             data = event.get("data")
             if isinstance(data, dict):

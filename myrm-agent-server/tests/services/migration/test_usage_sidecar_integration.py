@@ -272,10 +272,8 @@ class TestUsageSidecarIntegration:
 
         await apply_skill_migration(skills)
 
-        from myrm_agent_harness.backends.skills.forgetting_strategy import (
-            CuratorConfig,
-            DefaultForgettingStrategy,
-        )
+        from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
+        from myrm_agent_harness.backends.skills.forgetting_strategy import DefaultForgettingStrategy
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
@@ -335,10 +333,8 @@ class TestUsageSidecarIntegration:
 
         await apply_skill_migration(skills)
 
-        from myrm_agent_harness.backends.skills.forgetting_strategy import (
-            CuratorConfig,
-            DefaultForgettingStrategy,
-        )
+        from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
+        from myrm_agent_harness.backends.skills.forgetting_strategy import DefaultForgettingStrategy
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
@@ -399,10 +395,8 @@ class TestUsageSidecarIntegration:
 
         await apply_skill_migration(skills)
 
-        from myrm_agent_harness.backends.skills.forgetting_strategy import (
-            CuratorConfig,
-            DefaultForgettingStrategy,
-        )
+        from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
+        from myrm_agent_harness.backends.skills.forgetting_strategy import DefaultForgettingStrategy
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 

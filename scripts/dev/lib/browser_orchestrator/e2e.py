@@ -29,7 +29,6 @@ from cdp_chat.support import (
 ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC = 15.0
 _orchestrator_watchdog_last_spawn_at: float = 0.0
 
-
 def _route_binding_expression(extra_expression: str | None) -> str | None:
     """Bind a PRIVATE runtime before the final route can issue API requests."""
     runtime_expression = e2e_runtime_bootstrap_apply_js()

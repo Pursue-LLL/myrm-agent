@@ -10,3 +10,4 @@
 |------|------|------|-------|
 | `router.py` | 路由 | Subscribe to the multiplexed workspace stream. | ✅ |
 | `rules.py` | 模块 | Workspace 规则自省 HTTP 层，供 Settings WorkspaceRulesSection 展示 | ✅ |
+| `promotion_router.py` | 路由 | POST `/api/v1/workspace/promote` 便签升格工作区项目端点 | ✅ |

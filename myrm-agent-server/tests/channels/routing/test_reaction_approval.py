@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -35,6 +35,7 @@ from app.channels.routing.commands import (
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
+from tests.support.risk_gate import API_KEY_RULE, SECRET, build_service_with_rules
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -265,6 +266,21 @@ class TestHandleApprovalContract:
         assert decisions[0]["type"] == "reject"
         assert decisions[0]["guidance"] == "use HTTPS instead"
         assert "Denied via slack" in decisions[0]["feedback"]
+
+    @pytest.mark.asyncio
+    async def test_deny_reason_a_risk_rule_holds_is_not_relayed_and_the_approval_stays_pending(self) -> None:
+        host, msg = self._setup()
+        service = build_service_with_rules([API_KEY_RULE])
+        service.record_hits = AsyncMock()  # type: ignore[method-assign]
+
+        with patch("app.services.risk.detection.get_detection_service", return_value=service):
+            await host._handle_approval_command(msg, DenyWithReason(reason=f"use {SECRET}"))
+
+        host._gate.submit.assert_not_called()
+        host._bus.publish_outbound.assert_awaited_once()
+        assert SECRET not in host._bus.publish_outbound.call_args[0][0].content
+        assert routing_session_key("slack", "C1") in host._approval_msg_ids
+        host._bus.edit_channel_message.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_deny_with_reason_status_includes_reason(self) -> None:

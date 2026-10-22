@@ -2,6 +2,7 @@
 [INPUT]
 - app.api.skills.evolution.helpers::_get_skill_store (POS: Helper functions for evolution API)
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
 [OUTPUT]
 - derive_skill: Trigger a user-driven derived evolution for an existing skill.
@@ -17,6 +18,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from app.services.risk.refusal import reject_if_risky
 
 from .helpers import _get_skill_store
 
@@ -43,13 +46,15 @@ async def derive_skill(
     instruction = request.instruction.strip()
     if not instruction:
         raise HTTPException(status_code=400, detail="Instruction must not be empty")
+    await reject_if_risky(instruction, session_id=skill_id)
 
     from myrm_agent_harness.agent.skills.evolution.infra.integration import (
         get_global_evolution_integration,
     )
 
     evolution = get_global_evolution_integration()
-    if evolution is None or evolution.engine is None:
+    engine = evolution.engine if evolution is not None else None
+    if engine is None:
         raise HTTPException(status_code=503, detail="Evolution engine not initialized. Please try again later.")
 
     async def _run_derive() -> None:
@@ -58,7 +63,7 @@ async def derive_skill(
                 ConfidenceApprovalFlow,
             )
 
-            proposal = await evolution.engine.derive_skill_simple(
+            proposal = await engine.derive_skill_simple(
                 skill_id=skill_id,
                 user_feedback=instruction,
             )

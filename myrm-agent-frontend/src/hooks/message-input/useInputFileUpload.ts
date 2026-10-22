@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/services/file::uploadFiles (POS: 文件上传 API 客户端)
+ * - @/services/incognitoUploadOptions::incognitoUploadOptions (POS: 无痕会话的上传绑定选项)
  * - @/store/useProviderStore::useProviderStore (POS: Provider 与模型能力状态)
  * - @/lib/utils/fileUtils::computeFileHash (POS: Browser file hashing utility)
  *
@@ -14,6 +15,7 @@
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { uploadFilesWithProgress } from '@/services/file';
+import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 import { toast } from '@/lib/utils/toast';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
@@ -137,6 +139,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
             );
           },
           getUploadSignal(),
+          incognitoUploadOptions(),
         );
 
         if (uploadResults.uploaded_count === 0 || !uploadResults.files) {

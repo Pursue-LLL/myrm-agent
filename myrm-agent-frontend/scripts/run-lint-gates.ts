@@ -16,6 +16,7 @@ export const LINT_GATES: readonly string[] = [
   'verify:stable-mocks',
   'verify:a11y',
   'verify:theme-colors',
+  'verify:reduced-motion',
   'verify:hardcoded-copy',
   'verify:icu-syntax',
   'lint:oxlint',

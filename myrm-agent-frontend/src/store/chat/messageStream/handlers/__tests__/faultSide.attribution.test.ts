@@ -21,6 +21,7 @@ vi.mock('../handlerDeps', () => ({
   },
   findAssistantMessageIndex: vi.fn(() => 0),
   releaseInspectorControls: vi.fn(),
+  isStreamForOpenChat: vi.fn(() => true),
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   getUserFriendlyError: vi.fn(async () => ({ message: 'failed', hint: undefined })),

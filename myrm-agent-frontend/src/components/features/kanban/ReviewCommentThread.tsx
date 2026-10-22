@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - @/lib/utils/classnameUtils::cn (POS: 类名合并)
+ *
+ * [OUTPUT]
+ * - ReviewCommentThread: 验收结果与评审意见：每条验收标准的通过 / 未通过卡片，评审意见按严重度（critical / warning / info）筛选，可展开并复制修复建议，critical 意见可触发「发起修复」
+ * - ReviewSeverityType / ReviewCommentItem / AcceptanceResultItem: 验收数据类型
+ *
+ * [POS]
+ * 任务抽屉详情里展示验收结果的展示组件。验收失败但没有逐条意见时，用失败原因生成一条 critical 意见。
+ */
 'use client';
 
 import React, { useState } from 'react';

@@ -30,8 +30,8 @@
 | `external_cli_deploy.py` | ✅ 核心 | `external_cli` deploy 门控：仅 LOCAL/TAURI 支持本机 CLI 委派；SANDBOX 返回 False；供 `strip_deploy_incompatible_builtin_tools` | ✅ |
 | `deploy_identity.py` | ✅ 辅助 | 单租户部署身份哨兵（`get_deploy_identity`，供 FastAPI Depends 与 memory 依赖注入） | ✅ |
 | `env.py` | ✅ 核心 | `is_debug_mode()` — **DEBUG env 唯一读取点** | ✅ |
-| `logging.py` | ✅ 核心 | 日志配置（configure_logging，根据环境设置日志级别和格式） | ✅ |
-| `system_status.py` | ✅ 核心 | 全局系统状态单例（database_degraded/recovered） | ✅ |
+| `logging.py` | ✅ 核心 | 日志配置（configure_logging，根据环境设置日志级别和格式；除 `resource_monitor` 外，把 `app.lifecycle.schedulers` 与 `app.services.memory.imports.integration_sync_daemon` 两个后台维护 logger 钉在 INFO：后台调度器若不启动或停摆，其在 WARNING 级别下不输出任何行、故障完全静默） | ✅ |
+| `system_status.py` | ✅ 核心 | 全局系统状态单例（database_degraded/recovered、vector_degraded） | ✅ |
 | `subagents/` | ✅ 核心 | Subagent YAML 配置（`core/` 内置 + `custom/` 覆盖；见 [_ARCH.md](subagents/_ARCH.md)） | [_ARCH.md](subagents/_ARCH.md) |
 
 ---

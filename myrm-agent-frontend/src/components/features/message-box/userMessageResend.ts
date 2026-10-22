@@ -8,13 +8,17 @@
  * - @/hooks/message-input/useInputHistory::addInputHistory (POS: Per-agent input history recalled with ArrowUp)
  *
  * [OUTPUT]
+ * - readSendOrigin: the chat a send belongs to, read before anything awaits.
  * - retryFailedUserMessage: resend a user bubble whose delivery failed, with the attachments it carried.
  * - resendEditedUserMessage: cut the history at an edited user bubble and resend the edited text.
+ * - sendGoalReviewFeedback: send the feedback of a rejected goal review as the next message of the chat it was
+ *   written in.
  *
  * [POS]
- * Resend flows of a user bubble: retry of a failed send and edit-and-resend. A request the agent does not take
- * returns to the composer (or to the input history of its chat) instead of vanishing with the replaced bubble, and an
- * edit replaces the transcript only after the server cut the history.
+ * Flows that send text through the chat store outside the composer: retry of a failed send, edit-and-resend, and the
+ * feedback of a rejected goal review. A request the agent does not take returns to the composer (or to the input
+ * history of its chat) instead of vanishing with the replaced bubble or the closed panel, and an edit replaces the
+ * transcript only after the server cut the history.
  */
 import { addInputHistory } from '@/hooks/message-input/useInputHistory';
 import { ApiError } from '@/lib/api';
@@ -30,22 +34,22 @@ import type { File as ChatFile, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
 /**
- * The chat a resend belongs to, read before anything awaits: the chat store always holds whichever chat is open,
+ * The chat a send belongs to, read before anything awaits: the chat store always holds whichever chat is open,
  * so by the time a request settles its chat, agent and incognito state may be another one's.
  */
-interface Origin {
+export interface SendOrigin {
   chatId: string | undefined;
   agentId: string | undefined;
   incognito: boolean;
 }
 
-function readOrigin(): Origin {
+export function readSendOrigin(): SendOrigin {
   const { chatId, agentConfig, incognitoMode } = useChatStore.getState();
   return { chatId, agentId: agentConfig?.agentId, incognito: incognitoMode };
 }
 
 /** Keep text the composer cannot take reachable through the input history. An incognito chat persists none. */
-function keepInInputHistory(origin: Origin, text: string): void {
+function keepInInputHistory(origin: SendOrigin, text: string): void {
   if (!origin.incognito) {
     addInputHistory(text, origin.agentId);
   }
@@ -67,7 +71,7 @@ function notifySendBlocked(
 }
 
 /** Give an undelivered request back to the composer, unless the user already started something else there. */
-function restoreComposer(origin: Origin, content: string, files: ChatFile[]): void {
+function restoreComposer(origin: SendOrigin, content: string, files: ChatFile[]): void {
   const live = useChatStore.getState();
   const text = stripUserMessageDisplayText(content);
   const composerFree =
@@ -93,7 +97,7 @@ function restoreComposer(origin: Origin, content: string, files: ChatFile[]): vo
  * like a normal send. A request the agent does not take (refused, busy, failed before the turn) returns to the
  * composer together with the files it carried.
  */
-async function resend(origin: Origin, content: string, attachments: ChatFile[] | undefined): Promise<void> {
+async function resend(origin: SendOrigin, content: string, attachments: ChatFile[] | undefined): Promise<void> {
   const live = useChatStore.getState();
   const sentFiles = attachments ?? live.files;
   try {
@@ -124,7 +128,7 @@ async function resend(origin: Origin, content: string, attachments: ChatFile[] |
 }
 
 export function retryFailedUserMessage(message: Message): Promise<void> {
-  const origin = readOrigin();
+  const origin = readSendOrigin();
   useChatStore.setState((state) => ({
     messages: state.messages.filter((m) => m.messageId !== message.messageId),
   }));
@@ -157,10 +161,25 @@ async function cutHistoryAt(chatId: string, messageId: string): Promise<boolean>
   }
 }
 
-/** Give up an edit that cannot go ahead: its text returns to the user instead of vanishing with the old bubble. */
-function abandonEdit(origin: Origin, content: string): void {
+/** Give up a send that cannot go ahead: its text returns to the user instead of vanishing. */
+function abandonSend(origin: SendOrigin, content: string): void {
   restoreComposer(origin, content, []);
   notifyNotSent();
+}
+
+/**
+ * Send the feedback of a rejected goal review as the next user message of the chat the review belongs to. The goal is
+ * active again by then (the agent reads only an active goal), and the review panel is gone, so a feedback the agent
+ * does not take returns to the composer like any other undelivered request. Files staged in the composer are the
+ * user's next message, so this one neither carries nor consumes them. A chat opened since the review began receives
+ * nothing: the text goes to the input history of the review's chat.
+ */
+export async function sendGoalReviewFeedback(origin: SendOrigin, feedback: string): Promise<void> {
+  if (useChatStore.getState().chatId !== origin.chatId) {
+    abandonSend(origin, feedback);
+    return;
+  }
+  await resend(origin, feedback, []);
 }
 
 /**
@@ -168,7 +187,7 @@ function abandonEdit(origin: Origin, content: string): void {
  * sees the old turns next to their replacement; an edit that cannot go ahead leaves the transcript as it was.
  */
 export async function resendEditedUserMessage(chatId: string, message: Message, newContent: string): Promise<void> {
-  const origin = readOrigin();
+  const origin = readSendOrigin();
   const activation = parseExplicitSkillActivation(message.content);
   const content = activation ? buildExplicitSkillWireMessage(activation, newContent) : newContent;
 
@@ -181,7 +200,7 @@ export async function resendEditedUserMessage(chatId: string, message: Message, 
   chatsWithEditInFlight.add(chatId);
   try {
     if (!(await cutHistoryAt(chatId, message.messageId))) {
-      abandonEdit(origin, content);
+      abandonSend(origin, content);
       return;
     }
 
@@ -191,7 +210,7 @@ export async function resendEditedUserMessage(chatId: string, message: Message, 
     const live = useChatStore.getState();
     const anchor = live.messages.findIndex((m) => m.messageId === message.messageId);
     if (live.chatId !== chatId || live.loading || anchor < 0) {
-      abandonEdit(origin, content);
+      abandonSend(origin, content);
       return;
     }
 

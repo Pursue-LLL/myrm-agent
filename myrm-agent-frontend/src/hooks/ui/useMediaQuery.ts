@@ -47,22 +47,7 @@ export function useIsMobile(): boolean {
   return useMediaQuery('(max-width: 768px)');
 }
 
-/** 是否为平板（宽度 <= 1024px） */
-export function useIsTablet(): boolean {
-  return useMediaQuery('(max-width: 1024px)');
-}
-
-/** 是否为桌面端（宽度 > 1024px） */
-export function useIsDesktop(): boolean {
-  return useMediaQuery('(min-width: 1025px)');
-}
-
 /** 是否偏好减少动画 */
 export function usePrefersReducedMotion(): boolean {
   return useMediaQuery('(prefers-reduced-motion: reduce)');
-}
-
-/** 是否偏好深色模式 */
-export function usePrefersDarkMode(): boolean {
-  return useMediaQuery('(prefers-color-scheme: dark)');
 }

@@ -100,7 +100,7 @@ async function syncClipAgentConfig() {
     if (!resp.ok) return;
     const data = await resp.json();
     applyClipAgentConfig(data.agent_id, data.web_ui_origin);
-  } catch (_) {
+  } catch {
     // Non-fatal: clip falls back to default vault when sync fails.
   }
 }
@@ -117,7 +117,7 @@ function connect() {
 
   try {
     ws = new WebSocket(url);
-  } catch (e) {
+  } catch {
     isConnecting = false;
     lastError = msg("errInvalidWebSocketUrl");
     updateBadge("error");
@@ -706,7 +706,8 @@ async function attachDebugger(tabId) {
 }
 
 async function detachUnauthorizedAttachedTabs() {
-  for (const tabId of [...attachedTabs.keys()]) {
+  // Snapshot: detaching awaits, and tabs attached meanwhile are not this pass's business.
+  for (const tabId of Array.from(attachedTabs.keys())) {
     try {
       const tab = await chrome.tabs.get(tabId);
       if (!isTabAuthorized(tab)) {

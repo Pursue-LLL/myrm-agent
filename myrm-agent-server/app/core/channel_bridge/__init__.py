@@ -72,15 +72,22 @@ async def handle_dead_letter(delivery: object, error_reason: str) -> None:
         get_event_bus().publish(event)
         logger.warning("DLQ: Message permanently failed on channel %s: %s", channel, error_reason)
 
-        # 2. Persist to database for offline retrieval
+        # 2. Persist to database for offline retrieval. The English title/message feed
+        # consumers without i18n (web push, adaptive cards); the catalog keys let the
+        # notification center render the same copy in the reader's locale.
         async def _persist_notification() -> None:
             try:
                 await SystemNotificationService.create_notification(
-                    title="消息发送失败",
-                    message=f"发送至 {channel} 的消息最终失败，已放弃重试。原因：{error_reason}",
+                    title="Message delivery failed",
+                    message=f"Delivery to {channel} failed permanently. Reason: {error_reason}",
                     type="error",
                     source="channel_gateway",
-                    meta_data={"delivery_id": delivery_id},
+                    meta_data={
+                        "delivery_id": delivery_id,
+                        "i18n_title_key": "chat.messageFailed.title",
+                        "i18n_message_key": "notifications.messageDeadLettered",
+                        "i18n_params": {"channel": channel, "reason": error_reason},
+                    },
                 )
             except Exception as e:
                 logger.error("Failed to persist DLQ notification: %s", e)

@@ -18,6 +18,7 @@ import CronDeployModeNotice from './CronDeployModeNotice';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ApiError } from '@/lib/api';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit } from '@/lib/cron/cronCreateAuditGate';
 
@@ -80,8 +81,10 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
         toast.error(t('auditPauseFail'));
       }
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : t('actionFail');
-      toast.error(message);
+      // `apiRequest` has already shown the notice for a held prompt; the filled values stay in the form.
+      if (!isRiskHeldError(err)) {
+        toast.error(err instanceof ApiError ? err.message : t('actionFail'));
+      }
     } finally {
       setSaving(false);
     }

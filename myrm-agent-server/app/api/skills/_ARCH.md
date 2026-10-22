@@ -15,7 +15,7 @@
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
-| `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
+| `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent、定时任务或看板任务绑定）与修复；运行与历史响应带 `skipped_pinned`/`skipped_protected`，界面据此解释"0 变化"的清理为何没动任何技能 | ✅ |
 | `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
 | `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖）；approve skill_draft 落盘后，同名已归档的技能一并恢复（由 `draft_materialize.py` 完成）；reject 只写账本负向事件并发布刷新事件，不写记忆（没有读取方）；批准后的落地写入在 `draft_materialize.py`，草稿记录视图在 `draft_record.py` | ✅ |
@@ -33,3 +33,4 @@
 | `schemas.py` | 模块 | Skills API request/response schemas；`redaction_responses` 把逐文件脱敏发现映射成审阅对话框的 diff 形状（技能预览与专家导出预览共用）；每条发现带 `kinds`（`SecretKind` 稳定码，由前端按用户语言渲染） | ✅ |
 | `solidify_router.py` | 路由 | 交付物一键固化与隔离真机预览路由：`POST /solidify`（4合1资产打包）、`POST /preview`、`GET /preview/{preview_id}`（Relaxed CSP + no-referrer 放行） | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
+| `test_fixtures.py` | 测试 | Local-only E2E 夹具路由（非本地模式返回 404）：`POST /test/ensure-prebuilt-catalog` 同步内置技能；`POST /test/seed-skill-manage-mutation-batch` 把内置技能 `systematic-debugging` 写成 v1、经真实 `RollbackService.insert_mutation_batch_snapshot` 记下 `skill_mutation` 批次快照、再写成 v2，返回 `batch_id` 与两个内容标记，供 Task Steps 撤销回滚 Chrome E2E 使用 | ✅ |

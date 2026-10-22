@@ -20,6 +20,7 @@ import {
 } from '@/services/background-tasks';
 import { cancelMediaTask } from '@/services/mediaTasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { useGlobalMediaTaskNotifications } from '@/hooks/tasks/useGlobalMediaTaskNotifications';
 import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
@@ -273,8 +274,11 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       toast.success(t('steerSuccess'));
       setSteerTaskId(null);
       setSteerInput('');
-    } catch {
-      toast.error(t('steerFailed'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held instruction; a second toast would repeat it.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('steerFailed'));
+      }
     }
   };
 

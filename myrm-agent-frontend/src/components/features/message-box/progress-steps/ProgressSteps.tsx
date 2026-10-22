@@ -57,11 +57,11 @@ import {
   AGENT_COLOR_CLASSES,
   type AgentThemeColor,
 } from './toolIcons';
-import { buildTree, TreeNode } from './treeUtils';
+import { buildTree, foldRoots, TreeNode } from './treeUtils';
 import { ArchiveRestoreStepAction } from './ArchiveRestoreStepAction';
 import { ArchiveRestoreResultChip } from './ArchiveRestoreResultChip';
 import { SkillManageBatchRollbackAction } from './SkillManageBatchRollbackAction';
-import { extractSkillManageBatchId } from './skillManageBatch';
+import { extractSkillManageBatchId, nodeHasSkillManageUndo } from './skillManageBatch';
 import { EXPAND_PROGRESS_STEPS_EVENT, type ExpandProgressStepsDetail } from '@/lib/chat/progressStepsUi';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
@@ -87,11 +87,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
       const targetId = custom.detail?.messageId?.trim();
       if (targetId && targetId === messageId) {
         setIsExpanded(true);
+        // The undo hint sends the user here for the undo control; unfold the stretch it may be folded into.
+        if (foldRoots(buildTree(steps))?.folded.some(nodeHasSkillManageUndo)) {
+          setShowAllIntermediateSteps(true);
+        }
       }
     };
     window.addEventListener(EXPAND_PROGRESS_STEPS_EVENT, handler);
     return () => window.removeEventListener(EXPAND_PROGRESS_STEPS_EVENT, handler);
-  }, [messageId]);
+  }, [messageId, steps]);
 
   useEffect(() => {
     if (scrollContainerRef.current && isExpanded && loading) {
@@ -768,12 +772,12 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             </div>
 
             {(() => {
-              const shouldFold = treeRoots.length > 8 && !showAllIntermediateSteps;
-              if (!shouldFold) {
+              const foldable = foldRoots(treeRoots);
+              if (!foldable || showAllIntermediateSteps) {
                 return (
                   <>
                     {treeRoots.map((root) => renderTreeNode(root, 0))}
-                    {treeRoots.length > 8 && showAllIntermediateSteps && (
+                    {foldable && showAllIntermediateSteps && (
                       <div className="relative mt-3 pl-8">
                         <button
                           type="button"
@@ -792,9 +796,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 );
               }
 
-              const headRoots = treeRoots.slice(0, 2);
-              const intermediateRoots = treeRoots.slice(2, treeRoots.length - 3);
-              const tailRoots = treeRoots.slice(treeRoots.length - 3);
+              const { head: headRoots, folded: intermediateRoots, tail: tailRoots } = foldable;
 
               return (
                 <>

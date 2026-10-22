@@ -4,6 +4,8 @@ Validates the full real chain for ``MemoryCommandCenterService._build_vector_per
 
 - A writable embedded Qdrant store reports ``"persistent"``.
 - An unwritable path that degrades to ``:memory:`` reports ``"memory_fallback"``.
+- An embeddings-less deployment keeps its BM25 sparse mirror, so the store still
+  reports ``"persistent"`` (only the embedding capability is missing).
 - A manager without a vector store reports ``"unavailable"``.
 
 The vector store is a *real* embedded Qdrant instance (no mock on the
@@ -88,6 +90,25 @@ async def test_unwritable_store_reports_memory_fallback(db_factory, tmp_path: Pa
         async with db_factory() as db:
             service = MemoryCommandCenterService(db, manager)
             assert service._build_vector_persistence() == "memory_fallback"
+    finally:
+        await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_sparse_only_store_reports_persistent(db_factory, tmp_path: Path) -> None:
+    """An embeddings-less deployment persists its sparse mirror: the store stays available."""
+    manager = await create_local_memory_manager(
+        base_path=str(tmp_path / "memory"),
+        embedding_config=None,
+    )
+    try:
+        assert manager.has_vector is False
+        assert manager.has_vector_store is True
+        assert manager.vector_is_persistent is True
+
+        async with db_factory() as db:
+            service = MemoryCommandCenterService(db, manager)
+            assert service._build_vector_persistence() == "persistent"
     finally:
         await manager.close()
 

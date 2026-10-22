@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/services/kanban::createTask (POS: 看板 API 层)
+ * - @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的文字已有统一提示，失败提示据此跳过)
  * - next-intl::useTranslations (POS: 国际化翻译)
  *
  * [OUTPUT]
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import type { TaskStatus } from '@/services/kanban';
 import { createTask } from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import type { KanbanAttachment } from './KanbanInlineAddForm';
 
 interface UseKanbanAddTaskOptions {
@@ -111,8 +113,11 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
       setAddingColumn(null);
       await onCreated();
       toast.success(t('taskAdded'));
-    } catch {
-      toast.error(t('addError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held title, description or criteria; the form keeps the text.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('addError'));
+      }
     }
   }, [
     boardId,

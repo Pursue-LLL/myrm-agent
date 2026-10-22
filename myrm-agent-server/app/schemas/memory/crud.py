@@ -167,19 +167,19 @@ class CreateMemoryRequest(BaseModel):
 
     memory_type: str = Field(..., description="Memory type: profile, semantic, episodic, procedural")
     content: str = Field(..., min_length=1, max_length=2000, description="Memory content")
-    importance: float = Field(0.5, ge=0.0, le=1.0, description="Importance score")
+    importance: float = Field(default=0.5, ge=0.0, le=1.0, description="Importance score")
     tags: list[str] = Field(default_factory=list, description="Tags (semantic/episodic only)")
 
-    key: str | None = Field(None, description="Attribute key (profile only)")
-    value: str | None = Field(None, description="Attribute value (profile only)")
-    trigger: str | None = Field(None, description="Trigger condition (procedural only)")
-    action: str | None = Field(None, description="Action to take (procedural only)")
+    key: str | None = Field(default=None, description="Attribute key (profile only)")
+    value: str | None = Field(default=None, description="Attribute value (profile only)")
+    trigger: str | None = Field(default=None, description="Trigger condition (procedural only)")
+    action: str | None = Field(default=None, description="Action to take (procedural only)")
     related_entities: list[str] = Field(
         default_factory=list,
         description="Related entities (episodic only, for graph indexing)",
     )
     is_exact_fact: bool | None = Field(
-        None,
+        default=None,
         description="Explicitly declare this memory as an exact fact with deterministic hard lock",
     )
 

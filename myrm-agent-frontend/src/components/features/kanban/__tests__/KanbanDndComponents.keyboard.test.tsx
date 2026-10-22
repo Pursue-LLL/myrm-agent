@@ -99,7 +99,7 @@ describe('DraggableTaskCard keyboard activation', () => {
     tracker = trackEnterPrevented();
     const user = userEvent.setup();
 
-    const card = document.querySelector<HTMLElement>('[aria-roledescription="draggable"]');
+    const card = document.querySelector<HTMLElement>('[aria-roledescription]');
     expectNonNull(card, 'draggable card');
     card.focus();
     await user.keyboard('{Enter}');

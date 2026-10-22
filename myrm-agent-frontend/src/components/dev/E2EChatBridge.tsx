@@ -71,7 +71,25 @@ function resolveE2eApiBase(): string {
   return resolveInjectedE2eApiBase() ?? '';
 }
 
-function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
+/**
+ * A chat id already present in the route (``/<chatId>``), so a bridge-bound page keeps the chat it opened.
+ * Only ids the app actually mints are adopted (a server UUID, or the local ``c-…`` form): a dev bridge mounted
+ * on a non-chat page (``/settings``) must still open a fresh chat, as it did before.
+ */
+function resolveChatIdFromLocation(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  if (segments.length !== 1) {
+    return undefined;
+  }
+  const [segment] = segments;
+  const isChatId =
+    segment.startsWith('c-') ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+  return isChatId ? segment : undefined;
+}function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
   const refreshed = useProviderStore.getState();
   if (!refreshed.isInitialized) {
     return false;
@@ -184,7 +202,9 @@ type E2eProviderConfigBody = {
  * 并行复用时 upsert 的 corrupt primary）不被前端感知。
  */
 async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {
-  const apiBase = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
+  // `getApiBaseUrl()` already ends in `/api/v1`; only the injected E2E base is a bare origin.
+  const rawBase = resolveE2eApiBase() || getApiBaseUrl();
+  const apiBase = rawBase.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
   const res = await fetch(`${apiBase}/api/v1/config/providers`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`e2e-provider-config-fetch-${res.status}`);
@@ -859,8 +879,11 @@ export default function E2EChatBridge() {
           prepareAutomationSend();
         }
         if (!useChatStore.getState().chatId?.trim()) {
+          // A page opened at /<chatId> is already bound to that chat by the route; minting a fresh local id here
+          // would make the turn land in a new chat and leave the seeded one empty. Adopt the route's id instead.
+          const routed = resolveChatIdFromLocation();
           flushSync(() => {
-            useChatStore.getState().initializeChat(undefined);
+            useChatStore.getState().initializeChat(routed);
           });
         }
       },
@@ -1211,6 +1234,13 @@ export default function E2EChatBridge() {
         }
         return sseEvents.filter((entry) => entry.messageId === filterId).map((entry) => entry.type);
       },
+      // Event types alone cannot tell a web_search call from a web_fetch call; signoffs that need to know
+      // which tool actually ran read the captured payloads instead.
+      ssePayloadSnapshot: (messageId?: string | null) => {
+        const filterId = typeof messageId === 'string' ? messageId.trim() : '';
+        const scoped = filterId ? sseEvents.filter((entry) => entry.messageId === filterId) : sseEvents;
+        return scoped.map((entry) => ({ type: entry.type, data: entry.data }));
+      },
       clearSseSnapshot: () => {
         sseEvents.length = 0;
         sseCaptureMessageId = null;
@@ -1285,7 +1315,12 @@ export default function E2EChatBridge() {
           return { ok: false, err: 'no-goal' };
         }
         const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-        useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal as unknown as GoalStatusPayload));
+        const goalState = normalizeGoalState(data.goal as unknown as GoalStatusPayload);
+        useGoalStore.getState().setActiveGoal(chatId, goalState);
+        // The store takes only the goal of the chat it is bound to; report a write it dropped instead of success.
+        if (useGoalStore.getState().activeGoal?.goalId !== goalState.goalId) {
+          return { ok: false, err: 'goal-store-not-bound-to-chat' };
+        }
         return {
           ok: true,
           status: String(data.goal.status ?? ''),

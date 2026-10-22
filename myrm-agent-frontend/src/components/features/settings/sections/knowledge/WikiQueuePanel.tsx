@@ -52,6 +52,12 @@ function errorKindLabel(
     io_missing: t('errorKind.io_missing'),
     cancelled: t('errorKind.cancelled'),
     embed_window_violation: t('errorKind.embed_window_violation'),
+    context_overflow: t('errorKind.context_overflow'),
+    safety_block: t('errorKind.safety_block'),
+    format_error: t('errorKind.format_error'),
+    response_format_error: t('errorKind.response_format_error'),
+    model_not_found: t('errorKind.model_not_found'),
+    challenge_blocked: t('errorKind.challenge_blocked'),
   };
   return labels[kind] ?? t('errorKindUnknown');
 }

@@ -40,10 +40,12 @@ export {
 export { default as useArtifactPortalStore } from '@/store/useArtifactPortalStore';
 export { default as useToolApprovalStore } from '@/store/useToolApprovalStore';
 export { default as useToolsSnapshotStore } from '@/store/useToolsSnapshotStore';
-export { default as useChatStore } from '@/store/useChatStore';
+export { useChatStore };
 export { default as useConfigStore } from '@/store/useConfigStore';
 export { playCompletionSound } from '@/lib/utils/completionSound';
 export { dispatchPetSurfaceAwayCompletion } from '@/components/features/companion/sprite/petSurfaceAwayCompletion';
+import useChatStore from '@/store/useChatStore';
+import type { SubagentStore } from '@/store/chat/useSubagentStore';
 import type { StreamHandlerState } from '../types';
 export type { ProgressFileItem } from '../types';
 export {
@@ -53,7 +55,7 @@ export {
   mergeMessageSources,
   normalizeClarificationForm,
   normalizeGoalState,
-  normalizeSubagentStatus,
+  resolveClarifyIsResumeMode,
 } from '../streamHelpers';
 export { parseProgressFilePath, pathsMatchForFileDiff, pickMergedFileDiffPayload } from '../fileDiffMerge';
 export { sanitizeStreamText } from '../textSanitize';
@@ -82,4 +84,27 @@ export function releaseInspectorControls(chatId: string): void {
  */
 export function resolveStreamChatId(state: StreamHandlerState): string {
   return state.chatId?.trim() || state.messages[0]?.chatId?.trim() || '';
+}
+
+/**
+ * Whether the stream belongs to the chat the user has open. Several chats can stream at once, but the single-slot
+ * stores (subagent tree, fission strip) describe only the open chat; a stream that cannot name its chat, or a store
+ * that holds no chat id yet, is never "the open chat".
+ */
+export function isStreamForOpenChat(state: StreamHandlerState): boolean {
+  const streamChatId = resolveStreamChatId(state);
+  return streamChatId !== '' && streamChatId === (useChatStore.getState().chatId?.trim() ?? '');
+}
+
+/**
+ * Applies a write to the subagent store while the stream's chat is still the open one. The store loads lazily, so the
+ * check runs once the chunk has arrived: a chat switch that happened while it loaded drops the write instead of
+ * landing it in the next chat's tree.
+ */
+export function writeSubagentStore(state: StreamHandlerState, write: (store: SubagentStore) => void): void {
+  void import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+    if (isStreamForOpenChat(state)) {
+      write(useSubagentStore.getState());
+    }
+  });
 }

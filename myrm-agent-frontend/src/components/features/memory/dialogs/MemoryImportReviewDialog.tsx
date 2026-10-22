@@ -3,16 +3,17 @@
 /**
  * [INPUT]
  * @/services/memory/archive::MemoryImportDryRunResult (POS: Frontend Memory Archive and import API client)
+ * @/lib/memory/importWarnings::resolveImportWarning (POS: 记忆导入告警文案解析)
  *
  * [OUTPUT]
  * MemoryImportReviewDialog: server-bound import dry-run review and confirm surface.
  *
  * [POS]
- * 记忆导入审查弹窗。只展示服务端 dry-run 结果并触发确认，不直接写入记忆。
+ * 记忆导入审查弹窗。展示服务端 dry-run 的映射表、有界解析样例与告警文案并触发确认，不直接写入记忆。
  */
 
 import { memo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import {
   Dialog,
@@ -22,12 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
-import type { MemoryImportDryRunResult } from '@/services/memory/archive';
+import { MEMORY_IMPORT_SOURCE_IDS, type MemoryImportDryRunResult } from '@/services/memory/archive';
+import { resolveImportWarning } from '@/lib/memory/importWarnings';
 
 interface MemoryImportReviewDialogProps {
   open: boolean;
   dryRun: MemoryImportDryRunResult | null;
-  payloadHash: string | null;
   expiresAt: string | null;
   importing: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,42 +42,71 @@ const statusClass: Record<MemoryImportDryRunResult['summary']['status'], string>
   missing: 'border-muted-foreground/20 bg-muted text-muted-foreground',
 };
 
-const WARNING_KEYS = [
-  'no_native_buckets',
-  'myrm_archive_memory_section_missing',
-  'myrm_archive_non_memory_sections_review_only',
-  'agentmemory_version_unsupported',
-  'agentmemory_too_many_sessions',
-  'agentmemory_too_many_memories',
-  'agentmemory_too_many_summaries',
-  'agentmemory_too_many_observations',
-  'agentmemory_graph_skipped',
-  'agentmemory_access_logs_skipped',
-  'claude_code_too_many_lines',
-  'claude_code_too_many_entries',
-  'claude_code_no_conversation_entries',
-  'claude_code_no_lines',
-  'hermes_no_files',
-  'hermes_api_keys_detected',
-  'hermes_skills_detected',
-  'openclaw_no_sessions',
-  'openclaw_no_memories',
-  'openclaw_skills_detected',
-  'cursor_no_rules',
-  'cursor_empty_payload',
-  'codex_no_instructions',
-  'codex_empty_payload',
-  'unsupported_source',
+const SOURCE_KEYS: readonly string[] = [...MEMORY_IMPORT_SOURCE_IDS, 'unknown'];
+
+const isSourceKey = (value: string): boolean => SOURCE_KEYS.includes(value);
+
+const TYPED_BUCKETS = [
+  'profile',
+  'semantic',
+  'episodic',
+  'procedural',
+  'conversation',
+  'claim',
+  'task_digest',
 ] as const;
 
-type WarningKey = (typeof WARNING_KEYS)[number];
+type TypedBucket = (typeof TYPED_BUCKETS)[number];
 
-const isWarningKey = (value: string): value is WarningKey => WARNING_KEYS.includes(value as WarningKey);
+const isTypedBucket = (value: string): value is TypedBucket => TYPED_BUCKETS.includes(value as TypedBucket);
+
+interface PreviewEntry {
+  content: string;
+  createdAt: string;
+}
+
+interface PreviewBucket {
+  bucket: string;
+  entries: PreviewEntry[];
+}
+
+const previewEntry = (raw: Record<string, unknown>): PreviewEntry | null => {
+  const content = typeof raw.content === 'string' ? raw.content.trim() : '';
+  return content ? { content, createdAt: typeof raw.created_at === 'string' ? raw.created_at : '' } : null;
+};
+
+// Timestamps are stored as UTC instants (or date-only values at UTC midnight); format in
+// UTC so a date-only entry never shifts to the previous day in negative-offset locales.
+const formatTimestamp = (value: string, locale: string): string => {
+  if (!value) {
+    return '';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(parsed);
+};
+
+const collectPreviewBuckets = (data: MemoryImportDryRunResult['normalized_data']): PreviewBucket[] =>
+  Object.entries(data ?? {}).flatMap(([bucket, entries]) => {
+    const parsed = (Array.isArray(entries) ? entries : []).flatMap((entry) =>
+      entry && typeof entry === 'object' ? (previewEntry(entry) ?? []) : [],
+    );
+    return parsed.length ? [{ bucket, entries: parsed }] : [];
+  });
 
 export const MemoryImportReviewDialog = memo<MemoryImportReviewDialogProps>(
-  ({ open, dryRun, payloadHash, expiresAt, importing, onOpenChange, onConfirm }) => {
+  ({ open, dryRun, expiresAt, importing, onOpenChange, onConfirm }) => {
     const t = useTranslations('memory.importReview');
+    const locale = useLocale();
+    const tType = useTranslations('memory.types');
+    const tWarning = useTranslations('memory.importWarnings');
+    const tMemory = useTranslations('memory');
     const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleString() : t('notAvailable');
+    const previewBuckets = dryRun ? collectPreviewBuckets(dryRun.normalized_data) : [];
+    const previewCount = previewBuckets.reduce((total, group) => total + group.entries.length, 0);
+    const sourceKey = dryRun && isSourceKey(dryRun.summary.source) ? dryRun.summary.source : 'unknown';
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,15 +120,11 @@ export const MemoryImportReviewDialog = memo<MemoryImportReviewDialogProps>(
             {dryRun && (
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <SummaryTile label={t('source')} value={t(`sources.${dryRun.summary.source}`)} />
+                  <SummaryTile label={t('source')} value={t(`sources.${sourceKey}`)} />
                   <SummaryTile label={t('total')} value={dryRun.summary.total_items.toLocaleString()} />
                   <SummaryTile label={t('mapped')} value={dryRun.summary.mapped_items.toLocaleString()} />
                   <SummaryTile label={t('unmapped')} value={dryRun.summary.unmapped_items.toLocaleString()} />
                   <SummaryTile label={t('expiresAt')} value={expiresLabel} />
-                  <SummaryTile
-                    label={t('reviewHash')}
-                    value={payloadHash ? payloadHash.slice(0, 12) : t('notAvailable')}
-                  />
                 </div>
 
                 <div className={`rounded-lg border px-3 py-2 text-sm ${statusClass[dryRun.summary.status]}`}>
@@ -157,12 +183,57 @@ export const MemoryImportReviewDialog = memo<MemoryImportReviewDialogProps>(
                   ))}
                 </div>
 
+                {previewBuckets.length > 0 && (
+                  <div className="overflow-hidden rounded-lg border border-border">
+                    <div className="border-b border-border bg-muted/40 px-3 py-2">
+                      <p className="text-xs font-medium text-foreground">
+                        {t('previewTitle', { count: previewCount })}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {dryRun.summary.mapped_items > previewCount
+                          ? t('previewTruncated', { shown: previewCount, total: dryRun.summary.mapped_items })
+                          : t('previewHint')}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{tMemory('importDedupeHint')}</p>
+                    </div>
+                    <div className="max-h-64 space-y-3 overflow-y-auto px-3 py-3">
+                      {previewBuckets.map(({ bucket, entries }) => (
+                        <div key={bucket} className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-foreground">
+                              {isTypedBucket(bucket) ? tType(bucket) : bucket}
+                            </span>
+                            <span className="text-[11px] tabular-nums text-muted-foreground">{entries.length}</span>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {entries.map((entry, index) => (
+                              <li
+                                key={`${bucket}:${index}`}
+                                className="rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5"
+                              >
+                                <p className="whitespace-pre-wrap break-words text-xs leading-5 text-foreground/90">
+                                  {entry.content}
+                                </p>
+                                {formatTimestamp(entry.createdAt, locale) && (
+                                  <p className="mt-1 text-[11px] text-muted-foreground">
+                                    {formatTimestamp(entry.createdAt, locale)}
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {dryRun.warnings.length > 0 && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                     <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{t('warnings')}</p>
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                       {dryRun.warnings.map((warning) => (
-                        <li key={warning}>{isWarningKey(warning) ? t(`warningMessages.${warning}`) : warning}</li>
+                        <li key={warning}>{resolveImportWarning(warning, tWarning)}</li>
                       ))}
                     </ul>
                   </div>

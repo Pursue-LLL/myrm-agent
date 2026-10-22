@@ -4,7 +4,7 @@
   --bg-tertiary: #0f3460;
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0b0;
-  --text-muted: #666;
+  --text-muted: #8a8aa3;
   --accent: #6366f1;
   --accent-hover: #818cf8;
   --accent-dim: rgba(99, 102, 241, 0.15);
@@ -12,6 +12,9 @@
   --success: #4CAF50;
   --warning: #F59E0B;
   --error: #ef4444;
+  --error-text: #f87171;
+  --approve-bg: #15803d;
+  --reject-bg: #b91c1c;
   --user-bubble: #6366f1;
   --assistant-bubble: #1e1e3e;
   --tool-bg: rgba(99, 102, 241, 0.08);
@@ -20,6 +23,7 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -116,6 +120,7 @@ body {
 .message-bubble { padding: 8px 12px; border-radius: var(--radius); word-break: break-word; white-space: pre-wrap; }
 .message.user .message-bubble { background: var(--user-bubble); color: #fff; border-bottom-right-radius: 3px; }
 .message.assistant .message-bubble { background: var(--assistant-bubble); border-bottom-left-radius: 3px; }
+.message-bubble.error { color: var(--error-text); }
 
 /* --- Tool Progress --- */
 
@@ -129,22 +134,56 @@ body {
 .tool-step.done .icon { color: var(--success); }
 .tool-step.error .icon { color: var(--error); }
 .tool-step .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turn-notice { font-size: 11px; color: var(--text-secondary); padding: 4px 2px; }
 
 /* --- Approval Dialog --- */
 
+/* The card grows with its content up to the room the panel has; only the list scrolls, so the answer buttons stay in view. */
 .approval-overlay {
-  display: none; position: fixed; bottom: 60px; left: 10px; right: 10px;
+  --gap: 10px; --input-clearance: 70px;
+  display: none; flex-direction: column; position: fixed; bottom: var(--input-clearance); left: var(--gap); right: var(--gap);
+  max-height: calc(100vh - var(--input-clearance) - var(--gap));
   background: var(--bg-secondary); border: 1px solid var(--warning);
   border-radius: var(--radius); padding: 12px; z-index: 100;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
-.approval-overlay.visible { display: block; }
-.approval-title { font-size: 13px; font-weight: 600; color: var(--warning); margin-bottom: 6px; }
-.approval-detail { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; max-height: 100px; overflow-y: auto; word-break: break-word; }
+.approval-overlay.visible { display: flex; }
+.approval-overlay > :not(.approval-list) { flex-shrink: 0; }
+.approval-title { font-size: 13px; font-weight: 600; color: var(--warning); margin-bottom: 6px; overflow-wrap: anywhere; }
+.approval-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; min-height: 0; overflow-y: auto; }
+
+/* An edge of the list fades only while there is more beyond it: the top once scrolled down, the bottom until the end. */
+@supports (animation-timeline: scroll()) {
+  @property --fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+  @property --fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+  @keyframes approval-list-edges {
+    0% { --fade-start: 0px; --fade-end: 24px; }
+    10% { --fade-start: 24px; }
+    90% { --fade-end: 24px; }
+    100% { --fade-start: 24px; --fade-end: 0px; }
+  }
+  /* The timeline is the list's own scroll progress, so a list with nothing beyond its edge has an inactive timeline and
+     no fade at all; a scrollable one runs 0 → 100% and every edge state falls out of the keyframes. */
+  .approval-list {
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+    animation: approval-list-edges linear both;
+    animation-timeline: scroll(self);
+  }
+}
+.approval-action { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.approval-summary { font-size: 12px; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
+.approval-body {
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text-primary);
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.approval-reason { font-size: 11px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.approval-hint, .approval-deadline { font-size: 11px; color: var(--text-secondary); margin-bottom: 10px; }
 .approval-actions { display: flex; gap: 8px; }
 .approval-actions button { flex: 1; padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; }
-.btn-approve { background: var(--success); color: #fff; }
-.btn-reject { background: var(--error); color: #fff; }
+.approval-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-approve { background: var(--approve-bg); color: #fff; }
+.btn-reject { background: var(--reject-bg); color: #fff; }
 
 /* --- Empty State --- */
 
@@ -195,6 +234,7 @@ body {
   transition: border-color 0.2s;
 }
 #chat-input:focus { border-color: var(--accent); }
+#chat-input:disabled { border-style: dashed; cursor: not-allowed; }
 #chat-input::placeholder { color: var(--text-muted); }
 
 .send-btn {
@@ -230,4 +270,13 @@ body {
 @keyframes dotBounce {
   0%, 80%, 100% { opacity: 0.3; }
   40% { opacity: 1; }
+}
+
+/* 系统偏好减少动态效果时把动画与过渡收到瞬时：面板是独立文档，宿主样式表的守卫到不了这里。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

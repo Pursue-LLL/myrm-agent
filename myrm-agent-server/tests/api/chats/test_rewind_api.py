@@ -10,7 +10,7 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.services.chat.session_continuity_service import ContinuitySyncError
+from app.services.chat.session_continuity_service import CheckpointClearError
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
@@ -94,7 +94,7 @@ async def test_rewind_user_message_returns_composer_text(
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -125,7 +125,7 @@ async def test_rewind_rejects_assistant_message(async_client: httpx.AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_truncate_after_calls_checkpoint_sync(
+async def test_truncate_after_invalidates_checkpoint(
     async_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -139,7 +139,7 @@ async def test_truncate_after_calls_checkpoint_sync(
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -152,7 +152,7 @@ async def test_truncate_after_calls_checkpoint_sync(
 
 
 @pytest.mark.asyncio
-async def test_truncate_after_propagates_checkpoint_sync_error(
+async def test_truncate_after_propagates_checkpoint_clear_error(
     async_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -161,10 +161,10 @@ async def test_truncate_after_propagates_checkpoint_sync_error(
     ids = await _insert_messages(chat_id)
 
     async def _raise_sync(_chat_id: str) -> int:
-        raise ContinuitySyncError("Synced 0/2 checkpoint threads for chat test-chat")
+        raise CheckpointClearError("Deleted 0/2 checkpoint threads for chat test-chat")
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._sync_checkpoint_after_mutation",
+        "app.services.chat.chat_turn._ChatTurnMixin._invalidate_checkpoint_after_mutation",
         _raise_sync,
     )
 
@@ -215,7 +215,7 @@ async def test_rewind_both_scope_reverts_files(
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -271,7 +271,7 @@ async def test_rewind_conversation_scope_skips_file_revert(
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -546,7 +546,7 @@ async def test_rewind_both_scope_snapshots_before_file_revert(
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -601,7 +601,7 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
         return 2
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
         _fake_sync,
     )
 
@@ -769,7 +769,7 @@ async def test_rewind_continuity_sync_error_returns_500(
     await _create_chat(chat_id)
 
     async def _fake_raise(*args: object, **kwargs: object) -> None:
-        raise ContinuitySyncError("Checkpoint thread sync failed")
+        raise CheckpointClearError("Checkpoint thread clear failed")
 
     monkeypatch.setattr(
         "app.services.chat.chat_service.ChatService.rewind_to_message",

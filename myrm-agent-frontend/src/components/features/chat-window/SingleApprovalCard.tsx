@@ -52,6 +52,7 @@ import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import PtcHintBadges from '@/components/approval/PtcHintBadges';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
+import { usePermissionAutoApprove } from './thinking-permission';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -212,10 +213,6 @@ export default function SingleApprovalCard({
   }, [request.requestId, request.toolName]);
 
   useEffect(() => {
-    if (mode === 'editing' || mode === 'rejecting') {
-      return;
-    }
-
     const update = () => {
       const remaining = Math.max(0, Math.floor((request.expiresAt * 1000 - Date.now()) / 1000));
       setRemainingSeconds(remaining);
@@ -223,7 +220,7 @@ export default function SingleApprovalCard({
     update();
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, [request.expiresAt, mode]);
+  }, [request.expiresAt]);
 
   const isExpired = remainingSeconds <= 0;
   const isUrgent = remainingSeconds > 0 && remainingSeconds <= 10;
@@ -255,6 +252,13 @@ export default function SingleApprovalCard({
       }),
     [request.requestId, onResolve, guidanceExtra, directoryGrantExtra],
   );
+
+  const { isHighRiskIntercepted, isAutoApproved } = usePermissionAutoApprove({
+    toolName: request.toolName,
+    toolInput: request.toolInput,
+    onApprove: handleApprove,
+    enabled: mode === 'default' && !isLoading && !isExpired,
+  });
 
   const handleAlwaysAllow = useCallback(() => {
     setShowAlwaysAllowConfirm(true);
@@ -373,6 +377,7 @@ export default function SingleApprovalCard({
           setEditValidationErrors([]);
         }}
         isLoading={isLoading}
+        isExpired={isExpired}
         hideAllowAlways={request.hideAllowAlways}
       />
     );
@@ -386,6 +391,7 @@ export default function SingleApprovalCard({
         onConfirm={handleConfirmReject}
         onCancel={() => setMode('default')}
         isLoading={isLoading}
+        isExpired={isExpired}
       />
     );
   }
@@ -444,6 +450,21 @@ export default function SingleApprovalCard({
                     {request.reviewerReason}
                   </p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {isHighRiskIntercepted && (
+            <div
+              data-testid="high-risk-intercepted-banner"
+              className="flex items-center gap-2 rounded-md border border-rose-500/50 bg-rose-500/10 px-3 py-2.5 mb-2"
+            >
+              <ShieldAlert className="h-4 w-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">半自动模式高危操作拦截</p>
+                <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 break-words">
+                  检测到包含高危 Shell/系统修改操作，已自动阻断，必须经人工显式审批确认。
+                </p>
               </div>
             </div>
           )}
@@ -577,9 +598,9 @@ export default function SingleApprovalCard({
           </>
         ) : (
           <>
-            <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired}>
+            <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired || isAutoApproved}>
               <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              {isSaveSkill ? t('saveSkill.approve') : t('approve')}
+              {isAutoApproved ? '半自动放行中...' : isSaveSkill ? t('saveSkill.approve') : t('approve')}
             </Button>
             {!isSaveSkill && (
               <Button

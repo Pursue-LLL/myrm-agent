@@ -12,7 +12,8 @@ import { API_BASE_URL } from '@/lib/api';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
 import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
-import { ApprovalExpiredError } from '@/lib/approval/resumeApprovalStream';
+import { isRiskHeldError } from '@/services/riskHeldToast';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import { classifyBatchApprovalRisk, type BatchRiskReport } from '@/lib/approval/batchRisk';
 
 export function ApprovalDrawer() {
@@ -39,7 +40,9 @@ export function ApprovalDrawer() {
           action,
           {
             ...extra,
-            feedback: extra?.feedback ?? comment,
+            // A note on an approval rides `guidance`; `feedback` is read only as a rejection reason,
+            // so sending an approval note there would reach nobody.
+            ...(action === 'reject' ? { feedback: extra?.feedback ?? comment } : { guidance: extra?.guidance }),
           },
           tToolApproval('resumeError'),
         );
@@ -68,10 +71,11 @@ export function ApprovalDrawer() {
       closeApproval(approvalId);
     } catch (error) {
       console.error('Error resolving approval:', error);
-      if (error instanceof ApprovalExpiredError) {
-        toast.warning(tToolApproval('approvalExpired'));
+      if (error instanceof ApprovalAlreadyResolvedError) {
+        toast.warning(tToolApproval('approvalAlreadyHandled'));
         closeApproval(approvalId);
-      } else {
+      } else if (!isRiskHeldError(error)) {
+        // A reason a risk rule holds has its notice already; the approval stays open with the reason in its card.
         toast.error(tToolApproval('resolveError'));
       }
     } finally {
@@ -143,8 +147,8 @@ export function ApprovalDrawer() {
       setPendingRiskReport(null);
     } catch (error) {
       console.error('Error batch resolving approvals:', error);
-      if (error instanceof ApprovalExpiredError) {
-        toast.warning(tToolApproval('approvalExpired'));
+      if (error instanceof ApprovalAlreadyResolvedError) {
+        toast.warning(tToolApproval('approvalAlreadyHandled'));
         const approvalIds = queue.map((a) => a.approval_id);
         closeApprovals(approvalIds);
       } else {

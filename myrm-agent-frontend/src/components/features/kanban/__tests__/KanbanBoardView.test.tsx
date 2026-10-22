@@ -20,8 +20,11 @@ import KanbanBoardView from '../KanbanBoardView';
 vi.mock('next-intl', async () => {
   const actual = await vi.importActual<typeof import('next-intl')>('next-intl');
   const { default: messages } = await import('../../../../../locales/en.json');
-  const translate = actual.createTranslator({ locale: 'en', messages, namespace: 'kanban' });
-  return { useTranslations: () => translate, useLocale: () => 'en' };
+  // The board reads `kanban`, and its drag-and-drop hook reads `common.dnd`; each namespace keeps one stable
+  // translator so memoized consumers do not rebuild on every render.
+  const board = actual.createTranslator({ locale: 'en', messages, namespace: 'kanban' });
+  const dnd = actual.createTranslator({ locale: 'en', messages, namespace: 'common.dnd' });
+  return { useTranslations: (namespace?: string) => (namespace === 'common.dnd' ? dnd : board), useLocale: () => 'en' };
 });
 
 vi.mock('next/navigation', () => ({
@@ -280,5 +283,21 @@ describe('KanbanBoardView bulk selection', () => {
     window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: { board_id: 'board-1' } }));
 
     await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
+  });
+
+  it('a selected task that the responsibility filter hides leaves the selection', async () => {
+    const charlie = makeTask('t-charlie', 'Charlie broken', 'failed');
+    vi.mocked(listTasks).mockResolvedValue({ items: [ALPHA, charlie], total: 2 });
+    const user = userEvent.setup();
+    render(<KanbanBoardView board={BOARD} onBack={vi.fn()} />);
+    await screen.findByText('Alpha ready');
+    ctrlClick('Alpha ready');
+    ctrlClick('Charlie broken');
+    expect(bar()).toHaveTextContent('2 selected');
+
+    await user.click(screen.getByRole('button', { name: 'Needs Action' }));
+
+    await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
+    expect(screen.queryByText('Alpha ready')).toBeNull();
   });
 });

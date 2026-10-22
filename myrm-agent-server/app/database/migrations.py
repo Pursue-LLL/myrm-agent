@@ -661,6 +661,24 @@ MIGRATION_STATEMENTS: list[str] = [
     # A hit log holds a position or the timeout marker, never the matched text (a key, a number, an address).
     """UPDATE risk_hits SET match_summary = ''
     WHERE match_summary != '' AND match_summary != '(matching timed out)' AND match_summary NOT LIKE 'chars:%'""",
+    # Capability token ``code_interpreter_tool`` -> ``code_interpreter``, the permission type the security engine
+    # matches; the old token matched no permission, so a job or profile that declared it never got the capability.
+    """UPDATE cron_jobs SET required_capabilities = REPLACE(required_capabilities, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE required_capabilities LIKE '%"code_interpreter_tool"%'""",
+    """UPDATE agents SET security_overrides = REPLACE(security_overrides, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE security_overrides LIKE '%"code_interpreter_tool"%'""",
+    """UPDATE security_profiles SET config_json = REPLACE(config_json, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE config_json LIKE '%"code_interpreter_tool"%'""",
+    # The reason, kind and wake-up time of a block exist only while the task is blocked: clear them from a task that
+    # sits in another column, where they would show a reason and a countdown for a block it no longer has.
+    """UPDATE kanban_tasks SET blocked_reason = NULL, block_kind = NULL, scheduled_until = NULL
+    WHERE status != 'blocked' AND (blocked_reason IS NOT NULL OR block_kind IS NOT NULL OR scheduled_until IS NOT NULL)""",
+    # The runtime-meter ledgers (search quota, browser runtime, sandbox workload) have no model, route or page:
+    # no production path ever wrote them.
+    "DROP TABLE IF EXISTS search_quota_records",
+    "DROP TABLE IF EXISTS browser_runtime_records",
+    "DROP TABLE IF EXISTS sandbox_workload_records",
+    "ALTER TABLE chats ADD COLUMN history_sync_token VARCHAR(64)",
 ]
 
 # 创建索引的SQL语句列表
@@ -1067,6 +1085,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE agents ADD COLUMN a2a_enabled BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE agents ADD COLUMN a2a_trusted_peer_ids JSON",
     "ALTER TABLE agents ADD COLUMN trusted_desktop_apps JSON",
+    "CREATE INDEX IF NOT EXISTS idx_cron_jobs_project_id ON cron_jobs(project_id)",
 ]
 
 

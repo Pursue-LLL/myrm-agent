@@ -12,6 +12,9 @@ export interface HealthReport {
   meta_data?: Record<string, unknown> | null;
   detail?: string | null;
   fix_suggestion?: string | null;
+  measured?: string | null;
+  expected?: string | null;
+  cause?: string | null;
 }
 
 export interface RepairAction {

@@ -4,6 +4,7 @@
 app.database.models.chat::Message (POS: 会话消息 ORM 实体)
 app.schemas.memory.command_center::MemoryCommandInfluenceItem (POS: 记忆影响力与引用状态契约)
 myrm_agent_harness.toolkits.memory.observability::MemoryPhaseLatency (POS: Harness 业务中立的三阶段开销指标模型)
+app.services.memory.command_center.command_center_projection_utils::read_memory_telemetry (POS: per-turn 记忆遥测解析)
 
 [OUTPUT]
 MemoryCommandEconomicsDashboard: Long-horizon memory cost, Omri 2026 three-phase latency,
@@ -18,10 +19,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Mapping, Sequence
+from typing import Collection, Mapping, Sequence
 
 from myrm_agent_harness.toolkits.memory import MemoryRecallRoiGrade
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.chat import Message
@@ -32,6 +33,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandParasiticMemory,
     MemoryCommandTurnEconomics,
 )
+from app.services.memory.command_center.command_center_projection_utils import read_memory_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +78,7 @@ class MemoryEconomicsService:
         *,
         influence: Sequence[MemoryCommandInfluenceItem],
         session_id: str | None = None,
-        pinned_memory_ids: Sequence[str] | None = None,
+        pinned_memory_ids: Collection[str] | None = None,
         archived_memory_ids: Sequence[str] | set[str] | None = None,
         memory_previews: Mapping[str, tuple[str, str]] | None = None,
         limit_turns: int = 50,
@@ -86,7 +88,7 @@ class MemoryEconomicsService:
         if session_id:
             query = query.where(Message.chat_id == session_id)
 
-        query = query.order_by(desc(Message.created_at)).limit(limit_turns)
+        query = query.order_by(Message.created_at.desc()).limit(limit_turns)
 
         result = await self._db.execute(query)
         messages = list(reversed(result.scalars().all()))
@@ -131,12 +133,12 @@ class MemoryEconomicsService:
             total_completion_tokens += comp_tok
 
             # Memory references and telemetry from extra_data
-            mem_meta = self._extract_memory_metadata(extra)
-            injected_tok = mem_meta.get("injected_memory_tokens", 0)
-            retrieval_ms = mem_meta.get("retrieval_ms", 12.0)
-            construction_ms = mem_meta.get("construction_ms", 0.0)
-            injection_ms = float(mem_meta.get("injection_overhead_ms") or 1.5)
-            cache_aligned = mem_meta.get("cache_aligned", True)
+            telemetry = read_memory_telemetry(extra)
+            injected_tok = telemetry.injected_tokens
+            retrieval_ms = telemetry.retrieval_ms
+            construction_ms = telemetry.construction_ms
+            injection_ms = telemetry.injection_ms
+            cache_aligned = telemetry.cache_aligned
 
             total_retrieval_ms += retrieval_ms
             total_construction_ms += construction_ms
@@ -152,9 +154,7 @@ class MemoryEconomicsService:
                 turn_cited_tokens += estimate_memory_tokens_safe(preview)
 
             # Injected memory tracking, pinned memory detection & archived memory extraction
-            injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(
-                extra, preview_map=preview_map, type_map=type_map
-            )
+            injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(extra, preview_map=preview_map, type_map=type_map)
             all_pinned_ids.update(turn_pinned_ids)
             all_archived_ids.update(self._extract_archived_ids(extra))
             for m_id in injected_ids:
@@ -164,9 +164,7 @@ class MemoryEconomicsService:
             total_cited_tokens += turn_cited_tokens
             total_cited_refs += len(cited_refs)
 
-            turn_roi = (
-                (turn_cited_tokens / max(injected_tok, 1)) * 100.0 if injected_tok > 0 else 100.0
-            )
+            turn_roi = (turn_cited_tokens / max(injected_tok, 1)) * 100.0 if injected_tok > 0 else 100.0
             turn_trajectories.append(
                 MemoryCommandTurnEconomics(
                     turn_index=turn_idx + 1,
@@ -194,11 +192,7 @@ class MemoryEconomicsService:
         # Compute overall ROI and cache preservation score
         denominator = max(total_injected_memory_tokens, 1)
         roi_pct = round((total_cited_tokens / denominator) * 100.0, 1)
-        cache_score = (
-            round(total_cached_tokens / max(total_prompt_tokens, 1), 2)
-            if total_prompt_tokens > 0
-            else 0.0
-        )
+        cache_score = round(total_cached_tokens / max(total_prompt_tokens, 1), 2) if total_prompt_tokens > 0 else 0.0
         roi_grade = classify_roi_grade(roi_pct)
 
         # Identify parasitic memories (injected >= 3 times but cited 0 times)
@@ -294,18 +288,9 @@ class MemoryEconomicsService:
             return 0, 0, 0
         prompt = int(usage.get("prompt_tokens") or 0)
         cached = int(
-            usage.get("cached_tokens")
-            or usage.get("prompt_cache_hit_tokens")
-            or usage.get("cache_read_input_tokens")
-            or 0
+            usage.get("cached_tokens") or usage.get("prompt_cache_hit_tokens") or usage.get("cache_read_input_tokens") or 0
         )
         return prompt, cached, int(usage.get("completion_tokens") or 0)
-
-    @staticmethod
-    def _extract_memory_metadata(extra_data: Mapping[str, object]) -> dict[str, object]:
-        """Extract memory phase latency and injection metadata."""
-        meta = extra_data.get("memory_telemetry")
-        return dict(meta) if isinstance(meta, dict) else {}
 
     @staticmethod
     def _extract_cited_refs(

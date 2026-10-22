@@ -124,10 +124,14 @@ class TestCleanupExpiredApprovals:
             count = await ApprovalRegistry.cleanup_expired_approvals()
 
         assert count == 1
-        bus.publish.assert_called_once()
-        event = bus.publish.call_args.args[0]
-        assert event.data["decision"] == "deny"
-        assert event.data["thread_id"] == "thread-1"
+        # The sweep finalizes stored state only; resuming a suspended agent is the harness timer's job.
+        bus.publish.assert_not_called()
+        async with _get_session_factory()() as db:
+            record = await db.get(ApprovalRecord, "exp-1")
+        assert record is not None
+        assert record.status == "TIMEOUT"
+        assert record.resolved_at is not None
+        assert "[Auto-Rejected: TTL Expired]" in (record.reason or "")
 
     @pytest.mark.asyncio
     async def test_future_expiry_not_touched(self) -> None:

@@ -18,9 +18,16 @@ if [[ "$MODE" == "dev" ]]; then
   exec bun run dev
 fi
 
-if [[ -f .next/standalone/myrm-agent-frontend/server.js ]]; then
-  echo "Next standalone server already present, skipping build:tauri."
-  exit 0
+if [[ ! -f .next/standalone/myrm-agent-frontend/server.js ]]; then
+  bun run build:tauri
 fi
 
-exec bun run build:tauri
+# Next standalone emits server.js but deliberately excludes .next/static and public.
+# Without these, the app serves HTML whose JS/CSS chunks 404 and the WebView is black.
+STANDALONE_DIR=".next/standalone/myrm-agent-frontend"
+rm -rf "$STANDALONE_DIR/.next/static" "$STANDALONE_DIR/public"
+mkdir -p "$STANDALONE_DIR/.next"
+cp -R .next/static "$STANDALONE_DIR/.next/static"
+cp -R public "$STANDALONE_DIR/public"
+
+echo "Prepared standalone assets: .next/static and public"

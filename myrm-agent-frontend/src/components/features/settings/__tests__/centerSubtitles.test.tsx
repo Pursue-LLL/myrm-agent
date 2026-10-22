@@ -67,6 +67,7 @@ vi.mock('@/components/features/loadout/TeamAssetsHub', () => ({ TeamAssetsHub: (
 vi.mock('@/components/features/message-box/MemoryRecallDegradedBanner', () => ({
   MemoryRecallDegradedBanner: () => null,
 }));
+vi.mock('@/components/features/memory/settings/MemoryMigrationNotice', () => ({ default: () => null }));
 vi.mock('@/components/features/skills/PendingEvolutionsDashboard', () => ({ PendingEvolutionsDashboard: () => null }));
 vi.mock('@/components/features/skills/EvolutionRejectionDashboard', () => ({
   EvolutionRejectionDashboard: () => null,

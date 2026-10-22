@@ -687,6 +687,103 @@ def attach_ui_liveness_probe_timeout_sec() -> float:
     return min(15.0, 8.0 + pressure * 2.0)
 
 
+# A :3000 probe that fails decides to restart the shared frontend, so a host that is merely
+# busy must not be read as "half dead". Wave leases are not the only load source: a solo
+# session on a host whose cores are already saturated sees the same seconds-long answers.
+# Measured 2026-10-17 (12 cores): `/` answered HTTP 200 in 0.67s idle, 8.11s and 23.29s at
+# load 55-65, while the old 8s cap aborted the probe and declared the UI stale.
+ATTACH_UI_STALE_PROBE_BASE_SEC: Final[float] = 8.0
+ATTACH_UI_STALE_PROBE_MAX_SEC: Final[float] = 30.0
+# The "slow" band is a separate threshold on the same probe; it must stay under its budget.
+ATTACH_UI_STALE_SLOW_BASE_SEC: Final[float] = 5.0
+ATTACH_UI_STALE_SLOW_MAX_SEC: Final[float] = 25.0
+# Load-per-core band the host governor already uses to downgrade browser/PRIVATE capacity.
+HOST_LOAD_UPGRADE_RATIO: Final[float] = 0.55
+HOST_LOAD_STALE_SCALE_MAX_RATIO: Final[float] = 1.50
+
+
+def _host_load_ratio() -> float:
+    """Load per core from the governed host snapshot; 0.0 when it cannot be read.
+
+    The snapshot is the SSOT the browser/PRIVATE credit governor uses, so the probe
+    budget and the capacity both react to one notion of "how busy is this host".
+    """
+    try:
+        from e2e_core.host_resource_governor import collect_host_pressure_snapshot
+
+        snapshot = collect_host_pressure_snapshot()
+        return max(0.0, float(snapshot.load_avg_1m) / max(1, int(snapshot.cpu_count)))
+    except (ImportError, OSError, AttributeError, RuntimeError, ValueError):
+        return 0.0
+
+
+def host_load_ratio() -> float:
+    """Public load per core (0.0 when unreadable), shared by every load-scaled E2E budget."""
+    return _host_load_ratio()
+
+
+def load_scaled_budget_sec(base: float, maximum: float) -> float:
+    """Scale a wall-clock budget from ``base`` up to ``maximum`` with the host load.
+
+    One public entry point for every load-sensitive E2E budget, so a budget is not tuned in one layer while
+    a sibling layer keeps a hard-coded value: a busy host answers slower (and the dev server needs longer
+    to compile a cold chunk), and a fixed ceiling then aborts exactly when the work needed the most time.
+    """
+    ratio = _host_load_ratio()
+    if ratio <= HOST_LOAD_UPGRADE_RATIO:
+        return base
+    span = (ratio - HOST_LOAD_UPGRADE_RATIO) / (
+        HOST_LOAD_STALE_SCALE_MAX_RATIO - HOST_LOAD_UPGRADE_RATIO
+    )
+    return min(maximum, base + (maximum - base) * min(1.0, span))
+
+
+def _stale_probe_scaled_sec(base: float, maximum: float) -> float:
+    """Scale a stale-verdict threshold from ``base`` up to ``maximum`` with host load."""
+    return load_scaled_budget_sec(base, maximum)
+
+
+def attach_ui_stale_probe_timeout_sec() -> float:
+    """Probe budget for the "is the shared UI stale?" verdict that may restart the frontend.
+
+    Unlike the post-heal liveness streak, this probe decides whether a running Next dev
+    server is killed, so it scales with host load: a busy host answers in seconds and a
+    cap that aborts there forces a cold compile that is far more expensive than waiting.
+    """
+    override = os.environ.get("MYRM_E2E_ATTACH_UI_STALE_PROBE_TIMEOUT_SEC", "").strip()
+    if override:
+        try:
+            value = float(override)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    return _stale_probe_scaled_sec(
+        ATTACH_UI_STALE_PROBE_BASE_SEC, ATTACH_UI_STALE_PROBE_MAX_SEC
+    )
+
+
+def attach_ui_stale_slow_sec() -> float:
+    """Wall-clock band above which a stale-probe answer counts as "still compiling".
+
+    Scales on the same load band as ``attach_ui_stale_probe_timeout_sec`` and stays under it for
+    every input, because both ends of the two ranges are ordered that way (8/30 over 5/25) — a
+    test pins the invariant. An explicit ``MYRM_UI_HEAL_SLOW_SEC`` is an operator instruction and
+    is honored as given.
+    """
+    override = os.environ.get("MYRM_UI_HEAL_SLOW_SEC", "").strip()
+    if override:
+        try:
+            value = float(override)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    return _stale_probe_scaled_sec(
+        ATTACH_UI_STALE_SLOW_BASE_SEC, ATTACH_UI_STALE_SLOW_MAX_SEC
+    )
+
+
 def attach_ui_probe_timeout_sec() -> float:
     """Shared :3000 HTTP probe timeout; scales under parallel chrome_e2e (R148).
 

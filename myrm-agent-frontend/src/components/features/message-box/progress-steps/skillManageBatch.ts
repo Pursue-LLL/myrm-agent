@@ -3,6 +3,7 @@
  */
 
 import type { ProgressItem } from '@/store/chat/types';
+import type { TreeNode } from './treeUtils';
 
 const SKILL_MANAGE_TOOL_SUFFIX = 'skill_manage_tool';
 
@@ -27,4 +28,9 @@ export function extractSkillManageBatchId(step: ProgressItem): string | null {
 
 export function messageHasSkillManageUndo(steps: ProgressItem[]): boolean {
   return steps.some((step) => extractSkillManageBatchId(step) !== null);
+}
+
+/** Whether the step or any step nested under it carries an undo control. */
+export function nodeHasSkillManageUndo(node: TreeNode): boolean {
+  return extractSkillManageBatchId(node.step) !== null || node.children.some(nodeHasSkillManageUndo);
 }

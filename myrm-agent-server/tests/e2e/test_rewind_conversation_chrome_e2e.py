@@ -95,7 +95,6 @@ _OPEN_REWIND_JS = """(() => {
     btn.focus();
     btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     btn.click();
   }
   // Immediate post-click diagnostics: confirm React actually opened the dialog.
@@ -144,7 +143,6 @@ _SELECT_SCOPE_JS = """(() => {
   target.focus();
   target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
   target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   target.click();
   return { ok: true };
 })()"""
@@ -162,7 +160,6 @@ _CONFIRM_REWIND_JS = """(() => {
   target.focus();
   target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
   target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   target.click();
   return { ok: true };
 })()"""

@@ -196,7 +196,7 @@ class TestPersonalityYoloCombined:
     @pytest.mark.asyncio
     async def test_personality_template_data_integrity(self) -> None:
         """验证所有 personality 模板数据完整性。"""
-        from app.ai_agents.personality_templates import get_personality_template, list_all_personalities
+        from app.ai_agents.personality_templates import PERSONALITY_TEMPLATES, list_all_personalities
 
         templates = list_all_personalities()
         assert len(templates) == 17
@@ -220,7 +220,7 @@ class TestPersonalityYoloCombined:
             "surfer",
             "wenyan",
         ]:
-            t = get_personality_template(style)
+            t = PERSONALITY_TEMPLATES[style]
             assert t is not None
             assert t.system_prompt_suffix, f"{style} missing system_prompt_suffix"
             assert t.emoji, f"{style} missing emoji"

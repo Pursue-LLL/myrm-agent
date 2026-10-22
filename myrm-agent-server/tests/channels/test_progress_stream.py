@@ -17,6 +17,7 @@ from app.channels.protocols.pairing import (
     DmPolicy,
     GroupPolicy,
     GroupTriggerMode,
+    PairingRole,
     PairingStatus,
 )
 from app.channels.reliability.retry import (
@@ -71,6 +72,9 @@ class _FakePairingStore:
 
     async def get_status(self, channel: str, sender_id: str) -> PairingStatus | None:
         return PairingStatus.ACTIVE
+
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, int | None] | None:
+        return PairingStatus.ACTIVE, PairingRole.MEMBER, None
 
 
 class _FakePolicyProvider:

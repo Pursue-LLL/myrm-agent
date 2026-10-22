@@ -1,5 +1,6 @@
 /**
- * MoA preset helpers for chat model picker (session-level activation).
+ * MoA preset helpers for chat model picker (session-level activation)
+ * and Agent Profile advisor auto-activation policy evaluation.
  *
  * [INPUT]
  * AgentConfig.engineParams.moa_overlay (profile preset definition)
@@ -7,10 +8,13 @@
  * [OUTPUT]
  * isMoaPresetConfigured, countMoaReferenceModelsForPreset, listMoaPresetOptions,
  * resolveMoaPresetLabelKey, emptyMoaPresetsMap, buildPresetsForMoaEnable,
- * isActiveMoaPresetAvailable
+ * isActiveMoaPresetAvailable, resolveProfileMoaActivationMode,
+ * resolveProfileDefaultMoaPresetId, isMoaAutoActivatedForProfile,
+ * resolveEffectiveMoaPresetId, MoaActivationMode
  *
  * [POS]
- * Frontend guard for showing the virtual Mixture of Agents picker group.
+ * Frontend guard for showing the virtual Mixture of Agents picker group
+ * and evaluating Profile-level auto-activation policies.
  */
 
 export const MOA_PRESET_DEFAULT_ID = 'default';
@@ -20,6 +24,7 @@ export const MOA_PRESET_FAST_ID = 'fast';
 export const MOA_PRESET_IDS = [MOA_PRESET_DEFAULT_ID, MOA_PRESET_REVIEW_ID, MOA_PRESET_FAST_ID] as const;
 
 export type MoaPresetId = (typeof MOA_PRESET_IDS)[number];
+export type MoaActivationMode = 'manual' | 'always' | 'risk_triggered';
 
 type ModelSelection = { providerId: string; model: string };
 
@@ -191,3 +196,80 @@ export function buildPresetsForMoaEnable(
   }
   return merged;
 }
+
+export function resolveProfileMoaActivationMode(
+  engineParams: Record<string, unknown> | null | undefined,
+): MoaActivationMode {
+  const overlay = overlayBlock(engineParams);
+  if (!overlay || !overlay.enabled) {
+    return 'manual';
+  }
+  const mode = overlay.activation_mode;
+  if (mode === 'manual' || mode === 'always' || mode === 'risk_triggered') {
+    return mode;
+  }
+  if (overlay.auto_on_reasoning === true) {
+    return 'risk_triggered';
+  }
+  return 'manual';
+}
+
+export function resolveProfileDefaultMoaPresetId(
+  engineParams: Record<string, unknown> | null | undefined,
+): MoaPresetId {
+  const overlay = overlayBlock(engineParams);
+  const def = overlay?.default_preset_id;
+  if (typeof def === 'string' && (MOA_PRESET_IDS as readonly string[]).includes(def)) {
+    return def as MoaPresetId;
+  }
+  return MOA_PRESET_REVIEW_ID;
+}
+
+export function isMoaAutoActivatedForProfile(
+  engineParams: Record<string, unknown> | null | undefined,
+  routingTier?: string | null,
+  hasRiskTrigger: boolean = false,
+): boolean {
+  if (!isMoaPresetConfigured(engineParams)) {
+    return false;
+  }
+  const mode = resolveProfileMoaActivationMode(engineParams);
+  if (mode === 'always') {
+    return true;
+  }
+  if (mode === 'risk_triggered') {
+    const isReasoning = routingTier === 'reasoning' || routingTier === 'REASONING';
+    return isReasoning || hasRiskTrigger;
+  }
+  return false;
+}
+
+export function resolveEffectiveMoaPresetId(
+  engineParams: Record<string, unknown> | null | undefined,
+  requestedPresetId?: string | null,
+  routingTier?: string | null,
+  hasRiskTrigger: boolean = false,
+): MoaPresetId | null {
+  if (requestedPresetId) {
+    if ((MOA_PRESET_IDS as readonly string[]).includes(requestedPresetId)) {
+      return requestedPresetId as MoaPresetId;
+    }
+    if (requestedPresetId === 'none' || requestedPresetId === 'disabled') {
+      return null;
+    }
+  }
+  if (isMoaAutoActivatedForProfile(engineParams, routingTier, hasRiskTrigger)) {
+    const defPreset = resolveProfileDefaultMoaPresetId(engineParams);
+    if (countMoaReferenceModelsForPreset(engineParams, defPreset) > 0) {
+      return defPreset;
+    }
+    for (const presetId of MOA_PRESET_IDS) {
+      if (countMoaReferenceModelsForPreset(engineParams, presetId) > 0) {
+        return presetId;
+      }
+    }
+    return defPreset;
+  }
+  return null;
+}
+

@@ -46,6 +46,11 @@ const stableT = (key: string) => {
     installing: 'Installing...',
     installed: 'Installed successfully!',
     installFailed: 'Install failed',
+    restorePreUpdateSkillMd: 'Undo last update',
+    restorePreUpdateSuccess: 'Restored {name}',
+    restorePreUpdateSuccessDesc: '{count} skill(s) restored',
+    restorePreUpdateFailed: 'Restore failed',
+    restorePreUpdateFailedDesc: 'Could not restore the previous version',
   };
   return translations[key] ?? key;
 };
@@ -158,6 +163,56 @@ describe('SkillUrlImportDialog Security & Trusted Source Gates', () => {
       expect(onInstalled).toHaveBeenCalledTimes(1);
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+
+    expect(mockToast).toHaveBeenCalled();
+  });
+
+  it('shows undo toast action when install returns pre_replace_batch_id', async () => {
+    mockAnalyzeDiscoveryUrl.mockResolvedValueOnce({
+      urls: [
+        {
+          url: 'https://github.com/trusted-org/replace-skill',
+          name: 'ReplaceSkill',
+          description: 'Replaces an installed skill',
+          is_installed: false,
+        },
+      ],
+    });
+    mockInstallDiscoverySkillFromUrl.mockResolvedValueOnce({
+      success: true,
+      skill_name: 'ReplaceSkill',
+      skill_id: 'replace-skill-id',
+      pre_replace_batch_id: 'market-replace-skill-batch-abc',
+    });
+
+    render(<SkillUrlImportDialog open={true} onOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByTestId('skill-url-input'), {
+      target: { value: 'https://github.com/trusted-org/replace-skill' },
+    });
+    fireEvent.click(screen.getByTestId('analyze-url-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('security-disclosure-card')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
+    fireEvent.click(screen.getByTestId('import-skills-btn'));
+
+    await waitFor(() => {
+      expect(mockInstallDiscoverySkillFromUrl).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      const successToast = mockToast.mock.calls.find(
+        (call) =>
+          typeof call[0] === 'object' &&
+          call[0] !== null &&
+          'action' in call[0] &&
+          (call[0] as { action?: { label?: string } }).action?.label === 'Undo last update',
+      );
+      expect(successToast).toBeDefined();
+    });
   });
 
   it('renders cloud sandbox security disclosure when isLocalMode is false', async () => {
@@ -244,7 +299,7 @@ describe('SkillUrlImportDialog Security & Trusted Source Gates', () => {
     });
   });
 
-  it('renders already installed badge and disables selection for installed skills', async () => {
+  it('renders already installed badge and allows re-import when user selects the row', async () => {
     mockAnalyzeDiscoveryUrl.mockResolvedValueOnce({
       urls: [
         {
@@ -268,12 +323,14 @@ describe('SkillUrlImportDialog Security & Trusted Source Gates', () => {
       expect(screen.getByText('Already Installed')).toBeInTheDocument();
     });
 
-    // Checkbox for installed skill should be disabled
     const installedCheckbox = screen.getByRole('checkbox', { name: /installedskill/i });
-    expect(installedCheckbox).toBeDisabled();
+    expect(installedCheckbox).not.toBeDisabled();
 
-    // Import button should remain disabled because selectedUrls.size is 0
     const importBtn = screen.getByTestId('import-skills-btn');
     expect(importBtn).toBeDisabled();
+
+    fireEvent.click(installedCheckbox);
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
+    expect(importBtn).not.toBeDisabled();
   });
 });

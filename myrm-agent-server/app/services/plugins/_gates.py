@@ -59,10 +59,11 @@ def scan_skill_security(skill: PluginSkill) -> list[str]:
     from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
     from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
 
+    from app.core.skills.utils import render_skill_md
+
     try:
         validator = SkillSecurityValidator(config=SecurityConfig())
-        full_skill = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
-        result = validator.validate_skill(full_skill)
+        result = validator.validate_skill(render_skill_md(skill.name, skill.description, skill.content))
     except Exception as exc:  # fail-closed: unable to verify -> blocked
         logger.warning("Skill security scan failed for %r: %s", skill.name, exc)
         return [f"Security scan failed: {exc}"]

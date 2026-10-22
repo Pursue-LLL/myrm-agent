@@ -152,9 +152,19 @@ export interface ConnectorFailureDetail {
   timestamp?: string;
 }
 
+/** Actions the safety rules stopped during a run, grouped by tool and reason. */
+export interface CronBlockedAction {
+  tool: string;
+  reason: string;
+  count: number;
+}
+
 export interface CronRunMetadata {
   verification?: CronRunVerification;
   progressSteps?: CronProgressStep[];
+  /** Exact number of stopped actions; `blockedActions` lists the first groups only. */
+  blockedCount?: number;
+  blockedActions?: CronBlockedAction[];
   monitor_contract_error?: MonitorContractErrorCode | string;
   monitor_failure_count?: number;
   monitor_failure_count_source?: MonitorFailureCountSource | string;

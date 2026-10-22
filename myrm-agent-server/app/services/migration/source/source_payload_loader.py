@@ -9,18 +9,20 @@ Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, ``convers
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
 Public API: load_source_payload, build_coverage_items, extract_pending_skills.
-Loaders: hermes/claude/codex/chatgpt/gbrain in source_payload_loaders_impl.py;
+Loaders: hermes/claude/codex/chatgpt/gbrain/plur in source_payload_loaders_impl.py;
 openclaw in _loaders_openclaw.py; pi in _loaders_pi.py.
 """
 
 from __future__ import annotations
 
+import shutil
+import tempfile
+import time
 from pathlib import Path
 from typing import TypedDict
 
 from app.config.deploy_mode import is_local_mode
 
-from .source_manifest import migration_source_local_scan_ids
 from .source_payload_loaders_impl import (
     load_chatgpt,
     load_claude,
@@ -29,9 +31,19 @@ from .source_payload_loaders_impl import (
     load_hermes,
     load_openclaw,
     load_pi,
+    load_plur,
 )
 
-_SUPPORTED_SOURCES = migration_source_local_scan_ids()
+MIGRATION_UPLOAD_DIR_PREFIX = "myrm_migration_"
+MIGRATION_UPLOAD_TTL_SECONDS = 6 * 3600
+# Skill bundles travel to the client and back (the wizard submits them to the
+# skill review pipeline), so the review payload is capped; the response reports
+# the real total so the UI can say how many were left out.
+MAX_PENDING_SKILLS = 500
+
+
+class MigrationSourceAccessError(ValueError):
+    """Raised when a discovery payload asks for a path the deployment forbids."""
 
 
 class SourceDiscoveryPayload(TypedDict, total=False):
@@ -48,17 +60,28 @@ def is_source_discovery_payload(payload: dict[str, object]) -> bool:
 
 
 def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
-    """Read competitor files from disk and return an adapter-ready payload."""
+    """Read competitor files from disk and return an adapter-ready payload.
 
-    if not is_local_mode():
-        msg = "External source payload loading requires local or Tauri deployment mode"
-        raise ValueError(msg)
+    Sandbox deployments may only read inside a migration ZIP extraction
+    directory (``myrm_migration_*`` under the system temp root): the archive is
+    the user's own upload, while any other host path stays off limits, and
+    client-provided ``files`` paths are dropped unless they resolve inside that
+    directory. Local and Tauri deployments keep unrestricted reads because the
+    user owns the machine.
+    """
 
     competitor = str(payload.get("competitor", "")).strip().lower()
     root_raw = payload.get("root")
     root = Path(str(root_raw)) if isinstance(root_raw, str) and root_raw else Path()
+    sandbox_upload = not is_local_mode()
+    if sandbox_upload and not is_migration_upload_path(root):
+        msg = "External source files can only be read from the archive uploaded in this session"
+        raise MigrationSourceAccessError(msg)
+
     files_raw = payload.get("files")
     file_paths = [str(item) for item in files_raw if isinstance(item, str)] if isinstance(files_raw, list) else []
+    if sandbox_upload:
+        file_paths = _keep_upload_contained_paths(file_paths, root)
 
     loaders = {
         "hermes": load_hermes,
@@ -68,7 +91,7 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
         "chatgpt": load_chatgpt,
         "gbrain": load_gbrain,
         "pi": load_pi,
-        "plur": lambda root, file_paths: {"_source": "plur"},
+        "plur": load_plur,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -87,11 +110,21 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
     instruction_keys = (
         "soul_md",
         "agents_md",
+        "claude_md",
         "codex_instructions",
         "cursor_rules",
-        "semantic",
     )
-    memory_keys = ("memory_md", "user_md", "openclaw_sessions", "openclaw_memory", "pi_sessions")
+    memory_keys = (
+        "memory_md",
+        "user_md",
+        "openclaw_sessions",
+        "openclaw_memory",
+        "pi_sessions",
+        "semantic",
+        "codex_memory",
+        "conversations",
+        "engrams",
+    )
 
     if any(loaded_payload.get(key) for key in instruction_keys):
         rows.append({"key": "instruction", "status": "ready", "label": "instruction_lane"})
@@ -155,7 +188,73 @@ def extract_pending_skills(payload: dict[str, object]) -> list[dict[str, object]
     return []
 
 
-def supported_source_ids() -> frozenset[str]:
-    """Return the closed set of wizard-discoverable migration source ids."""
+def is_migration_upload_path(path: Path) -> bool:
+    """True when ``path`` lives inside a migration ZIP extraction directory."""
 
-    return _SUPPORTED_SOURCES
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    for candidate in (resolved, *resolved.parents):
+        if not candidate.name.startswith(MIGRATION_UPLOAD_DIR_PREFIX):
+            continue
+        try:
+            candidate.relative_to(temp_root)
+        except ValueError:
+            continue
+        return True
+    return False
+
+
+def sweep_stale_migration_uploads(*, now: float | None = None) -> int:
+    """Delete expired migration extraction directories and return how many went.
+
+    The review session keeps its extraction directory readable for the whole
+    dry-run window, so the TTL is far larger than a session's lifetime; anything
+    older than that belongs to an abandoned upload and only occupies disk.
+    """
+
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    cutoff = (time.time() if now is None else now) - MIGRATION_UPLOAD_TTL_SECONDS
+    try:
+        entries = list(temp_root.iterdir())
+    except OSError:
+        return 0
+    removed = 0
+    for entry in entries:
+        if not entry.name.startswith(MIGRATION_UPLOAD_DIR_PREFIX) or entry.is_symlink():
+            continue
+        if not entry.is_dir():
+            continue
+        try:
+            if entry.stat().st_mtime >= cutoff:
+                continue
+        except OSError:
+            continue
+        shutil.rmtree(entry, ignore_errors=True)
+        removed += 1
+    return removed
+
+
+def _keep_upload_contained_paths(file_paths: list[str], root: Path) -> list[str]:
+    """Drop discovery file paths that escape the uploaded archive directory.
+
+    ``files`` arrives from the client, and the loaders read those paths as-is,
+    so a sandbox request could otherwise name any host file whose basename looks
+    like a known asset (``.env``, ``MEMORY.md``, ...). Only paths inside the
+    validated upload root survive.
+    """
+
+    try:
+        resolved_root = root.resolve()
+    except OSError:
+        return []
+    contained: list[str] = []
+    for raw in file_paths:
+        try:
+            Path(raw).resolve().relative_to(resolved_root)
+        except (OSError, ValueError):
+            continue
+        contained.append(raw)
+    return contained

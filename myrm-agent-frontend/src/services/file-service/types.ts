@@ -5,7 +5,7 @@
  */
 
 import { File } from '@/store/chat/types';
-import type { UploadProgress } from '@/services/file';
+import type { UploadOptions, UploadProgress } from '@/services/file';
 
 /**
  * 文件引用类型
@@ -79,12 +79,14 @@ export interface FileService {
    *
    * @param files - 原生 File 对象列表
    * @param onProgress - 上传进度回调（可选）
+   * @param options - 上传选项（无痕会话的绑定）
    * @returns 上传后的文件引用列表
    */
   uploadFiles(
     files: globalThis.File[],
     onProgress?: (progress: UploadProgress) => void,
     signal?: AbortSignal,
+    options?: UploadOptions,
   ): Promise<FileReference[]>;
 }
 

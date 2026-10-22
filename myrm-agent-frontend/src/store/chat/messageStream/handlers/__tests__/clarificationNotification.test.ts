@@ -20,19 +20,16 @@ vi.mock('@/lib/approval/buildToolApprovalRequest', () => ({
 
 vi.mock('@/lib/approval/approvalAlertService', () => ({
   notifyIdleApproval: vi.fn(),
-  clearAllNotifications: vi.fn(),
 }));
 
 vi.mock('../handlerDeps', () => ({
   AgentEventType: {
-    TOOL_PROGRESS: 'tool_progress',
     TOOL_HEARTBEAT: 'tool_heartbeat',
     TASKS_STEPS: 'tasks_steps',
     SOURCES: 'sources',
     APPROVAL_REQUIRED: 'approval_required',
     CLARIFICATION_REQUIRED: 'clarification_required',
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
-    APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
@@ -45,7 +42,6 @@ vi.mock('../handlerDeps', () => ({
   useToolApprovalStore: {
     getState: vi.fn(() => ({
       addRequest: vi.fn(),
-      removeRequestsByMessageId: vi.fn(),
       queue: [],
     })),
   },
@@ -54,6 +50,8 @@ vi.mock('../handlerDeps', () => ({
   },
   mapTaskStepStatus: vi.fn(() => 'success'),
   mergeMessageSources: vi.fn(),
+  resolveClarifyIsResumeMode: (source: unknown) =>
+    typeof source === 'string' && source.trim() ? source.trim() !== 'deep_research' : true,
 }));
 
 import { toolsProgressEvents } from '../toolsProgressEvents';

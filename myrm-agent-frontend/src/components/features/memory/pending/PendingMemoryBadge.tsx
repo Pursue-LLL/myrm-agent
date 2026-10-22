@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { AlertTriangle, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
@@ -14,6 +14,14 @@ interface PendingMemoryBadgeProps {
 const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, showIcon = true }) => {
   const pendingCount = useMemoryStore((state) => state.pendingCount);
   const conflictCount = useMemoryStore((state) => state.conflictCount);
+  const fetchPendingMemories = useMemoryStore((state) => state.fetchPendingMemories);
+
+  useEffect(() => {
+    // The badge can mount before any pending-list view ran (e.g. straight on a
+    // chat route), leaving a pending suggestion invisible. Refresh on mount so
+    // the indicator reflects the queue without a detour through settings.
+    void fetchPendingMemories(true);
+  }, [fetchPendingMemories]);
 
   const totalCount = pendingCount + conflictCount;
 

@@ -37,10 +37,8 @@ and pushes human-readable notifications to user-configured IM channels
 | `NEW_SKILL_DRAFT` | ✅ | `skills/draft_notification` |
 | `MESSAGE_DEAD_LETTERED` | ✅ | `channels/__init__` |
 | `CHANNEL_DISCONNECTED` | ✅ | `core/channel_bridge/setup` |
-| `WECHAT_SESSION_EXPIRED` | ✅ | (reserved) |
-| `CONFIG_HEALTH_WARNING` | ✅ | (reserved) |
 | `SYSTEM_NOTIFICATION` | ✅ | `background_job_finish_handler`, `skills/nightly_review`, `checkpoint/*`, `cron/push_store`, `goals/goal_stream_trigger`, `channel_bridge/webui_voice_work_notifier` (idle-task completions never raise one) |
-| `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push; lifecycle events silently skipped |
+| `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push (the `detail` is the task's result or blocked reason; a failed task carries none); lifecycle events silently skipped |
 | `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, turns_used, execution_duration_s, total_tokens, total_cost_usd and verifications. Additionally, `GoalTerminalNotifier` (in `channel_bridge/goal_terminal_notifier.py`) delivers results back to the originating IM thread when the Goal carries source channel metadata |
 | `OAUTH_REAUTH_REQUIRED` | ✅ | `services/agent/oauth_refresher` — published when the provider rejects the refresh grant (HTTP 400/401 with an OAuth error body), or the refresh_token is missing; per-issuer 300s dedup to avoid notification storms |
 
@@ -53,7 +51,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 |------|------|-------------|-------|
 | `__init__.py` | Facade | Module public facade — exports NotificationDispatcher, FormattedNotification, format_notification | ✅ |
 | `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats one card per configured target (channel-aware; the owner's language is resolved once per event, only for `LOCALIZED_EVENT_TYPES`) and sends it via Gateway | ✅ |
-| `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized | ✅ |
+| `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized; a kanban update whose `block_kind` is `scheduled` formats to None (the task resumes by itself); the `BACKGROUND_TASK_DONE` card states the status and title with a View Kanban button (the task's outcome text goes to its originating chat through `BtwTaskNotifier`, not through this card) | ✅ |
 | `approval_card.py` | Core | `build_approval_card` — `APPROVAL_REQUIRED` card text and buttons per target channel; shows a held reply (`outbound_draft`) with the incoming message, the draft and the expiry outcome; Approve/Deny buttons only for `APPROVAL_CLICK_CHANNELS`, the `/draft` commands for a held reply everywhere else | ✅ |
 
 ## Approval Cards
@@ -87,6 +85,6 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 ## Extensibility
 
 New event types only need:
-1. Add to `AppEventType` enum in `event_bus.py`
+1. Add to `AppEventType` enum in `app/services/event/app_event_bus.py`
 2. Add template to `_EVENT_TEMPLATES` in `adaptive_cards.py`
 3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` and map click URL in `core/web_push/push_deep_links.py`

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 import pytest_asyncio
@@ -30,16 +31,38 @@ ERASED_BY_ANOTHER_ROUTE = {
     "channel_messages": "keyed by the channel's own conversation id, not a chat id; only the safe purge wipes it",
 }
 
+
+class Retained(NamedTuple):
+    why: str  # what the table is for, and why it outlives the chat
+    incognito: str  # what it keeps of a web incognito chat once that chat is purged
+
+
 # Tables that name a chat but are meant to outlive it.
 RETAINED_ON_PURPOSE = {
-    "artifacts": "cross-session artifact hub; its files are removed with the chat workspace, the index is user-managed",
-    "media_library": "gallery of generated media with its own management; not conversation content",
-    "batch_image_jobs": "image batch jobs belong to the media library, not to the conversation",
-    "cron_jobs": "a schedule is user configuration; the chat is only its delivery target",
-    "assessment_import_ledger": "project-level import dedup ledger; deleting it would allow duplicate imports",
-    "risk_hits": "security audit trail",
-    "browser_runtime_records": "numeric usage ledger without content",
-    "sandbox_workload_records": "numeric usage ledger without content",
+    "artifacts": Retained(
+        "cross-session artifact hub; its files are removed with the chat workspace, the index is user-managed",
+        "the index row (title, path, chat id) stays; the file content goes with the workspace and its artifact vault",
+    ),
+    "media_library": Retained(
+        "gallery of generated media with its own management; not conversation content",
+        "images generated in an incognito chat and their prompts are saved like any other and are not scrubbed",
+    ),
+    "batch_image_jobs": Retained(
+        "image batch jobs belong to the media library, not to the conversation",
+        "the job row, including its prompt plan, stays with the gallery",
+    ),
+    "cron_jobs": Retained(
+        "a schedule is user configuration; the chat is only its delivery target",
+        "the schedule stays; only its delivery target names the purged chat",
+    ),
+    "assessment_import_ledger": Retained(
+        "project-level import dedup ledger; deleting it would allow duplicate imports",
+        "ids, status and counters only, no conversation text",
+    ),
+    "risk_hits": Retained(
+        "security audit trail",
+        "a match summary of at most 500 characters stays as audit evidence",
+    ),
 }
 
 
@@ -82,6 +105,14 @@ async def test_no_table_with_a_chat_column_is_unclassified(engine: AsyncEngine) 
 
     unclassified = set(await _tables_with_chat_columns(engine)) - listed - set(ERASED_BY_ANOTHER_ROUTE) - set(RETAINED_ON_PURPOSE)
     assert not unclassified, f"tables with a chat column that nothing erases or justifies keeping: {sorted(unclassified)}"
+
+
+def test_every_retained_table_states_what_it_keeps_of_an_incognito_chat() -> None:
+    """A table that outlives its chat also outlives an incognito one: say what is left, so the limit is never a surprise."""
+    for table, retained in RETAINED_ON_PURPOSE.items():
+        assert retained.why.strip() and retained.incognito.strip(), (
+            f"{table} must say why it is kept and what remains of an incognito chat"
+        )
 
 
 TRASHED_AT = "2026-01-01 00:00:00"

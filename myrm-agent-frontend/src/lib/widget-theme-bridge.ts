@@ -154,6 +154,10 @@ button:active{transform:scale(.98)}
  * Generate the full CSS style block for iframe srcdoc.
  * Includes resolved theme variables, semantic bridge, utility classes,
  * form styles, and runtime scripts for height sync + link interception.
+ *
+ * The block ends with the reduced-motion guard: a widget document is separate from the host
+ * page, so the host stylesheet cannot reach it and the `button:active` press animation would
+ * otherwise ignore the reader's OS setting.
  */
 export function buildWidgetStyleBlock(resolvedVars: Record<string, string>): string {
   const rootVars = Object.entries(resolvedVars)
@@ -177,6 +181,7 @@ a:hover{text-decoration:underline}
 ${UTILITY_CLASSES}
 ${FORM_STYLES}
 @keyframes widgetFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}}
 </style>`;
 }
 

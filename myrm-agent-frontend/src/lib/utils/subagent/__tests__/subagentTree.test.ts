@@ -331,7 +331,7 @@ describe('filterNodes', () => {
     expect(filterNodes(tree, 'all')).toBe(tree);
   });
 
-  it('running filters to running/verifying', () => {
+  it('running filters to running nodes only', () => {
     const result = filterNodes(makeTree(), 'running');
     expect(result).toHaveLength(1);
     expect(result[0].task_id).toBe('run');

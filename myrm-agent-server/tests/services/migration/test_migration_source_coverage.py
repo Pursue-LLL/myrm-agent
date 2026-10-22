@@ -43,11 +43,11 @@ class TestResolveCompetitorImportSource:
         assert resolve_migration_source(competitor) == expected
 
 
-class TestSupportedCompetitorIds:
-    def test_closed_set_matches_wizard(self) -> None:
-        from app.services.migration.source.source_payload_loader import supported_source_ids
+class TestLocalScanIds:
+    def test_local_scan_ids_match_the_wizard_set(self) -> None:
+        from app.services.migration.source.source_manifest import migration_source_local_scan_ids
 
-        assert supported_source_ids() == frozenset({"hermes", "openclaw", "claude", "codex", "pi"})
+        assert migration_source_local_scan_ids() == frozenset({"hermes", "openclaw", "claude", "codex", "pi", "plur"})
 
 
 class TestAutoRoutingRegression:

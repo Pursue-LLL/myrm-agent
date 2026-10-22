@@ -151,7 +151,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "goal_set", goal=parsed_objective)
 
-        from app.services.agent.goals.goal_registry import check_and_handle_branch_stash
+        from app.services.agent.goals.goal_branch_stash import check_and_handle_branch_stash
 
         await check_and_handle_branch_stash(chat_id)
         provider = GoalRegistry.get_or_create_provider(chat_id)
@@ -232,7 +232,7 @@ class ChannelGoalCommandHandler:
             lines.append(get_text(msg, "goal_status_criteria", items=" | ".join(criteria_items)))
 
         if goal.subgoals:
-            items = " | ".join(sg.get("text", "") for sg in goal.subgoals)
+            items = " | ".join(str(sg.get("text", "")) for sg in goal.subgoals)
             lines.append(get_text(msg, "goal_status_subgoals", items=items))
 
         return "\n".join(lines)

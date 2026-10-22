@@ -54,6 +54,12 @@ class Chat(Base):
     compaction_failure_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     compression_ineffective_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
+    # Digest of the conversation (active branch + compacted summary) the agent's checkpoint thread held when the last
+    # turn completed. The thread is trusted only while this still equals the digest of the stored conversation: NULL
+    # (new, upgraded or forked chat) or a stale value (a turn that did not complete, an edit, a compaction) makes the
+    # next turn rebuild the thread from the stored messages.
+    history_sync_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     session_notes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Store JIT ephemeral subagents for session resume and crash recovery

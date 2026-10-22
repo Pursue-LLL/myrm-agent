@@ -25,6 +25,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -36,7 +37,8 @@ from e2e_core.runtime_identity import _backend_source_fingerprint
 SEED_START_TIMEOUT_SEC: Final[int] = 180
 SEED_HEALTH_WAIT_SEC: Final[float] = 120.0
 SEED_PARALLEL_HEALTH_WAIT_SEC: Final[float] = 45.0
-SEED_PARALLEL_SPAWN_WALL_SEC: Final[float] = 60.0
+SEED_PARALLEL_HEALTH_WAIT_MAX_SEC: Final[float] = 180.0
+SEED_PARALLEL_SPAWN_WALL_SEC: Final[float] = 180.0
 SEED_CAP_RETRY_BACKOFF_SEC: Final[float] = 5.0
 SEED_PARALLEL_CAP_RETRY_BACKOFF_SEC: Final[float] = 2.0
 SEED_CAP_MAX_ATTEMPTS: Final[int] = 2
@@ -167,7 +169,13 @@ def _seed_health_wait_sec() -> float:
         except ValueError:
             pass
     if _parallel_pressure_active():
-        return SEED_PARALLEL_HEALTH_WAIT_SEC
+        from dev_gate.contract import load_scaled_budget_sec
+
+        # A loaded host answers the health probe slower; a fixed 45s ceiling refused the launch
+        # ("readiness probe exceeded 45s") exactly when the host needed more patience.
+        return load_scaled_budget_sec(
+            SEED_PARALLEL_HEALTH_WAIT_SEC, SEED_PARALLEL_HEALTH_WAIT_MAX_SEC
+        )
     return SEED_HEALTH_WAIT_SEC
 
 
@@ -259,6 +267,8 @@ def _wait_backend_health_ok(api_base: str, *, deadline: float) -> bool:
 
 
 def _resolve_js_runtime() -> str | None:
+    from e2e_core.real_user_home import real_user_home
+
     for candidate_name in ("bun", "node"):
         override = os.getenv(f"MYRM_{candidate_name.upper()}_BIN", "").strip()
         if override and Path(override).is_file():
@@ -266,7 +276,7 @@ def _resolve_js_runtime() -> str | None:
         found = shutil.which(candidate_name)
         if found:
             return found
-        home = Path.home()
+        home = real_user_home()
         candidates = [
             home / ".bun" / "bin" / candidate_name,
             Path(f"/opt/homebrew/bin/{candidate_name}"),
@@ -716,7 +726,13 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         return _cap_reached_result(active)
 
 
-def _mark_runtime_cleaning(runtime_id: str) -> None:
+def _mark_runtime_cleaning(runtime_id: str, owner_token: str = "") -> None:
+    if owner_token:
+        with suppress(ImportError, OSError, ValueError, RuntimeError):
+            from isolated_runtime.reaper import release_runtime
+
+            release_runtime(runtime_id, owner_token)
+            return
     from isolated_runtime.allocator import isolated_root
     from isolated_runtime.registry import (
         locked_registry,
@@ -780,7 +796,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     ready_sh = root / "scripts" / "dev" / "ready.sh"
 
     if not claim_bootstrap_slot(runtime_id, owner_token, LIVE_SHPOIB_MAX_CONCURRENT):
-        _mark_runtime_cleaning(runtime_id)
+        _mark_runtime_cleaning(runtime_id, owner_token)
         return VerifyBackendSeedResult(
             ok=False,
             runtime_id=runtime_id,
@@ -854,7 +870,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         ensure_verify_backend_providers(api_base=api_base, monorepo=root)
 
     except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
-        _mark_runtime_cleaning(runtime_id)
+        _mark_runtime_cleaning(runtime_id, owner_token)
         return VerifyBackendSeedResult(
             ok=False,
             runtime_id=runtime_id,

@@ -10,7 +10,7 @@ import {
   Hourglass,
   Loader2,
   RotateCcw,
-  ShieldCheck,
+  ShieldAlert,
   StopCircle,
   XCircle,
 } from 'lucide-react';
@@ -20,7 +20,7 @@ export const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; cla
   pending: { icon: Clock, className: 'text-slate-400' },
   pending_approval: { icon: Hourglass, className: 'text-amber-500' },
   running: { icon: Loader2, className: 'text-blue-500', spin: true },
-  verifying: { icon: ShieldCheck, className: 'text-amber-500', spin: true },
+  blocked: { icon: ShieldAlert, className: 'text-amber-500' },
   completed: { icon: CheckCircle2, className: 'text-green-500' },
   failed: { icon: XCircle, className: 'text-red-500' },
   timed_out: { icon: AlertCircle, className: 'text-yellow-500' },

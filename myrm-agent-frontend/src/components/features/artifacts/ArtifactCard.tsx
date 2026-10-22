@@ -19,7 +19,9 @@ import {
   MessageSquarePlus,
   Play,
   Send,
+  Pin,
 } from 'lucide-react';
+import { usePinnedDashboardStore } from './widget-dashboard/usePinnedDashboardStore';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -118,6 +120,9 @@ function isIngestableToWiki(type: ArtifactType): boolean {
 
 const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDownload }) => {
   const t = useTranslations('artifacts');
+  const tWidget = useTranslations('widgetDashboard');
+  const { isPinned, togglePin } = usePinnedDashboardStore();
+  const pinned = isPinned(artifact.id);
   const Icon = getArtifactIcon(artifact.type as ArtifactType, artifact.filename);
   const colorClass = getArtifactColor(artifact.type as ArtifactType);
   const canPreview = isPreviewable(artifact.type as ArtifactType);
@@ -797,6 +802,31 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               title={t('insertToChat.title')}
             >
               <MessageSquarePlus className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-8 w-8',
+                pinned
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePin({
+                  id: `pin_${artifact.id}`,
+                  artifactId: artifact.id,
+                  title: artifactState.filename,
+                  type: artifactState.type,
+                  content: artifactState.content || artifactState.filename,
+                  networkPolicy: 'none',
+                });
+              }}
+              title={pinned ? tWidget('unpin') : tWidget('pinWidget')}
+              data-testid={`artifact-pin-btn-${artifact.id}`}
+            >
+              <Pin className={cn('w-4 h-4', pinned && 'fill-current')} />
             </Button>
             {canInlinePreview && (
               <Button

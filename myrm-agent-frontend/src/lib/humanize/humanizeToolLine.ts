@@ -134,5 +134,6 @@ export function humanizeToolLine(
     .replace(/_tool$/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
-  return translate(t, 'fallback.used_tool', { tool: label });
+  // Ask tense describes something that never ran (declined, cancelled or blocked), so it must not claim "Used".
+  return translate(t, mode === 'ask' ? 'ask.tool_generic' : 'fallback.used_tool', { tool: label });
 }

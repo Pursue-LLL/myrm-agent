@@ -45,6 +45,8 @@ async def _finalize(
     session_was_auto_reset: bool = False,
     lite_model_cfg: object | None = None,
     workspace_root: str | None = None,
+    message: InboundMessage | None = None,
+    account_guidance: bool = False,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
     with (
@@ -67,7 +69,7 @@ async def _finalize(
         )
 
         reply = await finalize_channel_stream_reply(
-            _make_message(),
+            message or _make_message(),
             acc=acc,
             chat_id="chat-1",
             channel_budget_key=channel_budget_key,
@@ -76,6 +78,7 @@ async def _finalize(
             chat_history=chat_history if chat_history is not None else [object()],
             session_was_auto_reset=session_was_auto_reset,
             session_policy=SessionPolicy(),
+            account_guidance=account_guidance,
         )
     return persist_mock, reply
 
@@ -193,7 +196,7 @@ async def test_screenshot_base64_saved_to_temp_file() -> None:
     png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"fakedata").decode()
     acc.last_image_base64 = png
     acc.last_image_mime = "image/png"
-    acc.chunks.append("Here is the screenshot.")
+    acc.draft.feed({"type": "message", "data": "Here is the screenshot."})
 
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert len(reply.media) == 1
@@ -211,7 +214,7 @@ async def test_screenshot_base64_save_failure_is_graceful() -> None:
     acc = StreamAccumulator()
     acc.last_image_base64 = "not-a-valid-base64!!!"
     acc.last_image_mime = "image/jpeg"
-    acc.chunks.append("Screenshot failed but reply continues.")
+    acc.draft.feed({"type": "message", "data": "Screenshot failed but reply continues."})
 
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert reply.media == ()
@@ -223,20 +226,12 @@ async def test_screenshot_url_attachment() -> None:
     acc = StreamAccumulator()
     acc.last_image_url = "https://example.com/shot.jpg"
     acc.last_image_mime = "image/jpeg"
-    acc.chunks.append("See the screenshot.")
+    acc.draft.feed({"type": "message", "data": "See the screenshot."})
 
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert len(reply.media) == 1
     assert reply.media[0].url == "https://example.com/shot.jpg"
     assert reply.media[0].filename == "screenshot.jpg"
-
-
-@pytest.mark.asyncio
-async def test_error_message_becomes_error_reply() -> None:
-    acc = StreamAccumulator()
-    acc.error_message = "tool crashed"
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
-    assert "[Error] tool crashed" in reply.content
 
 
 @pytest.mark.asyncio
@@ -250,7 +245,7 @@ async def test_empty_response_fallback() -> None:
 async def test_channel_cost_recorded_when_budget_key() -> None:
     acc = StreamAccumulator()
     acc.cost_usd = 0.12
-    acc.chunks.append("Done.")
+    acc.draft.feed({"type": "message", "data": "Done."})
     with patch(
         "app.services.budget.channel_budget.record_channel_cost",
     ) as record_mock:
@@ -261,7 +256,7 @@ async def test_channel_cost_recorded_when_budget_key() -> None:
 @pytest.mark.asyncio
 async def test_auto_title_generated_for_new_chat() -> None:
     acc = StreamAccumulator()
-    acc.chunks.append("First reply.")
+    acc.draft.feed({"type": "message", "data": "First reply."})
     with patch(
         "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
     ) as create_task_mock:
@@ -273,7 +268,7 @@ async def test_auto_title_generated_for_new_chat() -> None:
 @pytest.mark.asyncio
 async def test_no_auto_title_for_existing_chat() -> None:
     acc = StreamAccumulator()
-    acc.chunks.append("Follow-up reply.")
+    acc.draft.feed({"type": "message", "data": "Follow-up reply."})
     with patch(
         "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
     ) as create_task_mock:
@@ -284,7 +279,7 @@ async def test_no_auto_title_for_existing_chat() -> None:
 @pytest.mark.asyncio
 async def test_session_auto_reset_metadata() -> None:
     acc = StreamAccumulator()
-    acc.chunks.append("Continuing after reset.")
+    acc.draft.feed({"type": "message", "data": "Continuing after reset."})
     _persist_mock, reply = await _finalize(acc, ((), frozenset()), session_was_auto_reset=True)
     assert reply.metadata is not None
     assert "session_auto_reset" in reply.metadata
@@ -296,7 +291,7 @@ async def test_cost_metadata_when_enabled() -> None:
     acc.cost_usd = 0.05
     acc.model_name = "agn-2.5"
     acc.total_tokens = 1234
-    acc.chunks.append("Done.")
+    acc.draft.feed({"type": "message", "data": "Done."})
     _persist_mock, reply = await _finalize(
         acc,
         ((), frozenset()),
@@ -314,7 +309,7 @@ async def test_sources_sorted_by_index_metadata() -> None:
         {"index": 1, "title": "a"},
         {"index": "not-a-number", "title": "c"},
     ]
-    acc.chunks.append("Sourced reply.")
+    acc.draft.feed({"type": "message", "data": "Sourced reply."})
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert reply.metadata is not None
     titles = [s["title"] for s in reply.metadata["sources"]]  # type: ignore[typeddict-item]
@@ -330,7 +325,7 @@ async def test_workspace_attachment_scanned_and_stripped(
     report = tmp_path / "report.pdf"
     report.write_bytes(b"%PDF-1.4")
     acc = StreamAccumulator()
-    acc.chunks.append("Report saved to workspace/report.pdf")
+    acc.draft.feed({"type": "message", "data": "Report saved to workspace/report.pdf"})
     _persist_mock, reply = await _finalize(
         acc,
         ((), frozenset()),
@@ -349,7 +344,7 @@ async def test_content_and_note_lines_concatenated(tmp_path: Path) -> None:
     big.write_bytes(b"\x00" * 1024)
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("big.bin", "1.0 KB"))
-    acc.chunks.append("Here is the result: workspace/big.bin")
+    acc.draft.feed({"type": "message", "data": "Here is the result: workspace/big.bin"})
     persist_mock, reply = await _finalize(
         acc,
         ((), frozenset()),

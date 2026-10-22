@@ -55,8 +55,9 @@ def _title_model() -> _TitleModelConfig:
 
 
 def _assert_masked(sent: list[str]) -> None:
+    """The default policy redacts S3 content (identity number, password); a bare phone number is S2 and only warned."""
     joined = "\n".join(sent)
-    for secret in (_PHONE, _ID_NUMBER, _PASSWORD):
+    for secret in (_ID_NUMBER, _PASSWORD):
         assert secret not in joined, f"{secret} reached the auxiliary LLM"
 
 
@@ -75,6 +76,7 @@ class TestTitleGeneration:
         await call_llm_for_title(_SENSITIVE_TEXT, _title_model())
 
         assert _PHONE in title_wire[0]
+        assert _ID_NUMBER in title_wire[0]
 
     async def test_a_span_straddling_the_prompt_window_never_leaks_half(self, title_wire: list[str]) -> None:
         # Six digits of the phone number fall inside the 200-character prompt window, the rest outside it.
@@ -123,7 +125,7 @@ class TestChannelTitle:
         ):
             await generate_channel_title("chat-1", _SENSITIVE_TEXT, lite)
 
-        assert (_PHONE in title_wire[0]) is leaks
+        assert (_ID_NUMBER in title_wire[0]) is leaks
 
 
 class TestOfflineCompaction:
@@ -176,7 +178,7 @@ class TestOfflineCompaction:
             await _ChatCompactionMixin.flush_compaction_debt("chat-1")
 
         assert sent, "the summarizer never called the model"
-        assert (_PHONE in "\n".join(sent)) is leaks
+        assert (_ID_NUMBER in "\n".join(sent)) is leaks
         archived = str(archive.call_args.kwargs["messages"][0].content)
         assert _PHONE in archived, "the recall archive keeps the original text"
         repo.cas_update_compaction.assert_awaited_once()

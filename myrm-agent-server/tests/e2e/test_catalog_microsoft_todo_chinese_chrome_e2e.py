@@ -16,13 +16,14 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
 
-_ENTRY_TITLE_RE = r"Microsoft To Do|微软待办"
+_CATALOG_PATH = "/settings/integrationCatalog"
 
 
 def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
@@ -73,7 +74,11 @@ def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:
         try:
             with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
                 # Type the Chinese keyword into the Service Directory search box.
-                typed = client.evaluate(
+                # Wait for the box with the page URL so ``wait_for_state`` can run its
+                # documented blank/deferred heal if parallel load strands the settings
+                # skeleton; a single ``evaluate`` here would just report the box missing.
+                typed = wait_for_state(
+                    client,
                     page,
                     """(() => {
                       const inputs = Array.from(document.querySelectorAll('input'));
@@ -81,16 +86,19 @@ def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:
                         const ph = (el.getAttribute('placeholder') || '').toLowerCase();
                         return ph.includes('search') || ph.includes('搜索') || ph.includes('搜尋');
                       });
-                      if (!search) return { ok: false, reason: 'search_input_missing' };
-                      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                      setter.call(search, '待办');
-                      search.dispatchEvent(new Event('input', { bubbles: true }));
-                      return { ok: true };
+                      if (!search) return { ready: false, reason: 'search_input_missing' };
+                      if (search.value !== '待办') {
+                        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                        setter.call(search, '待办');
+                        search.dispatchEvent(new Event('input', { bubbles: true }));
+                      }
+                      return { ready: true };
                     })()""",
-                    timeout_sec=8.0,
+                    timeout_sec=60.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}{_CATALOG_PATH}",
                 )
                 assert isinstance(typed, dict)
-                assert typed.get("ok") is True, f"failed to type query: {typed}"
+                assert typed.get("ready") is True, f"failed to type query: {typed}"
 
                 # The microsoft-todo card must appear after the local filter.
                 card = wait_for_state(
@@ -103,7 +111,8 @@ def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:
                       const found = titles.some((t) => /Microsoft To Do|微软待办/i.test(t));
                       return { ready: found, titles };
                     })()""",
-                    timeout_sec=15.0,
+                    timeout_sec=60.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}{_CATALOG_PATH}",
                 )
                 assert isinstance(card, dict)
                 assert card.get("ready") is True, f"microsoft-todo card missing: {card}"

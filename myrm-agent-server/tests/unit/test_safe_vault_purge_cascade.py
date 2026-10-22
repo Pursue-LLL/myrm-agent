@@ -1,5 +1,6 @@
 """Unit tests verifying safe cascade chat purge, FTS consistency, and sandbox cleanup."""
 
+import logging
 from datetime import datetime, timezone
 
 import pytest
@@ -100,3 +101,14 @@ async def test_cleanup_chat_workspace_cleans_artifact_vault(tmp_path: object) ->
     results = await WorkspaceCleanupService.cleanup_chat_workspace("non_existent_chat_test")
     assert "artifact_vault" in results
     assert results["artifact_vault"] is True
+
+
+@pytest.mark.asyncio
+async def test_cleanup_chat_workspace_reports_only_real_resources_and_logs_no_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        results = await WorkspaceCleanupService.cleanup_chat_workspace("chat_without_any_resources")
+
+    assert results == {"storage_workspace": True, "artifact_vault": True}
+    assert not caplog.records

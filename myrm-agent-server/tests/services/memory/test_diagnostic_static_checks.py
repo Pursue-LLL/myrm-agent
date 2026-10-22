@@ -8,6 +8,7 @@ app.services.memory.diagnostics.diagnostic.diagnostic_static_checks (POS: static
 Coverage for all static doctor probes, including persistence-aware probe_vector_index.
 """
 
+from pathlib import Path
 from unittest.mock import patch
 
 from app.schemas.memory.command_center import MemoryCommandRuntimeStatus
@@ -19,7 +20,6 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import 
     probe_health_snapshot,
     probe_knowledge_graph,
     probe_memory_base_path,
-    probe_orphan_collections,
     probe_relational_store,
     probe_vector_index,
 )
@@ -32,21 +32,25 @@ def _runtime(
     relational_status: str = "unavailable",
     graph_status: str = "unavailable",
     embedding_status: str = "custom",
+    retrieval_mode: str = "semantic",
     event_ledger_status: str = "available",
     control_plane_status: str = "not_used",
 ) -> MemoryCommandRuntimeStatus:
-    return MemoryCommandRuntimeStatus(
-        deploy_mode="local",
-        memory_base_path="/tmp/memory",
-        relational_status=relational_status,
-        vector_status=vector_status,
-        vector_persistence=vector_persistence,
-        graph_status=graph_status,
-        embedding_status=embedding_status,
-        control_plane_status=control_plane_status,
-        event_ledger_status=event_ledger_status,
-        health_snapshot_status="available",
-        supported_clients=["local_web"],
+    return MemoryCommandRuntimeStatus.model_validate(
+        {
+            "deploy_mode": "local",
+            "memory_base_path": "/tmp/memory",
+            "relational_status": relational_status,
+            "vector_status": vector_status,
+            "vector_persistence": vector_persistence,
+            "graph_status": graph_status,
+            "embedding_status": embedding_status,
+            "retrieval_mode": retrieval_mode,
+            "control_plane_status": control_plane_status,
+            "event_ledger_status": event_ledger_status,
+            "health_snapshot_status": "available",
+            "supported_clients": ["local_web"],
+        }
     )
 
 
@@ -83,7 +87,7 @@ def test_probe_relational_store_ready() -> None:
     assert check.repair_actions == []
 
 
-def test_probe_memory_base_path_writable(tmp_path) -> None:
+def test_probe_memory_base_path_writable(tmp_path: Path) -> None:
     runtime = _runtime()
     runtime.memory_base_path = str(tmp_path)
     check = probe_memory_base_path(runtime)
@@ -150,19 +154,7 @@ def test_probe_deployment_boundary() -> None:
     assert "control plane status: not_used" in check.evidence
 
 
-def test_probe_orphan_collections_with_orphans() -> None:
-    check = probe_orphan_collections(orphan_count=2, old_models=["model-a", "model-b"])
-    assert check.status == "warning"
-    assert check.repair_actions == ["reindex_memories"]
-
-
-def test_probe_orphan_collections_clean() -> None:
-    check = probe_orphan_collections(orphan_count=0, old_models=[])
-    assert check.status == "ready"
-    assert check.repair_actions == []
-
-
-def test_probe_context_bundle_manifest_ready(tmp_path) -> None:
+def test_probe_context_bundle_manifest_ready() -> None:
     with patch(
         "myrm_agent_harness.toolkits.context_bundle.run_migration_dry_run",
         return_value=_FakeDryRunReport(ok=True, manifest_exists=True, writable=True, actions=[]),
@@ -171,7 +163,7 @@ def test_probe_context_bundle_manifest_ready(tmp_path) -> None:
     assert check.status == "ready"
 
 
-def test_probe_context_bundle_manifest_missing(tmp_path) -> None:
+def test_probe_context_bundle_manifest_missing() -> None:
     with patch(
         "myrm_agent_harness.toolkits.context_bundle.run_migration_dry_run",
         return_value=_FakeDryRunReport(ok=True, manifest_exists=False, writable=True, actions=[]),
@@ -181,7 +173,7 @@ def test_probe_context_bundle_manifest_missing(tmp_path) -> None:
     assert check.repair_actions == ["review_storage_config"]
 
 
-def test_probe_context_bundle_manifest_not_writable(tmp_path) -> None:
+def test_probe_context_bundle_manifest_not_writable() -> None:
     with patch(
         "myrm_agent_harness.toolkits.context_bundle.run_migration_dry_run",
         return_value=_FakeDryRunReport(ok=True, manifest_exists=True, writable=False, actions=[]),

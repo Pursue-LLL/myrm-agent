@@ -1,8 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { formatDuration, getCurrentTimestamp, formatMessageTimestamp } from '../timeUtils';
+import { formatDuration, getCurrentTimestamp, formatMessageTimestamp, parseServerTimestamp } from '../timeUtils';
 
 describe('timeUtils', () => {
+  describe('parseServerTimestamp', () => {
+    it('reads an offset-less timestamp as UTC, with or without fractional seconds', () => {
+      expect(parseServerTimestamp('2026-10-15T10:30:00').toISOString()).toBe('2026-10-15T10:30:00.000Z');
+      expect(parseServerTimestamp('2026-10-15T10:30:00.172919').getTime()).toBe(Date.UTC(2026, 9, 15, 10, 30, 0, 172));
+      expect(parseServerTimestamp('2026-10-15 10:30:00').toISOString()).toBe('2026-10-15T10:30:00.000Z');
+    });
+
+    it('leaves a timestamp that names its offset alone', () => {
+      expect(parseServerTimestamp('2026-10-15T10:30:00Z').toISOString()).toBe('2026-10-15T10:30:00.000Z');
+      expect(parseServerTimestamp('2026-10-15T18:30:00+08:00').toISOString()).toBe('2026-10-15T10:30:00.000Z');
+    });
+
+    it('stays invalid for text that is not a timestamp', () => {
+      expect(Number.isNaN(parseServerTimestamp('not-a-date').getTime())).toBe(true);
+    });
+  });
+
   describe('formatDuration', () => {
+    it('reads an offset-less start against an offset-bearing end on one clock', () => {
+      expect(formatDuration('2026-08-12T00:00:00', '2026-08-12T00:00:42Z')).toBe('42s');
+    });
+
     it('formats seconds only', () => {
       const start = '2026-08-12T00:00:00.000Z';
       expect(formatDuration(start, '2026-08-12T00:00:42.000Z')).toBe('42s');
@@ -160,9 +181,7 @@ describe('timeUtils', () => {
 
     it('should render full-precision hover titles per native locale hour cycle', () => {
       const date = new Date(2023, 11, 25, 18, 30, 45);
-      expect(formatMessageTimestamp(date, 'en', 'Yesterday').title).toBe(
-        'Monday, December 25, 2023 at 06:30:45 PM',
-      );
+      expect(formatMessageTimestamp(date, 'en', 'Yesterday').title).toBe('Monday, December 25, 2023 at 06:30:45 PM');
       expect(formatMessageTimestamp(date, 'zh', '昨天').title).toBe('2023年12月25日星期一 18:30:45');
     });
 

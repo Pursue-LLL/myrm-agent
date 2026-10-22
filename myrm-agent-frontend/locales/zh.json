@@ -1,5 +1,23 @@
 {
-  "extensionWidgets": {},
+  "extensionWidgets": {
+    "nanoContextTitle": "Nano-Context 上下文用量",
+    "turns": "轮对话",
+    "todoTitle": "轻量任务清单",
+    "newTodoPlaceholder": "添加快速待办事项...",
+    "copyContent": "复制内容",
+    "openExternal": "新标签页中打开",
+    "download": "下载文件",
+    "close": "关闭",
+    "noImageSource": "未提供有效图片路径",
+    "pdfFallback": "当前容器暂不支持直接内嵌渲染 PDF",
+    "downloadPdf": "下载 PDF 文件直接查看",
+    "noPdfSource": "未提供有效的 PDF 文件 URL",
+    "unsupportedFormat": "暂不支持该文件类型的内嵌预览",
+    "testLatency": "测速与连通性自检",
+    "testing": "正在测速...",
+    "retest": "重新测速",
+    "unreachable": "端点不可达"
+  },
   "gitWorktree": {
     "dirtyChanges": "存在未提交的更改",
     "worktrees": "工作树",
@@ -137,6 +155,7 @@
     "constraintsLabel": "约束条件（绝不可违反）",
     "subgoals": "运行子目标",
     "addSubgoal": "追加子目标",
+    "removeSubgoal": "移除子目标",
     "subgoalPlaceholder": "输入验收标准或子任务...",
     "subgoalAdded": "子目标已添加",
     "subgoalRemoved": "子目标已移除",
@@ -183,6 +202,13 @@
     "reasonBudgetExhausted": "预算已耗尽",
     "reasonWaitTimeout": "等待超时 — 已暂停",
     "reasonConvergence": "连续无新进展后完成",
+    "reasonUsageLimit": "额度已用尽",
+    "usageLimitWaiting": "额度已用尽，预计 {time} 左右自动继续。",
+    "usageLimitWaitingNoTime": "额度已用尽，恢复后将自动继续。",
+    "usageLimitPaused": "因额度用尽已暂停，预计 {time} 左右恢复，恢复后可手动继续。",
+    "usageLimitPausedNoTime": "因额度用尽已暂停，恢复后可手动继续。",
+    "usageLimitRetryNow": "立即重试",
+    "usageLimitResume": "继续",
     "draftSection": "目标设定助手",
     "draftObjectivePlaceholder": "描述你希望 Agent 完成的目标…",
     "suggestCriteria": "智能生成验收标准",
@@ -208,7 +234,7 @@
     "goalActionSuccess_resume": "目标已恢复",
     "goalActionSuccess_cancel": "目标已取消",
     "goalActionSuccess_approve": "目标已批准",
-    "goalActionSuccess_reject": "目标已拒绝",
+    "goalActionSuccess_reject": "已打回，重新执行",
     "goalActionSuccess_unwait": "目标已恢复",
     "stepProgress": "步骤进度",
     "cancel": "取消",
@@ -634,6 +660,9 @@
     "personality": {
       "title": "沟通风格",
       "description": "选择智能体的沟通方式，这会影响回复的语气和风格。",
+      "loadFailed": "沟通风格列表加载失败",
+      "retry": "重试",
+      "exampleLabel": "示例回复",
       "category": {
         "practical": "实用型",
         "fun": "趣味型"
@@ -1316,9 +1345,7 @@
         "statusGood": "极佳决策准确率：动作空间极度精简，Agent 能发挥最高级别的零幻觉调用。",
         "staleSkillsNotice": "管家提醒：发现 {count} 个沉睡技能，正在拖累您的准确度！",
         "smartPrune": "一键净化释放动作空间",
-        "smartPruneRunning": "正在运行 Curator 清扫…",
-        "smartPruneSuccess": "Curator 清扫完成 — {stale} 个标记为 stale，{archived} 个已归档",
-        "smartPruneFailed": "Curator 清扫失败",
+        "smartPruneRunning": "正在清理动作空间…",
         "turn1CatalogTitle": "Turn 1 技能目录",
         "turn1CatalogSummary": "{inline} 内联 · {hidden} 隐藏 · search {searchState}",
         "turn1CatalogSearchOn": "开启",
@@ -1733,6 +1760,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "按空格键或回车键拾起该项。拖动时用方向键移动，再次按空格键或回车键放下，按 Esc 键取消。",
+      "roleDescription": "可拖动项",
+      "handleLabel": "拖动调整顺序",
+      "unknownItem": "该项",
+      "pickedUp": "已拾起“{item}”。",
+      "movedOver": "“{item}”已移到“{target}”上。",
+      "leftTarget": "“{item}”已不在任何可放置位置上。",
+      "backAtStart": "“{item}”已回到原位。",
+      "droppedOn": "“{item}”已放到“{target}”。",
+      "dropped": "“{item}”已放下。",
+      "cancelled": "已取消拖动，“{item}”已回到原位。"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "键",
       "valuePlaceholder": "值"
@@ -2034,7 +2074,7 @@
       "triggerAria": "查看本回复参考的工作技能（{count}）",
       "title": "本回复参考的工作技能",
       "description": "智能体在本轮回答中加载或查阅的技能。仅作说明，不会改变后续对话行为。",
-      "partialBadge": "部分加载",
+      "partialBadge": "仅绑定",
       "versionLabel": "版本",
       "hashLabel": "内容哈希"
     },
@@ -2748,7 +2788,8 @@
       "attachments": "{count} 个附件",
       "editHint": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
       "reorder": "拖动调整顺序",
-      "listLabel": "排队消息"
+      "listLabel": "排队消息",
+      "moveToTop": "移到队首"
     },
     "fileMention": {
       "title": "工作区引用",
@@ -2950,27 +2991,17 @@
       "submit": "提交",
       "skip": "跳过",
       "submitFailed": "提交澄清失败，请重试",
+      "alreadyHandled": "该问题已超时或已在其他设备处理，助手已继续。你填写的内容已放回输入框。",
       "answered": "已回答澄清问题",
+      "answeredSkipped": "已跳过该问题",
+      "answeredTimeout": "未在时限内回答，助手已在没有回答的情况下继续。",
+      "answeredSkippedUnconfirmed": "已跳过确认，该操作未获批准。",
+      "answeredTimeoutUnconfirmed": "未在时限内确认，该操作未获批准。",
+      "answeredHandled": "已超时或已在其他设备处理，助手已继续。",
+      "answeredHandledSignOff": "该确认已超时或已在其他设备处理。超时未回答不会视为同意，请以助手后续的回复为准。",
       "expandOptions": "展开更多选项 (+{count})",
       "collapseOptions": "收起选项",
       "recommendedBadge": "推荐"
-    },
-    "directoryRequest": {
-      "title": "需要目录访问权限",
-      "pathLabel": "文件夹路径",
-      "pathPlaceholder": "/Users/you/Documents/project",
-      "pathRequired": "请输入文件夹路径",
-      "writableLabel": "允许写入（修改文件时需要）",
-      "grant": "授予访问",
-      "deny": "拒绝",
-      "submitFailed": "提交目录授权失败，请重试",
-      "answered": "目录访问已处理",
-      "chooseFolder": "选择文件夹",
-      "browseFailed": "无法打开文件夹选择器，请手动输入路径",
-      "selectThis": "使用此文件夹",
-      "recent": "最近使用",
-      "filter": "筛选文件夹",
-      "noSubdirs": "没有子文件夹"
     },
     "sessionAccessRoots": {
       "label": "额外文件夹",
@@ -2992,6 +3023,7 @@
       "confirmed": "计划已批准",
       "edited": "计划已修改并批准",
       "skipped": "已跳过审阅",
+      "handledElsewhere": "该计划已在别处处理",
       "submitFailed": "提交计划响应失败，请重试",
       "workflowTitle": "动态工作流计划",
       "workflowBadge": "执行前请审阅",
@@ -3089,7 +3121,6 @@
       "nextTurnOnly": "仅对下一条消息生效",
       "overrideSkillsShort": "技能 {skills} 项",
       "overrideMcpShort": "MCP {mcps} 项",
-      "overrideRemove": "恢复默认",
       "minimalMountNotice": "活跃能力过多可能会稀释模型注意力，建议收窄至当前任务必需工具。"
     },
     "samplePrompts": {
@@ -3167,8 +3198,7 @@
       "step2Prompt": "帮我记录并整理今日工作日志（Daily Journal），梳理关键事实、核心决策卡点与进展证据。",
       "step3Title": "智能周报",
       "step3Desc": "WeeklyReview 蓝图聚合度量产出",
-      "step3Prompt": "帮我调取本周完成的待办事项与每日日志记录，按结论先行、数据度量与卡点复盘聚合生成一份标准本周工作总结报告。",
-      "oneClickAction": "一键加载闭环 Prompt"
+      "step3Prompt": "帮我调取本周完成的待办事项与每日日志记录，按结论先行、数据度量与卡点复盘聚合生成一份标准本周工作总结报告。"
     },
     "skillConnectorsPreflight": {
       "title": "连接器前置依赖预检",
@@ -3503,6 +3533,79 @@
     "cacheResetNotice": "缓存已重置：{reason}{tokens, plural, =0 {} other {，约 #k token 未命中缓存}}",
     "pdfParsedPages": "[PDF] {fileName}：已解析 {parsed}/{total} 页",
     "pdfImageOptimized": "[PDF] 解析优化：已提取 {kept} 张核心图像（拦截 {dropped} 张视觉噪点）",
+    "pdfFiguresTruncated": "[PDF] 已包含 {kept} 张配图；该文件还有更多图片超出单次投递上限，未随本次发送",
+    "inFlightSteer": {
+      "subagentNotFound": "未找到目标子代理",
+      "steerSent": "已向 {name} 注入实时纠偏指令",
+      "steerFailed": "纠偏指令下发失败",
+      "stopped": "已停止 {name}，半成品草稿已安全保留",
+      "stopFailed": "叫停任务失败"
+    },
+    "routeAgentDiscoverChip": {
+      "title": "把任务交给专家智能体",
+      "guardrailBadge": "护栏已启用",
+      "subtitle": "编码、评审、研究、架构与安全审计智能体随时可以接手。",
+      "action": "查看专家",
+      "dismiss": "关闭",
+      "specialists": {
+        "coder": "编码",
+        "reviewer": "评审",
+        "researcher": "研究",
+        "architect": "架构",
+        "auditor": "审计"
+      }
+    },
+    "multiplexer": {
+      "sessionListTitle": "会话",
+      "panesCount": "个窗格",
+      "headlessBadge": "无头",
+      "pendingDirectives": "条待处理指令",
+      "inspectLogTitle": "实时日志",
+      "noLogs": "暂无输出",
+      "artifactsLabel": "产物",
+      "instructPlaceholder": "向该子代理发送指令...",
+      "sendInstruction": "发送",
+      "noSessions": "暂无活跃会话"
+    },
+    "roleChainPresets": {
+      "title": "角色链预设",
+      "badge": "预设",
+      "chainAssembled": "已将「{name}」角色链填入输入框",
+      "chains": {
+        "implement_review_fix": {
+          "name": "实现、评审、修复",
+          "desc": "编码智能体实现，评审智能体检查，再由编码智能体修复，最多循环 3 轮",
+          "prompt": "请使用角色链：先由编码子代理完成实现，再由代码评审子代理逐项评审，最后由编码子代理修复评审发现的问题，最多循环 3 轮。"
+        },
+        "clarify_scout_worker": {
+          "name": "澄清、勘察、执行",
+          "desc": "先澄清目标，再勘察代码库，最后交给执行者完成",
+          "prompt": "请使用角色链：先与我澄清任务中的歧义，再由勘察子代理梳理相关代码，最后把勘察结论交给执行子代理完成任务。"
+        },
+        "watchdog_guard": {
+          "name": "看门狗守护",
+          "desc": "看门狗子代理在每个高风险操作执行前先审计",
+          "prompt": "请使用角色链：由看门狗子代理在每个高风险操作（删除文件、联网、涉及密钥）执行前先审计，发现违规立即中止。"
+        },
+        "editorial_publish": {
+          "name": "编辑发布",
+          "desc": "撰稿、事实核查，再发布",
+          "prompt": "请使用角色链：先由撰稿子代理起草，再由事实核查子代理逐条核实论断与来源，最后由编辑子代理润色并整理成可发布的版本。"
+        }
+      }
+    },
+    "topologyPruning": {
+      "tier1Badge": "第 1 档 · 前沿推理",
+      "tier2Badge": "第 2 档 · 强基础模型",
+      "tier3Badge": "第 3 档 · 快速轻量",
+      "hybridFolded": "混合折叠",
+      "directFolded": "折叠为直接执行",
+      "savedTurnsTokens": "预计节省约 {turns} 轮、{tokens} 个 Token",
+      "fanoutMode": "多智能体扇出",
+      "strategyAuto": "自动",
+      "strategyDirect": "仅直接执行",
+      "strategyMultiAgent": "始终多智能体"
+    },
     "pdfScannedPages": "[PDF] {fileName}：第 {pages} 页无文本层，已按图片发送",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 页无文本层，且超出单次投递上限，未能发送"
   },
@@ -4123,6 +4226,8 @@
     "skillManageRollbackFailed": "无法撤销此次技能修改，请重试或在技能设置中回滚版本。",
     "skillManageRollbackCompensationFailed": "撤销未能安全完成。请打开 设置 → 技能 → 历史 核对版本，必要时手动回滚。",
     "skillManageRollbackAlreadyConsumed": "该批次已撤销或链接已失效。若仍需更早版本，请前往「设置 → 技能 → 历史」。",
+    "skillManageRollbackSuperseded": "该批次中的技能之后又被修改过。请先撤销更新的那次修改，或前往「设置 → 技能 → 历史」恢复版本。",
+    "skillManageRollbackSkillMissing": "该批次中的技能之后已被删除，无法再撤销这个批次。",
     "skillManageUndoHintBody": "助手在本条回复中修改了技能。展开下方「任务步骤」可撤销这些修改并恢复之前的内容。",
     "skillManageUndoHintAction": "打开任务步骤",
     "archiveRestoreResultSummary": "已恢复 {lines} 行，{tokens} tokens。",
@@ -4265,6 +4370,7 @@
       "unknown": "未知错误",
       "hook_blocked": "规则拦截",
       "estop": "紧急停止",
+      "output_limit": "输出上限",
       "loop_guard": "循环限制",
       "sandbox_boundary": "边界限制",
       "frequency_guard": "频率限制",
@@ -4377,6 +4483,7 @@
     },
     "title": "记忆管理",
     "description": "管理 AI 从对话中学习到的记忆",
+    "keywordModeHint": "当前为关键词记忆模式：记忆通过关键词检索。配置嵌入模型后可启用语义检索。",
     "scopeHierarchy": {
       "cardTitle": "记忆作用域层级图谱",
       "cardSubtitle": "智能体长效知识的生命周期与边界隔离可视化管理",
@@ -4599,7 +4706,7 @@
     "enableConversationSearch": "历史会话搜索",
     "enableConversationSearchDesc": "开启后，助手在回答「上次怎么说」「继续上次话题」等问题时，可以检索你的历史聊天记录。默认关闭。",
     "incognitoMode": "无痕模式",
-    "incognitoModeDesc": "开启后，本会话不读写记忆（不影响全局记忆设置）。对话结束后不留痕迹。",
+    "incognitoModeDesc": "开启后，本会话不读写记忆，也不会出现在历史记录和搜索中，闲置超过 1 小时后自动删除。模型服务商仍会处理你发送的内容。",
     "preCompactEnabled": "压缩前记忆召回",
     "preCompactEnabledDesc": "上下文压缩前，自动从持久记忆库召回相关约束并注入当前对话。",
     "preCompactBudget": "召回 token 预算",
@@ -4771,8 +4878,8 @@
       "deployMode": "部署模式",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量存储持久化",
-      "vectorPersistenceHint": "记忆当前运行在临时模式。请确认没有其他 Myrm 窗口或进程正在使用同一个数据文件夹，且该文件夹可写，然后重启。",
       "embeddingStatus": "嵌入模型",
+      "retrievalMode": "记忆检索模式",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件账本",
       "healthSnapshotStatus": "健康快照",
@@ -5184,14 +5291,6 @@
         }
       },
       "migrationTitle": "迁移准备度",
-      "migrationAdapterStatusTitle": "适配器就绪状态",
-      "migrationAdapterStatus": {
-        "ready": "已就绪",
-        "planned": "已规划",
-        "missing": "暂不可用"
-      },
-      "migrationAdapterMissingHint": "{source} 暂不支持直接导入，你可以在迁移向导中通过兼容格式继续迁移。",
-      "migrationAdapterOpenWizard": "打开迁移向导",
       "trackedImports": "{count} 个已追踪导入",
       "unmappedItems": "{count} 个未映射条目",
       "importCleanupPending": "{count} 个待确认导入审查",
@@ -5308,7 +5407,9 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "沙箱代理",
         "persistent": "持久化",
-        "memory_fallback": "内存模式（重启后丢失）"
+        "memory_fallback": "内存模式（重启后丢失）",
+        "semantic": "语义检索",
+        "keyword": "关键词检索"
       },
       "coverageStatus": {
         "not_tracked": "暂无外部记忆导入记录",
@@ -5408,9 +5509,35 @@
         "noCommits": "未检测到近期的 Commit 历史",
         "gitUnavailable": "当前工作区未检测到 Git 仓库"
       },
-      "conclusionAttribution": {
-        "deleteConfirm": "确定删除结论「{id}」？"
-      }
+      "competitorMigration": {
+        "title": "导入你的其他助手",
+        "description": "在这台电脑上查找 Hermes、Claude Code 或 Codex 的数据，并把它们的记忆、技能和规则迁移过来。",
+        "scan": "查找其他助手",
+        "scanning": "正在查找…",
+        "empty": "开始查找，看看这台电脑上有哪些助手可以导入。",
+        "foundCount": "找到 {count} 个助手",
+        "found": "已找到",
+        "notFound": "未找到",
+        "import": "导入",
+        "importing": "正在导入…",
+        "resultTitle": "导入完成",
+        "memories": "{count} 条记忆",
+        "skills": "{count} 个技能",
+        "rules": "{count} 条规则",
+        "sources": {
+          "hermes": "记忆、自定义技能和设置",
+          "claude_code": "你的全局规则和项目规则",
+          "codex": "共用规则和技能"
+        },
+        "errors": {
+          "scan": "查找其他助手失败，请重试。",
+          "import": "无法从这个助手导入，请重试。"
+        },
+        "backupHint": "想把整个应用迁移到另一台设备？",
+        "backupLink": "打开备份与恢复"
+      },
+      "migrationOpenWizard": "导入记忆",
+      "migrationSourcesTitle": "支持的来源"
     },
     "createDialog": {
       "title": "添加记忆",
@@ -5489,12 +5616,11 @@
       "total": "总数",
       "mapped": "可导入",
       "unmapped": "未映射",
-      "sourceBucket": "来源分组",
-      "targetBucket": "目标分组",
+      "sourceBucket": "来源",
+      "targetBucket": "导入为",
       "items": "项目",
       "status": "状态",
       "expiresAt": "有效期至",
-      "reviewHash": "审查指纹",
       "notAvailable": "不可用",
       "notMapped": "未映射",
       "warnings": "注意事项",
@@ -5506,7 +5632,6 @@
         "myrm_archive": "Myrm 记忆归档",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5515,8 +5640,17 @@
         "unknown": "未知来源",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "粘贴导入"
       },
+      "previewTitle": "解析样例（{count} 条）",
+      "previewHint": "这里只展示样例，确认后会导入上方列出的全部内容。",
+      "previewTruncated": "已显示 {shown} / {total} 条解析结果。",
       "statuses": {
         "ready": "所有可识别项目都已映射，可安全导入。",
         "warning": "部分项目无法映射，确认前请检查未覆盖项目。",
@@ -5528,35 +5662,44 @@
         "partially_mapped": "部分映射",
         "unsupported": "不支持",
         "dropped": "已丢弃"
-      },
-      "warningMessages": {
-        "no_native_buckets": "未找到可导入的原生记忆分组。",
-        "myrm_archive_memory_section_missing": "该 Myrm 归档不包含可导入的 memory 分区。",
-        "myrm_archive_non_memory_sections_review_only": "该导入入口只写入 memory 分区；Shared Context、会话、回放和审计请使用归档恢复入口。",
-        "agentmemory_version_unsupported": "该 agentmemory 导出版本尚未验证，已阻止导入。",
-        "agentmemory_too_many_sessions": "agentmemory 会话数量超过导入上限。",
-        "agentmemory_too_many_memories": "agentmemory 记忆数量超过导入上限。",
-        "agentmemory_too_many_summaries": "agentmemory 摘要数量超过导入上限。",
-        "agentmemory_too_many_observations": "agentmemory observation 数量超过导入上限。",
-        "agentmemory_graph_skipped": "知识图谱节点和边暂不写入；可保留的关联信息会进入元数据。",
-        "agentmemory_access_logs_skipped": "访问日志属于运行遥测，不会作为用户记忆导入。",
-        "claude_code_too_many_lines": "Claude Code 会话文件行数超出限制，仅处理前部分内容。",
-        "claude_code_too_many_entries": "Claude Code 去重后条目数超出限制，仅处理前部分内容。",
-        "claude_code_no_conversation_entries": "该 Claude Code 会话文件中未找到用户或助手消息。",
-        "claude_code_no_lines": "Claude Code 会话文件中没有可解析的行。",
-        "hermes_no_files": "未找到 Hermes 记忆文件（SOUL.md / MEMORY.md / USER.md）。",
-        "hermes_api_keys_detected": "检测到 Hermes 配置中的 API Key，已标记为手动配置项。",
-        "hermes_skills_detected": "检测到 Hermes 技能，技能需通过技能迁移审查流程单独处理。",
-        "openclaw_no_sessions": "未找到 OpenClaw 会话数据。",
-        "openclaw_no_memories": "未找到 OpenClaw 记忆数据。",
-        "openclaw_skills_detected": "检测到 OpenClaw 技能，技能需通过技能迁移审查流程单独处理。",
-        "cursor_no_rules": "未找到 Cursor Rules 配置文件。",
-        "cursor_empty_payload": "Cursor 数据为空，未找到可导入的规则或设置。",
-        "codex_no_instructions": "未找到 Codex 指令配置文件。",
-        "codex_empty_payload": "Codex 数据为空，未找到可导入的指令或设置。",
-        "unsupported_source": "该来源还没有经过验证的导入适配器。"
       }
     },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "访问日志属于使用记录而非记忆，因此不会导入。",
+      "agentmemory_graph_skipped": "知识图谱的连线暂不导入，支持的关系信息会保留在对应记忆上。",
+      "agentmemory_too_many_memories": "agentmemory 记忆数量超过导入上限。",
+      "agentmemory_too_many_observations": "agentmemory observation 数量超过导入上限。",
+      "agentmemory_too_many_sessions": "agentmemory 会话数量超过导入上限。",
+      "agentmemory_too_many_summaries": "agentmemory 摘要数量超过导入上限。",
+      "agentmemory_version_unsupported": "该 agentmemory 导出版本尚未验证，已阻止导入。",
+      "chatgpt_no_conversations": "这份 ChatGPT 导出包中未找到会话记录。",
+      "claude_code_no_conversation_entries": "该 Claude Code 会话文件中未找到用户或助手消息。",
+      "claude_code_no_lines": "Claude Code 会话文件中没有可解析的行。",
+      "claude_code_too_many_entries": "Claude Code 去重后条目数超出限制，仅处理前部分内容。",
+      "claude_code_too_many_lines": "Claude Code 会话文件行数超出限制，仅处理前部分内容。",
+      "codex_empty_payload": "Codex 数据为空，未找到可导入的指令或设置。",
+      "cursor_empty_payload": "Cursor 数据为空，未找到可导入的规则或设置。",
+      "gbrain_no_pages": "这份导出包中未找到 gbrain 页面。",
+      "gemini_no_conversations": "这份 Google Gemini 导出包中未找到会话记录。",
+      "hermes_api_keys_detected": "检测到 Hermes 配置中的 API Key，已标记为手动配置项。",
+      "hermes_skills_detected": "检测到 Hermes 技能，技能需通过技能迁移审查流程单独处理。",
+      "mem0_no_memories_found": "这份 Mem0 导出包中未找到任何记忆。",
+      "myrm_archive_memory_section_missing": "该 Myrm 归档不包含可导入的 memory 分区。",
+      "myrm_archive_non_memory_sections_review_only": "该导入入口只写入 memory 分区；Shared Context、会话、回放和审计请使用归档恢复入口。",
+      "no_native_buckets": "这个文件里没有可导入的记忆条目。",
+      "openclaw_skills_detected": "检测到 OpenClaw 技能，技能需通过技能迁移审查流程单独处理。",
+      "pasted_empty": "未能解析出任何内容，请使用导出提示词并粘贴其代码块。",
+      "pasted_entries_over_limit": "单次粘贴包含的条目过多，请把导出内容分几次粘贴。",
+      "pasted_text_too_large": "粘贴的文本过大，请把导出内容分几次粘贴。",
+      "plur_inactive_skipped": "非 active 状态的 engram 已跳过。",
+      "plur_invalid_engrams": "缺少 statement 的 engram 已跳过。",
+      "plur_no_engrams_found": "PLUR 存储文件中未找到任何 engram。",
+      "trae_empty_payload": "这份导出包中未找到 TRAE 规则。",
+      "unsupported_source": "暂不支持导入这个来源。",
+      "windsurf_empty_payload": "这份导出包中未找到 Windsurf 记忆。",
+      "pasted_model_extraction_failed": "这段文本未经过模型整理，已改为按行解析。"
+    },
+    "importDedupeHint": "与库内已有内容相同的条目会在导入时自动合并或跳过。",
     "migrationWizard": {
       "title": "从其他 AI 助手导入",
       "description": "扫描 Hermes、OpenClaw、Claude Code、Codex —— 人设写入新智能体，事实进全局记忆，规则进工作区",
@@ -5649,7 +5792,8 @@
           "agent_config_manual": "Agent 配置",
           "no_importable_data": "可导入数据",
           "cron_lane": "定时任务（Cron）",
-          "kanban_not_migrated": "看板任务"
+          "kanban_not_migrated": "看板任务",
+          "credential_pool_migration": "凭据池迁移"
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
         "mcpServersTitle": "检测到 MCP 服务",
@@ -5669,11 +5813,10 @@
         "trustedSourceTitle": "外部扩展与技能安全披露",
         "trustedSourceDesc": "检测到待导入的外部扩展或技能。技能具备系统工具调用潜力；恶意扩展可能通过间接提示词注入诱导大模型执行命令。在本地或桌面模式下，工具以当前操作系统权限执行；云端模式在独立沙箱卷中隔离。",
         "trustedSourceConfirmLabel": "我已知晓外部技能具备命令执行潜力，确认此来源安全可信",
-        "dryRunId": "审查 ID",
         "expiresAt": "有效期至",
         "mappings": "映射详情",
-        "tableSource": "来源分组",
-        "tableTarget": "目标分组",
+        "tableSource": "来源",
+        "tableTarget": "导入为",
         "tableItems": "条目",
         "tableStatus": "状态",
         "warnings": "注意事项",
@@ -5697,7 +5840,46 @@
         "sessionsTitle": "会话车道 — 检测到 {count} 个历史会话",
         "resumptionReady": "可直接续聊",
         "sessionsDesc": "从外部助手高保真提取完整转录本，导入后直接落库会话列表，保留沙箱路径与 Prompt Cache 亲和性。",
-        "turnsCount": "{turns} 轮对话 · {tools} 次工具调用"
+        "turnsCount": "{turns} 轮对话 · {tools} 次工具调用",
+        "previewItemsTitle": "将导入的内容示例（{count} 条）",
+        "previewBucket": {
+          "profile": "画像",
+          "procedural": "规则",
+          "semantic": "事实",
+          "episodic": "情景",
+          "conversation": "对话记忆",
+          "claim": "已验证",
+          "task_digest": "任务摘要",
+          "integration": "集成数据"
+        },
+        "pendingSkillsTruncated": "本次仅导入前 {kept} 个技能（共 {total} 个），其余未纳入。",
+        "mappingStatus": {
+          "mapped": "已映射",
+          "partially_mapped": "部分映射",
+          "unsupported": "无法导入",
+          "dropped": "已跳过"
+        },
+        "laneDetail": {
+          "instruction_persona": "人设 {chars} 字符",
+          "instruction_global": "全局指令 {chars} 字符",
+          "instruction_rules": "{count} 个规则文件",
+          "instruction_none": "未检测到指令内容",
+          "instruction_large": "共 {chars} 字符，超过建议体积",
+          "memory_mapped": "{count} 条已映射",
+          "memory_episodic_excluded": "已排除情景记忆",
+          "skill_pending": "{count} 个技能待审",
+          "skill_none": "无技能",
+          "credential_opt_in": "检测到 API Key（可选导入）",
+          "credential_no_providers": "检测到 API Key，但未配置模型服务商",
+          "credential_none": "未检测到 API Key",
+          "cron_importable": "{importable} 个定时任务将以暂停状态导入{skipped, plural, =0 {} other {，另有 # 个跳过}}",
+          "cron_skipped": "{skipped} 个定时任务无法导入",
+          "cron_none": "未检测到定时任务",
+          "session_ready": "{count} 个会话可恢复",
+          "session_skipped": "不导入"
+        },
+        "importSessionsLabel": "同时导入 {count} 条历史会话",
+        "importSessionsHint": "关闭后仅导入记忆与资产，历史会话仍保留在原助手中。"
       },
       "result": {
         "title": "导入完成",
@@ -5781,7 +5963,7 @@
         "readinessRecheckFailed": "无法刷新就绪状态，请重试。",
         "rollbackDeleteAgentConfirm": "是否同时删除本次导入创建的智能体？",
         "rollbackAgentDeleted": "已删除本次导入的智能体",
-        "rollbackAvailable": "支持一键回滚",
+        "rollbackAvailable": "回滚会恢复已导入的记忆、指令与定时任务；已导入的历史会话会保留在聊天列表中。",
         "done": "完成",
         "rollbackButton": "回滚此批次",
         "rollingBack": "正在回滚...",
@@ -5800,7 +5982,25 @@
           },
           "applyFailed": "无法应用 Second Brain 预设",
           "vaultHint": "已从 Codex 配置检测到该 Obsidian vault。「导入 Wiki」将自动使用该路径。"
-        }
+        },
+        "verifyMemory": "验证已迁移的记忆",
+        "verifyPrompt": "请总结你从刚刚导入的记忆中记住了关于我的哪些内容，并指出其中看起来有误或已过时的部分。"
+      },
+      "paste": {
+        "sourceName": "粘贴导入的记忆",
+        "title": "从任意 AI 粘贴导入",
+        "description": "适用于没有导出包的助手（Claude、Gemini、DeepSeek、Copilot 等）：把提示词复制到旧 AI，再把它的回答粘贴到这里。",
+        "copyPrompt": "复制导出提示词",
+        "copied": "已复制",
+        "promptLabel": "查看导出提示词",
+        "placeholder": "粘贴旧 AI 输出的代码块…",
+        "modelLabel": "用模型帮我整理",
+        "modelDescription": "文本会发送给该智能体配置的模型，结果仍需你审阅后才会入库。",
+        "previewButton": "解析并预览",
+        "previewing": "解析中…",
+        "previewFailed": "粘贴内容解析失败——请用导出提示词重新获取。",
+        "promptText": "请把我的记忆导出，方便我导入到另一个助手。只输出一个代码块。请列出你保存的关于我的全部记忆或事实，以及你从我们的对话中学到的长期背景。每条单独一行，格式为：[YYYY-MM-DD] - 内容（不确定日期时，请以「- 内容」开头）。请按以下顺序使用这四个英文标题分组：## RULES（如何回答的指令：语气、格式、始终/禁止），## PROFILE（姓名、所在地、职业、家庭、兴趣），## FACTS（项目、工具、语言、反复出现的主题），## PREFERENCES（我对你的纠正和要求你保持的习惯）。请逐字保留我的原话，不要总结、合并或省略条目。不要包含密码、API 密钥或访问令牌。代码块之后，说明是否已完整列出。",
+        "sizeHint": "单次最多粘贴 4MB，过长的导出可以分几次粘贴。"
       }
     },
     "pendingReview": {
@@ -5896,7 +6096,7 @@
       "warningMessages": {
         "section_not_selected": "该分区未被选择恢复。",
         "memory_section_invalid": "记忆分区格式无效。",
-        "no_native_buckets": "未找到可恢复的原生记忆分组。",
+        "no_native_buckets": "这份归档里没有可恢复的记忆分区。",
         "shared_context_conflicts": "部分共享上下文已存在，安全合并模式会跳过它们。",
         "conversation_conflicts": "部分会话已存在，安全合并模式会跳过它们。",
         "replay_conflicts": "部分回放轮次已存在，安全合并模式会跳过它们。",
@@ -7287,6 +7487,7 @@
     "runSkipped": "已跳过",
     "runCircuitBreak": "死循环熔断",
     "circuitBreakBanner": "智能识别到死循环，已主动熔断并阻止重试以保护算力消耗",
+    "skippedUsageLimit": "额度已用尽，恢复后将自动重新运行。",
     "circuitBreakTitle": "死循环主动熔断保护",
     "circuitBreakDesc": "智能体在无人值守执行时遭遇相同连续错误，系统已切断执行链并阻止后续重试，防止无谓烧钱。",
     "runError": "失败",
@@ -7393,14 +7594,16 @@
     "addPath": "添加",
     "pathPlaceholder": "例如 ~/reports 或 /tmp",
     "commonPaths": "常用：",
-    "securityDenied": "安全拒绝",
+    "blockedBadge": "已拦截 {count} 项",
+    "blockedTitle": "安全规则拦下了 {count} 项操作",
+    "blockedMore": "另有 {count} 项",
     "verificationPass": "复核通过",
     "verificationFail": "复核未通过",
     "verificationSkipped": "未复核",
     "verificationError": "复核异常",
     "verificationSummary": "交付复核",
     "verificationRunOkReviewFailed": "任务已完成，交付复核未通过 — 展开查看详情。",
-    "securityDeniedHint": "部分工具被安全策略拒绝，请在上方「能力围栏」中配置所需工具权限。",
+    "blockedHint": "如果希望该任务执行这些操作，请在任务设置中调整「能力围栏」或「允许的路径」。",
     "connectorDegradedBadge": "连接器异常",
     "connectorFixSuggestion": "排障建议",
     "connectorHealthStatus": "连接器健康",
@@ -7422,11 +7625,11 @@
     "capability": {
       "web_search_tool": "搜索引擎",
       "net_fetch": "读取网页",
-      "shell_exec": "终端命令",
+      "shell_exec": "运行中的进程",
       "file_read": "读取文件",
       "file_write": "写入文件",
       "mcp_invoke": "外部工具",
-      "code_interpreter_tool": "运行代码",
+      "code_interpreter": "命令与代码",
       "browser_navigate": "浏览器导航",
       "browser_fill": "浏览器填写表单",
       "browser_upload": "浏览器上传",
@@ -7436,11 +7639,11 @@
     "capabilityDesc": {
       "web_search_tool": "通过搜索引擎获取互联网实时信息",
       "net_fetch": "读取并解析指定网页的内容",
-      "shell_exec": "在服务器上执行终端命令（高权限操作）",
+      "shell_exec": "向后台运行中的命令发送输入、读取输出或结束它",
       "file_read": "读取服务器上的文件内容",
       "file_write": "在服务器上创建或修改文件",
       "mcp_invoke": "调用已配置的第三方工具和服务",
-      "code_interpreter_tool": "在沙箱中运行 Python 代码",
+      "code_interpreter": "在服务器上运行终端命令与 Python 脚本（高权限操作）",
       "browser_navigate": "控制浏览器导航到指定 URL（默认禁止内网地址）",
       "browser_fill": "在浏览器页面中填写表单",
       "browser_upload": "通过浏览器上传文件",
@@ -7635,7 +7838,7 @@
     "triggerWebhookCurl": "cURL 示例",
     "triggerWebhookAdd": "添加 Webhook",
     "triggerEventLabel": "事件触发器",
-    "triggerEventDesc": "当收到的消息匹配正则表达式时触发任务。访问策略会忽略的消息（例如来自未绑定账号，或位于未启用群聊中）不会触发。",
+    "triggerEventDesc": "当收到的消息匹配正则表达式时触发任务。访问策略会忽略的消息（例如来自未绑定账号，或位于未启用群聊中）不会触发。如果发消息的人不是你，任务只能以只读方式运行：可以读取文件和搜索网页，但不能修改文件、执行命令或使用你的记忆；绑定了工作流模板的任务会被跳过。",
     "triggerEventPattern": "匹配规则（正则）",
     "triggerEventPatternInvalid": "正则表达式无效",
     "triggerEventChannel": "频道（可选）",
@@ -7905,6 +8108,8 @@
     "bulkSuccess": "{count} 个任务已更新",
     "bulkPartialSuccess": "{succeeded} 个成功, {failed} 个失败",
     "bulkClearSelection": "取消选择",
+    "selectTask": "选择任务：{title}",
+    "detailsLoadError": "加载任务详情失败",
     "forcePromoteTitle": "依赖未满足",
     "forcePromoteDesc": "以下父任务尚未完成：",
     "forcePromoteConfirm": "强制放行",
@@ -8254,9 +8459,41 @@
       "actionBacklog": "排定优先级并安排执行",
       "actionDone": "任务已成功执行完毕"
     },
+    "blockedReason": {
+      "parentMergeFailed": "前置任务的改动合并失败，请先处理，再继续",
+      "usageLimit": "正在等待模型用量额度重置，重置后自动继续",
+      "batchPause": "已随批量一起暂停，批量恢复后继续"
+    },
+    "blockKind": {
+      "human": "需要你处理",
+      "scheduled": "定时恢复",
+      "external": "等待外部事件"
+    },
+    "autoUnblocking": "自动解除阻塞中…",
     "cardActions": "任务操作",
     "deleteConfirmTitle": "删除此任务？",
-    "deleteConfirmDesc": "「{title}」\n任务及其运行记录将被永久删除。正在等待它的任务，若没有其他依赖未完成，会变为就绪状态并可能自动开始执行。"
+    "deleteConfirmDesc": "「{title}」\n任务及其运行记录将被永久删除。正在等待它的任务，若没有其他依赖未完成，会变为就绪状态并可能自动开始执行。",
+    "taskHandoff": "任务移交协作",
+    "collapse": "收起",
+    "delegateTask": "移交给新成员",
+    "currentAssignee": "当前经办",
+    "transferToAgent": "移交给成员（智能体）",
+    "selectAgentPlaceholder": "选择接收任务的智能体",
+    "current": "当前",
+    "targetStatus": "移交后状态",
+    "statusReady": "待执行",
+    "statusBacklog": "待办",
+    "statusInReview": "审核中",
+    "handoffSummary": "移交说明",
+    "handoffSummaryPlaceholder": "描述当前已完成内容、阻塞原因或对下一位接手成员的具体要求...",
+    "changedFilesMetadata": "涉及或产出的文件（以换行或逗号分隔）",
+    "submitting": "移交中...",
+    "confirmHandoff": "确认移交",
+    "handoffTimeline": "协作移交履历",
+    "unknown": "未知",
+    "handoffSelectAgentRequired": "请选择接收任务的智能体",
+    "handoffSuccess": "任务移交成功",
+    "handoffFailed": "移交任务失败"
   },
   "channels": {
     "sectionTitle": "消息通道",
@@ -9436,6 +9673,7 @@
       "send_message_generic": "发送消息"
     },
     "ask": {
+      "tool_generic": "想要使用 {tool}",
       "file_read": "想要读取 {filename}",
       "file_write": "想要写入 {filename}",
       "file_write_ask": "想要写入 {filename}",
@@ -9486,9 +9724,6 @@
     },
     "description": "Agent 请求执行以下操作。你可以批准、编辑参数后执行、或拒绝并反馈。",
     "subagentApprovalRequired": "子智能体任务需审批",
-    "deployApprovalTitle": "Artifact 部署确认",
-    "deployApprovalArtifact": "工件",
-    "deployApprovalHint": "批准后将通过 Vercel 发布该 artifact，产生公网可访问 URL。",
     "outboundDraftTitle": "渠道消息草稿审核",
     "outboundDraftDescription": "AI 生成了以下回复，请审核后决定发送或丢弃。",
     "outboundDraftOriginal": "用户原始消息",
@@ -9545,7 +9780,6 @@
     "workspaceLabel": "工作区",
     "expiresIn": "{seconds}秒后过期",
     "expired": "已过期",
-    "expiredToast": "审批已超时，操作已自动拒绝",
     "timeoutAutoDenied": "审批已超时，操作已自动拒绝",
     "timeoutAutoApproved": "审批已超时，操作已自动批准",
     "approve": "批准",
@@ -9583,7 +9817,7 @@
     "handoverDialogTitle": "等待您操作",
     "handoverDialogDescription": "Agent 需要您在浏览器中完成操作。完成后点击「已完成」继续。",
     "resumeError": "恢复执行失败，请重试",
-    "approvalExpired": "该审批已由超时自动处理，无需操作",
+    "approvalAlreadyHandled": "该审批已超时或已在其他设备处理，无需操作",
     "resolveError": "提交审批失败，请重试",
     "browserSession": {
       "title": "浏览器会话操作",
@@ -9779,8 +10013,6 @@
     "retryFailed": "重试失败，消息可能已过期",
     "pairingPending": "来自 {channel} 的 {sender} 发起了配对请求",
     "goToApproval": "前往审批",
-    "configHealthWarning": "发现配置问题：{items} 未正确配置",
-    "goToSettings": "前往设置",
     "newSkillDraft": "新的技能成长案例已生成：{name}",
     "reviewDraft": "立即查看",
     "messageDeadLettered": "发送到 {channel} 的消息已永久失败，原因：{reason}",
@@ -9818,6 +10050,8 @@
     "databaseResetFailedNetwork": "网络请求异常",
     "databaseDegradedTitle": "本地数据库严重损坏且无法恢复。",
     "databaseDegradedBody": "当前运行在临时安全模式，您的新对话将不会被保存。",
+    "vectorDegradedTitle": "记忆暂时无法保存",
+    "vectorDegradedDesc": "当前无法读取已保存的记忆，退出 Myrm 后新产生的记忆可能丢失。请关闭其他已打开的 Myrm 窗口后重新打开应用；若反复出现，请确认 Myrm 数据文件夹可写入，或从备份中恢复。",
     "databaseResetting": "重置中...",
     "databaseResetNow": "立即重置数据库",
     "undoConsolidation": "撤销 (Undo)",
@@ -9829,6 +10063,7 @@
     "kanbanTaskCompleted": "看板任务已完成",
     "kanbanTaskBlocked": "看板任务已阻塞",
     "kanbanTaskFailed": "看板任务已失败",
+    "viewKanbanBoard": "查看看板",
     "taskCompleted": "{taskType} 已完成",
     "taskFailed": "{taskType} 失败",
     "taskUnknownError": "未知错误",
@@ -9838,9 +10073,6 @@
     "goalNeedsReview": "目标需要人工审查",
     "goalTerminal": "目标已结束",
     "goalDequeued": "下一个目标已开始",
-    "goalMemoryArchived": "团队记忆已更新（已归档 {count} 条架构决策）",
-    "goalMemoryPendingApproval": "架构决策待审批（{count} 条）",
-    "goalMemoryArchiveFailed": "架构决策归档到团队记忆失败",
     "correctionMemorySynced": "纠错已同步到团队记忆",
     "correctionMemoryPendingApproval": "纠错待团队记忆审批",
     "frustrationSkillLearned": "已学会偏好，技能「{skillName}」已更新",
@@ -9857,6 +10089,9 @@
     "oauthReauthRequired": "{issuer} 授权已过期，请重新授权以恢复访问。",
     "reauthorize": "立即授权",
     "budgetFinalization": "预算即将耗尽 — 正在收尾",
+    "backupFailureTitle": "自动备份未能正常运行",
+    "backupFailureBody": "最近几次自动备份都失败了，你的数据可能没有得到保护。请检查备份文件夹和磁盘剩余空间。",
+    "viewBackupSettings": "备份设置",
     "healthAlertTip": "提示：{tip}",
     "budgetRemaining": "{dimension} — 剩余 ${remaining}",
     "subagentStaleDescription": "已 {minutes} 分钟无进展 · {tokens, number} tokens",
@@ -10291,6 +10526,37 @@
       "hint": "也可以等待系统自动压缩上下文。"
     }
   },
+  "taskAirbag": {
+    "ready": "改动可撤销",
+    "changeCount": "{count} 项改动",
+    "review": "查看/撤销",
+    "reviewHint": "查看目标运行期间的文件改动，或一键全部撤销",
+    "modalTitle": "查看并撤销改动",
+    "modalSubtitle": "目标开始前已保存文件状态，可随时恢复",
+    "externalNote": "撤销只会还原工作区文件；数据库、容器、网络请求、git push 等外部操作不会被撤销。",
+    "externalDetected": "本次运行中检测到：{effects}",
+    "modified": "已修改",
+    "added": "已新增",
+    "deleted": "已删除",
+    "fileListTitle": "受影响的文件（共 {count} 项）",
+    "noChanges": "工作区与目标开始前一致，暂无改动。",
+    "keepChanges": "保留改动",
+    "keeping": "处理中...",
+    "later": "稍后处理",
+    "undoAll": "撤销全部改动",
+    "undoing": "正在撤销...",
+    "close": "关闭",
+    "undoneTitle": "改动已撤销",
+    "undone": "工作区文件已恢复到目标开始前的状态。",
+    "undoneWithBackup": "工作区文件已恢复到目标开始前的状态。撤销前的状态已保存在“文件快照”中，可随时找回。",
+    "undoFailedTitle": "撤销失败",
+    "undoFailed": "无法恢复工作区，请检查文件权限后重试。",
+    "undoErrorTitle": "撤销请求失败",
+    "unknownError": "未知错误",
+    "keptTitle": "已保留改动",
+    "kept": "改动已确认保留，撤销入口已关闭。",
+    "keepFailedTitle": "操作未能保存"
+  },
   "fileSnapshot": {
     "title": "文件快照",
     "restore": "恢复",
@@ -10324,7 +10590,8 @@
     "effects": {
       "database": "数据库变更",
       "container_cloud": "容器或云端操作",
-      "network_mutation": "网络请求"
+      "network_mutation": "网络请求",
+      "publish": "推送或发布的内容"
     },
     "externalEffectsTooltip": "此快照包含外部操作（{effects}），文件回滚无法撤销这些操作",
     "restoreExternalWarning": "此快照涉及外部操作（{effects}），文件恢复无法撤销这些变更",
@@ -10871,53 +11138,46 @@
     },
     "learningLoop": {
       "title": "闭环学习五环状态中心",
-      "subtitle": "全域自进化闭环拓扑与健康可观测看板",
-      "healthScore": "闭环健康度",
+      "subtitle": "你的 Agent 如何把对话沉淀为技能与记忆",
       "refresh": "刷新",
-      "optimal": "极佳运转",
-      "warning": "需要关注",
-      "degraded": "存在退化",
-      "totalLearnings": "全域沉淀资产",
+      "unavailable": "暂不可用",
       "ring1": {
         "name": "战后自省",
-        "stage": "Trace 挖掘与反模式",
-        "desc": "闲时自动回溯会话执行日志，挖掘工具调用失败、挫败信号与人工纠错。",
-        "metricsTraces": "分析会话: {count}",
-        "metricsAntiPatterns": "捕获反模式: {count}"
+        "stage": "从对话中复盘",
+        "desc": "完成较复杂的任务后，Agent 会在后台回看这段对话，提取值得留存的经验。",
+        "metricsSessions": "近 {days} 天会话: {count}"
       },
       "ring2": {
         "name": "技能提炼",
-        "stage": "自动生成与优化提案",
-        "desc": "基于自省证据与高频行为模式，生成技能修复 (FIX) 与优化 (DERIVED) 提案。",
-        "metricsProposals": "提炼提案: {count}",
-        "metricsApproved": "已采纳: {count}"
+        "stage": "把经验变成技能",
+        "desc": "可复用的做法会被整理成新技能或技能改进。安全的新技能自动生效，其余等你确认。",
+        "metricsCases": "全部案例: {count}",
+        "metricsAutoApplied": "已自动落地: {count}"
       },
       "ring3": {
         "name": "施用自进",
-        "stage": "基线评测与防退化门禁",
-        "desc": "通过 Improvement Gate 与 EvalCase 回归评测，确保新演化方案严格优于基线才准许晋级。",
-        "metricsEvals": "评测验证: {count}",
-        "metricsBlocked": "拦截退化: {count}",
-        "metricsBoost": "提升率: +{pct}%"
+        "stage": "审核与安全关卡",
+        "desc": "每份技能草稿都会先做安全检查。需要你决定或被拦下的案例会计入这里。",
+        "metricsPending": "待审核: {count}",
+        "metricsBlocked": "已拦截: {count}"
       },
       "ring4": {
         "name": "周期自警",
-        "stage": "闲时整理与记忆去噪",
-        "desc": "记忆守护线程在后台自动去重、合并碎片偏好，并对陈旧规则实施平滑衰减与去噪。",
-        "metricsCycles": "维护周期: {count}",
-        "metricsMerged": "合并去重: {count}",
+        "stage": "后台记忆整理",
+        "desc": "Agent 会在后台合并相近的记忆、淡出过时的内容，让召回更准确。",
         "metricsMemories": "记忆总量: {count}"
       },
       "ring5": {
         "name": "渐构画像",
-        "stage": "跨会话召回与偏好演进",
-        "desc": "基于 FTS5 与向量语义持续构建精准用户画像，实现任意会话历史知识与偏好的毫秒级召回。",
-        "metricsIndexed": "会话索引: {count}",
-        "metricsDimensions": "画像维度: {count}"
+        "stage": "跨会话召回",
+        "desc": "历史对话都可被检索，Agent 对你的了解会累积成跨会话共享的画像。",
+        "metricsConversations": "累计对话: {count}",
+        "metricsProfile": "画像条目: {count}"
       },
       "discoveryChip": {
-        "growsWithYou": "越用越懂 · 五环闭环运转中",
-        "stats": "已沉淀 {memories} 条记忆 · {skills} 项活跃技能",
+        "growsWithYou": "越用越懂",
+        "loopName": "五环闭环",
+        "memoriesCount": "已沉淀 {count, plural, one {# 条记忆} other {# 条记忆}}",
         "viewLoop": "查看闭环"
       }
     },
@@ -11111,7 +11371,7 @@
     "statusLabel": {
       "pending": "待处理",
       "running": "执行中",
-      "verifying": "验证中",
+      "blocked": "待复核",
       "completed": "已完成",
       "failed": "失败",
       "timed_out": "已超时",
@@ -11123,6 +11383,9 @@
       "checkpoint": "检查点"
     },
     "detailFallbackAgentType": "子任务",
+    "detailConfidenceHigh": "高",
+    "detailConfidenceMedium": "中",
+    "detailConfidenceLow": "低",
     "detailNoDescription": "未提供描述",
     "detailDuration": "耗时",
     "detailTokens": "Token",
@@ -11146,6 +11409,7 @@
     "detailCopiedTaskDescription": "任务描述已复制到剪贴板",
     "detailCompletedChecklist": "已完成清单",
     "detailErrorDiagnostic": "错误诊断",
+    "detailBlockedNote": "验证没有得出结论，这份结果既没有被证实，也没有被证伪。采用前请自行复核。",
     "detailVerificationPassed": "独立验证：已通过",
     "detailVerificationFailed": "独立验证：未通过",
     "detailVerificationRounds": "轮次：{rounds}/{maxRounds}",
@@ -11546,7 +11810,10 @@
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
       "abortedBadge": "已中止",
-      "historyActions": "操作"
+      "historyActions": "操作",
+      "alreadyRunning": "已有评测正在运行",
+      "evalStartFailed": "评测启动失败",
+      "abortSent": "已发送停止请求"
     },
     "skillAb": {
       "title": "技能 A/B 评测工坊 (Skill A/B Protocol)",
@@ -12720,11 +12987,6 @@
     "statusFinalization": "预算即将耗尽 — 智能体将结束回复",
     "statusExceeded": "预算已超限 — 执行被阻止",
     "ecoModeHint": "已启用省电模式：优化上下文压缩以节省 Token",
-    "criticalPauseActive": "已触发审批暂停",
-    "autoDowngradedActive": "已平滑降级至经济模型",
-    "softGateActive": "已触发软配额门禁",
-    "tier1Label": "支出预警提示",
-    "selfConfirmButton": "确认继续执行",
     "enableLabel": "启用预算控制",
     "enableDesc": "对 LLM 支出进行多维度监控与限制",
     "sessionLimit": "会话上限",
@@ -13754,18 +14016,6 @@
     "closeBtn": "关闭",
     "configureBtn": "前往设置中心配置"
   },
-  "security": {
-    "taintedEgress": {
-      "title": "敏感数据出网拦截",
-      "description": "检测到包含敏感凭证的出网请求试图连接外部主机。",
-      "destinationHost": "目标主机",
-      "dataType": "敏感数据类型",
-      "detectedPattern": "命中模式",
-      "trustSession": "在本次会话中始终信任该目标（消除后续弹窗）",
-      "approve": "允许出网",
-      "reject": "阻断拦截"
-    }
-  },
   "ttsAudio": {
     "generatedSpeech": "已生成语音",
     "playbackFailed": "音频播放失败——文件可能已过期。"
@@ -13966,6 +14216,11 @@
     "title": "备份与恢复",
     "subtitle": "把本应用里的一切——会话、智能体、技能、记忆和设置——迁移到另一台设备，或留一份安全的副本。",
     "unsupported": "当前部署方式暂不支持备份与恢复。",
+    "entry": {
+      "prompt": "从其他设备迁移，或已有 Myrm 备份？",
+      "open": "从备份恢复",
+      "close": "暂不需要"
+    },
     "export": {
       "title": "创建备份",
       "description": "将会话、智能体、技能、记忆和设置打包成一个文件，可在任意设备上恢复。",
@@ -13986,6 +14241,7 @@
       "keepSafe": "请妥善保管此文件，任何拿到它的人都能读取你的会话。",
       "keysSealed": "你的密钥已用口令加密封存。",
       "notIncluded": "不在此文件中，恢复后需要重新填写：",
+      "unreadable": "有 {count} 项内容无法读取，不在这个文件中。请关闭可能占用文件的程序后重新创建备份。",
       "done": "完成",
       "discard": "丢弃"
     },
@@ -14014,6 +14270,10 @@
         "wiki_pages": "知识库页面",
         "cron_jobs": "定时任务"
       },
+      "madeAt": "备份时间：{date}",
+      "nowCount": "当前 {count}",
+      "losesHistory": "此备份的聊天或消息比本应用当前的少，恢复会移除多出的部分。",
+      "incomplete": "此备份不完整：创建时有 {count} 项内容无法读取，因此未包含在备份中。恢复后，备份里缺少的内容在本应用中也会消失。",
       "replaceWarning": "恢复会用此备份的内容替换本应用当前的内容，恢复后你可以撤销。",
       "pausedJobs": "{count} 个定时任务已暂停，需要你手动重新开启。",
       "missingPaths": "你的数据引用了 {count} 个在此设备上不存在的文件夹或文件。",
@@ -14040,6 +14300,7 @@
       "sandbox": "恢复将在你的工作空间重启时生效，只需几秒钟。",
       "manual": "请退出应用并重新启动，恢复才会生效。",
       "failed": "无法自动重启，请手动重启。",
+      "busy": "仍有任务在运行。请等待其完成或先停止，再重试。",
       "now": "立即重启",
       "restarting": "正在重启…"
     },
@@ -14080,17 +14341,52 @@
       "operation_pending": "已有另一个恢复在等待重启，请先重启再试。",
       "passphrase_required": "此备份包含受保护的密钥，请输入口令后继续。",
       "restore_failed": "恢复未能应用，你之前的数据已原样还原。",
-      "restore_point_corrupt": "此恢复点已损坏，无法使用。",
-      "restore_point_incomplete": "此恢复点缺少文件，无法使用。",
+      "restore_point_corrupt": "此快照已损坏，无法使用。",
+      "restore_point_incomplete": "此快照缺少文件，无法使用。",
       "rollback_incomplete": "恢复未能完成，且部分数据无法还原。请用备份文件恢复。",
       "secrets_unavailable": "当前部署方式不支持在备份中包含密钥。",
       "stage_failed": "无法检查此备份，请重试。",
       "unknown_export": "此备份已不可用，请重新创建。",
-      "unknown_restore_point": "此恢复点已不存在。",
+      "unknown_restore_point": "此快照已不存在。",
       "unknown_session": "上传中断了，请重新开始。",
       "unsupported_layout": "此备份由不兼容的应用版本创建。",
       "upload_incomplete": "上传中断了，请重新开始。",
-      "wrong_passphrase": "口令不正确。"
+      "wrong_passphrase": "口令不正确。",
+      "backup_dir_invalid": "该备份文件夹无法使用，请换一个文件夹。",
+      "backup_dir_inside_state": "请选择应用自身数据文件夹之外的位置，这样备份才不会随恢复一起被替换。",
+      "backup_dir_not_writable": "应用无法写入该文件夹，请换一个文件夹。",
+      "backup_write_failed": "备份未能保存到该文件夹。请确认它可用后重试。",
+      "backup_unreadable": "保存的备份未通过检查，已被丢弃。请重试。",
+      "backup_incomplete": "部分数据无法读取，这次备份不完整。已保存的部分放在备份文件夹中，之前的备份保持不变。请关闭可能占用文件的程序后重试。"
+    },
+    "auto": {
+      "title": "自动备份",
+      "description": "按计划为会话、智能体、技能、记忆和设置保存完整副本，避免一次误操作或一次糟糕的更新让你前功尽弃。",
+      "enable": "开启自动备份",
+      "running": "正在备份…",
+      "lastBackup": "最近一次备份：{date} · {size}",
+      "noBackupYet": "还没有备份",
+      "folderUnavailable": "暂时无法访问备份文件夹。请重新连接，或换一个文件夹。",
+      "overdue": "最近一次备份已超过预期时间。自动备份仅在应用运行时执行，请在计划时间前后保持应用开启，或立即备份。",
+      "frequency": "备份频率",
+      "frequencyOptions": {
+        "daily": "每天",
+        "weekly": "每周"
+      },
+      "keep": "保留份数",
+      "keepOption": "{count} 份",
+      "folder": "备份文件夹",
+      "browse": "浏览",
+      "browseTitle": "选择备份文件夹",
+      "apply": "使用此文件夹",
+      "useDefault": "恢复默认文件夹",
+      "defaultFolderHint": "这些备份保存在本机，电脑丢失或硬盘损坏时将一并丢失。想要真正的保护，请选择另一块硬盘上的文件夹，或已同步到云端的文件夹。",
+      "folderHint": "之前的备份留在原处，只有新备份会保存到此文件夹。",
+      "backupNow": "立即备份",
+      "savedCopies": "已保存 {count} 份备份",
+      "restoreHint": "如需恢复，请在「从备份恢复」中选择对应文件。",
+      "notePlain": "备份是未加密的普通文件，任何能打开该文件夹的人都能读取你的会话。其中不包含登录信息、模型密钥与连接。",
+      "noteScope": "「记忆云端备份」只保护记忆；这里覆盖上面列出的全部内容。"
     }
   },
   "questionNav": {
@@ -14140,7 +14436,7 @@
     "viewportMobile": "移动端 (375px)",
     "clickToAnnotate": "点击元素批注",
     "annotatingActive": "批注模式中 (点击元素)",
-    "approveAndHandoffSpec": "✨ 批准原型并导出 spec.md",
+    "approveAndHandoffSpec": "批准原型并导出 spec.md",
     "specHandoffDone": "规格已导出，交接完成",
     "selectedElementLabel": "已选中元素",
     "commentPlaceholder": "输入对此元素的微调要求（如：改为主色渐变、添加导出按钮）...",
@@ -14225,7 +14521,8 @@
     "title": "智能体模板市场",
     "subtitle": "一键启动预设了工具与技能的现成智能体",
     "stats": {
-      "total": "个模板"
+      "total": "个模板",
+      "filtered": "个匹配模板"
     },
     "searchPlaceholder": "按名称或描述搜索模板...",
     "empty": {
@@ -14237,7 +14534,9 @@
       "individual": "个体",
       "builtinTools": "个内置工具",
       "skills": "个技能",
-      "cloneAction": "使用模板"
+      "cloneAction": "使用模板",
+      "paretoSavings": "成本节省",
+      "useCases": "高频场景"
     },
     "workbench": {
       "title": "从模板克隆智能体",
@@ -14249,7 +14548,17 @@
       "teamMembers": "团队成员",
       "success": "智能体已创建",
       "cloning": "正在创建智能体...",
-      "cloneConfirm": "创建智能体"
+      "cloneConfirm": "创建智能体",
+      "namePlaceholder": "留空则使用默认预置名称",
+      "error": "实例化失败，请重试"
+    },
+    "categories": {
+      "all": "全部领域",
+      "engineering": "研发架构",
+      "office": "企业办公",
+      "commerce": "电商运营",
+      "team": "多智能体小队",
+      "general": "通用助手"
     }
   },
   "commandMatrix": {
@@ -14285,7 +14594,14 @@
     "selfContainedBadge": "单文件，随处运行",
     "subtitle": "可预览、复制和复用的单文件演示",
     "title": "模板库",
-    "useTemplate": "使用此模板"
+    "useTemplate": "使用此模板",
+    "quickLaneSubtitle": "点击即刻创作专属浪漫或趣味 Demo",
+    "celebration": "生日节日庆典",
+    "interactive_fun": "趣味小游戏与互动",
+    "romance_memory": "浪漫告白与纪念日",
+    "utility_tools": "生活聚会决策小工具",
+    "generative_art": "流体与生成式艺术",
+    "promptPrefilled": "灵感提示词已填入输入框"
   },
   "embedWidget": {
     "allowedOriginLabel": "允许的来源",
@@ -14326,7 +14642,17 @@
     "title": "引用",
     "slice": {
       "provenance": "来源",
-      "title": "已引用内容"
+      "title": "已引用内容",
+      "truncated": "已根据 Token 预算保护截断"
+    },
+    "searchPlaceholder": "搜索文件、历史会话、工件、智能体或任务...",
+    "dimensions": {
+      "all": "全部",
+      "file": "代码文件",
+      "session": "历史会话",
+      "artifact": "生成工件",
+      "agent": "专家智能体",
+      "task": "看板任务"
     }
   },
   "reconnectProtocol": {
@@ -14340,7 +14666,12 @@
     "resyncing": "正在重新同步",
     "statusDescription": "显示连接中断后实时任务流的恢复状态",
     "subscribingLive": "正在订阅实时流",
-    "title": "连接恢复"
+    "title": "连接恢复",
+    "versionBadge": "版本 v{version}",
+    "epochBadge": "纪元：{epoch}",
+    "messagesCount": "消息数：{count}",
+    "activeTools": "活跃工具：{count} 个",
+    "latestTurn": "最新轮次：{summary}"
   },
   "scratchpad": {
     "cancel": "取消",
@@ -14361,7 +14692,10 @@
     "targetProjectPlaceholder": "目标项目目录",
     "title": "快速草稿本",
     "titlePlaceholder": "笔记标题（可选）",
-    "wordCount": "{words} 词，{chars} 字符，{lines} 行"
+    "wordCount": "{words} 词，{chars} 字符，{lines} 行",
+    "promoteDialogTitle": "确认升格为正式工程",
+    "promoteDialogDesc": "系统将自动生成项目目录、README 资产与血缘追溯文件 docs/scratchpad_origin.md，并将其持久化到您的工作区沙箱中。",
+    "openScratchpad": "极速便签"
   },
   "swarmExecution": {
     "activeCountLabel": "{count} 条生效",
@@ -14408,7 +14742,17 @@
     "totalDuration": "总耗时 {ms} 毫秒",
     "totalTokens": "{tokens} 个令牌",
     "treeView": "树状",
-    "waterfallView": "瀑布图"
+    "waterfallView": "瀑布图",
+    "totalSteps": "{count} 个步骤",
+    "runningSteps": "{count} 进行中",
+    "completedSteps": "{count} 已完成",
+    "failedSteps": "{count} 失败",
+    "interruptedSteps": "{count} 已打断",
+    "ioMetrics": "IO 与 Token 指标",
+    "inputChars": "输入字符：{count}",
+    "outputChars": "输出字符：{count}",
+    "tokensCount": "Tokens：Prompt {prompt} · Completion {completion}",
+    "emptyPayload": "未附带数据"
   },
   "uiAlignment": {
     "addAnnotationTitle": "添加批注",
@@ -14428,7 +14772,15 @@
     "selectedVariant": "已选变体",
     "submitAnnotation": "提交",
     "subtitle": "并排对比变体，并批注需要对齐的地方",
-    "title": "界面对齐"
+    "title": "界面对齐",
+    "modern_bento": "现代便当盒 (Bento)",
+    "minimal_dark": "极简暗黑 (Minimal Dark)",
+    "glassmorphism": "毛玻璃拟态 (Glassmorphism)",
+    "neo_brutalism": "新粗野主义 (Neo Brutalism)",
+    "custom": "自定义主题",
+    "selectVariant": "选择此方案",
+    "finalizeContractSuccess": "视觉契约已固化",
+    "tokensPalette": "设计令牌"
   },
   "quadGraph": {
     "closeDrawer": "关闭节点详情",
@@ -14455,7 +14807,11 @@
     "submitSteer": "发送引导指令",
     "viewportSwitcherAria": "切换图视口",
     "zoomIn": "放大",
-    "zoomOut": "缩小"
+    "zoomOut": "缩小",
+    "layerTask": "任务全景 (Task)",
+    "layerWorkflow": "算子流道 (Workflow)",
+    "layerTeam": "专家团队 (Team)",
+    "layerCommunication": "即时通信 (Comm)"
   },
   "externalLinkConfirm": {
     "title": "要在浏览器中打开这个链接吗？",
@@ -14464,6 +14820,578 @@
     "urlLabel": "链接地址",
     "cancel": "取消",
     "open": "在浏览器中打开"
+  },
+  "adaptiveLayout": {
+    "grid": {
+      "foldableGolden": "折叠屏黄金双栏模式",
+      "mobileLandscape": "手机横屏紧凑工作区",
+      "desktopMultiPanel": "多栏协同模式",
+      "singlePanel": "单栏模式",
+      "toggleLeft": "切换侧栏",
+      "toggleRight": "切换操作区",
+      "collapsePanel": "折叠面板",
+      "expandPanel": "展开面板",
+      "dragToResize": "拖拽调节分栏比例"
+    },
+    "terminalResize": {
+      "colsRows": "终端字符矩阵: {cols} 列 × {rows} 行",
+      "autoNegotiating": "正在调整终端尺寸...",
+      "resizeSuccess": "终端尺寸已更新"
+    }
+  },
+  "agentAssembler": {
+    "composerTitle": "可视化模块化智能体装配台",
+    "composerSubtitle": "“搭积木式”能力编排画布与即席微沙箱演练调试台",
+    "blockCatalogTitle": "核心能力积木池",
+    "available": "项积木可用",
+    "searchBlocks": "搜索能力积木...",
+    "allCategories": "全部",
+    "brain": "大脑",
+    "persona": "人设",
+    "tools": "工具",
+    "skills": "技能",
+    "memory": "记忆",
+    "sandbox": "沙箱",
+    "equip": "装备",
+    "equipped": "已装备",
+    "alreadyEquipped": "已加入画布",
+    "noBlocksFound": "未找到匹配的能力积木",
+    "agentNamePlaceholder": "智能体蓝图名称（如：全栈架构师）",
+    "agentDescPlaceholder": "输入该智能体的核心使命与职责范围...",
+    "blueprintValid": "积木装配结构合法",
+    "blueprintInvalid": "存在依赖冲突或配置缺漏",
+    "viewReport": "查看报告",
+    "hideReport": "收起报告",
+    "assembledBlocks": "已装备能力积木槽位",
+    "emptyCanvasTitle": "装配画布为空",
+    "emptyCanvasDesc": "从左侧积木池点击“装备”添加大脑、人设、工具等模块，或直接选择顶部预设模板快速启动。",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "active": "生效中",
+    "inactive": "已停用",
+    "configure": "配置",
+    "remove": "移除",
+    "blockParameters": "参数与注入配置",
+    "noExtraConfig": "应用默认预置参数",
+    "playgroundTitle": "即席微沙箱试跑演练",
+    "testPromptLabel": "演练测试 Prompt 指令",
+    "testPromptPlaceholder": "输入测试指令以观察组装后智能体的决策流程与工具调用...",
+    "simulating": "单步演练中...",
+    "runDryRun": "即刻试跑演练",
+    "predictedTools": "预测调用的工具",
+    "noToolsTriggered": "未触发工具（纯直接文本思考与输出）",
+    "simulatedOutput": "微沙箱模拟输出",
+    "resolvedSystemPrompt": "最终解析注入的 System Prompt",
+    "emptyDryRunHint": "输入测试 Prompt 并点击试跑，实时验证装配效果。",
+    "presets": "预置模板：",
+    "export": "导出",
+    "exportJson": "导出为 Blueprint JSON",
+    "saveBlueprint": "保存智能体"
+  },
+  "agentAvatar": {
+    "modalTitle": "Agent 头像工坊与骰子锁定",
+    "close": "关闭",
+    "tabDice": "确定性摇骰生图",
+    "tabAi": "AI 意图生图",
+    "avatarLocked": "头像已锁定",
+    "rollDice": "随机生成头像",
+    "unlockToRoll": "解锁头像以允许随机摇骰",
+    "locked": "已锁定",
+    "diceRoll": "随机摇脸",
+    "clickToUnlock": "点击解锁头像",
+    "clickToLock": "点击锁定头像",
+    "stylePresets": "风格预设",
+    "styleBeam": "光束 (Beam)",
+    "stylePixel": "像素 (Pixel)",
+    "styleCyberpunk": "赛博 (Cyber)",
+    "styleBauhaus": "包豪斯 (Bauhaus)",
+    "backgroundTone": "底色基调",
+    "aiPromptLabel": "智能人设外貌描述",
+    "aiPromptPlaceholder": "描述智能体外貌特征、视觉元素或风格倾向...",
+    "generating": "正在渲染...",
+    "generateAiCta": "施法生成 AI 头像",
+    "cancel": "取消",
+    "saveAndLock": "保存并锁定头像"
+  },
+  "channelPairing": {
+    "wizard": {
+      "title": "外部渠道可视化配对向导",
+      "modelAgnosticBadge": "模型无关解耦 · 零命令确定性配对",
+      "antiWorkbuddyNote": "扫码即可连通，无需手敲命令",
+      "antiWorkbuddyDesc": "无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。",
+      "waitingScan": "请使用对应客户端扫描上方动态二维码...",
+      "sessionExpiry": "凭证有效时长: 300 秒",
+      "bindingSuccess": "渠道鉴权与 Token 绑定成功！",
+      "bindingSuccessDesc": "凭证已安全加密写入本地沙箱，渠道已准备就绪。",
+      "startPairing": "开始扫码配对",
+      "confirmScanned": "模拟完成扫码",
+      "proceedPing": "一键连通性自测",
+      "done": "完成并关闭"
+    },
+    "platforms": {
+      "wechat": {
+        "name": "微信",
+        "desc": "手机扫码动态配对，零命令下发",
+        "guide": "打开微信扫一扫完成授权"
+      },
+      "wecom": {
+        "name": "企业微信",
+        "desc": "智能表格或自建应用 Webhook 协同",
+        "guide": "在企微中扫描二维码确认绑定"
+      },
+      "feishu": {
+        "name": "飞书 / Lark",
+        "desc": "应用自建机器人与消息卡片",
+        "guide": "在飞书中扫码或确认授权应用"
+      },
+      "dingtalk": {
+        "name": "钉钉",
+        "desc": "群机器人与专属安全推送",
+        "guide": "在钉钉中扫码确认机器人连接"
+      },
+      "slack": {
+        "name": "Slack",
+        "desc": "传入 Webhook 与 Bot Token",
+        "guide": "通过 Slack 授权链接完成握手"
+      },
+      "telegram": {
+        "name": "Telegram",
+        "desc": "BotFather 握手与长轮询接入",
+        "guide": "向机器人发送配对激活码"
+      }
+    },
+    "healthCheck": {
+      "title": "连通性自测与时延探测",
+      "modelAgnostic": "确定性传输",
+      "description": "通过系统级直连向目标通道发送探测消息，毫秒级验证推送通路与回执状态。",
+      "targetLabel": "接收者/会话标识（可选）",
+      "targetPlaceholder": "留空使用配对默认用户",
+      "messageLabel": "测试探测内容",
+      "sendPing": "发送测试消息",
+      "latency": "往返延迟:",
+      "successTitle": "连通性验证成功",
+      "receiptLabel": "回执单号:",
+      "errorTitle": "连通性测试未通过"
+    }
+  },
+  "commandPalette": {
+    "title": "全局命令中枢与会话搜索",
+    "shortcutHint": "按 Cmd+K 随时唤起",
+    "inputPlaceholder": "输入指令、动作或搜索历史消息...",
+    "groups": {
+      "actions": "快捷控制与系统指令",
+      "history": "会话标题与历史消息"
+    },
+    "actionsList": {
+      "switchModel": "切换当前大模型 (/model)",
+      "switchModelDesc": "即时调整或切换底座推理模型",
+      "switchAgent": "切换智能体专员 (/agent)",
+      "switchAgentDesc": "快速换用代码专家、架构师等专任 Agent",
+      "clearContext": "清空当前上下文 (/clear)",
+      "clearContextDesc": "重置工作记忆与多轮对话窗口",
+      "exportSession": "导出单文件离线会话 (/export)",
+      "exportSessionDesc": "打包当前多轮任务为独立交互式 HTML",
+      "globalEstop": "全局物理急停 (Global E-Stop)",
+      "globalEstopDesc": "一键中断所有后台正在运行的子 Agent 与长任务"
+    },
+    "historyEmpty": "未找到匹配的历史会话",
+    "searchingHistory": "正在检索历史消息...",
+    "telemetry": {
+      "cacheHit": "Cache 命中",
+      "ttft": "TTFT 首字延迟",
+      "throughput": "实时生成速率",
+      "estopBtn": "全局急停",
+      "estopActivated": "全局急停已触发，活跃任务已中断"
+    },
+    "tabToAdopt": "按 Tab 键一键填入建议提示词"
+  },
+  "factCheck": {
+    "bannerTitle": "诚实守卫与待核验提示",
+    "bannerWarning": "本篇草案包含 {count} 处待实测占位数据，发布前建议替换为真实跑测结果",
+    "bannerSuccess": "所有占位数据已全部核验并替换为真实数据，具备工业级严谨度",
+    "viewCheckSheet": "查看核验清单",
+    "finalizeDraft": "一键定稿",
+    "drawerTitle": "事实核查与占位管理",
+    "drawerSubtitle": "不编造数据，把即兴演练的虚构骨架与已核实事实严密管起来",
+    "tabPlaceholders": "待替换占位",
+    "tabVerified": "已核实硬事实",
+    "placeholderTag": "待实测",
+    "verifiedTag": "已核实",
+    "contextLabel": "上下文摘录",
+    "inputRealValuePlaceholder": "输入真实跑测数据...",
+    "applyBtn": "替换",
+    "applied": "已替换",
+    "replaceAllBtn": "一键全部替换并定稿",
+    "sourceLabel": "信源",
+    "verifiedAtLabel": "核实时间",
+    "emptyPending": "太棒了！当前没有任何未核验的虚构占位数据",
+    "emptyVerified": "暂无附加的网络检索核实记录",
+    "close": "关闭"
+  },
+  "groupChat": {
+    "title": "Bot Mode 多 Agent 协同群聊工作区",
+    "hermesParity": "支持智能体机器人模式与点对点私信",
+    "roomsTitle": "协同工作频道",
+    "createRoom": "创建新房间",
+    "roomNamePlaceholder": "房间名称 (如: 架构战情室)",
+    "roomTopicPlaceholder": "讨论目标或协同主题...",
+    "participantsTitle": "房间成员与角色",
+    "operatorLabel": "工作区导演 (Human)",
+    "botLabel": "专职 Bot",
+    "composerPlaceholder": "输入协作指令，按 @ 呼叫特定 Agent...",
+    "sendBtn": "发送",
+    "peerTitle": "Agent 规范私聊归档 (Canonical Inbox)",
+    "noMessages": "暂无群聊消息，请在输入框键入并 @ 智能体发起协作",
+    "noArchives": "暂无对等点对点通信记录",
+    "messagesCount": "条消息",
+    "latencyLabel": "往返延迟",
+    "avatarLocked": "确定性头像已锁定",
+    "presence": {
+      "idle": "空闲待命",
+      "reasoning": "正在推理与协同...",
+      "pass": "本轮静默旁听",
+      "viewSkills": "查看技能与设定",
+      "skillsTitle": "已挂载技能与工具",
+      "membersOnline": "位专家在线"
+    },
+    "mention": {
+      "mentionTitle": "指派呼叫智能体",
+      "filterPlaceholder": "输入角色或名称筛选 (如 @sec, @arch)...",
+      "noMatch": "未找到匹配的智能体",
+      "primaryTarget": "主攻专家"
+    },
+    "deliberation": {
+      "passBadge": "评估无本轮动作，PASS 静默旁听",
+      "expandPass": "展开判定依据",
+      "collapsePass": "折叠",
+      "roleSpeaker": "发言代表"
+    },
+    "needsYou": {
+      "needsYouTitle": "需人类介入协同决断 (NEEDS-YOU)",
+      "resolveNotice": "多方讨论进入关键分水岭，请为协同小队指明方向",
+      "suggestedChips": "推荐裁决方案：",
+      "customResponse": "或输入您的专属决断指令...",
+      "submitDecision": "确认裁决并恢复执行"
+    }
+  },
+  "machines": {
+    "title": "自托管机群 (My Machines)",
+    "subtitle": "接入并监控自托管物理机与私有算力节点，支持远程人机同屏实时接管",
+    "connectBtn": "接入新机器",
+    "refreshBtn": "刷新状态",
+    "statusOnline": "在线待命",
+    "statusBusy": "执行中",
+    "statusOffline": "已离线",
+    "statusTakeover": "人工接管中",
+    "cpuUsage": "CPU 负载",
+    "memUsage": "内存占用",
+    "diskUsage": "磁盘占用",
+    "activeTasks": "活跃子任务",
+    "lastHeartbeat": "最后心跳",
+    "liveScreen": "实时屏幕",
+    "takeoverBtn": "人工接管控制",
+    "resumeBtn": "交还智能体",
+    "takingOverTitle": "当前正处于人工实时接管状态",
+    "takingOverDesc": "您的鼠标点击与按键操作将直接透传至远端机器桌面，智能体已暂停自动调度",
+    "connectModalTitle": "一键接入自托管机器",
+    "connectModalSubtitle": "在目标机器终端运行下方生成的注册单行命令，约 3 秒即可安全连通",
+    "platformLabel": "目标系统平台",
+    "commandLabel": "一键注册安装命令",
+    "copyCommand": "复制命令",
+    "copied": "已复制",
+    "testingHeartbeat": "正在等待机器上线...",
+    "handshakeSuccess": "连接成功！机器已在线",
+    "close": "完成",
+    "emptyCluster": "暂未接入任何自托管节点，点击右上角按钮快速接入您的第一台机器"
+  },
+  "memoryHub": {
+    "typeChatMemory": "对话记忆",
+    "typeSkill": "技能资产",
+    "typeWiki": "知识图谱",
+    "typeCodeGraph": "代码图谱",
+    "aclPrivate": "私有独占",
+    "aclTeam": "团队共享",
+    "aclProject": "项目隔离",
+    "aclAll": "全域范围",
+    "configureAcl": "配置访问权限",
+    "equipped": "已装备",
+    "equip": "装备",
+    "equipmentLoadout": "认知记忆装备栏",
+    "equipmentSubtitle": "挂载至当前智能体思考推理循环的活跃资产",
+    "equippedSlotsCount": "槽位",
+    "unequip": "卸下资产",
+    "clickToMount": "空闲槽位，可装载",
+    "aclDrawerTitle": "细粒度访问控制策略",
+    "selectAclScope": "权限隔离范围",
+    "aclTeamDesc": "当前工作区团队内所有智能体均可读取和装备。",
+    "aclPrivateDesc": "仅所有者智能体及明确授权名单内的智能体可访问。",
+    "aclProjectDesc": "严格隔离在当前代码仓库与沙箱容器边界内。",
+    "authorizedAgentsLabel": "显式授权 Agent ID 清单（英文逗号分隔）",
+    "ownerAutoAuthorized": "所有者智能体自动具备最高管理与访问权限。",
+    "cancel": "取消",
+    "saveAclPolicy": "保存访问策略",
+    "hubTitle": "智能体认知记忆中心与装备台",
+    "hubSubtitle": "四大类记忆资产统一大盘、细粒度访问隔离与游戏化装备挂载",
+    "refresh": "刷新",
+    "createAsset": "捕获新资产",
+    "tabAll": "全量资产",
+    "searchPlaceholder": "搜索资产名称、标签或描述...",
+    "emptyResults": "未找到匹配条件的记忆资产",
+    "emptyResultsHint": "尝试调整搜索关键词或点击右上角创建新的认知资产。"
+  },
+  "memoryRecall": {
+    "drawerTitle": "记忆与经验召回模拟沙盒",
+    "drawerSubtitle": "对标 EvoX 召回测试与治理中心，透明化验证任意 Prompt 的多路命中与现场二次治理",
+    "queryInputPlaceholder": "输入测试提示词或任务指令 (例如: 排查 Linux 内核死锁、React 频繁重绘)...",
+    "simulateBtn": "模拟召回",
+    "simulatingBtn": "检索中...",
+    "totalMatched": "命中记忆数",
+    "latency": "检索延迟",
+    "rrfScore": "RRF 融合分",
+    "bm25Score": "BM25 词法",
+    "vectorSim": "向量语义",
+    "causalAffinity": "因果基因",
+    "confidenceWeight": "置信度权重",
+    "mustAvoidTrap": "强负向避坑基因",
+    "normalGene": "普通正向经验",
+    "statusActive": "已激活",
+    "statusDisabled": "已禁用",
+    "statusLocked": "已锁定",
+    "lockBtn": "锁定",
+    "unlockBtn": "解锁",
+    "disableBtn": "禁用",
+    "enableBtn": "启用",
+    "mergeDuplicateBtn": "合并相似项",
+    "mergePrompt": "请输入要合并的目标记忆 ID",
+    "emptyResults": "未检索到匹配的记忆或经验基因，请尝试其他查询",
+    "close": "关闭"
+  },
+  "mobileCockpit": {
+    "voiceStagedInput": {
+      "title": "语音暂存审查",
+      "listening": "正在倾听中...",
+      "tapToSpeak": "点击麦克风开始口喷需求",
+      "reviewHint": "录音内容已暂存，请单手审阅或微调后发送",
+      "placeholder": "语音转录文字将呈现在此...",
+      "retry": "重新录音",
+      "clear": "清空",
+      "send": "确认发送",
+      "cancel": "收起",
+      "unsupported": "当前浏览器暂不支持语音听写"
+    },
+    "hitlApproval": {
+      "title": "人机协同决策审批",
+      "riskLevel": "风险等级",
+      "riskLow": "低风险",
+      "riskMedium": "中风险",
+      "riskHigh": "高风险 (敏感操作)",
+      "riskCritical": "极高风险 (破坏性行为)",
+      "commandOrAction": "待执行动作",
+      "affectedScope": "影响范围",
+      "approveYes": "批准执行 (Yes)",
+      "rejectNo": "拒绝中止 (No)",
+      "steerGuide": "插话引导 (Steer)",
+      "steerPlaceholder": "输入您的修正指令或引导意见...",
+      "steerSubmit": "发送干预并继续",
+      "rejectReasonPlaceholder": "可选：填写拒绝原因...",
+      "rejectConfirm": "确认拒绝",
+      "processing": "处理中..."
+    },
+    "selectionList": {
+      "title": "触控方案选择",
+      "singleSelectHint": "单手轻按即可直接选定方案",
+      "multiSelectHint": "支持点选多项，完成后点击确认",
+      "confirmSelection": "确认选中项",
+      "selectedCount": "已选 {count} 项",
+      "clearAll": "重选"
+    },
+    "actionBar": {
+      "quickVoice": "语音暂存",
+      "skills": "技能菜单",
+      "stop": "中止",
+      "stopping": "中止中...",
+      "sessions": "会话",
+      "expand": "展开更多"
+    }
+  },
+  "modelOverrides": {
+    "title": "模型 Context 与价格自定义管理",
+    "hermesParity": "运行时实时生效",
+    "cloneTemplate": "2026 主流新模型 SKU 预置模板（点击一键克隆）:",
+    "modelIdLabel": "目标模型 ID / 别名",
+    "currencyLabel": "计费币种",
+    "contextWindowLabel": "上下文窗口（Token）",
+    "maxOutputLabel": "Max Output Tokens (输出上限)",
+    "inputPriceLabel": "输入单价 (每 1M tokens)",
+    "outputPriceLabel": "输出单价 (每 1M tokens)",
+    "calcTitle": "BYOK 实时用量与成本计算器",
+    "calcInputTokens": "预估输入 Tokens",
+    "calcOutputTokens": "预估输出 Tokens",
+    "calcComputeBtn": "计算单次费用",
+    "activeOverrides": "已保存的模型覆写列表:",
+    "loadToForm": "加载编辑",
+    "close": "关闭",
+    "saveAndApply": "保存并实时生效"
+  },
+  "roiDashboard": {
+    "cardTitle": "生产力与已节省时间价值大盘",
+    "cardSubtitle": "显性化白领自动化工时替代、算力成本与投资回报率",
+    "tabToday": "今日",
+    "tabWeek": "本周",
+    "tabAllTime": "累计",
+    "rangeAriaLabel": "切换统计时间范围",
+    "hoursSavedLabel": "已为您接管高繁琐工时",
+    "hoursUnit": "小时",
+    "hoursEquivalenceHint": "按等效基准时薪 ${rate}/h 折算",
+    "economicValueTitle": "投入产出比 (ROI)",
+    "humanValueLabel": "替代人工价值",
+    "tokenCostLabel": "实际 Token 成本",
+    "categoryBreakdownTitle": "任务分类收益贡献",
+    "categoriesCount": "项",
+    "tasksCount": "{count} 项任务",
+    "viewWeeklyDigest": "查看本周生产力里程碑战报",
+    "weeklyDigestTitle": "周度生产力里程碑战报",
+    "digestSummarySnippet": "已自动化完成 {tasks} 项任务，节省 {hours} 小时",
+    "closeDigest": "关闭",
+    "completedTasks": "自动化任务总计",
+    "netHoursSaved": "净挽回工时",
+    "topAgent": "最高效智能体",
+    "preventedErrors": "规避潜在缺陷",
+    "routineCatalogTitle": "开箱即用高收益工作流",
+    "routineCatalogSubtitle": "拒绝空白画布配置焦虑，一键执行经过验证的高生产力例行任务",
+    "runRoutineBtn": "一键启动",
+    "loadingRoutines": "正在加载预置高收益工作流..."
+  },
+  "runtimeConsole": {
+    "title": "运行时控制台与多端状态投影中枢",
+    "mateclawParity": "实时呈现运行状态与事件",
+    "surfaces": {
+      "chat": "Chat 对话视图",
+      "runtimeConsole": "Runtime Console 控制台",
+      "deliverables": "Deliverables 工件看板",
+      "audit": "Audit 审计流水"
+    },
+    "attemptInspector": {
+      "title": "Attempt 状态机变迁与吞吐水位线",
+      "attemptNumber": "第 {number} 次尝试",
+      "duration": "耗时",
+      "throughput": "生成速率",
+      "tokens": "Tokens 消耗",
+      "status": "状态",
+      "faultReason": "故障诊断原因",
+      "diffSummary": "虚拟 Diff 变更",
+      "noAttempts": "暂无 Attempt 运行记录"
+    },
+    "deliverablesSection": {
+      "title": "产出工件与事实矩阵",
+      "noDeliverables": "当前 Run 尚未产生固化产物"
+    },
+    "auditSection": {
+      "title": "合规安全与权限决策流水",
+      "noAudit": "暂无高危动作与审计记录"
+    },
+    "tokensTotal": "累计消耗 Tokens",
+    "avgThroughput": "平均生成速率",
+    "closeDrawer": "关闭控制台"
+  },
+  "sessionExport": {
+    "modalTitle": "会话交互式导出与分享桥",
+    "tabDownloadHtml": "交互式 HTML 单文件",
+    "tabShareLink": "只读 Web 分享链接",
+    "includeThinking": "包含思考推理过程与分析链",
+    "includeToolCalls": "包含工具调用入参与返回结果",
+    "themePreset": "默认预设主题",
+    "themeSystem": "跟随系统",
+    "themeLight": "浅色模式",
+    "themeDark": "深色模式",
+    "zeroDepHint": "生成的 HTML 文件完全自包含（内嵌 CSS 与原生 JS 交互），无网络环境亦可在任何浏览器中流畅打开并复制代码。",
+    "linkExpiry": "链接有效期",
+    "expiry7Days": "7 天",
+    "expiry30Days": "30 天",
+    "optionalPassword": "可选访问密码保护",
+    "passwordPlaceholder": "留空表示公开访问链接...",
+    "shareLinkReady": "安全只读链接已生成",
+    "copied": "已复制",
+    "copy": "复制",
+    "cancel": "取消",
+    "compiling": "正在编译...",
+    "compileAndDownload": "编译并下载 HTML",
+    "generating": "正在生成...",
+    "generateLink": "生成分享链接",
+    "secretsDetected": "检测到 {count} 处敏感凭据",
+    "cleanNoSecrets": "安全会话：未检测到明文敏感凭据",
+    "redactionActiveHint": "导出时将自动替换脱敏 API Key、密码与内网 IP 等敏感数据。",
+    "redactionDisabledHint": "警告：导出文件将保留原始明文敏感密钥。",
+    "autoRedact": "自动脱敏"
+  },
+  "skillAlignment": {
+    "title": "前置需求结构化对齐",
+    "subtitle": "在 Agent 开始编写代码前，确认关键设计风格与交互规格，消除方向偏差与返工",
+    "planFirstTitle": "先规划再执行 (Plan Before Execute)",
+    "planFirstDesc": "强制要求 Agent 优先输出结构化线框方案与执行步骤，得到您的确认后再开始流式编码",
+    "customPlaceholder": "输入您的自定义设计要求或补充偏好...",
+    "confirm": "确认偏好并开始执行",
+    "cancel": "跳过对齐直接生成",
+    "previewPrompt": "生成的对齐约束提示词",
+    "openInBrowser": "用外部浏览器打开",
+    "openInBrowserDesc": "在系统原生真实浏览器中无阻断渲染，彻底解决内嵌 iframe 外部图片防盗链裂图与 CSP 受限痛点",
+    "opening": "正在唤起外部浏览器...",
+    "opened": "已在外部浏览器中打开"
+  },
+  "skillSolidify": {
+    "title": "固化为专属 Skill 向导",
+    "subtitle": "将打磨好的成果一键提取参数并生成 4 合 1 标准全包技能（SKILL.md + assets/ + references/）",
+    "stepParams": "1. 参数最小化提取",
+    "stepBundle": "2. 模板与资产预览",
+    "stepConfirm": "3. 固化完成",
+    "paramHelp": "参数最小化原则：仅将每次必然变动的槽位暴露为入参，页面骨架、Tailwind 样式与交互动画已被安全锁定",
+    "nameLabel": "技能唯一标识 (Identifier)",
+    "displayTitleLabel": "显示名称",
+    "descriptionLabel": "技能能力描述",
+    "categoryLabel": "分类",
+    "planHint": "在生成的技能指令中默认注入「先规划再执行」门禁",
+    "solidifyBtn": "一键固化并落盘",
+    "solidifying": "正在打包生成 4 合 1 技能包...",
+    "successTitle": "专属技能固化成功！",
+    "successDesc": "已成功写入本地技能库，您可以在任意新会话中通过快捷方式复用它，并可直接在系统浏览器中检验效果",
+    "openPreview": "在外部浏览器中检验效果",
+    "close": "完成"
+  },
+  "workflowTrace": {
+    "title": "多步骤工作流全景执行轨迹",
+    "subtitle": "5 阶全生命周期链路可视化、节点级全息审计快照与断点自愈重放",
+    "stageIntake": "需求接入与目标对齐",
+    "stagePlanning": "任务拓扑拆解规划",
+    "stageDispatch": "调度流转与沙箱分配",
+    "stageExecution": "分步执行与实时校验",
+    "stageClosure": "终态闭环与审计定稿",
+    "statusPending": "等待中",
+    "statusRunning": "执行中",
+    "statusCompleted": "已完成",
+    "statusFailed": "失败",
+    "statusRetrying": "重试中",
+    "statusReplaying": "断点重放中",
+    "totalTokens": "总 Token 消耗",
+    "totalDuration": "总耗时",
+    "nodeAuditTitle": "节点全息审计快照",
+    "nodeAuditSubtitle": "留存独立 Prompt、工具调用序列、中间产物与四维校验评分",
+    "inputPayload": "输入参数",
+    "outputPayload": "中间输出产物",
+    "promptExcerpt": "Prompt 指令摘要",
+    "toolsInvoked": "调用工具",
+    "validationScoreTitle": "四维校验评分",
+    "completeness": "完整性",
+    "accuracy": "准确性",
+    "compliance": "合规性",
+    "relevance": "相关性",
+    "compositeScore": "综合评分",
+    "replayFromNodeBtn": "从此节点断点重放",
+    "replayingBtn": "断点重放中...",
+    "steerPromptPlaceholder": "输入引导词或修正指令 (例如: 提速并发并调低超时门限)...",
+    "overrideInputPlaceholder": "输入待覆盖的 JSON 参数...",
+    "replaySuccess": "断点重放自愈成功，已复用前序缓存并级联刷新后续步骤",
+    "replayFailed": "断点重放失败",
+    "close": "关闭"
   },
   "settings": {
     "providerBalance": {
@@ -14712,7 +15640,6 @@
         "subtitle": "打破专有闭源生态绑定。无需担心供应商锁定，一切资产透明可控、随取随走。",
         "exportConfig": "导出工作区配置",
         "exportMemory": "备份记忆资产",
-        "exportTakeout": "导出全部个人数据",
         "points": {
           "decouplingTitle": "模型与资产解耦",
           "decouplingDesc": "随时无缝热切换 Claude、DeepSeek、GPT、Gemini 等任意大模型，历史资产与技能 100% 保持连续可用。",
@@ -14975,7 +15902,8 @@
         "web_search": "网页搜索",
         "docs": "文档",
         "design": "设计",
-        "api": "API 工具"
+        "api": "API 工具",
+        "social": "社交媒体"
       }
     },
     "integrationMemory": {
@@ -15269,7 +16197,7 @@
         "scenes": {
           "memory": "记忆",
           "workspace": "工作区",
-          "offload": "卸载"
+          "offload": "上下文落盘"
         }
       },
       "telemetry": {
@@ -15747,7 +16675,7 @@
         "hitsEmpty": "暂无命中记录",
         "hitPosition": "第 {start}–{end} 个字符",
         "hitTimedOut": "匹配超时，已按命中处理",
-        "blockedTitle": "消息已被风控规则拦截",
+        "blockedTitle": "内容已被风控规则拦截",
         "blockedDescription": "命中规则：{rules}。如需放行，请在「设置 → 安全策略 → 风控规则」中关闭对应规则。",
         "hitsRuleName": "规则",
         "hitsSeverity": "级别",
@@ -15806,13 +16734,17 @@
             "name": "凭证赋值",
             "desc": "检测密码、Secret、Token 或 API Key 赋值"
           },
+          "password_phrase": {
+            "name": "句中的密码",
+            "desc": "检测写在句子里或标签后的密码，如“我的密码是 ……”；不拦截验证码"
+          },
           "jwt_token_like": {
             "name": "JWT Token",
             "desc": "检测 JWT 格式的 Bearer Token"
           },
           "cookie_session_like": {
             "name": "会话 / 访问令牌",
-            "desc": "检测带有取值的会话 ID、访问或刷新令牌和 Authorization 请求头"
+            "desc": "检测带有取值的会话 ID、会话 Cookie、访问或刷新令牌和 Authorization 请求头"
           },
           "db_connection_string": {
             "name": "数据库连接串",
@@ -16166,14 +17098,6 @@
       "keyPoolActive": "{count} 个密钥参与自动负载均衡与故障转移",
       "poolStatsTitle": "密钥池运行状态",
       "poolStatsTooltip": "查看运行时调用统计、429 频控次数与冷却状态",
-      "circuitBreakerTitle": "模型服务熔断健康度",
-      "circuitBreakerHealthy": "全端点正常",
-      "circuitBreakerWarning": "存在熔断端点",
-      "resetAllCircuitBreakers": "重置所有熔断",
-      "resetThisBreaker": "立即重试恢复",
-      "resetCircuitBreakerSuccess": "已重置 {count} 个端点熔断状态",
-      "noActiveCircuitBreakers": "所有 Provider 与模型端点均处于健康就绪状态",
-      "failureCount": "连续失败: {count} 次",
       "poolCalls": "{count} 次调用",
       "poolRateLimits": "{count} 次限流",
       "poolInCooldown": "冷却中 ({seconds}秒)",
@@ -16213,6 +17137,7 @@
       "checking": "检测中...",
       "reachable": "可连通",
       "unreachable": "不可达",
+      "probeTimeout": "连接超时",
       "egressProxy": "出网代理",
       "egressProxyPlaceholder": "例如：http://127.0.0.1:7890 或 socks5://127.0.0.1:1080",
       "egressProxyDescription": "为此供应商配置专属出网代理，实现出口 IP 隔离与防封禁保护。",
@@ -16584,9 +17509,14 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆、网络搜索等能力的语义搜索",
         "dismiss": "忽略",
-        "orphanWarning": "检测到 {count} 条旧记忆需要迁移到新模型",
+        "orphanWarning": "有 {count} 条记忆尚未迁移到新的嵌入模型，迁移前不会用于回答",
         "reindex": "迁移",
         "reindexing": "迁移中...",
+        "reindexProgress": "正在迁移记忆... {done} / {total}",
+        "reindexDone": "已将 {count} 条记忆迁移到新模型",
+        "reindexUpToDate": "所有记忆已在新模型上",
+        "reindexPartial": "已迁移 {migrated} 条，{failed} 条未能迁移，可再次尝试",
+        "reindexError": "迁移被中断，再次点击可从中断处继续",
         "rerankerModel": "重排序模型",
         "rerankerModelDescription": "检索结果重排序模型，用于支持知识库、记忆、网络搜索等能力的语义排序",
         "provider": "提供商",
@@ -17108,6 +18038,10 @@
       "querying": "查询中...",
       "compiling": "编译中...",
       "maintaining": "维护中...",
+      "maintainProgress": {
+        "driftReview": "核对内容准确性 {done}/{total}",
+        "linkDiscovery": "发现关联 {done}/{total}"
+      },
       "repairingTypes": "修复中...",
       "repairingPublication": "修复发布状态中...",
       "reindexingVectors": "重建向量索引中...",
@@ -17140,7 +18074,6 @@
         "lastMaintainSummary": "修复 {fixed} 项 · 发现 {found} 项",
         "lastMaintainSkipped": "上次维护已跳过",
         "lastMaintainSkippedCompile": "上次维护已跳过（编译进行中）",
-        "lastMaintainSkippedNoModel": "上次维护已跳过（未配置 AI 模型）",
         "indexedAssets": "{count, plural, one {# 张图片已索引} other {# 张图片已索引}}",
         "failedAssets": "{count, plural, one {# 张图片索引失败} other {# 张图片索引失败}}",
         "assetsVisionHint": "图片已导入但尚不可搜索。请在「设置 → 模型」中配置视觉降级模型以建立索引。",
@@ -17206,6 +18139,8 @@
         "refresh": "刷新",
         "query": "查询",
         "compile": "编译 Wiki",
+        "maintainCancel": "停止",
+        "maintainCancelling": "正在停止...",
         "maintain": "维护 Wiki",
         "maintainModeLabel": "维护模式",
         "maintainModeStructural": "结构巡检",
@@ -17234,8 +18169,10 @@
       "success": {
         "queryComplete": "查询完成",
         "compileComplete": "Wiki 编译完成",
-        "compileSummary": "编译完成：{published} 篇已发布，{pending} 篇待审核，{blocked} 篇未生成。待审核内容请在「待审草稿」标签查看。",
-        "compileSummaryWithSynthesis": "编译完成：{published} 篇已发布，{pending} 篇待审核，{synthesis} 篇演变合成，{blocked} 篇未生成。请在「待审草稿 → 演变合成」查看演变页。",
+        "compileStarted": "已开始在后台编译，队列中有 {count} 个文件。",
+        "compileNothingNew": "没有需要编译的新内容。",
+        "compileFinished": "编译完成。需要你审核的内容在「{tab}」标签。",
+        "maintainCancelled": "维护已停止，已完成的部分会保留。",
         "maintainComplete": "Wiki 维护完成",
         "maintainSummary": "维护完成：发现 {found} 项，修复 {fixed} 项",
         "maintainSummaryWithLinks": "维护完成：发现 {found} 项，修复 {fixed} 项，新增 {connections} 个链接",
@@ -17254,6 +18191,8 @@
         "queryFailed": "查询 Wiki 失败",
         "compileFailed": "编译 Wiki 失败",
         "compileBlockedByDedup": "请先处理精确或归一化重复组，再执行编译",
+        "maintainCancelFailed": "无法停止维护，请重试。",
+        "maintainAiUnavailable": "AI 模型没有响应，只完成了结构检查。请检查模型设置后重试。",
         "maintainFailed": "维护 Wiki 失败",
         "maintainCompileBusy": "Wiki 正在编译中，请编译完成后再试。",
         "repairTypesFailed": "修复页面类型失败",
@@ -17369,7 +18308,13 @@
           "timeout": "超时",
           "io_missing": "文件缺失",
           "cancelled": "已取消",
-          "embed_window_violation": "嵌入窗口超限"
+          "embed_window_violation": "嵌入窗口超限",
+          "context_overflow": "内容过长",
+          "safety_block": "触发安全拦截",
+          "format_error": "请求被拒绝",
+          "response_format_error": "模型回复无法解析",
+          "model_not_found": "模型不可用",
+          "challenge_blocked": "被服务商拦截"
         },
         "refresh": "刷新",
         "refreshStale": "队列状态可能已过期，请检查网络后点击刷新。",
@@ -17699,7 +18644,6 @@
       "emptyExpiring": "暂无老化概念，所有知识均为活跃常青状态",
       "emptyArchived": "暂无已归档概念",
       "daysUnchanged": "已 {days} 天未更新",
-      "isolatedInArchive": "物理隔离于 archive/ 目录",
       "extendButton": "延期90天",
       "archiveButton": "归档",
       "reviveButton": "一键复活",
@@ -17846,6 +18790,7 @@
         "importSelected": "导入选中项",
         "cancel": "取消",
         "alreadyInstalled": "已安装",
+        "urlReimportInstalledHint": "标记为已安装的技能可勾选，用远端版本覆盖本地副本。导入成功后可在通知里撤销。",
         "searching": "搜索中...",
         "noResults": "未找到技能",
         "noResultsDesc": "尝试不同的关键词或换个方式描述你的需求",
@@ -17857,12 +18802,13 @@
         "updating": "更新中...",
         "updatedSuccess": "已更新 {name}",
         "updateFailed": "更新失败",
-        "restorePreUpdateSkillMd": "恢复更新前的 SKILL.md",
-        "restorePreUpdateSkillMdDesc": "仅保存了更新前的 SKILL.md，不会回滚包内其他文件。",
-        "restorePreUpdateSuccess": "已恢复 {name} 的 SKILL.md",
-        "restorePreUpdateSuccessDesc": "已从快照恢复 SKILL.md（{count} 个文件）。",
-        "restorePreUpdateFailed": "无法恢复 SKILL.md",
-        "restorePreUpdateFailedDesc": "回滚批次可能已过期或已执行过。",
+        "restorePreUpdateSkillMd": "撤销上次更新",
+        "restorePreUpdateSkillMdDesc": "恢复本次更新前保存的文件（含文本资源，超大文件可能未包含）。",
+        "restorePreUpdateSuccess": "已恢复 {name} 的上一版本",
+        "restorePreUpdateSuccessDesc": "已从更新前快照恢复 {count} 个文件。",
+        "restorePreUpdateFailed": "无法撤销此次更新",
+        "restorePreUpdateFailedDesc": "撤销快照可能已过期或已使用过。",
+        "snapshotTruncatedDesc": "部分过大或非文本文件未纳入撤销快照。",
         "updateAvailable": "可更新",
         "scanning": "扫描中...",
         "previewFailed": "预览失败",
@@ -18055,10 +19001,14 @@
         "resetFailed": "恢复默认失败",
         "acceptUpstreamSuccess": "已应用上游更新",
         "acceptUpstreamFailed": "应用上游更新失败",
+        "undoLastReplace": "撤销上次更新",
+        "undoLastReplaceHint": "可恢复到上次更新前自动保存的版本。",
+        "undoLastReplaceSuccess": "已恢复上一版本",
+        "undoLastReplaceFailed": "无法撤销上次更新",
         "confirmResetTitle": "恢复默认",
         "confirmResetDesc": "您对「{name}」的本地修改将被永久覆盖为内置默认版本。此操作不可撤销。",
         "confirmAcceptTitle": "应用上游更新",
-        "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。此操作不可撤销。",
+        "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。之后可在技能详情页撤销此次更新。",
         "confirmAction": "继续",
         "cancelAction": "取消",
         "export": "导出"
@@ -18070,10 +19020,12 @@
         "doctor": {
           "titleAttention": "技能健康体检：发现 {count} 个异常",
           "titleHealthy": "技能健康体检：状态优良",
-          "allHealthyDesc": "未发现高频低效或技能囤积问题，所有技能运行正常。",
+          "allHealthyDesc": "未发现高频低效的技能，所有技能运行正常。",
           "typeWrongButFrequent": "高频低效",
-          "typeHoarding": "技能囤积",
           "typeStalePinned": "闲置置顶",
+          "findingWrongButFrequent": "已运行 {count} 次，成功率仅 {rate}",
+          "findingStalePinned": "已固定，但已有 {days} 天未使用",
+          "boundNote": "有智能体、定时任务或看板任务仍绑定着该技能，无法在此归档。请先在对应位置解除绑定，或修好该技能后再重置计数。",
           "actionUnpinArchive": "解 Pin 归档",
           "actionArchive": "一键归档",
           "actionReset": "重置计数",
@@ -18082,6 +19034,11 @@
           "remediateSuccessDesc": "已成功治理技能 {name}",
           "remediateFailedTitle": "治理失败",
           "remediateFailedDesc": "未能治理该技能"
+        },
+        "historyReason": {
+          "inactive": "长期未使用",
+          "lowQuality": "成功率偏低",
+          "overLimit": "超出技能数量上限"
         },
         "enabled": "启用管理器",
         "enabledDesc": "定期扫描并管理技能生命周期状态",
@@ -18093,9 +19050,7 @@
         "gracePeriodDays": "保护期（天）",
         "gracePeriodDaysDesc": "新创建的技能在此期间内不受管理器影响",
         "protectInstalled": "保护已安装技能",
-        "protectInstalledDesc": "从应用商店安装的技能不受管理器影响",
-        "maxSkills": "最大活跃技能数",
-        "maxSkillsDesc": "超出后将最久未使用的技能标记为闲置",
+        "protectInstalledDesc": "从应用商店安装的技能，以及来自其他工具技能目录的技能，不受管理器影响",
         "runNow": "立即运行",
         "runNowDesc": "手动触发一次技能扫描",
         "running": "运行中...",
@@ -18111,6 +19066,9 @@
         "triggerManual": "手动",
         "triggerBackground": "自动",
         "historyScanned": "扫描 {count} 个",
+        "runSkippedReason": "没有技能达到阈值（{pinned} 个已固定，{protected} 个受保护）",
+        "skippedPinned": "保留 {count} 个（已固定）",
+        "skippedProtected": "保留 {count} 个（受保护）",
         "consolidation": {
           "title": "技能合并",
           "description": "将碎片化技能合并为类级别伞形技能，提升检索精度",
@@ -18130,7 +19088,7 @@
           "actionCreate": "创建伞形技能",
           "actionDemote": "降级为支持文件",
           "executeSuccess": "合并完成",
-          "executeResult": "归档 {archived} 个技能，创建 {created} 个伞形技能。已更新 {agents} 个智能体配置。",
+          "executeResult": "归档 {archived} 个技能，创建 {created} 个伞形技能。",
           "executeFailed": "合并失败",
           "confirmTitle": "确认合并",
           "confirmDesc": "此操作将把 {count} 个技能合并为伞形技能。归档的技能可随时恢复。"
@@ -18215,7 +19173,11 @@
         "sourceSaved": "SKILL.md 保存成功",
         "sourceSaveFailed": "保存 SKILL.md 失败",
         "forceEnableFailed": "强制启用失败",
-        "securityReviewNote": "安全审查：{recommendation}"
+        "securityReviewNote": "安全审查：{recommendation}",
+        "sourceSavedWithVersion": "SKILL.md 已保存为版本 {version}",
+        "sourceSavedUndo": "撤销",
+        "sourceUndoSuccess": "已恢复到上一版本",
+        "sourceUndoFailed": "恢复上一版本失败"
       },
       "scanRisk": {
         "severity": {
@@ -18300,7 +19262,7 @@
           "total": "全部案例",
           "pendingReview": "待审核",
           "autoApplied": "已自动落地",
-          "blocked": "被拦截或失败"
+          "blocked": "已拦截"
         },
         "listScopeHint": "展示最新 {shown} / 共 {total} 条",
         "filters": {
@@ -19669,7 +20631,6 @@
           "sessionEnd": "会话结束",
           "llmRequest": "模型请求",
           "approvalRequest": "审批请求",
-          "approvalIntercepted": "审批拦截",
           "toolFailure": "工具执行失败",
           "error": "错误",
           "userInterruption": "用户中断",
@@ -19756,18 +20717,19 @@
       "desktopModeOnly": "仅桌面模式可用",
       "desktopModeDescription": "系统设置仅在 Tauri 桌面客户端中可用",
       "sandboxReset": {
-        "title": "重置容器环境",
-        "description": "重建沙箱容器以重置系统级状态（全局包、系统配置）。您的工作区文件和聊天历史将被保留。",
+        "title": "重置沙箱环境",
+        "description": "沙箱出现异常或运行不稳定时，可一键重启沙箱，并清除智能体安装过的 Python 包，让环境回到干净状态。工作区文件和聊天历史不受影响。",
         "button": "重置环境",
-        "confirmTitle": "确定要重置容器环境吗？",
-        "confirmDescription": "此操作将销毁当前容器并创建一个全新的容器。您的工作区文件（持久化卷上的）、聊天历史、记忆和设置将被保留。全局安装的包和系统级更改将被重置。环境将重启，大约需要 10-30 秒。",
+        "confirmTitle": "确定要重置沙箱环境吗？",
+        "confirmDescription": "沙箱会重启，并清除智能体安装过的 Python 包，智能体之后用到时需要重新安装。您的工作区文件、聊天历史、记忆和设置都会保留。重置期间沙箱暂时无法使用。",
         "confirm": "确认重置",
         "cancel": "取消",
         "preserved": "保留项：工作区文件、聊天历史、记忆、设置",
-        "reset": "重置项：全局包 (pip/apt)、系统配置、容器状态",
+        "reset": "重置项：智能体安装的 Python 包、临时运行状态",
         "resetting": "重置中...",
-        "success": "容器重建已启动，环境即将重启。",
-        "failed": "重置容器环境失败"
+        "success": "已开始重置，沙箱即将重启。",
+        "failed": "重置沙箱环境失败",
+        "busy": "仍有任务在运行。请等待其完成或先停止，再重试。"
       },
       "status": {
         "currentMode": "当前模式"
@@ -20511,53 +21473,7 @@
       "wikiNegativeOutcomeRate": "负向结果率",
       "wikiVerificationDwell": "平均核验停留",
       "wikiTelemetryDrops": "遥测丢样",
-      "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天",
-      "runtimeMeter": {
-        "title": "运行开销与资源计量",
-        "description": "实时监测免费搜索源月度余量与浏览器自动化计算消耗，自动保障长程任务稳定不断供",
-        "badge": "白盒透明",
-        "resetAll": "校准重置",
-        "resetTooltip": "手动校准并重新开始本周期计数",
-        "searchPool": "搜索源免费配额水库",
-        "monthlyStats": "按月统计",
-        "unlimited": "无限专线",
-        "depleted": "额度已耗尽 (已自动换轨)",
-        "warning": "余量告警 ({percent}%)",
-        "healthy": "充足",
-        "callsUnit": "次",
-        "browserTitle": "浏览器自动化算力与流量",
-        "sandboxWorkloadTitle": "沙箱与自动化算力",
-        "localComputeFree": "本地算力免费",
-        "codeSandboxCompute": "代码沙箱耗时",
-        "executionsCount": "执行调用: {count} 次",
-        "minutesUnit": "分钟",
-        "totalWorkloadCompute": "全沙箱活跃工时",
-        "allSandboxesCombined": "代码沙箱与浏览器自动化总和",
-        "estimatedCloudValue": "等效云端成本节省",
-        "savedBadge": "已省",
-        "monthlySummary": "本月汇总",
-        "activeComputeTime": "累计运行时间",
-        "sessionsCount": "执行会话: {count} 次",
-        "networkTransfer": "网页加载流量",
-        "requestsCount": "网络请求: {count} 次",
-        "estimatedCost": "预估沙箱算力折合开销",
-        "watchdogTip": "配备 3 分钟死循环主动看门狗，任何非预期的长耗时卡死均会被安全中断，全天候保障本地 CPU 与沙箱健康。",
-        "editLimitTitle": "自定义配额上限",
-        "editLimitDesc": "调整 {provider} 的每月额度告警上限",
-        "limitLabel": "月度配额上限 (次)",
-        "cancel": "取消",
-        "save": "保存配置",
-        "circuitBreakersTitle": "LLM 供应商熔断与连通性",
-        "circuitBreakersDesc": "实时探测各模型服务商健康度与故障隔离状态",
-        "circuitAllHealthy": "全供应商连通正常",
-        "circuitStateClosed": "正常连通",
-        "circuitStateOpen": "已触发熔断保护",
-        "circuitStateHalfOpen": "探测恢复中",
-        "circuitFailures": "连续失败: {count} 次",
-        "circuitRetryCooldown": "冷却重试倒计时: {seconds}s",
-        "circuitResetOne": "重置探测",
-        "circuitResetAll": "重置全部熔断"
-      }
+      "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天"
     },
     "workingState": {
       "title": "工作记忆",
@@ -20675,8 +21591,8 @@
       "loadError": "加载备份失败"
     },
     "remoteBackup": {
-      "title": "云端备份同步",
-      "description": "自动将备份同步到 WebDAV 或 S3 兼容云存储，确保跨设备数据安全。",
+      "title": "记忆云端备份",
+      "description": "自动将你的记忆（画像、流程、事实与经历）同步到 WebDAV 或 S3 兼容云存储。聊天、技能和设置不在其中，请使用「备份与恢复」。",
       "provider": "存储提供商",
       "webdav": "WebDAV",
       "s3": "S3 兼容存储",
@@ -21397,6 +22313,93 @@
         "exportCopied": "已复制!",
         "exportCopyFailed": "复制失败，请检查剪贴板权限",
         "desktopOpenSettings": "打开系统设置",
+        "status": {
+          "pass": "正常",
+          "warn": "警告",
+          "fail": "错误"
+        },
+        "technical": {
+          "toggle": "技术详情",
+          "component": "组件",
+          "message": "消息",
+          "detail": "详情",
+          "measured": "实测值",
+          "expected": "期望值",
+          "cause": "原因",
+          "fix": "建议修复"
+        },
+        "components": {
+          "generic": "系统检查",
+          "AgentColdStart": "智能体预热",
+          "AgentEngine": "智能体引擎",
+          "AgentPromptCacheAlignment": "提示词缓存对齐",
+          "AgentStepBudget": "智能体步数预算",
+          "Database": "本地数据库",
+          "DesktopControl": "桌面控制",
+          "DesktopLockedUse": "锁屏使用与隐私幕布",
+          "DLQ": "消息投递",
+          "ExecutionCache": "执行缓存",
+          "GatewayRuntime": "应用引擎",
+          "HookSystem": "自动化钩子",
+          "Network": "网络连接",
+          "OllamaContext": "Ollama 上下文",
+          "OrphanSession": "遗留会话",
+          "SkillEcosystem": "技能生态",
+          "SupplyChainSecurity": "依赖安全",
+          "SystemExhaustion": "交换区与文件句柄",
+          "SystemResources": "系统资源",
+          "Tokenizer": "文本分词器",
+          "TraceExportAudit": "追踪导出审计",
+          "TraceExportSecurity": "追踪导出安全",
+          "VectorDB": "记忆检索存储",
+          "WorkspaceStorage": "工作区存储"
+        },
+        "hints": {
+          "generic": {
+            "warn": "值得留意，但应用仍可正常使用。展开技术详情查看具体信息。",
+            "fail": "该项检查未通过。展开技术详情查看原因，处理后重新检查。"
+          },
+          "AgentEngine": {
+            "fail": "智能体引擎遇到严重错误，请重启应用。"
+          },
+          "Database": {
+            "fail": "本地数据库出现问题。请重启应用；若反复出现，请导出诊断报告联系支持。"
+          },
+          "DLQ": {
+            "warn": "部分消息未能送达或正在积压，请检查各渠道的连接状态。"
+          },
+          "GatewayRuntime": {
+            "warn": "应用引擎当前响应较慢，通常会自行恢复。",
+            "fail": "应用引擎负载过高或无响应；若未恢复，请重启应用。"
+          },
+          "Network": {
+            "fail": "无法连接互联网。请检查网络、代理或防火墙设置，然后重新检查。"
+          },
+          "SupplyChainSecurity": {
+            "warn": "某个依赖存在已知的高危漏洞，有新版本时请及时更新应用。",
+            "fail": "某个依赖可能被植入恶意代码。请更新或重装应用，在此之前不要输入敏感信息。"
+          },
+          "SystemExhaustion": {
+            "warn": "交换区或文件句柄占用偏高；除非应用变慢，通常无需处理。",
+            "fail": "内存或文件句柄已接近上限。请关闭不用的应用；若应用变慢，请重启应用。"
+          },
+          "SystemResources": {
+            "warn": "内存、CPU 或进程数偏高，或暂时无法监测。",
+            "fail": "内存、CPU 或进程数过高，或检查本身失败。请关闭不用的应用后重新检查。"
+          },
+          "Tokenizer": {
+            "warn": "中日韩文字检索正在使用简化方案，结果精度可能下降。",
+            "fail": "中日韩文字检索可能无法正常工作。请重启应用；若仍然如此，请导出诊断报告联系支持。"
+          },
+          "VectorDB": {
+            "warn": "缺少可选组件，高级记忆检索暂不可用。",
+            "fail": "记忆检索存储出现问题。请重启应用；若仍然如此，请导出诊断报告联系支持。"
+          },
+          "WorkspaceStorage": {
+            "warn": "存储可用，但未安装更快的搜索工具（ripgrep），文件搜索会较慢。",
+            "fail": "数据目录存在问题（无写入权限、出错或磁盘空间不足）。请检查权限并释放空间。"
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "消息投递队列出现严重故障（{failed_count} 条失败）。"
@@ -21430,6 +22433,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "桌面权限检查失败。"
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "新的记忆没有被永久保存。"
           }
         }
       },
@@ -21705,19 +22711,27 @@
     },
     "storageGovernance": {
       "title": "Agent 持久化存储与状态治理",
-      "description": "查看 SQLite/Qdrant 数据库体积分解，执行无锁 Compaction 压缩碎片，管理时间旅行状态快照与一键回滚。",
+      "description": "查看各类数据占用的存储空间，并管理可一键恢复的状态快照。",
       "totalAgentStateSize": "Agent 状态库总占用",
-      "healthyGrowth": "存储增长处于健康区间",
-      "growthWarning": "存储体积接近预警水位，建议执行压缩",
       "diskSpaceOverview": "宿主磁盘空间概览",
       "freeDisk": "剩余可用：{free}",
       "totalDisk": "总容量：{total}",
-      "categoriesBreakdown": "存储子系统占用分解",
-      "compactAndPurge": "压缩数据库并清理孤儿快照",
-      "itemsCount": "{count} 个实体/条目",
-      "compactionSuccessTitle": "存储压缩完成",
-      "compactionSuccessDesc": "已成功释放 {freed} 磁盘空间，WAL 日志已清空排空。",
-      "compactionFailedTitle": "存储压缩失败",
+      "categoriesBreakdown": "按类别查看占用",
+      "filesCount": "{count, plural, one {# 个文件} other {# 个文件}}",
+      "categories": {
+        "sqlite_database": "对话与设置数据库",
+        "checkpoints": "会话状态",
+        "workspaces": "Agent 工作区",
+        "vector_store": "检索索引",
+        "memory_archive": "长期记忆",
+        "event_logs": "活动日志",
+        "sqlite_backups": "数据库备份",
+        "snapshots": "状态快照",
+        "other": "其他"
+      },
+      "loadFailedTitle": "无法统计存储占用",
+      "loadFailedDesc": "统计数据占用时出了点问题，请稍后重试。",
+      "loadFailedStaleDesc": "下方数字来自上一次成功的统计，可能已不是最新。",
       "snapshotsAndRollback": "状态快照与一键回滚",
       "snapshotsDesc": "在重大升级或 Skill 行为变更前创建不可变状态快照，故障时可秒级恢复至上一检查点。",
       "snapshotLabelPlaceholder": "快照说明 (如：升级前备份)",
@@ -21725,13 +22739,17 @@
       "snapshotSuccessTitle": "快照创建成功",
       "snapshotSuccessDesc": "当前持久化状态与核心数据已打包为只读快照。",
       "snapshotFailedTitle": "快照创建失败",
+      "snapshotFailedDesc": "无法创建快照，请稍后重试。",
       "restore": "回滚",
+      "deleteSnapshot": "删除快照",
       "restoreSuccessTitle": "已安排恢复",
       "restoreSuccessDesc": "快照将在应用下次启动时恢复，在此之前当前数据保持不变。",
       "restoreFailedTitle": "回滚失败",
+      "restoreFailedDesc": "无法恢复该快照，请稍后重试。",
       "deleteSuccessTitle": "快照已删除",
       "deleteSuccessDesc": "已移除选定的历史快照。",
-      "deleteFailedTitle": "删除快照失败"
+      "deleteFailedTitle": "删除快照失败",
+      "deleteFailedDesc": "无法删除该快照，请稍后重试。"
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "策略指南",

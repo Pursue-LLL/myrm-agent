@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import patch
 
 import pytest
@@ -20,18 +19,31 @@ def status_app() -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_background_shell_status_requires_token(status_app: FastAPI) -> None:
+async def test_background_shell_status_requires_token(
+    status_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pydantic import SecretStr
+
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("test-token"))
     transport = ASGITransport(app=status_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.get("/api/internal/background-shell/status")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_background_shell_status_returns_running_count(status_app: FastAPI) -> None:
+async def test_background_shell_status_returns_running_count(
+    status_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pydantic import SecretStr
+
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("test-token"))
     transport = ASGITransport(app=status_app)
     with (
-        patch.dict(os.environ, {"CONTROL_PLANE_TELEMETRY_TOKEN": "test-token"}),
         patch(
             "myrm_agent_harness.api.hooks.count_running_background_shell_jobs",
             return_value=2,
@@ -53,10 +65,16 @@ async def test_background_shell_status_returns_running_count(status_app: FastAPI
 
 
 @pytest.mark.asyncio
-async def test_background_shell_status_ephemeral_when_store_unconfigured(status_app: FastAPI) -> None:
+async def test_background_shell_status_ephemeral_when_store_unconfigured(
+    status_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pydantic import SecretStr
+
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("test-token"))
     transport = ASGITransport(app=status_app)
     with (
-        patch.dict(os.environ, {"CONTROL_PLANE_TELEMETRY_TOKEN": "test-token"}),
         patch(
             "myrm_agent_harness.api.hooks.count_running_background_shell_jobs",
             return_value=0,

@@ -1,3 +1,17 @@
+// Dev-only: capture client-side failures from the very first script.
+// The E2E bridge wait installs its own sink on the first poll, which is long after a hydration
+// failure has already happened: the page then only shows an empty shell and the lane reports
+// "bridge did not become ready" without ever saying why. This runs before the app, so the error
+// that broke the boot is the error the diagnostics show.
+try {
+  var host=(location.hostname||'');
+  if(host==='127.0.0.1'||host==='localhost'){
+    var sink=(window.__MYRM_E2E_DIAG_ERRORS__=window.__MYRM_E2E_DIAG_ERRORS__||[]);
+    var pushDiag=function(kind,msg){if(sink.length<12){sink.push(kind+': '+String(msg).slice(0,240));}};
+    window.addEventListener('error',function(e){pushDiag('error',(e&&(e.message||e.filename))||'unknown');});
+    window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;pushDiag('rejection',(r&&(r.message||r.name))||r||'unknown');});
+  }
+}catch(e){}
 try {
   var d=document.documentElement;
   var theme=localStorage.getItem('theme');

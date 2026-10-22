@@ -132,39 +132,60 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     let app_handle = app.handle().clone();
     let system_config_clone = system_config.clone();
+    // Backend cold start must never delay the WebView. Start it in parallel with Next
+    // so the user sees the UI immediately while Python imports/bundles warm up.
+    let backend_app = app_handle.clone();
+    let backend_config_clone = backend_config.clone();
+    let backend_system_config = system_config_clone.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(500)).await;
-
-        if runtime::is_remote_follow_deferred(&app_handle) {
+        if runtime::is_remote_follow_deferred(&backend_app) {
             println!("🌐 Remote follow active, local backend stays deferred");
-        } else {
-            let backend_state = app_handle.state::<PythonBackend>();
-            let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
-            match start_backend_with_config(app_handle.clone(), backend_state, backend_config).await
-            {
-                Ok(msg) => {
-                    println!("✅ {}", msg);
-                    runtime::spawn_backend_monitors(&app_handle, backend_port);
-                }
-                Err(e) => {
-                    eprintln!("❌ Failed to auto-start backend: {}", e);
-                    let tooltip =
-                        "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
-                    tray::update_native_tray_status(&app_handle, "error", tooltip);
-                    let _ = app_handle.emit("backend-start-failed", e.clone());
-                }
+            return;
+        }
+        let backend_state = backend_app.state::<PythonBackend>();
+        let backend_port = BackendConfig::from_system_config(&backend_system_config).port;
+        match start_backend_with_config(backend_app.clone(), backend_state, backend_config_clone)
+            .await
+        {
+            Ok(msg) => {
+                println!("✅ {}", msg);
+                runtime::spawn_backend_monitors(&backend_app, backend_port);
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to auto-start backend: {}", e);
+                let tooltip =
+                    "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
+                tray::update_native_tray_status(&backend_app, "error", tooltip);
+                let _ = backend_app.emit("backend-start-failed", e.clone());
             }
         }
+    });
 
+    tauri::async_runtime::spawn(async move {
         // Release WebView loads frontend-shell → polls Next standalone; always start Next.
         // enable_webui_mode only affects backend bind/port (see BackendConfig), not UI startup.
         println!("🌐 Starting Next.js Server...");
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
 
         let frontend_state = app_handle.state::<NextJSFrontend>();
 
+        let frontend_port = frontend_config.port;
         match start_frontend(app_handle.clone(), frontend_state, frontend_config).await {
-            Ok(msg) => println!("✅ {}", msg),
+            Ok(msg) => {
+                println!("✅ {}", msg);
+                let target = format!("http://127.0.0.1:{frontend_port}/");
+                match target.parse::<tauri::Url>() {
+                    Ok(url) => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            if let Err(e) = window.navigate(url) {
+                                eprintln!("❌ Failed to navigate main window: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("❌ Invalid frontend URL {}: {}", target, e),
+                }
+            }
             Err(e) => {
                 eprintln!("❌ Failed to auto-start frontend: {}", e);
                 let tooltip = "MyrmAgent - UI failed to start. Restart the app or change the WebUI port in Settings.".to_string();

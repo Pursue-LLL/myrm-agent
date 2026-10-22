@@ -1,10 +1,12 @@
 """[INPUT]
 - myrm_agent_harness.observability.diagnostics.protocols::HealthReport (POS: 健康状态报告结构)
 - myrm_agent_harness.observability.diagnostics.protocols::DiagnosticProtocol (POS: 诊断接口)
-- pathlib, logging, typing
+- app.core.skills.curator.local_skills::scan_local_skills (POS: 全部技能根目录扫描与已安装技能标记，与 sweep 同源)
+- app.core.skills.curator.bound_skills::bound_skill_names (POS: 被 Agent 档案 / cron 任务 / 看板任务绑定的技能，与 sweep 同源)
+- logging
 
 [OUTPUT]
-- SkillHoardingHealthDiagnostic: 技能库囤积（Hoarding）与错但高频（Wrong-But-Frequent）低质技能诊断探针。
+- SkillQualityHealthDiagnostic: 错但高频（Wrong-But-Frequent）低质技能诊断探针。
 
 [POS]
 Server 层技能生态与 Curator 质量专项健康诊断探针。
@@ -13,7 +15,6 @@ Server 层技能生态与 Curator 质量专项健康诊断探针。
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
@@ -22,103 +23,103 @@ from myrm_agent_harness.observability.diagnostics.protocols import (
 
 logger = logging.getLogger(__name__)
 
+# Faulty skills the curator is not allowed to touch (pinned / installed / bound to an automation) pile up
+# unnoticed; from this many on, the probe fails instead of warning.
+_PROTECTED_FAULTY_FAIL_THRESHOLD = 3
 
-class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
-    """Diagnose skill catalog hoarding and wrong-but-frequent skill degradations.
+
+class SkillQualityHealthDiagnostic(DiagnosticProtocol):
+    """Diagnose wrong-but-frequent skills: run often, but keep failing.
 
     Checks:
-    1. Active skill count vs configured maximum threshold (preventing tool/skill explosion).
-    2. Wrong-but-frequent skills (observed run outcomes >= min_threshold and success_rate < min_rate).
-    3. Exemption/protection status for pinned, evolution_locked, or installed skills.
+    1. Wrong-but-frequent skills (observed run outcomes >= min_threshold and success_rate < min_rate).
+    2. Exemption status for the faulty ones the curator never transitions — pinned, installed while
+       protection is on, and still bound by an agent, a cron job or a Kanban task — so they need a
+       manual review. The exempt set is read from the same sources as ``SkillCurator``'s own sweep.
+
+    ``evolution_locked`` is deliberately not an exemption. It guards automated *rewrites* of a skill's
+    content (evolution, consolidation); the sweep still evaluates and transitions a locked skill exactly
+    like an unlocked one. Counting it as cleanup protection would hide faulty locked skills behind a
+    guard that does not exist.
     """
 
     async def check_health(self) -> HealthReport:
         try:
-            from myrm_agent_harness.backends.skills.local import LocalSkillBackend
-            from myrm_agent_harness.backends.skills.types import (
-                SkillLifecycleStatus,
-                SkillTrust,
-            )
+            from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus, SkillMetadata
 
+            from app.core.skills.curator.bound_skills import bound_skill_names
+            from app.core.skills.curator.local_skills import scan_local_skills
             from app.core.skills.curator.service import (
                 get_curator_config,
             )
-            from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
             config = get_curator_config()
 
-            all_skills = []
-            for p in DEFAULT_LOCAL_SKILL_PATHS:
-                expanded = Path(p).expanduser()
-                if not expanded.exists():
-                    continue
-                backend = LocalSkillBackend(expanded, use_snapshot=False)
-                all_skills.extend(await backend.list_skills())
+            scan = await scan_local_skills()
+            all_skills = scan.skills
 
             total_skills = len(all_skills)
-            active_skills = []
-            wrong_but_frequent_skills: list[dict[str, object]] = []
-            protected_wrong_count: int = 0
+            active_count = 0
+            faulty_skills: list[SkillMetadata] = []
 
             for skill in all_skills:
                 stats = skill.usage_stats
-                is_active = stats.lifecycle_status == SkillLifecycleStatus.ACTIVE
-                if is_active:
-                    active_skills.append(skill)
+                if stats.lifecycle_status == SkillLifecycleStatus.ACTIVE:
+                    active_count += 1
 
                 if (
                     stats.observed_count >= config.min_call_count_for_quality_check
                     and stats.success_rate < config.min_success_rate
                 ):
-                    is_pinned = bool(stats.pinned)
-                    is_locked = bool(skill.evolution_locked)
-                    is_installed_protected = bool(config.protect_installed_skills and skill.trust == SkillTrust.INSTALLED)
-                    is_system_protected = False
-                    if config.protect_system_skills and skill.storage_path:
-                        normalized = skill.storage_path.replace("\\", "/")
-                        if "/prebuilt/" in normalized:
-                            is_system_protected = True
+                    faulty_skills.append(skill)
 
-                    is_exempt = is_pinned or is_locked or is_installed_protected or is_system_protected
-                    if is_exempt:
-                        protected_wrong_count += 1
+            # The sweep's *permanent* exemptions, and only those: pinned, installed while protection is
+            # on (``engine._exempt_names``), and still bound by an agent, cron job or Kanban task. A skill
+            # under the grace window is not exempt — the sweep just waits — so the probe reports it on
+            # purpose: a skill that starts failing right after creation must not stay invisible.
+            # The lookup is skipped for a healthy library, exactly like the doctor path.
+            bound_names = await bound_skill_names(faulty_skills) if faulty_skills else frozenset()
 
-                    exemption_reasons: list[str] = []
-                    if is_pinned:
-                        exemption_reasons.append("pinned")
-                    if is_locked:
-                        exemption_reasons.append("evolution_locked")
-                    if is_installed_protected:
-                        exemption_reasons.append("installed_protected")
-                    if is_system_protected:
-                        exemption_reasons.append("system_protected")
+            wrong_but_frequent_skills: list[dict[str, object]] = []
+            protected_wrong_count: int = 0
 
-                    lifecycle_str = (
-                        stats.lifecycle_status.value if hasattr(stats.lifecycle_status, "value") else str(stats.lifecycle_status)
-                    )
+            for skill in faulty_skills:
+                stats = skill.usage_stats
+                exemption_reasons: list[str] = []
+                if stats.pinned:
+                    exemption_reasons.append("pinned")
+                if config.protect_installed_skills and skill.name in scan.installed_names:
+                    exemption_reasons.append("installed_protected")
+                if skill.name in bound_names:
+                    exemption_reasons.append("bound")
 
-                    wrong_but_frequent_skills.append(
-                        {
-                            "skill_name": skill.name,
-                            "call_count": stats.call_count,
-                            "observed_count": stats.observed_count,
-                            "success_count": stats.success_count,
-                            "failure_count": stats.failure_count,
-                            "success_rate": round(stats.success_rate, 3),
-                            "lifecycle_status": lifecycle_str,
-                            "is_exempt_from_curator": is_exempt,
-                            "exemption_reasons": exemption_reasons,
-                        }
-                    )
+                is_exempt = bool(exemption_reasons)
+                if is_exempt:
+                    protected_wrong_count += 1
 
-            active_count = len(active_skills)
-            max_limit = config.max_skills
+                lifecycle_str = (
+                    stats.lifecycle_status.value if hasattr(stats.lifecycle_status, "value") else str(stats.lifecycle_status)
+                )
+
+                wrong_but_frequent_skills.append(
+                    {
+                        "skill_name": skill.name,
+                        "call_count": stats.call_count,
+                        "observed_count": stats.observed_count,
+                        "success_count": stats.success_count,
+                        "failure_count": stats.failure_count,
+                        "success_rate": round(stats.success_rate, 3),
+                        "lifecycle_status": lifecycle_str,
+                        "is_exempt_from_curator": is_exempt,
+                        "exemption_reasons": exemption_reasons,
+                    }
+                )
+
             wrong_count = len(wrong_but_frequent_skills)
 
             meta_data: dict[str, object] = {
                 "total_skills": total_skills,
                 "active_skills_count": active_count,
-                "max_skills_limit": max_limit,
                 "wrong_but_frequent_count": wrong_count,
                 "protected_wrong_count": protected_wrong_count,
                 "wrong_but_frequent_skills": wrong_but_frequent_skills,
@@ -127,47 +128,48 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
             }
             metrics: dict[str, float] = {
                 "active_skills_count": float(active_count),
-                "max_skills_limit": float(max_limit),
                 "wrong_but_frequent_count": float(wrong_count),
                 "protected_wrong_count": float(protected_wrong_count),
             }
 
-            if active_count > max_limit or protected_wrong_count >= 3:
+            if protected_wrong_count >= _PROTECTED_FAULTY_FAIL_THRESHOLD:
                 return HealthReport(
                     component_name="SkillEcosystem",
                     status="fail",
-                    code="ERR_SKILL_HOARDING_CRITICAL",
-                    message=f"Skill hoarding critical: {active_count}/{max_limit} active skills, {protected_wrong_count} protected faulty skill(s).",
+                    code="ERR_SKILL_PROTECTED_FAULTY",
+                    message=f"{protected_wrong_count} faulty skill(s) are exempt from automatic cleanup.",
                     detail=(
-                        f"Active skills ({active_count}) exceed configured limit ({max_limit}). "
-                        f"Found {wrong_count} wrong-but-frequent skill(s) ({protected_wrong_count} protected from auto-curator). "
-                        "Overcrowded skill catalog degrades retrieval accuracy and increases prompt token overhead."
+                        f"Found {wrong_count} wrong-but-frequent skill(s) ({protected_wrong_count} exempt from the curator "
+                        "because they are pinned, installed or still bound by an agent, cron job or Kanban task). "
+                        "The curator never transitions those, so they keep failing until they are reviewed."
                     ),
-                    fix_suggestion="Run Curator sweep in Settings -> Skills -> Curator, or unpin/archive failing skills.",
+                    fix_suggestion=(
+                        "Review these skills in Settings -> Skills: unpin, fix or archive the failing ones. "
+                        "A skill that is still bound to an agent, scheduled task or Kanban task must be unbound first."
+                    ),
                     meta_data=meta_data,
                     metrics=metrics,
                 )
 
-            if active_count >= int(max_limit * 0.8) or wrong_count > 0:
-                issues: list[str] = []
-                if active_count >= int(max_limit * 0.8):
-                    issues.append(f"{active_count}/{max_limit} active skills (near capacity)")
-                if wrong_count > 0:
-                    issues.append(f"{wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)")
-
-                detail_msg = f"Detected skill health issues: {', '.join(issues)}."
+            if wrong_count > 0:
+                detail_msg = f"Detected {wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)."
+                fix_suggestion = "Review the failing skills in Settings -> Skills -> Curator and fix or archive them."
                 if protected_wrong_count > 0:
                     detail_msg += (
-                        f" Note: {protected_wrong_count} faulty skill(s) are pinned or protected and require manual review."
+                        f" Note: {protected_wrong_count} faulty skill(s) are exempt from the curator "
+                        "(pinned, installed or bound) and require manual review."
+                    )
+                    fix_suggestion += (
+                        " A skill that is still bound to an agent, scheduled task or Kanban task must be unbound first."
                     )
 
                 return HealthReport(
                     component_name="SkillEcosystem",
                     status="warn",
-                    code="WARN_SKILL_HOARDING_OR_FAULTY",
-                    message=f"Skill health alert: {', '.join(issues)}.",
+                    code="WARN_SKILL_FAULTY",
+                    message=f"Skill health alert: {wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate).",
                     detail=detail_msg,
-                    fix_suggestion="Review skill performance in Settings -> Skills -> Curator and trigger a curation sweep.",
+                    fix_suggestion=fix_suggestion,
                     meta_data=meta_data,
                     metrics=metrics,
                 )
@@ -176,8 +178,8 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                 component_name="SkillEcosystem",
                 status="pass",
                 code="OK_SKILL_ECOSYSTEM_HEALTHY",
-                message=f"Skill ecosystem healthy ({active_count}/{max_limit} active skills, 0 wrong-but-frequent skills).",
-                detail=f"Scanned {total_skills} local skill(s). All active skills satisfy quality and capacity thresholds.",
+                message=f"Skill ecosystem healthy ({active_count} active skills, 0 wrong-but-frequent skills).",
+                detail=f"Scanned {total_skills} local skill(s). No skill with enough observed runs is below the success-rate threshold.",
                 meta_data=meta_data,
                 metrics=metrics,
             )

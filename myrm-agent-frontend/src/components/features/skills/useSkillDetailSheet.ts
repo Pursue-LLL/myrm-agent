@@ -9,9 +9,14 @@ import {
   toggleEvolutionLock,
   revealSkill,
 } from '@/services/skill';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { useSkillStore } from '@/store/skill';
 import type { Skill } from '@/store/skill/types';
 import type { SkillSectionTranslator } from './SkillDetailHelpers';
+import {
+  SKILL_CONTENT_CHANGED_EVENT,
+  type SkillContentChangedDetail,
+} from '@/lib/skills/skillContentSync';
 
 /** Saved keys change a skill's availability on the server; pull the new verdict into the list that holds it. */
 function refreshSkillAvailability(skillId: string): void {
@@ -212,6 +217,22 @@ export function useSkillDetailSheet({
       .catch(() => setSkillContent(''));
   }, [skill]);
 
+  useEffect(() => {
+    if (!open || !skill) {
+      return;
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<SkillContentChangedDetail>).detail;
+      const ids = detail?.skillIds;
+      if (ids && ids.length > 0 && !ids.includes(skill.id)) {
+        return;
+      }
+      reloadSkillContent();
+    };
+    window.addEventListener(SKILL_CONTENT_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(SKILL_CONTENT_CHANGED_EVENT, handler);
+  }, [open, skill, reloadSkillContent]);
+
   const handleReveal = useCallback(async () => {
     if (!skill) {
       return;
@@ -267,8 +288,14 @@ export function useSkillDetailSheet({
         body: JSON.stringify({ instruction: optimizeInstruction.trim() }),
       });
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to start optimization');
+        // A held instruction gets the one notice in the user's language; its body is an object, not a message.
+        if (await riskHeldErrorFromResponse(response)) {
+          return;
+        }
+        // Only a string `detail` is a sentence for the user; a proxy error page or a structured body has none.
+        const data: { detail?: unknown } | null = await response.json().catch(() => null);
+        const reason = typeof data?.detail === 'string' ? data.detail : '';
+        throw new Error(reason || t('detail.optimizeFailed'));
       }
       toast({
         title: t('detail.optimizeStarted'),

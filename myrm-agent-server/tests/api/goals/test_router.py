@@ -7,28 +7,6 @@ from myrm_agent_harness.agent.goals.types import GoalStatus
 from app.services.agent.goals.goal_registry import GoalRegistry
 
 
-@pytest.fixture
-def client():
-    # To avoid importing app.main which has other dependencies, we just create a simple app with the router
-    from fastapi import FastAPI
-
-    from app.api.goals.router import router as goals_router
-
-    app = FastAPI()
-    app.include_router(goals_router, prefix="/api/v1")
-
-    # Mock get_storage_provider to avoid DB issues in tests
-    from unittest.mock import patch
-
-    from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-
-    with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend("/tmp/test_storage")):
-        with patch("app.api.goals.router.get_features") as mock_features:
-            mock_features.return_value.get_bool.return_value = True
-            with TestClient(app) as client:
-                yield client
-
-
 @pytest.mark.asyncio
 async def test_get_goal_status_none(client: TestClient):
     """Test getting goal status when no goal exists."""

@@ -26,7 +26,7 @@ async def test_qdrant_health_checker_exists(tmp_path):
         result = await checker.check()
 
         assert result.status == HealthStatus.HEALTHY
-        assert "Lock management is handled natively" in result.message
+        assert "storage path verified" in result.message
         assert result.details["path"] == str(tmp_path)
 
 

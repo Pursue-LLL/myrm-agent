@@ -13,7 +13,6 @@ StreamContentCollector: collects assistant content and message extra_data, inclu
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
 HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), workspace merge failures (`workspaceMergeFailures`, `workspaceMergeFailedCount`, `workspaceMergeTruncated`), council phase progress (`councilPhases`),
-TTSR rule interventions (`ttsrInterventions`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
 with stored_chars/total_lines/storage_truncated metrics for each),
@@ -30,6 +29,7 @@ import asyncio
 import json
 import logging
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.agent.streaming.citation_audit import (
     audit_citation_markers,
     resolve_source_count_for_audit,
@@ -42,11 +42,9 @@ from myrm_agent_harness.utils.text_sanitizer import sanitize_llm_output
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
     collect_cron_job_result,
-    collect_directory_request_required,
     collect_file_mutation_failures,
     collect_kanban_task_created,
     collect_plan_confirmation_status,
-    collect_ttsr_intervention,
     collect_workspace_merge_failures,
     is_memory_citation_tool,
     merge_sources_list,
@@ -307,6 +305,7 @@ def _merge_tasks_step(
                 for key, value in new_fields.items():
                     if value is not None:
                         existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
                 return existing
 
     if isinstance(step_key, str) and step_key.strip():
@@ -321,16 +320,27 @@ def _merge_tasks_step(
                             existing[key] = value
                     if not existing_id:
                         existing["tool_call_id"] = tool_call_id.strip()
+                    _attach_skill_mutation_batch_id(existing)
                     return existing
             elif not existing_id:
                 for key, value in new_fields.items():
                     if value is not None:
                         existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
                 return existing
 
     step = {key: value for key, value in new_fields.items() if value is not None}
     progress_steps.append(step)
+    _attach_skill_mutation_batch_id(step)
     return step
+
+
+def _attach_skill_mutation_batch_id(step: dict[str, object]) -> None:
+    from app.services.skills.skill_manage_batch_parse import extract_skill_mutation_batch_id_from_step
+
+    batch_id = extract_skill_mutation_batch_id_from_step(step)
+    if batch_id:
+        step["skill_mutation_batch_id"] = batch_id
 
 
 def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
@@ -364,7 +374,6 @@ _INTERRUPT_REPLAY_TYPES: frozenset[str] = frozenset(
         "tool_approval_request",
         "approval_required",
         "clarification_required",
-        "directory_request_required",
     }
 )
 
@@ -379,7 +388,7 @@ class StreamContentCollector:
 
     def __init__(self, sibling_group_id: str | None = None, chat_id: str | None = None) -> None:
         self._message_id: str | None = None
-        self._content_parts: list[str] = []
+        self._answer = AnswerDraft()
         self._reasoning_parts: list[str] = []
         self._reasoning_char_count = 0
         self._reasoning_truncated = False
@@ -387,6 +396,7 @@ class StreamContentCollector:
         self._progress_steps: list[dict[str, object]] = []
         self._cited_memory_ids: list[str] = []
         self._cited_memory_refs: list[dict[str, object]] = []
+        self._turn_loaded_skills: list[dict[str, object]] = []
         self._memory_retrieval_traces: list[dict[str, object]] = []
         self._usage: dict[str, object] | None = None
         self._context_budget: dict[str, object] | None = None
@@ -405,7 +415,6 @@ class StreamContentCollector:
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
         self._clarification: dict[str, object] | None = None
-        self._directory_request: dict[str, object] | None = None
         self._plan_confirmation: dict[str, object] | None = None
         self._pending_interrupt_events: list[dict[str, object]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
@@ -415,8 +424,8 @@ class StreamContentCollector:
         self._workspace_merge_failed_count: int | None = None
         self._workspace_merge_truncated: int | None = None
         self._council_phases: list[dict[str, object]] = []
-        self._ttsr_interventions: list[dict[str, object]] = []
         self._staged_artifacts: list[dict[str, object]] = []
+        self._deliverable_tier: dict[str, object] | None = None
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
         self._tool_result_details: dict[str, object] | None = None
@@ -487,7 +496,7 @@ class StreamContentCollector:
                 merged_sources_dict[key].update(source)
 
         return {
-            "content": "".join(self._content_parts),
+            "content": self._answer.text,
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
@@ -545,9 +554,8 @@ class StreamContentCollector:
             if isinstance(raw_mid, str) and raw_mid:
                 self._message_id = raw_mid
 
-        if event_type == "message" and data:
-            self._content_parts.append(str(data))
-        elif event_type == "iteration_limit_reached":
+        self._answer.feed(event)
+        if event_type == "iteration_limit_reached":
             detail = string_keyed_dict(data) if isinstance(data, dict) else None
             payload: dict[str, object] = {
                 "code": "iteration_limit_reached",
@@ -626,13 +634,14 @@ class StreamContentCollector:
             phase_entry = string_keyed_dict(data)
             if phase_entry is not None:
                 self._council_phases.append(phase_entry)
-        elif event_type == "ttsr_triggered":
-            collect_ttsr_intervention(self._ttsr_interventions, data)
         elif event_type == "tasks_steps":
             tool_details = event.get("tool_result_details")
             if isinstance(tool_details, dict):
                 self._tool_result_details = tool_details
             step = _merge_tasks_step(self._progress_steps, event, data)
+            batch_id = step.get("skill_mutation_batch_id")
+            if isinstance(batch_id, str) and batch_id.strip():
+                event["skill_mutation_batch_id"] = batch_id.strip()
             if self._pending_evicted:
                 remaining: list[dict[str, object]] = []
                 for pending in self._pending_evicted:
@@ -647,9 +656,15 @@ class StreamContentCollector:
 
         elif event_type == "message_end":
             self._flush_pending_evicted_ref()
+            turn_loaded = event.get("turn_loaded_skills")
+            if isinstance(turn_loaded, list) and turn_loaded:
+                self._turn_loaded_skills = [item for item in turn_loaded if isinstance(item, dict)]
             staged = event.get("staged_artifacts")
             if isinstance(staged, list):
                 self._staged_artifacts.extend(string_keyed_dicts(staged))
+            deliverable_tier = string_keyed_dict(event.get("deliverable_tier"))
+            if deliverable_tier is not None:
+                self._deliverable_tier = deliverable_tier
             usage = string_keyed_dict(event.get("usage"))
             if usage is not None:
                 self._usage = usage
@@ -740,10 +755,6 @@ class StreamContentCollector:
             clarification = collect_clarification_required(event)
             if clarification is not None:
                 self._clarification = clarification
-        elif event_type == "directory_request_required":
-            directory_request = collect_directory_request_required(event)
-            if directory_request is not None:
-                self._directory_request = directory_request
         elif event_type == "status":
             step_key = event.get("step_key")
             if isinstance(data, dict):
@@ -763,9 +774,11 @@ class StreamContentCollector:
                         and phase_payload.get("status") == "resolved"
                         and self._clarification is not None
                     ):
+                        answer_record = phase_payload.get("answerRecord")
                         self._clarification = {
                             **self._clarification,
                             "answered": True,
+                            **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
                         }
             if step_key == "cache_break" and isinstance(data, dict):
                 self._cache_break = data
@@ -824,7 +837,8 @@ class StreamContentCollector:
                 msg_data = {
                     k: v
                     for k, v in event.items()
-                    if k in {
+                    if k
+                    in {
                         "call_id",
                         "callId",
                         "message",
@@ -846,7 +860,7 @@ class StreamContentCollector:
 
     @property
     def content(self) -> str:
-        return "".join(self._content_parts)
+        return self._answer.text
 
     @property
     def reasoning(self) -> str | None:
@@ -854,7 +868,7 @@ class StreamContentCollector:
 
     @property
     def has_content(self) -> bool:
-        return bool(self._content_parts) or bool(self._reasoning_parts)
+        return bool(self._answer) or bool(self._reasoning_parts)
 
     @property
     def has_persistable_turn(self) -> bool:
@@ -873,15 +887,16 @@ class StreamContentCollector:
     def _discard_draft(self) -> None:
         """Drop partial content streamed before a recovery that restarts the turn.
 
-        Every recovery that makes the LLM regenerate the answer from scratch
+        Every recovery that makes the LLM regenerate the in-flight answer segment
         (model failover, transient retry, context compaction, escalation, ...)
         emits its STATUS/SSE event synchronously *before* the restreamed chunks,
-        so text streamed before the failure is a draft that will be fully
-        regenerated. Dropping it (idempotent: a second event finds an empty
-        buffer) keeps both the persisted history and the live stream free of
-        stale partial content spliced with the complete answer.
+        so the text of that segment is a draft that will be fully regenerated.
+        Dropping it (idempotent: a second event finds nothing left to drop) keeps
+        both the persisted history and the live stream free of stale partial
+        content spliced with the complete answer. Text before the last tool step
+        belongs to a checkpointed segment and stays (see ``AnswerDraft``).
         """
-        self._content_parts.clear()
+        self._answer.restart()
         self._reasoning_parts.clear()
         self._reasoning_char_count = 0
         self._reasoning_truncated = False
@@ -999,6 +1014,8 @@ class StreamContentCollector:
             result["citedMemoryIds"] = self._cited_memory_ids
         if self._cited_memory_refs:
             result["citedMemoryRefs"] = self._cited_memory_refs
+        if self._turn_loaded_skills:
+            result["turnLoadedSkills"] = self._turn_loaded_skills
         if self._memory_retrieval_traces:
             result["memoryRetrievalTraces"] = self._memory_retrieval_traces
         if self._session_recording:
@@ -1007,12 +1024,12 @@ class StreamContentCollector:
             result["clarification"] = self._clarification
         if self._async_user_messages:
             result["asyncUserMessages"] = list(self._async_user_messages)
-        if self._directory_request:
-            result["directoryRequest"] = self._directory_request
         if self._plan_confirmation:
             result["planConfirmation"] = self._plan_confirmation
         if self._staged_artifacts:
             result["stagedArtifacts"] = self._staged_artifacts
+        if self._deliverable_tier is not None:
+            result["deliverableTier"] = self._deliverable_tier
         if self._kanban_tasks_created:
             result["kanban_tasks_created"] = list(self._kanban_tasks_created)
         if self._cron_job_result is not None:
@@ -1027,8 +1044,6 @@ class StreamContentCollector:
             result["workspaceMergeTruncated"] = self._workspace_merge_truncated
         if self._council_phases:
             result["councilPhases"] = list(self._council_phases)
-        if self._ttsr_interventions:
-            result["ttsrInterventions"] = list(self._ttsr_interventions)
         if self._tool_result_details:
             result["tool_result_details"] = self._tool_result_details
         if self.reasoning:

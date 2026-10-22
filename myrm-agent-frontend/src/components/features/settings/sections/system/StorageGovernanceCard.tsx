@@ -3,37 +3,44 @@
 /**
  * [INPUT]
  * - next-intl::useTranslations (POS: i18n support)
- * - @/services/system::systemService (POS: Storage governance & compaction APIs)
+ * - @/services/system::systemService (POS: Storage governance APIs)
  * - @/components/features/icons/PremiumIcons (POS: Standard premium UI icons)
  *
  * [OUTPUT]
- * - StorageGovernanceCard: Settings card for user-readable database/storage decomposition,
- *   compaction triggers, and point-in-time snapshot/rollback management.
+ * - StorageGovernanceCard: Settings card for the user-readable space ledger of the instance's data
+ *   (placeholders while measuring, the last report kept on refresh, a retryable failure notice) and
+ *   point-in-time snapshot/rollback management.
  *
  * [POS]
  * Settings -> Developer Center -> Import/Export -> Storage Governance Panel.
  */
 
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import React, { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import SettingsSection from '../SettingsSection';
+import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Progress } from '@/components/primitives/progress';
+import { Skeleton } from '@/components/primitives/skeleton';
 import {
+  IconAlertCircle,
   IconDatabase,
   IconHardDrive,
   IconLoader,
   IconRotateCcw,
-  IconShieldCheck,
   IconTrash,
-  IconWrench,
   IconCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
-import { systemService } from '@/services/system';
+import { QueuedRestartNotice } from '@/components/features/instance-archive/QueuedRestartNotice';
+import { systemService, type StorageCategoryKey } from '@/services/system';
 
 type StorageReport = Awaited<ReturnType<typeof systemService.getStorageGovernanceReport>>;
+type LoadStatus = 'loading' | 'ready' | 'failed';
+
+// A database category is a database file plus its log, so only directory categories have a file count worth showing.
+const DATABASE_CATEGORIES: ReadonlySet<StorageCategoryKey> = new Set(['sqlite_database', 'checkpoints']);
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) {
@@ -44,58 +51,88 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
 }
 
+// A failed request is explained in the user's language only: the server's own message and the exception text
+// never reach the toast.
+function toastFailure(title: string, description: string): void {
+  toast({ title, description, variant: 'destructive' });
+}
+
+// The ledger always lists every category, so the placeholder grid has the size of the real one.
+const CATEGORY_PLACEHOLDER_COUNT = 9;
+
+// Mirrors a category tile so the grid does not jump when the first report arrives.
+function CategoryTileSkeleton() {
+  return (
+    <div aria-hidden className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
+      <div className="flex items-center justify-between py-0.5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-14" />
+      </div>
+      <Skeleton className="h-1.5 w-full rounded-full" />
+      <div className="flex items-center justify-between py-0.5">
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-3 w-8" />
+      </div>
+    </div>
+  );
+}
+
+// Measuring walks every file of the instance, so a failure is explained in the user's language and can be retried;
+// when an earlier report is still on screen the notice says its figures may be out of date.
+function LoadFailedNotice({ showsStaleReport, onRetry }: { showsStaleReport: boolean; onRetry: () => void }) {
+  const t = useTranslations('settings.storageGovernance');
+  const tCommon = useTranslations('common');
+  return (
+    <Alert variant="warning">
+      <IconAlertCircle className="h-4 w-4" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <AlertTitle>{t('loadFailedTitle')}</AlertTitle>
+          <AlertDescription>{t(showsStaleReport ? 'loadFailedStaleDesc' : 'loadFailedDesc')}</AlertDescription>
+        </div>
+        <Button type="button" variant="secondary" size="sm" className="w-full shrink-0 sm:w-auto" onClick={onRetry}>
+          {tCommon('retry')}
+        </Button>
+      </div>
+    </Alert>
+  );
+}
+
 export const StorageGovernanceCard = memo(() => {
   const t = useTranslations('settings.storageGovernance');
   const [report, setReport] = useState<StorageReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [compacting, setCompacting] = useState(false);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
+  const latestRequest = useRef(0);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [snapshotLabel, setSnapshotLabel] = useState('');
   const [restoringSnapshotId, setRestoringSnapshotId] = useState<string | null>(null);
+  const [restartPending, setRestartPending] = useState(false);
 
+  // The report that is already shown stays on screen while a new one is measured and after a refresh fails. Only the
+  // newest request may change it: a slow earlier measurement must not overwrite a newer figure.
   const fetchReport = useCallback(async () => {
+    const requestId = ++latestRequest.current;
+    setLoadStatus('loading');
     try {
-      setLoading(true);
-      const data = await systemService.getStorageGovernanceReport();
-      setReport(data);
+      const next = await systemService.getStorageGovernanceReport();
+      if (requestId !== latestRequest.current) {
+        return;
+      }
+      setReport(next);
+      setLoadStatus('ready');
     } catch {
-      // Graceful fallback
-    } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) {
+        setLoadStatus('failed');
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchReport();
+    void fetchReport();
+    return () => {
+      latestRequest.current += 1;
+    };
   }, [fetchReport]);
-
-  const handleCompact = useCallback(async () => {
-    setCompacting(true);
-    try {
-      const res = await systemService.executeStorageCompaction();
-      if (res.success) {
-        toast({
-          title: t('compactionSuccessTitle'),
-          description: t('compactionSuccessDesc', { freed: formatBytes(res.freed_bytes) }),
-        });
-        await fetchReport();
-      } else {
-        toast({
-          title: t('compactionFailedTitle'),
-          description: res.message,
-          variant: 'destructive',
-        });
-      }
-    } catch (err) {
-      toast({
-        title: t('compactionFailedTitle'),
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
-    } finally {
-      setCompacting(false);
-    }
-  }, [fetchReport, t]);
 
   const handleCreateSnapshot = useCallback(async () => {
     if (!snapshotLabel.trim()) {
@@ -112,18 +149,10 @@ export const StorageGovernanceCard = memo(() => {
         setSnapshotLabel('');
         await fetchReport();
       } else {
-        toast({
-          title: t('snapshotFailedTitle'),
-          description: res.message,
-          variant: 'destructive',
-        });
+        toastFailure(t('snapshotFailedTitle'), t('snapshotFailedDesc'));
       }
-    } catch (err) {
-      toast({
-        title: t('snapshotFailedTitle'),
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+    } catch {
+      toastFailure(t('snapshotFailedTitle'), t('snapshotFailedDesc'));
     } finally {
       setCreatingSnapshot(false);
     }
@@ -139,20 +168,13 @@ export const StorageGovernanceCard = memo(() => {
             title: t('restoreSuccessTitle'),
             description: t('restoreSuccessDesc'),
           });
+          setRestartPending(res.requires_restart);
           await fetchReport();
         } else {
-          toast({
-            title: t('restoreFailedTitle'),
-            description: res.message,
-            variant: 'destructive',
-          });
+          toastFailure(t('restoreFailedTitle'), t('restoreFailedDesc'));
         }
-      } catch (err) {
-        toast({
-          title: t('restoreFailedTitle'),
-          description: err instanceof Error ? err.message : String(err),
-          variant: 'destructive',
-        });
+      } catch {
+        toastFailure(t('restoreFailedTitle'), t('restoreFailedDesc'));
       } finally {
         setRestoringSnapshotId(null);
       }
@@ -170,103 +192,103 @@ export const StorageGovernanceCard = memo(() => {
             description: t('deleteSuccessDesc'),
           });
           await fetchReport();
+        } else {
+          toastFailure(t('deleteFailedTitle'), t('deleteFailedDesc'));
         }
-      } catch (err) {
-        toast({
-          title: t('deleteFailedTitle'),
-          description: err instanceof Error ? err.message : String(err),
-          variant: 'destructive',
-        });
+      } catch {
+        toastFailure(t('deleteFailedTitle'), t('deleteFailedDesc'));
       }
     },
     [fetchReport, t],
   );
 
+  // Without a report there is nothing to show once measuring failed; the notice carries the retry instead.
+  const showLedger = report !== null || loadStatus === 'loading';
+
   return (
     <SettingsSection title={t('title')} description={t('description')}>
       <div className="space-y-6">
-        {/* Total Usage & Disk Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-              <IconDatabase className="w-4 h-4 text-primary" />
-              {t('totalAgentStateSize')}
-            </div>
-            <div className="text-2xl font-bold tracking-tight">
-              {report ? formatBytes(report.total_storage_bytes) : '...'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {report?.is_growth_healthy ? (
-                <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
-                  <IconShieldCheck className="w-3.5 h-3.5" />
-                  {t('healthyGrowth')}
-                </span>
-              ) : (
-                <span className="text-amber-500 font-medium">{t('growthWarning')}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2 md:col-span-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              <span className="inline-flex items-center gap-2">
-                <IconHardDrive className="w-4 h-4 text-sky-500" />
-                {t('diskSpaceOverview')}
-              </span>
-              <span>{report ? `${report.disk_used_percentage}%` : '...'}</span>
-            </div>
-            <Progress value={report?.disk_used_percentage ?? 0} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{report ? t('freeDisk', { free: formatBytes(report.disk_free_bytes) }) : ''}</span>
-              <span>{report ? t('totalDisk', { total: formatBytes(report.disk_total_bytes) }) : ''}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Breakdown by Category */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold">{t('categoriesBreakdown')}</h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCompact}
-              disabled={compacting || loading}
-              className="gap-1.5 text-xs h-8"
-            >
-              {compacting ? (
-                <IconLoader className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <IconWrench className="w-3.5 h-3.5" />
-              )}
-              {t('compactAndPurge')}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {report?.categories.map((cat) => (
-              <div
-                key={cat.category}
-                className="rounded-lg border border-border/30 bg-muted/20 p-3 flex flex-col justify-between space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground truncate">{cat.display_name}</span>
-                  <span className="text-xs font-semibold">{formatBytes(cat.bytes)}</span>
+        {restartPending && <QueuedRestartNotice />}
+        {loadStatus === 'failed' && (
+          <LoadFailedNotice showsStaleReport={report !== null} onRetry={() => void fetchReport()} />
+        )}
+        {showLedger && (
+          <>
+            {/* Total Usage & Disk Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2 flex flex-col justify-center">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                  <IconDatabase className="w-4 h-4 text-primary" />
+                  {t('totalAgentStateSize')}
                 </div>
-                <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-primary h-full transition-all"
-                    style={{ width: `${Math.min(100, Math.max(1, cat.percentage))}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{t('itemsCount', { count: cat.item_count })}</span>
-                  <span>{cat.percentage.toFixed(1)}%</span>
+                <div className="text-2xl font-bold tracking-tight">
+                  {report ? formatBytes(report.total_storage_bytes) : <Skeleton className="h-8 w-28" />}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+                  <span className="inline-flex items-center gap-2">
+                    <IconHardDrive className="w-4 h-4 text-primary" />
+                    {t('diskSpaceOverview')}
+                  </span>
+                  {report ? <span>{`${report.disk_used_percentage}%`}</span> : <Skeleton className="h-3.5 w-8" />}
+                </div>
+                <Progress value={report?.disk_used_percentage ?? 0} className="h-2" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  {report ? (
+                    <>
+                      <span>{t('freeDisk', { free: formatBytes(report.disk_free_bytes) })}</span>
+                      <span>{t('totalDisk', { total: formatBytes(report.disk_total_bytes) })}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Skeleton className="my-0.5 h-3 w-24" />
+                      <Skeleton className="my-0.5 h-3 w-24" />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Breakdown by Category */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">{t('categoriesBreakdown')}</h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {report?.categories.map((cat) => (
+                  <div
+                    key={cat.category}
+                    className="rounded-lg border border-border/30 bg-muted/20 p-3 flex flex-col justify-between space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {t(`categories.${cat.category}`)}
+                      </span>
+                      <span className="text-xs font-semibold">{formatBytes(cat.bytes)}</span>
+                    </div>
+                    <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-primary h-full transition-all"
+                        style={{ width: `${cat.bytes > 0 ? Math.min(100, Math.max(1, cat.percentage)) : 0}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        {DATABASE_CATEGORIES.has(cat.category) ? '' : t('filesCount', { count: cat.item_count })}
+                      </span>
+                      <span>{cat.percentage.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))}
+                {!report &&
+                  Array.from({ length: CATEGORY_PLACEHOLDER_COUNT }, (_, index) => (
+                    <CategoryTileSkeleton key={index} />
+                  ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Snapshots & Rollback */}
         <div className="space-y-3 pt-2 border-t border-border/30">
@@ -326,6 +348,7 @@ export const StorageGovernanceCard = memo(() => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteSnapshot(snap.snapshot_id)}
+                      aria-label={t('deleteSnapshot')}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
                       <IconTrash className="w-3.5 h-3.5" />

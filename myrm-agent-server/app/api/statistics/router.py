@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log import EventLogAnalytics
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.statistics.timezone_helper import resolve_user_timezone, to_user_local_dt
+
 from app.api.statistics.learning_loop import router as learning_loop_router
 from app.api.statistics.learning_timeline import router as learning_timeline_router
 from app.api.statistics.prompt_cache_radar import router as prompt_cache_radar_router
-from app.api.statistics.quota_runtime_router import router as quota_runtime_router
 from app.api.statistics.session_analytics import router as session_router
 from app.api.statistics.session_model_sessions import router as model_sessions_router
 from app.api.statistics.session_trace import router as session_trace_router
@@ -39,7 +40,6 @@ router.include_router(prompt_cache_radar_router)
 router.include_router(model_sessions_router)
 router.include_router(learning_timeline_router)
 router.include_router(learning_loop_router)
-router.include_router(quota_runtime_router)
 logger = logging.getLogger(__name__)
 
 
@@ -125,17 +125,23 @@ async def get_usage_radar(
 @router.get("/usage/daily")
 async def get_daily_usage(
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    timezone: str | None = Query(None, description="User local timezone, e.g. 'Asia/Shanghai'"),
+    x_timezone: str | None = Header(None, alias="X-Timezone"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Get daily aggregated token usage for charting.
 
-    Returns an array of daily usage summaries for the specified lookback period.
+    Returns an array of daily usage summaries for the specified lookback period,
+    bucketed by the user's local timezone.
     """
     try:
         from datetime import timedelta
 
-        end_dt = datetime.now(timezone.utc)
+        tz_info, tz_name = resolve_user_timezone(timezone, x_timezone)
+
+        end_dt = datetime.now(tz_info)
         start_dt = end_dt - timedelta(days=days)
+        start_dt_utc = start_dt.astimezone(UTC)
 
         stmt = (
             select(Message.extra_data, Message.created_at)
@@ -144,7 +150,7 @@ async def get_daily_usage(
                     Message.chat_id == Chat.id,
                     Message.role == "assistant",
                     Message.extra_data.isnot(None),
-                    Message.created_at >= start_dt,
+                    Message.created_at >= start_dt_utc,
                 )
             )
             .order_by(Message.created_at.asc())
@@ -159,7 +165,8 @@ async def get_daily_usage(
             if not usage or created_at is None:
                 continue
 
-            day_key = created_at.strftime("%Y-%m-%d")
+            local_dt = to_user_local_dt(created_at, tz_info)
+            day_key = local_dt.strftime("%Y-%m-%d") if local_dt else created_at.strftime("%Y-%m-%d")
             if day_key not in daily_map:
                 daily_map[day_key] = DayAccumulator()
             daily_map[day_key].add(usage, extra_data)
@@ -169,6 +176,7 @@ async def get_daily_usage(
         return success_response(
             data={
                 "days": days,
+                "timezone": tz_name,
                 "start": start_dt.isoformat(),
                 "end": end_dt.isoformat(),
                 "daily": daily_list,
@@ -313,16 +321,22 @@ async def get_tool_stability(
 @router.get("/activity")
 async def get_global_activity_patterns(
     time_range_days: int | None = Query(None, ge=1, le=365, description="Time range in days (optional)"),
+    timezone: str | None = Query(None, description="User local timezone, e.g. 'Asia/Shanghai'"),
+    x_timezone: str | None = Header(None, alias="X-Timezone"),
 ) -> JSONResponse:
     """Get global activity patterns across all sessions.
 
-    Returns daily breakdown, weekly patterns, busiest times, and activity streaks.
+    Returns daily breakdown, weekly patterns, busiest times, and activity streaks,
+    bucketed by the user's local timezone.
     Requires EventLog data (only available for sessions created after EventLog integration).
     """
     try:
+        _tz_info, tz_name = resolve_user_timezone(timezone, x_timezone)
+
         if not Path(settings.database.event_log_dir).exists():
             return success_response(
                 data={
+                    "timezone": tz_name,
                     "daily_activities": [],
                     "by_day_of_week": {},
                     "by_hour": {},
@@ -336,11 +350,14 @@ async def get_global_activity_patterns(
         backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
         analytics = EventLogAnalytics(backend)
 
-        patterns = await analytics.get_global_activity_patterns(time_range_days=time_range_days)
+        patterns = await analytics.get_global_activity_patterns(
+            time_range_days=time_range_days,
+            timezone=tz_name,
+        )
 
         return success_response(
             data={
-                "timezone": "UTC",  # All timestamps and time-based calculations use UTC
+                "timezone": patterns.timezone,
                 "daily_activities": [
                     {
                         "date": act.date,

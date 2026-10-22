@@ -14,6 +14,7 @@ import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 import { getTelegramCredentials, type TelegramCredentials } from '@/services/channels';
 
+import { RestoreEntry } from '@/components/features/instance-archive/RestoreEntry';
 import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import DeployChoiceStep from './DeployChoiceStep';
@@ -304,6 +305,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             <div className="bg-card border rounded-xl p-6">
               <DeployChoiceStep onComplete={handleDeployComplete} />
             </div>
+            <RestoreEntry />
             <div className="flex justify-center mt-6">
               <Button variant="ghost" onClick={handleDeploySkip}>
                 {t('onboarding.skipStep')}
@@ -343,6 +345,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 vaultBindHandoffMode="onboarding"
               />
             </div>
+            {/* A sandbox skips the deployment step, which is where everyone else is offered the restore. */}
+            {isSandbox() && <RestoreEntry />}
             <div className="flex justify-center mt-6">
               <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>
                 {t('onboarding.skipStep')}

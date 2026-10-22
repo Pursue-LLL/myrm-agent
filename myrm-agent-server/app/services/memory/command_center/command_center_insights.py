@@ -4,59 +4,42 @@
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade)
 myrm_agent_harness.toolkits.memory::get_scan_metrics (POS: Global security scan metrics singleton)
 myrm_agent_harness.toolkits.memory::get_search_metrics (POS: Global search quality metrics singleton)
-app.database.models.chat::Message (POS: 会话消息 ORM)
+app.database.models.memory::PendingMemory (POS: 待审批记忆 ORM)
+app.services.memory.command_center.command_center_influence::load_influence (POS: 消息引用记忆的影响力投影)
 app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]
-MemoryCommandCenterInsights: influence, cost, conflict, replay, eval, privacy, and migration projections.
+MemoryCommandCenterInsights: influence, conflict, eval, connector, privacy, plane-summary, and migration projections.
 
 [POS]
-个人大脑指挥中心洞察服务。把可解释性、成本、冲突、回放覆盖层、eval、隐私与迁移投影从主聚合服务中拆出，保持单一职责。
+个人大脑指挥中心洞察服务。把可解释性、冲突、eval、连接器、隐私与迁移投影从主聚合服务中拆出，保持单一职责；
+回放/瀑布/时间线/健康/追踪等纯投影位于同目录的独立模块。
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType, get_scan_metrics, get_search_metrics
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.chat import Message
+from app.database.models.memory import PendingMemory
 from app.schemas.memory.command_center import (
     MemoryCommandConflictItem,
     MemoryCommandConnectorStatus,
-    MemoryCommandCostProfile,
     MemoryCommandEvalMetric,
     MemoryCommandInfluenceItem,
-    MemoryCommandInfluenceRef,
     MemoryCommandMigrationProvenance,
     MemoryCommandMigrationSourceManifestItem,
     MemoryCommandPlaneSummary,
     MemoryCommandPrivacySignal,
-    MemoryCommandReplayEvent,
-    MemoryCommandReplayOverlay,
     MemoryCommandTimelineEvent,
-    MemoryCommandWaterfallStep,
 )
 from app.services.memory.archive.restore.archive_restore import ArchiveRestoreHealth
-from app.services.memory.command_center.command_center_economics import MemoryEconomicsService
-from app.services.memory.command_center.command_center_projection_utils import (
-    WATERFALL_PHASES,
-    WaterfallPhase,
-    dict_int,
-    eval_metric,
-    event_phase,
-    optional_float,
-    optional_str,
-    preview_content,
-    waterfall_description,
-    waterfall_phase,
-    waterfall_status,
-)
-from app.services.memory.imports.import_adapter_registry import memory_import_adapter_status, memory_import_supported_sources
+from app.services.memory.command_center.command_center_influence import load_influence
+from app.services.memory.command_center.command_center_projection_utils import eval_metric, preview_content
 from app.services.memory.imports.import_ledger import ImportRollbackHealth
 from app.services.memory.imports.import_sessions import (
     DRY_RUN_RETENTION_DAYS,
@@ -75,6 +58,38 @@ from app.services.migration.source.source_manifest import (
 
 logger = logging.getLogger(__name__)
 
+_CONFLICT_LIMIT = 8
+_CONFLICT_SCAN_LIMIT = 80
+
+type ConnectorState = Literal["ready", "manual_config_required", "missing"]
+type CoverageStatus = Literal["not_tracked", "partial", "complete"]
+type ReadinessStatus = Literal["ready", "warning", "critical"]
+type FirstTurnOutcome = Literal["success", "failed", "no_output"]
+
+
+def _coverage_status(raw: object) -> CoverageStatus:
+    if isinstance(raw, str):
+        match raw:
+            case "not_tracked" | "partial" | "complete":
+                return raw
+    return "not_tracked"
+
+
+def _readiness_status(raw: object) -> ReadinessStatus | None:
+    if isinstance(raw, str):
+        match raw:
+            case "ready" | "warning" | "critical":
+                return raw
+    return None
+
+
+def _first_turn_outcome(raw: object) -> FirstTurnOutcome | None:
+    if isinstance(raw, str):
+        match raw:
+            case "success" | "failed" | "no_output":
+                return raw
+    return None
+
 
 class MemoryCommandCenterInsights:
     """Builds derived command-center insight sections."""
@@ -90,78 +105,13 @@ class MemoryCommandCenterInsights:
         self._ledger = ledger
 
     async def build_influence(self) -> list[MemoryCommandInfluenceItem]:
-        result = await self._db.execute(
-            select(Message).where(Message.extra_data.is_not(None)).order_by(desc(Message.created_at)).limit(40)
-        )
-        items: list[MemoryCommandInfluenceItem] = []
-        for message in result.scalars().all():
-            extra_data = message.extra_data or {}
-            refs = self._extract_influence_refs(extra_data)
-            if not refs:
-                continue
-            prompt_tokens, cached_tokens, _completion_tokens = self._extract_token_counts(extra_data)
-            items.append(
-                MemoryCommandInfluenceItem(
-                    id=f"message:{message.id}",
-                    chat_id=message.chat_id,
-                    message_id=message.id,
-                    occurred_at=message.created_at,
-                    answer_preview=preview_content(message.content, limit=220),
-                    influence_refs=refs,
-                    prompt_tokens=prompt_tokens,
-                    cached_tokens=cached_tokens,
-                )
-            )
-            if len(items) >= 8:
-                break
-        return items
-
-    async def build_cost_profile(self, influence: list[MemoryCommandInfluenceItem]) -> MemoryCommandCostProfile:
-        economics_service = MemoryEconomicsService(self._db)
-        dashboard = await economics_service.build_economics_dashboard(influence=influence, limit_turns=50)
-        return dashboard.cost_profile
-
+        return await load_influence(self._db)
 
     async def build_conflicts(self) -> list[MemoryCommandConflictItem]:
-        items: list[MemoryCommandConflictItem] = []
-
-        # 1. Active pending conflicts from pending_memories (is_conflict=True)
-        try:
-            from sqlalchemy import select
-
-            from app.database.models.memory import PendingMemory
-
-            stmt = (
-                select(PendingMemory)
-                .where(PendingMemory.is_conflict.is_(True), PendingMemory.status == "pending")
-                .order_by(PendingMemory.created_at.desc())
-                .limit(8)
-            )
-            res = await self._db.execute(stmt)
-            for conflict in res.scalars().all():
-                metadata = conflict.metadata_json or {}
-                existing_content = conflict.conflict_old_content or ""
-                candidate_content = conflict.content or ""
-                items.append(
-                    MemoryCommandConflictItem(
-                        id=f"conflict:{conflict.id}",
-                        kind="pending_conflict",
-                        status="pending",
-                        memory_id=conflict.conflict_old_memory_id,
-                        related_memory_id="",
-                        title=str(metadata.get("facet") or ""),
-                        description=f"{existing_content} ⟷ {candidate_content}",
-                        existing_content=existing_content,
-                        candidate_content=candidate_content,
-                        created_at=conflict.created_at,
-                    )
-                )
-        except Exception as exc:
-            logger.warning("Failed to query pending memory conflicts: %s", exc)
-
+        items = await self._pending_conflicts()
         for memory_type in (MemoryType.SEMANTIC, MemoryType.CLAIM):
             try:
-                memories = await self._memory_manager.list_memories(memory_type, limit=80)
+                memories = await self._memory_manager.list_memories(memory_type, limit=_CONFLICT_SCAN_LIMIT)
             except Exception as exc:
                 logger.warning("Memory conflict scan failed for %s: %s", memory_type.value, exc)
                 continue
@@ -205,96 +155,41 @@ class MemoryCommandCenterInsights:
                             created_at=getattr(memory, "created_at", None),
                         )
                     )
-                if len(items) >= 8:
+                if len(items) >= _CONFLICT_LIMIT:
                     return items
         return items
 
-    async def build_replay(
-        self,
-        timeline: list[MemoryCommandTimelineEvent],
-        influence: list[MemoryCommandInfluenceItem],
-    ) -> list[MemoryCommandReplayOverlay]:
-        overlays: dict[str, MemoryCommandReplayOverlay] = {}
-        for item in influence:
-            if not item.chat_id:
-                continue
-            overlays[item.chat_id] = MemoryCommandReplayOverlay(
-                chat_id=item.chat_id,
-                message_id=item.message_id,
-                event_count=1,
-                influence_count=len(item.influence_refs),
-                last_event_at=item.occurred_at,
-                last_summary=item.answer_preview,
-            )
-        for event in timeline:
-            if event.target_kind != "chat" or not event.target_id:
-                continue
-            current = overlays.get(event.target_id)
-            if current is None:
-                overlays[event.target_id] = MemoryCommandReplayOverlay(
-                    chat_id=event.target_id,
-                    message_id=None,
-                    event_count=1,
-                    influence_count=event.influence_count,
-                    last_event_at=event.occurred_at,
-                    last_summary=event.description,
+    async def _pending_conflicts(self) -> list[MemoryCommandConflictItem]:
+        """Pending memories flagged as conflicting with an existing one."""
+        statement = (
+            select(PendingMemory)
+            .where(PendingMemory.is_conflict.is_(True), PendingMemory.status == "pending")
+            .order_by(PendingMemory.created_at.desc())
+            .limit(_CONFLICT_LIMIT)
+        )
+        items: list[MemoryCommandConflictItem] = []
+        try:
+            for conflict in (await self._db.execute(statement)).scalars().all():
+                metadata = conflict.metadata_json or {}
+                existing_content = conflict.conflict_old_content or ""
+                candidate_content = conflict.content or ""
+                items.append(
+                    MemoryCommandConflictItem(
+                        id=f"conflict:{conflict.id}",
+                        kind="pending_conflict",
+                        status="pending",
+                        memory_id=conflict.conflict_old_memory_id,
+                        related_memory_id="",
+                        title=str(metadata.get("facet") or ""),
+                        description=f"{existing_content} ⟷ {candidate_content}",
+                        existing_content=existing_content,
+                        candidate_content=candidate_content,
+                        created_at=conflict.created_at,
+                    )
                 )
-                continue
-            overlays[event.target_id] = current.model_copy(
-                update={
-                    "event_count": current.event_count + 1,
-                    "influence_count": current.influence_count + event.influence_count,
-                    "last_event_at": max(current.last_event_at, event.occurred_at),
-                }
-            )
-        return sorted(overlays.values(), key=lambda item: item.last_event_at, reverse=True)[:8]
-
-    def build_replay_events(self, timeline: list[MemoryCommandTimelineEvent]) -> list[MemoryCommandReplayEvent]:
-        return [
-            MemoryCommandReplayEvent(
-                id=event.id,
-                phase=event_phase(event.kind),
-                status=event.status,
-                occurred_at=event.occurred_at,
-                title=event.title,
-                summary=event.description,
-                target_kind=event.target_kind,
-                target_id=event.target_id,
-                influence_count=event.influence_count,
-            )
-            for event in timeline[:24]
-        ]
-
-    def build_waterfall(
-        self,
-        timeline: list[MemoryCommandTimelineEvent],
-        influence: list[MemoryCommandInfluenceItem],
-        cost: MemoryCommandCostProfile,
-    ) -> list[MemoryCommandWaterfallStep]:
-        counts: dict[WaterfallPhase, int] = {}
-        latest: dict[WaterfallPhase, datetime] = {}
-        for event in timeline:
-            phase = waterfall_phase(event.kind)
-            counts[phase] = counts.get(phase, 0) + 1
-            latest[phase] = event.occurred_at
-        recall_count = sum(len(item.influence_refs) for item in influence)
-        if recall_count:
-            counts["recall"] = max(counts.get("recall", 0), recall_count)
-            counts["cite"] = max(counts.get("cite", 0), recall_count)
-        if cost.estimated_memory_tokens:
-            counts["inject"] = max(counts.get("inject", 0), 1)
-
-        return [
-            MemoryCommandWaterfallStep(
-                phase=phase,
-                status=waterfall_status(phase, counts.get(phase, 0)),
-                event_count=counts.get(phase, 0),
-                evidence_count=recall_count if phase in {"recall", "cite"} else 0,
-                latest_at=latest.get(phase),
-                description=waterfall_description(phase, counts.get(phase, 0)),
-            )
-            for phase in WATERFALL_PHASES
-        ]
+        except Exception as exc:
+            logger.warning("Failed to query pending memory conflicts: %s", exc)
+        return items
 
     def build_eval_metrics(
         self,
@@ -347,22 +242,20 @@ class MemoryCommandCenterInsights:
 
         service = get_connect_service()
         states = {s.profile_id: s for s in service.list_all_states()}
-        result: list[MemoryCommandConnectorStatus] = []
-
-        status_map = {
+        status_map: dict[ConnectorStatus, ConnectorState] = {
             ConnectorStatus.READY: "ready",
             ConnectorStatus.CONFIGURED: "manual_config_required",
             ConnectorStatus.MISSING: "missing",
         }
 
+        result: list[MemoryCommandConnectorStatus] = []
         for profile in PROFILES.values():
             state = states.get(profile.id)
-            status = status_map.get(state.status if state else ConnectorStatus.MISSING, "missing")
             result.append(
                 MemoryCommandConnectorStatus(
                     id=profile.id,
                     label=profile.label,
-                    status=status,
+                    status=status_map.get(state.status if state else ConnectorStatus.MISSING, "missing"),
                     supported_actions=["generate_config", "doctor", "revoke"],
                     notes=profile.description,
                 )
@@ -448,10 +341,7 @@ class MemoryCommandCenterInsights:
         raw_batch_id = latest_metadata.get("import_batch_id")
         raw_diagnostic_status = latest_metadata.get("diagnostic_status")
         raw_diagnostic_run_id = latest_metadata.get("diagnostic_run_id")
-        raw_readiness_status = latest_metadata.get("readiness_status")
-        raw_first_turn_outcome = latest_metadata.get("first_turn_outcome")
         session_metrics = await MemoryImportSessionService(self._db).session_metrics()
-        coverage = raw_coverage if raw_coverage in {"not_tracked", "partial", "complete"} else "not_tracked"
         source_manifest_payload = migration_source_manifest_payload()
         source_manifest = [MemoryCommandMigrationSourceManifestItem.model_validate(item) for item in source_manifest_payload]
         source_manifest_authoritative = migration_source_manifest_authoritative_for_ids(
@@ -462,69 +352,20 @@ class MemoryCommandCenterInsights:
                 "Migration source manifest incomplete in command-center projection; authoritative flag downgraded",
             )
         return MemoryCommandMigrationProvenance(
-            supported_sources=memory_import_supported_sources(),
             source_manifest=source_manifest,
             source_manifest_authoritative=source_manifest_authoritative,
             tracked_imports=tracked,
             unmapped_items=unmapped,
-            coverage_status=coverage,
-            adapter_status=memory_import_adapter_status(),
+            coverage_status=_coverage_status(raw_coverage),
             last_import_batch_id=raw_batch_id if isinstance(raw_batch_id, str) else None,
             verification_recommended=tracked > 0 and raw_diagnostic_status != "ready",
             last_import_diagnostic_status=raw_diagnostic_status if isinstance(raw_diagnostic_status, str) else None,
             last_import_diagnostic_run_id=raw_diagnostic_run_id if isinstance(raw_diagnostic_run_id, str) else None,
-            last_import_readiness_status=(
-                raw_readiness_status if raw_readiness_status in {"ready", "warning", "critical"} else None
-            ),
-            last_import_first_turn_outcome=(
-                raw_first_turn_outcome if raw_first_turn_outcome in {"success", "failed", "no_output"} else None
-            ),
+            last_import_readiness_status=_readiness_status(latest_metadata.get("readiness_status")),
+            last_import_first_turn_outcome=_first_turn_outcome(latest_metadata.get("first_turn_outcome")),
             cleanup_pending_sessions=session_metrics.get(DRY_RUN_STATUS_PENDING, 0),
             cleanup_confirmed_sessions=session_metrics.get(DRY_RUN_STATUS_CONFIRMED, 0),
             cleanup_expired_sessions=session_metrics.get(DRY_RUN_STATUS_EXPIRED, 0),
             cleanup_rolled_back_sessions=session_metrics.get(DRY_RUN_STATUS_ROLLED_BACK, 0),
             cleanup_retention_days=DRY_RUN_RETENTION_DAYS,
         )
-
-    @staticmethod
-    def _extract_influence_refs(extra_data: dict[str, object]) -> list[MemoryCommandInfluenceRef]:
-        raw_refs = extra_data.get("citedMemoryRefs")
-        if not isinstance(raw_refs, list):
-            return []
-        refs: list[MemoryCommandInfluenceRef] = []
-        for raw_ref in raw_refs:
-            if not isinstance(raw_ref, dict):
-                continue
-            memory_id = raw_ref.get("id")
-            memory_type = raw_ref.get("memory_type")
-            if not isinstance(memory_id, str) or not isinstance(memory_type, str):
-                continue
-            primary_namespace = optional_str(raw_ref.get("primary_namespace"))
-            raw_namespaces = raw_ref.get("namespaces")
-            if primary_namespace is None and isinstance(raw_namespaces, list) and raw_namespaces:
-                primary_namespace = optional_str(raw_namespaces[0])
-            refs.append(
-                MemoryCommandInfluenceRef(
-                    memory_id=memory_id,
-                    memory_type=memory_type,
-                    score=optional_float(raw_ref.get("score")),
-                    content_preview=preview_content(str(raw_ref.get("content") or ""), limit=180),
-                    primary_namespace=primary_namespace,
-                    source_chat_id=optional_str(raw_ref.get("source_chat_id")),
-                    source_message_id=optional_str(raw_ref.get("source_message_id")),
-                    reason="memory_search_tool",
-                )
-            )
-        return refs
-
-    @staticmethod
-    def _extract_token_counts(extra_data: dict[str, object]) -> tuple[int, int, int]:
-        usage = extra_data.get("usage")
-        token_economics = extra_data.get("tokenEconomics")
-        context_budget = extra_data.get("contextBudget")
-        prompt_tokens = dict_int(usage, "prompt_tokens") + dict_int(token_economics, "prompt_tokens")
-        cached_tokens = dict_int(usage, "cached_tokens") + dict_int(token_economics, "cached_tokens")
-        completion_tokens = dict_int(usage, "completion_tokens") + dict_int(token_economics, "completion_tokens")
-        if prompt_tokens == 0:
-            prompt_tokens = dict_int(context_budget, "used_tokens")
-        return (prompt_tokens, cached_tokens, completion_tokens)

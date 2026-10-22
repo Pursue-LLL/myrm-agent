@@ -3,7 +3,7 @@ import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
 import { FatalNetworkError } from '@/lib/utils/networkResilience';
 import { consumeStream } from '../consumeStream';
-import { AgentBusyError, RequestRefusedError } from '../streamErrors';
+import { AgentBusyError, ApprovalAlreadyResolvedError, RequestRefusedError } from '../streamErrors';
 import { executeStreamWithRetry } from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
@@ -250,16 +250,29 @@ describe('streamConsumer resilience paths', () => {
     vi.useRealTimers();
   });
 
-  it('throws AgentBusyError immediately on 409 response', async () => {
+  it('throws ApprovalAlreadyResolvedError without retrying when a resume hits an interrupt someone else already resolved (HTTP 409)', async () => {
     const state = createBaseState();
     const actions = createActions(state);
     const abortController = new AbortController();
-    mockCreateMessageRequest.mockResolvedValue(new Response('busy', { status: 409 }));
+    mockCreateMessageRequest.mockResolvedValue(new Response('{}', { status: 409 }));
 
     await expect(
-      executeStreamWithRetry('hello', 'msg-1', state, actions, null, abortController, false, ''),
-    ).rejects.toBeInstanceOf(AgentBusyError);
+      executeStreamWithRetry('', 'msg-1', state, actions, null, abortController, false, '', { granted: false }),
+    ).rejects.toBeInstanceOf(ApprovalAlreadyResolvedError);
 
+    expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a non-resume turn answered with HTTP 409 instead of calling the chat busy', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    mockCreateMessageRequest.mockResolvedValue(new Response('conflict', { status: 409 }));
+
+    const failure = executeStreamWithRetry('hello', 'msg-1', state, actions, null, abortController, false, '');
+
+    await expect(failure).rejects.toBeInstanceOf(RequestRefusedError);
+    await expect(failure).rejects.not.toBeInstanceOf(AgentBusyError);
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 
@@ -267,11 +280,11 @@ describe('streamConsumer resilience paths', () => {
     const state = createBaseState();
     const actions = createActions(state);
     const abortController = new AbortController();
-    mockCreateMessageRequest.mockResolvedValue(new Response('busy', { status: 409 }));
+    mockCreateMessageRequest.mockResolvedValue(new Response('refused', { status: 400 }));
 
     await expect(
       executeStreamWithRetry('hello', 'msg-template-armed', state, actions, null, abortController, false, ''),
-    ).rejects.toBeInstanceOf(AgentBusyError);
+    ).rejects.toBeInstanceOf(RequestRefusedError);
 
     expect(mockClearPendingWorkflowTemplate).not.toHaveBeenCalled();
   });

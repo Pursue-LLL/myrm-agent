@@ -7,18 +7,21 @@ HTTP requests for run digest CRUD and advisor chat.
 JSON responses with digest data or advisor thread messages.
 
 [POS]
-Thin API layer delegating to copilot service modules.
+Thin API layer delegating to copilot service modules. An advisor question a risk rule holds is refused before it is
+stored or sent to a model.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.utils.response_utils import error_response, success_response
 from app.services.copilot.advisor_service import ask_advisor
 from app.services.copilot.advisor_thread_store import AdvisorThreadStore
 from app.services.copilot.run_digest_store import RunDigestStore
+from app.services.risk.refusal import reject_if_risky
 
 router = APIRouter()
 
@@ -29,7 +32,7 @@ class AdvisorAskRequest(BaseModel):
 
 
 @router.get("/{chat_id}/copilot/run-digest")
-async def get_run_digest(chat_id: str):
+async def get_run_digest(chat_id: str) -> JSONResponse:
     digest = RunDigestStore.get(chat_id)
     if digest is None:
         return success_response(data={"digest": None})
@@ -37,22 +40,24 @@ async def get_run_digest(chat_id: str):
 
 
 @router.get("/{chat_id}/copilot/advisor/messages")
-async def list_advisor_messages(chat_id: str):
+async def list_advisor_messages(chat_id: str) -> JSONResponse:
     messages = [msg.to_dict() for msg in AdvisorThreadStore.list_messages(chat_id)]
     return success_response(data={"messages": messages})
 
 
 @router.delete("/{chat_id}/copilot/advisor/messages")
-async def clear_advisor_messages(chat_id: str):
+async def clear_advisor_messages(chat_id: str) -> JSONResponse:
     AdvisorThreadStore.clear(chat_id)
     return success_response(data={"cleared": True})
 
 
 @router.post("/{chat_id}/copilot/advisor/ask")
-async def advisor_ask(chat_id: str, body: AdvisorAskRequest, request: Request):
+async def advisor_ask(chat_id: str, body: AdvisorAskRequest, request: Request) -> JSONResponse:
     question = body.question.strip()
     if not question:
         return error_response(message="Question cannot be empty", code=400)
+
+    await reject_if_risky(question, session_id=chat_id)
 
     accept_lang = request.headers.get("Accept-Language", "en")
 

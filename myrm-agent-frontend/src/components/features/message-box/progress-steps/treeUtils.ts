@@ -44,3 +44,27 @@ export function buildTree(steps: ProgressItem[]): TreeNode[] {
 
   return roots;
 }
+
+// A turn with more than FOLD_THRESHOLD top-level steps shows its first FOLD_HEAD and last FOLD_TAIL steps;
+// the stretch in between sits behind a "show more" bar.
+const FOLD_THRESHOLD = 8;
+const FOLD_HEAD = 2;
+const FOLD_TAIL = 3;
+
+export interface FoldedRoots {
+  head: TreeNode[];
+  folded: TreeNode[];
+  tail: TreeNode[];
+}
+
+/** Splits the top-level steps into visible head, folded stretch and visible tail; null when the turn shows in full. */
+export function foldRoots(roots: TreeNode[]): FoldedRoots | null {
+  if (roots.length <= FOLD_THRESHOLD) {
+    return null;
+  }
+  return {
+    head: roots.slice(0, FOLD_HEAD),
+    folded: roots.slice(FOLD_HEAD, roots.length - FOLD_TAIL),
+    tail: roots.slice(roots.length - FOLD_TAIL),
+  };
+}

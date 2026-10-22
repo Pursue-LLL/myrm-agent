@@ -23,6 +23,7 @@ import useChatStore from '@/store/useChatStore';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { useGoalPlanSync } from '@/components/features/chat-window/goals/useGoalPlanSync';
+import { useGoalSync } from '@/components/features/chat-window/goals/useGoalSync';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
@@ -64,6 +65,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const activeGoal = useGoalStore((s) => s.activeGoal);
 
   useGoalPlanSync(chatId);
+  useGoalSync(chatId);
 
   const chatApprovalQueue = useMemo(
     () => approvalQueue.filter((request) => request.chatId === chatId),

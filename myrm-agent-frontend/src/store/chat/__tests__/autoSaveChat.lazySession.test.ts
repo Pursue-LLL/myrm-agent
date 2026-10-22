@@ -91,4 +91,24 @@ describe('autoSaveChat lazy session persistence gate', () => {
 
     expect(updateChatTitle).toHaveBeenCalledWith('chat-valid-1', 'Generated Title');
   });
+
+  it('never calls the title model or stores a title for an incognito chat', async () => {
+    const { generateChatTitle, updateChatTitle } = await import('@/services/chat');
+
+    const incognitoMessages: Message[] = [
+      { messageId: 'u1', chatId: 'chat-private-1', role: 'user', content: 'Private question', createdAt: new Date() },
+      {
+        messageId: 'a1',
+        chatId: 'chat-private-1',
+        role: 'assistant',
+        content: 'Private answer',
+        createdAt: new Date(),
+      },
+    ];
+
+    await autoSaveChat('chat-private-1', incognitoMessages, 'agent', true);
+
+    expect(generateChatTitle).not.toHaveBeenCalled();
+    expect(updateChatTitle).not.toHaveBeenCalled();
+  });
 });

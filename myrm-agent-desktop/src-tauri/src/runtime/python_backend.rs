@@ -11,7 +11,7 @@
 //!
 //! [POS]
 //! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
-//! 启动后最多 30s 轮询 `/health`；超时则终止子进程并返回 `Err`。
+//! 启动后最多 120s 轮询 `/health`；超时则终止子进程并返回 `Err`。
 //! 向 sidecar 注入帷幕状态桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、
 //! 壳进程身份 `MYRM_SHELL_PID` 与 spawn-time `MYRM_LOCKED_USE_ENABLED`（server 运行时以 runtime 文件为准）。
 
@@ -33,7 +33,7 @@ use crate::runtime::TOXIC_ENV_VARS;
 use crate::utils::process_tree::kill_process_tree;
 
 const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
-const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 60;
+const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 240;
 
 pub struct PythonBackend {
     pub process: Arc<Mutex<Option<Child>>>,

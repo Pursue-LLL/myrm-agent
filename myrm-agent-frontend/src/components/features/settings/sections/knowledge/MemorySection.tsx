@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   IconArrowDown,
@@ -18,10 +18,13 @@ import {
   IconUpload,
   IconBook,
   IconShieldCheck,
+  IconSparkles,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useAuthStore from '@/store/useAuthStore';
+import useRetrievalStore from '@/store/useRetrievalStore';
+import useChatStore from '@/store/useChatStore';
 import { useMemoryStore, type MemoryType, type Memory } from '@/store/memory';
 import { restoreMemory as apiRestoreMemory } from '@/services/memory';
 import MemoryClearAllDialog from '@/components/features/memory/dialogs/MemoryClearAllDialog';
@@ -85,6 +88,7 @@ const MemorySection = memo(() => {
   const tCommon = useTranslations('common');
   const tMigrationWizard = useTranslations('memory.migrationWizard');
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const { user, isInitialized: authInitialized } = useAuthStore();
   const isLoggedIn = !!user;
@@ -131,6 +135,8 @@ const MemorySection = memo(() => {
     restoreMemory,
     purgeMemory,
   } = useMemoryStore();
+  const checkOrphanCollections = useRetrievalStore((state) => state.checkOrphanCollections);
+  const embeddingApplied = useRetrievalStore((state) => state.embeddingApplied);
 
   const [activeMemoryTab, setActiveMemoryTab] = useState<MemoryTab>('pending');
   const [searchInput, setSearchInput] = useState('');
@@ -152,7 +158,6 @@ const MemorySection = memo(() => {
   const [detailMemory, setDetailMemory] = useState<Memory | null>(null);
   const [importDryRun, setImportDryRun] = useState<MemoryImportDryRunResult | null>(null);
   const [importDryRunId, setImportDryRunId] = useState<string | null>(null);
-  const [importPayloadHash, setImportPayloadHash] = useState<string | null>(null);
   const [importExpiresAt, setImportExpiresAt] = useState<string | null>(null);
   const [showImportReview, setShowImportReview] = useState(false);
   const [showMemoryGuide, setShowMemoryGuide] = useState(false);
@@ -337,7 +342,6 @@ const MemorySection = memo(() => {
         const dryRun = await dryRunImportMemories(payload, source);
         setImportDryRun(dryRun.result);
         setImportDryRunId(dryRun.dry_run_id);
-        setImportPayloadHash(dryRun.payload_hash);
         setImportExpiresAt(dryRun.expires_at);
         setShowImportReview(true);
       } catch (error) {
@@ -399,7 +403,6 @@ const MemorySection = memo(() => {
       setShowImportReview(false);
       setImportDryRun(null);
       setImportDryRunId(null);
-      setImportPayloadHash(null);
       setImportExpiresAt(null);
       await fetchMemories();
     } catch (error) {
@@ -418,7 +421,6 @@ const MemorySection = memo(() => {
     if (!open) {
       setImportDryRun(null);
       setImportDryRunId(null);
-      setImportPayloadHash(null);
       setImportExpiresAt(null);
     }
   }, []);
@@ -464,15 +466,20 @@ const MemorySection = memo(() => {
     [fetchMemories, t],
   );
 
-  const handleChatFromMemory = useCallback((mem: Memory) => {
-    const chatUrl = `/?initialMessage=${encodeURIComponent(mem.content)}`;
-    window.open(chatUrl, '_self');
-  }, []);
+  const handleChatFromMemory = useCallback(
+    (mem: Memory) => {
+      useChatStore.getState().setInputMessage(mem.content);
+      router.push('/');
+    },
+    [router],
+  );
 
   const handleClearAll = useCallback(async () => {
     setIsClearing(true);
     try {
       await deleteAllMemories();
+      // Clearing also removes the memories an embedding switch left behind, so the migration reminder above is stale.
+      void checkOrphanCollections();
       toast({ title: t('clearAllSuccess'), description: t('clearAllSuccessDesc') });
       setShowClearConfirm(false);
     } catch (error) {
@@ -484,14 +491,13 @@ const MemorySection = memo(() => {
     } finally {
       setIsClearing(false);
     }
-  }, [deleteAllMemories, t]);
+  }, [deleteAllMemories, checkOrphanCollections, t]);
 
   return (
     <div className="space-y-6">
       <MemoryImportReviewDialog
         open={showImportReview}
         dryRun={importDryRun}
-        payloadHash={importPayloadHash}
         expiresAt={importExpiresAt}
         importing={isImporting}
         onOpenChange={handleImportReviewOpenChange}
@@ -526,6 +532,17 @@ const MemorySection = memo(() => {
             </Tooltip>
           </div>
           <p className="text-sm text-muted-foreground">{t('description')}</p>
+          {enableMemory && !embeddingApplied && (
+            <p
+              className={cn(
+                'inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/60 bg-muted/40',
+                'px-2.5 py-1.5 text-xs text-muted-foreground',
+              )}
+            >
+              <IconSparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>{t('keywordModeHint')}</span>
+            </p>
+          )}
         </div>
         {isLoggedIn && enableMemory && (
           <div className="flex items-center gap-1">

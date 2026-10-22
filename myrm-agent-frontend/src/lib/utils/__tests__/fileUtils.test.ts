@@ -469,7 +469,7 @@ describe('fileUtils', () => {
       const removeChildSpy = vi.spyOn(document.body, 'removeChild');
 
       const blob = new Blob(['{}'], { type: 'application/json' });
-      await triggerDownload(blob, 'plugin.json');
+      await expect(triggerDownload(blob, 'plugin.json')).resolves.toBe(true);
 
       expect(createObjectURL).toHaveBeenCalledWith(blob);
       expect(appendChildSpy).toHaveBeenCalled();
@@ -489,17 +489,17 @@ describe('fileUtils', () => {
       mockFsWriteFile.mockResolvedValue(undefined);
 
       const blob = new Blob(['{}'], { type: 'application/json' });
-      await triggerDownload(blob, 'plugin.zip');
+      await expect(triggerDownload(blob, 'plugin.zip')).resolves.toBe(true);
 
       expect(mockDialogSave).toHaveBeenCalledWith({ defaultPath: 'plugin.zip' });
       expect(mockFsWriteFile).toHaveBeenCalledWith('/Users/tester/Downloads/plugin.zip', expect.any(Uint8Array));
     });
 
-    it('should resolve without writing when the save dialog is cancelled', async () => {
+    it('should report not saved without writing when the save dialog is cancelled', async () => {
       mockIsTauriRuntime.mockReturnValue(true);
       mockDialogSave.mockResolvedValue(null);
 
-      await expect(triggerDownload(new Blob(['x']), 'x.zip')).resolves.toBeUndefined();
+      await expect(triggerDownload(new Blob(['x']), 'x.zip')).resolves.toBe(false);
       expect(mockFsWriteFile).not.toHaveBeenCalled();
     });
 

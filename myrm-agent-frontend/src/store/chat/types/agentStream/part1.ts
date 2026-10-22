@@ -41,14 +41,11 @@ export const AgentEventType = {
   TOOL_APPROVAL_REQUEST: 'tool_approval_request',
   APPROVAL_REQUIRED: 'approval_required',
   CLARIFICATION_REQUIRED: 'clarification_required',
-  DIRECTORY_REQUEST_REQUIRED: 'directory_request_required',
-  APPROVAL_PROCESSED: 'approval_processed',
   ASYNC_USER_MESSAGE: 'async_user_message',
   GOAL_STATUS: 'goal_status',
   RATE_LIMIT_UPDATED: 'rate_limit_updated',
   RATE_LIMIT_WARNING: 'rate_limit_warning',
   RATE_LIMIT_THROTTLED: 'rate_limit_throttled',
-  SUBAGENT_STATUS_UPDATE: 'subagent_status_update',
   CATCHUP_SNAPSHOT: 'catchup_snapshot',
   MEMORY_BRIEF: 'memory_brief',
   REASONING: 'reasoning',
@@ -68,7 +65,6 @@ export const AgentEventType = {
   CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
   STEERING: 'steering',
   REDIRECTED: 'redirected',
-  TOOL_FALLBACK: 'tool_fallback',
   CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
   CAPTCHA_DETECTED: 'captcha_detected',
   CAPTCHA_RESOLVED: 'captcha_resolved',
@@ -86,7 +82,6 @@ export const AgentEventType = {
   DESKTOP_CONTROL_APPROVAL_REQUEST: 'desktop_control_approval_request',
   DESKTOP_ENVELOPE_PROGRESS: 'desktop_envelope_progress',
   PTC_NOTIFY: 'ptc_notify',
-  TOOL_PROGRESS: 'tool_progress',
   FISSION_TOPOLOGY: 'fission_topology',
   BROWSER_TAKEOVER_REQUESTED: 'browser_takeover_requested',
   BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
@@ -98,7 +93,6 @@ export const AgentEventType = {
   SKILL_GAP: 'skill_gap',
   PHASE_TRANSITION: 'phase_transition',
   WORKING_MEMORY: 'working_memory',
-  TTSR_TRIGGERED: 'ttsr_triggered',
 } as const;
 
 export interface BaseAgentEvent {
@@ -133,7 +127,7 @@ export interface ErrorStreamEvent extends BaseAgentEvent {
   data?: string;
   metadata?: Record<string, unknown>;
   error_kind?: ErrorKind;
-  retry_after_ms?: number;
+  /** Provider-stated wait; already worded in the diagnostic message. */
   cooldown_remaining_ms?: number;
   recovery_actions?: RecoveryAction[];
   default_hint?: string;
@@ -213,6 +207,8 @@ export interface SourcesStreamEvent extends BaseAgentEvent {
 
 export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_APPROVAL_REQUEST;
+  /** LangGraph interrupt the card answers; the same interrupt is announced again while it stays pending. */
+  interruptId?: string;
   data: {
     // Standard LangChain HITL structure
     actionRequests: Array<{
@@ -250,13 +246,9 @@ export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface ApprovalProcessedStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.APPROVAL_PROCESSED;
-  decision: 'approve' | 'reject' | 'approve_always' | 'feedback';
-}
-
 export interface ApprovalRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.APPROVAL_REQUIRED;
+  interruptId?: string;
   data: {
     type: string;
     message?: string;
@@ -272,18 +264,6 @@ export interface ClarificationRequiredWireData {
 export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CLARIFICATION_REQUIRED;
   data: ClarificationRequiredWireData;
-}
-
-export interface DirectoryRequestRequiredStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.DIRECTORY_REQUEST_REQUIRED;
-  data: {
-    request?: {
-      reason?: string;
-      path?: string;
-      writable?: boolean;
-    };
-    [key: string]: unknown;
-  };
 }
 
 export interface SteeringStreamEvent extends BaseAgentEvent {

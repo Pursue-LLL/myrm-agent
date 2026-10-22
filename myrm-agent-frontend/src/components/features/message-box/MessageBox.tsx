@@ -23,7 +23,6 @@ import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
-import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
@@ -49,7 +48,6 @@ import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
 import { CustomMessageCard } from './CustomMessageCard';
 import ClarificationInput from './ClarificationInput';
-import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
 import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
@@ -65,7 +63,6 @@ import MemoryInsightPanel from './MemoryInsightPanel';
 import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
-import { TtsrInterventionBadge, groupTtsrInterventions } from './TtsrInterventionBadge';
 import { StagedArtifactsNotice } from './StagedArtifactsNotice';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
@@ -99,14 +96,12 @@ const MessageBox = ({
   const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
   const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
-  const composerPendingDirectoryRequest = useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
   // Regenerate acts on the latest turn only, so only that turn's answer offers it.
   const isLastTurnAnswer = useMemo(
     () => message.role === 'assistant' && findLastTurnAnswerId(messages) === message.messageId,
     [messages, message.role, message.messageId],
   );
   const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
-  const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   // Approval cards render inline under the assistant message that produced them,
   // so the pending flag is derived from the global approval queue keyed by messageId.
@@ -212,9 +207,10 @@ const MessageBox = ({
     }
   }, [isReasoningExpanded, message.reasoning, reasoningDisplayMode]);
 
-  const handleRegenerate = async (instruction?: string) => {
+  // Resolves whether the regeneration went through, so the menu keeps a custom instruction that was refused.
+  const handleRegenerate = async (instruction?: string): Promise<boolean> => {
     if (!chatId) {
-      return;
+      return false;
     }
 
     try {
@@ -233,10 +229,12 @@ const MessageBox = ({
         void usePlanStore.getState().fetchPlan(chatId);
 
         const cleanQuery = stripDatetimeTag(result.query);
-        await sendMessage(cleanQuery);
+        return await sendMessage(cleanQuery);
       }
+      return false;
     } catch (error) {
       console.error('Regenerate failed:', error);
+      return false;
     } finally {
       useChatStore.setState({ regenerateSiblingGroupId: undefined, regenerateInstruction: undefined });
     }
@@ -632,17 +630,9 @@ const MessageBox = ({
                 options={message.clarification.options}
                 allowMultiple={message.clarification.allowMultiple}
                 isResumeMode={message.clarification.isResumeMode}
+                answerRecord={message.clarification.answerRecord}
                 title={message.clarification.title}
                 form={message.clarification.form}
-              />
-            )}
-
-            {message.directoryRequest && !hideInlineDirectoryRequest && (
-              <DirectoryApprovalInput
-                messageId={message.messageId}
-                answered={message.directoryRequest.answered}
-                isResumeMode={message.directoryRequest.isResumeMode}
-                request={message.directoryRequest.request}
               />
             )}
 
@@ -754,26 +744,6 @@ const MessageBox = ({
               onRegenerate={handleRegenerate}
             />
 
-            {/* 时间旅行流规则拦截与纠偏徽章 (TTSR) */}
-            {message.ttsrInterventions && message.ttsrInterventions.length > 0 && (
-              <div className="space-y-1.5 my-1.5">
-                {groupTtsrInterventions(message.ttsrInterventions).map((group) => (
-                  <TtsrInterventionBadge
-                    key={group.ruleId}
-                    ruleId={group.ruleId}
-                    ruleName={group.ruleName}
-                    reminder={group.reminder}
-                    target={group.target}
-                    retryCount={group.retryCount}
-                    maxRetries={group.maxRetries}
-                    timestamp={group.timestamp}
-                    attemptsCount={group.attemptsCount}
-                    history={group.history}
-                  />
-                ))}
-              </div>
-            )}
-
             {/* 文件修改失败警告 */}
             {!(isLast && loading) && message.fileMutationFailures && message.fileMutationFailures.length > 0 && (
               <FileMutationWarning failures={message.fileMutationFailures} />
@@ -830,11 +800,6 @@ const MessageBox = ({
                   <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>
                 </div>
               )}
-
-            {/* 自动暂存的未落盘交付物草案通知条 */}
-            {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
-              <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
-            )}
 
             {/* 建议 */}
             {isLast && <Suggestions message={message} loading={loading} />}

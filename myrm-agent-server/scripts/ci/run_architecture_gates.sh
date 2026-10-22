@@ -63,6 +63,23 @@ _run_import_resolvability() {
     --scan app
 }
 
+# Diff mode: only server units that are dead in the working tree and were not dead at the merge-base
+# fail, so units already unwired on the base branch cannot block an unrelated change. Untracked files
+# count as part of the working tree; the verdict covers committed changes only on a clean checkout (CI).
+# An unresolvable base revision is an error.
+_run_module_reachability() {
+  local harness_root py
+  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
+    echo "CI module-reachability: harness source unavailable (PyPI mode); skipping module reachability check"
+    return 0
+  fi
+  py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  "${py}" "${harness_root}/scripts/check_module_reachability.py" \
+    --server --server-root "${SERVER_ROOT}/app" \
+    --base "${MYRM_REACHABILITY_BASE:-origin/main}"
+}
+
 _run_ruff() {
   if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
     "${SERVER_ROOT}/.venv/bin/ruff" check .
@@ -101,6 +118,7 @@ myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
 _run_md_refs
 _run_import_resolvability
+_run_module_reachability
 _run_profile_capability_gate
 _run_dependency_vuln_gate
 _run_ruff

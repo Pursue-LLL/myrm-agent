@@ -25,6 +25,8 @@ let mockGoalState: {
   activeGoal: GoalState | null;
   gitBranch: string | null;
   queuedGoals: Array<{ goal_id: string; objective: string }>;
+  bindChat: ReturnType<typeof vi.fn>;
+  refreshActiveGoal: ReturnType<typeof vi.fn>;
   fetchQueue: ReturnType<typeof vi.fn>;
 };
 
@@ -83,6 +85,8 @@ describe('GoalStatusCard ETA calculations', () => {
       activeGoal: makeGoal(),
       gitBranch: null,
       queuedGoals: [],
+      bindChat: vi.fn(),
+      refreshActiveGoal: vi.fn(),
       fetchQueue: vi.fn(),
     };
   });

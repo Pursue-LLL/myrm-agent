@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 - app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
@@ -19,6 +20,7 @@ import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 logger = logging.getLogger(__name__)
@@ -58,27 +60,26 @@ _DOCUMENT_EXTENSIONS = frozenset(
 class _StreamAccumulator:
     """Accumulates agent stream events into a final result."""
 
-    chunks: list[str] = field(default_factory=list)
+    answer: AnswerDraft = field(default_factory=AnswerDraft)
     usage: dict[str, int] | None = None
     cost_usd: float | None = None
     error: str | None = None
 
     def add(self, event: dict[str, object]) -> None:
         event_type = event.get("type", "")
-        if event_type == "message" and isinstance(event.get("data"), str):
-            self.chunks.append(str(event["data"]))
-        elif event_type == "token_usage" and isinstance(event.get("data"), dict):
-            data = event["data"]
-            if isinstance(data.get("usage"), dict):
-                raw = data["usage"]
-                self.usage = {str(k): _coerce_int(v) for k, v in raw.items()}
+        self.answer.feed(event)
+        data = event.get("data")
+        if event_type == "token_usage" and isinstance(data, dict):
+            usage = data.get("usage")
+            if isinstance(usage, dict):
+                self.usage = {str(k): _coerce_int(v) for k, v in usage.items()}
             cost = data.get("cost_usd")
             if isinstance(cost, (int, float)):
                 self.cost_usd = (self.cost_usd or 0.0) + float(cost)
         elif event_type == "message_end":
-            if isinstance(event.get("usage"), dict):
-                raw = event["usage"]
-                self.usage = {str(k): _coerce_int(v) for k, v in raw.items()}
+            end_usage = event.get("usage")
+            if isinstance(end_usage, dict):
+                self.usage = {str(k): _coerce_int(v) for k, v in end_usage.items()}
             cost = event.get("cost_usd")
             if isinstance(cost, (int, float)):
                 self.cost_usd = float(cost)
@@ -90,7 +91,7 @@ class _StreamAccumulator:
     def to_result(self) -> tuple[bool, str]:
         if self.error:
             return False, self.error
-        text = "".join(self.chunks).strip()
+        text = self.answer.text.strip()
         if not text:
             return False, "agent returned empty response"
         return True, text

@@ -3,11 +3,13 @@
 [INPUT]
 - app.api.system.schemas::IngressRequirementResponse, StorageInfoResponse, TelemetryPostureResponse (POS: System API Schemas)
 - app.services.system.storage_service (POS: Storage Diagnostics Service)
+- app.services.system.storage_layout::build_storage_layout (POS: where each storage category lives)
 - myrm_agent_harness.infra.tracing::get_telemetry_posture (POS: OpenTelemetry Posture Probe)
 
 [OUTPUT]
 - get_system_telemetry_posture: GET /telemetry-posture SRE OpenTelemetry Posture Probe
 - get_storage_info: GET /storage
+- get_storage_governance_report: GET /storage/governance (space ledger of the whole data directory)
 - optimize_storage: POST /storage/optimize
 - get_ingress_requirement: GET /ingress/requirement
 
@@ -22,20 +24,17 @@ import sqlite3
 import time
 from pathlib import Path
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query, Response
 from myrm_agent_harness.utils import get_local_ip
 
+from app.api.system.sandbox_recreate import router as sandbox_recreate_router
 from app.api.system.schemas import (
     CreateSnapshotRequest,
     IngressRequirementResponse,
     PreUpdateSnapshotRequest,
-    SandboxRecreateResponse,
     SnapshotActionResponse,
     StateSnapshotItem,
     StorageCategoryItem,
-    StorageCompactionRequest,
-    StorageCompactionResponse,
     StorageGovernanceReportResponse,
     StorageInfoResponse,
     StorageOptimizePreflightResponse,
@@ -46,14 +45,24 @@ from app.api.system.schemas import (
 from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
-from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.platform_utils.sandbox.entitlements.entitlement_guard import (
     EntitlementGuardError,
     require_public_ingress_entitlement,
 )
+from app.services.instance_archive import (
+    RestorePoint,
+    RestorePointError,
+    create_pre_update_point,
+    create_restore_point,
+    delete_restore_point,
+    list_restore_points,
+    stage_restore,
+)
+from app.services.instance_archive.policy import MAIN_DB_NAME
+from app.services.instance_archive.schema_gate import current_schema_version
+from app.services.system.storage_layout import build_storage_layout
 from app.services.system.storage_service import (
     check_storage_preflight,
-    dir_size_bytes,
     execute_storage_optimization,
     get_sqlite_breakdown,
 )
@@ -61,6 +70,7 @@ from app.services.system.storage_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+router.include_router(sandbox_recreate_router)
 
 
 @router.get("/ingress-requirement", response_model=IngressRequirementResponse)
@@ -108,9 +118,6 @@ async def get_local_network(
 # Storage Info & Database Optimization
 # ---------------------------------------------------------------------------
 
-_dir_size_bytes = dir_size_bytes
-_get_sqlite_breakdown = get_sqlite_breakdown
-
 
 @router.get("/storage", response_model=StorageInfoResponse)
 def get_storage_info() -> StorageInfoResponse:
@@ -123,30 +130,16 @@ def get_storage_info() -> StorageInfoResponse:
     except OSError:
         usage = shutil.disk_usage(Path.home())
 
-    subdir_names = ["qdrant", "harness", "event_logs", "memory"]
-    subdirs = [
-        {"name": name, "bytes": dir_size_bytes(data_dir / name)}
-        for name in subdir_names
-        if (data_dir / name).exists()
-    ]
-
-    db_breakdown = get_sqlite_breakdown(data_dir)
-    if db_breakdown.total_bytes > 0:
-        subdirs.insert(0, {"name": "data.db", "bytes": db_breakdown.total_bytes})
-
     return StorageInfoResponse(
         data_dir=str(data_dir),
         disk_total_bytes=usage.total,
         disk_used_bytes=usage.used,
         disk_free_bytes=usage.free,
-        subdirs=subdirs,
-        db_breakdown=db_breakdown,
+        db_breakdown=get_sqlite_breakdown(data_dir),
     )
 
 
-@router.post(
-    "/storage/optimize-preflight", response_model=StorageOptimizePreflightResponse
-)
+@router.post("/storage/optimize-preflight", response_model=StorageOptimizePreflightResponse)
 def optimize_storage_preflight() -> StorageOptimizePreflightResponse:
     """Pre-check disk headroom, database sizes, and active background jobs before optimization."""
     settings = get_settings()
@@ -208,9 +201,7 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
         )
     except sqlite3.OperationalError as exc:
         logger.error("Storage optimization failed: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Database optimization failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Database optimization failed: {exc}") from exc
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     reclaimed = max(0, before_bytes - after_bytes)
@@ -236,92 +227,14 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
 
 
 # ---------------------------------------------------------------------------
-# Sandbox Container Recreate (SaaS only)
-# ---------------------------------------------------------------------------
-
-
-@router.post("/sandbox/recreate", response_model=SandboxRecreateResponse)
-async def recreate_sandbox_container() -> SandboxRecreateResponse:
-    """Trigger container recreation via the Control Plane.
-
-    Preserves the persistent volume (workspace files) while resetting
-    system-level state (global packages, OS config). SaaS mode only.
-
-    The server process will terminate when the old container is destroyed,
-    so this endpoint fires the CP request and returns immediately.
-    """
-    caps = get_deployment_capabilities()
-    if not caps.is_sandbox_instance:
-        raise HTTPException(
-            status_code=403,
-            detail="Container recreate is only available in sandbox mode",
-        )
-
-    settings = get_settings()
-    cp_url = settings.control_plane.effective_url()
-    sandbox_id = settings.control_plane.sandbox_id
-    token = settings.control_plane.telemetry_token.get_secret_value()
-
-    if not sandbox_id or not token:
-        raise HTTPException(
-            status_code=503,
-            detail="Control plane connectivity not configured",
-        )
-
-    from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
-
-    if count_running_background_shell_jobs() > 0:
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot recreate container while background shell job(s) are still running. Cancel or wait for them to finish first.",
-        )
-
-    recreate_url = f"{cp_url}/api/internal/sandboxes/{sandbox_id}/recreate"
-    headers = {
-        "X-Telemetry-Token": token,
-        "X-Sandbox-Id": sandbox_id,
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(recreate_url, headers=headers)
-
-        if resp.status_code >= 400:
-            logger.error(
-                "CP recreate request failed: %s %s",
-                resp.status_code,
-                resp.text[:200],
-            )
-            raise HTTPException(
-                status_code=502,
-                detail=f"Control plane returned {resp.status_code}",
-            )
-
-        return SandboxRecreateResponse(
-            status="accepted",
-            message="Container recreation initiated. The environment will restart shortly.",
-        )
-    except httpx.HTTPError as exc:
-        logger.error("CP recreate request error: %s", exc)
-        raise HTTPException(
-            status_code=502,
-            detail="Failed to reach control plane",
-        ) from exc
-
-
-# ---------------------------------------------------------------------------
 # Support Debug Bundle Export
 # ---------------------------------------------------------------------------
 
 
 @router.get("/debug-bundle")
 async def export_support_debug_bundle(
-    include_traces: bool = Query(
-        True, description="Include recent redacted session event traces"
-    ),
-    include_profiles: bool = Query(
-        True, description="Include sanitized active agent profile metadata"
-    ),
+    include_traces: bool = Query(True, description="Include recent redacted session event traces"),
+    include_profiles: bool = Query(True, description="Include sanitized active agent profile metadata"),
 ) -> Response:
     """Generate and download a self-contained, fully redacted diagnostic ZIP bundle for support."""
     from datetime import datetime, timezone
@@ -346,79 +259,23 @@ async def export_support_debug_bundle(
         )
     except Exception as exc:
         logger.error("Failed to generate support debug bundle: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Failed to generate support debug bundle"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to generate support debug bundle") from exc
 
 
 # ---------------------------------------------------------------------------
-# Personal Data Sovereignty & Takeout Export
-# ---------------------------------------------------------------------------
-
-
-@router.get("/takeout")
-async def export_personal_data_takeout(
-    include_db: bool = Query(
-        True, description="Include SQLite database consistent backup"
-    ),
-    include_wiki: bool = Query(
-        True, description="Include Wiki Markdown knowledge vault"
-    ),
-    include_skills: bool = Query(
-        True, description="Include custom and downloaded skills"
-    ),
-    include_deliverables: bool = Query(
-        True, description="Include final workspace deliverables and artifacts"
-    ),
-) -> Response:
-    """Generate and download a self-contained, portable Takeout ZIP of all user personal data assets."""
-    from datetime import datetime, timezone
-
-    from app.services.system.takeout_service import UserTakeoutService
-
-    try:
-        zip_bytes = await UserTakeoutService.build_takeout_zip(
-            include_db=include_db,
-            include_wiki=include_wiki,
-            include_skills=include_skills,
-            include_deliverables=include_deliverables,
-        )
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"myrm-takeout-{timestamp}.zip"
-
-        return Response(
-            content=zip_bytes,
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "X-Takeout-Version": "1.0.0",
-            },
-        )
-    except Exception as exc:
-        logger.error("Failed to generate personal data takeout archive: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Failed to generate personal data takeout archive"
-        ) from exc
-
-
-# ---------------------------------------------------------------------------
-# Storage Governance & Compaction Suite
+# Storage Governance & Restore Points
 # ---------------------------------------------------------------------------
 
 
 @router.get("/storage/governance", response_model=StorageGovernanceReportResponse)
 def get_storage_governance_report() -> StorageGovernanceReportResponse:
-    """Return detailed multi-dimensional storage breakdown and governance insights."""
-    from myrm_agent_harness.observability.storage_governance import (
-        StateSnapshotManager,
-        StorageGovernanceInspector,
-    )
+    """Return the space ledger of the instance's persistent state, by category, with its restore points."""
+    from myrm_agent_harness.observability.storage_governance import StorageGovernanceInspector
 
     settings = get_settings()
     data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
-    snapshots = snapshot_mgr.list_snapshots()
-    inspector = StorageGovernanceInspector(data_dir)
+    snapshots = [point.to_metadata() for point in list_restore_points(data_dir)]
+    inspector = StorageGovernanceInspector(data_dir, layout=build_storage_layout(settings.database))
     report = inspector.inspect(snapshots=snapshots)
 
     return StorageGovernanceReportResponse(
@@ -429,11 +286,9 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
         categories=[
             StorageCategoryItem(
                 category=c.category.value,
-                display_name=c.display_name,
                 bytes=c.bytes,
                 item_count=c.item_count,
                 percentage=c.percentage,
-                details=c.details,
             )
             for c in report.categories
         ],
@@ -448,88 +303,52 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
             )
             for s in report.snapshots
         ],
-        recommended_actions=report.recommended_actions,
-        is_growth_healthy=report.is_growth_healthy,
         generated_at=report.generated_at,
     )
 
 
-@router.post("/storage/compaction", response_model=StorageCompactionResponse)
-def execute_storage_compaction(
-    req: StorageCompactionRequest,
-) -> StorageCompactionResponse:
-    """Execute safe non-blocking storage compaction, incremental vacuum, and checkpoint pruning."""
-    from myrm_agent_harness.observability.storage_governance import (
-        StateStorageCompactor,
-    )
+def _restore_point_error(exc: RestorePointError) -> HTTPException:
+    status = {"unknown_restore_point": 404, "operation_pending": 409, "insufficient_space": 507}.get(exc.code, 400)
+    return HTTPException(status_code=status, detail={"code": exc.code, "message": str(exc)})
 
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    compactor = StateStorageCompactor(data_dir)
-    result = compactor.compact(
-        purge_orphan_checkpoints=req.purge_orphan_checkpoints,
-        incremental_pages=req.incremental_pages,
-    )
 
-    return StorageCompactionResponse(
-        success=result.success,
-        initial_bytes=result.initial_bytes,
-        final_bytes=result.final_bytes,
-        freed_bytes=result.freed_bytes,
-        purged_checkpoints=result.purged_checkpoints,
-        wal_truncated=result.wal_truncated,
-        duration_ms=result.duration_ms,
-        message=result.message,
+def _snapshot_item(point: RestorePoint) -> StateSnapshotItem:
+    return StateSnapshotItem(
+        snapshot_id=point.snapshot_id,
+        label=point.label,
+        size_bytes=point.size_bytes,
+        created_at=point.created_at,
+        checksum="",
+        file_count=len(point.files),
     )
 
 
 @router.post("/storage/snapshots", response_model=SnapshotActionResponse)
 def create_state_snapshot(req: CreateSnapshotRequest) -> SnapshotActionResponse:
-    """Create an immutable point-in-time state snapshot."""
-    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
-
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
+    """Create a restore point (page-consistent online copy of the databases)."""
     try:
-        meta = snapshot_mgr.create_snapshot(label=req.label)
-        return SnapshotActionResponse(
-            success=True,
-            message=f"Snapshot '{meta.snapshot_id}' created successfully.",
-            snapshot=StateSnapshotItem(
-                snapshot_id=meta.snapshot_id,
-                label=meta.label,
-                size_bytes=meta.size_bytes,
-                created_at=meta.created_at,
-                checksum=meta.checksum,
-                file_count=meta.file_count,
-            ),
-        )
-    except Exception as exc:
-        logger.error("Failed to create snapshot: %s", exc)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create snapshot: {exc}"
-        ) from exc
-
-
-@router.post(
-    "/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse
-)
-def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
-    """Restore database state to a specific historical snapshot."""
-    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
-
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
-    success = snapshot_mgr.restore_snapshot(snapshot_id)
-    if not success:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'."
-        )
+        point = create_restore_point(Path(get_settings().database.state_dir), req.label)
+    except RestorePointError as exc:
+        raise _restore_point_error(exc) from exc
     return SnapshotActionResponse(
         success=True,
-        message=f"State successfully restored from snapshot '{snapshot_id}'.",
+        message=f"Snapshot '{point.snapshot_id}' created successfully.",
+        snapshot=_snapshot_item(point),
+    )
+
+
+@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
+def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
+    """Queue a restore point for the next start; the live database is never written to."""
+    settings = get_settings()
+    try:
+        stage_restore(Path(settings.database.state_dir), snapshot_id, max_schema_version=current_schema_version())
+    except RestorePointError as exc:
+        raise _restore_point_error(exc) from exc
+    return SnapshotActionResponse(
+        success=True,
+        message=f"Snapshot '{snapshot_id}' will be restored on the next start.",
+        requires_restart=True,
     )
 
 
@@ -540,7 +359,7 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
         from myrm_agent_harness.infra.tracing import get_telemetry_posture
 
         data = get_telemetry_posture()
-        return TelemetryPostureResponse(**data)
+        return TelemetryPostureResponse.model_validate(data)
     except Exception as exc:
         logger.warning("Failed to retrieve telemetry posture: %s", exc)
         return TelemetryPostureResponse(
@@ -561,90 +380,57 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
         )
 
 
-@router.delete(
-    "/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse
-)
+@router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)
 def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
-    """Permanently delete a state snapshot."""
-    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
-
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
-    success = snapshot_mgr.delete_snapshot(snapshot_id)
-    if not success:
-        raise HTTPException(
-            status_code=404, detail=f"Snapshot '{snapshot_id}' not found."
-        )
-    return SnapshotActionResponse(
-        success=True,
-        message=f"Snapshot '{snapshot_id}' deleted successfully.",
-    )
+    """Permanently delete a restore point."""
+    try:
+        deleted = delete_restore_point(Path(get_settings().database.state_dir), snapshot_id)
+    except RestorePointError as exc:
+        raise _restore_point_error(exc) from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail={"code": "unknown_restore_point", "message": "Unknown restore point"})
+    return SnapshotActionResponse(success=True, message=f"Snapshot '{snapshot_id}' deleted successfully.")
 
 
 @router.get("/storage/snapshots")
 def list_update_snapshots() -> dict[str, object]:
-    """Newest-first snapshot inventory for the Stack Update Panel."""
-    from app.services.system.update_snapshot_service import list_update_snapshots as list_items
-
-    settings = get_settings()
-    items = list_items(Path(settings.database.state_dir))
+    """Newest-first restore point inventory for the Stack Update Panel."""
+    points = list_restore_points(Path(get_settings().database.state_dir))
     return {
         "snapshots": [
             {
-                "snapshot_id": item.snapshot_id,
-                "label": item.label,
-                "size_bytes": item.size_bytes,
-                "created_at": item.created_at,
-                "from_version": item.from_version,
-                "to_version": item.to_version,
-                "extra_files": item.extra_files,
+                "snapshot_id": point.snapshot_id,
+                "label": point.label,
+                "size_bytes": point.size_bytes,
+                "created_at": point.created_at,
+                "from_version": point.from_version,
+                "to_version": point.to_version,
+                "extra_files": [name for name in point.files if name != MAIN_DB_NAME],
             }
-            for item in items
+            for point in points
         ]
     }
 
 
-@router.post("/storage/snapshots/{snapshot_id}/restore-update")
-def restore_update_snapshot(snapshot_id: str) -> dict[str, object]:
-    """Restore a pre-update snapshot including companion DBs.
-
-    The backend must be restarted afterwards: in-memory caches go stale.
-    """
-    from app.services.system.update_snapshot_service import (
-        restore_update_snapshot as restore_service,
-    )
-
-    settings = get_settings()
-    ok = restore_service(Path(settings.database.state_dir), snapshot_id)
-    if not ok:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'."
-        )
-    return {"snapshot_id": snapshot_id, "requires_restart": True}
-
-
 @router.post("/storage/snapshots/pre-update")
 def create_pre_update_snapshot(req: PreUpdateSnapshotRequest) -> dict[str, object]:
-    """Snapshot before an update install, then enforce retention."""
-    from app.services.system.update_snapshot_service import (
-        create_pre_update_snapshot as create_snapshot,
-    )
-
+    """Restore point before an update install, then enforce retention."""
     if not req.from_version.strip() or not req.to_version.strip():
         raise HTTPException(status_code=400, detail="from_version and to_version are required.")
-    settings = get_settings()
-    item = create_snapshot(
-        Path(settings.database.state_dir),
-        from_version=req.from_version.strip(),
-        to_version=req.to_version.strip(),
-        keep_latest=max(1, req.keep_latest),
-    )
+    try:
+        point = create_pre_update_point(
+            Path(get_settings().database.state_dir),
+            from_version=req.from_version.strip(),
+            to_version=req.to_version.strip(),
+            keep_latest=max(1, req.keep_latest),
+        )
+    except RestorePointError as exc:
+        raise _restore_point_error(exc) from exc
     return {
-        "snapshot_id": item.snapshot_id,
-        "label": item.label,
-        "size_bytes": item.size_bytes,
-        "created_at": item.created_at,
-        "from_version": item.from_version,
-        "to_version": item.to_version,
+        "snapshot_id": point.snapshot_id,
+        "label": point.label,
+        "size_bytes": point.size_bytes,
+        "created_at": point.created_at,
+        "from_version": point.from_version,
+        "to_version": point.to_version,
     }

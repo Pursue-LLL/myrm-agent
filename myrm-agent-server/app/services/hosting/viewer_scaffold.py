@@ -248,6 +248,15 @@ def render_standalone_viewer_html(primary_file: str, title: str | None = None) -
     .btn-primary:hover {{
       background: #1d4ed8;
     }}
+
+    /* 系统偏好减少动态效果时把过渡收到瞬时：预览页是独立文档，宿主样式表的守卫到不了这里。 */
+    @media (prefers-reduced-motion: reduce) {{
+      *, *::before, *::after {{
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }}
+    }}
   </style>
 </head>
 <body>

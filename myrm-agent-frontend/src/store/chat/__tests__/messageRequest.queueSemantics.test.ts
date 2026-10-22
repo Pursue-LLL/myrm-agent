@@ -221,7 +221,20 @@ describe('sendMessage queue semantics', () => {
     delete window.__MYRM_E2E_DIRECT_SSE__;
   });
 
-  const refuseAsBusy = () => vi.mocked(createAISearchStream).mockResolvedValue(new Response('busy', { status: 409 }));
+  // The production busy refusal: HTTP 200 whose event stream carries one AgentBusyError frame.
+  const refuseAsBusy = () =>
+    vi.mocked(createAISearchStream).mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({
+          type: 'error',
+          error_type: 'AgentBusyError',
+          status_code: 409,
+          messageId: 'req-1',
+          data: 'Agent is busy processing another request for this session.',
+        })}\n\n`,
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+    );
 
   it('resolves false without touching the transcript when the chat is still loading', async () => {
     await expect(send({ loading: true })).resolves.toBe(false);

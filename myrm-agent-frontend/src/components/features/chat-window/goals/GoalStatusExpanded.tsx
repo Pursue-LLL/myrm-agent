@@ -2,19 +2,17 @@
 
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
-import { Input } from '@/components/primitives/input';
 import { Progress } from '@/components/primitives/progress';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
-import useChatStore from '@/store/useChatStore';
 import { AcceptanceCriteriaPanel } from './AcceptanceCriteriaPanel';
-import { CheckCircleIcon, XCircleIcon, AlertIcon, BellIcon } from './goal-icons';
-import type { GoalState } from './goalStatusTypes';
+import { GoalHumanReviewAction } from './GoalHumanReviewAction';
+import { GoalSubgoalsSection } from './GoalSubgoalsSection';
+import { AlertIcon, BellIcon } from './goal-icons';
+import type { GoalAction, GoalState } from './goalStatusTypes';
 import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
 import { TaskDeliverableBundle } from './TaskDeliverableBundle';
-import { cn } from '@/lib/utils/classnameUtils';
-import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface GoalStatusExpandedProps {
   goal: GoalState;
@@ -37,8 +35,8 @@ interface GoalStatusExpandedProps {
   editedObjective: string;
   onEditedObjectiveChange: (value: string) => void;
   isSavingObjective: boolean;
-  onAction: (action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait', note?: string) => void;
-  onAddSubgoal: (text: string) => void;
+  onAction: (action: GoalAction, note?: string) => Promise<boolean>;
+  onAddSubgoal: (text: string) => Promise<boolean>;
   onRemoveSubgoal: (index: number) => void;
   t: ReturnType<typeof useTranslations>;
 }
@@ -241,9 +239,8 @@ export function GoalStatusExpanded({
         {isTerminal && goal.status === 'complete' && <TaskDeliverableBundle goal={goal} chatId={chatId} />}
 
         {/* Subgoals */}
-        <SubgoalsSection
+        <GoalSubgoalsSection
           goal={goal}
-          chatId={chatId}
           isTerminal={isTerminal}
           onAddSubgoal={onAddSubgoal}
           onRemoveSubgoal={onRemoveSubgoal}
@@ -254,7 +251,7 @@ export function GoalStatusExpanded({
         {goal.status === 'budget_limited' && <BudgetLimitedAction chatId={chatId} onAction={onAction} t={t} />}
 
         {/* Needs Human Review Action */}
-        {goal.status === 'needs_human_review' && <HumanReviewAction onAction={onAction} t={t} />}
+        {goal.status === 'needs_human_review' && <GoalHumanReviewAction onAction={onAction} t={t} />}
       </div>
     </div>
   );
@@ -320,90 +317,6 @@ function ObjectiveEditor({
   );
 }
 
-function SubgoalsSection({
-  goal,
-  chatId: _chatId,
-  isTerminal,
-  onAddSubgoal,
-  onRemoveSubgoal,
-  t,
-}: {
-  goal: GoalState;
-  chatId: string;
-  isTerminal: boolean;
-  onAddSubgoal: (text: string) => void;
-  onRemoveSubgoal: (index: number) => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  return (
-    <div className="mt-4 border-t border-border/50 pt-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-foreground">{t('subgoals') || 'Subgoals'}</span>
-      </div>
-      {goal.subgoals && goal.subgoals.length > 0 && (
-        <ul className="space-y-1.5 mb-3">
-          {goal.subgoals.map((sg, idx) => (
-            <li
-              key={idx}
-              className="flex items-start gap-2 text-xs bg-background/50 p-2 rounded-lg border border-border/50 group"
-            >
-              <div className="flex-shrink-0 mt-0.5">
-                <CheckCircleIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-              <span className="flex-1 text-muted-foreground break-words leading-relaxed">{sg.text}</span>
-              {!isTerminal && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveSubgoal(idx);
-                  }}
-                  className={cn('text-muted-foreground hover:text-destructive transition-opacity', REVEAL_ON_HOVER)}
-                  aria-label="Remove subgoal"
-                >
-                  <XCircleIcon className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {!isTerminal && (
-        <div className="flex gap-2">
-          <Input
-            placeholder={t('subgoalPlaceholder') || 'Add acceptance criteria or sub-task...'}
-            className="h-8 text-xs bg-background/50 border-border/50"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const val = e.currentTarget.value;
-                onAddSubgoal(val);
-                e.currentTarget.value = '';
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-8 px-3 shrink-0 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-              const val = input?.value || '';
-              onAddSubgoal(val);
-              if (input) {
-                input.value = '';
-              }
-            }}
-          >
-            {t('addSubgoal') || 'Add'}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function BudgetLimitedAction({
   chatId,
   onAction,
@@ -435,71 +348,6 @@ function BudgetLimitedAction({
           }}
         >
           {t('addTokensAndResume')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function HumanReviewAction({
-  onAction,
-  t,
-}: {
-  onAction: (action: 'approve' | 'reject', note?: string) => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  return (
-    <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-      <div className="flex items-center gap-2 mb-2">
-        <AlertIcon className="h-4 w-4 text-orange-600" />
-        <p className="text-sm text-orange-600 font-medium">{t('reviewFailedMessage')}</p>
-      </div>
-      <p className="text-xs text-orange-600/80 mb-3">{t('reviewFailedHint')}</p>
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <Input
-            placeholder={t('feedbackPlaceholder')}
-            className="h-8 text-xs bg-background/50 border-orange-200 focus-visible:ring-orange-500"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = e.currentTarget.value || '';
-                const msg = val.trim() ? val : t('resetRetriesMessage');
-                useChatStore.getState().sendMessage(msg);
-                onAction('reject');
-                e.currentTarget.value = '';
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-orange-200 hover:bg-orange-50 text-orange-700 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-              const val = input?.value || '';
-              const msg = val.trim() ? val : t('resetRetriesMessage');
-              useChatStore.getState().sendMessage(msg);
-              onAction('reject');
-              if (input) {
-                input.value = '';
-              }
-            }}
-          >
-            {t('rejectAndRetry')}
-          </Button>
-        </div>
-        <Button
-          size="sm"
-          className="w-full bg-green-500 hover:bg-green-600 text-white"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAction('approve');
-          }}
-        >
-          <CheckCircleIcon className="h-4 w-4 mr-1" />
-          {t('forceApprove')}
         </Button>
       </div>
     </div>

@@ -40,6 +40,7 @@ import { getStorageUrl } from '@/lib/api';
 import useChatStore from '@/store/useChatStore';
 import { MOBILE_BREAKPOINT, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
 import { uploadFiles } from '@/services/file';
+import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 
 // 拆分的子组件
 import PortalHeader from './portal/PortalHeader';
@@ -338,7 +339,7 @@ const ArtifactPortal: React.FC = () => {
       const file = new File([blob], currentArtifact.filename, {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      const result = await uploadFiles([file]);
+      const result = await uploadFiles([file], undefined, incognitoUploadOptions());
       if (result.files.length === 0) {
         throw new Error('Upload returned empty response');
       }
@@ -473,6 +474,8 @@ const ArtifactPortal: React.FC = () => {
         {/* 拖拽调整宽度手柄 */}
         {!effectiveFullscreen && !isMobile && (
           <div
+            role="separator"
+            aria-orientation="vertical"
             className={cn(
               'absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10',
               'hover:bg-primary/20 active:bg-primary/30 transition-colors',
@@ -569,8 +572,7 @@ const ArtifactPortal: React.FC = () => {
         )}
 
         {activeTab?.diffPreviewTruncated && (
-          <div
-            role="status"
+          <output
             className={cn(
               'shrink-0 text-xs py-1.5 px-3 flex items-start gap-1.5 border-b',
               'bg-sky-100/90 dark:bg-sky-950/40 text-sky-950 dark:text-sky-100',
@@ -579,7 +581,7 @@ const ArtifactPortal: React.FC = () => {
           >
             <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden />
             <span>{t('diffTruncatedNotice')}</span>
-          </div>
+          </output>
         )}
 
         {/* 内容区域 */}

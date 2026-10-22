@@ -8,6 +8,7 @@ Thin delegation to harness heartbeat module.
 - myrm_agent_harness.toolkits.cron.heartbeat (POS: heartbeat convenience layer)
 - myrm_agent_harness.toolkits.cron.types (POS: cron job domain types)
 - myrm_agent_harness.toolkits.cron.engine.parser (POS: cron expression parsing and validation)
+- services.risk.refusal::reject_if_risky (POS: refuses a heartbeat prompt a risk rule holds)
 
 [OUTPUT]
 - GET  /heartbeat/status — current heartbeat state
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.cron.engine.parser import (
 from myrm_agent_harness.toolkits.cron.types import CronJob, Schedule, ScheduleKind
 
 from app.api.cron.schemas import HeartbeatEnableRequest, HeartbeatStatusResponse
+from app.services.risk.refusal import reject_if_risky
 
 from . import helpers as _h
 
@@ -100,6 +102,7 @@ async def heartbeat_status() -> HeartbeatStatusResponse:
 async def heartbeat_enable(body: HeartbeatEnableRequest) -> HeartbeatStatusResponse:
     from myrm_agent_harness.toolkits.cron.heartbeat import enable_heartbeat
 
+    await reject_if_risky(body.prompt)
     mgr = _h._get_manager()
     schedule = _build_schedule_from_request(body)
     try:

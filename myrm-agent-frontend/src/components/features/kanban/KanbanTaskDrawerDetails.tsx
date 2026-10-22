@@ -1,3 +1,18 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::completionCriteriaToText, hasKanbanCompletionIntent, KANBAN_SOURCE_CHAT_METADATA_KEY (POS: 验收标准与来源会话的元数据约定)
+ * - ./kanban-styles (POS: 优先级样式、超时预设、可编辑审批的状态、时间格式化)
+ * - ./KanbanMarkdown、./KanbanSkillPicker、./ReviewCommentThread (POS: 富文本、技能选择、验收意见)
+ * - @/lib/kanban/kanbanChatBoard::buildKanbanBoardDeepLink (POS: 回到来源会话的看板链接)
+ * - ./KanbanTaskBlockedNotice (POS: 阻塞提示条：类型标签、界面语言的原因、定时解除时间)
+ * - @/lib/utils/a11y::activateOnKey (POS: 非原生按钮的键盘激活)
+ *
+ * [OUTPUT]
+ * - TaskDetailsSection: 描述、优先级 / 状态 / Agent / 进度徽标、创建与更新时间、来源会话链接，以及超时、技能、验收标准、模型覆盖、指派 Agent、审批开关、验收结果的就地编辑
+ *
+ * [POS]
+ * 任务抽屉的详情区段；全部受控，状态由 useKanbanTaskDrawer 提供。
+ */
 'use client';
 
 import { cn } from '@/lib/utils/classnameUtils';
@@ -16,8 +31,9 @@ import {
 } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
 import { KanbanSkillPicker } from './KanbanSkillPicker';
+import { KanbanTaskBlockedNotice } from './KanbanTaskBlockedNotice';
 import type { KanbanModelOption } from './KanbanInlineAddForm';
-import { Clock, ExternalLink, User } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
@@ -181,18 +197,16 @@ export function TaskDetailsSection({
           </div>
         </div>
       ) : task.max_runtime_seconds != null ? (
-        <span
+        <button
+          type="button"
           className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-5/10 text-chart-5 border border-chart-5/20 mt-1 cursor-pointer hover:border-chart-5/40 transition-colors"
           onClick={() => {
             setTimeoutValue(task.max_runtime_seconds ?? null);
             setEditingTimeout(true);
           }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateOnKey}
         >
           {t('timeoutLabel')}: {formatDuration(task.max_runtime_seconds)}
-        </span>
+        </button>
       ) : (
         <button
           onClick={() => {
@@ -225,15 +239,13 @@ export function TaskDetailsSection({
           </div>
         </div>
       ) : task.extra_skill_ids && task.extra_skill_ids.length > 0 ? (
-        <div
-          className="flex flex-wrap gap-1 mt-1 cursor-pointer group/skills"
+        <button
+          type="button"
+          className="flex flex-wrap gap-1 mt-1 text-left cursor-pointer group/skills"
           onClick={() => {
             setSkillsText(task.extra_skill_ids.join(', '));
             setEditingSkills(true);
           }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateOnKey}
         >
           {task.extra_skill_ids.map((sid) => (
             <span
@@ -243,7 +255,7 @@ export function TaskDetailsSection({
               {sid}
             </span>
           ))}
-        </div>
+        </button>
       ) : (
         <button
           onClick={() => {
@@ -287,19 +299,17 @@ export function TaskDetailsSection({
           </div>
         </div>
       ) : task.model_override ? (
-        <span
+        <button
+          type="button"
           className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-2/10 text-chart-2 border border-chart-2/20 mt-1 cursor-pointer hover:border-chart-2/40 transition-colors font-mono"
           title={t('modelEditHint')}
           onClick={() => {
             setModelValue(task.model_override ?? '');
             setEditingModel(true);
           }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateOnKey}
         >
           {t('modelLabel')}: {task.model_override}
-        </span>
+        </button>
       ) : enabledModels.length > 0 ? (
         <button
           onClick={() => {
@@ -353,23 +363,7 @@ export function TaskDetailsSection({
       {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
         <p className="text-xs text-chart-4 bg-chart-4/5 rounded px-2 py-1 mt-1 font-medium">{task.progress_note}</p>
       )}
-      {task.blocked_reason && (
-        <div className="text-xs text-destructive bg-destructive/5 rounded px-2 py-1 mt-1 space-y-0.5">
-          <p className="flex items-center gap-1">
-            {task.block_kind === 'scheduled' && <Clock className="w-3.5 h-3.5 shrink-0" />}
-            {task.block_kind === 'external' && <ExternalLink className="w-3.5 h-3.5 shrink-0" />}
-            {task.block_kind === 'human' && <User className="w-3.5 h-3.5 shrink-0" />}
-            <span className="font-medium capitalize">{task.block_kind ?? 'blocked'}</span>
-            <span className="text-muted-foreground">—</span>
-            {task.blocked_reason}
-          </p>
-          {task.block_kind === 'scheduled' && task.scheduled_until && (
-            <p className="text-[10px] text-chart-4 font-mono">
-              {t('autoUnblockAt')}: {new Date(task.scheduled_until).toLocaleString()}
-            </p>
-          )}
-        </div>
-      )}
+      <KanbanTaskBlockedNotice task={task} t={t} />
 
       {/* Completion criteria */}
       <div className="mt-1.5">
@@ -410,6 +404,7 @@ export function TaskDetailsSection({
               setCriteriaText(completionCriteriaToText(task.completion_criteria));
               setEditingCriteria(true);
             }}
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the Markdown body holds links and block elements, which cannot sit inside a native button
             role="button"
             tabIndex={0}
             onKeyDown={activateOnKey}
@@ -458,6 +453,7 @@ export function TaskDetailsSection({
         <div className="flex items-center gap-2 mt-1.5">
           <span className="text-[10px] text-muted-foreground font-medium shrink-0">{t('assignedAgent')}:</span>
           {assignedAgent?.avatar_url ? (
+            // oxlint-disable-next-line next/no-img-element -- agent avatars are user-supplied URLs that next/image cannot optimize
             <img
               src={assignedAgent.avatar_url}
               alt={assignedAgent.name}

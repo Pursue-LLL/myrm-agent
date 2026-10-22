@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 from app.core.channel_bridge.btw_notifier import _format_notification
 from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
+from app.core.infra.background_task import spawn_observed_task
 from app.database.models.chat import VOICE_BACKGROUND_TASK_NOTICE_KEY
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import (
@@ -49,7 +50,7 @@ class WebuiVoiceWorkNotifier:
 
     async def start(self) -> None:
         self._queue = self._bus.subscribe()
-        self._task = asyncio.create_task(self._loop(), name="webui-voice-work-notifier")
+        self._task = spawn_observed_task(self._loop(), name="webui-voice-work-notifier")
         logger.info("WebuiVoiceWorkNotifier started")
 
     async def stop(self) -> None:
@@ -78,7 +79,11 @@ class WebuiVoiceWorkNotifier:
             event = await self._queue.get()
             if event.event_type != AppEventType.BACKGROUND_TASK_DONE:
                 continue
-            await self._deliver(event.data)
+            try:
+                await self._deliver(event.data)
+            except Exception:
+                # One undeliverable event must not stop the notifier for every later task.
+                logger.exception("WebuiVoiceWorkNotifier delivery failed")
 
     def _remember_delivery(self, task_id: str) -> None:
         if task_id in self._delivered:

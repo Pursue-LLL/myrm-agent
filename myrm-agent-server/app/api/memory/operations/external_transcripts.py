@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/external-transcripts")
 
 
+def get_external_transcript_sync_service() -> ExternalTranscriptSyncService:
+    """Sync service provider; callers override it to isolate the watermark file."""
+
+    return ExternalTranscriptSyncService()
+
+
 class ExternalFilePayload(BaseModel):
     """File payload uploaded from browser File System API in cloud mode."""
 
@@ -73,9 +79,9 @@ class ExternalTranscriptStatusResponse(BaseModel):
 async def sync_external_transcripts(
     req: ExternalTranscriptSyncRequest,
     db: AsyncSession = Depends(get_db),
+    service: ExternalTranscriptSyncService = Depends(get_external_transcript_sync_service),
 ) -> ExternalTranscriptSyncResponse:
     """Trigger incremental sync of external transcripts from directory or upload."""
-    service = ExternalTranscriptSyncService()
     result_synced_files = 0
     result_new_turns = 0
     result_affected_chats: list[str] = []
@@ -161,9 +167,10 @@ async def sync_external_transcripts(
 
 
 @router.get("/status", response_model=ExternalTranscriptStatusResponse)
-async def get_external_transcript_status() -> ExternalTranscriptStatusResponse:
+async def get_external_transcript_status(
+    service: ExternalTranscriptSyncService = Depends(get_external_transcript_sync_service),
+) -> ExternalTranscriptStatusResponse:
     """Query external transcript indexing status and tracking metrics."""
-    service = ExternalTranscriptSyncService()
     watermarks = service.load_watermarks()
     last_synced = None
     for entry in watermarks.values():

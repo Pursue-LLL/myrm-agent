@@ -31,13 +31,13 @@ vi.mock('../handlerDeps', () => ({
     STEERING: 'steering',
     ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
     CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
-    TOOL_FALLBACK: 'tool_fallback',
     CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
     PTC_NOTIFY: 'ptc_notify',
   },
   findAssistantMessageIndex: mockFindAssistantMessageIndex,
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: (chatId: string) => mockReleaseTurnInspectorControls(chatId),
+  isStreamForOpenChat: vi.fn(() => true),
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {
@@ -178,7 +178,7 @@ describe('agentControlEvents clearActivePlan', () => {
     await vi.dynamicImportSettled();
 
     const messages = updatedState?.messages as Array<Record<string, unknown>>;
-    const step = (messages?.[0].progressSteps as Array<Record<string, unknown>>).at(-1);
+    const step = (messages[0].progressSteps as Array<Record<string, unknown>>).at(-1);
     expect(step).toMatchObject({
       step_key: 'iteration_limit_reached',
       status: 'warning',

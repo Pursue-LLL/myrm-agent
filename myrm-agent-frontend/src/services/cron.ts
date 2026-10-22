@@ -9,6 +9,7 @@ export type {
   ConnectorHealthItem,
   ConnectorsHealthListResponse,
   CreateCronJobRequest,
+  CronBlockedAction,
   CronDelivery,
   CronJob,
   CronJobsListResponse,

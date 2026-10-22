@@ -255,7 +255,9 @@ def bench_myrm_server(surface_mode: str = "auto") -> dict[str, object]:
 
 def bench_hermes() -> dict[str, object]:
     """Run Hermes CLI benchmark."""
-    hermes_root = Path(__file__).resolve().parent.parent.parent.parent.parent / "external_reference_project/claw/hermes-agent"
+    # 竞品镜像已移出项目根，物理根由仓根 `.external-refs-root` 单一事实源给出
+    refs_root_file = Path(__file__).resolve().parents[4] / ".external-refs-root"
+    hermes_root = Path(refs_root_file.read_text().strip()) / "claw/hermes-agent"
     hermes_venv = hermes_root / ".venv-test"
     python_bin = hermes_venv / "bin" / "python"
     cli_py = hermes_root / "cli.py"

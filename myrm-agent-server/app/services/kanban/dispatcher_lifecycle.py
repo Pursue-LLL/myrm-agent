@@ -5,19 +5,19 @@
 - myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 - event_publisher (POS: Kanban SSE event publishing helpers.)
-- move_orchestrator.merge_task_worktree (POS: Completed-task worktree merge back to target branch.)
+- worktree_ops::merge_task_worktree, spawn_worktree_op (POS: Completed-task worktree merge back to target branch; off-request worktree work.)
 
 [OUTPUT]
 - recover_stale_tasks, start_dispatcher, stop_dispatcher, shutdown_dispatchers, _make_task_completed_merge_hook
 
 [POS]
-Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown. Registers a task_completed hook that schedules async worktree merge (sync dispatcher emit → background task) so auto-completed tasks land their commits on the target branch.
+Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown. Registers a task_completed hook that schedules async worktree merge (sync dispatcher emit → tracked background task registered as the task's landing) so auto-completed tasks land their commits on the target branch before their dependents build a workspace.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
+from collections.abc import Callable
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
@@ -30,9 +30,9 @@ from app.services.kanban.event_publisher import (
     emit_review_requested,
     emit_source_chat_done,
     emit_task_rejected,
-    publish_kanban_event,
+    publish_task_event,
 )
-from app.services.kanban.move_orchestrator import merge_task_worktree
+from app.services.kanban.worktree_ops import merge_task_worktree, spawn_worktree_op
 
 logger = logging.getLogger(__name__)
 
@@ -45,21 +45,19 @@ async def recover_stale_tasks(store: SqlAlchemyKanbanStore) -> int:
     return count
 
 
-def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanStore):
+def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanStore) -> Callable[[str, KanbanTask], None]:
     """Synchronous dispatcher callback that schedules async worktree merge.
 
-    Dispatcher emits are synchronous, so the actual merge runs in a
-    background task.  merge_task_worktree is idempotent — when the worktree
+    Dispatcher emits are synchronous (and run on the event loop), so the actual merge runs in a tracked
+    background task, registered as the task's landing so its dependents wait for it before they build their
+    workspace.  merge_task_worktree is idempotent — when the worktree
     is already gone (manual move path already merged it) it is a no-op.
     """
 
     def hook(event_type: str, task: KanbanTask) -> None:
         if event_type != "task_completed":
             return
-        try:
-            asyncio.get_running_loop().create_task(merge_task_worktree(runner, task, store))
-        except RuntimeError:  # pragma: no cover - 无事件循环时不调度
-            logger.debug("No running loop; skip worktree merge for %s", task.task_id[:8])
+        spawn_worktree_op(merge_task_worktree(runner, task, store), lands=task.task_id)
 
     return hook
 
@@ -88,15 +86,7 @@ async def start_dispatcher(
         worker_id=worker_id,
         verifier=KanbanCompletionVerifier(),
     )
-    dispatcher.on_event(
-        lambda event_type, task: publish_kanban_event(
-            task.board_id,
-            task.task_id,
-            event_type,
-            title=task.title,
-            detail=task.result or task.blocked_reason or task.error or "",
-        )
-    )
+    dispatcher.on_event(publish_task_event)
     dispatcher.on_event(emit_btw_done)
     dispatcher.on_event(emit_source_chat_done)
     dispatcher.on_event(lambda event_type, task: emit_review_requested(task) if event_type == "task_review_requested" else None)

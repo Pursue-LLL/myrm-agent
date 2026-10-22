@@ -7,48 +7,12 @@ import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
-import { notifyIdleApproval, clearAllNotifications } from '@/lib/approval/approvalAlertService';
+import { notifyIdleApproval } from '@/lib/approval/approvalAlertService';
 import { getClarificationNotificationTitle, resolveClarificationFormFromEventData } from '../streamHelpers';
 import * as H from './handlerDeps';
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, added, actions } = ctx;
-  if (data.type === H.AgentEventType.TOOL_PROGRESS) {
-    const { tool, progress } = data as { tool: string; progress: { done: number; total: number; failed: number } };
-    if (progress && added) {
-      const stepKey = `tool_progress:${tool}`;
-      const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-      actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) {
-          return;
-        }
-        const msg = state.messages[messageIndex];
-        if (!msg.progressSteps) {
-          msg.progressSteps = [];
-        }
-        const existing = msg.progressSteps.find((s) => s.step_key === stepKey);
-        const status: H.ProgressItem['status'] = progress.failed > 0 ? 'warning' : 'success';
-        const patch: Partial<H.ProgressItem> = {
-          step_key: stepKey,
-          tool_name: tool,
-          progress_percent: pct,
-          notify_progress: pct,
-          notify_step_index: progress.done,
-          notify_total_steps: progress.total,
-          reason: `${progress.done}/${progress.total}${progress.failed ? ` (${progress.failed} failed)` : ''}`,
-          status,
-        };
-        if (existing) {
-          Object.assign(existing, patch);
-        } else {
-          msg.progressSteps.push(patch as H.ProgressItem);
-        }
-      });
-    }
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.TOOL_HEARTBEAT) {
     if (added) {
       actions.setMessages((state) => {
@@ -98,43 +62,34 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     }
 
     if (data.step_key === 'swarm_fission') {
-      import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-        const total = typeof data.count === 'number' ? data.count : 0;
-        const status = data.status;
-        const failedCount = typeof data.failed_count === 'number' ? data.failed_count : status === 'error' ? total : 0;
-        const completedCount =
-          typeof data.completed_count === 'number' ? data.completed_count : Math.max(0, total - failedCount);
-        const partial =
-          Boolean(data.partial_success) || status === 'partial_success' || (failedCount > 0 && completedCount > 0);
+      const total = typeof data.count === 'number' ? data.count : 0;
+      const status = data.status;
+      const failedCount = typeof data.failed_count === 'number' ? data.failed_count : status === 'error' ? total : 0;
+      const completedCount =
+        typeof data.completed_count === 'number' ? data.completed_count : Math.max(0, total - failedCount);
+      const partial =
+        Boolean(data.partial_success) || status === 'partial_success' || (failedCount > 0 && completedCount > 0);
 
-        if (status === 'running') {
-          useSubagentStore.getState().setFissionBatch({
-            active: true,
-            total,
-            completed: 0,
-            failed: 0,
-            partial: false,
-          });
-        } else if (status === 'completed' || status === 'error' || status === 'partial_success') {
-          useSubagentStore.getState().setFissionBatch({
-            active: false,
-            total,
-            completed: completedCount,
-            failed: failedCount,
-            partial,
-          });
+      if (status === 'running') {
+        H.writeSubagentStore(ctx.state, (store) =>
+          store.setFissionBatch({ active: true, total, completed: 0, failed: 0, partial: false }),
+        );
+      } else if (status === 'completed' || status === 'error' || status === 'partial_success') {
+        H.writeSubagentStore(ctx.state, (store) =>
+          store.setFissionBatch({ active: false, total, completed: completedCount, failed: failedCount, partial }),
+        );
 
-          if (failedCount > 0) {
-            import('@/lib/utils/toast').then(({ toast }) => {
-              const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'en' : 'en';
-              const message = lang.startsWith('zh')
-                ? `并行裂变：${completedCount}/${total} 成功，${failedCount} 路失败`
-                : `Swarm fission: ${completedCount}/${total} succeeded, ${failedCount} failed`;
-              toast.warning(message, { duration: 8000 });
-            });
-          }
+        // The strip belongs to the open chat, but failed workers are worth a warning wherever the stream runs.
+        if (failedCount > 0) {
+          import('@/lib/utils/toast').then(({ toast }) => {
+            const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'en' : 'en';
+            const message = lang.startsWith('zh')
+              ? `并行裂变：${completedCount}/${total} 成功，${failedCount} 路失败`
+              : `Swarm fission: ${completedCount}/${total} succeeded, ${failedCount} failed`;
+            toast.warning(message, { duration: 8000 });
+          });
         }
-      });
+      }
     }
 
     if (!added) {
@@ -256,9 +211,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const form = resolveClarificationFormFromEventData(data.data);
     const payload =
       data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
-    const actionMode = H.useChatStore.getState().actionMode;
-    const source = typeof payload?.source === 'string' ? payload.source : undefined;
-    const isResumeMode = source === 'deep_research' ? false : actionMode !== 'deep_research';
+    const isResumeMode = H.resolveClarifyIsResumeMode(payload?.source);
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
@@ -299,46 +252,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     return done(ctx);
   }
 
-  if (data.type === H.AgentEventType.DIRECTORY_REQUEST_REQUIRED) {
-    const payload =
-      data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
-    const request =
-      payload?.request && typeof payload.request === 'object'
-        ? (payload.request as Record<string, unknown>)
-        : undefined;
-    const normalizedRequest = request
-      ? {
-          reason: typeof request.reason === 'string' ? request.reason : undefined,
-          path: typeof request.path === 'string' ? request.path : undefined,
-          writable: typeof request.writable === 'boolean' ? request.writable : undefined,
-        }
-      : undefined;
-
-    actions.setMessages((state) => {
-      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      const directoryRequest = {
-        answered: false,
-        isResumeMode: true,
-        request: normalizedRequest,
-      };
-      if (messageIndex !== -1) {
-        state.messages[messageIndex].directoryRequest = directoryRequest;
-      } else {
-        state.messages.push({
-          content: '',
-          messageId: data.messageId,
-          chatId: H.resolveStreamChatId(ctx.state),
-          role: 'assistant',
-          createdAt: new Date(),
-          directoryRequest,
-        });
-        ctx.added = true;
-      }
-    });
-    actions.setLoading(false);
-    return done(ctx);
-  }
-
   // 处理 tool_approval_request 事件：弹出审批对话框
   if (data.type === H.AgentEventType.TOOL_APPROVAL_REQUEST) {
     const payload = data.data as {
@@ -358,7 +271,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       return done(ctx);
     }
 
-    const { chatId: currentChatId, actionMode: currentActionMode } = H.useChatStore.getState();
+    // The card belongs to the turn that raised it: the stream's own chat and mode. Reading the open chat's values
+    // here would attribute a background turn's approval to the chat on screen, so answering it would resume the
+    // wrong turn. The open chat's mode is only a fallback for streams built without one.
+    const streamChatId = H.resolveStreamChatId(ctx.state);
+    const streamActionMode = ctx.state.actionMode ?? H.useChatStore.getState().actionMode;
 
     const extensions = payload.extensions ?? {};
     const approvalMeta = extensions.approval ?? {};
@@ -401,12 +318,13 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         reviewConfig,
         requestId,
         messageId: data.messageId,
-        chatId: currentChatId ?? '',
-        actionMode: currentActionMode,
+        chatId: streamChatId,
+        actionMode: streamActionMode,
         extensions: normalizedExtensions,
         batchId: batchId || undefined,
         batchIndex: isBatch ? i : undefined,
         batchSize: isBatch ? actionRequests.length : undefined,
+        interruptId: data.interruptId,
       });
       H.useToolApprovalStore.getState().addRequest(approvalRequest);
     }
@@ -415,15 +333,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const allRequests = H.useToolApprovalStore.getState().queue;
     notifyIdleApproval(allRequests.slice(-actionRequests.length));
 
-    return done(ctx);
-  }
-
-  if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
-    H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
-    const remaining = H.useToolApprovalStore.getState().queue;
-    if (remaining.length === 0) {
-      clearAllNotifications();
-    }
     return done(ctx);
   }
 

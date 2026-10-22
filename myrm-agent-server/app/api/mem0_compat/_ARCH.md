@@ -22,7 +22,7 @@ Mem0 API 兼容层。使 Mem0 SDK 用户仅修改 `host` 参数即可无缝接�
 | `client.search()` | `POST /mem0/v3/memories/search/` | 语义搜索 |
 | `client.update()` | `PUT /mem0/v1/memories/{id}/` | 更新记忆内容 |
 | `client.delete()` | `DELETE /mem0/v1/memories/{id}/` | 删除单条记忆 |
-| `client.delete_all()` | `DELETE /mem0/v1/memories/` | 删除全部记忆 |
+| `client.delete_all()` | `DELETE /mem0/v1/memories/` | 删除全部记忆：每种类型都尝试清空，任一类型没清成就整体返回 500（不报「已删除」） |
 | `client.history()` | `GET /mem0/v1/memories/{id}/history/` | 记忆变更历史 |
 
 ## 文件清单

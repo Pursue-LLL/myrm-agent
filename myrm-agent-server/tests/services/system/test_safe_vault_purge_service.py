@@ -14,9 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.base import BaseCheckpointSaver, empty_checkpoint
 from myrm_agent_harness.runtime.checkpointing import create_checkpointer
-from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -212,7 +211,15 @@ async def sqlite_checkpointer(tmp_path: Path) -> AsyncIterator[BaseCheckpointSav
 
 
 async def _store_conversation(saver: BaseCheckpointSaver[str], owner_id: str) -> None:
-    await sync_checkpoint_messages(saver, owner_id, [HumanMessage("question"), AIMessage("answer")])
+    for thread_id in (owner_id, f"chat_{owner_id}"):
+        checkpoint = empty_checkpoint()
+        checkpoint["channel_values"] = {"messages": [HumanMessage("question"), AIMessage("answer")]}
+        await saver.aput(
+            {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}},
+            checkpoint,
+            {"source": "test", "step": 0, "parents": {}},
+            {},
+        )
 
 
 async def _is_stored(saver: BaseCheckpointSaver[str], thread_id: str) -> bool:

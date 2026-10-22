@@ -103,6 +103,7 @@ def _to_response(
         model=job.model,
         chat_id=job.chat_id,
         agent_id=job.agent_id,
+        project_id=job.project_id,
         workflow_template_id=job.workflow_template_id,
         workflow_template_args=job.workflow_template_args,
         workflow_template_display_name=workflow_template_display_name,

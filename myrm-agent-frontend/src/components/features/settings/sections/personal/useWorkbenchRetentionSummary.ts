@@ -27,17 +27,11 @@ export interface WorkspaceRulesData {
   workspace_root: string;
 }
 
-export interface SubdirUsage {
-  name: string;
-  bytes: number;
-}
-
 export interface StorageInfoData {
   data_dir: string;
   disk_total_bytes: number;
   disk_used_bytes: number;
   disk_free_bytes: number;
-  subdirs: SubdirUsage[];
 }
 
 export interface WorkbenchRetentionSummary {

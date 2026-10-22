@@ -38,3 +38,7 @@ class WikiMaintainRunResult(BaseModel):
     raw_security_removed_paths: list[str] = Field(default_factory=list)
     summary_text: str = "[SILENT]"
     lint_issues: list[dict[str, object]] = Field(default_factory=list)
+    # The model was asked and answered nothing: only the structural checks and repairs ran.
+    ai_unavailable: bool = False
+    # The user stopped the run between model calls: what was written before stays.
+    cancelled: bool = False

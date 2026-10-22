@@ -7,65 +7,22 @@ safe messages pass through to command resolution / agent execution.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage
-from app.services.risk.detection import (
-    RiskDetectionService,
-    _CompiledRule,
-    compile_pattern,
-)
+from tests.support.risk_gate import API_KEY_RULE, PHONE_RULE, build_service_with_rules
 
-
-def _build_service_with_rules(rules: list[_CompiledRule]) -> RiskDetectionService:
-    svc = RiskDetectionService()
-    svc._rules = rules
-    svc._version = 1
-    return svc
-
-
-def _make_bus() -> MagicMock:
-    bus = MagicMock()
-    bus.publish_outbound = AsyncMock()
-    bus.get_channel = MagicMock(return_value=None)
-    return bus
-
-
-def _make_router(bus: MagicMock | None = None) -> AgentRouter:
-    bus = bus or _make_bus()
-    return AgentRouter(
-        bus=bus,
-        pairing_store=MagicMock(),
-        agent_executor=MagicMock(),
-    )
-
-
-API_KEY_RULE = _CompiledRule(
-    rule_id="r-apikey",
-    display_name="API Key Leak",
-    severity="critical",
-    category="credential",
-    compiled=compile_pattern(r"sk-[A-Za-z0-9]{20,}"),
-)
-
-PHONE_RULE = _CompiledRule(
-    rule_id="r-phone",
-    display_name="CN Mobile",
-    severity="high",
-    category="pii",
-    compiled=compile_pattern(r"1[3-9]\d{9}"),
-)
+from .risk_gate_testkit import make_bus, make_router
 
 
 @pytest.mark.asyncio
 async def test_blocked_message_publishes_i18n_reply() -> None:
     """Blocked inbound message → outbound reply with risk_inbound_blocked i18n."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([API_KEY_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([API_KEY_RULE])
 
     msg = InboundMessage(
         channel="telegram",
@@ -92,9 +49,9 @@ async def test_blocked_message_publishes_i18n_reply() -> None:
 @pytest.mark.asyncio
 async def test_blocked_reply_targets_group_chat_id() -> None:
     """In group chats, blocked reply targets chat_id, not sender_id."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([PHONE_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([PHONE_RULE])
 
     msg = InboundMessage(
         channel="wechat",
@@ -121,9 +78,9 @@ async def test_blocked_reply_targets_group_chat_id() -> None:
 @pytest.mark.asyncio
 async def test_safe_message_passes_through() -> None:
     """Safe message (no rule match) is NOT blocked — proceeds to command resolution."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([API_KEY_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([API_KEY_RULE])
 
     msg = InboundMessage(
         channel="telegram",
@@ -149,9 +106,9 @@ async def test_safe_message_passes_through() -> None:
 @pytest.mark.asyncio
 async def test_no_rules_loaded_passes_through() -> None:
     """When RiskDetectionService has zero rules, messages pass through."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([])
 
     msg = InboundMessage(
         channel="slack",
@@ -178,9 +135,9 @@ async def test_no_rules_loaded_passes_through() -> None:
 @pytest.mark.asyncio
 async def test_resume_message_skips_risk_gate() -> None:
     """Resume messages (with resume_value) bypass inbound risk gate entirely."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([API_KEY_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([API_KEY_RULE])
 
     msg = InboundMessage(
         channel="telegram",
@@ -208,9 +165,9 @@ async def test_resume_message_skips_risk_gate() -> None:
 @pytest.mark.asyncio
 async def test_empty_content_skips_risk_gate() -> None:
     """Empty content messages bypass risk gate entirely (no detection call)."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([API_KEY_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([API_KEY_RULE])
 
     msg = InboundMessage(
         channel="telegram",
@@ -237,9 +194,9 @@ async def test_empty_content_skips_risk_gate() -> None:
 @pytest.mark.asyncio
 async def test_dm_blocked_targets_sender_id() -> None:
     """DM (non-group) blocked message targets sender_id as recipient."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([PHONE_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([PHONE_RULE])
 
     msg = InboundMessage(
         channel="telegram",
@@ -265,9 +222,9 @@ async def test_dm_blocked_targets_sender_id() -> None:
 @pytest.mark.asyncio
 async def test_multiple_rules_short_circuits_on_first_block() -> None:
     """Multiple block rules — short-circuits on first match, reply sent once."""
-    bus = _make_bus()
-    router = _make_router(bus=bus)
-    svc = _build_service_with_rules([API_KEY_RULE, PHONE_RULE])
+    bus = make_bus()
+    router = make_router(bus=bus)
+    svc = build_service_with_rules([API_KEY_RULE, PHONE_RULE])
 
     msg = InboundMessage(
         channel="slack",

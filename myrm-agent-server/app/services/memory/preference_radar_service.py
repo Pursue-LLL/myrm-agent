@@ -52,9 +52,9 @@ class PreferenceRadarService:
     def _resolve_storage_file(self) -> Path:
         candidate_dir: Path | None = None
         try:
-            from myrm_agent_harness.runtime.paths.execution_paths import MEMORIES_ROOT
+            from myrm_agent_harness.runtime.paths.execution_paths import get_memories_root
 
-            mem_path = Path(MEMORIES_ROOT)
+            mem_path = Path(get_memories_root())
             if mem_path.is_dir() or (mem_path.parent.is_dir() and os.access(mem_path.parent, os.W_OK)):
                 candidate_dir = mem_path
         except Exception:

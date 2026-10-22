@@ -69,6 +69,9 @@ pub fn run() {
                 .build(),
         )
         .setup(setup::on_setup)
+        .on_page_load(|_webview, payload| {
+            println!("DESKTOP_PAGE_LOAD: {}", payload.url());
+        })
         .on_window_event(setup::on_window_event)
         .invoke_handler(move |invoke: tauri::ipc::Invoke| {
             match crate::ipc_security::authorize_invoke(&invoke) {

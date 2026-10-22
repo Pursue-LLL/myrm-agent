@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from dev_gate.contract import (
     CHROME_E2E_DESKTOP_TIMEOUT_SECONDS,
@@ -15,13 +17,15 @@ from tests.conftest import _apply_chrome_e2e_lane_timeout
 class _TimeoutCapItem:
     def __init__(self) -> None:
         self.nodeid = "tests/support/test_chrome_e2e_timeout_cap.py::_TimeoutCapItem"
+        # pytest 9 exposes the collected file through ``path`` (``fspath`` was removed).
+        self.path = Path(__file__)
         self.own_markers = [
             pytest.mark.chrome_e2e(
                 execution_mode="SHARED",
                 access_scope="READ",
                 workload="LIVE",
             ),
-            pytest.mark.timeout(1800),
+            pytest.mark.timeout(600),
         ]
 
     def iter_markers(self, name: str | None = None):

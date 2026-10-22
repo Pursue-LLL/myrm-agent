@@ -112,6 +112,15 @@ class TestResolvePushUrl:
         )
         assert resolve_push_url(event) == "/settings/system"
 
+    def test_scheduled_backup_alert_routes_to_the_backup_settings(self) -> None:
+        from app.services.instance_archive.auto_backup import ALERT_COMPONENT
+
+        event = AppEvent(
+            event_type=AppEventType.HEALTH_ALERT,
+            data={"component": ALERT_COMPONENT, "status": "fail", "message": "Automatic backup has failed"},
+        )
+        assert resolve_push_url(event) == "/settings/workbench"
+
     def test_budget_alert_routes_to_system_settings(self) -> None:
         event = AppEvent(
             event_type=AppEventType.BUDGET_ALERT,

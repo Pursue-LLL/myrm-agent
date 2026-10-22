@@ -55,7 +55,8 @@ def make_summary_persist_with_wiki_archive(
         tokens_saved: int,
     ) -> None:
         await base_persist(chat_id, summary, before_message_id, tokens_saved)
-        if not enable_wiki or wiki_archive_llm is None:
+        archive_llm = wiki_archive_llm
+        if not enable_wiki or archive_llm is None:
             return
 
         import asyncio
@@ -70,7 +71,7 @@ def make_summary_persist_with_wiki_archive(
             notes_json = await notes_loader()
             if not notes_json:
                 return
-            await archive_session_notes_to_wiki(chat_id, notes_json, llm=wiki_archive_llm)
+            await archive_session_notes_to_wiki(chat_id, notes_json, llm=archive_llm)
 
         task = asyncio.create_task(_archive_after_compact())
         track_background_task(task)
@@ -115,17 +116,20 @@ def make_loaded_skills_persist_callback() -> Callable[[list[str], str | None], A
     return _persist
 
 
-def make_skill_review_callback() -> Callable[[dict[str, object]], None]:
+def make_skill_review_callback(*, memory_enabled: bool) -> Callable[[dict[str, object]], None]:
     """Create the on_skill_review_ready callback for the GeneralAgent.
 
     This callback is invoked by the Harness layer after a background skill review
     completes. It delegates the result into the unified skill growth lifecycle
-    without blocking the main agent response.
+    without blocking the main agent response. A semantic-memory finding is a proposal to
+    remember a fact about the user, so it is dropped when memory is off for this agent.
     """
 
     def _notify(result: dict[str, object]) -> None:
         import asyncio
 
+        if not memory_enabled and result.get("type") == "semantic_memory":
+            return
         asyncio.create_task(_notify_async(result))
 
     async def _notify_async(result: dict[str, object]) -> None:

@@ -1,13 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ModelsDevModel } from '@/services/models-dev';
 
-const { mockSyncSet, mockGetModelsForProvider } = vi.hoisted(() => ({
+const { mockSyncSet, mockGetModelsForProvider, mockStoredProviders } = vi.hoisted(() => ({
   mockSyncSet: vi.fn(),
   mockGetModelsForProvider: vi.fn(),
+  mockStoredProviders: { current: undefined as unknown },
 }));
 
 vi.mock('@/services/config', () => ({
-  getConfigSyncManager: () => ({ set: mockSyncSet, get: vi.fn(), subscribe: vi.fn(), initialize: vi.fn() }),
+  getConfigSyncManager: () => ({
+    set: mockSyncSet,
+    get: vi.fn((key: string) => (key === 'providers' ? mockStoredProviders.current : undefined)),
+    subscribe: vi.fn(() => () => {}),
+    initialize: vi.fn(async () => {}),
+  }),
+}));
+
+vi.mock('@/lib/backend-health', () => ({ ensureLocalBackendReady: vi.fn(async () => {}) }));
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
+  isLocalMode: () => false,
+}));
+vi.mock('@/lib/platform-readiness', () => ({
+  ensurePlatformReadiness: vi.fn(async () => ({ database: false })),
+}));
+vi.mock('@/services/provider-oauth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/provider-oauth')>()),
+  fetchProviderOAuthStatus: vi.fn(async () => ({ provider: 'xai', issuer: 'xai', connected: false })),
 }));
 
 vi.mock('@/services/models-dev', () => ({
@@ -36,7 +55,23 @@ function seed(
     customModelInfo: {},
     isInitialized: true,
   });
+  mockStoredProviders.current = {
+    providers: getInitialProviders(),
+    defaultModelConfig: getInitialDefaultModelConfig(),
+    customModelInfo: {},
+  };
 }
+
+// 提供商配置必须在服务端配置加载回来之后才会写回服务端（未加载时本地只有种子默认值，
+// 写回去会把服务端真实配置清空）。这里先完成一次加载，后续用例才能验证"变更被持久化"。
+beforeEach(async () => {
+  mockStoredProviders.current = {
+    providers: getInitialProviders(),
+    defaultModelConfig: getInitialDefaultModelConfig(),
+    customModelInfo: {},
+  };
+  await useProviderStore.getState().initProviders();
+});
 
 function xai(): ProviderConfig {
   const provider = useProviderStore.getState().providers.find((p) => p.id === 'xai');

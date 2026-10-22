@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
+from app.core.storage.paths import get_skill_file_path
+from app.core.storage.types import SkillType
 
 SKILL_MD = "---\nname: bundle-probe\ndescription: Probe seed with bundled files\n---\n# bundle-probe\n"
 PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x01\x02\xff"

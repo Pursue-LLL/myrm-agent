@@ -4,6 +4,7 @@ Transforms AppEvents into rich OutboundMessage payloads containing structured
 Markdown content, indicator headers, and interactive ActionButtons/QuickReplies.
 
 [INPUT]
+- myrm_agent_harness.toolkits.kanban.types::BlockKind (POS: a scheduled block is not sent to channels)
 - app.services.event.app_event_bus::AppEvent, AppEventType
 - app.core.notifications.approval_card::build_approval_card (POS: approval text and decision buttons per channel)
 - app.channels.types.components::ActionButton, ButtonStyle, QuickReply, ComponentRow
@@ -27,6 +28,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+from myrm_agent_harness.toolkits.kanban.types import BlockKind
 
 from app.channels.types.components import (
     ActionButton,
@@ -68,8 +71,6 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.CHANNEL_DISCONNECTED: (
         "[Myrm AI] Channel '{channel}' disconnected (status: {status}).\nPlease check Settings → Channels."
     ),
-    AppEventType.WECHAT_SESSION_EXPIRED: "[Myrm AI] WeChat session expired. Please re-login in Settings → Channels.",
-    AppEventType.CONFIG_HEALTH_WARNING: "[Myrm AI] Configuration issue detected.\nMissing: {missing_items}",
     AppEventType.SYSTEM_NOTIFICATION: "[Myrm AI] {title}: {message}",
     AppEventType.GOAL_TERMINAL: (
         "[Myrm AI] Goal {status}: {objective}\n"
@@ -132,6 +133,9 @@ def _format_kanban_text(data: dict[str, Any]) -> str | None:
     suffix = f"\n{detail[:200]}" if detail else ""
 
     resolved_status = status or action.removeprefix("task_")
+    # A scheduled block resumes by itself, so it is not worth a message to the owner's phone.
+    if resolved_status == "blocked" and data.get("block_kind") == BlockKind.SCHEDULED:
+        return None
     if resolved_status == "completed":
         return f'[Myrm AI] Kanban task "{title}" completed{suffix}'
     if resolved_status == "blocked":
@@ -229,14 +233,9 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
     task_id = str(data.get("task_id", ""))
     status = str(data.get("status", "completed"))
     title = str(data.get("title", data.get("task_title", "Task")))
-    summary = str(data.get("summary", data.get("detail", "")))
 
     icon = "✅" if status in ("completed", "complete") else ("🛑" if status == "failed" else "⚠️")
     header = f"{icon} **Task {status.capitalize()}: {title}**"
-
-    lines = [header]
-    if summary:
-        lines.append(f"\n{summary}")
 
     components: tuple[ComponentRow, ...] = ()
     board_id = data.get("board_id")
@@ -249,7 +248,7 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
         components = ((view_btn,),)
 
     return FormattedNotification(
-        content="\n".join(lines),
+        content=header,
         components=components,
         metadata={
             "task_id": task_id,

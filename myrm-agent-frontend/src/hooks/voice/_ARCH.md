@@ -15,8 +15,6 @@
 | `useLiveMeetingNotes.ts` | 会中实时纪要会话：final 转录入队上报（单飞 + 逐行 `line_id` 幂等）+ 滚动结构化纪要快照 |
 | `useVoicePttListener.ts` | Tauri PTT → DOM CustomEvent                                                            |
 | `voiceCommands.ts`       | 语音指令纯函数（停词精确匹配，句中口述不触发）                                         |
-| `voice-command-bypass.ts`| 本地 Tier-0 控制指令与导航直通匹配器（免调用 LLM，降低延迟并节省 Token）              |
-| `voice-screenshot-intent.ts`| 客户端语音视觉意图启发式检测器（自动截屏上下文感知并附加到 Agent 请求中）               |
 
 ## 依赖
 

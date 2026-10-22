@@ -12,9 +12,9 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline） | ✅ |
 | `blueprints.py` | 模块 | `GET/POST /blueprints` — 五语系（en/zh/ja/de/ko）蓝图目录与 fill；委托 `core.cron.blueprints` SSOT | ✅ |
 | `connector_health.py` | 模块 | `GET /connectors/health` — 连接器健康聚合与降级状态查询端点 | ✅ |
-| `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance. | ✅ |
+| `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance; the enable prompt passes the risk gate (`reject_if_risky`) before it is stored. | ✅ |
 | `helpers.py` | 模块 | Cron 响应映射；`workflow_template_display_name` 与 execution gate 同规则 enrich | — |
-| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；`POST /{job_id}/test-delivery` 复用投递链路做一键测试 | ✅ |
+| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；`POST /{job_id}/test-delivery` 复用投递链路做一键测试；create/PATCH 的 `prompt` 先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，原文不落库；PATCH 未带 `prompt` 时不重新过闸，`shell` 任务的 `command` 是被执行的命令，不过闸） | ✅ |
 | `prerequisite.py` | 模块 | `POST /prerequisite-check` — 定时任务创建前手动成功验证门禁统计查询端点 | ✅ |
 | `push_messages.py` | 模块 | Poll for recent cron push notifications (local single-user mode). | ✅ |
 | `runs.py` | 模块 | Cron run history REST endpoints. | ✅ |

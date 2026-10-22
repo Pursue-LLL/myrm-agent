@@ -1,7 +1,7 @@
 """System API Pydantic Request & Response Schemas.
 
 [INPUT]
-- app.services.system.storage_service::DatabaseStorageBreakdown, SubdirUsage (POS: Storage Breakdown Models)
+- app.services.system.storage_service::DatabaseStorageBreakdown (POS: Storage Breakdown Models)
 
 [OUTPUT]
 - IngressRequirementResponse
@@ -9,12 +9,11 @@
 - StorageOptimizePreflightResponse
 - StorageOptimizeRequest
 - StorageOptimizeResponse
+- SandboxRecreateRequest
 - SandboxRecreateResponse
 - StorageCategoryItem
 - StateSnapshotItem
 - StorageGovernanceReportResponse
-- StorageCompactionRequest
-- StorageCompactionResponse
 - CreateSnapshotRequest
 - SnapshotActionResponse
 - TelemetryPostureResponse
@@ -27,7 +26,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.services.system.storage_service import DatabaseStorageBreakdown, SubdirUsage
+from app.services.system.storage_service import DatabaseStorageBreakdown
 
 
 class IngressRequirementResponse(BaseModel):
@@ -42,8 +41,7 @@ class StorageInfoResponse(BaseModel):
     disk_total_bytes: int
     disk_used_bytes: int
     disk_free_bytes: int
-    subdirs: list[SubdirUsage]
-    db_breakdown: DatabaseStorageBreakdown | None = None
+    db_breakdown: DatabaseStorageBreakdown
 
 
 class StorageOptimizePreflightResponse(BaseModel):
@@ -74,18 +72,20 @@ class StorageOptimizeResponse(BaseModel):
     message: str
 
 
+class SandboxRecreateRequest(BaseModel):
+    # Off by default: a plain restart (e.g. after restoring a backup) must keep the user's installed Python packages.
+    reset_python_env: bool = False
+
+
 class SandboxRecreateResponse(BaseModel):
     status: str
-    message: str
 
 
 class StorageCategoryItem(BaseModel):
     category: str
-    display_name: str
     bytes: int
     item_count: int
     percentage: float
-    details: dict[str, int] = {}
 
 
 class StateSnapshotItem(BaseModel):
@@ -104,25 +104,7 @@ class StorageGovernanceReportResponse(BaseModel):
     disk_used_percentage: float
     categories: list[StorageCategoryItem]
     snapshots: list[StateSnapshotItem]
-    recommended_actions: list[str]
-    is_growth_healthy: bool
     generated_at: str
-
-
-class StorageCompactionRequest(BaseModel):
-    purge_orphan_checkpoints: bool = True
-    incremental_pages: int = 500
-
-
-class StorageCompactionResponse(BaseModel):
-    success: bool
-    initial_bytes: int
-    final_bytes: int
-    freed_bytes: int
-    purged_checkpoints: int
-    wal_truncated: bool
-    duration_ms: float
-    message: str
 
 
 class CreateSnapshotRequest(BaseModel):
@@ -139,6 +121,7 @@ class SnapshotActionResponse(BaseModel):
     success: bool
     message: str
     snapshot: StateSnapshotItem | None = None
+    requires_restart: bool = False
 
 
 class TelemetryPostureResponse(BaseModel):
@@ -156,4 +139,3 @@ class TelemetryPostureResponse(BaseModel):
     three_tier_semantics: bool = True
     prompt_cache_metering: bool = True
     error: str | None = None
-

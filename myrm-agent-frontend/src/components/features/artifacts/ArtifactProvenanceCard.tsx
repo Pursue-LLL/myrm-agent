@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 import { useTranslations } from 'next-intl';
 import {
   FileText,
@@ -114,7 +115,7 @@ export const ArtifactProvenanceCard: React.FC<ArtifactProvenanceCardProps> = ({
                 {item.name}
               </h4>
               <p className="text-[11px] text-muted-foreground">
-                {formatBytes(item.size_bytes)} · {new Date(item.updated_at).toLocaleDateString()}
+                {formatBytes(item.size_bytes)} · {parseServerTimestamp(item.updated_at).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -130,9 +131,7 @@ export const ArtifactProvenanceCard: React.FC<ArtifactProvenanceCardProps> = ({
         </div>
 
         {item.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-            {item.description}
-          </p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{item.description}</p>
         )}
 
         <div className="flex flex-wrap items-center gap-1.5 mb-3">

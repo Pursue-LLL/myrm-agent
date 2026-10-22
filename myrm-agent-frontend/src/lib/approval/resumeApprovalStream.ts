@@ -11,7 +11,12 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { AgentBusyError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
+import {
+  AgentBusyError,
+  ApprovalAlreadyResolvedError,
+  RiskBlockedError,
+  isAgentBusySseEvent,
+} from '@/store/chat/streamErrors';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload
@@ -50,7 +55,8 @@ export async function resumeApprovalStream(
     message_id: request.messageId,
     chat_id: request.chatId,
     action_mode: request.actionMode,
-    resume_value: resumeValue,
+    // The interrupt the card was announced for: the answer settles that interrupt only, never a later one.
+    resume_value: request.interruptId ? { ...resumeValue, interruptId: request.interruptId } : resumeValue,
     model_selection: modelSelection,
     timezone: getBrowserTimezone(),
     ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
@@ -70,7 +76,7 @@ export async function resumeApprovalStream(
 
   if (!response.ok) {
     if (response.status === 409) {
-      throw new ApprovalExpiredError();
+      throw new ApprovalAlreadyResolvedError();
     }
     throw new Error(`Approval resume failed: HTTP ${response.status}`);
   }
@@ -90,6 +96,7 @@ export async function resumeApprovalStream(
   const scheduler = new AdaptiveScheduler();
   const streamState: StreamHandlerState = {
     chatId: chatState.chatId,
+    actionMode: request.actionMode,
     messages: chatState.messages,
     messageAppeared: chatState.messageAppeared,
     loading: chatState.loading,
@@ -127,7 +134,8 @@ export async function resumeApprovalStream(
         added = result.added;
         recievedMessage = result.recievedMessage;
       } catch (error) {
-        if (error instanceof AgentBusyError) {
+        // A held reason leaves the approval pending: the risk event has shown its notice and the card keeps its text.
+        if (error instanceof AgentBusyError || error instanceof RiskBlockedError) {
           throw error;
         }
         console.error('[APPROVAL] Stream parse error:', error);
@@ -140,11 +148,4 @@ export async function resumeApprovalStream(
 
   const { finalizeAgentStreamTurn } = await import('@/store/chat/chatAgentSessionRestore');
   await finalizeAgentStreamTurn(request.chatId);
-}
-
-export class ApprovalExpiredError extends Error {
-  constructor() {
-    super('Approval has already been resolved by timeout');
-    this.name = 'ApprovalExpiredError';
-  }
 }

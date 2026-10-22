@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from '@/lib/api';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 
 export interface RunDigestStep {
   index: number;
@@ -51,6 +52,8 @@ export async function askAdvisor(
     }),
   });
   if (!res.ok) {
+    // A question a risk rule holds gets its notice here; the caller only sees the null and keeps the typed text.
+    await riskHeldErrorFromResponse(res);
     return null;
   }
   const json = (await res.json()) as {

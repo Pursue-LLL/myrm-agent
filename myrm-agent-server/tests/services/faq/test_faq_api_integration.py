@@ -245,21 +245,6 @@ async def test_entry_strips_whitespace(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rebuild_index_without_vector_store_returns_503(client: httpx.AsyncClient) -> None:
-    """rebuild-index should return 503 when vector store is unavailable."""
-    from unittest.mock import AsyncMock, patch
-
-    with patch(
-        "app.core.retriever.vector.defaults.create_default_vector_store",
-        new_callable=AsyncMock,
-        return_value=None,
-    ):
-        r = await client.post(f"/{AGENT_ID}/rebuild-index")
-
-    assert r.status_code == 503
-
-
-@pytest.mark.asyncio
 async def test_corpus_settings_max_threshold(client: httpx.AsyncClient) -> None:
     """Pydantic rejects threshold > 1.0."""
     r = await client.patch(

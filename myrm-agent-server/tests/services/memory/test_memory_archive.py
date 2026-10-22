@@ -193,6 +193,30 @@ async def test_memory_archive_exports_single_sandbox_sections(db_session: AsyncS
     assert semantic[0]["content"] == "Use SQLite. api_key=[REDACTED]"
 
 
+@pytest.mark.asyncio
+async def test_memory_archive_leaves_out_incognito_web_chats_but_keeps_imported_transcripts(db_session: AsyncSession) -> None:
+    now = datetime.now(UTC)
+    chats = {
+        "regular": Chat(id="chat-regular", title="Planning", source="web"),
+        "incognito": Chat(id="chat-incognito", source="web", is_incognito=True),
+        # Imported agent transcripts reuse the incognito flag only to stay out of the sidebar.
+        "imported": Chat(id="chat-imported", source="external:claude_code", is_incognito=True),
+    }
+    db_session.add_all(chats.values())
+    db_session.add_all(
+        Message(id=f"msg-{key}", chat_id=chat.id, role="user", content=f"{key} question", sent_at=now, sent_timezone="UTC")
+        for key, chat in chats.items()
+    )
+    await db_session.commit()
+
+    archive = await MemoryArchiveService(db_session).export_archive(_ArchiveMemoryManager())
+
+    conversation = archive.data["conversation"]
+    assert isinstance(conversation, list)
+    assert {chat["id"] for chat in conversation} == {"chat-regular", "chat-imported"}
+    assert "incognito question" not in str(conversation)
+
+
 def test_myrm_archive_memory_section_uses_import_review_path() -> None:
     payload = {
         "manifest": {

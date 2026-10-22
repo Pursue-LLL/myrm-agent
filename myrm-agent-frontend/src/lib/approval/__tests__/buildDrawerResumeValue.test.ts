@@ -79,6 +79,37 @@ describe('buildDrawerResumeValue', () => {
     });
   });
 
+  it('carries the note written on an approval as guidance, not feedback', () => {
+    // The harness reads `guidance` on an approval and `feedback` on a rejection; a note sent as
+    // feedback on an approval is read by nobody.
+    const resumeValue = buildDrawerResumeValue(baseApproval, 'approve', { guidance: 'only staging, not prod' });
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(2);
+    for (const decision of decisions) {
+      expect(decision.guidance).toBe('only staging, not prod');
+      expect(decision.feedback).toBeUndefined();
+    }
+  });
+
+  it('carries the note written on a single-decision gate approval', () => {
+    const domApproval: ApprovalPayload = {
+      approval_id: 'dom-1',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      chat_id: 'chat-1',
+      payload: { tool_input: { action: 'evaluate', expression: 'document.forms[0].submit()' } },
+    };
+
+    expect(buildDrawerResumeValue(domApproval, 'approve', { guidance: 'use the staging URL' })).toEqual({
+      decision: 'approve',
+      guidance: 'use the staging URL',
+    });
+    // A plain approve stays exactly what it was.
+    expect(buildDrawerResumeValue(domApproval, 'approve')).toEqual({ decision: 'approve' });
+  });
+
   it('marks high_risk_dom_action as resumable with semantic decision payload', () => {
     expect(shouldResumeDrawerApproval('high_risk_dom_action')).toBe(true);
 
@@ -101,8 +132,53 @@ describe('buildDrawerResumeValue', () => {
     expect(rejected).toEqual({ decision: 'reject', feedback: 'too risky' });
   });
 
-  it('builds edit decision with edited args for single-tool batch', () => {
-    const singleToolApproval: ApprovalPayload = {
+  it('resumes the batch cost gate so its decision reaches the delegation pause', () => {
+    expect(shouldResumeDrawerApproval('batch_cost_approval')).toBe(true);
+
+    const costApproval: ApprovalPayload = {
+      approval_id: 'cost-1',
+      user_id: 'user-1',
+      action_type: 'batch_cost_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      chat_id: 'chat-1',
+      payload: {
+        task_count: 3,
+        estimated_cost_usd: 4.43,
+      },
+    };
+
+    expect(buildDrawerResumeValue(costApproval, 'approve')).toEqual({ decision: 'approve' });
+    expect(buildDrawerResumeValue(costApproval, 'reject', { feedback: 'too expensive' })).toEqual({
+      decision: 'reject',
+      feedback: 'too expensive',
+    });
+  });
+
+  it('resumes the privileged script gate so its decision reaches the browser pause', () => {
+    expect(shouldResumeDrawerApproval('script_privileged_api')).toBe(true);
+
+    const scriptApproval: ApprovalPayload = {
+      approval_id: 'script-1',
+      user_id: 'user-1',
+      action_type: 'script_privileged_api',
+      status: 'PENDING',
+      severity: 'warning',
+      chat_id: 'chat-1',
+      payload: {
+        tool_name: 'browser_execute_script_tool',
+        reason: 'Script accesses privileged APIs that bypass network policy: .request.get()',
+      },
+    };
+
+    expect(buildDrawerResumeValue(scriptApproval, 'approve')).toEqual({ decision: 'approve' });
+    expect(buildDrawerResumeValue(scriptApproval, 'reject')).toEqual({
+      decision: 'reject',
+      feedback: 'User rejected this action.',
+    });
+  });
+
+  it('builds edit decision with edited args for single-tool batch', () => {    const singleToolApproval: ApprovalPayload = {
       ...baseApproval,
       payload: {
         tool_calls: [{ name: 'bash_code_execute_tool', args: { command: 'ls' } }],

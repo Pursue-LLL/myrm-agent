@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Check, Copy, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
@@ -10,10 +10,11 @@ import type { Artifact, ArtifactType } from '@/store/chat/types';
 import { HtmlPreview } from '@/components/features/artifacts/renderers/MediaPreview';
 import { CODE_BLOCK_THEME, CODE_BLOCK_CONTAINER, CODE_BLOCK_TOOLBAR } from '@/lib/constants/codeblock-theme';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { PinToDashboardButton } from '@/components/features/dashboard-workspace';
 
 /**
  * Inline HTML Widget — renders HTML/SVG code blocks as live previews
- * with a compact toolbar for copy and full-screen portal view.
+ * with a compact toolbar for copy, pin-to-dashboard, and full-screen portal view.
  */
 const InlineHtmlWidget: React.FC<{
   language: string;
@@ -22,6 +23,15 @@ const InlineHtmlWidget: React.FC<{
   const t = useTranslations('codeBlock');
   const [copied, setCopied] = useState(false);
   const { addTab, updateTabContent, updateTabLoading } = useArtifactPortalStore();
+
+  const widgetId = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+      hash = (hash << 5) - hash + value.charCodeAt(i);
+      hash |= 0;
+    }
+    return `widget-${language}-${Math.abs(hash)}`;
+  }, [language, value]);
 
   const handleCopy = useCallback(() => {
     writeToClipboard(value);
@@ -71,6 +81,13 @@ const InlineHtmlWidget: React.FC<{
         <span className="font-mono">{language}</span>
 
         <div className="flex items-center space-x-1">
+          <PinToDashboardButton
+            widgetId={widgetId}
+            title={`${language.toUpperCase()} 原型看板`}
+            language={language}
+            content={value}
+          />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button

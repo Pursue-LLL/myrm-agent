@@ -9,7 +9,7 @@ app.core.channel_bridge.config_loader::_load_single_config
 [OUTPUT]
 - build_wiki_asset_caption_provider(): AssetCaptionProvider | None
 - run_wiki_asset_index(archiver): AssetIndexResult
-- schedule_wiki_asset_index(archiver, agent_id=None): None — fire-and-forget for import
+- schedule_wiki_asset_index(archiver, agent_id=None): None — fire-and-forget for import and manual compile
 - wiki_asset_index_enabled(): bool
 
 [POS]
@@ -150,7 +150,7 @@ def schedule_wiki_asset_index(
     *,
     agent_id: str | None = None,
 ) -> None:
-    """Schedule asset indexing without blocking the HTTP response (import path)."""
+    """Schedule asset indexing without blocking the HTTP response (import and manual compile)."""
     vault_key = str(archiver._structure.base_dir)
     existing = _active_asset_index_tasks.get(vault_key)
     if existing is not None and not existing.done():

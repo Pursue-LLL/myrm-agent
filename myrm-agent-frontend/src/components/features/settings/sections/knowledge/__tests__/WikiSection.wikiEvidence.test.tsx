@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 const queryWikiMock = vi.fn();
 const listAgentsMock = vi.fn();
@@ -9,8 +9,23 @@ const apiRequestMock = vi.fn();
 const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
+const startWikiMaintainMock = vi.fn();
+const getWikiMaintainStatusMock = vi.fn();
+const cancelWikiMaintainMock = vi.fn();
+const compileWikiMock = vi.fn();
 
-const stableT = (key: string) => key;
+// What the live ingest stream last said; the page reads it through useWikiIngestSubscription.
+const ingestStream = vi.hoisted(() => ({
+  snapshot: null as object | null,
+  listeners: new Set<(snapshot: object) => void>(),
+}));
+
+// Every translation request, so a test can tell which values the page supplied to a message.
+const translateCalls: Array<[string, unknown]> = [];
+const stableT = (key: string, values?: unknown) => {
+  translateCalls.push([key, values]);
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -39,6 +54,14 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api', () => ({
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+  ApiError: class ApiError extends Error {
+    constructor(
+      message: string,
+      public code: number = 50001,
+    ) {
+      super(message);
+    }
+  },
 }));
 
 vi.mock('@/lib/utils/clipboardUtils', () => ({
@@ -46,8 +69,12 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 }));
 
 vi.mock('@/services/wikiService', () => ({
+  startWikiMaintain: (...args: unknown[]) => startWikiMaintainMock(...args),
+  getWikiMaintainStatus: (...args: unknown[]) => getWikiMaintainStatusMock(...args),
+  cancelWikiMaintain: (...args: unknown[]) => cancelWikiMaintainMock(...args),
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
+    compileWiki: (...args: unknown[]) => compileWikiMock(...args),
     getHealthReport: vi.fn().mockResolvedValue({
       mode: 'structural',
       generated_at: new Date().toISOString(),
@@ -68,9 +95,27 @@ vi.mock('@/services/wikiService', () => ({
   },
 }));
 
-vi.mock('../useWikiIngestSubscription', () => ({
-  useWikiIngestSubscription: () => ({ connected: false, snapshot: null }),
-}));
+vi.mock('../useWikiIngestSubscription', async () => {
+  const { useEffect, useRef, useState } = await import('react');
+  return {
+    useWikiIngestSubscription: (_scope: unknown, options?: { onSnapshot?: (snapshot: object) => void }) => {
+      const [snapshot, setSnapshot] = useState<object | null>(ingestStream.snapshot);
+      const onSnapshot = useRef(options?.onSnapshot);
+      onSnapshot.current = options?.onSnapshot;
+      useEffect(() => {
+        const listener = (next: object) => {
+          setSnapshot(next);
+          onSnapshot.current?.(next);
+        };
+        ingestStream.listeners.add(listener);
+        return () => {
+          ingestStream.listeners.delete(listener);
+        };
+      }, []);
+      return { connected: snapshot !== null, snapshot };
+    },
+  };
+});
 
 vi.mock('@/services/agent', () => ({
   listAgents: (...args: unknown[]) => listAgentsMock(...args),
@@ -149,6 +194,7 @@ vi.mock('@/components/features/icons/PremiumIcons', () => {
     IconShield: Icon,
     IconShieldCheck: Icon,
     IconSquare: Icon,
+    IconStop: Icon,
     IconTrash: Icon,
     IconUpload: Icon,
     IconVideo: Icon,
@@ -229,48 +275,79 @@ vi.mock('@/components/primitives/select', () => ({
   SelectValue: () => <div />,
 }));
 
+import { toast } from 'sonner';
+import { ApiError } from '@/lib/api';
+import { RiskHeldRefusalError } from '@/services/riskHeldToast';
+import type { WikiMaintainResponse, WikiMaintainStatus } from '@/services/wikiService';
 import { WikiSection } from '../WikiSection';
+import { MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
+
+function maintainStatus(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {
+  return {
+    state: 'idle',
+    mode: null,
+    phase: null,
+    done: 0,
+    total: 0,
+    cancel_requested: false,
+    result: null,
+    error_code: null,
+    ...overrides,
+  };
+}
+
+function resetWikiMocks() {
+  queryWikiMock.mockReset();
+  startWikiMaintainMock.mockReset();
+  getWikiMaintainStatusMock.mockReset();
+  getWikiMaintainStatusMock.mockResolvedValue(maintainStatus());
+  cancelWikiMaintainMock.mockReset();
+  compileWikiMock.mockReset();
+  ingestStream.snapshot = null;
+  ingestStream.listeners.clear();
+  listAgentsMock.mockReset();
+  apiRequestMock.mockReset();
+  recordWikiQueryAttemptMock.mockReset();
+  recordWikiQuerySubmittedMock.mockReset();
+  recordEvidenceSurfaceMock.mockReset();
+  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.message).mockClear();
+  vi.mocked(toast.error).mockClear();
+
+  listAgentsMock.mockResolvedValue({ items: [] });
+  apiRequestMock.mockImplementation((path: string) => {
+    if (path.includes('/wiki/purpose')) {
+      return Promise.resolve({ purpose: '' });
+    }
+    if (path.includes('/wiki/stats')) {
+      return Promise.resolve({
+        total_concepts: 0,
+        total_articles: 0,
+        total_raw_files: 0,
+        wiki_path: '/tmp/wiki',
+        vault_ready: true,
+        legacy_migrated: true,
+      });
+    }
+    return Promise.resolve({});
+  });
+  queryWikiMock.mockResolvedValue({
+    answer: 'Wiki answer',
+    related_articles: ['article-a'],
+    source_snippets: [
+      {
+        path: 'team/.overview.md',
+        name: 'team',
+        snippet: 'evidence details',
+        section: 'Overview',
+        level: 'L1',
+      },
+    ],
+  });
+}
 
 describe('WikiSection evidence snippet flow', () => {
-  beforeEach(() => {
-    queryWikiMock.mockReset();
-    listAgentsMock.mockReset();
-    apiRequestMock.mockReset();
-    recordWikiQueryAttemptMock.mockReset();
-    recordWikiQuerySubmittedMock.mockReset();
-    recordEvidenceSurfaceMock.mockReset();
-
-    listAgentsMock.mockResolvedValue({ items: [] });
-    apiRequestMock.mockImplementation((path: string) => {
-      if (path.includes('/wiki/purpose')) {
-        return Promise.resolve({ purpose: '' });
-      }
-      if (path.includes('/wiki/stats')) {
-        return Promise.resolve({
-          total_concepts: 0,
-          total_articles: 0,
-          total_raw_files: 0,
-          wiki_path: '/tmp/wiki',
-          vault_ready: true,
-          legacy_migrated: true,
-        });
-      }
-      return Promise.resolve({});
-    });
-    queryWikiMock.mockResolvedValue({
-      answer: 'Wiki answer',
-      related_articles: ['article-a'],
-      source_snippets: [
-        {
-          path: 'team/.overview.md',
-          name: 'team',
-          snippet: 'evidence details',
-          section: 'Overview',
-          level: 'L1',
-        },
-      ],
-    });
-  });
+  beforeEach(resetWikiMocks);
 
   it('records query/surface and opens snippet drawer with settings surface', async () => {
     render(<WikiSection />);
@@ -295,5 +372,339 @@ describe('WikiSection evidence snippet flow', () => {
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-level')).toBe('L1');
     expect(drawer.getAttribute('data-surface')).toBe('settings');
+  });
+});
+
+describe('WikiSection query the server refuses', () => {
+  let consoleError: MockInstance<typeof console.error>;
+
+  beforeEach(() => {
+    resetWikiMocks();
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  async function askWiki(question: string) {
+    render(<WikiSection />);
+    const queryInput = await screen.findByPlaceholderText('query.placeholder');
+    fireEvent.change(queryInput, { target: { value: question } });
+    fireEvent.click(screen.getByText('actions.query'));
+    await waitFor(() => expect(queryWikiMock).toHaveBeenCalledWith(question, 'auto', null));
+    return queryInput;
+  }
+
+  it('adds no failure toast of its own when a risk rule holds the question, and keeps the typed text', async () => {
+    queryWikiMock.mockRejectedValue(new RiskHeldRefusalError({ code: 'risk_held', rules: [] }));
+
+    const queryInput = await askWiki('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+
+    // The page logs the failure right before it decides on a toast, so the log marks the decision as made.
+    await waitFor(() => expect(consoleError).toHaveBeenCalledWith('Query failed:', expect.any(RiskHeldRefusalError)));
+    expect(toast.error).not.toHaveBeenCalledWith('errors.queryFailed');
+    expect((queryInput as HTMLInputElement).value).toBe('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+  });
+
+  it('still reports any other failure of the query', async () => {
+    queryWikiMock.mockRejectedValue(new Error('network down'));
+
+    await askWiki('where is policy?');
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.queryFailed'));
+  });
+});
+
+describe('WikiSection maintenance flow', () => {
+  beforeEach(() => {
+    resetWikiMocks();
+    // The poll cadence is a production concern; the flow under test only needs the polls to happen.
+    const realSetTimeout = window.setTimeout.bind(window);
+    const pollDelays = [MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS];
+    vi.spyOn(window, 'setTimeout').mockImplementation(((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
+      realSetTimeout(handler, pollDelays.includes(delay ?? -1) ? 0 : delay, ...args)) as typeof window.setTimeout);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const RESULT: WikiMaintainResponse = {
+    issues_found: 1,
+    issues_fixed: 1,
+    connections_discovered: 3,
+    duration_ms: 240_000,
+    open_actions_count: 0,
+    raw_security_removed: 0,
+    raw_security_removed_paths: [],
+    issues: [],
+    ai_unavailable: false,
+  };
+
+  function buttonWithText(text: string): Promise<HTMLButtonElement> {
+    return screen.findByText(text).then((node) => node.closest('button') as HTMLButtonElement);
+  }
+
+  it('locks the button for the whole run, shows the progress, then reports the discovered links', async () => {
+    let finishRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      finishRun = resolve;
+    });
+    startWikiMaintainMock.mockResolvedValue(maintainStatus({ state: 'running', mode: 'structural' }));
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus())
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'structural', phase: 'link_discovery', done: 7, total: 20 }),
+      )
+      .mockReturnValueOnce(lastPoll);
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    const progressButton = await buttonWithText('maintainProgress.linkDiscovery');
+    expect(progressButton.disabled).toBe(true);
+    expect(startWikiMaintainMock).toHaveBeenCalledWith('structural', null);
+    expect(toast.success).not.toHaveBeenCalled();
+
+    finishRun(maintainStatus({ state: 'succeeded', mode: 'structural', result: RESULT }));
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
+    });
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+    expect(startWikiMaintainMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the user to wait for the compile when it blocks the start', async () => {
+    startWikiMaintainMock.mockRejectedValue(new ApiError('conflict', 409));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainCompileBusy');
+    });
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+  });
+
+  it('picks a run back up after the page is reopened and reports its result', async () => {
+    let finishRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      finishRun = resolve;
+    });
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'full', phase: 'drift_review', done: 2, total: 5 }),
+      )
+      .mockReturnValueOnce(lastPoll);
+    render(<WikiSection />);
+
+    expect((await buttonWithText('maintainProgress.driftReview')).disabled).toBe(true);
+    expect(startWikiMaintainMock).not.toHaveBeenCalled();
+
+    finishRun(maintainStatus({ state: 'succeeded', mode: 'full', result: RESULT }));
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
+    });
+  });
+
+  it('stops a full run on request, tells the user what is kept and unlocks the button', async () => {
+    let endRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      endRun = resolve;
+    });
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'full', phase: 'link_discovery', done: 4, total: 20 }),
+      )
+      .mockReturnValueOnce(lastPoll);
+    cancelWikiMaintainMock.mockResolvedValue(
+      maintainStatus({
+        state: 'running',
+        mode: 'full',
+        phase: 'link_discovery',
+        done: 4,
+        total: 20,
+        cancel_requested: true,
+      }),
+    );
+    render(<WikiSection />);
+
+    const stopButton = await buttonWithText('actions.maintainCancel');
+    expect(stopButton.disabled).toBe(false);
+    fireEvent.click(stopButton);
+
+    expect((await buttonWithText('actions.maintainCancelling')).disabled).toBe(true);
+    expect(cancelWikiMaintainMock).toHaveBeenCalledWith(null);
+
+    endRun(maintainStatus({ state: 'cancelled', mode: 'full', result: RESULT }));
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.maintainCancelled');
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('wiki-maintain-cancel-button')).toBeNull();
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+  });
+
+  it('offers no stop while a structural run is in flight', async () => {
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus({ state: 'running', mode: 'structural' }))
+      .mockReturnValue(new Promise<WikiMaintainStatus>(() => {}));
+    render(<WikiSection />);
+
+    expect((await buttonWithText('maintaining')).disabled).toBe(true);
+    expect(screen.queryByTestId('wiki-maintain-cancel-button')).toBeNull();
+  });
+
+  it('tells the user when the stop request did not go through and lets them try again', async () => {
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus({ state: 'running', mode: 'full' }))
+      .mockReturnValue(new Promise<WikiMaintainStatus>(() => {}));
+    cancelWikiMaintainMock.mockRejectedValue(new Error('network down'));
+    render(<WikiSection />);
+
+    fireEvent.click(await buttonWithText('actions.maintainCancel'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainCancelFailed');
+    });
+    expect((await buttonWithText('actions.maintainCancel')).disabled).toBe(false);
+  });
+
+  it('reports a failed run with the generic failure message', async () => {
+    startWikiMaintainMock.mockResolvedValue(maintainStatus({ state: 'running', mode: 'full' }));
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus())
+      .mockResolvedValueOnce(maintainStatus({ state: 'failed', mode: 'full', error_code: 'maintain_failed' }));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainFailed');
+    });
+  });
+});
+
+describe('WikiSection compile flow', () => {
+  beforeEach(resetWikiMocks);
+
+  const RUNNING_CIRCUIT = { state: 'running', pause_reason: '', primary_error_kind: '', phase: 'idle' } as const;
+
+  function emitIngestSnapshot(stats: { pending?: number; processing?: number }, compileRun: object = RUNNING_CIRCUIT) {
+    const snapshot = {
+      stats: { pending: 0, processing: 0, completed: 0, failed: 0, ...stats },
+      compile_run: compileRun,
+    };
+    ingestStream.snapshot = snapshot;
+    act(() => {
+      ingestStream.listeners.forEach((listener) => listener(snapshot));
+    });
+  }
+
+  function buttonWithText(text: string): Promise<HTMLButtonElement> {
+    return screen.findByText(text).then((node) => node.closest('button') as HTMLButtonElement);
+  }
+
+  it('hands the compile to the background and says how much is queued, without waiting for it', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 3, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.compileStarted');
+    });
+    expect(compileWikiMock).toHaveBeenCalledWith(null);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((await buttonWithText('actions.compile')).disabled).toBe(false);
+  });
+
+  it('says so when there is nothing new to compile', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 0, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.compileNothingNew');
+    });
+  });
+
+  it('explains why nothing runs when the compile circuit is paused', async () => {
+    compileWikiMock.mockResolvedValue({
+      pending: 2,
+      compile_run: { ...RUNNING_CIRCUIT, state: 'paused', pause_reason: 'Provider key was rejected' },
+    });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith('Provider key was rejected');
+    });
+    expect(toast.message).not.toHaveBeenCalled();
+  });
+
+  it('sends a dedup block to the duplicate review instead of reporting a failure', async () => {
+    compileWikiMock.mockRejectedValue(new ApiError('conflict', 409));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.compileBlockedByDedup');
+    });
+  });
+
+  it('reports the end of the compile once, when the queue drains after this page started it', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 2, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+    fireEvent.click(await screen.findByText('actions.compile'));
+    await waitFor(() => expect(toast.message).toHaveBeenCalledWith('success.compileStarted'));
+
+    emitIngestSnapshot({ pending: 2 });
+    emitIngestSnapshot({ processing: 2 });
+    expect(toast.success).not.toHaveBeenCalled();
+    emitIngestSnapshot({});
+    emitIngestSnapshot({});
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.compileFinished');
+    });
+    expect(translateCalls).toContainEqual(['success.compileFinished', { tab: 'tabs.pendingEdits' }]);
+
+    emitIngestSnapshot({ processing: 1 });
+    emitIngestSnapshot({});
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet when a queue that this page did not start drains', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({ processing: 1 });
+    emitIngestSnapshot({});
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an idle compile circuit as a compile in flight: maintenance stays available', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({}, { ...RUNNING_CIRCUIT, phase: 'idle' });
+
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+    expect((await buttonWithText('actions.compile')).disabled).toBe(false);
+  });
+
+  it('locks maintenance and shows the compile as running while the worker has files in flight', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({ processing: 2 });
+
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(true);
+    expect((await buttonWithText('compiling')).disabled).toBe(false);
   });
 });

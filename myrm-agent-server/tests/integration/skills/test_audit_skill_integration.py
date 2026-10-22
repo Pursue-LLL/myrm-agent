@@ -15,15 +15,15 @@ from unittest.mock import patch
 import pytest
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import (
-    get_skill_file_path,
-    get_skill_metadata_path,
-)
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.service import SkillsService
 from app.core.skills.store.user_config import UserSkillConfigManager
+from app.core.storage.paths import (
+    get_skill_file_path,
+    get_skill_metadata_path,
+)
+from app.core.storage.types import SkillType
 
 SKILL_ID = "test-audit"
 

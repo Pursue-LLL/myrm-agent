@@ -6,15 +6,16 @@
 
 ### 支持范围策略（封闭集合）
 
-**Wizard 自动发现的来源（本地 filesystem scan）固定为 5 种：**
+**Wizard 自动发现的来源（本地 filesystem scan）固定为 6 种：**
 
 | id | 产品名 | 发现方式 |
 |----|--------|----------|
 | `hermes` | Hermes | 本地 scan |
 | `openclaw` | OpenClaw | 本地 scan |
-| `claude` | Claude Code | 本地 scan |
-| `codex` | Codex | 本地 scan |
+| `claude` | Claude Code | 本地 scan（含 `projects/*/memory` 自动记忆与设置里的 `autoMemoryDirectory`） |
+| `codex` | Codex | 本地 scan（含 `memories/MEMORY.md` / `memories/memory_summary.md`） |
 | `pi` | Pi | 本地 scan |
+| `plur` | PLUR | 本地 scan（`PLUR_PATH` / `~/.plur` / `engrams.yaml`）+ ZIP upload |
 
 **ZIP upload 检测的来源（Cloud/SaaS 与 Local 均可）：**
 
@@ -22,12 +23,13 @@
 |----|--------|----------|
 | `chatgpt` | ChatGPT | ZIP upload 内检测 conversations.json |
 | `gbrain` | gbrain | ZIP upload 内检测 ≥3 个含 YAML frontmatter `type:` 字段的 .md 文件 |
+| `plur` | PLUR | ZIP upload 内检测 Open Engram Standard 的 `engrams.yaml` |
 
 **政策**：不添加 Cowork、Cursor、Windsurf、Trae、QwenPaw 或其他工具的 Wizard 扫描/导入。Memory Center 手动导入（如 `cursor_rules`、`mem0`、归档 JSON）与 Wizard discover **解耦**，不受此政策限制。ChatGPT 属于 upload-only 类型，不扩展 filesystem probe。
 
 新增 probe/loader 须修改本 `_ARCH.md` 并获产品确认；默认拒绝。
 
-**Architecture 守门**：`tests/architecture/test_migration_source_closure.py` 强制 probe 模块、`supported_source_ids()`、loader 注册三处同步。
+**Architecture 守门**：`tests/architecture/test_migration_source_closure.py` 强制 probe 模块、manifest 本地扫描 id 集合与 loader 注册三处同步。
 
 ## 文件清单
 
@@ -37,7 +39,8 @@
 | `hermes/`（子包） | 核心 | Hermes 迁移子域：cron 迁移（jobs.json → Myrm CronJob 映射 + dry-run plan + confirm 写入 CronManager 默认 paused + batch rollback）与 MoA 迁移（`moa.presets` → 目标 Agent `moa_overlay`）。3 个 `hermes_*` 模块聚合于此，`hermes/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
-| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
+| `_loaders_claude.py` | 核心 | Claude Code 车道：CLAUDE.md/CLAUDE.local.md 规则、`projects/*/memory` 自动记忆（索引仅作兜底）、settings/MCP 配置、skills 与 transcripts | ✅ |
+| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（load_usage_sidecar 读取 Hermes .usage.json、serialize_transcript 转录本序列化） | ✅ |
 | `obsidian_vault_hints.py` | 辅助 | Obsidian vault 路径发现（Codex/Claude settings → 规范化目录路径，供 workspace bind + wiki import 交接） | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
@@ -56,9 +59,9 @@ source/
 ├── __init__.py               # 聚合门面，统一 re-export 9 个模块公共符号
 ├── source_discovery.py       # 数据类 + discover_external_sources 编排入口
 ├── source_manifest.py        # 迁移来源 SSOT（display name / import map / discover / deep-link）
-├── source_probes.py          # 5 源 filesystem probe（hermes/claude/openclaw/codex/pi）
+├── source_probes.py          # 6 源 filesystem probe（hermes/claude/openclaw/codex/pi/plur）
 ├── source_payload_loader.py  # 公共 API：load_source_payload / build_coverage_items / extract_pending_skills
-├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi
+├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/chatgpt/gbrain）+ re-export 三个来源车道
 ├── source_payload_split.py   # payload 拆分为 instruction 与 memory 两路
 ├── source_migration_types.py # 四车道迁移 DTO
 ├── source_secrets_importer.py # opt-in 从竞品 .env 导入 API Key

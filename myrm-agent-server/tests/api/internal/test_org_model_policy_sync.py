@@ -128,15 +128,21 @@ async def test_get_allowed_models_with_patterns(policy_sync_app: FastAPI) -> Non
 
 
 @pytest.mark.asyncio
-async def test_sync_rejects_invalid_token(policy_sync_app: FastAPI) -> None:
-    """POST with invalid CP token returns 403."""
-    with patch.dict("os.environ", {"CONTROL_PLANE_TELEMETRY_TOKEN": "secret123"}):
-        transport = ASGITransport(app=policy_sync_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/org-model-policy-sync",
-                json={"allowed_patterns": ["test-*"]},
-                headers={"X-Telemetry-Token": "wrong-token"},
-            )
+async def test_sync_rejects_invalid_token(
+    policy_sync_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST with an invalid CP token is rejected with 401 by the CP guard."""
+    from pydantic import SecretStr
 
-    assert resp.status_code == 403
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret123"))
+    transport = ASGITransport(app=policy_sync_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/org-model-policy-sync",
+            json={"allowed_patterns": ["test-*"]},
+            headers={"X-Telemetry-Token": "wrong-token"},
+        )
+
+    assert resp.status_code == 401

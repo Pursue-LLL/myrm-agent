@@ -10,6 +10,7 @@ import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import (
@@ -45,6 +46,9 @@ class StubPairingStore:
 
     async def get_status(self, channel: str, sender_id: str) -> str | None:
         return "active"
+
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, int | None] | None:
+        return PairingStatus.ACTIVE, PairingRole.MEMBER, None
 
 
 class StubExecutor:

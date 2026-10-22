@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ProgressUpdate, StreamingText
 from app.core.channel_bridge.agent_executor.stream_events import (
@@ -36,7 +37,7 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
     assert progress[0].label == "✍️ Writing response..."
     assert isinstance(progress[1], StreamingText)
     assert progress[1].text == "Hello"
-    assert acc.chunks == ["Hello"]
+    assert acc.draft.text == "Hello"
 
 
 @pytest.mark.asyncio
@@ -125,3 +126,77 @@ async def test_fission_topology_yields_raw_data() -> None:
         )
     ]
     assert progress == [payload]
+
+
+async def _consume(*events: dict[str, object]) -> StreamAccumulator:
+    acc = StreamAccumulator()
+    async for _ in iter_channel_stream_progress(_events(*events), acc, ChannelStreamEventState()):
+        pass
+    return acc
+
+
+_FAILOVER_RESTART: dict[str, object] = {"type": "status", "step_key": "model_failover", "restart": True}
+
+
+@pytest.mark.asyncio
+async def test_failover_restart_replaces_the_partial_answer_instead_of_splicing_it() -> None:
+    acc = await _consume(
+        {"type": "message", "data": "The capital of France is Pa"},
+        _FAILOVER_RESTART,
+        {"type": "message", "data": "Paris is the capital of France."},
+    )
+
+    assert acc.draft.text == "Paris is the capital of France."
+
+
+@pytest.mark.asyncio
+async def test_failover_restart_keeps_the_text_streamed_before_a_tool_step() -> None:
+    acc = await _consume(
+        {"type": "message", "data": "Let me check. "},
+        {"type": "tool_start"},
+        {"type": "message", "data": "The capital of France is Pa"},
+        _FAILOVER_RESTART,
+        {"type": "message", "data": "Paris is the capital of France."},
+    )
+
+    assert acc.draft.text == "Let me check. Paris is the capital of France."
+
+
+@pytest.mark.asyncio
+async def test_error_event_keeps_raw_text_and_error_kind() -> None:
+    acc = await _consume(
+        {
+            "type": "error",
+            "error": "Error code: 403 - raw provider body",
+            "error_type": "PermissionDeniedError",
+            "error_kind": "billing",
+        }
+    )
+
+    assert acc.error_message == "PermissionDeniedError: Error code: 403 - raw provider body"
+    assert acc.error_kind is ErrorKind.BILLING
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error_kind", [None, "", "no_such_kind", 7])
+async def test_error_event_without_a_known_kind_is_unknown(error_kind: object) -> None:
+    event: dict[str, object] = {"type": "error", "error": "tool crashed"}
+    if error_kind is not None:
+        event["error_kind"] = error_kind
+
+    acc = await _consume(event)
+
+    assert acc.error_message == "tool crashed"
+    assert acc.error_kind is ErrorKind.UNKNOWN
+
+
+@pytest.mark.asyncio
+async def test_later_error_event_replaces_the_earlier_one() -> None:
+    acc = await _consume(
+        {"type": "error", "error": "first", "error_kind": "billing"},
+        {"type": "error", "error": "second", "error_kind": "timeout"},
+        {"type": "error", "error": "third"},
+    )
+
+    assert acc.error_message == "third"
+    assert acc.error_kind is ErrorKind.UNKNOWN

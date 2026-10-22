@@ -11,8 +11,8 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.api import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
-from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import (
     BoardSettings,
     KanbanBoard,

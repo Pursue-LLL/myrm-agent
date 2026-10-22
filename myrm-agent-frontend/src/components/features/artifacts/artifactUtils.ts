@@ -37,6 +37,10 @@ const ARTIFACT_ICON_MAP: Record<ArtifactType, React.ElementType> = {
   word_document: Doc02Icon,
   binary: File02Icon,
   architecture: GitBranchIcon,
+  canvas: PaintBoardIcon,
+  wechat_article: Doc02Icon,
+  prototype: Presentation01Icon,
+  dashboard: Table02Icon,
 };
 
 /** 文件扩展名到图标的精确映射 */
@@ -230,6 +234,16 @@ export function isArchitectureType(contentType: string, filename: string): boole
     contentType.includes('application/x-architecture') ||
     filename.endsWith('.arch.json') ||
     filename.endsWith('.architecture.json')
+  );
+}
+
+/** 判断是否为 Data Dashboard 动态数据看板类型 */
+export function isDataDashboardType(contentType: string, filename: string): boolean {
+  return (
+    contentType.includes('application/vnd.myrm.dashboard+json') ||
+    filename.endsWith('.dashboard.json') ||
+    filename.endsWith('.dashboard.csv') ||
+    filename.endsWith('.board.json')
   );
 }
 

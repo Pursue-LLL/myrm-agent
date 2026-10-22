@@ -526,16 +526,19 @@ def _run_lifecycle_assertions(api_url: str, ui_url: str, *, warm_route: bool = T
         warm_ui_route("/")
         warm_ui_route(f"/{chat_id}")
 
-    with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
+    # Enter the chat route directly: a client-side navigation from home lands
+    # before the route's bridge exists (or returns to /), and the attach probe
+    # below would silently skip, leaving the store unadopted.
+    with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
-        dismiss_blocking_modals(client, page, recover_url=home_url)
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        _ensure_react_bridge_on_home(client, page, ui_url=ui_url)
-
-        client.navigate(page, chat_url)  # type: ignore[attr-defined]
-        time.sleep(1.5)
         dismiss_blocking_modals(client, page, recover_url=chat_url)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=_bridge_ready_timeout_sec(),
+            page_url=chat_url,
+        )
 
         attached = _await_attach_memory_chat(
             client,

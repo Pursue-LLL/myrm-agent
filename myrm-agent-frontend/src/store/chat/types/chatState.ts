@@ -297,7 +297,9 @@ export interface ChatState {
    * before the first request (the failure is already shown).
    * An undelivered resume (`resumeValue` given: refused, or no request got a reply) rejects instead, because its
    * callers roll their card back on failure and report it themselves.
-   * Rejects with `AgentBusyError` when the server is still running another turn.
+   * Rejects with `AgentBusyError` when the server is still running another turn, and with
+   * `ApprovalAlreadyResolvedError` when a resume reaches an interrupt that someone else (the timeout or another
+   * device) already resolved (the answer is not applied).
    */
   sendMessage: (
     input: string,

@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { useCallback, useEffect, memo, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useDndAccessibility } from '@/hooks/ui/useDndAccessibility';
 import {
   DndContext,
   closestCenter,
@@ -17,6 +18,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { ChatHistoryRow, SortablePinnedRow } from './ChatHistoryRow';
@@ -161,10 +163,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
   }, [chatHistoryPagination, chatHistoryLoading, loadMoreChatHistory]);
 
   const appLocale = useLocale();
-  const formatTime = useMemo(
-    () => (date: Date) => formatRelativeTime(date.toISOString(), appLocale),
-    [appLocale],
-  );
+  const formatTime = useMemo(() => (date: Date) => formatRelativeTime(date.toISOString(), appLocale), [appLocale]);
 
   useEffect(() => {
     return () => {
@@ -228,6 +227,11 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
   );
+  const pinnedChatTitle = useCallback(
+    (id: UniqueIdentifier) => pinnedChats.find((chat) => chat.id === id)?.title,
+    [pinnedChats],
+  );
+  const dndAccessibility = useDndAccessibility(pinnedChatTitle);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -437,7 +441,12 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
                   {t('chat.pin.section')}
                 </span>
               </div>
-              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <DndContext
+                sensors={dndSensors}
+                accessibility={dndAccessibility}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
                 <SortableContext items={pinnedChats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                   {pinnedChats.map((chat, idx) => (
                     <SortablePinnedRow key={chat.id} pinIndex={idx + 1} {...rowProps(chat)} />

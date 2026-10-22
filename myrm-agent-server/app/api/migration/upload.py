@@ -24,6 +24,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
@@ -40,18 +41,46 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
 )
+from app.services.migration.source.source_payload_loader import (
+    MIGRATION_UPLOAD_DIR_PREFIX,
+    sweep_stale_migration_uploads,
+)
+from app.services.migration.source.source_probes import count_plur_engrams
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)
 
-MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB compressed
 MAX_EXTRACTED_FILES = 5000
+MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024  # 500 MB expanded
+MAX_UNCOMPRESSED_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per member
 
 
 def _is_safe_path(member_name: str) -> bool:
     """Reject path-traversal attempts (../ or absolute paths)."""
     normalized = os.path.normpath(member_name)
     return not normalized.startswith(("../", "..\\", "/")) and ".." not in normalized.split(os.sep)
+
+
+def _oversized_member(members: list[zipfile.ZipInfo]) -> str | None:
+    """Return the member that breaks the expansion budget, if any.
+
+    ``member.file_size`` is the declared uncompressed size, and ``zipfile`` stops
+    reading each member at exactly that many bytes (``ZipExtFile._read1`` truncates
+    to the remaining declared size), so refusing oversized members here bounds
+    what extraction can write before a single byte touches disk.
+    """
+
+    expanded = 0
+    for member in members:
+        if member.is_dir():
+            continue
+        if member.file_size > MAX_UNCOMPRESSED_FILE_BYTES:
+            return member.filename
+        expanded += member.file_size
+        if expanded > MAX_UNCOMPRESSED_BYTES:
+            return member.filename
+    return None
 
 
 _CHATGPT_HEADER_PROBE_BYTES = 4096
@@ -132,6 +161,33 @@ def _count_md_files(directory: str) -> int:
     return count
 
 
+_PLUR_ENGRAM_PROBE_BYTES = 4096
+
+
+def _detect_plur_zip(tmpdir: str) -> str | None:
+    """Return path to engrams.yaml if this looks like a PLUR store export."""
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if fname != "engrams.yaml":
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if _is_plur_engrams_file(fpath):
+                return fpath
+    return None
+
+
+def _is_plur_engrams_file(path: str) -> bool:
+    """Probe an engrams.yaml header for the official store shape."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_PLUR_ENGRAM_PROBE_BYTES)
+        return b"engrams:" in header and b"statement:" in header
+    except OSError:
+        return False
+
+
 def _resolve_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
     """Resolve authoritative flag with SSOT completeness guard."""
 
@@ -176,12 +232,24 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         archive.close()
         raise HTTPException(status_code=400, detail=f"ZIP contains too many files (max {MAX_EXTRACTED_FILES})")
 
+    oversized = _oversized_member(members)
+    if oversized:
+        archive.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"ZIP expands beyond the {MAX_UNCOMPRESSED_BYTES // (1024 * 1024)} MB limit "
+                f"({oversized}); exclude caches, model weights, or logs from the archive"
+            ),
+        )
+
     unsafe = [m.filename for m in members if not _is_safe_path(m.filename)]
     if unsafe:
         archive.close()
         raise HTTPException(status_code=400, detail="ZIP contains unsafe paths")
 
-    tmpdir = tempfile.mkdtemp(prefix="myrm_migration_")
+    sweep_stale_migration_uploads()
+    tmpdir = tempfile.mkdtemp(prefix=MIGRATION_UPLOAD_DIR_PREFIX)
     archive.extractall(tmpdir)
     archive.close()
     manifest = build_source_manifest_response()
@@ -194,6 +262,10 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     gbrain_result = _detect_gbrain_zip(tmpdir)
     if gbrain_result:
         return _build_gbrain_discovery(tmpdir, gbrain_result[1], manifest, manifest_authoritative)
+
+    plur_path = _detect_plur_zip(tmpdir)
+    if plur_path:
+        return _build_plur_discovery(plur_path, manifest, manifest_authoritative)
 
     result = discover_external_sources(home_dir=tmpdir)
 
@@ -275,6 +347,33 @@ def _build_gbrain_discovery(
         confidence="high",
         files=md_files,
         memory_count_estimate=page_count,
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_plur_discovery(
+    engrams_path: str,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a PLUR store export ZIP."""
+
+    try:
+        size_bytes = os.path.getsize(engrams_path)
+    except OSError:
+        size_bytes = 0
+    source = ExternalSourceResponse(
+        competitor="plur",
+        root=os.path.dirname(engrams_path),
+        confidence="high",
+        files=[DiscoveredFileResponse(path=engrams_path, kind="engrams", size_bytes=size_bytes)],
+        memory_count_estimate=count_plur_engrams(Path(engrams_path)),
     )
     return DiscoveryResponse(
         sources=[source],

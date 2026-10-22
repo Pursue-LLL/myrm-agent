@@ -1,14 +1,20 @@
-"""Unit tests for AgentJobRunner no-content skip logic.
+"""Unit tests for AgentJobRunner no-content skip logic and non-owner run isolation.
 
 Validates that heartbeat jobs skip the LLM call when the situation report
-has no actionable content, and proceed normally when content exists.
+has no actionable content, and proceed normally when content exists; and that a
+run started by a non-owner sender gets none of the owner's memory, chat history,
+goal queue or workflow agents.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from collections.abc import AsyncIterator
+from contextlib import AbstractContextManager, nullcontext
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.api.security import untrusted_ingress_scope
 from myrm_agent_harness.toolkits.cron.heartbeat import HEARTBEAT_JOB_NAME
 from myrm_agent_harness.toolkits.cron.situation import SituationReportBuilder
 from myrm_agent_harness.toolkits.cron.types import (
@@ -23,10 +29,13 @@ from myrm_agent_harness.toolkits.cron.types import (
 
 from app.core.cron.adapters.agent_runner import (
     AgentJobRunner,
+    _consume_stream,
     _resolve_cron_enable_memory,
 )
 
 _BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
+_SCAN_MODULE = "app.core.cron.adapters.agent_runner.scan_cron_prompt"
+_LOAD_HISTORY_MODULE = "app.core.cron.adapters.agent_runner._load_thread_history"
 _LOAD_USER_CONFIGS = "app.core.channel_bridge.config_loader.load_user_configs"
 
 
@@ -72,27 +81,32 @@ class TestResolveCronEnableMemory:
 
     Memory mounts for cron only when the per-job tool allow-list contains
     memory AND the user-level ``enableMemory`` personal setting is on —
-    mirroring the channel/voice entry points.
+    mirroring the channel/voice entry points — AND the run was not started
+    by a non-owner sender.
     """
 
     def test_memory_enabled_when_allowed_and_global_on(self) -> None:
         settings = {"enableMemory": True}
-        assert _resolve_cron_enable_memory(["web_search", "memory"], settings) is True
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=False) is True
 
     def test_memory_disabled_when_global_switch_off(self) -> None:
         settings = {"enableMemory": False}
-        assert _resolve_cron_enable_memory(["web_search", "memory"], settings) is False
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=False) is False
 
     def test_memory_disabled_when_global_setting_missing(self) -> None:
-        assert _resolve_cron_enable_memory(["web_search", "memory"], None) is False
+        assert _resolve_cron_enable_memory(["web_search", "memory"], None, untrusted=False) is False
 
     def test_memory_disabled_when_stripped_by_whitelist(self) -> None:
         settings = {"enableMemory": True}
-        assert _resolve_cron_enable_memory(["web_search"], settings) is False
+        assert _resolve_cron_enable_memory(["web_search"], settings, untrusted=False) is False
 
     def test_memory_disabled_for_empty_tools(self) -> None:
         settings = {"enableMemory": True}
-        assert _resolve_cron_enable_memory([], settings) is False
+        assert _resolve_cron_enable_memory([], settings, untrusted=False) is False
+
+    def test_memory_disabled_for_a_non_owner_run(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=True) is False
 
 
 class TestInjectSituationReport:
@@ -314,7 +328,6 @@ class TestRunRetry:
                 success=False,
                 error="RunawayCircuitBreakException",
                 circuit_broken=True,
-                circuit_break_reason="Runaway loop detected",
             )
         )
 
@@ -324,3 +337,75 @@ class TestRunRetry:
         assert not result.success
         assert result.circuit_broken is True
         assert run_once_mock.call_count == 1
+
+
+def _fence(untrusted: bool) -> AbstractContextManager[None]:
+    """The fence an event dispatch opens for a non-owner sender, or no fence for the owner."""
+    return untrusted_ingress_scope() if untrusted else nullcontext()
+
+
+def _stream_agent(captured: dict[str, object]) -> MagicMock:
+    """A GeneralAgent stand-in whose stream records the arguments it was started with."""
+    from app.ai_agents.general_agent import GeneralAgent
+
+    async def _process_stream(**kwargs: object) -> AsyncIterator[dict[str, object]]:
+        captured.update(kwargs)
+        yield {"type": "message", "data": "done"}
+
+    agent = MagicMock(spec=GeneralAgent)
+    agent.model_cfg = SimpleNamespace(model="test-model")
+    agent.process_stream = _process_stream
+    return agent
+
+
+@pytest.mark.parametrize("untrusted", [True, False], ids=["non-owner", "owner"])
+class TestNonOwnerRunIsolation:
+    """A run a non-owner's message started must not reach the owner's goal queue, workflow agents or chat history."""
+
+    @pytest.mark.asyncio
+    async def test_goal_queue_is_offered_only_runs_of_the_owner(self, untrusted: bool) -> None:
+        runner = AgentJobRunner()
+        enqueue = AsyncMock(return_value=False)
+
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_SCAN_MODULE, return_value=["stop before the agent is built"]),
+            patch.object(runner, "_try_enqueue_if_goal_active", enqueue),
+            _fence(untrusted),
+        ):
+            await runner._run_once(_make_regular_job(chat_id="chat-1"), context="[TRIGGER: event]\nMessage: server down")
+
+        assert enqueue.await_count == (0 if untrusted else 1)
+
+    @pytest.mark.asyncio
+    async def test_workflow_template_job_runs_only_for_the_owner(self, untrusted: bool) -> None:
+        runner = AgentJobRunner()
+
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_SCAN_MODULE, return_value=["stop before the agent is built"]),
+            _fence(untrusted),
+        ):
+            result = await runner._run_once(_make_regular_job(workflow_template_id="wf-1"))
+
+        if untrusted:
+            assert result.success is True
+            assert result.skipped is True
+            assert result.skip_reason == "untrusted-workflow"
+        else:
+            assert not result.skipped, "the owner's workflow job proceeds past the guards"
+            assert "prompt injection detected" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_chat_history_is_read_only_for_the_owner(self, untrusted: bool) -> None:
+        history = [{"role": "user", "content": "private owner conversation"}]
+        captured: dict[str, object] = {}
+
+        with patch(_LOAD_HISTORY_MODULE, new_callable=AsyncMock, return_value=history) as load_history:
+            result = await _consume_stream(
+                _stream_agent(captured), _make_regular_job(chat_id="chat-1"), "prompt", {}, untrusted=untrusted
+            )
+
+        assert result.success is True
+        assert captured["chat_history"] == (None if untrusted else history)
+        assert load_history.await_count == (0 if untrusted else 1)

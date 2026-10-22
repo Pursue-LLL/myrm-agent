@@ -28,7 +28,7 @@ const KNOWN_CAPABILITIES = [
   'file_read',
   'file_write',
   'mcp_invoke',
-  'code_interpreter_tool',
+  'code_interpreter',
 ] as const;
 
 interface SecurityOverridesData {

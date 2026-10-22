@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useWorkbenchRetentionSummary, type WorkbenchRetentionSummary } from './useWorkbenchRetentionSummary';
 import { SettingsSkeleton } from '../../common/SettingsSkeleton';
 import { Button } from '@/components/primitives/button';
+import InstanceArchivePanel from '@/components/features/instance-archive/InstanceArchivePanel';
 
 interface AssetMetricCardProps {
   icon: React.ReactNode;
@@ -230,6 +231,8 @@ const WorkbenchRetentionSection = memo(() => {
         </div>
       </section>
 
+      <InstanceArchivePanel />
+
       {/* Neutral Platform Advantage & Data Sovereignty */}
       <section className="rounded-3xl border border-border/60 bg-gradient-to-r from-secondary/40 via-background to-secondary/20 p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -242,17 +245,6 @@ const WorkbenchRetentionSection = memo(() => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              asChild
-              variant="default"
-              size="sm"
-              className="gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-            >
-              <a href="/api/v1/system/takeout" download>
-                <Download className="h-3.5 w-3.5" />
-                {t('sovereignty.exportTakeout')}
-              </a>
-            </Button>
             <Button asChild variant="outline" size="sm" className="gap-1.5 rounded-xl border-border/60">
               <Link href="/settings/developer?sub=importExport">
                 <Download className="h-3.5 w-3.5" />

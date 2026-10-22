@@ -31,6 +31,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 from sqlalchemy.exc import OperationalError
 
+from app.core.kanban.adapters.sqlalchemy_store import BoardEventRow
 from app.services.kanban.board_summary import build_board_summary
 from app.services.kanban.dispatcher_lifecycle import (
     recover_stale_tasks as run_recover_stale_tasks,
@@ -188,7 +189,7 @@ class KanbanReadMixin(KanbanServiceCore):
         since_id: int | None = None,
         since_time: datetime | None = None,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[BoardEventRow]:
         return await run_list_board_events(
             self._store,
             board_id,

@@ -38,6 +38,9 @@ class _RecordingPublisher:
     async def publish_outbound(self, msg: OutboundMessage, *, _skip_durable_persist: bool = False) -> None:
         self.published.append(msg)
 
+    def can_deliver(self, channel: str) -> bool:
+        return True
+
 
 class _RecordingChannel(BaseChannel):
     name = "feishu"

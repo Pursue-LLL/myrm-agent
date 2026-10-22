@@ -90,8 +90,8 @@ class SecurityPolicyExtension(AgentExtension):
             self.channel_name,
             self.security_config_raw,
             agent_security_raw=self.agent_security_raw,
-            declared_capabilities=self.declared_capabilities,
-            declared_allowed_roots=self.declared_allowed_roots,
+            declared_capabilities=tuple(self.declared_capabilities),
+            declared_allowed_roots=tuple(self.declared_allowed_roots),
             local_mode=is_local_mode(),
             privacy_policy=privacy_policy,
         )
@@ -129,7 +129,7 @@ class SecurityPolicyExtension(AgentExtension):
     def get_tools(self) -> list[BaseTool] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None
 
 

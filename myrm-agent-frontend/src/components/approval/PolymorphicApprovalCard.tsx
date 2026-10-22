@@ -463,7 +463,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     await onResolve('approve', comment, undefined, {
       allow_always: scopeToAllowAlwaysValue(allowAlwaysScope, allowAlwaysDuration),
       ttl_seconds: ttlSeconds,
-      feedback: comment || undefined,
+      guidance: comment || undefined,
       ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
     });
   }, [allowAlwaysDuration, allowAlwaysScope, comment, onResolve, stagedCredentialHandles]);
@@ -512,14 +512,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         edited_args: mergeShellEditedArgs(originalArgs, parsed),
         allow_always: allowAlwaysValue,
         ttl_seconds: ttlSeconds,
-        feedback: comment || undefined,
+        guidance: comment || undefined,
         ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     } else {
       await onResolve('approve', comment, undefined, {
         allow_always: allowAlwaysValue || undefined,
         ttl_seconds: ttlSeconds,
-        feedback: comment || undefined,
+        guidance: comment || undefined,
         ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     }
@@ -1036,28 +1036,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       }
       case 'outbound_draft':
         return <OutboundDraftApprovalBody payload={approval.payload} />;
-      case 'deploy_approval': {
-        const artifactName = approval.payload?.artifact_name ?? approval.payload?.artifact_id ?? '';
-        const deployMessage = approval.payload?.message ?? approval.reason ?? '';
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-              <Globe className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
-                <h4 className="font-semibold text-sm">{t('deployApprovalTitle')}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">{deployMessage}</p>
-              </div>
-            </div>
-            {artifactName ? (
-              <div className="rounded-lg border bg-muted/50 p-3 text-sm">
-                <span className="text-muted-foreground">{t('deployApprovalArtifact')}: </span>
-                <span className="font-medium">{artifactName}</span>
-              </div>
-            ) : null}
-            <p className="text-xs text-muted-foreground">{t('deployApprovalHint')}</p>
-          </div>
-        );
-      }
       case 'mcp_elicitation': {
         const serverName = (approval.payload?.server_name as string) || '';
         const elicitMessage = (approval.payload?.message as string) || approval.reason || '';
@@ -1316,7 +1294,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               variant="outline"
               onClick={() => {
                 onResolve('approve', comment, undefined, {
-                  feedback: comment || undefined,
+                  guidance: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
                   ephemeral_credential_handles:
@@ -1338,7 +1316,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             >
               {t('reject')}
             </Button>
-            {singleShellToolCall && approval.action_type !== 'deploy_approval' && (
+            {singleShellToolCall && (
               <Button variant="secondary" onClick={() => setMode('editing')} disabled={isSubmitting}>
                 <Pencil className="mr-1 h-3.5 w-3.5" />
                 {t('edit')}
@@ -1367,7 +1345,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   }
                 }
                 onResolve('approve', comment, edited_payload, {
-                  feedback: comment || undefined,
+                  guidance: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
                   ephemeral_credential_handles:

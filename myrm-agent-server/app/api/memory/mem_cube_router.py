@@ -23,6 +23,7 @@ from app.schemas.mem_cube import (
     CubeMatrixOverviewDTO,
     CubeQueryRequestDTO,
     CubeQueryResultDTO,
+    CubeRecordDTO,
     CubeScopeTypeEnum,
     CubeWriteRequestDTO,
     CubeWriteResultDTO,
@@ -78,6 +79,25 @@ async def get_matrix_overview(
 ) -> CubeMatrixOverviewDTO:
     """Return platform overview of all registered cubes, mount policies, and metrics."""
     return service.get_matrix_overview()
+
+
+@router.get(
+    "/records/{cube_id}",
+    response_model=list[CubeRecordDTO],
+    summary="List records stored in a Memory Cube",
+)
+async def list_cube_records(
+    cube_id: str,
+    service: Annotated[MemCubeService, Depends(get_mem_cube_service)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> list[CubeRecordDTO]:
+    """Return the most recent records of a cube; 404 when the cube is unknown."""
+    if service.get_cube(cube_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Memory cube '{cube_id}' not found.",
+        )
+    return service.list_records(cube_id, limit=limit)
 
 
 @router.get(

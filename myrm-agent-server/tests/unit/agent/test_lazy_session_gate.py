@@ -44,7 +44,6 @@ def test_is_active_generation_chunk_events():
     assert is_active_generation_chunk({"type": "tool_call", "name": "bash"}) is True
     assert is_active_generation_chunk({"type": "action", "data": {}}) is True
     assert is_active_generation_chunk({"type": "clarification_required", "data": {}}) is True
-    assert is_active_generation_chunk({"type": "approval_intercepted", "data": {}}) is True
 
     # Chunks using 'event' key instead of 'type'
     assert is_active_generation_chunk({"event": "message", "data": "Hello event!"}) is True

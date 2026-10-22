@@ -18,12 +18,12 @@ from myrm_agent_harness.backends.skills.types import (
     SkillRequires,
     SkillTrust,
 )
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.gates.requirements_availability import apply_requirements_availability_to_metadata
 from app.core.skills.loader import _load_user_skill_backend  # noqa: PLC2701
 from app.core.skills.models import Skill
 from app.core.skills.runtime_metadata import skill_to_runtime_metadata
+from app.core.storage.types import SkillType
 
 # Skill fields the runtime consumes; each must survive Skill -> SkillMetadata -> Skill.
 CARRIED_FIELDS = frozenset(

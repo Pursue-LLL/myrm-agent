@@ -377,6 +377,7 @@ async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
     # Callback must be wired even though memory_manager is None (memory disabled).
     assert run_context.get("on_goal_terminal") is not None
     assert run_context.get("on_loop_restart") is not None
+    assert run_context.get("on_goal_hold") is not None
     # Active-goal probe still runs (get_active_goal is called and returns None) …
     provider.get_active_goal.assert_awaited_once_with("chat-goal-provider")
     # … but learnings enrichment must be skipped when memory is unavailable.

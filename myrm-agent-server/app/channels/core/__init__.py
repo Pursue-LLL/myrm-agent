@@ -33,7 +33,6 @@ from app.channels.core.logging_filter import (
     SensitiveDataFilter,
     redact_sensitive,
 )
-from app.channels.core.metrics import ChannelMetrics
 from app.channels.core.mixins import CachedGroupMixin
 from app.channels.core.outbound_gate import (
     LinkProbeResult,
@@ -55,7 +54,6 @@ __all__ = [
     "ChannelCredentialSpec",
     "ChannelError",
     "ChannelGateway",
-    "ChannelMetrics",
     "ChannelSendError",
     "ChatPolicy",
     "ChatPolicyOverride",

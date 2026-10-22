@@ -116,6 +116,8 @@ async def _dispatch_auto_continue(
             logger.warning("Auto-continue skipped for chat %s: missing params", marker.chat_id)
             return
 
+        from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+        from myrm_agent_harness.runtime.context.session import HISTORY_MODE_CONTEXT_KEY
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
         from app.ai_agents import GeneralAgentParams
@@ -163,32 +165,30 @@ async def _dispatch_auto_continue(
             execution_mode=ExecutionMode.POOLED,
         )
 
-        collected_parts: list[str] = []
+        answer = AnswerDraft()
         token_economics: dict[str, object] | None = None
+        # The interrupted run left its partial state on the thread; the replay rebuilds the thread from history.
         stream = ai_agent_service_stream(
             params=params,
             cancel_token=token,
-            extra_context=runtime_context,
+            extra_context={**runtime_context, HISTORY_MODE_CONTEXT_KEY: "replace"},
         )
         async for chunk in stream:
             if not isinstance(chunk, dict):
                 continue
-            event_type = chunk.get("type")
-            data = chunk.get("data")
-            if event_type == "message" and isinstance(data, str):
-                collected_parts.append(data)
-            elif event_type == "message_end":
+            answer.feed(chunk)
+            if chunk.get("type") == "message_end":
                 # Keep the persisted snapshot aligned with the canonical path:
                 # stream_finalize extracts token_economics from this same event.
                 token_economics = string_keyed_dict(chunk.get("token_economics"))
 
-        if collected_parts and marker.chat_id:
+        if answer and marker.chat_id:
             extra_data: dict[str, object] | None = None
             if token_economics:
                 extra_data = {"tokenEconomics": token_economics}
             await ChatService.persist_assistant_message_safe(
                 marker.chat_id,
-                "".join(collected_parts),
+                answer.text,
                 timezone=params.timezone,
                 request_message_id=params.message_id,
                 extra_data=extra_data,

@@ -10,7 +10,7 @@
  * Settings Wiki live ingest updates. Replaces interval polling when SSE is connected.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CompileRunStatus } from '@/services/wikiService';
 
 export interface WikiIngestSnapshotStats {
@@ -59,7 +59,14 @@ export function useWikiIngestSubscription(
   const [snapshot, setSnapshot] = useState<WikiIngestSnapshot | null>(null);
   const enabled = options?.enabled ?? true;
   const onSnapshot = options?.onSnapshot;
+  // Read through a ref: callers pass a fresh callback every render, and each snapshot re-renders the caller, so a
+  // dependency on it would close and reopen the stream after every snapshot.
+  const onSnapshotRef = useRef(onSnapshot);
   const streamUrl = useMemo(() => buildIngestStreamUrl(agentScopeId), [agentScopeId]);
+
+  useEffect(() => {
+    onSnapshotRef.current = onSnapshot;
+  });
 
   useEffect(() => {
     if (!enabled) {
@@ -83,7 +90,7 @@ export function useWikiIngestSubscription(
           return;
         }
         setSnapshot(parsed);
-        onSnapshot?.(parsed);
+        onSnapshotRef.current?.(parsed);
       } catch (error) {
         console.warn('Failed to parse wiki ingest SSE payload.', error);
       }
@@ -104,7 +111,7 @@ export function useWikiIngestSubscription(
       eventSource.removeEventListener('ingest_snapshot', handleSnapshot as EventListener);
       eventSource.close();
     };
-  }, [enabled, onSnapshot, streamUrl]);
+  }, [enabled, streamUrl]);
 
   return { connected, snapshot };
 }

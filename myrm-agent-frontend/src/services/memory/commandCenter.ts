@@ -321,13 +321,11 @@ export interface MemoryCommandDiagnosticRun {
 }
 
 export interface MemoryCommandMigrationProvenance {
-  supported_sources: string[];
   source_manifest?: MemoryCommandMigrationSourceManifestItem[];
   source_manifest_authoritative?: boolean;
   tracked_imports: number;
   unmapped_items: number;
   coverage_status: 'not_tracked' | 'partial' | 'complete';
-  adapter_status: Record<string, 'ready' | 'planned' | 'missing'>;
   last_import_batch_id?: string | null;
   verification_recommended: boolean;
   last_import_diagnostic_status?: string | null;
@@ -383,6 +381,7 @@ export interface MemoryCommandRuntimeStatus {
   vector_persistence: 'persistent' | 'memory_fallback' | 'unavailable';
   graph_status: 'available' | 'unavailable';
   embedding_status: 'custom' | 'unavailable';
+  retrieval_mode: 'semantic' | 'keyword';
   control_plane_status: 'not_used' | 'proxied_by_sandbox';
   event_ledger_status: 'available' | 'unavailable';
   health_snapshot_status: 'available' | 'unavailable';

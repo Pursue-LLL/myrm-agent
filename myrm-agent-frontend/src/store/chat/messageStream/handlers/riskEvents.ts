@@ -1,50 +1,32 @@
 /**
  * [INPUT]
  * ../streamContext::StreamCtx (POS: per-SSE-event reducer context)
- * @/services/i18nToastService (POS: localized toasts outside React)
+ * ../../streamErrors::RiskBlockedError (POS: the turn the server refused because a risk rule holds its text)
+ * @/services/riskHeldToast::parseRiskRules, showRiskHeldToast (POS: the one notice for a text a risk rule holds)
  *
  * [OUTPUT]
- * riskEvents: RISK_BLOCKED SSE handler. The server names the rules that held the message; the sentence is worded here,
- * in the user's language, with the rule names the settings page shows and where to turn the rule off.
+ * riskEvents: RISK_BLOCKED SSE handler. The server names the rules that held the message; the notice is worded in the
+ * user's language by the shared toast, then the turn is refused with `RiskBlockedError` so the send reports that the
+ * server never took it and the composer gets the text back.
  *
  * [POS]
  * Chat SSE event handler slice for the server-side input risk gate.
  */
 
 import type { StreamCtx, StreamTurn } from '../streamContext';
-import { done } from '../streamContext';
 import { AgentEventType } from '../../types/agentStream/part1';
-import { showI18nToast, translateI18nKeyIfPresent } from '@/services/i18nToastService';
-
-interface RiskBlockedPayload {
-  rules?: Array<{ rule_id: string; display_name: string; severity: string }>;
-}
-
-const RISK_RULES_KEY = 'settings.securityPolicy.riskRules';
-const MAX_NAMED_RULES = 3;
-const TOAST_DURATION_MS = 10_000;
-
-/** Built-in rules are named in the user's language like on the settings page; a custom rule keeps its own name. */
-function ruleLabel(rule: { rule_id: string; display_name: string }): string {
-  return translateI18nKeyIfPresent(`${RISK_RULES_KEY}.rules.${rule.rule_id}.name`, rule.display_name);
-}
+import { RiskBlockedError } from '../../streamErrors';
+import { parseRiskRules, showRiskHeldToast } from '@/services/riskHeldToast';
 
 export async function riskEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
 
   if (data.type === AgentEventType.RISK_BLOCKED) {
-    const payload = data.data as RiskBlockedPayload | undefined;
-    const names = [...new Set((payload?.rules ?? []).map(ruleLabel))].slice(0, MAX_NAMED_RULES).join(' / ');
-
-    showI18nToast(`${RISK_RULES_KEY}.blockedTitle`, undefined, {
-      type: 'error',
-      duration: TOAST_DURATION_MS,
-      descriptionKey: `${RISK_RULES_KEY}.blockedDescription`,
-      descriptionValues: { rules: names },
-    });
+    const payload = data.data as { rules?: unknown } | undefined;
+    showRiskHeldToast(parseRiskRules(payload?.rules));
 
     actions.setLoading(false);
-    return done(ctx);
+    throw new RiskBlockedError();
   }
 
   return null;

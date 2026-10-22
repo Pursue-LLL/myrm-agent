@@ -125,6 +125,7 @@ class PersonalityInfo(Protocol):
     emoji: str
     display_name: str
     display_name_zh: str
+    description: str
     description_zh: str
 
 

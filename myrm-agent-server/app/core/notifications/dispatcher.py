@@ -30,6 +30,7 @@ from dataclasses import dataclass
 
 from app.channels.types import OutboundMessage
 from app.channels.types.components import ComponentRow, QuickReply
+from app.core.infra.background_task import spawn_observed_task
 from app.core.notifications.adaptive_cards import (
     LOCALIZED_EVENT_TYPES,
     FormattedNotification,
@@ -66,7 +67,7 @@ class NotificationDispatcher:
 
     async def start(self) -> None:
         self._queue = self._bus.subscribe()
-        self._task = asyncio.create_task(self._dispatch_loop(), name="notification-dispatcher")
+        self._task = spawn_observed_task(self._dispatch_loop(), name="notification-dispatcher")
         logger.info("NotificationDispatcher started")
 
     async def stop(self) -> None:

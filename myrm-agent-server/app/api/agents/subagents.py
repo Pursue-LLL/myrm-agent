@@ -6,6 +6,7 @@
 - sub_agents.session_tree::merge_active_subagent_children, cancel_active_children_for_session (POS: ACTIVE_SUBAGENTS registry SSOT)
 - sub_agents.checkpoint.saver::SubagentCheckpointStorage (POS: interrupted subagent checkpoint persistence)
 - coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
+- services.risk.refusal::reject_if_risky (POS: refuses a steering message a risk rule holds)
 
 [OUTPUT]
 GET list / POST cancel-all / POST steer / POST cancel for /chats/{chat_id}/subagents
@@ -29,6 +30,7 @@ from myrm_agent_harness.agent.sub_agents.manager import ACTIVE_SUBAGENTS
 from app.core.utils.response_utils import error_response, success_response
 from app.services.agent.gateway import get_agent_gateway
 from app.services.chat.chat_service import ChatService
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +86,9 @@ async def list_subagents(
     children_data: list[dict[str, object]] = []
 
     gateway_children: list[dict[str, object]] = []
-    if info and info.agent and info.agent() is not None:
-        agent = info.agent()
-        if hasattr(agent, "subagent_manager"):
-            gateway_children = agent.subagent_manager.list_children()
+    agent = info.agent() if info and info.agent else None
+    if agent is not None and hasattr(agent, "subagent_manager"):
+        gateway_children = agent.subagent_manager.list_children()
 
     from myrm_agent_harness.agent.sub_agents.session_tree import merge_active_subagent_children
 
@@ -136,10 +137,9 @@ async def cancel_all_subagents(
     info = gateway._session_info.get(chat_id)
 
     cancelled = 0
-    if info and info.agent and info.agent() is not None:
-        agent = info.agent()
-        if hasattr(agent, "cancel_all_children"):
-            cancelled += agent.cancel_all_children()
+    agent = info.agent() if info and info.agent else None
+    if agent is not None and hasattr(agent, "cancel_all_children"):
+        cancelled += agent.cancel_all_children()
 
     cancelled += cancel_active_children_for_session(chat_id)
     if cancelled == 0:
@@ -195,7 +195,8 @@ async def steer_subagent(
     task_id: Annotated[str, Path(..., description="The subagent task ID")],
     message: Annotated[str, Body(..., embed=True, description="The steering message")],
 ) -> JSONResponse:
-    """Inject a steering message into a running subagent."""
+    """Inject a steering message into a running subagent; a message a risk rule holds is refused first."""
+    await reject_if_risky(message, session_id=chat_id)
     manager = ACTIVE_SUBAGENTS.get(task_id)
     if not manager:
         return error_response(

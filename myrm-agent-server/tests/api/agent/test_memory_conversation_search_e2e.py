@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -84,8 +85,10 @@ def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> Non
         "memory_save_tool",
         "memory_manage_tool",
     ):
-        assert tool_name not in blob, f"{tool_name} must not appear in incognito stream"
-    assert "conversation_search_tool" not in blob
+        # Word-boundary match: a bare substring check also hits the unrelated
+        # working_memory_manage_tool, whose serialized name contains this one.
+        assert not re.search(rf"(?<!\w){tool_name}(?!\w)", blob), f"{tool_name} must not appear in incognito stream"
+    assert not re.search(r"(?<!\w)conversation_search_tool(?!\w)", blob)
 
 
 @pytest.mark.e2e

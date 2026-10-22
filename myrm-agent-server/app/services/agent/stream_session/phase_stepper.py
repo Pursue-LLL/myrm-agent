@@ -39,16 +39,37 @@ _SANDBOX_TOOLS: Final[frozenset[str]] = frozenset(
 )
 
 
+# The UI renders ``node_label`` verbatim, so the labels follow the chat locale.
+_PLANNING_LABELS = {"en": "Request understanding & safety planning", "zh": "请求理解与安全规划"}
+_LLM_EXEC_LABELS = {"en": "Model reasoning & strategy generation", "zh": "大模型推理与策略生成"}
+_LLM_PLAN_LABELS = {"en": "Intent & context reasoning", "zh": "意图与上下文推理"}
+_APPROVAL_LABELS = {"en": "Waiting for user confirmation & approval", "zh": "等待用户确认与审批"}
+_VERIFY_LABELS = {"en": "Result verification & cross-checking", "zh": "多维执行结果验收与核验"}
+_COMPLETED_LABELS = {"en": "Final deliverable ready", "zh": "最终成果交付完成"}
+_LANE_LABELS = {
+    "clarify": {"en": "Clarification: {tool}", "zh": "交互澄清: {tool}"},
+    "mcp": {"en": "External MCP call: {tool}", "zh": "MCP 外部调用: {tool}"},
+    "skill": {"en": "Skill execution: {tool}", "zh": "技能执行: {tool}"},
+    "sandbox_run": {"en": "Sandbox execution: {tool}", "zh": "沙箱执行: {tool}"},
+    "tool": {"en": "Tool call: {tool}", "zh": "工具调用: {tool}"},
+}
+
+
+def _planning_label(lang: str) -> str:
+    return _PLANNING_LABELS[lang]
+
+
 class PhaseTransitionTracker:
     """Tracks and emits phase transition events across the 3 macro phases and 6 lanes."""
 
-    def __init__(self, message_id: str | None = None) -> None:
+    def __init__(self, message_id: str | None = None, locale: str | None = None) -> None:
         self.message_id: str | None = message_id
         self.current_phase: str = "planning"
         self.current_phase_index: int = 1
         self.current_lane: str = "agent"
         self.current_node_id: int = 1
-        self.current_node_label: str = "请求理解与安全规划"
+        self._lang = "zh" if (locale or "en").lower().startswith("zh") else "en"
+        self.current_node_label: str = _planning_label(self._lang)
         self.phase_start_time: float = time.time()
         self._initial_emitted: bool = False
 
@@ -61,7 +82,7 @@ class PhaseTransitionTracker:
                 phase_index=1,
                 lane="agent",
                 node_id=1,
-                node_label="请求理解与安全规划",
+                node_label=_planning_label(self._lang),
             )
         return None
 
@@ -97,7 +118,7 @@ class PhaseTransitionTracker:
                 phase = "executing" if self.current_phase_index >= 2 else "planning"
                 phase_idx = self.current_phase_index
                 node_id = 12 if phase_idx == 2 else 6
-                label = "大模型推理与策略生成" if phase_idx == 2 else "意图与上下文推理"
+                label = (_LLM_EXEC_LABELS[self._lang] if phase_idx == 2 else _LLM_PLAN_LABELS[self._lang])
                 return self._transition_to(
                     phase=phase,
                     phase_index=phase_idx,
@@ -113,7 +134,7 @@ class PhaseTransitionTracker:
                 phase_index=2,
                 lane="user",
                 node_id=14,
-                node_label="等待用户确认与审批",
+                node_label=_APPROVAL_LABELS[self._lang],
             )
 
         # 4. Verification and reflect gate
@@ -125,7 +146,7 @@ class PhaseTransitionTracker:
                 phase_index=3,
                 lane="agent",
                 node_id=26,
-                node_label="多维执行结果验收与核验",
+                node_label=_VERIFY_LABELS[self._lang],
             )
 
         # 5. Completion delivery
@@ -135,7 +156,7 @@ class PhaseTransitionTracker:
                 phase_index=3,
                 lane="agent",
                 node_id=30,
-                node_label="最终成果交付完成",
+                node_label=_COMPLETED_LABELS[self._lang],
             )
 
         return None
@@ -144,14 +165,14 @@ class PhaseTransitionTracker:
         """Resolve active execution lane and production node from tool name."""
         lower_name = tool_name.lower()
         if any(marker in lower_name for marker in _USER_HITL_TOOLS):
-            return "user", 14, f"交互澄清: {tool_name}"
+            return "user", 14, _LANE_LABELS["clarify"][self._lang].format(tool=tool_name)
         if any(marker in lower_name for marker in _MCP_MARKERS):
-            return "mcp", 15, f"MCP 外部调用: {tool_name}"
+            return "mcp", 15, _LANE_LABELS["mcp"][self._lang].format(tool=tool_name)
         if any(marker in lower_name for marker in _SKILL_MARKERS):
-            return "skills", 13, f"技能执行: {tool_name}"
+            return "skills", 13, _LANE_LABELS["skill"][self._lang].format(tool=tool_name)
         if any(marker in lower_name for marker in _SANDBOX_TOOLS):
-            return "sandbox", 17, f"沙箱执行: {tool_name}"
-        return "sandbox", 16, f"工具调用: {tool_name}"
+            return "sandbox", 17, _LANE_LABELS["sandbox_run"][self._lang].format(tool=tool_name)
+        return "sandbox", 16, _LANE_LABELS["tool"][self._lang].format(tool=tool_name)
 
     def _transition_to(
         self,

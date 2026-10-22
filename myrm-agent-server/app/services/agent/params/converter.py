@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import Request
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryWritePolicy
 
 from app.ai_agents import GeneralAgentParams
 from app.core.channel_bridge.config_parsers import verify_search_service_available
@@ -38,7 +39,7 @@ from .archive_restore import (
     inject_archive_restore_actions_into_query,
     prevalidate_archive_restore_actions,
 )
-from .helpers import _extract_code_execution_network, _requested_privacy_params
+from .helpers import _declared_capabilities, _extract_code_execution_network, _requested_privacy_params
 from .media import _extract_media_generation_params
 from .mention import (
     _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
@@ -55,6 +56,9 @@ from .upload_sync import (
 from .workspace_resolve import resolve_default_chat_workspace_dir
 
 logger = logging.getLogger(__name__)
+
+type ReasoningDisplayMode = Literal["off", "collapsed", "inline"]
+_REASONING_DISPLAY_MODES: tuple[ReasoningDisplayMode, ...] = ("off", "collapsed", "inline")
 
 
 __all__ = [
@@ -481,7 +485,7 @@ async def convert_to_general_agent_params(
     agent_subagent_ids: list[str] | None = None
     agent_security_raw: dict[str, object] | None = None
     agent_max_iterations: int | None = None
-    agent_memory_policy = None
+    agent_memory_policy: AgentMemoryPolicy | None = None
     agent_memory_decay_profile: str | None = None
     agent_memory_extraction_preset: str | None = None
     engine_params: dict[str, object] | None = None
@@ -648,8 +652,8 @@ async def convert_to_general_agent_params(
             cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
         )
         kanban_default_board_id = cfg.kanban_default_board_id if hasattr(cfg, "kanban_default_board_id") else None
-        if getattr(cfg, "tool_gateway_config", None) is not None:
-            tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
+        if (gateway_cfg := getattr(cfg, "tool_gateway_config", None)) is not None:
+            tool_gateway_config = gateway_cfg.model_dump(mode="json")
         else:
             tool_gateway_config = resolved.tool_gateway_config if resolved else None
     else:
@@ -711,14 +715,12 @@ async def convert_to_general_agent_params(
         channel="web_chat",
     )
 
-    reasoning_display_mode = request.reasoning_display_mode
+    reasoning_display_mode: ReasoningDisplayMode | None = request.reasoning_display_mode
     if reasoning_display_mode is None and isinstance(ps_dict, dict):
         raw_mode = ps_dict.get("reasoningDisplayMode")
         if isinstance(raw_mode, str):
-            normalized_mode = raw_mode.strip().lower()
-            if normalized_mode in {"off", "collapsed", "inline"}:
-                reasoning_display_mode = normalized_mode
-    if reasoning_display_mode not in {"off", "collapsed", "inline"}:
+            reasoning_display_mode = next((m for m in _REASONING_DISPLAY_MODES if m == raw_mode.strip().lower()), None)
+    if reasoning_display_mode is None:
         reasoning_display_mode = "collapsed"
 
     from app.core.channel_bridge.model_resolver import (
@@ -958,10 +960,7 @@ async def convert_to_general_agent_params(
     )
     restore_ctx = restore_materialization.prompt_context
     if restore_ctx:
-        final_query = cast(
-            object,
-            inject_archive_restore_actions_into_query(final_query, restore_ctx),
-        )
+        final_query = inject_archive_restore_actions_into_query(final_query, restore_ctx)
     mention_warnings.extend(restore_materialization.warnings)
     archive_restore_results.extend(restore_materialization.results)
 
@@ -1073,15 +1072,7 @@ async def convert_to_general_agent_params(
         query=final_query,
     )
 
-    declared_caps = set()
-    if security_config_dict and isinstance(security_config_dict.get("capabilities"), list):
-        for c in security_config_dict["capabilities"]:
-            if isinstance(c, str):
-                declared_caps.add(c)
-    if agent_security_raw and isinstance(agent_security_raw.get("capabilities"), list):
-        for c in agent_security_raw["capabilities"]:
-            if isinstance(c, str):
-                declared_caps.add(c)
+    declared_caps = _declared_capabilities(security_config_dict, agent_security_raw)
 
     is_fast_search = request.action_mode == "fast"
     search_depth: str = "normal"
@@ -1123,7 +1114,7 @@ async def convert_to_general_agent_params(
         openapi_services = None
         agent_max_iterations = 50 if search_depth == "deep" else 30
         engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
-        agent_memory_policy = {"write_policy": "conversation"}
+        agent_memory_policy = AgentMemoryPolicy(write_policy=MemoryWritePolicy.CONVERSATION)
     else:
         if search_cfg is None and "web_search" in enabled_builtin_tools:
             from app.core.channel_bridge.config_cache import (
@@ -1151,6 +1142,11 @@ async def convert_to_general_agent_params(
     if request.regenerate_instruction:
         regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
         user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
+
+    # Every Wiki surface (tools, long-reply auto-archive, post-compaction archive, Deep Research vault) keys off this
+    # flag, so every Wiki writer inherits the incognito gate from this one place.
+    if request.incognito_mode:
+        tool_flags["enable_wiki"] = False
 
     params = GeneralAgentParams(
         message_id=request.message_id,

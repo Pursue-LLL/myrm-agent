@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/store/chat/useMessageQueueStore::QueuedMessage (POS: 排队消息内存状态源)
  * - @/lib/utils/imeUtils::isImeComposing (POS: IME 输入法兼容性守卫)
+ * - @/hooks/ui/useDndAccessibility::useDndItemLabels (POS: 拖拽项的本地化 aria-roledescription)
  *
  * [OUTPUT]
  * - QueuedMessageItem: 单条排队消息（可拖拽排序、就地编辑、移出队列）。
@@ -15,7 +16,8 @@ import { useTranslations } from 'next-intl';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, ClockCountdown, DotsSixVertical, Paperclip, PencilSimple, X } from '@phosphor-icons/react';
+import { ArrowUp, Check, ClockCountdown, DotsSixVertical, Paperclip, PencilSimple, X } from '@phosphor-icons/react';
+import { useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import type { QueuedMessage } from '@/store/chat/useMessageQueueStore';
 
@@ -28,6 +30,7 @@ interface QueuedMessageItemProps {
   onSaveEdit: (id: string, text: string) => void;
   onCancelEdit: () => void;
   onRemove: (id: string) => void;
+  onMoveToTop?: (index: number) => void;
 }
 
 const ICON_BUTTON_CLASS =
@@ -123,12 +126,15 @@ export function QueuedMessageItem({
   onSaveEdit,
   onCancelEdit,
   onRemove,
+  onMoveToTop,
 }: QueuedMessageItemProps) {
   const t = useTranslations('chat');
   const tTurn = useTranslations('chat.turnCapabilities');
+  const { roleDescription } = useDndItemLabels();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: message.id,
     disabled: isEditing,
+    attributes: { roleDescription },
   });
 
   const overrideSummary = useMemo(() => {
@@ -205,6 +211,18 @@ export function QueuedMessageItem({
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/queue:opacity-100 [@media(hover:hover)]:group-hover/queue:opacity-100">
+            {onMoveToTop && index > 0 && (
+              <button
+                type="button"
+                onClick={() => onMoveToTop(index)}
+                className={`${ICON_BUTTON_CLASS} text-muted-foreground hover:bg-muted hover:text-foreground`}
+                aria-label={t('queue.moveToTop')}
+                title={t('queue.moveToTop')}
+                data-testid={`queue-move-to-top-${message.id}`}
+              >
+                <ArrowUp size={14} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onStartEdit(message.id)}

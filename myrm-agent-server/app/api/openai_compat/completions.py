@@ -6,6 +6,7 @@
 - app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
 - app.core.utils.errors::validation_error (POS: HTTP 400 factory)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent stream engine)
+- myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Non-streaming answer text honouring the restart contract)
 - app.services.agent.params::convert_to_general_agent_params (POS: Param builder)
 
 [OUTPUT]
@@ -26,6 +27,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 
 from app.api.openai_compat.auth import verify_api_key
 from app.api.openai_compat.types import (
@@ -162,6 +164,12 @@ def _extract_assistant_text(event: dict[str, object]) -> str:
     return ""
 
 
+def _token_count(usage: dict[str, object], key: str) -> int:
+    """Read one usage counter, treating anything non-numeric as 0."""
+    value = usage.get(key, 0)
+    return int(value) if isinstance(value, int | float) else 0
+
+
 async def _stream_response(
     request: ChatCompletionRequest,
 ) -> AsyncGenerator[str, None]:
@@ -242,7 +250,7 @@ async def chat_completions(
     params = await _build_agent_params(request)
     extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
 
-    full_content = ""
+    answer = AnswerDraft()
     usage_data: dict[str, object] = {}
 
     async for event in ai_agent_service_stream(params, extra_context=extra_context):
@@ -252,19 +260,22 @@ async def chat_completions(
 
         event_type = normalized.get("type", "")
         if event_type in ("message", "message_chunk"):
-            full_content += _extract_assistant_text(normalized)
+            answer.feed({"type": "message", "data": _extract_assistant_text(normalized)})
         elif event_type == "message_end":
-            usage_data = normalized.get("usage", {})
+            raw_usage = normalized.get("usage")
+            usage_data = raw_usage if isinstance(raw_usage, dict) else {}
             break
+        else:
+            answer.feed(normalized)
 
     usage = UsageInfo(
-        prompt_tokens=(int(usage_data.get("prompt_tokens", 0)) if isinstance(usage_data, dict) else 0),
-        completion_tokens=(int(usage_data.get("completion_tokens", 0)) if isinstance(usage_data, dict) else 0),
-        total_tokens=(int(usage_data.get("total_tokens", 0)) if isinstance(usage_data, dict) else 0),
+        prompt_tokens=_token_count(usage_data, "prompt_tokens"),
+        completion_tokens=_token_count(usage_data, "completion_tokens"),
+        total_tokens=_token_count(usage_data, "total_tokens"),
     )
 
     return ChatCompletionResponse(
         model=request.model,
-        choices=[Choice(message=ChoiceMessage(content=full_content))],
+        choices=[Choice(message=ChoiceMessage(content=answer.text))],
         usage=usage,
     )

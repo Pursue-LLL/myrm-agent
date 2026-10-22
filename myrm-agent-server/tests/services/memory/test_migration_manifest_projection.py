@@ -54,7 +54,7 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
         migration = await insights.build_migration()
 
     assert migration.source_manifest_authoritative is True
-    assert len(migration.source_manifest) == 9
+    assert len(migration.source_manifest) == 8
     assert migration.source_manifest[0].import_source == "hermes"
     assert {item.id for item in migration.source_manifest} == {
         "hermes",
@@ -62,13 +62,14 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
         "claude",
         "codex",
         "chatgpt",
-        "gemini",
         "gbrain",
         "pi",
         "plur",
     }
     chatgpt_entry = next(item for item in migration.source_manifest if item.id == "chatgpt")
     assert chatgpt_entry.discover_modes == ["zip_upload"]
+    plur_entry = next(item for item in migration.source_manifest if item.id == "plur")
+    assert plur_entry.discover_modes == ["local_scan", "zip_upload"]
 
 
 @pytest.mark.asyncio

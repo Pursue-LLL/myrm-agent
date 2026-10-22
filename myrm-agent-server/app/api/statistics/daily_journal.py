@@ -25,11 +25,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.statistics.timezone_helper import resolve_user_timezone
 from app.config.settings import settings
 from app.core.utils.errors import StandardHTTPException, internal_error, validation_error
 from app.core.utils.response_utils import success_response
@@ -43,13 +44,17 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _parse_day(value: str) -> tuple[datetime, datetime]:
-    """Parse YYYY-MM-DD into (day_start_utc, day_end_utc)."""
+def _parse_day(value: str, tz_info: timezone | None = None) -> tuple[datetime, datetime]:
+    """Parse YYYY-MM-DD in user timezone into (day_start_utc, day_end_utc)."""
     try:
-        day = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        target_tz = tz_info or timezone.utc
+        local_start = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=target_tz)
+        local_end = local_start + timedelta(days=1)
+        day_start_utc = local_start.astimezone(timezone.utc)
+        day_end_utc = local_end.astimezone(timezone.utc)
     except ValueError as exc:
         raise validation_error("Invalid date format. Use YYYY-MM-DD.") from exc
-    return day, day + timedelta(days=1)
+    return day_start_utc, day_end_utc
 
 
 # ── Data fetchers ────────────────────────────────────────────────────
@@ -197,7 +202,7 @@ async def _fetch_kanban_events(db: AsyncSession, start: datetime, end: datetime)
     ]
 
 
-async def _fetch_tool_call_count(start: datetime, end: datetime) -> int:
+async def _fetch_tool_call_count(start: datetime, end: datetime, date_str: str, tz_name: str | None = None) -> int:
     """Count tool calls from EventLog files within the date range."""
     event_log_dir = Path(settings.database.event_log_dir)
     if not event_log_dir.exists():
@@ -210,9 +215,8 @@ async def _fetch_tool_call_count(start: datetime, end: datetime) -> int:
         backend = FileEventLogBackend(log_dir=event_log_dir, session_id="default")
         analytics = EventLogAnalytics(backend)
         days_ago = max((datetime.now(timezone.utc) - start).days + 1, 2)
-        patterns = await analytics.get_global_activity_patterns(time_range_days=days_ago)
+        patterns = await analytics.get_global_activity_patterns(time_range_days=days_ago, timezone=tz_name)
 
-        date_str = start.strftime("%Y-%m-%d")
         for act in patterns.daily_activities:
             if act.date == date_str:
                 return act.tool_calls
@@ -293,17 +297,20 @@ def _build_source_breakdown(sessions: list[dict[str, object]]) -> dict[str, int]
 async def get_daily_journal(
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
     agent_id: str | None = Query(None, description="Optional agent ID to filter sessions"),
+    timezone: str | None = Query(None, description="User local timezone, e.g. 'Asia/Shanghai'"),
+    x_timezone: str | None = Header(None, alias="X-Timezone"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Get consolidated daily work journal for a single day.
 
     Aggregates sessions, approvals, cron runs, kanban events, and tool calls
-    into a unified timeline view.  Zero new storage; pure read-only aggregation.
+    into a unified timeline view, honoring user local timezone boundaries.
     """
     try:
-        day_start, day_end = _parse_day(date)
+        tz_info, tz_name = resolve_user_timezone(timezone, x_timezone)
+        day_start, day_end = _parse_day(date, tz_info)
 
-        tool_calls_task = asyncio.create_task(_fetch_tool_call_count(day_start, day_end))
+        tool_calls_task = asyncio.create_task(_fetch_tool_call_count(day_start, day_end, date, tz_name))
 
         sessions = await _fetch_sessions(db, day_start, day_end, agent_id)
         approvals = await _fetch_approvals(db, day_start, day_end)
@@ -318,6 +325,7 @@ async def get_daily_journal(
         return success_response(
             data={
                 "date": date,
+                "timezone": tz_name,
                 "overview": {
                     "total_sessions": len(sessions),
                     "total_tokens": total_tokens,

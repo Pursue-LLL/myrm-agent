@@ -23,7 +23,7 @@ class _FakeSkillStore:
         self._existing_skills = existing_skills or []
         self.saved_batches: list[list[object]] = []
 
-    def list_skills(self) -> list[SimpleNamespace]:
+    def get_active_skills(self) -> list[SimpleNamespace]:
         return self._existing_skills
 
     def get_skill(self, skill_id: str) -> SimpleNamespace | None:
@@ -42,7 +42,7 @@ class _FakeSkillStoreNoBatch:
         self._existing_skills: list[SimpleNamespace] = []
         self.saved_records: list[object] = []
 
-    def list_skills(self) -> list[SimpleNamespace]:
+    def get_active_skills(self) -> list[SimpleNamespace]:
         return self._existing_skills
 
     def get_skill(self, skill_id: str) -> SimpleNamespace | None:

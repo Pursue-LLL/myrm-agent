@@ -19,6 +19,7 @@
 | `ledger/` | 单用户记忆操作账本（`record_event` 事件发布在持久化成功之后，杜绝 ghost event）、Guardian 调度策略（`guardian_policy.py`）与晨间摘要聚合。见 `ledger/_ARCH.md` |
 | `operations/` | 记忆 CRUD 业务处理器（列表/创建/更新/回收站/归档导入/偏好），`crud_handlers.py` 作为门面聚合 `crud/` 子模块；实体→`MemoryItem` DTO 呈现（`presentation.py`）。见 `operations/_ARCH.md` |
 | `shared_context/` | Shared Context 共享上下文服务（CRUD、绑定解析、写入提案生命周期与治理 policy）、记忆健康、历史证据、写入物化。见 `shared_context/_ARCH.md` |
+| `asset_hub/` | Agent 记忆资产装备中心与细粒度 ACL 授权服务（Chat/Skill/Wiki/CodeGraph 四类资产、4 槽位装备装配与卸载、Private/Team/Project 三级 ACL 鉴权）。见 `asset_hub/_ARCH.md` |
 
 ## 根目录文件清单
 
@@ -27,6 +28,7 @@
 | `manager_deps.py` | 门面 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`），供 api 与 service handler 注入 | ✅ |
 | `preference_radar_service.py` | 核心 | 会话级动态用户偏好雷达服务。内存状态自适应拟合、并发锁控制、锁定态阻尼、冷启动原子持久化落盘与检索有效信号权重推导 | ✅ |
 | `consolidation_service.py` | 核心 | 双块记忆工作台应用服务。桥接 LocalWorkingMemoryBlock 实时快照、子任务/避坑变更、转向决策沉淀（`record_steering_decision`）与历史 TaskDigest 查询 | ✅ |
+| `reindex_run.py` | 核心 | 更换嵌入模型后的孤儿记忆迁移后台运行：进程内单飞（进行中再次触发直接加入同一轮，检查与占位之间没有 `await`，不需要锁；一轮写进启动时那个嵌入模型的集合，只有同一模型的请求可以加入，另一模型的请求抛 `ReindexBusyError`），实时 done/total 与最终 `ReindexResult`（migrated/skipped/failed）；失败标 FAILED 并 `logger.exception`，不吞错；状态只存进程内存（迁移幂等，重启后重跑即可）。由 `api/memory/operations/reindex.py` 触发与查询 | ✅ |
 | `ephemeral_delta_volume.py` | 核心 | 将 harness shared store 绑定到 Volume `memory.db`（CC/API/agent 共用） | ✅ |
 | `ephemeral_delta_hydration.py` | 核心 | Agent turn 前 rehydrate 会话 tail deltas | ✅ |
 | `ephemeral_delta_service.py` | 核心 | Item 98 CC/API：record/snapshot/preview；layout metrics（无 provider cache hit 伪造） | ✅ |

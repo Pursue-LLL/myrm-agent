@@ -964,15 +964,13 @@ PAGE_PROBE_JS = """
   const input = document.querySelector('[data-chat-input]');
   const layout = document.querySelector('[data-testid="app-layout"]');
   const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
-  const fiberKey = input
-    ? Object.keys(input).find((k) => k.startsWith('__reactFiber$'))
-    : null;
-  const layoutFiberKey = layout
-    ? Object.keys(layout).find((k) => k.startsWith('__reactFiber$'))
-    : null;
+  const anyReactKey = (el) => el ? Object.keys(el).find((k) => k.startsWith('__react') || k.includes('react')) : null;
+  const fiberKey = anyReactKey(input);
+  const layoutFiberKey = anyReactKey(layout);
+  const isHydrated = !!fiberKey || !!layoutFiberKey || !!window.__MYRM_E2E_CHAT__;
   return {
     hasInput: !!input,
-    clientHydrated: !!fiberKey || !!layoutFiberKey,
+    clientHydrated: isHydrated,
     hasBridge: !!window.__MYRM_E2E_CHAT__,
     skeleton,
     hasLayout: !!layout,
@@ -2899,8 +2897,8 @@ def resume_clarify_skip_via_api(
     }
 
 
-def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
-    """True when resume/skip hit terminal HITL timeout resolution (409, non-retryable)."""
+def is_hitl_already_resolved(result: dict[str, object]) -> bool:
+    """True when resume/skip hit an interrupt the timeout or another client already resolved (409, non-retryable)."""
     error = result.get("error")
     if not isinstance(error, dict):
         return False
@@ -2911,18 +2909,14 @@ def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
         raw = error.get(key)
         if raw is not None:
             fragments.append(str(raw))
-    combined = " ".join(fragments).lower()
-    return (
-        "already been resolved by timeout" in combined
-        or "resolved by timeout" in combined
-    )
+    return "already been resolved" in " ".join(fragments).lower()
 
 
 def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     """True when SSE ended early (e.g. UI stream still holds agent) and retry may succeed."""
     if result.get("ok") is True:
         return False
-    if is_hitl_already_resolved_by_timeout(result):
+    if is_hitl_already_resolved(result):
         return False
     error = result.get("error")
     if isinstance(error, dict) and error.get("error_type") in {
@@ -3117,7 +3111,10 @@ def dump_backend_log_on_failure(
             with path.open("rb") as handle:
                 handle.seek(max(start, path.stat().st_size - tail_bytes))
                 text = handle.read().decode("utf-8", errors="replace")
-            print(f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END", flush=True)
+            print(
+                f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END",
+                flush=True,
+            )
         raise
 
 

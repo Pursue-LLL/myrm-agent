@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryImportBatchModel, MemoryImportDryRunModel
 from app.schemas.memory.archive import MemoryImportReadiness
-from app.services.memory.imports.import_adapter_registry import import_source_label
+from app.schemas.memory.import_sources import import_source_label
 from app.services.memory.imports.import_adapters import RequestedImportSource, build_memory_import_dry_run
 from app.services.memory.imports.import_ledger import (
     IMPORT_BATCH_STATUS_CONFIRMED,
@@ -58,11 +58,13 @@ from app.services.memory.imports.import_rollback import (
 )
 from app.services.memory.imports.import_session_data import (
     attach_import_metadata,
+    bounded_preview,
     build_import_plan,
     build_transaction_items,
     canonical_hash,
     capture_profile_imported_values,
     capture_profile_previous_values,
+    ensure_profile_import_keys,
     normalized_from_json,
     normalized_to_json,
     summary_unmapped_count,
@@ -163,6 +165,7 @@ class MemoryImportSessionService:
         await self._expire_stale()
         await self.cleanup_sessions()
         result = build_memory_import_dry_run(payload, source)
+        ensure_profile_import_keys(result.normalized_data, source=result.summary.source)
         now = datetime.now(UTC)
         expires_at = now + timedelta(seconds=ttl_seconds)
         payload_hash = canonical_hash(
@@ -193,7 +196,7 @@ class MemoryImportSessionService:
         )
         self._db.add(row)
         await self._db.commit()
-        preview = result.model_copy(update={"normalized_data": {}, "plan": plan})
+        preview = result.model_copy(update={"normalized_data": bounded_preview(result.normalized_data), "plan": plan})
         return dry_run_id, preview, payload_hash, expires_at
 
     async def confirm_import(
@@ -559,7 +562,7 @@ class MemoryImportSessionService:
     ) -> MemoryImportReadiness:
         """Rebuild post-import readiness using persisted batch facts and live provider state."""
 
-        from app.services.memory.operations.crud.import_readiness import build_import_readiness
+        from app.services.memory.imports.readiness import build_import_readiness
         from app.services.migration.source.source_secrets_importer import external_source_providers_configured
 
         facts = await self.load_import_readiness_recheck_facts(import_batch_id)

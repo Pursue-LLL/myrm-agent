@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence, TypedDict
+from typing import Collection, Sequence, TypedDict
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 
@@ -88,7 +88,7 @@ def is_sandbox_capable_tools(
     tools: Sequence[str],
     *,
     has_sandbox_dir: bool = False,
-    declared_capabilities: Sequence[str] = (),
+    declared_capabilities: Collection[str] = (),
 ) -> bool:
     """Check if the resolved tool set or capabilities indicate a sandbox/coding capable agent.
 

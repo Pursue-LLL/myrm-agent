@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - react-markdown + remark-gfm + rehype-raw (POS: Markdown 解析)
+ * - @/components/features/markdown-render-tools/CodeBlock (POS: 代码块渲染)
+ * - @/lib/utils/reactUtils::getChildrenAsText (POS: 取 React 子节点文本)
+ *
+ * [OUTPUT]
+ * - KanbanMarkdown (default): 看板内的安全 Markdown 渲染（元素白名单，只放行 http(s) / mailto 链接，可按行数折叠并展开）
+ *
+ * [POS]
+ * 任务描述、运行摘要、评论、验收标准等富文本在看板里的统一渲染入口；任务内容不可信，所以只渲染白名单元素。
+ */
 'use client';
 
 import React, { useMemo, useState } from 'react';

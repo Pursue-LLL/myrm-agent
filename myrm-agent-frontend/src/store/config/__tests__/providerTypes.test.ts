@@ -45,6 +45,22 @@ describe('providerTypes defaults', () => {
     expect(getLiteLLMModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
   });
 
+  it('routes a custom provider through the LiteLLM route named by its providerType', () => {
+    // A custom OpenAI-compatible row has no generated id mapping; its providerType names the route.
+    expect(getLiteLLMModelName('openai-like', 'muse-spark-1.3-contributor', 'openai')).toBe(
+      'openai/muse-spark-1.3-contributor',
+    );
+  });
+
+  it('keeps the built-in id mapping authoritative over a legacy providerType', () => {
+    expect(getLiteLLMModelName('deepseek', 'deepseek-chat', 'openai')).toBe('deepseek/deepseek-chat');
+    expect(getLiteLLMModelName('minimax', 'MiniMax-M3.1-Flash', 'minimax')).toBe('minimax/MiniMax-M3.1-Flash');
+  });
+
+  it('falls back to the provider id when no route can be derived', () => {
+    expect(getLiteLLMModelName('my-private-gateway', 'model-x')).toBe('my-private-gateway/model-x');
+  });
+
   it('correctly configures and routes Vercel AI Gateway without vendor prefix hijacking', () => {
     expect(BUILT_IN_PROVIDER_INFO.vercel_ai_gateway.defaultApiUrl).toBe('https://ai-gateway.vercel.sh/v1');
     expect(getLiteLLMModelName('vercel_ai_gateway', 'anthropic/claude-3-5-sonnet')).toBe(

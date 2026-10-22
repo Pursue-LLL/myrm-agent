@@ -28,6 +28,7 @@ TurnCapabilityFailureReason = Literal[
     "archive_restore_invalid",
     "abort",
     "server_error",
+    "risk_held",
     "unknown_error",
 ]
 

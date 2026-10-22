@@ -1,6 +1,254 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from '../wikiSectionUtils';
+import { locales } from '@/i18n/config';
+import type { WikiMaintainResponse } from '@/services/wikiService';
+
+import {
+  healthReportFromMaintainResponse,
+  resolveHealthIssueNavigationTarget,
+  resolveMaintainFailureToastKey,
+  resolveMaintainProgressLabel,
+  resolveMaintainToast,
+} from '../wikiSectionUtils';
+
+function maintainResponse(overrides: Partial<WikiMaintainResponse> = {}): WikiMaintainResponse {
+  return {
+    issues_found: 0,
+    issues_fixed: 0,
+    connections_discovered: 0,
+    duration_ms: 1,
+    open_actions_count: 0,
+    raw_security_removed: 0,
+    raw_security_removed_paths: [],
+    issues: [],
+    ai_unavailable: false,
+    ...overrides,
+  };
+}
+
+const LOCALES_DIR = path.join(process.cwd(), 'locales');
+
+type MessageTree = { [key: string]: string | MessageTree };
+
+function lookupWikiMessage(tree: MessageTree, key: string): string | undefined {
+  let node: string | MessageTree | undefined = (tree.settings as MessageTree).wiki;
+  for (const part of key.split('.')) {
+    node = typeof node === 'object' ? node[part] : undefined;
+  }
+  return typeof node === 'string' ? node : undefined;
+}
+
+/** ICU argument names: `{name}` and the head of `{name, plural, ...}`; `#` and nested branch text do not match. */
+function icuArguments(message: string): string[] {
+  return [...new Set([...message.matchAll(/\{(\w+)\s*[,}]/g)].map((match) => match[1] as string))].sort();
+}
+
+describe('resolveMaintainToast locale contract', () => {
+  const outcomes: WikiMaintainResponse[] = [
+    maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }),
+    maintainResponse({ ai_unavailable: true }),
+    maintainResponse({ open_actions_count: 1 }),
+    maintainResponse({ connections_discovered: 1 }),
+    maintainResponse({ issues_fixed: 1 }),
+    maintainResponse(),
+  ];
+
+  it.each(locales)('%s has every toast message with exactly the arguments the resolver supplies', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const result of outcomes) {
+      const toast = resolveMaintainToast(result);
+      const message = lookupWikiMessage(tree, toast.key);
+
+      expect(message, `${code}: ${toast.key}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${toast.key}`).toEqual(Object.keys(toast.values ?? {}).sort());
+    }
+  });
+});
+
+describe('manual compile copy', () => {
+  const compileMessages: Record<string, string[]> = {
+    'success.compileStarted': ['count'],
+    'success.compileNothingNew': [],
+    'success.compileFinished': ['tab'],
+  };
+
+  it.each(locales)('%s words each compile message with exactly the arguments the page supplies', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const [key, args] of Object.entries(compileMessages)) {
+      const message = lookupWikiMessage(tree, key);
+
+      expect(message, `${code}: ${key}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${key}`).toEqual(args);
+    }
+  });
+});
+
+describe('maintenance cancel copy', () => {
+  it.each(locales)('%s words the cancelled toast and the stop controls without placeholders', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+    const toastKey = resolveMaintainToast(maintainResponse(), true).key;
+
+    for (const key of [
+      toastKey,
+      'actions.maintainCancel',
+      'actions.maintainCancelling',
+      'errors.maintainCancelFailed',
+    ]) {
+      const message = lookupWikiMessage(tree, key);
+
+      expect(message, `${code}: ${key}`).toBeTypeOf('string');
+      expect(message, `${code}: ${key}`).not.toBe('');
+      expect(icuArguments(message as string), `${code}: ${key}`).toEqual([]);
+    }
+  });
+});
+
+describe('resolveMaintainToast', () => {
+  it('tells a cancelled run apart from a finished one, whatever it fixed or found before it stopped', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({ issues_fixed: 2, open_actions_count: 3, connections_discovered: 4 }),
+        true,
+      ),
+    ).toEqual({ variant: 'message', key: 'success.maintainCancelled' });
+  });
+
+  it('still reports removed sensitive raw files first when the run was cancelled', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }), true)
+        .key,
+    ).toBe('success.maintainRemovedSensitive');
+  });
+
+  it('reports removed sensitive raw files first, with the paths joined', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({
+          raw_security_removed: 2,
+          raw_security_removed_paths: ['inbox/a.md', 'inbox/b.md'],
+          open_actions_count: 3,
+          connections_discovered: 4,
+        }),
+      ),
+    ).toEqual({
+      variant: 'success',
+      key: 'success.maintainRemovedSensitive',
+      values: { count: 2, paths: 'inbox/a.md, inbox/b.md' },
+    });
+  });
+
+  it('truncates a long removed-paths list to 120 characters', () => {
+    const toast = resolveMaintainToast(
+      maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['x'.repeat(200)] }),
+    );
+
+    expect(toast.values?.paths).toBe(`${'x'.repeat(117)}...`);
+  });
+
+  it('warns that the model never answered instead of reporting a success, whatever else the run did', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ ai_unavailable: true, open_actions_count: 2, issues_fixed: 1 })),
+    ).toEqual({ variant: 'warning', key: 'errors.maintainAiUnavailable' });
+  });
+
+  it('still reports removed sensitive raw files when the model never answered', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({ ai_unavailable: true, raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }),
+      ).key,
+    ).toBe('success.maintainRemovedSensitive');
+  });
+
+  it('points to the health panel when open actions remain, even if links were found', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ open_actions_count: 2, issues_fixed: 1, connections_discovered: 5 })),
+    ).toEqual({ variant: 'message', key: 'healthReport.maintainToastOpen', values: { open: 2, fixed: 1 } });
+  });
+
+  it('reports newly discovered links together with found/fixed counts', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ issues_found: 3, issues_fixed: 1, connections_discovered: 4 })),
+    ).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummaryWithLinks',
+      values: { found: 3, fixed: 1, connections: 4 },
+    });
+  });
+
+  it('reports new links even when nothing else was found or fixed', () => {
+    expect(resolveMaintainToast(maintainResponse({ connections_discovered: 2 }))).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummaryWithLinks',
+      values: { found: 0, fixed: 0, connections: 2 },
+    });
+  });
+
+  it('reports fixed issues when no links were discovered', () => {
+    expect(resolveMaintainToast(maintainResponse({ issues_found: 2, issues_fixed: 2 }))).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummary',
+      values: { found: 2, fixed: 2 },
+    });
+  });
+
+  it('falls back to the plain completion message when nothing changed', () => {
+    expect(resolveMaintainToast(maintainResponse())).toEqual({ variant: 'success', key: 'success.maintainComplete' });
+  });
+});
+
+describe('resolveMaintainProgressLabel', () => {
+  it('names the phase with the pages done of total', () => {
+    expect(resolveMaintainProgressLabel({ phase: 'link_discovery', done: 7, total: 20 })).toEqual({
+      key: 'maintainProgress.linkDiscovery',
+      values: { done: 7, total: 20 },
+    });
+    expect(resolveMaintainProgressLabel({ phase: 'drift_review', done: 0, total: 5 })).toEqual({
+      key: 'maintainProgress.driftReview',
+      values: { done: 0, total: 5 },
+    });
+  });
+
+  it('has no label before the model phases start', () => {
+    expect(resolveMaintainProgressLabel(null)).toBeNull();
+  });
+
+  it.each(locales)('%s words both phases with the done and total counters', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const phase of ['drift_review', 'link_discovery'] as const) {
+      const label = resolveMaintainProgressLabel({ phase, done: 1, total: 2 });
+      const message = lookupWikiMessage(tree, label?.key ?? '');
+
+      expect(message, `${code}: ${phase}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${phase}`).toEqual(['done', 'total']);
+    }
+  });
+});
+
+describe('resolveMaintainFailureToastKey', () => {
+  it('tells the user to retry after the compile when the vault is compiling', () => {
+    expect(resolveMaintainFailureToastKey('compile_busy')).toBe('errors.maintainCompileBusy');
+  });
+
+  it('falls back to the generic failure for everything else', () => {
+    expect(resolveMaintainFailureToastKey('failed')).toBe('errors.maintainFailed');
+  });
+
+  it.each(locales)('%s words both failure toasts', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const reason of ['compile_busy', 'failed'] as const) {
+      expect(lookupWikiMessage(tree, resolveMaintainFailureToastKey(reason)), `${code}: ${reason}`).toBeTypeOf(
+        'string',
+      );
+    }
+  });
+});
 
 describe('resolveHealthIssueNavigationTarget', () => {
   it('maps absolute concept paths to concept tree ids', () => {
@@ -51,6 +299,7 @@ describe('healthReportFromMaintainResponse', () => {
             action_kind: 'navigate',
           },
         ],
+        ai_unavailable: false,
       },
       'full',
       { duplicate_groups_pending: 3, synthesis_pending: 1 },
@@ -75,6 +324,7 @@ describe('healthReportFromMaintainResponse', () => {
         raw_security_removed: 0,
         raw_security_removed_paths: [],
         issues: [],
+        ai_unavailable: false,
       },
       'structural',
       { duplicate_groups_pending: 0, synthesis_pending: 0 },

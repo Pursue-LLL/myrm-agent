@@ -83,7 +83,7 @@ export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
               </div>
             ) : usage?.has_usage ? (
               <div className="space-y-4">
-                <Alert className="border-warning/50 bg-warning/10 text-warning-foreground">
+                <Alert variant="warning">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{t('warningTitle')}</AlertTitle>
                   <AlertDescription>{t('warningDescription', { count: usage.count })}</AlertDescription>

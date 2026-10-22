@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - ./KanbanMarkdown (POS: 看板安全 Markdown 渲染)
+ *
+ * [OUTPUT]
+ * - AttachmentsSection: 附件列表、拖拽上传、图片缩略图、删除
+ * - TaskResultSection: 任务结果展示，终态任务可编辑
+ *
+ * [POS]
+ * 任务抽屉主体里的附件与结果区段；全部受控，状态由 useKanbanTaskDrawer 提供。
+ */
 'use client';
 
 import type { RefObject } from 'react';
@@ -83,6 +94,7 @@ export function AttachmentsSection({
               <div key={att.file_id} className="group/att relative rounded border bg-muted/30 overflow-hidden">
                 {isImage ? (
                   <a href={att.url} target="_blank" rel="noopener noreferrer" className="block">
+                    {/* oxlint-disable-next-line next/no-img-element -- attachment URLs are served by the backend upload route, which next/image cannot optimize */}
                     <img
                       src={att.url}
                       alt={att.filename}

@@ -31,6 +31,7 @@ router = APIRouter()
 
 _MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per file
 _MAX_FILES = 20
+_MAX_CHAT_ID_LENGTH = 255  # width of the chats.id column: no real chat id is refused
 _STREAM_CHUNK_SIZE = 64 * 1024  # 64 KB chunks for streaming reads
 
 ALLOWED_EXTENSIONS = {
@@ -133,6 +134,11 @@ async def _stream_to_bytes(upload: UploadFile, max_bytes: int) -> bytes:
 async def upload_files(
     request: Request,
     files: list[UploadFile] = Form(..., description="要上传的文件列表"),
+    chat_id: str | None = Form(
+        default=None,
+        max_length=_MAX_CHAT_ID_LENGTH,
+        description="无痕会话的 ID：上传绑定到该会话，随会话清理；普通会话不传",
+    ),
 ) -> JSONResponse:
     """上传文件到统一存储服务"""
     if not files:
@@ -168,6 +174,8 @@ async def upload_files(
                 filename=file.filename,
                 content=content,
                 content_type=_infer_content_type(file.filename, file.content_type),
+                # A blank field means the caller did not mean to bind: a whitespace id would name a chat that cannot exist.
+                source_chat_id=(chat_id or "").strip() or None,
             )
 
             results.append(

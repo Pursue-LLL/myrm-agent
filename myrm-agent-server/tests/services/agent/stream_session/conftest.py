@@ -24,12 +24,6 @@ def init_test_database() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def mock_load_user_configs() -> Iterator[None]:
-    """Bypass loading user configs and secrets for pure stream_session unit tests."""
-    yield
-
-
-@pytest.fixture(autouse=True)
 def _reset_agent_test_singletons() -> Iterator[None]:
     """Bypass qdrant memory cache eviction for pure stream_session unit tests."""
     yield

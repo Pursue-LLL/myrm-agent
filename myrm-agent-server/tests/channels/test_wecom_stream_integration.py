@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.channels.core.bus import MessageBus
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.providers.wecom.aibot_channel import (
     WeComAiBotChannel,
     WeComStreamState,
@@ -37,6 +38,9 @@ class StubPairingStore:
 
     async def get_status(self, channel: str, sender_id: str) -> str | None:
         return "active"
+
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, int | None] | None:
+        return PairingStatus.ACTIVE, PairingRole.MEMBER, None
 
 
 class StubStreamingExecutor:

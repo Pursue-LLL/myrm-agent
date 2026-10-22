@@ -35,6 +35,17 @@ describe('groupRequestsForBulkResume', () => {
     expect(groups[1].map((request) => request.requestId)).toEqual(['s1']);
   });
 
+  it('never merges single cards of different interrupts into one resume', () => {
+    const requests = [
+      makeRequest({ requestId: 's1', messageId: 'msg-1', interruptId: 'int-a' }),
+      makeRequest({ requestId: 's2', messageId: 'msg-1', interruptId: 'int-b' }),
+    ];
+
+    const groups = groupRequestsForBulkResume(requests);
+
+    expect(groups.map((group) => group.map((request) => request.requestId))).toEqual([['s1'], ['s2']]);
+  });
+
   it('groups non-batch singles by chat and message', () => {
     const requests = [
       makeRequest({ requestId: 's1', messageId: 'msg-1' }),

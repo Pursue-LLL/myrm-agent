@@ -3,7 +3,6 @@
 import { Folder } from 'lucide-react';
 import { Tree } from 'react-arborist';
 import type { TreeNode } from '@/services/wikiService';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface WikiFolderSelectTreeProps {
   data: TreeNode[];
@@ -16,19 +15,17 @@ export function WikiFolderSelectTree({ data, height, selectedFolder, onSelectFol
   return (
     <Tree data={data} width="100%" height={height} rowHeight={32} indent={16}>
       {({ node, style }) => (
-        <div
+        <button
+          type="button"
           style={style}
-          className={`flex items-center gap-2 px-2 py-1 cursor-pointer rounded-md hover:bg-muted/50 transition-colors ${
+          className={`flex w-full items-center gap-2 px-2 py-1 text-left cursor-pointer rounded-md hover:bg-muted/50 transition-colors ${
             selectedFolder === node.id ? 'bg-primary/20 text-primary font-medium' : ''
           }`}
           onClick={() => onSelectFolder(node.id)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateOnKey}
         >
           <Folder className="w-4 h-4 shrink-0 text-primary" />
           <span className="truncate text-sm">{node.data.name}</span>
-        </div>
+        </button>
       )}
     </Tree>
   );

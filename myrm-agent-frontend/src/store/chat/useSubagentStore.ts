@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 
 import { fetchWithTimeout } from '@/lib/api';
-import { mergeTeammateEntries, normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
+import { mergeSubagentSnapshot } from './subagentNodeMerge';
 
 export type SubagentStatus =
   | 'pending'
   | 'running'
-  | 'verifying'
+  | 'blocked'
   | 'completed'
   | 'failed'
   | 'timed_out'
@@ -70,16 +70,6 @@ export interface StreamEntry {
 }
 
 const MAX_STREAM = 30;
-
-/** Terminal subagent statuses that must not be downgraded by late SSE/API `running` snapshots. */
-export const TERMINAL_SUBAGENT_STATUSES: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
-  'completed',
-  'failed',
-  'timed_out',
-  'cancelled',
-  'cancelled_by_budget',
-  'interrupted',
-]);
 
 export interface SubagentNode {
   task_id: string;
@@ -285,29 +275,7 @@ export const useSubagentStore = create<SubagentStore>((set, get) => ({
       };
     }),
 
-  setNodes: (nodes) =>
-    set((state) => {
-      const map = { ...state.nodes };
-      nodes.forEach((n) => {
-        if (n.internal) {
-          return;
-        }
-        const existing = map[n.task_id];
-        const apiTeammate = (n.teammate_messages ?? []).map((row) => normalizeTeammateEntry(row));
-        // 防回退：本地已是终态（cancelled/completed/failed 等）的节点，
-        // 不允许被 SSE/API 迟到的 running 快照覆盖回退——取消后 task 清理
-        // 存在窗口，后端可能仍短暂广播 running。
-        const merged =
-          existing && TERMINAL_SUBAGENT_STATUSES.has(existing.status) && n.status === 'running'
-            ? { ...existing, ...n, status: existing.status }
-            : { ...existing, ...n };
-        map[n.task_id] = {
-          ...merged,
-          teammateMessages: mergeTeammateEntries(existing?.teammateMessages, apiTeammate),
-        };
-      });
-      return { nodes: map };
-    }),
+  setNodes: (nodes) => set((state) => ({ nodes: mergeSubagentSnapshot(state.nodes, nodes) })),
 
   fetchSubagents: async (chatId) => {
     if (!chatId) {
@@ -316,6 +284,11 @@ export const useSubagentStore = create<SubagentStore>((set, get) => ({
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
       const json = (await res.json()) as { data?: unknown };
+      // The tree describes the open chat; a reply that comes back after the user left `chatId` must not land in it.
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      if (useChatStore.getState().chatId?.trim() !== chatId.trim()) {
+        return;
+      }
       if (Array.isArray(json.data)) {
         get().setNodes(json.data as SubagentNode[]);
       }

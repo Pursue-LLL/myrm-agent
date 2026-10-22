@@ -15,18 +15,25 @@
 | `ShortcutRecorder.tsx`                | 全局快捷键录制输入框（聚焦录制 / Esc 取消 / Backspace 清空） |
 | `AppshotExcludedAppsEditor.tsx`       | Appshot 隐私黑名单编辑器 |
 | `SystemCenterSection.tsx`             | 系统 Tab 容器                                                                                           |
+| `SandboxResetCard.tsx`                | 云托管沙箱的「重置环境」卡：确认后经 server 请求控制平面换容器，并带 `reset_python_env: true` 让智能体装过的 Python 包随重启清空（`silent` 请求，每次结果只出一条本地化提示，不叠加 server 返回的英文；实例导入后的「立即重启」走同一端点但不带该标志，不清包）；仍有任务在运行（409）提示「等任务结束或停止后再试」，其余失败提示通用失败；窄屏下底部按钮整行铺满；卡片标题只出现一次（与同目录其它卡片一致，由节标题承担）；文案沿用产品通用的「沙箱」一词，只如实说清清掉什么（智能体安装的 Python 包）与保留什么（工作区文件、聊天历史、记忆、设置），不承诺清除系统层面的全局软件 / 系统设置（容器根文件系统只读，本来就没有这类改动），也不出现容器 / 持久化卷 / venv / pip / apt 等实现细节；确认文案不承诺重启耗时（耗时取决于卷 chown 与启动等待，控制平面文档给的是上限而非典型值），只说明期间暂时无法使用 |
+| `__tests__/SandboxResetCard.test.tsx` | 重置卡单测：成功 / 失败 / 409 运行中 / 非 API 错误各只弹一条本地化提示，不展示 server 英文；请求带 `silent` 与 `reset_python_env: true`；卡片标题只渲染一次 |
+| `__tests__/SandboxResetCard.dialog.test.tsx` | 重置卡确认步骤单测（使用真实确认对话框，不替身）：点按钮只弹确认、确认前不发请求；取消不发请求并关闭对话框；请求进行中重复点确认只发起一次换容器，确认 / 取消 / 触发按钮均禁用，结束后按钮恢复可用 |
+| `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
+| `upgrade-cockpit/`                    | WebUI与桌面端可视化一键无感升级控制台、多源网络诊断探针与长任务排队热重载面板（Item 80 P0，详见 `upgrade-cockpit/_ARCH.md`） |
 | `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
-| `ImportExportSection.tsx`             | 配置导入导出                                                                                            |
+| `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
 
 ### 存储管理
 
 | 文件                                      | 职责                                                                                                                   |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移＋实时进度条、低空间预警） |
+| `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移＋实时进度条、低空间预警）；优化入口只在实例数据库有数据时出现（`db_breakdown.total_bytes > 0`）；各类数据的占用由存储治理卡负责，本卡不列明细；优化流程的失败、活跃任务拦截与结果只以本地化文案呈现，不展示 server 返回的英文原文 |
 | `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示                    |
-| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈                |
+| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁（只显示本地化提示）与优化成功 Toast 及结果卡；预检与优化失败只弹本地化提示且不含 server / 异常原文；数据库为空时不提供优化入口 |
+| `StorageGovernanceCard.tsx`               | 存储治理卡（挂在「导入导出」页）：按类别展示占用（类别名称取自 `StorageCategoryKey` 对应的本地化标签；数据库类只显示大小，目录类另显文件数；条宽按占比，非空类别至少 1%，无字节的类别为空轨道）、状态快照的创建 / 恢复 / 删除；统计要遍历整个状态目录：首次加载显示骨架占位，刷新时保留已有数字，统计失败显示可重试的本地化提示（已有数字时注明可能过期），较早发出的慢统计不会覆盖较新的结果；各操作失败只弹本地化提示，不展示 server 返回的英文与异常原文，删除快照的图标按钮带可读名称 |
+| `__tests__/StorageGovernanceCard.test.tsx` | 治理卡单测：类别占用与文件数（数据库类不显示文件数）、无字节的类别画空轨道而非 1% 残条、统计中不显示数字也不闪失败提示、首次统计失败只出本地化提示且重试可恢复、刷新失败保留旧数字并注明可能过期、较早发出的慢统计不覆盖较新结果、快照创建 / 恢复 / 删除的失败只弹本地化提示且不含 server / 异常原文（含删除被拒）、创建与恢复流程 |
 
 ### 网络与访问
 
@@ -168,7 +175,7 @@
 
 | 文件                         | 职责                                                                                                                                                        |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）                                                                                                                |
+| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）；自定义提示词被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，输入保留，不另弹开关 / 保存失败提示                                                                                                                |
 | `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |

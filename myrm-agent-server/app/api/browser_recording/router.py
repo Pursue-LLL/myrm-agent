@@ -82,7 +82,8 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     """Generate a Browser Skill from a completed recording session.
 
     Generating a skill writes to the local skill store (~/.myrm/skills),
-    which the agent cannot load in sandbox mode — fail closed there.
+    which the agent cannot load when local skills are disabled
+    (MYRM_ALLOW_LOCAL_SKILLS=0) — fail closed there.
     """
     from app.api.skills._deploy_capability import require_local_skills_capability
 

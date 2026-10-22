@@ -62,7 +62,11 @@ export const CatchupBriefCard: React.FC<CatchupBriefCardProps> = ({ brief, onRea
   const hiddenFileCount = brief.files_touched.length - MAX_LISTED_FILES;
 
   return (
-    <Card className="w-full mb-4 hover:shadow-md transition-shadow border-l-4 border-l-primary/60">
+    <Card
+      className="w-full mb-4 hover:shadow-md transition-shadow border-l-4 border-l-primary/60"
+      data-testid="catchup-brief-card"
+      data-chat-id={brief.chat_id}
+    >
       <CardHeader className="pb-2 pt-4 flex flex-row items-start justify-between gap-2">
         <div className="min-w-0">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -134,11 +138,11 @@ export const CatchupBriefCard: React.FC<CatchupBriefCardProps> = ({ brief, onRea
 
       <CardFooter className="pt-0 pb-4 flex justify-end gap-2">
         {DISMISSIBLE.has(brief.status) && (
-          <Button variant="ghost" size="sm" onClick={() => onRead(brief.chat_id)}>
+          <Button variant="ghost" size="sm" data-testid="catchup-mark-read" onClick={() => onRead(brief.chat_id)}>
             {t('markAsRead')}
           </Button>
         )}
-        <Button variant="default" size="sm" onClick={() => onNavigate(brief.chat_id)}>
+        <Button variant="default" size="sm" data-testid="catchup-view-chat" onClick={() => onNavigate(brief.chat_id)}>
           {t('viewChat')}
         </Button>
       </CardFooter>

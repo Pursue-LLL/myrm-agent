@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.ai_agents.general_agent.tool_setup import (
@@ -160,3 +163,46 @@ def test_factory_unattended_agent_excludes_ask_question_tool() -> None:
     agent._setup_clarification_tools(tools)
 
     assert "ask_question_tool" not in _tool_names(tools)
+
+
+_SIGN_OFF_QUESTIONS: list[dict[str, object]] = [
+    {
+        "id": "proceed",
+        "prompt": "Delete the production database?",
+        "options": [{"id": "delete", "label": "Delete"}, {"id": "keep", "label": "Keep"}],
+    }
+]
+
+
+async def _resume_ask_question(response: object, *, requires_confirmation: bool) -> str:
+    """Run the mounted tool as the agent does and resume its interrupt with ``response``."""
+    mixin = _make_mixin()
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    with patch("langgraph.types.interrupt", return_value=response):
+        return await ask_tool.ainvoke({"questions": _SIGN_OFF_QUESTIONS, "requires_confirmation": requires_confirmation})
+
+
+@pytest.mark.parametrize("no_answer", [{}, None])
+async def test_unanswered_sign_off_form_is_not_treated_as_consent(no_answer: object) -> None:
+    result = await _resume_ask_question(no_answer, requires_confirmation=True)
+
+    assert "NOT approved" in result
+    assert "best judgment" not in result
+
+
+@pytest.mark.parametrize("no_answer", [{}, None])
+async def test_unanswered_plain_clarification_still_continues_on_best_judgment(no_answer: object) -> None:
+    result = await _resume_ask_question(no_answer, requires_confirmation=False)
+
+    assert "best judgment" in result
+    assert "NOT approved" not in result
+
+
+async def test_answered_sign_off_form_returns_the_answer_unchanged() -> None:
+    answer = {"proceed": ["keep"]}
+
+    result = await _resume_ask_question(answer, requires_confirmation=True)
+
+    assert json.loads(result) == answer

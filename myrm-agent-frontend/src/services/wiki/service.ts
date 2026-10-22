@@ -184,6 +184,8 @@ export interface WikiMaintainResponse {
   raw_security_removed: number;
   raw_security_removed_paths: string[];
   issues: WikiHealthIssue[];
+  /** The model was asked and answered nothing: only the structural checks and repairs ran. */
+  ai_unavailable: boolean;
 }
 
 export type WikiQueryMode = 'auto' | 'raw_claim';
@@ -423,15 +425,9 @@ export interface RepairTypesResponse {
   message: string;
 }
 
+/** The compile runs in the background; `pending` is what the worker still has in its queue. */
 export interface WikiCompileResponse {
-  concepts_count: number;
-  articles_generated: number;
-  backlinks_created: number;
-  duration_ms: number;
-  articles_pending: number;
-  articles_published: number;
-  articles_blocked: number;
-  synthesis_pending: number;
+  pending: number;
   compile_run?: CompileRunStatus | null;
 }
 
@@ -895,13 +891,6 @@ export const wikiService = {
 
   getGraphInsights: async (agentId?: string | null): Promise<WikiGraphInsights> => {
     return apiRequest<WikiGraphInsights>(buildWikiApiPath('/wiki/graph/insights', agentId));
-  },
-
-  maintainWiki: async (mode: 'structural' | 'full', agentId?: string | null): Promise<WikiMaintainResponse> => {
-    const params = new URLSearchParams({ mode });
-    return apiRequest<WikiMaintainResponse>(buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId), {
-      method: 'POST',
-    });
   },
 
   exportVault: async (agentId?: string | null): Promise<void> => {

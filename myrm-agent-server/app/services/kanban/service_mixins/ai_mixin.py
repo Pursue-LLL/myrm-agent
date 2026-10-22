@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types, used to type the add_task stub.)
 - decompose (POS: Server-layer decompose domain owned by KanbanService.)
 - specify (POS: Server-layer specify domain owned by KanbanService.)
 - service_mixins.core (POS: KanbanService core state.)
@@ -15,12 +16,13 @@ AI-powered mixin: task specification, decomposition, and batch triage processing
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from myrm_agent_harness.toolkits.kanban.protocols import (
     DecomposeChildSpec,
     DecomposeOutcome,
     SpecifyOutcome,
 )
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 from app.services.kanban.decompose import (
     run_apply_decompose,
@@ -38,8 +40,36 @@ from app.services.kanban.specify import (
     run_specify_task,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority, TaskStatus
+
 
 class KanbanAiWorkflowMixin(KanbanServiceCore):
+    if TYPE_CHECKING:
+        # Provided by KanbanBoardTaskMixin, which KanbanService composes with this mixin.
+        async def add_task(
+            self,
+            board_id: str,
+            title: str,
+            description: str = "",
+            priority: TaskPriority = TaskPriority.NORMAL,
+            parent_task_id: str | None = None,
+            agent_id: str | None = None,
+            model_override: str | None = None,
+            max_retries: int = 3,
+            depends_on: list[str] | None = None,
+            extra_skill_ids: list[str] | None = None,
+            completion_criteria: str | list[dict[str, str | int]] | None = None,
+            initial_status: TaskStatus | None = None,
+            max_runtime_seconds: int | None = None,
+            workspace_path: str | None = None,
+            branch: str | None = None,
+            goal_mode: bool = False,
+            goal_max_turns: int | None = None,
+            require_approval: bool = False,
+            metadata_patch: dict[str, object] | None = None,
+        ) -> KanbanTask: ...
+
     async def specify_task(
         self,
         task_id: str,
@@ -116,28 +146,6 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
         completion_tokens: int | None = None,
         author: str = "decomposer",
     ) -> DecomposeOutcome:
-        async def _add_task(
-            board_id: str,
-            title: str,
-            description: str,
-            *,
-            agent_id: str | None,
-            parent_task_id: str | None,
-            depends_on: list[str] | None,
-            extra_skill_ids: list[str] | None = None,
-            metadata_patch: dict[str, object] | None = None,
-        ) -> KanbanTask:
-            return await self.add_task(
-                board_id=board_id,
-                title=title,
-                description=description,
-                agent_id=agent_id,
-                parent_task_id=parent_task_id,
-                depends_on=depends_on,
-                extra_skill_ids=extra_skill_ids,
-                metadata_patch=metadata_patch,
-            )
-
         return await run_apply_decompose(
             task_id,
             children=children,
@@ -145,7 +153,7 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             store=self._store,
-            add_task_fn=_add_task,
+            add_task_fn=self.add_task,
             wake_dispatcher=self._wake_dispatcher,
             publish_event=_publish_kanban_event,
             author=author,

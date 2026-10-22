@@ -59,6 +59,16 @@ describe('usePresenceReadMark', () => {
     expect(markChatAsRead).toHaveBeenCalledTimes(1);
   });
 
+  it('stamps when the page becomes visible again while the user is present', () => {
+    isUserPresent.mockReturnValue(false);
+    renderHook(() => usePresenceReadMark('chat-1', true));
+
+    isUserPresent.mockReturnValue(true);
+    setHidden(false);
+
+    expect(markChatAsRead).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['completed', 'error', 'cancelled'])('stamps when its turn ends as %s while present', (phase) => {
     renderHook(() => usePresenceReadMark('chat-1', true));
     markChatAsRead.mockClear();

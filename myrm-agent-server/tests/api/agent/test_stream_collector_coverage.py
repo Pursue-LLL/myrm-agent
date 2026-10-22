@@ -307,6 +307,43 @@ def test_stream_collector_persists_clarification_required() -> None:
     collector.cleanup()
 
 
+@pytest.mark.parametrize(
+    "answer_record",
+    [
+        {"by": "user", "value": {"framework": "langchain"}},
+        {"by": "timeout", "value": {}},
+    ],
+)
+def test_stream_collector_keeps_the_deep_research_answer_record_on_the_card(answer_record: dict[str, object]) -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-clarify-record")
+    collector.feed_event(
+        {
+            "type": "clarification_required",
+            "messageId": "msg-clarify-2",
+            "data": {
+                "type": "ask_question",
+                "source": "deep_research",
+                "form": {"questions": [{"id": "framework", "prompt": "Which framework?"}]},
+            },
+        }
+    )
+
+    collector.feed_event(
+        {
+            "type": "status",
+            "messageId": "msg-clarify-2",
+            "data": {"phase": "clarify", "status": "resolved", "answerRecord": answer_record},
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    assert extra["clarification"]["answered"] is True
+    assert extra["clarification"]["answerRecord"] == answer_record
+    collector.cleanup()
+
+
 def test_stream_collector_persists_plan_confirmation_waiting() -> None:
     ACTIVE_COLLECTORS.clear()
     collector = StreamContentCollector(chat_id="chat-plan-persist")
@@ -596,36 +633,16 @@ def test_model_escalated_discards_draft() -> None:
     collector.cleanup()
 
 
-def test_stream_collector_ttsr_triggered() -> None:
-    """ttsr_triggered event is collected and persisted in extra_data under ttsrInterventions."""
-    collector = StreamContentCollector(chat_id="chat-ttsr-test")
-    collector.feed_event({"type": "message", "data": "Safe output"})
-    collector.feed_event(
-        {
-            "type": "ttsr_triggered",
-            "data": {
-                "rule_id": "rule_block_rm_rf",
-                "rule_name": "Destructive Command Filter",
-                "reminder": "Do not delete files without confirmation",
-                "target": "assistant",
-                "retry_count": 1,
-                "max_retries": 2,
-            },
-        }
-    )
+def test_failover_after_a_tool_step_keeps_the_text_streamed_before_it() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-failover-after-tool")
 
-    extra = collector.extra_data
-    assert extra is not None
-    assert "ttsrInterventions" in extra
-    interventions = extra["ttsrInterventions"]
-    assert isinstance(interventions, list)
-    assert len(interventions) == 1
-    assert interventions[0] == {
-        "ruleId": "rule_block_rm_rf",
-        "ruleName": "Destructive Command Filter",
-        "reminder": "Do not delete files without confirmation",
-        "target": "assistant",
-        "retryCount": 1,
-        "maxRetries": 2,
-    }
+    collector.feed_event({"type": "message", "data": "Let me check. "})
+    collector.feed_event({"type": "tool_start"})
+    collector.feed_event({"type": "message", "data": "The capital of France is Pa"})
+    collector.feed_event({"type": "status", "step_key": "model_failover", "error_kind": "timeout", "restart": True})
+    collector.feed_event({"type": "model_failover", "data": {"fromModel": "a", "toModel": "b", "reason": "timeout"}})
+    collector.feed_event({"type": "message", "data": "Paris is the capital of France."})
+
+    assert collector.content == "Let me check. Paris is the capital of France."
     collector.cleanup()

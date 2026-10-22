@@ -178,6 +178,12 @@ def _serialize_mcp_configs(agent_wrapper: GeneralAgent) -> list[dict[str, object
     return configs
 
 
+def _skill_content_hashes(skill_ids: list[str]) -> dict[str, str]:
+    from app.services.skills.write_orchestrator import skill_content_hashes_for_ids
+
+    return skill_content_hashes_for_ids(skill_ids)
+
+
 def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
     """Hash wrapper-level inputs that affect ``build_general_agent`` output."""
     from app.core.skills.config_version import get_skill_config_version
@@ -204,6 +210,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "skill_config_version": get_skill_config_version(),
         "harness_fingerprint": harness_fp,
         "skill_ids": sorted(agent_wrapper.skill_ids or []),
+        "skill_content_hashes": _skill_content_hashes(agent_wrapper.skill_ids or []),
         "skill_configs": _stable_json(agent_wrapper.skill_configs),
         "subagent_ids": sorted(agent_wrapper.subagent_ids or []),
         "mcp_servers": _serialize_mcp_configs(agent_wrapper),

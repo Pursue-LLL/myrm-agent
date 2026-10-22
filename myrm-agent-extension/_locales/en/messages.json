@@ -178,5 +178,128 @@
   },
   "notifyClipErrorTitle": {
     "message": "Clip failed"
+  },
+  "approvalTitleSingle": {
+    "message": "Approve this action?"
+  },
+  "approvalTitleBatch": {
+    "message": "Approve these $COUNT$ actions?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "approvalTitleExternal": {
+    "message": "Approval needed"
+  },
+  "approvalHintElevated": {
+    "message": "This action needs extra confirmation. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintExternal": {
+    "message": "Respond to this request in the Myrm Agent web app."
+  },
+  "approvalApprove": {
+    "message": "Approve"
+  },
+  "approvalReject": {
+    "message": "Reject"
+  },
+  "approvalDismiss": {
+    "message": "Dismiss"
+  },
+  "approvalHandledElsewhere": {
+    "message": "This approval was already handled, either by timeout or in another window."
+  },
+  "approvalSendFailed": {
+    "message": "Your answer could not be sent. Check the connection and try again."
+  },
+  "approvalHintTooLong": {
+    "message": "This is too long to review here. Open it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintNoDetails": {
+    "message": "There is nothing to review here for this action. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalDeadlineDeny": {
+    "message": "Rejected automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalDeadlineAllow": {
+    "message": "Approved automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalExpiredDeny": {
+    "message": "The approval timed out and is rejected automatically."
+  },
+  "approvalExpiredAllow": {
+    "message": "The approval timed out and is approved automatically."
+  },
+  "notifyApprovalTitle": {
+    "message": "Your agent is waiting for you"
+  },
+  "notifyApprovalBody": {
+    "message": "Review the pending action in the Myrm Agent side panel."
+  },
+  "approvalNotifyLabel": {
+    "message": "Notify me when the agent needs my approval"
+  },
+  "panelNewChat": {
+    "message": "New chat"
+  },
+  "panelOpenSettings": {
+    "message": "Open settings"
+  },
+  "panelCancel": {
+    "message": "Cancel"
+  },
+  "panelEmptyTitle": {
+    "message": "Ask anything"
+  },
+  "panelEmptyHint": {
+    "message": "Select text on any page, right-click \"Ask Myrm Agent\", or type below."
+  },
+  "panelThinking": {
+    "message": "Thinking…"
+  },
+  "panelUsingTool": {
+    "message": "Using $TOOL$…",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "file_read_tool"
+      }
+    }
+  },
+  "panelToolFallback": {
+    "message": "tool"
+  },
+  "panelNotConnected": {
+    "message": "Myrm Agent is not connected."
+  },
+  "panelInputPlaceholder": {
+    "message": "Ask anything…"
+  },
+  "panelInputPaused": {
+    "message": "Answer the approval above to continue"
+  },
+  "panelStreamError": {
+    "message": "Something went wrong. Check the connection and try again."
+  },
+  "panelAgentBusy": {
+    "message": "The agent is still working on the previous step. Try again in a moment."
+  },
+  "allowAllEligibleTabs": {
+    "message": "Allow all eligible websites"
   }
 }

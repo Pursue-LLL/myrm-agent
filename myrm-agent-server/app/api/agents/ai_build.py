@@ -10,6 +10,7 @@ payload, including recommended skill IDs, MCP IDs, and builtin tools.
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
 - app.core.skills.store.service::skills_service (POS: Skill store singleton)
 - app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
 [OUTPUT]
 - POST /user-agents/ai-build: SSE stream of a structured JSON agent configuration
@@ -44,6 +45,7 @@ from app.core.channel_bridge.model_resolver import (
 from app.core.skills.store.service import skills_service
 from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
 from app.services.agent.builtin_specs.builtin_tool_ids import BUILTIN_TOOL_CATALOG
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ async def _collect_available_resources() -> tuple[list[dict[str, str]], list[dic
     try:
         all_skills = await skills_service.list_skills()
         for s in all_skills:
-            if s.enabled:
+            if s.available:
                 skill_summaries.append({"id": s.id, "name": s.name, "desc": s.description or ""})
     except Exception as exc:
         logger.warning("ai_build: failed to list skills: %s", exc)
@@ -165,6 +167,7 @@ async def ai_build(request: AIBuildRequest) -> StreamingResponse:
     """Generate a complete agent configuration from a natural-language intent."""
     if not request.intent or not request.intent.strip():
         raise HTTPException(status_code=400, detail="Intent cannot be empty")
+    await reject_if_risky(request.intent)
 
     try:
         configs = await load_user_configs()

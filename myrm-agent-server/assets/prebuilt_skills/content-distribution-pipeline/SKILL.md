@@ -83,6 +83,7 @@ contract:
   steps:
     - "Phase 1 (parallel): Adapt content for each selected platform using platform-specific SOP guides"
     - "Phase 2 (sequential): Cross-platform consistency review, factual auditing, and Deliverable Bundle compilation"
+    - "Phase 3 (optional, only when Postiz MCP tools are connected): Sync overseas-platform variants to Postiz as drafts or scheduled posts and return the preview links for human review"
   success_criteria: "Platform-optimized content variants with native algorithm compliance, title pools, video scripts, and visual asset specs"
   estimated_duration_seconds: 3600
 ---
@@ -117,6 +118,9 @@ One-to-many professional content distribution suite: write once, distribute ever
    - **Asset & Copy Binding**: Direct linkage between post copy, media attachments, aspect ratio requirements, and targeted platform metrics.
 6. **Unified Deliverable Bundle**:
    - Cross-platform factual audit, consistency review, and ready-to-publish checklist.
+7. **Postiz Draft Sync (only when Postiz MCP tools are connected)**:
+   - For overseas platforms (X, LinkedIn, YouTube, TikTok, Instagram, Threads, Reddit), create drafts or scheduled posts in Postiz and return each preview link so the user reviews before anything is published. Never publish immediately unless the user explicitly asks for immediate posting in this conversation.
+   - Xiaohongshu, Douyin, WeChat and Channels are not supported by Postiz — deliver those variants as files only, exactly as before.
 
 ## Reference Guides
 

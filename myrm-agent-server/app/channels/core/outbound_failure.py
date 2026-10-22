@@ -85,12 +85,6 @@ class OutboundFailureMixin:
         """Callback for DeadLetterQueue to re-enqueue a failed message."""
         msg = OutboundMessage.from_dict(content)
         await self.publish_outbound(msg)
-
-        # Track metric if channel exists
-        ch = self._channels.get(channel)
-        if ch and hasattr(ch, "metrics"):
-            ch.metrics.record_dlq_retry_success()
-
         return "enqueued"
 
     def _dlq_max_retries(self) -> int:

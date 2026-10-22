@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -58,6 +58,7 @@ async def _seed_chat(
     messages: tuple[tuple[str, str, int], ...] = (),
     source: str = "web",
     deleted: bool = False,
+    incognito: bool = False,
     message_ids: tuple[str, ...] = (),
 ) -> str:
     """Create a chat; each message is (role, content, minutes_ago). ``message_ids`` optionally overrides row ids."""
@@ -69,6 +70,7 @@ async def _seed_chat(
                 title="Quarterly report",
                 action_mode="fast",
                 source=source,
+                is_incognito=incognito,
                 created_at=_ago(120),
                 updated_at=_ago(1),
                 last_read_at=_ago(last_read_minutes_ago) if last_read_minutes_ago is not None else None,
@@ -131,6 +133,21 @@ async def test_a_reply_that_arrived_while_the_user_was_away_is_unseen(async_clie
     assert brief["last_user_prompt"] == "Summarise the report"
     assert brief["result_preview"] == "The report is ready."
     assert brief["chat_title"] == "Quarterly report"
+
+
+@pytest.mark.asyncio
+async def test_updated_at_names_its_utc_offset_so_a_browser_does_not_read_it_as_local_time(
+    async_client: httpx.AsyncClient,
+) -> None:
+    chat_id = await _seed_chat(
+        last_read_minutes_ago=10,
+        messages=(("user", "Summarise the report", 11), ("assistant", "The report is ready.", 5)),
+    )
+
+    updated_at = datetime.fromisoformat(str((await _briefs(async_client))[chat_id]["updated_at"]))
+
+    assert updated_at.utcoffset() == timedelta(0)
+    assert abs(datetime.now(UTC) - updated_at) < timedelta(minutes=3)
 
 
 @pytest.mark.asyncio
@@ -299,6 +316,28 @@ async def test_trashed_and_non_web_chats_are_never_listed(async_client: httpx.As
 
     assert trashed not in briefs
     assert cron not in briefs
+
+
+@pytest.mark.asyncio
+async def test_an_incognito_chat_is_never_listed_whatever_it_needs_from_the_user(
+    async_client: httpx.AsyncClient, digest_chats: list[str]
+) -> None:
+    unseen = (("user", "Private question", 11), ("assistant", "Private answer", 5))
+    incognito = await _seed_chat(last_read_minutes_ago=10, messages=unseen, incognito=True)
+    regular = await _seed_chat(last_read_minutes_ago=10, messages=unseen)
+    for chat_id in (incognito, regular):
+        digest_chats.append(chat_id)
+        RunDigestStore.end_run(chat_id, phase=RunDigestPhase.ERROR)
+        await _add_pending_approval(chat_id)
+    gateway = get_agent_gateway()
+    gateway.reserve_session(incognito, active_message_id="msg-private")
+    try:
+        briefs = await _briefs(async_client)
+    finally:
+        gateway.release_session(incognito)
+
+    assert incognito not in briefs
+    assert regular in briefs
 
 
 @pytest.mark.asyncio

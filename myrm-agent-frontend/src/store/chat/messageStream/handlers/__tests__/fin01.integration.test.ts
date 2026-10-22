@@ -36,7 +36,6 @@ vi.mock('../handlerDeps', () => ({
     STEERING: 'steering',
     ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
     CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
-    TOOL_FALLBACK: 'tool_fallback',
     CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
     PTC_NOTIFY: 'ptc_notify',
   },
@@ -44,6 +43,7 @@ vi.mock('../handlerDeps', () => ({
   normalizeGoalState: vi.fn(),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: vi.fn(),
+  isStreamForOpenChat: vi.fn(() => true),
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {

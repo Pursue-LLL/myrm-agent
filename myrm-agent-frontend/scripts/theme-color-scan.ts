@@ -41,3 +41,39 @@ export function findWrappedThemeColorSites(source: string): WrappedThemeColorSit
   }
   return sites;
 }
+
+/**
+ * 语义色工具类（`text-warning`、`bg-success/10`、`to-error`）必须在 `globals.css` 里有对应的 `--color-*` 声明。
+ * Tailwind 4 只为已声明的颜色生成工具类，未声明的类名不报错也不出样式：告警框没底色没描边，单测与 jsdom 看不见。
+ *
+ * 只盯这几个“像主题语义色、却最容易漏定义”的名字，避免把 `text-xs`、`bg-cover` 之类误判成颜色；
+ * 前缀之前不能是字母 / 数字 / `_` / `-`，所以 `seek-to-error` 这种连字符词不会误中，而 `hover:bg-warning` 会命中。
+ */
+const SEMANTIC_COLOR_UTILITY =
+  /(?<![\w-])(?:bg|text|border|ring|fill|stroke|from|via|to|outline|divide|shadow|decoration|accent|caret|placeholder)-((?:success|warning|info|danger|error)(?:-foreground)?)(?![\w-])/g;
+
+export interface UndefinedSemanticColorSite {
+  line: number;
+  text: string;
+  /** 缺失的主题颜色名，对应 `--color-<token>`。 */
+  token: string;
+}
+
+/** 读出 `globals.css` 里声明过的 `--color-<name>`（Tailwind 据此生成颜色工具类）。 */
+export function parseDeclaredColorTokens(globalsCss: string): Set<string> {
+  return new Set(Array.from(globalsCss.matchAll(/--color-([\w-]+)\s*:/g), (match) => match[1]));
+}
+
+export function findUndefinedSemanticColorSites(
+  source: string,
+  declaredColorTokens: ReadonlySet<string>,
+): UndefinedSemanticColorSite[] {
+  const sites: UndefinedSemanticColorSite[] = [];
+  for (const match of source.matchAll(SEMANTIC_COLOR_UTILITY)) {
+    if (!declaredColorTokens.has(match[1])) {
+      const line = source.slice(0, match.index).split('\n').length;
+      sites.push({ line, text: match[0], token: match[1] });
+    }
+  }
+  return sites;
+}

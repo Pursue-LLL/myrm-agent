@@ -30,6 +30,8 @@ export interface ToolApprovalRequest {
   batchId?: string;
   batchIndex?: number;
   batchSize?: number;
+  /** Opaque id of the pause this card answers (one per pause, even for one task's consecutive pauses); echoed on resume so the answer can only settle this pause */
+  interruptId?: string;
   /** URL-bearing tools: hostnames extracted from tool arguments */
   domains?: string[];
   /** Whether Domain HITL is active for this request */

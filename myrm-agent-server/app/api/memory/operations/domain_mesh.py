@@ -31,11 +31,18 @@ from app.schemas.memory.domain_mesh import (
     HermesMigrationResponse,
     ProgressiveHighlight,
 )
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/domain-mesh", tags=["memory-domain-mesh"])
+
+
+def _enum_text(value: object) -> str:
+    """Return an enum member's value, the string form of any other value, or "" for None."""
+    if value is None:
+        return ""
+    return str(getattr(value, "value", value))
 
 
 @router.get("/overview", response_model=DomainMeshOverviewResponse)
@@ -58,8 +65,7 @@ async def get_domain_mesh_overview(
             continue
 
         for m in mems:
-            dom = getattr(m, "domain", None)
-            dom_val = dom.value if hasattr(dom, "value") else (str(dom) if dom is not None else "")
+            dom_val = _enum_text(getattr(m, "domain", None))
             cat = getattr(m, "domain_category", None) or ""
 
             if not dom_val or dom_val not in (
@@ -72,7 +78,7 @@ async def get_domain_mesh_overview(
                 infer_dom, infer_cat = infer_domain_and_category(
                     memory_type=mtype.value,
                     content=getattr(m, "content", ""),
-                    event_type=getattr(m, "event_type", None),
+                    event_type=getattr(m, "event_type", None) or "",
                     preference_type=getattr(m, "preference_type", None),
                     tags=safe_tags,
                 )
@@ -81,20 +87,12 @@ async def get_domain_mesh_overview(
             else:
                 cat = cat or "profile"
 
-            l0 = getattr(m, "summary_l0", "") or (
-                m.content[:120].strip() if hasattr(m, "content") else ""
-            )
-            l1 = getattr(m, "overview_l1", "") or (
-                m.content[:300].strip() if hasattr(m, "content") else ""
-            )
+            l0 = getattr(m, "summary_l0", "") or (m.content[:120].strip() if hasattr(m, "content") else "")
+            l1 = getattr(m, "overview_l1", "") or (m.content[:300].strip() if hasattr(m, "content") else "")
             upd = (
                 m.updated_at.isoformat()
                 if hasattr(m, "updated_at") and m.updated_at
-                else (
-                    m.created_at.isoformat()
-                    if hasattr(m, "created_at") and m.created_at
-                    else ""
-                )
+                else (m.created_at.isoformat() if hasattr(m, "created_at") and m.created_at else "")
             )
             item = ProgressiveHighlight(
                 id=m.id,
@@ -152,8 +150,7 @@ async def get_memory_drill_down(
     if mem is None:
         raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found.")
 
-    dom = getattr(mem, "domain", None)
-    dom_val = dom.value if hasattr(dom, "value") else (str(dom) if dom is not None else "")
+    dom_val = _enum_text(getattr(mem, "domain", None))
     cat = getattr(mem, "domain_category", None) or ""
 
     if not dom_val or dom_val not in (
@@ -161,14 +158,13 @@ async def get_memory_drill_down(
         MemoryDomain.ASSISTANT.value,
         MemoryDomain.TASK.value,
     ):
-        mem_type_name = getattr(mem, "memory_type", "semantic")
-        mem_type_str = mem_type_name.value if hasattr(mem_type_name, "value") else str(mem_type_name)
+        mem_type_str = _enum_text(getattr(mem, "memory_type", "semantic"))
         raw_tags = getattr(mem, "tags", None) or []
         safe_tags = [str(t) for t in raw_tags if isinstance(t, (str, int, float))]
         infer_dom, infer_cat = infer_domain_and_category(
             memory_type=mem_type_str,
             content=getattr(mem, "content", ""),
-            event_type=getattr(mem, "event_type", None),
+            event_type=getattr(mem, "event_type", None) or "",
             preference_type=getattr(mem, "preference_type", None),
             tags=safe_tags,
         )
@@ -177,26 +173,13 @@ async def get_memory_drill_down(
     else:
         cat = cat or "profile"
 
-    l0 = getattr(mem, "summary_l0", "") or (
-        mem.content[:120].strip() if hasattr(mem, "content") else ""
-    )
-    l1 = getattr(mem, "overview_l1", "") or (
-        mem.content[:300].strip() if hasattr(mem, "content") else ""
-    )
+    l0 = getattr(mem, "summary_l0", "") or (mem.content[:120].strip() if hasattr(mem, "content") else "")
+    l1 = getattr(mem, "overview_l1", "") or (mem.content[:300].strip() if hasattr(mem, "content") else "")
     l2 = getattr(mem, "content", "")
-    created = (
-        mem.created_at.isoformat()
-        if hasattr(mem, "created_at") and mem.created_at
-        else ""
-    )
-    updated = (
-        mem.updated_at.isoformat()
-        if hasattr(mem, "updated_at") and mem.updated_at
-        else ""
-    )
+    created = mem.created_at.isoformat() if hasattr(mem, "created_at") and mem.created_at else ""
+    updated = mem.updated_at.isoformat() if hasattr(mem, "updated_at") and mem.updated_at else ""
     meta = getattr(mem, "metadata", {}) or {}
-    mem_type = getattr(mem, "memory_type", "semantic")
-    mem_type_val = mem_type.value if hasattr(mem_type, "value") else str(mem_type)
+    mem_type_val = _enum_text(getattr(mem, "memory_type", "semantic"))
 
     return DrillDownResponse(
         id=mem.id,
@@ -219,9 +202,7 @@ async def migrate_from_hermes(
 ) -> HermesMigrationResponse:
     """Import and migrate Hermes or OpenViking memory bundle into memory manager."""
     is_json = payload.format.lower() == "json"
-    success, failures = await import_hermes_bundle(
-        manager, payload.content, is_json=is_json
-    )
+    success, failures = await import_hermes_bundle(manager, payload.content, is_json=is_json)
     return HermesMigrationResponse(
         success_count=success,
         fail_count=failures,

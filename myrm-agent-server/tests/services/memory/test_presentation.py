@@ -307,9 +307,7 @@ class TestMergeAuditProjection:
         )
         item = memory_to_item(mem, MemoryType.SEMANTIC)
         assert item.merge_count == 3
-        assert item.merge_history == (
-            "09-10 14:00|MERGE|prefers dark mode\n09-12 09:30|REPLACE|moved to Shanghai"
-        )
+        assert item.merge_history == ("09-10 14:00|MERGE|prefers dark mode\n09-12 09:30|REPLACE|moved to Shanghai")
 
     def test_merge_fields_omitted_when_empty(self) -> None:
         mem = SemanticMemory(content="never merged")

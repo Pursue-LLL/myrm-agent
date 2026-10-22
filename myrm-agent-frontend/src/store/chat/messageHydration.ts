@@ -1,11 +1,10 @@
 /**
  * [INPUT]
  * @/store/chat/clarificationState::normalizeHydratedClarification (POS: pending clarify restore)
- * @/store/chat/directoryRequestState::normalizeHydratedDirectoryRequest (POS: pending directory request restore)
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
  *
  * [OUTPUT]
- * parseMessages: Normalize persisted API messages into store Message objects (metadata, TTSR, cited memory refs,
+ * parseMessages: Normalize persisted API messages into store Message objects (metadata, cited memory refs,
  *   system notice marker).
  *
  * [POS]
@@ -14,7 +13,6 @@
 
 import type { Message } from '@/store/chat/types';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
-import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
 
 /** Metadata keys the server sets on assistant rows it appends itself (its `SYSTEM_NOTICE_EXTRA_KEYS`). */
@@ -30,6 +28,9 @@ export function parseMessages(raw: Message[]): Message[] {
 
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
+    const turnLoadedSkills = normalizeTurnLoadedSkills(
+      metadata.turnLoadedSkills ?? metadata.turn_loaded_skills ?? rawRecord.turnLoadedSkills,
+    );
 
     const createdAtMs = resolveMessageCreatedAtMs(
       (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as Date | string | number | undefined,
@@ -41,6 +42,7 @@ export function parseMessages(raw: Message[]): Message[] {
       createdAt: createdAtMs !== null && createdAtMs !== undefined ? new Date(createdAtMs) : new Date(),
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
+      ...(turnLoadedSkills ? { turnLoadedSkills } : {}),
     } as Message;
 
     const persistedRequestMessageId = metadata.request_message_id;
@@ -54,10 +56,6 @@ export function parseMessages(raw: Message[]): Message[] {
 
     if (parsed.clarification) {
       parsed.clarification = normalizeHydratedClarification(parsed.clarification);
-    }
-
-    if (parsed.directoryRequest) {
-      parsed.directoryRequest = normalizeHydratedDirectoryRequest(parsed.directoryRequest);
     }
 
     if (!parsed.reasoning) {
@@ -80,11 +78,6 @@ export function parseMessages(raw: Message[]): Message[] {
     const rawStagedArtifacts = metadata.stagedArtifacts ?? metadata.staged_artifacts;
     if (Array.isArray(rawStagedArtifacts) && !parsed.stagedArtifacts) {
       parsed.stagedArtifacts = rawStagedArtifacts as Message['stagedArtifacts'];
-    }
-
-    const rawTtsrInterventions = metadata.ttsrInterventions ?? metadata.ttsr_interventions;
-    if (Array.isArray(rawTtsrInterventions)) {
-      parsed.ttsrInterventions = normalizeTtsrInterventions(rawTtsrInterventions);
     }
 
     const rawAsyncUserMessages = metadata.asyncUserMessages ?? metadata.async_user_messages;
@@ -119,6 +112,34 @@ function normalizeStringArray(value: unknown): string[] | undefined {
   return ids.length > 0 ? ids : undefined;
 }
 
+function normalizeTurnLoadedSkills(value: unknown): Message['turnLoadedSkills'] {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const rows: NonNullable<Message['turnLoadedSkills']> = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const name = record.name;
+    if (typeof name !== 'string' || !name.trim()) {
+      continue;
+    }
+    const idRaw = record.id;
+    const id = typeof idRaw === 'string' && idRaw.trim() ? idRaw.trim() : name.trim();
+    const hashRaw = record.content_hash ?? record.contentHash;
+    rows.push({
+      name: name.trim(),
+      id,
+      content_hash: typeof hashRaw === 'string' ? hashRaw : undefined,
+      version: typeof record.version === 'string' ? record.version : undefined,
+      partial: Boolean(record.partial),
+    });
+  }
+  return rows.length > 0 ? rows : undefined;
+}
+
 function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
   if (!Array.isArray(value)) {
     return undefined;
@@ -128,44 +149,4 @@ function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
       typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string',
   );
   return refs.length > 0 ? refs : undefined;
-}
-
-function normalizeTtsrInterventions(value: unknown): Message['ttsrInterventions'] {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const result: NonNullable<Message['ttsrInterventions']> = [];
-  for (const item of value) {
-    if (typeof item !== 'object' || item === null) {
-      continue;
-    }
-    const record = item as Record<string, unknown>;
-    const rawId = record.ruleId ?? record.rule_id;
-    if (typeof rawId !== 'string' || !rawId.trim()) {
-      continue;
-    }
-    const rawName = record.ruleName ?? record.rule_name;
-    const ruleName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : rawId.trim();
-    const reminder = typeof record.reminder === 'string' ? record.reminder : '';
-    const rawTarget = record.target;
-    const target =
-      rawTarget === 'assistant' || rawTarget === 'thinking' || rawTarget === 'tool_args' || rawTarget === 'all'
-        ? rawTarget
-        : undefined;
-    const rawRetry = record.retryCount ?? record.retry_count;
-    const retryCount = typeof rawRetry === 'number' && rawRetry >= 0 ? rawRetry : 1;
-    const rawMax = record.maxRetries ?? record.max_retries;
-    const maxRetries = typeof rawMax === 'number' && rawMax >= 0 ? rawMax : 2;
-
-    result.push({
-      ruleId: rawId.trim(),
-      ruleName,
-      reminder,
-      target,
-      retryCount,
-      maxRetries,
-      timestamp: record.timestamp ? (record.timestamp as string | number | Date) : undefined,
-    });
-  }
-  return result.length > 0 ? result : undefined;
 }

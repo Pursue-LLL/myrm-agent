@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from app.services.agent.params.models import AgentRequest
+from app.services.agent.params.models import AgentRequest, MultimodalQuery
 from app.services.agent.params.workspace_resolve import resolve_default_chat_workspace_dir
 
 logger = logging.getLogger(__name__)
@@ -96,23 +96,20 @@ async def build_archive_restore_action_context_with_results(
 
 
 def inject_archive_restore_actions_into_query(
-    query: object,
+    query: MultimodalQuery,
     restore_context: str,
-) -> object:
+) -> MultimodalQuery:
     if not restore_context:
         return query
     if isinstance(query, str):
         return f"{query}\n\n{restore_context}"
-    if isinstance(query, list):
-        next_query = list(query)
-        next_query.append(
-            {
-                "type": "text",
-                "text": f"Restored archived context for this turn:\n{restore_context}",
-            }
-        )
-        return next_query
-    return query
+    return [
+        *query,
+        {
+            "type": "text",
+            "text": f"Restored archived context for this turn:\n{restore_context}",
+        },
+    ]
 
 
 async def prevalidate_archive_restore_actions(request: AgentRequest) -> None:

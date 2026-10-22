@@ -18,6 +18,7 @@
 
 [POS]
 Catchup inbox endpoints. ``Chat.last_read_at`` is the user's last presence in a chat; an agent reply newer than it is unseen.
+Incognito chats are never listed.
 A chat with no recorded presence (NULL) counts as read until something happens that needs the user.
 """
 
@@ -78,6 +79,12 @@ def _naive_utc(moment: datetime) -> datetime:
     return moment.astimezone(UTC).replace(tzinfo=None)
 
 
+def _utc_iso(moment: datetime) -> str:
+    """ISO-8601 with an explicit UTC offset: the stored value is naive UTC, which a browser would read as local time."""
+    aware = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
+    return aware.isoformat()
+
+
 async def _unseen_failures(db: AsyncSession) -> dict[str, CatchupStatus]:
     """Chats whose last turn failed or was cancelled after the user last saw them.
 
@@ -98,7 +105,10 @@ async def _unseen_failures(db: AsyncSession) -> dict[str, CatchupStatus]:
 
 
 async def _candidate_chats(db: AsyncSession, running_ids: Collection[str], failed_ids: Collection[str]) -> list[_Candidate]:
-    """Newest web chats that hold something unseen: a reply, a running turn, a pending approval or a failure."""
+    """Newest regular web chats that hold something unseen: a reply, a running turn, a pending approval or a failure.
+
+    An incognito chat never surfaces: a brief quotes the person's prompt and the reply, which an incognito chat must not expose.
+    """
     unseen_reply = exists().where(
         Message.chat_id == Chat.id,
         Message.role == "assistant",
@@ -110,6 +120,7 @@ async def _candidate_chats(db: AsyncSession, running_ids: Collection[str], faile
         select(Chat.id, Chat.title, Chat.updated_at, Chat.last_read_at, pending_approval.label("has_pending_approval"))
         .where(
             Chat.source == "web",
+            Chat.is_incognito.is_(False),
             Chat.deleted_at.is_(None),
             or_(unseen_reply, pending_approval, Chat.id.in_({*running_ids, *failed_ids})),
         )
@@ -185,7 +196,7 @@ async def get_catchup_briefs(user_id: Annotated[str, Depends(get_deploy_identity
                     **brief.model_dump(),
                     chat_id=chat.chat_id,
                     chat_title=chat.title or "",
-                    updated_at=chat.updated_at.isoformat(),
+                    updated_at=_utc_iso(chat.updated_at),
                 )
             )
 

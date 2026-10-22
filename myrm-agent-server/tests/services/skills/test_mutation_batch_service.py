@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,6 +19,9 @@ from app.services.skills.mutation_batch_service import (
     _SkillLiveState,
     rollback_skill_mutation_batch,
 )
+
+# Stored rows always carry the time they were taken; the guard against newer batches reads it.
+_CREATED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def _snapshot_row(
@@ -38,6 +42,7 @@ def _snapshot_row(
             "existed_before_batch": existed_before,
             "resource_files": resources or {},
         },
+        created_at=_CREATED_AT,
     )
 
 
@@ -46,6 +51,8 @@ def _session_with_rows(rows: list[BatchSnapshot]) -> AsyncMock:
     result = MagicMock()
     result.scalars.return_value.all.return_value = rows
     session.execute = AsyncMock(return_value=result)
+    # No other batch snapshotted these skills later; the guard against that has its own tests on real rows.
+    session.scalar = AsyncMock(return_value=None)
     return session
 
 
@@ -58,6 +65,7 @@ async def test_rollback_accepts_market_replace_batch_kind() -> None:
         skill_content_before="before-market-md",
         skill_version_before=0,
         skill_metadata={"batch_kind": "market_replace", "existed_before_batch": True, "resource_files": {}},
+        created_at=_CREATED_AT,
     )
     session = _session_with_rows([row])
     live = _SkillLiveState(skill_id="skill-1", skill_md="live", resources={}, skill_existed=True)

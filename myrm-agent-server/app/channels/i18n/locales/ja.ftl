@@ -11,7 +11,7 @@ approval_denial_processing =  拒否を処理中...
 approval_denial_with_reason_processing =  拒否を処理中：「{ $reason }」
 approval_batch_processing =  { $approve_count } 件の承認、{ $reject_count } 件の拒否を処理中...
 approval_batch_processing_always =  { $approve_count } 件の承認（{ $always_count } 件は常時許可）、{ $reject_count } 件の拒否を処理中...
-approval_timeout_resolved = ℹ この承認はタイムアウトにより自動処理されました。操作不要です。
+approval_already_handled = ℹ この承認はタイムアウトしたか、すでに別の場所で処理されました。操作不要です。
 permission_denied =  権限不足：`/{ $cmd }` には管理者権限が必要です。
 usage_steer = 使い方：`/steer <新しい指示>`
 steering_applied = 指示を適用しました：_{ $preview }_
@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = ゴールの確認が必要です
 goal_stream_failed_message =
     自律タスクが予期せず停止しました。ゴールパネルを開いて確認・続行してください。
+goal_usage_limit_wait_title = 目標を一時停止しました（利用上限のリセット待ち）
+goal_usage_limit_wait_message =
+    リセット後に自動で再開します。操作は不要です。
+goal_usage_limit_resumed_title = 目標を再開しました
+goal_usage_limit_resumed_message =
+    利用上限がリセットされ、目標が再び実行されています。
+goal_usage_limit_paused_title = 利用上限により目標を一時停止しました
+goal_usage_limit_paused_message =
+    リセットまでの時間が長いため待機できません。準備ができたら目標パネルから再開してください。
+airbag_rolled_back_title = 変更を元に戻しました
+airbag_rolled_back_message =
+    ワークスペースのファイルを、目標の開始前の状態に戻しました。
 new_session_started =  新しい会話を開始しました。次のメッセージから新しいセッションになります。
 compact_not_configured = ℹ 圧縮が設定されていません。
 compact_success =  コンテキストを圧縮しました：{ $message_count } メッセージを要約、約 { $tokens_saved } トークンを節約。{ $topic_hint }
@@ -238,14 +250,8 @@ analyzing_image = 画像を解析中...
 search_unreachable = 検索サービスは設定されていますが、現在接続できません。検索サービスが正常に動作しているか確認してから再試行してください。
 daily_budget_blocked = 日次予算の上限に達しました。実行がブロックされました。Web 設定で予算上限を調整してから再試行してください。
 channel_budget_blocked = このチャンネルの日次予算に達しました。他のチャンネルや Web セッションには影響しません。チャンネルオーナーが設定 > 予算で上限を調整できます。
-cooldown_retry =
-    
-    
-    ⏱️ { $seconds } 秒後にリトライしてください。
 config_next_steps =
-    
-    
-    次のステップ：
+    { "\u000A\u000A" }次のステップ：
     { $steps }
 component_options_prefix = オプション
 component_quick_reply_instruction = ↩ 番号を入力して選択
@@ -296,6 +302,10 @@ error_safety_block = リクエストがセーフティフィルターにより�
 error_challenge_blocked = リクエストが上流のチャレンジまたはセキュリティ検証によってブロックされました。
 error_response_format = AI が無効なフォーマットを生成しました。再試行してください。
 error_unknown = リクエストの処理中に問題が発生しました。しばらくしてから再試行してください。
+error_billing_owner = AI プロバイダーのアカウントの残高またはクォータが尽きました。プロバイダー側でチャージしてから、もう一度メッセージを送信してください。
+error_billing_owner_platform = プランのクレジットが尽きました。Web アプリでチャージまたはプランをアップグレードしてから、もう一度メッセージを送信してください。
+error_auth_owner = AI プロバイダーが認証情報を拒否しました。設定 > モデルサービスで API キーを確認するか、設定 > 資格情報でアカウントを再認証してください。
+error_model_not_found_owner = 設定したモデルはプロバイダーで利用できません。設定 > モデルサービスで別のモデルを選択してください。
 cmd_stop = 実行中の Agent タスクを停止
 cmd_new = 新しい会話セッションを開始
 cmd_compact = 会話コンテキストを圧縮してトークンコストを削減

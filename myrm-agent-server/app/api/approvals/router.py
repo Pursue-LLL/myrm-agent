@@ -1,15 +1,14 @@
 """[INPUT]
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
-- app.services.approvals.docket_service::DocketService (POS: 法律案卷包归档服务)
 - myrm_agent_harness.agent.types::Command (POS: LangGraph Resume 原语)
 - myrm_agent_harness.agent.security.jit_gate::JITDualVerificationGate (POS: 执行期防掉包与现势策略双重动态断言网关)
 - myrm_agent_harness.api.security::rollback_workspace_snapshot (POS: 快照回滚底层核心)
 
 [OUTPUT]
-- /api/v1/approvals: 审批决策接口、法律案卷导出接口与快照回滚接口
+- /api/v1/approvals: 审批决策接口与快照回滚接口
 
 [POS]
-提供统一的审批决策接口。处理挂起任务的 approve/deny，在恢复底层 agent 执行瞬间前置执行 JIT 物理资产防篡改校验，并固化法律审计案卷。
+提供统一的审批决策接口。处理挂起任务的 approve/deny，在恢复底层 agent 执行瞬间前置执行 JIT 物理资产防篡改校验。
 """
 
 from __future__ import annotations
@@ -34,8 +33,6 @@ from app.api.approvals.batch import router as batch_router
 from app.api.approvals.credentials import router as credentials_router
 from app.api.approvals.test_routes import router as test_routes_router
 from app.database.models.approval import ApprovalRecord
-from app.services.approvals.audit_ledger import get_audit_ledger
-from app.services.approvals.docket_service import DocketService
 from app.services.approvals.registry import ApprovalRegistry
 
 logger = logging.getLogger(__name__)
@@ -255,13 +252,6 @@ async def resolve_approval(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
-    # If approved, seal immutable legal audit docket for non-repudiation compliance
-    if normalized_decision == "approve":
-        try:
-            await DocketService.create_docket_for_approval(record)
-        except Exception as exc:
-            logger.warning("[APPROVAL_ROUTER] Failed to seal legal audit docket for %s: %s", approval_id, exc)
-
     if normalized_decision == "deny" and req.ephemeral_credential_handles:
         try:
             from myrm_agent_harness.api import get_ephemeral_credential_store
@@ -403,32 +393,15 @@ async def rollback_approval_snapshot(
             detail="Failed to rollback workspace snapshot",
         )
 
-    # 1. Inform Agent via restore_inbox to align context and prevent hallucinations
+    # Inform Agent via restore_inbox to align context and prevent hallucinations
     try:
         push_restore_notification(snapshot_id=snapshot_id, files_restored=1)
     except Exception as exc:
         logger.warning("Failed to push restore notification to restore_inbox: %s", exc)
 
-    # 2. Record tamper-evident audit receipt in the legal ledger
-    receipt_id: str | None = None
-    try:
-        ledger = get_audit_ledger()
-        receipt = await ledger.record_action(
-            action_type="WORKSPACE_PHYSICAL_ROLLBACK",
-            action_command=f"rollback_snapshot:{snapshot_id}",
-            target_assets=[str(wpath)],
-            operator_id=record.agent_id or "user",
-            snapshot_ref=snapshot_id,
-            metadata={"approval_id": approval_id},
-        )
-        receipt_id = receipt.receipt_id
-    except Exception as exc:
-        logger.warning("Failed to record audit receipt for rollback %s: %s", approval_id, exc)
-
     return {
         "ok": True,
         "approval_id": approval_id,
         "snapshot_id": snapshot_id,
-        "receipt_id": receipt_id,
         "message": "Workspace successfully rolled back to pre-destructive state",
     }

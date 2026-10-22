@@ -26,6 +26,14 @@ export interface McpAppView {
   toolName?: string;
 }
 
+export interface TurnLoadedSkillReceipt {
+  name: string;
+  id: string;
+  content_hash?: string;
+  version?: string;
+  partial?: boolean;
+}
+
 export interface ExactAnchorMeta {
   commitShas?: string[];
   filePaths?: string[];
@@ -166,19 +174,12 @@ export type Message = {
     form?: ClarificationForm;
     isResumeMode?: boolean;
     source?: string;
-  };
-  directoryRequest?: {
-    answered: boolean;
-    isResumeMode?: boolean;
-    request?: {
-      reason?: string;
-      path?: string;
-      writable?: boolean;
-    };
+    answerRecord?: HitlAnswerRecord;
   };
   planConfirmation?: {
     plan: string;
-    status: 'waiting' | 'confirmed' | 'edited' | 'skipped';
+    /** `handled`: another client answered the plan first, so this client never learns which answer was given. */
+    status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
     planItems?: Array<{ id: string; content: string; status?: string }>;
     totalItems?: number;
     goal?: string;
@@ -216,6 +217,7 @@ export type Message = {
   metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
+  turnLoadedSkills?: TurnLoadedSkillReceipt[]; // 本回复参考的工作技能（turn 级 receipt，metadata only）
   memoryRetrievalDegraded?: boolean; // 本条回复期间记忆检索发生过降级（超时/后端错误）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
   workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
@@ -225,15 +227,6 @@ export type Message = {
   councilResult?: CouncilResultView; // 多专家 Council 编排结构化会商与仲裁结果
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
   sessionRecording?: { filename: string; preview_url: string; content_type: string };
-  ttsrInterventions?: Array<{
-    ruleId: string;
-    ruleName: string;
-    reminder: string;
-    target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
-    retryCount?: number;
-    maxRetries?: number;
-    timestamp?: string | number | Date;
-  }>;
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;
@@ -250,7 +243,6 @@ export interface AsyncUserMessageEntry {
   status?: 'pending' | 'resolved';
   resolvedText?: string | null;
 }
-
 
 export interface File {
   id?: string; // 文件 ID（StorageProvider 分配）
@@ -270,6 +262,16 @@ export interface ClarificationOption {
   id: string;
   label: string;
   description?: string;
+}
+
+/**
+ * How a clarification card was settled, kept on the card so the transcript still shows it.
+ * `already_handled` is written by the client alone, when the server refused a late answer without saying whether the
+ * timeout or another device settled the card. The server never sends it; a reload shows the record the server holds.
+ */
+export interface HitlAnswerRecord {
+  by: 'user' | 'timeout' | 'already_handled';
+  value: unknown;
 }
 
 export interface ClarificationQuestion {
@@ -326,7 +328,7 @@ export interface MentionReference {
   range?: string;
   content?: string;
   url?: string;
-  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki';
+  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki' | 'agent';
   size: number | null;
   directory?: string;
   startLine?: number;

@@ -26,7 +26,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     } else {
       // Use frontend translation when backend sends an untranslated error token.
       const rawError = data.error || data.data || 'Unknown error';
-      const friendlyError = await H.getUserFriendlyError(data.error_kind, rawError, data.cooldown_remaining_ms);
+      const friendlyError = await H.getUserFriendlyError(data.error_kind, rawError);
       errorText = friendlyError.message;
       hint = friendlyError.hint;
     }
@@ -59,22 +59,11 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
       }
     });
 
-    const retryAfterMs = data.retry_after_ms || data.cooldown_remaining_ms;
-    if (retryAfterMs) {
-      const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
-      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-      const toastMessage = lang?.startsWith('zh')
-        ? `已达到速率限制。请在 ${retryAfterSeconds} 秒后重试。`
-        : `Rate limit exceeded. Please retry after ${retryAfterSeconds} seconds.`;
-
-      import('@/lib/utils/toast').then(({ toast }) => {
-        toast.error(toastMessage, { duration: Math.min(retryAfterMs, 10000) });
-      });
-    }
-
     actions.setLoading(false);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
-      usePlanStore.getState().clearActivePlan();
+      if (H.isStreamForOpenChat(ctx.state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
     });
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
@@ -104,7 +93,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     // Release the processing lock on cancellation
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
-      usePlanStore.getState().clearActivePlan();
+      if (H.isStreamForOpenChat(ctx.state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
     });
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
@@ -218,26 +209,13 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
   if (data.type === H.AgentEventType.CONTEXT_OVERFLOW_RESET) {
     const { toast } = await import('@/lib/utils/toast');
     toast.warning(H.getContextOverflowMessage(), { duration: 8000 });
-    H.useChatStore.getState().initializeChat(undefined);
+    // Resetting the conversation mutates the chat the user has open, so only the overflowing chat may do it; a
+    // background chat's overflow leaves the open chat's conversation intact (the toast still warns about it).
+    if (H.isStreamForOpenChat(ctx.state)) {
+      H.useChatStore.getState().initializeChat(undefined);
+    }
     actions.setLoading(false);
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
-    return done(ctx);
-  }
-
-  if (data.type === H.AgentEventType.TOOL_FALLBACK) {
-    actions.setMessages((state) => {
-      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      if (messageIndex !== -1) {
-        if (!state.messages[messageIndex].progressSteps) {
-          state.messages[messageIndex].progressSteps = [];
-        }
-        state.messages[messageIndex].progressSteps.push({
-          step_key: 'safety_fallback_active',
-          status: 'warning',
-          items: [{ text: data.message }],
-        });
-      }
-    });
     return done(ctx);
   }
 

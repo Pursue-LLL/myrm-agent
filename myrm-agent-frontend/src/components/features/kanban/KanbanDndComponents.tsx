@@ -2,11 +2,14 @@
  * [INPUT]
  * - @dnd-kit/core::useDroppable, useDraggable (POS: 跨平台拖拽基础设施)
  * - ./KanbanTaskCard (POS: 看板任务卡片渲染组件)
+ * - ./kanban-card-gestures::ISOLATE_FROM_CARD (POS: 卡片内控件的手势隔离，勾选框展开它)
+ * - @/components/primitives/checkbox (POS: Radix 勾选框封装)
  * - ./kanban-selection::columnLanes, laneKeyOf (POS: 看板多选与泳道规则，列渲染与 Shift 区间共用)
+ * - @/hooks/ui/useDndAccessibility::useDndItemLabels (POS: 卡片的本地化 aria-roledescription)
  *
  * [OUTPUT]
  * - KanbanDropColumn: 可放置的看板列组件（集成 useDroppable + 高亮/占位符动画）
- * - DraggableTaskCard: 可拖拽的任务卡片包装器（集成 useDraggable + 多选标记 + 双击/附件入口开 Drawer）
+ * - DraggableTaskCard: 可拖拽的任务卡片包装器（集成 useDraggable + 多选勾选框 + 双击/附件入口开 Drawer）
  *
  * [POS]
  * 看板 DnD 渲染组件层。提供列级 drop target、卡片级 drag source 的 UI 封装，以及 Running 列按 Agent 分泳道渲染。
@@ -17,10 +20,20 @@ import { useCallback, useMemo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Checkbox } from '@/components/primitives/checkbox';
+import { useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCard from './KanbanTaskCard';
+import { ISOLATE_FROM_CARD } from './kanban-card-gestures';
 import { columnLanes, laneKeyOf } from './kanban-selection';
+
+/**
+ * 勾选框的显现契约（悬停 / 键盘聚焦 / 触屏三路径），与 `REVEAL_ON_HOVER` 同构；卡片内部已有无名 `group`，
+ * 所以挂在卡片包装层的命名组 `group/select` 上，命名组无法复用常量，需就地写出完整类名。
+ */
+const SELECT_REVEAL =
+  'opacity-0 group-hover/select:opacity-100 group-focus-within/select:opacity-100 pointer-coarse:opacity-100';
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
   triage: 'bg-purple-500/5 border-purple-500/30',
@@ -194,9 +207,13 @@ function DraggableTaskCard({
   queuedByConcurrency = false,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
+  const { roleDescription } = useDndItemLabels();
+  const selected = selectedTaskIds.includes(task.task_id);
+  const selecting = selectedTaskIds.length > 0;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     disabled: task.status === 'in_review',
+    attributes: { roleDescription },
   });
   // dnd-kit 的键盘激活只在登记了 activator 时才校验 event.target；未登记时卡片内任何按钮上的
   // Enter/Space 都会被当作“开始拖拽”并 preventDefault，卡片里的菜单与展开按钮就无法用键盘操作。
@@ -229,25 +246,35 @@ function DraggableTaskCard({
       }}
       title={onOpenTaskDrawer ? t('openDetailsHint') : undefined}
       className={cn(
-        'relative rounded-md transition-all touch-none',
+        // 触屏平移留给浏览器：从卡片上起手的滑动用来滚动看板，只有长按才由 TouchSensor 起拖拽。
+        // 圆角与卡片本体一致，选中描边和拖拽缩放才贴合卡片轮廓。
+        'group/select relative rounded-lg transition-all touch-manipulation',
         task.status !== 'in_review' && 'cursor-grab active:cursor-grabbing',
-        selectedTaskIds.includes(task.task_id) && 'ring-2 ring-primary/60 ring-offset-1',
+        selected && 'ring-2 ring-primary/60 ring-offset-1',
         (isDragging || draggedTaskId === task.task_id) && 'opacity-40 scale-95',
       )}
     >
-      {selectedTaskIds.includes(task.task_id) && (
-        <div className="absolute -top-1 -left-1 z-10 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-          <svg
-            className="w-2.5 h-2.5 text-primary-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={3}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-      )}
+      <Checkbox
+        checked={selected}
+        aria-label={t('selectTask', { title: task.title })}
+        {...ISOLATE_FROM_CARD}
+        // 点击自己处理选择，同样先截断冒泡（与隔离属性里的 onClick 等效，这里取代它）。
+        onClick={(e) => {
+          e.stopPropagation();
+          onTaskSelect(task.task_id, e);
+        }}
+        className={cn(
+          // globals.css 的 `* { border-color }` 不在 layer 内，会盖掉普通的 border 色类，描边色必须加 `!` 才生效；
+          // 描边用完整主色，未选中的圆圈在深浅两套主题下才与卡片底色保持 3:1 以上的对比度。
+          'absolute -top-1.5 -left-1.5 z-10 size-[18px] rounded-full !border-primary bg-background shadow-sm',
+          'after:absolute after:-inset-1.5 after:content-[""] [&_svg]:size-3',
+          'data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
+          'pointer-coarse:size-6',
+          // 选择模式（已有选中项）下所有卡片都常显勾选框，才能继续点选；平时仅悬停 / 聚焦 / 触屏显现。
+          'transition-opacity',
+          selecting ? 'opacity-100' : SELECT_REVEAL,
+        )}
+      />
       <KanbanTaskCard
         task={task}
         allTasks={allTasks}

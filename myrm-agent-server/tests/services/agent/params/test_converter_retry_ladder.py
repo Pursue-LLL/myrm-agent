@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 from app.core.types import ModelConfig
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest, ModelSelection
+from tests.api.agent.conftest import _build_mock_user_configs
 
 _GREETING = "hi"
 _HARD_FOLLOW_UPS = ("and for n=0?", "explain more", "so the answer is 15?")
@@ -32,6 +33,10 @@ async def _converter_env(history: list[str | None]) -> AsyncIterator[None]:
     """*history* is the chat's answers in order, None for an answer that recorded no tier; the last one is retried."""
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=_build_mock_user_configs()),
+        ),
         patch(
             "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
             new_callable=AsyncMock,

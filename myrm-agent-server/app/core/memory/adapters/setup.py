@@ -48,6 +48,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_SPARSE_ONLY_EMBEDDING_MODEL = "sparse-only"
+"""Cache-key marker for embeddings-less managers (mirrors the harness setup marker)."""
+
 # Conflicts whose importance reaches this threshold are treated as high-risk:
 # they are never auto-resolved (auto_resolve_at stays None) and always require
 # explicit user resolution, so critical preferences (stack moves, relocations,
@@ -60,7 +63,7 @@ _memory_manager_cache_lock = asyncio.Lock()
 
 
 class _CreateMemoryTools(Protocol):
-    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode) -> list[object]: ...
+    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode, **options: object) -> list[object]: ...
 
 
 def _memory_policy_signature(
@@ -79,7 +82,7 @@ def _memory_policy_signature(
     )
 
 
-def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[str, object]:
+def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[object, ...]:
     """Stable cache token for dedup LLM (avoid splitting cache per object id)."""
     if dedup_llm is None:
         return ("platform_default",)
@@ -89,7 +92,7 @@ def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[str, object]:
     return ("object", id(dedup_llm))
 
 
-def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[str, object]:
+def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[object, ...]:
     if consolidation_llm is None:
         return ("none",)
     model_id = getattr(consolidation_llm, "model_name", None) or getattr(consolidation_llm, "model", None)
@@ -105,7 +108,7 @@ def _manager_cache_key(
     approval_required: bool,
     dedup_llm: object | None,
     consolidation_llm: object | None = None,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     namespaces: list[str] | None,
     agent_id: str | None,
     channel_id: str | None,
@@ -122,9 +125,9 @@ def _manager_cache_key(
         approval_required,
         recall_mode.value,
         time_decay_half_life_days,
-        embedding_config.model,
-        embedding_config.api_key,
-        embedding_config.api_base,
+        embedding_config.model if embedding_config is not None else _SPARSE_ONLY_EMBEDDING_MODEL,
+        embedding_config.api_key if embedding_config is not None else "",
+        embedding_config.api_base if embedding_config is not None else "",
         reranker_config.model if reranker_config else None,
         reranker_config.api_key if reranker_config else None,
         reranker_config.api_base if reranker_config else None,
@@ -141,7 +144,7 @@ def _manager_cache_key(
 
 async def create_memory_manager(
     binding: ResolvedContextBinding,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     *,
     approval_required: bool = False,
     dedup_llm: object | None = None,
@@ -163,6 +166,10 @@ async def create_memory_manager(
     memory volume (e.g. evaluation runs that must never touch the user's real
     memory). When set, an embedded vector store is created inside the override
     directory so both relational and vector data stay fully isolated.
+
+    ``embedding_config=None`` selects the embeddings-less mode: semantic and
+    episodic memories persist through the BM25 sparse mirror and stay
+    retrievable by keyword until an embedding backend is configured.
     """
     from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 
@@ -259,7 +266,7 @@ async def create_memory_manager(
 
 async def create_memory_tools_for_user(
     binding: ResolvedContextBinding,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     *,
     approval_required: bool = False,
     dedup_llm: object | None = None,
@@ -283,14 +290,14 @@ async def create_memory_tools_for_user(
         time_decay_half_life_days=time_decay_half_life_days,
         on_conflict=on_conflict,
     )
-    tool_kwargs: dict[str, object] = {"recall_mode": recall_mode}
+    tool_options: dict[str, object] = {}
     if search_policy is not None:
-        tool_kwargs["search_policy"] = search_policy
+        tool_options["search_policy"] = search_policy
     if search_backends is not None:
-        tool_kwargs["search_backends"] = search_backends
+        tool_options["search_backends"] = search_backends
     if description_locale is not None:
-        tool_kwargs["description_locale"] = description_locale
-    tools = create_memory_tools_fn(manager, **tool_kwargs)
+        tool_options["description_locale"] = description_locale
+    tools = create_memory_tools_fn(manager, recall_mode=recall_mode, **tool_options)
     return manager, tools
 
 
@@ -305,10 +312,7 @@ def resolve_context_binding(
     shared_context_ids: list[str] | None = None,
     memory_policy: AgentMemoryPolicy | None = None,
     bundle_id: str | None = None,
-    task_workspace_root: str | None = None,
 ) -> ResolvedContextBinding:
-    from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
-
     normalized_shared_context_ids = list(
         dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
     )
@@ -323,9 +327,6 @@ def resolve_context_binding(
         conversation_id=conversation_id,
         task_id=task_id,
         memory_policy=memory_policy,
-    )
-    overlay = (
-        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True) if task_workspace_root else None
     )
     return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
@@ -346,7 +347,6 @@ def resolve_context_binding(
         task_id=resolved_task_id,
         project_id=project_id.strip() if project_id else None,
         bundle_id=bundle_id or DEFAULT_BUNDLE_ID,
-        agent_overlay=overlay,
     )
 
 

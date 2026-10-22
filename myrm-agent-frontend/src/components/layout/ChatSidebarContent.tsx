@@ -31,6 +31,7 @@ import SessionImportModal from '@/components/features/sidebar/SessionImportModal
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
 import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
+import { GitWorktreeDropdown } from '@/components/features/git-worktree/GitWorktreeDropdown';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
 import { ExtensionSlot } from '@/components/features/extension-slots';
@@ -114,7 +115,7 @@ const TrashButton = memo(function TrashButton() {
             {count > 0 && <span className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded-full">{count}</span>}
           </button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent side="left" className="w-full max-w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('title')}</SheetTitle>
           </SheetHeader>
@@ -213,6 +214,11 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               onOpenDialog={() => setSearchDialogOpen(true)}
             />
           </SearchDialog>
+        </div>
+
+        {/* Git Worktree Switcher */}
+        <div className="px-3 pb-2 flex-shrink-0">
+          <GitWorktreeDropdown />
         </div>
 
         {/* New Chat & Import Session Buttons */}

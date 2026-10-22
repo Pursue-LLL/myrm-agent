@@ -101,6 +101,20 @@ async def sync_content_to_disk(
     disk_path: Path | None = None,
 ) -> bool:
     """Write skill content to disk and bump skill config version."""
+    from app.core.skills.models import SkillType
+    from app.core.skills.store.service import skills_service
+
+    skill = await skills_service.get_skill(skill_id)
+    if skill is not None and skill.type != SkillType.LOCAL:
+        updated = await skills_service.update_skill_file(skill_id, SKILL_MD_FILE, content)
+        if not updated:
+            logger.warning("Cannot sync skill %s to storage provider", skill_id)
+            return False
+        from app.core.skills.config_version import bump_skill_config_version
+
+        bump_skill_config_version()
+        return True
+
     path = disk_path if disk_path is not None else await resolve_skill_md_path(skill_id)
     if path is None:
         logger.warning("Cannot sync skill %s to disk: SKILL.md path not resolved", skill_id)

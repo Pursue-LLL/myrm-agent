@@ -11,7 +11,7 @@ approval_denial_processing =  正在处理拒绝...
 approval_denial_with_reason_processing =  正在处理拒绝，理由已转达："{ $reason }"
 approval_batch_processing =  正在处理 { $approve_count } 个批准、{ $reject_count } 个拒绝...
 approval_batch_processing_always =  正在处理 { $approve_count } 个批准（含 { $always_count } 个永久）、{ $reject_count } 个拒绝...
-approval_timeout_resolved = ℹ 该审批已被超时自动处理，无需操作。
+approval_already_handled = ℹ 该审批已超时或已在其他地方处理，无需操作。
 permission_denied =  权限不足：`/{ $cmd }` 需要管理员权限。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已应用：_{ $preview }_
@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = 目标需人工审查
 goal_stream_failed_message =
     自主任务意外停止，请在目标面板查看并继续。
+goal_usage_limit_wait_title = 目标已暂停，等待额度恢复
+goal_usage_limit_wait_message =
+    额度恢复后将自动继续，无需任何操作。
+goal_usage_limit_resumed_title = 目标已继续
+goal_usage_limit_resumed_message =
+    额度已恢复，目标正在继续执行。
+goal_usage_limit_paused_title = 目标因额度用尽而暂停
+goal_usage_limit_paused_message =
+    额度需要很长时间才会恢复。准备好后可在目标面板中手动继续。
+airbag_rolled_back_title = 改动已撤销
+airbag_rolled_back_message =
+    工作区文件已恢复到目标开始前的状态。
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }
@@ -238,14 +250,8 @@ analyzing_image = 正在分析图片…
 search_unreachable = 搜索服务已配置但当前无法连接。请检查搜索服务是否正常运行后重试。
 daily_budget_blocked = 已达每日预算上限，执行被拦截。请在 Web 设置中调整预算限额后继续使用。
 channel_budget_blocked = 此频道的每日预算已用完。其他频道和 Web 会话不受影响。频道所有者可在设置 > 预算中调整限额。
-cooldown_retry =
-    
-    
-    ⏱️ 请在 { $seconds } 秒后重试。
 config_next_steps =
-    
-    
-    后续步骤：
+    { "\u000A\u000A" }后续步骤：
     { $steps }
 component_options_prefix = 选项
 component_quick_reply_instruction = ↩ 回复数字选择
@@ -296,6 +302,10 @@ error_safety_block = 请求被安全过滤器拦截。
 error_challenge_blocked = 请求被上游质询或安全验证拦截。
 error_response_format = AI 生成了无效格式，请重试。
 error_unknown = 处理请求时出现问题，请稍后再试。
+error_billing_owner = AI 服务商账户的余额或额度已用尽，请先向服务商充值，再重新发送消息。
+error_billing_owner_platform = 您的套餐额度已用完，请在网页端充值或升级套餐，再重新发送消息。
+error_auth_owner = AI 服务商拒绝了当前凭据。请在设置 > 模型服务中检查 API Key，或在设置 > 凭据中重新授权账号。
+error_model_not_found_owner = 已配置的模型在服务商处不可用，请在设置 > 模型服务中选择其他模型。
 cmd_stop = 停止当前正在运行的 Agent 任务
 cmd_new = 开始新的对话会话
 cmd_compact = 压缩对话上下文以减少 token 消耗

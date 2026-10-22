@@ -132,3 +132,46 @@ async def test_passthrough_when_all_links_alive(gate: OutboundContentGate) -> No
 
         result = await gate.evaluate_and_apply(msg)
         assert result is msg
+
+
+@pytest.mark.asyncio
+async def test_probe_url_never_raises_on_non_request_errors(gate: OutboundContentGate) -> None:
+    """httpx.InvalidURL / StreamError are not RequestError subclasses; they must not escape."""
+    import httpx
+
+    with patch.object(gate, "_network_probe", new_callable=AsyncMock) as mock_probe:
+        mock_probe.side_effect = httpx.InvalidURL("Invalid port: ':1'")
+        res = await gate.probe_url("http://[::1]:8080/api")
+    assert res.is_alive is False
+    assert res.error == "InvalidURL"
+
+    with patch.object(gate, "_network_probe", new_callable=AsyncMock) as mock_probe:
+        mock_probe.side_effect = httpx.StreamError("stream broke")
+        res = await gate.probe_url("https://example.org/x")
+    assert res.is_alive is False
+
+
+@pytest.mark.asyncio
+async def test_probe_url_propagates_cancellation(gate: OutboundContentGate) -> None:
+    """Cancellation is shutdown, not a probe failure: it must stop the process."""
+    import asyncio
+
+    with patch.object(gate, "_network_probe", new_callable=AsyncMock) as mock_probe:
+        mock_probe.side_effect = asyncio.CancelledError()
+        with pytest.raises(asyncio.CancelledError):
+            await gate.probe_url("https://example.org/x")
+
+
+@pytest.mark.asyncio
+async def test_evaluate_and_apply_survives_a_raising_probe(gate: OutboundContentGate) -> None:
+    """The gate annotates dead links; a probe failure must not abort message delivery."""
+    import httpx
+
+    msg = _make_msg("Docs: https://example.org/a and http://[::1]:8080/b")
+
+    with patch.object(gate, "_network_probe", new_callable=AsyncMock) as mock_probe:
+        mock_probe.side_effect = httpx.InvalidURL("Invalid port: ':1'")
+        result = await gate.evaluate_and_apply(msg)
+
+    assert result is not None
+    assert "Docs: https://example.org/a" in result.content

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 from myrm_agent_harness.toolkits.kanban.protocols import (
     PlanRevisionOutcome,
@@ -37,6 +37,7 @@ from app.core.kanban.adapters.sqlalchemy_mapping import (
     apply_task_to_model,
     board_to_domain,
     board_to_model,
+    status_change_values,
     task_to_domain,
     task_to_model,
 )
@@ -57,6 +58,19 @@ class TaskCardStats(NamedTuple):
     children_total: int
     children_done: int
     comment_count: int
+
+
+class BoardEventRow(TypedDict):
+    """A board-level event with the title and assignee of its task."""
+
+    event_id: int
+    task_id: str
+    task_title: str
+    task_assignee: str
+    kind: str
+    payload: dict[str, object] | None
+    run_id: str | None
+    created_at: str
 
 
 def _exec_rowcount(result: object) -> int:
@@ -615,6 +629,7 @@ class SqlAlchemyKanbanStore:
                     m = await session.get(KanbanTaskModel, item.task_id)
                     if m:
                         m.status = TaskStatus.ARCHIVED.value
+                        m.blocked_reason = m.block_kind = m.scheduled_until = None
                         m.completed_at = datetime.now(UTC)
                         m.updated_at = datetime.now(UTC)
                         # Cascade clean edges from DB
@@ -755,7 +770,7 @@ class SqlAlchemyKanbanStore:
                     KanbanTaskModel.id == task_id,
                     KanbanTaskModel.status == expected_status.value,
                 )
-                .values(status=new_status.value)
+                .values(**status_change_values(new_status))
             )
             result = await session.execute(stmt)
             if _exec_rowcount(result) == 0:
@@ -835,6 +850,21 @@ class SqlAlchemyKanbanStore:
             )
             result = await session.execute(stmt)
             return [task_to_domain(m) for m in result.scalars().all()]
+
+    async def earliest_scheduled_until(self, after: datetime) -> datetime | None:
+        """Earliest auto-unblock time strictly after ``after`` among scheduled-blocked tasks of every board."""
+        async with get_session() as session:
+            result = await session.execute(
+                select(sqlfunc.min(KanbanTaskModel.scheduled_until)).where(
+                    KanbanTaskModel.status == TaskStatus.BLOCKED.value,
+                    KanbanTaskModel.block_kind == "scheduled",
+                    KanbanTaskModel.scheduled_until > after,
+                )
+            )
+            earliest = result.scalar()
+            if earliest is not None and earliest.tzinfo is None:
+                return earliest.replace(tzinfo=UTC)
+            return earliest
 
     async def reset_stale_running_tasks(self) -> int:
         """Reset all RUNNING tasks back to READY (boot recovery).
@@ -954,7 +984,7 @@ class SqlAlchemyKanbanStore:
         since_id: int | None = None,
         since_time: datetime | None = None,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[BoardEventRow]:
         """Return board-level events with task metadata (title, assignee).
 
         JOIN kanban_task_events + kanban_tasks for board-scoped aggregation.

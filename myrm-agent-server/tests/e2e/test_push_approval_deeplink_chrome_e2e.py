@@ -315,3 +315,71 @@ def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None
 
         cleaned = _wait_for_deeplink_state(client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0)
         assert cleaned.get("ready") is True
+
+
+# The drawer's note box is the one the person types into before approving. What they type has to
+# leave on `guidance`: the harness reads a decision's `feedback` only as a rejection reason, so a
+# note sent there reaches nobody. The state below reports both the box and its value, so the test
+# can wait for the drawer and assert on what the UI actually collected.
+_DRAWER_NOTE_BOX = """(() => {
+  const box = document.querySelector('textarea[id^="comment-"]');
+  const approve = Array.from(document.querySelectorAll('button')).find(
+    (btn) => /approve|批准/i.test((btn.textContent || '').trim()),
+  );
+  return { ready: !!box && !!approve, hasNote: !!box };
+})()"""
+
+
+def _type_into_drawer_note(client: ChromeMcpClient, page: McpPage, note: str) -> bool:
+    """Type into the drawer's note box the way a person does (a real input event, not value = x)."""
+    typed = client.evaluate(
+        page,
+        f"""(() => {{
+          const box = document.querySelector('textarea[id^="comment-"]');
+          if (!box) return false;
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(box, {note!r});
+          box.dispatchEvent(new Event('input', {{ bubbles: true }}));
+          return box.value === {note!r};
+        }})()""",
+        timeout_sec=10.0,
+    )
+    return typed is True
+
+
+def _drawer_note_value(client: ChromeMcpClient, page: McpPage) -> str:
+    value = client.evaluate(
+        page,
+        """(() => {
+          const box = document.querySelector('textarea[id^="comment-"]');
+          return box ? box.value : '';
+        })()""",
+        timeout_sec=10.0,
+    )
+    return str(value or "")
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_drawer_collects_the_note_typed_on_an_approval() -> None:
+    """The approval drawer's note box accepts what a person types before they approve."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+    seeded = _seed_push_approval(api_url)
+    deeplink_url = f"{ui_url}{seeded['push_url']}"
+
+    with open_mcp_page(deeplink_url) as (client, page):
+        state = wait_for_state(client, page, _DRAWER_NOTE_BOX, timeout_sec=90.0)
+        assert state.get("ready") is True, f"drawer note box never appeared: {state}"
+
+        assert _type_into_drawer_note(client, page, "only staging, not prod") is True
+        assert _drawer_note_value(client, page) == "only staging, not prod"
+
+    _resolve_approval_cleanup(api_url, seeded["approval_id"])

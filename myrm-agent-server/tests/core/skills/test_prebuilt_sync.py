@@ -15,12 +15,6 @@ from myrm_agent_harness.backends.skills._utils import (
     parse_skill_frontmatter,
 )
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import (
-    SKILL_METADATA_FILE,
-    get_skill_metadata_path,
-    get_user_skill_config_path,
-)
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
 from app.core.skills.models import UserSkillConfig
@@ -29,6 +23,12 @@ from app.core.skills.store.user_config import (
     _DEFAULT_ENABLED_PREBUILT_SKILLS,
     UserSkillConfigManager,
 )
+from app.core.storage.paths import (
+    SKILL_METADATA_FILE,
+    get_skill_metadata_path,
+    get_user_skill_config_path,
+)
+from app.core.storage.types import SkillType
 
 
 def _load_registered_tool_names() -> set[str]:
@@ -271,7 +271,8 @@ async def test_sync_records_origin_hash(storage: LocalStorageBackend) -> None:
 async def test_sync_skips_user_modified_skill(storage: LocalStorageBackend) -> None:
     """If user modified a prebuilt skill, sync should preserve their version."""
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
     prebuilt_sync._synced = False  # noqa: SLF001
@@ -294,7 +295,8 @@ async def test_sync_marks_upstream_update_for_modified_skill(
 ) -> None:
     """When upstream changes and user has modified, should mark has_upstream_update."""
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
     prebuilt_sync._synced = False  # noqa: SLF001
@@ -325,7 +327,8 @@ async def test_sync_updates_unmodified_skill_silently(
 ) -> None:
     """When upstream changes but user hasn't modified, should silently update."""
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
     prebuilt_sync._synced = False  # noqa: SLF001
@@ -378,7 +381,7 @@ async def test_sync_migration_no_origin_hash(storage: LocalStorageBackend) -> No
 @pytest.mark.asyncio
 async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) -> None:
     """Bundled seed files (e.g. google-workspace/scripts/google_api.py) must sync to storage."""
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+    from app.core.storage.paths import get_skill_file_path
 
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "google-workspace" in result.skill_ids
@@ -402,7 +405,8 @@ async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) ->
 async def test_cleanup_stale_prebuilt_skills(storage: LocalStorageBackend) -> None:
     # 1. Manually write a mock stale skill metadata and SKILL.md directly to storage
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     stale_id = "obsolete-ghost-skill"
     md_path = get_skill_file_path(SkillType.PREBUILT, stale_id, SKILL_MD_FILE)
@@ -479,7 +483,7 @@ async def test_sync_skips_non_skill_dirs(
 @pytest.mark.asyncio
 async def test_sync_copies_references_directory(storage: LocalStorageBackend) -> None:
     """Skills with references/ subdirectory should have all .md files synced."""
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+    from app.core.storage.paths import get_skill_file_path
 
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "unreal-mcp" in result.skill_ids
@@ -492,7 +496,7 @@ async def test_sync_copies_references_directory(storage: LocalStorageBackend) ->
 @pytest.mark.asyncio
 async def test_sync_copies_blender_references(storage: LocalStorageBackend) -> None:
     """Blender skill references should be synced."""
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+    from app.core.storage.paths import get_skill_file_path
 
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "blender-mcp" in result.skill_ids
@@ -518,7 +522,8 @@ async def test_cleanup_handles_list_failure(storage: LocalStorageBackend) -> Non
 async def test_cleanup_handles_delete_failure(storage: LocalStorageBackend) -> None:
     """Cleanup should handle individual delete failures without crashing."""
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     stale_id = "stale-delete-fail-skill"
     md_path = get_skill_file_path(SkillType.PREBUILT, stale_id, SKILL_MD_FILE)
@@ -562,7 +567,8 @@ async def test_sync_upstream_update_for_unmodified_user(
     """
     from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.api.skills import compute_content_hash
-    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    from app.core.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
     prebuilt_sync._synced = False  # noqa: SLF001

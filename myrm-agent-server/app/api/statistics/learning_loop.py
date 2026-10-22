@@ -1,243 +1,164 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.memory::MemoryManager (POS: Harness 记忆底座管理器)
+- myrm_agent_harness.toolkits.memory::MemoryManager, MemoryType (POS: Harness 记忆底座管理器与记忆类型)
 - app.services.memory.manager_deps::get_crud_memory_manager (POS: 记忆管理器依赖注入)
-- app.core.skills.store.service::skills_service (POS: 技能存储管理服务)
-- myrm_agent_harness.agent.event_log::EventLogAnalytics, FileEventLogBackend (POS: 事件日志与自省分析)
-- app.services.skills.growth.audit_queries::list_skill_growth_timeline (POS: 技能成长审计查询)
-- app.services.chat.conversation_search_service::ConversationSearchService (POS: 跨会话召回服务)
+- app.services.memory.command_center.command_center_memory_scan::ALL_MEMORY_TYPES (POS: 指挥中心与统计共用的记忆类型清单)
+- app.services.skills.growth.queries::SkillGrowthDashboardStatsRead, summarize_skill_growth_dashboard_stats (POS: 技能成长看板计数，与成长页同源)
+- myrm_agent_harness.agent.event_log::EventFilter, FileEventLogBackend (POS: 事件日志存储与查询过滤)
 
 [OUTPUT]
-- get_learning_loop_status: 聚合闭环学习五环状态与健康指标 (GET /api/v1/statistics/learning-loop/status)
+- get_learning_loop_status: 五环真实计数 (GET /api/v1/statistics/learning-loop/status)
 
 [POS]
-闭环学习五环状态中心 API。
-汇聚战后自省、技能提炼、施用自进(门禁)、周期自警(闲时维护)、跨会话召回与画像 5 环状态，
-提供端到端认知自进化闭环的可视化状态感知契约。
+闭环学习五环状态 API。每环只暴露能从真实来源读到的计数，不做派生估算、不返回综合评分；
+某个来源读取失败时对应环返回 null，由前端呈现「暂不可用」，不用默认值伪装成就绪。
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+import time
+from collections.abc import Awaitable
 from pathlib import Path
+from typing import TypeVar
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.event_log import EventLogAnalytics
+from myrm_agent_harness.agent.event_log import EventFilter
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
-from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
-from app.core.skills.store.service import skills_service
-from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
-from app.services.skills.growth.audit_queries import list_skill_growth_timeline
+from app.services.skills.growth.queries import SkillGrowthDashboardStatsRead, summarize_skill_growth_dashboard_stats
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 
 # ── Response Data Contracts ──────────────────────────────────────────
 
 
 class Ring1ReflectionStatus(BaseModel):
-    """Ring 1: 战后自省 (Reflection & Evidence Mining)."""
+    """Ring 1: distinct sessions that ended within the lookback window (event log)."""
 
-    total_traces_analyzed: int = 0
-    anti_patterns_detected: int = 0
-    recent_reflection_time: str | None = None
-    is_active: bool = True
-    status: str = "active"
+    sessions_in_window: int
 
 
 class Ring2DistillationStatus(BaseModel):
-    """Ring 2: 技能提炼 (Skill Distillation & Proposals)."""
+    """Ring 2: all-time skill-growth cases and how many of them were applied automatically."""
 
-    proposals_generated: int = 0
-    proposals_approved: int = 0
-    proposals_pending: int = 0
-    proposals_rejected: int = 0
-    total_active_skills: int = 0
-    is_active: bool = True
-    status: str = "active"
+    cases_total: int
+    cases_auto_applied: int
 
 
 class Ring3AdvancementStatus(BaseModel):
-    """Ring 3: 施用自进与门禁 (Runtime Self-Advancement & Improvement Gate)."""
+    """Ring 3: all-time skill-growth cases waiting for the user or stopped by the safety gate."""
 
-    evaluations_run: int = 0
-    regressions_blocked: int = 0
-    avg_score_boost_pct: float = 0.0
-    is_active: bool = True
-    status: str = "active"
+    cases_pending_review: int
+    cases_blocked: int
 
 
 class Ring4ConsolidationStatus(BaseModel):
-    """Ring 4: 周期自警与记忆整理 (Periodic Autonomous Memory Consolidation)."""
+    """Ring 4: memories stored across every memory type."""
 
-    consolidation_cycles: int = 0
-    memories_merged: int = 0
-    noise_pruned: int = 0
-    memory_health_score: int = 100
-    total_memories: int = 0
-    is_active: bool = True
-    status: str = "active"
+    total_memories: int
 
 
 class Ring5ProfilingStatus(BaseModel):
-    """Ring 5: 渐构画像与跨会话召回 (Progressive Profiling & Cross-Session Recall)."""
+    """Ring 5: conversations available for cross-session recall and stored profile memories."""
 
-    conversations_indexed: int = 0
-    profile_dimensions: int = 0
-    cross_session_recall_ready: bool = True
-    is_active: bool = True
-    status: str = "active"
+    conversations: int
+    profile_entries: int
 
 
 class LearningLoopFiveRingStatusResponse(BaseModel):
-    """Aggregated Five-Ring Closed Learning Loop Status payload."""
+    """Five-ring status; a ring is ``None`` when one of its sources could not be read."""
 
-    ring1_reflection: Ring1ReflectionStatus
-    ring2_distillation: Ring2DistillationStatus
-    ring3_advancement: Ring3AdvancementStatus
-    ring4_consolidation: Ring4ConsolidationStatus
-    ring5_profiling: Ring5ProfilingStatus
-    overall_loop_health_score: int = 100
-    overall_status: str = "optimal"  # optimal | warning | degraded
-    total_learnings_count: int = 0
-    summary_text: str = ""
+    ring1_reflection: Ring1ReflectionStatus | None
+    ring2_distillation: Ring2DistillationStatus | None
+    ring3_advancement: Ring3AdvancementStatus | None
+    ring4_consolidation: Ring4ConsolidationStatus | None
+    ring5_profiling: Ring5ProfilingStatus | None
 
 
-# ── Data Fetcher Helpers ─────────────────────────────────────────────
+# ── Source Readers ───────────────────────────────────────────────────
 
 
-async def _fetch_ring1_reflection(days: int) -> Ring1ReflectionStatus:
+async def _read_source(name: str, source: Awaitable[_T]) -> _T | None:
+    """Await one source so that its failure only takes down the rings that depend on it."""
     try:
-        data_dir = getattr(settings, "DATA_DIR", None) or Path.home() / ".myrm"
-        events_dir = Path(data_dir) / "events"
-        if not events_dir.exists():
-            return Ring1ReflectionStatus(is_active=True, status="ready")
-
-        backend = FileEventLogBackend(str(events_dir))
-        analytics = EventLogAnalytics(backend)
-        patterns = await analytics.get_global_activity_patterns(time_range_days=days)
-        total_sessions = patterns.total_sessions
-
-        return Ring1ReflectionStatus(
-            total_traces_analyzed=total_sessions,
-            anti_patterns_detected=max(0, total_sessions // 4),
-            recent_reflection_time=datetime.now(UTC).isoformat(),
-            is_active=True,
-            status="active" if total_sessions > 0 else "ready",
-        )
+        return await source
     except Exception as e:
-        logger.warning("Failed to aggregate ring 1 reflection status: %s", e)
-        return Ring1ReflectionStatus(is_active=True, status="ready")
+        logger.warning("Learning loop source %s is unavailable: %s", name, e)
+        return None
 
 
-async def _fetch_ring2_distillation(days: int) -> Ring2DistillationStatus:
-    try:
-        all_skills = await skills_service.list_skills(limit=1000)
-        active_skills_count = len(all_skills)
+async def _count_recent_sessions(days: int) -> int:
+    """Count sessions with a ``session_end`` event in the window; a session ending on several days counts once."""
+    events_dir = Path(settings.database.event_log_dir)
+    if not events_dir.exists():
+        return 0
 
-        timeline_items = await list_skill_growth_timeline(
-            days=days,
-            limit=200,
-        )
-
-        approved = sum(1 for item in timeline_items if item.status == "approved")
-        pending = sum(1 for item in timeline_items if item.status == "pending")
-        rejected = sum(1 for item in timeline_items if item.status == "rejected")
-        total_proposals = len(timeline_items)
-
-        return Ring2DistillationStatus(
-            proposals_generated=total_proposals,
-            proposals_approved=approved,
-            proposals_pending=pending,
-            proposals_rejected=rejected,
-            total_active_skills=active_skills_count,
-            is_active=True,
-            status=("active" if total_proposals > 0 or active_skills_count > 0 else "ready"),
-        )
-    except Exception as e:
-        logger.warning("Failed to aggregate ring 2 distillation status: %s", e)
-        return Ring2DistillationStatus(is_active=True, status="ready")
+    backend = FileEventLogBackend(log_dir=events_dir, session_id="default")
+    ended_in_window = EventFilter(event_types=frozenset({"session_end"}), start_time=time.time() - days * 86400)
+    session_ids = await backend.get_all_session_ids()
+    events_per_session = await asyncio.gather(*(backend.get_events(sid, ended_in_window) for sid in session_ids))
+    return sum(1 for events in events_per_session if events)
 
 
-async def _fetch_ring3_advancement(days: int) -> Ring3AdvancementStatus:
-    try:
-        timeline_items = await list_skill_growth_timeline(
-            days=days,
-            limit=200,
-        )
-        approved = sum(1 for item in timeline_items if item.status == "approved")
-        rejected = sum(1 for item in timeline_items if item.status == "rejected")
-        total_evals = approved + rejected
-
-        return Ring3AdvancementStatus(
-            evaluations_run=total_evals,
-            regressions_blocked=rejected,
-            avg_score_boost_pct=15.5 if approved > 0 else 0.0,
-            is_active=True,
-            status="active" if total_evals > 0 else "ready",
-        )
-    except Exception as e:
-        logger.warning("Failed to aggregate ring 3 advancement status: %s", e)
-        return Ring3AdvancementStatus(is_active=True, status="ready")
+async def _count_conversations(db: AsyncSession) -> int:
+    return (await db.execute(select(func.count(Chat.id)))).scalar_one()
 
 
-async def _fetch_ring4_consolidation(
-    manager: MemoryManager | None,
-) -> Ring4ConsolidationStatus:
-    if manager is None:
-        return Ring4ConsolidationStatus(is_active=True, status="ready")
-
-    try:
-        total_count = 0
-        for mtype in ALL_MEMORY_TYPES:
-            try:
-                items = await manager.list(memory_type=mtype, limit=500)
-                total_count += len(items)
-            except Exception:
-                continue
-
-        return Ring4ConsolidationStatus(
-            consolidation_cycles=max(1, total_count // 5),
-            memories_merged=max(0, total_count // 8),
-            noise_pruned=max(0, total_count // 10),
-            memory_health_score=98 if total_count > 0 else 100,
-            total_memories=total_count,
-            is_active=True,
-            status="active" if total_count > 0 else "ready",
-        )
-    except Exception as e:
-        logger.warning("Failed to aggregate ring 4 consolidation status: %s", e)
-        return Ring4ConsolidationStatus(is_active=True, status="ready")
+async def _count_memories(memory_manager: MemoryManager | None) -> dict[str, int]:
+    """Count every memory type; one unreadable type fails the whole read instead of understating the total."""
+    if memory_manager is None:
+        raise RuntimeError("Memory manager is not configured")
+    return {memory_type.value: await memory_manager.count_memories(memory_type) for memory_type in ALL_MEMORY_TYPES}
 
 
-async def _fetch_ring5_profiling(db: AsyncSession) -> Ring5ProfilingStatus:
-    try:
-        result = await db.execute(select(func.count(Chat.id)))
-        chats_count = result.scalar() or 0
-
-        return Ring5ProfilingStatus(
-            conversations_indexed=chats_count,
-            profile_dimensions=6 if chats_count > 0 else 1,
-            cross_session_recall_ready=True,
-            is_active=True,
-            status="active" if chats_count > 0 else "ready",
-        )
-    except Exception as e:
-        logger.warning("Failed to aggregate ring 5 profiling status: %s", e)
-        return Ring5ProfilingStatus(is_active=True, status="ready")
+def _assemble_status(
+    *,
+    sessions: int | None,
+    growth: SkillGrowthDashboardStatsRead | None,
+    memory_counts: dict[str, int] | None,
+    conversations: int | None,
+) -> LearningLoopFiveRingStatusResponse:
+    """Build the rings; a ring whose source is unavailable (``None``) stays ``None``."""
+    return LearningLoopFiveRingStatusResponse(
+        ring1_reflection=Ring1ReflectionStatus(sessions_in_window=sessions) if sessions is not None else None,
+        ring2_distillation=(
+            Ring2DistillationStatus(cases_total=growth.total, cases_auto_applied=growth.auto_applied)
+            if growth is not None
+            else None
+        ),
+        ring3_advancement=(
+            Ring3AdvancementStatus(cases_pending_review=growth.pending_review, cases_blocked=growth.blocked)
+            if growth is not None
+            else None
+        ),
+        ring4_consolidation=(
+            Ring4ConsolidationStatus(total_memories=sum(memory_counts.values())) if memory_counts is not None else None
+        ),
+        ring5_profiling=(
+            Ring5ProfilingStatus(
+                conversations=conversations,
+                profile_entries=memory_counts[MemoryType.PROFILE.value],
+            )
+            if conversations is not None and memory_counts is not None
+            else None
+        ),
+    )
 
 
 # ── Main API Route ───────────────────────────────────────────────────
@@ -249,54 +170,27 @@ async def _fetch_ring5_profiling(db: AsyncSession) -> Ring5ProfilingStatus:
     summary="Get Five-Ring Closed Learning Loop Status",
 )
 async def get_learning_loop_status(
-    days: int = Query(30, ge=1, le=365, description="Lookback window in days"),
+    days: int = Query(30, ge=1, le=365, description="Lookback window in days for ring 1 sessions"),
     db: AsyncSession = Depends(get_db),
     memory_manager: MemoryManager | None = Depends(get_crud_memory_manager),
 ) -> JSONResponse:
-    """Aggregate real-time metrics across the 5 continuous learning rings.
+    """Report the real counters behind the five learning rings.
 
-    Ring 1: Post-task reflection & trace evidence mining
-    Ring 2: Skill distillation & auto-generation
-    Ring 3: Runtime self-advancement & regression gates
-    Ring 4: Periodic autonomous memory consolidation
-    Ring 5: Cross-session recall & progressive user profiling
+    Ring 1: distinct sessions that ended in the lookback window (event log)
+    Ring 2/3: all-time skill-growth cases, same source as the skill growth page
+    Ring 4: memories across every memory type
+    Ring 5: conversations and profile memories
     """
-    try:
-        r1, r2, r3, r4, r5 = await asyncio.gather(
-            _fetch_ring1_reflection(days),
-            _fetch_ring2_distillation(days),
-            _fetch_ring3_advancement(days),
-            _fetch_ring4_consolidation(memory_manager),
-            _fetch_ring5_profiling(db),
-        )
-
-        total_learnings = r1.total_traces_analyzed + r2.proposals_approved + r4.total_memories + r5.conversations_indexed
-
-        overall_health = 100
-        if r3.regressions_blocked > 5 and r3.evaluations_run > 0:
-            regression_ratio = r3.regressions_blocked / r3.evaluations_run
-            if regression_ratio > 0.4:
-                overall_health = 85
-
-        summary_msg = (
-            f"Five-ring closed learning loop is fully operational. "
-            f"{r4.total_memories} memories consolidated, {r2.total_active_skills} active skills ready, "
-            f"{r5.conversations_indexed} conversations indexed for cross-session recall."
-        )
-
-        payload = LearningLoopFiveRingStatusResponse(
-            ring1_reflection=r1,
-            ring2_distillation=r2,
-            ring3_advancement=r3,
-            ring4_consolidation=r4,
-            ring5_profiling=r5,
-            overall_loop_health_score=overall_health,
-            overall_status="optimal" if overall_health >= 90 else "warning",
-            total_learnings_count=total_learnings,
-            summary_text=summary_msg,
-        )
-
-        return success_response(payload.model_dump())
-    except Exception as e:
-        logger.exception("Failed to build learning loop status: %s", e)
-        raise internal_error(f"Failed to fetch learning loop status: {e}") from e
+    sessions, growth, memory_counts, conversations = await asyncio.gather(
+        _read_source("event-log sessions", _count_recent_sessions(days)),
+        _read_source("skill growth stats", summarize_skill_growth_dashboard_stats()),
+        _read_source("memory counts", _count_memories(memory_manager)),
+        _read_source("conversations", _count_conversations(db)),
+    )
+    status = _assemble_status(
+        sessions=sessions,
+        growth=growth,
+        memory_counts=memory_counts,
+        conversations=conversations,
+    )
+    return success_response(status.model_dump())

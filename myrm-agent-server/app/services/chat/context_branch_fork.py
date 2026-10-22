@@ -48,23 +48,24 @@ class BranchForkResult(NamedTuple):
 
 
 def _resolve_snapshot_path(session_id: str, snapshot_path: str) -> Path:
-    from myrm_agent_harness.runtime.paths.execution_paths import CONTEXT_ROOT, PERSISTENT_ROOT
+    from myrm_agent_harness.runtime.paths.execution_paths import get_context_root, get_persistent_root
 
     normalized = snapshot_path.strip()
     if not normalized:
         raise ValueError("snapshot_path is empty")
 
+    persistent_root = get_persistent_root()
     candidates: list[Path] = []
     raw = Path(normalized)
     if raw.is_absolute():
         candidates.append(raw)
     else:
         rel = normalized.removeprefix("/persistent/").lstrip("/")
-        candidates.append(Path(PERSISTENT_ROOT) / rel)
-        candidates.append(Path(PERSISTENT_ROOT) / normalized)
-        candidates.append(Path(CONTEXT_ROOT) / session_id / "snapshots" / Path(normalized).name)
+        candidates.append(Path(persistent_root) / rel)
+        candidates.append(Path(persistent_root) / normalized)
+        candidates.append(Path(get_context_root()) / session_id / "snapshots" / Path(normalized).name)
         if not normalized.endswith(".gz"):
-            candidates.append(Path(f"{PERSISTENT_ROOT}/{rel}.gz"))
+            candidates.append(Path(f"{persistent_root}/{rel}.gz"))
 
     seen: set[str] = set()
     for candidate in candidates:

@@ -227,7 +227,7 @@ export default function MemoryCitationsButton({
         </button>
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+      <SheetContent side="right" className="w-full max-w-[400px] overflow-y-auto">
         <SheetHeader>
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">

@@ -7,13 +7,14 @@ import { useTranslations } from 'next-intl';
 import { groupRequestsForBulkResume } from '@/lib/approval/approvalBulkGroups';
 import { extractDirectoryGrantOptimistic, resumeDecisionsIncludeDirectoryGrant } from '@/lib/approval/approvalDecision';
 import {
-  ApprovalExpiredError,
   buildApprovalDecision,
   resumeApprovalStream,
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/resumeApprovalStream';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
+import { isRiskHeldError } from '@/services/riskHeldToast';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
@@ -101,12 +102,13 @@ export function useToolApprovalResolve() {
         }
       } catch (error) {
         console.error('[APPROVAL] Resume failed:', error);
-        if (error instanceof ApprovalExpiredError) {
-          toast.warning(t('approvalExpired'));
+        if (error instanceof ApprovalAlreadyResolvedError) {
+          toast.warning(t('approvalAlreadyHandled'));
           for (const req of requestsToRemove) {
             removeRequest(req.requestId);
           }
-        } else {
+        } else if (!isRiskHeldError(error)) {
+          // A reason a risk rule holds has its notice already; the approval stays pending with the reason in its card.
           toast.error(t('resumeError'));
         }
       } finally {
@@ -146,8 +148,8 @@ export function useToolApprovalResolve() {
         clearBatchDecisions();
       } catch (error) {
         console.error('[APPROVAL] Bulk resume failed:', error);
-        if (error instanceof ApprovalExpiredError) {
-          toast.warning(t('approvalExpired'));
+        if (error instanceof ApprovalAlreadyResolvedError) {
+          toast.warning(t('approvalAlreadyHandled'));
           for (const req of requests) {
             removeRequest(req.requestId);
           }

@@ -4,6 +4,7 @@
 - channels.routing.commands::ApprovalDecision, DenyWithReason (POS: slash command argument parsing and handling.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - channels.i18n::get_text (POS: multi-language gateway command replies and system-generated channel messages.)
 - services.approvals.registry::ApprovalRegistry (POS: unified approval flow scheduler that persists, pushes and resolves approvals.)
@@ -23,6 +24,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
+from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import InboundMessage, OutboundMessage
@@ -213,6 +215,10 @@ class RouterCommandsApprovalMixin:
             return
 
         if isinstance(decision, DenyWithReason):
+            # The reason reaches the agent as guidance, so it passes the gate like any text the sender typed. A held
+            # reason leaves the approval pending: the sender is told and can deny again.
+            if await hold_risky_inbound(self._bus, msg, decision.reason):
+                return
             entry = self._build_decision_entry("deny", msg.channel, reason=decision.reason)
             decisions: list[dict[str, object]] = [entry]
             status_msg = self._status_for_single_decision(msg, "deny", reason=decision.reason)

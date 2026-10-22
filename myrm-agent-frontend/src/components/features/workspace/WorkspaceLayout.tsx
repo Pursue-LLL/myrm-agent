@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Plus, Layout, FileDiff, X } from 'lucide-react';
+import { Plus, Layout, FileDiff, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -12,6 +12,7 @@ import { Button } from '@/components/primitives/button';
 import PaneCard from './PaneCard';
 import ActiveSessionsBar from './ActiveSessionsBar';
 import ReviewPanel from './ReviewPanel';
+import { QuickScratchpadModal, useScratchpadStore } from './scratchpad';
 
 export default function WorkspaceLayout() {
   const t = useTranslations('multiPane');
@@ -33,6 +34,7 @@ export default function WorkspaceLayout() {
   const chatHistory = useChatStore((s) => s.chatHistoryItems);
   const loadChatHistory = useChatStore((s) => s.loadChatHistory);
   const setInputMessage = useChatStore((s) => s.setInputMessage);
+  const openScratchpad = useScratchpadStore((s) => s.openScratchpad);
   const [reviewOpenMobile, setReviewOpenMobile] = useState(false);
 
   const handleSendFeedback = useCallback(
@@ -64,6 +66,17 @@ export default function WorkspaceLayout() {
           </div>
           <div className="flex items-center gap-3">
             <ActiveSessionsBar />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => openScratchpad()}
+              className="gap-2 rounded-lg border-surface-700/60 hover:bg-surface-800 text-surface-200"
+              aria-label="Open quick scratchpad"
+            >
+              <Zap size={15} className="text-amber-400" />
+              <span>Scratchpad</span>
+            </Button>
             {panes.length > 0 && (
               <Button
                 type="button"
@@ -170,6 +183,8 @@ export default function WorkspaceLayout() {
           </div>
         </div>
       )}
+      {/* Quick Scratchpad Modal */}
+      <QuickScratchpadModal />
     </div>
   );
 }

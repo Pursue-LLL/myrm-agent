@@ -4,11 +4,11 @@
 - app.services.agent.stream_session.stream_chunks::generate_cancellable_stream (POS: Agent 流式 SSE chunk 编排：凭据注入、三轨 gap 预检、Vision fallback，委托 loop/finalize)
 - app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: 单回合会话状态)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: Web-only SSE wiring for idle pre-reply compaction. Reuses frontend context_compaction progress steps)
-- app.services.agent.streaming_support.sse_helpers::error_sse (POS: SSE 事件辅助层。提供 SSE 事件解析、错误格式化，以及审批/澄清 HITL 超时后台 auto-resume 调度)
+- app.services.agent.streaming_support.sse_helpers::error_sse (POS: SSE 事件辅助层。提供 SSE 事件解析与错误格式化)
 - app.services.agent.streaming_support.multiplexer::WorkspaceMultiplexer (POS: Workspace SSE Multiplexer for multi-tab support)
 - app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层。保证发送给前端的每个 chunk 符合统一类型)
 - app.services.project.orchestrator::project_orchestrator (POS: 项目并发控制。确保同一个项目的多个 Agent 不会并发修改工作区文件)
-- app.services.agent.gateway::get_agent_gateway (POS: Agent 执行网关。并发控制、内存压力熔断、优雅排空、超时保护和可观测性)
+- app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears a reservation the stream never took over and reopens a resume's interrupt)
 - app.services.infra.system_notification::SystemNotificationService (POS: System notification persistence service for API/business layers)
 - myrm_agent_harness.agent.streaming.stream_buffer::ResilientStreamBuffer (POS: Harness engine-layer SSE reconnect replay buffer)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
@@ -24,8 +24,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING
 
+from app.services.agent.stream_session.session_reservation import release_unstreamed_reservation
 from app.services.agent.stream_session.stream_chunks import generate_cancellable_stream
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.sse_helpers import error_sse
@@ -59,6 +61,17 @@ async def _acquire_guarded(
             return
         except asyncio.TimeoutError:
             continue
+
+
+async def _is_client_detached(session: AgentStreamSession) -> bool:
+    """True when the client is disconnected or no frontend listeners are attached."""
+    if session.collector.has_subscribers:
+        return False
+    if session.request.multiplexed:
+        from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+        return not WorkspaceMultiplexer.get().has_subscribers
+    return await session.http_request.is_disconnected()
 
 
 async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuffer) -> None:
@@ -114,6 +127,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
 
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
+                session.last_activity_monotonic = time.monotonic()
                 if not stream_had_error and '"type": "error"' in chunk:
                     stream_had_error = True
                 await buffer.append(chunk)
@@ -136,15 +150,21 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
         if project_id and lock_acquired:
             project_orchestrator.release(project_id)
         if session.request.chat_id:
-            from app.services.agent.gateway import get_agent_gateway
-
-            get_agent_gateway().release_if_reserved_only(session.request.chat_id)
+            release_unstreamed_reservation(session.request.chat_id, was_resume=session.request.resume_value is not None)
         await buffer.end_stream()
 
-        # A long-running turn keeps going after its client left; tell the user once it ends.
+        # A long-running or detached turn keeps going after its client left; tell the user once it ends.
         try:
-            if session.is_long_running_task and not session.cancel_token.is_cancelled:
-                if await session.http_request.is_disconnected():
+            now_mono = time.monotonic()
+            turn_duration = (
+                (now_mono - session.stream_started_at_monotonic)
+                if session.stream_started_at_monotonic > 0
+                else 0.0
+            )
+            is_long_turn = session.is_long_running_task or turn_duration >= 30.0
+
+            if is_long_turn and not session.cancel_token.is_cancelled:
+                if await _is_client_detached(session):
                     from app.services.infra.system_notification import (
                         SystemNotificationService,
                     )

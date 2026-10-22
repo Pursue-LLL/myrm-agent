@@ -8,7 +8,7 @@ app.channels.routing.identity_scope::TurnMemoryScope (POS: 渠道 turn 记忆 co
 app.core.security.privacy_settings::privacy_agent_params (POS: 持久化隐私开关 → agent 隐私参数)
 
 [OUTPUT]
-build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。
+build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键。
 
 [POS]
 preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
@@ -188,7 +188,7 @@ async def build_channel_execution_agent(
         set_current_turn_id,
     )
 
-    turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"
+    turn_id = str(msg.metadata.get("turn_id") or msg.message_id or "unknown")
     set_current_turn_id(turn_id)
     set_current_chat_id(chat_id)
     set_current_agent_id(resolved_agent_id or "default")
@@ -196,7 +196,7 @@ async def build_channel_execution_agent(
     from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.core.channel_bridge.learn_handler import (
         apply_learn_skill_manage_permission_overlay,
-        is_learn_skill_authoring_prompt,
+        learn_authoring_prompt_text,
     )
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -261,45 +261,61 @@ async def build_channel_execution_agent(
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
         **privacy_agent_params(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
-        force_skill_manage=is_learn_skill_authoring_prompt(query),
+        force_skill_manage=learn_authoring_prompt_text(query) is not None,
         locale=resolve_message_locale(msg),
     )
 
+    from app.ai_agents.event_log_injector import (
+        inject_event_log_config,
+        sanitize_channel_event_log_session_id,
+    )
+
+    channel_event_log_sid = sanitize_channel_event_log_session_id(
+        chat_id,
+        default_prefix=f"channel_{msg.channel}",
+    )
+    inject_event_log_config(params, session_id_override=channel_event_log_sid)
+
     approval_peer = msg.chat_id or msg.sender_id
+    approval_key = f"{msg.channel}:{approval_peer}"
     if is_resume:
-        approval_key = f"{msg.channel}:{approval_peer}"
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
             logger.warning(
-                "Channel resume rejected (timeout already resolved): key=%s",
+                "Channel resume rejected (already resolved): key=%s",
                 approval_key,
             )
             return ChannelAgentBuildOutcome(
                 early_reply=msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "approval_timeout_resolved"),
+                    content=get_text(msg, "approval_already_handled"),
                 ),
             )
 
-    agent = AgentFactory.create_general_agent(params)
-    agent.approval_session_key = f"{msg.channel}:{approval_peer}"
-
-    query_input: str | Command[object]
+    query_input: str | list[dict[str, object]] | Command[object]
     if is_resume:
         query_input = Command(resume=msg.resume_value)
     else:
         query_input = query
 
-    from myrm_agent_harness.agent.security import user_credentials_ctx
+    from myrm_agent_harness.core.security.types import user_credentials_ctx
 
     from app.services.agent.session_credential_assembler import (
         assemble_session_credentials,
     )
 
-    credentials_list = await assemble_session_credentials(
-        oauth_credentials_dict=configs.oauth_credentials_dict,
-        providers_dict=configs.providers_dict,
-        channel=msg.channel,
-        credential_track=credential_track,
-    )
+    try:
+        agent = AgentFactory.create_general_agent(params)
+        agent.approval_session_key = approval_key
+        credentials_list = await assemble_session_credentials(
+            oauth_credentials_dict=configs.oauth_credentials_dict,
+            providers_dict=configs.providers_dict,
+            channel=msg.channel,
+            credential_track=credential_track,
+        )
+    except BaseException:
+        # resolve_if_first consumed the answer slot; reopen it so the user's retry is not refused as already resolved.
+        if is_resume:
+            ApprovalTimeoutScheduler.get().reopen(approval_key)
+        raise
     token_ctx = user_credentials_ctx.set(credentials_list)
     return ChannelAgentBuildOutcome(
         result=ChannelAgentBuildResult(

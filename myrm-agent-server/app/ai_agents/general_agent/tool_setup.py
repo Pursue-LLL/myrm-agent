@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 
+from .ask_question_result import format_ask_question_result
 from .external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
@@ -212,6 +213,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             inner=write_backend,
             llm_auditor=llm_auditor_instance,
         )
+        from app.core.skills.creation.managed_skill_reader import ManagedSkillSnapshotReader
+        from app.core.skills.creation.service import skill_creation_service
         from app.services.skills.mutation_batch_hook import ServerSkillManageBatchHook
 
         tools.append(
@@ -220,6 +223,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 skill_backend,
                 similarity_checker,
                 batch_committed_hook=ServerSkillManageBatchHook(),
+                snapshot_reader=ManagedSkillSnapshotReader(skill_creation_service),
             )
         )
         logger.info("Loaded skill_manage_tool [Turn1]")
@@ -310,8 +314,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            import json
-
             from myrm_agent_harness.agent.meta_tools.clarification.ask_question import (
                 AskQuestionInput,
             )
@@ -334,15 +336,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 payload = {"type": "ask_question", "form": form.model_dump()}
 
                 # Use LangGraph's native interrupt to suspend execution statelessly
-                response = interrupt(payload)
-
-                if not response:
-                    return (
-                        "User did not answer the clarification (skipped or timed out). "
-                        "Proceed with your best judgment; do not wait for further input."
-                    )
-
-                return json.dumps(response, ensure_ascii=False)
+                return format_ask_question_result(form, interrupt(payload))
 
             tools.append(create_ask_question_tool(_on_ask_question, locale=tool_description_locale))
             logger.info("🙋 已加载 ask_question_tool (交互式澄清表单)")
@@ -670,8 +664,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             if self.embedding_config is None:
-                logger.warning("⚠️ 记忆工具未加载（缺少 embedding_config）")
-                return None
+                # Embeddings-less degradation: memories persist through the
+                # BM25 sparse mirror and stay retrievable by keyword instead
+                # of dropping the memory tools entirely.
+                logger.info("🧠 记忆工具以关键词模式加载（未配置 embedding）")
 
             time_decay_half_life_days = 90.0
             if self.memory_decay_profile == "permanent":

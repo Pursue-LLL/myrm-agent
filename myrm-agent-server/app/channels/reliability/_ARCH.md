@@ -14,7 +14,7 @@ Transmission reliability: rate limiting, concurrency control, reconnect, and cra
 | rate_limiter.py | Core | Per-channel outbound rate limiting. Prevents platform bans due to excessive send frequency. | ✅ |
 | reconnect.py | Core | Reconnect loop with exponential backoff + jitter for long-lived connections. | ✅ |
 | retry.py | Core | Async retry utility with exponential backoff. Channel providers declare retry policies; media failures fall back to a localized text-only send; partial deliveries (`ChannelSendError.accepted`) are never retried or degraded; cancellation propagates. | ✅ |
-| durable_outbound.py | Core | Durable outbound gate: disk persist before IM send, startup/enable/dispatch-idle recovery, inflight tracking, skip web/chat/silent; retains obligation when channel disabled/stopped/unregistered (`retains()` tells the bus whether a disk record still owns a dropped message's attachments); null-send must not ack; a record that cannot be decoded is quarantined in the dead-letter directory with an ERROR log (marked out of retries, so the dead-letter queue reports it once as permanently failed and never re-sends it), so the healthy ones still recover. | ✅ |
+| durable_outbound.py | Core | Durable outbound gate: disk persist before IM send, startup/enable/dispatch-idle recovery, inflight tracking, skip web/chat/silent; retains obligation when channel disabled/stopped/unregistered (`retains()` tells the bus whether a disk record still owns a dropped message's attachments); recovery re-injects only records whose channel can take a delivery (`OutboundPublisher.can_deliver`), so an undeliverable record stays on disk instead of spinning the idle poll; null-send must not ack; a record that cannot be decoded is quarantined in the dead-letter directory with an ERROR log (marked out of retries, so the dead-letter queue reports it once as permanently failed and never re-sends it), so the healthy ones still recover. | ✅ |
 | delivery_notify_ledger.py | Core | Permanent-failure toast dedupe ledger (separate from outbound persist). | ✅ |
 
 ## Architecture: Symmetric Reliability
@@ -31,7 +31,7 @@ Gateway._recover_journal()             ack_delivery → done
                                                ↓ (channel disabled)
                                        retain disk obligation (no ack)
                                                ↓ (enable_channel / crash)
-                                       recover_into_bus → re-send
+                                       recover_into_bus (only deliverable channels) → re-send
                                                ↓ (send failed / delivery unproven)
                                        harness DeadLetterQueue (retry or permanent-failure callback)
 ```

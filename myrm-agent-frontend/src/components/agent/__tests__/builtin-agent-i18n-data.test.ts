@@ -27,4 +27,13 @@ describe('BUILTIN_AGENT_I18N', () => {
     expect(economy.zh.name).toBe('知识工作助手');
     expect(economy['zh-TW'].name).toBe('知識工作助手');
   });
+
+  it('should expose Strategic Advisor preset across English and Chinese locales', () => {
+    const advisor = BUILTIN_AGENT_I18N['strategic-advisor'];
+    expect(advisor).toBeDefined();
+    expect(advisor.en.name).toBe('Strategic Advisor');
+    expect(advisor.en.description).toContain('read-only');
+    expect(advisor.zh.name).toBe('战略顾问');
+    expect(advisor.zh.description).toContain('只读');
+  });
 });

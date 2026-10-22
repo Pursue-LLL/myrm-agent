@@ -5,7 +5,7 @@
   "build": {
     "beforeDevCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\" dev'",
     "beforeBuildCommand": "",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://127.0.0.1:3000",
     "frontendDist": "frontend-shell"
   },
   "bundle": {
@@ -13,21 +13,21 @@
     "createUpdaterArtifacts": true,
     "targets": "all",
     "resources": {
-      "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend"
+      "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend",
+      "binaries/myrmagent-backend": "binaries/myrmagent-backend"
     },
     "icon": [
       "icons/icon.png",
       "icons/icon.ico",
       "icons/icon.icns"
     ],
-    "externalBin": [
-      "binaries/myrmagent-backend"
-    ],
-    "copyright": "Copyright © 2026 MyrmAgent Team",
+    "copyright": "Copyright \u00a9 2026 MyrmAgent Team",
     "category": "Productivity",
     "fileAssociations": [
       {
-        "ext": ["myrmtheme"],
+        "ext": [
+          "myrmtheme"
+        ],
         "mimeType": "application/zip",
         "description": "MyrmAgent workspace theme package"
       }
@@ -81,7 +81,12 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "visible": false,
-        "backgroundColor": [10, 10, 10, 255]
+        "backgroundColor": [
+          10,
+          10,
+          10,
+          255
+        ]
       }
     ],
     "security": {

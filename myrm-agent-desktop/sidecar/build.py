@@ -125,6 +125,7 @@ def build_backend(*, skip_harness_install: bool = False):
     if not shared_json.is_file():
         raise FileNotFoundError(f"Missing cross-end provider remap artifact: {shared_json}")
 
+    data_sep = ";" if SYSTEM == "windows" else ":"
     cmd = [
         str(server_python),
         "-m",
@@ -140,6 +141,11 @@ def build_backend(*, skip_harness_install: bool = False):
         "--hidden-import", "qdrant_client",
         "--hidden-import", "myrm_agent_harness",
         "--hidden-import", "myrm_agent_harness.api",
+        "--collect-data", "litellm",
+        "--collect-data", "tiktoken",
+        "--collect-data", "myrm_agent_harness",
+        "--collect-submodules", "myrm_agent_harness",
+        "--add-data", f"{SERVER_ROOT / 'app' / 'config'}{data_sep}app/config",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",
         "--exclude-module", "PyQt5",
@@ -149,7 +155,6 @@ def build_backend(*, skip_harness_install: bool = False):
     ]
     if SYSTEM == "windows":
         cmd.append("--noconsole")
-    data_sep = ";" if SYSTEM == "windows" else ":"
     cmd.extend(["--add-data", f"{shared_json}{data_sep}shared/config"])
 
     print("\nRunning PyInstaller...")
@@ -177,6 +182,9 @@ def build_backend(*, skip_harness_install: bool = False):
         print(f"Size: {size_mb:.2f} MB")
         if SYSTEM != "windows":
             os.chmod(output_file, 0o755)
+        # Tauri externalBin/resources expects the stable name without the target triple.
+        stable_name = "myrmagent-backend.exe" if SYSTEM == "windows" else "myrmagent-backend"
+        shutil.copy2(output_file, OUTPUT_DIR / stable_name)
     else:
         print(f"\n[ERROR] Output file not found: {output_file}")
         sys.exit(1)

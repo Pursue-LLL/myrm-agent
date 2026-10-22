@@ -2,6 +2,7 @@ import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
 import type { ExportData } from '@/lib/utils/chat-export';
 import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 
 export interface TurnOutlineItem {
   turn_index: number;
@@ -168,8 +169,8 @@ export const getChatHistory = async (
     pinOrder: (chat.pinOrder as number) || 0,
     projectId: (chat.projectId as string | null) ?? null,
     tags: Array.isArray(chat.tags) ? (chat.tags as string[]) : [],
-    updatedAt: new Date((chat.updated_at || chat.created_at) as string),
-    createdAt: new Date((chat.created_at || chat.updated_at) as string),
+    updatedAt: parseServerTimestamp((chat.updated_at || chat.created_at) as string),
+    createdAt: parseServerTimestamp((chat.created_at || chat.updated_at) as string),
   }));
 
   return {
@@ -1186,7 +1187,8 @@ export const submitHumanGateResponse = async (messageId: string, answer: string)
 
 /**
  * Resume a General Agent plan confirmation interrupt via the main SSE stream.
- * Uses the same resume_value mechanism as tool approval.
+ * Uses the same resume_value mechanism as tool approval. Rejects when the request cannot be sent, so the card never
+ * reads an unsent answer as confirmed; rejects with `ApprovalAlreadyResolvedError` when the plan was already answered.
  */
 export const resumePlanConfirmStream = async (
   messageId: string,
@@ -1195,7 +1197,7 @@ export const resumePlanConfirmStream = async (
   const { default: useChatStore } = await import('@/store/useChatStore');
   const chatState = useChatStore.getState();
   if (!chatState.chatId) {
-    return;
+    throw new Error('Plan confirm resume needs an open chat');
   }
 
   const { getModelSelection, getLiteModelSelection } = await import('@/store/chat/messageRequest');
@@ -1203,7 +1205,7 @@ export const resumePlanConfirmStream = async (
 
   const modelSelection = getModelSelection(chatState.actionMode, chatState.agentConfig);
   if (!modelSelection) {
-    return;
+    throw new Error('Plan confirm resume needs a selected model');
   }
 
   const liteModelSelection = getLiteModelSelection();
@@ -1225,15 +1227,16 @@ export const resumePlanConfirmStream = async (
     }),
   };
 
+  const { AgentBusyError, ApprovalAlreadyResolvedError, isAgentBusySseEvent } =
+    await import('@/store/chat/streamErrors');
   const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
   if (!response.ok) {
     if (response.status === 409) {
-      throw new Error('Plan confirmation has already been resolved by timeout');
+      throw new ApprovalAlreadyResolvedError();
     }
     throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
   }
 
-  const { AgentBusyError, isAgentBusySseEvent } = await import('@/store/chat/streamErrors');
   const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
   const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
   const reader = response.body?.getReader();

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import type { ComponentProps } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { WikiConceptLinksPanel } from '../WikiConceptLinksPanel';
@@ -128,6 +128,45 @@ describe('WikiConceptLinksPanel', () => {
     await userEvent.click(screen.getByText('Links to (1)'));
     expect(await screen.findByText('outgoing-target')).toBeInTheDocument();
     expect(screen.queryByText('Related (0)')).not.toBeInTheDocument();
+  });
+
+  it('exposes the two directions as an accessible tab set that arrow keys move through', async () => {
+    mockLinks(
+      linksOf('keyboard-concept', {
+        outlinks: [outlink('outgoing-target')],
+        backlinks: [backlink('referencing-source')],
+      }),
+    );
+    renderPanel({ conceptName: 'keyboard-concept' });
+
+    const tablist = await screen.findByRole('tablist', { name: 'Links and context' });
+    const [citedBy, linksTo] = within(tablist).getAllByRole('tab');
+    expect(citedBy).toHaveAccessibleName('Cited by (1)');
+    expect(citedBy).toHaveAttribute('aria-selected', 'true');
+    expect(linksTo).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tabpanel', { name: 'Cited by (1)' })).toHaveTextContent('referencing-source');
+
+    await userEvent.click(citedBy);
+    await userEvent.keyboard('{ArrowRight}');
+
+    expect(linksTo).toHaveAttribute('aria-selected', 'true');
+    expect(linksTo).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Links to (1)' })).toHaveTextContent('outgoing-target');
+
+    await userEvent.keyboard('{ArrowLeft}');
+
+    expect(citedBy).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('referencing-source');
+  });
+
+  it('shows no tabs and no counts when the first load fails', async () => {
+    getConceptLinksMock().mockRejectedValueOnce(new Error('boom'));
+
+    renderPanel({ conceptName: 'broken' });
+
+    expect(await screen.findByText('Failed to load links')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
   });
 
   it('renders correct empty states across all tabs', async () => {

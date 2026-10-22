@@ -1,7 +1,7 @@
 """Trigger unattended headless agent streams for goal continuation.
 
 [INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
-[OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure
+[OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure, resolve_user_locale
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
 """
 
@@ -36,7 +36,7 @@ class GoalStreamAgentContext:
     agent_security_raw: dict[str, object] | None = None
 
 
-async def _resolve_user_locale() -> str:
+async def resolve_user_locale() -> str:
     """Load locale from personal settings (WebUI / Tauri / sandbox user config)."""
     from myrm_agent_harness.utils.locale import normalize_locale, resolve_locale
 
@@ -60,7 +60,7 @@ async def publish_goal_needs_review_notification(session_id: str, goal_id: str) 
     from app.channels.i18n.engine import channel_t
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-    locale = await _resolve_user_locale()
+    locale = await resolve_user_locale()
     title = channel_t(locale, "goal_stream_failed_title")
     message = channel_t(locale, "goal_stream_failed_message")
 
@@ -88,7 +88,11 @@ async def handle_unattended_goal_stream_failure(
     on_failure: TriggerFailurePolicy,
     context: str,
 ) -> None:
-    """Apply unattended stream failure policy — review state or Cron keep-active."""
+    """Apply unattended stream failure policy — review state or Cron keep-active.
+
+    Only a goal still ACTIVE is escalated: a run that already parked, paused or finished
+    the goal before failing must not have that state overwritten.
+    """
     if on_failure == "keep_active":
         logger.error(
             "Goal %s remains ACTIVE for Cron fallback after %s failure",
@@ -107,6 +111,10 @@ async def handle_unattended_goal_stream_failure(
     from myrm_agent_harness.agent.goals.types import GoalStatus
 
     try:
+        goal = await provider.get_goal(goal_id)
+        if goal is None or goal.status is not GoalStatus.ACTIVE:
+            logger.info("Goal %s already left ACTIVE during %s; keeping its state", goal_id, context)
+            return
         await provider.update_status(goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
     except Exception:
         logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
@@ -231,7 +239,7 @@ async def trigger_goal_stream(
         from app.services.checkpoint.task_airbag_service import get_task_airbag_service
 
         ws_dir = str(Path(settings.project_dir).expanduser().resolve())
-        await get_task_airbag_service().arm_airbag(goal.goal_id, ws_dir)
+        await get_task_airbag_service().arm_airbag(goal.goal_id, ws_dir, session_id=session_id)
     except Exception as exc:
         logger.warning("Failed to automatically arm safety airbag for goal %s: %s", goal.goal_id, exc)
 
@@ -323,6 +331,17 @@ async def trigger_goal_stream(
         ),
         **privacy_agent_params(memory_settings),
     )
+
+    from app.ai_agents.event_log_injector import (
+        inject_event_log_config,
+        sanitize_channel_event_log_session_id,
+    )
+
+    goal_event_log_sid = sanitize_channel_event_log_session_id(
+        session_id,
+        default_prefix="goal",
+    )
+    inject_event_log_config(params, session_id_override=goal_event_log_sid)
 
     async def _run_stream() -> None:
         try:

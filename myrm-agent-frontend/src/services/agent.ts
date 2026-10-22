@@ -3,16 +3,43 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import { normalizeAgentSecretKeyNames, parseUserAgentFetchErrorMessage } from './agentFetchErrorCore';
+import { riskHeldErrorFromResponse } from './riskHeldToast';
 
 async function throwUserAgentFetchError(response: Response, action: string): Promise<never> {
+  const riskHeld = await riskHeldErrorFromResponse(response);
+  if (riskHeld) {
+    throw riskHeld;
+  }
   const errorText = await response.text();
   throw new Error(parseUserAgentFetchErrorMessage(errorText, action, response.statusText));
 }
 
 export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
 
-/** 27 built-in presets exceed API default page_size=20. */
+/** 28 built-in presets exceed API default page_size=20. */
 export const AGENT_LIST_BUILTIN_PAGE_SIZE = 50;
+
+/**
+ * One communication style preset. The catalog is owned by the server
+ * (`GET /agents/personalities`); the editor renders whatever it returns.
+ */
+export interface PersonalityCatalogItem {
+  id: string;
+  displayName: string;
+  displayNameZh: string;
+  description: string;
+  descriptionZh: string;
+  exampleResponse: string;
+  exampleResponseZh: string;
+  iconId: string;
+  /** Server-owned category id (known: practical, fun); new ids render as extra groups. */
+  category: string;
+}
+
+/** Load the built-in communication style presets. */
+export async function getPersonalityCatalog(): Promise<PersonalityCatalogItem[]> {
+  return apiRequest<PersonalityCatalogItem[]>('/agents/personalities', { method: 'GET', silent: true });
+}
 
 export interface AgentModelSelection {
   providerId: string;

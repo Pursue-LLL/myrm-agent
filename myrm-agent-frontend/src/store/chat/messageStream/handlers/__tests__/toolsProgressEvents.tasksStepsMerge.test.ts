@@ -27,7 +27,6 @@ vi.mock('./handlerDeps', () => {
     useToolApprovalStore: {
       getState: vi.fn(() => ({
         addRequest: vi.fn(),
-        removeRequestsByMessageId: vi.fn(),
       })),
     },
     useToolsSnapshotStore: {

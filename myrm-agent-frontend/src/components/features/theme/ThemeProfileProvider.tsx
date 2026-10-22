@@ -22,6 +22,7 @@ import {
   type ThemeProfileRecipe,
 } from '@/theme-engine';
 import { isPetOverlayPath } from '@/lib/marketing-paths';
+import { useIsMobile, usePrefersReducedMotion } from '@/hooks/ui/useMediaQuery';
 import { resolveThemeAssetUrl, verifyThemeAssetAvailable } from '@/services/theme-assets/ThemeAssetStore';
 import WorkspaceArtLayer from './WorkspaceArtLayer';
 import ThemeAssetMissingBanner from './ThemeAssetMissingBanner';
@@ -71,9 +72,10 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const isPetOverlay = isPetOverlayPath(pathname ?? '');
 
   const colorScheme = resolvedTheme === 'light' ? 'light' : 'dark';
-  const prefersReducedMotion =
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  // Reactive on purpose: a one-shot matchMedia read at render never sees a mid-session OS reduced-motion
+  // flip or a resize across the md breakpoint, so a user-uploaded video art layer would keep playing.
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const isMobile = useIsMobile();
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);

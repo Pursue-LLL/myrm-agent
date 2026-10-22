@@ -41,7 +41,6 @@ _ACTIVE_GENERATION_EVENT_TYPES: frozenset[str] = frozenset(
         "tool_call",
         "action",
         "clarification_required",
-        "approval_intercepted",
     }
 )
 

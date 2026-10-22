@@ -2576,16 +2576,33 @@ _REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
     typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function'
     && window.__MYRM_E2E_CHAT__?.__e2eFallback !== true,
   hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+  // A bridge object without attachToChat means the client tree booted with a stale bundle (reload fixes it);
+  // no bridge object at all means the client tree has not booted yet (only waiting helps).
+  hasBridgeObject: Boolean(window.__MYRM_E2E_CHAT__),
+  // The E2E runtime binding (window.name) decides whether the bootstrap script ran at all.
+  hasRuntime: Boolean(window.__MYRM_E2E_RUNTIME__),
   fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
   hasInput: Boolean(document.querySelector('[data-chat-input]')),
   hasAppLayout: Boolean(document.querySelector('[data-testid="app-layout"]')),
   hasSkeleton: Boolean(document.querySelector('[data-testid="app-shell-skeleton"]')),
+  // React only attaches its fiber keys to the DOM once it hydrated: this separates "the client tree
+  // never booted" from "the client tree booted but the bridge did not install itself".
+  clientHydrated: (() => {
+    const el = document.querySelector('[data-chat-input]') || document.querySelector('[data-testid="app-layout"]');
+    if (!el) return false;
+    return Boolean(Object.keys(el).find((k) => k.startsWith('__react') || k.includes('react')));
+  })(),
   bodyLength: (document.body?.innerText || '').length,
   href: location.href,
   readyState: document.readyState,
   scriptsDone: performance.getEntriesByType('resource')
     .filter((e) => /\\.js(\\?|$)/.test(e.name) && e.responseEnd > 0).length,
   domScripts: document.scripts.length,
+  // Everything still in flight, not just scripts: a pending RSC/messages request is what a booting
+  // page waits for, and the .js-only counter cannot see it.
+  pendingAny: performance.getEntriesByType('resource')
+    .filter((e) => e.responseEnd === 0)
+    .map((e) => e.name.split('/').slice(-1)[0].slice(0, 60)),
 }))()"""
 
 # Installed on the first bridge poll so a blank page that never hydrates still
@@ -2620,6 +2637,7 @@ _BRIDGE_DIAG_SNAPSHOT_JS = """(() => {
       return dialog ? (dialog.textContent || '').slice(0, 300) : null;
     })(),
     bodyHead: (document.body?.innerHTML || '').slice(0, 200),
+    scriptSrcs: Array.from(document.scripts).map((s) => s.src).filter(Boolean).slice(0, 10),
     pageErrors: window.__MYRM_DIAG_ERRORS__ || null,
   };
 })()"""
@@ -2656,7 +2674,7 @@ def _wait_for_page_load_to_settle(
     first_probe: dict[str, object],
     *,
     deadline: float,
-) -> None:
+) -> str:
     """Hold the heal reloads back while the page is still loading its scripts (see ``chrome_bridge_load``)."""
     started_at = time.monotonic()
 
@@ -2676,6 +2694,7 @@ def _wait_for_page_load_to_settle(
         file=sys.stderr,
         flush=True,
     )
+    return outcome
 
 
 _ATTACH_CLIENT_WARMUP_URLS: set[str] = set()
@@ -2716,14 +2735,38 @@ def _trigger_attach_frontend_heal_once() -> None:
         pass
 
 
+def _attach_client_warmup_timeout_sec() -> float:
+    """Budget for one client hydration warmup.
+
+    A cold client bundle has to be compiled by the dev server before the page can boot, and a busy
+    host makes that compile take minutes (a single chunk was measured at 190s). The budget therefore
+    scales with the same host-load ratio the other E2E budgets use, instead of a fixed 30s that
+    silently expires while the compile is still running.
+    """
+    base = 30.0 if _parallel_chrome_e2e_active() else 90.0
+    try:
+        from dev_gate.contract import host_load_ratio
+
+        ratio = max(0.0, float(host_load_ratio()))
+    except (ImportError, OSError, AttributeError, RuntimeError, ValueError):
+        ratio = 0.0
+    if ratio <= 0.0:
+        return base
+    # Load per core 1.0 already means "twice as loaded as one core can serve"; scale linearly and cap.
+    return min(300.0, base * max(1.0, ratio))
+
+
 def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
-    """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT)."""
+    """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT).
+
+    A failed warmup does not mark the URL as warmed: the client is still cold, and the next caller has
+    to be able to try again (the compile may simply have needed more time).
+    """
 
     global _ATTACH_CLIENT_WARMUP_URLS
     ui = (page_url or f"{get_e2e_ui_url().rstrip('/')}/").rstrip("/") + "/"
     if ui in _ATTACH_CLIENT_WARMUP_URLS:
         return
-    _ATTACH_CLIENT_WARMUP_URLS.add(ui)
     monorepo_root = Path(__file__).resolve().parents[4]
     warmup_py = monorepo_root / "myrm-agent/scripts/dev/lib/browser_orchestrator/frontend_client_warmup.py"
     if not warmup_py.is_file():
@@ -2733,9 +2776,9 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
     py = str(venv_py) if venv_py.is_file() else sys.executable
     cdp_port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
     touch_wall_progress(current_node="attach_client_warmup")
-    cli_timeout_sec = 30 if _parallel_chrome_e2e_active() else 90
+    cli_timeout_sec = _attach_client_warmup_timeout_sec()
     try:
-        subprocess.run(
+        completed = subprocess.run(
             [
                 py,
                 str(warmup_py),
@@ -2752,7 +2795,20 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
             cwd=str(server_root),
         )
     except (OSError, subprocess.TimeoutExpired):
-        pass
+        return
+    if completed.returncode == 0:
+        _ATTACH_CLIENT_WARMUP_URLS.add(ui)
+        print(
+            f"E2E_CLIENT_WARMUP_OK: url={ui} budget={cli_timeout_sec:.0f}s",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
+        print(
+            f"E2E_CLIENT_WARMUP_FAILED: url={ui} rc={completed.returncode} budget={cli_timeout_sec:.0f}s",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def _ensure_react_e2e_bridge_timeout_sec(requested: float) -> float:
@@ -2793,15 +2849,34 @@ def _orchestrator_shared_ui_contract_timeout_sec() -> float:
     return _resolve_bridge_ready_timeout_sec(request)
 
 
+def _load_scaled_bridge_wait_ceiling_sec() -> float:
+    """Ceiling for one page's bridge wait on a busy host.
+
+    A cold client bundle has to be compiled by the dev server before the page can boot, and a busy host
+    makes that take minutes (a single chunk was measured at 190s). The ceiling therefore comes from the
+    dev-gate contract — the single source every other E2E budget uses — instead of a fixed 120s that cut
+    the wait short exactly when the page needed the most time.
+    """
+    try:
+        from dev_gate.contract import load_scaled_budget_sec
+
+        return load_scaled_budget_sec(120.0, 300.0)
+    except (ImportError, OSError, AttributeError, RuntimeError, ValueError):
+        return 120.0
+
+
 def _react_bridge_wait_timeout_sec(requested: float) -> float:
+    """Ceiling for one page's bridge wait; must not undercut the cap the caller already chose."""
     try:
         from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
-            return min(max(requested, 90.0), 180.0)
+            from e2e_core.shared_ui_session import _parallel_bridge_ready_cap_sec
+
+            return min(max(requested, 90.0), _parallel_bridge_ready_cap_sec())
     except ImportError:
         pass
-    return min(max(requested, 60.0), 120.0)
+    return min(max(requested, 60.0), _load_scaled_bridge_wait_ceiling_sec())
 
 
 def wait_for_react_e2e_bridge(
@@ -2853,7 +2928,26 @@ def wait_for_react_e2e_bridge(
             _log_bridge_wait_state(client, page, polls=polls, reload_passes=reload_passes, last=last)
         if reload_passes != settled_reload_passes:
             settled_reload_passes = reload_passes
-            _wait_for_page_load_to_settle(client, page, last, deadline=deadline)
+            settle_outcome = _wait_for_page_load_to_settle(client, page, last, deadline=deadline)
+            if settle_outcome == "stalled" and time.monotonic() < deadline:
+                _trigger_attach_frontend_heal_once()
+                _trigger_attach_client_warmup_once(
+                    page_url=target_url if isinstance(target_url, str) else None
+                )
+                if isinstance(target_url, str) and reload_passes < max_reload_passes:
+                    reload_passes += 1
+                    reload_mcp_page(
+                        client,
+                        page,
+                        target_url=target_url,
+                        timeout_ms=120_000,
+                        ignore_cache=True,
+                    )
+                    try:
+                        dismiss_blocking_modals(client, page)
+                    except AssertionError:
+                        pass
+                    time.sleep(2.0)
             continue
         body_length = last.get("bodyLength")
         href = str(last.get("href", ""))
@@ -2904,6 +2998,8 @@ def wait_for_react_e2e_bridge(
                 dismiss_blocking_modals(client, page)
             except AssertionError:
                 pass
+            # A page that never booted is not stale: reloading it restarts the boot. Only a booted page
+            # with an old bridge object needs the cache-bypassing reload.
             if isinstance(target_url, str) and reload_passes < max_reload_passes:
                 reload_passes += 1
                 # Stale-Turbopack warm shells can render the app shell with an old

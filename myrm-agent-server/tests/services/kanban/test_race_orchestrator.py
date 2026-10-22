@@ -50,9 +50,7 @@ def _lane(task_id: str, status: TaskStatus) -> KanbanTask:
 def _make_svc(task: KanbanTask | None, *, slots: int = 3) -> AsyncMock:
     svc = AsyncMock()
     svc.get_task.return_value = task
-    svc.get_board.return_value = SimpleNamespace(
-        settings=SimpleNamespace(max_concurrent_tasks=slots)
-    )
+    svc.get_board.return_value = SimpleNamespace(settings=SimpleNamespace(max_concurrent_tasks=slots))
     svc.store.list_tasks.return_value = []
     svc.list_tasks.return_value = []
     return svc
@@ -70,9 +68,7 @@ async def test_start_rejects_unknown_task() -> None:
 async def test_start_rejects_missing_branch() -> None:
     svc = _make_svc(_parent(branch=None))
     with pytest.raises(RaceError) as exc:
-        await start_race(
-            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
-        )
+        await start_race(svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True)
     assert exc.value.code == "race_requires_branch"
 
 
@@ -112,9 +108,7 @@ async def test_start_rejects_live_race() -> None:
     svc = _make_svc(_parent())
     svc.store.list_tasks.return_value = [_lane("lane-1", TaskStatus.RUNNING)]
     with pytest.raises(RaceError) as exc:
-        await start_race(
-            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
-        )
+        await start_race(svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True)
     assert exc.value.code == "race_in_progress"
 
 
@@ -122,9 +116,7 @@ async def test_start_rejects_live_race() -> None:
 async def test_start_rejects_terminal_parent() -> None:
     svc = _make_svc(_parent(status=TaskStatus.COMPLETED))
     with pytest.raises(RaceError) as exc:
-        await start_race(
-            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
-        )
+        await start_race(svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True)
     assert exc.value.code == "race_parent_not_ready"
     svc.add_task.assert_not_called()
 
@@ -140,9 +132,7 @@ async def test_start_rolls_back_half_built_race() -> None:
 
     svc.add_task.side_effect = add_task
     with pytest.raises(RuntimeError):
-        await start_race(
-            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
-        )
+        await start_race(svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True)
     svc.move_task.assert_awaited_once_with("lane-0", TaskStatus.ARCHIVED)
 
 
@@ -294,9 +284,7 @@ async def test_lane_changes_parses_numstat() -> None:
         assert base_dir == "/repo"
         return SimpleNamespace(returncode=0, stdout="10\t2\tsrc/a.py\n0\t0\t../evil.py\n")
 
-    with patch(
-        "app.services.kanban.race_lane_diff._run_git", side_effect=fake_git
-    ):
+    with patch("app.services.kanban.race_lane_diff._run_git", side_effect=fake_git):
         outcome = await get_lane_changes(svc, "board-1", "parent-1", "lane-1")
     assert outcome["lane_task_id"] == "lane-1"
     assert outcome["files"] == [{"path": "src/a.py", "additions": 10, "deletions": 2}]

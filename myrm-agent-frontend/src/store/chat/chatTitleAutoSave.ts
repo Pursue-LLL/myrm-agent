@@ -4,7 +4,7 @@
  * @/store/useChatStore::useChatStore (POS: sidebar history state)
  *
  * [OUTPUT]
- * autoSaveChat: Auto-generate and save chat titles, then sync the sidebar history.
+ * autoSaveChat: Auto-generate and save chat titles, then sync the sidebar history. Incognito chats are skipped.
  *
  * [POS]
  * Title auto-save layer. Reads useChatStore, so it is only imported lazily by the store itself.
@@ -25,7 +25,7 @@ const CHAT_SUMMARY_MAX_LENGTH = 100;
 
 /**
  * 自动保存聊天元数据（标题 + 侧边栏）。
- * 消息持久化已由后端 Agent 入口完成，此处只负责标题生成和 UI 同步。
+ * 消息持久化已由后端 Agent 入口完成，此处只负责标题生成和 UI 同步；无痕会话不生成标题也不进侧边栏。
  */
 export const autoSaveChat = async (
   chatId: string,
@@ -45,14 +45,14 @@ export const autoSaveChat = async (
       return;
     }
 
+    // Incognito chats keep no title anywhere: no title-model call, no stored title, no sidebar entry.
+    if (isIncognito) {
+      return;
+    }
+
     const title = await _generateTitle(messages);
 
     await updateChatTitle(chatId, title);
-
-    if (isIncognito) {
-      // 阅后即焚模式：禁止将无痕会话添加到前端本地的侧边栏历史列表中，防止 UI 状态泄漏
-      return;
-    }
 
     const lastMessage = messages[messages.length - 1]?.content || '';
     const firstUserMessage = messages.find((msg) => msg.role === 'user');

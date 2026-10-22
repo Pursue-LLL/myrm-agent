@@ -79,6 +79,16 @@ export async function getSkill(skillId: string): Promise<Skill> {
   return apiRequest<Skill>(`${SKILLS_API_PREFIX}/${skillId}`);
 }
 
+export interface SkillAgentUsage {
+  skill_id: string;
+  agent_count: number;
+  agents: Array<{ id: string; name: string }>;
+}
+
+export async function getSkillAgentUsage(skillId: string): Promise<SkillAgentUsage> {
+  return apiRequest<SkillAgentUsage>(`${SKILLS_API_PREFIX}/${skillId}/agent-usage`);
+}
+
 /**
  * 在系统文件管理器中打开本地技能目录
  * @param skillId 技能 ID
@@ -111,6 +121,9 @@ export interface UpdateSkillFileResponse {
   is_clean: boolean;
   trust_recommendation: string;
   findings_count: number;
+  content_hash?: string | null;
+  version_persisted?: boolean;
+  version_number?: number | null;
 }
 
 /**
@@ -123,10 +136,16 @@ export async function saveSkillFile(
   skillId: string,
   filename: string,
   content: string,
+  options?: { ifMatch?: string | null },
 ): Promise<UpdateSkillFileResponse> {
+  const headers: Record<string, string> = {};
+  if (options?.ifMatch) {
+    headers['If-Match'] = options.ifMatch.startsWith('"') ? options.ifMatch : `"${options.ifMatch}"`;
+  }
   return apiRequest<UpdateSkillFileResponse>(`${SKILLS_API_PREFIX}/${skillId}/files/${filename}`, {
     method: 'PUT',
     body: JSON.stringify({ content }),
+    headers,
   });
 }
 
@@ -526,6 +545,9 @@ export interface DiscoveryInstallResponse {
   allowlist_append_error?: string;
   installed_skills?: string[];
   declared_mcp_servers?: string[];
+  /** Set when a market replace captured a pre-update snapshot for rollback. */
+  pre_replace_batch_id?: string | null;
+  snapshot_truncated?: boolean;
 }
 
 export interface DiscoveryInstallOptions {
@@ -583,6 +605,22 @@ export async function installDiscoverySkill(
       source,
       agent_id: options?.agentId,
       mount_to_agent: options?.mountToAgent ?? true,
+    }),
+  });
+}
+
+export async function updateDiscoverySkill(
+  skillName: string,
+  skillId: string,
+  source: string,
+): Promise<DiscoveryInstallResponse> {
+  return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/update`, {
+    method: 'POST',
+    timeout: SKILL_REMOTE_OP_TIMEOUT_MS,
+    body: JSON.stringify({
+      skill_name: skillName,
+      skill_id: skillId,
+      source,
     }),
   });
 }
@@ -740,11 +778,20 @@ export interface CuratorConfigResponse {
   archive_after_days: number;
   grace_period_days: number;
   min_success_rate: number;
-  max_skills: number;
   protect_installed_skills: boolean;
   consolidation_enabled: boolean;
   consolidation_min_cluster_size: number;
   consolidation_similarity_threshold: number;
+}
+
+/** Why the sweep moved a skill; `stale`, `archive` and `inactive` all mean it went unused past a threshold. */
+export type CuratorTransitionReason = 'inactive' | 'stale' | 'archive' | 'low_quality' | 'lru_eviction';
+
+export interface CuratorTransition {
+  skill_name: string;
+  from_status: string;
+  to_status: 'stale' | 'archived';
+  reason: CuratorTransitionReason;
 }
 
 export interface CuratorRunResponse {
@@ -753,12 +800,8 @@ export interface CuratorRunResponse {
   stale_count: number;
   archived_count: number;
   skipped_pinned: number;
-  transitions: Array<{
-    skill_name: string;
-    from_status: string;
-    to_status: string;
-    reason: string;
-  }>;
+  skipped_protected: number;
+  transitions: CuratorTransition[];
 }
 
 export async function updateSkillLifecycle(
@@ -791,19 +834,15 @@ export async function runCuratorSweep(): Promise<CuratorRunResponse> {
 export interface CuratorHistoryEntry {
   timestamp: string;
   trigger: 'manual' | 'background';
-  duration_ms: number;
   skills_scanned: number;
   total_transitions: number;
   stale_count: number;
   archived_count: number;
+  /** Skills left alone because the user pinned them. */
   skipped_pinned: number;
-  transitions: Array<{
-    skill_name: string;
-    from_status: string;
-    to_status: string;
-    reason: string;
-  }>;
-  errors: string[];
+  /** Skills left alone because an agent, scheduled task or Kanban task depends on them. */
+  skipped_protected: number;
+  transitions: CuratorTransition[];
 }
 
 export async function getCuratorHistory(limit: number = 10): Promise<CuratorHistoryEntry[]> {
@@ -812,24 +851,24 @@ export async function getCuratorHistory(limit: number = 10): Promise<CuratorHist
 
 // --- Skill Health Doctor Diagnostics API ---
 
-export interface SkillDoctorFindingItem {
+interface SkillDoctorFindingBase {
   skill_name: string;
-  finding_type: 'wrong_but_frequent' | 'hoarding_bloat' | 'stale_pinned';
   severity: 'critical' | 'warning' | 'info';
-  message: string;
   call_count: number;
   success_rate: number;
   pinned: boolean;
-  recommended_action: 'unpin_and_archive' | 'archive' | 'reset_stats' | 'evolve';
-  details: Record<string, unknown>;
+  /** An agent profile or cron job still references the skill, so the server refuses to archive it. */
+  bound: boolean;
 }
 
+/** The server sends a type code plus its parameters; the UI phrases each finding in the user's language. */
+export type SkillDoctorFindingItem = SkillDoctorFindingBase &
+  (
+    | { finding_type: 'wrong_but_frequent'; details: { observed_count: number } }
+    | { finding_type: 'stale_pinned'; details: { days_inactive: number } }
+  );
+
 export interface SkillDoctorDiagnosticsResponse {
-  total_skills: number;
-  active_skills: number;
-  stale_skills: number;
-  archived_skills: number;
-  pinned_skills: number;
   findings: SkillDoctorFindingItem[];
   health_score: number;
 }
@@ -848,9 +887,11 @@ export async function getSkillDiagnostics(): Promise<SkillDoctorDiagnosticsRespo
   return apiRequest<SkillDoctorDiagnosticsResponse>(`${SKILLS_API_PREFIX}/curator/diagnostics`);
 }
 
+export type SkillRemediationAction = 'unpin_and_archive' | 'archive' | 'reset_stats';
+
 export async function remediateSkillFinding(
   skillName: string,
-  action: 'unpin_and_archive' | 'archive' | 'reset_stats',
+  action: SkillRemediationAction,
 ): Promise<SkillRemediationResponse> {
   return apiRequest<SkillRemediationResponse>(`${SKILLS_API_PREFIX}/curator/remediate`, {
     method: 'POST',
@@ -872,6 +913,7 @@ export interface ConsolidationPreviewResponse {
   total_skills_affected: number;
   estimated_reduction: number;
   preview_summary: string;
+  plan_token: string;
 }
 
 export interface ConsolidationExecuteResponse {
@@ -881,7 +923,6 @@ export interface ConsolidationExecuteResponse {
   total_created: number;
   net_reduction: number;
   summary: string;
-  agent_refs_updated: number;
 }
 
 export async function getConsolidationPreview(): Promise<ConsolidationPreviewResponse> {
@@ -890,9 +931,10 @@ export async function getConsolidationPreview(): Promise<ConsolidationPreviewRes
   });
 }
 
-export async function executeConsolidation(): Promise<ConsolidationExecuteResponse> {
+export async function executeConsolidation(planToken: string): Promise<ConsolidationExecuteResponse> {
   return apiRequest<ConsolidationExecuteResponse>(`${SKILLS_API_PREFIX}/curator/consolidation/execute`, {
     method: 'POST',
+    body: JSON.stringify({ plan_token: planToken }),
   });
 }
 
@@ -929,6 +971,8 @@ export async function triggerSkillSync(): Promise<SkillSyncTriggerResult> {
 interface PrebuiltActionResult {
   status: string;
   message: string;
+  pre_replace_batch_id?: string | null;
+  snapshot_truncated?: boolean;
 }
 
 export async function resetPrebuiltToDefault(skillId: string): Promise<PrebuiltActionResult> {

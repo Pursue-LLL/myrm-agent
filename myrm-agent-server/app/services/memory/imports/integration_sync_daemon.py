@@ -23,6 +23,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from app.core.infra.background_task import spawn_observed_task
+
 if TYPE_CHECKING:
     from app.services.memory.imports.integration_memory import IntegrationMemoryService
 
@@ -153,10 +155,12 @@ async def start_integration_sync_daemon(interval_minutes: int = _DEFAULT_INTERVA
                     IntervalTrigger(minutes=interval_minutes),
                     id="integration_knowledge_sync",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Integration sync daemon started (every %d min)", interval_minutes)
                 await asyncio.Event().wait()
 
-        _daemon_task = asyncio.create_task(run_scheduler())
+        _daemon_task = spawn_observed_task(run_scheduler(), name="integration_knowledge_sync")
 
     except Exception as exc:
         logger.error("Failed to start integration sync daemon: %s", exc)

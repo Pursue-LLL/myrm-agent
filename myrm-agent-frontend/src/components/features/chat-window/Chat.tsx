@@ -62,6 +62,11 @@ import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync'
 import { useRewindStore } from '@/store/chat/useRewindStore';
 import { RewindDialog } from './RewindDialog';
 import ScrollToBottomButton from './ScrollToBottomButton';
+import {
+  UserQuestionNav,
+  UserQuestionOutlineDrawer,
+  useUserQuestionNavStore,
+} from './question-nav';
 import type { Message } from '@/store/chat/types/messages';
 
 const EMPTY_MESSAGES: Message[] = [];
@@ -161,6 +166,14 @@ const Chat = ({
 
   const searchParams = useSearchParams();
   const highlightMessageId = searchParams.get('highlight');
+
+  const pendingCount = useUserQuestionNavStore((s) => s.pendingCount);
+  const pendingItems = useUserQuestionNavStore((s) => s.pendingItems);
+  const syncNavMessages = useUserQuestionNavStore((s) => s.syncMessages);
+
+  useEffect(() => {
+    syncNavMessages(messages);
+  }, [messages, syncNavMessages]);
 
   const { configError, clearConfigError } = useConfigErrorDetector();
   const isGoalsEnabled = useFeatureGateStore((s) => s.isEnabled('goals_system'));
@@ -589,6 +602,18 @@ const Chat = ({
               visible={isUserScrolledUp}
               hasNewMessage={hasNewMessage}
               onClick={handleScrollToBottomClick}
+              pendingCount={pendingCount}
+              pendingItems={pendingItems}
+            />
+            <UserQuestionNav
+              onJumpToMessageIndex={(_index, messageId) => {
+                handleJumpToMessageId(messageId);
+              }}
+            />
+            <UserQuestionOutlineDrawer
+              onJumpToMessageIndex={(_index, messageId) => {
+                handleJumpToMessageId(messageId);
+              }}
             />
           </div>
           <TurnTimelineRail
@@ -656,6 +681,18 @@ const Chat = ({
             visible={isUserScrolledUp}
             hasNewMessage={hasNewMessage}
             onClick={handleScrollToBottomClick}
+            pendingCount={pendingCount}
+            pendingItems={pendingItems}
+          />
+          <UserQuestionNav
+            onJumpToMessageIndex={(_index, messageId) => {
+              handleJumpToMessageId(messageId);
+            }}
+          />
+          <UserQuestionOutlineDrawer
+            onJumpToMessageIndex={(_index, messageId) => {
+              handleJumpToMessageId(messageId);
+            }}
           />
         </div>
         <TurnTimelineRail

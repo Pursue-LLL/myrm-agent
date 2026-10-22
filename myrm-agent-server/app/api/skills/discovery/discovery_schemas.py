@@ -86,6 +86,10 @@ class SkillInstallResponse(BaseModel):
     installed_skills: list[str] = []
     declared_mcp_servers: list[str] = []
     receipt: SkillReceiptResponse | None = None
+    pre_replace_batch_id: str | None = None
+    """Rollback batch id when a market replace captured a pre-replace snapshot."""
+    snapshot_truncated: bool = False
+    """True when the pre-replace snapshot hit size limits (undo may be partial)."""
 
 
 class SkillUpdateInfoResponse(BaseModel):

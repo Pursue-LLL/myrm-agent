@@ -31,6 +31,7 @@ import SaveToWikiButton from '../message-actions/SaveToWikiButton';
 import TokenUsageDisplay from './TokenUsageDisplay';
 import ConsensusMetaDisplay from './ConsensusMetaDisplay';
 import MemoryCitationsButton from './MemoryCitationsButton';
+import TurnLoadedSkillsButton from './TurnLoadedSkillsButton';
 import { ForkButton } from '../chat-window/ForkButton';
 import type { Message } from '@/store/chat/types';
 
@@ -45,7 +46,7 @@ interface MessageActionBarProps {
   enableEvalLab: boolean;
   markdownRef: RefObject<HTMLDivElement | null>;
   onCancel: () => Promise<void>;
-  onRegenerate: (instruction?: string) => Promise<void>;
+  onRegenerate: (instruction?: string) => Promise<boolean>;
 }
 
 export default function MessageActionBar({
@@ -72,6 +73,7 @@ export default function MessageActionBar({
   );
   const hasEvidenceSources = (message.sources?.length ?? 0) > 0;
   const hasMemoryCitations = (message.citedMemoryIds?.length ?? 0) > 0 || (message.citedMemoryRefs?.length ?? 0) > 0;
+  const hasTurnLoadedSkills = (message.turnLoadedSkills?.length ?? 0) > 0;
   const showEvidenceButton = hasEvidenceSources || hasMemoryCitations;
 
   return (
@@ -112,6 +114,9 @@ export default function MessageActionBar({
             degraded={message.memoryRetrievalDegraded}
             citationAudit={message.citationAudit}
           />
+        )}
+        {!isStreaming && hasTurnLoadedSkills && (
+          <TurnLoadedSkillsButton skills={message.turnLoadedSkills} />
         )}
         {!isStreaming && effectiveChatId && (
           <RevertFiles chatId={effectiveChatId} messageId={message.requestMessageId || message.messageId} />

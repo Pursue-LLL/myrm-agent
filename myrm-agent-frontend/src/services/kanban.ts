@@ -294,6 +294,7 @@ export async function moveTask(
     scheduled_until?: string;
     result?: string;
     metadata?: Record<string, unknown>;
+    assignee_agent_id?: string;
   },
 ): Promise<KanbanTask> {
   const { force = false, ...rest } = opts ?? {};
@@ -376,6 +377,9 @@ export async function bulkAction(
   return apiRequest(`/kanban/boards/${boardId}/tasks/bulk-action`, {
     method: 'POST',
     body: JSON.stringify({ task_ids: taskIds, action, params, confirm }),
+    // runBulkAction reports a failed request once, in the user's language. The request-level toast would add the
+    // server's raw message and a retry button that replays only the last chunk.
+    silent: true,
   });
 }
 

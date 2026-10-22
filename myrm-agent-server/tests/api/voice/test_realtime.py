@@ -451,7 +451,9 @@ async def test_create_realtime_token_tools_payload_format() -> None:
 
     posted_payload = mock_client.post.await_args.kwargs["json"]
     tools_payload = posted_payload["tools"]
-    assert len(tools_payload) == 6
+    # The catalog grows as voice capabilities land, so pin the contract (shape + core tools) instead of a count.
+    tool_names = {tool["name"] for tool in tools_payload}
+    assert {"set_reminder", "cancel_reminder", "list_reminders"} <= tool_names
     for tool in tools_payload:
         assert "type" in tool
         assert "name" in tool

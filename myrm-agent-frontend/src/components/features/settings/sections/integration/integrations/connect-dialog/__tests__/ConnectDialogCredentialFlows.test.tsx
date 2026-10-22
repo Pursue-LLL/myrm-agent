@@ -166,30 +166,32 @@ describe('IntegrationConnectDialog credential flows', () => {
   });
 
   describe('connectivity probe', () => {
-    const remoteEntry = () =>
+    // Only loopback targets are probed; remote hosted entries skip the probe
+    // and are verified by the security gate handshake instead.
+    const loopbackEntry = () =>
       makeEntry({
         authType: 'none',
         envKey: null,
-        mcpConfig: { name: 'svc', type: 'streamable_http', url: 'https://svc.example/mcp' },
+        mcpConfig: { name: 'svc', type: 'streamable_http', url: 'http://127.0.0.1:8000/mcp' },
       });
 
     it('connects after a probe that reports cloud_not_supported without a block flag', async () => {
       mockApiRequest.mockResolvedValueOnce({ status: 'cloud_not_supported' });
-      renderDialog(remoteEntry());
+      renderDialog(loopbackEntry());
 
       clickConnect();
 
       await waitFor(() => expect(mockSetMCPConfigs).toHaveBeenCalledTimes(1));
       expect(mockApiRequest).toHaveBeenCalledExactlyOnceWith('/integrations/mcp/probe', {
         method: 'POST',
-        body: JSON.stringify({ url: 'https://svc.example/mcp', timeout: 5 }),
+        body: JSON.stringify({ url: 'http://127.0.0.1:8000/mcp', timeout: 5 }),
       });
       expect(screen.queryByText('probeCloudLoopbackBlocked')).not.toBeInTheDocument();
     });
 
     it('shows the unreachable message and keeps the config out when the probe request fails', async () => {
       mockApiRequest.mockRejectedValueOnce(new Error('network down'));
-      renderDialog(remoteEntry());
+      renderDialog(loopbackEntry());
 
       clickConnect();
 

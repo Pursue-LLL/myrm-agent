@@ -75,6 +75,16 @@
     .btn-danger { background: #ef4444; color: #fff; }
     .btn-secondary { background: #333; color: #e0e0e0; }
     .btn + .btn { margin-top: 8px; }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #e0e0e0;
+      cursor: pointer;
+    }
+    .checkbox-row:not(:last-child) { margin-bottom: 8px; }
+    .checkbox-row input { width: auto; flex: none; margin: 0; }
     .hint {
       font-size: 11px;
       color: #666;
@@ -103,6 +113,15 @@
       text-overflow: ellipsis;
     }
     .tab-item .domain { color: #6366f1; margin-right: 6px; }
+
+    /* 系统偏好减少动态效果时把过渡收到瞬时：弹窗是独立文档，宿主样式表的守卫到不了这里。 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -143,13 +162,20 @@
   </div>
 
   <div class="section">
-    <label class="hint" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <label class="checkbox-row">
       <input type="checkbox" id="allow-all-tabs" />
       <span data-i18n="allowAllEligibleTabs">Allow all eligible websites</span>
     </label>
     <div class="section-title" data-i18n="sectionAuthorizedDomains">Authorized Domains (one per line)</div>
     <textarea id="domains" data-i18n-placeholder="placeholderDomains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
     <div class="hint" data-i18n="hintAuthorizedDomains">Only tabs matching these domains can be controlled by the Agent.</div>
+  </div>
+
+  <div class="section">
+    <label class="checkbox-row">
+      <input type="checkbox" id="approval-notify" />
+      <span data-i18n="approvalNotifyLabel">Notify me when the agent needs my approval</span>
+    </label>
   </div>
 
   <button class="btn btn-primary" id="btn-connect" data-i18n="btnConnect">Connect</button>

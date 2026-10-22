@@ -24,9 +24,12 @@ if (typeof document === 'undefined') {
   }
 }
 
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
+
+// findBy*/waitFor 默认 1s；多路并行的重负载机器上一次真实 apiRequest 链路就可能超过它而误判。与 testTimeout(30s) 同口径放宽，真实失败仍会在该上限内暴露。
+configure({ asyncUtilTimeout: 10000 });
 
 // vitest 4 + Node 22 下 jsdom 不再暴露 localStorage（Node 实验性全局为 undefined），
 // 内存版 polyfill 保证依赖 localStorage 的模块在测试中可用。
@@ -121,7 +124,11 @@ vi.mock('next/font/google', () => ({
 //      const stableT = (key: string) => key;
 //      vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 // 3. 自带的参数插值逻辑同样必须放进 stableT（参见测试文件中的自定义 stableT 模式）。
-export const stableT: (key: string) => string = (key) => key;
+// 4. `has` 也必须提供：组件用 t.has(code) 判断文案是否存在（未知码回退可读文本）。
+export const stableT: ((key: string) => string) & { has: (key: string) => boolean } = Object.assign(
+  (key: string) => key,
+  { has: (key: string) => key.trim().length > 0 },
+);
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
   useLocale: () => 'en',

@@ -5,12 +5,13 @@ app.services.memory.imports.import_session_models::NormalizedMemoryData (POS: �
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]
-canonical_hash, normalized_to_json, normalized_from_json, attach_import_metadata,
-build_transaction_items, summary_unmapped_count, capture_profile_previous_values,
-capture_profile_imported_values: import session data transformation helpers.
+canonical_hash, normalized_to_json, normalized_from_json, ensure_profile_import_keys,
+attach_import_metadata, build_transaction_items, summary_unmapped_count,
+capture_profile_previous_values, capture_profile_imported_values: import session
+data transformation helpers.
 
 [POS]
-记忆导入会话数据转换层。负责 payload 指纹、normalized data JSON 转换、导入 metadata 注入和 profile 导入前后值采集。
+记忆导入会话数据转换层。负责 payload 指纹、normalized data JSON 转换、profile 内容型条目补键、导入 metadata 注入和 profile 导入前后值采集。
 """
 
 from __future__ import annotations
@@ -49,6 +50,83 @@ def normalized_from_json(value: dict[str, object]) -> NormalizedMemoryData:
                 entries.append({str(key): item for key, item in raw_entry.items()})
         normalized[str(bucket)] = entries
     return normalized
+
+
+def ensure_profile_import_keys(data: NormalizedMemoryData, *, source: str) -> int:
+    """Give content-only profile entries a stable key so the import can store them.
+
+    Profile entries are written through the relational key/value store, so an
+    entry without a key would be reported as mapped and then silently skipped at
+    confirm time. Deriving a content-addressed key here keeps the preview, the
+    plan hash, the ledger snapshots and the actual import in agreement, and
+    re-importing the same text maps onto the same key instead of duplicating.
+    """
+
+    derived = 0
+    for entry in data.get(MemoryType.PROFILE.value, []):
+        if profile_entry_key(entry):
+            continue
+        content = str(entry.get("content", "")).strip()
+        if not content:
+            continue
+        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()[:12]
+        entry["key"] = f"imported_{source}_{digest}"
+        if not entry.get("value"):
+            entry["value"] = content
+        derived += 1
+    return derived
+
+
+PREVIEW_MAX_ITEMS = 12
+PREVIEW_MAX_CONTENT_CHARS = 200
+_PREVIEW_BUCKET_ORDER: tuple[str, ...] = (
+    "profile",
+    "procedural",
+    "semantic",
+    "episodic",
+    "conversation",
+    "claim",
+    "task_digest",
+    "integration",
+)
+
+
+def bounded_preview(
+    data: NormalizedMemoryData,
+    *,
+    max_items: int = PREVIEW_MAX_ITEMS,
+) -> NormalizedMemoryData:
+    """Return a bounded, content-safe sample of normalized entries.
+
+    The dry-run response exposes this sample so users can see what a free-text
+    or store import actually parsed before confirming; the full payload stays
+    server-side in the review session.
+    """
+
+    order = [*_PREVIEW_BUCKET_ORDER, *(bucket for bucket in data if bucket not in _PREVIEW_BUCKET_ORDER)]
+    sample: NormalizedMemoryData = {}
+    remaining = max_items
+    for bucket in order:
+        if remaining <= 0:
+            break
+        entries = data.get(bucket, [])
+        if not entries or bucket in sample:
+            continue
+        taken: list[dict[str, object]] = []
+        for entry in entries[:remaining]:
+            content = str(entry.get("content", "")).strip()
+            if not content:
+                continue
+            taken.append(
+                {
+                    "content": content[:PREVIEW_MAX_CONTENT_CHARS],
+                    "created_at": str(entry.get("created_at", "") or ""),
+                }
+            )
+        if taken:
+            sample[bucket] = taken
+            remaining -= len(taken)
+    return sample
 
 
 def attach_import_metadata(

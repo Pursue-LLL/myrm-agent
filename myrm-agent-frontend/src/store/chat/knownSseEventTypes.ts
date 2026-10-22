@@ -35,7 +35,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'tool_token_usage',
   'artifact_content',
   'token_usage',
-  'approval_intercepted',
   'reasoning',
   'steering',
   'tool_approval_request',
@@ -54,7 +53,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'iteration_limit_reached',
   'approval_required',
   'clarification_required',
-  'directory_request_required',
   'goal_status',
   'memory_brief',
   'engine_limit_reached',
@@ -82,7 +80,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'skill_gap',
   'phase_transition',
   'working_memory',
-  'ttsr_triggered',
   'custom',
   'custom_message',
 ] as const;

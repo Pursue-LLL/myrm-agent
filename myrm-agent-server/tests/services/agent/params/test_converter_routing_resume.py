@@ -18,6 +18,7 @@ from app.services.agent.params import routing_memory
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest, ModelSelection
 from app.services.agent.params.routing_memory import remember_turn_routing
+from tests.api.agent.conftest import _build_mock_user_configs
 
 _MAIN = {"providerId": "openai", "model": "gpt-4o"}
 _LIGHT = {"providerId": "openai", "model": "gpt-4o-mini"}
@@ -52,6 +53,10 @@ def _resume(**overrides: object) -> AgentRequest:
 async def _converter_env(recent: list[str] | None = None) -> AsyncIterator[None]:
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=_build_mock_user_configs()),
+        ),
         patch(
             "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
             new_callable=AsyncMock,

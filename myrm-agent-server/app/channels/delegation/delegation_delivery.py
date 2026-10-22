@@ -25,10 +25,16 @@ import mimetypes
 import os
 from pathlib import Path
 
-from .delegation_models import ApprovalRequest, DelegationTask, DeliveryArtifact
+from .delegation_models import ApprovalRequest, DelegationStatus, DelegationTask, DeliveryArtifact
 
 # Standard channel direct attachment threshold (20MB)
 DEFAULT_MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+
+_CARD_OUTCOME_TITLES: dict[DelegationStatus, str] = {
+    DelegationStatus.COMPLETED: "后台委派任务执行完成",
+    DelegationStatus.FAILED: "后台委派任务执行失败",
+    DelegationStatus.CANCELLED: "后台委派任务已取消",
+}
 
 _SUPPORTED_DELIVERABLE_EXTS: frozenset[str] = frozenset(
     {
@@ -160,7 +166,7 @@ def build_delivery_card_content(
     """Render structured completion report and artifact delivery card for mobile IM.
 
     Args:
-        task: Completed DelegationTask instance.
+        task: Finished DelegationTask instance (completed, failed or cancelled).
         artifacts: List of discovered DeliveryArtifact objects.
         tracking_deep_link: Optional deep-link URL to WebUI/Tauri workspace.
         server_base_url: Optional base URL for direct download URLs.
@@ -174,9 +180,10 @@ def build_delivery_card_content(
         mins, secs = divmod(elapsed, 60)
         duration_str = f"{mins}分{secs}秒" if mins else f"{secs}秒"
 
-    status_symbol = "✅" if task.status.value == "completed" else "❌"
+    status_symbol = "✅" if task.status == DelegationStatus.COMPLETED else "❌"
+    outcome_title = _CARD_OUTCOME_TITLES.get(task.status, "后台委派任务已结束")
     lines = [
-        f"{status_symbol} **任务交付通知 (后台委派任务执行完成)**",
+        f"{status_symbol} **任务交付通知 ({outcome_title})**",
         f"• **任务编号**：`{task.task_id}`",
         f"• **任务内容**：{task.raw_prompt[:60]}{'...' if len(task.raw_prompt) > 60 else ''}",
     ]

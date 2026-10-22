@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.agent.skills.market.helpers import write_origin
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
@@ -129,50 +130,45 @@ async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_prebuilt_skill_exempt_from_sweep(curator_workspace: Path) -> None:
-    """Prebuilt path skills must not be marked stale."""
+@pytest.mark.parametrize(
+    ("protect_installed", "authored_status", "installed_status"),
+    [
+        (True, SkillLifecycleStatus.STALE, SkillLifecycleStatus.ACTIVE),
+        (False, SkillLifecycleStatus.STALE, SkillLifecycleStatus.STALE),
+    ],
+)
+async def test_sweep_spares_installed_skills_only_while_protection_is_on(
+    curator_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    protect_installed: bool,
+    authored_status: SkillLifecycleStatus,
+    installed_status: SkillLifecycleStatus,
+) -> None:
+    """Equally idle skills: the authored one goes stale; a store install and another tool's skill follow the switch."""
     import app.core.skills.models as models_mod
 
-    prebuilt_root = curator_workspace.parent / "assets" / "prebuilt" / "sys_skill"
-    prebuilt_root.mkdir(parents=True)
-    (prebuilt_root / "SKILL.md").write_text(
-        "---\nname: sys_skill\ndescription: Prebuilt system skill\n---\nPrebuilt.\n",
-        encoding="utf-8",
-    )
-    old = (datetime.now(UTC) - timedelta(days=200)).isoformat()
-    (prebuilt_root / ".stats.json").write_text(
-        json.dumps(
-            {
-                "call_count": 0,
-                "success_count": 0,
-                "failure_count": 0,
-                "created_at": old,
-                "lifecycle_status": "active",
-            }
-        ),
-        encoding="utf-8",
-    )
+    other_tool_root = curator_workspace.parent / "other-tool-skills"
+    other_tool_root.mkdir()
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(curator_workspace), str(other_tool_root)])
 
-    paths = [str(curator_workspace), str(prebuilt_root.parent.parent)]
-    import app.core.skills.curator.service as curator_service
-
-    curator_service.DEFAULT_LOCAL_SKILL_PATHS = paths
-    models_mod.DEFAULT_LOCAL_SKILL_PATHS = paths
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    idle_stats = {"call_count": 3, "success_count": 3, "last_used_at": old, "created_at": old, "lifecycle_status": "active"}
+    authored = _write_skill(curator_workspace, "my-notes", stats=idle_stats)
+    from_store = _write_skill(curator_workspace, "from-store", stats=idle_stats)
+    write_origin(from_store, source="registry", skill_id="registry::from-store")
+    other_tool = _write_skill(other_tool_root, "their-skill", stats=idle_stats)
 
     from app.core.skills.curator.service import run_curator_sweep, update_curator_config
 
     update_curator_config(
-        {
-            "stale_after_days": 7,
-            "grace_period_days": 0,
-            "protect_system_skills": True,
-            "enabled": True,
-        }
+        {"stale_after_days": 30, "grace_period_days": 0, "protect_installed_skills": protect_installed, "enabled": True}
     )
-    await run_curator_sweep(force=True, trigger="manual")
+    result = await run_curator_sweep(force=True, trigger="manual")
 
-    persisted = json.loads((prebuilt_root / ".stats.json").read_text())
-    assert persisted["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
+    assert json.loads((authored / ".stats.json").read_text())["lifecycle_status"] == authored_status
+    for installed in (from_store, other_tool):
+        assert json.loads((installed / ".stats.json").read_text())["lifecycle_status"] == installed_status
+    assert result.skipped_protected == (2 if protect_installed else 0)
 
 
 @pytest.mark.integration
@@ -306,3 +302,72 @@ async def test_sweep_archiving_a_skill_refreshes_warm_chats(
     assert result.archived_count == 1
     assert json.loads((skill_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
     assert get_skill_config_version() > 0.0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_announces_the_new_pool(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The frontend only learns a skill left the pool from SKILL_POOL_UPDATED, so the sweep must speak up."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+    from app.services.event.app_event_bus import AppEventType
+
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    _write_skill(
+        curator_workspace,
+        "archived-by-sweep",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 1
+    mock_bus = mock_get_bus.return_value
+    assert mock_bus.publish.call_count == 1
+    event = mock_bus.publish.call_args[0][0]
+    assert event.event_type == AppEventType.SKILL_POOL_UPDATED
+    assert event.data == {"action": "archive", "skill_names": ["archived-by-sweep"]}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_without_archives_stays_silent(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A sweep that archived nothing must not wake every connected client for no reason."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    recent = datetime.now(UTC).isoformat()
+    _write_skill(
+        curator_workspace,
+        "still-active",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": recent,
+            "created_at": recent,
+            "lifecycle_status": "active",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 0
+    mock_get_bus.return_value.publish.assert_not_called()

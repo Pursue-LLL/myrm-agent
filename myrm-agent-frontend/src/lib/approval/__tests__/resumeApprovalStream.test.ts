@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentBusyError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalAlreadyResolvedError, RiskBlockedError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());
@@ -55,6 +55,13 @@ function buildRequest(): ToolApprovalRequest {
   };
 }
 
+function conflictResponse(): Response {
+  return new Response(JSON.stringify({ detail: 'This approval has already been resolved.' }), {
+    status: 409,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 function sseBusyResponse(): Response {
   const body = 'data: {"type":"error","error_type":"AgentBusyError","status_code":409}\n\n';
   return new Response(body, {
@@ -63,11 +70,47 @@ function sseBusyResponse(): Response {
   });
 }
 
+function sseRiskBlockedResponse(): Response {
+  const body =
+    'data: {"type":"risk_blocked","data":{"rules":[{"rule_id":"api_key_like","display_name":"API key"}]}}\n\n';
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
+function emptyStreamResponse(): Response {
+  return new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+function sentResumeValue(): unknown {
+  const [body] = mockCreateAISearchStream.mock.calls[0] as [{ resume_value: unknown }];
+  return body.resume_value;
+}
+
 describe('resumeApprovalStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetModelSelection.mockReturnValue({ providerId: 'openai', model: 'test-model' });
     mockHandleMessageStream.mockResolvedValue({ added: false, recievedMessage: '' });
+  });
+
+  it('echoes the interrupt the card was announced for, so the answer settles that interrupt only', async () => {
+    mockCreateAISearchStream.mockResolvedValue(emptyStreamResponse());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+    await resumeApprovalStream({ ...buildRequest(), interruptId: 'int-1' }, { decision: 'approve' }, 'resume failed');
+
+    expect(sentResumeValue()).toEqual({ decision: 'approve', interruptId: 'int-1' });
+  });
+
+  it('sends the answer untouched when the card carries no interrupt id', async () => {
+    mockCreateAISearchStream.mockResolvedValue(emptyStreamResponse());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+    await resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
+
+    expect(sentResumeValue()).toEqual({ decision: 'approve' });
   });
 
   it('throws AgentBusyError on HTTP 200 SSE AgentBusyError envelope', async () => {
@@ -80,5 +123,38 @@ describe('resumeApprovalStream', () => {
     );
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('throws the refusal, so the approval stays pending, when a risk rule holds the typed reason', async () => {
+    mockCreateAISearchStream.mockResolvedValue(sseRiskBlockedResponse());
+    mockHandleMessageStream.mockRejectedValue(new RiskBlockedError());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+
+    await expect(
+      resumeApprovalStream(buildRequest(), { decision: 'reject', feedback: 'use the key' }, 'resume failed'),
+    ).rejects.toBeInstanceOf(RiskBlockedError);
+  });
+
+  it('throws ApprovalAlreadyResolvedError when the timeout or another client already resolved the approval (HTTP 409)', async () => {
+    mockCreateAISearchStream.mockResolvedValue(conflictResponse());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+
+    await expect(resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed')).rejects.toBeInstanceOf(
+      ApprovalAlreadyResolvedError,
+    );
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('keeps other HTTP failures as plain errors', async () => {
+    mockCreateAISearchStream.mockResolvedValue(new Response('boom', { status: 500 }));
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+
+    const failure = resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
+    await expect(failure).rejects.toThrow('Approval resume failed: HTTP 500');
+    await expect(failure).rejects.not.toBeInstanceOf(ApprovalAlreadyResolvedError);
   });
 });

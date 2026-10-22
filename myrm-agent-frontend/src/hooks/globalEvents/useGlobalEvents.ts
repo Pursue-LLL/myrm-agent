@@ -13,7 +13,9 @@ import { mutate as mutateSwr } from 'swr';
 
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
+import { showKanbanTaskToast } from '@/hooks/globalEvents/kanbanTaskToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { BACKUP_ALERT_COMPONENT, showBackupFailureToast } from '@/hooks/globalEvents/backupAlertToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
@@ -39,10 +41,8 @@ const HEARTBEAT_TIMEOUT = 6_000;
 const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'memory_history_updated',
   'subagents_updated',
-  'teammate_message',
   'cron_updated',
   'budget_updated',
-  'channel_status_updated',
   'skill_pool_updated',
   'goal:branch_switched',
 ]);
@@ -57,6 +57,7 @@ export function useGlobalEvents(): void {
   const router = useRouter();
   const t = useTranslations('notifications');
   const tIdle = useTranslations('backgroundTasks.idleStatus');
+  const tKanban = useTranslations('kanban');
   const enabled = useConfigStore((s) => s.enableWebNotifications);
   const sourceRef = useRef<EventSource | null>(null);
   const isLeaderRef = useRef(false);
@@ -123,19 +124,6 @@ export function useGlobalEvents(): void {
           },
         });
         window.dispatchEvent(new CustomEvent('pairings-updated'));
-      } else if (payload.type === 'config_health_warning') {
-        const missingItems = Array.isArray(payload.data.missing_items)
-          ? payload.data.missing_items.map((item) => String(item))
-          : undefined;
-        const itemsText = missingItems?.join(', ') || 'LLM provider';
-        pushToast.warning(t('configHealthWarning', { items: itemsText }), {
-          duration: 10_000,
-          dismissible: true,
-          action: {
-            label: t('goToSettings'),
-            onClick: () => router.push('/settings/models'),
-          },
-        });
       } else if (payload.type === 'channel_connected' || payload.type === 'channel_disconnected') {
         window.dispatchEvent(
           new CustomEvent('channel-status-change', {
@@ -330,7 +318,9 @@ export function useGlobalEvents(): void {
         const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
         const layer = String(payload.data.layer ?? 'system');
 
-        if (status === 'fail') {
+        if (component === BACKUP_ALERT_COMPONENT && status === 'fail') {
+          showBackupFailureToast({ t, router, toast: pushToast, notifyIfLeader });
+        } else if (status === 'fail') {
           pushToast.error(t('healthAlertFail', { component, layer }), {
             description: `${message}${fixSuggestion ? `\n${t('healthAlertTip', { tip: fixSuggestion })}` : ''}`,
             duration: 15_000,
@@ -379,34 +369,7 @@ export function useGlobalEvents(): void {
 
         window.dispatchEvent(new CustomEvent('budget_alert', { detail: payload.data }));
       } else if (payload.type === 'kanban_task_updated') {
-        const kd = payload.data;
-        const kAction = String(kd.action ?? '');
-        const kStatus = String(kd.status ?? '');
-        const kTitle = String(kd.title ?? kd.task_id ?? '');
-        const kDetail = String(kd.detail ?? '');
-        const isTerminal =
-          kAction === 'task_completed' ||
-          kAction === 'task_blocked' ||
-          kAction === 'task_failed' ||
-          (kAction === 'moved' && ['completed', 'blocked', 'failed'].includes(kStatus));
-
-        if (isTerminal && kTitle) {
-          const resolved = kStatus || kAction.replace('task_', '');
-          const statusLabel =
-            resolved === 'completed'
-              ? t('kanbanTaskCompleted')
-              : resolved === 'blocked'
-                ? t('kanbanTaskBlocked')
-                : t('kanbanTaskFailed');
-          const desc = kDetail ? kDetail.slice(0, 200) : undefined;
-          if (resolved === 'completed') {
-            pushToast.success(`${statusLabel}: ${kTitle}`, { description: desc, duration: 8_000, dismissible: true });
-          } else {
-            pushToast.warning(`${statusLabel}: ${kTitle}`, { description: desc, duration: 10_000, dismissible: true });
-          }
-          notifyIfLeader(`${statusLabel}: ${kTitle}`, desc);
-        }
-
+        showKanbanTaskToast(payload.data, { t, tKanban, router, pushToast, notifyIfLeader });
         window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: payload.data }));
       } else if (payload.type === 'goal_terminal') {
         const status = String(payload.data.status ?? '');
@@ -543,20 +506,13 @@ export function useGlobalEvents(): void {
         }
         reconciling = true;
         try {
-          const storeModule = await import('@/store/useChatStore');
-          const store = storeModule.default.getState();
-          // Resync must never clobber an in-flight turn: initializeChat replaces
-          // messages with a fresh API fetch (loadMessages), which would drop
-          // transient SSE fields (routingTier/modelTier) persisted only at
-          // finalize. A stream reconnecting mid-turn is exactly when this
-          // onopen fires, so skip reload while a stream owns the store.
-          if (store.chatId && !store.loading && !store.abortController) {
-            storeModule.default.setState({ loading: true });
-            try {
-              await storeModule.default.getState().initializeChat(store.chatId);
-            } finally {
-              storeModule.default.setState({ loading: false });
-            }
+          const { default: useChatStore } = await import('@/store/useChatStore');
+          const { chatId } = useChatStore.getState();
+          if (chatId) {
+            // A stream reconnecting mid-turn is exactly when this onopen fires; the refresh skips
+            // while a stream owns the store, so transient SSE fields are never overwritten.
+            const { refreshOpenChatTranscript } = await import('@/store/chat/chatTranscriptRefresh');
+            await refreshOpenChatTranscript(chatId);
           }
         } finally {
           reconciling = false;
@@ -667,5 +623,5 @@ export function useGlobalEvents(): void {
       Object.values(debouncedRefetches.current).forEach(clearTimeout);
       debouncedRefetches.current = {};
     };
-  }, [router, t, tIdle, enabled]);
+  }, [router, t, tIdle, tKanban, enabled]);
 }

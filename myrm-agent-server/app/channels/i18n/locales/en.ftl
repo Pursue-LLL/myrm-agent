@@ -11,7 +11,7 @@ approval_denial_processing =  Processing denial...
 approval_denial_with_reason_processing =  Processing denial: "{ $reason }"
 approval_batch_processing =  Processing { $approve_count } approvals, { $reject_count } rejections...
 approval_batch_processing_always =  Processing { $approve_count } approvals ({ $always_count } always), { $reject_count } rejections...
-approval_timeout_resolved = ℹ This approval has already been resolved by timeout. No action needed.
+approval_already_handled = ℹ This approval has already been handled (it timed out or was answered elsewhere). No action needed.
 permission_denied =  Permission denied: `/{ $cmd }` requires admin access.
 usage_steer = Usage: `/steer <new instruction>`
 steering_applied = Steering applied: _{ $preview }_
@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = Goal needs your review
 goal_stream_failed_message =
     The autonomous goal run stopped unexpectedly. Open the Goal panel to review and continue.
+goal_usage_limit_wait_title = Goal paused until your usage limit resets
+goal_usage_limit_wait_message =
+    It will resume on its own. No action is needed.
+goal_usage_limit_resumed_title = Goal resumed
+goal_usage_limit_resumed_message =
+    Your usage limit has reset and the goal is running again.
+goal_usage_limit_paused_title = Goal paused by your usage limit
+goal_usage_limit_paused_message =
+    The limit resets too far ahead to wait. Resume the goal from the Goal panel when you are ready.
+airbag_rolled_back_title = Changes undone
+airbag_rolled_back_message =
+    Your workspace files are back to how they were before the goal started.
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }
@@ -238,14 +250,8 @@ analyzing_image = Analyzing image...
 search_unreachable = Search service is configured but currently unreachable. Please check your search service and ensure it is running, then try again.
 daily_budget_blocked = Daily budget limit reached. Execution was blocked. Adjust your budget limit in the Web Settings app, then try again.
 channel_budget_blocked = This channel's daily budget has been reached. Other channels and Web sessions are not affected. The channel owner can adjust the limit in Settings > Budget.
-cooldown_retry =
-    
-    
-    ⏱️ Please retry in { $seconds } seconds.
 config_next_steps =
-    
-    
-    Next steps:
+    { "\u000A\u000A" }Next steps:
     { $steps }
 component_options_prefix = Options
 component_quick_reply_instruction = ↩ Reply with a number to select
@@ -296,6 +302,10 @@ error_safety_block = The request was blocked by safety filters.
 error_challenge_blocked = The request was blocked by an upstream challenge or verification.
 error_response_format = The AI generated an invalid format. Please try again.
 error_unknown = Something went wrong while processing your request. Please try again later.
+error_billing_owner = Your AI provider account has run out of balance or quota. Top up with your provider, then send your message again.
+error_billing_owner_platform = Your plan's credit has run out. Top up or upgrade in the web app, then send your message again.
+error_auth_owner = Your AI provider rejected the credentials. Check your API key in Settings > Model Services, or re-authorize your account in Settings > Credentials.
+error_model_not_found_owner = The configured model is not available from your provider. Choose another model in Settings > Model Services.
 cmd_stop = Stop the currently running agent task
 cmd_new = Start a new conversation session
 cmd_compact = Compress conversation context to reduce token cost

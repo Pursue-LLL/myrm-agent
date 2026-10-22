@@ -11,7 +11,7 @@ approval_denial_processing =  正在處理拒絕...
 approval_denial_with_reason_processing =  正在處理拒絕：「{ $reason }」
 approval_batch_processing =  正在處理 { $approve_count } 個批准、{ $reject_count } 個拒絕...
 approval_batch_processing_always =  正在處理 { $approve_count } 個批准（含 { $always_count } 個永久）、{ $reject_count } 個拒絕...
-approval_timeout_resolved = ℹ 該審批已被超時自動處理，無需操作。
+approval_already_handled = ℹ 該審批已超時或已在其他地方處理，無需操作。
 permission_denied =  許可權不足：`/{ $cmd }` 需要管理員許可權。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已應用：_{ $preview }_
@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = 目標需人工審查
 goal_stream_failed_message =
     自主任務意外停止，請在目標面板檢視並繼續。
+goal_usage_limit_wait_title = 目標已暫停，等待額度恢復
+goal_usage_limit_wait_message =
+    額度恢復後將自動繼續，無需任何操作。
+goal_usage_limit_resumed_title = 目標已繼續
+goal_usage_limit_resumed_message =
+    額度已恢復，目標正在繼續執行。
+goal_usage_limit_paused_title = 目標因額度用盡而暫停
+goal_usage_limit_paused_message =
+    額度需要很長時間才會恢復。準備好後可在目標面板中手動繼續。
+airbag_rolled_back_title = 變更已復原
+airbag_rolled_back_message =
+    工作區檔案已還原到目標開始前的狀態。
 new_session_started =  新對話已開始，下一條訊息將開啟新會話。
 compact_not_configured = ℹ 未配置壓縮功能。
 compact_success =  上下文已壓縮：{ $message_count } 條訊息已摘要，約節省 { $tokens_saved } tokens。{ $topic_hint }
@@ -238,14 +250,8 @@ analyzing_image = 正在分析圖片…
 search_unreachable = 搜尋服務已配置但當前無法連線。請檢查搜尋服務是否正常執行後重試。
 daily_budget_blocked = 已達每日預算上限，執行被攔截。請在 Web 設定中調整預算限額後繼續使用。
 channel_budget_blocked = 此頻道的每日預算已用完。其他頻道和 Web 會話不受影響。頻道所有者可在設定 > 預算中調整限額。
-cooldown_retry =
-    
-    
-    ⏱️ 請在 { $seconds } 秒後重試。
 config_next_steps =
-    
-    
-    後續步驟：
+    { "\u000A\u000A" }後續步驟：
     { $steps }
 component_options_prefix = 選項
 component_quick_reply_instruction = ↩ 回覆數字選擇
@@ -296,6 +302,10 @@ error_safety_block = 請求被安全過濾器攔截。
 error_challenge_blocked = 請求被上游質詢或安全驗證攔截。
 error_response_format = AI 生成了無效格式，請重試。
 error_unknown = 處理請求時出現問題，請稍後再試。
+error_billing_owner = AI 服務商帳戶的餘額或額度已用盡，請先向服務商儲值，再重新傳送訊息。
+error_billing_owner_platform = 您的方案額度已用完，請在網頁端儲值或升級方案，再重新傳送訊息。
+error_auth_owner = AI 服務商拒絕了目前的憑據。請在設定 > 模型服務中檢查 API Key，或在設定 > 憑據中重新授權帳號。
+error_model_not_found_owner = 已設定的模型在服務商處無法使用，請在設定 > 模型服務中選擇其他模型。
 cmd_stop = 停止當前正在執行的 Agent 任務
 cmd_new = 開始新的對話會話
 cmd_compact = 壓縮對話上下文以減少 token 消耗

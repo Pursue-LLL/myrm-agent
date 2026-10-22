@@ -17,12 +17,13 @@ import useChatStore from '@/store/useChatStore';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
 import { notificationService } from '@/services/notification';
-import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon } from './goal-icons';
+import { isRiskHeldError, riskHeldErrorFromResponse } from '@/services/riskHeldToast';
+import { GoalStatusHeader } from './GoalStatusHeader';
 import { GoalStatusExpanded } from './GoalStatusExpanded';
-import type { GoalStatus } from './goalStatusTypes';
-import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusUtils';
-import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { GoalUsageLimitRow } from './GoalUsageLimitRow';
+import type { GoalAction, GoalStatus } from './goalStatusTypes';
+import { translateGoalReason, computeEtaSeconds } from './goalStatusUtils';
+import { useGoalSync } from './useGoalSync';
 
 export function GoalStatusCard() {
   const t = useTranslations('Goal');
@@ -39,27 +40,17 @@ export function GoalStatusCard() {
   const queueCount = useGoalStore((state) => state.queuedGoals.length);
   const chatId = useChatStore((state) => state.chatId);
 
+  useGoalSync(chatId);
+
   useEffect(() => {
     setNotificationPermission(notificationService.permission);
-    if (chatId) {
-      useGoalStore.getState().fetchQueue(chatId);
-      fetchWithTimeout(`/goals/${chatId}/status`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then(async (data) => {
-          if (data?.goal) {
-            const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-            useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal));
-          }
-        })
-        .catch(() => {});
-    }
   }, [chatId]);
 
   useEffect(() => {
     const handleBranchSwitched = (e: CustomEvent) => {
       const data = e.detail;
-      if (data.chat_id === chatId) {
-        useGoalStore.getState().setGitBranch(data.branch);
+      if (chatId && data.chat_id === chatId) {
+        useGoalStore.getState().setGitBranch(chatId, data.branch);
         if (data.branch) {
           toast(
             data.restored
@@ -111,17 +102,17 @@ export function GoalStatusCard() {
       toast.success(t('objectiveUpdated'));
       setIsEditingObjective(false);
     } catch (err) {
-      toast.error(t('objectiveUpdateFailed'));
+      if (!isRiskHeldError(err)) {
+        toast.error(t('objectiveUpdateFailed'));
+      }
       console.error('Failed to update objective:', err);
     } finally {
       setIsSavingObjective(false);
     }
   };
 
-  const handleAction = async (
-    action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait',
-    note?: string,
-  ) => {
+  /** Resolves whether the server took the action; a held note or a failure leaves the goal as it was. */
+  const handleAction = async (action: GoalAction, note?: string): Promise<boolean> => {
     try {
       const payload: { action: string; note?: string } = { action };
       if (note?.trim()) {
@@ -133,8 +124,10 @@ export function GoalStatusCard() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
-        return;
+        if (!(await riskHeldErrorFromResponse(res))) {
+          toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
+        }
+        return false;
       }
       toast.success(t(`goalActionSuccess_${action}` as 'goalActionSuccess_pause'));
 
@@ -146,10 +139,15 @@ export function GoalStatusCard() {
         cancel: 'cancelled',
         approve: 'complete',
       };
-      useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, note?.trim() || undefined);
+      // Only a pause note is a status reason; the note of a rejected review is the agent's next message.
+      const reason = action === 'pause' ? note?.trim() || undefined : undefined;
+      // A chat opened while the request was out is not this chat: the store drops a status that is no longer its own.
+      useGoalStore.getState().updateGoalStatus(chatId, statusMap[action] ?? goal.status, reason);
+      return true;
     } catch (e) {
       console.error(`Network error: failed to ${action} goal`, e);
       toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
+      return false;
     }
   };
 
@@ -164,9 +162,10 @@ export function GoalStatusCard() {
     }
   };
 
-  const handleAddSubgoal = async (text: string) => {
+  /** Resolves whether the server took the sub-goal, so the input can keep a text that was not taken. */
+  const handleAddSubgoal = async (text: string): Promise<boolean> => {
     if (!text.trim()) {
-      return;
+      return false;
     }
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/subgoals`, {
@@ -175,13 +174,17 @@ export function GoalStatusCard() {
         body: JSON.stringify({ text }),
       });
       if (!res.ok) {
-        toast.error(t('subgoalAddFailed'));
-        return;
+        if (!(await riskHeldErrorFromResponse(res))) {
+          toast.error(t('subgoalAddFailed'));
+        }
+        return false;
       }
       toast.success(t('subgoalAdded'));
+      return true;
     } catch (e) {
       console.error('Failed to add subgoal', e);
       toast.error(t('subgoalAddNetworkError'));
+      return false;
     }
   };
 
@@ -229,6 +232,9 @@ export function GoalStatusCard() {
             onAction={handleAction}
             t={t}
           />
+          {goal.usageLimit && (
+            <GoalUsageLimitRow status={goal.status} resumeAt={goal.usageLimit.resumeAt} onAction={handleAction} />
+          )}
           {isExpanded && (
             <GoalStatusExpanded
               goal={goal}
@@ -286,233 +292,4 @@ export function GoalStatusCard() {
       </Dialog>
     </>
   );
-}
-
-function GoalStatusHeader({
-  goal,
-  gitBranch,
-  isTerminal,
-  isWarning,
-  isCritical,
-  etaSeconds,
-  hasSufficientData,
-  displayReason,
-  queueCount,
-  onToggleExpand,
-  onPause,
-  onAction,
-  t,
-}: {
-  goal: NonNullable<ReturnType<typeof useGoalStore.getState>['activeGoal']>;
-  gitBranch: string | null;
-  isTerminal: boolean;
-  isWarning: boolean;
-  isCritical: boolean;
-  etaSeconds: number | null;
-  hasSufficientData: boolean;
-  displayReason: string | undefined;
-  queueCount: number;
-  onToggleExpand: () => void;
-  onPause: () => void;
-  onAction: (action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait', note?: string) => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  const statusIcon = getStatusIcon(goal);
-  const statusText = getStatusText(goal, t);
-
-  return (
-    <div
-      data-testid="goal-status-header"
-      className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
-      onClick={onToggleExpand}
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
-    >
-      <div className="flex items-center gap-3 overflow-hidden">
-        <div className="flex-shrink-0">{statusIcon}</div>
-        <div className="flex flex-col overflow-hidden">
-          <span className="text-sm font-medium truncate flex items-center gap-2">
-            <GoalIcon className="h-3 w-3 text-muted-foreground" />
-            {goal.uiSummary || (goal.objective.length > 120 ? goal.objective.slice(0, 120) + '...' : goal.objective)}
-            {gitBranch && <GitBranchBadge branch={gitBranch} />}
-          </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-2">
-            <span
-              data-testid="goal-status-badge"
-              className={goal.status === 'budget_limited' ? 'text-red-500 font-semibold' : ''}
-            >
-              {statusText}
-            </span>
-            {displayReason && (goal.status === 'paused' || goal.status === 'wait') && (
-              <>
-                <span>•</span>
-                <span
-                  className={
-                    goal.status === 'wait'
-                      ? 'text-blue-600 dark:text-blue-400 italic'
-                      : 'text-yellow-600 dark:text-yellow-400 italic'
-                  }
-                >
-                  {displayReason}
-                </span>
-              </>
-            )}
-            {queueCount > 0 && (
-              <>
-                <span>•</span>
-                <span className="text-muted-foreground/70">
-                  +{queueCount} {t('queueTitle').toLowerCase()}
-                </span>
-              </>
-            )}
-            {goal.budget?.maxTokens && (
-              <>
-                <span>•</span>
-                <span
-                  className={isCritical ? 'text-red-500 font-medium' : isWarning ? 'text-orange-500 font-medium' : ''}
-                >
-                  {goal.tokensUsed.toLocaleString()} / {goal.budget.maxTokens.toLocaleString()} tokens
-                </span>
-              </>
-            )}
-            {goal.budget?.maxTurns && goal.turnsUsed !== undefined && (
-              <>
-                <span>•</span>
-                <span>
-                  {goal.turnsUsed}/{goal.budget.maxTurns} turns
-                </span>
-              </>
-            )}
-            {goal.costUsd !== undefined && goal.costUsd > 0 && (
-              <>
-                <span>•</span>
-                <span className="text-green-600 font-medium">${goal.costUsd.toFixed(4)}</span>
-              </>
-            )}
-            {etaSeconds !== null && (
-              <>
-                <span>•</span>
-                <span className="text-primary/80 font-medium">{formatEta(etaSeconds)}</span>
-              </>
-            )}
-            {!hasSufficientData && goal.status === 'active' && goal.budget?.maxTokens && (
-              <>
-                <span>•</span>
-                <span className="text-muted-foreground/60 italic">{t('etaCollecting')}</span>
-              </>
-            )}
-          </span>
-        </div>
-      </div>
-
-      <div
-        role="presentation"
-        className="flex items-center gap-2"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <TaskAirbagCapsule taskId={goal.goalId} />
-        {!isTerminal && (
-          <div className="flex items-center gap-1">
-            {goal.status === 'wait' ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('unwait')}>
-                <PlayIcon className="h-4 w-4" />
-              </Button>
-            ) : goal.status === 'active' ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="goal-pause-trigger" onClick={onPause}>
-                <PauseIcon className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('resume')}>
-                <PlayIcon className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={() => onAction('cancel')}
-            >
-              <XCircleIcon className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function GitBranchBadge({ branch }: { branch: string }) {
-  return (
-    <span className="ml-1 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground border">
-      <svg
-        className="w-3 h-3 mr-1"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <line x1="6" y1="3" x2="6" y2="15" />
-        <circle cx="18" cy="6" r="3" />
-        <circle cx="6" cy="18" r="3" />
-        <path d="M18 9a9 9 0 0 1-9 9" />
-      </svg>
-      {branch}
-    </span>
-  );
-}
-
-function getStatusIcon(goal: { status: GoalStatus; verdict?: string; reason?: string }) {
-  switch (goal.status) {
-    case 'active':
-      return <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />;
-    case 'paused':
-      if (goal.verdict === 'drift_pause') {
-        const isSandbox = goal.reason?.startsWith('Sandbox boundary');
-        return <AlertIcon className={`h-4 w-4 ${isSandbox ? 'text-red-500' : 'text-orange-500'} animate-pulse`} />;
-      }
-      return <PauseIcon className="h-4 w-4 text-yellow-500" />;
-    case 'wait':
-      return <PauseIcon className="h-4 w-4 text-blue-500 animate-pulse" />;
-    case 'needs_human_review':
-      return <AlertIcon className="h-4 w-4 text-red-500 animate-pulse" />;
-    case 'budget_limited':
-      return <AlertIcon className="h-4 w-4 text-orange-500" />;
-    case 'complete':
-      return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
-    case 'cancelled':
-      return <XCircleIcon className="h-4 w-4 text-red-500" />;
-  }
-}
-
-function getStatusText(
-  goal: { status: GoalStatus; verdict?: string; reason?: string; loopRestarts?: number },
-  t: (key: string) => string,
-) {
-  switch (goal.status) {
-    case 'active':
-      if (goal.verdict === 'loop_restart') {
-        return `${t('statusLoopRestart')} (#${goal.loopRestarts ?? 0})`;
-      }
-      return t('statusActive');
-    case 'paused':
-      if (goal.verdict === 'drift_pause') {
-        return goal.reason?.startsWith('Sandbox boundary') ? t('statusSandboxPaused') : t('statusDriftPaused');
-      }
-      return t('statusPaused');
-    case 'wait':
-      return t('statusWait');
-    case 'needs_human_review':
-      return t('statusNeedsHumanReview') || 'Needs Human Review';
-    case 'budget_limited':
-      return t('statusBudgetLimited');
-    case 'complete':
-      return goal.verdict === 'convergence' ? t('statusConverged') : t('statusComplete');
-    case 'cancelled':
-      return t('statusCancelled');
-  }
 }

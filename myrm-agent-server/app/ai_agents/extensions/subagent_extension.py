@@ -25,9 +25,12 @@ class SubagentManagementExtension(AgentExtension):
         self,
         jit_subagents: dict[str, object],
         subagent_ids: list[str],
+        *,
+        incognito_mode: bool = False,
     ) -> None:
         self.jit_subagents = jit_subagents
         self.subagent_ids = subagent_ids
+        self.incognito_mode = incognito_mode
 
     @property
     def name(self) -> str:
@@ -46,7 +49,7 @@ class SubagentManagementExtension(AgentExtension):
         )
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 
-        def _tool_registry_getter() -> list[object]:
+        def _tool_registry_getter() -> list[BaseTool]:
             if agent is None:
                 return []
             return build_parent_delegatable_toolkit(agent)
@@ -59,6 +62,7 @@ class SubagentManagementExtension(AgentExtension):
         catalog = DatabaseSubagentCatalog(
             bound_agent_ids=combined_ids,
             jit_configs=jit_configs,
+            incognito_mode=self.incognito_mode,
         )
 
         available_ids = await catalog.list_available()
@@ -89,5 +93,5 @@ class SubagentManagementExtension(AgentExtension):
     def get_tools(self) -> list[BaseTool] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None

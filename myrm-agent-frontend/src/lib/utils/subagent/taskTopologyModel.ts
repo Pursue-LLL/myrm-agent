@@ -73,7 +73,6 @@ export function truncateLabel(text: string, maxLength = MAX_LABEL_LENGTH): strin
 export function toneForStatus(status: string): TopologyTone {
   switch (status) {
     case 'running':
-    case 'verifying':
       return 'active';
     case 'pending':
     case 'pending_approval':
@@ -88,6 +87,7 @@ export function toneForStatus(status: string): TopologyTone {
     case 'cancelled_by_budget':
       return 'danger';
     case 'yielded':
+    case 'blocked':
       return 'warning';
     default:
       return 'muted';

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isImeComposing, IME_CONFIRM_ENTER_WINDOW_MS } from '../imeUtils';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { isImeComposing, IME_CONFIRM_KEY_WINDOW_MS } from '../imeUtils';
 
 type ImeEventLike = {
   key?: string;
@@ -40,27 +40,84 @@ describe('imeUtils - isImeComposing', () => {
     };
     expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(false);
   });
+});
 
-  it('swallows the Safari confirm Enter that arrives right after compositionend', () => {
+/**
+ * Safari ends the composition first and sends the confirming key afterwards as a plain keydown. Whether that key
+ * belongs to the composition is decided by when the browser created the two events, not by when the page got around to
+ * handling them: a busy main thread must not turn an input method's Enter into a "send".
+ */
+describe('imeUtils - the confirm key Safari sends after compositionend', () => {
+  /** Each test starts long after the confirm window of the previous one has closed. */
+  let clock = Date.parse('2026-10-17T00:00:00Z');
+
+  beforeEach(() => {
+    clock += 10_000;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(clock);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A real keydown created `msAfterCompositionEnd` after the composition ended (negative: before it). */
+  function keydownCreated(msAfterCompositionEnd: number, init: KeyboardEventInit): KeyboardEvent {
+    vi.setSystemTime(clock + msAfterCompositionEnd);
+    return new KeyboardEvent('keydown', { isComposing: false, ...init });
+  }
+
+  function endComposition(): void {
+    vi.setSystemTime(clock);
     document.dispatchEvent(new Event('compositionend'));
+  }
 
-    // Safari 顺序：compositionend -> keydown(Enter, isComposing=false, keyCode=13)
-    const safariConfirmEnter: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false };
-    expect(isImeComposing(safariConfirmEnter as unknown as React.KeyboardEvent)).toBe(true);
+  const plainEnter: KeyboardEventInit = { key: 'Enter', keyCode: 13 };
+
+  it('swallows the Enter that arrives right after compositionend', () => {
+    endComposition();
+
+    expect(isImeComposing(keydownCreated(5, plainEnter))).toBe(true);
+  });
+
+  it('swallows the Escape that cancels a composition right after compositionend', () => {
+    endComposition();
+
+    expect(isImeComposing(keydownCreated(5, { key: 'Escape', keyCode: 27 }))).toBe(true);
   });
 
   it('releases the guard once the confirm window has elapsed', () => {
-    document.dispatchEvent(new Event('compositionend'));
+    endComposition();
 
-    const laterEnter: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false };
-    const afterWindow = Date.now() + IME_CONFIRM_ENTER_WINDOW_MS + 1;
-    expect(isImeComposing(laterEnter as unknown as React.KeyboardEvent, afterWindow)).toBe(false);
+    expect(isImeComposing(keydownCreated(IME_CONFIRM_KEY_WINDOW_MS - 1, plainEnter))).toBe(true);
+    expect(isImeComposing(keydownCreated(IME_CONFIRM_KEY_WINDOW_MS, plainEnter))).toBe(false);
   });
 
-  it('never swallows non-Enter keys inside the confirm window', () => {
-    document.dispatchEvent(new Event('compositionend'));
+  it('never swallows keys other than Enter and Escape inside the confirm window', () => {
+    endComposition();
 
-    const arrow: ImeEventLike = { key: 'ArrowUp', keyCode: 38, isComposing: false };
-    expect(isImeComposing(arrow as unknown as React.KeyboardEvent)).toBe(false);
+    expect(isImeComposing(keydownCreated(5, { key: 'ArrowUp', keyCode: 38 }))).toBe(false);
+  });
+
+  it('still swallows the confirm key when the page handles it long after the browser created it', () => {
+    endComposition();
+    const confirm = keydownCreated(30, plainEnter);
+
+    vi.setSystemTime(clock + 30 + 5 * IME_CONFIRM_KEY_WINDOW_MS);
+
+    expect(isImeComposing(confirm)).toBe(true);
+  });
+
+  it('swallows the confirm key whichever of the two events the browser stamped first, within the window', () => {
+    endComposition();
+
+    expect(isImeComposing(keydownCreated(-5, plainEnter))).toBe(true);
+    expect(isImeComposing(keydownCreated(-5 * IME_CONFIRM_KEY_WINDOW_MS, plainEnter))).toBe(false);
+  });
+
+  it('cannot place an event without a timestamp next to the composition, so it does not swallow it', () => {
+    endComposition();
+
+    expect(isImeComposing({ key: 'Enter', keyCode: 13, isComposing: false })).toBe(false);
   });
 });

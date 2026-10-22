@@ -112,22 +112,83 @@ describe('shellCommandDisplay', () => {
   });
 
   /** Keep aligned with myrm-agent-harness/tests/agent/security/test_command_allowlist_pattern.py */
-  it('deriveCommandPattern parity with harness SSOT vectors', () => {
-    const vectors: Array<{ command: string; expected: string | null }> = [
-      { command: 'npm install lodash', expected: 'npm install *' },
-      { command: 'ls -la', expected: 'ls -la *' },
-      { command: 'curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE', expected: 'curl -sS *' },
-      { command: 'npm install && rm -rf /', expected: null },
-      { command: 'npm install | grep foo', expected: null },
-      { command: 'npm install; rm file', expected: null },
-    ];
-    for (const { command, expected } of vectors) {
-      expect(deriveCommandPattern(command)).toBe(expected);
-    }
+  it.each<[command: string, expected: string | null]>([
+    ['npm install lodash', 'npm install *'],
+    ['ls -la', 'ls -la *'],
+    ['curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE', 'curl -sS *'],
+    ['npm install && rm -rf /', null],
+    ['npm install | grep foo', null],
+    ['npm install; rm file', null],
+    ['npm install\nrm -rf /', null],
+    ['npm install\r\nrm -rf /', null],
+    ['npm install & rm -rf /', null],
+    ['npm install|grep foo', null],
+    ['npm install > out.txt', null],
+    ['npm install < in.txt', null],
+    ['npm install $(rm -rf /)', null],
+    ['npm install `id`', null],
+    ['npm install "$(id)"', null],
+    ['(npm install)', null],
+    ["npm install 'oops", null],
+    ["npm install 'a;b | c'", 'npm install *'],
+    ['npm install "a && b"', 'npm install *'],
+    ['npm test 2>&1', 'npm test *'],
+    ['npm test >/dev/null 2>&1', 'npm test *'],
+    ['npm test # run everything; fast', 'npm test *'],
+  ])('deriveCommandPattern parity with harness SSOT vectors: %j', (command, expected) => {
+    expect(deriveCommandPattern(command)).toBe(expected);
   });
 
-  it('detects compound shell commands', () => {
-    expect(isCompoundShellCommand('npm install')).toBe(false);
-    expect(isCompoundShellCommand('npm install | grep foo')).toBe(true);
+  /** Keep aligned with `TestCompoundShellDetection` in the harness test file above. */
+  it.each([
+    'npm install && rm -rf /',
+    'npm install | grep foo',
+    'npm install; rm file',
+    'npm install ;',
+    'npm install\nrm -rf /',
+    'npm install\rrm -rf /',
+    'npm install & rm -rf /',
+    'npm install |& tee log',
+    'npm install>out.txt',
+    'npm install < in.txt',
+    "npm install <<< 'x'",
+    'npm install `id`',
+    'npm install $(id)',
+    'npm install "$(id)"',
+    'npm install "`id`"',
+    '(npm install)',
+    "npm install 'unterminated",
+    'npm install trailing\\',
+    'npm install 2>file',
+    'npm install > /dev/null',
+    'npm install 3>&1 4>&2',
+    "echo a$$'\\' ; touch x '",
+  ])('treats %j as more than one plain command', (command) => {
+    expect(isCompoundShellCommand(command)).toBe(true);
+  });
+
+  it.each([
+    'npm install lodash',
+    "npm install 'a;b | c && d'",
+    'npm install "a; b"',
+    'npm install a\\;b',
+    'npm install # one; two | three',
+    'npm install \\\n --save',
+    'echo "$HOME"',
+    'echo $HOME ${HOME}',
+    "echo $'a;b'",
+    "echo a$'\\' ; touch x '",
+    'npm test 2>&1',
+    'npm test >&2',
+    'npm test >/dev/null',
+    'npm test 2>/dev/null',
+    'npm test &>/dev/null',
+    'npm test >/dev/null 2>&1',
+    'npm test </dev/null',
+    'npm test >>/dev/null',
+    '',
+    '  \n ',
+  ])('treats %j as one plain command', (command) => {
+    expect(isCompoundShellCommand(command)).toBe(false);
   });
 });

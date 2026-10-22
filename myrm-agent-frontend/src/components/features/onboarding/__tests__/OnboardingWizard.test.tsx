@@ -17,6 +17,7 @@ const mockGetTelegramCredentials = vi.fn<() => Promise<{ botToken: string; botPo
   Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
 );
 const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
+const mockIsSandbox = vi.hoisted(() => ({ value: false }));
 
 const stableT = (key: string) => key;
 
@@ -34,7 +35,7 @@ vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => '/api/v1',
   getBackendBaseUrl: () => 'http://localhost:8080',
   getDeployMode: () => 'local',
-  isSandbox: () => false,
+  isSandbox: () => mockIsSandbox.value,
   isSandboxAuthBuild: () => false,
   shouldRedirectToLoginOnAuthFailure: () => false,
   getLocalUserId: () => 'test-user',
@@ -80,6 +81,10 @@ vi.mock('@/components/features/settings/sections/knowledge/MigrationWizardSectio
       </button>
     </div>
   ),
+}));
+
+vi.mock('@/components/features/instance-archive/RestoreEntry', () => ({
+  RestoreEntry: () => <div data-testid="restore-entry" />,
 }));
 
 vi.mock('../LocalCapabilitiesSetup', () => ({
@@ -267,6 +272,7 @@ describe('OnboardingWizard', () => {
       Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
     );
     mockIsLocalMode.value = true;
+    mockIsSandbox.value = false;
   });
 
   afterEach(() => {
@@ -391,6 +397,68 @@ describe('OnboardingWizard', () => {
       await waitFor(() => {
         expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('restore from a backup', () => {
+    it('is offered on the deployment step, before anything is set up', async () => {
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('optLocal')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('restore-entry')).toBeInTheDocument();
+    });
+
+    it('is offered on the migration step of a sandbox, whose first screen it is', async () => {
+      mockIsLocalMode.value = false;
+      mockIsSandbox.value = true;
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('optLocal')).not.toBeInTheDocument();
+      expect(screen.getByTestId('restore-entry')).toBeInTheDocument();
+    });
+
+    it('is not offered a second time on the migration step that follows the deployment step', async () => {
+      mockIsLocalMode.value = false;
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await completeDeploymentStep();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('restore-entry')).not.toBeInTheDocument();
+    });
+
+    it('is not repeated on the setup steps that follow', async () => {
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await completeDeploymentStep();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('restore-entry')).not.toBeInTheDocument();
     });
   });
 

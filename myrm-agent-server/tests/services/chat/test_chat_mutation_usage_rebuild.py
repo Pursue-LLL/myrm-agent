@@ -15,10 +15,10 @@ from app.services.chat.chat_usage_sync import _chat_usage_cache
 
 
 @pytest.fixture(autouse=True)
-def _mock_checkpoint_sync():
+def _mock_checkpoint_invalidation():
     """Checkpoint sync is not under test here — mock it to avoid RuntimeError."""
     with patch(
-        "app.services.chat.chat_turn._ChatTurnMixin._sync_checkpoint_after_mutation",
+        "app.services.chat.chat_turn._ChatTurnMixin._invalidate_checkpoint_after_mutation",
         new_callable=AsyncMock,
     ):
         yield

@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import get_skill_metadata_path
 
 from app.core.skills.models import Skill, SkillType
 from app.core.skills.store import reader
+from app.core.storage.paths import get_skill_metadata_path
 
 
 def _minimal_payload(**overrides: object) -> dict[str, object]:

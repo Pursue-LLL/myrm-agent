@@ -1,13 +1,15 @@
-"""Unit tests for PLUR engram memory import adapter.
+"""Unit tests for the PLUR engram import adapter (Open Engram Standard v1).
 
 [INPUT]
-PLUR engram data payloads (JSON list, nested engrams, plain YAML, scoped rules).
+Official PLUR store payloads: parsed ``engrams`` lists and ``raw_yaml`` text.
 
 [OUTPUT]
-Verified MemoryImportDryRunResult mappings to semantic and profile memory buckets.
+Verified MemoryImportDryRunResult mappings to procedural and semantic buckets,
+inactive-state skipping, and dispatch through import_adapters.
 
 [POS]
-Unit tests for app.services.memory.imports.import_plur and dispatch via import_adapters.
+Unit tests for app.services.memory.imports.import_plur and the pasted-free
+dispatch path in import_adapters.
 """
 
 from __future__ import annotations
@@ -15,121 +17,124 @@ from __future__ import annotations
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
 
+_ACTIVE_ENGRAM = {
+    "id": "ENG-2026-05-06-001",
+    "statement": "Always use Pydantic v2 BaseModels with strict types",
+    "type": "behavioral",
+    "status": "active",
+    "scope": "global",
+    "visibility": "private",
+    "domain": "backend",
+    "created_at": "2026-05-06T08:30:00Z",
+}
+_ARCHITECTURAL_ENGRAM = {
+    "id": "ENG-2026-05-06-002",
+    "statement": "Monorepo backend lives in myrm-agent/myrm-agent-server",
+    "type": "architectural",
+    "status": "active",
+    "scope": "project:open-perplexity",
+    "domain": "repo",
+}
+_RETIRED_ENGRAM = {
+    "id": "ENG-2026-05-06-003",
+    "statement": "Old deploy checklist superseded by the pipeline",
+    "type": "procedural",
+    "status": "retired",
+    "scope": "global",
+    "domain": "ops",
+}
+
 
 def test_is_plur_payload_detection() -> None:
-    """Verify PLUR payload detection heuristics."""
+    """Detection must key on the official engram shape, not on a guessed legacy one."""
+
     assert is_plur_payload({"_source": "plur"}) is True
-    assert is_plur_payload({"plur_engrams": []}) is True
-    assert is_plur_payload({"engrams": []}) is True
-    assert is_plur_payload({"raw_yaml": "domain: coding\nengrams:\n  - text: Use bun"}) is True
+    assert is_plur_payload({"engrams": [_ACTIVE_ENGRAM]}) is True
+    assert is_plur_payload({"raw_yaml": "engrams:\n  - id: ENG-1\n    statement: hello\n"}) is True
     assert is_plur_payload({"other": 123}) is False
+    assert is_plur_payload({"engrams": [{"text": "no statement field"}]}) is False
 
 
 def test_dry_run_plur_empty_payload() -> None:
-    """Verify empty payload returns clear warning and 0 mapped items."""
+    """Verify empty payload returns a clear warning and an explicit reason."""
+
     res = dry_run_plur({})
+
     assert res.summary.source == "plur"
-    assert res.summary.total_items == 0
     assert res.summary.mapped_items == 0
     assert "plur_no_engrams_found" in res.warnings
+    assert res.mappings and res.mappings[0].reason
 
 
-def test_dry_run_plur_structured_list() -> None:
-    """Verify structured list with global preference and project scope."""
-    payload: dict[str, object] = {
-        "_source": "plur",
-        "plur_engrams": [
-            {
-                "content": "User prefers concise answers",
-                "domain": "communication",
-                "scope": "global",
-                "type": "preference",
-                "id": "eng-1",
-            },
-            {
-                "content": "Project uses FastAPI and Pydantic v2",
-                "domain": "backend",
-                "scope": "project:open-perplexity",
-                "type": "fact",
-                "id": "eng-2",
-            },
-        ],
-    }
+def test_dry_run_plur_maps_types_and_skips_inactive() -> None:
+    """behavioral/procedural → procedural rules; architectural → semantic facts."""
 
-    res = dry_run_plur(payload)
+    res = dry_run_plur({"engrams": [_ACTIVE_ENGRAM, _ARCHITECTURAL_ENGRAM, _RETIRED_ENGRAM]})
+
     assert res.summary.source == "plur"
+    assert res.summary.status == "warning"
     assert res.summary.mapped_items == 2
-    assert "profile" in res.normalized_data
-    assert "semantic" in res.normalized_data
-    assert len(res.normalized_data["profile"]) == 1
-    assert len(res.normalized_data["semantic"]) == 1
-    assert res.normalized_data["profile"][0]["content"] == "User prefers concise answers"
-    assert res.normalized_data["semantic"][0]["content"] == "Project uses FastAPI and Pydantic v2"
+    assert res.summary.unmapped_items == 1
+    assert "plur_inactive_skipped" in res.warnings
+    skipped_row = next(item for item in res.mappings if item.status == "dropped")
+    assert "lifecycle" in skipped_row.reason
+
+    procedural = res.normalized_data["procedural"]
+    assert procedural[0]["content"] == _ACTIVE_ENGRAM["statement"]
+    assert procedural[0]["priority"] == 5
+    assert procedural[0]["created_at"] == "2026-05-06T08:30:00Z"
+    assert procedural[0]["metadata"]["external_id"] == "ENG-2026-05-06-001"
+    assert procedural[0]["metadata"]["external_domain"] == "backend"
+
+    semantic = res.normalized_data["semantic"]
+    assert semantic[0]["content"] == _ARCHITECTURAL_ENGRAM["statement"]
+    assert semantic[0]["tags"] == ["plur", "repo", "architectural"]
 
 
-def test_dry_run_plur_yaml_string() -> None:
-    """Verify parsing raw YAML string payload safely."""
-    raw_yaml = """
-- domain: frontend
-  scope: global
-  type: preference
-  content: Never use raw emoji in UI components
-  timestamp: "2026-08-20T10:00:00Z"
-- domain: testing
-  scope: project:myrm
-  type: rule
-  content: Always run pytest via run-pytest-safe.sh
-"""
-    payload: dict[str, object] = {
-        "raw_yaml": raw_yaml,
-    }
+def test_dry_run_plur_does_not_synthesize_missing_timestamps() -> None:
+    """The standard forbids synthesizing created_at; the adapter must not invent one."""
 
-    res = dry_run_plur(payload)
-    assert res.summary.mapped_items == 2
-    assert len(res.normalized_data.get("profile", [])) == 1
-    assert len(res.normalized_data.get("semantic", [])) == 1
+    res = dry_run_plur({"engrams": [_ARCHITECTURAL_ENGRAM]})
+
+    assert res.summary.mapped_items == 1
+    item = res.normalized_data["semantic"][0]
+    # The adapter stamps the record time; the engram's own date stays absent.
+    assert item["metadata"]["external_id"] == "ENG-2026-05-06-002"
+    assert "external_created_at" not in item["metadata"]
+
+
+def test_dry_run_plur_raw_yaml_official_store() -> None:
+    """A raw engrams.yaml body parses through the official store shape."""
+
+    raw_yaml = (
+        "engrams:\n"
+        "  - id: ENG-2026-05-06-001\n"
+        '    statement: "Deploys wait for migrations"\n'
+        "    type: architectural\n"
+        "    status: active\n"
+        "    scope: global\n"
+    )
+
+    res = dry_run_plur({"raw_yaml": raw_yaml})
+
+    assert res.summary.mapped_items == 1
+    assert res.normalized_data["semantic"][0]["content"] == "Deploys wait for migrations"
+
+
+def test_invalid_engrams_without_statement_are_skipped() -> None:
+    res = dry_run_plur({"engrams": [{"id": "ENG-1", "type": "behavioral", "status": "active"}]})
+
+    assert res.summary.mapped_items == 0
+    assert res.summary.unmapped_items == 1
+    assert "plur_invalid_engrams" in res.warnings
 
 
 def test_dispatch_via_build_memory_import_dry_run() -> None:
-    """Verify general dispatcher routes to PLUR adapter."""
-    payload: dict[str, object] = {
-        "_source": "plur",
-        "engrams": [{"content": "Always format code with ruff", "scope": "global", "type": "rule"}],
-    }
+    """auto-detected PLUR payloads dispatch to the plur adapter and keep the label."""
 
-    res = build_memory_import_dry_run(payload)
+    payload = {"_source": "plur", "engrams": [_ACTIVE_ENGRAM]}
+
+    res = build_memory_import_dry_run(payload, "auto")
+
     assert res.summary.source == "plur"
     assert res.summary.mapped_items == 1
-
-
-def test_dry_run_plur_corrupted_yaml_handling() -> None:
-    """Verify invalid YAML gracefully falls back to empty result with warning."""
-    corrupted_yaml = ":::invalid-yaml-syntax"
-    payload: dict[str, object] = {
-        "raw_yaml": corrupted_yaml,
-    }
-    res = dry_run_plur(payload)
-    assert res.summary.source == "plur"
-    assert res.summary.mapped_items == 0
-    assert "plur_no_engrams_found" in res.warnings
-
-
-def test_dry_run_plur_nested_dict_engrams() -> None:
-    """Verify parsing dictionary payload with top-level 'engrams' list."""
-    payload: dict[str, object] = {
-        "raw_yaml": """
-engrams:
-  - content: Prefer FastAPI over Flask
-    domain: backend
-    scope: global
-    type: preference
-  - content: Use Tailwind v4 for all styles
-    domain: frontend
-    scope: project:web
-    type: rule
-"""
-    }
-    res = dry_run_plur(payload)
-    assert res.summary.mapped_items == 2
-    assert len(res.normalized_data.get("profile", [])) == 1
-    assert len(res.normalized_data.get("semantic", [])) == 1

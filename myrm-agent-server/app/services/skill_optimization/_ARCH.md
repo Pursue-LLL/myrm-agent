@@ -13,7 +13,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `rollback_service.py` | 快照写入 | `insert_mutation_batch_snapshot` 写入 `batch_snapshots`（恢复由 `services/skills/mutation_batch_service.py` 执行） | ✅ |
+| `rollback_service.py` | 快照写入 | `insert_mutation_batch_snapshot` 写入 `batch_snapshots`（恢复由 `services/skills/mutation_batch_service.py` 执行）；每行带显式、进程内严格递增的 `created_at`：撤销时据此判断同一 skill 是否还有更晚的批次，库默认的 `CURRENT_TIMESTAMP` 只有秒级精度，同一秒内的两个批次会分不出先后 | ✅ |
 | `skill_version_sync.py` | 双写同步 | DB 快照与磁盘 SKILL.md 原子同步：`persist_skill_version`、`activate_version_with_disk_sync`、`restore_skill_snapshot`、`sync_content_to_disk` | ✅ |
 | `bootstrap.py` | 核心 | `get_skill_optimization_storage()`：绑定当前 session factory 的 `SQLAlchemyStorage`（API/services 共用） | ✅ |
 

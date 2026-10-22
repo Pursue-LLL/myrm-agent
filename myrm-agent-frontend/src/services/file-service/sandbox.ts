@@ -7,7 +7,12 @@
  * - 使用服务器返回的 URL
  */
 
-import { uploadFiles as apiUploadFiles, uploadFilesWithProgress, type UploadProgress } from '@/services/file';
+import {
+  uploadFiles as apiUploadFiles,
+  uploadFilesWithProgress,
+  type UploadOptions,
+  type UploadProgress,
+} from '@/services/file';
 import { FileReference, FileService } from './types';
 
 /**
@@ -109,11 +114,12 @@ export const sandboxFileService: FileService = {
     files: globalThis.File[],
     onProgress?: (progress: UploadProgress) => void,
     signal?: AbortSignal,
+    options?: UploadOptions,
   ): Promise<FileReference[]> {
     try {
       const response = onProgress
-        ? await uploadFilesWithProgress(files, onProgress, signal)
-        : await apiUploadFiles(files, signal);
+        ? await uploadFilesWithProgress(files, onProgress, signal, options)
+        : await apiUploadFiles(files, signal, options);
 
       if (response.uploaded_count === 0 || !response.files) {
         return [];

@@ -18,6 +18,7 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
@@ -25,20 +26,17 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 
-@contextmanager
-def _temporary_loopback_server(port: int) -> Iterator[None]:
-    class _QuietHandler(http.server.SimpleHTTPRequestHandler):
-        def log_message(self, *args: object) -> None:  # noqa: D401
-            return
+def _catalog_page_url() -> str:
+    """Owned Service Directory URL, so ``wait_for_state`` can run its blank heals."""
+    return f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog"
 
-    server = socketserver.TCPServer(("127.0.0.1", port), _QuietHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield
-    finally:
-        server.shutdown()
-        server.server_close()
+
+def _closed_loopback_url() -> str:
+    """Loopback URL whose port is guaranteed closed (bound ephemerally, then released)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = int(sock.getsockname()[1])
+    return f"http://127.0.0.1:{port}"
 
 
 @contextmanager
@@ -157,11 +155,11 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
     assert mcp_cfg.get("deploymentScope") == "local_tauri_only"
 
     # 2) Probe endpoint real-chain checks (normal / failure / boundary).
-    with _temporary_loopback_server(18081):
+    with _temporary_loopback_server_url() as reachable_url:
         reachable = http_json(
             "POST",
             f"{api_url}/api/v1/integrations/mcp/probe",
-            {"url": "http://127.0.0.1:18081", "timeout": 3},
+            {"url": reachable_url, "timeout": 3},
         )
     assert isinstance(reachable, dict)
     reachable_data = reachable.get("data")
@@ -173,7 +171,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
     unreachable = http_json(
         "POST",
         f"{api_url}/api/v1/integrations/mcp/probe",
-        {"url": "http://127.0.0.1:18082", "timeout": 3},
+        {"url": _closed_loopback_url(), "timeout": 3},
     )
     assert isinstance(unreachable, dict)
     unreachable_data = unreachable.get("data")
@@ -237,6 +235,18 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
                 assert fetch_spy.get("ready") is True
 
                 # Click Unreal card's connect button, then confirm connect in dialog.
+                card_ready = wait_for_state(
+                    client,
+                    page,
+                    """(() => {
+                      const titles = Array.from(document.querySelectorAll('h4'));
+                      const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                      return { ready: found };
+                    })()""",
+                    timeout_sec=60.0,
+                    page_url=_catalog_page_url(),
+                )
+                assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                 open_dialog = client.evaluate(
                     page,
                     """(() => {
@@ -320,6 +330,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> None:
+    unreachable_probe_url = _closed_loopback_url()
     with _temporary_loopback_server_url() as reachable_probe_url:
         warm_ui_route("/settings/integrationCatalog")
         last_open_error: RuntimeError | None = None
@@ -330,7 +341,7 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
                         page,
                         f"""(() => {{
                           const reachableProbeUrl = {reachable_probe_url!r};
-                          const unreachableProbeUrl = 'http://127.0.0.1:18082';
+                          const unreachableProbeUrl = {unreachable_probe_url!r};
                           if (!window.__integrationFetchLogs) {{
                             window.__integrationFetchLogs = [];
                           }}
@@ -382,6 +393,18 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
                     assert isinstance(fetch_spy, dict)
                     assert fetch_spy.get("ready") is True
 
+                    card_ready = wait_for_state(
+                        client,
+                        page,
+                        """(() => {
+                          const titles = Array.from(document.querySelectorAll('h4'));
+                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                          return { ready: found };
+                        })()""",
+                        timeout_sec=60.0,
+                        page_url=_catalog_page_url(),
+                    )
+                    assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,
                         """(() => {
@@ -540,6 +563,18 @@ def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end(
                         assert isinstance(fetch_spy, dict)
                         assert fetch_spy.get("ready") is True
 
+                        card_ready = wait_for_state(
+                            client,
+                            page,
+                            """(() => {
+                              const titles = Array.from(document.querySelectorAll('h4'));
+                              const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                              return { ready: found };
+                            })()""",
+                            timeout_sec=60.0,
+                            page_url=_catalog_page_url(),
+                        )
+                        assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                         open_dialog = client.evaluate(
                             page,
                             """(() => {
@@ -705,6 +740,18 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
                     assert isinstance(fetch_spy, dict)
                     assert fetch_spy.get("ready") is True
 
+                    card_ready = wait_for_state(
+                        client,
+                        page,
+                        """(() => {
+                          const titles = Array.from(document.querySelectorAll('h4'));
+                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                          return { ready: found };
+                        })()""",
+                        timeout_sec=60.0,
+                        page_url=_catalog_page_url(),
+                    )
+                    assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,
                         """(() => {

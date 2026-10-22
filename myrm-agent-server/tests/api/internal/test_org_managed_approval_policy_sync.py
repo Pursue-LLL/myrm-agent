@@ -75,22 +75,28 @@ async def test_sync_empty_clears_to_inactive(map_sync_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_rejects_invalid_token(map_sync_app: FastAPI) -> None:
-    with patch.dict("os.environ", {"CONTROL_PLANE_TELEMETRY_TOKEN": "secret123"}):
-        transport = ASGITransport(app=map_sync_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/org-managed-approval-policy-sync",
-                json={
-                    "ignoreAllowlistForModels": [],
-                    "forceAutoReviewForModels": [],
-                    "disableYolo": False,
-                    "disableAllowAlways": False,
-                },
-                headers={"X-Telemetry-Token": "wrong"},
-            )
+async def test_sync_rejects_invalid_token(
+    map_sync_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pydantic import SecretStr
 
-    assert resp.status_code == 403
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret123"))
+    transport = ASGITransport(app=map_sync_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/org-managed-approval-policy-sync",
+            json={
+                "ignoreAllowlistForModels": [],
+                "forceAutoReviewForModels": [],
+                "disableYolo": False,
+                "disableAllowAlways": False,
+            },
+            headers={"X-Telemetry-Token": "wrong"},
+        )
+
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio

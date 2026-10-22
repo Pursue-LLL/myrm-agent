@@ -5,12 +5,14 @@
 - myrm_agent_harness.agent.goals.manager::GoalManager (POS: Goal persistence manager fallback)
 - myrm_agent_harness.agent.goals.steering_prompts::build_objective_updated_steering_message (POS: Steering message generator)
 - app.services.agent.steering::SteeringRegistry (POS: Active agent steering registry)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
 [OUTPUT]
 - constraints_router: APIRouter for constraints and objective endpoints
 
 [POS]
-Provides HTTP endpoints for updating goal constraints and hot-editing goal objectives.
+Provides HTTP endpoints for updating goal constraints and hot-editing goal objectives. The agent reads this text on every
+iteration, so it passes the same risk gate as a chat message.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,7 @@ async def update_goal_constraints(session_id: str, request: ConstraintsUpdateReq
         raise HTTPException(status_code=404, detail="No goal found for this session")
 
     filtered = [c for c in request.constraints if c.strip()]
+    await reject_if_risky(*filtered, session_id=session_id)
     updated = await provider.update_constraints(goal.goal_id, filtered)
     return {"status": "success", "constraints": updated.constraints}
 
@@ -83,6 +87,7 @@ async def update_goal_objective(session_id: str, request: ObjectiveUpdateRequest
         raise HTTPException(status_code=400, detail="Objective cannot be empty")
     if len(objective) > MAX_OBJECTIVE_LENGTH:
         raise HTTPException(status_code=400, detail=f"Objective exceeds {MAX_OBJECTIVE_LENGTH} characters")
+    await reject_if_risky(objective, session_id=session_id)
 
     provider = GoalRegistry.get_provider(session_id)
     if not provider:

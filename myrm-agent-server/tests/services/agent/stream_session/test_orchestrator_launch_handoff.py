@@ -1,15 +1,25 @@
-"""run_agent_stream hands a reserved turn to the E1 launcher and always releases its reservation."""
+"""run_agent_stream hands a reserved turn to the E1 launcher, always releases its reservation, and refuses a resume the approval timeout already answered."""
 
+import json
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
 
 from app.services.agent.stream_session import run_agent_stream
 
 _ORCHESTRATOR = "app.services.agent.stream_session.orchestrator"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_timeout_arbiter() -> Iterator[None]:
+    ApprovalTimeoutScheduler.get().cancel_all()
+    yield
+    ApprovalTimeoutScheduler.get().cancel_all()
 
 
 @pytest.fixture
@@ -84,3 +94,54 @@ async def test_reservation_is_released_when_the_launcher_fails(handoff: SimpleNa
         await run_agent_stream(handoff.request, handoff.http_request)
 
     handoff.reservation.release.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_resume_already_resolved_by_someone_else_is_refused_with_409(handoff: SimpleNamespace) -> None:
+    handoff.request.resume_value = {"decision": "approve"}
+    ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff")  # the timer or another client resolved it first
+
+    response = await run_agent_stream(handoff.request, handoff.http_request)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 409
+    assert json.loads(response.body) == {"detail": "This approval has already been resolved."}
+    handoff.launcher.assert_not_awaited()
+    handoff.registry.get_or_create.assert_not_awaited()
+    handoff.reservation.release.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_only_the_first_resume_reaches_the_launcher(handoff: SimpleNamespace) -> None:
+    handoff.request.resume_value = {"decision": "approve"}
+
+    first = await run_agent_stream(handoff.request, handoff.http_request)
+    second = await run_agent_stream(handoff.request, handoff.http_request)
+
+    assert first is handoff.launcher.return_value
+    assert isinstance(second, JSONResponse)
+    assert second.status_code == 409
+    handoff.launcher.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_refused_resume_is_recorded_as_a_failed_turn(
+    handoff: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record = AsyncMock()
+    monkeypatch.setattr(f"{_ORCHESTRATOR}.has_turn_capability_terminal_context", lambda _request: True)
+    monkeypatch.setattr(f"{_ORCHESTRATOR}.record_turn_capability_send_failed", record)
+    handoff.request.resume_value = {"decision": "approve"}
+    ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff")
+
+    await run_agent_stream(handoff.request, handoff.http_request)
+
+    record.assert_awaited_once_with(handoff.request, "unknown_error")
+
+
+@pytest.mark.asyncio
+async def test_a_new_run_leaves_the_timeout_arbiter_untouched(handoff: SimpleNamespace) -> None:
+    await run_agent_stream(handoff.request, handoff.http_request)
+
+    assert ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff") is True

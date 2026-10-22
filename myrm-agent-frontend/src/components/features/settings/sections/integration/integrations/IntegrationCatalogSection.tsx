@@ -32,15 +32,23 @@ const IntegrationCatalogSection = memo(() => {
   const [connectEntry, setConnectEntry] = useState<CatalogEntry | null>(null);
 
   const fetchCatalog = useCallback(async () => {
-    try {
-      const data = await apiRequest<CatalogResponse>('/integrations/catalog', { silent: true });
-      setAllEntries(data.entries);
-      setCategories(data.categories);
-    } catch {
-      // Silently fail - catalog is optional UX enhancement
-    } finally {
-      setLoading(false);
+    // A transient request failure must not leave the Service Directory empty
+    // until a manual reload: the catalog is the only place these entries are
+    // discoverable, and apiRequest does not retry transport errors itself.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const data = await apiRequest<CatalogResponse>('/integrations/catalog', { silent: true });
+        setAllEntries(data.entries);
+        setCategories(data.categories);
+        setLoading(false);
+        return;
+      } catch {
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+        }
+      }
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {

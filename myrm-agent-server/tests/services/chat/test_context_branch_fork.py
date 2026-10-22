@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,8 +39,6 @@ def test_resolve_snapshot_path_finds_relative_context_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
-
     root = tmp_path / "persistent"
     root.mkdir()
     rel = ".context/chat-1/snapshots/pre.jsonl"
@@ -47,9 +46,7 @@ def test_resolve_snapshot_path_finds_relative_context_file(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("{}", encoding="utf-8")
 
-    root_str = str(root)
-    monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
 
     resolved = _resolve_snapshot_path("chat-1", rel)
     assert resolved.is_file()
@@ -62,7 +59,6 @@ async def test_fork_from_branch_creates_child_chat(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import myrm_agent_harness.runtime.context.context_branches as branches_write
-    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     async def _noop_rebuild(_db: object, _chat_id: str) -> None:
         return None
@@ -71,9 +67,7 @@ async def test_fork_from_branch_creates_child_chat(
 
     root = tmp_path / "persistent"
     root.mkdir()
-    root_str = str(root)
-    monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
 
     chat_id = "chat-branch-fork-1"
     db_session.add(
@@ -178,13 +172,10 @@ async def test_fork_from_branch_returns_error_when_snapshot_has_no_messages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import myrm_agent_harness.runtime.context.context_branches as branches_module
-    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     root = tmp_path / "persistent"
     root.mkdir()
-    root_str = str(root)
-    monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
 
     chat_id = "chat-empty-snapshot"
     db_session.add(

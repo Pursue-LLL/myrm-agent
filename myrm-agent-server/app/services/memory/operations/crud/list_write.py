@@ -37,7 +37,7 @@ from app.schemas.memory.crud import (
     UpdateMemoryStatusRequest,
 )
 from app.schemas.responses import create_success_response
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _SORT_KEYS, _record_memory_event
 from app.services.memory.operations.crud.item_mutations import delete_memory_item, update_memory_item
@@ -187,7 +187,9 @@ async def create_memory(
         return memory_to_item(result, mem_type)
 
     elif mem_type == MemoryType.SEMANTIC:
-        if not manager.has_vector:
+        # Type-enabled, not dense-capable: without an embedding backend the memory
+        # lives in the BM25 sparse mirror and stays writable.
+        if MemoryType.SEMANTIC not in manager.get_enabled_types():
             raise HTTPException(status_code=400, detail="Semantic memory is not enabled")
         try:
             memory = await manager.add_knowledge(body.content, importance=body.importance, tags=body.tags)
@@ -202,7 +204,7 @@ async def create_memory(
         return memory_to_item(memory, mem_type)
 
     elif mem_type == MemoryType.EPISODIC:
-        if not manager.has_vector:
+        if MemoryType.EPISODIC not in manager.get_enabled_types():
             raise HTTPException(status_code=400, detail="Episodic memory is not enabled")
         try:
             memory = await manager.add_event(

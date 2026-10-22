@@ -28,16 +28,18 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from pydantic import BaseModel, Field
 
+from app.core.skills.curator.bound_skills import SkillBoundError
 from app.core.skills.curator.service import (
     SkillNotFoundError,
     SkillPinnedError,
+    archive_skill_with_guards,
     describe_skill_lifecycle,
     set_skill_archived,
 )
 from app.core.utils.errors import conflict_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.schemas.memory.crud import UpdateMemoryRequest
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud.item_mutations import delete_memory_item, update_memory_item
 from app.services.memory.operations.presentation import parse_memory_type
@@ -335,9 +337,16 @@ async def archive_timeline_skill_item(
 ) -> JSONResponse:
     """Inline archive or restore a skill through the curator lifecycle (pinned skills are refused)."""
     try:
-        set_skill_archived(skill_name, archived=not active)
+        if active:
+            set_skill_archived(skill_name, archived=False)
+        else:
+            await archive_skill_with_guards(skill_name)
     except SkillNotFoundError as exc:
         raise not_found_error(f"Skill {skill_name}") from exc
+    except SkillBoundError as exc:
+        raise conflict_error(
+            f"Skill '{skill_name}' is still used by an agent, scheduled task or Kanban task; unbind it before archiving"
+        ) from exc
     except SkillPinnedError as exc:
         raise conflict_error(f"Skill '{skill_name}' is pinned; unpin it before archiving") from exc
 

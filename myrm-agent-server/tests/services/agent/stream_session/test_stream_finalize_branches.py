@@ -63,8 +63,8 @@ def _approval(value: dict[str, object] | None = None) -> ApprovalTimeoutHolder:
     return ApprovalTimeoutHolder(value=value)
 
 
-def _clarification(pending: bool = False, directory_pending: bool = False) -> ClarificationTimeoutHolder:
-    return ClarificationTimeoutHolder(pending=pending, directory_pending=directory_pending)
+def _clarification(pending: bool = False) -> ClarificationTimeoutHolder:
+    return ClarificationTimeoutHolder(pending=pending)
 
 
 class TestFinalizeBranchCoverage:
@@ -87,7 +87,7 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch("app.services.agent.stream_session.stream_finalize.schedule_approval_timeout") as mock_schedule_approval,
+            patch("app.services.agent.streaming_support.hitl_timeout.schedule_approval_timeout") as mock_schedule_approval,
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(
@@ -231,14 +231,12 @@ class TestFinalizeBranchCoverage:
 
     @pytest.mark.asyncio
     async def test_resume_marks_pending_clarification_answered(self) -> None:
-        """Resumed turns mark the pending clarification and directory requests answered."""
+        """Resumed turns mark the pending clarification answered."""
         session = _make_session()
         session.request.resume_value = "resume-payload"
         session.collector.extra_data = {"clarification": {"answered": False}}
         clarification_msg = MagicMock(id="m-clarify", role="assistant")
         clarification_msg.extra_data = {"clarification": {"answered": False}}
-        directory_msg = MagicMock(id="m-directory", role="assistant")
-        directory_msg.extra_data = {"directoryRequest": {"answered": False}}
         with (
             patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
             patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
@@ -256,47 +254,21 @@ class TestFinalizeBranchCoverage:
             ),
             patch(
                 "app.services.chat.chat_service.ChatService.get_all_messages",
-                return_value=[directory_msg, clarification_msg],
+                return_value=[clarification_msg],
             ),
             patch(
                 "app.services.chat.chat_service.ChatService.update_message_extra_data",
                 new_callable=AsyncMock,
             ) as mock_update_extra,
             patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
+                "app.services.agent.streaming_support.hitl_timeout.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
-        assert mock_update_extra.await_count == 2
+        assert mock_update_extra.await_count == 1
         mock_schedule_clarification.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_directory_timeout_scheduled_via_holder(self) -> None:
-        """directory_pending in the holder schedules the directory timeout."""
-        session = _make_session()
-        with (
-            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
-            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
-            patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
-            patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
-            patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
-            patch(
-                "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
-                return_value=None,
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
-                new_callable=AsyncMock,
-            ),
-            patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_schedule_directory,
-        ):
-            mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(directory_pending=True))
-
-        mock_schedule_directory.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_clarification_timeout_scheduled_via_holder(self) -> None:
@@ -318,7 +290,7 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
+                "app.services.agent.streaming_support.hitl_timeout.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
         ):
             mock_ctx.reset = MagicMock()

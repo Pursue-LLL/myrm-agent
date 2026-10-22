@@ -21,9 +21,7 @@ import time
 import uuid
 
 from myrm_agent_harness.api.security import (
-    TaintLabel,
     detect_suspicious,
-    get_taint_tracker,
     set_untrusted_ingress,
     wrap_untrusted,
 )
@@ -225,10 +223,6 @@ class A2AServerService(A2ATaskService):
     ) -> None:
         """Run execution pipeline under UntrustedExecutionFence and record outputs."""
         set_untrusted_ingress(True)
-        taint_tracker = get_taint_tracker()
-        taint_tracker.record_ingress_taint(
-            TaintLabel.UNTRUSTED_INGRESS, source=f"a2a:{peer_id or 'unknown'}:task:{task_id}"
-        )
         try:
             await self.store.update_status(task_id, TaskStatus.WORKING)
             self.audit_logger.log_event(

@@ -28,6 +28,7 @@ import { useOrgModelPolicy } from '@/hooks/useOrgModelPolicy';
 import { ModelInfoDialog } from '../../model-service/ModelInfoCard';
 import SettingsSection from '../SettingsSection';
 import ProviderModelSelector from '../../retrieval/ProviderModelSelector';
+import MemoryMigrationNotice from '@/components/features/memory/settings/MemoryMigrationNotice';
 import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/primitives/hover-card';
@@ -121,13 +122,10 @@ const DefaultModelSection = memo(() => {
     rerankerApplied,
     rerankerApplyStatus,
     rerankerApplyMessage,
-    orphanCount,
     setEmbeddingConfig,
     setRerankerConfig,
     applyEmbedding,
     applyReranker,
-    executeReindex,
-    dismissOrphanWarning,
   } = useRetrievalStore(
     useShallow((state) => ({
       embeddingConfig: state.embeddingConfig,
@@ -138,17 +136,13 @@ const DefaultModelSection = memo(() => {
       rerankerApplied: state.rerankerApplied,
       rerankerApplyStatus: state.rerankerApplyStatus,
       rerankerApplyMessage: state.rerankerApplyMessage,
-      orphanCount: state.orphanCount,
       setEmbeddingConfig: state.setEmbeddingConfig,
       setRerankerConfig: state.setRerankerConfig,
       applyEmbedding: state.applyEmbedding,
       applyReranker: state.applyReranker,
-      executeReindex: state.executeReindex,
-      dismissOrphanWarning: state.dismissOrphanWarning,
     })),
   );
 
-  const [reindexing, setReindexing] = useState(false);
   const [visionHealthState, setVisionHealthState] = useState<'idle' | 'checking' | 'done'>('idle');
   const [visionHealthResult, setVisionHealthResult] = useState<VisionHealthResult | null>(null);
   const [videoHealthState, setVideoHealthState] = useState<'idle' | 'checking' | 'done'>('idle');
@@ -187,15 +181,6 @@ const DefaultModelSection = memo(() => {
       setVideoHealthState('done');
     }
   }, [t]);
-
-  const handleReindex = async () => {
-    setReindexing(true);
-    try {
-      await executeReindex();
-    } finally {
-      setReindexing(false);
-    }
-  };
 
   useEffect(() => {
     if (!isInitialized) {
@@ -588,12 +573,7 @@ const DefaultModelSection = memo(() => {
             {basePrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    basePrimary.providerId,
-                    basePrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(basePrimary.providerId, basePrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -603,13 +583,12 @@ const DefaultModelSection = memo(() => {
           </div>
 
           {/* Local Model Warning */}
-          {basePrimary &&
-            getProviderCategory(basePrimary.providerId) === 'local' && (
-              <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
-                <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div className="text-xs font-medium leading-relaxed">{t('localModelWarning')}</div>
-              </div>
-            )}
+          {basePrimary && getProviderCategory(basePrimary.providerId) === 'local' && (
+            <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
+              <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="text-xs font-medium leading-relaxed">{t('localModelWarning')}</div>
+            </div>
+          )}
 
           {basePrimary && !baseFallback && (
             <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
@@ -638,12 +617,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {baseFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      baseFallback.providerId,
-                      baseFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(baseFallback.providerId, baseFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -742,12 +716,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {visionPrimary && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      visionPrimary.providerId,
-                      visionPrimary.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(visionPrimary.providerId, visionPrimary.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -769,12 +738,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {visionFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      visionFallback.providerId,
-                      visionFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(visionFallback.providerId, visionFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -856,12 +820,7 @@ const DefaultModelSection = memo(() => {
               {videoPrimary && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      videoPrimary.providerId,
-                      videoPrimary.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(videoPrimary.providerId, videoPrimary.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -884,12 +843,7 @@ const DefaultModelSection = memo(() => {
               {videoFallback && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      videoFallback.providerId,
-                      videoFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(videoFallback.providerId, videoFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -928,12 +882,7 @@ const DefaultModelSection = memo(() => {
             {litePrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    litePrimary.providerId,
-                    litePrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(litePrimary.providerId, litePrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -987,12 +936,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {liteFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      liteFallback.providerId,
-                      liteFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(liteFallback.providerId, liteFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -1031,12 +975,7 @@ const DefaultModelSection = memo(() => {
             {backgroundPrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    backgroundPrimary.providerId,
-                    backgroundPrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(backgroundPrimary.providerId, backgroundPrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -1070,12 +1009,7 @@ const DefaultModelSection = memo(() => {
               {backgroundFallback && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      backgroundFallback.providerId,
-                      backgroundFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(backgroundFallback.providerId, backgroundFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -1144,12 +1078,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {routeLightPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            routeLightPrimary.providerId,
-                            routeLightPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(routeLightPrimary.providerId, routeLightPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1204,12 +1133,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {routeReasoningPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            routeReasoningPrimary.providerId,
-                            routeReasoningPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(routeReasoningPrimary.providerId, routeReasoningPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1287,12 +1211,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {codePrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            codePrimary.providerId,
-                            codePrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(codePrimary.providerId, codePrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1338,12 +1257,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {longDocPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            longDocPrimary.providerId,
-                            longDocPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(longDocPrimary.providerId, longDocPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1444,29 +1358,7 @@ const DefaultModelSection = memo(() => {
             />
           </div>
 
-          {orphanCount > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
-              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
-                <IconAlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{t('retrieval.orphanWarning', { count: orphanCount })}</span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={dismissOrphanWarning}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t('retrieval.dismiss')}
-                </button>
-                <button
-                  onClick={handleReindex}
-                  disabled={reindexing}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
-                >
-                  {reindexing ? t('retrieval.reindexing') : t('retrieval.reindex')}
-                </button>
-              </div>
-            </div>
-          )}
+          <MemoryMigrationNotice />
         </div>
       </SettingsSection>
 

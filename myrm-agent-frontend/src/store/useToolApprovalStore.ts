@@ -21,7 +21,6 @@ interface ToolApprovalState {
 
   addRequest: (request: ToolApprovalRequest) => void;
   removeRequest: (requestId: string) => void;
-  removeRequestsByMessageId: (messageId: string) => void;
   clearAll: () => void;
   setResolving: (isResolving: boolean) => void;
   setBatchDecision: (requestId: string, decision: BatchApprovalDecision) => void;
@@ -32,28 +31,33 @@ interface ToolApprovalState {
   isProcessing: (messageId: string) => boolean;
 }
 
+/**
+ * A pending pause is announced again each time the run pauses on it after another card of the chat was answered;
+ * the card already queued for it stays the only one. The next pause of the same task has a different id, so it is a new card.
+ */
+function isAnnouncedAgain(queued: ToolApprovalRequest, incoming: ToolApprovalRequest): boolean {
+  return (
+    queued.interruptId !== undefined &&
+    queued.interruptId === incoming.interruptId &&
+    (queued.batchIndex ?? 0) === (incoming.batchIndex ?? 0)
+  );
+}
+
 const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
   queue: [],
   processingMessageIds: new Set(),
   isResolving: false,
   batchDecisions: new Map(),
 
-  addRequest: (request) => set((state) => ({ queue: [...state.queue, request] })),
+  addRequest: (request) =>
+    set((state) =>
+      state.queue.some((queued) => isAnnouncedAgain(queued, request)) ? state : { queue: [...state.queue, request] },
+    ),
 
   removeRequest: (requestId) =>
     set((state) => ({
       queue: state.queue.filter((r) => r.requestId !== requestId),
     })),
-
-  removeRequestsByMessageId: (messageId) =>
-    set((state) => {
-      const newSet = new Set(state.processingMessageIds);
-      newSet.delete(messageId);
-      return {
-        queue: state.queue.filter((r) => r.messageId !== messageId),
-        processingMessageIds: newSet,
-      };
-    }),
 
   clearAll: () =>
     set({

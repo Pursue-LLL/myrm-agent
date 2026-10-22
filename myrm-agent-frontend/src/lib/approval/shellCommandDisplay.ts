@@ -1,3 +1,5 @@
+import { listSyntaxChars, UNTERMINATED } from '@/lib/approval/shellSyntax';
+
 /** Shell tool names that carry executable command text in approval payloads. */
 const SHELL_APPROVAL_TOOL_NAMES = new Set([
   'bash_code_execute_tool',
@@ -155,14 +157,23 @@ export function zipSpansWithRisks(
   return [...indexed].sort((a, b) => a.span.startIndex - b.span.startIndex);
 }
 
-const COMPOUND_OPERATOR_RE = /(?:&&|\|\||\|\s|\|\s*$|;(?!\s*$))/;
+// A pattern approved for `npm test` must not cover `npm test\nrm -rf x`, `npm test & rm x`, `npm test > ~/.bashrc`
+// or `npm test $(rm x)`: every character below ends, redirects or rewrites the command when the shell reads it.
+const COMPOUND_CHARS: ReadonlySet<string> = new Set([';', '|', '&', '\n', '\r', '`', '(', ')', '<', '>', UNTERMINATED]);
+// Redirects that only merge or discard output, as separate words: `2>&1`, `>&2`, `>/dev/null`, `&>/dev/null`.
+// The blank before the redirect is captured because lookbehind is missing from older Safari engines.
+const HARMLESS_REDIRECT_RE = /(^|\s)(?:[12]?>&[12]|(?:[12]|&)?>>?\/dev\/null|<\/dev\/null)(?=\s|$)/g;
 
+/**
+ * Whether the command is more than one plain command: chaining (`;` `&&` `|` `&` line break), redirects,
+ * command substitution, grouping and text that cannot be parsed all count; quoted text and comments do not.
+ * Mirror of harness `command_allowlist_pattern.py::is_compound_shell_command`.
+ */
 export function isCompoundShellCommand(command: string): boolean {
-  const stripped = command.trim();
-  if (!stripped) {
-    return false;
-  }
-  return COMPOUND_OPERATOR_RE.test(stripped);
+  const text = command.trim().replace(HARMLESS_REDIRECT_RE, '$1 ');
+  return listSyntaxChars(text).some(
+    ([index, char]) => COMPOUND_CHARS.has(char) || (char === '$' && text.charAt(index + 1) === '('),
+  );
 }
 
 /** POSIX-like tokenization for allow-always pattern preview (mirrors harness shlex.split). */

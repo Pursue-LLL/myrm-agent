@@ -29,6 +29,7 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
+    http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
@@ -82,11 +83,19 @@ _CLICK_CONFIRM_CANCEL_JS = """(() => {
 })()"""
 
 _CLICK_CONFIRM_START_JS = """(() => {
-  const target = Array.from(document.querySelectorAll('button')).find((b) => {
+  // Memory A/B and layered evaluation share the same confirm label; scope the
+  // click to the A/B dialog (text matching avoids regex escaping).
+  const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+  const abDialog = dialogs.find((d) => {
+    const t = d.textContent || '';
+    return t.includes('记忆 A/B') || t.includes('Memory A/B');
+  });
+  const scope = abDialog || document;
+  const target = Array.from(scope.querySelectorAll('button')).find((b) => {
     const t = (b.textContent || '').trim();
     return /Start Evaluation|开始评测/.test(t);
   });
-  if (!target) return { ok: false, err: 'start-button-missing' };
+  if (!target) return { ok: false, err: 'start-button-missing', scoped: Boolean(abDialog) };
   const opts = { bubbles: true, cancelable: true, view: window, button: 0, buttons: 1, detail: 1 };
   target.dispatchEvent(new PointerEvent('pointerdown', opts));
   target.dispatchEvent(new MouseEvent('mousedown', opts));
@@ -392,6 +401,29 @@ def _seeded_memory_ab_reports() -> object:
             latest_path.unlink(missing_ok=True)
 
 
+@contextlib.contextmanager
+def _open_eval_lab_page(ui_url: str):  # noqa: ANN202 - generator context manager
+    """Open the eval-lab page, retrying once when the route mounts blank.
+
+    The route intermittently hydrates as a ~192-character document with no E2E
+    bridge, which is indistinguishable from a dead page at the open step; a
+    second open reaches the dashboard instead of failing the whole scenario.
+    """
+    for attempt in range(2):
+        ctx = open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000)
+        try:
+            client, page = ctx.__enter__()
+        except Exception:  # noqa: BLE001 - prep failure only; the body never ran
+            if attempt == 1:
+                raise
+            continue
+        try:
+            yield client, page
+        finally:
+            ctx.__exit__(None, None, None)
+        return
+
+
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -402,7 +434,7 @@ def test_memory_ab_card_entry_and_confirm_dialog_chrome_e2e() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route(EVAL_LAB_PATH)
 
-    with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+    with _open_eval_lab_page(ui_url) as (
         client,
         page,
     ):
@@ -439,7 +471,7 @@ def test_memory_ab_report_and_history_render_chrome_e2e() -> None:
     warm_ui_route(EVAL_LAB_PATH)
 
     with _seeded_memory_ab_reports():
-        with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+        with _open_eval_lab_page(ui_url) as (
             client,
             page,
         ):
@@ -470,23 +502,27 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
     # Point the shared stack at a local OpenAI-compatible embedding endpoint so
     # the run's embedding pre-flight passes without depending on an external
     # embedding account; restore the pre-test config afterwards.
+    # The eval-lab hook calls the relative /api/v1/eval/memory-ab/* paths, which
+    # the WebUI proxy serves from the shared stack, while the test client talks
+    # to the private runtime: configure both or the shared-side run fails its
+    # embedding pre-flight and the page never leaves idle.
+    shared_api = "http://127.0.0.1:8080"
     prev_retrieval = fetch_config_value("retrieval", api_url=api_url)
+    prev_shared_retrieval = fetch_config_value("retrieval", api_url=shared_api)
     embedding_server = LocalEmbeddingServer(port=0).start()
+    retrieval_config = {
+        "embeddingApplied": True,
+        "embeddingConfig": {
+            "provider": "openai",
+            "model": "test-embed-v1",
+            "apiKey": "test-key",
+            "apiBase": embedding_server.base_url,
+        },
+    }
     try:
-        put_config_value(
-            "retrieval",
-            {
-                "embeddingApplied": True,
-                "embeddingConfig": {
-                    "provider": "openai",
-                    "model": "test-embed-v1",
-                    "apiKey": "test-key",
-                    "apiBase": embedding_server.base_url,
-                },
-            },
-            api_url=api_url,
-        )
-        with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+        put_config_value("retrieval", retrieval_config, api_url=api_url)
+        put_config_value("retrieval", retrieval_config, api_url=shared_api)
+        with _open_eval_lab_page(ui_url) as (
             client,
             page,
         ):
@@ -505,7 +541,16 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
             started = client.evaluate(page, _CLICK_CONFIRM_START_JS)
             assert started.get("ok") is True, started
 
-            inflight = wait_for_state(client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0)
+            try:
+                inflight = wait_for_state(client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0)
+            except AssertionError as exc:
+                # wait_for_state raises on timeout; surface the page's own message
+                # (toast/validation) so a stalled start stays diagnosable.
+                page_text = client.evaluate(
+                    page,
+                    "(() => (document.body?.innerText || '').replace(/\\s+/g, ' ').slice(0, 600))()",
+                )
+                raise AssertionError(f"{exc} | page: {page_text}") from exc
             assert inflight.get("ready") is True, inflight
 
             stopped = client.evaluate(page, _CLICK_STOP_JS)
@@ -514,5 +559,10 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
             cleared = wait_for_state(client, page, _MEMORY_AB_CLEARED_JS, timeout_sec=90.0)
             assert cleared.get("ready") is True, cleared
     finally:
+        try:
+            http_json("POST", f"{api_url}/api/v1/eval/memory-ab/abort")
+        except Exception:  # noqa: BLE001 - best-effort hygiene, never mask the assertion
+            pass
         put_config_value("retrieval", prev_retrieval, api_url=api_url)
+        put_config_value("retrieval", prev_shared_retrieval, api_url=shared_api)
         embedding_server.stop()

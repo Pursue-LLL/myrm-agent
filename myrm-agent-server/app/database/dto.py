@@ -182,12 +182,12 @@ class MessageResponse(MessageBase):
 class ChatBase(BaseModel):
     """聊天会话基础模型"""
 
-    title: str | None = Field(None, description="聊天标题", max_length=500)
-    action_mode: str = Field("fast", description="聊天模式")
-    agent_id: str | None = Field(None, description="绑定的智能体 ID")
-    ephemeral_subagents: dict[str, Any] | None = Field(None, description="JIT 虚拟团队名册")
-    workspace_dir: str | None = Field(None, description="Per-chat working directory", max_length=1024)
-    is_incognito: bool = Field(False, description="是否为无痕模式")
+    title: str | None = Field(default=None, description="聊天标题", max_length=500)
+    action_mode: str = Field(default="fast", description="聊天模式")
+    agent_id: str | None = Field(default=None, description="绑定的智能体 ID")
+    ephemeral_subagents: dict[str, Any] | None = Field(default=None, description="JIT 虚拟团队名册")
+    workspace_dir: str | None = Field(default=None, description="Per-chat working directory", max_length=1024)
+    is_incognito: bool = Field(default=False, description="是否为无痕模式")
 
 
 class ChatCreate(ChatBase):
@@ -195,8 +195,8 @@ class ChatCreate(ChatBase):
 
     chat_id: str = Field(..., description="聊天会话ID")
     messages: list[MessageCreate] = Field(default=[], description="消息列表")
-    last_message: str | None = Field(None, description="最后一条消息摘要")
-    initial_shared_context_ids: list[str] | None = Field(None, description="会话初始绑定的共享上下文 IDs")
+    last_message: str | None = Field(default=None, description="最后一条消息摘要")
+    initial_shared_context_ids: list[str] | None = Field(default=None, description="会话初始绑定的共享上下文 IDs")
 
 
 class _TitleModelConfig(BaseModel):

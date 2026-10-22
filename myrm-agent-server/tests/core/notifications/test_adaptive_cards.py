@@ -96,14 +96,13 @@ def test_background_task_done_adaptive_card() -> None:
             "task_id": "task_456",
             "status": "completed",
             "title": "Data Pipeline Sync",
-            "summary": "1,000 records ingested without errors.",
+            "result": "1,000 records ingested without errors.",
             "board_id": "board_xyz",
         },
     )
     res = format_notification(event)
     assert res is not None
-    assert "Task Completed: Data Pipeline Sync" in res.content
-    assert "1,000 records ingested without errors." in res.content
+    assert res.content == "✅ **Task Completed: Data Pipeline Sync**"
 
     assert len(res.components) == 1
     view_btn = res.components[0][0]

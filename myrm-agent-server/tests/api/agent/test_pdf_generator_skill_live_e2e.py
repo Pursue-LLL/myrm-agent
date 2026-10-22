@@ -18,11 +18,11 @@ from pathlib import Path
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import get_skill_metadata_path
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.reader import list_prebuilt_skills
+from app.core.storage.paths import get_skill_metadata_path
+from app.core.storage.types import SkillType
 
 
 @pytest.fixture

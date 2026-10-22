@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - ./useKanbanTaskDrawer (POS: 抽屉全部数据与操作)
+ * - ./KanbanTaskDrawerHeader、./KanbanTaskDrawerDetails、./KanbanTaskDrawerBodySections、./KanbanTaskDrawerBodyMetaSections (POS: 各区段组件)
+ * - ./RaceSection、./KanbanTaskHandoffSection、./KanbanDiagnosticsSection、./KanbanEventTimeline、./KanbanTaskExecutionTraceSection (POS: 赛马、交接、诊断、运行与事件、执行轨迹)
+ * - @/components/primitives/sheet (POS: 右侧抽屉基础组件)
+ *
+ * [OUTPUT]
+ * - KanbanTaskDrawer (default): 任务详情右侧抽屉，按「状态操作 -> 详情 -> 附件 -> 诊断 -> 结果 -> 最近进展 -> 交接 -> 赛马 -> 依赖 -> 运行历史 -> 事件 -> 执行轨迹 -> 评论」的顺序排布各区段
+ *
+ * [POS]
+ * 看板任务的详情与编辑入口。状态与操作都在 useKanbanTaskDrawer，本组件只负责布局和区段顺序。
+ */
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -12,6 +25,7 @@ import { TaskDetailsSection } from './KanbanTaskDrawerDetails';
 import { AttachmentsSection, TaskResultSection } from './KanbanTaskDrawerBodySections';
 import { DependenciesSection, CommentInputSection, LatestProgressSection } from './KanbanTaskDrawerBodyMetaSections';
 import RaceSection from './RaceSection';
+import { KanbanTaskHandoffSection } from './KanbanTaskHandoffSection';
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
 import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
@@ -51,7 +65,7 @@ export default function KanbanTaskDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[400px] sm:max-w-[440px] overflow-y-auto p-0"
+        className="w-full sm:w-[400px] sm:max-w-[440px] overflow-y-auto p-0"
         hideCloseButton
         data-testid="kanban-task-drawer"
       >
@@ -180,6 +194,8 @@ export default function KanbanTaskDrawer({
             />
 
             <LatestProgressSection latestSummary={drawer.latestSummary} t={t} />
+
+            <KanbanTaskHandoffSection task={task} onChanged={onRefresh} t={t} />
 
             <RaceSection boardId={task.board_id} task={task} onChanged={onRefresh} t={t} />
 

@@ -9,7 +9,7 @@ Project vault 工作区辅助服务。Epic #1 P1：服务端目录变更检测�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `file_watch_service.py` | 核心 | refcounted watchdog；`WORKSPACE_FILE_CHANGED` SSE | ✅ |
-
+| `promotion/` | 子包 | 便签草稿升格为正式工作区项目落盘服务。参见 [promotion/_ARCH.md](promotion/_ARCH.md) | ✅ |
 ## 依赖关系
 
 ### 内部依赖

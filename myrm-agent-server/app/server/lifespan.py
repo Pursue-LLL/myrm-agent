@@ -143,6 +143,16 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     if get_deployment_capabilities().runs_sandbox_startup_validation:
         settings.validate_for_sandbox()
 
+    # Reset requested from the cloud settings page before this container was recreated. It must run before any
+    # component can create or cache the shared Python environment, so it precedes every startup phase.
+    try:
+        from app.services.infra.python_env_reset import apply_pending_python_env_reset
+
+        if await asyncio.to_thread(apply_pending_python_env_reset):
+            logger.info("[Startup] Shared Python environment reset as requested")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Startup] Python environment reset skipped: %s", exc)
+
     # === Phase 1: Critical tasks ===
     async with timer.phase("critical"):
         await _phase_1a_sequential()
@@ -165,6 +175,19 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
             logger.info("[Startup] Removed %d orphan eval workspace(s)", removed)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[Startup] Orphan eval workspace sweep skipped: %s", exc)
+
+    # Migration ZIP extraction directories expire with their review session; at
+    # boot none of them can still be in use, so stale ones are reclaimed here.
+    try:
+        from app.services.migration.source.source_payload_loader import (
+            sweep_stale_migration_uploads,
+        )
+
+        stale_uploads = await asyncio.to_thread(sweep_stale_migration_uploads)
+        if stale_uploads:
+            logger.info("[Startup] Reclaimed %d expired migration upload(s)", stale_uploads)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Startup] Migration upload sweep skipped: %s", exc)
 
     # === Phase 2: Essential services ===
     async with timer.phase("core"):
@@ -238,9 +261,9 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.error("[Startup] Memory extract retry worker failed to start: %s", e)
 
     try:
-        from app.services.agent.goals.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_branch_stash import start_branch_watcher
 
-        GoalRegistry.start_branch_watcher()
+        start_branch_watcher()
         logger.info("[Startup] Branch watcher started")
     except Exception as e:
         logger.error("[Startup] Branch watcher failed to start: %s", e)
@@ -253,6 +276,23 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.info("[Startup] Unattended curtain watcher started")
     except Exception as e:
         logger.error("[Startup] Unattended curtain watcher failed to start: %s", e)
+
+    try:
+        from app.services.agent.goals.usage_limit_resume import get_usage_limit_wake_daemon
+
+        await get_usage_limit_wake_daemon().start()
+        logger.info("[Startup] Usage-limit wake daemon started")
+    except Exception as e:
+        logger.error("[Startup] Usage-limit wake daemon failed to start: %s", e)
+
+    # Hosted only (no-op without a control plane): tells the control plane when to wake this
+    # sandbox after the idle recycler pauses it, so parked goals and cron still run on time.
+    try:
+        from app.services.sandbox_wake import get_wake_schedule_reporter
+
+        await get_wake_schedule_reporter().start()
+    except Exception as e:
+        logger.error("[Startup] Wake schedule reporter failed to start: %s", e)
 
     asyncio.create_task(pause_orphaned_active_goals())
 
@@ -302,6 +342,18 @@ async def _phase_1a_sequential() -> None:
     )
 
     configure_persistent_root_for_local_dev(settings.database.state_dir)
+
+    # A queued import / restore point is swapped in before any database opens; it never blocks boot.
+    try:
+        from pathlib import Path
+
+        from app.services.instance_archive import run_pending_promotion
+
+        swap = await asyncio.to_thread(run_pending_promotion, Path(settings.database.state_dir))
+        if swap is not None:
+            logger.info("[Startup] Instance %s: %s", swap.operation.value, swap.status.value)
+    except Exception as swap_exc:  # noqa: BLE001
+        logger.error("[Startup] Pending instance swap failed: %s", swap_exc)
 
     try:
         await init_database()
@@ -707,6 +759,20 @@ async def _shutdown(app_instance: FastAPI) -> None:
         logger.error("[Shutdown] Unattended curtain watcher stop failed: %s", e)
 
     try:
+        from app.services.agent.goals.usage_limit_resume import get_usage_limit_wake_daemon
+
+        await get_usage_limit_wake_daemon().stop()
+    except Exception as e:
+        logger.error("[Shutdown] Usage-limit wake daemon stop failed: %s", e)
+
+    try:
+        from app.services.sandbox_wake import get_wake_schedule_reporter
+
+        await get_wake_schedule_reporter().stop()
+    except Exception as e:
+        logger.error("[Shutdown] Wake schedule reporter stop failed: %s", e)
+
+    try:
         from app.services.agent.gateway import get_agent_gateway
 
         gateway = get_agent_gateway()
@@ -745,9 +811,9 @@ async def _shutdown(app_instance: FastAPI) -> None:
             logger.error("[Shutdown] SkillWatcher stop failed: %s", e)
 
     try:
-        from app.services.agent.goals.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_branch_stash import stop_branch_watcher
 
-        GoalRegistry.stop_branch_watcher()
+        stop_branch_watcher()
     except Exception as e:
         logger.error("[Shutdown] Branch watcher stop failed: %s", e)
 

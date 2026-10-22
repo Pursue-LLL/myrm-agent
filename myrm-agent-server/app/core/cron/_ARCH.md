@@ -37,7 +37,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
-| `blueprints.py` | 核心 | 自动化蓝图单一数据源：21 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit`、`wiki_maintain`、`wiki_vault_weekly_health` 与 commerce/marketing 系列等） | — |
+| `blueprints.py` | 核心 | 自动化蓝图单一数据源：21 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit`、`wiki_maintain`、`wiki_vault_weekly_health` 与 commerce/marketing 系列等）。无人值守 job 被 Capability Fence 限定在所声明能力内，故每个蓝图声明的 `required_capabilities` 必须覆盖其 prompt 点名的工具；无人值守写文件只由 `file_write` 声明放行，保存文件的蓝图（`seo_weekly_audit`、`viral_quote_discovery`）须声明它（均由 `tests/core/cron/test_blueprint_capability_contract.py` 守护） | — |
 | `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
 
 ---
@@ -342,7 +342,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 架构分层：
 - **框架层**（harness）：`TriggerConfig` 容器 + `TriggerProvider` 协议 + `dispatch_*` 调度方法 + 安全工具
-- **业务层**（server）：`SqlAlchemyTriggerProvider` 实现 + ORM 映射 + 入站 API（JSON body 传参） + **`inbound_event_dispatch`（SSOT：`AgentRouter._consume_loop` 在 approval/reaction/slash 过滤后、且仅对访问策略放行的发送者调用（`routing/sender_admission.py`，失败即拒绝）；`channel_ingress` 仅入队）**
+- **业务层**（server）：`SqlAlchemyTriggerProvider` 实现 + ORM 映射 + 入站 API（JSON body 传参） + **`inbound_event_dispatch`（SSOT：`AgentRouter._consume_loop` 在 approval/reaction/slash 过滤后、且仅对访问策略放行的发送者调用（`routing/sender_admission.py`，失败即拒绝），派发前先过风控闸门，命中的消息不拉起作业；`channel_ingress` 仅入队）**
 - **前端**：`TriggerEditor` 组件（webhook 完整 URL + curl 示例 + secret 展示/复制 + event regex 实时验证 + system event 配置）
 
 Context 传递设计：触发器匹配时生成 `context` 字符串注入到 `runner.run(job, context=context)`，

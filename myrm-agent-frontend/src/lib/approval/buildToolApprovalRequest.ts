@@ -50,6 +50,7 @@ interface BuildToolApprovalRequestParams {
   batchId?: string;
   batchIndex?: number;
   batchSize?: number;
+  interruptId?: string;
 }
 
 function resolvePathGrantMeta(action: ApprovalActionPayload): { eligible: boolean; path?: string; writable: boolean } {
@@ -87,6 +88,7 @@ export function buildToolApprovalRequest({
   batchId,
   batchIndex,
   batchSize,
+  interruptId,
 }: BuildToolApprovalRequestParams): ToolApprovalRequest {
   const shellCommand =
     typeof action.args.command === 'string'
@@ -118,6 +120,7 @@ export function buildToolApprovalRequest({
     batchId,
     batchIndex,
     batchSize,
+    interruptId,
     chatId,
     actionMode,
     domains: Array.isArray(action.domains) ? action.domains : undefined,

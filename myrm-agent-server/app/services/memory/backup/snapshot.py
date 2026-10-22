@@ -124,7 +124,9 @@ async def apply_snapshot(manager: MemoryManager, snapshot: MemorySnapshot, *, re
 
 async def _clear_snapshot_types(manager: MemoryManager) -> None:
     for memory_type in SNAPSHOT_MEMORY_TYPES:
-        await manager.delete_by_type(memory_type)
+        # A snapshot holds what the current model can see; memories a model switch left in a previous
+        # model's collections are in no backup, so replacing must not destroy them (the user migrates or clears them).
+        await manager.delete_by_type(memory_type, include_previous_models=False)
     remaining = [memory_type.value for memory_type in SNAPSHOT_MEMORY_TYPES if await manager.count_memories(memory_type) > 0]
     if remaining:
         raise SnapshotError(f"Could not clear existing memories ({', '.join(remaining)}), nothing was restored")

@@ -2,15 +2,30 @@
  * Myrm Agent Extension — Popup UI Controller
  *
  * Manages the popup interface for configuring server connection,
- * authorized domains, and viewing connection status.
+ * authorized domains, the approval reminder and viewing connection status.
+ *
+ * [INPUT]
+ * - The popup form (server URL, token, domains, pairing code, checkboxes)
+ * - The service worker's `get_status` reply (connection state, last clip error kind)
+ * - `i18n.js` msg / applyDocumentI18n (POS: extension UI localization adapter)
+ * - `sidepanel/approval_notify.js` APPROVAL_NOTIFY_KEY (POS: the approval reminder and its storage key)
+ *
+ * [OUTPUT]
+ * - None (entry script): writes `chrome.storage.local` settings, sends `connect` / `disconnect` /
+ *   `update_access_policy` to the service worker, and calls `POST /api/v1/extension/pairing/consume` for pairing
+ *
+ * [POS] The only place the user edits connection and access settings; the side panel reads the approval reminder
+ * setting from the same storage key.
  */
 
 import { applyDocumentI18n, msg } from "./i18n.js";
+import { APPROVAL_NOTIFY_KEY } from "./sidepanel/approval_notify.js";
 
 const serverUrlInput = document.getElementById("server-url");
 const authTokenInput = document.getElementById("auth-token");
 const domainsTextarea = document.getElementById("domains");
 const allowAllCheckbox = document.getElementById("allow-all-tabs");
+const approvalNotifyCheckbox = document.getElementById("approval-notify");
 const btnConnect = document.getElementById("btn-connect");
 const btnDisconnect = document.getElementById("btn-disconnect");
 const btnApplyPairing = document.getElementById("btn-apply-pairing");
@@ -96,13 +111,15 @@ function connectWithCurrentSettings() {
 }
 
 // Load saved settings
-chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs"], (data) => {
+const STORED_SETTINGS = ["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs", APPROVAL_NOTIFY_KEY];
+chrome.storage.local.get(STORED_SETTINGS, (data) => {
   serverUrlInput.value = data.serverUrl || "";
   authTokenInput.value = data.authToken || "";
   domainsTextarea.value = (data.authorizedDomains || []).join("\n");
   if (allowAllCheckbox) {
     allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
   }
+  approvalNotifyCheckbox.checked = data[APPROVAL_NOTIFY_KEY] !== false;
   refreshStatus();
 });
 
@@ -288,6 +305,10 @@ domainsTextarea.addEventListener("change", () => {
 
 allowAllCheckbox?.addEventListener("change", () => {
   pushAccessPolicyToBackground();
+});
+
+approvalNotifyCheckbox.addEventListener("change", () => {
+  chrome.storage.local.set({ [APPROVAL_NOTIFY_KEY]: approvalNotifyCheckbox.checked });
 });
 
 // Refresh status periodically while popup is open

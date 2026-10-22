@@ -11,6 +11,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | `__init__.py` | 入口 | 包导出 | — |
 | `dependencies.py` | 核心 | FastAPI 依赖注入统一入口 | ✅ |
 | `router.py` | 核心 | 全量子路由注册表 | — |
+| `_optional_routers.py` | 核心 | 可选路由延迟加载原语：按模块路径导入可选路由，依赖缺失时只跳过该功能并告警，不拖垮 server import。 | ✅ |
 
 ## 子模块导航（按域）
 
@@ -37,7 +38,10 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 运维 | [health/](health/_ARCH.md) · [system/](system/_ARCH.md) · [statistics/](statistics/_ARCH.md) · [runs/](runs/_ARCH.md) | 健康检查、关机、统计、聚合运行历史 |
 | 浏览器录制 | [browser_recording/](browser_recording/_ARCH.md) | Browser Skill 录制向导 — WebSocket 控制 + Skill 生成 |
 | 浏览器会话 | [browser_sessions/](browser_sessions/_ARCH.md) | 已保存浏览器登录会话管理 — 列表/删除/清理过期 |
-| 其他 | [wiki/](wiki/_ARCH.md) · [faq/](faq/_ARCH.md) · [eval/](eval/_ARCH.md) · [migration/](migration/_ARCH.md) · [goals/](goals/_ARCH.md) · [memory/follow_ups/](memory/follow_ups/_ARCH.md) · [companion/](companion/_ARCH.md) · [compounding_playbook/](compounding_playbook/_ARCH.md) · [budget/](budget/_ARCH.md) · [risk/](risk/_ARCH.md) · [audit/](audit/_ARCH.md) · [internal/](internal/_ARCH.md) · [webui/](webui/_ARCH.md) · [openai_compat/](openai_compat/_ARCH.md) · [mem0_compat/](mem0_compat/_ARCH.md) · [widget_storage/](widget_storage/_ARCH.md) | 各产品子功能 HTTP 薄层 |
+| 自托管机群与同屏接管 | [machines/](machines/_ARCH.md) | 自托管机群全局看板、单行命令接入向导与远程人机同屏接管 API |
+| 工作流全景轨迹与断点重放 | [workflow/](workflow/_ARCH.md) | 多步骤工作流全景轨迹可视化、节点级快照审计与断点重放 API |
+| Git 多工作区与锚定 | [git/](git/_ARCH.md) | Git Worktree 列表/创建/切换/删除与会话检出锚定/触达文件 API |
+| 其他 | [wiki/](wiki/_ARCH.md) · [faq/](faq/_ARCH.md) · [eval/](eval/_ARCH.md) · [migration/](migration/_ARCH.md) · [goals/](goals/_ARCH.md) · [memory/follow_ups/](memory/follow_ups/_ARCH.md) · [companion/](companion/_ARCH.md) · [compounding_playbook/](compounding_playbook/_ARCH.md) · [budget/](budget/_ARCH.md) · [risk/](risk/_ARCH.md) · [audit/](audit/_ARCH.md) · [internal/](internal/_ARCH.md) · [instance_archive/](instance_archive/_ARCH.md) · [webui/](webui/_ARCH.md) · [openai_compat/](openai_compat/_ARCH.md) · [mem0_compat/](mem0_compat/_ARCH.md) · [widget_storage/](widget_storage/_ARCH.md) | 各产品子功能 HTTP 薄层 |
 
 ## 约束
 

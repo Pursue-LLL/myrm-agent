@@ -331,62 +331,19 @@ class TestExternalSourceDetection:
 
 
 class TestAdapterRegistryConsistency:
-    """Verify adapter registry matches actual adapter capabilities."""
+    """Adapter capability checks against the canonical import source vocabulary."""
 
-    def test_registry_sources_include_all_ready_adapters(self) -> None:
-        from app.services.memory.imports.import_adapter_registry import (
-            memory_import_adapter_status,
-            memory_import_supported_sources,
-        )
+    def test_every_concrete_source_is_accepted_by_the_api_schema(self) -> None:
+        from app.schemas.memory.archive import MemoryImportDryRunRequest
+        from app.schemas.memory.import_sources import IMPORT_SOURCE_IDS
 
-        sources = memory_import_supported_sources()
-        statuses = memory_import_adapter_status()
-        ready = [s for s, st in statuses.items() if st == "ready"]
-        for adapter in ready:
-            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
-
-    def test_ready_registry_matches_expected_sources(self) -> None:
-        """Registry 'ready' set must exactly match the adapters implemented today.
-
-        A new adapter must be implemented and added here simultaneously;
-        a declared-but-unimplemented source (e.g. windsurf/trae) must not be
-        marked 'ready'.
-        """
-        from app.services.memory.imports.import_adapter_registry import (
-            memory_import_adapter_status,
-        )
-
-        statuses = memory_import_adapter_status()
-        ready_sources = {s for s, st in statuses.items() if st == "ready"}
-        assert ready_sources == {
-            "native-json",
-            "myrm-archive",
-            "agentmemory",
-            "gbrain",
-            "claude-code",
-            "hermes",
-            "openclaw",
-            "cursor",
-            "codex",
-            "mem0",
-            "letta",
-            "langchain",
-            "zep",
-            "hindsight",
-            "chatgpt",
-            "plur",
-            "windsurf",
-            "trae",
-        }, "Registry 'ready' set drifted from actual adapters"
+        for source in IMPORT_SOURCE_IDS:
+            MemoryImportDryRunRequest(source=source, payload={})
 
     def test_source_adapters_are_ready(self) -> None:
-        from app.services.memory.imports.import_adapter_registry import (
-            memory_import_adapter_status,
-        )
-
-        statuses = memory_import_adapter_status()
-        for source in ("hermes", "openclaw", "cursor", "codex"):
-            assert statuses.get(source) == "ready", f"{source} adapter should be ready"
+        for source in ("hermes", "openclaw", "cursor_rules", "codex", "pi", "plur", "pasted_memory"):
+            result = build_memory_import_dry_run({"_source": source}, source=source)
+            assert result.summary.source == source, f"{source} adapter should label its own source"
 
     def test_claude_competitor_instruction_only_lane(self) -> None:
         """After split, memory lane is empty; explicit claude source yields ready dry-run."""

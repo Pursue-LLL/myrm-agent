@@ -247,6 +247,10 @@ class TaskMoveRequest(BaseModel):
         None,
         description="Structured handoff metadata (e.g. changed_files). Stored in task.metadata['handoff'].",
     )
+    assignee_agent_id: str | None = Field(
+        None,
+        description="Agent ID to hand off / reassign this task to.",
+    )
 
 
 class PromoteRequest(BaseModel):
@@ -754,12 +758,8 @@ class RaceLaneSpec(BaseModel):
     """One race contestant. Unset fields inherit the parent task."""
 
     agent_id: str | None = Field(None, description="Agent profile for this lane")
-    model_override: str | None = Field(
-        None, max_length=255, description="Per-lane LLM model in 'provider/model' form"
-    )
-    instruction_variant: str = Field(
-        "", max_length=5000, description="Extra instructions appended to the lane prompt"
-    )
+    model_override: str | None = Field(None, max_length=255, description="Per-lane LLM model in 'provider/model' form")
+    instruction_variant: str = Field("", max_length=5000, description="Extra instructions appended to the lane prompt")
     title_suffix: str = Field("", max_length=50, description="Custom lane label")
 
 
@@ -767,12 +767,8 @@ class RaceStartRequest(BaseModel):
     """Start a race: fan one task out into parallel lane children."""
 
     lanes: list[RaceLaneSpec] = Field(..., min_length=2, max_length=5)
-    branch: str | None = Field(
-        None, max_length=255, description="Race target branch (defaults to the task branch)"
-    )
-    confirm_cost: bool = Field(
-        False, description="Must be true after reviewing the cost estimate"
-    )
+    branch: str | None = Field(None, max_length=255, description="Race target branch (defaults to the task branch)")
+    confirm_cost: bool = Field(False, description="Must be true after reviewing the cost estimate")
 
 
 class RaceEstimateResponse(BaseModel):

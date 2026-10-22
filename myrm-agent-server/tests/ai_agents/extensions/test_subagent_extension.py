@@ -110,6 +110,22 @@ async def test_on_agent_init_registers_subagent_tools_on_registry() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("incognito_mode", [False, True])
+async def test_subagent_extension_tells_the_catalog_whether_the_chat_is_incognito(incognito_mode: bool) -> None:
+    agent = _make_bare_agent()
+    ext = SubagentManagementExtension(jit_subagents={}, subagent_ids=["research-agent"], incognito_mode=incognito_mode)
+    _, patch_specs = _spawn_patches()
+    catalog_class = dict(patch_specs)[_CATALOG]
+
+    with ExitStack() as stack:
+        for target, replacement in patch_specs:
+            stack.enter_context(patch(target, new=replacement))
+        await ext.on_agent_init(agent)
+
+    assert catalog_class.call_args.kwargs["incognito_mode"] is incognito_mode
+
+
+@pytest.mark.asyncio
 async def test_subagent_extension_skips_bind_when_catalog_empty() -> None:
     agent = _make_bare_agent()
     ext = SubagentManagementExtension(jit_subagents={}, subagent_ids=[])

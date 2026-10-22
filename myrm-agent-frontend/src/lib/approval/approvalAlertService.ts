@@ -22,6 +22,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { getClientLocale } from '@/lib/utils/locale';
 import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 const MAX_ACTIVE_NOTIFICATIONS = 5;
 const TITLE_FLASH_INTERVAL_MS = 1000;
@@ -98,12 +99,12 @@ function buildNotificationBody(requests: ToolApprovalRequest[]): { title: string
     const req = requests[0];
     const remaining = Math.max(0, Math.round(req.expiresAt - Date.now() / 1000));
     return {
-      title: `⚠️ ${strings.pending} - ${req.toolName}`,
+      title: `${strings.pending} - ${req.toolName}`,
       body: `${req.reason}, ${strings.remaining.replace('{seconds}', String(remaining))}`,
     };
   }
   return {
-    title: `⚠️ ${strings.pendingMulti.replace('{count}', String(requests.length))}`,
+    title: strings.pendingMulti.replace('{count}', String(requests.length)),
     body: `${strings.includes} ${requests.map((r) => r.toolName).join(', ')}`,
   };
 }
@@ -191,7 +192,7 @@ function startTitleFlash(): void {
   }
   ensureVisibilityListener();
   originalTitle = document.title;
-  const flashTitle = `⚠️ ${getNotificationStrings().pending}`;
+  const flashTitle = getNotificationStrings().pending;
   let isAlternate = false;
   titleFlashTimer = setInterval(() => {
     isAlternate = !isAlternate;
@@ -270,7 +271,7 @@ export function isTitleFlashing(): boolean {
 }
 
 /**
- * Clear all approval notifications (e.g. when all approvals are resolved or user focuses window).
+ * Clear all approval notifications and the title flash.
  */
 export function clearAllNotifications(): void {
   for (const [id] of activeNotifications) {
@@ -279,3 +280,10 @@ export function clearAllNotifications(): void {
   activeNotifications.clear();
   stopTitleFlash();
 }
+
+// The alerts describe the approvals waiting in the queue, so they end with it, wherever the last one was answered.
+useToolApprovalStore.subscribe((state, previous) => {
+  if (previous.queue.length > 0 && state.queue.length === 0) {
+    clearAllNotifications();
+  }
+});

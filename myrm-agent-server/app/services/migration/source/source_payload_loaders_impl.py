@@ -7,9 +7,10 @@ Path root + file_paths from discovery.
 Adapter-ready dict per competitor (soul_md, memory, skills, env_keys, etc.).
 
 [POS]
-Basic loaders (hermes/codex/claude/gbrain) live here.
-OpenClaw loader lives in _loaders_openclaw.py and Pi loader in _loaders_pi.py;
-both are re-exported from this module.
+Basic loaders (hermes/codex/chatgpt/gbrain) live here. Per-source lanes live in
+their own modules — _loaders_openclaw.py, _loaders_pi.py and _loaders_claude.py
+(the Claude Code rules, auto-memory, settings, skills and transcripts lane) —
+and are re-exported from this module so discovery keeps one entry point.
 """
 
 from __future__ import annotations
@@ -27,7 +28,11 @@ from .._loader_utils import (
     read_json,
     read_text,
     read_yaml,
+    serialize_transcript,
 )
+
+_FRONTMATTER_BOUNDARY = "\n---"
+_CLAUDE_MEMORY_INDEX_NAME = "MEMORY.md"
 
 
 def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
@@ -94,9 +99,9 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
             if isinstance(pool_data, dict):
                 result["credential_pool"] = pool_data
                 raw_env_keys = result.get("env_keys")
-                existing_env_keys: list[dict[str, str]] = [
-                    item for item in raw_env_keys if isinstance(item, dict)
-                ] if isinstance(raw_env_keys, list) else []
+                existing_env_keys: list[dict[str, str]] = (
+                    [item for item in raw_env_keys if isinstance(item, dict)] if isinstance(raw_env_keys, list) else []
+                )
                 existing_names = {k.get("name") for k in existing_env_keys if isinstance(k, dict)}
                 for prov in pool_data:
                     norm = str(prov).strip().upper()
@@ -116,9 +121,7 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     session_files: list[Path] = [
         Path(fp)
         for fp in file_paths
-        if (fp.endswith(".json") or fp.endswith(".jsonl"))
-        and "session" in fp.lower()
-        and Path(fp).is_file()
+        if (fp.endswith(".json") or fp.endswith(".jsonl")) and "session" in fp.lower() and Path(fp).is_file()
     ]
     if not session_files and root.is_dir():
         for cand_dir in [root / "sessions", root / "history", root]:
@@ -134,54 +137,13 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
         try:
             parsed_res = hermes_parser.parse_file(sf)
             if parsed_res.turns:
-                hermes_sessions.append(_serialize_transcript(parsed_res))
+                hermes_sessions.append(serialize_transcript(parsed_res))
         except Exception:
             continue
     if hermes_sessions:
         result["sessions"] = hermes_sessions
 
     return result
-
-
-def _serialize_transcript(parsed: object) -> dict[str, object]:
-    from myrm_agent_harness.runtime.context.transcripts import TranscriptParseResult
-
-    if not isinstance(parsed, TranscriptParseResult):
-        return {}
-    return {
-        "session_id": parsed.session_id,
-        "title": parsed.title,
-        "source_platform": parsed.source_platform,
-        "created_at": parsed.created_at,
-        "updated_at": parsed.updated_at,
-        "detected_workspace_hint": parsed.detected_workspace_hint,
-        "total_tool_calls": parsed.total_tool_calls,
-        "total_tokens_approx": parsed.total_tokens_approx,
-        "turns": [
-            {
-                "turn_id": t.turn_id,
-                "role": t.role.value,
-                "content": t.content,
-                "thinking_trace": t.thinking_trace,
-                "timestamp": t.timestamp,
-                "source_event_type": t.source_event_type,
-                "tool_calls": [
-                    {
-                        "call_id": tc.call_id,
-                        "tool_name": tc.tool_name,
-                        "arguments": tc.arguments,
-                        "output": tc.output,
-                        "exit_code": tc.exit_code,
-                        "is_error": tc.is_error,
-                        "compacted": tc.compacted,
-                        "original_size_bytes": tc.original_size_bytes,
-                    }
-                    for tc in t.tool_calls
-                ],
-            }
-            for t in parsed.turns
-        ],
-    }
 
 
 def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
@@ -196,6 +158,10 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     instructions_path = path_by_kind(file_paths, "instructions.md") or find_file(root, "instructions.md")
     if instructions_path:
         result["codex_instructions"] = read_text(instructions_path)
+
+    codex_memory = _load_codex_memory(root)
+    if codex_memory:
+        result["codex_memory"] = codex_memory
 
     for settings_name in ("config.json", "settings.json"):
         settings_path = path_by_kind(file_paths, settings_name) or find_file(root, settings_name)
@@ -230,7 +196,7 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
         try:
             parsed_res = parser.parse_file(sf)
             if parsed_res.turns:
-                codex_sessions.append(_serialize_transcript(parsed_res))
+                codex_sessions.append(serialize_transcript(parsed_res))
         except Exception:
             continue
     if codex_sessions:
@@ -239,79 +205,33 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     return result
 
 
-def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
-    from myrm_agent_harness.runtime.context.transcripts import ClaudeTranscriptParser
+def _load_codex_memory(root: Path) -> list[dict[str, object]]:
+    """Read Codex consolidated memory files into adapter-ready entries."""
 
-    from .._loader_utils import read_json
+    entries: list[dict[str, object]] = []
+    for relative in ("memories/MEMORY.md", "memories/memory_summary.md"):
+        path = root / relative
+        if not path.is_file():
+            continue
+        content = read_text(path).strip()
+        if not content:
+            continue
+        entries.append({"content": content, "file": path.name})
+    return entries
+
+
+def load_plur(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load a PLUR engram store (``engrams.yaml``) into an adapter-ready payload."""
 
     result: dict[str, object] = {}
-
-    claude_md = path_by_kind(file_paths, "CLAUDE.md") or find_file(root, "CLAUDE.md")
-    if claude_md:
-        content = read_text(claude_md).strip()
-        if content:
-            result["semantic"] = [
-                {
-                    "content": content,
-                    "importance": 0.75,
-                    "confidence": 0.75,
-                    "tags": ["claude_code", "CLAUDE.md"],
-                },
-            ]
-
-    settings_path = path_by_kind(file_paths, "settings.json") or find_file(root, "settings.json")
-    if settings_path:
-        settings_data = read_json(settings_path)
-        if isinstance(settings_data, dict):
-            result["claude_settings"] = settings_data
-            mcp_servers = settings_data.get("mcpServers") or settings_data.get("mcp_servers")
-            if isinstance(mcp_servers, dict) and mcp_servers:
-                result["mcp_servers"] = mcp_servers
-
-    config_path = path_by_kind(file_paths, "config.yaml") or find_file(root, "config.yaml")
-    if config_path:
-        config_data = read_yaml(config_path)
-        if isinstance(config_data, dict):
-            result["hermes_config"] = config_data
-            mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
-            if isinstance(mcp_servers, dict) and mcp_servers:
-                result["mcp_servers"] = mcp_servers
-
-    skills_dir = root / "skills"
-    if skills_dir.is_dir():
-        skills = load_skill_directories(skills_dir, source="claude")
-        if skills:
-            result["skills"] = skills
-
-    # Discover and parse Claude Code session transcripts
-    claude_sessions: list[dict[str, object]] = []
-    claude_parser = ClaudeTranscriptParser()
-    session_files: list[Path] = [
-        Path(fp) for fp in file_paths if fp.endswith(".jsonl") and Path(fp).is_file()
-    ]
-    if not session_files and root.is_dir():
-        for cand_dir in [root / "sessions", root / "projects", root]:
-            if cand_dir.is_dir():
-                for p in cand_dir.glob("*.jsonl"):
-                    if p.is_file():
-                        session_files.append(p)
-                for p in cand_dir.glob("*/*.jsonl"):
-                    if p.is_file():
-                        session_files.append(p)
-    seen_claude_paths: set[Path] = set()
-    for sf in session_files:
-        if sf in seen_claude_paths:
-            continue
-        seen_claude_paths.add(sf)
-        try:
-            parsed_res = claude_parser.parse_file(sf)
-            if parsed_res.turns:
-                claude_sessions.append(_serialize_transcript(parsed_res))
-        except Exception:
-            continue
-    if claude_sessions:
-        result["sessions"] = claude_sessions
-
+    engrams_path = path_by_kind(file_paths, "engrams.yaml") or find_file(root, "engrams.yaml")
+    if not engrams_path:
+        return result
+    parsed = read_yaml(engrams_path)
+    if isinstance(parsed, dict):
+        engrams = parsed.get("engrams")
+        if isinstance(engrams, list):
+            result["engrams"] = engrams
     return result
 
 
@@ -395,5 +315,6 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
     return {"gbrain_pages": pages, "_source": "gbrain"}
 
 
+from .._loaders_claude import load_claude, load_claude_auto_memory  # noqa: E402, F401
 from .._loaders_openclaw import load_openclaw  # noqa: E402, F401
 from .._loaders_pi import load_pi  # noqa: E402, F401

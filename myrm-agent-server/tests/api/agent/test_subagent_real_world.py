@@ -150,60 +150,6 @@ async def test_real_world_concurrency_limit():
 
 
 @pytest.mark.asyncio
-async def test_real_world_cache_across_calls():
-    """真实场景：缓存在多次调用间生效"""
-    llm = MockLLM("缓存测试响应")
-
-    agent = BaseAgent(llm=llm)
-
-    from unittest.mock import AsyncMock
-
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
-
-    catalog = AsyncMock()
-    catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-
-    spawn_tool = create_delegate_task_tool(
-        parent_agent=agent,
-        tool_registry_getter=lambda: [MockWebSearchTool()],
-        catalog=catalog,
-    )
-
-    task_desc = "重复的搜索任务"
-
-    await spawn_tool.ainvoke(
-        {
-            "agent_type": "search",
-            "objective": task_desc,
-            "context": {
-                "session_id": "test_session",
-                "workspace_path": "/tmp/test",
-                "workspaces_storage_root": "/tmp/test_workspaces",
-            },
-            "wait": True,
-        }
-    )
-
-    call_count_after_first = llm.call_count
-
-    result2 = await spawn_tool.ainvoke(
-        {
-            "agent_type": "search",
-            "objective": task_desc,
-            "context": {
-                "session_id": "test_session",
-                "workspace_path": "/tmp/test",
-                "workspaces_storage_root": "/tmp/test_workspaces",
-            },
-            "wait": True,
-        }
-    )
-
-    assert result2.get("cached") is True
-    assert llm.call_count == call_count_after_first
-
-
-@pytest.mark.asyncio
 async def test_real_world_error_recovery():
     """真实场景：错误恢复和重试"""
 

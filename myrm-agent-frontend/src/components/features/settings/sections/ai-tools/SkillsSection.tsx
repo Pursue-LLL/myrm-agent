@@ -416,9 +416,38 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
           await resetPrebuiltToDefault(skill.id);
           toast({ title: t('card.resetSuccess') });
         } else {
-          const { acceptPrebuiltUpstream } = await import('@/services/skill');
-          await acceptPrebuiltUpstream(skill.id);
-          toast({ title: t('card.acceptUpstreamSuccess') });
+          const { acceptPrebuiltUpstream, rollbackSkillMutationBatch } = await import('@/services/skill');
+          const result = await acceptPrebuiltUpstream(skill.id);
+          const batchId = result.pre_replace_batch_id?.trim();
+          if (batchId) {
+            toast({
+              title: t('card.acceptUpstreamSuccess'),
+              description: result.snapshot_truncated
+                ? t('discover.snapshotTruncatedDesc')
+                : t('card.undoLastReplaceHint'),
+              action: {
+                label: t('card.undoLastReplace'),
+                onClick: () => {
+                  void (async () => {
+                    try {
+                      await rollbackSkillMutationBatch(batchId);
+                      toast({ title: t('card.undoLastReplaceSuccess') });
+                      handleRefresh();
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : '';
+                      toast({
+                        title: t('card.undoLastReplaceFailed'),
+                        description: message,
+                        variant: 'destructive',
+                      });
+                    }
+                  })();
+                },
+              },
+            });
+          } else {
+            toast({ title: t('card.acceptUpstreamSuccess') });
+          }
         }
         handleRefresh();
       } catch (err: unknown) {
@@ -434,6 +463,27 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
     async (skill: Skill, action: SkillLifecycleAction) => {
       if (action === 'reset-to-default' || action === 'accept-upstream') {
         setPendingDestructiveAction({ skill, action });
+        return;
+      }
+      if (action === 'undo-last-replace') {
+        const batchId = skill.last_replace_batch_id?.trim();
+        if (!batchId) {
+          toast({ title: t('card.undoLastReplaceFailed'), variant: 'destructive' });
+          return;
+        }
+        try {
+          const { rollbackSkillMutationBatch } = await import('@/services/skill');
+          await rollbackSkillMutationBatch(batchId);
+          toast({ title: t('card.undoLastReplaceSuccess') });
+          handleRefresh();
+        } catch (err: unknown) {
+          const detail = err instanceof Error ? err.message : undefined;
+          toast({
+            title: t('card.undoLastReplaceFailed'),
+            description: detail,
+            variant: 'destructive',
+          });
+        }
         return;
       }
       try {

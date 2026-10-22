@@ -56,17 +56,19 @@
 | `audit/` | ✅ 辅助 | 审计日志业务服务 | [_ARCH.md](audit/_ARCH.md) |
 | `integrations/` | ✅ 核心 | 集成连接编排与用户配置 | [_ARCH.md](integrations/_ARCH.md) |
 | `providers/` | ✅ 核心 | 服务提供商与实时余额探测业务服务 | [_ARCH.md](providers/_ARCH.md) |
+| `machines/` | ✅ 核心 | 自托管机群全局监控看板与远程人机同屏接管服务（对标 Cursor My Machines & Live Takeover） | [_ARCH.md](machines/_ARCH.md) |
 | `a2a/` | ✅ 核心 | A2A 跨智能体服务（AgentCard 生成、任务仓储、HMAC Webhook 投递、调度服务） | [_ARCH.md](a2a/_ARCH.md) |
 | `providers/` | ✅ 核心 | LLM 供应商服务（多供应商余额实时探活、并发缓存、Fail-open 本地流水兜底） | [_ARCH.md](providers/_ARCH.md) |
 | `webui/` | ✅ 辅助 | WebUI 专用服务（Remote 模式认证、二维码） | [_ARCH.md](webui/_ARCH.md) |
 | `device/` | ✅ 核心 | 移动设备桥接服务（ADB 发现、按需抓帧、物理状态栏脱敏、触控中继） | [_ARCH.md](device/_ARCH.md) |
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |
+| `instance_archive/` | ✅ 核心 | 整实例导出/导入与恢复点：路径与表分类策略、口令信封、可续传上传、启动前原子换入与撤销、本地/桌面定时整实例备份（`auto_backup/`；机制在 harness `infra/state_archive/`） | [_ARCH.md](instance_archive/_ARCH.md) |
 | `locked_use/` | ✅ 辅助 | Locked Use 协调层（Computer Use 锁屏解锁编排，集成 SleepInhibitor + Tauri IPC） | [_ARCH.md](locked_use/_ARCH.md) |
 | `infra/` | ✅ 辅助 | 基础设施维护（沙箱清理、防休眠、系统通知） | [_ARCH.md](infra/_ARCH.md) |
 | `background/` | ✅ 辅助 | 后台守护任务 | [_ARCH.md](background/_ARCH.md) |
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
 | `faq/` | ✅ 辅助 | Channel FAQ 语义缓存（per-agent Q&A CRUD + 零 LLM 拦截 + 命中追踪） | [_ARCH.md](faq/_ARCH.md) |
-| `migration/` | ✅ 辅助 | 外部助手数据迁移（Wizard 封闭 4 源：Hermes/OpenClaw/Claude Code/Codex） | [_ARCH.md](migration/_ARCH.md) |
+| `migration/` | ✅ 辅助 | 外部助手数据迁移（Wizard 本机可发现 6 源：Hermes/OpenClaw/Claude Code/Codex/Pi/PLUR；ZIP 通道：ChatGPT/gbrain 与 PLUR） | [_ARCH.md](migration/_ARCH.md) |
 | `org_model_policy/` | ✅ 辅助 | Org 模型白名单 revision + agent build enforce | [_ARCH.md](org_model_policy/_ARCH.md) |
 | `compliance/` | ✅ 辅助 | 公众号草稿推送前合规扫描（HITL draft 专用） | [_ARCH.md](compliance/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
@@ -79,7 +81,11 @@
 | `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
 | `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
-| `rules/` | ✅ 核心 | 流式防护规则服务（TTSR 生产级高危命令与凭证防泄露默认规则库） | [_ARCH.md](rules/_ARCH.md) |
+| `swarm/` | ✅ 核心 | 多智能体蜂群并发协同、记忆规则唤醒 HUD 与店主风险清单核验服务 | [_ARCH.md](swarm/_ARCH.md) |
+| `analytics/` | ✅ 核心 | 生产力与可量化 ROI 分析服务（工时折算、Token 成本核算、替代价值与高收益流程） | [_ARCH.md](analytics/_ARCH.md) |
+| `git/` | ✅ 核心 | Git 多工作区生命周期、侧边栏 Worktree 切换、会话检出锚定与文件触达分析服务 | [_ARCH.md](git/_ARCH.md) |
+| `session_export/` | ✅ 核心 | 会话交互式单文件 HTML 导出器与只读 Web 分享桥（零网络依赖自包含 HTML、凭证自动脱敏、折叠卡片与代码复制） | [_ARCH.md](session_export/_ARCH.md) |
+| `sandbox_wake/` | ✅ 辅助 | 云托管沙箱到点唤醒上报（目标额度窗口 / cron 的下一次必须运行时间 → 控制平面 `wake-schedule`） | [_ARCH.md](sandbox_wake/_ARCH.md) |
 ---
 
 ## 依赖关系

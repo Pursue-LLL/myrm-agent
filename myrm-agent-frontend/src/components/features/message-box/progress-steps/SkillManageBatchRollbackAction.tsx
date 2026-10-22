@@ -34,6 +34,27 @@ type SkillManageBatchRollbackActionProps = {
   batchId: string;
 };
 
+/** The server answers a refused undo with `detail: {code, message}`; `ApiError.data` is that object. */
+function refusalCode(error: unknown): string | undefined {
+  return error instanceof ApiError && typeof error.data?.code === 'string' ? error.data.code : undefined;
+}
+
+/** Every refusal the server gives has its own explanation; any other failure (busy database, no connection) is the generic one. */
+function rollbackFailureMessage(t: (key: string) => string, error: unknown): string {
+  switch (refusalCode(error)) {
+    case 'compensation_failed':
+      return t('skillManageRollbackCompensationFailed');
+    case 'batch_already_consumed':
+      return t('skillManageRollbackAlreadyConsumed');
+    case 'batch_superseded':
+      return t('skillManageRollbackSuperseded');
+    case 'skill_missing':
+      return t('skillManageRollbackSkillMissing');
+    default:
+      return t('skillManageRollbackFailed');
+  }
+}
+
 export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRollbackActionProps) {
   const t = useTranslations('progressSteps');
   const tSkills = useTranslations('settings.skills');
@@ -63,15 +84,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
       );
     } catch (err) {
       const { toast } = await import('@/lib/utils/toast');
-      const code = err instanceof ApiError && typeof err.data?.code === 'string' ? err.data.code : undefined;
-      toast.error(
-        code === 'compensation_failed'
-          ? t('skillManageRollbackCompensationFailed')
-          : code === 'batch_already_consumed'
-            ? t('skillManageRollbackAlreadyConsumed')
-            : t('skillManageRollbackFailed'),
-        { duration: 8000 },
-      );
+      toast.error(rollbackFailureMessage(t, err), { duration: 8000 });
     } finally {
       setSubmitting(false);
     }

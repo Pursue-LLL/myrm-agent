@@ -77,6 +77,13 @@ def configure_logging() -> None:
     # Production-visible memory monitoring (grep-friendly [MEMORY] logs)
     logging.getLogger("myrm_agent_harness.runtime.survival.resource_monitor").setLevel(logging.INFO)
 
+    # Production-visible background maintenance: the periodic schedulers log a start line and success
+    # counts at INFO. At the default WARNING level those lines are dropped, so a scheduler that never
+    # starts or a maintenance pass that stops running leaves no trace; pinning them to INFO keeps that
+    # evidence in the log without a debug build.
+    for _module in ("app.lifecycle.schedulers", "app.services.memory.imports.integration_sync_daemon"):
+        logging.getLogger(_module).setLevel(logging.INFO)
+
 
 def _suppress_library_logs(logger_name: str, level: int) -> None:
     """设置指定库的日志级别"""

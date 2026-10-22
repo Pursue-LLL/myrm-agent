@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
+import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
 import KanbanTaskCard from '../KanbanTaskCard';
 
 const stableT = (key: string) => key;
@@ -122,5 +123,130 @@ describe('KanbanTaskCard concurrency queued badge', () => {
       />,
     );
     expect(screen.queryByTestId('kanban-task-queued-badge')).toBeNull();
+  });
+});
+
+describe('KanbanTaskCard blocked reason', () => {
+  const renderBlocked = (reason: string) =>
+    render(
+      <KanbanTaskCard
+        task={makeTask({ status: 'blocked', block_kind: 'human', blocked_reason: reason })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+
+  it('shows a dependency merge failure in the interface language', () => {
+    renderBlocked(blockedReasons.parentMergeFailed);
+    expect(screen.getByText('blockedReason.parentMergeFailed')).toBeTruthy();
+    expect(screen.queryByText(/Merging a dependency/)).toBeNull();
+  });
+
+  it('shows a usage-limit wait and a batch pause in the interface language, not the server marker', () => {
+    renderBlocked(blockedReasons.usageLimit);
+    expect(screen.getByText('blockedReason.usageLimit')).toBeTruthy();
+    cleanup();
+
+    renderBlocked(blockedReasons.batchPause);
+    expect(screen.getByText('blockedReason.batchPause')).toBeTruthy();
+    expect(screen.queryByText(blockedReasons.batchPause)).toBeNull();
+  });
+
+  it('shows any other reason as written', () => {
+    renderBlocked('Waiting for the reviewer');
+    expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
+  });
+
+  it('says in the interface language that a scheduled task is about to resume once its time has passed', () => {
+    render(
+      <KanbanTaskCard
+        task={makeTask({
+          status: 'blocked',
+          block_kind: 'scheduled',
+          blocked_reason: blockedReasons.usageLimit,
+          scheduled_until: new Date(Date.now() - 1000).toISOString(),
+        })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+    expect(screen.getByText('autoUnblocking')).toBeTruthy();
+    expect(screen.queryByText(/auto-unblocking/)).toBeNull();
+  });
+
+  it('shows no block details on a task that left the blocked column, even if it still carries them', () => {
+    render(
+      <KanbanTaskCard
+        task={makeTask({
+          status: 'ready',
+          block_kind: 'scheduled',
+          blocked_reason: 'Waiting for the reviewer',
+          scheduled_until: new Date(Date.now() - 1000).toISOString(),
+        })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+    expect(screen.queryByText('Waiting for the reviewer')).toBeNull();
+    expect(screen.queryByText('autoUnblocking')).toBeNull();
+  });
+});
+
+describe('KanbanTaskCard attachment badge inside a draggable card', () => {
+  it('opens the drawer on click without letting the card see the press or double-click', () => {
+    const card = { onMouseDown: vi.fn(), onTouchStart: vi.fn(), onDoubleClick: vi.fn() };
+    const onOpenTaskDrawer = vi.fn();
+    const task = makeTask({
+      attachments: [{ file_id: 'f1', filename: 'spec.pdf', content_type: 'application/pdf', url: '/files/f1' }],
+    });
+    render(
+      // The wrapper stands in for the dnd-kit draggable card, which activates on mouse down, touch start and listens for double-click.
+      <div
+        role="presentation"
+        onMouseDown={card.onMouseDown}
+        onTouchStart={card.onTouchStart}
+        onDoubleClick={card.onDoubleClick}
+      >
+        <KanbanTaskCard
+          task={task}
+          allTasks={[]}
+          onMove={noop}
+          onDelete={noop}
+          onRefresh={noop}
+          onOpenTaskDrawer={onOpenTaskDrawer}
+        />
+      </div>,
+    );
+
+    const badge = screen.getByTestId(`kanban-task-attachment-badge-${task.task_id}`);
+    fireEvent.mouseDown(badge);
+    fireEvent.touchStart(badge);
+    fireEvent.click(badge);
+    fireEvent.doubleClick(badge);
+
+    expect(onOpenTaskDrawer).toHaveBeenCalledTimes(1);
+    expect(onOpenTaskDrawer).toHaveBeenCalledWith(task.task_id);
+    expect(card.onMouseDown).not.toHaveBeenCalled();
+    expect(card.onTouchStart).not.toHaveBeenCalled();
+    expect(card.onDoubleClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('KanbanTaskCard details toggle', () => {
+  it('names the toggle once and reports its state through aria-expanded', async () => {
+    render(<KanbanTaskCard task={makeTask()} allTasks={[]} onMove={noop} onDelete={noop} onRefresh={noop} />);
+
+    const toggle = screen.getByRole('button', { name: 'taskDetails', expanded: false });
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'taskDetails', expanded: true })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'taskDetails', expanded: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'taskDetails', expanded: false })).toBeTruthy());
   });
 });

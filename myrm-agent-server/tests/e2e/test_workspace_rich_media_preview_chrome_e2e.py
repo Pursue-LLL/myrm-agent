@@ -3,7 +3,9 @@
 Verifies the real end-to-end path for rich media in the workspace file browser:
 backend /files/browse/content binary streaming (no 1MB truncation, correct MIME)
 plus the frontend RichMediaFilePreview dispatcher rendering images / PDF / text,
-and the unsupported-type fallback with a download button.
+and the unsupported-type fallback with a download button. SVG coverage spans both
+SvgPreview paths: a small file renders inline, while a file past the 1MB text
+ceiling arrives truncated and degrades to the shared load-error copy.
 """
 
 from __future__ import annotations
@@ -65,7 +67,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "attach-timeout",
 )
 
-_PREVIEW_FILES = ("preview.png", "preview.pdf", "bundle.zip", "readme.txt")
+_PREVIEW_FILES = ("preview.png", "preview.pdf", "bundle.zip", "readme.txt", "preview.svg", "preview_large.svg")
 
 
 def _wait_timeout_sec() -> float:
@@ -214,6 +216,40 @@ def _text_preview_ready_js() -> str:
 })()"""
 
 
+def _svg_preview_ready_js() -> str:
+    return """(() => {
+  const panel = document.querySelector('[data-testid="workspace-file-preview"]');
+  const contentSvg = panel
+    ? Array.from(panel.querySelectorAll('svg')).find((s) => (s.textContent || '').includes('SVG E2E'))
+    : undefined;
+  const innerText = panel?.innerText || '';
+  return {
+    ready: Boolean(contentSvg),
+    text: contentSvg?.textContent || '',
+    bodyLength: (document.body?.innerText || '').length,
+    hasPanel: Boolean(panel),
+    svgCount: panel ? panel.querySelectorAll('svg').length : 0,
+    panelTextSample: innerText.slice(0, 240),
+    hasSpinner: Boolean(panel?.querySelector('.animate-spin')),
+    hasError: /Failed to load|加载失败|載入失敗/.test(innerText),
+  };
+})()"""
+
+
+def _svg_large_preview_degraded_js() -> str:
+    return """(() => {
+  const panel = document.querySelector('[data-testid="workspace-file-preview"]');
+  const txt = panel?.innerText || '';
+  const degraded = /Failed to load preview|预览加载失败|預覽載入失敗/.test(txt);
+  return {
+    ready: degraded,
+    bodyLength: (document.body?.innerText || '').length,
+    hasRasterImg: Boolean(panel?.querySelector('img')),
+    sample: txt.slice(0, 160),
+  };
+})()"""
+
+
 def _seed_rich_media_fixture(api_url: str) -> dict[str, object]:
     seeded = http_json(
         "POST",
@@ -316,6 +352,29 @@ def _assert_preview_flows(client: object, page: object) -> None:
             )
             assert unsupported.get("ready") is True, json.dumps(
                 unsupported,
+                ensure_ascii=False,
+            )
+        elif filename == "preview.svg":
+            svg = wait_for_state(
+                client,  # type: ignore[arg-type]
+                page,  # type: ignore[arg-type]
+                _svg_preview_ready_js(),
+                timeout_sec=30.0,
+            )
+            assert svg.get("ready") is True, json.dumps(
+                svg,
+                ensure_ascii=False,
+            )
+            assert "SVG E2E" in str(svg.get("text") or ""), svg
+        elif filename == "preview_large.svg":
+            degraded = wait_for_state(
+                client,  # type: ignore[arg-type]
+                page,  # type: ignore[arg-type]
+                _svg_large_preview_degraded_js(),
+                timeout_sec=30.0,
+            )
+            assert degraded.get("ready") is True, json.dumps(
+                degraded,
                 ensure_ascii=False,
             )
         else:

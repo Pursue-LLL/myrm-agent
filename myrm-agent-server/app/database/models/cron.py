@@ -28,6 +28,9 @@ class CronJobModel(Base):
     model: Mapped[str | None] = mapped_column(String(255), nullable=True)
     chat_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    project_id: Mapped[str | None] = mapped_column(
+        String(255), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     workflow_template_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     workflow_template_args: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 

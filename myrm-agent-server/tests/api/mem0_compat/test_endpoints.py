@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus, MemoryType
 
 from app.schemas.memory.crud import MemoryItem
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from tests.support.minimal_app import build_minimal_app
 
@@ -50,6 +50,23 @@ def test_delete_all_routes_every_type_to_delete_by_type(client: TestClient, over
     assert resp.status_code == 200
     assert override_manager.delete_by_type.await_count == len(ALL_MEMORY_TYPES)
     override_manager.delete_all.assert_not_called()
+
+
+def test_delete_all_reports_failure_but_still_clears_the_other_types(client: TestClient, override_manager: AsyncMock) -> None:
+    """A type that cannot be cleared must not be reported as deleted, nor stop the remaining types."""
+
+    async def delete_by_type(memory_type: MemoryType) -> int:
+        if memory_type is MemoryType.EPISODIC:
+            raise OSError("disk error")
+        return 1
+
+    override_manager.delete_by_type.side_effect = delete_by_type
+
+    resp = client.delete("/mem0/v1/memories/")
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Failed to delete memories of type: episodic"
+    assert override_manager.delete_by_type.await_count == len(ALL_MEMORY_TYPES)
 
 
 def test_delete_semantic_memory_soft_deletes(client: TestClient, override_manager: AsyncMock) -> None:

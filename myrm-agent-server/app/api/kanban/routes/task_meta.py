@@ -1,4 +1,15 @@
-"""Kanban API routes — task_meta."""
+"""Kanban API routes — task_meta.
+
+[INPUT]
+app.api.kanban.http_common::router/get_kanban_service (POS: Kanban API 共享路由与 DTO 装配)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务评论)
+
+[OUTPUT]
+Task runs / events / comments / diagnostics / dependency REST endpoints under /api/v1/kanban.
+
+[POS]
+Kanban 任务元数据路由层。负责请求校验、错误映射和 service 调用装配，不承载业务编排。
+"""
 
 from __future__ import annotations
 
@@ -26,6 +37,7 @@ from app.api.kanban.schemas import (
     TaskDiagnosticResponse,
     TaskDiagnosticsResponse,
 )
+from app.services.risk.refusal import reject_if_risky
 
 # ---------------------------------------------------------------------------
 # Run & Event endpoints
@@ -88,6 +100,7 @@ async def list_task_events(
 
 @router.post("/tasks/{task_id}/comments", response_model=EventResponse, status_code=201)
 async def add_comment(task_id: str, body: CommentCreate) -> EventResponse:
+    await reject_if_risky(body.body, session_id=task_id)
     svc = get_kanban_service()
     task = await svc.get_task(task_id)
     if task is None:

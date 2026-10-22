@@ -6,6 +6,7 @@
 - app.channels.types::OutboundMessage, ProgressUpdate (POS: Channel outbound message envelope)
 - app.core.channel_bridge.config_parsers::SessionPolicy (POS: Session policy parsing)
 - app.core.types.business::ModelConfig (POS: Model configuration types)
+- myrm_agent_harness.core.security.types::EphemeralUserCredential (POS: Ephemeral per-session credential carried by user_credentials_ctx)
 
 [OUTPUT]
 ChannelExecutionPrep, PrepareChannelExecutionResult, ChannelAgentBuildResult,
@@ -21,6 +22,7 @@ from contextvars import Token
 from dataclasses import dataclass
 
 from langgraph.types import Command
+from myrm_agent_harness.core.security.types import EphemeralUserCredential
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.ai_agents.general_agent.agent import GeneralAgent
@@ -46,10 +48,10 @@ def build_security_config(
 @dataclass
 class ChannelExecutionPrep:
     agent: GeneralAgent
-    token_ctx: Token[tuple[object, ...]]
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]]
     chat_id: str
     chat_history: list[object]
-    query_input: str | Command[object]
+    query_input: str | list[dict[str, object]] | Command[object]
     channel_budget_key: str | None
     memory_settings: dict[str, object]
     lite_model_cfg: ModelConfig | None
@@ -69,8 +71,8 @@ class PrepareChannelExecutionResult:
 @dataclass
 class ChannelAgentBuildResult:
     agent: GeneralAgent
-    token_ctx: Token[tuple[object, ...]]
-    query_input: str | Command[object]
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]]
+    query_input: str | list[dict[str, object]] | Command[object]
     params: GeneralAgentParams
 
 

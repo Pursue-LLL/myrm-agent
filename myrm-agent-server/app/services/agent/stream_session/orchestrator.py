@@ -4,9 +4,10 @@
 - app.services.agent.params (POS: request conversion)
 - app.services.agent.stream_session.orchestrator_turn_launch (POS: E1 accept phase, starts the background turn and answers the client)
 - app.services.agent.stream_session.orchestrator_turn_body (POS: write-ahead interrupted-turn marker written by the turn)
+- myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: first-resolver arbitration between the approval timeout timer and a manual resume)
 
 [OUTPUT]
-- run_agent_stream: validation + reserve + early StreamingResponse | JSONResponse
+- run_agent_stream: validation + reserve + already-resolved resume refusal (HTTP 409) + early StreamingResponse | JSONResponse
 
 [POS]
 Service-layer stream orchestration entry. Pre-reserve validation stays synchronous; post-reserve turn runs in the background (`orchestrator_turn_launch` starts it, `orchestrator_turn_body` is the turn) so clients receive live SSE during pre-reply compact.
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from fastapi import Request
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     from app.ai_agents import GeneralAgentParams
 
 from fastapi.responses import JSONResponse, StreamingResponse
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.services.agent.params import (
     AgentRequest,
@@ -33,7 +36,7 @@ from app.services.agent.params import (
 from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.stream_session.chat_history_bootstrap import stream_text_content
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
-from app.services.agent.stream_session.risk_gate import check_stream_risk
+from app.services.agent.stream_session.risk_gate import check_stream_risk, resume_typed_texts
 from app.services.agent.stream_session.session_reservation import ChatSessionReservation
 from app.services.agent.stream_session.stream_busy import agent_busy_streaming_response
 from app.services.agent.stream_session.stream_lane_factory import (
@@ -137,6 +140,21 @@ async def run_agent_stream(
 
     text_content = stream_text_content(request)
 
+    # The risk gate reads what the user typed: the spill below replaces a long paste with a stub that hides its contents.
+    # The regeneration guidance is typed too and becomes a system-level instruction, so it is screened on its own; it
+    # stays out of text_content, which the spill and the size check below read and may write back into the query. A
+    # resumed run has no query: what the user typed is the reason or guidance of an approval answer.
+    typed_texts: Sequence[str | None] = (
+        (text_content, request.regenerate_instruction)
+        if request.resume_value is None
+        else resume_typed_texts(request.resume_value)
+    )
+    for typed in typed_texts:
+        risk_block = await check_stream_risk(typed, request.chat_id)
+        if risk_block is not None:
+            await _record_terminal_failure_if_needed("risk_held")
+            return risk_block
+
     # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace
     try:
         from app.services.agent.context_guard_service import ContextGuardService
@@ -172,10 +190,6 @@ async def run_agent_stream(
         )
 
     if request.resume_value is None:
-        risk_block = await check_stream_risk(text_content, request.chat_id)
-        if risk_block is not None:
-            await _record_terminal_failure_if_needed("server_error")
-            return risk_block
         try:
             await prevalidate_archive_restore_actions(request)
         except ArchiveRestoreRequestError as exc:
@@ -199,7 +213,42 @@ async def run_agent_stream(
             message_id=request.message_id,
         )
         if busy_error is not None:
+            # Retried Submit as Reconnect: if this is an in-flight retry of the SAME message_id,
+            # attach directly to its active stream buffer instead of returning busy, preventing duplicate execution.
+            if request.resume_value is None and request.message_id and request.chat_id:
+                from app.schemas.streaming import SSE_RESPONSE_HEADERS
+                from app.services.agent.gateway import get_agent_gateway
+
+                gateway = get_agent_gateway()
+                active_msg_id = gateway.get_active_message_id(request.chat_id)
+                if active_msg_id == request.message_id and await registry.has_buffer(request.message_id):
+                    logger.info(
+                        "Retried Submit as Reconnect: attaching retried POST to active buffer for chat_id=%s message_id=%s",
+                        request.chat_id,
+                        request.message_id,
+                    )
+                    buffer = await registry.get_or_create(request.message_id)
+                    from fastapi.responses import StreamingResponse
+
+                    last_event_id = http_request.headers.get("Last-Event-ID")
+                    return StreamingResponse(
+                        buffer.subscribe(last_event_id),
+                        media_type="text/event-stream",
+                        headers=SSE_RESPONSE_HEADERS,
+                    )
             return agent_busy_streaming_response(request.message_id)
+
+        # The harness timer and this manual resume race for one approval; the loser must not run the turn again.
+        # Refused here, before the response is accepted, so the client gets a status code it can act on.
+        # The winner is the timer or another client's resume, and the scheduler does not record which.
+        if request.resume_value is not None and request.chat_id:
+            if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
+                logger.warning("Resume rejected (already resolved): chat_id=%s", request.chat_id)
+                await _record_terminal_failure_if_needed("unknown_error")
+                return JSONResponse(
+                    status_code=409,
+                    content={"detail": "This approval has already been resolved."},
+                )
 
         buffer = await registry.get_or_create(request.message_id)
         from app.services.agent.stream_session.orchestrator_turn_launch import (

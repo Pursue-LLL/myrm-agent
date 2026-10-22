@@ -134,10 +134,12 @@ class CronBlueprint:
 _CAP_WEB = ("web_search_tool", "net_fetch")
 _TOOLS_WEB = ("web_search",)
 _CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
+_CAP_RESEARCH_SAVE = (*_CAP_RESEARCH, "file_write")
 _TOOLS_RESEARCH = ("web_search", "file_ops")
-_CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter_tool")
+_CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter")
 _TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
-_CAP_WIKI = ("file_read", "file_write")
+# wiki_query_tool / wiki_apply_tool are gated by knowledge_* permissions, the raw/ scan by file_read.
+_CAP_WIKI = ("file_read", "knowledge_read", "knowledge_write")
 _TOOLS_WIKI = ("wiki", "memory", "file_ops")
 _ASSET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _QUOTE_CURRENCY_RE = re.compile(r"^[a-z0-9]{2,10}$")
@@ -1142,7 +1144,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="marketing-growth",
         tags=("seo", "audit", "marketing", "website", "weekly"),
         sort_order=17,
-        default_required_capabilities=_CAP_RESEARCH,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",
     ),
@@ -1197,7 +1199,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="marketing-growth",
         tags=("marketing", "viral", "quote", "social-media", "content"),
         sort_order=18,
-        default_required_capabilities=_CAP_RESEARCH,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekdays",
     ),

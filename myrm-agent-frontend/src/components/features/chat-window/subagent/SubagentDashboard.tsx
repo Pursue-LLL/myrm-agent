@@ -63,6 +63,7 @@ import { SubagentTreeNode } from './SubagentTree';
 import { StageTaskCountStrip } from './StageTaskCountStrip';
 import { SubagentDetailDrawer } from './SubagentDetailDrawer';
 import { SubagentInsightsView } from './SubagentInsightsView';
+import { SubagentRoleChainPresetChips } from './SubagentRoleChainPresetChips';
 
 // ── Sort/Filter Controls ─────────────────────────────────────────────
 
@@ -266,8 +267,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/${endpoint}`, { method: 'POST' });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t(delegationPaused ? 'delegationResumeFailed' : 'delegationPauseFailed'));
+        toast.error(t(delegationPaused ? 'delegationResumeFailed' : 'delegationPauseFailed'));
         return;
       }
       setDelegationPaused(!delegationPaused);
@@ -284,8 +284,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/cancel-all`, { method: 'POST' });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t('stopAllFailed'));
+        toast.error(t('stopAllFailed'));
         return;
       }
       const runningIds = Object.values(useSubagentStore.getState().nodes)
@@ -303,12 +302,11 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const prevChatIdRef = useRef(chatId);
   useEffect(() => {
     const prev = prevChatIdRef.current;
-    if (prev !== chatId) {
-      if (prev && chatId && prev !== chatId) {
-        useSubagentStore.getState().clear();
-      }
-      prevChatIdRef.current = chatId;
+    // Leaving a chat empties the tree; an id arriving where there was none leaves what the stream put there alone.
+    if (prev && prev !== chatId) {
+      useSubagentStore.getState().clear();
     }
+    prevChatIdRef.current = chatId;
   }, [chatId]);
 
   useEffect(() => {
@@ -452,6 +450,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             </div>
           </div>
         </SheetHeader>
+        <div className="px-4 py-2 border-b border-border/30 bg-muted/20">
+          <SubagentRoleChainPresetChips compact />
+        </div>
         <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border/30">
           <ViewTab
             active={viewMode === 'tree'}

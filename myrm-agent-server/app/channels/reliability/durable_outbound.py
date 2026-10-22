@@ -58,6 +58,16 @@ class OutboundPublisher(Protocol):
 
     async def publish_outbound(self, msg: OutboundMessage, *, _skip_durable_persist: bool = False) -> None: ...
 
+    def can_deliver(self, channel: str) -> bool:
+        """Whether a delivery to ``channel`` could be attempted right now.
+
+        Recovery only re-injects records whose channel can take a delivery. A record for an
+        unregistered / disabled / stopped channel is retained on disk instead: re-injecting it
+        would only make the dispatch loop release it again, so the idle-recovery poll would spin
+        on the same record forever.
+        """
+        ...
+
 
 class DurableOutboundGate:
     """Disk-backed outbound obligation gate for IM channels."""
@@ -191,6 +201,12 @@ class DurableOutboundGate:
         for delivery in pending:
             if not self.is_durable_channel(delivery.channel):
                 await ack_delivery(delivery.id, base_dir=self._base_dir)
+                continue
+
+            if not bus.can_deliver(delivery.channel):
+                # Retain the obligation: the dispatch loop would only release a message whose channel
+                # cannot take it, so re-injecting now would make the idle poll spin on the same record.
+                # It stays pending until the channel is registered/enabled and recovery runs again.
                 continue
 
             try:

@@ -61,6 +61,7 @@ vi.mock('../handlerDeps', () => ({
   },
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
+  isStreamForOpenChat: vi.fn(() => true),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn() })),
   },

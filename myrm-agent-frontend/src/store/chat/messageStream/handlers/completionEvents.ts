@@ -6,6 +6,7 @@
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import { auditCitationMarkers, resolveSourceCountForAudit } from '@/lib/citations/auditCitationMarkers';
+import { applyDisclosureMetadata } from '../disclosure';
 import { readLastMessage } from '../lastMessage';
 import * as H from './handlerDeps';
 
@@ -14,7 +15,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   if (data.type === H.AgentEventType.GOAL_STATUS) {
     const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);
-    useGoalStore.getState().setActiveGoal(goalState);
+    useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), goalState);
     // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
     // AGENT_CANCELLED terminal event, so release any engaged inspector here.
     if (goalState.status === 'budget_limited') {
@@ -59,7 +60,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   if (data.type === H.AgentEventType.MESSAGE_END) {
     if (data.goal_status) {
       const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
-      useGoalStore.getState().setActiveGoal(H.normalizeGoalState(data.goal_status));
+      useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), H.normalizeGoalState(data.goal_status));
     }
 
     // Release inspector "controlling" state (desktop + browser) engaged by this
@@ -149,6 +150,9 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             state.messages[messageIndex].memoryBriefStatus = data.memory_brief_status;
           }
 
+          // Per-turn disclosure: evidence tier badge and auto-staged deliverable drafts.
+          applyDisclosureMetadata(state.messages[messageIndex], data);
+
           if (data.consensus_meta) {
             state.messages[messageIndex].consensusMeta = data.consensus_meta;
           }
@@ -163,6 +167,27 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
           if (typeof data.wiki_source_count === 'number') {
             state.messages[messageIndex].wikiSourceCount = data.wiki_source_count;
+          }
+
+          const rawTurnLoaded =
+            (data as { turn_loaded_skills?: unknown }).turn_loaded_skills ??
+            (data as { turnLoadedSkills?: unknown }).turnLoadedSkills;
+          if (Array.isArray(rawTurnLoaded) && rawTurnLoaded.length > 0) {
+            state.messages[messageIndex].turnLoadedSkills = rawTurnLoaded
+              .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+              .map((item) => ({
+                name: String(item.name ?? ''),
+                id: String(item.id ?? item.name ?? ''),
+                content_hash:
+                  typeof item.content_hash === 'string'
+                    ? item.content_hash
+                    : typeof item.contentHash === 'string'
+                      ? item.contentHash
+                      : undefined,
+                version: typeof item.version === 'string' ? item.version : undefined,
+                partial: Boolean(item.partial),
+              }))
+              .filter((row) => row.name.length > 0);
           }
 
           const sources = state.messages[messageIndex].sources;
@@ -226,9 +251,13 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     // Release the processing lock when message ends successfully
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
 
-    // Clear stale plan steps that are still pending/in_progress after turn ends
+    // Clear stale plan steps that are still pending/in_progress after turn ends. The plan panel shows the open
+    // chat's plan only, so a background turn's end must not wipe it; the gate runs after the lazy import so a chat
+    // switch that happened while it loaded drops the clear instead of hitting the next chat's plan.
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
-      usePlanStore.getState().clearActivePlan();
+      if (H.isStreamForOpenChat(state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
     });
 
     // Passive progression milestone detection

@@ -6,6 +6,8 @@ const KNOWN_GOAL_REASON_KEYS: Record<string, string> = {
   'Budget exhausted': 'reasonBudgetExhausted',
   'Wait timeout exceeded — goal paused': 'reasonWaitTimeout',
   'Sandbox boundary violation — goal paused for human review': 'reasonSandboxBoundary',
+  'Provider usage limit reached; resuming automatically': 'reasonUsageLimit',
+  'Provider usage limit reached; paused until it resets': 'reasonUsageLimit',
 };
 
 export function translateGoalReason(reason: string | undefined, t: (key: string) => string): string | undefined {
@@ -29,6 +31,27 @@ export function translateGoalReason(reason: string | undefined, t: (key: string)
     return reason;
   }
   return reason;
+}
+
+/** Clock time in the viewer's timezone; the date is added only when the instant is not today. */
+export function formatResumeTime(
+  resumeAt: string | undefined,
+  locale: string,
+  now: Date = new Date(),
+): string | undefined {
+  if (!resumeAt) {
+    return undefined;
+  }
+  const instant = new Date(resumeAt);
+  if (Number.isNaN(instant.getTime())) {
+    return undefined;
+  }
+  const sameDay = instant.toLocaleDateString(locale) === now.toLocaleDateString(locale);
+  return new Intl.DateTimeFormat(locale, {
+    ...(sameDay ? {} : { month: 'short', day: 'numeric' }),
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(instant);
 }
 
 export function computeEtaSeconds(goal: GoalState, hasSufficientData: boolean, isTerminal: boolean): number | null {

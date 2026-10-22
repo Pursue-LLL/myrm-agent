@@ -21,13 +21,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.gates.oauth_availability import (
     apply_integration_oauth_availability,
     apply_integration_oauth_to_metadata,
 )
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 
 def test_frontmatter_parses_multi_connector_dependencies() -> None:

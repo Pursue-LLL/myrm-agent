@@ -38,6 +38,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
@@ -147,14 +148,25 @@ def _open_chat_and_send(
         )
         assert bridge.get("ready") is True, json.dumps(bridge, ensure_ascii=False)
 
-        attached = wait_for_state(
-            client,
-            page,
-            _attach_probe_js(chat_id),
-            timeout_sec=90.0,
-            page_url=chat_url,
-        )
-        assert attached.get("ready") is True, json.dumps(attached, ensure_ascii=False)
+        attached: dict[str, object] = {}
+        for attempt in range(2):
+            try:
+                attached = wait_for_state(
+                    client,
+                    page,
+                    _attach_probe_js(chat_id),
+                    timeout_sec=90.0,
+                    page_url=chat_url,
+                )
+                assert attached.get("ready") is True, json.dumps(attached, ensure_ascii=False)
+                break
+            except AssertionError:
+                if attempt == 1:
+                    raise
+                # A cold route mount can stall the history load; reload once and
+                # let the store attach again instead of failing the turn.
+                reload_mcp_page(client, page, target_url=chat_url, timeout_ms=120_000)
+                dismiss_blocking_modals(client, page, recover_url=chat_url)
 
         sent = client.evaluate(
             page,

@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { useAgentEditor } from '@/hooks/agent/useAgentEditor';
 import { toast } from '@/hooks/shared/useToast';
 import { getApiUrl } from '@/lib/api';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import type { BuiltinToolId } from '@/store/chat/types';
 
 type AgentEditor = ReturnType<typeof useAgentEditor>;
@@ -110,6 +111,10 @@ export function useAgentAiBuild(editor: AiBuildTarget) {
           body: JSON.stringify({ intent, locale: navigator.language || 'en-US' }),
         });
         if (!response.ok) {
+          // A held intent has been explained by the shared notice; the generic failure toast would repeat it.
+          if (await riskHeldErrorFromResponse(response)) {
+            return;
+          }
           const body: RefusalBody | null = await response.json().catch(() => null);
           throw new AiBuildRefusal(typeof body?.detail === 'object' ? body.detail?.error_code : undefined);
         }

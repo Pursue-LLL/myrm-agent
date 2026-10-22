@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from myrm_agent_harness.backends.skills.types import SkillRequires
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.agents.agent_extras import _build_catalog_preview
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 
 def _skill(skill_id: str, name: str) -> Skill:

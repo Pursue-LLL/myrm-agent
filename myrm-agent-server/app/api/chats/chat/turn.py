@@ -2,7 +2,8 @@
 
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat business facade)
-- app.services.chat.session_continuity_service::ContinuitySyncError (POS: DB-to-checkpoint continuity failure)
+- app.services.chat.session_continuity_service::CheckpointClearError (POS: checkpoint-clear failure after a history mutation)
+- app.services.risk.refusal::reject_if_risky (POS: refuses a regeneration guidance a risk rule holds)
 
 [OUTPUT]
 - router: POST /{chat_id}/regenerate, POST /{chat_id}/switch-sibling, GET /{chat_id}/siblings/{sibling_group_id},
@@ -25,7 +26,8 @@ from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
-from app.services.chat.session_continuity_service import ContinuitySyncError
+from app.services.chat.session_continuity_service import CheckpointClearError
+from app.services.risk.refusal import reject_if_risky
 
 router = APIRouter()
 
@@ -52,12 +54,15 @@ async def regenerate_last_turn(
     """Mark the last assistant turn as inactive sibling and return query for re-generation.
 
     Unlike retry (which deletes), this preserves old responses for sibling navigation.
-    Optional instruction field allows users to provide guidance (e.g. "be more concise").
+    Optional instruction field allows users to provide guidance (e.g. "be more concise"); a guidance a risk rule
+    holds is refused before the last turn is touched.
     """
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:
             raise not_found_error("Chat session")
+
+        await reject_if_risky(body.instruction if body else None, session_id=chat_id)
 
         result = await ChatService.regenerate_last_turn(chat_id)
         if not result.success:
@@ -145,7 +150,7 @@ async def truncate_after_message(
         )
     except HTTPException:
         raise
-    except ContinuitySyncError as exc:
+    except CheckpointClearError as exc:
         raise internal_error(operation="Truncate after message", exception=exc) from exc
     except Exception as e:
         raise internal_error(operation="Truncate after message", exception=e) from e

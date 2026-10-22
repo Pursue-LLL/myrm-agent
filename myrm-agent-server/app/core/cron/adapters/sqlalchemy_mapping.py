@@ -168,6 +168,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         model=m.model,
         chat_id=m.chat_id,
         agent_id=getattr(m, "agent_id", None),
+        project_id=getattr(m, "project_id", None),
         workflow_template_id=getattr(m, "workflow_template_id", None),
         workflow_template_args=_workflow_template_args_from_json(getattr(m, "workflow_template_args", None)),
         command=m.command,
@@ -221,6 +222,7 @@ def job_to_model(job: CronJob) -> CronJobModel:
         model=job.model,
         chat_id=job.chat_id,
         agent_id=job.agent_id,
+        project_id=job.project_id,
         workflow_template_id=job.workflow_template_id,
         workflow_template_args=_workflow_template_args_to_json(job.workflow_template_args),
         command=job.command,
@@ -270,6 +272,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.model = job.model
     m.chat_id = job.chat_id
     m.agent_id = job.agent_id
+    m.project_id = job.project_id
     m.workflow_template_id = job.workflow_template_id
     m.workflow_template_args = _workflow_template_args_to_json(job.workflow_template_args)
     m.command = job.command

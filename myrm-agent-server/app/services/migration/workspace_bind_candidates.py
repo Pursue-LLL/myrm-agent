@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - WorkspaceBindCandidate list for migration wizard handoff (pre-fill Mount UI)
+- to_api_candidates: project the list into the API model shared by the import handlers
 
 [POS]
 Server business layer only. Does not register Harness tools or alter agent prompts.
@@ -16,6 +17,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.schemas.memory.archive import WorkspaceBindCandidate as ApiWorkspaceBindCandidate
 
 _MAX_MD_SCAN = 2000
 
@@ -48,6 +53,24 @@ def discover_workspace_bind_candidates(
         return _candidates_from_codex_payload(loaded_payload)
 
     return []
+
+
+def to_api_candidates(
+    candidates: list[WorkspaceBindCandidate],
+) -> list["ApiWorkspaceBindCandidate"]:
+    """Project bind candidates into the API model shared by the import handlers."""
+
+    from app.schemas.memory.archive import WorkspaceBindCandidate as ApiWorkspaceBindCandidate
+
+    return [
+        ApiWorkspaceBindCandidate(
+            path=item.path,
+            label=item.label,
+            has_obsidian_config=item.has_obsidian_config,
+            markdown_file_count=item.markdown_file_count,
+        )
+        for item in candidates
+    ]
 
 
 def candidates_to_metadata(

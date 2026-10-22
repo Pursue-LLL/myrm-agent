@@ -134,19 +134,6 @@ export interface DesktopEnvelopeProgressStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface TtsrTriggeredStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TTSR_TRIGGERED;
-  data: {
-    rule_id: string;
-    rule_name: string;
-    reminder: string;
-    target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
-    retry_count?: number;
-    max_retries?: number;
-    matched_text?: string;
-  };
-}
-
 export interface BrowserTakeoverRequestedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.BROWSER_TAKEOVER_REQUESTED;
   data: {
@@ -186,16 +173,6 @@ export interface PtcNotifyStreamEvent extends BaseAgentEvent {
     category?: string;
     session_id?: string | null;
     trace_id?: string | null;
-  };
-}
-
-export interface ToolProgressStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TOOL_PROGRESS;
-  tool: string;
-  progress: {
-    done: number;
-    total: number;
-    failed: number;
   };
 }
 

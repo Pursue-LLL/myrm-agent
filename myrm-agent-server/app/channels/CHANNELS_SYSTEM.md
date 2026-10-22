@@ -247,7 +247,7 @@ components: []
 7. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken；`build_channel_inbound_query` 将文档块拼入 user 正文
 8. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
 
-**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
+**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING。所有者以外的发送者（已配对成员、访客、没有有效管理员配对的发送者）触发的任务，按与其聊天回合相同的不受信栅栏运行：只读研究租约、不带记忆与所有者聊天历史、不进入目标队列、不运行工作流模板任务；该判定同样由只读的 `is_untrusted_event_sender` 完成，查询失败按不受信处理并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
 
 **前端联动**：设置 → 偏好 → **提取附件文本**（`extractDocumentText`）同步影响 Web 聊天、IM 渠道与看板任务附件。
 
@@ -504,6 +504,10 @@ StreamCoordinator
 - 发送成功 `ack_delivery`；永久失败移交 DLQ 后 ack 磁盘条目
 - 进程重启 `recover_into_bus` 重注入内存队列；dispatch 空闲时亦自动 recover（QueueFull 后无需重启）；`attempting` 中断恢复带 i18n 前缀
 - 渠道 DISABLED / STOPPED 或未注册（非 CP egress）时 **保留** 磁盘 obligation（不 ack）；`enable_channel` 触发 recover
+- 空闲 recover 只重注入**当前可投递**的记录（`OutboundPublisher.can_deliver`，与路由解析同源）：渠道未注册/禁用/停止时记录留在磁盘，恢复在 `enable_channel`/重启时进行。否则重注入的记录只会被分发循环再次释放，空闲轮询每轮重注入同一记录形成约 1Hz 空转并反复刷 WARNING
+- 队列分发对每条消息单独隔离（`_dispatch_one`）：准备阶段（路由解析、内容门、限速）抛出时把该条 **结算为失败**（ack 磁盘条目 + DLQ + 永久失败回调，正文保留供手动重试），而不是仅释放 obligation——释放会让磁盘条目留在 pending，空闲 recover 每轮重注入同一毒消息形成空转
+- 出站内容门 `probe_url` **永不抛出**（除取消）：被 HTTP 客户端拒绝的 URL（如 `httpx.InvalidURL`、`StreamError`，均非 `RequestError` 子类）一律落为不可达，绝不中断消息投递
+- 分发循环与网关健康循环经 `spawn_observed_task` 创建（崩溃留带堆栈的 ERROR），网关按指数退避重启已死的分发循环（同 router 自愈）；健康巡检迭代渠道字典的**快照**，凭据热替换不会中断整轮
 - `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
 - 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重

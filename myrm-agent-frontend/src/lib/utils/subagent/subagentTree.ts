@@ -183,8 +183,8 @@ const STATUS_RANK: Record<string, number> = {
   failed: 0,
   timed_out: 0,
   interrupted: 1,
+  blocked: 1,
   running: 2,
-  verifying: 2,
   pending: 3,
   pending_approval: 3,
   yielded: 3,
@@ -232,7 +232,7 @@ export function filterNodes(nodes: TreeNode[], mode: FilterMode): TreeNode[] {
   const strip = (n: TreeNode): TreeNode => ({ ...n, children: [] });
   switch (mode) {
     case 'running':
-      return flat.filter((n) => n.status === 'running' || n.status === 'verifying').map(strip);
+      return flat.filter((n) => n.status === 'running').map(strip);
     case 'failed':
       return flat.filter((n) => FAILED_STATUSES.has(n.status)).map(strip);
     case 'leaf':

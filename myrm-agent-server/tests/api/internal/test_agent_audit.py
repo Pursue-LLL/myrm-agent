@@ -397,20 +397,20 @@ async def test_agent_audit_real_jsonl_hours_window_filters_old_events(audit_app:
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_rejects_invalid_cp_token(audit_app: FastAPI) -> None:
-    """Wrong telemetry token returns 403."""
-    with (
-        patch.dict("os.environ", {"CONTROL_PLANE_TELEMETRY_TOKEN": "secret123"}),
-        patch(
-            "app.api.internal.agent_audit.settings",
-        ) as mock_settings,
-    ):
-        mock_settings.database.event_log_dir = "/nonexistent"
-        transport = ASGITransport(app=audit_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get(
-                "/api/admin/agent-audit/events",
-                headers={"X-Telemetry-Token": "wrong-token"},
-            )
+async def test_agent_audit_rejects_invalid_cp_token(
+    audit_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A wrong telemetry token is rejected with 401 by the CP guard."""
+    from pydantic import SecretStr
 
-    assert resp.status_code == 403
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret123"))
+    transport = ASGITransport(app=audit_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get(
+            "/api/admin/agent-audit/events",
+            headers={"X-Telemetry-Token": "wrong-token"},
+        )
+
+    assert resp.status_code == 401

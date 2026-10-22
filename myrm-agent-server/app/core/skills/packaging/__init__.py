@@ -49,7 +49,8 @@ from myrm_agent_harness.agent.skills.packaging.validator import (
 )
 from myrm_agent_harness.agent.skills.security.content_sanitizer import content_sanitizer
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
-from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+from app.core.storage.paths import get_skill_file_path
 
 from ..store.service import SkillsService, skills_service
 from ._helpers import _load_evolution_record

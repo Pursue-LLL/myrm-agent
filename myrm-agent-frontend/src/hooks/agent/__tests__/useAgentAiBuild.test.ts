@@ -1,12 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setGlobalTranslator } from '@/services/i18nToastService';
 import { useAgentAiBuild, type AiBuildTarget } from '../useAgentAiBuild';
 
-const { toastMock, stableT } = vi.hoisted(() => ({ toastMock: vi.fn(), stableT: (key: string) => key }));
+const { toastMock, riskToast, stableT } = vi.hoisted(() => ({
+  toastMock: vi.fn(),
+  riskToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  stableT: (key: string) => key,
+}));
 
 vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 vi.mock('@/hooks/shared/useToast', () => ({ toast: toastMock }));
+vi.mock('@/lib/utils/toast', () => ({ toast: riskToast }));
 vi.mock('@/lib/api', () => ({ getApiUrl: (path: string) => `/api/v1${path}` }));
 
 const encoder = new TextEncoder();
@@ -41,6 +47,7 @@ describe('useAgentAiBuild', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setGlobalTranslator(Object.assign((key: string) => key, { has: () => false }));
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
@@ -106,6 +113,26 @@ describe('useAgentAiBuild', () => {
     });
     expect(target.handleConfigChange).not.toHaveBeenCalled();
     expect(result.current.aiIntent).toBe('a planner');
+    expect(result.current.aiGenerating).toBe(false);
+  });
+
+  it('leaves a held intent to the shared risk notice and keeps it for editing', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ detail: { code: 'risk_held', message: 'Text held by a risk rule', rules: [] } }), {
+        status: 400,
+      }),
+    );
+    const target = makeTarget();
+    const { result } = renderHook(() => useAgentAiBuild(target));
+    act(() => result.current.setAiIntent('a planner using key sk-AAAAAABBBBBBCCCCCCDDDD-0'));
+
+    await act(() => result.current.handleAiBuild('a planner using key sk-AAAAAABBBBBBCCCCCCDDDD-0'));
+
+    expect(riskToast.error).toHaveBeenCalledTimes(1);
+    expect(riskToast.error.mock.calls[0]?.[0]).toBe('settings.securityPolicy.riskRules.blockedTitle');
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(target.handleConfigChange).not.toHaveBeenCalled();
+    expect(result.current.aiIntent).toBe('a planner using key sk-AAAAAABBBBBBCCCCCCDDDD-0');
     expect(result.current.aiGenerating).toBe(false);
   });
 

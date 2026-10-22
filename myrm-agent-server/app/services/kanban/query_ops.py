@@ -27,6 +27,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
+from app.core.kanban.adapters.sqlalchemy_store import BoardEventRow
 
 
 async def get_board(store: SqlAlchemyKanbanStore, board_id: str) -> KanbanBoard | None:
@@ -87,7 +88,7 @@ async def list_board_events(
     since_id: int | None = None,
     since_time: datetime | None = None,
     limit: int = 50,
-) -> list[dict]:
+) -> list[BoardEventRow]:
     return await store.list_board_events(
         board_id,
         kinds=kinds,

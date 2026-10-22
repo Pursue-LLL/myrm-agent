@@ -9,6 +9,7 @@
 - app.core.channel_bridge.agent_executor.stream_events (POS: Harness stream event mapping for channel progress updates.)
 - app.core.channel_bridge.agent_executor.execute_finalize (POS: Post-stream OutboundMessage assembly.)
 - app.core.channel_bridge.agent_executor.execute_errors (POS: Channel error reply builders.)
+- app.core.agent.run_activity::track_background_agent_run (POS: marks the channel agent run in flight for the hosted idle recycler)
 
 [OUTPUT]
 - ChannelAgentExecutor: async generator that processes an InboundMessage through
@@ -38,6 +39,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, StreamingText, TopicContext
+from app.core.agent.run_activity import track_background_agent_run
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, schedule_channel_approval_timeout
 from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
 from app.services.agent.fission_config import max_parallel_from_engine_params
@@ -96,20 +98,15 @@ class ChannelAgentExecutor:
 
         # Security Fence: Enforce physical tool stripping for non-admin paired members and guests
         is_untrusted_ingress = is_untrusted_sender(effective_uid, msg)
+        # Only the owner in a direct chat may be told which account state to fix; guests and groups get the
+        # generic wording.
+        account_guidance = not is_untrusted_ingress and not msg.is_group
         if is_untrusted_ingress:
-            from myrm_agent_harness.agent.security.guards.taint_tracker import (
-                TaintLabel,
-                get_taint_tracker,
-            )
             from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
                 set_untrusted_ingress,
             )
 
             set_untrusted_ingress(True)
-            get_taint_tracker().record_ingress_taint(
-                TaintLabel.UNTRUSTED_INGRESS,
-                source=f"channel:{msg.channel}:{effective_uid}",
-            )
 
         if not is_resume and topic_context and topic_context.agent_id and msg.content:
             faq_reply = await self._try_faq_intercept(
@@ -118,13 +115,7 @@ class ChannelAgentExecutor:
                 channel=msg.channel,
             )
             if faq_reply is not None:
-                yield OutboundMessage(
-                    content=faq_reply,
-                    channel=msg.channel,
-                    receiver_id=msg.sender_id,
-                    chat_id=msg.chat_id,
-                    reply_to_id=msg.message_id,
-                )
+                yield msg.get_or_create_correlation_context().create_reply(faq_reply, reply_to_id=msg.message_id)
                 return
 
         try:
@@ -167,18 +158,19 @@ class ChannelAgentExecutor:
             async def _open_channel_stream(
                 q: object,
             ) -> AsyncGenerator[dict[str, object], None]:
-                async for event in agent.process_stream(
-                    query=q,
-                    chat_history=chat_history or None,
-                    message_id=assistant_message_id,
-                    chat_id=chat_id,
-                    cancel_token=cancel_token,
-                    steering_token=steering_token,
-                    timezone=user_timezone,
-                    context=runtime_context,
-                ):
-                    if isinstance(event, dict):
-                        yield event
+                with track_background_agent_run():
+                    async for event in agent.process_stream(
+                        query=q,
+                        chat_history=chat_history or None,
+                        message_id=assistant_message_id,
+                        chat_id=chat_id,
+                        cancel_token=cancel_token,
+                        steering_token=steering_token,
+                        timezone=user_timezone,
+                        context=runtime_context,
+                    ):
+                        if isinstance(event, dict):
+                            yield event
 
             async for progress in iter_channel_stream_progress(
                 stream_with_swarm_fission_resume(
@@ -203,6 +195,7 @@ class ChannelAgentExecutor:
                 chat_history=chat_history,
                 session_was_auto_reset=session_was_auto_reset,
                 session_policy=session_policy,
+                account_guidance=account_guidance,
             )
             yield reply
         except ConfigIncompleteError as exc:
@@ -213,16 +206,13 @@ class ChannelAgentExecutor:
             )
             yield build_config_incomplete_reply(msg, exc)
         except MyrmLLMError as exc:
-            logger.error("ChannelAgentExecutor: agent failed for %s: %s", msg.sender_id, exc)
-            yield build_llm_error_reply(msg, exc)
+            if account_guidance:
+                logger.error("ChannelAgentExecutor: agent failed for %s: %s", msg.sender_id, exc)
+                yield build_llm_error_reply(msg, exc)
+            else:
+                yield build_generic_error_reply(msg, exc, account_guidance=False)
         except Exception as exc:
-            logger.error(
-                "ChannelAgentExecutor: agent failed for %s: %s",
-                msg.sender_id,
-                exc,
-                exc_info=True,
-            )
-            yield build_generic_error_reply(msg, exc)
+            yield build_generic_error_reply(msg, exc, account_guidance=account_guidance)
         finally:
             if token_ctx is not None:
                 from myrm_agent_harness.agent.security import user_credentials_ctx

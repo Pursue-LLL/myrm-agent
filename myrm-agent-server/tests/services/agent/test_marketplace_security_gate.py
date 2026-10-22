@@ -204,7 +204,6 @@ class TestGateRules:
             "autoReviewModel",
             "planConfirmEnabled",
             "classifyAllShellInAutoMode",
-            "allow_unattended_write",
             "totally_unknown",
         ],
     )

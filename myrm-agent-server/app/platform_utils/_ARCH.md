@@ -7,7 +7,7 @@
 
 平台适配层。通过协议接口抽象 Sandbox 和本地模式的差异，实现运行时自动切换。
 
-**核心原则**：`myrm-agent-server` 在容器内以单用户实例运行。Sandbox 模式下 CP **在基础设施层**调度沙箱并注入 env；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。**CP 不对用户暴露**；AgentScope/QwenPaw 等托管云端同样在后台编排实例，差异见 `myrm-control-plane/ARCHITECTURE.md`「术语澄清」。
+**核心原则**：`myrm-agent-server` 在用户专属云电脑内以单用户实例运行（容器或 microVM 由供给后端决定）。Sandbox 模式下 CP **在基础设施层**调度云电脑并注入 env；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。**CP 不对用户暴露**；AgentScope/QwenPaw 等托管云端同样在后台编排实例，差异见 `myrm-control-plane/ARCHITECTURE.md`「术语澄清」。
 
 ---
 
@@ -59,7 +59,7 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 
 - **启动**：`app/server/lifespan.py::optimized_lifespan` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
 - **关闭**：调用 harness 返回的 cleanup 回调清理连接资源
-- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.sync_chat_checkpoint_from_db` 对齐 DB 与 checkpoint。调用点：永久删除 / 清空回收站 / 两个自动清除 / 安全清空 / 焦点刷新（均经 `services/chat/chat_disposal.clear_conversation_state`）、fork 回滚、Resume 失败恢复
+- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.invalidate_chat_checkpoint` 对齐 DB 与 checkpoint。调用点：永久删除 / 清空回收站 / 两个自动清除 / 安全清空 / 焦点刷新（均经 `services/chat/chat_disposal.clear_conversation_state`）、fork 回滚、Resume 失败恢复
 - **错误处理**：sqlite 模式 `create_checkpointer()` fail-fast（启动失败）；`get_checkpointer()` 未注入时 **RuntimeError**
 - **恢复容错**：如果历史 checkpoint 因序列化类签名变更等原因无法反序列化，增量 checkpointer 会记录警告并按“无历史状态”重新启动，避免单条坏数据阻断整个流式请求
 
@@ -79,7 +79,7 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 
 `myrm-agent-server` 支持两种部署模式，由 `DEPLOY_MODE` 环境变量控制：
 
-### Local（本地模式：桌面客户端 / CLI WebUI）
+### Local（本地模式：桌面客户端 / 本地 WebUI）
 
 - **运行方式**：Tauri Sidecar 启动、`uv run run.py` 或 `python -m app.main`
 - **数据库**：SQLite（嵌入式）
@@ -93,14 +93,14 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 
 ### Sandbox（云端，Agent-in-Sandbox）
 
-- **运行方式**：`myrm-agent-server` 打包为 Docker 镜像，由外部控制服务管理
-- **架构**：`claw-server` 运行在 per-user 沙箱容器内，控制平面是独立服务
+- **运行方式**：`myrm-agent-server` 打包为镜像，由控制平面调度到用户专属云电脑
+- **架构**：`myrm-agent-server` 运行在 per-user 云电脑内（harness、浏览器、终端、文件系统、代码执行同机），控制平面是独立服务
 - **数据库**：SQLite（`settings.database.sqlite_path`，默认 `{MYRM_DATA_DIR}/data.db`）
 - **向量库**：Qdrant embedded（`settings.database.qdrant_path`，默认 `{MYRM_DATA_DIR}/qdrant`）
 - **认证**：通过 `SANDBOX_API_KEY` 进行单租户访问
-- **Agent 执行**：本地进程（沙箱内即本地）
-- **安全**：gVisor (runsc) + seccomp + AppArmor（由容器运行时提供）
-- **持久化**：per-sandbox Docker 卷（`myrm`），Sleep 前自动备份
+- **Agent 执行**：云电脑内本地进程
+- **安全**：由供给后端提供（Docker+gVisor 的 seccomp/AppArmor，或 Firecracker microVM 的内核级隔离）
+- **持久化**：per-user 持久化卷，Sleep 前自动备份
 
 ---
 
@@ -108,34 +108,33 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 
 ### 架构原则
 
-`myrm-agent-server` 是运行在沙箱容器**内部**的业务执行体。控制服务是**独立部署的外部组件**，负责沙箱生命周期管理。两者完全解耦：
+`myrm-agent-server` 是运行在云电脑**内部**的业务执行体。控制服务是**独立部署的外部组件**，负责云电脑生命周期管理。两者完全解耦：
 
-- `claw-server` 不依赖、不导入、不感知控制平面的存在
-- 控制平面通过环境变量向 `claw-server` 注入配置（`DEPLOY_MODE`、`MYRM_DATA_DIR` 或 CP 卷挂载路径等）
-- 沙箱分配策略为 per-user（每用户一个持久化容器）
+- `myrm-agent-server` 不依赖、不导入、不感知控制平面的存在
+- 控制平面通过环境变量向 `myrm-agent-server` 注入配置（`DEPLOY_MODE`、`MYRM_DATA_DIR` 或 CP 卷挂载路径等）
+- 云电脑分配策略为 per-user（每用户一台持久化云电脑）
 
 ```
 [外部] 控制服务（独立部署）
   ├── 用户认证、任务队列、计费
-  ├── 沙箱生命周期管理（create/sleep/wake/destroy）
-  └── 为每个用户创建独立容器（per-user）
+  ├── 云电脑生命周期管理（create/sleep/wake/destroy）
+  └── 为每个用户创建独立云电脑（per-user）
         ↓ 注入配置（env vars: DEPLOY_MODE=sandbox, MYRM_DATA_DIR, ...)
-[沙箱内] Docker Container (per-user)
-  └── myrm-agent-server（DEPLOY_MODE=sandbox）
-      ├── GeneralAgent → 本地执行（LocalExecutionStrategy）
-      ├── myrm-agent-harness → 框架层工具包
-      └── 不感知控制平面的存在
+[云电脑内] myrm-agent-server (per-user, DEPLOY_MODE=sandbox)
+  ├── GeneralAgent → 本地执行（LocalExecutionStrategy）
+  ├── myrm-agent-harness → 框架层工具包
+  └── 不感知控制平面的存在
 ```
 
 ### 独立部署能力
 
-`claw-server` 在所有模式下均可独立运行：
+`myrm-agent-server` 在所有模式下均可独立运行：
 
 | 模式 | 外部依赖 | 启动命令 |
 |------|---------|---------|
 | Local | 无 | Tauri Sidecar / `DEPLOY_MODE=local uv run run.py` |
 | Local Docker | 无 | `docker compose --profile app up -d` |
-| Sandbox | 控制平面（管理沙箱生命周期 + 持久化卷） | 由控制平面创建容器并注入配置 |
+| Sandbox | 控制平面（管理云电脑生命周期 + 持久化卷） | 由控制平面创建云电脑并注入配置 |
 
 ### Sandbox 部署流程
 
@@ -152,59 +151,56 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 
 控制服务负责：
 - 管理用户认证和任务队列
-- 为每个用户创建 `myrm-runtime` 容器（镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指定）+ per-user 持久化卷
+- 为每个用户创建 `myrm-runtime` 云电脑实例（镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指定；容器 / microVM 由供给后端决定）+ per-user 持久化卷
 - 注入环境变量（`DEPLOY_MODE=sandbox`、`MYRM_DATA_DIR` 等）
 - 管理沙箱生命周期（sleep/wake/destroy）
 - Sleep 前自动备份持久化卷
 
 控制服务的部署与版本发布由运维侧单独维护（不在本仓库）。
 
-### 控制平面与 claw-server 的通信方式
+### 控制平面与 myrm-agent-server 的通信方式
 
-`claw-server` 的核心业务请求链仍以“环境变量注入 + HTTP 反向代理”为主，不要求业务层自己维护一个强耦合的控制平面客户端；但在当前 `sandbox` 架构下，系统已经存在辅助实时通道和上行遥测适配器，因此此处应按真实代码拆分理解：
+`myrm-agent-server` 的核心业务请求链仍以“环境变量注入 + HTTP 反向代理”为主，不要求业务层自己维护一个强耦合的控制平面客户端；但在当前 `sandbox` 架构下，系统存在上行遥测与下次唤醒上报两个适配器，因此此处应按真实代码拆分理解：
 
 | 通信方向 | 方式 | 说明 |
 |---------|------|------|
-| 控制平面 → claw-server | 环境变量注入（创建时一次性） | 创建沙箱时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
+| 控制平面 → myrm-agent-server | 环境变量注入（创建时一次性） | 创建云电脑时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
 | 用户 → agent-server | HTTP/WS（`/proxy/me/*` 或 `/proxy/{sandbox_id}/*`） | CP 反向代理 + HMAC 验签头注入；SaaS 前端 `NEXT_PUBLIC_API_BASE_URL=https://<cp>/proxy/me/api/v1` |
-| 控制平面 ↔ 沙箱辅助运行时 | WebSocket 辅助通道 | `sandbox_runtime` / WebSocket Gateway 负责资源上报、heartbeat、控制命令、token request；这是 `sandbox` 专属基础设施，不属于业务语义层 |
-| 控制平面 → 容器 | Docker/K8s API | 容器生命周期管理（pause/unpause/rm），`claw-server` 业务逻辑本身不参与 |
-| claw-server / 沙箱 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面 |
+| 控制平面 → 云电脑 | Docker / Fly / E2B API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
+| myrm-agent-server / 云电脑 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 + 下次唤醒时刻上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面；`services/sandbox_wake` 把 goal/cron/看板的下一次必须运行时间 `PUT` 给 CP（`/api/internal/sandboxes/{id}/wake-schedule`），CP 到点唤醒已暂停的云电脑 |
 
 **per-user 模型下的通信流程**（当前真实实现）：
 
 ```
-1. 控制平面为用户创建容器（注入 env vars）
+1. 控制平面为用户创建云电脑（注入 env vars）
 2. 用户浏览器 → CP `/proxy/me/*`（JWT）→ HMAC 签名 → agent-server:25808/api/v1/...
-3. claw-server 作为 HTTP 服务持续运行，接收多次用户请求
-4. `sandbox_runtime` 通过 WebSocket 辅助通道向控制平面上报资源、接收控制命令和申请 one-time token
-5. 空闲时被控制平面 pause（Docker pause），用户回来时 unpause
+3. myrm-agent-server 作为 HTTP 服务持续运行，接收多次用户请求
+4. 空闲且无在途工作时被控制平面暂停/休眠（Docker pause；Fly 停机器）；goal/cron/看板顺延到未来时，云电脑上报下次唤醒时刻，CP 到点唤醒，用户回来时同样唤醒
 ```
 
-**与 Manus per-task 模型的区别**：
+**为什么是 per-user 云电脑**：
 
-| 模型 | 沙箱分配 | 沙箱生命周期 | 通信模式 |
-|------|---------|------------|---------|
-| Manus (per-task) | 每个任务一个沙箱 | 启动注入任务 → 执行 → Sleep → 回收 | 一次性注入，沙箱内自循环 |
-| Happycapy (per-user) | 每个用户一个持久沙箱 | 长期持久化，空闲时 pause | HTTP 服务持续运行，接收多次请求 |
-| **MyrmAgent (per-user)** | 每个用户一个持久沙箱 | 同 Happycapy，兼容 Sleep + 专用卷 | HTTP 主通道 + `sandbox` 辅助 WebSocket / 遥测通道 |
+| 模型 | 分配粒度 | 生命周期 | 通信模式 |
+|------|---------|---------|---------|
+| 临时任务沙箱 | 每个任务一个沙箱 | 任务结束回收 | 一次性注入，沙箱内自循环 |
+| **MyrmAgent（per-user 云电脑）** | 每个用户一台 | 长期持久，空闲休眠 / 唤醒 | HTTP 主通道 + 遥测 / 下次唤醒上报（HTTP） |
 
 结论上应区分两层含义：
 
-1. `claw-server` 的核心业务处理仍然不依赖一个强耦合的控制平面 SDK 或 RPC 协议。
-2. 但当前 `sandbox` 体系已经真实存在辅助 WebSocket 通道与显式遥测适配器，因此文档不应再描述为“完全无实时直连”。
+1. `myrm-agent-server` 的核心业务处理仍然不依赖一个强耦合的控制平面 SDK 或 RPC 协议。
+2. 但当前 `sandbox` 体系已经真实存在显式遥测与下次唤醒上报适配器（均为 HTTP，无 WebSocket 辅助通道），因此文档不应再描述为“完全无控制平面通信”。
 
 ### 控制平面职责边界
 
 | 职责 | 归属 | 说明 |
 |------|------|------|
 | 用户认证、计费 | 控制平面 | 管理多租户 |
-| 任务队列、调度 | 控制平面 | 接收用户请求并分派到沙箱 |
-| 沙箱创建/销毁 | 控制平面 | 容器生命周期管理 |
-| 请求路由 | 控制平面 | 反向代理，将用户请求转发到对应容器 |
-| 日志采集 | 控制平面 | 被动采集 claw-server stdout 日志 |
-| Agent 执行逻辑 | claw-server（沙箱内） | 本地进程执行，不感知外部 |
-| 数据库、认证选择 | claw-server 的 platform_utils 层 | 根据 DEPLOY_MODE 自动适配 |
+| 任务队列、调度 | 控制平面 | 接收用户请求并分派到云电脑 |
+| 云电脑创建/销毁 | 控制平面 | 容器 / microVM 生命周期管理（按供给后端） |
+| 请求路由 | 控制平面 | 反向代理，将用户请求转发到对应云电脑 |
+| 日志采集 | 控制平面 | 被动采集 myrm-agent-server stdout 日志 |
+| Agent 执行逻辑 | myrm-agent-server（云电脑内） | 本地进程执行，不感知外部 |
+| 数据库、认证选择 | myrm-agent-server 的 platform_utils 层 | 根据 DEPLOY_MODE 自动适配 |
 | 框架层工具包 | myrm-agent-harness | 浏览器、代码执行、搜索等 |
 
 ---
@@ -213,7 +209,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 
 `execution.py` 定义 `ExecutionStrategy` Protocol 和 `LocalExecutionStrategy`。
 
-服务器永远使用 `LocalExecutionStrategy`，因为无论部署在何处（本地、Sandbox 沙箱内），Agent 都在当前进程内执行。
+服务器永远使用 `LocalExecutionStrategy`，因为无论部署在何处（本地、云电脑内），Agent 都在当前进程内执行。
 
 ---
 
@@ -221,4 +217,4 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 
 - `app/config/`：部署模式判断 (`DEPLOY_MODE`)
 - `langgraph.checkpoint.*`：checkpointer 实现（框架层提供）
-- **不依赖**外部控制服务（单机/local 模式可独立运行；sandbox 模式由控制服务托管容器）
+- **不依赖**外部控制服务（单机/local 模式可独立运行；sandbox 模式由控制服务托管云电脑）

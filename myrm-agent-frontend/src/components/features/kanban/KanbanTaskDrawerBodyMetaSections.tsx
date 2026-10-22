@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * - ./kanban-styles::STATUS_DOT (POS: 状态圆点样式)
+ * - ./KanbanMarkdown (POS: 看板安全 Markdown 渲染)
+ * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: 悬停与聚焦时显现的操作按钮样式)
+ *
+ * [OUTPUT]
+ * - DependenciesSection: 依赖与被依赖任务列表、增删依赖、跳转到相关任务
+ * - CommentInputSection: 评论输入，回车发送
+ * - LatestProgressSection: 最近一次运行的摘要
+ *
+ * [POS]
+ * 任务抽屉主体里的依赖、评论、进展区段；全部受控，状态由 useKanbanTaskDrawer 提供。
+ */
 'use client';
 
 import type { RefObject } from 'react';

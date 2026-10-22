@@ -164,34 +164,48 @@ def test_deliverable_workspace_link_opens_portal() -> None:
         # In seeded chat history, the badge should render if deliverableTier is present on the message
         assert badge_state.get("found") is True, badge_state
 
-        # Verify Staged Artifacts Notice Banner is rendered and interactive
-        notice_state = client.evaluate(
+        # The staged notice collapses its file list; the header always carries the folder.
+        notice_state = wait_for_state(
+            client,
             page,
             """(() => {
                 const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
                 return {
+                    ready: !!notice,
                     found: !!notice,
                     text: notice ? (notice.textContent || '').trim() : '',
                 };
             })()""",
-            timeout_sec=10.0,
+            timeout_sec=30.0,
+            page_url=chat_url,
         )
-        assert isinstance(notice_state, dict)
-        assert notice_state.get("found") is True, notice_state
-        assert "draft_worker.py" in str(notice_state.get("text", ""))
-
-        # Verify Staged Artifacts Notice Banner is rendered and interactive
-        notice_state = client.evaluate(
-            page,
-            """(() => {
-                const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
-                return {
-                    found: !!notice,
-                    text: notice ? (notice.textContent || '').trim() : '',
-                };
-            })()""",
-            timeout_sec=10.0,
-        )
-        assert isinstance(notice_state, dict)
         assert notice_state.get("found") is True, notice_state
         assert ".myrm/staged_artifacts/" in str(notice_state.get("text", ""))
+
+        expanded = client.evaluate(
+            page,
+            """(() => {
+                const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+                const button = notice ? notice.querySelector('button') : null;
+                if (!button) {
+                    return { ok: false, err: 'notice-button-not-found' };
+                }
+                button.click();
+                return { ok: true };
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert isinstance(expanded, dict) and expanded.get("ok") is True, expanded
+
+        expanded_state = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+                const text = notice ? (notice.textContent || '').trim() : '';
+                return { ready: text.includes('draft_worker.py'), text };
+            })()""",
+            timeout_sec=30.0,
+            page_url=chat_url,
+        )
+        assert expanded_state.get("ready") is True, expanded_state

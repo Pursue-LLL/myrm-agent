@@ -13,6 +13,7 @@ import {
 import { EmptyState } from '@/components/primitives/empty-state';
 import { ListDetailSkeleton } from '@/components/primitives/skeleton-templates';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 
 interface ArtifactVersion {
   id: string;
@@ -152,7 +153,9 @@ export const ArtifactsCenter: React.FC = () => {
                       <span className="text-xs font-medium text-primary px-2 py-1 bg-primary/10 rounded-full">
                         v{(selectedArtifact.versions?.length ?? 0) - index}
                       </span>
-                      <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {parseServerTimestamp(v.created_at).toLocaleString()}
+                      </span>
                     </div>
                     <p className="text-sm mb-3">
                       {v.commit_message || t('auto_saved_version', { defaultMessage: '自动保存的版本' })}

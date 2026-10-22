@@ -24,7 +24,7 @@
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），未重写的快照仅补丁 `requires` 字段；在线编辑 SKILL.md 后于下次同步对齐 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore 协议适配器 | ✅ |
-| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
+| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`render_skill_md` 以结构化字段组装 SKILL.md 文本（frontmatter 值全部经 `yaml_scalar`；插件闸门与批量导入的预检扫描共用），`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
 | `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
 | `store/service.py` | 核心 | 技能 CRUD 服务 | — |
 | `store/reader.py` | 核心 | 技能读取 | — |
@@ -42,8 +42,8 @@
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator/__init__.py` | 子域 | 技能生命周期治理域聚合出口 | — |
 | `curator/service.py` | 核心 | Curator 业务服务 — sweep/配置/历史/后台任务编排；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
-| `curator/bound_skills.py` | 核心 | 找出被 Agent 档案 / 未完成 cron 任务绑定的技能，作为 `protected_names` 交给 Curator（sweep 与合并均豁免） | ✅ |
-| `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute/agent refs 重写，共享 sweep 锁 | ✅ |
+| `curator/bound_skills.py` | 核心 | 找出被 Agent 档案 / 未完成 cron 任务 / 仍可运行的看板任务绑定的技能，作为 `protected_names` 交给 Curator（sweep 与合并均豁免）；技能医生与健康探针也读同一集合，保证「谁受豁免」口径一致（探针的 `bound` 豁免理由、医生的 `bound` 标记） | ✅ |
+| `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute，被引用的技能不参与合并，共享 sweep 锁 | ✅ |
 | `effective_skill_ids.py` | 核心 | 解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能；规范化 legacy local ID，按 `LOCAL_SKILLS_DIR` 解析） | ✅ |
 | `audit.py` | 核心 | 技能生命周期结构化审计日志（install/enable/disable 等 SKILL_AUDIT） | ✅ |
 | `discovery/` | 子域 | 技能发现聚合出口：`adopt`、`mount`、`autoupdate`；`agent_market_install`（chat market 安装后 mount/adopt） | ✅ |

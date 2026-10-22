@@ -39,3 +39,26 @@ def test_profile_output_suffix_applied_at_entry_points() -> None:
         + "\n".join(f"  - {rel}" for rel in missing)
         + "\nWire profile_output_suffixes or update PROFILE_OUTPUT_SUFFIX_REQUIRED."
     )
+
+
+def test_web_converter_forwards_resolved_personality_style() -> None:
+    """Web 主对话路径必须把解析出的风格传进后缀注入（而不是丢弃风格）。"""
+    text = (SERVER_ROOT / "app/services/agent/params/converter.py").read_text(encoding="utf-8")
+    assert "personality_style=resolved.personality_style" in text, (
+        "converter.py 必须把 resolved.personality_style 传给 apply_profile_output_suffixes"
+    )
+
+
+def test_personality_block_text_has_single_source() -> None:
+    """注入文本只能在 personality_templates.render_personality_block 拼装一次。
+
+    子 Agent 工厂与 Web/渠道等入口都必须复用该渲染器，禁止各写一份
+    「**Communication Style**:」拼接，否则作用域不变量会分叉。
+    """
+    for rel in (
+        "app/services/agent/params/profile_output_suffixes.py",
+        "app/ai_agents/custom_agent_factory.py",
+    ):
+        text = (SERVER_ROOT / rel).read_text(encoding="utf-8")
+        assert "render_personality_block" in text, f"{rel} 必须复用 render_personality_block"
+        assert "**Communication Style**" not in text, f"{rel} 不得自行拼接风格块文本"

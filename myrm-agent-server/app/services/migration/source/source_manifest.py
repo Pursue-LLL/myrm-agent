@@ -5,7 +5,7 @@ Migration Wizard source policy from ``services/migration/_ARCH.md``.
 
 [OUTPUT]
 - source manifest entries for frontend downlink
-- local-scan source id set (five-source closure)
+- local-scan source id set (six-source closure)
 - discovery-id to memory-import-source map
 
 [POS]
@@ -18,8 +18,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final, Literal, TypedDict
 
+from app.schemas.memory.import_sources import ImportSource
+
 MigrationSourceDiscoverMode = Literal["local_scan", "zip_upload"]
-MigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gemini", "gbrain", "pi", "plur"]
+MigrationImportSource = ImportSource
 MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE: Final[bool] = True
 
 
@@ -76,12 +78,6 @@ _MIGRATION_SOURCE_MANIFEST: tuple[MigrationSourceManifestEntry, ...] = (
         discover_modes=("zip_upload",),
     ),
     MigrationSourceManifestEntry(
-        id="gemini",
-        display_name="Google Gemini",
-        import_source="gemini",
-        discover_modes=("zip_upload",),
-    ),
-    MigrationSourceManifestEntry(
         id="gbrain",
         display_name="gbrain",
         import_source="gbrain",
@@ -97,7 +93,7 @@ _MIGRATION_SOURCE_MANIFEST: tuple[MigrationSourceManifestEntry, ...] = (
         id="plur",
         display_name="PLUR",
         import_source="plur",
-        discover_modes=("zip_upload",),
+        discover_modes=("local_scan", "zip_upload"),
     ),
 )
 

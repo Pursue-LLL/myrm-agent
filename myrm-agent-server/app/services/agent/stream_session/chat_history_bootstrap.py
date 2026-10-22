@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - persist_user_message: append user turn and commit it before any turn setup
-- load_chat_history: load web chat history after setup gates complete
+- load_chat_history: load web chat history after setup gates complete (a regenerate's own query is not history)
 
 [POS]
 Orchestrator helper isolating DB persist + history load from stream session lifecycle.
@@ -129,14 +129,24 @@ async def load_chat_history(
     *,
     exclude_message_id: str | None = None,
 ) -> list[list[str | dict[str, object]]]:
-    """Load canonical history after all pre-agent setup gates have run."""
+    """Load canonical history after all pre-agent setup gates have run.
+
+    A regenerate persists no user row, so nothing can be excluded by id; the query it re-sends is the last user
+    message of the chat, which would otherwise reach the model twice (once as history, once as the query).
+    """
     if not request.chat_id:
         return []
-    return await ChatService.load_web_chat_history(
+    history = await ChatService.load_web_chat_history(
         request.chat_id,
         exclude_message_id=exclude_message_id,
         api_key=None,
     )
+    if request.sibling_group_id is not None:
+        for index in range(len(history) - 1, -1, -1):
+            if history[index][0] == "human":
+                del history[index]
+                break
+    return history
 
 
 def stream_text_content(request: AgentRequest) -> str:

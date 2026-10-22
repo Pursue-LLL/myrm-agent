@@ -483,5 +483,3 @@ async def test_sync_workspace_todos_for_active_branch_on_regenerate(tmp_path: Pa
     assert len(synced.todos) == 1
     assert synced.todos[0].id == "base1"
     assert synced.todos[0].status == TodoStatus.COMPLETED
-
-

@@ -27,7 +27,9 @@ export interface SkillsSectionPanelProps {
   isSmartPruning?: boolean;
   onSmartPrune: () => void;
   onOpenSettingsSheet: (type: 'skills' | 'mcp') => void;
-  t: (key: string) => string;
+  /** Translator scoped to `agent.configEditor`. */
+  t: (key: string, values?: Record<string, string | number>) => string;
+  /** Translator scoped to `agent.configPanel`. */
   tPanel: (key: string) => string;
 }
 
@@ -218,7 +220,7 @@ export const SkillsSectionPanel = ({
         staleCoreSkillCount={staleCoreSkills.length}
         isSmartPruning={isSmartPruning}
         onSmartPrune={onSmartPrune}
-        tPanel={tPanel}
+        t={t}
       />
 
       <div className="space-y-6 max-h-[400px] overflow-y-auto pr-1">

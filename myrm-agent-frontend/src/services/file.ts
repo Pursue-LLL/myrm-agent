@@ -15,6 +15,11 @@ export interface UploadProgress {
   percent: number;
 }
 
+export interface UploadOptions {
+  /** 无痕会话的 ID：上传绑定到该会话，随会话一起清理。普通会话和非会话上传不传。 */
+  incognitoChatId?: string;
+}
+
 export interface PDFImageItem {
   data: string;
   mimeType: string;
@@ -68,9 +73,21 @@ function mapUploadResponse(raw: { uploaded_count: number; files: RawUploadFile[]
   };
 }
 
-export const uploadFiles = async (files: File[], signal?: AbortSignal): Promise<UploadFileResponse> => {
+function buildUploadForm(files: File[], options?: UploadOptions): FormData {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
+  if (options?.incognitoChatId) {
+    formData.append('chat_id', options.incognitoChatId);
+  }
+  return formData;
+}
+
+export const uploadFiles = async (
+  files: File[],
+  signal?: AbortSignal,
+  options?: UploadOptions,
+): Promise<UploadFileResponse> => {
+  const formData = buildUploadForm(files, options);
 
   const response = await apiRequest<{ uploaded_count: number; files: RawUploadFile[] }>('/files/upload', {
     method: 'POST',
@@ -86,10 +103,10 @@ export const uploadFilesWithProgress = (
   files: File[],
   onProgress: (progress: UploadProgress) => void,
   signal?: AbortSignal,
+  options?: UploadOptions,
 ): Promise<UploadFileResponse> => {
   return new Promise((resolve, reject) => {
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
+    const formData = buildUploadForm(files, options);
 
     const xhr = new XMLHttpRequest();
 

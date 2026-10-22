@@ -1,26 +1,27 @@
+/**
+ * [INPUT]
+ * - @/services/kanban (POS: 任务类型与完成意图判定)
+ * - @/lib/kanban/kanbanDecisionFrame::deriveTaskDecisionFrame (POS: 责任方与推荐动作推导)
+ * - @/lib/kanban/kanbanBlockedReason::blockedReasonText (POS: 阻塞原因的界面语言文案)
+ * - ./kanban-styles (POS: 优先级、状态点、诊断严重度样式与耗时格式化)
+ * - ./useKanbanTaskCardDetails、./KanbanTaskCardDetails (POS: 展开详情的数据层与面板)
+ * - ./KanbanTaskCardActions、./KanbanSpecifyDialog、./KanbanDecomposeDialog (POS: 卡片菜单与两个任务对话框)
+ * - ./kanban-card-gestures::ISOLATE_FROM_CARD (POS: 附件徽标的手势隔离，点它只开抽屉，不起拖拽)
+ * - @/hooks/agent/useAgentName (POS: Agent 显示名)
+ *
+ * [OUTPUT]
+ * - KanbanTaskCard (default): 看板列里的任务卡片：优先级、Agent、责任方与推荐动作，点击展开运行记录、事件、依赖与评论
+ *
+ * [POS]
+ * 任务在看板上的展示与快捷操作单元；展开详情在首次展开时才加载（`useKanbanTaskCardDetails`），
+ * 完整编辑通过 onOpenTaskDrawer 交给任务抽屉。
+ */
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from 'sonner';
-import {
-  hasKanbanCompletionIntent,
-  type KanbanTask,
-  type TaskRun,
-  type TaskEvent,
-  type TaskStatus,
-} from '@/services/kanban';
-import {
-  listRuns,
-  listEvents,
-  listDependencies,
-  listDependents,
-  addComment,
-  addDependency,
-  removeDependency,
-  getTask,
-} from '@/services/kanban';
+import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import {
   Clock,
   ExternalLink,
@@ -33,29 +34,24 @@ import {
   Bot,
 } from 'lucide-react';
 import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
-import {
-  OUTCOME_STYLES,
-  EVENT_KIND_STYLES,
-  PRIORITY_INDICATORS,
-  STATUS_DOT,
-  DIAGNOSTIC_SEVERITY_STYLES,
-  formatDuration,
-  formatTime,
-  type TaskDepInfo,
-} from './kanban-styles';
+import { blockedReasonText } from '@/lib/kanban/kanbanBlockedReason';
+import { PRIORITY_INDICATORS, DIAGNOSTIC_SEVERITY_STYLES, formatDuration } from './kanban-styles';
 import KanbanTaskCardActions from './KanbanTaskCardActions';
+import KanbanTaskCardDetails from './KanbanTaskCardDetails';
 import KanbanSpecifyDialog from './KanbanSpecifyDialog';
 import KanbanDecomposeDialog from './KanbanDecomposeDialog';
-import KanbanMarkdown from './KanbanMarkdown';
+import { ISOLATE_FROM_CARD } from './kanban-card-gestures';
+import { useKanbanTaskCardDetails } from './useKanbanTaskCardDetails';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
 function ScheduledCountdown({ until }: { until: string }) {
+  const t = useTranslations('kanban');
   const [remaining, setRemaining] = useState('');
   useEffect(() => {
     const update = () => {
       const diff = new Date(until).getTime() - Date.now();
       if (diff <= 0) {
-        setRemaining('auto-unblocking...');
+        setRemaining(t('autoUnblocking'));
         return;
       }
       const h = Math.floor(diff / 3600000);
@@ -66,7 +62,7 @@ function ScheduledCountdown({ until }: { until: string }) {
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [until]);
+  }, [until, t]);
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] text-chart-4 font-mono">
       <Clock className="w-3 h-3" /> {remaining}
@@ -98,129 +94,21 @@ export default function KanbanTaskCard({
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
   const decisionFrame = useMemo(() => deriveTaskDecisionFrame(task), [task]);
-  const [expanded, setExpanded] = useState(false);
-  const [runs, setRuns] = useState<TaskRun[]>([]);
-  const [events, setEvents] = useState<TaskEvent[]>([]);
-  const [parents, setParents] = useState<TaskDepInfo[]>([]);
-  const [children, setChildren] = useState<TaskDepInfo[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [showAddDep, setShowAddDep] = useState(false);
-  const [addingDep, setAddingDep] = useState(false);
   const [specifyOpen, setSpecifyOpen] = useState(false);
   const [decomposeOpen, setDecomposeOpen] = useState(false);
+  const details = useKanbanTaskCardDetails({ task, allTasks, onRefresh });
 
-  const toggleExpand = useCallback(async () => {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
-    setExpanded(true);
-    setDetailLoading(true);
-    try {
-      const [runsRes, eventsRes, depsRes, childRes] = await Promise.all([
-        listRuns(task.task_id),
-        listEvents(task.task_id),
-        listDependencies(task.task_id),
-        listDependents(task.task_id),
-      ]);
-      setRuns(runsRes.items);
-      setEvents(eventsRes.items);
-
-      const resolveTaskInfos = async (ids: string[]): Promise<TaskDepInfo[]> => {
-        const infos: TaskDepInfo[] = [];
-        for (const id of ids) {
-          const local = allTasks.find((t) => t.task_id === id);
-          if (local) {
-            infos.push({ task_id: id, title: local.title, status: local.status });
-          } else {
-            try {
-              const remote = await getTask(id);
-              infos.push({ task_id: id, title: remote.title, status: remote.status });
-            } catch {
-              infos.push({ task_id: id, title: id.slice(0, 8), status: 'archived' });
-            }
-          }
-        }
-        return infos;
-      };
-
-      const [parentInfos, childInfos] = await Promise.all([
-        resolveTaskInfos(depsRes.items),
-        resolveTaskInfos(childRes.items),
-      ]);
-      setParents(parentInfos);
-      setChildren(childInfos);
-    } catch {
-      /* silent */
-    }
-    setDetailLoading(false);
-  }, [expanded, task.task_id, allTasks]);
-
-  const handleRemoveDep = useCallback(
-    async (parentId: string) => {
-      try {
-        await removeDependency(task.task_id, parentId);
-        setParents((prev) => prev.filter((p) => p.task_id !== parentId));
-        onRefresh();
-        toast.success(t('depRemoved'));
-      } catch {
-        toast.error(t('depRemoveError'));
-      }
-    },
-    [task.task_id, onRefresh, t],
-  );
-
-  const handleAddDep = useCallback(
-    async (parentId: string) => {
-      setAddingDep(true);
-      try {
-        await addDependency(task.task_id, parentId);
-        const parentTask = allTasks.find((t) => t.task_id === parentId);
-        if (parentTask) {
-          setParents((prev) => [...prev, { task_id: parentId, title: parentTask.title, status: parentTask.status }]);
-        }
-        setShowAddDep(false);
-        onRefresh();
-        toast.success(t('depAdded'));
-      } catch {
-        toast.error(t('depAddError'));
-      }
-      setAddingDep(false);
-    },
-    [task.task_id, allTasks, onRefresh, t],
-  );
-
-  const handleSubmitComment = useCallback(async () => {
-    if (!commentText.trim()) {
-      return;
-    }
-    setSubmittingComment(true);
-    try {
-      const ev = await addComment(task.task_id, commentText.trim());
-      setEvents((prev) => [...prev, ev]);
-      setCommentText('');
-    } catch {
-      toast.error(t('addCommentError'));
-    }
-    setSubmittingComment(false);
-  }, [task.task_id, commentText, t]);
-
-  const availableParents = allTasks.filter(
-    (t) => t.task_id !== task.task_id && !parents.some((p) => p.task_id === t.task_id),
-  );
-
+  const loadedChildren = details.children;
   const progressPill = useMemo(() => {
-    if (children.length > 0) {
-      const done = children.filter((c) => c.status === 'completed' || c.status === 'archived').length;
-      return { done, total: children.length };
+    if (loadedChildren.length > 0) {
+      const done = loadedChildren.filter((c) => c.status === 'completed' || c.status === 'archived').length;
+      return { done, total: loadedChildren.length };
     }
     if (task.children_total > 0) {
       return { done: task.children_done, total: task.children_total };
     }
     return null;
-  }, [children, task.children_total, task.children_done]);
+  }, [loadedChildren, task.children_total, task.children_done]);
 
   const relativeTime = useMemo(() => {
     const diff = Date.now() - new Date(task.created_at).getTime();
@@ -241,13 +129,11 @@ export default function KanbanTaskCard({
 
   const diagSummary = task.diagnostics_summary;
 
-  const depStatusDot = (status: TaskStatus) => STATUS_DOT[status] ?? 'bg-muted-foreground/30';
-
   return (
     <div
       id={`kanban-task-${task.task_id}`}
       data-theme-shell="surface"
-      className="relative group rounded-full border bg-background hover:shadow transition-shadow"
+      className="relative group rounded-lg border bg-background hover:shadow transition-shadow"
     >
       <div className="p-2.5">
         <div className={cn('absolute left-0 top-2 bottom-2 w-0.5 rounded-full', PRIORITY_INDICATORS[task.priority])} />
@@ -265,11 +151,12 @@ export default function KanbanTaskCard({
               onDecompose={() => setDecomposeOpen(true)}
             />
             <button
-              onClick={toggleExpand}
+              onClick={details.toggleExpand}
               className="p-0.5 rounded hover:bg-muted shrink-0 text-muted-foreground text-xs"
-              aria-label={expanded ? 'collapse' : 'expand'}
+              aria-label={t('taskDetails')}
+              aria-expanded={details.expanded}
             >
-              {expanded ? '\u25B2' : '\u25BC'}
+              {details.expanded ? '\u25B2' : '\u25BC'}
             </button>
           </div>
           {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
@@ -367,9 +254,7 @@ export default function KanbanTaskCard({
               <button
                 type="button"
                 data-testid={`kanban-task-attachment-badge-${task.task_id}`}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
+                {...ISOLATE_FROM_CARD}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -404,15 +289,15 @@ export default function KanbanTaskCard({
                 {t('retries')}: {task.retry_count}/{task.max_retries}
               </span>
             )}
-            {task.blocked_reason && (
+            {task.status === 'blocked' && task.blocked_reason && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive line-clamp-1">
                 {task.block_kind === 'scheduled' && <Clock className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'external' && <ExternalLink className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'human' && <User className="w-3 h-3 shrink-0" />}
-                {task.blocked_reason}
+                {blockedReasonText(task.blocked_reason, t)}
               </span>
             )}
-            {task.block_kind === 'scheduled' && task.scheduled_until && (
+            {task.status === 'blocked' && task.block_kind === 'scheduled' && task.scheduled_until && (
               <ScheduledCountdown until={task.scheduled_until} />
             )}
             {task.status === 'backlog' && (
@@ -467,306 +352,7 @@ export default function KanbanTaskCard({
         onApplied={onRefresh}
       />
 
-      {expanded && (
-        <div className="border-t px-3 py-2 space-y-2.5">
-          {detailLoading ? (
-            <div className="h-12 rounded bg-muted/30 animate-pulse" />
-          ) : (
-            <>
-              {/* Dependencies section */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {t('dependencies')}
-                  </h4>
-                  <button
-                    onClick={() => setShowAddDep(!showAddDep)}
-                    className="text-[10px] px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary/70 hover:text-primary transition-colors"
-                  >
-                    {showAddDep ? t('cancel') : `+ ${t('addDep')}`}
-                  </button>
-                </div>
-
-                {parents.length === 0 && !showAddDep && (
-                  <p className="text-[10px] text-muted-foreground italic">{t('noDeps')}</p>
-                )}
-
-                {parents.length > 0 && (
-                  <div className="space-y-0.5">
-                    {parents.map((parent) => (
-                      <div key={parent.task_id} className="flex items-center justify-between gap-1 group/dep">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', depStatusDot(parent.status))} />
-                          <span className="text-[10px] text-foreground/80 truncate" title={parent.title}>
-                            {parent.title}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground shrink-0">
-                            ({t(`status.${parent.status}`)})
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveDep(parent.task_id)}
-                          className="text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0 opacity-0 group-hover/dep:opacity-100 group-focus-within/dep:opacity-100 pointer-coarse:opacity-100"
-                          title={t('removeDep')}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {showAddDep && (
-                  <div className="mt-1 max-h-24 overflow-y-auto rounded border bg-muted/20 p-1">
-                    {availableParents.length === 0 ? (
-                      <p className="text-[10px] text-muted-foreground p-1">{t('noAvailableDeps')}</p>
-                    ) : (
-                      availableParents.map((t2) => (
-                        <button
-                          key={t2.task_id}
-                          onClick={() => handleAddDep(t2.task_id)}
-                          disabled={addingDep}
-                          className="w-full text-left text-[10px] px-1.5 py-1 rounded hover:bg-primary/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', depStatusDot(t2.status))} />
-                          <span className="truncate">{t2.title}</span>
-                          <span className="text-[9px] text-muted-foreground shrink-0 ml-auto">
-                            {t(`status.${t2.status}`)}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Dependents (children) section */}
-              {children.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    {t('dependents')}
-                    {progressPill && (
-                      <span
-                        className={cn(
-                          'ml-1.5 px-1 py-0.5 rounded text-[9px] font-normal',
-                          progressPill.done === progressPill.total
-                            ? 'bg-chart-2/20 text-chart-2'
-                            : 'bg-primary/20 text-primary',
-                        )}
-                      >
-                        {progressPill.done}/{progressPill.total}
-                      </span>
-                    )}
-                  </h4>
-                  <div className="space-y-0.5">
-                    {children.map((child) => (
-                      <div key={child.task_id} className="flex items-center gap-1.5 min-w-0">
-                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', depStatusDot(child.status))} />
-                        <span className="text-[10px] text-foreground/80 truncate" title={child.title}>
-                          {child.title}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground shrink-0">
-                          ({t(`status.${child.status}`)})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Execution History */}
-              <div>
-                <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                  {t('executionHistory')}
-                </h4>
-                {runs.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground">{t('noRuns')}</p>
-                ) : (
-                  <div className="space-y-1">
-                    {runs.map((run) => (
-                      <div key={run.run_id} className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                        <span
-                          className={cn('font-medium', OUTCOME_STYLES[run.outcome ?? ''] ?? 'text-muted-foreground')}
-                        >
-                          {run.outcome ?? '...'}
-                        </span>
-                        <span className="text-muted-foreground">{formatDuration(run.duration_seconds)}</span>
-                        {run.token_usage?.total_tokens ? (
-                          <span className="text-muted-foreground/90 font-mono text-[9px] bg-muted/60 px-1 py-0.2 rounded">
-                            {(run.token_usage.total_tokens / 1000).toFixed(1)}k tok
-                          </span>
-                        ) : null}
-                        {typeof run.cost_usd === 'number' && run.cost_usd > 0 ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-mono font-medium text-[9px] bg-emerald-500/10 px-1 py-0.2 rounded">
-                            ${run.cost_usd < 0.01 ? run.cost_usd.toFixed(4) : run.cost_usd.toFixed(3)}
-                          </span>
-                        ) : null}
-                        <span className="text-muted-foreground truncate max-w-[80px]" title={run.worker_id}>
-                          {run.worker_id.slice(0, 12)}
-                        </span>
-                        {run.error && (
-                          <span className="text-destructive truncate max-w-[100px]" title={run.error}>
-                            {run.error.slice(0, 40)}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Event Timeline */}
-              <div>
-                <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                  {t('eventTimeline')}
-                </h4>
-                {events.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground">{t('noEvents')}</p>
-                ) : (
-                  <div className="space-y-0.5">
-                    {events.map((ev) => (
-                      <div key={ev.event_id} className="text-[10px]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-muted-foreground shrink-0">{formatTime(ev.created_at)}</span>
-                          <span
-                            className={cn(
-                              'px-1 py-0.5 rounded text-[9px] font-medium shrink-0',
-                              EVENT_KIND_STYLES[ev.kind] ?? 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {t(`eventKind.${ev.kind}` as Parameters<typeof t>[0])}
-                          </span>
-                          {ev.kind === 'user_comment' && ev.payload && (
-                            <span className="text-muted-foreground italic truncate">
-                              @{String(ev.payload.author ?? 'user')}
-                            </span>
-                          )}
-                        </div>
-                        {ev.kind === 'user_comment' && typeof ev.payload?.body === 'string' && (
-                          <div className="ml-[52px] mt-0.5">
-                            <KanbanMarkdown className="text-foreground/80">{ev.payload.body}</KanbanMarkdown>
-                          </div>
-                        )}
-                        {ev.kind === 'heartbeat' && typeof ev.payload?.note === 'string' && (
-                          <p className="ml-[52px] text-[10px] text-chart-4/80 mt-0.5">{ev.payload.note}</p>
-                        )}
-                        {ev.kind === 'branch_switched' && ev.payload && (
-                          <p className="ml-[52px] text-[10px] text-blue-500/80 mt-0.5">
-                            <span className="font-medium text-blue-500">Branch:</span>{' '}
-                            {String(ev.payload.from || 'unknown')} &rarr; {String(ev.payload.to || 'unknown')}
-                            {ev.payload.migrated ? ' (Migrated)' : ' (Stashed)'}
-                          </p>
-                        )}
-                        {ev.kind === 'merge_conflict' && ev.payload && (
-                          <p className="ml-[52px] text-[10px] text-destructive/80 mt-0.5">
-                            {t('mergeConflictDetail', {
-                              branch: String(ev.payload.branch || 'unknown'),
-                            })}
-                            {Array.isArray(ev.payload.conflicts) && ev.payload.conflicts.length > 0 && (
-                              <>
-                                {' '}
-                                ·{' '}
-                                {t('mergeConflictFileCount', {
-                                  count: ev.payload.conflicts.length,
-                                })}
-                              </>
-                            )}
-                          </p>
-                        )}
-                        {ev.kind === 'verification_failed' && typeof ev.payload?.reason === 'string' && (
-                          <div className="ml-[52px] mt-0.5">
-                            <span className="text-[10px] font-medium text-chart-5">{t('verificationReason')}:</span>
-                            <KanbanMarkdown className="text-chart-5/80 mt-0.5" maxLines={4}>
-                              {String(ev.payload.reason)}
-                            </KanbanMarkdown>
-                          </div>
-                        )}
-                        {ev.kind === 'specified' && ev.payload && (
-                          <p className="ml-[52px] text-[10px] text-purple-600/80 dark:text-purple-400/80 mt-0.5">
-                            <span className="font-medium text-purple-600 dark:text-purple-400">
-                              @{String(ev.payload.author || 'specifier')}
-                            </span>
-                            {typeof ev.payload.promoted_to === 'string' && (
-                              <span> &rarr; {t(`status.${ev.payload.promoted_to}` as Parameters<typeof t>[0])}</span>
-                            )}
-                            {(ev.payload.prompt_tokens != null || ev.payload.completion_tokens != null) && (
-                              <span className="text-muted-foreground ml-1.5">
-                                (
-                                {t('tokensUsed', {
-                                  prompt: Number(ev.payload.prompt_tokens ?? 0),
-                                  completion: Number(ev.payload.completion_tokens ?? 0),
-                                })}
-                                )
-                              </span>
-                            )}
-                          </p>
-                        )}
-                        {ev.kind === 'decomposed' && ev.payload && (
-                          <p className="ml-[52px] text-[10px] text-blue-600/80 dark:text-blue-400/80 mt-0.5">
-                            <span className="font-medium text-blue-600 dark:text-blue-400">
-                              @{String(ev.payload.author || 'decomposer')}
-                            </span>
-                            <span className="ml-1">
-                              {t('decomposedChildren', { count: Number(ev.payload.child_count ?? 0) })}
-                            </span>
-                            {(ev.payload.prompt_tokens != null || ev.payload.completion_tokens != null) && (
-                              <span className="text-muted-foreground ml-1.5">
-                                (
-                                {t('tokensUsed', {
-                                  prompt: Number(ev.payload.prompt_tokens ?? 0),
-                                  completion: Number(ev.payload.completion_tokens ?? 0),
-                                })}
-                                )
-                              </span>
-                            )}
-                          </p>
-                        )}
-                        {ev.kind === 'timed_out' && ev.payload && (
-                          <p className="ml-[52px] text-[10px] text-chart-5/80 mt-0.5">
-                            {t('timedOutDetail', {
-                              elapsed: Number(ev.payload.elapsed_seconds ?? 0),
-                              limit: Number(ev.payload.limit_seconds ?? 0),
-                            })}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Comment input */}
-              <div>
-                <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                  {t('addComment')}
-                </h4>
-                <div className="flex gap-1">
-                  <input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && !e.shiftKey && commentText.trim()) {
-                        e.preventDefault();
-                        await handleSubmitComment();
-                      }
-                    }}
-                    placeholder={t('commentPlaceholder')}
-                    className="flex-1 text-[10px] px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                    disabled={submittingComment}
-                  />
-                  <button
-                    onClick={handleSubmitComment}
-                    disabled={submittingComment || !commentText.trim()}
-                    className="text-[10px] px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    {t('send')}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      {details.expanded && <KanbanTaskCardDetails details={details} progressPill={progressPill} />}
     </div>
   );
 }

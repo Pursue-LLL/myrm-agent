@@ -4,6 +4,12 @@ Provides REST endpoints for:
 - Lifecycle actions: pin/unpin/restore/archive a skill
 - Curator configuration: get/update CuratorConfig
 - Manual trigger: run a curator sweep on demand
+- Run history: recent sweeps, newest first
+- Consolidation: preview and execute an umbrella merge
+- Skill doctor: health findings and one-click remediation
+
+Run and history responses carry the skipped counts alongside the transition counts: a sweep that
+changed nothing is explainable ("N pinned, M in use") instead of reading as a silent no-op.
 """
 
 from __future__ import annotations
@@ -17,7 +23,12 @@ from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollect
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from pydantic import BaseModel
 
-from app.core.skills.curator.service import SkillPinnedError, apply_skill_archived
+from app.core.skills.curator.bound_skills import SkillBoundError
+from app.core.skills.curator.service import (
+    SkillPinnedError,
+    apply_skill_archived,
+    archive_skill_with_guards,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/curator")
@@ -47,7 +58,6 @@ class CuratorConfigResponse(BaseModel):
     archive_after_days: int
     grace_period_days: int
     min_success_rate: float
-    max_skills: int
     protect_installed_skills: bool
     consolidation_enabled: bool
     consolidation_min_cluster_size: int
@@ -63,7 +73,6 @@ class CuratorConfigUpdateRequest(BaseModel):
     archive_after_days: int | None = None
     grace_period_days: int | None = None
     min_success_rate: float | None = None
-    max_skills: int | None = None
     protect_installed_skills: bool | None = None
     consolidation_enabled: bool | None = None
     consolidation_min_cluster_size: int | None = None
@@ -77,7 +86,8 @@ class CuratorRunResponse(BaseModel):
     total_transitions: int
     stale_count: int
     archived_count: int
-    skipped_pinned: int
+    skipped_pinned: int = 0
+    skipped_protected: int = 0
     transitions: list[dict[str, str]]
 
 
@@ -136,7 +146,15 @@ async def update_skill_lifecycle(
         )
     elif action == "archive":
         try:
-            apply_skill_archived(collector, skill_path, archived=True)
+            await archive_skill_with_guards(skill_name)
+        except SkillBoundError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Skill '{skill_name}' is still used by an agent, scheduled task or Kanban task — "
+                    "remove it from those bindings before archiving"
+                ),
+            ) from exc
         except SkillPinnedError as exc:
             raise HTTPException(
                 status_code=409,
@@ -165,7 +183,6 @@ async def get_curator_config() -> CuratorConfigResponse:
         archive_after_days=config.archive_after_days,
         grace_period_days=config.grace_period_days,
         min_success_rate=config.min_success_rate,
-        max_skills=config.max_skills,
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,
@@ -180,7 +197,10 @@ async def update_curator_config(
     """Update curator configuration (partial update)."""
     from app.core.skills.curator.service import update_curator_config
 
-    config = update_curator_config(request.model_dump(exclude_none=True))
+    try:
+        config = update_curator_config(request.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CuratorConfigResponse(
         enabled=config.enabled,
         interval_hours=config.interval_hours,
@@ -188,7 +208,6 @@ async def update_curator_config(
         archive_after_days=config.archive_after_days,
         grace_period_days=config.grace_period_days,
         min_success_rate=config.min_success_rate,
-        max_skills=config.max_skills,
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,
@@ -208,6 +227,7 @@ async def run_curator() -> CuratorRunResponse:
         stale_count=result.stale_count,
         archived_count=result.archived_count,
         skipped_pinned=result.skipped_pinned,
+        skipped_protected=result.skipped_protected,
         transitions=[
             {
                 "skill_name": t.skill_name,
@@ -225,14 +245,13 @@ class CuratorHistoryEntry(BaseModel):
 
     timestamp: str
     trigger: str
-    duration_ms: int
     skills_scanned: int
     total_transitions: int
     stale_count: int
     archived_count: int
-    skipped_pinned: int
+    skipped_pinned: int = 0
+    skipped_protected: int = 0
     transitions: list[dict[str, str]]
-    errors: list[str]
 
 
 @router.get("/history", response_model=list[CuratorHistoryEntry])
@@ -241,7 +260,7 @@ async def get_curator_history(limit: int = 10) -> list[CuratorHistoryEntry]:
     from app.core.skills.curator.service import get_curator_history
 
     entries = get_curator_history(limit=limit)
-    return [CuratorHistoryEntry(**e) for e in entries]
+    return [CuratorHistoryEntry.model_validate(e) for e in entries]
 
 
 # ========== Consolidation (Umbrella Merge) ==========
@@ -263,6 +282,7 @@ class ConsolidationPreviewResponse(BaseModel):
     total_skills_affected: int
     estimated_reduction: int
     preview_summary: str
+    plan_token: str
 
 
 class ConsolidationExecuteResponse(BaseModel):
@@ -274,7 +294,27 @@ class ConsolidationExecuteResponse(BaseModel):
     total_created: int
     net_reduction: int
     summary: str
-    agent_refs_updated: int
+
+
+def _consolidation_plan_fingerprint_payload(plan: object) -> dict[str, object]:
+    from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
+
+    if not isinstance(plan, ConsolidationPlan):
+        raise TypeError("Expected ConsolidationPlan")
+    return {
+        "actions": [
+            {
+                "action_type": a.action_type.value,
+                "target_skill": a.target_skill,
+                "source_skills": list(a.source_skills),
+                "reasoning": a.reasoning,
+            }
+            for a in plan.actions
+        ],
+        "total_skills_affected": plan.total_skills_affected,
+        "estimated_reduction": plan.estimated_reduction,
+        "preview_summary": plan.preview_summary,
+    }
 
 
 @router.post("/consolidation/preview", response_model=ConsolidationPreviewResponse)
@@ -283,7 +323,7 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
     from app.core.skills.curator.consolidation import run_consolidation_preview
 
     plan = await run_consolidation_preview()
-    return ConsolidationPreviewResponse(
+    response = ConsolidationPreviewResponse(
         actions=[
             ConsolidationActionResponse(
                 action_type=a.action_type.value,
@@ -296,36 +336,57 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
         total_skills_affected=plan.total_skills_affected,
         estimated_reduction=plan.estimated_reduction,
         preview_summary=plan.preview_summary,
+        plan_token="",
     )
+    from app.core.skills.curator.consolidation_plan_token import issue_plan_token
+
+    issued = issue_plan_token(_consolidation_plan_fingerprint_payload(plan))
+    return response.model_copy(update={"plan_token": issued.token})
+
+
+class ConsolidationExecuteRequest(BaseModel):
+    plan_token: str
 
 
 @router.post("/consolidation/execute", response_model=ConsolidationExecuteResponse)
-async def consolidation_execute() -> ConsolidationExecuteResponse:
+async def consolidation_execute(
+    body: ConsolidationExecuteRequest,
+) -> ConsolidationExecuteResponse:
     """Execute consolidation — merge fragmented skills into umbrellas."""
-    from app.core.skills.curator.consolidation import run_consolidation_execute
+    from app.core.skills.curator.consolidation import (
+        run_consolidation_execute,
+        run_consolidation_preview,
+    )
+    from app.core.skills.curator.consolidation_plan_token import (
+        revoke_plan_token,
+        validate_plan_token,
+    )
 
+    plan = await run_consolidation_preview()
+    if not validate_plan_token(
+        body.plan_token, _consolidation_plan_fingerprint_payload(plan)
+    ):
+        raise HTTPException(
+            status_code=409, detail="Consolidation plan token invalid or expired."
+        )
+
+    revoke_plan_token(body.plan_token)
     result = await run_consolidation_execute()
-    return result
+    return ConsolidationExecuteResponse.model_validate(result)
 
 
 class SkillDoctorFindingItem(BaseModel):
     skill_name: str
     finding_type: str
     severity: str
-    message: str
     call_count: int
     success_rate: float
     pinned: bool
-    recommended_action: str
+    bound: bool
     details: dict[str, object] = {}
 
 
 class SkillDoctorDiagnosticsResponse(BaseModel):
-    total_skills: int
-    active_skills: int
-    stale_skills: int
-    archived_skills: int
-    pinned_skills: int
     findings: list[SkillDoctorFindingItem]
     health_score: float
 
@@ -363,5 +424,7 @@ async def remediate_skill_endpoint(
 
     res = await remediate_skill_finding(req.skill_name, req.action)
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=str(res.get("error", "Remediation failed")))
+        raise HTTPException(
+            status_code=400, detail=str(res.get("error", "Remediation failed"))
+        )
     return SkillRemediationResponse(**res)  # type: ignore[arg-type]

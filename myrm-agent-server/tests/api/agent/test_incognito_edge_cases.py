@@ -128,6 +128,36 @@ class TestIncognitoSkillReview:
 
         assert callable(_build_skill_review_callback(agent_wrapper))
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("memory_enabled", "forwarded_types"),
+        [
+            (True, ["semantic_memory", "skill_draft"]),
+            (False, ["skill_draft"]),
+        ],
+    )
+    async def test_memory_off_drops_semantic_memory_findings_but_keeps_skill_drafts(
+        self, memory_enabled: bool, forwarded_types: list[str]
+    ) -> None:
+        import asyncio
+        from unittest.mock import patch
+
+        from app.ai_agents.general_agent.factory import _build_skill_review_callback
+
+        agent_wrapper = MagicMock()
+        agent_wrapper.incognito_mode = False
+        agent_wrapper.enable_memory = memory_enabled
+        callback = _build_skill_review_callback(agent_wrapper)
+        assert callback is not None
+        process = AsyncMock()
+
+        with patch("app.services.skills.growth.lifecycle.process_skill_review_result", process):
+            callback({"has_value": True, "type": "semantic_memory", "content": "The user prefers green tea."})
+            callback({"has_value": True, "type": "skill_draft", "skill_name": "brew-tea"})
+            await asyncio.gather(*(asyncio.all_tasks() - {asyncio.current_task()}))
+
+        assert [call.args[0]["type"] for call in process.await_args_list] == forwarded_types
+
 
 class TestReadOnlyMemoryViewSubagentIsolation:
     """Harness ReadOnlyMemoryView behaviors (subagent READ_ONLY_GLOBAL path, not GeneralAgent incognito)."""

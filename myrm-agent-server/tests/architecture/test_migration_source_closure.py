@@ -7,10 +7,8 @@ from pathlib import Path
 import pytest
 
 import app.services.migration.source.source_probes as source_probes
-from app.services.migration.source.source_payload_loader import (
-    load_source_payload,
-    supported_source_ids,
-)
+from app.services.migration.source.source_manifest import migration_source_local_scan_ids
+from app.services.migration.source.source_payload_loader import load_source_payload
 
 
 def _discover_probe_ids() -> frozenset[str]:
@@ -25,8 +23,8 @@ def _discover_probe_ids() -> frozenset[str]:
 
 
 @pytest.mark.architecture
-def test_migration_probe_ids_match_supported_source_ids() -> None:
-    closed = supported_source_ids()
+def test_migration_probe_ids_match_local_scan_manifest() -> None:
+    closed = frozenset(migration_source_local_scan_ids())
     probe_ids = _discover_probe_ids()
     assert probe_ids == closed, f"probe/closed drift: probes={probe_ids} closed={closed}"
 
@@ -40,7 +38,7 @@ def test_migration_loaders_registered_for_all_supported_ids(
         "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
-    closed = supported_source_ids()
+    closed = sorted(migration_source_local_scan_ids())
     for competitor_id in closed:
         root = tmp_path / competitor_id
         root.mkdir()

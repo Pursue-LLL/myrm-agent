@@ -163,4 +163,28 @@ describe('RewindDialog', () => {
     expect(rewindToMessageMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ description: 'streamingBlocked' }));
   });
+
+  it('fires one rewind when confirm is clicked twice before the request resolves', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    let resolveRewind: ((value: unknown) => void) | undefined;
+    rewindToMessageMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRewind = resolve;
+      }),
+    );
+    renderDialog();
+    const confirm = screen.getByText('confirm');
+
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    expect(rewindToMessageMock).toHaveBeenCalledTimes(1);
+    resolveRewind?.({ data: { success: true, deleted_count: 1, composer_text: '', message_index: 0 } });
+    await waitFor(() => {
+      expect(rewindToMessageMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });

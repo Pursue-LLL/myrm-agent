@@ -1,4 +1,3 @@
-// @orphan-ok Dedicated UI card for non-blocking asynchronous agent communication entries
 /**
  * [INPUT]
  * - lucide-react (POS: UI 矢量图标库)

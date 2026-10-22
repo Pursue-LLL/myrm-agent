@@ -1,8 +1,12 @@
 // @vitest-environment node
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { createTranslator, IntlErrorCode } from 'use-intl/core';
 import { describe, expect, it } from 'vitest';
 
-import { scanIcuMessages } from '../icu-syntax-scan';
+import { scanIcuMessages, scanTranslationArtifacts } from '../icu-syntax-scan';
+
+const localesDir = resolve(__dirname, '..', '..', 'locales');
 
 const invalid = (tree: unknown) => scanIcuMessages(tree).invalid;
 
@@ -50,6 +54,30 @@ describe('scanIcuMessages: invalid messages', () => {
   it('counts every string leaf and ignores non-string values', () => {
     const tree = { a: 'one', b: { c: 'two', d: 3, e: null, f: true }, g: ['three'] };
     expect(scanIcuMessages(tree)).toEqual({ scanned: 3, invalid: [] });
+  });
+});
+
+describe('scanTranslationArtifacts: machine-translation markers', () => {
+  it('flags leftover brand and placeholder markers and ignores normal copy', () => {
+    const tree = {
+      ok: 'OAuth2 Client-Anmeldeinformationen',
+      brand: '__BR_OAuth2__ Client-Anmeldeinformationen',
+      nested: { placeholder: 'value or __PH0__' },
+    };
+    expect(scanTranslationArtifacts(tree).invalid).toEqual([
+      { path: 'brand', error: 'ARTIFACT __BR_OAuth2__' },
+      { path: 'nested.placeholder', error: 'ARTIFACT __PH0__' },
+    ]);
+  });
+
+  it('accepts every locale value the repository ships', () => {
+    const locales = readdirSync(localesDir).filter((name) => name.endsWith('.json'));
+    expect(locales.length).toBeGreaterThan(0);
+    for (const name of locales) {
+      const tree = JSON.parse(readFileSync(join(localesDir, name), 'utf8'));
+      const flagged = scanTranslationArtifacts(tree).invalid.map((m) => `${name}:${m.path}`);
+      expect(flagged).toEqual([]);
+    }
   });
 });
 

@@ -48,6 +48,7 @@ from app.channels.core.outbound_prepare import apply_correlation_context, get_co
 from app.channels.reliability.durable_outbound import DurableOutboundGate
 from app.channels.reliability.rate_limiter import create_limiter
 from app.channels.types import InboundMessage, OutboundMessage
+from app.core.infra.background_task import spawn_observed_task
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,7 @@ class MessageBus(OutboundDispatchMixin):
         if self._running:
             return
         self._running = True
-        self._dispatch_task = asyncio.create_task(self._dispatch_loop())
+        self._dispatch_task = spawn_observed_task(self._dispatch_loop(), name="channel_outbound_dispatch")
         if self._dlq_dir:
             self._dlq = DeadLetterQueue(
                 enqueue_fn=self._dlq_enqueue,
@@ -271,3 +272,19 @@ class MessageBus(OutboundDispatchMixin):
         self._inbound = None
         self._dlq = None
         logger.info("MessageBus stopped")
+
+    def is_dispatch_loop_alive(self) -> bool:
+        """Whether the outbound dispatch loop is still running; a finished task means it died."""
+        return self._running and self._dispatch_task is not None and not self._dispatch_task.done()
+
+    def ensure_dispatch_loop_alive(self) -> bool:
+        """Restart the dispatch loop after its task ended; True when a new task was started.
+
+        The loop absorbs a per-message failure, so a finished task means it ended unrecoverably
+        and no channel can deliver anything. The durable records of undelivered messages are
+        intact, and the loop re-injects them on its next timeout, so restarting loses nothing.
+        """
+        if not self._running or self.is_dispatch_loop_alive():
+            return False
+        self._dispatch_task = spawn_observed_task(self._dispatch_loop(), name="channel_outbound_dispatch")
+        return True

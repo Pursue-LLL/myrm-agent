@@ -22,7 +22,7 @@ import logging
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import get_args
+from typing import TYPE_CHECKING, get_args
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from filelock import FileLock, Timeout
@@ -31,7 +31,6 @@ from pydantic import BaseModel, Field, ValidationError
 from app.api.config.pricing import pricing_router
 from app.api.config.privacy_preview import privacy_preview_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
-from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 from app.core.security.config_crypto import is_sensitive_config
 from app.schemas.config import (
@@ -45,6 +44,10 @@ from app.schemas.config import (
     ConflictErrorResponse,
 )
 from app.services.config.service import VersionConflictError, config_service
+from app.services.integrations.search_verify import invalidate_search_verify_cache
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +273,7 @@ def _is_channel_bindable_agent(agent_profile: object) -> bool:
     return not (isinstance(prompt_mode, str) and prompt_mode.lower() == "search")
 
 
-def _pick_first_channel_bindable_agent(candidates: list[object]) -> object | None:
+def _pick_first_channel_bindable_agent(candidates: list["AgentProfile"]) -> "AgentProfile | None":
     for candidate in candidates:
         if _is_channel_bindable_agent(candidate):
             return candidate
@@ -1006,8 +1009,8 @@ async def get_config(
                 key=config_key,
                 value={},
                 version="0",
-                updatedAt="",
-                deviceId="",
+                updated_at="",
+                device_id="",
             )
         return record
     except HTTPException:
@@ -1040,7 +1043,7 @@ async def set_config(
             device_id=request.device_id,
         )
         invalidate_user_configs_cache()
-        invalidate_search_health_cache()
+        invalidate_search_verify_cache()
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
@@ -1061,6 +1064,10 @@ async def set_config(
 
             SqlChannelPolicyProvider._invalidate_cache()
             await refresh_reaction_policy()
+        if config_key == "retrieval":
+            from app.services.faq.factory import reset_faq_interceptor
+
+            reset_faq_interceptor()
         if config_key.endswith("Credentials"):
             await _try_hot_register_channel(config_key)
         if config_key == "browserCloudProvider":
@@ -1157,7 +1164,7 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
 
             await await_memory_manager_config_invalidation()
         if config_key == "searchServices":
-            invalidate_search_health_cache()
+            invalidate_search_verify_cache()
 
         return record
     except HTTPException:
@@ -1177,7 +1184,7 @@ async def delete_config(
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Config '{config_key}' not found")
         invalidate_user_configs_cache()
-        invalidate_search_health_cache()
+        invalidate_search_verify_cache()
         invalidate_ingress_requirement_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
@@ -1231,7 +1238,7 @@ async def sync_configs(
         )
         if result.new_versions:
             invalidate_user_configs_cache()
-            invalidate_search_health_cache()
+            invalidate_search_verify_cache()
             invalidate_ingress_requirement_cache()
             if "channels" in result.new_versions:
                 from app.core.channel_bridge.channel_policy import (

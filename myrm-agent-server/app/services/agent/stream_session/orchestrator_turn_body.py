@@ -2,13 +2,14 @@
 
 [INPUT]
 - app.services.agent.stream_session.orchestrator helpers (POS: shared turn setup)
+- app.services.agent.stream_session.orchestrator_turn_setup (POS: params, search gate, goal provider and runtime context of the turn)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
+- app.services.agent.stream_session.turn_history_sync (POS: how the turn relates to the chat's agent thread)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
-- app.services.agent.params.routing_memory::remember_turn_routing (POS: per-chat routing memory reused when a HITL turn resumes)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → history → agent session → pump (background)
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
 - write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable
 
@@ -24,9 +25,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-from myrm_agent_harness.agent.middlewares.approval.scheduler import (
-    ApprovalTimeoutScheduler,
-)
+from myrm_agent_harness.runtime.context.session import HISTORY_MODE_CONTEXT_KEY
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
     CancellationToken,
@@ -34,23 +33,27 @@ from myrm_agent_harness.utils.runtime.cancellation import (
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from sqlalchemy import delete
 
-from app.core.types import ModelConfig
 from app.services.agent.params import (
     ArchiveRestoreRequestError,
-    _resolve_model_config,
-    convert_to_general_agent_params,
 )
-from app.services.agent.params.routing_memory import remember_turn_routing
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import chat_history_bootstrap
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,
+)
+from app.services.agent.stream_session.orchestrator_turn_setup import (
+    build_turn_extra_context,
+    build_turn_params,
+    prepare_goal_provider,
+    resolve_research_model,
+    search_service_unavailable_detail,
 )
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
+from app.services.agent.stream_session.turn_history_sync import resolve_turn_history_mode
 from app.services.agent.streaming_support.sse_helpers import error_sse
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
@@ -62,8 +65,6 @@ if TYPE_CHECKING:
     from app.services.agent.params import AgentRequest
 
 logger = logging.getLogger(__name__)
-
-_SEARCH_AGENT_IDS: frozenset[str] = frozenset({"builtin-fast-search", "builtin-deep-search"})
 
 
 async def fail_buffered_turn(
@@ -129,256 +130,39 @@ async def execute_agent_turn_after_reserve(
         request,
         exclude_message_id=persisted_message_id,
     )
+    history_mode = await resolve_turn_history_mode(request, exclude_message_id=persisted_message_id)
 
     await apply_migration_bound_project(request)
 
-    extra_context: dict[str, object] | None = None
     try:
-        if request.resume_value is not None:
-            from langgraph.types import Command
-
-            resume_action = request.resume_value.get("action")
-            if request.chat_id and resume_action in ("completed", "skipped"):
-                from app.services.approvals.registry import ApprovalRegistry
-
-                decision = "approve" if resume_action == "completed" else "deny"
-                await ApprovalRegistry.resolve_pending_browser_takeover_for_chat(
-                    request.chat_id,
-                    decision=decision,
-                )
-
-            if request.chat_id:
-                if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
-                    logger.warning(
-                        "Resume rejected (timeout already resolved): chat_id=%s",
-                        request.chat_id,
-                    )
-                    await record_terminal_failure("unknown_error")
-                    await fail_buffered_turn(
-                        buffer,
-                        request.message_id,
-                        "This HITL request has already been resolved by timeout.",
-                    )
-                    return
-
-            logger.info(
-                "Resume mode: chat_id=%s, decision=%s",
-                request.chat_id,
-                request.resume_value.get("decision"),
-            )
-            sandbox_active = False
-            chat_workspace_dir: str | None = None
-            if request.chat_id:
-                try:
-                    from app.services.chat.chat_service import ChatService
-
-                    chat_meta = await ChatService.get_chat_metadata(request.chat_id)
-                    sandbox_active = bool(chat_meta and chat_meta.sandbox_base_dir)
-                    if chat_meta:
-                        from app.services.chat.effective_workspace import (
-                            resolve_effective_chat_workspace,
-                        )
-
-                        chat_workspace_dir = await resolve_effective_chat_workspace(
-                            chat_meta,
-                            jit_fallback=False,
-                        )
-                except Exception as exc:
-                    logger.warning("Failed to load sandbox state for resume grant: %s", exc)
-
-            from app.services.agent.session_access_service import (
-                apply_directory_resume_grant,
-            )
-
-            await apply_directory_resume_grant(
-                request.chat_id,
-                request.resume_value,
-                sandbox_active=sandbox_active,
-                workspace_dir=chat_workspace_dir,
-            )
-            (
-                params,
-                routing_tier,
-                routing_specialty,
-                routing_reason,
-                context_warnings,
-                archive_restore_results,
-            ) = await convert_to_general_agent_params(
-                request,
-                chat_history,
-                http_request=http_request,
-            )
-            params.query = Command(resume=request.resume_value)
-
-            extra_context = {"hitl_session_active": True}
-            logger.info("HITL session marked active for cache preservation")
-        else:
-            (
-                params,
-                routing_tier,
-                routing_specialty,
-                routing_reason,
-                context_warnings,
-                archive_restore_results,
-            ) = await convert_to_general_agent_params(
-                request,
-                chat_history,
-                http_request=http_request,
-            )
-            remember_turn_routing(
-                request,
-                tier=routing_tier,
-                specialty=routing_specialty,
-                reason=routing_reason,
-            )
+        turn = await build_turn_params(request, chat_history, http_request)
     except ArchiveRestoreRequestError as exc:
         await record_terminal_failure("archive_restore_invalid")
         await fail_buffered_turn(buffer, request.message_id, str(exc))
         return
+    params = turn.params
 
-    research_model_cfg: ModelConfig | None = None
-    if request.action_mode == "deep_research" and request.light_model_selection:
-        try:
-            from app.core.channel_bridge.config_loader import load_user_configs
+    research_model_cfg = await resolve_research_model(request)
 
-            configs = await load_user_configs()
-            providers_dict = configs.providers_dict if configs else None
-            if request.light_model_selection is not None:
-                research_model_cfg = await _resolve_model_config(request.light_model_selection, providers_dict)
-        except Exception:
-            logger.warning("Failed to resolve research model")
-
-    if request.action_mode == "deep_research" and not params.enable_web_search:
+    unavailable_detail = search_service_unavailable_detail(request, params)
+    if unavailable_detail is not None:
         await record_terminal_failure("server_error")
-        await fail_buffered_turn(
-            buffer,
-            request.message_id,
-            "Search service not configured. Deep Research requires a configured search service.",
-        )
-        return
-
-    if request.agent_id in _SEARCH_AGENT_IDS and not params.enable_web_search:
-        await record_terminal_failure("server_error")
-        await fail_buffered_turn(
-            buffer,
-            request.message_id,
-            "Search service not configured. Please add a search service in Settings.",
-        )
-        return
-
-    if request.action_mode == "fast" and params.search_service_cfg is None:
-        await record_terminal_failure("server_error")
-        await fail_buffered_turn(
-            buffer,
-            request.message_id,
-            "Search service not configured. Fast search requires a configured search service.",
-        )
+        await fail_buffered_turn(buffer, request.message_id, unavailable_detail)
         return
 
     steering_token = SteeringToken() if request.chat_id else None
     if steering_token and request.chat_id:
         SteeringRegistry.register(request.chat_id, steering_token)
 
-    from app.services.agent.goals.goal_registry import (
-        GoalRegistry,
-        check_and_handle_branch_stash,
+    goal_provider = await prepare_goal_provider(request, text_content)
+    extra_context = await build_turn_extra_context(
+        request,
+        params,
+        base=turn.extra_context,
+        goal_provider=goal_provider,
     )
-
-    goal_provider = None
-    if request.chat_id:
-        await check_and_handle_branch_stash(request.chat_id)
-        goal_provider = GoalRegistry.get_or_create_provider(request.chat_id)
-        if request.goal:
-            from typing import cast
-
-            from myrm_agent_harness.agent.goals.types import CheckpointMode, GoalBudget
-
-            budget = GoalBudget(
-                max_tokens=request.goal.max_tokens,
-                max_usd=request.goal.max_usd,
-                max_time_seconds=request.goal.max_time_seconds,
-                max_turns=request.goal.max_turns,
-                convergence_window=request.goal.convergence_window,
-                loop_on_pause=request.goal.loop_on_pause,
-                max_loop_restarts=request.goal.max_loop_restarts,
-            )
-            acceptance_criteria = request.goal.acceptance_criteria
-            ui_summary = request.goal.ui_summary
-            constraints = request.goal.constraints
-            protected_paths = request.goal.protected_paths
-            active_goal = await goal_provider.get_active_goal(request.chat_id)
-            if not active_goal:
-                checkpoint_mode_raw = getattr(request.goal, "checkpoint_mode", "none")
-                checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
-                goal_objective = text_content.strip() or "User requested goal"
-                resolved_ui_summary = ui_summary.strip() if ui_summary else goal_objective[:120]
-
-                await goal_provider.create_goal(
-                    session_id=request.chat_id,
-                    objective=goal_objective,
-                    budget=budget,
-                    acceptance_criteria=acceptance_criteria,
-                    constraints=constraints,
-                    protected_paths=protected_paths,
-                    ui_summary=resolved_ui_summary,
-                    checkpoint_mode=cast(CheckpointMode, checkpoint_mode),
-                )
-            else:
-                await goal_provider.set_budget(active_goal.goal_id, budget)
-
-    if extra_context is None:
-        extra_context = {}
-    extra_context["goal_provider"] = goal_provider
-
-    from app.services.agent.runtime_context import (
-        build_agent_runtime_context,
-        resolve_stream_execution_mode,
-    )
-
-    extra_context = await build_agent_runtime_context(
-        execution_mode=resolve_stream_execution_mode(),
-        base=extra_context,
-    )
-
-    try:
-        from app.core.channel_bridge.config_loader import load_user_configs
-
-        configs = await load_user_configs()
-        if configs and configs.personal_settings_dict:
-            locale = configs.personal_settings_dict.get("locale")
-            if locale:
-                extra_context["locale"] = locale
-            suggest_wf = configs.personal_settings_dict.get("suggestWorkflowMode")
-            if suggest_wf is not None:
-                extra_context["suggest_workflow_mode"] = bool(suggest_wf)
-    except Exception as exc:
-        logger.warning("Failed to load user locale for extra_context: %s", exc)
-
-    if request.resume_value is None:
-        if request.chat_id:
-            from app.services.memory.ephemeral_delta_hydration import (
-                ensure_chat_ephemeral_deltas_hydrated,
-            )
-
-            ensure_chat_ephemeral_deltas_hydrated(request.chat_id)
-
-        from app.services.agent.execution_cache.prewarm.coordinator import (
-            get_turn_prewarm_coordinator,
-        )
-
-        join_result = await get_turn_prewarm_coordinator().join_for_turn(
-            params,
-            action_mode=request.action_mode or "agent",
-        )
-        if join_result.preview is not None:
-            extra_context["memory_brief_preview"] = join_result.preview
-        if join_result.snapshot is not None:
-            extra_context["memory_brief_snapshot"] = join_result.snapshot
-        extra_context["memory_brief_status"] = join_result.brief_status
-        extra_context["turn_prewarm_hit"] = join_result.prewarm_hit
-        if join_result.prewarm_ms is not None:
-            extra_context["turn_prewarm_ms"] = join_result.prewarm_ms
-        extra_context["turn_prewarm_still_warming"] = join_result.still_warming
+    if history_mode is not None:
+        extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
 
     is_long_running_task = request.action_mode in ("deep_research", "agentic_search")
     collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
@@ -393,17 +177,17 @@ async def execute_agent_turn_after_reserve(
         params=params,
         cancel_token=cancel_token,
         steering_token=steering_token,
-        routing_tier=routing_tier,
-        archive_restore_results=archive_restore_results,
+        routing_tier=turn.routing_tier,
+        archive_restore_results=turn.archive_restore_results,
         research_model_cfg=research_model_cfg,
         registry=registry,
         collector=collector,
         is_long_running_task=is_long_running_task,
         goal_provider=goal_provider,
-        extra_context=extra_context or {},
-        routing_specialty=routing_specialty,
-        routing_reason=routing_reason,
-        context_warnings=context_warnings,
+        extra_context=extra_context,
+        routing_specialty=turn.routing_specialty,
+        routing_reason=turn.routing_reason,
+        context_warnings=turn.context_warnings,
         stream_started_at_monotonic=stream_started_at_monotonic,
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,

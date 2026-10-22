@@ -4,4 +4,3 @@
 
 | 文件              | 职责                                                                                                                                                                  |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `projectState.ts` | 事实账本 DTO 与客户端：`recordLivingFact`、`listLivingFacts`、`getLivingFact`、`deleteLivingFact`，以及 `projectContext`（四层上下文投影）与 `auditValidation`（校验审计）；供 `components/features/memory/command-center/` 的事实账本、投影与校验面板使用 |

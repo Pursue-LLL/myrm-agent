@@ -5,10 +5,16 @@
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
  * @/services/chat::submitClarifyResponse (POS: clarification answer submission API)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
+ * @/store/chat/clarificationCardAnswer::answerClarificationWithResume / settleClarificationCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/clarificationCardDraft::loadClarificationDraft (POS: what the user had written when a refused resume brings the card back)
+ * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: the timeout or another device already settled the card without this answer)
+ * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
+ * ./ClarificationSettledNote (POS: the banner the card collapses into once settled)
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
  * Structured answers submit option.id values keyed by question.id for agent resume contract.
+ * A settled card shows whether it was answered, skipped, timed out or already handled elsewhere, and the answer given.
  *
  * [POS]
  * Chat clarification answer surface. Bridges assistant clarification messages to
@@ -20,213 +26,26 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import type { ClarificationForm } from '@/store/chat/types';
-import { cn } from '@/lib/utils';
+import { answerClarificationWithResume, settleClarificationCard } from '@/store/chat/clarificationCardAnswer';
+import { loadClarificationDraft } from '@/store/chat/clarificationCardDraft';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 import { isImeComposing } from '@/lib/utils/imeUtils';
-import { buildStructuredClarificationAnswer } from './clarificationAnswer';
-
-const SendIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M22 2 11 13" />
-    <path d="M22 2 15 22 11 13 2 9z" />
-  </svg>
-);
-
-const SkipIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polygon points="5 4 15 12 5 20 5 4" />
-    <line x1="19" y1="5" x2="19" y2="19" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-
-const CheckMarkIcon = () => (
-  <svg
-    width="10"
-    height="10"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-const ChevronDownIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m6 9 6 6 6-6" />
-  </svg>
-);
-
-const COLLAPSED_OPTIONS_LIMIT = 4;
-
-const RECOMMENDED_REGEX =
-  /(?:\s*[(（](?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)[)）]|\s*\[(?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)\])$/i;
-
-function parseOptionLabel(rawLabel: string): { displayLabel: string; isRecommended: boolean } {
-  const match = rawLabel.match(RECOMMENDED_REGEX);
-  if (match) {
-    const cleaned = rawLabel.replace(RECOMMENDED_REGEX, '').trim();
-    return {
-      displayLabel: cleaned || rawLabel.trim(),
-      isRecommended: true,
-    };
-  }
-  return {
-    displayLabel: rawLabel,
-    isRecommended: false,
-  };
-}
-
-function renderDescriptionWithCode(text: string): React.ReactNode {
-  if (!text.includes('`')) {
-    return text;
-  }
-  const parts = text.split(/(`[^`]+`)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-      return (
-        <code
-          key={index}
-          className="mx-0.5 rounded border border-border/60 bg-muted/70 px-1 py-0.5 font-mono text-[11px] font-medium text-foreground"
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    return part;
-  });
-}
-
-interface OptionPillProps {
-  label: string;
-  description?: string;
-  selected: boolean;
-  allowMultiple: boolean;
-  disabled: boolean;
-  onSelect: () => void;
-  recommendedBadgeText?: string;
-}
-
-const OptionPill = ({
-  label,
-  description,
-  selected,
-  allowMultiple,
-  disabled,
-  onSelect,
-  recommendedBadgeText,
-}: OptionPillProps) => {
-  const { displayLabel, isRecommended } = parseOptionLabel(label);
-
-  return (
-    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- name comes from nested text beyond the rule's inspection depth
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={disabled}
-      className={cn(
-        'group max-w-full rounded-2xl border px-3 py-2 text-left text-sm transition-all duration-200 sm:px-4 sm:py-2.5',
-        selected
-          ? 'border-primary/70 bg-primary/10 text-primary ring-2 ring-primary/20'
-          : 'border-border/70 bg-background/80 text-foreground hover:border-primary/40 hover:bg-primary/5',
-      )}
-    >
-      <div className="flex items-start gap-2.5">
-        <div
-          className={cn(
-            'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors',
-            allowMultiple ? 'rounded' : 'rounded-full',
-            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background',
-          )}
-        >
-          {selected ? <CheckMarkIcon /> : null}
-        </div>
-        <div className="min-w-0 flex flex-col gap-0.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className={cn('font-medium leading-snug', selected && 'text-primary')}>{displayLabel}</span>
-            {isRecommended ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary shadow-sm shadow-primary/10">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                {recommendedBadgeText || 'Recommended'}
-              </span>
-            ) : null}
-          </div>
-          {description ? (
-            <span className="text-xs leading-relaxed text-muted-foreground">
-              {renderDescriptionWithCode(description)}
-            </span>
-          ) : null}
-        </div>
-      </div>
-    </button>
-  );
-};
-
-const clarificationTextareaClass =
-  'w-full resize-none rounded-xl border border-border/70 bg-background/90 px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/25 sm:px-4 sm:py-3';
-
-function resolveClarificationShellClass(requiresConfirmation?: boolean): string {
-  if (requiresConfirmation) {
-    return 'relative overflow-hidden rounded-2xl border border-amber-500/40 bg-card/90 backdrop-blur-xl';
-  }
-  return 'relative overflow-hidden rounded-2xl border border-border/60 bg-card/90 backdrop-blur-xl';
-}
-
-function resolveClarificationGradientClass(requiresConfirmation?: boolean): string {
-  if (requiresConfirmation) {
-    return 'pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/5 dark:from-amber-500/15 dark:to-orange-500/10';
-  }
-  return 'pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-violet-500/5 dark:from-primary/12 dark:to-violet-500/8';
-}
-
-function resolveClarificationBadgeClass(requiresConfirmation?: boolean): string {
-  if (requiresConfirmation) {
-    return 'shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300';
-  }
-  return 'shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-primary';
-}
+import {
+  buildSingleClarificationAnswer,
+  buildStructuredClarificationAnswer,
+  type ClarificationAnswer,
+} from './clarificationAnswer';
+import {
+  SendIcon,
+  SkipIcon,
+  clarificationTextareaClass,
+  resolveClarificationBadgeClass,
+  resolveClarificationGradientClass,
+  resolveClarificationShellClass,
+} from './ClarificationChrome';
+import { COLLAPSED_OPTIONS_LIMIT, ExpandToggle, OptionPill } from './ClarificationOptions';
+import { ClarificationSettledNote } from './ClarificationSettledNote';
 
 interface ClarificationInputProps {
   messageId: string;
@@ -236,6 +55,7 @@ interface ClarificationInputProps {
   title?: string;
   form?: ClarificationForm;
   isResumeMode?: boolean;
+  answerRecord?: HitlAnswerRecord;
   variant?: 'inline' | 'composer';
 }
 
@@ -247,14 +67,16 @@ const ClarificationInput = ({
   title,
   form,
   isResumeMode,
+  answerRecord,
   variant = 'inline',
 }: ClarificationInputProps) => {
   const t = useTranslations('chat.clarification');
-  const [input, setInput] = useState('');
+  const [draft] = useState(() => loadClarificationDraft(messageId));
+  const [input, setInput] = useState(draft?.input ?? '');
   const [submitting, setSubmitting] = useState(false);
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [formTexts, setFormTexts] = useState<Record<string, string>>({});
-  const [formSelections, setFormSelections] = useState<Record<string, string[]>>({});
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(draft?.selectedOptions ?? []);
+  const [formTexts, setFormTexts] = useState<Record<string, string>>(draft?.formTexts ?? {});
+  const [formSelections, setFormSelections] = useState<Record<string, string[]>>(draft?.formSelections ?? {});
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
   const [isSimpleOptionsExpanded, setIsSimpleOptionsExpanded] = useState(false);
   const hasStructuredForm = Boolean(form?.questions && form.questions.length > 0);
@@ -267,13 +89,15 @@ const ClarificationInput = ({
     }));
   };
 
-  const markAnswered = () => {
-    useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
-      if (idx !== -1 && state.messages[idx].clarification) {
-        state.messages[idx].clarification.answered = true;
-      }
-    });
+  // An answer that arrives after the timeout or another device already settled the card is not a failure: the card
+  // stays closed.
+  const reportAnswerError = (err: unknown) => {
+    if (err instanceof ApprovalAlreadyResolvedError) {
+      toast.warning(t('alreadyHandled'));
+      return;
+    }
+    console.error('Failed to answer clarification:', err);
+    toast.error(t('submitFailed'));
   };
 
   const toggleOption = (opt: string) => {
@@ -296,65 +120,46 @@ const ClarificationInput = ({
     });
   };
 
-  const buildSingleAnswer = (): string | string[] | null => {
-    const trimmedInput = input.trim();
-    const answers = [...selectedOptions];
-    if (trimmedInput) {
-      answers.push(trimmedInput);
+  // Resume mode closes the card at click because the request streams the whole resumed run; the legacy clarify API is
+  // a short call, so its card closes once the server accepted the answer.
+  const submitAnswer = async (resumeValue: ClarificationAnswer, legacyAnswer: ClarificationAnswer) => {
+    setSubmitting(true);
+    try {
+      if (isResumeMode) {
+        await answerClarificationWithResume(
+          messageId,
+          { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
+          () => sendMessage('', messageId, undefined, resumeValue),
+        );
+      } else {
+        await submitClarifyResponse(messageId, legacyAnswer);
+        settleClarificationCard(messageId, { by: 'user', value: legacyAnswer });
+      }
+    } catch (err) {
+      reportAnswerError(err);
+    } finally {
+      setSubmitting(false);
     }
-    if (answers.length === 0) {
-      return null;
-    }
-    return answers.length === 1 ? answers[0] : answers;
   };
-
-  const buildStructuredAnswer = (): Record<string, string | string[]> | null =>
-    buildStructuredClarificationAnswer(form, formSelections, formTexts);
 
   const handleSubmit = async () => {
     if (submitting) {
       return;
     }
-
-    const finalAnswer = hasStructuredForm ? buildStructuredAnswer() : buildSingleAnswer();
+    const finalAnswer = hasStructuredForm
+      ? buildStructuredClarificationAnswer(form, formSelections, formTexts)
+      : buildSingleClarificationAnswer(input, selectedOptions);
     if (!finalAnswer) {
       return;
     }
-
-    setSubmitting(true);
-    try {
-      if (isResumeMode) {
-        await sendMessage('', messageId, undefined, finalAnswer);
-      } else {
-        await submitClarifyResponse(messageId, finalAnswer);
-      }
-      markAnswered();
-    } catch (err) {
-      console.error('Failed to submit clarification:', err);
-      toast.error(t('submitFailed'));
-    } finally {
-      setSubmitting(false);
-    }
+    await submitAnswer(finalAnswer, finalAnswer);
   };
 
   const handleSkip = async () => {
     if (submitting) {
       return;
     }
-    setSubmitting(true);
-    try {
-      if (isResumeMode) {
-        await sendMessage('', messageId, undefined, {});
-      } else {
-        await submitClarifyResponse(messageId, '');
-      }
-      markAnswered();
-    } catch (err) {
-      console.error('Failed to skip clarification:', err);
-      toast.error(t('submitFailed'));
-    } finally {
-      setSubmitting(false);
-    }
+    await submitAnswer({}, '');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -368,12 +173,7 @@ const ClarificationInput = ({
   };
 
   if (answered) {
-    return (
-      <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3">
-        <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
-        <span className="font-medium text-emerald-700 dark:text-emerald-300">{t('answered')}</span>
-      </div>
-    );
+    return <ClarificationSettledNote answerRecord={answerRecord} form={form} />;
   }
 
   const hasStructuredAnswer = hasStructuredForm
@@ -493,23 +293,15 @@ const ClarificationInput = ({
                                 ))}
                               </div>
                               {totalOptions > COLLAPSED_OPTIONS_LIMIT ? (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleQuestionExpand(question.id)}
-                                  className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
-                                >
-                                  <ChevronDownIcon
-                                    className={cn(
-                                      'h-3.5 w-3.5 transition-transform duration-200',
-                                      isExpanded && 'rotate-180',
-                                    )}
-                                  />
-                                  <span>
-                                    {isExpanded
+                                <ExpandToggle
+                                  expanded={isExpanded}
+                                  label={
+                                    isExpanded
                                       ? t('collapseOptions')
-                                      : t('expandOptions', { count: totalOptions - COLLAPSED_OPTIONS_LIMIT })}
-                                  </span>
-                                </button>
+                                      : t('expandOptions', { count: totalOptions - COLLAPSED_OPTIONS_LIMIT })
+                                  }
+                                  onToggle={() => toggleQuestionExpand(question.id)}
+                                />
                               ) : null}
                             </div>
                           );
@@ -569,23 +361,15 @@ const ClarificationInput = ({
                           ))}
                         </div>
                         {totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT ? (
-                          <button
-                            type="button"
-                            onClick={() => setIsSimpleOptionsExpanded((prev) => !prev)}
-                            className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
-                          >
-                            <ChevronDownIcon
-                              className={cn(
-                                'h-3.5 w-3.5 transition-transform duration-200',
-                                effectiveExpanded && 'rotate-180',
-                              )}
-                            />
-                            <span>
-                              {effectiveExpanded
+                          <ExpandToggle
+                            expanded={effectiveExpanded}
+                            label={
+                              effectiveExpanded
                                 ? t('collapseOptions')
-                                : t('expandOptions', { count: totalSimpleOptions - COLLAPSED_OPTIONS_LIMIT })}
-                            </span>
-                          </button>
+                                : t('expandOptions', { count: totalSimpleOptions - COLLAPSED_OPTIONS_LIMIT })
+                            }
+                            onToggle={() => setIsSimpleOptionsExpanded((prev) => !prev)}
+                          />
                         ) : null}
                         <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
                       </div>

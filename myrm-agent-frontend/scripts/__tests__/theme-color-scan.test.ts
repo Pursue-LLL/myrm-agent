@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { findWrappedThemeColorSites, isCompleteColorValue } from '../theme-color-scan';
+import {
+  findUndefinedSemanticColorSites,
+  findWrappedThemeColorSites,
+  isCompleteColorValue,
+  parseDeclaredColorTokens,
+} from '../theme-color-scan';
 
 const texts = (source: string): string[] => findWrappedThemeColorSites(source).map((site) => site.text);
 
@@ -56,5 +61,48 @@ describe('isCompleteColorValue', () => {
     expect(isCompleteColorValue('210 40% 50%')).toBe(false);
     expect(isCompleteColorValue('103, 153, 160')).toBe(false);
     expect(isCompleteColorValue('')).toBe(false);
+  });
+});
+
+describe('parseDeclaredColorTokens', () => {
+  it('collects every --color-* declaration of the theme block', () => {
+    const css =
+      '@theme {\n  --color-primary: var(--primary);\n  --color-warning-foreground:var(--warning-foreground);\n}';
+    expect([...parseDeclaredColorTokens(css)].sort()).toEqual(['primary', 'warning-foreground']);
+  });
+
+  it('ignores plain theme variables that Tailwind does not turn into colour utilities', () => {
+    expect([...parseDeclaredColorTokens(':root { --warning: #915c00; --radius: 8px; }')]).toEqual([]);
+  });
+});
+
+describe('findUndefinedSemanticColorSites', () => {
+  const declared = new Set(['primary', 'warning']);
+  const tokens = (source: string): string[] =>
+    findUndefinedSemanticColorSites(source, declared).map((site) => site.token);
+
+  it('flags a semantic colour utility whose --color-* token is not declared', () => {
+    expect(tokens(`className="bg-success/10 text-success"`)).toEqual(['success', 'success']);
+    expect(tokens(`'hover:bg-info dark:border-danger'`)).toEqual(['info', 'danger']);
+    expect(tokens(`'from-primary to-error'`)).toEqual(['error']);
+  });
+
+  it('treats the foreground token as its own declaration', () => {
+    expect(tokens(`className="text-warning-foreground"`)).toEqual(['warning-foreground']);
+    expect(findUndefinedSemanticColorSites(`text-warning-foreground`, new Set(['warning-foreground']))).toEqual([]);
+  });
+
+  it('accepts declared tokens, with opacity modifiers and variants', () => {
+    expect(tokens(`className="bg-warning/10 border-warning/30 text-warning dark:text-warning"`)).toEqual([]);
+  });
+
+  it('does not mistake ordinary words or non-colour utilities for semantic colours', () => {
+    expect(tokens(`seek-to-error and go-to-info`)).toEqual([]);
+    expect(tokens(`className="text-xs bg-cover border-dashed text-warning-light"`)).toEqual([]);
+  });
+
+  it('reports the 1-based line and the matched class text', () => {
+    const sites = findUndefinedSemanticColorSites(['a', `b: 'bg-error/20'`].join('\n'), declared);
+    expect(sites).toEqual([{ line: 2, text: 'bg-error', token: 'error' }]);
   });
 });

@@ -3,6 +3,7 @@
 Locks the cross-layer behavior for client retries:
 - same chat_id + message_id + content must not create a second user turn
 - a retry while the chat session is still active must surface AgentBusyError (409 SSE)
+- a resume that lost the race to the approval timeout is refused with a real HTTP 409
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.database.dto import MessageDTO
 from app.services.agent.execution_cache.prewarm.types import TurnPrewarmJoinResult
@@ -190,3 +192,35 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
             first_task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await first_task
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_agent_stream_resume_lost_the_race_is_refused_with_409_over_http(app) -> None:
+    """The client acts on the status code, so the refusal must reach it as a real HTTP 409."""
+    chat_id = f"chat-resume-race-{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "message_id": f"msg-resume-race-{uuid.uuid4().hex[:8]}",
+        "query": "",
+        "chat_id": chat_id,
+        "model_selection": get_lite_model_selection(),
+        "action_mode": "agent",
+        "timezone": "UTC",
+        "enable_memory": False,
+        "resume_value": {"decision": "approve"},
+    }
+    scheduler = ApprovalTimeoutScheduler.get()
+    scheduler.cancel_all()
+    scheduler.resolve_if_first(chat_id)  # the approval timer or another client answered first
+
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.post("/api/v1/agents/agent-stream", json=payload, timeout=30.0)
+
+        assert response.status_code == 409
+        assert response.json() == {"detail": "This approval has already been resolved."}
+    finally:
+        scheduler.cancel_all()

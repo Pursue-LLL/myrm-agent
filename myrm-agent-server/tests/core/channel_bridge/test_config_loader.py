@@ -232,6 +232,21 @@ class TestExtractVoiceConfig:
         result = extract_voice_config(None)
         assert result is None
 
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [(1.5, 1.5), (2, 2.0), ("0.8", 0.8), ("fast", 1.0), (None, 1.0)],
+    )
+    def test_tts_speed_falls_back_to_default_when_not_a_number(self, raw: object, expected: float) -> None:
+        result = extract_voice_config({"ttsMode": "always", "ttsSpeed": raw})
+        assert result is not None
+        assert result.tts_speed == expected
+
+    @pytest.mark.parametrize(("raw", "expected"), [("zh", "zh"), (7, None), (None, None)])
+    def test_stt_language_only_accepts_text(self, raw: object, expected: str | None) -> None:
+        result = extract_voice_config({"sttEnabled": True, "sttLanguage": raw})
+        assert result is not None
+        assert result.stt_language == expected
+
 
 class TestExtractWebTtsConfig:
     """Web /tts uses extract_web_tts_config — ignores channel ttsMode gate."""
@@ -358,12 +373,6 @@ def _oauth_entry(token: str, *, expires_in: float) -> dict[str, object]:
     }
 
 
-@pytest.fixture(autouse=True)
-def mock_load_user_configs() -> Iterator[None]:
-    """Run the real loader: the suite-wide autouse mock would hide everything tested here."""
-    yield
-
-
 @pytest.fixture
 def fresh_config_cache() -> Iterator[None]:
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
@@ -441,3 +450,29 @@ class TestLoadUserConfigsSubscriptionTokens:
 
         assert configs.model_cfg.api_key == "sk-user"
         refresh.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_empty_legacy_split_row_does_not_shadow_the_bundle(self) -> None:
+        """An empty leftover `defaultModelConfig` row must not disable the bundle's default model.
+
+        The legacy split row wins over the canonical `providers` bundle when it carries a model.
+        An empty one is a leftover: honouring it left the whole instance without a default model
+        ("No default model configured") even though the bundle defines one.
+        """
+        rows = [
+            _row(
+                "providers",
+                {
+                    "providers": [{"id": "minimax", "isEnabled": True, "apiKeys": [{"key": "sk-user", "isActive": True}]}],
+                    "defaultModelConfig": {
+                        "baseModel": {"primary": {"providerId": "minimax", "model": "MiniMax-M3"}},
+                    },
+                },
+            ),
+            _row("defaultModelConfig", {}),
+        ]
+
+        configs = await self._load(rows, AsyncMock())
+
+        assert configs.model_cfg.model == "minimax/MiniMax-M3"
+        assert configs.model_cfg.api_key == "sk-user"

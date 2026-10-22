@@ -59,4 +59,24 @@ describe('widget-theme-bridge', () => {
 
     expect(css).toContain('font-family:Georgia, serif');
   });
+
+  // A widget document is separate from the host page, so the host's reduced-motion block cannot
+  // reach it. Without this guard a widget's `button:active` press animation keeps running for a
+  // reader who asked the system to stop moving things.
+  it('carries a reduced-motion guard so widget animations honour the OS setting', () => {
+    const css = buildWidgetStyleBlock({ '--primary': '#2563eb', '--is-dark': '0' });
+
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(css).toContain('animation-duration:0.01ms !important');
+    expect(css).toContain('animation-iteration-count:1 !important');
+    expect(css).toContain('transition-duration:0.01ms !important');
+  });
+
+  // Guards the reason the block must start with the universal selector: widgets the model writes
+  // can introduce their own classes, so a rule listing the current animations would miss them.
+  it('applies the reduced-motion guard to every element, not to a named list', () => {
+    const css = buildWidgetStyleBlock({ '--primary': '#2563eb', '--is-dark': '0' });
+
+    expect(css).toContain('*,*::before,*::after{animation-duration:0.01ms !important');
+  });
 });

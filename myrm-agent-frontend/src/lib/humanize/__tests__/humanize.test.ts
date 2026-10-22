@@ -16,6 +16,7 @@ const enHumanize: Record<string, string> = {
   'approval.save_skill': 'Add skill: {name}',
   'approval.browser_url': 'Open webpage — {url}',
   'ask.file_write_ask': 'Wanted to write {filename}',
+  'ask.tool_generic': 'Wanted to use {tool}',
   'progress.web_search': 'Search the web — "{query}"',
   'scope.local': 'Changes stay on this device',
   'scope.external': 'Sends data to {destination}',
@@ -51,6 +52,16 @@ describe('humanizeToolLine', () => {
     expect(
       humanizeApprovalTitle('skill_manage_tool', { action: 'save', name: 'incident-summary', content: '# body' }, t),
     ).toBe('Add skill: incident-summary');
+  });
+
+  it('names an unmapped tool in past tense, or in ask tense when it never ran', () => {
+    expect(humanizeToolLine('spawn_agent_tool', {}, t, 'progress')).toBe('Used Spawn Agent');
+    expect(humanizeToolLine('spawn_agent_tool', {}, t, 'ask')).toBe('Wanted to use Spawn Agent');
+  });
+
+  it('keeps the past-tense line for a locale that has no ask-tense generic line', () => {
+    const withoutAskGeneric: TranslateFn = (key, values) => (key === 'ask.tool_generic' ? key : t(key, values));
+    expect(humanizeToolLine('spawn_agent_tool', {}, withoutAskGeneric, 'ask')).toBe('Used Spawn Agent');
   });
 });
 

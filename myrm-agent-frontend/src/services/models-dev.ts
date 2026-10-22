@@ -397,6 +397,8 @@ export function mapToCustomModelInfo(model: ModelsDevModel): CustomModelInfo {
     max_input_tokens: model.limit?.context,
     input_cost_per_million: model.cost?.input,
     output_cost_per_million: model.cost?.output,
+    cache_read_cost_per_million: model.cost?.cache_read,
+    cache_write_cost_per_million: model.cost?.cache_write,
     supports_vision: supportsVision,
     supports_function_calling: model.tool_call ?? false,
     supports_reasoning: model.reasoning ?? false,

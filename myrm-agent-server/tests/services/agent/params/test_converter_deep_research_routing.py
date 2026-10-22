@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, patch
 from app.core.types import ModelConfig
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest, ModelSelection
+from tests.api.agent.conftest import _build_mock_user_configs
 
 _MAIN = {"providerId": "openai", "model": "gpt-4o"}
 _MAIN_FALLBACK = {"providerId": "openai", "model": "gpt-4o-fallback"}
@@ -35,6 +36,10 @@ async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] 
 async def _converter_env(history: list[str | None] | None = None) -> AsyncIterator[None]:
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=_build_mock_user_configs()),
+        ),
         patch(
             "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
             new_callable=AsyncMock,

@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.integrations.mcp_probe_registry import _iter_exception_chain
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -261,7 +262,7 @@ class TestMCPProbeEndpoint:
 
         with (
             patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")),
-            patch("app.api.integrations.mcp.logger.exception") as mock_logger_exception,
+            patch("app.api.integrations.mcp_probe_registry.logger.exception") as mock_logger_exception,
         ):
             response = client.post(
                 "/api/v1/integrations/mcp/probe",
@@ -273,3 +274,74 @@ class TestMCPProbeEndpoint:
             "Unexpected MCP probe failure for target=%s",
             "http://127.0.0.1:8000/mcp",
         )
+
+    def test_probe_log_target_keeps_ipv6_hosts_bracketed(self, client: TestClient) -> None:
+        """A bare IPv6 host would make the logged target URL ambiguous, so it is re-bracketed."""
+        import httpx
+
+        with (
+            patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")),
+            patch("app.api.integrations.mcp_probe_registry.logger.exception") as mock_logger_exception,
+        ):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://[::1]:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        mock_logger_exception.assert_called_once_with(
+            "Unexpected MCP probe failure for target=%s",
+            "http://[::1]:8000/mcp",
+        )
+
+    @pytest.mark.parametrize("chaining", ["explicit_cause", "implicit_context"])
+    def test_probe_detects_unreachable_errno_through_either_exception_link(
+        self,
+        client: TestClient,
+        chaining: str,
+    ) -> None:
+        """The errno alone (its text matches no known marker) must classify the failure as a route problem."""
+        import httpx
+
+        async def _raise_connect_error(_url: str) -> None:
+            try:
+                raise OSError(errno.ENETUNREACH, "boom")
+            except OSError as os_exc:
+                if chaining == "explicit_cause":
+                    raise httpx.ConnectError("connect failed") from os_exc
+                raise httpx.ConnectError("connect failed")  # noqa: B904 - implicit chaining is the case under test
+
+        with patch("httpx.AsyncClient.get", side_effect=_raise_connect_error):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["reasonCode"] == "connection_unreachable"
+        assert data["shouldBlockConnect"] is True
+
+
+class TestExceptionChainWalker:
+    """``_iter_exception_chain`` feeds every connect-error classifier, so it must be complete and finite."""
+
+    def test_visits_the_cause_and_a_distinct_context_exactly_once(self) -> None:
+        cause = OSError("cause")
+        context = ValueError("context")
+        top = RuntimeError("top")
+        top.__cause__ = cause
+        top.__context__ = context
+
+        chain = _iter_exception_chain(top)
+
+        assert chain[0] is top
+        assert sorted(id(item) for item in chain) == sorted([id(top), id(cause), id(context)])
+
+    def test_cyclic_chains_terminate_with_each_exception_listed_once(self) -> None:
+        first = ValueError("first")
+        second = OSError("second")
+        first.__cause__ = second
+        second.__context__ = first
+
+        assert _iter_exception_chain(first) == [first, second]

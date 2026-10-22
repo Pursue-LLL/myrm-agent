@@ -1,9 +1,10 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Trash2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useDndAccessibility, useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { ProviderConfig } from '@/store/config/providerTypes';
 import ProviderIcon from './ProviderIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -15,6 +16,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -33,15 +35,6 @@ interface ProviderListProps {
   onAddProvider: () => void;
   onRemoveProvider: (id: string) => void;
   onReorderProviders?: (providers: ProviderConfig[]) => void;
-  circuitBreakers?: Record<
-    string,
-    {
-      state: 'closed' | 'open' | 'half_open';
-      failure_count: number;
-      retry_after_ms: number;
-    }
-  >;
-  onResetCircuit?: (providerId: string) => void;
 }
 
 // 可拖拽的提供商项
@@ -50,26 +43,18 @@ const SortableProviderItem = memo<{
   isSelected: boolean;
   onSelect: () => void;
   onRemove: () => void;
-  circuitBreaker?: {
-    state: 'closed' | 'open' | 'half_open';
-    failure_count: number;
-    retry_after_ms: number;
-  };
-  onResetCircuit?: () => void;
   t: ReturnType<typeof useTranslations<'settings.modelService'>>;
-}>(({ provider, isSelected, onSelect, onRemove, circuitBreaker, onResetCircuit, t }) => {
+}>(({ provider, isSelected, onSelect, onRemove, t }) => {
+  const { roleDescription, handleLabel } = useDndItemLabels();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: provider.id,
+    attributes: { roleDescription },
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  const isCircuitOpen = circuitBreaker?.state === 'open';
-  const isCircuitHalfOpen = circuitBreaker?.state === 'half_open';
-  const retrySeconds = circuitBreaker?.retry_after_ms ? Math.ceil(circuitBreaker.retry_after_ms / 1000) : 0;
 
   return (
     <div
@@ -102,6 +87,7 @@ const SortableProviderItem = memo<{
         <div
           {...attributes}
           {...listeners}
+          aria-label={handleLabel}
           className="p-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
         >
           <ChevronRight className="w-3.5 h-3.5" />
@@ -113,40 +99,7 @@ const SortableProviderItem = memo<{
       </div>
 
       <div className="flex items-center gap-1.5">
-        {/* 熔断器状态胶囊与倒计时 */}
-        {isCircuitOpen ? (
-          <output
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20"
-            title={`Circuit open (cooldown active: ${retrySeconds}s remaining)`}
-            aria-live="polite"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-ping" />
-            <span>{retrySeconds}s</span>
-            {onResetCircuit && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onResetCircuit();
-                }}
-                className="hover:underline font-bold text-destructive hover:opacity-80 ml-0.5"
-                title="Reset cooldown"
-              >
-                ↺
-              </button>
-            )}
-          </output>
-        ) : isCircuitHalfOpen ? (
-          <div
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"
-            title="Circuit half-open (probing health)"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>Probe</span>
-          </div>
-        ) : (
-          provider.isEnabled && <div className="w-2 h-2 rounded-full bg-green-500 shadow-green-500/50" />
-        )}
+        {provider.isEnabled && <div className="w-2 h-2 rounded-full bg-green-500 shadow-green-500/50" />}
 
         {!provider.isBuiltIn && (
           <button
@@ -168,17 +121,10 @@ const SortableProviderItem = memo<{
 SortableProviderItem.displayName = 'SortableProviderItem';
 
 const ProviderList = memo<ProviderListProps>(
-  ({
-    providers,
-    selectedId,
-    onSelect,
-    onAddProvider,
-    onRemoveProvider,
-    onReorderProviders,
-    circuitBreakers = {},
-    onResetCircuit,
-  }) => {
+  ({ providers, selectedId, onSelect, onAddProvider, onRemoveProvider, onReorderProviders }) => {
     const t = useTranslations('settings.modelService');
+    const providerName = useCallback((id: UniqueIdentifier) => providers.find((p) => p.id === id)?.name, [providers]);
+    const accessibility = useDndAccessibility(providerName);
 
     const sensors = useSensors(
       useSensor(PointerSensor, {
@@ -205,7 +151,12 @@ const ProviderList = memo<ProviderListProps>(
 
     return (
       <div className="flex flex-col">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          accessibility={accessibility}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <SortableContext items={providers.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-1">
               {providers.map((provider) => (
@@ -215,8 +166,6 @@ const ProviderList = memo<ProviderListProps>(
                   isSelected={selectedId === provider.id}
                   onSelect={() => onSelect(provider.id)}
                   onRemove={() => onRemoveProvider(provider.id)}
-                  circuitBreaker={circuitBreakers[provider.id]}
-                  onResetCircuit={onResetCircuit ? () => onResetCircuit(provider.id) : undefined}
                   t={t}
                 />
               ))}
