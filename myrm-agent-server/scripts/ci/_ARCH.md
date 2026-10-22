@@ -7,6 +7,7 @@ CI 门禁脚本与 baseline 数据。由 GitHub Actions 与 `run_architecture_ga
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `check_profile_capability_escalation.py` | 核心 | AST 静态审计内置安全配置与 Agent 模板，阻断 PR 越权与提权放宽 |
+| `check_pyright_unbound.py` | 核心 | 解析 pyright JSON，阻断 `reportUnboundVariable` / `reportUndefinedVariable`（“变量先用后赋值”类 bug） |
 | `install_promtool.sh` | 核心 | 安装固定版本（含 sha256 校验）的 `promtool` 到 `/usr/local/bin`；架构门禁与默认 pytest 两个 workflow 共用，因为 Prometheus 规则测试在 CI 缺少 promtool 时直接失败 |
 | `lib_harness_deps.sh` | 核心 | 共享 harness 感知 `uv sync`（本地树 / PyPI）：解析同仓的 `myrm-agent-harness/` 目录并 `uv sync --frozen --group dev`（harness 由 `uv.lock` 作为 editable path source 提供） |
 | `run_architecture_gates.sh` | 核心 | 串联 fractal docs、md-refs 反引号引用校验（`validate_arch_inventory.py --md-refs`，本地 harness 源码模式生效）、导入可解析性门禁（harness `check_import_resolvability.py`：`app/` 内每条 `app.*` / `myrm_agent_harness.*` import 须指向真实模块与名字；harness 源码在旁时生效，PyPI 模式显式跳过）、模块可达性门禁（harness `check_module_reachability.py --server --base`：diff 模式，仅工作树（含未跟踪文件）里已死、基线时不死的 server 单元失败；基线修订取 `MYRM_REACHABILITY_BASE`，默认 `origin/main`）、profile capability 门禁、ruff lint、`promtool check rules`、architecture pytest |

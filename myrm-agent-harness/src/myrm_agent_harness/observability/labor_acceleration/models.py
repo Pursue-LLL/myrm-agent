@@ -33,7 +33,7 @@ class LaborEquivalencyItem:
     """单类任务行为的人工工时等效置换明细。"""
 
     action_type: TaskActionType
-    label: string
+    label: str
     count: int
     hours_per_unit: float
     total_hours_saved: float

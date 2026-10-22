@@ -88,6 +88,30 @@ _run_ruff() {
   fi
 }
 
+_run_pyright_unbound() {
+  # Blocks the "name used before it exists" class (e.g. a local read before assignment).
+  # Full pyright carries a large pre-existing baseline for other rules, so only the two
+  # name-resolution rules are fatal here.
+  if [[ "${CI:-}" != "true" && "${MYRM_PYRIGHT_GATE:-0}" != "1" ]]; then
+    echo "CI pyright: skipped locally (set MYRM_PYRIGHT_GATE=1 or CI=true to run)"
+    return 0
+  fi
+  local report
+  report="$(mktemp -t pyright-unbound.XXXXXX.json)"
+  if [[ -x "${SERVER_ROOT}/.venv/bin/pyright" ]]; then
+    "${SERVER_ROOT}/.venv/bin/pyright" --project "${SERVER_ROOT}" --outputjson > "${report}" || true
+  else
+    (cd "${SERVER_ROOT}" && uv run pyright --outputjson > "${report}") || true
+  fi
+  local py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  if ! "${py}" "${SERVER_ROOT}/scripts/ci/check_pyright_unbound.py" "${report}"; then
+    rm -f "${report}"
+    return 1
+  fi
+  rm -f "${report}"
+}
+
 _run_profile_capability_gate() {
   local py="${SERVER_ROOT}/.venv/bin/python"
   [[ -x "${py}" ]] || py="python3"
@@ -122,6 +146,7 @@ _run_module_reachability
 _run_profile_capability_gate
 _run_dependency_vuln_gate
 _run_ruff
+_run_pyright_unbound
 _run_prometheus_rules_semantic_check
 _run_pytest
 echo "OK: server architecture gates"
