@@ -7,6 +7,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
+from myrm_agent_harness.toolkits.mcp.config_scan import (
+    MCPConfigScanResult,
+    MCPConfigSnapshot,
+    MCPRuntimeScanResult,
+    MCPRuntimeToolSurface,
+    MCPScanFinding,
+    MCPScanSeverity,
+    scan_mcp_config,
+    scan_mcp_runtime_surface,
+)
 from myrm_agent_harness.toolkits.mcp.security import (
     MCPResponseError,
     MCPResponseValidator,
@@ -448,6 +458,71 @@ class TestScanMcpConfig:
         )
         assert result.allow_save is True
 
+    def test_risky_profile_requires_acknowledgement_but_stays_savable(self) -> None:
+        risky = scan_mcp_config(
+            MCPConfigSnapshot(
+                name="filesystem-tools",
+                type="stdio",
+                command="node",
+                args=("server.js",),
+                description="Filesystem MCP",
+            )
+        )
+        clean = scan_mcp_config(
+            MCPConfigSnapshot(name="context7", type="sse", url="https://mcp.example.com/sse", description="Docs")
+        )
+
+        assert [f.threat_type for f in risky.findings] == ["risky_mcp_profile"]
+        assert risky.max_severity == MCPScanSeverity.HIGH
+        assert risky.requires_acknowledgement is True
+        assert risky.allow_save is True
+        assert clean.requires_acknowledgement is False
+
+    @pytest.mark.parametrize(
+        ("args", "flagged"),
+        [(("-y",), True), (("--yes",), True), (("-y", "@scope/pkg@1.2.3"), False), ((), False)],
+    )
+    def test_unpinned_npx_auto_install_is_flagged(self, args: tuple[str, ...], flagged: bool) -> None:
+        result = scan_mcp_config(MCPConfigSnapshot(name="pkg", type="stdio", command="npx", args=args))
+
+        assert any(f.threat_type == "supply_chain" for f in result.findings) is flagged
+
+    def test_hardcoded_header_secret_blocks_save(self) -> None:
+        result = scan_mcp_config(
+            MCPConfigSnapshot(
+                name="remote",
+                type="sse",
+                url="https://mcp.example.com/sse",
+                headers={"X-Api-Key": "abcd1234efgh5678", "X-Trace-Id": "trace-0123456789"},
+            )
+        )
+
+        secrets = [f for f in result.findings if f.threat_type == "hardcoded_secret"]
+        assert [f.field for f in secrets] == ["headers.X-Api-Key"]
+        assert result.allow_save is False
+
+    def test_short_header_value_is_not_treated_as_a_secret(self) -> None:
+        result = scan_mcp_config(
+            MCPConfigSnapshot(
+                name="remote", type="sse", url="https://mcp.example.com/sse", headers={"X-Api-Key": "abc"}
+            )
+        )
+
+        assert result.findings == ()
+
+    def test_non_mapping_env_is_ignored(self) -> None:
+        result = scan_mcp_config(
+            MCPConfigSnapshot(
+                name="plain",
+                type="stdio",
+                command="node",
+                args=("server.js",),
+                extra_params={"env": "not-a-mapping"},
+            )
+        )
+
+        assert result.findings == ()
+
 
 class TestScanMcpRuntimeSurface:
     """scan_mcp_runtime_surface: MCP instructions, tool name, and tool description scanner."""
@@ -661,3 +736,47 @@ class TestScanMcpRuntimeSurface:
         )
         assert result.allow_use is False
         assert any(f.threat_type == "arbitrary_execution" for f in result.findings)
+
+    def test_blank_tool_name_has_no_name_injection_finding(self) -> None:
+        result = scan_mcp_runtime_surface(
+            "docs",
+            instructions=None,
+            tools=(MCPRuntimeToolSurface(name="", description="Looks up documentation"),),
+        )
+
+        assert result.findings == ()
+
+
+# ============================================================================
+# Scan result severity roll-up
+# ============================================================================
+
+
+def _finding(severity: MCPScanSeverity) -> MCPScanFinding:
+    return MCPScanFinding(threat_type="probe", severity=severity, description=f"{severity.value} finding")
+
+
+_MIXED_LEVELS = [
+    ((MCPScanSeverity.HIGH, MCPScanSeverity.INFO), MCPScanSeverity.HIGH),
+    ((MCPScanSeverity.CRITICAL, MCPScanSeverity.MEDIUM), MCPScanSeverity.CRITICAL),
+    ((MCPScanSeverity.LOW, MCPScanSeverity.HIGH, MCPScanSeverity.MEDIUM), MCPScanSeverity.HIGH),
+    ((MCPScanSeverity.INFO, MCPScanSeverity.LOW), MCPScanSeverity.LOW),
+    ((MCPScanSeverity.INFO,), MCPScanSeverity.INFO),
+    ((), None),
+]
+
+
+class TestScanResultMaxSeverity:
+    """Findings roll up by risk rank; the labels' alphabetical order (critical < high < info < low < medium) is not it."""
+
+    @pytest.mark.parametrize(("levels", "expected"), _MIXED_LEVELS)
+    @pytest.mark.parametrize("result_type", [MCPConfigScanResult, MCPRuntimeScanResult])
+    def test_max_severity_follows_risk_order(
+        self,
+        result_type: type[MCPConfigScanResult | MCPRuntimeScanResult],
+        levels: tuple[MCPScanSeverity, ...],
+        expected: MCPScanSeverity | None,
+    ) -> None:
+        result = result_type(server_name="srv", findings=tuple(_finding(level) for level in levels))
+
+        assert result.max_severity == expected

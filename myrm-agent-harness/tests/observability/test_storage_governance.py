@@ -1,4 +1,4 @@
-"""Unit tests for Storage Governance Subsystem (Inspector, SnapshotManager)."""
+"""Unit tests for Storage Governance Subsystem (Inspector)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.observability.storage_governance import (
-    StateSnapshotManager,
     StorageCategory,
     StorageGovernanceInspector,
     StorageGovernanceReport,
@@ -297,58 +296,3 @@ def test_measure_tree_accepts_a_single_file_and_a_missing_path(tmp_path: Path) -
 
     assert measure_tree(str(file)) == (123, 1)
     assert measure_tree(str(tmp_path / "missing")) == (0, 0)
-
-
-def test_snapshot_manager_lifecycle(tmp_path: Path) -> None:
-    """Test creating, listing, restoring, and deleting point-in-time snapshots."""
-    data_dir = tmp_path / "myrm_data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    db_file = data_dir / "data.db"
-    _init_sample_sqlite_db(db_file)
-
-    mgr = StateSnapshotManager(data_dir)
-
-    # 1. Create snapshot
-    meta = mgr.create_snapshot(label="Pre-Upgrade Backup")
-    assert meta.snapshot_id.startswith("snap_")
-    assert meta.label == "Pre-Upgrade Backup"
-    assert meta.size_bytes > 0
-    assert len(meta.checksum) == 64
-
-    # 2. List snapshots
-    snapshots = mgr.list_snapshots()
-    assert len(snapshots) == 1
-    assert snapshots[0].snapshot_id == meta.snapshot_id
-
-    # 3. Modify current DB to simulate corrupted upgrade
-    conn = sqlite3.connect(str(db_file))
-    conn.execute("DELETE FROM chats;")
-    conn.commit()
-    conn.close()
-
-    # Verify rows deleted
-    conn = sqlite3.connect(str(db_file))
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM chats;")
-    assert cur.fetchone()[0] == 0
-    conn.close()
-
-    # 4. Restore snapshot
-    restore_ok = mgr.restore_snapshot(meta.snapshot_id)
-    assert restore_ok is True
-
-    # Verify rows restored
-    conn = sqlite3.connect(str(db_file))
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM chats;")
-    assert cur.fetchone()[0] == 50
-    conn.close()
-
-    # 5. Delete snapshot
-    del_ok = mgr.delete_snapshot(meta.snapshot_id)
-    assert del_ok is True
-    assert len(mgr.list_snapshots()) == 0
-
-    # 6. Restore non-existent snapshot
-    assert mgr.restore_snapshot("non_existent_snap") is False

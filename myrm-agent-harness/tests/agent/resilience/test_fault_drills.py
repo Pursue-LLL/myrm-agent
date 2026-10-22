@@ -55,7 +55,8 @@ def test_drill_sqlite_locked_recovers_via_retry_then_escalate(tmp_path: Path) ->
 
 def test_drill_vector_store_unreachable_degrades_to_keyword_only() -> None:
     # Real dead-port failure against the actual client (no mock).
-    from qdrant_client import QdrantClient
+    qdrant_module = pytest.importorskip("qdrant_client")
+    QdrantClient = qdrant_module.QdrantClient
 
     client = QdrantClient(url="http://127.0.0.1:9", timeout=3, check_compatibility=False)
     try:

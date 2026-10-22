@@ -4,14 +4,10 @@
 # and transparent self-dismantling memory/skill curation sweeps.
 # ============================================================================
 
-import time
 
 from myrm_agent_harness.agent.skills.curator import (
     AdversarialCriticRole,
     AntiSycophancyAdversarialEngine,
-    CuratedAction,
-    CuratorCustomRules,
-    SelfDismantlingCuratorEngine,
 )
 
 
@@ -59,57 +55,3 @@ def test_review_and_critique_personas() -> None:
     assert sec_review.critic_role == AdversarialCriticRole.SECURITY_REDTEAM
     assert any("安全" in p or "输入" in p or "越权" in p for p in sec_review.potential_pitfalls)
 
-
-def test_self_dismantling_curator_sweep() -> None:
-    """Tests automatic pruning, distillation, and retention across a batch of memories/skills."""
-    curator = SelfDismantlingCuratorEngine()
-    now = time.time()
-
-    items = [
-        # Fresh, unique item -> RETAIN
-        {
-            "id": "mem-1",
-            "type": "memory",
-            "content": "PostgreSQL 16 connection pooling config with pgbouncer port 6432",
-            "created_at": now - 3600,
-        },
-        # Redundant duplicate item -> DISTILL
-        {
-            "id": "mem-2",
-            "type": "memory",
-            "content": "PostgreSQL connection pooling configuration with pgbouncer on port 6432",
-            "created_at": now - 7200,
-        },
-        # Very stale item (60 days old) -> PRUNE
-        {
-            "id": "mem-3",
-            "type": "skill",
-            "content": "Deprecated temporary quickfix for legacy python 2.7 build error",
-            "created_at": now - (60 * 86400),
-        },
-    ]
-
-    rules = CuratorCustomRules(
-        user_guidelines=["数据库优化与连接池架构"],
-        max_staleness_days=30,
-        dedup_similarity_threshold=0.70,
-        prune_threshold=0.40,
-    )
-
-    report = curator.curate_knowledge_and_skills(items=items, custom_rules=rules)
-
-    assert report.scanned_items_count == 3
-    assert report.retained_count >= 1
-    assert report.distilled_count >= 1
-    assert report.pruned_count >= 1
-
-    # Check verdicts
-    v_stale = next(v for v in report.verdicts if v.item_id == "mem-3")
-    assert v_stale.action == CuratedAction.PRUNE
-
-    v_dup = next(v for v in report.verdicts if v.item_id == "mem-2")
-    assert v_dup.action == CuratedAction.DISTILL
-    assert v_dup.distilled_content is not None
-    assert "提纯核心" in v_dup.distilled_content
-
-    assert "Hermes Curator 自我蒸馏策展报告" in report.summary_markdown

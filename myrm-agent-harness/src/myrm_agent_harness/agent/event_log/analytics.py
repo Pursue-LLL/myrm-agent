@@ -20,13 +20,26 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .protocols import EventLogBackend
 from .types import DailyActivity, EventFilter, GlobalActivityPatterns, ToolStabilityAnalytics, TopSession
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_timezone(tz_name: str | None) -> tuple[tzinfo, str]:
+    """Resolve timezone string to tzinfo with safe fallback to UTC."""
+    if not tz_name or not tz_name.strip():
+        return UTC, "UTC"
+    cleaned = tz_name.strip()
+    try:
+        return ZoneInfo(cleaned), cleaned
+    except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
+        logger.warning("Invalid timezone '%s', falling back to UTC: %s", cleaned, exc)
+        return UTC, "UTC"
 
 
 class EventLogAnalytics:
@@ -40,22 +53,27 @@ class EventLogAnalytics:
         """
         self._backend = backend
 
-    async def get_global_activity_patterns(self, time_range_days: int | None = None) -> GlobalActivityPatterns:
+    async def get_global_activity_patterns(
+        self,
+        time_range_days: int | None = None,
+        timezone: str | None = None,
+    ) -> GlobalActivityPatterns:
         """Calculate global activity patterns across all sessions.
-
-        Uses concurrent queries for optimal performance (80-90% faster for 10+ sessions).
-        All time calculations use UTC for consistency across timezones.
 
         Args:
             time_range_days: Optional time range in days from current UTC time.
                            For example, 7 means "last 7 days", 30 means "last 30 days".
                            If None, includes all historical data.
+            timezone: Optional user local timezone name (e.g. 'Asia/Shanghai', 'America/New_York').
+                     Defaults to 'UTC' if None or invalid.
 
         Returns:
             GlobalActivityPatterns with daily breakdown, aggregated stats,
-            active days, max streak, and busiest time. All timestamps are UTC-based.
+            active days, max streak, and busiest time bucketed by the target timezone.
         """
-        # Prepare time filter (use UTC for consistency)
+        tz_obj, resolved_tz_name = _resolve_timezone(timezone)
+
+        # Prepare time filter
         start_time = None
         if time_range_days is not None:
             start_time = datetime.now(UTC).timestamp() - (time_range_days * 86400)
@@ -72,14 +90,14 @@ class EventLogAnalytics:
         # Hour aggregation: hour -> tool_calls
         hourly_data: dict[int, int] = defaultdict(int)
 
-        # Collect events from all sessions (concurrently for better performance)
+        # Collect events from all sessions
         tasks = [self._backend.get_events(session_id, event_filter) for session_id in session_ids]
         all_session_events = await asyncio.gather(*tasks)
 
         for session_id, events in zip(session_ids, all_session_events, strict=False):
             for event in events:
-                # Daily stats (use UTC to avoid timezone inconsistencies)
-                dt = datetime.fromtimestamp(event.timestamp, tz=UTC)
+                # Daily stats bucketed by the requested timezone
+                dt = datetime.fromtimestamp(event.timestamp, tz=tz_obj)
                 date_str = dt.strftime("%Y-%m-%d")
                 daily_data[date_str]["sessions"].add(session_id)  # type: ignore[union-attr]
 
@@ -93,7 +111,7 @@ class EventLogAnalytics:
                 if isinstance(duration_ms, (int, float)):
                     daily_data[date_str]["duration_ms"] = daily_data[date_str]["duration_ms"] + float(duration_ms)  # type: ignore[operator]
 
-                # Hourly stats (aggregate tool_calls by hour)
+                # Hourly stats (aggregate tool_calls by local hour)
                 hourly_data[dt.hour] += int(tool_calls) if isinstance(tool_calls, (int, float)) else 0
 
         # Build DailyActivity list
@@ -134,6 +152,7 @@ class EventLogAnalytics:
             max_streak=max_streak,
             busiest_day_of_week=busiest_day_of_week,
             busiest_hour=busiest_hour,
+            timezone=resolved_tz_name,
         )
 
     async def get_tool_stability(

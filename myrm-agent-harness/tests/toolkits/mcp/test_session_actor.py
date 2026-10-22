@@ -426,8 +426,9 @@ async def test_keepalive_failure_triggers_reconnect(
 
     async def _list_tools() -> object:
         probes["n"] += 1
-        if probes["n"] == 1:
-            raise ConnectionError("idle dropped")  # stale connection on first probe
+        # Call 1 is the enumeration at start; call 2 is the first idle keepalive probe.
+        if probes["n"] == 2:
+            raise ConnectionError("idle dropped")
         return MagicMock()
 
     client_cls._instance.list_tools = AsyncMock(side_effect=_list_tools)
@@ -436,10 +437,14 @@ async def test_keepalive_failure_triggers_reconnect(
     with _patched(client_cls, convert):
         await actor.start()
         try:
-            await asyncio.sleep(0.3)
-            # First probe failed → reconnected (initialize re-ran) → still healthy.
-            assert len(init_calls) >= 2
+            # The failure below must come from the idle probe, not from a start retry.
+            assert init_calls == [1]
+            async with asyncio.timeout(5.0):
+                while len(init_calls) < 2:
+                    await asyncio.sleep(0.01)
+            # The failed probe reconnected (initialize re-ran) and the session is usable again.
             assert actor.is_healthy() is True
+            assert await actor.call("alpha", {"q": 1}) == "ok"
         finally:
             await actor.close()
 

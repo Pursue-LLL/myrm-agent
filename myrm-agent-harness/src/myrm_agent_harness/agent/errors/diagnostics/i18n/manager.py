@@ -21,6 +21,7 @@ import locale as stdlib_locale
 import logging
 import os
 from pathlib import Path
+from typing import Literal, overload
 
 from .constants import REQUIRED_ERROR_TYPES
 
@@ -142,6 +143,19 @@ class LocaleManager:
             loc = language_defaults[loc]
 
         return loc
+
+    @overload
+    def translate(
+        self, error_type: str, key: Literal["user_message"], locale: str | None = None, **params: object
+    ) -> str: ...
+
+    @overload
+    def translate(
+        self, error_type: str, key: Literal["resolution_steps"], locale: str | None = None, **params: object
+    ) -> list[str]: ...
+
+    @overload
+    def translate(self, error_type: str, key: str, locale: str | None = None, **params: object) -> str | list[str]: ...
 
     def translate(
         self,

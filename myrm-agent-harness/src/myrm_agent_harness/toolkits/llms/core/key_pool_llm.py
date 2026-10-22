@@ -11,6 +11,7 @@ Layering:  KeyPoolLLM (key rotation) → ManagedLLM (model failover)
 - core.credential_pool::CredentialPool (POS: Framework-level credential scheduling and rotation)
 - errors.classifier::ErrorKind, classify_error (POS: LLM error classifier)
 - errors.exceptions::EgressChallengeBlockedError (POS: Standardized LLM exceptions for the Harness framework)
+- errors.provider_window::extract_provider_window (POS: provider-stated retry boundary for key cooldown)
 
 [OUTPUT]
 - KeyPoolLLM: BaseChatModel with transparent key rotation and strategy-aware observability
@@ -38,9 +39,9 @@ from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
 from myrm_agent_harness.toolkits.llms.errors.classifier import (
     ErrorKind,
     classify_error,
-    extract_retry_after,
 )
 from myrm_agent_harness.toolkits.llms.errors.exceptions import EgressChallengeBlockedError
+from myrm_agent_harness.toolkits.llms.errors.provider_window import extract_provider_window
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +106,9 @@ class KeyPoolLLM(BaseChatModel):
     # ------------------------------------------------------------------
 
     def _report_error(self, key: str, exc: Exception, kind: ErrorKind) -> None:
-        """Report an error to the pool, extracting Retry-After when available."""
-        retry_after = extract_retry_after(exc) if kind == ErrorKind.RATE_LIMIT else None
-        self._pool.report_error(key, kind.value, cooldown_hint_s=retry_after)
+        """Report an error to the pool, carrying the provider-stated wait when available."""
+        hint = extract_provider_window(exc) if kind in (ErrorKind.RATE_LIMIT, ErrorKind.BILLING) else None
+        self._pool.report_error(key, kind.value, cooldown_hint_s=hint.wait_s if hint else None)
 
     @staticmethod
     def _raise_challenge_blocked(key: str, exc: Exception, action: str = "request") -> NoReturn:

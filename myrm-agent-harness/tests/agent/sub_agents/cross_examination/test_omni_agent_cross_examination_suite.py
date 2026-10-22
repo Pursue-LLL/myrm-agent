@@ -14,14 +14,11 @@ Verifies:
 
 from __future__ import annotations
 
-import pytest
-
 from myrm_agent_harness.agent.sub_agents.cross_examination import (
     AdoptionChoice,
     AgentExecutionOutput,
     AgentRoleTarget,
     ConsensusDeltaHighlighter,
-    CrossExamArbitrationReport,
     IntentCategory,
     OmniAgentDispatcherSuite,
     OmniAgentUnifiedDispatcherAndSplitCrossExaminationSuite,

@@ -481,6 +481,8 @@ async def test_connect_calls_spawn_and_creates_streams() -> None:
         assert write_stream is not None
 
     executor.spawn_background_process.assert_called_once()
+    spawned_context = executor.spawn_background_process.await_args.args[0]
+    assert spawned_context.harness_owned is True
 
 
 # --- Stderr Batch Flush Edge Case ---

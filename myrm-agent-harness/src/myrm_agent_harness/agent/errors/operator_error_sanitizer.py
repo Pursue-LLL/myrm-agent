@@ -84,7 +84,7 @@ class OperatorErrorSanitizer:
         custom_hint: str | None = None,
     ) -> SanitizedOperatorError:
         """Sanitize an arbitrary exception or error string into a structured operator error."""
-        raw_msg = str(error) if isinstance(error, BaseException) else str(error)
+        raw_msg = str(error)
         internal_cause = traceback.format_exc() if isinstance(error, BaseException) else raw_msg
 
         # Extract exception class name if available

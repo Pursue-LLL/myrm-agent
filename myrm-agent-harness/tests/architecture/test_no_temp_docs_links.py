@@ -22,7 +22,9 @@ def _tracked_markdown_files() -> list[Path]:
         text=True,
     )
     paths = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    return [_REPO_ROOT / p for p in paths]
+    # An index entry can outlive its worktree copy while a deletion is in flight;
+    # only files that still exist carry content to scan.
+    return [p for p in (_REPO_ROOT / path for path in paths) if p.is_file()]
 
 
 @pytest.mark.parametrize("path", _tracked_markdown_files(), ids=lambda p: p.name)

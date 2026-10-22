@@ -124,6 +124,17 @@ class TestDrainRestoreNotifications:
         assert "database changes, container or cloud operations" in result
         assert "container_cloud" not in result
 
+    def test_drain_publish_effect_uses_plain_language(self):
+        push_restore_notification(
+            snapshot_id="snap_external_9012",
+            files_restored=1,
+            restored_files=None,
+            external_effects=("publish",),
+        )
+        result = drain_restore_notifications()
+        assert result is not None
+        assert "pushed or published content" in result
+
     def test_drain_unknown_effect_falls_back(self):
         push_restore_notification(
             snapshot_id="snap_external_5678",

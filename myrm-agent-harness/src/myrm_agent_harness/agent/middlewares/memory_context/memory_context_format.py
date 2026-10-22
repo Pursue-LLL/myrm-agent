@@ -283,7 +283,7 @@ def _format_memory_context(
             )
 
     # ── Proactive Knowledge Pack Snippets (Authoritative Context from Mounted Vaults) ──
-    # Injected into the untrusted layer before user HumanMessage, keeping System Prompt 100% cache-stable.
+    # Injected into the untrusted layer before user HumanMessage; stable system prefix stays unchanged.
     proactive_pack = ctx.get("proactive_knowledge_pack")
     if isinstance(proactive_pack, dict):
         raw_snippets = proactive_pack.get("snippets", [])

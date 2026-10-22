@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, StructuredTool
 
 from myrm_agent_harness.agent.sub_agents.builder import (
     build_child_agent,
@@ -15,7 +15,10 @@ from myrm_agent_harness.agent.sub_agents.builder import (
     resolve_llm,
     truncate_result,
 )
-from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+from myrm_agent_harness.agent.sub_agents.spawn_prep import apply_readonly_to_config
+from myrm_agent_harness.agent.sub_agents.types import SubagentConfig, WorkspacePolicy
+from myrm_agent_harness.core.security.tool_registry import evict_skill_safety_metadata
+from myrm_agent_harness.toolkits.mcp.tool_processing import prefix_tool_names, register_tool_annotations
 
 
 def _make_tool(name: str) -> BaseTool:
@@ -92,6 +95,72 @@ class TestFilterTools:
         cfg = SubagentConfig(system_prompt="s")
         result = filter_tools(cfg, [])
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# filter_tools — READ_ONLY_SANDBOX drops MCP tools not annotated read-only
+# ---------------------------------------------------------------------------
+
+_MCP_SERVER = "ro_filter_server"
+
+
+def _mcp_tools_as_loaded() -> list[BaseTool]:
+    """MCP tools shaped as ``toolkits/mcp/agent.py`` produces them: prefixed name, raw annotations, then registered."""
+    raw = {
+        "get_pull_request": {"readOnlyHint": True},
+        "create_issue_comment": {"readOnlyHint": False},
+        "list_issues": {},  # server declared no annotations
+        "web_lookup": {"readOnlyHint": True, "openWorldHint": True},
+    }
+    tools: list[BaseTool] = [
+        StructuredTool.from_function(func=lambda: "ok", name=name, description=name, metadata=dict(meta))
+        for name, meta in raw.items()
+    ]
+    prefix_tool_names(tools, _MCP_SERVER)
+    register_tool_annotations(tools, _MCP_SERVER)
+    return tools
+
+
+@pytest.fixture
+def mcp_tools():
+    tools = _mcp_tools_as_loaded()
+    yield tools
+    evict_skill_safety_metadata(f"mcp_{_MCP_SERVER}_skill")
+
+
+class TestFilterToolsReadOnlyMcp:
+    def _names(self, cfg: SubagentConfig, tools: list[BaseTool]) -> set[str]:
+        return {t.name for t in filter_tools(cfg, tools)}
+
+    def test_read_only_sandbox_keeps_only_annotated_read_only_mcp_tools(self, mcp_tools):
+        cfg = SubagentConfig(system_prompt="s", workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
+        assert self._names(cfg, mcp_tools) == {
+            f"mcp__{_MCP_SERVER}__get_pull_request",
+            f"mcp__{_MCP_SERVER}__web_lookup",
+        }
+
+    def test_writable_policy_keeps_every_mcp_tool(self, mcp_tools):
+        cfg = SubagentConfig(system_prompt="s", workspace_policy=WorkspacePolicy.ISOLATED_COPY)
+        assert self._names(cfg, mcp_tools) == {t.name for t in mcp_tools}
+
+    def test_read_only_sandbox_leaves_native_tools_to_the_name_lists(self, mcp_tools):
+        native = _make_tool("file_read_tool")
+        cfg = SubagentConfig(system_prompt="s", workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
+        assert "file_read_tool" in self._names(cfg, [native, *mcp_tools])
+
+    def test_allowlisted_side_effect_mcp_tool_is_still_dropped(self, mcp_tools):
+        allowed = (f"mcp__{_MCP_SERVER}__create_issue_comment", f"mcp__{_MCP_SERVER}__get_pull_request")
+        cfg = SubagentConfig(system_prompt="s", tools=allowed, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
+        assert self._names(cfg, mcp_tools) == {f"mcp__{_MCP_SERVER}__get_pull_request"}
+
+    def test_apply_readonly_to_config_yields_the_same_filtering(self, mcp_tools):
+        cfg = apply_readonly_to_config(SubagentConfig(system_prompt="s"), readonly=True)
+        names = self._names(cfg, [_make_tool("file_write_tool"), _make_tool("file_read_tool"), *mcp_tools])
+        assert names == {
+            "file_read_tool",
+            f"mcp__{_MCP_SERVER}__get_pull_request",
+            f"mcp__{_MCP_SERVER}__web_lookup",
+        }
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ import logging
 from .context import (
     clear_workspace_trust_context,
     set_repo_command_prefixes,
+    set_workspace_root,
     set_workspace_trust_level,
 )
 from .provider import resolve_workspace_trust_level
@@ -33,6 +34,7 @@ def apply_workspace_trust_for_root(workspace_root: str) -> WorkspaceTrustLevel:
     """Resolve and bind workspace trust for the active agent run."""
     level = resolve_workspace_trust_level(workspace_root)
     set_workspace_trust_level(level)
+    set_workspace_root(workspace_root)
     if level == WorkspaceTrustLevel.TRUSTED:
         prefixes = load_repo_command_prefixes(workspace_root)
         set_repo_command_prefixes(prefixes)

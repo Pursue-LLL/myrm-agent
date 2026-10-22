@@ -127,6 +127,14 @@
     "If it persists, check VPN/proxy connection stability",
     "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings → System → Advanced"
   ],
-  "cooldown_hint_single": " Retry after {seconds} second.",
-  "cooldown_hint_plural": " Retry after {seconds} seconds."
+  "cooldown_hint_template": " Retry after {duration}.",
+  "cooldown_hint_joiner": " ",
+  "cooldown_hint_second_one": "{n} second",
+  "cooldown_hint_second_other": "{n} seconds",
+  "cooldown_hint_minute_one": "{n} minute",
+  "cooldown_hint_minute_other": "{n} minutes",
+  "cooldown_hint_hour_one": "{n} hour",
+  "cooldown_hint_hour_other": "{n} hours",
+  "cooldown_hint_day_one": "{n} day",
+  "cooldown_hint_day_other": "{n} days"
 }

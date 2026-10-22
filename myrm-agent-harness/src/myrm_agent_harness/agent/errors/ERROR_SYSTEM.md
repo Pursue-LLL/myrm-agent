@@ -369,14 +369,14 @@ agent/_internals/agent_runtime.py run_agent_loop 外层 except（executor 外层
     │     error_kind 优先；error_kind 为 UNKNOWN 时以 diagnostic.error_type 兜底（如 api_key → env）
     │   - diagnostic_result: { error_type, user_message, resolution_steps, locale }（本地化诊断结果）
     │   - recovery_actions: list[{id, label, url}]（本地化恢复按钮，由 `diagnostics/recovery_actions.py` 生成，可选）
-    │   - cooldown_remaining_ms: int（瞬态错误的重试倒计时，可选）
+    │   - cooldown_remaining_ms: int（提供方声明的恢复等待时间，可选；已由 `LLMErrorDiagnostic.diagnose` 统一写入 `diagnostic_result.user_message`，展示层不得再次追加）
     ↓
 SSE推送到前端（compactor.put）
     │ event_logger.log("error", ...)（同字段去 type/messageId 后持久化，供 trace 重建）
     ↓
 agentControlEvents.ts（前端消费）
     │ 优先消费 diagnostic_result（user_message + resolution_steps）
-    │ 缺失时 fallback getUserFriendlyError(error_kind, rawError, cooldown_remaining_ms)
+    │ 缺失时 fallback getUserFriendlyError(error_kind, rawError)
     ↓
 ProgressSteps.tsx（UI展示）
     └ 显示本地化错误消息 + fault_side badge + hint提示 + 恢复动作 + 倒计时
@@ -438,7 +438,7 @@ class DiagnosticResult:
 
 #### 前端消费链路
 
-- `agentControlEvents.ts`：收到 ERROR 事件 → 优先消费后端 `diagnostic_result`（`user_message` + `resolution_steps`），`diagnostic_result` 缺失时 fallback `getUserFriendlyError(error_kind, rawError, cooldown_remaining_ms)`
+- `agentControlEvents.ts`：收到 ERROR 事件 → 优先消费后端 `diagnostic_result`（`user_message` + `resolution_steps`），`diagnostic_result` 缺失时 fallback `getUserFriendlyError(error_kind, rawError)`
 - `streamHelpers.ts` `getUserFriendlyError()`：`concurrency_limit` 特判中英双语消息，其余分类原样返回原始错误
 - `ProgressSteps.tsx`：渲染错误 UI（红色区域 + 重试历史）
 
@@ -447,7 +447,6 @@ class DiagnosticResult:
 export async function getUserFriendlyError(
   errorKind: ErrorKind | undefined,
   rawError: string,
-  _cooldownMs?: number,
 ): Promise<FriendlyError> {
   if (errorKind === 'concurrency_limit') {
     const isZh =
@@ -472,7 +471,7 @@ export async function getUserFriendlyError(
   - `failover_reason: string`
   - `diagnostic_result: { error_type, user_message, resolution_steps, locale }`（本地化诊断结果）
   - `recovery_actions?: RecoveryAction[]`（`{ id, label, url }`，本地化恢复按钮）
-  - `cooldown_remaining_ms?: number`
+  - `cooldown_remaining_ms?: number`（提供方声明的恢复等待时间；文案已含在 `user_message`）
 
 ### 扩展业务层自定义翻译
 
@@ -484,7 +483,7 @@ get_locale_manager().register_translations(
     "zh-CN",
     {"rate_limit": {"message": "API 请求频率受限，请稍后重试", "hint": "可升级 API 计划或切换模型"}},
 )
-# 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 cooldown_hint_* 自动展平）
+# 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 cooldown_hint_template/joiner/{second,minute,hour,day}_{one,other} 自动展平）
 ```
 
 ---

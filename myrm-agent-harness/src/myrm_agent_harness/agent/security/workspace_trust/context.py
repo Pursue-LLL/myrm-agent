@@ -6,8 +6,8 @@
   (POS: 工作区信任级别类型)
 
 [OUTPUT]
-- set/get_workspace_trust_level and set/get_repo_command_prefixes accessors
-- clear_workspace_trust_context: resets both vars at run end
+- set/get_workspace_trust_level, set/get_workspace_root, and set/get_repo_command_prefixes accessors
+- clear_workspace_trust_context: resets all vars at run end
 
 [POS]
 Run-scoped state holder of the workspace_trust gate. ContextVars keep the decision
@@ -23,6 +23,10 @@ from .types import WorkspaceTrustLevel
 
 _workspace_trust_level_var: ContextVar[WorkspaceTrustLevel | None] = ContextVar(
     "workspace_trust_level",
+    default=None,
+)
+_workspace_root_var: ContextVar[str | None] = ContextVar(
+    "workspace_trust_root",
     default=None,
 )
 _repo_command_prefixes_var: ContextVar[tuple[str, ...]] = ContextVar(
@@ -41,6 +45,16 @@ def get_workspace_trust_level() -> WorkspaceTrustLevel | None:
     return _workspace_trust_level_var.get()
 
 
+def set_workspace_root(workspace_root: str | None) -> None:
+    """Bind the active workspace root path for the current async context."""
+    _workspace_root_var.set(workspace_root)
+
+
+def get_workspace_root() -> str | None:
+    """Return the active workspace root path bound for the current async context."""
+    return _workspace_root_var.get()
+
+
 def set_repo_command_prefixes(prefixes: tuple[str, ...]) -> None:
     """Bind repo-declared command prefixes effective only for trusted workspaces."""
     _repo_command_prefixes_var.set(prefixes)
@@ -54,4 +68,5 @@ def get_repo_command_prefixes() -> tuple[str, ...]:
 def clear_workspace_trust_context() -> None:
     """Reset trust-related ContextVars at run end."""
     _workspace_trust_level_var.set(None)
+    _workspace_root_var.set(None)
     _repo_command_prefixes_var.set(())

@@ -4,6 +4,10 @@
 - ._background.registry::get_background_registry, BackgroundQuotaError (POS: Background job registry)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - agent.artifacts.file_id_registry::resolve_file_ids_in_text (POS: File ID resolution)
+- toolkits.code_execution.executors.base::ExecutionContext, CodeExecutor (POS: Code executor base classes)
+- toolkits.code_execution::ExecutionConfig (POS: Code execution configuration layer)
+- .workspace_manager::WorkspaceManager (POS: Workspace Manager)
+- .skill_workspace_manager::SkillWorkspaceManager (POS: Skill Workspace Manager)
 
 [OUTPUT]
 - BashExecutorBackgroundMixin.spawn_background
@@ -30,6 +34,14 @@ if TYPE_CHECKING:
         FinishListener,
         ProgressListener,
     )
+    from myrm_agent_harness.agent.meta_tools.bash._executor.skill_workspace_manager import (
+        SkillWorkspaceManager,
+    )
+    from myrm_agent_harness.agent.meta_tools.bash._executor.workspace_manager import (
+        WorkspaceManager,
+    )
+    from myrm_agent_harness.toolkits.code_execution import ExecutionConfig
+    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +63,28 @@ def strip_trailing_background_ampersand(command: str) -> str:
 
 class BashExecutorBackgroundMixin:
     """Spawn long-running shell commands via the background process registry."""
+
+    # Provided by BashExecutor.__init__
+    _executor: CodeExecutor
+    _workspace_manager: WorkspaceManager
+    _skill_manager: SkillWorkspaceManager
+    _global_env: dict[str, str] | None
+
+    if TYPE_CHECKING:
+        # Provided by BashExecutor / BashExecutorContextMixin.
+        @property
+        def config(self) -> ExecutionConfig: ...
+        async def _log_bash_command_execution(
+            self,
+            command: str,
+            session_id: str,
+            exit_code: int,
+            stdout: str,
+            stderr: str,
+            duration_ms: int,
+            success: bool,
+            error_message: str = "",
+        ) -> None: ...
 
     async def spawn_background(
         self,

@@ -321,9 +321,7 @@ async def test_skill_select_static_description_and_catalog_delivery_wiring() -> 
     from langchain_core.messages import HumanMessage
 
     from myrm_agent_harness.agent._internals._agent_build import _weave_dynamic_schemas
-    from myrm_agent_harness.agent._internals.skill_catalog_turn import (
-        deliver_bound_skills_catalog,
-    )
+    from myrm_agent_harness.agent._internals.skill_catalog_turn import deliver_bound_skills_catalog
     from myrm_agent_harness.agent._internals.turn_history import TurnHistory
     from myrm_agent_harness.agent.meta_tools.skills.select.skill_select_tool import (
         build_skill_select_static_description,
@@ -350,7 +348,7 @@ async def test_skill_select_static_description_and_catalog_delivery_wiring() -> 
 
     agent = SkillAgent(llm=AsyncMock(), skill_backend=_StubSkillBackend(skills))
     messages = [HumanMessage(content="plan a PR review")]
-    await deliver_bound_skills_catalog(messages, agent, TurnHistory(mode="replace"))
+    await deliver_bound_skills_catalog(messages, agent, TurnHistory(mode="append"))
 
     first = messages[0]
     assert isinstance(first.content, str)

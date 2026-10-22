@@ -79,8 +79,8 @@ class PrefixCachingAlignedLayoutEngine:
     def compute_prefix_hash(self, blocks: Sequence[ContextBlockDescriptor]) -> str:
         """Compute cryptographic SHA-256 hash over Tier 1 static blocks only.
 
-        As long as this hash remains identical across successive turns, upstream provider
-        KV-caching is guaranteed to be 100% stable for the prefix.
+        Identical hashes across turns mean Tier-1 static bytes are unchanged (necessary for
+        prefix alignment; provider cache hits are still observed via usage metrics, not implied here).
         """
         ordered = self.realign_blocks(blocks)
         tier1_content = "\n\n".join(

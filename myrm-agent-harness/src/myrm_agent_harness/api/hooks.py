@@ -8,16 +8,16 @@
 - myrm_agent_harness.core.security.guards.privacy_tracker (POS: ContextVar privacy policy access)
 - myrm_agent_harness.utils.runtime.background_job_finish_registry (POS: bash job finish hook registry)
 - myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher (POS: LLM API key renewal hook registry)
+- myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager (POS: shared Python environment lifecycle)
 
 [OUTPUT]
 - Session, skill-agent context, task intent, memory telemetry（budget/injection）
   and injection contract, memory-extraction, bash-registry, background-job-finish,
-  privacy-context（policy/pseudonym-store/pseudonymizer）hook callables, and the LLM API key
-  renewal registration（``set_api_key_refresher``）for server integration.
-- Provider-window vocabulary for goal waits and host-side deferral：
-  ``GOAL_WAIT_KIND_KEY`` / ``GOAL_WAIT_KIND_USAGE_LIMIT`` / ``GOAL_WAIT_RESUME_AT_KEY`` /
-  ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``pause_goal_after_missed_wake`` / ``ProviderWindowHint`` /
-  ``deferral_wait_s``。
+  privacy-context（policy/pseudonym-store/pseudonymizer）hook callables, the LLM API key
+  renewal registration（``set_api_key_refresher``）, the shared Python environment reset
+  （``discard_shared_venv``）, and the goal
+  provider-window wait vocabulary（``GOAL_WAIT_*`` / ``pause_goal_after_missed_wake`` /
+  ``ProviderWindowHint`` / ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``deferral_wait_s``）for server integration.
 
 [POS]
 Public re-export facade. Product code imports hooks here instead of private ``agent._*`` modules.
@@ -25,17 +25,6 @@ Public re-export facade. Product code imports hooks here instead of private ``ag
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.goals.wait_provider_window import (
-    WAIT_KIND_KEY as GOAL_WAIT_KIND_KEY,
-    WAIT_KIND_USAGE_LIMIT as GOAL_WAIT_KIND_USAGE_LIMIT,
-    WAIT_RESUME_AT_KEY as GOAL_WAIT_RESUME_AT_KEY,
-    pause_goal_after_missed_wake,
-)
-from myrm_agent_harness.toolkits.llms.errors.provider_window import (
-    HOLD_MAX_S as PROVIDER_WINDOW_HOLD_MAX_S,
-    ProviderWindowHint,
-    deferral_wait_s,
-)
 from myrm_agent_harness.agent._internals.memory_extraction import (
     auto_extract_memories,
     create_extraction_llm_func,
@@ -46,6 +35,18 @@ from myrm_agent_harness.agent.context_management.infra.evicted import (
     build_evicted_basename,
     normalize_delivery_chat_id,
     read_evicted_line_range,
+)
+from myrm_agent_harness.agent.goals.wait_provider_window import (
+    WAIT_KIND_KEY as GOAL_WAIT_KIND_KEY,
+)
+from myrm_agent_harness.agent.goals.wait_provider_window import (
+    WAIT_KIND_USAGE_LIMIT as GOAL_WAIT_KIND_USAGE_LIMIT,
+)
+from myrm_agent_harness.agent.goals.wait_provider_window import (
+    WAIT_RESUME_AT_KEY as GOAL_WAIT_RESUME_AT_KEY,
+)
+from myrm_agent_harness.agent.goals.wait_provider_window import (
+    pause_goal_after_missed_wake,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.job_store import (
     configure_background_job_store,
@@ -103,6 +104,8 @@ from myrm_agent_harness.core.security.persistence.content_scan import (
     get_pii_pseudonymizer,
     set_pii_pseudonymizer,
 )
+from myrm_agent_harness.toolkits.code_execution.config import get_execution_config
+from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager import VenvManager
 from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate import (
     MountMode,
     MountSpec,
@@ -113,6 +116,13 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate impo
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import (
     set_api_key_refresher,
+)
+from myrm_agent_harness.toolkits.llms.errors.provider_window import (
+    HOLD_MAX_S as PROVIDER_WINDOW_HOLD_MAX_S,
+)
+from myrm_agent_harness.toolkits.llms.errors.provider_window import (
+    ProviderWindowHint,
+    deferral_wait_s,
 )
 from myrm_agent_harness.utils.runtime.background_job_finish_registry import (
     BackgroundJobFinishHandler,
@@ -125,6 +135,16 @@ from myrm_agent_harness.utils.runtime.background_job_finish_registry import (
 def count_running_background_shell_jobs(session_id: str | None = None) -> int:
     """Return the number of running harness background shell jobs."""
     return get_background_registry().count_running(session_id)
+
+
+def discard_shared_venv() -> bool:
+    """Remove the shared Python environment so the next command rebuilds it from scratch.
+
+    The path comes from the active execution config, exactly as the executor resolves it.
+    Call it only while no agent process is using the environment (for example at startup).
+    Returns True if an environment existed and was removed.
+    """
+    return VenvManager(get_execution_config()).discard()
 
 
 def get_workspace_root() -> str:
@@ -165,15 +185,12 @@ def restore_memory_pseudonymizer(previous: PseudonymizeFn | None) -> None:
 
 
 __all__ = [
+    "EVICTED_BASENAME_PATTERN",
     "GOAL_WAIT_KIND_KEY",
     "GOAL_WAIT_KIND_USAGE_LIMIT",
     "GOAL_WAIT_RESUME_AT_KEY",
-    "PROVIDER_WINDOW_HOLD_MAX_S",
-    "ProviderWindowHint",
-    "deferral_wait_s",
-    "pause_goal_after_missed_wake",
-    "EVICTED_BASENAME_PATTERN",
     "INPUT_WAIT_IDLE_SECONDS",
+    "PROVIDER_WINDOW_HOLD_MAX_S",
     "BackgroundJobFinishHandler",
     "BackgroundJobFinishResult",
     "BackgroundJobRecord",
@@ -182,6 +199,7 @@ __all__ = [
     "MountSpec",
     "MountValidationResult",
     "MountViolationType",
+    "ProviderWindowHint",
     "auto_extract_memories",
     "build_evicted_basename",
     "build_pseudonym_store",
@@ -189,6 +207,8 @@ __all__ = [
     "configure_background_job_store",
     "count_running_background_shell_jobs",
     "create_extraction_llm_func",
+    "deferral_wait_s",
+    "discard_shared_venv",
     "get_background_job_store",
     "get_background_registry",
     "get_event_logger",
@@ -206,6 +226,7 @@ __all__ = [
     "invalidate_permissions",
     "map_store_status_to_shell_task_status",
     "normalize_delivery_chat_id",
+    "pause_goal_after_missed_wake",
     "persist_extracted_memories",
     "persist_terminal_state",
     "persist_vault_log_ref",

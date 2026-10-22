@@ -20,12 +20,13 @@ from dataclasses import dataclass
 _NOTIFICATION_TTL_SECONDS = 600.0
 
 # Model-facing labels for external effect categories detected by
-# external_effect_detector. The stored categories are internal identifiers;
+# toolkits.code_execution.security.external_effect_detector. The stored categories are internal identifiers;
 # this mapping converts them into plain-language terms the model can act on.
 _EXTERNAL_EFFECT_LABELS: dict[str, str] = {
     "database": "database changes",
     "container_cloud": "container or cloud operations",
     "network_mutation": "network requests",
+    "publish": "pushed or published content",
 }
 
 

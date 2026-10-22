@@ -33,8 +33,17 @@ from .integrity_gate import (
     verify_sequence_continuity,
     verify_session_enclosure,
 )
+from .backends.file_backend import FileEventLogBackend
+from .durable_atomic_writer import DurableLogWriter, loop_write_all
 from .logger import EventLogger
-from .protocols import EventLogBackend
+from .protocols import EventLogBackend, FlushableEventLogBackend
+from .torn_tail_repairer import (
+    TailInspectionResult,
+    TailRepairError,
+    TailRepairReport,
+    inspect_tail,
+    repair_torn_tail,
+)
 from .trace_types import ExecutionTrace, ToolCallRecord, TraceMetadata, TraceOutcome
 from .types import (
     ActivityPatterns,
@@ -61,17 +70,23 @@ __all__ = [
     "CustomMessagePayload",
     "CustomStatePayload",
     "DailyActivity",
+    "DurableLogWriter",
     "EventFilter",
     "EventLogAnalytics",
     "EventLogBackend",
     "EventLogger",
     "ExecutionTrace",
+    "FileEventLogBackend",
+    "FlushableEventLogBackend",
     "GlobalActivityPatterns",
     "HourlyToolUsage",
     "SessionAnalytics",
     "SessionEvent",
     "SessionSummary",
     "StructuredEvent",
+    "TailInspectionResult",
+    "TailRepairError",
+    "TailRepairReport",
     "ToolBreakdown",
     "ToolCallRecord",
     "ToolStabilityAnalytics",
@@ -80,7 +95,10 @@ __all__ = [
     "TraceMetadata",
     "TraceOutcome",
     "assert_log_integrity",
+    "inspect_tail",
     "install_log_integrity_invariants",
+    "loop_write_all",
+    "repair_torn_tail",
     "verify_sequence_continuity",
     "verify_session_enclosure",
 ]

@@ -150,8 +150,13 @@ def test_extract_query_text(query: object, expected: str):
 
 
 def test_pop_checkpoint_incompatible_merged_context_moves_only_callbacks():
-    merged: dict[str, object] = {"goal_provider": object(), "on_loop_restart": object(), "chat_id": "c1"}
-    callbacks = {key: merged[key] for key in ("goal_provider", "on_loop_restart")}
+    merged: dict[str, object] = {
+        "goal_provider": object(),
+        "on_loop_restart": object(),
+        "on_goal_hold": object(),
+        "chat_id": "c1",
+    }
+    callbacks = {key: merged[key] for key in ("goal_provider", "on_loop_restart", "on_goal_hold")}
 
     stripped = pop_checkpoint_incompatible_merged_context(merged)
 

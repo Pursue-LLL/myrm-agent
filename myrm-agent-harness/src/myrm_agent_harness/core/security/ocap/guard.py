@@ -1,104 +1,81 @@
 """Execution-layer enforcement guard for Object-Capability access.
 
 [INPUT]
-- .types::CapabilityAction, CapabilityHandle, CapabilityDeniedError
+- .types::CapabilityAction, CapabilityHandle, CapabilityDeniedError, ResourceScope
 - .context::get_current_capability
-- .registry::get_default_capability_registry, CapabilityRegistry
-- .attenuation::_is_path_subscope, _is_domain_subscope
+- .token::verify_capability_signature
+- .attenuation::_is_path_subscope (POS: path boundary test, symlinked aliases and resolved paths are one boundary)
 
 [OUTPUT]
 - check_capability_access: Non-raising boolean access probe
 - enforce_capability_access: Fail-closed assertion raising CapabilityDeniedError
 
 [POS]
-Physical gatekeeper invoked by tool executors (file_ops, bash, web_fetch, MCP).
-Ensures operations fail-closed when capability handles are missing, expired, revoked, or out of scope.
+Physical gatekeeper invoked by the local file and shell executors.
+Ensures operations fail-closed when capability handles are expired, unsigned, or out of scope.
+A handle's validity is stateless: its signature and its expiry, nothing held per spawn.
 """
 
 from __future__ import annotations
 
-import fnmatch
-from typing import TYPE_CHECKING
-
-from myrm_agent_harness.core.security.ocap.attenuation import _is_domain_subscope, _is_path_subscope
+from myrm_agent_harness.core.security.ocap.attenuation import _is_path_subscope
 from myrm_agent_harness.core.security.ocap.context import get_current_capability
-from myrm_agent_harness.core.security.ocap.registry import (
-    CapabilityRegistry,
-    get_default_capability_registry,
-)
+from myrm_agent_harness.core.security.ocap.token import verify_capability_signature
 from myrm_agent_harness.core.security.ocap.types import (
     CapabilityAction,
     CapabilityDeniedError,
     CapabilityHandle,
+    ResourceScope,
 )
 
-if TYPE_CHECKING:
-    pass
+
+def _is_usable(handle: CapabilityHandle) -> bool:
+    return not handle.is_expired() and verify_capability_signature(handle)
+
+
+def _is_in_scope(scope: ResourceScope, target: str) -> bool:
+    """A scope without path patterns constrains no path."""
+    return not scope.paths or any(_is_path_subscope(target, pattern) for pattern in scope.paths)
 
 
 def check_capability_access(
     action: CapabilityAction,
     target: str | None = None,
     handle: CapabilityHandle | None = None,
-    registry: CapabilityRegistry | None = None,
 ) -> bool:
     """Evaluate whether the given action on target is permitted by the active capability.
 
     Args:
         action: Requested capability action
-        target: Resource target (file path, egress domain, or MCP tool name)
+        target: File path or working directory the action applies to
         handle: Explicit capability handle (falls back to active context)
-        registry: CapabilityRegistry to verify validity (falls back to default)
 
     Returns:
-        True if permitted; False if revoked, expired, or out of scope.
+        True if permitted; False if expired, unsigned, or out of scope.
     """
     active_handle = handle if handle is not None else get_current_capability()
     if active_handle is None:
         # No capability constraint active on current execution thread
         return True
 
-    active_registry = registry if registry is not None else get_default_capability_registry()
-    if not active_registry.is_valid(active_handle):
+    if not _is_usable(active_handle) or action not in active_handle.actions:
         return False
 
-    if action not in active_handle.actions:
-        return False
-
-    if target is None:
-        return True
-
-    scope = active_handle.scope
-    if action in (CapabilityAction.READ, CapabilityAction.WRITE, CapabilityAction.EXECUTE):
-        if scope.paths:
-            return any(_is_path_subscope(target, p) for p in scope.paths)
-
-    elif action == CapabilityAction.EGRESS:
-        if scope.domains:
-            return any(_is_domain_subscope(target, d) for d in scope.domains)
-
-    elif action == CapabilityAction.MCP and scope.mcp_tools:
-        return any(fnmatch.fnmatch(target, m) for m in scope.mcp_tools)
-
-    return True
+    return target is None or _is_in_scope(active_handle.scope, target)
 
 
 def enforce_capability_access(
     action: CapabilityAction,
     target: str | None = None,
     handle: CapabilityHandle | None = None,
-    registry: CapabilityRegistry | None = None,
 ) -> None:
     """Enforce capability check, raising CapabilityDeniedError if unauthorized."""
     active_handle = handle if handle is not None else get_current_capability()
     if active_handle is None:
         return
 
-    active_registry = registry if registry is not None else get_default_capability_registry()
-    if not active_registry.is_valid(active_handle):
-        raise CapabilityDeniedError(
-            f"Capability handle '{active_handle.handle_id}' is invalid, expired, or revoked."
-        )
+    if not _is_usable(active_handle):
+        raise CapabilityDeniedError(f"Capability handle '{active_handle.handle_id}' is invalid or expired.")
 
     if action not in active_handle.actions:
         raise CapabilityDeniedError(
@@ -106,19 +83,7 @@ def enforce_capability_access(
             f"Allowed actions: {[a.value for a in active_handle.actions]}"
         )
 
-    if target is not None:
-        scope = active_handle.scope
-        if action in (CapabilityAction.READ, CapabilityAction.WRITE, CapabilityAction.EXECUTE):
-            if scope.paths and not any(_is_path_subscope(target, p) for p in scope.paths):
-                raise CapabilityDeniedError(
-                    f"Path '{target}' is outside granted capability boundaries: {list(scope.paths)}"
-                )
-        elif action == CapabilityAction.EGRESS:
-            if scope.domains and not any(_is_domain_subscope(target, d) for d in scope.domains):
-                raise CapabilityDeniedError(
-                    f"Egress domain '{target}' is not in capability whitelist: {list(scope.domains)}"
-                )
-        elif action == CapabilityAction.MCP and scope.mcp_tools and not any(fnmatch.fnmatch(target, m) for m in scope.mcp_tools):
-            raise CapabilityDeniedError(
-                f"MCP tool '{target}' is not in capability whitelist: {list(scope.mcp_tools)}"
-            )
+    if target is not None and not _is_in_scope(active_handle.scope, target):
+        raise CapabilityDeniedError(
+            f"Path '{target}' is outside granted capability boundaries: {list(active_handle.scope.paths)}"
+        )

@@ -22,7 +22,6 @@ from .anti_sycophancy_types import (
     CuratorEvaluationMetric,
 )
 from .engine import SkillCurator
-from .self_dismantling_curator_engine import SelfDismantlingCuratorEngine
 from .types import CuratorRunResult, CuratorTransition
 
 __all__ = [
@@ -36,6 +35,5 @@ __all__ = [
     "CuratorEvaluationMetric",
     "CuratorRunResult",
     "CuratorTransition",
-    "SelfDismantlingCuratorEngine",
     "SkillCurator",
 ]

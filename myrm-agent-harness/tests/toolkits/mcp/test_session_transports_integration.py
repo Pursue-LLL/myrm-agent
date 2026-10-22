@@ -19,8 +19,8 @@ after the HTTP client was already allocated (so it never reaches the inner
 from __future__ import annotations
 
 import asyncio
-import socket
 import sys
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 
 import pytest
@@ -28,7 +28,7 @@ import pytest
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from myrm_agent_harness.toolkits.mcp.session_actor import MCPSessionActor
-from tests.support.sse_shutdown_flag import reset_sse_shutdown_flag
+from tests.support.mcp_live_server import HTTP_ENDPOINT_PATH, build_probe_mcp_server, start_live_server
 
 # A minimal real MCP server exposing echo/add over the requested transport.
 _PROBE_SERVER_SRC = """
@@ -61,48 +61,14 @@ def _reset_manager() -> object:
     MCPConnectionManager._instance = None
 
 
-async def _start_http_server() -> tuple[object, str]:
+async def _start_http_server() -> tuple[Callable[[], Awaitable[None]], str]:
     """Boot a real streamable-http MCP server on a pre-bound loopback port.
 
-    Returns an awaitable teardown plus the reachable URL. The socket is bound
-    by the caller so uvicorn never needs to pick a port we cannot observe.
+    Returns an awaitable teardown plus the reachable URL (tests may tear the server
+    down mid-test to simulate it dying).
     """
-    import uvicorn
-    from mcp.server.mcpserver import MCPServer
-
-    server = MCPServer("transport-probe")
-
-    @server.tool()
-    def echo(text: str) -> str:
-        return f"echo:{text}"
-
-    @server.tool()
-    def add(a: int, b: int) -> int:
-        return a + b
-
-    app = server.streamable_http_app()
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error", ws="none")
-    runner = uvicorn.Server(config)
-    serve_task = asyncio.create_task(runner.serve(sockets=[sock]))
-    for _ in range(200):
-        if runner.started:
-            break
-        await asyncio.sleep(0.05)
-    assert runner.started, "streamable-http server failed to start"
-
-    async def teardown() -> None:
-        runner.should_exit = True
-        with suppress(Exception):
-            await serve_task
-        await reset_sse_shutdown_flag()
-
-    return teardown, f"http://127.0.0.1:{port}/mcp"
+    live = await start_live_server(build_probe_mcp_server().streamable_http_app())
+    return live.stop, f"{live.base_url}{HTTP_ENDPOINT_PATH['streamable_http']}"
 
 
 @pytest.mark.asyncio

@@ -5,8 +5,9 @@
 - .token::sign_capability_handle
 
 [OUTPUT]
-- attenuate_capability: Derive narrower, short-lived child capability from parent
+- attenuate_capability: Derive a narrower child capability from parent; the caller states the lifetime, which never exceeds the parent's expiry
 - validate_scope_subset: Pure mathematical check ensuring child scope is subset of parent
+- _is_path_subscope: Path boundary test shared with the guard (lexical match verified against realpath; symlinked aliases resolved by physical containment)
 
 [POS]
 Enforces the fundamental Object-Capability attenuation law:
@@ -29,12 +30,32 @@ from myrm_agent_harness.core.security.ocap.types import (
 )
 
 
+def _is_physically_contained(child_path: str, parent_dir: str) -> bool:
+    """Check whether child_path resolves, through symlinks, inside the existing directory parent_dir.
+
+    Only absolute paths qualify: resolving a relative one would depend on the process cwd.
+    """
+    if not (os.path.isabs(child_path) and os.path.isabs(parent_dir)):
+        return False
+    try:
+        if not os.path.isdir(parent_dir):
+            return False
+        real_parent = os.path.realpath(parent_dir)
+        real_child = os.path.realpath(child_path)
+    except (OSError, ValueError):
+        return False
+    return real_child == real_parent or real_child.startswith(real_parent + os.sep)
+
+
 def _is_path_subscope(child_path: str, parent_pattern: str) -> bool:
     """Check if child_path is strictly within parent_pattern boundaries.
 
-    Implements two-tier defense:
-    1. Fast lexical normpath check.
-    2. Physical realpath verification if path physically exists (blocks symlink traversal).
+    Containment is decided by physical location, so a root reached through a symlinked alias and
+    its resolved form are the same boundary:
+    1. A lexical normpath match must still resolve inside the pattern (blocks symlink traversal
+       out of the boundary).
+    2. Without a lexical match, the path is inside only if its symlink-resolved location lies
+       within the pattern's existing directory (wildcard patterns never take this route).
     """
     norm_child = os.path.normpath(child_path)
     norm_parent = os.path.normpath(parent_pattern)
@@ -47,7 +68,7 @@ def _is_path_subscope(child_path: str, parent_pattern: str) -> bool:
         or fnmatch.fnmatch(norm_child, norm_parent)
     )
     if not lexical_match:
-        return False
+        return _is_physically_contained(norm_child, clean_parent)
 
     try:
         if os.path.lexists(norm_child):
@@ -61,18 +82,6 @@ def _is_path_subscope(child_path: str, parent_pattern: str) -> bool:
     return True
 
 
-def _is_domain_subscope(child_domain: str, parent_domain: str) -> bool:
-    """Check if child_domain is equal to or a subdomain of parent_domain."""
-    c = child_domain.lower().strip()
-    p = parent_domain.lower().strip()
-    if c == p:
-        return True
-    if p.startswith("*."):
-        suffix = p[2:]
-        return c.endswith("." + suffix) or c == suffix
-    return c.endswith("." + p)
-
-
 def validate_scope_subset(child_scope: ResourceScope, parent_scope: ResourceScope) -> None:
     """Verify that child_scope is a strict subset of parent_scope."""
     if parent_scope.is_unrestricted():
@@ -81,28 +90,18 @@ def validate_scope_subset(child_scope: ResourceScope, parent_scope: ResourceScop
     if child_scope.is_unrestricted():
         raise AttenuationError("Child cannot have unrestricted scope when parent is restricted")
 
-    if parent_scope.paths and child_scope.paths:
-        for cp in child_scope.paths:
-            if not any(_is_path_subscope(cp, pp) for pp in parent_scope.paths):
-                raise AttenuationError(f"Path elevation denied: '{cp}' is outside parent path boundaries")
-
-    if parent_scope.domains and child_scope.domains:
-        for cd in child_scope.domains:
-            if not any(_is_domain_subscope(cd, pd) for pd in parent_scope.domains):
-                raise AttenuationError(f"Domain elevation denied: '{cd}' is outside parent domain whitelist")
-
-    if parent_scope.mcp_tools and child_scope.mcp_tools:
-        for cm in child_scope.mcp_tools:
-            if not any(fnmatch.fnmatch(cm, pm) for pm in parent_scope.mcp_tools):
-                raise AttenuationError(f"MCP elevation denied: '{cm}' is outside parent allowed tools")
+    for cp in child_scope.paths:
+        if not any(_is_path_subscope(cp, pp) for pp in parent_scope.paths):
+            raise AttenuationError(f"Path elevation denied: '{cp}' is outside parent path boundaries")
 
 
 def attenuate_capability(
     parent: CapabilityHandle,
     subject_id: str,
+    *,
+    ttl_seconds: float,
     target_scope: ResourceScope | None = None,
     target_actions: set[CapabilityAction] | frozenset[CapabilityAction] | None = None,
-    ttl_seconds: float = 300.0,
     current_time: float | None = None,
 ) -> CapabilityHandle:
     """Derive an attenuated, unforgeable capability handle for a child agent.
@@ -110,9 +109,10 @@ def attenuate_capability(
     Args:
         parent: Valid parent capability handle
         subject_id: Identifier of the child recipient
+        ttl_seconds: Requested lifetime in seconds, always stated by the caller because it must cover
+            the whole task the handle serves (the result is still clamped to the parent's expiry)
         target_scope: Requested resource boundaries (defaults to parent scope)
         target_actions: Requested actions (must be subset of parent actions)
-        ttl_seconds: Requested lifetime in seconds
         current_time: Optional monotonic clock anchor for testing
 
     Returns:

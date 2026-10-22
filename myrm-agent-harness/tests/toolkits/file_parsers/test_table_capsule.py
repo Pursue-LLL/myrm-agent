@@ -72,7 +72,7 @@ async def test_extract_pdf_content_with_tables():
         with (
             patch(
                 "myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor._extract_embedded_images_sync",
-                return_value=[],
+                return_value=([], False),
             ),
             patch(
                 "myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor._render_pages_sync", return_value=[]
