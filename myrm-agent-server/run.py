@@ -15,7 +15,7 @@ from app.core.infra.frontend_launcher import find_available_port
 from app.startup.config_check import run_config_check
 from app.startup.env_loader import init_environment
 from app.startup.granian_runner import start_with_granian
-from app.startup.server_lock import acquire_server_lock
+from app.startup.server_lock import acquire_data_dir_lock, acquire_server_lock
 from app.startup.uvicorn_runner import start_with_uvicorn
 
 # 环境初始化（必须最先执行）
@@ -105,6 +105,8 @@ if __name__ == "__main__":
     # 获取 OS 级文件锁，避免多开冲突
     if not args.skip_port_check:
         acquire_server_lock(preferred_port)
+    # 端口锁不覆盖数据目录：不同端口仍会争用 data.db/qdrant，必须再加一道闸。
+    acquire_data_dir_lock()
 
     # 自动探测可用端口（避免端口冲突）
     if not args.skip_port_check:

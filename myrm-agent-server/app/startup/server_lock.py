@@ -1,12 +1,17 @@
 """
 @input: 依赖 app.config.settings 的「全局配置」，依赖 psutil 外部库
-@output: 对外提供 OS 级文件锁获取与僵尸进程猎杀
-@pos: 服务器进程锁管理 —— 确保单实例运行，支持无感重启
+@output: 对外提供端口锁与数据目录锁，僵尸锁自动接管
+@pos: 服务器进程锁管理 —— 同一端口、同一数据目录都只允许一个实例
+
+端口锁与数据目录锁是两道独立闸：端口不同但数据目录相同的两个 server
+仍会争用 data.db / qdrant / checkpoints，因此启动前必须同时持有两者。
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
+import json
 import os
+import time
 from pathlib import Path
 
 import psutil
@@ -67,8 +72,6 @@ def _wait_for_listen(
     宽限期让它在 timeout_sec 内开始监听。僵尸 run.py（进程存活但从不监听端口）
     则会被识别为不可用，由新实例接管。
     """
-    import time
-
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         if _pid_listens_port(pid, port):
@@ -90,7 +93,6 @@ def acquire_server_lock(
     阻塞 backend 启动，表现为「backend 反复崩溃」（BUG-DG-2026-08-09-R014 家族）。
     """
     import socket
-    import time
 
     try:
         from filelock import FileLock, Timeout
@@ -176,4 +178,105 @@ def acquire_server_lock(
             flush=True,
         )
         print("💡 若您确信没有其他实例，请手动删除锁文件后重试。", flush=True)
+        os._exit(1)
+
+
+_data_dir_lock = None
+
+
+def _data_dir_path() -> Path:
+    """Directory that owns data.db / qdrant / checkpoints for this process."""
+    return Path(os.path.expanduser(settings.database.sqlite_path)).resolve().parent
+
+
+def _read_owner(owner_file: Path) -> dict[str, object] | None:
+    try:
+        payload = json.loads(owner_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _owner_is_live(owner: dict[str, object] | None) -> bool:
+    """True only when the recorded process is still the same boot/process (not a reused pid)."""
+    if not owner:
+        return False
+    try:
+        pid = int(owner.get("pid", 0))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0 or not _process_alive(pid):
+        return False
+    try:
+        boot = float(owner.get("boot", 0.0))  # type: ignore[arg-type]
+        if boot and abs(psutil.boot_time() - boot) > 2.0:
+            return False
+        started = float(owner.get("started", 0.0))  # type: ignore[arg-type]
+        if started and abs(psutil.Process(pid).create_time() - started) > 5.0:
+            return False
+    except (TypeError, ValueError, psutil.Error):
+        return False
+    return True
+
+
+def acquire_data_dir_lock() -> None:
+    """Exclusive lock over the data directory; fail fast when another server owns it.
+
+    The port lock only protects a port. Two servers on different ports still share
+    ``data.db``, the embedded Qdrant folder and checkpoints; SQLite reports
+    "file is not a database" under that race, so the data directory needs its own
+    guard. A stale owner (dead pid, rebooted host, reused pid) is taken over so a
+    crash never blocks the next start.
+    """
+    global _data_dir_lock
+    try:
+        from filelock import FileLock, Timeout
+    except ImportError:
+        print("⚠️  Warning: 'filelock' package not found, skipping data-dir lock. Run: uv sync")
+        return
+
+    data_dir = _data_dir_path()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = data_dir / ".data.lock"
+    owner_file = data_dir / ".data.lock.owner"
+    _data_dir_lock = FileLock(str(lock_file), timeout=0)
+
+    def _write_owner() -> None:
+        payload = {
+            "pid": os.getpid(),
+            "boot": round(psutil.boot_time(), 3),
+            # Process start time, not wall clock: a long-running process must still
+            # match its own record (pid reuse is detected by comparing this value).
+            "started": round(psutil.Process(os.getpid()).create_time(), 3),
+        }
+        tmp = owner_file.with_suffix(".owner.tmp")
+        tmp.write_text(json.dumps(payload), encoding="utf-8")
+        os.replace(tmp, owner_file)
+
+    try:
+        _data_dir_lock.acquire()
+        _write_owner()
+        return
+    except Timeout:
+        pass
+
+    holder = _read_owner(owner_file)
+    if _owner_is_live(holder):
+        pid = holder.get("pid") if holder else "?"
+        print(f"❌ 启动失败：数据目录已被另一个实例占用: {data_dir}", flush=True)
+        print(f"   持有进程 pid={pid}；同一数据目录不能同时运行两个 server。", flush=True)
+        print("   💡 关闭另一个 Myrm/WebUI，或设置 MYRM_DATA_DIR 到独立目录后重试。", flush=True)
+        os._exit(1)
+
+    # Stale lock (dead pid / rebooted host / reused pid): take over.
+    for path in (lock_file, owner_file):
+        try:
+            path.unlink()
+        except OSError:
+            pass
+    try:
+        _data_dir_lock.acquire(timeout=1)
+        _write_owner()
+    except Timeout:
+        print(f"❌ 启动失败：无法获取数据目录锁 {lock_file}", flush=True)
         os._exit(1)

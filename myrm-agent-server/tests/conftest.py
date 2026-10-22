@@ -19,6 +19,24 @@ _HARNESS_SRC = _SERVER_ROOT.parent / "myrm-agent-harness" / "src"
 if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(_HARNESS_SRC))
 
+
+def _isolate_test_data_dir() -> None:
+    """Point tests at a temp data dir so they can never open the real ``~/.myrm``.
+
+    E2E suites override ``MYRM_DATA_DIR`` per test; every other suite inherits one
+    temp root per pytest process. This also keeps the server's data-dir lock away
+    from a developer's running WebUI/desktop instance.
+    """
+    real_dir = (Path.home() / ".myrm").resolve()
+    configured = os.environ.get("MYRM_DATA_DIR")
+    if not configured or Path(configured).expanduser().resolve() == real_dir:
+        os.environ["MYRM_DATA_DIR"] = tempfile.mkdtemp(prefix="myrm-test-data-")
+    if not os.environ.get("MYRM_DEV_STATE_DIR"):
+        os.environ["MYRM_DEV_STATE_DIR"] = str(Path(os.environ["MYRM_DATA_DIR"]) / "state")
+
+
+_isolate_test_data_dir()
+
 # Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
 # top-level conftest only; the referenced modules define explicit-request fixtures
 # (db_session/fts_db) and an artifact-upsert autouse mock that is inert for tests that
@@ -636,8 +654,7 @@ def _chrome_e2e_epoch_pin(
         return
     if _SESSION_EPOCH_PIN_SKIP_DETAIL:
         pytest.skip(
-            "E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; "
-            f"heal then retry: {_SESSION_EPOCH_PIN_SKIP_DETAIL[0]}"
+            f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {_SESSION_EPOCH_PIN_SKIP_DETAIL[0]}"
         )
     monorepo = _SERVER_ROOT.parents[1]
     outcome = apply_epoch_pin_for_shared_live(

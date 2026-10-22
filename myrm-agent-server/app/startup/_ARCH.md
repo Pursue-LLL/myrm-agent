@@ -12,7 +12,7 @@
 | env_loader.py | 核心 | 分层加载 .env（[P]/[O]/[S]）+ 清理 __pycache__ + 浏览器路径；[T] 测试密钥不在此加载 | ✅ |
 | config_check.py | 核心 | 配置迁移、预检、变更追踪 | ✅ |
 | health_check.py | 核心 | 启动前资源健康检查与自动恢复 | ✅ |
-| server_lock.py | 核心 | OS 级文件锁 + 僵尸锁接管（活跃实例判定 = 持锁进程 alive **且** 监听 target_port；僵尸 run.py alive 但不监听端口由新实例接管；活跃实例并存时新实例退出，禁止互杀） | ✅ |
+| server_lock.py | 核心 | 双闸文件锁：端口锁（活跃实例 = alive **且** 监听 target_port；僵尸 run.py 由新实例接管）+ 数据目录锁（`.data.lock`，不同端口共用 data.db/qdrant 时拒绝启动；陈旧锁按 pid/boot/create_time 自动接管） | ✅ |
 | uvicorn_runner.py | 核心 | uvicorn 单进程启动（含 WebUI 模式） | ✅ |
 | granian_runner.py | 核心 | granian 多进程启动（仅无嵌入式数据库场景） | ✅ |
 | desktop_path.py | 辅助 | 桌面 sidecar PATH 补全（`hydrate_desktop_path`）：仅当 `MYRM_SHELL_PID` 存在（Tauri 壳注入）且非 Windows 时，用用户的 `-i -l` 登录 shell 探测 PATH（5s 超时杀进程组、输出走匿名文件、HOME 取账户目录、去除 ZDOTDIR、仅保留绝对路径），按「登录 shell → 继承 PATH → 现存常见工具目录」合并去重；常见工具目录直接取 harness `tool_discovery.COMMON_TOOL_DIRS`，与 system prompt 的 `<cli_tools>` 探测同源，保证提示词列出的 CLI 都能被 bash 执行。仅处理 PATH，不导入其它变量。由 `server/lifespan.py` 最前置调用（dev `run.py` 与 release PyInstaller `app/main.py` 两条入口共用 lifespan） | ✅ |
