@@ -8,7 +8,7 @@ IPC Server 内部使用此服务处理子进程的 MCP 工具调用请求。
 - 提供 handle_mcp_invoke() 函数供 IPC Proxy 和自定义集成使用
 
 [INPUT]
-- utils.lru_cache::LRUCache (POS: LRU  TTL  LRU)
+- agent.skills.mcp.cache_policy::CacheBuckets, resolve_cache_ttl (POS: PTC result-cache TTL policy)
 - backends.skills.types::SkillMetadata (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - toolkits.mcp::MCPConfig (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)
 - toolkits.mcp.client::MCPServerConfigProtocol (POS: MCP client management layer. Handles MCP server connection setup, transport config conversion, and multi-server client initialization with optional auth injection.)
@@ -103,9 +103,6 @@ class MCPSkillProxyService:
 
     def __init__(self) -> None:
         self._cache_buckets = CacheBuckets()
-        # Backwards-compatible access for existing tests/tools that clear the
-        # default read-only bucket directly.
-        self._cache = self._cache_buckets.default
 
     def _make_cache_key(
         self,

@@ -294,7 +294,7 @@ class MCPSkillGenerator:
         returns_section = build_returns_section(output_schema)
         call_example_section = build_call_example_section(skill_meta.name, python_func_name, input_schema)
 
-        return TOOL_DOC_TEMPLATE.format(
+        doc = TOOL_DOC_TEMPLATE.format(
             tool_name=python_func_name,
             skill_name=skill_meta.name,
             tool_desc=tool_desc,
@@ -302,6 +302,7 @@ class MCPSkillGenerator:
             returns_section=returns_section,
             call_example_section=call_example_section,
         )
+        return f"{doc.rstrip()}\n"
 
     def _create_skill_metadata(
         self,

@@ -16,6 +16,7 @@ from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     build_returns_section,
     extract_schema_constraints,
     normalize_input_schema,
+    render_output_type,
 )
 
 
@@ -200,3 +201,31 @@ class TestToolDocTemplateRendering:
             call_example_section=build_call_example_section("demo_skill", "search", {}),
         )
         assert "## Import & Call Example" not in rendered
+
+
+class TestRenderOutputType:
+    def test_recurses_into_object_and_ref(self) -> None:
+        schema = {
+            "$defs": {
+                "Station": {
+                    "type": "object",
+                    "properties": {"code": {"type": "string"}},
+                    "required": ["code"],
+                }
+            },
+            "type": "object",
+            "properties": {"station": {"$ref": "#/$defs/Station"}},
+            "required": ["station"],
+        }
+        assert render_output_type(schema) == "object{station:object{code:string}}"
+
+    def test_renders_union_types(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"price": {"anyOf": [{"type": "number"}, {"type": "null"}]}},
+        }
+        assert render_output_type(schema) == "object{price?:number|null}"
+
+    def test_malformed_schema_degrades_to_unknown(self) -> None:
+        assert render_output_type(None) == "?"
+        assert render_output_type({"$ref": "#/$defs/Missing"}) == "?"

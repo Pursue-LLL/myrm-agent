@@ -346,7 +346,7 @@ class TestProxyServiceSingleton:
     async def test_handle_mcp_invoke_success(self, mcp_skill_meta: SkillMetadata) -> None:
         skill_registry.register(mcp_skill_meta)
         service = get_mcp_skill_proxy_service()
-        service._cache.clear()
+        service._cache_buckets.default.clear()
 
         with patch.object(service, "invoke_tool", AsyncMock(return_value="ok")):
             result = await handle_mcp_invoke("mcp_test_skill", "ping", {})

@@ -1,13 +1,15 @@
 """JSON Schema documentation utilities for MCP tool documentation.
 
 [INPUT]
-- JSON Schema parameter definitions from MCP tool schemas.
+- JSON Schema parameter and output definitions from MCP tool schemas.
 
 [OUTPUT]
 - extract_schema_constraints: Formats JSON Schema constraints as markdown documentation lines.
 - build_params_section: Builds full parameters documentation section from JSON Schema.
-- build_call_example: Generates minimal call example string from required parameters.
+- build_call_example: Generates a minimal call string from required parameters.
+- build_call_example_section: Emits the L3 import/call example only for real required examples.
 - render_signature / render_type / render_constraint: Compact one-line signatures for L2.
+- render_output_type / build_returns_section: Recursive MCP outputSchema return rendering.
 - TOOL_DOC_TEMPLATE: Template for single tool documentation (Level 3).
 
 [POS]
