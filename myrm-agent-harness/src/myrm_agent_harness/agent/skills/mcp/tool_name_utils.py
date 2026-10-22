@@ -15,25 +15,26 @@ lookup, MCPFileSystemStrategy, and proxy_service invoke validation.
 
 from __future__ import annotations
 
-import re
-
-_IDENTIFIER_INVALID = re.compile(r"[^A-Za-z0-9_]")
-
 
 def to_python_identifier(name: str) -> str:
     """Fold an arbitrary MCP tool name into a valid Python identifier.
 
     Names reach the model as ``from skills.<skill> import <func>``, so ``foo.bar``,
     ``foo bar`` and ``1foo`` must all become importable before they are rendered.
+    Unicode letters are preserved: Python 3 identifiers accept ``中文工具``, and
+    collapsing them to ``unnamed`` would make those tools indistinguishable.
     Runs of ``_`` are preserved: collapsing them would merge distinct upstream tools
     (``foo__bar`` / ``foo_bar``) that the server exposes separately.
     """
-    folded = _IDENTIFIER_INVALID.sub("_", name)
+    folded = "".join(char if (char.isalnum() or char == "_") else "_" for char in name)
     if not any(char.isalnum() for char in folded):
         return "unnamed"
     if folded[0].isdigit():
-        return f"_{folded}"
-    return folded
+        folded = f"_{folded}"
+    if folded.isidentifier():
+        return folded
+    prefixed = f"_{folded}"
+    return prefixed if prefixed.isidentifier() else "unnamed"
 
 
 def build_tool_name_map(tools: list[str]) -> dict[str, str]:

@@ -54,6 +54,20 @@ class TestPythonIdentifiers:
         mapping = build_tool_name_map(["mcp__srv__foo__bar", "mcp__srv__bar"])
         assert sorted(mapping.values()) == ["bar", "foo__bar"]
 
+    def test_preserves_unicode_letters(self) -> None:
+        assert to_python_identifier("中文工具") == "中文工具"
+        assert to_python_identifier("中文-工具") == "中文_工具"
+        assert to_python_identifier("中文 工具") == "中文_工具"
+        assert "中文工具".isidentifier()
+
+    def test_unicode_names_compile_and_resolve(self) -> None:
+        tools = ["mcp__srv__中文工具", "mcp__srv__中文-工具", "mcp__srv__中文工具2"]
+        mapping = build_tool_name_map(tools)
+        assert sorted(mapping.values()) == ["中文_工具", "中文工具", "中文工具2"]
+        for canonical, python_name in mapping.items():
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
 
 class TestResolveMcpToolName:
     def test_exact_match(self) -> None:
