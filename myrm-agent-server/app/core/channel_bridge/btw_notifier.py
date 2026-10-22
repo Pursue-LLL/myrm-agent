@@ -112,9 +112,12 @@ class BtwTaskNotifier:
                 )
                 from app.services.chat.chat_service import ChatService
 
-                # ``chat_id`` here is the originating Chat's UUID (the kanban payload copies
-                # ``source_chat_id`` into it), so the row is already known — no key lookup needed.
-                chat = await ChatService.get_chat_by_id(chat_id)
+                # ``source_chat_id`` is the originating Chat's UUID; the BTW branch instead
+                # carries the IM peer in ``chat_id``, so only the former is a row id.
+                chat = None
+                source_chat_id = str(data.get("source_chat_id", "") or "").strip()
+                if source_chat_id:
+                    chat = await ChatService.get_chat_by_id(source_chat_id)
                 if chat is not None:
                     components = await resolve_web_handoff_components(
                         chat.id,
