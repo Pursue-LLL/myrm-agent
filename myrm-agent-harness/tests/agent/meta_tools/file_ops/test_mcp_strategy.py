@@ -156,7 +156,8 @@ class TestReadDocErrors:
 class TestDocTemplateOwnsCallContract:
     def test_doc_template_names_observation(self) -> None:
         """L3 must still tell the model how to inspect an undocumented return shape."""
-        from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import TOOL_DOC_TEMPLATE
+        from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import build_returns_section
 
-        assert "[OBSERVATION]" in TOOL_DOC_TEMPLATE
-        assert "json.loads()" in TOOL_DOC_TEMPLATE
+        fallback = build_returns_section(None)
+        assert "[OBSERVATION]" in fallback
+        assert "json.loads()" in fallback

@@ -242,7 +242,7 @@ def render_output_type(
     full schema remains available in L3, while L2 only needs enough shape to decide
     how to consume the value.
     """
-    if not isinstance(schema, dict) or _depth > 12:
+    if not isinstance(schema, dict) or _depth > 32:
         return "?"
 
     defs = defs or schema.get("$defs") or schema.get("definitions") or {}

@@ -153,8 +153,8 @@ class MCPConfig(BaseModel):
     cacheable_tools: list[str] = Field(
         default_factory=list,
         description=(
-            "Explicit allowlist of tool names that may be cached when the server omits readOnlyHint. "
-            "Only list stable read-only tools; never list writes or volatile ticket/status queries."
+            "Explicit allowlist of canonical `tools/list` names that may be cached when the server omits "
+            "readOnlyHint. Only list stable read-only tools; never list writes or volatile ticket/status queries."
         ),
     )
     connect_timeout: float = Field(
