@@ -57,7 +57,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
         handler: Callable[[ModelRequest[object]], ModelResponse[object]],
     ) -> ModelResponse[object]:
         request = self._apply_turn_tool_policy(request)
-        return handler(request)
+        return self._repair_tool_call_names(handler(request), request)
 
     async def awrap_model_call(
         self,
@@ -65,7 +65,61 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
         handler: Callable[[ModelRequest[object]], Awaitable[ModelResponse[object]]],
     ) -> ModelResponse[object]:
         request = self._apply_turn_tool_policy(request)
-        return await handler(request)
+        return self._repair_tool_call_names(await handler(request), request)
+
+    @staticmethod
+    def _repair_tool_call_names(
+        response: ModelResponse[object],
+        request: ModelRequest[object],
+    ) -> ModelResponse[object]:
+        """Repair a hallucinated tool name before the graph dispatches it.
+
+        The model sometimes guesses the implementation-ish name of a registered tool
+        ("a2a_call_tool" for "a2a_call"). LangGraph resolves names against its own map and
+        returns "not a valid tool" for anything else, so a turn can burn its whole retry
+        budget and end with an empty answer. Repairing names here — while the bound tool
+        list is still in hand — keeps the dispatch path untouched.
+        """
+        from myrm_agent_harness.agent.middlewares.tooling._skill_tool_choice import (
+            extract_bound_tool_names,
+        )
+        from myrm_agent_harness.agent.tool_validation.fuzzy_repair import (
+            ToolNameFuzzyRepairer,
+        )
+
+        if not request.tools:
+            return response
+        valid_names = set(extract_bound_tool_names(list(request.tools)))
+        if not valid_names:
+            return response
+
+        repairer = ToolNameFuzzyRepairer()
+        changed = False
+        repaired_messages: list[object] = []
+        for message in response.result:
+            tool_calls = getattr(message, "tool_calls", None)
+            if not tool_calls:
+                repaired_messages.append(message)
+                continue
+            updated_calls: list[object] = []
+            message_changed = False
+            for call in tool_calls:
+                name = call.get("name") if isinstance(call, dict) else None
+                if isinstance(name, str) and name not in valid_names:
+                    repaired = repairer.repair_name(name, valid_names)
+                    if repaired and repaired != name:
+                        call = {**call, "name": repaired}
+                        message_changed = True
+                        logger.warning("Repaired hallucinated tool name %s -> %s", name, repaired)
+                updated_calls.append(call)
+            if message_changed:
+                changed = True
+                repaired_messages.append(message.model_copy(update={"tool_calls": updated_calls}))
+            else:
+                repaired_messages.append(message)
+        if not changed:
+            return response
+        return response.model_copy(update={"result": repaired_messages})
 
     def _apply_turn_tool_policy(self, request: ModelRequest[object]) -> ModelRequest[object]:
         from myrm_agent_harness.agent.middlewares.tooling._skill_tool_choice import (
