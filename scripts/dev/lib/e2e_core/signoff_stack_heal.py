@@ -15,6 +15,7 @@ from pathlib import Path
 
 _DEFAULT_LOCK = Path("/tmp/myrm-stack-heal.flock")
 _DEFAULT_WAIT_SEC = 45.0
+_DEFAULT_WAIT_MAX_SEC = 180.0
 
 
 def _monorepo_root() -> Path:
@@ -42,7 +43,7 @@ def _parallel_active_test_count(root: Path) -> int:
     except subprocess.TimeoutExpired:
         return -1
     text = proc.stdout or ""
-    match = re.search(r"^E2E_PARALLEL_SNAPSHOT_JSON=(.+)$", text, re.M)
+    match = re.search(r"^E2E_PARALLEL_SNAPSHOT_JSON=(.+)$", text, re.MULTILINE)
     if not match:
         return -1
     try:
@@ -89,12 +90,20 @@ def signoff_parallel_stack_busy(*, root: Path | None = None) -> bool:
 def run_signoff_attach_crash_heal(
     *,
     root: Path | None = None,
-    wait_sec: float = _DEFAULT_WAIT_SEC,
+    wait_sec: float | None = None,
 ) -> int:
     """Shared :8080 crash heal via StackHealCoordinator (single-writer)."""
     repo = root or _monorepo_root()
     sys.path.insert(0, str(repo / "myrm-agent/scripts/dev/lib"))
-    from e2e_core.stack_heal_coordinator import request_attach_crash_heal  # noqa: PLC0415
+    from dev_gate.contract import load_scaled_budget_sec
+
+    from e2e_core.stack_heal_coordinator import (
+        request_attach_crash_heal,
+    )
+
+    if wait_sec is None:
+        # Same host-load口径 as the other E2E budgets: a busy host needs more patience, not a fixed ceiling.
+        wait_sec = load_scaled_budget_sec(_DEFAULT_WAIT_SEC, _DEFAULT_WAIT_MAX_SEC)
 
     if signoff_parallel_stack_busy(root=repo):
         print(

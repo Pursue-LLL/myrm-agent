@@ -39,7 +39,7 @@ _BRIDGE_READY_CAP_LOAD_MAX = 3.0
 
 
 def _bridge_ready_cap_scale() -> float:
-    """How far a parallel cap may stretch on a loaded host (1.0 when the host is quiet).
+    """How far a bridge cap may stretch on a loaded host (1.0 when the host is quiet).
 
     Reuses the same load-per-core notion as the stale-UI probe budget so one busy host raises
     both thresholds instead of one of them silently aborting a healthy frontend.
@@ -61,6 +61,16 @@ def _parallel_bridge_ready_cap_sec() -> float:
     return _PARALLEL_BRIDGE_READY_CAP_SEC * _bridge_ready_cap_scale()
 
 
+def _serial_bridge_ready_cap_sec() -> float:
+    """Serial lane cap for one page's bridge wait.
+
+    The serial lane had a fixed 60s ceiling while the parallel lane already scaled with the host load:
+    a cold client bundle needs the dev server to compile it (a single chunk was measured at ~190s on a
+    saturated host), so the fixed ceiling aborted exactly the pages that needed the most time.
+    """
+    return _SERIAL_BRIDGE_READY_CAP_SEC * _bridge_ready_cap_scale()
+
+
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
     """Parallel SHPOIB hydrate queue can defer React mount beyond 60s."""
     from dev_gate.contract import shared_ui_hydrate_wait_sec
@@ -68,7 +78,7 @@ def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
     from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
     if not parallel_shared_ui_hydrate_queue_enabled():
-        return min(_SERIAL_BRIDGE_READY_CAP_SEC, timeout_sec)
+        return min(_serial_bridge_ready_cap_sec(), timeout_sec)
     # The bridge-level wait must never undercut the per-page cap it wraps: the 180s constant here
     # used to clamp a loaded host straight back down. The admission wall stays the outer bound.
     parallel_cap = min(

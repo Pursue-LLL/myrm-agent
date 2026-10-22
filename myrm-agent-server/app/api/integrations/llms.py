@@ -396,19 +396,34 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     try:
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
         from myrm_agent_harness.toolkits.llms.fallback.health_check import (
-            probe_llm_health,
+            lightweight_health_check,
         )
 
         await resolve_oauth_marker(kwargs)
         llm = await llm_tools.get_llm(**kwargs)
-        probe = await probe_llm_health(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
 
-        result = ReachabilityResult(
-            reachable=probe.ok,
-            latency_ms=probe.latency_ms,
-            error=probe.error,
-            error_kind=probe.error_kind,
-        )
+        try:
+            from myrm_agent_harness.toolkits.llms.fallback.health_check import (
+                probe_llm_health,
+            )
+        except ImportError:
+            # Harness without the structured probe: fall back to the boolean probe so the endpoint keeps
+            # working instead of failing the whole request on an import error.
+            reachable = await lightweight_health_check(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
+            result = ReachabilityResult(
+                reachable=reachable,
+                latency_ms=None,
+                error=None if reachable else "Health check returned no response",
+                error_kind="none" if reachable else "provider_error",
+            )
+        else:
+            probe = await probe_llm_health(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
+            result = ReachabilityResult(
+                reachable=probe.ok,
+                latency_ms=probe.latency_ms,
+                error=probe.error,
+                error_kind=probe.error_kind,
+            )
 
     except Exception as e:
         result = ReachabilityResult(

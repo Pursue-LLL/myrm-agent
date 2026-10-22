@@ -722,8 +722,13 @@ def host_load_ratio() -> float:
     return _host_load_ratio()
 
 
-def _stale_probe_scaled_sec(base: float, maximum: float) -> float:
-    """Scale a stale-verdict threshold from ``base`` up to ``maximum`` with host load."""
+def load_scaled_budget_sec(base: float, maximum: float) -> float:
+    """Scale a wall-clock budget from ``base`` up to ``maximum`` with the host load.
+
+    One public entry point for every load-sensitive E2E budget, so a budget is not tuned in one layer while
+    a sibling layer keeps a hard-coded value: a busy host answers slower (and the dev server needs longer
+    to compile a cold chunk), and a fixed ceiling then aborts exactly when the work needed the most time.
+    """
     ratio = _host_load_ratio()
     if ratio <= HOST_LOAD_UPGRADE_RATIO:
         return base
@@ -731,6 +736,11 @@ def _stale_probe_scaled_sec(base: float, maximum: float) -> float:
         HOST_LOAD_STALE_SCALE_MAX_RATIO - HOST_LOAD_UPGRADE_RATIO
     )
     return min(maximum, base + (maximum - base) * min(1.0, span))
+
+
+def _stale_probe_scaled_sec(base: float, maximum: float) -> float:
+    """Scale a stale-verdict threshold from ``base`` up to ``maximum`` with host load."""
+    return load_scaled_budget_sec(base, maximum)
 
 
 def attach_ui_stale_probe_timeout_sec() -> float:
