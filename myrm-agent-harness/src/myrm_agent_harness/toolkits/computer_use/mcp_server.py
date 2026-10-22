@@ -26,7 +26,13 @@ from collections.abc import Callable
 from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING
 
-from mcp.server.mcpserver import MCPServer
+try:
+    from mcp.server.mcpserver import MCPServer
+except ImportError:
+    try:
+        from mcp.server.fastmcp import FastMCP as MCPServer
+    except ImportError:
+        from mcp.server import Server as MCPServer
 from mcp.types import ImageContent, TextContent
 from starlette.applications import Starlette
 

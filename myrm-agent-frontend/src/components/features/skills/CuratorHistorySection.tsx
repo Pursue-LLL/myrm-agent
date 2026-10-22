@@ -63,7 +63,7 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                     {entry.trigger === 'manual' ? t('triggerManual') : t('triggerBackground')}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-3 text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
                   <span>{t('historyScanned', { count: entry.skills_scanned })}</span>
                   {entry.stale_count > 0 && (
                     <span className="text-yellow-700 dark:text-yellow-500">
@@ -75,7 +75,13 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                       {tCard('archived')} {entry.archived_count}
                     </span>
                   )}
-                  {entry.total_transitions === 0 && (
+                  {entry.skipped_pinned > 0 && (
+                    <span>{t('skippedPinned', { count: entry.skipped_pinned })}</span>
+                  )}
+                  {entry.skipped_protected > 0 && (
+                    <span>{t('skippedProtected', { count: entry.skipped_protected })}</span>
+                  )}
+                  {entry.total_transitions === 0 && !entry.skipped_pinned && !entry.skipped_protected && (
                     <span className="text-green-700 dark:text-green-400">{t('noChanges')}</span>
                   )}
                 </div>

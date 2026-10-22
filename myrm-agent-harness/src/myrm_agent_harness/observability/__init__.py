@@ -58,7 +58,6 @@ from .spend_control import (
     SpendInterventionTier,
 )
 from .storage_governance import (
-    StateSnapshotManager,
     StateSnapshotMetadata,
     StorageCategory,
     StorageCategoryBreakdown,
@@ -92,7 +91,6 @@ __all__ = [
     "SpendControlConfig",
     "SpendInterventionDecision",
     "SpendInterventionTier",
-    "StateSnapshotManager",
     "StateSnapshotMetadata",
     "StorageCategory",
     "StorageCategoryBreakdown",

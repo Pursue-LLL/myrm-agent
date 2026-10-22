@@ -169,7 +169,36 @@ class ServerBackgroundJobFinishHandler:
                 maybe_resume_goal_after_background_job,
             )
 
-            await maybe_resume_goal_after_background_job(result)
+            resumed_goal = await maybe_resume_goal_after_background_job(result)
+            if not resumed_goal:
+                from myrm_agent_harness.agent.coordination.adaptive_wakeup import (
+                    WakeupEvent,
+                    WakeupSourceType,
+                )
+
+                from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
+
+                job_identifier = str(result.job_id or result.pid)
+                is_success = (
+                    (result.exit_code == 0)
+                    if result.exit_code is not None
+                    else (result.status == "exited")
+                )
+                summary_text = (
+                    f"Background process '{job_identifier}' finished with status '{result.status}'"
+                    f"{f', exit code {result.exit_code}' if result.exit_code is not None else ''}."
+                )
+                event = WakeupEvent(
+                    source_type=WakeupSourceType.BACKGROUND_JOB,
+                    source_id=job_identifier,
+                    session_id=result.session_id,
+                    success=is_success,
+                    summary=summary_text,
+                    exit_code=result.exit_code,
+                    error=result.error_category,
+                )
+                await get_adaptive_wakeup_service().handle_settlement(event)
+
 
             get_event_bus().publish(
                 AppEvent(

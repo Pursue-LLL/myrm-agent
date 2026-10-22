@@ -131,7 +131,10 @@ class TestDraftsE2E:
         assert second.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_approve_skill_draft_blocked_in_sandbox(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_approve_skill_draft_blocked_when_local_skills_are_off(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Sandbox allows local skills by default; the MYRM_ALLOW_LOCAL_SKILLS=0 kill-switch must still fail closed."""
         from app.config.deploy_mode import get_deploy_mode
         from app.platform_utils.deployment_capabilities import (
             _reset_capabilities_cache_for_testing,
@@ -141,6 +144,7 @@ class TestDraftsE2E:
         get_deploy_mode.cache_clear()
         _reset_capabilities_cache_for_testing()
         monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+        monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
         get_deploy_mode.cache_clear()
         _reset_capabilities_cache_for_testing()
         try:
@@ -158,5 +162,6 @@ class TestDraftsE2E:
             assert resp.status_code == 403
         finally:
             monkeypatch.delenv("DEPLOY_MODE", raising=False)
+            monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS", raising=False)
             get_deploy_mode.cache_clear()
             _reset_capabilities_cache_for_testing()

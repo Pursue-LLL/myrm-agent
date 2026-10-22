@@ -297,6 +297,7 @@ class GlobalActivityPatterns:
     max_streak: int
     busiest_day_of_week: int
     busiest_hour: int
+    timezone: str = "UTC"
 
 
 # --- Top Sessions Analytics (A3) ---

@@ -19,6 +19,9 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `share/`（子包） | 核心 | 工件分享子域：`share/share_bundle.py`（物化 share 静态包）、`share/share_token.py`（分享令牌签发/校验/重建）、`share/share_registry.py`（分享链接生命周期治理）。`share/__init__.py` 为聚合门面 |
+| `ui_alignment/`（子包） | 业务 | 多轮 UI 设计图视觉对齐与变体决策工作流服务：`UiVisualAlignmentService` 承载变体登记、画布批注采集、契约固化 |
+| `delight_showcase/`（子包） | 业务 | 小白零门槛趣味创意灵感工坊与单文件自包含即席沙箱展示台服务：`DelightShowcaseService` 承载模板检索、自包含单文件规范化与沙箱契约创建 |
+| `embed_bridge/`（子包） | 业务 | 网站与第三方系统可嵌入小部件及宿主上下文双向通信桥服务：`EmbedBridgeService` 承载 Origin 鉴权、上下文注入与嵌入代码生成 |
 | `bundle_builder.py` | 业务 | 提供 `build_zip_deliverable_bundle` 与 `generate_bundle_readme`，支持按 DeliverableManifest 分层流式压缩打包多工件资产 |
 
 ---
@@ -30,3 +33,6 @@
 - `app/services/hosting/preflight.py`
 - `app/database/models.artifact_share`（分享链接登记行）
 - `app/database/models.artifact`（列表 join 取 artifact 名称）
+- `myrm_agent_harness.toolkits.artifacts.ui_alignment`
+- `myrm_agent_harness.toolkits.artifacts.delight_showcase`
+- `myrm_agent_harness.toolkits.artifacts.embed_bridge`

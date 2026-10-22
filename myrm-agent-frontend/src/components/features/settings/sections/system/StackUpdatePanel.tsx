@@ -17,8 +17,15 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons';
+import { QueuedRestartNotice } from '@/components/features/instance-archive/QueuedRestartNotice';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
+import {
+  UpgradePreFlightProbeCard,
+  ActiveTaskDrainSafetyBanner,
+  DualInstanceHandoffPipelineModal,
+  useUpgradePreFlightDiagnostics,
+} from './upgrade-cockpit';
 import {
   getAutoBackup,
   getDeferredVersion,
@@ -86,6 +93,20 @@ export default function StackUpdatePanel() {
 
   const quietRef = useRef({ start: QUIET_OFF, end: QUIET_OFF });
   quietRef.current = { start: quietStart, end: quietEnd };
+
+  const {
+    mirrorProbes,
+    activeTaskSafety,
+    isProbing,
+    currentStage,
+    pipelineSteps,
+    isModalOpen,
+    runPreFlightProbes,
+    startUpgradePipeline,
+    rollbackImmediate,
+    closeModal,
+  } = useUpgradePreFlightDiagnostics();
+  const [selectedMirrorId, setSelectedMirrorId] = useState('cnb');
 
   const {
     phase: desktopPhase,
@@ -207,7 +228,7 @@ export default function StackUpdatePanel() {
     setBackupError(false);
     setRestoredId(null);
     try {
-      const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore-update`, {
+      const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore`, {
         method: 'POST',
       });
       if (!response.ok) {
@@ -464,9 +485,40 @@ export default function StackUpdatePanel() {
           >
             {isDoctoring ? `${t('doctorRun')}...` : t('doctorRun')}
           </button>
+          <button
+            type="button"
+            data-testid="start-blue-green-upgrade-btn"
+            onClick={() => {
+              startUpgradePipeline({ mirrorId: selectedMirrorId });
+            }}
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90 transition-colors"
+          >
+            无感升级控制台
+          </button>
           {doctorResult === 'pass' && <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>}
           {doctorResult === 'fail' && <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>}
         </div>
+
+        {/* Item 80: 活动长任务防误杀与多源网络前置体检 */}
+        <div className="space-y-3 pt-2 border-t border-white/5">
+          <ActiveTaskDrainSafetyBanner safetyCheck={activeTaskSafety} />
+          <UpgradePreFlightProbeCard
+            probes={mirrorProbes}
+            selectedMirrorId={selectedMirrorId}
+            onSelectMirror={setSelectedMirrorId}
+            onRefreshProbes={runPreFlightProbes}
+            isProbing={isProbing}
+          />
+        </div>
+
+        {/* 双实例无感升级流水线模态框 */}
+        <DualInstanceHandoffPipelineModal
+          isOpen={isModalOpen}
+          currentStage={currentStage}
+          steps={pipelineSteps}
+          onClose={closeModal}
+          onRollback={rollbackImmediate}
+        />
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -501,9 +553,12 @@ export default function StackUpdatePanel() {
             </div>
           )}
           {restoredId && (
-            <p className="text-xs text-emerald-400">
-              {t('restoreDone')} {t('restartRequired')}
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-emerald-400">
+                {t('restoreDone')} {t('restartRequired')}
+              </p>
+              <QueuedRestartNotice />
+            </div>
           )}
           {snapshots.length === 0 && <p className="text-xs text-muted-foreground">{t('snapshotEmpty')}</p>}
           {snapshots.length > 0 && (

@@ -104,6 +104,7 @@ class SkillResponse(BaseModel):
     config_schema: dict[str, object] | None = None
     has_upstream_update: bool = False
     installed_from: dict[str, object] | None = None
+    last_replace_batch_id: str | None = None
 
     verification_steps: list[dict[str, object]] = []
     eval_cases: list[dict[str, object]] = []
@@ -348,3 +349,6 @@ class SkillFileUpdateResponse(BaseModel):
     is_clean: bool = True
     trust_recommendation: str = "trusted"
     findings_count: int = 0
+    content_hash: str | None = None
+    version_persisted: bool = False
+    version_number: int | None = None

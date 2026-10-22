@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
+
+_CURSOR_SANDBOX_SEGMENT_RE = re.compile(r"^\.?cursor(?:-[^/]+)?$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -40,8 +43,11 @@ def _wave_is_open(state_dir: Path) -> bool:
 
 
 def _real_user_home() -> Path:
+    override = os.environ.get("MYRM_REAL_HOME", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
     home = os.environ.get("HOME", "").strip()
-    if home and "/.cursor-3" not in home:
+    if home and not _is_sandbox_home_shadow(Path(home)):
         return Path(home).expanduser().resolve()
     try:
         import pwd
@@ -90,12 +96,13 @@ def _state_dir_candidates() -> tuple[Path, ...]:
 def _is_sandbox_home_shadow(path: Path) -> bool:
     """True when path is inside a Cursor-sandbox redirected HOME shadow dir.
 
-    Cursor redirects HOME to ~/.cursor-3 so default-inferred state dirs land under
-    the shadow; the real wave lives under the real user's home. Such paths must
-    keep participating in the open-wave scan (R287). Everything else that was
-    explicitly set (isolated runtime state dirs, real-home shared dir) is SSOT.
+    Cursor redirects HOME to ~/.cursor-3 / ~/.cursor-latest so default-inferred
+    state dirs land under the shadow; the real wave lives under the real user's
+    home. Such paths must keep participating in the open-wave scan (R287).
+    Everything else that was explicitly set (isolated runtime state dirs,
+    real-home shared dir) is SSOT.
     """
-    return any(part.lower() in (".cursor-3", "cursor-3") for part in path.parts)
+    return any(_CURSOR_SANDBOX_SEGMENT_RE.match(part) is not None for part in path.parts)
 
 
 def resolve_wave_paths() -> WavePaths:

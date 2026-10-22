@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
 import { CheckCircleIcon, XCircleIcon } from './goal-icons';
 import type { AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface AcceptanceCriteriaPanelProps {
   criteria: { type: string; command?: string; criteria?: string }[];
@@ -45,8 +44,9 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
 
           return (
             <li key={idx} className="text-xs">
-              <div
-                className={`flex items-start gap-2 p-1.5 rounded-lg border cursor-pointer transition-colors ${
+              <button
+                type="button"
+                className={`flex w-full items-start gap-2 p-1.5 rounded-lg border text-left cursor-pointer transition-colors ${
                   result
                     ? result.passed
                       ? 'bg-green-50/50 border-green-200/50 dark:bg-green-900/10 dark:border-green-800/30'
@@ -54,9 +54,6 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
                     : 'bg-primary/5 border-primary/10'
                 }`}
                 onClick={() => setExpandedIdx(isExpanded ? null : idx)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={activateOnKey}
               >
                 <span className="flex-shrink-0 mt-0.5">
                   {result ? (
@@ -77,7 +74,7 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
                     {result.duration_ms}ms
                   </span>
                 )}
-              </div>
+              </button>
               {isExpanded && result && !result.passed && result.error_logs && (
                 <pre className="mt-1 ml-6 p-2 text-[10px] bg-muted/60 rounded border border-border/50 overflow-x-auto max-h-32 whitespace-pre-wrap text-muted-foreground">
                   {result.error_logs}

@@ -597,4 +597,34 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Diskussionen, Stimmungen und Trends auf X (Twitter) verfolgen — Influencer, Marken und Wettbewerber überwachen.',
     },
   },
+  'strategic-advisor': {
+    en: {
+      name: 'Strategic Advisor',
+      description:
+        'Independent architectural reviewer and strategic critic — evaluates design elegance, scalability, and trade-offs in read-only mode.',
+    },
+    zh: {
+      name: '战略顾问',
+      description: '独立的系统架构与战略质询顾问——以严格只读模式审查架构美感、可扩展性极限与权衡取舍。',
+    },
+    'zh-TW': {
+      name: '戰略顧問',
+      description: '獨立的系統架構與戰略質詢顧問——以嚴格唯讀模式審查架構美感、可擴充性極限與權衡取捨。',
+    },
+    ja: {
+      name: '戦略アドバイザー',
+      description:
+        '独立したシステムアーキテクチャおよび戦略レビュアー — 読み取り専用モードで設計の優雅さ、拡張性、トレードオフを評価。',
+    },
+    ko: {
+      name: '전략 어드바이저',
+      description: '독립적인 시스템 아키텍처 및 전략 비평가 — 읽기 전용 모드로 설계의 우아함, 확장성 한계 및 트레이드오프를 평가.',
+    },
+    de: {
+      name: 'Strategischer Berater',
+      description:
+        'Unabhängiger Architekturprüfer und strategischer Kritiker — bewertet Design-Eleganz, Skalierbarkeit und Kompromisse im schreibgeschützten Modus.',
+    },
+  },
 };
+

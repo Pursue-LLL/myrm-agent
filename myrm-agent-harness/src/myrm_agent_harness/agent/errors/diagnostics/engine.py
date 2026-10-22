@@ -14,7 +14,9 @@ LLM error diagnostic engine. Classifies exceptions from LLM calls into actionabl
 with localized user messages and resolution steps.
 """
 
+import math
 import re
+from dataclasses import replace
 
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
@@ -28,6 +30,9 @@ from myrm_agent_harness.infra.tls_compat import (
     is_tls_strict_error,
     is_tls_transient_error,
 )
+
+_COOLDOWN_SECONDS_MAX = 120
+_COOLDOWN_DAYS_MIN = 48 * 3600
 
 
 class LLMErrorDiagnostic:
@@ -70,11 +75,18 @@ class LLMErrorDiagnostic:
             exc: LLM调用产生的异常
             context: 错误上下文(可选, 用于精准诊断)
             locale: 语言代码(可选, None=自动检测)
-            cooldown_remaining_ms: 冷却剩余时间(毫秒, 可选)
+            cooldown_remaining_ms: 提供方声明的恢复等待时间(毫秒, 可选); 统一在此处追加到 user_message
 
         Returns:
             DiagnosticResult: 错误诊断结果
         """
+        result = LLMErrorDiagnostic._classify(exc, context, locale)
+        hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, result.locale)
+        return replace(result, user_message=result.user_message + hint) if hint else result
+
+    @staticmethod
+    def _classify(exc: Exception, context: ErrorContext | None, locale: str | None) -> DiagnosticResult:
+        """Map *exc* to a localized diagnostic (without the provider wait hint)."""
         locale_manager = get_locale_manager()
         if locale is None:
             locale = locale_manager.detect_locale()
@@ -112,9 +124,6 @@ class LLMErrorDiagnostic:
             user_message = raw_msg if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing") else fallback_msg
             steps = raw_steps if isinstance(raw_steps, list) and raw_steps else [fallback_msg]
 
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
             return DiagnosticResult(
                 error_type="tls_transient",
                 user_message=user_message,
@@ -150,9 +159,6 @@ class LLMErrorDiagnostic:
                     "custom_endpoint_unreachable", "resolution_steps", locale, **params
                 )
 
-                cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-                user_message += cooldown_hint
-
                 return DiagnosticResult(
                     error_type="custom_endpoint_unreachable",
                     user_message=user_message,
@@ -164,9 +170,6 @@ class LLMErrorDiagnostic:
             # 通用连接错误诊断
             user_message = locale_manager.translate("connection", "user_message", locale)
             resolution_steps = locale_manager.translate("connection", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
 
             return DiagnosticResult(
                 error_type="connection",
@@ -200,9 +203,6 @@ class LLMErrorDiagnostic:
         if any(kw in full_text for kw in billing_keywords) or re.search(r"(?<!\d)402(?!\d)", full_text):
             user_message = locale_manager.translate("billing", "user_message", locale)
             resolution_steps = locale_manager.translate("billing", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
 
             return DiagnosticResult(
                 error_type="billing",
@@ -258,9 +258,6 @@ class LLMErrorDiagnostic:
             user_message = locale_manager.translate("api_key", "user_message", locale)
             resolution_steps = locale_manager.translate("api_key", "resolution_steps", locale)
 
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
             return DiagnosticResult(
                 error_type="api_key",
                 user_message=user_message,
@@ -292,9 +289,6 @@ class LLMErrorDiagnostic:
                     "custom_model_not_found", "resolution_steps", locale, **params
                 )
 
-                cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-                user_message += cooldown_hint
-
                 return DiagnosticResult(
                     error_type="custom_model_not_found",
                     user_message=user_message,
@@ -307,9 +301,6 @@ class LLMErrorDiagnostic:
             params = {"model_name": model_name}
             user_message = locale_manager.translate("model", "user_message", locale, **params)
             resolution_steps = locale_manager.translate("model", "resolution_steps", locale, **params)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
 
             return DiagnosticResult(
                 error_type="model",
@@ -324,9 +315,6 @@ class LLMErrorDiagnostic:
         if any(kw in full_text for kw in rate_limit_keywords) or re.search(r"(?<!\d)429(?!\d)", full_text):
             user_message = locale_manager.translate("rate_limit", "user_message", locale)
             resolution_steps = locale_manager.translate("rate_limit", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
 
             return DiagnosticResult(
                 error_type="rate_limit",
@@ -348,9 +336,6 @@ class LLMErrorDiagnostic:
         ):
             user_message = locale_manager.translate("response_format_error", "user_message", locale)
             resolution_steps = locale_manager.translate("response_format_error", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
 
             return DiagnosticResult(
                 error_type="response_format_error",
@@ -374,9 +359,6 @@ class LLMErrorDiagnostic:
             user_message = locale_manager.translate("context_overflow", "user_message", locale)
             resolution_steps = locale_manager.translate("context_overflow", "resolution_steps", locale)
 
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
             return DiagnosticResult(
                 error_type="context_overflow",
                 user_message=user_message,
@@ -390,9 +372,6 @@ class LLMErrorDiagnostic:
             user_message = locale_manager.translate("timeout", "user_message", locale)
             resolution_steps = locale_manager.translate("timeout", "resolution_steps", locale)
 
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
             return DiagnosticResult(
                 error_type="timeout",
                 user_message=user_message,
@@ -405,9 +384,6 @@ class LLMErrorDiagnostic:
         params = {"error_message": str(exc)[:200]}
         user_message = locale_manager.translate("unknown", "user_message", locale, **params)
         resolution_steps = locale_manager.translate("unknown", "resolution_steps", locale)
-
-        cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-        user_message += cooldown_hint
 
         return DiagnosticResult(
             error_type="unknown",
@@ -479,22 +455,32 @@ class LLMErrorDiagnostic:
         return port_match.group(1) if port_match else "unknown"
 
     @staticmethod
+    def _duration_parts(seconds: int) -> list[tuple[str, int]]:
+        """Round a wait *up* (never tell the user to retry early) into locale-neutral unit parts."""
+        if seconds <= _COOLDOWN_SECONDS_MAX:
+            return [("second", seconds)]
+        minutes = math.ceil(seconds / 60)
+        if minutes < 60:
+            return [("minute", minutes)]
+        if seconds >= _COOLDOWN_DAYS_MIN:
+            return [("day", math.ceil(seconds / 86_400))]
+        hours, minutes = divmod(minutes, 60)
+        return [("hour", hours), *([("minute", minutes)] if minutes else [])]
+
+    @staticmethod
     def _format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
-        """生成cooldown提示(如果存在)"""
+        """Localized "retry after <duration>" sentence, or "" when no wait is known."""
         if not cooldown_remaining_ms or cooldown_remaining_ms <= 0:
             return ""
 
-        locale_manager = get_locale_manager()
-        cooldown_seconds = int(cooldown_remaining_ms / 1000)
+        bundles = get_locale_manager()._translations
+        raw = bundles.get(locale, {}).get("_cooldown_hint") or bundles.get("en", {}).get("_cooldown_hint")
+        if not raw:
+            return ""
+        texts = {key: str(value) for key, value in raw.items()}
 
-        hint_key = "single" if cooldown_seconds == 1 else "plural"
-
-        try:
-            cooldown_translations = locale_manager._translations.get(locale, {}).get("_cooldown_hint", {})
-            if not cooldown_translations:
-                cooldown_translations = locale_manager._translations.get("en", {}).get("_cooldown_hint", {})
-
-            hint_template = cooldown_translations.get(hint_key, "")
-            return hint_template.format(seconds=cooldown_seconds)
-        except Exception:
-            return f" Retry after {cooldown_seconds} seconds."
+        parts = LLMErrorDiagnostic._duration_parts(math.ceil(cooldown_remaining_ms / 1000))
+        duration = texts["joiner"].join(
+            texts[f"{unit}_{'one' if count == 1 else 'other'}"].format(n=count) for unit, count in parts
+        )
+        return texts["template"].format(duration=duration)

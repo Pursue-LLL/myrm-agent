@@ -149,6 +149,33 @@ describe('useKanbanSelection', () => {
     expect(result.current.selectedStatuses).toEqual(['ready']);
   });
 
+  it('drops selected tasks whose lane is collapsed, since their cards are not on screen', () => {
+    const running = [
+      { ...makeTask('run-a', 'running'), agent_id: 'agent-a' },
+      { ...makeTask('run-b', 'running'), agent_id: 'agent-b' },
+    ];
+    const noneCollapsed = new Set<string>();
+    const aCollapsed = new Set(['agent-a']);
+    const { result, rerender } = renderHook(
+      (props: { collapsed: ReadonlySet<string> }) =>
+        useKanbanSelection({
+          boardId: 'board-1',
+          tasks: running,
+          columnTasks: columnsOf(running),
+          laneByProfile: true,
+          collapsedAgents: props.collapsed,
+        }),
+      { initialProps: { collapsed: noneCollapsed } },
+    );
+    act(() => result.current.handleTaskSelect('run-a', CMD));
+    act(() => result.current.handleTaskSelect('run-b', CMD));
+
+    rerender({ collapsed: aCollapsed });
+
+    expect(result.current.selectedTaskIds).toEqual(['run-b']);
+    expect(result.current.selectedStatuses).toEqual(['running']);
+  });
+
   it('keeps the same array between renders while nothing changes', () => {
     const { result, rerender } = setup();
     act(() => result.current.handleTaskSelect('ready-1', CMD));

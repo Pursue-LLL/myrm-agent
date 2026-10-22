@@ -150,8 +150,10 @@ async def test_session_migration_confirm(db_session: AsyncSession) -> None:
 
     # Verify message rows
     msg_rows = (
-        await db_session.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.sent_at.asc()))
-    ).scalars().all()
+        (await db_session.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.sent_at.asc())))
+        .scalars()
+        .all()
+    )
     assert len(msg_rows) == 2
 
     # Check user turn
@@ -248,4 +250,3 @@ def test_load_hermes_with_sessions(tmp_path: Path) -> None:
     sessions = res["sessions"]
     assert isinstance(sessions, list) and len(sessions) == 1
     assert sessions[0].get("title") == "Hermes CI Debugging Session"
-

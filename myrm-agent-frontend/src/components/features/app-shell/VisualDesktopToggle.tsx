@@ -70,6 +70,10 @@ export const VisualDesktopToggle = () => {
         }
         const vnc = await fetchSandboxVncUrl(sandbox.id);
         const url = buildVncWebSocketUrl(vnc.vnc_url, vnc.token);
+        if (!url) {
+          // A sandbox without a VNC endpoint is a load failure (message + reconnect), not a blank panel.
+          throw new Error('no_vnc_url');
+        }
         if (isMounted.current) {
           setWsUrl(url);
         }

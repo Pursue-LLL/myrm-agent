@@ -129,7 +129,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`a2a` · `approvals` · `audit` · `batch_directory` · `browser_recording` · `browser_spaces` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`a2a` · `approvals` · `audit` · `batch_directory` · `browser_recording` · `browser_spaces` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -194,6 +194,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
+| `sandbox_wake/` | Hosted sandbox wake scheduling: reports the next parked-goal / cron time to the control plane (`app/server/lifespan.py`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
 

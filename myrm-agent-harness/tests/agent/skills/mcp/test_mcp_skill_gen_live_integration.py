@@ -112,7 +112,7 @@ async def test_skill_gen_live_chain_prompt_fixes(_reset_manager: object) -> None
         # --- Level 2 SKILL.md: calling contract is unconditional ---
         content = generator.generate_skill_content(skill_meta)
         assert "## Calling" in content
-        assert "set `timeout=120` when declared" in content
+        assert "Set `timeout=120` when declared" in content
         assert "Always set" not in content
 
         # --- Level 3 doc via MCPFileSystemStrategy: doc template owns the call contract ---

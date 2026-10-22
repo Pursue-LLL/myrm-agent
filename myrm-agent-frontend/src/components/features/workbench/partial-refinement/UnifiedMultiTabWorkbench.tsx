@@ -16,6 +16,7 @@ import { useWorkbenchStore } from './useWorkbenchStore';
 import { WorkbenchResourceType, WorkbenchTab } from './workbenchTypes';
 import { WorkbenchResourceViewers } from './WorkbenchResourceViewers';
 import { InPlacePartialRefinementPopover } from './InPlacePartialRefinementPopover';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export const UnifiedMultiTabWorkbench: React.FC = () => {
   const {
@@ -165,7 +166,7 @@ export const UnifiedMultiTabWorkbench: React.FC = () => {
                         closeTab(tab.id);
                       }}
                       aria-label={`关闭标签 ${tab.title}`}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-800 rounded transition-opacity text-slate-400 hover:text-slate-200"
+                      className={`${REVEAL_ON_HOVER} p-0.5 hover:bg-slate-800 rounded transition-opacity text-slate-400 hover:text-slate-200`}
                     >
                       <X className="w-3 h-3" />
                     </button>

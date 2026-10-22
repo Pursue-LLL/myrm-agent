@@ -48,7 +48,36 @@ def _monorepo_root() -> Path:
     return Path(__file__).resolve().parents[5]
 
 
+def _foreground_bootstrap_active(monorepo: Path) -> bool:
+    """Return True when any live isolated runtime is currently cold-booting."""
+    dev_dir = str((monorepo / "scripts" / "dev").resolve())
+    if dev_dir not in sys.path:
+        sys.path.insert(0, dev_dir)
+    try:
+        from isolated_runtime.allocator import isolated_root
+        from isolated_runtime.registry import owner_is_active, read_registry
+
+        reg_path = isolated_root() / "registry.json"
+        if not reg_path.is_file():
+            return False
+        for record in read_registry(reg_path).values():
+            if record.get("phase") == "bootstrapping" and owner_is_active(record):
+                return True
+    except (ImportError, OSError, ValueError, RuntimeError):
+        return False
+    return False
+
+
 def _spawn_warm_backend(*, monorepo: Path) -> WarmBorrowResult:
+    if _foreground_bootstrap_active(monorepo):
+        return WarmBorrowResult(
+            ok=False,
+            runtime_id="",
+            owner_token="",
+            api_base="",
+            detail="deferred: foreground runtime bootstrapping",
+            environment={},
+        )
     from e2e_core.verify_backend_seed import _spawn_verify_backend_seed
 
     spawned = _spawn_verify_backend_seed(monorepo=monorepo)

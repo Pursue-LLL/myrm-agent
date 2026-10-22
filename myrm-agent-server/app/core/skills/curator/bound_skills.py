@@ -10,6 +10,7 @@
 
 [OUTPUT]
 - bound_skill_names: Names of the given skills that an agent profile, a live cron job or a kanban task that can still run binds
+- assert_skill_not_bound_for_archive: Refuse manual archive when an agent profile, cron job or kanban task still binds the skill
 
 [POS]
 Tells the Curator which skills automations depend on, so an unattended job, board task or slash
@@ -35,6 +36,26 @@ from app.database.models import Agent, CronJobModel, KanbanTaskModel
 # reopens a completed or archived one. A failed task is not in this set: ``retry_failed_task`` re-queues it,
 # and it then loads its skills once more.
 _FINAL_TASK_STATUSES = (TaskStatus.COMPLETED, TaskStatus.ARCHIVED)
+
+
+class SkillBoundError(RuntimeError):
+    """Raised when a skill is still bound by an agent profile, cron job or kanban task."""
+
+    def __init__(self, skill_name: str) -> None:
+        self.skill_name = skill_name
+        super().__init__(skill_name)
+
+
+async def assert_skill_not_bound_for_archive(skill_name: str, skill_path: Path) -> None:
+    """Fail closed before manual archive when automations still bind this skill."""
+    meta = SkillMetadata(
+        name=skill_name,
+        description="",
+        storage_path=str(skill_path.resolve()),
+    )
+    protected = await bound_skill_names([meta])
+    if skill_name in protected:
+        raise SkillBoundError(skill_name)
 
 
 async def bound_skill_names(skills: Sequence[SkillMetadata]) -> frozenset[str]:

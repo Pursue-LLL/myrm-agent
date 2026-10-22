@@ -192,3 +192,29 @@ async def batch_move_chats(req: BatchMoveRequest) -> JSONResponse:
         return success_response(data={"movedCount": count})
     except Exception as e:
         raise internal_error(operation="Batch move chats", exception=e) from e
+
+
+@router.get("/{project_id}/activity-feed", response_model=StandardSuccessResponse)
+async def get_project_activity_feed(
+    project_id: str,
+    limit: int = 50,
+    offset: int = 0,
+) -> JSONResponse:
+    """获取项目协同动态 Feed（任务完成、移交协作、定时运行、里程碑）"""
+    from app.services.project.activity_feed_service import ProjectActivityFeedService
+
+    try:
+        project = await ProjectService.get_project(project_id)
+        if not project:
+            raise not_found_error("Project")
+
+        feed = await ProjectActivityFeedService.get_activity_feed(
+            project_id,
+            limit=limit,
+            offset=offset,
+        )
+        return success_response(data=feed.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get project activity feed", exception=e) from e

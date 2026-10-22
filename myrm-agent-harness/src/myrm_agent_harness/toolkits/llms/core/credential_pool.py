@@ -202,8 +202,9 @@ class CredentialPool:
         """Report an error for *key* and apply an appropriate cooldown.
 
         Cooldown strategy:
-        - Auth / billing: fixed 24 h (effectively permanent for a session).
-        - Rate limit with Retry-After hint: use the server-specified value.
+        - Auth: fixed 24 h (effectively permanent for a session).
+        - Billing: the provider-stated window reset when known, otherwise fixed 24 h.
+        - Rate limit with a provider-stated wait: use it (capped at 24 h).
         - Rate limit without hint: exponential backoff (base * 2^consecutive)
           with ±15 % jitter, capped at 24 h.  This prevents thundering herd
           when multiple keys recover simultaneously.
@@ -213,9 +214,9 @@ class CredentialPool:
             key: The API key that encountered the error.
             error_kind: One of ``"rate_limit"``, ``"auth"``, ``"billing"``,
                 or any other string (treated as transient).
-            cooldown_hint_s: Optional provider-supplied cooldown (e.g. from
-                ``Retry-After`` header). Used only for ``rate_limit``; ignored
-                for auth/billing (those use a fixed 24 h cooldown).
+            cooldown_hint_s: Optional provider-stated wait in seconds (see
+                ``errors.provider_window``). Used for ``rate_limit`` and
+                ``billing``; ignored for auth (fixed 24 h cooldown).
         """
         now = time.monotonic()
         normalized_error_kind = _normalize_identifier(error_kind)
@@ -224,14 +225,19 @@ class CredentialPool:
             if slot.key != key:
                 continue
 
-            if normalized_error_kind in ("auth", "billing"):
+            if normalized_error_kind == "auth":
                 cooldown = _AUTH_COOLDOWN_S
+                slot.consecutive_rate_limit_count = 0
+            elif normalized_error_kind == "billing":
+                # A spent quota window (subscription cap) reopens at the provider-stated reset;
+                # only a hint-less billing failure (balance depleted) stays out for the full day.
+                cooldown = min(cooldown_hint_s, _AUTH_COOLDOWN_S) if cooldown_hint_s else _AUTH_COOLDOWN_S
                 slot.consecutive_rate_limit_count = 0
             elif normalized_error_kind == "rate_limit":
                 slot.rate_limit_count += 1
                 slot.consecutive_rate_limit_count += 1
                 if cooldown_hint_s is not None and cooldown_hint_s > 0:
-                    cooldown = cooldown_hint_s
+                    cooldown = min(cooldown_hint_s, _AUTH_COOLDOWN_S)
                 else:
                     # Exponential backoff: base * 2^(n-1), capped
                     base = self._cooldown_s

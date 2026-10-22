@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import PlainTextResponse
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.api.skills import compute_content_hash
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.skills.schemas import (
@@ -61,9 +64,33 @@ async def list_skills(
     )
 
 
+@router.get("/{skill_id}/agent-usage")
+async def get_skill_agent_usage(
+    skill_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """Count agents that bind this skill (skill_ids or mounted_skill_ids)."""
+    skill = await skills_service.get_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
+
+    from app.database.models.agent import Agent
+
+    rows = await db.execute(select(Agent.id, Agent.name, Agent.skill_ids, Agent.mounted_skill_ids))
+    agents: list[dict[str, str]] = []
+    for agent_id, name, skill_ids, mounted_skill_ids in rows:
+        bound = list(skill_ids or []) + list(mounted_skill_ids or [])
+        if skill_id in bound:
+            agents.append({"id": str(agent_id), "name": str(name)})
+
+    return {"skill_id": skill_id, "agent_count": len(agents), "agents": agents}
+
+
 @router.get("/{skill_id}/files/{filename:path}")
 async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     """Get skill file content by skill ID and filename."""
+    from pathlib import Path
+
     if ".." in filename or filename.startswith(("/", "\\")):
         raise HTTPException(status_code=400, detail="Path traversal detected in filename")
 
@@ -77,7 +104,9 @@ async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     else:
         text_body = raw_content
 
-    return PlainTextResponse(text_body)
+    etag = compute_content_hash(text_body) if Path(filename).name == SKILL_MD_FILE else None
+    headers = {"ETag": f'"{etag}"'} if etag else None
+    return PlainTextResponse(text_body, headers=headers)
 
 
 @router.put("/{skill_id}/files/{filename:path}", response_model=SkillFileUpdateResponse)
@@ -85,6 +114,7 @@ async def update_skill_file(
     skill_id: str,
     filename: str,
     payload: SkillFileUpdateRequest,
+    if_match: str | None = Header(default=None, alias="If-Match"),
 ) -> SkillFileUpdateResponse:
     """Update skill file content, run security scanning, and persist immediately."""
     skill = await skills_service.get_skill(skill_id)
@@ -113,13 +143,25 @@ async def update_skill_file(
             detail=f"Security scan rejected skill file modification: {'; '.join(rejection_reasons)}",
         )
 
+    from app.services.skills.write_orchestrator import (
+        SkillContentConflictError,
+        orchestrate_skill_file_write,
+    )
+
     try:
-        updated = await skills_service.update_skill_file(skill_id, filename, payload.content)
+        write_result = await orchestrate_skill_file_write(
+            skill_id,
+            filename,
+            payload.content,
+            created_by="settings_editor",
+            if_match=if_match,
+        )
+    except SkillContentConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-
-    if not updated:
-        raise HTTPException(status_code=500, detail=f"Failed to write file {filename} for skill {skill_id}")
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     if filename == "SKILL.md" and skill.type == SkillType.PREBUILT:
         import re
@@ -148,6 +190,8 @@ async def update_skill_file(
         is_clean=scan_res.is_clean,
         trust_recommendation=scan_res.trust_recommendation.value,
         findings_count=len(scan_res.findings),
+        content_hash=write_result.content_hash,
+        version_persisted=write_result.version_persisted,
     )
 
 

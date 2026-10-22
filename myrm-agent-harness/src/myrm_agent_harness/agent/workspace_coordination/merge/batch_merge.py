@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import shutil
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -85,7 +85,7 @@ def _strip_merge_metadata(item: dict[str, object]) -> None:
 
 
 def discard_deferred_isolated_workspaces(
-    results: list[object],
+    results: Sequence[object],
 ) -> int:
     """Remove deferred ISOLATED_COPY child workspaces without merging.
 

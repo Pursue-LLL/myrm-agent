@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
+from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
 from app.core.skills.creation.service import SkillCreationService
 
@@ -76,7 +79,7 @@ async def test_write_resource_json_validation(service: SkillCreationService, tmp
     res_bad = await service.write_resource(
         skill_name="json-skill",
         resource_path="config.json",
-        content="{\"key\": \"value\",}",  # trailing comma is invalid JSON
+        content='{"key": "value",}',  # trailing comma is invalid JSON
     )
     assert res_bad.success is False
     assert "JSON syntax error" in (res_bad.error or "")
@@ -86,7 +89,7 @@ async def test_write_resource_json_validation(service: SkillCreationService, tmp
     res_ok = await service.write_resource(
         skill_name="json-skill",
         resource_path="config.json",
-        content="{\"key\": \"value\"}",
+        content='{"key": "value"}',
     )
     assert res_ok.success is True
     assert (skill_dir / "config.json").exists()
@@ -193,3 +196,47 @@ async def test_write_resource_empty_files(service: SkillCreationService, tmp_pat
     )
     assert res_yaml.success is True
 
+
+@pytest.mark.asyncio
+async def test_save_skill_anchors_the_forgetting_clock(service: SkillCreationService, tmp_path: Path) -> None:
+    """A skill with no ledger would never age, so saving it writes the clock the curator reads."""
+    res = await service.save_skill(
+        name="fresh-skill",
+        content="---\nname: fresh-skill\ndescription: demo\n---\n",
+    )
+    assert res.success is True
+
+    stats_file = tmp_path / "fresh-skill" / ".stats.json"
+    assert stats_file.exists()
+    assert json.loads(stats_file.read_text())["created_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_resaving_an_archived_skill_revives_it(service: SkillCreationService, tmp_path: Path) -> None:
+    """Re-authoring a skill the curator archived must hand it back active, not leave it hidden behind a restore."""
+    await service.save_skill(name="revived-skill", content="---\nname: revived-skill\ndescription: demo\n---\n")
+    skill_dir = tmp_path / "revived-skill"
+
+    collector = SkillStatsCollector()
+    collector.update_lifecycle_status(skill_dir, SkillLifecycleStatus.ARCHIVED)
+    assert collector.get_stats(skill_dir).lifecycle_status == SkillLifecycleStatus.ARCHIVED
+
+    res = await service.save_skill(name="revived-skill", content="---\nname: revived-skill\ndescription: demo v2\n---\n")
+    assert res.success is True
+    assert res.was_updated is True
+
+    assert collector.get_stats(skill_dir).lifecycle_status == SkillLifecycleStatus.ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_resaving_keeps_the_original_forgetting_clock(service: SkillCreationService, tmp_path: Path) -> None:
+    """An edit is not a rebirth: the created_at the curator ages from must survive a re-save."""
+    await service.save_skill(name="aged-skill", content="---\nname: aged-skill\ndescription: demo\n---\n")
+    skill_dir = tmp_path / "aged-skill"
+
+    anchored = SkillStatsCollector().get_stats(skill_dir).created_at
+    assert anchored is not None
+
+    await service.save_skill(name="aged-skill", content="---\nname: aged-skill\ndescription: demo v2\n---\n")
+
+    assert SkillStatsCollector().get_stats(skill_dir).created_at == anchored

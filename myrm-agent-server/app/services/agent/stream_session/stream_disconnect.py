@@ -25,6 +25,7 @@ from contextlib import asynccontextmanager
 from myrm_agent_harness.utils.runtime.cancellation import CancellationMonitor
 
 from app.services.agent.stream_session.stream_session_types import (
+    ACTIVITY_STALE_SECONDS,
     GRACE_PERIOD_SECONDS,
     AgentStreamSession,
 )
@@ -34,20 +35,29 @@ logger = logging.getLogger(__name__)
 _CHECK_INTERVAL_SECONDS = 0.5
 
 
-def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Coroutine[None, None, bool]]:
-    """Build the predicate the turn's monitor polls: True once the client stayed away past the grace period."""
+def build_disconnect_checker(
+    session: AgentStreamSession,
+    activity_stale_seconds: float = ACTIVITY_STALE_SECONDS,
+) -> Callable[[], Coroutine[None, None, bool]]:
+    """Build the predicate the turn's monitor polls: True once the client stayed away past the grace period
+
+    AND turn activity has become stale (no streaming tokens, tool output, or progress for ACTIVITY_STALE_SECONDS).
+    """
 
     async def _check() -> bool:
         disconnected = await session.http_request.is_disconnected()
 
         if not disconnected or session.collector.has_subscribers:
+            session.disconnect_monotonic = None
             session.disconnect_time = None
             return False
 
         if session.is_long_running_task:
             return False
 
-        if session.disconnect_time is None:
+        if session.disconnect_monotonic is None:
+            now_mono = time.monotonic()
+            session.disconnect_monotonic = now_mono
             session.disconnect_time = time.time()
             logger.info(
                 "PWA Disconnect Tolerance: Starting %ss grace period for message %s",
@@ -56,13 +66,29 @@ def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Corout
             )
             return False
 
-        elapsed = time.time() - session.disconnect_time
+        now_mono = time.monotonic()
+        elapsed = now_mono - session.disconnect_monotonic
         if elapsed < GRACE_PERIOD_SECONDS:
             return False
 
+        # Activity-Freshness Deferral: if the turn is actively emitting chunks, executing tools,
+        # or progressing in the background, defer cancellation even past the client grace period.
+        time_since_activity = now_mono - session.last_activity_monotonic
+        if time_since_activity < activity_stale_seconds:
+            logger.info(
+                "PWA Disconnect Tolerance: Client gone past grace (%ss), but turn activity is fresh (%.1fs ago < %ss) — deferring cancellation for message %s",
+                GRACE_PERIOD_SECONDS,
+                time_since_activity,
+                activity_stale_seconds,
+                session.params.message_id,
+            )
+            return False
+
         logger.warning(
-            "PWA Disconnect Tolerance: Grace period expired (%ss), cancelling message %s",
+            "PWA Disconnect Tolerance: Grace period expired (%ss) AND turn activity stale (%.1fs >= %ss), cancelling message %s",
             GRACE_PERIOD_SECONDS,
+            time_since_activity,
+            activity_stale_seconds,
             session.params.message_id,
         )
         return True

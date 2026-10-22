@@ -49,7 +49,7 @@ def _extract_suppress_im_from_delivery(delivery: object) -> bool:
 
 
 async def handle_dead_letter(delivery: object, error_reason: str) -> None:
-    """Handle dead letter callback from Harness DeadLetterQueue."""
+    """Handle dead letter callback from Harness DeliveryQueue."""
     import asyncio
 
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus

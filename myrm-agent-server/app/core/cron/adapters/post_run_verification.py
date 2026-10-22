@@ -196,6 +196,17 @@ async def apply_cron_post_run_verification(
             summary=str(exc),
         )
 
+    if verdict is None:
+        # No conclusive verdict (verifier crashed, or passed without running anything): the output is
+        # unverified, not failed, so it is reported like the other "could not verify" outcomes and the
+        # delivered text stays untouched.
+        return _attach_verification_metadata(
+            result,
+            status="error",
+            passed=False,
+            summary="Verifier did not reach a conclusive verdict",
+        )
+
     status = "pass" if verdict.passed else "fail"
     annotated = _attach_verification_metadata(
         result,

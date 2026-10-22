@@ -20,7 +20,7 @@ describe('classifyNodeStage', () => {
   });
 
   it('classifies verification stages correctly', () => {
-    const verifyNode = mkNode({ task_id: '2', agent_type: 'verifier', status: 'verifying' });
+    const verifyNode = mkNode({ task_id: '2', agent_type: 'verifier', status: 'running' });
     expect(classifyNodeStage(verifyNode).category).toBe('verify');
 
     const nodeWithVerification = mkNode({
@@ -76,5 +76,19 @@ describe('deriveStageTaskCounts', () => {
 
     const synthStage = summary.stages.find((s) => s.category === 'synthesize');
     expect(synthStage?.isBlocked).toBe(true);
+  });
+
+  it('treats a node held back for review as settled so it neither keeps its stage open nor stalls later stages', () => {
+    const nodes: Record<string, SubagentNode> = {
+      '1': mkNode({ task_id: '1', agent_type: 'worker', status: 'blocked' }),
+      '2': mkNode({ task_id: '2', agent_type: 'synthesize', status: 'pending' }),
+    };
+
+    const summary = deriveStageTaskCounts(nodes);
+
+    const fanOutStage = summary.stages.find((s) => s.category === 'fan_out');
+    expect(fanOutStage?.isComplete).toBe(true);
+    expect(summary.stages.find((s) => s.category === 'synthesize')?.isBlocked).toBe(false);
+    expect(summary.totalCompleted).toBe(1);
   });
 });

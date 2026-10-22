@@ -157,31 +157,6 @@ def build_metadata(source: str, item: dict[str, object], fields: tuple[str, ...]
     return metadata
 
 
-def to_memory_import_source(source: str) -> MemoryImportSource:
-    """Map a raw source string to a typed MemoryImportSource literal."""
-
-    _KNOWN: set[str] = {
-        "native_json",
-        "myrm_archive",
-        "agentmemory",
-        "gbrain",
-        "memweaver",
-        "claude_code_jsonl",
-        "hermes",
-        "openclaw",
-        "cursor_rules",
-        "codex",
-        "claude",
-        "mem0",
-        "chatgpt",
-        "windsurf",
-        "trae",
-    }
-    if source in _KNOWN:
-        return source  # type: ignore[return-value]
-    return "unknown"
-
-
 def _import_status(total_items: int, mapped_items: int, unmapped_items: int) -> MemoryReliabilityStatus:
     if total_items == 0:
         return "missing"

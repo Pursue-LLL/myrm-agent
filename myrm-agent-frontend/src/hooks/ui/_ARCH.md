@@ -16,3 +16,4 @@
 | `useTrafficLightInsets.ts`                         | macOS 桌面端沉浸式窗口交通灯安全区留白自适应（自动注入 `--traffic-light-inset-*` CSS 变量）                    |
 | `useModelCheckbox.ts`                              | 模型多选 checkbox                                                                                              |
 | `useReactPreview.ts`                               | React 预览                                                                                                     |
+| `useDesktopContextMenuBridge.ts`                   | 下游桌面原生上下文菜单桥接钩子（`myrm:session-row-contextmenu` 事件派发与 Tauri 桌面端 Native 菜单桥接）          |

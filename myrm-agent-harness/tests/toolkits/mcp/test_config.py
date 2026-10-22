@@ -260,3 +260,182 @@ class TestTypeAutoInference:
     def test_no_type_no_hints_raises(self) -> None:
         with pytest.raises(ValueError):
             MCPConfig(name="bare")
+
+
+class TestMcpConfigToRuntimeDictAndSecurityWiring:
+    """Verify mcp_config_to_runtime_dict SSOT, OSV cache, TrustGate root fallback, backoff, and IPC cache."""
+
+    def test_mcp_config_to_runtime_dict_preserves_all_fields_and_merges_auth_headers(self) -> None:
+        from myrm_agent_harness.toolkits.mcp.config import mcp_config_to_runtime_dict
+
+        def dummy_oversized(server: str, tool: str, text: str) -> str:
+            return text
+
+        cfg = MCPConfig(
+            name="mtls_srv",
+            type="streamable_http",
+            url="https://mcp.internal.example/mcp",
+            headers={"X-Custom": "1"},
+            ssl_verify="/etc/ssl/ca.pem",
+            client_cert="/etc/ssl/client.pem",
+            client_key="/etc/ssl/client.key",
+            tool_include=["slow_op"],
+            tool_exclude=["fast_op"],
+            oversized_result_handler=dummy_oversized,
+            extra_params={"cwd": "/tmp"},
+        )
+        cfg._injected_auth_headers = {"Authorization": "Bearer tok_123"}  # type: ignore[attr-defined]
+
+        runtime_dict = mcp_config_to_runtime_dict(cfg)
+        assert runtime_dict["name"] == "mtls_srv"
+        assert runtime_dict["ssl_verify"] == "/etc/ssl/ca.pem"
+        assert runtime_dict["client_cert"] == "/etc/ssl/client.pem"
+        assert runtime_dict["client_key"] == "/etc/ssl/client.key"
+        assert runtime_dict["tool_include"] == ["slow_op"]
+        assert runtime_dict["tool_exclude"] == ["fast_op"]
+        assert runtime_dict["oversized_result_handler"] is dummy_oversized
+        assert runtime_dict["extra_params"] == {"cwd": "/tmp"}
+        assert runtime_dict["_injected_auth_headers"] == {"Authorization": "Bearer tok_123"}
+
+    @pytest.mark.asyncio
+    async def test_osv_malware_cache_avoids_duplicate_http_queries(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from myrm_agent_harness.toolkits.mcp.security import (
+            check_osv_malware,
+            clear_osv_malware_cache,
+        )
+
+        clear_osv_malware_cache()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"vulns": []}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.post.return_value = mock_resp
+
+        with patch(
+            "myrm_agent_harness.toolkits.mcp.security.create_httpx_client",
+            return_value=mock_client,
+        ):
+            r1 = await check_osv_malware("npx", ["-y", "cached-pkg-test"], use_cache=True)
+            r2 = await check_osv_malware("npx", ["-y", "cached-pkg-test"], use_cache=True)
+            assert r1 is None
+            assert r2 is None
+            assert mock_client.post.call_count == 1
+        clear_osv_malware_cache()
+
+    def test_workspace_trust_gate_falls_back_to_context_workspace_root(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        from myrm_agent_harness.agent.security.workspace_trust import (
+            WorkspaceTrustBlockedError,
+            WorkspaceTrustLevel,
+        )
+        from myrm_agent_harness.agent.security.workspace_trust.context import (
+            clear_workspace_trust_context,
+            set_workspace_root,
+            set_workspace_trust_level,
+        )
+        from myrm_agent_harness.toolkits.mcp.transport import get_workspace_trust_gate
+
+        root = str(Path(str(tmp_path)).resolve())
+        try:
+            set_workspace_trust_level(WorkspaceTrustLevel.TRUSTED)
+            set_workspace_root(root)
+            gate = get_workspace_trust_gate()
+            assert gate is not None
+            # Trusted workspace allows spawn with workspace_root=None (resolved from context)
+            gate.assert_mcp_spawn_allowed(
+                workspace_root=None,
+                cwd=root,
+                plugin_root=None,
+                trust_level=gate.get_trust_level(),
+            )
+            # Restricted workspace with workspace_root=None resolves root from context and blocks repo-local cwd
+            set_workspace_trust_level(WorkspaceTrustLevel.RESTRICTED)
+            with pytest.raises(WorkspaceTrustBlockedError):
+                gate.assert_mcp_spawn_allowed(
+                    workspace_root=None,
+                    cwd=root,
+                    plugin_root=None,
+                    trust_level=gate.get_trust_level(),
+                )
+        finally:
+            clear_workspace_trust_context()
+
+    @pytest.mark.asyncio
+    async def test_proxy_tool_cross_ttl_self_healing_and_security_lockout(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from myrm_agent_harness.toolkits.mcp.errors import MCPRuntimePostureError
+        from myrm_agent_harness.toolkits.mcp.session_actor_tools import make_actor_proxy_tool
+
+        stale_actor = MagicMock()
+        stale_actor.is_healthy.return_value = False
+        stale_actor._security_terminated = False
+        stale_actor.server_name = "srv"
+        stale_actor.call = AsyncMock(side_effect=MCPRuntimePostureError("terminated", server_name="srv"))
+
+        fresh_actor = MagicMock()
+        fresh_actor.is_healthy.return_value = True
+        fresh_actor._security_terminated = False
+        fresh_actor.server_name = "srv"
+        fresh_actor.call = AsyncMock(return_value="healed_ok")
+
+        resolver = AsyncMock(return_value=fresh_actor)
+        stale_actor._actor_resolver = resolver
+
+        base_tool = MagicMock()
+        base_tool.name = "mcp__srv__ping"
+        base_tool.description = "ping"
+        base_tool.args_schema = {"type": "object", "properties": {}}
+        base_tool.metadata = None
+
+        proxy = make_actor_proxy_tool(stale_actor, base_tool)
+        assert proxy.coroutine is not None
+        result = await proxy.coroutine(x=1)
+        assert result == "healed_ok"
+        resolver.assert_awaited_once()
+        fresh_actor.call.assert_awaited_once_with("mcp__srv__ping", {"x": 1})
+
+        # When security terminated, self-healing must be refused
+        resolver.reset_mock()
+        stale_actor._security_terminated = True
+        proxy_blocked = make_actor_proxy_tool(stale_actor, base_tool)
+        assert proxy_blocked.coroutine is not None
+        with pytest.raises(MCPRuntimePostureError):
+            await proxy_blocked.coroutine(x=1)
+        resolver.assert_not_awaited()
+
+    def test_startup_backoff_and_ipc_skill_cache(self) -> None:
+        from myrm_agent_harness.agent.skills.runtime.registry import SkillRegistry
+        from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
+        from myrm_agent_harness.toolkits.mcp.connection_pool_types import MCPStartupBackoff
+
+        backoff = MCPStartupBackoff()
+        d1 = backoff.record_failure("h1", "boom", ("demo",))
+        d2 = backoff.record_failure("h1", "boom2", ("demo",))
+        assert d1 == 1.0
+        assert d2 == 5.0
+        with pytest.raises(RuntimeError, match="startup backoff cooldown"):
+            backoff.check_allowed("h1")
+        backoff.record_success("h1")
+        backoff.check_allowed("h1")
+
+        reg = SkillRegistry()
+        mcp_skill = SkillMetadata(
+            name="mcp-demo",
+            description="demo",
+            mcp=MCPSkillData(
+                server="demo",
+                tools=["ping"],
+                config={"name": "demo", "type": "stdio", "command": "echo"},
+            ),
+        )
+        reg.register(mcp_skill)
+        assert reg.get_skill("mcp-demo") is mcp_skill
+        reg.clear_mcp_skills()
+        assert reg.get_skill("mcp-demo") is None
+        assert reg.get_mcp_skill_for_ipc("mcp-demo") is mcp_skill

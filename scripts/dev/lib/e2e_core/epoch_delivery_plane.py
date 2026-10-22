@@ -16,6 +16,7 @@ decouples «run new workspace code» from «consume private ADMIT credit».
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from typing import Final
 from urllib.parse import urlsplit
 
 _EPOCH_PIN_ENV: Final[str] = "MYRM_E2E_EPOCH_PIN"
+_EPOCH_PREPIN_API_ENV: Final[str] = "MYRM_E2E_SESSION_PREPIN_API"
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,9 +94,11 @@ def _health_runtime_id(api_base: str) -> str:
 def _runtime_identity_env(*, runtime_id: str, api_base: str) -> dict[str, str]:
     """API-only epoch pin env — no isolated runtime bind (P0-DGR-6)."""
     _ = runtime_id  # health identity only; not an allocator-owned runtime
+    clean_base = api_base.rstrip("/")
     return {
-        "E2E_API_BASE": api_base.rstrip("/"),
+        "E2E_API_BASE": clean_base,
         _EPOCH_PIN_ENV: "1",
+        _EPOCH_PREPIN_API_ENV: clean_base,
         "MYRM_E2E_FORCE_MODEL_SEED": "1",
     }
 
@@ -157,6 +161,34 @@ def apply_epoch_pin_for_shared_live(
     raw_fp = getattr(ctx, "workspace_fingerprint", "")
     workspace_fp = raw_fp.strip() if isinstance(raw_fp, str) else ""
     shared = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
+    pinned_base = (
+        os.environ.get(_EPOCH_PREPIN_API_ENV, "").strip()
+        if epoch_pin_active()
+        else ""
+    )
+    if pinned_base and pinned_base.rstrip("/") != shared.rstrip("/"):
+        from e2e_core.verify_backend_seed import ensure_verify_backend_providers
+
+        ensure_verify_backend_providers(api_base=pinned_base, monorepo=monorepo.resolve())
+        pinned_port = urlsplit(pinned_base).port
+        prepin = _outcome_from_api_base(
+            api_base=pinned_base,
+            detail=f"reused_session_prepin port={pinned_port or '?'}",
+            seeded=False,
+        )
+        if prepin.applied:
+            register_epoch_backend_holder(
+                isolated_root=isolated_root,
+                runtime_id=prepin.runtime_id,
+                api_base=prepin.api_base,
+                fingerprint=workspace_fp,
+            )
+            return prepin
+        invalidate_epoch_backend(
+            isolated_root=isolated_root,
+            api_base=pinned_base,
+        )
+
     verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
     # A stale shared backend is never a valid namespace-write target, even when
     # its health endpoint is reachable. Reuse only a distinct, healthy verify
@@ -222,6 +254,4 @@ def apply_epoch_pin_for_shared_live(
 
 
 def epoch_pin_active() -> bool:
-    import os
-
     return os.environ.get(_EPOCH_PIN_ENV, "").strip() == "1"

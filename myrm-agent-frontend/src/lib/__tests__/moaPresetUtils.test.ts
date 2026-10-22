@@ -4,11 +4,15 @@ import {
   countMoaReferenceModelsForPreset,
   emptyMoaPresetsMap,
   isActiveMoaPresetAvailable,
+  isMoaAutoActivatedForProfile,
   isMoaPresetConfigured,
   listMoaPresetOptions,
   MOA_PRESET_FAST_ID,
   MOA_PRESET_REVIEW_ID,
+  resolveEffectiveMoaPresetId,
   resolvePresetReferenceSelections,
+  resolveProfileDefaultMoaPresetId,
+  resolveProfileMoaActivationMode,
 } from '@/lib/moaPresetUtils';
 
 describe('moaPresetUtils per-preset refs', () => {
@@ -112,3 +116,93 @@ describe('moaPresetUtils per-preset refs', () => {
     expect(isMoaPresetConfigured(params)).toBe(false);
   });
 });
+
+describe('AgentProfileAdvisorAutoActivationPolicy frontend utilities', () => {
+  const baseConfiguredParams = {
+    moa_overlay: {
+      enabled: true,
+      activation_mode: 'manual',
+      default_preset_id: 'review',
+      presets: {
+        review: {
+          reference_model_selections: [{ providerId: 'anthropic', model: 'claude-3-5-sonnet' }],
+        },
+        fast: {
+          reference_model_selections: [{ providerId: 'openai', model: 'gpt-4o-mini' }],
+        },
+        default: {
+          reference_model_selections: [],
+        },
+      },
+    },
+  };
+
+  it('resolves activation mode from profile correctly', () => {
+    expect(resolveProfileMoaActivationMode(baseConfiguredParams)).toBe('manual');
+
+    const alwaysParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'always' },
+    };
+    expect(resolveProfileMoaActivationMode(alwaysParams)).toBe('always');
+
+    const riskParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'risk_triggered' },
+    };
+    expect(resolveProfileMoaActivationMode(riskParams)).toBe('risk_triggered');
+
+    const legacyAutoReasoning = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: undefined, auto_on_reasoning: true },
+    };
+    expect(resolveProfileMoaActivationMode(legacyAutoReasoning)).toBe('risk_triggered');
+  });
+
+  it('resolves default preset id with fallback to review', () => {
+    expect(resolveProfileDefaultMoaPresetId(baseConfiguredParams)).toBe('review');
+
+    const fastDefault = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, default_preset_id: 'fast' },
+    };
+    expect(resolveProfileDefaultMoaPresetId(fastDefault)).toBe('fast');
+  });
+
+  it('evaluates isMoaAutoActivatedForProfile accurately', () => {
+    const alwaysParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'always' },
+    };
+    expect(isMoaAutoActivatedForProfile(alwaysParams)).toBe(true);
+
+    const riskParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'risk_triggered' },
+    };
+    // No risk signals -> false
+    expect(isMoaAutoActivatedForProfile(riskParams)).toBe(false);
+    // Reasoning tier -> true
+    expect(isMoaAutoActivatedForProfile(riskParams, 'reasoning')).toBe(true);
+    // Risk trigger flag -> true
+    expect(isMoaAutoActivatedForProfile(riskParams, 'chat', true)).toBe(true);
+  });
+
+  it('resolveEffectiveMoaPresetId prioritizes user request and falls back to auto policy', () => {
+    const alwaysParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'always' },
+    };
+
+    // User explicitly requested fast
+    expect(resolveEffectiveMoaPresetId(alwaysParams, 'fast')).toBe('fast');
+
+    // User explicitly disabled
+    expect(resolveEffectiveMoaPresetId(alwaysParams, 'none')).toBe(null);
+    expect(resolveEffectiveMoaPresetId(alwaysParams, 'disabled')).toBe(null);
+
+    // No user request -> auto activates review
+    expect(resolveEffectiveMoaPresetId(alwaysParams)).toBe('review');
+
+    // Risk triggered params
+    const riskParams = {
+      moa_overlay: { ...baseConfiguredParams.moa_overlay, activation_mode: 'risk_triggered' },
+    };
+    expect(resolveEffectiveMoaPresetId(riskParams)).toBe(null);
+    expect(resolveEffectiveMoaPresetId(riskParams, null, 'reasoning')).toBe('review');
+  });
+});
+

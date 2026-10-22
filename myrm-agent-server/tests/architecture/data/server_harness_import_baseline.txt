@@ -28,6 +28,7 @@ myrm_agent_harness.agent.context_management.infra.schemas
 myrm_agent_harness.agent.context_management.infra.session_lock
 myrm_agent_harness.agent.context_management.omni_reference
 myrm_agent_harness.agent.context_management.pre_compact_service
+myrm_agent_harness.agent.context_management.scratchpad_promotion
 myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard
 myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store
 myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout
@@ -54,7 +55,6 @@ myrm_agent_harness.agent.event_log.trace_types
 myrm_agent_harness.agent.event_log.types
 myrm_agent_harness.agent.extensions.protocols
 myrm_agent_harness.agent.file_snapshot
-myrm_agent_harness.agent.file_snapshot.external_effect_detector
 myrm_agent_harness.agent.file_snapshot.protocols
 myrm_agent_harness.agent.file_snapshot.restore_inbox
 myrm_agent_harness.agent.file_snapshot.types
@@ -104,18 +104,14 @@ myrm_agent_harness.agent.plugins.rules
 myrm_agent_harness.agent.security
 myrm_agent_harness.agent.security.approval_flow
 myrm_agent_harness.agent.security.audit
-myrm_agent_harness.agent.security.audit_pack
 myrm_agent_harness.agent.security.batch_risk
 myrm_agent_harness.agent.security.channel_presets
 myrm_agent_harness.agent.security.config
-myrm_agent_harness.agent.security.delegation.guard
-myrm_agent_harness.agent.security.delegation.models
 myrm_agent_harness.agent.security.detection.content_boundary
 myrm_agent_harness.agent.security.engine
 myrm_agent_harness.agent.security.guards.estop
 myrm_agent_harness.agent.security.guards.untrusted_ingress_fence
 myrm_agent_harness.agent.security.jit_gate
-myrm_agent_harness.agent.security.jit_gate.models
 myrm_agent_harness.agent.security.message_filtering
 myrm_agent_harness.agent.security.path_security
 myrm_agent_harness.agent.security.policy_generator
@@ -192,6 +188,8 @@ myrm_agent_harness.api.config
 myrm_agent_harness.api.hooks
 myrm_agent_harness.api.security
 myrm_agent_harness.api.skills
+myrm_agent_harness.backends.commerce.exceptions
+myrm_agent_harness.backends.commerce.gates
 myrm_agent_harness.backends.commerce.protocols
 myrm_agent_harness.backends.commerce.types
 myrm_agent_harness.backends.profiles.types
@@ -255,8 +253,10 @@ myrm_agent_harness.infra.health
 myrm_agent_harness.infra.health.health_checker
 myrm_agent_harness.infra.incremental.types
 myrm_agent_harness.infra.pubsub.event_bus
+myrm_agent_harness.infra.security
 myrm_agent_harness.infra.sqlite_backup
 myrm_agent_harness.infra.sqlite_salvage
+myrm_agent_harness.infra.state_archive
 myrm_agent_harness.infra.tls_compat
 myrm_agent_harness.infra.tracing
 myrm_agent_harness.infra.tracing.metrics
@@ -431,7 +431,6 @@ myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
 myrm_agent_harness.toolkits.memory.graph.sqlite_store
-myrm_agent_harness.toolkits.memory.graph_reorganization
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health
 myrm_agent_harness.toolkits.memory.integration.fetcher

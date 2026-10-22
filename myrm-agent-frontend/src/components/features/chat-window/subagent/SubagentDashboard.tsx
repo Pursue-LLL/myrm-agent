@@ -63,6 +63,7 @@ import { SubagentTreeNode } from './SubagentTree';
 import { StageTaskCountStrip } from './StageTaskCountStrip';
 import { SubagentDetailDrawer } from './SubagentDetailDrawer';
 import { SubagentInsightsView } from './SubagentInsightsView';
+import { SubagentRoleChainPresetChips } from './SubagentRoleChainPresetChips';
 
 // ── Sort/Filter Controls ─────────────────────────────────────────────
 
@@ -449,6 +450,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             </div>
           </div>
         </SheetHeader>
+        <div className="px-4 py-2 border-b border-border/30 bg-muted/20">
+          <SubagentRoleChainPresetChips compact />
+        </div>
         <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border/30">
           <ViewTab
             active={viewMode === 'tree'}

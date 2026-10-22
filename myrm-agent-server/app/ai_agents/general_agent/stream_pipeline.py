@@ -299,6 +299,7 @@ async def execute_stream_pipeline(
                 build_loop_restart_callback,
                 retrieve_relevant_learnings,
             )
+            from app.services.agent.goals.usage_limit_resume import build_goal_hold_callback
 
             memory_manager = agent_wrapper.agent.memory_manager
             context["on_goal_terminal"] = build_goal_terminal_callback(
@@ -307,6 +308,7 @@ async def execute_stream_pipeline(
                 deep_scan=agent_wrapper.privacy_deep_scan,
             )
             context["on_loop_restart"] = build_loop_restart_callback()
+            context["on_goal_hold"] = build_goal_hold_callback()
 
             # Enrich active goal with relevant historical learnings
             goal_provider = context["goal_provider"]

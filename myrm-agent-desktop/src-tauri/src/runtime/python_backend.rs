@@ -191,7 +191,19 @@ pub async fn start_backend_with_config(
             ));
         }
 
-        (Command::new(launch_binary), active_version)
+        let mut sidecar_cmd = Command::new(&launch_binary);
+        // tiktoken 的编码表随包分发：打包环境往往没有外网，缺编码表会让 LiteLLM 直接
+        // 抛 "Unknown encoding cl100k_base"，模型调用全部失败。
+        if let Ok(cache_dir) = app
+            .path()
+            .resolve("tiktoken_cache", tauri::path::BaseDirectory::Resource)
+        {
+            if cache_dir.is_dir() {
+                sidecar_cmd.env("TIKTOKEN_CACHE_DIR", &cache_dir);
+                sidecar_cmd.env("DATA_GYM_CACHE_DIR", &cache_dir);
+            }
+        }
+        (sidecar_cmd, active_version)
     };
 
     for var in TOXIC_ENV_VARS {

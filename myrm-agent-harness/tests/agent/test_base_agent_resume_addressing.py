@@ -53,18 +53,6 @@ async def _run(agent: BaseAgent, query: str | Command[object], tmp_path: Path) -
     return [event async for event in agent.run(query=query, message_id="msg-1", context=_context(tmp_path))]
 
 
-def _isolate_approval_globals() -> None:
-    """Drop process-global approval state that other tests may have left registered.
-
-    ``_batch_review._security_reviewer`` is a module global, so a reviewer registered by
-    any earlier test makes this run auto-approve instead of pausing for a card. The
-    unbound disclosure slot is process-wide for the same reason.
-    """
-    from myrm_agent_harness.agent.middlewares.approval._batch_review import register_security_reviewer
-
-    register_security_reviewer(None)
-
-
 def _approvals(events: list[dict[str, object]]) -> list[dict[str, object]]:
     return [e for e in events if e.get("type") == AgentEventType.TOOL_APPROVAL_REQUEST.value]
 
@@ -77,7 +65,6 @@ def _answer(interrupt_id: str, action_count: int) -> Command[object]:
 async def test_the_approval_card_carries_the_interrupt_id_and_an_addressed_answer_resumes_the_run(
     tmp_path: Path,
 ) -> None:
-    _isolate_approval_globals()
     agent = BaseAgent(llm=_ScriptedLLM(), tools=[echo], checkpointer=MemorySaver())
     [card] = _approvals(await _run(agent, "go", tmp_path))
     interrupt_id = card[INTERRUPT_ID_KEY]
@@ -91,7 +78,6 @@ async def test_the_approval_card_carries_the_interrupt_id_and_an_addressed_answe
 
 @pytest.mark.asyncio
 async def test_an_answer_for_an_interrupt_that_is_not_pending_approves_nothing(tmp_path: Path) -> None:
-    _isolate_approval_globals()
     agent = BaseAgent(llm=_ScriptedLLM(), tools=[echo], checkpointer=MemorySaver())
     [card] = _approvals(await _run(agent, "go", tmp_path))
     action_count = len(card["data"]["actionRequests"])  # type: ignore[index]
@@ -119,7 +105,6 @@ class _HotReloadedSkills:
 @pytest.mark.asyncio
 async def test_the_resume_of_a_skill_agent_keeps_its_card_ids_when_the_skill_catalog_changed(tmp_path: Path) -> None:
     """Refreshing the bound skill catalog rewrites the resume command; the card ids must survive that."""
-    _isolate_approval_globals()
     backend = _HotReloadedSkills()
     agent = SkillAgent(llm=_ScriptedLLM(), tools=[echo], skill_backend=backend, checkpointer=MemorySaver())
     [card] = _approvals(await _run(agent, "go", tmp_path))

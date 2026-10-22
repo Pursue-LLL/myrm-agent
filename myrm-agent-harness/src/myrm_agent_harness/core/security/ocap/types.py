@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - CapabilityAction: Strongly typed permission action enum
-- ResourceScope: Immutable resource scope containing paths, domains, and MCP tools
+- ResourceScope: Immutable resource scope containing the granted path patterns
 - CapabilityHandle: Cryptographically signed, unforgeable capability token
 - AttenuationError: Base error for unauthorized permission elevation attempts
 - CapabilityDeniedError: Raised when an operation violates capability constraints
@@ -28,8 +28,6 @@ class CapabilityAction(StrEnum):
     READ = "read"
     WRITE = "write"
     EXECUTE = "execute"
-    EGRESS = "egress"
-    MCP = "mcp"
 
 
 @dataclass(frozen=True)
@@ -37,12 +35,10 @@ class ResourceScope:
     """Immutable resource boundaries granted to an agent."""
 
     paths: tuple[str, ...] = field(default_factory=tuple)
-    domains: tuple[str, ...] = field(default_factory=tuple)
-    mcp_tools: tuple[str, ...] = field(default_factory=tuple)
 
     def is_unrestricted(self) -> bool:
         """Return True if scope imposes no boundaries (root authority)."""
-        return not self.paths and not self.domains and not self.mcp_tools
+        return not self.paths
 
 
 @dataclass(frozen=True)

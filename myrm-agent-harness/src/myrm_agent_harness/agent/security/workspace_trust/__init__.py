@@ -43,8 +43,10 @@ from __future__ import annotations
 from .context import (
     clear_workspace_trust_context,
     get_repo_command_prefixes,
+    get_workspace_root,
     get_workspace_trust_level,
     set_repo_command_prefixes,
+    set_workspace_root,
     set_workspace_trust_level,
 )
 from .errors import WorkspaceTrustBlockedError
@@ -79,6 +81,7 @@ __all__ = [
     "clear_workspace_trust_context",
     "clear_workspace_trust_runtime",
     "get_repo_command_prefixes",
+    "get_workspace_root",
     "get_workspace_trust_level",
     "get_workspace_trust_lookup",
     "is_path_within_workspace",
@@ -87,6 +90,7 @@ __all__ = [
     "matches_repo_command_prefix",
     "resolve_workspace_trust_level",
     "set_repo_command_prefixes",
+    "set_workspace_root",
     "set_workspace_trust_level",
     "set_workspace_trust_lookup",
 ]
@@ -116,8 +120,9 @@ class _AgentWorkspaceTrustGate:
         )
 
         level = trust_level if isinstance(trust_level, WorkspaceTrustLevel) else None
+        effective_root = workspace_root if workspace_root is not None else get_workspace_root()
         assert_mcp_spawn_allowed(
-            workspace_root=workspace_root,
+            workspace_root=effective_root,
             cwd=cwd,
             plugin_root=plugin_root,
             trust_level=level,

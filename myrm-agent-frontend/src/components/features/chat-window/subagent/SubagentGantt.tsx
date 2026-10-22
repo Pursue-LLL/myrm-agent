@@ -4,7 +4,7 @@ import type { TreeNode } from '@/lib/utils/subagent/subagentTree';
 
 const STATUS_BAR_COLOR: Record<string, string> = {
   running: 'bg-blue-500',
-  verifying: 'bg-amber-500',
+  blocked: 'bg-amber-500',
   completed: 'bg-green-500',
   failed: 'bg-red-500',
   timed_out: 'bg-yellow-500',

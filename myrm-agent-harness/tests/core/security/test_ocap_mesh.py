@@ -4,12 +4,11 @@
 - myrm_agent_harness.core.security.ocap::*
 
 [OUTPUT]
-- 100% test coverage for OCap signed tokens, attenuation rules, cascading revocation, and guards.
+- Coverage for OCap signed tokens, attenuation rules, stateless handle validity, and guards.
 """
 
 from __future__ import annotations
 
-import concurrent.futures
 import time
 from dataclasses import replace
 
@@ -20,7 +19,6 @@ from myrm_agent_harness.core.security.ocap import (
     CapabilityAction,
     CapabilityDeniedError,
     CapabilityHandle,
-    CapabilityRegistry,
     ResourceScope,
     attenuate_capability,
     capability_scope,
@@ -35,9 +33,8 @@ from myrm_agent_harness.core.security.ocap import (
 def _create_root_handle(
     subject_id: str = "root-agent",
     paths: tuple[str, ...] = ("/workspace/**",),
-    domains: tuple[str, ...] = ("api.github.com", "*.internal.net"),
     actions: frozenset[CapabilityAction] = frozenset(
-        {CapabilityAction.READ, CapabilityAction.WRITE, CapabilityAction.EXECUTE, CapabilityAction.EGRESS}
+        {CapabilityAction.READ, CapabilityAction.WRITE, CapabilityAction.EXECUTE}
     ),
     ttl: float = 3600.0,
 ) -> CapabilityHandle:
@@ -46,7 +43,7 @@ def _create_root_handle(
         handle_id="cap-root-001",
         issuer_id="system-gate",
         subject_id=subject_id,
-        scope=ResourceScope(paths=paths, domains=domains),
+        scope=ResourceScope(paths=paths),
         actions=actions,
         issued_at=now,
         expires_at=now + ttl,
@@ -64,7 +61,7 @@ def test_ocap_signature_and_tamper_proofing() -> None:
     assert verify_capability_signature(tampered_id) is False
 
     # Tampering with actions
-    tampered_actions = replace(root, actions=root.actions | {CapabilityAction.MCP})
+    tampered_actions = replace(root, actions=frozenset({CapabilityAction.READ}))
     assert verify_capability_signature(tampered_actions) is False
 
     # Tampering with scope
@@ -82,10 +79,7 @@ def test_ocap_attenuation_valid_subsets() -> None:
     child = attenuate_capability(
         parent=root,
         subject_id="child-worker-1",
-        target_scope=ResourceScope(
-            paths=("/workspace/src/**", "/workspace/docs/**"),
-            domains=("api.github.com",),
-        ),
+        target_scope=ResourceScope(paths=("/workspace/src/**", "/workspace/docs/**")),
         target_actions={CapabilityAction.READ},
         ttl_seconds=300.0,
     )
@@ -98,14 +92,13 @@ def test_ocap_attenuation_valid_subsets() -> None:
 
 
 def test_ocap_attenuation_blocks_action_elevation() -> None:
-    root = _create_root_handle(
-        actions=frozenset({CapabilityAction.READ, CapabilityAction.EXECUTE})
-    )
+    root = _create_root_handle(actions=frozenset({CapabilityAction.READ, CapabilityAction.EXECUTE}))
 
     with pytest.raises(AttenuationError, match="Action elevation denied"):
         attenuate_capability(
             parent=root,
             subject_id="rogue-child",
+            ttl_seconds=300.0,
             target_actions={CapabilityAction.READ, CapabilityAction.WRITE},  # WRITE not in root
         )
 
@@ -118,6 +111,7 @@ def test_ocap_attenuation_blocks_path_elevation() -> None:
         attenuate_capability(
             parent=root,
             subject_id="rogue-child",
+            ttl_seconds=300.0,
             target_scope=ResourceScope(paths=("/workspace/project-b/**",)),
         )
 
@@ -126,21 +120,8 @@ def test_ocap_attenuation_blocks_path_elevation() -> None:
         attenuate_capability(
             parent=root,
             subject_id="rogue-child",
+            ttl_seconds=300.0,
             target_scope=ResourceScope(paths=()),
-        )
-
-
-def test_ocap_attenuation_blocks_domain_elevation() -> None:
-    root = _create_root_handle(domains=("*.github.com",))
-
-    with pytest.raises(AttenuationError, match="Domain elevation denied"):
-        attenuate_capability(
-            parent=root,
-            subject_id="rogue-child",
-            target_scope=ResourceScope(
-                paths=("/workspace/**",),
-                domains=("attacker.com",),
-            ),
         )
 
 
@@ -158,95 +139,39 @@ def test_ocap_attenuation_ttl_clamping() -> None:
     assert child.expires_at <= root.expires_at
 
 
-def test_cascading_revocation() -> None:
-    registry = CapabilityRegistry()
-    root = _create_root_handle()
-    registry.register(root)
-
-    child_1 = attenuate_capability(root, "child-1", ttl_seconds=500.0)
-    registry.register(child_1)
-
-    grandchild_1 = attenuate_capability(child_1, "grandchild-1", ttl_seconds=200.0)
-    registry.register(grandchild_1)
-
-    assert registry.is_valid(root) is True
-    assert registry.is_valid(child_1) is True
-    assert registry.is_valid(grandchild_1) is True
-
-    # Revoke child_1 -> grandchild_1 must cascade into invalid
-    revoked_count = registry.revoke(child_1.handle_id, reason="task_completed")
-    assert revoked_count >= 2
-    assert registry.is_valid(child_1) is False
-    assert registry.is_valid(grandchild_1) is False
-    # root is unaffected
-    assert registry.is_valid(root) is True
-
-
 def test_guard_enforcement_and_fail_closed() -> None:
-    registry = CapabilityRegistry()
     root = _create_root_handle(paths=("/workspace/project/**",))
-    registry.register(root)
 
     child = attenuate_capability(
         root,
         "worker",
+        ttl_seconds=300.0,
         target_scope=ResourceScope(paths=("/workspace/project/src/**",)),
         target_actions={CapabilityAction.READ},
     )
-    registry.register(child)
 
     with capability_scope(child):
         assert get_current_capability() == child
 
         # Allowed read
-        assert check_capability_access(CapabilityAction.READ, "/workspace/project/src/main.py", registry=registry) is True
-        enforce_capability_access(CapabilityAction.READ, "/workspace/project/src/main.py", registry=registry)
+        assert check_capability_access(CapabilityAction.READ, "/workspace/project/src/main.py") is True
+        enforce_capability_access(CapabilityAction.READ, "/workspace/project/src/main.py")
 
         # Denied write (action not in handle)
-        assert check_capability_access(CapabilityAction.WRITE, "/workspace/project/src/main.py", registry=registry) is False
+        assert check_capability_access(CapabilityAction.WRITE, "/workspace/project/src/main.py") is False
         with pytest.raises(CapabilityDeniedError, match="Action 'write' denied"):
-            enforce_capability_access(CapabilityAction.WRITE, "/workspace/project/src/main.py", registry=registry)
+            enforce_capability_access(CapabilityAction.WRITE, "/workspace/project/src/main.py")
 
         # Denied read outside path boundary
-        assert check_capability_access(CapabilityAction.READ, "/workspace/project/secret.env", registry=registry) is False
+        assert check_capability_access(CapabilityAction.READ, "/workspace/project/secret.env") is False
         with pytest.raises(CapabilityDeniedError, match="outside granted capability"):
-            enforce_capability_access(CapabilityAction.READ, "/workspace/project/secret.env", registry=registry)
-
-
-def test_concurrent_registry_access() -> None:
-    registry = CapabilityRegistry(num_shards=8)
-    root = _create_root_handle()
-    registry.register(root)
-
-    def worker_task(idx: int) -> bool:
-        child = attenuate_capability(
-            root,
-            f"worker-{idx}",
-            target_scope=ResourceScope(paths=(f"/workspace/sub-{idx}/**",)),
-            ttl_seconds=60.0,
-        )
-        registry.register(child)
-        valid_before = registry.is_valid(child)
-        if idx % 3 == 0:
-            registry.revoke(child.handle_id)
-            return valid_before and not registry.is_valid(child)
-        return valid_before
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-        futures = [executor.submit(worker_task, i) for i in range(100)]
-        results = [f.result() for f in futures]
-
-    assert all(results) is True
+            enforce_capability_access(CapabilityAction.READ, "/workspace/project/secret.env")
 
 
 @pytest.mark.asyncio
 async def test_file_ops_ocap_integration(tmp_path: pytest.TempPathFactory) -> None:
     from pathlib import Path
 
-    from myrm_agent_harness.core.security.ocap import (
-        capability_scope,
-        get_default_capability_registry,
-    )
     from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
     from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
 
@@ -269,17 +194,15 @@ async def test_file_ops_ocap_integration(tmp_path: pytest.TempPathFactory) -> No
     assert "SECRET_KEY" in await executor.read_file(str(secret_file))
 
     # 2. In restricted OCap scope (only allowed_dir)
-    registry = get_default_capability_registry()
     root = _create_root_handle(paths=(f"{work_dir}/**",))
-    registry.register(root)
 
     child = attenuate_capability(
         root,
         "worker-sandbox",
+        ttl_seconds=300.0,
         target_scope=ResourceScope(paths=(f"{allowed_dir}/**",)),
         target_actions={CapabilityAction.READ, CapabilityAction.WRITE},
     )
-    registry.register(child)
 
     with capability_scope(child):
         # Reading allowed file succeeds
@@ -297,35 +220,11 @@ async def test_file_ops_ocap_integration(tmp_path: pytest.TempPathFactory) -> No
         await executor.write_file(str(allowed_dir / "out.txt"), "hello")
         assert (allowed_dir / "out.txt").read_text() == "hello"
 
-    # 3. Cascading Revocation works end-to-end
-    registry.revoke(child.handle_id, reason="finished")
-    with capability_scope(child), pytest.raises(CapabilityDeniedError, match="invalid, expired, or revoked"):
+    # 3. An expired handle is denied end-to-end
+    expired = replace(child, expires_at=time.monotonic() - 1.0)
+    expired = replace(expired, signature=sign_capability_handle(expired))
+    with capability_scope(expired), pytest.raises(CapabilityDeniedError, match="invalid or expired"):
         await executor.read_file(str(allowed_file))
-
-
-def test_registry_amortized_auto_pruning() -> None:
-    """Verify registry automatically prunes expired handles during high-frequency registration."""
-    reg = CapabilityRegistry(num_shards=1)
-    now = time.monotonic()
-
-    # Register 130 expired handles to trigger automatic pruning threshold (128)
-    for i in range(130):
-        handle = CapabilityHandle(
-            handle_id=f"cap-exp-{i}",
-            issuer_id="root",
-            subject_id="sub",
-            scope=ResourceScope(),
-            actions=frozenset({CapabilityAction.READ}),
-            issued_at=now - 500.0,
-            expires_at=now - 400.0,
-        )
-        sig = sign_capability_handle(handle)
-        reg.register(replace(handle, signature=sig))
-
-    # The 128th registration should have auto-evicted the earlier expired handles
-    # Confirm that early handles were pruned
-    assert reg._shards[0].get_handle("cap-exp-0") is None
-    assert reg._shards[0].get_handle("cap-exp-10") is None
 
 
 def test_symlink_traversal_blocked_by_realpath(tmp_path: pytest.TempPathFactory) -> None:
@@ -357,42 +256,31 @@ def test_symlink_traversal_blocked_by_realpath(tmp_path: pytest.TempPathFactory)
     assert _is_path_subscope(str(symlink_path), parent_scope) is False
 
 
-def test_guard_egress_and_mcp_enforcement() -> None:
-    """Verify guard correctly validates and enforces EGRESS domains and MCP tool patterns."""
-    registry = CapabilityRegistry(num_shards=1)
-    now = time.monotonic()
-    raw_handle = CapabilityHandle(
-        handle_id="cap-egress-mcp-01",
-        issuer_id="root",
-        subject_id="sub-worker",
-        scope=ResourceScope(
-            domains=("*.openai.com", "api.github.com"),
-            mcp_tools=("git_*", "fetch_*"),
-        ),
-        actions=frozenset({CapabilityAction.EGRESS, CapabilityAction.MCP}),
-        issued_at=now,
-        expires_at=now + 3600.0,
-    )
-    sig = sign_capability_handle(raw_handle)
-    root = replace(raw_handle, signature=sig)
-    registry.register(root)
+def test_guard_rejects_expired_and_tampered_handles() -> None:
+    """Validity is the signature and the expiry; a handle needs no prior registration to be honoured."""
+    valid = _create_root_handle(paths=("/workspace/**",))
+    assert check_capability_access(CapabilityAction.READ, "/workspace/a.txt", handle=valid) is True
 
-    # 1. EGRESS verification
-    assert check_capability_access(CapabilityAction.EGRESS, "api.openai.com", handle=root, registry=registry) is True
-    assert check_capability_access(CapabilityAction.EGRESS, "evil.attacker.com", handle=root, registry=registry) is False
-    enforce_capability_access(CapabilityAction.EGRESS, "api.openai.com", handle=root, registry=registry)
-    with pytest.raises(CapabilityDeniedError, match="Egress domain 'evil.attacker.com' is not in capability whitelist"):
-        enforce_capability_access(CapabilityAction.EGRESS, "evil.attacker.com", handle=root, registry=registry)
+    expired = replace(valid, expires_at=time.monotonic() - 1.0)
+    expired = replace(expired, signature=sign_capability_handle(expired))
+    assert check_capability_access(CapabilityAction.READ, "/workspace/a.txt", handle=expired) is False
+    with pytest.raises(CapabilityDeniedError, match="invalid or expired"):
+        enforce_capability_access(CapabilityAction.READ, "/workspace/a.txt", handle=expired)
 
-    # 2. MCP verification
-    assert check_capability_access(CapabilityAction.MCP, "git_status", handle=root, registry=registry) is True
-    assert check_capability_access(CapabilityAction.MCP, "bash_exec", handle=root, registry=registry) is False
-    enforce_capability_access(CapabilityAction.MCP, "fetch_url", handle=root, registry=registry)
-    with pytest.raises(CapabilityDeniedError, match="MCP tool 'bash_exec' is not in capability whitelist"):
-        enforce_capability_access(CapabilityAction.MCP, "bash_exec", handle=root, registry=registry)
+    widened = replace(valid, scope=ResourceScope(paths=("/",)))
+    assert check_capability_access(CapabilityAction.READ, "/etc/hosts", handle=widened) is False
+    unsigned = replace(valid, signature="")
+    assert check_capability_access(CapabilityAction.READ, "/workspace/a.txt", handle=unsigned) is False
 
-    # 3. Unconstrained fallback (handle=None with empty context)
+
+def test_guard_without_a_bound_handle_is_unconstrained() -> None:
+    """The top-level agent holds no handle; its operations are not capability-checked."""
     assert check_capability_access(CapabilityAction.READ, "/any/path") is True
     enforce_capability_access(CapabilityAction.READ, "/any/path")
 
 
+def test_guard_action_probe_without_target_only_checks_the_action() -> None:
+    handle = _create_root_handle(actions=frozenset({CapabilityAction.READ}))
+
+    assert check_capability_access(CapabilityAction.READ, handle=handle) is True
+    assert check_capability_access(CapabilityAction.WRITE, handle=handle) is False

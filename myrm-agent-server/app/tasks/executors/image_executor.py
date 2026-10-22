@@ -6,7 +6,7 @@
 - app.tasks.image_config_resolver::ImageGenerationConfigResolver (POS: config resolver)
 
 [OUTPUT]
-- ImageTaskExecutor: worker TaskExecutor implementation for image_generate tasks
+- ImageTaskExecutor: AsyncTaskExecutor implementation for image_generate tasks
 
 [POS]
 Server task worker executor for async image generation with persisted media consumption.
@@ -24,7 +24,7 @@ from app.tasks.image_config_resolver import ImageGenerationConfigResolver
 class ImageTaskExecutor:
     """Executor for image generation tasks.
 
-    Implements the worker's TaskExecutor protocol to execute "image_generate" tasks.
+    Implements AsyncTaskExecutor protocol to execute "image_generate" tasks.
     """
 
     def __init__(self, config_resolver: ImageGenerationConfigResolver) -> None:

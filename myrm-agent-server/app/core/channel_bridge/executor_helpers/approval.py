@@ -4,6 +4,7 @@
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: Approval timeout scheduling)
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 - executor_helpers.history (POS: Channel chat history persistence)
+- app.core.agent.run_activity::track_background_agent_run (POS: marks the timeout auto-resume run in flight)
 
 [OUTPUT]
 - schedule_channel_approval_timeout, notify_channel_timeout_result
@@ -22,6 +23,7 @@ from myrm_agent_harness.utils.coercion import parse_float
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
 from app.channels.types import OutboundMessage
+from app.core.agent.run_activity import track_background_agent_run
 
 from .history import (
     build_chat_history_with_metadata,
@@ -83,23 +85,24 @@ def schedule_channel_approval_timeout(
             answer = AnswerDraft()
             next_timeout: dict[str, object] | None = None
             try:
-                async for event in agent.process_stream(
-                    query=resume_params.query,
-                    chat_history=chat_history or None,
-                    chat_id=chat_id,
-                    context=runtime_context,
-                ):
-                    answer.feed(event)
-                    if event.get("type", "") == "tool_approval_request":
-                        data = event.get("data", {})
-                        if isinstance(data, dict):
-                            extensions = data.get("extensions", {})
-                            timeout_ext = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
-                            if isinstance(timeout_ext, dict):
-                                next_timeout = {
-                                    "seconds": timeout_ext.get("seconds", 300),
-                                    "behavior": timeout_ext.get("behavior", "deny"),
-                                }
+                with track_background_agent_run():
+                    async for event in agent.process_stream(
+                        query=resume_params.query,
+                        chat_history=chat_history or None,
+                        chat_id=chat_id,
+                        context=runtime_context,
+                    ):
+                        answer.feed(event)
+                        if event.get("type", "") == "tool_approval_request":
+                            data = event.get("data", {})
+                            if isinstance(data, dict):
+                                extensions = data.get("extensions", {})
+                                timeout_ext = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
+                                if isinstance(timeout_ext, dict):
+                                    next_timeout = {
+                                        "seconds": timeout_ext.get("seconds", 300),
+                                        "behavior": timeout_ext.get("behavior", "deny"),
+                                    }
             finally:
                 await finalize_agent_session(
                     agent,

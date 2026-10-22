@@ -5,7 +5,6 @@
  * - @/lib/api::apiRequest (POS: 统一 HTTP 客户端请求工具)
  *
  * [OUTPUT]
- * - armAirbag: 武装任务安全气囊接口
  * - getAirbagStatus: 获取气囊当前状态与变更清单接口
  * - rollbackAirbag: 触发时光倒流无损回滚接口
  * - dismissAirbag: 归档解除气囊接口
@@ -15,14 +14,6 @@
  */
 
 import { apiRequest } from '@/lib/api';
-
-export interface ArmAirbagResponse {
-  success: boolean;
-  taskId: string;
-  baseSnapshotId?: string | null;
-  isGitRepo: boolean;
-  message?: string | null;
-}
 
 export interface AirbagStatusResponse {
   taskId: string;
@@ -61,18 +52,6 @@ const toCamel = <T>(value: unknown): T => {
     ) as T;
   }
   return value as T;
-};
-
-/**
- * Arm safety airbag before starting an unattended task
- */
-export const armAirbag = async (taskId: string, workspacePath: string): Promise<ArmAirbagResponse> => {
-  return toCamel<ArmAirbagResponse>(
-    await apiRequest('/checkpoint/airbag/arm', {
-      method: 'POST',
-      body: JSON.stringify({ task_id: taskId, workspace_path: workspacePath }),
-    }),
-  );
 };
 
 /**

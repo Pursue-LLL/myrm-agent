@@ -10,6 +10,7 @@
 | workspace_path_resolve.py | 路径校验 | Project workspace_path 规范化与安全校验       | ✅    |
 | milestone_service.py  | 核心服务 | 里程碑 CRUD + 进度统计 + 路线图摘要生成       | ✅    |
 | assessment_import_service.py | 核心服务 | 评估工件导入：artifact markdown → 里程碑 + 项目作用域看板 + 任务回执；基于 immutable import ledger（`project_id+artifact_version_id`）幂等拦截，含可执行任务门禁与失败自动回滚导入槽位；写入任务 `assessment_import` 元数据（含 `import_id`）用于导入后价值锚点统计 | ✅ |
+| activity_feed_service.py | 核心服务 | 项目协同动态聚合服务：聚合看板任务完成、任务移交（handoff）、定时运行及里程碑时间线 | ✅ |
 | orchestrator.py       | 并发控制 | 项目级并发调度器，确保同一项目下的多 Agent 回合制执行 | ✅    |
 | __init__.py           | 模块入口 | 导出 ProjectService, MilestoneService        | ✅    |
 

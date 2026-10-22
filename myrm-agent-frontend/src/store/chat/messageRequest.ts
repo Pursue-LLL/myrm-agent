@@ -41,6 +41,7 @@ import { useScopedArtifactStore } from '../useScopedArtifactStore';
 import { getThinkingEffort } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import useAuthStore from '../useAuthStore';
 import useRetrievalStore from '../useRetrievalStore';
+import useAgentStore from '../useAgentStore';
 import useQuoteStore from '../useQuoteStore';
 import { showI18nToast } from '@/services/i18nToastService';
 import { supportsProviderNoAuth } from '@/store/config/providerTypes';
@@ -67,8 +68,8 @@ import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } f
 import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
 import { inSessionMentionDeduplicator } from './inSessionMentionDeduplicator';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
-import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { resolveSmartRouting } from '@/lib/model-routing';
+import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
@@ -217,6 +218,20 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
     } else {
       const lineMatch = LINE_RANGE_REFERENCE_PATTERN.exec(token);
       if (!lineMatch) {
+        const cleanName = token.slice(1).toLowerCase();
+        if (cleanName) {
+          const agents = useAgentStore.getState().agents;
+          const matched = agents.find((a) => a.id.toLowerCase() === cleanName || a.name.toLowerCase() === cleanName);
+          if (matched) {
+            references.push({
+              type: 'agent',
+              label: token,
+              fileId: matched.id,
+              source: 'agent',
+              size: null,
+            });
+          }
+        }
         continue;
       }
       const [, path, startRaw, endRaw] = lineMatch;

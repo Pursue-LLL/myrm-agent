@@ -7,7 +7,7 @@ Agent-callable tools are exported via dedicated xx_agent_tools.py files.
 [INPUT]
 - llms::llm_manager, LLMManager, ChatLiteLLM, create_litellm_model (POS: LLM manager and adapters, 100+ provider support)
 - web_fetch::FetchEngine (POS: layered fetch engine with HTTP/Browser/Stealth fallback)
-- retriever_tools::RetrieverManager (POS: retriever manager class)
+- retriever.engine::RetrieverManager (POS: retriever manager class)
 - web_fetch::web_fetch_tools (POS: global FetchEngine instance)
 
 [OUTPUT]

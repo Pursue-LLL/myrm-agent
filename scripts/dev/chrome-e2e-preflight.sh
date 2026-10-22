@@ -85,8 +85,12 @@ export_spawn_home
 STATE_DIR="$(dev_state_dir)"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 export_myrm_next_dist_dir
+# The next three are the input contract of the sourced lib/frontend-warmup.sh; this file never reads them itself.
+# shellcheck disable=SC2034
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
+# shellcheck disable=SC2034
 FRONTEND_LOG="${STATE_DIR}/frontend.log"
+# shellcheck disable=SC2034
 APP_URL="${UI_BASE}"
 FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 # shellcheck source=lib/frontend-warmup.sh
@@ -573,7 +577,9 @@ _attach_epoch_pin_fast_path() {
   fi
   local runtime_py="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
   local pin_api="${E2E_API_BASE:-${API_BASE}}"
-  local health="" waited=0 poll_sec wait_sec
+  # The budget is wall-clock: each probe spawns python and runs for many seconds on a loaded host, so a
+  # per-iteration counter would stretch the budget several-fold and let the outer READY wall expire first.
+  local health="" waited=0 poll_sec wait_sec wait_started="${SECONDS}" last_logged=-10
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   wait_sec="${MYRM_E2E_EPOCH_PIN_ATTACH_WAIT_SEC:-90}"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
@@ -606,13 +612,14 @@ _attach_epoch_pin_fast_path() {
       echo "${health}"
       return 0
     fi
-    if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
-      echo "CHROME_E2E_WAIT: epoch pin attach ${waited}s remaining=$((wait_sec - waited))s" >&2
+    if [[ $((waited - last_logged)) -ge 10 ]]; then
+      last_logged="${waited}"
+      echo "CHROME_E2E_WAIT: epoch pin attach ${waited}s remaining=$((wait_sec - waited))s — $(printf '%s\n' "${health}" | tail -n 1)" >&2
     fi
     _admit_poll_touch "CHROME_E2E_EPOCH_PIN_ATTACH"
     _admit_poll_budget_or_fail "CHROME_E2E_EPOCH_PIN_ATTACH" || return 1
     sleep "${poll_sec}"
-    waited=$((waited + poll_sec))
+    waited=$((SECONDS - wait_started))
   done
   echo "${health}" >&2
   # R277: isolated verify-api flaked under parallel attach — fall back to shared when healthy.
@@ -808,7 +815,7 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${mux_heal_during_wait}" -lt 2 ]] \
       && [[ "${health}" == *"wsStampMatch=false"* ]] \
       && _mux_upstream_ready; then
-      if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && _mux_solo_gate_cluster_clear ]]; then
+      if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && _mux_solo_gate_cluster_clear; then
         mux_heal_during_wait=$((mux_heal_during_wait + 1))
         echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2 (R255)" >&2
         _stamp_mux_ws_url || true
@@ -833,25 +840,28 @@ _wait_shared_ui_reachable() {
   local poll_sec="${MYRM_CHROME_E2E_SHARED_UI_POLL_SEC:-2}"
   [[ "${wait_sec}" =~ ^[0-9]+$ ]] || wait_sec=180
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
-  local waited=0
+  # Wall-clock budget: a curl that hits its 10s timeout would otherwise count as one poll interval.
+  local waited=0 wait_started="${SECONDS}" last_logged=-10 next_heal_at=30
   while true; do
     if curl -sf --max-time 10 "${shared_ui}/" >/dev/null; then
       ok "shared UI ${shared_ui}"
       return 0
     fi
-    if [[ "${waited}" -ge 30 && $((waited % 30)) -eq 0 ]]; then
+    if [[ "${waited}" -ge "${next_heal_at}" ]]; then
+      next_heal_at=$((next_heal_at + 30))
       _heal_dead_shared_ui_port
     fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       fail "shared UI not reachable at ${shared_ui} within ${wait_sec}s — run: ./myrm ready --chrome"
     fi
-    if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
+    if [[ $((waited - last_logged)) -ge 10 ]]; then
+      last_logged="${waited}"
       echo "CHROME_E2E_WAIT: shared UI recovering ${waited}/${wait_sec}s (${shared_ui})" >&2
     fi
     _admit_poll_touch "CHROME_E2E_SHARED_UI_REACHABLE_WAIT"
     _admit_poll_budget_or_fail "CHROME_E2E_SHARED_UI_REACHABLE_WAIT" || return $?
     sleep "${poll_sec}"
-    waited=$((waited + poll_sec))
+    waited=$((SECONDS - wait_started))
   done
 }
 
@@ -1445,8 +1455,7 @@ _ensure_mux_upstream() {
     fi
     _restart_mux_safely "CDP WebSocket drift"
   fi
-  local i
-  for i in $(seq 1 15); do
+  for _ in $(seq 1 15); do
     sleep 1
     if _mux_upstream_ready; then
       _stamp_mux_ws_url || true
@@ -1458,13 +1467,6 @@ _ensure_mux_upstream() {
   fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm ready --chrome"
 }
 
-_mux_timeout_stamp_matches() {
-  [[ -f "${MUX_TIMEOUT_STAMP}" ]] || return 1
-  local stored
-  stored="$(tr -d '[:space:]' < "${MUX_TIMEOUT_STAMP}")"
-  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
-}
-
 _stamp_mux_request_timeout() {
   mkdir -p "${MUX_STATE_DIR}"
   printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
@@ -1473,13 +1475,6 @@ _stamp_mux_request_timeout() {
 _stamp_mux_daemon_request_timeout() {
   mkdir -p "${MUX_STATE_DIR}"
   printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_DAEMON_TIMEOUT_STAMP}"
-}
-
-_mux_daemon_timeout_matches() {
-  [[ -f "${MUX_DAEMON_TIMEOUT_STAMP}" ]] || return 1
-  local stored
-  stored="$(tr -d '[:space:]' < "${MUX_DAEMON_TIMEOUT_STAMP}")"
-  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
 }
 
 _mux_parallel_active_leases() {

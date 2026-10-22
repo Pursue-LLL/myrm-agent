@@ -16,7 +16,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import TypedDict
+
+if __package__ in (None, ""):
+    _lib_root = str(Path(__file__).resolve().parent.parent)
+    if _lib_root not in sys.path:
+        sys.path.insert(0, _lib_root)
 
 
 class IdlePruneResult(TypedDict, total=False):
@@ -47,11 +54,11 @@ def idle_prune_self_owned_blanks_if_safe(
     threshold: int = 5,
 ) -> IdlePruneResult:
     """Prune blank tabs only when no chrome_e2e peers and no effective wave leases."""
-    from e2e_core.lease_liveness import (  # noqa: PLC0415
+    from e2e_core.lease_liveness import (
         load_wave_snapshot_observation,
         wave_lease_counts,
     )
-    from e2e_core.parallel_status import (  # noqa: PLC0415
+    from e2e_core.parallel_status import (
         load_parallel_runtime_snapshot,
         safe_active_test_count,
     )
@@ -85,7 +92,7 @@ def idle_prune_self_owned_blanks_if_safe(
         }
 
     os.environ["MYRM_BROWSER_ORCHESTRATOR_PRUNE"] = "1"
-    from browser_orchestrator import prune_self_owned_blanks  # noqa: PLC0415
+    from browser_orchestrator import prune_self_owned_blanks
 
     infra_closed, infra_failed, orphan_closed, orphan_failed = prune_self_owned_blanks(
         cdp_port=port,
@@ -94,7 +101,7 @@ def idle_prune_self_owned_blanks_if_safe(
     # Expired warm shells are unreachable by the hot path yet still hold a
     # physical page each; reclaim them by exact targetId while the cluster is
     # provably idle (no active tests, no effective wave leases).
-    from e2e_core.warm_shell_reap import reap_expired_sealed_targets  # noqa: PLC0415
+    from e2e_core.warm_shell_reap import reap_expired_sealed_targets
 
     warm_closed, warm_failed = reap_expired_sealed_targets(cdp_port=port)
     return {

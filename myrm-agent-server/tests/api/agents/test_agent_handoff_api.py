@@ -206,3 +206,151 @@ def test_complete_and_cancel_lifecycle_api(handoff_client: TestClient) -> None:
         json={"cancelling_session_id": "sess-p2", "reason": "No longer needed"},
     )
     assert cancel_resp.status_code == 409
+
+
+def test_create_and_get_in_chat_handoff_api(handoff_client: TestClient) -> None:
+    """Verify in-chat handoff creation with approval gate and five-stage initialization."""
+    req_payload = {
+        "session_id": "chat-sess-99",
+        "source_agent": {
+            "profile_id": "orchestrator",
+            "name": "Atlas Orchestrator",
+            "avatar": "/avatars/atlas.png",
+            "role": "Team Lead & Coordinator",
+            "personality_tags": ["decisive", "structured"],
+        },
+        "target_agent": {
+            "profile_id": "sec_bot",
+            "name": "Gilfoyle Security Bot",
+            "avatar": "/avatars/gilfoyle.png",
+            "role": "Offensive & Defensive Security Specialist",
+            "personality_tags": ["skeptical", "meticulous", "cynical"],
+        },
+        "task_intent": "Audit OAuth PKCE token exchange against RFC 7636",
+        "requires_approval": True,
+        "resume_context_note": "Resumed from Sprint-12 Auth discussion",
+    }
+
+    create_resp = handoff_client.post("/api/agents/handoff/in-chat", json=req_payload)
+    assert create_resp.status_code == 201
+    card = create_resp.json()
+    handoff_id = card["handoff_id"]
+    assert handoff_id.startswith("handoff_")
+    assert card["status"] == "awaiting_approval"
+    assert card["requires_approval"] is True
+    assert card["resume_context_note"] == "Resumed from Sprint-12 Auth discussion"
+    assert len(card["stages"]) == 5
+    assert card["stages"][0]["stage_id"] == "intent_routing"
+    assert card["stages"][0]["status"] == "in_progress"
+    assert card["stages"][4]["stage_id"] == "acceptance_verification"
+    assert card["stages"][4]["status"] == "pending"
+
+    # Get by ID
+    get_resp = handoff_client.get(f"/api/agents/handoff/in-chat/{handoff_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["handoff_id"] == handoff_id
+
+    # List by session
+    list_resp = handoff_client.get("/api/agents/handoff/in-chat?session_id=chat-sess-99")
+    assert list_resp.status_code == 200
+    items = list_resp.json()
+    assert len(items) == 1
+    assert items[0]["handoff_id"] == handoff_id
+
+
+def test_in_chat_approval_action_flow_api(handoff_client: TestClient) -> None:
+    """Verify approval and rejection actions transition states properly."""
+    card_resp = handoff_client.post(
+        "/api/agents/handoff/in-chat",
+        json={
+            "session_id": "chat-sess-101",
+            "source_agent": {
+                "profile_id": "planner",
+                "name": "Planner",
+                "role": "Planner",
+            },
+            "target_agent": {
+                "profile_id": "coder",
+                "name": "Coder",
+                "role": "Coder",
+            },
+            "task_intent": "Refactor router endpoints",
+            "requires_approval": True,
+        },
+    )
+    handoff_id = card_resp.json()["handoff_id"]
+
+    # 1. Approve
+    action_resp = handoff_client.post(
+        f"/api/agents/handoff/in-chat/{handoff_id}/action",
+        json={"action": "approve", "comment": "Approved by Lead"},
+    )
+    assert action_resp.status_code == 200
+    updated = action_resp.json()
+    assert updated["status"] == "in_progress"
+    assert updated["stages"][0]["status"] == "completed"
+    assert "Approved by Lead" in updated["stages"][0]["summary"]
+    assert updated["stages"][1]["status"] == "in_progress"
+
+    # 2. Reject another handoff
+    rej_card_resp = handoff_client.post(
+        "/api/agents/handoff/in-chat",
+        json={
+            "session_id": "chat-sess-102",
+            "source_agent": {"profile_id": "p", "name": "P", "role": "R"},
+            "target_agent": {"profile_id": "c", "name": "C", "role": "R"},
+            "task_intent": "Risky DB drop",
+            "requires_approval": True,
+        },
+    )
+    rej_id = rej_card_resp.json()["handoff_id"]
+    rej_resp = handoff_client.post(
+        f"/api/agents/handoff/in-chat/{rej_id}/action",
+        json={"action": "reject", "comment": "Too dangerous"},
+    )
+    assert rej_resp.status_code == 200
+    rej_card = rej_resp.json()
+    assert rej_card["status"] == "rejected"
+    assert rej_card["stages"][0]["status"] == "failed"
+
+
+def test_in_chat_advance_stage_and_completion_api(handoff_client: TestClient) -> None:
+    """Verify progressive stage advancement and completion CTA."""
+    card_resp = handoff_client.post(
+        "/api/agents/handoff/in-chat",
+        json={
+            "session_id": "chat-sess-103",
+            "source_agent": {"profile_id": "lead", "name": "Lead", "role": "Lead"},
+            "target_agent": {"profile_id": "qa", "name": "QA Bot", "role": "QA"},
+            "task_intent": "End to end integration test verification",
+            "requires_approval": False,
+        },
+    )
+    handoff_id = card_resp.json()["handoff_id"]
+    assert card_resp.json()["status"] == "in_progress"
+
+    # Advance stage 2, 3, 4, 5
+    for s_id in ["context_injection", "action_execution", "artifact_delivery", "acceptance_verification"]:
+        handoff_client.post(
+            f"/api/agents/handoff/in-chat/{handoff_id}/advance-stage",
+            json={
+                "stage_id": s_id,
+                "status": "completed",
+                "summary": f"Completed {s_id}",
+                "deliverables": [f"artifacts/{s_id}.json"],
+            },
+        )
+
+    # Check that card automatically completed
+    final_card = handoff_client.get(f"/api/agents/handoff/in-chat/{handoff_id}").json()
+    assert final_card["status"] == "completed"
+    assert len(final_card["deliverables"]) == 4
+
+    # Post-delivery CTA: send_to_pr
+    pr_resp = handoff_client.post(
+        f"/api/agents/handoff/in-chat/{handoff_id}/action",
+        json={"action": "send_to_pr"},
+    )
+    assert pr_resp.status_code == 200
+    assert any("PR: #" in d for d in pr_resp.json()["deliverables"])
+    assert "直通提交 PR" in pr_resp.json()["orchestrator_summary"]

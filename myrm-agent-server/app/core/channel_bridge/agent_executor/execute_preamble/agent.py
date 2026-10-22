@@ -265,6 +265,17 @@ async def build_channel_execution_agent(
         locale=resolve_message_locale(msg),
     )
 
+    from app.ai_agents.event_log_injector import (
+        inject_event_log_config,
+        sanitize_channel_event_log_session_id,
+    )
+
+    channel_event_log_sid = sanitize_channel_event_log_session_id(
+        chat_id,
+        default_prefix=f"channel_{msg.channel}",
+    )
+    inject_event_log_config(params, session_id_override=channel_event_log_sid)
+
     approval_peer = msg.chat_id or msg.sender_id
     approval_key = f"{msg.channel}:{approval_peer}"
     if is_resume:

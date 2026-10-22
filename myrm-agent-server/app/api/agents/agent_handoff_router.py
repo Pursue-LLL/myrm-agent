@@ -24,10 +24,14 @@ from app.schemas.agent_handoff import (
     CancelHandoffRequestDTO,
     ClaimHandoffRequestDTO,
     CompleteHandoffRequestDTO,
+    CreateInChatHandoffRequestDTO,
     FinalizeSessionRequestDTO,
     FinalizeSessionResponseDTO,
+    HandoffActionRequestDTO,
+    HandoffAdvanceStageRequestDTO,
     HandoffClaimReceiptDTO,
     HandoffListResponseDTO,
+    InChatHandoffCardDTO,
 )
 from app.services.agent.agent_handoff_service import (
     AgentHandoffService,
@@ -178,6 +182,102 @@ def list_session_handoffs(
     return service.list_by_session(session_id=session_id)
 
 
+# --- In-Chat Bot Task Handoff Delegation Endpoints ---
+
+
+@router.post(
+    "/handoff/in-chat",
+    response_model=InChatHandoffCardDTO,
+    status_code=status.HTTP_201_CREATED,
+    summary="Initiate in-chat task delegation to a specialist bot",
+)
+def create_in_chat_handoff(
+    request: CreateInChatHandoffRequestDTO,
+    service: AgentHandoffService = Depends(get_agent_handoff_service),
+) -> InChatHandoffCardDTO:
+    """Create in-chat handoff card with five-stage orchestration lifecycle."""
+    return service.create_in_chat_handoff(request)
+
+
+@router.get(
+    "/handoff/in-chat",
+    response_model=list[InChatHandoffCardDTO],
+    status_code=status.HTTP_200_OK,
+    summary="List in-chat handoffs by session",
+)
+def list_in_chat_handoffs(
+    session_id: str | None = Query(default=None, description="Optional chat session identifier filter"),
+    service: AgentHandoffService = Depends(get_agent_handoff_service),
+) -> list[InChatHandoffCardDTO]:
+    """Retrieve all in-chat bot handoffs for a given session."""
+    return service.list_in_chat_handoffs(session_id=session_id)
+
+
+@router.get(
+    "/handoff/in-chat/{handoff_id}",
+    response_model=InChatHandoffCardDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Get in-chat handoff delegation card status",
+)
+def get_in_chat_handoff(
+    handoff_id: str,
+    service: AgentHandoffService = Depends(get_agent_handoff_service),
+) -> InChatHandoffCardDTO:
+    """Fetch live status of an in-chat bot handoff card."""
+    card = service.get_in_chat_handoff(handoff_id)
+    if card is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"In-chat handoff '{handoff_id}' was not found.",
+        )
+    return card
+
+
+@router.post(
+    "/handoff/in-chat/{handoff_id}/action",
+    response_model=InChatHandoffCardDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Trigger human approval gate or completion CTA on in-chat handoff",
+)
+def trigger_in_chat_handoff_action(
+    handoff_id: str,
+    request: HandoffActionRequestDTO,
+    service: AgentHandoffService = Depends(get_agent_handoff_service),
+) -> InChatHandoffCardDTO:
+    """Execute approval gate or post-delivery action (approve/reject/send_to_pr/accept)."""
+    try:
+        return service.handle_handoff_action(handoff_id, request)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/handoff/in-chat/{handoff_id}/advance-stage",
+    response_model=InChatHandoffCardDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Advance lifecycle stage in BkashJosi Five-Stage Stack",
+)
+def advance_in_chat_handoff_stage(
+    handoff_id: str,
+    request: HandoffAdvanceStageRequestDTO,
+    service: AgentHandoffService = Depends(get_agent_handoff_service),
+) -> InChatHandoffCardDTO:
+    """Update progress and deliverables for a lifecycle stage."""
+    try:
+        return service.advance_stage(handoff_id, request)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+# --- Generic Handoff Memorandum Endpoints ---
+
+
 @router.get(
     "/handoff/{handoff_id}",
     response_model=AgentHandoffSpecDTO,
@@ -196,3 +296,4 @@ def get_handoff(
             detail=f"Handoff '{handoff_id}' was not found.",
         )
     return spec
+

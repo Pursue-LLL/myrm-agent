@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -11,6 +12,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 
 from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool, CredentialPoolStrategy
 from myrm_agent_harness.toolkits.llms.core.key_pool_llm import KeyPoolLLM
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 
 def _make_rate_limit_error() -> Exception:
@@ -328,3 +330,34 @@ class TestKeyPoolLLMEdgeCases:
         assert params["model"] == "test-model-v2"
         assert params["pool_size"] == 2
         assert params["pool_strategy"] == "round_robin"
+
+
+class TestKeyPoolProviderWindowCooldown:
+    """The failing key rests until the provider-stated reset, not a guessed backoff."""
+
+    @staticmethod
+    def _pool_llm() -> tuple[KeyPoolLLM, CredentialPool]:
+        pool = CredentialPool(["k1", "k2"])
+        llm = KeyPoolLLM(instances={"k1": _make_mock_llm(), "k2": _make_mock_llm()}, pool=pool)
+        return llm, pool
+
+    def test_retry_after_header_sets_the_rate_limit_cooldown(self) -> None:
+        llm, pool = self._pool_llm()
+        exc = _make_rate_limit_error()
+        exc.headers = {"Retry-After": "900"}  # type: ignore[attr-defined]
+
+        llm._report_error("k1", exc, ErrorKind.RATE_LIMIT)
+
+        assert 890 < pool._slots[0].cooldown_until - time.monotonic() <= 900
+
+    def test_spent_quota_window_cools_the_key_until_the_reset(self) -> None:
+        llm, pool = self._pool_llm()
+        exc = _make_rate_limit_error()
+        exc.headers = {  # type: ignore[attr-defined]
+            "anthropic-ratelimit-unified-5h-status": "rejected",
+            "anthropic-ratelimit-unified-5h-reset": str(int(time.time()) + 7200),
+        }
+
+        llm._report_error("k1", exc, ErrorKind.BILLING)
+
+        assert 7190 < pool._slots[0].cooldown_until - time.monotonic() <= 7200

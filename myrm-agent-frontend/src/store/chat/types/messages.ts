@@ -26,6 +26,14 @@ export interface McpAppView {
   toolName?: string;
 }
 
+export interface TurnLoadedSkillReceipt {
+  name: string;
+  id: string;
+  content_hash?: string;
+  version?: string;
+  partial?: boolean;
+}
+
 export interface ExactAnchorMeta {
   commitShas?: string[];
   filePaths?: string[];
@@ -209,6 +217,7 @@ export type Message = {
   metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
+  turnLoadedSkills?: TurnLoadedSkillReceipt[]; // 本回复参考的工作技能（turn 级 receipt，metadata only）
   memoryRetrievalDegraded?: boolean; // 本条回复期间记忆检索发生过降级（超时/后端错误）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
   workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
@@ -319,7 +328,7 @@ export interface MentionReference {
   range?: string;
   content?: string;
   url?: string;
-  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki';
+  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki' | 'agent';
   size: number | null;
   directory?: string;
   startLine?: number;

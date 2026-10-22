@@ -6,7 +6,7 @@
 - app.tasks.video_config_resolver::VideoGenerationConfigResolver (POS: config resolver)
 
 [OUTPUT]
-- VideoTaskExecutor: worker TaskExecutor implementation for video_generate tasks
+- VideoTaskExecutor: AsyncTaskExecutor implementation for video_generate tasks
 
 [POS]
 Server task worker executor for async video generation with payload image clamping.
@@ -53,7 +53,7 @@ def _coerce_bool(value: object | None) -> bool | None:
 class VideoTaskExecutor:
     """Executor for video generation tasks.
 
-    Implements the worker's TaskExecutor protocol to execute "video_generate" tasks.
+    Implements AsyncTaskExecutor protocol to execute "video_generate" tasks.
     """
 
     def __init__(self, config_resolver: VideoGenerationConfigResolver) -> None:

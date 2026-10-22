@@ -47,6 +47,7 @@ import { OgCard } from '@/components/features/embeds/OgCard';
 import DeliverableReferenceLink from './DeliverableReferenceLink';
 import { parseDeliverableReference } from '@/lib/deliverable-link/parseDeliverableReference';
 import type { Artifact } from '@/store/chat/types';
+import { IncrementalStreamingMarkdownRenderer } from '@/components/features/chat-window/streaming-markdown';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -89,6 +90,7 @@ const MarkdownContent = React.memo(
     sources,
     messageId: _messageId,
     isStreaming = false,
+    enableIncrementalStreaming = false,
     chatId,
     messageArtifacts,
     workspaceDir,
@@ -97,6 +99,7 @@ const MarkdownContent = React.memo(
     sources: Source[];
     messageId: string;
     isStreaming?: boolean;
+    enableIncrementalStreaming?: boolean;
     chatId?: string;
     messageArtifacts?: Artifact[];
     workspaceDir?: string;
@@ -372,8 +375,9 @@ const MarkdownContent = React.memo(
                 : null;
             if (kbSnippet) {
               return (
-                <span
-                  className="bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-amber-500/30 hover:text-amber-800 dark:hover:text-amber-300 transition-colors duration-200 cursor-pointer"
+                <button
+                  type="button"
+                  className="bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-amber-500/30 hover:text-amber-800 dark:hover:text-amber-300 transition-colors duration-200 cursor-pointer inline-flex items-center"
                   onClick={() =>
                     openKbDrawer(
                       kbTitle,
@@ -389,12 +393,9 @@ const MarkdownContent = React.memo(
                       source.claim_text,
                     )
                   }
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={activateOnKey}
                 >
                   {num}
-                </span>
+                </button>
               );
             }
             return <LinkPopover url="#" title={kbTitle} description="" label={num} />;
@@ -431,6 +432,23 @@ const MarkdownContent = React.memo(
       }),
       [sources, isStreaming, openKbDrawer, tSources, chatId, messageArtifacts, workspaceDir],
     );
+
+    if (enableIncrementalStreaming && isStreaming) {
+      return (
+        <div
+          data-testid="incremental-streaming-content"
+          className={cn(
+            'prose prose-h1:mb-3 prose-h2:mb-2 prose-h2:mt-6 prose-h2:font-[800] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:font-[600] dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 font-[400]',
+            'max-w-none break-words text-black dark:text-white',
+          )}
+        >
+          <IncrementalStreamingMarkdownRenderer
+            content={displayContent}
+            isStreaming={true}
+          />
+        </div>
+      );
+    }
 
     return (
       <div

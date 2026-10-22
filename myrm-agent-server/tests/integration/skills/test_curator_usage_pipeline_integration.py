@@ -302,3 +302,72 @@ async def test_sweep_archiving_a_skill_refreshes_warm_chats(
     assert result.archived_count == 1
     assert json.loads((skill_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
     assert get_skill_config_version() > 0.0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_announces_the_new_pool(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The frontend only learns a skill left the pool from SKILL_POOL_UPDATED, so the sweep must speak up."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+    from app.services.event.app_event_bus import AppEventType
+
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    _write_skill(
+        curator_workspace,
+        "archived-by-sweep",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 1
+    mock_bus = mock_get_bus.return_value
+    assert mock_bus.publish.call_count == 1
+    event = mock_bus.publish.call_args[0][0]
+    assert event.event_type == AppEventType.SKILL_POOL_UPDATED
+    assert event.data == {"action": "archive", "skill_names": ["archived-by-sweep"]}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_without_archives_stays_silent(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A sweep that archived nothing must not wake every connected client for no reason."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    recent = datetime.now(UTC).isoformat()
+    _write_skill(
+        curator_workspace,
+        "still-active",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": recent,
+            "created_at": recent,
+            "lifecycle_status": "active",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 0
+    mock_get_bus.return_value.publish.assert_not_called()

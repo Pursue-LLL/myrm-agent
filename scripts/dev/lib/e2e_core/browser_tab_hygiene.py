@@ -18,10 +18,12 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TypedDict
+
 # 作为脚本直接执行时（`python .../e2e_core/browser_tab_hygiene.py`），sys.path[0] 指向模块自身所在
 # 目录而非 dev lib 根，导致模块级导入 e2e_core.* / dev_gate.* 失败；
 # 自举 dev lib 根（当前目录的父目录或向上两级），与 dev_gate/cli.py 保持同模式。
@@ -145,6 +147,12 @@ def _list_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
     ]
 
 
+def _state_dir() -> Path:
+    return Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
+    )
+
+
 def _protected_target_ids() -> set[str] | None:
     """Return protected target ids, or None when any live ledger is unreadable.
 
@@ -155,9 +163,7 @@ def _protected_target_ids() -> set[str] | None:
     be a real regression rather than hygiene).
     """
     protected: set[str] = set()
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
-    )
+    state_dir = _state_dir()
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
@@ -222,7 +228,7 @@ def prune_orphan_cdp_pages(
 ) -> tuple[int, int]:
     """Reclaim genuinely forgotten session pages; fail-closed when ownership is unknown.
 
-    Two sweeps run, both exact-targetId only:
+    Three sweeps run, all exact-targetId only:
 
     1. Dead-session pages — the owner process is gone and its wave lease lapsed.
        These are precisely the leak the old code could never see, because it only
@@ -233,6 +239,10 @@ def prune_orphan_cdp_pages(
        opt-in ``MYRM_BROWSER_ORCHESTRATOR_PRUNE`` switch and the ``threshold``
        bound belong to this conservative sweep, which is the only one safe to
        gate on "the plane looks small enough to be idle".
+    3. Default-context drift — pages in Chrome's default context that no ledger
+       claims (see ``_prune_default_context_drift``). Both older sweeps are
+       blind to them: sweep 1 only iterates ledger records, sweep 2 only
+       blanks this process registered itself.
     """
     protected = _protected_target_ids()
     if protected is None:
@@ -249,6 +259,12 @@ def prune_orphan_cdp_pages(
     )
     closed += opt_in_closed
     failed += opt_in_failed
+
+    drift_closed, drift_failed = _prune_default_context_drift(
+        cdp_port=cdp_port, protected=protected
+    )
+    closed += drift_closed
+    failed += drift_failed
     return closed, failed
 
 
@@ -268,9 +284,9 @@ def _prune_self_owned_blanks(*, cdp_port: int, threshold: int) -> tuple[int, int
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    import e2e_core.infra_browser_registry as registry
-
     from dev_gate.owner_identity import capture_owner_process_start
+
+    import e2e_core.infra_browser_registry as registry
 
     self_pid = os.getpid()
     self_start = capture_owner_process_start(self_pid)
@@ -311,6 +327,114 @@ def _prune_self_owned_blanks(*, cdp_port: int, threshold: int) -> tuple[int, int
             if _is_blankish_url(page.get("url")):
                 _close_if_self_blank(page)
 
+    return closed, failed
+
+
+def _drift_ttl_s() -> float:
+    raw = os.environ.get("MYRM_E2E_DRIFT_TTL_S", "600").strip()
+    try:
+        return max(float(raw), 0.0)
+    except ValueError:
+        return 600.0
+
+
+def _drift_store_path() -> Path:
+    return _state_dir() / "default-context-drift.json"
+
+
+def _load_drift_store() -> dict[str, object]:
+    try:
+        payload = json.loads(_drift_store_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_drift_store(store: dict[str, object]) -> None:
+    path = _drift_store_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(store, sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _is_drift_candidate_url(url: object) -> bool:
+    if not isinstance(url, str):
+        return False
+    normalized = url.strip().lower()
+    return normalized.startswith(("http://", "https://")) or _is_blankish_url(
+        normalized
+    )
+
+
+def _prune_default_context_drift(
+    *, cdp_port: int | None, protected: set[str]
+) -> tuple[int, int]:
+    """Close default-context pages no ledger claims, after total quiescence.
+
+    The default context is only supposed to hold the AOS anchor plus infra /
+    warm-shell pages, and every one of those is in ``protected``. Anything
+    else there was created outside every registry (a warm-up whose close
+    never landed, a registrar killed mid-flight) and no other sweep can see
+    it: the ledger sweep iterates registrations, the blank sweep only knows
+    its own process. Such a page keeps a live renderer busy indefinitely.
+
+    Registration absence alone does NOT prove abandonment: an agent driving
+    the surface window works in this very context without touching any
+    ledger, and its pages look identical to drift in a single snapshot. The
+    only sound proof is stillness — the exact candidate set (targetId + URL)
+    must survive unchanged across sweeps spanning ``MYRM_E2E_DRIFT_TTL_S``
+    (default 600s). Any churn (a navigation, a page opening or closing)
+    restarts the grace, so a live session is never shot down; a stuck page
+    churns CPU but not targets, so it is still reclaimed.
+    """
+    port = cdp_port if cdp_port is not None else _chrome_port()
+    if _count_cdp_targets(port) < 0:
+        return 0, 0
+    import e2e_core.infra_browser_registry as registry
+
+    pages = _list_cdp_pages(port)
+    candidates: dict[str, str] = {}
+    for page in pages:
+        target_id = page.get("id")
+        if not isinstance(target_id, str) or not target_id.strip():
+            continue
+        target_id = target_id.strip()
+        if _is_session_scoped_page(page):
+            continue
+        if not _is_drift_candidate_url(page.get("url")):
+            continue
+        if target_id in protected:
+            continue
+        url = page.get("url")
+        candidates[target_id] = url if isinstance(url, str) else ""
+    fingerprint = json.dumps(sorted(candidates.items()), sort_keys=True)
+
+    store = _load_drift_store()
+    now = time.time()
+    if store.get("fingerprint") != fingerprint:
+        _save_drift_store({"fingerprint": fingerprint, "since": now})
+        return 0, 0
+    since = store.get("since")
+    if not isinstance(since, (int, float)) or now - float(since) < _drift_ttl_s():
+        return 0, 0
+
+    closed = 0
+    failed = 0
+    remaining: dict[str, str] = {}
+    for target_id, url in candidates.items():
+        if registry.close_exact_target(port, target_id):
+            closed += 1
+        else:
+            failed += 1
+            remaining[target_id] = url
+    _save_drift_store(
+        {
+            "fingerprint": json.dumps(sorted(remaining.items()), sort_keys=True),
+            "since": now,
+        }
+    )
     return closed, failed
 
 

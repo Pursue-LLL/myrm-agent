@@ -1,5 +1,10 @@
 """Unit tests for cron post-run delivery verification helpers."""
 
+import time
+from types import SimpleNamespace
+
+import pytest
+from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, JobType, Schedule, ScheduleKind
 
 from app.core.cron.adapters.post_run_verification import (
@@ -113,6 +118,64 @@ async def test_apply_fail_keeps_cron_success(monkeypatch) -> None:
     assert result.success is True
     assert (result.metadata or {}).get("verification", {}).get("status") == "fail"
     assert "[Delivery verification: FAIL]" in (result.output or "")
+
+
+def _verifier_result(kwargs: dict[str, object], *, success: bool) -> SubAgentResult:
+    return SubAgentResult(
+        success=success,
+        task_id=str(kwargs["task_id"]),
+        agent_type=str(kwargs["agent_type"]),
+        result="done" if success else "",
+        error="" if success else "verifier crashed",
+        completed_at=time.time(),
+        status=SubAgentStatus.COMPLETED if success else SubAgentStatus.FAILED,
+    )
+
+
+async def _crashed_verifier(**kwargs: object) -> SubAgentResult:
+    return _verifier_result(kwargs, success=False)
+
+
+async def _lazy_passing_verifier(**kwargs: object) -> SubAgentResult:
+    """Submits PASS through the real tool without ever launching a command."""
+    tool_registry_getter = kwargs["tool_registry_getter"]
+    assert callable(tool_registry_getter)
+    submit = next(tool for tool in tool_registry_getter() if tool.name == "submit_verdict")
+    submit.invoke({"passed": True, "summary": "Looks fine", "findings": [], "confidence": "HIGH"})
+    return _verifier_result(kwargs, success=True)
+
+
+@pytest.mark.parametrize("spawn_child", [_crashed_verifier, _lazy_passing_verifier])
+async def test_apply_inconclusive_verifier_is_reported_as_error_without_a_fail_note(monkeypatch, spawn_child) -> None:
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    class _FakeCatalog:
+        async def resolve(self, _name: str) -> SubagentConfig:
+            return SubagentConfig(system_prompt="verifier")
+
+    monkeypatch.setattr("app.ai_agents.subagent_catalog.DatabaseSubagentCatalog", _FakeCatalog)
+
+    class _FakeSkillAgent:
+        _subagent_manager = SimpleNamespace(spawn_child=spawn_child)
+        _cached_tools: list[object] = []
+        user_tools: list[object] = []
+        _last_context: dict[str, object] = {}
+
+    fake_cls = _patch_general_agent(monkeypatch, _FakeSkillAgent())
+
+    base = JobResult(
+        success=True,
+        output="task done",
+        metadata={"progressSteps": [{"tool_name": "bash_code_execute_tool"}]},
+    )
+    result = await apply_cron_post_run_verification(fake_cls(), _minimal_cron_job(), base, enabled=True)
+
+    verification = (result.metadata or {}).get("verification")
+    assert isinstance(verification, dict)
+    assert verification.get("status") == "error"
+    assert verification.get("summary") == "Verifier did not reach a conclusive verdict"
+    assert result.success is True
+    assert result.output == "task done"
 
 
 async def test_apply_returns_unchanged_when_agent_is_not_general_agent() -> None:

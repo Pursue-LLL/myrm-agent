@@ -1,35 +1,30 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/components/primitives::{Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue}
+ * - @/components/features/message-box/progress-steps/toolIcons::AgentThemeColor
+ * - ./SubagentCard::{SubagentCard, EphemeralSubagentConfig, SubagentControlScope}
+ *
+ * [OUTPUT]
+ * - SubagentsPanel: 智能体配置面板子组件，支持查看、添加、编辑和删除子代理，支持每角色模型覆盖降本
+ *
+ * [POS]
+ * Agent 编辑面板下的 Subagent 角色集管理视图。支持为每个子代理角色配置专属经济型模型。
+ */
+
 import { useState } from 'react';
-import { Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { cn } from '@/lib/utils/classnameUtils';
-import { type AgentThemeColor, AGENT_COLOR_CLASSES } from '@/components/features/message-box/progress-steps/toolIcons';
+import { type AgentThemeColor } from '@/components/features/message-box/progress-steps/toolIcons';
+import { SubagentCard, type EphemeralSubagentConfig, type SubagentControlScope } from './SubagentCard';
 
-type SubagentControlScope = 'leaf' | 'orchestrator';
-
-type EphemeralSubagentConfig = {
-  display_name?: string;
-  theme_color?: AgentThemeColor;
-  control_scope?: SubagentControlScope;
-};
-
-const AVAILABLE_COLORS: AgentThemeColor[] = ['blue', 'green', 'purple', 'orange', 'pink', 'cyan', 'amber', 'red'];
-
-const COLOR_HEX: Record<string, string> = {
-  blue: '#3b82f6',
-  green: '#10b981',
-  purple: '#a855f7',
-  orange: '#f97316',
-  pink: '#ec4899',
-  cyan: '#06b6d4',
-  amber: '#f59e0b',
-  red: '#ef4444',
-};
+export type { EphemeralSubagentConfig, SubagentControlScope } from './SubagentCard';
 
 export interface SubagentsPanelProps {
   localEphemeralSubagents: Record<string, EphemeralSubagentConfig>;
@@ -58,10 +53,10 @@ export const SubagentsPanel = ({
     string,
     EphemeralSubagentConfig & { display_name: string; theme_color: AgentThemeColor }
   > = {
-    researcher: { display_name: t('presetResearcher'), theme_color: 'blue', control_scope: 'leaf' },
+    researcher: { display_name: t('presetResearcher'), theme_color: 'blue', control_scope: 'leaf', model_override: 'deepseek-chat' },
     coder: { display_name: t('presetCoder'), theme_color: 'green', control_scope: 'leaf' },
-    reviewer: { display_name: t('presetReviewer'), theme_color: 'purple', control_scope: 'leaf' },
-    analyst: { display_name: t('presetAnalyst'), theme_color: 'orange', control_scope: 'leaf' },
+    reviewer: { display_name: t('presetReviewer'), theme_color: 'purple', control_scope: 'leaf', model_override: 'deepseek-chat' },
+    analyst: { display_name: t('presetAnalyst'), theme_color: 'orange', control_scope: 'leaf', model_override: 'gpt-4o-mini' },
   };
 
   const validateSubagentId = (id: string): string => {
@@ -102,7 +97,12 @@ export const SubagentsPanel = ({
     }
     const preset = SUBAGENT_PRESETS[idToAdd];
     const newConfig: EphemeralSubagentConfig = preset
-      ? { display_name: preset.display_name, theme_color: preset.theme_color, control_scope: preset.control_scope }
+      ? {
+          display_name: preset.display_name,
+          theme_color: preset.theme_color,
+          control_scope: preset.control_scope,
+          model_override: preset.model_override,
+        }
       : { display_name: '', theme_color: 'blue', control_scope: 'leaf' };
 
     setLocalEphemeralSubagents((prev) => ({ ...prev, [idToAdd]: newConfig }));
@@ -144,12 +144,19 @@ export const SubagentsPanel = ({
     }));
   };
 
+  const handleModelOverrideChange = (key: string, model: string | undefined) => {
+    setLocalEphemeralSubagents((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], model_override: model },
+    }));
+  };
+
   const subagentEntries = Object.entries(localEphemeralSubagents);
   const hasValidationErrors = Object.values(displayNameErrors).some((e) => e !== '');
 
   return (
     <div className="space-y-4">
-      <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed">
+      <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed cursor-pointer">
         <Plus size={16} />
         {t('addSubagent')}
       </Button>
@@ -165,6 +172,7 @@ export const SubagentsPanel = ({
               onDisplayNameChange={handleDisplayNameChange}
               onThemeColorChange={handleThemeColorChange}
               onControlScopeChange={handleControlScopeChange}
+              onModelOverrideChange={handleModelOverrideChange}
               onDelete={() => setSubagentToDelete(key)}
               t={t}
             />
@@ -270,122 +278,4 @@ export const SubagentsPanel = ({
   );
 };
 
-function SubagentCard({
-  subagentKey,
-  config,
-  displayNameError,
-  onDisplayNameChange,
-  onThemeColorChange,
-  onControlScopeChange,
-  onDelete,
-  t,
-}: {
-  subagentKey: string;
-  config: EphemeralSubagentConfig;
-  displayNameError?: string;
-  onDisplayNameChange: (key: string, name: string) => void;
-  onThemeColorChange: (key: string, color: AgentThemeColor) => void;
-  onControlScopeChange: (key: string, scope: SubagentControlScope) => void;
-  onDelete: () => void;
-  t: (key: string) => string;
-}) {
-  const themeColor = (config.theme_color || 'blue') as AgentThemeColor;
-
-  return (
-    <div className="p-4 rounded-lg border border-border/50 bg-muted/30 space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-foreground">{subagentKey}</div>
-        <Button
-          onClick={onDelete}
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-        >
-          <Trash2 size={14} />
-        </Button>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`display-name-${subagentKey}`} className="text-xs font-medium text-muted-foreground">
-          {t('subagentDisplayName')}
-        </Label>
-        <Input
-          id={`display-name-${subagentKey}`}
-          value={config.display_name || ''}
-          onChange={(e) => onDisplayNameChange(subagentKey, e.target.value)}
-          placeholder={t('subagentDisplayNamePlaceholder')}
-          className={cn('h-9 text-sm', displayNameError && 'border-destructive focus-visible:ring-destructive')}
-        />
-        {displayNameError && (
-          <div className="flex items-center gap-1.5 text-xs text-destructive">
-            <AlertCircle size={12} />
-            {displayNameError}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`control-scope-${subagentKey}`} className="text-xs font-medium text-muted-foreground">
-          {t('subagentRole')}
-        </Label>
-        <Select
-          value={config.control_scope || 'leaf'}
-          onValueChange={(value) => onControlScopeChange(subagentKey, value as SubagentControlScope)}
-        >
-          <SelectTrigger id={`control-scope-${subagentKey}`} className="h-9 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="leaf">
-              <div className="flex flex-col py-1">
-                <span>{t('subagentRoleWorker')}</span>
-                <span className="text-xs text-muted-foreground">{t('subagentRoleWorkerDesc')}</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="orchestrator">
-              <div className="flex flex-col py-1">
-                <span>{t('subagentRoleCoordinator')}</span>
-                <span className="text-xs text-muted-foreground">{t('subagentRoleCoordinatorDesc')}</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`theme-color-${subagentKey}`} className="text-xs font-medium text-muted-foreground">
-          {t('subagentThemeColor')}
-        </Label>
-        <Select value={themeColor} onValueChange={(value) => onThemeColorChange(subagentKey, value as AgentThemeColor)}>
-          <SelectTrigger className="h-9 text-sm">
-            <SelectValue>
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    'w-4 h-4 rounded-full border-2',
-                    AGENT_COLOR_CLASSES[themeColor]?.border || AGENT_COLOR_CLASSES.blue.border,
-                  )}
-                  style={{ backgroundColor: COLOR_HEX[themeColor] || COLOR_HEX.blue }}
-                />
-                <span className="capitalize">{themeColor}</span>
-              </div>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {AVAILABLE_COLORS.map((color) => (
-              <SelectItem key={color} value={color}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={cn('w-4 h-4 rounded-full border-2', AGENT_COLOR_CLASSES[color].border)}
-                    style={{ backgroundColor: COLOR_HEX[color] || COLOR_HEX.blue }}
-                  />
-                  <span className="capitalize">{color}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
+export default SubagentsPanel;

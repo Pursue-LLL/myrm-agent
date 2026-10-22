@@ -11,6 +11,7 @@ Business-layer helpers for optional channel SDK installation and post-install ga
 | `dependency_install.py` | Core | Lazy pip install via harness `lazy_deps`; preflight before enable | ✅ |
 | `cp_egress_client.py` | Core | Sandbox-to-CP outbound bridge; success requires CP `message_id` in response | ✅ |
 | `sdk_registration.py` | Core | Hot-register DISABLED channel on bus; merge diagnostic issues | ✅ |
+| `pairing/` | Subpackage | Model-agnostic channel token binding & visual pairing wizard | ✅ |
 
 ## Dependencies
 

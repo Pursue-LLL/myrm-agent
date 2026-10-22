@@ -132,6 +132,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         config_schema=skill.config_schema,
         has_upstream_update=skill.has_upstream_update,
         installed_from=skill.installed_from,
+        last_replace_batch_id=getattr(skill, "last_replace_batch_id", None),
         verification_steps=verification_steps,
         eval_cases=eval_cases,
         created_at=skill.created_at.isoformat(),

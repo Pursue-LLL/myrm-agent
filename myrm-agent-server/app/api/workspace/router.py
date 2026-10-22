@@ -5,9 +5,11 @@ from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 
 from . import rules as workspace_rules
+from .promotion_router import router as promotion_router
 
 router = APIRouter()
 router.include_router(workspace_rules.router)
+router.include_router(promotion_router)
 
 
 @router.get("/stream")

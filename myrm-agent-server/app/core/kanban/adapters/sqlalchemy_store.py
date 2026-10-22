@@ -851,6 +851,21 @@ class SqlAlchemyKanbanStore:
             result = await session.execute(stmt)
             return [task_to_domain(m) for m in result.scalars().all()]
 
+    async def earliest_scheduled_until(self, after: datetime) -> datetime | None:
+        """Earliest auto-unblock time strictly after ``after`` among scheduled-blocked tasks of every board."""
+        async with get_session() as session:
+            result = await session.execute(
+                select(sqlfunc.min(KanbanTaskModel.scheduled_until)).where(
+                    KanbanTaskModel.status == TaskStatus.BLOCKED.value,
+                    KanbanTaskModel.block_kind == "scheduled",
+                    KanbanTaskModel.scheduled_until > after,
+                )
+            )
+            earliest = result.scalar()
+            if earliest is not None and earliest.tzinfo is None:
+                return earliest.replace(tzinfo=UTC)
+            return earliest
+
     async def reset_stale_running_tasks(self) -> int:
         """Reset all RUNNING tasks back to READY (boot recovery).
 

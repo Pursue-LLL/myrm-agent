@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Artifact, ArtifactVersion } from '@/store/chat/types';
 import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
-import { isSvgType, isMermaidType, isArchitectureType } from './artifactUtils';
+import { isSvgType, isMermaidType, isArchitectureType, isDataDashboardType } from './artifactUtils';
 import ArtifactErrorBoundary from './ArtifactErrorBoundary';
 import { getStorageUrl } from '@/lib/api';
 import SkeletonLoader from './renderers/SkeletonLoader';
@@ -97,6 +97,35 @@ const SpreadsheetEditorDynamic = dynamic(() => import('./renderers/SpreadsheetEd
   loading: () => rendererLoading,
 });
 
+const CanvasViewerDynamic = dynamic(() => import('../canvas/CanvasViewer'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const MultiDeviceArticlePreviewerDynamic = dynamic(
+  () => import('./wechat-preview/MultiDeviceArticlePreviewer').then((mod) => mod.MultiDeviceArticlePreviewer),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
+const LivePrototypeCanvasDynamic = dynamic(
+  () => import('./prototype-canvas/LivePrototypeCanvas').then((mod) => mod.LivePrototypeCanvas),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
+const InteractiveDashboardDynamic = dynamic(
+  () => import('./data-dashboard/InteractiveDashboardArtifact').then((mod) => mod.InteractiveDashboardArtifact),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
 interface ArtifactRendererProps {
   artifact: Artifact;
   content: string;
@@ -163,6 +192,27 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
     content_type === 'text/tab-separated-values' ||
     content_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
     content_type === 'application/vnd.ms-excel';
+
+  const isCanvas =
+    type === 'canvas' ||
+    /\.(canvas|drawio|excalidraw)$/i.test(filename) ||
+    content_type === 'application/vnd.canvas+html';
+
+  const isWechatArticle =
+    type === 'wechat_article' ||
+    /\.(wechat|article|wx)\.(md|html)$/i.test(filename) ||
+    filename.toLowerCase().includes('wechat') ||
+    content_type === 'application/vnd.wechat+article';
+
+  const isPrototype =
+    type === 'prototype' ||
+    /\.(intent\.md|prototype\.json|prototype\.html)$/i.test(filename) ||
+    content_type === 'application/vnd.myrm.prototype+json';
+
+  const isDashboard =
+    type === 'dashboard' ||
+    isDataDashboardType(content_type, filename) ||
+    /\.(dashboard\.(json|csv)|board\.json)$/i.test(filename);
 
   // 检测是否为 React/JSX/TSX 文件
   const isReactFile =
@@ -270,6 +320,56 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
       <CodePreview content={content} language={artifact.language} artifactId={artifact.id} />
     ) : (
       <DocumentPreview content={content} filename={filename} artifactId={artifact.id} />
+    );
+  }
+
+  // Canvas 富交互画布类型 - 严格沙箱隔离与出网鉴权门禁
+  if (isCanvas && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="html" artifactId={artifact.id} />;
+    }
+    return <CanvasViewerDynamic content={content} title={artifact.title || filename} />;
+  }
+
+  // WeChat 公众号/社交文章排版与多设备高保真预览
+  if (isWechatArticle && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="markdown" artifactId={artifact.id} />;
+    }
+    return (
+      <MultiDeviceArticlePreviewerDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
+    );
+  }
+
+  // Interactive Prototype Canvas (从意图一键生成交互原型画布与 spec.md 导出)
+  if (isPrototype && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="markdown" artifactId={artifact.id} />;
+    }
+    return (
+      <LivePrototypeCanvasDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
+    );
+  }
+
+  // Dynamic Web Dashboard Engine (零提示自主可视化与多维表格动态 Web 看板)
+  if (isDashboard && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="json" artifactId={artifact.id} />;
+    }
+    return (
+      <InteractiveDashboardDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
     );
   }
 

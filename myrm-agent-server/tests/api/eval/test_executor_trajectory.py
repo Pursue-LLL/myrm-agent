@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.errors import ToolErrorCategory
 
+from app.core.agent.run_activity import active_background_agent_runs
 from app.core.eval.executor import LocalEvalExecutor
 
 
@@ -42,7 +43,7 @@ def _prepare_model_types() -> None:
     GeneralAgentParams.model_rebuild()
 
 
-async def _run(executor: LocalEvalExecutor, events: list[dict[str, object]]):
+async def _run(executor: LocalEvalExecutor, events: list[dict[str, object]], *, stream=None):
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
     from app.core.types import ModelConfig
@@ -67,7 +68,7 @@ async def _run(executor: LocalEvalExecutor, events: list[dict[str, object]]):
         mock_configs.return_value = mock_cfg
 
         mock_agent = MagicMock()
-        mock_agent.process_stream = _mock_stream(events)
+        mock_agent.process_stream = stream or _mock_stream(events)
         mock_factory.return_value = mock_agent
 
         response = await executor.execute("Test task")
@@ -236,3 +237,33 @@ async def test_empty_trajectory_defaults():
     assert response.limit_reached is None
     assert response.blocked_count == 0
     assert response.tool_call_details == []
+
+
+@pytest.mark.asyncio
+async def test_eval_case_counts_as_in_flight_only_while_the_agent_runs():
+    """A hosted sandbox must not be paused mid-case: the run is reported busy while it executes."""
+    baseline = active_background_agent_runs()
+    observed: list[int] = []
+
+    async def stream(*args, **kwargs):
+        observed.append(active_background_agent_runs())
+        yield {"type": "message", "data": "answer"}
+
+    await _run(_executor(), [], stream=stream)
+
+    assert observed == [baseline + 1]
+    assert active_background_agent_runs() == baseline
+
+
+@pytest.mark.asyncio
+async def test_eval_case_is_released_when_the_agent_fails():
+    baseline = active_background_agent_runs()
+
+    async def stream(*args, **kwargs):
+        raise RuntimeError("agent crashed")
+        yield {}
+
+    with pytest.raises(RuntimeError, match="agent crashed"):
+        await _run(_executor(), [], stream=stream)
+
+    assert active_background_agent_runs() == baseline

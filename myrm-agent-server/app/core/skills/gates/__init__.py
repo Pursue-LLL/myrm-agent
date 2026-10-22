@@ -8,6 +8,7 @@
 - disabled_skill_roots: 未启用技能 storage 根目录注入 runtime context
 - dependency_guard: 技能依赖影响面查询（pending 审核 / disable / uninstall 校验）
 - permission_logger: 技能权限使用日志
+- runtime_load: 归档/禁用技能 runtime 加载 SSOT
 """
 
 from .dependency_guard import get_dependents_for_skill, get_dependents_map
@@ -28,6 +29,7 @@ from .requirements_availability import (
     apply_requirements_availability_to_catalog,
     apply_requirements_availability_to_metadata,
 )
+from .runtime_load import filter_skills_for_runtime_load, skill_runtime_load_block_reason
 from .x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
 __all__ = [
@@ -45,6 +47,8 @@ __all__ = [
     "get_dependents_for_skill",
     "get_dependents_map",
     "maybe_enable_x_live_search_skill",
+    "filter_skills_for_runtime_load",
+    "skill_runtime_load_block_reason",
     "start_permission_logger",
     "wrap_integration_oauth_backend",
 ]

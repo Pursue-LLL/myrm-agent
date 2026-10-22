@@ -10,7 +10,8 @@ const getSkillDiagnosticsMock = vi.hoisted(() => vi.fn());
 const remediateSkillFindingMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+const stableT = (key: string) => key;
+vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 vi.mock('@/hooks/shared/useToast', () => ({ toast: toastMock }));
 vi.mock('@/services/skill', () => ({
   getSkillDiagnostics: getSkillDiagnosticsMock,

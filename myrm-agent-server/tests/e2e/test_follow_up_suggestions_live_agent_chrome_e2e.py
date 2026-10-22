@@ -291,7 +291,7 @@ def _wait_for_answer(
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 def test_finished_answer_offers_follow_ups_and_a_click_asks_one(tmp_path: Path, e2e_resource_ledger: E2EResourceLedger) -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()

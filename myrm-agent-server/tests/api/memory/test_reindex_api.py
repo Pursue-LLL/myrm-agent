@@ -7,10 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory._manager.reindex import (
-    OrphanCollectionInfo,
-    ReindexEstimate,
-)
+from myrm_agent_harness.toolkits.memory._manager.reindex import ReindexEstimate
 
 from app.api.dependencies import get_deploy_identity
 from app.api.memory.utils import get_crud_memory_manager
@@ -46,19 +43,7 @@ def client() -> TestClient:
 
 def _manager() -> MagicMock:
     manager = MagicMock()
-    manager.estimate_reindex = AsyncMock(
-        return_value=ReindexEstimate(
-            total_memories=5,
-            orphan_collections=[
-                OrphanCollectionInfo(
-                    collection_name="memory_semantic_old-model",
-                    memory_type="semantic",
-                    old_model_suffix="old-model",
-                    document_count=5,
-                )
-            ],
-        )
-    )
+    manager.estimate_reindex = AsyncMock(return_value=ReindexEstimate(total_memories=5))
     return manager
 
 

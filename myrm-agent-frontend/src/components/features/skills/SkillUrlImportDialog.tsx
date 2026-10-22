@@ -19,6 +19,7 @@ import { toast } from '@/hooks/shared/useToast';
 import { analyzeDiscoveryUrl, installDiscoverySkillFromUrl, SkillUrlInfo } from '@/services/skill';
 import useChatStore from '@/store/useChatStore';
 import { isLocalMode } from '@/lib/deploy-mode';
+import { showDiscoveryInstallResultToast } from './skillInstallRollbackToastAction';
 
 interface SkillUrlImportDialogProps {
   open: boolean;
@@ -103,6 +104,15 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
                 mountToAgent: true,
               });
               if (res.success) {
+                const analyzed = analyzedUrls.find((u) => u.url === targetUrl);
+                const skillName = res.skill_name?.trim() || analyzed?.name?.trim() || targetUrl;
+                showDiscoveryInstallResultToast({
+                  skillName,
+                  response: res,
+                  marketUpdate: Boolean(analyzed?.is_installed),
+                  t,
+                  onInstalled,
+                });
                 return true;
               } else {
                 toast({ title: res.error || t('installFailed'), variant: 'destructive' });
@@ -118,7 +128,6 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
       }
 
       if (successCount > 0) {
-        toast({ title: t('installed') });
         onInstalled?.();
         onOpenChange(false);
       }
@@ -242,6 +251,9 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
 
               <div className="border rounded-lg p-3 space-y-2.5 bg-muted/30">
                 <p className="text-sm font-medium">{t('selectSkillsToImport')}</p>
+                {analyzedUrls.some((u) => u.is_installed) && (
+                  <p className="text-xs leading-relaxed text-muted-foreground">{t('urlReimportInstalledHint')}</p>
+                )}
                 <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1">
                   {analyzedUrls.map((uInfo) => {
                     const u = uInfo.url;
@@ -259,8 +271,8 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
                         <Checkbox
                           id={`url-${u}`}
                           checked={selectedUrls.has(u)}
-                          onCheckedChange={() => !isInstalled && toggleSelection(u)}
-                          disabled={isInstalling || isInstalled}
+                          onCheckedChange={() => toggleSelection(u)}
+                          disabled={isInstalling}
                           className="mt-0.5"
                         />
                         <div className="grid gap-1 leading-none w-full">

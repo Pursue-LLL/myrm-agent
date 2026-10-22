@@ -2853,19 +2853,16 @@ def _load_scaled_bridge_wait_ceiling_sec() -> float:
     """Ceiling for one page's bridge wait on a busy host.
 
     A cold client bundle has to be compiled by the dev server before the page can boot, and a busy host
-    makes that take minutes (a single chunk was measured at 190s). The ceiling therefore scales with the
-    same host-load ratio the parallel lane already uses: a fixed 120s cut the wait short exactly when the
-    page needed the most time, and every chrome_e2e test failed together at ``wait_for_react_e2e_bridge``.
+    makes that take minutes (a single chunk was measured at 190s). The ceiling therefore comes from the
+    dev-gate contract — the single source every other E2E budget uses — instead of a fixed 120s that cut
+    the wait short exactly when the page needed the most time.
     """
     try:
-        from dev_gate.contract import host_load_ratio
+        from dev_gate.contract import load_scaled_budget_sec
 
-        ratio = max(0.0, float(host_load_ratio()))
+        return load_scaled_budget_sec(120.0, 300.0)
     except (ImportError, OSError, AttributeError, RuntimeError, ValueError):
-        ratio = 0.0
-    if ratio <= 0.0:
         return 120.0
-    return min(300.0, 120.0 * max(1.0, ratio))
 
 
 def _react_bridge_wait_timeout_sec(requested: float) -> float:

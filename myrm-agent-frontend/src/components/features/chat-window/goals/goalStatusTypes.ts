@@ -9,6 +9,8 @@ export type GoalStatus =
   | 'cancelled'
   | 'needs_human_review';
 
+export type GoalAction = 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait';
+
 export interface AcceptanceResultItem {
   label: string;
   passed: boolean;
@@ -20,6 +22,12 @@ export interface AcceptanceResultItem {
 export interface AcceptanceHistoryEntry {
   timestamp: string;
   results: AcceptanceResultItem[];
+}
+
+/** The goal is held (WAIT) or stopped (PAUSED) by the model provider's usage limit. */
+export interface GoalUsageLimit {
+  /** ISO-8601 instant the limit reopens; absent when the provider gave no boundary. */
+  resumeAt?: string;
 }
 
 export interface GoalState {
@@ -44,6 +52,7 @@ export interface GoalState {
   loopRestarts?: number;
   verdict?: string;
   reason?: string;
+  usageLimit?: GoalUsageLimit;
   constraints?: string[];
   acceptanceCriteria?: { type: string; command?: string; criteria?: string }[];
   acceptanceResults?: AcceptanceResultItem[];

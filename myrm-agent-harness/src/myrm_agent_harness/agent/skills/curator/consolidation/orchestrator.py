@@ -147,7 +147,7 @@ class SkillConsolidator:
 
         Excludes:
         - Pinned skills
-        - Evolution-locked skills (user-created, protected from automation)
+        - Evolution-locked skills (the lock guards automated rewrites, and a merge rewrites content)
         - Archived skills
         - Skills without storage_path (MCP skills)
         """

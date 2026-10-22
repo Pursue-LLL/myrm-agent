@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = Goal needs your review
 goal_stream_failed_message =
     The autonomous goal run stopped unexpectedly. Open the Goal panel to review and continue.
+goal_usage_limit_wait_title = Goal paused until your usage limit resets
+goal_usage_limit_wait_message =
+    It will resume on its own. No action is needed.
+goal_usage_limit_resumed_title = Goal resumed
+goal_usage_limit_resumed_message =
+    Your usage limit has reset and the goal is running again.
+goal_usage_limit_paused_title = Goal paused by your usage limit
+goal_usage_limit_paused_message =
+    The limit resets too far ahead to wait. Resume the goal from the Goal panel when you are ready.
+airbag_rolled_back_title = Changes undone
+airbag_rolled_back_message =
+    Your workspace files are back to how they were before the goal started.
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }
@@ -238,10 +250,6 @@ analyzing_image = Analyzing image...
 search_unreachable = Search service is configured but currently unreachable. Please check your search service and ensure it is running, then try again.
 daily_budget_blocked = Daily budget limit reached. Execution was blocked. Adjust your budget limit in the Web Settings app, then try again.
 channel_budget_blocked = This channel's daily budget has been reached. Other channels and Web sessions are not affected. The channel owner can adjust the limit in Settings > Budget.
-cooldown_retry =
-    
-    
-    ⏱️ Please retry in { $seconds } seconds.
 config_next_steps =
     { "\u000A\u000A" }Next steps:
     { $steps }

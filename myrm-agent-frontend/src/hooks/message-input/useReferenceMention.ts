@@ -3,247 +3,36 @@
  *
  * [INPUT]
  * - @/services/chat::suggestReferences (POS: Server-side safe reference suggestions)
+ * - @/services/chat::searchCitableChats (POS: Prior conversation citable search)
+ * - ./useReferenceMentionUtils (POS: Reference extraction, formatting and suggestion builders)
+ * - @/store/useChatStore (POS: Global chat state, selection and input update)
+ * - @/store/useAgentStore (POS: Digital employee registry prefetch)
  *
  * [OUTPUT]
  * - useReferenceMention: hook providing reference mention state, keyboard nav and selection.
  *
  * [POS]
- * Chat input @ reference autocomplete. It keeps GUI product semantics in the
- * frontend while all workspace boundaries are resolved by the server.
+ * Chat input @ reference autocomplete. Guarantees immediate, responsive digital employee
+ * (@Agent) discovery on both EmptyChat and active sessions across WebUI, Tauri, and Cloud.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import {
-  suggestReferences,
-  searchCitableChats,
-  type ReferenceSuggestion,
-  type ReferenceSuggestionSource,
-  type SearchResult,
-} from '@/services/chat';
+import { suggestReferences, searchCitableChats, type ReferenceSuggestion } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
-import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
-import type { MentionReference } from '@/store/chat/types';
+import {
+  type ReferenceMentionState,
+  DEBOUNCE_MS,
+  extractMentionQuery,
+  staticSpecialMatches,
+  buildAgentSuggestions,
+  historyResultToSuggestion,
+  toMentionReference,
+  replacementFor,
+} from './useReferenceMentionUtils';
 
-interface ReferenceMentionState {
-  isOpen: boolean;
-  results: ReferenceSuggestion[];
-  selectedIndex: number;
-  query: string;
-  mentionStart: number;
-}
-
-const DEBOUNCE_MS = 180;
-
-const STATIC_SPECIAL_RESULTS: ReferenceSuggestion[] = [
-  {
-    source: 'special',
-    reference_type: 'git_staged',
-    kind: 'reference',
-    label: '@staged',
-    basename: '@staged',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Git staged changes',
-    size: null,
-    score_tier: 'prefix',
-    score: 1000,
-    match_ranges: [],
-  },
-  {
-    source: 'special',
-    reference_type: 'git_diff',
-    kind: 'reference',
-    label: '@diff',
-    basename: '@diff',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Git working tree changes',
-    size: null,
-    score_tier: 'prefix',
-    score: 990,
-    match_ranges: [],
-  },
-  {
-    source: 'special',
-    reference_type: 'workspace_folder',
-    kind: 'directory',
-    label: '@folder:',
-    basename: '@folder:',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Directory tree under workspace',
-    size: null,
-    score_tier: 'prefix',
-    score: 980,
-    match_ranges: [],
-  },
-  {
-    source: 'special',
-    reference_type: 'url',
-    kind: 'reference',
-    label: '@url:',
-    basename: '@url:',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Fetch webpage content',
-    size: null,
-    score_tier: 'prefix',
-    score: 970,
-    match_ranges: [],
-  },
-  {
-    source: 'special',
-    reference_type: 'wiki_concept',
-    kind: 'reference',
-    label: '@wiki:',
-    basename: '@wiki:',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Knowledge base concept',
-    size: null,
-    score_tier: 'prefix',
-    score: 960,
-    match_ranges: [],
-  },
-  {
-    source: 'special',
-    reference_type: 'prior_chat',
-    kind: 'reference',
-    label: '@chat:',
-    basename: '@chat:',
-    directory: '',
-    relative_path: null,
-    file_id: null,
-    description: 'Reference a prior conversation',
-    size: null,
-    score_tier: 'prefix',
-    score: 950,
-    match_ranges: [],
-  },
-];
-
-function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
-  const before = text.slice(0, cursorPos);
-  const atIndex = before.lastIndexOf('@');
-  if (atIndex === -1) {
-    return null;
-  }
-  if (atIndex > 0 && /\S/.test(before[atIndex - 1])) {
-    return null;
-  }
-
-  const query = before.slice(atIndex + 1);
-  if (query.includes('\n') || query.includes(' ')) {
-    return null;
-  }
-  return { query, start: atIndex };
-}
-
-function staticSpecialMatches(query: string): ReferenceSuggestion[] {
-  const lowerQuery = query.toLowerCase();
-  return STATIC_SPECIAL_RESULTS.filter((item) => {
-    const token = item.basename.replace(/^@/, '').replace(/:$/, '').toLowerCase();
-    return !lowerQuery || token.startsWith(lowerQuery);
-  });
-}
-
-function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
-  const title = item.chat_title?.trim() || 'Untitled conversation';
-  return {
-    source: (item.source || 'special') as ReferenceSuggestionSource,
-    reference_type: 'prior_chat',
-    kind: 'reference',
-    label: `@chat:${title}`,
-    basename: title,
-    directory: item.snippet?.slice(0, 120) || '',
-    relative_path: item.chat_id,
-    file_id: item.chat_id,
-    description: item.snippet?.slice(0, 160) || null,
-    size: null,
-    score_tier: 'content',
-    score: 800,
-    match_ranges: [],
-  };
-}
-
-function toMentionReference(item: ReferenceSuggestion): MentionReference | null {
-  if (item.reference_type === 'prior_chat') {
-    const chatId = item.file_id ?? item.relative_path;
-    if (!chatId) {
-      return null;
-    }
-    return {
-      type: 'prior_chat',
-      label: item.label.startsWith('@') ? item.label : `@chat:${item.basename}`,
-      path: chatId,
-      fileId: chatId,
-      source: 'special',
-      size: null,
-    };
-  }
-  if (item.reference_type === 'url' && !item.label.startsWith('@url:http')) {
-    return null;
-  }
-  if (item.reference_type === 'workspace_folder' && !item.relative_path) {
-    return null;
-  }
-  if (item.reference_type === 'wiki_concept' && !item.concept_name) {
-    return null;
-  }
-  const label = item.label.startsWith('@') ? item.label : `@${item.basename || item.label}`;
-  return {
-    type: item.reference_type,
-    label,
-    path: item.relative_path ?? undefined,
-    fileId: item.file_id ?? undefined,
-    url: item.reference_type === 'url' ? item.label.replace(/^@url:/, '') : undefined,
-    source: item.source as MentionReference['source'],
-    size: item.size,
-    directory: item.directory || undefined,
-    conceptName: item.concept_name ?? undefined,
-  };
-}
-
-function replacementFor(item: ReferenceSuggestion, folderMode: boolean): string {
-  if (item.reference_type === 'git_staged') {
-    return '@staged ';
-  }
-  if (item.reference_type === 'git_diff') {
-    return '@diff ';
-  }
-  if (item.reference_type === 'url') {
-    return '@url:';
-  }
-  if (item.reference_type === 'workspace_folder') {
-    if (item.relative_path) {
-      return `@folder:${item.relative_path} `;
-    }
-    return '@folder:';
-  }
-  if (item.reference_type === 'wiki_concept') {
-    if (item.concept_name) {
-      return `@wiki:${item.concept_name} `;
-    }
-    return '@wiki:';
-  }
-  if (item.reference_type === 'prior_chat') {
-    if (item.file_id) {
-      return `@chat:${item.basename} `;
-    }
-    return '@chat:';
-  }
-  if (folderMode && item.relative_path) {
-    return `@folder:${item.relative_path} `;
-  }
-  return `@${item.relative_path ?? item.label} `;
-}
+export { type ReferenceMentionState } from './useReferenceMentionUtils';
 
 export const useReferenceMention = (inputMessage: string, cursorPosition: number) => {
   const locale = useLocale();
@@ -279,15 +68,18 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         : chatMode
           ? mention.query.slice('chat:'.length)
           : mention.query;
-    const specialResults = folderMode || wikiMode || chatMode ? [] : staticSpecialMatches(mention.query);
 
+    const specialResults = folderMode || wikiMode || chatMode ? [] : staticSpecialMatches(mention.query);
+    const initialAgentResults = folderMode || wikiMode || chatMode ? [] : buildAgentSuggestions(query, locale);
+
+    // Synchronously open menu with instant local agents and special commands (eliminates EmptyChat lag)
     setState((prev) => ({
       ...prev,
       isOpen: true,
       query: mention.query,
       mentionStart: mention.start,
       selectedIndex: 0,
-      results: specialResults,
+      results: folderMode || wikiMode || chatMode ? specialResults : [...initialAgentResults, ...specialResults],
     }));
 
     if (debounceRef.current) {
@@ -332,11 +124,22 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       };
     }
 
-    if (!chatId) {
-      return;
-    }
-
+    // Debounce server workspace & wiki suggestions
     debounceRef.current = setTimeout(async () => {
+      const currentAgentResults = folderMode || wikiMode || chatMode ? [] : buildAgentSuggestions(query, locale);
+
+      if (!chatId) {
+        // EmptyChat mode: No remote workspace files yet, but digital employees and static commands are 100% active
+        if (requestSeqRef.current === requestSeq) {
+          setState((prev) => ({
+            ...prev,
+            results: folderMode || wikiMode ? [] : [...currentAgentResults, ...specialResults],
+            selectedIndex: 0,
+          }));
+        }
+        return;
+      }
+
       try {
         const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
         if (requestSeqRef.current !== requestSeq) {
@@ -348,87 +151,20 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             ? data.results.filter((item) => item.source === 'wiki')
             : data.results.filter((item) => item.source !== 'special');
 
-        let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode && !wikiMode && !chatMode) {
-          const agents = useAgentStore.getState().agents;
-          agentResults = agents
-            .filter((a) => {
-              if (!query) {
-                return true;
-              }
-              const localized = getBuiltinAgentName(a.id, a.name, locale);
-              return (
-                a.name.toLowerCase().includes(query.toLowerCase()) ||
-                localized.toLowerCase().includes(query.toLowerCase())
-              );
-            })
-            .map((a) => {
-              const localized = getBuiltinAgentName(a.id, a.name, locale);
-              return {
-                source: 'agent',
-                reference_type: 'agent',
-                kind: 'agent',
-                label: localized,
-                basename: localized,
-                directory: a.description || 'Agent',
-                relative_path: null,
-                file_id: a.id,
-                description: a.description || null,
-                size: null,
-                score_tier: 'prefix',
-                score: 2000,
-                match_ranges: [],
-                avatar_url: a.avatar_url,
-              };
-            });
-        }
-
         setState((prev) => ({
           ...prev,
-          results: folderMode || wikiMode ? serverResults : [...agentResults, ...specialResults, ...serverResults],
+          results: folderMode || wikiMode ? serverResults : [...currentAgentResults, ...specialResults, ...serverResults],
           selectedIndex: 0,
         }));
       } catch {
         if (requestSeqRef.current !== requestSeq) {
           return;
         }
-
-        let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode && !wikiMode && !chatMode) {
-          const agents = useAgentStore.getState().agents;
-          agentResults = agents
-            .filter((a) => {
-              if (!query) {
-                return true;
-              }
-              const localized = getBuiltinAgentName(a.id, a.name, locale);
-              return (
-                a.name.toLowerCase().includes(query.toLowerCase()) ||
-                localized.toLowerCase().includes(query.toLowerCase())
-              );
-            })
-            .map((a) => {
-              const localized = getBuiltinAgentName(a.id, a.name, locale);
-              return {
-                source: 'agent',
-                reference_type: 'agent',
-                kind: 'agent',
-                label: localized,
-                basename: localized,
-                directory: a.description || 'Agent',
-                relative_path: null,
-                file_id: a.id,
-                description: a.description || null,
-                size: null,
-                score_tier: 'prefix',
-                score: 2000,
-                match_ranges: [],
-                avatar_url: a.avatar_url,
-              };
-            });
-        }
-
-        setState((prev) => ({ ...prev, results: [...agentResults, ...specialResults], selectedIndex: 0 }));
+        setState((prev) => ({
+          ...prev,
+          results: folderMode || wikiMode ? [] : [...currentAgentResults, ...specialResults],
+          selectedIndex: 0,
+        }));
       }
     }, DEBOUNCE_MS);
 

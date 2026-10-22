@@ -23,6 +23,12 @@
 | `MobilePwaInstallGuide.tsx`                   | PWA 独立壳安装指引：智能检测 Standalone 模式，在普通移动端浏览器访问时根据 iOS Safari / Android Chrome 提供一键添加到主屏幕指引，支持 7 天免打扰记忆 |
 | `MobileHostControlRoster.tsx`                 | 移动端控制台横向看板：展示 Agent 活跃/空闲状态矩阵点选卡片，以及 Cron 自动化任务调度概要（下次触发倒计时）折叠面板 |
 | `MobileTaskSpawnForm.tsx`                     | 抽离式轻量任务创建表单：从 MobileSessionHub 剥离以控制行数严格受控于 400 行红线内，提供 IME 组合守卫、Agent 与可选 Project 下拉选择以及额度满状态提示 |
+| `mobileCockpitTypes.ts`                       | 移动端远程随身伴侣类型契约：定义 HITL 风险级别（low/medium/high/critical）、决策结果（approve/reject/steer）、触控选项列表项及组件 Props 契约 |
+| `MobileVoiceStagedInput.tsx`                  | 独立语音录入暂存审查框：专为单手移动端优化，集成语音转写并在浮动暂存框中审查微调后才确认发送，彻底规避全键盘弹出遮挡 70% 视口与误发问题 |
+| `MobileHitlApprovalCard.tsx`                  | 触控一触审批决策卡：单手拇指易触达区大按钮（热区 ≥ 48px），支持 Yes/No/Steer 三态极速决策，提供风险等级动态徽标与可折叠参数详情 |
+| `TouchFriendlySelectionList.tsx`              | 移动触控自适应 TUI/CLI 选择器：将模型方案与终端多选列表映射为移动端原生大尺寸点选靶区，支持单选与多选，无需方向键即可拇指完成决策 |
+| `MobileAgentActionBar.tsx`                    | 移动端常驻底部快捷操作栏：吸附安全区对齐，提供语音暂存、技能菜单（`/`）、一键 Stop 终止、会话列表切换快捷按钮 |
+| `index.ts`                                    | 统一门面导出：集中导出移动随身伴侣核心组件与类型定义 |
 | `__tests__/MobileShellStatusBar.test.tsx`     | 状态条单测：覆盖在线常态就绪、薄客户端详情切换、正在连接加载态、离线错误条及重试回调触发 |
 | `__tests__/MobilePwaInstallGuide.test.tsx`    | 安装指引单测：覆盖独立 PWA 模式自动隐藏、iOS Safari 添加到主屏幕步骤弹窗、Android Chrome 安装引导及 7 天免打扰缓存 |
 | `__tests__/MobileHostControlRoster.test.tsx`  | 控制看板单测：覆盖智能体卡片渲染、运行中/就绪状态指示、卡片点选回调以及 Cron 调度计划折叠面板展开/收起 |

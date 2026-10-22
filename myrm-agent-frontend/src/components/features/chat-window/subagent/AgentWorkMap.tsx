@@ -25,7 +25,7 @@ import {
 } from '@/lib/utils/subagent/taskTopologyModel';
 import { fmtCost, fmtTokens } from '@/lib/utils/subagent/subagentTree';
 import { useTranslations } from 'next-intl';
-import { Bot, CheckCircle2, CircleDashed, Loader2, XCircle, AlertCircle } from 'lucide-react';
+import { Bot, CheckCircle2, CircleDashed, Loader2, ShieldAlert, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/primitives/badge';
 import { Card } from '@/components/primitives/card';
@@ -63,7 +63,7 @@ function getLayoutedElements<T extends Record<string, unknown>>(nodes: Node<T>[]
 const STATUS_ICON: Record<string, { icon: typeof Loader2; className: string; spin?: boolean }> = {
   pending: { icon: CircleDashed, className: 'text-slate-400' },
   running: { icon: Loader2, className: 'text-blue-500', spin: true },
-  verifying: { icon: Loader2, className: 'text-purple-500', spin: true },
+  blocked: { icon: ShieldAlert, className: 'text-amber-500' },
   completed: { icon: CheckCircle2, className: 'text-green-500' },
   failed: { icon: XCircle, className: 'text-red-500' },
   timed_out: { icon: AlertCircle, className: 'text-orange-500' },
@@ -115,7 +115,7 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
     () => ({
       pending: t('statusLabel.pending'),
       running: t('statusLabel.running'),
-      verifying: t('statusLabel.verifying'),
+      blocked: t('statusLabel.blocked'),
       completed: t('statusLabel.completed'),
       failed: t('statusLabel.failed'),
       timed_out: t('statusLabel.timed_out'),

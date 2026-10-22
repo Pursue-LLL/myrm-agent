@@ -96,8 +96,8 @@ class ZeroCostMemoryExtension(AgentExtension):
             )
             return None
 
-        policy = getattr(self.memory_manager, "policy", None)
-        if policy is not None and not getattr(policy, "allow_l3_extraction", True):
+        policy = self.memory_manager.memory_policy
+        if policy is not None and not policy.allow_l3_extraction:
             logger.info("🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction: policy.allow_l3_extraction is False.")
             return None
 
@@ -121,7 +121,7 @@ class ZeroCostMemoryExtension(AgentExtension):
             evicted_pairs: list[EvictedToolCall],
             user_goal_hint: str,
         ) -> None:
-            messages_for_extraction: list[dict[str, str]] = []
+            messages_for_extraction: list[dict[str, object]] = []
             if user_goal_hint:
                 messages_for_extraction.append({"role": "system", "content": f"User Goal Context: {user_goal_hint}"})
 

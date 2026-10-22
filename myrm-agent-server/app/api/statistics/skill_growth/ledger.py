@@ -12,8 +12,8 @@
 
 [POS]
 Single read path of the trend and health panels onto the curator's ``.stats.json`` ledger. The roots include
-folders owned by other tools, so a directory without a ledger is skipped: the collector would create one on read,
-and a directory nobody has run has nothing to report. Ledgers edited or imported by hand may carry naive or
+folders owned by other tools, so a directory without a ledger is skipped: a directory nobody has run has nothing
+to report. Ledgers edited or imported by hand may carry naive or
 unparseable timestamps, so both panels place a record in time through the same tolerant reader. A ledger keeps only
 its latest runs, so both panels ask the same question of it: did the window outgrow what was kept.
 """

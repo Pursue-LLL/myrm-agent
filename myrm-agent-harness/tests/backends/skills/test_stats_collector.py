@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -190,32 +191,63 @@ def test_a_stale_view_never_overwrites_changes_made_elsewhere(temp_workspace: Pa
     assert (on_disk["call_count"], on_disk["pinned"]) == (3, False)
 
 
-def test_first_observation_creates_the_ledger_and_anchors_created_at(
-    collector: SkillStatsCollector, skill_dir: Path
-) -> None:
-    """The forgetting policy ages a never-used skill from the moment it was first seen, so that moment is kept."""
+def test_reading_a_skill_without_a_ledger_does_not_create_one(collector: SkillStatsCollector, skill_dir: Path) -> None:
+    """Reading is not an observation that writes: no ledger appears for a skill nobody has run."""
+    stats_file = skill_dir / ".stats.json"
+    (skill_dir / "SKILL.md").write_text("---\nname: test_skill\ndescription: demo\n---\n")
+
+    view = collector.get_stats(skill_dir)
+
+    assert view.call_count == 0
+    assert not stats_file.exists()
+
+
+def test_a_skill_with_no_ledger_is_dated_from_its_file(collector: SkillStatsCollector, skill_dir: Path) -> None:
+    """A skill copied in by hand still has to be ageable, so its own file dates it."""
+    skill_md = skill_dir / "SKILL.md"
+    skill_md.write_text("---\nname: test_skill\ndescription: demo\n---\n")
+    old_mtime = 1_600_000_000.0  # 2020-09-13, far past any threshold
+    os.utime(skill_md, (old_mtime, old_mtime))
+
+    view = collector.get_stats(skill_dir)
+
+    assert view.created_at is not None
+    assert int(view.created_at.timestamp()) == int(old_mtime)
+
+
+def test_anchor_created_at_starts_the_lifecycle_clock(collector: SkillStatsCollector, skill_dir: Path) -> None:
+    """The forgetting policy ages a never-used skill from creation, so creation writes the anchor."""
     stats_file = skill_dir / ".stats.json"
     assert not stats_file.exists()
 
-    first = collector.get_stats(skill_dir)
+    collector.anchor_created_at(skill_dir)
 
     assert stats_file.exists()
-    assert first.created_at is not None
-    later = SkillStatsCollector().get_stats(skill_dir)
-    assert later.created_at == first.created_at
+    anchored = collector.get_stats(skill_dir)
+    assert anchored.created_at is not None
+    assert SkillStatsCollector().get_stats(skill_dir).created_at == anchored.created_at
 
 
-def test_corrupt_stats_file_is_set_aside_and_replaced(collector: SkillStatsCollector, skill_dir: Path) -> None:
-    """An unparseable ledger is kept for inspection and a fresh, valid one takes its place."""
+def test_anchor_created_at_leaves_an_existing_ledger_alone(collector: SkillStatsCollector, skill_dir: Path) -> None:
+    """A rerun or a re-save must not restart the clock of a skill that already has one."""
+    collector.record_use(skill_dir, success=True)
+    before = json.loads((skill_dir / ".stats.json").read_text())
+
+    collector.anchor_created_at(skill_dir)
+
+    assert json.loads((skill_dir / ".stats.json").read_text()) == before
+
+
+def test_corrupt_stats_file_is_set_aside_and_not_replaced(collector: SkillStatsCollector, skill_dir: Path) -> None:
+    """An unparseable ledger is kept for inspection; the read that found it writes no replacement."""
     stats_file = skill_dir / ".stats.json"
     stats_file.write_text("{{not valid json!!!")
 
     stats = collector.get_stats(skill_dir)
 
     assert stats.call_count == 0
-    assert stats.created_at is not None
     assert (skill_dir / ".stats.json.corrupt").read_text() == "{{not valid json!!!"
-    assert json.loads(stats_file.read_text())["call_count"] == 0
+    assert not stats_file.exists()
 
 
 @pytest.mark.parametrize("payload", ["[]", "null", '"text"', "42"])

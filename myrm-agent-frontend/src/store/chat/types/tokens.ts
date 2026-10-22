@@ -23,6 +23,14 @@ export type TokenUsage = {
   cache_hit_rate?: number;
   net_savings_usd?: number;
   has_effective_cache?: boolean;
+  /** External delegation auth entitlement ('subscription' vs 'api_key'). */
+  auth_mode?: 'subscription' | 'api_key' | string;
+  /** Whether this run carries metered API billing cost. */
+  billable?: boolean;
+  /** Delegation source backend (e.g. delegate:claude, invoke_acp:codex). */
+  source?: string;
+  /** Estimated cost savings from user subscription reuse. */
+  estimated_savings_usd?: number;
 };
 
 // Token 经济学快照

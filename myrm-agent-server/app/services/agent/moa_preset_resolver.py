@@ -1,20 +1,28 @@
 """Session-level MoA preset activation for agent-loop advisor overlay.
 
 [INPUT]
-- Agent profile ``engine_params`` (includes ``moa_overlay`` definition)
+- Agent profile ``engine_params`` (includes ``moa_overlay`` definition and activation_mode)
 - Request ``active_moa_preset_id`` (chat/session picker selection)
+- Task context ``routing_tier``, ``task_tools``, ``has_risk_trigger``
 
 [OUTPUT]
-- ``apply_moa_preset_activation``: returns engine_params with overlay enabled only for active preset
+- ``apply_moa_preset_activation``: returns engine_params with overlay enabled for active preset or auto-activated policy
 - ``resolve_preset_reference_selections``: refs for a preset id (strict per-preset when ``presets`` exists)
-- ``resolve_effective_moa_preset_id``: resolves active preset accounting for REASONING tier auto-gate
+- ``resolve_effective_moa_preset_id``: resolves active preset accounting for picker request, REASONING tier, and auto-activation policy
+- ``resolve_profile_moa_activation_mode``: extracts declarative activation mode from agent profile
+- ``MoAActivationMode``: literal type ("manual", "always", "risk_triggered")
 
 [POS]
-Business-layer resolver. Profile ``moa_overlay.enabled`` means preset is configured and
-available in the model picker — not "always run overlay on every message".
+Business-layer resolver. Implements Agent Profile Advisor Auto-Activation Policy,
+evaluating declarative profile policies (manual, always, risk_triggered) while
+maintaining explicit user picker choice as top priority.
 """
 
 from __future__ import annotations
+
+from typing import Literal
+
+MoAActivationMode = Literal["manual", "always", "risk_triggered"]
 
 MOA_PRESET_DEFAULT_ID = "default"
 MOA_PRESET_REVIEW_ID = "review"
@@ -25,6 +33,16 @@ VALID_MOA_PRESET_IDS: frozenset[str] = frozenset(
         MOA_PRESET_DEFAULT_ID,
         MOA_PRESET_REVIEW_ID,
         MOA_PRESET_FAST_ID,
+    }
+)
+
+DEFAULT_RISK_TRIGGER_TOOLS: frozenset[str] = frozenset(
+    {
+        "file_write_tool",
+        "file_edit_tool",
+        "bash_code_execute_tool",
+        "skill_manage_tool",
+        "skill_market_tool",
     }
 )
 
@@ -146,41 +164,19 @@ def is_moa_preset_configured(engine_params: dict[str, object] | None) -> bool:
     return has_preset_refs or len(_top_level_reference_selections(overlay)) > 0
 
 
-def apply_moa_preset_activation(
+def resolve_profile_moa_activation_mode(
     engine_params: dict[str, object] | None,
-    active_moa_preset_id: str | None,
-) -> dict[str, object] | None:
-    """Enable ``moa_overlay`` only when the chat picker activated a valid preset."""
-    if engine_params is None:
-        return None
-
-    params = dict(engine_params)
-    overlay = _moa_overlay_block(params)
-    if overlay is None:
-        return params
-
-    overlay_copy = dict(overlay)
-    activate = (
-        overlay.get("enabled") is True and active_moa_preset_id is not None and active_moa_preset_id in VALID_MOA_PRESET_IDS
-    )
-    overlay_copy["enabled"] = activate
-    if activate and active_moa_preset_id is not None:
-        preset_block = _preset_blocks(overlay_copy).get(active_moa_preset_id)
-        refs = resolve_preset_reference_selections(overlay_copy, active_moa_preset_id)
-        overlay_copy["reference_model_selections"] = list(refs)
-
-        if preset_block is not None:
-            for key in _PRESET_OVERRIDE_KEYS:
-                if key in preset_block:
-                    overlay_copy[key] = preset_block[key]
-
-        preset_overrides = _PRESET_PARAM_OVERRIDES.get(active_moa_preset_id, {})
-        for key, value in preset_overrides.items():
-            if preset_block is None or key not in preset_block:
-                overlay_copy[key] = value
-
-    params["moa_overlay"] = overlay_copy
-    return params
+) -> MoAActivationMode:
+    """Extract declarative activation mode from agent profile moa_overlay."""
+    overlay = _moa_overlay_block(engine_params)
+    if overlay is None or not overlay.get("enabled"):
+        return "manual"
+    raw_mode = overlay.get("activation_mode")
+    if raw_mode in ("manual", "always", "risk_triggered"):
+        return raw_mode  # type: ignore[return-value]
+    if overlay.get("auto_on_reasoning") is True:
+        return "risk_triggered"
+    return "manual"
 
 
 def resolve_effective_moa_preset_id(
@@ -189,43 +185,107 @@ def resolve_effective_moa_preset_id(
     routing_tier: str | None = None,
     auto_moa_reasoning: bool = False,
     auto_moa_preset_id: str | None = None,
+    task_tools: list[str] | tuple[str, ...] | None = None,
+    has_risk_trigger: bool = False,
 ) -> str | None:
     """Resolve effective MoA preset id to activate for the current turn.
 
-    1. If user explicitly requested a valid preset in the model picker, honor it.
-    2. If auto_moa_reasoning is True (or agent profile moa_overlay.auto_on_reasoning is True)
-       and the task was routed to REASONING tier, automatically select an appropriate MoA preset
-       (preferring auto_moa_preset_id, 'review', or 'default' with configured reference models).
-    3. Otherwise, return None (single-model execution).
+    Priority:
+    1. Explicit User Picker Request:
+       - If valid preset id requested, honor it.
+       - If explicitly requested 'none'/'disabled', turn off overlay.
+    2. Profile Auto-Activation Policy:
+       - 'always': auto-activate default preset (fallback to any configured preset).
+       - 'risk_triggered': auto-activate when risk condition is met (reasoning tier,
+         risk trigger flag, or task matches risk tools).
+       - 'manual': keep single model (None).
     """
-    if requested_preset_id is not None and requested_preset_id in VALID_MOA_PRESET_IDS:
-        return requested_preset_id
+    if requested_preset_id is not None:
+        if requested_preset_id in VALID_MOA_PRESET_IDS:
+            return requested_preset_id
+        if requested_preset_id in ("none", "off", "disabled"):
+            return None
 
     overlay = _moa_overlay_block(engine_params)
-    if overlay is None:
+    if overlay is None or not is_moa_preset_configured(engine_params):
         return None
 
-    # Check per-agent override or request-level flag
-    agent_auto = overlay.get("auto_on_reasoning")
-    is_auto_enabled = bool(agent_auto if isinstance(agent_auto, bool) else auto_moa_reasoning)
+    activation_mode = resolve_profile_moa_activation_mode(engine_params)
+    if auto_moa_reasoning and activation_mode == "manual":
+        activation_mode = "risk_triggered"
 
-    # Check if routing tier is REASONING
-    is_reasoning_tier = routing_tier in ("reasoning", "REASONING")
+    if activation_mode == "manual":
+        return None
 
-    if is_auto_enabled and is_reasoning_tier and is_moa_preset_configured(engine_params):
-        candidate_preset = (
-            auto_moa_preset_id
-            if (auto_moa_preset_id is not None and auto_moa_preset_id in VALID_MOA_PRESET_IDS)
-            else MOA_PRESET_REVIEW_ID
-        )
-        if len(resolve_preset_reference_selections(overlay, candidate_preset)) > 0:
-            return candidate_preset
-        # Fallback to default if candidate has no refs
-        if len(resolve_preset_reference_selections(overlay, MOA_PRESET_DEFAULT_ID)) > 0:
-            return MOA_PRESET_DEFAULT_ID
-        # Fallback to fast if default has no refs
-        if len(resolve_preset_reference_selections(overlay, MOA_PRESET_FAST_ID)) > 0:
-            return MOA_PRESET_FAST_ID
-        return candidate_preset
+    def _select_candidate(preferred_id: str | None) -> str | None:
+        candidates = [preferred_id] if preferred_id in VALID_MOA_PRESET_IDS else []
+        candidates.extend([MOA_PRESET_REVIEW_ID, MOA_PRESET_DEFAULT_ID, MOA_PRESET_FAST_ID])
+        for cid in candidates:
+            if cid and len(resolve_preset_reference_selections(overlay, cid)) > 0:
+                return cid
+        return candidates[0] if candidates else None
+
+    raw_default = overlay.get("default_preset_id")
+    target_preset = str(raw_default) if isinstance(raw_default, str) else (auto_moa_preset_id or MOA_PRESET_REVIEW_ID)
+
+    if activation_mode == "always":
+        return _select_candidate(target_preset)
+
+    if activation_mode == "risk_triggered":
+        is_reasoning_tier = routing_tier in ("reasoning", "REASONING")
+        custom_risk_tools = overlay.get("risk_trigger_tools")
+        risk_tools = set(custom_risk_tools) if isinstance(custom_risk_tools, (list, tuple, set)) else DEFAULT_RISK_TRIGGER_TOOLS
+        task_tool_set = set(task_tools or ())
+        has_tool_risk = bool(task_tool_set & risk_tools)
+
+        if is_reasoning_tier or has_risk_trigger or has_tool_risk:
+            return _select_candidate(target_preset)
 
     return None
+
+
+def apply_moa_preset_activation(
+    engine_params: dict[str, object] | None,
+    active_moa_preset_id: str | None = None,
+    routing_tier: str | None = None,
+    task_tools: list[str] | tuple[str, ...] | None = None,
+    has_risk_trigger: bool = False,
+) -> dict[str, object] | None:
+    """Enable ``moa_overlay`` for active preset via explicit request or auto-activation policy."""
+    if engine_params is None:
+        return None
+
+    params = dict(engine_params)
+    overlay = _moa_overlay_block(params)
+    if overlay is None:
+        return params
+
+    effective_preset_id = resolve_effective_moa_preset_id(
+        params,
+        requested_preset_id=active_moa_preset_id,
+        routing_tier=routing_tier,
+        task_tools=task_tools,
+        has_risk_trigger=has_risk_trigger,
+    )
+
+    overlay_copy = dict(overlay)
+    activate = overlay.get("enabled") is True and effective_preset_id is not None and effective_preset_id in VALID_MOA_PRESET_IDS
+    overlay_copy["enabled"] = activate
+    if activate and effective_preset_id is not None:
+        preset_block = _preset_blocks(overlay_copy).get(effective_preset_id)
+        refs = resolve_preset_reference_selections(overlay_copy, effective_preset_id)
+        overlay_copy["reference_model_selections"] = list(refs)
+        overlay_copy["active_preset_id"] = effective_preset_id
+
+        if preset_block is not None:
+            for key in _PRESET_OVERRIDE_KEYS:
+                if key in preset_block:
+                    overlay_copy[key] = preset_block[key]
+
+        preset_overrides = _PRESET_PARAM_OVERRIDES.get(effective_preset_id, {})
+        for key, value in preset_overrides.items():
+            if preset_block is None or key not in preset_block:
+                overlay_copy[key] = value
+
+    params["moa_overlay"] = overlay_copy
+    return params

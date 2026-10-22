@@ -135,6 +135,42 @@ async def test_worker_pauses_on_auth_batch(tmp_path: Path, mock_indexer: AsyncMo
 
 
 @pytest.mark.asyncio
+async def test_an_auth_failure_does_not_pause_a_batch_that_read_another_source(
+    tmp_path: Path, mock_indexer: AsyncMock
+) -> None:
+    from langchain_core.messages import AIMessage
+
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    (structure.raw_dir / "good.md").write_text("good text", encoding="utf-8")
+    (structure.raw_dir / "bad.md").write_text("bad text", encoding="utf-8")
+
+    async def answer(messages: list[object]) -> AIMessage:
+        prompt = str(getattr(messages[-1], "content", ""))
+        if "# Document Content:" not in prompt:
+            return AIMessage(content="## Compiled Truth\nArticle.")
+        if "bad text" in prompt:
+            raise RuntimeError("401 Unauthorized")
+        return AIMessage(content='[{"name": "Good", "definition": "d"}]')
+
+    llm = AsyncMock()
+    llm.ainvoke.side_effect = answer
+    compiler = WikiCompiler(llm, structure, WikiConfig(parallel_compilation=False), indexer=mock_indexer)
+
+    await compiler.compile_all()
+
+    assert compiler.get_compile_run().state == "running"
+    with compiler._queue._get_conn() as conn:
+        rows = {
+            Path(r["file_path"]).name: (r["status"], r["error_kind"])
+            for r in conn.execute("SELECT * FROM ingestion_queue")
+        }
+    assert rows == {"good.md": ("completed", None), "bad.md": ("failed", ErrorKind.AUTH.value)}
+
+
+@pytest.mark.asyncio
 async def test_compile_all_skips_drain_when_paused(tmp_path: Path, mock_indexer: AsyncMock) -> None:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 

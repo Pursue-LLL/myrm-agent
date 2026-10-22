@@ -141,21 +141,64 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
   }
 
   if (data.type === H.AgentEventType.TOKEN_USAGE) {
-    const tokenData = data.data as {
-      usage: TokenUsage;
-      cost_usd?: number;
-      model_name?: string;
-    };
+    const rawData = (data.data || {}) as Record<string, unknown>;
+
+    let resolvedUsage: TokenUsage;
+    let resolvedCostUsd: number | undefined;
+    let resolvedModelName: string | undefined;
+
+    if (rawData.usage && typeof rawData.usage === 'object') {
+      // Shape A: Standard nested usage payload
+      const nestedUsage = rawData.usage as TokenUsage;
+      resolvedUsage = {
+        ...nestedUsage,
+        auth_mode: (rawData.auth_mode as string) || nestedUsage.auth_mode,
+        billable: rawData.billable !== undefined ? Boolean(rawData.billable) : nestedUsage.billable,
+        source: (rawData.source as string) || nestedUsage.source,
+      };
+      resolvedCostUsd = typeof rawData.cost_usd === 'number' ? (rawData.cost_usd as number) : undefined;
+      resolvedModelName = typeof rawData.model_name === 'string' ? (rawData.model_name as string) : undefined;
+    } else {
+      // Shape B: External delegation flat payload (acp / external_agents)
+      const inputTokens = Number(rawData.input_tokens ?? rawData.prompt_tokens ?? 0);
+      const outputTokens = Number(rawData.output_tokens ?? rawData.completion_tokens ?? 0);
+      const totalTokens = Number(rawData.total_tokens ?? (inputTokens + outputTokens));
+      const authMode = (rawData.auth_mode as string) || 'subscription';
+      const billable = rawData.billable !== undefined ? Boolean(rawData.billable) : authMode === 'api_key';
+      const source = (rawData.source as string) || 'delegate:external';
+
+      const savingsUsd = !billable
+        ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6))
+        : 0;
+
+      resolvedUsage = {
+        prompt_tokens: inputTokens,
+        completion_tokens: outputTokens,
+        total_tokens: totalTokens,
+        auth_mode: authMode,
+        billable: billable,
+        source: source,
+        estimated_savings_usd: savingsUsd,
+      };
+
+      resolvedCostUsd =
+        typeof rawData.cost_usd === 'number'
+          ? (rawData.cost_usd as number)
+          : billable
+          ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6))
+          : 0;
+      resolvedModelName = typeof rawData.model_name === 'string' ? (rawData.model_name as string) : source;
+    }
 
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
-        state.messages[messageIndex].usage = tokenData.usage;
-        if (tokenData.cost_usd !== undefined) {
-          state.messages[messageIndex].costUsd = tokenData.cost_usd;
+        state.messages[messageIndex].usage = resolvedUsage;
+        if (resolvedCostUsd !== undefined) {
+          state.messages[messageIndex].costUsd = resolvedCostUsd;
         }
-        if (tokenData.model_name) {
-          state.messages[messageIndex].modelName = tokenData.model_name;
+        if (resolvedModelName) {
+          state.messages[messageIndex].modelName = resolvedModelName;
         }
       }
     });

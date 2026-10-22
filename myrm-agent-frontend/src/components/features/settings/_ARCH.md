@@ -42,6 +42,7 @@
 | `mcp/`                           | MCP 列表/编辑/安全扫描 Ack                           | [mcp/_ARCH.md](mcp/_ARCH.md)                                                     |
 | `common/`                        | 骨架屏、共享 UI                                      | [common/_ARCH.md](common/_ARCH.md)                                               |
 | `default-model/`                 | 默认模型子表单                                       | [default-model/_ARCH.md](default-model/_ARCH.md)                                 |
+| `model-overrides/`               | 用户自定义模型 Context 窗口、输出上限与 BYOK 价格覆盖 | [model-overrides/_ARCH.md](model-overrides/_ARCH.md)                             |
 | `model-service/`                 | 模型服务配置                                         | [model-service/_ARCH.md](model-service/_ARCH.md)                                 |
 | `retrieval/`                     | 检索服务配置                                         | [retrieval/_ARCH.md](retrieval/_ARCH.md)                                         |
 

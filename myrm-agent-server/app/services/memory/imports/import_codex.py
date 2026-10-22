@@ -143,7 +143,7 @@ def _parse_memory(entries: list[object]) -> list[dict[str, object]]:
                 "confidence": 0.75,
                 "tags": ["codex_memory"],
                 "created_at": iso_or_now(entry.get("created_at") or entry.get("timestamp")),
-                "metadata": build_metadata("codex", entry, ("id", "type")),
+                "metadata": build_metadata("codex", entry, ("id", "type", "file")),
             }
         )
     return items

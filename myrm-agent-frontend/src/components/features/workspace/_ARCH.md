@@ -13,6 +13,7 @@
 | `ReviewPanel.tsx`       | 组件 | 变更审阅侧栏（文件头虚拟化 + 检索/状态过滤、单文件 >300 行 Diff 默认折叠、截断提示、一键复制、workspacePath 徽章） |
 | `ReviewDiffRow.tsx`     | 组件 | 单文件差异行（rawDiff 懒计算、DiffViewer 高亮渲染、增删统计与超大文件提示）                                        |
 | `WorkspaceLayout.tsx`   | 核心 | `/work` 多窗格工作区布局入口                                                                                       |
+| `scratchpad/`           | 子包 | 极速临时便签与工作区项目升格调度（原生 `<dialog>`、Markdown 预览、一键升格）。参见 [scratchpad/_ARCH.md](scratchpad/_ARCH.md) |
 
 ## 核心设计与交互规范
 

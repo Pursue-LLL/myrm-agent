@@ -105,20 +105,23 @@ export function isLegitSameValue(value) {
 }
 
 export function loadShellAllowlist(rootDir = resolve(scriptsDir, '..')) {
-  const allowlist = JSON.parse(
-    readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'),
-  );
+  const allowlist = JSON.parse(readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'));
   return {
     allowedSameValues: new Set(allowlist.allowedSameValues || []),
     allowedSameKeys: new Set(allowlist.allowedSameKeys || []),
   };
 }
 
+/** Emoji carry no language; strip them so decorating an English value with one cannot mask a missing translation. */
+function stripPictographs(value) {
+  return value.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '').trim();
+}
+
 export function isTranslationShell(key, enValue, localeValue, allowlists) {
   if (typeof enValue !== 'string' || typeof localeValue !== 'string') {
     return false;
   }
-  if (localeValue !== enValue || enValue.length <= 2) {
+  if (stripPictographs(localeValue) !== stripPictographs(enValue) || enValue.length <= 2) {
     return false;
   }
   if (isLegitSameValue(enValue)) {

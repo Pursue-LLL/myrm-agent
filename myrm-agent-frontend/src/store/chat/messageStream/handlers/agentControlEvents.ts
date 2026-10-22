@@ -26,7 +26,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     } else {
       // Use frontend translation when backend sends an untranslated error token.
       const rawError = data.error || data.data || 'Unknown error';
-      const friendlyError = await H.getUserFriendlyError(data.error_kind, rawError, data.cooldown_remaining_ms);
+      const friendlyError = await H.getUserFriendlyError(data.error_kind, rawError);
       errorText = friendlyError.message;
       hint = friendlyError.hint;
     }
@@ -58,19 +58,6 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         ctx.added = true;
       }
     });
-
-    const retryAfterMs = data.retry_after_ms || data.cooldown_remaining_ms;
-    if (retryAfterMs) {
-      const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
-      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-      const toastMessage = lang?.startsWith('zh')
-        ? `已达到速率限制。请在 ${retryAfterSeconds} 秒后重试。`
-        : `Rate limit exceeded. Please retry after ${retryAfterSeconds} seconds.`;
-
-      import('@/lib/utils/toast').then(({ toast }) => {
-        toast.error(toastMessage, { duration: Math.min(retryAfterMs, 10000) });
-      });
-    }
 
     actions.setLoading(false);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {

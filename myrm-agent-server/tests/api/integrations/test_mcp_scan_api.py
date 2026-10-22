@@ -7,7 +7,14 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.mcp.config_scan import (
+    MCPConfigScanResult,
+    MCPRuntimeScanResult,
+    MCPScanFinding,
+    MCPScanSeverity,
+)
 
+from app.api.integrations.mcp import _config_scan_to_data, _runtime_scan_to_data
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -179,3 +186,64 @@ class TestMCPScanEndpoint:
         assert response.status_code == 200
         data = response.json()["data"]
         assert any(f["threatType"] == "sensitive_path" for f in data["findings"])
+
+
+def _finding(severity: MCPScanSeverity) -> MCPScanFinding:
+    return MCPScanFinding(
+        threat_type="probe",
+        severity=severity,
+        description=f"{severity.value} finding",
+        field="description",
+        recommendation="review",
+    )
+
+
+# Level labels sort alphabetically as critical < high < info < low < medium, which is not the risk order.
+_MIXED_LEVELS = [
+    ([MCPScanSeverity.HIGH, MCPScanSeverity.INFO], "high"),
+    ([MCPScanSeverity.CRITICAL, MCPScanSeverity.MEDIUM], "critical"),
+    ([MCPScanSeverity.LOW, MCPScanSeverity.HIGH, MCPScanSeverity.MEDIUM], "high"),
+    ([MCPScanSeverity.INFO, MCPScanSeverity.LOW], "low"),
+    ([MCPScanSeverity.INFO], "info"),
+    ([], None),
+]
+
+
+class TestScanResultSerialization:
+    """Scan results reach the UI with the max severity ranked by risk, never by label text."""
+
+    @pytest.mark.parametrize(("levels", "expected"), _MIXED_LEVELS)
+    def test_runtime_scan_reports_the_most_severe_level(
+        self,
+        levels: list[MCPScanSeverity],
+        expected: str | None,
+    ) -> None:
+        result = MCPRuntimeScanResult(server_name="srv", findings=tuple(_finding(level) for level in levels))
+
+        data = _runtime_scan_to_data(result)
+
+        assert data.max_severity == expected
+        assert [finding.severity for finding in data.findings] == [level.value for level in levels]
+
+    @pytest.mark.parametrize(("levels", "expected"), _MIXED_LEVELS)
+    def test_config_scan_reports_the_most_severe_level(
+        self,
+        levels: list[MCPScanSeverity],
+        expected: str | None,
+    ) -> None:
+        result = MCPConfigScanResult(server_name="srv", findings=tuple(_finding(level) for level in levels))
+
+        assert _config_scan_to_data(result).max_severity == expected
+
+    def test_runtime_scan_blocks_use_from_high_risk_findings(self) -> None:
+        result = MCPRuntimeScanResult(
+            server_name="srv",
+            findings=(_finding(MCPScanSeverity.HIGH), _finding(MCPScanSeverity.INFO)),
+        )
+
+        data = _runtime_scan_to_data(result)
+
+        assert data.server_name == "srv"
+        assert data.allow_save is False
+        assert data.requires_acknowledgement is True
+        assert (data.findings[0].threat_type, data.findings[0].field) == ("probe", "description")

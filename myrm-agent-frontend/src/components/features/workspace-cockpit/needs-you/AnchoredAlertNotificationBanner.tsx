@@ -73,7 +73,7 @@ export const AnchoredAlertNotificationBanner: React.FC<AnchoredAlertNotification
       <button
         type="button"
         onClick={() => openDrawer(latestAlert?.itemId)}
-        className="ml-0.5 text-primary hover:text-primary/80 font-medium flex items-center gap-0.5 transition-colors focus:outline-none"
+        className="ml-0.5 text-primary hover:text-primary/80 font-medium flex items-center gap-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         data-testid="open-needs-you-drawer-btn"
       >
         <span>接手处理</span>

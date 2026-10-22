@@ -28,6 +28,8 @@ from urllib.parse import urlparse
 from myrm_agent_harness.core.security.audit import record_decision
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import httpx
     import httpx2
 
@@ -200,7 +202,7 @@ def create_mcp_redirect_guard_event_hooks(
     initial_url: str,
     *,
     custom_sensitive_headers: frozenset[str] | None = None,
-) -> dict[str, list[object]]:
+) -> dict[str, list[Callable[..., Awaitable[None]]]]:
     """Build httpx / httpx2 event_hooks to safeguard follow_redirects against credential leaks."""
     initial_origin = extract_origin(initial_url)
 

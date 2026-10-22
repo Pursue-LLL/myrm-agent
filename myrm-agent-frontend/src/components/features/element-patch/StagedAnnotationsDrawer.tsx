@@ -16,6 +16,7 @@ import {
 import { useElementPatchStore } from './useElementPatchStore';
 import { formatAnnotationStatus } from './elementPatchEngine';
 import { StagedBatchPayload } from './elementPatchTypes';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export interface StagedAnnotationsDrawerProps {
   artifactId: string;
@@ -221,7 +222,7 @@ export const StagedAnnotationsDrawer: React.FC<StagedAnnotationsDrawerProps> = (
                         e.stopPropagation();
                         handleStartEdit(ann.id, ann.instruction);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-zinc-200 transition-opacity"
+                      className={`${REVEAL_ON_HOVER} p-1 text-zinc-400 hover:text-zinc-200 transition-opacity`}
                       title="修改批注"
                     >
                       <Edit2 className="w-3 h-3" />

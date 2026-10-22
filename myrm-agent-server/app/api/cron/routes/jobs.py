@@ -49,23 +49,27 @@ async def list_jobs(
     offset: int = Query(0, ge=0),
     search: str | None = Query(None, max_length=200),
     chat_id: str | None = Query(None, max_length=255),
+    project_id: str | None = Query(None, max_length=255),
 ) -> CronJobsListResponse:
     mgr = _h._get_manager()
 
     name_filter = search.strip() if search else None
     chat_filter = chat_id.strip() if chat_id else None
+    project_filter = project_id.strip() if project_id else None
     jobs = await mgr.list_jobs(
         USER_ID,
         name_filter=name_filter,
         chat_id=chat_filter,
+        project_id=project_filter,
         limit=limit,
         offset=offset,
     )
-    if name_filter or chat_filter:
+    if name_filter or chat_filter or project_filter:
         all_matched = await mgr.list_jobs(
             USER_ID,
             name_filter=name_filter,
             chat_id=chat_filter,
+            project_id=project_filter,
         )
         total = len(all_matched)
     else:
@@ -110,6 +114,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             model=body.model,
             chat_id=body.chat_id,
             agent_id=body.agent_id,
+            project_id=body.project_id,
             command=body.command,
             delivery=_h._delivery_from_request(body.delivery),
             failure_delivery=(_h._delivery_from_request(body.failure_delivery) if body.failure_delivery else None),
@@ -229,6 +234,8 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             prompt=body.prompt,
             model=body.model,
             agent_id=body.agent_id,
+            project_id=body.project_id,
+            clear_project_id=body.project_id is None and "project_id" in body.model_fields_set,
             command=body.command,
             delivery=delivery_patch,
             failure_delivery=failure_delivery_patch,

@@ -12,8 +12,11 @@ provides crash recovery hydration for long-running autonomous runs.
 - myrm_agent_harness.api.security::TaskAirbagStatus (POS: 挂机安全气囊生命周期状态枚举)
 - myrm_agent_harness.api.security::TaskAirbagDiffSummary (POS: 挂机安全气囊累积变更统计摘要)
 
+- app.core.channel_bridge.locale_provider::resolve_user_locale (POS: personal-settings locale)
+- app.channels.i18n.engine::channel_t (POS: localized notification copy)
+
 [OUTPUT]
-- TaskAirbagService: Singleton service managing airbag lifecycle and persistence.
+- TaskAirbagService: Singleton service managing airbag lifecycle, persistence and external-effect attribution.
 - get_task_airbag_service: Service factory.
 
 [POS]
@@ -24,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 
 from myrm_agent_harness.api.security import (
@@ -45,6 +49,9 @@ class TaskAirbagService:
 
     def __init__(self) -> None:
         self._active_manifests: dict[str, TaskAirbagManifest] = {}
+        # Chat session -> task whose airbag is armed for it, so an action seen only by its session id
+        # (the execution interceptor) can be attributed to the right airbag.
+        self._task_by_session: dict[str, str] = {}
 
     def _get_manifest_path(self, workspace_path: str, task_id: str) -> Path:
         return Path(workspace_path) / _AIRBAG_DIR_NAME / f"{task_id}.json"
@@ -90,14 +97,35 @@ class TaskAirbagService:
             logger.warning("Failed to load airbag manifest for task '%s': %s", task_id, exc)
             return None
 
-    async def arm_airbag(self, task_id: str, workspace_path: str) -> TaskAirbagManifest | None:
-        """Arm a safety airbag before starting an unattended task."""
-        manifest = await arm_task_airbag(task_id, workspace_path)
-        if manifest is None:
+    def _armed_baseline(self, task_id: str, workspace_path: str) -> TaskAirbagManifest | None:
+        """Return the task's still-armed baseline for this workspace, from memory or the persisted manifest."""
+        manifest = self._active_manifests.get(task_id)
+        if manifest is None or manifest.workspace_path != workspace_path:
+            manifest = self._load_manifest_from_disk(workspace_path, task_id)
+        if manifest is None or manifest.workspace_path != workspace_path:
             return None
+        return manifest if manifest.status == TaskAirbagStatus.ARMED else None
+
+    async def arm_airbag(self, task_id: str, workspace_path: str, *, session_id: str | None = None) -> TaskAirbagManifest | None:
+        """Arm the pre-flight baseline of an unattended task; an armed baseline is kept, not re-captured.
+
+        A task's stream starts many times (loop restarts, wait resumes). Capturing again on every start would move
+        the rollback point and the change summary to the latest start, so the baseline stays the task's first start
+        until it is rolled back or dismissed.
+        """
+        workspace = str(Path(workspace_path).resolve())
+        manifest = self._armed_baseline(task_id, workspace)
+        if manifest is not None:
+            logger.debug("Keeping armed airbag baseline for task '%s'", task_id)
+        else:
+            manifest = await arm_task_airbag(task_id, workspace)
+            if manifest is None:
+                return None
+            self._persist_manifest(manifest)
 
         self._active_manifests[task_id] = manifest
-        self._persist_manifest(manifest)
+        if session_id:
+            self._task_by_session[session_id] = task_id
         return manifest
 
     def record_external_effect(self, task_id: str, effect: str) -> None:
@@ -111,17 +139,23 @@ class TaskAirbagService:
                 self._active_manifests[task_id] = updated
                 self._persist_manifest(updated)
 
-    async def get_airbag_status(
-        self, task_id: str, workspace_path: str | None = None
-    ) -> TaskAirbagDiffSummary | None:
-        """Query cumulative diff summary and status of an airbag."""
+    def record_session_external_effects(self, session_id: str, effects: Sequence[str]) -> None:
+        """Attribute external effect categories to the airbag armed for ``session_id``; no-op when none is."""
+        task_id = self._task_by_session.get(session_id)
+        if task_id is None:
+            return
+        for effect in effects:
+            self.record_external_effect(task_id, effect)
+
+    async def get_airbag_status(self, task_id: str, workspace_path: str | None = None) -> TaskAirbagDiffSummary | None:
+        """Query cumulative diff summary of an airbag; None once the user dismissed it (the changes were kept)."""
         manifest = self._active_manifests.get(task_id)
         if manifest is None and workspace_path:
             manifest = self._load_manifest_from_disk(workspace_path, task_id)
             if manifest:
                 self._active_manifests[task_id] = manifest
 
-        if manifest is None:
+        if manifest is None or manifest.status == TaskAirbagStatus.DISMISSED:
             return None
 
         return await get_task_airbag_diff(manifest)
@@ -143,21 +177,30 @@ class TaskAirbagService:
             updated = manifest.with_status(TaskAirbagStatus.ROLLED_BACK, rescue_snapshot_id=rescue_id)
             self._active_manifests[task_id] = updated
             self._persist_manifest(updated)
-            self._broadcast_rollback_event(task_id, rescue_id)
+            self._forget_sessions(task_id)
+            await self._broadcast_rollback_event(task_id, rescue_id)
             return True
         return False
 
-    def _broadcast_rollback_event(self, task_id: str, rescue_id: str | None) -> None:
-        """Publish system notification event on successful time-travel rollback."""
+    def _forget_sessions(self, task_id: str) -> None:
+        """Drop session attributions of a task whose airbag is no longer armed."""
+        for session_id in [sid for sid, tid in self._task_by_session.items() if tid == task_id]:
+            del self._task_by_session[session_id]
+
+    async def _broadcast_rollback_event(self, task_id: str, rescue_id: str | None) -> None:
+        """Publish a localized system notification after a successful rollback."""
         try:
+            from app.channels.i18n.engine import channel_t
+            from app.core.channel_bridge.locale_provider import resolve_user_locale
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
+            locale = await resolve_user_locale()
             get_event_bus().publish(
                 AppEvent(
                     event_type=AppEventType.SYSTEM_NOTIFICATION,
                     data={
-                        "title": "时光倒流回滚成功",
-                        "message": f"任务 {task_id} 已原子重置还原至起跑点",
+                        "title": channel_t(locale, "airbag_rolled_back_title"),
+                        "message": channel_t(locale, "airbag_rolled_back_message"),
                         "meta_data": {
                             "kind": "airbag_rolled_back",
                             "task_id": task_id,
@@ -181,6 +224,7 @@ class TaskAirbagService:
         updated = manifest.with_status(TaskAirbagStatus.DISMISSED)
         self._active_manifests[task_id] = updated
         self._persist_manifest(updated)
+        self._forget_sessions(task_id)
         return True
 
 

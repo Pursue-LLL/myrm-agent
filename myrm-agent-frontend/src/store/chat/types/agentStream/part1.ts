@@ -46,7 +46,6 @@ export const AgentEventType = {
   RATE_LIMIT_UPDATED: 'rate_limit_updated',
   RATE_LIMIT_WARNING: 'rate_limit_warning',
   RATE_LIMIT_THROTTLED: 'rate_limit_throttled',
-  SUBAGENT_STATUS_UPDATE: 'subagent_status_update',
   CATCHUP_SNAPSHOT: 'catchup_snapshot',
   MEMORY_BRIEF: 'memory_brief',
   REASONING: 'reasoning',
@@ -83,7 +82,6 @@ export const AgentEventType = {
   DESKTOP_CONTROL_APPROVAL_REQUEST: 'desktop_control_approval_request',
   DESKTOP_ENVELOPE_PROGRESS: 'desktop_envelope_progress',
   PTC_NOTIFY: 'ptc_notify',
-  TOOL_PROGRESS: 'tool_progress',
   FISSION_TOPOLOGY: 'fission_topology',
   BROWSER_TAKEOVER_REQUESTED: 'browser_takeover_requested',
   BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
@@ -129,7 +127,7 @@ export interface ErrorStreamEvent extends BaseAgentEvent {
   data?: string;
   metadata?: Record<string, unknown>;
   error_kind?: ErrorKind;
-  retry_after_ms?: number;
+  /** Provider-stated wait; already worded in the diagnostic message. */
   cooldown_remaining_ms?: number;
   recovery_actions?: RecoveryAction[];
   default_hint?: string;

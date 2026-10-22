@@ -3,9 +3,12 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 
-export const WeekDistributionChart = memo<{ data: Record<string, number> }>(({ data }) => {
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const values = weekDays.map((_, idx) => data[idx.toString()] || data[idx] || 0);
+export const WeekDistributionChart = memo<{ data: Record<string, number>; locale?: string }>(({ data, locale = 'en' }) => {
+  const isZh = locale.startsWith('zh');
+  const enWeekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const zhWeekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const weekDays = isZh ? zhWeekDays : enWeekDays;
+  const values = [0, 1, 2, 3, 4, 5, 6].map((idx) => data[idx.toString()] || data[idx] || 0);
   const maxValue = Math.max(...values, 1);
 
   return (
@@ -29,7 +32,7 @@ export const WeekDistributionChart = memo<{ data: Record<string, number> }>(({ d
                     animate={{ height: `${heightPercent}%` }}
                     transition={{ duration: 0.5, delay: idx * 0.05 }}
                     className="w-full rounded-t bg-primary/85 hover:bg-primary transition-colors"
-                    title={`${weekDays[idx]}: ${val} tool calls`}
+                    title={`${weekDays[idx]}: ${val} ${isZh ? '次调用' : 'tool calls'}`}
                   />
                 </div>
               );

@@ -12,6 +12,7 @@ from typing import Literal
 from myrm_agent_harness.toolkits.llms.consensus.types import PrivacyFilterMode
 
 MoAFanoutMode = Literal["user_turn", "per_iteration", "every_n", "risk_triggered"]
+MoAActivationMode = Literal["manual", "always", "risk_triggered"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +25,13 @@ class MoAOverlayConfig:
     """
 
     fanout: MoAFanoutMode = "user_turn"
+    activation_mode: MoAActivationMode = "manual"
+    default_preset_id: str = "review"
+    risk_trigger_tools: tuple[str, ...] = (
+        "file_write_tool",
+        "file_edit_tool",
+        "bash_code_execute_tool",
+    )
     every_n: int = 2
     reference_temperature: float = 0.6
     min_successful: int = 1
@@ -40,6 +48,7 @@ class MoAOverlayConfig:
 
 
 __all__ = [
+    "MoAActivationMode",
     "MoAFanoutMode",
     "MoAOverlayConfig",
     "PrivacyFilterMode",

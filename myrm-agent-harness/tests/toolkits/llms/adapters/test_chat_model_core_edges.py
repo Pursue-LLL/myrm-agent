@@ -91,6 +91,35 @@ class TestAinvokeFallbacks:
             result = await _make_model().ainvoke("hi", config=None, _json_mode_fallback=True)
         assert result.content == reasoning
 
+    async def test_json_mode_fallback_returns_fenced_json_reasoning(self) -> None:
+        reasoning = 'Final answer:\n```json\n{"answer": 42}\n```'
+        with patch.object(BaseChatModel, "ainvoke", new_callable=AsyncMock) as mock_ainvoke:
+            mock_ainvoke.return_value = AIMessage(content="", additional_kwargs={"reasoning_content": reasoning})
+            result = await _make_model().ainvoke("hi", config=None, _json_mode_fallback=True)
+        assert result.content == reasoning
+        mock_ainvoke.assert_awaited_once()
+
+    @pytest.mark.parametrize(
+        "reasoning",
+        [
+            "We need answer JSON only. Draft: { 'patterns': [ pick the strongest first",
+            'The schema is {"patterns": [...]} so I will think about each memory in turn',
+            "no braces at all",
+            "   ",
+        ],
+    )
+    async def test_json_mode_fallback_retries_when_reasoning_is_not_a_json_document(self, reasoning: str) -> None:
+        """A cut-off chain of thought that mentions braces must not replace the answer; the retry runs."""
+        with patch.object(BaseChatModel, "ainvoke", new_callable=AsyncMock) as mock_ainvoke:
+            mock_ainvoke.side_effect = [
+                AIMessage(content="", additional_kwargs={"reasoning_content": reasoning}),
+                AIMessage(content='{"answer": 42}'),
+            ]
+            result = await _make_model().ainvoke("hi", config=None, _json_mode_fallback=True)
+        assert result.content == '{"answer": 42}'
+        assert mock_ainvoke.await_count == 2
+        assert mock_ainvoke.await_args.kwargs["_in_fallback"] is True
+
     async def test_json_mode_fallback_retries_with_clean_kwargs(self) -> None:
         with patch.object(BaseChatModel, "ainvoke", new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.side_effect = [AIMessage(content="   "), AIMessage(content="ok")]

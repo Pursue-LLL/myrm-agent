@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = 目標需人工審查
 goal_stream_failed_message =
     自主任務意外停止，請在目標面板檢視並繼續。
+goal_usage_limit_wait_title = 目標已暫停，等待額度恢復
+goal_usage_limit_wait_message =
+    額度恢復後將自動繼續，無需任何操作。
+goal_usage_limit_resumed_title = 目標已繼續
+goal_usage_limit_resumed_message =
+    額度已恢復，目標正在繼續執行。
+goal_usage_limit_paused_title = 目標因額度用盡而暫停
+goal_usage_limit_paused_message =
+    額度需要很長時間才會恢復。準備好後可在目標面板中手動繼續。
+airbag_rolled_back_title = 變更已復原
+airbag_rolled_back_message =
+    工作區檔案已還原到目標開始前的狀態。
 new_session_started =  新對話已開始，下一條訊息將開啟新會話。
 compact_not_configured = ℹ 未配置壓縮功能。
 compact_success =  上下文已壓縮：{ $message_count } 條訊息已摘要，約節省 { $tokens_saved } tokens。{ $topic_hint }
@@ -238,10 +250,6 @@ analyzing_image = 正在分析圖片…
 search_unreachable = 搜尋服務已配置但當前無法連線。請檢查搜尋服務是否正常執行後重試。
 daily_budget_blocked = 已達每日預算上限，執行被攔截。請在 Web 設定中調整預算限額後繼續使用。
 channel_budget_blocked = 此頻道的每日預算已用完。其他頻道和 Web 會話不受影響。頻道所有者可在設定 > 預算中調整限額。
-cooldown_retry =
-    
-    
-    ⏱️ 請在 { $seconds } 秒後重試。
 config_next_steps =
     { "\u000A\u000A" }後續步驟：
     { $steps }

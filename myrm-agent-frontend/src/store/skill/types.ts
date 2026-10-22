@@ -5,7 +5,14 @@
 export type SkillType = 'prebuilt' | 'local' | 'workspace';
 
 export type SkillLifecycleStatus = 'active' | 'stale' | 'archived';
-export type SkillLifecycleAction = 'pin' | 'unpin' | 'restore' | 'archive' | 'reset-to-default' | 'accept-upstream';
+export type SkillLifecycleAction =
+  | 'pin'
+  | 'unpin'
+  | 'restore'
+  | 'archive'
+  | 'reset-to-default'
+  | 'accept-upstream'
+  | 'undo-last-replace';
 
 export type SkillCategory =
   | 'development'
@@ -114,6 +121,9 @@ export interface Skill {
 
   /** Provenance tracking for installed skills (e.g. source, url, version, installed_at) */
   installed_from?: Record<string, unknown> | null;
+
+  /** Rollback batch id for undo after marketplace or upstream replace */
+  last_replace_batch_id?: string | null;
 
   /** Managed installation receipt (immutable verification snapshot) */
   receipt?: {

@@ -164,7 +164,7 @@ export const GatewayNodeCardView: React.FC<GatewayNodeCardViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectProfile(p.profile_id)}
-                    className="flex items-center gap-2 text-left flex-1 min-w-0 mr-2 focus:outline-none"
+                    className="flex items-center gap-2 text-left flex-1 min-w-0 mr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="text-base">{p.avatar}</span>
                     <div className="min-w-0">

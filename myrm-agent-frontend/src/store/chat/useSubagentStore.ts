@@ -6,7 +6,7 @@ import { mergeSubagentSnapshot } from './subagentNodeMerge';
 export type SubagentStatus =
   | 'pending'
   | 'running'
-  | 'verifying'
+  | 'blocked'
   | 'completed'
   | 'failed'
   | 'timed_out'

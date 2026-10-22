@@ -6,7 +6,6 @@
 [OUTPUT]
 - sign_capability_handle: Produce cryptographically authenticated signature
 - verify_capability_signature: Constant-time validation of capability authenticity
-- get_ocap_secret: Retrieve or initialize ephemeral in-memory signing key
 
 [POS]
 Provides cryptographic unforgeability for Object-Capability tokens.
@@ -17,34 +16,21 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 import secrets
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.core.security.ocap.types import CapabilityHandle
 
-_EPHEMERAL_OCAP_SECRET: bytes = b""
-
-
-def get_ocap_secret() -> bytes:
-    """Retrieve process-isolated secret key for capability handle signing."""
-    global _EPHEMERAL_OCAP_SECRET
-    if not _EPHEMERAL_OCAP_SECRET:
-        env_secret = os.environ.get("MYRM_OCAP_MASTER_SECRET")
-        if env_secret:
-            _EPHEMERAL_OCAP_SECRET = env_secret.encode("utf-8")
-        else:
-            _EPHEMERAL_OCAP_SECRET = secrets.token_bytes(32)
-    return _EPHEMERAL_OCAP_SECRET
+# Handles are minted and verified inside one process and never serialized, so the signing key is
+# random per process and never configured or persisted.
+_OCAP_SECRET: bytes = secrets.token_bytes(32)
 
 
 def compute_capability_digest(handle: CapabilityHandle) -> bytes:
     """Compute deterministic canonical digest of capability handle contents."""
     canonical_actions = ",".join(sorted(a.value for a in handle.actions))
     canonical_paths = ";".join(sorted(handle.scope.paths))
-    canonical_domains = ";".join(sorted(handle.scope.domains))
-    canonical_mcp = ";".join(sorted(handle.scope.mcp_tools))
     parent_id = handle.parent_handle_id or ""
 
     raw_payload = (
@@ -53,8 +39,6 @@ def compute_capability_digest(handle: CapabilityHandle) -> bytes:
         f"sub={handle.subject_id}|"
         f"act={canonical_actions}|"
         f"paths={canonical_paths}|"
-        f"doms={canonical_domains}|"
-        f"mcp={canonical_mcp}|"
         f"iat={handle.issued_at:.3f}|"
         f"exp={handle.expires_at:.3f}|"
         f"parent={parent_id}"
@@ -64,7 +48,7 @@ def compute_capability_digest(handle: CapabilityHandle) -> bytes:
 
 def sign_capability_handle(handle: CapabilityHandle, secret: bytes | None = None) -> str:
     """Compute HMAC-SHA256 signature for a capability handle."""
-    key = secret or get_ocap_secret()
+    key = secret or _OCAP_SECRET
     payload = compute_capability_digest(handle)
     return hmac.new(key, payload, hashlib.sha256).hexdigest()
 

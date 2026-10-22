@@ -61,4 +61,21 @@ describe('CronRunItem', () => {
     expect(screen.getByText('circuitBreakTitle')).toBeInTheDocument();
     expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
   });
+
+  it('shows a localized label instead of the raw code for a run waiting on the usage limit', () => {
+    const deferredRun: CronRun = { ...baseRun, id: 'run-ul-1', status: 'skipped', output: 'usage_limit' };
+
+    render(<CronRunItem run={deferredRun} isLast={false} />);
+
+    expect(screen.getByText('skippedUsageLimit')).toBeInTheDocument();
+    expect(screen.queryByText('usage_limit')).toBeNull();
+  });
+
+  it('keeps showing other skip outputs verbatim', () => {
+    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output: 'no-content' };
+
+    render(<CronRunItem run={skippedRun} isLast={false} />);
+
+    expect(screen.getByText('no-content')).toBeInTheDocument();
+  });
 });

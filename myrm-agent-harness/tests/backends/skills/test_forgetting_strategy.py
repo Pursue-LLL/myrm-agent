@@ -156,7 +156,8 @@ def test_curator_config_round_trip() -> None:
     assert defaults.consolidation_enabled is False
 
 
-def test_should_not_forget_pinned_or_evolution_locked() -> None:
+def test_should_not_forget_pinned() -> None:
+    """A pinned skill is the one exemption: it never transitions automatically."""
     config = CuratorConfig(stale_after_days=7, grace_period_days=0)
     strategy = DefaultForgettingStrategy(config)
     old = datetime.now(UTC) - timedelta(days=100)
@@ -164,14 +165,49 @@ def test_should_not_forget_pinned_or_evolution_locked() -> None:
     pinned = create_skill_metadata("pinned_skill", usage_stats=stats)
     assert strategy.should_forget(pinned) is None
 
-    unlocked_stats = SkillUsageStats(call_count=0, success_count=0, failure_count=0, created_at=old)
+
+def test_evolution_locked_skill_still_ages_out() -> None:
+    """The evolution lock guards content rewrites, not the lifecycle sweep."""
+    config = CuratorConfig(stale_after_days=7, grace_period_days=0)
+    strategy = DefaultForgettingStrategy(config)
+    old = datetime.now(UTC) - timedelta(days=100)
+    stats = SkillUsageStats(call_count=0, success_count=0, failure_count=0, created_at=old)
     locked = SkillMetadata(
         name="locked_skill",
         description="Evolution locked",
-        usage_stats=unlocked_stats,
+        usage_stats=stats,
         evolution_locked=True,
     )
-    assert strategy.should_forget(locked) is None
+    reason = strategy.should_forget(locked)
+    assert reason is not None
+    assert reason.reason_type == "stale"
+    assert reason.target_status == SkillLifecycleStatus.STALE
+
+
+def test_evolution_locked_faulty_skill_gets_the_same_verdict_as_unlocked() -> None:
+    """The lock must not become a hidden quality-cleanup exemption.
+
+    A frequently-run, mostly-failing skill is the population the health probe flags. If the lock
+    suppressed the low-quality verdict here, faulty skills would read as protected while the sweep
+    did nothing, and the probe's "exempt" count would be a fiction.
+    """
+    config = CuratorConfig(min_call_count_for_quality_check=5, min_success_rate=0.5, grace_period_days=0)
+    strategy = DefaultForgettingStrategy(config)
+    faulty = SkillUsageStats(call_count=15, success_count=1, failure_count=14, last_used_at=datetime.now(UTC))
+
+    verdicts = {}
+    for locked in (True, False):
+        skill = SkillMetadata(
+            name="faulty_skill",
+            description="Runs often, keeps failing",
+            usage_stats=faulty,
+            evolution_locked=locked,
+        )
+        reason = strategy.should_forget(skill)
+        assert reason is not None, "a faulty skill must not be exempted by the lock"
+        verdicts[locked] = (reason.reason_type, reason.target_status)
+
+    assert verdicts[True] == verdicts[False] == ("low_quality", SkillLifecycleStatus.STALE)
 
 
 def test_grace_period_exempt() -> None:

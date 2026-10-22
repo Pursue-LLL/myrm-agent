@@ -32,6 +32,7 @@ import type {
   NodeStatus,
 } from './threePaneStudioTypes';
 import { useThreePaneStudioStore } from './useThreePaneStudioStore';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export interface ContextTreePaneProps {
   readonly onSelectNode?: (node: ContextTreeNode) => void;
@@ -168,7 +169,7 @@ export const ContextTreePane: React.FC<ContextTreePaneProps> = ({
             type="button"
             data-testid={`btn-select-node-${node.id}`}
             onClick={() => handleNodeClick(node)}
-            className="flex-1 flex items-center gap-1.5 min-w-0 truncate text-left focus:outline-none"
+            className="flex-1 flex items-center gap-1.5 min-w-0 truncate text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {getNodeIcon(node, isExpanded)}
             <span className="truncate text-[11px]" title={node.path}>
@@ -186,7 +187,7 @@ export const ContextTreePane: React.FC<ContextTreePaneProps> = ({
                 aria-label="引用到会话"
                 title="一键引用此上下文至对话输入框"
                 onClick={(e) => handleReferenceClick(e, node)}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-700/60 transition-opacity"
+                className={`${REVEAL_ON_HOVER} p-0.5 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-700/60 transition-opacity`}
               >
                 <CornerDownLeft className="w-3 h-3" />
               </button>

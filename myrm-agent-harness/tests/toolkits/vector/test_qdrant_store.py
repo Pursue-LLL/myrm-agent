@@ -56,6 +56,45 @@ async def test_ensure_collection_skips_when_exists(store, mock_client):
 
 
 @pytest.mark.asyncio
+async def test_ensure_collection_refuses_a_collection_of_another_model(store, mock_client):
+    """A size mismatch means another embedding model's vectors: reusing it would fail every write."""
+    mock_client.collection_exists.return_value = True
+    info = MagicMock()
+    info.config.params.vectors.size = 768
+    info.config.params.vectors.distance.name = "cosine"
+    info.points_count = 0
+    mock_client.get_collection.return_value = info
+
+    with pytest.raises(ValueError, match="belongs to another embedding model"):
+        await store.ensure_collection("test_col", dimension=1024)
+
+
+@pytest.mark.asyncio
+async def test_ensure_collection_accepts_a_matching_size(store, mock_client):
+    mock_client.collection_exists.return_value = True
+    info = MagicMock()
+    info.config.params.vectors.size = 768
+    info.config.params.vectors.distance.name = "cosine"
+    info.points_count = 5
+    mock_client.get_collection.return_value = info
+
+    await store.ensure_collection("test_col", dimension=768)
+    mock_client.create_collection.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_named_vector_collection_configures_every_channel(store, mock_client):
+    mock_client.collection_exists.return_value = False
+
+    created = await store.create_named_vector_collection("conv", 768, names=("raw", "summary"))
+
+    assert created is True
+    vectors_config = mock_client.create_collection.call_args.kwargs["vectors_config"]
+    assert set(vectors_config) == {"raw", "summary"}
+    assert all(params.size == 768 for params in vectors_config.values())
+
+
+@pytest.mark.asyncio
 async def test_delete_collection(store, mock_client):
     mock_client.collection_exists.return_value = True
     result = await store.delete_collection("test_col")
@@ -243,6 +282,29 @@ async def test_with_retry_does_not_back_off_for_a_missing_collection(store, mock
 
     assert mock_client.upsert.call_count == 1
     sleep.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reads_of_a_missing_collection_are_empty_not_errors(store, mock_client):
+    """Collections are created by their first write, so a fresh install reads them before they exist."""
+    missing = ValueError("Collection notes not found")
+    mock_client.query_points.side_effect = missing
+    mock_client.retrieve.side_effect = missing
+    mock_client.count.side_effect = missing
+    mock_client.scroll.side_effect = missing
+
+    assert await store.search("notes", [0.1] * 4) == []
+    assert await store.get("notes", ["a"]) == []
+    assert await store.count("notes") == 0
+    assert await store.scroll("notes") == ([], None)
+
+
+@pytest.mark.asyncio
+async def test_a_read_failure_that_is_not_a_missing_collection_still_raises(store, mock_client):
+    mock_client.query_points.side_effect = ConnectionError("qdrant down")
+
+    with pytest.raises(ConnectionError):
+        await store.search("notes", [0.1] * 4)
 
 
 # --- Edge-case coverage for evict / close / health & remaining branches ---

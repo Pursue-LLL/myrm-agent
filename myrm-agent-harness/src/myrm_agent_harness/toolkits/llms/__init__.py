@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from .errors.classifier import (
         ErrorKind,
         classify_error,
-        extract_retry_after,
         is_context_overflow,
         is_payload_overflow,
     )
@@ -36,7 +35,6 @@ __all__ = [
     "ThinkingModelReasoningAdapter",
     "classify_error",
     "create_litellm_model",
-    "extract_retry_after",
     "is_context_overflow",
     "is_payload_overflow",
     "llm_manager",
@@ -83,10 +81,6 @@ _LAZY_IMPORTS = {
     "classify_error": (
         "myrm_agent_harness.toolkits.llms.errors.classifier",
         "classify_error",
-    ),
-    "extract_retry_after": (
-        "myrm_agent_harness.toolkits.llms.errors.classifier",
-        "extract_retry_after",
     ),
     "is_context_overflow": (
         "myrm_agent_harness.toolkits.llms.errors.classifier",

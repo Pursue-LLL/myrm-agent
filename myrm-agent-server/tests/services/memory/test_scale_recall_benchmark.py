@@ -168,24 +168,17 @@ async def test_scale_recall_and_tail_latency(scale_engine: MemoryManager) -> Non
             use_rrf=True,
         )
 
-    results = [
-        await _run_case(scale_engine, case, expected_ids[case.anchor_token])
-        for case in key_cases
-    ]
+    results = [await _run_case(scale_engine, case, expected_ids[case.anchor_token]) for case in key_cases]
     summary = summarize_recall_benchmark(results)
 
     assert summary.case_count == _CI_KEY_RULES
     # Unique anchor tokens must survive a multi-thousand-rule corpus via the
     # LIKE channel: a drop here is a genuine retrieval regression.
-    assert summary.recall_at_k >= 0.98, (
-        f"anchored recall regressed: recall@5={summary.recall_at_k:.3f}"
-    )
+    assert summary.recall_at_k >= 0.98, f"anchored recall regressed: recall@5={summary.recall_at_k:.3f}"
     assert summary.latency_p99_ms > 0.0, "tail latency must be measurable at scale"
     # CI-tier guardrail: procedural LIKE retrieval must stay in the
     # sub-second range even on developer laptops.
-    assert summary.latency_p99_ms < 1000.0, (
-        f"p99 tail latency breached guardrail: {summary.latency_p99_ms:.1f}ms"
-    )
+    assert summary.latency_p99_ms < 1000.0, f"p99 tail latency breached guardrail: {summary.latency_p99_ms:.1f}ms"
 
 
 @pytest.mark.asyncio
@@ -206,6 +199,4 @@ async def test_scale_cjk_recall_via_real_trigger_channel(scale_engine: MemoryMan
         limit=5,
         use_rrf=True,
     )
-    assert any(hit.id == rule.id for hit in hits), (
-        "CJK trigger substring failed to retrieve the anchored rule"
-    )
+    assert any(hit.id == rule.id for hit in hits), "CJK trigger substring failed to retrieve the anchored rule"

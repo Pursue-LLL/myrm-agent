@@ -5,6 +5,7 @@
 - app.core.eval.reports::DEFAULT_REPORTS_DIR
 - app.core.eval.adaptive::AdaptiveEvalManager
 - app.core.eval.model_config::_resolve_agent_model_label / _resolve_judge_config
+- app.core.eval.benchmarks::build_benchmark_cases, benchmark_* helpers (same as memory_ab)
 
 [OUTPUT]
 - get_skill_ab_status / abort_skill_ab: Progress query and abort control.
@@ -16,11 +17,12 @@ Reuses MatrixRunner with three executors differing strictly in their skill set:
 1. no_skill: skill_ids_override = []
 2. baseline: skill_ids_override = [baseline_skill_id] (or empty if none)
 3. candidate: skill_ids_override = [candidate_skill_id]
-All arms execute in isolated temporary sandboxes and aggregate 4D metrics.
+Orchestration matches app.core.eval.memory_ab (run_multi_turn + AdaptiveEvalManager).
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import shutil
@@ -32,10 +34,14 @@ from myrm_agent_harness import __version__ as harness_version
 from myrm_agent_harness.eval import (
     AgentExecutor,
     EvalManifest,
+    EvalResult,
     SkillABArmMetrics,
     SkillABReportData,
+    calculate_paired_significance,
 )
+from myrm_agent_harness.eval.significance import SignificanceVerdict
 
+from app.core.eval.adaptive import AdaptiveEvalManager
 from app.core.eval.executor import LocalEvalExecutor
 from app.core.eval.reports import DEFAULT_REPORTS_DIR
 
@@ -76,8 +82,20 @@ def _init_skill_ab_state(benchmark_id: str) -> None:
             "error": None,
             "abort_requested": False,
             "benchmark_id": benchmark_id,
+            "download_progress": {"downloaded_bytes": 0, "total_bytes": 0},
         }
     )
+
+
+def _report_skill_ab_download_progress(downloaded: int, total: int) -> None:
+    _skill_ab_state["download_progress"] = {
+        "downloaded_bytes": downloaded,
+        "total_bytes": total,
+    }
+
+
+def _skill_ab_abort_requested() -> bool:
+    return bool(_skill_ab_state.get("abort_requested"))
 
 
 def get_skill_ab_status() -> dict[str, object]:
@@ -96,6 +114,60 @@ def abort_skill_ab() -> bool:
     return True
 
 
+def _verdict_from_significance(assessment_verdict: SignificanceVerdict) -> str:
+    if assessment_verdict in (
+        SignificanceVerdict.SIGNIFICANT_IMPROVEMENT,
+        SignificanceVerdict.EFFICIENCY_BREAKTHROUGH,
+    ):
+        return "IMPROVED"
+    if assessment_verdict == SignificanceVerdict.SIGNIFICANT_REGRESSION:
+        return "REGRESSED"
+    if assessment_verdict == SignificanceVerdict.NO_SIGNIFICANT_DIFFERENCE:
+        return "EQUIVALENT"
+    return "INCONCLUSIVE"
+
+
+def _arm_metrics(arm_name: str, skill_id: str | None, arm_res: EvalResult | None, case_count: int) -> SkillABArmMetrics:
+    if arm_res is None:
+        return SkillABArmMetrics(
+            arm_name=arm_name,
+            skill_id=skill_id,
+            pass_count=0,
+            total_cases=case_count,
+            pass_rate=0.0,
+            avg_tool_calls=0.0,
+            total_tokens=0,
+            avg_latency_ms=0.0,
+        )
+
+    turn_results = arm_res.turn_results
+    total_tool_calls = sum(len(t.response.tools_called) for t in turn_results)
+    avg_tools = round(total_tool_calls / max(1, len(turn_results)), 2)
+    total_lat = sum(t.timings.total_ms for t in turn_results)
+    avg_lat = round(total_lat / max(1, len(turn_results)), 2)
+
+    return SkillABArmMetrics(
+        arm_name=arm_name,
+        skill_id=skill_id,
+        pass_count=arm_res.pass_count,
+        total_cases=arm_res.total_cases or case_count,
+        pass_rate=round(arm_res.pass_rate, 4),
+        avg_tool_calls=avg_tools,
+        total_tokens=arm_res.total_tokens,
+        avg_latency_ms=avg_lat,
+    )
+
+
+def _paired_outcomes(matrix_result: object, base_id: str, cand_id: str) -> tuple[list[bool], list[bool], list[int], list[int], list[float], list[float], list[float], list[float]]:
+    """Extract aligned per-case metrics for McNemar (uses MatrixResult cells)."""
+    extract = getattr(matrix_result, "_extract_profile_metrics", None)
+    if not callable(extract):
+        return [], [], [], [], [], [], [], []
+    b_out, b_tok, b_cost, b_ms = extract(base_id)
+    c_out, c_tok, c_cost, c_ms = extract(cand_id)
+    return b_out, c_out, b_tok, c_tok, b_cost, c_cost, b_ms, c_ms
+
+
 async def run_skill_ab_background(
     benchmark_id: str,
     candidate_skill_id: str,
@@ -111,149 +183,145 @@ async def run_skill_ab_background(
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     _init_skill_ab_state(benchmark_id)
-
-    # 1. Resolve benchmark cases and configs
-    from app.core.eval.benchmarks import build_benchmark_cases
-    from app.core.eval.model_config import (
-        _resolve_agent_model_label,
-        _resolve_judge_config,
-    )
+    executors: dict[str, AgentExecutor] = {}
 
     try:
-        (
-            cases,
-            judge_config,
-            max_tool_calls,
-            max_iterations,
-            blocked_hostnames,
-            blocked_terms,
-        ) = await build_benchmark_cases(benchmark_id, progress_state=_skill_ab_state)
-    except Exception as exc:
-        _skill_ab_state["is_running"] = False
-        _skill_ab_state["error"] = f"Failed to load benchmark: {exc}"
-        return
+        from app.core.eval.benchmarks import (
+            benchmark_decontam,
+            benchmark_needs_judge,
+            benchmark_required_tools,
+            benchmark_run_limits,
+            build_benchmark_cases,
+        )
+        from app.core.eval.model_config import (
+            _resolve_agent_model_label,
+            _resolve_judge_config,
+        )
 
-    if not cases:
-        _skill_ab_state["is_running"] = False
-        _skill_ab_state["error"] = f"Benchmark '{benchmark_id}' contains no eval cases."
-        return
+        cases, seed_map, sampled = await asyncio.to_thread(
+            build_benchmark_cases,
+            benchmark_id,
+            limit=limit,
+            progress_callback=_report_skill_ab_download_progress,
+            should_abort=_skill_ab_abort_requested,
+        )
+        if _skill_ab_abort_requested():
+            logger.info("Skill A/B aborted by user before evaluation")
+            return
 
-    sampled = False
-    if limit is not None and 0 < limit < len(cases):
-        cases = cases[:limit]
-        sampled = True
+        if not cases:
+            _skill_ab_state["error"] = f"Benchmark '{benchmark_id}' contains no eval cases."
+            return
 
-    _skill_ab_state["stage"] = "running"
-    _skill_ab_state["case_total"] = len(cases)
+        _skill_ab_state["stage"] = "evaluating"
+        total_turns = sum(len(mc.turns) for mc in cases)
+        _skill_ab_state["case_total"] = total_turns * 3
 
-    # 2. Build 3 Executors: no_skill, baseline, candidate
-    executors: dict[str, AgentExecutor] = {
-        "no_skill": LocalEvalExecutor(
-            max_tool_calls=max_tool_calls,
-            max_iterations=max_iterations,
-            blocked_hostnames=blocked_hostnames,
-            blocked_terms=blocked_terms,
-            skill_ids_override=[],
-        ),
-        "baseline": LocalEvalExecutor(
-            max_tool_calls=max_tool_calls,
-            max_iterations=max_iterations,
-            blocked_hostnames=blocked_hostnames,
-            blocked_terms=blocked_terms,
-            skill_ids_override=[baseline_skill_id] if baseline_skill_id else [],
-        ),
-        "candidate": LocalEvalExecutor(
-            max_tool_calls=max_tool_calls,
-            max_iterations=max_iterations,
-            blocked_hostnames=blocked_hostnames,
-            blocked_terms=blocked_terms,
-            skill_ids_override=[candidate_skill_id],
-        ),
-    }
+        judge_config = None
+        judge_model = "none"
+        if benchmark_needs_judge(benchmark_id):
+            judge_config, judge_model = await _resolve_judge_config()
 
-    from myrm_agent_harness.eval import MatrixRunner
+        benchmark_tools = benchmark_required_tools(benchmark_id)
+        max_tool_calls, max_iterations = benchmark_run_limits(benchmark_id)
+        blocked_hostnames, blocked_terms = benchmark_decontam(benchmark_id)
 
-    runner = MatrixRunner(
-        cases=cases,
-        executors=executors,
-        judge_config=judge_config,
-    )
-    _active_skill_ab_runner = runner
-
-    def _on_progress(arm: str, case_idx: int, total_cases: int) -> None:
-        _skill_ab_state["current_arm"] = arm
-        _skill_ab_state["case_completed"] = case_idx
-        _skill_ab_state["case_total"] = total_cases
-        arm_list = list(executors.keys())
-        if arm in arm_list:
-            _skill_ab_state["profile_progress"] = arm_list.index(arm)
-
-    runner.set_progress_callback(_on_progress)
-
-    try:
-        matrix_result = await runner.run_async()
-
-        # Compute per-arm metrics
-        def _calc_metrics(arm_name: str, skill_id: str | None) -> SkillABArmMetrics:
-            arm_res = matrix_result.per_profile_results.get(arm_name)
-            if not arm_res:
-                return SkillABArmMetrics(
-                    arm_name=arm_name,
-                    skill_id=skill_id,
-                    pass_count=0,
-                    total_cases=len(cases),
-                    pass_rate=0.0,
-                    avg_tool_calls=0.0,
-                    total_tokens=0,
-                    avg_latency_ms=0.0,
-                )
-
-            total_c = arm_res.total_cases or len(cases)
-            pass_c = arm_res.pass_count
-            pass_r = arm_res.pass_rate
-            turn_results = getattr(arm_res, "turn_results", []) or []
-
-            total_tool_calls = sum(len(t.response.tools_called) for t in turn_results)
-            avg_tools = round(total_tool_calls / max(1, len(turn_results)), 2)
-
-            total_tokens = sum(t.response.token_usage for t in turn_results)
-            total_lat = sum(t.timings.total_ms for t in turn_results)
-            avg_lat = round(total_lat / max(1, len(turn_results)), 2)
-
-            return SkillABArmMetrics(
-                arm_name=arm_name,
-                skill_id=skill_id,
-                pass_count=pass_c,
-                total_cases=total_c,
-                pass_rate=round(pass_r, 4),
-                avg_tool_calls=avg_tools,
-                total_tokens=total_tokens,
-                avg_latency_ms=avg_lat,
+        def _executor(skill_ids: list[str]) -> LocalEvalExecutor:
+            return LocalEvalExecutor(
+                benchmark_mode=True,
+                benchmark_tools=benchmark_tools,
+                max_tool_calls=max_tool_calls,
+                max_iterations=max_iterations,
+                blocked_hostnames=blocked_hostnames,
+                blocked_terms=blocked_terms,
+                skill_ids_override=skill_ids,
+                workspace_seed_map=seed_map,
             )
 
-        no_skill_m = _calc_metrics("no_skill", None)
-        base_m = _calc_metrics("baseline", baseline_skill_id)
-        cand_m = _calc_metrics("candidate", candidate_skill_id)
+        executors = {
+            "no_skill": _executor([]),
+            "baseline": _executor([baseline_skill_id] if baseline_skill_id else []),
+            "candidate": _executor([candidate_skill_id]),
+        }
 
-        # Delta computations (Candidate vs Baseline)
-        ref_arm = base_m if baseline_skill_id else no_skill_m
-        succ_delta = cand_m.pass_rate - ref_arm.pass_rate
+        from myrm_agent_harness.eval import MatrixRunner
+
+        def _on_arm_start(arm_id: str, idx: int, _total: int) -> None:
+            _skill_ab_state["current_arm"] = arm_id
+            _skill_ab_state["profile_progress"] = idx
+
+        def _on_case_complete(_arm_id: str, _result: object) -> None:
+            cur = _skill_ab_state.get("case_completed")
+            prev = int(cur) if isinstance(cur, int) else 0
+            _skill_ab_state["case_completed"] = prev + 1
+
+        adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
+        runner = MatrixRunner(
+            executors,
+            max_concurrency_per_profile=3,
+            on_profile_start=_on_arm_start,
+            on_case_complete=_on_case_complete,
+            yielding_strategy=adaptive_manager,
+            judge_config=judge_config,
+        )
+        _active_skill_ab_runner = runner
+        try:
+            matrix_result = await runner.run_multi_turn(cases)
+        finally:
+            _active_skill_ab_runner = None
+
+        _skill_ab_state["profile_progress"] = 3
+
+        case_count = len(cases)
+        no_skill_m = _arm_metrics(
+            "no_skill",
+            None,
+            matrix_result.per_profile_results.get("no_skill"),
+            case_count,
+        )
+        base_m = _arm_metrics(
+            "baseline",
+            baseline_skill_id,
+            matrix_result.per_profile_results.get("baseline"),
+            case_count,
+        )
+        cand_m = _arm_metrics(
+            "candidate",
+            candidate_skill_id,
+            matrix_result.per_profile_results.get("candidate"),
+            case_count,
+        )
+
+        ref_arm_name = "baseline" if baseline_skill_id else "no_skill"
+        ref_m = base_m if baseline_skill_id else no_skill_m
+        succ_delta = cand_m.pass_rate - ref_m.pass_rate
 
         token_savings = 0.0
-        if ref_arm.total_tokens > 0:
-            token_savings = (ref_arm.total_tokens - cand_m.total_tokens) / ref_arm.total_tokens
+        if ref_m.total_tokens > 0:
+            token_savings = (ref_m.total_tokens - cand_m.total_tokens) / ref_m.total_tokens
 
         step_red = 0.0
-        if ref_arm.avg_tool_calls > 0:
-            step_red = (ref_arm.avg_tool_calls - cand_m.avg_tool_calls) / ref_arm.avg_tool_calls
+        if ref_m.avg_tool_calls > 0:
+            step_red = (ref_m.avg_tool_calls - cand_m.avg_tool_calls) / ref_m.avg_tool_calls
 
-        verdict = "INCONCLUSIVE"
-        if succ_delta > 0.05:
-            verdict = "IMPROVED"
-        elif succ_delta < -0.05:
-            verdict = "REGRESSED"
-        else:
-            verdict = "EQUIVALENT"
+        b_out, c_out, b_tok, c_tok, b_cost, c_cost, b_ms, c_ms = _paired_outcomes(
+            matrix_result,
+            ref_arm_name,
+            "candidate",
+        )
+        assessment = calculate_paired_significance(
+            b_out,
+            c_out,
+            base_id=ref_arm_name,
+            candidate_id="candidate",
+            base_tokens=b_tok,
+            candidate_tokens=c_tok,
+            base_costs=b_cost,
+            candidate_costs=c_cost,
+            base_ms=b_ms,
+            candidate_ms=c_ms,
+        )
+        verdict = _verdict_from_significance(assessment.verdict)
 
         ts = int(time.time())
         report_data = SkillABReportData(
@@ -276,8 +344,15 @@ async def run_skill_ab_background(
 
         out_dict = report_data.to_dict()
         out_dict["agent_model"] = await _resolve_agent_model_label()
-        out_dict["judge_model"] = await _resolve_judge_config()
+        out_dict["judge_model"] = judge_model
         out_dict["sampled"] = sampled
+        out_dict["limit"] = limit if sampled else None
+        out_dict["harness_version"] = harness_version
+        out_dict["max_tool_calls"] = max_tool_calls
+        out_dict["max_iterations"] = max_iterations
+        out_dict["decontam_active"] = bool(blocked_hostnames or blocked_terms)
+        out_dict["aborted"] = bool(_skill_ab_state.get("abort_requested"))
+        out_dict["paired_significance"] = assessment.to_dict()
 
         report_file = reports_dir / f"skill_ab_{benchmark_id}_{ts}.json"
         with report_file.open("w", encoding="utf-8") as f:
@@ -299,6 +374,11 @@ async def run_skill_ab_background(
         _skill_ab_state["is_running"] = False
         _skill_ab_state["stage"] = None
         _active_skill_ab_runner = None
+        for eval_executor in executors.values():
+            try:
+                await eval_executor.cleanup()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to clean skill A/B eval workspaces: %s", exc)
 
 
 def get_latest_skill_ab_report(

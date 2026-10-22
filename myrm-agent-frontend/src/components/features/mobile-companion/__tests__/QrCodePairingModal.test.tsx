@@ -21,10 +21,11 @@ describe('QrCodePairingModal', () => {
     useMobileCompanionStore.setState({
       isPairingModalOpen: true,
       pairingConfig: {
+        sessionId: 'session-12345',
+        pairingToken: 'tok-12345',
         pairingUrl: 'https://companion.example.com/pwa?token=tok-12345',
-        token: 'tok-12345',
         expiresAt: Date.now() + 1800000,
-        wsEndpoint: 'wss://companion.example.com/ws',
+        isPwaInstallable: true,
       },
     });
 
@@ -40,10 +41,11 @@ describe('QrCodePairingModal', () => {
     useMobileCompanionStore.setState({
       isPairingModalOpen: true,
       pairingConfig: {
+        sessionId: 'session-12345',
+        pairingToken: 'tok-12345',
         pairingUrl: 'https://companion.example.com/pwa?token=tok-12345',
-        token: 'tok-12345',
         expiresAt: Date.now() + 1800000,
-        wsEndpoint: 'wss://companion.example.com/ws',
+        isPwaInstallable: true,
       },
     });
 
@@ -66,10 +68,11 @@ describe('QrCodePairingModal', () => {
     useMobileCompanionStore.setState({
       isPairingModalOpen: true,
       pairingConfig: {
+        sessionId: 'session-12345',
+        pairingToken: 'tok-12345',
         pairingUrl: 'https://companion.example.com/pwa?token=tok-12345',
-        token: 'tok-12345',
         expiresAt: Date.now() + 1800000,
-        wsEndpoint: 'wss://companion.example.com/ws',
+        isPwaInstallable: true,
       },
     });
 

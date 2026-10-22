@@ -168,4 +168,87 @@ describe('routingMetaEvents', () => {
     const messages = captured.messages as Array<Record<string, unknown>>;
     expect(messages[0].modelTier).toBe('weak');
   });
+
+  it('handles standard nested TOKEN_USAGE payload (Shape A)', async () => {
+    const ctx = makeCtx({
+      data: {
+        type: 'token_usage',
+        messageId: 'msg-1',
+        data: {
+          usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+          cost_usd: 0.002,
+          model_name: 'gpt-4o',
+        },
+      } as never,
+    });
+    let captured: Record<string, unknown> = {};
+    mockSetMessages.mockImplementation((updater: (s: Record<string, unknown>) => void) => {
+      const draft: Record<string, unknown> = {
+        messages: [
+          {
+            messageId: 'msg-1',
+            chatId: 'c1',
+            role: 'assistant',
+            content: '',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      updater(draft);
+      captured = draft;
+    });
+
+    await routingMetaEvents(ctx);
+    const messages = captured.messages as Array<Record<string, unknown>>;
+    const usage = messages[0].usage as Record<string, unknown>;
+    expect(usage.prompt_tokens).toBe(100);
+    expect(usage.completion_tokens).toBe(50);
+    expect(messages[0].costUsd).toBe(0.002);
+    expect(messages[0].modelName).toBe('gpt-4o');
+  });
+
+  it('adapts external delegation flat TOKEN_USAGE payload (Shape B - Subscription mode)', async () => {
+    const ctx = makeCtx({
+      data: {
+        type: 'token_usage',
+        messageId: 'msg-1',
+        data: {
+          source: 'delegate:claude',
+          input_tokens: 1200,
+          output_tokens: 600,
+          total_tokens: 1800,
+          auth_mode: 'subscription',
+          billable: false,
+        },
+      } as never,
+    });
+    let captured: Record<string, unknown> = {};
+    mockSetMessages.mockImplementation((updater: (s: Record<string, unknown>) => void) => {
+      const draft: Record<string, unknown> = {
+        messages: [
+          {
+            messageId: 'msg-1',
+            chatId: 'c1',
+            role: 'assistant',
+            content: '',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      updater(draft);
+      captured = draft;
+    });
+
+    await routingMetaEvents(ctx);
+    const messages = captured.messages as Array<Record<string, unknown>>;
+    const usage = messages[0].usage as Record<string, unknown>;
+    expect(usage.prompt_tokens).toBe(1200);
+    expect(usage.completion_tokens).toBe(600);
+    expect(usage.total_tokens).toBe(1800);
+    expect(usage.auth_mode).toBe('subscription');
+    expect(usage.billable).toBe(false);
+    expect(usage.source).toBe('delegate:claude');
+    expect(usage.estimated_savings_usd).toBeGreaterThan(0);
+    expect(messages[0].costUsd).toBe(0);
+  });
 });

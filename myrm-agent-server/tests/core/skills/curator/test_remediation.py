@@ -6,12 +6,14 @@ import json
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import set_stats_collector
 
 import app.core.skills.curator.service as curator_service
+from app.core.skills.curator.bound_skills import SkillBoundError
 from app.core.skills.curator.service import remediate_skill_finding
 
 
@@ -93,6 +95,22 @@ async def test_unpin_and_archive_releases_the_pin_then_archives(skills_root: Pat
     ledger = _ledger(skill_dir)
     assert ledger["pinned"] is False
     assert ledger["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
+
+
+@pytest.mark.parametrize("action", ["archive", "unpin_and_archive"])
+async def test_bound_skill_is_refused_and_keeps_its_pin(skills_root: Path, monkeypatch: pytest.MonkeyPatch, action: str) -> None:
+    skill_dir = _write_skill(skills_root, "flaky-scraper", pinned=True)
+    monkeypatch.setattr(
+        curator_service, "assert_skill_not_bound_for_archive", AsyncMock(side_effect=SkillBoundError("flaky-scraper"))
+    )
+
+    result = await remediate_skill_finding("flaky-scraper", action)
+
+    assert result["success"] is False
+    assert "unbind" in str(result["error"])
+    ledger = _ledger(skill_dir)
+    assert ledger["pinned"] is True
+    assert ledger["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
 
 
 @pytest.mark.parametrize("skill_name", ["missing-skill", "../escape"])

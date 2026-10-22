@@ -40,7 +40,6 @@ class AppEventType(StrEnum):
     HEALTH_ALERT = "health_alert"
     BUDGET_ALERT = "budget_alert"
     ASYNC_AGENT_STREAM_CHUNK = "async_agent_stream_chunk"
-    BENCHMARK_PROGRESS = "benchmark_progress"
     MEMORY_HISTORY_UPDATED = "memory_history_updated"
     MEMORY_OPERATION = "memory_operation"
     SUBAGENTS_UPDATED = "subagents_updated"

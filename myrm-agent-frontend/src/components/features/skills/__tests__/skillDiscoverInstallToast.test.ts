@@ -84,17 +84,39 @@ describe('resolveSkillInstallToastMessage', () => {
   it('attaches trial run action on success when callback is provided', () => {
     const onTrialRun = vi.fn();
     const t = (key: string) => key;
-    const toast = formatSkillInstallToast(SKILL, { mounted: true }, t, onTrialRun);
+    const toast = formatSkillInstallToast(SKILL, { mounted: true }, t, { onTrialRun });
     expect(toast.action).toBeDefined();
     expect(toast.action?.label).toBe('trialRunCTA');
     toast.action?.onClick();
     expect(onTrialRun).toHaveBeenCalled();
   });
 
+  it('adds restore description on fresh install when pre_replace_batch_id is set', () => {
+    const t = (key: string) => key;
+    const toast = formatSkillInstallToast(SKILL, { mounted: true, pre_replace_batch_id: 'batch-2' }, t);
+    expect(toast.description).toBe('restorePreUpdateSkillMdDesc');
+  });
+
+  it('prefers rollback action over trial run when pre_replace_batch_id is set', () => {
+    const onTrialRun = vi.fn();
+    const onRollbackPreUpdate = vi.fn();
+    const t = (key: string) => key;
+    const toast = formatSkillInstallToast(
+      SKILL,
+      { marketUpdate: true, pre_replace_batch_id: 'batch-1' },
+      t,
+      { onTrialRun, onRollbackPreUpdate },
+    );
+    expect(toast.action?.label).toBe('restorePreUpdateSkillMd');
+    toast.action?.onClick();
+    expect(onRollbackPreUpdate).toHaveBeenCalled();
+    expect(onTrialRun).not.toHaveBeenCalled();
+  });
+
   it('does not attach trial run action on destructive toast', () => {
     const onTrialRun = vi.fn();
     const t = (key: string) => key;
-    const toast = formatSkillInstallToast(SKILL, { mount_error: 'Failed' }, t, onTrialRun);
+    const toast = formatSkillInstallToast(SKILL, { mount_error: 'Failed' }, t, { onTrialRun });
     expect(toast.action).toBeUndefined();
   });
 });

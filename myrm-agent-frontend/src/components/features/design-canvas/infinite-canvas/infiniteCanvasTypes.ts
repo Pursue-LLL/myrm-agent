@@ -40,6 +40,9 @@ export interface ContainerLayer extends BaseLayer {
 
 export type CanvasLayer = TextLayer | ShapeLayer | ContainerLayer;
 
+/** Properties every layer kind shares; a patch never changes a layer's identity or kind. */
+export type LayerPatch = Partial<Omit<BaseLayer, 'id' | 'type'>>;
+
 export interface CanvasViewport {
   zoom: number;
   panX: number;

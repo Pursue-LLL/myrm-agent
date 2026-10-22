@@ -28,6 +28,9 @@ export function parseMessages(raw: Message[]): Message[] {
 
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
+    const turnLoadedSkills = normalizeTurnLoadedSkills(
+      metadata.turnLoadedSkills ?? metadata.turn_loaded_skills ?? rawRecord.turnLoadedSkills,
+    );
 
     const createdAtMs = resolveMessageCreatedAtMs(
       (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as Date | string | number | undefined,
@@ -39,6 +42,7 @@ export function parseMessages(raw: Message[]): Message[] {
       createdAt: createdAtMs !== null && createdAtMs !== undefined ? new Date(createdAtMs) : new Date(),
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
+      ...(turnLoadedSkills ? { turnLoadedSkills } : {}),
     } as Message;
 
     const persistedRequestMessageId = metadata.request_message_id;
@@ -106,6 +110,34 @@ function normalizeStringArray(value: unknown): string[] | undefined {
   }
   const ids = value.filter((item): item is string => typeof item === 'string' && item.length > 0);
   return ids.length > 0 ? ids : undefined;
+}
+
+function normalizeTurnLoadedSkills(value: unknown): Message['turnLoadedSkills'] {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const rows: NonNullable<Message['turnLoadedSkills']> = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const name = record.name;
+    if (typeof name !== 'string' || !name.trim()) {
+      continue;
+    }
+    const idRaw = record.id;
+    const id = typeof idRaw === 'string' && idRaw.trim() ? idRaw.trim() : name.trim();
+    const hashRaw = record.content_hash ?? record.contentHash;
+    rows.push({
+      name: name.trim(),
+      id,
+      content_hash: typeof hashRaw === 'string' ? hashRaw : undefined,
+      version: typeof record.version === 'string' ? record.version : undefined,
+      partial: Boolean(record.partial),
+    });
+  }
+  return rows.length > 0 ? rows : undefined;
 }
 
 function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {

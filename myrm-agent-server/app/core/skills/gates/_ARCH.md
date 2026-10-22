@@ -18,6 +18,7 @@
 | `disabled_skill_roots.py` | 未启用技能 storage 根注入 runtime：`collect_disabled_skill_roots`。 |
 | `dependency_guard.py` | 技能依赖影响面查询：`get_dependents_map`/`get_dependents_for_skill`（pending 审核 / disable / uninstall 校验）。 |
 | `permission_logger.py` | 技能权限使用日志：`start_permission_logger`。 |
+| `runtime_load.py` | Runtime 加载 SSOT：排除归档与用户目录中已禁用技能（`get_skills_by_ids` / user backend）。 |
 
 ---
 

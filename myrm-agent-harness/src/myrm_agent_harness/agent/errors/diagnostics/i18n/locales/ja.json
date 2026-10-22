@@ -122,6 +122,14 @@
     "継続する場合は VPN/プロキシ接続の安定性を確認してください",
     "企業TLS検査環境では設定 → システム → 詳細設定 で「企業ネットワーク互換モード」を有効にしてください"
   ],
-  "cooldown_hint_single": " {seconds}秒後に再試行してください。",
-  "cooldown_hint_plural": " {seconds}秒後に再試行してください。"
+  "cooldown_hint_template": " {duration}後に再試行してください。",
+  "cooldown_hint_joiner": "",
+  "cooldown_hint_second_one": "{n}秒",
+  "cooldown_hint_second_other": "{n}秒",
+  "cooldown_hint_minute_one": "{n}分",
+  "cooldown_hint_minute_other": "{n}分",
+  "cooldown_hint_hour_one": "{n}時間",
+  "cooldown_hint_hour_other": "{n}時間",
+  "cooldown_hint_day_one": "{n}日",
+  "cooldown_hint_day_other": "{n}日"
 }

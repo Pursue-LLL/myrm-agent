@@ -192,7 +192,7 @@ describe('messageStreamHandler memory citations', () => {
       ],
     } satisfies AgentStreamEvent;
 
-    await handleMessageStream(event, '', undefined, false, '', state, createActions());
+    await handleMessageStream(event, '', undefined, false, '', state, createStatefulActions(state));
 
     expect(state.messages[0].citedMemoryIds).toEqual(['mem-1']);
     expect(state.messages[0].citedMemoryRefs).toEqual([
@@ -287,7 +287,7 @@ describe('messageStreamHandler memory citations', () => {
       },
     } satisfies AgentStreamEvent;
 
-    await handleMessageStream(event, '', undefined, false, '', state, createActions());
+    await handleMessageStream(event, '', undefined, false, '', state, createStatefulActions(state));
 
     expect(state.messages[0].memoryRetrievalDegraded).toBe(true);
   });
@@ -318,7 +318,7 @@ describe('messageStreamHandler memory citations', () => {
       },
     } satisfies AgentStreamEvent;
 
-    await handleMessageStream(healthyEvent, '', undefined, false, '', state, createActions());
+    await handleMessageStream(healthyEvent, '', undefined, false, '', state, createStatefulActions(state));
     expect(state.messages[0].memoryRetrievalDegraded).toBeUndefined();
 
     const noTraceEvent = {
@@ -328,7 +328,7 @@ describe('messageStreamHandler memory citations', () => {
       duration_ms: 12,
     } satisfies AgentStreamEvent;
 
-    await handleMessageStream(noTraceEvent, '', undefined, false, '', state, createActions());
+    await handleMessageStream(noTraceEvent, '', undefined, false, '', state, createStatefulActions(state));
     expect(state.messages[0].memoryRetrievalDegraded).toBeUndefined();
   });
 });

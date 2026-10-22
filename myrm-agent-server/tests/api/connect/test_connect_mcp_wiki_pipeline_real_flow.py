@@ -53,6 +53,10 @@ _ONBOARDING_DOC = (
     "Step 3: run ./myrm ready to verify the dev environment and the wiki mount."
 )
 
+# A reasoning model needs one to three minutes to write a single article under load, and the worker compiles the
+# queued sources one batch after the other. The wait ends as soon as the queue settles; this is only its ceiling.
+_WORKER_WAIT_SECONDS = 420
+
 
 @pytest.fixture(autouse=True)
 def _cleanup_sessions() -> None:
@@ -122,9 +126,7 @@ async def _seed_platform_model_config() -> None:
     basic_key = os.environ.get("BASIC_API_KEY", "").strip()
     basic_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
     basic_model = (os.environ.get("BASIC_MODEL") or "").strip()
-    pid, stripped = (
-        basic_model.split("/", 1) if "/" in basic_model else ("openai", basic_model)
-    )
+    pid, stripped = basic_model.split("/", 1) if "/" in basic_model else ("openai", basic_model)
 
     providers_payload = {
         "providers": [
@@ -193,6 +195,7 @@ async def seeded_wiki_pipeline_env() -> AsyncIterator[None]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.timeout(600)
 async def test_connect_mcp_wiki_pipeline_real_flow(
     tmp_path: Path,
     tmp_connect_service: ConnectService,
@@ -221,9 +224,12 @@ async def test_connect_mcp_wiki_pipeline_real_flow(
             "app.core.memory.adapters.setup.create_memory_manager",
             AsyncMock(return_value=mock_memory_mgr),
         ),
+        # Entering the client keeps one request portal alive for the whole test. A bare TestClient tears its
+        # portal down after every request, which cancels the background wiki worker an ingest starts mid-batch
+        # and leaves the batch's sources claimed, unlike a server whose event loop outlives its requests.
+        TestClient(app) as client,
     ):
         await setup_mcp_endpoint(app)
-        client = TestClient(app)
 
         try:
             headers = {
@@ -245,8 +251,7 @@ async def test_connect_mcp_wiki_pipeline_real_flow(
                 return content[0]["text"]
 
             vault_raw_dir = (
-                Path(os.environ["MYRM_DATA_DIR"]).expanduser()
-                / "harness" / "wiki" / "agents" / "agent-wiki-pipe" / "raw"
+                Path(os.environ["MYRM_DATA_DIR"]).expanduser() / "harness" / "wiki" / "agents" / "agent-wiki-pipe" / "raw"
             )
 
             # 1. SSRF security: internal-network URL is refused by the real guard
@@ -338,14 +343,17 @@ async def test_connect_mcp_wiki_pipeline_real_flow(
 
 
 async def _await_real_compilation() -> str:
-    """Wait for wiki articles to be staged as HITL drafts after MCP ingest.
+    """Wait for the sources an MCP ingest queued to be compiled into HITL drafts.
 
-    The enqueue path starts the background worker itself; if the worker task
-    cannot run under the TestClient event loop (request portal torn down),
-    fall back to compile_all() — the same production path Settings > Wiki
-    import uses to drain the queue synchronously. Returns which path ran.
+    The enqueue path starts the background worker itself, on the event loop
+    of the entered TestClient's portal. It compiles the queued sources batch
+    by batch (real concept extraction, then real article generation), so the
+    wait ends once no source is pending or being compiled. If that staged no
+    draft, fall back to compile_all() — the same production path Settings >
+    Wiki import uses to drain the queue synchronously. Returns which path
+    staged the drafts.
     """
-    from myrm_agent_harness.toolkits.wiki import WikiCompiler, WikiConfig
+    from myrm_agent_harness.toolkits.wiki import WikiCompiler, WikiConfig, WikiIngestionQueue
     from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig
 
     from app.services.agent.platform_config import load_platform_llm
@@ -367,10 +375,15 @@ async def _await_real_compilation() -> str:
     )
 
     manager = WikiPendingEditsManager(structure, indexer=indexer)
-    for _ in range(30):
-        if manager.get_pending_edits():
-            return "background-worker"
+    queue = WikiIngestionQueue(structure)
+    for _ in range(_WORKER_WAIT_SECONDS):
+        stats = queue.get_stats()
+        if not (stats["pending"] or stats["processing"]):
+            break
         await asyncio.sleep(1.0)
+
+    if manager.get_pending_edits():
+        return "background-worker"
 
     await compiler.compile_all()
     return "compile_all"

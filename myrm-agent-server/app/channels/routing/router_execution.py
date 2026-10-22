@@ -57,14 +57,17 @@ async def _newest_channel_chat_under(base_key: str) -> ChatDTO | None:
     from app.services.chat.chat_service import ChatService
 
     # A longer peer id shares this prefix (``…:-10012`` prefixes ``…:-1001234``), so the match
-    # must end at the key or continue at a segment boundary.
+    # must end at the key or continue at a segment boundary. The range form keeps SQLite on the
+    # ``channel_session_key`` index; ``LIKE`` would fall back to a full scan.
+    lo = f"{base_key}:"
+    hi = f"{base_key};"
     async with get_session() as session:
         result = await session.execute(
             select(Chat.id)
             .where(
                 or_(
                     Chat.channel_session_key == base_key,
-                    Chat.channel_session_key.like(f"{base_key}:%"),
+                    (Chat.channel_session_key >= lo) & (Chat.channel_session_key < hi),
                 )
             )
             .order_by(Chat.updated_at.desc())

@@ -525,6 +525,13 @@ async def _checkpoint_history_prune_job() -> None:
     await run_checkpoint_history_prune()
 
 
+async def _instance_auto_backup_job() -> None:
+    """Hourly check of the scheduled whole-instance backup; starts one only when it is due."""
+    from app.services.instance_archive.auto_backup import run_auto_backup_tick
+
+    await run_auto_backup_tick()
+
+
 _db_maintenance_scheduler_task: asyncio.Task[None] | None = None
 
 
@@ -557,6 +564,13 @@ async def start_db_maintenance_scheduler() -> None:
                     _checkpoint_history_prune_job,
                     IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=10)),
                     id="checkpoint_history_prune",
+                )
+                # First check a few minutes after boot (not at once) so a backup due from a closed period does
+                # not compete with startup; the due-ness itself comes from the recorded last completed backup.
+                await scheduler.add_schedule(
+                    _instance_auto_backup_job,
+                    IntervalTrigger(minutes=60, start_time=datetime.now(UTC) + timedelta(minutes=5)),
+                    id="instance_auto_backup",
                 )
                 global _db_maintenance_scheduler
                 _db_maintenance_scheduler = scheduler
@@ -748,6 +762,26 @@ async def stop_kanban_dispatchers() -> None:
 _remote_backup_scheduler_task: asyncio.Task[None] | None = None
 
 
+def _section(config: dict[str, object], key: str) -> dict[str, object]:
+    section = config.get(key)
+    return section if isinstance(section, dict) else {}
+
+
+def _text(config: dict[str, object], key: str, default: str = "") -> str:
+    value = config.get(key)
+    return value if isinstance(value, str) else default
+
+
+def _flag(config: dict[str, object], key: str, default: bool) -> bool:
+    value = config.get(key)
+    return value if isinstance(value, bool) else default
+
+
+def _count(config: dict[str, object], key: str, default: int) -> int:
+    value = config.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+
 async def _remote_backup_auto_sync_job() -> None:
     """Periodic remote backup job. Reads config and syncs if enabled."""
     try:
@@ -764,12 +798,13 @@ async def _remote_backup_auto_sync_job() -> None:
         if not enabled or not auto_sync:
             return
 
-        provider = value.get("provider", "")
+        provider = _text(value, "provider")
         if not provider:
             return
 
         from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
         from app.services.memory.backup.backup_remote import (
+            RemoteBackupStrategy,
             S3BackupConfig,
             S3BackupStrategy,
             WebDAVBackupConfig,
@@ -777,30 +812,31 @@ async def _remote_backup_auto_sync_job() -> None:
         )
         from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
 
-        device_name = value.get("deviceName", "") or platform.node()
-        max_backups = value.get("maxBackups", 10)
+        device_name = _text(value, "deviceName") or platform.node()
+        max_backups = _count(value, "maxBackups", 10)
 
+        strategy: RemoteBackupStrategy
         if provider == "webdav":
-            webdav_cfg = value.get("webdav", {})
+            webdav_cfg = _section(value, "webdav")
             strategy = WebDAVBackupStrategy(
                 WebDAVBackupConfig(
-                    host=webdav_cfg.get("host", ""),
-                    username=webdav_cfg.get("username", ""),
-                    password=webdav_cfg.get("password", ""),
-                    path=webdav_cfg.get("path", "/myrm-backups"),
+                    host=_text(webdav_cfg, "host"),
+                    username=_text(webdav_cfg, "username"),
+                    password=_text(webdav_cfg, "password"),
+                    path=_text(webdav_cfg, "path", "/myrm-backups"),
                 )
             )
         elif provider == "s3":
-            s3_cfg = value.get("s3", {})
+            s3_cfg = _section(value, "s3")
             strategy = S3BackupStrategy(
                 S3BackupConfig(
-                    endpoint=s3_cfg.get("endpoint", ""),
-                    region=s3_cfg.get("region", ""),
-                    bucket=s3_cfg.get("bucket", ""),
-                    access_key_id=s3_cfg.get("accessKeyId", ""),
-                    secret_access_key=s3_cfg.get("secretAccessKey", ""),
-                    prefix=s3_cfg.get("prefix", "myrm-backups/"),
-                    force_path_style=s3_cfg.get("forcePathStyle", True),
+                    endpoint=_text(s3_cfg, "endpoint"),
+                    region=_text(s3_cfg, "region"),
+                    bucket=_text(s3_cfg, "bucket"),
+                    access_key_id=_text(s3_cfg, "accessKeyId"),
+                    secret_access_key=_text(s3_cfg, "secretAccessKey"),
+                    prefix=_text(s3_cfg, "prefix", "myrm-backups/"),
+                    force_path_style=_flag(s3_cfg, "forcePathStyle", True),
                 )
             )
         else:

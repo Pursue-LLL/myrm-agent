@@ -127,6 +127,18 @@ bash_bg_finish_generic =
 goal_stream_failed_title = 目标需人工审查
 goal_stream_failed_message =
     自主任务意外停止，请在目标面板查看并继续。
+goal_usage_limit_wait_title = 目标已暂停，等待额度恢复
+goal_usage_limit_wait_message =
+    额度恢复后将自动继续，无需任何操作。
+goal_usage_limit_resumed_title = 目标已继续
+goal_usage_limit_resumed_message =
+    额度已恢复，目标正在继续执行。
+goal_usage_limit_paused_title = 目标因额度用尽而暂停
+goal_usage_limit_paused_message =
+    额度需要很长时间才会恢复。准备好后可在目标面板中手动继续。
+airbag_rolled_back_title = 改动已撤销
+airbag_rolled_back_message =
+    工作区文件已恢复到目标开始前的状态。
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }
@@ -238,10 +250,6 @@ analyzing_image = 正在分析图片…
 search_unreachable = 搜索服务已配置但当前无法连接。请检查搜索服务是否正常运行后重试。
 daily_budget_blocked = 已达每日预算上限，执行被拦截。请在 Web 设置中调整预算限额后继续使用。
 channel_budget_blocked = 此频道的每日预算已用完。其他频道和 Web 会话不受影响。频道所有者可在设置 > 预算中调整限额。
-cooldown_retry =
-    
-    
-    ⏱️ 请在 { $seconds } 秒后重试。
 config_next_steps =
     { "\u000A\u000A" }后续步骤：
     { $steps }

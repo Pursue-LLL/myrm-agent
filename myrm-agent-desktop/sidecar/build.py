@@ -263,6 +263,29 @@ def build_backend(*, skip_harness_install: bool = False):
         print(f"\n[ERROR] Output file not found: {output_file}")
         sys.exit(1)
 
+    # tiktoken 的编码表默认联网下载；打包后的 Sidecar 每次运行在临时目录里既没有缓存、
+    # 也可能无网络，LiteLLM 会直接报 "Unknown encoding cl100k_base" 导致模型调用失败。
+    # 构建期把编码表落盘并随包分发，运行时由 Tauri 指向该目录。
+    tiktoken_cache = OUTPUT_DIR / "tiktoken_cache"
+    if tiktoken_cache.exists():
+        shutil.rmtree(tiktoken_cache)
+    tiktoken_cache.mkdir(parents=True, exist_ok=True)
+    warm_script = (
+        "import tiktoken;"
+        "tiktoken.get_encoding('cl100k_base');"
+        "tiktoken.get_encoding('o200k_base')"
+    )
+    warm = subprocess.run(
+        [str(server_python), "-c", warm_script],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "TIKTOKEN_CACHE_DIR": str(tiktoken_cache)},
+    )
+    if warm.returncode == 0:
+        print(f"[OK] tiktoken cache prepared: {tiktoken_cache}")
+    else:
+        print(f"[WARN] tiktoken cache warm-up failed: {warm.stderr.strip()[:200]}")
+
     build_dir = OUTPUT_DIR / "build"
     spec_file = OUTPUT_DIR / f"{BINARY_NAME.replace('.exe', '')}.spec"
     if build_dir.exists():

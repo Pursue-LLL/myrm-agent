@@ -27,7 +27,7 @@ describe('MigrationReconciliationModal', () => {
     memories: [
       {
         id: 'mem-101',
-        category: 'user_preference',
+        category: 'preference',
         content: '偏好深色模式与紧凑排版',
         confidence: 0.95,
         createdAt: Date.now(),

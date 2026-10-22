@@ -70,6 +70,13 @@ class TestOriginExtractionAndComparison:
         u2 = "http://example.com/v1"
         assert is_same_origin(u1, u2) is False
 
+    def test_extract_origin_rejects_an_out_of_range_port(self) -> None:
+        assert extract_origin("https://example.com:99999/mcp") is None
+
+    def test_is_same_origin_is_false_when_either_side_is_unparseable(self) -> None:
+        assert is_same_origin("https://example.com/v1", "not-a-url") is False
+        assert is_same_origin("not-a-url", "https://example.com/v1") is False
+
 
 class TestSensitiveHeaderIdentification:
     """Tests for header sensitivity categorization."""
@@ -184,6 +191,15 @@ class TestHeaderSanitizationOnRedirect:
         assert "Authorization" not in sanitized
         assert sanitized["Content-Type"] == "application/json"
 
+    def test_undeterminable_origin_fails_closed_by_stripping_credentials(self) -> None:
+        headers = {"Authorization": "Bearer token123", "X-API-KEY": "secret-key-999", "X-Trace-Id": "trace-1"}
+        sanitized = strip_sensitive_headers_on_redirect(
+            from_url="https://api.corp.com/v1",
+            to_url="not-a-url",
+            headers=headers,
+        )
+        assert sanitized == {"X-Trace-Id": "trace-1"}
+
 
 class TestMcpRedirectGuardEventHooks:
     """Tests for create_mcp_redirect_guard_event_hooks on httpx/httpx2 requests."""
@@ -226,3 +242,12 @@ class TestMcpRedirectGuardEventHooks:
         )
         with pytest.raises(InsecureRedirectSecurityError):
             await request_hook(req_downgrade)
+
+    @pytest.mark.asyncio
+    async def test_event_hook_is_inert_when_the_initial_origin_cannot_be_determined(self) -> None:
+        request_hook = create_mcp_redirect_guard_event_hooks("not-a-url")["request"][0]
+        request = httpx.Request("GET", "https://elsewhere.example.com/stream", headers={"Authorization": "Bearer tok"})
+
+        await request_hook(request)
+
+        assert request.headers["Authorization"] == "Bearer tok"

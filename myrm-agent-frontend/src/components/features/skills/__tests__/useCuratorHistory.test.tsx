@@ -17,6 +17,8 @@ const entry: CuratorHistoryEntry = {
   total_transitions: 0,
   stale_count: 0,
   archived_count: 0,
+  skipped_pinned: 0,
+  skipped_protected: 0,
   transitions: [],
 };
 

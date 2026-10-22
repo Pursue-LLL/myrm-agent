@@ -6,6 +6,10 @@ import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
 
+def _goal(goal_id: str, status: GoalStatus) -> Goal:
+    return Goal(goal_id=goal_id, session_id="chat-4", objective="Run", status=status, budget=GoalBudget(max_turns=5))
+
+
 @pytest.mark.asyncio
 async def test_failure_policy_marks_needs_human_review():
     from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
@@ -18,6 +22,7 @@ async def test_failure_policy_marks_needs_human_review():
         budget=GoalBudget(max_turns=5),
     )
     provider = AsyncMock()
+    provider.get_goal.return_value = goal
 
     with patch(
         "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
@@ -100,6 +105,7 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification():
     from app.services.agent.goals.goal_stream_trigger import handle_unattended_goal_stream_failure
 
     provider = AsyncMock()
+    provider.get_goal.return_value = _goal("g-runtime", GoalStatus.ACTIVE)
     mock_bus = MagicMock()
 
     with (
@@ -108,7 +114,7 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification():
             return_value=mock_bus,
         ),
         patch(
-            "app.services.agent.goals.goal_stream_trigger._resolve_user_locale",
+            "app.services.agent.goals.goal_stream_trigger.resolve_user_locale",
             new_callable=AsyncMock,
             return_value="en",
         ),
@@ -130,6 +136,30 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification():
     published = mock_bus.publish.call_args[0][0]
     assert published.data["meta_data"]["kind"] == "goal_needs_review"
     assert published.data["meta_data"]["chat_id"] == "chat-4"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [GoalStatus.WAIT, GoalStatus.PAUSED, GoalStatus.COMPLETE])
+async def test_failure_after_the_run_moved_the_goal_on_keeps_that_state(status: GoalStatus):
+    from app.services.agent.goals.goal_stream_trigger import handle_unattended_goal_stream_failure
+
+    provider = AsyncMock()
+    provider.get_goal.return_value = _goal("g-moved", status)
+
+    with patch(
+        "app.services.agent.goals.goal_stream_trigger.publish_goal_needs_review_notification",
+        new_callable=AsyncMock,
+    ) as publish:
+        await handle_unattended_goal_stream_failure(
+            "chat-4",
+            "g-moved",
+            provider,
+            on_failure="needs_human_review",
+            context="runtime test",
+        )
+
+    provider.update_status.assert_not_called()
+    publish.assert_not_awaited()
 
 
 @pytest.mark.asyncio

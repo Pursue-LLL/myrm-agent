@@ -18,7 +18,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log import EventLogAnalytics
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
@@ -34,6 +34,7 @@ from app.api.statistics.skill_growth import (
     fetch_skill_health,
     fetch_skill_trends,
 )
+from app.api.statistics.timezone_helper import resolve_user_timezone
 from app.api.statistics.usage_aggregation import (
     DayAccumulator,
     TierAccumulator,
@@ -113,6 +114,7 @@ class GrowthDashboardResponse(BaseModel):
     cost_summary: CostSummary | None = None
     skill_trends: list[SkillTrendSeries] = Field(default_factory=list)
     skill_health: list[SkillHealthItem] = Field(default_factory=list)
+    timezone: str = "UTC"
 
 
 # ── Data fetchers (all read-only, no framework mutation) ─────────────
@@ -202,7 +204,11 @@ class _ActivitySnapshot:
         self.tool_calls_prev_week = tool_calls_prev_week
 
 
-async def _fetch_activity_data(time_range_days: int) -> _ActivitySnapshot:
+async def _fetch_activity_data(
+    time_range_days: int,
+    tz_info: datetime.tzinfo | None = None,
+    tz_name: str | None = None,
+) -> _ActivitySnapshot:
     """Fetch activity metrics from EventLog including weekly tool_calls aggregation."""
     if not Path(settings.database.event_log_dir).exists():
         return _ActivitySnapshot()
@@ -210,11 +216,14 @@ async def _fetch_activity_data(time_range_days: int) -> _ActivitySnapshot:
     try:
         backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
         analytics = EventLogAnalytics(backend)
-        patterns = await analytics.get_global_activity_patterns(time_range_days=time_range_days)
+        patterns = await analytics.get_global_activity_patterns(
+            time_range_days=time_range_days,
+            timezone=tz_name,
+        )
 
         heatmap = [ActivityDay(date=act.date, count=act.session_count) for act in patterns.daily_activities]
 
-        today = datetime.now(UTC).date()
+        today = datetime.now(tz_info or UTC).date()
         week_ago = today - timedelta(days=7)
         two_weeks_ago = today - timedelta(days=14)
 
@@ -403,6 +412,8 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
 @router.get("/growth-dashboard")
 async def get_growth_dashboard(
     days: int = Query(84, ge=7, le=365, description="Heatmap lookback days (default 84 = 12 weeks)"),
+    timezone: str | None = Query(None, description="User local timezone, e.g. 'Asia/Shanghai'"),
+    x_timezone: str | None = Header(None, alias="X-Timezone"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Aggregated growth dashboard — single endpoint, zero new storage.
@@ -411,6 +422,7 @@ async def get_growth_dashboard(
     All data sources are read-only and already exist.
     """
     try:
+        tz_info, tz_name = resolve_user_timezone(timezone, x_timezone)
         (
             (memory_by_type, health_score, health_dims, week_delta),
             activity,
@@ -422,11 +434,11 @@ async def get_growth_dashboard(
             memory_citations_7d,
         ) = await asyncio.gather(
             _fetch_memory_snapshot(),
-            _fetch_activity_data(days),
+            _fetch_activity_data(days, tz_info, tz_name),
             _fetch_weekly_summary(db),
             fetch_skill_evolution_data(),
             _fetch_cost_summary(db, days),
-            fetch_skill_trends(days),
+            fetch_skill_trends(days, tz_info),
             fetch_skill_health(),
             _fetch_memory_citations_7d(db),
         )
@@ -459,6 +471,7 @@ async def get_growth_dashboard(
             cost_summary=cost_summary,
             skill_trends=skill_trends,
             skill_health=skill_health,
+            timezone=tz_name,
         )
 
         return success_response(data=dashboard.model_dump())

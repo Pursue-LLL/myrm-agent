@@ -67,7 +67,6 @@ import type {
   SubagentProgressStreamEvent,
   SubagentStaleStreamEvent,
   SubagentStartStreamEvent,
-  SubagentStatusUpdateStreamEvent,
   TeammateMessageStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
@@ -86,13 +85,11 @@ import type {
   FissionTopologyUpdateStreamEvent,
   PtcNotifyStreamEvent,
   ToolImageOutputStreamEvent,
-  ToolProgressStreamEvent,
 } from './part3';
 
 export type AgentStreamEvent =
   | CatchupSnapshotStreamEvent
   | PtcNotifyStreamEvent
-  | ToolProgressStreamEvent
   | RateLimitUpdatedStreamEvent
   | RateLimitWarningStreamEvent
   | RateLimitThrottledStreamEvent
@@ -142,7 +139,6 @@ export type AgentStreamEvent =
   | SubagentLogStreamEvent
   | SubagentCompletionStreamEvent
   | SubagentStaleStreamEvent
-  | SubagentStatusUpdateStreamEvent
   | TeammateMessageStreamEvent
   | FileDiffStreamEvent
   | FileMutationFailedStreamEvent

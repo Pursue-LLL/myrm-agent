@@ -11,11 +11,18 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Protocol
+
+_DEV_LIB = str(Path(__file__).resolve().parent.parent / "lib")
+if _DEV_LIB not in sys.path:
+    sys.path.insert(0, _DEV_LIB)
+
+from e2e_core.real_user_home import real_user_home
 
 
 class CdpSocket(Protocol):
@@ -26,7 +33,7 @@ class CdpSocket(Protocol):
 
 def _state_dir() -> Path:
     return Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
     )
 
 
@@ -164,6 +171,55 @@ async def _list_default_context_page_targets(
     return _default_context_page_targets(result.get("targetInfos"))
 
 
+def _is_blank_anchor_url(url: object) -> bool:
+    if not isinstance(url, str):
+        return True
+    normalized = url.strip().lower()
+    return normalized in {"", "about:blank", "chrome://newtab/", "chrome://newtab"}
+
+
+async def _ensure_anchor_blank(
+    ws: CdpSocket,
+    target_id: str,
+    current_url: object,
+    *,
+    msg_id: int,
+    deadline: float,
+) -> None:
+    """Keep the persistent AOS anchor on about:blank so a leftover app tab never spins rAF."""
+    if _is_blank_anchor_url(current_url):
+        return
+    try:
+        attached = await _cdp_request(
+            ws,
+            msg_id,
+            "Target.attachToTarget",
+            {"targetId": target_id, "flatten": True},
+            deadline=deadline,
+        )
+        session_id = attached.get("sessionId")
+        if isinstance(session_id, str) and session_id:
+            await ws.send(
+                json.dumps(
+                    {
+                        "id": msg_id + 1,
+                        "sessionId": session_id,
+                        "method": "Page.navigate",
+                        "params": {"url": "about:blank"},
+                    }
+                )
+            )
+            await _cdp_request(
+                ws,
+                msg_id + 2,
+                "Target.detachFromTarget",
+                {"sessionId": session_id},
+                deadline=deadline,
+            )
+    except (TimeoutError, RuntimeError, asyncio.TimeoutError):
+        pass
+
+
 async def _adopt_live_anchor(
     ws: CdpSocket,
     *,
@@ -175,16 +231,26 @@ async def _adopt_live_anchor(
     windowIds are not reliably addressable afterwards (§26.25). Adopting a real
     page window — the same window `_park_all_page_windows_offscreen` parks —
     gives us a stable, addressable anchor that stays valid between ensure runs.
+    Prefer an already-blank target; if only a leftover app page exists, reset it
+    to about:blank so the protected anchor never burns CPU/GPU at Idle.
     """
-    for entry in await _list_default_context_page_targets(
+    candidates = await _list_default_context_page_targets(
         ws, msg_id=4, deadline=deadline
-    ):
+    )
+    ordered = sorted(
+        candidates,
+        key=lambda item: 0 if _is_blank_anchor_url(item.get("url")) else 1,
+    )
+    for entry in ordered:
         target_id = entry.get("targetId")
         if not isinstance(target_id, str) or not target_id:
             continue
         window_id = await _window_for_target(ws, 5, target_id, deadline=deadline)
         if isinstance(window_id, int):
             await _park_window_offscreen(ws, 6, window_id, deadline=deadline)
+            await _ensure_anchor_blank(
+                ws, target_id, entry.get("url"), msg_id=70, deadline=deadline
+            )
             return target_id, window_id
     # No live page yet — fall back to creating a dedicated blank window.
     return await _create_agent_window(ws, deadline=deadline)
@@ -253,7 +319,7 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
 
     version = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/version", timeout=5.0)
     if not isinstance(version, dict):
-        raise RuntimeError("CDP /json/version unexpected payload")
+        raise TypeError("CDP /json/version unexpected payload")
     browser_ws = version.get("webSocketDebuggerUrl")
     if not isinstance(browser_ws, str) or not browser_ws.startswith("ws://"):
         raise RuntimeError("CDP browser missing webSocketDebuggerUrl")
@@ -279,10 +345,23 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
                 default_targets = await _list_default_context_page_targets(
                     ws, msg_id=2, deadline=deadline
                 )
-                valid = current == window_id and any(
-                    entry.get("targetId") == anchor_target
-                    for entry in default_targets
+                matched_entry = next(
+                    (
+                        entry
+                        for entry in default_targets
+                        if entry.get("targetId") == anchor_target
+                    ),
+                    None,
                 )
+                valid = current == window_id and matched_entry is not None
+                if valid and matched_entry is not None:
+                    await _ensure_anchor_blank(
+                        ws,
+                        anchor_target,
+                        matched_entry.get("url"),
+                        msg_id=80,
+                        deadline=deadline,
+                    )
             except (TimeoutError, RuntimeError, asyncio.TimeoutError):
                 valid = False
 

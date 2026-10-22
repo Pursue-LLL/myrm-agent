@@ -380,3 +380,29 @@ class TestLLMManagerPoolObservability:
         LLMManager.clear_cache()
 
 
+
+
+class TestCredentialPoolProviderStatedCooldown:
+    """A provider-stated wait drives the cooldown for rate limits and spent quota windows."""
+
+    @staticmethod
+    def _cooldown(pool: CredentialPool) -> float:
+        return pool._slots[0].cooldown_until - time.monotonic()
+
+    def test_billing_with_a_stated_window_reset_cools_down_until_then(self) -> None:
+        pool = CredentialPool(["a"])
+        pool.report_error("a", "billing", cooldown_hint_s=3600.0)
+
+        assert 3590 < self._cooldown(pool) <= 3600
+
+    def test_billing_without_a_hint_stays_out_for_a_day(self) -> None:
+        pool = CredentialPool(["a"])
+        pool.report_error("a", "billing")
+
+        assert self._cooldown(pool) > 86_000
+
+    def test_hint_beyond_a_day_is_capped(self) -> None:
+        pool = CredentialPool(["a"])
+        pool.report_error("a", "rate_limit", cooldown_hint_s=10 * 86_400.0)
+
+        assert self._cooldown(pool) <= 86_400

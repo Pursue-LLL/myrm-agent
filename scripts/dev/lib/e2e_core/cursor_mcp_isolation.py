@@ -59,7 +59,7 @@ CHROME_AGENT_FOCUS_PROBES = 5
 FIX_CHROME_AGENT_HINT = (
     "Set chrome-devtools to: npx -y chrome-devtools-mcp@latest "
     f"--browserUrl http://127.0.0.1:{AGENT_CDP_PORT} --no-usage-statistics "
-    "(see scripts/dev/CHROME_MCP_E2E.md; run ./myrm ready --chrome-agent)"
+    "(see scripts/dev/CHROME_MCP_E2E.md; run chrome-agent daemon)"
 )
 FIX_AUTO_CONNECT_HINT = FIX_CHROME_AGENT_HINT
 
@@ -155,10 +155,9 @@ class DoctorReport:
 
 
 def _real_home() -> Path:
-    override = os.environ.get("MYRM_REAL_HOME", "").strip()
-    if override:
-        return Path(override).expanduser()
-    return Path.home()
+    from e2e_core.real_user_home import real_user_home
+
+    return real_user_home()
 
 
 def known_cursor_mcp_paths() -> list[Path]:
@@ -166,6 +165,7 @@ def known_cursor_mcp_paths() -> list[Path]:
     return [
         home / ".cursor" / "mcp.json",
         home / ".cursor-3.1.15" / "mcp.json",
+        home / ".cursor-latest" / "mcp.json",
     ]
 
 
@@ -583,7 +583,7 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
             "ok": False,
             "detail": (
                 f"LaunchAgent {label} check failed — "
-                "run ./myrm ready --chrome-agent --daemon"
+                "run chrome-agent daemon"
             ),
         }
     if completed.returncode != 0:
@@ -591,7 +591,7 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
             "ok": False,
             "detail": (
                 f"LaunchAgent {label} not loaded — "
-                "run ./myrm ready --chrome-agent --daemon"
+                "run chrome-agent daemon"
             ),
         }
     if "state = running" not in completed.stdout:
@@ -611,7 +611,7 @@ def probe_chrome_agent_install() -> LiveProbe:
     """
     install_base = _real_home() / ".local/lib/myrm-chrome-agent"
     current = install_base / "current"
-    hint = "run ./myrm ready --chrome-agent --daemon"
+    hint = "run chrome-agent daemon"
     if not current.is_symlink():
         return {
             "ok": False,
@@ -716,7 +716,7 @@ def probe_chrome_agent_reachable() -> ChromeProbe:
             "ok": False,
             "detail": (
                 f"ChromeAgent pipe-proxy not reachable on :{AGENT_CDP_PORT} — "
-                "run ./myrm ready --chrome-agent"
+                "run chrome-agent daemon"
             ),
             "port": None,
         }

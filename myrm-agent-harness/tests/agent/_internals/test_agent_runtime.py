@@ -460,11 +460,13 @@ class TestPopCheckpointIncompatibleMergedContext:
         goal_provider = MagicMock()
         on_terminal = MagicMock()
         on_restart = MagicMock()
+        on_hold = MagicMock()
 
         merged: dict[str, object] = {
             "goal_provider": goal_provider,
             "on_goal_terminal": on_terminal,
             "on_loop_restart": on_restart,
+            "on_goal_hold": on_hold,
             "file_content_reader": lambda _fid: b"",
             "keep": "value",
         }
@@ -475,6 +477,7 @@ class TestPopCheckpointIncompatibleMergedContext:
             "goal_provider",
             "on_goal_terminal",
             "on_loop_restart",
+            "on_goal_hold",
             "file_content_reader",
         }
         assert merged == {"keep": "value"}

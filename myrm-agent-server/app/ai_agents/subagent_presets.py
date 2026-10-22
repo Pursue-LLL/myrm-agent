@@ -34,7 +34,8 @@ def register_default_subagent_configs() -> None:
 
     Configuration Sources:
     - app/config/subagents/core/    : Core configs (adversarial-reviewer, analysis, browser, coding, deep-audit,
-                                      search, structure-planner, layout-designer, format-verifier)
+                                      explore, format-verifier, layout-designer, search, strategic-advisor,
+                                      structure-planner)
     - app/config/subagents/custom/  : User-defined configs (override core)
 
     Priority: custom YAML > core YAML (per-agent tuning in each file's ``config:`` block).

@@ -10,12 +10,12 @@ describe('MobileRemoteSteeringBar', () => {
       activeTask: {
         sessionId: 'test-session-123456',
         taskName: '自动化报表生成长任务',
-        phase: 'executing',
+        phase: 'generating',
         progress: 60,
         estimatedSecondsRemaining: 180,
+        startedAt: Date.now(),
         highSnrSummary: ['已解析 Schema', '已连接数据库'],
         artifacts: [],
-        pendingApproval: null,
       },
       isRemoteSteeringOpen: false,
     });
@@ -68,9 +68,10 @@ describe('MobileRemoteSteeringBar', () => {
       activeTask: {
         sessionId: 'test-session-123456',
         taskName: '自动化报表生成长任务',
-        phase: 'waiting_approval',
+        phase: 'paused_approval',
         progress: 75,
         estimatedSecondsRemaining: 90,
+        startedAt: Date.now(),
         highSnrSummary: ['等待高危授权'],
         artifacts: [],
         pendingApproval: {
@@ -79,7 +80,6 @@ describe('MobileRemoteSteeringBar', () => {
           riskLevel: 'high',
           description: '尝试在生产沙箱执行 rm -rf 临时缓存',
           params: { command: 'rm -rf /tmp/cache' },
-          timestamp: Date.now(),
         },
       },
     });
@@ -101,18 +101,18 @@ describe('MobileRemoteSteeringBar', () => {
       activeTask: {
         sessionId: 'test-session-123456',
         taskName: '自动化报表生成长任务',
-        phase: 'waiting_approval',
+        phase: 'paused_approval',
         progress: 75,
         estimatedSecondsRemaining: 90,
+        startedAt: Date.now(),
         highSnrSummary: ['等待高危授权'],
         artifacts: [],
         pendingApproval: {
           id: 'appr-2',
           toolName: 'shell_execute',
-          riskLevel: 'critical',
+          riskLevel: 'high',
           description: '尝试修改数据库 Schema',
           params: { command: 'ALTER TABLE users DROP COLUMN token' },
-          timestamp: Date.now(),
         },
       },
     });

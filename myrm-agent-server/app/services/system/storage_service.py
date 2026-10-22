@@ -20,6 +20,7 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from myrm_agent_harness.infra.sqlite_backup import hot_copy_database
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -62,24 +63,14 @@ def get_sqlite_breakdown(data_dir: Path) -> DatabaseStorageBreakdown:
 
 
 def perform_sqlite_backup(src_db: Path, backup_file: Path) -> None:
-    """Perform a clean online backup using sqlite3 backup API.
+    """Perform a clean online backup (page-consistent, safe while the app is writing).
 
     Rotates existing backup file by overwriting it to prevent secondary disk bloat.
     """
     if not src_db.exists():
         return
-    if backup_file.exists():
-        try:
-            backup_file.unlink()
-        except OSError:
-            pass
-    src_conn = sqlite3.connect(str(src_db), timeout=10.0)
-    dest_conn = sqlite3.connect(str(backup_file), timeout=10.0)
-    try:
-        src_conn.backup(dest_conn)
-    finally:
-        dest_conn.close()
-        src_conn.close()
+    backup_file.unlink(missing_ok=True)
+    hot_copy_database(src_db, backup_file)
 
 
 def execute_storage_optimization(

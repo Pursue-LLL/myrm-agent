@@ -294,6 +294,7 @@ export async function moveTask(
     scheduled_until?: string;
     result?: string;
     metadata?: Record<string, unknown>;
+    assignee_agent_id?: string;
   },
 ): Promise<KanbanTask> {
   const { force = false, ...rest } = opts ?? {};
