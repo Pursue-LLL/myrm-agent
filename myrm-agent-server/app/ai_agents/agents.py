@@ -62,10 +62,18 @@ class AgentFactory:
             params.agent_skill_configs = skill_configs
 
         event_log_backend = None
+        effective_session_id = params.event_log_session_id or params.chat_id
         if params.incognito_mode:
             # The log keeps every prompt and tool result, which an incognito chat must not leave on disk.
-            logger.debug("Event log backend bypassed: incognito chat (session_id=%s)", params.chat_id)
-        elif params.event_log_dir and params.chat_id and is_safe_session_id(params.chat_id):
+            logger.debug("Event log backend bypassed: incognito chat (session_id=%s)", effective_session_id)
+        elif not params.event_log_dir:
+            if effective_session_id:
+                logger.debug("Event log backend bypassed: event_log_dir not configured (session_id=%s)", effective_session_id)
+        elif not effective_session_id:
+            logger.warning("Event log backend bypassed: session_id is empty or None (event_log_dir=%s)", params.event_log_dir)
+        elif not is_safe_session_id(effective_session_id):
+            logger.warning("Event log backend bypassed: unsafe session_id %r rejected by whitelist", effective_session_id)
+        else:
             log_dir = Path(params.event_log_dir)
             log_dir.mkdir(parents=True, exist_ok=True)
             line_max = (
@@ -75,9 +83,12 @@ class AgentFactory:
             )
             event_log_backend = FileEventLogBackend(
                 log_dir=log_dir,
-                session_id=params.chat_id,
+                session_id=effective_session_id,
                 max_jsonl_line_bytes=line_max,
             )
+            # The model-call memo stores the model's own answers, so it lives behind the very
+            # same four gates as the event log and disappears with it.
+            params.memo_ledger_path = str(log_dir / "memo.sqlite3")
 
         if params.tool_gateway_config:
             from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
