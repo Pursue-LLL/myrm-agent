@@ -4,6 +4,101 @@
 
 ---
 
+## BUG-AGENT-2026-10-22-001: 回合身份在 params 构建前赋值，导致每轮持久化聊天 UnboundLocalError
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P0（聊天主链路不可用） |
+| 影响范围 | `myrm-agent-server/app/services/agent/stream_session/orchestrator_turn_body.py` |
+| 出现次数 | 1（提交 `afc128e2ca` 引入，`7ea34f6dfb` 修复） |
+| 关联 roadmap | 模型调用 memo 幂等（topic_10 #246 第一阶段） |
+
+### 现象
+
+1. 正常聊天（有持久化用户消息）无回复，后端日志出现 `UnboundLocalError: cannot access local variable 'params'`。
+2. 守护进程因健康检查失败反复重启后端，表现为 `/health` 在 200/000 之间抖动。
+
+### 根因
+
+`afc128e2ca` 在 `persisted_message_id` 之后、`build_turn_params()` 之前写入 `params.turn_identity`，而 `params = turn.params` 在更后面。Python 将 `params` 视为函数局部变量，首次读取即 `UnboundLocalError`；只要用户消息落库就必然触发。
+
+### 为什么没提前拦住
+
+1. pyright 能报 `reportUnboundVariable`，但 CI / pre-commit 从未运行 pyright；
+2. 主链路没有覆盖 `execute_agent_turn_after_reserve` 的回归测试。
+
+### 修复
+
+1. 将 `params.turn_identity` 赋值移到 `params = turn.params` 之后、`write_interrupted_turn_marker` 之前；
+2. 新增 `tests/services/agent/stream_session/test_orchestrator_turn_body_turn_identity.py`；
+3. 新增 `scripts/ci/check_pyright_unbound.py` 并接入 `run_architecture_gates.sh`，CI 阻断 unbound / undefined。
+
+### 验证
+
+- 338 passed（stream_session + auto_continue）；
+- 真实模型端到端（隔离栈 API）：`message: "成功"`，无 error；
+- pyright unbound/undefined：0；伪造诊断可让门禁 exit 1。
+
+---
+
+## BUG-E2E-2026-10-22-002: 合并回退 profile contract，conftest 导入失败导致 server 测试全套起不来
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（测试基础设施不可用） |
+| 影响范围 | `scripts/dev/lib/e2e_core/profile_contract.py`、`myrm-agent-server/tests/conftest.py` |
+| 出现次数 | 1（合并漂移；`7b8486aeeb` 修复） |
+
+### 现象
+
+任何 server pytest 在加载 conftest 时失败：`ImportError: cannot import name 'CHROME_E2E_MAX_TIMEOUT_SEC' from 'e2e_core.profile_contract'`。
+
+### 根因
+
+合并把 `profile_contract.py` 回退成 22 行的旧版本（只有 `PRIVATE_REASONS` / `UNSUPPORTED_PRIVATE_REASONS`），而合并后的 conftest 已依赖新契约的 5 个常量。
+
+### 修复
+
+从 WIP 快照 `15065a968c` 恢复 84 行版本（含 `CHROME_E2E_MAX_TIMEOUT_SEC = 600`、`EXCLUSIVE_BACKEND_CEILING`、超时白名单与 exclusive-backend manifest）。
+
+### 验证
+
+conftest 正常加载；338 passed。
+
+---
+
+## BUG-DATA-2026-10-22-003: 劳务等效字段标注为未定义的 `string`
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P3（类型标注错误，运行时未崩溃） |
+| 影响范围 | `myrm-agent-harness/src/myrm_agent_harness/observability/labor_acceleration/models.py` |
+| 出现次数 | 1（`8b8e1aa0dc` 修复） |
+
+### 现象
+
+pyright 报 `reportUndefinedVariable: "string" is not defined`。
+
+### 根因
+
+`LaborEquivalencyItem.label` 误写为 `label: string`（应为 `str`）。因 `from __future__ import annotations` 不在运行时求值，所以没有崩溃，但 `typing.get_type_hints` 会失败。
+
+### 修复
+
+改为 `label: str`。
+
+### 验证
+
+harness `test_labor_acceleration.py` 3 passed；server 同名测试 3 passed；pyright undefined：0。
+
+---
+
 ## BUG-AGENT-2026-07-26-001: Wave Lease Reaper 静默失败导致 Zombie Lease 阻塞
 
 | 属性 | 值 |
