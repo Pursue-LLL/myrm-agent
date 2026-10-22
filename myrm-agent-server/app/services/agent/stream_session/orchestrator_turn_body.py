@@ -104,13 +104,6 @@ async def execute_agent_turn_after_reserve(
     )
     pending_draft = persisted_message_id.pending_draft if persisted_message_id is not None else None
 
-    # The turn identity is this turn's user message id. It is set before the interrupted-turn
-    # marker serialises the params, so the resume of this very turn restores the same value:
-    # that is what lets the model-call memo recognise "the same call as before" and answer
-    # from the ledger instead of paying for the model a second time.
-    if persisted_message_id:
-        params.turn_identity = str(persisted_message_id)
-
     pre_reply_compact_result: CompactResult | None = None
     pre_reply_compact_sse_sent = False
     if request.resume_value is None and request.chat_id and request.message_id:
@@ -148,6 +141,13 @@ async def execute_agent_turn_after_reserve(
         await fail_buffered_turn(buffer, request.message_id, str(exc))
         return
     params = turn.params
+
+    # The turn identity is this turn's user message id. It must be set on the freshly built
+    # params before the interrupted-turn marker serialises them, so a resume of this very
+    # turn restores the same value: that is what lets the model-call memo recognise "the
+    # same call as before" and answer from the ledger instead of paying twice.
+    if persisted_message_id:
+        params.turn_identity = str(persisted_message_id)
 
     research_model_cfg = await resolve_research_model(request)
 
