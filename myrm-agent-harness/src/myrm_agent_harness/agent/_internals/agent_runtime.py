@@ -97,10 +97,7 @@ from ._agent_helpers import (
     reset_all_guards,
     schedule_post_run_idle_tasks,
 )
-from .context_budget import (
-    compute_context_budget_snapshot,
-    resolve_context_budget_breakdown,
-)
+from .context_budget import compute_context_budget_snapshot, resolve_context_budget_breakdown
 from .resume_addressing import address_resume_to_pending
 from .run_lifecycle import (
     cleanup_run,

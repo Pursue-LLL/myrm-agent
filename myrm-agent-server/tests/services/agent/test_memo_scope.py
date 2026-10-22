@@ -77,3 +77,49 @@ async def test_inner_exception_propagates_and_scope_is_restored(scope: LlmCallSc
     with pytest.raises(RuntimeError, match="boom"):
         await anext(memo_scope.memo_scoped_stream(failing(), object()))
     assert current_llm_call_scope() is None
+
+
+class TestBuildMemoScope:
+    def _params(self, **overrides: object) -> object:
+        from types import SimpleNamespace
+
+        base = {
+            "turn_identity": "turn-1",
+            "memo_ledger_path": "/tmp/memo-scope-test.db",
+            "event_log_session_id": "session-1",
+            "chat_id": "chat-1",
+        }
+        base.update(overrides)
+        return SimpleNamespace(**base)
+
+    def test_requires_turn_identity(self) -> None:
+        assert memo_scope.build_memo_scope(self._params(turn_identity=None)) is None
+
+    def test_requires_ledger_path(self) -> None:
+        assert memo_scope.build_memo_scope(self._params(memo_ledger_path=None)) is None
+
+    def test_requires_session_id(self) -> None:
+        assert memo_scope.build_memo_scope(self._params(event_log_session_id=None, chat_id=None)) is None
+
+    def test_ledger_open_failure_degrades_to_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _boom(_path: str) -> object:
+            raise RuntimeError("no ledger")
+
+        monkeypatch.setattr(memo_scope, "MemoLedger", _boom)
+        assert memo_scope.build_memo_scope(self._params()) is None
+
+    def test_builds_scope_from_turn_and_event_session(self, tmp_path) -> None:
+        params = self._params(memo_ledger_path=str(tmp_path / "memo.db"))
+        scope = memo_scope.build_memo_scope(params)
+        assert isinstance(scope, LlmCallScope)
+        assert (scope.session_id, scope.turn_id) == ("session-1", "turn-1")
+
+    def test_falls_back_to_chat_id(self, tmp_path) -> None:
+        params = self._params(
+            memo_ledger_path=str(tmp_path / "memo2.db"),
+            event_log_session_id=None,
+            chat_id="chat-2",
+        )
+        scope = memo_scope.build_memo_scope(params)
+        assert scope is not None
+        assert scope.session_id == "chat-2"
