@@ -28,6 +28,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_e2ee_layout.py` | Mobile remote E2EE 须位于 `app/remote_access/e2ee/` 子包，禁止 remote_access 根 legacy 平铺文件复活 |
 | `test_builtin_agent_i18n_parity.py` | 前端 `builtin-agent-i18n-data.ts` 的 key 集合须与 server `_BUILTIN_AGENTS` id 严格同构 |
 | `test_channel_catalog_i18n_boundary.py` | server 渠道 JSON catalog 边界：键集 ⊆ 白名单、全语种同构、禁止 fork harness 诊断目录（SSOT） |
+| `test_app_has_no_test_env_reads.py` | `app/**` 禁止读测试开关（`MYRM_E2E_*` / `MYRM_TEST_*` / `E2E_*`，豁免 pytest 自设的 `PYTEST_CURRENT_TEST`），也禁止读业务凭据类 env（`EMBEDDING_*` / `RERANKER_*` / `BASIC_*` / `LITE_*` / `TAVILY_*`）：前者让测试脚手架能改变生产语义，后者让「WebUI 配置」与「进程 env」两套来源并存（曾导致 FAQ 拦截在生产永远返回 None）。业务能力差异用 `DeploymentCapabilities` 语义位表达，凭据一律经 WebUI 配置注入 |
 | `test_catalog_category_locales.py` | 集成目录 API 返回的每个分类，六种语言的 `settings.integrationCatalog.categories` 都有显示名（目录页按 `categories.${id}` 动态取词，缺失会静默露出内部分类 id） |
 | `test_storage_category_locales.py` | 存储占用台账能上报的每个类别（harness `StorageCategory`），六种语言的 `settings.storageGovernance.categories` 都有名称，且前端 `StorageCategoryKey` 与该枚举同构（治理卡按 `categories.${category}` 动态取词，缺失会静默露出原始消息键） |
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |
