@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
     build_tool_name_map,
     mcp_tool_short_name,
@@ -151,6 +153,27 @@ class TestRuntimeProxyNameRoundTrip:
 
         tools = ["mcp__srv__get-ticket", "mcp__srv__get_ticket"]
         assert resolve_mcp_tool_name("get_ticket_2", tools) == "mcp__srv__get_ticket"
+
+    def test_positional_skill_call_is_rejected_with_actionable_error(self) -> None:
+        import asyncio
+        import sys
+        import types
+
+        from myrm_agent_harness.agent.skills.mcp import client_templates
+
+        async def _fake_call(skill: str, tool: str, kwargs: dict[str, object]) -> str:
+            return "ok"
+
+        namespace: dict[str, object] = {
+            "_call": _fake_call,
+            "asyncio": asyncio,
+            "sys": sys,
+            "types": types,
+        }
+        exec(client_templates._generate_module_system(), namespace)  # noqa: S102 - the generated runtime source
+        skill_function = namespace["_SkillFunction"]
+        with pytest.raises(TypeError, match="keyword-only"):
+            asyncio.run(skill_function("mcp_x_skill", "get_ticket")("positional"))
 
 
 class TestRenderedL2Names:

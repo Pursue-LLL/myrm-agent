@@ -224,7 +224,7 @@ class TestToolList:
         }
         meta = self._tool_list_meta(1, schemas=schemas)
         out = mcp_skill_generator.generate_skill_content(meta)
-        assert "fn_0(x:string)" in out
+        assert "fn_0(*, x:string)" in out
         assert "Parameters:" not in out
 
     def test_many_tools_truncate_description(self) -> None:
@@ -284,7 +284,7 @@ class TestRenderSignature:
             "properties": {"anything": True, "city": {"type": "string"}},
             "required": ["city"],
         }
-        assert render_signature("fn", schema) == "fn(city:string)"
+        assert render_signature("fn", schema) == "fn(*, city:string)"
 
     def test_non_object_properties_are_ignored(self) -> None:
         assert render_signature("fn", {"properties": None}) == "fn()"
@@ -293,7 +293,7 @@ class TestRenderSignature:
     def test_required_must_be_a_list_of_names(self) -> None:
         """A string ``required`` must not mark every parameter required."""
         schema = {"type": "object", "properties": {"c": {"type": "string"}}, "required": "city"}
-        assert render_signature("fn", schema) == "fn(c?:string)"
+        assert render_signature("fn", schema) == "fn(*, c?:string)"
 
 
 class TestTextProcessing:
@@ -470,7 +470,7 @@ class TestMalformedSchemas:
 
         # An empty signature would read as a zero-argument tool.
         assert render_signature("f", {"properties": {"a": True}}) == "f(…)"
-        assert render_signature("f", {"properties": {"a": {"type": "string"}}, "required": ["a"]}) == "f(a:string)"
+        assert render_signature("f", {"properties": {"a": {"type": "string"}}, "required": ["a"]}) == "f(*, a:string)"
 
 
 class TestSkillNameCollisions:

@@ -227,8 +227,8 @@ class TestBuildToolListIndex:
         }
         tool_list = _tool_section(generator, tools, schemas)
         # Both stay callable: the second takes a deterministic suffix instead of being marked dead.
-        assert "get_ticket(a?:string)" in tool_list
-        assert "get_ticket_2(a?:string)" in tool_list
+        assert "get_ticket(*, a?:string)" in tool_list
+        assert "get_ticket_2(*, a?:string)" in tool_list
 
     def test_large_server_lists_names_without_descriptions(
         self, generator: MCPSkillGenerator, large_skill_meta: SkillMetadata
@@ -578,15 +578,15 @@ class TestRenderSignatureEdge:
 
     def test_type_list_drops_null(self, generator: MCPSkillGenerator) -> None:
         schema = {"properties": {"q": {"type": ["string", "null"]}}}
-        assert render_signature("fn", schema) == "fn(q?:string)"
+        assert render_signature("fn", schema) == "fn(*, q?:string)"
 
     def test_anyof_union(self, generator: MCPSkillGenerator) -> None:
         schema = {"properties": {"q": {"anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]}}}
-        assert render_signature("fn", schema) == "fn(q?:string|array)"
+        assert render_signature("fn", schema) == "fn(*, q?:string|array)"
 
     def test_missing_type_defaults_to_any(self, generator: MCPSkillGenerator) -> None:
         schema = {"properties": {"q": {"description": "free form"}}}
-        assert render_signature("fn", schema) == "fn(q?:any)"
+        assert render_signature("fn", schema) == "fn(*, q?:any)"
 
     def test_long_pattern_not_inlined(self, generator: MCPSkillGenerator) -> None:
         schema = {"properties": {"q": {"type": "string", "pattern": "x" * 40}}}
