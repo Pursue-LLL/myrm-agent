@@ -576,8 +576,7 @@ async def resolve_context_budget_breakdown(
                 fn = t.get("function")
                 name = fn.get("name", "") if isinstance(fn, dict) else t.get("name", "")
             name_str = str(name)
-            # The UI labels these rows as "… tools schema"; count the same wire schema
-            # the provider receives, not just the description.
+            # The UI labels these rows as "… tools schema"; count the same wire schema.
             schema_tokens = estimate_tool_schema_tokens(t)
             if name_str.startswith("mcp__") or "mcp" in name_str.lower():
                 mcp_tokens += schema_tokens
