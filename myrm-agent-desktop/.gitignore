@@ -45,3 +45,6 @@ __pycache__/
 # Harness workspace runtime (Python sidecar local dev)
 .myrm/
 .agent/
+
+# Desktop runtime state (created by the app at runtime)
+data/
