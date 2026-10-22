@@ -94,6 +94,16 @@ def validate_scope_subset(child_scope: ResourceScope, parent_scope: ResourceScop
         if not any(_is_path_subscope(cp, pp) for pp in parent_scope.paths):
             raise AttenuationError(f"Path elevation denied: '{cp}' is outside parent path boundaries")
 
+    # Domains widen the parent's reach in the same way paths do: a child domain must be covered
+    # by one of the parent patterns. An empty child tuple inherits nothing, which is a narrowing.
+    for cd in child_scope.domains:
+        if not any(fnmatch.fnmatchcase(cd, pd) for pd in parent_scope.domains):
+            raise AttenuationError(f"Domain elevation denied: '{cd}' is outside parent domain boundaries")
+
+    for cm in child_scope.mcp_tools:
+        if not any(fnmatch.fnmatchcase(cm, pm) for pm in parent_scope.mcp_tools):
+            raise AttenuationError(f"MCP tool elevation denied: '{cm}' is outside parent MCP tool boundaries")
+
 
 def attenuate_capability(
     parent: CapabilityHandle,

@@ -266,12 +266,21 @@ def tcp_port_owner_pid(port: int) -> int | None:
     return None
 
 
-def _backend_port_owner(*, port: int | None = None) -> tuple[int | None, str]:
-    """The backend port's owning pid and command (lsof/ps are the port-truth SSOT)."""
+def backend_port_owner_is_dev_backend(*, port: int | None = None) -> bool:
+    """Whether the backend port is served by the dev backend process.
+
+    The desktop app's bundled server also listens on the backend port and answers health checks
+    with 200 while serving a different database. The dev stack refuses to reclaim a foreign port
+    owner (it must not kill processes it does not own), so a lane that only asks "is the API up?"
+    silently runs against the wrong backend and fails for reasons that have nothing to do with the
+    test. The dev backend is the process whose command carries the backend token, the same token
+    the dev stack uses to recognise its own backend.
+    """
     backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
     owner = tcp_port_owner_pid(backend_port)
     if owner is None:
-        return None, ""
+        # Nothing is listening: the crash-heal path owns that case.
+        return True
     try:
         result = subprocess.run(
             ["ps", "-p", str(owner), "-o", "command="],
@@ -281,29 +290,34 @@ def _backend_port_owner(*, port: int | None = None) -> tuple[int | None, str]:
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return owner, ""
-    return owner, (result.stdout or "").strip()
+        return True
+    command = (result.stdout or "").strip()
+    if not command:
+        return True
+    return "run.py" in command
 
 
 def foreign_backend_port_owner_description(*, port: int | None = None) -> str:
-    """Describe a backend port owner that is not the dev backend (empty when it is).
-
-    The desktop app's bundled server also listens on the backend port and answers health checks
-    with 200 while serving a different database. The dev stack refuses to reclaim a foreign port
-    owner (it must not kill processes it does not own), so a lane that only asks "is the API up?"
-    silently runs against the wrong backend and fails for reasons that have nothing to do with the
-    test. The dev backend is the process whose command carries the backend token.
-    """
+    """Human-readable description of a foreign backend port owner (empty when it is the dev one)."""
     backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
-    owner, command = _backend_port_owner(port=backend_port)
-    if owner is None or not command or "run.py" in command:
+    if backend_port_owner_is_dev_backend(port=backend_port):
         return ""
-    return f":{backend_port} is served by pid {owner} ({command[:160]})"
+    owner = tcp_port_owner_pid(backend_port)
+    command = ""
+    if owner is not None:
+        try:
+            result = subprocess.run(
+                ["ps", "-p", str(owner), "-o", "command="],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            command = (result.stdout or "").strip()[:160]
+        except (OSError, subprocess.TimeoutExpired):
+            command = ""
+    return f":{backend_port} is served by pid {owner} ({command or 'unknown command'})"
 
-
-def backend_port_owner_is_dev_backend(*, port: int | None = None) -> bool:
-    """Whether the backend port is served by the dev backend (or nobody yet)."""
-    return not foreign_backend_port_owner_description(port=port)
 
 
 def _ui_probe_host_port(ui_base: str) -> tuple[str, int]:

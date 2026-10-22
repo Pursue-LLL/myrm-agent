@@ -114,6 +114,14 @@ class CapabilityRegistry:
 
         return revoked_count
 
+    def is_revoked(self, handle_id: str) -> bool:
+        """Whether ``handle_id`` was revoked.
+
+        Separate from ``is_valid`` on purpose: this answers only the revocation question, so a
+        caller can enforce revocation without also asserting that the handle was ever registered.
+        """
+        return self._get_shard(handle_id).is_revoked(handle_id)
+
     def is_valid(self, handle: CapabilityHandle, current_time: float | None = None) -> bool:
         """Atomically check if capability handle is valid, unrevoked, and unexpired."""
         now = time.monotonic() if current_time is None else current_time
