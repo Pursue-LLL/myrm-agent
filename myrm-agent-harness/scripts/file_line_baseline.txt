@@ -103,6 +103,6 @@ myrm_agent_harness/utils/url_utils.py	505
 myrm_agent_harness/toolkits/wiki/core/structure.py	507
 myrm_agent_harness/toolkits/memory/strategies/merger.py	554
 myrm_agent_harness/toolkits/retriever/bm25_retrieval.py	501
-myrm_agent_harness/agent/skills/mcp/proxy_service.py	504
+myrm_agent_harness/agent/skills/mcp/proxy_service.py	497
 myrm_agent_harness/toolkits/computer_use/backends/macos.py	505
 myrm_agent_harness/agent/skills/mcp/ipc_proxy.py	503
