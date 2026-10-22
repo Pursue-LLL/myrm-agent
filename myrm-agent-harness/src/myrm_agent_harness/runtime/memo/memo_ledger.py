@@ -145,10 +145,3 @@ class MemoLedger:
                 """,
                 (MemoStatus.FAILED.value, error[:2000], model, now, key),
             )
-
-    def purge_older_than(self, seconds: float) -> int:
-        """Drop rows older than `seconds`; returns how many were removed."""
-        cutoff = time.time() - seconds
-        with self._lock, self._conn:
-            cursor = self._conn.execute("DELETE FROM llm_memo WHERE updated_at < ?", (cutoff,))
-        return cursor.rowcount if cursor.rowcount and cursor.rowcount > 0 else 0

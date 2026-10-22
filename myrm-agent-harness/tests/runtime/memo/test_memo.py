@@ -19,7 +19,6 @@ from myrm_agent_harness.runtime.memo import (
     current_llm_call_scope,
     fail_memo_call,
     llm_call_scope,
-    scope_from_context,
     start_memo_call,
 )
 
@@ -205,23 +204,3 @@ def test_a_broken_ledger_does_not_stop_the_call() -> None:
     complete_memo_call(scope, attempt, "gpt-x", {"content": "x"})
 
 
-def test_the_scope_is_built_from_the_run_context() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ledger = _ledger(tmpdir)
-        context = {"myrm_turn_identity": "turn-42"}
-        scope = scope_from_context(context, session_id="s1", ledger=ledger, turn_id_key="myrm_turn_identity")
-        assert scope is not None
-        assert scope.turn_id == "turn-42"
-        assert scope.session_id == "s1"
-
-
-def test_without_a_turn_identity_there_is_no_scope() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ledger = _ledger(tmpdir)
-        assert scope_from_context({}, session_id="s1", ledger=ledger, turn_id_key="myrm_turn_identity") is None
-        assert (
-            scope_from_context(
-                {"myrm_turn_identity": "t1"}, session_id="s1", ledger=None, turn_id_key="myrm_turn_identity"
-            )
-            is None
-        )

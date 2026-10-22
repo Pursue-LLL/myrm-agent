@@ -26,7 +26,7 @@ exactly as before, which keeps the feature inert until a caller opts in.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
@@ -163,23 +163,3 @@ def fail_memo_call(scope: LlmCallScope | None, attempt: MemoAttempt, model: str,
         scope.ledger.record_failed(attempt.key.digest, model, error)
     except Exception:
         logger.warning("LLM memo failure write failed.", exc_info=True)
-
-
-def scope_from_context(
-    context: Mapping[str, Any],
-    *,
-    session_id: str,
-    ledger: MemoLedger | None,
-    turn_id_key: str,
-) -> LlmCallScope | None:
-    """Build a scope from a run context; None when the caller did not opt in.
-
-    The turn identity must come from the context: it has to be the same for a turn and for
-    the resume of that turn, and only the caller knows it.
-    """
-    if ledger is None:
-        return None
-    turn_id = context.get(turn_id_key)
-    if not isinstance(turn_id, str) or not turn_id:
-        return None
-    return LlmCallScope(session_id=session_id, turn_id=turn_id, ledger=ledger)

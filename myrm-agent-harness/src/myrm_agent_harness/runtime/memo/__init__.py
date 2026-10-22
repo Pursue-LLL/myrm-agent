@@ -16,7 +16,6 @@
 - llm_call_scope: activate a scope for the duration of a block
 - current_llm_call_scope: the scope in effect, or None
 - enter_llm_call_scope / exit_llm_call_scope: explicit activation for callers that own the flow
-- scope_from_context: build a scope from a run context
 
 [POS]
 Framework-level memoisation of model calls. When a turn is interrupted and replayed, the
@@ -38,7 +37,6 @@ from myrm_agent_harness.runtime.memo.call_scope import (
     exit_llm_call_scope,
     fail_memo_call,
     llm_call_scope,
-    scope_from_context,
     start_memo_call,
 )
 from myrm_agent_harness.runtime.memo.memo_key import (
@@ -66,5 +64,4 @@ __all__ = [
     "enter_llm_call_scope",
     "exit_llm_call_scope",
     "llm_call_scope",
-    "scope_from_context",
 ]
