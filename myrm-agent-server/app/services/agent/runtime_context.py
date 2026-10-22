@@ -37,10 +37,14 @@ def resolve_stream_execution_mode() -> ExecutionMode:
 
 
 def prefer_direct_agent_stream(request: AgentRequest) -> AgentRequest:
-    """SHPOIB Chrome E2E: workspace multiplex is unreliable across isolated backends."""
-    import os
+    """Answer this turn on the POST response body when the instance cannot multiplex.
 
-    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1" or not request.multiplexed:
+    An isolated per-lane backend does not serve the shared workspace stream, so a
+    multiplexed request would otherwise hand the turn to a stream nobody reads.
+    """
+    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
+    if get_deployment_capabilities().supports_multiplexed_stream or not request.multiplexed:
         return request
     return request.model_copy(update={"multiplexed": False})
 

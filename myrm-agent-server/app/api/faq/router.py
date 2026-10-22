@@ -131,14 +131,19 @@ async def bulk_import(agent_id: str, body: FaqBulkImportRequest) -> dict[str, in
 
 @router.post("/{agent_id}/rebuild-index")
 async def rebuild_index(agent_id: str) -> FaqRebuildResponse:
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
-        get_embedding_config,
-        get_embedding_service,
-    )
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
 
     from app.core.retriever.vector.defaults import create_default_vector_store
+    from app.services.agent.platform_config import load_platform_retrieval_configs
 
-    embedding_service = get_embedding_service(get_embedding_config())
+    embedding_config, _ = await load_platform_retrieval_configs()
+    if embedding_config is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Embedding is not configured. Set it in Settings > Retrieval before rebuilding the index.",
+        )
+
+    embedding_service = get_embedding_service(embedding_config)
     vector_store = await create_default_vector_store()
 
     count = await _corpus_service.rebuild_index(agent_id, embedding_service, vector_store)
