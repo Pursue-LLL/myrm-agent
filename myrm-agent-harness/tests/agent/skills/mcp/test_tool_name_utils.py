@@ -77,6 +77,22 @@ class TestPythonIdentifiers:
             compile(f"from skills.x import {python_name}", "<t>", "exec")
             assert resolve_mcp_tool_name(python_name, tools) == canonical
 
+    def test_generated_names_do_not_shadow_canonical_names(self) -> None:
+        # The model imports `foo_bar_2` for `foo bar`; exact `foo_bar` must stay
+        # the unrelated canonical tool, not the generated alias.
+        tools = ["foo.bar", "foo_bar", "foo bar"]
+        mapping = build_tool_name_map(tools)
+        assert mapping["foo_bar"] == "foo_bar"
+        for canonical, python_name in mapping.items():
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
+        for tools in (["None", "_None"], ["1foo", "_1foo"]):
+            mapping = build_tool_name_map(tools)
+            for canonical, python_name in mapping.items():
+                compile(f"from skills.x import {python_name}", "<t>", "exec")
+                assert resolve_mcp_tool_name(python_name, tools) == canonical
+
 
 class TestResolveMcpToolName:
     def test_exact_match(self) -> None:

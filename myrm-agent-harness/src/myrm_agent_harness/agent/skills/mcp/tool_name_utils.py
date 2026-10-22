@@ -53,11 +53,15 @@ def build_tool_name_map(tools: list[str]) -> dict[str, str]:
     """
     mapping: dict[str, str] = {}
     used: set[str] = set()
+    reserved = set(tools)
     for canonical in sorted(tools):
         base = to_python_identifier(mcp_tool_short_name(canonical))
         candidate = base
         index = 2
-        while candidate in used:
+        # A generated name must not shadow another canonical name: resolve_mcp_tool_name
+        # checks exact canonical names first, so ``foo_bar`` for ``foo bar`` would
+        # otherwise resolve to the unrelated tool literally named ``foo_bar``.
+        while candidate in used or (candidate in reserved and candidate != canonical):
             candidate = f"{base}_{index}"
             index += 1
         used.add(candidate)
