@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import itertools
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 
 import pytest
 
@@ -133,6 +133,21 @@ def _make_dm_msg(content: str = "Hello DM") -> InboundMessage:
     )
 
 
+async def _wait_until(predicate: Callable[[], bool], timeout: float = 5.0, interval: float = 0.02) -> bool:
+    """Poll until ``predicate`` holds; returns whether it did.
+
+    The router consumes inbound messages on its own task, so a fixed sleep races the first
+    turn's cold start (DB init included) instead of waiting for the effect under test.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        if predicate():
+            return True
+        await asyncio.sleep(interval)
+    return predicate()
+
+
 async def _drain_outbound(bus: MessageBus, timeout: float = 0.5) -> list[OutboundMessage]:
     """Collect all outbound messages from the internal queue within timeout."""
     results: list[OutboundMessage] = []
@@ -166,7 +181,7 @@ async def test_group_mentioned_open_policy_routes_to_agent() -> None:
         called_msg, called_uid = executor.calls[0]
         assert called_msg.is_group is True
         assert called_msg.mentioned is True
-        assert called_uid == "local-user"
+        assert called_uid == "guest_whatsapp_user123@s.whatsapp.net"
         assert called_msg.content == "@bot what is AI?"
 
         outbound = await _drain_outbound(bus)
@@ -226,10 +241,10 @@ async def test_group_allowlist_with_mention_routes() -> None:
     try:
         msg = _make_group_msg(mentioned=True, content="@bot search something")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
-        assert executor.calls[0][1] == "local-user"
+        assert executor.calls[0][1] == "guest_whatsapp_user123@s.whatsapp.net"
     finally:
         await router.stop()
 
@@ -246,12 +261,12 @@ async def test_dm_still_works_with_group_support() -> None:
     try:
         msg = _make_dm_msg(content="Hello from DM")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
         called_msg, called_uid = executor.calls[0]
         assert called_msg.is_group is False
-        assert called_uid == "local-user"
+        assert called_uid == "guest_whatsapp_user123@s.whatsapp.net"
     finally:
         await router.stop()
 
@@ -278,7 +293,7 @@ async def test_error_reply_routes_to_group_chat_id() -> None:
     try:
         msg = _make_group_msg(mentioned=True, content="@bot trigger error")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: not bus._outbound.empty())
 
         outbound = await _drain_outbound(bus)
         assert len(outbound) == 1
@@ -304,7 +319,7 @@ async def test_prefix_trigger_routes_and_strips_prefix() -> None:
     try:
         msg = _make_group_msg(mentioned=False, content="/ask what is Python?")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
         called_msg, _ = executor.calls[0]
@@ -351,7 +366,7 @@ async def test_all_trigger_mode_responds_to_everything() -> None:
     try:
         msg = _make_group_msg(mentioned=False, content="just chatting")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
     finally:
@@ -374,7 +389,7 @@ async def test_mention_always_overrides_trigger_mode() -> None:
     try:
         msg = _make_group_msg(mentioned=True, content="no prefix but mentioned")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
         assert executor.calls[0][0].content == "no prefix but mentioned"
@@ -398,7 +413,7 @@ async def test_enabled_groups_allows_listed_group() -> None:
     try:
         msg = _make_group_msg(mentioned=False, content="hello")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
     finally:
@@ -487,11 +502,12 @@ async def test_trigger_message_includes_accumulated_context() -> None:
         for i in range(3):
             msg = _make_group_msg(mentioned=False, content=f"background msg {i}")
             await bus._handle_inbound(msg)
-        await asyncio.sleep(0.2)
+        # Wait for all three to land in the buffer instead of racing the router's own task.
+        await _wait_until(lambda: len(router._resolver._context_buffer._store.get(_TEST_GROUP_JID, ())) == 3)
 
         trigger = _make_group_msg(mentioned=True, content="@bot summarize")
         await bus._handle_inbound(trigger)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
         called_msg, _ = executor.calls[0]
@@ -514,15 +530,17 @@ async def test_context_cleared_after_trigger() -> None:
     try:
         msg = _make_group_msg(mentioned=False, content="pre-context")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.1)
+        # The router buffers non-trigger chatter on its own task; wait for the buffer to hold it
+        # instead of sleeping, because the first turn's cold start can outlast a fixed wait.
+        await _wait_until(lambda: bool(router._resolver._context_buffer._store.get(_TEST_GROUP_JID)))
 
         trigger1 = _make_group_msg(mentioned=True, content="@bot first")
         await bus._handle_inbound(trigger1)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         trigger2 = _make_group_msg(mentioned=True, content="@bot second")
         await bus._handle_inbound(trigger2)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: len(executor.calls) >= 2)
 
         assert len(executor.calls) == 2
         assert len(executor.calls[0][0].context_messages) == 1
@@ -551,7 +569,7 @@ async def test_prefix_trigger_with_context() -> None:
 
         trigger = _make_group_msg(mentioned=False, content="/ask what about X?")
         await bus._handle_inbound(trigger)
-        await asyncio.sleep(0.3)
+        await _wait_until(lambda: bool(executor.calls))
 
         assert len(executor.calls) == 1
         called_msg, _ = executor.calls[0]

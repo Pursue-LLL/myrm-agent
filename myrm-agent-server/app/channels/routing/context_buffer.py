@@ -74,9 +74,10 @@ class GroupContextBuffer:
                 chat_id=chat_id,
                 limit=self._max_per_group,
             )
-            # Clear in-memory buffer on successful drain
-            self._store.pop(chat_id, None)
             if persisted:
+                # Clear in-memory buffer only when the data plane actually answered, so an
+                # empty result cannot discard context the in-memory buffer still holds.
+                self._store.pop(chat_id, None)
                 return tuple(persisted)
         except Exception:
             pass
