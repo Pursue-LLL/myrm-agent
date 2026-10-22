@@ -85,17 +85,8 @@ async def _resolve_chat_id(msg: InboundMessage) -> str | None:
     if chat:
         return chat.id
 
-    from sqlalchemy import select
-
-    from app.database.connection import get_session
-    from app.database.models import Chat
-
-    async with get_session() as session:
-        result = await session.execute(
-            select(Chat.id).where(Chat.channel_session_key.like(f"{base_key}%")).order_by(Chat.updated_at.desc()).limit(1)
-        )
-        row = result.scalar_one_or_none()
-        return row
+    newest = await ChatService.get_newest_channel_chat_under(base_key)
+    return newest.id if newest is not None else None
 
 
 class ChannelGoalCommandHandler:

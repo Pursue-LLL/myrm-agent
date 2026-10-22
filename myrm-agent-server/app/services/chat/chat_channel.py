@@ -35,6 +35,38 @@ class _ChatChannelMixin(_ChatServiceBase):
             return await _ChatServiceBase._cr(uow).get_channel_chat_by_key(key)
 
     @staticmethod
+    async def get_newest_channel_chat_under(base_key: str) -> ChatDTO | None:
+        """Return the most recently active Chat whose key is ``base_key`` or extends it.
+
+        ``channel_session_key`` appends the reset epoch and the bound agent, so the key a caller
+        can build is not always the one stored. An extension continues after a ``:`` segment
+        boundary, so ``…:peer-a`` never matches ``…:peer-ab``. The range form keeps SQLite on the
+        ``channel_session_key`` index; a ``LIKE`` prefix would scan the table.
+        """
+        from sqlalchemy import or_, select
+
+        from app.database.models import Chat
+
+        lo = f"{base_key}:"
+        hi = f"{base_key};"
+        async with UnitOfWork() as uow:
+            result = await uow.session.execute(
+                select(Chat.channel_session_key)
+                .where(
+                    or_(
+                        Chat.channel_session_key == base_key,
+                        (Chat.channel_session_key >= lo) & (Chat.channel_session_key < hi),
+                    )
+                )
+                .order_by(Chat.updated_at.desc())
+                .limit(1)
+            )
+            row = result.first()
+            if row is None:
+                return None
+            return await _ChatServiceBase._cr(uow).get_channel_chat_by_key(str(row[0]))
+
+    @staticmethod
     async def get_or_create_channel_chat(
         first: str,
         second: str,
