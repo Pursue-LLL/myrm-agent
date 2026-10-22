@@ -1,10 +1,12 @@
 """Stable string keys for routing maps (active tasks, approvals, session markers).
 
+[INPUT]
+- (none) Pure string builders; no imports.
+
 [OUTPUT]
-- routing_state_key
-- routing_session_key (deprecated alias)
-- routing_enclave_key
-- parse_enclave_key
+- routing_state_key: router state-map key carrying channel, peer and forum topic
+- routing_session_key: legacy chat-wide key for cross-topic chat lookups
+- routing_enclave_key / parse_enclave_key: 4-tuple enclave form and its inverse
 
 [POS]
 ``routing_state_key`` builds the key for the router's in-memory state maps. It carries every

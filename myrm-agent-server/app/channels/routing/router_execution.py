@@ -44,6 +44,38 @@ from app.database.dto import ChatDTO
 logger = logging.getLogger("app.channels.routing.router")
 
 
+async def _newest_channel_chat_under(base_key: str) -> ChatDTO | None:
+    """Return the most recently active Chat whose key starts with ``base_key``.
+
+    Reset epochs and agent scoping append to the key, so an exact match is not the only way a
+    conversation exists. Mirrors ``goal_handler._resolve_chat_id``.
+    """
+    from sqlalchemy import or_, select
+
+    from app.database.connection import get_session
+    from app.database.models import Chat
+    from app.services.chat.chat_service import ChatService
+
+    # A longer peer id shares this prefix (``…:-10012`` prefixes ``…:-1001234``), so the match
+    # must end at the key or continue at a segment boundary.
+    async with get_session() as session:
+        result = await session.execute(
+            select(Chat.id)
+            .where(
+                or_(
+                    Chat.channel_session_key == base_key,
+                    Chat.channel_session_key.like(f"{base_key}:%"),
+                )
+            )
+            .order_by(Chat.updated_at.desc())
+            .limit(1)
+        )
+        row = result.first()
+    if row is None:
+        return None
+    return await ChatService.get_chat_by_id(str(row[0]))
+
+
 class RouterExecutionMixin:
     """Mixin: execution lifecycle — prepare, effects, stream, deliver, cleanup."""
 
@@ -549,28 +581,6 @@ class RouterExecutionMixin:
             created_at=time.monotonic(),
         )
 
-
-async def _newest_channel_chat_under(base_key: str) -> ChatDTO | None:
-    """Return the most recently active Chat whose key starts with ``base_key``.
-
-    Reset epochs and agent scoping append to the key, so an exact match is not the only way a
-    conversation exists. Mirrors ``goal_handler._resolve_chat_id``.
-    """
-    from sqlalchemy import select
-
-    from app.database.connection import get_session
-    from app.database.models import Chat
-    from app.services.chat.chat_service import ChatService
-
-    async with get_session() as session:
-        result = await session.execute(
-            select(Chat.id).where(Chat.channel_session_key.like(f"{base_key}%")).order_by(Chat.updated_at.desc()).limit(1)
-        )
-        row = result.first()
-    if row is None:
-        return None
-    return await ChatService.get_chat_by_id(str(row[0]))
-
     @staticmethod
     async def _attach_web_handoff(
         result: OutboundMessage,
@@ -593,13 +603,18 @@ async def _newest_channel_chat_under(base_key: str) -> ChatDTO | None:
             )
             from app.services.chat.chat_service import ChatService
 
-            # ``Chat.channel_session_key`` carries channel + peer + topic (+ agent) plus a reset
-            # epoch, so the legacy channel+peer key never matches. Resolve the same base key the
-            # agent executor stored, then the newest chat under it (goal_handler's pattern).
+            # ``Chat.channel_session_key`` is channel + peer_kind + peer + topic (+ agent) plus a
+            # reset epoch. Resolve the key the agent executor stored; older rows written before
+            # peer_kind entered the format still answer to the bare channel:peer key.
             session_key = build_channel_session_key(msg)
             chat = await ChatService.get_channel_chat_by_key(session_key)
             if chat is None:
+                # The stored key appends the bound agent, and older rows predate peer_kind, so
+                # fall back to the newest chat under this conversation's prefix.
                 chat = await _newest_channel_chat_under(session_key)
+            if chat is None:
+                legacy_key = f"{msg.channel}:{msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id}"
+                chat = await _newest_channel_chat_under(legacy_key)
             if not chat:
                 return result
             locale = resolve_message_locale(msg)

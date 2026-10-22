@@ -67,6 +67,71 @@ async def test_attach_web_handoff_resolves_db_uuid() -> None:
     assert "integration-test-peer-42" not in btn.url, "URL must NOT contain IM peer_id"
 
 
+async def test_attach_web_handoff_resolves_a_topic_scoped_chat() -> None:
+    """A forum-topic conversation stores channel + peer + topic + agent; the lookup must match it.
+
+    The other cases here use a bare ``channel:peer`` key, which the stored key also starts with —
+    that is why they passed while the lookup dropped every topic-scoped chat.
+    """
+    from app.channels.types.session import SessionKey
+
+    session_key = SessionKey(
+        channel="telegram",
+        peer_kind="group",
+        peer_id="-1007770001",
+        thread_id="100",
+        agent_id="agent-uuid-1",
+    ).to_str()
+    chat = await ChatService.get_or_create_channel_chat(session_key, "telegram")
+
+    result = OutboundMessage(
+        channel="telegram",
+        recipient_id="-1007770001",
+        content="Hello from the topic agent",
+        user_id="local-user",
+    )
+    inbound = InboundMessage(
+        channel="telegram",
+        sender_id="user-1",
+        content="hi",
+        chat_id="-1007770001",
+        is_group=True,
+        thread_id="100",
+    )
+
+    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1007770001", inbound)
+
+    assert patched.components, "a topic-scoped chat must still get the handoff button"
+    assert chat.id in patched.components[-1][0].url
+
+
+async def test_attach_web_handoff_ignores_a_longer_peer_with_the_same_prefix() -> None:
+    """``-1008881`` must not resolve the conversation of ``-1008880001``."""
+    from app.channels.types.session import SessionKey
+
+    other_key = SessionKey(channel="telegram", peer_kind="group", peer_id="-1008880001", thread_id="100").to_str()
+    await ChatService.get_or_create_channel_chat(other_key, "telegram")
+
+    result = OutboundMessage(
+        channel="telegram",
+        recipient_id="-1008881",
+        content="unrelated turn",
+        user_id="local-user",
+    )
+    inbound = InboundMessage(
+        channel="telegram",
+        sender_id="user-1",
+        content="hi",
+        chat_id="-1008881",
+        is_group=True,
+        thread_id="100",
+    )
+
+    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1008881", inbound)
+
+    assert not patched.components, "a different group must not borrow another chat's handoff"
+
+
 async def test_attach_web_handoff_preserves_existing_components() -> None:
     """Handoff button appends to, not replaces, existing components."""
     from app.channels.types.components import ActionButton, ButtonStyle

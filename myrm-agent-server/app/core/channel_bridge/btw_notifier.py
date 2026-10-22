@@ -107,31 +107,17 @@ class BtwTaskNotifier:
         components: tuple[tuple[object, ...], ...] = ()
         if task_id:
             try:
-                from sqlalchemy import select
-
-                from app.database.connection import get_session
-                from app.database.models import Chat
                 from app.remote_access.mobile_deep_link import (
                     resolve_web_handoff_components,
                 )
+                from app.services.chat.chat_service import ChatService
 
-                # ``Chat.channel_session_key`` is ``{channel}:{peer_kind}:{peer}[:thread:…][:agent:…]``
-                # plus a reset epoch, and this notification only knows channel + peer (+ thread).
-                # Match on the parts it does know rather than inventing a peer_kind.
-                prefix = f"{channel_name}:"
-                suffix = f":{chat_id}"
-                async with get_session() as session:
-                    result = await session.execute(
-                        select(Chat.id)
-                        .where(Chat.channel_session_key.like(f"{prefix}%{suffix}%"))
-                        .order_by(Chat.updated_at.desc())
-                        .limit(1)
-                    )
-                    row = result.first()
-                chat_id_db = str(row[0]) if row is not None else None
-                if chat_id_db:
+                # ``chat_id`` here is the originating Chat's UUID (the kanban payload copies
+                # ``source_chat_id`` into it), so the row is already known — no key lookup needed.
+                chat = await ChatService.get_chat_by_id(chat_id)
+                if chat is not None:
                     components = await resolve_web_handoff_components(
-                        chat_id_db,
+                        chat.id,
                         locale=locale,
                     )
             except Exception:
