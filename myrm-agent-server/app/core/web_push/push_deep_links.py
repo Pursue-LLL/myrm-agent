@@ -22,6 +22,9 @@ from app.services.event.app_event_bus import AppEvent, AppEventType
 
 _DEFAULT_URL = "/"
 _SETTINGS_SYSTEM = "/settings/system"
+_SETTINGS_WORKBENCH = "/settings/workbench"
+# `component` of the HEALTH_ALERT that scheduled instance backups raise (auto_backup.ALERT_COMPONENT).
+_BACKUP_ALERT_COMPONENT = "instance_backup"
 _SETTINGS_CHANNELS = "/settings/channels"
 _SETTINGS_CREDENTIALS = "/settings/credentials"
 
@@ -93,6 +96,9 @@ def resolve_push_url(event: AppEvent) -> str:
             if path:
                 return path
         return _DEFAULT_URL
+
+    if event_type == AppEventType.HEALTH_ALERT and data.get("component") == _BACKUP_ALERT_COMPONENT:
+        return _SETTINGS_WORKBENCH
 
     if event_type in {AppEventType.HEALTH_ALERT, AppEventType.BUDGET_ALERT}:
         return _SETTINGS_SYSTEM

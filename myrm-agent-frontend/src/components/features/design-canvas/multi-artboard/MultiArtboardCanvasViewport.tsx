@@ -190,7 +190,7 @@ export const MultiArtboardCanvasViewport: React.FC = () => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      className="relative w-full h-full overflow-hidden bg-slate-950 select-none cursor-grab active:cursor-grabbing outline-none"
+      className="relative w-full h-full overflow-hidden bg-slate-950 select-none cursor-grab active:cursor-grabbing"
       style={{
         backgroundImage:
           'radial-gradient(circle, rgba(148, 163, 184, 0.1) 1px, transparent 1px)',

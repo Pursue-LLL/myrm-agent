@@ -197,6 +197,8 @@ class GeneralAgentParams(BaseAgentParams):
     event_log_dir: str | None = None
     # None → app settings event_log_max_jsonl_line_bytes (harness FileEventLogBackend)
     event_log_max_jsonl_line_bytes: int | None = None
+    # Optional dedicated session ID for event logs (e.g. cron:job-id:YYYY-MM-DD); fallbacks to chat_id if None
+    event_log_session_id: str | None = None
     locale: str | None = None
     prompt_locale: str | None = None
     max_iterations: int | None = None

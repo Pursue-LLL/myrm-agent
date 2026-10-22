@@ -40,6 +40,7 @@ def sample_result() -> CuratorRunResult:
         ],
         skills_scanned=15,
         skipped_pinned=2,
+        skipped_protected=3,
         errors=[],
     )
 
@@ -79,6 +80,7 @@ class TestSaveHistory:
         assert entry["stale_count"] == 1
         assert entry["archived_count"] == 0
         assert entry["skipped_pinned"] == 2
+        assert entry["skipped_protected"] == 3
         assert len(entry["transitions"]) == 1
         assert entry["transitions"][0]["skill_name"] == "old_skill"
         assert entry["transitions"][0]["from_status"] == "active"
@@ -229,3 +231,43 @@ class TestCuratorHistoryEndpoint:
             if lines:
                 entry = json.loads(lines[-1])
                 assert entry["trigger"] == "manual"
+
+    def test_history_explains_why_a_sweep_changed_nothing(
+        self, client, sample_result: CuratorRunResult, _patch_data_dir: Path
+    ):
+        """A sweep that changed nothing must say how many skills stayed because they are pinned or in use.
+
+        Otherwise "0 transitions" reads as "the curator did nothing", which is exactly the state the
+        user cannot interpret: 2 pinned + 3 in-use is a fully explained no-op.
+        """
+        from app.core.skills.curator.service import _save_history
+
+        _save_history(sample_result, trigger="background", duration_ms=7)
+
+        entry = client.get("/api/v1/skills/curator/history").json()[0]
+        assert entry["skipped_pinned"] == 2
+        assert entry["skipped_protected"] == 3
+        assert entry["total_transitions"] == 1
+
+    def test_history_defaults_skip_counts_for_older_records(self, client, _patch_data_dir: Path):
+        """Ledgers written before the counts existed must still load, reporting zero skips."""
+        history_path = _patch_data_dir / "curator_history.jsonl"
+        history_path.write_text(
+            json.dumps(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "trigger": "background",
+                    "skills_scanned": 4,
+                    "total_transitions": 0,
+                    "stale_count": 0,
+                    "archived_count": 0,
+                    "transitions": [],
+                    "errors": [],
+                }
+            )
+            + "\n"
+        )
+
+        entry = client.get("/api/v1/skills/curator/history").json()[0]
+        assert entry["skipped_pinned"] == 0
+        assert entry["skipped_protected"] == 0

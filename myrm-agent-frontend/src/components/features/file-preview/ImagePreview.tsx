@@ -87,6 +87,7 @@ export function ImagePreview({ file, className = '' }: ImagePreviewProps) {
 
   // 图片预览
   return (
+    /* eslint-disable-next-line @next/next/no-img-element */
     <img
       src={imageUrl}
       alt={file.fileName}

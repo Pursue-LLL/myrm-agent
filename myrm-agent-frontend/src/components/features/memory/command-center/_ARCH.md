@@ -25,8 +25,8 @@
 | `MemoryEconomicsPanel.tsx`              | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理 | ✅    |
 | `MemoryEconomicsKpiCards.tsx`           | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI   | ✅    |
 | `MemoryParasiticGovernanceList.tsx`     | 辅助 | 经济学面板沉睡治理子组件：低效沉睡记忆列表、单条与批量归档操作   | ✅    |
-| `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |
-| `CompetitorAssetDetectionView.tsx`      | 辅助 | 主权迁移卡片子组件：呈现本机第三方智能体资产（Hermes/Claude Code/Codex）嗅探结果与一键迁入 | ✅    |
+| `CompetitorMigrationCard.tsx`           | 核心 | 竞品智能体迁入卡片：嗅探本机 Hermes/Claude Code/Codex 资产并一键迁入记忆、技能与规则；整机备份与恢复在设置页（features/instance-archive） | ✅    |
+| `CompetitorAssetDetectionView.tsx`      | 辅助 | 竞品迁入卡片子组件：呈现本机第三方智能体资产嗅探结果、单源一键迁入与迁入计数 | ✅    |
 | `FirstEncounterReportCard.tsx` | 核心 | 历史会话轻量采样与“初见报告”冷启动卡片：多源 Agent 探测雷达、首2尾12关键帧采样、香农熵双轨零泄漏脱敏与个人技术画像一键入库 | ✅    |
 | `PrivateNotebookCard.tsx` | 核心 | 透明可检视模型私有笔记本卡片：对标 Codex PR #42385 超越版、Notes 5 工具操作台、历史交互检索与平滑跨窗口接力 | ✅    |
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
@@ -56,6 +56,7 @@
 | `SlidingWindowVisualizerCard.tsx` | 辅助 | 滑动窗口切片可视化检视器：直观呈现切片序列、起止行号范围、内容哈希签名、代码块保护与行级回溯水合扩展上下文视图 | ✅    |
 | `IncrementalDiffInspectorCard.tsx` | 辅助 | 内容哈希增量索引与 Token 节省检视器：呈现版本对比报告、复用/变更/废弃切片分布、进度条与免除重复调用Embedding API遥测 | ✅    |
 | `markdownChunkerFallbacks.ts` | 辅助 | Markdown切片与增量索引离线仿真与预设长篇Markdown数据集 | ✅    |
+| `recall-simulator/` | 子模块 | Item 68 记忆与经验基因交互式召回模拟沙盒与二次治理工作台（[recall-simulator/_ARCH.md](recall-simulator/_ARCH.md)） | ✅    |
 
 ## 依赖
 

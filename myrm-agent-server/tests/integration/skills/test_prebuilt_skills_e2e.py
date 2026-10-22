@@ -8,6 +8,7 @@ Also validates: reset-to-default and accept-upstream API logic.
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +16,10 @@ import pytest
 from fastapi import HTTPException
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.service import SkillsService
 from app.core.skills.store.user_config import UserSkillConfigManager
@@ -24,6 +28,7 @@ from app.core.storage.paths import (
     get_skill_metadata_path,
 )
 from app.core.storage.types import SkillType
+from app.database.models import Base, BatchSnapshot
 from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
 
@@ -33,7 +38,7 @@ def storage(tmp_path: Path) -> LocalStorageBackend:
 
 
 @pytest.fixture(autouse=True)
-def reset_sync_flag() -> None:
+def reset_sync_flag() -> Iterator[None]:
     prebuilt_sync._synced = False  # noqa: SLF001
     yield
     prebuilt_sync._synced = False  # noqa: SLF001
@@ -43,6 +48,21 @@ def reset_sync_flag() -> None:
 def skills_service(storage: LocalStorageBackend) -> SkillsService:
     service = SkillsService(storage=storage)
     return service
+
+
+@pytest.fixture
+async def snapshot_db(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    """The pre-replace snapshot lands in an in-memory database instead of the app's own."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(
+        "app.services.skill_optimization.bootstrap.get_skill_optimization_storage",
+        lambda: SQLAlchemyStorage(session_factory=factory),
+    )
+    yield factory
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -66,13 +86,18 @@ async def test_prebuilt_pipeline_lists_all_seeds(
 async def test_builtin_developer_default_skills_resolvable(
     skills_service: SkillsService,
 ) -> None:
-    """BuiltIn developer defaults to zero skills; prebuilt skills resolve via get_skills_by_ids."""
+    """BuiltIn developer defaults to zero skills; prebuilt skills resolve via get_skills_by_ids once enabled."""
     dev_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-developer")
     assert dev_spec.default_skill_ids == ()
 
     await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
 
     sample_skills = ["systematic-debugging", "test-driven-development"]
+    # A skill the user has not enabled stays out of the agent's action space even when the agent lists it.
+    assert await skills_service.get_skills_by_ids(sample_skills) == []
+    for skill_id in sample_skills:
+        await skills_service.user_config.enable_prebuilt_skill(skill_id)
+
     resolved = await skills_service.get_skills_by_ids(sample_skills)
     resolved_ids = {s.id for s in resolved}
 
@@ -429,8 +454,9 @@ async def test_accept_upstream_endpoint_rejects_no_pending(
 @pytest.mark.asyncio
 async def test_accept_upstream_endpoint_succeeds_with_pending(
     skills_service: SkillsService,
+    snapshot_db: async_sessionmaker[AsyncSession],
 ) -> None:
-    """accept_prebuilt_upstream succeeds when has_upstream_update is True."""
+    """accept_prebuilt_upstream succeeds when has_upstream_update is True and leaves an undo batch of the old content."""
     from app.api.skills.prebuilt import accept_prebuilt_upstream
 
     storage = skills_service.storage
@@ -442,7 +468,10 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
     meta["has_upstream_update"] = True
     await storage.write_text(meta_path, json.dumps(meta, indent=2))
 
-    with patch("app.api.skills.prebuilt.skills_service", skills_service):
+    with (
+        patch("app.api.skills.prebuilt.skills_service", skills_service),
+        patch("app.core.skills.store.service.skills_service", skills_service),
+    ):
         result = await accept_prebuilt_upstream(skill_id)
 
     assert result["status"] == "ok"
@@ -450,6 +479,14 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
 
     new_meta = json.loads(await storage.read_text(meta_path))
     assert new_meta["has_upstream_update"] is False
+
+    async with snapshot_db() as session:
+        snapshots = (
+            (await session.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == result["pre_replace_batch_id"])))
+            .scalars()
+            .all()
+        )
+    assert [snapshot.skill_id for snapshot in snapshots] == [skill_id]
 
 
 @pytest.mark.asyncio
@@ -586,7 +623,7 @@ async def test_evidence_discipline_synced_and_economy_bound(
     """evidence-discipline seed syncs and builtin-economy default binding resolves.
 
     Full pipeline with no mocks on storage or sync: seed sync → metadata
-    discovery → get_skills_by_ids for the builtin-economy default binding.
+    discovery → user enablement → get_skills_by_ids for the builtin-economy default binding.
     """
     economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
     assert economy_spec.default_skill_ids == ()
@@ -594,6 +631,7 @@ async def test_evidence_discipline_synced_and_economy_bound(
     sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
     assert "evidence-discipline" in sync_result.skill_ids
 
+    await skills_service.user_config.enable_prebuilt_skill("evidence-discipline")
     resolved = await skills_service.get_skills_by_ids(["evidence-discipline"])
     assert {s.id for s in resolved} == {"evidence-discipline"}
     skill = resolved[0]

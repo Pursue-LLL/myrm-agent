@@ -2,16 +2,17 @@
 
 [INPUT]
 @services.agent.gateway::AgentGateway (POS: Agent 执行网关，并发控制与生命周期)
+@core.agent.run_activity::active_background_agent_runs (POS: 不经 AgentGateway 的 agent 运行数：cron / 看板 / IM 渠道 / 评测 + 运行中的子 Agent)
 @core.channel_bridge::get_channel_gateway (POS: 渠道网关单例，管理所有消息渠道)
 @lifecycle.monitors::get_memory_pressure_monitor_instance (POS: 内存压力监控)
 @myrm_agent_harness.observability.diagnostics.gateway_health::GatewayHealthInspector (POS: gateway runtime vitals probe)
 
 [OUTPUT]
-GET /api/v1/health/liveness — aggregated agent liveness state (includes pendingOutboundCount, gatewayRuntime vitals)
+GET /api/v1/health/liveness — aggregated agent liveness state (includes backgroundRunCount, pendingOutboundCount, gatewayRuntime vitals)
 
 [POS]
-Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、排空状态、渠道健康摘要、
-内存压力等级为单一 JSON 响应（四态：busy/idle/degraded/draining），
+Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、不经网关的 agent 运行（cron / 看板 / IM 渠道 / 评测 / 子 Agent）、
+排空状态、渠道健康摘要、内存压力等级为单一 JSON 响应（四态：busy/idle/degraded/draining），
 供前端 tray/Pet/tab-badge 指示器和运维监控使用。
 """
 
@@ -23,6 +24,7 @@ import time
 from fastapi import APIRouter
 from myrm_agent_harness.observability.diagnostics.gateway_health import GatewayRedactedHealthDTO
 
+from app.core.agent.run_activity import active_background_agent_runs
 from app.services.agent.gateway import get_agent_gateway
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,7 @@ async def agent_liveness() -> dict[str, object]:
 
     active_sessions = gateway.get_active_sessions()
     active_count = gateway.active_count
+    background_run_count = active_background_agent_runs()
     max_concurrent = gateway.config.max_per_user
     available_slots = gateway.get_available_slots()
 
@@ -72,7 +75,7 @@ async def agent_liveness() -> dict[str, object]:
 
     if gateway.is_draining:
         state = "draining"
-    elif active_count > 0:
+    elif active_count > 0 or background_run_count > 0:
         state = "busy"
     elif has_degraded_channel or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY") or gateway_runtime_unhealthy:
         state = "degraded"
@@ -85,6 +88,7 @@ async def agent_liveness() -> dict[str, object]:
         "state": state,
         "agents": {
             "activeCount": active_count,
+            "backgroundRunCount": background_run_count,
             "maxConcurrent": max_concurrent,
             "availableSlots": available_slots,
             "sessions": active_sessions,

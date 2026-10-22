@@ -5,7 +5,6 @@ from __future__ import annotations
 from app.services.migration.source.source_manifest import (
     migration_source_deep_link_ids,
     migration_source_import_map,
-    migration_source_local_scan_ids,
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_entries,

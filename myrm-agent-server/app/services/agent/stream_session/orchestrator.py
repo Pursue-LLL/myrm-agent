@@ -213,6 +213,29 @@ async def run_agent_stream(
             message_id=request.message_id,
         )
         if busy_error is not None:
+            # Retried Submit as Reconnect: if this is an in-flight retry of the SAME message_id,
+            # attach directly to its active stream buffer instead of returning busy, preventing duplicate execution.
+            if request.resume_value is None and request.message_id and request.chat_id:
+                from app.schemas.streaming import SSE_RESPONSE_HEADERS
+                from app.services.agent.gateway import get_agent_gateway
+
+                gateway = get_agent_gateway()
+                active_msg_id = gateway.get_active_message_id(request.chat_id)
+                if active_msg_id == request.message_id and await registry.has_buffer(request.message_id):
+                    logger.info(
+                        "Retried Submit as Reconnect: attaching retried POST to active buffer for chat_id=%s message_id=%s",
+                        request.chat_id,
+                        request.message_id,
+                    )
+                    buffer = await registry.get_or_create(request.message_id)
+                    from fastapi.responses import StreamingResponse
+
+                    last_event_id = http_request.headers.get("Last-Event-ID")
+                    return StreamingResponse(
+                        buffer.subscribe(last_event_id),
+                        media_type="text/event-stream",
+                        headers=SSE_RESPONSE_HEADERS,
+                    )
             return agent_busy_streaming_response(request.message_id)
 
         # The harness timer and this manual resume race for one approval; the loser must not run the turn again.

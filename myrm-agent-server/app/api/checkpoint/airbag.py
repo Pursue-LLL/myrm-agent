@@ -4,8 +4,7 @@
 - app.services.checkpoint.task_airbag_service::get_task_airbag_service (POS: Singleton service managing airbag lifecycle and persistence.)
 
 [OUTPUT]
-- airbag_router: APIRouter for arming, inspecting status, rolling back, and dismissing airbags.
-- ArmAirbagRequest / ArmAirbagResponse: DTO models for arming airbag.
+- airbag_router: APIRouter for inspecting status, rolling back, and dismissing airbags.
 - AirbagStatusResponse: DTO model for cumulative mutation summary.
 - RollbackAirbagRequest / RollbackAirbagResponse: DTO models for triggering time-travel rollback.
 - DismissAirbagRequest / DismissAirbagResponse: DTO models for dismissing airbag.
@@ -20,26 +19,13 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.services.checkpoint.task_airbag_service import get_task_airbag_service
 
 logger = logging.getLogger(__name__)
 
 airbag_router = APIRouter(prefix="/airbag", tags=["checkpoint-airbag"])
-
-
-class ArmAirbagRequest(BaseModel):
-    task_id: str = Field(..., description="Unique task or goal identifier")
-    workspace_path: str = Field(..., description="Target workspace directory")
-
-
-class ArmAirbagResponse(BaseModel):
-    success: bool
-    task_id: str
-    base_snapshot_id: str | None = None
-    is_git_repo: bool = False
-    message: str | None = None
 
 
 class AirbagStatusResponse(BaseModel):
@@ -73,25 +59,6 @@ class DismissAirbagResponse(BaseModel):
     success: bool
     task_id: str
     status: Literal["dismissed", "failed"]
-
-
-@airbag_router.post("/arm", response_model=ArmAirbagResponse)
-async def arm_airbag(req: ArmAirbagRequest) -> ArmAirbagResponse:
-    """Arm a safety airbag prior to unattended task execution."""
-    service = get_task_airbag_service()
-    manifest = await service.arm_airbag(req.task_id, req.workspace_path)
-    if manifest is None:
-        return ArmAirbagResponse(
-            success=False,
-            task_id=req.task_id,
-            message="Failed to capture pre-flight safety baseline",
-        )
-    return ArmAirbagResponse(
-        success=True,
-        task_id=manifest.task_id,
-        base_snapshot_id=manifest.base_snapshot_id,
-        is_git_repo=manifest.is_git_repo,
-    )
 
 
 @airbag_router.get("/{task_id}/status", response_model=AirbagStatusResponse)

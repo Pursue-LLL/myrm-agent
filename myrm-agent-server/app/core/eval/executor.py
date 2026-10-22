@@ -5,6 +5,8 @@
 - app.ai_agents.agents::AgentFactory, GeneralAgentParams
 - app.core.channel_bridge.config_loader::load_user_configs
 - app.core.channel_bridge.config_parsers::extract_*
+- app.core.agent.run_activity::track_background_agent_run (POS: marks each case run in flight for the hosted idle recycler)
+- app.core.eval.stream_trace::StreamTrace (POS: folds the agent event stream into an eval AgentResponse)
 
 [OUTPUT]
 - LocalEvalExecutor: implements AgentExecutor for local evaluation.
@@ -23,9 +25,7 @@ import shutil
 import time
 import uuid
 from pathlib import Path
-from typing import Any
 
-from myrm_agent_harness.agent.errors import ToolErrorCategory
 from myrm_agent_harness.eval import CANARY_GUID
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -33,6 +33,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecut
 from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+from app.core.agent.run_activity import track_background_agent_run
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import (
     extract_fallback_model_configs,
@@ -43,6 +44,7 @@ from app.core.channel_bridge.config_parsers import (
     merge_org_mcp_configs,
     verify_search_service_available,
 )
+from app.core.eval.stream_trace import StreamTrace
 from app.core.types import MCPServerConfig
 
 logger = logging.getLogger(__name__)
@@ -168,7 +170,11 @@ class LocalEvalExecutor:
             logger.info("Removed %d eval workspace(s)", count)
 
     async def execute(self, message: str, *, session_id: str | None = None) -> AgentResponse:
-        """Execute a single eval case."""
+        """Execute a single eval case, counted as an in-flight agent run for the hosted idle recycler."""
+        with track_background_agent_run():
+            return await self._execute_case(message, session_id=session_id)
+
+    async def _execute_case(self, message: str, *, session_id: str | None = None) -> AgentResponse:
         chat_id = session_id or self._session_id or f"eval_{uuid.uuid4().hex[:8]}"
 
         # Resolve the isolated physical workspace directory for this execution
@@ -413,13 +419,7 @@ class LocalEvalExecutor:
         agent = AgentFactory.create_general_agent(params)
 
         start_time = time.perf_counter()
-        chunks: list[str] = []
-        tools_called: list[str | dict[str, Any]] = []
-        tool_call_details: list[dict[str, object]] = []
-        limit_reached: str | None = None
-        blocked_count = 0
-        total_input_tokens = 0
-        total_output_tokens = 0
+        trace = StreamTrace()
 
         try:
             async for event in agent.process_stream(
@@ -427,59 +427,7 @@ class LocalEvalExecutor:
                 chat_id=chat_id,
                 context=runtime_context,
             ):
-                event_type = event.get("type", "")
-
-                if event_type == "message" and isinstance(event.get("data"), str):
-                    chunks.append(str(event["data"]))
-                elif event_type == "tasks_steps":
-                    tool_name = str(event.get("tool_name", "")) or str(event.get("step_key", ""))
-                    if tool_name:
-                        tools_called.append(tool_name)
-                    # Record a per-step summary (tool name + step data) so the
-                    # eval report can disclose the action trajectory — the same
-                    # TASKS_STEPS payload the frontend renders live. Error steps
-                    # carry a structured ``error_category`` (e.g. the benchmark
-                    # decontamination guard) which lets the run count
-                    # pollution-guard engagement.
-                    step_detail: dict[str, object] = {
-                        "tool_name": tool_name,
-                        "step_key": str(event.get("step_key", "") or ""),
-                    }
-                    step_data = event.get("data")
-                    if isinstance(step_data, list) and step_data:
-                        step_detail["detail"] = step_data
-                    if event.get("status") == "error":
-                        step_detail["error"] = str(event.get("error", "") or "")[:300]
-                    raw_error_category = event.get("error_category")
-                    if isinstance(raw_error_category, str) and raw_error_category:
-                        step_detail["error_category"] = raw_error_category
-                    tool_call_details.append(step_detail)
-                    if event.get("error_category") == ToolErrorCategory.BENCHMARK_BLOCKED.value:
-                        blocked_count += 1
-                elif event_type == "engine_limit_reached":
-                    data = event.get("data")
-                    if isinstance(data, dict):
-                        limit_type = str(data.get("limit_type", "") or "")
-                        if limit_type:
-                            limit_reached = limit_type
-                elif event_type == "iteration_limit_reached":
-                    # The harness emits this when the LangGraph recursion
-                    # budget (the benchmark-declared ``max_iterations`` turn
-                    # ceiling, doubled to graph nodes) is reached;
-                    # engine_limit_reached only covers tool-call and replan
-                    # caps, so without this branch iteration-truncated cases
-                    # would silently lose their limit marker.
-                    limit_reached = "max_iterations"
-                elif event_type == "token_usage":
-                    # The harness emits token events as {"usage": {"prompt_tokens": ...,
-                    # "completion_tokens": ..., ...}}; the usage dict never carries
-                    # input_tokens/output_tokens aliases, so read the canonical keys.
-                    data = event.get("data")
-                    if isinstance(data, dict):
-                        usage = data.get("usage")
-                        if isinstance(usage, dict):
-                            total_input_tokens += int(usage.get("prompt_tokens") or 0)
-                            total_output_tokens += int(usage.get("completion_tokens") or 0)
+                trace.consume(event)
         finally:
             await finalize_agent_session(
                 agent,
@@ -488,22 +436,7 @@ class LocalEvalExecutor:
                 extra_context=runtime_context,
             )
 
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
-        total_tokens = total_input_tokens + total_output_tokens
-
-        return AgentResponse(
-            answer="".join(chunks),
-            tools_called=tools_called,
-            tool_call_details=tool_call_details,
-            limit_reached=limit_reached,
-            blocked_count=blocked_count,
-            extra_timings={"execution_ms": elapsed_ms},
-            token_usage={
-                "input_tokens": total_input_tokens,
-                "output_tokens": total_output_tokens,
-                "total_tokens": total_tokens,
-            },
-        )
+        return trace.to_response(elapsed_ms=(time.perf_counter() - start_time) * 1000)
 
 
 def cleanup_orphan_eval_workspaces() -> int:

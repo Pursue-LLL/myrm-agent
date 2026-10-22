@@ -26,25 +26,33 @@ _IMPORT_SERVER_NAME = "e2e-import-probe"
 _ADD_SERVER_NAME = "e2e-add-probe"
 _E2E_STDIO_MCP_STUB = Path(__file__).resolve().parents[1] / "support" / "e2e_minimal_stdio_mcp_server.py"
 
-_MCP_PAGE_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasHeading = /MCP 服务配置|MCP Service/i.test(text);
-  return { ready: hasHeading, sample: text.slice(0, 400) };
-})()"""
 
-_MCP_PAGE_HAS_PROBE_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasHeading = /MCP 服务配置|MCP Service/i.test(text);
-  const hasProbe = text.includes('e2e-reload-probe');
-  return { ready: hasHeading && hasProbe, sample: text.slice(0, 400) };
-})()"""
+def _mcp_page_state_js(required_text: str | None = None) -> str:
+    """Probe the MCP settings section; failure payload says *why* it is not ready.
 
-_MCP_PAGE_HAS_ADD_PROBE_JS = """(() => {
+    ``deferredBusy`` mirrors ``SettingsLayout``'s ``aria-busy`` (deferred locale bundle still
+    loading) and ``mainSample`` is the ``<main>`` text, so a stuck skeleton, a degraded locale
+    and a missing server row are distinguishable instead of all showing only the sidebar.
+    """
+    has_required = f"text.includes({json.dumps(required_text)})" if required_text else "true"
+    return f"""(() => {{
   const text = document.body?.innerText || '';
   const hasHeading = /MCP 服务配置|MCP Service/i.test(text);
-  const hasAdd = text.includes('e2e-add-probe');
-  return { ready: hasHeading && hasAdd, sample: text.slice(0, 400) };
-})()"""
+  const hasRequired = {has_required};
+  const layout = document.querySelector('[data-testid="settings-layout"]');
+  return {{
+    ready: hasHeading && hasRequired,
+    hasHeading,
+    hasRequired,
+    deferredBusy: layout?.getAttribute('aria-busy') === 'true',
+    mainSample: (document.querySelector('main')?.innerText || '').slice(0, 300),
+  }};
+}})()"""
+
+
+_MCP_PAGE_READY_JS = _mcp_page_state_js()
+_MCP_PAGE_HAS_PROBE_JS = _mcp_page_state_js(_PROBE_SERVER_NAME)
+_MCP_PAGE_HAS_ADD_PROBE_JS = _mcp_page_state_js(_ADD_SERVER_NAME)
 
 _TOGGLE_PROBE_SWITCH_JS = """(() => {
   const nameNode = Array.from(document.querySelectorAll('p')).find((p) =>
@@ -126,7 +134,12 @@ _DELETE_DIALOG_STATE_JS = """(() => {
 })()"""
 
 _CLICK_DIALOG_CANCEL_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find((b) =>
+  const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
+    const text = node.textContent || '';
+    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+  });
+  const scope = alert || document;
+  const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
     /^(取消|Cancel|Abbrechen|취소)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'cancel-not-found' };
@@ -135,7 +148,12 @@ _CLICK_DIALOG_CANCEL_JS = """(() => {
 })()"""
 
 _CLICK_DIALOG_CONFIRM_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find((b) =>
+  const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
+    const text = node.textContent || '';
+    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+  });
+  const scope = alert || document;
+  const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
     /^(保存并应用|Save and apply|Speichern und anwenden|저장 및 적용)$/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'confirm-not-found' };
@@ -192,32 +210,45 @@ _CLICK_ADD_SERVICE_BUTTON_JS = """(() => {
   return { ok: true };
 })()"""
 
-_SELECT_STDIO_CONNECTION_JS = """(() => {
+_OPEN_CONNECTION_TYPE_JS = """(() => {
   const modal = document.querySelector('.fixed.inset-0');
   if (!modal) return { ok: false, err: 'add-modal-not-found' };
-  const findTypeTrigger = () => {
-    const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
-      /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
-        (node.textContent || '').replace(/\\s+/g, ' ').trim()
-      )
-    );
-    return typeLabel?.closest('.flex.flex-col')?.querySelector('button[type="button"]') || null;
-  };
-  const trigger = findTypeTrigger();
+  const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
+    /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
+      (node.textContent || '').replace(/\\s+/g, ' ').trim()
+    )
+  );
+  const trigger = typeLabel?.closest('.flex.flex-col')?.querySelector('button[type="button"]') || null;
   if (!trigger) return { ok: false, err: 'connection-type-trigger-not-found' };
   const findStdio = () =>
-    Array.from(document.querySelectorAll('button[type="button"]')).find((b) => {
+    Array.from(modal.querySelectorAll('button[type="button"]')).find((b) => {
       if (b === trigger) return false;
-      return /\\bSTDIO\\b/i.test((b.textContent || '').replace(/\\s+/g, ' ').trim());
+      return Array.from(b.querySelectorAll('span')).some(
+        (s) => (s.textContent || '').trim().toUpperCase() === 'STDIO'
+      );
     }) || null;
-  trigger.click();
-  let stdioOption = null;
-  for (let i = 0; i < 30; i++) {
-    stdioOption = findStdio();
-    if (stdioOption) break;
-    const start = Date.now();
-    while (Date.now() - start < 50) {}
+  if (findStdio()) {
+    return { ok: true, alreadyOpen: true };
   }
+  trigger.click();
+  return { ok: true, alreadyOpen: false };
+})()"""
+
+_CLICK_STDIO_OPTION_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  if (!modal) return { ok: false, err: 'add-modal-not-found' };
+  const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
+    /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
+      (node.textContent || '').replace(/\\s+/g, ' ').trim()
+    )
+  );
+  const trigger = typeLabel?.closest('.flex.flex-col')?.querySelector('button[type="button"]') || null;
+  const stdioOption = Array.from(modal.querySelectorAll('button[type="button"]')).find((b) => {
+    if (b === trigger) return false;
+    return Array.from(b.querySelectorAll('span')).some(
+      (s) => (s.textContent || '').trim().toUpperCase() === 'STDIO'
+    );
+  });
   if (!stdioOption) return { ok: false, err: 'stdio-option-not-found' };
   stdioOption.click();
   return { ok: true };
@@ -602,6 +633,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         dismiss_blocking_modals(client, page)
         ready = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
         assert ready.get("ready") is True, json.dumps(ready, ensure_ascii=False)
+        wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=30.0)
 
         toggled = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
         assert isinstance(toggled, dict) and toggled.get("ok") is True, toggled
@@ -612,6 +644,8 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         wait_for_state(client, page, _RELOAD_DIALOG_CLOSED_JS, timeout_sec=15.0)
         assert _probe_enabled_in_api() is True, "cancel must not persist disable"
 
+        ready_after_cancel = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=30.0)
+        assert ready_after_cancel.get("ready") is True, json.dumps(ready_after_cancel, ensure_ascii=False)
         toggled_again = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
         assert isinstance(toggled_again, dict) and toggled_again.get("ok") is True, toggled_again
         _confirm_reload_dialog(client, page)
@@ -669,11 +703,17 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         )
         assert isinstance(name_filled, dict) and name_filled.get("ok") is True, name_filled
         selected_stdio: dict[str, object] = {"ok": False}
-        for attempt in range(3):
-            selected_stdio = client.evaluate(page, _SELECT_STDIO_CONNECTION_JS, timeout_sec=15.0)
+        for attempt in range(4):
+            opened_type = client.evaluate(page, _OPEN_CONNECTION_TYPE_JS, timeout_sec=15.0)
+            assert isinstance(opened_type, dict) and opened_type.get("ok") is True, opened_type
+            for _ in range(10):
+                time.sleep(0.15)
+                selected_stdio = client.evaluate(page, _CLICK_STDIO_OPTION_JS, timeout_sec=15.0)
+                if isinstance(selected_stdio, dict) and selected_stdio.get("ok") is True:
+                    break
             if isinstance(selected_stdio, dict) and selected_stdio.get("ok") is True:
                 break
-            time.sleep(1.0 * (attempt + 1))
+            time.sleep(0.5 * (attempt + 1))
         assert isinstance(selected_stdio, dict) and selected_stdio.get("ok") is True, selected_stdio
         stdio_ready = wait_for_state(client, page, _MCP_STDIO_FIELDS_READY_JS, timeout_sec=15.0)
         assert stdio_ready.get("ready") is True, json.dumps(stdio_ready, ensure_ascii=False)

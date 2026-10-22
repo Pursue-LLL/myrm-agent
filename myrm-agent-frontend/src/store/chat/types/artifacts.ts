@@ -23,7 +23,11 @@ export type ArtifactType =
   | 'presentation'
   | 'word_document'
   | 'binary'
-  | 'architecture';
+  | 'architecture'
+  | 'canvas'
+  | 'wechat_article'
+  | 'prototype'
+  | 'dashboard';
 
 // 工件版本数据
 export interface ArtifactVersion {
@@ -45,6 +49,8 @@ export interface Artifact {
   size: number; // 文件大小（字节）
   preview_url: string; // 预览 URL
   download_url: string; // 下载 URL
+  title?: string; // 工件标题/展示名
+  content?: string; // 工件正文内容快照
   language?: string; // 编程语言（代码类型）
   created_at?: string; // 创建时间
   file_path?: string; // 本地文件路径（仅本地模式）

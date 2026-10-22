@@ -102,7 +102,8 @@ class Skill:
     installed_from: dict[str, object] | None = None
     """Provenance tracking for installed skills (e.g. source, origin_url, version, installed_at)."""
 
-    last_replace_batch_id: str | None = None  # Rollback batch id of the latest replace of this skill.
+    last_replace_batch_id: str | None = None
+    """Rollback batch id for the most recent package/skill replace (Skill Change Contract)."""
 
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)

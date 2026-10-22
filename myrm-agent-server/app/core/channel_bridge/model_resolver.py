@@ -183,12 +183,34 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
         ptype = provider_type_map.get(provider_id)
         litellm_model = _to_litellm_model(provider_id, raw_model, ptype)
 
-        litellm.model_cost[litellm_model] = {
+        # 确定合法 litellm_provider 前缀，避免被判定为未知提供商
+        inferred_provider = "custom_openai"
+        if "/" in litellm_model:
+            model_prefix = litellm_model.split("/", 1)[0]
+            if model_prefix in ("openai", "anthropic", "deepseek", "gemini", "groq", "mistral", "openrouter"):
+                inferred_provider = model_prefix
+
+        cost_entry: dict[str, object] = {
             "input_cost_per_token": float(input_cost_per_m) / 1_000_000,
             "output_cost_per_token": float(output_cost_per_m) / 1_000_000,
             "max_tokens": info.get("max_input_tokens") or 128_000,
-            "litellm_provider": "custom",
+            "litellm_provider": inferred_provider,
         }
+
+        # 可选缓存读单价（litellm 官方规范字段为 cache_read_input_token_cost）
+        cache_read_m = info.get("cache_read_cost_per_million") or info.get("cache_cost_per_million")
+        if isinstance(cache_read_m, (int, float)) and cache_read_m > 0:
+            rate = float(cache_read_m) / 1_000_000
+            cost_entry["cache_read_input_token_cost"] = rate
+            cost_entry["cache_read_input_token_cost_per_token"] = rate
+
+        # 双向注册：限定名与裸模型名均可命中价表
+        litellm.model_cost[litellm_model] = cost_entry
+        if raw_model != litellm_model:
+            raw_entry = dict(cost_entry)
+            raw_entry["litellm_provider"] = "openai"
+            litellm.model_cost[raw_model] = raw_entry
+
         registered += 1
 
     if registered:

@@ -209,9 +209,9 @@ export async function buildZipFromFiles(files: Record<string, string>): Promise<
  * - Web 端：保留 a[download] 下载逻辑。
  * @param blob 文件内容
  * @param filename 建议文件名
- * @returns Promise；Tauri 端用户取消保存对话框时正常 resolve，写入失败则 reject
+ * @returns Promise<boolean>：已保存（Web 端为已触发下载）为 true；Tauri 端用户取消保存对话框为 false；写入失败则 reject
  */
-export async function triggerDownload(blob: Blob, filename: string): Promise<void> {
+export async function triggerDownload(blob: Blob, filename: string): Promise<boolean> {
   if (isTauriRuntime()) {
     const [{ save }, { writeFile }] = await Promise.all([
       import('@tauri-apps/plugin-dialog'),
@@ -219,10 +219,10 @@ export async function triggerDownload(blob: Blob, filename: string): Promise<voi
     ]);
     const path = await save({ defaultPath: filename });
     if (!path) {
-      return;
+      return false;
     } // 用户取消保存
     await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
-    return;
+    return true;
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -232,4 +232,5 @@ export async function triggerDownload(blob: Blob, filename: string): Promise<voi
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  return true;
 }

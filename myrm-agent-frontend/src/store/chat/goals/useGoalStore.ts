@@ -62,6 +62,7 @@ export const useGoalStore = create<GoalStore>((set, get) => {
           ? {
               ...state.activeGoal,
               status,
+              usageLimit: undefined,
               ...(reason !== undefined ? { reason } : {}),
             }
           : null,

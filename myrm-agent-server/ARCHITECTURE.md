@@ -224,6 +224,8 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `lifespan.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
 
+**对话历史单一权威**：checkpoint 线程保存模型实际看到的消息（含工具轨迹），Chat/Message 保存用户看到的消息。网页对话的回合开始时，server 比对 `chats.history_sync_token`（「活跃分支 + 压缩摘要」的摘要，只在回合完整结束后写入）与当前存储对话的摘要：一致则声明 `history_mode=continue`（只发新消息，前缀不变，provider 缓存命中），否则 `replace`（清空线程，由存储历史重建）。新聊天、升级前的旧聊天、分叉出的子聊天没有记录，首轮必然重建；撤销/重试/截断/回退立即清线程；重新生成、切换兄弟、压缩、服务端追加的通知、失败/取消/等待用户的回合都靠摘要失配重建。重建会丢掉线程里的工具轨迹（与撤销后重发的既有行为一致）。IM、定时、唤醒、目标重触发等调用方未接管线程卫生，沿用 `append`。详见 `app/services/chat/history_sync.py` 与 `app/services/agent/stream_session/turn_history_sync.py`。
+
 ### 0.2 工业级单机并发安全 (Industrial-Grade Standalone Concurrency)
 
 针对单机环境（Sandbox/Local）中可能存在的跨进程资源竞争，系统拒绝引入 Redis 等外部锁服务，转而采用 **OS 原生文件锁 (File Locks)** 实现「精钢级」并发安全：

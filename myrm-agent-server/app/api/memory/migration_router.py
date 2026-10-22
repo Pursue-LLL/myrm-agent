@@ -3,7 +3,7 @@
 [INPUT] fastapi, app/schemas/memory_migration.py, app/services/memory/memory_migration_service.py
 [OUTPUT] router
 
-FastAPI router exposing sovereign asset migration, portable packaging, restore, and competitor ingestion endpoints.
+FastAPI router exposing third-party competitor asset detection and ingestion endpoints.
 Strict typing applied: No `Any` types allowed.
 """
 
@@ -15,10 +15,6 @@ from app.schemas.memory_migration import (
     CompetitorDetectResponseDTO,
     CompetitorIngestRequestDTO,
     CompetitorIngestResponseDTO,
-    ExportBundleRequestDTO,
-    ExportBundleResponseDTO,
-    RestoreBundleRequestDTO,
-    RestoreBundleResponseDTO,
 )
 from app.services.memory.memory_migration_service import (
     MemoryMigrationService,
@@ -26,34 +22,6 @@ from app.services.memory.memory_migration_service import (
 )
 
 router = APIRouter()
-
-
-@router.post(
-    "/migration/export",
-    response_model=ExportBundleResponseDTO,
-    status_code=status.HTTP_200_OK,
-    summary="Export all sovereign memory assets into verified .myrmpkg archive",
-)
-def export_sovereign_bundle(
-    request: ExportBundleRequestDTO,
-    service: MemoryMigrationService = Depends(get_memory_migration_service),
-) -> ExportBundleResponseDTO:
-    """Collect SQLite, wiki pages, and handoff records, relativize paths, and bundle into archive."""
-    return service.export_bundle(request)
-
-
-@router.post(
-    "/migration/restore",
-    response_model=RestoreBundleResponseDTO,
-    status_code=status.HTTP_200_OK,
-    summary="Restore sovereign asset bundle with checksum verification and dynamic path remapping",
-)
-def restore_sovereign_bundle(
-    request: RestoreBundleRequestDTO,
-    service: MemoryMigrationService = Depends(get_memory_migration_service),
-) -> RestoreBundleResponseDTO:
-    """Unpack .myrmpkg bundle, verify SHA-256 hashes, remap workspace paths, and restore assets."""
-    return service.restore_bundle(request)
 
 
 @router.get(

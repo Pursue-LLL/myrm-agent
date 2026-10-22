@@ -9,7 +9,7 @@
 
 | 层 | 路径 | 职责 |
 |----|------|------|
-| Harness | `toolkits/tasks/` | `Task`, `SQLiteTaskStore` |
+| Harness | `toolkits/tasks/` | `Task`, `SQLiteTaskStore`, `AsyncTaskExecutor` 协议 |
 | Harness | `toolkits/llms/{image,video}/async_*_engine.py` | 异步入队 |
 | Server | `app/lifecycle/task_worker.py` | Store 单例 + worker 启停 |
 | Server | `app/tasks/` | Worker 循环、executor、crypto、事件 |
@@ -35,7 +35,7 @@
 
 | 模块 | 职责 |
 |------|------|
-| `executors/` | 图片/视频生成等具体任务执行器（实现 `worker.py` 的 `TaskExecutor` 协议） |
+| `executors/` | 图片/视频生成等具体任务执行器（实现 harness `AsyncTaskExecutor`） |
 
 ## Key Dependencies
 

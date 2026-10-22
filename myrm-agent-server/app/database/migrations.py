@@ -1085,6 +1085,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE agents ADD COLUMN a2a_enabled BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE agents ADD COLUMN a2a_trusted_peer_ids JSON",
     "ALTER TABLE agents ADD COLUMN trusted_desktop_apps JSON",
+    "CREATE INDEX IF NOT EXISTS idx_cron_jobs_project_id ON cron_jobs(project_id)",
 ]
 
 

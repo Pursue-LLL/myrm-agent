@@ -10,14 +10,15 @@ tools, memory, security).
 - myrm_agent_harness.toolkits.kanban.context_builder::build_task_context (POS: Worker context.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskTimeoutError (POS: Kanban domain types.)
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
+- myrm_agent_harness.api.hooks::deferral_wait_s (POS: Waitable provider usage-limit window of an LLM error.)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
 - task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
 - task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree, hold_for_unlanded_parents (POS: Git worktree isolation and the gate on parents' failed merges.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]
-- KanbanTaskRunner: Concrete TaskRunner with goal-mode support and per-workspace
-  write serialization.
+- KanbanTaskRunner: Concrete TaskRunner with goal-mode support, per-workspace
+  write serialization and ``SCHEDULED`` rescheduling of provider usage limits.
 
 [POS]
 Server-layer TaskRunner that executes kanban tasks through the agent pipeline.
@@ -33,9 +34,11 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api import KanbanStore
+from myrm_agent_harness.api.hooks import deferral_wait_s
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
@@ -49,6 +52,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
     has_completion_intent,
 )
 
+from app.core.agent.run_activity import track_background_agent_run
 from app.core.channel_bridge.persistent_background import is_persistent_background
 from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.profile.profile_resolver import (
@@ -85,6 +89,7 @@ __all__ = ["KanbanTaskRunner", "_ResolvedProfile", "_classify_content_type"]
 
 
 _PROTOCOL_VIOLATION_MSG = "Protocol violation: agent finished without calling kanban_complete(summary=...)"
+_USAGE_LIMIT_BLOCK_REASON = "Waiting for the model usage limit to reset; resumes automatically"
 
 
 class KanbanTaskRunner:
@@ -120,16 +125,17 @@ class KanbanTaskRunner:
         t0 = time.monotonic()
         async with self._workspace_lock(task, workspace_root):
             try:
-                result = await asyncio.wait_for(
-                    self._execute_agent(
-                        task,
-                        query_input,
-                        profile,
-                        workspace_root,
-                        goal_provider=goal_provider,
-                    ),
-                    timeout=effective_timeout,
-                )
+                with track_background_agent_run():
+                    result = await asyncio.wait_for(
+                        self._execute_agent(
+                            task,
+                            query_input,
+                            profile,
+                            workspace_root,
+                            goal_provider=goal_provider,
+                        ),
+                        timeout=effective_timeout,
+                    )
                 if goal_provider:
                     mapped = await self._map_goal_outcome(task, goal_provider, result)
                     return await self._resolve_run_outcome(task.task_id, mapped)
@@ -148,6 +154,19 @@ class KanbanTaskRunner:
                     limit_seconds=effective_timeout,
                 ) from None
             except Exception as exc:
+                wait_s = deferral_wait_s(exc)
+                if wait_s is not None:
+                    logger.warning(
+                        "Kanban task %s hit a provider usage limit; rescheduled in %.0fs: %s",
+                        task.task_id[:8],
+                        wait_s,
+                        exc,
+                    )
+                    return TaskExecutionResult.blocked(
+                        _USAGE_LIMIT_BLOCK_REASON,
+                        block_kind=BlockKind.SCHEDULED,
+                        scheduled_until=datetime.now(UTC) + timedelta(seconds=wait_s),
+                    )
                 logger.warning("Kanban task %s failed: %s", task.task_id[:8], exc)
                 return False, str(exc)
             finally:

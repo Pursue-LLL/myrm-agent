@@ -258,7 +258,8 @@ describe('StorageGovernanceCard', () => {
     });
     (systemService.restoreStateSnapshot as unknown as Mock).mockResolvedValue({
       success: true,
-      message: 'Restored',
+      message: 'Restore queued',
+      requires_restart: true,
     });
 
     render(<StorageGovernanceCard />);
@@ -282,6 +283,11 @@ describe('StorageGovernanceCard', () => {
 
     await waitFor(() => {
       expect(systemService.restoreStateSnapshot).toHaveBeenCalledWith('snap_20260901_001');
+    });
+
+    // A restored snapshot only takes effect after a restart, so the card must say so.
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toBeInTheDocument();
     });
   });
 });

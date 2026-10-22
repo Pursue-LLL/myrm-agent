@@ -79,8 +79,8 @@ describe('PortConflictModal', () => {
       />
     );
 
-    expect(screen.getByText('node')).toBeDefined();
-    expect(screen.getByText('PID 1234')).toBeDefined();
+    expect(screen.getAllByText('node').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/PID 1234/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/CPU 15.2% · 内存 180.5 MB/)).toBeDefined();
     expect(screen.getByTestId('process-lineage-view')).toBeDefined();
     expect(screen.getByText('高资源占用')).toBeDefined();

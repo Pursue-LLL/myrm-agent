@@ -8,11 +8,11 @@
 业务层安全模块，专注于单租户业务配置加密和安全存储。设计理念：简单优于复杂，专注核心威胁，避免过度设计。
 
 **职责分层**：
-- **框架层** (`myrm-agent-harness`): 通用权限策略引擎、6层安全防御、SSRF防护、凭证加密存储
+- **框架层** (`myrm-agent-harness`): 通用权限策略引擎、6层安全防御、SSRF防护、Nonce防重放、HMAC签名验证、凭证加密存储
 - **业务层** (本模块): MasterKey 派生、业务配置加密策略、浏览器Session加密
 
 在 Agent-in-Sandbox 架构下，Server 层是单用户服务：
-- 渠道 Webhook 的签名校验由各渠道适配器（`app/channels/providers/`）自行完成
+- Nonce 管理和 HMAC 签名验证由框架层 `myrm_agent_harness.infra.security` 提供
 
 ---
 
@@ -36,7 +36,7 @@ security/
 
 **注意**：
 - 权限策略引擎在框架层 `myrm_agent_harness.agent.security`
-- 渠道 Webhook 签名校验在各渠道适配器 `app/channels/providers/`
+- Nonce/Signature/Timestamp 验证在框架层 `myrm_agent_harness.infra.security`
 - 凭证加密存储在框架层 `app.channels.storage`
 - 配置加密服务在 `app/services/config/encryption.py`（业务层策略注入）
 
@@ -65,6 +65,9 @@ security/
 |----------|--------|----------|
 | AES-256-GCM 配置加密 | 框架层 | `myrm_agent_harness.utils.crypto.config_crypto` |
 | Fernet 凭证加密 | 框架层 | `app.channels.storage.credentials_store` |
+| Nonce 防重放 | 框架层 | `myrm_agent_harness.infra.security.nonce` |
+| HMAC-SHA256 签名 | 框架层 | `myrm_agent_harness.infra.security.signature` |
+| Timestamp 窗口验证 | 框架层 | `myrm_agent_harness.infra.security.signature` |
 | SSRF 防护 | 框架层 | `myrm_agent_harness.toolkits.mcp.security` |
 | 权限策略引擎 | 框架层 | `myrm_agent_harness.agent.security` |
 | MasterKey 管理 | 业务层 | `app/core/security/master_key.py` |
@@ -79,6 +82,7 @@ security/
 
 ### 外部依赖
 - `keyring`: OS 原生密钥链（macOS Keychain / Linux secret-service / Windows Credential Manager）
+- `myrm_agent_harness.infra.security`: 框架层 Nonce/Signature/Timestamp
 - `myrm_agent_harness.utils.crypto`: 框架层 AES-256-GCM 加密工具
 - `myrm_agent_harness.agent.security`: 框架层权限策略引擎
 

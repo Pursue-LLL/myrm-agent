@@ -58,10 +58,10 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |
 | `context_bomb_guard.py` | ✅ 核心 | 入站大文本门禁（>16,000 字符）与透明沙箱工作区文件外溢（`.myrm/spillover/payload_<sha256>.md`）、Prompt Cache 保护引用注入（开头的 `[use skill]` 显式调用标签保持在引用块之前）与 24h 过期自动清扫看门狗 | ✅ |
 | `chat_todo_sync.py` | [Pass] 核心 | 会话树分支局部状态折叠解析（`resolve_session_todo_store`）与全部分支突变（retry/regenerate/undo/truncate/rewind/switch_sibling）物理工作区进度文件原子对齐同步（`sync_workspace_todos_for_active_branch`） | [Pass] |
-
 | `zero_replay/` | ✅ 核心 | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议服务子包（`ZeroReplaySnapshotService`，对接 Harness 框架层 `ZeroReplayProtocolEngine`） | [zero_replay/_ARCH.md](zero_replay/_ARCH.md) |
 | `command_matrix/` | ✅ 核心 | 全量系统指令全景目录（5大领域20+项核心指令）与基于会话状态机的情境感知智能推荐服务（`CommandMatrixService`，对接 Harness 框架层 `CapabilityDiscoveryEngine`） | [command_matrix/_ARCH.md](command_matrix/_ARCH.md) |
 | `group/` | ✅ 核心 | Bot Mode 多 Agent 协同群聊与 Hermes peer 对等私信调度服务（`GroupChatOrchestrationService`） | [group/_ARCH.md](group/_ARCH.md) |
+
 ---
 
 ## Mixin 组合结构

@@ -247,6 +247,10 @@ class TaskMoveRequest(BaseModel):
         None,
         description="Structured handoff metadata (e.g. changed_files). Stored in task.metadata['handoff'].",
     )
+    assignee_agent_id: str | None = Field(
+        None,
+        description="Agent ID to hand off / reassign this task to.",
+    )
 
 
 class PromoteRequest(BaseModel):

@@ -75,6 +75,8 @@ const historyEntry: CuratorHistoryEntry = {
   total_transitions: 4,
   stale_count: 2,
   archived_count: 2,
+  skipped_pinned: 0,
+  skipped_protected: 0,
   transitions: [
     { skill_name: 'ppt-style', from_status: 'active', to_status: 'stale', reason: 'inactive' },
     { skill_name: 'old-report', from_status: 'stale', to_status: 'archived', reason: 'archive' },
@@ -202,5 +204,38 @@ describe('CuratorHistorySection', () => {
     if (locale !== 'en') {
       expect(text).not.toMatch(/\bago\b|\bstale\b|\barchived\b/i);
     }
+  });
+
+  it('explains a run that changed nothing because every skill was pinned or protected', () => {
+    const { container } = renderIn(
+      'en',
+      <CuratorHistorySection
+        open
+        loading={false}
+        entries={[{ ...historyEntry, total_transitions: 0, stale_count: 0, archived_count: 0, transitions: [], skipped_pinned: 3, skipped_protected: 5 }]}
+        onToggle={noop}
+      />,
+    );
+    const text = container.textContent ?? '';
+
+    expect(text).toContain('3 left alone (pinned)');
+    expect(text).toContain('5 left alone (protected)');
+    // The reason replaces the bare "no changes", which explains nothing when skills were skipped.
+    expect(text).not.toContain('No changes needed');
+  });
+
+  it('still says nothing changed when no skill was skipped', () => {
+    const { container } = renderIn(
+      'en',
+      <CuratorHistorySection
+        open
+        loading={false}
+        entries={[{ ...historyEntry, total_transitions: 0, stale_count: 0, archived_count: 0, transitions: [], skipped_pinned: 0, skipped_protected: 0 }]}
+        onToggle={noop}
+      />,
+    );
+    const text = container.textContent ?? '';
+
+    expect(text).toContain('No changes needed');
   });
 });

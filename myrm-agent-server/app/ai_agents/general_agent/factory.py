@@ -780,9 +780,14 @@ async def build_general_agent(
     if mount_skill_market:
         agent_wrapper._setup_skill_market_tool(tools, market_service)
     if agent_wrapper.skill_manage_mounted:
+        from app.core.skills.creation.version_persisting_backend import (
+            VersionPersistingSkillWriteBackend,
+        )
+
+        versioned_write_backend = VersionPersistingSkillWriteBackend(skill_creation_service)
         agent_wrapper._setup_skill_manage_tool(
             tools,
-            skill_creation_service,
+            versioned_write_backend,
             skill_backend,
             sim_checker,
             auxiliary_llm=fallback_llm or llm,

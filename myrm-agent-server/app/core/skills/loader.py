@@ -104,7 +104,15 @@ class _UserSkillBackend:
 
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         id_set = set(skill_ids)
-        return [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
+        matched = [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
+        if len(matched) < len(id_set):
+            missing = id_set - {s.name for s in matched} - {s.storage_skill_id for s in matched if s.storage_skill_id}
+            if missing:
+                logger.warning(
+                    "User skill load skipped unavailable ids (archived/disabled/not found): %s",
+                    sorted(missing),
+                )
+        return matched
 
     async def get_skill_content(self, skill_name: str) -> str:
         skill, root = self._locate(skill_name)

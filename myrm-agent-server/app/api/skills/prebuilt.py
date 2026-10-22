@@ -133,9 +133,42 @@ async def reset_prebuilt_to_default(skill_id: str) -> dict[str, str]:
 @router.post("/{skill_id}/accept-upstream")
 async def accept_prebuilt_upstream(skill_id: str) -> dict[str, str]:
     """Accept pending upstream update for a user-modified prebuilt skill."""
+    from app.core.skills.replace import (
+        SkillReplaceBlockedError,
+        assert_replace_allowed,
+        create_replace_snapshot,
+    )
+    from app.core.skills.replace.finalize import finalize_market_replace_success
+
     skill = await _get_prebuilt_skill(skill_id)
     if not skill.has_upstream_update:
         raise HTTPException(status_code=400, detail=f"No upstream update pending for: {skill_id}")
+    try:
+        await assert_replace_allowed(skill)
+        batch_id, snapshot_truncated, snapshotted_paths = await create_replace_snapshot(
+            skill.id,
+            skill.name,
+            batch_kind="prebuilt-upstream",
+        )
+    except SkillReplaceBlockedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error("Upstream accept snapshot failed for %s: %s", skill_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to snapshot skill before upstream replace.") from exc
+
     await _apply_bundled_source(skill, skill_id)
-    logger.info("Accepted upstream update for prebuilt skill: %s", skill_id)
-    return {"status": "ok", "message": f"Upstream update applied for skill '{skill_id}'."}
+    snapshot_truncated = await finalize_market_replace_success(
+        skill.id,
+        batch_id,
+        snapshot_truncated=snapshot_truncated,
+        snapshotted_paths=snapshotted_paths,
+    )
+    logger.info("Accepted upstream update for prebuilt skill: %s batch=%s", skill_id, batch_id)
+    return {
+        "status": "ok",
+        "message": f"Upstream update applied for skill '{skill_id}'.",
+        "pre_replace_batch_id": batch_id,
+        "snapshot_truncated": snapshot_truncated,
+    }

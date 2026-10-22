@@ -304,6 +304,14 @@ async def execute_realtime_tool(
             **privacy_agent_params(memory_settings),
         )
 
+        from app.ai_agents.event_log_injector import (
+            inject_event_log_config,
+            resolve_voice_realtime_session_id,
+        )
+
+        voice_realtime_sid = resolve_voice_realtime_session_id(req.chat_id)
+        inject_event_log_config(params, session_id_override=voice_realtime_sid)
+
         from app.services.agent.runtime_context import (
             build_agent_runtime_context,
             resolve_stream_execution_mode,

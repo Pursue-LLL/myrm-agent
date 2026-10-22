@@ -71,6 +71,14 @@ describe('memory migration after an embedding model switch', () => {
     expect(useRetrievalStore.getState().orphanCount).toBe(12);
   });
 
+  it('keeps the last known count when the estimate cannot be read', async () => {
+    estimateMock.mockRejectedValueOnce(new Error('network down'));
+
+    await useRetrievalStore.getState().checkOrphanCollections();
+
+    expect(useRetrievalStore.getState().orphanCount).toBe(12);
+  });
+
   it('drops an estimate that overlapped a run, because the run reports the real remainder', async () => {
     let resolveEstimate: (value: unknown) => void = () => {};
     estimateMock.mockReturnValueOnce(new Promise((resolve) => (resolveEstimate = resolve)));

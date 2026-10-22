@@ -1,46 +1,54 @@
 'use client';
 
 /**
- * Time-Travel Rollback Modal for unattended autonomous run inspection and recovery.
+ * Dialog to review the file changes of an unattended goal run and undo them in one step.
  *
  * [INPUT]
- * - @/services/airbag::rollbackAirbag (POS: 触发时光倒流无损回滚接口)
- * - @/services/airbag::dismissAirbag (POS: 归档解除气囊接口)
+ * - @/services/airbag::rollbackAirbag (POS: 触发一键撤销接口)
+ * - @/services/airbag::dismissAirbag (POS: 确认保留改动、关闭撤销入口接口)
+ * - ./externalEffectLabels::formatExternalEffects (POS: 外部影响类别文案映射)
  * - @/hooks/shared/useToast::toast (POS: 全局轻提示交互钩子)
  *
  * [OUTPUT]
- * - TimeTravelRollbackModal: 时光倒流审查与原子还原对话框
+ * - TimeTravelRollbackModal: 审查并撤销改动对话框；撤销或保留成功后调用 `onResolved`
  *
  * [POS]
- * 前端检查点特性层：无人值守长任务时光倒流审查与原子撤销交互弹窗。
+ * 前端检查点特性层：无人值守长任务的改动审查与一键撤销交互弹窗。
  */
 
 import React, { useState } from 'react';
-import { ShieldCheck, AlertTriangle, RotateCcw, X, FileEdit, FilePlus, FileMinus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { ShieldCheck, AlertTriangle, RotateCcw, FileEdit, FilePlus, FileMinus } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { AirbagStatusResponse, rollbackAirbag, dismissAirbag } from '@/services/airbag';
 import { toast } from '@/hooks/shared/useToast';
+import { formatExternalEffects } from './externalEffectLabels';
 
 interface TimeTravelRollbackModalProps {
   isOpen: boolean;
   onClose: () => void;
   status: AirbagStatusResponse;
   workspacePath?: string;
-  onRollbackSuccess?: () => void;
+  onResolved?: () => void;
 }
+
+const FILE_KINDS = [
+  { key: 'modifiedFiles', label: 'modified', Icon: FileEdit, tone: 'text-blue-500', dot: 'bg-blue-500' },
+  { key: 'addedFiles', label: 'added', Icon: FilePlus, tone: 'text-emerald-500', dot: 'bg-emerald-500' },
+  { key: 'deletedFiles', label: 'deleted', Icon: FileMinus, tone: 'text-rose-500', dot: 'bg-rose-500' },
+] as const;
 
 export const TimeTravelRollbackModal: React.FC<TimeTravelRollbackModalProps> = ({
   isOpen,
   onClose,
   status,
   workspacePath,
-  onRollbackSuccess,
+  onResolved,
 }) => {
+  const t = useTranslations('taskAirbag');
+  const tFileSnapshot = useTranslations('fileSnapshot');
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
-
-  if (!isOpen) {
-    return null;
-  }
 
   const handleRollback = async () => {
     setIsRollingBack(true);
@@ -48,28 +56,20 @@ export const TimeTravelRollbackModal: React.FC<TimeTravelRollbackModalProps> = (
       const res = await rollbackAirbag(status.taskId, workspacePath);
       if (res.success && res.status === 'rolled_back') {
         toast({
-          title: '时光倒流成功',
-          description: res.rescueSnapshotId
-            ? `工作区已原子无损回滚至起跑点（已建立翻车现场救援快照 ${res.rescueSnapshotId.slice(0, 7)}）。`
-            : '工作区已原子无损回滚至任务起跑点。',
+          title: t('undoneTitle'),
+          description: res.rescueSnapshotId ? t('undoneWithBackup') : t('undone'),
           variant: 'default',
         });
         window.dispatchEvent(new CustomEvent('app_resync_required'));
-        if (onRollbackSuccess) {
-          onRollbackSuccess();
-        }
+        onResolved?.();
         onClose();
       } else {
-        toast({
-          title: '回滚失败',
-          description: '无法恢复到起跑快照，请检查工作区文件权限。',
-          variant: 'destructive',
-        });
+        toast({ title: t('undoFailedTitle'), description: t('undoFailed'), variant: 'destructive' });
       }
     } catch (err) {
       toast({
-        title: '回滚请求失败',
-        description: err instanceof Error ? err.message : '未知异常',
+        title: t('undoErrorTitle'),
+        description: err instanceof Error ? err.message : t('unknownError'),
         variant: 'destructive',
       });
     } finally {
@@ -82,151 +82,123 @@ export const TimeTravelRollbackModal: React.FC<TimeTravelRollbackModalProps> = (
     try {
       const res = await dismissAirbag(status.taskId, workspacePath);
       if (res.success) {
-        toast({
-          title: '安全气囊已归档',
-          description: '变更已确认保留。',
-          variant: 'default',
-        });
+        toast({ title: t('keptTitle'), description: t('kept'), variant: 'default' });
+        onResolved?.();
         onClose();
       }
     } catch {
-      toast({
-        title: '归档失败',
-        variant: 'destructive',
-      });
+      toast({ title: t('keepFailedTitle'), variant: 'destructive' });
     } finally {
       setIsDismissing(false);
     }
   };
 
+  const hasDetectedEffects = status.externalEffects.length > 0;
+  const busy = isRollingBack || isDismissing;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-xl bg-background border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">时光倒流 · 安全气囊审查</h2>
-              <p className="text-xs text-muted-foreground">任务起跑基线守护与原子复原</p>
-            </div>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !busy) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1.5rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+        <DialogHeader className="flex-row items-center gap-2.5 space-y-0 border-b border-border bg-muted/30 px-4 py-4 pr-12 text-left sm:px-5">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+            <ShieldCheck className="w-5 h-5" />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          <div className="min-w-0 space-y-0.5">
+            <DialogTitle className="text-base leading-snug">{t('modalTitle')}</DialogTitle>
+            <DialogDescription className="text-xs">{t('modalSubtitle')}</DialogDescription>
+          </div>
+        </DialogHeader>
+
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-sm">
+          <div
+            className={`rounded-lg border p-3.5 space-y-1.5 text-xs ${
+              hasDetectedEffects
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                : 'border-border bg-muted/40 text-muted-foreground'
+            }`}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-sm">
-          {/* External effect warnings if present */}
-          {status.externalEffects.length > 0 && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1.5">
-              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium text-xs">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>外部不可逆动作警示（文件回滚无法撤销以下操作）：</span>
-              </div>
-              <ul className="list-disc list-inside text-xs text-muted-foreground pl-1 space-y-0.5">
-                {status.externalEffects.map((fx, idx) => (
-                  <li key={`fx-${idx}`}>{fx}</li>
-                ))}
-              </ul>
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+              <span>{t('externalNote')}</span>
             </div>
-          )}
-
-          {/* Cumulative Changes Statistics */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1">
-                <FileEdit className="w-3.5 h-3.5 text-blue-500" />
-                <span>已修改</span>
-              </div>
-              <div className="text-lg font-semibold text-foreground">{status.modifiedFiles.length}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1">
-                <FilePlus className="w-3.5 h-3.5 text-emerald-500" />
-                <span>已新增</span>
-              </div>
-              <div className="text-lg font-semibold text-foreground">{status.addedFiles.length}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1">
-                <FileMinus className="w-3.5 h-3.5 text-rose-500" />
-                <span>已删除</span>
-              </div>
-              <div className="text-lg font-semibold text-foreground">{status.deletedFiles.length}</div>
-            </div>
+            {hasDetectedEffects && (
+              <p className="pl-6 font-medium">
+                {t('externalDetected', { effects: formatExternalEffects(status.externalEffects, tFileSnapshot) })}
+              </p>
+            )}
           </div>
 
-          {/* Mutated File List */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {FILE_KINDS.map(({ key, label, Icon, tone }) => (
+              <div key={key} className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <Icon className={`w-3.5 h-3.5 shrink-0 ${tone}`} />
+                  <span>{t(label)}</span>
+                </div>
+                <div className="text-lg font-semibold text-foreground">{status[key].length}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground">
-              受影响文件列表（共 {status.totalFilesChanged} 项）：
+              {t('fileListTitle', { count: status.totalFilesChanged })}
             </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-muted/20 p-2 space-y-1 font-mono text-xs">
-              {status.modifiedFiles.map((f) => (
-                <div key={`m-${f}`} className="flex items-center gap-2 text-foreground/90">
-                  <span className="text-blue-500 font-semibold">[M]</span>
-                  <span className="truncate">{f}</span>
-                </div>
-              ))}
-              {status.addedFiles.map((f) => (
-                <div key={`a-${f}`} className="flex items-center gap-2 text-foreground/90">
-                  <span className="text-emerald-500 font-semibold">[A]</span>
-                  <span className="truncate">{f}</span>
-                </div>
-              ))}
-              {status.deletedFiles.map((f) => (
-                <div key={`d-${f}`} className="flex items-center gap-2 text-foreground/90">
-                  <span className="text-rose-500 font-semibold">[D]</span>
-                  <span className="truncate">{f}</span>
-                </div>
-              ))}
+              {FILE_KINDS.flatMap(({ key, label, dot }) =>
+                status[key].map((file) => (
+                  <div key={`${key}-${file}`} className="flex items-center gap-2 text-foreground/90">
+                    <span aria-hidden className={`size-2 rounded-full shrink-0 ${dot}`} />
+                    <span className="sr-only">{t(label)}</span>
+                    <span className="truncate">{file}</span>
+                  </div>
+                )),
+              )}
               {status.totalFilesChanged === 0 && (
-                <div className="text-center py-4 text-muted-foreground font-sans">工作区与起跑原点一致，暂无变动。</div>
+                <div className="text-center py-4 text-muted-foreground font-sans">{t('noChanges')}</div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-border bg-muted/20">
+        <DialogFooter className="flex-col-reverse gap-2 border-t border-border bg-muted/20 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:space-x-0 sm:px-5">
           <button
             type="button"
             onClick={handleDismiss}
-            disabled={isDismissing || isRollingBack}
+            disabled={busy}
             className="px-3.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           >
-            {isDismissing ? '归档中...' : '确认成果并归档'}
+            {isDismissing ? t('keeping') : t('keepChanges')}
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={isRollingBack}
-              className="px-3.5 py-1.5 rounded-lg border border-transparent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              disabled={busy}
+              className="px-3.5 py-1.5 rounded-lg border border-transparent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              稍后处理
+              {t('later')}
             </button>
             <button
               type="button"
               onClick={handleRollback}
-              disabled={isRollingBack || !status.canRollback || status.totalFilesChanged === 0}
+              disabled={busy || !status.canRollback || status.totalFilesChanged === 0}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium shadow transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isRollingBack ? 'animate-spin' : ''}`} />
-              <span>{isRollingBack ? '正在时光倒流...' : '时光倒流·完整复原'}</span>
+              <span>{isRollingBack ? t('undoing') : t('undoAll')}</span>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

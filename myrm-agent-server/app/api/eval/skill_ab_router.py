@@ -17,7 +17,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.eval.streaming import stream_status_events
-from app.core.eval.benchmarks import is_known_benchmark
+from app.core.eval.benchmarks import (
+    benchmark_needs_judge,
+    benchmark_required_tools,
+    is_known_benchmark,
+)
 from app.core.eval.skill_ab import (
     abort_skill_ab,
     get_latest_skill_ab_report,
@@ -52,6 +56,48 @@ async def run_skill_ab_evaluation(
             status_code=400,
             detail=f"Unknown benchmark '{request.benchmark_id}'.",
         )
+
+    if "web_search" in benchmark_required_tools(request.benchmark_id):
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.core.channel_bridge.config_parsers import verify_search_service_available
+        from myrm_agent_harness.api.config import ConfigIncompleteError
+
+        try:
+            configs = await load_user_configs()
+        except ConfigIncompleteError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=exc.user_friendly_message.get("en", str(exc)),
+            ) from exc
+        if not configs.search_is_user_configured:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{request.benchmark_id} requires web search, but no search "
+                    "provider is configured. Enable a search provider in settings first."
+                ),
+            )
+        if not await verify_search_service_available(configs.search_cfg):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{request.benchmark_id} requires web search, but the configured "
+                    "search provider is unreachable. Fix the search service first."
+                ),
+            )
+
+    if benchmark_needs_judge(request.benchmark_id):
+        from app.core.eval.model_config import _resolve_judge_config
+
+        judge, _judge_label = await _resolve_judge_config()
+        if judge is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{request.benchmark_id} is graded by an LLM judge, but no "
+                    "model provider is configured. Configure a model in settings first."
+                ),
+            )
 
     background_tasks.add_task(
         run_skill_ab_background,

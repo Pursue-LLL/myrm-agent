@@ -169,6 +169,27 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             state.messages[messageIndex].wikiSourceCount = data.wiki_source_count;
           }
 
+          const rawTurnLoaded =
+            (data as { turn_loaded_skills?: unknown }).turn_loaded_skills ??
+            (data as { turnLoadedSkills?: unknown }).turnLoadedSkills;
+          if (Array.isArray(rawTurnLoaded) && rawTurnLoaded.length > 0) {
+            state.messages[messageIndex].turnLoadedSkills = rawTurnLoaded
+              .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+              .map((item) => ({
+                name: String(item.name ?? ''),
+                id: String(item.id ?? item.name ?? ''),
+                content_hash:
+                  typeof item.content_hash === 'string'
+                    ? item.content_hash
+                    : typeof item.contentHash === 'string'
+                      ? item.contentHash
+                      : undefined,
+                version: typeof item.version === 'string' ? item.version : undefined,
+                partial: Boolean(item.partial),
+              }))
+              .filter((row) => row.name.length > 0);
+          }
+
           const sources = state.messages[messageIndex].sources;
           const sourceCount = sources ? resolveSourceCountForAudit(sources) : 0;
           if (sourceCount > 0 && recievedMessage) {

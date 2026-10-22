@@ -14,4 +14,5 @@
 | `follow_ups/` | 路由 | Proactive follow-up list / dismiss / snooze | [_ARCH.md](follow_ups/_ARCH.md) |
 | `shared_context_schemas.py` | 模块 | 共享上下文 API Schema 层。集中定义 Shared Context 产品接口的数据契约。 | ✅ |
 | `utils.py` | 模块 | Memory API utilities — re-exports shared service-layer helpers for route modules. | ✅ |
+| `recall_simulator_router.py` | 路由 | Item 68 记忆与经验基因交互式召回模拟沙盒与二次治理路由（`/simulate-recall`；演示数据引擎、无持久化，只在 `MYRM_MEMORY_LABS` 开启时挂载） | ✅ |
 

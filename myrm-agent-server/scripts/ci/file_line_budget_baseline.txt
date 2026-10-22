@@ -19,7 +19,6 @@ app/api/extension/router.py
 app/api/files/artifact_api.py
 app/api/files/browse.py
 app/api/files/workspace_ops.py
-app/api/goals/router.py
 app/api/health/router.py
 app/api/integrations/llms.py
 app/api/integrations/mcp.py

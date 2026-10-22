@@ -31,10 +31,18 @@ export interface ChatInlineTeamRunVisibilityStripProps {
 const ACTIVE_STATUS_SET: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
   'pending',
   'running',
-  'verifying',
   'pending_approval',
   'interrupted',
   'checkpoint',
+]);
+
+/** Outcomes that earn the brief "all done" confirmation once nothing is active any more. */
+const SETTLED_STATUS_SET: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
+  'completed',
+  'failed',
+  'timed_out',
+  'cancelled',
+  'blocked',
 ]);
 
 export function ChatInlineTeamRunVisibilityStrip({
@@ -62,10 +70,7 @@ export function ChatInlineTeamRunVisibilityStrip({
   useEffect(() => {
     const prevActive = prevActiveCountRef.current;
     if (prevActive > 0 && activeCount === 0 && totalCount > 0) {
-      const allDone = nodeList.every(
-        (n) =>
-          n.status === 'completed' || n.status === 'failed' || n.status === 'timed_out' || n.status === 'cancelled',
-      );
+      const allDone = nodeList.every((n) => SETTLED_STATUS_SET.has(n.status));
       if (allDone) {
         setPrevCompletedTotal(totalCount);
         setShowCompletedBuffer(true);
@@ -93,7 +98,7 @@ export function ChatInlineTeamRunVisibilityStrip({
     [onOpenDashboard],
   );
 
-  // ── Priority preemption: pending_approval > stale > failed > running/verifying > pending ────
+  // ── Priority preemption: pending_approval > stale > failed > running > pending ────
   const { priorityNode, alertLevel, activeStepText } = useMemo(() => {
     if (activeCount === 0) {
       return { priorityNode: null, alertLevel: 'normal', activeStepText: '' };
@@ -119,9 +124,9 @@ export function ChatInlineTeamRunVisibilityStrip({
       };
     }
 
-    const runningOrVerifying = activeNodes.filter((n) => n.status === 'running' || n.status === 'verifying');
-    if (runningOrVerifying.length > 0) {
-      const primary = runningOrVerifying[runningOrVerifying.length - 1];
+    const runningNodes = activeNodes.filter((n) => n.status === 'running');
+    if (runningNodes.length > 0) {
+      const primary = runningNodes[runningNodes.length - 1];
       const step = primary.last_tool || primary.description || primary.agent_type || t('inlineStripRunning');
       return {
         priorityNode: primary,

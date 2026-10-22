@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from tests.e2e.test_memory_keyword_recall_live_chrome_e2e import _attach_probe_js
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
@@ -109,25 +110,23 @@ def test_skill_manage_undo_hint_expands_task_steps() -> None:
         chat_id = _seed_skill_manage_undo_fixture(api_url)
         chat_path = f"/{chat_id}"
 
-    target_url = f"{ui_url}{chat_path}"
+    target_url = f"{ui_url.rstrip('/')}/{chat_id}"
     prepare_e2e_ui_session(api_url)
-    warm_ui_route(chat_path)
-
-    attach_chat_js = (
-        "(async () => {\n"
-        "  const bridge = window.__MYRM_E2E_CHAT__;\n"
-        "  if (!bridge?.attachToChat) return { ok: false, err: 'no-bridge' };\n"
-        f"  await bridge.attachToChat({json.dumps(chat_id)});\n"
-        "  return { ok: true };\n"
-        "})()"
-    )
+    warm_ui_route(f"/{chat_id}")
 
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
         dismiss_blocking_modals(client, page, recover_url=target_url)
-        wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=target_url)
+        bridge = wait_for_react_e2e_bridge(client, page, timeout_sec=120.0, page_url=target_url)
+        assert bridge.get("ready") is True, bridge
 
-        attach_res = client.evaluate(page, attach_chat_js, timeout_sec=45.0)
-        assert isinstance(attach_res, dict) and attach_res.get("ok") is True, attach_res
+        attached = wait_for_state(
+            client,
+            page,
+            _attach_probe_js(chat_id),
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        assert attached.get("ready") is True, attached
 
         hint_state = wait_for_state(client, page, _HINT_READY_JS, timeout_sec=120.0, page_url=target_url)
         assert hint_state.get("ready") is True, hint_state

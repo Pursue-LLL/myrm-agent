@@ -27,15 +27,15 @@ describe('MobileTaskCompanionView', () => {
       activeTask: {
         sessionId: 'session-abcdef123456',
         taskName: '千万级全栈工程自动化重构',
-        phase: 'executing',
+        phase: 'generating',
         progress: 72,
         estimatedSecondsRemaining: 240,
+        startedAt: Date.now(),
         highSnrSummary: [
           '已完成核心 AST 解析与符号提取',
           '通过端到端类型校验门禁',
         ],
         artifacts: [],
-        pendingApproval: null,
       },
     });
 
@@ -56,8 +56,7 @@ describe('MobileTaskCompanionView', () => {
       name: 'refactored_bundle.zip',
       type: 'bundle',
       size: 1048576,
-      url: 'https://download.example.com/bundle.zip',
-      createdAt: Date.now(),
+      downloadUrl: 'https://download.example.com/bundle.zip',
     };
 
     useMobileCompanionStore.setState({
@@ -65,17 +64,18 @@ describe('MobileTaskCompanionView', () => {
       activeTask: {
         sessionId: 'session-abcdef123456',
         taskName: '前端渲染截屏验证',
-        phase: 'executing',
+        phase: 'generating',
         progress: 88,
         estimatedSecondsRemaining: 60,
+        startedAt: Date.now(),
         highSnrSummary: ['截屏生成完毕'],
         latestScreenshot: {
+          id: 'shot-1',
           url: 'https://cdn.example.com/shot.png',
           title: 'Chrome Headless 渲染预览',
           timestamp: Date.now(),
         },
         artifacts: [mockArtifact],
-        pendingApproval: null,
       },
     });
 

@@ -29,3 +29,10 @@
 | `export_pack.py` | 模块 | `HEAD & GET /{chat_id}/export-pack` — 会话事件日志、子Agent日志与工件文件的自包含流式 ZIP 导出管道，原生支持 `redact_secrets` 动态脱敏、O(1) 内存分块与 SHA256 清单。 | ✅ |
 | `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |
 | `thought_control.py` | 路由 | 思考链提前收敛与主动停止干预控制端点（`POST /{chat_id}/stop-thinking`），遏制长思考死循环与无限推理，强制提前作答 | ✅ |
+| `zero_replay.py` | 路由 | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议端点（`GET /{chat_id}/atomic-snapshot`, `GET /{chat_id}/live-stream`, `POST /{chat_id}/snapshot-state`, `POST /{chat_id}/live-event`），彻底解决重连回放闪烁与时序错乱 | ✅ |
+| `command_matrix.py` | 路由 | 系统指令矩阵目录（`GET /commands/matrix`）与基于会话状态机的情境感知智能推荐芯片端点（`POST /{chat_id}/commands/suggest`） | ✅ |
+| `ui_alignment.py` | 路由 | 多轮 UI 设计图视觉对齐工作流端点（`GET/POST /{chat_id}/ui-variants`, `POST/GET /{chat_id}/ui-variants/{variant_id}/annotations`, `POST /{chat_id}/ui-variants/finalize`, `GET /{chat_id}/ui-variants/contract`） | ✅ |
+| `delight_showcase.py` | 路由 | 小白零门槛趣味创意灵感工坊与单文件自包含即席沙箱端点（`GET /chats/delight-templates`, `GET /chats/delight-templates/{template_id}`, `POST /{chat_id}/delight-sandbox/validate`, `POST /{chat_id}/delight-sandbox/contract`） | ✅ |
+| `embed_bridge.py` | 路由 | 网站与第三方系统可嵌入小部件及宿主上下文双向通信桥端点（`POST /chats/embed/validate-origin`, `POST/GET /{chat_id}/embed/policy`, `POST/GET /{chat_id}/embed/inject-context`, `POST /{chat_id}/embed/generate-snippet`） | ✅ |
+| `swarm_hud.py` | 路由 | 多智能体蜂群并发协同、记忆规则唤醒 HUD 与方案风险清单核验端点（`POST/GET /{chat_id}/swarm/config`, `POST/GET /{chat_id}/swarm/tasks`, `POST/GET/PATCH /{chat_id}/swarm/recalled-rules`, `POST/GET/PATCH /{chat_id}/swarm/risks`） | ✅ |
+

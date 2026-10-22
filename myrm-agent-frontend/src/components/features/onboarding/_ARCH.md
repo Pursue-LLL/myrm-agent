@@ -12,7 +12,7 @@
 
 | 文件                                     | 职责                                                                                                                                                                                                                                                                                         |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnboardingWizard.tsx`                   | 步骤编排与完成回调（含去向步/自检步，去向前置迁移步）                                                                                                                                                                                                                                        |
+| `OnboardingWizard.tsx`                   | 步骤编排与完成回调（含去向步/自检步，去向前置迁移步）；用户的首屏卡片下方挂「从备份恢复」入口（非沙箱在去向步，沙箱无去向步故在迁移步，只出现一次）                                                                                                                                                                      |
 | `DeployChoiceStep.tsx`                   | 去向选择步：复用 RemoteFirstRunChooser，去向意图写入 onboarding-deploy-choice SSOT                                                                                                                                                                                                           |
 | `PowerStackLane.tsx`                     | 极客三栏 honest lane（纯展示+深链既有页，零价格数字）                                                                                                                                                                                                                                        |
 | `FirstRunDoctorCard.tsx`                 | 首检 Doctor 聚合卡：模型/后端/配额只读探针 + 一键修深链（配额仅沙箱）                                                                                                                                                                                                                        |
@@ -40,3 +40,4 @@
 - `@/services/onboarding` — readiness 状态
 - `@/services/channels` — Telegram 凭据配置探测（判断是否展示 Telegram onboarding step）
 - `@/components/features/chat-window/NoProviderBanner` — EmptyChat 未配置 Provider 引导横幅
+- `@/components/features/instance-archive/RestoreEntry` — 首屏「从备份恢复」入口（部署形态不支持备份时自行隐藏）

@@ -16,6 +16,7 @@ import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
 import { ModelOrchestrationPlaybookChip, ModelOrchestrationPlaybookDialog } from './playbook';
 import FeaturedExpertChips from './FeaturedExpertChips';
 import PersonalTodoClosedLoopCard from './PersonalTodoClosedLoopCard';
+import DigitalEmployeeSquadOnboardingCard from './DigitalEmployeeSquadOnboardingCard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -24,6 +25,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { resolveSmartRouting } from '@/lib/model-routing';
 import { ArrowsSplit } from '@phosphor-icons/react';
+import { QuickDelightLane } from '../templates/delight';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
@@ -90,7 +92,11 @@ const EmptyChat = React.memo(() => {
 
         <IncognitoNotice />
 
+        <QuickDelightLane />
+
         <NewTaskWorkContextCard />
+
+        <DigitalEmployeeSquadOnboardingCard />
 
         <PersonalTodoClosedLoopCard />
 

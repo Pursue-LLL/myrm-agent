@@ -49,7 +49,13 @@ describe('ChatInlineTeamRunVisibilityStrip', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders visibility strip when active subagents exist (including pending & verifying)', () => {
+  it('does not count a node held back for review as active', () => {
+    useSubagentStore.getState().setNodes([makeNode({ task_id: '1', status: 'blocked' })]);
+    const { container } = render(<ChatInlineTeamRunVisibilityStrip />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders visibility strip when active subagents exist (including pending)', () => {
     useSubagentStore
       .getState()
       .setNodes([

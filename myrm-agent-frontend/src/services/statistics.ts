@@ -76,6 +76,7 @@ export interface DailyUsage {
 
 export interface DailyUsageResponse {
   days: number;
+  timezone?: string;
   start: string;
   end: string;
   daily: DailyUsage[];
@@ -103,17 +104,28 @@ export interface DailyActivity {
 
 /**
  * Global activity patterns across all sessions.
- * All time-based fields use UTC timezone for consistency.
+ * Timestamps and day buckets are aligned with user specified or local timezone.
  */
 export interface GlobalActivityPatterns {
-  timezone: string; // Timezone identifier (e.g., "UTC")
+  timezone: string; // Timezone identifier (e.g., "Asia/Shanghai", "UTC")
   daily_activities: DailyActivity[];
   by_day_of_week: Record<number, number>;
   by_hour: Record<number, number>;
   active_days: number;
   max_streak: number;
   busiest_day_of_week: number; // Day of week index (0=Monday, 6=Sunday)
-  busiest_hour: number; // Hour of day (0-23, UTC)
+  busiest_hour: number; // Hour of day (0-23 in user timezone)
+}
+
+/**
+ * Resolve client timezone using browser Intl API.
+ */
+export function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
 }
 
 export async function getUsageStatistics(start?: string, end?: string): Promise<UsageStats> {
@@ -128,18 +140,27 @@ export async function getUsageStatistics(start?: string, end?: string): Promise<
   return apiRequest<UsageStats>(`/statistics/usage${query ? `?${query}` : ''}`);
 }
 
-export async function getDailyUsage(days = 30): Promise<DailyUsageResponse> {
-  return apiRequest<DailyUsageResponse>(`/statistics/usage/daily?days=${days}`);
+export async function getDailyUsage(days = 30, timezone?: string): Promise<DailyUsageResponse> {
+  const tz = timezone || getUserTimezone();
+  const params = new URLSearchParams({ days: days.toString() });
+  if (tz) {
+    params.set('timezone', tz);
+  }
+  return apiRequest<DailyUsageResponse>(`/statistics/usage/daily?${params.toString()}`);
 }
 
 export async function getSessionUsage(limit = 20): Promise<SessionUsageResponse> {
   return apiRequest<SessionUsageResponse>(`/statistics/usage/sessions?limit=${limit}`);
 }
 
-export async function getGlobalActivityPatterns(timeRangeDays?: number): Promise<GlobalActivityPatterns> {
+export async function getGlobalActivityPatterns(timeRangeDays?: number, timezone?: string): Promise<GlobalActivityPatterns> {
+  const tz = timezone || getUserTimezone();
   const params = new URLSearchParams();
   if (timeRangeDays) {
     params.set('time_range_days', timeRangeDays.toString());
+  }
+  if (tz) {
+    params.set('timezone', tz);
   }
   const query = params.toString();
   return apiRequest<GlobalActivityPatterns>(`/statistics/activity${query ? `?${query}` : ''}`);
@@ -647,8 +668,9 @@ export interface GrowthDashboardData {
   skill_health: SkillHealthItem[];
 }
 
-export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData> {
-  return apiRequest<GrowthDashboardData>(`/statistics/growth-dashboard?days=${days}`);
+export async function getGrowthDashboard(days = 84, timezone?: string): Promise<GrowthDashboardData> {
+  const params = new URLSearchParams({ days: days.toString(), timezone: timezone || getUserTimezone() });
+  return apiRequest<GrowthDashboardData>(`/statistics/growth-dashboard?${params.toString()}`);
 }
 
 // ── Model-Specific Session Drilldown ────────────────────────────────

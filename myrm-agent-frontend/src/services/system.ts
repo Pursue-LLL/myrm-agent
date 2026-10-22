@@ -112,9 +112,11 @@ export const systemService = {
     });
   },
 
+  /** The restore is queued and applied while the backend boots; `requires_restart` asks the caller to prompt a restart. */
   async restoreStateSnapshot(snapshotId: string): Promise<{
     success: boolean;
     message: string;
+    requires_restart: boolean;
   }> {
     return apiRequest(`/system/storage/snapshots/${snapshotId}/restore`, {
       method: 'POST',

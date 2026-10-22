@@ -131,6 +131,7 @@ async def move_task(
     scheduled_until: datetime | None = None,
     result: str | None = None,
     metadata: dict[str, object] | None = None,
+    assignee_agent_id: str | None = None,
     wake_dispatcher: WakeDispatcher,
 ) -> KanbanTask | None:
     task = await store.get_task(task_id)
@@ -187,10 +188,23 @@ async def move_task(
                 )
     if result is not None:
         task.result = result
-    if metadata is not None:
+    if metadata is not None or assignee_agent_id is not None:
         if task.metadata is None:
             task.metadata = {}
-        task.metadata["handoff"] = metadata
+        handoff_data: dict[str, object] = dict(metadata or {})
+        if assignee_agent_id is not None:
+            handoff_data["from_agent_id"] = task.agent_id
+            handoff_data["to_agent_id"] = assignee_agent_id
+            task.agent_id = assignee_agent_id
+        if result:
+            handoff_data["summary"] = result
+        handoff_data["timestamp"] = datetime.now(UTC).isoformat()
+        task.metadata["handoff"] = handoff_data
+
+        raw_history = task.metadata.get("handoff_history")
+        history: list[dict[str, object]] = list(raw_history) if isinstance(raw_history, list) else []
+        history.append(handoff_data)
+        task.metadata["handoff_history"] = history
     if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED):
         task.completed_at = datetime.now(UTC)
     if old_status == TaskStatus.RUNNING and not task.is_terminal:

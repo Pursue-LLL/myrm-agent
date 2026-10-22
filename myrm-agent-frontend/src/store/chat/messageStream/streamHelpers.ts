@@ -23,16 +23,6 @@ import type {
 } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import type { GoalState } from '@/components/features/chat-window/goals/goalStatusTypes';
-import type { SubagentStatus } from '../useSubagentStore';
-
-const SUBAGENT_STATUSES = new Set<SubagentStatus>([
-  'running',
-  'completed',
-  'failed',
-  'cancelled',
-  'timed_out',
-  'checkpoint',
-]);
 
 export function mapTaskStepStatus(status: string | undefined): ProgressItem['status'] | undefined {
   switch (status) {
@@ -53,6 +43,17 @@ export function mapTaskStepStatus(status: string | undefined): ProgressItem['sta
       // running / pending / in_progress — in-flight steps (no terminal badge)
       return undefined;
   }
+}
+
+function resolveUsageLimit(payload: GoalStatusPayload): GoalState['usageLimit'] {
+  const metadata = payload.metadata;
+  const holdKind =
+    payload.status === 'wait' ? metadata?.wait_kind : payload.status === 'paused' ? metadata?.pause_kind : undefined;
+  if (holdKind !== 'usage_limit') {
+    return undefined;
+  }
+  const resumeAt = metadata?.wait_resume_at;
+  return { resumeAt: typeof resumeAt === 'string' && resumeAt ? resumeAt : undefined };
 }
 
 export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
@@ -80,6 +81,7 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
       : undefined,
     verdict: payload.verdict,
     reason: payload.reason ?? (payload.status === 'wait' ? payload.wait_reason : undefined),
+    usageLimit: resolveUsageLimit(payload),
     constraints: payload.constraints,
     acceptanceCriteria: payload.acceptance_criteria,
     acceptanceResults: payload.metadata?.acceptance_results as GoalState['acceptanceResults'],
@@ -155,13 +157,6 @@ export function mergeMessageSources(existingSources: Source[], incomingSources: 
   return mergedSources.sort((a, b) => a.index - b.index);
 }
 
-export function normalizeSubagentStatus(status: string | undefined): SubagentStatus {
-  if (status && SUBAGENT_STATUSES.has(status as SubagentStatus)) {
-    return status as SubagentStatus;
-  }
-  return 'completed';
-}
-
 export function getContextOverflowMessage(): string {
   const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
   return lang?.startsWith('zh')
@@ -174,11 +169,7 @@ interface FriendlyError {
   hint?: string;
 }
 
-export async function getUserFriendlyError(
-  errorKind: ErrorKind | undefined,
-  rawError: string,
-  _cooldownMs?: number,
-): Promise<FriendlyError> {
+export async function getUserFriendlyError(errorKind: ErrorKind | undefined, rawError: string): Promise<FriendlyError> {
   if (errorKind === 'concurrency_limit') {
     const isZh = typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh');
     return {

@@ -17,6 +17,7 @@ React 组件根目录：`layout/` 应用壳层；`primitives/` shadcn/Radix 基�
 | `security/`       | 辅助 | Security Center 页面（`/security`）                                       | [_ARCH.md](security/_ARCH.md)       |
 | `billing/`        | 辅助 | Work Unit 门禁、预算弹窗、配额展示                                        | [_ARCH.md](billing/_ARCH.md)        |
 | `approval/`       | 辅助 | 工具审批抽屉与多态审批卡片                                                | [_ARCH.md](approval/_ARCH.md)       |
+| `channels/`       | 辅助 | 外部渠道可视化扫码配对向导与连通性自测卡片                                | [_ARCH.md](channels/_ARCH.md)       |
 | `dev/`            | 辅助 | localhost dev-only E2E 桥（`E2EChatBridge`，供 MCP chrome-devtools 驱动） | [_ARCH.md](dev/_ARCH.md)            |
 
 ## 依赖

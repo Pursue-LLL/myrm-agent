@@ -33,6 +33,7 @@ import {
   IconCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
+import { QueuedRestartNotice } from '@/components/features/instance-archive/QueuedRestartNotice';
 import { systemService, type StorageCategoryKey } from '@/services/system';
 
 type StorageReport = Awaited<ReturnType<typeof systemService.getStorageGovernanceReport>>;
@@ -105,6 +106,7 @@ export const StorageGovernanceCard = memo(() => {
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [snapshotLabel, setSnapshotLabel] = useState('');
   const [restoringSnapshotId, setRestoringSnapshotId] = useState<string | null>(null);
+  const [restartPending, setRestartPending] = useState(false);
 
   // The report that is already shown stays on screen while a new one is measured and after a refresh fails. Only the
   // newest request may change it: a slow earlier measurement must not overwrite a newer figure.
@@ -166,6 +168,7 @@ export const StorageGovernanceCard = memo(() => {
             title: t('restoreSuccessTitle'),
             description: t('restoreSuccessDesc'),
           });
+          setRestartPending(res.requires_restart);
           await fetchReport();
         } else {
           toastFailure(t('restoreFailedTitle'), t('restoreFailedDesc'));
@@ -205,6 +208,7 @@ export const StorageGovernanceCard = memo(() => {
   return (
     <SettingsSection title={t('title')} description={t('description')}>
       <div className="space-y-6">
+        {restartPending && <QueuedRestartNotice />}
         {loadStatus === 'failed' && (
           <LoadFailedNotice showsStaleReport={report !== null} onRetry={() => void fetchReport()} />
         )}

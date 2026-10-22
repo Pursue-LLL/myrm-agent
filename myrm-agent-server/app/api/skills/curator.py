@@ -8,7 +8,8 @@ Provides REST endpoints for:
 - Consolidation: preview and execute an umbrella merge
 - Skill doctor: health findings and one-click remediation
 
-Response models carry only the fields the settings panel renders; the on-disk history keeps more.
+Run and history responses carry the skipped counts alongside the transition counts: a sweep that
+changed nothing is explainable ("N pinned, M in use") instead of reading as a silent no-op.
 """
 
 from __future__ import annotations
@@ -22,7 +23,12 @@ from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollect
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from pydantic import BaseModel
 
-from app.core.skills.curator.service import SkillPinnedError, apply_skill_archived
+from app.core.skills.curator.bound_skills import SkillBoundError
+from app.core.skills.curator.service import (
+    SkillPinnedError,
+    apply_skill_archived,
+    archive_skill_with_guards,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/curator")
@@ -80,6 +86,8 @@ class CuratorRunResponse(BaseModel):
     total_transitions: int
     stale_count: int
     archived_count: int
+    skipped_pinned: int = 0
+    skipped_protected: int = 0
     transitions: list[dict[str, str]]
 
 
@@ -138,7 +146,15 @@ async def update_skill_lifecycle(
         )
     elif action == "archive":
         try:
-            apply_skill_archived(collector, skill_path, archived=True)
+            await archive_skill_with_guards(skill_name)
+        except SkillBoundError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Skill '{skill_name}' is still used by an agent, scheduled task or Kanban task — "
+                    "remove it from those bindings before archiving"
+                ),
+            ) from exc
         except SkillPinnedError as exc:
             raise HTTPException(
                 status_code=409,
@@ -210,6 +226,8 @@ async def run_curator() -> CuratorRunResponse:
         total_transitions=result.total_transitions,
         stale_count=result.stale_count,
         archived_count=result.archived_count,
+        skipped_pinned=result.skipped_pinned,
+        skipped_protected=result.skipped_protected,
         transitions=[
             {
                 "skill_name": t.skill_name,
@@ -231,6 +249,8 @@ class CuratorHistoryEntry(BaseModel):
     total_transitions: int
     stale_count: int
     archived_count: int
+    skipped_pinned: int = 0
+    skipped_protected: int = 0
     transitions: list[dict[str, str]]
 
 
@@ -262,6 +282,7 @@ class ConsolidationPreviewResponse(BaseModel):
     total_skills_affected: int
     estimated_reduction: int
     preview_summary: str
+    plan_token: str
 
 
 class ConsolidationExecuteResponse(BaseModel):
@@ -275,13 +296,34 @@ class ConsolidationExecuteResponse(BaseModel):
     summary: str
 
 
+def _consolidation_plan_fingerprint_payload(plan: object) -> dict[str, object]:
+    from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
+
+    if not isinstance(plan, ConsolidationPlan):
+        raise TypeError("Expected ConsolidationPlan")
+    return {
+        "actions": [
+            {
+                "action_type": a.action_type.value,
+                "target_skill": a.target_skill,
+                "source_skills": list(a.source_skills),
+                "reasoning": a.reasoning,
+            }
+            for a in plan.actions
+        ],
+        "total_skills_affected": plan.total_skills_affected,
+        "estimated_reduction": plan.estimated_reduction,
+        "preview_summary": plan.preview_summary,
+    }
+
+
 @router.post("/consolidation/preview", response_model=ConsolidationPreviewResponse)
 async def consolidation_preview() -> ConsolidationPreviewResponse:
     """Generate a consolidation plan (dry-run) without executing changes."""
     from app.core.skills.curator.consolidation import run_consolidation_preview
 
     plan = await run_consolidation_preview()
-    return ConsolidationPreviewResponse(
+    response = ConsolidationPreviewResponse(
         actions=[
             ConsolidationActionResponse(
                 action_type=a.action_type.value,
@@ -294,14 +336,41 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
         total_skills_affected=plan.total_skills_affected,
         estimated_reduction=plan.estimated_reduction,
         preview_summary=plan.preview_summary,
+        plan_token="",
     )
+    from app.core.skills.curator.consolidation_plan_token import issue_plan_token
+
+    issued = issue_plan_token(_consolidation_plan_fingerprint_payload(plan))
+    return response.model_copy(update={"plan_token": issued.token})
+
+
+class ConsolidationExecuteRequest(BaseModel):
+    plan_token: str
 
 
 @router.post("/consolidation/execute", response_model=ConsolidationExecuteResponse)
-async def consolidation_execute() -> ConsolidationExecuteResponse:
+async def consolidation_execute(
+    body: ConsolidationExecuteRequest,
+) -> ConsolidationExecuteResponse:
     """Execute consolidation — merge fragmented skills into umbrellas."""
-    from app.core.skills.curator.consolidation import run_consolidation_execute
+    from app.core.skills.curator.consolidation import (
+        run_consolidation_execute,
+        run_consolidation_preview,
+    )
+    from app.core.skills.curator.consolidation_plan_token import (
+        revoke_plan_token,
+        validate_plan_token,
+    )
 
+    plan = await run_consolidation_preview()
+    if not validate_plan_token(
+        body.plan_token, _consolidation_plan_fingerprint_payload(plan)
+    ):
+        raise HTTPException(
+            status_code=409, detail="Consolidation plan token invalid or expired."
+        )
+
+    revoke_plan_token(body.plan_token)
     result = await run_consolidation_execute()
     return ConsolidationExecuteResponse.model_validate(result)
 
@@ -355,5 +424,7 @@ async def remediate_skill_endpoint(
 
     res = await remediate_skill_finding(req.skill_name, req.action)
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=str(res.get("error", "Remediation failed")))
+        raise HTTPException(
+            status_code=400, detail=str(res.get("error", "Remediation failed"))
+        )
     return SkillRemediationResponse(**res)  # type: ignore[arg-type]

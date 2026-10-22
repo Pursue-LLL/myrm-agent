@@ -29,10 +29,7 @@ describe('useLaneSemanticStore', () => {
   });
 
   it('triggers graduation when evaluating boundary-crossing text in chat lane', () => {
-    let match: ReturnType<typeof useLaneSemanticStore.getState.evaluateInputIntent> = null;
-    act(() => {
-      match = useLaneSemanticStore.getState().evaluateInputIntent('请把这段代码保存到 src/main.ts');
-    });
+    const match = useLaneSemanticStore.getState().evaluateInputIntent('请把这段代码保存到 src/main.ts');
 
     expect(match).not.toBeNull();
     expect(match?.triggerKind).toBe('file_write');
@@ -43,10 +40,7 @@ describe('useLaneSemanticStore', () => {
   });
 
   it('does not trigger graduation for pure conversational text', () => {
-    let match: ReturnType<typeof useLaneSemanticStore.getState.evaluateInputIntent> = null;
-    act(() => {
-      match = useLaneSemanticStore.getState().evaluateInputIntent('请帮我写一首关于秋天的诗');
-    });
+    const match = useLaneSemanticStore.getState().evaluateInputIntent('请帮我写一首关于秋天的诗');
 
     expect(match).toBeNull();
     const state = useLaneSemanticStore.getState();

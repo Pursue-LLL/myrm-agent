@@ -109,6 +109,27 @@ async def test_taste_summary_and_status_api(client: TestClient, auth_headers: di
 
 
 @pytest.mark.asyncio
+async def test_permanent_delete_reports_a_memory_error_as_a_400(
+    client: TestClient, auth_headers: dict[str, str], override_memory_manager: AsyncMock
+):
+    """A deletion that could not reach one of the copies stays visible and says why, instead of a bare 500."""
+    from myrm_agent_harness.toolkits.memory import MemoryError
+
+    override_memory_manager.config.semantic_collection = "memories_semantic"
+    override_memory_manager.delete_memory.side_effect = MemoryError(
+        "Memories left in previous embedding models' collections: memories_semantic_old; "
+        "nothing was deleted from memories_semantic"
+    )
+
+    resp = client.delete(
+        "/api/v1/memory/mem_1?memory_type=semantic&permanent=true", headers=auth_headers
+    )
+
+    assert resp.status_code == 400
+    assert "memories_semantic_old" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_taste_summary_with_facets(auth_headers: dict[str, str]):
     """Integration test: taste-summary with active preference facets."""
     from dataclasses import dataclass, field

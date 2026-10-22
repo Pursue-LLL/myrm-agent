@@ -30,3 +30,5 @@
 | `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs；聚合 token/cost/cache 指标并输出端到端 `streamTtft` 统计摘要（sampleCount/avg/p95，基于 `streamTtftMs` 样本，不依赖 usage 字段是否存在）；re-export `aggregate_chat_usage_rows`（会话级消息 extra_data 聚合，重建 Chat.total_* 用量缓存）。 | ✅ |
 | `wiki_evidence.py` | 模块 | Wiki 证据链观测 API：写入 evidence_surface/snippet_open/snippet_close/query_attempted/query_submitted(success)/dropped_report/quality_outcome_negative 事件（支持 `context_key` 口径隔离；query 事件支持 `turn_distance` 观测；`quality_outcome_negative` 当前由含 KB 证据回答的 Regenerate/Undo 触发），聚合输出 snippet expansion、deep verification、re-query、quick bounce、dwell 与 negative outcome 指标，并新增 query attempt/success 成功率口径；内置 90 天 retention 周期清理；在 dropped/snippet/outcome 触发事件上评估治理告警，并通过系统通知+冷却去重（内存+DB）形成闭环。 | ✅ |
 | `wiki_evidence_alerts.py` | 模块 | Wiki 证据治理告警辅助：`maybe_emit_governance_alerts`（质量告警 + 冷却去重）、`reset_wiki_evidence_alert_state_for_test`（test-only 内存状态重置）。 | ✅ |
+| `timezone_helper.py` | 辅助 | 统计端点用户时区解析与日期转换辅助：优先级按 Query 参数 -> Header (X-Timezone) -> 安全回退 UTC（绝不回退服务器系统本地时区）；提供 naive/aware datetime 至用户目标时区转换函数。 | ✅ |
+

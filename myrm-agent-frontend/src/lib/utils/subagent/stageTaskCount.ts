@@ -36,6 +36,7 @@ const TERMINAL_STATUSES: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
   'cancelled',
   'cancelled_by_budget',
   'interrupted',
+  'blocked',
 ]);
 
 /**
@@ -61,8 +62,7 @@ export function classifyNodeStage(node: SubagentNode): { category: StageCategory
     typeLower.includes('review') ||
     roleLower.includes('verif') ||
     roleLower.includes('auditor') ||
-    Boolean(node.verification) ||
-    node.status === 'verifying'
+    Boolean(node.verification)
   ) {
     res = { category: 'verify', name: 'Verify' };
   } else if (
@@ -125,7 +125,7 @@ export function deriveStageTaskCounts(nodes: Record<string, SubagentNode> | Suba
 
   // Sort stages by canonical stage order
   const sortedBuckets = Array.from(stageBuckets.entries()).sort(
-    (a, b) => STAGE_ORDER.indexOf(a[1].category) - STAGE_ORDER.indexOf(b[1].category)
+    (a, b) => STAGE_ORDER.indexOf(a[1].category) - STAGE_ORDER.indexOf(b[1].category),
   );
 
   const stages: StageProgressItem[] = [];
@@ -135,8 +135,10 @@ export function deriveStageTaskCounts(nodes: Record<string, SubagentNode> | Suba
     const total = bucket.nodes.length;
     const completed = bucket.nodes.filter((n) => n.status === 'completed').length;
     const failed = bucket.nodes.filter((n) => n.status === 'failed' || n.status === 'timed_out').length;
-    const running = bucket.nodes.filter((n) => n.status === 'running' || n.status === 'verifying').length;
-    const isComplete = total > 0 && completed + failed >= total && running === 0;
+    const running = bucket.nodes.filter((n) => n.status === 'running').length;
+    // A node held back for review has settled: it must not keep its stage open or stall downstream stages.
+    const needsReview = bucket.nodes.filter((n) => n.status === 'blocked').length;
+    const isComplete = total > 0 && completed + failed + needsReview >= total && running === 0;
 
     let waitingOnStage: string | undefined = undefined;
     let isBlocked = false;

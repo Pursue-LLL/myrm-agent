@@ -20,12 +20,14 @@ from fastapi.responses import StreamingResponse
 from myrm_agent_harness.toolkits.tasks import Task, TaskFilters, TaskStatus, TaskStore
 
 from app.api.tasks.deps import get_task_store
+from app.api.tasks.timeline_router import router as timeline_router
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.tasks.events import task_event_bus
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["tasks"])
+router.include_router(timeline_router)
 
 
 type TaskApiRecoverability = Literal["transient", "permanent"]

@@ -13,11 +13,12 @@ Provides HTTP endpoints for the frontend to pause, resume, and clear goals.
 """
 
 import logging
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.agent.goals.types import GoalStatus
+from myrm_agent_harness.api.hooks import GOAL_WAIT_KIND_KEY, GOAL_WAIT_KIND_USAGE_LIMIT
 from myrm_agent_harness.core.features import get_features
 from pydantic import BaseModel
 
@@ -249,6 +250,11 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
         goal = await provider.get_active_goal(session_id)
     else:
         goal = await provider.get_active_goal(session_id)
+        if goal is None and request.action == "pause":
+            # A parked goal (e.g. waiting out a usage limit) is not ACTIVE but can still be paused.
+            latest = await provider.get_latest_goal(session_id)
+            if latest is not None and latest.status is GoalStatus.WAIT:
+                goal = latest
 
     if not goal and request.action == "unwait":
         goal = await provider.get_latest_goal(session_id)
@@ -283,7 +289,14 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
                 raise HTTPException(status_code=501, detail="Unwait not supported by provider")
             if goal.status != GoalStatus.WAIT:
                 raise HTTPException(status_code=400, detail="Goal is not in WAIT state")
-            await provider.exit_wait(goal.goal_id)
+            if goal.metadata.get(GOAL_WAIT_KIND_KEY) == GOAL_WAIT_KIND_USAGE_LIMIT:
+                from app.services.agent.goals.usage_limit_resume import ResumeResult, resume_goal_after_usage_limit
+
+                outcome = await resume_goal_after_usage_limit(session_id)
+                if outcome is not ResumeResult.RESUMED:
+                    raise HTTPException(status_code=409, detail="Goal cannot be resumed right now")
+            else:
+                await provider.exit_wait(goal.goal_id)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid action: {request.action}")
 
@@ -322,11 +335,10 @@ async def draft_goal(
         raise HTTPException(status_code=500, detail="Failed to generate goal draft") from e
 
     return GoalDraftResponse(
-        constraints=list(spec.get("constraints", [])),
-        acceptance_criteria=list(spec.get("acceptance_criteria", [])),
+        constraints=list(cast("list[str]", spec.get("constraints", []))),
+        acceptance_criteria=list(cast("list[dict[str, object]]", spec.get("acceptance_criteria", []))),
         ui_summary=str(spec.get("ui_summary", "")),
     )
-
 
 
 @router.post("/{session_id}/budget")
@@ -369,7 +381,6 @@ async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) 
     except Exception as e:
         logger.exception("Failed to update goal budget")
         raise HTTPException(status_code=500, detail="Failed to update goal budget") from e
-
 
 
 __all__ = [

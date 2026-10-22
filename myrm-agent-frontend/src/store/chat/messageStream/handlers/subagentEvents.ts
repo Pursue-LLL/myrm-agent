@@ -208,29 +208,6 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
-  // SUBAGENT_STATUS_UPDATE: structured completion/failure/timeout event from Harness
-  if (data.type === 'subagent_status_update') {
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-      const payload = data.data;
-      const taskId = payload?.task_id;
-      if (taskId) {
-        const store = useSubagentStore.getState();
-        store.upsertNode({
-          task_id: taskId,
-          role: payload.role,
-          control_scope: payload.control_scope,
-          policy_reason: payload.policy_reason,
-          policy_details: payload.policy_details,
-          budget: payload.budget,
-          effective_model: payload.effective_model,
-          token_usage: payload.token_usage,
-        });
-        store.completeNode(taskId, H.normalizeSubagentStatus(payload.status), payload.error);
-      }
-    });
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.FISSION_TOPOLOGY) {
     H.writeSubagentStore(ctx.state, (store) => {
       const payload = data.data as H.FissionTopologyUpdateStreamEvent['data'];

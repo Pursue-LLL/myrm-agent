@@ -3,16 +3,17 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TurnLineageFilterBar } from '../TurnLineageFilterBar';
 import { useTurnLineageStore } from '../useTurnLineageStore';
-import { TurnAuditRecord } from '../turnLineageTypes';
+import type { ChatTurnItem } from '../turnLineageTypes';
+import { asChatTurn, type TurnFixture } from './turnFixtures';
 
-const mockTurns: TurnAuditRecord[] = [
+const mockTurns: ChatTurnItem[] = ([
   {
     id: 'turn-1',
     turnNumber: 1,
     author: 'Developer',
     content: '用户发送需求',
     provenance: {
-      originType: 'user_prompt',
+      originType: 'user_direct',
       timestamp: '10:00:00',
     },
   },
@@ -37,7 +38,7 @@ const mockTurns: TurnAuditRecord[] = [
       timestamp: '10:05:00',
     },
   },
-];
+] satisfies TurnFixture[]).map(asChatTurn);
 
 describe('TurnLineageFilterBar 组件单测', () => {
   beforeEach(() => {

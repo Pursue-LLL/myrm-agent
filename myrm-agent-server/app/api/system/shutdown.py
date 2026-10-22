@@ -10,7 +10,7 @@
 - DELETE /drain: cancel drain and re-accept new turns
 
 [POS]
-HTTP shutdown/drain control. POST /drain lets CP pre-drain before sleep/destroy;
+HTTP shutdown/drain control. POST /drain lets CP pre-drain before destroy (idle sleep never drains: the recycler only sleeps sandboxes with no in-flight work);
 POST /shutdown drains then SIGTERM.
 """
 

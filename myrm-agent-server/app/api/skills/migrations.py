@@ -206,9 +206,10 @@ async def approve_pending_migration_record(
             counts = await manager.import_memories(data, skip_duplicates=skip_duplicates)
         elif record.migration_type == "skill_import":
             # Applying a skill migration writes directly to the local skill
-            # directory (~/.myrm/skills), which the agent cannot load in sandbox
-            # mode — fail closed there. Delayed import keeps this module loadable
-            # standalone (tests load it via spec_from_file_location).
+            # directory (~/.myrm/skills), which the agent cannot load when local
+            # skills are disabled (MYRM_ALLOW_LOCAL_SKILLS=0) — fail closed there.
+            # Delayed import keeps this module loadable standalone (tests load it
+            # via spec_from_file_location).
             from app.api.skills._deploy_capability import (
                 require_local_skills_capability,
             )

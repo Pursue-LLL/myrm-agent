@@ -86,6 +86,7 @@ const discoveryHookMock = vi.hoisted(() => ({
   search: vi.fn(),
   preview: vi.fn(),
   install: vi.fn(),
+  update: vi.fn(),
   uninstall: uninstallMock,
   clearPreview: vi.fn(),
   clearResults: vi.fn(),

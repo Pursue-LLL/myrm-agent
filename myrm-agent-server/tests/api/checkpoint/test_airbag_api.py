@@ -50,33 +50,25 @@ async def async_client() -> httpx.AsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_arm_and_get_status_airbag_api(async_client: httpx.AsyncClient, git_dir: Path) -> None:
+async def test_status_rollback_dismiss_airbag_api(async_client: httpx.AsyncClient, git_dir: Path) -> None:
     task_id = "test-task-api-01"
 
-    # 1. Arm airbag
-    arm_resp = await async_client.post(
-        "/api/v1/checkpoint/airbag/arm",
-        json={"task_id": task_id, "workspace_path": str(git_dir)},
-    )
-    assert arm_resp.status_code == 200
-    data = arm_resp.json()
-    assert data["success"] is True
-    assert data["task_id"] == task_id
-    assert data["is_git_repo"] is True
-    assert data["base_snapshot_id"] is not None
+    # 1. Arm the baseline the way the unattended goal stream does
+    service = get_task_airbag_service()
+    manifest = await service.arm_airbag(task_id, str(git_dir))
+    assert manifest is not None
+    assert manifest.is_git_repo is True
+    assert manifest.base_snapshot_id is not None
 
     # Mutate workspace
     (git_dir / "index.js").write_text("console.log('mutated');\n", encoding="utf-8")
     (git_dir / "draft.txt").write_text("new draft\n", encoding="utf-8")
 
     # Record external effect
-    service = get_task_airbag_service()
     service.record_external_effect(task_id, "docker run -d postgres:latest")
 
     # 2. Query status
-    status_resp = await async_client.get(
-        f"/api/v1/checkpoint/airbag/{task_id}/status?workspace_path={git_dir}"
-    )
+    status_resp = await async_client.get(f"/api/v1/checkpoint/airbag/{task_id}/status?workspace_path={git_dir}")
     assert status_resp.status_code == 200
     status_data = status_resp.json()
     assert status_data["task_id"] == task_id

@@ -98,7 +98,7 @@ class TestBuildEvictionCallback:
         from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
         mock_mm = MagicMock()
-        mock_mm.policy = AgentMemoryPolicy.preset_l2_flow(task_id="t-123")
+        mock_mm.memory_policy = AgentMemoryPolicy.preset_l2_flow(task_id="t-123")
         ext = ZeroCostMemoryExtension(
             enable_memory_auto_extraction=True,
             is_subagent=False,

@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/primitives/empty-state';
 import { CardGridSkeleton } from '@/components/primitives/skeleton-templates';
 import { getToolStability, type ToolStabilityAnalytics } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
+import { ToolCompositionCard } from './ToolCompositionCard';
 
 function formatPercent(locale: string, value: number): string {
   return new Intl.NumberFormat(locale, {
@@ -36,14 +37,15 @@ export default function ToolStabilitySection() {
   const t = useTranslations('settings.toolStabilitySection');
   const locale = useLocale();
   const [data, setData] = useState<ToolStabilityAnalytics | null>(null);
+  const [days, setDays] = useState<number>(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (timeRange = days) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getToolStability(undefined, 30);
+      const res = await getToolStability(undefined, timeRange);
       setData(res);
     } catch {
       setError('loadError');
@@ -51,11 +53,11 @@ export default function ToolStabilitySection() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(days);
+  }, [days, load]);
 
   const tableRows = useMemo(() => {
     if (!data?.daily_stability?.length) {
@@ -175,6 +177,12 @@ export default function ToolStabilitySection() {
                 );
               })}
             </div>
+
+            <ToolCompositionCard
+              dailyRecords={data.daily_stability}
+              days={days}
+              onDaysChange={setDays}
+            />
 
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-foreground">{t('tableTitle')}</h3>

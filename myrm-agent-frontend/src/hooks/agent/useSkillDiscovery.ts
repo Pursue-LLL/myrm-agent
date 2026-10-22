@@ -11,6 +11,7 @@ import {
   searchDiscoverySkills,
   previewDiscoverySkill,
   installDiscoverySkill,
+  updateDiscoverySkill,
   uninstallDiscoverySkill,
 } from '@/services/skill';
 
@@ -33,6 +34,7 @@ interface UseSkillDiscoveryReturn {
   search: (query: string, packageTypeOverride?: 'all' | 'skill' | 'agent_plugin') => Promise<void>;
   preview: (skillId: string, source: string) => Promise<DiscoveryPreviewResponse | null>;
   install: (skillId: string, source: string) => Promise<DiscoveryInstallResponse | null>;
+  update: (skillName: string, skillId: string, source: string) => Promise<DiscoveryInstallResponse | null>;
   uninstall: (skillId: string, force?: boolean) => Promise<boolean>;
   isUninstalling: string | null;
   clearResults: () => void;
@@ -129,6 +131,42 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
       }
     },
     [options?.agentId, options?.mountToAgent],
+  );
+
+  const update = useCallback(
+    async (skillName: string, skillId: string, source: string): Promise<DiscoveryInstallResponse | null> => {
+      setIsInstalling(skillId);
+      setInstallError(null);
+      setInstallSuccess(null);
+
+      try {
+        const response = await updateDiscoverySkill(skillName, skillId, source);
+        if (response.success) {
+          setInstallSuccess(response.skill_name);
+          setResults((prev) =>
+            prev.map((r) =>
+              r.id === skillId && r.source === source
+                ? {
+                    ...r,
+                    installed_version: response.version || r.version || r.installed_version || '1.0.0',
+                    installed_skill_id: response.skill_id || r.installed_skill_id,
+                    upgrade_available: false,
+                  }
+                : r,
+            ),
+          );
+          return response;
+        }
+        setInstallError(response.error || 'Update failed');
+        return null;
+      } catch (error) {
+        setInstallError(error instanceof Error ? error.message : 'Update failed');
+        return null;
+      } finally {
+        setIsInstalling(null);
+      }
+    },
+    [],
   );
 
   const [isUninstalling, setIsUninstalling] = useState<string | null>(null);
@@ -232,6 +270,7 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
     search,
     preview,
     install,
+    update,
     uninstall,
     isUninstalling,
     clearResults,

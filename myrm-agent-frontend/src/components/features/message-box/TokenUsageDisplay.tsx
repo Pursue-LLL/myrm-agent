@@ -586,7 +586,7 @@ export default function TokenUsageDisplay({
               </div>
 
               {/* 费用 */}
-              {costUsd !== undefined && costUsd > 0 && (
+              {costUsd !== undefined && costUsd > 0 ? (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t('cost')}</span>
                   <div className="flex items-center gap-1.5">
@@ -604,7 +604,16 @@ export default function TokenUsageDisplay({
                     )}
                   </div>
                 </div>
-              )}
+              ) : costStatus === 'unknown' && usage.total_tokens > 0 ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{t('cost')}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span data-testid="cost-status-unknown" className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                      费用未知
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               {/* 模型与调度 */}
               {(modelName || routingTier) && (

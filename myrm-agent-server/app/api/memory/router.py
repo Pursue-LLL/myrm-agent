@@ -55,6 +55,9 @@ from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
+from app.api.memory.recall_simulator_router import (
+    router as recall_simulator_router,
+)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -73,6 +76,7 @@ if settings.memory_labs_enabled:
     router.include_router(command_center.router, tags=["memory-command-center"])
     router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
     router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
+    router.include_router(recall_simulator_router, tags=["memory-simulate-recall"])
 
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(conflicts.router, tags=["memory-conflicts"])

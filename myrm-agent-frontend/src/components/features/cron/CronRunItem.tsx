@@ -33,6 +33,9 @@ function formatTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
+/** Run-history code the server records when a run waits for the provider usage limit to reset. */
+const USAGE_LIMIT_SKIP_REASON = 'usage_limit';
+
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
   const locale = useLocale();
@@ -43,6 +46,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isCircuitBreak = run.status === 'circuit_break';
   const blockedCount = run.metadata?.blockedCount ?? 0;
   const hasContent = !!(run.output || run.error) || blockedCount > 0;
+  const displayOutput = isSkipped && run.output === USAGE_LIMIT_SKIP_REASON ? t('skippedUsageLimit') : run.output;
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;
   const monitorContractErrorLabel =
@@ -248,7 +252,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
         </div>
 
         {!expanded && run.output && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-1 font-mono">{run.output}</p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-1 font-mono">{displayOutput}</p>
         )}
         {!expanded && verification?.status === 'fail' && isOk && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{t('verificationRunOkReviewFailed')}</p>
@@ -328,7 +332,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               )}
             {run.output && (
               <pre className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">
-                {run.output}
+                {displayOutput}
               </pre>
             )}
             {run.error && !isCircuitBreak && (

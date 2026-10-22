@@ -245,7 +245,7 @@ class TestExceptionChunkBranches:
             raw = (await self._chunks(exc, "zh"))[0]
         payload = self._decode(raw)
         assert payload["data"] == "请求过于频繁，请稍后重试。"
-        assert payload["retry_after_ms"] == 30000
+        assert payload["cooldown_remaining_ms"] == 30000
         metadata = payload["metadata"]
         assert isinstance(metadata, dict)
         assert metadata["error_type"] == "RATE_LIMIT"
@@ -265,7 +265,7 @@ class TestExceptionChunkBranches:
             raw = (await self._chunks(exc, "en"))[0]
         payload = self._decode(raw)
         assert "[model_not_found]" in str(payload["data"])
-        assert "retry_after_ms" not in payload
+        assert "cooldown_remaining_ms" not in payload
 
     @pytest.mark.asyncio
     async def test_unknown_error_fallback(self) -> None:

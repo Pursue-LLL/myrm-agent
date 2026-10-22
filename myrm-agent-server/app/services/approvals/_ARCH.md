@@ -17,7 +17,6 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 |------|------|------|-------|
 | `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`list_pending_growth`（背景 growth 去重/上限 SSOT）、`find_pending_outbound_drafts`（按审批 ID 前缀查找待审核的被扣留回复，只返回 outbound_draft、最多 2 条，供 `/draft` 命令）、`resolve_approval` 与 `cleanup_expired_approvals` 事务起始先取 SQLite 写锁（并发定案只有一方生效，另一方读到已定案状态），并在 outbound_draft 状态提交后（会话释放之后）调用 `finalize_outbound_draft`（定案的唯一收口；TTL 清理对多条草稿并发收尾）；create/resolve 后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数 | ✅ |
 | `outbound_draft.py` | 核心 | 被扣留回复（`outbound_draft`）定案后的唯一收尾：`finalize_outbound_draft()`（发送或释放 + 关闭发送方占位消息 + 发送失败告知 owner；永不抛出，因为决定已落库）、`send_outbound_draft_payload()` / `discard_outbound_draft_payload()`（由整条回复快照重建与释放临时附件）、`draft_code()` / `DRAFT_CODE_MIN_CHARS`（被扣留回复在聊天里的短码：审核请求打印审批 ID 前 8 位，`/draft` 接受 6 位及以上） | ✅ |
-
 ## `list_pending` / `list_pending_growth` 契约
 
 - **`list_pending` 包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。

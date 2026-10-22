@@ -178,7 +178,7 @@ describe('agentControlEvents clearActivePlan', () => {
     await vi.dynamicImportSettled();
 
     const messages = updatedState?.messages as Array<Record<string, unknown>>;
-    const step = (messages?.[0].progressSteps as Array<Record<string, unknown>>).at(-1);
+    const step = (messages[0].progressSteps as Array<Record<string, unknown>>).at(-1);
     expect(step).toMatchObject({
       step_key: 'iteration_limit_reached',
       status: 'warning',

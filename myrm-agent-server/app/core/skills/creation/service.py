@@ -130,7 +130,7 @@ class SkillCreationService:
 
                 snapshot_path = self.base_path / ".skills_snapshot.sqlite"
 
-                def _do_delete():
+                def _do_delete() -> None:
                     snapshot = SQLiteSkillSnapshot(snapshot_path)
                     snapshot.delete_from_path(target_dir / SKILL_MD_FILE)
 
@@ -305,7 +305,7 @@ class SkillCreationService:
 
                     snapshot_path = self.base_path / ".skills_snapshot.sqlite"
 
-                    def _do_delete():
+                    def _do_delete() -> None:
                         snapshot = SQLiteSkillSnapshot(snapshot_path)
                         snapshot.delete_from_path(target)
 
@@ -334,8 +334,10 @@ class SkillCreationService:
     def _ensure_evolution_locked(content: str) -> str:
         """Inject evolution-locked: true into frontmatter for new user-created skills.
 
-        Protects user-created skills from automated curator transitions
-        (stale/archive/consolidation) by default. Users can unlock via the UI.
+        Guards the skill's content from automated *rewrites* (self-evolution and consolidation
+        merges) so a hand-written skill is not silently overwritten. It is not a lifecycle
+        exemption: the sweep evaluates and transitions a locked skill exactly like an unlocked one,
+        and pinning remains the only way to keep a skill out of it. Users can unlock via the UI.
         """
         fm_match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
         if not fm_match:
@@ -355,7 +357,7 @@ class SkillCreationService:
     @staticmethod
     def _check_path_containment(resolved_target: Path, skill_dir: Path) -> str | None:
         """Defense-in-depth: verify resolved path stays within skill directory."""
-        from myrm_agent_harness.api import is_within_boundary
+        from myrm_agent_harness.core.security.path import is_within_boundary
 
         if not is_within_boundary(resolved_target, skill_dir):
             return "Path escapes skill directory (blocked by containment check)."
@@ -375,6 +377,8 @@ class SkillCreationService:
         target_dir.mkdir(parents=True, exist_ok=True)
         skill_file.write_text(content, encoding="utf-8")
 
+        self._reconcile_lifecycle_on_write(target_dir)
+
         # ⚡ Trigger O(1) snapshot upsert for hot reload
         try:
             import asyncio
@@ -383,7 +387,7 @@ class SkillCreationService:
 
             snapshot_path = self.base_path / ".skills_snapshot.sqlite"
 
-            def _do_upsert():
+            def _do_upsert() -> None:
                 snapshot = SQLiteSkillSnapshot(snapshot_path)
                 snapshot.upsert_from_path(skill_file, workspace_root=self.base_path)
 
@@ -409,14 +413,30 @@ class SkillCreationService:
             was_updated=was_updated,
         )
 
+    def _reconcile_lifecycle_on_write(self, skill_dir: Path) -> None:
+        """Bring a written skill's lifecycle in line with the fact that it now exists on disk.
+
+        Every skill written here is one the user (or an agent acting for them) just authored, so it is
+        handed back ``active``: leaving it archived would hide that work behind a restore the writer never
+        asked for. The ledger is anchored too, because a skill the curator can never date would never age.
+        """
+        from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
+
+        from app.core.skills.curator.service import get_stats_collector
+
+        collector = get_stats_collector()
+        collector.anchor_created_at(skill_dir)
+        collector.update_lifecycle_status(skill_dir, SkillLifecycleStatus.ACTIVE)
+
     def _notify_sync_manifest(self, skill_name: str) -> None:
         """Notify the sync manifest that a local skill was created/updated."""
         try:
             from myrm_agent_harness.agent.skills.sync.idle_integration import (
                 _sync_manager_ref,
             )
+            from myrm_agent_harness.agent.skills.sync.manager import SkillSyncManager
 
-            if _sync_manager_ref is not None:
+            if isinstance(_sync_manager_ref, SkillSyncManager):
                 _sync_manager_ref.register_local_skill(skill_name)
         except Exception as e:
             logger.debug("Sync manifest notification skipped: %s", e)

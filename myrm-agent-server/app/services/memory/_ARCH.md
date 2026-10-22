@@ -19,6 +19,7 @@
 | `ledger/` | 单用户记忆操作账本（`record_event` 事件发布在持久化成功之后，杜绝 ghost event）、Guardian 调度策略（`guardian_policy.py`）与晨间摘要聚合。见 `ledger/_ARCH.md` |
 | `operations/` | 记忆 CRUD 业务处理器（列表/创建/更新/回收站/归档导入/偏好），`crud_handlers.py` 作为门面聚合 `crud/` 子模块；实体→`MemoryItem` DTO 呈现（`presentation.py`）。见 `operations/_ARCH.md` |
 | `shared_context/` | Shared Context 共享上下文服务（CRUD、绑定解析、写入提案生命周期与治理 policy）、记忆健康、历史证据、写入物化。见 `shared_context/_ARCH.md` |
+| `asset_hub/` | Agent 记忆资产装备中心与细粒度 ACL 授权服务（Chat/Skill/Wiki/CodeGraph 四类资产、4 槽位装备装配与卸载、Private/Team/Project 三级 ACL 鉴权）。见 `asset_hub/_ARCH.md` |
 
 ## 根目录文件清单
 

@@ -5,8 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.backends.skills._runtime import build_skill_metadata
-from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
+from myrm_agent_harness.api.skills import build_skill_metadata, parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.types import SkillTrust
 
 from app.core.cron.blueprints import (
@@ -45,11 +44,11 @@ def test_web_project_seo_optimization_frontmatter_parse() -> None:
     assert "browser_navigate_tool" in (meta.allowed_tools or [])
 
 
-def test_builtin_seo_agent_has_web_project_seo_skill() -> None:
-    """Verify builtin-seo Agent has web-project-seo-optimization bound by default."""
+def test_builtin_seo_agent_binds_no_skill_by_default() -> None:
+    """Built-in agents start in pure-instruction mode: the SEO skill reaches builtin-seo through the user's prebuilt switch."""
     seo_agent = next((a for a in _VERTICAL_BUILTIN_AGENTS if a.id == "builtin-seo"), None)
     assert seo_agent is not None
-    assert "web-project-seo-optimization" in seo_agent.default_skill_ids
+    assert seo_agent.default_skill_ids == ()
 
 
 def test_seo_weekly_audit_blueprint_registered() -> None:

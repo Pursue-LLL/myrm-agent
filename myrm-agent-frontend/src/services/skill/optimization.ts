@@ -3,7 +3,7 @@
  * @/lib/api::apiRequest (POS: frontend API request helper)
  *
  * [OUTPUT]
- * 版本列表/对比/回滚、skill_manage 批次撤销 `/mutations/{id}/rollback` 封装。
+ * 版本列表/对比/回滚、资源包修订恢复、skill_manage 批次撤销 `/mutations/{id}/rollback` 封装。
  *
  * [POS]
  * 技能优化客户端。`/skill-optimization/*` REST 契约。
@@ -47,6 +47,30 @@ export async function listSkillVersions(skillId: string, limit = 20): Promise<Sk
 
 export async function getSkillVersionDetail(skillId: string, version: number): Promise<SkillVersionDetailResponse> {
   return apiRequest<SkillVersionDetailResponse>(`${PREFIX}/versions/${encodeURIComponent(skillId)}/${version}`);
+}
+
+export interface SkillPackageRevisionSummary {
+  revision_number: number;
+  revision_id: string;
+  created_by: string;
+  resource_paths: string[];
+}
+
+export async function listSkillPackageRevisions(
+  skillId: string,
+  limit = 20,
+): Promise<{ skill_id: string; revisions: SkillPackageRevisionSummary[] }> {
+  return apiRequest(`${PREFIX}/package-revisions/${encodeURIComponent(skillId)}?limit=${limit}`);
+}
+
+export async function restoreSkillPackageRevision(
+  skillId: string,
+  revisionNumber: number,
+): Promise<{ status: string; revision_number: number }> {
+  return apiRequest(
+    `${PREFIX}/package-revisions/${encodeURIComponent(skillId)}/restore/${revisionNumber}`,
+    { method: 'POST' },
+  );
 }
 
 export async function rollbackSkillVersion(skillId: string, targetVersion: number): Promise<{ to_version: number }> {

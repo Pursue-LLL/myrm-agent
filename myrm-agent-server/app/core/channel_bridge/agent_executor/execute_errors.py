@@ -52,10 +52,6 @@ def build_llm_error_reply(msg: InboundMessage, exc: MyrmLLMError) -> OutboundMes
     resolution_steps = [str(step) for step in raw_steps[:3]] if isinstance(raw_steps, list) else []
     friendly_msg = f"❌ {user_message}"
 
-    if exc.context and "cooldown_remaining_ms" in exc.context:
-        retry_after_seconds = int(exc.context["cooldown_remaining_ms"]) / 1000
-        friendly_msg += get_text(msg, "cooldown_retry", seconds=retry_after_seconds)
-
     if resolution_steps:
         steps_text = "\n".join(f"• {step}" for step in resolution_steps)
         friendly_msg += get_text(msg, "config_next_steps", steps=steps_text)

@@ -9,6 +9,7 @@
 - StorageOptimizePreflightResponse
 - StorageOptimizeRequest
 - StorageOptimizeResponse
+- SandboxRecreateRequest
 - SandboxRecreateResponse
 - StorageCategoryItem
 - StateSnapshotItem
@@ -71,9 +72,13 @@ class StorageOptimizeResponse(BaseModel):
     message: str
 
 
+class SandboxRecreateRequest(BaseModel):
+    # Off by default: a plain restart (e.g. after restoring a backup) must keep the user's installed Python packages.
+    reset_python_env: bool = False
+
+
 class SandboxRecreateResponse(BaseModel):
     status: str
-    message: str
 
 
 class StorageCategoryItem(BaseModel):
@@ -116,6 +121,7 @@ class SnapshotActionResponse(BaseModel):
     success: bool
     message: str
     snapshot: StateSnapshotItem | None = None
+    requires_restart: bool = False
 
 
 class TelemetryPostureResponse(BaseModel):
@@ -133,4 +139,3 @@ class TelemetryPostureResponse(BaseModel):
     three_tier_semantics: bool = True
     prompt_cache_metering: bool = True
     error: str | None = None
-

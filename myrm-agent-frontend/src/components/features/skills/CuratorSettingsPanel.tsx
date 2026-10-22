@@ -84,6 +84,14 @@ const CuratorSettingsPanel = memo(
             }),
           });
           onSweepComplete?.();
+        } else if (result.skipped_pinned > 0 || result.skipped_protected > 0) {
+          toast({
+            title: t('noChanges'),
+            description: t('runSkippedReason', {
+              pinned: result.skipped_pinned,
+              protected: result.skipped_protected,
+            }),
+          });
         } else {
           toast({ title: t('noChanges') });
         }
@@ -125,7 +133,11 @@ const CuratorSettingsPanel = memo(
     const handleExecute = useCallback(async () => {
       setIsExecuting(true);
       try {
-        const result: ConsolidationExecuteResponse = await executeConsolidation();
+        if (!preview?.plan_token) {
+          toast({ title: t('consolidation.executeFailed'), variant: 'destructive' });
+          return;
+        }
+        const result: ConsolidationExecuteResponse = await executeConsolidation(preview.plan_token);
         toast({
           title: t('consolidation.executeSuccess'),
           description: t('consolidation.executeResult', {
@@ -140,7 +152,7 @@ const CuratorSettingsPanel = memo(
       } finally {
         setIsExecuting(false);
       }
-    }, [t, onSweepComplete]);
+    }, [t, onSweepComplete, preview]);
 
     if (isLoading || !config) {
       return null;

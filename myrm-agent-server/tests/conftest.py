@@ -53,8 +53,12 @@ from dev_gate.contract import (  # noqa: E402
     chrome_e2e_session_lane_from_profile,
 )
 from e2e_core.profile_contract import (  # noqa: E402
+    CHROME_E2E_MAX_TIMEOUT_SEC,
+    CHROME_E2E_TIMEOUT_EXCEED_ALLOWLIST,
+    EXCLUSIVE_BACKEND_CEILING,
     PRIVATE_REASONS,
     UNSUPPORTED_PRIVATE_REASONS,
+    is_allowed_exclusive_backend_test,
 )
 
 _logger = logging.getLogger(__name__)
@@ -123,6 +127,8 @@ apply_test_secrets_to_environ(overwrite=False)
 
 # Setup isolated workspace - runs at import time
 _temp_workspace = tempfile.mkdtemp(prefix=f"myrm_test_{os.getpid()}_")
+with suppress(OSError):
+    (Path(_temp_workspace) / ".metadata_never_index").touch()
 os.environ["MYRM_DATA_DIR"] = _temp_workspace
 
 # Align SQLite write-lock wait with the dev stack (scripts/dev/dev-stack.sh
@@ -304,12 +310,33 @@ def _chrome_e2e_profile(
                 f"node={item.nodeid} private_reason=global_write_non_namespace "
                 f"requires access_scope=GLOBAL_WRITE, got {access_scope!r}"
             )
+        if private_reason == "exclusive_backend":
+            file_name = _item_path(item).name
+            func_name = str(getattr(item, "originalname", None) or item.name)
+            if not is_allowed_exclusive_backend_test(file_name, func_name):
+                raise pytest.UsageError(
+                    "CHROME_E2E_PROFILE_RATCHET: "
+                    f"node={item.nodeid} declares private_reason='exclusive_backend' "
+                    f"outside EXCLUSIVE_BACKEND_EVIDENCE_MANIFEST (ceiling={EXCLUSIVE_BACKEND_CEILING}); "
+                    "prefer execution_mode='SHARED' with namespace isolation"
+                )
     elif private_reason is not None:
         raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason only applies to PRIVATE")
     return execution_mode, access_scope, workload
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
+    file_name = _item_path(item).name
+    if file_name not in CHROME_E2E_TIMEOUT_EXCEED_ALLOWLIST:
+        for marker in item.own_markers:
+            if marker.name == "timeout" and marker.args:
+                raw_sec = marker.args[0]
+                if isinstance(raw_sec, int | float) and int(raw_sec) > CHROME_E2E_MAX_TIMEOUT_SEC:
+                    raise pytest.UsageError(
+                        "CHROME_E2E_TIMEOUT_EXCEEDS_SSOT: "
+                        f"node={item.nodeid} timeout={int(raw_sec)}s exceeds "
+                        f"{CHROME_E2E_MAX_TIMEOUT_SEC}s SSOT"
+                    )
     floor = _chrome_e2e_lane_timeout_sec(item)
     if floor is None:
         return
@@ -552,6 +579,29 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     )
 
 
+_SESSION_EPOCH_PIN_RUNTIMES: set[str] = set()
+_SESSION_EPOCH_PIN_SKIP_DETAIL: list[str] = []
+
+
+def _release_session_epoch_pin_holders() -> None:
+    if not _SESSION_EPOCH_PIN_RUNTIMES:
+        return
+    try:
+        from e2e_core.epoch_backend_pool import release_epoch_backend_holder
+        from e2e_core.verify_backend_seed import _isolated_registry_root
+
+        root = _isolated_registry_root()
+        for runtime_id in list(_SESSION_EPOCH_PIN_RUNTIMES):
+            release_epoch_backend_holder(
+                isolated_root=root,
+                runtime_id=runtime_id,
+            )
+    except Exception:
+        pass
+    finally:
+        _SESSION_EPOCH_PIN_RUNTIMES.clear()
+
+
 @pytest.fixture(autouse=True)
 def _chrome_e2e_epoch_pin(
     request: pytest.FixtureRequest,
@@ -584,6 +634,11 @@ def _chrome_e2e_epoch_pin(
     if not decision.eligible:
         yield
         return
+    if _SESSION_EPOCH_PIN_SKIP_DETAIL:
+        pytest.skip(
+            "E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; "
+            f"heal then retry: {_SESSION_EPOCH_PIN_SKIP_DETAIL[0]}"
+        )
     monorepo = _SERVER_ROOT.parents[1]
     outcome = apply_epoch_pin_for_shared_live(
         monorepo=monorepo,
@@ -601,10 +656,14 @@ def _chrome_e2e_epoch_pin(
         ):
             pytest.fail(f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}")
         if outcome.detail.startswith("verify_seed_failed_no_aligned_backend:"):
+            _SESSION_EPOCH_PIN_SKIP_DETAIL.append(outcome.detail)
             pytest.skip(f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {outcome.detail}")
         yield
         return
+    if outcome.runtime_id:
+        _SESSION_EPOCH_PIN_RUNTIMES.add(outcome.runtime_id)
     for key, value in outcome.environment.items():
+        os.environ[key] = value
         monkeypatch.setenv(key, value)
     print(
         "E2E_EPOCH_PIN: "
@@ -612,19 +671,7 @@ def _chrome_e2e_epoch_pin(
         f"seeded={'yes' if outcome.seeded else 'no'} detail={outcome.detail}",
         flush=True,
     )
-    try:
-        yield
-    finally:
-        try:
-            from e2e_core.epoch_backend_pool import release_epoch_backend_holder
-            from e2e_core.verify_backend_seed import _isolated_registry_root
-
-            release_epoch_backend_holder(
-                isolated_root=_isolated_registry_root(),
-                runtime_id=outcome.runtime_id,
-            )
-        except Exception:
-            pass
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -816,6 +863,7 @@ def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """Session cleanup on abort."""
     del session, exitstatus
+    _release_session_epoch_pin_holders()
     _cleanup_browser_child_processes()
     _shutdown_test_session_resources()
 

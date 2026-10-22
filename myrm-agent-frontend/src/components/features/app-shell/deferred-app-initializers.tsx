@@ -26,6 +26,14 @@ const UpdateHandoffNotifier = dynamic(
   { ssr: false },
 );
 
+const InstanceArchiveOutcomeNotifier = dynamic(
+  () =>
+    import('@/components/features/instance-archive/OutcomeNotifier').then((module) => ({
+      default: module.OutcomeNotifier,
+    })),
+  { ssr: false },
+);
+
 const AppshotInitializer = dynamic(() => import('./appshot-initializer'), { ssr: false });
 
 const VoicePttInitializer = dynamic(() => import('./voice-ptt-initializer'), { ssr: false });
@@ -38,6 +46,7 @@ export default function DeferredAppInitializers() {
       <AppUpdatePrompt />
       <WhatsNewModal />
       <UpdateHandoffNotifier />
+      <InstanceArchiveOutcomeNotifier />
       <AppshotInitializer />
       <VoicePttInitializer />
     </DeferredMount>

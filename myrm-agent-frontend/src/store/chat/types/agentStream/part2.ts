@@ -341,22 +341,6 @@ export interface SubagentCompletionStreamEvent extends BaseAgentEvent {
   data: string;
 }
 
-export interface SubagentStatusUpdateStreamEvent extends BaseAgentEvent {
-  type: 'subagent_status_update';
-  data?: {
-    task_id?: string;
-    status?: string;
-    error?: string;
-    role?: string;
-    control_scope?: string;
-    policy_reason?: string;
-    policy_details?: string;
-    budget?: Record<string, SubagentMetadataValue>;
-    effective_model?: string;
-    token_usage?: TokenUsage;
-  };
-}
-
 export interface SubagentStaleStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.SUBAGENT_STALE;
   data?: {

@@ -53,8 +53,11 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
+from app.core.agent.run_activity import track_background_agent_run
+
 from .blocked_actions import blocked_actions_metadata
 from .injection_scan import scan_cron_prompt
+from .provider_window_deferral import usage_limit_deferral
 from .research_lease import grant_run_lease, release_run_lease
 
 if TYPE_CHECKING:
@@ -293,6 +296,7 @@ _DAILY_MAX_HISTORY_ENTRIES = 5
 _DAILY_OUTPUT_TRUNCATE_CHARS = 500
 _DAILY_CROSSDAY_SUMMARY_CHARS = 300
 _ONE_DAY = timedelta(days=1)
+_OVERLOAD_RETRY_DELAY = timedelta(seconds=60)
 
 
 def _build_effective_prompt(job: CronJob) -> str:
@@ -448,6 +452,10 @@ class AgentJobRunner:
         self._situation_builder = situation_builder
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
+        with track_background_agent_run():
+            return await self._run_with_retries(job, context=context)
+
+    async def _run_with_retries(self, job: CronJob, *, context: str) -> JobResult:
         overload_reason = _memory_overload_reason()
         if overload_reason is not None:
             # Skip now, retry next tick: skipped runs don't consume retries or
@@ -457,12 +465,15 @@ class AgentJobRunner:
                 job.id,
                 overload_reason,
             )
-            return JobResult(success=False, skipped=True, skip_reason=overload_reason)
+            # A one-shot job has no next slot: without a retry time the skip would consume it.
+            retry_at = datetime.now(timezone.utc) + _OVERLOAD_RETRY_DELAY if job.schedule.kind is ScheduleKind.ONCE else None
+            return JobResult(success=False, skipped=True, skip_reason=overload_reason, retry_at=retry_at)
         last_result = JobResult(success=False, error="never executed")
 
         for attempt in range(1 + job.max_retries):
             last_result = await self._run_once(job, context=context)
-            if last_result.success:
+            if last_result.success or last_result.retry_at is not None:
+                # A deferral names the instant a repeat can succeed; retrying now only burns attempts.
                 return last_result
 
             # If circuit breaker was tripped, abort immediately — do not retry!
@@ -806,6 +817,17 @@ class AgentJobRunner:
 
                 await _ChatCrudMixin.ensure_chat_source(job.chat_id, "cron")
 
+            effective_allowed_roots = list(job.allowed_roots)
+            if job.project_id and not effective_allowed_roots:
+                try:
+                    from app.services.project.project_service import ProjectService
+
+                    project_model = await ProjectService.get_project(job.project_id)
+                    if project_model and project_model.workspace_path:
+                        effective_allowed_roots.append(project_model.workspace_path)
+                except Exception as exc:
+                    logger.warning("Failed to resolve project workspace for cron job %s: %s", job.id, exc)
+
             params = GeneralAgentParams(
                 query=effective_prompt,
                 model_cfg=model_cfg,
@@ -818,13 +840,14 @@ class AgentJobRunner:
                 search_service_cfg=user_cfgs.search_cfg,
                 chat_id=job.chat_id,
                 agent_id=job.agent_id,
+                project_id=job.project_id,
                 embedding_config=embedding_cfg,
                 reranker_config=reranker_cfg,
                 security_config_raw=security_config_raw,
                 agent_security_raw=agent_security_raw,
                 channel_name="cron",
                 declared_capabilities=job.required_capabilities,
-                declared_allowed_roots=job.allowed_roots,
+                declared_allowed_roots=tuple(effective_allowed_roots),
                 **cron_tool_flags,
                 enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings, untrusted=untrusted),
                 enable_web_search=await _resolve_cron_enable_web_search(
@@ -855,6 +878,18 @@ class AgentJobRunner:
                 notify_targets=(resolved.notify_targets if resolved else ()),
                 **privacy_agent_params(memory_settings),
             )
+
+            from app.ai_agents.event_log_injector import (
+                inject_event_log_config,
+                resolve_cron_event_log_session_id,
+            )
+
+            cron_event_log_sid = (
+                job.chat_id
+                if (job.session_target == SessionTarget.MAIN and job.chat_id)
+                else resolve_cron_event_log_session_id(str(job.id))
+            )
+            inject_event_log_config(params, session_id_override=cron_event_log_sid)
 
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
@@ -977,21 +1012,30 @@ class AgentJobRunner:
                 error=f"agent timed out after {job.timeout_seconds or 300}s",
             )
         except Exception as exc:
-            from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
-
-            if isinstance(exc, RunawayCircuitBreakException):
-                logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
-                return JobResult(
-                    success=False,
-                    error=str(exc),
-                    circuit_broken=True,
-                )
-            logger.warning("Cron agent job %s failed: %s", job.id, exc)
-            return JobResult(success=False, error=str(exc))
+            return _failure_result(job, exc)
         finally:
             if lease_session_key:
                 release_run_lease(lease_session_key)
             exit_cron_execution_context(cron_ctx_token)
+
+
+def _failure_result(job: CronJob, exc: Exception) -> JobResult:
+    """Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure)."""
+    from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
+
+    if isinstance(exc, RunawayCircuitBreakException):
+        logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
+        return JobResult(
+            success=False,
+            error=str(exc),
+            circuit_broken=True,
+        )
+    deferral = usage_limit_deferral(exc)
+    if deferral is not None:
+        logger.warning("Cron agent job %s hit a provider usage limit: %s", job.id, exc)
+        return deferral
+    logger.warning("Cron agent job %s failed: %s", job.id, exc)
+    return JobResult(success=False, error=str(exc))
 
 
 # ---------------------------------------------------------------------------

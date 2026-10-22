@@ -3,16 +3,17 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TurnTimelineAuditRail } from '../TurnTimelineAuditRail';
 import { useTurnLineageStore } from '../useTurnLineageStore';
-import { TurnAuditRecord } from '../turnLineageTypes';
+import type { ChatTurnItem } from '../turnLineageTypes';
+import { asChatTurn, type TurnFixture } from './turnFixtures';
 
-const mockTimelineTurns: TurnAuditRecord[] = [
+const mockTimelineTurns: ChatTurnItem[] = ([
   {
     id: 'turn-root',
     turnNumber: 1,
     author: 'User',
     content: '开始执行系统构架任务',
     provenance: {
-      originType: 'user_prompt',
+      originType: 'user_direct',
       timestamp: '14:00:00',
     },
   },
@@ -25,7 +26,6 @@ const mockTimelineTurns: TurnAuditRecord[] = [
       originType: 'subagent_delegation',
       timestamp: '14:01:20',
       causalityParentId: 'turn-root',
-      delegatedByAgentId: 'User',
     },
   },
   {
@@ -38,7 +38,7 @@ const mockTimelineTurns: TurnAuditRecord[] = [
       timestamp: '14:05:00',
     },
   },
-];
+] satisfies TurnFixture[]).map(asChatTurn);
 
 describe('TurnTimelineAuditRail 组件单测', () => {
   beforeEach(() => {

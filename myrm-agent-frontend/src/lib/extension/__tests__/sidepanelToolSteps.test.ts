@@ -30,7 +30,8 @@ describe('addToolStep', () => {
   });
 
   it('shows the running icon for a status it does not know', () => {
-    addToolStep(container, 'a', 'unknown');
+    // The stream is an external source, so the row must survive a status outside the declared domain.
+    addToolStep(container, 'a', 'unknown' as Parameters<typeof addToolStep>[2]);
 
     expect(container.querySelector('.icon')?.textContent).toBe('◎');
   });

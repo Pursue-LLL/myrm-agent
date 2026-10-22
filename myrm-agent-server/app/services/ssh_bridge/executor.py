@@ -19,11 +19,6 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Sequence
 
-from myrm_agent_harness.agent.middlewares import get_delegation_token
-from myrm_agent_harness.agent.security.delegation.guard import (
-    PrivilegeAmplificationBlockedError,
-    PrivilegeIntersectionGuard,
-)
 from myrm_agent_harness.api import ReadOnlySSHValidator
 
 from app.services.ssh_bridge.manager import SSHAssetManager
@@ -78,32 +73,6 @@ class SSHBridgeExecutor:
                 is_blocked=True,
                 block_reason="HOST_NOT_FOUND",
             )
-
-        # Triad delegation privilege amplification gate
-        delegation_token = get_delegation_token()
-        if delegation_token is not None:
-            val_res = self._readonly_validator.validate(command)
-            is_write_cmd = not val_res.is_safe
-            specific_scope = f"ssh:exec:{host_alias}:write" if is_write_cmd else f"ssh:exec:{host_alias}:read"
-            fallback_scope = "ssh:exec:write" if is_write_cmd else "ssh:exec:read"
-            if not delegation_token.has_scope(specific_scope):
-                try:
-                    PrivilegeIntersectionGuard.assert_scope_allowed(
-                        delegation_token,
-                        fallback_scope,
-                        action_name=f"ssh_exec:{host_alias}",
-                    )
-                except PrivilegeAmplificationBlockedError as exc:
-                    return SSHCommandResult(
-                        asset_alias=host_alias,
-                        command=command,
-                        exit_code=126,
-                        stdout="",
-                        stderr=f"Privilege Amplification Gate Blocked: {exc}",
-                        duration_ms=0.0,
-                        is_blocked=True,
-                        block_reason="PRIVILEGE_AMPLIFICATION_BLOCKED",
-                    )
 
         # Destructive command safety gate
         for pattern in _DESTRUCTIVE_COMMAND_PATTERNS:
@@ -168,7 +137,11 @@ class SSHBridgeExecutor:
         if "nvidia-smi" in normalized:
             return 0, "| GPU 0: NVIDIA A100-SXM4-80GB | 42C | 185W / 400W | 24150MiB / 81920MiB |\n", ""
         if "docker ps" in normalized:
-            return 0, "CONTAINER ID   IMAGE          COMMAND       CREATED         STATUS\n9a8b7c6d5e4f   nginx:alpine   \"nginx -g\"   2 hours ago     Up 2 hours\n", ""
+            return (
+                0,
+                'CONTAINER ID   IMAGE          COMMAND       CREATED         STATUS\n9a8b7c6d5e4f   nginx:alpine   "nginx -g"   2 hours ago     Up 2 hours\n',
+                "",
+            )
         if "df -h" in normalized:
             return 0, "Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        98G   32G   66G  33% /\n", ""
 
@@ -191,9 +164,30 @@ class SFTPBridgeEngine:
         now_iso = datetime.now(timezone.utc).isoformat()
         # Structured file metadata
         return (
-            SFTPFileMetadata(filename="var", path=f"{remote_dir.rstrip('/')}/var", size_bytes=4096, is_directory=True, modified_time_iso=now_iso, permissions="0755"),
-            SFTPFileMetadata(filename="etc", path=f"{remote_dir.rstrip('/')}/etc", size_bytes=4096, is_directory=True, modified_time_iso=now_iso, permissions="0755"),
-            SFTPFileMetadata(filename="app.log", path=f"{remote_dir.rstrip('/')}/app.log", size_bytes=1048576, is_directory=False, modified_time_iso=now_iso, permissions="0644"),
+            SFTPFileMetadata(
+                filename="var",
+                path=f"{remote_dir.rstrip('/')}/var",
+                size_bytes=4096,
+                is_directory=True,
+                modified_time_iso=now_iso,
+                permissions="0755",
+            ),
+            SFTPFileMetadata(
+                filename="etc",
+                path=f"{remote_dir.rstrip('/')}/etc",
+                size_bytes=4096,
+                is_directory=True,
+                modified_time_iso=now_iso,
+                permissions="0755",
+            ),
+            SFTPFileMetadata(
+                filename="app.log",
+                path=f"{remote_dir.rstrip('/')}/app.log",
+                size_bytes=1048576,
+                is_directory=False,
+                modified_time_iso=now_iso,
+                permissions="0644",
+            ),
         )
 
     def transfer_file(

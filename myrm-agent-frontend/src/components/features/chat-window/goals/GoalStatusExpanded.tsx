@@ -9,7 +9,7 @@ import { AcceptanceCriteriaPanel } from './AcceptanceCriteriaPanel';
 import { GoalHumanReviewAction } from './GoalHumanReviewAction';
 import { GoalSubgoalsSection } from './GoalSubgoalsSection';
 import { AlertIcon, BellIcon } from './goal-icons';
-import type { GoalState } from './goalStatusTypes';
+import type { GoalAction, GoalState } from './goalStatusTypes';
 import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
 import { TaskDeliverableBundle } from './TaskDeliverableBundle';
@@ -35,10 +35,7 @@ interface GoalStatusExpandedProps {
   editedObjective: string;
   onEditedObjectiveChange: (value: string) => void;
   isSavingObjective: boolean;
-  onAction: (
-    action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait',
-    note?: string,
-  ) => Promise<boolean>;
+  onAction: (action: GoalAction, note?: string) => Promise<boolean>;
   onAddSubgoal: (text: string) => Promise<boolean>;
   onRemoveSubgoal: (index: number) => void;
   t: ReturnType<typeof useTranslations>;

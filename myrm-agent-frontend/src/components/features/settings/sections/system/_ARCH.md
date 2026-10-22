@@ -15,8 +15,13 @@
 | `ShortcutRecorder.tsx`                | 全局快捷键录制输入框（聚焦录制 / Esc 取消 / Backspace 清空） |
 | `AppshotExcludedAppsEditor.tsx`       | Appshot 隐私黑名单编辑器 |
 | `SystemCenterSection.tsx`             | 系统 Tab 容器                                                                                           |
+| `SandboxResetCard.tsx`                | 云托管沙箱的「重置环境」卡：确认后经 server 请求控制平面换容器，并带 `reset_python_env: true` 让智能体装过的 Python 包随重启清空（`silent` 请求，每次结果只出一条本地化提示，不叠加 server 返回的英文；实例导入后的「立即重启」走同一端点但不带该标志，不清包）；仍有任务在运行（409）提示「等任务结束或停止后再试」，其余失败提示通用失败；窄屏下底部按钮整行铺满；卡片标题只出现一次（与同目录其它卡片一致，由节标题承担）；文案沿用产品通用的「沙箱」一词，只如实说清清掉什么（智能体安装的 Python 包）与保留什么（工作区文件、聊天历史、记忆、设置），不承诺清除系统层面的全局软件 / 系统设置（容器根文件系统只读，本来就没有这类改动），也不出现容器 / 持久化卷 / venv / pip / apt 等实现细节；确认文案不承诺重启耗时（耗时取决于卷 chown 与启动等待，控制平面文档给的是上限而非典型值），只说明期间暂时无法使用 |
+| `__tests__/SandboxResetCard.test.tsx` | 重置卡单测：成功 / 失败 / 409 运行中 / 非 API 错误各只弹一条本地化提示，不展示 server 英文；请求带 `silent` 与 `reset_python_env: true`；卡片标题只渲染一次 |
+| `__tests__/SandboxResetCard.dialog.test.tsx` | 重置卡确认步骤单测（使用真实确认对话框，不替身）：点按钮只弹确认、确认前不发请求；取消不发请求并关闭对话框；请求进行中重复点确认只发起一次换容器，确认 / 取消 / 触发按钮均禁用，结束后按钮恢复可用 |
+| `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
+| `upgrade-cockpit/`                    | WebUI与桌面端可视化一键无感升级控制台、多源网络诊断探针与长任务排队热重载面板（Item 80 P0，详见 `upgrade-cockpit/_ARCH.md`） |
 | `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
 | `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
 

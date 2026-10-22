@@ -15,12 +15,20 @@
 
 __all__ = [
     "AgentService",
+    "AgentAssemblerService",
+    "agent_assembler_service",
+    "AgentAvatarService",
+    "agent_avatar_service",
     "ai_agent_service_stream",
     "search_web_service",
 ]
 
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "AgentService": ("app.services.agent.agent_service", "AgentService"),
+    "AgentAssemblerService": ("app.services.agent.agent_assembler_service", "AgentAssemblerService"),
+    "agent_assembler_service": ("app.services.agent.agent_assembler_service", "agent_assembler_service"),
+    "AgentAvatarService": ("app.services.agent.agent_avatar_service", "AgentAvatarService"),
+    "agent_avatar_service": ("app.services.agent.agent_avatar_service", "agent_avatar_service"),
     "ai_agent_service_stream": ("app.services.agent.streaming", "ai_agent_service_stream"),
     "search_web_service": ("app.services.agent.search", "search_web_service"),
 }

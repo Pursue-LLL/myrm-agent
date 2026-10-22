@@ -23,6 +23,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
@@ -39,8 +40,6 @@ from app.core.skills.utils import render_skill_md
 from .batch_import_helpers import _build_batch_import_error_detail
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
     from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
         HermesImportedSkill,
@@ -287,6 +286,23 @@ async def execute_batch_import_confirm(
                 pass
         staging_manager.cleanup_session(request.session_id)
         raise e
+
+    if records_to_save:
+        from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
+
+        from app.services.skills.write_orchestrator import persist_skill_md_snapshot
+
+        for record in records_to_save:
+            skill_md = Path(record.path) / SKILL_MD_FILE
+            if not skill_md.is_file():
+                continue
+            md_text = skill_md.read_text(encoding="utf-8")
+            await persist_skill_md_snapshot(
+                record.skill_id,
+                md_text,
+                created_by="batch_import",
+                sync_disk=False,
+            )
 
     return imported_count, skipped_count, restored_eval_cases
 

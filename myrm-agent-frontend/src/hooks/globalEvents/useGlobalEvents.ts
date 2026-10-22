@@ -15,6 +15,7 @@ import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationT
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showKanbanTaskToast } from '@/hooks/globalEvents/kanbanTaskToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { BACKUP_ALERT_COMPONENT, showBackupFailureToast } from '@/hooks/globalEvents/backupAlertToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
@@ -317,7 +318,9 @@ export function useGlobalEvents(): void {
         const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
         const layer = String(payload.data.layer ?? 'system');
 
-        if (status === 'fail') {
+        if (component === BACKUP_ALERT_COMPONENT && status === 'fail') {
+          showBackupFailureToast({ t, router, toast: pushToast, notifyIfLeader });
+        } else if (status === 'fail') {
           pushToast.error(t('healthAlertFail', { component, layer }), {
             description: `${message}${fixSuggestion ? `\n${t('healthAlertTip', { tip: fixSuggestion })}` : ''}`,
             duration: 15_000,

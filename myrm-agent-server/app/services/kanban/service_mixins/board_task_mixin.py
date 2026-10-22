@@ -243,6 +243,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         scheduled_until: datetime | None = None,
         result: str | None = None,
         metadata: dict[str, object] | None = None,
+        assignee_agent_id: str | None = None,
     ) -> KanbanTask | None:
         return await run_move_task(
             self._store,
@@ -256,6 +257,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             scheduled_until=scheduled_until,
             result=result,
             metadata=metadata,
+            assignee_agent_id=assignee_agent_id,
             wake_dispatcher=self._wake_dispatcher,
         )
 

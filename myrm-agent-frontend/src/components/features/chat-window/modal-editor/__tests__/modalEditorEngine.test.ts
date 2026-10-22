@@ -66,7 +66,7 @@ describe('modalEditorEngine', () => {
     it('detects Tauri environment when window flags exist', () => {
       Object.assign(window, { __TAURI__: {} });
       expect(isTauriEnvironment()).toBe(true);
-      delete (window as Record<string, unknown>).__TAURI__;
+      delete (window as unknown as Record<string, unknown>).__TAURI__;
     });
   });
 

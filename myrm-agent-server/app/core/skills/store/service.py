@@ -323,16 +323,39 @@ class SkillsService:
         enabled_prebuilt = [s for s in all_prebuilt if s.id in config.enabled_prebuilt_ids]
         all_local_skills = await reader.list_local_skills(self.user_config)
         enabled_local_skills = [s for s in all_local_skills if s.id in config.enabled_local_skill_ids]
-        return enabled_prebuilt + enabled_local_skills
+        candidates = enabled_prebuilt + enabled_local_skills
+        from app.core.skills.gates.runtime_load import filter_skills_for_runtime_load
+
+        allowed, _blocked = filter_skills_for_runtime_load(
+            candidates,
+            enabled_prebuilt_ids=set(config.enabled_prebuilt_ids),
+            enabled_local_ids=set(config.enabled_local_skill_ids),
+        )
+        return allowed
 
     async def get_skills_by_ids(self, skill_ids: list[str]) -> list[Skill]:
         """根据技能 ID 列表获取技能"""
         if not skill_ids:
             return []
+        config = await self.user_config.get_config()
         all_prebuilt = await self.list_skills(skill_type=SkillType.PREBUILT)
         local_skills: list[Skill] = await reader.list_local_skills(self.user_config)
         skill_map = {s.id: s for s in (all_prebuilt + local_skills)}
-        return [skill_map[sid] for sid in skill_ids if sid in skill_map]
+        resolved = [skill_map[sid] for sid in skill_ids if sid in skill_map]
+        from app.core.skills.gates.runtime_load import filter_skills_for_runtime_load
+
+        allowed, blocked = filter_skills_for_runtime_load(
+            resolved,
+            enabled_prebuilt_ids=set(config.enabled_prebuilt_ids),
+            enabled_local_ids=set(config.enabled_local_skill_ids),
+        )
+        if blocked:
+            logger.warning(
+                "Runtime load excluded %d skill(s): %s",
+                len(blocked),
+                ", ".join(f"{sid}({reason})" for sid, reason in blocked),
+            )
+        return allowed
 
 
 __all__ = [

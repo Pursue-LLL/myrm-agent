@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   CanvasLayer,
+  LayerPatch,
   CanvasViewport,
   CanvasToolMode,
   BoundingBox,
@@ -29,7 +30,7 @@ export interface InfiniteCanvasState {
   startInlineTextEdit: (layerId: string) => void;
   finishInlineTextEdit: (newText: string) => void;
   cancelInlineTextEdit: () => void;
-  updateLayerProperties: (layerId: string, patch: Partial<CanvasLayer>) => void;
+  updateLayerProperties: (layerId: string, patch: LayerPatch) => void;
   setViewport: (patch: Partial<CanvasViewport>) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -172,7 +173,7 @@ export const useInfiniteCanvasStore = create<InfiniteCanvasState>((set, get) => 
     set({ editingTextLayerId: null });
   },
 
-  updateLayerProperties: (layerId: string, patch: Partial<CanvasLayer>) => {
+  updateLayerProperties: (layerId: string, patch: LayerPatch) => {
     set((state) => ({
       layers: state.layers.map((l) => (l.id === layerId ? { ...l, ...patch } : l)),
     }));

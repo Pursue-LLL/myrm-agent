@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { memo, useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -26,12 +26,12 @@ import { Badge } from '@/components/primitives/badge';
 import { toast } from '@/hooks/shared/useToast';
 import { ApiError } from '@/lib/api';
 import { useSkillDiscovery } from '@/hooks/agent/useSkillDiscovery';
-import type { DiscoverySearchResult } from '@/services/skill';
+import type { DiscoveryInstallResponse, DiscoverySearchResult } from '@/services/skill';
 import ScanConfirmDialog from './ScanConfirmDialog';
 import SkillUrlImportDialog from './SkillUrlImportDialog';
 import SkillSourcesPanel from './SkillSourcesPanel';
 import SkillRegistryMirrorPanel from './SkillRegistryMirrorPanel';
-import { formatSkillInstallToast } from './skillDiscoverInstallToast';
+import { showDiscoveryInstallResultToast } from './skillInstallRollbackToastAction';
 import { launchSkillTrialRun } from '@/services/skillTrialRunner';
 import { isWorkBuddyMigrationSkill, getWorkBuddyMigrationInfo } from '@/services/skillsMigrationMap';
 import useChatStore from '@/store/useChatStore';
@@ -125,6 +125,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
     search,
     preview,
     install,
+    update,
     uninstall,
     clearPreview,
   } = useSkillDiscovery({ agentId: mountAgentId, mountToAgent: true });
@@ -189,23 +190,15 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   );
 
   const showInstallToast = useCallback(
-    (
-      skill: DiscoverySearchResult,
-      response: {
-        mounted?: boolean;
-        mount_agent_id?: string;
-        mount_error?: string;
-        mount_already_present?: boolean;
-        allowlist_appended?: boolean;
-        allowlist_append_error?: string;
-      },
-    ) => {
-      const payload = formatSkillInstallToast(skill.name, response, t);
-      toast({
-        ...payload,
-        action: {
-          label: t('trialRunInSandbox'),
-          onClick: () => {
+    (skill: DiscoverySearchResult, response: DiscoveryInstallResponse, marketUpdate: boolean) => {
+      showDiscoveryInstallResultToast({
+        skillName: skill.name,
+        response,
+        marketUpdate,
+        t,
+        onInstalled,
+        extraCallbacks: {
+          onTrialRun: () => {
             launchSkillTrialRun({
               skillId: skill.id,
               skillName: skill.name,
@@ -215,20 +208,46 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
         },
       });
     },
-    [t],
+    [t, onInstalled],
   );
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') return;
+    window.__MYRM_E2E_SKILLS_DISCOVER__ = {
+      showInstallResultToast: (payload) => {
+        showDiscoveryInstallResultToast({
+          skillName: payload.skillName,
+          response: payload.response,
+          marketUpdate: payload.marketUpdate,
+          t,
+          onInstalled,
+        });
+      },
+    };
+    return () => {
+      delete window.__MYRM_E2E_SKILLS_DISCOVER__;
+    };
+  }, [t, onInstalled]);
 
   const doInstall = useCallback(
     async (skill: DiscoverySearchResult) => {
-      const response = await install(skill.id, skill.source);
+      const isMarketUpdate = Boolean(skill.upgrade_available && skill.installed_version);
+      const response = isMarketUpdate
+        ? await update(skill.name, skill.id, skill.source)
+        : await install(skill.id, skill.source);
       if (response) {
-        showInstallToast(skill, response);
+        showInstallToast(skill, response, isMarketUpdate);
         onInstalled?.();
       } else {
-        toast({ title: t('installFailed'), variant: 'destructive' });
+        toast({
+          title: isMarketUpdate ? t('updateFailed') : t('installFailed'),
+          variant: 'destructive',
+        });
       }
     },
-    [install, t, onInstalled, showInstallToast],
+    [install, update, t, onInstalled, showInstallToast],
   );
 
   const handleInstall = useCallback(
@@ -681,7 +700,7 @@ const SkillResultCard = memo(
               ) : isInstalling ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {t('installing')}
+                  {skill.upgrade_available ? t('updating') : t('installing')}
                 </>
               ) : justInstalled ? (
                 <>

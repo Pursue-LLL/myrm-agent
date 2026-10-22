@@ -40,7 +40,6 @@ from app.schemas.memory.command_center import (
 from app.services.memory.archive.restore.archive_restore import ArchiveRestoreHealth
 from app.services.memory.command_center.command_center_influence import load_influence
 from app.services.memory.command_center.command_center_projection_utils import eval_metric, preview_content
-from app.services.memory.imports.import_adapter_registry import memory_import_adapter_status, memory_import_supported_sources
 from app.services.memory.imports.import_ledger import ImportRollbackHealth
 from app.services.memory.imports.import_sessions import (
     DRY_RUN_RETENTION_DAYS,
@@ -353,13 +352,11 @@ class MemoryCommandCenterInsights:
                 "Migration source manifest incomplete in command-center projection; authoritative flag downgraded",
             )
         return MemoryCommandMigrationProvenance(
-            supported_sources=memory_import_supported_sources(),
             source_manifest=source_manifest,
             source_manifest_authoritative=source_manifest_authoritative,
             tracked_imports=tracked,
             unmapped_items=unmapped,
             coverage_status=_coverage_status(raw_coverage),
-            adapter_status=memory_import_adapter_status(),
             last_import_batch_id=raw_batch_id if isinstance(raw_batch_id, str) else None,
             verification_recommended=tracked > 0 and raw_diagnostic_status != "ready",
             last_import_diagnostic_status=raw_diagnostic_status if isinstance(raw_diagnostic_status, str) else None,

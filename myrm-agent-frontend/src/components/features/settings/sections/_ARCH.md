@@ -59,6 +59,7 @@
 | `knowledge/wiki/`           | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md)                     |
 | `knowledge/`                | [knowledge/_ARCH.md](knowledge/_ARCH.md)                               |
 | `enterprise/`               | [enterprise/_ARCH.md](enterprise/_ARCH.md)                             |
+| `machines/`                 | [machines/_ARCH.md](machines/_ARCH.md)                                 |
 
 ## 依赖
 

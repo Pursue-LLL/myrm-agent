@@ -45,11 +45,25 @@ _DISMISS_MIGRATION_JS = """(() => {
   return { ok: true };
 })()"""
 
-_SETTINGS_SHELL_STATE = """(() => ({
-  ready:
-    location.pathname.startsWith('/settings') &&
-    !!document.querySelector('[data-testid="settings-layout"]'),
-}))()"""
+# ``settings-layout`` is the outer div and mounts before the section does: while the deferred settings
+# bundle loads, ``aria-busy`` is set and the panel body is a skeleton, so the curator tabs are not in the
+# DOM yet. ``data-active`` is the section itself (SettingsLayout mounts it only once the tab is visited),
+# which is the first moment the tabs can exist. Waiting on the layout alone declares the page ready one
+# step too early and the tab probe then fails on a page whose section has not mounted.
+_SETTINGS_READY_JS = """(() => {
+  const shell = document.querySelector('[data-testid="settings-layout"]');
+  const busy = shell ? shell.getAttribute('aria-busy') === 'true' : null;
+  const section = document.querySelector('[data-section="skills"][data-active]');
+  return {
+    ready:
+      location.pathname.startsWith('/settings') && !!shell && busy !== true && !!section,
+    hasLayout: !!shell,
+    busy,
+    hasSection: !!section,
+  };
+})()"""
+
+_SETTINGS_SHELL_STATE = _SETTINGS_READY_JS
 
 # Everything the test does inside a window (the page itself or the phone-width frame) lives here, so both
 # widths run the same code.
@@ -216,13 +230,19 @@ _PHONE_FRAME_JS = """(() => {
   }
   const win = frame.contentWindow;
   const doc = win && win.document;
-  const hasLayout = !!doc && !!doc.querySelector('[data-testid="settings-layout"]');
+  const shell = doc ? doc.querySelector('[data-testid="settings-layout"]') : null;
+  // Same readiness rule as the desktop probe: the layout mounts first, the section only once the tab is
+  // visited, and ``aria-busy`` clears only after the deferred settings bundle lands.
+  const busy = shell ? shell.getAttribute('aria-busy') === 'true' : null;
+  const section = doc ? doc.querySelector('[data-section="skills"][data-active]') : null;
   return {
-    ready: hasLayout && win.location.pathname.startsWith('/settings'),
+    ready: !!shell && busy !== true && !!section && win.location.pathname.startsWith('/settings'),
     width: win ? win.innerWidth : null,
     path: win ? win.location.pathname : null,
     readyState: doc ? doc.readyState : null,
-    hasLayout,
+    hasLayout: !!shell,
+    busy,
+    hasSection: !!section,
     bodyStart: doc && doc.body ? (doc.body.innerText || '').slice(0, 120) : null,
   };
 })()"""

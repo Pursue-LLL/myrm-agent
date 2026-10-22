@@ -9,6 +9,7 @@ const TERMINAL_SUBAGENT_STATUSES: ReadonlySet<SubagentStatus> = new Set<Subagent
   'cancelled',
   'cancelled_by_budget',
   'interrupted',
+  'blocked',
 ]);
 
 /**

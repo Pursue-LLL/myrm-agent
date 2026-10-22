@@ -20,8 +20,11 @@ import KanbanBoardView from '../KanbanBoardView';
 vi.mock('next-intl', async () => {
   const actual = await vi.importActual<typeof import('next-intl')>('next-intl');
   const { default: messages } = await import('../../../../../locales/en.json');
-  const translate = actual.createTranslator({ locale: 'en', messages, namespace: 'kanban' });
-  return { useTranslations: () => translate, useLocale: () => 'en' };
+  // The board reads `kanban`, and its drag-and-drop hook reads `common.dnd`; each namespace keeps one stable
+  // translator so memoized consumers do not rebuild on every render.
+  const board = actual.createTranslator({ locale: 'en', messages, namespace: 'kanban' });
+  const dnd = actual.createTranslator({ locale: 'en', messages, namespace: 'common.dnd' });
+  return { useTranslations: (namespace?: string) => (namespace === 'common.dnd' ? dnd : board), useLocale: () => 'en' };
 });
 
 vi.mock('next/navigation', () => ({

@@ -29,8 +29,6 @@ POST /commerce/spending/release
 POST /companion/react
 GET /config/onboarding/recommendations
 POST /context-bundle/migrate/dry-run
-GET /context/reference/search
-POST /context/reference/slice
 GET /eval/matrix/status
 GET /eval/memory-ab/status
 GET /eval/skill-ab/status/stream
@@ -76,15 +74,12 @@ POST /security/profiles/clone
 DELETE /security/profiles/{profile_key}
 GET /security/profiles/{profile_key}
 PUT /security/profiles/{profile_key}
-GET /skill-optimization/package-revisions/{skill_id}
-POST /skill-optimization/package-revisions/{skill_id}/restore/{revision_number}
 POST /skills/admin/prebuilt
 GET /skills/config-version
 POST /skills/desktop-recorder/synthesize
 GET /skills/discovery/detail/{source}/{skill_id}
 POST /skills/discovery/static-index/refresh
 GET /skills/discovery/static-index/status
-POST /skills/discovery/update
 GET /skills/discovery/updates
 POST /skills/workspace/package
 GET /skills/{skill_id}/permissions/required

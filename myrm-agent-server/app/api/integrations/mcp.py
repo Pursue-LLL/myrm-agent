@@ -1,8 +1,5 @@
 import asyncio
-import errno
 import logging
-import ssl
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -18,6 +15,27 @@ from myrm_agent_harness.toolkits.mcp.security import (
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
+from app.api.integrations.mcp_probe_registry import (
+    MCPProbeBody,
+    MCPProbeData,
+    MCPScanData,
+    MCPScanFindingData,
+    MCPToolDetail,
+    MCPVerifyData,
+    RegistryDetailData,
+    RegistryEnvVarData,
+    RegistrySearchData,
+    RegistryServerData,
+    _is_network_unreachable_connect_error,
+    _is_tls_verification_connect_error,
+    _scan_result_to_data,
+    probe_mcp_endpoint,
+    registry_detail,
+    registry_search,
+)
+from app.api.integrations.mcp_probe_registry import (
+    router as _probe_registry_router,
+)
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.types import MCPServerConfig
@@ -39,121 +57,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# =============================================================================
-# 模块级单例（避免重复实例化）
-# =============================================================================
-
-# MCPAgent 实例复用（每次创建新实例会清空 _tool_server_mapping）
-# 注意：在验证场景下，每次都会调用 get_tools_with_client 清空映射，所以复用实例没有副作用
 _mcp_agent_instance: MCPAgent | None = None
 
 
 def get_mcp_agent() -> MCPAgent:
-    """获取 MCP Agent 实例（单例模式）"""
+    """Return the singleton MCPAgent instance."""
     global _mcp_agent_instance
     if _mcp_agent_instance is None:
         _mcp_agent_instance = MCPAgent()
     return _mcp_agent_instance
 
 
-# MCP 响应验证器实例复用
 _mcp_response_validator: MCPResponseValidator | None = None
 
 
 def _get_response_validator() -> MCPResponseValidator:
-    """获取 MCP 响应验证器实例（单例模式）
-
-    注入业务层配置：settings.mcp.max_response_size
-    """
+    """Return the singleton MCPResponseValidator instance."""
     global _mcp_response_validator
     if _mcp_response_validator is None:
         _mcp_response_validator = MCPResponseValidator(max_response_size=settings.mcp.max_response_size)
     return _mcp_response_validator
-
-
-class MCPToolDetail(BaseModel):
-    """Single MCP tool metadata returned by the verify endpoint."""
-
-    name: str
-    description: str = ""
-    read_only_hint: bool = False
-    destructive_hint: bool = False
-    idempotent_hint: bool = False
-    open_world_hint: bool = False
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class MCPScanFindingData(BaseModel):
-    """Single MCP security scan finding."""
-
-    threat_type: str
-    severity: str
-    description: str
-    field: str = ""
-    recommendation: str = ""
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class MCPScanData(BaseModel):
-    """Static MCP configuration scan result."""
-
-    server_name: str
-    allow_save: bool
-    requires_acknowledgement: bool
-    max_severity: str | None = None
-    findings: list[MCPScanFindingData] = Field(default_factory=list)
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class MCPVerifyData(BaseModel):
-    """MCP验证数据模型"""
-
-    tools_count: int = Field(..., description="可用工具数量")
-    service_name: str = Field(..., description="服务名称")
-    instructions: str | None = Field(default=None, description="MCP服务的instructions，无则为空")
-    tools: list[MCPToolDetail] = Field(default_factory=list, description="工具明细列表(名称/描述/风险注解)")
-    config_scan: MCPScanData | None = Field(default=None, description="静态配置扫描摘要")
-    runtime_scan: MCPScanData | None = Field(default=None, description="运行时表面扫描摘要")
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-def _scan_result_to_data(
-    result: MCPConfigScanResult | MCPRuntimeScanResult,
-    *,
-    allow_save: bool,
-    requires_acknowledgement: bool,
-) -> MCPScanData:
-    max_sev = result.max_severity.value if isinstance(result, MCPConfigScanResult) and result.max_severity else None
-    if isinstance(result, MCPRuntimeScanResult) and result.findings:
-        max_sev = max((f.severity.value for f in result.findings), default=None)
-    return MCPScanData(
-        server_name=result.server_name,
-        allow_save=allow_save,
-        requires_acknowledgement=requires_acknowledgement,
-        max_severity=max_sev,
-        findings=[
-            MCPScanFindingData(
-                threat_type=finding.threat_type,
-                severity=finding.severity.value,
-                description=finding.description,
-                field=finding.field,
-                recommendation=finding.recommendation,
-            )
-            for finding in result.findings
-        ],
-    )
 
 
 def _config_scan_to_data(result: MCPConfigScanResult) -> MCPScanData:
@@ -172,54 +95,15 @@ def _runtime_scan_to_data(result: MCPRuntimeScanResult) -> MCPScanData:
     )
 
 
-async def _get_server_instructions(server_name: str, mcp_config: list[MCPServerConfig]) -> str | None:
-    """获取 MCP 服务器的 instructions。
-
-    ``mcp.ClientSession`` 在 ``initialize()`` 时完成握手并返回 ``InitializeResult``，
-    其 ``instructions`` 字段携带服务器声明的能力说明。这里复用 MCPAgent 的
-    transport builder，保持与工具枚举完全一致，并确保上下文退出时
-    stdio/HTTP 资源立即释放。
-    """
-    try:
-        from mcp import ClientSession
-        from mcp.types import Implementation
-        from myrm_agent_harness import __version__
-
-        config = next((item for item in mcp_config if item.name == server_name), None)
-        if config is None:
-            return None
-
-        target = MCPAgent._build_enumeration_target(config)
-        async with target as streams:
-            read, write = streams[0], streams[1]
-            async with ClientSession(
-                read,
-                write,
-                client_info=Implementation(name="myrm-agent", version=__version__),
-            ) as client:
-                init_result = await client.initialize()
-                async with asyncio.timeout(config.connect_timeout):
-                    await client.list_tools()
-                raw_instr = init_result.instructions
-                if isinstance(raw_instr, str):
-                    return raw_instr
-                server_info = init_result.serverInfo
-                alt = getattr(server_info, "instructions", None) if server_info else None
-                return alt if isinstance(alt, str) else None
-    except Exception as e:
-        logger.warning(f"Failed to get instructions from {server_name}: {e}")
-        return None
-
-
 class MCPOptionsData(BaseModel):
-    """MCP 选项数据模型"""
+    """MCP deployment options response model."""
 
-    allow_stdio: bool = Field(..., description="是否允许 stdio 模式")
-    allow_sse: bool = Field(..., description="是否允许 SSE 模式")
-    allowed_types: list[str] = Field(..., description="允许的传输类型列表")
-    require_https: bool = Field(..., description="是否强制 HTTPS")
-    ssrf_protection_enabled: bool = Field(..., description="是否启用 SSRF 防护")
-    verify_timeout: int = Field(..., description="验证超时时间（秒）")
+    allow_stdio: bool = Field(..., description="Whether stdio transport is allowed")
+    allow_sse: bool = Field(..., description="Whether SSE transport is allowed")
+    allowed_types: list[str] = Field(..., description="Allowed transport types")
+    require_https: bool = Field(..., description="Whether HTTPS is enforced")
+    ssrf_protection_enabled: bool = Field(..., description="Whether SSRF protection is enabled")
+    verify_timeout: int = Field(..., description="Verification timeout in seconds")
 
     class Config:
         alias_generator = to_camel
@@ -228,15 +112,7 @@ class MCPOptionsData(BaseModel):
 
 @router.get("/options", response_model=StandardSuccessResponse)
 async def get_mcp_options() -> JSONResponse:
-    """获取 MCP 配置选项
-
-    返回当前部署环境下允许的 MCP 传输类型和安全配置。
-
-    安全配置：
-    - stdio 模式在 Sandbox 部署时被禁用
-    - 生产环境强制 HTTPS
-    - SSRF 防护默认启用
-    """
+    """Return allowed MCP transport types and security settings for the deployment."""
     allowed_types = ["sse", "streamable_http"]
     if settings.mcp.allow_stdio:
         allowed_types.append("stdio")
@@ -301,19 +177,8 @@ async def verify_mcp_service(
     request: Request,
     acknowledged_high_risks: bool = Query(False),
 ) -> JSONResponse:
-    """Verify MCP connectivity after static scan, OSV check, and runtime surface scan.
-
-    Pipeline: static scan -> OSV (stdio) -> dynamic verify -> runtime surface scan.
-
-    Security controls also include rate limiting, stdio policy, SSRF/DNS pinning,
-    HTTPS enforcement, timeouts, and response size limits.
-    """
-    # =========================================================================
-    # P0: 严重安全检查（仅 Sandbox 模式）
-    # =========================================================================
-
+    """Verify MCP connectivity after static scan, OSV check, and runtime surface scan."""
     try:
-        # 0. Static pre-flight scan + OSV (no MCP connection yet)
         config_scan_result = await resolve_mcp_config_scan(mcp_server_config)
         enforce_mcp_config_posture(
             mcp_server_config,
@@ -321,22 +186,19 @@ async def verify_mcp_service(
             result=config_scan_result,
         )
 
-        # 1. 检查 stdio 模式是否允许
         if mcp_server_config.type == "stdio" and not settings.mcp.allow_stdio:
             logger.warning(
-                f"🚫 STDIO mode blocked: {mcp_server_config.name}",
+                f"STDIO mode blocked: {mcp_server_config.name}",
                 extra={"ip": request.client.host if request.client else "unknown"},
             )
             raise validation_error("STDIO mode is not allowed in current deployment environment, please use SSE or HTTP mode")
 
-        # 2. SSRF 防护：验证 URL 安全性（SSE/HTTP 模式）
         if mcp_server_config.url and settings.mcp.enable_ssrf_protection:
             validator = MCPURLValidator(require_https=settings.mcp.require_https)
-
             try:
                 resolved = await validator.validate_url(mcp_server_config.url)
                 logger.info(
-                    f"✅ URL validation passed: {mcp_server_config.url}",
+                    f"URL validation passed: {mcp_server_config.url}",
                     extra={
                         "service": mcp_server_config.name,
                         "resolved_ips": resolved.resolved_ips,
@@ -345,7 +207,7 @@ async def verify_mcp_service(
                 )
             except URLValidationError as e:
                 logger.error(
-                    f"🚨 SSRF attack blocked: {mcp_server_config.url}",
+                    f"SSRF attack blocked: {mcp_server_config.url}",
                     extra={
                         "service": mcp_server_config.name,
                         "reason": e.reason,
@@ -357,73 +219,39 @@ async def verify_mcp_service(
                     f"Possible reasons: private IP, cloud metadata service, DNS resolution failure, or HTTPS required."
                 ) from e
 
-        # =========================================================================
-        # P1: 功能验证
-        # =========================================================================
+        mcp_agent = get_mcp_agent()
 
-        # 3. 获取工具列表和 instructions（带超时）
-        mcp_agent = get_mcp_agent()  # 使用单例实例
-        mcp_config_list = [mcp_server_config]
-
-        # stdio transport uses two short-lived subprocesses (tool listing and
-        # instructions). Start them sequentially: concurrent handshakes are a
-        # known source of SDK TaskGroup failures under host process pressure.
-        # HTTP transports remain concurrent because they do not share stdio
-        # pipes and benefit from the lower verification latency.
-        tools_task = asyncio.wait_for(
-            mcp_agent.get_tools(mcp_config_list),
-            timeout=settings.mcp.verify_timeout,
-        )
-        instructions_task = asyncio.wait_for(
-            _get_server_instructions(mcp_server_config.name, mcp_config_list),
+        # One handshake serves both results: get_tools() captures the server's
+        # initialize instructions while enumerating, so verification never spawns a
+        # second subprocess or opens a second HTTP connection.
+        tools_result = await asyncio.wait_for(
+            mcp_agent.get_tools([mcp_server_config]),
             timeout=settings.mcp.verify_timeout,
         )
 
-        if mcp_server_config.type == "stdio":
-            tools_result = await tools_task
-            instructions_result = await instructions_task
-            results = (tools_result, instructions_result)
-        else:
-            results = await asyncio.gather(tools_task, instructions_task, return_exceptions=True)
-        tools_result, instructions_result = results[0], results[1]
-
-        # 处理工具获取结果
-        if isinstance(tools_result, BaseException):
-            logger.error(f"Failed to get tools from MCP service: {mcp_server_config.name}: {tools_result}")
-            raise tools_result
         tools_count = len(tools_result) if tools_result else 0
 
-        # 4. 响应大小验证（仅 Sandbox 模式）
         if get_deployment_capabilities().validates_mcp_response_size:
             response_validator = _get_response_validator()
             try:
                 response_validator.validate_tools_response(tools_result or [])
             except MCPResponseError as e:
                 logger.error(
-                    f"🚨 Response validation failed: {mcp_server_config.name}",
+                    f"Response validation failed: {mcp_server_config.name}",
                     extra={"reason": e.reason},
                 )
                 raise validation_error(f"Response validation failed: {e.reason}. The MCP server returned too much data.") from e
 
-        # 处理 instructions 获取结果（失败时返回 None，不影响整体验证）
-        instructions_value: str | None = None
-        if isinstance(instructions_result, BaseException):
-            logger.warning(f"Failed to get instructions from {mcp_server_config.name}: {instructions_result}")
-        elif isinstance(instructions_result, str):
-            instructions_value = instructions_result
-
-            # 5. Instructions 大小验证（仅 Sandbox 模式）
-            if get_deployment_capabilities().validates_mcp_response_size:
-                response_validator = _get_response_validator()
-                try:
-                    response_validator.validate_instructions_response(instructions_value)
-                except MCPResponseError as e:
-                    logger.error(
-                        f"🚨 Instructions validation failed: {mcp_server_config.name}",
-                        extra={"reason": e.reason},
-                    )
-                    # Instructions 验证失败不影响整体验证，但记录日志
-                    instructions_value = None  # 清空 instructions
+        instructions_value = mcp_agent.get_server_instructions(mcp_server_config.name)
+        if instructions_value is not None and get_deployment_capabilities().validates_mcp_response_size:
+            try:
+                _get_response_validator().validate_instructions_response(instructions_value)
+            except MCPResponseError as e:
+                logger.error(
+                    f"Instructions validation failed: {mcp_server_config.name}",
+                    extra={"reason": e.reason},
+                )
+                instructions_value = None
 
         tool_details: list[MCPToolDetail] = []
         runtime_tool_pairs: list[tuple[str, str]] = []
@@ -469,17 +297,11 @@ async def verify_mcp_service(
             config_scan=_config_scan_to_data(config_scan_result),
             runtime_scan=_runtime_scan_to_data(runtime_scan_result),
         )
-
         return success_response(data=data.model_dump())
-
-    # =========================================================================
-    # 异常处理
-    # =========================================================================
 
     except asyncio.TimeoutError as e:
         logger.error(f"MCP service verification timeout: {mcp_server_config.name}")
         raise timeout_error(operation="MCP service verification") from e
-
     except ValueError as e:
         logger.error(f"MCP service verification parameter error: {str(e)}")
         if "Unsupported transport type" in str(e):
@@ -488,14 +310,11 @@ async def verify_mcp_service(
                 f"please use 'sse', 'streamable_http', or 'stdio' (if allowed)"
             ) from e
         raise validation_error(f"Parameter validation failed: {str(e)}") from e
-
     except ConnectionError as e:
         logger.error(f"MCP service connection failed: {str(e)}")
         raise external_service_error("MCP", f"Connection failed: {str(e)}") from e
-
     except HTTPException:
         raise
-
     except Exception as e:
         logger.error(f"MCP service verification error: {str(e)}", exc_info=True)
         raise external_service_error("MCP", f"Verification failed: {str(e)}") from e
@@ -508,12 +327,7 @@ async def read_mcp_resource(
     uri: str = Query(..., description="MCP resource URI (e.g. ui://server/path)"),
     server: str = Query(..., description="MCP server name that owns the resource"),
 ) -> JSONResponse:
-    """Proxy endpoint for frontend to fetch MCP App UI resources.
-
-    The frontend calls this when an MCP tool result carries ``_meta.ui.resourceUri``
-    (ext-apps standard). This endpoint reads the resource from the warm MCP session
-    and returns it as base64-encoded content with MIME type metadata.
-    """
+    """Proxy endpoint for frontend to fetch MCP App UI resources."""
     import base64
 
     from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
@@ -567,365 +381,32 @@ async def read_mcp_resource(
     )
 
 
-# =============================================================================
-# Registry proxy endpoints
-# =============================================================================
+router.include_router(_probe_registry_router)
 
-
-class RegistryServerData(BaseModel):
-    """Single server in registry search results."""
-
-    qualified_name: str
-    display_name: str
-    description: str = ""
-    icon_url: str | None = None
-    homepage: str | None = None
-    use_count: int = 0
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class RegistrySearchData(BaseModel):
-    """Paged search result from MCP registry."""
-
-    servers: list[RegistryServerData] = Field(default_factory=list)
-    page: int = 1
-    page_size: int = 20
-    total_pages: int = 1
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class RegistryEnvVarData(BaseModel):
-    """Required env var template from registry metadata."""
-
-    name: str
-    description: str = ""
-    required: bool = True
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class RegistryDetailData(BaseModel):
-    """Full detail for a single registry server."""
-
-    qualified_name: str
-    display_name: str
-    description: str = ""
-    icon_url: str | None = None
-    homepage: str | None = None
-    use_count: int = 0
-    transport_type: str = "stdio"
-    env_vars: list[RegistryEnvVarData] = Field(default_factory=list)
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-@router.get("/registry/search", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
-async def registry_search(
-    request: Request,
-    q: str = Query("", description="Search query"),
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=50, description="Results per page"),
-) -> JSONResponse:
-    """Search the MCP server registry.
-
-    Proxies to the Smithery registry with LRU caching.
-    """
-    _ = request
-    from app.services.integrations.mcp_registry import get_mcp_registry
-
-    try:
-        registry = get_mcp_registry()
-        result = await registry.search(query=q, page=page, page_size=page_size)
-        data = RegistrySearchData(
-            servers=[
-                RegistryServerData(
-                    qualified_name=s.qualified_name,
-                    display_name=s.display_name,
-                    description=s.description,
-                    icon_url=s.icon_url,
-                    homepage=s.homepage,
-                    use_count=s.use_count,
-                )
-                for s in result.servers
-            ],
-            page=result.page,
-            page_size=result.page_size,
-            total_pages=result.total_pages,
-        )
-        return success_response(data=data.model_dump(by_alias=True))
-    except Exception as e:
-        logger.error("MCP registry search failed: %s", e)
-        raise external_service_error("MCP Registry", f"Search failed: {e}") from e
-
-
-@router.get("/registry/detail/{qualified_name:path}", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
-async def registry_detail(
-    request: Request,
-    qualified_name: str,
-) -> JSONResponse:
-    """Get full detail for a single MCP server from the registry."""
-    _ = request
-    from app.services.integrations.mcp_registry import get_mcp_registry
-
-    try:
-        registry = get_mcp_registry()
-        detail = await registry.get_detail(qualified_name)
-        data = RegistryDetailData(
-            qualified_name=detail.qualified_name,
-            display_name=detail.display_name,
-            description=detail.description,
-            icon_url=detail.icon_url,
-            homepage=detail.homepage,
-            use_count=detail.use_count,
-            transport_type=detail.transport_type,
-            env_vars=[
-                RegistryEnvVarData(
-                    name=ev.name,
-                    description=ev.description,
-                    required=ev.required,
-                )
-                for ev in detail.env_vars
-            ],
-        )
-        return success_response(data=data.model_dump(by_alias=True))
-    except Exception as e:
-        logger.error("MCP registry detail failed for %s: %s", qualified_name, e)
-        raise external_service_error("MCP Registry", f"Detail lookup failed: {e}") from e
-
-
-# =============================================================================
-# Connection probe endpoint
-# =============================================================================
-
-
-class MCPProbeBody(BaseModel):
-    """Request body for probing an MCP endpoint reachability."""
-
-    url: str = Field(..., description="URL to probe (e.g. http://127.0.0.1:8000/mcp)")
-    timeout: float = Field(default=5.0, ge=1.0, le=15.0, description="Probe timeout in seconds")
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-class MCPProbeData(BaseModel):
-    """Result of an MCP connectivity probe."""
-
-    status: Literal["reachable", "unreachable", "cloud_not_supported"] = Field(
-        ...,
-        description="reachable | unreachable | cloud_not_supported",
-    )
-    latency_ms: float | None = Field(default=None, description="Round-trip time if reachable")
-    error: str | None = Field(default=None, description="Human-readable error if unreachable")
-    reason_code: (
-        Literal[
-            "reachable",
-            "connection_refused",
-            "connection_unreachable",
-            "tls_verification_failed",
-            "connection_timeout",
-            "probe_failed_unknown",
-            "loopback_unavailable_in_cloud",
-        ]
-        | None
-    ) = Field(
-        default=None,
-        description="Machine-friendly reason code for frontend UX routing",
-    )
-    recommended_mode: (
-        Literal[
-            "local_or_tauri",
-            "start_local_editor_mcp",
-            "verify_local_network_and_editor",
-        ]
-        | None
-    ) = Field(
-        default=None,
-        description="Suggested mode for user action (e.g. local_or_tauri)",
-    )
-    should_block_connect: bool | None = Field(
-        default=None,
-        description="Whether the frontend should stop the connect flow immediately",
-    )
-
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
-
-_TLS_VERIFY_ERROR_MARKERS = (
-    "certificate verify failed",
-    "certificateverifyfailed",
-    "self-signed certificate",
-    "unable to get local issuer certificate",
-    "certificate has expired",
-    "hostname/ip does not match certificate",
-    "hostname does not match",
-)
-
-_CONNECT_UNREACHABLE_ERRNOS = frozenset(
-    {
-        errno.EADDRNOTAVAIL,
-        errno.EHOSTDOWN,
-        errno.EHOSTUNREACH,
-        errno.ENETDOWN,
-        errno.ENETUNREACH,
-    }
-)
-
-_CONNECT_UNREACHABLE_MARKERS = (
-    "network is unreachable",
-    "no route to host",
-    "host is down",
-    "cannot assign requested address",
-)
-
-
-def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
-    stack: list[BaseException] = [exc]
-    ordered: list[BaseException] = []
-    seen: set[int] = set()
-    while stack:
-        current = stack.pop()
-        marker = id(current)
-        if marker in seen:
-            continue
-        seen.add(marker)
-        ordered.append(current)
-        cause = getattr(current, "__cause__", None)
-        if isinstance(cause, BaseException):
-            stack.append(cause)
-        context = getattr(current, "__context__", None)
-        if isinstance(context, BaseException) and context is not cause:
-            stack.append(context)
-    return ordered
-
-
-def _is_tls_verification_connect_error(exc: Exception) -> bool:
-    chain = _iter_exception_chain(exc)
-    if any(isinstance(item, ssl.SSLCertVerificationError) for item in chain):
-        return True
-    parts = [str(part) for part in chain]
-    lowered = " | ".join(part.lower() for part in parts if part)
-    return any(marker in lowered for marker in _TLS_VERIFY_ERROR_MARKERS)
-
-
-def _is_network_unreachable_connect_error(exc: Exception) -> bool:
-    chain = _iter_exception_chain(exc)
-    lowered = " | ".join(str(part).lower() for part in chain if str(part))
-    if any(marker in lowered for marker in _CONNECT_UNREACHABLE_MARKERS):
-        return True
-    errnos = {int(item.errno) for item in chain if isinstance(item, OSError) and isinstance(getattr(item, "errno", None), int)}
-    return any(code in _CONNECT_UNREACHABLE_ERRNOS for code in errnos)
-
-
-@router.post("/probe", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
-async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONResponse:
-    """Probe a local MCP server URL for reachability before connecting.
-
-    Used by the Integration Catalog connect flow to provide specific
-    diagnostic feedback (e.g. "editor not running") instead of a generic error.
-
-    In cloud/sandbox deployments, probing localhost is not possible, so this
-    returns cloud_not_supported status.
-    """
-    _ = request
-    caps = get_deployment_capabilities()
-    if caps.is_sandbox_instance:
-        data = MCPProbeData(
-            status="cloud_not_supported",
-            reason_code="loopback_unavailable_in_cloud",
-            recommended_mode="local_or_tauri",
-            should_block_connect=True,
-        )
-        return success_response(data=data.model_dump(by_alias=True))
-
-    import time
-    from urllib.parse import urlparse
-
-    import httpx
-
-    parsed = urlparse(body.url)
-    hostname = parsed.hostname or ""
-    safe_probe_host = parsed.hostname or ""
-    if ":" in safe_probe_host and not safe_probe_host.startswith("["):
-        safe_probe_host = f"[{safe_probe_host}]"
-    safe_probe_port = f":{parsed.port}" if parsed.port is not None else ""
-    safe_probe_target = f"{parsed.scheme}://{safe_probe_host}{safe_probe_port}{parsed.path}"
-    if hostname not in ("127.0.0.1", "localhost", "::1", "0.0.0.0"):
-        from app.core.utils.errors import validation_error
-
-        raise validation_error("Probe is restricted to localhost addresses only (127.0.0.1, localhost, ::1)")
-
-    try:
-        start = time.monotonic()
-        async with httpx.AsyncClient(timeout=body.timeout) as client:
-            await client.get(body.url)
-            latency = (time.monotonic() - start) * 1000
-            # Any HTTP response (even 4xx/5xx) means the server is reachable
-            data = MCPProbeData(
-                status="reachable",
-                latency_ms=round(latency, 1),
-                reason_code="reachable",
-                should_block_connect=False,
-            )
-            return success_response(data=data.model_dump(by_alias=True))
-    except httpx.ConnectError as exc:
-        if _is_tls_verification_connect_error(exc):
-            data = MCPProbeData(
-                status="unreachable",
-                error="TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle",
-                reason_code="tls_verification_failed",
-                should_block_connect=True,
-            )
-            return success_response(data=data.model_dump(by_alias=True))
-        if _is_network_unreachable_connect_error(exc):
-            data = MCPProbeData(
-                status="unreachable",
-                error="Local network route unavailable — verify localhost routing, VPN/proxy policy, and editor MCP settings",
-                reason_code="connection_unreachable",
-                recommended_mode="verify_local_network_and_editor",
-                should_block_connect=True,
-            )
-            return success_response(data=data.model_dump(by_alias=True))
-        data = MCPProbeData(
-            status="unreachable",
-            error="Connection refused — editor or MCP server not running",
-            reason_code="connection_refused",
-            recommended_mode="start_local_editor_mcp",
-            should_block_connect=True,
-        )
-        return success_response(data=data.model_dump(by_alias=True))
-    except httpx.ConnectTimeout:
-        data = MCPProbeData(
-            status="unreachable",
-            error="Connection timed out — host unreachable",
-            reason_code="connection_timeout",
-            recommended_mode="verify_local_network_and_editor",
-            should_block_connect=True,
-        )
-        return success_response(data=data.model_dump(by_alias=True))
-    except Exception:
-        logger.exception("Unexpected MCP probe failure for target=%s", safe_probe_target)
-        data = MCPProbeData(
-            status="unreachable",
-            error="Connectivity check failed unexpectedly — verify editor MCP settings and retry",
-            reason_code="probe_failed_unknown",
-            recommended_mode="verify_local_network_and_editor",
-            should_block_connect=True,
-        )
-        return success_response(data=data.model_dump(by_alias=True))
+__all__ = [
+    "MCPOptionsData",
+    "MCPProbeBody",
+    "MCPProbeData",
+    "MCPScanBatchBody",
+    "MCPScanBatchData",
+    "MCPScanData",
+    "MCPScanFindingData",
+    "MCPToolDetail",
+    "MCPVerifyData",
+    "RegistryDetailData",
+    "RegistryEnvVarData",
+    "RegistrySearchData",
+    "RegistryServerData",
+    "_is_network_unreachable_connect_error",
+    "_is_tls_verification_connect_error",
+    "get_mcp_agent",
+    "get_mcp_options",
+    "probe_mcp_endpoint",
+    "read_mcp_resource",
+    "registry_detail",
+    "registry_search",
+    "router",
+    "scan_mcp_config_batch_endpoint",
+    "scan_mcp_config_endpoint",
+    "verify_mcp_service",
+]

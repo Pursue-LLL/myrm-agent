@@ -12,7 +12,7 @@
 - `contract` 等结构化字段在创建阶段即被校验，避免坏技能先写入、后加载失败
 - 描述优先取 frontmatter 中的 `description`，不再依赖浅解析兜底
 - 写入资源时执行静态语法校验（`.py` 走 `ast.parse`，`.json` 走 `json.loads`，`.yaml`/`.yml` 走 `yaml.safe_load`），拦截语法错误的资源落盘
-- 新建技能时自动注入 `evolution-locked: true` 到 frontmatter，保护用户技能免受 Curator 自动化误操作
+- 新建技能时自动注入 `evolution-locked: true` 到 frontmatter，防止自进化与合并改写用户手写的技能正文；该锁不豁免生命周期清理（sweep 对加锁技能与未加锁技能做完全相同的判定与转换，只有固定 pin 才豁免），用户可在界面解锁
 - `skill_manage` 的撤销快照读自写入根（`ManagedSkillSnapshotReader`），不经一轮对话的技能后端：后者只列出本轮挂载的技能，据其拍的快照会把已有技能记成「批次前不存在」，撤销时整个技能被删
 - 同一个读取器也是 `patch` 先找技能的地方（读不到再退回轮次技能后端）：上一轮保存、没有挂载进本轮智能体的技能因此也能 patch，改的正是写入器将要覆盖的正文
 

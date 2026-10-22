@@ -305,6 +305,7 @@ def _merge_tasks_step(
                 for key, value in new_fields.items():
                     if value is not None:
                         existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
                 return existing
 
     if isinstance(step_key, str) and step_key.strip():
@@ -319,16 +320,27 @@ def _merge_tasks_step(
                             existing[key] = value
                     if not existing_id:
                         existing["tool_call_id"] = tool_call_id.strip()
+                    _attach_skill_mutation_batch_id(existing)
                     return existing
             elif not existing_id:
                 for key, value in new_fields.items():
                     if value is not None:
                         existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
                 return existing
 
     step = {key: value for key, value in new_fields.items() if value is not None}
     progress_steps.append(step)
+    _attach_skill_mutation_batch_id(step)
     return step
+
+
+def _attach_skill_mutation_batch_id(step: dict[str, object]) -> None:
+    from app.services.skills.skill_manage_batch_parse import extract_skill_mutation_batch_id_from_step
+
+    batch_id = extract_skill_mutation_batch_id_from_step(step)
+    if batch_id:
+        step["skill_mutation_batch_id"] = batch_id
 
 
 def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
@@ -384,6 +396,7 @@ class StreamContentCollector:
         self._progress_steps: list[dict[str, object]] = []
         self._cited_memory_ids: list[str] = []
         self._cited_memory_refs: list[dict[str, object]] = []
+        self._turn_loaded_skills: list[dict[str, object]] = []
         self._memory_retrieval_traces: list[dict[str, object]] = []
         self._usage: dict[str, object] | None = None
         self._context_budget: dict[str, object] | None = None
@@ -626,6 +639,9 @@ class StreamContentCollector:
             if isinstance(tool_details, dict):
                 self._tool_result_details = tool_details
             step = _merge_tasks_step(self._progress_steps, event, data)
+            batch_id = step.get("skill_mutation_batch_id")
+            if isinstance(batch_id, str) and batch_id.strip():
+                event["skill_mutation_batch_id"] = batch_id.strip()
             if self._pending_evicted:
                 remaining: list[dict[str, object]] = []
                 for pending in self._pending_evicted:
@@ -640,6 +656,9 @@ class StreamContentCollector:
 
         elif event_type == "message_end":
             self._flush_pending_evicted_ref()
+            turn_loaded = event.get("turn_loaded_skills")
+            if isinstance(turn_loaded, list) and turn_loaded:
+                self._turn_loaded_skills = [item for item in turn_loaded if isinstance(item, dict)]
             staged = event.get("staged_artifacts")
             if isinstance(staged, list):
                 self._staged_artifacts.extend(string_keyed_dicts(staged))
@@ -818,7 +837,8 @@ class StreamContentCollector:
                 msg_data = {
                     k: v
                     for k, v in event.items()
-                    if k in {
+                    if k
+                    in {
                         "call_id",
                         "callId",
                         "message",
@@ -994,6 +1014,8 @@ class StreamContentCollector:
             result["citedMemoryIds"] = self._cited_memory_ids
         if self._cited_memory_refs:
             result["citedMemoryRefs"] = self._cited_memory_refs
+        if self._turn_loaded_skills:
+            result["turnLoadedSkills"] = self._turn_loaded_skills
         if self._memory_retrieval_traces:
             result["memoryRetrievalTraces"] = self._memory_retrieval_traces
         if self._session_recording:

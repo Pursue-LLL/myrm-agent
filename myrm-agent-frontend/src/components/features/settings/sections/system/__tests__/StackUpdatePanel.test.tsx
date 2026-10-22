@@ -401,7 +401,7 @@ describe('StackUpdatePanel', () => {
       if (typeof url === 'string' && url.includes('/storage/snapshots/pre-update')) {
         return { ok: true, json: async () => ({ snapshot_id: 'snap_new' }) } as Response;
       }
-      if (typeof url === 'string' && url.includes('/storage/snapshots/snap_1/restore-update')) {
+      if (typeof url === 'string' && url.includes('/storage/snapshots/snap_1/restore')) {
         expect(init?.method).toBe('POST');
         return { ok: true, json: async () => ({}) } as Response;
       }

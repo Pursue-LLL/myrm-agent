@@ -16,8 +16,9 @@
 - resolve_skill_path: Skill name to filesystem path resolver
 - apply_skill_archived / set_skill_archived: Archive/restore a skill's lifecycle (single write path for user-initiated archive)
 - describe_skill_lifecycle: Read a skill's archive/pinned state for UI surfaces
-- SkillNotFoundError / SkillPinnedError: Domain errors raised by set_skill_archived
-- run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs, and installed skills while protection is on, are exempt)
+- SkillNotFoundError / SkillPinnedError / SkillBoundError: Domain errors raised by archive paths
+- archive_skill_with_guards: Manual archive with bound-skill and pinned guards
+- run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs, and installed skills while protection is on, are exempt); a sweep that archived skills bumps the config version and announces SKILL_POOL_UPDATED so the UI refreshes
 - get_curator_history: Read past sweep run records
 - get_skill_diagnostics: Library health report; each finding says whether an agent profile or cron job binds the skill
 - start_curator_background_task / stop_curator_background_task: Background loop lifecycle
@@ -44,7 +45,11 @@ from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
 from app.core.infra.background_task import spawn_observed_task
 from app.core.skills.config_version import bump_skill_config_version
-from app.core.skills.curator.bound_skills import bound_skill_names
+from app.core.skills.curator.bound_skills import (
+    SkillBoundError,
+    assert_skill_not_bound_for_archive,
+    bound_skill_names,
+)
 from app.core.skills.curator.local_skills import scan_local_skills
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
@@ -183,9 +188,37 @@ async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "
         _save_last_run_time()
         _save_history(result, trigger=trigger, duration_ms=duration_ms)
         if result.archived_count:
+            # Warm chats reuse their built agent until the execution fingerprint (which includes this
+            # version) changes, so an archived skill would stay loaded without the bump.
             bump_skill_config_version()
+            _publish_skill_pool_archived(result)
 
         return result
+
+
+def _publish_skill_pool_archived(result: CuratorRunResult) -> None:
+    """Announce the new lifecycle statuses so the settings page refreshes its skill list.
+
+    ``bump_skill_config_version`` only invalidates warm chats on the server; the frontend learns about
+    pool changes from ``SKILL_POOL_UPDATED``, which install, uninstall and sync already publish. The
+    installed-skills view hides archived skills unless the status filter is set to them, and a sweep runs
+    in the background, so without this event a skill the sweep archived a moment ago stays on screen and
+    keeps counting towards the "N archived and hidden" banner until the user reloads.
+    """
+    archived = [t.skill_name for t in result.transitions if t.to_status == SkillLifecycleStatus.ARCHIVED]
+    if not archived:
+        return
+    try:
+        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SKILL_POOL_UPDATED,
+                data={"action": "archive", "skill_names": archived},
+            )
+        )
+    except Exception as exc:
+        logger.warning("Failed to broadcast SKILL_POOL_UPDATED after curator sweep: %s", exc)
 
 
 def _save_history(
@@ -206,6 +239,7 @@ def _save_history(
         "stale_count": result.stale_count,
         "archived_count": result.archived_count,
         "skipped_pinned": result.skipped_pinned,
+        "skipped_protected": result.skipped_protected,
         "transitions": [
             {
                 "skill_name": t.skill_name,
@@ -396,6 +430,15 @@ def set_skill_archived(skill_name: str, *, archived: bool) -> SkillLifecycleStat
     return apply_skill_archived(get_stats_collector(), skill_path, archived=archived)
 
 
+async def archive_skill_with_guards(skill_name: str) -> SkillLifecycleStatus:
+    """Archive a local skill after bound-reference and pinned guards."""
+    skill_path = resolve_skill_path(skill_name)
+    if skill_path is None:
+        raise SkillNotFoundError(skill_name)
+    await assert_skill_not_bound_for_archive(skill_name, skill_path)
+    return apply_skill_archived(get_stats_collector(), skill_path, archived=True)
+
+
 async def remediate_skill_finding(skill_name: str, action: str) -> dict[str, object]:
     """Execute remediation action for a diagnosed skill finding.
 
@@ -415,10 +458,17 @@ async def remediate_skill_finding(skill_name: str, action: str) -> dict[str, obj
     if action == "reset_stats":
         collector.reset_usage(skill_dir)
     else:
-        if action == "unpin_and_archive":
-            collector.set_pinned(skill_dir, pinned=False)
         try:
+            # Bound check first: a refused archive must leave the pin untouched.
+            await assert_skill_not_bound_for_archive(skill_name, skill_dir)
+            if action == "unpin_and_archive":
+                collector.set_pinned(skill_dir, pinned=False)
             apply_skill_archived(collector, skill_dir, archived=True)
+        except SkillBoundError:
+            return {
+                "success": False,
+                "error": f"Skill '{skill_name}' is still used by an agent, scheduled task or Kanban task; unbind it first",
+            }
         except SkillPinnedError:
             return {"success": False, "error": f"Skill '{skill_name}' is pinned; unpin it first"}
 

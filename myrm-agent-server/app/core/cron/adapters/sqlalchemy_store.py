@@ -82,6 +82,7 @@ class SqlAlchemyCronStore:
         user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
+        project_id: str | None = None,
         due_before: datetime | None = None,
         limit: int | None = None,
         offset: int = 0,
@@ -90,6 +91,9 @@ class SqlAlchemyCronStore:
 
         if chat_id is not None:
             stmt = stmt.where(CronJobModel.chat_id == chat_id)
+
+        if project_id is not None:
+            stmt = stmt.where(CronJobModel.project_id == project_id)
 
         if name_filter:
             stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
@@ -118,10 +122,13 @@ class SqlAlchemyCronStore:
         user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
+        project_id: str | None = None,
     ) -> int:
         stmt = select(sqlfunc.count()).select_from(CronJobModel)
         if chat_id is not None:
             stmt = stmt.where(CronJobModel.chat_id == chat_id)
+        if project_id is not None:
+            stmt = stmt.where(CronJobModel.project_id == project_id)
         if name_filter:
             stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
         async with get_session() as session:

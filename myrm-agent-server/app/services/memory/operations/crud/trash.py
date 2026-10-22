@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import Depends, HTTPException, Query
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryType
+from myrm_agent_harness.toolkits.memory import MemoryError, MemoryManager, MemoryOperationKind, MemoryType
 
 from app.schemas.memory.crud import (
     MemoryItem,
@@ -126,7 +126,12 @@ async def purge_trashed_memory(
     mem_type_str = getattr(existing, "memory_type", "semantic")
     mem_type = MemoryType(mem_type_str)
     coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
-    deleted = await manager.delete_memory(coll, [memory_id])
+    try:
+        deleted = await manager.delete_memory(coll, [memory_id])
+    except MemoryError as exc:
+        # A previous model's copy could not be removed, so the memory is still there; the user is told
+        # the purge failed and can retry instead of facing a bare 500.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if deleted == 0:
         raise HTTPException(status_code=404, detail="Memory not found or could not be deleted")
 

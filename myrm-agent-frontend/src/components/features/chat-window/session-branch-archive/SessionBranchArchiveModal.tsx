@@ -86,7 +86,8 @@ export const SessionBranchArchiveModal: React.FC<SessionBranchArchiveModalProps>
         data-testid="modal-backdrop"
         aria-label="关闭归档快照遮罩"
         onClick={handleClose}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm -z-10 focus:outline-none"
+        tabIndex={-1}
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm -z-10"
       />
 
       <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl overflow-hidden animate-fadeIn">

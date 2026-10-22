@@ -176,16 +176,6 @@ export interface PtcNotifyStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface ToolProgressStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TOOL_PROGRESS;
-  tool: string;
-  progress: {
-    done: number;
-    total: number;
-    failed: number;
-  };
-}
-
 export interface FissionTopologyNode {
   node_id: string;
   agent_type: string;

@@ -32,7 +32,7 @@
     | 安全策略引擎     | 启用                          | 不启用（cgroup 限制）                |
     | 浏览器池         | minimal 配置                  | defensive 配置                       |
     | MCP 验证         | 不验证                        | 响应大小验证                         |
-    | 本地技能/文件    | 允许                          | 禁止（沙箱文件系统不可信）           |
+    | 本地技能/文件    | 允许                          | 默认允许（MYRM_ALLOW_LOCAL_SKILLS=0 可关闭） |
     | 通道模式         | bidirectional                 | bidirectional                        |
     | 事件记录         | 启用                          | 不启用                               |
     | Prometheus metrics | 默认关闭（METRICS_ENABLED=true 可开） | 默认关闭（METRICS_ENABLED=true 可开） |

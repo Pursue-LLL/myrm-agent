@@ -13,9 +13,14 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
+const mockAgents = [
+  { id: 'strategic-advisor', name: 'Strategic Advisor', description: 'Readonly strategy and risk advisor', avatar_url: null },
+  { id: 'code-reviewer', name: 'Code Reviewer', description: 'Code quality and review specialist', avatar_url: null },
+];
+
 vi.mock('@/store/useAgentStore', () => ({
   default: {
-    getState: () => ({ agents: [], fetchAgents: vi.fn(async () => undefined) }),
+    getState: () => ({ agents: mockAgents, fetchAgents: vi.fn(async () => undefined) }),
   },
 }));
 
@@ -125,5 +130,63 @@ describe('useReferenceMention chat mode', () => {
 
     expect(searchCitableChatsMock).toHaveBeenCalledWith('Alpha', 20, 0, undefined);
     expect(suggestReferencesMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('useReferenceMention EmptyChat @Agent bug recovery', () => {
+  beforeEach(() => {
+    searchCitableChatsMock.mockReset();
+    suggestReferencesMock.mockReset();
+    chatStoreRef.state.chatId = undefined; // EmptyChat
+    chatStoreRef.state.addMentionReference = vi.fn();
+    chatStoreRef.state.setInputMessage = vi.fn();
+  });
+
+  it('synchronously surfaces available digital employees on EmptyChat when @ is typed', () => {
+    const { result } = renderHook(() => useReferenceMention('@', 1));
+
+    expect(result.current.isOpen).toBe(true);
+    const agentSuggestions = result.current.results.filter((item) => item.reference_type === 'agent');
+    expect(agentSuggestions.length).toBe(2);
+    expect(agentSuggestions[0].file_id).toBe('strategic-advisor');
+    expect(agentSuggestions[1].file_id).toBe('code-reviewer');
+  });
+
+  it('filters digital employees by name on EmptyChat when @code is typed', async () => {
+    const { result } = renderHook(() => useReferenceMention('@code', 5));
+
+    await waitFor(() => {
+      const agentSuggestions = result.current.results.filter((item) => item.reference_type === 'agent');
+      expect(agentSuggestions.length).toBe(1);
+      expect(agentSuggestions[0].file_id).toBe('code-reviewer');
+    });
+  });
+
+  it('successfully selects and registers agent MentionReference on EmptyChat', async () => {
+    const { result } = renderHook(() => useReferenceMention('@code', 5));
+
+    await waitFor(() => {
+      expect(result.current.results.length).toBeGreaterThan(0);
+    });
+
+    const targetAgent = result.current.results.find((item) => item.file_id === 'code-reviewer');
+    expect(targetAgent).toBeDefined();
+
+    act(() => {
+      if (targetAgent) {
+        result.current.selectReference(targetAgent, chatStoreRef.state.setInputMessage);
+      }
+    });
+
+    expect(chatStoreRef.state.setInputMessage).toHaveBeenCalledWith('@Code Reviewer ');
+    expect(chatStoreRef.state.addMentionReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'agent',
+        fileId: 'code-reviewer',
+        label: '@Code Reviewer',
+        source: 'agent',
+        viaText: true,
+      }),
+    );
   });
 });

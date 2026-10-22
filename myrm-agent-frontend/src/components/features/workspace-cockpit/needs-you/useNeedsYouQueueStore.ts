@@ -19,7 +19,8 @@ export interface NeedsYouQueueState {
 
   // Actions
   registerInterruption: (
-    input: Omit<NeedsYouItem, 'createdAt' | 'isDismissed' | 'isHandled' | 'deepLinkUrl'> & {
+    input: Omit<NeedsYouItem, 'id' | 'createdAt' | 'isDismissed' | 'isHandled' | 'deepLinkUrl'> & {
+      id?: string;
       deepLinkUrl?: string;
       createdAt?: number;
     },

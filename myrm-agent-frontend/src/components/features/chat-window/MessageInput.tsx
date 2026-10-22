@@ -38,6 +38,10 @@ import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
 import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
+import {
+  ThinkingBudgetEffortSlider,
+  PermissionModeTierSwitcher,
+} from './thinking-permission';
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
@@ -600,6 +604,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <DeepSearchToggle />
                       <WorkflowModeToggle />
                       <BaseModelSelector />
+                      <ThinkingBudgetEffortSlider />
+                      <PermissionModeTierSwitcher />
                       <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
                       <GoalModeToggle />
                       <IncognitoModeToggle />

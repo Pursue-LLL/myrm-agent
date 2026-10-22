@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from app.services.agent.stream_session.session_reservation import release_unstreamed_reservation
@@ -60,6 +61,17 @@ async def _acquire_guarded(
             return
         except asyncio.TimeoutError:
             continue
+
+
+async def _is_client_detached(session: AgentStreamSession) -> bool:
+    """True when the client is disconnected or no frontend listeners are attached."""
+    if session.collector.has_subscribers:
+        return False
+    if session.request.multiplexed:
+        from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+        return not WorkspaceMultiplexer.get().has_subscribers
+    return await session.http_request.is_disconnected()
 
 
 async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuffer) -> None:
@@ -115,6 +127,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
 
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
+                session.last_activity_monotonic = time.monotonic()
                 if not stream_had_error and '"type": "error"' in chunk:
                     stream_had_error = True
                 await buffer.append(chunk)
@@ -140,10 +153,18 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
             release_unstreamed_reservation(session.request.chat_id, was_resume=session.request.resume_value is not None)
         await buffer.end_stream()
 
-        # A long-running turn keeps going after its client left; tell the user once it ends.
+        # A long-running or detached turn keeps going after its client left; tell the user once it ends.
         try:
-            if session.is_long_running_task and not session.cancel_token.is_cancelled:
-                if await session.http_request.is_disconnected():
+            now_mono = time.monotonic()
+            turn_duration = (
+                (now_mono - session.stream_started_at_monotonic)
+                if session.stream_started_at_monotonic > 0
+                else 0.0
+            )
+            is_long_turn = session.is_long_running_task or turn_duration >= 30.0
+
+            if is_long_turn and not session.cancel_token.is_cancelled:
+                if await _is_client_detached(session):
                     from app.services.infra.system_notification import (
                         SystemNotificationService,
                     )

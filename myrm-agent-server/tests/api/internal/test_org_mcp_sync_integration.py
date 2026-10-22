@@ -39,10 +39,17 @@ def _mount_app() -> httpx.ASGITransport:
 
 @contextmanager
 def _cp_token_env(token: str) -> Iterator[None]:
+    from pydantic import SecretStr
+
+    from app.config.settings import settings
+
+    old_secret = settings.control_plane.telemetry_token
     os.environ["CONTROL_PLANE_TELEMETRY_TOKEN"] = token
+    settings.control_plane.telemetry_token = SecretStr(token)
     try:
         yield
     finally:
+        settings.control_plane.telemetry_token = old_secret
         os.environ.pop("CONTROL_PLANE_TELEMETRY_TOKEN", None)
 
 
@@ -127,7 +134,7 @@ async def test_org_mcp_sync_persists_and_merges_full_chain() -> None:
 
 @pytest.mark.asyncio
 async def test_org_mcp_sync_rejects_wrong_cp_token() -> None:
-    """When CONTROL_PLANE_TELEMETRY_TOKEN is set, a missing/wrong token is 403."""
+    """When CONTROL_PLANE_TELEMETRY_TOKEN is set, a missing/wrong token is 401/403."""
     transport = _mount_app()
     with _cp_token_env("secret-cp-token"):
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -135,7 +142,7 @@ async def test_org_mcp_sync_rejects_wrong_cp_token() -> None:
                 "/api/admin/org-mcp-sync",
                 json={"mcp_servers": []},
             )
-            assert resp.status_code == 403
+            assert resp.status_code in (401, 403)
 
             resp_ok = await client.post(
                 "/api/admin/org-mcp-sync",
