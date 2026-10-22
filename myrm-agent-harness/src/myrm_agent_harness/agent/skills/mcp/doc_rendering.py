@@ -43,8 +43,8 @@ L2_MAX_TOKENS = 3_000
 Every part is bounded below, so the assembled body can never exceed this.
 """
 
-L2_FIXED_TOKENS = 224
-"""Header + calling contract, measured on 12306."""
+L2_FIXED_TOKENS = 248
+"""Header + calling contract, measured on 12306 (246) with a 2-token margin."""
 
 INDEX_NOTE_TOKENS = 96
 """Reserve for the tier note the generator appends after the tool section.
