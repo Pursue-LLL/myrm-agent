@@ -206,6 +206,17 @@ class IdleTaskRegistry:
 _registry_instance: IdleTaskRegistry | None = None
 
 
+def reset_idle_task_registry_for_tests() -> None:
+    """Drop the process-wide binding (test isolation only).
+
+    The singleton is deliberate in production: it refuses to re-bind so work cannot be enqueued
+    into a database the worker never polls. A test suite reuses one process across many temporary
+    storage roots, so each test has to start unbound instead of inheriting the previous root.
+    """
+    global _registry_instance
+    _registry_instance = None
+
+
 def get_idle_task_registry(workspace_root: str) -> IdleTaskRegistry:
     """Get or create the process-wide registry bound to the host storage root.
 

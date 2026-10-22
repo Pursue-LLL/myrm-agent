@@ -31,20 +31,9 @@ TOOL_DOC_TEMPLATE = """# {tool_name}
 
 {params_section}
 
-## Returns
+{returns_section}
 
-Returns a **parsed Python object** (dict, list, str, int, etc.), NOT a JSON string.
-Do NOT call `json.loads()` on the result. Only access fields explicitly documented above;
-if the return structure is not specified, print it as `[OBSERVATION]` first and continue in a later call.
-
-## Import & Call Example
-
-```python
-from skills.{skill_name} import {tool_name}
-
-result = await {tool_name}({call_example})
-print(result)
-```
+{call_example_section}
 """
 
 # JSON Schema constraint keys that Agent needs for correct parameter formatting.
@@ -182,6 +171,124 @@ def build_call_example(input_schema: JsonDict) -> str:
         return ", ".join(f"{name}={value}" for name, value in zip(names, values, strict=True))
     pairs = ", ".join(f'"{name}": {value}' for name, value in zip(names, values, strict=True))
     return f"**{{{pairs}}}"
+
+
+def _has_examples(input_schema: JsonDict) -> bool:
+    """Return True when at least one parameter carries a concrete example/default.
+
+    Without either, a generated call example can only contain placeholders such as
+    ``"..."``. Those placeholders are not executable and add no domain knowledge, so
+    the L3 example section is omitted instead of presenting a fake call.
+    """
+    properties = input_schema.get("properties") if isinstance(input_schema, dict) else None
+    if not isinstance(properties, dict):
+        return False
+    return any(
+        isinstance(info, dict) and (info.get("examples") or "default" in info)
+        for info in properties.values()
+    )
+
+
+def build_call_example_section(skill_name: str, tool_name: str, input_schema: JsonDict) -> str:
+    """Render the L3 import/call example only when the schema has a real example."""
+    if not _has_examples(input_schema):
+        return ""
+    call_example = build_call_example(input_schema)
+    if not call_example:
+        return ""
+    return (
+        "## Import & Call Example\n\n"
+        "```python\n"
+        f"from skills.{skill_name} import {tool_name}\n\n"
+        f"result = await {tool_name}({call_example})\n"
+        "print(result)\n"
+        "```"
+    )
+
+
+def render_output_type(
+    schema: object,
+    *,
+    defs: dict[str, Any] | None = None,
+    _seen: set[str] | None = None,
+    _depth: int = 0,
+) -> str:
+    """Render a compact, recursive Python-like type for an MCP outputSchema.
+
+    Object fields are expanded until they reach primitive types. Recursive ``$ref``
+    cycles and malformed schema fragments degrade to ``?`` instead of inventing a
+    shape. This is deliberately a type string, not a second JSON Schema dump: the
+    full schema remains available in L3, while L2 only needs enough shape to decide
+    how to consume the value.
+    """
+    if not isinstance(schema, dict) or _depth > 12:
+        return "?"
+
+    defs = defs or schema.get("$defs") or schema.get("definitions") or {}
+    seen = _seen or set()
+
+    ref = schema.get("$ref")
+    if isinstance(ref, str):
+        key = ref.split("/")[-1]
+        if key in seen or not isinstance(defs, dict) or key not in defs:
+            return "?"
+        return render_output_type(defs[key], defs=defs, _seen=seen | {key}, _depth=_depth + 1)
+
+    for union_key in ("anyOf", "oneOf"):
+        branches = schema.get(union_key)
+        if isinstance(branches, list) and branches:
+            rendered = [render_output_type(branch, defs=defs, _seen=seen, _depth=_depth + 1) for branch in branches]
+            return "|".join(dict.fromkeys(part for part in rendered if part))
+
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        rendered = [
+            render_output_type({**schema, "type": item}, defs=defs, _seen=seen, _depth=_depth + 1)
+            for item in schema_type
+        ]
+        return "|".join(dict.fromkeys(part for part in rendered if part))
+
+    if schema_type == "array":
+        return f"array<{render_output_type(schema.get('items', {}), defs=defs, _seen=seen, _depth=_depth + 1)}>"
+
+    if schema_type == "object" or "properties" in schema:
+        properties = schema.get("properties")
+        if not isinstance(properties, dict) or not properties:
+            return "object"
+        required = schema.get("required")
+        required_names = set(required) if isinstance(required, list) else set()
+        parts: list[str] = []
+        for name, info in properties.items():
+            marker = "" if name in required_names else "?"
+            parts.append(
+                f"{name}{marker}:{render_output_type(info, defs=defs, _seen=seen, _depth=_depth + 1)}"
+            )
+        return "object{" + ",".join(parts) + "}"
+
+    if schema_type in ("string", "integer", "number", "boolean", "null"):
+        return str(schema_type)
+    return "?"
+
+
+def build_returns_section(output_schema: object) -> str:
+    """Render the L3 Returns section from an MCP outputSchema, or the safe fallback."""
+    if isinstance(output_schema, dict) and output_schema:
+        rendered = render_output_type(output_schema, defs=output_schema.get("$defs") or output_schema.get("definitions"))
+        if rendered != "?":
+            return (
+                "## Returns\n\n"
+                "```python\n"
+                f"{rendered}\n"
+                "```\n\n"
+                "Returns a parsed Python object, NOT a JSON string. Do NOT call `json.loads()`; "
+                "the actual result is authoritative if a server returns a variant."
+            )
+    return (
+        "## Returns\n\n"
+        "Returns a **parsed Python object** (dict, list, str, int, etc.), NOT a JSON string.\n"
+        "Do NOT call `json.loads()` on the result. If the return structure is not specified, "
+        "print it as `[OBSERVATION]` first and continue in a later call."
+    )
 
 
 def normalize_input_schema(raw: object) -> JsonDict:

@@ -203,6 +203,29 @@ def _reset_security_reviewer() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_idle_task_registry() -> Iterator[None]:
+    """Isolate the process-wide idle-task registry binding between all tests.
+
+    The registry binds to the first storage root it sees and warns instead of re-binding, which is
+    deliberate in production. A suite reusing one process across temporary roots would otherwise
+    keep the first test's database for everyone after it.
+    """
+    with suppress(Exception):
+        from myrm_agent_harness.agent.background_worker.registry import (
+            reset_idle_task_registry_for_tests,
+        )
+
+        reset_idle_task_registry_for_tests()
+    yield
+    with suppress(Exception):
+        from myrm_agent_harness.agent.background_worker.registry import (
+            reset_idle_task_registry_for_tests,
+        )
+
+        reset_idle_task_registry_for_tests()
+
+
+@pytest.fixture(autouse=True)
 def _reset_session_loop_guards() -> Iterator[None]:
     """Isolate the module-global session loop-guard cache between all tests.
 
