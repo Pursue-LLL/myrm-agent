@@ -11,8 +11,8 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
-from myrm_agent_harness.runtime.memo.call_scope import LlmCallScope, current_llm_call_scope
-from myrm_agent_harness.runtime.memo.memo_ledger import MemoLedger
+from myrm_agent_harness.infra.memo.call_scope import LlmCallScope, current_llm_call_scope
+from myrm_agent_harness.infra.memo.memo_ledger import MemoLedger
 
 from app.services.agent import memo_scope
 
