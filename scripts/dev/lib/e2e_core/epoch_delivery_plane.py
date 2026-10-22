@@ -16,6 +16,7 @@ decouples «run new workspace code» from «consume private ADMIT credit».
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -58,6 +59,54 @@ def evaluate_epoch_pin_eligibility(
     if load not in ("LIVE", "STANDARD"):
         return EpochPinEligibility(False, "workload_not_pin_eligible")
     return EpochPinEligibility(True, "eligible")
+
+
+def _isolated_runtime_api_base() -> str:
+    """API base of a ready isolated runtime, when the caller pinned one.
+
+    ``MYRM_E2E_ISOLATED_RUNTIME_ID`` is the documented way to run workspace-backend
+    tests beside real user data. The runtime already runs the workspace code, so it
+    is a valid epoch target and must not fall back to the shared pool.
+    """
+    runtime_id = os.environ.get("MYRM_E2E_ISOLATED_RUNTIME_ID", "").strip()
+    if not runtime_id:
+        return ""
+    registry_path = Path.home() / ".local" / "state" / "myrm-isolated" / "registry.json"
+    try:
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        record = (payload.get("runtimes") or {}).get(runtime_id) or {}
+    except (OSError, json.JSONDecodeError):
+        return ""
+    port = int(record.get("backendPort") or 0)
+    return f"http://127.0.0.1:{port}" if port > 0 else ""
+
+
+def _isolated_outcome(*, api_base: str, runtime_id: str) -> EpochPinOutcome:
+    """Pin the isolated runtime itself; its health payload has no runtime_id field."""
+    healthy = False
+    try:
+        with urllib.request.urlopen(f"{api_base.rstrip('/')}/api/v1/health", timeout=3.0) as response:
+            payload = json.loads(response.read())
+        healthy = isinstance(payload, dict) and payload.get("status") == "healthy"
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        healthy = False
+    if not healthy:
+        return EpochPinOutcome(
+            applied=False,
+            api_base="",
+            runtime_id="",
+            environment={},
+            detail="isolated_runtime_health_failed",
+            seeded=False,
+        )
+    return EpochPinOutcome(
+        applied=True,
+        api_base=api_base.rstrip("/"),
+        runtime_id=runtime_id,
+        environment=_runtime_identity_env(runtime_id=runtime_id, api_base=api_base),
+        detail=f"isolated_runtime:{runtime_id}",
+        seeded=False,
+    )
 
 
 def _shared_epoch_aligned(ctx: object) -> bool:
@@ -140,6 +189,13 @@ def apply_epoch_pin_for_shared_live(
         register_epoch_backend_holder,
     )
     from e2e_core.verify_backend_seed import _isolated_registry_root
+
+    isolated_api = _isolated_runtime_api_base()
+    if isolated_api:
+        isolated_id = os.environ.get("MYRM_E2E_ISOLATED_RUNTIME_ID", "").strip()
+        isolated = _isolated_outcome(api_base=isolated_api, runtime_id=isolated_id)
+        if isolated.applied:
+            return isolated
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
     if not needs_epoch_pin_backend(ctx):
