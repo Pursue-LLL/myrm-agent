@@ -34,6 +34,21 @@ logger = logging.getLogger(__name__)
 
 _STATS_FILENAME = ".stats.json"
 _CORRUPT_SUFFIX = ".corrupt"
+_SKILL_FILENAME = "SKILL.md"
+
+
+def created_at_from_disk(skill_dir: Path) -> datetime:
+    """Date a skill that has no ledger yet, from the timestamps the filesystem kept for it.
+
+    The curator can only age a skill it can date, and a skill that arrives by copy rather than through
+    the write service has no ledger to read. ``SKILL.md``'s modification time is the closest honest
+    stand-in: it is the moment the definition last changed. A skill directory whose timestamps cannot
+    be read is dated now, which at worst delays its first transition by one grace period.
+    """
+    try:
+        return datetime.fromtimestamp((skill_dir / _SKILL_FILENAME).stat().st_mtime, tz=UTC)
+    except OSError:
+        return datetime.now(UTC)
 
 
 class SkillStatsCollector:
@@ -43,7 +58,8 @@ class SkillStatsCollector:
     - The ledger on disk is the only state: every change reads it, modifies it and writes it back at once, so
       nothing is cached or left to flush, and a ledger changed elsewhere is never overwritten from stale memory
     - Per-skill stats stored in {skill_dir}/.stats.json, written atomically so a crash never leaves a torn file
-    - A skill's first observation creates its ledger, which anchors ``created_at`` for the forgetting policy
+    - ``anchor_created_at`` writes the ledger when a skill is created, so the forgetting clock starts at
+      creation; reading never writes, and a skill with no ledger is dated from its own file
     - A ledger that cannot be parsed is set aside as ``.stats.json.corrupt``; one that cannot be read is never
       replaced by a blank one
     - No lock: two writers changing one ledger at the same moment can lose an update; callers run on one event
@@ -53,6 +69,17 @@ class SkillStatsCollector:
     """
 
     # ── Usage recording ─────────────────────────────────────────────
+
+    def anchor_created_at(self, skill_path: Path) -> None:
+        """Start a skill's lifecycle clock, called when the skill is written for the first time.
+
+        The forgetting policy ages a never-used skill from ``created_at``; without this the clock would only
+        start when the ledger reached disk some other way, so a skill nobody ever opened would never age.
+        Idempotent: an existing ledger, including one a run already wrote, is left untouched.
+        """
+        if (skill_path / _STATS_FILENAME).exists():
+            return
+        self._write_stats(skill_path, SkillUsageStats(created_at=datetime.now(UTC)))
 
     def record_use(self, skill_path: Path, *, success: bool | None) -> None:
         """Record one run that used the skill.
@@ -163,21 +190,21 @@ class SkillStatsCollector:
     def get_stats(self, skill_path: Path) -> SkillUsageStats:
         """Get the skill's current statistics, read fresh from disk.
 
-        The first observation of a skill creates its ledger (see the class design notes).
-        Treat the result as read-only: changes to the returned object are not saved. Change stats through the
-        collector's methods. A ledger that cannot be read right now yields an unsaved blank view instead of
-        failing the caller.
+        Reading never writes: a skill that has no ledger yet reads as blank, and the ledger appears only
+        when the skill is created (``anchor_created_at``) or used. Treat the result as read-only: changes
+        to the returned object are not saved. Change stats through the collector's methods. A ledger that
+        cannot be read right now yields an unsaved blank view instead of failing the caller.
         """
         try:
             return self._load_stats(skill_path)
         except OSError as e:
             logger.warning("Failed to read stats for skill %s: %s", skill_path.name, e)
-            return SkillUsageStats(created_at=datetime.now(UTC))
+            return SkillUsageStats()
 
     # ── Internal helpers ────────────────────────────────────────────
 
     def _load_stats(self, skill_path: Path) -> SkillUsageStats:
-        """Load existing stats from disk. Sets created_at on first encounter.
+        """Load existing stats from disk; a skill without a ledger reads as blank without writing one.
 
         Raises:
             OSError: The ledger exists but cannot be read; the caller must not replace it with a blank one.
@@ -187,22 +214,21 @@ class SkillStatsCollector:
         try:
             data = json.loads(stats_file.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            return self._new_stats(skill_path)
+            # No ledger yet: the skill was copied in, or authored before creation anchored clocks. Date it
+            # from the filesystem so the curator can still age it, without writing anything on a read.
+            return SkillUsageStats(created_at=created_at_from_disk(skill_path))
         except ValueError:  # JSONDecodeError and UnicodeDecodeError
             data = None
 
         if not isinstance(data, dict):
             self._set_aside_corrupt(stats_file)
-            return self._new_stats(skill_path)
+            return SkillUsageStats(created_at=created_at_from_disk(skill_path))
 
         stats = SkillUsageStats.from_dict(data)
         if stats.created_at is None:
-            stats.created_at = datetime.now(UTC)
-        return stats
-
-    def _new_stats(self, skill_path: Path) -> SkillUsageStats:
-        stats = SkillUsageStats(created_at=datetime.now(UTC))
-        self._write_stats(skill_path, stats)
+            # A ledger written before ``created_at`` existed still has a creation time: the moment it first
+            # reached disk. Reading it uses that instead of stamping "now", so the clock never restarts.
+            stats.created_at = datetime.fromtimestamp(stats_file.stat().st_mtime, tz=UTC)
         return stats
 
     @staticmethod

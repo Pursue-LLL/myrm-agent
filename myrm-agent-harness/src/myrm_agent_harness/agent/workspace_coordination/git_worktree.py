@@ -18,11 +18,18 @@ Degrades gracefully to directory isolation for non-git workspaces.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import logging
 import os
+from pathlib import Path
 import subprocess
 import uuid
-from pathlib import Path
+
+from myrm_agent_harness.agent.workspace_coordination.isolated_commit_guard import (
+    CommitIntent,
+    CommitResult,
+    run_isolated_commit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -225,4 +232,32 @@ def build_worktree_context_note(info: dict[str, str]) -> str:
         f"Dedicated branch: {branch}\n"
         "Perform all edits and commands within this directory. Commit changes to your branch when ready. "
         "Clean, uncommitted worktrees with no commits are pruned automatically."
+    )
+
+
+def commit_worktree_isolated(
+    wt_info: dict[str, str],
+    message: str,
+    paths: Sequence[str] | None = None,
+    *,
+    intent: CommitIntent = CommitIntent.ISOLATED_CHECKPOINT,
+    timeout_seconds: int = 30,
+) -> CommitResult:
+    """Commit changes inside a subagent worktree bypassing hooks for internal checkpoints."""
+    wt_path = wt_info.get("path") or ""
+    if not wt_path or not os.path.isdir(wt_path):
+        return CommitResult(
+            success=False,
+            commit_hash=None,
+            skipped_hooks=True,
+            output="",
+            error=f"Invalid worktree path: {wt_path!r}",
+            duration_ms=0.0,
+        )
+    return run_isolated_commit(
+        cwd=wt_path,
+        message=message,
+        paths=paths,
+        intent=intent,
+        timeout_seconds=timeout_seconds,
     )
