@@ -8322,3 +8322,45 @@ degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失
 
 - `bun run vitest run src/store/chat/__tests__/loadMessages.requestMessageId.test.ts` 2 passed
 - `bun run typecheck`：改动文件无新增错误（仓内既有 2 处错误与本改动无关）
+
+## BUG-AGENT-2026-10-22-004: harness 把 memo 包从 runtime/ 移到 infra/，服务端仍导入旧路径——每一轮 Agent 对话在产出第一个 token 前就崩
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P0（每一轮对话都失败：聊天窗口全空，live Chrome E2E 全红） |
+| 影响范围 | `myrm-agent-server/app/services/agent/memo_scope.py`（及其单测）；任何调用 `ai_agent_service_stream` 的路径 |
+| 关联 | harness 提交 `refactor(memo)` 的包迁移 |
+
+### 现象
+
+任意一轮 Agent 对话（哪怕只是「只回复两个字」）都不产出任何输出：SSE 只有 `routing_decision` / `phase_transition`，随后静默；前端聊天窗口一直空白。
+两个 live Chrome E2E（A2A 委派、聊天分享）以「assistant 回复未到达」失败，看起来像产品功能坏了。
+
+### 根因
+
+harness 把 memo 包从 `myrm_agent_harness.runtime.memo` 移到了 `myrm_agent_harness.infra.memo`，harness 侧自洽；
+但**服务端**的 `memo_scope.py` 仍在函数内 `from myrm_agent_harness.runtime.memo.call_scope import ...`。
+该导入发生在 `ai_agent_service_stream` 内部（每次请求都执行），所以：
+
+```
+ModuleNotFoundError: No module named 'myrm_agent_harness.runtime.memo'
+```
+
+——每轮对话在生成第一个 token 之前就抛出，外层把异常吞进流错误，前端只看到空回复。
+
+### 修复
+
+`memo_scope.py` 与 `tests/services/agent/test_memo_scope.py` 的导入与模块文档统一改为
+`myrm_agent_harness.infra.memo`。
+
+### 验证
+
+- `python -c "from app.services.agent.memo_scope import memo_scoped_stream"` → OK
+- 真机一轮对话：`POST /api/v1/agents/agent-stream` → `"type":"message","data":"可以"`，8.8s 完成
+- live Chrome E2E（A2A / 聊天分享）重跑见台账后续记录
+
+### 反复次数
+
+第 1 次（但这类「包迁移只改一侧」的断裂在干净检出时必现，属于 P0 级回归）
