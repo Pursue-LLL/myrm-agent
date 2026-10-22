@@ -107,6 +107,7 @@ def test_ocap_attenuation_blocks_action_elevation() -> None:
             parent=root,
             subject_id="rogue-child",
             target_actions={CapabilityAction.READ, CapabilityAction.WRITE},  # WRITE not in root
+            ttl_seconds=300.0,
         )
 
 
@@ -119,6 +120,7 @@ def test_ocap_attenuation_blocks_path_elevation() -> None:
             parent=root,
             subject_id="rogue-child",
             target_scope=ResourceScope(paths=("/workspace/project-b/**",)),
+            ttl_seconds=300.0,
         )
 
     # Attempting to elevate to unrestricted
@@ -127,6 +129,7 @@ def test_ocap_attenuation_blocks_path_elevation() -> None:
             parent=root,
             subject_id="rogue-child",
             target_scope=ResourceScope(paths=()),
+            ttl_seconds=300.0,
         )
 
 
@@ -141,6 +144,7 @@ def test_ocap_attenuation_blocks_domain_elevation() -> None:
                 paths=("/workspace/**",),
                 domains=("attacker.com",),
             ),
+            ttl_seconds=300.0,
         )
 
 
@@ -192,6 +196,7 @@ def test_guard_enforcement_and_fail_closed() -> None:
         "worker",
         target_scope=ResourceScope(paths=("/workspace/project/src/**",)),
         target_actions={CapabilityAction.READ},
+        ttl_seconds=300.0,
     )
     registry.register(child)
 
@@ -278,6 +283,7 @@ async def test_file_ops_ocap_integration(tmp_path: pytest.TempPathFactory) -> No
         "worker-sandbox",
         target_scope=ResourceScope(paths=(f"{allowed_dir}/**",)),
         target_actions={CapabilityAction.READ, CapabilityAction.WRITE},
+        ttl_seconds=300.0,
     )
     registry.register(child)
 

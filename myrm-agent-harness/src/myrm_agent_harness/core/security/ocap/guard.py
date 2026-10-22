@@ -42,6 +42,7 @@ def check_capability_access(
     action: CapabilityAction,
     target: str | None = None,
     handle: CapabilityHandle | None = None,
+    registry: object | None = None,
 ) -> bool:
     """Evaluate whether the given action on target is permitted by the active capability.
 
@@ -58,6 +59,9 @@ def check_capability_access(
         # No capability constraint active on current execution thread
         return True
 
+    if registry is not None and not registry.is_valid(active_handle):
+        return False
+
     if not _is_usable(active_handle) or action not in active_handle.actions:
         return False
 
@@ -68,11 +72,15 @@ def enforce_capability_access(
     action: CapabilityAction,
     target: str | None = None,
     handle: CapabilityHandle | None = None,
+    registry: object | None = None,
 ) -> None:
     """Enforce capability check, raising CapabilityDeniedError if unauthorized."""
     active_handle = handle if handle is not None else get_current_capability()
     if active_handle is None:
         return
+
+    if registry is not None and not registry.is_valid(active_handle):
+        raise CapabilityDeniedError(f"Capability handle '{active_handle.handle_id}' is not registered.")
 
     if not _is_usable(active_handle):
         raise CapabilityDeniedError(f"Capability handle '{active_handle.handle_id}' is invalid or expired.")

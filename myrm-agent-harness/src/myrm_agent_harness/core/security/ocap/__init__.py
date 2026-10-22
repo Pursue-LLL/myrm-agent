@@ -6,6 +6,7 @@
 - .attenuation::attenuate_capability, validate_scope_subset
 - .context::get_current_capability, capability_scope
 - .guard::check_capability_access, enforce_capability_access
+- .registry::CapabilityRegistry, get_default_capability_registry
 
 [OUTPUT]
 - Unified public interface for Object-Capability security mesh
@@ -26,6 +27,10 @@ from myrm_agent_harness.core.security.ocap.context import (
 from myrm_agent_harness.core.security.ocap.guard import (
     check_capability_access,
     enforce_capability_access,
+)
+from myrm_agent_harness.core.security.ocap.registry import (
+    CapabilityRegistry,
+    get_default_capability_registry,
 )
 from myrm_agent_harness.core.security.ocap.token import (
     sign_capability_handle,
