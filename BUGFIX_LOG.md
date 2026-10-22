@@ -8053,7 +8053,7 @@ if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-22（harness 从独立仓并入 `myrm-agent/myrm-agent-harness/` 之后，后端启动即失败） |
-| 修复日期 | 未修复（缺失模块从未提交，需由该特性作者恢复） |
+| 修复日期 | 2026-10-22（特性作者补齐 harness 一侧后恢复；另修了镜像契约测试的旧路径） |
 | 严重程度 | P0（后端无法启动 → 整个本地实例不可用） |
 | 影响范围 | `myrm-agent-harness/src/myrm_agent_harness/**`（缺失 63 个模块）→ 69 个未被 git 跟踪的服务端文件引用它们（`app/services/agent/*_service.py`、`app/services/chat/command_matrix/*`、`app/api/system/*_api.py` 等） |
 | 出现次数 | 1（随合并一次性引入） |
@@ -8076,10 +8076,14 @@ ModuleNotFoundError: No module named 'myrm_agent_harness.agent.context_managemen
 
 ### 修复
 
-需要由特性作者恢复：把旧工作树中 `myrm_agent_harness.agent.coordination.*`、
-`myrm_agent_harness.agent.context_management.capability_matrix*`、
-`myrm_agent_harness.observability.*`、`myrm_agent_harness.toolkits.swarm` 等 63 个模块放回
-`myrm-agent/myrm-agent-harness/src/myrm_agent_harness/`（完整清单见本条附带的模块列表）。
+1. **特性作者补齐 harness 一侧**（把旧工作树中 `myrm_agent_harness.agent.coordination.*`、
+   `myrm_agent_harness.agent.context_management.capability_matrix*`、
+   `myrm_agent_harness.observability.*`、`myrm_agent_harness.toolkits.swarm` 等 63 个模块放回
+   `myrm-agent/myrm-agent-harness/src/myrm_agent_harness/`）→ 后端 import 链恢复 ✓
+2. **镜像契约测试指向合并后的路径**（`tests/support/test_conftest_browser_cleanup_wiring.py` 仍按独立仓
+   布局拼 `parents[4]/myrm-agent-harness/...` → 合并后应为 `parents[3]/myrm-agent-harness/...` ✗ → 每次运行必红 ✗）→ 已修正 ✓
+
+**不要用「跳过缺失导入」的方式绕过**：那只会把「特性没落地」变成「运行时才炸」，属于掩盖式修复。
 
 **不要用「跳过缺失导入」的方式绕过**：那只会把「特性没落地」变成「运行时才炸」，属于掩盖式修复。
 
@@ -8153,10 +8157,13 @@ myrm_agent_harness.toolkits.swarm
 
 ### 验证
 
-恢复后：
-
 ```bash
 cd myrm-agent/myrm-agent-server
-.venv/bin/python -c "import app.api.router as r; print(len(r.api_router.routes))"   # 不应抛 ModuleNotFoundError
-./myrm test -n0 myrm-agent-server/tests/support/                                    # 全绿
+.venv/bin/python -c "import app.api.router as r; print(len(r.api_router.routes))"   # 正常导入
+./myrm test -n0 myrm-agent-server/tests/support/ myrm-agent-server/tests/api/integrations/   # 446 passed / 3 skipped
+./myrm ready                                                                   # backend healthy / client_hot
 ```
+
+真机复核（2026-10-22）：`/api/v1/health` healthy；`/api/v1/config/readiness` provider=True、search=True、
+degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失效 provider 返回
+`error_kind=provider_error` + 上游原文 `Invalid credential`；真实 Agent 回合正常返回。
