@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Literal
 
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     normalize_input_schema,
@@ -140,12 +141,9 @@ def render_tool_tier(
     tool_schemas: dict[str, JsonDict],
     name_map: dict[str, str],
     skill_name: str,
-    tier: str,
+    tier: Literal["full", "required"],
 ) -> str:
-    """Render the tool section for one ladder tier (``full`` / ``required`` / ``names``)."""
-    if tier == "names":
-        return build_tool_index(tools, name_map)
-
+    """Render the tool section for one signature tier (``full`` / ``required``)."""
     lines: list[str] = []
     for tool_name in tools:
         schema = tool_schemas.get(tool_name, {})
@@ -164,7 +162,7 @@ def render_tool_tier(
     return "\n".join(lines)
 
 
-def build_tool_index(tools: list[str], name_map: dict[str, str], budget: int | None = None) -> str:
+def build_tool_index(tools: list[str], name_map: dict[str, str], budget: int) -> str:
     """Name-only index, the last rung of the budget ladder.
 
     Descriptions are dropped on purpose: name-only costs 960 tokens for 100 tools
@@ -175,8 +173,6 @@ def build_tool_index(tools: list[str], name_map: dict[str, str], budget: int | N
     explicit count so the omission is visible instead of silent.
     """
     lines = [f"- {name_map[tool_name]}" for tool_name in tools]
-    if budget is None:
-        return "\n".join(lines)
 
     def _render(count: int) -> str:
         omitted = len(lines) - count

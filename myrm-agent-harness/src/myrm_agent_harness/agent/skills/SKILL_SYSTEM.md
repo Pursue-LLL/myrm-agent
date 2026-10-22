@@ -472,15 +472,15 @@ Scanner（编排器）
   └── ScanPolicy（可配置策略）
 ```
 
-### 8.2 威胁类别（26 类 108 模式）
+### 8.2 威胁类别（27 类 117 模式）
 
 | 类别 | 说明 | 模式数 |
 |------|------|--------|
 | `prompt_injection` | Prompt 注入攻击（含 DAN/jailbreak/HTML 注入） | 12 |
 | `command_injection` | 命令注入 | 4 |
 | `credential_exposure` | 凭据泄露（含 GitHub/OpenAI/Anthropic/AWS token） | 7 |
-| `data_exfiltration` | 数据外泄（含 env dump/context exfil/markdown exfil） | 10 |
-| `filesystem_access` | 敏感文件访问 | 2 |
+| `data_exfiltration` | 数据外泄（含 env dump/context exfil/markdown exfil） | 12 |
+| `filesystem_access` | 敏感文件访问 | 5 |
 | `process_operation` | 进程操作 | 4 |
 | `network_access` | 网络访问（含隧道服务/paste 站点） | 7 |
 | `screen_input` | 屏幕/输入捕获 | 2 |
@@ -502,6 +502,7 @@ Scanner（编排器）
 | `path_traversal` | 路径穿越 | 3 |
 | `crypto_mining` | 加密货币挖矿 | 1 |
 | `reverse_shell` | 反向 Shell | 5 |
+| `prompt_secret_exfiltration` | Prompt 诱导泄露密钥 | 4 |
 
 扫描器还包含 LLM 二次审计能力（可选），通过 `SkillLLMAuditor` 提供语义级威胁检测，遵循"只升不降"原则。
 
