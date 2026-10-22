@@ -171,6 +171,13 @@ impl BackendConfig {
             .and_then(|raw| raw.trim().parse::<u16>().ok())
             .filter(|value| *value > 0)
             .unwrap_or(8080);
+        // A development build must not open the real user's database (the desktop, the local WebUI
+        // and the dev stack all default to ~/.myrm, and two servers on one SQLite file corrupt it).
+        let custom_data_dir = std::env::var("MYRM_DESKTOP_DATA_DIR")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .or_else(|| config.custom_data_dir.clone());
         Self {
             port,
             host: if config.enable_webui_mode && config.enable_remote_access {
@@ -180,7 +187,7 @@ impl BackendConfig {
             },
             webui_mode: config.enable_webui_mode,
             remote_mode: config.enable_webui_mode && config.enable_remote_access,
-            custom_data_dir: config.custom_data_dir.clone(),
+            custom_data_dir,
         }
     }
 }
