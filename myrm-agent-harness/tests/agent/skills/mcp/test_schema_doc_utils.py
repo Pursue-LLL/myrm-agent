@@ -229,3 +229,20 @@ class TestRenderOutputType:
     def test_malformed_schema_degrades_to_unknown(self) -> None:
         assert render_output_type(None) == "?"
         assert render_output_type({"$ref": "#/$defs/Missing"}) == "?"
+
+    def test_null_only_example_does_not_emit_fake_call(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"city": {"type": "string", "examples": [None], "default": None}},
+            "required": ["city"],
+        }
+        assert build_call_example_section("demo_skill", "search", schema) == ""
+
+    def test_uses_first_non_null_example(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"city": {"type": "string", "examples": [None, "Shanghai"]}},
+            "required": ["city"],
+        }
+        section = build_call_example_section("demo_skill", "search", schema)
+        assert 'city="Shanghai"' in section

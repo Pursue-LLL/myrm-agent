@@ -127,12 +127,26 @@ def extract_schema_constraints(param_info: JsonDict) -> list[str]:
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
+_MISSING = object()
+
+
+def _concrete_value(info: JsonDict) -> object:
+    """Return a real example/default value, or ``_MISSING`` when only nulls exist."""
+    examples = info.get("examples")
+    if isinstance(examples, list):
+        for value in examples:
+            if value is not None:
+                return value
+    default = info.get("default")
+    if "default" in info and default is not None:
+        return default
+    return _MISSING
+
+
 def _render_value(info: JsonDict, ptype: str) -> str:
     """Render a concrete example/default value for a parameter, or a typed placeholder."""
-    example = info.get("examples", [None])[0] if info.get("examples") else None
-    if example is None and "default" in info:
-        example = info.get("default")
-    if example is not None:
+    example = _concrete_value(info)
+    if example is not _MISSING:
         return f'"{example}"' if ptype == "string" else str(example)
     if ptype == "string":
         return '"..."'
@@ -191,9 +205,7 @@ def _has_examples(input_schema: JsonDict) -> bool:
     required = input_schema.get("required")
     required_names = set(required) if isinstance(required, list) else set()
     return any(
-        name in required_names
-        and isinstance(info, dict)
-        and (info.get("examples") or "default" in info)
+        name in required_names and isinstance(info, dict) and _concrete_value(info) is not _MISSING
         for name, info in properties.items()
     )
 
