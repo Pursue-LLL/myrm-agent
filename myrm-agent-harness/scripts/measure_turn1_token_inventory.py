@@ -31,7 +31,7 @@ sys.path.insert(0, str(_repo_root))
 from myrm_agent_harness.utils.text_utils import PLANNING_ENCODING, get_token_count  # noqa: E402
 from myrm_agent_harness.utils.token_estimation import (  # noqa: E402
     SCHEMA_WRAPPER_TOKENS_PER_TOOL,
-    estimate_bound_tools_tokens,
+    estimate_tool_descriptions_tokens,
 )
 
 if TYPE_CHECKING:
@@ -149,7 +149,7 @@ async def measure_turn1_inventory() -> dict[str, object]:
     tool_count = len(tools)
     description_total = sum(int(row["tokens"]) for row in per_tool)
     schema_wrappers = tool_count * SCHEMA_WRAPPER_TOKENS_PER_TOOL
-    tools_subtotal = estimate_bound_tools_tokens(tools)
+    tools_subtotal = estimate_tool_descriptions_tokens(tools)
 
     return {
         "encoding": ENCODING_NAME,

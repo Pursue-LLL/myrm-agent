@@ -10,7 +10,7 @@
 - estimate_content_tokens(): 估算单条 message content 的 token 数
 - estimate_message_tokens(): 估算单条完整 message 的 token 数
 - estimate_messages_tokens(): 估算 message 列表总 token 数
-- estimate_bound_tools_tokens(): Turn-1 bind_tools description + schema wrapper overhead
+- estimate_tool_descriptions_tokens(): Turn-1 inventory approximation (descriptions + wrapper)
 - estimate_request_tools_tokens(): Live ModelRequest tools overhead（含参数 schema）
 - estimate_context_tokens(): messages + bind-tools overhead，可选 max(provider prompt_tokens)
 - tool_input_schema(): tool 的 JSON Schema（原生 dict 原样返回，Pydantic 走 model_json_schema）
@@ -151,7 +151,7 @@ def estimate_tools_schema_tokens(tools: Sequence[object]) -> int:
     return sum(estimate_tool_schema_tokens(tool) for tool in tools)
 
 
-def estimate_bound_tools_tokens(tools: Sequence[BaseTool]) -> int:
+def estimate_tool_descriptions_tokens(tools: Sequence[BaseTool]) -> int:
     """Estimate bind_tools overhead: tool descriptions + JSON schema wrapper budget.
 
     Matches ``scripts/measure_turn1_token_inventory.py`` (description + wrapper only;
@@ -166,9 +166,8 @@ def estimate_bound_tools_tokens(tools: Sequence[BaseTool]) -> int:
 def estimate_request_tools_tokens(tools: Sequence[object]) -> int:
     """Estimate the live request's tool overhead, including the parameter schema.
 
-    The UI labels these rows as "… tools schema"; description-only estimates were an
-    order of magnitude short on real agents (6.2k vs 12.1k for 16 tools), so the
-    breakdown and the pre-first-call compact budget must use the full wire schema.
+    The context breakdown labels these rows as "… tools schema", so the number covers
+    the same name+description+parameters payload the provider receives.
     """
     if not tools:
         return 0

@@ -7,12 +7,12 @@ from langchain_core.tools import StructuredTool
 
 from myrm_agent_harness.utils.token_estimation import (
     SCHEMA_WRAPPER_TOKENS_PER_TOOL,
-    estimate_bound_tools_tokens,
     estimate_content_tokens,
     estimate_context_tokens,
     estimate_message_tokens,
     estimate_messages_tokens,
     estimate_request_tools_tokens,
+    estimate_tool_descriptions_tokens,
     estimate_tool_schema_tokens,
 )
 
@@ -233,22 +233,22 @@ class TestEstimateContextTokens:
     def test_bound_tools_wrapper_budget(self) -> None:
         tool = MagicMock()
         tool.description = "demo tool"
-        assert estimate_bound_tools_tokens([tool]) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
+        assert estimate_tool_descriptions_tokens([tool]) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
 
     def test_bound_tools_empty_returns_zero(self) -> None:
-        assert estimate_bound_tools_tokens([]) == 0
+        assert estimate_tool_descriptions_tokens([]) == 0
 
     def test_bound_tools_without_description(self) -> None:
         tool = MagicMock()
         tool.description = None
-        assert estimate_bound_tools_tokens([tool]) == SCHEMA_WRAPPER_TOKENS_PER_TOOL
+        assert estimate_tool_descriptions_tokens([tool]) == SCHEMA_WRAPPER_TOKENS_PER_TOOL
 
 
 class TestEstimateRequestToolsTokens:
     """``estimate_request_tools_tokens`` feeds the GUI breakdown and compress preflight.
 
-    The GUI labels these rows as "… tools schema", so the estimate must include the
-    parameter schema; description-only numbers under-reported real agents by ~2x.
+    The GUI labels these rows as "… tools schema", so the estimate covers the
+    name+description+parameters payload the provider receives.
     """
 
     def test_empty_returns_zero(self) -> None:
@@ -292,3 +292,25 @@ class TestEstimateRequestToolsTokens:
             }
         }
         assert estimate_request_tools_tokens([rich]) > estimate_request_tools_tokens([minimal])
+
+
+class TestToolSchemaBudget:
+    def test_large_tool_schema_is_included_in_context_budget(self) -> None:
+        """A 12k tool surface must not be hidden by a small message list."""
+        messages: list[BaseMessage] = [HumanMessage(content="x")]
+        estimated = estimate_context_tokens(messages, bound_tool_overhead_tokens=12_000)
+        assert estimated > 12_000
+
+    def test_schema_estimate_is_not_description_only(self) -> None:
+        tool = {
+            "function": {
+                "name": "f",
+                "description": "short",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"q": {"type": "string", "description": "detail " * 60}},
+                },
+            }
+        }
+        description_only = SCHEMA_WRAPPER_TOKENS_PER_TOOL
+        assert estimate_request_tools_tokens([tool]) > description_only
