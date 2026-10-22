@@ -8,6 +8,8 @@ verifier round does.
 
 from __future__ import annotations
 
+import os
+
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -32,6 +34,12 @@ from myrm_agent_harness.toolkits.code_execution.sandbox import detect_sandbox_pr
 
 _requires_os_sandbox = pytest.mark.skipif(
     not detect_sandbox_provider()[1].enabled, reason="OS-level workspace read-only needs a sandbox provider"
+)
+
+# A real OS sandbox owns machine-wide state, so several workers cannot each build one at once.
+_serial_only = pytest.mark.skipif(
+    os.environ.get("PYTEST_XDIST_WORKER") is not None,
+    reason="drives a real OS sandbox, which cannot be built concurrently by xdist workers",
 )
 
 
@@ -154,6 +162,7 @@ async def test_verifier_shell_cannot_modify_the_workspace(command: str, workspac
 
 
 @_requires_os_sandbox
+@_serial_only
 async def test_verifier_shell_can_keep_scratch_output_outside_the_workspace(
     workspace: Path, storage_root: Path, tmp_path: Path
 ) -> None:

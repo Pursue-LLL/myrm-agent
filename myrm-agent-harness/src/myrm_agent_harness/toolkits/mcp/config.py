@@ -142,6 +142,21 @@ class MCPConfig(BaseModel):
             "as concurrency-unsafe even if readOnlyHint is set."
         ),
     )
+    cache_ttl_seconds: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Session-scoped result-cache TTL for this server's explicitly cacheable read-only tools. "
+            "None keeps the built-in readOnlyHint default; 0 disables caching; positive values cap it."
+        ),
+    )
+    cacheable_tools: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Explicit allowlist of tool names that may be cached when the server omits readOnlyHint. "
+            "Only list stable read-only tools; never list writes or volatile ticket/status queries."
+        ),
+    )
     connect_timeout: float = Field(
         default=15.0,
         ge=1.0,
@@ -324,6 +339,8 @@ def mcp_config_to_runtime_dict(cfg: object) -> dict[str, object]:
         "tool_include": getattr(cfg, "tool_include", None),
         "tool_exclude": getattr(cfg, "tool_exclude", None),
         "host_serial": getattr(cfg, "host_serial", False),
+        "cache_ttl_seconds": getattr(cfg, "cache_ttl_seconds", None),
+        "cacheable_tools": getattr(cfg, "cacheable_tools", None),
         "connect_timeout": getattr(cfg, "connect_timeout", 15.0),
         "execute_timeout": getattr(cfg, "execute_timeout", 120.0),
         "keepalive_interval": getattr(cfg, "keepalive_interval", None),

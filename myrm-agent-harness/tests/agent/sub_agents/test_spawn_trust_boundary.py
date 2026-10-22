@@ -189,6 +189,10 @@ async def test_malformed_context_file_is_dropped_instead_of_failing_the_spawn(wo
     assert not _allowed(handle, _WRITE, "/etc/hosts")
 
 
+@pytest.mark.skipif(
+    os.environ.get("PYTEST_XDIST_WORKER") is not None,
+    reason="the lone surrogate it builds cannot be serialized back from an xdist worker",
+)
 def test_unencodable_context_file_is_dropped_when_deriving_the_handle(workspace: Path) -> None:
     handle = derive_spawn_capability(
         parent_agent=_make_parent(workspace),

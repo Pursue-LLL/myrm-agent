@@ -4,7 +4,7 @@
 IPC Server 内部使用此服务处理子进程的 MCP 工具调用请求。
 
 特性：
-- 相同参数的调用会被缓存 10 分钟，避免重复调用浪费资源
+- 相同参数的只读调用按 60 秒会话缓存；写操作不缓存
 - 提供 handle_mcp_invoke() 函数供 IPC Proxy 和自定义集成使用
 
 [INPUT]
@@ -31,6 +31,10 @@ import logging
 import time
 from typing import TYPE_CHECKING, TypedDict
 
+from myrm_agent_harness.agent.skills.mcp.cache_policy import (
+    CacheBuckets,
+    resolve_cache_ttl,
+)
 from myrm_agent_harness.core.security.detection.content_boundary import (
     extract_wrapped_payload,
 )
@@ -42,15 +46,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.mcp import MCPConfig
 
 logger = logging.getLogger(__name__)
-
-READ_ONLY_CACHE_TTL_SECONDS = 60
-"""Session-scoped cache lifetime for ``readOnlyHint`` tools.
-
-Short by design: the cache absorbs repeated identical lookups inside one script,
-it does not memoize across a conversation. A longer TTL makes status polling
-return stale data and lets one tenant observe another tenant's result. Mutating
-tools never enter this cache.
-"""
 
 
 def _resolve_mcp_input_schema(
@@ -105,16 +100,18 @@ class MCPSkillProxyService:
     - 工具查找（按服务器名+工具名匹配）
     - 工具调用
     - 结果解析
-    - 相同参数的调用缓存（10 分钟有效期）
+    - 相同参数的只读调用按 60 秒会话缓存（可由 server 配置调整/关闭）
     """
 
     def __init__(self) -> None:
         """初始化代理服务"""
-        self._cache: LRUCache[object] = LRUCache(
-            maxsize=1000,
-            ttl=READ_ONLY_CACHE_TTL_SECONDS,
-            id="mcp_skill_readonly_cache",
-        )
+        self._cache_buckets = CacheBuckets()
+        # Backwards-compatible access for existing tests/tools that clear the
+        # default read-only bucket directly.
+        self._cache = self._cache_buckets.default
+
+    def _cache_for_ttl(self, ttl: int) -> LRUCache[object]:
+        return self._cache_buckets.get(ttl)
 
     def _make_cache_key(
         self,
@@ -210,9 +207,14 @@ class MCPSkillProxyService:
         cleaned_params = prepare_mcp_call_arguments(params, input_schema)
 
         cache_key: str | None = None
-        if self._is_read_only_tool(skill_name, matched_for_schema):
+        cache_ttl = resolve_cache_ttl(
+            skill_meta_for_schema,
+            matched_for_schema,
+            is_read_only=self._is_read_only_tool(skill_name, matched_for_schema),
+        )
+        if cache_ttl is not None:
             cache_key = self._make_cache_key(session_id, skill_name, matched_for_schema, cleaned_params)
-            cached_result = self._cache.get(cache_key)
+            cached_result = self._cache_for_ttl(cache_ttl).get(cache_key)
             if cached_result is not None:
                 logger.debug(f"{log_prefix} Read-only cache hit: {skill_name}.{tool_name}")
                 return cached_result
@@ -224,8 +226,8 @@ class MCPSkillProxyService:
         result = await self._invoke_from_registry(skill_name, tool_name, cleaned_params)
         elapsed_ms = (time.monotonic() - t0) * 1000
 
-        if cache_key is not None:
-            self._cache.set(cache_key, result)
+        if cache_key is not None and cache_ttl is not None:
+            self._cache_for_ttl(cache_ttl).set(cache_key, result)
 
         logger.info(f"{log_prefix} MCP {skill_name}.{tool_name} completed in {elapsed_ms:.0f}ms")
         return result

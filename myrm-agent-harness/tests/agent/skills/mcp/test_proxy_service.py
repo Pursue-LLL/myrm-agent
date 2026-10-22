@@ -146,6 +146,76 @@ class TestMCPSkillProxyServiceInvoke:
         assert mock_conn.call.await_count == 2
 
     @pytest.mark.asyncio
+    async def test_explicit_cacheable_tool_caches_without_read_only_hint(self, mcp_skill_meta: SkillMetadata) -> None:
+        """Servers that omit readOnlyHint can opt stable tools into the cache explicitly."""
+        service = MCPSkillProxyService()
+        assert mcp_skill_meta.mcp is not None
+        mcp_skill_meta.mcp.config = [
+            {
+                "name": "test-server",
+                "type": "stdio",
+                "command": "echo",
+                "cacheable_tools": ["ping"],
+            }
+        ]
+        skill_registry.register(mcp_skill_meta)
+
+        mock_conn = MagicMock()
+        mock_conn.call = AsyncMock(return_value=({"type": "text", "text": "pong"}, None))
+        mock_manager = MagicMock()
+        mock_manager.get_connection = AsyncMock(return_value=mock_conn)
+
+        with patch(
+            "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
+            AsyncMock(return_value=mock_manager),
+        ):
+            first = await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+            second = await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+
+        assert first == second == "pong"
+        assert mock_conn.call.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_zero_cache_ttl_disables_read_only_cache(self, mcp_skill_meta: SkillMetadata) -> None:
+        """An explicit TTL of zero must disable even readOnlyHint caching."""
+        from myrm_agent_harness.core.security.tool_registry.registry import (
+            register_ptc_safety_metadata,
+        )
+        from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
+
+        service = MCPSkillProxyService()
+        assert mcp_skill_meta.mcp is not None
+        mcp_skill_meta.mcp.config = [
+            {
+                "name": "test-server",
+                "type": "stdio",
+                "command": "echo",
+                "cache_ttl_seconds": 0,
+            }
+        ]
+        skill_registry.register(mcp_skill_meta)
+        register_ptc_safety_metadata(
+            "mcp_test_skill",
+            "ping",
+            SafetyMetadata(is_read_only=True),
+            {"readOnlyHint": True},
+        )
+
+        mock_conn = MagicMock()
+        mock_conn.call = AsyncMock(return_value=({"type": "text", "text": "pong"}, None))
+        mock_manager = MagicMock()
+        mock_manager.get_connection = AsyncMock(return_value=mock_conn)
+
+        with patch(
+            "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
+            AsyncMock(return_value=mock_manager),
+        ):
+            await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+            await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+
+        assert mock_conn.call.await_count == 2
+
+    @pytest.mark.asyncio
     async def test_read_only_tool_is_cached_per_session(self, mcp_skill_meta: SkillMetadata) -> None:
         """readOnlyHint tools may be memoized, but only inside their own session."""
         from myrm_agent_harness.core.security.tool_registry.registry import (

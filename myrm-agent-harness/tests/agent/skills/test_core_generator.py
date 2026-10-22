@@ -28,7 +28,10 @@ from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
     tool_section_budget,
     truncate_to_sentence,
 )
-from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import TOOL_DOC_TEMPLATE, render_signature
+from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
+    build_returns_section,
+    render_signature,
+)
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.utils.text_utils import get_token_count
 
@@ -121,16 +124,26 @@ def large_skill_meta() -> SkillMetadata:
 
 
 class TestToolDocTemplate:
-    """TOOL_DOC_TEMPLATE must inform agents about return value format."""
+    """Rendered L3 docs must inform agents about return value format."""
 
     def test_contains_returns_section(self) -> None:
-        assert "## Returns" in TOOL_DOC_TEMPLATE
+        assert "## Returns" in build_returns_section(None)
 
     def test_warns_against_json_loads(self) -> None:
-        assert "json.loads()" in TOOL_DOC_TEMPLATE
+        assert "json.loads()" in build_returns_section(None)
 
     def test_states_python_object_return(self) -> None:
-        assert "parsed Python object" in TOOL_DOC_TEMPLATE
+        assert "parsed Python object" in build_returns_section(None)
+
+    def test_concrete_output_schema_is_rendered(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"result": {"type": "array", "items": {"type": "string"}}},
+            "required": ["result"],
+        }
+        section = build_returns_section(schema)
+        assert "object{result:array<string>}" in section
+        assert "parsed Python object" in section
 
 
 class TestSkillUsageTemplate:
@@ -372,24 +385,25 @@ class TestGenerateSkillContent:
 
 
 class TestToolDocImportExample:
-    """Tool doc (Level 3) should include import path and call example."""
+    """L3 should not fabricate an import/call example without real MCP examples."""
 
-    def test_import_example_present(self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata) -> None:
+    def test_import_example_absent_without_examples(
+        self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata
+    ) -> None:
         doc = generator.generate_tool_doc(sample_skill_meta, "get-tickets")
-        assert "from skills." in doc
-        assert "import get_tickets" in doc
-        assert "from skills." in doc and " import " in doc
+        assert "## Import & Call Example" not in doc
+        assert '"..."' not in doc
 
     def test_import_warning_present(self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata) -> None:
         doc = generator.generate_tool_doc(sample_skill_meta, "get-tickets")
         assert "Do NOT call" in doc
         assert "json.loads()" in doc
 
-    def test_call_example_has_required_params(
+    def test_no_fake_call_example(
         self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata
     ) -> None:
         doc = generator.generate_tool_doc(sample_skill_meta, "get-tickets")
-        assert "date=" in doc
+        assert "result = await get_tickets(" not in doc
 
 
 class TestBuildCallExample:

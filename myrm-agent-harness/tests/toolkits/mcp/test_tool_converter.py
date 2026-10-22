@@ -21,11 +21,13 @@ def _make_mcp_tool(
     name: str,
     description: str = "test tool",
     input_schema: dict[str, Any] | None = None,
+    output_schema: dict[str, Any] | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         name=name,
         description=description,
         input_schema=input_schema or {"type": "object", "properties": {}},
+        output_schema=output_schema,
     )
 
 
@@ -56,6 +58,23 @@ def test_convert_preserves_order():
     mcp_tools = [_make_mcp_tool(f"tool_{i}") for i in range(5)]
     lc_tools = convert_mcp_tools(mcp_tools, noop)
     assert [t.name for t in lc_tools] == [f"tool_{i}" for i in range(5)]
+
+
+def test_convert_preserves_output_schema_for_l3():
+    async def noop(name: str, args: dict[str, Any]) -> SimpleNamespace:
+        return SimpleNamespace(content=[])
+
+    output_schema = {
+        "type": "object",
+        "properties": {"temperature": {"type": "number"}},
+        "required": ["temperature"],
+    }
+    tools = convert_mcp_tools(
+        [_make_mcp_tool("weather", output_schema=output_schema)],
+        noop,
+        server_name="test",
+    )
+    assert tools[0].metadata["mcp_output_schema"] == output_schema
 
 
 def test_convert_tool_with_args_schema():

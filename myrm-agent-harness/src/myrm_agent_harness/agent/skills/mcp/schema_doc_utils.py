@@ -126,8 +126,10 @@ _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def _render_value(info: JsonDict, ptype: str) -> str:
-    """Render a placeholder value for a parameter in a call example."""
+    """Render a concrete example/default value for a parameter, or a typed placeholder."""
     example = info.get("examples", [None])[0] if info.get("examples") else None
+    if example is None and "default" in info:
+        example = info.get("default")
     if example is not None:
         return f'"{example}"' if ptype == "string" else str(example)
     if ptype == "string":
@@ -174,18 +176,23 @@ def build_call_example(input_schema: JsonDict) -> str:
 
 
 def _has_examples(input_schema: JsonDict) -> bool:
-    """Return True when at least one parameter carries a concrete example/default.
+    """Return True when a required parameter carries a concrete example/default.
 
     Without either, a generated call example can only contain placeholders such as
     ``"..."``. Those placeholders are not executable and add no domain knowledge, so
-    the L3 example section is omitted instead of presenting a fake call.
+    the L3 example section is omitted instead of presenting a fake call. Optional
+    defaults do not help: the example only renders required parameters.
     """
     properties = input_schema.get("properties") if isinstance(input_schema, dict) else None
     if not isinstance(properties, dict):
         return False
+    required = input_schema.get("required")
+    required_names = set(required) if isinstance(required, list) else set()
     return any(
-        isinstance(info, dict) and (info.get("examples") or "default" in info)
-        for info in properties.values()
+        name in required_names
+        and isinstance(info, dict)
+        and (info.get("examples") or "default" in info)
+        for name, info in properties.items()
     )
 
 
@@ -286,8 +293,8 @@ def build_returns_section(output_schema: object) -> str:
     return (
         "## Returns\n\n"
         "Returns a **parsed Python object** (dict, list, str, int, etc.), NOT a JSON string.\n"
-        "Do NOT call `json.loads()` on the result. If the return structure is not specified, "
-        "print it as `[OBSERVATION]` first and continue in a later call."
+        "Do NOT call `json.loads()` on the result. Only access fields explicitly documented above; "
+        "if the return structure is not specified, print it as `[OBSERVATION]` first and continue in a later call."
     )
 
 

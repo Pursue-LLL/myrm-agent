@@ -75,6 +75,29 @@ class TestGenerateSkillContent:
         assert "Import every function you call before awaiting it." in out
         assert "get_temp" in out
 
+    def test_output_schema_adds_concrete_return_type(self) -> None:
+        schemas = {
+            "get_temp": {
+                "description": "Get temperature",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"city": {"type": "string"}},
+                    "required": ["city"],
+                },
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "temperature": {"type": "number"},
+                        "conditions": {"type": "string"},
+                    },
+                    "required": ["temperature", "conditions"],
+                },
+            }
+        }
+        meta = _skill_meta("weather", ["get_temp"], schemas=schemas)
+        out = mcp_skill_generator.generate_skill_content(meta)
+        assert "get_temp(*, city:string) -> object{temperature:number,conditions:string}" in out
+
     def test_many_tools_embed_calling_contract(self) -> None:
         tools = [f"func_{i}" for i in range(5)]
         meta = _skill_meta("weather", tools)
@@ -146,10 +169,41 @@ class TestGenerateToolDoc:
         meta = _skill_meta("weather", ["get_temp"], schemas=schema)
         out = mcp_skill_generator.generate_tool_doc(meta, "get_temp")
         assert "get_temp" in out
-        assert "weather" in out
         assert "City name" in out
+        assert "Import & Call Example" not in out
         assert meta.mcp is not None
         assert "get_temp" in meta.mcp.tool_docs
+
+    def test_tool_doc_uses_real_example_and_output_schema(self) -> None:
+        schema: dict[str, dict[str, object]] = {
+            "get_temp": {
+                "description": "Get temperature",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "City name",
+                            "examples": ["Shanghai"],
+                        }
+                    },
+                    "required": ["city"],
+                },
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "temperature": {"type": "number"},
+                        "conditions": {"type": "string"},
+                    },
+                    "required": ["temperature", "conditions"],
+                },
+            }
+        }
+        meta = _skill_meta("weather", ["get_temp"], schemas=schema)
+        out = mcp_skill_generator.generate_tool_doc(meta, "get_temp")
+        assert "## Import & Call Example" in out
+        assert 'city="Shanghai"' in out
+        assert "object{temperature:number,conditions:string}" in out
 
 
 class TestNaming:

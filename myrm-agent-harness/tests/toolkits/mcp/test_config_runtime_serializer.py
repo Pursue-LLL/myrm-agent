@@ -22,6 +22,22 @@ def test_stdio_defaults_are_serialized() -> None:
     assert runtime["execute_timeout"] == 120.0
     assert runtime["max_output_chars"] == 100_000
     assert runtime["host_serial"] is False
+    assert runtime["cache_ttl_seconds"] is None
+    assert runtime["cacheable_tools"] == []
+
+
+def test_cache_policy_is_serialized() -> None:
+    runtime = mcp_config_to_runtime_dict(
+        MCPConfig(
+            name="files",
+            command="npx",
+            cache_ttl_seconds=30,
+            cacheable_tools=["get_current_date", "list_stations"],
+        )
+    )
+
+    assert runtime["cache_ttl_seconds"] == 30
+    assert runtime["cacheable_tools"] == ["get_current_date", "list_stations"]
 
 
 def test_http_tls_filters_and_callbacks_are_preserved() -> None:

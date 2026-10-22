@@ -106,6 +106,10 @@ def convert_mcp_tools(
 
         captured_name = tool_name
         captured_schema = input_schema
+        output_schema = getattr(tool, "output_schema", None)
+        metadata: dict[str, object] = {}
+        if isinstance(output_schema, dict) and output_schema:
+            metadata["mcp_output_schema"] = output_schema
 
         def _make_invoker(
             invoke_name: str = captured_name,
@@ -129,6 +133,7 @@ def convert_mcp_tools(
             args_schema=input_schema,
             coroutine=_make_invoker(),
             response_format="content",
+            metadata=metadata,
         )
         result.append(lc_tool)
 

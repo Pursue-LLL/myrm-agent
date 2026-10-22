@@ -11,7 +11,9 @@ from types import SimpleNamespace
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     TOOL_DOC_TEMPLATE,
     build_call_example,
+    build_call_example_section,
     build_params_section,
+    build_returns_section,
     extract_schema_constraints,
     normalize_input_schema,
 )
@@ -172,11 +174,29 @@ class TestNormalizeInputSchema:
 
 class TestToolDocTemplateRendering:
     def test_renders_call_example(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"query": {"type": "string", "examples": ["hello"]}},
+            "required": ["query"],
+        }
         rendered = TOOL_DOC_TEMPLATE.format(
             tool_name="search",
             skill_name="demo_skill",
             tool_desc="Search.",
             params_section="## Parameters\n\nNo parameters required.",
-            call_example='query="..."',
+            returns_section=build_returns_section(None),
+            call_example_section=build_call_example_section("demo_skill", "search", input_schema),
         )
-        assert 'result = await search(query="...")' in rendered
+        assert 'result = await search(query="hello")' in rendered
+        assert "## Import & Call Example" in rendered
+
+    def test_omits_fake_call_example_without_examples(self) -> None:
+        rendered = TOOL_DOC_TEMPLATE.format(
+            tool_name="search",
+            skill_name="demo_skill",
+            tool_desc="Search.",
+            params_section="## Parameters\n\nNo parameters required.",
+            returns_section=build_returns_section(None),
+            call_example_section=build_call_example_section("demo_skill", "search", {}),
+        )
+        assert "## Import & Call Example" not in rendered

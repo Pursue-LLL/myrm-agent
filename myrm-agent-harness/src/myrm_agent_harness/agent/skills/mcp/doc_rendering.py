@@ -25,6 +25,7 @@ from typing import Literal
 
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     normalize_input_schema,
+    render_output_type,
     render_signature,
 )
 from myrm_agent_harness.agent.skills.mcp.tool_name_utils import build_tool_name_map
@@ -172,10 +173,13 @@ def render_tool_tier(
         signature = render_signature(
             func_name, normalize_input_schema(schema.get("inputSchema")), required_only=tier == "required"
         )
+        output_schema = schema.get("outputSchema")
+        if isinstance(output_schema, dict) and output_schema:
+            signature = f"{signature} -> {render_output_type(output_schema)}"
         line = f"- {signature} — {desc}" if desc else f"- {signature}"
         if get_token_count(line) > SIGNATURE_TOKENS_PER_TOOL:
             pointer = f"/mcp/{skill_name}/{func_name}.md" if skill_name else "the function doc"
-            line = f"- {func_name}(…) — {desc or 'no description'}（参数见 {pointer}）"
+            line = f"- {func_name}(…) -> ? — {desc or 'no description'}（参数见 {pointer}）"
         lines.append(line)
 
     return "\n".join(lines)

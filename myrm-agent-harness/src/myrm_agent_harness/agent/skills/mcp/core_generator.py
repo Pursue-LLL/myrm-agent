@@ -35,8 +35,9 @@ from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
 )
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     TOOL_DOC_TEMPLATE,
-    build_call_example,
+    build_call_example_section,
     build_params_section,
+    build_returns_section,
     normalize_input_schema,
 )
 from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
@@ -289,14 +290,17 @@ class MCPSkillGenerator:
         input_schema = normalize_input_schema(schema.get("inputSchema"))
         params_section = build_params_section(input_schema)
         python_func_name = build_tool_name_map(skill_meta.mcp.tools if skill_meta.mcp else [])[tool_name]
-        call_example = build_call_example(input_schema)
+        output_schema = schema.get("outputSchema")
+        returns_section = build_returns_section(output_schema)
+        call_example_section = build_call_example_section(skill_meta.name, python_func_name, input_schema)
 
         return TOOL_DOC_TEMPLATE.format(
             tool_name=python_func_name,
             skill_name=skill_meta.name,
             tool_desc=tool_desc,
             params_section=params_section,
-            call_example=call_example,
+            returns_section=returns_section,
+            call_example_section=call_example_section,
         )
 
     def _create_skill_metadata(
@@ -333,10 +337,15 @@ class MCPSkillGenerator:
 
         tool_schemas: dict[str, dict[str, object]] = {}
         for tool in tools:
-            tool_schemas[tool.name] = {
+            metadata = getattr(tool, "metadata", {}) or {}
+            output_schema = metadata.get("mcp_output_schema") if isinstance(metadata, dict) else None
+            entry: dict[str, object] = {
                 "description": tool.description,
                 "inputSchema": getattr(tool, "args_schema", None),
             }
+            if isinstance(output_schema, dict) and output_schema:
+                entry["outputSchema"] = output_schema
+            tool_schemas[tool.name] = entry
 
         tool_schemas["__instructions__"] = {"content": instructions or ""}
 

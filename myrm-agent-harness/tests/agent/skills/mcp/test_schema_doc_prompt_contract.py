@@ -3,25 +3,35 @@
 from __future__ import annotations
 
 from myrm_agent_harness.agent.skills.mcp.core_generator import SKILL_USAGE_TEMPLATE
-from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import TOOL_DOC_TEMPLATE
+from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
+    TOOL_DOC_TEMPLATE,
+    build_call_example_section,
+    build_returns_section,
+)
 
 
 def test_function_example_awaits_async_mcp_proxy() -> None:
+    input_schema = {
+        "type": "object",
+        "properties": {"query": {"type": "string", "examples": ["hello"]}},
+        "required": ["query"],
+    }
     rendered = TOOL_DOC_TEMPLATE.format(
         tool_name="search",
         skill_name="demo_skill",
         tool_desc="Search records.",
         params_section="## Parameters\n\nNo parameters required.",
-        call_example="",
+        returns_section=build_returns_section(None),
+        call_example_section=build_call_example_section("demo_skill", "search", input_schema),
     )
 
-    assert "result = await search()" in rendered
-    assert "result = search()" not in rendered
+    assert 'result = await search(query="hello")' in rendered
+    assert "result = search(" not in rendered
 
 
 def test_mcp_prompts_distinguish_parsed_values_from_known_fields() -> None:
     assert "only access fields explicitly documented" in SKILL_USAGE_TEMPLATE
-    assert "Only access fields explicitly documented" in TOOL_DOC_TEMPLATE
+    assert "Only access fields explicitly documented" in build_returns_section(None)
     assert "do NOT `json.loads()`" in SKILL_USAGE_TEMPLATE
 
 
