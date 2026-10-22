@@ -122,6 +122,14 @@
     "지속되면 VPN/프록시 연결 안정성을 확인하세요",
     "기업 TLS 검사 환경에서는 설정 → 시스템 → 고급에서 '기업 네트워크 호환 모드'를 활성화하세요"
   ],
-  "cooldown_hint_single": " {seconds}초 후에 다시 시도하세요.",
-  "cooldown_hint_plural": " {seconds}초 후에 다시 시도하세요."
+  "cooldown_hint_template": " {duration} 후에 다시 시도하세요.",
+  "cooldown_hint_joiner": " ",
+  "cooldown_hint_second_one": "{n}초",
+  "cooldown_hint_second_other": "{n}초",
+  "cooldown_hint_minute_one": "{n}분",
+  "cooldown_hint_minute_other": "{n}분",
+  "cooldown_hint_hour_one": "{n}시간",
+  "cooldown_hint_hour_other": "{n}시간",
+  "cooldown_hint_day_one": "{n}일",
+  "cooldown_hint_day_other": "{n}일"
 }

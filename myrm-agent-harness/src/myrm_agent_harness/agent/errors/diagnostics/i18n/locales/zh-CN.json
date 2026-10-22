@@ -127,6 +127,14 @@
     "若持续出现，请检查 VPN/代理连接稳定性",
     "若处于企业 TLS 检测环境，请在 设置 → 系统 → 高级 中启用「企业网络兼容模式」"
   ],
-  "cooldown_hint_single": " 请等待{seconds}秒后重试。",
-  "cooldown_hint_plural": " 请等待{seconds}秒后重试。"
+  "cooldown_hint_template": " 请等待{duration}后重试。",
+  "cooldown_hint_joiner": "",
+  "cooldown_hint_second_one": "{n}秒",
+  "cooldown_hint_second_other": "{n}秒",
+  "cooldown_hint_minute_one": "{n}分钟",
+  "cooldown_hint_minute_other": "{n}分钟",
+  "cooldown_hint_hour_one": "{n}小时",
+  "cooldown_hint_hour_other": "{n}小时",
+  "cooldown_hint_day_one": "{n}天",
+  "cooldown_hint_day_other": "{n}天"
 }

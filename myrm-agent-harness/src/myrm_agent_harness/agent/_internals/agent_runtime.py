@@ -97,13 +97,15 @@ from ._agent_helpers import (
     reset_all_guards,
     schedule_post_run_idle_tasks,
 )
+from .context_budget import (
+    compute_context_budget_snapshot,
+    resolve_context_budget_breakdown,
+)
 from .resume_addressing import address_resume_to_pending
 from .run_lifecycle import (
     cleanup_run,
     collect_tracker_stats,
-    compute_context_budget_snapshot,
     post_run_events,
-    resolve_context_budget_breakdown,
 )
 from .skill_catalog_turn import deliver_bound_skills_catalog, sync_bound_skills_for_resume
 from .turn_history import resolve_turn_history, resumed_turn_facts

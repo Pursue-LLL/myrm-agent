@@ -73,7 +73,7 @@ class DefaultForgettingStrategy:
     """Default skill forgetting strategy with curator-aware checks.
 
     Evaluation order:
-    1. Pinned / evolution-locked check — exempt from all automated transitions
+    1. Pinned check — exempt from all automated transitions
     2. Grace period — recently discovered skills are exempt (configurable days)
     3. Already archived — skip (terminal state for auto-transitions)
     4. Archive promotion — stale skill past archive threshold
@@ -84,6 +84,10 @@ class DefaultForgettingStrategy:
     - Configurable thresholds via CuratorConfig
     - No database dependency
     - Framework-layer logic only
+
+    Only ``pinned`` exempts a skill here. ``evolution_locked`` guards automated
+    *rewriting* of a skill's content; it is not a statement that the skill should be kept
+    forever, so a locked skill is evaluated and transitioned exactly like an unlocked one.
     """
 
     def __init__(self, config: CuratorConfig | None = None) -> None:
@@ -97,8 +101,8 @@ class DefaultForgettingStrategy:
         """Check if a skill should transition lifecycle state."""
         stats = skill.usage_stats
 
-        # 1. Pinned or evolution-locked skills are exempt from all automated transitions
-        if stats.pinned or skill.evolution_locked:
+        # 1. Pinned skills are exempt from all automated transitions
+        if stats.pinned:
             return None
 
         # 2. Grace period — recently discovered skills are exempt

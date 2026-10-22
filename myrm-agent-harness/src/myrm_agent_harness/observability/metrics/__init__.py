@@ -15,6 +15,7 @@ Submodules:
 - agent_metrics — Agent execution monitoring (TTFA, tool execution)
 - goal_metrics — Goal lifecycle monitoring (created, completed, budget_limited, duration, tokens, cost)
 - circuit_breaker_metrics — Circuit breaker state and failure monitoring
+- provider_window_metrics — Provider rate-limit window extraction outcome (drift alarm)
 - db_pool_collector — Database connection pool metrics collector
 - security_metrics — Security policy denial and action monitoring
 

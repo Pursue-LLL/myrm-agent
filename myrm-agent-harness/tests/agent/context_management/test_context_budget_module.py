@@ -268,7 +268,7 @@ class TestResolveContextBudgetMetadata:
 class TestResolveContextBudgetBreakdownFineGrained:
     @pytest.mark.asyncio
     async def test_fine_grained_breakdown_with_merged_context(self) -> None:
-        from myrm_agent_harness.agent._internals.run_lifecycle import (
+        from myrm_agent_harness.agent._internals.context_budget import (
             resolve_context_budget_breakdown,
         )
 
@@ -306,3 +306,27 @@ class TestResolveContextBudgetBreakdownFineGrained:
         assert result["workspace_rules_tokens"] > 0
         assert result["other_tokens"] >= 0
 
+    @pytest.mark.asyncio
+    async def test_dict_tool_name_is_categorized(self) -> None:
+        from myrm_agent_harness.agent._internals.context_budget import (
+            resolve_context_budget_breakdown,
+        )
+
+        tools = [
+            {
+                "function": {
+                    "name": "mcp__fetch_data",
+                    "description": "Fetch data from an MCP server",
+                    "parameters": {"type": "object", "properties": {}},
+                }
+            }
+        ]
+        result = await resolve_context_budget_breakdown(
+            checkpointer=None,
+            thread_id="dict_tool_thread",
+            cached_tools=tools,
+            provider_prompt_tokens=1000,
+            merged_context=None,
+        )
+        assert result["mcp_tools_tokens"] > 0
+        assert result["bound_tools_overhead_tokens"] == result["mcp_tools_tokens"]

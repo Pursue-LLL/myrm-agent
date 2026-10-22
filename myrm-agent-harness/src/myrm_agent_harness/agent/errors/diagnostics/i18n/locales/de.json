@@ -122,6 +122,14 @@
     "Bei Fortbestehen VPN-/Proxy-Verbindungsstabilität prüfen",
     "Hinter Enterprise-TLS-Inspektion den 'Enterprise-Netzwerk-Kompatibilitätsmodus' unter Einstellungen → System → Erweitert aktivieren"
   ],
-  "cooldown_hint_single": " Versuchen Sie es nach {seconds} Sekunde erneut.",
-  "cooldown_hint_plural": " Versuchen Sie es nach {seconds} Sekunden erneut."
+  "cooldown_hint_template": " Versuchen Sie es in {duration} erneut.",
+  "cooldown_hint_joiner": " ",
+  "cooldown_hint_second_one": "{n} Sekunde",
+  "cooldown_hint_second_other": "{n} Sekunden",
+  "cooldown_hint_minute_one": "{n} Minute",
+  "cooldown_hint_minute_other": "{n} Minuten",
+  "cooldown_hint_hour_one": "{n} Stunde",
+  "cooldown_hint_hour_other": "{n} Stunden",
+  "cooldown_hint_day_one": "{n} Tag",
+  "cooldown_hint_day_other": "{n} Tage"
 }

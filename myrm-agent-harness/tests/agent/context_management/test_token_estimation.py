@@ -14,6 +14,7 @@ from myrm_agent_harness.utils.token_estimation import (
     estimate_request_tools_tokens,
     estimate_tool_descriptions_tokens,
     estimate_tool_schema_tokens,
+    tool_input_schema,
 )
 
 
@@ -314,3 +315,16 @@ class TestToolSchemaBudget:
         }
         description_only = SCHEMA_WRAPPER_TOKENS_PER_TOOL
         assert estimate_request_tools_tokens([tool]) > description_only
+
+
+class TestToolInputSchemaBranches:
+    def test_native_dict_schema_is_used_verbatim(self) -> None:
+        tool = MagicMock()
+        tool.args_schema = {"type": "object", "properties": {"q": {"type": "string"}}}
+        assert tool_input_schema(tool) == tool.args_schema
+
+    def test_malformed_tool_returns_empty_schema(self) -> None:
+        tool = MagicMock()
+        tool.args_schema = None
+        tool.get_input_schema.side_effect = RuntimeError("boom")
+        assert tool_input_schema(tool) == {}

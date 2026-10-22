@@ -1,5 +1,8 @@
 """Verifier orchestration signal — session-scoped structured verdict handoff.
 
+[INPUT]
+- .catalog::SUBMIT_VERDICT_SIGNAL (POS: SSOT for control-plane signal names)
+
 [OUTPUT]
 - SUBMIT_VERDICT_SIGNAL: signal name constant
 - create_submit_verdict_tool(): factory returning session-scoped LangChain tool
@@ -12,14 +15,14 @@ and default GeneralAgent Turn1 bind.
 
 from __future__ import annotations
 
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 
 from .catalog import SUBMIT_VERDICT_SIGNAL
 
 SUBMIT_VERDICT_SIGNAL_NAME = SUBMIT_VERDICT_SIGNAL
 
 
-def create_submit_verdict_tool(context: dict[str, object]) -> object:
+def create_submit_verdict_tool(context: dict[str, object]) -> BaseTool:
     """Create a session-scoped submit_verdict tool writing into *context*."""
     from myrm_agent_harness.agent.sub_agents._verification_parsing import VerificationVerdict
 

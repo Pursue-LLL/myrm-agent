@@ -8,12 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.agent._internals.context_budget import (
+    compute_context_budget_snapshot,
+    resolve_context_budget_breakdown,
+)
 from myrm_agent_harness.agent._internals.run_lifecycle import (
     cleanup_run,
     collect_tracker_stats,
-    compute_context_budget_snapshot,
     post_run_events,
-    resolve_context_budget_breakdown,
     setup_workspace,
 )
 from myrm_agent_harness.agent.streaming.types import AgentEventType

@@ -55,7 +55,9 @@ logger = logging.getLogger(__name__)
 class IdleTaskHandler(Protocol):
     """Handler for one idle task type; returns the result payload published with the completion event."""
 
-    async def __call__(self, task: IdleTaskRecord, session_id: str) -> dict[str, object]: ...
+    async def __call__(
+        self, task: IdleTaskRecord, session_id: str
+    ) -> dict[str, object]: ...
 
 
 class ContextCompactionHandler(Protocol):
@@ -87,7 +89,9 @@ _MAX_TASKS_PER_IDLE_WINDOW = 8
 DEFERRED_RETRY_SECONDS = 60.0
 
 
-async def run_pending_idle_tasks(session_id: str, registry: IdleTaskRegistry) -> float | None:
+async def run_pending_idle_tasks(
+    session_id: str, registry: IdleTaskRegistry
+) -> float | None:
     """Drain the session's pending idle tasks, stopping on the first deferral or an empty queue.
 
     Returns:
@@ -135,7 +139,9 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
         return False
 
     # 1. Request capacity
-    ticket_or_denial = await scheduler.request_capacity(task_type=MaintenanceTaskType.CONTEXT_COMPACTION)
+    ticket_or_denial = await scheduler.request_capacity(
+        task_type=MaintenanceTaskType.CONTEXT_COMPACTION
+    )
 
     if isinstance(ticket_or_denial, CapacityDenial):
         logger.info(
@@ -191,21 +197,29 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                             )
                         )
 
-                        result = await consolidator.run_consolidation(pause_signal=pause_signal)
+                        result = await consolidator.run_consolidation(
+                            pause_signal=pause_signal
+                        )
 
                         if result.errors and not result.skipped:
                             raise RuntimeError(f"Consolidation errors: {result.errors}")
 
                         event_data = result.to_dict()
                     else:
-                        logger.warning("MemoryManager not available. Simulating idle task.")
+                        logger.warning(
+                            "MemoryManager not available. Simulating idle task."
+                        )
                         await asyncio.sleep(5)
                         event_data = {"simulated": True}
                 elif task.task_type == "cognitive_subsumption":
                     # Knowledge subsumption (erasing redundant text memories when a Skill is learned)
                     memory_manager = get_memory_manager()
                     new_knowledge = task.payload.get("new_knowledge")
-                    if memory_manager and isinstance(new_knowledge, str) and new_knowledge:
+                    if (
+                        memory_manager
+                        and isinstance(new_knowledge, str)
+                        and new_knowledge
+                    ):
                         from myrm_agent_harness.toolkits.memory.strategies.subsumption import (
                             apply_subsumption,
                             find_subsumed_memories,
@@ -213,7 +227,9 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
 
                         llm_func = memory_manager._consolidation_llm
                         if not llm_func:
-                            logger.warning("No consolidation_llm configured in MemoryManager. Subsumption skipped.")
+                            logger.warning(
+                                "No consolidation_llm configured in MemoryManager. Subsumption skipped."
+                            )
                             event_data = {
                                 "skipped": True,
                                 "reason": "No consolidation_llm configured",
@@ -237,7 +253,9 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
 
                             deleted_count = 0
                             if subsumed_ids:
-                                deleted_count = await apply_subsumption(memory_manager, subsumed_ids)
+                                deleted_count = await apply_subsumption(
+                                    memory_manager, subsumed_ids
+                                )
 
                             event_data = {
                                 "subsumed_count": deleted_count,
@@ -251,7 +269,10 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                                         status="notification",
                                         task_name=task.task_type,
                                         progress_pct=100,
-                                        data={"count": deleted_count, "subsumed_ids": subsumed_ids},
+                                        data={
+                                            "count": deleted_count,
+                                            "subsumed_ids": subsumed_ids,
+                                        },
                                     )
                                 )
                     else:
@@ -260,9 +281,13 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                             "reason": "No MemoryManager or no usable new_knowledge",
                         }
                 elif task.task_type == "context_compaction":
-                    event_data = await _run_context_compaction(session_id, task, event_bus)
+                    event_data = await _run_context_compaction(
+                        session_id, task, event_bus
+                    )
                 else:
-                    logger.warning(f"Unknown task type or no handler registered for: {task.task_type}")
+                    logger.warning(
+                        f"Unknown task type or no handler registered for: {task.task_type}"
+                    )
                     await asyncio.sleep(1)
                     event_data = {"unhandled": True}
 
@@ -277,7 +302,11 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
         # 4. A handler cut short by foreground activity keeps its task for the next idle window
         if event_data.get("interrupted_by_pause") is True:
             await registry.requeue(task.id)
-            logger.info("Idle task %s interrupted by foreground activity; requeued for session %s", task.id, session_id)
+            logger.info(
+                "Idle task %s interrupted by foreground activity; requeued for session %s",
+                task.id,
+                session_id,
+            )
             return True
 
         # 5. Mark as complete and emit event
@@ -292,7 +321,9 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
                 data=event_data,
             )
         )
-        logger.info("Idle task %s completed successfully for session %s", task.id, session_id)
+        logger.info(
+            "Idle task %s completed successfully for session %s", task.id, session_id
+        )
 
     except asyncio.CancelledError:
         # A newer turn replaced this idle window; keep the unfinished task for the next one.
@@ -307,7 +338,11 @@ async def default_idle_callback(session_id: str, registry: IdleTaskRegistry) -> 
             exc_info=True,
         )
         await registry.mark_error(task.id)
-        event_bus.publish(IdleTaskProgressEvent(session_id=session_id, status="error", task_name=task.task_type))
+        event_bus.publish(
+            IdleTaskProgressEvent(
+                session_id=session_id, status="error", task_name=task.task_type
+            )
+        )
     finally:
         # 6. Must release capacity and reset UI to purely idle
         await scheduler.release_capacity(ticket)
@@ -329,7 +364,9 @@ async def _run_context_compaction(
     """
     chat_id = task.payload.get("chat_id")
     if not isinstance(chat_id, str) or not chat_id:
-        logger.info("context_compaction skipped: no chat_id in payload (session %s)", session_id)
+        logger.info(
+            "context_compaction skipped: no chat_id in payload (session %s)", session_id
+        )
         return {"skipped": True, "reason": "no chat_id"}
 
     event_bus.publish(
@@ -352,6 +389,8 @@ async def _run_context_compaction(
                 "Business layer should register via register_context_compaction_handler()."
             )
     except Exception as e:
-        logger.error("context_compaction error for chat %s: %s", chat_id, e, exc_info=True)
+        logger.error(
+            "context_compaction error for chat %s: %s", chat_id, e, exc_info=True
+        )
 
     return {"compacted": compacted, "chat_id": chat_id}

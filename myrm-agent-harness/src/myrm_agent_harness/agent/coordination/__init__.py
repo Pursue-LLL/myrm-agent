@@ -1,5 +1,13 @@
-"""Subagent coordination primitives (teammate mailbox)."""
-
+from .adaptive_wakeup import (
+    AdaptiveWakeupRouter,
+    HostActivityState,
+    RoutingDecision,
+    WakeupBudgetState,
+    WakeupBudgetTracker,
+    WakeupChannel,
+    WakeupEvent,
+    WakeupSourceType,
+)
 from .mailbox import (
     TeammateMailbox,
     drain_teammate_messages_for_task,
@@ -16,9 +24,17 @@ from .mailbox import (
 from .types import TeammateMessage, TeammateSendResult
 
 __all__ = [
+    "AdaptiveWakeupRouter",
+    "HostActivityState",
+    "RoutingDecision",
     "TeammateMailbox",
     "TeammateMessage",
     "TeammateSendResult",
+    "WakeupBudgetState",
+    "WakeupBudgetTracker",
+    "WakeupChannel",
+    "WakeupEvent",
+    "WakeupSourceType",
     "drain_teammate_messages_for_task",
     "emit_teammate_message_sse",
     "format_roster_prompt",
@@ -30,3 +46,4 @@ __all__ = [
     "register_active_teammate",
     "unregister_active_teammate",
 ]
+

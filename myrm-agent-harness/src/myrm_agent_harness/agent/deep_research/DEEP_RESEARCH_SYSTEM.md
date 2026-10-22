@@ -45,6 +45,13 @@ DeepResearchOrchestrator (orchestrator.py)
 
 ---
 
+## 报告上下文装配
+
+- 研究循环内，orchestrator 的 `ToolMessage` 至多携带 `ORCHESTRATOR_RESULT_CHAR_LIMIT` 个字符的 research 结果（超出部分截断）；消息总量超出预算时，较早的 `ToolMessage` 被压缩为首行摘要（≤180 字符，`compact_orch_messages`）。
+- 完整结果保存在 `DeepResearchResult.agent_results`，REPORT 阶段由 `helpers.format_research_context` 按完成先后顺序（并行 agent 完成即追加）编号拼接（`## Research Task N: <task>`）。总长超过 `max_report_context_chars` 时从最后完成的结果向前保留，装不下的次新结果在剩余预算足够时被截断并追加截断标记（否则直接丢弃），更早的结果被丢弃。
+
+---
+
 ## 与 meta_tools/clarification 边界
 
 - **deep_research/** — 多阶段研究产品流程
