@@ -35,7 +35,7 @@ from myrm_agent_harness.core.security.detection.content_boundary import (
 )
 from myrm_agent_harness.utils.text_utils import get_token_count
 from myrm_agent_harness.utils.token_estimation import (
-    estimate_bound_tools_tokens,
+    estimate_tool_descriptions_tokens,
 )
 
 
@@ -49,7 +49,7 @@ class TestPromptTokenBudgetGate:
         from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
 
         tools = await _build_default_turn1_tools()
-        tools_subtotal = estimate_bound_tools_tokens(tools)
+        tools_subtotal = estimate_tool_descriptions_tokens(tools)
 
         # Baseline is ~5,304 description tokens + 13*65 (845) wrapper = ~6,149 tokens
         # (macOS arm64 host; ~6,123 on Linux where the bash OS hint is shorter).
