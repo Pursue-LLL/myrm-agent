@@ -39,9 +39,10 @@ pub fn is_self_process(process_name: &str, exe_or_cmd: &str) -> bool {
         return true;
     }
 
-    // 2. 匹配 python/node 二进制且路径/命令行包含 myrm 相关工作区、脚本或资源目录
+    // 2. 匹配 python/node/next-server 运行时，且路径/命令行/工作目录包含 myrm 相关内容
     let is_script_runtime = lower_name.contains("python")
         || lower_name.contains("node")
+        || lower_name.contains("next-server")
         || lower_name.ends_with("/python")
         || lower_name.ends_with("/node");
 
@@ -49,12 +50,22 @@ pub fn is_self_process(process_name: &str, exe_or_cmd: &str) -> bool {
         && (lower_path.contains("myrm")
             || lower_path.contains("standalone")
             || lower_path.contains("server.js")
-            || lower_path.contains("run.py"))
+            || lower_path.contains("run.py")
+            || lower_path.contains("resources/frontend"))
     {
         return true;
     }
 
-    // 3. 命令行本身包含核心标志
+    // 3. Next.js 会把进程标题改写成 "next-server (...)"，argv 也被覆盖，
+    //    只能靠工作目录识别：桌面内置前端的 cwd 一定在 MyrmAgent.app 资源目录下。
+    if lower_path.contains("myrmagent.app")
+        || lower_path.contains("resources/frontend")
+        || lower_path.contains("myrm-agent-frontend")
+    {
+        return true;
+    }
+
+    // 4. 命令行本身包含核心标志
     if lower_path.contains("myrmagent") || lower_path.contains("myrm-agent") {
         return true;
     }
@@ -130,27 +141,52 @@ fn find_process_occupying_port(port: u16) -> Option<(u32, String, String)> {
 #[cfg(not(target_os = "windows"))]
 fn find_process_occupying_port(port: u16) -> Option<(u32, String, String)> {
     use std::process::Command;
-    let output = Command::new("lsof")
-        .args(["-iTCP", &format!(":{}", port), "-sTCP:LISTEN", "-t"])
+    // GUI 启动的进程 PATH 很短，lsof/ps 可能不在 PATH 里；macOS 用绝对路径兜底。
+    #[cfg(target_os = "macos")]
+    let lsof_bin = "/usr/sbin/lsof";
+    #[cfg(not(target_os = "macos"))]
+    let lsof_bin = "lsof";
+    #[cfg(target_os = "macos")]
+    let ps_bin = "/bin/ps";
+    #[cfg(not(target_os = "macos"))]
+    let ps_bin = "ps";
+    // lsof 要求「-iTCP:<port>」写成一个参数；拆成 "-iTCP" ":port" 会被当成文件名，
+    // 导致查询失败、进程识别不到自己人，孤儿进程永远收不回来。
+    let output = Command::new(lsof_bin)
+        .args([&format!("-iTCP:{}", port), "-sTCP:LISTEN", "-t"])
         .output()
         .ok()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let pid_str = stdout.lines().next()?.trim();
     let pid = pid_str.parse::<u32>().ok()?;
 
-    let name_out = Command::new("ps")
+    let name_out = Command::new(ps_bin)
         .args(["-p", &pid.to_string(), "-o", "comm="])
         .output()
         .ok()?;
     let proc_name = String::from_utf8_lossy(&name_out.stdout).trim().to_string();
 
-    let args_out = Command::new("ps")
+    let args_out = Command::new(ps_bin)
         .args(["-p", &pid.to_string(), "-o", "args="])
         .output()
         .ok()?;
     let full_args = String::from_utf8_lossy(&args_out.stdout).trim().to_string();
 
-    Some((pid, proc_name, full_args))
+    // Next.js 会重写进程标题与 argv，命令行里看不到 server.js；
+    // 工作目录（cwd）仍指向桌面内置前端资源目录，用它来识别「自己人」。
+    let cwd_out = Command::new(lsof_bin)
+        .args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"])
+        .output()
+        .ok()?;
+    let cwd = String::from_utf8_lossy(&cwd_out.stdout)
+        .lines()
+        .find_map(|line| line.strip_prefix('n'))
+        .unwrap_or_default()
+        .to_string();
+
+    let identity = format!("{} {}", full_args, cwd);
+
+    Some((pid, proc_name, identity))
 }
 
 /// 诊断并自愈端口冲突（带防误杀三道防线与 TCP 释放确认）

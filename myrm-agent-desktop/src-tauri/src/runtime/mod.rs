@@ -16,6 +16,7 @@
 
 mod appshot;
 mod inline_input;
+pub mod child_reaper;
 pub mod nextjs_frontend;
 pub mod port;
 pub mod process_registry;

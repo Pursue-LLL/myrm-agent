@@ -265,6 +265,7 @@ pub async fn start_backend_with_config(
         .map_err(|e| format!("Failed to start backend: {}", e))?;
 
     let child_pid = child.id();
+    crate::runtime::child_reaper::record_child(&app, "backend", child_pid);
     if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
         registry
             .register_spawn(

@@ -123,11 +123,22 @@ pub async fn start_frontend(
     println!("🔗 API proxy to localhost:{}", config.api_port);
 
     super::suppress_console_window(&mut cmd);
-    let child = cmd
+    let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start frontend: {}", e))?;
 
     let child_pid = child.id();
+    crate::runtime::child_reaper::record_child(&app, "frontend", child_pid);
+
+    // 只有「我们自己的子进程真的在服务」才算前端就绪：端口可能在我们 spawn 的瞬间被
+    // 别的进程抢走（bind 探测有竞态窗口），此时 HTTP 探测会命中别人的服务，
+    // 页面就会加载出与本应用不匹配的残缺界面。
+    let ready = wait_for_http_ready(&config.host, config.port, &mut child, 45).await;
+    if let Err(e) = ready {
+        let _ = child.kill();
+        return Err(e);
+    }
+
     if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
         registry
             .register_spawn(
@@ -175,5 +186,41 @@ pub fn stop_frontend(
         }
     } else {
         Ok("Frontend is not running".to_string())
+    }
+}
+
+/// 等待我们自己拉起的 Next standalone 真正开始服务 HTTP。
+///
+/// 返回 Err 表示：子进程已退出，或超时仍未就绪——两种情况都不能让主窗口导航过去。
+async fn wait_for_http_ready(
+    host: &str,
+    port: u16,
+    child: &mut std::process::Child,
+    timeout_sec: u64,
+) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| format!("Failed to build frontend health client: {}", e))?;
+    let url = format!("http://{}:{}/", host, port);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_sec);
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            return Err(format!(
+                "Frontend process exited before serving (status: {}). Another service may own port {}.",
+                status,
+                port
+            ));
+        }
+        if client.get(&url).send().await.map(|r| r.status().is_success()).unwrap_or(false) {
+            return Ok(());
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(format!(
+                "Frontend did not become ready on {}:{} within {}s.",
+                host, port, timeout_sec
+            ));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     }
 }

@@ -144,6 +144,9 @@ impl Default for SystemConfig {
     }
 }
 
+/// 桌面内置 Next 的固定端口：与本机开发栈的 3000 隔离，避免 WebView 加载到别人的服务。
+pub const DESKTOP_FRONTEND_PORT: u16 = 13000;
+
 /// 后端启动配置
 #[derive(Clone, Debug)]
 pub struct BackendConfig {
@@ -155,29 +158,22 @@ pub struct BackendConfig {
 }
 
 impl BackendConfig {
-    /// 从系统配置创建后端配置
+    /// 从系统配置创建后端配置。
+    ///
+    /// 桌面端自带的前端是构建期固定代理到 `127.0.0.1:8080` 的 Next standalone，
+    /// 因此桌面托管的后端**始终**监听 8080；`enable_webui_mode` 只决定是否对外可达
+    /// （远程访问时绑定 0.0.0.0），不再切换端口——否则前端会指向一个没有后端的端口。
     pub fn from_system_config(config: &SystemConfig) -> Self {
-        if config.enable_webui_mode {
-            Self {
-                port: config.api_port,
-                host: if config.enable_remote_access {
-                    "0.0.0.0".to_string()
-                } else {
-                    "127.0.0.1".to_string()
-                },
-                webui_mode: true,
-                remote_mode: config.enable_remote_access,
-                custom_data_dir: config.custom_data_dir.clone(),
-            }
-        } else {
-            // Desktop 模式默认配置
-            Self {
-                port: 8080,
-                host: "127.0.0.1".to_string(),
-                webui_mode: false,
-                remote_mode: false,
-                custom_data_dir: config.custom_data_dir.clone(),
-            }
+        Self {
+            port: 8080,
+            host: if config.enable_webui_mode && config.enable_remote_access {
+                "0.0.0.0".to_string()
+            } else {
+                "127.0.0.1".to_string()
+            },
+            webui_mode: config.enable_webui_mode,
+            remote_mode: config.enable_webui_mode && config.enable_remote_access,
+            custom_data_dir: config.custom_data_dir.clone(),
         }
     }
 }
@@ -191,11 +187,19 @@ pub struct FrontendConfig {
 }
 
 impl FrontendConfig {
-    /// 从系统配置创建前端配置
+    /// 从系统配置创建前端配置。
+    ///
+    /// 桌面内置的 Next 使用**独立端口**（默认 13000），避免和本机开发栈的 3000 抢端口——
+    /// 抢到时 WebView 会加载到别人的半成品页面，表现为「只有按钮、界面是乱的」。
+    /// 只有 WebUI 模式（要用浏览器访问）才使用配置里的 `webui_port`。
     pub fn from_system_config(config: &SystemConfig) -> Self {
         let backend = BackendConfig::from_system_config(config);
         Self {
-            port: config.webui_port,
+            port: if config.enable_webui_mode {
+                config.webui_port
+            } else {
+                DESKTOP_FRONTEND_PORT
+            },
             host: if config.enable_remote_access {
                 "0.0.0.0".to_string()
             } else {
@@ -360,7 +364,7 @@ mod tests {
         };
 
         let frontend = FrontendConfig::from_system_config(&sys);
-        assert_eq!(frontend.port, 4000);
+        assert_eq!(frontend.port, DESKTOP_FRONTEND_PORT);
         assert_eq!(frontend.host, "127.0.0.1");
         assert_eq!(frontend.api_port, 8080);
     }
@@ -376,6 +380,7 @@ mod tests {
 
         let frontend = FrontendConfig::from_system_config(&sys);
         assert_eq!(frontend.port, 4000);
-        assert_eq!(frontend.api_port, 8888);
+        // 桌面托管后端固定 8080，与内置前端的构建期代理目标一致。
+        assert_eq!(frontend.api_port, 8080);
     }
 }
