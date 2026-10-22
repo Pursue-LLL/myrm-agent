@@ -6,15 +6,12 @@
 [OUTPUT]
 - extract_schema_constraints: Formats JSON Schema constraints as markdown documentation lines.
 - build_params_section: Builds full parameters documentation section from JSON Schema.
-- build_call_example: Generates a minimal call string from required parameters.
-- build_call_example_section: Emits the L3 import/call example only for real required examples.
+- build_call_example / build_call_example_section: Minimal calls, emitted only for real examples.
 - render_signature / render_type / render_constraint: Compact one-line signatures for L2.
-- render_output_type / build_returns_section: Recursive MCP outputSchema return rendering.
-- TOOL_DOC_TEMPLATE: Template for single tool documentation (Level 3).
+- render_output_type / build_returns_section / TOOL_DOC_TEMPLATE: Return rendering and L3 template.
 
 [POS]
-Extracts and renders JSON Schema constraint fields (pattern, enum, default, format, min/max, etc.)
-into human-readable markdown, enabling Agent LLMs to generate correct MCP tool arguments on first try.
+Extracts and renders JSON Schema constraints and output types as markdown for correct MCP arguments.
 """
 
 from __future__ import annotations
