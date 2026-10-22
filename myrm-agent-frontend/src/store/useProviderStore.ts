@@ -107,12 +107,25 @@ interface ProviderState {
   getEnabledModels: () => Array<{ providerId: string; providerName: string; model: string }>;
 }
 
+/**
+ * Whether the server's provider config has been loaded.
+ *
+ * Until it has, the store only holds the built-in seed (every provider disabled). Writing that back would
+ * replace the server's real configuration — the enabled providers and the default model would be wiped — so
+ * the write-back waits for the loaded state.
+ */
+let providersHydrated = false;
+
 function syncToManager(
   providers: ProviderConfig[],
   defaultModelConfig: DefaultModelConfig,
   customModelInfo: Record<string, CustomModelInfo>,
 ): void {
   const value = normalizeProviders({ providers, defaultModelConfig, customModelInfo });
+  if (!providersHydrated) {
+    console.warn('[ProviderStore] Provider config is not loaded yet; skipping server sync.');
+    return;
+  }
   getConfigSyncManager().set('providers', value);
 }
 
@@ -154,6 +167,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
           isInitialized: true,
           initError: null,
         });
+        providersHydrated = true;
       } else if (manager.status === 'offline') {
         set({
           providers: getInitialProviders(),
@@ -170,6 +184,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
               initError: null,
             });
             isStoreInitialized = true;
+            providersHydrated = true;
           });
           providersSubscribeRegistered = true;
         }
@@ -180,6 +195,8 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         });
         return;
       } else {
+        // The server has no provider config at all (fresh instance): the seed IS the current state, so the
+        // first provider configuration has to be allowed to reach the server.
         set({
           providers: getInitialProviders(),
           defaultModelConfig: getInitialDefaultModelConfig(),
@@ -187,6 +204,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
           isInitialized: true,
           initError: null,
         });
+        providersHydrated = true;
       }
 
       if (!providersSubscribeRegistered) {
@@ -211,6 +229,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   retryInit: async () => {
     isStoreInitialized = false;
+    providersHydrated = false;
     set({ isInitialized: false, initError: null });
     await get().initProviders();
   },

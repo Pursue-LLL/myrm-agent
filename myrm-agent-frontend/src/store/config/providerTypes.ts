@@ -336,10 +336,31 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
 };
 
 // 获取 LiteLLM 模型全名
+/**
+ * Resolve the LiteLLM route segment for a provider row.
+ *
+ * Built-in ids carry an explicit generated mapping. A custom provider id has no mapping, so the row's
+ * providerType decides the route: legacy rows store a bare provider id there (e.g. `openai` for an
+ * OpenAI-compatible gateway). Without this the caller would build `custom-id/model`, a route LiteLLM does
+ * not know, and every request would fail with "LLM Provider NOT provided".
+ */
+function resolveLiteLLMRoutePrefix(providerId: string, providerType?: string): string {
+  const mapped = PROVIDER_TO_LITELLM_PREFIX[providerId];
+  if (mapped) {
+    return mapped;
+  }
+  if (providerType && KNOWN_LITELLM_ROUTE_PREFIXES.includes(providerType)) {
+    return providerType;
+  }
+  return providerId;
+}
+
 export const getLiteLLMModelName = (
   providerId: string,
   modelName: string,
-  providerType?: CustomProviderType,
+  // Legacy rows store a bare provider id here (e.g. "openai"), so the value is wider than the custom
+  // provider types while literal autocomplete still works.
+  providerType?: CustomProviderType | (string & {}),
 ): string => {
   const normalizedModelName = modelName.toLowerCase();
   if (providerId === 'vercel_ai_gateway') {
@@ -355,18 +376,21 @@ export const getLiteLLMModelName = (
     }
   }
 
+  // Keep the raw value: a legacy row stores a bare provider id here (e.g. "openai"), which is exactly the
+  // LiteLLM route segment the row needs.
+  const rawProviderType = providerType;
   if (providerType && !CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
     // 如果 providerType 不是自定义类型，则忽略它，使用 providerId
     providerType = undefined;
   }
-  if (providerType) {
-    const typeInfo = CUSTOM_PROVIDER_TYPE_INFO[providerType];
+  if (providerType && CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
+    const typeInfo = CUSTOM_PROVIDER_TYPE_INFO[providerType as CustomProviderType];
     if (normalizedModelName.startsWith(`${typeInfo.litellmPrefix}/`)) {
       return modelName;
     }
     return `${typeInfo.litellmPrefix}/${modelName}`;
   }
-  const prefix = PROVIDER_TO_LITELLM_PREFIX[providerId] || providerId;
+  const prefix = resolveLiteLLMRoutePrefix(providerId, rawProviderType);
   if (normalizedModelName.startsWith(`${prefix}/`)) {
     return modelName;
   }
