@@ -58,7 +58,7 @@ def _reply(tmp_path: Path, *media: MediaAttachment) -> OutboundMessage:
     )
 
 
-async def _attach_handoff(result: OutboundMessage, chat_id: str, msg: InboundMessage) -> OutboundMessage:
+async def _attach_handoff(result: OutboundMessage, msg: InboundMessage) -> OutboundMessage:
     return dataclasses.replace(result, components=result.components + ((_HANDOFF_BUTTON,),))
 
 

@@ -56,7 +56,6 @@ async def test_attach_web_handoff_resolves_db_uuid() -> None:
 
     patched = await RouterExecutionMixin._attach_web_handoff(
         result,
-        "integration-test-peer-42",
         inbound,
     )
 
@@ -100,7 +99,7 @@ async def test_attach_web_handoff_resolves_a_topic_scoped_chat() -> None:
         thread_id="100",
     )
 
-    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1007770001", inbound)
+    patched = await RouterExecutionMixin._attach_web_handoff(result, inbound)
 
     assert patched.components, "a topic-scoped chat must still get the handoff button"
     assert chat.id in patched.components[-1][0].url
@@ -128,7 +127,7 @@ async def test_attach_web_handoff_ignores_a_longer_peer_with_the_same_prefix() -
         thread_id="100",
     )
 
-    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1008881", inbound)
+    patched = await RouterExecutionMixin._attach_web_handoff(result, inbound)
 
     assert not patched.components, "a different group must not borrow another chat's handoff"
 
@@ -160,7 +159,6 @@ async def test_attach_web_handoff_preserves_existing_components() -> None:
 
     patched = await RouterExecutionMixin._attach_web_handoff(
         result,
-        "preserve-test-peer",
         inbound,
     )
 
@@ -185,7 +183,6 @@ async def test_attach_web_handoff_no_chat_returns_unchanged() -> None:
 
     patched = await RouterExecutionMixin._attach_web_handoff(
         result,
-        "unknown-peer-999",
         inbound,
     )
 
@@ -218,7 +215,6 @@ async def test_attach_web_handoff_graceful_on_exception(monkeypatch: pytest.Monk
 
     patched = await RouterExecutionMixin._attach_web_handoff(
         result,
-        "crash-peer",
         inbound,
     )
 
@@ -248,7 +244,6 @@ async def test_web_channel_skips_handoff() -> None:
     if inbound.channel != "web":
         patched = await RouterExecutionMixin._attach_web_handoff(
             result,
-            "web-test-peer",
             inbound,
         )
     else:

@@ -258,7 +258,7 @@ class RouterExecutionMixin:
 
         if result:
             if msg.channel != "web":
-                result = await self._attach_web_handoff(result, chat_id, msg)
+                result = await self._attach_web_handoff(result, msg)
             result = await maybe_tts(result, inbound_had_voice, self._voice)
             result = with_final_notify(result)
 
@@ -551,15 +551,13 @@ class RouterExecutionMixin:
     @staticmethod
     async def _attach_web_handoff(
         result: OutboundMessage,
-        chat_id: str,
         msg: InboundMessage,
     ) -> OutboundMessage:
         """Append a SECONDARY "Continue in browser" button for IM channel replies.
 
-        ``chat_id`` here is the IM peer_id, not the database Chat UUID.
-        We resolve the DB UUID via ``channel_session_key`` so the deep link
-        points to a valid ``/{chatUUID}`` frontend route.
-        Failures are swallowed so the main reply is never blocked.
+        The Chat row is resolved from ``msg`` (channel, peer and forum topic), so the deep link
+        points to a valid ``/{chatUUID}`` frontend route. Failures are swallowed so the main
+        reply is never blocked.
         """
         try:
             from app.core.channel_bridge.agent_executor.session import (

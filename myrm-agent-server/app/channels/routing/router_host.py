@@ -273,6 +273,5 @@ class RouterExecutionHost(Protocol):
     async def _attach_web_handoff(
         self,
         result: OutboundMessage,
-        chat_id: str,
         msg: InboundMessage,
     ) -> OutboundMessage: ...

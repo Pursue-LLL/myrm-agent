@@ -40,9 +40,18 @@ def test_agent_router_keeps_its_composed_methods() -> None:
     )
 
 
-def test_router_state_key_lives_at_module_level() -> None:
-    """The chat lookup helper belongs to the module, not to a mixin's class body."""
-    from app.channels.routing import router_execution
+def test_prefix_lookup_lives_on_chat_service() -> None:
+    """The prefix lookup belongs to ChatService, so both router and goal code share it."""
+    from app.services.chat.chat_service import ChatService
 
-    assert callable(router_execution._newest_channel_chat_under)
-    assert not hasattr(router_execution.RouterExecutionMixin, "_newest_channel_chat_under")
+    assert callable(ChatService.get_newest_channel_chat_under)
+
+
+def test_web_handoff_takes_only_the_message() -> None:
+    """``_attach_web_handoff`` resolves the Chat row from ``msg``; a peer argument would be dead."""
+    import inspect
+
+    from app.channels.routing.router import AgentRouter
+
+    params = list(inspect.signature(AgentRouter._attach_web_handoff).parameters)
+    assert params == ["result", "msg"], params
