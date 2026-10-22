@@ -57,6 +57,7 @@ SKILL_USAGE_TEMPLATE = """
 ## Calling
 
 Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
+Args: **always call with keyword arguments** — `func(param=value)`; positional calls are rejected by the runtime.
 Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 
 Run ONE `bash_code_execute_tool` per task: `await` every needed call, then emit one `[RESULT]`. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a return shape is undocumented, emit `[OBSERVATION]` first and continue next call.

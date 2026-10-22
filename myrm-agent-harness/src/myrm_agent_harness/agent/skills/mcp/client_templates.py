@@ -166,7 +166,11 @@ class _SkillFunction:
     def __init__(self, skill: str, func: str):
         self._skill, self._func = skill, func
 
-    async def __call__(self, **kwargs):
+    async def __call__(self, *args, **kwargs):
+        if args:
+            raise TypeError(
+                f"MCP functions are keyword-only; call {self._func}(param=value), not positional arguments"
+            )
         # The identifier is already the map-assigned Python name; the proxy resolves it
         # back to the canonical MCP tool with the same per-skill map.
         return await _call(self._skill, self._func, kwargs)

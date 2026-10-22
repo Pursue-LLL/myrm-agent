@@ -245,6 +245,81 @@ def _frontend_tcp_port_listening(host: str, port: int) -> bool:
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
+def tcp_port_owner_pid(port: int) -> int | None:
+    """The pid LISTENing on a TCP port (lsof is the port-truth SSOT)."""
+    try:
+        result = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        candidate = line.strip()
+        if candidate.isdigit():
+            return int(candidate)
+    return None
+
+
+def backend_port_owner_is_dev_backend(*, port: int | None = None) -> bool:
+    """Whether the backend port is served by the dev backend process.
+
+    The desktop app's bundled server also listens on the backend port and answers health checks
+    with 200 while serving a different database. The dev stack refuses to reclaim a foreign port
+    owner (it must not kill processes it does not own), so a lane that only asks "is the API up?"
+    silently runs against the wrong backend and fails for reasons that have nothing to do with the
+    test. The dev backend is the process whose command carries the backend token, the same token
+    the dev stack uses to recognise its own backend.
+    """
+    backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
+    owner = tcp_port_owner_pid(backend_port)
+    if owner is None:
+        # Nothing is listening: the crash-heal path owns that case.
+        return True
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(owner), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    command = (result.stdout or "").strip()
+    if not command:
+        return True
+    return "run.py" in command
+
+
+def foreign_backend_port_owner_description(*, port: int | None = None) -> str:
+    """Human-readable description of a foreign backend port owner (empty when it is the dev one)."""
+    backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
+    if backend_port_owner_is_dev_backend(port=backend_port):
+        return ""
+    owner = tcp_port_owner_pid(backend_port)
+    command = ""
+    if owner is not None:
+        try:
+            result = subprocess.run(
+                ["ps", "-p", str(owner), "-o", "command="],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            command = (result.stdout or "").strip()[:160]
+        except (OSError, subprocess.TimeoutExpired):
+            command = ""
+    return f":{backend_port} is served by pid {owner} ({command or 'unknown command'})"
+
+
+
 def _ui_probe_host_port(ui_base: str) -> tuple[str, int]:
     parsed = urlparse(ui_base)
     host = parsed.hostname or "127.0.0.1"
@@ -574,7 +649,9 @@ def _frontend_next_dir(frontend_dir: Path) -> Path:
     if override:
         path = Path(override)
         return path if path.is_absolute() else frontend_dir / override
-    return frontend_dir / ".next"
+    # The dev server writes to .next-dev (next.config.ts): a production build clears .next
+    # and would take the running dev server's chunks with it.
+    return frontend_dir / ".next-dev"
 
 
 def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | None:

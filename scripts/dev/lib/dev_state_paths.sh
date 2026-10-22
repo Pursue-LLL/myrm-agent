@@ -174,7 +174,10 @@ resolve_myrm_next_dist_dir() {
     echo ".next-isolated-${runtime_ns}"
     return 0
   fi
-  echo "${explicit:-.next}"
+  # The dev server writes to .next-dev: `next build` clears the dist dir, and sharing one
+  # directory means a production build deletes the running dev server's chunks (the page
+  # then serves HTML whose scripts 404 and never hydrates).
+  echo "${explicit:-.next-dev}"
 }
 
 export_myrm_next_dist_dir() {

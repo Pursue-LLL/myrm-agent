@@ -91,7 +91,24 @@ def _open_share_dialog_js(chat_id: str) -> str:
   }}
   const href = {json.dumps(f"/{chat_id}")};
   const row = document.querySelector(`a[href="${{href}}"]`);
-  if (!row) return {{ ready: false, reason: 'no-row', href }};
+  if (!row) {{
+    const store = window.__myrmChatStore;
+    const state = store ? store.getState() : null;
+    return {{
+      ready: false,
+      reason: 'no-row',
+      href,
+      width: window.innerWidth,
+      asides: document.querySelectorAll('aside').length,
+      links: document.querySelectorAll('a[href]').length,
+      sidebarLinks: Array.from(document.querySelectorAll('aside a[href]')).slice(0, 8).map((a) => a.getAttribute('href')),
+      historyCount: state ? state.chatHistoryItems.length : null,
+      historyError: state ? state.chatHistoryError : null,
+      historyLoading: state ? state.chatHistoryLoading : null,
+      historyIds: state ? state.chatHistoryItems.slice(0, 6).map((i) => i.id) : null,
+      body: (document.body?.innerText || '').slice(0, 160),
+    }};
+  }};
   const more = Array.from(row.querySelectorAll('button')).find(
     (b) => !(b.textContent || '').trim(),
   );

@@ -214,6 +214,18 @@ _http_ok() {
   curl -sf --max-time "${max_time}" "${url}" >/dev/null 2>&1
 }
 
+_frontend_client_assets_ok() {
+  # The dev server can serve HTML while every client chunk 404s: a production build in the same
+  # directory wipes the dev server's output. The page then never hydrates, so every UI test fails
+  # while the HTTP probe still reports "healthy". Probe one real client chunk before trusting it.
+  local max_time="${1:-8}"
+  local page chunk
+  page="$(curl -sf --max-time "${max_time}" "${APP_URL}/" 2>/dev/null)" || return 1
+  chunk="$(printf '%s' "${page}" | grep -oE '/_next/static/chunks/[^"'"'"' ]+\.js' | head -1)"
+  [[ -n "${chunk}" ]] || return 1
+  _http_ok "${APP_URL}${chunk}" "${max_time}"
+}
+
 _frontend_http_probe_timeout_sec() {
   local raw="${MYRM_E2E_ATTACH_UI_PROBE_TIMEOUT_SEC:-}"
   if [[ "${raw}" =~ ^[0-9]+$ && "${raw}" -gt 0 ]]; then
@@ -504,6 +516,35 @@ _frontend_heal_stack_write_allowed() {
   [[ "${MYRM_CHROME_E2E_FRONTEND_HEAL:-}" == "1" ]] || [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" ]]
 }
 
+# One restart path for every "the UI answers but the client is not usable" case.
+# $1 = restart reason (frontend_lifecycle.policy.Reason), $2 = label for the success marker.
+# Returns 0 when the frontend is (re)started or already healthy enough to continue.
+_frontend_clean_restart_heal() {
+  local reason="$1"
+  local label="$2"
+  local gate_rc=0
+  _frontend_heal_stack_write_allowed || return 1
+  _frontend_restart_prepare "${reason}" || gate_rc=$?
+  case "${gate_rc}" in
+    0)
+      _frontend_clear_warmth || true
+      if _try_frontend_start_with_clean_fallback; then
+        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} ${label}=clean_retry"
+        return 0
+      fi
+      return 1
+      ;;
+    "${FRONTEND_GATE_HEALTHY}")
+      # A missing hydration record is the normal state after any restart and the attach
+      # flow's own CDP warmup writes it; killing a serving frontend would only cost every
+      # peer a cold compile (the restart clears the record again).
+      echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} ${label}=pending"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 _wave_assert_stack_write_allowed() {
   if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
     return 0
@@ -590,15 +631,15 @@ _launch_frontend_supervisor() {
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
     if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
     else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" --clean
     fi
   else
     if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
     else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next-dev}" "${MYRM_BUN}" run "${dev_script}"
     fi
   fi
   echo $! >"${FRONTEND_PID}"
@@ -1191,29 +1232,23 @@ cmd_frontend_only_ensure() {
     needs_client_hot=1
   fi
   if _frontend_healthy; then
+    if ! _frontend_client_assets_ok; then
+      # HTTP 200 but the client chunks are gone: the page renders server-side HTML and never
+      # hydrates, so the E2E bridge never installs and every UI test fails on a "healthy" UI.
+      echo "STACK_HEAL: frontend HTTP 200 but client assets missing — clean restart" >&2
+      if _frontend_clean_restart_heal client_assets_missing client_assets_heal; then
+        exit 0
+      fi
+      echo "STACK_FAIL: frontend client assets are missing and the heal was denied" >&2
+      exit 1
+    fi
     if [[ "${needs_client_hot}" -eq 0 ]] || [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
       echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT}"
       exit 0
     fi
     echo "STACK_HEAL: frontend HTTP 200 but client_hot=no — clean restart (attach frontend heal)" >&2
-    if _frontend_heal_stack_write_allowed; then
-      _frontend_restart_prepare client_hot_no || gate_rc=$?
-      case "${gate_rc}" in
-        0)
-          _frontend_clear_warmth || true
-          if _try_frontend_start_with_clean_fallback; then
-            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot_heal=clean_retry"
-            exit 0
-          fi
-          ;;
-        "${FRONTEND_GATE_HEALTHY}")
-          # A missing hydration record is the normal state after any restart and the attach
-          # flow's own CDP warmup writes it; killing a serving frontend would only cost every
-          # peer a cold compile (the restart clears the record again).
-          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot=pending"
-          exit 0
-          ;;
-      esac
+    if _frontend_clean_restart_heal client_hot_no client_hot_heal; then
+      exit 0
     fi
     echo "STACK_FAIL: frontend client_hot heal failed within attach frontend heal" >&2
     exit 1

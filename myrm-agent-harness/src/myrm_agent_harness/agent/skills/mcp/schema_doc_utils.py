@@ -247,8 +247,10 @@ def render_constraint(info: JsonDict) -> str:
 
 
 def render_signature(func_name: str, input_schema: JsonDict, *, required_only: bool = False) -> str:
-    """Render ``name(param:type, optional?:type~constraint)`` for one tool.
+    """Render ``name(*, param:type, optional?:type~constraint)`` for one tool.
 
+    The ``*`` matches the runtime proxy's keyword-only ``__call__``: a model that
+    copies a signature with positional arguments would fail at invoke time.
     Required parameters come first so a long optional tail cannot bury them; both
     groups keep the schema's (canonicalised) order for a deterministic prompt.
 
@@ -280,4 +282,6 @@ def render_signature(func_name: str, input_schema: JsonDict, *, required_only: b
     if not params:
         return f"{func_name}(…)"
     params.sort(key=lambda item: (item[0], item[1]))
-    return f"{func_name}({', '.join(text for _, text in params)})"
+    # MCP runtime proxies accept **kwargs only; the bare ``*`` makes that contract
+    # visible before the model writes a positional call that would fail at invoke time.
+    return f"{func_name}(*, {', '.join(text for _, text in params)})"

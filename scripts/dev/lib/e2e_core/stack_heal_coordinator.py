@@ -136,6 +136,25 @@ def run_attach_health_preflight(
         return 0
 
     if shared_api_http_ok():
+        # A foreign process on the backend port (the desktop app's bundled server, for example)
+        # answers health checks with 200 while serving a different database. Running the lane
+        # against it fails for reasons that have nothing to do with the test, so the lane must
+        # stop with the owner named instead of proceeding.
+        from e2e_core.runtime_identity import (  # noqa: PLC0415
+            foreign_backend_port_owner_description,
+        )
+
+        foreign_owner = foreign_backend_port_owner_description()
+        if foreign_owner:
+            _emit("FOREIGN_BACKEND_OWNER", detail=foreign_owner)
+            print(
+                f"CHROME_E2E_FAIL: {foreign_owner} is not the pinned dev backend — "
+                "refusing to run the lane against a foreign backend "
+                "(stop that process or point the lane at a private runtime)",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
         _emit("NOOP_OK", detail="shared api healthy")
         return 0
 
