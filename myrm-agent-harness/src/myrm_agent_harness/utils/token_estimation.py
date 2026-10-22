@@ -11,7 +11,7 @@
 - estimate_message_tokens(): 估算单条完整 message 的 token 数
 - estimate_messages_tokens(): 估算 message 列表总 token 数
 - estimate_bound_tools_tokens(): Turn-1 bind_tools description + schema wrapper overhead
-- estimate_request_tools_tokens(): Live ModelRequest tools overhead（planning SSOT）
+- estimate_request_tools_tokens(): Live ModelRequest tools overhead（含参数 schema）
 - estimate_context_tokens(): messages + bind-tools overhead，可选 max(provider prompt_tokens)
 - tool_input_schema(): tool 的 JSON Schema（原生 dict 原样返回，Pydantic 走 model_json_schema）
 - estimate_tool_schema_tokens(): 单个 tool 的完整 schema（name + description + parameters）token 数
@@ -101,22 +101,6 @@ def estimate_messages_tokens(messages: list[BaseMessage]) -> int:
     return sum(estimate_message_tokens(msg) for msg in messages)
 
 
-def _tool_description_text(tool: object) -> str:
-    if isinstance(tool, BaseTool):
-        return tool.description or ""
-    if isinstance(tool, dict):
-        fn = tool.get("function")
-        if isinstance(fn, dict):
-            desc = fn.get("description")
-            if isinstance(desc, str):
-                return desc
-        desc = tool.get("description")
-        if isinstance(desc, str):
-            return desc
-    desc = getattr(tool, "description", "")
-    return desc if isinstance(desc, str) else ""
-
-
 def tool_input_schema(tool: BaseTool) -> dict[str, object]:
     """Return the tool's JSON Schema, falling back for malformed tools.
 
@@ -135,20 +119,34 @@ def tool_input_schema(tool: BaseTool) -> dict[str, object]:
         return {}
 
 
-def _tool_schema_entry(tool: BaseTool) -> dict[str, object]:
-    return {
-        "name": tool.name,
-        "description": tool.description or "",
-        "parameters": tool_input_schema(tool),
-    }
+def _tool_schema_entry(tool: object) -> dict[str, object]:
+    """Normalise a bound tool (BaseTool or OpenAI-style dict) to the wire schema shape."""
+    if isinstance(tool, BaseTool):
+        return {
+            "name": tool.name,
+            "description": tool.description or "",
+            "parameters": tool_input_schema(tool),
+        }
+    if isinstance(tool, dict):
+        fn = tool.get("function")
+        source: dict[str, object] = fn if isinstance(fn, dict) else tool
+        name = source.get("name")
+        description = source.get("description")
+        parameters = source.get("parameters") or source.get("input_schema") or {}
+        return {
+            "name": name if isinstance(name, str) else "",
+            "description": description if isinstance(description, str) else "",
+            "parameters": parameters if isinstance(parameters, dict) else {},
+        }
+    return {"name": "", "description": "", "parameters": {}}
 
 
-def estimate_tool_schema_tokens(tool: BaseTool) -> int:
+def estimate_tool_schema_tokens(tool: object) -> int:
     """Estimate the full schema tokens billed for one bound tool."""
     return get_token_count(json.dumps(_tool_schema_entry(tool), ensure_ascii=False, separators=(",", ":")))
 
 
-def estimate_tools_schema_tokens(tools: Sequence[BaseTool]) -> int:
+def estimate_tools_schema_tokens(tools: Sequence[object]) -> int:
     """Estimate the full schema tokens billed for a bound tool list."""
     return sum(estimate_tool_schema_tokens(tool) for tool in tools)
 
@@ -166,11 +164,15 @@ def estimate_bound_tools_tokens(tools: Sequence[BaseTool]) -> int:
 
 
 def estimate_request_tools_tokens(tools: Sequence[object]) -> int:
-    """Estimate live request tool overhead using the same planning SSOT as Turn-1 inventory."""
+    """Estimate the live request's tool overhead, including the parameter schema.
+
+    The UI labels these rows as "… tools schema"; description-only estimates were an
+    order of magnitude short on real agents (6.2k vs 12.1k for 16 tools), so the
+    breakdown and the pre-first-call compact budget must use the full wire schema.
+    """
     if not tools:
         return 0
-    description_total = sum(get_token_count(_tool_description_text(tool)) for tool in tools)
-    return description_total + len(tools) * SCHEMA_WRAPPER_TOKENS_PER_TOOL
+    return estimate_tools_schema_tokens(tools)
 
 
 def estimate_context_tokens(
@@ -207,4 +209,3 @@ def estimate_context_tokens(
     if last_provider_prompt_tokens is not None and last_provider_prompt_tokens > 0:
         return max(estimated, last_provider_prompt_tokens)
     return estimated
-

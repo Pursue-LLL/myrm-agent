@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 
-from myrm_agent_harness.utils.text_utils import get_token_count
 from myrm_agent_harness.utils.token_estimation import (
     SCHEMA_WRAPPER_TOKENS_PER_TOOL,
     estimate_bound_tools_tokens,
@@ -14,6 +13,7 @@ from myrm_agent_harness.utils.token_estimation import (
     estimate_message_tokens,
     estimate_messages_tokens,
     estimate_request_tools_tokens,
+    estimate_tool_schema_tokens,
 )
 
 
@@ -247,42 +247,48 @@ class TestEstimateContextTokens:
 class TestEstimateRequestToolsTokens:
     """``estimate_request_tools_tokens`` feeds the GUI breakdown and compress preflight.
 
-    Its payload shapes vary by call site (Live ``ModelRequest`` tools may be BaseTool,
-    OpenAI-style ``{"function": ...}`` dicts, or plain ``{"description": ...}`` dicts),
-    so each branch is pinned here.
+    The GUI labels these rows as "… tools schema", so the estimate must include the
+    parameter schema; description-only numbers under-reported real agents by ~2x.
     """
 
     def test_empty_returns_zero(self) -> None:
         assert estimate_request_tools_tokens([]) == 0
 
-    def test_base_tool_uses_description(self) -> None:
-        tool = MagicMock()
-        tool.description = "demo tool"
-        assert estimate_request_tools_tokens([tool]) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
+    def test_base_tool_matches_full_schema(self) -> None:
+        tool = StructuredTool.from_function(func=lambda: "ok", name="demo_tool", description="a real BaseTool")
+        assert estimate_request_tools_tokens([tool]) == estimate_tool_schema_tokens(tool)
 
-    def test_real_base_tool_instance(self) -> None:
-        tool = StructuredTool.from_function(
-            func=lambda: "ok", name="demo_tool", description="a real BaseTool"
-        )
-        expected = get_token_count("a real BaseTool") + SCHEMA_WRAPPER_TOKENS_PER_TOOL
-        assert estimate_request_tools_tokens([tool]) == expected
+    def test_openai_function_dict_matches_full_schema(self) -> None:
+        tool = {"function": {"name": "f", "description": "described via function"}}
+        assert estimate_request_tools_tokens([tool]) == estimate_tool_schema_tokens(tool)
 
-    def test_openai_function_dict(self) -> None:
-        tools = [{"function": {"name": "f", "description": "described via function"}}]
-        assert estimate_request_tools_tokens(tools) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
+    def test_plain_description_dict_matches_full_schema(self) -> None:
+        tool = {"description": "described directly"}
+        assert estimate_request_tools_tokens([tool]) == estimate_tool_schema_tokens(tool)
 
-    def test_plain_description_dict(self) -> None:
-        tools = [{"description": "described directly"}]
-        assert estimate_request_tools_tokens(tools) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
-
-    def test_descriptionless_object_counts_wrapper_only(self) -> None:
-        assert estimate_request_tools_tokens([object()]) == SCHEMA_WRAPPER_TOKENS_PER_TOOL
-
-    def test_function_dict_without_description_falls_back_to_plain_key(self) -> None:
-        tools = [{"function": {"name": "f"}, "description": "outer description"}]
-        assert estimate_request_tools_tokens(tools) > SCHEMA_WRAPPER_TOKENS_PER_TOOL
+    def test_descriptionless_object_is_an_empty_schema(self) -> None:
+        assert estimate_request_tools_tokens([object()]) == estimate_tool_schema_tokens(object())
 
     def test_non_string_description_is_ignored(self) -> None:
-        assert estimate_request_tools_tokens([{"description": 123}]) == (
-            SCHEMA_WRAPPER_TOKENS_PER_TOOL
-        )
+        tool = {"description": 123}
+        assert estimate_request_tools_tokens([tool]) == estimate_tool_schema_tokens(tool)
+
+    def test_parameter_schema_is_counted(self) -> None:
+        minimal = {
+            "function": {
+                "name": "f",
+                "description": "d",
+                "parameters": {"type": "object", "properties": {}},
+            }
+        }
+        rich = {
+            "function": {
+                "name": "f",
+                "description": "d",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"q": {"type": "string", "description": "explain " * 40}},
+                },
+            }
+        }
+        assert estimate_request_tools_tokens([rich]) > estimate_request_tools_tokens([minimal])
