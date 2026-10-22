@@ -6,13 +6,16 @@ giving the Agent conversational context from the group chat.
 
 [INPUT]
 - channels.types::ContextEntry (POS: Non-trigger message metadata with sender/content/timestamp.)
+- channels.routing.channel_data_plane::ChannelDataPlaneService (POS: persisted inbound/outbound channel history)
 
 [OUTPUT]
 - GroupContextBuffer: per-group ring buffer with time-based expiry
+- GroupContextBuffer.drain_async: persisted context first, in-memory entries as the fallback
 
 [POS]
-Pure in-memory buffer, no I/O, no lifecycle management.
-Drains expired messages by time filter and clears the group buffer.
+Group chat context accumulation. append() records non-trigger chatter in memory; drain() takes
+it back for injection into the next trigger turn, and drain_async() prefers the persisted data
+plane, keeping the in-memory entries whenever that plane has nothing to return.
 """
 
 from __future__ import annotations

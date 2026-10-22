@@ -43,6 +43,188 @@
 
 ---
 
+## BUG-CHANNEL-2026-10-22-007: WebUI 跳转按钮用 2 元组键查库，从未成功显示过
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P2（功能长期静默失效） |
+| 影响范围 | `app/channels/routing/router_execution.py`、`app/core/channel_bridge/btw_notifier.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/chat/chat_channel.py` |
+| 出现次数 | 1（自 `87605a3d2e` 起存在；`c6dcd499fa`、`6498b515e1`、`45370ccae5` 修复） |
+
+### 现象
+
+IM 渠道回复本应附带一个 SECONDARY「在浏览器继续」按钮（`web_continue_chat`），
+点击可跳到 WebUI 同一会话。该按钮**从未出现过**，但用户不知道它应该存在，因此无人报障。
+
+### 根因
+
+按钮需要 DB 里的 Chat UUID 来拼 URL。查询用的是 `routing_session_key(channel, peer_id)`
+（2 段），而 `Chat.channel_session_key` 实际存储的是
+`channel:peer_kind:peer[:thread:…][:agent:…]`（外加 reset epoch）——**永远匹配不上**。
+失败被 `except Exception: logger.debug(...)` 吞掉，生产环境（WARNING 级）完全不可见。
+`btw_notifier` 有同类问题，且把 IM peer 当成 Chat UUID 用。
+
+### 修复
+
+1. `ChatService.get_newest_channel_chat_under(base_key)` 作为唯一实现：等值或「前缀 + `:` 分段边界」
+   的 OR 条件，**用范围查询而非 LIKE**（`LIKE 'prefix%'` 在 SQLite 走全表扫描，
+   范围条件才走 `channel_session_key` 索引，已用 `EXPLAIN QUERY PLAN` 实测）；
+2. `_attach_web_handoff` 依次尝试：执行器写入的 key → 同前缀最新一条 → 旧格式 `channel:peer`；
+3. `btw_notifier` 改用 payload 里真正的 `source_chat_id`（BTW 分支的 `chat_id` 是 IM peer，不是行 id）；
+4. 新增 `tests/remote_access/test_web_handoff_integration.py` 的 topic 场景与「更长 peer 同前缀」两个用例；
+   原有用例只用 `channel:peer` 键，修复前后都能过，正是它掩盖了这个 bug。
+
+### 验证
+
+- 真实 SQLite 端到端：绑定 agent 的 topic 会话、未绑定会话、旧格式 key、不存在的会话、
+  DB 抛异常 5 个场景全部符合预期；
+- 反向验证：把查询改回 2 元组键，topic 用例立即报红；
+- handoff 集成 11 passed。
+
+---
+
+## BUG-CHANNEL-2026-10-22-005: FAQ 拦截从进程环境变量取 embedding，生产环境永远拿不到
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（功能 100% 失效且静默） |
+| 影响范围 | `myrm-agent-server/app/services/faq/factory.py`、`app/api/faq/router.py`、`app/api/config/router.py` |
+| 出现次数 | 1（`f249480224` 引入；`bc96ddb856` 修复） |
+
+### 现象
+
+用户在 WebUI 给 Agent 配好 FAQ 问答对后，IM 渠道问问题**从不触发 FAQ 匹配**，全部走完整 LLM。
+无报错、无日志，表现为「配了好像没用」。
+
+### 根因
+
+`get_faq_interceptor()` 用 `get_embedding_config()` 从 `EMBEDDING_*` 进程环境变量取配置。
+`.env` 的 POLICY 明确禁止业务凭据入 env，生产运行时也无人写入 → `api_key` 恒为 `None`
+→ 工厂走 `if not config.api_key: return None` → 拦截器永远为 `None`。
+
+### 修复
+
+1. 改走 `load_platform_retrieval_configs()`（WebUI 设置 DB），与 Memory / Curator / Cron 同一条通道；
+2. `rebuild-index` 同样改用 WebUI 配置，未配置时返回 409 + 可操作提示；
+3. 新增 `reset_faq_interceptor()`，`PUT /api/v1/config/retrieval` 时重置单例——此前单例无任何重置入口，
+   改配置必须重启才生效；
+4. 新增 `tests/services/faq/test_faq_factory_retrieval.py`（4 例），
+   并加架构门禁 `tests/architecture/test_app_has_no_test_env_reads.py` 禁止 `app/` 再读业务凭据 env。
+
+### 验证
+
+- 生产环境（无 `EMBEDDING_*`）实测旧路径 `api_key=None`，新路径返回 `FaqInterceptor`；
+- 未配置 WebUI 时返回 `None` 且不抛错；配置变更后 `reset_faq_interceptor()` 生效；
+- FAQ 相关套件 58 passed。
+
+---
+
+## BUG-CHANNEL-2026-10-22-006: 同群多 topic 共用一个会话键，双 Agent 运行时状态互相覆盖
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（`/stop` 停错任务、steering 投错 Agent、审批串台） |
+| 影响范围 | `app/channels/routing/router_keys.py`、`router_execution.py`、`router.py`、`router_stream.py`、`session_gate.py`、`commands/` |
+| 出现次数 | 1（自 `87605a3d2e` 起存在；`4e216eea43` 修复） |
+| 关联 | `tests/channels/test_topic_state_isolation.py` |
+
+### 现象
+
+Telegram 超级群的 topic A 绑「客服 Agent」、topic B 绑「销售 Agent」时：
+
+- 在 A 输入 `/stop` 停掉的是 B 的任务；
+- 在 A 说「简短点」，steering 送到 B；
+- 在 A 开 YOLO，B 也生效；
+- A 的待审批消息与 B 混在同一个槽位。
+
+### 根因
+
+`SqlTopicManager` 按 `(chat_id, thread_id)` 绑定 Agent，`preamble.py` 也确实从
+`topic_context.agent_id` 选 Agent；但运行时状态表的键是 `routing_session_key(channel, peer_id)`
+——只有 channel + peer，**不含 topic**。同一群的两个 topic 生成完全相同的键
+（实测均为 `telegram:-1001234`），`_active_tasks[key] = ...` 直接覆盖。
+
+对话历史不受影响：`Chat.channel_session_key` 用 `SessionKey`，本来就含 thread 与 agent。
+
+### 修复
+
+1. 新增 `routing_state_key(channel, peer_id, thread_id)`：无 topic 时保持旧格式
+   （DM 与未开 topic 的群状态零破坏），有 topic 时追加 thread 段；
+2. 7 处运行时状态全部改用它：活跃任务、`/stop`、YOLO、人格、审批、收尾、`/new` 标记、流式占位；
+3. `SessionGate.gate_key()` 同步带上 topic，避免两个 topic 的消息被合并进同一轮；
+4. 新增 `tests/channels/test_topic_state_isolation.py`，并在 `test_router_keys.py` 覆盖边界。
+
+### 验证
+
+- 反向验证：把 `routing_state_key` 改回忽略 topic，4 个测试立即报红；
+- 多轮真实场景（两 topic 各起任务 → `/stop` → YOLO → 防抖 → DM 兼容）5 轮全过；
+- routing 相关套件 578 passed。
+
+---
+
+## BUG-CHANNEL-2026-10-22-004: 群聊上下文在数据平面返回空时被静默丢弃
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（群聊多轮上下文丢失，agent 看不到用户刚说的话） |
+| 影响范围 | `myrm-agent-server/app/channels/routing/context_buffer.py` |
+| 出现次数 | 1（自 `87605a3d2e` 起存在；`73a2fb6dae` 修复） |
+| 关联 | `tests/channels/test_group_routing.py` 长期 6 例红灯的真实根因 |
+
+### 现象
+
+群聊里先说几句非 @ 消息，再 @ 机器人提问时，注入给 agent 的 `context_messages` 为空，
+agent 表现得像完全没看到前面的对话。测试侧表现为 `assert len(called_msg.context_messages) == 3` 失败（实际 0），
+但内存缓冲里确实存着那 3 条。
+
+### 根因
+
+`GroupContextBuffer.drain_async()` 的清理顺序错了：
+
+```
+persisted = await ChannelDataPlaneService.get_recent_context_entries(...)  # 可能返回 []
+self._store.pop(chat_id, None)                                            # 无条件清内存
+if persisted:
+    return tuple(persisted)                                               # 空列表不进这里
+return self.drain(chat_id)                                                # 内存已被清空 → 返回 ()
+```
+
+当数据平面返回空列表（无历史行，或写入未落盘，例如日志里真实的
+`sqlite3.OperationalError: no such savepoint: sa_savepoint_1`），内存缓冲已被提前清空，
+兜底 `drain()` 拿不到任何东西，方法承诺的「内存兜底」实际不生效。
+
+### 为什么没提前拦住
+
+1. 单测直接构造 `GroupContextBuffer` 时只覆盖了「数据平面有数据」与「抛异常」两条路径，
+   没有覆盖「数据平面正常返回空列表」这条最容易被漏掉的路径；
+2. `test_group_routing.py` 的 6 个用例靠固定 `sleep(0.3)` 等待，冷启动时常先假红，
+   真实的数据丢失被误当成「时序抖动」长期挂着。
+
+### 修复
+
+1. `drain_async()` 改为**只有数据平面真的返回条目时才清内存**；返回空时保留内存条目并交给 `drain()`；
+2. 文件头 `[INPUT]/[OUTPUT]/[POS]` 修正（原文写「Pure in-memory buffer, no I/O」，与 `drain_async` 实际走 DB 矛盾）；
+3. `test_group_routing.py` 去掉固定 sleep，改为轮询目标效果（缓冲已填充 / executor 被调 N 次）；
+4. 同一文件里 6 处「预期不调用」的用例保持固定等待（断言 `calls == 0`，不能等效果出现）；
+5. DM 用例的身份断言从 `local-user` 改为 `guest_...`——未配对 OPEN 发送者自 `ea4e1dd75c` 起
+   被安全闸门赋 guest 身份，原断言测的是代码**刻意拒绝**的行为。
+
+### 验证
+
+- 干净基线 `16d0488907`（本会话全部改动之前）：`6 failed, 11 passed`；
+- 修复后：`17 passed`（1 个 teardown 的 `Task was destroyed but it is pending` 不影响断言，单跑通过）；
+- 关联套件（routing + key + topic + mixin + handoff + session gate）：`578 passed`。
+
+---
+
 ## BUG-E2E-2026-10-22-002: 合并回退 profile contract，conftest 导入失败导致 server 测试全套起不来
 
 | 属性 | 值 |
