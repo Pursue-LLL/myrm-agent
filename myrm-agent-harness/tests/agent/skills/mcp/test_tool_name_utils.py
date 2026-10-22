@@ -145,7 +145,14 @@ class TestRenderedL2Names:
         from myrm_agent_harness.backends.skills.types import SkillMetadata
         from myrm_agent_harness.backends.skills.types.types_requires import MCPSkillData
 
-        tools = ["mcp__srv__foo.bar", "mcp__srv__foo-bar", "mcp__srv__1foo", "mcp__srv__foo__bar"]
+        tools = [
+            "mcp__srv__foo.bar",
+            "mcp__srv__foo-bar",
+            "mcp__srv__1foo",
+            "mcp__srv__foo__bar",
+            "mcp__srv__class",
+            "mcp__srv__中文工具",
+        ]
         schemas = {
             tool: {"description": "Query.", "inputSchema": {"properties": {"a": {"type": "string"}}}} for tool in tools
         }
@@ -158,4 +165,5 @@ class TestRenderedL2Names:
         rendered = [line[2 : line.index("(")] for line in content.splitlines() if line.startswith("- ") and "(" in line]
         assert len(rendered) == len(tools)
         for func_name in rendered:
+            compile(f"from skills.x import {func_name}", "<t>", "exec")
             assert resolve_mcp_tool_name(func_name, tools) is not None, func_name
