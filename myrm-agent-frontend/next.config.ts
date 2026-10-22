@@ -71,7 +71,14 @@ const nextConfig: NextConfig = {
     // Cache key for /api/i18n/deferred so a long browser cache is dropped when translations change.
     NEXT_PUBLIC_LOCALE_VERSION: computeLocaleContentVersion(path.join(frontendRoot, 'locales')),
   },
-  distDir: process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next',
+  // The dev server and the production build must not share one output directory: `next build` clears
+  // the dist dir, which deletes the running dev server's chunks and leaves it serving HTML whose
+  // scripts 404 — the page then never hydrates and every UI test fails on a "healthy" UI.
+  // `next dev` therefore writes to `.next-dev`, `next build` keeps `.next` (the desktop release
+  // pipeline reads `.next/standalone`).
+  distDir:
+    process.env.MYRM_NEXT_DIST_DIR?.trim() ||
+    (process.env.NODE_ENV === 'development' ? '.next-dev' : '.next'),
   // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
   // NOTE(LSSS debug): cacheComponents/partialPrefetching temporarily disabled to isolate hydration hang.
   cacheComponents: false,
