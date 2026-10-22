@@ -68,6 +68,15 @@ class TestPythonIdentifiers:
             compile(f"from skills.x import {python_name}", "<t>", "exec")
             assert resolve_mcp_tool_name(python_name, tools) == canonical
 
+    def test_python_keywords_are_prefixed(self) -> None:
+        keywords = ("class", "def", "import", "from", "lambda", "None", "True", "False", "async", "await")
+        tools = [f"mcp__srv__{name}" for name in keywords]
+        mapping = build_tool_name_map(tools)
+        for canonical, python_name in mapping.items():
+            assert python_name.startswith("_"), (canonical, python_name)
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
 
 class TestResolveMcpToolName:
     def test_exact_match(self) -> None:

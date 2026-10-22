@@ -15,6 +15,8 @@ lookup, MCPFileSystemStrategy, and proxy_service invoke validation.
 
 from __future__ import annotations
 
+import keyword
+
 
 def to_python_identifier(name: str) -> str:
     """Fold an arbitrary MCP tool name into a valid Python identifier.
@@ -23,6 +25,8 @@ def to_python_identifier(name: str) -> str:
     ``foo bar`` and ``1foo`` must all become importable before they are rendered.
     Unicode letters are preserved: Python 3 identifiers accept ``中文工具``, and
     collapsing them to ``unnamed`` would make those tools indistinguishable.
+    Python keywords (``class``, ``None``, ...) are prefixed: they are identifiers
+    but cannot appear in an ``import`` statement.
     Runs of ``_`` are preserved: collapsing them would merge distinct upstream tools
     (``foo__bar`` / ``foo_bar``) that the server exposes separately.
     """
@@ -30,6 +34,8 @@ def to_python_identifier(name: str) -> str:
     if not any(char.isalnum() for char in folded):
         return "unnamed"
     if folded[0].isdigit():
+        folded = f"_{folded}"
+    if keyword.iskeyword(folded):
         folded = f"_{folded}"
     if folded.isidentifier():
         return folded
