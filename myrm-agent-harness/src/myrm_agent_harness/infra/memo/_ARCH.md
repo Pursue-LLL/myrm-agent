@@ -35,5 +35,5 @@ as before.
 | `call_scope.py` | Core | `LlmCallScope` and the context-variable plumbing that carries a turn's scope to the model adapter. | ✅ |
 
 ## Key Dependencies
-- `runtime/memo` has no dependency on `agent`, `toolkits` or `server`; it is pure framework
+- `infra/memo` has no dependency on `agent`, `toolkits` or `server`; it is pure framework
   infrastructure.

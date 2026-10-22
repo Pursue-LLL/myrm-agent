@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from myrm_agent_harness.runtime.memo import LlmCallScope, MemoLedger, llm_call_scope
+from myrm_agent_harness.infra.memo import LlmCallScope, MemoLedger, llm_call_scope
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
 
 CHUNKS: list[dict[str, Any]] = [

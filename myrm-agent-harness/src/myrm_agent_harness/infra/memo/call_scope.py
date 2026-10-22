@@ -32,9 +32,9 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import Any
 
-from myrm_agent_harness.runtime.memo.memo_key import MemoKey, compute_memo_key
-from myrm_agent_harness.runtime.memo.memo_ledger import MemoLedger
-from myrm_agent_harness.runtime.memo.memo_types import MemoStatus
+from myrm_agent_harness.infra.memo.memo_key import MemoKey, compute_memo_key
+from myrm_agent_harness.infra.memo.memo_ledger import MemoLedger
+from myrm_agent_harness.infra.memo.memo_types import MemoStatus
 
 logger = logging.getLogger(__name__)
 

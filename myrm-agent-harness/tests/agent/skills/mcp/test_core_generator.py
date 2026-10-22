@@ -72,6 +72,7 @@ class TestGenerateSkillContent:
         out = mcp_skill_generator.generate_skill_content(meta)
         assert "## Calling" in out
         assert "from skills." in out
+        assert "Import every function you call before awaiting it." in out
         assert "get_temp" in out
 
     def test_many_tools_embed_calling_contract(self) -> None:

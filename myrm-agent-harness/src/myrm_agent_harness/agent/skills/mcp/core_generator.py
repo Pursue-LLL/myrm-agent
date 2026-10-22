@@ -57,6 +57,7 @@ SKILL_USAGE_TEMPLATE = """
 ## Calling
 
 Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
+Import every function you call before awaiting it.
 Args: **always call with keyword arguments** — `func(param=value)`; positional calls are rejected by the runtime.
 Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 

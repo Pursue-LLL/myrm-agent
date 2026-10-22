@@ -29,7 +29,7 @@ import threading
 import time
 from pathlib import Path
 
-from myrm_agent_harness.runtime.memo.memo_types import MemoEntry, MemoStatus
+from myrm_agent_harness.infra.memo.memo_types import MemoEntry, MemoStatus
 
 # A response larger than this is not memoised: replaying it would cost more to store and
 # read back than the call is worth, and the row stays `started` so the call is retried.

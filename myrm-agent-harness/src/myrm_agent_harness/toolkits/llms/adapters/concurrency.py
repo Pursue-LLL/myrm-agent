@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 _MODEL_SEMAPHORES: dict[str, asyncio.Semaphore | None] = {}
 _SEMAPHORE_LOCK = asyncio.Lock()
@@ -45,3 +47,16 @@ async def get_semaphores(model_name: str) -> tuple[asyncio.Semaphore | None, asy
                 _MODEL_SEMAPHORES[model_name] = None
 
         return _GLOBAL_SEMAPHORE, _MODEL_SEMAPHORES[model_name]
+
+
+@asynccontextmanager
+async def bounded_model_call(model_name: str) -> AsyncIterator[None]:
+    """Hold both the global and the per-model semaphore for one model call."""
+    import contextlib
+
+    global_sem, model_sem = await get_semaphores(model_name)
+    async with (
+        global_sem or contextlib.nullcontext(),
+        model_sem or contextlib.nullcontext(),
+    ):
+        yield

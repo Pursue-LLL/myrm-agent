@@ -27,7 +27,7 @@ nothing here knows about chats, providers or servers.
 
 from __future__ import annotations
 
-from myrm_agent_harness.runtime.memo.call_scope import (
+from myrm_agent_harness.infra.memo.call_scope import (
     LlmCallScope,
     MemoAttempt,
     begin_memo_call,
@@ -39,13 +39,13 @@ from myrm_agent_harness.runtime.memo.call_scope import (
     llm_call_scope,
     start_memo_call,
 )
-from myrm_agent_harness.runtime.memo.memo_key import (
+from myrm_agent_harness.infra.memo.memo_key import (
     MemoKey,
     compute_memo_key,
     context_fingerprint,
 )
-from myrm_agent_harness.runtime.memo.memo_ledger import MemoLedger
-from myrm_agent_harness.runtime.memo.memo_types import MemoEntry, MemoStatus
+from myrm_agent_harness.infra.memo.memo_ledger import MemoLedger
+from myrm_agent_harness.infra.memo.memo_types import MemoEntry, MemoStatus
 
 __all__ = [
     "LlmCallScope",

@@ -10,7 +10,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.runtime.memo import (
+from myrm_agent_harness.infra.memo import (
     LlmCallScope,
     MemoLedger,
     MemoStatus,
