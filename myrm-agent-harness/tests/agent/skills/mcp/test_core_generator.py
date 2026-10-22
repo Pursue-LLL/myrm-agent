@@ -189,6 +189,12 @@ class TestDescriptionResolution:
         assert "My Server" in desc
         assert "3 tools available" in desc
 
+    def test_blank_user_description_falls_back_to_instructions(self) -> None:
+        assert resolve_description("   ", "Use when tickets", [], "srv") == "Use when tickets"
+
+    def test_blank_instructions_fall_back_to_tools(self) -> None:
+        assert resolve_description("", "   ", [], "srv") == "Srv (0 tools available)"
+
 
 class TestToolList:
     def _tool_list_meta(self, count: int, schemas: dict[str, dict[str, object]] | None = None) -> SkillMetadata:
@@ -296,6 +302,17 @@ class TestTextProcessing:
         out = clean_markdown("## **bold** and *em*\nnext")
         assert out == "bold and em next"
         assert "**" not in out
+
+    def test_truncate_ignores_abbreviations(self) -> None:
+        out = truncate_to_sentence("For example, e.g. this is a sentence. Second one.", max_len=80)
+        assert out == "For example, e.g. this is a sentence."
+
+    def test_truncate_ignores_initial(self) -> None:
+        out = truncate_to_sentence("J. Smith wrote this. Then more.", max_len=60)
+        assert out == "J. Smith wrote this."
+
+    def test_truncate_chinese_boundary(self) -> None:
+        assert truncate_to_sentence("第一句。第二句。", max_len=50) == "第一句。"
 
 
 class TestCreateSkillMetadata:
