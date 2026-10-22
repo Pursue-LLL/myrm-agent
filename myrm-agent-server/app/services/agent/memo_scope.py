@@ -26,7 +26,11 @@ import logging
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any
 
-from myrm_agent_harness.runtime.memo.call_scope import LlmCallScope, llm_call_scope
+from myrm_agent_harness.runtime.memo.call_scope import (
+    LlmCallScope,
+    enter_llm_call_scope,
+    exit_llm_call_scope,
+)
 from myrm_agent_harness.runtime.memo.memo_ledger import MemoLedger
 
 logger = logging.getLogger(__name__)
@@ -51,8 +55,30 @@ async def memo_scoped_stream(
     stream: AsyncIterable[dict[str, object]],
     params: Any,
 ) -> AsyncIterator[dict[str, object]]:
-    """Run an agent stream inside the turn's memo scope (a no-op when there is no scope)."""
+    """Run an agent stream inside the turn's memo scope (a no-op when there is no scope).
+
+    The token is scoped to one ``__anext__`` call instead of the whole generator. An async
+    generator may be finalized (``aclose`` / cancellation / GC) by a different task than the
+    one that advanced it, and ``ContextVar.reset`` rejects a token created in another
+    ``Context``. Keeping set/reset in the same frame makes that cross-task close safe while
+    the scope is still active for every model call the inner stream makes.
+    """
     scope = build_memo_scope(params)
-    with llm_call_scope(scope):
+    if scope is None:
         async for chunk in stream:
             yield chunk
+        return
+
+    inner = stream.__aiter__()
+    try:
+        while True:
+            token = enter_llm_call_scope(scope)
+            try:
+                chunk = await inner.__anext__()
+            except StopAsyncIteration:
+                return
+            finally:
+                exit_llm_call_scope(token)
+            yield chunk
+    finally:
+        await inner.aclose()
