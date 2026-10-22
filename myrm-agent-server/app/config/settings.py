@@ -436,7 +436,7 @@ class ServiceSettings(BaseSettings):
 
 
 # ---------------------------------------------------------------------------
-# [S] Control plane — env: CONTROL_PLANE_*, TENANT_ID, SANDBOX_ID, PLATFORM_WU_PER_USD
+# [S] Control plane — env: CONTROL_PLANE_*, SANDBOX_ID, PLATFORM_WU_PER_USD
 # ---------------------------------------------------------------------------
 
 
@@ -448,7 +448,6 @@ class ControlPlaneSettings(BaseSettings):
     url: str = Field(default="", validation_alias="CONTROL_PLANE_URL")
     telemetry_token: SecretStr = Field(default=SecretStr(""), validation_alias="CONTROL_PLANE_TELEMETRY_TOKEN")
     telemetry_subject: str = Field(default="", validation_alias="CONTROL_PLANE_TELEMETRY_SUBJECT")
-    tenant_id: str = Field(default="default-tenant", validation_alias="TENANT_ID")
     sandbox_id: str = Field(default="", validation_alias="SANDBOX_ID")
     platform_wu_per_usd: float = Field(default=1000.0, validation_alias="PLATFORM_WU_PER_USD")
 

@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - ai_agents.personality_templates::PERSONALITY_TEMPLATES (POS: built-in personality style catalog.)
 
@@ -23,7 +23,7 @@ import time
 from app.ai_agents.personality_templates import PERSONALITY_TEMPLATES
 from app.channels.i18n import get_text
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 _ALL_PERSONALITY_KEYS: frozenset[str] = frozenset(PERSONALITY_TEMPLATES.keys())
@@ -42,7 +42,7 @@ class RouterCommandsModesMixin:
     ) -> None:
         """Handle /yolo command: toggle YOLO mode for this session."""
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         action_type, timeout = action
 
@@ -135,7 +135,7 @@ class RouterCommandsModesMixin:
             default_style = _DEFAULT_STYLE
 
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         if style == "list":
             if provider:
@@ -191,7 +191,7 @@ class RouterCommandsModesMixin:
     ) -> None:
         """Handle /steer command: inject a new instruction into the running agent mid-execution."""
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         instruction = raw_args.strip()
 
         if not instruction:
@@ -230,7 +230,7 @@ class RouterCommandsModesMixin:
     ) -> None:
         """Handle /queue command: explicitly queue a task for after the current agent task completes."""
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         task_text = raw_args.strip()
 
         if not task_text:

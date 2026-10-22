@@ -24,7 +24,7 @@ from app.channels.routing.router_constants import (
     _is_silent_content,
 )
 from app.channels.routing.router_host import RouterExecutionHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import (
     _ActiveTask,
     _AgentTurnScratch,
@@ -39,6 +39,7 @@ from app.channels.types import (
 )
 from app.channels.types.notification import with_final_notify
 from app.channels.voice.handler import maybe_tts
+from app.database.dto import ChatDTO
 
 logger = logging.getLogger("app.channels.routing.router")
 
@@ -99,7 +100,7 @@ class RouterExecutionMixin:
             ``exec_msg`` is the inbound message after group-policy transforms (prefix strip, context buffer).
         """
         chat_id = inbound.chat_id or inbound.sender_id
-        state_key = routing_session_key(inbound.channel, chat_id)
+        state_key = routing_state_key(inbound.channel, chat_id, inbound.thread_id)
 
         if inbound.is_group:
             resolved = await self._resolver.resolve_group_user(inbound)
@@ -548,6 +549,28 @@ class RouterExecutionMixin:
             created_at=time.monotonic(),
         )
 
+
+async def _newest_channel_chat_under(base_key: str) -> ChatDTO | None:
+    """Return the most recently active Chat whose key starts with ``base_key``.
+
+    Reset epochs and agent scoping append to the key, so an exact match is not the only way a
+    conversation exists. Mirrors ``goal_handler._resolve_chat_id``.
+    """
+    from sqlalchemy import select
+
+    from app.database.connection import get_session
+    from app.database.models import Chat
+    from app.services.chat.chat_service import ChatService
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(Chat.id).where(Chat.channel_session_key.like(f"{base_key}%")).order_by(Chat.updated_at.desc()).limit(1)
+        )
+        row = result.first()
+    if row is None:
+        return None
+    return await ChatService.get_chat_by_id(str(row[0]))
+
     @staticmethod
     async def _attach_web_handoff(
         result: OutboundMessage,
@@ -562,13 +585,21 @@ class RouterExecutionMixin:
         Failures are swallowed so the main reply is never blocked.
         """
         try:
+            from app.core.channel_bridge.agent_executor.session import (
+                build_channel_session_key,
+            )
             from app.remote_access.mobile_deep_link import (
                 resolve_web_handoff_components,
             )
             from app.services.chat.chat_service import ChatService
 
-            session_key = routing_session_key(msg.channel, chat_id)
+            # ``Chat.channel_session_key`` carries channel + peer + topic (+ agent) plus a reset
+            # epoch, so the legacy channel+peer key never matches. Resolve the same base key the
+            # agent executor stored, then the newest chat under it (goal_handler's pattern).
+            session_key = build_channel_session_key(msg)
             chat = await ChatService.get_channel_chat_by_key(session_key)
+            if chat is None:
+                chat = await _newest_channel_chat_under(session_key)
             if not chat:
                 return result
             locale = resolve_message_locale(msg)

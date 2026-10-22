@@ -16,7 +16,7 @@ Three complementary mechanisms:
    session to prevent ack spam.
 
 [INPUT]
-- channels.routing.router_keys::routing_session_key (POS: debounce grouping key format, consistent with Router ``state_key``)
+- channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
 
 [OUTPUT]
 - Merged InboundMessage delivered via callback to Router
@@ -35,7 +35,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
     ContextEntry,
     InboundMessage,
@@ -73,13 +73,14 @@ class _SessionState:
 def gate_key(msg: InboundMessage) -> str:
     """Derive a lightweight session key for debounce grouping.
 
-    Uses channel + peer identifier (chat_id for groups, sender_id for DMs).
-    Format matches ``routing_session_key``; missing peer uses ``"unknown"``.
-    This is intentionally simpler than SessionKey (no user_id / agent_id)
-    because debounce happens before identity resolution.
+    Uses channel + peer identifier (chat_id for groups, sender_id for DMs) plus the forum
+    topic: two topics of one group can bind different agents, so grouping them together would
+    debounce one topic's messages into the other's turn. Format matches ``routing_state_key``;
+    missing peer uses ``"unknown"``. This is intentionally simpler than SessionKey (no user_id /
+    agent_id) because debounce happens before identity resolution.
     """
     peer = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
-    return routing_session_key(msg.channel, peer or "unknown")
+    return routing_state_key(msg.channel, peer or "unknown", msg.thread_id)
 
 
 def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:

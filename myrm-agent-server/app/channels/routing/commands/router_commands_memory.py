@@ -3,7 +3,7 @@
 [INPUT]
 - channels.routing.commands::parse_memory_args (POS: slash command argument parsing and handling.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - services.memory.operations.pending_review::{approve_pending, batch_approve_pending, reject_pending} (POS: 审批队列统一审批与审计入口，运行时在 /memory 处理器内惰性导入；目标已变化的提案以用户语言提示并保持待审，`approve all` 逐条审批并汇报未通过数量)
 - core.channel_bridge.agent_executor.session::build_channel_budget_key (POS: budget key construction, runtime import in _get_channel_budget_summary.)
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 from .commands import parse_memory_args
@@ -74,7 +74,7 @@ class RouterCommandsMemoryMixin:
     async def _handle_status_command(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Handle /status command: show current session status without interrupting agent."""
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         lines: list[str] = [get_text(msg, "status_header") + "\n"]
 

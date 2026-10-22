@@ -12,7 +12,7 @@ without bloating the core routing loop.
 - channels.protocols.turn_management::RetryHandler, UndoHandler (POS: /retry, /undo protocols)
 - channels.protocols.topic::TopicManager (POS: topic management protocol)
 - channels.routing.policy_resolver::PolicyResolver (POS: DM/group policy resolution + identity resolution)
-- channels.routing.router_keys::routing_session_key (POS: /new session marker and mapping key format)
+- channels.routing.router_keys::routing_state_key (POS: /new session marker and mapping key format)
 
 [OUTPUT]
 - parse_approval_command, is_explicit_approval_command, DenyWithReason: approval command parsing
@@ -37,7 +37,7 @@ import time
 from typing import TYPE_CHECKING, Literal, get_args
 
 from app.channels.i18n import get_text
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
     InboundMessage,
     OutboundMessage,
@@ -410,7 +410,7 @@ async def handle_new_session(
     new_session_peers: dict[str, float],
 ) -> None:
     """Handle /new command: mark peer so next message creates a fresh Chat."""
-    peer_key = routing_session_key(msg.channel, msg.chat_id or msg.sender_id)
+    peer_key = routing_state_key(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
     new_session_peers[peer_key] = time.monotonic()
 
     chat_id = msg.chat_id or msg.sender_id
@@ -544,9 +544,7 @@ async def handle_topic_command(
                 try:
                     bind_kwargs["identity_scope"] = IdentityScopeMode(cmd.identity_scope)
                 except ValueError:
-                    raise ValueError(
-                        f"Invalid identity_scope '{cmd.identity_scope}'; use inherit, shared, or private."
-                    ) from None
+                    raise ValueError(f"Invalid identity_scope '{cmd.identity_scope}'; use inherit, shared, or private.") from None
             if cmd.identity_name is not None:
                 from app.channels.routing.identity_scope import default_identity_id
 

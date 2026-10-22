@@ -3,7 +3,7 @@
 [INPUT]
 - channels.protocols.goal_command::GoalSubcommand (POS: parsed /goal subcommand actions.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ import logging
 from app.channels.i18n import get_text
 from app.channels.protocols.goal_command import GoalSubcommand
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 logger = logging.getLogger("app.channels.routing.router")
@@ -37,7 +37,7 @@ class RouterCommandsGoalsMixin:
     ) -> None:
         """Handle /goal command: manage persistent cross-turn goals."""
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         if not self._goal_handler:
             reply = OutboundMessage(

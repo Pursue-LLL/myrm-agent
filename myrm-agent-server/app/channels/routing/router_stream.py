@@ -28,7 +28,7 @@ from app.channels.routing.router_constants import (
     _SILENCE_REASSURANCE_THRESHOLD,
 )
 from app.channels.routing.router_host import RouterStreamHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_stream_scrubber import (
     normalize_progress_stage,
     scrub_thinking_content,
@@ -98,7 +98,7 @@ class RouterStreamMixin:
 
         metrics_key = f"{msg.channel}:{chat_id}:{msg.message_id}"
         trace_id = get_current_trace_id() or ""
-        stream_state_key = routing_session_key(msg.channel, chat_id)
+        stream_state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         self._stream_metrics.start_session(metrics_key, trace_id)
         self._progress_estimator.start_session(metrics_key, msg.content)
 
@@ -129,7 +129,7 @@ class RouterStreamMixin:
                     if event.quick_replies:
                         approval_mid = await self._send_interactive_progress(msg, chat_id, event)
                         if approval_mid:
-                            session_key = routing_session_key(msg.channel, chat_id)
+                            session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
                             self._approval_msg_ids[session_key] = approval_mid
                         has_pending_approval = True
                         last_progress_at = time.monotonic()

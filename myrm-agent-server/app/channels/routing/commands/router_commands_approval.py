@@ -3,7 +3,7 @@
 [INPUT]
 - channels.routing.commands::ApprovalDecision, DenyWithReason (POS: slash command argument parsing and handling.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - channels.i18n::get_text (POS: multi-language gateway command replies and system-generated channel messages.)
@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from app.channels.i18n import get_text
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 from .commands import ApprovalDecision, DenyWithReason
@@ -83,7 +83,7 @@ class RouterCommandsApprovalMixin:
     async def _cancel_active_task(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Cancel the active agent task for the sender's chat session."""
         chat_id = msg.chat_id or msg.sender_id
-        state_key = routing_session_key(msg.channel, chat_id)
+        state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         cancelled = await self._abort_session_task(
             state_key,
@@ -122,7 +122,7 @@ class RouterCommandsApprovalMixin:
         commands (like plain "1" or "2") to prevent misinterpretation as approval.
         """
         chat_id = msg.chat_id or msg.sender_id
-        state_key = routing_session_key(msg.channel, chat_id)
+        state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         return self._active_tasks.get(state_key) is not None
 
     def _is_reaction_approval_valid(self: RouterCommandsHost, msg: InboundMessage) -> bool:
@@ -147,7 +147,7 @@ class RouterCommandsApprovalMixin:
         is 1:1 with the requester and bystander attacks are impossible.
         """
         chat_id = msg.chat_id or msg.sender_id
-        state_key = routing_session_key(msg.channel, chat_id)
+        state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         active = self._active_tasks.get(state_key)
         if active is None:
@@ -200,7 +200,7 @@ class RouterCommandsApprovalMixin:
         interrupted graph state via ``Command(resume=resume_value)``.
         """
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         if self._active_tasks.get(session_key) is None:
             reply = OutboundMessage(
@@ -282,7 +282,7 @@ class RouterCommandsApprovalMixin:
             return
 
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         active = self._active_tasks.get(session_key)
 
         from app.services.approvals.registry import ApprovalRegistry

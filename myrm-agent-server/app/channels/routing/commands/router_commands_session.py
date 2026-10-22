@@ -3,7 +3,7 @@
 [INPUT]
 - channels.routing.commands::handle_new_session, handle_compact, handle_retry, handle_undo, handle_topic_command (POS: slash command handlers.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.types::InboundMessage (POS: channel message types.)
 
 [OUTPUT]
@@ -20,7 +20,7 @@ import logging
 
 from app.channels.i18n import get_text
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage
 
 from .commands import (
@@ -41,7 +41,7 @@ class RouterCommandsSessionMixin:
     async def _handle_new_session(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Handle /new command: cancel running task, flush pending queue, start fresh."""
         chat_id = msg.chat_id or msg.sender_id
-        state_key = routing_session_key(msg.channel, chat_id)
+        state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         await self._abort_session_task(
             state_key,
