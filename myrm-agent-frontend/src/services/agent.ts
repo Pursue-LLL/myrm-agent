@@ -46,8 +46,6 @@ export interface SubagentPresetItem {
   id: string;
   display_name: string;
   description: string;
-  category: 'office' | 'research' | 'engineering' | 'general';
-  risk_level: 'low' | 'medium' | 'high';
   required_builtin_tools: string[];
 }
 

@@ -9,4 +9,4 @@ Agent 编辑器的内置子代理目录 HTTP 子包。只读取 server 业务层
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `__init__.py` | 门面 | 只导出 `router`，供 `app/api/router.py` 挂载 |
-| `router.py` | 路由 | `GET /agents/subagent-presets`：返回用户可选专家的 id/display_name/description/category/risk_level/required_builtin_tools；内部 cron 专用预设不暴露 |
+| `router.py` | 路由 | `GET /agents/subagent-presets`：返回用户可选专家的 id/display_name/description/required_builtin_tools；内部 cron 专用预设不暴露 |

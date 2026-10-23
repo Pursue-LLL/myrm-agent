@@ -23,8 +23,6 @@ def test_list_subagent_presets_exposes_only_user_selectable_specs(client: TestCl
     for preset in presets:
         assert preset["display_name"]
         assert preset["description"]
-        assert preset["category"] in {"office", "research", "engineering"}
-        assert preset["risk_level"] in {"low", "medium"}
         assert isinstance(preset["required_builtin_tools"], list)
         assert "system_prompt" not in preset
         assert "tools" not in preset

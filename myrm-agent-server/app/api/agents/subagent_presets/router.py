@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - router: GET /agents/subagent-presets
-- SubagentPresetItem: id, display_name, description, category, risk_level, required_builtin_tools
+- SubagentPresetItem: id, display_name, description, required_builtin_tools
 
 [POS]
 Server business-layer HTTP adapter for the user-selectable YAML subagent catalog. It exposes
@@ -36,21 +36,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_CATEGORY_BY_ID: dict[str, str] = {
-    "structure-planner": "office",
-    "layout-designer": "office",
-    "format-verifier": "office",
-    "browser": "research",
-    "explore": "engineering",
-}
-_RISK_BY_ID: dict[str, str] = {
-    "structure-planner": "low",
-    "layout-designer": "low",
-    "format-verifier": "low",
-    "browser": "medium",
-    "explore": "low",
-}
-
 
 class SubagentPresetItem(BaseModel):
     """Public metadata for one built-in subagent preset."""
@@ -58,8 +43,6 @@ class SubagentPresetItem(BaseModel):
     id: str
     display_name: str
     description: str
-    category: str
-    risk_level: str
     required_builtin_tools: list[str]
 
 
@@ -73,8 +56,6 @@ async def list_subagent_presets() -> JSONResponse:
                 id=type_id,
                 display_name=config.display_name or type_id.replace("-", " ").title(),
                 description=config.description,
-                category=_CATEGORY_BY_ID.get(type_id, "general"),
-                risk_level=_RISK_BY_ID.get(type_id, "low"),
                 required_builtin_tools=list(required_builtin_tools(config)),
             ).model_dump()
             for type_id, config in configs.items()
