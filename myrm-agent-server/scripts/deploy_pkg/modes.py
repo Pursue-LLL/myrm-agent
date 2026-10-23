@@ -1,8 +1,20 @@
+from pathlib import Path
+
 from .actions import start_application, try_start_local_search_profile
 from .checks import check_python_version, check_uv_installed
 from .constants import ENV_DEFAULTS, ENV_FILE, ENV_LOCAL, ENV_SANDBOX
 from .docker_core import _deploy_with_docker_compose
-from .utils import merge_env_files, print_error, print_header, print_info, print_step, print_success, print_warning, run_command
+from .utils import (
+    command_exists,
+    merge_env_files,
+    print_error,
+    print_header,
+    print_info,
+    print_step,
+    print_success,
+    print_warning,
+    run_command,
+)
 
 
 def deploy_tauri(action: str = "dev") -> bool:
@@ -44,12 +56,24 @@ def deploy_tauri(action: str = "dev") -> bool:
         print_error(f"依赖安装失败: {e}")
         return False
 
+    desktop_dir = Path(__file__).resolve().parents[3] / "myrm-agent-desktop"
+
     # 根据 action 执行不同操作
     if action == "dev":
         print_step(4, "启动开发服务器")
         try_start_local_search_profile()
+        if command_exists("cargo") and (desktop_dir / "src-tauri").is_dir():
+            print_info("检测到 Tauri 桌面项目与 Rust 工具链，启动桌面端开发调试...")
+            print_info(f"工作目录: {desktop_dir}")
+            try:
+                run_command(["cargo", "tauri", "dev"], cwd=desktop_dir)
+                return True
+            except Exception as e:
+                print_warning(f"Tauri 桌面端启动中断或失败: {e}")
+                print_info("回退到本地单机后端模式...")
+
         print_info("开发模式将启动 Python 后端（uvicorn 单进程）")
-        print_info("数据存储在: /workspace/")
+        print_info("数据存储在本地嵌入式数据库 (SQLite + Qdrant)")
         print()
         print("📍 服务信息:")
         print("  - 后端 API: http://127.0.0.1:8080")
@@ -65,9 +89,19 @@ def deploy_tauri(action: str = "dev") -> bool:
 
     elif action == "build":
         print_step(4, "打包 Tauri 应用")
-        print_warning("Tauri 打包功能尚未实现")
-        print_info("需要先完成 Phase 3: Tauri 集成（Tauri 项目、Sidecar、IPC）")
-        return False
+        if command_exists("cargo") and (desktop_dir / "src-tauri").is_dir():
+            print_info(f"在 {desktop_dir} 执行 cargo tauri build...")
+            try:
+                run_command(["cargo", "tauri", "build"], cwd=desktop_dir)
+                print_success("Tauri 桌面端打包完成")
+                return True
+            except Exception as e:
+                print_error(f"Tauri 打包失败: {e}")
+                return False
+        else:
+            print_error("未检测到 Rust/Cargo 工具链或 myrm-agent-desktop 目录")
+            print_info("请确保已安装 Rust: https://sh.rustup.rs 并安装 tauri-cli: cargo install tauri-cli")
+            return False
 
     else:
         print_error(f"未知的 action: {action}")

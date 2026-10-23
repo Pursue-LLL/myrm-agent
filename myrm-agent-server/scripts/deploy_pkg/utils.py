@@ -37,7 +37,12 @@ def print_info(text: str) -> None:
     print(f"ℹ️  {text}")
 
 
-def run_command(cmd: list[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
+def run_command(
+    cmd: list[str],
+    check: bool = True,
+    capture: bool = False,
+    cwd: str | Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     """运行命令"""
     try:
         result = subprocess.run(
@@ -45,6 +50,7 @@ def run_command(cmd: list[str], check: bool = True, capture: bool = False) -> su
             check=check,
             capture_output=capture,
             text=True,
+            cwd=str(cwd) if cwd else None,
         )
         return result
     except subprocess.CalledProcessError as e:
