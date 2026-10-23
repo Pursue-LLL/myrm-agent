@@ -22,8 +22,8 @@ import {
 import type { ExpertTemplateKind } from '@/services/templateDiscovery';
 
 /**
- * 提取召唤专家模板时的用户友好错误信息。
- * 优先保留后端返回的真实业务报错（如技能缺失、鉴权失败、后端离线），
+ * 提取召唤专家模板时的错误信息。
+ * 优先透传底层真实报错（如 ApiError.message、网络连接异常等），
  * 避免通用文案掩盖真正原因。
  */
 export function extractSummonErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -35,23 +35,6 @@ export function extractSummonErrorMessage(error: unknown, fallbackMessage: strin
   if (!trimmed || trimmed === '[object Object]') {
     return fallbackMessage;
   }
-
-  // 技能缺失解析
-  const skillMatch = trimmed.match(/Template requires skill ['"]([^'"]+)['"]/);
-  if (skillMatch) {
-    return `缺少依赖的技能 "${skillMatch[1]}"，请先安装该技能`;
-  }
-
-  // 认证失败
-  if (trimmed.includes('Authentication required')) {
-    return '未登录或认证已过期，请重新登录';
-  }
-
-  // 服务离线
-  if (trimmed.includes('Failed to fetch') || trimmed.includes('ECONNREFUSED') || trimmed.includes('无法连接到服务器')) {
-    return '无法连接到后端服务，请检查后端是否正常运行';
-  }
-
   return trimmed;
 }
 

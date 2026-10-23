@@ -7,33 +7,24 @@ describe('templateSummon', () => {
   describe('extractSummonErrorMessage', () => {
     const fallback = '召唤专家模板失败';
 
-    it('returns fallback message when error is null or undefined', () => {
+    it('returns fallback message when error is null, undefined, or empty', () => {
       expect(extractSummonErrorMessage(null, fallback)).toBe(fallback);
       expect(extractSummonErrorMessage(undefined, fallback)).toBe(fallback);
       expect(extractSummonErrorMessage('', fallback)).toBe(fallback);
+      expect(extractSummonErrorMessage('   ', fallback)).toBe(fallback);
+      expect(extractSummonErrorMessage(new Error(''), fallback)).toBe(fallback);
+      expect(extractSummonErrorMessage(new Error('[object Object]'), fallback)).toBe(fallback);
     });
 
-    it('formats missing skill error into user-friendly message', () => {
+    it('transparently preserves real error messages without loss', () => {
       const err = new Error("Template requires skill 'office-document' which does not exist in the system.");
-      expect(extractSummonErrorMessage(err, fallback)).toBe('缺少依赖的技能 "office-document"，请先安装该技能');
-    });
+      expect(extractSummonErrorMessage(err, fallback)).toBe("Template requires skill 'office-document' which does not exist in the system.");
 
-    it('formats authentication required error into clear login prompt', () => {
-      const err = new Error('Authentication required');
-      expect(extractSummonErrorMessage(err, fallback)).toBe('未登录或认证已过期，请重新登录');
-    });
+      const authErr = new Error('Authentication required');
+      expect(extractSummonErrorMessage(authErr, fallback)).toBe('Authentication required');
 
-    it('formats backend offline / connection error into server check prompt', () => {
-      const err1 = new Error('Failed to fetch');
-      expect(extractSummonErrorMessage(err1, fallback)).toBe('无法连接到后端服务，请检查后端是否正常运行');
-
-      const err2 = new Error('无法连接到服务器，请检查服务是否启动');
-      expect(extractSummonErrorMessage(err2, fallback)).toBe('无法连接到后端服务，请检查后端是否正常运行');
-    });
-
-    it('returns raw message when it is a specific custom error', () => {
-      const err = new Error('自定义业务参数错误');
-      expect(extractSummonErrorMessage(err, fallback)).toBe('自定义业务参数错误');
+      const netErr = new Error('无法连接到服务器，请检查服务是否启动');
+      expect(extractSummonErrorMessage(netErr, fallback)).toBe('无法连接到服务器，请检查服务是否启动');
     });
   });
 
