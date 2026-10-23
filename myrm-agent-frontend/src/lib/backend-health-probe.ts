@@ -50,10 +50,30 @@ export async function fetchBackendHealth(): Promise<BackendHealthPayload | null>
     const healthPath = backendBase ? `${backendBase}/api/v1/health` : '/api/v1/health';
     const response = await fetch(healthPath, { cache: 'no-store' });
     if (!response.ok) {
+      if (isTauriEnvironment() && !backendBase) {
+        try {
+          const directResp = await fetch('http://127.0.0.1:8080/api/v1/health', { cache: 'no-store' });
+          if (directResp.ok) {
+            return (await directResp.json()) as BackendHealthPayload;
+          }
+        } catch {
+          // direct fallback failed
+        }
+      }
       return null;
     }
     return (await response.json()) as BackendHealthPayload;
   } catch {
+    if (isTauriEnvironment()) {
+      try {
+        const directResp = await fetch('http://127.0.0.1:8080/api/v1/health', { cache: 'no-store' });
+        if (directResp.ok) {
+          return (await directResp.json()) as BackendHealthPayload;
+        }
+      } catch {
+        // direct fallback failed
+      }
+    }
     return null;
   }
 }
