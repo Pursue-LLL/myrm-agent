@@ -24,6 +24,20 @@ def test_user_selectable_catalog_is_explicit_and_metadata_complete():
         assert config.tools
 
 
+def test_office_structure_and_layout_presets_are_read_only():
+    configs = load_user_selectable_subagent_configs()
+
+    structure = configs["structure-planner"]
+    assert structure.theme_color == "blue"
+    assert "file_read_tool" in structure.tools
+    assert {"file_write_tool", "file_edit_tool"}.issubset(structure.disallowed_tools)
+
+    layout = configs["layout-designer"]
+    assert layout.theme_color == "purple"
+    assert "file_read_tool" in layout.tools
+    assert {"file_write_tool", "file_edit_tool"}.issubset(layout.disallowed_tools)
+
+
 def test_format_verifier_is_read_only_without_native_shell():
     config = load_user_selectable_subagent_configs()["format-verifier"]
 
