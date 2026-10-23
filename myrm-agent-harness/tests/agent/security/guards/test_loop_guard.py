@@ -485,7 +485,7 @@ class TestIterationBudget:
             graph_recursion_limit=150,
         )
         assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 150 // 3
+        assert guard._budget_stuck <= 150 // LoopGuard._NODES_PER_TOOL_CALL
 
     def test_reconfigure_budget_updates_thresholds(self) -> None:
         """_configure_budget recalculates thresholds in-place."""
@@ -504,7 +504,7 @@ class TestIterationBudget:
             graph_recursion_limit=20,
         )
         assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 20 // 3
+        assert guard._budget_stuck <= 20 // LoopGuard._NODES_PER_TOOL_CALL
 
 
 # ---------------------------------------------------------------------------

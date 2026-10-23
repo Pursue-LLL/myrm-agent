@@ -168,7 +168,10 @@ class LoopGuard(LoopDetectorMixin):
         Whether to enable persistent statistics collection.
     """
 
-    _NODES_PER_TOOL_CALL = 3
+    # Measured against a real graph, not assumed: a turn costs one step for the model and one for
+    # the tool node, so each tool call advances the Pregel counter by two. Every `recursion_limit`
+    # from 2 to 12 was bisected against tool-call counts 0-5 and this held exactly.
+    _NODES_PER_TOOL_CALL = 2
 
     def __init__(
         self,
