@@ -361,6 +361,9 @@ export interface MCPOptionsResponse {
   allowStdio: boolean;
   allowSse: boolean;
   allowedTypes: string[];
+  requireHttps?: boolean;
+  ssrfProtectionEnabled?: boolean;
+  verifyTimeout?: number;
 }
 
 /**

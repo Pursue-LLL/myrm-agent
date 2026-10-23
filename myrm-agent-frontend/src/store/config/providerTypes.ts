@@ -583,6 +583,10 @@ export interface CustomModelInfo {
   input_cost_per_million?: number;
   /** Cost per million output tokens (USD). Matches models.dev convention. */
   output_cost_per_million?: number;
+  /** Cost per million cache-read tokens (USD). */
+  cache_read_cost_per_million?: number;
+  /** Cost per million cache-write tokens (USD). */
+  cache_write_cost_per_million?: number;
   supports_vision?: boolean;
   supports_function_calling?: boolean;
   supports_reasoning?: boolean;

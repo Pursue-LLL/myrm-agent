@@ -294,12 +294,7 @@ export function MCPConfigEditor({
                 onChange={(e) =>
                   onFormDataChange({
                     ...formData,
-                    cacheableTools: e.target.value
-                      ? e.target.value
-                          .split(',')
-                          .map((name) => name.trim())
-                          .filter(Boolean)
-                      : null,
+                    cacheableTools: e.target.value ? e.target.value.split(',').map((name) => name.trim()) : null,
                   })
                 }
                 placeholder={t('mcpCacheableToolsPlaceholder')}
