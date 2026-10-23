@@ -27,8 +27,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import time
 from collections.abc import Callable, Coroutine
+
+logger = logging.getLogger(__name__)
 
 from myrm_agent_harness.runtime.subagent_watchdog.subagent_heartbeat_tracker import (
     SubagentHeartbeatTracker,
@@ -87,7 +90,7 @@ class ZombieCleanupSupervisor:
                 if health == SubagentHealthState.TERMINATED:
                     # Hard deadline passed: task is an uncooperative zombie
                     if not task.done():
-                        task.cancel()
+                        await self._reap(task)
                     if cleanup_hook is not None:
                         with contextlib.suppress(Exception):
                             cleanup_hook()
@@ -115,6 +118,10 @@ class ZombieCleanupSupervisor:
                 err_summary = ""
 
         finally:
+            # A soft-cancelled task is only observed as cancelled once it has actually stopped.
+            # Returning while it still runs leaks a task into the caller's event loop, where it
+            # keeps executing (and keeps this tracker entry alive) long after supervision ended.
+            await self._reap(task)
             total_pulses = self.tracker.get_pulse_count(subagent_id)
             self.tracker.unregister(subagent_id)
 
@@ -131,6 +138,44 @@ class ZombieCleanupSupervisor:
         )
 
         return final_state, result, receipt
+
+    # A worker that handles CancelledError by waiting again stays alive after the first cancel;
+    # each further request interrupts it wherever it currently awaits. Bounded so supervision can
+    # never hang on a worker that refuses to stop, and so the caller's loop is left clean.
+    _REAP_ATTEMPTS = 3
+    _REAP_GRACE_S = 0.5
+
+    @classmethod
+    async def _reap(cls, task: asyncio.Task[str]) -> None:
+        """Stop ``task`` and wait (bounded) for it to finish.
+
+        Returning while the task still runs leaks it into the caller's event loop, where it keeps
+        executing and keeps this tracker entry alive long after supervision reported a verdict.
+        """
+        if task.done():
+            cls._consume_result(task)
+            return
+        for _ in range(cls._REAP_ATTEMPTS):
+            task.cancel()
+            # `asyncio.wait` and not `await task`: awaiting the worker would propagate its
+            # cancellation into this supervisor, and a supervisor must not inherit it.
+            await asyncio.wait({task}, timeout=cls._REAP_GRACE_S)
+            if task.done():
+                cls._consume_result(task)
+                return
+        # A worker that re-enters `except CancelledError` can survive every request. Detach it so
+        # the caller is not blocked, but say so: silence here looks like a clean shutdown while a
+        # task keeps running.
+        logger.warning(
+            "subagent task did not stop after %d cancellation attempts; detaching it",
+            cls._REAP_ATTEMPTS,
+        )
+
+    @staticmethod
+    def _consume_result(task: asyncio.Task[str]) -> None:
+        """Retrieve the outcome so an abandoned task does not warn at loop shutdown."""
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            task.result()
 
     @staticmethod
     def render_watchdog_markdown(receipt: SubagentExecutionReceipt) -> str:

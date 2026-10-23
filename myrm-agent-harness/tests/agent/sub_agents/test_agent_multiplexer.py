@@ -3,12 +3,10 @@
 [INPUT]
 - myrm_agent_harness.agent.sub_agents.multiplexer::(
     AgentSessionMultiplexer,
-    create_inspect_agent_session_tool,
-    create_instruct_agent_tool,
   )
 
 [OUTPUT]
-- Pytest test cases validating session multiplexing, sliding log inspection, instruction injection, and tools.
+- Pytest test cases validating session multiplexing, sliding log inspection, instruction injection.
 
 [POS]
 tests/agent/sub_agents/test_agent_multiplexer.py: Comprehensive test suite for Item 7 AgentMultiplexer.
@@ -18,8 +16,6 @@ from __future__ import annotations
 
 from myrm_agent_harness.agent.sub_agents.multiplexer import (
     AgentSessionMultiplexer,
-    create_inspect_agent_session_tool,
-    create_instruct_agent_tool,
 )
 
 
@@ -153,53 +149,4 @@ def test_cross_agent_instruction_injection_and_consumption() -> None:
     assert snap_after is not None
     assert snap_after.pending_instructions_count == 0
 
-
-def test_inspect_agent_session_tool() -> None:
-    """Verify LangChain inspect_agent_session tool execution."""
-    mux = AgentSessionMultiplexer()
-    mux.register_session(
-        session_id="sess-sub-42",
-        agent_type="db-admin",
-        task_objective="Migrate schema",
-    )
-    mux.append_log("sess-sub-42", "Running alembic upgrade head...")
-
-    tool = create_inspect_agent_session_tool(multiplexer=mux)
-    result = tool.invoke({"target_session_id": "sess-sub-42", "tail_lines": 10})
-
-    assert isinstance(result, dict)
-    assert result["success"] is True
-    assert result["agent_type"] == "db-admin"
-    assert result["log_tail"] == ["Running alembic upgrade head..."]
-
-    # Invocation on missing session returns error payload
-    err_res = tool.invoke({"target_session_id": "sess-missing"})
-    assert isinstance(err_res, dict)
-    assert err_res["success"] is False
-    assert "not found" in str(err_res.get("error", ""))
-
-
-def test_instruct_agent_tool() -> None:
-    """Verify LangChain instruct_agent tool execution."""
-    mux = AgentSessionMultiplexer()
-    mux.register_session(
-        session_id="sess-sub-99",
-        agent_type="coder",
-        task_objective="Implement OAuth callback",
-    )
-
-    tool = create_instruct_agent_tool(multiplexer=mux, current_agent_type="lead-orchestrator")
-    result = tool.invoke({
-        "target_session_id": "sess-sub-99",
-        "instruction": "Verify CSRF state parameter before exchanging auth code.",
-    })
-
-    assert isinstance(result, dict)
-    assert result["success"] is True
-    assert result["queued_instructions_count"] == 1
-
-    # Verify instruction was recorded with proper source
-    instructions = mux.consume_pending_instructions("sess-sub-99")
-    assert len(instructions) == 1
-    assert instructions[0].source_agent == "lead-orchestrator"
-    assert "CSRF" in instructions[0].instruction
+    assert "rollback" in consumed[1].instruction

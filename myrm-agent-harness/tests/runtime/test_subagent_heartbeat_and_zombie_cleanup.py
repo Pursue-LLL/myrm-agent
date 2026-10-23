@@ -109,20 +109,25 @@ async def test_zombie_cleanup_supervisor_terminates_zombie_and_calls_hook() -> N
     )
 
     hook_called = False
+    hard_killed = False
 
     def on_zombie_kill() -> None:
-        nonlocal hook_called
+        nonlocal hook_called, hard_killed
         hook_called = True
+        hard_killed = True
 
     async def uncooperative_zombie_worker() -> str:
-        # Initial pulse, then simulate stuck worker that ignores CancelledError
+        # Initial pulse, then a worker that ignores the soft-cancel signal but still ends when the
+        # hard terminate arrives. A coroutine that re-enters `except CancelledError` forever cannot
+        # be stopped by anyone — no supervisor, and not `asyncio.run`'s shutdown either — so such a
+        # fixture would test the event loop's patience rather than the watchdog's behaviour.
         tracker.pulse("sub_zombie", note="Starting")
-        while True:
+        while not hard_killed:
             try:
                 await asyncio.sleep(0.01)
             except asyncio.CancelledError:
-                # Stubborn zombie ignores soft cancel signal until hard killed
                 await asyncio.sleep(0.01)
+        return "stopped"
 
     state, result, receipt = await supervisor.supervise_task(
         subagent_id="sub_zombie",
@@ -174,3 +179,53 @@ async def test_zombie_cleanup_supervisor_soft_canceling_cooperative() -> None:
     assert result == ""
     assert receipt.zombie_killed is False
     assert "cancelled due to heartbeat warning" in receipt.degraded_error_summary
+
+@pytest.mark.asyncio
+async def test_supervision_waits_for_the_worker_to_stop() -> None:
+    """A supervised task must be finished by the time the verdict is returned.
+
+    Reporting TERMINATED while the coroutine still runs leaks a task into the caller's loop: it
+    keeps executing, keeps its tracker entry alive, and blocks loop shutdown. The worker records
+    its own termination, so this can only pass if supervision awaited it instead of cancelling and
+    walking away.
+    """
+    tracker = SubagentHeartbeatTracker()
+    supervisor = ZombieCleanupSupervisor(tracker)
+    ladder = TimeoutLadderConfig(
+        warning_threshold_s=0.02,
+        soft_cancel_threshold_s=0.04,
+        hard_terminate_threshold_s=0.08,
+    )
+    release = False
+    worker_finished = False
+
+    async def worker() -> str:
+        nonlocal worker_finished
+        tracker.pulse("sub_leak", note="Starting")
+        while not release:
+            try:
+                await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                await asyncio.sleep(0.01)
+        # Give the loop a turn so "finished" reflects a real unwind, not the flag flip.
+        await asyncio.sleep(0.05)
+        worker_finished = True
+        return "stopped"
+
+    def on_hard_terminate() -> None:
+        nonlocal release
+        release = True
+
+    state, _result, receipt = await supervisor.supervise_task(
+        subagent_id="sub_leak",
+        parent_session_id="parent_leak",
+        coro=worker(),
+        cleanup_hook=on_hard_terminate,
+        custom_ladder=ladder,
+        check_interval_s=0.02,
+    )
+
+    assert state == SubagentHealthState.TERMINATED
+    assert receipt.zombie_killed is True
+    # Supervision must not hand back a verdict while the worker is still unwinding.
+    assert worker_finished is True
