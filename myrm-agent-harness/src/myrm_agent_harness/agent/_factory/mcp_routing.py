@@ -202,7 +202,11 @@ def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
     read_only = bool(metadata.get("readOnlyHint", False))
 
     async def cached_call(**params: object) -> object:
-        session_id = chat_id_var.get() or "-"
+        session_id = chat_id_var.get().strip()
+        if not session_id:
+            # Never share a Direct FC cache bucket without a session key; a
+            # missing context would otherwise become cross-session state.
+            return await tool.ainvoke(params)
         cache_ttl = resolve_cache_ttl_from_config(policy, tool.name, is_read_only=read_only)
         cache_key = make_cache_key(session_id, cfg.name, tool.name, params) if cache_ttl is not None else None
         if cache_key is not None and cache_ttl is not None:
