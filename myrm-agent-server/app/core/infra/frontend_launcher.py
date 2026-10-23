@@ -391,9 +391,9 @@ class FrontendLauncher:
         
         // Only exit on stdin close/end if we haven't been running for very long, or if we are actually shutting down
         // It seems stdin might be closing prematurely or intermittently
-        process.stdin.on('end', () => { console.log('[Frontend-Wrapper] stdin end'); });
-        process.stdin.on('close', () => { console.log('[Frontend-Wrapper] stdin close'); });
-        process.stdin.on('error', (err) => { console.error('[Frontend-Wrapper] stdin error:', err); });
+        process.stdin.on('end', () => { console.log('[Frontend-Wrapper] stdin end'); process.exit(0); });
+        process.stdin.on('close', () => { console.log('[Frontend-Wrapper] stdin close'); process.exit(0); });
+        process.stdin.on('error', (err) => { console.error('[Frontend-Wrapper] stdin error:', err); process.exit(0); });
         
         process.on('uncaughtException', (err) => {
             console.error('[Frontend-Wrapper] Uncaught Exception:', err);
@@ -452,17 +452,23 @@ class FrontendLauncher:
             return
 
         pid = proc.pid
-        logger.info("[Frontend] Stopping Next.js (PID %d) via stdin pipe closure...", pid)
+        logger.info("[Frontend] Stopping Next.js (PID %d)...", pid)
         try:
-            # 核心：通过关闭 stdin 管道触发 Node.js 端优雅退出，避免使用难以控制的信号
             if proc.stdin:
-                proc.stdin.close()
-            proc.wait(timeout=5)
+                try:
+                    proc.stdin.close()
+                except Exception:
+                    pass
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
             logger.warning("[Frontend] Graceful stop timed out, force killing PID %d", pid)
             proc.kill()
             try:
-                proc.wait(timeout=3)
+                proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 pass
         except ProcessLookupError:
