@@ -277,10 +277,19 @@ async def _fetch_full_content(
 
     formatted_context = format_crawl_results(success_results=success_results, include_title=True, include_date=False)
     if not formatted_context:
-        raise ToolError(
-            "No content found in the provided URLs",
-            user_hint="The pages may be empty, require authentication, or block automated access. Try different URLs.",
+        failed_summary = (
+            ", ".join(f"{url} ({err})" for url, err in failed_results)
+            if failed_results
+            else ", ".join(urls)
         )
+        return {
+            "content": (
+                f"[web_fetch]: Could not retrieve content from the requested URL(s): {failed_summary}. "
+                "The target page(s) may be unavailable (HTTP 404/403/timeout). "
+                "Please synthesize the final answer using search snippets or other available information."
+            ),
+            "sources": [],
+        }
 
     from myrm_agent_harness.toolkits.web_fetch.processing.content_sanitize import (
         strip_base64_images_from_markdown,

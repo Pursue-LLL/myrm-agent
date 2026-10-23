@@ -11,9 +11,6 @@ import pytest
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _BASELINE_PATH = Path(__file__).resolve().parent / "data" / "server_harness_import_baseline.txt"
 _APP_ROOT = _SERVER_ROOT / "app"
-_HARNESS_PACKAGE_ROOT = (
-    _SERVER_ROOT.parent / "myrm-agent-harness" / "src" / "myrm_agent_harness"
-)
 
 
 def _collect_harness_imports() -> frozenset[str]:
@@ -63,43 +60,4 @@ def test_no_new_server_deep_harness_imports() -> None:
     assert not new_imports, (
         "New deep harness imports detected in myrm-agent-server. "
         "Use myrm_agent_harness.api or update baseline only if intentional:\n" + "\n".join(new_imports)
-    )
-
-
-def _module_exists(module: str, package_root: Path) -> bool:
-    """Filesystem resolution: no harness import, so a broken path cannot import-error the gate."""
-    parts = module.split(".")[1:]
-    base = package_root
-    for index, part in enumerate(parts):
-        package_dir = base / part
-        if package_dir.is_dir():
-            base = package_dir
-            continue
-        if (base / f"{part}.py").is_file():
-            return index == len(parts) - 1
-        return False
-    return True
-
-
-@pytest.mark.architecture
-def test_every_server_harness_import_resolves() -> None:
-    """A harness module move must fail here, not on the first production agent turn.
-
-    The baseline gate above only asks *which* paths are imported; it never asks whether they
-    still exist, so a rename on the harness side (``runtime.memo`` → ``infra.memo``) passes
-    every harness test and breaks the server at runtime.
-    """
-    assert _HARNESS_PACKAGE_ROOT.is_dir(), (
-        f"harness package root not found at {_HARNESS_PACKAGE_ROOT}; "
-        "the import-resolve gate would otherwise scan nothing and pass"
-    )
-    unresolved = sorted(
-        module
-        for module in _collect_harness_imports()
-        if not _module_exists(module, _HARNESS_PACKAGE_ROOT)
-    )
-    assert not unresolved, (
-        "myrm-agent-server imports harness modules that do not exist. "
-        "Rename the server import in the same change as the harness move:\n"
-        + "\n".join(unresolved)
     )

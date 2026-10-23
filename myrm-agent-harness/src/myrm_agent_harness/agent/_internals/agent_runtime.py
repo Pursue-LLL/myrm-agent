@@ -39,6 +39,7 @@ Agent runtime — core execution loop, middleware chain, tool building. Re-expor
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from collections.abc import AsyncGenerator
 from contextlib import nullcontext
@@ -550,8 +551,16 @@ async def run_agent_loop(
             except Exception as e:
                 logger.warning(f"Goal planning interception failed: {e}")
 
+        # Each turn in LangGraph with a 20+ middleware chain traverses ~15-25 Pregel graph
+        # nodes per tool call. We ensure the recursion_limit provides adequate node budget
+        # so turns are not prematurely killed after 1-2 tool calls.
+        base_limit = agent_state.config.recursion_limit
+        effective_recursion_limit = max(
+            base_limit * 10,
+            int(os.environ.get("MYRM_RECURSION_LIMIT", "300")),
+        )
         run_config: RunnableConfig = {
-            "recursion_limit": agent_state.config.recursion_limit,
+            "recursion_limit": effective_recursion_limit,
             "configurable": {
                 "context": merged_context,
                 "thread_id": thread_id,
