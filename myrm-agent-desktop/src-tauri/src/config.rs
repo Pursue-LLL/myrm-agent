@@ -170,7 +170,13 @@ impl BackendConfig {
             .ok()
             .and_then(|raw| raw.trim().parse::<u16>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or(8080);
+            .unwrap_or_else(|| {
+                if config.enable_webui_mode && config.api_port > 0 {
+                    config.api_port
+                } else {
+                    8080
+                }
+            });
         // A development build must not open the real user's database (the desktop, the local WebUI
         // and the dev stack all default to ~/.myrm, and two servers on one SQLite file corrupt it).
         let custom_data_dir = std::env::var("MYRM_DESKTOP_DATA_DIR")
@@ -394,7 +400,6 @@ mod tests {
 
         let frontend = FrontendConfig::from_system_config(&sys);
         assert_eq!(frontend.port, 4000);
-        // 桌面托管后端固定 8080，与内置前端的构建期代理目标一致。
-        assert_eq!(frontend.api_port, 8080);
+        assert_eq!(frontend.api_port, 8888);
     }
 }
