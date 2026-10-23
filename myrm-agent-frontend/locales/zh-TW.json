@@ -945,6 +945,35 @@
     "addSubagent": "新增子智慧體",
     "noSubagents": "未繫結子智慧體",
     "removeSubagent": "移除",
+    "builtinSpecialistBadge": "內建",
+    "builtinSpecialistsGroup": "內建專家",
+    "myAgentsGroup": "我的智慧體",
+    "subagentMissingBuiltinTool": "所選專家依賴的內建工具目前未開啟。",
+    "subagentEnableBuiltinTool": "開啟內建工具",
+    "subagentUnavailable": "無法使用的專家",
+    "subagentUnavailableDesc": "此綁定已無法解析，移除它可保持智慧體設定乾淨。",
+    "subagentPresets": {
+      "structure-planner": {
+        "name": "結構大綱規劃師",
+        "description": "規劃 MECE 大綱、論點與交付物依賴，再開始起草。"
+      },
+      "layout-designer": {
+        "name": "版式與簡報設計師",
+        "description": "定義頁面網格、字體層級、配色與圖表版式，用於專業交付物。"
+      },
+      "format-verifier": {
+        "name": "交付物格式與品質稽核",
+        "description": "稽核標題層級、文字牆、公式與跨文件數字一致性。"
+      },
+      "browser": {
+        "name": "瀏覽器自動化專家",
+        "description": "在隔離環境中導覽網頁、擷取資訊並執行操作。"
+      },
+      "explore": {
+        "name": "程式碼庫探索專家",
+        "description": "唯讀檢索程式碼，梳理架構、追蹤呼叫鏈並引用精確檔案行號。"
+      }
+    },
     "dismissRebindHint": "知道了",
     "a2aBinding": "A2A 跨框架遠端委派",
     "a2aBindingDesc": "開啟後，該智慧體支援遵循 A2A (Agent-to-Agent v1.0) 協定跨機器委派呼叫受信任的遠端 Agent 節點",
@@ -1301,6 +1330,7 @@
       "subagentThemeColor": "主題顏色",
       "noSubagents": "暫無子智慧體",
       "noSubagentsDesc": "請先使用 JIT 團隊選擇器新增子智慧體",
+      "builtinSpecialistsHint": "內建專家（瀏覽器、程式碼探索、辦公）請在「設定 → 智慧體」中依智慧體設定。",
       "addSubagent": "新增子智慧體",
       "deleteSubagent": "刪除",
       "confirmDeleteSubagent": "確定要刪除此子智慧體配置嗎？",

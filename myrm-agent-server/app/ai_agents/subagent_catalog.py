@@ -62,8 +62,10 @@ class DatabaseSubagentCatalog:
     For DB custom agents, injects CustomAgentFactory so that build_child_agent()
     creates a SkillAgent with full capabilities instead of a bare BaseAgent.
 
-    Scope restriction: When bound_agent_ids is provided, only those IDs
-    (plus YAML presets) are available. This prevents arbitrary cross-calling.
+    Scope restriction: ``bound_agent_ids`` is the complete delegation grant. When it is a list,
+    only those IDs (plus JIT workers) are available; an empty list grants nothing. ``None`` is
+    reserved for controlled internal callers that resolve a specific YAML preset without a chat
+    grant (for example the cron post-run verifier); it is not a user-facing "all presets" mode.
 
     Incognito: a delegated sub-agent cannot see the chat's incognito flag (its parent is the runtime
     SkillAgent), so the owner of the chat tells the catalog and DB agents are configured without memory.
@@ -101,6 +103,9 @@ class DatabaseSubagentCatalog:
             return cfg
 
         if type_id in self._yaml_configs:
+            if self._bound_agent_ids is not None and type_id not in self._bound_agent_ids:
+                logger.warning("YAML subagent '%s' is not in bound_agent_ids, rejecting", type_id)
+                return None
             cfg = self._yaml_configs[type_id]
             if cfg.model and cfg.model_resolver is None:
                 return replace(cfg, model_resolver=self._model_resolver)
@@ -149,18 +154,37 @@ class DatabaseSubagentCatalog:
             return None
 
     async def list_available(self) -> list[str]:
-        """List available subagent type IDs (JIT + YAML + bound DB agents)."""
-        available = list(self._jit_configs.keys()) + list(self._yaml_configs.keys())
+        """List the delegation grant, in stable order and without duplicates.
+
+        ``bound_agent_ids`` is authoritative: when it is a list, YAML presets are listed only
+        because they are in that list. ``None`` is the unscoped cron verifier path, which may
+        resolve a YAML preset and list the database catalog.
+        """
+        ordered: dict[str, None] = dict.fromkeys(self._jit_configs)
 
         if self._bound_agent_ids is not None:
-            available.extend(sorted(self._bound_agent_ids))
-        else:
-            try:
-                session_factory = get_session_factory()
-                async with session_factory() as _db:
-                    profiles, _ = await AgentService.get_agent_list(page=1, page_size=1000)
-                    available.extend([p.id for p in profiles])
-            except Exception as e:
-                logger.error("Failed to list available subagents from database: %s", e)
+            for type_id in sorted(self._bound_agent_ids):
+                if type_id in self._jit_configs or type_id in self._yaml_configs:
+                    ordered.setdefault(type_id, None)
+                    continue
+                try:
+                    profile = await AgentService.get_agent_by_id(type_id)
+                except Exception as e:
+                    logger.error("Failed to validate bound subagent '%s': %s", type_id, e)
+                    continue
+                if profile is not None:
+                    ordered.setdefault(type_id, None)
+            return list(ordered)
 
-        return available
+        for type_id in self._yaml_configs:
+            ordered.setdefault(type_id, None)
+        try:
+            session_factory = get_session_factory()
+            async with session_factory() as _db:
+                profiles, _ = await AgentService.get_agent_list(page=1, page_size=1000)
+                for profile in profiles:
+                    ordered.setdefault(profile.id, None)
+        except Exception as e:
+            logger.error("Failed to list available subagents from database: %s", e)
+
+        return list(ordered)

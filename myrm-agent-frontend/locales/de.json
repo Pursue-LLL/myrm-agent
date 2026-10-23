@@ -945,6 +945,35 @@
     "addSubagent": "Subagent hinzufügen",
     "noSubagents": "Keine Subagenten gebunden",
     "removeSubagent": "Entfernen",
+    "builtinSpecialistBadge": "Integriert",
+    "builtinSpecialistsGroup": "Integrierte Spezialisten",
+    "myAgentsGroup": "Meine Agenten",
+    "subagentMissingBuiltinTool": "Ein ausgewählter Spezialist benötigt ein integriertes Werkzeug, das derzeit deaktiviert ist.",
+    "subagentEnableBuiltinTool": "Integrierte Werkzeuge öffnen",
+    "subagentUnavailable": "Nicht verfügbarer Spezialist",
+    "subagentUnavailableDesc": "Diese Bindung lässt sich nicht mehr auflösen. Entfernen Sie sie, um den Agenten sauber zu halten.",
+    "subagentPresets": {
+      "structure-planner": {
+        "name": "Struktur- und Gliederungsplaner",
+        "description": "Plant MECE-Gliederungen, Thesen und Abhängigkeiten der Lieferobjekte vor dem Schreiben."
+      },
+      "layout-designer": {
+        "name": "Layout- und Präsentationsdesigner",
+        "description": "Definiert Seitenraster, Typografie, Farbschemata und Diagrammlayouts für professionelle Lieferobjekte."
+      },
+      "format-verifier": {
+        "name": "Format- und Qualitätsprüfer",
+        "description": "Prüft Überschriftenhierarchie, Textwände, Formeln und konsistente Zahlen über Dokumente hinweg."
+      },
+      "browser": {
+        "name": "Browser-Automatisierung",
+        "description": "Navigiert in einem isolierten Kontext durch Webseiten, extrahiert Informationen und führt Aktionen aus."
+      },
+      "explore": {
+        "name": "Codebase-Explorer",
+        "description": "Read-only-Codesuche, die Architektur und Aufrufketten abbildet und exakte Dateizeilen zitiert."
+      }
+    },
     "dismissRebindHint": "Schließen",
     "a2aBinding": "A2A Framework-übergreifende Remote-Delegierung",
     "a2aBindingDesc": "Aktiviert die Delegation von Aufgaben an vertrauenswürdige Remote-Agenten nach dem A2A (Agent-to-Agent v1.0) Protokoll.",
@@ -1301,6 +1330,7 @@
       "subagentThemeColor": "Themenfarbe",
       "noSubagents": "Keine Subagenten konfiguriert",
       "noSubagentsDesc": "Verwenden Sie den JIT-Team-Selektor, um zuerst Subagenten hinzuzufügen",
+      "builtinSpecialistsHint": "Integrierte Spezialisten (Browser, Code-Explorer, Office) werden pro Agent unter „Einstellungen → Agenten“ konfiguriert.",
       "addSubagent": "Subagent hinzufügen",
       "deleteSubagent": "Löschen",
       "confirmDeleteSubagent": "Möchten Sie diese Subagent-Konfiguration wirklich löschen?",

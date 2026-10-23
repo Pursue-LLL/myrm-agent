@@ -945,6 +945,35 @@
     "addSubagent": "Add Subagent",
     "noSubagents": "No subagents bound",
     "removeSubagent": "Remove",
+    "builtinSpecialistBadge": "Built-in",
+    "builtinSpecialistsGroup": "Built-in specialists",
+    "myAgentsGroup": "My agents",
+    "subagentMissingBuiltinTool": "A selected specialist needs a built-in tool that is currently off.",
+    "subagentEnableBuiltinTool": "Open Built-in Tools",
+    "subagentUnavailable": "Unavailable specialist",
+    "subagentUnavailableDesc": "This bound ID no longer resolves. Remove it to keep the Agent clean.",
+    "subagentPresets": {
+      "structure-planner": {
+        "name": "Structure & Outline Planner",
+        "description": "Plans MECE outlines, thesis statements, and deliverable dependencies before drafting."
+      },
+      "layout-designer": {
+        "name": "Layout & Presentation Designer",
+        "description": "Defines page grids, type scales, color schemes, and chart layouts for professional deliverables."
+      },
+      "format-verifier": {
+        "name": "Deliverable Format & Quality Verifier",
+        "description": "Audits heading hierarchy, text walls, formulas, and cross-document consistency."
+      },
+      "browser": {
+        "name": "Browser Automation Specialist",
+        "description": "Navigates web pages, extracts information, and performs actions in an isolated context."
+      },
+      "explore": {
+        "name": "Codebase Explorer",
+        "description": "Read-only code search that maps architecture, traces call chains, and cites exact file lines."
+      }
+    },
     "dismissRebindHint": "Dismiss",
     "a2aBinding": "A2A Remote Delegation",
     "a2aBindingDesc": "Enable this agent to delegate tasks to remote trusted agent nodes using the A2A v1.0 protocol",
@@ -1301,6 +1330,7 @@
       "subagentThemeColor": "Theme Color",
       "noSubagents": "No subagents configured",
       "noSubagentsDesc": "Use JIT Team selector to add subagents first",
+      "builtinSpecialistsHint": "Built-in specialists (Browser, Explore, Office) are configured per Agent in Settings → Agents.",
       "addSubagent": "Add Subagent",
       "deleteSubagent": "Delete",
       "confirmDeleteSubagent": "Are you sure you want to delete this subagent configuration?",

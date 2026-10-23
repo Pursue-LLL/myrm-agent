@@ -167,6 +167,14 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         selectedIds={editor.selectedSubagentIds}
         currentAgentId={agentId}
         onChange={editor.setSelectedSubagentIds}
+        enabledBuiltinTools={editor.enabledBuiltinTools}
+        onOpenBuiltinTools={() => {
+          if (editor.isReadonly) {
+            return;
+          }
+          editor.setEditDialogType('builtin_tools');
+          editor.setEditDialogOpen(true);
+        }}
         showRebindHint={editor.subagentRebindHint}
         onDismissRebindHint={editor.dismissSubagentRebindHint}
       />

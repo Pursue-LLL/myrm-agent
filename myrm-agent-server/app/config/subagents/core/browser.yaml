@@ -5,6 +5,10 @@ name: browser
 
 description: "Browser automation specialist — interacts with web pages, extracts info, and performs actions."
 
+display_name: "Browser Automation Specialist"
+
+theme_color: "cyan"
+
 tools:
   - browser_navigate_tool
   - browser_inspect_tool

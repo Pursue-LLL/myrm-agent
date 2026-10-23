@@ -945,6 +945,35 @@
     "addSubagent": "サブエージェントを追加",
     "noSubagents": "未バインド子エージェント",
     "removeSubagent": "削除",
+    "builtinSpecialistBadge": "組み込み",
+    "builtinSpecialistsGroup": "組み込みスペシャリスト",
+    "myAgentsGroup": "マイエージェント",
+    "subagentMissingBuiltinTool": "選択したスペシャリストに必要な組み込みツールが現在オフです。",
+    "subagentEnableBuiltinTool": "組み込みツールを開く",
+    "subagentUnavailable": "利用できないスペシャリスト",
+    "subagentUnavailableDesc": "このバインディングは解決できなくなりました。削除してエージェント設定を整理してください。",
+    "subagentPresets": {
+      "structure-planner": {
+        "name": "構造・アウトラインプランナー",
+        "description": "MECE のアウトライン、主張、成果物の依存関係を計画してから執筆します。"
+      },
+      "layout-designer": {
+        "name": "レイアウト・プレゼンデザイナー",
+        "description": "ページグリッド、文字階層、配色、グラフ配置を定義します。"
+      },
+      "format-verifier": {
+        "name": "成果物フォーマット検証",
+        "description": "見出し階層、文字の壁、数式、文書間の数値整合性を監査します。"
+      },
+      "browser": {
+        "name": "ブラウザ自動化スペシャリスト",
+        "description": "隔離されたコンテキストでページを操作し、情報を抽出します。"
+      },
+      "explore": {
+        "name": "コードベース探索",
+        "description": "読み取り専用でコードを検索し、呼び出しチェーンと正確な行番号を提示します。"
+      }
+    },
     "dismissRebindHint": "了解",
     "a2aBinding": "A2A クロスフレームワークリモート委任",
     "a2aBindingDesc": "有効にすると、このエージェントは A2A (Agent-to-Agent v1.0) プロトコルに従って、信頼されたリモートエージェントノードにタスクを委任できます。",
@@ -1301,6 +1330,7 @@
       "subagentThemeColor": "テーマカラー",
       "noSubagents": "サブエージェントが設定されていません",
       "noSubagentsDesc": "JIT チームセレクターでサブエージェントを追加してください",
+      "builtinSpecialistsHint": "組み込みスペシャリスト（ブラウザ、コード探索、オフィス）は「設定 → エージェント」でエージェントごとに設定します。",
       "addSubagent": "サブエージェントを追加",
       "deleteSubagent": "削除",
       "confirmDeleteSubagent": "このサブエージェント設定を削除しますか？",

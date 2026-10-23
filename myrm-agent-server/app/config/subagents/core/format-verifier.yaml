@@ -13,11 +13,12 @@ tools:
   - file_read_tool
   - grep_tool
   - glob_tool
-  - bash_code_execute_tool
 
 disallowed_tools:
   - file_write_tool
   - file_edit_tool
+  - bash_code_execute_tool
+  - bash_process_tool
   - skill_manage_tool
   - skill_market_tool
   - cron_manage_tool

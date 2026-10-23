@@ -53,10 +53,25 @@ export const SubagentsPanel = ({
     string,
     EphemeralSubagentConfig & { display_name: string; theme_color: AgentThemeColor }
   > = {
-    researcher: { display_name: t('presetResearcher'), theme_color: 'blue', control_scope: 'leaf', model_override: 'deepseek-chat' },
+    researcher: {
+      display_name: t('presetResearcher'),
+      theme_color: 'blue',
+      control_scope: 'leaf',
+      model_override: 'deepseek-chat',
+    },
     coder: { display_name: t('presetCoder'), theme_color: 'green', control_scope: 'leaf' },
-    reviewer: { display_name: t('presetReviewer'), theme_color: 'purple', control_scope: 'leaf', model_override: 'deepseek-chat' },
-    analyst: { display_name: t('presetAnalyst'), theme_color: 'orange', control_scope: 'leaf', model_override: 'gpt-4o-mini' },
+    reviewer: {
+      display_name: t('presetReviewer'),
+      theme_color: 'purple',
+      control_scope: 'leaf',
+      model_override: 'deepseek-chat',
+    },
+    analyst: {
+      display_name: t('presetAnalyst'),
+      theme_color: 'orange',
+      control_scope: 'leaf',
+      model_override: 'gpt-4o-mini',
+    },
   };
 
   const validateSubagentId = (id: string): string => {
@@ -156,7 +171,12 @@ export const SubagentsPanel = ({
 
   return (
     <div className="space-y-4">
-      <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed cursor-pointer">
+      <p className="text-xs text-muted-foreground">{t('builtinSpecialistsHint')}</p>
+      <Button
+        onClick={() => setIsAddingSubagent(true)}
+        variant="outline"
+        className="w-full gap-2 border-dashed cursor-pointer"
+      >
         <Plus size={16} />
         {t('addSubagent')}
       </Button>

@@ -219,6 +219,9 @@ def app() -> FastAPI:
     templates_module = import_module("app.api.agents.templates")
     app.include_router(templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"])
 
+    subagent_presets_module = import_module("app.api.agents.subagent_presets")
+    app.include_router(subagent_presets_module.router, prefix="/api/v1/agents", tags=["agent-templates"])
+
     kanban_module = import_module("app.api.kanban.router")
     app.include_router(kanban_module.router, prefix="/api/v1")
 

@@ -11,6 +11,7 @@ from app.api.agents import (
     generate_prompt,
     personality,
     providers,
+    subagent_presets,
     subagents,
     suggestions,
     templates,
@@ -184,6 +185,7 @@ api_router.include_router(notifications_router)
 api_router.include_router(web_push_router)
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
+api_router.include_router(subagent_presets.router, prefix="/agents", tags=["agents"])
 api_router.include_router(personality.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])

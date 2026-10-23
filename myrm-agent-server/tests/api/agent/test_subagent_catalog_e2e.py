@@ -140,9 +140,49 @@ class TestDatabaseSubagentCatalog:
         )
         available = await catalog.list_available()
 
-        yaml_count = len(catalog._yaml_configs)
-        assert len(available) == yaml_count + 1
-        assert agent_id in available
+        assert available == [agent_id]
+
+    async def test_empty_bound_grants_nothing(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=[])
+
+        assert await catalog.list_available() == []
+
+        yaml_id = next(iter(catalog._yaml_configs), None)
+        if yaml_id is None:
+            pytest.skip("No YAML subagent presets configured")
+        assert await catalog.resolve(yaml_id) is None
+
+    async def test_bound_yaml_preset_is_available_and_resolvable(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        office_ids = ["structure-planner", "layout-designer", "format-verifier"]
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=office_ids)
+
+        assert set(await catalog.list_available()) == set(office_ids)
+        for type_id in office_ids:
+            config = await catalog.resolve(type_id)
+            assert config is not None
+            assert config.description
+
+    async def test_unknown_bound_id_is_not_advertised(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=["removed-subagent-id"])
+
+        assert await catalog.list_available() == []
+        assert await catalog.resolve("removed-subagent-id") is None
+
+    async def test_unscoped_catalog_keeps_cron_verifier_compatibility(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog()
+
+        available = await catalog.list_available()
+        yaml_ids = set(catalog._yaml_configs)
+        assert yaml_ids.issubset(set(available))
+        assert await catalog.resolve("adversarial-reviewer") is not None
 
 
 @pytest.mark.asyncio

@@ -41,6 +41,21 @@ export async function getPersonalityCatalog(): Promise<PersonalityCatalogItem[]>
   return apiRequest<PersonalityCatalogItem[]>('/agents/personalities', { method: 'GET', silent: true });
 }
 
+/** Metadata for a built-in subagent preset exposed by the Agent editor. */
+export interface SubagentPresetItem {
+  id: string;
+  display_name: string;
+  description: string;
+  category: 'office' | 'research' | 'engineering' | 'general';
+  risk_level: 'low' | 'medium' | 'high';
+  required_builtin_tools: string[];
+}
+
+/** Load the built-in specialists that can be bound through `subagent_ids`. */
+export async function getSubagentPresets(): Promise<SubagentPresetItem[]> {
+  return apiRequest<SubagentPresetItem[]>('/agents/subagent-presets', { method: 'GET', silent: true });
+}
+
 export interface AgentModelSelection {
   providerId: string;
   model: string;

@@ -945,6 +945,35 @@
     "addSubagent": "添加子智能体",
     "noSubagents": "未绑定子智能体",
     "removeSubagent": "移除",
+    "builtinSpecialistBadge": "内置",
+    "builtinSpecialistsGroup": "内置专家",
+    "myAgentsGroup": "我的智能体",
+    "subagentMissingBuiltinTool": "所选专家依赖的内置工具当前未开启。",
+    "subagentEnableBuiltinTool": "打开内置工具",
+    "subagentUnavailable": "不可用的专家",
+    "subagentUnavailableDesc": "这个绑定已无法解析，移除它可保持智能体配置干净。",
+    "subagentPresets": {
+      "structure-planner": {
+        "name": "结构大纲规划师",
+        "description": "规划 MECE 大纲、论点与交付物依赖，再开始起草。"
+      },
+      "layout-designer": {
+        "name": "版式与演示设计师",
+        "description": "定义页面网格、字体层级、配色与图表版式，用于专业交付物。"
+      },
+      "format-verifier": {
+        "name": "交付物格式与质量审计",
+        "description": "审计标题层级、文字墙、公式与跨文档数字一致性。"
+      },
+      "browser": {
+        "name": "浏览器自动化专家",
+        "description": "在隔离上下文中导航网页、提取信息并执行操作。"
+      },
+      "explore": {
+        "name": "代码库探索专家",
+        "description": "只读检索代码，梳理架构、追踪调用链并引用精确文件行号。"
+      }
+    },
     "dismissRebindHint": "知道了",
     "a2aBinding": "A2A 跨框架远程委派",
     "a2aBindingDesc": "开启后，该智能体支持遵循 A2A (Agent-to-Agent v1.0) 协议跨机器委派调用受信任的远程 Agent 节点",
@@ -1301,6 +1330,7 @@
       "subagentThemeColor": "主题颜色",
       "noSubagents": "暂无子智能体",
       "noSubagentsDesc": "请先使用 JIT 团队选择器添加子智能体",
+      "builtinSpecialistsHint": "内置专家（浏览器、代码探索、办公）请在「设置 → 智能体」中按智能体配置。",
       "addSubagent": "添加子智能体",
       "deleteSubagent": "删除",
       "confirmDeleteSubagent": "确定要删除此子智能体配置吗？",

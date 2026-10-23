@@ -19,8 +19,44 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.sub_agents.config_loader import load_subagent_configs_from_directory
 from myrm_agent_harness.agent.sub_agents.registry import register_subagent_configs
+from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
 logger = logging.getLogger(__name__)
+
+SUBAGENT_CONFIG_DIR = Path(__file__).parent.parent / "config" / "subagents"
+
+# User-facing catalog. The ids are deliberately explicit: an internal cron verifier preset must
+# never leak into the Agent editor just because it lives in the same YAML directory.
+USER_SELECTABLE_SUBAGENT_IDS: tuple[str, ...] = (
+    "structure-planner",
+    "layout-designer",
+    "format-verifier",
+    "browser",
+    "explore",
+)
+
+
+def load_user_selectable_subagent_configs() -> dict[str, SubagentConfig]:
+    """Return the business-owned catalog exposed in the Agent editor.
+
+    Reads the same core/custom YAML sources as startup registration, so a custom override is
+    reflected in the picker without a second catalog implementation.
+    """
+    core_configs = load_subagent_configs_from_directory(SUBAGENT_CONFIG_DIR / "core")
+    custom_configs = load_subagent_configs_from_directory(SUBAGENT_CONFIG_DIR / "custom")
+    configs = {**core_configs, **custom_configs}
+    return {type_id: configs[type_id] for type_id in USER_SELECTABLE_SUBAGENT_IDS if type_id in configs}
+
+
+def required_builtin_tools(config: SubagentConfig) -> tuple[str, ...]:
+    """Built-in tool toggles a preset needs in the parent Agent to be effective.
+
+    Browser presets receive the parent's browser_* tools through the normal child/parent tool
+    intersection; exposing the preset while Browser is off would build a child with no tools.
+    """
+    if any(tool_name.startswith("browser_") for tool_name in config.tools):
+        return ("browser",)
+    return ()
 
 
 def register_default_subagent_configs() -> None:
@@ -33,9 +69,8 @@ def register_default_subagent_configs() -> None:
     4. Registers final configurations to framework layer's global registry
 
     Configuration Sources:
-    - app/config/subagents/core/    : Core configs (adversarial-reviewer, analysis, browser, coding, deep-audit,
-                                      explore, format-verifier, layout-designer, search, strategic-advisor,
-                                      structure-planner)
+    - app/config/subagents/core/    : Core configs (adversarial-reviewer, browser, explore,
+                                      format-verifier, layout-designer, structure-planner)
     - app/config/subagents/custom/  : User-defined configs (override core)
 
     Priority: custom YAML > core YAML (per-agent tuning in each file's ``config:`` block).
@@ -44,7 +79,7 @@ def register_default_subagent_configs() -> None:
     """
     try:
         # 1. Business layer explicitly provides configuration path
-        config_dir = Path(__file__).parent.parent / "config" / "subagents"
+        config_dir = SUBAGENT_CONFIG_DIR
 
         # 2. Load configurations from YAML files (Framework layer pure functions)
         core_configs = load_subagent_configs_from_directory(config_dir / "core")

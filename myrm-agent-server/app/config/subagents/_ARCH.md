@@ -12,10 +12,9 @@
 ```
 app/config/subagents/
 ├── _ARCH.md
-├── core/          # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml,
-│   │              # deep-audit.yaml 同级另有 structure-planner.yaml, layout-designer.yaml, format-verifier.yaml
+├── core/          # adversarial-reviewer.yaml, browser.yaml, structure-planner.yaml,
+│   │              # layout-designer.yaml, format-verifier.yaml, explore.yaml
 │   │              # （完整清单见 core/_ARCH.md）
-│   │              # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml, search.yaml,
 └── custom/        # 用户覆盖（example.yaml.template）
 ```
 
@@ -32,9 +31,9 @@ app/config/subagents/
 Tool names in `tools` / `disallowed_tools` must match `@tool()` names registered in harness `tool_layers._TOOL_LAYERS` (validated at load time).
 
 ```yaml
-name: search   # 必须与文件名一致
+name: structure-planner   # 必须与文件名一致
 description: "..."
-tools: [web_search_tool, web_fetch_tool]
+tools: [file_read_tool, grep_tool, glob_tool]
 system_prompt: |
   ...
 config:
@@ -46,8 +45,8 @@ config:
 
 Core presets (SSOT tool names):
 - `browser.yaml` — eight `browser_*_tool` entries; pair with prebuilt `browser-automation` skill when browser is enabled
-- `analysis.yaml` — `memory_search_tool`, `memory_save_tool`, `memory_manage_tool`
-- `search.yaml` — `web_search_tool`, `web_fetch_tool`
+- `explore.yaml` — read-only `file_read_tool`, `grep_tool`, `glob_tool`
+- `structure-planner.yaml` / `layout-designer.yaml` / `format-verifier.yaml` — office deliverable specialists used by the prebuilt Office Full-Chain Delivery agent
 
 ## Registration
 
