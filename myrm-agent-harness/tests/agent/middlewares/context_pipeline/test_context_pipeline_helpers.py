@@ -121,7 +121,12 @@ class TestResolveContextBudgetMetadata:
         assert "bound_tool_overhead_tokens" in metadata
         assert metadata["bound_tool_overhead_tokens"] > 0
 
-    def test_without_tools(self) -> None:
+    def test_without_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The tracker lives in a ContextVar, so a last_call left behind by an earlier test in the
+        # same context would add a key this case asserts is absent. Reset it at the source.
+        from myrm_agent_harness.utils.token_economics import tracker as tracker_module
+
+        monkeypatch.setattr(tracker_module, "get_token_tracker", lambda: None)
         request = _make_request(tools=[])
         assert resolve_context_budget_metadata(request) == {}
 

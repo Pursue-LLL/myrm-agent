@@ -115,6 +115,12 @@ class SubprocessCodeExecutor:
             env["EVOLUTION_SKILL_NAME"] = skill_name
             env["PYTHONUNBUFFERED"] = "1"
             env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+            # The audit hook below admits writes only inside the workspace, while importing
+            # pytest's default plugins makes CPython cache their bytecode next to them in
+            # site-packages. On an interpreter whose cache is cold that write is denied and the
+            # whole run dies before collecting a test; skip the cache instead. Same contract the
+            # PTC sandbox enforces in `ptc/security.py`.
+            env["PYTHONDONTWRITEBYTECODE"] = "1"
 
             # Map TMPDIR inside the workspace so audit hook allows pytest cache/temp writes
             workspace_tmp = workspace / ".tmp"

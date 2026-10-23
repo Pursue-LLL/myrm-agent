@@ -260,6 +260,24 @@ class TestSubprocessExecutorEdgeCases:
             assert result.passed is True
 
     @pytest.mark.asyncio
+    async def test_bytecode_caching_does_not_break_the_sandbox(self) -> None:
+        """The sandboxed run must not try to cache bytecode in site-packages.
+
+        The audit hook admits writes only inside the workspace, but importing pytest's default
+        plugins makes CPython write ``stepwise.pyc`` and friends next to installed packages. On an
+        interpreter with a cold cache that write is denied and the run dies before collecting a
+        single test, which surfaces as a confusing Red-Green failure rather than a sandbox error.
+        """
+        executor = SubprocessCodeExecutor(timeout_seconds=30, memory_limit_mb=128)
+        result = await executor.run_tests(
+            skill_content='"""Skill."""',
+            test_code="def test_ok(): assert True\n",
+            skill_name="test_skill",
+        )
+        assert result.passed is True, result.stderr
+        assert "blocked" not in result.stderr.lower(), result.stderr
+
+    @pytest.mark.asyncio
     async def test_new_code_timeout(self) -> None:
         """Test that Green phase timeout returns timed_out=True."""
         executor = SubprocessCodeExecutor(timeout_seconds=1, memory_limit_mb=128)

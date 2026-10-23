@@ -428,7 +428,12 @@ class TestPostRunEvents:
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.format_mutation_failures",
                 return_value=None,
             ),
-            patch(f"{_MOD}.get_token_tracker", return_value=None),
+            # The message-end builder resolves the tracker from its own module, so patching the
+            # lifecycle module's imported name would leave the real ContextVar value in play.
+            patch(
+                "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
+                return_value=None,
+            ),
         ):
             events = [e async for e in post_run_events(stats, "msg1", {}, False, None)]
 
@@ -474,7 +479,12 @@ class TestPostRunEvents:
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.format_mutation_failures",
                 return_value=None,
             ),
-            patch(f"{_MOD}.get_token_tracker", return_value=None),
+            # The message-end builder resolves the tracker inside its own module, so patching the
+            # lifecycle module's imported name would leave a live ContextVar value in play.
+            patch(
+                "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
+                return_value=None,
+            ),
         ):
             events = [e async for e in post_run_events(stats, "msg1", {}, False, None)]
 
