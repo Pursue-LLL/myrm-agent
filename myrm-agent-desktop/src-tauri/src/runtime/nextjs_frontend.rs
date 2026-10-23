@@ -34,6 +34,28 @@ impl NextJSFrontend {
     }
 }
 
+fn patch_standalone_rewrites(nextjs_dir: &std::path::Path, api_port: u16) {
+    let re = match regex::Regex::new(r"http://(?:127\.0\.0\.1|localhost):\d+") {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    let target_replacement = format!("http://127.0.0.1:{}", api_port);
+    for file_name in [
+        ".next/routes-manifest.json",
+        ".next/required-server-files.json",
+        "server.js",
+    ] {
+        let path = nextjs_dir.join(file_name);
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let replaced = re.replace_all(&content, target_replacement.as_str());
+            if replaced != content {
+                let _ = std::fs::write(&path, replaced.as_ref());
+                println!("🔗 Patched {} proxy to port {}", file_name, api_port);
+            }
+        }
+    }
+}
+
 pub async fn start_frontend(
     app: AppHandle,
     frontend: State<'_, NextJSFrontend>,
@@ -100,6 +122,9 @@ pub async fn start_frontend(
     }
 
     println!("📂 Next.js dir: {:?}", nextjs_dir);
+
+    // 确保 Next.js Standalone 内部的 API 代理目标端口与当前后端一致（自愈补丁）
+    patch_standalone_rewrites(&nextjs_dir, config.api_port);
 
     let node_exe = if cfg!(target_os = "windows") {
         "node.exe"
