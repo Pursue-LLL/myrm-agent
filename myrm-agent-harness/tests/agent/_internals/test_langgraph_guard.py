@@ -65,13 +65,23 @@ async def safe_async_b(delay_ms: int) -> str:
     return "safe_async_b_done"
 
 
-# Register safety metadata
-TOOL_SAFETY_METADATA["safe_tool_1"] = SafetyMetadata(is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["safe_tool_2"] = SafetyMetadata(is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["unsafe_tool_success"] = SafetyMetadata(is_concurrent_safe=False)
-TOOL_SAFETY_METADATA["unsafe_tool_fail"] = SafetyMetadata(is_concurrent_safe=False)
-TOOL_SAFETY_METADATA["safe_async_a"] = SafetyMetadata(is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["safe_async_b"] = SafetyMetadata(is_concurrent_safe=True)
+# Safety metadata for the fixture tools. Registered per test and restored afterwards: this map is
+# the process-wide registry the architecture gate inspects for ghost keys, so writing to it at
+# import time leaks six fake tool names into every later test in the session.
+_FIXTURE_SAFETY_METADATA: dict[str, SafetyMetadata] = {
+    "safe_tool_1": SafetyMetadata(is_concurrent_safe=True),
+    "safe_tool_2": SafetyMetadata(is_concurrent_safe=True),
+    "unsafe_tool_success": SafetyMetadata(is_concurrent_safe=False),
+    "unsafe_tool_fail": SafetyMetadata(is_concurrent_safe=False),
+    "safe_async_a": SafetyMetadata(is_concurrent_safe=True),
+    "safe_async_b": SafetyMetadata(is_concurrent_safe=True),
+}
+
+
+@pytest.fixture(autouse=True)
+def _register_fixture_safety_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, metadata in _FIXTURE_SAFETY_METADATA.items():
+        monkeypatch.setitem(TOOL_SAFETY_METADATA, name, metadata)
 
 from langgraph.graph import MessagesState, StateGraph
 
