@@ -213,6 +213,10 @@ def test_a2a_chat_live_delegation_chrome_e2e(
         "description": "Orchestrates research via trusted A2A peers",
         "a2a_enabled": True,
         "a2a_trusted_peer_ids": [peer_id],
+        # The scenario is "delegate to the trusted peer", so give the agent only the delegation
+        # tools: with web tools available the model tries to research by itself and the test then
+        # measures the model's browsing instead of the A2A path it is meant to cover.
+        "metadata": {"enabled_builtin_tools": ["a2a_call", "a2a_orchestrate"]},
     }
     agent_resp = http_json("POST", f"{api_url}/api/v1/user-agents", body=agent_payload)
     assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get(
