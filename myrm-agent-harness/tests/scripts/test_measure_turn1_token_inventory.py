@@ -248,4 +248,12 @@ async def test_measure_turn1_inventory_matches_documented_token_baseline() -> No
     tools_subtotal = report["tools_subtotal"]
     assert isinstance(tools_subtotal, int)
     assert tools_subtotal == description_tokens + schema_wrapper_tokens
-    assert tools_subtotal <= 6500, "Turn-1 tools exceeded the 6,500 budget ceiling"
+
+    # The ceiling is charged the static half of the bash description, not the live one: the live
+    # one moves with the host OS and the Python toolchain probe, which would turn this into a
+    # verdict about the machine rather than about the tool inventory.
+    budgeted_subtotal = tools_subtotal - bash_tokens + _BASH_STATIC_DESCRIPTION_TOKENS
+    assert budgeted_subtotal <= 6500, (
+        f"Turn-1 tools exceeded the 6,500 budget ceiling on a host-independent basis "
+        f"({budgeted_subtotal}, live {tools_subtotal}, bash hint {bash_tokens - _BASH_STATIC_DESCRIPTION_TOKENS})"
+    )

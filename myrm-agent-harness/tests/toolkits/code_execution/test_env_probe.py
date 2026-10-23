@@ -157,6 +157,55 @@ class TestCaching:
 
         assert len(calls) == 2  # python3 + python, only on first call
 
+    def test_cache_is_keyed_by_search_path(self, monkeypatch: pytest.MonkeyPatch):
+        """A line describes one PATH; changing PATH must re-probe, not replay the old verdict."""
+        calls: list[str] = []
+
+        def counting_version(b: str):
+            calls.append(b)
+            return "3.12.4" if b == "python3" else None
+
+        monkeypatch.setattr(env_probe, "_python_version_of", counting_version)
+        monkeypatch.setattr(env_probe, "_has_pip_module", lambda b: True)
+        monkeypatch.setattr(env_probe, "_detect_pep668", lambda b: False)
+        monkeypatch.setattr(env_probe, "_pip_python_version", lambda: "3.12")
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+
+        monkeypatch.setenv("PATH", "/usr/bin:/bin")
+        env_probe.get_environment_probe_line()
+        first_calls = len(calls)
+
+        monkeypatch.setenv("PATH", "/opt/venv/bin:/usr/bin:/bin")
+        env_probe.get_environment_probe_line()
+        assert len(calls) > first_calls, "PATH change must not reuse the previous entry"
+
+        monkeypatch.setenv("PATH", "/usr/bin:/bin")
+        before = len(calls)
+        env_probe.get_environment_probe_line()
+        assert len(calls) == before, "returning to a known PATH should hit its entry"
+
+    def test_cache_is_keyed_by_virtualenv(self, monkeypatch: pytest.MonkeyPatch):
+        """VIRTUAL_ENV shifts what the same binaries report, so it belongs in the key."""
+        calls: list[str] = []
+
+        def counting_version(b: str):
+            calls.append(b)
+            return "3.12.4" if b == "python3" else None
+
+        monkeypatch.setattr(env_probe, "_python_version_of", counting_version)
+        monkeypatch.setattr(env_probe, "_has_pip_module", lambda b: True)
+        monkeypatch.setattr(env_probe, "_detect_pep668", lambda b: False)
+        monkeypatch.setattr(env_probe, "_pip_python_version", lambda: "3.12")
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+        env_probe.get_environment_probe_line()
+        first_calls = len(calls)
+
+        monkeypatch.setenv("VIRTUAL_ENV", "/opt/venv")
+        env_probe.get_environment_probe_line()
+        assert len(calls) > first_calls
+
     def test_force_refresh(self, monkeypatch: pytest.MonkeyPatch):
         """force_refresh=True clears the cache."""
         monkeypatch.setattr(env_probe, "_python_version_of", lambda b: "3.12.4" if b == "python3" else None)
@@ -194,6 +243,23 @@ class TestRobustness:
         monkeypatch.setattr(env_probe.shutil, "which", lambda name: "/usr/bin/" + name)
         result = env_probe.get_environment_probe_line()
         assert isinstance(result, str)
+
+    def test_timeout_is_not_reported_as_absence(self, monkeypatch: pytest.MonkeyPatch):
+        """A probe that outran its budget must stay silent, not claim pip is missing.
+
+        Claiming "no pip module" makes the model abandon `pip install` and reach for workarounds
+        against a problem that does not exist; silence costs nothing.
+        """
+        monkeypatch.setattr(env_probe, "_python_version_of", lambda b: "3.12.4" if b == "python3" else None)
+        monkeypatch.setattr(env_probe, "_pip_python_version", lambda: None)
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: "/usr/bin/" + name)
+
+        def timed_out(*_a, **_kw):
+            raise subprocess.TimeoutExpired(cmd="python3", timeout=0.1)
+
+        # Both the pip-module and PEP-668 checks now time out, so neither verdict is known.
+        monkeypatch.setattr(env_probe.subprocess, "run", timed_out)
+        assert env_probe.get_environment_probe_line() == ""
 
     def test_unexpected_exception_returns_empty(self, monkeypatch: pytest.MonkeyPatch):
         """Even unexpected exceptions are caught."""

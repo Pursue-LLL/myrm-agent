@@ -7,8 +7,11 @@ trial-and-error when installing packages.
 
 Design principles:
 - Zero token cost when environment is healthy (returns empty string).
-- Process-level cache (deterministic for agent lifetime).
+- Cached per ``(PATH, VIRTUAL_ENV)``: the line describes an interpreter lookup, so a cache entry
+  built under a different search path would describe a different environment.
 - Never crashes — failures silently return empty string.
+- A probe that times out is reported as unknown, never as absent: claiming "no pip module" for an
+  interpreter whose probe merely outran its budget is a false statement the model acts on.
 - Does NOT skip container environments (unlike Hermes): our agent runs
   inside the sandbox, so the probe is always relevant.
 
@@ -26,20 +29,43 @@ description to eliminate pip install retry loops.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 _CACHE_LOCK = threading.Lock()
-_CACHED_LINE: str | None = None
+_CACHE: dict[tuple[str, str], str] = {}
+# One entry per distinct search path; a long-lived process sees a handful at most.
+_MAX_CACHE_ENTRIES = 8
 
 
-def _run(cmd: list[str], timeout: float = 3.0) -> tuple[int, str, str]:
+# Per-probe ceiling. Every probe is a `python -c` that returns in well under 100 ms on an idle
+# machine; 0.8 s leaves room for a loaded host while keeping the worst case bounded.
+_PROBE_TIMEOUT_S = 0.8
+
+# Set when a probe could not reach a verdict. A build that saw one stays silent instead of
+# reporting a false absence.
+_timeouts = threading.local()
+
+
+def _note_probe_failure() -> None:
+    _timeouts.count = getattr(_timeouts, "count", 0) + 1
+
+
+def _probe_failures() -> int:
+    return getattr(_timeouts, "count", 0)
+
+
+def _run(cmd: list[str], timeout: float = _PROBE_TIMEOUT_S) -> tuple[int, str, str]:
     """Run a short subprocess. Returns (returncode, stdout, stderr).
 
-    Failures (binary missing, timeout, OSError) return (-1, "", "<reason>").
+    Failures (binary missing, timeout, OSError) return (-1, "", "<reason>"); a timeout or an
+    OSError also marks the build as inconclusive via :func:`_note_probe_failure`.
     """
     try:
         result = subprocess.run(
@@ -53,8 +79,10 @@ def _run(cmd: list[str], timeout: float = 3.0) -> tuple[int, str, str]:
     except FileNotFoundError:
         return -1, "", "not found"
     except subprocess.TimeoutExpired:
+        _note_probe_failure()
         return -1, "", "timeout"
     except OSError as exc:
+        _note_probe_failure()
         return -1, "", f"oserror: {exc}"
 
 
@@ -116,13 +144,33 @@ def _pip_python_version() -> str | None:
 
 
 def _build_probe_line() -> str:
-    """Build the one-liner. Returns "" when nothing notable is detected."""
-    py3_ver = _python_version_of("python3")
-    py_ver = _python_version_of("python")
+    """Build the one-liner. Returns "" when nothing notable is detected.
+
+    The interpreter probes are independent processes, so they run concurrently: serially they
+    could each spend the full timeout and add up to seconds on the request path.
+    """
+    _timeouts.count = 0
+
+    jobs: dict[str, Callable[[], object]] = {
+        "py3_ver": lambda: _python_version_of("python3"),
+        "py_ver": lambda: _python_version_of("python"),
+        "pip_bound_to": _pip_python_version,
+    }
+    with ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="env-probe") as pool:
+        results = {name: pool.submit(job) for name, job in jobs.items()}
+        py3_ver = results["py3_ver"].result()
+        py_ver = results["py_ver"].result()
+        pip_bound_to = results["pip_bound_to"].result()
+
     py3_has_pip = _has_pip_module("python3") if py3_ver else False
-    pip_bound_to = _pip_python_version()
     py3_pep668 = _detect_pep668("python3") if py3_ver else False
     has_uv = shutil.which("uv") is not None
+
+    if _probe_failures():
+        # A timed-out probe is not evidence of absence. Stay silent rather than tell the model
+        # that pip is missing or that a version mismatch exists.
+        logger.debug("env_probe inconclusive: %d probe(s) failed", _probe_failures())
+        return ""
 
     mismatch = bool(pip_bound_to and py3_ver and not py3_ver.startswith(pip_bound_to))
 
@@ -164,37 +212,42 @@ def _build_probe_line() -> str:
     return "Python toolchain: " + ", ".join(bits) + "."
 
 
-def get_environment_probe_line(*, force_refresh: bool = False) -> str:
-    """Return the cached probe line (building it on first call).
+def _cache_key() -> tuple[str, str]:
+    """The environment this line describes.
 
-    Returns "" when the environment is clean — the caller should skip
-    appending anything in that case.
+    ``PATH`` decides which ``python3``/``pip``/``uv`` the probe finds and ``VIRTUAL_ENV`` shifts
+    what those binaries report, so a line cached under one pair says nothing about another.
+    """
+    return (os.environ.get("PATH", ""), os.environ.get("VIRTUAL_ENV", ""))
+
+
+def get_environment_probe_line(*, force_refresh: bool = False) -> str:
+    """Return the probe line for the current environment, building it on first use.
+
+    Returns "" when the environment is clean — the caller should skip appending anything then.
 
     Args:
-        force_refresh: For tests only; clears the cache before probing.
+        force_refresh: Rebuild the entry for the current environment before returning it.
     """
-    global _CACHED_LINE
-    if force_refresh:
-        with _CACHE_LOCK:
-            _CACHED_LINE = None
+    key = _cache_key()
+    with _CACHE_LOCK:
+        if not force_refresh and key in _CACHE:
+            return _CACHE[key]
 
-    if _CACHED_LINE is not None:
-        return _CACHED_LINE
+    try:
+        line = _build_probe_line()
+    except Exception as exc:
+        logger.debug("env_probe failed: %s", exc)
+        line = ""
 
     with _CACHE_LOCK:
-        if _CACHED_LINE is not None:
-            return _CACHED_LINE
-        try:
-            line = _build_probe_line()
-        except Exception as exc:
-            logger.debug("env_probe failed: %s", exc)
-            line = ""
-        _CACHED_LINE = line
-        return line
+        if len(_CACHE) >= _MAX_CACHE_ENTRIES:
+            _CACHE.clear()
+        _CACHE[key] = line
+    return line
 
 
 def _reset_cache_for_tests() -> None:
-    """Test helper — clear the cache between probe scenarios."""
-    global _CACHED_LINE
+    """Test helper — clear every cached environment."""
     with _CACHE_LOCK:
-        _CACHED_LINE = None
+        _CACHE.clear()

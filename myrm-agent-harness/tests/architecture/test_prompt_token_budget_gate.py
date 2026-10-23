@@ -2,7 +2,9 @@
 
 Validates (harness scope — 3 checks):
 1. Turn-1 default tool profile token overhead (CORE + HIGH_PRIORITY descriptions
-   + schema wrappers) does NOT exceed ceiling (≤6500 tokens).
+   + schema wrappers) does NOT exceed ceiling (≤6500 tokens), measured on a
+   host-independent basis: the bash tool's live OS hint is swapped for its static
+   description, and the hint is capped separately so a host quirk cannot decide the verdict.
 2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤350,
    SECURITY_BOUNDARY_SYSTEM_RULES ≤350, DATETIME_SYSTEM_RULES ≤120.
 3. SystemMessage content hash is immutable across multiple resolutions
@@ -45,21 +47,47 @@ class TestPromptTokenBudgetGate:
 
     @pytest.mark.asyncio
     async def test_turn1_default_tools_token_budget(self) -> None:
-        """Assert that Turn-1 default bound tools do not exceed the 6,500 token budget ceiling."""
+        """Turn-1 default tools stay under the ceiling on any host.
+
+        The bash tool's description is ``static + get_os_hint()``, and the hint states the host OS
+        and whatever the Python toolchain probe can reach: 58 tokens on this macOS arm64 box, 32 on
+        ubuntu-latest, 31-60 across distributions, and up to ~100 when a probe finds an unusual
+        interpreter mix. Charging that live number would let the gate flip on a PATH or a probe
+        outcome instead of on an edit, so the budget compares the host-independent description
+        total and the hint is checked against its own allowance.
+
+        Scope is description + wrapper only — tool parameter schemas are tracked separately in
+        DEFAULT_AGENT_TOKEN_INVENTORY.md §六.
+        """
         from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
 
-        tools = await _build_default_turn1_tools()
-        tools_subtotal = estimate_tool_descriptions_tokens(tools)
+        from myrm_agent_harness.agent.meta_tools.bash._tool.helpers import get_os_hint
+        from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
+            resolve_bash_code_execute_tool_description,
+        )
 
-        # Baseline is ~5,304 description tokens + 13*65 (845) wrapper = ~6,149 tokens
-        # (macOS arm64 host; ~6,123 on Linux where the bash OS hint is shorter).
-        # Scope is description + wrapper only — tool parameter schemas are tracked
-        # separately in DEFAULT_AGENT_TOKEN_INVENTORY.md §六 (~4,400 for 13 tools).
-        # Safe ceiling is 6,500 tokens
+        # Widest hint seen in practice is ~100 tokens; 120 leaves room without hiding a real blowup.
+        os_hint_allowance = 120
+        live_hint = get_token_count(get_os_hint("en"))
+        assert live_hint <= os_hint_allowance, (
+            f"bash OS hint grew to {live_hint} tokens, past the {os_hint_allowance}-token allowance "
+            "the Turn-1 tool budget assumes for it"
+        )
+
+        tools = await _build_default_turn1_tools()
+        bash_static = get_token_count(resolve_bash_code_execute_tool_description("en"))
+        bash_live = next(
+            get_token_count(tool.description or "") for tool in tools if tool.name == "bash_code_execute_tool"
+        )
+        # Substitute the static half for the live description: identical on every host.
+        budgeted_tokens = estimate_tool_descriptions_tokens(tools) - bash_live + bash_static
+
         max_allowed_tools_tokens = 6500
-        assert (
-            tools_subtotal <= max_allowed_tools_tokens
-        ), f"Turn-1 default tools token overhead {tools_subtotal} exceeded budget ceiling {max_allowed_tools_tokens}"
+        assert budgeted_tokens <= max_allowed_tools_tokens, (
+            f"Turn-1 default tool descriptions cost {budgeted_tokens} tokens, over the "
+            f"{max_allowed_tools_tokens} ceiling (host-independent basis: bash hint excluded, "
+            f"wrapper included; live hint was {live_hint})"
+        )
 
     def test_harness_system_prompt_rules_budget(self) -> None:
         """Assert that harness core behavior, security boundary, and datetime rules remain compact."""
