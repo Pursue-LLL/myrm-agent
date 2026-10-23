@@ -88,13 +88,23 @@ pub fn run() {
             tauri::RunEvent::Opened { urls } => {
                 runtime::handle_open_urls(app_handle, urls);
             }
-            tauri::RunEvent::ExitRequested { api, .. } => {
+            tauri::RunEvent::ExitRequested { api, code, .. } => {
+                if lifecycle::is_shutdown_completed() {
+                    println!("✅ Graceful shutdown completed, allowing application exit.");
+                    return;
+                }
+                if lifecycle::is_shutdown_initiated() {
+                    api.prevent_exit();
+                    return;
+                }
                 println!("🛑 Exit requested (e.g., Cmd+Q), initiating graceful shutdown...");
                 api.prevent_exit();
                 let app_handle_clone = app_handle.clone();
+                let exit_code = code.unwrap_or(0);
                 tauri::async_runtime::spawn(async move {
-                    lifecycle::graceful_shutdown(app_handle_clone.clone()).await;
-                    app_handle_clone.exit(0);
+                    lifecycle::graceful_shutdown(app_handle_clone).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    std::process::exit(exit_code);
                 });
             }
             _ => {}

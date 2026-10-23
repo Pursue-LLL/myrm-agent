@@ -20,6 +20,17 @@ use crate::commands::privacy_curtain::relock_outstanding_lease;
 use crate::runtime::{graceful_stop_backend, stop_frontend, NextJSFrontend, PythonBackend};
 
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);
+static SHUTDOWN_COMPLETED: AtomicBool = AtomicBool::new(false);
+
+/// 优雅停机是否已发起
+pub fn is_shutdown_initiated() -> bool {
+    SHUTDOWN_INITIATED.load(Ordering::SeqCst)
+}
+
+/// 优雅停机与资源释放是否已彻底完成
+pub fn is_shutdown_completed() -> bool {
+    SHUTDOWN_COMPLETED.load(Ordering::SeqCst)
+}
 
 /// 执行完整的优雅停机流程（防重入：多路径并发调用时仅首次生效）
 pub async fn graceful_shutdown(app: AppHandle) {
@@ -40,6 +51,7 @@ pub async fn graceful_shutdown(app: AppHandle) {
     let frontend_state = app.state::<NextJSFrontend>();
     let _ = stop_frontend(app.clone(), frontend_state);
 
+    SHUTDOWN_COMPLETED.store(true, Ordering::SeqCst);
     println!("Graceful shutdown complete.");
 }
 
