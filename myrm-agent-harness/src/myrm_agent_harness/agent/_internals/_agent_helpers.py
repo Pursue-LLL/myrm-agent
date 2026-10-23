@@ -48,6 +48,29 @@ def _fire_and_forget(coro: Coroutine[object, object, object]) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
+# A LangGraph turn walks both a model and a tools node, so one user turn costs about two graph
+# nodes; a middleware chain of twenty or more adds steps per turn. LangGraph counts *nodes*, and
+# a turn killed at the default budget dies after one or two tool calls, so the graph is given
+# room in proportion to the configured turn budget.
+_GRAPH_NODES_PER_TURN, _MIN_RECURSION_NODES = 10, 300
+
+
+def effective_recursion_limit(config: object) -> int:
+    """The ``recursion_limit`` the graph actually runs with.
+
+    Guards derive their stuck-detection budgets from this same number (``LoopGuard`` divides it
+    by the nodes-per-tool-call cost), so both must read it from one place — a graph that runs
+    wider than the guards assume silently delays every safety threshold.
+
+    ``MYRM_RECURSION_LIMIT`` is read by ``AgentConfig.from_env`` when the budget comes from the
+    environment; this floor only rescues configurations created programmatically with a smaller
+    turn budget, it does not override an explicit setting.
+    """
+    configured = getattr(config, "recursion_limit", None)
+    base = int(configured) if isinstance(configured, int) else 0
+    return max(base * _GRAPH_NODES_PER_TURN, _MIN_RECURSION_NODES)
+
+
 def reset_all_guards(
     *,
     is_resume: bool = False,

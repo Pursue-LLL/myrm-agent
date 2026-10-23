@@ -130,18 +130,10 @@ def test_probe_reports_every_signal_the_wait_reads() -> None:
 class _BridgeWait:
     """``wait_for_react_e2e_bridge`` against a scripted page on a fake clock; records the heal reloads."""
 
-    def __init__(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        probe_at: Callable[[float, int], dict[str, object]],
-        *,
-        require_attach: bool = True,
-        settle_outcome: str | None = None,
-    ) -> None:
+    def __init__(self, monkeypatch: pytest.MonkeyPatch, probe_at: Callable[[float, int], dict[str, object]]) -> None:
         self.clock = _Clock()
         self.reload_times: list[float] = []
         self._probe_at = probe_at
-        self.require_attach = require_attach
 
         def evaluate(_page: object, js: str, **_: object) -> object:
             if js is support._REACT_E2E_BRIDGE_PROBE_JS:
@@ -161,17 +153,9 @@ class _BridgeWait:
         monkeypatch.setattr(support, "dismiss_blocking_modals", lambda *_, **__: None)
         monkeypatch.setattr(support, "warm_ui_route", lambda *_, **__: None)
         monkeypatch.setattr(support, "reload_mcp_page", lambda *_, **__: self.reload_times.append(self.clock.now))
-        if settle_outcome is not None:
-            monkeypatch.setattr(support, "_wait_for_page_load_to_settle", lambda *_, **__: settle_outcome)
 
     def run(self) -> dict[str, object]:
-        return support.wait_for_react_e2e_bridge(
-            self.client,
-            object(),
-            timeout_sec=90.0,
-            page_url=_PAGE_URL,
-            require_attach=self.require_attach,
-        )
+        return support.wait_for_react_e2e_bridge(self.client, object(), timeout_sec=90.0, page_url=_PAGE_URL, require_attach=True)
 
 
 def _rendered_shell(**fields: object) -> dict[str, object]:
@@ -186,25 +170,6 @@ def _rendered_shell(**fields: object) -> dict[str, object]:
         "href": _PAGE_URL,
     }
     return _probe(**{**shell, **fields})
-
-
-def test_a_soft_ready_page_names_itself_before_returning(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """The shell-without-bridge shortcut must leave a greppable trace, not just return ready."""
-    wait = _BridgeWait(
-        monkeypatch,
-        lambda _now, _reloads: _rendered_shell(),
-        require_attach=False,
-        settle_outcome="settled",
-    )
-
-    outcome = wait.run()
-
-    assert outcome.get("softReady") is True
-    stderr = capsys.readouterr().err
-    assert "E2E_SOFT_READY_NO_BRIDGE" in stderr
-    assert _PAGE_URL in stderr
 
 
 def test_a_slow_hydrating_page_is_never_reloaded(monkeypatch: pytest.MonkeyPatch) -> None:

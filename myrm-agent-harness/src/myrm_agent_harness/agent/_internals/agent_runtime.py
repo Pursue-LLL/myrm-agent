@@ -39,7 +39,6 @@ Agent runtime — core execution loop, middleware chain, tool building. Re-expor
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from collections.abc import AsyncGenerator
 from contextlib import nullcontext
@@ -92,6 +91,7 @@ from ._agent_build import (
 )
 from ._agent_helpers import (
     _fire_and_forget,
+    effective_recursion_limit,
     extract_query_text,
     init_usage_ledger,
     pop_checkpoint_incompatible_merged_context,
@@ -165,9 +165,11 @@ async def run_agent_loop(
         or getattr(agent_state, "unattended_mode", False)
         or getattr(getattr(agent_state, "config", None), "unattended_mode", False)
     )
+    recursion_limit = effective_recursion_limit(getattr(agent_state, "config", None))
     reset_all_guards(
         is_resume=is_resume,
-        graph_recursion_limit=agent_state.config.recursion_limit,
+        # Guards derive their stuck thresholds from this number, so it must match the graph's.
+        graph_recursion_limit=recursion_limit,
         unattended_mode=unattended,
     )
 
@@ -551,20 +553,9 @@ async def run_agent_loop(
             except Exception as e:
                 logger.warning(f"Goal planning interception failed: {e}")
 
-        # Each turn in LangGraph with a 20+ middleware chain traverses ~15-25 Pregel graph
-        # nodes per tool call. We ensure the recursion_limit provides adequate node budget
-        # so turns are not prematurely killed after 1-2 tool calls.
-        base_limit = agent_state.config.recursion_limit
-        effective_recursion_limit = max(
-            base_limit * 10,
-            int(os.environ.get("MYRM_RECURSION_LIMIT", "300")),
-        )
         run_config: RunnableConfig = {
-            "recursion_limit": effective_recursion_limit,
-            "configurable": {
-                "context": merged_context,
-                "thread_id": thread_id,
-            },
+            "recursion_limit": recursion_limit,
+            "configurable": {"context": merged_context, "thread_id": thread_id},
         }
 
         # 动态注入可视化追踪 Callback (如果开启)
