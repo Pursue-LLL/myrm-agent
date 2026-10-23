@@ -25,7 +25,6 @@ Provides MCPSkillProxyService, MCPInvokeResult, get_mcp_skill_proxy_service.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import time
@@ -34,6 +33,7 @@ from typing import TYPE_CHECKING, TypedDict
 from myrm_agent_harness.agent.skills.mcp.cache_policy import (
     get_cache_buckets,
     is_explicitly_cacheable,
+    make_cache_key,
     resolve_cache_ttl,
 )
 from myrm_agent_harness.core.security.detection.content_boundary import (
@@ -101,29 +101,6 @@ class MCPSkillProxyService:
     - 结果解析
     - 相同参数的只读调用按 60 秒会话缓存（可由 server 配置调整/关闭）
     """
-
-    def _make_cache_key(
-        self,
-        session_id: str,
-        skill_name: str,
-        tool_name: str,
-        params: dict[str, object],
-    ) -> str:
-        """生成缓存键（必须含会话，避免跨租户/跨会话串数据）
-
-        Args:
-            session_id: 调用方会话 ID
-            skill_name: 技能名称
-            tool_name: 工具名称
-            params: 工具参数
-
-        Returns:
-            缓存键字符串
-        """
-        # 将参数序列化为 JSON 并计算哈希
-        params_json = json.dumps(params, sort_keys=True, ensure_ascii=False)
-        params_hash = hashlib.md5(params_json.encode()).hexdigest()[:16]
-        return f"{session_id}.{skill_name}.{tool_name}:{params_hash}"
 
     @staticmethod
     def _is_read_only_tool(skill_name: str, tool_name: str) -> bool:
@@ -199,7 +176,8 @@ class MCPSkillProxyService:
         is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
         cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema, is_read_only=is_read_only)
         if cache_ttl is not None:
-            cache_key = self._make_cache_key(session_id, skill_name, matched_for_schema, cleaned_params)
+            server_name = skill_meta_for_schema.mcp.server if skill_meta_for_schema and skill_meta_for_schema.mcp else skill_name
+            cache_key = make_cache_key(session_id, server_name, matched_for_schema, cleaned_params)
             cached_result = get_cache_buckets().get(cache_ttl).get(cache_key)
             if cached_result is not None:
                 logger.debug(f"{log_prefix} Read-only cache hit: {skill_name}.{tool_name}")

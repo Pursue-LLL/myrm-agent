@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets
+from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets, make_cache_key
 from myrm_agent_harness.agent.skills.mcp.proxy_service import (
     MCPSkillProxyService,
     _resolve_mcp_input_schema,
@@ -121,10 +121,9 @@ class TestMCPSkillProxyServiceParse:
 
 class TestMCPSkillProxyServiceInvoke:
     def test_make_cache_key_isolated_by_session(self) -> None:
-        service = MCPSkillProxyService()
-        key_a = service._make_cache_key("s1", "skill", "tool", {"a": 1})
-        key_b = service._make_cache_key("s1", "skill", "tool", {"a": 1})
-        key_c = service._make_cache_key("s2", "skill", "tool", {"a": 1})
+        key_a = make_cache_key("s1", "server", "tool", {"a": 1})
+        key_b = make_cache_key("s1", "server", "tool", {"a": 1})
+        key_c = make_cache_key("s2", "server", "tool", {"a": 1})
         assert key_a == key_b
         assert key_a != key_c, "cache keys must not be shared across sessions"
 
