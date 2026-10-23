@@ -19,7 +19,7 @@ export class RecallSimulatorService {
     request: RecallSimulateRequest
   ): Promise<RecallSimulateResponse> {
     try {
-      const res = await fetch('/api/memory/simulate-recall', {
+      const res = await fetch('/api/v1/memory/simulate-recall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
@@ -105,7 +105,7 @@ export class RecallSimulatorService {
     request: MemoryGovernanceUpdateRequest
   ): Promise<MemoryGovernanceUpdateResponse> {
     try {
-      const res = await fetch('/api/memory/simulate-recall/govern', {
+      const res = await fetch('/api/v1/memory/simulate-recall/govern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
