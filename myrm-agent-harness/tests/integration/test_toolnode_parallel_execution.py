@@ -26,11 +26,22 @@ from myrm_agent_harness.agent.security.tool_registry import (
     SafetyMetadata,
 )
 
-TOOL_SAFETY_METADATA["real_file_read"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_grep"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_glob"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_file_write"] = SafetyMetadata(is_destructive=True)
-TOOL_SAFETY_METADATA["real_bash"] = SafetyMetadata(is_destructive=True)
+# Registered per test and restored afterwards: this map is the process-wide registry the
+# architecture gate scans for ghost keys, so import-time writes leak fake tool names into later
+# tests of the same session.
+_FIXTURE_SAFETY_METADATA = {
+    "real_file_read": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_grep": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_glob": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_file_write": SafetyMetadata(is_destructive=True),
+    "real_bash": SafetyMetadata(is_destructive=True),
+}
+
+
+@pytest.fixture(autouse=True)
+def _register_fixture_safety_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, metadata in _FIXTURE_SAFETY_METADATA.items():
+        monkeypatch.setitem(TOOL_SAFETY_METADATA, name, metadata)
 
 _log: list[tuple[str, str, float]] = []
 
