@@ -951,7 +951,7 @@
     "subagentMissingBuiltinTool": "所选专家依赖的内置工具当前未开启。",
     "subagentEnableBuiltinTool": "打开内置工具",
     "subagentUnavailable": "不可用的专家",
-    "subagentUnavailableDesc": "这个绑定已无法解析，移除它可保持智能体配置干净。",
+    "subagentUnavailableDesc": "该专家已不可用，移除它可保持智能体配置干净。",
     "subagentPresets": {
       "structure-planner": {
         "name": "结构大纲规划师",

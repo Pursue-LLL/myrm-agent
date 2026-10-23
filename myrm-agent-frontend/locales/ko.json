@@ -951,7 +951,7 @@
     "subagentMissingBuiltinTool": "선택한 전문가에 필요한 내장 도구가 현재 꺼져 있습니다.",
     "subagentEnableBuiltinTool": "내장 도구 열기",
     "subagentUnavailable": "사용할 수 없는 전문가",
-    "subagentUnavailableDesc": "이 바인딩은 더 이상 확인되지 않습니다. 제거하여 에이전트 구성을 정리하세요.",
+    "subagentUnavailableDesc": "이 전문가는 더 이상 사용할 수 없습니다. 제거하여 에이전트 구성을 정리하세요.",
     "subagentPresets": {
       "structure-planner": {
         "name": "구조·아웃라인 플래너",

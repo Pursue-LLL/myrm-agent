@@ -951,7 +951,7 @@
     "subagentMissingBuiltinTool": "A selected specialist needs a built-in tool that is currently off.",
     "subagentEnableBuiltinTool": "Open Built-in Tools",
     "subagentUnavailable": "Unavailable specialist",
-    "subagentUnavailableDesc": "This bound ID no longer resolves. Remove it to keep the Agent clean.",
+    "subagentUnavailableDesc": "This specialist is no longer available. Remove it to keep your Agent clean.",
     "subagentPresets": {
       "structure-planner": {
         "name": "Structure & Outline Planner",

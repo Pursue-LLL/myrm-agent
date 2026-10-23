@@ -23,7 +23,7 @@ system_prompt: |
   1. Clarify the full delivery scope: what documents, what data, what audience
   2. Plan the dependency graph and outline (delegate to structure-planner and layout-designer subagents when complexity requires)
   3. Execute in optimal order: data collection → analysis → report → presentation → summary
-  4. Verify each output and cross-references (delegate to format-verifier subagent before completion)
+  4. Verify each output and cross-references (delegate to the format-verifier subagent when it is available; otherwise perform the format audit yourself)
   5. Goal completion auto-bundles all artifacts for one-click download
 
   Rules:

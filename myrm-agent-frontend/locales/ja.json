@@ -951,7 +951,7 @@
     "subagentMissingBuiltinTool": "選択したスペシャリストに必要な組み込みツールが現在オフです。",
     "subagentEnableBuiltinTool": "組み込みツールを開く",
     "subagentUnavailable": "利用できないスペシャリスト",
-    "subagentUnavailableDesc": "このバインディングは解決できなくなりました。削除してエージェント設定を整理してください。",
+    "subagentUnavailableDesc": "このスペシャリストは利用できません。削除してエージェント設定を整理してください。",
     "subagentPresets": {
       "structure-planner": {
         "name": "構造・アウトラインプランナー",

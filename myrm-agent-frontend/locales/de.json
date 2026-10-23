@@ -951,7 +951,7 @@
     "subagentMissingBuiltinTool": "Ein ausgewählter Spezialist benötigt ein integriertes Werkzeug, das derzeit deaktiviert ist.",
     "subagentEnableBuiltinTool": "Integrierte Werkzeuge öffnen",
     "subagentUnavailable": "Nicht verfügbarer Spezialist",
-    "subagentUnavailableDesc": "Diese Bindung lässt sich nicht mehr auflösen. Entfernen Sie sie, um den Agenten sauber zu halten.",
+    "subagentUnavailableDesc": "Dieser Spezialist ist nicht mehr verfügbar. Entfernen Sie ihn, um den Agenten sauber zu halten.",
     "subagentPresets": {
       "structure-planner": {
         "name": "Struktur- und Gliederungsplaner",
