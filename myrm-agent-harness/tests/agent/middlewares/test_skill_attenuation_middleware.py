@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -33,7 +33,10 @@ class _FakeRequest:
 
 @dataclass(slots=True)
 class _FakeResponse:
+    """Stand-in for ``ModelResponse``: the middleware walks ``result`` and returns it unchanged."""
+
     ok: bool = True
+    result: list[object] = field(default_factory=list)
 
 
 @pytest.mark.asyncio
