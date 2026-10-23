@@ -59,3 +59,12 @@ def test_mcp_usage_template_does_not_force_a_doc_read() -> None:
     """L3 is optional: reading docs must not be a precondition for writing the call."""
     assert "Do NOT start bash until" not in SKILL_USAGE_TEMPLATE
     assert "Get docs first" not in SKILL_USAGE_TEMPLATE
+
+
+def test_mcp_usage_template_batches_independent_and_unknown_shapes() -> None:
+    """Weak models must batch independent calls and may observe unknown shapes in-block."""
+    assert "Batch every call that can run in that block" in SKILL_USAGE_TEMPLATE
+    assert "including independent calls and calls whose exact return shape is unknown" in SKILL_USAGE_TEMPLATE
+    assert "Do not split merely because a return shape is undocumented" in SKILL_USAGE_TEMPLATE
+    assert "do not call a lookup tool just to discover" in SKILL_USAGE_TEMPLATE
+    assert "Emit `[RESULT]` only after the last dependent call" in SKILL_USAGE_TEMPLATE

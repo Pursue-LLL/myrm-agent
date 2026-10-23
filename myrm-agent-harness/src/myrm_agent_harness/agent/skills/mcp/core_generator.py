@@ -59,11 +59,11 @@ SKILL_USAGE_TEMPLATE = """
 
 Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
 Import every function you call before awaiting it.
-Args: **always call with keyword arguments** — `func(param=value)`; positional calls are rejected by the runtime.
+Args: **always call with keyword arguments** — `func(param=value)`.
 Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 
-Run ONE `bash_code_execute_tool` per task: `await` every needed call, then emit one `[RESULT]`. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a return shape is undocumented, emit `[OBSERVATION]` first and continue next call.
-Python literals `None`/`True`/`False` (not null/true/false); set `timeout=120` when declared. Loaded once — do not re-select.
+Use ONE `bash_code_execute_tool` per task by default. Batch every call that can run in that block, including independent calls and calls whose exact return shape is unknown: await them, print each real result as `[OBSERVATION]`, then continue inside the same block. Split into a second bash ONLY when a later call's arguments genuinely cannot be written without first seeing an earlier result; then print the actual returned value and continue. Do not split merely because a return shape is undocumented, and do not call a lookup tool just to discover a value the target already accepts. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a call fails, read the error and fix the arguments; do not repeat a call that already succeeded. Emit `[RESULT]` only after the last dependent call; use `[OBSERVATION]` for intermediate outputs.
+Python literals `None`/`True`/`False` (not null/true/false). If the tool signature lists `timeout`, pass `timeout=120`. This skill is already selected; do not call `skill_select_tool` for it again.
 """
 
 
