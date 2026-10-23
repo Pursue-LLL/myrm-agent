@@ -2988,6 +2988,16 @@ def wait_for_react_e2e_bridge(
             and not require_attach
             and polls >= 8
         ):
+            # A soft-ready page has the shell but no bridge. Callers that later need
+            # ``window.__MYRM_E2E_CHAT__`` then fail far from the cause, so leave a
+            # greppable marker here: the absence of this line means the bridge really
+            # attached, and its presence names the page that only looked ready.
+            print(
+                f"E2E_SOFT_READY_NO_BRIDGE: url={target_url} polls={polls} "
+                f"hasAttach={last.get('hasAttach')} hasInput={last.get('hasInput')}",
+                file=sys.stderr,
+                flush=True,
+            )
             return {**last, "ready": True, "softReady": True}
         if (
             last.get("hasSkeleton") is True or (last.get("hasAppLayout") is True and last.get("hasAttach") is not True)

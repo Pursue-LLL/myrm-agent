@@ -92,9 +92,10 @@ def resolve_dynamic_tool(request: ToolCallRequest) -> ToolCallRequest:
         logger.warning("Dynamic tool resolve: no active ToolRegistry for '%s'", call_name)
     else:
         logger.warning(
-            "Dynamic tool resolve: no match for '%s' among %d tools",
+            "Dynamic tool resolve: no match for '%s' among %d tools: %s",
             call_name,
             len(seen),
+            sorted(seen),
         )
     return request
 
