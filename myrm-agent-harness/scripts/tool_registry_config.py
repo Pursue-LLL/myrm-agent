@@ -17,7 +17,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 HARNESS_ROOT = REPO_ROOT
 HARNESS_SRC = HARNESS_ROOT / "src" / "myrm_agent_harness"
-SERVER_ROOT = REPO_ROOT.parent / "myrm-agent" / "myrm-agent-server"
+_candidate_server = REPO_ROOT.parent / "myrm-agent-server"
+if not _candidate_server.is_dir():
+    _candidate_server = REPO_ROOT.parent / "myrm-agent" / "myrm-agent-server"
+SERVER_ROOT = _candidate_server
 SERVER_SRC = SERVER_ROOT / "app"
 # The server tree exists only in the monorepo layout; gates that cross-reference it skip in a standalone harness clone.
 SERVER_TREE_AVAILABLE = SERVER_SRC.is_dir()
@@ -102,11 +105,6 @@ ORPHAN_FACTORY_WHITELIST: frozenset[str] = frozenset(
         # sessions should see inspect/instruct, so they are profile-mounted.
         "create_inspect_agent_session_tool",
         "create_instruct_agent_tool",
-        # Edge device mesh tools: device discovery/dispatch needs a registered mesh,
-        # which the default agent profile does not have.
-        "create_list_mesh_devices_tool",
-        "create_dispatch_node_command_tool",
-        "create_fetch_node_telemetry_tool",
     }
 )
 

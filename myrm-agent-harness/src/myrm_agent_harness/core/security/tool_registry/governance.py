@@ -95,9 +95,6 @@ EXPLICIT_MCP_FALLBACK_TOOLS: frozenset[str] = frozenset(
         "read_todo_hud",  # reads the shared plan HUD of a session — keep ASK
         "inspect_agent_session",  # reads another agent session's status/logs — cross-session read, keep ASK
         "instruct_agent",  # injects steering into another running session — cross-session write, keep ASK
-        "list_mesh_devices",  # enumerates registered edge devices — infrastructure topology, keep ASK
-        "dispatch_node_command",  # runs a command on an edge device — remote execution, keep ASK
-        "fetch_node_telemetry",  # reads live telemetry from an edge device — infrastructure read, keep ASK
     }
 )
 

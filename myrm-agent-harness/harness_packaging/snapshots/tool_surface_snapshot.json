@@ -142,16 +142,6 @@
   {
     "layer": "EXTENDED",
     "layer_value": 3,
-    "name": "dispatch_node_command"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "fetch_node_telemetry"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
     "name": "inspect_agent_session"
   },
   {
@@ -223,11 +213,6 @@
     "layer": "EXTENDED",
     "layer_value": 3,
     "name": "kanban_unblock"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "list_mesh_devices"
   },
   {
     "layer": "EXTENDED",

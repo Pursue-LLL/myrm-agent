@@ -34,7 +34,6 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `agent_multiplexer_router.py` | 路由 | 智能体会话多路复用器 REST API：提供多并发持久会话列表 `/multiplexer/sessions`、互视日志快照 `/sessions/{id}/inspect` 与指导注入 `/sessions/{id}/instruct`。 | ✅ |
 | `topology_pruning_router.py` | 路由 | 模型能力感知拓扑修剪 REST API：提供任务自适应拓扑修剪评估 `/topology/prune-evaluation` 与模型阶梯目录查询 `/topology/tiers`。 | ✅ |
 | `agent_handoff_router.py` | 路由 | 跨智能体移交与对话内任务委派 REST API：提供对话内委派卡片创建 `/handoff/in-chat`、五阶段生命周期推进 `/handoff/in-chat/{id}/advance-stage`、审批闸门与行内 CTA `/handoff/in-chat/{id}/action`、以及底层备忘录管理。 | ✅ |
-| `device_mesh_router.py` | 路由 | 边缘硬件设备网格调度与分布式任务派发 REST API：提供节点注册 `/device-mesh/nodes`、Token 握手配对 `/{node_id}/pair`、遥测心跳上报 `/{node_id}/heartbeat` 与远程命令派发 `/device-mesh/dispatch`。 | ✅ |
 | `todo_store_router.py` | 路由 | 跨进程/跨插件共享 Todo 计划声明存储与安全 HUD 投影 REST API：提供计划项增删改查 `/todo-store/{session_id}/items` 与防 ANSI 注入的轻量 HUD 投射 `/todo-store/{session_id}/hud`。 | ✅ |
 | `agent_hierarchy_router.py` | 路由 | 智能体创建层级树与血统溯源 REST API：提供多智能体树状层级森林目录 `/hierarchy/tree`、创建来源元数据注册 `/hierarchy/provenance` 与指定 Agent 溯源路径查询 `/{agent_id}/provenance`。 | ✅ |
 | `split_session_goal_router.py` | 路由 | 交付与规划双阶段流转 Goal 模版 REST API：提供内置双窗口 Goal 模版目录查询 `/split-session-goals/templates`、实例创建与获取、生命周期阶段推进 `/split-session-goals/{id}/advance-stage` 与终态流转。 | ✅ |

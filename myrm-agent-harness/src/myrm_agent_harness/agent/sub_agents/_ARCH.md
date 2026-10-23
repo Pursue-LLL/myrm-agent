@@ -53,7 +53,6 @@ Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 | Submodule | Description |
 |-----------|-------------|
 | multiplexer/ | 持久化多智能体会话多路复用器与跨 Agent 互视/指导机制（支持多会话切片管理、无头工作者标记、inspect_agent_session 与 instruct_agent）。详见 [multiplexer/_ARCH.md](multiplexer/_ARCH.md)。 |
-| device_mesh/ | 边缘设备网格与多节点分布式调度器（支持局域网/Tailscale 边缘设备注册、Token 配对门禁、心跳遥测监测与多智能体跨节点命令派发工具）。详见 [device_mesh/_ARCH.md](device_mesh/_ARCH.md)。 |
 | todo_store/ | 跨进程/跨插件共享 Todo 计划声明存储与控制字符安全清洗 HUD 只读投影子系统（支持严格 20 项与字符上限门禁、双向 C0/C1 与 ANSI 剥离清洗、只读 HUD 投射与标准元工具）。详见 [todo_store/_ARCH.md](todo_store/_ARCH.md)。 |
 | ralph_loop/ | Ralph 式 Fresh-Agent 多轮循环与极简五字段强交接系统（支持长任务每轮启动无历史全新子代理、共享工作区物理文件协同、五字段容量硬顶与尝试满三轮阻断防御规则）。详见 [ralph_loop/_ARCH.md](ralph_loop/_ARCH.md)。 |
 | advisor_channel/ | 双模型实时旁路军师评审通道（基于 oh-my-pi 架构，为智能体挂载独立模型与 Context 窗口的 Advisor 军师角色，按 aside/concern/blocker 三级分层实时审查与硬阻断熔断）。详见 [advisor_channel/_ARCH.md](advisor_channel/_ARCH.md)。 |

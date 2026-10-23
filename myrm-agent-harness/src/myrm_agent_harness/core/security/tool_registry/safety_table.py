@@ -159,8 +159,4 @@ TOOL_SAFETY_METADATA: dict[str, SafetyMetadata] = {
     # session multiplexer (profile-mounted): inspect is a cross-session read, instruct writes
     "inspect_agent_session": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
     "instruct_agent": SafetyMetadata(),
-    # edge device mesh (profile-mounted): discovery/telemetry are reads, dispatch executes remotely
-    "list_mesh_devices": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
-    "fetch_node_telemetry": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
-    "dispatch_node_command": SafetyMetadata(is_destructive=True),
 }

@@ -96,7 +96,6 @@ Design notes:
 | `agent_multiplexer_service.py` | ✅ 核心 | 智能体会话多路复用服务 — 聚合 Harness AgentSessionMultiplexer 提供多路复用会话查询、注册、互视日志快照与动态指令注入通道 | ✅ |
 | `topology_pruning_service.py` | ✅ 核心 | 模型能力阶梯感知拓扑修剪服务 — 聚合 Harness ModelTierAdaptiveTopologyPruner，提供基于模型智能水平的任务拓扑自适应折叠与 Token/轮次节省估算 | ✅ |
 | `agent_handoff_service.py` | ✅ 核心 | 跨智能体移交与对话内任务委派服务 — 统一治理内存与持久化 In-Chat 任务移交卡片、BkashJosi 五阶段编排生命周期状态机、人权审批闸门与行内直通 PR / 采纳 Action | ✅ |
-| `device_mesh_service.py` | ✅ 核心 | 边缘硬件设备网格调度服务 — 聚合 Harness EdgeDeviceMeshScheduler 提供边缘节点注册、Token 握手配对、心跳遥测与命令派发能力 | ✅ |
 | `todo_store_service.py` | ✅ 核心 | 跨进程/跨插件共享 Todo 计划声明存储与安全 HUD 投影服务 — 统一治理会话级 Todo 计划池、双向 C0/C1 控制字符剥离与只读 HUD 投射 | ✅ |
 | `agent_hierarchy_service.py` | ✅ 核心 | 智能体创建层级树与血统溯源服务 — 维护 Agent 创建者血统元数据、执行环路检测与破环防御（Cycle-breaker）、构建递归多层森林树 | ✅ |
 | `ralph_workflow_service.py` | ✅ 核心 | Ralph 式 Fresh-Agent 多轮循环管理服务 — 聚合 Harness RalphFreshAgentLoopCoordinator，实现每轮启动无历史全新子 Agent、五字段交接归档与 Min-3-Round 阻断防御 | ✅ |
