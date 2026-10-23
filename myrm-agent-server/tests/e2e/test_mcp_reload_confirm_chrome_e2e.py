@@ -452,6 +452,20 @@ def _server_exists_in_api(name: str) -> bool:
     return name in _list_mcp_server_names()
 
 
+def _server_config_in_api(name: str) -> dict[str, object] | None:
+    record = _fetch_mcp_servers_record()
+    value = record.get("value")
+    if not isinstance(value, dict):
+        return None
+    configs = value.get("mcpConfigs")
+    if not isinstance(configs, list):
+        return None
+    for item in configs:
+        if isinstance(item, dict) and item.get("name") == name:
+            return item
+    return None
+
+
 def _put_mcp_configs(configs: list[dict[str, object]]) -> None:
     record = _fetch_mcp_servers_record()
     version = str(record.get("version") or "0")
@@ -721,6 +735,8 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
             ("Command|命令|コマンド|Befehl|명령", sys.executable),
             ("Arguments|参数|參數|Argumente|인수", str(_E2E_STDIO_MCP_STUB)),
             ("Description|描述|服務描述|サービス説明|Beschreibung|설명", "E2E add probe server"),
+            ("Cache TTL|缓存时长|快取時長|キャッシュ TTL|캐시 TTL|Cache-TTL", "60"),
+            ("Cacheable tools|可缓存工具|可快取工具|キャッシュ可能なツール|캐시 가능한 도구|Cachefähige Tools", "ping"),
         ):
             filled_field = client.evaluate(
                 page,
@@ -735,5 +751,9 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         assert isinstance(saved, dict) and saved.get("ok") is True, saved
         _confirm_reload_dialog_after_save(client, page, timeout_sec=120.0)
         _wait_for_server_present(_ADD_SERVER_NAME)
+        saved_config = _server_config_in_api(_ADD_SERVER_NAME)
+        assert saved_config is not None, "saved MCP config missing from API"
+        assert saved_config.get("cacheTtlSeconds") == 60, saved_config
+        assert saved_config.get("cacheableTools") == ["ping"], saved_config
         ui_ready = wait_for_state(client, page, _MCP_PAGE_HAS_ADD_PROBE_JS, timeout_sec=60.0)
         assert ui_ready.get("ready") is True, json.dumps(ui_ready, ensure_ascii=False)
