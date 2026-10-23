@@ -237,23 +237,44 @@ export function AgentSubagentBinding({
                   <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {t('builtinSpecialistsGroup')}
                   </div>
-                  {availablePresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleAdd(preset.id)}
-                      className={cn(
-                        'w-full flex items-start gap-2 px-3 py-2 rounded-lg text-left',
-                        'hover:bg-accent transition-colors text-sm',
-                      )}
-                    >
-                      <IconBot className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{presetName(t, preset)}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">{presetDescription(t, preset)}</div>
-                      </div>
-                    </button>
-                  ))}
+                  {availablePresets.map((preset) => {
+                    const missingTools = preset.required_builtin_tools.filter(
+                      (tool) => !enabledBuiltinTools.includes(tool),
+                    );
+                    const needsEnablement = missingTools.length > 0;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        disabled={needsEnablement && !onOpenBuiltinTools}
+                        onClick={() => {
+                          if (needsEnablement) {
+                            onOpenBuiltinTools?.();
+                            return;
+                          }
+                          handleAdd(preset.id);
+                        }}
+                        className={cn(
+                          'w-full flex items-start gap-2 px-3 py-2 rounded-lg text-left',
+                          'hover:bg-accent transition-colors text-sm',
+                          'disabled:cursor-not-allowed disabled:opacity-60',
+                        )}
+                      >
+                        <IconBot className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{presetName(t, preset)}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {presetDescription(t, preset)}
+                          </div>
+                          {needsEnablement && (
+                            <div className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                              {t('subagentMissingBuiltinTool')} · {t('subagentEnableBuiltinTool')}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </>
               )}
 

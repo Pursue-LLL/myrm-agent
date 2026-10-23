@@ -87,6 +87,33 @@ describe('AgentSubagentBinding', () => {
     expect(onOpenBuiltinTools).toHaveBeenCalledTimes(1);
   });
 
+  it('blocks adding a browser preset until its built-in tool is enabled', async () => {
+    const onChange = vi.fn();
+    const onOpenBuiltinTools = vi.fn();
+    render(
+      <AgentSubagentBinding
+        selectedIds={[]}
+        currentAgentId={null}
+        onChange={onChange}
+        enabledBuiltinTools={[]}
+        onOpenBuiltinTools={onOpenBuiltinTools}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'addSubagent' })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'addSubagent' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('subagentPresets.browser.name')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('subagentPresets.browser.name'));
+
+    expect(onOpenBuiltinTools).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('adds an available preset through subagent_ids', async () => {
     const onChange = vi.fn();
     render(<AgentSubagentBinding selectedIds={[]} currentAgentId={null} onChange={onChange} />);
