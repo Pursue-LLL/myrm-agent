@@ -502,4 +502,3 @@ class TestStructureDeliverablePresetsIntegration:
         assert "bash_code_execute_tool" in config.disallowed_tools
         assert "file_write_tool" in config.disallowed_tools
         assert "file_edit_tool" in config.disallowed_tools
-
