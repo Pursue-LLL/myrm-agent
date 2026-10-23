@@ -20,8 +20,6 @@ from myrm_agent_harness.agent.sub_agents.todo_store import (
     PLAN_DECLARATION_SEMANTIC_NOTE,
     SharedTodoHudReader,
     SharedTodoStore,
-    create_manage_todo_plan_tool,
-    create_read_todo_hud_tool,
     strip_control_characters,
 )
 
@@ -168,53 +166,3 @@ def test_hud_reader_projection_and_metrics() -> None:
     assert "[ ] 3. Run integration tests @qa" in compact_text
     assert PLAN_DECLARATION_SEMANTIC_NOTE in compact_text
 
-
-def test_langchain_tools_execution() -> None:
-    """Verify manage_todo_plan and read_todo_hud LangChain tools."""
-    store = SharedTodoStore(session_id="tools-test")
-    reader = SharedTodoHudReader(store)
-
-    manage_tool = create_manage_todo_plan_tool(store)
-    read_tool = create_read_todo_hud_tool(reader)
-
-    # 1. Add item via tool
-    add_res = manage_tool.invoke(
-        {
-            "action": "add",
-            "title": "Build distributed consensus",
-            "assignee": "orchestrator",
-            "item_id": "plan-node-01",
-        }
-    )
-    assert "Plan item added: [plan-node-01]" in add_res
-    assert store.get_item("plan-node-01") is not None
-
-    # 2. Read HUD as text
-    text_hud = read_tool.invoke({"format": "text"})
-    assert "[PLAN HUD] Progress: 0.0%" in text_hud
-    assert "Build distributed consensus @orchestrator" in text_hud
-
-    # 3. Read HUD as JSON
-    json_hud = read_tool.invoke({"format": "json"})
-    hud_data = json.loads(json_hud)
-    assert hud_data["total_count"] == 1
-    assert hud_data["active_items"][0]["item_id"] == "plan-node-01"
-
-    # 4. Update item via tool
-    update_res = manage_tool.invoke(
-        {
-            "action": "update",
-            "item_id": "plan-node-01",
-            "status": "completed",
-        }
-    )
-    assert "Plan item updated: [plan-node-01]" in update_res
-    assert store.get_item("plan-node-01").status == "completed"
-
-    # 5. Remove and clear
-    del_res = manage_tool.invoke({"action": "remove", "item_id": "plan-node-01"})
-    assert "removed successfully" in del_res
-    assert store.get_item("plan-node-01") is None
-
-    clear_res = manage_tool.invoke({"action": "clear"})
-    assert "All plan items cleared" in clear_res

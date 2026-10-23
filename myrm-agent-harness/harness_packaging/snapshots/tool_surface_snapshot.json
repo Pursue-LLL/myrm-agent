@@ -142,16 +142,6 @@
   {
     "layer": "EXTENDED",
     "layer_value": 3,
-    "name": "inspect_agent_session"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "instruct_agent"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
     "name": "invoke_acp_agent_tool"
   },
   {
@@ -213,21 +203,6 @@
     "layer": "EXTENDED",
     "layer_value": 3,
     "name": "kanban_unblock"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "manage_todo_plan"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "read_todo_hud"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "refetch_historical_turn"
   },
   {
     "layer": "EXTENDED",

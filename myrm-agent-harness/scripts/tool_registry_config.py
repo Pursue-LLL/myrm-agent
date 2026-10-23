@@ -92,19 +92,9 @@ ORPHAN_FACTORY_WHITELIST: frozenset[str] = frozenset(
     {
         "create_wiki_admin_tools",
         "create_restricted_ax_browser_tools",
-        # Not mounted on any agent profile: the caller supplies a live message accessor.
-        "create_refetch_historical_turn_tool",
         # Implemented and unit-tested under toolkits/memory/sovereign_migration,
         # deliberately not mounted on any agent profile yet.
         "create_sovereign_migration_tool",
-        # Mounted by sub-agent profiles (shared plan store), not by the general agent's
-        # get_meta_tools(): the plan HUD belongs to delegation, not to every turn.
-        "create_manage_todo_plan_tool",
-        "create_read_todo_hud_tool",
-        # Session multiplexer tools: only an orchestrator profile that owns sibling
-        # sessions should see inspect/instruct, so they are profile-mounted.
-        "create_inspect_agent_session_tool",
-        "create_instruct_agent_tool",
     }
 )
 

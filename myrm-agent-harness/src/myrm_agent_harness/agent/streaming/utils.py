@@ -167,14 +167,20 @@ _META_TOOL_NAME_EXEMPT = frozenset({"skill_search_tool"})
 
 
 def normalize_tool_names(tools: list[BaseTool]) -> list[BaseTool]:
-    """规范化工具名称，确保以 _tool 结尾。过滤非 BaseTool 对象。"""
+    """规范化工具名称，确保以 _tool 结尾。过滤非 BaseTool 对象。已注册动作工具保持原名。"""
+    from myrm_agent_harness.agent.tool_management.tool_layers import is_registered_action_tool
+
     result: list[BaseTool] = []
     for tool in tools:
         if not isinstance(tool, BaseTool):
             cls_name = type(tool).__name__
             logger.warning(" Skipping non-BaseTool object in user_tools: %s", cls_name)
             continue
-        if tool.name not in _META_TOOL_NAME_EXEMPT and not tool.name.endswith("_tool"):
+        if (
+            tool.name not in _META_TOOL_NAME_EXEMPT
+            and not is_registered_action_tool(tool.name)
+            and not tool.name.endswith("_tool")
+        ):
             original_name = tool.name
             tool.name = f"{tool.name}_tool"
             logger.info(" Tool name normalized: %s -> %s", original_name, tool.name)

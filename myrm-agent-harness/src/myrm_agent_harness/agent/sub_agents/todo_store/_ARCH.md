@@ -22,12 +22,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 门面 | 导出门面类 `SharedTodoStore`、`SharedTodoHudReader`、数据契约与标准 Agent 元工具 | ✅ |
+| `__init__.py` | 门面 | 导出门面类 `SharedTodoStore`、`SharedTodoHudReader` 与数据契约 | ✅ |
 | `types.py` | 契约 | 定义 TodoItem 状态机枚举、`TodoItem`、`TodoStoreState`、`TodoHudProjection` 与核心语义说明常量 | ✅ |
 | `sanitizer.py` | 安全 | 纯函数实现双向 C0/C1 控制字符与 ANSI 转义序列剥离清洗（`strip_control_characters`、`sanitize_todo_text`） | ✅ |
 | `store.py` | 核心 | 线程安全、支持跨进程文件原子写入的计划存储实体（容量门禁、状态机流转、增删改查） | ✅ |
 | `hud_reader.py` | 核心 | 只读轻量 HUD 投影生成器：计算完成率、提取当前活跃计划项并渲染安全单行终端文本 | ✅ |
-| `tools.py` | 工具 | LangChain 标准 Agent 元工具：`manage_todo_plan` 与 `read_todo_hud` | ✅ |
 
 ---
 

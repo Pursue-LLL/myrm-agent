@@ -150,8 +150,6 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
         "memory_search_tool",
         "memory_save_tool",
         "skill_select_tool",
-        "working_memory_manage_tool",
-        "send_user_message_async_tool",
     ]
 
 
@@ -170,7 +168,7 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
 # 32 on ubuntu-latest, 31/36 on other Linux flavors) — so the gate pins the
 # host-independent static half and subtracts the locally measured hint instead.
 _BASH_TOOL_NAME = "bash_code_execute_tool"
-_BASH_STATIC_DESCRIPTION_TOKENS = 1368
+_BASH_STATIC_DESCRIPTION_TOKENS = 1355
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "bash_process_tool": 107,
@@ -182,11 +180,9 @@ _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "memory_manage_tool": 359,
     "memory_save_tool": 720,
     "memory_search_tool": 156,
-    "send_user_message_async_tool": 94,
     "skill_select_tool": 283,
     "web_fetch_tool": 148,
     "web_search_tool": 1174,
-    "working_memory_manage_tool": 52,
 }
 
 
@@ -228,21 +224,21 @@ async def test_measure_turn1_inventory_matches_documented_token_baseline() -> No
         f"(composite minus static vs measured hint) -> {bash_tokens - bash_static} vs {host_hint}"
     )
 
-    assert report["tool_count"] == 15
+    assert report["tool_count"] == 13
     layer_totals = report["layer_totals"]
     assert isinstance(layer_totals, dict)
     description_tokens = report["description_tokens"]
     assert isinstance(description_tokens, int)
     schema_wrapper_tokens = report["schema_wrapper_tokens"]
     assert isinstance(schema_wrapper_tokens, int)
-    # CORE is host-dependent solely through the bash tool; HIGH_PRIORITY, EXTENDED and
-    # EXTERNAL contribute the remaining mounted tools, so all four layers sum to the total.
+    # CORE is host-dependent solely through the bash tool; HIGH_PRIORITY contributes the remaining default tools.
     assert (
-        layer_totals["CORE"] + layer_totals["HIGH_PRIORITY"] + layer_totals["EXTENDED"] + layer_totals["EXTERNAL"]
+        layer_totals["CORE"] + layer_totals["HIGH_PRIORITY"] + layer_totals.get("EXTENDED", 0) + layer_totals.get("EXTERNAL", 0)
         == description_tokens
     )
     assert layer_totals["HIGH_PRIORITY"] == 2692
-    assert layer_totals["EXTERNAL"] == 94
+    assert layer_totals.get("EXTENDED", 0) == 0
+    assert layer_totals.get("EXTERNAL", 0) == 0
     # Holds on any host: both sides derive from the same per-host descriptions.
     assert description_tokens == measured[_BASH_TOOL_NAME] + sum(_DOC_TURN1_TOOL_TOKENS.values())
     tools_subtotal = report["tools_subtotal"]

@@ -87,14 +87,7 @@ EXPLICIT_MCP_FALLBACK_TOOLS: frozenset[str] = frozenset(
     {
         "browser_execute_script_tool",  # arbitrary JS execution — keep ASK (plus in-tool HITL for privileged APIs)
         "send_teammate_message_tool",  # cross-agent message dispatch — external side effect, keep ASK
-        "refetch_historical_turn",  # selectively wired history reader; keeps its current ASK baseline until promoted
         "send_user_message_async",  # agent-to-user push (rate-limited 3/turn); keeps its current ASK baseline until promoted
-        # Profile-mounted tools (not bound by the general agent's Turn1 surface), so they
-        # are not in BUILTIN_TOOL_NAMES and keep the ASK baseline until promoted.
-        "manage_todo_plan",  # shared plan store writes for delegated sub-agents — keep ASK
-        "read_todo_hud",  # reads the shared plan HUD of a session — keep ASK
-        "inspect_agent_session",  # reads another agent session's status/logs — cross-session read, keep ASK
-        "instruct_agent",  # injects steering into another running session — cross-session write, keep ASK
     }
 )
 

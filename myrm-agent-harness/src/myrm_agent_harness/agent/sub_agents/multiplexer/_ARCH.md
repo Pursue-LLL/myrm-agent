@@ -10,7 +10,6 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 门面 | 导出 AgentSessionMultiplexer、快照模型及 inspect/instruct 门面工具 | ✅ |
+| `__init__.py` | 门面 | 导出 AgentSessionMultiplexer 及快照模型 | ✅ |
 | `types.py` | 契约 | 强类型数据模型：MultiplexerSession、InspectSnapshot、InstructResult、AgentInstruction | ✅ |
 | `session_multiplexer.py` | 核心 | 线程安全多路复用引擎：会话增删查、环形日志窗口、工件记录、互视快照与指令队列 | ✅ |
-| `inspect_instruct_tools.py` | 工具 | LangChain 元工具工厂：`inspect_agent_session` 与 `instruct_agent` | ✅ |

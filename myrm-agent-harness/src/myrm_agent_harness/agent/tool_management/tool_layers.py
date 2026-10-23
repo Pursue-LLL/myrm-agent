@@ -128,7 +128,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     "kanban_revise_plan": ToolLayer.EXTENDED,
     # --- 通信与历史检索 ---
     "send_user_message_async": ToolLayer.EXTENDED,
-    "refetch_historical_turn": ToolLayer.EXTENDED,
     # --- 记忆工具（search/save/manage → HIGH_PRIORITY；sessions/wiki 通过 corpus ACL）---
     # --- 技能工具 ---
     "skill_search_tool": ToolLayer.EXTENDED,
@@ -144,12 +143,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     "wiki_apply_tool": ToolLayer.EXTENDED,
     # --- 工作记忆手边工作台 (enable_working_memory_tool 按需挂载) ---
     "working_memory_manage_tool": ToolLayer.EXTENDED,
-    # --- 共享计划看板 (sub-agent 共享 Todo store；按 sub-agent profile 挂载) ---
-    "manage_todo_plan": ToolLayer.EXTENDED,
-    "read_todo_hud": ToolLayer.EXTENDED,
-    # --- 会话多路复用 (inspect/instruct 兄弟会话；orchestrator profile 挂载) ---
-    "inspect_agent_session": ToolLayer.EXTENDED,
-    "instruct_agent": ToolLayer.EXTENDED,
 }
 
 
