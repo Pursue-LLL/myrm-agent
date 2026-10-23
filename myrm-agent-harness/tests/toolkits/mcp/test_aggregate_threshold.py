@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from langchain_core.tools import BaseTool, StructuredTool
+
 from myrm_agent_harness.agent._factory.mcp_routing import (
     AGGREGATE_DIRECT_TOKEN_BUDGET,
     _DirectServerBundle,
@@ -14,19 +16,28 @@ from myrm_agent_harness.agent._factory.mcp_routing import (
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 
 
-def _make_mock_tool(name: str, desc_size: int = 50, n_params: int = 2) -> MagicMock:
-    tool = MagicMock()
-    tool.name = name
-    tool.description = f"Tool: {name}" + "x" * desc_size
+def _make_mock_tool(name: str, desc_size: int = 50, n_params: int = 2) -> BaseTool:
+    """A real tool: ``estimate_schema_tokens`` only reads ``BaseTool`` fields or a wire dict.
+
+    A bare mock yields an empty schema, so every server would weigh the same and the budget
+    comparison under test could never move.
+    """
     props = {f"param_{i}": {"type": "string", "description": "y" * 30} for i in range(n_params)}
-    mock_schema = MagicMock()
-    mock_schema.model_json_schema.return_value = {
+    schema: dict[str, object] = {
         "type": "object",
         "properties": props,
         "required": list(props.keys())[:1],
     }
-    tool.get_input_schema = MagicMock(return_value=mock_schema)
-    return tool
+
+    def _run(**kwargs: str) -> str:
+        return ""
+
+    return StructuredTool(
+        name=name,
+        description=f"Tool: {name}" + "x" * desc_size,
+        args_schema=schema,
+        func=_run,
+    )
 
 
 def _bundle(name: str, tools: list[MagicMock]) -> _DirectServerBundle:

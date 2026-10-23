@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from langchain_core.tools import BaseTool, StructuredTool
+
 import pytest
 
 from myrm_agent_harness.agent._factory.mcp_routing import (
@@ -16,17 +18,22 @@ from myrm_agent_harness.agent._factory.mcp_routing import (
 )
 
 
-def _make_mock_tool(name: str, schema_size: int = 50) -> MagicMock:
-    tool = MagicMock()
-    tool.name = name
-    tool.description = f"Tool: {name}" + "x" * schema_size
-    mock_schema = MagicMock()
-    mock_schema.model_json_schema.return_value = {
+def _make_mock_tool(name: str, schema_size: int = 50) -> BaseTool:
+    """A real tool so the router can weigh it; a bare mock reads as an empty schema."""
+    schema: dict[str, object] = {
         "type": "object",
-        "properties": {"q": {"type": "string"}},
+        "properties": {"q": {"type": "string", "description": "q" * schema_size}},
     }
-    tool.get_input_schema = MagicMock(return_value=mock_schema)
-    return tool
+
+    def _run(q: str) -> str:
+        return q
+
+    return StructuredTool(
+        name=name,
+        description=f"Tool: {name}" + "x" * schema_size,
+        args_schema=schema,
+        func=_run,
+    )
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,15 @@ description: Demo skill for api.skills smoke test.
                 "set_workspace_root",
                 "validate_and_sanitize_mounts",
                 "validate_mount_spec",
+                # Provider-window wait vocabulary for goal holds and host-side deferral.
+                "GOAL_WAIT_KIND_KEY",
+                "GOAL_WAIT_KIND_USAGE_LIMIT",
+                "GOAL_WAIT_RESUME_AT_KEY",
+                "PROVIDER_WINDOW_HOLD_MAX_S",
+                "ProviderWindowHint",
+                "deferral_wait_s",
+                "pause_goal_after_missed_wake",
+                "discard_shared_venv",
             ],
         ),
         (
@@ -92,7 +101,17 @@ def test_api_submodule_exports_match_all(module_name: str, expected_all: list[st
     assert sorted(module.__all__) == sorted(expected_all)
 
 
-_HOOKS_NON_CALLABLE_EXPORTS: frozenset[str] = frozenset({"EVICTED_BASENAME_PATTERN", "INPUT_WAIT_IDLE_SECONDS"})
+_HOOKS_NON_CALLABLE_EXPORTS: frozenset[str] = frozenset(
+    {
+        "EVICTED_BASENAME_PATTERN",
+        "INPUT_WAIT_IDLE_SECONDS",
+        # Provider-window vocabulary: keys and the hold ceiling are values, not callables.
+        "GOAL_WAIT_KIND_KEY",
+        "GOAL_WAIT_KIND_USAGE_LIMIT",
+        "GOAL_WAIT_RESUME_AT_KEY",
+        "PROVIDER_WINDOW_HOLD_MAX_S",
+    }
+)
 
 
 @pytest.mark.api

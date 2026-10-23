@@ -11,6 +11,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from langchain_core.tools import StructuredTool
+
 from mcp.types import (
     CallToolResult,
     ImageContent,
@@ -57,8 +59,21 @@ class TestEstimateSchemaTokens:
         assert estimate_schema_tokens(tools_10) > estimate_schema_tokens(tools_3)
 
     def test_scales_with_schema_size(self) -> None:
-        small = [_make_mock_tool("s", schema_size=10)]
-        large = [_make_mock_tool("l", schema_size=500)]
+        """Estimation walks a real BaseTool's fields, so the doubles are real here.
+
+        The estimator only understands a ``BaseTool`` or a wire dict; a bare mock reads as an
+        empty schema, which would make both sizes report the same count.
+        """
+
+        def _echo(q: str) -> str:
+            return q
+
+        small = [
+            StructuredTool.from_function(func=_echo, name="s", description="x" * 10)
+        ]
+        large = [
+            StructuredTool.from_function(func=_echo, name="l", description="x" * 500)
+        ]
         assert estimate_schema_tokens(large) > estimate_schema_tokens(small)
 
     def test_empty_tools_returns_zero(self) -> None:
