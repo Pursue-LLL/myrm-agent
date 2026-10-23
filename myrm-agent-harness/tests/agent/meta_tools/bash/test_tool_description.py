@@ -95,6 +95,15 @@ def test_optimization_strategy_output_summary_documented() -> None:
     assert "CSV/JSON/日志" in TOOL_DESCRIPTION
 
 
+def test_unknown_shapes_can_be_observed_without_splitting() -> None:
+    """Unknown shape must not force a second turn for independent/constructible calls."""
+    assert "unknown return shape is NOT a reason to split" in TOOL_DESCRIPTION_EN
+    assert "返回结构不明确不是拆分的理由" in TOOL_DESCRIPTION_ZH
+    assert "同一块打印" in TOOL_DESCRIPTION_ZH
+    assert "print the real value as `[OBSERVATION]`" in TOOL_DESCRIPTION_EN
+    assert TOOL_DESCRIPTION_ZH.count('`print(f"[OBSERVATION] {变量}")`') == 1
+
+
 def test_merge_rules_and_output_format_documented() -> None:
     assert "asyncio.gather" in TOOL_DESCRIPTION
     assert "[OBSERVATION]" in TOOL_DESCRIPTION

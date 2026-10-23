@@ -37,7 +37,7 @@ TOOL_DESCRIPTION_ZH: Final[str] = """
 3. **执行 Python 代码**:**直接将 Python 源码作为 command 传入**（支持原生多行代码，无需压缩或转义）。
    - 预装三方库:pandas, numpy, scipy, matplotlib, seaborn;Python 标准库(json, datetime, re 等)均可用。
    - **不要**使用 `python -c "..."` / `python3 -c "..."` 包装器 — shell 转义易破坏引号与多行字符串。直接传原生 Python 源码作为 command 即可。
-4. **组合执行提效(管道思想)**: 单次调用内串联多步 — ① Python 源码(gather/串行/控制流,含技能批量); ② Shell 用 `&&`/`|` 串联,或执行已有脚本(见 #2)。返回值具体才可接管道,否则先 `[OBSERVATION]` — 细则见「编写原则」。
+4. **组合执行提效(管道思想)**: 单次调用内串联多步 — ① Python 源码(gather/串行/控制流,含技能批量); ② Shell 用 `&&`/`|` 串联,或执行已有脚本(见 #2)。独立调用、或可构造的依赖调用，应一次批量；返回结构不明确时在同一块打印 `[OBSERVATION]` 继续，不要单独开一轮；只有后续参数确实无法在观察前构造时才拆分。细则见「编写原则」。
 
 ## 优先使用专用工具
 
@@ -50,48 +50,51 @@ bash_code_execute_tool 适用于:系统/运行时操作(mv/cp/rm、包管理、�
 
 ### 准确性优先,同时考虑效率
 
-合并多个任务可提高效率,但**前提是要使用的目标工具或方法的返回值结构都是具体的**。必须对任务做【依赖性分析】，绝对禁止假设返回值结构，否则因为强行组合未知返回值的方法而导致报错多次重试反而会降低效率，浪费token。
-流程:先判定返回值是否具体 → 具体则合并到一次执行 → 不具体则先 `[OBSERVATION]` 探路。
+合并多个任务可提高效率，但必须先做【依赖性分析】。**返回结构不明确不是拆分的理由**，未知字段只观察、不索引。
+
+流程：
+- 独立调用：必须合并到一次执行；
+- 依赖调用：能在同一段代码里先 `await` 前一步、再构造下一步，就合并；
+- 返回结构不明确：在同一块打印真实返回值 `[OBSERVATION]`，继续完成所有能构造的调用；
+- 只有后续参数确实必须依赖未知结构、且无法预先构造时，才拆成下一次执行。
 
 #### 返回值具体性判定
 
-- **判定标准**:「具体」的唯一标准:**文档中明确写出每个字段的名称和类型**(能直接索引取值),仅说「返回字典/列表」**不算**具体!
-- **引用类型展开**:**引用类型必须展开到基本类型**:dict 列出所有 key 名和 value 类型,list 说明元素类型。
-- **具体示例**:`{"code": str}` / `list[{"id": int}]` / `"yyyy-mm-dd 字符串"`。
-- **模糊示例(必须阻断)**:`返回xx字典` / `返回JSON` / `结果是车站信息列表`。
+- **具体**：文档明确写出字段名和类型，可以直接索引取值；仅说「返回字典/列表」不算具体。
+- **不具体**：可以调用并打印观察，但**不要索引未文档化字段**；不要为了看返回结构单独开一轮。
 
-#### 返回值具体 → 合并到一次代码执行(无依赖用 gather 并行,有依赖串行)
+#### 示例:可构造的依赖调用合并到一次执行
 
-以查票工具为例:若已知 `fetch_date()` 与 `fetch_codes()` 的具体返回值,且 `fetch_date()` 与 `fetch_codes()` 没有依赖关系,但 `query_tickets(date, from_station, to_station)` 依赖于前两个工具的返回值,则先并行执行 `fetch_date()` 与 `fetch_codes()`,再串行执行 `query_tickets(...)`:
+无依赖调用用 `asyncio.gather` 并行；有依赖时先 await 前一步，再串行调用：
 
 ```python
 import asyncio
 
 async def main():
-    date, codes = await asyncio.gather(fetch_date(), fetch_codes())
-    tickets = await query_tickets(date=date, from_station=codes["from"], to_station=codes["to"])
-    print(f"[RESULT] {tickets}")
+    first, second = await asyncio.gather(call_a(), call_b())
+    result = await call_c(x=first, y=second)
+    print(f"[RESULT] {result}")
 
 asyncio.run(main())
 ```
 
-#### 返回值不具体 → 先 OBSERVATION,下次再合并
-
-若 `fetch_date()` 与 `fetch_codes()` 的返回值结构不具体,则先输出 `[OBSERVATION]`,下次观察返回值结构后再决定下次如何编写:
+若 `first`/`second` 的结构不明确，先在同一块打印真实值：
 
 ```python
 import asyncio
 
 async def main():
-    date, codes = await asyncio.gather(fetch_date(), fetch_codes())
-    print(f"[OBSERVATION] date={date}, codes={codes}")
+    first, second = await asyncio.gather(call_a(), call_b())
+    print(f"[OBSERVATION] first={first}, second={second}")
 
 asyncio.run(main())
 ```
+
+仍然遵守：能构造后续调用就继续；只有无法构造时才拆下一次。
 
 ### 优化策略
 
-- 依赖关系和返回值结构清晰明确时，将多次操作合并进一次 Python 源码,用 while/if/try 控制流完成循环/条件/异常,避免多次往返调用。
+- 独立调用、或依赖可构造时，将多次操作合并进一次 Python 源码,用 while/if/try 控制流完成循环/条件/异常,避免多次往返调用。
 - 只输出所需数据:大数据(CSV/JSON/日志)用 Python 分析,只给摘要。
 - 超大输出 eviction 截断时,按返回路径用 ``file_read_tool`` 读 ``.context/.../evicted/``。
 - 命令失败时,先读 stdout/stderr/错误提示定位根因再修复,勿盲目重试同一命令（严禁在未调整参数或逻辑时连续重复执行同一失败操作）。
@@ -112,7 +115,7 @@ asyncio.run(main())
 ## 严格禁止
 
 - 严禁添加非必要的解释性注释，只输出纯净可执行代码。
-- 严禁盲目假设未知返回值结构，遇到未知数据必须先通过 `[OBSERVATION]` 探测。
+- 严禁盲目假设未知返回值结构，不得索引未文档化字段；遇到未知数据先在同一块用 `[OBSERVATION]` 探测，不要因此拆分独立调用。
 - 严禁输出多余的无意义 print，标准输出严格仅允许 `[OBSERVATION]` 与 `[RESULT]`。
 
 ## Python 代码输出格式
@@ -148,7 +151,7 @@ Execute Shell commands or Python code to solve problems accurately and efficient
 4. **Combined execution (pipelining)**: Chain multiple steps in a single call:
    - ① Python source (asyncio.gather / sequential / control flow, including skill batching);
    - ② Shell chaining with `&&`/`|`, or running existing scripts (see #2).
-   - Only pipeline when return structures are concrete; otherwise use `[OBSERVATION]` first (see "Principles").
+   - Batch independent calls and constructible dependencies in one call; an unknown return shape is not a reason to split. Print `[OBSERVATION]` in the same block and continue; split only when later arguments genuinely cannot be constructed without first seeing a result (see "Principles").
 
 ## Prefer Dedicated Tools
 
@@ -161,37 +164,28 @@ Execute Shell commands or Python code to solve problems accurately and efficient
 
 ### Accuracy First, Efficiency Second
 
-Combining multiple tasks improves efficiency, but **only when the return value structure of target methods is concrete**. Always analyze dependencies. NEVER guess return structures.
+Combining tasks improves efficiency, but analyze dependencies first. **An unknown return shape is NOT a reason to split**: call it, print the real value as `[OBSERVATION]`, and continue in the same block. Never index undocumented fields.
 
-1. **Concrete return value**: Field names and types are explicitly documented (e.g. `{"code": str}`, `list[{"id": int}]`). Reference types (dict/list) must expand to primitive types; stating only "returns dict" is NOT concrete!
-2. **Ambiguous return value**: Missing key/field breakdown → must emit `[OBSERVATION]` first to inspect.
+- **Independent**: batch into one execution.
+- **Dependencies**: await the first result and construct the next call in the same block.
+- **Unknown shape**: print the actual value; keep constructible calls in that block.
+- **Split only** when later arguments cannot be constructed without inspecting an unknown result.
 
-#### Concrete structure → Combine into one Python execution:
 ```python
 import asyncio
 
 async def main():
-    date, codes = await asyncio.gather(fetch_date(), fetch_codes())
-    tickets = await query_tickets(date=date, from_station=codes["from"], to_station=codes["to"])
-    print(f"[RESULT] {tickets}")
-
-asyncio.run(main())
-```
-
-#### Ambiguous structure → Output OBSERVATION first, combine next turn:
-```python
-import asyncio
-
-async def main():
-    date, codes = await asyncio.gather(fetch_date(), fetch_codes())
-    print(f"[OBSERVATION] date={date}, codes={codes}")
+    first, second = await asyncio.gather(call_a(), call_b())
+    print(f"[OBSERVATION] first={first}, second={second}")
+    result = await call_c(x=first, y=second)  # only if constructible
+    print(f"[RESULT] {result}")
 
 asyncio.run(main())
 ```
 
 ### Optimization Strategies
 
-- When dependencies and return structures are clear, combine multiple steps in one Python script with while/if/try control flow to avoid multiple tool roundtrips.
+- When calls are independent or dependencies are constructible, combine multiple steps in one Python script with while/if/try control flow to avoid multiple tool roundtrips.
 - Output only necessary data: analyze large data (CSV/JSON/logs) in Python and print only summaries.
 - When large output is evicted/truncated, read the returned path under `.context/.../evicted/` using `file_read_tool`.
 - When a command fails, read stdout/stderr and error messages to identify root cause before fixing. Do not blindly retry the same failed command (never repeat identical failed operations without adjusting arguments or logic).
@@ -208,7 +202,7 @@ Prefer `/workspace/...` (default working directory) in commands and Python code.
 
 ## Prohibitions
 - Do NOT add unnecessary explanatory comments; output clean, executable code only.
-- NEVER assume unknown return structures; always inspect unfamiliar data with `[OBSERVATION]` first.
+- NEVER assume unknown return structures or index undocumented fields; inspect unfamiliar data with `[OBSERVATION]` in the same block instead of splitting independent calls.
 - Do NOT emit superfluous print statements; stdout is strictly restricted to `[OBSERVATION]` and `[RESULT]`.
 
 ## Python Output Format
