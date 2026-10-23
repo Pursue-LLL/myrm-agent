@@ -104,7 +104,16 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
         }
       }
 
-      const ready = await checkBackendReadyOnce();
+      let ready = await checkBackendReadyOnce();
+      const maxWarmupRetries = process.env.NODE_ENV === 'test' ? 0 : 8;
+      for (let attempt = 0; attempt < maxWarmupRetries && !ready && !cancelled; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (cancelled) {
+          return;
+        }
+        ready = await checkBackendReadyOnce();
+      }
+
       if (cancelled || ready) {
         return;
       }
