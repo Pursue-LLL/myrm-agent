@@ -32,7 +32,7 @@ import time
 from typing import TYPE_CHECKING, TypedDict
 
 from myrm_agent_harness.agent.skills.mcp.cache_policy import (
-    CacheBuckets,
+    get_cache_buckets,
     is_explicitly_cacheable,
     resolve_cache_ttl,
 )
@@ -101,9 +101,6 @@ class MCPSkillProxyService:
     - 结果解析
     - 相同参数的只读调用按 60 秒会话缓存（可由 server 配置调整/关闭）
     """
-
-    def __init__(self) -> None:
-        self._cache_buckets = CacheBuckets()
 
     def _make_cache_key(
         self,
@@ -203,7 +200,7 @@ class MCPSkillProxyService:
         cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema, is_read_only=is_read_only)
         if cache_ttl is not None:
             cache_key = self._make_cache_key(session_id, skill_name, matched_for_schema, cleaned_params)
-            cached_result = self._cache_buckets.get(cache_ttl).get(cache_key)
+            cached_result = get_cache_buckets().get(cache_ttl).get(cache_key)
             if cached_result is not None:
                 logger.debug(f"{log_prefix} Read-only cache hit: {skill_name}.{tool_name}")
                 return cached_result
@@ -216,12 +213,12 @@ class MCPSkillProxyService:
         elapsed_ms = (time.monotonic() - t0) * 1000
 
         if cache_key is not None and cache_ttl is not None:
-            self._cache_buckets.get(cache_ttl).set(cache_key, result)
+            get_cache_buckets().get(cache_ttl).set(cache_key, result)
         elif not is_read_only and not is_explicitly_cacheable(skill_meta_for_schema, matched_for_schema):
             # A write can invalidate list/detail results cached earlier in this
             # session. Clearing all buckets is conservative but avoids stale reads
             # without keeping a second index from session key to bucket.
-            self._cache_buckets.clear()
+            get_cache_buckets().clear()
 
         logger.info(f"{log_prefix} MCP {skill_name}.{tool_name} completed in {elapsed_ms:.0f}ms")
         return result

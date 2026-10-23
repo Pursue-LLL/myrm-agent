@@ -19,6 +19,15 @@ from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 
 
+@pytest.fixture(autouse=True)
+def _stable_direct_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep routing tests deterministic across token-estimation changes."""
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent._factory.mcp_routing.compute_direct_threshold",
+        lambda *args, **kwargs: 100,
+    )
+
+
 def _make_mock_tool(name: str, schema_size: int = 50, *, param_props: int = 1) -> MagicMock:
     tool = MagicMock()
     tool.name = name
@@ -30,6 +39,7 @@ def _make_mock_tool(name: str, schema_size: int = 50, *, param_props: int = 1) -
         "properties": properties,
     }
     tool.get_input_schema = MagicMock(return_value=mock_schema)
+    tool.args_schema = mock_schema.model_json_schema.return_value
     return tool
 
 
@@ -173,6 +183,10 @@ async def test_route_mcp_servers_aggregate_demotion() -> None:
             return_value=10000,
         ),
         patch(
+            "myrm_agent_harness.agent._factory.mcp_routing.estimate_schema_tokens",
+            return_value=1000,
+        ),
+        patch(
             "myrm_agent_harness.agent._factory.mcp_routing.demote_direct_servers_over_budget",
             lambda bundles: demote_direct_servers_over_budget(bundles, budget=1500),
         ),
@@ -225,6 +239,10 @@ async def test_route_mcp_servers_aggregate_over_budget_demotes_to_ptc() -> None:
         patch(
             "myrm_agent_harness.agent._factory.mcp_routing.compute_direct_threshold",
             return_value=10000,
+        ),
+        patch(
+            "myrm_agent_harness.agent._factory.mcp_routing.estimate_schema_tokens",
+            return_value=1000,
         ),
         patch(
             "myrm_agent_harness.agent._factory.mcp_routing.demote_direct_servers_over_budget",
@@ -315,3 +333,39 @@ class TestEstimateSingleToolTokens:
     def test_returns_positive_for_valid_tool(self) -> None:
         tool = _make_mock_tool("single")
         assert estimate_single_tool_tokens(tool) > 0
+
+
+@pytest.mark.asyncio
+async def test_direct_tool_wrapper_uses_shared_result_cache() -> None:
+    from myrm_agent_harness.agent._factory.mcp_routing import _wrap_direct_tool_with_cache
+    from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets
+    from myrm_agent_harness.core.context_vars import chat_id_var
+    from myrm_agent_harness.toolkits.mcp.structured_tool import SafeStructuredTool
+
+    calls = 0
+
+    async def fetch(value: str) -> str:
+        nonlocal calls
+        calls += 1
+        return f"result:{value}"
+
+    tool = SafeStructuredTool(
+        name="fetch",
+        description="Fetch",
+        args_schema={"type": "object", "properties": {"value": {"type": "string"}}, "required": ["value"]},
+        coroutine=fetch,
+        response_format="content",
+        metadata={"readOnlyHint": True},
+    )
+    cfg = MCPConfig(name="server", type="stdio", command="echo", cache_ttl_seconds=60)
+    get_cache_buckets().default.clear()
+    token = chat_id_var.set("test-session")
+    try:
+        wrapped = _wrap_direct_tool_with_cache(tool, cfg)
+        first = await wrapped.ainvoke({"value": "x"})
+        second = await wrapped.ainvoke({"value": "x"})
+    finally:
+        chat_id_var.reset(token)
+
+    assert first == second == "result:x"
+    assert calls == 1

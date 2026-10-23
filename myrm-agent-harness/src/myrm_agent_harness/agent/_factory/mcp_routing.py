@@ -25,14 +25,25 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
+from langchain_core.tools import BaseTool
+
 from myrm_agent_harness.agent._factory.mcp_surface import (
     MCPSurfaceMode,
     parse_mcp_surface_mode,
 )
+from myrm_agent_harness.agent.skills.mcp.cache_policy import (
+    cache_config_from_values,
+    get_cache_buckets,
+    is_explicitly_cacheable_config,
+    make_cache_key,
+    resolve_cache_ttl_from_config,
+)
+from myrm_agent_harness.core.context_vars import chat_id_var
 from myrm_agent_harness.toolkits.mcp.config import (
     MCPConfig,
     mcp_config_to_runtime_dict,
 )
+from myrm_agent_harness.toolkits.mcp.structured_tool import SafeStructuredTool
 from myrm_agent_harness.utils.token_estimation import (
     estimate_tool_schema_tokens,
     estimate_tools_schema_tokens,
@@ -40,8 +51,6 @@ from myrm_agent_harness.utils.token_estimation import (
 )
 
 if TYPE_CHECKING:
-    from langchain_core.tools import BaseTool
-
     from myrm_agent_harness.agent.skills import SkillMetadata
     from myrm_agent_harness.toolkits.mcp.client import MCPServerConfigProtocol
 
@@ -179,6 +188,46 @@ class MCPRoutingResult:
     direct_tools: list[BaseTool]
 
 
+def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
+    """Give Direct FC tools the same result cache as PTC without changing routing."""
+    if not isinstance(tool, BaseTool):
+        return tool
+    metadata = getattr(tool, "metadata", {}) or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    policy = cache_config_from_values(
+        getattr(cfg, "cache_ttl_seconds", None),
+        getattr(cfg, "cacheable_tools", None),
+    )
+    read_only = bool(metadata.get("readOnlyHint", False))
+
+    async def cached_call(**params: object) -> object:
+        session_id = chat_id_var.get() or "-"
+        cache_ttl = resolve_cache_ttl_from_config(policy, tool.name, is_read_only=read_only)
+        cache_key = make_cache_key(session_id, cfg.name, tool.name, params) if cache_ttl is not None else None
+        if cache_key is not None and cache_ttl is not None:
+            cached = get_cache_buckets().get(cache_ttl).get(cache_key)
+            if cached is not None:
+                logger.debug("MCP Direct FC cache hit: %s.%s", cfg.name, tool.name)
+                return cached
+
+        result = await tool.ainvoke(params)
+        if cache_key is not None and cache_ttl is not None:
+            get_cache_buckets().get(cache_ttl).set(cache_key, result)
+        elif not read_only and not is_explicitly_cacheable_config(policy, tool.name):
+            get_cache_buckets().clear()
+        return result
+
+    return SafeStructuredTool(
+        name=tool.name,
+        description=tool.description,
+        args_schema=tool.args_schema or {"type": "object", "properties": {}},
+        coroutine=cached_call,
+        response_format="content",
+        metadata=metadata,
+    )
+
+
 async def route_mcp_servers(
     mcp_servers: Sequence[MCPServerConfigProtocol],
     *,
@@ -266,7 +315,7 @@ async def route_mcp_servers(
 
     mcp_direct_tools: list[BaseTool] = []
     for bundle in kept_bundles:
-        mcp_direct_tools.extend(bundle.tools)
+        mcp_direct_tools.extend(_wrap_direct_tool_with_cache(tool, bundle.config) for tool in bundle.tools)
 
     mcp_skills = await _generate_mcp_skills(ptc_servers)
 

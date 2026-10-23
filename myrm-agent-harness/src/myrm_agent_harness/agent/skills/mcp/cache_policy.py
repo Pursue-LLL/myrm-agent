@@ -9,6 +9,7 @@
 - resolve_cache_ttl(): per-server TTL/allowlist policy
 - is_explicitly_cacheable(): short/prefixed/hyphen name matching for allowlists
 - CacheBuckets: fixed-TTL LRU buckets keyed by resolved TTL, with write invalidation
+- get_cache_buckets(): process-wide cache shared by PTC and Direct FC
 
 [POS]
 Pure cache policy for the MCP skill proxy. Kept out of proxy_service so the
@@ -17,6 +18,8 @@ invoke path only asks "may this tool be cached, and for how long?".
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.mcp.tool_name_utils import mcp_tool_short_name
@@ -44,6 +47,21 @@ def server_cache_config(skill_meta: SkillMetadata | None) -> dict[str, object]:
     return {}
 
 
+def cache_config_from_values(
+    cache_ttl_seconds: object,
+    cacheable_tools: object,
+) -> dict[str, object]:
+    """Build the tiny policy mapping used by both skill and direct tool callers."""
+    return {"cache_ttl_seconds": cache_ttl_seconds, "cacheable_tools": cacheable_tools}
+
+
+def make_cache_key(session_id: str, server_name: str, tool_name: str, params: object) -> str:
+    """Build an opaque cache key isolated by session, server, tool, and arguments."""
+    payload = json.dumps(params, sort_keys=True, default=str, separators=(",", ":"))
+    params_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return f"{session_id}.{server_name}.{tool_name}:{params_hash}"
+
+
 def _cache_name_aliases(name: str) -> set[str]:
     """Return normalized aliases for a configured or canonical MCP tool name.
 
@@ -56,9 +74,9 @@ def _cache_name_aliases(name: str) -> set[str]:
     return {alias.replace("-", "_") for alias in aliases if alias}
 
 
-def is_explicitly_cacheable(skill_meta: SkillMetadata | None, tool_name: str) -> bool:
-    """Return True when ``cacheable_tools`` contains *tool_name* in any form."""
-    cacheable = server_cache_config(skill_meta).get("cacheable_tools")
+def is_explicitly_cacheable_config(config: dict[str, object], tool_name: str) -> bool:
+    """Return True when a policy mapping allowlists *tool_name* in any form."""
+    cacheable = config.get("cacheable_tools")
     if not isinstance(cacheable, list):
         return False
     wanted = _cache_name_aliases(tool_name)
@@ -66,6 +84,11 @@ def is_explicitly_cacheable(skill_meta: SkillMetadata | None, tool_name: str) ->
         isinstance(entry, str) and bool(wanted & _cache_name_aliases(entry.strip()))
         for entry in cacheable
     )
+
+
+def is_explicitly_cacheable(skill_meta: SkillMetadata | None, tool_name: str) -> bool:
+    """Return True when a skill's serialized config allowlists *tool_name*."""
+    return is_explicitly_cacheable_config(server_cache_config(skill_meta), tool_name)
 
 
 def resolve_cache_ttl(
@@ -81,10 +104,20 @@ def resolve_cache_ttl(
     ``cache_ttl_seconds`` to zero to disable caching or a positive value to cap
     the lifetime. Dynamic ticket/status tools must never be allowlisted.
     """
-    if not is_read_only and not is_explicitly_cacheable(skill_meta, tool_name):
+    return resolve_cache_ttl_from_config(server_cache_config(skill_meta), tool_name, is_read_only=is_read_only)
+
+
+def resolve_cache_ttl_from_config(
+    config: dict[str, object],
+    tool_name: str,
+    *,
+    is_read_only: bool,
+) -> int | None:
+    """Resolve TTL from a policy mapping shared by PTC and Direct FC callers."""
+    if not is_read_only and not is_explicitly_cacheable_config(config, tool_name):
         return None
 
-    raw_ttl = server_cache_config(skill_meta).get("cache_ttl_seconds")
+    raw_ttl = config.get("cache_ttl_seconds")
     if raw_ttl is None:
         return READ_ONLY_CACHE_TTL_SECONDS
     try:
@@ -116,3 +149,11 @@ class CacheBuckets:
             bucket = LRUCache(maxsize=1000, ttl=ttl, id=f"mcp_skill_readonly_cache_{ttl}s")
             self._buckets[ttl] = bucket
         return bucket
+
+
+_SHARED_CACHE = CacheBuckets()
+
+
+def get_cache_buckets() -> CacheBuckets:
+    """Return the process-wide MCP result cache shared by PTC and Direct FC."""
+    return _SHARED_CACHE

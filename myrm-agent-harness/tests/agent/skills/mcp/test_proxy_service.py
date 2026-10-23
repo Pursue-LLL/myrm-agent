@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets
 from myrm_agent_harness.agent.skills.mcp.proxy_service import (
     MCPSkillProxyService,
     _resolve_mcp_input_schema,
@@ -21,8 +22,10 @@ from myrm_agent_harness.toolkits.mcp.config import MCPConfig, mcp_config_to_runt
 @pytest.fixture(autouse=True)
 def _clear_skill_registry() -> None:
     skill_registry.clear()
+    get_cache_buckets().clear()
     yield
     skill_registry.clear()
+    get_cache_buckets().clear()
 
 
 @pytest.fixture
@@ -380,7 +383,7 @@ class TestProxyServiceSingleton:
     async def test_handle_mcp_invoke_success(self, mcp_skill_meta: SkillMetadata) -> None:
         skill_registry.register(mcp_skill_meta)
         service = get_mcp_skill_proxy_service()
-        service._cache_buckets.default.clear()
+        get_cache_buckets().default.clear()
 
         with patch.object(service, "invoke_tool", AsyncMock(return_value="ok")):
             result = await handle_mcp_invoke("mcp_test_skill", "ping", {})
