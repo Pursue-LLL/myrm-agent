@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from myrm_agent_harness.agent.skills.mcp.cache_policy import (
     CacheBuckets,
+    is_explicitly_cacheable,
     resolve_cache_ttl,
 )
 from myrm_agent_harness.core.security.detection.content_boundary import (
@@ -198,10 +199,11 @@ class MCPSkillProxyService:
         cleaned_params = prepare_mcp_call_arguments(params, input_schema)
 
         cache_key: str | None = None
+        is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
         cache_ttl = resolve_cache_ttl(
             skill_meta_for_schema,
             matched_for_schema,
-            is_read_only=self._is_read_only_tool(skill_name, matched_for_schema),
+            is_read_only=is_read_only,
         )
         if cache_ttl is not None:
             cache_key = self._make_cache_key(session_id, skill_name, matched_for_schema, cleaned_params)
@@ -219,6 +221,11 @@ class MCPSkillProxyService:
 
         if cache_key is not None and cache_ttl is not None:
             self._cache_buckets.get(cache_ttl).set(cache_key, result)
+        elif not is_read_only and not is_explicitly_cacheable(skill_meta_for_schema, matched_for_schema):
+            # A write can invalidate list/detail results cached earlier in this
+            # session. Clearing all buckets is conservative but avoids stale reads
+            # without keeping a second index from session key to bucket.
+            self._cache_buckets.clear()
 
         logger.info(f"{log_prefix} MCP {skill_name}.{tool_name} completed in {elapsed_ms:.0f}ms")
         return result

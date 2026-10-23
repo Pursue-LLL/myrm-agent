@@ -7,7 +7,8 @@
 [OUTPUT]
 - READ_ONLY_CACHE_TTL_SECONDS: default read-only cache lifetime
 - resolve_cache_ttl(): per-server TTL/allowlist policy
-- CacheBuckets: fixed-TTL LRU buckets keyed by resolved TTL
+- is_explicitly_cacheable(): short/prefixed/hyphen name matching for allowlists
+- CacheBuckets: fixed-TTL LRU buckets keyed by resolved TTL, with write invalidation
 
 [POS]
 Pure cache policy for the MCP skill proxy. Kept out of proxy_service so the
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.skills.mcp.tool_name_utils import mcp_tool_short_name
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
 if TYPE_CHECKING:
@@ -42,6 +44,30 @@ def server_cache_config(skill_meta: SkillMetadata | None) -> dict[str, object]:
     return {}
 
 
+def _cache_name_aliases(name: str) -> set[str]:
+    """Return normalized aliases for a configured or canonical MCP tool name.
+
+    Users copy names from ``tools/list`` (``get-tickets``), while the runtime
+    catalog uses ``mcp__server__get-tickets``. Python callers may also use the
+    underscored form. Treat all three as the same tool for allowlist matching;
+    otherwise a valid configuration silently never caches.
+    """
+    aliases = {name, mcp_tool_short_name(name)}
+    return {alias.replace("-", "_") for alias in aliases if alias}
+
+
+def is_explicitly_cacheable(skill_meta: SkillMetadata | None, tool_name: str) -> bool:
+    """Return True when ``cacheable_tools`` contains *tool_name* in any form."""
+    cacheable = server_cache_config(skill_meta).get("cacheable_tools")
+    if not isinstance(cacheable, list):
+        return False
+    wanted = _cache_name_aliases(tool_name)
+    return any(
+        isinstance(entry, str) and bool(wanted & _cache_name_aliases(entry.strip()))
+        for entry in cacheable
+    )
+
+
 def resolve_cache_ttl(
     skill_meta: SkillMetadata | None,
     tool_name: str,
@@ -55,13 +81,10 @@ def resolve_cache_ttl(
     ``cache_ttl_seconds`` to zero to disable caching or a positive value to cap
     the lifetime. Dynamic ticket/status tools must never be allowlisted.
     """
-    config = server_cache_config(skill_meta)
-    cacheable = config.get("cacheable_tools")
-    explicit = isinstance(cacheable, list) and tool_name in cacheable
-    if not is_read_only and not explicit:
+    if not is_read_only and not is_explicitly_cacheable(skill_meta, tool_name):
         return None
 
-    raw_ttl = config.get("cache_ttl_seconds")
+    raw_ttl = server_cache_config(skill_meta).get("cache_ttl_seconds")
     if raw_ttl is None:
         return READ_ONLY_CACHE_TTL_SECONDS
     try:
@@ -77,6 +100,12 @@ class CacheBuckets:
     def __init__(self, default_ttl: int = READ_ONLY_CACHE_TTL_SECONDS) -> None:
         self.default = LRUCache[object](maxsize=1000, ttl=default_ttl, id="mcp_skill_readonly_cache")
         self._buckets: dict[int, LRUCache[object]] = {}
+
+    def clear(self) -> None:
+        """Drop every cached result after a write changes server state."""
+        self.default.clear()
+        for bucket in self._buckets.values():
+            bucket.clear()
 
     def get(self, ttl: int) -> LRUCache[object]:
         """Return the cache bucket for *ttl*, creating it on first use."""

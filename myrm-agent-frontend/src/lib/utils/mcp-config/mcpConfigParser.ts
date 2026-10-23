@@ -23,6 +23,10 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
   const rawHeaders = config.headers as Record<string, string> | undefined;
   const rawHostSerial = config.host_serial ?? config.hostSerial;
   const rawKeepaliveInterval = config.keepalive_interval ?? config.keepaliveInterval;
+  const rawCacheTtl = config.cache_ttl_seconds ?? config.cacheTtlSeconds;
+  const cacheTtlCandidate =
+    typeof rawCacheTtl === 'string' && rawCacheTtl.trim() !== '' ? Number(rawCacheTtl) : rawCacheTtl;
+  const rawCacheableTools = config.cacheable_tools ?? config.cacheableTools;
 
   const result: MCPServiceConfig = {
     name,
@@ -34,6 +38,13 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
     enabled: true,
     headers: rawHeaders && Object.keys(rawHeaders).length > 0 ? rawHeaders : null,
     hostSerial: typeof rawHostSerial === 'boolean' ? rawHostSerial : false,
+    cacheTtlSeconds:
+      typeof cacheTtlCandidate === 'number' && Number.isInteger(cacheTtlCandidate) && cacheTtlCandidate >= 0
+        ? cacheTtlCandidate
+        : null,
+    cacheableTools: Array.isArray(rawCacheableTools)
+      ? rawCacheableTools.map((name) => String(name).trim()).filter((name) => name.length > 0)
+      : null,
     keepaliveInterval: normalizeMCPKeepaliveInterval(type, rawKeepaliveInterval),
     extra_params: {
       ...(config.env ? { env: config.env as Record<string, string> } : {}),

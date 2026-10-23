@@ -13,6 +13,8 @@ export const DEFAULT_FORM_DATA: MCPServiceConfig = {
   headers: null,
   extra_params: {},
   hostSerial: false,
+  cacheTtlSeconds: null,
+  cacheableTools: null,
   keepaliveInterval: null,
 };
 
@@ -110,10 +112,7 @@ export function buildConnectionTypeOptions(
   return allOptions.filter((option) => mcpOptions.allowedTypes.includes(option.value));
 }
 
-export function buildImportPlaceholder(
-  supportsStdio: boolean,
-  t: (key: string) => string,
-): string {
+export function buildImportPlaceholder(supportsStdio: boolean, t: (key: string) => string): string {
   const headerHint = supportsStdio ? t('mcpImportDescription') : t('mcpImportDescriptionSandbox');
   if (supportsStdio) {
     return `${headerHint}
@@ -184,18 +183,15 @@ export function parseFinalFormData(
     data: {
       ...formData,
       args: processedArgs,
+      cacheTtlSeconds: formData.cacheTtlSeconds ?? null,
+      cacheableTools: formData.cacheableTools?.map((name) => name.trim()).filter((name) => name.length > 0) ?? null,
       keepaliveInterval:
-        formData.type === 'sse' || formData.type === 'streamable_http'
-          ? (formData.keepaliveInterval ?? null)
-          : null,
+        formData.type === 'sse' || formData.type === 'streamable_http' ? (formData.keepaliveInterval ?? null) : null,
     },
   };
 }
 
-export function validateMCPFormFields(
-  formData: MCPServiceConfig,
-  t: (key: string) => string,
-): Record<string, string> {
+export function validateMCPFormFields(formData: MCPServiceConfig, t: (key: string) => string): Record<string, string> {
   const newErrors: Record<string, string> = {};
 
   if (!formData.name.trim()) {
@@ -225,6 +221,11 @@ export function validateMCPFormFields(
     }
   }
 
+  const cacheTtlSeconds = formData.cacheTtlSeconds ?? null;
+  if (cacheTtlSeconds !== null && (!Number.isInteger(cacheTtlSeconds) || cacheTtlSeconds < 0)) {
+    newErrors.cacheTtlSeconds = t('mcpCacheTtlInvalid');
+  }
+
   if (!formData.description.trim()) {
     newErrors.description = t('mcpDescriptionRequired');
   }
@@ -234,14 +235,10 @@ export function validateMCPFormFields(
 
 export type MCPServiceStatusEntry = { available: boolean; pending?: boolean; latency?: number };
 
-export function buildInitialMcpStatusMap(
-  configs: MCPServiceConfig[],
-): Record<string, MCPServiceStatusEntry> {
+export function buildInitialMcpStatusMap(configs: MCPServiceConfig[]): Record<string, MCPServiceStatusEntry> {
   const initialStatus: Record<string, MCPServiceStatusEntry> = {};
   for (const config of configs) {
-    initialStatus[config.name] = config.enabled
-      ? { available: false, pending: true }
-      : { available: false };
+    initialStatus[config.name] = config.enabled ? { available: false, pending: true } : { available: false };
   }
   return initialStatus;
 }
@@ -315,5 +312,3 @@ export function scheduleDebouncedLiveScan(
   }, 500);
   return () => window.clearTimeout(timer);
 }
-
-

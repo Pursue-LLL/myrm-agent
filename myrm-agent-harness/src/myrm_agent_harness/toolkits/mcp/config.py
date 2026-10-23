@@ -150,8 +150,8 @@ class MCPConfig(BaseModel):
             "None keeps the built-in readOnlyHint default; 0 disables caching; positive values cap it."
         ),
     )
-    cacheable_tools: list[str] = Field(
-        default_factory=list,
+    cacheable_tools: list[str] | None = Field(
+        default=None,
         description=(
             "Explicit allowlist of canonical `tools/list` names that may be cached when the server omits "
             "readOnlyHint. Only list stable read-only tools; never list writes or volatile ticket/status queries."

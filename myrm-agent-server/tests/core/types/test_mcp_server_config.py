@@ -92,3 +92,20 @@ class TestCamelCaseRoundTrip:
     def test_keepalive_interval_defaults_none(self) -> None:
         cfg = MCPServerConfig(name="s", type="stdio", command="npx")
         assert cfg.keepalive_interval is None
+
+
+def test_cache_policy_camel_case_aliases_survive() -> None:
+    cfg = MCPServerConfig.model_validate(
+        {
+            "name": "cache",
+            "type": "stdio",
+            "command": "echo",
+            "cacheTtlSeconds": 30,
+            "cacheableTools": ["get_current_date"],
+        }
+    )
+    assert cfg.cache_ttl_seconds == 30
+    assert cfg.cacheable_tools == ["get_current_date"]
+    dumped = cfg.model_dump(by_alias=True)
+    assert dumped["cacheTtlSeconds"] == 30
+    assert dumped["cacheableTools"] == ["get_current_date"]

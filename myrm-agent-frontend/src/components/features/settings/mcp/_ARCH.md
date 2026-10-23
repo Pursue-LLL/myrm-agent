@@ -9,7 +9,7 @@ MCP 服务配置 UI 子模块：列表、编辑、JSON 导入、注册中心浏�
 | 文件                         | 职责                                                                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `MCPConfigList.tsx`          | MCP 服务列表、在线状态、OAuth、安全 severity 徽章、启用时 verify loading                                                                                                             |
-| `MCPConfigEditor.tsx`        | 编辑弹窗、`hostSerial`（state-aware serial mode）开关、`keepaliveInterval` 输入（仅 remote transport 显示，最小 5 秒校验；切换到 `stdio` 自动清空）、debounce 实时扫描 findings 展示 |
+| `MCPConfigEditor.tsx`        | 编辑弹窗、`hostSerial`（state-aware serial mode）开关、`keepaliveInterval` 输入（仅 remote transport 显示，最小 5 秒校验；切换到 `stdio` 自动清空）、结果缓存 TTL/可缓存工具高级配置、debounce 实时扫描 findings 展示 |
 | `MCPJsonImporter.tsx`        | JSON 批量导入弹窗                                                                                                                                                                    |
 | `MCPScanAckDialog.tsx`       | 高风险 MCP 配置确认对话框                                                                                                                                                            |
 | `MCPReloadConfirmDialog.tsx` | MCP 变更保存前 reload 确认（prompt cache 预期；`useMCPConfig.persistConfigs` 触发）                                                                                                  |

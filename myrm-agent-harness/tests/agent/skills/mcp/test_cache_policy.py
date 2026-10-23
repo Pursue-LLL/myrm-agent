@@ -35,3 +35,24 @@ def test_zero_ttl_disables_cache() -> None:
 def test_positive_ttl_overrides_default() -> None:
     meta = _meta({"cache_ttl_seconds": 15})
     assert resolve_cache_ttl(meta, "ping", is_read_only=True) == 15
+
+
+def test_allowlist_matches_prefixed_runtime_name() -> None:
+    meta = _meta({"cacheable_tools": ["get_tickets"]})
+    assert resolve_cache_ttl(meta, "mcp__12306_mcp__get-tickets", is_read_only=False) == 60
+
+
+def test_allowlist_matches_hyphenated_name() -> None:
+    meta = _meta({"cacheable_tools": ["get-tickets"]})
+    assert resolve_cache_ttl(meta, "mcp__server__get_tickets", is_read_only=False) == 60
+
+
+def test_clear_drops_default_and_custom_buckets() -> None:
+    from myrm_agent_harness.agent.skills.mcp.cache_policy import CacheBuckets
+
+    buckets = CacheBuckets()
+    buckets.default.set("a", "value")
+    buckets.get(30).set("b", "value")
+    buckets.clear()
+    assert buckets.default.get("a") is None
+    assert buckets.get(30).get("b") is None

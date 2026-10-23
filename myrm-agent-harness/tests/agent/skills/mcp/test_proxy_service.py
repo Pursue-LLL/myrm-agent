@@ -176,6 +176,40 @@ class TestMCPSkillProxyServiceInvoke:
         assert mock_conn.call.await_count == 1
 
     @pytest.mark.asyncio
+    async def test_write_invalidates_cached_read_results(self, mcp_skill_meta: SkillMetadata) -> None:
+        """A successful write must not leave an earlier list/detail result stale."""
+        from myrm_agent_harness.core.security.tool_registry.registry import (
+            register_ptc_safety_metadata,
+        )
+        from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
+
+        service = MCPSkillProxyService()
+        skill_registry.register(mcp_skill_meta)
+        register_ptc_safety_metadata(
+            "mcp_test_skill",
+            "ping",
+            SafetyMetadata(is_read_only=True),
+            {"readOnlyHint": True},
+        )
+
+        mock_conn = MagicMock()
+        mock_conn.call = AsyncMock(return_value=({"type": "text", "text": "pong"}, None))
+        mock_manager = MagicMock()
+        mock_manager.get_connection = AsyncMock(return_value=mock_conn)
+
+        with patch(
+            "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
+            AsyncMock(return_value=mock_manager),
+        ):
+            await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+            await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+            assert mock_conn.call.await_count == 1
+            await service.invoke_tool("mcp_test_skill", "create_issue", {"title": "bug"}, session_id="s1")
+            await service.invoke_tool("mcp_test_skill", "ping", {}, session_id="s1")
+
+        assert mock_conn.call.await_count == 3
+
+    @pytest.mark.asyncio
     async def test_zero_cache_ttl_disables_read_only_cache(self, mcp_skill_meta: SkillMetadata) -> None:
         """An explicit TTL of zero must disable even readOnlyHint caching."""
         from myrm_agent_harness.core.security.tool_registry.registry import (

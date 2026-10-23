@@ -8,7 +8,7 @@
 - build_params_section: Builds full parameters documentation section from JSON Schema.
 - build_call_example / build_call_example_section: Minimal calls, emitted only for real examples.
 - render_signature / render_type / render_constraint: Compact one-line signatures for L2.
-- render_output_type / build_returns_section / TOOL_DOC_TEMPLATE: Return rendering and L3 template.
+- render_output_type / build_returns_section / TOOL_DOC_TEMPLATE: Return rendering and L3 template; output names are untrusted and sanitized.
 
 [POS]
 Extracts and renders JSON Schema constraints and output types as markdown for correct MCP arguments.
@@ -223,6 +223,34 @@ def build_call_example_section(skill_name: str, tool_name: str, input_schema: Js
     )
 
 
+MAX_OUTPUT_FIELD_NAME_CHARS = 64
+"""Upper bound for a rendered output field name."""
+
+_OUTPUT_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def _safe_output_field_name(name: object, used: set[str]) -> str:
+    """Return a prompt-safe identifier for an untrusted output field name.
+
+    MCP servers are external processes. Their outputSchema property names are
+    data, not instructions; rendering arbitrary prose lets a malicious schema
+    inject into L2/L3. Valid identifiers are preserved; anything else becomes a
+    neutral placeholder rather than a cleaned-up copy of the attacker's text.
+    """
+    raw = str(name)
+    if _OUTPUT_IDENTIFIER.match(raw) and len(raw) <= MAX_OUTPUT_FIELD_NAME_CHARS:
+        candidate = raw
+    else:
+        candidate = f"field_{len(used) + 1}"
+    index = 2
+    while candidate in used:
+        suffix = f"_{index}"
+        candidate = f"field_{len(used) + index}{suffix}"[:MAX_OUTPUT_FIELD_NAME_CHARS]
+        index += 1
+    used.add(candidate)
+    return candidate
+
+
 def render_output_type(
     schema: object,
     *,
@@ -275,10 +303,12 @@ def render_output_type(
         required = schema.get("required")
         required_names = set(required) if isinstance(required, list) else set()
         parts: list[str] = []
+        used_names: set[str] = set()
         for name, info in properties.items():
             marker = "" if name in required_names else "?"
+            safe_name = _safe_output_field_name(name, used_names)
             parts.append(
-                f"{name}{marker}:{render_output_type(info, defs=defs, _seen=seen, _depth=_depth + 1)}"
+                f"{safe_name}{marker}:{render_output_type(info, defs=defs, _seen=seen, _depth=_depth + 1)}"
             )
         return "object{" + ",".join(parts) + "}"
 

@@ -45,6 +45,8 @@ export interface MCPServiceConfig {
   headers?: Record<string, string> | null;
   extra_params?: Record<string, unknown> | null;
   hostSerial?: boolean | null;
+  cacheTtlSeconds?: number | null;
+  cacheableTools?: string[] | null;
   connectTimeout?: number | null;
   executeTimeout?: number | null;
   keepaliveInterval?: number | null;

@@ -23,7 +23,7 @@ def test_stdio_defaults_are_serialized() -> None:
     assert runtime["max_output_chars"] == 100_000
     assert runtime["host_serial"] is False
     assert runtime["cache_ttl_seconds"] is None
-    assert runtime["cacheable_tools"] == []
+    assert runtime["cacheable_tools"] is None
 
 
 def test_cache_policy_is_serialized() -> None:

@@ -268,6 +268,45 @@ export function MCPConfigEditor({
             )}
           </div>
 
+          {/* Result cache policy (advanced) */}
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">{t('mcpCacheTitle')}</p>
+              <p className="text-xs text-muted-foreground">{t('mcpCacheHint')}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <InputField
+                label={t('mcpCacheTtlSeconds')}
+                type="number"
+                value={formData.cacheTtlSeconds ?? ''}
+                error={errors.cacheTtlSeconds}
+                onChange={(e) =>
+                  onFormDataChange({
+                    ...formData,
+                    cacheTtlSeconds: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+                placeholder={t('mcpCacheTtlPlaceholder')}
+              />
+              <InputField
+                label={t('mcpCacheableTools')}
+                value={(formData.cacheableTools ?? []).join(', ')}
+                onChange={(e) =>
+                  onFormDataChange({
+                    ...formData,
+                    cacheableTools: e.target.value
+                      ? e.target.value
+                          .split(',')
+                          .map((name) => name.trim())
+                          .filter(Boolean)
+                      : null,
+                  })
+                }
+                placeholder={t('mcpCacheableToolsPlaceholder')}
+              />
+            </div>
+          </div>
+
           {/* HTTP Headers (HTTP transports only) */}
           {(formData.type === 'sse' || formData.type === 'streamable_http') && (
             <HeadersSection formData={formData} onFormDataChange={onFormDataChange} />

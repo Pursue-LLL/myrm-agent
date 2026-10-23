@@ -185,6 +185,21 @@ class MCPServerConfig(BaseModel):
             "(overrides read-only parallel hints)."
         ),
     )
+    cache_ttl_seconds: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Session-scoped result-cache TTL for stable read-only tools. None keeps the "
+            "default readOnlyHint behavior; 0 disables caching; positive values cap it."
+        ),
+    )
+    cacheable_tools: list[str] | None = Field(
+        default=None,
+        description=(
+            "Explicit allowlist of canonical tools/list names that may be cached when the "
+            "server omits readOnlyHint. Only stable read-only tools belong here."
+        ),
+    )
     connect_timeout: float = Field(
         default=15.0,
         description="Connection timeout in seconds (stdio startup may be slow)",

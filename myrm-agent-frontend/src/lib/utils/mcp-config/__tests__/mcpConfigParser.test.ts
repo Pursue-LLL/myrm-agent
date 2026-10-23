@@ -23,6 +23,8 @@ describe('parseServerConfig', () => {
       enabled: true,
       headers: null,
       hostSerial: false,
+      cacheTtlSeconds: null,
+      cacheableTools: null,
       keepaliveInterval: null,
       extra_params: {},
     });
@@ -45,6 +47,8 @@ describe('parseServerConfig', () => {
       enabled: true,
       headers: null,
       hostSerial: false,
+      cacheTtlSeconds: null,
+      cacheableTools: null,
       keepaliveInterval: null,
       extra_params: {},
     });
@@ -64,6 +68,18 @@ describe('parseServerConfig', () => {
       cwd: '/path/to/dir',
     });
     expect(result.headers).toEqual({ Authorization: 'Bearer token' });
+  });
+
+  it('应该解析结果缓存策略', () => {
+    const result = parseServerConfig('cache-server', {
+      type: 'sse',
+      url: 'http://example.com',
+      cache_ttl_seconds: 30,
+      cacheable_tools: ['get_current_date', ' list_stations '],
+    });
+
+    expect(result.cacheTtlSeconds).toBe(30);
+    expect(result.cacheableTools).toEqual(['get_current_date', 'list_stations']);
   });
 
   it('应该在name为空时抛出错误', () => {
