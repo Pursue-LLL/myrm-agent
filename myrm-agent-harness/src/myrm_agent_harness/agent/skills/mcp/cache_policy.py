@@ -12,8 +12,9 @@
 - get_cache_buckets(): process-wide cache shared by PTC and Direct FC
 
 [POS]
-Pure cache policy for the MCP skill proxy. Kept out of proxy_service so the
-invoke path only asks "may this tool be cached, and for how long?".
+Pure MCP result-cache policy shared by PTC proxy calls and Direct FC tools. Kept
+out of proxy_service so each caller only asks "may this tool be cached, and for
+how long?".
 """
 
 from __future__ import annotations

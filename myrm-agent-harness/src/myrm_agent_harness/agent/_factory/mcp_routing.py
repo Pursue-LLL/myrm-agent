@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - route_mcp_servers(): split MCP servers into direct tools vs PTC skills
+- _wrap_direct_tool_with_cache(): share MCP result cache with Direct FC tools
 - demote_direct_servers_over_budget(): whole-server Skill demotion when aggregate direct budget exceeded
 - PTC_OVERHEAD_MULTIPLIER, FALLBACK_PTC_OVERHEAD_TOKENS, compute_direct_threshold, estimate_schema_tokens
 
