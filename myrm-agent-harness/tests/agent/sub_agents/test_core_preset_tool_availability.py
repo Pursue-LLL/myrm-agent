@@ -20,7 +20,7 @@ def _monorepo_root() -> Path:
 
 
 def _core_presets_dir() -> Path:
-    path = _monorepo_root() / "myrm-agent" / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
+    path = _monorepo_root() / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
     if not path.exists():
         pytest.skip("Core subagent presets directory not found")
     return path
@@ -39,11 +39,11 @@ def _full_parent_toolkit() -> list[BaseTool]:
 
 
 _CORE_PRESET_NAMES: tuple[str, ...] = (
-    "search",
+    "structure-planner",
+    "layout-designer",
+    "format-verifier",
     "browser",
-    "analysis",
-    "coding",
-    "deep-audit",
+    "explore",
     "adversarial-reviewer",
 )
 
@@ -74,19 +74,6 @@ def test_browser_preset_includes_interact_tool() -> None:
 
     filtered_names = {tool.name for tool in filter_tools(config, _full_parent_toolkit())}
     assert "browser_interact_tool" in filtered_names
-
-
-def test_analysis_preset_uses_memory_ssot_tools() -> None:
-    yaml_path = _core_presets_dir() / "analysis.yaml"
-    loader = SubagentConfigLoader()
-    config = loader.load_from_yaml(yaml_path, expected_name="analysis")
-
-    assert config is not None
-    assert set(config.tools) == {
-        "memory_search_tool",
-        "memory_save_tool",
-        "memory_manage_tool",
-    }
 
 
 @pytest.mark.asyncio

@@ -89,8 +89,8 @@ def auto_register_subagent_configs(
 
     Example Directory Structure:
         configs/subagents/
-          ├── core/       # Framework-provided configs
-          │   ├── search.yaml
+          ├── core/       # Business-provided configs
+          │   ├── structure-planner.yaml
           │   └── browser.yaml
           └── custom/     # User-defined configs
               └── my_agent.yaml

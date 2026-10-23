@@ -454,191 +454,13 @@ def test_load_real_core_configs():
         assert config.timeout_seconds > 0
 
 
-class TestCodingYamlIntegration:
-    """Integration tests for coding.yaml subagent preset."""
-
-    @pytest.fixture
-    def coding_yaml_path(self):
-        """Path to the real coding.yaml file in myrm-agent-server."""
-        monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-        path = (
-            monorepo_root / "myrm-agent" / "myrm-agent-server" / "app" / "config" / "subagents" / "core" / "coding.yaml"
-        )
-        if not path.exists():
-            pytest.skip("coding.yaml not found (run tests from harness repo root)")
-        return path
-
-    def test_coding_yaml_loads_successfully(self, coding_yaml_path):
-        """Test that coding.yaml is syntactically valid and loadable."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert isinstance(config, SubagentConfig)
-
-    def test_coding_yaml_has_required_tools(self, coding_yaml_path):
-        """Test that coding preset includes essential coding tools."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        essential_tools = {
-            "bash_code_execute_tool",
-            "file_read_tool",
-            "file_write_tool",
-            "file_edit_tool",
-            "grep_tool",
-            "glob_tool",
-        }
-        assert essential_tools.issubset(set(config.tools))
-
-    def test_coding_yaml_has_delegate_capability(self, coding_yaml_path):
-        """Test that coding preset can delegate to external agents."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert "invoke_acp_agent_tool" in config.tools
-
-    def test_coding_yaml_blocks_privileged_tools(self, coding_yaml_path):
-        """Test that coding preset correctly blocks skill management tools."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert "skill_manage_tool" in config.disallowed_tools
-        assert "skill_market_tool" in config.disallowed_tools
-
-    def test_coding_yaml_uses_fork_context(self, coding_yaml_path):
-        """Test that coding preset uses fork context mode for cache preservation."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert config.context_mode == "fork"
-
-    def test_coding_yaml_theme_color(self, coding_yaml_path):
-        """Test that coding preset has a valid theme color."""
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert config.theme_color == "cyan"
-
-    def test_coding_yaml_workspace_inherits(self, coding_yaml_path):
-        """Test that coding preset inherits workspace from parent."""
-        from myrm_agent_harness.agent.sub_agents.types import WorkspacePolicy
-
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(coding_yaml_path, expected_name="coding")
-
-        assert config is not None
-        assert config.workspace_policy == WorkspacePolicy.INHERIT
-
-
-class TestDeepAuditYamlIntegration:
-    """Integration tests for deep-audit.yaml subagent preset."""
-
-    @pytest.fixture
-    def deep_audit_yaml_path(self):
-        monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-        path = (
-            monorepo_root
-            / "myrm-agent"
-            / "myrm-agent-server"
-            / "app"
-            / "config"
-            / "subagents"
-            / "core"
-            / "deep-audit.yaml"
-        )
-        if not path.exists():
-            pytest.skip("deep-audit.yaml not found")
-        return path
-
-    def test_deep_audit_loads_successfully(self, deep_audit_yaml_path):
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        assert isinstance(config, SubagentConfig)
-
-    def test_deep_audit_read_only_tools(self, deep_audit_yaml_path):
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        assert set(config.tools) == {"file_read_tool", "grep_tool", "glob_tool", "bash_code_execute_tool"}
-        write_tools = {
-            "file_write_tool",
-            "file_edit_tool",
-            "skill_manage_tool",
-            "skill_market_tool",
-            "invoke_acp_agent_tool",
-        }
-        assert write_tools.issubset(config.disallowed_tools)
-
-    def test_deep_audit_no_delegation(self, deep_audit_yaml_path):
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        assert config.max_spawn_depth == 0
-        assert "invoke_acp_agent_tool" in config.disallowed_tools
-
-    def test_deep_audit_config_values(self, deep_audit_yaml_path):
-        from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, WorkspacePolicy
-
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        assert config.timeout_seconds == 600
-        # deep-audit.yaml still carries the legacy default (5); the config migrator lifts
-        # legacy defaults to the scaled tier, so what reaches the runtime is 10.
-        assert config.concurrency_limit == 10
-        assert config.max_turns == 30
-        assert config.budget_tokens == 500000
-        assert config.max_result_tokens == 16000
-        assert config.workspace_policy == WorkspacePolicy.INHERIT
-        assert config.memory_isolation == MemoryIsolationPolicy.EPHEMERAL_SESSION
-        assert config.context_mode == "isolated"
-
-    def test_deep_audit_theme_color(self, deep_audit_yaml_path):
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        assert config.theme_color == "orange"
-
-    def test_deep_audit_prompt_focuses_on_logic_flaws(self, deep_audit_yaml_path):
-        loader = SubagentConfigLoader()
-        config = loader.load_from_yaml(deep_audit_yaml_path, expected_name="deep-audit")
-
-        assert config is not None
-        prompt = config.system_prompt.lower()
-        assert "business logic bypass" in prompt
-        assert "privilege escalation" in prompt
-        assert "race condition" in prompt
-        assert "data exfiltration" in prompt
-        assert "prompt injection" in prompt
-
-
 class TestStructureDeliverablePresetsIntegration:
     """Integration tests for structure-planner, layout-designer, and format-verifier presets."""
 
     @pytest.fixture
     def core_subagents_dir(self):
         monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-        path = (
-            monorepo_root
-            / "myrm-agent"
-            / "myrm-agent-server"
-            / "app"
-            / "config"
-            / "subagents"
-            / "core"
-        )
+        path = monorepo_root / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
         if not path.exists():
             pytest.skip("core subagents directory not found")
         return path
@@ -676,7 +498,8 @@ class TestStructureDeliverablePresetsIntegration:
         assert isinstance(config, SubagentConfig)
         assert config.theme_color == "green"
         assert "file_read_tool" in config.tools
-        assert "bash_code_execute_tool" in config.tools
+        assert "bash_code_execute_tool" not in config.tools
+        assert "bash_code_execute_tool" in config.disallowed_tools
         assert "file_write_tool" in config.disallowed_tools
         assert "file_edit_tool" in config.disallowed_tools
 
