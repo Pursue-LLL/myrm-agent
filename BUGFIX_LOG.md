@@ -8504,3 +8504,77 @@ degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失
 
 - `bun run vitest run src/store/chat/__tests__/loadMessages.requestMessageId.test.ts` 2 passed
 - `bun run typecheck`：改动文件无新增错误（仓内既有 2 处错误与本改动无关）
+
+## BUG-AGENT-2026-10-22-004: harness 把 memo 包从 runtime/ 移到 infra/，服务端仍导入旧路径——每一轮 Agent 对话在产出第一个 token 前就崩
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P0（每一轮对话都失败：聊天窗口全空，live Chrome E2E 全红） |
+| 影响范围 | `myrm-agent-server/app/services/agent/memo_scope.py`（及其单测）；任何调用 `ai_agent_service_stream` 的路径 |
+| 关联 | harness 提交 `refactor(memo)` 的包迁移 |
+
+### 现象
+
+任意一轮 Agent 对话（哪怕只是「只回复两个字」）都不产出任何输出：SSE 只有 `routing_decision` / `phase_transition`，随后静默；前端聊天窗口一直空白。
+两个 live Chrome E2E（A2A 委派、聊天分享）以「assistant 回复未到达」失败，看起来像产品功能坏了。
+
+### 根因
+
+harness 把 memo 包从 `myrm_agent_harness.runtime.memo` 移到了 `myrm_agent_harness.infra.memo`，harness 侧自洽；
+但**服务端**的 `memo_scope.py` 仍在函数内 `from myrm_agent_harness.runtime.memo.call_scope import ...`。
+该导入发生在 `ai_agent_service_stream` 内部（每次请求都执行），所以：
+
+```
+ModuleNotFoundError: No module named 'myrm_agent_harness.runtime.memo'
+```
+
+——每轮对话在生成第一个 token 之前就抛出，外层把异常吞进流错误，前端只看到空回复。
+
+### 修复
+
+`memo_scope.py` 与 `tests/services/agent/test_memo_scope.py` 的导入与模块文档统一改为
+`myrm_agent_harness.infra.memo`。
+
+### 验证
+
+- `python -c "from app.services.agent.memo_scope import memo_scoped_stream"` → OK
+- 真机一轮对话：`POST /api/v1/agents/agent-stream` → `"type":"message","data":"可以"`，8.8s 完成
+- live Chrome E2E（A2A / 聊天分享）重跑见台账后续记录
+
+### 反复次数
+
+第 1 次（但这类「包迁移只改一侧」的断裂在干净检出时必现，属于 P0 级回归）
+
+## BUG-AGENT-2026-10-23-001: WebUI 模式 frontend_launcher 未适配 Next.js monorepo standalone 产物子路径导致无法拉起前端
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-23 |
+| 修复日期 | 2026-10-23 |
+| 严重程度 | P1（WebUI 模式无法自启前端界面，隐式降级为 API-only 模式） |
+| 影响范围 | `myrm-agent-server/app/core/infra/frontend_launcher.py`；`python run.py --webui` 启动链路 |
+| 关联 | Next.js `outputFileTracingRoot` monorepo 编译产物结构 |
+
+### 现象
+
+用户在 `myrm-agent-frontend` 执行 `bun run build` 后，通过 `python run.py --webui` 启动服务，`frontend_launcher` 提示构建不存在，服务直接降级为 API-only 模式，无法在浏览器中呈现 WebUI 界面。
+
+### 根因
+
+Next.js 在多包仓库配置下（`outputFileTracingRoot` 指向 monorepo 根目录），standalone 构建产物位于 `.next/standalone/myrm-agent-frontend/server.js`，保留了子包层级；而 `frontend_launcher.py` 硬编码只检测扁平路径 `.next/standalone/server.js`。
+
+### 修复
+
+在 `frontend_launcher.py` 中引入 `_resolve_standalone_dir()` 与 `_resolve_standalone_server()`，优先检测嵌套子目录 `.next/standalone/myrm-agent-frontend/server.js`，回退检测扁平 `.next/standalone/server.js`；同时确保静态资源符号链接、Next.js 端口重写补丁与子进程 `cwd` 全部对齐到解析出的实际 standalone 目录。
+
+### 验证
+
+- `tests/core/infra/test_frontend_env_sanitize.py` 23 passed
+- `tests/core/infra/test_frontend_env_sanitize_integration.py` 5 passed
+- 动态路径对齐与静态资源链接测试全部通过
+
+### 反复次数
+
+第 1 次

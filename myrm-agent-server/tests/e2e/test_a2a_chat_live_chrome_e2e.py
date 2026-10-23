@@ -101,16 +101,44 @@ def _send_turn(prompt: str) -> str:
 }})()"""
 
 
+_APPROVE_PENDING_JS = """(() => {
+  const labels = ['批准', 'Approve', '允许', 'Allow'];
+  const target = Array.from(document.querySelectorAll('button')).find(
+    (b) => labels.includes((b.textContent || '').trim()) && !b.disabled,
+  );
+  if (!target) return 0;
+  target.click();
+  return 1;
+})()"""
+
+
+def _approve_pending_tool_calls(client: object, page: object) -> int:
+    """Approve a pending tool card the way a user would.
+
+    The A2A tool is an external tool, so the default policy asks for approval before it runs. The
+    test used to wait for a reply that could never arrive: the request sat in the approval queue
+    until the 120s auto-reject fired and the turn ended with an empty assistant message.
+    """
+    raw = client.evaluate(page, _APPROVE_PENDING_JS, timeout_sec=10.0)
+    return int(raw) if isinstance(raw, int) else 0
+
+
 def _wait_assistant_reply(
     chat_id: str,
     api_url: str,
     *,
     timeout_sec: float = 180.0,
+    on_poll: object | None = None,
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     last_messages: list[dict[str, object]] = []
     while time.monotonic() < deadline:
+        if callable(on_poll):
+            try:
+                on_poll()
+            except (RuntimeError, AssertionError, OSError):
+                pass
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
@@ -250,7 +278,12 @@ def test_a2a_chat_live_delegation_chrome_e2e(
             _ = probe_snapshot
 
             # 7. Wait for assistant reply to arrive and complete
-            reply = _wait_assistant_reply(chat_id, api_url, timeout_sec=180.0)
+            reply = _wait_assistant_reply(
+                chat_id,
+                api_url,
+                timeout_sec=180.0,
+                on_poll=lambda: _approve_pending_tool_calls(client, page),
+            )
             assert (
                 str(reply.get("role")) == "assistant"
             ), f"Expected role assistant: {reply}"

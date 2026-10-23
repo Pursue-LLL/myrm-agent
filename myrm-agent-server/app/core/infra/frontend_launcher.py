@@ -30,6 +30,27 @@ _FRONTEND_DIR = _PROJECT_ROOT.parent / "myrm-agent-frontend"
 _STANDALONE_DIR = _FRONTEND_DIR / ".next" / "standalone"
 _STANDALONE_SERVER = _STANDALONE_DIR / "server.js"
 
+
+def _resolve_standalone_dir() -> Path:
+    """Resolve the directory containing server.js in .next/standalone.
+
+    In a monorepo setup with outputFileTracingRoot, Next.js generates
+    .next/standalone/myrm-agent-frontend/server.js. In flat setups, it generates
+    .next/standalone/server.js.
+    """
+    nested = _FRONTEND_DIR / ".next" / "standalone" / "myrm-agent-frontend"
+    if (nested / "server.js").is_file():
+        return nested
+    flat = _FRONTEND_DIR / ".next" / "standalone"
+    if (flat / "server.js").is_file():
+        return flat
+    return nested if nested.is_dir() else flat
+
+
+def _resolve_standalone_server() -> Path:
+    """Return path to server.js in resolved standalone directory."""
+    return _resolve_standalone_dir() / "server.js"
+
 _MIN_NODE_VERSION = 18
 _MAX_RESTART_ATTEMPTS = 3
 _HEALTH_CHECK_TIMEOUT = 30
@@ -100,9 +121,11 @@ def check_build_artifacts() -> Path:
     Raises:
         FrontendEnvironmentError: If build artifacts are missing or incomplete.
     """
-    if not _STANDALONE_SERVER.is_file():
+    standalone_dir = _resolve_standalone_dir()
+    server_js = standalone_dir / "server.js"
+    if not server_js.is_file():
         raise FrontendEnvironmentError(
-            f"Frontend build not found at {_STANDALONE_DIR}\n"
+            f"Frontend build not found at {standalone_dir}\n"
             "Please build the frontend first:\n"
             "  cd myrm-agent-frontend && bun run build"
         )
@@ -113,7 +136,7 @@ def check_build_artifacts() -> Path:
             "The build appears incomplete. Please rebuild:\n"
             "  cd myrm-agent-frontend && bun run build"
         )
-    return _STANDALONE_SERVER
+    return server_js
 
 
 def _ensure_symlink(link: Path, target: Path) -> None:
@@ -142,15 +165,16 @@ def ensure_standalone_assets() -> None:
     Next.js standalone output only contains server.js; CSS/JS chunks and
     public files must be linked separately.
     """
+    standalone_dir = _resolve_standalone_dir()
     static_src = _FRONTEND_DIR / ".next" / "static"
-    static_dst = _STANDALONE_DIR / ".next" / "static"
+    static_dst = standalone_dir / ".next" / "static"
     if static_src.is_dir():
         static_dst.parent.mkdir(parents=True, exist_ok=True)
         _ensure_symlink(static_dst, static_src)
         logger.info("[Frontend] Static assets linked: %s", static_dst)
 
     public_src = _FRONTEND_DIR / "public"
-    public_dst = _STANDALONE_DIR / "public"
+    public_dst = standalone_dir / "public"
     if public_src.is_dir():
         _ensure_symlink(public_dst, public_src)
         logger.info("[Frontend] Public files linked: %s", public_dst)
@@ -160,13 +184,20 @@ def ensure_standalone_assets() -> None:
 
 def patch_nextjs_rewrites(api_host: str, api_port: int) -> None:
     """Patch the hardcoded API port in Next.js build artifacts."""
-
-    # We need to patch the standalone directory files, not just the build output
+    standalone_dir = _resolve_standalone_dir()
     target_files = [
-        _STANDALONE_DIR / ".next" / "routes-manifest.json",
-        _STANDALONE_DIR / ".next" / "required-server-files.json",
-        _STANDALONE_DIR / "server.js",
+        standalone_dir / ".next" / "routes-manifest.json",
+        standalone_dir / ".next" / "required-server-files.json",
+        standalone_dir / "server.js",
     ]
+    if standalone_dir != _STANDALONE_DIR:
+        for extra in [
+            _STANDALONE_DIR / ".next" / "routes-manifest.json",
+            _STANDALONE_DIR / ".next" / "required-server-files.json",
+            _STANDALONE_DIR / "server.js",
+        ]:
+            if extra.exists() and extra not in target_files:
+                target_files.append(extra)
 
     for file_path in target_files:
         if file_path.exists():
@@ -348,9 +379,10 @@ class FrontendLauncher:
         require('./server.js');
         """
 
+        standalone_dir = _resolve_standalone_dir()
         self._process = subprocess.Popen(
             ["node", "-e", wrapper_code],
-            cwd=str(_STANDALONE_DIR),
+            cwd=str(standalone_dir),
             env=env,
             stdin=subprocess.PIPE,  # 核心：建立管道
             stdout=subprocess.PIPE,

@@ -46,9 +46,9 @@ describe('workspaceBreadcrumbEngine', () => {
     });
 
     it('should parse POSIX absolute paths correctly', () => {
-      const parsed = parseWorkspacePath('/Users/yululiu/projects/myrm', 'darwin');
+      const parsed = parseWorkspacePath('/Users/testuser/projects/myrm', 'darwin');
       expect(parsed.isSandbox).toBe(false);
-      expect(parsed.normalizedPath).toBe('/Users/yululiu/projects/myrm');
+      expect(parsed.normalizedPath).toBe('/Users/testuser/projects/myrm');
       expect(parsed.segments).toHaveLength(5);
       expect(parsed.segments[0].name).toBe('/');
       expect(parsed.segments[0].isRoot).toBe(true);

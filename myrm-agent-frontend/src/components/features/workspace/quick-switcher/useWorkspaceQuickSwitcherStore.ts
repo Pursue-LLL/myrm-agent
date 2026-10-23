@@ -14,7 +14,7 @@ const INITIAL_DEFAULT_WORKSPACES: WorkspaceItem[] = [
   {
     id: 'ws-myrm-core',
     name: 'open-perplexity',
-    path: '/Users/yululiu/projects/AI/open-perplexity',
+    path: '~/projects/open-perplexity',
     gitBranch: 'main',
     isDirty: true,
     dirtyCount: 3,
@@ -26,7 +26,7 @@ const INITIAL_DEFAULT_WORKSPACES: WorkspaceItem[] = [
   {
     id: 'ws-frontend-app',
     name: 'myrm-agent-frontend',
-    path: '/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-agent-frontend',
+    path: '~/projects/open-perplexity/myrm-agent/myrm-agent-frontend',
     gitBranch: 'feat/quick-switcher',
     isDirty: false,
     dirtyCount: 0,
@@ -38,7 +38,7 @@ const INITIAL_DEFAULT_WORKSPACES: WorkspaceItem[] = [
   {
     id: 'ws-server-engine',
     name: 'myrm-agent-server',
-    path: '/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-agent-server',
+    path: '~/projects/open-perplexity/myrm-agent/myrm-agent-server',
     gitBranch: 'main',
     isDirty: false,
     dirtyCount: 0,

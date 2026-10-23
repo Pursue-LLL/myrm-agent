@@ -24,19 +24,19 @@ export const INITIAL_PRESET_WORKSPACES: Record<string, WorkspaceItem> = {
   'ws-core-dev': {
     id: 'ws-core-dev',
     name: 'Myrm Agent 架构核心研发库',
-    path: '/Users/yululiu/projects/AI/open-perplexity',
+    path: '~/projects/open-perplexity',
     defaultMode: 'coding',
     theme: {
       color: 'violet',
       icon: 'code',
-      customLabel: '架构重构',
+      customLabel: '系统研发',
     },
     updatedAt: Date.now() - 3600000,
   },
   'ws-marketing-q4': {
     id: 'ws-marketing-q4',
     name: '2026 Q4 全球增长与商业化战役',
-    path: '/Users/yululiu/documents/marketing_campaign_q4',
+    path: '~/documents/marketing_campaign_q4',
     defaultMode: 'work',
     theme: {
       color: 'amber',
@@ -48,7 +48,7 @@ export const INITIAL_PRESET_WORKSPACES: Record<string, WorkspaceItem> = {
   'ws-legal-compliance': {
     id: 'ws-legal-compliance',
     name: '企业级数据安全与合规审计空间',
-    path: '/Users/yululiu/documents/legal_compliance_hub',
+    path: '~/documents/legal_compliance_hub',
     defaultMode: 'work',
     theme: {
       color: 'emerald',

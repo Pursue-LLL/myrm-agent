@@ -21,6 +21,7 @@ enforcement uses the same turn allowlist via ``check_trust_attenuation``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -67,8 +68,8 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
         request = self._apply_turn_tool_policy(request)
         return self._repair_tool_call_names(await handler(request), request)
 
-    @staticmethod
     def _repair_tool_call_names(
+        self,
         response: ModelResponse[object],
         request: ModelRequest[object],
     ) -> ModelResponse[object]:
@@ -87,9 +88,11 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
             ToolNameFuzzyRepairer,
         )
 
-        if not request.tools:
-            return response
-        valid_names = set(extract_bound_tool_names(list(request.tools)))
+        # `request.tools` may be empty when the caller pre-bound the model, so the registry is the
+        # authoritative name set; keeping both sources means a bound list is still honoured.
+        valid_names = set(extract_bound_tool_names(list(request.tools or [])))
+        with contextlib.suppress(AttributeError, RuntimeError):
+            valid_names.update(snapshot.name for snapshot in self.registry.snapshot())
         if not valid_names:
             return response
 

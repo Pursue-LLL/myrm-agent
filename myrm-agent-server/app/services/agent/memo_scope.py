@@ -5,8 +5,8 @@
 - collections.abc::AsyncIterable, AsyncIterator
 - logging
 - typing::Any
-- myrm_agent_harness.runtime.memo.call_scope::LlmCallScope, llm_call_scope
-- myrm_agent_harness.runtime.memo.memo_ledger::MemoLedger
+- myrm_agent_harness.infra.memo.call_scope::LlmCallScope, llm_call_scope
+- myrm_agent_harness.infra.memo.memo_ledger::MemoLedger
 
 [OUTPUT]
 - build_memo_scope: the scope for one turn, or None when memoisation does not apply
@@ -14,7 +14,7 @@
 
 [POS]
 Business layer of the model-call memo. The harness owns the mechanism
-(`myrm_agent_harness.runtime.memo`); the server decides *when* it applies: the turn
+(`myrm_agent_harness.infra.memo`); the server decides *when* it applies: the turn
 identity has to be the same for a turn and for the resume of that same turn, and only the
 server knows it. Everything here is optional — without a turn identity or a ledger there is
 no scope, and the agent behaves exactly as before.
@@ -26,12 +26,12 @@ import logging
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any
 
-from myrm_agent_harness.runtime.memo.call_scope import (
+from myrm_agent_harness.infra.memo.call_scope import (
     LlmCallScope,
     enter_llm_call_scope,
     exit_llm_call_scope,
 )
-from myrm_agent_harness.runtime.memo.memo_ledger import MemoLedger
+from myrm_agent_harness.infra.memo.memo_ledger import MemoLedger
 
 logger = logging.getLogger(__name__)
 

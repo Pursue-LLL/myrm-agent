@@ -73,7 +73,7 @@ export function parseWorkspacePath(
       });
     }
   } else {
-    // POSIX 路径解析 (e.g. /Users/yululiu/projects)
+    // POSIX 路径解析 (e.g. /Users/username/projects)
     const isAbsolute = normalized.startsWith('/');
     const parts = normalized.split('/').filter((p) => p.length > 0);
 
