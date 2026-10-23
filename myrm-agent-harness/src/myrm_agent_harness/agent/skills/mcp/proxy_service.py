@@ -200,11 +200,7 @@ class MCPSkillProxyService:
 
         cache_key: str | None = None
         is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
-        cache_ttl = resolve_cache_ttl(
-            skill_meta_for_schema,
-            matched_for_schema,
-            is_read_only=is_read_only,
-        )
+        cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema, is_read_only=is_read_only)
         if cache_ttl is not None:
             cache_key = self._make_cache_key(session_id, skill_name, matched_for_schema, cleaned_params)
             cached_result = self._cache_buckets.get(cache_ttl).get(cache_key)
