@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi import HTTPException
 from starlette.testclient import TestClient
 
@@ -211,6 +212,26 @@ def test_commerce_role_template_instantiate_merchant(client: TestClient):
     data = response.json()["data"]
     assert data["agent_type"] == "individual"
     assert "店铺经营" in data["name"] or "Backoffice" in data["name"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_skills_enabled_jit_self_healing():
+    """When a skill is missing from storage but exists in seeds, JIT sync heals and enables it."""
+    from app.services.agent.template_utils import ensure_skills_enabled
+
+    # office-document is a standard seed in assets/prebuilt_skills
+    await ensure_skills_enabled(["office-document"], "official_document_assistant")
+
+
+@pytest.mark.asyncio
+async def test_ensure_skills_enabled_truly_missing_skill_raises():
+    """When a skill does not exist in seeds or storage, SkillEnablementError is raised."""
+    from app.services.agent.template_utils import SkillEnablementError, ensure_skills_enabled
+
+    with pytest.raises(SkillEnablementError) as exc_info:
+        await ensure_skills_enabled(["completely-unknown-non-existent-skill-999"], "test_template")
+    assert "does not exist in the system" in str(exc_info.value)
+
 
 
 

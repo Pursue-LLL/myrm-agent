@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { templateMatchesSearchQuery, resolveTemplateKind } from '@/services/templateDiscovery';
-import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
 import useChatStore from '@/store/useChatStore';
 
@@ -110,8 +110,8 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({
         setOpen(false);
         onSummoned?.(newAgent.id);
         router.push(`/chat?agentId=${newAgent.id}`);
-      } catch {
-        toast.error(t('summonFailed'));
+      } catch (err) {
+        toast.error(extractSummonErrorMessage(err, t('summonFailed')));
       } finally {
         setSummoningId(null);
       }

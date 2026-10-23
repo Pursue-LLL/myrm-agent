@@ -64,12 +64,24 @@ def resolve_i18n(value: Any, accept_language: str | None) -> str:
 async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str) -> None:
     """Pre-flight check and enable all required skills.
 
-    Raises SkillEnablementError if a skill is missing or cannot be enabled.
+    Performs JIT self-healing sync if a required prebuilt skill seed exists on disk
+    but has not yet been registered in storage. Raises SkillEnablementError if a skill
+    truly does not exist or cannot be enabled.
     """
     from app.core.skills.store.service import skills_service
 
     for skill_id in prebuilt_skill_ids:
         skill = await skills_service.get_skill(skill_id)
+        if not skill:
+            from app.core.skills.prebuilt_sync import SEEDS_DIR, sync_prebuilt_seeds
+            seed_dir = SEEDS_DIR / skill_id
+            if seed_dir.is_dir() and (seed_dir / "SKILL.md").is_file():
+                import app.core.skills.prebuilt_sync as ps
+
+                ps._synced = False
+                await sync_prebuilt_seeds(skills_service.storage)
+                skill = await skills_service.get_skill(skill_id)
+
         if not skill:
             raise SkillEnablementError(
                 skill_id,

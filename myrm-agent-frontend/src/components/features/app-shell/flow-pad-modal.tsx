@@ -46,7 +46,7 @@ import {
   resolveTemplateKind,
   templateMatchesSearchQuery,
 } from '@/services/templateDiscovery';
-import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 
 import { formatAppshotMessage, ImageLightbox } from './FlowPadModalParts';
 import { FlowPadCapturesStrip } from './flow-pad-captures-strip';
@@ -462,7 +462,7 @@ export function FlowPadModal() {
         }
       } catch (error) {
         console.error('FlowPad expert template instantiate failed:', error);
-        toast.error(t('inlineRouteTemplateApplyFailed'), { duration: 3000 });
+        toast.error(extractSummonErrorMessage(error, t('inlineRouteTemplateApplyFailed')), { duration: 3000 });
       } finally {
         setInstantiatingTemplateId(null);
       }

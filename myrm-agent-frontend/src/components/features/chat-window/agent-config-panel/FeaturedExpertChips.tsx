@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
-import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import useChatStore from '@/store/useChatStore';
 
 export interface FeaturedExpertChipsProps {
@@ -91,8 +91,8 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         }
         onSummoned?.(newAgent.id);
         router.push(`/chat?agentId=${newAgent.id}`);
-      } catch {
-        toast.error(t('summonFailed'));
+      } catch (err) {
+        toast.error(extractSummonErrorMessage(err, t('summonFailed')));
       } finally {
         setSummoningId(null);
       }

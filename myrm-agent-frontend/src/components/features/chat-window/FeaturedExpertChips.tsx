@@ -24,7 +24,7 @@ import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { resolveLucideIcon } from '@/components/agent/agent-icons';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
-import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import { recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
 import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useChatStore from '@/store/useChatStore';
@@ -131,7 +131,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({ className
         toast.success(t('summonSuccess', { name: template.name }));
       } catch (err) {
         console.error('Failed to summon featured expert:', err);
-        toast.error(t('summonFailed'));
+        toast.error(extractSummonErrorMessage(err, t('summonFailed')));
       } finally {
         setSummoningId(null);
       }
