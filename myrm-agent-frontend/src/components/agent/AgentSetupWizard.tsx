@@ -12,6 +12,7 @@ import {
   type TemplateListItem,
   type AgentReadinessReport,
 } from '@/services/agent';
+import { extractSummonErrorMessage } from '@/services/templateSummon';
 import { toast } from '@/hooks/shared/useToast';
 import AgentReadinessList from './AgentReadinessList';
 import { AgentSettingsPreviewGate } from './AgentSettingsPreviewGate';
@@ -128,8 +129,8 @@ export function AgentSetupWizard({
       setAgentName(name || agent.name);
       setStep('readiness');
       await runReadinessCheck(agent.id);
-    } catch {
-      toast.error(t('template.createError', { fallback: 'Failed to create agent.' }));
+    } catch (err) {
+      toast.error(extractSummonErrorMessage(err, t('template.createError', { fallback: 'Failed to create agent.' })));
     } finally {
       setCreating(false);
     }

@@ -30,7 +30,7 @@ import {
   templateMatchesSearchQuery,
 } from '@/services/templateDiscovery';
 import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
-import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 
 interface TemplateMarketProps {
@@ -141,7 +141,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       }
     } catch (e) {
       console.error(e);
-      toast.error(t('instantiateError'));
+      toast.error(extractSummonErrorMessage(e, t('instantiateError')));
     } finally {
       setInstantiatingId(null);
     }

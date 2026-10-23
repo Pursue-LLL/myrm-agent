@@ -166,9 +166,6 @@ def known_cursor_mcp_paths() -> list[Path]:
     return [
         home / ".cursor" / "mcp.json",
         home / ".cursor-3.1.15" / "mcp.json",
-        # Cursor-Latest runs with HOME=~/.cursor-latest (see tools/cursor-patches/README.md),
-        # so its own mcp.json is a separate instance that can point at the test browser.
-        home / ".cursor-latest" / "mcp.json",
     ]
 
 

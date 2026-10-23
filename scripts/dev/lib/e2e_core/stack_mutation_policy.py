@@ -42,11 +42,9 @@ if __package__ in (None, ""):
         sys.path.insert(0, _lib_root)
 
 PENDING_DRIFT_FILENAME: Final[str] = "pending-stack-drift.json"
-# Two guards emit this failure with different tails: the venv smoke says
-# "…in the server venv", the monorepo editable guard says
-# "monorepo harness source present but myrm_agent_harness import failed".
-# Match the stable phrase so either wording still reaches the auto-install retry.
-_HARNESS_IMPORT_FAILED_TOKEN: Final[str] = "myrm_agent_harness import failed"
+_HARNESS_IMPORT_FAILED_TOKEN: Final[str] = (
+    "myrm_agent_harness import failed in the server venv"
+)
 
 
 class DriftHealAction(str, Enum):

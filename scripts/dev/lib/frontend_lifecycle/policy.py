@@ -32,10 +32,6 @@ class Reason(Enum):
     PAUSE = "pause"
     BINDING_MISMATCH = "binding_mismatch"
     PANIC_RESIDUE = "panic_residue"
-    # The server answers GET / but the client chunks it references 404. A 200 index is
-    # therefore not health evidence — but a cold compile also serves the shell before its
-    # chunks land, so this reason still needs the stall proof below.
-    CLIENT_ASSETS_MISSING = "client_assets_missing"
     # Heuristic: inferred from probes that a busy server also fails.
     UNRESPONSIVE = "unresponsive"
     BAD_HTTP = "bad_http"
@@ -126,7 +122,7 @@ def decide(reason: Reason, obs: Observation, policy: Policy) -> Decision:
         return Decision(Verdict.ALLOW, f"deterministic:{reason.value}")
     if not obs.process_alive:
         return Decision(Verdict.ALLOW, "no_live_process", "nothing to protect")
-    if obs.http_status == 200 and reason is not Reason.CLIENT_ASSETS_MISSING:
+    if obs.http_status == 200:
         # Includes CLIENT_HOT_NO: a restart clears the hydration record itself, so killing a
         # serving server never produces the hot client the caller is missing.
         return Decision(
