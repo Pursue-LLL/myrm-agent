@@ -62,7 +62,7 @@ Import every function you call before awaiting it.
 Args: **always call with keyword arguments** — `func(param=value)`; positional calls are rejected by the runtime.
 Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 
-Run ONE `bash_code_execute_tool` per task: `await` every needed call, then emit one `[RESULT]`. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a return shape is undocumented, emit `[OBSERVATION]` first and continue next call.
+Run ONE `bash_code_execute_tool` per task: `await` every needed call, then emit one `[RESULT]`. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a return shape is undocumented, emit `[OBSERVATION]` first and continue next call. Use documented defaults for optional enum/format parameters; once a call succeeds, do NOT repeat it only to try another output format. If one tool result is an argument to another, await both in the same bash block; do NOT spend a separate bash turn only to consume the previous result.
 Python literals `None`/`True`/`False` (not null/true/false); set `timeout=120` when declared. Loaded once — do not re-select.
 """
 

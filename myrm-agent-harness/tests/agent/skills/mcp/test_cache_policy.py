@@ -5,7 +5,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from myrm_agent_harness.agent.skills.mcp.cache_policy import (
-    READ_ONLY_CACHE_TTL_SECONDS,
     resolve_cache_ttl,
 )
 
@@ -14,37 +13,38 @@ def _meta(config: dict[str, object]) -> SimpleNamespace:
     return SimpleNamespace(mcp=SimpleNamespace(config=[config]))
 
 
-def test_read_only_defaults_to_sixty_seconds() -> None:
-    assert resolve_cache_ttl(_meta({}), "ping", is_read_only=True) == READ_ONLY_CACHE_TTL_SECONDS
+def test_no_config_means_no_cache() -> None:
+    assert resolve_cache_ttl(_meta({}), "ping") is None
 
 
-def test_mutating_tool_is_never_cached() -> None:
-    assert resolve_cache_ttl(_meta({}), "create_issue", is_read_only=False) is None
-
-
-def test_explicit_allowlist_caches_unannotated_tool() -> None:
+def test_allowlist_without_ttl_means_no_cache() -> None:
     meta = _meta({"cacheable_tools": ["get_current_date"]})
-    assert resolve_cache_ttl(meta, "get_current_date", is_read_only=False) == READ_ONLY_CACHE_TTL_SECONDS
+    assert resolve_cache_ttl(meta, "get_current_date") is None
 
 
 def test_zero_ttl_disables_cache() -> None:
-    meta = _meta({"cache_ttl_seconds": 0})
-    assert resolve_cache_ttl(meta, "ping", is_read_only=True) is None
+    meta = _meta({"cache_ttl_seconds": 0, "cacheable_tools": ["ping"]})
+    assert resolve_cache_ttl(meta, "ping") is None
 
 
-def test_positive_ttl_overrides_default() -> None:
+def test_positive_ttl_requires_allowlist() -> None:
     meta = _meta({"cache_ttl_seconds": 15})
-    assert resolve_cache_ttl(meta, "ping", is_read_only=True) == 15
+    assert resolve_cache_ttl(meta, "ping") is None
+
+
+def test_positive_ttl_with_allowlist() -> None:
+    meta = _meta({"cache_ttl_seconds": 15, "cacheable_tools": ["ping"]})
+    assert resolve_cache_ttl(meta, "ping") == 15
 
 
 def test_allowlist_matches_prefixed_runtime_name() -> None:
-    meta = _meta({"cacheable_tools": ["get_tickets"]})
-    assert resolve_cache_ttl(meta, "mcp__12306_mcp__get-tickets", is_read_only=False) == 60
+    meta = _meta({"cache_ttl_seconds": 60, "cacheable_tools": ["get_tickets"]})
+    assert resolve_cache_ttl(meta, "mcp__12306_mcp__get-tickets") == 60
 
 
 def test_allowlist_matches_hyphenated_name() -> None:
-    meta = _meta({"cacheable_tools": ["get-tickets"]})
-    assert resolve_cache_ttl(meta, "mcp__server__get_tickets", is_read_only=False) == 60
+    meta = _meta({"cache_ttl_seconds": 60, "cacheable_tools": ["get-tickets"]})
+    assert resolve_cache_ttl(meta, "mcp__server__get_tickets") == 60
 
 
 def test_clear_drops_default_and_custom_buckets() -> None:

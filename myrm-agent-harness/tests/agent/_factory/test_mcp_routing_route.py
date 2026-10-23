@@ -357,7 +357,7 @@ async def test_direct_tool_wrapper_uses_shared_result_cache() -> None:
         response_format="content",
         metadata={"readOnlyHint": True},
     )
-    cfg = MCPConfig(name="server", type="stdio", command="echo", cache_ttl_seconds=60)
+    cfg = MCPConfig(name="server", type="stdio", command="echo", cache_ttl_seconds=60, cacheable_tools=["fetch"])
     get_cache_buckets().default.clear()
     token = chat_id_var.set("test-session")
     try:

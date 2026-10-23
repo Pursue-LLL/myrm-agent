@@ -208,7 +208,7 @@ def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
             # Never share a Direct FC cache bucket without a session key; a
             # missing context would otherwise become cross-session state.
             return await tool.ainvoke(params)
-        cache_ttl = resolve_cache_ttl_from_config(policy, tool.name, is_read_only=read_only)
+        cache_ttl = resolve_cache_ttl_from_config(policy, tool.name)
         cache_key = make_cache_key(session_id, cfg.name, tool.name, params) if cache_ttl is not None else None
         if cache_key is not None and cache_ttl is not None:
             cached = get_cache_buckets().get(cache_ttl).get(cache_key)

@@ -157,6 +157,7 @@ class TestMCPSkillProxyServiceInvoke:
                 "name": "test-server",
                 "type": "stdio",
                 "command": "echo",
+                "cache_ttl_seconds": 60,
                 "cacheable_tools": ["ping"],
             }
         ]
@@ -186,6 +187,16 @@ class TestMCPSkillProxyServiceInvoke:
         from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
 
         service = MCPSkillProxyService()
+        assert mcp_skill_meta.mcp is not None
+        mcp_skill_meta.mcp.config = [
+            {
+                "name": "test-server",
+                "type": "stdio",
+                "command": "echo",
+                "cache_ttl_seconds": 60,
+                "cacheable_tools": ["ping"],
+            }
+        ]
         skill_registry.register(mcp_skill_meta)
         register_ptc_safety_metadata(
             "mcp_test_skill",
@@ -260,6 +271,16 @@ class TestMCPSkillProxyServiceInvoke:
         from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
 
         service = MCPSkillProxyService()
+        assert mcp_skill_meta.mcp is not None
+        mcp_skill_meta.mcp.config = [
+            {
+                "name": "test-server",
+                "type": "stdio",
+                "command": "echo",
+                "cache_ttl_seconds": 60,
+                "cacheable_tools": ["ping"],
+            }
+        ]
         skill_registry.register(mcp_skill_meta)
         register_ptc_safety_metadata(
             "mcp_test_skill",

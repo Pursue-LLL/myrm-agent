@@ -146,8 +146,8 @@ class MCPConfig(BaseModel):
         default=None,
         ge=0,
         description=(
-            "Session-scoped result-cache TTL for this server's explicitly cacheable read-only tools. "
-            "None keeps the built-in readOnlyHint default; 0 disables caching; positive values cap it."
+            "Session-scoped result-cache TTL for tools explicitly listed in cacheable_tools. "
+            "None or 0 disables caching; positive values enable the listed tools only."
         ),
     )
     cacheable_tools: list[str] | None = Field(

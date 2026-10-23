@@ -5,7 +5,7 @@
 - utils.lru_cache::LRUCache (POS: bounded TTL cache)
 
 [OUTPUT]
-- READ_ONLY_CACHE_TTL_SECONDS: default read-only cache lifetime
+- DEFAULT_CACHE_TTL_SECONDS: default cache-bucket lifetime
 - resolve_cache_ttl(): per-server TTL/allowlist policy
 - is_explicitly_cacheable(): short/prefixed/hyphen name matching for allowlists
 - CacheBuckets: fixed-TTL LRU buckets keyed by resolved TTL, with write invalidation
@@ -29,12 +29,12 @@ from myrm_agent_harness.utils.lru_cache import LRUCache
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-READ_ONLY_CACHE_TTL_SECONDS = 60
-"""Default session-scoped cache lifetime for readOnlyHint tools.
+DEFAULT_CACHE_TTL_SECONDS = 60
+"""Default cache bucket lifetime used when an explicit config omits a TTL.
 
-Short by design: the cache absorbs repeated identical lookups inside one script,
-not across a conversation. A longer TTL makes status polling return stale data.
-Mutating tools never enter this cache.
+Caching itself is opt-in via ``cache_ttl_seconds`` plus ``cacheable_tools``;
+there is no implicit readOnlyHint cache. The short bucket keeps repeated
+identical lookups inside one script from accumulating stale state.
 """
 
 
@@ -92,46 +92,34 @@ def is_explicitly_cacheable(skill_meta: SkillMetadata | None, tool_name: str) ->
     return is_explicitly_cacheable_config(server_cache_config(skill_meta), tool_name)
 
 
-def resolve_cache_ttl(
-    skill_meta: SkillMetadata | None,
-    tool_name: str,
-    *,
-    is_read_only: bool,
-) -> int | None:
-    """Resolve the cache TTL for one canonical tool, or ``None`` when uncached.
+def resolve_cache_ttl(skill_meta: SkillMetadata | None, tool_name: str) -> int | None:
+    """Resolve the explicit cache TTL for one canonical tool, or ``None``.
 
-    Read-only tools inherit the default TTL. Servers may explicitly allowlist
-    stable tools that omit ``readOnlyHint``; they may also set
-    ``cache_ttl_seconds`` to zero to disable caching or a positive value to cap
-    the lifetime. Dynamic ticket/status tools must never be allowlisted.
+    Caching is user-configured only: a positive ``cache_ttl_seconds`` plus the
+    tool appearing in ``cacheable_tools``. There is no implicit readOnlyHint
+    fallback, so the effective behavior always matches the visible config.
     """
-    return resolve_cache_ttl_from_config(server_cache_config(skill_meta), tool_name, is_read_only=is_read_only)
+    return resolve_cache_ttl_from_config(server_cache_config(skill_meta), tool_name)
 
 
-def resolve_cache_ttl_from_config(
-    config: dict[str, object],
-    tool_name: str,
-    *,
-    is_read_only: bool,
-) -> int | None:
+def resolve_cache_ttl_from_config(config: dict[str, object], tool_name: str) -> int | None:
     """Resolve TTL from a policy mapping shared by PTC and Direct FC callers."""
-    if not is_read_only and not is_explicitly_cacheable_config(config, tool_name):
-        return None
-
     raw_ttl = config.get("cache_ttl_seconds")
     if raw_ttl is None:
-        return READ_ONLY_CACHE_TTL_SECONDS
+        return None
     try:
         ttl = int(raw_ttl)
     except (TypeError, ValueError):
-        return READ_ONLY_CACHE_TTL_SECONDS
-    return ttl if ttl > 0 else None
+        return None
+    if ttl <= 0 or not is_explicitly_cacheable_config(config, tool_name):
+        return None
+    return ttl
 
 
 class CacheBuckets:
     """Fixed-TTL LRU caches keyed by the resolved per-server TTL."""
 
-    def __init__(self, default_ttl: int = READ_ONLY_CACHE_TTL_SECONDS) -> None:
+    def __init__(self, default_ttl: int = DEFAULT_CACHE_TTL_SECONDS) -> None:
         self.default = LRUCache[object](maxsize=1000, ttl=default_ttl, id="mcp_skill_readonly_cache")
         self._buckets: dict[int, LRUCache[object]] = {}
 

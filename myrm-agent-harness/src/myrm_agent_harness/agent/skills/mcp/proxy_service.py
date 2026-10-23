@@ -4,7 +4,7 @@
 IPC Server 内部使用此服务处理子进程的 MCP 工具调用请求。
 
 特性：
-- 相同参数的只读调用按 60 秒会话缓存；写操作不缓存
+- 相同参数且命中显式 cache_ttl_seconds + cacheable_tools 的调用按会话缓存；写操作不缓存
 - 提供 handle_mcp_invoke() 函数供 IPC Proxy 和自定义集成使用
 
 [INPUT]
@@ -99,7 +99,7 @@ class MCPSkillProxyService:
     - 从 skill_registry 获取配置
     - 工具调用
     - 结果解析
-    - 相同参数的只读调用按 60 秒会话缓存（可由 server 配置调整/关闭）
+    - 相同参数且命中显式 cache_ttl_seconds + cacheable_tools 的调用按会话缓存
     """
 
     @staticmethod
@@ -146,7 +146,7 @@ class MCPSkillProxyService:
         从 skill_registry 获取技能配置并调用对应的 MCP 工具。
         技能必须在 Agent 初始化时已通过 mcp_skill_generator 注册。
 
-        仅声明 ``readOnlyHint`` 的工具会在会话内短缓存；写操作每次都真实调用。
+        仅当 server 配置了正数 ``cache_ttl_seconds`` 且工具命中 ``cacheable_tools`` 时会话内缓存；写操作每次都真实调用。
 
         Args:
             skill_name: 技能名称
@@ -174,7 +174,7 @@ class MCPSkillProxyService:
 
         cache_key: str | None = None
         is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
-        cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema, is_read_only=is_read_only)
+        cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema)
         if cache_ttl is not None:
             server_name = skill_meta_for_schema.mcp.server if skill_meta_for_schema and skill_meta_for_schema.mcp else skill_name
             cache_key = make_cache_key(session_id, server_name, matched_for_schema, cleaned_params)
