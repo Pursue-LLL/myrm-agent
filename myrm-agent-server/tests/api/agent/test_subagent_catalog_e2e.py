@@ -10,6 +10,7 @@
 """
 
 import os
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -280,3 +281,82 @@ class TestLLMModelResolver:
         ):
             with pytest.raises(RuntimeError, match="config load failed"):
                 await resolver.resolve("nonexistent/model")
+
+
+@pytest.mark.asyncio
+class TestDatabaseSubagentCatalogFailurePaths:
+    async def test_yaml_load_failure_does_not_break_catalog(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        with patch(
+            "app.ai_agents.subagent_catalog.auto_register_subagent_configs",
+            side_effect=RuntimeError("yaml broken"),
+        ):
+            catalog = DatabaseSubagentCatalog(bound_agent_ids=[])
+
+        assert catalog._yaml_configs == {}
+        assert await catalog.list_available() == []
+
+    async def test_jit_model_resolver_is_injected(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        config = SubagentConfig(system_prompt="jit", model="test-model")
+        catalog = DatabaseSubagentCatalog(jit_configs={"jit": config}, bound_agent_ids=[])
+
+        resolved = await catalog.resolve("jit")
+
+        assert resolved is not None
+        assert resolved.model_resolver is not None
+
+    async def test_jit_without_model_returns_config(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        config = SubagentConfig(system_prompt="jit-no-model")
+        catalog = DatabaseSubagentCatalog(jit_configs={"jit": config}, bound_agent_ids=[])
+
+        resolved = await catalog.resolve("jit")
+
+        assert resolved is config
+
+    async def test_yaml_model_resolver_is_injected(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=["synthetic-yaml"])
+        catalog._yaml_configs["synthetic-yaml"] = SubagentConfig(system_prompt="yaml", model="test-model")
+
+        resolved = await catalog.resolve("synthetic-yaml")
+
+        assert resolved is not None
+        assert resolved.model_resolver is not None
+
+    async def test_db_resolve_failure_is_contained(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=["missing-db-agent"])
+        with patch(
+            "app.ai_agents.subagent_catalog.AgentService.get_agent_by_id",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            assert await catalog.resolve("missing-db-agent") is None
+
+    async def test_bound_db_validation_failure_is_skipped(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog(bound_agent_ids=["missing-db-agent"])
+        with patch(
+            "app.ai_agents.subagent_catalog.AgentService.get_agent_by_id",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            assert await catalog.list_available() == []
+
+    async def test_unscoped_db_list_failure_keeps_yaml(self):
+        from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
+
+        catalog = DatabaseSubagentCatalog()
+        with patch(
+            "app.ai_agents.subagent_catalog.AgentService.get_agent_list",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            available = await catalog.list_available()
+
+        assert set(catalog._yaml_configs).issubset(set(available))

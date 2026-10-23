@@ -1,13 +1,16 @@
 """Boundary tests for the business-owned subagent preset catalog."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
+from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
 from app.ai_agents.subagent_presets import (
     SUBAGENT_CONFIG_DIR,
     USER_SELECTABLE_SUBAGENT_IDS,
     load_user_selectable_subagent_configs,
+    register_default_subagent_configs,
     required_builtin_tools,
 )
 
@@ -65,3 +68,45 @@ def test_user_selectable_ids_are_loaded_from_core_not_duplicated():
     core_files = {path.stem for path in (SUBAGENT_CONFIG_DIR / "core").glob("*.yaml")}
 
     assert set(USER_SELECTABLE_SUBAGENT_IDS).issubset(core_files)
+
+
+def test_register_default_subagent_configs_registers_merged_sources():
+    config = SubagentConfig(system_prompt="test")
+    with (
+        patch(
+            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
+            side_effect=[{"core": config}, {"custom": SubagentConfig(system_prompt="custom")}],
+        ),
+        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
+    ):
+        register_default_subagent_configs()
+
+    register.assert_called_once()
+    registered = register.call_args.args[0]
+    assert set(registered) == {"core", "custom"}
+
+
+def test_register_default_subagent_configs_handles_empty_catalog():
+    with (
+        patch(
+            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
+            return_value={},
+        ),
+        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
+    ):
+        register_default_subagent_configs()
+
+    register.assert_called_once_with({})
+
+
+def test_register_default_subagent_configs_contains_load_failure():
+    with (
+        patch(
+            "app.ai_agents.subagent_presets.load_subagent_configs_from_directory",
+            side_effect=RuntimeError("broken yaml"),
+        ),
+        patch("app.ai_agents.subagent_presets.register_subagent_configs") as register,
+    ):
+        register_default_subagent_configs()
+
+    register.assert_not_called()

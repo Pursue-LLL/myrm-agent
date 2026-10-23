@@ -37,3 +37,16 @@ def test_adversarial_reviewer_is_internal_and_not_exposed(client: TestClient):
     assert response.status_code == 200
     ids = {preset["id"] for preset in response.json()["data"]}
     assert "adversarial-reviewer" not in ids
+
+
+def test_presets_api_returns_500_when_catalog_load_fails(client: TestClient):
+    from unittest.mock import patch
+
+    with patch(
+        "app.api.agents.subagent_presets.router.load_user_selectable_subagent_configs",
+        side_effect=RuntimeError("catalog broken"),
+    ):
+        response = client.get("/api/v1/agents/subagent-presets")
+
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == 50001
