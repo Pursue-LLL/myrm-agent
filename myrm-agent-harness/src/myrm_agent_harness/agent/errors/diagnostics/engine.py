@@ -481,20 +481,6 @@ class LLMErrorDiagnostic:
     @staticmethod
     def _format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
         """生成cooldown提示(如果存在)"""
-        if not cooldown_remaining_ms or cooldown_remaining_ms <= 0:
-            return ""
+        from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 
-        locale_manager = get_locale_manager()
-        cooldown_seconds = int(cooldown_remaining_ms / 1000)
-
-        hint_key = "single" if cooldown_seconds == 1 else "plural"
-
-        try:
-            cooldown_translations = locale_manager._translations.get(locale, {}).get("_cooldown_hint", {})
-            if not cooldown_translations:
-                cooldown_translations = locale_manager._translations.get("en", {}).get("_cooldown_hint", {})
-
-            hint_template = cooldown_translations.get(hint_key, "")
-            return hint_template.format(seconds=cooldown_seconds)
-        except Exception:
-            return f" Retry after {cooldown_seconds} seconds."
+        return format_cooldown_hint(cooldown_remaining_ms, locale)
