@@ -174,7 +174,7 @@ def get_metadata_summary(
                     " If the user request directly matches an active tool or capability already provided in the tools schema, call that tool directly instead of selecting skills.",
                     " If the user explicitly requests or mentions a skill by name: use skill_select_tool on turn 1 before proceeding.",
                     " If exactly one skill clearly applies to the user's request: use skill_select_tool to read its SKILL.md.",
-                    " If multiple skills may apply: ask the user which to use.",
+                    " If multiple skills jointly apply: select all of them with one skill_select_tool call; ask the user only when their use is mutually exclusive or ambiguous.",
                     " If no skill applies: proceed without skills.",
                     " If the needed skill is not listed below: use skill_search_tool before skill_select_tool.",
                     " </routing_rules>",
@@ -203,7 +203,7 @@ def get_metadata_summary(
         " If the user request directly matches an active tool or capability already provided in the tools schema, call that tool directly instead of selecting skills.",
         " If the user explicitly requests or mentions a skill by name: use skill_select_tool on turn 1 before proceeding.",
         " If exactly one skill clearly applies to the user's request: use skill_select_tool to read its SKILL.md.",
-        " If multiple skills may apply: ask the user which to use.",
+        " If multiple skills jointly apply: select all of them with one skill_select_tool call; ask the user only when their use is mutually exclusive or ambiguous.",
         " If no skill applies: proceed without skills.",
     ]
     if hidden_skill_count > 0:

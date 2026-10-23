@@ -120,6 +120,18 @@ def test_metadata_summary_routing_rules_include_search_when_hidden() -> None:
     assert "skill_search_tool" in hidden
 
 
+def test_routing_rules_allow_joint_multi_skill_selection() -> None:
+    from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
+
+    summary = get_metadata_summary([_skill("alpha_skill"), _skill("beta_skill")])
+    assert "select all of them with one skill_select_tool call" in summary
+    assert "ask the user which to use" not in summary
+
+    hidden_only = get_metadata_summary([], hidden_skill_count=2)
+    assert "select all of them with one skill_select_tool call" in hidden_only
+    assert "ask the user which to use" not in hidden_only
+
+
 def test_metadata_summary_all_hidden_still_emits_search_routing() -> None:
     from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
 
