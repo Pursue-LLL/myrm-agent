@@ -16,7 +16,10 @@ from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     build_returns_section,
     extract_schema_constraints,
     normalize_input_schema,
+    render_constraint,
     render_output_type,
+    render_signature,
+    render_type,
 )
 
 
@@ -262,3 +265,61 @@ def test_output_field_names_are_prompt_safe() -> None:
     assert "IGNORE" not in rendered
     assert "field_1?:string" in rendered
     assert "valid_name:string" in rendered
+
+
+def test_default_value_is_used_for_call_example() -> None:
+    schema = {"properties": {"n": {"type": "integer", "default": 7}}, "required": ["n"]}
+    assert build_call_example(schema) == "n=7"
+
+
+def test_non_identifier_call_example_uses_dict_splat() -> None:
+    schema = {"properties": {"config.timeout": {"type": "integer"}}, "required": ["config.timeout"]}
+    assert build_call_example(schema) == '**{"config.timeout": 0}'
+
+
+def test_output_field_collision_uses_neutral_placeholders() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "bad name": {"type": "string"},
+            "field_1": {"type": "string"},
+        },
+        "required": ["field_1"],
+    }
+    rendered = render_output_type(schema)
+    assert "bad name" not in rendered
+    assert "field_1?:string" in rendered
+    assert "field_2:string" in rendered
+
+
+def test_output_union_list_and_array_and_empty_object() -> None:
+    assert render_output_type({"type": ["string", "null"]}) == "string|null"
+    assert render_output_type({"type": "array", "items": {"type": "integer"}}) == "array<integer>"
+    assert render_output_type({"type": "object"}) == "object"
+    assert render_output_type({"type": "mystery"}) == "?"
+
+
+def test_concrete_returns_section() -> None:
+    section = build_returns_section({"type": "object", "properties": {"ok": {"type": "boolean"}}})
+    assert "object{ok?:boolean}" in section
+    assert "actual result is authoritative" in section
+
+
+def test_render_type_lists_unions_and_enum() -> None:
+    assert render_type({"type": ["string", "null"]}) == "string"
+    assert render_type({"anyOf": [{"type": "integer"}, {"type": "null"}]}) == "integer"
+    assert render_type({"oneOf": [{"items": {}}, {"type": "string"}]}) == "array|string"
+    assert render_type({"enum": ["a", "b"]}) == "string"
+    assert render_type({}) == "any"
+
+
+def test_render_constraint_enum_and_pattern() -> None:
+    assert render_constraint({"enum": ["a", "b"]}) == "=a|b"
+    assert render_constraint({"pattern": "^x+$"}) == "~^x+$"
+    assert render_constraint({"pattern": "x" * 30}) == ""
+
+
+def test_render_signature_edges() -> None:
+    assert render_signature("f", {}) == "f()"
+    assert render_signature("f", {"properties": {"a": {"type": "string"}, "b": {"type": "integer"}}, "required": ["a"]}) == "f(*, a:string, b?:integer)"
+    assert render_signature("f", {"properties": {"a": {"type": "string"}, "b": {"type": "integer"}}, "required": ["a"]}, required_only=True) == "f(*, a:string, …)"

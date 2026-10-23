@@ -242,11 +242,10 @@ def _safe_output_field_name(name: object, used: set[str]) -> str:
         candidate = raw
     else:
         candidate = f"field_{len(used) + 1}"
-    index = 2
+    counter = 2
     while candidate in used:
-        suffix = f"_{index}"
-        candidate = f"field_{len(used) + index}{suffix}"[:MAX_OUTPUT_FIELD_NAME_CHARS]
-        index += 1
+        candidate = f"field_{counter}"[:MAX_OUTPUT_FIELD_NAME_CHARS]
+        counter += 1
     used.add(candidate)
     return candidate
 
