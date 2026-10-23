@@ -36,7 +36,7 @@ bash/
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package | 包门面：聚合导出 5 个公共符号（`BashExecutor`、两个 tool 工厂、工具名常量、`BashExecutionError`）。 | — |
-| `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`。 | ✅ |
+| `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（合并/OBSERVATION 规则）。 | ✅ |
 | `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态 TOOL_DESCRIPTION + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；``BashExecutionError`` 包装保留 stderr evicted ref。 | ✅ |
 | `bash_process_tools.py` | Core | 统一 ``bash_process_tool``（actions list/output/kill/wait/write_stdin/submit_stdin/close_stdin）。 | ✅ |
 
@@ -65,7 +65,7 @@ bash/
 | File | Role | Description |
 |------|------|-------------|
 | `_tool/_ARCH.md` | Doc | 工具能力域架构文档。 |
-| `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`。 |
+| `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（合并/OBSERVATION 规则）。 |
 | `_tool/formatting.py` | Core | 输出压缩编排/截断/脱敏/wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS`。 |
 | `_tool/exit_semantics.py` | Core | Exit-code 语义解释。 |
 | `_tool/terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 |
