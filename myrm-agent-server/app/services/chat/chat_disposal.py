@@ -13,7 +13,7 @@
 
 [OUTPUT]
 - clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat
-- clear_runtime_caches: running pools, execution scopes and in-memory working state of a chat
+- clear_runtime_caches: running pools, execution scopes and ephemeral session deltas of a chat
 - remove_chat_event_log: the event log file of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
 - forget_chat_memories: memories derived from a chat plus its retry queue
@@ -80,7 +80,7 @@ async def clear_runtime_caches(chat_id: str) -> None:
     """Stop what is still running for a chat and evict its in-memory state."""
     await close_external_agent_pool_for_chat(chat_id)
     await close_execution_cache_for_chat_all_agents(chat_id)
-    _clear_working_memory(chat_id)
+    _clear_ephemeral_deltas(chat_id)
 
 
 async def remove_chat_event_log(chat_id: str) -> None:
@@ -184,13 +184,7 @@ async def dispose_permanently_deleted_chats(sandbox_dirs: Mapping[str, str | Non
     await remove_chat_files(sandbox_dirs)
 
 
-def _clear_working_memory(chat_id: str) -> None:
-    try:
-        from app.services.memory.consolidation_service import ConsolidationService
-
-        ConsolidationService.clear_session_working_state(chat_id)
-    except Exception as exc:
-        logger.warning("Failed to clear session working state (chat=%s): %s", chat_id, exc)
+def _clear_ephemeral_deltas(chat_id: str) -> None:
     try:
         from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
             clear_ephemeral_deltas_for_session,

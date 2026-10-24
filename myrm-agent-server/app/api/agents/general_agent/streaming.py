@@ -172,22 +172,6 @@ async def steer_agent(
     if success:
         if body.in_reply_to_call_id:
             _record_dedup_call_id(body.in_reply_to_call_id)
-            from app.services.memory.consolidation_service import ConsolidationService
-
-            ConsolidationService.record_steering_decision(
-                session_id=chat_id,
-                reply=body.message.strip(),
-                question_context=body.question_context,
-                call_id=body.in_reply_to_call_id,
-            )
-            from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
-
-            collector = ACTIVE_COLLECTORS.get(chat_id)
-            if collector is not None:
-                collector.resolve_async_user_message(
-                    body.in_reply_to_call_id,
-                    body.message.strip(),
-                )
 
         logger.info("User steered agent: chat_id=%s", chat_id)
         return success_response(data={"steered": True, "chat_id": chat_id})

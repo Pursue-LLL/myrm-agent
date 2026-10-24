@@ -13,7 +13,6 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 
 from app.api.dependencies import get_deploy_identity
 from app.api.memory.utils import get_crud_memory_manager
-from app.services.memory.consolidation_service import ConsolidationService
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
@@ -22,14 +21,6 @@ app = build_minimal_app(preset="memory")
 @pytest.fixture
 def client():
     return TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def isolate_active_sessions_state():
-    """The live endpoint falls back to the latest registered session snapshot, which other suites leave behind."""
-    ConsolidationService._active_sessions_state.clear()
-    yield
-    ConsolidationService._active_sessions_state.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -144,24 +135,4 @@ class TestClearWorkingState:
         assert resp.json()["content"] is None
 
 
-class TestLiveWorkbenchSnapshot:
-    def test_get_returns_live_state_of_the_active_workbench(self, client: TestClient):
-        from myrm_agent_harness.api import LocalWorkingMemoryBlock
 
-        LocalWorkingMemoryBlock.reset()
-        LocalWorkingMemoryBlock.initialize(goal="Deploy service on port 8080")
-        LocalWorkingMemoryBlock.add_subtask(title="Prepare dockerfile")
-        LocalWorkingMemoryBlock.record_trap(
-            fingerprint="port_in_use",
-            avoidance_rule="Kill existing process before binding port",
-            tool_name="bash",
-        )
-
-        resp = client.get("/api/v1/memory/working-state")
-        assert resp.status_code == 200
-        live_state = resp.json()["live_state"]
-        assert live_state["goal"] == "Deploy service on port 8080"
-        assert [subtask["title"] for subtask in live_state["subtasks"]] == ["Prepare dockerfile"]
-        assert [trap["fingerprint"] for trap in live_state["traps"]] == ["port_in_use"]
-
-        LocalWorkingMemoryBlock.reset()

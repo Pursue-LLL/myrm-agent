@@ -2,7 +2,6 @@
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
 - app.ai_agents.general_agent.llm_factory::create_agent_llms (POS: 创建 LLM 实例)
 - myrm_agent_harness.api.create_skill_agent (POS: SkillAgent 组装入口)
-- myrm_agent_harness.toolkits.memory.consolidation::create_consolidation_cleanup_task (POS: 工作记忆与自愈避坑经验沉淀任务工厂)
 
 [OUTPUT]
 - build_general_agent(): 将已解析配置组装为可执行的 GeneralAgent SkillAgent
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
-    from myrm_agent_harness.api import SkillAgent, WorkingMemorySnapshot
+    from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.mcp.config import MCPConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -1058,19 +1057,6 @@ def _get_budget_pressure_fn() -> "Callable[[], bool] | None":
         return None
 
 
-def _working_memory_snapshot() -> "WorkingMemorySnapshot | None":
-    """Adapt the agent working memory block into a toolkit-neutral snapshot."""
-    from myrm_agent_harness.api import (
-        LocalWorkingMemoryBlock,
-        WorkingMemorySnapshot,
-    )
-
-    snapshot = LocalWorkingMemoryBlock.to_snapshot()
-    if isinstance(snapshot, WorkingMemorySnapshot):
-        return snapshot
-    return None
-
-
 def _build_skill_review_callback(agent_wrapper: "GeneralAgent") -> "Callable[[dict[str, object]], None] | None":
     """Background skill review writes skills and approval records, so an incognito session never wires it."""
     if agent_wrapper.incognito_mode:
@@ -1086,7 +1072,7 @@ def _build_session_cleanup_callback(
     user_id: str,
     memory_manager: "MemoryManager | None" = None,
 ) -> "Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None":
-    """Build a composite session cleanup callback (follow-up extraction + correction propagation + memory consolidation)."""
+    """Build a composite session cleanup callback (follow-up extraction + correction propagation + skill routing)."""
     if not agent_wrapper.enable_memory or agent_wrapper.incognito_mode:
         return None
 
@@ -1094,10 +1080,6 @@ def _build_session_cleanup_callback(
     if lite_llm is None:
         return None
 
-    from myrm_agent_harness.api import (
-        LocalWorkingMemoryBlock,
-        create_consolidation_cleanup_task,
-    )
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
@@ -1129,11 +1111,6 @@ def _build_session_cleanup_callback(
             agent_id=agent_id,
             profile_skill_ids=list(agent_wrapper.skill_ids or []),
             llm_func=llm_func,
-        ),
-        create_consolidation_cleanup_task(
-            memory_manager=memory_manager,
-            snapshot_provider=_working_memory_snapshot,
-            after_run=LocalWorkingMemoryBlock.reset,
         ),
     ]
 

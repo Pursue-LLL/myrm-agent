@@ -2,26 +2,23 @@
 
 [INPUT]
 - app.api.memory.utils::get_crud_memory_manager (POS: MemoryManager factory)
-- app.services.memory.consolidation_service::ConsolidationService
 
 [OUTPUT]
-- router: `/memory/working-state` read/write/clear working state & live workbench
+- router: `/memory/working-state` read/write/clear cross-session task continuity state
 
 [POS]
-- 工作记忆与任务看板传输层。提供跨会话工作状态的读取/写入/清除，以及活跃会话的实时手边工作台快照。
+- 跨会话任务连续性传输层。提供工作状态存档的读取/写入/清除（TTL 过期语义）。
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query
-from myrm_agent_harness.api import LocalWorkingMemoryBlock
+from fastapi import APIRouter, Depends
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
 
 from app.api.memory.utils import get_crud_memory_manager
-from app.services.memory.consolidation_service import ConsolidationService
 
 WORKING_STATE_PROFILE_KEY = "__working_state"
 WORKING_STATE_UPDATED_AT_KEY = "__working_state_updated_at"
@@ -35,7 +32,6 @@ class WorkingStateResponse(BaseModel):
     updated_at: str | None = None
     ttl_days: int = WORKING_STATE_TTL_DAYS
     expired: bool = False
-    live_state: dict[str, object] | None = None
 
 
 WORKING_STATE_MAX_LENGTH = 500
@@ -47,10 +43,9 @@ class WorkingStateUpdateRequest(BaseModel):
 
 @router.get("", response_model=WorkingStateResponse)
 async def get_working_state(
-    session_id: str | None = Query(None, description="Optional chat session ID for active execution state"),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> WorkingStateResponse:
-    """Read current working state along with live in-memory workbench if active."""
+    """Read the stored working state."""
     content = await memory_manager.get_profile_attribute(WORKING_STATE_PROFILE_KEY)
     updated_at = await memory_manager.get_profile_attribute(WORKING_STATE_UPDATED_AT_KEY)
 
@@ -64,13 +59,7 @@ async def get_working_state(
         except (ValueError, TypeError):
             pass
 
-    live_state = ConsolidationService.get_live_working_state(session_id=session_id)
-    return WorkingStateResponse(
-        content=content,
-        updated_at=updated_at,
-        expired=expired,
-        live_state=live_state if live_state else None,
-    )
+    return WorkingStateResponse(content=content, updated_at=updated_at, expired=expired)
 
 
 @router.put("", response_model=WorkingStateResponse)
@@ -92,5 +81,4 @@ async def clear_working_state(
     """Clear working state (task completed)."""
     await memory_manager.delete_system_profile_attribute(WORKING_STATE_PROFILE_KEY)
     await memory_manager.delete_system_profile_attribute(WORKING_STATE_UPDATED_AT_KEY)
-    LocalWorkingMemoryBlock.reset()
     return WorkingStateResponse()
