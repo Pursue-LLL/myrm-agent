@@ -7,7 +7,7 @@
 //!
 //! [OUTPUT]
 //! - 周期性健康检查 (30s)
-//! - 崩溃检测 + 指数退避重启 (5s/15s/60s, 5min 内最多 3 次)
+//! - 崩溃/假死/句柄压力检测 + 指数退避重启 (5s/15s/60s, 5min 内最多 3 次)
 //! - Tray tooltip 状态更新 + 前端事件通知 (backend-crash-loop 携带错误消息 payload)
 //!
 //! [POS]
@@ -32,6 +32,10 @@ const RESTART_WINDOW: Duration = Duration::from_secs(300);
 const MAX_RESTARTS_IN_WINDOW: usize = 3;
 /// Consecutive failed health checks on a live process before it is treated as hung.
 const HUNG_CHECKS_BEFORE_RESTART: u8 = 3;
+/// A leaked-handle runaway shows up here long before EMFILE makes every request fail.
+/// Restarting at this level turns an unusable process into a short recovery instead of
+/// an outage; a healthy backend sits around a few hundred descriptors.
+const FD_RESTART_THRESHOLD: u64 = 8192;
 
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -111,20 +115,27 @@ async fn run_watchdog(
         }
 
         if is_backend_alive(&app) {
-            if check_health(port).await {
+            let healthy = check_health(port).await;
+            let fd_pressure = healthy && fd_pressure_exceeded(port).await;
+            if healthy && !fd_pressure {
                 hung_checks = 0;
                 continue;
             }
-            // The process exists but /health keeps failing: a hung sidecar holds the
-            // port and every API call fails while the UI still looks alive. Waiting
-            // forever (the old behaviour) left the app unusable until a manual restart.
+            // The process exists but is not usable: a hung sidecar holds the port, and a
+            // runaway descriptor count is one step away from EMFILE. Waiting forever (the
+            // old behaviour) left the app unusable until a manual restart.
             hung_checks += 1;
             if hung_checks < HUNG_CHECKS_BEFORE_RESTART {
                 continue;
             }
+            let reason = if fd_pressure {
+                "descriptor pressure"
+            } else {
+                "unresponsive health checks"
+            };
             eprintln!(
-                "[watchdog] Backend alive but unresponsive for {} checks; killing it to restart",
-                hung_checks
+                "[watchdog] Backend alive but {} for {} checks; killing it to restart",
+                reason, hung_checks
             );
             hung_checks = 0;
             stop_backend_process(&app);
@@ -236,6 +247,34 @@ async fn check_health(port: u16) -> bool {
     matches!(client.get(&url).send().await, Ok(resp) if resp.status().is_success())
 }
 
+/// True when the sidecar reports a descriptor count at or above the restart threshold.
+/// Any failure to read the probe is treated as "no pressure": the endpoint is a safety
+/// net, not a second health gate, and a missing field must not trigger a restart.
+async fn fd_pressure_exceeded(port: u16) -> bool {
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+    let url = format!("http://127.0.0.1:{}/api/v1/health/pressure", port);
+    let Ok(response) = client.get(&url).send().await else {
+        return false;
+    };
+    let Ok(payload) = response.json::<serde_json::Value>().await else {
+        return false;
+    };
+    fd_count_from_pressure(&payload)
+        .map(|count| count >= FD_RESTART_THRESHOLD)
+        .unwrap_or(false)
+}
+
+/// Extract `process.fd_count` from the pressure payload; unknown shapes yield `None`.
+fn fd_count_from_pressure(payload: &serde_json::Value) -> Option<u64> {
+    payload.get("process")?.get("fd_count")?.as_u64()
+}
+
 async fn restart_backend(app: &AppHandle) -> Result<(), String> {
     let config_manager = app.state::<ConfigManager>();
     let system_config = config_manager.load();
@@ -256,4 +295,37 @@ fn update_tray_status(app: &AppHandle, status: &str) {
         _ => "MyrmAgent",
     };
     crate::app::update_native_tray_status(app, status, tooltip);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{fd_count_from_pressure, FD_RESTART_THRESHOLD};
+    use serde_json::json;
+
+    #[test]
+    fn reads_a_known_fd_count() {
+        assert_eq!(
+            fd_count_from_pressure(&json!({"process": {"fd_count": 255}})),
+            Some(255)
+        );
+    }
+
+    #[test]
+    fn threshold_is_far_above_a_healthy_process() {
+        assert!(FD_RESTART_THRESHOLD > 1_000);
+    }
+
+    #[test]
+    fn missing_or_malformed_fields_do_not_trigger_a_restart() {
+        assert_eq!(fd_count_from_pressure(&json!({})), None);
+        assert_eq!(fd_count_from_pressure(&json!({"process": {}})), None);
+        assert_eq!(
+            fd_count_from_pressure(&json!({"process": {"fd_count": "high"}})),
+            None
+        );
+        assert_eq!(
+            fd_count_from_pressure(&json!({"process": {"fd_count": -1}})),
+            None
+        );
+    }
 }

@@ -25,7 +25,7 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | `python_backend.rs` | 核心 | Python Sidecar 启动、版本自适应解析、就绪探测与启动超时自动回滚自愈（停机序列经 `python_backend_stop`）；向 sidecar 注入帷幕桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、spawn fallback `MYRM_LOCKED_USE_ENABLED`、壳身份 `MYRM_SHELL_PID`（server 据此判定帷幕主人存活，同时作为 sidecar 启动时补全 PATH 的门控——GUI 启动的 macOS 应用只继承 launchd 极简 PATH，补全在 server 侧 `app/startup/desktop_path.py` 完成）；启动前同步 `desktop_runtime.json` | ✅ |
 | `python_backend_stop.rs` | 核心 | 后端优雅停机序列层 `graceful_stop_backend`（停 monitors → POST `/api/v1/system/shutdown` → 等待自退 → 兜底强杀），全部停机路径共享 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启）；`stop_frontend` 仅供 `app/lifecycle.rs` 在停机时内部调用，不是 IPC 命令 | — |
-| `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启（stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
+| `watchdog.rs` | 核心 | 后端崩溃/假死/句柄压力监控与指数退避重启（进程在但 `/health` 连续失败、或 `/health/pressure` 的 fd_count ≥ 8192 时先杀树再重启；stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
 | `frontend_watchdog.rs` | 核心 | Next.js 前端崩溃/假死看护：10s 健康检查、连续 3 次无响应判定、5/15/60s 退避、5 分钟 3 次上限；发出 frontend-crash / frontend-restarted / frontend-crash-loop 并同步托盘状态 | ✅ |
 | `wake.rs` | 核心 | 系统休眠唤醒侦测器（单调时钟时间跃迁 + 原生通知）与两阶段自愈协调器（cancel 走 watch channel，停挂不丢消息） | ✅ |
 | `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/switch_remote_follow` IPC（切换唯一入口：切 remote 优雅停本地后端、切回本地重启并重挂监控；编排成功才落 flag——失败零 flag 副作用，flag 与真实进程态永不不一致；完成后广播 `app:connections-changed`）；setup 期 defer 判定 | ✅ |
