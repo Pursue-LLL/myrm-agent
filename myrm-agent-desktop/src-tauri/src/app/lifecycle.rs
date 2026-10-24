@@ -73,6 +73,20 @@ pub async fn graceful_shutdown(app: AppHandle) {
         return;
     }
     println!("Initiating graceful shutdown...");
+    let started = std::time::Instant::now();
+
+    // Quit is a user action: hide the window immediately so the app feels closed
+    // while the sidecars finish their bounded stop sequence. The window would
+    // otherwise stay on screen for the whole backend grace period.
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+
+    let frontend_state = app.state::<NextJSFrontend>();
+    // Cancel first: the watchdog must not treat the intentional stop below as a crash
+    // and resurrect the frontend while the shell is shutting down.
+    crate::runtime::stop_frontend_monitor(&app);
+    let _ = stop_frontend(app.clone(), frontend_state);
 
     let backend_state = app.state::<PythonBackend>();
     match graceful_stop_backend(&app, &backend_state).await {
@@ -82,14 +96,11 @@ pub async fn graceful_shutdown(app: AppHandle) {
     // 帷幕窗口随进程消失：后端没来得及交还租约（停机预算内回锁不完 / 被强杀）则由壳回锁。
     relock_outstanding_lease(&app).await;
 
-    let frontend_state = app.state::<NextJSFrontend>();
-    // Cancel first: the watchdog must not treat the intentional stop below as a crash
-    // and resurrect the frontend while the shell is shutting down.
-    crate::runtime::stop_frontend_monitor(&app);
-    let _ = stop_frontend(app.clone(), frontend_state);
-
     SHUTDOWN_COMPLETED.store(true, Ordering::SeqCst);
-    println!("Graceful shutdown complete.");
+    println!(
+        "Graceful shutdown complete in {} ms.",
+        started.elapsed().as_millis()
+    );
 }
 
 #[cfg(test)]

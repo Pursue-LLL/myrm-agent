@@ -23,6 +23,12 @@ use crate::config::ConfigManager;
 use crate::runtime::PythonBackend;
 use crate::utils::process_tree::kill_process_tree;
 
+/// How long the shell waits for the server to finish its own lifespan cleanup.
+/// A large data directory can take ~6 s to close Qdrant/schedulers; waiting that
+/// long makes Cmd+Q feel hung. SQLite runs in crash-safe WAL mode, so cutting the
+/// cleanup short and force-killing is safe: the next start recovers the WAL.
+const GRACEFUL_EXIT_BUDGET: Duration = Duration::from_secs(2);
+
 /// Request the backend to drain and exit by itself via the server's
 /// graceful shutdown endpoint (drains active turns, flushes WAL, closes
 /// resources, then SIGTERMs itself).
@@ -88,7 +94,7 @@ pub async fn graceful_stop_backend(
         let port = config_manager.load().api_port;
         if port > 0 {
             let _ = request_graceful_shutdown(port).await;
-            if wait_for_graceful_exit(backend, Duration::from_secs(5)).await {
+            if wait_for_graceful_exit(backend, GRACEFUL_EXIT_BUDGET).await {
                 println!("Backend exited gracefully after shutdown signal");
                 if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
                     let reg = registry.inner().clone();
