@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, X } from 'lucide-react';
-import { checkBackendReadyOnce } from '@/lib/backend-health';
+import { checkBackendReadyOnce, markLocalBackendUnreachable } from '@/lib/backend-health';
 import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-backend-e2e-probe';
 import {
   isLocalMode,
@@ -112,6 +112,9 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
             events.map((event) =>
               listen(event, () => {
                 backendFailed = true;
+                // Release business requests waiting on the readiness gate now; a
+                // definitive shell failure must not leave them hanging for 30s.
+                markLocalBackendUnreachable();
               }),
             ),
           );

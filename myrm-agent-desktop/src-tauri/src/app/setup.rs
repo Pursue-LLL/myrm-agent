@@ -2,7 +2,6 @@
 //! 以及应用级窗口事件策略（关闭到托盘、窗口销毁即退出编排；帷幕与审批高亮覆盖层豁免）。
 
 use std::sync::Mutex;
-use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -144,10 +143,11 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let backend_app = app_handle.clone();
     let backend_config_clone = backend_config.clone();
     let backend_system_config = system_config_clone.clone();
-    // 只有「我们自己的后端」起来才允许导航到 WebUI；否则会连上占用同端口的其它服务，
-    // 渲染出与当前前端不匹配的残缺界面。
-    let backend_owned = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let backend_owned_for_frontend = backend_owned.clone();
+    // The WebView is ours (Next on a dedicated loopback port); its API layer already
+    // gates business requests on backend readiness. Navigate as soon as the frontend
+    // answers so the user sees the app in <1s instead of waiting out the Python cold
+    // start behind a static splash. A backend that fails to start surfaces through the
+    // frontend's readiness banner / Tauri failure events.
     tauri::async_runtime::spawn(async move {
         if runtime::is_remote_follow_deferred(&backend_app) {
             println!("🌐 Remote follow active, local backend stays deferred");
@@ -160,7 +160,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         {
             Ok(msg) => {
                 println!("✅ {}", msg);
-                backend_owned.store(true, std::sync::atomic::Ordering::SeqCst);
                 runtime::spawn_backend_monitors(&backend_app, backend_port);
             }
             Err(e) => {
@@ -190,27 +189,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                 match target.parse::<tauri::Url>() {
                     Ok(url) => {
                         if let Some(window) = app_handle.get_webview_window("main") {
-                            let mut backend_ready = false;
-                            for _ in 0..600 {
-                                if backend_owned_for_frontend
-                                    .load(std::sync::atomic::Ordering::SeqCst)
-                                {
-                                    backend_ready = true;
-                                    break;
-                                }
-                                if runtime::is_remote_follow_deferred(&app_handle) {
-                                    backend_ready = true;
-                                    break;
-                                }
-                                tokio::time::sleep(Duration::from_millis(100)).await;
-                            }
-                            if !backend_ready {
-                                eprintln!(
-                                    "❌ Skip WebUI navigation: our backend is not ready; \
-                                     another service may own the port."
-                                );
-                                return;
-                            }
                             if let Err(e) = window.navigate(url) {
                                 eprintln!("❌ Failed to navigate main window: {}", e);
                             }

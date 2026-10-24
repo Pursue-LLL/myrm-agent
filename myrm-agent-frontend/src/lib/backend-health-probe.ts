@@ -36,7 +36,11 @@ export interface BackendHealthPayload {
 
 /** Align with desktop `BACKEND_HEALTH_*` in python_backend.rs. */
 export const BACKEND_HEALTH_POLL_INTERVAL_MS = 500;
-export const BACKEND_HEALTH_MAX_ATTEMPTS = 60;
+// A cold local backend needs ~20 s on a warm machine (measured: 95 health probes
+// against the real data directory), and slower disks can take longer. 120 × 500 ms
+// gives the readiness gate a 60 s budget so early-navigated UI skeletons resolve
+// instead of failing at 30 s while the backend is still importing.
+export const BACKEND_HEALTH_MAX_ATTEMPTS = 120;
 
 export interface WaitForBackendReadyOptions {
   signal?: AbortSignal;

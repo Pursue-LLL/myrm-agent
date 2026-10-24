@@ -8,6 +8,7 @@ import LocalBackendUnavailableBanner, {
 vi.mock('@/lib/backend-health', () => ({
   checkBackendReadyOnce: vi.fn(() => Promise.resolve(true)),
   fetchBackendHealth: vi.fn(() => Promise.resolve(null)),
+  markLocalBackendUnreachable: vi.fn(),
 }));
 
 vi.mock('@/lib/local-backend-dev', async (importOriginal) => {

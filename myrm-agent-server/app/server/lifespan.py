@@ -311,12 +311,28 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     # Seed prebuilt trunk workflow templates (idempotent, never fails boot)
     asyncio.create_task(_seed_trunk_templates())
 
+    # Registering server-layer tools imports the full agent tool chain (including
+    # litellm, ~3.7 s). Do it after the HTTP server is ready so the UI can load;
+    # the first agent turn awaits the same idempotent bootstrap.
+    asyncio.create_task(_preload_agent_tool_layers())
+
     yield
 
     # === Shutdown ===
     logger.info("[Shutdown] Application shutting down...")
     await _shutdown(app_instance)
     logger.info("[Shutdown] Application stopped")
+
+
+async def _preload_agent_tool_layers() -> None:
+    """Register server-layer tools off the boot path; the first agent turn awaits the same gate."""
+    try:
+        from app.ai_agents.general_agent.tools import ensure_tool_layer_bootstrap
+
+        await asyncio.to_thread(ensure_tool_layer_bootstrap)
+        logger.info("[Startup] Agent tool layers ready")
+    except Exception as exc:
+        logger.exception("[Startup] Agent tool layer preload failed: %s", exc)
 
 
 async def _seed_trunk_templates() -> None:

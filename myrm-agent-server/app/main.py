@@ -21,9 +21,6 @@ import logging
 
 from fastapi import FastAPI, Request
 
-from app.ai_agents.general_agent.tools import (
-    _tool_layer_bootstrap,  # noqa: F401 — side-effect import: registers server-layer tools into harness _TOOL_LAYERS
-)
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_audit import router as internal_agent_audit_router
 from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router

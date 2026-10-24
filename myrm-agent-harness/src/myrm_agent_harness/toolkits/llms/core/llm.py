@@ -4,7 +4,7 @@ Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this
 
 [INPUT]
 - adapters.chat_model::ChatLiteLLM, clean_model_kwargs (POS: LangChain adapter)
-- providers (POS: custom provider module; import triggers side-effect registration)
+- providers::ensure_providers_registered (POS: lazy custom-provider registration on first model creation)
 - litellm::supports_web_search (POS: model native search capability detection)
 - adapters.wire.native_anthropic::is_native_anthropic_wire (POS: first-party Anthropic Messages API detection)
 
@@ -35,8 +35,6 @@ from urllib.parse import urlparse
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.infra.tls_compat import build_httpx_verify, tls_strict_disabled
 
-# Side-effect import: registers custom providers into litellm.custom_provider_map
-from myrm_agent_harness.toolkits.llms import providers  # noqa: F401
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     ChatLiteLLM as ChatLiteLLM,
 )
@@ -204,6 +202,12 @@ def create_litellm_model(
     Returns:
         Configured ChatLiteLLM instance.
     """
+    # The provider modules import litellm; keep that out of the HTTP-server import path
+    # and pay it once, on the first real model creation.
+    from myrm_agent_harness.toolkits.llms.providers import ensure_providers_registered
+
+    ensure_providers_registered()
+
     llm_kwargs: dict[str, Any] = {"model": model, "wire_protocol": wire_protocol, **kwargs}
     custom_provider = llm_kwargs.get("custom_llm_provider")
     native_anthropic = is_native_anthropic_wire(
