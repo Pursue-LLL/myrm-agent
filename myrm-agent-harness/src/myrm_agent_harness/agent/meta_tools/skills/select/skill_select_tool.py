@@ -77,8 +77,9 @@ def build_skill_select_static_description(locale: str | None = None) -> str:
 
 _SKILL_SEARCH_HINTS: dict[str, str] = {
     "skill_search_tool": (
-        "If `<bound_skills>` includes hidden_count, use skill_search_tool first to find unlisted bound skills. "
-        "Skills not listed in <bound_skills> are still available — search with skill_search_tool first, then select."
+        "If the user names a skill or its name is known from this conversation, pass it directly to "
+        "skill_select_tool even when it is not in the catalog. Use skill_search_tool only when you know "
+        "the required capability but cannot identify a bound skill name."
     ),
 }
 

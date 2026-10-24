@@ -8,7 +8,6 @@ from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability
     sync_discover_capability_tool,
 )
 from myrm_agent_harness.agent.skills.runtime.catalog_display import (
-    SKILL_INLINE_THRESHOLD,
     should_mount_skill_search_tool,
 )
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
@@ -16,7 +15,11 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 
 def _skill(name: str) -> SkillMetadata:
-    return SkillMetadata(name=name, description=f"desc for {name}", model_invocable=True)
+    return SkillMetadata(
+        name=name,
+        description=f"desc for {name} " + "detailed capability description " * 20,
+        model_invocable=True,
+    )
 
 
 def _many_skills(count: int) -> list[SkillMetadata]:
@@ -27,32 +30,32 @@ def _many_skills(count: int) -> list[SkillMetadata]:
 async def test_sync_registers_discover_when_hidden_skills_exist() -> None:
     """skill_search_tool mounts only when hidden_count > 0."""
     registry = ToolRegistry()
-    skills = _many_skills(21)
+    skills = _many_skills(40)
     sync_discover_capability_tool(registry, skills=skills)
     assert registry.has_tool("skill_search_tool")
 
 
 @pytest.mark.asyncio
-async def test_skill_search_mount_threshold_boundary_at_inline_limit() -> None:
-    """Gate must not mount at SKILL_INLINE_THRESHOLD; must mount at threshold + 1."""
-    at_limit = _many_skills(SKILL_INLINE_THRESHOLD)
-    above_limit = _many_skills(SKILL_INLINE_THRESHOLD + 1)
+async def test_skill_search_mount_follows_token_budget() -> None:
+    """Gate must follow catalog token budget, not a skill count."""
+    small = _many_skills(3)
+    large = _many_skills(40)
 
-    assert not should_mount_skill_search_tool(at_limit)
-    assert should_mount_skill_search_tool(above_limit)
+    assert not should_mount_skill_search_tool(small)
+    assert should_mount_skill_search_tool(large)
 
-    registry_at = ToolRegistry()
-    sync_discover_capability_tool(registry_at, skills=at_limit)
-    assert not registry_at.has_tool("skill_search_tool")
+    registry_small = ToolRegistry()
+    sync_discover_capability_tool(registry_small, skills=small)
+    assert not registry_small.has_tool("skill_search_tool")
 
-    registry_above = ToolRegistry()
-    sync_discover_capability_tool(registry_above, skills=above_limit)
-    assert registry_above.has_tool("skill_search_tool")
+    registry_large = ToolRegistry()
+    sync_discover_capability_tool(registry_large, skills=large)
+    assert registry_large.has_tool("skill_search_tool")
 
 
 @pytest.mark.asyncio
 async def test_sync_skips_discover_when_all_skills_inline() -> None:
-    """≤20 inline skills must not mount skill_search_tool (203 tok saved when unmounted)."""
+    """Skills fully inside the L1 token budget must not mount skill_search_tool."""
     registry = ToolRegistry()
     skills = _many_skills(5)
     assert not should_mount_skill_search_tool(skills)
@@ -72,7 +75,7 @@ async def test_sync_does_not_register_discover_when_no_skills() -> None:
 async def test_sync_removes_stale_discover_tool() -> None:
     """Re-sync removes stale skill_search_tool when hidden_count drops to zero."""
     registry = ToolRegistry()
-    skills = _many_skills(21)
+    skills = _many_skills(40)
     sync_discover_capability_tool(registry, skills=skills)
     assert registry.has_tool("skill_search_tool")
 

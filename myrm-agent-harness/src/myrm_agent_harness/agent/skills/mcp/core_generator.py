@@ -358,13 +358,11 @@ class MCPSkillGenerator:
 
         mcp_data = MCPSkillData(server=server_name, tools=tool_names, config=[], tool_schemas=tool_schemas)
 
-        # always=True keeps every MCP server visible in the <bound_skills> catalog while the
-        # bound set fits inline, and pins it into the catalog's always-priority band once the set
-        # exceeds SKILL_INLINE_THRESHOLD. MCP servers are opaque to the model (nothing in the
-        # prompt says a given integration exists), so dropping them to search-only discovery
-        # costs a skill_search_tool round trip before the model can even know they exist.
-        # Cost: they consume the always band unconditionally, which is why a large MCP fleet can
-        # crowd user-authored skills out of the catalog. See catalog_display.resolve_catalog_display_skills.
+        # always=True gives MCP servers first claim on the L1 token budget: they are opaque
+        # integrations, so dropping them before the budget is exhausted would force a
+        # skill_search_tool round trip before the model knows they exist. When the budget is
+        # exhausted, remaining servers are represented by hidden_count and search. See
+        # catalog_display.resolve_catalog_display_skills.
         return SkillMetadata(name=skill_name, description=skill_description, mcp=mcp_data, always=True)
 
 

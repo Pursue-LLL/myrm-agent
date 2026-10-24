@@ -3,7 +3,7 @@
 [INPUT]
 - backends.skills.types::SkillMetadata (POS: skill metadata)
 - backends.skills.types::skill_visible_for_tools (POS: tool-capability skill filter)
-- agent.meta_tools::SKILL_* threshold constants (POS: inline catalog limits)
+- agent.skills.runtime.registry::L1_CATALOG_MAX_TOKENS / estimate_skill_entry_tokens (POS: catalog budget)
 
 [OUTPUT]
 - CatalogDisplayResolution: display_skills + hidden_skill_count for catalog delivery
@@ -12,43 +12,35 @@
 
 [POS]
 Runtime catalog display SSOT. Keeps skill_select_tool schema static while preserving
-Per-Agent cognitive-load inline rules from get_meta_tools.
+per-agent cognitive-load rules from get_meta_tools.
 
 Visible vs selectable — the two sets are deliberately different:
 
-- ``display_skills`` (≤ ``SKILL_SELECT_INLINE_MAX``) is what the model can *see*: it is
-  rendered into the ``<bound_skills>`` HumanMessage block by
+- ``display_skills`` is what the model can *see*: full ``name + description`` entries
+  within ``L1_CATALOG_MAX_TOKENS``, rendered by
   ``skill_catalog_delivery.render_bound_skills_catalog``.
 - ``filtered_skills`` is the full bound list. ``skill_select_tool`` validates against it and
-  ``skill_search_tool`` indexes it, so a hidden skill stays *selectable* as long as the model
-  learns its name — from an earlier turn, an explicit user mention, or a search hit.
+  ``skill_search_tool`` indexes it, so an omitted skill stays *selectable* by an explicit
+  name or a search hit.
 
-A skill missing from the catalog is therefore not unreachable, but it is not discoverable by
-recall either: reaching it costs one ``skill_search_tool`` round trip — unless the catalog
-lists it by name in ``<hidden_skills>``, which is what this module now feeds so a hidden
-skill stays one ``skill_select_tool`` call away.
-
-Allocation when the bound set exceeds ``SKILL_INLINE_THRESHOLD``:
-
-1. Every ``always=True`` skill is taken first, with no cap of its own.
-2. The remainder is filled with non-always skills, capped by
-   ``SKILL_SELECT_INLINE_MAX - len(always)``.
-3. The combined list is sorted by name and truncated to ``SKILL_SELECT_INLINE_MAX``.
-
-Skills left out are returned as ``hidden_skills`` so the renderer can list their names.
-That keeps the catalog monotonic (20 skills -> 20 visible, 21 -> 20 + 1 hidden name)
-instead of collapsing to ten, and it keeps user skills discoverable when MCP skills
-consume the always band.
+Selection is token-budgeted, not count-budgeted. Skills are considered in ``always``
+first order, then name; an entry that would exceed the budget is omitted. Omitted skills
+are counted in ``hidden_count``; their names are intentionally not listed, so the model
+never has to guess whether a bare name should be selected or searched.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.skills.runtime.registry import (
+    L1_CATALOG_MAX_TOKENS,
+    estimate_skill_entry_tokens,
+)
 from myrm_agent_harness.backends.skills.types import SkillMetadata, skill_visible_for_tools
 
-SKILL_INLINE_THRESHOLD = 20
-SKILL_SELECT_INLINE_MAX = 20
+# Leave room for the <skills>, <routing_rules> and <bound_skills> wrappers in the real prompt.
+_CATALOG_OVERHEAD_RESERVE = 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +53,20 @@ class CatalogDisplayResolution:
     hidden_skill_count: int
 
 
-def _sorted_inline(skills_to_inline: list[SkillMetadata]) -> list[SkillMetadata]:
-    return sorted(skills_to_inline, key=lambda skill: skill.name)[:SKILL_SELECT_INLINE_MAX]
+def _sorted_skills(skills_to_inline: list[SkillMetadata]) -> list[SkillMetadata]:
+    return sorted(skills_to_inline, key=lambda skill: skill.name)
+
+
+def _select_within_token_budget(skills: list[SkillMetadata]) -> list[SkillMetadata]:
+    """Greedily keep full entries while the rendered catalog stays within budget."""
+    remaining = L1_CATALOG_MAX_TOKENS - _CATALOG_OVERHEAD_RESERVE
+    selected: list[SkillMetadata] = []
+    for skill in skills:
+        cost = estimate_skill_entry_tokens(skill)
+        if cost <= remaining:
+            selected.append(skill)
+            remaining -= cost
+    return selected
 
 
 def _filter_skills_for_agent_tools(
@@ -96,21 +100,14 @@ def resolve_catalog_display_skills(
     model_visible = [skill for skill in available_skills if skill.model_invocable]
 
     if skill_configs is not None:
-        core_candidates = [skill for skill in model_visible if skill_configs.get(skill.id, {}).get("is_core", False)]
-        display_skills = _sorted_inline(core_candidates)
-    elif len(model_visible) > SKILL_INLINE_THRESHOLD:
-        always_skills = sorted(
-            [skill for skill in model_visible if skill.always],
-            key=lambda skill: skill.name,
+        core_candidates = _sorted_skills(
+            [skill for skill in model_visible if skill_configs.get(skill.id, {}).get("is_core", False)]
         )
-        non_always = sorted(
-            [skill for skill in model_visible if not skill.always],
-            key=lambda skill: skill.name,
-        )
-        remaining = max(SKILL_SELECT_INLINE_MAX - len(always_skills), 0)
-        display_skills = _sorted_inline(always_skills + non_always[:remaining])
+        display_skills = _select_within_token_budget(core_candidates)
     else:
-        display_skills = _sorted_inline(model_visible)
+        always_skills = _sorted_skills([skill for skill in model_visible if skill.always])
+        non_always = _sorted_skills([skill for skill in model_visible if not skill.always])
+        display_skills = _select_within_token_budget(always_skills + non_always)
 
     display_names = {skill.name for skill in display_skills}
     hidden_skills = [skill for skill in model_visible if skill.name not in display_names]
@@ -129,7 +126,7 @@ def should_mount_skill_search_tool(
     available_tool_names: frozenset[str] | None = None,
     available_tool_groups: frozenset[str] | None = None,
 ) -> bool:
-    """Return True when bound skills exceed inline catalog capacity (hidden_count > 0)."""
+    """Return True when token-budgeted catalog leaves hidden bound skills."""
     if not skills:
         return False
     resolution = resolve_catalog_display_skills(
@@ -143,8 +140,7 @@ def should_mount_skill_search_tool(
 
 
 __all__ = [
-    "SKILL_INLINE_THRESHOLD",
-    "SKILL_SELECT_INLINE_MAX",
+    "L1_CATALOG_MAX_TOKENS",
     "CatalogDisplayResolution",
     "resolve_catalog_display_skills",
     "should_mount_skill_search_tool",

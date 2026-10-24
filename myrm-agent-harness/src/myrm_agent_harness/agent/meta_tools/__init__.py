@@ -12,7 +12,7 @@
 [OUTPUT]
 - get_meta_tools: 获取所有元工具的函数(含自适应技能搜索逻辑)
 - 各个工具的 create_xxx_tool 工厂函数
-- SKILL_INLINE_THRESHOLD, SKILL_SELECT_INLINE_MAX: 自适应阈值常量（定义于 agent.skills.runtime.catalog_display）
+- L1_CATALOG_MAX_TOKENS: L1 目录 token 预算（定义于 agent.skills.runtime.registry）
 
 [POS]
 Agent meta-tools module. Provides tools that depend on Agent framework infrastructure:
@@ -39,8 +39,7 @@ if TYPE_CHECKING:
 
 # Agent 专属工具(本模块)
 from myrm_agent_harness.agent.skills.runtime.catalog_display import (
-    SKILL_INLINE_THRESHOLD,
-    SKILL_SELECT_INLINE_MAX,
+    L1_CATALOG_MAX_TOKENS,
     resolve_catalog_display_skills,
 )
 
@@ -237,8 +236,7 @@ def get_meta_tools(
 
 
 __all__ = [
-    "SKILL_INLINE_THRESHOLD",
-    "SKILL_SELECT_INLINE_MAX",
+    "L1_CATALOG_MAX_TOKENS",
     "FileAccessMode",
     "create_bash_code_execute_tool",
     "create_bash_process_tool",

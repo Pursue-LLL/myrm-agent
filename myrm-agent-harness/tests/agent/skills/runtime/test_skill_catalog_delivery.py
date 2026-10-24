@@ -19,7 +19,7 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 def _skill(name: str) -> SkillMetadata:
     return SkillMetadata(
         name=name,
-        description=f"{name} description",
+        description=f"{name} " + "detailed capability description " * 20,
         model_invocable=True,
         available=True,
     )
@@ -242,7 +242,7 @@ def test_ensure_skill_catalog_no_ops_on_empty_messages() -> None:
     assert messages == []
 
 
-def test_resolve_catalog_display_skills_prefers_always_skills_when_over_threshold() -> None:
+def test_resolve_catalog_display_skills_keeps_always_first_within_budget() -> None:
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,
     )
@@ -250,7 +250,7 @@ def test_resolve_catalog_display_skills_prefers_always_skills_when_over_threshol
     skills = [
         SkillMetadata(
             name=f"skill_{idx}_skill",
-            description="x",
+            description="detailed capability description " * 20,
             model_invocable=True,
             available=True,
             always=(idx == 0),
@@ -259,51 +259,53 @@ def test_resolve_catalog_display_skills_prefers_always_skills_when_over_threshol
     ]
     resolution = resolve_catalog_display_skills(skills)
     assert resolution.display_skills[0].name == "skill_0_skill"
-    # The always band plus the remaining slots fill the catalog; a bound set just over
-    # the threshold must not collapse to a smaller visible count.
-    assert len(resolution.display_skills) == 20
-    assert resolution.hidden_skill_count == 5
+    assert 0 < len(resolution.display_skills) < len(skills)
+    assert resolution.hidden_skill_count == len(skills) - len(resolution.display_skills)
     assert {skill.name for skill in resolution.hidden_skills} | {
         skill.name for skill in resolution.display_skills
     } == {skill.name for skill in skills}
 
 
-def test_catalog_visibility_is_monotonic_across_the_threshold() -> None:
+def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,
     )
 
-    def visible(count: int) -> int:
-        skills = [
-            SkillMetadata(
-                name=f"skill_{idx:02d}_skill",
-                description="x",
-                model_invocable=True,
-                available=True,
-            )
-            for idx in range(count)
-        ]
-        return len(resolve_catalog_display_skills(skills).display_skills)
-
-    assert visible(20) == 20
-    assert visible(21) == 20
-    assert visible(40) == 20
+    skills = [
+        SkillMetadata(
+            name=f"skill_{idx:03d}_skill",
+            description="detailed capability description " * 20,
+            model_invocable=True,
+            available=True,
+        )
+        for idx in range(80)
+    ]
+    resolution = resolve_catalog_display_skills(skills)
+    assert 0 < len(resolution.display_skills) < len(skills)
+    assert resolution.hidden_skill_count > 0
 
 
-def test_hidden_skill_names_stay_selectable_in_the_catalog() -> None:
+def test_hidden_skills_are_count_only_not_name_listed() -> None:
     from myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery import (
         render_bound_skills_catalog,
     )
 
     skills = [
-        SkillMetadata(name=f"mcp_{idx:02d}_skill", description="x", model_invocable=True, available=True, always=True)
+        SkillMetadata(
+            name=f"mcp_{idx:02d}_skill",
+            description="detailed capability description " * 20,
+            model_invocable=True,
+            available=True,
+            always=True,
+        )
         for idx in range(25)
     ]
     rendered = render_bound_skills_catalog(skills)
     assert rendered is not None
-    assert '<hidden_skills count="5">' in rendered.xml
-    assert "mcp_20_skill" in rendered.xml
-    assert "pass the name to skill_select_tool directly" in rendered.xml
+    assert rendered.hidden_skill_count > 0
+    assert "<hidden_skills" not in rendered.xml
+    assert "mcp_24_skill" not in rendered.xml
+    assert "If the user names a skill" in rendered.xml
 
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,

@@ -158,7 +158,7 @@ class TestPlanUpdate:
         assert "alpha_skill" in update
 
     def test_a_hidden_count_travels_with_the_update(self) -> None:
-        skills = [_skill(f"bound_{index:02d}_skill") for index in range(25)]
+        skills = [_skill(f"bound_{index:02d}_skill", description="does a thing " * 100) for index in range(25)]
         rendered = render_bound_skills_catalog(skills)
         assert rendered is not None and rendered.hidden_skill_count > 0
 

@@ -94,8 +94,8 @@ class SkillSearchEngine:
         self._enable_expansion = enable_query_expansion
         self._expander = QueryExpander() if enable_query_expansion else None
         # Normalize skill names: replace underscores with spaces for better tokenization
-        documents = [_build_skill_index_document(s) for s in self._skills]
-        self._retriever = BM25Retriever(documents)
+        self._documents = [_build_skill_index_document(s) for s in self._skills]
+        self._retriever = BM25Retriever(self._documents)
         logger.info(
             " SkillSearchEngine 已构建(%d 个技能已索引) | BM25阈值: %.2f | 查询扩展: %s",
             len(self._skills),
@@ -115,13 +115,24 @@ class SkillSearchEngine:
         if not query.strip():
             return []
 
-        if query.strip() in ["*", "all"]:
+        raw_query = query.strip()
+        if raw_query in ["*", "all"]:
             logger.info(
                 " [SkillSearch] 特殊查询 '%s' -> 返回全部 %d 个技能",
                 query,
                 len(self._skills),
             )
             return [SkillSearchResult(name=s.name, description=s.description, score=1.0) for s in self._skills]
+
+        if raw_query.lower().startswith("select:"):
+            return self._select_exact(raw_query[len("select:") :])
+
+        required_terms, query = self._split_required_terms(raw_query)
+        if not query:
+            return self._filter_required_terms(
+                [SkillSearchResult(name=s.name, description=s.description, score=1.0) for s in self._skills],
+                required_terms,
+            )[:top_k]
 
         start_time = time.perf_counter()
 
@@ -155,6 +166,7 @@ class SkillSearchEngine:
             )
             for idx, score in sorted_results
         ]
+        results = self._filter_required_terms(results, required_terms)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -177,6 +189,44 @@ class SkillSearchEngine:
             )
 
         return results
+
+    def _select_exact(self, names: str) -> list[SkillSearchResult]:
+        """Return exact skill metadata for ``select:name1,name2``."""
+        wanted = {name.strip() for name in names.split(",") if name.strip()}
+        if not wanted:
+            return []
+        return [
+            SkillSearchResult(name=skill.name, description=skill.description, score=1.0)
+            for skill in self._skills
+            if skill.name in wanted
+        ]
+
+    @staticmethod
+    def _split_required_terms(query: str) -> tuple[list[str], str]:
+        """Parse ``+term`` tokens while leaving the natural-language remainder."""
+        required: list[str] = []
+        remaining: list[str] = []
+        for token in query.split():
+            if token.startswith("+") and len(token) > 1:
+                required.append(token[1:].lower())
+            else:
+                remaining.append(token)
+        return required, " ".join(remaining)
+
+    def _filter_required_terms(
+        self,
+        results: list[SkillSearchResult],
+        required_terms: list[str],
+    ) -> list[SkillSearchResult]:
+        """Keep only results whose indexed document contains every required term."""
+        if not required_terms:
+            return results
+        by_name = {skill.name: self._documents[idx].lower() for idx, skill in enumerate(self._skills)}
+        return [
+            result
+            for result in results
+            if all(term in by_name.get(result.name, "") for term in required_terms)
+        ]
 
     def search_regex(self, pattern: str, top_k: int = SKILL_SEARCH_TOP_K) -> list[SkillSearchResult]:
         """Regex 模式匹配搜索

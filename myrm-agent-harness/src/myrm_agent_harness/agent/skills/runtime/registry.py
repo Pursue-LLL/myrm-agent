@@ -8,7 +8,7 @@
 [OUTPUT]
 - SkillRegistry: Skill registry class (manages registration, lookup, updates)
 - skill_registry: Global skill registry singleton
-- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; optional hidden_skill_count for search-first routing_rules)
+- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; hidden_skill_count drives dynamic listed/select vs search rules)
 
 [POS]
 Skill registry. Manages runtime caches and lookups, primarily for MCP-based skills.
@@ -18,14 +18,14 @@ Skill registry. Manages runtime caches and lookups, primarily for MCP-based skil
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from xml.sax.saxutils import escape, quoteattr
 
 from myrm_agent_harness.backends.skills.types import SkillMetadata
+from myrm_agent_harness.utils.text_utils import get_token_count
 
 logger = logging.getLogger(__name__)
 
-MAX_SKILLS_IN_PROMPT = 20
+L1_CATALOG_MAX_TOKENS = 2_000
 MAX_SKILL_FILE_BYTES = 128 * 1024  # 128 KB per skill file
 _CONTRACT_TEXT_LIMIT = 160
 
@@ -138,100 +138,76 @@ class SkillRegistry:
 skill_registry = SkillRegistry()
 
 
+def _routing_rules(hidden_skill_count: int) -> list[str]:
+    """Dynamic catalog-only rules; generic selection rules live in skill_select_tool."""
+    if hidden_skill_count <= 0:
+        return []
+    return [
+        " <routing_rules>",
+        " If a listed skill matches the request: use skill_select_tool.",
+        " If the user names a skill or its name is known from this conversation: use skill_select_tool directly, even if it is not listed.",
+        " If you only know the required capability and cannot identify a name: use skill_search_tool, then skill_select_tool.",
+        " </routing_rules>",
+    ]
+
+
+def _render_skill_entry(skill: SkillMetadata) -> list[str]:
+    """Render one XML skill entry shared by the catalog and its token estimate."""
+    attrs = f"name={quoteattr(skill.name)} available={quoteattr(str(skill.available).lower())} trust={quoteattr(skill.trust.name.lower())}"
+    if not skill.available and skill.unavailable_reason:
+        attrs += f" reason={quoteattr(skill.unavailable_reason)}"
+    if skill.always:
+        attrs += ' always="true"'
+    if skill.usage_stats.is_stale:
+        attrs += ' stale="true"'
+
+    lines = [
+        f" <skill {attrs}>",
+        f" <description>{escape(skill.description)}</description>",
+    ]
+    _append_contract_summary(lines, skill)
+    lines.append(" </skill>")
+    return lines
+
+
+def estimate_skill_entry_tokens(skill: SkillMetadata) -> int:
+    """Exact token cost of one rendered catalog entry."""
+    return get_token_count("\n".join(_render_skill_entry(skill)))
+
+
 def get_metadata_summary(
     skills: list[SkillMetadata],
-    max_skills: int = MAX_SKILLS_IN_PROMPT,
     *,
     hidden_skill_count: int = 0,
-    hidden_skill_names: Sequence[str] = (),
 ) -> str:
-    """Generate structured XML skill summary for HumanMessage catalog blocks.
+    """Generate the XML skill catalog body for HumanMessage catalog blocks.
 
-    Rendered inside the conversation's catalog blocks — the ``<bound_skills>``
-    baseline on the first HumanMessage, a ``<bound_skills_update>`` on a later one
-    (see ``skill_catalog_delivery.py``) — **not** in tool schema or SystemMessage.
+    The caller owns selection. ``catalog_display`` fills this list within
+    ``L1_CATALOG_MAX_TOKENS``; skills left out are represented only by
+    ``hidden_skill_count`` and are recoverable through ``skill_select_tool``
+    (known name) or ``skill_search_tool`` (unknown capability).
 
-    XML format is more parseable by LLMs than Markdown lists, and supports
-    structured attributes (availability, trust, routing hints).
-
-    Skills with always=True are guaranteed inclusion in the XML **once the bound set exceeds the
-    inline threshold**; below it every skill is inlined and ``always`` changes nothing. Remaining
-    slots are filled by available skills first, then unavailable ones, up to max_skills.
-
-    ``hidden_skill_names`` keeps skills that did not fit discoverable: names alone let the
-    model call ``skill_select_tool`` directly instead of paying a ``skill_search_tool`` round
-    trip, and they keep user-authored skills visible when MCP skills fill the always band.
-
-    Cache impact: stable skill list in messages[] keeps tool schema bytes stable;
-    catalog size still counts toward cached conversation prefix when present.
+    Cache impact: stable catalog bytes keep tool schema bytes stable; catalog
+    size still counts toward the cached conversation prefix when present.
     """
     if not skills:
         if hidden_skill_count > 0:
-            lines = [
-                "<skills>",
-                " <routing_rules>",
-                " If the needed skill is not listed below: use skill_search_tool before skill_select_tool.",
-            ]
-            if hidden_skill_names:
-                lines.append(
-                    " Skills named under <hidden_skills> are still bound: pass the name to skill_select_tool directly."
-                )
-            lines.extend([" </routing_rules>", "</skills>"])
+            lines = ["<skills>", *_routing_rules(hidden_skill_count), "</skills>"]
             return "\n".join(lines)
         return "<skills>No skills available.</skills>"
 
-    always_skills = [s for s in skills if s.always]
-    other_skills = [s for s in skills if not s.always]
-    other_skills.sort(key=lambda s: (not s.available, s.name))
-    remaining = max(0, max_skills - len(always_skills))
-    included = always_skills + other_skills[:remaining]
-
-    if len(skills) > len(included):
-        logger.warning(
-            "Skill prompt limit: %d/%d skills included (max_skills_in_prompt=%d)",
-            len(included),
-            len(skills),
-            max_skills,
-        )
-
-    lines = ["<skills>"]
-    if hidden_skill_count > 0:
-        lines.append(" <routing_rules>")
-        lines.append(" If the needed skill is not listed below: use skill_search_tool before skill_select_tool.")
-        if hidden_skill_names:
-            lines.append(
-                " Skills named under <hidden_skills> are still bound: pass the name to skill_select_tool directly."
-            )
-        lines.append(" </routing_rules>")
-    for s in included:
-        attrs = f"name={quoteattr(s.name)} available={quoteattr(str(s.available).lower())} trust={quoteattr(s.trust.name.lower())}"
-        if not s.available and s.unavailable_reason:
-            attrs += f" reason={quoteattr(s.unavailable_reason)}"
-        if s.always:
-            attrs += ' always="true"'
-        if s.usage_stats.is_stale:
-            attrs += ' stale="true"'
-
-        lines.append(f" <skill {attrs}>")
-        lines.append(f" <description>{escape(s.description)}</description>")
-
-        _append_contract_summary(lines, s)
-
-        lines.append(" </skill>")
-
-    if hidden_skill_names:
-        lines.append(f' <hidden_skills count="{len(hidden_skill_names)}">')
-        lines.append(f" {escape(', '.join(hidden_skill_names))}")
-        lines.append(" </hidden_skills>")
-
+    lines = ["<skills>", *_routing_rules(hidden_skill_count)]
+    for skill in skills:
+        lines.extend(_render_skill_entry(skill))
     lines.append("</skills>")
     return "\n".join(lines)
 
 
 __all__ = [
-    "MAX_SKILLS_IN_PROMPT",
+    "L1_CATALOG_MAX_TOKENS",
     "MAX_SKILL_FILE_BYTES",
     "SkillRegistry",
+    "estimate_skill_entry_tokens",
     "get_metadata_summary",
     "skill_registry",
 ]

@@ -9,7 +9,7 @@
 - RenderedCatalog / render_bound_skills_catalog(): the catalog the current bind list resolves to
 - strip_catalog_blocks() / strip_catalog_blocks_from_message(): remove catalog blocks from message text
 - build_bound_skills_block(): ``<bound_skills hash="…" hidden_count="N">`` baseline wrapper
-- build_bound_skills_update_block(): ``<bound_skills_update hash="…">`` tail wrapper carrying the full list
+- build_bound_skills_update_block(): ``<bound_skills_update hash="…">`` tail wrapper carrying the current token-budgeted list
 - ensure_skill_catalog_in_messages(): strip + baseline on the first HumanMessage of a rebuilt history
 - first_human_index(): where a baseline or an update is written
 - last_delivered_catalog_key() / plan_catalog_update() / prepend_catalog_update(): tail delivery for a continued thread
@@ -87,7 +87,6 @@ class RenderedCatalog:
     xml: str
     hash: str
     hidden_skill_count: int
-    hidden_skill_names: tuple[str, ...] = ()
 
     @classmethod
     def from_display(
@@ -95,18 +94,15 @@ class RenderedCatalog:
         display_skills: list[SkillMetadata],
         *,
         hidden_skill_count: int = 0,
-        hidden_skill_names: Sequence[str] = (),
     ) -> RenderedCatalog:
         xml = get_metadata_summary(
             display_skills,
             hidden_skill_count=hidden_skill_count,
-            hidden_skill_names=hidden_skill_names,
         )
         return cls(
             xml=xml,
             hash=compute_catalog_hash(xml),
             hidden_skill_count=hidden_skill_count,
-            hidden_skill_names=tuple(hidden_skill_names),
         )
 
 
@@ -131,7 +127,6 @@ def render_bound_skills_catalog(
     return RenderedCatalog.from_display(
         resolution.display_skills,
         hidden_skill_count=resolution.hidden_skill_count,
-        hidden_skill_names=[skill.name for skill in resolution.hidden_skills],
     )
 
 
@@ -157,14 +152,12 @@ def build_bound_skills_block(
     display_skills: list[SkillMetadata],
     *,
     hidden_skill_count: int = 0,
-    hidden_skill_names: Sequence[str] = (),
 ) -> str:
     """Render the full ``<bound_skills>`` block for HumanMessage prepend."""
     return _baseline_block(
         RenderedCatalog.from_display(
             display_skills,
             hidden_skill_count=hidden_skill_count,
-            hidden_skill_names=hidden_skill_names,
         )
     )
 

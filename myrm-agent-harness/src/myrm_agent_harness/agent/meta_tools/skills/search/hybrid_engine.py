@@ -167,11 +167,16 @@ class HybridSkillSearchEngine:
         if not query.strip():
             return []
 
-        if query.strip() in ["*", "all"]:
+        raw_query = query.strip()
+        if raw_query in ["*", "all"]:
             logger.info(" [HybridSearch] 特殊查询 '%s' -> 返回全部 %d 个技能", query, len(self._skills))
             return [SkillSearchResult(name=s.name, description=s.description, score=1.0) for s in self._skills]
 
-        return await self._search_hybrid(query, top_k)
+        # Exact/required-term grammar is lexical by contract; do not blur it with embeddings.
+        if raw_query.lower().startswith("select:") or any(token.startswith("+") and len(token) > 1 for token in raw_query.split()):
+            return self._bm25_engine.search_bm25(raw_query, top_k)
+
+        return await self._search_hybrid(raw_query, top_k)
 
     async def search_regex(self, pattern: str, top_k: int = SKILL_SEARCH_TOP_K) -> list[SkillSearchResult]:
         """Regex 搜索(使用 BM25 引擎的 regex 能力)

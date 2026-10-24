@@ -96,6 +96,26 @@ class TestSkillSearchEngine:
         results = engine.search_bm25("all")
         assert len(results) == 4
 
+    def test_search_bm25_select_exact_name(self, sample_skills: list[SkillMetadata]) -> None:
+        engine = SkillSearchEngine(sample_skills)
+        results = engine.search_bm25("select:12306_skill")
+        assert [result.name for result in results] == ["12306_skill"]
+
+    def test_search_bm25_select_unknown_name(self, sample_skills: list[SkillMetadata]) -> None:
+        engine = SkillSearchEngine(sample_skills)
+        assert engine.search_bm25("select:missing_skill") == []
+
+    def test_search_bm25_required_term_filters_results(self, sample_skills: list[SkillMetadata]) -> None:
+        engine = SkillSearchEngine(sample_skills, min_relevance_score=-1.0)
+        results = engine.search_bm25("+railway ticket")
+        assert results
+        assert all("railway" in result.name.lower() or "railway" in result.description.lower() for result in results)
+
+    def test_search_bm25_required_term_only(self, sample_skills: list[SkillMetadata]) -> None:
+        engine = SkillSearchEngine(sample_skills)
+        results = engine.search_bm25("+weather")
+        assert [result.name for result in results] == ["weather_forecast_skill"]
+
     def test_search_bm25_no_match(self, sample_skills: list[SkillMetadata]) -> None:
         """测试无匹配结果"""
         engine = SkillSearchEngine(sample_skills)

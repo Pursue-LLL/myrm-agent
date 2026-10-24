@@ -109,7 +109,7 @@ class ToolLayer(IntEnum):
 
 | 子类 | 加载条件 | 典型工具 | Token 消耗 |
 |------|---------|---------|----------:|
-| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 203（条件绑定；tiktoken measured woven desc） |
+| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 263（条件绑定；tiktoken measured woven desc） |
 | 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~200 |
 | 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；无额外 Turn1 schema） | 含于 memory×3 ~2,060 |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~535 |
@@ -217,25 +217,23 @@ class ToolLayer(IntEnum):
 
 上面的「核心/外围」是**设计意图**，实际分配由 `agent/skills/runtime/catalog_display.py::resolve_catalog_display_skills()` 决定，规则与 §3.1-3.3 的描述并不完全等价，改动前必须读这段：
 
-| 绑定技能总数 | 行为 |
+| 条件 | 行为 |
 |---|---|
-| ≤ `SKILL_INLINE_THRESHOLD` (20) | 全部内联进 `<bound_skills>`，`always` 无效 |
-| > 20 且提供 `skill_configs` | 只内联 `is_core=true` 的（按名字排序，仍截断到 20） |
-| > 20 且无 `skill_configs` | `always` 全部先占位（无上限）→ 剩余名额填非 always → 合计排序后截断到 20 |
+| 提供 `skill_configs` | 只把 `is_core=true` 的技能放入候选，再按 token 预算选择 |
+| 无 `skill_configs` | `always=True` 优先，其余按名字排序，再按 token 预算选择 |
+| 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能只计 `hidden_count` |
 
-**落选技能不再静默消失**：`resolve_catalog_display_skills` 返回 `hidden_skills`，渲染器把它们以
-`<hidden_skills count="N">name1, name2, …</hidden_skills>` 附在目录末尾，并在 routing_rules 里
-说明「这些名字可直接传给 `skill_select_tool`」。因此目录是单调的（20 → 20 可见；21 → 20 可见 +
-1 个名字），用户技能也不会因为 MCP 占满 `always` 而彻底不可见。
+**不再按个数截断**：`SKILL_INLINE_THRESHOLD` / `SKILL_SELECT_INLINE_MAX` 已删除。L1 选择由
+`estimate_skill_entry_tokens` + `L1_CATALOG_MAX_TOKENS` 决定；完整 `name + description` 放不下时
+不再塞半截描述，也不列 `<hidden_skills>` 名字列表。
 
-**`always` 仍然无上限**：MCP 技能由 `core_generator._create_skill_metadata` 统一置为 `always=True`，
-服务器数量超过 20 时，超出部分只能出现在 `<hidden_skills>` 名单里。若要让它们拿到完整条目，
-需要单独立项调整 `always` 配额或 `SKILL_SELECT_INLINE_MAX`。
+**预算外技能如何到达**：
+- 用户明确点名 → 直接 `skill_select_tool`（即使不在 L1）；
+- 只知道能力、不知道名字 → `skill_search_tool` → `skill_select_tool`；
+- `skill_select_tool` 白名单、`skill_search_tool` 索引都取自全量 `filtered_skills`。
 
-**不变量**：目录只决定「模型能否看见多少细节」，不决定「能否被选中」。`skill_select_tool` 的白名单与
-`skill_search_tool` 的索引都取自全量 `filtered_skills`（普通 skill 用 name/description；MCP skill 额外索引所有工具名与 80 字符短描述）；`<hidden_skills>` 只是把「名字」这一层存在性
-补回来。评估任何目录改动时，必须同时看**供给侧**（`filtered_skills`）与**接收侧**（`display_skills`
-+ `hidden_skills` → `<bound_skills>`），只看一侧会得出错误结论。
+**不变量**：`hidden_count` 只表示未展示，不表示不可选。评估目录改动时必须同时看
+`filtered_skills`（供给侧）和 `display_skills + hidden_count`（接收侧）。
 
 ### 3.4 成本计算公式
 
@@ -520,7 +518,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 **实现**: `skill_search_tool` (BM25+Embedding) — indexes agent-bound searchable skills for unified search
 
 **效果**:
-- `hidden_skill_count == 0`（≤20 内联 bound skills）→ `sync_discover_capability_tool` 不挂载 discover 网关（省 203 tok/Turn1；tiktoken measured）
+- `hidden_skill_count == 0`（全部 bound skills 在 L1 token 预算内）→ `sync_discover_capability_tool` 不挂载 discover 网关（按需节省 schema token；tiktoken measured）
 - Agent 通过 discover 命中已绑定技能 → `skill_select_tool` 加载 SOP 后执行
 - 严禁 append 非 Turn1 schema 到 bind_tools（框架 11.1 prefix cache 底线）
 

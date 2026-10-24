@@ -64,9 +64,12 @@ def _build_tool_description(*, market_tool_mounted: bool, locale: str | None = N
 **查询方式**：
 - 支持任意自然语言查询。
 - 跨语言最佳效果格式："概念/翻译/同义词"（例如："火车票/railway ticket/train booking"）。
+- 精确名字：`select:<skill_name>`（不参与 BM25）。
+- 必含词：`+term query`（term 必须出现在索引中）。
 - 使用 query="*" 列出所有已绑定的可搜索技能。
 
 **后续操作**：
+- 如果用户已点名技能，直接使用 `skill_select_tool`；只有名称未知时才先搜索。
 - 命中技能后，必须使用 `skill_select_tool` 加载其 SOP 文档后再执行。
 
 **示例**：视频生成、GitHub 集成、数据库操作。
@@ -81,9 +84,12 @@ IMPORTANT: You MUST search here BEFORE declining any user request due to missing
 **How to query**:
 - Query naturally in any language.
 - For best results across languages, use format: "concept/translation/synonym" (e.g., "火车票/railway ticket/train booking").
+- Exact name: `select:<skill_name>` (bypasses BM25).
+- Required term: `+term query` (the term must appear in the index).
 - Use query="*" to list all searchable skills bound to this agent.
 
 **What happens next**:
+- If the user named a skill, call `skill_select_tool` directly; search only when the name is unknown.
 - If a **skill** is found, you MUST use `skill_select_tool` to load its SOP documentation before using it.
 
 **Examples**: video generation, GitHub integration, database operations.
@@ -134,7 +140,8 @@ def create_discover_capability_tool(
             description=(
                 "Search query (any language). "
                 "Use 'concept/translation/synonym' format for best results. "
-                "Use '*' to list all skills."
+                "Use 'select:<skill_name>' for an exact name, '+term query' to require a term, "
+                "or '*' to list all skills."
             )
         )
         mode: Literal["bm25", "regex"] = Field(

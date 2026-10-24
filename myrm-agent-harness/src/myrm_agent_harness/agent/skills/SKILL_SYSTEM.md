@@ -143,7 +143,7 @@ max-context-tokens: 8000
 | `requires.env` | string[] | 可选 | 需要的环境变量 | Nanobot |
 | `requires.config` | string[] | 可选 | 需要的配置文件路径 | ironclaw |
 | `tags` | string[] | 可选 | 分类标签（用于搜索、过滤、选择器匹配） | NextClaw + ironclaw |
-| `always` | boolean | 可选 | 绑定技能总数超过内联阈值（`SKILL_INLINE_THRESHOLD = 20`）时，保证该技能仍出现在 `<bound_skills>` 目录里；默认 `false`。**不注入 SKILL.md 正文，也不进 SystemMessage**（见 §4.3） | Nanobot |
+| `always` | boolean | 可选 | L1 token 预算内的优先排序；默认 `false`。**不保证一定出现，也不注入 SKILL.md 正文或 SystemMessage**（见 §4.3） | Nanobot |
 | `hooks` | object[] | 可选 | Hook 定义（事件触发） | 现有架构 |
 | `allowed-tools` | string[] | 可选 | 允许使用的工具白名单（仅登记或已绑定的工具名生效，见下） | 现有架构 |
 | `patterns` | string[] | 可选 | 正则模式（精确匹配 URL/路径等格式） | ironclaw |
@@ -228,7 +228,7 @@ Level 1: 摘要（Summary）
 Level 2: 正文（Body）
   → get_skill_content() 返回 SKILL.md 正文
   → LLM 选择使用某技能后按需加载
-  → Token 消耗：~500-2000 tokens/技能
+  → Token 消耗：普通 skill 取决于作者文档；MCP L2 单 server ≤3,000 tokens
   → **MCP 例外**：`core_generator` 生成的 MCP SKILL.md 每个 server 上限 3,000 tokens；
     fixed 前缀按实际 Header + Calling 动态计算，instructions 上限由剩余预算推导，
     工具段用预算阶梯（full → required → names）适配工具数量，超限真正降级而不是只 warning。
@@ -261,34 +261,36 @@ Level 3: 资源（Resources）
 - 通用规则在 `skill_select_tool` 静态 description，减少误触发；
 - `trust` 属性让 LLM 知道技能的信任级别；
 - L1 仅在 `hidden_count > 0` 时输出 search/hidden 动态规则；
-- 超过 20 个内联条目时，其余技能以 `<hidden_skills>` 名单保留。
+- L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整 `name + description` 条目，不再按技能个数截断；
+- 预算外的技能只计入 `hidden_count`，不列名字；用户点名可直接 select，能力未知才 search。
 
 ### 4.3 Always 技能
 
-`always: true` 的真实语义**只有一个**：当绑定技能总数超过内联阈值（`SKILL_INLINE_THRESHOLD = 20`）时，该技能仍然出现在 `<bound_skills>` 目录中。
+`always: true` 的真实语义：**在 L1 token 预算内优先排序**，不是“保证出现”。
 
-**它不做什么**（容易误解，务必看清）：
+**它不做什么**：
 
 - ❌ **不**注入 SKILL.md 正文。L2 正文只在模型调用 `skill_select_tool` 后才通过 ToolMessage 返回（`core_generator.py` 的三级披露、`skill_document_loader.get_skill_document()`）。
 - ❌ **不**写入 SystemMessage。目录块本身是 HumanMessage 的一段（`skill_catalog_delivery.py`），正文从不进 system prompt。
-- ❌ **在技能总数 ≤ 20 时完全无效**。`catalog_display.resolve_catalog_display_skills()` 的分支是 `elif len(model_visible) > SKILL_INLINE_THRESHOLD`，未超阈值时全部内联，`always` 不参与任何决策（已实测：`total=1` 时 `always=True` 与 `False` 结果相同）。
 
-**它的真实分配行为**（`catalog_display.py:81-120`）：
+**真实分配行为**（`catalog_display.py`）：
 
 ```
-always_skills  = 所有 always=True 的技能（无上限）
-remaining      = SKILL_SELECT_INLINE_MAX(20) - len(always_skills)，下限 0
-non_always     = 非 always 技能，按名字排序
-display_skills = always_skills + non_always[:remaining]  （再按名字排序后截断到 20）
-hidden_skills  = model_visible - display_skills
+model_visible = 可用且可调用的技能
+always        = always=True，按名字排序
+non_always    = 非 always，按名字排序
+候选          = always + non_always
+显示          = 按候选顺序放入完整 name+description，直到 L1_CATALOG_MAX_TOKENS（2,000）
+hidden_count  = model_visible - 显示
 ```
 
-**两个后果必须知道**：
+**后果**：
 
-1. `always` 无数量上限。MCP 技能全部由 `core_generator.py` 硬编码 `always=True`，因此接入的 MCP 服务器越多，非 always 技能（典型是用户手写技能）能拿到的完整条目越少；`always` 数量 ≥ 20 时，用户技能只出现在 `<hidden_skills>` 名单里，**仍有名字，可直接传给 `skill_select_tool`**。
-2. 目录是**单调**的：20 个技能 → 20 条完整条目；21 个 → 20 条 + 1 个隐藏名。落选技能以 `<hidden_skills count="N">name1, name2, …</hidden_skills>` 附在目录末尾，routing_rules 会说明「这些名字可直接传给 `skill_select_tool`」。因此「名字是地板」：目录再拥挤，也不会出现模型完全不知道某技能存在的情况。
+1. `always` 只是优先，不保证。MCP 由 `core_generator.py` 设 `always=True`，会优先占用预算；预算耗尽后剩余 MCP 和用户技能都只计 `hidden_count`。
+2. 不再有 `<hidden_skills>` 名字列表。预算外技能只有两种到达方式：用户点名直接 `skill_select_tool`，或能力未知时 `skill_search_tool`。
+3. `skill_select_tool` 的白名单和 `skill_search_tool` 的索引都来自全量 `filtered_skills`；`hidden_count` 只表示“未展示”，不表示“不可选”。
 
-**如何被发现**：不在完整条目里的技能会以名字出现在 `<hidden_skills>`；模型可以按名字直接 `skill_select_tool`，也可以用 `skill_search_tool`（BM25 + jieba，索引全量绑定技能；MCP 工具名与 80 字符短描述也进入索引）检索。**目录只影响「看到多少细节」，不影响「能否被选中」，也不影响「是否知道它存在」。**
+**如何被发现**：L1 完整条目 → 直接 select；用户点名 → 直接 select；能力未知/名字未知 → search（BM25 + jieba，MCP 工具名与 80 字符短描述也进索引）→ select。
 
 **约束**：
 - 建议 always 技能数量控制在 1-3 个。
@@ -1072,8 +1074,8 @@ STATIC_SKILL_SLUGS: list[str] = [
    - **适用场景**：用户在 GUI 标记为核心、对当前智能体高频使用的技能。
 
 2. **L2 外围技能 (Peripheral Skills)**：
-   - **机制**：将技能的 `[名称: 简短描述]` 注入首条用户消息的 ``<bound_skills>`` 块（`SKILL_SELECT_INLINE_MAX = 20` 上限；超出部分以 ``hidden_count`` 标注、名字列在 ``<hidden_skills>`` 中，并通过 `skill_search_tool` 或直接按名 `skill_select_tool` 发现），``skill_select_tool.description`` 保持字节稳定。
-   - **注意**：目录是单调的 —— 20 个技能显示 20 条，21 个显示 20 条 + 1 个隐藏名。落选技能的名字仍然可见，可直接传给 ``skill_select_tool``。
+   - **机制**：将技能的 `name + description` 注入首条用户消息的 ``<bound_skills>`` 块，按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算截断；超出部分只计 `hidden_count`，通过点名 `skill_select_tool` 或 `skill_search_tool` 发现。``skill_select_tool.description`` 保持字节稳定。
+   - **注意**：不再按 20 个技能硬截断，也不再列 `<hidden_skills>` 名字列表；预算外的技能不展示名字。
    - **特点**：极低 Token 消耗，0 认知负担。LLM 知道其存在，需要时通过 `skill_select_tool` 渐进式加载完整 SOP。
    - **适用场景**：低频使用、长尾技能。
 

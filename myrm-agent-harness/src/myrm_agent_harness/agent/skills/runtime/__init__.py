@@ -10,8 +10,7 @@
 
 from .attenuator import AttenuationResult, attenuate_tools
 from .catalog_display import (
-    SKILL_INLINE_THRESHOLD,
-    SKILL_SELECT_INLINE_MAX,
+    L1_CATALOG_MAX_TOKENS,
     CatalogDisplayResolution,
     resolve_catalog_display_skills,
 )
@@ -27,8 +26,7 @@ from .skill_catalog_delivery import (
 )
 
 __all__ = [
-    "SKILL_INLINE_THRESHOLD",
-    "SKILL_SELECT_INLINE_MAX",
+    "L1_CATALOG_MAX_TOKENS",
     "AttenuationResult",
     "CatalogDisplayResolution",
     "SkillRegistry",

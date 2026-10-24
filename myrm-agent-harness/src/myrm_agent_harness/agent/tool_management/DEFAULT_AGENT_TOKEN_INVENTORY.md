@@ -108,7 +108,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
 | 21 | skill_manage_tool | 251 | `harness/agent/meta_tools/skills/manage/skill_manage_tool.py` | 创建/修改/删除技能 |
-| 22 | skill_search_tool | 203 | `harness/agent/meta_tools/discover_capability/discover_capability_tool.py` | 统一能力发现；**条件绑定**（hidden_skill_count > 0；tiktoken measured woven desc） |
+| 22 | skill_search_tool | 263 | `harness/agent/meta_tools/discover_capability/discover_capability_tool.py` | 统一能力发现；**条件绑定**（hidden_skill_count > 0；tiktoken measured woven desc） |
 | 23 | skill_market_tool | ~175 | `harness/agent/meta_tools/skills/market/skill_market_tool.py` | 从外部源安装/卸载技能；bound-library 提示经 dynamic_hints 条件注入 | Turn1 when market_backend present |
 
 ### 4.4 交互工具（harness 提供，按配置加载）
