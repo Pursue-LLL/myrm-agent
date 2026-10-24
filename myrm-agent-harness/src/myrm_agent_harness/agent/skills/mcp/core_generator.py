@@ -60,7 +60,7 @@ SKILL_USAGE_TEMPLATE = """
 ## Calling
 
 Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
-Import every function you call before awaiting it.
+Import every function you call before awaiting it. MCP functions are async: always `await` every call; a call without `await` returns a coroutine, not data.
 Args: **always call with keyword arguments** — `func(param=value)`.
 Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 

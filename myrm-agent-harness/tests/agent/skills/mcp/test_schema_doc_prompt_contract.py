@@ -29,6 +29,11 @@ def test_function_example_awaits_async_mcp_proxy() -> None:
     assert "result = search(" not in rendered
 
 
+def test_mcp_prompts_require_await_for_async_functions() -> None:
+    assert "MCP functions are async" in SKILL_USAGE_TEMPLATE
+    assert "a call without `await` returns a coroutine, not data" in SKILL_USAGE_TEMPLATE
+
+
 def test_mcp_prompts_distinguish_parsed_values_from_known_fields() -> None:
     assert "only access fields explicitly documented" in SKILL_USAGE_TEMPLATE
     assert "Only access fields explicitly documented" in build_returns_section(None)
