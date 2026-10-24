@@ -105,7 +105,6 @@ src/components/features/settings/sections/ai-core/agent/AgentSecurityTab.tsx
 src/components/features/settings/sections/ai-tools/SkillsSection.tsx
 src/components/features/settings/sections/enterprise/EnterpriseMembersTab.tsx
 src/components/features/settings/sections/hosting/HostingTargetsPanel.tsx
-src/components/features/settings/sections/integration/A2APeersSection.tsx
 src/components/features/settings/sections/integration/ConnectSection.tsx
 src/components/features/settings/sections/integration/ExtensionBridgeSection.tsx
 src/components/features/settings/sections/integration/ExternalAgentAuthControls.tsx
@@ -115,7 +114,6 @@ src/components/features/settings/sections/integration/channels/PairingManager.ts
 src/components/features/settings/sections/integration/channels/VoiceSection.tsx
 src/components/features/settings/sections/integration/channels/useChannelsState.ts
 src/components/features/settings/sections/integration/credentials/CredentialsDialogs.tsx
-src/components/features/settings/sections/integration/integrations/A2APeerRegistrySection.tsx
 src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.test.tsx
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/MemorySection.tsx

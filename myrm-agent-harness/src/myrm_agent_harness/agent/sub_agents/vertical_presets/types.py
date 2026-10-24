@@ -1,10 +1,10 @@
 """Type definitions for Five Vertical Role Persona Presets and Sub-Bot Sandbox Tester (Item 64).
 
 [INPUT]
-- Subagent role specifications, unit-test inputs, and A2A communication events.
+- Subagent role specifications, unit-test inputs, and agent-to-agent communication events.
 
 [OUTPUT]
-- VerticalRoleCategory, ReasoningEffort, VerticalRolePreset, SubBotTestRequest, SubBotTestResult, A2AFlowStep, A2AFlowTrace.
+- VerticalRoleCategory, ReasoningEffort, VerticalRolePreset, SubBotTestRequest, SubBotTestResult, AgentFlowStep, AgentFlowTrace.
 
 [POS]
 - Harness orchestration definitions for production vertical agent presets and isolated sub-bot testing.
@@ -75,7 +75,7 @@ class SubBotTestResult:
 
 
 @dataclass(slots=True)
-class A2AFlowStep:
+class AgentFlowStep:
     """A single dispatched interaction in an Agent-to-Agent communication chain."""
 
     step_id: str
@@ -89,12 +89,12 @@ class A2AFlowStep:
 
 
 @dataclass(slots=True)
-class A2AFlowTrace:
-    """End-to-end trace of A2A communications across a multi-agent task execution."""
+class AgentFlowTrace:
+    """End-to-end trace of agent-to-agent communications across a multi-agent task execution."""
 
     trace_id: str
     session_id: str
     root_agent_id: str
-    steps: list[A2AFlowStep] = field(default_factory=list)
+    steps: list[AgentFlowStep] = field(default_factory=list)
     total_duration_ms: float = 0.0
     is_loop_detected: bool = False

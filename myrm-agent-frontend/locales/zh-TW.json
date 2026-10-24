@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "知道了",
-    "a2aBinding": "A2A 跨框架遠端委派",
-    "a2aBindingDesc": "開啟後，該智慧體支援遵循 A2A (Agent-to-Agent v1.0) 協定跨機器委派呼叫受信任的遠端 Agent 節點",
-    "a2aEnableSwitch": "啟用 A2A 協定委派",
-    "a2aTrustedPeers": "授權的受信任遠端 A2A 節點",
-    "a2aTrustedPeersDesc": "選擇該智慧體執行多 Agent 協同與編排時允許呼叫的遠端 Peer",
-    "addA2APeer": "授權節點",
-    "noA2APeers": "未授權任何遠端節點（點擊新增進行授權）",
-    "manageA2APeersLink": "前往「整合設定」管理所有遠端節點名冊",
     "allowDiscovery": {
       "title": "允許被其他智慧體發現並委派",
       "description": "開啟後，其他智慧體在自動組隊時可發現並呼叫此智慧體。關閉後，此智慧體不會被自動組隊發現，但你仍可透過 @ 明確指定它。"
@@ -1736,7 +1728,6 @@
       },
       "roles": {
         "entry": "主智慧體",
-        
         "sub": "子智慧體"
       },
       "skill": {
@@ -2559,8 +2550,12 @@
     "disableImageGeneration": "關閉影像生成",
     "enableVideoGeneration": "開啟影片生成",
     "disableVideoGeneration": "關閉影片生成",
-    "workingMemory": {
-      "title": "活動工作記憶",
+    "workingState": {
+      "title": "工作狀態"
+    },
+    "activeFiles": {
+      "title": "目前檔案",
+      "previewHint": "點擊在 Artifacts 中預覽",
       "action": {
         "reading": "AI 正在閱讀此檔案",
         "modifying": "AI 正在修改此檔案",
@@ -3925,10 +3920,6 @@
       "shares": {
         "title": "分享連結",
         "description": "管理唯讀 Artifact 分享連結。撤銷連結可立即阻斷公網訪問。"
-      },
-      "a2aPeers": {
-        "title": "A2A 遠端節點",
-        "description": "註冊並管理支援 A2A 協定的可信遠端智慧體"
       }
     }
   },
@@ -8788,7 +8779,7 @@
     "feishuBotPolicyDeny": "拒絕所有 Bot",
     "feishuBotPolicyMentionOnly": "僅被 @提及 的 Bot",
     "feishuBotPolicyAllow": "允許所有 Bot",
-    "feishuBotPolicyHint": "控制是否處理其他 Bot 傳送的訊息。啟用後可支援 Bot 間協作（如 A2A 編排、跨 Bot 通知等）",
+    "feishuBotPolicyHint": "控制是否處理其他 Bot 傳送的訊息。啟用後可支援 Bot 間協作（如 跨 Bot 編排、跨 Bot 通知等）",
     "feishuRenderModeHint": "自動模式會根據內容特徵（程式碼塊、表格、長文）智慧選擇格式",
     "feishuSave": "儲存",
     "feishuSaved": "飛書配置已儲存",
@@ -15585,7 +15576,6 @@
       "integrationMemory": "整合記憶",
       "extensionBridge": "瀏覽器擴充套件",
       "connect": "外部智慧體",
-      "a2aPeers": "A2A 遠端節點",
       "workspaceRules": "專案規則",
       "enterprise": "企業管理",
       "developer": "開發者",
@@ -15783,46 +15773,6 @@
           "updated": "命令更新成功"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A 協定與遠端受信任節點",
-      "description": "節點描述 (選填)",
-      "registryTitle": "受信任遠端節點名冊",
-      "addPeer": "新增 A2A 節點",
-      "newPeer": "註冊新的遠端 A2A 節點",
-      "editPeer": "編輯 A2A 節點",
-      "peerName": "節點名稱",
-      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A 服務根 URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "簡述遠端節點擅長的任務或能力領域",
-      "authType": "認證方式",
-      "authBearer": "Bearer 權杖",
-      "authApiKey": "API 金鑰認證 (X-API-Key)",
-      "authNone": "無認證 (公網開放)",
-      "authToken": "認證金鑰",
-      "authTokenPlaceholder": "輸入用於呼叫遠端 A2A RPC 的存取金鑰",
-      "authTokenKeepPlaceholder": "留空則保留目前已儲存的金鑰",
-      "savePeer": "儲存節點",
-      "saveChanges": "儲存修改",
-      "saving": "儲存中...",
-      "cancel": "取消",
-      "probe": "探活檢測",
-      "probing": "探活中...",
-      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
-      "probeFailed": "探活失敗：{error}",
-      "ssrfBlocked": "SSRF 安全攔截：目標位址屬於受限內部網路",
-      "noPeers": "尚無註冊的 A2A 節點",
-      "noPeersDesc": "註冊遠端 A2A 節點後，您可以在智慧體能力中開啟 A2A 遠端編排，無縫委派複雜子任務至第三方 Agent 執行。",
-      "deleteConfirm": "確定要刪除此 A2A 節點嗎？",
-      "cardPreview": "AgentCard 中繼資料",
-      "cardSkills": "支援技能",
-      "cardProvider": "服務提供方",
-      "statusOk": "正常",
-      "statusError": "異常",
-      "statusUnreachable": "無法連線",
-      "statusSsrf": "安全阻斷",
-      "hasToken": "已設定憑證"
     },
     "lifecycleWebhook": {
       "title": "生命週期出站 Webhook",
@@ -21497,17 +21447,18 @@
       "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天"
     },
     "workingState": {
-      "title": "工作記憶",
-      "empty": "無活躍任務上下文",
-      "cleared": "工作記憶已清除",
+      "title": "工作狀態",
+      "description": "在記憶開啟時跨常規會話保留；隱身或關閉記憶的會話不讀取。任務完成後請清除。",
+      "empty": "無跨會話任務上下文",
+      "cleared": "跨會話工作狀態已清除",
       "clearFailed": "清除失敗",
-      "saved": "工作記憶已更新",
+      "saved": "跨會話工作狀態已更新",
       "saveFailed": "儲存失敗",
       "edit": "編輯",
       "clear": "清除",
       "cancel": "取消",
       "save": "儲存",
-      "placeholder": "描述當前任務進度...",
+      "placeholder": "描述需要跨會話保留的任務上下文...",
       "updatedAt": "更新於: {time}",
       "add": "新增"
     },

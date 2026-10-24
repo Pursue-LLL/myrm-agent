@@ -75,7 +75,7 @@ class ToolNameFuzzyRepairer:
             return norm_to_valid[raw_norm]
 
         # 4. Suffix strip: the model invents an implementation-ish suffix for a real tool
-        # ("a2a_call_tool" for "a2a_call"). The extra word dilutes the fuzzy ratio below the
+        # ("todo_write_tool" for "todo_write"). The extra word dilutes the fuzzy ratio below the
         # threshold (0.76 vs 0.82 for that pair), so the exact suffix rule runs first: it can only
         # match a registered tool name, so it never repairs a call to the wrong tool.
         for suffix in _HALLUCINATED_NAME_SUFFIXES:

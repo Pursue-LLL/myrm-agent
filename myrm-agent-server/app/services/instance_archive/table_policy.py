@@ -41,7 +41,6 @@ HOST_BOUND_TABLES: frozenset[str] = frozenset(
         "security_profiles",
         "approvals",
         "channel_pairings",
-        "a2a_peers",
         "api_keys",
         "lifecycle_webhooks",
         "web_push_subscriptions",

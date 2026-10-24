@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "Schließen",
-    "a2aBinding": "A2A Framework-übergreifende Remote-Delegierung",
-    "a2aBindingDesc": "Aktiviert die Delegation von Aufgaben an vertrauenswürdige Remote-Agenten nach dem A2A (Agent-to-Agent v1.0) Protokoll.",
-    "a2aEnableSwitch": "A2A-Delegation aktivieren",
-    "a2aTrustedPeers": "Autorisierte vertrauenswürdige Remote-A2A-Knoten",
-    "a2aTrustedPeersDesc": "Wählen Sie Remote-Peers aus, die während der Multi-Agenten-Orchestrierung aufgerufen werden dürfen",
-    "addA2APeer": "Knoten autorisieren",
-    "noA2APeers": "Keine Remote-Knoten autorisiert (zum Hinzufügen klicken)",
-    "manageA2APeersLink": "Gehen Sie zu Integrationseinstellungen, um das Knotenverzeichnis zu verwalten",
     "allowDiscovery": {
       "title": "Entdeckung und Delegation durch andere Agenten erlauben",
       "description": "Wenn aktiviert, können andere Agenten diesen Agenten bei der automatischen Teambildung entdecken und aufrufen. Wenn deaktiviert, wird er nicht automatisch entdeckt, kann aber weiterhin explizit mit @ referenziert werden."
@@ -1736,7 +1728,6 @@
       },
       "roles": {
         "entry": "Hauptagent",
-        
         "sub": "Unteragent"
       },
       "skill": {
@@ -2559,8 +2550,12 @@
     "disableImageGeneration": "Bildgenerierung deaktivieren",
     "enableVideoGeneration": "Videogenerierung aktivieren",
     "disableVideoGeneration": "Videogenerierung deaktivieren",
-    "workingMemory": {
-      "title": "Aktives Arbeitsgedächtnis",
+    "workingState": {
+      "title": "Arbeitsstatus"
+    },
+    "activeFiles": {
+      "title": "Aktive Dateien",
+      "previewHint": "In Artifacts öffnen",
       "action": {
         "reading": "KI liest diese Datei",
         "modifying": "KI bearbeitet diese Datei",
@@ -3925,10 +3920,6 @@
       "shares": {
         "title": "Freigabelinks",
         "description": "Verwalten Sie schreibgeschützte Artifact-Freigabelinks. Widerrufen Sie einen Link, um den öffentlichen Zugriff sofort zu blockieren."
-      },
-      "a2aPeers": {
-        "title": "A2A-Remote-Peers",
-        "description": "Vertrauenswürdige Remote-Agenten mit A2A-Protokoll registrieren und verwalten"
       }
     }
   },
@@ -8788,7 +8779,7 @@
     "feishuBotPolicyDeny": "Alle Bots ablehnen",
     "feishuBotPolicyMentionOnly": "Nur erwähnte Bots",
     "feishuBotPolicyAllow": "Alle Bots zulassen",
-    "feishuBotPolicyHint": "Steuern Sie, ob Nachrichten von anderen Bots verarbeitet werden. Aktivieren, um die Bot-zu-Bot-Zusammenarbeit zu unterstützen (z. B. A2A-Orchestrierung)",
+    "feishuBotPolicyHint": "Steuern Sie, ob Nachrichten von anderen Bots verarbeitet werden. Aktivieren, um die Bot-zu-Bot-Zusammenarbeit zu unterstützen (z. B. Bot-zu-Bot-Orchestrierung)",
     "feishuRenderModeHint": "Der automatische Modus wählt das Format intelligent basierend auf Inhaltsmerkmalen (Codeblöcke, Tabellen, Langtext) aus.",
     "feishuSave": "Speichern",
     "feishuSaved": "FeishuKonfiguration speichern",
@@ -15585,7 +15576,6 @@
       "integrationMemory": "Integrationsspeicher",
       "extensionBridge": "Browser-Erweiterung",
       "connect": "Externe Agenten",
-      "a2aPeers": "A2A-Remote-Peers",
       "workspaceRules": "Arbeitsbereichsregeln",
       "enterprise": "Unternehmen",
       "developer": "Entwickler",
@@ -15783,46 +15773,6 @@
           "updated": "Befehl erfolgreich aktualisiert"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A-Protokoll & Vertrauenswürdige Remote-Knoten",
-      "description": "Knotenbeschreibung (Optional)",
-      "registryTitle": "Verzeichnis vertrauenswürdiger Remote-Knoten",
-      "addPeer": "A2A-Knoten hinzufügen",
-      "newPeer": "Neuen Remote-A2A-Knoten registrieren",
-      "editPeer": "A2A-Knoten bearbeiten",
-      "peerName": "Knotenname",
-      "peerNamePlaceholder": "z. B. Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A-Basis-URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "Kurzbeschreibung der Fachgebiete oder Fähigkeiten des Remote-Agenten",
-      "authType": "Authentifizierungsart",
-      "authBearer": "Bearer-Token",
-      "authApiKey": "API-Schlüssel (X-API-Key)",
-      "authNone": "Keine Authentifizierung (Öffentlich)",
-      "authToken": "Authentifizierungstoken",
-      "authTokenPlaceholder": "Zugriffstoken für Remote-A2A-RPC eingeben",
-      "authTokenKeepPlaceholder": "Leer lassen, um das aktuelle Token beizubehalten",
-      "savePeer": "Knoten speichern",
-      "saveChanges": "Änderungen speichern",
-      "saving": "Speichern...",
-      "cancel": "Abbrechen",
-      "probe": "Verbindungstest (Probe)",
-      "probing": "Teste Verbindung...",
-      "probeSuccess": "Probe erfolgreich: {latency}ms, AgentCard aufgelöst",
-      "probeFailed": "Probe fehlgeschlagen: {error}",
-      "ssrfBlocked": "SSRF blockiert: Zieladresse gehört zu einem eingeschränkten privaten Netzwerk",
-      "noPeers": "Keine A2A-Knoten registriert",
-      "noPeersDesc": "Registrieren Sie Remote-A2A-Knoten, um Aufgaben nahtlos an Drittanbieter-Agenten über A2A-Orchestrierung zu delegieren.",
-      "deleteConfirm": "Möchten Sie diesen A2A-Knoten wirklich löschen?",
-      "cardPreview": "AgentCard-Metadaten",
-      "cardSkills": "Unterstützte Skills",
-      "cardProvider": "Anbieter",
-      "statusOk": "In Ordnung",
-      "statusError": "Fehler",
-      "statusUnreachable": "Nicht erreichbar",
-      "statusSsrf": "Sicherheitsblockade",
-      "hasToken": "Anmeldeinformationen hinterlegt"
     },
     "lifecycleWebhook": {
       "title": "Lebenszyklus-Outbound-Webhooks",
@@ -21497,17 +21447,18 @@
       "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"
     },
     "workingState": {
-      "title": "Arbeitsgedächtnis",
-      "empty": "Kein aktiver Aufgabenkontext",
-      "cleared": "Arbeitsspeicher gelöscht",
+      "title": "Arbeitsstatus",
+      "description": "Gilt für reguläre Sitzungen bei aktiviertem Gedächtnis; Inkognito- und Sitzungen mit deaktiviertem Gedächtnis lesen ihn nicht. Nach Abschluss löschen.",
+      "empty": "Kein sitzungsübergreifender Aufgabenkontext",
+      "cleared": "Sitzungsübergreifender Arbeitsstatus gelöscht",
       "clearFailed": "Fehler beim Löschen",
-      "saved": "Arbeitsspeicher aktualisiert",
+      "saved": "Sitzungsübergreifender Arbeitsstatus aktualisiert",
       "saveFailed": "Speichern fehlgeschlagen",
       "edit": "Bearbeiten",
       "clear": "Klar",
       "cancel": "Stornieren",
       "save": "Speichern",
-      "placeholder": "Beschreiben Sie Ihren aktuellen Aufgabenfortschritt ...",
+      "placeholder": "Aufgabenkontext beschreiben, der sitzungsübergreifend erhalten bleibt...",
       "updatedAt": "Aktualisiert: {time}",
       "add": "Hinzufügen"
     },

@@ -1,10 +1,10 @@
-"""Sub-Bot Sandbox Tester and Agent-to-Agent (A2A) Flow Inspector.
+"""Sub-Bot Sandbox Tester and Agent Flow Inspector.
 
 [INPUT]
-- SubBotTestRequest, custom test runners, A2AFlowStep telemetry events.
+- SubBotTestRequest, custom test runners, AgentFlowStep telemetry events.
 
 [OUTPUT]
-- SubBotTestResult, A2AFlowTrace, loop detection diagnostics.
+- SubBotTestResult, AgentFlowTrace, loop detection diagnostics.
 
 [POS]
 - Harness orchestration layer for isolated agent testing and communication flow verification.
@@ -19,8 +19,8 @@ from collections.abc import Callable
 
 from myrm_agent_harness.agent.sub_agents.vertical_presets.presets_catalog import PresetsCatalog
 from myrm_agent_harness.agent.sub_agents.vertical_presets.types import (
-    A2AFlowStep,
-    A2AFlowTrace,
+    AgentFlowStep,
+    AgentFlowTrace,
     SubBotTestRequest,
     SubBotTestResult,
 )
@@ -101,22 +101,22 @@ class SubBotSandboxTester:
         )
 
 
-class A2AFlowInspector:
-    """Inspector and telemetry store for Agent-to-Agent (A2A) message flows with loop detection."""
+class AgentFlowInspector:
+    """Inspector and telemetry store for Agent-to-Agent (agent-to-agent) message flows with loop detection."""
 
     def __init__(self) -> None:
-        self._traces: dict[str, A2AFlowTrace] = {}
+        self._traces: dict[str, AgentFlowTrace] = {}
 
     def record_step(
         self,
         session_id: str,
         root_agent_id: str,
-        step: A2AFlowStep,
-    ) -> A2AFlowTrace:
-        """Append an A2A communication step to the active trace and evaluate loop heuristics."""
+        step: AgentFlowStep,
+    ) -> AgentFlowTrace:
+        """Append an agent-to-agent communication step to the active trace and evaluate loop heuristics."""
         trace = self._traces.get(session_id)
         if trace is None:
-            trace = A2AFlowTrace(
+            trace = AgentFlowTrace(
                 trace_id=f"trace_{uuid.uuid4().hex[:8]}",
                 session_id=session_id,
                 root_agent_id=root_agent_id,
@@ -131,12 +131,12 @@ class A2AFlowInspector:
         trace.is_loop_detected = self._detect_loop(trace.steps)
         return trace
 
-    def get_trace(self, session_id: str) -> A2AFlowTrace | None:
+    def get_trace(self, session_id: str) -> AgentFlowTrace | None:
         """Fetch the communication trace for a given session."""
         return self._traces.get(session_id)
 
-    def list_traces(self) -> list[A2AFlowTrace]:
-        """List all tracked A2A execution traces."""
+    def list_traces(self) -> list[AgentFlowTrace]:
+        """List all tracked agent-to-agent execution traces."""
         return list(self._traces.values())
 
     def clear(self) -> None:
@@ -144,7 +144,7 @@ class A2AFlowInspector:
         self._traces.clear()
 
     @staticmethod
-    def _detect_loop(steps: list[A2AFlowStep]) -> bool:
+    def _detect_loop(steps: list[AgentFlowStep]) -> bool:
         """Detect potential communication loops or ping-pong deadlocks between agents.
 
         Checks:

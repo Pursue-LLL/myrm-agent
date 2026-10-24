@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "知道了",
-    "a2aBinding": "A2A 跨框架远程委派",
-    "a2aBindingDesc": "开启后，该智能体支持遵循 A2A (Agent-to-Agent v1.0) 协议跨机器委派调用受信任的远程 Agent 节点",
-    "a2aEnableSwitch": "启用 A2A 协议委派",
-    "a2aTrustedPeers": "授权的可信远程 A2A 节点",
-    "a2aTrustedPeersDesc": "选择该智能体执行多 Agent 协同与编排时允许调用的远程 Peer",
-    "addA2APeer": "授权节点",
-    "noA2APeers": "未授权任何远程节点（点击添加进行授权）",
-    "manageA2APeersLink": "前往「集成设置」管理所有远程节点名册",
     "allowDiscovery": {
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体在自动组队时可发现并调用此智能体。关闭后，此智能体不会被自动组队发现，但你仍可通过 @ 显式指定它。"
@@ -2567,8 +2559,12 @@
     "disableImageGeneration": "关闭图像生成",
     "enableVideoGeneration": "开启视频生成",
     "disableVideoGeneration": "关闭视频生成",
-    "workingMemory": {
-      "title": "活动工作记忆",
+    "workingState": {
+      "title": "工作状态"
+    },
+    "activeFiles": {
+      "title": "当前文件",
+      "previewHint": "点击在 Artifacts 中预览",
       "action": {
         "reading": "AI 正在阅读此文件",
         "modifying": "AI 正在修改此文件",
@@ -3924,10 +3920,6 @@
       "shares": {
         "title": "分享链接",
         "description": "管理只读 Artifact 分享链接。撤销链接可立即阻断公网访问。"
-      },
-      "a2aPeers": {
-        "title": "A2A 远端节点",
-        "description": "注册并管理支持 A2A 协议的可信远端智能体"
       }
     }
   },
@@ -8787,7 +8779,7 @@
     "feishuBotPolicyDeny": "拒绝所有 Bot",
     "feishuBotPolicyMentionOnly": "仅被 @提及 的 Bot",
     "feishuBotPolicyAllow": "允许所有 Bot",
-    "feishuBotPolicyHint": "控制是否处理其他 Bot 发送的消息。启用后可支持 Bot 间协作（如 A2A 编排、跨 Bot 通知等）",
+    "feishuBotPolicyHint": "控制是否处理其他 Bot 发送的消息。启用后可支持 Bot 间协作（如 跨 Bot 编排、跨 Bot 通知等）",
     "feishuRenderModeHint": "自动模式会根据内容特征（代码块、表格、长文）智能选择格式",
     "feishuSave": "保存",
     "feishuSaved": "飞书配置已保存",
@@ -15584,7 +15576,6 @@
       "integrationMemory": "集成记忆",
       "extensionBridge": "浏览器扩展",
       "connect": "外部智能体",
-      "a2aPeers": "A2A 远端节点",
       "workspaceRules": "项目规则",
       "enterprise": "企业管理",
       "developer": "开发者",
@@ -15782,46 +15773,6 @@
           "updated": "命令更新成功"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A 协议与远程可信节点",
-      "description": "节点描述 (可选)",
-      "registryTitle": "可信远程节点名册",
-      "addPeer": "添加 A2A 节点",
-      "newPeer": "注册新的远程 A2A 节点",
-      "editPeer": "编辑 A2A 节点",
-      "peerName": "节点名称",
-      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A 服务根 URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "简述远程节点擅长的任务或能力领域",
-      "authType": "认证方式",
-      "authBearer": "Bearer Token",
-      "authApiKey": "API 密钥认证 (X-API-Key)",
-      "authNone": "无认证 (公网开放)",
-      "authToken": "认证密钥",
-      "authTokenPlaceholder": "输入用于调用远端 A2A RPC 的访问密钥",
-      "authTokenKeepPlaceholder": "留空则保留当前已保存的密钥",
-      "savePeer": "保存节点",
-      "saveChanges": "保存修改",
-      "saving": "保存中...",
-      "cancel": "取消",
-      "probe": "探活检测",
-      "probing": "探活中...",
-      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
-      "probeFailed": "探活失败：{error}",
-      "ssrfBlocked": "SSRF 安全拦截：目标地址属于受限内部网络",
-      "noPeers": "暂无注册的 A2A 节点",
-      "noPeersDesc": "注册远程 A2A 节点后，你可以在智能体能力中开启 A2A 远程编排，无缝委派复杂子任务至第三方 Agent 执行。",
-      "deleteConfirm": "确定要删除此 A2A 节点吗？",
-      "cardPreview": "AgentCard 元数据",
-      "cardSkills": "支持技能",
-      "cardProvider": "服务提供方",
-      "statusOk": "正常",
-      "statusError": "异常",
-      "statusUnreachable": "无法连接",
-      "statusSsrf": "安全阻断",
-      "hasToken": "已配置凭证"
     },
     "lifecycleWebhook": {
       "title": "生命周期出站 Webhook",
@@ -21496,17 +21447,18 @@
       "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天"
     },
     "workingState": {
-      "title": "工作记忆",
-      "empty": "无活跃任务上下文",
-      "cleared": "工作记忆已清除",
+      "title": "工作状态",
+      "description": "在记忆开启时跨常规会话保留；隐身或关闭记忆的会话不读取。任务完成后请清除。",
+      "empty": "无跨会话任务上下文",
+      "cleared": "跨会话工作状态已清除",
       "clearFailed": "清除失败",
-      "saved": "工作记忆已更新",
+      "saved": "跨会话工作状态已更新",
       "saveFailed": "保存失败",
       "edit": "编辑",
       "clear": "清除",
       "cancel": "取消",
       "save": "保存",
-      "placeholder": "描述当前任务进度...",
+      "placeholder": "描述需要跨会话保留的任务上下文...",
       "updatedAt": "更新于: {time}",
       "add": "添加"
     },

@@ -96,7 +96,6 @@ myrm_agent_harness/runtime/__init__.py
 myrm_agent_harness/runtime/context/__init__.py
 myrm_agent_harness/runtime/events/__init__.py
 myrm_agent_harness/runtime/maintenance/__init__.py
-myrm_agent_harness/toolkits/a2a/__init__.py
 myrm_agent_harness/toolkits/browser/captcha/__init__.py
 myrm_agent_harness/toolkits/browser/diff/__init__.py
 myrm_agent_harness/toolkits/browser/session/__init__.py

@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "了解",
-    "a2aBinding": "A2A クロスフレームワークリモート委任",
-    "a2aBindingDesc": "有効にすると、このエージェントは A2A (Agent-to-Agent v1.0) プロトコルに従って、信頼されたリモートエージェントノードにタスクを委任できます。",
-    "a2aEnableSwitch": "A2A プロトコル委任を有効化",
-    "a2aTrustedPeers": "承認された信頼済みリモート A2A ノード",
-    "a2aTrustedPeersDesc": "マルチエージェント協調時に呼び出しを許可するリモートピアを選択します",
-    "addA2APeer": "ノードを承認",
-    "noA2APeers": "承認されたリモートノードはありません（クリックして追加）",
-    "manageA2APeersLink": "「統合設定」に移動してリモートノード名簿を管理",
     "allowDiscovery": {
       "title": "他のエージェントによる発見と委任を許可",
       "description": "有効にすると、自動チーム編成時に他のエージェントがこのエージェントを発見して呼び出すことができます。無効にすると自動では発見されませんが、@ で明示的に指定することはできます。"
@@ -1736,7 +1728,6 @@
       },
       "roles": {
         "entry": "メインエージェント",
-        
         "sub": "サブエージェント"
       },
       "skill": {
@@ -2559,8 +2550,12 @@
     "disableImageGeneration": "画像生成を無効化",
     "enableVideoGeneration": "動画生成を有効化",
     "disableVideoGeneration": "動画生成を無効化",
-    "workingMemory": {
-      "title": "アクティブな作業メモリ",
+    "workingState": {
+      "title": "作業状態"
+    },
+    "activeFiles": {
+      "title": "アクティブファイル",
+      "previewHint": "Artifacts でプレビュー",
       "action": {
         "reading": "AI がこのファイルを読み取り中",
         "modifying": "AI がこのファイルを変更しています",
@@ -3925,10 +3920,6 @@
       "shares": {
         "title": "共有リンク",
         "description": "読み取り専用 Artifact 共有リンクを管理します。リンクを失効させると、即座に公開アクセスをブロックします。"
-      },
-      "a2aPeers": {
-        "title": "A2A リモートピア",
-        "description": "A2A プロトコルに対応した信頼済みのリモートエージェントを登録・管理します"
       }
     }
   },
@@ -8788,7 +8779,7 @@
     "feishuBotPolicyDeny": "拒否すべての Bot",
     "feishuBotPolicyMentionOnly": "のみされた @提および の Bot",
     "feishuBotPolicyAllow": "許可すべての Bot",
-    "feishuBotPolicyHint": "他の Bot からのメッセージを処理するかどうかを制御します。有効にすると Bot 間の連携（A2A オーケストレーションなど）をサポートします",
+    "feishuBotPolicyHint": "他の Bot からのメッセージを処理するかどうかを制御します。有効にすると Bot 間の連携（ボット間オーケストレーションなど）をサポートします",
     "feishuRenderModeHint": "自動モードはコンテンツの特徴（コードブロック、テーブル、長文）に応じてフォーマットを自動選択します",
     "feishuSave": "保存",
     "feishuSaved": "Lark 設定を保存しました",
@@ -15585,7 +15576,6 @@
       "integrationMemory": "インテグレーションメモリ",
       "extensionBridge": "ブラウザ拡張",
       "connect": "外部エージェント",
-      "a2aPeers": "A2A リモートピア",
       "workspaceRules": "プロジェクトルール",
       "enterprise": "エンタープライズ",
       "developer": "開発者",
@@ -15783,46 +15773,6 @@
           "updated": "コマンドを更新しました"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A プロトコルと信頼されたリモートノード",
-      "description": "ノードの説明（任意）",
-      "registryTitle": "信頼されたリモートノード名簿",
-      "addPeer": "A2A ノードを追加",
-      "newPeer": "新しいリモート A2A ノードを登録",
-      "editPeer": "A2A ノードを編集",
-      "peerName": "ノード名",
-      "peerNamePlaceholder": "例: Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A サービスベース URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "リモートエージェントが得意とするタスクや機能ドメインの概要",
-      "authType": "認証方式",
-      "authBearer": "Bearer トークン",
-      "authApiKey": "API キー認証 (X-API-Key)",
-      "authNone": "認証なし（パブリック公開）",
-      "authToken": "認証トークン",
-      "authTokenPlaceholder": "リモート A2A RPC を呼び出すためのアクセストークンを入力",
-      "authTokenKeepPlaceholder": "現在保存されているトークンを保持する場合は空のままにします",
-      "savePeer": "ノードを保存",
-      "saveChanges": "変更を保存",
-      "saving": "保存中...",
-      "cancel": "キャンセル",
-      "probe": "疎通テスト",
-      "probing": "テスト中...",
-      "probeSuccess": "プローブ成功: {latency}ms、AgentCard を解決しました",
-      "probeFailed": "プローブ失敗: {error}",
-      "ssrfBlocked": "SSRF セキュリティブロック: 宛先アドレスは制限されたプライベートネットワークです",
-      "noPeers": "登録された A2A ノードはありません",
-      "noPeersDesc": "リモート A2A ノードを登録すると、エージェント機能で A2A リモートオーケストレーションを有効にして、サードパーティのエージェントにタスクを委任できます。",
-      "deleteConfirm": "この A2A ノードを削除してもよろしいですか？",
-      "cardPreview": "AgentCard メタデータ",
-      "cardSkills": "対応スキル",
-      "cardProvider": "プロバイダー",
-      "statusOk": "正常",
-      "statusError": "エラー",
-      "statusUnreachable": "接続不可",
-      "statusSsrf": "セキュリティ遮断",
-      "hasToken": "認証情報設定済み"
     },
     "lifecycleWebhook": {
       "title": "ライフサイクル送信 Webhook",
@@ -21497,17 +21447,18 @@
       "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日"
     },
     "workingState": {
-      "title": "工作メモリ",
-      "empty": "なしアクティブタスクコンテキスト",
-      "cleared": "作業メモリをクリアしました",
+      "title": "作業状態",
+      "description": "メモリが有効な通常のセッション間で保持されます。シークレットセッションとメモリ無効時は読み取られません。完了したらクリアしてください。",
+      "empty": "セッション横断のタスクコンテキストはありません",
+      "cleared": "セッション横断の作業状態をクリアしました",
       "clearFailed": "クリア失敗",
-      "saved": "作業メモリを更新しました",
+      "saved": "セッション横断の作業状態を更新しました",
       "saveFailed": "保存に失敗しました",
       "edit": "編集",
       "clear": "クリア",
       "cancel": "キャンセル",
       "save": "保存",
-      "placeholder": "現在のタスク進捗を説明...",
+      "placeholder": "セッションをまたいで保持するタスクコンテキストを入力...",
       "updatedAt": "更新日時: {time}",
       "add": "追加"
     },

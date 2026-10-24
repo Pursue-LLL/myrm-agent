@@ -89,19 +89,19 @@ def test_fuzzy_name_repair_and_alias_mapping(
 def test_suffix_hallucination_is_repaired_to_the_registered_tool() -> None:
     """A model that appends an implementation-ish suffix must still reach the real tool.
 
-    Measured on the A2A delegation E2E: the model emitted ``a2a_call_tool`` while the registered
-    name is ``a2a_call``. The extra word dilutes the fuzzy ratio to 0.76, below the 0.82 threshold,
+    Measured on a live run: the model emitted ``todo_write_tool`` while the registered
+    name is ``todo_write``. The extra word dilutes the fuzzy ratio to 0.76, below the 0.82 threshold,
     so the call was rejected, the model retried with the same wrong name and the turn ended with
     three strikes and no reply. The exact suffix rule repairs it without touching the threshold.
     """
-    valid = frozenset({"a2a_call", "a2a_orchestrate", "read_file"})
+    valid = frozenset({"todo_write", "kanban_show", "read_file"})
     repairer = ToolNameFuzzyRepairer(similarity_threshold=0.82)
 
-    assert repairer.repair_name("a2a_call_tool", set(valid)) == "a2a_call"
-    assert repairer.repair_name("a2a_call_tool_call", set(valid)) == "a2a_call"
+    assert repairer.repair_name("todo_write_tool", set(valid)) == "todo_write"
+    assert repairer.repair_name("todo_write_tool_call", set(valid)) == "todo_write"
     assert repairer.repair_name("read_file_tool", set(valid)) == "read_file"
     # A name whose stripped form is not a registered tool must not be repaired by the suffix rule.
-    assert repairer.repair_name("a2a_call_tool_v2", set(valid)) is None
+    assert repairer.repair_name("todo_write_tool_v2", set(valid)) is None
 
 
 def test_mixed_batch_split_execution_and_strike_preservation(

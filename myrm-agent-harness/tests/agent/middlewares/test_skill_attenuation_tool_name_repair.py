@@ -1,7 +1,7 @@
 """The model's hallucinated tool names are repaired before the graph dispatches them.
 
-Measured on the A2A delegation Chrome E2E: the model emitted ``a2a_call_tool`` while the
-registered name is ``a2a_call``. LangGraph resolves names against its own map, so the call
+Measured on a live run: the model emitted ``todo_write_tool`` while the registered
+name is ``todo_write``. LangGraph resolves names against its own map, so the call
 was rejected ("not a valid tool"), the model retried with the same wrong name, the retry budget
 ran out and the turn ended with an empty assistant message.
 
@@ -52,7 +52,7 @@ def _response_with_calls(*names: str) -> MagicMock:
     message = AIMessage(
         content="",
         tool_calls=[
-            {"name": name, "args": {"peer": "p", "prompt": "q"}, "id": f"call_{index}"}
+            {"name": name, "args": {"todos": []}, "id": f"call_{index}"}
             for index, name in enumerate(names)
         ],
     )
@@ -64,27 +64,27 @@ def _response_with_calls(*names: str) -> MagicMock:
 
 def test_hallucinated_suffix_is_repaired_from_the_registry() -> None:
     """The server pre-binds the model, so `request.tools` is empty — the registry decides."""
-    middleware = _middleware("a2a_call", "a2a_orchestrate")
-    response = _response_with_calls("a2a_call_tool")
+    middleware = _middleware("todo_write", "kanban_show")
+    response = _response_with_calls("todo_write_tool")
 
     repaired = middleware._repair_tool_call_names(response, _request_with_tools())
 
     calls = repaired.result[0].tool_calls
-    assert calls[0]["name"] == "a2a_call"
+    assert calls[0]["name"] == "todo_write"
     # The arguments and the call id must survive the repair untouched.
-    assert calls[0]["args"] == {"peer": "p", "prompt": "q"}
+    assert calls[0]["args"] == {"todos": []}
     assert calls[0]["id"] == "call_0"
 
 
 def test_registered_names_are_left_alone() -> None:
-    middleware = _middleware("a2a_call")
-    response = _response_with_calls("a2a_call")
+    middleware = _middleware("todo_write")
+    response = _response_with_calls("todo_write")
 
     assert middleware._repair_tool_call_names(response, _request_with_tools()) is response
 
 
 def test_unknown_name_is_not_forced_onto_a_tool() -> None:
-    middleware = _middleware("a2a_call")
+    middleware = _middleware("todo_write")
     response = _response_with_calls("launch_rocket_hyperdrive")
 
     assert middleware._repair_tool_call_names(response, _request_with_tools()) is response
@@ -92,6 +92,6 @@ def test_unknown_name_is_not_forced_onto_a_tool() -> None:
 
 def test_an_empty_registry_leaves_the_response_alone() -> None:
     middleware = _middleware()
-    response = _response_with_calls("a2a_call_tool")
+    response = _response_with_calls("todo_write_tool")
 
     assert middleware._repair_tool_call_names(response, _request_with_tools()) is response

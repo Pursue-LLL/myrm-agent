@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "Dismiss",
-    "a2aBinding": "A2A Remote Delegation",
-    "a2aBindingDesc": "Enable this agent to delegate tasks to remote trusted agent nodes using the A2A v1.0 protocol",
-    "a2aEnableSwitch": "Enable A2A Protocol Delegation",
-    "a2aTrustedPeers": "Authorized Remote A2A Peers",
-    "a2aTrustedPeersDesc": "Select which remote peers this agent is allowed to invoke during multi-agent orchestration",
-    "addA2APeer": "Authorize Peer",
-    "noA2APeers": "No remote peers authorized (click to add)",
-    "manageA2APeersLink": "Go to Integration Settings to manage remote peers registry",
     "allowDiscovery": {
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can discover and call this agent during automatic team formation. When disabled, this agent is not discovered automatically, but you can still reference it explicitly with @."
@@ -2567,8 +2559,12 @@
     "disableImageGeneration": "Disable Image Generation",
     "enableVideoGeneration": "Enable Video Generation",
     "disableVideoGeneration": "Disable Video Generation",
-    "workingMemory": {
-      "title": "Active Working Memory",
+    "workingState": {
+      "title": "Working State"
+    },
+    "activeFiles": {
+      "title": "Active Files",
+      "previewHint": "Click to preview in Artifacts",
       "action": {
         "reading": "AI is reading this file",
         "modifying": "AI is modifying this file",
@@ -3924,10 +3920,6 @@
       "shares": {
         "title": "Share Links",
         "description": "Manage read-only artifact share links. Revoke a link to immediately block public access."
-      },
-      "a2aPeers": {
-        "title": "A2A Remote Peers",
-        "description": "Register and manage trusted remote agents that speak the A2A protocol"
       }
     }
   },
@@ -8787,7 +8779,7 @@
     "feishuBotPolicyDeny": "Deny All Bots",
     "feishuBotPolicyMentionOnly": "Mentioned Bots Only",
     "feishuBotPolicyAllow": "Allow All Bots",
-    "feishuBotPolicyHint": "Control whether messages from other bots are processed. Enable to support bot-to-bot collaboration (e.g., A2A orchestration)",
+    "feishuBotPolicyHint": "Control whether messages from other bots are processed. Enable to support bot-to-bot collaboration (e.g., cross-bot orchestration)",
     "feishuRenderModeHint": "Auto mode intelligently selects format based on content features (code blocks, tables, long text)",
     "feishuSave": "Save",
     "feishuSaved": "FeishuConfiguration Save",
@@ -15584,7 +15576,6 @@
       "integrationMemory": "Integration Memory",
       "extensionBridge": "Browser Extension",
       "connect": "External Agents",
-      "a2aPeers": "A2A Remote Peers",
       "workspaceRules": "Workspace Rules",
       "enterprise": "Enterprise",
       "developer": "Developer",
@@ -15782,46 +15773,6 @@
           "updated": "Command updated successfully"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A Protocol & Trusted Remote Peers",
-      "description": "Node Description (Optional)",
-      "registryTitle": "Trusted Remote Peers Registry",
-      "addPeer": "Add A2A Peer",
-      "newPeer": "Register New Remote A2A Peer",
-      "editPeer": "Edit A2A Peer",
-      "peerName": "Node Name",
-      "peerNamePlaceholder": "e.g., Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A Base URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "Brief description of the remote agent's domain capabilities",
-      "authType": "Authentication Type",
-      "authBearer": "Bearer Token",
-      "authApiKey": "API Key (X-API-Key)",
-      "authNone": "No Auth (Public)",
-      "authToken": "Authentication Token",
-      "authTokenPlaceholder": "Enter access token for remote A2A RPC",
-      "authTokenKeepPlaceholder": "Leave blank to keep current token",
-      "savePeer": "Save Peer",
-      "saveChanges": "Save Changes",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "probe": "Probe",
-      "probing": "Probing...",
-      "probeSuccess": "Probe succeeded: {latency}ms, AgentCard resolved",
-      "probeFailed": "Probe failed: {error}",
-      "ssrfBlocked": "SSRF Blocked: Target belongs to restricted private network",
-      "noPeers": "No A2A Peers Registered",
-      "noPeersDesc": "Register remote A2A peers to enable distributed multi-agent delegation across frameworks.",
-      "deleteConfirm": "Are you sure you want to delete this A2A peer?",
-      "cardPreview": "AgentCard Metadata",
-      "cardSkills": "Supported Skills",
-      "cardProvider": "Provider",
-      "statusOk": "Healthy",
-      "statusError": "Error",
-      "statusUnreachable": "Unreachable",
-      "statusSsrf": "SSRF Blocked",
-      "hasToken": "Encrypted Credential Configured"
     },
     "lifecycleWebhook": {
       "title": "Lifecycle Outbound Webhooks",
@@ -21496,17 +21447,18 @@
       "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days"
     },
     "workingState": {
-      "title": "Working Memory",
-      "empty": "No active task context",
-      "cleared": "Working memory cleared",
+      "title": "Working State",
+      "description": "Applied across regular sessions when memory is enabled; incognito and disabled-memory sessions do not read it. Clear it when the task is done.",
+      "empty": "No cross-session task context",
+      "cleared": "Cross-session working state cleared",
       "clearFailed": "Failed to clear",
-      "saved": "Working memory updated",
+      "saved": "Cross-session working state updated",
       "saveFailed": "Failed to save",
       "edit": "Edit",
       "clear": "Clear",
       "cancel": "Cancel",
       "save": "Save",
-      "placeholder": "Describe your current task progress...",
+      "placeholder": "Describe the task context to keep across sessions...",
       "updatedAt": "Updated: {time}",
       "add": "Add"
     },

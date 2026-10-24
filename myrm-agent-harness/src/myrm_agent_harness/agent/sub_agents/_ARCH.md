@@ -90,7 +90,7 @@ Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 | `visual_timeline/` | 多智能体可视化时间轴与单 Agent 节点精准 Cherry-Pick 撤销引擎（对标 Tutti·VM，支持多维时间轴日志检索、单节点原子精准反向补丁撤销、重叠依赖冲突检测与无损协作保护）。 |
 | `clean_code_pipeline/` | Clean-Code 装配流水线与架构依赖关系 Lint 检查引擎（对标 Clean-Code Assembly Pipeline，提供 Specifier->Coder->Cleaner->Hardener->QA 五阶段单向步进工件交接、AST 静态 import 解析分层架构与循环依赖校验门禁、以及自动 DIP 依赖倒置重构修复建议推导）。 |
 | `fusen/` | 多智能体轻量级 Fusen 便签看板与共享状态同步协议（对标 DojoAgents #139，提供无中心轻量状态便签发布与解决、blocker/ready_for_review/cache_hint 分类检索、亚毫秒级阻塞判定与自动过期清理）。 |
-| `vertical_presets/` | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试引擎（对标 Hermes 行业最佳实践，提供 Life Admin、Office Manager、Clipper、Chief of Staff、Sales Team 五大预置角色，支持单 Agent 隔离沙箱执行、指标与日志捕获，以及 A2A 通信流向追踪与成环死循环检测）。 |
+| `vertical_presets/` | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试引擎（对标 Hermes 行业最佳实践，提供 Life Admin、Office Manager、Clipper、Chief of Staff、Sales Team 五大预置角色，支持单 Agent 隔离沙箱执行、指标与日志捕获，以及 Agent 通信流向追踪与成环死循环检测）。 |
 | `council/` | 高阶决策多模型审议委员会与交叉仲裁共识协议引擎（对标 council-of-high-intelligence，提供 3+ 异构模型盲审提案收集、匿名交叉质询与反驳答辩轮次推进、置信度加权共识裁决合成器与少数派异见归档）。 |
 | `kanban_dispatcher/` | 可视化看板多智能体任务分发与卡片级自动交接流引擎（对标 hermes-agent 看板编排实践，提供 Backlog/Researching/Developing/Reviewing/Done 五泳道卡片生命周期治理、泳道跃迁跨 Agent 自动打包交接与工件继承、微型进度条追踪以及阻塞判定与自愈调度）。 |
 | `cli_passthrough/` | 外部 CLI 子代理适配桥梁与官方订阅无感穿透调度器引擎（对标 DeepSeek Harness dsh v0.1.0-rc.8 Profile Bundle 规范，提供 Claude Code/Codex/Cursor CLI 可插拔非交互静默执行、BYOS 用户自有官方订阅复用、委派前如实隐私披露门禁、工作区文件访问边界防越权继承与不可篡改 SHA-256 出站账本记录）。 |

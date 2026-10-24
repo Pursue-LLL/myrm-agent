@@ -219,8 +219,6 @@ def _to_agent_response(
         ),
         cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
         allow_discovery=bool(metadata.get("allow_discovery", True)),
-        a2a_enabled=bool(metadata.get("a2a_enabled", False)),
-        a2a_trusted_peer_ids=_meta_str_list(metadata, "a2a_trusted_peer_ids", default=[]),
         trusted_desktop_apps=_meta_list_or_empty(metadata, "trusted_desktop_apps"),
         responsibility_scope=_meta_str(metadata, "responsibility_scope"),
         owner_label=_meta_str(metadata, "owner_label"),

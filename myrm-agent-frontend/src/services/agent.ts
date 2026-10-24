@@ -174,8 +174,6 @@ export interface Agent {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  a2a_enabled?: boolean;
-  a2a_trusted_peer_ids?: string[];
   responsibility_scope?: string | null;
   owner_label?: string | null;
   acceptance_criteria?: string[] | null;
@@ -241,8 +239,6 @@ export interface AgentCreate {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  a2a_enabled?: boolean;
-  a2a_trusted_peer_ids?: string[];
   responsibility_scope?: string | null;
   owner_label?: string | null;
   acceptance_criteria?: string[] | null;
@@ -287,8 +283,6 @@ export interface AgentUpdate {
   cron_post_run_verify?: boolean;
   trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
-  a2a_enabled?: boolean;
-  a2a_trusted_peer_ids?: string[];
   responsibility_scope?: string | null;
   owner_label?: string | null;
   acceptance_criteria?: string[] | null;

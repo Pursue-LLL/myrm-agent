@@ -35,7 +35,6 @@ import {
   Share2,
   Building2,
   Link2,
-  Network,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 import type { SettingsTab } from './settingsRoutes';
@@ -90,7 +89,6 @@ const menuItems: MenuItem[] = [
   { id: 'integrationMemory', icon: Database, labelKey: 'integrationMemory', group: 'integration' },
   { id: 'extensionBridge', icon: Cable, labelKey: 'extensionBridge', group: 'integration' },
   { id: 'connect', icon: Share2, labelKey: 'connect', group: 'integration' },
-  { id: 'a2aPeers', icon: Network, labelKey: 'a2aPeers', group: 'integration' },
   { id: 'channels', icon: Radio, labelKey: 'channels', group: 'integration', tauriOnly: true },
   { id: 'hosting', icon: Globe, labelKey: 'hosting', group: 'integration' },
   { id: 'openaiApi', icon: KeyRound, labelKey: 'openaiApi', group: 'integration' },

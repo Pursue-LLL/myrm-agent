@@ -975,14 +975,6 @@
       }
     },
     "dismissRebindHint": "닫기",
-    "a2aBinding": "A2A 프레임워크 간 원격 위임",
-    "a2aBindingDesc": "활성화하면 이 에이전트가 A2A (Agent-to-Agent v1.0) 프로토콜을 준수하여 신뢰할 수 있는 원격 에이전트 노드에 하위 작업을 위임할 수 있습니다.",
-    "a2aEnableSwitch": "A2A 프로토콜 위임 활성화",
-    "a2aTrustedPeers": "승인된 신뢰할 수 있는 원격 A2A 노드",
-    "a2aTrustedPeersDesc": "다중 에이전트 오케스트레이션 중 호출을 허용할 원격 피어를 선택하세요",
-    "addA2APeer": "노드 승인",
-    "noA2APeers": "승인된 원격 노드가 없습니다 (클릭하여 추가)",
-    "manageA2APeersLink": "원격 노드 레지스트리를 관리하려면 '통합 설정'으로 이동",
     "allowDiscovery": {
       "title": "다른 에이전트의 발견 및 위임 허용",
       "description": "활성화하면 자동 팀 구성 시 다른 에이전트가 이 에이전트를 발견하고 호출할 수 있습니다. 비활성화하면 자동으로 발견되지 않지만, @로 명시적으로 지정할 수 있습니다."
@@ -1736,7 +1728,6 @@
       },
       "roles": {
         "entry": "메인 에이전트",
-        
         "sub": "서브 에이전트"
       },
       "skill": {
@@ -2559,8 +2550,12 @@
     "disableImageGeneration": "이미지 생성 비활성화",
     "enableVideoGeneration": "비디오 생성 활성화",
     "disableVideoGeneration": "비디오 생성 비활성화",
-    "workingMemory": {
-      "title": "활성 작업 메모리",
+    "workingState": {
+      "title": "작업 상태"
+    },
+    "activeFiles": {
+      "title": "활성 파일",
+      "previewHint": "Artifacts에서 미리보기",
       "action": {
         "reading": "AI가 이 파일을 읽는 중",
         "modifying": "AI가 이 파일을 수정하는 중",
@@ -3925,10 +3920,6 @@
       "shares": {
         "title": "공유 링크",
         "description": "읽기 전용 Artifact 공유 링크를 관리합니다. 링크를 해지하면 즉시 공개 액세스가 차단됩니다."
-      },
-      "a2aPeers": {
-        "title": "A2A 원격 피어",
-        "description": "A2A 프로토콜을 지원하는 신뢰할 수 있는 원격 에이전트를 등록하고 관리합니다"
       }
     }
   },
@@ -8788,7 +8779,7 @@
     "feishuBotPolicyDeny": "모든 봇 거부",
     "feishuBotPolicyMentionOnly": "멘션된 봇만",
     "feishuBotPolicyAllow": "모든 봇 허용",
-    "feishuBotPolicyHint": "다른 봇의 메시지 처리 여부를 제어합니다. 봇 간 협업(예: A2A 오케스트레이션)을 지원하려면 활성화하세요",
+    "feishuBotPolicyHint": "다른 봇의 메시지 처리 여부를 제어합니다. 봇 간 협업(예: 봇 간 오케스트레이션)을 지원하려면 활성화하세요",
     "feishuRenderModeHint": "자동 모드는 콘텐츠 특성(코드 블록, 표, 긴 텍스트)에 따라 형식을 지능적으로 선택합니다",
     "feishuSave": "저장",
     "feishuSaved": "Feishu 구성 저장됨",
@@ -15585,7 +15576,6 @@
       "integrationMemory": "통합 메모리",
       "extensionBridge": "브라우저 확장",
       "connect": "외부 에이전트",
-      "a2aPeers": "A2A 원격 피어",
       "workspaceRules": "작업공간 규칙",
       "enterprise": "엔터프라이즈",
       "developer": "개발자",
@@ -15783,46 +15773,6 @@
           "updated": "명령이 성공적으로 업데이트되었습니다"
         }
       }
-    },
-    "a2aPeers": {
-      "title": "A2A 프로토콜 및 신뢰할 수 있는 원격 노드",
-      "description": "노드 설명 (선택 사항)",
-      "registryTitle": "신뢰할 수 있는 원격 노드 레지스트리",
-      "addPeer": "A2A 노드 추가",
-      "newPeer": "새 원격 A2A 노드 등록",
-      "editPeer": "A2A 노드 편집",
-      "peerName": "노드 이름",
-      "peerNamePlaceholder": "예: Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A 서비스 기본 URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "원격 노드가 전문으로 하는 작업이나 도메인 기능 요약",
-      "authType": "인증 유형",
-      "authBearer": "Bearer 토큰",
-      "authApiKey": "API 키 인증 (X-API-Key)",
-      "authNone": "인증 없음 (공개)",
-      "authToken": "인증 토큰",
-      "authTokenPlaceholder": "원격 A2A RPC 호출용 액세스 토큰 입력",
-      "authTokenKeepPlaceholder": "현재 저장된 토큰을 유지하려면 비워 두세요",
-      "savePeer": "노드 저장",
-      "saveChanges": "변경사항 저장",
-      "saving": "저장 중...",
-      "cancel": "취소",
-      "probe": "연결 프로브",
-      "probing": "프로브 중...",
-      "probeSuccess": "프로브 성공: {latency}ms, AgentCard 파싱 완료",
-      "probeFailed": "프로브 실패: {error}",
-      "ssrfBlocked": "SSRF 보안 차단: 대상 주소가 제한된 내부 사설 네트워크에 속합니다",
-      "noPeers": "등록된 A2A 노드가 없습니다",
-      "noPeersDesc": "원격 A2A 노드를 등록하면 에이전트 기능에서 A2A 원격 오케스트레이션을 활성화하여 타사 에이전트에 작업을 원활하게 위임할 수 있습니다.",
-      "deleteConfirm": "이 A2A 노드를 삭제하시겠습니까?",
-      "cardPreview": "AgentCard 메타데이터",
-      "cardSkills": "지원 스킬",
-      "cardProvider": "제공자",
-      "statusOk": "정상",
-      "statusError": "오류",
-      "statusUnreachable": "연결 불가",
-      "statusSsrf": "보안 차단됨",
-      "hasToken": "자격 증명 설정됨"
     },
     "lifecycleWebhook": {
       "title": "수명 주기 아웃바운드 웹훅",
@@ -21497,17 +21447,18 @@
       "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일"
     },
     "workingState": {
-      "title": "작업 메모리",
-      "empty": "활성 작업 컨텍스트 없음",
-      "cleared": "작업 메모리가 지워졌습니다",
+      "title": "작업 상태",
+      "description": "메모리가 켜진 일반 세션 간에 유지됩니다. 시크릿 세션과 메모리 비활성 세션에서는 읽지 않습니다. 작업이 끝나면 지우세요.",
+      "empty": "세션 간 작업 컨텍스트 없음",
+      "cleared": "세션 간 작업 상태가 지워졌습니다",
       "clearFailed": "지우기 실패",
-      "saved": "작업 메모리가 업데이트되었습니다",
+      "saved": "세션 간 작업 상태가 업데이트되었습니다",
       "saveFailed": "저장 실패",
       "edit": "편집",
       "clear": "지우기",
       "cancel": "취소",
       "save": "저장",
-      "placeholder": "현재 작업 진행 상황을 설명하세요...",
+      "placeholder": "세션 간에 유지할 작업 컨텍스트를 설명하세요...",
       "updatedAt": "업데이트: {time}",
       "add": "추가"
     },

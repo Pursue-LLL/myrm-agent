@@ -1,11 +1,11 @@
 """Service layer for Five Vertical Role Persona Presets and Sub-Bot Sandbox Tester (Item 64).
 
 [INPUT]
-- RegisterPresetRequest, SubBotTestRequestDTO, RecordA2AStepRequest schemas.
-- PresetsCatalog, SubBotSandboxTester, A2AFlowInspector from harness.
+- RegisterPresetRequest, SubBotTestRequestDTO, RecordAgentStepRequest schemas.
+- PresetsCatalog, SubBotSandboxTester, AgentFlowInspector from harness.
 
 [OUTPUT]
-- VerticalRolePresetDTO, SubBotTestResultDTO, A2AFlowTraceDTO.
+- VerticalRolePresetDTO, SubBotTestResultDTO, AgentFlowTraceDTO.
 
 [POS]
 - Bridge between FastAPI vertical presets router and underlying harness sandbox and presets catalog.
@@ -17,9 +17,9 @@ import threading
 from typing import ClassVar
 
 from myrm_agent_harness.agent.sub_agents.vertical_presets import (
-    A2AFlowInspector,
-    A2AFlowStep,
-    A2AFlowTrace,
+    AgentFlowInspector,
+    AgentFlowStep,
+    AgentFlowTrace,
     PresetsCatalog,
     ReasoningEffort,
     SubBotSandboxTester,
@@ -30,8 +30,8 @@ from myrm_agent_harness.agent.sub_agents.vertical_presets import (
 )
 
 from app.schemas.vertical_presets import (
-    A2AFlowStepDTO,
-    A2AFlowTraceDTO,
+    AgentFlowStepDTO,
+    AgentFlowTraceDTO,
     ReasoningEffortDTOEnum,
     RegisterPresetRequest,
     SubBotTestRequestDTO,
@@ -42,11 +42,11 @@ from app.schemas.vertical_presets import (
 
 
 class VerticalPresetsService:
-    """Thread-safe orchestration service managing vertical presets, sandbox runs, and A2A telemetry."""
+    """Thread-safe orchestration service managing vertical presets, sandbox runs, and agent-to-agent telemetry."""
 
     _catalog: ClassVar[PresetsCatalog] = PresetsCatalog()
     _tester: ClassVar[SubBotSandboxTester] = SubBotSandboxTester(catalog=_catalog)
-    _inspector: ClassVar[A2AFlowInspector] = A2AFlowInspector()
+    _inspector: ClassVar[AgentFlowInspector] = AgentFlowInspector()
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
     @classmethod
@@ -77,8 +77,8 @@ class VerticalPresetsService:
         )
 
     @classmethod
-    def _to_step_dto(cls, s: A2AFlowStep) -> A2AFlowStepDTO:
-        return A2AFlowStepDTO(
+    def _to_step_dto(cls, s: AgentFlowStep) -> AgentFlowStepDTO:
+        return AgentFlowStepDTO(
             step_id=s.step_id,
             source_agent_id=s.source_agent_id,
             target_agent_id=s.target_agent_id,
@@ -90,8 +90,8 @@ class VerticalPresetsService:
         )
 
     @classmethod
-    def _to_trace_dto(cls, t: A2AFlowTrace) -> A2AFlowTraceDTO:
-        return A2AFlowTraceDTO(
+    def _to_trace_dto(cls, t: AgentFlowTrace) -> AgentFlowTraceDTO:
+        return AgentFlowTraceDTO(
             trace_id=t.trace_id,
             session_id=t.session_id,
             root_agent_id=t.root_agent_id,
@@ -152,15 +152,15 @@ class VerticalPresetsService:
             return cls._to_result_dto(result)
 
     @classmethod
-    def record_a2a_step(
+    def record_agent_step(
         cls,
         session_id: str,
         root_agent_id: str,
-        step_dto: A2AFlowStepDTO,
-    ) -> A2AFlowTraceDTO:
-        """Append an A2A communication step and return updated trace telemetry."""
+        step_dto: AgentFlowStepDTO,
+    ) -> AgentFlowTraceDTO:
+        """Append an agent-to-agent communication step and return updated trace telemetry."""
         with cls._lock:
-            step = A2AFlowStep(
+            step = AgentFlowStep(
                 step_id=step_dto.step_id,
                 source_agent_id=step_dto.source_agent_id,
                 target_agent_id=step_dto.target_agent_id,
@@ -174,8 +174,8 @@ class VerticalPresetsService:
             return cls._to_trace_dto(trace)
 
     @classmethod
-    def get_a2a_trace(cls, session_id: str) -> A2AFlowTraceDTO | None:
-        """Retrieve the A2A communication trace for a session."""
+    def get_agent_trace(cls, session_id: str) -> AgentFlowTraceDTO | None:
+        """Retrieve the agent-to-agent communication trace for a session."""
         with cls._lock:
             trace = cls._inspector.get_trace(session_id)
             if trace is None:
@@ -183,15 +183,15 @@ class VerticalPresetsService:
             return cls._to_trace_dto(trace)
 
     @classmethod
-    def list_a2a_traces(cls) -> list[A2AFlowTraceDTO]:
-        """List all tracked A2A execution traces."""
+    def list_agent_traces(cls) -> list[AgentFlowTraceDTO]:
+        """List all tracked agent-to-agent execution traces."""
         with cls._lock:
             traces = cls._inspector.list_traces()
             return [cls._to_trace_dto(t) for t in traces]
 
     @classmethod
     def clear(cls) -> None:
-        """Reset presets to baseline and clear A2A traces (used for isolated testing)."""
+        """Reset presets to baseline and clear agent flow traces (used for isolated testing)."""
         with cls._lock:
             cls._catalog.reset_to_defaults()
             cls._inspector.clear()

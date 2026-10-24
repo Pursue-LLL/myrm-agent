@@ -222,8 +222,6 @@ class GeneralAgentParams(BaseAgentParams):
     search_depth: str = "normal"
     notify_targets: tuple[dict[str, str], ...] = ()
     tool_gateway_config: dict[str, object] | None = None
-    a2a_enabled: bool = False
-    a2a_trusted_peer_ids: list[str] = []
 
 
 GeneralAgentParams.model_rebuild()

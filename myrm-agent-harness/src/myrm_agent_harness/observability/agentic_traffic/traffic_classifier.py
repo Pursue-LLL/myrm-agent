@@ -47,7 +47,7 @@ class AgentTrafficClassifier:
         clean_ua = (user_agent or "").strip()
         h = {k.lower(): v for k, v in (headers or {}).items()}
 
-        # 1. 显式 Agent 请求头检查 (e.g. X-Agent-Client, A2A, llm-client)
+        # 1. 显式 Agent 请求头检查 (e.g. X-Agent-Client, llm-client)
         if "x-agent-client" in h:
             val = h["x-agent-client"].lower()
             if "cursor" in val:

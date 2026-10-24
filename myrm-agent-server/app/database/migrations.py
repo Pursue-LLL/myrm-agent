@@ -679,6 +679,12 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS browser_runtime_records",
     "DROP TABLE IF EXISTS sandbox_workload_records",
     "ALTER TABLE chats ADD COLUMN history_sync_token VARCHAR(64)",
+    # Channel pairing role/quota: the ORM gained both fields without a migration, so every
+    # SELECT on channel_pairings failed with "no such column: channel_pairings.role" and the
+    # cron scheduler health endpoint answered 51002 ("Database operation failed"), which the
+    # AppLayout banner rendered as "scheduler stopped".
+    "ALTER TABLE channel_pairings ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'member'",
+    "ALTER TABLE channel_pairings ADD COLUMN daily_quota INTEGER",
 ]
 
 # 创建索引的SQL语句列表
@@ -1086,6 +1092,8 @@ INDEX_STATEMENTS = [
     "ALTER TABLE agents ADD COLUMN a2a_trusted_peer_ids JSON",
     "ALTER TABLE agents ADD COLUMN trusted_desktop_apps JSON",
     "CREATE INDEX IF NOT EXISTS idx_cron_jobs_project_id ON cron_jobs(project_id)",
+    "DROP INDEX IF EXISTS idx_a2a_peers_base_url",
+    "DROP TABLE IF EXISTS a2a_peers",
 ]
 
 

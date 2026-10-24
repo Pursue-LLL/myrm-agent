@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 # Open to every method: static webui entrypoints, the browser-login handshake and routes that carry their own
-# credential (artifact-share token, A2A peer bearer token).
+# credential (artifact-share token).
 PUBLIC_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/public/artifact-share",
     "/api/v1/webui/welcome",
-    "/api/v1/a2a/agents/",
     "/webui/auth/",
     "/docs",
     "/redoc",
@@ -32,9 +31,6 @@ READ_ONLY_METHODS: frozenset[str] = frozenset({"GET", "HEAD"})
 PUBLIC_EXACT_PATHS: frozenset[str] = frozenset(
     {
         "/",
-        "/.well-known/agent-card.json",
-        "/api/v1/a2a/.well-known/agent-card.json",
-        "/api/v1/a2a/rpc",
         "/favicon.ico",
         "/health",
     }

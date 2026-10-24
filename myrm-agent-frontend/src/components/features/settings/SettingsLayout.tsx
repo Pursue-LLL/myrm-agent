@@ -84,9 +84,6 @@ const ExtensionBridgeSection = dynamic(() => import('./sections/integration/Exte
 const ConnectSection = dynamic(() => import('./sections/integration/ConnectSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const A2APeersSection = dynamic(() => import('./sections/integration/A2APeersSection'), {
-  loading: () => <SettingsSkeleton />,
-});
 
 // 新增合并容器组件 (动态加载)
 const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSettingsSection'), {
@@ -160,7 +157,6 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   integrationCatalog: IntegrationCatalogSection,
   integrationMemory: IntegrationMemorySection,
   connect: ConnectSection,
-  a2aPeers: A2APeersSection,
   cron: CronSection,
   kanban: KanbanSection,
   checkpoint: CheckpointSection,

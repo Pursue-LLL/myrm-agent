@@ -144,7 +144,7 @@ Design notes:
 | `visual_timeline_service.py` | ✅ 核心 | 多智能体可视化时间轴与单 Agent 节点精准 Cherry-Pick 撤销服务 — 聚合 Harness TimelineJournal 与 CherryPickRollbackEngine，提供多维活动日志记录、时间轴查询过滤与外科手术式精准原子撤销 | ✅ |
 | `clean_code_pipeline_service.py` | ✅ 核心 | Clean-Code 装配流水线与架构依赖关系 Lint 检查服务 — 聚合 Harness CleanCodeAssemblyPipelineEngine 与 ArchitectureDependencyLinter，提供五阶段单向步进流转、AST 静态分层依赖守卫与自动 DIP 重构推导 | ✅ |
 | `fusen_service.py` | ✅ 核心 | 多智能体轻量级 Fusen 便签看板与共享状态同步服务 — 聚合 Harness FusenSharedBoard，提供无中心便签发布/解决、亚毫秒级阻塞判定、多维条件过滤与自动 TTL 过期清理 | ✅ |
-| `vertical_presets_service.py` | ✅ 核心 | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试服务 — 聚合 Harness PresetsCatalog、SubBotSandboxTester 与 A2AFlowInspector，提供 5 大垂直角色预置与自定义注册、单 Agent 隔离沙箱测试、A2A 交互追踪与循环检测 | ✅ |
+| `vertical_presets_service.py` | ✅ 核心 | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试服务 — 聚合 Harness PresetsCatalog、SubBotSandboxTester 与 AgentFlowInspector，提供 5 大垂直角色预置与自定义注册、单 Agent 隔离沙箱测试、Agent 交互追踪与循环检测 | ✅ |
 | `council_service.py` | ✅ 核心 | 高阶决策多模型审议委员会与交叉仲裁共识服务 — 聚合 Harness CouncilDeliberationPipeline 与 ConsensusSynthesizer，管理多模型会话生命周期、盲审方案提交、匿名交叉质询与反驳答辩推进、置信度加权共识裁决合成 | ✅ |
 | `kanban_dispatcher_service.py` | ✅ 核心 | 可视化看板多智能体工作流分发与任务卡片交接服务 — 聚合 Harness KanbanWorkflowDispatcher，管理五泳道卡片生命周期、智能体自动认领与交接流转、阻塞高亮与会话隔离看板流转 | ✅ |
 | `cli_passthrough_service.py` | ✅ 核心 | 外部 CLI 子代理适配桥梁与官方订阅无感穿透调度服务 — 聚合 Harness CliProfileBundleRegistry 与 CliPassthroughScheduler，提供 Claude Code/Codex/Cursor CLI 探测与 BYOS 订阅复用、委派前如实隐私披露门禁、工作区文件访问边界防越权继承与不可篡改 SHA-256 出站账本记录 | ✅ |

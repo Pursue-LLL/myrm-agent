@@ -269,8 +269,6 @@ class AgentService:
             "busy_input_mode": agent_data.busy_input_mode,
             "is_pareto_preset": agent_data.is_pareto_preset,
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
-            "a2a_enabled": agent_data.a2a_enabled,
-            "a2a_trusted_peer_ids": agent_data.a2a_trusted_peer_ids,
             "trusted_desktop_apps": agent_data.trusted_desktop_apps,
             "responsibility_scope": agent_data.responsibility_scope,
             "owner_label": agent_data.owner_label,
@@ -426,10 +424,6 @@ class AgentService:
                 new_metadata["cost_reduction_ratio"] = agent_data.cost_reduction_ratio
             if "busy_input_mode" in agent_data.model_fields_set:
                 new_metadata["busy_input_mode"] = agent_data.busy_input_mode
-            if "a2a_enabled" in agent_data.model_fields_set and agent_data.a2a_enabled is not None:
-                new_metadata["a2a_enabled"] = agent_data.a2a_enabled
-            if "a2a_trusted_peer_ids" in agent_data.model_fields_set and agent_data.a2a_trusted_peer_ids is not None:
-                new_metadata["a2a_trusted_peer_ids"] = list(agent_data.a2a_trusted_peer_ids)
             if "responsibility_scope" in agent_data.model_fields_set:
                 raw_rs = agent_data.responsibility_scope
                 new_metadata["responsibility_scope"] = raw_rs.strip() or None if raw_rs else None

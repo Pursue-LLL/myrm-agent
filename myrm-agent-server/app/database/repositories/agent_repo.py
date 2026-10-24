@@ -108,8 +108,6 @@ class AgentRepository:
                 "security_overrides": agent.security_overrides,
                 "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,
-                "a2a_enabled": bool(getattr(agent, "a2a_enabled", False)),
-                "a2a_trusted_peer_ids": list(getattr(agent, "a2a_trusted_peer_ids", []) or []),
                 "trusted_desktop_apps": list(getattr(agent, "trusted_desktop_apps", []) or []),
                 "responsibility_scope": getattr(agent, "responsibility_scope", None),
                 "owner_label": getattr(agent, "owner_label", None),
@@ -255,8 +253,6 @@ class AgentRepository:
             mcp_servers=meta.get("mcp_ids", []),
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
-            a2a_enabled=bool(meta.get("a2a_enabled", False)),
-            a2a_trusted_peer_ids=list(meta.get("a2a_trusted_peer_ids", []) or []),
             trusted_desktop_apps=list(meta.get("trusted_desktop_apps", []) or []),
             responsibility_scope=meta.get("responsibility_scope") if isinstance(meta.get("responsibility_scope"), str) else None,
             owner_label=meta.get("owner_label") if isinstance(meta.get("owner_label"), str) else None,
@@ -409,10 +405,6 @@ class AgentRepository:
                 agent.default_security_preset = cast(str | None, metadata["default_security_preset"])
             if "subagent_ids" in metadata:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
-            if "a2a_enabled" in metadata and metadata["a2a_enabled"] is not None:
-                agent.a2a_enabled = bool(metadata["a2a_enabled"])
-            if "a2a_trusted_peer_ids" in metadata and metadata["a2a_trusted_peer_ids"] is not None:
-                agent.a2a_trusted_peer_ids = list(metadata["a2a_trusted_peer_ids"])
             if "trusted_desktop_apps" in metadata and metadata["trusted_desktop_apps"] is not None:
                 agent.trusted_desktop_apps = list(metadata["trusted_desktop_apps"])
             if "responsibility_scope" in metadata:

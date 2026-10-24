@@ -104,7 +104,7 @@ class TaintTracker:
         label: TaintLabel = TaintLabel.UNTRUSTED_INGRESS,
         source: str | None = None,
     ) -> None:
-        """Record taint from an external inbound message (e.g. untrusted A2A or channel webhook).
+        """Record taint from an external inbound message (e.g. an untrusted channel webhook).
 
         ``reset_all_guards`` rebuilds the tracker when an agent run starts, so a label recorded before
         ``process_stream`` is gone before the first tool call; a host marks such a run with

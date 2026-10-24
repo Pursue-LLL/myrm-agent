@@ -119,8 +119,6 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "tool_gateway_config": (_X, "carries gateway credentials"),
     "cron_post_run_verify": (_X, "unattended-run policy is the installing user's decision"),
     "busy_input_mode": (_X, "personal preference"),
-    "a2a_enabled": (_X, "remote orchestration trust"),
-    "a2a_trusted_peer_ids": (_X, "remote orchestration trust"),
     "trusted_desktop_apps": (_X, "pre-trusted desktop apps are the installing user's decision"),
     "responsibility_scope": (_X, "owner-specific governance data"),
     "owner_label": (_X, "owner-specific governance data"),

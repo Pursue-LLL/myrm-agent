@@ -5,7 +5,7 @@
 - app.services.agent.vertical_presets_service.VerticalPresetsService
 
 [OUTPUT]
-- Pytest assertions verifying presets listing, registration, sandbox test runs, and A2A telemetry endpoints.
+- Pytest assertions verifying presets listing, registration, sandbox test runs, and agent telemetry endpoints.
 
 [POS]
 - myrm-agent/myrm-agent-server/tests/api/agents/test_vertical_presets_api.py
@@ -107,10 +107,10 @@ def test_run_sandbox_test_api(client: TestClient) -> None:
     assert data["execution_time_ms"] >= 0.0
 
 
-def test_record_and_get_a2a_trace_api(client: TestClient) -> None:
-    """Test recording A2A communication steps and fetching full session trace."""
+def test_record_and_get_agent_trace_api(client: TestClient) -> None:
+    """Test recording agent-to-agent communication steps and fetching full session trace."""
     step_payload = {
-        "session_id": "sess-a2a-test-01",
+        "session_id": "sess-agent-flow-01",
         "root_agent_id": "chief_of_staff",
         "step": {
             "step_id": "step-001",
@@ -126,18 +126,18 @@ def test_record_and_get_a2a_trace_api(client: TestClient) -> None:
     resp = client.post("/agents/vertical-presets/traces/record", json=step_payload)
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["session_id"] == "sess-a2a-test-01"
+    assert data["session_id"] == "sess-agent-flow-01"
     assert len(data["steps"]) == 1
     assert data["total_duration_ms"] == 150.0
     assert data["is_loop_detected"] is False
 
-    get_resp = client.get("/agents/vertical-presets/traces/sess-a2a-test-01")
+    get_resp = client.get("/agents/vertical-presets/traces/sess-agent-flow-01")
     assert get_resp.status_code == 200
     trace_data = get_resp.json()["data"]
     assert len(trace_data["steps"]) == 1
 
 
-def test_a2a_trace_loop_detection_api(client: TestClient) -> None:
+def test_agent_trace_loop_detection_api(client: TestClient) -> None:
     """Test ping-pong deadlocks trigger is_loop_detected=True in API response."""
     session_id = "sess-loop-check"
     pairs = [

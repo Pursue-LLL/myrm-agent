@@ -1,10 +1,10 @@
 """Vertical Persona Presets and Sub-Bot Sandbox Tester package.
 
 [INPUT]
-- Subagent role definitions, test requests, A2A interaction flow steps.
+- Subagent role definitions, test requests, agent-to-agent interaction flow steps.
 
 [OUTPUT]
-- VerticalRolePreset catalog, sandbox test runner, A2A flow inspector with loop detection.
+- VerticalRolePreset catalog, sandbox test runner, agent flow inspector with loop detection.
 
 [POS]
 - Harness orchestration layer for enterprise-ready specialist agent personas.
@@ -15,12 +15,12 @@ from myrm_agent_harness.agent.sub_agents.vertical_presets.presets_catalog import
     PresetsCatalog,
 )
 from myrm_agent_harness.agent.sub_agents.vertical_presets.sandbox_tester import (
-    A2AFlowInspector,
+    AgentFlowInspector,
     SubBotSandboxTester,
 )
 from myrm_agent_harness.agent.sub_agents.vertical_presets.types import (
-    A2AFlowStep,
-    A2AFlowTrace,
+    AgentFlowStep,
+    AgentFlowTrace,
     ReasoningEffort,
     SubBotTestRequest,
     SubBotTestResult,
@@ -29,9 +29,9 @@ from myrm_agent_harness.agent.sub_agents.vertical_presets.types import (
 )
 
 __all__ = [
-    "A2AFlowInspector",
-    "A2AFlowStep",
-    "A2AFlowTrace",
+    "AgentFlowInspector",
+    "AgentFlowStep",
+    "AgentFlowTrace",
     "BUILTIN_PRESETS",
     "PresetsCatalog",
     "ReasoningEffort",

@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import {
-  A2AFlowStepItem,
-  A2AFlowTraceItem,
+  AgentFlowStepItem,
+  AgentFlowTraceItem,
   INITIAL_VERTICAL_PRESETS,
   SubBotTestResultItem,
   VerticalRoleCategory,
@@ -25,7 +25,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [latestResult, setLatestResult] = useState<SubBotTestResultItem | null>(null);
 
-  const [a2aTrace, setA2aTrace] = useState<A2AFlowTraceItem>({
+  const [agentTrace, setAgentTrace] = useState<AgentFlowTraceItem>({
     traceId: 'trace-demo-01',
     sessionId,
     rootAgentId: 'chief_of_staff',
@@ -95,7 +95,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
       setIsRunning(false);
       onRunSandboxTest?.(mockResult);
 
-      const nextStep: A2AFlowStepItem = {
+      const nextStep: AgentFlowStepItem = {
         stepId: `step-${Date.now().toString(36)}`,
         sourceAgentId: 'sandbox_runner',
         targetAgentId: activePreset.roleId,
@@ -106,7 +106,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
         timestamp: Date.now(),
       };
 
-      setA2aTrace((prev) => ({
+      setAgentTrace((prev) => ({
         ...prev,
         steps: [...prev.steps, nextStep],
         totalDurationMs: prev.totalDurationMs + elapsed,
@@ -115,7 +115,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
   };
 
   const handleSimulateLoop = () => {
-    const loopStep1: A2AFlowStepItem = {
+    const loopStep1: AgentFlowStepItem = {
       stepId: `step-loop-${Date.now()}-1`,
       sourceAgentId: 'chief_of_staff',
       targetAgentId: 'clipper',
@@ -124,7 +124,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
       durationMs: 12,
       timestamp: Date.now(),
     };
-    const loopStep2: A2AFlowStepItem = {
+    const loopStep2: AgentFlowStepItem = {
       stepId: `step-loop-${Date.now()}-2`,
       sourceAgentId: 'clipper',
       targetAgentId: 'chief_of_staff',
@@ -133,7 +133,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
       durationMs: 15,
       timestamp: Date.now() + 1,
     };
-    setA2aTrace((prev) => ({
+    setAgentTrace((prev) => ({
       ...prev,
       steps: [...prev.steps, loopStep1, loopStep2],
       totalDurationMs: prev.totalDurationMs + 27,
@@ -306,7 +306,7 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
             onClick={handleSimulateLoop}
             className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-[11px] transition-colors"
           >
-            Simulate A2A Loop
+            Simulate Agent Loop
           </button>
         </div>
 
@@ -333,23 +333,23 @@ export const VerticalPresetsAndSandboxCard: React.FC<VerticalPresetsAndSandboxCa
         )}
       </div>
 
-      {/* A2A Communication Flow & Loop Detection Waterfall */}
+      {/* Agent Communication Flow & Loop Detection Waterfall */}
       <div className="p-3 bg-slate-800/30 border border-slate-700/40 rounded-lg flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-200">A2A Communication Chain Trace</h3>
-          {a2aTrace.isLoopDetected ? (
+          <h3 className="font-semibold text-slate-200">Agent Communication Chain Trace</h3>
+          {agentTrace.isLoopDetected ? (
             <span className="px-2 py-0.5 rounded bg-red-950/80 border border-red-500/80 text-red-300 text-[10px] font-medium animate-pulse">
               ⚠ Loop / Deadlock Detected
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 text-[10px]">
-              Chain Normal ({a2aTrace.steps.length} steps)
+              Chain Normal ({agentTrace.steps.length} steps)
             </span>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-          {a2aTrace.steps.map((step) => (
+          {agentTrace.steps.map((step) => (
             <div
               key={step.stepId}
               className="p-1.5 bg-slate-900/60 border border-slate-800 rounded flex items-center justify-between text-[11px]"

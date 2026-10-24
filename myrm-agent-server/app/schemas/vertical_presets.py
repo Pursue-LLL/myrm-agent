@@ -1,13 +1,13 @@
 """Pydantic V2 schemas for Five Vertical Role Persona Presets and Sub-Bot Sandbox Tester (Item 64).
 
 [INPUT]
-- SubBotTestRequestDTO, RegisterPresetRequest, RecordA2AStepRequest.
+- SubBotTestRequestDTO, RegisterPresetRequest, RecordAgentStepRequest.
 
 [OUTPUT]
-- VerticalRolePresetDTO, SubBotTestResultDTO, A2AFlowStepDTO, A2AFlowTraceDTO.
+- VerticalRolePresetDTO, SubBotTestResultDTO, AgentFlowStepDTO, AgentFlowTraceDTO.
 
 [POS]
-- Server-side DTO layer for Item 64 vertical role presets, sandbox test runs, and A2A telemetry.
+- Server-side DTO layer for Item 64 vertical role presets, sandbox test runs, and agent-to-agent telemetry.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ class SubBotTestResultDTO(BaseModel):
     error_message: str | None = Field(default=None)
 
 
-class A2AFlowStepDTO(BaseModel):
+class AgentFlowStepDTO(BaseModel):
     """DTO representing an Agent-to-Agent interaction step."""
 
     model_config = ConfigDict(frozen=True)
@@ -108,7 +108,7 @@ class A2AFlowStepDTO(BaseModel):
     timestamp: float = Field(default=0.0)
 
 
-class A2AFlowTraceDTO(BaseModel):
+class AgentFlowTraceDTO(BaseModel):
     """DTO representing the aggregated communication trace for an agent team session."""
 
     model_config = ConfigDict(frozen=True)
@@ -116,16 +116,16 @@ class A2AFlowTraceDTO(BaseModel):
     trace_id: str = Field(...)
     session_id: str = Field(...)
     root_agent_id: str = Field(...)
-    steps: list[A2AFlowStepDTO] = Field(default_factory=list)
+    steps: list[AgentFlowStepDTO] = Field(default_factory=list)
     total_duration_ms: float = Field(default=0.0)
     is_loop_detected: bool = Field(default=False)
 
 
-class RecordA2AStepRequest(BaseModel):
-    """Payload to record a new A2A interaction step."""
+class RecordAgentStepRequest(BaseModel):
+    """Payload to record a new agent-to-agent interaction step."""
 
     model_config = ConfigDict(frozen=True)
 
     session_id: str = Field(..., min_length=1)
     root_agent_id: str = Field(..., min_length=1)
-    step: A2AFlowStepDTO = Field(...)
+    step: AgentFlowStepDTO = Field(...)

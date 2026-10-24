@@ -54,7 +54,6 @@ export const SETTINGS_TABS = [
   'integrationMemory',
   'extensionBridge',
   'connect',
-  'a2aPeers',
   'workspaceRules',
   'enterprise',
   'system',

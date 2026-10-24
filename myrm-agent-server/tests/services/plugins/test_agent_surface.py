@@ -28,8 +28,6 @@ _NEVER_SHARED = (
     "openapi_services",
     "notify_targets",
     "command_bindings",
-    "a2a_enabled",
-    "a2a_trusted_peer_ids",
     "cron_post_run_verify",
     "home_directory",
     "mounted_skill_ids",

@@ -107,14 +107,6 @@ def remote_auth_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[FastAPI]:
     async def reset_database() -> dict[str, str]:
         return {"status": "reset"}
 
-    @app.post("/api/v1/a2a/tasks/{task_id}/approve")
-    async def approve_task(task_id: str) -> dict[str, str]:
-        return {"approved": task_id}
-
-    @app.post("/api/v1/a2a/rpc")
-    async def a2a_rpc() -> dict[str, str]:
-        return {"jsonrpc": "2.0"}
-
     yield app
     get_settings.cache_clear()
 
@@ -155,17 +147,6 @@ async def test_remote_health_probe_is_public_but_diagnostics_and_operator_action
     assert doctor_allowed.status_code == 200
     assert reset_denied.status_code == 401
     assert reset_allowed.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_remote_a2a_rpc_is_public_but_operator_approval_is_not(remote_auth_app: FastAPI) -> None:
-    async with _remote_client(remote_auth_app) as client:
-        rpc = await client.post("/api/v1/a2a/rpc")
-        approve_denied = await client.post("/api/v1/a2a/tasks/task-1/approve")
-        approve_allowed = await client.post("/api/v1/a2a/tasks/task-1/approve", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
-    assert rpc.status_code == 200
-    assert approve_denied.status_code == 401
-    assert approve_allowed.status_code == 200
 
 
 def test_local_admin_user_id_constant() -> None:

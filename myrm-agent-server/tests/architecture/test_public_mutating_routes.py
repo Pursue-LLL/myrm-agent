@@ -25,11 +25,6 @@ _MUTATING_VERBS = frozenset({"post", "put", "delete", "patch"})
 Operation = tuple[str, str]
 
 _SELF_AUTHENTICATED: dict[Operation, str] = {
-    ("POST", "/api/v1/a2a/rpc"): (
-        "peer bearer token resolved in-handler; callers it does not trust only queue tasks that need operator approval "
-        "(app/api/a2a/router.py `_dispatch_rpc`)"
-    ),
-    ("POST", "/api/v1/a2a/agents/{agent_id}/rpc"): "same dispatcher as the root endpoint (app/api/a2a/router.py)",
     ("POST", "/api/v1/public/artifact-share/{token}"): (
         "read-only serving: the HMAC-signed token in the path and an optional body password gate access "
         "(app/api/files/artifact_share_public.py `_auth_or_gate`)"

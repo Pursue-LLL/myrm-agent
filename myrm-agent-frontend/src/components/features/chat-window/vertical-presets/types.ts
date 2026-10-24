@@ -37,7 +37,7 @@ export interface SubBotTestResultItem {
   errorMessage?: string | null;
 }
 
-export interface A2AFlowStepItem {
+export interface AgentFlowStepItem {
   stepId: string;
   sourceAgentId: string;
   targetAgentId: string;
@@ -48,11 +48,11 @@ export interface A2AFlowStepItem {
   timestamp: number;
 }
 
-export interface A2AFlowTraceItem {
+export interface AgentFlowTraceItem {
   traceId: string;
   sessionId: string;
   rootAgentId: string;
-  steps: A2AFlowStepItem[];
+  steps: AgentFlowStepItem[];
   totalDurationMs: number;
   isLoopDetected: boolean;
 }

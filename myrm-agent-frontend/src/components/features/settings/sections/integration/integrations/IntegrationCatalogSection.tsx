@@ -15,7 +15,6 @@ import { CatalogConnectionStatus } from './CatalogConnectionStatus';
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
 import { SERVICE_ICONS } from './service-icons';
 import { LifecycleWebhookSection } from './LifecycleWebhookSection';
-import { A2APeerRegistrySection } from './A2APeerRegistrySection';
 import { useCatalogConnectionState, type CatalogConnectionState } from './catalog-connection';
 import { useCatalogLocale } from './catalog-locale';
 import type { CatalogEntry, CatalogResponse } from './catalog-types';
@@ -157,7 +156,6 @@ const IntegrationCatalogSection = memo(() => {
         </div>
 
         <LifecycleWebhookSection />
-        <A2APeerRegistrySection />
       </SettingsSection>
 
       {/* Connect Dialog */}

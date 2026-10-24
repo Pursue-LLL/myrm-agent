@@ -89,7 +89,7 @@ Deep provider adapters (e.g. `llms/**/google_provider.py`) are excluded.
 |----------|----------|------|
 | **Core** | `code_execution/`, `storage/`, `llms/`, `memory/`, `mcp/`, `vector/`, `retriever/` | Runtime primitives: sandbox, LLM, persistence, MCP |
 | **Workspace** | `browser/`, `computer_use/`, `mobile_adb/`, `filesystem_suggest/`, `context_bundle/`, `file_parsers/`, `wiki/` | Files, browser, desktop, mobile ADB, @-mention path suggest |
-| **Integration** | `a2a/`, `acp/`, `openapi_bridge/`, `web_fetch/`, `web_search/` | External APIs, agent protocols |
+| **Integration** | `acp/`, `openapi_bridge/`, `web_fetch/`, `web_search/` | External APIs, agent protocols |
 | **Collaboration & Media** | `kanban/`, `tasks/`, `cron/`, `swarm/` | Job-like systems & Swarm coordination — see matrix below; `swarm/` = 多智能体蜂群协同与规则/风险确权引擎; `tasks/` = chat-bound async media queue ([TASK_QUEUE_SYSTEM.md](tasks/TASK_QUEUE_SYSTEM.md)) |
 
 ### Job-like module selection
@@ -162,7 +162,6 @@ Does your code need to import anything from agent/?
 
 | Submodule | Description |
 |-----------|-------------|
-| a2a/ | A2A (Agent-to-Agent) protocol support — AgentCard data models, client Resolver with SSRF protection, Provider Protocol contract. |
 | acp/ | ACP protocol integration — server and runtime components for Agent Communication Protocol. |
 | browser/ | Browser automation — multi-tab control, iframe traversal, session vault, stealth mode, action capture. |
 | code_execution/ | Code execution system — Agent-in-Sandbox mode with multiple executor backends. |

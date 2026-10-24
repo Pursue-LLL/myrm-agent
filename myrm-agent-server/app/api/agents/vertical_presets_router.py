@@ -2,15 +2,15 @@
 
 [INPUT]
 - app.schemas.vertical_presets::{
-    RegisterPresetRequest, SubBotTestRequestDTO, RecordA2AStepRequest, VerticalRoleCategoryDTOEnum,
+    RegisterPresetRequest, SubBotTestRequestDTO, RecordAgentStepRequest, VerticalRoleCategoryDTOEnum,
   }
 - app.services.agent.vertical_presets_service::VerticalPresetsService
 
 [OUTPUT]
-- REST endpoints under /agents/vertical-presets for preset querying, registration, sandbox test execution, and A2A trace inspection.
+- REST endpoints under /agents/vertical-presets for preset querying, registration, sandbox test execution, and agent flow trace inspection.
 
 [POS]
-- HTTP API layer for Item 64 vertical role presets, sandbox test runs, and A2A telemetry.
+- HTTP API layer for Item 64 vertical role presets, sandbox test runs, and agent-to-agent telemetry.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.schemas.responses import StandardSuccessResponse, create_success_response
 from app.schemas.vertical_presets import (
-    RecordA2AStepRequest,
+    RecordAgentStepRequest,
     RegisterPresetRequest,
     SubBotTestRequestDTO,
     VerticalRoleCategoryDTOEnum,
@@ -128,19 +128,19 @@ async def run_sandbox_test(req: SubBotTestRequestDTO) -> StandardSuccessResponse
     "/traces/record",
     response_model=StandardSuccessResponse,
     status_code=status.HTTP_200_OK,
-    summary="Record an A2A communication step",
+    summary="Record an agent-to-agent communication step",
 )
-async def record_a2a_step(req: RecordA2AStepRequest) -> StandardSuccessResponse:
-    """Record an interaction step in the A2A communication chain and evaluate loop risk."""
+async def record_agent_step(req: RecordAgentStepRequest) -> StandardSuccessResponse:
+    """Record an interaction step in the agent-to-agent communication chain and evaluate loop risk."""
     try:
-        trace = VerticalPresetsService.record_a2a_step(
+        trace = VerticalPresetsService.record_agent_step(
             session_id=req.session_id,
             root_agent_id=req.root_agent_id,
             step_dto=req.step,
         )
         return create_success_response(data=trace.model_dump())
     except Exception as exc:
-        logger.exception("Failed to record A2A step: %s", exc)
+        logger.exception("Failed to record agent step: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -151,22 +151,22 @@ async def record_a2a_step(req: RecordA2AStepRequest) -> StandardSuccessResponse:
     "/traces/{session_id}",
     response_model=StandardSuccessResponse,
     status_code=status.HTTP_200_OK,
-    summary="Get A2A communication trace for a session",
+    summary="Get agent-to-agent communication trace for a session",
 )
-async def get_a2a_trace(session_id: str) -> StandardSuccessResponse:
-    """Retrieve full A2A communication trace and loop detection diagnosis for a session."""
+async def get_agent_trace(session_id: str) -> StandardSuccessResponse:
+    """Retrieve full agent-to-agent communication trace and loop detection diagnosis for a session."""
     try:
-        trace = VerticalPresetsService.get_a2a_trace(session_id)
+        trace = VerticalPresetsService.get_agent_trace(session_id)
         if trace is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No A2A trace found for session '{session_id}'",
+                detail=f"No agent flow trace found for session '{session_id}'",
             )
         return create_success_response(data=trace.model_dump())
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Failed to get A2A trace: %s", exc)
+        logger.exception("Failed to get agent flow trace: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),

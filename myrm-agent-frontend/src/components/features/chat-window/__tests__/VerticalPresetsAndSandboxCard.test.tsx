@@ -82,12 +82,12 @@ describe('VerticalPresetsAndSandboxCard', () => {
     expect(handleTestRun).toHaveBeenCalledTimes(1);
   });
 
-  it('simulates A2A communication loop and displays deadlock alert', () => {
+  it('simulates agent communication loop and displays deadlock alert', () => {
     render(<VerticalPresetsAndSandboxCard />);
 
     expect(screen.getByText(/Chain Normal/i)).toBeInTheDocument();
 
-    const loopBtn = screen.getByRole('button', { name: 'Simulate A2A Loop' });
+    const loopBtn = screen.getByRole('button', { name: 'Simulate Agent Loop' });
     fireEvent.click(loopBtn);
 
     expect(screen.getByText(/Loop \/ Deadlock Detected/i)).toBeInTheDocument();

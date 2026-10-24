@@ -76,7 +76,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
         """Repair a hallucinated tool name before the graph dispatches it.
 
         The model sometimes guesses the implementation-ish name of a registered tool
-        ("a2a_call_tool" for "a2a_call"). LangGraph resolves names against its own map and
+        ("todo_write_tool" for "todo_write"). LangGraph resolves names against its own map and
         returns "not a valid tool" for anything else, so a turn can burn its whole retry
         budget and end with an empty answer. Repairing names here — while the bound tool
         list is still in hand — keeps the dispatch path untouched.

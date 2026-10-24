@@ -15,7 +15,6 @@ describe('settingsRoutes', () => {
   it('accepts tabs that the menu exposes but the old page whitelist missed', () => {
     expect(isSettingsTab('workbench')).toBe(true);
     expect(isSettingsTab('shares')).toBe(true);
-    expect(isSettingsTab('a2aPeers')).toBe(true);
     expect(isSettingsTab('brand-studio')).toBe(true);
   });
 

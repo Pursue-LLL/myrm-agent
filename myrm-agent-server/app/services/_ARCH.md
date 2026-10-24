@@ -57,7 +57,6 @@
 | `integrations/` | ✅ 核心 | 集成连接编排与用户配置 | [_ARCH.md](integrations/_ARCH.md) |
 | `providers/` | ✅ 核心 | 服务提供商与实时余额探测业务服务 | [_ARCH.md](providers/_ARCH.md) |
 | `machines/` | ✅ 核心 | 自托管机群全局监控看板与远程人机同屏接管服务（对标 Cursor My Machines & Live Takeover） | [_ARCH.md](machines/_ARCH.md) |
-| `a2a/` | ✅ 核心 | A2A 跨智能体服务（AgentCard 生成、任务仓储、HMAC Webhook 投递、调度服务） | [_ARCH.md](a2a/_ARCH.md) |
 | `providers/` | ✅ 核心 | LLM 供应商服务（多供应商余额实时探活、并发缓存、Fail-open 本地流水兜底） | [_ARCH.md](providers/_ARCH.md) |
 | `webui/` | ✅ 辅助 | WebUI 专用服务（Remote 模式认证、二维码） | [_ARCH.md](webui/_ARCH.md) |
 | `device/` | ✅ 核心 | 移动设备桥接服务（ADB 发现、按需抓帧、物理状态栏脱敏、触控中继） | [_ARCH.md](device/_ARCH.md) |

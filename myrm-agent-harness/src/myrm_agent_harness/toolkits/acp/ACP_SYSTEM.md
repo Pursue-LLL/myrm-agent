@@ -442,7 +442,6 @@ acp/
 
 | 不做 | 原因 | 竞品参考 |
 |------|------|---------|
-| A2A 协议 | 不需要 Agent 发现，配置驱动注册足够 | openfang |
 | 容器化执行 | 不是 Sandbox，不需要 Docker 沙箱 | ironclaw, nanoclaw |
 | 15+ 后端 | 3 种后端已覆盖主流场景 | AionUi |
 | Transcript Hash Resume | ACP 协议已有 session resume | nullclaw |

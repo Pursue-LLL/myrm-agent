@@ -76,8 +76,6 @@ class Agent(Base):
     tool_gateway_config: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     cron_post_run_verify: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     trusted_desktop_apps: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list, nullable=False)
-    a2a_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    a2a_trusted_peer_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     responsibility_scope: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     acceptance_criteria: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)

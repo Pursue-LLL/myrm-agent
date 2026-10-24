@@ -1,10 +1,10 @@
 """Unit tests for Five Vertical Role Persona Presets and Sub-Bot Sandbox Tester (Item 64).
 
 [INPUT]
-- PresetsCatalog, SubBotSandboxTester, A2AFlowInspector, VerticalRolePreset.
+- PresetsCatalog, SubBotSandboxTester, AgentFlowInspector, VerticalRolePreset.
 
 [OUTPUT]
-- Pytest assertions verifying preset registration, sandbox execution, and A2A communication loop detection.
+- Pytest assertions verifying preset registration, sandbox execution, and agent-to-agent communication loop detection.
 
 [POS]
 - myrm-agent-harness/tests/agent/sub_agents/test_vertical_presets.py
@@ -15,8 +15,8 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.agent.sub_agents.vertical_presets import (
-    A2AFlowInspector,
-    A2AFlowStep,
+    AgentFlowInspector,
+    AgentFlowStep,
     PresetsCatalog,
     ReasoningEffort,
     SubBotSandboxTester,
@@ -42,9 +42,9 @@ def tester(catalog: PresetsCatalog) -> SubBotSandboxTester:
 
 
 @pytest.fixture
-def inspector() -> A2AFlowInspector:
-    """Fixture providing an A2AFlowInspector instance."""
-    insp = A2AFlowInspector()
+def inspector() -> AgentFlowInspector:
+    """Fixture providing an AgentFlowInspector instance."""
+    insp = AgentFlowInspector()
     insp.clear()
     return insp
 
@@ -148,10 +148,10 @@ def test_sub_bot_sandbox_tester_custom_runner(tester: SubBotSandboxTester) -> No
     assert "Runner crashed simulated" in (res_err.error_message or "")
 
 
-def test_a2a_flow_inspector_record_and_clear(inspector: A2AFlowInspector) -> None:
-    """Verify recording A2A flow steps and calculating cumulative duration."""
+def test_agent_flow_inspector_record_and_clear(inspector: AgentFlowInspector) -> None:
+    """Verify recording agent-to-agent flow steps and calculating cumulative duration."""
     session_id = "test-session-123"
-    step1 = A2AFlowStep(
+    step1 = AgentFlowStep(
         step_id="step-1",
         source_agent_id="chief_of_staff",
         target_agent_id="clipper",
@@ -159,7 +159,7 @@ def test_a2a_flow_inspector_record_and_clear(inspector: A2AFlowInspector) -> Non
         payload_summary="Fetch vector indexing benchmarks",
         duration_ms=120.0,
     )
-    step2 = A2AFlowStep(
+    step2 = AgentFlowStep(
         step_id="step-2",
         source_agent_id="clipper",
         target_agent_id="chief_of_staff",
@@ -186,14 +186,14 @@ def test_a2a_flow_inspector_record_and_clear(inspector: A2AFlowInspector) -> Non
     assert inspector.get_trace(session_id) is None
 
 
-def test_a2a_flow_inspector_loop_detection(inspector: A2AFlowInspector) -> None:
+def test_agent_flow_inspector_loop_detection(inspector: AgentFlowInspector) -> None:
     """Verify loop detection triggers when agents ping-pong indefinitely."""
     session_id = "loop-session-456"
     steps = [
-        A2AFlowStep(step_id="s1", source_agent_id="agent_a", target_agent_id="agent_b", action="ask", payload_summary="1"),
-        A2AFlowStep(step_id="s2", source_agent_id="agent_b", target_agent_id="agent_a", action="reply", payload_summary="2"),
-        A2AFlowStep(step_id="s3", source_agent_id="agent_a", target_agent_id="agent_b", action="ask", payload_summary="3"),
-        A2AFlowStep(step_id="s4", source_agent_id="agent_b", target_agent_id="agent_a", action="reply", payload_summary="4"),
+        AgentFlowStep(step_id="s1", source_agent_id="agent_a", target_agent_id="agent_b", action="ask", payload_summary="1"),
+        AgentFlowStep(step_id="s2", source_agent_id="agent_b", target_agent_id="agent_a", action="reply", payload_summary="2"),
+        AgentFlowStep(step_id="s3", source_agent_id="agent_a", target_agent_id="agent_b", action="ask", payload_summary="3"),
+        AgentFlowStep(step_id="s4", source_agent_id="agent_b", target_agent_id="agent_a", action="reply", payload_summary="4"),
     ]
 
     for s in steps:
@@ -202,14 +202,14 @@ def test_a2a_flow_inspector_loop_detection(inspector: A2AFlowInspector) -> None:
     assert trace.is_loop_detected is True
 
 
-def test_a2a_flow_inspector_multi_node_cycle_and_linear(inspector: A2AFlowInspector) -> None:
+def test_agent_flow_inspector_multi_node_cycle_and_linear(inspector: AgentFlowInspector) -> None:
     """Verify multi-node cycle detection via DFS graph analysis and non-cyclic linear chains."""
     linear_session = "linear-session-789"
     linear_steps = [
-        A2AFlowStep(step_id="l1", source_agent_id="agent_a", target_agent_id="agent_b", action="step1", payload_summary=""),
-        A2AFlowStep(step_id="l2", source_agent_id="agent_b", target_agent_id="agent_c", action="step2", payload_summary=""),
-        A2AFlowStep(step_id="l3", source_agent_id="agent_c", target_agent_id="agent_d", action="step3", payload_summary=""),
-        A2AFlowStep(step_id="l4", source_agent_id="agent_d", target_agent_id="agent_e", action="step4", payload_summary=""),
+        AgentFlowStep(step_id="l1", source_agent_id="agent_a", target_agent_id="agent_b", action="step1", payload_summary=""),
+        AgentFlowStep(step_id="l2", source_agent_id="agent_b", target_agent_id="agent_c", action="step2", payload_summary=""),
+        AgentFlowStep(step_id="l3", source_agent_id="agent_c", target_agent_id="agent_d", action="step3", payload_summary=""),
+        AgentFlowStep(step_id="l4", source_agent_id="agent_d", target_agent_id="agent_e", action="step4", payload_summary=""),
     ]
     for s in linear_steps:
         t = inspector.record_step(linear_session, "agent_a", s)
@@ -217,10 +217,10 @@ def test_a2a_flow_inspector_multi_node_cycle_and_linear(inspector: A2AFlowInspec
 
     cycle_session = "cycle-session-999"
     cycle_steps = [
-        A2AFlowStep(step_id="c1", source_agent_id="agent_a", target_agent_id="agent_b", action="step1", payload_summary=""),
-        A2AFlowStep(step_id="c2", source_agent_id="agent_b", target_agent_id="agent_c", action="step2", payload_summary=""),
-        A2AFlowStep(step_id="c3", source_agent_id="agent_c", target_agent_id="agent_d", action="step3", payload_summary=""),
-        A2AFlowStep(step_id="c4", source_agent_id="agent_d", target_agent_id="agent_a", action="step4", payload_summary=""),
+        AgentFlowStep(step_id="c1", source_agent_id="agent_a", target_agent_id="agent_b", action="step1", payload_summary=""),
+        AgentFlowStep(step_id="c2", source_agent_id="agent_b", target_agent_id="agent_c", action="step2", payload_summary=""),
+        AgentFlowStep(step_id="c3", source_agent_id="agent_c", target_agent_id="agent_d", action="step3", payload_summary=""),
+        AgentFlowStep(step_id="c4", source_agent_id="agent_d", target_agent_id="agent_a", action="step4", payload_summary=""),
     ]
     for s in cycle_steps:
         t = inspector.record_step(cycle_session, "agent_a", s)

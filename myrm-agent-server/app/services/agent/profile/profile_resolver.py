@@ -137,11 +137,8 @@ class ResolvedAgentProfile:
     trusted_desktop_apps: tuple[dict[str, str], ...] = field(default_factory=tuple, kw_only=True)
     """Desktop apps pre-trusted for unattended runs: each dict has {name, app_id?}."""
 
-    a2a_enabled: bool = field(default=False, kw_only=True)
     """Whether agent-to-agent delegation is enabled for this profile."""
 
-    a2a_trusted_peer_ids: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
-    """Whitelisted A2A peer IDs allowed for remote task delegation."""
 
     @property
     def is_sandbox_capable(self) -> bool:
@@ -292,12 +289,6 @@ class AgentProfileResolver:
                         getattr(agent, "trusted_desktop_apps", None)
                         if getattr(agent, "trusted_desktop_apps", None) is not None
                         else metadata.get("trusted_desktop_apps", ())
-                    ),
-                    a2a_enabled=bool(getattr(agent, "a2a_enabled", False) or metadata.get("a2a_enabled", False)),
-                    a2a_trusted_peer_ids=coerce_str_tuple(
-                        getattr(agent, "a2a_trusted_peer_ids", None)
-                        if getattr(agent, "a2a_trusted_peer_ids", None) is not None
-                        else metadata.get("a2a_trusted_peer_ids", ())
                     ),
                 )
         except InvalidBuiltinToolIdsError:

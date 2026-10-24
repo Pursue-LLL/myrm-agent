@@ -212,8 +212,6 @@ class AgentFactory:
             prompt_mode=params.prompt_mode,
             search_depth=params.search_depth,
             notify_targets=params.notify_targets,
-            a2a_enabled=params.a2a_enabled,
-            a2a_trusted_peer_ids=params.a2a_trusted_peer_ids,
         )
 
 
