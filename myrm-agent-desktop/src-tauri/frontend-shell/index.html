@@ -1,100 +1,328 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MyrmAgent</title>
     <style>
-      body {
+      :root {
+        --bg: #09090b;
+        --card: #121215;
+        --border: #27272a;
+        --text: #f4f4f5;
+        --muted: #71717a;
+        --accent: #3b82f6;
+        --shimmer: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
+      }
+      * {
+        box-sizing: border-box;
         margin: 0;
-        min-height: 100vh;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        user-select: none;
+      }
+      /* Top window bar */
+      .top-bar {
+        height: 44px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px 0 80px; /* Leave space for macOS traffic lights */
+        background: rgba(18, 18, 21, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-app-region: drag;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 10px #10b981;
+        animation: pulse 2s infinite;
+      }
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        background: #18181b;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        border: 1px solid var(--border);
+        -webkit-app-region: no-drag;
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        animation: pulse 1.5s infinite;
+      }
+      /* Main layout */
+      .layout {
+        flex: 1;
+        display: flex;
+        height: calc(100vh - 44px);
+      }
+      /* Sidebar skeleton */
+      .sidebar {
+        width: 250px;
+        border-right: 1px solid var(--border);
+        background: #0d0d10;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .btn-skeleton {
+        height: 36px;
+        border-radius: 8px;
+        background: var(--shimmer);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+      }
+      .list-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .item-skeleton {
+        height: 28px;
+        border-radius: 6px;
+        background: var(--shimmer);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+      }
+      /* Workspace main canvas */
+      .workspace {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        padding: 32px;
+      }
+      .hero {
+        text-align: center;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .logo-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border: 1px solid var(--border);
         display: grid;
         place-items: center;
-        font-family: system-ui, sans-serif;
-        background: #0a0a0a;
-        color: #e5e5e5;
-        padding: 2rem;
-        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: breathe 3s ease-in-out infinite;
       }
-      #card {
-        max-width: 32rem;
-        padding: 2rem 2.25rem;
-        border: 1px solid #262626;
+      .hero-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+      .hero-sub {
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .input-skeleton {
+        position: absolute;
+        bottom: 28px;
+        width: min(680px, calc(100% - 48px));
+        height: 52px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #111114;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+      }
+      .input-placeholder {
+        width: 140px;
+        height: 14px;
+        border-radius: 4px;
+        background: var(--shimmer);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+      }
+      /* Error overlay */
+      #error-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        z-index: 100;
+        place-items: center;
+        padding: 24px;
+      }
+      .error-card {
+        max-width: 440px;
+        width: 100%;
+        background: #18181b;
+        border: 1px solid #7f1d1d;
         border-radius: 14px;
-        background: #111111;
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+        padding: 24px;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
         text-align: left;
       }
-      #title {
-        margin: 0 0 0.75rem;
+      .error-title {
+        color: #f87171;
         font-size: 1.05rem;
         font-weight: 600;
-        letter-spacing: 0.01em;
+        margin-bottom: 8px;
       }
-      #status {
-        margin: 0;
+      .error-message {
+        font-size: 0.88rem;
+        color: #d4d4d8;
         line-height: 1.6;
-        color: #d4d4d4;
+        word-break: break-word;
       }
-      #card.error {
-        border-color: #7f1d1d;
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
       }
-      #card.error #title {
-        color: #f87171;
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.9); }
+      }
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); border-color: var(--border); }
+        50% { transform: scale(1.04); border-color: #3b82f6; box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
       }
     </style>
   </head>
   <body>
-    <div id="card">
-      <h1 id="title">MyrmAgent</h1>
-      <p id="status">正在启动本地服务…</p>
+    <div class="top-bar" data-tauri-drag-region>
+      <div class="brand" data-tauri-drag-region>
+        <span class="brand-dot"></span>
+        <span>MyrmAgent</span>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">正在就绪本地 AI 内核…</span>
+      </div>
     </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="btn-skeleton"></div>
+        <div class="list-skeleton">
+          <div class="item-skeleton" style="width: 85%;"></div>
+          <div class="item-skeleton" style="width: 95%;"></div>
+          <div class="item-skeleton" style="width: 70%;"></div>
+          <div class="item-skeleton" style="width: 80%;"></div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <div class="hero">
+          <div class="logo-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>
+            </svg>
+          </div>
+          <h1 class="hero-title">Myrm AI 个人工作站</h1>
+          <p class="hero-sub">本地专属沙箱与安全中枢已准备就绪，马上进入工作台…</p>
+        </div>
+
+        <div class="input-skeleton">
+          <div class="input-placeholder"></div>
+        </div>
+      </main>
+    </div>
+
+    <div id="error-modal">
+      <div class="error-card">
+        <h2 id="error-title" class="error-title">启动遇到异常</h2>
+        <p id="error-desc" class="error-message">正在初始化…</p>
+      </div>
+    </div>
+
     <script>
       const host = "127.0.0.1";
       let stopped = false;
 
       function showError(message) {
         stopped = true;
-        document.getElementById("title").textContent = "启动失败";
-        document.getElementById("status").textContent = message;
-        document.getElementById("card").classList.add("error");
+        document.getElementById("error-title").textContent = "客户端启动异常";
+        document.getElementById("error-desc").textContent = message;
+        document.getElementById("error-modal").style.display = "grid";
       }
 
       function showBackendWarning(message) {
-        document.getElementById("title").textContent = "后端未就绪";
-        document.getElementById("status").textContent = message;
-        document.getElementById("card").classList.add("error");
+        document.getElementById("error-title").textContent = "AI 后端未就绪";
+        document.getElementById("error-desc").textContent = message;
+        document.getElementById("error-modal").style.display = "grid";
       }
 
-      function bindFailureListener() {
+      function bindEvents() {
         const listen = window.__TAURI__?.event?.listen;
-        if (!listen) {
-          return;
-        }
+        if (!listen) return;
+
         listen("frontend-start-failed", (event) => {
-          const message =
-            typeof event.payload === "string" && event.payload
-              ? event.payload
-              : "UI failed to start. Restart MyrmAgent or change the WebUI port in Settings.";
+          const message = typeof event.payload === "string" && event.payload
+            ? event.payload
+            : "前端渲染服务启动失败。请重启应用或检查 WebUI 端口设置。";
           showError(message);
         });
+
         listen("backend-start-failed", (event) => {
-          const message =
-            typeof event.payload === "string" && event.payload
-              ? event.payload
-              : "Backend failed to start. Opening UI…";
+          const message = typeof event.payload === "string" && event.payload
+            ? event.payload
+            : "本地 AI 后端未能正常响应。请检查端口是否被占用。";
           showBackendWarning(message);
         });
       }
 
-      async function start() {
-        // 只负责展示启动/失败状态；导航由 Rust 侧在它自己拉起的 Next 就绪后统一触发，
-        // 避免本页面抢先跳到占用同一端口的其它服务（会渲染出残缺界面）。
-        bindFailureListener();
-        document.getElementById("status").textContent = "正在启动本地服务…";
+      async function bootstrap() {
+        // A very early backend failure can race the event listener; the shell URL carries
+        // the reason so the modal is guaranteed to render on this load.
+        const startupError = new URLSearchParams(window.location.search).get("startup_error");
+        if (startupError) {
+          showBackendWarning(startupError);
+          return;
+        }
+        bindEvents();
+        // 预取桌面配置以同步端口与环境状态（Launch Contract 保证）
+        try {
+          const invoke = window.__TAURI__?.core?.invoke;
+          if (invoke) {
+            await invoke("load_system_config");
+          }
+        } catch (e) {
+          console.warn("[FrontendShell] load_system_config prefetch notice:", e);
+        }
       }
 
-      start();
+      bootstrap();
     </script>
   </body>
 </html>

@@ -175,6 +175,14 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                     "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
                 tray::update_native_tray_status(&backend_app, "error", tooltip);
                 let _ = backend_app.emit("backend-start-failed", e.clone());
+                // The shell listener may not be bound yet on a very early failure; put the
+                // reason in the shell URL as well so the modal is guaranteed to show.
+                if let Some(window) = backend_app.get_webview_window("main") {
+                    if let Ok(mut url) = "tauri://localhost".parse::<tauri::Url>() {
+                        url.query_pairs_mut().append_pair("startup_error", &e);
+                        let _ = window.navigate(url);
+                    }
+                }
             }
         }
     });
