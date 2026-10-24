@@ -59,7 +59,7 @@ async def test_vault_research_to_wiki_uses_publish_raw(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_vault_research_blocks_credential_content(tmp_path: Path) -> None:
+async def test_vault_research_redacts_credential_content(tmp_path: Path) -> None:
     from app.services.agent.stream_session.stream_lane_factory import _build_wiki_vault_callback
 
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
@@ -91,4 +91,7 @@ async def test_vault_research_blocks_credential_content(tmp_path: Path) -> None:
         await callback(_Result())
 
     raw_files = list((wiki_base / "raw").rglob("deep_research_*.md"))
-    assert raw_files == []
+    assert len(raw_files) == 1
+    persisted = raw_files[0].read_text(encoding="utf-8")
+    assert secret not in persisted
+    assert "[REDACTED:openai_key]" in persisted

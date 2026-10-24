@@ -458,7 +458,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
                 len(written_files),
             )
         except Exception as e:
-            logger.warning("[deep-research-vault] Failed to enqueue for compilation: %s", e)
+            logger.warning("[deep-research-vault] Failed to enqueue for compilation: %s", e, exc_info=True)
 
     return _vault_research_to_wiki
 

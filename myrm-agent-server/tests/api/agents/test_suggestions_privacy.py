@@ -49,8 +49,18 @@ async def _suggest(personal_settings: dict[str, object]) -> str:
 
 
 @pytest.mark.asyncio
-async def test_privacy_on_masks_the_conversation_sent_to_the_suggestion_model() -> None:
+async def test_privacy_on_masks_s3_by_default_and_leaves_s2_to_warn() -> None:
+    """S3 defaults to redact, S2 defaults to warn — the persisted contract the settings UI exposes."""
     prompt = await _suggest({"privacyEnabled": True})
+
+    assert _PASSWORD not in prompt
+    assert _PHONE in prompt
+
+
+@pytest.mark.asyncio
+async def test_privacy_on_masks_s2_too_when_the_user_picks_redact() -> None:
+    """Choosing redact for S2 removes the phone number from the outbound prompt as well."""
+    prompt = await _suggest({"privacyEnabled": True, "privacyS2Action": "redact"})
 
     assert _PHONE not in prompt
     assert _PASSWORD not in prompt
