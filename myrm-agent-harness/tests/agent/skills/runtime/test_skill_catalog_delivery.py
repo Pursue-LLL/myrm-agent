@@ -268,8 +268,11 @@ def test_resolve_catalog_display_skills_keeps_always_first_within_budget() -> No
 
 def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
+        L1_CATALOG_MAX_TOKENS,
         resolve_catalog_display_skills,
     )
+    from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
+    from myrm_agent_harness.utils.text_utils import get_token_count
 
     skills = [
         SkillMetadata(
@@ -283,6 +286,11 @@ def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
     resolution = resolve_catalog_display_skills(skills)
     assert 0 < len(resolution.display_skills) < len(skills)
     assert resolution.hidden_skill_count > 0
+    rendered = get_metadata_summary(
+        resolution.display_skills,
+        hidden_skill_count=resolution.hidden_skill_count,
+    )
+    assert get_token_count(rendered) <= L1_CATALOG_MAX_TOKENS
 
 
 def test_hidden_skills_are_count_only_not_name_listed() -> None:
