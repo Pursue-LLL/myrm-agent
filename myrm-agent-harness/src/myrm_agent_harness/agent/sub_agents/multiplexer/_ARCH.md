@@ -3,7 +3,7 @@
 ## 架构概述
 
 持久化多智能体会话多路复用器（Agent Session Multiplexer）与跨智能体互视/指导机制（tmux 架构范式）。
-提供多并发持久会话管理、环形日志切片缓冲、无头工作者标记、跨 Agent 互视（`inspect_agent_session`）与动态指导注入（`instruct_agent`）。
+提供多并发持久会话管理、环形日志切片缓冲、无头工作者标记，以及引擎侧的互视快照与指令队列原语（不暴露为 LLM 工具，跨 Agent 协同走 `delegate_task_tool` / `subagent_control_tool`）。
 上级目录：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
