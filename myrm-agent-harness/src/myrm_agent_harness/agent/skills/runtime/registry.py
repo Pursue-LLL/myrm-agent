@@ -18,6 +18,7 @@ Skill registry. Manages runtime caches and lookups, primarily for MCP-based skil
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from xml.sax.saxutils import escape, quoteattr
 
 from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -171,9 +172,14 @@ def _render_skill_entry(skill: SkillMetadata) -> list[str]:
     return lines
 
 
+@lru_cache(maxsize=4096)
+def _entry_token_cost(rendered_entry: str) -> int:
+    return get_token_count(rendered_entry)
+
+
 def estimate_skill_entry_tokens(skill: SkillMetadata) -> int:
-    """Exact token cost of one rendered catalog entry."""
-    return get_token_count("\n".join(_render_skill_entry(skill)))
+    """Exact token cost of one rendered catalog entry (cached by rendered bytes)."""
+    return _entry_token_cost("\n".join(_render_skill_entry(skill)))
 
 
 def get_metadata_summary(
