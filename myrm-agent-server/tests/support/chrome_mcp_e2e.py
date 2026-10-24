@@ -271,6 +271,47 @@ def get_first_enabled_model(api_url: str | None = None) -> str:
     raise RuntimeError(f"E2E: no enabled provider model found on {base}")
 
 
+def backend_boot_identity(api_url: str) -> str:
+    """Best-effort ``pid:started_at`` for whichever process serves the API port.
+
+    A LIVE turn can be interrupted by a dev-stack hot reload (another agent edits backend
+    code): the stream dies before any assistant message, and the test then reads like a
+    product defect. Comparing this value before and after the wait separates the two.
+    Returns "" when the platform cannot answer, so an unknown identity never invents a
+    restart.
+    """
+    from urllib.parse import urlsplit
+
+    port = urlsplit(api_url).port
+    if port is None:
+        return ""
+    try:
+        listing = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        pid = next(
+            (line.strip() for line in (listing.stdout or "").splitlines() if line.strip().isdigit()),
+            "",
+        )
+        if not pid:
+            return ""
+        started = subprocess.run(
+            ["ps", "-p", pid, "-o", "lstart="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        started_at = (started.stdout or "").strip()
+        return f"{pid}:{started_at}" if started_at else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def http_json(
     method: str,
     url: str,
@@ -2988,6 +3029,16 @@ def wait_for_react_e2e_bridge(
             and not require_attach
             and polls >= 8
         ):
+            # A soft-ready page has the shell but no bridge. Callers that later need
+            # ``window.__MYRM_E2E_CHAT__`` then fail far from the cause, so leave a
+            # greppable marker here: the absence of this line means the bridge really
+            # attached, and its presence names the page that only looked ready.
+            print(
+                f"E2E_SOFT_READY_NO_BRIDGE: url={target_url} polls={polls} "
+                f"hasAttach={last.get('hasAttach')} hasInput={last.get('hasInput')}",
+                file=sys.stderr,
+                flush=True,
+            )
             return {**last, "ready": True, "softReady": True}
         if (
             last.get("hasSkeleton") is True or (last.get("hasAppLayout") is True and last.get("hasAttach") is not True)
