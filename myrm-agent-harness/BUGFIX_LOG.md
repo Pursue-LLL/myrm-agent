@@ -2,6 +2,32 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-24-023 · 搜索索引包含 unavailable 技能
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-24（L1 预算/搜索复查） |
+| **修复时间** | 2026-10-24 |
+| **严重程度** | P2：搜索可能推荐一个缺少 bin/env 的不可用技能，用户选中后才失败 |
+| **关联产品** | harness `agent/meta_tools/discover_capability/discover_capability_tool.py`、`agent/skills/runtime/catalog_display.py` |
+| **根因** | `discoverable_skills` 只检查 `model_invocable`，没有检查 `available`；`filtered_skills` 包含不可用技能，索引因此把它们当作可发现能力。 |
+| **修复** | `should_mount_skill_search_tool` 和 `sync_discover_capability_tool` 都要求 `model_invocable and available`；新增不可用技能不出现在搜索结果中的回归。 |
+| **回归** | `test_search_index_excludes_unavailable_skills` 通过；搜索/发现定向 7 passed。 |
+
+### BUG-HARNESS-2026-10-24-024 · skill_select schema 仍声称只能传 catalog 名字
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-24（L1 无 name-only 后复查） |
+| **修复时间** | 2026-10-24 |
+| **严重程度** | P2：模型可能因 schema 文案而不传 hidden 技能名，导致用户点名也走 search |
+| **关联产品** | harness `agent/meta_tools/skills/select/skill_select_tool.py` |
+| **根因** | `skill_names` field description 仍写 “from <bound_skills> catalog”，但 hidden 名字已不再列出；用户明确点名时应直接 select。 |
+| **修复** | 改为 “bound library: listed catalog entries or an explicitly named bound skill”；新增 schema 文案测试。 |
+| **回归** | `test_skill_select_input_accepts_named_skills_outside_the_inline_catalog` 通过。 |
+
 ### BUG-HARNESS-2026-10-24-022 · 目录 hash 忽略 hidden_count，目录更新可能不刷新隐藏计数
 
 | 字段 | 内容 |
