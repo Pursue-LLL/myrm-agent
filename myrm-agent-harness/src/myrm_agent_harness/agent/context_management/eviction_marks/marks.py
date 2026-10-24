@@ -1,4 +1,4 @@
-"""Message-level working memory marks metadata contract and inspection primitives.
+"""Message-level eviction marks metadata contract and inspection primitives.
 
 Provides fine-grained semantic categorization (hints, scratchpads, raw tool outputs,
 pinned rules, trap shields) to decouple memory storage from compression strategies.
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class EvictionMark(StrEnum):
-    """Standard marks used across working memory and context management pipelines."""
+    """Standard marks used across eviction and context management pipelines."""
 
     HINT = "hint"  # Transient single-turn guidance/reflection (evicted after turn)
     SCRATCHPAD = "scratchpad"  # Intermediate working notes/drafts (evicted when subtask resolves)

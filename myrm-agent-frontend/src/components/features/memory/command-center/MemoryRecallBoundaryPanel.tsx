@@ -298,14 +298,14 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
 
           <div className="p-4 rounded-xl border border-border/60 bg-card/60 space-y-2">
             <h4 className="text-xs font-semibold text-foreground flex items-center justify-between">
-              <span>{t('partitionWorkingMemory')}</span>
-              <span className="text-primary font-mono">{data.partitions.working_memory_count} items</span>
+              <span>{t('partitionSessionMemory')}</span>
+              <span className="text-primary font-mono">{data.partitions.session_memory_count} items</span>
             </h4>
             <p className="text-[11px] text-muted-foreground">
               Task digests, active dialogue history, and running context.
             </p>
             <div className="text-[11px] font-mono text-muted-foreground/80">
-              {data.partitions.working_memory_chars} chars
+              {data.partitions.session_memory_chars} chars
             </div>
           </div>
 

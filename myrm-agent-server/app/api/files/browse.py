@@ -426,7 +426,7 @@ async def browse_content(
     media previews and seeking work for large files.
 
     Either ``workspace`` or ``chat_id`` must be provided so the server can
-    establish the allowed root (matches Active Working Memory previews when the
+    establish the allowed root (matches Active Files previews when the
     UI has not yet synced ``workspace_dir`` into client state).
     """
     from myrm_agent_harness.agent.security.path_security import is_dangerous_path, is_sensitive_file

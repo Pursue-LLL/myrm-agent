@@ -137,7 +137,7 @@ def test_capacity_theater_probe_clean() -> None:
     """Verify clean memory stack returns ready status and no auto fix."""
     check = probe_capacity_theater(
         total_active_chars=1200,
-        working_memory_count=5,
+        session_memory_count=5,
         unpinned_count=10,
         budget_limit=6000,
     )
@@ -151,7 +151,7 @@ def test_capacity_theater_probe_bloated() -> None:
     """Verify bloated memory stack returns warning status and restore repair action."""
     check = probe_capacity_theater(
         total_active_chars=7500,
-        working_memory_count=45,
+        session_memory_count=45,
         unpinned_count=60,
         budget_limit=6000,
     )

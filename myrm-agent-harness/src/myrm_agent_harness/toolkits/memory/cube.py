@@ -45,7 +45,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 class LifecycleTier(StrEnum):
     """Hierarchical lifecycle tiers for agent memories."""
 
-    L1_WORKBENCH = "L1_WORKBENCH"  # Active in-turn scratchpad / ephemeral working memory
+    L1_WORKBENCH = "L1_WORKBENCH"  # Active in-turn scratchpad / ephemeral session memory
     L2_CONSOLIDATED = "L2_CONSOLIDATED"  # Session consolidated rules and task digests
     L3_COMPILED = "L3_COMPILED"  # Long-term semantic vectors and graph claims
     ARCHIVED = "ARCHIVED"  # Demoted cold storage, pending garbage collection

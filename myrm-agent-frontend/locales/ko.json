@@ -5196,7 +5196,7 @@
         },
         "capacity_theater": {
           "label": "용량 극장 및 메모리 규율",
-          "evidence": "활성 작업 메모리가 예산 상한을 초과하거나 과도한 누적 및 인과적 맹점이 있는지 확인합니다."
+          "evidence": "활성 세션 메모리가 예산 상한을 초과하거나 과도한 누적 및 인과적 맹점이 있는지 확인합니다."
         },
         "memory_mislayer_governance": {
           "label": "메모리 스코프 오배치 가드",
@@ -5228,7 +5228,7 @@
           "expectedEffect": "GUI에서 신선도, 커버리지, 보존 상태, 일관성 신호를 업데이트합니다."
         },
         "restore_disciplined_defaults": {
-          "dryRun": "고정되지 않은 작업 메모리를 백업 스냅샷으로 안전하게 아카이브하고 활성 메모리를 규율 있는 기본값으로 좁힙니다.",
+          "dryRun": "고정되지 않은 세션 메모리를 백업 스냅샷으로 안전하게 아카이브하고 활성 메모리를 규율 있는 기본값으로 좁힙니다.",
           "expectedEffect": "용량 극장과 인과적 맹점을 제거하는 동시에 프롬프트 접두사 캐싱과 추론 선명도를 향상시킵니다."
         },
         "review_storage_config": {
@@ -13844,7 +13844,6 @@
     "noApproved": "승인된 메모리 레코드가 없습니다.",
     "fourPartitionsTitle": "4대 메모리 역할 파티션 (Mise en Place)",
     "partitionIdentity": "신원 및 선호도",
-    "partitionWorkingMemory": "작업 메모리",
     "partitionOperatingInstructions": "운영 지침",
     "partitionRetrievableEvidence": "검색 가능한 증거",
     "budgetTitle": "턴당 로드 글자 예산",
@@ -13861,7 +13860,8 @@
     "reject": "거부",
     "pinned": "고정됨",
     "viewDetails": "세부 정보 보기",
-    "refresh": "경계 새로고침"
+    "refresh": "경계 새로고침",
+    "partitionSessionMemory": "세션 메모리"
   },
   "evidenceStageHUD": {
     "stages": {
@@ -14993,7 +14993,7 @@
       "switchAgent": "전문 에이전트 전환 (/agent)",
       "switchAgentDesc": "코드 아키텍트, 테스터 등으로 빠르게 전환",
       "clearContext": "현재 컨텍스트 지우기 (/clear)",
-      "clearContextDesc": "작업 메모리와 멀티턴 윈도우 초기화",
+      "clearContextDesc": "세션 메모리와 멀티턴 윈도우 초기화",
       "exportSession": "오프라인 HTML 번들 내보내기 (/export)",
       "exportSessionDesc": "멀티턴 작업을 독립 실행형 인터랙티브 HTML로 패키징",
       "globalEstop": "전역 긴급 정지 (/estop)",

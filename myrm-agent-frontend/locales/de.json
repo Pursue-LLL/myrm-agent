@@ -13844,7 +13844,6 @@
     "noApproved": "Keine genehmigten Gedächtnisdatensätze gefunden.",
     "fourPartitionsTitle": "Vier Gedächtnis-Funktionspartitionen (Mise en Place)",
     "partitionIdentity": "Identität & Präferenzen",
-    "partitionWorkingMemory": "Arbeitsgedächtnis",
     "partitionOperatingInstructions": "Betriebsanweisungen",
     "partitionRetrievableEvidence": "Abrufbare Beweise",
     "budgetTitle": "Zeichenbudget pro Zug",
@@ -13861,7 +13860,8 @@
     "reject": "Ablehnen",
     "pinned": "Angeheftet",
     "viewDetails": "Details anzeigen",
-    "refresh": "Grenze aktualisieren"
+    "refresh": "Grenze aktualisieren",
+    "partitionSessionMemory": "Sitzungsgedächtnis"
   },
   "evidenceStageHUD": {
     "stages": {

@@ -6,7 +6,7 @@ from myrm_agent_harness.toolkits.memory.consolidation import (
     ConsolidationSubtask,
     ConsolidationTrap,
     HyperConsolidator,
-    WorkingMemorySnapshot,
+    TaskSessionSnapshot,
 )
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import (
     SQLiteRelationalStore,
@@ -44,7 +44,7 @@ def test_task_digest_memory_schema() -> None:
 @pytest.mark.asyncio
 async def test_hyper_consolidator_gatekeeper_bypass() -> None:
     """Verify trivial conversations (turns <= 1, no subtasks) bypass consolidation."""
-    snapshot = WorkingMemorySnapshot(goal="Trivial question", active_turn=1)
+    snapshot = TaskSessionSnapshot(goal="Trivial question", active_turn=1)
 
     consolidator = HyperConsolidator()
     digest, rules = await consolidator.consolidate_session(
@@ -60,7 +60,7 @@ async def test_hyper_consolidator_gatekeeper_bypass() -> None:
 @pytest.mark.asyncio
 async def test_hyper_consolidator_status_normalization() -> None:
     """Verify non-terminal snapshot statuses normalize to completed digests."""
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Normalize me",
         active_turn=3,
         status="active",
@@ -79,7 +79,7 @@ async def test_hyper_consolidator_status_normalization() -> None:
 @pytest.mark.asyncio
 async def test_hyper_consolidator_store_batch_path() -> None:
     """Verify the store_batch fast path is used when the manager offers it."""
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Batch persist",
         active_turn=2,
         status="completed",
@@ -124,7 +124,7 @@ async def test_consolidation_cleanup_task_wires_provider_and_after_run() -> None
     )
 
     seen: list[str] = []
-    snapshot = WorkingMemorySnapshot(goal="Factory wired", active_turn=2)
+    snapshot = TaskSessionSnapshot(goal="Factory wired", active_turn=2)
 
     task = create_consolidation_cleanup_task(
         snapshot_provider=lambda: snapshot,
@@ -163,7 +163,7 @@ async def test_hyper_consolidator_persists_to_real_sqlite(tmp_path: object) -> N
         async def store(self, memory: object) -> None:
             self.episodics.append(memory)
 
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Ship nightly backup",
         active_turn=3,
         status="completed",
@@ -198,7 +198,7 @@ async def test_hyper_consolidator_persists_to_real_sqlite(tmp_path: object) -> N
 @pytest.mark.asyncio
 async def test_hyper_consolidator_distillation_and_procedural_rules() -> None:
     """Verify rich long-horizon session distills TaskDigest and self-healing ProceduralMemory."""
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Audit security headers and configure Content-Security-Policy",
         active_turn=2,
         status="completed",
@@ -242,7 +242,7 @@ async def test_hyper_consolidator_distillation_and_procedural_rules() -> None:
 @pytest.mark.asyncio
 async def test_hyper_consolidator_persistence_with_memory_manager() -> None:
     """Verify HyperConsolidator correctly invokes relational.create_rule and manager.store."""
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Configure production Redis Sentinel",
         active_turn=2,
         status="completed",
@@ -341,7 +341,7 @@ async def test_sqlite_procedural_memory_error_fingerprint_roundtrip(tmp_path: ob
 @pytest.mark.asyncio
 async def test_hyper_consolidator_purity_guard_filters_prior_and_unresolved_traps() -> None:
     """Verify HyperConsolidator skips prior traps (occurred_turn=0) and unresolved traps."""
-    snapshot = WorkingMemorySnapshot(
+    snapshot = TaskSessionSnapshot(
         goal="Purity guard test",
         active_turn=2,
         status="completed",

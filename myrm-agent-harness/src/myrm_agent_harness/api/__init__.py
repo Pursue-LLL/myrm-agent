@@ -321,7 +321,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "ProviderBalanceProbeProtocol": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceProbeProtocol"),
     "ProviderBalanceResult": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceResult"),
     "ProviderBalanceStatus": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceStatus"),
-    "WorkingMemorySnapshot": ("myrm_agent_harness.toolkits.memory.consolidation", "WorkingMemorySnapshot"),
+    "TaskSessionSnapshot": ("myrm_agent_harness.toolkits.memory.consolidation", "TaskSessionSnapshot"),
     "create_consolidation_cleanup_task": (
         "myrm_agent_harness.toolkits.memory.consolidation",
         "create_consolidation_cleanup_task",

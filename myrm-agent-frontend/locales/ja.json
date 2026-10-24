@@ -5196,7 +5196,7 @@
         },
         "capacity_theater": {
           "label": "容量シアターとメモリ規律",
-          "evidence": "アクティブな作業メモリが予算上限を超えていないか、過剰なスタックや因果盲目がないか検査します。"
+          "evidence": "アクティブなセッションメモリが予算上限を超えていないか、過剰なスタックや因果盲目がないか検査します。"
         },
         "memory_mislayer_governance": {
           "label": "メモリスコープ誤配置ガード",
@@ -5228,7 +5228,7 @@
           "expectedEffect": "GUI の鮮度、カバレッジ、保持ヘルス、一貫性シグナルを更新します。"
         },
         "restore_disciplined_defaults": {
-          "dryRun": "ピン留めされていない作業メモリをバックアップスナップショットに安全に退避し、アクティブメモリを規律あるデフォルトに絞り込みます。",
+          "dryRun": "ピン留めされていないセッションメモリをバックアップスナップショットに安全に退避し、アクティブメモリを規律あるデフォルトに絞り込みます。",
           "expectedEffect": "容量シアターと因果盲目を解消し、プロンプト接頭辞キャッシュと推論の鋭さを高めます。"
         },
         "review_storage_config": {
@@ -13844,7 +13844,6 @@
     "noApproved": "承認されたメモリレコードは見つかりません。",
     "fourPartitionsTitle": "4つのメモリパーティション (Mise en Place)",
     "partitionIdentity": "アイデンティティと好み",
-    "partitionWorkingMemory": "作業メモリ",
     "partitionOperatingInstructions": "操作手順",
     "partitionRetrievableEvidence": "検索可能な証拠",
     "budgetTitle": "ターンごとの読み込み文字予算",
@@ -13861,7 +13860,8 @@
     "reject": "拒否",
     "pinned": "ピン留め",
     "viewDetails": "詳細を表示",
-    "refresh": "境界を更新"
+    "refresh": "境界を更新",
+    "partitionSessionMemory": "セッションメモリ"
   },
   "evidenceStageHUD": {
     "stages": {

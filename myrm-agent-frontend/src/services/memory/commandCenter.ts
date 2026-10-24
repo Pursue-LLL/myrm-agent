@@ -625,11 +625,11 @@ export interface MemoryRecallScopeBoundary {
 
 export interface MemoryFourPartitionSummary {
   identity_count: number;
-  working_memory_count: number;
+  session_memory_count: number;
   operating_instructions_count: number;
   retrievable_evidence_count: number;
   identity_chars: number;
-  working_memory_chars: number;
+  session_memory_chars: number;
   operating_instructions_chars: number;
   retrievable_evidence_chars: number;
 }
@@ -649,7 +649,7 @@ export interface MemoryApprovedRecord {
   memory_type: string;
   content_preview: string;
   namespace: string;
-  partition: 'identity' | 'working_memory' | 'operating_instructions' | 'retrievable_evidence';
+  partition: 'identity' | 'session_memory' | 'operating_instructions' | 'retrievable_evidence';
   importance: number;
   access_count: number;
   char_count: number;

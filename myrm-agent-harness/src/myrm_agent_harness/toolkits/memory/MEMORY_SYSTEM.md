@@ -1080,7 +1080,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 ## 十七、终态异步提炼与固化中枢 (HyperConsolidator)
 
 - **核心位置**：`myrm_agent_harness.toolkits.memory.consolidation`；
-- **宿主供给快照**：`WorkingMemorySnapshot` 是框架中立的输入契约，由宿主按自己的任务模型构造；框架不内置运行时工作台，也不强制任何计划工具；
+- **宿主供给快照**：`TaskSessionSnapshot` 是框架中立的输入契约，由宿主按自己的任务模型构造；框架不内置运行时工作台，也不强制任何计划工具；
 - **异步蒸馏**：具备轻量门禁（会话交互 <= 1 轮且无子任务推进时跳过），从会话轨迹与宿主快照中产出 `TaskDigestMemory`（写入 `episodic_store`）；
 - **程序性规程**：仅提炼当前会话验证自愈成功的规程（`trap.resolved is True`），跳过开局注入的历史先验规则与未解决推测，避免规程库克隆膨胀。
 

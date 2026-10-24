@@ -78,7 +78,7 @@ _REPAIR_PLAN_CATALOG: dict[str, _RepairPlanSpec] = {
     "restore_disciplined_defaults": _RepairPlanSpec(
         label="Restore disciplined defaults",
         risk_level="safe",
-        dry_run_result="Archives unpinned working memories into a safe backup snapshot.",
+        dry_run_result="Archives unpinned session memories into a safe backup snapshot.",
         expected_effect="Eliminates capacity theater and causal blindness while preserving pinned core preferences.",
         requires_confirmation=False,
         executable=True,

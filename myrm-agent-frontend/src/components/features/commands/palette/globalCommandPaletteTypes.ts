@@ -55,7 +55,7 @@ export const DEFAULT_COMMAND_ACTIONS: readonly CommandPaletteAction[] = [
   {
     id: 'clear_context',
     title: 'Clear Current Context (/clear)',
-    description: 'Flush working memory and reset conversation context window',
+    description: 'Flush conversation context and reset the context window',
     category: 'session',
     shortcut: 'C',
     keyword: 'clear reset flush context memory',

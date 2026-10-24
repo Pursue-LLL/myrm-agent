@@ -1,4 +1,4 @@
-"""Unit tests for working memory marks metadata contract and inspection primitives."""
+"""Unit tests for eviction marks metadata contract and inspection primitives."""
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 

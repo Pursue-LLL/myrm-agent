@@ -5196,7 +5196,7 @@
         },
         "capacity_theater": {
           "label": "容量劇場與記憶紀律",
-          "evidence": "檢查活躍工作記憶是否超出預算上限或存在過度堆疊，避免因果盲區與 Token 賬單浪費。"
+          "evidence": "檢查活躍會話記憶是否超出預算上限或存在過度堆疊，避免因果盲區與 Token 賬單浪費。"
         },
         "memory_mislayer_governance": {
           "label": "記憶錯層存入治理 (Mislayer Guard)",
@@ -5228,7 +5228,7 @@
           "expectedEffect": "更新 GUI 中的新鮮度、覆蓋率、保留健康和一致性訊號。"
         },
         "restore_disciplined_defaults": {
-          "dryRun": "安全地將未釘選的工作記憶歸檔至備份快照，並將活躍記憶收窄至紀律預設值。",
+          "dryRun": "安全地將未釘選的會話記憶歸檔至備份快照，並將活躍記憶收窄至紀律預設值。",
           "expectedEffect": "消除容量劇場與因果盲區，同時提升提示詞字首快取命中率與推理敏銳度。"
         },
         "review_storage_config": {
@@ -13844,7 +13844,6 @@
     "noApproved": "暫無已生效記憶",
     "fourPartitionsTitle": "四記憶職責分區 (Mise en Place)",
     "partitionIdentity": "身份與偏好",
-    "partitionWorkingMemory": "工作態記憶",
     "partitionOperatingInstructions": "操作準則",
     "partitionRetrievableEvidence": "事實證據",
     "budgetTitle": "單輪裝載字元預算",
@@ -13861,7 +13860,8 @@
     "reject": "駁回",
     "pinned": "置頂",
     "viewDetails": "查看詳情",
-    "refresh": "重新整理邊界"
+    "refresh": "重新整理邊界",
+    "partitionSessionMemory": "會話記憶"
   },
   "evidenceStageHUD": {
     "stages": {
@@ -14993,7 +14993,7 @@
       "switchAgent": "切換智慧體專員 (/agent)",
       "switchAgentDesc": "快速換用程式碼專家、架構師等專任 Agent",
       "clearContext": "清空當前上下文 (/clear)",
-      "clearContextDesc": "重置工作記憶與多輪對話視窗",
+      "clearContextDesc": "重置會話記憶與多輪對話視窗",
       "exportSession": "匯出單檔案離線會話 (/export)",
       "exportSessionDesc": "打包當前多輪任務為獨立互動式 HTML",
       "globalEstop": "全域性物理急停 (Global E-Stop)",

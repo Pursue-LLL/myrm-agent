@@ -29,7 +29,7 @@ class OneClickArbitrator:
         choice: AdoptionChoice = AdoptionChoice.SYNTHESIZED_CONSENSUS,
         specific_agent_role: AgentRoleTarget | None = None,
     ) -> AdoptionReceipt:
-        """Resolve user choice into an AdoptionReceipt with ready-to-inject working memory markdown block."""
+        """Resolve user choice into an AdoptionReceipt with ready-to-inject context markdown block."""
         adopted_agent: AgentRoleTarget | None = None
         adopted_summary: str = ""
 

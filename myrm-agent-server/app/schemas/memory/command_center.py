@@ -641,14 +641,14 @@ class MemoryRecallScopeBoundary(BaseModel):
 
 
 class MemoryFourPartitionSummary(BaseModel):
-    """Four memory job partitions (Identity, Working Memory, Operating Instructions, Retrievable Evidence)."""
+    """Four memory job partitions (Identity, Session Memory, Operating Instructions, Retrievable Evidence)."""
 
     identity_count: int = 0
-    working_memory_count: int = 0
+    session_memory_count: int = 0
     operating_instructions_count: int = 0
     retrievable_evidence_count: int = 0
     identity_chars: int = 0
-    working_memory_chars: int = 0
+    session_memory_chars: int = 0
     operating_instructions_chars: int = 0
     retrievable_evidence_chars: int = 0
 
@@ -672,7 +672,7 @@ class MemoryApprovedRecord(BaseModel):
     memory_type: str
     content_preview: str
     namespace: str
-    partition: Literal["identity", "working_memory", "operating_instructions", "retrievable_evidence"]
+    partition: Literal["identity", "session_memory", "operating_instructions", "retrievable_evidence"]
     importance: float
     access_count: int
     char_count: int

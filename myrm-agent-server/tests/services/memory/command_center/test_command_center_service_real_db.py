@@ -332,7 +332,7 @@ class TestRecallBoundary:
 
         partitions = data.partitions
         assert (partitions.identity_count, partitions.operating_instructions_count) == (1, 1)
-        assert (partitions.working_memory_count, partitions.retrievable_evidence_count) == (1, 1)
+        assert (partitions.session_memory_count, partitions.retrievable_evidence_count) == (1, 1)
         assert partitions.retrievable_evidence_chars == chars
         assert data.budget_chars_used == 100 + chars + 50 + 10
         assert data.budget_chars_total == BUDGET_CHARS_TOTAL

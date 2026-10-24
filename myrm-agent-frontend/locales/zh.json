@@ -5196,7 +5196,7 @@
         },
         "capacity_theater": {
           "label": "容量剧场与记忆纪律",
-          "evidence": "检查活跃工作记忆是否超出预算上限或存在过度堆叠，避免因果盲区与 Token 账单浪费。"
+          "evidence": "检查活跃会话记忆是否超出预算上限或存在过度堆叠，避免因果盲区与 Token 账单浪费。"
         },
         "memory_mislayer_governance": {
           "label": "记忆错层存入治理 (Mislayer Guard)",
@@ -5228,7 +5228,7 @@
           "expectedEffect": "更新 GUI 中的新鲜度、覆盖率、保留健康和一致性信号。"
         },
         "restore_disciplined_defaults": {
-          "dryRun": "将未固定的临时工作记忆与知识安全归档，保留固定偏好并收窄到纪律默认状态。",
+          "dryRun": "将未固定的临时会话记忆与知识安全归档，保留固定偏好并收窄到纪律默认状态。",
           "expectedEffect": "消除记忆过载与因果盲区，恢复提示词前缀缓存高命中率与极速推理。"
         },
         "review_storage_config": {
@@ -13844,7 +13844,6 @@
     "noApproved": "暂无已生效记忆",
     "fourPartitionsTitle": "四记忆职责分区 (Mise en Place)",
     "partitionIdentity": "身份与偏好",
-    "partitionWorkingMemory": "工作态记忆",
     "partitionOperatingInstructions": "操作准则",
     "partitionRetrievableEvidence": "事实证据",
     "budgetTitle": "单轮装载字符预算",
@@ -13861,7 +13860,8 @@
     "reject": "驳回",
     "pinned": "置顶",
     "viewDetails": "查看详情",
-    "refresh": "刷新边界"
+    "refresh": "刷新边界",
+    "partitionSessionMemory": "会话记忆"
   },
   "evidenceStageHUD": {
     "stages": {
@@ -14993,7 +14993,7 @@
       "switchAgent": "切换智能体专员 (/agent)",
       "switchAgentDesc": "快速换用代码专家、架构师等专任 Agent",
       "clearContext": "清空当前上下文 (/clear)",
-      "clearContextDesc": "重置工作记忆与多轮对话窗口",
+      "clearContextDesc": "重置会话上下文与多轮对话窗口",
       "exportSession": "导出单文件离线会话 (/export)",
       "exportSessionDesc": "打包当前多轮任务为独立交互式 HTML",
       "globalEstop": "全局物理急停 (Global E-Stop)",
@@ -16204,7 +16204,7 @@
         "badgeLocalOnly": "仅本地",
         "localChatHistory": "对话记录与会话",
         "localChatHistoryDesc": "保存在您设备上的本地 SQLite 数据库中。",
-        "localMemory": "工作记忆与长效记忆",
+        "localMemory": "会话记忆与长效记忆",
         "localMemoryDesc": "向量嵌入与事实知识存储在本地 Qdrant / SQLite 中。",
         "localWorkspace": "工作区文件与产物",
         "localWorkspaceDesc": "仅在您指定绑定的本地工作区文件夹中读写。",

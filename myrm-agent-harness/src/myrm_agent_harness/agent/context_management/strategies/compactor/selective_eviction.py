@@ -1,4 +1,4 @@
-"""Selective eviction engine based on working memory marks.
+"""Selective eviction engine based on eviction marks.
 
 Performs fine-grained deterministic pruning and folding of transient messages
 (such as single-turn hints and intermediate scratchpads) while maintaining strict
@@ -70,7 +70,7 @@ def evict_messages_by_marks(
     target_marks: set[str] | frozenset[str] | None = None,
     preserve_marks: set[str] | frozenset[str] | None = None,
 ) -> tuple[list[BaseMessage], SelectiveEvictionStats]:
-    """Prune or compact messages based on working memory marks with tool-pair safety.
+    """Prune or compact messages based on eviction marks with tool-pair safety.
 
     Rules:
     1. Immunity Guard: Messages with marks in IMMUNE_MARKS or preserve_marks are strictly kept.

@@ -504,7 +504,7 @@ from myrm_agent_harness.toolkits.llms.routing.specialty_router import (
     route_task_specialty as route_task_specialty,
 )
 from myrm_agent_harness.toolkits.memory.consolidation import (
-    WorkingMemorySnapshot as WorkingMemorySnapshot,
+    TaskSessionSnapshot as TaskSessionSnapshot,
 )
 from myrm_agent_harness.toolkits.memory.consolidation import (
     create_consolidation_cleanup_task as create_consolidation_cleanup_task,

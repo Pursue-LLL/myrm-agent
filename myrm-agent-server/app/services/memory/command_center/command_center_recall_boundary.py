@@ -11,7 +11,7 @@ build_recall_boundary: per-task recall scopes, candidate/approved partition and 
 BUDGET_CHARS_TOTAL: prompt budget in characters shared by the four partitions.
 
 [POS]
-个人大脑指挥中心的「召回边界」投影。展示任务级 read_scopes、待批候选池、四职责分区（Identity / Working Memory / Operating Instructions / Retrievable Evidence）与 6000 字符装载预算。
+个人大脑指挥中心的「召回边界」投影。展示任务级 read_scopes、待批候选池、四职责分区（Identity / Session Memory / Operating Instructions / Retrievable Evidence）与 6000 字符装载预算。
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ _PREVIEW_CHARS = 100
 
 _ALL_SCOPE_LEVELS = frozenset({"global", "agent", "channel", "conversation", "task", "shared"})
 
-Partition = Literal["identity", "working_memory", "operating_instructions", "retrievable_evidence"]
+Partition = Literal["identity", "session_memory", "operating_instructions", "retrievable_evidence"]
 
 
 @dataclass(slots=True)
@@ -56,7 +56,7 @@ def _partition_of(memory_type: MemoryType) -> Partition:
     if memory_type == MemoryType.PROFILE:
         return "identity"
     if memory_type in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-        return "working_memory"
+        return "session_memory"
     if memory_type == MemoryType.PROCEDURAL:
         return "operating_instructions"
     return "retrievable_evidence"
@@ -84,7 +84,7 @@ def _scope_boundaries(
             "task",
             f"Task Boundary ({task_id or 'active'})",
             f"task:{task_id or 'active'}",
-            "Ephemeral execution working memory",
+            "Ephemeral execution session memory",
         ),
         ("shared", "Team Shared Context", "shared:*", "Explicitly shared team vaults and resources"),
     ]
@@ -113,7 +113,7 @@ async def build_recall_boundary(
 
     totals: dict[Partition, _PartitionTotals] = {
         "identity": _PartitionTotals(),
-        "working_memory": _PartitionTotals(),
+        "session_memory": _PartitionTotals(),
         "operating_instructions": _PartitionTotals(),
         "retrievable_evidence": _PartitionTotals(),
     }
@@ -162,11 +162,11 @@ async def build_recall_boundary(
         write_policy=(policy.write_policy.value if (policy and hasattr(policy.write_policy, "value")) else "inherit"),
         partitions=MemoryFourPartitionSummary(
             identity_count=totals["identity"].count,
-            working_memory_count=totals["working_memory"].count,
+            session_memory_count=totals["session_memory"].count,
             operating_instructions_count=totals["operating_instructions"].count,
             retrievable_evidence_count=totals["retrievable_evidence"].count,
             identity_chars=totals["identity"].chars,
-            working_memory_chars=totals["working_memory"].chars,
+            session_memory_chars=totals["session_memory"].chars,
             operating_instructions_chars=totals["operating_instructions"].chars,
             retrievable_evidence_chars=totals["retrievable_evidence"].chars,
         ),

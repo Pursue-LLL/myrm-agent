@@ -53,11 +53,11 @@ def test_recall_boundary_schema_contracts() -> None:
         write_policy="inherit",
         partitions=MemoryFourPartitionSummary(
             identity_count=2,
-            working_memory_count=4,
+            session_memory_count=4,
             operating_instructions_count=1,
             retrievable_evidence_count=10,
             identity_chars=400,
-            working_memory_chars=1200,
+            session_memory_chars=1200,
             operating_instructions_chars=300,
             retrievable_evidence_chars=2500,
         ),

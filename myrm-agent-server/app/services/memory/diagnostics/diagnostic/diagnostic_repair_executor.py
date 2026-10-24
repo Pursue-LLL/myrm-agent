@@ -198,7 +198,7 @@ def _dry_run_message(plan_id: str) -> str:
         "enable_vector_store": "Requires explicit storage and embedding configuration before execution.",
         "configure_embedding": "Requires explicit provider configuration before execution.",
         "review_retrieval_trace": "Requires opening trace metadata in the GUI; no memory content is exposed.",
-        "restore_disciplined_defaults": "Would archive unpinned working memories into a safe snapshot and restore disciplined budget defaults.",
+        "restore_disciplined_defaults": "Would archive unpinned session memories into a safe snapshot and restore disciplined budget defaults.",
     }
     return messages.get(plan_id, "Unknown repair plan.")
 

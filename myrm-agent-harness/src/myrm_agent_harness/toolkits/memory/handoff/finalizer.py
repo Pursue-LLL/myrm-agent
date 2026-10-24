@@ -12,7 +12,7 @@ Strict typing applied: No `Any` types allowed.
 
 [OUTPUT]
 - SessionFinalizationError: Raised when session finalization fails validation or persistence.
-- SessionFinalizer: Finalizes an agent session, converting working memory into a durable handoff packet.
+- SessionFinalizer: Finalizes an agent session, converting session memory into a durable handoff packet.
 
 [POS]
 Session finalizer responsible for extracting and persisting durable handoffs upon session close.
@@ -39,7 +39,7 @@ class SessionFinalizationError(Exception):
 
 
 class SessionFinalizer:
-    """Finalizes an agent session, converting working memory into a durable handoff packet."""
+    """Finalizes an agent session, converting session memory into a durable handoff packet."""
 
     def __init__(self, store: AgentHandoffStore) -> None:
         self._store = store

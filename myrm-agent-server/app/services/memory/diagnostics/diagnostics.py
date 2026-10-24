@@ -82,7 +82,7 @@ class MemoryDiagnosticsService:
 
         # Sample active memory metrics for capacity theater probe
         total_chars = 0
-        working_count = 0
+        session_memory_count = 0
         unpinned_count = 0
         if self._memory_manager is not None:
             try:
@@ -92,7 +92,7 @@ class MemoryDiagnosticsService:
                         content_str = str(getattr(item, "content", "") or "")
                         total_chars += len(content_str)
                         if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-                            working_count += 1
+                            session_memory_count += 1
                         if not getattr(item, "pinned", False):
                             unpinned_count += 1
             except Exception:
@@ -124,7 +124,7 @@ class MemoryDiagnosticsService:
             probe_health_snapshot(health_cache_status),
             probe_capacity_theater(
                 total_active_chars=total_chars,
-                working_memory_count=working_count,
+                session_memory_count=session_memory_count,
                 unpinned_count=unpinned_count,
             ),
             probe_context_bundle_manifest(runtime),
@@ -147,7 +147,7 @@ class MemoryDiagnosticsService:
 
         # Sample active memory metrics for capacity theater probe
         total_chars = 0
-        working_count = 0
+        session_memory_count = 0
         unpinned_count = 0
         if self._memory_manager is not None:
             try:
@@ -157,7 +157,7 @@ class MemoryDiagnosticsService:
                         content_str = str(getattr(item, "content", "") or "")
                         total_chars += len(content_str)
                         if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-                            working_count += 1
+                            session_memory_count += 1
                         if not getattr(item, "pinned", False):
                             unpinned_count += 1
             except Exception:
@@ -190,7 +190,7 @@ class MemoryDiagnosticsService:
             await self._run_probe(
                 lambda: probe_capacity_theater(
                     total_active_chars=total_chars,
-                    working_memory_count=working_count,
+                    session_memory_count=session_memory_count,
                     unpinned_count=unpinned_count,
                 )
             ),

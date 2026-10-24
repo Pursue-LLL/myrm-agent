@@ -1,7 +1,7 @@
 """Hyper Consolidation Memory Block subsystem.
 
 [INPUT]
-- WorkingMemorySnapshot: Neutral working-memory snapshot supplied by the host
+- TaskSessionSnapshot: Neutral task-session snapshot supplied by the host
   runtime (POS: agent-agnostic input; the agent layer adapts its own working
   memory block into this snapshot. This module never imports agent/.)
 - toolkits.memory.types::TaskDigestMemory (POS: 结构化长程任务成果沉淀实体)
@@ -61,10 +61,10 @@ class ConsolidationTrap:
 
 
 @dataclass(slots=True)
-class WorkingMemorySnapshot:
+class TaskSessionSnapshot:
     """Agent-agnostic working-memory snapshot for consolidation input.
 
-    The host runtime adapts its own working memory block into this snapshot
+    The host runtime adapts its own task-session state into this snapshot
     before calling HyperConsolidator. Ownership of the source block (including
     any reset/cleanup) stays with the host.
     """
@@ -78,7 +78,7 @@ class WorkingMemorySnapshot:
 
 
 class HyperConsolidator:
-    """Post-session memory consolidator distilling working memory into long-term assets."""
+    """Post-session memory consolidator distilling session memory into long-term assets."""
 
     def __init__(self, memory_manager: MemoryManager | None = None) -> None:
         self._memory_manager = memory_manager
@@ -87,9 +87,9 @@ class HyperConsolidator:
         self,
         messages: Sequence[dict[str, str]],
         chat_id: str | None,
-        snapshot: WorkingMemorySnapshot | None = None,
+        snapshot: TaskSessionSnapshot | None = None,
     ) -> tuple[TaskDigestMemory | None, list[ProceduralMemory]]:
-        """Run post-session consolidation pipeline on a working memory snapshot.
+        """Run post-session consolidation pipeline on a task-session snapshot.
 
         Returns:
             Tuple of (TaskDigestMemory | None, list of created ProceduralMemory rules).
@@ -219,13 +219,13 @@ class HyperConsolidator:
 
 def create_consolidation_cleanup_task(
     memory_manager: MemoryManager | None = None,
-    snapshot_provider: Callable[[], WorkingMemorySnapshot | None] | None = None,
+    snapshot_provider: Callable[[], TaskSessionSnapshot | None] | None = None,
     after_run: Callable[[], None] | None = None,
 ) -> SessionCleanupTask:
     """Factory creating a SessionCleanupTask hook for session_post_process runner.
 
     The host runtime supplies snapshots via ``snapshot_provider`` (adapting its
-    own working memory block) and owns source cleanup via ``after_run``.
+    own task-session state) and owns source cleanup via ``after_run``.
     """
     consolidator = HyperConsolidator(memory_manager=memory_manager)
 

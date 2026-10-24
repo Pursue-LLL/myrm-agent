@@ -5196,7 +5196,7 @@
         },
         "capacity_theater": {
           "label": "Capacity theater & memory discipline",
-          "evidence": "Checks whether active working memory exceeds budget limits or suffers from excessive stacking and causal blindness."
+          "evidence": "Checks whether active session memory exceeds budget limits or suffers from excessive stacking and causal blindness."
         },
         "memory_mislayer_governance": {
           "label": "Memory Scope Mislayer Guard",
@@ -5228,7 +5228,7 @@
           "expectedEffect": "Updates freshness, coverage, retention health, and coherence signals in the GUI."
         },
         "restore_disciplined_defaults": {
-          "dryRun": "Safely archives unpinned working memories into a backup snapshot and narrows active memory to disciplined defaults.",
+          "dryRun": "Safely archives unpinned session memories into a backup snapshot and narrows active memory to disciplined defaults.",
           "expectedEffect": "Eliminates capacity theater and causal blindness while boosting prompt prefix caching and reasoning sharpness."
         },
         "review_storage_config": {
@@ -13844,7 +13844,6 @@
     "noApproved": "No approved memory records found.",
     "fourPartitionsTitle": "Four Memory Partitions (Mise en Place)",
     "partitionIdentity": "Identity & Preferences",
-    "partitionWorkingMemory": "Working Memory",
     "partitionOperatingInstructions": "Operating Instructions",
     "partitionRetrievableEvidence": "Retrievable Evidence",
     "budgetTitle": "Per-Turn Load Char Budget",
@@ -13861,7 +13860,8 @@
     "reject": "Reject",
     "pinned": "Pinned",
     "viewDetails": "View Details",
-    "refresh": "Refresh Boundary"
+    "refresh": "Refresh Boundary",
+    "partitionSessionMemory": "Session Memory"
   },
   "evidenceStageHUD": {
     "stages": {
@@ -14993,7 +14993,7 @@
       "switchAgent": "Switch Specialized Agent (/agent)",
       "switchAgentDesc": "Quickly switch to Code Architect, Tester, etc.",
       "clearContext": "Clear Current Context (/clear)",
-      "clearContextDesc": "Reset working memory and multi-turn window",
+      "clearContextDesc": "Reset conversation context and multi-turn window",
       "exportSession": "Export Offline HTML Bundle (/export)",
       "exportSessionDesc": "Package multi-turn task into standalone interactive HTML",
       "globalEstop": "Global Physical Emergency Stop (/estop)",

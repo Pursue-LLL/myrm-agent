@@ -528,7 +528,7 @@ async def generate_structured_summary(
                 block_hash = hashlib.md5(clean_val.encode("utf-8")).hexdigest()
                 if block_hash not in rescued_context_blocks:
                     rescued_context_blocks[block_hash] = (
-                        f"<preserve_context>\n[IMMUNE RULE / WORKING MEMORY]\n{clean_val}\n</preserve_context>"
+                        f"<preserve_context>\n[IMMUNE RULE / EVICTION MARK]\n{clean_val}\n</preserve_context>"
                     )
 
     # Inject verified exact anchor index into preserved context
