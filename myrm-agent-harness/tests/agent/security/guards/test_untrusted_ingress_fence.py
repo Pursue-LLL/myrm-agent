@@ -105,7 +105,7 @@ def test_taint_tracker_ingress_taint_and_sink_check():
     tracker = get_taint_tracker()
     assert not tracker.is_tainted
 
-    tracker.record_ingress_taint(TaintLabel.UNTRUSTED_INGRESS, source="a2a_remote_peer_123")
+    tracker.record_ingress_taint(TaintLabel.UNTRUSTED_INGRESS, source="remote_peer_123")
     assert tracker.is_tainted
     assert TaintLabel.UNTRUSTED_INGRESS in tracker.labels
 

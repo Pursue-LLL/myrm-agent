@@ -1,6 +1,6 @@
 """Untrusted Ingress Fence — runtime tool privilege stripping for external inbound messages.
 
-When an Agent session processes untrusted external messages (e.g., A2A tasks from
+When an Agent session processes untrusted external input (e.g., messages from
 external peers, webhook triggers, public bot mentions), this fence denies high-privilege
 destructive tools (arbitrary execution, file mutation, persistent-memory mutation,
 desktop control and screen capture, subagent escalation, cron backdoors, and
