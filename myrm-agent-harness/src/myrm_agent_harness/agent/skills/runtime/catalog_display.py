@@ -62,6 +62,8 @@ def _select_within_token_budget(skills: list[SkillMetadata]) -> list[SkillMetada
     remaining = L1_CATALOG_MAX_TOKENS - _CATALOG_OVERHEAD_RESERVE
     selected: list[SkillMetadata] = []
     for skill in skills:
+        if remaining <= 0:
+            break
         cost = estimate_skill_entry_tokens(skill)
         if cost <= remaining:
             selected.append(skill)

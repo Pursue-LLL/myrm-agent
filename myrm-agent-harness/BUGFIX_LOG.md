@@ -2,6 +2,20 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-24-022 · 目录 hash 忽略 hidden_count，目录更新可能不刷新隐藏计数
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-24（L1 改为 token 预算、移除 name-only 层后做对抗式审查） |
+| **修复时间** | 2026-10-24 |
+| **严重程度** | P2：不会崩溃，但同一显示集合下 hidden_count 变化时，tail update 可能被判定为“无变化”，模型看到过期的隐藏计数 |
+| **关联产品** | harness `agent/skills/runtime/skill_catalog_delivery.py`、`agent/skills/runtime/registry.py` |
+| **根因** | `RenderedCatalog.from_display()` 只对 `xml` 做 hash；移除 `<hidden_skills>` 名字后，hidden_count 从 1 变 2 时 XML 完全相同，hash 不变，`plan_catalog_update()` 不再下发更新。 |
+| **修复** | hash 输入加入 `#hidden_count=N`；新增回归 `test_hidden_count_changes_the_hash_even_when_display_xml_is_equal`。 |
+| **回归** | `tests/agent/skills/runtime/test_skill_catalog_updates.py` 25 passed；全量定向 2,388 passed / 4 skipped。 |
+| **局限** | `hidden_count` 仍是计数，不暴露被省略技能名；用户点名可直接 select，能力未知走 search。 |
+
 ### BUG-HARNESS-2026-10-24-021 · MCP Skill 三层提示的四处漂移：L2 假硬上限、漏 await、L1 多选矛盾、小 MCP 工具名不可搜
 
 | 字段 | 内容 |

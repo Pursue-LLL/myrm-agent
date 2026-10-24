@@ -60,6 +60,13 @@ class TestLastDelivered:
 
         assert last_delivered_catalog_key(thread) == EMPTY_CATALOG_KEY
 
+    def test_hidden_count_changes_the_hash_even_when_display_xml_is_equal(self) -> None:
+        skill = _skill("alpha_skill")
+        one = RenderedCatalog.from_display([skill], hidden_skill_count=1)
+        two = RenderedCatalog.from_display([skill], hidden_skill_count=2)
+        assert one.xml == two.xml
+        assert one.hash != two.hash
+
     def test_the_baseline_hash_is_read_from_the_first_human_message(self) -> None:
         rendered = _render(_skill("alpha_skill"))
         assert rendered is not None

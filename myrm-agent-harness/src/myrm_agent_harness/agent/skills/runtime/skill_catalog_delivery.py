@@ -101,7 +101,7 @@ class RenderedCatalog:
         )
         return cls(
             xml=xml,
-            hash=compute_catalog_hash(xml),
+            hash=compute_catalog_hash(f"{xml}\n#hidden_count={hidden_skill_count}"),
             hidden_skill_count=hidden_skill_count,
         )
 
