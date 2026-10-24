@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_BM25_MIN_RELEVANCE_SCORE = 0.5
-MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD = 3
 MCP_TOOL_SHORT_DESC_MAX_CHARS = 80
 
 
@@ -53,12 +52,11 @@ def _build_skill_index_document(skill: SkillMetadata) -> str:
     if not skill.mcp or not skill.mcp.tools:
         return base
     tool_schemas = skill.mcp.tool_schemas or {}
-    include_tool_desc = len(skill.mcp.tools) > MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD
     tool_parts: list[str] = []
     for tool_name in skill.mcp.tools:
         token = tool_name.replace("_", " ")
         schema_entry = tool_schemas.get(tool_name)
-        if not include_tool_desc or not isinstance(schema_entry, dict):
+        if not isinstance(schema_entry, dict):
             tool_parts.append(token)
             continue
         desc_raw = schema_entry.get("description")
