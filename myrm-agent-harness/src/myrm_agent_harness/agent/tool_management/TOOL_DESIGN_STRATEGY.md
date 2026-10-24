@@ -354,7 +354,7 @@ const staleCoreSkills = useMemo(() => {
 |------|------:|---------|
 | System Prompt 层 | ~2,568 | `messages[0]` 2,269 + `messages[1]` 299，跨用户共享缓存 |
 | CORE 工具层 | ~2,655 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,692 | 默认缓存 |
+| HIGH_PRIORITY 工具层 | ~2,720 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -367,13 +367,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,166）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,194）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
 | CORE | 8 | 2,655 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,692 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,347** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,192**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| HIGH_PRIORITY | 5 | 2,720 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **5,375** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,220**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 

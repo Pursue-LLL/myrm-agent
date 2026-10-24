@@ -52,7 +52,8 @@ _SKILL_SELECT_TOOL_DESCRIPTION_ZH = """选择并激活已绑定的技能，以�
 3. 若有助于解决问题，可同时选择多个技能。
 4. 如需读取已加载技能的辅助脚本或参考文档，可传入 file_path 参数（例如 'scripts/run.py'、'references/api.md'）。
 5. 切勿混淆基础工具（_tool 后缀，可直接调用）与专业技能（_skill 后缀，必须通过本工具先选择加载）。
-6. 当用户消息以 [use <skill_name>] 开头或明确提及技能名称时，必须立即选择该技能。"""
+6. 当用户消息以 [use <skill_name>] 开头或明确提及技能名称时，必须立即选择该技能。
+7. 如果已激活工具本身就能解决请求，直接调用该工具，不要选择技能；如果没有适用技能，直接继续，不要强行选择。"""
 
 _SKILL_SELECT_TOOL_DESCRIPTION_EN = """Select and activate bound skills that provide specialized domain capabilities, external service integrations, or task SOPs.
 
@@ -63,7 +64,8 @@ Rules:
 3. You may select multiple skills simultaneously if they jointly help solve the task.
 4. To inspect auxiliary files or reference scripts of a loaded skill, pass file_path (e.g. 'scripts/run.py', 'references/api.md').
 5. Do NOT confuse generic tools (_tool suffix, directly callable) with specialized skills (_skill suffix, must be selected via this tool first).
-6. When the user message starts with [use <skill_name>] or mentions a skill by name, you MUST immediately select that skill."""
+6. When the user message starts with [use <skill_name>] or mentions a skill by name, you MUST immediately select that skill.
+7. If an already-active tool solves the request directly, call it without selecting a skill; if no skill applies, proceed without one."""
 
 
 def build_skill_select_static_description(locale: str | None = None) -> str:
