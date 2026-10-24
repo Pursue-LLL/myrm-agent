@@ -2,7 +2,65 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-24 · 思考过程：首帧被丢弃 + 历史思考无法回看（附带一次被自我推翻的方案）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 发消息后只看到静止骨架；回答出现后想回看思考过程，点开就被立刻收起 |
+| **根因 1** | `messageContentEvents` 的 reasoning 分支只 `findAssistantMessageIndex`，找不到消息就 return。assistant 消息通常由 `routing_decision` 创建；一旦首个 thinking 帧早于建消息事件，思考 chunk 被静默丢弃 |
+| **根因 2** | `MessageBox` 的自动折叠 effect 依赖 `isReasoningExpanded`，任何一次展开都会立刻收起 → 回答结束后永远打不开思考块（与 Cursor 曾被报的 toggle bug 同类） |
+| **修复** | ① reasoning 分支改用 `ensureAssistantStreamMessage` 先建气泡（空 messageId 自动跳过，`added` 经 `done(ctx)` 透传）；② 自动折叠改为**只触发一次**且延迟 1s（`autoCollapsedReasoningRef`），之后用户展开不再被夺走——对齐 DeerFlow 的 `AUTO_CLOSE_DELAY=1000` |
+| **已回滚** | 曾另起 `reasoningStream` + 重写 `MessageBoxLoading` 展示思考文本：重复造轮子、绕过 `reasoningDisplayMode`、回答开始后内容即消失。全部删除，`git diff` 已确认还原 |
+| **回归证据** | 新增 `messageStreamHandlerReasoning` 2 用例（先建消息 / 空 id 不建）+ `MessageBox.reasoningAutoCollapse` 1 用例（1s 后收起、再展开不被收起）；chat + message-box **771 passed**；`tsc` 0 error；构建成功并重启客户端 |
+| **仍然存在** | provider 对正文的成批返回（实测 6 条 message 同一时刻 5.02s）；reasoning 落库已由 `stream_collector.py:58` 的 `_MAX_REASONING_CHARS = 24_000` 截断（早期“无上限”的说法已纠正） |
+
+## 2026-10-24 · 思考卡工程缺陷：硬编码文案 / 22px 触控 / 假 token 数
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | ① 德语/日语/韩语/繁体/英语界面里，思考卡的「停止思考」「收敛中...」「提前收敛思维流…」仍是中文，读屏念的是英文 `Collapse/Expand/Loading`；② 手机上复制/展开/停止按钮只有 22×22px，点不中；③ token 数按 `字数/4` 估算，中文思考时与后端真实值相差数倍 |
+| **根因** | `ReasoningProcessAccordion.tsx` 中文/英文硬编码（`:118/:137/:145/:210/:232`）；图标按钮 `p-1` + 14px 图标；token 用启发式而非 `message.usage.reasoning_tokens` |
+| **修复** | ① 9 个 key × 6 语言（`reasoningSteps/stopThinking/stoppingThinking/stopThinkingHint/expandReasoning/collapseReasoning/reasoningLoading/reasoningTokens/reasoningTokensEstimated`）；② 三个图标按钮改 `h-10 w-10`（40px），停止按钮 `min-h-10 px-3`，头部 `min-w-0 + truncate + shrink-0`；③ 优先 `message.usage.reasoning_tokens`，缺失才回落估算并显示 `≈` |
+| **回归证据** | 组件测试 8 passed（新增“优先真实 token”用例）；chat + message-box **772 passed**；`tsc` 0 error；主题色门禁通过（3588 文件）；真实 390×844 视口实测：按钮 **40×40**、无横向溢出、aria 为「展开/收起思考过程」、token 显示 **524**（真实 usage，估算值仅 380）；构建成功并重启客户端 |
+| **未做（已论证低价值）** | 思考时长刷新后持久化（跨 server，收益仅一行文案） |
+
 ---
+
+## 2026-10-24 · 收尾：multiplex 回合通道连根移除 + 带参集合根别名 + 覆盖率补齐
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（改动未提交） |
+| **变更 1** | 删除前端回合级 multiplex 传输：`shouldUseMultiplexedAgentStream` / `multiplexChunkBridge.ts` / `messageRequest.multiplexed` 恒为 false；`streamConsumer` 只消费 POST 响应体，非 SSE 的 JSON 响应按 `RequestRefusedError` 拒绝；`ConnectionManager` 保留 `session_status` 长连接与 E2E 诊断，无人注册 chunk handler 时丢弃 multiplex 事件（避免 `pending` 缓冲无限增长） |
+| **变更 2** | 去斜杠别名中间件支持带路径参数的集合根：模板串（`/api/v1/public/artifact-share/{token}/`、`/mem0/v1/memories/{memory_id}/`）编译为「单段通配」正则；此前模板字符串永远匹配不到真实请求，仍会 307 跨源 |
+| **回归证据** | 中间件 7 passed（含参数化命中/不吞多余段）；chat 域 447 passed、`src/lib` 全量 800 passed；`tsc --noEmit` 0 error、oxlint 0 warning；生产构建成功；实测 `/api/v1/public/artifact-share/deadbeef` → **404（不再 307）**，`/api/v1/chats`、`/api/v1/projects`、`/api/v1/skills` → 200 |
+| **覆盖率（改动面）** | `streamConsumer.ts` 91.85% 行 / 92.08% 语句；`consumeStream.ts` 91.93% 行 / 91.33% 语句；`deploy-mode.ts` 82.4%→（含远程网关/无 window 守卫）合计三文件 **90.80% 行 / 90.74% 语句 / 95.34% 函数**（分支 83.02%，未覆盖为 E2E-only 守卫） |
+| **仍未闭合** | Tauri 窗口内的一次真实点击发送：本机并发会话的「用户反馈」浮层持续置顶抢焦点，AX/坐标/快捷键三条自动化路径都无法把输入稳定送进 WKWebView（已确认输入文本未写入任何文件、未提交反馈） |
+
+---
+
+## 2026-10-24 · 桌面端聊天「发出去了但永远骨架」：回合正文绑在一条会静默失效的 multiplex 通道上
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（改动未提交） |
+| **症状** | 桌面/WebUI 发送后，后端已完整作答并落库（DB 有 user+assistant 两条），前端始终停在骨架；偶发「发送失败」。用户观感与「模型没回复」完全一致 |
+| **根因** | 前端默认把回合正文绑到 workspace multiplex（POST 只回 `{"status":"accepted"}`，正文必须从 `/api/v1/workspace/stream` 按 message_id 二次路由）。实测该长连接会「HTTP 200 打开但整轮零字节」（后端重启后代理池持有死连接，客户端既无心跳也无重连判定），事件永远到不了发起方；前端也没有首帧超时，`reader.read()` 永久挂起 |
+| **修复** | ① `shouldUseMultiplexedAgentStream()` 默认 false —— 正文改由 POST 响应体直连 SSE（与回合一一对应，无跨通道错配），multiplex 仅保留显式开关；② `consumeStream` 增加首帧 60s / 流中 5min 空窗看门狗（`AbortSignal.timeout` + 取消 reader → `StreamInterruptedError` → attach/拉库自愈），老浏览器降级为不启用而非抛错；③ 通知流改同源代理（原直连 8080 被 CORS 拦死，`onopen` 重同步永不触发） |
+| **回归证据** | 同一 bundle：POST body `multiplexed:false` → `text/event-stream` 54,888B → 回合收尾、骨架消失、无失败提示；连续两轮、回合中刷新（后端继续并落库 6 条）均正常；chat 域 457 passed、tsc/oxlint 0 error；通知流同源后控制台 0 条 CORS |
+| **未覆盖** | 未在 Tauri 窗口内用点击完成一次真实发送（WKWebView 输入框非原生控件 + 并发会话浮层抢焦点）；multiplex 显式开关下仍可能整轮零字节（首帧看门狗兜底，默认不可达） |
+
+## 2026-10-24 · 验证过程自身制造的事故：对活动 SQLite 做 WAL 截断 + 反复强杀后端
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED（环境已恢复）+ 流程禁令** |
+| **症状** | 客户端发送后弹出「Database operation failed」，页面长期骨架；后端日志成片 `sqlite3.OperationalError: disk I/O error` |
+| **根因** | 验证期间反复 SIGTERM/SIGKILL 后端并快速重启，且在旧后端仍持有连接时对 `~/.myrm/data.db` 执行 `PRAGMA wal_checkpoint(TRUNCATE)`；WAL 状态异常后所有写入报 disk I/O error |
+| **修复** | 停干净旧后端 → 干净 checkpoint → 重启客户端；`PRAGMA integrity_check=ok`、3523 会话未丢；6 轮 12 次读写全 200、0 条 I/O error；真实回合流式返回 OK |
+| **流程禁令** | ① 禁止对用户活动数据目录执行任何 PRAGMA/维护，需要时对 `cp` 副本操作；② 只用 SIGTERM 停后端并等退出，禁止 SIGKILL；③ 禁止在用户窗口上做 AX/坐标/键盘自动化 |
 
 ## 2026-10-24 · A2A 入站是假执行、出站是私有方言，且三种部署都没有入口
 

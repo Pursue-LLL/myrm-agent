@@ -458,4 +458,66 @@ describe('messageStreamHandler reasoning duration tracking', () => {
     expect(state.messages[0].reasoning).toBe('Cleantext');
     expect(state.messages[0].reasoningStartedAt).toBe(BASE_TIME);
   });
+
+  it('creates the assistant message when the first reasoning frame arrives before any routing event', async () => {
+    const state: StreamHandlerState = {
+      messages: [],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    const result = await handleMessageStream(
+      {
+        type: AgentEventType.REASONING,
+        messageId: 'assistant-early',
+        data: '先想清楚再回答',
+      } as unknown as Parameters<typeof handleMessageStream>[0],
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+
+    flushTimeouts();
+
+    expect(result.added).toBe(true);
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]).toMatchObject({
+      role: 'assistant',
+      messageId: 'assistant-early',
+      reasoning: '先想清楚再回答',
+    });
+    expect(state.messageAppeared).toBe(true);
+  });
+
+  it('does not create a placeholder for a reasoning frame without a messageId', async () => {
+    const state: StreamHandlerState = {
+      messages: [],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    const result = await handleMessageStream(
+      {
+        type: AgentEventType.REASONING,
+        messageId: '',
+        data: '匿名思考帧',
+      } as unknown as Parameters<typeof handleMessageStream>[0],
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+
+    flushTimeouts();
+
+    expect(result.added).toBe(false);
+    expect(state.messages).toHaveLength(0);
+  });
 });

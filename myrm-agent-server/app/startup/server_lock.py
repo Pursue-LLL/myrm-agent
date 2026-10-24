@@ -183,6 +183,9 @@ def acquire_server_lock(
 
 _data_dir_lock = None
 
+# 数据目录锁的交接窗口：上一个实例优雅停机（drain + WAL checkpoint）通常 < 6s。
+_DATA_DIR_HANDOVER_SECONDS = 10.0
+
 
 def _data_dir_path() -> Path:
     """Directory that owns data.db / qdrant / checkpoints for this process."""
@@ -259,6 +262,22 @@ def acquire_data_dir_lock() -> None:
         return
     except Timeout:
         pass
+
+    # 上一个实例可能正处于优雅停机（drain 活跃 turn + WAL checkpoint，最长数秒）。
+    # 「关掉客户端后马上再打开」是常见操作，这里给存活持有者一个有限的交接窗口：
+    # 持有者一死就立刻接管，仍然存活则在窗口结束后报错，既不误杀也不让用户白等。
+    handover_deadline = time.monotonic() + _DATA_DIR_HANDOVER_SECONDS
+    while time.monotonic() < handover_deadline:
+        holder = _read_owner(owner_file)
+        if not _owner_is_live(holder):
+            break
+        time.sleep(0.25)
+        try:
+            _data_dir_lock.acquire()
+            _write_owner()
+            return
+        except Timeout:
+            continue
 
     holder = _read_owner(owner_file)
     if _owner_is_live(holder):

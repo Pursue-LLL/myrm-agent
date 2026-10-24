@@ -3616,7 +3616,16 @@
       "strategyMultiAgent": "Always multi-agent"
     },
     "pdfScannedPages": "[PDF] {fileName}: pages {pages} have no text layer and were sent as images",
-    "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)"
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)",
+    "reasoningSteps": " · {count} steps",
+    "stopThinking": "Stop thinking",
+    "stoppingThinking": "Stopping…",
+    "stopThinkingHint": "End reasoning early and answer with what is known",
+    "expandReasoning": "Expand reasoning",
+    "collapseReasoning": "Collapse reasoning",
+    "reasoningLoading": "Thinking",
+    "reasoningTokens": "{count} tokens",
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "Fast Search",

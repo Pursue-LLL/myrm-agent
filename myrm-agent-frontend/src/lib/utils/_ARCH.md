@@ -35,7 +35,7 @@
 - `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）；成功 / 失败 / 读取被拒的 toast 文案，以及读取权限确认（Tauri 原生对话框与浏览器 `confirm`）的标题、问句、按钮文案，都经 `translateI18nKey('common.clipboard.*')` 取（单测 `__tests__/clipboardUtils.test.ts`）。
 - `userPresence.ts`：用户在场判定 — `isUserPresent`（页面可见且窗口有焦点）是「用户正在看」的唯一定义，供离开才提醒的通道（完成提示音、桌宠未读邮件）与 Catchup 在场盖章共用。
 - `completionSound.ts`：完成提示音 — Web Audio API 双音符柔和提示（G4→C5 纯四度），零外部音频文件依赖，仅在用户非注视页面时播放。
-- `componentPreloader.ts`：重型组件预加载 — hover 触发 Monaco/Sandpack 提前加载，优化首次渲染体验。
+- `componentPreloader.ts`：重型组件预加载 — hover 触发 Monaco 提前加载，优化首次渲染体验。
 - `cronEstimate.ts`：定时表达式估算 — cron/interval/once 三类调度月执行次数估算。
 - `diagnostic-export.ts`：诊断导出 — `formatDoctorReportAsMarkdown` GitHub Issue 友好格式化、`buildDiagnosticBundle` 诊断 JSON 组装（含客户端上下文）、复制与下载触发。
 - `domUtils.ts`：DOM 滚动检测 — `isNearBottom` 滚动接近底部判定（阈值可调）。

@@ -66,7 +66,7 @@
 | `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` / CI `frontend-build.yml` 前置）；原子写（同目录 rename，内容未变则跳过）+ 事后清理陈旧文件，不清空目录，并发读者（dev server / vitest）不会读到缺失或半写文件。`ensureMonolithLocales` 发现 `locales/zh.json` 无法解析且 `manifest.json` 仍在时，自动调用 `merge-locale-namespaces.mjs` 从命名空间树重建单文件 locale 后继续 |
 | `merge-locale-namespaces.mjs` | `split-locale-namespaces.mjs` 的逆操作：按 `locales/namespaces/manifest.json` 把 `locales/namespaces/{lang}/` 重建为单文件 `locales/{lang}.json`。由 `split` 的 `ensureMonolithLocales` 在单文件 locale 损坏时自动调用（`split-locale-namespaces.mjs:74`），也可手动执行以从命名空间树恢复 |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
-| `dev.ts` | locale split（启动时 + `fs.watch` 监听 `locales/*.json` 防抖重生成，避免长驻 dev server 的 namespaces 陈旧导致 ENOENT/hydration 超时）+ Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
+| `dev.ts` | locale split（启动时 + `fs.watch` 监听 `locales/*.json` 防抖重生成，避免长驻 dev server 的 namespaces 陈旧导致 ENOENT/hydration 超时）+ Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者；仅在 Node 运行时且显式设置 `NODE_MAX_OLD_SPACE` 时才追加 `--max-old-space-size`——Bun 是 JSC，不认 V8 堆参数，开发内存大头是 Turbopack 原生模块图而非 JS 堆） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
 | `locale-content-version.ts` | `locales/*.json` 内容哈希 → `NEXT_PUBLIC_LOCALE_VERSION`（`next.config.ts` 注入；`/api/i18n/deferred` 缓存键） |

@@ -273,50 +273,6 @@ describe('turn ownership of the shared turn state', () => {
     expect(requests).toHaveLength(1);
   });
 
-  it('leaves no stream watchdog of a stopped multiplexed turn to end the next turn', async () => {
-    resetWorld(false);
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    delete window.__MYRM_E2E_DIRECT_SSE__;
-    const bridges = new Map<string, (chunk: string) => void>();
-    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation((id, handler) => {
-      bridges.set(id, handler);
-      return () => {
-        if (bridges.get(id) === handler) {
-          bridges.delete(id);
-        }
-      };
-    });
-    vi.spyOn(connectionManager, 'waitUntilReady').mockResolvedValue({ ok: true });
-    vi.mocked(createAISearchStream).mockImplementation(async (_body: unknown, request?: AbortController) => {
-      requests.push(request as AbortController);
-      return new Response(JSON.stringify({ status: 'accepted' }), { headers: { 'Content-Type': 'application/json' } });
-    });
-    const frame = (id: string, type: string, data: unknown) =>
-      `data: ${JSON.stringify({ type, messageId: id, data })}\n\n`;
-
-    const firstTurn = store().sendMessage('first question');
-    await eventually(() => expect(bridges.size).toBe(1));
-    const [firstId] = [...bridges.keys()];
-    // The first answer events arm the 3.5 s silence watchdog of turn 1.
-    bridges.get(firstId)?.(frame(firstId, 'routing_decision', { tier: 'simple' }));
-    bridges.get(firstId)?.(frame(firstId, 'message', 'partial answer'));
-    await eventually(() => expect(store().messages.at(-1)?.role).toBe('assistant'));
-
-    store().stopMessage();
-    const secondTurn = store().sendMessage('second question');
-    await eventually(() => expect(requests).toHaveLength(2));
-    await eventually(() => expect(bridges.size).toBe(1));
-
-    // Turn 2 is waiting for its first event: a watchdog left behind by turn 1 would end it in this time.
-    await vi.advanceTimersByTimeAsync(5_000);
-    expect(store().loading).toBe(true);
-    expect(store().abortController).toBe(requests[1]);
-
-    store().stopMessage();
-    await eventually(() => expect(requests[1].signal.aborted).toBe(true));
-    await Promise.all([firstTurn, secondTurn]);
-  });
-
   it('keeps a re-attached turn from ending the next turn when its reconcile outlives that turn', async () => {
     resetWorld(false);
     reconcile.hold = true;

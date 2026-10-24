@@ -3616,7 +3616,16 @@
       "strategyMultiAgent": "Immer Multi-Agent"
     },
     "pdfScannedPages": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und wurden als Bilder gesendet",
-    "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)"
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)",
+    "reasoningSteps": " · {count} Schritte",
+    "stopThinking": "Denken stoppen",
+    "stoppingThinking": "Wird gestoppt…",
+    "stopThinkingHint": "Denkprozess früher beenden und mit dem Bekannten antworten",
+    "expandReasoning": "Denkprozess ausklappen",
+    "collapseReasoning": "Denkprozess einklappen",
+    "reasoningLoading": "Denkt nach",
+    "reasoningTokens": "{count} Tokens",
+    "reasoningTokensEstimated": "≈ {count} Tokens"
   },
   "mode": {
     "fast": "Schnellsuche",

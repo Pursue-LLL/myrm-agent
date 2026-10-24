@@ -76,9 +76,7 @@ const nextConfig: NextConfig = {
   // scripts 404 — the page then never hydrates and every UI test fails on a "healthy" UI.
   // `next dev` therefore writes to `.next-dev`, `next build` keeps `.next` (the desktop release
   // pipeline reads `.next/standalone`).
-  distDir:
-    process.env.MYRM_NEXT_DIST_DIR?.trim() ||
-    (process.env.NODE_ENV === 'development' ? '.next-dev' : '.next'),
+  distDir: process.env.MYRM_NEXT_DIST_DIR?.trim() || (process.env.NODE_ENV === 'development' ? '.next-dev' : '.next'),
   // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
   // NOTE(LSSS debug): cacheComponents/partialPrefetching temporarily disabled to isolate hydration hang.
   cacheComponents: false,
@@ -143,9 +141,12 @@ const nextConfig: NextConfig = {
   experimental: {
     // Dev 编译并行度：2 核足够，避免 Activity Monitor 出现 200%+ 占满多核导致风扇狂转
     cpus: process.env.NODE_ENV === 'production' ? 4 : 2,
-    // Next.js 16 Turbopack 持久缓存已知 bug：缓存损坏（.sst 文件丢失）会触发
-    // restore panic 导致 dev server 崩溃（Aborting）。禁用持久缓存换取稳定性。
-    turbopackFileSystemCacheForDev: false,
+    // Turbopack 默认把编译产物缓存到磁盘（.next-dev/dev/cache/turbopack）。此前因
+    // Next 16.3 早期版本的 rest panic 关闭了它，代价是全部模块图常驻内存（大型应用可涨到 ~4GB）。
+    // 开启后缓存落在磁盘，长期会话内存显著下降；panic 复现时可用 MYRM_DISABLE_TURBOPACK_DISK_CACHE=1 临时关闭。
+    turbopackFileSystemCacheForDev: process.env.MYRM_DISABLE_TURBOPACK_DISK_CACHE !== '1',
+    // 模块按需导出转换：避免全量解析重型 barrel 文件，大幅减轻 Dev 模式 AST 内存占用
+    optimizePackageImports: ['lucide-react', '@phosphor-icons/react', 'hugeicons-react', 'date-fns', 'lodash-es'],
   },
 
   // Webpack优化配置（当使用Webpack时生效）

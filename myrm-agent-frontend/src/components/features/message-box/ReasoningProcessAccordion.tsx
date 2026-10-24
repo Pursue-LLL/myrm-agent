@@ -20,8 +20,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BrainCircuit, ChevronDown, ChevronRight, Copy, Check, Square, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Message } from '@/store/useChatStore';
+import type { Source } from '@/store/chat/types';
 import type { ReasoningDisplayMode } from '@/services/config/types';
 import MarkdownContent from './MarkdownContent';
+
+/** 稳定的空引用：内联 `[]` 会让 MarkdownContent 的 React.memo 每秒失效一次。 */
+const EMPTY_SOURCES: Source[] = [];
 
 export interface ReasoningProcessAccordionProps {
   message: Message;
@@ -87,8 +91,13 @@ export default function ReasoningProcessAccordion({
   const handleStopThinking = useCallback(
     async (event: React.MouseEvent) => {
       event.stopPropagation();
-      if (isStopping || !message.chatId) return;
+      if (isStopping || !message.chatId) {
+        return;
+      }
       setIsStopping(true);
+      // 后端无响应时不允许按钮永久停在「收敛中…」：10s 上限后 abort，finally 会恢复可点状态。
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
       try {
         if (onStopThinking) {
           await onStopThinking(message.chatId);
@@ -100,12 +109,14 @@ export default function ReasoningProcessAccordion({
               reason: 'user_interrupted',
               force_immediate_answer: true,
             }),
+            signal: controller.signal,
           });
         }
       } catch (err) {
         // Fallback or log failure
         console.error('Failed to trigger stop-thinking:', err);
       } finally {
+        clearTimeout(timeout);
         setIsStopping(false);
       }
     },
@@ -115,7 +126,7 @@ export default function ReasoningProcessAccordion({
   const durationSec = message.reasoningDurationMs ? Math.round(message.reasoningDurationMs / 1000) : null;
 
   const stepCount = message.thinkingItems?.length ?? 0;
-  const stepLabel = stepCount > 0 ? ` · 步骤 ${stepCount}` : '';
+  const stepLabel = stepCount > 0 ? t('reasoningSteps', { count: stepCount }) : '';
 
   const label = isThinking
     ? `${t('reasoningThinking', { seconds: elapsedSec })}${stepLabel}`
@@ -123,26 +134,29 @@ export default function ReasoningProcessAccordion({
       ? `${t('reasoningCompleted', { seconds: durationSec })}${stepLabel}`
       : t('reasoningTitle');
 
-  // Rough estimation: ~4 chars per token for reasoning footprint
-  const reasoningTokens = message.reasoning ? Math.round(message.reasoning.length / 4) : 0;
+  // 优先使用后端返回的真实 reasoning token；缺失时才回落到字符估算（并显式标注 ≈）。
+  const exactReasoningTokens =
+    typeof message.usage?.reasoning_tokens === 'number' && message.usage.reasoning_tokens > 0
+      ? message.usage.reasoning_tokens
+      : null;
+  const estimatedReasoningTokens = message.reasoning ? Math.round(message.reasoning.length / 4) : 0;
+  const reasoningTokens = exactReasoningTokens ?? estimatedReasoningTokens;
 
   const renderStopThinkingButton = () => {
-    if (!isThinking) return null;
+    if (!isThinking) {
+      return null;
+    }
     return (
       <button
         type="button"
         data-testid="stop-thinking-button"
         onClick={handleStopThinking}
         disabled={isStopping}
-        title="提前收敛思维流，促使模型直接作答"
-        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+        title={t('stopThinkingHint')}
+        className="inline-flex min-h-10 items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-50 dark:text-amber-400"
       >
-        {isStopping ? (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        ) : (
-          <Square className="w-2.5 h-2.5 fill-current" />
-        )}
-        <span>{isStopping ? '收敛中...' : '停止思考'}</span>
+        {isStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3 w-3 fill-current" />}
+        <span>{isStopping ? t('stoppingThinking') : t('stopThinking')}</span>
       </button>
     );
   };
@@ -153,26 +167,31 @@ export default function ReasoningProcessAccordion({
       className={`mb-4 border border-border/50 rounded-lg overflow-hidden bg-muted/20 transition-all ${className}`}
     >
       {displayMode === 'inline' ? (
-        <div className="w-full flex items-center justify-between px-4 py-2 text-sm bg-muted/30">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <BrainCircuit className={`w-4 h-4 ${isThinking ? 'text-primary animate-pulse' : ''}`} />
-            <span className="font-medium">{label}</span>
+        <div className="flex w-full items-center justify-between gap-2 px-4 py-2 text-sm bg-muted/30">
+          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+            <BrainCircuit className={`h-4 w-4 shrink-0 ${isThinking ? 'animate-pulse text-primary' : ''}`} />
+            <span className="truncate font-medium" title={label}>
+              {label}
+            </span>
             {reasoningTokens > 0 && (
-              <span className="text-[10px] text-muted-foreground/70 font-mono">
-                (~{reasoningTokens} tokens)
+              <span className="font-mono text-[10px] text-muted-foreground/70">
+                {exactReasoningTokens === null
+                  ? t('reasoningTokensEstimated', { count: reasoningTokens })
+                  : t('reasoningTokens', { count: reasoningTokens })}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {renderStopThinkingButton()}
             {message.reasoning && (
               <button
                 type="button"
                 onClick={handleCopy}
+                aria-label={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
                 title={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
-                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+                className="inline-flex h-10 w-10 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
               </button>
             )}
           </div>
@@ -182,38 +201,48 @@ export default function ReasoningProcessAccordion({
           <button
             type="button"
             onClick={onToggle}
-            className="flex-1 flex items-center gap-2 text-muted-foreground text-left"
+            title={label}
+            aria-expanded={showExpanded}
+            aria-controls={`reasoning-body-${message.messageId}`}
+            className="flex min-w-0 flex-1 self-stretch items-center gap-2 text-left text-muted-foreground"
           >
-            <BrainCircuit className={`w-4 h-4 ${isThinking ? 'text-primary animate-pulse' : ''}`} />
-            <span className="font-medium">{label}</span>
+            <BrainCircuit className={`h-4 w-4 shrink-0 ${isThinking ? 'animate-pulse text-primary' : ''}`} />
+            <span className="truncate font-medium" title={label}>
+              {label}
+            </span>
             {reasoningTokens > 0 && (
-              <span className="text-[10px] text-muted-foreground/70 font-mono">
-                (~{reasoningTokens} tokens)
+              <span className="font-mono text-[10px] text-muted-foreground/70">
+                {exactReasoningTokens === null
+                  ? t('reasoningTokensEstimated', { count: reasoningTokens })
+                  : t('reasoningTokens', { count: reasoningTokens })}
               </span>
             )}
           </button>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
             {renderStopThinkingButton()}
             {message.reasoning && (
               <button
                 type="button"
                 onClick={handleCopy}
+                aria-label={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
                 title={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
-                className="p-1 hover:text-foreground rounded transition-colors"
+                className="inline-flex h-10 w-10 items-center justify-center rounded transition-colors hover:text-foreground"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
               </button>
             )}
             <button
               type="button"
               onClick={onToggle}
-              aria-label={isExpanded ? 'Collapse' : 'Expand'}
-              className="p-1 hover:text-foreground rounded transition-colors"
+              aria-label={isExpanded ? t('collapseReasoning') : t('expandReasoning')}
+              aria-expanded={showExpanded}
+              aria-controls={`reasoning-body-${message.messageId}`}
+              className="inline-flex h-10 w-10 items-center justify-center rounded transition-colors hover:text-foreground"
             >
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
           </div>
@@ -221,15 +250,18 @@ export default function ReasoningProcessAccordion({
       )}
 
       {showExpanded && (
-        <div className="px-4 py-3 border-t border-border/50 text-sm text-muted-foreground bg-muted/10">
+        <div
+          id={`reasoning-body-${message.messageId}`}
+          className="px-4 py-3 border-t border-border/50 text-sm text-muted-foreground bg-muted/10"
+        >
           <MarkdownContent
             content={message.reasoning ?? ''}
-            sources={[]}
+            sources={EMPTY_SOURCES}
             messageId={`${message.messageId}-reasoning`}
             isStreaming={isThinking}
           />
           {isThinking && (
-            <span className="inline-flex items-center ml-1.5 gap-0.5 align-middle" aria-label="Loading">
+            <span className="ml-1.5 inline-flex items-center gap-0.5 align-middle" aria-label={t('reasoningLoading')}>
               <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_infinite]" />
               <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
               <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />

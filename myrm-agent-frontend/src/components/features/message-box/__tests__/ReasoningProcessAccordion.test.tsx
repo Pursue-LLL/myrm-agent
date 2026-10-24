@@ -14,12 +14,17 @@ vi.mock('next-intl', () => ({
   useTranslations: () => translate,
 }));
 
+const markdownProps = vi.hoisted(() => ({ sources: [] as unknown[] }));
+
 vi.mock('../MarkdownContent', () => ({
-  default: ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => (
-    <div data-testid="mock-markdown-content" data-streaming={isStreaming ? 'true' : 'false'}>
-      {content}
-    </div>
-  ),
+  default: ({ content, isStreaming, sources }: { content: string; isStreaming?: boolean; sources?: unknown[] }) => {
+    markdownProps.sources.push(sources);
+    return (
+      <div data-testid="mock-markdown-content" data-streaming={isStreaming ? 'true' : 'false'}>
+        {content}
+      </div>
+    );
+  },
 }));
 
 function createMockMessage(overrides?: Partial<Message>): Message {
@@ -55,8 +60,8 @@ describe('ReasoningProcessAccordion', () => {
 
     expect(screen.getByTestId('reasoning-process-accordion')).toBeDefined();
     expect(screen.getByText('reasoningCompleted:{"seconds":14}')).toBeDefined();
-    // 46 chars / 4 ~= 12 tokens
-    expect(screen.getByText('(~12 tokens)')).toBeDefined();
+    // 无真实 usage 时回落到字符估算，并显式标注 ≈
+    expect(screen.getByText('reasoningTokensEstimated:{"count":12}')).toBeDefined();
 
     // Content should not be shown when collapsed
     expect(screen.queryByTestId('mock-markdown-content')).toBeNull();
@@ -173,7 +178,7 @@ describe('ReasoningProcessAccordion', () => {
       />,
     );
 
-    expect(screen.getByText(/步骤 2/)).toBeDefined();
+    expect(screen.getByText(/reasoningSteps:\{"count":2\}/)).toBeDefined();
 
     const stopBtn = screen.getByTestId('stop-thinking-button');
     expect(stopBtn).toBeDefined();
@@ -224,5 +229,101 @@ describe('ReasoningProcessAccordion', () => {
 
     vi.unstubAllGlobals();
   });
-});
 
+  it('prefers the provider-reported reasoning tokens over the character estimate', () => {
+    render(
+      <ReasoningProcessAccordion
+        message={createMockMessage({
+          usage: {
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            total_tokens: 15,
+            reasoning_tokens: 99,
+          },
+        })}
+        isLast={false}
+        loading={false}
+        isExpanded={false}
+        onToggle={vi.fn()}
+        displayMode="collapsed"
+      />,
+    );
+
+    expect(screen.getByText('reasoningTokens:{"count":99}')).toBeDefined();
+    expect(screen.queryByText('reasoningTokensEstimated:{"count":12}')).toBeNull();
+  });
+
+  it('keeps the sources prop reference stable so the markdown memo is not defeated by the 1s timer', () => {
+    vi.useFakeTimers();
+    try {
+      markdownProps.sources = [];
+      const live = createMockMessage({
+        content: '',
+        reasoningStartedAt: Date.now() - 3000,
+      });
+      render(
+        <ReasoningProcessAccordion
+          message={live}
+          isLast={true}
+          loading={true}
+          isExpanded={true}
+          onToggle={vi.fn()}
+          displayMode="collapsed"
+        />,
+      );
+
+      const first = markdownProps.sources.at(-1);
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      const second = markdownProps.sources.at(-1);
+
+      expect(markdownProps.sources.length).toBeGreaterThan(1);
+      expect(second).toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts a hung stop-thinking request after 10s so the button cannot stay stuck', async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      if (signal) signals.push(signal);
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const live = createMockMessage({ content: '', reasoningStartedAt: Date.now() - 3000 });
+      render(
+        <ReasoningProcessAccordion
+          message={live}
+          isLast={true}
+          loading={true}
+          isExpanded={false}
+          onToggle={vi.fn()}
+          displayMode="collapsed"
+        />,
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('stop-thinking-button'));
+      });
+      expect(signals).toHaveLength(1);
+      expect(signals[0].aborted).toBe(false);
+
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(signals[0].aborted).toBe(true);
+      expect(screen.getByTestId('stop-thinking-button')).not.toBeDisabled();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+});

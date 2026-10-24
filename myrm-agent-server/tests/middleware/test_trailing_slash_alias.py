@@ -70,3 +70,37 @@ def test_real_route_tree_alias_set_matches_openapi_contract() -> None:
     openapi_paths = set(app.openapi().get("paths", {}))
     documented = {path for path in openapi_paths if len(path) > 1 and path.endswith("/")}
     assert documented <= slashed, f"slashed OpenAPI paths missing from alias set: {sorted(documented - slashed)}"
+
+
+def test_parameterized_collection_root_is_aliased() -> None:
+    """带路径参数的集合根（如 /share/{token}/）必须按一段通配匹配真实请求，否则依旧 307。"""
+
+    async def share(_request):  # type: ignore[no-untyped-def]
+        return JSONResponse({"ok": "share"})
+
+    app = Starlette(routes=[Route("/share/{token}/", share, methods=["GET"])])
+    app.add_middleware(TrailingSlashAliasMiddleware, slashed_paths={"/share/{token}/"})
+    client = TestClient(app, follow_redirects=False)
+
+    assert client.get("/share/abc123").status_code == 200
+
+
+def test_parameterized_alias_does_not_swallow_extra_segments() -> None:
+    async def share(_request):  # type: ignore[no-untyped-def]
+        return JSONResponse({"ok": "share"})
+
+    app = Starlette(routes=[Route("/share/{token}/", share, methods=["GET"])])
+    app.add_middleware(TrailingSlashAliasMiddleware, slashed_paths={"/share/{token}/"})
+    client = TestClient(app, follow_redirects=False)
+
+    assert client.get("/share/abc123/extra").status_code == 404
+
+
+def test_route_without_path_or_router_is_skipped() -> None:
+    """Mounts/objects that expose neither ``path`` nor ``original_router`` must be ignored."""
+    from app.middleware.trailing_slash_alias import _iter_route_paths
+
+    class _Bare:
+        pass
+
+    assert list(_iter_route_paths([_Bare()], "")) == []

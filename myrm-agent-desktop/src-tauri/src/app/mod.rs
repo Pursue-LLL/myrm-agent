@@ -102,9 +102,7 @@ pub fn run() {
                 let app_handle_clone = app_handle.clone();
                 let exit_code = code.unwrap_or(0);
                 tauri::async_runtime::spawn(async move {
-                    lifecycle::graceful_shutdown(app_handle_clone).await;
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                    std::process::exit(exit_code);
+                    lifecycle::shutdown_and_exit(app_handle_clone, exit_code).await;
                 });
             }
             _ => {}

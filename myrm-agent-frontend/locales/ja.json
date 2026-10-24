@@ -3616,7 +3616,16 @@
       "strategyMultiAgent": "常にマルチエージェント"
     },
     "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました",
-    "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした"
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした",
+    "reasoningSteps": " · {count} ステップ",
+    "stopThinking": "思考を停止",
+    "stoppingThinking": "停止中...",
+    "stopThinkingHint": "思考を早めに切り上げ、分かっている内容で回答します",
+    "expandReasoning": "思考を展開",
+    "collapseReasoning": "思考を折りたたむ",
+    "reasoningLoading": "思考中",
+    "reasoningTokens": "{count} tokens",
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "高速検索",

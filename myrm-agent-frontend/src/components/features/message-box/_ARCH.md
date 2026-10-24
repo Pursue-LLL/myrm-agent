@@ -72,7 +72,7 @@
 | `__tests__/userMessageResendTestKit.ts` | 测试 | 重发测试共享夹具：含一轮已答复对话与失败气泡 `r-2` 的聊天、桩 `sendMessage`、转录与输入框读取器、`resetResendWorld` | ✅ |
 | `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩） | ✅ |
 | `TurnGrowthSparkline.tsx` | 组件 | 对话框轮级增长迷你 SVG Sparkline 折线图微组件：动态折线与渐变面积填充、较上轮 Delta 徽章（`+N tokens` / `已压缩`）、双主题语义色阶胶囊、悬停节点数值提示 | ✅ |
-| `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸打字态动画、秒级耗时追踪、字数 Token 估算、一键复制代码、双模式展开与 Markdown 正文渲染 | ✅ |
+| `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸态动画、秒级耗时、token 数（优先 `message.usage.reasoning_tokens`，缺失回落估算并标 `≈`）、一键复制、停止思考（请求 10s 上限，超时 abort 后按钮自动恢复）、`inline/collapsed/off` 三档；文案与 aria 全量 i18n；图标按钮 40px 触控区 | ✅ |
 | `__tests__/useContextWatermarkMetrics.test.ts` | 测试 | 水位推导、4 档色阶边界与逐轮 delta 正负增量单测 | ✅ |
 | `__tests__/TurnGrowthSparkline.test.tsx` | 测试 | Sparkline SVG 路径、节点悬停、Delta 徽章与语义色阶胶囊单测 | ✅ |
 | `__tests__/ReasoningProcessAccordion.test.tsx` | 测试 | 思维链折叠展开、流式呼吸态、秒级耗时标签与一键复制剪贴板单测 | ✅ |

@@ -13,7 +13,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
-import { connectionManager } from '@/services/ConnectionManager';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
 import { AgentBusyError, ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
@@ -230,11 +229,6 @@ describe('sendMessage failure handling', () => {
   });
 
   const networkDown = () => vi.mocked(createAISearchStream).mockRejectedValue(new TypeError('Failed to fetch'));
-  const gateFails = (err: string) =>
-    vi.spyOn(connectionManager, 'waitUntilReady').mockResolvedValue({ ok: false, err });
-  const useMultiplexedStream = () => {
-    delete window.__MYRM_E2E_DIRECT_SSE__;
-  };
 
   describe('a resume, whose answered card is already in the transcript', () => {
     beforeEach(answeredCard);
@@ -254,16 +248,6 @@ describe('sendMessage failure handling', () => {
       await expect(resume()).resolves.toBe(false);
 
       expect(createAISearchStream).toHaveBeenCalledTimes(1);
-      expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
-    });
-
-    it('stays undelivered and leaves the transcript alone when the workspace stream is not ready', async () => {
-      useMultiplexedStream();
-      gateFails('workspace-stream-ready-timeout');
-
-      await expect(resume()).resolves.toBe(false);
-
-      expect(createAISearchStream).not.toHaveBeenCalled();
       expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
     });
 
@@ -316,17 +300,6 @@ describe('sendMessage failure handling', () => {
   });
 
   describe('a fresh send', () => {
-    it('is undelivered and retracts its bubble when the workspace stream is not ready before the first request', async () => {
-      useMultiplexedStream();
-      gateFails('workspace-stream-ready-timeout');
-
-      await expect(send()).resolves.toBe(false);
-
-      expect(createAISearchStream).not.toHaveBeenCalled();
-      expect(transcript()).toEqual([]);
-      expect(showI18nToast).toHaveBeenCalledTimes(1);
-    });
-
     it('is undelivered and retracts its bubble, with the one risk notice and no retry, when a risk rule holds the text', async () => {
       vi.mocked(createAISearchStream).mockResolvedValue(riskBlockedResponse());
 
@@ -335,30 +308,6 @@ describe('sendMessage failure handling', () => {
       expect(createAISearchStream).toHaveBeenCalledTimes(1);
       expect(transcript()).toEqual([]);
       expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
-    });
-
-    it('keeps retrying a workspace stream failure that looks like a dropped connection', async () => {
-      useMultiplexedStream();
-      const gate = gateFails('Failed to fetch');
-
-      await expect(runWithRetries(send)).resolves.toBe(true);
-
-      expect(gate).toHaveBeenCalledTimes(ATTEMPTS_UNTIL_GIVING_UP);
-      expect(createAISearchStream).not.toHaveBeenCalled();
-      expect(transcript()).toEqual([`user:${REQUEST_ID}:failed`]);
-    });
-
-    it('stays an ordinary failure when the stream is not ready after a request already went out', async () => {
-      useMultiplexedStream();
-      vi.spyOn(connectionManager, 'waitUntilReady')
-        .mockResolvedValueOnce({ ok: true })
-        .mockResolvedValue({ ok: false, err: 'workspace-stream-ready-timeout' });
-      networkDown();
-
-      await expect(runWithRetries(send)).resolves.toBe(true);
-
-      expect(createAISearchStream).toHaveBeenCalledTimes(1);
-      expect(transcript()).toEqual([]);
     });
 
     it('keeps its bubble, marked failed, once every retry went unanswered', async () => {

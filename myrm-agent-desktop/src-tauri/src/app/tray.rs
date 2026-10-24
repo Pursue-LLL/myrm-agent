@@ -129,8 +129,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             "quit" => {
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    super::lifecycle::graceful_shutdown(app_handle.clone()).await;
-                    app_handle.exit(0);
+                    super::lifecycle::shutdown_and_exit(app_handle, 0).await;
                 });
             }
             "show" => show_main_window(app),

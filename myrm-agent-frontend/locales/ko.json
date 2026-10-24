@@ -3616,7 +3616,16 @@
       "strategyMultiAgent": "항상 멀티 에이전트"
     },
     "pdfScannedPages": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없어 이미지로 전송했습니다",
-    "pdfScannedPagesWithheld": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없고 전송 한도를 초과하여 보내지 못했습니다"
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없고 전송 한도를 초과하여 보내지 못했습니다",
+    "reasoningSteps": " · {count}단계",
+    "stopThinking": "사고 중지",
+    "stoppingThinking": "중지 중...",
+    "stopThinkingHint": "사고를 일찍 마치고 아는 내용으로 답합니다",
+    "expandReasoning": "사고 펼치기",
+    "collapseReasoning": "사고 접기",
+    "reasoningLoading": "사고 중",
+    "reasoningTokens": "{count} tokens",
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "빠른 검색",

@@ -124,24 +124,48 @@ def start_with_uvicorn(
             loop=loop_impl,
             timeout_graceful_shutdown=120,
         )
+        # uvicorn 正常返回 = 已停止接新请求且完成 drain。此处必须 os._exit：
+        # 解释器 finalize 阶段会 join 残留的非 daemon 线程（连接池/线程池 worker），
+        # 一旦卡住进程就以「已释放端口但永不退出」的形式悬挂，继续占着数据目录锁，
+        # 让下一次启动被拒绝（用户看到的是「数据目录已被另一个实例占用」）。
+        _exit_after_server_stop(frontend_launcher_instance)
     except KeyboardInterrupt:
         _cleanup_frontend()
         print("\n📍 Server stopped by user")
-        sys.exit(0)
+        _hard_exit(0)
     except ImportError as e:
         _cleanup_frontend()
         print(f"❌ Import Error: {e}")
         import traceback
 
         traceback.print_exc()
-        sys.exit(1)
+        _hard_exit(1)
     except Exception as e:
         _cleanup_frontend()
         print(f"❌ Error starting uvicorn: {e}")
         import traceback
 
         traceback.print_exc()
-        sys.exit(1)
+        _hard_exit(1)
+
+
+def _hard_exit(code: int) -> None:
+    """Flush stdio then leave without running interpreter finalization."""
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    finally:
+        os._exit(code)
+
+
+def _exit_after_server_stop(frontend_launcher_instance: object | None) -> None:
+    if frontend_launcher_instance is not None:
+        try:
+            frontend_launcher_instance.stop()  # type: ignore[attr-defined]
+        except Exception as exc:  # pragma: no cover - best-effort teardown
+            print(f"⚠️  Frontend stop during shutdown failed: {exc}")
+    print("📍 Server stopped")
+    _hard_exit(0)
 
 
 def _setup_webui_mode(

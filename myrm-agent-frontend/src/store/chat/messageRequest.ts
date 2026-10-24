@@ -45,7 +45,7 @@ import useAgentStore from '../useAgentStore';
 import useQuoteStore from '../useQuoteStore';
 import { showI18nToast } from '@/services/i18nToastService';
 import { supportsProviderNoAuth } from '@/store/config/providerTypes';
-import { executeStreamWithRetry, shouldUseMultiplexedAgentStream } from './streamConsumer';
+import { executeStreamWithRetry } from './streamConsumer';
 import { consumeStream } from './consumeStream';
 import {
   AgentBusyError,
@@ -673,7 +673,8 @@ export const createMessageRequest = async (
     message_id: messageId,
     chat_id: chatId,
     action_mode: actionMode,
-    multiplexed: shouldUseMultiplexedAgentStream(),
+    // 回合正文只走 POST 响应体（SSE）；后端仍接受 multiplexed 字段以兼容其它客户端。
+    multiplexed: false,
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(useWorkflowLane && { use_workflow: true }),
     ...(pendingWorkflowTemplateId && { workflow_template_id: pendingWorkflowTemplateId }),

@@ -19,6 +19,20 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
     if (data.data && data.data.length > 0) {
       const reasoningChunk = H.sanitizeStreamText(data.data as string);
 
+      // 首个思考帧可能早于任何会创建 assistant 消息的事件（routing/status 缺档位时不会建）。
+      // 不先建消息，chunk 会被 findAssistantMessageIndex === -1 丢弃，用户只看到静止骨架。
+      if (!ctx.added) {
+        let ensured = false;
+        actions.setMessages((updateState) => {
+          ensured =
+            H.ensureAssistantStreamMessage(updateState.messages, data.messageId, H.resolveStreamChatId(ctx.state)) !==
+            -1;
+        });
+        if (ensured) {
+          ctx.added = true;
+        }
+      }
+
       state.scheduler.schedule(() => {
         actions.setMessages((updateState) => {
           const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);

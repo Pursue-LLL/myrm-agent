@@ -3,15 +3,13 @@
  * ./consumeStream::consumeStream (POS: 单段 SSE 消费循环)
  * ./streamErrors (POS: busy / refused / interrupted 错误分类)
  * ./messageRequest::createMessageRequest (POS: agent-stream POST)
- * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
  * @/lib/utils/networkResilience::abortableDelay (POS: 网络韧性策略层，统一重试与 fail-fast 决策)
  *
  * [OUTPUT]
- * executeStreamWithRetry: 网络重试、AgentBusyError / ApprovalAlreadyResolvedError（resume 命中已被他人处理的中断，HTTP 409：超时或另一设备，服务端不区分）fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出），Stop 发生在 multiplex 就绪门等待期间时门返回后同样以 AbortError 结束且不构造请求；turn 成功后 finalizeAgentStreamTurn
- * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
+ * executeStreamWithRetry: 网络重试、AgentBusyError / ApprovalAlreadyResolvedError（resume 命中已被他人处理的中断，HTTP 409：超时或另一设备，服务端不区分）fail-fast、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出）；回合正文只从 POST 响应体（SSE）读取；turn 成功后 finalizeAgentStreamTurn
  *
  * [POS]
- * Chat agent-stream 前端回合编排 SSOT。busy 检测：SSE error_type=AgentBusyError（HTTP 200）；resume 收到 HTTP 409 表示该中断已被他人处理（`ApprovalAlreadyResolvedError`，可能是超时也可能是另一设备），非 resume 的 409 按普通拒绝处理；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
+ * Chat agent-stream 前端回合编排 SSOT。busy 检测：SSE error_type=AgentBusyError（HTTP 200）；resume 收到 HTTP 409 表示该中断已被他人处理（`ApprovalAlreadyResolvedError`，可能是超时也可能是另一设备），非 resume 的 409 按普通拒绝处理；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；回合正文一律从 POST 响应体读取（multiplex 传输已移除），非 SSE 响应按协议错误拒绝。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
@@ -23,8 +21,6 @@ import {
   ModelSelection,
 } from './types';
 import { abortableDelay, isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
-import { createMultiplexReadableStream } from './multiplexChunkBridge';
-import { connectionManager } from '@/services/ConnectionManager';
 import { resolveChatWikiEvidenceContext } from '@/services/wiki/evidenceContextCore';
 import { recordWikiQuerySubmitted } from '@/services/wiki/evidenceMetrics';
 import { consumePendingChatWikiQuerySuccess } from '@/services/wiki/evidenceQuerySuccessPendingCore';
@@ -44,33 +40,6 @@ function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void 
   const boundProjectId = consumeMigrationBoundProjectId();
   if (boundProjectId && chatId?.trim()) {
     syncChatSidebarProjectId(chatId.trim(), boundProjectId);
-  }
-}
-
-/**
- * Whether this turn's chunks arrive over the workspace multiplex stream instead of the POST response body.
- * The request body (`multiplexed`) and the consumer must read the same answer. Private-backend Chrome E2E tees
- * agent-stream chunks on /workspace/stream, so it keeps multiplex on and only the direct-SSE flag opts out.
- */
-export function shouldUseMultiplexedAgentStream(): boolean {
-  return typeof window === 'undefined' || !window.__MYRM_E2E_DIRECT_SSE__;
-}
-
-async function drainResponseBodyInBackground(res: Response): Promise<void> {
-  const body = res.body;
-  if (!body) {
-    return;
-  }
-  try {
-    const reader = body.getReader();
-    while (true) {
-      const { done } = await reader.read();
-      if (done) {
-        break;
-      }
-    }
-  } catch {
-    // Multiplex workspace path owns event delivery for this turn.
   }
 }
 
@@ -189,7 +158,7 @@ export async function executeStreamWithRetry(
 ): Promise<void> {
   let lastError: Error | null = null;
   let querySuccessRecorded = false;
-  let expectedQuerySuccessMessageId = normalizeMessageId(requestMessageId);
+  const expectedQuerySuccessMessageId = normalizeMessageId(requestMessageId);
   const onBusinessEvent = (event: AgentStreamEvent): void => {
     const eventMessageId = normalizeMessageId(event.messageId);
     const pendingSteerSuccess = consumePendingChatWikiQuerySuccess(state.chatId, eventMessageId);
@@ -221,29 +190,6 @@ export async function executeStreamWithRetry(
     }
 
     try {
-      const useMultiplexedStream = shouldUseMultiplexedAgentStream();
-      const multiplexBridge = useMultiplexedStream
-        ? createMultiplexReadableStream(requestMessageId, abortController.signal)
-        : null;
-
-      if (multiplexBridge) {
-        const workspaceReady = await connectionManager.waitUntilReady(30_000);
-        // The gate cannot be interrupted: a stop that arrived while it waited ends the turn here, before any
-        // request is built and without reporting the gate's verdict for a turn nobody is waiting for anymore.
-        abortController.signal.throwIfAborted();
-        if (!workspaceReady.ok) {
-          const gateError = new Error(
-            workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST',
-          );
-          // Nothing was posted before the first attempt, so a failure the loop would not retry means the turn
-          // never started. After a failed POST the server may already hold the turn, which stays an ordinary failure.
-          if (attempt === 0 && !isTransientNetworkError(gateError)) {
-            throw new RequestRefusedError(gateError.message);
-          }
-          throw gateError;
-        }
-      }
-
       // Lazy: messageRequest imports this module, so a static import would form a cycle.
       const { createMessageRequest } = await import('./messageRequest');
       const res = await createMessageRequest(
@@ -289,47 +235,12 @@ export async function executeStreamWithRetry(
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        if (!multiplexBridge) {
-          throw new Error('Multiplexed agent-stream requires a browser environment');
-        }
-        let streamMessageId = requestMessageId;
-        try {
-          const accepted = (await res.clone().json()) as { message_id?: string };
-          if (typeof accepted.message_id === 'string' && accepted.message_id.trim()) {
-            streamMessageId = accepted.message_id.trim();
-            expectedQuerySuccessMessageId = streamMessageId;
-          }
-        } catch {
-          // fall back to request-scoped id
-        }
-        const effectiveBridge =
-          streamMessageId === requestMessageId
-            ? multiplexBridge
-            : createMultiplexReadableStream(streamMessageId, abortController.signal);
-        const mockResponse = new Response(effectiveBridge, {
-          headers: { 'Content-Type': 'text/event-stream' },
-        });
-
-        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage, {
-          onBusinessEvent,
-        });
-      } else if (multiplexBridge) {
-        // Multiplex success returns JSON accepted; text/event-stream on POST is an early
-        // terminal response (AgentBusyError, risk_blocked, etc.) — must not drain it.
-        if (contentType.includes('text/event-stream')) {
-          await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
-        } else {
-          void drainResponseBodyInBackground(res);
-          const mockResponse = new Response(multiplexBridge, {
-            headers: { 'Content-Type': 'text/event-stream' },
-          });
-          await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage, {
-            onBusinessEvent,
-          });
-        }
-      } else {
-        await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
+        // 非流式 JSON 只可能来自未开启 SSE 的旧协议或代理改写：回合正文无处可读，明确拒绝而不是空等。
+        const accepted = (await res.text()).slice(0, 200);
+        throw new RequestRefusedError(`agent-stream returned JSON instead of SSE: ${accepted}`);
       }
+
+      await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
       await tryE2eAttachForPendingApproval(state, actions, abortController);
       await finalizeAgentStreamTurn(state.chatId);
       return;

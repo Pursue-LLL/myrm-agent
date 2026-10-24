@@ -1,53 +1,25 @@
 /**
  * Component Preloader Utility
  *
- * 用于在用户hover时预加载重型组件，提升首次渲染体验
+ * 用于在用户 hover 相关入口时预加载重型编辑器组件，提升首次交互体验。
  */
 
 let monacoPreloadPromise: Promise<void> | null = null;
-let sandpackPreloadPromise: Promise<void> | null = null;
 
 /**
- * 预加载Monaco编辑器
- * 可以在用户hover到相关链接时调用，提前加载Monaco
+ * 预加载 Monaco 编辑器
+ * 在用户 hover 到工作台或代码入口时提前拉取资源。
  */
-export function preloadMonacoEditor() {
+export function preloadMonacoEditor(): Promise<void> | null {
   if (!monacoPreloadPromise) {
     monacoPreloadPromise = Promise.all([import('@monaco-editor/react'), import('monaco-editor')])
       .then(([reactMod, monacoMod]) => {
         reactMod.loader.config({ monaco: monacoMod });
-        console.log('[Preload] Monaco editor loaded');
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('[Preload] Failed to load Monaco editor:', error);
         monacoPreloadPromise = null;
       });
   }
   return monacoPreloadPromise;
-}
-
-/**
- * 预加载Sandpack组件
- * 可以在用户hover到相关链接时调用
- */
-export function preloadSandpack() {
-  if (!sandpackPreloadPromise) {
-    sandpackPreloadPromise = import('@codesandbox/sandpack-react')
-      .then(() => {
-        console.log('[Preload] Sandpack loaded');
-      })
-      .catch((error) => {
-        console.error('[Preload] Failed to load Sandpack:', error);
-        sandpackPreloadPromise = null;
-      });
-  }
-  return sandpackPreloadPromise;
-}
-
-/**
- * 预加载所有重型编辑器组件
- */
-export function preloadAllEditors() {
-  preloadMonacoEditor();
-  preloadSandpack();
 }

@@ -7,7 +7,8 @@ import useAuthStore from '@/store/useAuthStore';
 
 /**
  * Maintains the multiplexed workspace SSE connection (/workspace/stream).
- * Required for multiplexed agent-stream chunks to reach multiplexChunkBridge.
+ * Supplies live session_status (sidebar generating/idle) and the reconnect pulse used for resync.
+ * 回合正文不走这里：agent-stream 正文固定由 POST 响应体（SSE）承载。
  */
 export function useWorkspaceStream(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

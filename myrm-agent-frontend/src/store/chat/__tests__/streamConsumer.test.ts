@@ -12,7 +12,6 @@ const mockCreateMessageRequest = vi.hoisted(() => vi.fn());
 const mockAttachToChat = vi.hoisted(() => vi.fn());
 const mockAttachForHitlRecovery = vi.hoisted(() => vi.fn());
 const mockRecoverPendingApprovals = vi.hoisted(() => vi.fn());
-const mockWaitUntilReady = vi.hoisted(() => vi.fn());
 const mockLoadMessages = vi.hoisted(() => vi.fn());
 const mockReleaseTurnInspectorControls = vi.hoisted(() => vi.fn());
 const mockResolveE2eApiBase = vi.hoisted(() => vi.fn<(...args: unknown[]) => string | null>(() => null));
@@ -21,7 +20,6 @@ const mockRecordWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockConsumePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockDecryptSseFrame = vi.hoisted(() => vi.fn());
 const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>(() => null));
-const mockCreateMultiplexReadableStream = vi.hoisted(() => vi.fn());
 const mockClearPendingWorkflowTemplate = vi.hoisted(() => vi.fn());
 const approvalState = vi.hoisted(() => ({
   queue: [] as unknown[],
@@ -41,10 +39,6 @@ vi.mock('../messageRequest', () => ({
   attachForHitlRecovery: (...args: unknown[]) => mockAttachForHitlRecovery(...args),
 }));
 
-vi.mock('../multiplexChunkBridge', () => ({
-  createMultiplexReadableStream: (...args: unknown[]) => mockCreateMultiplexReadableStream(...args),
-}));
-
 vi.mock('../../useChatStore', () => ({
   default: {
     getState: () => ({
@@ -59,12 +53,6 @@ vi.mock('@/lib/inspector/releaseTurnInspectorControls', () => ({
 
 vi.mock('@/hooks/approval/usePendingApprovalsRecovery', () => ({
   recoverPendingApprovals: (...args: unknown[]) => mockRecoverPendingApprovals(...args),
-}));
-
-vi.mock('@/services/ConnectionManager', () => ({
-  connectionManager: {
-    waitUntilReady: (...args: unknown[]) => mockWaitUntilReady(...args),
-  },
 }));
 
 vi.mock('@/lib/e2ee/client', () => ({
@@ -166,7 +154,7 @@ function createChunkStream(raw: string): ReadableStream<Uint8Array> {
 
 const STOP_TEST_EVENT = 'data: {"type":"message","messageId":"m-stop","data":"hi"}\n\n';
 
-/** One event, then silence: like the multiplex bridge, it neither closes nor errors by itself once its turn is stopped. */
+/** One event, then silence: the stream neither closes nor errors by itself once its turn is stopped. */
 function createSilentResponse(onCancel: () => void = () => undefined): Response {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -219,7 +207,6 @@ describe('streamConsumer resilience paths', () => {
     mockAttachToChat.mockReset();
     mockAttachForHitlRecovery.mockReset();
     mockRecoverPendingApprovals.mockReset();
-    mockWaitUntilReady.mockReset();
     mockLoadMessages.mockReset();
     mockReleaseTurnInspectorControls.mockReset();
     mockResolveE2eApiBase.mockReset();
@@ -228,15 +215,12 @@ describe('streamConsumer resilience paths', () => {
     mockConsumePendingChatWikiQuerySuccess.mockReset();
     mockDecryptSseFrame.mockReset();
     mockLoadStoredE2EESession.mockReset();
-    mockCreateMultiplexReadableStream.mockReset();
     mockClearPendingWorkflowTemplate.mockReset();
     mockResolveE2eApiBase.mockReturnValue(null);
     mockResolveChatWikiEvidenceContext.mockReturnValue({ contextKey: 'chat:a-1', turnDistance: 0 });
     mockConsumePendingChatWikiQuerySuccess.mockReturnValue(undefined);
     mockLoadStoredE2EESession.mockReturnValue(null);
-    mockCreateMultiplexReadableStream.mockImplementation(() => createChunkStream(''));
     approvalState.queue = [];
-    mockWaitUntilReady.mockResolvedValue({ ok: true });
     mockAttachForHitlRecovery.mockResolvedValue({
       ok: true,
       attached: false,
@@ -248,6 +232,7 @@ describe('streamConsumer resilience paths', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    delete window.__MYRM_E2E_DIRECT_SSE__;
   });
 
   it('throws ApprovalAlreadyResolvedError without retrying when a resume hits an interrupt someone else already resolved (HTTP 409)', async () => {
@@ -334,7 +319,7 @@ describe('streamConsumer resilience paths', () => {
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 
-  it('throws AgentBusyError on multiplex POST when body is direct SSE busy envelope', async () => {
+  it('throws AgentBusyError when the direct SSE body carries a busy envelope', async () => {
     const state = createBaseState({ chatId: 'chat-multiplex-busy', actionMode: 'agent' });
     const actions = createActions(state);
     const abortController = new AbortController();
@@ -345,9 +330,7 @@ describe('streamConsumer resilience paths', () => {
       messageId: 'msg-multiplex-busy',
       data: 'Agent is busy processing another request for this session.',
     };
-    (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
     mockResolveE2eApiBase.mockReturnValue(null);
-    mockCreateMultiplexReadableStream.mockReturnValue(createChunkStream(''));
     mockCreateMessageRequest.mockResolvedValue(createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`));
     mockParseSseEnvelope.mockReturnValue(busyEvent);
 
@@ -607,39 +590,6 @@ describe('streamConsumer resilience paths', () => {
     ).resolves.toMatchObject({ stoppedEarly: false });
 
     expect(mockDecryptSseFrame).toHaveBeenCalledWith(session, 'encrypted-frame');
-    expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
-  });
-
-  it('uses accepted message_id from multiplex JSON handshake stream', async () => {
-    const state = createBaseState({ chatId: 'chat-multiplex', actionMode: 'agent' });
-    const actions = createActions(state);
-    const abortController = new AbortController();
-    const requestMessageId = 'msg-multiplex-request';
-    const acceptedMessageId = 'msg-multiplex-accepted';
-    approvalState.queue = [{}];
-    mockResolveE2eApiBase.mockReturnValue('http://127.0.0.1:8080');
-    (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
-
-    mockCreateMultiplexReadableStream
-      .mockImplementationOnce(() => createChunkStream(''))
-      .mockImplementationOnce(() =>
-        createChunkStream('data: {"type":"message","messageId":"m-multiplex","data":"ok"}\n\n'),
-      );
-    mockCreateMessageRequest.mockResolvedValue(
-      new Response(JSON.stringify({ status: 'accepted', message_id: acceptedMessageId }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-multiplex', data: 'ok' });
-    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
-
-    await expect(
-      executeStreamWithRetry('hello', requestMessageId, state, actions, null, abortController, false, ''),
-    ).resolves.toBeUndefined();
-
-    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(1, requestMessageId, abortController.signal);
-    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(2, acceptedMessageId, abortController.signal);
     expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
   });
 
@@ -917,45 +867,168 @@ describe('streamConsumer resilience paths', () => {
         errorSpy.mockRestore();
       }
     });
+  });
+});
 
-    it.each([
-      ['gives up', { ok: false, err: 'workspace-stream-ready-timeout' }],
-      ['comes up', { ok: true }],
-    ])(
-      'ends quietly and posts nothing when the stop arrives before the workspace stream %s',
-      async (_outcome, gateResult) => {
-        (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
-        const state = createBaseState();
-        const abortController = new AbortController();
-        let settleGate: (result: { ok: boolean; err?: string }) => void = () => undefined;
-        mockWaitUntilReady.mockReturnValue(
-          new Promise((resolve) => {
-            settleGate = resolve;
-          }),
-        );
+describe('consumeStream stall / malformed-frame resilience', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-        const run = observe(
-          executeStreamWithRetry(
-            'hello',
-            'msg-stop-gate',
-            state,
-            createActions(state),
-            null,
-            abortController,
-            false,
-            '',
-          ),
-        );
-        await eventually(() => expect(mockWaitUntilReady).toHaveBeenCalledTimes(1));
+  it('turns a silent first frame into StreamInterruptedError instead of hanging forever', async () => {
+    const { StreamInterruptedError } = await import('../streamErrors');
+    const originalTimeout = AbortSignal.timeout.bind(AbortSignal);
+    const spy = vi
+      .spyOn(AbortSignal, 'timeout')
+      .mockImplementation((() => originalTimeout(1)) as unknown as typeof AbortSignal.timeout);
+    try {
+      const state = createBaseState();
+      const actions = createActions(state);
+      const silent = new Response(
+        new ReadableStream<Uint8Array>({
+          start() {
+            /* never enqueues and never closes: the reader stays pending until cancelled */
+          },
+        }),
+      );
 
-        abortController.abort();
-        // The gate cannot be interrupted; its verdict only arrives after the stop.
-        settleGate(gateResult);
-        await eventually(() => expect(run.isSettled()).toBe(true));
+      await expect(
+        consumeStream(silent, 'hello', state, actions, new AbortController(), false, ''),
+      ).rejects.toBeInstanceOf(StreamInterruptedError);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
-        expect(run.error()).toMatchObject({ name: 'AbortError' });
-        expect(mockCreateMessageRequest).not.toHaveBeenCalled();
-      },
+  it('skips a malformed SSE payload without invoking the reducer', async () => {
+    mockHandleMessageStream.mockClear();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    mockParseSseEnvelope.mockReturnValue(null);
+    const state = createBaseState();
+    const actions = createActions(state);
+
+    await consumeStream(
+      createSseResponse('data: {not-json}\n\n'),
+      'hello',
+      state,
+      actions,
+      new AbortController(),
+      false,
+      '',
     );
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('stops when the recovery deadline has already passed', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+
+    const result = await consumeStream(
+      createSseResponse('data: {"type":"heartbeat"}\n\n'),
+      'hello',
+      state,
+      actions,
+      new AbortController(),
+      false,
+      '',
+      { maxWaitMs: 0 },
+    );
+
+    expect(result.stoppedEarly).toBe(true);
+  });
+});
+
+describe('agent-stream protocol and error payload parsing', () => {
+  it('refuses a JSON 200 ack instead of waiting for chunks that never come', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(
+      new Response(JSON.stringify({ status: 'accepted', message_id: 'm-1' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-json-ack', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toBeInstanceOf(RequestRefusedError);
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('surfaces structured detail and error_code from a refused request', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(
+      new Response(JSON.stringify({ detail: 'model not configured', error_code: 'MODEL_MISSING' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-refused', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toMatchObject({ message: 'model not configured', errorCode: 'MODEL_MISSING' });
+  });
+
+  it('falls back to the raw body when a refused response carries a non-object payload', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(new Response('[]', { status: 400 }));
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-refused-array', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toBeInstanceOf(RequestRefusedError);
+  });
+
+  it('runs the E2E attach fallback when the direct-SSE flag is set', async () => {
+    window.__MYRM_E2E_DIRECT_SSE__ = true;
+    const state = createBaseState({ chatId: 'chat-e2e-attach' });
+    const actions = createActions(state);
+    mockAttachForHitlRecovery.mockResolvedValue({ attached: true, queueLen: 0, source: 'e2e' });
+    mockCreateMessageRequest.mockResolvedValue(
+      createSseResponse('data: {"type":"message","messageId":"m-e2e","data":"ok"}\n\n'),
+    );
+
+    try {
+      await executeStreamWithRetry('hello', 'msg-e2e', state, actions, null, new AbortController(), false, '');
+      expect(window.__MYRM_E2E_ATTACH_DIAG__?.attached).toBe(true);
+    } finally {
+      delete window.__MYRM_E2E_DIRECT_SSE__;
+      delete window.__MYRM_E2E_ATTACH_DIAG__;
+    }
+  });
+});
+
+describe('agent-stream defensive edges', () => {
+  it('refuses an empty error body without inventing a message', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(new Response('', { status: 400 }));
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-empty-error', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toBeInstanceOf(RequestRefusedError);
+  });
+
+  it('rejects a 200 response that carries no body', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(new Response(null, { status: 200 }));
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-no-body', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toThrow('No response body');
+  });
+
+  it('rethrows a non-Error rejection unchanged', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockRejectedValue('boom');
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-non-error', state, actions, null, new AbortController(), false, ''),
+    ).rejects.toBe('boom');
   });
 });

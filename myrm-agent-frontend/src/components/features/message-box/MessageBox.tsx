@@ -186,16 +186,23 @@ const MessageBox = ({
     return () => window.removeEventListener('developer-mode-changed', handleDeveloperModeChange);
   }, []);
 
-  // 自动折叠思考过程：当思考结束（开始输出正文）时自动折叠
+  // 自动折叠思考过程：只在「思考 → 开始输出正文」这一刻收起一次（延迟 1s，避免刚展开就被夺走）。
+  // 不能对每次展开都生效：否则用户在回答结束后想回看思考，会刚点开就被立刻收起（Cursor 曾因此被报 bug）。
+  const autoCollapsedReasoningRef = useRef(false);
   useEffect(() => {
     if (
       reasoningDisplayMode !== 'inline' &&
       message.reasoning &&
       message.content &&
       message.content.length > 0 &&
-      isReasoningExpanded
+      isReasoningExpanded &&
+      !autoCollapsedReasoningRef.current
     ) {
-      setIsReasoningExpanded(false);
+      const timer = setTimeout(() => {
+        autoCollapsedReasoningRef.current = true;
+        setIsReasoningExpanded(false);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
   }, [isReasoningExpanded, message.content, message.reasoning, reasoningDisplayMode]);
 

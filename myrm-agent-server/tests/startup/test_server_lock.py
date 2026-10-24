@@ -13,6 +13,18 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_state_dir():
+    """``_import_lock_module`` rebinds a module global; restore it so later suites see the real one."""
+    from app.startup import server_lock
+
+    original = server_lock._get_state_dir
+    yield
+    server_lock._get_state_dir = original
+
 
 def _import_lock_module(tmp_path: Path):
 

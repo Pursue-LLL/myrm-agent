@@ -60,6 +60,11 @@ export async function consumeStream(
 
   let lastDataTime = Date.now();
   const DATA_TIMEOUT = 5 * 60 * 1000;
+  // 首帧超时必须独立于「有数据后」的空窗预算：reader.read() 在没有数据时会一直挂起，
+  // 循环顶部的 DATA_TIMEOUT 检查根本不会执行（桌面 WebView 里出现过流已 200 但永远无首帧，
+  // 结果输入框骨架永久转圈）。首帧缺失 60s 即视为链路中断，交由 streamConsumer 的
+  // StreamInterruptedError 分支 attach / 拉取最终消息自愈。
+  const FIRST_DATA_TIMEOUT = 60 * 1000;
   let firstDataReceived = false;
   let stoppedEarly = false;
   const recoveryDeadline = options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
@@ -115,8 +120,26 @@ export async function consumeStream(
       abortController.signal.throwIfAborted();
 
       let readResult;
+      // 用原生 AbortSignal.timeout（不经过全局 setTimeout）做空窗预算：reader.read() 在无数据时
+      // 会一直挂起，循环顶部的 DATA_TIMEOUT 检查永远轮不到，界面就会永久停在骨架态。
+      // 超时先取消 reader 让挂起的读取返回，再按 StreamInterruptedError 交给 attach / 拉取最终消息自愈。
+      const idleBudget = firstDataReceived ? DATA_TIMEOUT : FIRST_DATA_TIMEOUT;
+      // 老版本浏览器（Safari < 16）没有 AbortSignal.timeout：降级为不设空窗看门狗，
+      // 而不是抛 TypeError 把整轮聊天打死；有该能力时才有首帧/空窗自愈。
+      const idleSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(idleBudget) : undefined;
+      const cancelOnIdle = (): void => {
+        reader.cancel().catch(() => undefined);
+      };
+      idleSignal?.addEventListener('abort', cancelOnIdle, { once: true });
       try {
         readResult = await reader.read();
+        if (idleSignal?.aborted && !abortController.signal.aborted) {
+          throw new StreamInterruptedError(
+            firstDataReceived
+              ? 'Stream stalled after data started'
+              : 'Stream produced no data before the first-frame timeout',
+          );
+        }
       } catch (e) {
         // A read torn down by the stop is the stop itself, not an interruption to re-attach to.
         abortController.signal.throwIfAborted();
@@ -124,6 +147,8 @@ export async function consumeStream(
           throw new StreamInterruptedError('Stream interrupted during reading', e as Error);
         }
         throw e;
+      } finally {
+        idleSignal?.removeEventListener('abort', cancelOnIdle);
       }
       // Cancelling the reader on stop ends a pending read as a clean end of stream, which must not heal the turn.
       abortController.signal.throwIfAborted();

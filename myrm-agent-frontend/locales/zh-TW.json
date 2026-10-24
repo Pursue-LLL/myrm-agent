@@ -3616,7 +3616,16 @@
       "strategyMultiAgent": "一律多智能體"
     },
     "pdfScannedPages": "[PDF] {fileName}：第 {pages} 頁無文字層，已以圖片傳送",
-    "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 頁無文字層，且超出單次傳送上限，未能傳送"
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 頁無文字層，且超出單次傳送上限，未能傳送",
+    "reasoningSteps": " · {count} 步",
+    "stopThinking": "停止思考",
+    "stoppingThinking": "收斂中...",
+    "stopThinkingHint": "提前結束思考，直接用已知資訊回答",
+    "expandReasoning": "展開思考過程",
+    "collapseReasoning": "收合思考過程",
+    "reasoningLoading": "正在思考",
+    "reasoningTokens": "{count} tokens",
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "快速搜尋",

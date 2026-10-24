@@ -229,6 +229,12 @@ class ConnectionManager {
     this.dispatchedCount += 1;
     this.lastMessageId = messageId;
 
+    // 本端回合正文只走 POST SSE，不再消费 multiplex chunk；无人注册 handler 时
+    // 直接丢弃而不是进 pending 缓冲，避免其它客户端/旧协议的事件按 message_id 累积内存。
+    if (this.handlers.size === 0) {
+      return;
+    }
+
     const handlers = this.handlers.get(messageId);
     if (handlers && handlers.size > 0) {
       for (const handler of handlers) {

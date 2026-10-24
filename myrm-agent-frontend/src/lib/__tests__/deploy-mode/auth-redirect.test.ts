@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { shouldRedirectToLoginOnAuthFailure } from '../deploy-mode';
+import { shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 
 describe('shouldRedirectToLoginOnAuthFailure', () => {
   const originalWindow = globalThis.window;
