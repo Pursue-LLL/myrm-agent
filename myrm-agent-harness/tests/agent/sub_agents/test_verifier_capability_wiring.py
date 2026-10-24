@@ -8,9 +8,8 @@ verifier round does.
 
 from __future__ import annotations
 
-import os
-
 import asyncio
+import os
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -29,6 +28,7 @@ from myrm_agent_harness.agent.types import AgentRuntimeConfig, WorkspaceBinding
 from myrm_agent_harness.core.security.ocap import CapabilityHandle, capability_scope
 from myrm_agent_harness.core.security.types import PermissionAction, PermissionRule, SecurityConfig
 from myrm_agent_harness.toolkits.code_execution import create_executor
+from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
 from myrm_agent_harness.toolkits.code_execution.executors.execution_evidence import track_execution
 from myrm_agent_harness.toolkits.code_execution.sandbox import detect_sandbox_provider
 
@@ -74,24 +74,30 @@ async def _run_verifier(
 
     Returns the stringified event stream and whether the run launched a process.
     """
+    executor = create_executor()
     agent = BaseAgent(
         llm=_ScriptedModel(responses=script),
-        executor=create_executor(),
+        executor=executor,
         tools=[tool],
         config=AgentRuntimeConfig(security_config=_approving_security(root)),
     )
+    session_id = f"chat_verifier_{root.parent.name}"
     run_context: dict[str, object] = {
         "workspaces_storage_root": str(storage_root),
-        "session_id": "chat_verifier_capability",
-        "workspace_binding": WorkspaceBinding(mode="chat", root_path=str(root), chat_id="verifier_capability"),
+        "session_id": session_id,
+        "workspace_binding": WorkspaceBinding(mode="chat", root_path=str(root), chat_id=session_id),
         "workspace_path": str(root),
     }
     events: list[str] = []
-    with capability_scope(_writer_handle(str(root))):
-        verifier_handle = derive_verifier_capability("adversarial-reviewer")
-        with track_execution() as evidence, capability_scope(verifier_handle):
-            async for event in agent.run("verify the work", context=run_context):
-                events.append(str(event))
+    executor_token = set_executor(executor)
+    try:
+        with capability_scope(_writer_handle(str(root))):
+            verifier_handle = derive_verifier_capability("adversarial-reviewer")
+            with track_execution() as evidence, capability_scope(verifier_handle):
+                async for event in agent.run("verify the work", context=run_context):
+                    events.append(str(event))
+    finally:
+        reset_executor(executor_token)
     return "\n".join(events), evidence.executed
 
 
