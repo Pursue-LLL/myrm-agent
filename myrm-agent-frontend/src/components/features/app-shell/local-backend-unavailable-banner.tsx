@@ -20,7 +20,13 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
 import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-backend-e2e-probe';
-import { isLocalMode, isRemoteGatewayActive, setRemoteGatewayConfig, getRemoteGatewayConfig, isTauriRuntime } from '@/lib/deploy-mode';
+import {
+  isLocalMode,
+  isRemoteGatewayActive,
+  setRemoteGatewayConfig,
+  getRemoteGatewayConfig,
+  isTauriRuntime,
+} from '@/lib/deploy-mode';
 import { switchRemoteFollow } from '@/lib/remote-follow-switch';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
 import { toast } from '@/lib/utils/toast';

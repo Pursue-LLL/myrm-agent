@@ -77,9 +77,9 @@ function isLockAncestorOfPid(
 ): boolean {
   let current = pid;
   for (let depth = 0; depth < maxDepth; depth += 1) {
-    if (current === lockPid) return true;
+    if (current === lockPid) {return true;}
     const ppid = getParentPid(current);
-    if (ppid === null || ppid <= 1) return false;
+    if (ppid === null || ppid <= 1) {return false;}
     current = ppid;
   }
   return false;
@@ -91,9 +91,9 @@ export function lockOwnsPortListeners(
   listenerPids: readonly string[],
   getParentPid: (pid: number) => number | null = readParentPid,
 ): boolean {
-  if (listenerPids.length === 0) return false;
+  if (listenerPids.length === 0) {return false;}
   const lockStr = String(lockPid);
-  if (listenerPids.includes(lockStr)) return true;
+  if (listenerPids.includes(lockStr)) {return true;}
   return listenerPids.some((listenerPid) => {
     const n = Number.parseInt(listenerPid, 10);
     return Number.isFinite(n) && isLockAncestorOfPid(lockPid, n, getParentPid);
@@ -101,11 +101,11 @@ export function lockOwnsPortListeners(
 }
 
 export function readDevLock(): DevLockRecord | null {
-  if (!fs.existsSync(LOCK_FILE)) return null;
+  if (!fs.existsSync(LOCK_FILE)) {return null;}
   try {
     const raw = fs.readFileSync(LOCK_FILE, 'utf8');
     const parsed = JSON.parse(raw) as DevLockRecord;
-    if (typeof parsed.pid !== 'number' || typeof parsed.port !== 'number') return null;
+    if (typeof parsed.pid !== 'number' || typeof parsed.port !== 'number') {return null;}
     return parsed;
   } catch {
     return null;
@@ -127,8 +127,8 @@ export function evaluateDevServerHealth(
   pidAlive: (pid: number) => boolean,
   getParentPid: (pid: number) => number | null = readParentPid,
 ): boolean {
-  if (!lock || lock.port !== port) return false;
-  if (!pidAlive(lock.pid)) return false;
+  if (!lock || lock.port !== port) {return false;}
+  if (!pidAlive(lock.pid)) {return false;}
   return lockOwnsPortListeners(lock.pid, listenerPids, getParentPid);
 }
 
@@ -169,11 +169,7 @@ export function tryAttachToHealthyDevServer(port: number): boolean {
   }
 
   const lock = readDevLock();
-  if (
-    lock &&
-    isProcessAlive(lock.pid) &&
-    evaluateDevServerHealth(lock, port, listeners, isProcessAlive)
-  ) {
+  if (lock && isProcessAlive(lock.pid) && evaluateDevServerHealth(lock, port, listeners, isProcessAlive)) {
     return true;
   }
 
@@ -201,7 +197,7 @@ function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: stri
 /** Refuse when another dev-server.lock owner is alive and healthy. */
 export function assertDevLockAvailable(port: number): void {
   const existing = readDevLock();
-  if (!existing || existing.pid === process.pid) return;
+  if (!existing || existing.pid === process.pid) {return;}
 
   if (!isProcessAlive(existing.pid)) {
     if (tryAttachToHealthyDevServer(port)) {
@@ -263,8 +259,8 @@ export function releaseDevLock(): void {
 
 export function clearStaleDevLock(): boolean {
   const lock = readDevLock();
-  if (!lock) return false;
-  if (isProcessAlive(lock.pid)) return false;
+  if (!lock) {return false;}
+  if (isProcessAlive(lock.pid)) {return false;}
   fs.unlinkSync(LOCK_FILE);
   return true;
 }
@@ -272,7 +268,7 @@ export function clearStaleDevLock(): boolean {
 /** Remove lock file unconditionally (used by bun run cleanup). */
 export function clearDevLock(): void {
   try {
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+    if (fs.existsSync(LOCK_FILE)) {fs.unlinkSync(LOCK_FILE);}
   } catch {
     // ignore
   }

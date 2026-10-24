@@ -8,7 +8,7 @@ Generic in-process pub-sub for Server business notifications (SSE, pairing, btw)
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports PubSubBus, PubSubEventProtocol | ✅ |
-| event_bus.py | Core | Generic PubSubBus[E] with PubSubEventProtocol contract | ✅ |
+| event_bus.py | Core | Generic PubSubBus[E] with PubSubEventProtocol contract; `publish(..., replay=False)` keeps high-churn telemetry live-only so a new subscriber never backfills a superseded snapshot | ✅ |
 
 ## Module Dependencies
 

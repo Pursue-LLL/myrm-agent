@@ -158,9 +158,7 @@ function recoverPoisonedTurbopackCache(): void {
   }
   try {
     fs.rmSync(cacheRoot, { recursive: true, force: true });
-    console.log(
-      'TURBO_CACHE_POISON_RECOVERED: turbopack dev cache was marked invalid; removed it before boot',
-    );
+    console.log('TURBO_CACHE_POISON_RECOVERED: turbopack dev cache was marked invalid; removed it before boot');
   } catch (error) {
     console.warn(`TURBO_CACHE_POISON_RECOVERED_FAILED: ${String(error)}`);
   }
