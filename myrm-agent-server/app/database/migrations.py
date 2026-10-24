@@ -685,6 +685,15 @@ MIGRATION_STATEMENTS: list[str] = [
     # AppLayout banner rendered as "scheduler stopped".
     "ALTER TABLE channel_pairings ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'member'",
     "ALTER TABLE channel_pairings ADD COLUMN daily_quota INTEGER",
+    # Columns the ORM declares on tables that predate them. Fresh databases get them from
+    # create_all, but an existing database needs the ALTER or every query on the table dies
+    # with "no such column" (the failure mode that turned the scheduler banner red).
+    "ALTER TABLE agents ADD COLUMN mounted_skill_ids JSON",
+    "ALTER TABLE agents ADD COLUMN memory_decay_profile VARCHAR(32) NOT NULL DEFAULT 'normal'",
+    "ALTER TABLE agents ADD COLUMN engine_params JSON",
+    "ALTER TABLE agents ADD COLUMN tool_gateway_config JSON",
+    "ALTER TABLE kanban_boards ADD COLUMN specify_max_tokens INTEGER NOT NULL DEFAULT 6000",
+    "ALTER TABLE kanban_boards ADD COLUMN auto_specify_on_create BOOLEAN NOT NULL DEFAULT 0",
 ]
 
 # 创建索引的SQL语句列表
