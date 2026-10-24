@@ -205,3 +205,14 @@ async def test_migration_engine_idempotent_skip_drop_nonexistent_column(engine):
         assert {r[0] for r in rows} == {0, 1, 2}
         idempotent_marks = [r[1] for r in rows if r[1].startswith("idempotent:")]
         assert len(idempotent_marks) == 1, "Only V1 should be flagged idempotent"
+
+def test_drift_shaped_skip_distinguishes_a_real_gap_from_a_drop() -> None:
+    """A missing column on UPDATE/ALTER is drift; on DROP COLUMN it is expected."""
+    from myrm_agent_harness.utils.db.migration_engine import _is_drift_shaped_skip
+
+    assert _is_drift_shaped_skip("no such column: foo", "UPDATE t SET foo = 1")
+    assert _is_drift_shaped_skip("no such column: foo", "ALTER TABLE t ADD COLUMN bar TEXT")
+    assert not _is_drift_shaped_skip(
+        "no such column: deployment_url", "ALTER TABLE artifacts DROP COLUMN deployment_url"
+    )
+    assert not _is_drift_shaped_skip("duplicate column name: foo", "ALTER TABLE t ADD COLUMN foo TEXT")

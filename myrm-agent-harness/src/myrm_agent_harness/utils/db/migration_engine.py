@@ -51,6 +51,23 @@ _IDEMPOTENT_ERROR_FRAGMENTS: tuple[str, ...] = (
 )
 
 
+def _is_drift_shaped_skip(error_message: str, sql: str) -> bool:
+    """True for the one "idempotent" error that usually means schema drift, not a re-run.
+
+    ``duplicate column`` / ``already exists`` are the expected outcome of replaying a
+    statement that landed out-of-band. ``no such column`` is different: a statement could
+    not see a column it depends on. Skipping it keeps the server booting, but the schema is
+    now missing whatever that statement would have produced.
+
+    ``ALTER TABLE ... DROP COLUMN`` is the exception: dropping a column a baselined
+    database never had is a legitimate no-op, not drift.
+    """
+    lower = error_message.lower()
+    if "no such column" not in lower:
+        return False
+    return "drop column" not in sql.lower()
+
+
 def _is_idempotent_skip(error_message: str) -> bool:
     """Detect idempotent SQLite errors safe to skip when state was lost.
 
@@ -225,12 +242,21 @@ class StatefulMigrationEngine:
             except Exception as e:
                 duration_ms = (time.time() - start_time) * 1000
                 if _is_idempotent_skip(str(e)):
-                    logger.info(
-                        "Migration V%d idempotent skip (%s): %s",
-                        m.version,
-                        type(e).__name__,
-                        str(e).splitlines()[0][:120],
-                    )
+                    first_line = str(e).splitlines()[0][:120]
+                    if _is_drift_shaped_skip(str(e), m.sql):
+                        logger.warning(
+                            "Migration V%d skipped on a missing column — schema drift? (%s) sql=%s",
+                            m.version,
+                            first_line,
+                            m.sql.strip()[:120],
+                        )
+                    else:
+                        logger.info(
+                            "Migration V%d idempotent skip (%s): %s",
+                            m.version,
+                            type(e).__name__,
+                            first_line,
+                        )
                     async with self.engine.begin() as conn:
                         checksum = self._compute_checksum(m.sql)
                         insert_sql = f"""
