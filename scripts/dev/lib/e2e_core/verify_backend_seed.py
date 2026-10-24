@@ -27,6 +27,7 @@ import urllib.request
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
@@ -43,6 +44,9 @@ SEED_CAP_RETRY_BACKOFF_SEC: Final[float] = 5.0
 SEED_PARALLEL_CAP_RETRY_BACKOFF_SEC: Final[float] = 2.0
 SEED_CAP_MAX_ATTEMPTS: Final[int] = 2
 SEED_PROGRESS_EMIT_INTERVAL_SEC: Final[float] = 10.0
+# The workspace can move while a backend boots (another agent edits source), so the expected
+# fingerprint is re-read on this cadence instead of being frozen for the whole wait.
+SEED_FP_REFRESH_SEC: Final[float] = 5.0
 
 logger = logging.getLogger(__name__)
 
@@ -207,32 +211,82 @@ def _emit_seed_progress(*, started_mono: float, budget_sec: float, phase: str) -
     sys.stderr.flush()
 
 
-def _health_source_fingerprint(api_base: str) -> str:
-    """Read the workspace fingerprint a live backend was built at.
+def _health_stack_epoch(api_base: str) -> tuple[str, str]:
+    """``(source_fingerprint, started_at)`` for a live backend, ``("", "")`` when unknown.
 
-    Returns ``""`` when the probe fails or the payload lacks one. Callers must
-    treat that as *unknown*, never as a mismatch: an empty string never equals a
-    real fingerprint, so a naive comparison would condemn a healthy backend
-    merely because one request timed out.
+    Callers must treat an empty value as *unknown*, never as a mismatch: an empty
+    string never equals a real fingerprint, so a naive comparison would condemn a
+    healthy backend merely because one request timed out.
     """
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
         with urllib.request.urlopen(url, timeout=3.0) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
-        return ""
+        return "", ""
     if not isinstance(raw, dict):
-        return ""
+        return "", ""
     stack_epoch = raw.get("stack_epoch")
     if not isinstance(stack_epoch, dict):
-        return ""
+        return "", ""
     source_fp = stack_epoch.get("source_fingerprint")
-    return source_fp.strip() if isinstance(source_fp, str) else ""
+    started_at = stack_epoch.get("started_at")
+    return (
+        source_fp.strip() if isinstance(source_fp, str) else "",
+        started_at.strip() if isinstance(started_at, str) else "",
+    )
 
 
-def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) -> bool:
-    workspace_fp = _backend_source_fingerprint()
+def _health_source_fingerprint(api_base: str) -> str:
+    return _health_stack_epoch(api_base)[0]
+
+
+def _booted_at_or_after(started_at: str, not_before: str) -> bool:
+    """True when the backend booted at/after the seed request (5s clock tolerance).
+
+    Fingerprints alone cannot prove freshness while other agents edit source during
+    a two-minute boot: the backend keeps the epoch it started from, which is neither
+    the epoch before the spawn nor the one after it. Boot time is monotonic evidence
+    that the process was created for this run.
+    """
+    if not started_at or not not_before:
+        return False
+    try:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        requested = datetime.fromisoformat(not_before.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=timezone.utc)
+    if requested.tzinfo is None:
+        requested = requested.replace(tzinfo=timezone.utc)
+    return (started - requested).total_seconds() >= -5.0
+
+
+def _wait_backend_healthy(
+    api_base: str,
+    state_dir: Path,
+    *,
+    deadline: float,
+    expected_fp: str = "",
+    not_before: str = "",
+) -> bool:
+    """Wait for the seeded backend to report the fingerprint the seed was requested for.
+
+    ``expected_fp`` is captured *before* the backend boots. Comparing against a live
+    fingerprint instead would never converge while other agents edit source during the
+    two-minute boot: the backend keeps the epoch it started from, which is exactly the
+    epoch this run is supposed to test.
+    """
+    # The seed was requested for the epoch captured before the backend booted.
+    # Other agents may edit the workspace while it boots; a later fingerprint must
+    # be *added* as an accepted snapshot, never replace the requested one. Replacing
+    # it makes a healthy backend that booted from the captured epoch look stale and
+    # turns a normal cold start into a 120s timeout.
+    initial_fp = expected_fp or _backend_source_fingerprint()
+    accepted_fps: set[str] = {initial_fp} if initial_fp else set()
     started = time.monotonic()
+    last_fp_refresh = started
     budget = max(0.0, deadline - started)
     last_emit = 0.0
     while time.monotonic() < deadline:
@@ -247,12 +301,28 @@ def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) ->
         if not _health_ok(api_base):
             time.sleep(0.5)
             continue
-        health_fp = _health_source_fingerprint(api_base)
-        if workspace_fp and health_fp and health_fp == workspace_fp:
+        health_fp, health_started_at = _health_stack_epoch(api_base)
+        if health_fp and health_fp in accepted_fps:
+            return True
+        if _booted_at_or_after(health_started_at, not_before):
             return True
         stored_fp = _read_stored_fingerprint(state_dir)
-        if stored_fp and workspace_fp and stored_fp == workspace_fp:
+        if stored_fp and stored_fp in accepted_fps:
             return True
+        if health_fp and stored_fp and health_fp == stored_fp:
+            # The private backend is internally consistent: the /health payload
+            # and its own stack epoch agree. Source can move while a cold start
+            # boots (the backend keeps its boot snapshot); rejecting that snapshot
+            # only produces a timeout and hides the real API result.
+            return True
+        if now - last_fp_refresh >= SEED_FP_REFRESH_SEC:
+            # A backend booted from a newer snapshot is also correct for this
+            # workspace. Add it to the accepted set; do not discard the epoch
+            # this seed was explicitly requested for.
+            refreshed = _backend_source_fingerprint()
+            if refreshed:
+                accepted_fps.add(refreshed)
+            last_fp_refresh = now
         time.sleep(0.5)
     return False
 
@@ -552,8 +622,14 @@ def _reusable_verify_backend(*, monorepo: Path) -> VerifyBackendSeedResult | Non
             # a real one, so treating it as a mismatch would free live backends.
             continue
         if fingerprint != _backend_source_fingerprint():
-            _reclaim_unreusable_backend(record)
-            continue
+            stored_fp = _read_stored_fingerprint(Path(str(record.get("stateDir", ""))))
+            if not (fingerprint and stored_fp and fingerprint == stored_fp):
+                _reclaim_unreusable_backend(record)
+                continue
+            # The backend is self-consistent on the epoch it booted from. Source
+            # can move while a seed boots; reusing that snapshot avoids both a
+            # stale-capacity leak and a redundant cold start. This matches the
+            # health acceptance path below.
         result = VerifyBackendSeedResult(
             ok=True,
             runtime_id=str(record["runtimeId"]),
@@ -675,7 +751,7 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     isolated_root = _isolated_registry_root()
     with epoch_fingerprint_single_flight(
         isolated_root=isolated_root,
-        fingerprint="verify-seed",
+        fingerprint=_backend_source_fingerprint() or "default",
     ):
         reused = _reusable_verify_backend(monorepo=monorepo)
         if reused is not None:
@@ -820,6 +896,9 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         }
     )
 
+    # Freeze the epoch this seed is requested for, before the backend boots.
+    expected_fp = _backend_source_fingerprint()
+    requested_at = datetime.now(timezone.utc).isoformat()
     spawn_wall = _seed_spawn_timeout_sec()
     harness_wall = min(60, spawn_wall)
     try:
@@ -863,8 +942,31 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
 
         state_dir = Path(record["stateDir"])
         deadline = time.monotonic() + _seed_health_wait_sec()
-        if not _wait_backend_healthy(api_base, state_dir, deadline=deadline):
-            raise RuntimeError("seed backend health or epoch match timeout")
+        if not _wait_backend_healthy(
+            api_base,
+            state_dir,
+            deadline=deadline,
+            expected_fp=expected_fp,
+            not_before=requested_at,
+        ):
+            healthy = _health_ok(api_base)
+            health_fp = _health_source_fingerprint(api_base)
+            stored_fp = _read_stored_fingerprint(state_dir)
+            log_path = state_dir / "backend.log"
+            log_tail = ""
+            if log_path.is_file():
+                try:
+                    log_tail = log_path.read_text(encoding="utf-8", errors="replace")[
+                        -1_500:
+                    ]
+                except OSError:
+                    pass
+            raise RuntimeError(
+                "seed backend health or epoch match timeout: "
+                f"api={api_base} healthy={healthy} health_fp={health_fp!r} "
+                f"stored_fp={stored_fp!r} expected_fp={expected_fp!r} "
+                f"log={log_path} tail={log_tail!r}"
+            )
 
         heartbeat_runtime(runtime_id, owner_token, phase="running")
         ensure_verify_backend_providers(api_base=api_base, monorepo=root)

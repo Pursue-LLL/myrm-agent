@@ -21,10 +21,7 @@ import {
   releaseDevLock,
   tryAttachToHealthyDevServer,
 } from './dev-lock';
-import {
-  isFrontendDevPaused,
-  probeFrontendDevPause,
-} from './frontend-dev-pause-gate';
+import { isFrontendDevPaused, probeFrontendDevPause } from './frontend-dev-pause-gate';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
@@ -127,6 +124,30 @@ if (clean) {
   fs.rmSync(nextDistDir, { recursive: true, force: true });
 }
 
+/**
+ * Turbopack writes this marker when it detects that its on-disk task database is
+ * unusable (the upstream failure mode is a torn persist after a hard kill, which then
+ * panic-loops every worker: ~900% CPU while idle, then OOM). A normal restart keeps
+ * the poisoned cache and re-enters the loop, so the only recovery is to drop
+ * `<distDir>/dev/cache/turbopack` before the next boot.
+ */
+function recoverPoisonedTurbopackCache(): void {
+  const cacheRoot = path.join(process.cwd(), nextDistDir, 'dev', 'cache', 'turbopack');
+  if (!fs.existsSync(path.join(cacheRoot, '__turbo_tasks_invalidated_db'))) {
+    return;
+  }
+  try {
+    fs.rmSync(cacheRoot, { recursive: true, force: true });
+    console.log(
+      'TURBO_CACHE_POISON_RECOVERED: turbopack dev cache was marked invalid; removed it before boot',
+    );
+  } catch (error) {
+    console.warn(`TURBO_CACHE_POISON_RECOVERED_FAILED: ${String(error)}`);
+  }
+}
+
+recoverPoisonedTurbopackCache();
+
 function setupSignalHandlers(child: ChildProcess) {
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
@@ -162,9 +183,7 @@ function reclaimAndExitIfPaused(): void {
   if (!isFrontendDevPaused()) {
     return;
   }
-  console.error(
-    `⏸️  Frontend dev paused (bun run cleanup). Reclaiming :${APP_DEV_PORT} and refusing start.`,
-  );
+  console.error(`⏸️  Frontend dev paused (bun run cleanup). Reclaiming :${APP_DEV_PORT} and refusing start.`);
   console.error('   Lift pause: bash myrm-agent/scripts/dev/dev-stack.sh frontend-only clear-pause');
   try {
     killListenersOnPort(APP_DEV_PORT, true);
@@ -292,7 +311,13 @@ if (bindLan) {
 console.log(`🚀 Starting Next.js on port ${APP_DEV_PORT}...`);
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
 const preloadGate = path.join(__dirname, 'next-dev-gate.cjs');
-const nodeArgs = [`--require`, preloadGate, nextBin, ...nextArgs.slice(1)];
+// 开发期内存的真实构成（实测 vmmap）：Turbopack 内存中的模块图/编译产物占绝大多数，
+// V8/JSC 堆只有数百 MB。因此 --max-old-space-size 无法约束整体占用，只有明确改用 Node
+// 运行时（Bun 是 JSC，不认 V8 参数）时才有意义，故仅在 Node 下按需追加。
+const runtimeIsNode = !process.versions.bun;
+const maxOldSpace = process.env.NODE_MAX_OLD_SPACE?.trim();
+const nodeArgs = runtimeIsNode && maxOldSpace ? [`--max-old-space-size=${maxOldSpace}`] : [];
+nodeArgs.push('--require', preloadGate, nextBin, ...nextArgs.slice(1));
 const child = spawn(process.execPath, nodeArgs, {
   stdio: 'inherit',
   detached: false,
