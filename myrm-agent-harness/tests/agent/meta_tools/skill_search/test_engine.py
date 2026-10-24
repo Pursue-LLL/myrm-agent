@@ -6,7 +6,7 @@ from myrm_agent_harness.agent.meta_tools.skills.search.engine import (
     DEFAULT_BM25_MIN_RELEVANCE_SCORE,
     SkillSearchEngine,
 )
-from myrm_agent_harness.backends.skills.types import SkillMetadata
+from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 
 
 @pytest.fixture
@@ -119,6 +119,23 @@ class TestSkillSearchEngine:
         engine = SkillSearchEngine(skills, min_relevance_score=-1.0)
         results = engine.search_bm25("+needle generic", top_k=5)
         assert [result.name for result in results] == ["needle_skill"]
+
+    def test_english_train_ticket_query_finds_chinese_mcp_skill(self) -> None:
+        tools = ["get_current_date", "get_tickets", "get_train_route_stations"]
+        skill = SkillMetadata(
+            name="mcp_12306_mcp_skill",
+            description="12306 火车票查询与车站信息",
+            mcp=MCPSkillData(
+                server="12306",
+                tools=tools,
+                config=[],
+                tool_schemas={tool: {"description": "铁路票务"} for tool in tools},
+            ),
+        )
+        engine = SkillSearchEngine([skill])
+        assert [result.name for result in engine.search_bm25("train ticket", top_k=5)] == [skill.name]
+        assert [result.name for result in engine.search_bm25("railway ticket", top_k=5)] == [skill.name]
+        assert [result.name for result in engine.search_bm25("12306", top_k=5)] == [skill.name]
 
     def test_search_bm25_required_term_only(self, sample_skills: list[SkillMetadata]) -> None:
         engine = SkillSearchEngine(sample_skills)
