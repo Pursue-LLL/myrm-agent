@@ -144,9 +144,24 @@ async fn run_watchdog(
         }
 
         let frontend_state = app.state::<NextJSFrontend>();
+        let frontend_port = config.port;
         match crate::runtime::start_frontend(app.clone(), frontend_state, config).await {
             Ok(_) => {
                 println!("[frontend-watchdog] Frontend restarted successfully");
+                // A restarted server does not revive the WebView by itself: it is still
+                // showing the old connection-error page. Navigate back so recovery is
+                // visible without asking the user to reload.
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(url) =
+                        format!("http://127.0.0.1:{frontend_port}/").parse::<tauri::Url>()
+                    {
+                        if let Err(error) = window.navigate(url) {
+                            eprintln!(
+                                "[frontend-watchdog] Failed to navigate after restart: {error}"
+                            );
+                        }
+                    }
+                }
                 restart_timestamps.push(Instant::now());
                 last_error.clear();
                 update_tray_status(&app, "idle");
