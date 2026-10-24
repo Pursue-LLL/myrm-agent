@@ -418,7 +418,7 @@ class UserService:
 ### 范围与验证
 
 - **代码**：以 `myrm_agent_harness/` 与 `tests/` 为真源；模块职责见各目录的 `*_SYSTEM.md` / `*_DESIGN.md` 技术方案文档。
-- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `.github/workflows/test.yml`。
+- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `myrm-agent/.github/workflows/harness-test.yml`。
 - **性能**：对外宣称延迟、吞吐或加速比时，须附带可复现命令、环境与数据。
 
 ### 性能数据（实测）
@@ -508,7 +508,7 @@ class UserService:
 
 - **Semantic network**: INPUT references POS, forming a self-healing dependency graph.
 - **Module docs**: `_ARCH.md` replaces README.md at module level. No module-level README files.
-- **CI gate**: `scripts/check_fractal_docs.py` + `scripts/validate_arch_inventory.py` — fractal `_ARCH.md` coverage and file-table vs disk `.py` consistency (pre-commit + `boundary-check.yml`). Pure data/config directories (JSON/YAML/SQL only) are excluded. Slow wheel packaging tests run in the `distribution-packaging-slow` CI job.
+- **CI gate**: `scripts/check_fractal_docs.py` + `scripts/validate_arch_inventory.py` — fractal `_ARCH.md` coverage and file-table vs disk `.py` consistency (pre-commit + `myrm-agent/.github/workflows/harness-boundary.yml`). Pure data/config directories (JSON/YAML/SQL only) are excluded. Slow wheel packaging tests run in the `distribution-packaging-slow` CI job.
 
 ---
 

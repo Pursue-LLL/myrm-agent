@@ -50,10 +50,36 @@ jobs:
       - name: Run _ARCH inventory check (full harness)
         run: |
           uv run --no-sync python scripts/validate_arch_inventory.py --root src/myrm_agent_harness
-          uv run --no-sync python scripts/validate_arch_inventory.py --root . --md-refs
+          uv run --no-sync python scripts/validate_arch_inventory.py --root . --md-refs --repo-refs
+
+      - name: Run import resolvability gate
+        run: uv run --no-sync python scripts/check_import_resolvability.py
 
       - name: Run package root layout gate
         run: uv run --no-sync python scripts/check_package_root_layout.py
 
       - name: Run architecture tests
         run: uv run --no-sync pytest tests/architecture/ -m "architecture and not slow" -n0 -v --tb=short
+
+  distribution-packaging-slow:
+    name: Distribution packaging (slow)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
+        with:
+          version: "0.12.7"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --python 3.13 --locked --dev --group build
+
+      - name: Run slow architecture packaging tests
+        run: uv run --no-sync pytest tests/architecture/test_distribution_packaging.py -m "architecture and slow" -n0 -v --tb=short --timeout=3000

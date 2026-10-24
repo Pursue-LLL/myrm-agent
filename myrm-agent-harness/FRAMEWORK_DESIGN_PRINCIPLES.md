@@ -49,24 +49,14 @@
 
 ## 5. 分发与发布
 
-**生效路径只有一条**：仓库根的 `.github/workflows/harness-publish.yml`。`harness-v<version>` tag → `scripts/verify_release_tag.py` 校验 tag 与 `pyproject.toml` 版本一致 → `uv build -o dist` → 干净 venv 装 wheel 跑 `verify-harness-distribution` → `uv publish`（OIDC）。
+**唯一发布流程**：仓库根的 `.github/workflows/harness-publish.yml`（GitHub 只执行仓库根的工作流目录）。`harness-v<version>` tag → `scripts/verify_release_tag.py` 校验 tag 与 `pyproject.toml` 版本一致 → 矩阵编译 8 个平台 core wheel（`scripts/build_core.py`）→ 剥离源码的 release wheel（`scripts/build_release_wheel.py`）→ `scripts/validate_pypi_wheels.py` 校验全套产物 → 按项目逐个以 OIDC 上传 release wheel 与各平台 core wheel → `scripts/verify_pypi_publish.py` 校验索引。
 
-- 产物是**单个纯 Python wheel**，不剥源码：`uv build --wheel` 的包包含 `harness_packaging/core_manifest.yaml` 声明的全部 120 个叶子 `.py`。
-- `verify-harness-distribution` 在源码完整时让 `runtime.install_guard.probe.get_distribution_mode()` 返回 `source`，`assert_distribution_ready()` 直接返回。它只证明「包能导入 + 公开 API 可解析」，不校验源码是否被剥离。
-- **子目录 `.github/workflows/` 不生效**：GitHub 只执行仓库根的工作流目录，`myrm-agent-harness/.github/workflows/*.yml` 不会被触发。引用 CI 门禁时只认根目录的 workflow 文件。
+- `harness_packaging/core_manifest.yaml` 是编译范围的 SSOT（10 个目录 → 120 个叶子模块），`scripts/sync_distribution_metadata.py` 据此生成 `runtime/install_guard/_generated/core_ip_manifest.py` 与 `compiled-core` pin。
+- 平台矩阵：`harness_packaging/platforms.py` 的 8 个 key（含 2 个 musl），与仓库根 `.github/core-platform-matrix.json` 一致。
+- `verify-harness-distribution` 校验「包能导入 + 公开 API 可解析」；发行模式下额外由 `runtime.install_guard.probe` 校验 release/core 版本与平台 key 一致。
+- 本地等价流程：`uv sync --group build && .venv/bin/python scripts/assemble_production.py`（`--install` 可直接装进消费方 venv）。
 
-**本地 / 手动双 wheel 工具链**（可运行，未接入 CI）：
-
-| 组件 | 位置 | 作用 |
-|---|---|---|
-| 编译清单 | `harness_packaging/core_manifest.yaml` | 10 个目录 → 120 个叶子模块 |
-| 元数据生成 | `scripts/sync_distribution_metadata.py` | 生成 `runtime/install_guard/_generated/core_ip_manifest.py` 与 `compiled-core` pin |
-| 核心编译 | `scripts/build_core.py` | Nuitka 编译 + 平台 wheel |
-| 发行剥离 | `scripts/build_release_wheel.py` | 从 wheel 删除清单内的 `.py` |
-| 一键装配 | `scripts/assemble_production.py` | 串起两者，可 `--install` 到消费方 venv |
-| 平台矩阵 | `harness_packaging/platforms.py` | 8 个 key（含 2 个 musl） |
-
-使用前须知：PyPI 上 `myrm-agent-harness` 最新为 **0.1.0rc5**，而 `pyproject.toml` 已是 **0.1.0rc6**。`[compiled-core]` 与 `[compiled-core-musl]` 声明的 rc6 平台包均未发布，两个 musl 项目在 PyPI 不存在，装 `[compiled-core]` 会解析失败。
+当前发行缺口：PyPI 上最新为 **0.1.0rc5**，`pyproject.toml` 已是 **0.1.0rc6**。`[compiled-core]` 与 `[compiled-core-musl]` 声明的 rc6 平台包尚未发布，两个 musl 项目的 PyPI 记录不存在，装 `[compiled-core]` 会解析失败。
 
 **公开面**：外部消费者只允许 `from myrm_agent_harness.api import ...`（`api/__init__.py` 的 `_EXPORTS` 惰性导出 + `api/__init__.pyi` 类型镜像，由 `tests/api/test_public_surface.py` 校验一致性）。其余子模块是内部实现，不构成兼容承诺。
 
@@ -88,7 +78,7 @@
 | `MYRM_LOCALES_DIR` | 覆盖诊断 i18n 目录 | 内置 `agent/errors/diagnostics/i18n/locales/`（de / en / ja / ko / zh-CN） |
 | `MYRM_GATEWAY_URL` / `_TOKEN` | 第三方工具中继地址与凭证 | 不需要该能力时不必设置 |
 
-`MYRM_PERSISTENT_ROOT` 必须每次调用时读取（`runtime/paths/execution_paths.py::get_persistent_root`），禁止在导入时快照成常量；部署层在启动之后设置也必须对所有调用方生效。消费方同样按调用时求值，不得缓存：bash 路径白名单取 `runtime/paths/execution_paths.py::get_context_root()`（`toolkits/code_execution/security/validator.py`），因此改根之后 `.context` 仍在该白名单内。
+`MYRM_PERSISTENT_ROOT` 必须每次调用时读取（`core/paths.py::get_persistent_root`，由 `runtime/paths/execution_paths.py` 转发），禁止在导入时快照成常量；部署层在启动之后设置也必须对所有调用方生效。路径根原语放 `core/` 而非 `runtime/`，因为 `toolkits/` 需要根路径但禁止 import `runtime/`；消费方同样按调用时求值，不得缓存——bash 路径白名单直接取 `core/paths.py::get_context_root()`（`toolkits/code_execution/security/validator.py`），因此改根之后 `.context` 仍在该白名单内。
 
 **框架边界**：不得硬编码 monorepo 路径，不得反向读取 `myrm-agent-server` 的文件。i18n、checkpoint、storage 必须自带默认数据或提供注入点（`register_translations()`、`StorageProvider`、checkpointer 工厂）。
 
@@ -119,7 +109,7 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 | §3 第1条 不留兼容包袱 | 24 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/egress/tainted_gateway.py`、`core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
 | §3 第2条 走持久化抽象 | 子 agent checkpoint 直接落文件系统，不经 `StorageProvider` | `agent/sub_agents/checkpoint/saver.py` 只用 `MYRM_DATA_DIR/checkpoints` + `atomic_write` |
 | §3 第3条 / §4 零拷贝契约 | 两处产出 `ArtifactVault` 无法解析的指针：`vault://{chat_id}/turns/{i}/transcript.log`（从不落盘）、`vault://artifacts/{task}/result.json`（`default_worker_runner` 的模拟实现） | `agent/context_management/strategies/summary/turn_refetcher.py`、`agent/sub_agents/swarm_offload/offload_dispatcher.py`（该包在 `src/` 内无任何引用方，仅单测使用） |
-| §5 发布一致性 | 发行 CI 不剥源码、不装 core 包；`[compiled-core]` 指向未发布的 rc6；musl core 项目不存在 | 根 `.github/workflows/harness-publish.yml` 只有 `uv build`；PyPI 最新 0.1.0rc5 |
+| §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
 | §2 类型目标 | 无 lint / 类型门禁；mypy 2252、ruff 1331 未清 | 见 §2 实测表 |
 | §7 门禁覆盖 | MCP 双结局门禁未进入 `-m architecture` job | 见 §7 门禁现状 |
 

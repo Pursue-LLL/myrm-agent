@@ -29,15 +29,11 @@ Persistent root:
     configured after import is honored by every caller and nothing keeps a stale copy.
 
 [INPUT]
-- MYRM_PERSISTENT_ROOT (optional infra env): persistent volume root; default /persistent
+- core.paths (POS: persistent-volume root primitives, shared with toolkits/)
 
 [OUTPUT]
-- PERSISTENT_ROOT_ENV: Name of the environment variable that relocates the persistent volume root.
-- DEFAULT_PERSISTENT_ROOT: The volume root used when the environment variable is unset.
-- get_persistent_root: The persistent volume root currently in effect.
-- get_workspace_root: The workspace root under the persistent volume.
-- get_context_root: The context root currently in effect.
-- get_memories_root: The memory storage root under the persistent volume.
+- Re-exports PERSISTENT_ROOT_ENV, DEFAULT_PERSISTENT_ROOT, get_persistent_root,
+  get_workspace_root, get_context_root, get_memories_root from core.paths.
 - get_evicted_output_path: Get path for evicted large bash output (auto-generates UU...
 - get_scratchpad_path: Get path for agent scratchpad file.
 - get_snapshot_path: Get path for pre-compression conversation snapshot (auto-...
@@ -60,42 +56,23 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
+from myrm_agent_harness.core.paths import (  # noqa: F401  re-exported path roots
+    DEFAULT_PERSISTENT_ROOT,
+    PERSISTENT_ROOT_ENV,
+    get_context_root,
+    get_memories_root,
+    get_persistent_root,
+    get_workspace_root,
+)
+
 # ============ Core Path Roots ============
-
-# Environment variable the deployment layer sets when the volume is not mounted at /persistent.
-PERSISTENT_ROOT_ENV = "MYRM_PERSISTENT_ROOT"
-
-DEFAULT_PERSISTENT_ROOT = "/persistent"
+#
+# The root primitives live in ``core.paths`` so ``toolkits/`` can read the root without
+# importing ``runtime/`` (the toolkit contract forbids it). Re-exported here because every
+# runtime caller imports them from this module.
 
 # Alternative workspace path for compatibility
 LEGACY_WORKSPACE_ROOT = "/workspace"
-
-
-def get_persistent_root() -> str:
-    """Return the persistent volume root currently in effect.
-
-    Read from ``MYRM_PERSISTENT_ROOT`` at call time, falling back to ``DEFAULT_PERSISTENT_ROOT``;
-    a blank value and a bare ``/`` count as unset. Callers that need a root import this function
-    instead of a constant, so they always agree with the paths the writers produce, whenever the
-    deployment layer sets the variable.
-    """
-    configured = os.environ.get(PERSISTENT_ROOT_ENV, "").strip().rstrip("/")
-    return configured or DEFAULT_PERSISTENT_ROOT
-
-
-def get_workspace_root() -> str:
-    """Return the workspace root (user files, projects, artifacts)."""
-    return f"{get_persistent_root()}/workspace"
-
-
-def get_context_root() -> str:
-    """Return the context offload root (compressed tool outputs, scratchpad)."""
-    return f"{get_persistent_root()}/.context"
-
-
-def get_memories_root() -> str:
-    """Return the memory storage root."""
-    return f"{get_persistent_root()}/.memories"
 
 
 # ============ Context Subdirectories ============

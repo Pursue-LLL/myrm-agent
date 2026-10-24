@@ -12,7 +12,7 @@
 - main(): exit 0 when release + expected core packages are indexed and release exposes compiled-core extra
 
 [POS]
-Post-upload gate in publish-pypi.yml; release + 6 bootstrapped core wheels mandatory; musl cores
+Post-upload gate in .github/workflows/harness-publish.yml; release + 6 bootstrapped core wheels mandatory; musl cores
 mandatory only when already indexed for the version (after bootstrap_pypi_core_upload.sh).
 """
 

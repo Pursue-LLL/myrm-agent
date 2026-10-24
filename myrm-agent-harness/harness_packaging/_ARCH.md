@@ -38,7 +38,7 @@ Build and release tooling for package distribution: compiled-core manifest, plat
 
 ## PyPI
 
-Tag `harness-v*` → `myrm-agent-harness/.github/workflows/harness-publish.yml` uploads release + eight platform core wheels; post-upload verify requires six bootstrapped cores plus musl when indexed on PyPI.
+Tag `harness-v*` → repository-root `.github/workflows/harness-publish.yml` uploads release + eight platform core wheels; post-upload verify requires six bootstrapped cores plus musl when indexed on PyPI.
 
 ## System Design
 

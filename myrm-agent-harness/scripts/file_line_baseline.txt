@@ -57,7 +57,7 @@ myrm_agent_harness/toolkits/browser/session/extractor.py	582
 myrm_agent_harness/toolkits/code_execution/executors/common/wrapper_script.py	596
 myrm_agent_harness/toolkits/code_execution/executors/local/executor.py	759
 myrm_agent_harness/toolkits/code_execution/security/safe_command_configs/git.py	556
-myrm_agent_harness/toolkits/code_execution/security/validator.py	534
+myrm_agent_harness/toolkits/code_execution/security/validator.py	531
 myrm_agent_harness/toolkits/code_execution/session/persistent_session.py	579
 myrm_agent_harness/toolkits/computer_use/backends/windows.py	591
 myrm_agent_harness/toolkits/computer_use/desktop_session.py	810

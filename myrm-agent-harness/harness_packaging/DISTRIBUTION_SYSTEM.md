@@ -86,7 +86,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 
 ## PyPI Publish
 
-Tag `harness-v*` (e.g. `harness-v0.1.0rc1`, aligned with `project.version`) on the **myrm-agent** repository triggers `myrm-agent-harness/.github/workflows/harness-publish.yml`: the `harness-v` prefix is what separates a harness release from the desktop release, which uses plain `v*`:
+Tag `harness-v*` (e.g. `harness-v0.1.0rc1`, aligned with `project.version`) on the **myrm-agent** repository triggers `.github/workflows/harness-publish.yml` (the repository-root workflow; GitHub only runs workflows kept at the repository root, never in a subproject's own `.github` directory): the `harness-v` prefix is what separates a harness release from the desktop release, which uses plain `v*`:
 
 0. `scripts/verify_release_tag.py` asserts `refs/tags/harness-v{version}` matches `project.version` before any wheel build
 1. Matrix build eight `myrm-agent-harness-core-*` wheels
@@ -110,8 +110,8 @@ One-time bootstrap for new core project names (OIDC cannot create projects): `sc
 
 | Workflow | Role |
 |----------|------|
-| `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` |
-| `boundary-check.yml` | Architecture + distribution tests (dual-wheel COMPILED e2e, manifest drift gate, wheel artifact zip scan via `validate_pypi_wheels.py`) |
+| `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` at the repository root |
+| `harness-boundary.yml` | Architecture gates (`boundary_check`, fractal docs, `_ARCH` inventory, import resolvability, package layout, `-m "architecture and not slow"`) plus a `distribution-packaging-slow` job running `test_distribution_packaging.py -m "architecture and slow"` (dual-wheel COMPILED e2e, manifest drift gate, wheel artifact zip scan via `validate_pypi_wheels.py`) |
 | `harness-test.yml` | Unit suite (`-n 2`) and serial browser integration on push to `main` and PRs; locked source tree (`uv sync --locked`: `[all]` + `dev` group; `compiled-core*` excluded via `[tool.uv]`) |
 
 ## References

@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+from myrm_agent_harness.core.paths import get_context_root
 from myrm_agent_harness.core.security.path import is_within_boundary
 from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
     DANGEROUS_MODULES,
@@ -176,10 +177,6 @@ def _get_allowed_paths(
     if additional_paths:
         for path in additional_paths:
             allowed.append(path.resolve())
-
-    # Lazy: a module-level import here would drag the whole runtime package into
-    # every consumer of this validator.
-    from myrm_agent_harness.runtime.paths.execution_paths import get_context_root
 
     allowed.append(Path("/workspace"))
     allowed.append(Path("/tmp"))
