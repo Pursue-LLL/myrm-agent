@@ -96,7 +96,7 @@ def create_select_skill_tool(
 
     class SelectSkillInput(BaseModel):
         skill_names: list[str] = Field(
-            description="Skill names from the <bound_skills> catalog (must end with _skill). One or more allowed.",
+            description="Skill names from the bound library (listed catalog entries or an explicitly named bound skill; must end with _skill). One or more allowed.",
             min_length=1,
         )
         reason: str = Field(description="Brief reason for selecting these skills (required, max 100 chars)")

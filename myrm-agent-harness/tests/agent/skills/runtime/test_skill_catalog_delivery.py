@@ -79,6 +79,17 @@ def test_ensure_skill_catalog_is_idempotent_on_reinject() -> None:
     assert second_pass.count("<bound_skills") == 1
 
 
+def test_skill_select_input_accepts_named_skills_outside_the_inline_catalog() -> None:
+    from myrm_agent_harness.agent._internals._agent_build import _weave_dynamic_schemas
+
+    tool = create_select_skill_tool([_skill("alpha_skill")], _StubSkillBackend())  # type: ignore[arg-type]
+    woven = _weave_dynamic_schemas([tool])[0]
+    schema = woven.args_schema.model_json_schema()
+    field_desc = schema["properties"]["skill_names"]["description"]
+    assert "bound library" in field_desc
+    assert "explicitly named bound skill" in field_desc
+
+
 def test_skill_select_tool_description_is_static_without_embedded_xml() -> None:
     skills = [_skill("alpha_skill"), _skill("beta_skill")]
     tool = create_select_skill_tool(skills, _StubSkillBackend())  # type: ignore[arg-type]
