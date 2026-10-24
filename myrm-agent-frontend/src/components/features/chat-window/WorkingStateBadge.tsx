@@ -14,12 +14,18 @@ import useConfigStore from '@/store/useConfigStore';
  * makes the saved note visible while the user is in the chat. It carries no runtime
  * subtasks or traps.
  */
-const WorkingStateBadge = memo(() => {
+export interface WorkingStateBadgeProps {
+  chatId?: string;
+}
+
+const WorkingStateBadge = memo(({ chatId }: WorkingStateBadgeProps = {}) => {
   const t = useTranslations('chat.workingState');
   const [state, setState] = useState<WorkingStateResponse | null>(null);
   const loading = useChatStore((s) => s.loading);
   const incognito = useChatStore((s) => s.incognitoMode);
+  const isMessagesLoaded = useChatStore((s) => s.isMessagesLoaded);
   const memoryEnabled = useConfigStore((s) => s.enableMemory);
+  const chatReady = !chatId || isMessagesLoaded;
   const previousLoading = useRef(loading);
 
   const fetchState = useCallback(async () => {
@@ -31,21 +37,21 @@ const WorkingStateBadge = memo(() => {
   }, []);
 
   useEffect(() => {
-    if (!memoryEnabled || incognito) {
+    if (!chatReady || !memoryEnabled || incognito) {
       setState(null);
       return;
     }
     void fetchState();
-  }, [fetchState, incognito, memoryEnabled]);
+  }, [chatReady, fetchState, incognito, memoryEnabled]);
 
   useEffect(() => {
-    if (memoryEnabled && !incognito && previousLoading.current && !loading) {
+    if (chatReady && memoryEnabled && !incognito && previousLoading.current && !loading) {
       void fetchState();
     }
     previousLoading.current = loading;
-  }, [fetchState, incognito, loading, memoryEnabled]);
+  }, [chatReady, fetchState, incognito, loading, memoryEnabled]);
 
-  if (!memoryEnabled || incognito || !state?.content || state.expired) {
+  if (!chatReady || !memoryEnabled || incognito || !state?.content || state.expired) {
     return null;
   }
 

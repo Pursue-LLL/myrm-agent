@@ -13,10 +13,10 @@ const getWorkingState = vi.hoisted(() => vi.fn());
 vi.mock('@/services/memory', () => ({ getWorkingState }));
 vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
 
-function renderBadge() {
+function renderBadge(chatId?: string) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <WorkingStateBadge />
+      <WorkingStateBadge chatId={chatId} />
     </NextIntlClientProvider>,
   );
 }
@@ -24,7 +24,7 @@ function renderBadge() {
 describe('WorkingStateBadge', () => {
   beforeEach(() => {
     getWorkingState.mockReset();
-    useChatStore.setState({ incognitoMode: false });
+    useChatStore.setState({ incognitoMode: false, isMessagesLoaded: true });
     useConfigStore.setState({ enableMemory: true });
   });
 
@@ -82,6 +82,18 @@ describe('WorkingStateBadge', () => {
 
     expect(container).toBeEmptyDOMElement();
     expect(getWorkingState).not.toHaveBeenCalled();
+  });
+
+  it('waits for chat hydration before reading a chat-scoped state', async () => {
+    useChatStore.setState({ isMessagesLoaded: false });
+
+    const { container } = renderBadge('chat-1');
+
+    expect(container).toBeEmptyDOMElement();
+    expect(getWorkingState).not.toHaveBeenCalled();
+
+    useChatStore.setState({ isMessagesLoaded: true });
+    await waitFor(() => expect(getWorkingState).toHaveBeenCalled());
   });
 
   it('does not read working state when memory is disabled', () => {
