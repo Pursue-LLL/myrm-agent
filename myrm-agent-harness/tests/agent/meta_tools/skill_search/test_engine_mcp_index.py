@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from myrm_agent_harness.agent.meta_tools.skills.search.engine import (
-    MCP_SKILL_TOOL_INDEX_THRESHOLD,
+    MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD,
     SkillSearchEngine,
     _build_skill_index_document,
     _truncate_tool_desc,
@@ -27,27 +27,33 @@ def _mcp_skill(tool_count: int, *, user_description: str = "GitHub integration")
 
 
 class TestBuildSkillIndexDocument:
-    def test_small_mcp_skill_uses_base_only(self) -> None:
-        skill = _mcp_skill(MCP_SKILL_TOOL_INDEX_THRESHOLD)
+    def test_small_mcp_skill_indexes_tool_names_but_not_descriptions(self) -> None:
+        skill = _mcp_skill(MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD)
         doc = _build_skill_index_document(skill)
-        assert "tool_0" not in doc
+        assert "tool 0" in doc
+        assert "Does tool_0 on repository" not in doc
         assert "GitHub integration" in doc
 
+    def test_small_mcp_tool_name_is_searchable(self) -> None:
+        skill = _mcp_skill(2)
+        engine = SkillSearchEngine([skill])
+        assert [r.name for r in engine.search_bm25("tool_0", top_k=5)] == ["mcp_github_skill"]
+
     def test_large_mcp_skill_includes_tool_names(self) -> None:
-        skill = _mcp_skill(MCP_SKILL_TOOL_INDEX_THRESHOLD + 1)
+        skill = _mcp_skill(MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD + 1)
         doc = _build_skill_index_document(skill)
         assert "tool_0" in doc
         assert "tool_3" in doc
 
     def test_tool_without_schema_dict_uses_name_token(self) -> None:
-        skill = _mcp_skill(MCP_SKILL_TOOL_INDEX_THRESHOLD + 1)
+        skill = _mcp_skill(MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD + 1)
         assert skill.mcp is not None
         skill.mcp.tool_schemas["tool_0"] = "not-a-dict"  # type: ignore[assignment]
         doc = _build_skill_index_document(skill)
         assert "tool 0" in doc
 
     def test_tool_with_non_string_description(self) -> None:
-        skill = _mcp_skill(MCP_SKILL_TOOL_INDEX_THRESHOLD + 1)
+        skill = _mcp_skill(MCP_SKILL_TOOL_DESC_INDEX_THRESHOLD + 1)
         assert skill.mcp is not None
         skill.mcp.tool_schemas["tool_0"] = {"description": 123, "inputSchema": {}}
         doc = _build_skill_index_document(skill)
