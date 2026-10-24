@@ -553,6 +553,9 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     """
     if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
         return
+    # Full isolated owns its own API/UI epoch; never gate it against shared :8080.
+    if os.environ.get("MYRM_E2E_FULL_ISOLATED", "").strip() == "1":
+        return
     dev_lib = _e2e_dev_lib_path()
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
@@ -627,6 +630,11 @@ def _chrome_e2e_epoch_pin(
 ) -> Iterator[None]:
     """Pin epoch-matched API for SHARED LIVE NAMESPACE_WRITE without private ADMIT (P0-DGR-6)."""
     if not _is_formal_chrome_e2e(request):
+        yield
+        return
+    # A full isolated runtime already exports its own API; pinning a second
+    # verify-api backend here would make the UI fetch the wrong port.
+    if os.environ.get("MYRM_E2E_FULL_ISOLATED", "").strip() == "1":
         yield
         return
     profile = _chrome_e2e_profile(request.node)
