@@ -229,10 +229,10 @@ Level 2: 正文（Body）
   → get_skill_content() 返回 SKILL.md 正文
   → LLM 选择使用某技能后按需加载
   → Token 消耗：~500-2000 tokens/技能
-  → **MCP 例外**：`core_generator` 生成的 MCP SKILL.md 上限为 3,000 tokens
-    （instructions ≤2,000 + 工具段吃剩余额度 + 固定约 248 + tier note 96）。
-    理由：服务器的业务原则不截断，工具段用预算阶梯
-    （full → required → names）适配工具数量，而不是砍规则。
+  → **MCP 例外**：`core_generator` 生成的 MCP SKILL.md 每个 server 上限 3,000 tokens；
+    fixed 前缀按实际 Header + Calling 动态计算，instructions 上限由剩余预算推导，
+    工具段用预算阶梯（full → required → names）适配工具数量，超限真正降级而不是只 warning。
+    3,000 是单 server 上限，不是多选 skill 的总预算。
 
 Level 3: 资源（Resources）
   → get_skill_resources() 返回脚本/参考文档
@@ -242,38 +242,14 @@ Level 3: 资源（Resources）
 
 ### 4.2 安全 XML 摘要格式
 
-**融合 ironclaw 内容转义 + LobsterAI 路由指令 + picoclaw XML 结构**：
+**当前格式：`get_metadata_summary()` 输出 `<skills>`；通用选择规则在 `skill_select_tool` 静态 description，L1 只负责目录与 hidden/search 动态规则。**
 
 ```xml
-<available_skills>
-  <routing_rules>
-    If exactly one skill clearly applies to the user's request: read its SKILL.md.
-    If multiple skills may apply: ask the user which to use.
-    If no skill applies: proceed without skills.
-  </routing_rules>
-
-  <skill name="web-search" available="true" trust="trusted" location="builtin/web-search/SKILL.md">
-    <description>Search the web for real-time information</description>
-    <tags>search, web</tags>
+<skills>
+  <skill name="mcp_12306_mcp_skill" available="true" trust="trusted" always="true">
+    <description>该服务主要用于帮助用户查询12306的车票信息、特定列车的经停站信息以及相关的车站信息。</description>
   </skill>
-
-  <skill name="database-query" available="false" trust="trusted" location="workspace/database-query/SKILL.md">
-    <description>Query SQL databases</description>
-    <requires>
-      <bin>psql</bin>
-      <env>DATABASE_URL</env>
-    </requires>
-    <unavailable_reason>Missing: psql binary, DATABASE_URL env var</unavailable_reason>
-  </skill>
-
-  <skill name="community-tool" available="true" trust="installed" location="installed/community-tool/SKILL.md">
-    <description>A community-contributed tool</description>
-  </skill>
-
-  <skill name="memory" available="true" trust="trusted" always="true" location="builtin/memory/SKILL.md">
-    <description>Persistent memory across conversations</description>
-  </skill>
-</available_skills>
+</skills>
 ```
 
 **关键安全措施**（来自 ironclaw）：
@@ -281,14 +257,11 @@ Level 3: 资源（Resources）
 - `<skill>` 标签逃逸检测（大小写不敏感，处理空白和 NUL 字节）
 - 行尾规范化确保一致性哈希
 
-**路由指令**（来自 LobsterAI）：
-- 显式告诉 LLM 如何选择技能，减少误触发
-- `trust` 属性让 LLM 知道技能的信任级别
-
-**设计决策**：
-- 默认使用完整 XML 格式
-- 技能数量 >30 时自动切换 Compact 模式（缩短属性名）
-- `location` 属性提供文件路径，LLM 可直接读取
+**路由规则**：
+- 通用规则在 `skill_select_tool` 静态 description，减少误触发；
+- `trust` 属性让 LLM 知道技能的信任级别；
+- L1 仅在 `hidden_count > 0` 时输出 search/hidden 动态规则；
+- 超过 20 个内联条目时，其余技能以 `<hidden_skills>` 名单保留。
 
 ### 4.3 Always 技能
 
@@ -315,9 +288,7 @@ hidden_skills  = model_visible - display_skills
 1. `always` 无数量上限。MCP 技能全部由 `core_generator.py` 硬编码 `always=True`，因此接入的 MCP 服务器越多，非 always 技能（典型是用户手写技能）能拿到的完整条目越少；`always` 数量 ≥ 20 时，用户技能只出现在 `<hidden_skills>` 名单里，**仍有名字，可直接传给 `skill_select_tool`**。
 2. 目录是**单调**的：20 个技能 → 20 条完整条目；21 个 → 20 条 + 1 个隐藏名。落选技能以 `<hidden_skills count="N">name1, name2, …</hidden_skills>` 附在目录末尾，routing_rules 会说明「这些名字可直接传给 `skill_select_tool`」。因此「名字是地板」：目录再拥挤，也不会出现模型完全不知道某技能存在的情况。
 
-**如何被发现**：不在完整条目里的技能会以名字出现在 `<hidden_skills>`；模型可以按名字直接 `skill_select_tool`，也可以用 `skill_search_tool`（BM25 + jieba，索引全量绑定技能）检索。**目录只影响「看到多少细节」，不影响「能否被选中」，也不影响「是否知道它存在」。**
-
-**如何被发现**：不在目录里的技能不会被模型「自然想到」，但仍有两条路可达 —— `skill_search_tool`（BM25 + jieba，索引全量绑定技能）检索出名字，然后 `skill_select_tool` 按名字加载。**目录只影响「能否被看见」，不影响「能否被选中」。**
+**如何被发现**：不在完整条目里的技能会以名字出现在 `<hidden_skills>`；模型可以按名字直接 `skill_select_tool`，也可以用 `skill_search_tool`（BM25 + jieba，索引全量绑定技能；MCP 工具名与 80 字符短描述也进入索引）检索。**目录只影响「看到多少细节」，不影响「能否被选中」，也不影响「是否知道它存在」。**
 
 **约束**：
 - 建议 always 技能数量控制在 1-3 个。

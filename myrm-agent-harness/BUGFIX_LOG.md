@@ -2,6 +2,21 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-24-021 · MCP Skill 三层提示的四处漂移：L2 假硬上限、漏 await、L1 多选矛盾、小 MCP 工具名不可搜
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-24（用 12306 真实 MCP + 合成 300 工具 server + MiniMax/Gemini/DeepSeek 探针逐项复现） |
+| **修复时间** | 2026-10-24 |
+| **严重程度** | P2：不崩服务，但会导致上下文超预算、模型漏 await 重试、L1 路由矛盾、隐藏小 MCP 搜不到 |
+| **关联产品** | harness `agent/skills/mcp/core_generator.py`、`doc_rendering.py`、`agent/skills/runtime/registry.py`、`agent/meta_tools/skills/select/skill_select_tool.py`、`agent/meta_tools/skills/search/engine.py`、`agent/meta_tools/bash/_tool/tool_description.py` |
+| **根因** | ① `L2_FIXED_TOKENS=248` 是旧 Calling 的测量值，实际约 341；`>3000` 只 warning，300 工具 + 2000 instructions 实测 3085；② L2 未明确 async/await，模型写 `today = get_current_date()`，得到 coroutine 后 `fromisoformat` TypeError；③ L1 写 “multiple skills may apply: ask the user”，但 `skill_names` 是 list 且支持多选；④ 搜索对 `tool_count <=3` 不索引工具名，隐藏小 MCP 的工具名查询 miss。 |
+| **修复** | ① L2 fixed 动态计算，instructions 上限由剩余预算推导，工具段 `full→required→names`，超限真正降级；② L2 明确 “MCP functions are async: always await; without await returns coroutine”；③ L1 通用规则移入静态 `skill_select_tool`，L1 只保留 hidden/search 动态规则，并改为 jointly apply 时一次多选；④ 所有 MCP 都索引工具名和 80 字符短描述，删除 tool_count 分支。 |
+| **回归** | `tests/agent/skills/mcp/test_core_generator.py`（300 工具 + 2000 instructions <=3000、await prompt contract）、`tests/agent/skills/runtime/test_skill_catalog_delivery.py`（inline 无 routing_rules；hidden 有 search）、`tests/agent/meta_tools/skill_search/test_engine_mcp_index.py`（2 工具工具名可搜）、`tests/agent/meta_tools/bash/test_tool_description.py`（未知返回可同批观察）。定向：prompt 63、bash 28、search 130、L1 162、L2 139、MCP 257 passed。 |
+| **实测** | 12306：L1 69 / L2 939 / L3 794；300 工具 + 2000 instructions：3085 → 2952；MiniMax 加 await 约束后 5/5 完成、0 工具错误；单 bash 仍 1/5，未达 90%。 |
+| **局限** | L1 去重尚未做跨模型选择率 A/B；L2 截断在真实超大 MCP 上未压测；Chrome E2E 未在最终提示词后重跑。 |
+
 ### BUG-HARNESS-2026-10-19-020 · 暂存交付物披露与交付置信档只写不读：收尾把暂存清单挂在消息的 `additional_kwargs` 上而全仓没有读取方（服务端等的是 `message_end` 事件字段），置信档解析器全仓没有调用方，于是「草案已暂存」与证据档永远不出现在用户界面
 
 | 字段 | 内容 |

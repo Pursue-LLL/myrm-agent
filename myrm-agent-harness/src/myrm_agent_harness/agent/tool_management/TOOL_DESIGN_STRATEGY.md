@@ -233,7 +233,7 @@ class ToolLayer(IntEnum):
 需要单独立项调整 `always` 配额或 `SKILL_SELECT_INLINE_MAX`。
 
 **不变量**：目录只决定「模型能否看见多少细节」，不决定「能否被选中」。`skill_select_tool` 的白名单与
-`skill_search_tool` 的索引都取自全量 `filtered_skills`；`<hidden_skills>` 只是把「名字」这一层存在性
+`skill_search_tool` 的索引都取自全量 `filtered_skills`（普通 skill 用 name/description；MCP skill 额外索引所有工具名与 80 字符短描述）；`<hidden_skills>` 只是把「名字」这一层存在性
 补回来。评估任何目录改动时，必须同时看**供给侧**（`filtered_skills`）与**接收侧**（`display_skills`
 + `hidden_skills` → `<bound_skills>`），只看一侧会得出错误结论。
 

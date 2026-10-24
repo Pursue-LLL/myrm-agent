@@ -13,4 +13,4 @@
 
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
-| `business.py` | ✅ 核心 | 业务层通用类型定义：ModelConfig、MCPServerConfig（含 mTLS 字段与结果缓存策略字段）等 |
+| `business.py` | ✅ 核心 | 业务层通用类型定义：ModelConfig、MCPServerConfig（含 mTLS 字段；结果缓存为 `cache_ttl_seconds` + `cacheable_tools` 显式 opt-in，空/0 关闭）等 |
