@@ -67,7 +67,10 @@ def _skill(name: str, description: str) -> SkillMetadata:
 
 
 def _many_skills(count: int, *, prefix: str = "bound") -> list[SkillMetadata]:
-    return [_skill(f"{prefix}_{index:02d}_skill", f"desc {index}") for index in range(count)]
+    return [
+        _skill(f"{prefix}_{index:02d}_skill", f"desc {index} " + "detailed capability description " * 40)
+        for index in range(count)
+    ]
 
 
 def _skills_for_search_mount(*, featured: SkillMetadata) -> list[SkillMetadata]:

@@ -70,7 +70,7 @@ def _many_skills(count: int) -> list[SkillMetadata]:
     return [
         SkillMetadata(
             name=f"bound_skill_{index:02d}",
-            description=f"Bound skill {index}",
+            description=f"Bound skill {index} " + "detailed capability description " * 40,
             model_invocable=True,
             available=True,
         )
