@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-24 · 「定时任务已停止运行」横幅：两个独立根因
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` `adbd13baf5`） |
+| **症状** | WebUI 顶部常驻红条：「定时任务已停止运行 / 任务调度器已停止，所有定时任务都不会执行」；`/api/v1/cron/scheduler/health` 返回 `51002 Database operation failed` |
+| **根因 1** | `ChannelPairingModel` 有 `role` / `daily_quota` 两个字段，但从未有迁移加过它们；任何 `channel_pairings` 查询都抛 `sqlite3.OperationalError: no such column: channel_pairings.role`，健康接口把它转成 51002，前端按「停止」渲染 |
+| **根因 2** | 即使修好表结构，`_arm_timer_async()` 在「没有待执行任务」时直接 return，不创建任何定时器 → `has_timer=false`、`last_tick_at=null` → 健康判定为 `red`。空闲调度器被误报成停止 |
+| **修复** | ① 追加两条 append-only 迁移补 `role` / `daily_quota`（新库由 `create_all` 提供）；② 无任务时改为 arm watchdog tick（60s 一次空转，代价可忽略），且 `has_timer` 把 watchdog 计为存活定时器 |
+| **回归证据** | 修复前 `51002`；修复后 `red → yellow → green`（`last_tick_age_seconds=6.0`）在重载后 36 秒内完成；harness cron 758 passed、lifecycle 30 passed（新增「空闲调度器仍有活定时器」用例） |
+
 ## BUG-AGENT-2026-10-22-001: 回合身份在 params 构建前赋值，导致每轮持久化聊天 UnboundLocalError
 
 | 属性 | 值 |
