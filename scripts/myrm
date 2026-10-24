@@ -27,7 +27,6 @@ show_help() {
     echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
     echo "Usage: myrm <command>"
     echo "  setup    First-time install"
-    echo "  dev      Backend only (:8080)"
     echo "  start    Backend + frontend (:8080 + :3000)"
     echo "  stop | status | update"
     echo "  doctor   Browser & environment diagnostics"
@@ -62,10 +61,6 @@ shift || true
 case "$COMMAND" in
     setup)
         exec "${SCRIPT_DIR}/dev/setup.sh"
-        ;;
-
-    dev)
-        exec "${SCRIPT_DIR}/dev/dev.sh" "$@"
         ;;
 
     start)
