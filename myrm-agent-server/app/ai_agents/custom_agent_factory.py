@@ -294,7 +294,12 @@ class CustomAgentFactory:
         from myrm_agent_harness.api import create_skill_agent
         from myrm_agent_harness.toolkits.llms import llm_manager
 
+        from app.ai_agents.general_agent.tools import ensure_tool_layer_bootstrap
         from app.platform_utils import get_storage_provider
+
+        # A subagent can be the first agent built in this process; HTTP startup no longer
+        # registers tool layers eagerly, so await the same idempotent bootstrap here.
+        await asyncio.to_thread(ensure_tool_layer_bootstrap)
 
         await self._ensure_initialized()
         profile = self._agent_profile

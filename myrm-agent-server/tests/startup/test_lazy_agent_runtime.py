@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from app.ai_agents.general_agent.tools import ensure_tool_layer_bootstrap
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
@@ -51,3 +53,18 @@ def test_tool_layer_bootstrap_is_idempotent() -> None:
     ensure_tool_layer_bootstrap()
 
     assert tools_package._bootstrapped is True
+
+
+@pytest.mark.asyncio
+async def test_startup_preload_calls_the_tool_layer_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.server import lifespan
+
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        "app.ai_agents.general_agent.tools.ensure_tool_layer_bootstrap",
+        lambda: calls.append(True),
+    )
+
+    await lifespan._preload_agent_tool_layers()
+
+    assert calls == [True]
