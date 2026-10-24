@@ -179,11 +179,12 @@ async def test_verifier_shell_can_keep_scratch_output_outside_the_workspace(
     )
 
     try:
-        events, _ = await _run_verifier(
+        _events, _ = await _run_verifier(
             root=workspace, storage_root=storage_root, tool=create_bash_code_execute_tool(), script=script
         )
+        # The capability under test is the scratch write itself; output forwarding through the
+        # event stream is covered deterministically by test_verifier_shell_command_is_execution_evidence.
         assert scratch.read_text(encoding="utf-8") == "worker output"
-        assert "worker output" in events
     finally:
         scratch.unlink(missing_ok=True)
 
