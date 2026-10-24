@@ -52,6 +52,21 @@ def _schema_sources(statements: str) -> tuple[dict[str, str], dict[str, set[str]
     return created, added
 
 
+def _declared_columns(create_body: str) -> set[str]:
+    """Column names that are actually *defined* in a CREATE TABLE body.
+
+    A plain substring search would accept a column that merely appears inside another
+    column's DEFAULT or a table constraint, which would hide a real gap. A definition
+    starts a line with the name followed by a type.
+    """
+    declared: set[str] = set()
+    for line in create_body.splitlines():
+        match = re.match(r"\s*([a-zA-Z_]\w*)\s+[a-zA-Z]", line)
+        if match:
+            declared.add(match.group(1).lower())
+    return declared
+
+
 def _missing_columns(statements: str, metadata: MetaData) -> dict[str, list[str]]:
     created, added = _schema_sources(statements)
     missing: dict[str, list[str]] = {}
@@ -59,13 +74,8 @@ def _missing_columns(statements: str, metadata: MetaData) -> dict[str, list[str]
         key = table_name.lower()
         if key not in created:
             continue
-        body = created[key]
-        gaps = sorted(
-            column.name
-            for column in table.columns
-            if not re.search(rf"\b{re.escape(column.name.lower())}\b", body)
-            and column.name.lower() not in added.get(key, set())
-        )
+        available = _declared_columns(created[key]) | added.get(key, set())
+        gaps = sorted(column.name for column in table.columns if column.name.lower() not in available)
         if gaps:
             missing[table_name] = gaps
     return missing
