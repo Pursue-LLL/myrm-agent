@@ -10,6 +10,7 @@ Declared PRIVATE because it writes the instance-wide working-state profile.
 
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -131,6 +132,30 @@ _STATE_SAVED_JS = """(() => {
 })()"""
 
 
+def _seed_chat(api_url: str, *, incognito: bool) -> str:
+    chat_id = f"e2e_working_state_{uuid.uuid4().hex[:8]}"
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/chats/",
+        body={
+            "chat_id": chat_id,
+            "title": "E2E Working State Badge",
+            "action_mode": "agent",
+            "is_incognito": incognito,
+            "messages": [
+                {
+                    "messageId": f"e2e-user-{uuid.uuid4().hex[:8]}",
+                    "chatId": chat_id,
+                    "role": "user",
+                    "content": "E2E working state badge seed.",
+                    "createdAt": datetime.now(UTC).isoformat(),
+                }
+            ],
+        },
+    )
+    return chat_id
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="GLOBAL_WRITE",
@@ -143,29 +168,9 @@ def test_working_state_badge_and_settings_chrome_e2e() -> None:
     """Seed a working state, open the real badge, and verify the Settings contract."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url().rstrip("/")
-    chat_id = f"e2e_working_state_{uuid.uuid4().hex[:8]}"
-    seeded = False
+    chat_id = _seed_chat(api_url, incognito=False)
+    seeded = True
     try:
-        http_json(
-            "POST",
-            f"{api_url}/api/v1/chats/",
-            body={
-                "chat_id": chat_id,
-                "title": "E2E Working State Badge",
-                "action_mode": "agent",
-                "is_incognito": False,
-                "messages": [
-                    {
-                        "messageId": f"e2e-user-{uuid.uuid4().hex[:8]}",
-                        "chatId": chat_id,
-                        "role": "user",
-                        "content": "E2E working state badge seed.",
-                        "createdAt": datetime.now(UTC).isoformat(),
-                    }
-                ],
-            },
-        )
-        seeded = True
 
         prepare_e2e_ui_session(api_url)
         chat_url = f"{ui_url}/{chat_id}"
@@ -251,3 +256,48 @@ def test_working_state_badge_and_settings_chrome_e2e() -> None:
                 )
             except Exception:
                 pass
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_working_state_hidden_in_incognito_chrome_e2e() -> None:
+    """A seeded working state must not be read or shown in an incognito chat."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url().rstrip("/")
+    chat_id = _seed_chat(api_url, incognito=True)
+    seeded = True
+    try:
+        http_json("PUT", f"{api_url}/api/v1/memory/working-state", body={"content": _WORKING_STATE})
+        prepare_e2e_ui_session(api_url)
+        chat_url = f"{ui_url}/{chat_id}"
+        warm_ui_route(f"/{chat_id}")
+        with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
+            dismiss_blocking_modals(client, page)
+            wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=chat_url)
+            time.sleep(1.0)
+            no_badge = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const summary = Array.from(document.querySelectorAll('summary')).find(
+                    (el) => (el.textContent || '').includes('Working State') || (el.textContent || '').includes('工作状态'),
+                  );
+                  return { ready: !summary, bodyLength: document.body ? document.body.innerText.length : 0 };
+                })()""",
+                timeout_sec=30.0,
+            )
+            assert no_badge.get("ready") is True, no_badge
+    finally:
+        if seeded:
+            for method, path in (("DELETE", f"{api_url}/api/v1/memory/working-state"), ("DELETE", f"{api_url}/api/v1/chats/{chat_id}")):
+                try:
+                    http_json(method, path, expected_statuses=frozenset({200, 204}))
+                except Exception:
+                    pass
+
