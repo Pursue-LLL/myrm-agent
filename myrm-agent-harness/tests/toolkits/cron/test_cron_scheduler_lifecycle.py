@@ -110,6 +110,24 @@ class TestStartStop:
         await sched.stop()
 
     @pytest.mark.asyncio
+    async def test_idle_scheduler_records_a_first_tick_promptly(self) -> None:
+        """The banner treats "no tick yet" as a startup warning, so the first tick must be soon.
+
+        Waiting a full watchdog interval made every backend restart flash the degraded banner
+        for up to a minute on a perfectly healthy scheduler.
+        """
+        store = _make_store()
+        store.earliest_next_run = AsyncMock(return_value=None)
+        sched, _, _ = _make_scheduler(store=store)
+
+        await sched.start()
+        await asyncio.sleep(2.4)
+
+        health = sched.health()
+        assert health["last_tick_at"] is not None
+        await sched.stop()
+
+    @pytest.mark.asyncio
     async def test_stop_clears_running(self) -> None:
         sched, _, _ = _make_scheduler()
         await sched.start()

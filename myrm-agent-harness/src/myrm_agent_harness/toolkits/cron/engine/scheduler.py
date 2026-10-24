@@ -73,6 +73,9 @@ _PURGE_INTERVAL_SECONDS = 86_400
 _DEFAULT_RETENTION_DAYS = 30
 _MIN_REFIRE_GAP_S = 2.0
 _WATCHDOG_INTERVAL_S = 60.0
+# First tick after start: the health banner treats "no tick yet" as a startup warning,
+# and waiting a full watchdog interval made every backend restart flash that banner.
+_STARTUP_TICK_DELAY_S = 2.0
 
 
 class CronScheduler:
@@ -105,6 +108,7 @@ class CronScheduler:
         self._timer_handle: asyncio.TimerHandle | None = None
         self._watchdog_handle: asyncio.TimerHandle | None = None
         self._last_tick_at: datetime | None = None
+        self._startup_tick_pending = True
         self._tick_errors: int = 0
         self._global_sem = asyncio.Semaphore(cfg.max_concurrent)
         self._user_sems: dict[str, asyncio.Semaphore] = {}
@@ -167,6 +171,7 @@ class CronScheduler:
                 return
 
         self._running = True
+        self._startup_tick_pending = True
         await self._recovery.run()
         self._arm_timer()
         logger.info("Cron scheduler started")
@@ -211,17 +216,21 @@ class CronScheduler:
             # A running scheduler with no due jobs still needs a live timer: the AppLayout
             # banner derives "stopped" from has_timer/last_tick, so an idle scheduler must
             # not look dead. The watchdog tick is a cheap no-op when nothing is due.
-            self._arm_watchdog()
+            self._arm_watchdog(
+                _STARTUP_TICK_DELAY_S if self._startup_tick_pending else _WATCHDOG_INTERVAL_S
+            )
             return
 
         delay = max(0.0, (_ensure_utc(next_wake) - datetime.now(UTC)).total_seconds())
         if delay == 0:
             delay = _MIN_REFIRE_GAP_S
         delay = min(delay, _WATCHDOG_INTERVAL_S)
+        if self._startup_tick_pending:
+            delay = min(delay, _STARTUP_TICK_DELAY_S)
         loop = asyncio.get_running_loop()
         self._timer_handle = loop.call_later(delay, lambda: loop.create_task(self._on_tick()))
 
-    def _arm_watchdog(self) -> None:
+    def _arm_watchdog(self, delay: float = _WATCHDOG_INTERVAL_S) -> None:
         """Keep a safety timer alive so the scheduler recovers from hangs."""
         if self._watchdog_handle:
             self._watchdog_handle.cancel()
@@ -230,7 +239,7 @@ class CronScheduler:
         try:
             loop = asyncio.get_running_loop()
             self._watchdog_handle = loop.call_later(
-                _WATCHDOG_INTERVAL_S,
+                delay,
                 lambda: loop.create_task(self._on_tick()),
             )
         except RuntimeError:
@@ -243,6 +252,7 @@ class CronScheduler:
             self._arm_watchdog()
             return
         self._tick_in_progress = True
+        self._startup_tick_pending = False
         self._arm_watchdog()
         try:
             now = datetime.now(UTC)
