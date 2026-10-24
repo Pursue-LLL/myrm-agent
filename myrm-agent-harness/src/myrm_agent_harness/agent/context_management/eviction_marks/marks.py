@@ -7,7 +7,7 @@ pinned rules, trap shields) to decouple memory storage from compression strategi
 - langchain_core.messages::BaseMessage (POS: message contract)
 
 [OUTPUT]
-- WorkingMemoryMark: StrEnum of standard mark names
+- EvictionMark: StrEnum of standard mark names
 - IMMUNE_MARKS: frozenset of marks protected from eviction
 - get_message_marks, with_message_marks, has_message_marks, is_eviction_immune
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
 
-class WorkingMemoryMark(StrEnum):
+class EvictionMark(StrEnum):
     """Standard marks used across working memory and context management pipelines."""
 
     HINT = "hint"  # Transient single-turn guidance/reflection (evicted after turn)
@@ -37,8 +37,8 @@ class WorkingMemoryMark(StrEnum):
 
 IMMUNE_MARKS: frozenset[str] = frozenset(
     {
-        WorkingMemoryMark.PINNED.value,
-        WorkingMemoryMark.TRAP_SHIELD.value,
+        EvictionMark.PINNED.value,
+        EvictionMark.TRAP_SHIELD.value,
         "keep",
         "pinned",
         "trap_shield",
@@ -60,14 +60,14 @@ def get_message_marks(message: BaseMessage) -> set[str]:
     return set()
 
 
-def with_message_marks(message: BaseMessage, *marks: str | WorkingMemoryMark) -> BaseMessage:
+def with_message_marks(message: BaseMessage, *marks: str | EvictionMark) -> BaseMessage:
     """Return message with specified marks merged into its additional_kwargs (in-place & returned)."""
     if not hasattr(message, "additional_kwargs") or not isinstance(message.additional_kwargs, dict):
         message.additional_kwargs = {}
 
     current_marks = get_message_marks(message)
     for m in marks:
-        val = m.value if isinstance(m, WorkingMemoryMark) else str(m)
+        val = m.value if isinstance(m, EvictionMark) else str(m)
         if val:
             current_marks.add(val)
 
@@ -75,12 +75,12 @@ def with_message_marks(message: BaseMessage, *marks: str | WorkingMemoryMark) ->
     return message
 
 
-def has_message_marks(message: BaseMessage, *marks: str | WorkingMemoryMark) -> bool:
+def has_message_marks(message: BaseMessage, *marks: str | EvictionMark) -> bool:
     """Check if message carries any of the specified marks."""
     if not marks:
         return False
     msg_marks = get_message_marks(message)
-    target_values = {m.value if isinstance(m, WorkingMemoryMark) else str(m) for m in marks}
+    target_values = {m.value if isinstance(m, EvictionMark) else str(m) for m in marks}
     return bool(msg_marks & target_values)
 
 
@@ -90,13 +90,13 @@ def is_eviction_immune(message: BaseMessage) -> bool:
     return bool(msg_marks & IMMUNE_MARKS)
 
 
-def remove_message_marks(message: BaseMessage, *marks: str | WorkingMemoryMark) -> BaseMessage:
+def remove_message_marks(message: BaseMessage, *marks: str | EvictionMark) -> BaseMessage:
     """Remove specified marks from message additional_kwargs (in-place & returned)."""
     if not hasattr(message, "additional_kwargs") or not isinstance(message.additional_kwargs, dict):
         return message
     current_marks = get_message_marks(message)
     for m in marks:
-        val = m.value if isinstance(m, WorkingMemoryMark) else str(m)
+        val = m.value if isinstance(m, EvictionMark) else str(m)
         current_marks.discard(val)
     if current_marks:
         message.additional_kwargs[MARKS_METADATA_KEY] = sorted(current_marks)

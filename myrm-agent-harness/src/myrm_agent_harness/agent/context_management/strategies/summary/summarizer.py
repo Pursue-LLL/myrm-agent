@@ -502,7 +502,7 @@ async def generate_structured_summary(
     preserve_tag_pattern = re.compile(r"<preserve_context>(.*?)</preserve_context>", re.DOTALL | re.IGNORECASE)
     max_preserve_chars = 2000
 
-    from ...working_memory.marks import is_eviction_immune
+    from ...eviction_marks.marks import is_eviction_immune
 
     for msg in messages:
         content_str = str(msg.content)

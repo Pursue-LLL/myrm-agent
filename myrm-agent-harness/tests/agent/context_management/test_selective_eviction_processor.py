@@ -10,8 +10,8 @@ from myrm_agent_harness.agent.context_management.pipeline.processors.selective_e
 from myrm_agent_harness.agent.context_management.strategies.compactor.selective_eviction import (
     evict_messages_by_marks,
 )
-from myrm_agent_harness.agent.context_management.working_memory.marks import (
-    WorkingMemoryMark,
+from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
+    EvictionMark,
     with_message_marks,
 )
 
@@ -20,13 +20,13 @@ from myrm_agent_harness.agent.context_management.working_memory.marks import (
 async def test_evict_transient_hints_and_scratchpads():
     msg_normal = HumanMessage(content="User task")
     msg_hint = HumanMessage(content="Temporary reflection hint")
-    with_message_marks(msg_hint, WorkingMemoryMark.HINT)
+    with_message_marks(msg_hint, EvictionMark.HINT)
 
     msg_scratchpad = AIMessage(content="Intermediate scratchpad draft")
-    with_message_marks(msg_scratchpad, WorkingMemoryMark.SCRATCHPAD)
+    with_message_marks(msg_scratchpad, EvictionMark.SCRATCHPAD)
 
     msg_pinned = SystemMessage(content="Pinned rule: never modify database")
-    with_message_marks(msg_pinned, WorkingMemoryMark.PINNED)
+    with_message_marks(msg_pinned, EvictionMark.PINNED)
 
     messages = [msg_normal, msg_hint, msg_scratchpad, msg_pinned]
 
@@ -56,14 +56,14 @@ async def test_tool_pair_invariant_folded_not_dangling():
         tool_call_id=call_id,
         name="test_tool",
     )
-    with_message_marks(tool_msg, WorkingMemoryMark.TOOL_RAW_OUTPUT)
+    with_message_marks(tool_msg, EvictionMark.TOOL_RAW_OUTPUT)
 
     messages = [ai_msg, tool_msg]
 
     # Target tool_raw_output for eviction
     retained, stats = evict_messages_by_marks(
         messages,
-        target_marks={WorkingMemoryMark.TOOL_RAW_OUTPUT.value},
+        target_marks={EvictionMark.TOOL_RAW_OUTPUT.value},
     )
 
     # Both AIMessage and ToolMessage must still be present to preserve Tool Pair Invariant
@@ -82,7 +82,7 @@ async def test_selective_eviction_processor_pipeline_integration():
 
     msg_normal = HumanMessage(content="User query")
     msg_transient = AIMessage(content="Single turn reflection note")
-    with_message_marks(msg_transient, WorkingMemoryMark.HINT)
+    with_message_marks(msg_transient, EvictionMark.HINT)
 
     context = ProcessorContext(
         messages=[msg_normal, msg_transient],
@@ -113,7 +113,7 @@ async def test_summarize_processor_pre_evicts_transient_hints():
 
     msg_main = HumanMessage(content="A normal user instruction that must remain")
     msg_hint = HumanMessage(content="A temporary hint that should be shed before summarize")
-    with_message_marks(msg_hint, WorkingMemoryMark.HINT)
+    with_message_marks(msg_hint, EvictionMark.HINT)
 
     context = ProcessorContext(
         messages=[msg_main, msg_hint],
@@ -141,14 +141,14 @@ async def test_selective_eviction_idempotency_cleanses_marks():
         tool_call_id=call_id,
         name="draft_tool",
     )
-    with_message_marks(tool_msg, WorkingMemoryMark.SCRATCHPAD)
+    with_message_marks(tool_msg, EvictionMark.SCRATCHPAD)
 
     messages = [ai_msg, tool_msg]
 
     # First eviction run
     first_retained, first_stats = evict_messages_by_marks(
         messages,
-        target_marks={WorkingMemoryMark.SCRATCHPAD.value},
+        target_marks={EvictionMark.SCRATCHPAD.value},
     )
     assert first_stats.tool_pairs_folded == 1
     assert first_stats.evicted_count == 1
@@ -157,7 +157,7 @@ async def test_selective_eviction_idempotency_cleanses_marks():
     # Second eviction run on the output of the first run (idempotency check: f(f(x)) == f(x))
     second_retained, second_stats = evict_messages_by_marks(
         first_retained,
-        target_marks={WorkingMemoryMark.SCRATCHPAD.value},
+        target_marks={EvictionMark.SCRATCHPAD.value},
     )
     # Must be 0 because the folded ToolMessage had its scratchpad mark stripped
     assert second_stats.tool_pairs_folded == 0

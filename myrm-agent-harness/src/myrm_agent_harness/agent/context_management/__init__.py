@@ -156,9 +156,9 @@ from .two_stage_search_extract import (
     TwoStageRankedSnippetAndSelectiveDeepExtractSuite,
     TwoStageSearchConfig,
 )
-from .working_memory import (
+from .eviction_marks import (
     IMMUNE_MARKS,
-    WorkingMemoryMark,
+    EvictionMark,
     get_message_marks,
     has_message_marks,
     is_eviction_immune,
@@ -228,7 +228,7 @@ __all__ = [
     "ThinkingBlockCleaner",
     "ToolProtectionConfig",
     "ToolPruneMode",
-    "WorkingMemoryMark",
+    "EvictionMark",
     "acquire_context_lock",
     "build_default_processors",
     "clear_all_locks",

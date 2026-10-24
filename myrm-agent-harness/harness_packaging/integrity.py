@@ -92,7 +92,7 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "title_recovery",
                 "tracking",
                 "two_stage_search_extract",
-                "working_memory",
+                "eviction_marks",
             }
         ),
     ),

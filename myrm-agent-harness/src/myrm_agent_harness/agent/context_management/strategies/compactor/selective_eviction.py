@@ -6,7 +6,7 @@ Tool Pair Invariant and whitelist immunity for pinned rules.
 
 [INPUT]
 - langchain_core.messages::AIMessage, BaseMessage, ToolMessage (POS: LangChain message contract)
-- ...working_memory.marks::WorkingMemoryMark, get_message_marks, is_eviction_immune
+- ...eviction_marks.marks::EvictionMark, get_message_marks, is_eviction_immune
 - ..tool_call_groups::build_tool_call_groups (POS: atomic tool pair grouping)
 - myrm_agent_harness.utils.text_utils::get_token_count (POS: Token counting)
 
@@ -28,9 +28,9 @@ from langchain_core.messages import BaseMessage, ToolMessage
 from myrm_agent_harness.agent.context_management.strategies.tool_call_groups import (
     build_tool_call_groups,
 )
-from myrm_agent_harness.agent.context_management.working_memory.marks import (
+from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
     IMMUNE_MARKS,
-    WorkingMemoryMark,
+    EvictionMark,
     get_message_marks,
     is_eviction_immune,
     remove_message_marks,
@@ -42,8 +42,8 @@ logger = get_agent_logger(__name__)
 
 DEFAULT_TRANSIENT_MARKS: frozenset[str] = frozenset(
     {
-        WorkingMemoryMark.HINT.value,
-        WorkingMemoryMark.SCRATCHPAD.value,
+        EvictionMark.HINT.value,
+        EvictionMark.SCRATCHPAD.value,
     }
 )
 

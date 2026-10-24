@@ -1,4 +1,4 @@
-# working_memory/
+# eviction_marks/
 
 ## Overview
 Message-level working-memory marks: metadata tags that keep selected messages immune to
@@ -8,7 +8,7 @@ context eviction. Pure in-memory primitives with zero LLM overhead.
 
 | File | Role | Description |
 |------|------|-------------|
-| `marks.py` | Marks Metadata Contract | `WorkingMemoryMark` enum, `IMMUNE_MARKS` set, and message-level mark manipulation (with/remove), inspection, and immunity primitives. |
+| `marks.py` | Marks Metadata Contract | `EvictionMark` enum, `IMMUNE_MARKS` set, and message-level mark manipulation (with/remove), inspection, and immunity primitives. |
 | `__init__.py` | Package Exports | Public exports for context-management consumers. |
 
 ## Key Invariants
