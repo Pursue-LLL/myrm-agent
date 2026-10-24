@@ -159,6 +159,7 @@ def _get_allowed_paths(
     2. Explicitly allowed additional paths (e.g. skill directories)
     3. /workspace (container-isolated)
     4. /tmp (temporary files)
+    5. The context root in effect, so an agent reading its own offloaded context is not blocked
 
     Args:
         workspace_path: Current session workspace directory.
@@ -176,9 +177,13 @@ def _get_allowed_paths(
         for path in additional_paths:
             allowed.append(path.resolve())
 
+    # Lazy: a module-level import here would drag the whole runtime package into
+    # every consumer of this validator.
+    from myrm_agent_harness.runtime.paths.execution_paths import get_context_root
+
     allowed.append(Path("/workspace"))
     allowed.append(Path("/tmp"))
-    allowed.append(Path("/persistent/.context"))
+    allowed.append(Path(get_context_root()))
 
     return allowed
 
@@ -189,7 +194,9 @@ def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
     Rules:
     1. Forbidden paths (FORBIDDEN_PATHS) → always denied
     2. Relative path without .. → safe (within workspace)
-    3. Absolute or .. path → must be under an allowed directory (or contain wildcards matching allowed parent)
+    3. Absolute or .. path → must resolve inside an allowed directory. ``Path.resolve`` is non-strict,
+       so paths that do not exist yet still resolve; comparing resolved forms (never a walked-up
+       ancestor) is what keeps ``/evil/x`` out.
     """
     if _is_forbidden_path(path_str):
         return False
@@ -205,25 +212,14 @@ def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
         if not path.is_absolute() and ".." not in clean_path_str:
             return True
 
-        # If path doesn't exist yet, check its existing ancestor directory
-        target_path = path
-        while not target_path.exists() and target_path.parent != target_path:
-            target_path = target_path.parent
-
-        resolved = target_path.resolve()
+        resolved = path.resolve()
 
         for allowed in allowed_paths:
-            allowed_resolved = allowed.resolve()
             try:
-                resolved.relative_to(allowed_resolved)
+                resolved.relative_to(allowed.resolve())
                 return True
             except ValueError:
-                # Also allow if allowed_resolved is inside target (e.g. root check)
-                try:
-                    allowed_resolved.relative_to(resolved)
-                    return True
-                except ValueError:
-                    continue
+                continue
 
         return False
     except Exception:

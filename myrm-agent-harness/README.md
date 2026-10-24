@@ -1,9 +1,5 @@
 # Myrm Agent Harness
 
-> **本目录是 Myrm Agent Harness 的唯一开发主干**（`myrm-agent/myrm-agent-harness/`）。原独立仓库仅作只读归档保留历史。
-> **This directory is the only development mainline for Myrm Agent Harness** (`myrm-agent/myrm-agent-harness/`). The former standalone repository is kept read-only for history.
-> 提交历史已原样导入本仓（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版由本仓的 `harness-v*` tag 触发。
-
 **生产级 Agent 框架** - 基于 LangChain 构建，提供高级技能系统、MCP 集成和生产就绪的沙箱执行。
 
 > **许可**: MIT 开源（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain 定位，供 `myrm-agent-server` 等业务项目引用。  

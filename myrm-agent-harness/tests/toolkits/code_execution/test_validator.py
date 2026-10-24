@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from myrm_agent_harness.toolkits.code_execution.security.validator import (
     _extract_paths,
     _extract_url_hosts,
@@ -170,6 +172,33 @@ class TestIsPathAllowed:
         allowed = _get_allowed_paths(workspace_path=Path("/home/user/project"))
         result = _is_path_allowed("../../../etc/passwd", allowed)
         assert isinstance(result, bool)
+
+    def test_nonexistent_absolute_path_outside_roots_blocked(self) -> None:
+        """A path that does not exist must not be allowed by walking up to `/`.
+
+        `/` is an ancestor of every allowed root, so accepting the walked-up ancestor
+        would let `touch /newdir/x` escape the sandbox.
+        """
+        allowed = _get_allowed_paths(workspace_path=Path("/home/user/project"))
+        assert _is_path_allowed("/newdir_test/x.txt", allowed) is False
+        assert _is_path_allowed("/a/b/c/not/created/y.txt", allowed) is False
+
+    def test_nonexistent_path_nested_under_allowed_root_allowed(self) -> None:
+        allowed = _get_allowed_paths(workspace_path=Path("/home/user/project"))
+        assert _is_path_allowed("/tmp/created_later/deep/x.txt", allowed) is True
+
+
+class TestContextRootFollowsPersistentEnv:
+    def test_context_root_read_at_call_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_PERSISTENT_ROOT", "/data/vol")
+        path_strs = [str(p) for p in _get_allowed_paths()]
+        assert "/data/vol/.context" in path_strs
+        assert "/persistent/.context" not in path_strs
+
+    def test_context_path_inside_relocated_root_allowed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_PERSISTENT_ROOT", "/data/vol")
+        allowed = _get_allowed_paths()
+        assert _is_path_allowed("/data/vol/.context/chat/x.txt", allowed) is True
 
 
 # ---------------------------------------------------------------------------
