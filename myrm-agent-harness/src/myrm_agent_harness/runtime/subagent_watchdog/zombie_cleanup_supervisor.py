@@ -88,12 +88,14 @@ class ZombieCleanupSupervisor:
                     task.cancel()
 
                 if health == SubagentHealthState.TERMINATED:
-                    # Hard deadline passed: task is an uncooperative zombie
-                    if not task.done():
-                        await self._reap(task)
+                    # Hard deadline passed: task is an uncooperative zombie. The hook runs first:
+                    # it is the signal a worker uses to release its own resources, and cancelling
+                    # before it would only interrupt that cleanup.
                     if cleanup_hook is not None:
                         with contextlib.suppress(Exception):
                             cleanup_hook()
+                    if not task.done():
+                        await self._reap(task)
                     zombie_killed = True
                     break
 
@@ -151,6 +153,10 @@ class ZombieCleanupSupervisor:
 
         Returning while the task still runs leaks it into the caller's event loop, where it keeps
         executing and keeps this tracker entry alive long after supervision reported a verdict.
+
+        The first cancellation gets the full window to land before another is sent: a worker that
+        is already unwinding (or that reacts to a cleanup hook) would otherwise be interrupted
+        mid-cleanup, and each interrupt restarts the wait.
         """
         if task.done():
             cls._consume_result(task)
@@ -163,9 +169,6 @@ class ZombieCleanupSupervisor:
             if task.done():
                 cls._consume_result(task)
                 return
-        # A worker that re-enters `except CancelledError` can survive every request. Detach it so
-        # the caller is not blocked, but say so: silence here looks like a clean shutdown while a
-        # task keeps running.
         logger.warning(
             "subagent task did not stop after %d cancellation attempts; detaching it",
             cls._REAP_ATTEMPTS,

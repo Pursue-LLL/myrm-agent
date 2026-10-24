@@ -48,17 +48,26 @@ _MAX_CACHE_ENTRIES = 8
 # machine; 0.8 s leaves room for a loaded host while keeping the worst case bounded.
 _PROBE_TIMEOUT_S = 0.8
 
-# Set when a probe could not reach a verdict. A build that saw one stays silent instead of
-# reporting a false absence.
-_timeouts = threading.local()
+# Counts probes that could not reach a verdict; a build that saw one stays silent instead of
+# reporting a false absence. It must be process-wide: the probes run on pool threads, so a
+# thread-local counter would be written on the worker and read (as zero) on the caller.
+_probe_failures_count = 0
 
 
 def _note_probe_failure() -> None:
-    _timeouts.count = getattr(_timeouts, "count", 0) + 1
+    global _probe_failures_count
+    with _CACHE_LOCK:
+        _probe_failures_count += 1
 
 
 def _probe_failures() -> int:
-    return getattr(_timeouts, "count", 0)
+    with _CACHE_LOCK:
+        return _probe_failures_count
+
+def _reset_probe_failures() -> None:
+    global _probe_failures_count
+    with _CACHE_LOCK:
+        _probe_failures_count = 0
 
 
 def _run(cmd: list[str], timeout: float = _PROBE_TIMEOUT_S) -> tuple[int, str, str]:
@@ -149,7 +158,7 @@ def _build_probe_line() -> str:
     The interpreter probes are independent processes, so they run concurrently: serially they
     could each spend the full timeout and add up to seconds on the request path.
     """
-    _timeouts.count = 0
+    _reset_probe_failures()
 
     jobs: dict[str, Callable[[], object]] = {
         "py3_ver": lambda: _python_version_of("python3"),

@@ -244,6 +244,22 @@ class TestRobustness:
         result = env_probe.get_environment_probe_line()
         assert isinstance(result, str)
 
+    def test_timeout_on_a_pool_thread_is_not_reported_as_absence(self, monkeypatch: pytest.MonkeyPatch):
+        """The probe runs its interpreter checks on worker threads; a failure there must count.
+
+        This is the shape that matters in production: `_run` is called from a
+        ``ThreadPoolExecutor``, so any per-thread failure bookkeeping is written on a worker and
+        read on the caller. Tracking it per thread made every timeout invisible and the line
+        claimed "python3=missing, pip=missing" — a falsehood the model acts on.
+        """
+        monkeypatch.setattr(env_probe.shutil, "which", lambda name: "/usr/bin/" + name)
+
+        def timed_out(*_a, **_kw):
+            raise subprocess.TimeoutExpired(cmd="python3", timeout=0.1)
+
+        monkeypatch.setattr(env_probe.subprocess, "run", timed_out)
+        assert env_probe.get_environment_probe_line() == ""
+
     def test_timeout_is_not_reported_as_absence(self, monkeypatch: pytest.MonkeyPatch):
         """A probe that outran its budget must stay silent, not claim pip is missing.
 

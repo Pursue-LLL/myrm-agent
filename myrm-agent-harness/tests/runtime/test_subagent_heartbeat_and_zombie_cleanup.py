@@ -10,6 +10,7 @@ Tests benchmarked against Nous community multi-agent runtime reliability invaria
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 
@@ -229,3 +230,52 @@ async def test_supervision_waits_for_the_worker_to_stop() -> None:
     assert receipt.zombie_killed is True
     # Supervision must not hand back a verdict while the worker is still unwinding.
     assert worker_finished is True
+
+@pytest.mark.asyncio
+async def test_hard_terminate_hook_runs_before_cancelling_the_worker() -> None:
+    """The hook is the worker's own release signal, so it must precede cancellation.
+
+    Cancelling first pushes a worker that swallows CancelledError into its retry loop, and the
+    hook then arrives too late to help: each reap window burns in full (1.6 s measured) even
+    though the worker was ready to stop.
+    """
+    tracker = SubagentHeartbeatTracker()
+    supervisor = ZombieCleanupSupervisor(tracker)
+    ladder = TimeoutLadderConfig(
+        warning_threshold_s=0.02,
+        soft_cancel_threshold_s=0.04,
+        hard_terminate_threshold_s=0.08,
+    )
+    release = False
+    observed: list[str] = []
+
+    async def worker() -> str:
+        tracker.pulse("sub_order", note="Starting")
+        while not release:
+            try:
+                await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                observed.append("cancelled")
+                await asyncio.sleep(0.01)
+        observed.append("released")
+        return "stopped"
+
+    def on_hard_terminate() -> None:
+        nonlocal release
+        observed.append("hook")
+        release = True
+
+    started = time.monotonic()
+    await supervisor.supervise_task(
+        subagent_id="sub_order",
+        parent_session_id="parent_order",
+        coro=worker(),
+        cleanup_hook=on_hard_terminate,
+        custom_ladder=ladder,
+        check_interval_s=0.02,
+    )
+    elapsed = time.monotonic() - started
+
+    assert observed.index("hook") < observed.index("released")
+    # With the hook first the worker stops on its own; the reap windows never have to expire.
+    assert elapsed < 1.0, f"hard terminate took {elapsed:.2f}s, past one reap window"
