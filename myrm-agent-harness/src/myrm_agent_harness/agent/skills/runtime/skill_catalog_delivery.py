@@ -75,7 +75,7 @@ type _Content = str | _ContentParts
 
 
 def compute_catalog_hash(catalog_body: str) -> str:
-    """Stable short hash for a rendered catalog XML body."""
+    """Stable short hash for catalog content (body plus caller-supplied dimensions)."""
     digest = hashlib.sha256(catalog_body.encode("utf-8")).hexdigest()
     return digest[:16]
 

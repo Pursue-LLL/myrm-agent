@@ -13,7 +13,7 @@
 | **关联产品** | harness `agent/skills/runtime/skill_catalog_delivery.py`、`agent/skills/runtime/registry.py` |
 | **根因** | `RenderedCatalog.from_display()` 只对 `xml` 做 hash；移除 `<hidden_skills>` 名字后，hidden_count 从 1 变 2 时 XML 完全相同，hash 不变，`plan_catalog_update()` 不再下发更新。 |
 | **修复** | hash 输入加入 `#hidden_count=N`；新增回归 `test_hidden_count_changes_the_hash_even_when_display_xml_is_equal`。 |
-| **回归** | `tests/agent/skills/runtime/test_skill_catalog_updates.py` 25 passed；全量定向 2,388 passed / 4 skipped。 |
+| **回归** | `tests/agent/skills/runtime/test_skill_catalog_updates.py` 25 passed；全量定向 2,389 passed / 4 skipped。 |
 | **局限** | `hidden_count` 仍是计数，不暴露被省略技能名；用户点名可直接 select，能力未知走 search。 |
 
 ### BUG-HARNESS-2026-10-24-021 · MCP Skill 三层提示的四处漂移：L2 假硬上限、漏 await、L1 多选矛盾、小 MCP 工具名不可搜

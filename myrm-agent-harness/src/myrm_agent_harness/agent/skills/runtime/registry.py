@@ -26,6 +26,7 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 logger = logging.getLogger(__name__)
 
 L1_CATALOG_MAX_TOKENS = 2_000
+"""L1 catalog token ceiling; wrapper/rules reserve lives in catalog_display."""
 MAX_SKILL_FILE_BYTES = 128 * 1024  # 128 KB per skill file
 _CONTRACT_TEXT_LIMIT = 160
 
