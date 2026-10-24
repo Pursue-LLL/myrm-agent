@@ -15,7 +15,6 @@ import type {
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
   ArtifactsStreamEvent,
-  AsyncUserMessageStreamEvent,
   ClarificationRequiredStreamEvent,
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
@@ -70,7 +69,6 @@ import type {
   TeammateMessageStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
-  WorkingMemoryStreamEvent,
 } from './part2';
 import type {
   BrowserTakeoverCompletedStreamEvent,
@@ -100,7 +98,6 @@ export type AgentStreamEvent =
   | SourcesStreamEvent
   | ToolApprovalRequestStreamEvent
   | ApprovalRequiredStreamEvent
-  | AsyncUserMessageStreamEvent
   | ClarificationRequiredStreamEvent
   | RedirectedStreamEvent
   | ArtifactFocusStreamEvent
@@ -157,5 +154,4 @@ export type AgentStreamEvent =
   | GoalStatusStreamEvent
   | FissionTopologyUpdateStreamEvent
   | VerificationVerdictStreamEvent
-  | WorkingMemoryStreamEvent
   | DesktopEnvelopeProgressStreamEvent;

@@ -41,7 +41,6 @@ export const AgentEventType = {
   TOOL_APPROVAL_REQUEST: 'tool_approval_request',
   APPROVAL_REQUIRED: 'approval_required',
   CLARIFICATION_REQUIRED: 'clarification_required',
-  ASYNC_USER_MESSAGE: 'async_user_message',
   GOAL_STATUS: 'goal_status',
   RATE_LIMIT_UPDATED: 'rate_limit_updated',
   RATE_LIMIT_WARNING: 'rate_limit_warning',
@@ -92,7 +91,6 @@ export const AgentEventType = {
   CAPABILITY_GAP: 'capability_gap',
   SKILL_GAP: 'skill_gap',
   PHASE_TRANSITION: 'phase_transition',
-  WORKING_MEMORY: 'working_memory',
 } as const;
 
 export interface BaseAgentEvent {
@@ -420,15 +418,4 @@ export interface PhaseTransitionStreamEvent extends BaseAgentEvent {
   data: PhaseTransitionPayload;
 }
 
-export interface AsyncUserMessagePayload {
-  call_id: string;
-  callId?: string;
-  message: string;
-  category?: 'progress' | 'milestone' | 'question';
-  recommendation?: string | null;
-}
 
-export interface AsyncUserMessageStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.ASYNC_USER_MESSAGE;
-  data: AsyncUserMessagePayload;
-}

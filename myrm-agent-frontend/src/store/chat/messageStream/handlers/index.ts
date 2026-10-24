@@ -31,7 +31,6 @@ import { modelNotifyEvents } from './modelNotifyEvents';
 import { completionEvents } from './completionEvents';
 import { gapEvents } from './gapEvents';
 import { phaseTransitionEvents } from './phaseTransitionEvents';
-import { workingMemoryEvents } from './workingMemoryEvents';
 
 export const STREAM_EVENT_HANDLERS: Array<(ctx: StreamCtx) => Promise<StreamTurn | null>> = [
   companionEvents,
@@ -46,7 +45,6 @@ export const STREAM_EVENT_HANDLERS: Array<(ctx: StreamCtx) => Promise<StreamTurn
   fileDiffEvents,
   toolLifecycleEvents,
   memoryBriefEvents,
-  workingMemoryEvents,
   routingMetaEvents,
   messageContentEvents,
   artifactEvents,

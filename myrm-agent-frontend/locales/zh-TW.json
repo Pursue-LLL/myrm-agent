@@ -3467,23 +3467,6 @@
       "userActivityPaused": "檢測到使用者主動輸入，循環已順延避讓",
       "tooltip": "會話級自適應指數退避自喚醒輪詢調度引擎"
     },
-    "asyncMessage": {
-      "progressReport": "即時進度通報",
-      "milestone": "階段性成果",
-      "decisionInquiry": "非阻塞決策徵詢",
-      "confirmedDecision": "已確認決策：",
-      "resolvedBadge": "已解決",
-      "recommendedPlan": "推薦採納預案",
-      "adopt": "採納",
-      "customReply": "自訂回覆",
-      "collapseCustom": "收起自訂",
-      "inputPlaceholder": "輸入指導或補充說明...",
-      "send": "發送",
-      "fallbackPrefilled": "已填入輸入框，請發送",
-      "fallbackPrefilledBadge": "已填入輸入框",
-      "questionClarification": "問題澄清",
-      "directReplyPlaceholder": "輸入回答或澄清說明..."
-    },
     "contextFootprint": {
       "mcpSwitcherDesc": "關閉本次任務無關的 MCP 服務，可大幅降低每輪請求的底噪 Token",
       "mcpTools": "MCP 工具定義 Schema",

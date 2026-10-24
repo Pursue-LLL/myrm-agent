@@ -79,7 +79,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'capability_gap',
   'skill_gap',
   'phase_transition',
-  'working_memory',
   'custom',
   'custom_message',
 ] as const;

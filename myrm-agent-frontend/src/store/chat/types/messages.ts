@@ -230,19 +230,7 @@ export type Message = {
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;
-  asyncUserMessages?: Array<AsyncUserMessageEntry>;
 };
-
-export interface AsyncUserMessageEntry {
-  callId: string;
-  message: string;
-  category?: 'progress' | 'milestone' | 'question';
-  recommendation?: string | null;
-  suggested_replies?: string[];
-  suggestedReplies?: string[];
-  status?: 'pending' | 'resolved';
-  resolvedText?: string | null;
-}
 
 export interface File {
   id?: string; // 文件 ID（StorageProvider 分配）

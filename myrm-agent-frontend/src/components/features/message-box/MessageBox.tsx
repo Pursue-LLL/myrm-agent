@@ -13,7 +13,7 @@
  *
  * [POS]
  * Chat message layout coordinator. It owns per-message rendering branches and delegates specialized actions,
- * markdown, artifacts, approvals and async task cards to focused child components.
+ * markdown, artifacts and approvals to focused child components.
  */
 
 /* eslint-disable @next/next/no-img-element */
@@ -21,7 +21,6 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/lib/utils/toast';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
@@ -69,7 +68,6 @@ import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
 import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
-import { AsyncAgentMessageCard } from '@/components/features/chat-window/AsyncAgentMessageCard';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
 import { DeliverableTierBadge } from './DeliverableTierBadge';
@@ -662,55 +660,6 @@ const MessageBox = ({
                 answer={message.humanGate.answer}
                 timedOut={message.humanGate.timedOut}
               />
-            )}
-
-            {/* 智能体长任务中途主动异步汇报与非阻塞交互卡片 */}
-            {message.asyncUserMessages && message.asyncUserMessages.length > 0 && (
-              <div className="flex flex-col gap-2 my-2">
-                {message.asyncUserMessages.map((asyncMsg) => (
-                  <AsyncAgentMessageCard
-                    key={asyncMsg.callId}
-                    callId={asyncMsg.callId}
-                    message={asyncMsg.message}
-                    category={asyncMsg.category}
-                    recommendation={asyncMsg.recommendation}
-                    suggestedReplies={asyncMsg.suggestedReplies ?? asyncMsg.suggested_replies}
-                    suggested_replies={asyncMsg.suggested_replies ?? asyncMsg.suggestedReplies}
-                    status={asyncMsg.status}
-                    resolvedText={asyncMsg.resolvedText}
-                    onSteerReply={async (reply, callId, questionContext) => {
-                      const store = useChatStore.getState();
-                      const effectiveMessageId = (message as { id?: string }).id || message.messageId;
-                      if (isLast && loading) {
-                        const success = await store.steerMessage(reply, {
-                          inReplyToCallId: callId,
-                          questionContext,
-                        });
-                        if (success) {
-                          store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
-                          return;
-                        }
-                      }
-
-                      // 自动故障转移与降级回填：若非当前活跃流或在线 steer 注入失败，无缝转入输入框暂存
-                      const existing = store.inputMessage?.trim();
-                      const nextMessage = existing ? `${store.inputMessage.trimEnd()}\n\n${reply}` : reply;
-                      store.setInputMessage(nextMessage);
-                      store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
-
-                      // 视觉与交互引导：自动转移焦点至输入框并弹出引导 Toast
-                      requestAnimationFrame(() => {
-                        const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input]');
-                        if (textarea) {
-                          textarea.focus();
-                          textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                        }
-                      });
-                      toast.info(t('asyncMessage.fallbackPrefilled'));
-                    }}
-                  />
-                ))}
-              </div>
             )}
 
             <WaterDropCostView

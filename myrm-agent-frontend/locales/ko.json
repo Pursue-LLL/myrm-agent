@@ -3467,23 +3467,6 @@
       "userActivityPaused": "사용자 입력 감지, 루프 연기됨",
       "tooltip": "세션 범위 적응형 지수 백오프 루프 스케줄러"
     },
-    "asyncMessage": {
-      "progressReport": "실시간 진행 상황",
-      "milestone": "단계별 성과 달성",
-      "decisionInquiry": "비차단 결정 문의",
-      "confirmedDecision": "확인된 결정:",
-      "resolvedBadge": "해결됨",
-      "recommendedPlan": "추천 방안",
-      "adopt": "채택",
-      "customReply": "사용자 지정 답장",
-      "collapseCustom": "사용자 지정 접기",
-      "inputPlaceholder": "지침 또는 메모 입력...",
-      "send": "전송",
-      "fallbackPrefilled": "입력창에 채워졌습니다. 전송해 주세요",
-      "fallbackPrefilledBadge": "입력됨",
-      "questionClarification": "질문 명확화",
-      "directReplyPlaceholder": "답변 또는 설명 입력..."
-    },
     "contextFootprint": {
       "mcpSwitcherDesc": "관련 없는 MCP 서버를 꺼서 매 턴 요청을 가볍게 유지하세요",
       "mcpTools": "MCP 도구 스키마",

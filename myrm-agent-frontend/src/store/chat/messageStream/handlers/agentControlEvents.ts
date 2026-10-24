@@ -125,48 +125,6 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     return done(ctx);
   }
 
-  if (data.type === H.AgentEventType.ASYNC_USER_MESSAGE) {
-    const rawData = data.data as
-      | {
-          call_id?: string;
-          callId?: string;
-          message?: string;
-          category?: 'progress' | 'milestone' | 'question';
-          recommendation?: string | null;
-          suggested_replies?: string[];
-          suggestedReplies?: string[];
-        }
-      | undefined;
-    if (rawData?.message) {
-      const callId = rawData.callId ?? rawData.call_id ?? `async_msg_${Date.now()}`;
-      const rawReplies = rawData.suggested_replies ?? rawData.suggestedReplies;
-      const suggested_replies = Array.isArray(rawReplies)
-        ? rawReplies.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-        : undefined;
-      const newEntry: H.AsyncUserMessageEntry = {
-        callId,
-        message: rawData.message,
-        category: rawData.category ?? 'progress',
-        recommendation: rawData.recommendation ?? null,
-        suggested_replies,
-        suggestedReplies: suggested_replies,
-        status: 'pending',
-        resolvedText: null,
-      };
-      actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex !== -1) {
-          const msg = state.messages[messageIndex];
-          const existing = msg.asyncUserMessages ?? [];
-          if (!existing.some((item) => item.callId === callId)) {
-            msg.asyncUserMessages = [...existing, newEntry];
-          }
-        }
-      });
-    }
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.REDIRECTED) {
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);

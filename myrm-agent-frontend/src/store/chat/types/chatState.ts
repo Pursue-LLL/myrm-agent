@@ -268,10 +268,9 @@ export interface ChatState {
   stopMessage: () => void;
   steerMessage: (
     message: string,
-    options?: { mode?: string; quotedRef?: string; inReplyToCallId?: string; questionContext?: string },
+    options?: { mode?: string; quotedRef?: string },
   ) => Promise<boolean>;
   redirectMessage: (message: string) => Promise<boolean>;
-  resolveAsyncUserMessage: (messageId: string, callId: string, resolvedText: string) => void;
 
   // 当前会话messageId管理
   getCurrentSessionMessageId: () => string;

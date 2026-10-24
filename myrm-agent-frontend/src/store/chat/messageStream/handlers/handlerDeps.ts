@@ -10,7 +10,6 @@ export type {
   AgentStreamEvent,
   Artifact,
   ArtifactType,
-  AsyncUserMessageEntry,
   ClarificationForm,
   ClarificationOption,
   ClarificationQuestion,

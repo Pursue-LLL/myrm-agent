@@ -36,7 +36,6 @@ import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';
 import ReplayAction from './ReplayAction';
 import SessionExportButton from './SessionExportButton';
-import WorkingStateBadge from './WorkingStateBadge';
 import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
@@ -606,7 +605,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                 </div>
               </div>
             ) : null}
-            <WorkingStateBadge chatId={id} />
             {id ? <RunStatusChip chatId={id} /> : null}
             <YoloModeBanner />
             <EStopBanner />

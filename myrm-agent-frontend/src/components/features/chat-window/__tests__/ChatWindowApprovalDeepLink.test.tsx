@@ -54,7 +54,6 @@ vi.mock('../ChatWindowSatellites', () => ({
 }));
 vi.mock('../ParentChatLink', () => ({ ParentChatLink: () => null }));
 vi.mock('../ChatCronLink', () => ({ ChatCronLink: () => null }));
-vi.mock('../WorkingStateBadge', () => ({ default: () => null }));
 vi.mock('../SubagentPromptButton', () => ({ default: () => null }));
 vi.mock('../SubagentDashboard', () => ({ default: () => null }));
 vi.mock('../artifacts/ArtifactPortal', () => ({ default: () => null }));

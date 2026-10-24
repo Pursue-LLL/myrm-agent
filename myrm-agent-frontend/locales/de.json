@@ -3467,23 +3467,6 @@
       "userActivityPaused": "Benutzer aktiv, Schleife aufgeschoben",
       "tooltip": "Sitzungsbezogener adaptiver Exponential-Backoff-Schleifen-Scheduler"
     },
-    "asyncMessage": {
-      "progressReport": "Live-Fortschrittsaktualisierung",
-      "milestone": "Meilenstein erreicht",
-      "decisionInquiry": "Nicht-blockierende Anfrage",
-      "confirmedDecision": "Bestätigte Entscheidung:",
-      "resolvedBadge": "GELÖST",
-      "recommendedPlan": "Empfohlene Option",
-      "adopt": "Übernehmen",
-      "customReply": "Benutzerdefinierte Antwort",
-      "collapseCustom": "Eingabe einklappen",
-      "inputPlaceholder": "Anweisungen oder Hinweise eingeben...",
-      "send": "Senden",
-      "fallbackPrefilled": "In Eingabefeld eingefügt, bitte senden",
-      "fallbackPrefilledBadge": "Eingefügt",
-      "questionClarification": "Klarstellung",
-      "directReplyPlaceholder": "Antwort oder Klarstellung eingeben..."
-    },
     "contextFootprint": {
       "mcpSwitcherDesc": "Nicht benötigte MCP-Server deaktivieren, damit jede Runde schlank bleibt",
       "mcpTools": "MCP-Tool-Schemas",

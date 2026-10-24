@@ -3475,23 +3475,6 @@
       "userActivityPaused": "检测到用户主动输入，循环已顺延避让",
       "tooltip": "会话级自适应指数退避自唤醒轮询调度引擎"
     },
-    "asyncMessage": {
-      "progressReport": "实时进度通报",
-      "milestone": "阶段性成果",
-      "decisionInquiry": "非阻塞决策征询",
-      "confirmedDecision": "已确认决策：",
-      "resolvedBadge": "已解决",
-      "recommendedPlan": "推荐采纳预案",
-      "adopt": "采纳",
-      "customReply": "自定义回复",
-      "collapseCustom": "收起自定义",
-      "inputPlaceholder": "输入指导或补充说明...",
-      "send": "发送",
-      "fallbackPrefilled": "已填入输入框，请发送",
-      "fallbackPrefilledBadge": "已填入输入框",
-      "questionClarification": "问题澄清",
-      "directReplyPlaceholder": "输入回答或澄清说明..."
-    },
     "contextFootprint": {
       "mcpSwitcherDesc": "关闭本次任务无关的 MCP 服务，可大幅降低每轮请求的底噪 Token",
       "mcpTools": "MCP 工具定义 Schema",

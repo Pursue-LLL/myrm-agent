@@ -602,36 +602,15 @@ export const purgeMemory = async (memoryId: string): Promise<void> => {
 
 // ==================== Working State ====================
 
-export interface WorkingStateLiveState {
-  goal: string | null;
-  subtasks: Array<{
-    id: string;
-    title: string;
-    status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
-    notes?: string;
-  }>;
-  traps: Array<{
-    fingerprint: string;
-    avoidance_rule: string;
-    tool_name?: string | null;
-    status?: string;
-    resolved?: boolean;
-  }>;
-  active_turn: number;
-  consolidated: boolean;
-}
-
 export interface WorkingStateResponse {
   content: string | null;
   updated_at: string | null;
   ttl_days: number;
   expired: boolean;
-  live_state?: WorkingStateLiveState | null;
 }
 
-export const getWorkingState = async (sessionId?: string): Promise<WorkingStateResponse> => {
-  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
-  return apiRequest<WorkingStateResponse>(`/memory/working-state${query}`);
+export const getWorkingState = async (): Promise<WorkingStateResponse> => {
+  return apiRequest<WorkingStateResponse>('/memory/working-state');
 };
 
 export const updateWorkingState = async (content: string): Promise<WorkingStateResponse> => {

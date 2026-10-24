@@ -3475,23 +3475,6 @@
       "userActivityPaused": "User active, loop deferred",
       "tooltip": "Session-scoped adaptive exponential backoff loop scheduler"
     },
-    "asyncMessage": {
-      "progressReport": "Live Progress Update",
-      "milestone": "Milestone Reached",
-      "decisionInquiry": "Non-blocking Inquiry",
-      "confirmedDecision": "Confirmed decision:",
-      "resolvedBadge": "RESOLVED",
-      "recommendedPlan": "Recommended Option",
-      "adopt": "Adopt",
-      "customReply": "Custom reply",
-      "collapseCustom": "Collapse custom",
-      "inputPlaceholder": "Enter instructions or notes...",
-      "send": "Send",
-      "fallbackPrefilled": "Prefilled into input box, please send",
-      "fallbackPrefilledBadge": "Prefilled",
-      "questionClarification": "Clarification",
-      "directReplyPlaceholder": "Enter answer or clarification..."
-    },
     "contextFootprint": {
       "mcpSwitcherDesc": "Disable irrelevant MCP servers to keep every turn lightweight",
       "mcpTools": "MCP Tool Schemas",
