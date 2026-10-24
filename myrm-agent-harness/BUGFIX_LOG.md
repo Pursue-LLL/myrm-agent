@@ -2,6 +2,19 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-24-025 · `+term` 在 top-k 截断后才过滤，可能丢掉唯一命中
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-24（required-term 语法复查） |
+| **修复时间** | 2026-10-24 |
+| **严重程度** | P2：required term 存在但 BM25 排序在 top-k 外时，搜索错误返回空 |
+| **关联产品** | harness `agent/meta_tools/skills/search/engine.py` |
+| **根因** | 先用 `top_k` 截断 BM25 结果，再按 `+term` 过滤；唯一匹配可能在截断外。 |
+| **修复** | required-term 查询对全 corpus 召回，过滤后再取 `top_k`；普通查询仍只召回 `top_k*2`。 |
+| **回归** | `test_required_term_is_filtered_before_top_k` 通过；搜索 27 passed。 |
+
 ### BUG-HARNESS-2026-10-24-023 · 搜索索引包含 unavailable 技能
 
 | 字段 | 内容 |

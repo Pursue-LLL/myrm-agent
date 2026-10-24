@@ -111,6 +111,15 @@ class TestSkillSearchEngine:
         assert results
         assert all("railway" in result.name.lower() or "railway" in result.description.lower() for result in results)
 
+    def test_required_term_is_filtered_before_top_k(self) -> None:
+        skills = [
+            SkillMetadata(name=f"generic_{idx}_skill", description=f"generic result {idx}") for idx in range(20)
+        ]
+        skills.append(SkillMetadata(name="needle_skill", description="needle capability"))
+        engine = SkillSearchEngine(skills, min_relevance_score=-1.0)
+        results = engine.search_bm25("+needle generic", top_k=5)
+        assert [result.name for result in results] == ["needle_skill"]
+
     def test_search_bm25_required_term_only(self, sample_skills: list[SkillMetadata]) -> None:
         engine = SkillSearchEngine(sample_skills)
         results = engine.search_bm25("+weather")

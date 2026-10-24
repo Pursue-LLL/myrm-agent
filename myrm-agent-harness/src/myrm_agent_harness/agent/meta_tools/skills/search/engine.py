@@ -148,16 +148,18 @@ class SkillSearchEngine:
         else:
             expanded_queries = [query]
 
-        # Search with all query variations and merge results
+        # Required-term queries must consider the whole corpus; top-k truncation
+        # before filtering can drop the only matching skill.
+        candidate_limit = len(self._skills) if required_terms else top_k * 2
         all_results: dict[int, float] = {}  # idx -> max_score
         for expanded_query in expanded_queries:
-            raw_results = self._retriever.search(expanded_query, top_k=top_k * 2, only_relevant=False)
+            raw_results = self._retriever.search(expanded_query, top_k=candidate_limit, only_relevant=False)
             for idx, score in raw_results:
                 if score >= self._min_relevance_score:
                     all_results[idx] = max(all_results.get(idx, 0.0), score)
 
         # Sort by score (desc) and skill name (asc) for stable tie-break
-        sorted_results = sorted(all_results.items(), key=lambda x: (-x[1], self._skills[x[0]].name))[:top_k]
+        sorted_results = sorted(all_results.items(), key=lambda x: (-x[1], self._skills[x[0]].name))
         results = [
             SkillSearchResult(
                 name=self._skills[idx].name,
@@ -166,7 +168,7 @@ class SkillSearchEngine:
             )
             for idx, score in sorted_results
         ]
-        results = self._filter_required_terms(results, required_terms)
+        results = self._filter_required_terms(results, required_terms)[:top_k]
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
