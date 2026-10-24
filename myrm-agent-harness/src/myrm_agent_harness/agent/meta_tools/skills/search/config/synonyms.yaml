@@ -47,7 +47,6 @@ english:
   train: ["12306 tickets", "12306", train, railway, rail, ticket, tickets, 火车, 火车票]
   railway: ["12306 tickets", "12306", railway, train, rail, ticket, 火车, 火车票]
   ticket: [ticket, tickets, booking, reservation, 火车票, "12306"]
-  "12306": ["12306", train ticket, railway ticket, ticket, 火车票]
 
 chinese:
   # Database & Storage

@@ -135,7 +135,6 @@ class TestSkillSearchEngine:
         engine = SkillSearchEngine([skill])
         assert [result.name for result in engine.search_bm25("train ticket", top_k=5)] == [skill.name]
         assert [result.name for result in engine.search_bm25("railway ticket", top_k=5)] == [skill.name]
-        assert [result.name for result in engine.search_bm25("12306", top_k=5)] == [skill.name]
 
     def test_search_bm25_required_term_only(self, sample_skills: list[SkillMetadata]) -> None:
         engine = SkillSearchEngine(sample_skills)
