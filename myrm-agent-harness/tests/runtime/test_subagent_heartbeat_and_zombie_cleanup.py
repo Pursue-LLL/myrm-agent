@@ -279,3 +279,49 @@ async def test_hard_terminate_hook_runs_before_cancelling_the_worker() -> None:
     assert observed.index("hook") < observed.index("released")
     # With the hook first the worker stops on its own; the reap windows never have to expire.
     assert elapsed < 1.0, f"hard terminate took {elapsed:.2f}s, past one reap window"
+
+@pytest.mark.asyncio
+async def test_hard_terminate_spends_one_reap_budget_not_two() -> None:
+    """A worker that ignores the hook as well as every cancel must cost one reap budget.
+
+    Reaping in both the TERMINATED branch and the `finally` block spent the grace windows twice:
+    measured 3.09 s against the 1.59 s the configuration calls for. This worker only stops when the
+    test releases it after the call returns, so the reap windows are what actually run out.
+    """
+    tracker = SubagentHeartbeatTracker()
+    supervisor = ZombieCleanupSupervisor(tracker)
+    ladder = TimeoutLadderConfig(
+        warning_threshold_s=0.02,
+        soft_cancel_threshold_s=0.04,
+        hard_terminate_threshold_s=0.08,
+    )
+    stop = asyncio.Event()
+
+    async def oblivious() -> str:
+        tracker.pulse("sub_budget", note="Starting")
+        while not stop.is_set():
+            try:
+                await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                await asyncio.sleep(0.01)
+        return "stopped"
+
+    try:
+        started = time.monotonic()
+        state, _result, receipt = await supervisor.supervise_task(
+            subagent_id="sub_budget",
+            parent_session_id="parent_budget",
+            coro=oblivious(),
+            # Deliberately does nothing: the hook cannot rescue this worker.
+            cleanup_hook=lambda: None,
+            custom_ladder=ladder,
+            check_interval_s=0.02,
+        )
+        elapsed = time.monotonic() - started
+    finally:
+        stop.set()
+
+    assert state == SubagentHealthState.TERMINATED
+    assert receipt.zombie_killed is True
+    one_budget = supervisor._REAP_ATTEMPTS * supervisor._REAP_GRACE_S
+    assert elapsed < one_budget * 1.5, f"hard terminate took {elapsed:.2f}s, past one reap budget"

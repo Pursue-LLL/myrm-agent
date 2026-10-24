@@ -94,8 +94,8 @@ class ZombieCleanupSupervisor:
                     if cleanup_hook is not None:
                         with contextlib.suppress(Exception):
                             cleanup_hook()
-                    if not task.done():
-                        await self._reap(task)
+                    # The `finally` block reaps before the verdict is built, so stopping the worker
+                    # here would only spend the grace windows twice.
                     zombie_killed = True
                     break
 
