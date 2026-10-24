@@ -33,6 +33,7 @@ from cdp_chat.support import (  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     attach_chat_and_wait_agent_binding,
+    backend_boot_identity,
     dismiss_blocking_modals,
     http_json,
     open_mcp_page,
@@ -102,10 +103,14 @@ def _send_turn(prompt: str) -> str:
 
 
 _APPROVE_PENDING_JS = """(() => {
+  // Substring match: the dialog now says "全部批准" / "Approve All", and an exact label list
+  // silently stopped clicking anything — the tool call then waited for the 120s auto-reject.
   const labels = ['批准', 'Approve', '允许', 'Allow'];
-  const target = Array.from(document.querySelectorAll('button')).find(
-    (b) => labels.includes((b.textContent || '').trim()) && !b.disabled,
-  );
+  const target = Array.from(document.querySelectorAll('button')).find((b) => {
+    if (b.disabled) return false;
+    const text = (b.textContent || '').trim();
+    return labels.some((label) => text.includes(label));
+  });
   if (!target) return 0;
   target.click();
   return 1;
@@ -129,7 +134,7 @@ def _wait_assistant_reply(
     *,
     timeout_sec: float = 180.0,
     on_poll: object | None = None,
-) -> dict[str, object]:
+) -> dict[str, object] | None:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     last_messages: list[dict[str, object]] = []
@@ -162,11 +167,8 @@ def _wait_assistant_reply(
                 return assistant
         last = assistant or {}
         time.sleep(2.0)
-    pytest.fail(
-        f"assistant reply not received within {timeout_sec}s for chat {chat_id}; "
-        f"last={json.dumps(last, ensure_ascii=False)[:300]} "
-        f"messages={json.dumps(last_messages, ensure_ascii=False)[:800]}"
-    )
+    _ = (last, last_messages)
+    return None
 
 
 @pytest.mark.chrome_e2e(
@@ -213,6 +215,10 @@ def test_a2a_chat_live_delegation_chrome_e2e(
         "description": "Orchestrates research via trusted A2A peers",
         "a2a_enabled": True,
         "a2a_trusted_peer_ids": [peer_id],
+        # The scenario is "delegate to the trusted peer", so give the agent only the delegation
+        # tools: with web tools available the model tries to research by itself and the test then
+        # measures the model's browsing instead of the A2A path it is meant to cover.
+        "metadata": {"enabled_builtin_tools": ["a2a_call", "a2a_orchestrate"]},
     }
     agent_resp = http_json("POST", f"{api_url}/api/v1/user-agents", body=agent_payload)
     assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get(
@@ -277,13 +283,26 @@ def test_a2a_chat_live_delegation_chrome_e2e(
             )
             _ = probe_snapshot
 
-            # 7. Wait for assistant reply to arrive and complete
-            reply = _wait_assistant_reply(
-                chat_id,
-                api_url,
-                timeout_sec=180.0,
-                on_poll=lambda: _approve_pending_tool_calls(client, page),
-            )
+            # 7. Wait for assistant reply to arrive and complete. A live model occasionally emits a
+            # tool call whose arguments fail the provider's schema, which ends the turn with an empty
+            # message; one bounded retry keeps this test about the A2A path instead of about model
+            # formatting quality.
+            approve = lambda: _approve_pending_tool_calls(client, page)  # noqa: E731
+            boot_before = backend_boot_identity(api_url)
+            reply = _wait_assistant_reply(chat_id, api_url, timeout_sec=180.0, on_poll=approve)
+            if reply is None:
+                boot_after = backend_boot_identity(api_url)
+                if boot_before and boot_after and boot_after != boot_before:
+                    pytest.fail(
+                        "E2E_BACKEND_RESTARTED: the API backend restarted mid-turn "
+                        f"({boot_before} -> {boot_after}); the dev stack hot-reloaded, "
+                        "re-run instead of debugging the product"
+                    )
+                retry = client.evaluate(page, _send_turn(prompt), timeout_sec=60.0)
+                assert isinstance(retry, dict) and retry.get("ok") is True, f"Retry send failed: {retry}"
+                reply = _wait_assistant_reply(chat_id, api_url, timeout_sec=180.0, on_poll=approve)
+            if reply is None:
+                pytest.fail(f"assistant reply not received within 180s (two attempts) for chat {chat_id}")
             assert (
                 str(reply.get("role")) == "assistant"
             ), f"Expected role assistant: {reply}"
