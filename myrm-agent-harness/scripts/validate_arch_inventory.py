@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Validate module-level _ARCH.md file tables and markdown path references.
+"""Validate module-level _ARCH.md file tables, markdown paths, and brand doc citations.
 
-Two independent checks:
+Three independent checks:
 
 1. **_ARCH inventory** — module-level ``_ARCH.md`` file tables must list sibling
    ``.py`` files (bidirectional: every py file listed, every listed py on disk).
@@ -10,21 +10,26 @@ Two independent checks:
    resolve to a real file/directory. Resolution rules live in
    :mod:`scripts.md_ref_validator` (explicit relatives, cross-repo aliases, and
    source-root module shortcuts).
+3. **brand doc repo refs** (``--repo-refs``) — code paths cited by
+   ``myrm-agent-brand/**/*.md(x)`` (``myrm-agent/...``, ``myrm-control-plane/...``)
+   must exist in the workspace. Skipped when the brand repo is not checked out, so
+   a standalone harness clone stays green.
 
 Only parses markdown **table rows** (lines starting with ``|``) in ``_ARCH.md`` —
-prose mentions of ``other_module.py`` are ignored by check 1; check 2 also scans
-prose so that refactor-orphaned paths surface in CI.
+prose mentions of ``other_module.py`` are ignored by check 1; checks 2 and 3 also
+scan prose so that refactor-orphaned paths surface in CI.
 
 Usage:
     python scripts/validate_arch_inventory.py
     python scripts/validate_arch_inventory.py --root src/myrm_agent_harness
     python scripts/validate_arch_inventory.py --root src/myrm_agent_harness/agent
     python scripts/validate_arch_inventory.py --md-refs
+    python scripts/validate_arch_inventory.py --repo-refs
     python scripts/validate_arch_inventory.py --json
 
 Exit codes:
     0: All checked directories consistent
-    1: Missing/stale _ARCH entries or broken markdown path refs detected
+    1: Missing/stale _ARCH entries, broken markdown paths, or broken brand citations
     2: Internal error
 """
 
@@ -32,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,7 +48,70 @@ from md_ref_validator import PRUNE_DIR_NAMES, MdRefReport, scan_md_refs
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _MONOREPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# Workspace root holding every product repo (open-perplexity/ by default).
+_WORKSPACE_ROOT = _REPO_ROOT.parent.parent
+_BRAND_ROOT = _WORKSPACE_ROOT / "myrm-agent-brand"
 _TABLE_HEADER_CELLS = frozenset({"File", "Module", "Submodule", "文件"})
+
+# Cross-repo documentation references: brand sites cite product sources by monorepo-relative
+# path. When a cited file is deleted or renamed the prose keeps reading as if it were still
+# evidence, so the reference has to be checked against the monorepo tree.
+_REPO_REF_PREFIXES: tuple[str, ...] = (
+    "myrm-agent/",
+    "myrm-agent-harness/",
+    "myrm-control-plane/",
+    "myrm-agent-brand/",
+)
+_REPO_REF_SUFFIXES: tuple[str, ...] = (
+    ".py",
+    ".ts",
+    ".tsx",
+    ".rs",
+    ".json",
+    ".md",
+    ".mdx",
+    ".yaml",
+    ".toml",
+    ".sh",
+)
+_CODEPATH_SPAN_RE = re.compile(r"`([^`\n]+)`")
+# Elided or templated paths are documentation shorthand, not evidence.
+_REPO_REF_SKIP_CHARS: tuple[str, ...] = ("<", ">", "*", "...", "://", "|", " ")
+
+
+@dataclass(frozen=True)
+class RepoRefError:
+    md_path: Path
+    line: int
+    ref: str
+
+
+def _iter_doc_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in {".md", ".mdx"} or not path.is_file():
+            continue
+        if any(part in PRUNE_DIR_NAMES for part in path.parts):
+            continue
+        files.append(path)
+    return files
+
+
+def scan_repo_refs(brand_root: Path, monorepo_root: Path) -> list[RepoRefError]:
+    """Return brand-doc code references that point at files absent from the monorepo."""
+    errors: list[RepoRefError] = []
+    for md_path in _iter_doc_files(brand_root):
+        for line_no, line in enumerate(md_path.read_text(encoding="utf-8", errors="ignore").splitlines(), start=1):
+            for raw in _CODEPATH_SPAN_RE.findall(line):
+                ref = raw.strip().split("#", 1)[0]
+                if not ref.startswith(_REPO_REF_PREFIXES) or not ref.endswith(_REPO_REF_SUFFIXES):
+                    continue
+                if any(token in ref for token in _REPO_REF_SKIP_CHARS):
+                    continue
+                if not (monorepo_root / ref).exists():
+                    errors.append(RepoRefError(md_path=md_path, line=line_no, ref=ref))
+    return errors
+
 
 
 @dataclass(frozen=True)
@@ -136,6 +205,14 @@ def _rel_to_repo(path: Path) -> Path:
         return path
 
 
+def _rel_to_workspace(path: Path) -> Path:
+    """Repo-relative label for paths outside the harness repo (e.g. brand docs)."""
+    try:
+        return path.relative_to(_WORKSPACE_ROOT)
+    except ValueError:
+        return path
+
+
 def _format_reports(reports: list[DirReport], *, root_label: str) -> str:
     lines = ["=" * 72, f"_ARCH.md inventory validation ({root_label})", "=" * 72]
     failed = False
@@ -168,6 +245,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also validate backtick spans and inline links in *.md under the root",
     )
+    parser.add_argument(
+        "--repo-refs",
+        action="store_true",
+        help="Validate cross-repo code references cited by myrm-agent-brand docs (skipped when absent)",
+    )
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args(argv)
 
@@ -183,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     # validation.
     src_root = _REPO_ROOT / "src"
     scan_tables = root.is_relative_to(src_root)
-    if not scan_tables and not args.md_refs:
+    if not scan_tables and not (args.md_refs or args.repo_refs):
         print(f"ERROR: table inventory validation only supports roots inside {src_root}", file=sys.stderr)
         return 2
 
@@ -194,6 +276,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.md_refs:
         md_reports = scan_md_refs(root, _MONOREPO_ROOT, _REPO_ROOT)
         has_fail = has_fail or bool(md_reports)
+
+    repo_ref_errors: list[RepoRefError] = []
+    repo_refs_skipped = False
+    if args.repo_refs:
+        if _BRAND_ROOT.is_dir():
+            repo_ref_errors = scan_repo_refs(_BRAND_ROOT, _WORKSPACE_ROOT)
+            has_fail = has_fail or bool(repo_ref_errors)
+        else:
+            repo_refs_skipped = True
 
     if args.json:
         payload = [
@@ -217,6 +308,22 @@ def main(argv: list[str] | None = None) -> int:
                     ]
                 }
             )
+        if args.repo_refs:
+            payload.append(
+                {
+                    "repo_refs": {
+                        "skipped": repo_refs_skipped,
+                        "broken": [
+                            {
+                                "md": str(_rel_to_workspace(error.md_path)),
+                                "line": error.line,
+                                "ref": error.ref,
+                            }
+                            for error in repo_ref_errors
+                        ],
+                    }
+                }
+            )
         print(json.dumps({"ok": not has_fail, "reports": payload}, indent=2))
     else:
         root_label = _rel_to_repo(root).as_posix()
@@ -232,6 +339,17 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"  {rel}:{line_no}: `{ref}` not found")
             else:
                 print(f"PASS - markdown path references resolve ({root_label})")
+        if args.repo_refs:
+            print("=" * 72)
+            if repo_refs_skipped:
+                print(f"SKIP - brand docs not checked out next to the harness ({_BRAND_ROOT})")
+            elif repo_ref_errors:
+                print("FAIL - brand docs cite code paths that do not exist")
+                for error in repo_ref_errors:
+                    rel = _rel_to_workspace(error.md_path)
+                    print(f"  {rel}:{error.line}: `{error.ref}` not found")
+            else:
+                print("PASS - brand doc code references resolve")
 
     return 1 if has_fail else 0
 

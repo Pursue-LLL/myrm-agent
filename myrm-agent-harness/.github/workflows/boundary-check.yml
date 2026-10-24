@@ -58,7 +58,7 @@ jobs:
       - name: Run _ARCH inventory check (full harness)
         run: |
           uv run python scripts/validate_arch_inventory.py --root src/myrm_agent_harness
-          uv run python scripts/validate_arch_inventory.py --root . --md-refs
+          uv run python scripts/validate_arch_inventory.py --root . --md-refs --repo-refs
 
       - name: Run import resolvability gate
         run: uv run python scripts/check_import_resolvability.py

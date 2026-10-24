@@ -597,3 +597,39 @@ def test_main_json_with_md_refs_returns_0(tmp_path: Path, monkeypatch: pytest.Mo
     (repo / "mod.py").write_text("x = 1\n", encoding="utf-8")
     monkeypatch.setattr(arch_module, "_REPO_ROOT", repo)
     assert arch_inventory_main(["--root", str(repo), "--md-refs", "--json"]) == 0
+
+
+def test_main_repo_refs_clean_returns_0(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--repo-refs passes when brand docs cite existing product sources."""
+    workspace = tmp_path / "ws"
+    brand = workspace / "myrm-agent-brand" / "docs"
+    brand.mkdir(parents=True)
+    (workspace / "myrm-agent" / "src").mkdir(parents=True)
+    (workspace / "myrm-agent" / "src" / "real.py").write_text("x = 1\n", encoding="utf-8")
+    (brand / "guide.mdx").write_text("See `myrm-agent/src/real.py`.\n", encoding="utf-8")
+    monkeypatch.setattr(arch_module, "_WORKSPACE_ROOT", workspace)
+    monkeypatch.setattr(arch_module, "_BRAND_ROOT", workspace / "myrm-agent-brand")
+    assert arch_inventory_main(["--root", str(workspace / "myrm-agent"), "--repo-refs"]) == 0
+
+
+def test_main_repo_refs_broken_returns_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--repo-refs fails when a cited product source no longer exists."""
+    workspace = tmp_path / "ws"
+    brand = workspace / "myrm-agent-brand" / "docs"
+    brand.mkdir(parents=True)
+    (workspace / "myrm-agent").mkdir(parents=True)
+    (brand / "guide.mdx").write_text("See `myrm-agent/src/ghost.py`.\n", encoding="utf-8")
+    monkeypatch.setattr(arch_module, "_WORKSPACE_ROOT", workspace)
+    monkeypatch.setattr(arch_module, "_BRAND_ROOT", workspace / "myrm-agent-brand")
+    assert arch_inventory_main(["--root", str(workspace / "myrm-agent"), "--repo-refs"]) == 1
+
+
+def test_main_repo_refs_skipped_without_brand_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A standalone harness clone has no brand repo, so the check skips instead of failing."""
+    workspace = tmp_path / "ws"
+    (workspace / "myrm-agent").mkdir(parents=True)
+    monkeypatch.setattr(arch_module, "_WORKSPACE_ROOT", workspace)
+    monkeypatch.setattr(arch_module, "_BRAND_ROOT", workspace / "myrm-agent-brand")
+    assert arch_inventory_main(["--root", str(workspace / "myrm-agent"), "--repo-refs"]) == 0
