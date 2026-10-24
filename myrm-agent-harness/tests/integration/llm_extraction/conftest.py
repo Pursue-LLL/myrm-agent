@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent-server" / ".env.test"
 
 from tests.integration.llm_extraction.litellm_creds import litellm_config_for
 

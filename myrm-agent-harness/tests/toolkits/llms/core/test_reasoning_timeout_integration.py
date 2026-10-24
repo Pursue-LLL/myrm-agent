@@ -16,7 +16,7 @@ import pytest
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 
-_ENV_TEST = Path(__file__).resolve().parents[5] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[5] / "myrm-agent-server" / ".env.test"
 
 
 class TestReasoningTimeoutIntegration:
