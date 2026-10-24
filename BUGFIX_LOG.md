@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-24 · A2A 入站是假执行、出站是私有方言，且三种部署都没有入口
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **REMOVED**（`myrm-agent` `491cf7a082`；能力整块删除，不保留兼容层） |
+| **症状 1** | 远端 Agent 调用 `tasks/send`，后端立即返回 `"Task executed successfully by agent [...]: <prompt>"` 并把任务置为 `COMPLETED`，实际没有运行任何 Agent、工具或记忆（删除前 `app/services/a2a/service.py:292`） |
+| **症状 2** | 出站请求是 `method="tasks/send"` + `params={"prompt": <str>}`（删除前 `toolkits/a2a/client.py:130-140`）；A2A v1.0 对端只认 `SendMessage`/`message/send` + `message.parts[]`（Hermes `plugins/platforms/a2a/adapter.py:44-58`、OpenClaw `extensions/a2a/src/protocol.ts:88-90`），互通必然失败 |
+| **症状 3** | Provider 在任何部署模式都不可达：本地/桌面绑 `127.0.0.1`（`app/main.py:134-143`）；云端只能经 control-plane `/proxy/*`，而它要求用户 JWT（`jwt_middleware.py:72`），A2A 对端只有 peer bearer token |
+| **根因** | 按「协议外形」交付而非端到端验收：入站执行用占位字符串、出站从未与真实 A2A 实现联调（自测自的私有方言）、并在没有公网 Agent 入口的形态下提供了 Provider 面 |
+| **修复** | 整块删除 A2A：harness `toolkits/a2a/`、server `api/a2a` + `services/a2a` + `a2a_peers` 表、Agent 参数与 DTO、设置页与入站审批、6 语言文案、品牌文档与 roadmap 能力描述；注册工具 58 → 56。外部能力接入统一走 MCP，自有设备互联走 tailnet（topic_05 #110） |
+| **回归证据** | `validate_tool_registry.py` PASS（56，EXTERNAL 5）；harness 架构+脚本+toolkits 19,126 passed；server 相关 188 passed；前端 `tsc --noEmit` 0 error；`~/.myrm/data.db` 的 `a2a_peers` 为 0 行、`a2a_audit.jsonl` 506 条全为测试写入（无真实使用痕迹） |
+
 ## 2026-10-24 · 「定时任务已停止运行」横幅：两个独立根因
 
 | 字段 | 内容 |
