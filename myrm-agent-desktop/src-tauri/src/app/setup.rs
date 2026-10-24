@@ -143,6 +143,11 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let backend_app = app_handle.clone();
     let backend_config_clone = backend_config.clone();
     let backend_system_config = system_config_clone.clone();
+    // 0 = still starting, 1 = ready, 2 = failed. The frontend may navigate before the
+    // backend is ready, but a fast failure (foreign process owns the port) must keep
+    // the shell's error modal instead of showing a UI backed by someone else's service.
+    let backend_start_state = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
+    let backend_start_state_for_frontend = backend_start_state.clone();
     // The WebView is ours (Next on a dedicated loopback port); its API layer already
     // gates business requests on backend readiness. Navigate as soon as the frontend
     // answers so the user sees the app in <1s instead of waiting out the Python cold
@@ -160,9 +165,11 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         {
             Ok(msg) => {
                 println!("✅ {}", msg);
+                backend_start_state.store(1, std::sync::atomic::Ordering::SeqCst);
                 runtime::spawn_backend_monitors(&backend_app, backend_port);
             }
             Err(e) => {
+                backend_start_state.store(2, std::sync::atomic::Ordering::SeqCst);
                 eprintln!("❌ Failed to auto-start backend: {}", e);
                 let tooltip =
                     "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
@@ -185,6 +192,22 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
             Ok(msg) => {
                 println!("✅ {}", msg);
                 runtime::spawn_frontend_monitor(&app_handle, monitor_config);
+                // A fast failure (port owned by a foreign process) must keep the shell's
+                // error modal; a normal cold start is still "starting" after 2s and
+                // navigates so the user sees the app immediately.
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                loop {
+                    match backend_start_state_for_frontend.load(std::sync::atomic::Ordering::SeqCst)
+                    {
+                        2 => {
+                            eprintln!("❌ Skip WebUI navigation: backend failed to start.");
+                            return;
+                        }
+                        1 => break,
+                        _ if std::time::Instant::now() >= deadline => break,
+                        _ => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
+                    }
+                }
                 let target = format!("http://127.0.0.1:{frontend_port}/");
                 match target.parse::<tauri::Url>() {
                     Ok(url) => {

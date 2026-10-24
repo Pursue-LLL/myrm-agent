@@ -34,7 +34,6 @@ from urllib.parse import urlparse
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.infra.tls_compat import build_httpx_verify, tls_strict_disabled
-
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     ChatLiteLLM as ChatLiteLLM,
 )

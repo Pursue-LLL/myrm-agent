@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_audit import router as internal_agent_audit_router
