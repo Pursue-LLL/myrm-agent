@@ -91,6 +91,25 @@ class TestStartStop:
         await sched.stop()
 
     @pytest.mark.asyncio
+    async def test_idle_scheduler_keeps_a_live_timer(self) -> None:
+        """No due jobs must not look like a stopped scheduler to the health banner.
+
+        ``earliest_next_run`` returning None used to leave both handles unset, so
+        ``has_timer`` stayed False and the AppLayout banner announced "scheduler stopped"
+        on a perfectly healthy idle instance.
+        """
+        store = _make_store()
+        store.earliest_next_run = AsyncMock(return_value=None)
+        sched, _, _ = _make_scheduler(store=store)
+
+        await sched.start()
+        await asyncio.sleep(0.01)
+
+        assert sched.health()["running"] is True
+        assert sched.health()["has_timer"] is True
+        await sched.stop()
+
+    @pytest.mark.asyncio
     async def test_stop_clears_running(self) -> None:
         sched, _, _ = _make_scheduler()
         await sched.start()

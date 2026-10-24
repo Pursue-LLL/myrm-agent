@@ -146,7 +146,7 @@ class CronScheduler:
             "running": self._running,
             "last_tick_at": self._last_tick_at.isoformat() if self._last_tick_at else None,
             "tick_errors": self._tick_errors,
-            "has_timer": self._timer_handle is not None,
+            "has_timer": self._timer_handle is not None or self._watchdog_handle is not None,
             "last_purge_at": self._last_purge_at.isoformat() if self._last_purge_at else None,
         }
 
@@ -208,6 +208,10 @@ class CronScheduler:
             return
 
         if next_wake is None:
+            # A running scheduler with no due jobs still needs a live timer: the AppLayout
+            # banner derives "stopped" from has_timer/last_tick, so an idle scheduler must
+            # not look dead. The watchdog tick is a cheap no-op when nothing is due.
+            self._arm_watchdog()
             return
 
         delay = max(0.0, (_ensure_utc(next_wake) - datetime.now(UTC)).total_seconds())
