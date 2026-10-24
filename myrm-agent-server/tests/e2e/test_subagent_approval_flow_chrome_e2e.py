@@ -337,7 +337,15 @@ async def _run_approval_flow(
     assert approval.get("queueLen") is not None
     assert approval.get("hasApprove") is True, f"Approval card missing Approve button: {approval}"
 
-    click = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.SYNC_PROBE)
+    # The approval card can re-render between the visibility probe and the
+    # click (SSE snapshot + React commit). Retry briefly instead of treating a
+    # transient detached button as a product failure.
+    click: object = {}
+    for _ in range(20):
+        click = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.SYNC_PROBE)
+        if isinstance(click, dict) and click.get("ok") is True:
+            break
+        await asyncio.sleep(0.5)
     assert isinstance(click, dict) and click.get("ok") is True, click
 
     # Resume stream may need multiple WebUI approves (subagent_approval + bash tool_approval).
