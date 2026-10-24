@@ -2,7 +2,7 @@
 
 ## Overview
 External delegation usage billing transparency and subscription entitlement divergence suite.
-Inspired by Nous Portal ChatGPT federation and the critical user friction of paying API metered costs when expecting subscription reuse (Abraxas Ulysses / Fanis.TFN).
+Addresses the friction of paying API metered costs when expecting subscription reuse.
 Adapts dual-shape token usage events (nested usage dict vs flat delegation data), partitions usage into subscription (zero billable API cost, estimated dollar savings calculated) vs api_key (metered direct API cost), and attributes delegation source backends.
 
 ## File Index

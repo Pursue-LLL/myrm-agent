@@ -1,7 +1,7 @@
 # streaming/zero_replay/
 
 ## Overview
-Zero-Replay reconnect protocol engine and atomic state snapshot models (inspired by earendil-works/pi harness-v2 UI model).
+Zero-Replay reconnect protocol engine and atomic state snapshot models.
 Eliminates client-side UI flickering, duplicate re-renders, and event disorder upon network reconnects by separating atomic state snapshots from pure live-stream delta events.
 
 ## File & Submodule Index

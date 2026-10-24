@@ -1,7 +1,7 @@
 # Workspace Cockpit Module
 
 个人数字员工工作区总控驾驶舱、4 泳道全局任务流与“你不在的时候”离线概览模块。
-汲取 LoopX 个人 Agent 工作区控制台与管家全局总览精髓，并融合 Hermes v0.21.5 #117464 每条后台任务内嵌实时输出流最新一行（Streaming Tail）。
+提供个人 Agent 工作区控制台与管家全局总览，并为每条后台任务内嵌实时输出流最新一行（Streaming Tail）。
 
 ## 文件组织
 

@@ -720,7 +720,7 @@ Pipeline 按 `max_context_tokens` 缓存实例，避免重复创建。
 
 **设计目标**：当Agent从`interrupt()`恢复时，保持历史messages完全不变，确保Prompt Cache命中率95%+。
 
-**核心原则**（借鉴Manus最佳实践）：
+**核心原则**：
 1. **只追加，不删除**：Resume时绝对不修改历史messages
 2. **HITL会话期间禁用Compress**：避免多次HITL交互时破坏cache
 3. **配置一致性验证**：防止system_prompt/tools改变破坏cache前缀

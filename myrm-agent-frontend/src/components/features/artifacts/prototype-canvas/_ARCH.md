@@ -1,7 +1,7 @@
 # Interactive Prototype Canvas Architecture (`prototype-canvas`)
 
 ## 模块定位
-负责从需求意图文档（`intent.md` / `*.intent.md` / `*.prototype.json`）动态生成 React/Tailwind 交互高保真原型画布、多设备视口无缝切换（Desktop / Tablet / Mobile）、所见即所得点击圈选批注（Visual Click-and-Comment Annotation）、以及「✨ 批准原型并导出 spec.md」工程规格交接协议（Item 46 P0 · 汲取 Anthropic Claude Design 协同工作流精髓）。
+负责从需求意图文档（`intent.md` / `*.intent.md` / `*.prototype.json`）动态生成 React/Tailwind 交互高保真原型画布、多设备视口无缝切换（Desktop / Tablet / Mobile）、所见即所得点击圈选批注（Visual Click-and-Comment Annotation）、以及「✨ 批准原型并导出 spec.md」工程规格交接协议（Item 46 P0）。
 
 ## 文件职责清单
 

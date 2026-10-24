@@ -83,7 +83,7 @@ Harness 区分两类配置，避免「零 env」与「生产需要路径注入�
 
 ### 7.3 竞品分析时的正确姿势
 
-- **可借鉴**：MCP 连接稳定性、OAuth、stdio 生命周期、错误重试等**工程细节**
-- **禁止借鉴**：工具暴露模型、deferred tool call 路由、router-only Turn1 schema 等**动作空间设计**——我们已有更优解，抄只会降级
+- **可吸收**：MCP 连接稳定性、OAuth、stdio 生命周期、错误重试等**工程细节**
+- **明确不采用**：工具暴露模型、deferred tool call 路由、router-only Turn1 schema 等**动作空间设计**——我们已有更优解，抄只会降级
 
 **给 AI Agent 的指令**：若用户或文档要求「参考 Cursor/Claude/xxx 的 MCP 懒加载」，应回复：**Myrm 使用 MCP PTC + 渐进披露，不引入 proxy 第三路径**，并指向本节与 §2.5。

@@ -118,7 +118,7 @@
 - 它负责承接自定义智能体、聊天、知识库、Cron、渠道、审批体验等产品能力，但不负责多租户身份、沙箱池化、全局路由、配额聚合等控制平面职责。
 - 全面剥离多租户感知：API 路由、Query 及内部调用已彻底移除 `user_id` 依赖，作为纯粹的单租户应用在独立的 `MYRM_DATA_DIR` 中运行。
 
-因此，本层新增任何竞品借鉴项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至外部控制服务（SaaS 部署场景）。
+因此，本层新增任何外部能力项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至外部控制服务（SaaS 部署场景）。
 
 ### 0.07 Vision 媒体路由（Settings → chat 预处理 + agent sandbox）
 
@@ -250,7 +250,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 ### 0.5 Shared Context 共享记忆治理 (Shared Memory Governance)
 
-借鉴 Hermes 的灵活记忆理念但保留 OpenClaw 式边界控制，Server 产品层提供 Shared Context：
+在保持边界控制的前提下提供灵活记忆，Server 产品层提供 Shared Context：
 
 - **产品层治理**：`app/services/memory/shared_context/shared_context.py` 管理共享上下文、agent/channel/cron/conversation/task 绑定和写入提案；Harness 只接收 `shared:<context_id>` namespace，不感知 team 概念。
 - **运行时解析**：Web、Channel、Cron、Eval 入口在创建 Agent 前解析 Shared Context 绑定，通过 `memory_shared_context_ids` 下传给 GeneralAgent，再由 memory adapter 追加到 recall namespaces。

@@ -1,7 +1,7 @@
 # Interactive Widget Dashboard Architecture (`widget-dashboard`)
 
 ## 模块定位
-负责交互式微应用与工件（Interactive Widgets）的会话级右侧固钉仪表盘（Pinned Dashboard Drawer）、网络权限策略动态管控（Network Policy Control: none / restricted / full）、以及多主题高清社交海报生成与多格式导出快照（Item 48 P0 · 汲取 ChatGPT Widget 生态与 Claude Artifact Snapshot 精髓）。
+负责交互式微应用与工件（Interactive Widgets）的会话级右侧固钉仪表盘（Pinned Dashboard Drawer）、网络权限策略动态管控（Network Policy Control: none / restricted / full）、以及多主题高清社交海报生成与多格式导出快照（Item 48 P0）。
 
 ## 文件职责清单
 

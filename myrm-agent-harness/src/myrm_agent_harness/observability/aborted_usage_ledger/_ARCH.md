@@ -2,7 +2,7 @@
 
 ## Overview
 Canonical usage ledger manager preventing pseudo-free zero-token representations on aborted auxiliary model calls.
-Inspired by Maka-Agent PR #5890 and commit `3bd8bbe1e5` to ensure aborted auxiliary calls (summarization, compaction, audit, routing) without provider usage payloads are explicitly marked as `usage-unknown`, strictly isolating them from known token consumption and cost aggregations.
+Ensures aborted auxiliary calls (summarization, compaction, audit, routing) without provider usage payloads are explicitly marked as `usage-unknown`, strictly isolating them from known token consumption and cost aggregations.
 
 ## File Index
 

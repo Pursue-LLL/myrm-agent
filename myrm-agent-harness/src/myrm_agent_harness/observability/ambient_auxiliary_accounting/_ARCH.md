@@ -4,7 +4,7 @@
 
 环境感知式辅助用量正交归因上下文与功能模块独立账本引擎包。上级文档：[../_ARCH.md](../_ARCH.md)。
 
-深度借鉴 Hermes 源码底层 `aux_accounting` 与工业级实践：在主对话之外，Agent 自身频繁调用小模型处理视觉截图排版、会话记忆压缩摘要、起标题、后台代码审查与思考自省，这些辅助调用的 Token 必须打上专用 task 标签正交独立记账，绝不能与主模型的对话历史与 Prompt Cache 混为一谈。通过 Python `contextvars` 提供无侵入上下文管理器 `with ambient_auxiliary_task(AuxiliaryTaskType.VISION_PREP):`，自动为调用栈注入任务标签，实现主干对话与后台辅助衍生调用的物理隔离记账与下钻归因。
+在主对话之外，Agent 自身频繁调用小模型处理视觉截图排版、会话记忆压缩摘要、起标题、后台代码审查与思考自省，这些辅助调用的 Token 必须打上专用 task 标签正交独立记账，绝不能与主模型的对话历史与 Prompt Cache 混为一谈。通过 Python `contextvars` 提供无侵入上下文管理器 `with ambient_auxiliary_task(AuxiliaryTaskType.VISION_PREP):`，自动为调用栈注入任务标签，实现主干对话与后台辅助衍生调用的物理隔离记账与下钻归因。
 
 ## 文件清单
 

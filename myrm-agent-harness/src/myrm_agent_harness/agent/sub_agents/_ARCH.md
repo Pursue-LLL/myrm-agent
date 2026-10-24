@@ -55,8 +55,8 @@ Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 | multiplexer/ | 持久化多智能体会话多路复用器（多会话切片管理、无头工作者标记、互视快照与指令队列原语；不暴露 LLM 工具）。详见 [multiplexer/_ARCH.md](multiplexer/_ARCH.md)。 |
 | todo_store/ | 跨进程/跨插件共享 Todo 计划声明存储与控制字符安全清洗 HUD 只读投影子系统（支持严格 20 项与字符上限门禁、双向 C0/C1 与 ANSI 剥离清洗、只读 HUD 投射与标准元工具）。详见 [todo_store/_ARCH.md](todo_store/_ARCH.md)。 |
 | ralph_loop/ | Ralph 式 Fresh-Agent 多轮循环与极简五字段强交接系统（支持长任务每轮启动无历史全新子代理、共享工作区物理文件协同、五字段容量硬顶与尝试满三轮阻断防御规则）。详见 [ralph_loop/_ARCH.md](ralph_loop/_ARCH.md)。 |
-| advisor_channel/ | 双模型实时旁路军师评审通道（基于 oh-my-pi 架构，为智能体挂载独立模型与 Context 窗口的 Advisor 军师角色，按 aside/concern/blocker 三级分层实时审查与硬阻断熔断）。详见 [advisor_channel/_ARCH.md](advisor_channel/_ARCH.md)。 |
-| supervision_hub/ | 子代理实时监管抽屉引擎（基于 oh-my-pi 架构，提供并发 Worker 实时花名册聚合、环形 Live Transcript 执行轨迹缓冲区与 Steer/Kill/Revive 三大生命周期干预调度）。详见 [supervision_hub/_ARCH.md](supervision_hub/_ARCH.md)。 |
+| advisor_channel/ | 双模型实时旁路军师评审通道（为智能体挂载独立模型与 Context 窗口的 Advisor 军师角色，按 aside/concern/blocker 三级分层实时审查与硬阻断熔断）。详见 [advisor_channel/_ARCH.md](advisor_channel/_ARCH.md)。 |
+| supervision_hub/ | 子代理实时监管抽屉引擎（提供并发 Worker 实时花名册聚合、环形 Live Transcript 执行轨迹缓冲区与 Steer/Kill/Revive 三大生命周期干预调度）。详见 [supervision_hub/_ARCH.md](supervision_hub/_ARCH.md)。 |
 | conflict_gate/ | 多 Bot 并行产出冲突对账与合并前拦截门（聚合写集指纹、检测 Hash 碰撞并触发 conflict_pending 阻断、提供四策略对账解决器）。详见 [conflict_gate/_ARCH.md](conflict_gate/_ARCH.md)。 |
 | mcp_scope_gate/ | MCP 发现工具按数字员工/Agent 作用域严格隔离门禁（对标 StaffDeck，支持 Profile 级 MCP Server/工具白名单绑定、动态发现候选集 Fail-Closed 过滤与越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
 | agent_operations/ | Agent-Owned 多智能体协同操作体系（对标 OpenClaw，收敛并隔离多 Agent 协同中的 Provider 设置、模型参数、能力解析 Resolver、白名单 Allowlist 与操作级错误堆栈 Error Stack，维护标准 List-form Agent 花名册）。详见 [agent_operations/_ARCH.md](agent_operations/_ARCH.md)。 |

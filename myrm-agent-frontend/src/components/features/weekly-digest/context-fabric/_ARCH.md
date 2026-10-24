@@ -1,7 +1,7 @@
 # Cross Channel Context Fabric & Autonomous Weekly Digest Synthesizer Suite (`weekly-digest/context-fabric`)
 
 ## 1. 架构定位与业务痛点
-针对用户在飞书/微信处理短平快任务、在桌面端/Web 端深入分析、在命令行压测，周五写周报时必须人工多头翻找聊天记录与 Git 提交重复整理的严重低效痛点，本模块汲取火山引擎 OpenViking 与豆包工作「换工具、换 Agent、不换上下文」最佳实践，构建跨渠道上下文共享工作足迹池与全自动结构化周报合成微调引擎。
+针对用户在飞书/微信处理短平快任务、在桌面端/Web 端深入分析、在命令行压测，周五写周报时必须人工多头翻找聊天记录与 Git 提交重复整理的严重低效痛点，本模块构建跨渠道上下文共享工作足迹池与全自动结构化周报合成微调引擎。
 
 ## 2. 模块拓扑与职责划分
 - **`weeklyDigestTypes.ts`**：强类型契约定义跨渠道工作足迹 `ChannelFootprintItem`、周报合成摘要 `WeeklyDigestSummary`、风格预设 `DigestStylePreset`（高管审阅级/研发技术向/极简子弹点）与微调指令 `RefinementInstruction`；

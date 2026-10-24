@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Ralph 式 Fresh-Agent 多轮循环执行模块（Topic 12 · 第 15 项）：基于 DeepSeek-Harness 与 DSH 五模式之 Ralph 模式，实现长任务每轮启动无历史会话（inheritsParentContext=False）的 Fresh Child Agent，依靠跨轮共享工作区物理文件与严格受限的结构化五字段（`status/summary/evidence/next_steps/blocker`，硬顶 1500 字符）交接信息流转，并强制实施至少尝试满三轮阻断防御规则（Min-3-Round Rule），杜绝早衰阻塞与上下文膨胀导致的注意力衰退。
+Ralph 式 Fresh-Agent 多轮循环执行模块（Topic 12 · 第 15 项）：采用 Fresh-Agent 多轮循环执行模式，实现长任务每轮启动无历史会话（inheritsParentContext=False）的 Fresh Child Agent，依靠跨轮共享工作区物理文件与严格受限的结构化五字段（`status/summary/evidence/next_steps/blocker`，硬顶 1500 字符）交接信息流转，并强制实施至少尝试满三轮阻断防御规则（Min-3-Round Rule），杜绝早衰阻塞与上下文膨胀导致的注意力衰退。
 
 ## 文件清单
 

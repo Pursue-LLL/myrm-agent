@@ -2,7 +2,7 @@
 
 ## Overview
 Agent process & causality tree dashboard, orphan process cascading reaper watchdog, deadlock polling active breaker, and cross-profile activity monitor suite.
-Deeply inspired by Tony Simons' Hermes monitor, Mykyta Pavlenko's orphan helper process CPU leak bug, and Rompel's dead subagent deadlock polling trap.
+Targets the three failure modes that leak agents: orphan helper processes, dead subagent deadlock polling, and un-reaped process trees.
 Tracks PGID process trees across parent agents, delegated subagents, and helper processes (Playwright/Python/MCP), cascades SIGTERM/SIGKILL physical termination upon agent detach, and injects failure faults to interrupt infinite polling.
 
 ## File Index

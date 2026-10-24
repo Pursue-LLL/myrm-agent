@@ -4,7 +4,7 @@
 
 本模块实现高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（HighFpsIncrementalStreamingMarkdownRendererAndRafThrottler）。
 彻底根治超快 Flash 模型狂飙吐字（150-200+ tokens/s）时前端全量重新渲染导致主线程锁死、输入框卡顿掉帧、风扇狂转与页面假死的致命体验缺陷。
-借鉴 pi-tui 增量渲染思想，构建 requestAnimationFrame 微任务批处理帧缓冲区、基于虚拟 DOM 块的增量追加流式解析器（Incremental Append Stream Parser）、不可变块 React.memo 冻结快照隔离与极端高负载下自适应文本降级保障。深度吸收 OpenClaw 独家保留 pi-tui 核心精髓并超越。
+构建 requestAnimationFrame 微任务批处理帧缓冲区、基于虚拟 DOM 块的增量追加流式解析器（Incremental Append Stream Parser）、不可变块 React.memo 冻结快照隔离与极端高负载下自适应文本降级保障。相较同类实现，增量渲染路径与高负载降级更完整。
 
 ## 文件组织
 

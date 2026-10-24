@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bidirectional skill synchronization enabling collective skill evolution across devices and sandboxes. Inspired by SkillClaw's "multi-user collective evolution" but adapted for our three deployment modes (Local/Tauri, SaaS, Community).
+Bidirectional skill synchronization enabling collective skill evolution across devices and sandboxes, adapted for our three deployment modes (Local/Tauri, SaaS, Community).
 
 ## Design Principles
 

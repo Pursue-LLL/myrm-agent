@@ -1,7 +1,7 @@
 # Hero Model Release Spotlight & Motion Announcement Suite (`model-spotlight/hero-announcement`)
 
 ## 1. 架构定位与业务痛点
-针对重大前沿模型发布（如 GPT-6 Astra、Claude 3.7 Hybrid Thinking、DeepSeek-V3 Reasoning）或平台重磅折扣上线时，传统 AI 平台仅在更新日志中静默呈现，普通用户毫无感知、手动配置复杂门槛高的体验短板，本模块汲取 Nous Research 动效发布与高美感科技质感设计，提供前沿模型微动效聚光灯横幅、一键热试用轻量沙箱与一键热挂载当前智能体套件。
+针对重大前沿模型发布（如 GPT-6 Astra、Claude 3.7 Hybrid Thinking、DeepSeek-V3 Reasoning）或平台重磅折扣上线时，传统 AI 平台仅在更新日志中静默呈现，普通用户毫无感知、手动配置复杂门槛高的体验短板，本模块提供前沿模型微动效聚光灯横幅、一键热试用轻量沙箱与一键热挂载当前智能体套件。
 
 ## 2. 模块拓扑与职责划分
 - **`modelSpotlightTypes.ts`**：强类型定义模型聚光灯实体 `SpotlightModelItem`、基准测试指标 `BenchmarkMetric`、试用消息流 `PlaygroundMessage`、热挂载对比视图 `MountComparison` 与忽略记录 `DismissRecord`；

@@ -176,7 +176,7 @@ scheduler 使用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录�
 
 ### Stagger 随机延迟
 
-防止大量任务在同一时刻触发（thundering-herd），借鉴 openclaw 的设计：
+防止大量任务在同一时刻触发（thundering-herd），采用如下设计：
 
 - **`Schedule.stagger_ms`**：可选字段，表示随机延迟窗口（毫秒）
 - **智能默认**：`stagger_ms=None` 时，自动检测整点 cron 表达式（如 `0 * * * *`），
@@ -187,7 +187,7 @@ scheduler 使用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录�
 
 ### [SILENT] 静默机制
 
-减少周期性任务"无事可报"时的干扰推送，借鉴 pi-mono 的设计：
+减少周期性任务"无事可报"时的干扰推送，采用如下设计：
 
 - **零数据库改动**：不增加任何字段
 - **Agent 端**：`agent_runner._build_effective_prompt()` 为周期性任务（cron/interval）
@@ -237,7 +237,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 ### ConsoleCronBubble（实时 Toast 通知）
 
-借鉴 CoPaw 的 ConsoleCronBubble，用更轻量的方式实现：
+用更轻量的方式实现等效能力：
 
 - **后端**：`push_store.py` 内存队列 + `/cron/push-messages` API
 - **前端**：`CronPushPoller` 组件每 10s 轮询，用 `sonner` toast 展示
@@ -267,7 +267,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
    LLM 在工具调用时需要主动"确认"这是周期性意图。
 2. **最小间隔限制**：`every_minutes` 不得低于 `_MIN_INTERVAL_MINUTES`（5 分钟），
    防止创建过于频繁的轮询任务导致 token 浪费。
-3. **Cron Self-Scheduling Guard**：借鉴 nanobot 的设计，用 `ContextVar` 标记当前协程
+3. **Cron Self-Scheduling Guard**：用 `ContextVar` 标记当前协程
    处于 cron 执行上下文中。`cron_manage_tool` 的 `add/update` 动作检测到此标记时直接拒绝，
    防止定时任务在执行过程中创建新的定时任务（避免无限任务链）。
    `agent_runner._run_once()` 在执行前 `enter_cron_execution_context()`，
@@ -322,7 +322,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 ### Active Hours（活跃时段限制）
 
-借鉴 openclaw/CoPaw 的设计，允许每个 CronJob 配置「活跃时段」：
+允许每个 CronJob 配置「活跃时段」：
 
 - **数据模型**：`ActiveHours(start, end, tz)` — start/end 为 `HH:MM` 格式，tz 为 IANA 时区名
 - **调度层**：`scheduler._execute_and_persist()` 在执行前调用 `is_within_active_hours()`，

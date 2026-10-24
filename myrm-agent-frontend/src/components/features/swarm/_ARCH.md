@@ -5,7 +5,7 @@
 ## 模块定位
 
 `swarm` 模块承载多智能体蜂群并发协同（Swarm Mode）、显式规则与偏好记忆自动唤醒（Recalled Rules HUD）、以及交付物人类负责人待核实风险清单（Owner Action & Risk Checklist）的前端状态机与核心组件（Item 42 P0）。
-汲取 EvoX 桌面端极致交互体验：
+桌面端交互目标：
 1. **输入框一键「蜂群协同」快捷 Pill 切换器**（`SwarmModeToggle.tsx`）：快速切换多 Agent 平级并行；
 2. **消息流顶部「记忆/规则自动唤醒」HUD 徽章**（`MemoryRecallBadgeHUD.tsx`）：直观呈现命中召回的规则，支持单条微调或临时停用；
 3. **交付物尾部「待负责人确认的风险清单」折叠卡**（`OwnerActionRiskCard.tsx`）：结构化排查商业方案潜在外部风险，支持逐项 Check 确权闭环。

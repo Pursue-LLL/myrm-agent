@@ -2,7 +2,6 @@
 
 ## Overview
 Safeguards Prometheus metrics collectors and process memory from label cardinality explosion.
-Inspired by Headroom's inbound request-path cardinality cap (`perf(metrics): cap inbound request-path cardinality to bound memory (#3340)`).
 Normalizes dynamic URL parameters into static placeholders (`/session/{id}`), enforces configurable ceilings per hot-path metric (e.g. 256), and safely routes overflowing new labels to an `_overflow_` sentinel bucket.
 
 ## File Index

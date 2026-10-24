@@ -2,7 +2,7 @@
 
 ## Overview
 Active skill telemetry processor propagating `myrm.skill.active` attributes across OpenTelemetry execution spans.
-Inspired by Omnigent PR #9547 and commit `14b70a2411` to bind the currently active skill via ContextVar and ensure all downstream model, tool, and subprocess spans carry the active skill dimension for granular cost attribution, latency percentile aggregation, and failure triage.
+Binds the currently active skill via ContextVar and ensure all downstream model, tool, and subprocess spans carry the active skill dimension for granular cost attribution, latency percentile aggregation, and failure triage.
 
 ## File Index
 
