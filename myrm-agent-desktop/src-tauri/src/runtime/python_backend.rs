@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager, State};
 
-use crate::config::{BackendConfig, ConfigManager};
+use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
 use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
@@ -237,10 +237,16 @@ pub async fn start_backend_with_config(
     cmd.env("MYRM_SHELL_PID", std::process::id().to_string());
 
     // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
-    cmd.env(
-        "MYRM_LOCKED_USE_ENABLED",
-        locked_use_enabled.to_string(),
-    );
+    cmd.env("MYRM_LOCKED_USE_ENABLED", locked_use_enabled.to_string());
+
+    // The WebView is served from its own loopback port. Pass it so the sidecar derives
+    // the CORS allowlist from the port the user actually runs; direct (non-proxied)
+    // calls such as the notification SSE stream then stay reachable when the port changes.
+    let frontend_port = app
+        .try_state::<ConfigManager>()
+        .map(|manager| FrontendConfig::from_system_config(&manager.load()).port)
+        .unwrap_or(crate::config::DESKTOP_FRONTEND_PORT);
+    cmd.env("MYRM_DESKTOP_FRONTEND_PORT", frontend_port.to_string());
 
     if let Some(ref data_dir) = config.custom_data_dir {
         cmd.env("MYRM_DATA_DIR", data_dir);
@@ -295,12 +301,15 @@ pub async fn start_backend_with_config(
 
     println!("✅ Backend process started (PID: {})", child_pid);
 
-    for i in 0..BACKEND_HEALTH_MAX_ATTEMPTS {
-        tokio::time::sleep(BACKEND_HEALTH_POLL_INTERVAL).await;
-
+    // 立即首探 + 快速递增轮询（50ms 起步，最大 250ms），一旦端口监听并在几毫秒内健康即刻返回，消除无谓等待
+    let deadline = std::time::Instant::now() + Duration::from_secs(120);
+    let mut poll_interval = Duration::from_millis(50);
+    let mut attempts = 0;
+    while std::time::Instant::now() < deadline {
+        attempts += 1;
         match check_health_with_port(config.port).await {
             Ok(true) => {
-                println!("✅ Backend is healthy after {} attempts", i + 1);
+                println!("✅ Backend is healthy after {} attempts", attempts);
 
                 // 在发布模式下，标记该版本健康并晋升为 last_known_good
                 if !is_dev {
@@ -324,7 +333,28 @@ pub async fn start_backend_with_config(
 
                 return Ok("Backend started and healthy".to_string());
             }
-            _ => continue,
+            _ => {
+                // 子进程已退出（端口冲突、数据目录交接失败等）时立刻失败，不要把用户晾在
+                // 120s 的「启动中」骨架屏上；真正的退出原因由子进程自身日志给出。
+                let child_exited = {
+                    let mut guard = backend.process.lock().unwrap();
+                    match guard.as_mut() {
+                        Some(child) => matches!(child.try_wait(), Ok(Some(_))),
+                        None => true,
+                    }
+                };
+                if child_exited {
+                    return Err(format!(
+                        "Backend exited during startup on port {}; see the backend log for the reason \
+                         (port in use or data directory held by another instance).",
+                        config.port
+                    ));
+                }
+                tokio::time::sleep(poll_interval).await;
+                if poll_interval < Duration::from_millis(250) {
+                    poll_interval += Duration::from_millis(25);
+                }
+            }
         }
     }
 

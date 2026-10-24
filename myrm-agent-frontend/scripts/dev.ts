@@ -82,7 +82,7 @@ function ensureDevEnvLocal(): void {
 
 const args = process.argv.slice(2);
 const clean = args.includes('--clean');
-const nextDistDir = process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next';
+const nextDistDir = process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next-dev';
 const STALE_ISOLATED_NEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 ensureLocaleNamespaces();
@@ -119,7 +119,27 @@ function pruneStaleIsolatedNextDirs(): void {
 
 pruneStaleIsolatedNextDirs();
 
+/**
+ * A dev cache reset must never delete the desktop production build: `.next` belongs to
+ * `next build`, and the desktop shell reads `.next/standalone`. An explicit
+ * MYRM_NEXT_DIST_DIR=.next would otherwise let a bundler switch erase the shipped app,
+ * leaving the window with no frontend to load. Fail loudly instead of destroying it.
+ */
+function assertSafeToClearDevDistDir(): void {
+  if (path.basename(path.resolve(nextDistDir)) !== '.next') {
+    return;
+  }
+  if (!fs.existsSync(path.join(nextDistDir, 'standalone'))) {
+    return;
+  }
+  throw new Error(
+    `Refusing to clear ${nextDistDir}: it contains the desktop standalone build. ` +
+      'Point MYRM_NEXT_DIST_DIR at an isolated dev directory (for example .next-dev).',
+  );
+}
+
 if (clean) {
+  assertSafeToClearDevDistDir();
   console.log(`🧹 Cleaning ${nextDistDir} directory...`);
   fs.rmSync(nextDistDir, { recursive: true, force: true });
 }
@@ -282,6 +302,7 @@ function ensureBundlerCacheCoherent(mode: string): void {
     if (fs.existsSync(BUNDLER_STAMP)) {
       const previous = fs.readFileSync(BUNDLER_STAMP, 'utf8').trim();
       if (previous && previous !== mode) {
+        assertSafeToClearDevDistDir();
         console.log(`🧹 Dev bundler changed (${previous} → ${mode}) — clearing ${nextDistDir} cache...`);
         fs.rmSync(nextDistDir, { recursive: true, force: true });
       }

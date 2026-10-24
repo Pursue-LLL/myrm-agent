@@ -21,6 +21,7 @@ vi.mock('@/lib/local-backend-dev', async (importOriginal) => {
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: vi.fn(() => true),
   isRemoteGatewayActive: vi.fn(() => false),
+  isTauriRuntime: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/local-backend-e2e-probe', () => ({

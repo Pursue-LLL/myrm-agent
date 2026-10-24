@@ -93,7 +93,8 @@ async def start_memory_pressure_monitor() -> None:
                 AppEvent(
                     event_type=AppEventType.MEMORY_HISTORY_UPDATED,
                     data={"history": monitor.get_history()},
-                )
+                ),
+                replay=False,
             )
         except Exception as e:
             logger.debug(f"Failed to publish memory history event: {e}")

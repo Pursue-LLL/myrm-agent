@@ -113,9 +113,14 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     app.manage(PythonBackend::new());
     app.manage(NextJSFrontend::new());
+    app.manage(runtime::FrontendMonitor::default());
 
     // 工位防窥帷幕 watcher：锁屏触发自动拉起帷幕（独立于后端生命周期的隐私层）。
     commands::privacy_curtain_watcher::spawn_privacy_curtain_watcher(app.handle().clone());
+
+    // SIGTERM/SIGINT（logout、shutdown、kill、Ctrl+C）默认会直接杀死壳进程，留下 Python/Next
+    // 被 reparent 到 init 继续占端口与 CPU。安装信号处理器把这几条路径也接到同一套停机流程。
+    spawn_termination_signal_handler(app.handle().clone());
 
     if let Err(e) = tray::setup_tray(&app.handle().clone()) {
         println!("⚠️ Failed to setup tray: {e}");
@@ -144,7 +149,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let backend_owned = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let backend_owned_for_frontend = backend_owned.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(500)).await;
         if runtime::is_remote_follow_deferred(&backend_app) {
             println!("🌐 Remote follow active, local backend stays deferred");
             return;
@@ -173,20 +177,21 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         // Release WebView loads frontend-shell → polls Next standalone; always start Next.
         // enable_webui_mode only affects backend bind/port (see BackendConfig), not UI startup.
         println!("🌐 Starting Next.js Server...");
-        tokio::time::sleep(Duration::from_millis(500)).await;
 
         let frontend_state = app_handle.state::<NextJSFrontend>();
 
         let frontend_port = frontend_config.port;
+        let monitor_config = frontend_config.clone();
         match start_frontend(app_handle.clone(), frontend_state, frontend_config).await {
             Ok(msg) => {
                 println!("✅ {}", msg);
+                runtime::spawn_frontend_monitor(&app_handle, monitor_config);
                 let target = format!("http://127.0.0.1:{frontend_port}/");
                 match target.parse::<tauri::Url>() {
                     Ok(url) => {
                         if let Some(window) = app_handle.get_webview_window("main") {
                             let mut backend_ready = false;
-                            for _ in 0..300 {
+                            for _ in 0..600 {
                                 if backend_owned_for_frontend
                                     .load(std::sync::atomic::Ordering::SeqCst)
                                 {
@@ -197,7 +202,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                                     backend_ready = true;
                                     break;
                                 }
-                                tokio::time::sleep(Duration::from_millis(200)).await;
+                                tokio::time::sleep(Duration::from_millis(100)).await;
                             }
                             if !backend_ready {
                                 eprintln!(
@@ -241,6 +246,30 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     Ok(())
 }
+
+/// 把 SIGTERM / SIGINT 接入统一停机流程（仅 Unix；Windows 关闭走窗口/托盘事件）。
+#[cfg(unix)]
+fn spawn_termination_signal_handler(app_handle: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let (Ok(mut term), Ok(mut int)) = (
+            signal(SignalKind::terminate()),
+            signal(SignalKind::interrupt()),
+        ) else {
+            eprintln!("⚠️ Could not install termination signal handlers");
+            return;
+        };
+        tokio::select! {
+            _ = term.recv() => println!("🛑 SIGTERM received"),
+            _ = int.recv() => println!("🛑 SIGINT received"),
+        }
+        lifecycle::shutdown_and_exit(app_handle, 0).await;
+    });
+}
+
+#[cfg(not(unix))]
+fn spawn_termination_signal_handler(_app_handle: tauri::AppHandle) {}
 
 fn register_shortcut_from_config(
     app: &mut tauri::App,
@@ -303,8 +332,13 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         }
         tauri::WindowEvent::Destroyed => {
             let app_handle = window.app_handle().clone();
+            let is_main = window.label() == "main";
             tauri::async_runtime::spawn(async move {
-                lifecycle::graceful_shutdown(app_handle).await;
+                // 非主窗口（会话窗/宠物层）只做资源回收，不触发整个应用退出。
+                lifecycle::graceful_shutdown(app_handle.clone()).await;
+                if is_main {
+                    lifecycle::shutdown_and_exit(app_handle, 0).await;
+                }
             });
         }
         _ => {}

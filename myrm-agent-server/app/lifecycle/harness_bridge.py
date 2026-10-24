@@ -237,7 +237,8 @@ async def _handle_resource_event(event: ResourceMetricsEvent) -> None:
             AppEvent(
                 event_type=AppEventType.MEMORY_HISTORY_UPDATED,
                 data={"history": event.history},
-            )
+            ),
+            replay=False,
         )
     except Exception as e:
         logger.error("Failed to publish memory history: %s", e)

@@ -7,6 +7,7 @@
 //! [OUTPUT]
 //! - record_child: 记录本次拉起的子进程（pid / 角色 / 启动时间）
 //! - reap_orphaned_children: 回收上一次运行遗留的孤儿子进程
+//! - reap_recorded_children_now: 壳退出前同步回收本次运行仍存活的受管子进程
 //!
 //! [POS]
 //! 桌面端被强杀时，Next standalone 与 Python Sidecar 会被 reparent 到 init，继续占着端口，
@@ -30,9 +31,16 @@ fn record_path(app: &AppHandle) -> Option<PathBuf> {
 
 /// 读取进程启动时间（ps 的 lstart），用于区分 pid 复用。
 fn process_start_time(pid: u32) -> Option<String> {
-    let output = Command::new(ps_binary()).args(["-p", &pid.to_string(), "-o", "lstart="]).output().ok()?;
+    let output = Command::new(ps_binary())
+        .args(["-p", &pid.to_string(), "-o", "lstart="])
+        .output()
+        .ok()?;
     let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if text.is_empty() { None } else { Some(text) }
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -48,7 +56,9 @@ fn ps_binary() -> &'static str {
 /// 记录一个由本应用拉起的子进程。
 pub fn record_child(app: &AppHandle, role: &str, pid: u32) {
     let Some(path) = record_path(app) else { return };
-    let Some(start) = process_start_time(pid) else { return };
+    let Some(start) = process_start_time(pid) else {
+        return;
+    };
     let mut records = read_records(&path);
     records.retain(|(_, existing_role, _)| existing_role != role);
     records.push((pid, role.to_string(), start));
@@ -78,20 +88,59 @@ pub fn reap_orphaned_children(app: &AppHandle) {
         if parent != 1 {
             continue; // 仍有活着的宿主（例如同一台机器上的另一个实例）
         }
-        println!("🧹 Reaping orphaned {} (PID: {}) from a previous run", role, pid);
+        println!(
+            "🧹 Reaping orphaned {} (PID: {}) from a previous run",
+            role, pid
+        );
         kill_process_tree(pid);
     }
 }
 
 fn process_parent(pid: u32) -> u32 {
-    let output = Command::new(ps_binary()).args(["-p", &pid.to_string(), "-o", "ppid="]).output().ok();
+    let output = Command::new(ps_binary())
+        .args(["-p", &pid.to_string(), "-o", "ppid="])
+        .output()
+        .ok();
     output
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().unwrap_or(0))
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(0)
+        })
         .unwrap_or(0)
 }
 
+/// 退出前同步回收本次运行仍存活的受管子进程。
+///
+/// 与 `reap_orphaned_children` 的区别：这里不要求父进程已是 init —— 壳即将退出，子进程此刻
+/// 仍是它的直接子进程。只回收「pid 存活且启动时间与记录一致」的进程，pid 复用不会误杀。
+/// 返回被回收的数量；无论是否回收都清除记录文件，避免下次启动重复处理。
+pub fn reap_recorded_children_now(app: &AppHandle) -> usize {
+    let Some(path) = record_path(app) else {
+        return 0;
+    };
+    let records = read_records(&path);
+    let _ = std::fs::remove_file(&path);
+    let mut reaped = 0;
+    for (pid, role, start) in records {
+        let Some(current_start) = process_start_time(pid) else {
+            continue; // 已退出
+        };
+        if current_start != start {
+            continue; // pid 复用
+        }
+        println!("🧹 Stopping surviving {} (PID: {}) before exit", role, pid);
+        kill_process_tree(pid);
+        reaped += 1;
+    }
+    reaped
+}
+
 fn read_records(path: &PathBuf) -> Vec<(u32, String, String)> {
-    let Ok(text) = std::fs::read_to_string(path) else { return Vec::new() };
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
     text.lines()
         .filter_map(|line| {
             let mut parts = line.split('\t');

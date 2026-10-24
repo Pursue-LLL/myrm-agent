@@ -90,7 +90,14 @@ class PubSubBus[E: PubSubEventProtocol]:
             except ValueError:
                 pass
 
-    def publish(self, event: E, topic: str | None = None) -> None:
+    def publish(self, event: E, topic: str | None = None, *, replay: bool = True) -> None:
+        """Fan out ``event`` to live subscribers and, unless ``replay`` is false, the backlog.
+
+        ``replay=False`` is for high-churn telemetry: a snapshot event that is useless
+        once superseded must not be replayed to every new subscriber. Replaying a full
+        history snapshot on each reconnect turns a 10 s heartbeat into a multi-megabyte
+        burst, so publishers of such events opt out while keeping live delivery intact.
+        """
         # Consecutive duplicate suppression
         key = _default_idempotency_key(event)
         if self._last_event_key.get(topic) == key:
@@ -99,9 +106,10 @@ class PubSubBus[E: PubSubEventProtocol]:
         self._last_event_key[topic] = key
 
         # Update backlog (deque with maxlen handles eviction automatically)
-        if topic not in self._backlogs:
-            self._backlogs[topic] = deque(maxlen=self._max_backlog)
-        self._backlogs[topic].append(event)
+        if replay:
+            if topic not in self._backlogs:
+                self._backlogs[topic] = deque(maxlen=self._max_backlog)
+            self._backlogs[topic].append(event)
 
         targets = self._subscribers.get(topic, [])
         if not targets:

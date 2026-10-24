@@ -22,6 +22,9 @@ def test_pressure_unknown_when_monitor_missing(monkeypatch) -> None:
     assert "disk" in payload
     assert payload["thresholds"]["disk_warn_percent"] == 85.0
     assert payload["thresholds"]["disk_critical_percent"] == 95.0
+    assert payload["thresholds"]["fd_warn_count"] == 4096
+    assert isinstance(payload["process"]["thread_count"], int)
+    assert payload["process"]["fd_count"] is None or isinstance(payload["process"]["fd_count"], int)
 
 
 def test_pressure_reports_critical_memory(monkeypatch) -> None:

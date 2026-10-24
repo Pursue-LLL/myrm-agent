@@ -4,7 +4,7 @@
  * - port-cleanup::killListenersOnPort (POS: LISTEN-only port cleanup)
  *
  * [OUTPUT]
- * - DevLockRecord persistence in `.next/dev-server.lock`
+ * - DevLockRecord persistence in `<distDir>/dev-server.lock`
  * - evaluateDevServerHealth / isDevServerHealthy / tryAttachToHealthyDevServer
  * - assertDevLockAvailable / acquireDevLock / releaseDevLock
  *
@@ -23,7 +23,10 @@ function resolveNextDistDir(): string {
   if (override) {
     return path.isAbsolute(override) ? override : path.join(process.cwd(), override);
   }
-  return path.join(process.cwd(), '.next');
+  // Must match next.config.ts's development distDir and dev_state_paths.sh: the
+  // production build owns `.next` (desktop reads `.next/standalone`), so a dev lock
+  // or cache reset must never land there.
+  return path.join(process.cwd(), '.next-dev');
 }
 
 const LOCK_DIR = resolveNextDistDir();

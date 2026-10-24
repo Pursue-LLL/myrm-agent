@@ -51,7 +51,8 @@ describe('deploy-mode base url resolution', () => {
     expect(getApiBaseUrl()).toBe('/api/v1');
     expect(getBackendBaseUrl()).toBe('');
     expect(getAgentApiBaseUrl()).toBe('http://127.0.0.1:8080/v1');
-    expect(getNotificationStreamUrl()).toBe('http://127.0.0.1:8080/api/v1/notifications/stream');
+    // 通知流必须同源：直连 8080 在桌面 WebView 会被 CORS 拦截，重同步随即失效。
+    expect(getNotificationStreamUrl()).toBe('/api/v1/notifications/stream');
   });
 
   it('rejects invalid configured base urls in sandbox mode', () => {

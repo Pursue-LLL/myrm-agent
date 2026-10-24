@@ -32,6 +32,40 @@ pub fn is_shutdown_completed() -> bool {
     SHUTDOWN_COMPLETED.load(Ordering::SeqCst)
 }
 
+/// 标记停机完成（包含「优雅流程超时、由兜底物理退出接手」的路径）。
+pub fn mark_shutdown_completed() {
+    SHUTDOWN_COMPLETED.store(true, Ordering::SeqCst);
+}
+
+/// 统一的「停机 + 退出」入口：先给优雅流程一个有界预算，再确保没有子进程被遗留，最后退出。
+///
+/// 顺序不可颠倒：壳一旦先退出，Python/Next 会被 reparent 到 init 继续占端口与 CPU
+/// （用户看到的下一次启动失败、风扇狂转都源自这里）。
+pub async fn shutdown_and_exit(app: AppHandle, exit_code: i32) {
+    let graceful = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        graceful_shutdown(app.clone()),
+    )
+    .await;
+    if graceful.is_err() {
+        eprintln!("⚠️ Graceful shutdown exceeded its budget; falling back to forced child cleanup");
+        mark_shutdown_completed();
+    }
+    let reaped = crate::runtime::child_reaper::reap_recorded_children_now(&app);
+    if reaped > 0 {
+        println!(
+            "🧹 Reaped {} surviving child process(es) before exit",
+            reaped
+        );
+    }
+    app.exit(exit_code);
+    // 兜底：Tauri 事件循环若被残留原生线程拖住，2 秒后物理退出（子进程已在上面回收）。
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::process::exit(exit_code);
+    });
+}
+
 /// 执行完整的优雅停机流程（防重入：多路径并发调用时仅首次生效）
 pub async fn graceful_shutdown(app: AppHandle) {
     if SHUTDOWN_INITIATED.swap(true, Ordering::SeqCst) {
@@ -49,6 +83,9 @@ pub async fn graceful_shutdown(app: AppHandle) {
     relock_outstanding_lease(&app).await;
 
     let frontend_state = app.state::<NextJSFrontend>();
+    // Cancel first: the watchdog must not treat the intentional stop below as a crash
+    // and resurrect the frontend while the shell is shutting down.
+    crate::runtime::stop_frontend_monitor(&app);
     let _ = stop_frontend(app.clone(), frontend_state);
 
     SHUTDOWN_COMPLETED.store(true, Ordering::SeqCst);

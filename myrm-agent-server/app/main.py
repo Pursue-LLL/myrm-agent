@@ -61,6 +61,7 @@ from app.core.utils.errors import register_exception_handlers
 from app.database.operations.db_operational_handlers import (
     register_database_operational_handlers,
 )
+from app.middleware.trailing_slash_alias import register_trailing_slash_aliases
 from app.server.exceptions import general_exception_handler, not_found_handler
 from app.server.lifespan import optimized_lifespan
 from app.server.middlewares import register_middlewares
@@ -113,6 +114,9 @@ register_database_operational_handlers(app)
 register_exception_handlers(app)
 app.add_exception_handler(404, not_found_handler)
 app.add_exception_handler(Exception, general_exception_handler)
+# 必须在全部 include_router 之后：以已注册路由表为准，为以斜杠结尾的集合端点补齐「去斜杠」别名，
+# 避免经 Next 代理（尾斜杠被吃掉）后触发跨源 307，导致桌面端会话/项目列表加载失败。
+register_trailing_slash_aliases(app)
 
 
 @app.get("/health")

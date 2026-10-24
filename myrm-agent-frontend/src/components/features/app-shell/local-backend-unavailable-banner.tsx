@@ -92,6 +92,33 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
     }
 
     let cancelled = false;
+    let backendFailed = false;
+    let unlistenFailureEvents: (() => void) | undefined;
+
+    // The shell knows when a sidecar is definitively dead; waiting out the whole warmup
+    // budget after that would show a false "still starting" state. Listen for its
+    // failure events so a hard failure surfaces immediately.
+    if (isTauriRuntime()) {
+      void import('@tauri-apps/api/event')
+        .then(async ({ listen }) => {
+          const events = ['backend-start-failed', 'backend-crash', 'backend-crash-loop'] as const;
+          const disposers = await Promise.all(
+            events.map((event) =>
+              listen(event, () => {
+                backendFailed = true;
+              }),
+            ),
+          );
+          if (cancelled) {
+            disposers.forEach((dispose) => dispose());
+            return;
+          }
+          unlistenFailureEvents = () => disposers.forEach((dispose) => dispose());
+        })
+        .catch(() => {
+          // Event bridge unavailable (plain browser); health polling remains the source of truth.
+        });
+    }
 
     void (async () => {
       if (!remoteActive && isChromeE2eTab()) {
@@ -105,10 +132,13 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       }
 
       let ready = await checkBackendReadyOnce();
-      const maxWarmupRetries = process.env.NODE_ENV === 'test' ? 0 : 8;
-      for (let attempt = 0; attempt < maxWarmupRetries && !ready && !cancelled; attempt++) {
+      // Cold start is dominated by sidecar boot (measured ~19 s on a warm machine), so a
+      // 12 s window reports a healthy-but-slow boot as an outage. Poll for up to 60 s and
+      // let the shell's failure events end the wait early instead of guessing with a timer.
+      const maxWarmupRetries = process.env.NODE_ENV === 'test' ? 0 : 40;
+      for (let attempt = 0; attempt < maxWarmupRetries && !ready && !cancelled && !backendFailed; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        if (cancelled) {
+        if (cancelled || backendFailed) {
           return;
         }
         ready = await checkBackendReadyOnce();
@@ -134,6 +164,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
 
     return () => {
       cancelled = true;
+      unlistenFailureEvents?.();
     };
   }, [tHint, tRemote]);
 

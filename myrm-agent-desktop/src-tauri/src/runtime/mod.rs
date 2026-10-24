@@ -15,8 +15,9 @@
 //! Tauri 主进程内的 Sidecar 与系统运行时层，承接 Python/Next.js 进程生命周期。
 
 mod appshot;
-mod inline_input;
 pub mod child_reaper;
+mod frontend_watchdog;
+mod inline_input;
 pub mod nextjs_frontend;
 pub mod port;
 pub mod process_registry;
@@ -78,6 +79,31 @@ pub fn stop_backend_monitors(app: &AppHandle) {
     }
     if let Some(handle) = app.try_state::<wake::WakeDetectorHandle>() {
         handle.cancel();
+    }
+}
+
+/// Managed slot for the frontend watchdog. A slot (instead of managing the handle
+/// directly) keeps `spawn_frontend_monitor` idempotent: replacing the handle cancels
+/// the previous task without a second `manage`, which would panic on a duplicate type.
+#[derive(Default)]
+pub struct FrontendMonitor(pub std::sync::Mutex<Option<frontend_watchdog::FrontendWatchdogHandle>>);
+
+/// Start (or replace) the frontend watchdog for the given port.
+pub fn spawn_frontend_monitor(app: &AppHandle, config: crate::config::FrontendConfig) {
+    let state = app.state::<FrontendMonitor>();
+    if let Some(previous) = state.0.lock().unwrap().take() {
+        previous.cancel();
+    }
+    let handle = frontend_watchdog::spawn_frontend_watchdog(app, config);
+    *state.0.lock().unwrap() = Some(handle);
+}
+
+/// Cancel the frontend watchdog before an intentional stop, so it does not restart it.
+pub fn stop_frontend_monitor(app: &AppHandle) {
+    if let Some(state) = app.try_state::<FrontendMonitor>() {
+        if let Some(handle) = state.0.lock().unwrap().take() {
+            handle.cancel();
+        }
     }
 }
 

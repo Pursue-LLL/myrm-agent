@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
-from app.core.infra.cors_validator import CORS_ORIGINS_DEFAULT, parse_and_validate_cors_origins
+from app.core.infra.cors_validator import CORS_ORIGINS_DEFAULT, resolve_cors_origins
 from app.middleware.auth import AuthMiddleware
 from app.middleware.cache import CacheControlMiddleware
 from app.middleware.e2ee import E2EEMiddleware
@@ -33,7 +33,7 @@ def register_middlewares(app: FastAPI) -> None:
     app.add_middleware(MaxBodySizeMiddleware, max_size=15 * 1024 * 1024)  # 全局 15MB 熔断器
 
     # CORS 最后注册，最先执行（处理 OPTIONS 预检）
-    cors_origins = parse_and_validate_cors_origins(settings.cors_origins or CORS_ORIGINS_DEFAULT)
+    cors_origins = resolve_cors_origins(settings.cors_origins or CORS_ORIGINS_DEFAULT)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,

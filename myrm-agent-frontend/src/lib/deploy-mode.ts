@@ -420,19 +420,23 @@ export function getAgentApiBaseUrl(): string {
 
 /**
  * SSE notification stream URL.
- * Loopback dev must bypass Next `/api/v1` rewrites — they do not reliably forward EventSource chunks.
+ *
+ * 桌面/回环必须走同源代理：直连 `127.0.0.1:8080` 会被浏览器按跨源拦截
+ * （后端只回 `Access-Control-Allow-Credentials`，没有 `Access-Control-Allow-Origin`），
+ * 通知流一断，`useGlobalEvents` 的 `onopen` 重同步就永远不触发，界面停在旧状态。
+ * Next 的 `/api/v1` 代理实测可以逐帧转发 SSE（不缓冲），因此这里优先同源。
  */
 export function getNotificationStreamUrl(): string {
   const e2eBase = resolveE2eApiBase();
   if (e2eBase) {
     return `${e2eBase}/api/v1/notifications/stream`;
   }
+  if (isTauriRuntime() || isLoopbackDevHost()) {
+    return `${getApiBaseUrl()}/notifications/stream`;
+  }
   const backend = getBackendBaseUrl();
   if (backend) {
     return `${backend}/api/v1/notifications/stream`;
-  }
-  if (typeof window !== 'undefined' && isLoopbackDevHost()) {
-    return `${FALLBACK_BACKEND_BASE_URL}/api/v1/notifications/stream`;
   }
   return `${getApiBaseUrl()}/notifications/stream`;
 }

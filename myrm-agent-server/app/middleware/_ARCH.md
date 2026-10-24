@@ -31,6 +31,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 | `auth_alert.py` | ✅ 核心 | Auth 告警引擎（WebUI Remote / Sandbox） | ✅ |
 | `observability.py` | ✅ 核心 | 请求 Tracing 中间件：优先采纳入站 `X-Trace-Id` / W3C `traceparent` 头（hex 格式校验防注入），缺失时生成 UUID4 trace_id。从 URL 提取 session_id，注入 TracingContext（ContextVar），并设置 X-Trace-Id 响应头。云托管场景下确保反代/APM 注入的 trace-id 在 Server 入口不断链。 |
 | `cache.py` | ✅ 辅助 | 缓存中间件（路径级 Cache-Control，仅 GET 请求） |
+| `trailing_slash_alias.py` | ✅ 核心 | 去斜杠别名中间件：按已注册路由树采集 `/x/` 集合端点，在路由匹配前把 `/x` 原地改写为 `/x/`。桌面/WebUI 经 Next `rewrites` 时尾斜杠会被吃掉，否则 FastAPI 会回 `307` 到 `127.0.0.1:8080`，浏览器跨源跟随因缺 `Access-Control-Allow-Origin` 失败（会话/项目列表加载失败、输入框发送被锁）。 |
 
 ---
 

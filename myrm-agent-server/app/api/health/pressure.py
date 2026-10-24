@@ -27,6 +27,25 @@ router = APIRouter(tags=["health"])
 
 DISK_WARN_PERCENT = 85.0
 DISK_CRITICAL_PERCENT = 95.0
+# A leaked SQLite/aiosqlite handle is visible here long before EMFILE breaks every
+# API call, so the doctor can warn while the process is still usable.
+FD_WARN_COUNT = 4096
+
+
+def _process_state() -> dict[str, object]:
+    """File-descriptor and thread counts; unknown on any failure."""
+    try:
+        import psutil
+
+        process = psutil.Process()
+        num_fds = getattr(process, "num_fds", None)
+        return {
+            "fd_count": int(num_fds()) if callable(num_fds) else None,
+            "thread_count": int(process.num_threads()),
+        }
+    except Exception as exc:
+        logger.warning("Process resource read failed: %s", exc)
+        return {"fd_count": None, "thread_count": None}
 
 
 def _memory_state() -> dict[str, object]:
@@ -76,8 +95,10 @@ async def resource_pressure() -> dict[str, object]:
     return {
         "memory": _memory_state(),
         "disk": _disk_state(settings.database.state_dir),
+        "process": _process_state(),
         "thresholds": {
             "disk_warn_percent": DISK_WARN_PERCENT,
             "disk_critical_percent": DISK_CRITICAL_PERCENT,
+            "fd_warn_count": FD_WARN_COUNT,
         },
     }

@@ -7,8 +7,10 @@ import pytest
 from app.core.infra.cors_validator import (
     ALLOWED_SCHEMES,
     CORS_ORIGINS_DEFAULT,
+    DESKTOP_FRONTEND_PORT_ENV,
     CORSConfigError,
     parse_and_validate_cors_origins,
+    resolve_cors_origins,
 )
 
 
@@ -83,3 +85,34 @@ class TestConstants:
 
     def test_cors_origins_default_not_empty(self) -> None:
         assert len(CORS_ORIGINS_DEFAULT) > 0
+
+
+class TestResolveCorsOrigins:
+    """The desktop shell's own frontend origin must always be allowlisted."""
+
+    def test_missing_port_leaves_origins_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(DESKTOP_FRONTEND_PORT_ENV, raising=False)
+
+        assert resolve_cors_origins(CORS_ORIGINS_DEFAULT) == parse_and_validate_cors_origins(CORS_ORIGINS_DEFAULT)
+
+    def test_desktop_port_appends_loopback_origins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(DESKTOP_FRONTEND_PORT_ENV, "13000")
+
+        origins = resolve_cors_origins(CORS_ORIGINS_DEFAULT)
+
+        assert "http://127.0.0.1:13000" in origins
+        assert "http://localhost:13000" in origins
+
+    def test_duplicate_origin_is_not_added_twice(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(DESKTOP_FRONTEND_PORT_ENV, "3000")
+
+        origins = resolve_cors_origins(CORS_ORIGINS_DEFAULT)
+
+        assert origins.count("http://127.0.0.1:3000") == 1
+        assert origins.count("http://localhost:3000") == 1
+
+    @pytest.mark.parametrize("value", ["not-a-port", "0", "70000", "-1"])
+    def test_invalid_port_is_ignored(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        monkeypatch.setenv(DESKTOP_FRONTEND_PORT_ENV, value)
+
+        assert resolve_cors_origins(CORS_ORIGINS_DEFAULT) == parse_and_validate_cors_origins(CORS_ORIGINS_DEFAULT)

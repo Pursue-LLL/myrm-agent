@@ -30,6 +30,8 @@ const RESTART_DELAYS: [Duration; 3] = [
 ];
 const RESTART_WINDOW: Duration = Duration::from_secs(300);
 const MAX_RESTARTS_IN_WINDOW: usize = 3;
+/// Consecutive failed health checks on a live process before it is treated as hung.
+const HUNG_CHECKS_BEFORE_RESTART: u8 = 3;
 
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -85,6 +87,7 @@ async fn run_watchdog(
 ) {
     let mut restart_timestamps: Vec<Instant> = Vec::new();
     let mut last_error = String::new();
+    let mut hung_checks = 0u8;
 
     loop {
         tokio::select! {
@@ -107,15 +110,29 @@ async fn run_watchdog(
             return;
         }
 
-        if is_backend_alive(&app) && check_health(port).await {
-            continue;
-        }
-
         if is_backend_alive(&app) {
-            continue;
+            if check_health(port).await {
+                hung_checks = 0;
+                continue;
+            }
+            // The process exists but /health keeps failing: a hung sidecar holds the
+            // port and every API call fails while the UI still looks alive. Waiting
+            // forever (the old behaviour) left the app unusable until a manual restart.
+            hung_checks += 1;
+            if hung_checks < HUNG_CHECKS_BEFORE_RESTART {
+                continue;
+            }
+            eprintln!(
+                "[watchdog] Backend alive but unresponsive for {} checks; killing it to restart",
+                hung_checks
+            );
+            hung_checks = 0;
+            stop_backend_process(&app);
+        } else {
+            hung_checks = 0;
         }
 
-        println!("[watchdog] Backend process exited unexpectedly");
+        println!("[watchdog] Backend is not serving; restarting");
         if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
             let reg = registry.inner().clone();
             tauri::async_runtime::spawn(async move {
@@ -193,6 +210,18 @@ fn is_backend_alive(app: &AppHandle) -> bool {
         }
     } else {
         false
+    }
+}
+
+/// Force-kill a hung backend child so the restart can bind its port.
+fn stop_backend_process(app: &AppHandle) {
+    let backend = app.state::<PythonBackend>();
+    let mut guard = backend.process.lock().unwrap();
+    if let Some(mut child) = guard.take() {
+        let pid = child.id();
+        crate::utils::process_tree::kill_process_tree(pid);
+        let _ = child.kill();
+        println!("[watchdog] Killed unresponsive backend tree (PID: {})", pid);
     }
 }
 
