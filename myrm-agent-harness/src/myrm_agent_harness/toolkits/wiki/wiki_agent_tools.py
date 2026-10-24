@@ -29,7 +29,6 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
-from myrm_agent_harness.toolkits.wiki.maintenance.linter import WikiLinter
 from myrm_agent_harness.utils.locale import is_chinese
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -141,19 +140,15 @@ def resolve_wiki_apply_description(locale: str | None = None) -> str:
 def create_wiki_tools(
     compiler: WikiCompiler,
     query_engine: WikiQueryEngine,
-    linter: WikiLinter,
     structure: WikiStructure,
     *,
     wiki_scope_id: str | None = None,
     locale: str | None = None,
 ) -> list:
-    """
-    Create agent-facing wiki tools (ingest + query + apply).
+    """Create agent-facing wiki tools (ingest + query + apply).
 
-    Compile/maintain are Settings/REST operations and are not exposed to the LLM,
-    so ``linter`` is accepted for call-site compatibility but never turned into a tool.
+    Compile/maintain are Settings/REST operations and are not exposed to the LLM.
     """
-    del linter
     return create_wiki_agent_tools(
         compiler,
         query_engine,

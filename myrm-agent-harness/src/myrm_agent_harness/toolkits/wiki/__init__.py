@@ -17,7 +17,7 @@ LLM acts as a "compiler" to maintain structured markdown wikis.
 - WikiQueryEngine: query and enhance knowledge base
 - WikiLinter: health checks and maintenance
 - WikiConfig: wiki configuration
-- create_wiki_tools: LangChain agent tool factory (ingest, query)
+- create_wiki_tools: LangChain agent tool factory (ingest, query, apply)
 
 [POS]
 Wiki toolkit entry point. Provides a self-evolving knowledge base framework using LLM
@@ -37,7 +37,7 @@ as a "compiler" for structured markdown wikis with ingest/query agent tools plus
 - WikiCompiler: LLM-powered compilation engine
 - WikiQueryEngine: Query and enhance knowledge base
 - WikiLinter: Health checks and maintenance
-- Wiki Tools: LangChain agent tools (ingest, query); admin compile/maintain via REST
+- Wiki Tools: LangChain agent tools (ingest, query, apply); admin compile/maintain via REST
 
 ## Quick Start
 
@@ -63,12 +63,11 @@ compiler = WikiCompiler(llm, structure, config)
 # When enable_semantic_search=True and search_fn is provided, uses it;
 # otherwise falls back to keyword matching.
 query_engine = WikiQueryEngine(llm, structure, config, search_fn=my_search_fn)
-linter = WikiLinter(llm, structure, config)
 
 # Create tools for Agent
-tools = create_wiki_tools(compiler, query_engine, linter, structure)
+tools = create_wiki_tools(compiler, query_engine, structure)
 
-# Now Agent can use: wiki_ingest, wiki_compile, wiki_query, wiki_maintain
+# Now Agent can use: wiki_ingest, wiki_query, wiki_apply
 ```
 
 ## Design Principles

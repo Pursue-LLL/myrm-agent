@@ -319,7 +319,6 @@ class SkillAgentToolsMixin:
             from myrm_agent_harness.toolkits.wiki import (
                 WikiCompiler,
                 WikiConfig,
-                WikiLinter,
                 WikiQueryEngine,
                 WikiStructure,
                 create_wiki_tools,
@@ -341,15 +340,12 @@ class SkillAgentToolsMixin:
                 config,
                 search_fn=self._wiki_search_fn,  # type: ignore[attr-defined]
             )
-            linter = WikiLinter(self.llm, structure, config)  # type: ignore[attr-defined]
-
             self._wiki_structure = structure
             self._wiki_compiler = compiler
 
             tools = create_wiki_tools(
                 compiler,
                 query_engine,
-                linter,
                 structure,
                 wiki_scope_id=getattr(self, "_wiki_scope_id", None),
             )
@@ -357,7 +353,7 @@ class SkillAgentToolsMixin:
             self._register_large_doc_ingest(structure, compiler)
 
             logger.info(
-                " wiki tools auto-created (2 tools, base_dir=%s, shared=%d)",
+                " wiki tools auto-created (3 tools, base_dir=%s, shared=%d)",
                 self._wiki_base_dir,  # type: ignore[attr-defined]
                 len(public_dirs),
             )
