@@ -18,7 +18,6 @@ LLM acts as a "compiler" to maintain structured markdown wikis.
 - WikiLinter: health checks and maintenance
 - WikiConfig: wiki configuration
 - create_wiki_tools: LangChain agent tool factory (ingest, query)
-- create_wiki_admin_tools: compile/maintain tools for REST and tests
 
 [POS]
 Wiki toolkit entry point. Provides a self-evolving knowledge base framework using LLM
@@ -102,7 +101,6 @@ from .pipeline.pending import WikiPendingEditsManager
 from .pipeline.queue import WikiIngestionQueue
 from .retrieval.query import SemanticSearchFn, WikiQueryEngine
 from .wiki_agent_tools import (
-    create_wiki_admin_tools,
     create_wiki_agent_tools,
     create_wiki_tools,
 )
@@ -126,7 +124,6 @@ __all__ = [
     "WikiQueryEngine",
     "WikiQueryMode",
     "WikiStructure",
-    "create_wiki_admin_tools",
     "create_wiki_agent_tools",
     "create_wiki_tools",
     "register_wiki_mcp_tools",

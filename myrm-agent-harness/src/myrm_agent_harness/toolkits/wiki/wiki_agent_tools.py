@@ -3,7 +3,6 @@
 [INPUT]
 - langchain_core.tools::tool (POS: LangChain tool decorator)
 - .pipeline.compiler::WikiCompiler (POS: Wiki compilation core engine)
-- .maintenance.linter::WikiLinter (POS: Wiki health maintenance core engine)
 - .retrieval.query::WikiQueryEngine (POS: Wiki query and enhancement engine)
 - .core.structure::WikiStructure (POS: Wiki file system abstraction layer)
 - toolkits.web_fetch::web_fetch_tools (POS: Global FetchEngine singleton — YouTube/Bilibili subtitle extraction, multi-tier fallback)
@@ -12,12 +11,11 @@
 
 [OUTPUT]
 - create_wiki_tools: creates 3 LangChain agent tools (ingest, query, apply)
-- create_wiki_admin_tools: creates compile/maintain tools for REST and tests
 - retrieval.source_citations::build_wiki_query_sources (POS: Shared wiki citation metadata builder)
 
 [POS]
-LangChain tool integration layer for Wiki toolkit. Wraps WikiCompiler, WikiQueryEngine,
-and WikiLinter into agent-facing StructuredTools for Agent use. Provides end-to-end
+LangChain tool integration layer for Wiki toolkit. Wraps WikiCompiler and
+WikiQueryEngine into agent-facing StructuredTools for Agent use. Provides end-to-end
 automation: ingest triggers compilation, query archives high-value results for knowledge
 compounding, and URL fetching uses FetchEngine (YouTube/Bilibili subtitle extraction, multi-tier fallback).
 Query metadata forwards layered citations, asset hit metadata, and read-time evidence snapshot_status for Chat/Settings UI.
@@ -31,12 +29,12 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from myrm_agent_harness.toolkits.wiki.maintenance.linter import WikiLinter
 from myrm_agent_harness.utils.locale import is_chinese
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .core.frontmatter_contract import WikiProvenance
 from .core.structure import WikiStructure
-from .maintenance.linter import WikiLinter
 from .pipeline.apply import (
     WikiApplyError,
     WikiApplyOp,
@@ -152,8 +150,10 @@ def create_wiki_tools(
     """
     Create agent-facing wiki tools (ingest + query + apply).
 
-    Compile/maintain are Settings/REST operations and are not exposed to the LLM.
+    Compile/maintain are Settings/REST operations and are not exposed to the LLM,
+    so ``linter`` is accepted for call-site compatibility but never turned into a tool.
     """
+    del linter
     return create_wiki_agent_tools(
         compiler,
         query_engine,
@@ -441,87 +441,6 @@ def create_wiki_agent_tools(
         return f"{result.message}{suffix}"
 
     return [wiki_ingest, wiki_query, wiki_apply]
-
-
-def create_wiki_admin_tools(
-    compiler: WikiCompiler,
-    linter: WikiLinter,
-) -> list:
-    """Create compile/maintain tools for REST endpoints and unit tests (not Turn1)."""
-
-    @tool("wiki_compile_tool")
-    async def wiki_compile() -> str:
-        """
-        Force-compile all pending raw documents into wiki articles.
-
-        Normally compilation runs automatically after ingestion.
-        Use this to manually trigger a full compilation pass, or to
-        recompile after bulk-importing documents outside the wiki tools.
-
-        Generates concept articles, index, and cross-references.
-        Uses incremental compilation (skips unchanged documents).
-        """
-        logger.info("Compiling wiki")
-
-        try:
-            result = await compiler.compile_all()
-
-            return (
-                f"Wiki compilation complete:\n"
-                f"- Concepts: {result.concepts_count}\n"
-                f"- Articles generated: {result.articles_generated}\n"
-                f"- Published: {result.articles_published}\n"
-                f"- Pending review: {result.articles_pending}\n"
-                f"- Blocked: {result.articles_blocked}\n"
-                f"- Backlinks: {result.backlinks_created}\n"
-                f"- Duration: {result.duration_ms}ms"
-            )
-
-        except Exception as e:
-            logger.error(f"Compilation failed: {e}")
-            return "Compilation failed"
-
-    @tool("wiki_maintain_tool")
-    async def wiki_maintain() -> str:
-        """
-        Run wiki health checks and automatic maintenance.
-
-        Performs:
-        - Broken link detection
-        - Completeness checks (report short/incomplete articles; no auto LLM rewrite)
-        - Consistency checks (find contradictions)
-        - Frontmatter type repairs (via publish gate)
-        - Connection discovery (find potential cross-references)
-        - Knowledge graph gap analysis (isolated/bridge concepts)
-
-        Use this periodically to keep the wiki healthy.
-        Recommended frequency: once per day or after major updates.
-        """
-        logger.info("Running wiki maintenance")
-
-        try:
-            result = await linter.lint_and_maintain()
-
-            output = (
-                f"Wiki maintenance complete:\n"
-                f"- Issues found: {result.issues_found}\n"
-                f"- Issues fixed: {result.issues_fixed}\n"
-                f"- New connections: {result.connections_discovered}\n"
-                f"- Duration: {result.duration_ms}ms"
-            )
-
-            gaps = [i for i in result.issues if i.issue_type == "knowledge_gap"]
-            if gaps:
-                top = [f"{g.location}: {g.description}" for g in gaps[:5]]
-                output += f"\n- Knowledge gaps ({len(gaps)}): " + "; ".join(top)
-
-            return output
-
-        except Exception as e:
-            logger.error(f"Maintenance failed: {e}")
-            return "Maintenance failed"
-
-    return [wiki_compile, wiki_maintain]
 
 
 async def _archive_query_result(

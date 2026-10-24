@@ -34,7 +34,7 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | strategies/ | Three-tier context reduction strategies: Filter, Compress, Summarize. `Summarize` enforces structural validation via `with_structured_output` to eliminate JSON parsing fragility. |
 | tracking/ | Observation and tracking: artifact tracking, task metrics, archive refetch cost, restore-block events, and archive read budgets. |
 | two_stage_search_extract/ | Two-stage ranked snippet triage and selective deep web extract suite (Item 327). See [two_stage_search_extract/_ARCH.md](two_stage_search_extract/_ARCH.md). |
-| working_memory/ | Local Working Memory Block: low-overhead in-memory workbench for goals, subtasks, traps, and turn-tail prompt cache-safe rendering. |
+| working_memory/ | Message-level eviction-immunity marks: metadata tags consumed by selective eviction; no runtime workbench state. |
 
 ## Key Dependencies
 

@@ -3,7 +3,7 @@
 # Files listed here may exceed 500 lines; line count must not grow.
 # Tighten caps with: check_file_line_limit.py --ratchet
 # Remove entries after splitting below 500 lines.
-myrm_agent_harness/agent/_internals/agent_runtime.py	800
+myrm_agent_harness/agent/_internals/agent_runtime.py	784
 myrm_agent_harness/agent/_internals/run_lifecycle.py	530
 myrm_agent_harness/agent/base_agent.py	631
 myrm_agent_harness/agent/context_management/infra/schemas.py	715
@@ -95,7 +95,7 @@ myrm_agent_harness/toolkits/web_fetch/router/domain_metrics.py	506
 myrm_agent_harness/toolkits/wiki/core/claims_contract.py	771
 myrm_agent_harness/toolkits/wiki/pipeline/corpus_dedup/store.py	534
 myrm_agent_harness/toolkits/wiki/retrieval/query.py	928
-myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	628
+myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	547
 myrm_agent_harness/utils/context_format.py	564
 myrm_agent_harness/utils/text_utils.py	503
 myrm_agent_harness/utils/token_economics/tracker.py	575
@@ -103,6 +103,5 @@ myrm_agent_harness/utils/url_utils.py	505
 myrm_agent_harness/toolkits/wiki/core/structure.py	507
 myrm_agent_harness/toolkits/memory/strategies/merger.py	554
 myrm_agent_harness/toolkits/retriever/bm25_retrieval.py	501
-myrm_agent_harness/agent/skills/mcp/proxy_service.py	475
 myrm_agent_harness/toolkits/computer_use/backends/macos.py	505
 myrm_agent_harness/agent/skills/mcp/ipc_proxy.py	503

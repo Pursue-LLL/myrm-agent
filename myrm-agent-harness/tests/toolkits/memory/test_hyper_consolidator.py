@@ -1,13 +1,7 @@
 """Unit tests for HyperConsolidator: session distillation, rule persistence, working-memory purity guard."""
 
-from collections.abc import Generator
-
 import pytest
 
-from myrm_agent_harness.agent.context_management.working_memory import (
-    LocalWorkingMemoryBlock,
-    SubtaskStatus,
-)
 from myrm_agent_harness.toolkits.memory.consolidation import (
     ConsolidationSubtask,
     ConsolidationTrap,
@@ -24,14 +18,6 @@ from myrm_agent_harness.toolkits.memory.types import (
     RuleSource,
     TaskDigestMemory,
 )
-
-
-@pytest.fixture(autouse=True)
-def reset_working_memory() -> Generator[None]:
-    """LocalWorkingMemoryBlock is process-global; isolate every test from state leaked by others."""
-    LocalWorkingMemoryBlock.reset()
-    yield
-    LocalWorkingMemoryBlock.reset()
 
 
 def test_task_digest_memory_schema() -> None:
@@ -308,8 +294,6 @@ async def test_hyper_consolidator_persistence_with_memory_manager() -> None:
     assert stored_episodics[0].metadata["event_type"] == "task_digest"
     assert stored_episodics[0].metadata["task_goal"] == "Configure production Redis Sentinel"
 
-    # In-memory working block must be cleaned up
-    assert LocalWorkingMemoryBlock.get_state() is None
 
 
 @pytest.mark.asyncio
@@ -357,49 +341,48 @@ async def test_sqlite_procedural_memory_error_fingerprint_roundtrip(tmp_path: ob
 @pytest.mark.asyncio
 async def test_hyper_consolidator_purity_guard_filters_prior_and_unresolved_traps() -> None:
     """Verify HyperConsolidator skips prior traps (occurred_turn=0) and unresolved traps."""
-    LocalWorkingMemoryBlock.reset()
-    LocalWorkingMemoryBlock.initialize(
+    snapshot = WorkingMemorySnapshot(
         goal="Purity guard test",
-        initial_subtasks=["Step A", "Step B"],
-        prior_traps=[
-            {
-                "fingerprint": "prior_error_403",
-                "avoidance_rule": "Send valid User-Agent",
-                "tool_name": "web_fetch",
-            }
+        active_turn=2,
+        status="completed",
+        subtasks=[
+            ConsolidationSubtask(title="Step A", completed=True),
+            ConsolidationSubtask(title="Step B", completed=True),
+        ],
+        traps=[
+            # Prior trap from an earlier session (occurred_turn=0) — must be ignored.
+            ConsolidationTrap(
+                fingerprint="prior_error_403",
+                avoidance_rule="Send valid User-Agent",
+                tool_name="web_fetch",
+                occurred_turn=0,
+                resolved=True,
+            ),
+            # Unresolved trial error — must be ignored.
+            ConsolidationTrap(
+                fingerprint="unresolved_experimental_error",
+                avoidance_rule="Unproven advice that was never verified",
+                tool_name="cmd_run",
+                occurred_turn=2,
+                resolved=False,
+            ),
+            # Verified and resolved trap — must be consolidated.
+            ConsolidationTrap(
+                fingerprint="network_timeout_1001",
+                avoidance_rule="Retry with 10s backoff",
+                tool_name="api_call",
+                occurred_turn=1,
+                resolved=True,
+            ),
         ],
     )
-    LocalWorkingMemoryBlock.update_subtask("step-1", SubtaskStatus.COMPLETED)
-    LocalWorkingMemoryBlock.update_subtask("step-2", SubtaskStatus.COMPLETED)
-    LocalWorkingMemoryBlock.advance_turn()
-    LocalWorkingMemoryBlock.advance_turn()
-
-    # Trap 1: Unresolved trial error (should be ignored)
-    LocalWorkingMemoryBlock.record_trap(
-        fingerprint="unresolved_experimental_error",
-        avoidance_rule="Unproven advice that was never verified",
-        tool_name="cmd_run",
-    )
-
-    # Trap 2: Verified and resolved trap (should be consolidated)
-    LocalWorkingMemoryBlock.record_trap(
-        fingerprint="network_timeout_1001",
-        avoidance_rule="Retry with 10s backoff",
-        tool_name="api_call",
-    )
-    resolved_ok = LocalWorkingMemoryBlock.resolve_trap("network_timeout_1001")
-    assert resolved_ok is True
-
-    LocalWorkingMemoryBlock.set_status("completed")
 
     consolidator = HyperConsolidator()
-    snapshot = LocalWorkingMemoryBlock.to_snapshot()
     digest, rules = await consolidator.consolidate_session(
         messages=[{"role": "user", "content": "Purity test"}],
         chat_id="chat-purity-101",
-        snapshot=snapshot,  # type: ignore[arg-type]
+        snapshot=snapshot,
     )
-    LocalWorkingMemoryBlock.reset()
 
     assert digest is not None
     # Exactly ONE rule must be consolidated: the verified one
@@ -407,6 +390,3 @@ async def test_hyper_consolidator_purity_guard_filters_prior_and_unresolved_trap
     assert rules[0].error_fingerprint == "network_timeout_1001"
     assert rules[0].action == "Retry with 10s backoff"
     assert rules[0].resolution_steps == ["Retry with 10s backoff"]
-
-    # Verify working block is clean
-    assert LocalWorkingMemoryBlock.get_state() is None

@@ -12,7 +12,6 @@ from myrm_agent_harness.toolkits.wiki import (
     WikiLinter,
     WikiQueryEngine,
     WikiStructure,
-    create_wiki_admin_tools,
     create_wiki_tools,
 )
 
@@ -88,18 +87,6 @@ def wiki_tools(
     return create_wiki_tools(compiler, query_engine, linter, wiki_structure)
 
 
-@pytest.fixture
-def wiki_admin_tools(
-    mock_llm: MagicMock,
-    wiki_structure: WikiStructure,
-) -> list:
-    """Create compile/maintain wiki tools for admin paths."""
-    config = WikiConfig()
-    compiler = WikiCompiler(mock_llm, wiki_structure, config)
-    linter = WikiLinter(mock_llm, wiki_structure, config)
-    return create_wiki_admin_tools(compiler, linter)
-
-
 def test_create_wiki_tools_returns_three_tools(wiki_tools: list) -> None:
     """Test that create_wiki_tools returns agent-facing tools only."""
     assert len(wiki_tools) == 3
@@ -108,8 +95,6 @@ def test_create_wiki_tools_returns_three_tools(wiki_tools: list) -> None:
     assert "wiki_ingest_tool" in tool_names
     assert "wiki_query_tool" in tool_names
     assert "wiki_apply_tool" in tool_names
-    assert "wiki_compile_tool" not in tool_names
-    assert "wiki_maintain_tool" not in tool_names
 
 
 @pytest.mark.asyncio
@@ -132,23 +117,6 @@ async def test_wiki_ingest_tool(
 
 
 @pytest.mark.asyncio
-async def test_wiki_compile_tool(
-    wiki_admin_tools: list,
-    wiki_structure: WikiStructure,
-    mock_llm: MagicMock,
-) -> None:
-    """Test wiki_compile tool."""
-    compile_tool = next(tool for tool in wiki_admin_tools if tool.name == "wiki_compile_tool")
-
-    (wiki_structure.raw_dir / "test.md").write_text("Test content")
-
-    mock_llm.ainvoke.return_value = AIMessage(content='[{"name": "Test", "definition": "Test def"}]')
-
-    result = await compile_tool.ainvoke({})
-
-    assert "Wiki compilation complete" in result
-
-
 @pytest.mark.asyncio
 async def test_wiki_query_tool(
     wiki_tools: list,
@@ -200,23 +168,6 @@ async def test_wiki_ingest_error(wiki_tools: list) -> None:
 
 
 @pytest.mark.asyncio
-async def test_wiki_compile_graceful_degradation(
-    wiki_admin_tools: list,
-    wiki_structure: WikiStructure,
-    mock_llm: MagicMock,
-) -> None:
-    """Test wiki_compile gracefully handles LLM errors (extracts 0 concepts)."""
-    compile_tool = next(tool for tool in wiki_admin_tools if tool.name == "wiki_compile_tool")
-
-    (wiki_structure.raw_dir / "trigger-error.md").write_text("Content to trigger LLM call")
-    mock_llm.ainvoke.side_effect = RuntimeError("LLM unavailable")
-
-    result = await compile_tool.ainvoke({})
-
-    assert "compilation complete" in result.lower()
-    assert "concepts: 0" in result.lower()
-
-
 @pytest.mark.asyncio
 async def test_wiki_query_with_related_articles(
     wiki_tools: list,
@@ -253,33 +204,6 @@ async def test_wiki_query_no_articles(
     assert "no verified basis" in result
 
 
-@pytest.mark.asyncio
-async def test_wiki_maintain_tool(wiki_admin_tools: list) -> None:
-    """Test wiki_maintain tool."""
-    maintain_tool = next(tool for tool in wiki_admin_tools if tool.name == "wiki_maintain_tool")
-
-    result = await maintain_tool.ainvoke({})
-
-    assert "Wiki maintenance complete" in result
-
-
-@pytest.mark.asyncio
-async def test_wiki_maintain_error(
-    wiki_admin_tools: list,
-    mock_llm: MagicMock,
-    wiki_structure: WikiStructure,
-) -> None:
-    """Test wiki_maintain error handling."""
-    maintain_tool = next(tool for tool in wiki_admin_tools if tool.name == "wiki_maintain_tool")
-
-    (wiki_structure.concepts_dir / "broken.md").write_text("# Broken\n\nSee [[nonexistent]]")
-    mock_llm.ainvoke.side_effect = RuntimeError("LLM unavailable")
-
-    result = await maintain_tool.ainvoke({})
-
-    assert "failed" in result.lower() or "maintenance" in result.lower()
-
-
 @pytest.fixture
 def direct_mock_tools(wiki_structure: WikiStructure) -> tuple:
     """Create tools with directly mocked compiler/query/linter for error path testing."""
@@ -288,7 +212,6 @@ def direct_mock_tools(wiki_structure: WikiStructure) -> tuple:
     mock_linter = MagicMock(spec=WikiLinter)
 
     tools = create_wiki_tools(mock_compiler, mock_query_engine, mock_linter, wiki_structure)
-    tools.extend(create_wiki_admin_tools(mock_compiler, mock_linter))
     return tools, mock_compiler, mock_query_engine, mock_linter
 
 
@@ -319,18 +242,6 @@ async def test_wiki_ingest_url(
 
 
 @pytest.mark.asyncio
-async def test_wiki_compile_exception_at_tools_layer(direct_mock_tools: tuple) -> None:
-    """Test wiki_compile error path when compiler.compile_all raises."""
-    tools, mock_compiler, _, _ = direct_mock_tools
-    compile_tool = next(t for t in tools if t.name == "wiki_compile_tool")
-
-    mock_compiler.compile_all = AsyncMock(side_effect=RuntimeError("compile crash"))
-
-    result = await compile_tool.ainvoke({})
-
-    assert "failed" in result.lower()
-
-
 @pytest.mark.asyncio
 async def test_wiki_query_exception_at_tools_layer(direct_mock_tools: tuple) -> None:
     """Test wiki_query error path when query_engine.query raises."""
@@ -566,18 +477,6 @@ async def test_wiki_query_emits_claim_snapshot_status(direct_mock_tools: tuple) 
 
 
 @pytest.mark.asyncio
-async def test_wiki_maintain_exception_at_tools_layer(direct_mock_tools: tuple) -> None:
-    """Test wiki_maintain error path when linter.lint_and_maintain raises."""
-    tools, _, _, mock_linter = direct_mock_tools
-    maintain_tool = next(t for t in tools if t.name == "wiki_maintain_tool")
-
-    mock_linter.lint_and_maintain = AsyncMock(side_effect=RuntimeError("lint crash"))
-
-    result = await maintain_tool.ainvoke({})
-
-    assert "failed" in result.lower()
-
-
 class TestArchiveQueryResult:
     """Tests for _archive_query_result helper."""
 
@@ -850,36 +749,6 @@ async def test_wiki_ingest_sniffed_binary_document(
 
 
 @pytest.mark.asyncio
-async def test_wiki_maintain_reports_knowledge_gaps(direct_mock_tools: tuple) -> None:
-    """Maintain tool surfaces knowledge_gap issues when present."""
-    from myrm_agent_harness.toolkits.wiki.core.types import LintIssue, LintResult
-
-    tools, _, _, mock_linter = direct_mock_tools
-    maintain_tool = next(t for t in tools if t.name == "wiki_maintain_tool")
-
-    mock_linter.lint_and_maintain = AsyncMock(
-        return_value=LintResult(
-            issues_found=1,
-            issues_fixed=0,
-            connections_discovered=0,
-            duration_ms=12,
-            issues=[
-                LintIssue(
-                    issue_type="knowledge_gap",
-                    severity="medium",
-                    location="concept-x",
-                    description="Missing bridge to concept-y",
-                )
-            ],
-        )
-    )
-
-    result = await maintain_tool.ainvoke({})
-
-    assert "Knowledge gaps" in result
-    assert "concept-x" in result
-
-
 class TestParseBinaryDocument:
     """Tests for _parse_binary_document helper."""
 

@@ -57,7 +57,7 @@ class StoragePolicy(StrEnum):
     RELATIONAL = "relational"  # SQLite relational tables
     VECTOR = "vector"  # Vector database (Qdrant / Milvus)
     GRAPH = "graph"  # Graph database / claim nodes
-    EPHEMERAL = "ephemeral"  # In-memory only (e.g. LocalWorkingMemoryBlock)
+    EPHEMERAL = "ephemeral"  # In-memory only, discarded when the process exits
 
 
 class MemCubeHeader(BaseModel):

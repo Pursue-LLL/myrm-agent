@@ -46,7 +46,6 @@ from myrm_agent_harness.agent.skills.runtime.catalog_display import (
 
 from .answer_user_tool import create_answer_user_tool, request_answer_user_tool
 from .bash import create_bash_code_execute_tool, create_bash_process_tool
-from .communication import create_send_user_message_async_tool
 from .file_ops import (
     create_file_edit_tool,
     create_file_read_tool,
@@ -63,7 +62,6 @@ from .spawn_subagent import (
     create_delegate_task_tool,
     create_subagent_control_tool,
 )
-from .working_memory import create_working_memory_manage_tool
 
 
 def get_meta_tools(
@@ -78,8 +76,6 @@ def get_meta_tools(
     file_access_mode: FileAccessMode = FileAccessMode.FULL,
     enable_shell_tools: bool = True,
     enable_answer_tool: bool = False,
-    enable_working_memory_tool: bool = False,
-    enable_async_user_message_tool: bool = False,
     has_manage_tool: bool = False,
     available_tool_names: frozenset[str] | None = None,
     available_tool_groups: frozenset[str] | None = None,
@@ -226,12 +222,6 @@ def get_meta_tools(
     else:
         logger.info("Bash tool disabled by caller configuration")
 
-    if enable_working_memory_tool:
-        tools.append(create_working_memory_manage_tool())
-
-    if enable_async_user_message_tool:
-        tools.append(create_send_user_message_async_tool())
-
     # discover_capability_tool → skill_search_tool SSOT: SkillAgent calls sync_discover_capability_tool()
     # after all skills are registered.
     discoverable_skills = [s for s in skills if s.model_invocable] if skills else []
@@ -259,11 +249,9 @@ __all__ = [
     "create_glob_tool",
     "create_grep_tool",
     "create_select_skill_tool",
-    "create_send_user_message_async_tool",
     "create_skill_manage_tool",
     "create_skill_market_tool",
     "create_subagent_control_tool",
-    "create_working_memory_manage_tool",
     "get_meta_tools",
     "request_answer_user_tool",
 ]

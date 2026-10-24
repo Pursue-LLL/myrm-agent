@@ -76,25 +76,15 @@ class LayerExemption:
 # Declared in code but not part of the Turn1 Action Tool SSOT. Every entry lapses: once `expires` has passed while the
 # tool is still unmounted the registry gate fails, which forces a decision (mount it on a profile, or delete the tool).
 # An entry for a tool that no longer exists or is now registered is reported as stale and has to be deleted.
-LAYER_EXEMPT_TOOLS: Mapping[str, LayerExemption] = {
-    "wiki_compile_tool": LayerExemption(
-        date(2027, 1, 31), "Wiki admin tool declared in toolkits/wiki/wiki_agent_tools.py; not a Turn1 action tool."
-    ),
-    "wiki_maintain_tool": LayerExemption(
-        date(2027, 1, 31), "Wiki admin tool declared in toolkits/wiki/wiki_agent_tools.py; not a Turn1 action tool."
-    ),
-    "manage_sovereign_memory_assets": LayerExemption(
-        date(2027, 1, 31), "Unit-tested sovereign migration tool; no agent profile mounts it yet."
-    ),
-}
+#
+# Empty by design: every declared `@tool` must either be registered in the Action Tool SSOT or be deleted. Adding an
+# entry here is a debt acknowledgement with an expiry date, not a permanent escape hatch.
+LAYER_EXEMPT_TOOLS: Mapping[str, LayerExemption] = {}
 
 ORPHAN_FACTORY_WHITELIST: frozenset[str] = frozenset(
     {
-        "create_wiki_admin_tools",
+        # Public embedder API (exported from myrm_agent_harness.api, unit-tested); hosts mount it themselves.
         "create_restricted_ax_browser_tools",
-        # Implemented and unit-tested under toolkits/memory/sovereign_migration,
-        # deliberately not mounted on any agent profile yet.
-        "create_sovereign_migration_tool",
     }
 )
 

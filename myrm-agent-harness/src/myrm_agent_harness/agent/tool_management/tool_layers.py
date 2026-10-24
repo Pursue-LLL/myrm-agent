@@ -126,8 +126,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     "kanban_cancel_task": ToolLayer.EXTENDED,
     "kanban_retry_task": ToolLayer.EXTENDED,
     "kanban_revise_plan": ToolLayer.EXTENDED,
-    # --- 通信与历史检索 ---
-    "send_user_message_async": ToolLayer.EXTENDED,
     # --- 记忆工具（search/save/manage → HIGH_PRIORITY；sessions/wiki 通过 corpus ACL）---
     # --- 技能工具 ---
     "skill_search_tool": ToolLayer.EXTENDED,
@@ -141,8 +139,6 @@ _TOOL_LAYERS: dict[str, ToolLayer] = {
     "wiki_ingest_tool": ToolLayer.EXTENDED,
     "wiki_query_tool": ToolLayer.EXTENDED,
     "wiki_apply_tool": ToolLayer.EXTENDED,
-    # --- 工作记忆手边工作台 (enable_working_memory_tool 按需挂载) ---
-    "working_memory_manage_tool": ToolLayer.EXTENDED,
 }
 
 

@@ -1015,20 +1015,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 ---
 
-## 十三、自主五动作空间与工作记忆闭环 (Agentic 5-Action Space & Working Memory)
+## 十三、记忆工具的职责边界
 
-系统将记忆管理从被动检索升级为 Agent 自主调控的统一五动作空间（Save / Retrieve / Update / Summarize / Discard）：
-
-1. **五动作空间原语**：
-   - `Save`：显式持久化关键事实/偏好（`memory_save_tool`）；
-   - `Retrieve`：目标导向的多路语义寻址（`memory_search_tool`）；
-   - `Update`：规划与更新执行因果工作台子任务（`working_memory_manage_tool(action="add_subtask" / "update_subtask")`）及长期记忆修订；
-   - `Summarize`：长程多步执行后主动提炼阶段性结论（`working_memory_manage_tool(action="summarize")`），避免上下文无序膨胀；
-   - `Discard`（**认知剪枝防线**）：主动淘汰失效假设与死胡同，自动生成 `TrapRecord` 写入当前会话的 `LocalWorkingMemoryBlock` 避坑防线，杜绝死循环试错；长期层面支持淘汰无效记忆条目（`memory_manage_tool(action="discard")`）。
-
-2. **Prompt Cache 恒定性与 Turn Tail 动态工作台**：
-   - 静态 System Prompt 严格保持前缀字节不可变；
-   - 手边工作台内容（`<working_board>`）在每轮推理时由 `agent_runtime.py` 动态挂载于请求尾部（Turn Tail），实时向模型展示当前阶段目标、子任务进度与避坑陷阱清单。
+长期记忆由三个工具承担：`memory_search_tool`（检索）、`memory_save_tool`（显式写入）与 `memory_manage_tool`（更新/删除/纠正/评分）。多步执行的计划状态由 `todo_write` 单一承载，不再维护第二套运行时工作记忆板。
 
 ---
 
@@ -1088,24 +1077,12 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 ---
 
-## 十七、双块运行时工作台与长程会话巩固机制 (LocalWorkingMemoryBlock & HyperConsolidator)
+## 十七、终态异步提炼与固化中枢 (HyperConsolidator)
 
-解决复杂长程任务执行中上下文注意力稀释与任务终态经验沉淀割裂的难题：
-
-- **运行时手边工作台（`LocalWorkingMemoryBlock`）**：
-  - 核心位置：`myrm_agent_harness.agent.context_management.working_memory`；
-  - 基于 Python `contextvars.ContextVar` 实现并发强隔离的工作台，零 LLM 额外调用开销；
-  - 结构化维护当前任务总目标（`goal`）、子任务流转状态（`subtasks`，含 `pending/in_progress/completed/failed`）与运行时避坑防线（`traps`，含 `fingerprint/avoidance_rule/tool_name/resolved`）；
-  - 支持自愈状态翻转 `resolve_trap(fingerprint)`，在重试成功后将状态置为已解决；
-  - **Prompt Cache 铁律与因果链滑动折叠**：`format_turn_tail_markdown()` 严格仅在动态消息尾部（Turn Tail）输出 `<working_board>`，System Prompt 静态前缀 100% 保持字节一致，捍卫 90% 前缀缓存命中率；超预算时自动触发早期已完成项滑动折叠，防止长程任务上下文无界膨胀。
-- **终态异步提炼与固化中枢（`HyperConsolidator`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.consolidation`；
-  - 具备低门槛轻量门禁守卫（`gatekeeper`）：会话交互 <= 1 轮且无子任务推进时自动绕过，避免无谓的模型消耗；
-  - 异步蒸馏长程会话执行轨迹，产出结构化任务摘要（`TaskDigestMemory`，写入 `episodic_store`）；
-  - 提取规避经验升维为程序性规避规则（`ProceduralMemory`，写入 `procedural_store`）：内置提炼纯净性守卫，仅提炼当前会话验证自愈成功的规程（`trap.resolved is True`），严格跳过开局注入的历史先验规则（`trap.occurred_turn == 0`）与未解决推测，杜绝规程库克隆膨胀；在新会话启动时通过 `initialize(..., prior_traps=...)` 实现开局先验预热。
-- **产品与用户界面闭环**：
-  - Server 端通过 `/api/memory/working-state` 暴露实时手边工作台快照；
-  - 前端 `WorkingStateBadge.tsx` 消除 Dead Feature Path，装配 `WorkingMemoryBoard.tsx`，通过 `chatId` 严格实现多会话物理隔离，杜绝跨会话幽灵数据穿透；已自愈的规避规则渲染为绿色自愈盾牌徽标，全面提升 ToC 生产力体验。
+- **核心位置**：`myrm_agent_harness.toolkits.memory.consolidation`；
+- **宿主供给快照**：`WorkingMemorySnapshot` 是框架中立的输入契约，由宿主按自己的任务模型构造；框架不内置运行时工作台，也不强制任何计划工具；
+- **异步蒸馏**：具备轻量门禁（会话交互 <= 1 轮且无子任务推进时跳过），从会话轨迹与宿主快照中产出 `TaskDigestMemory`（写入 `episodic_store`）；
+- **程序性规程**：仅提炼当前会话验证自愈成功的规程（`trap.resolved is True`），跳过开局注入的历史先验规则与未解决推测，避免规程库克隆膨胀。
 
 ---
 

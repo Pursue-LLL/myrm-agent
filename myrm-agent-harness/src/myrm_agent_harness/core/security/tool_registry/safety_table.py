@@ -91,7 +91,6 @@ TOOL_SAFETY_METADATA: dict[str, SafetyMetadata] = {
     ),
     "memory_search_tool": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
     "todo_write": SafetyMetadata(is_read_only=False, is_concurrent_safe=False, is_idempotent=False),
-    "working_memory_manage_tool": SafetyMetadata(is_read_only=False, is_concurrent_safe=False, is_idempotent=False),
     "skill_search_tool": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
     "skill_market_tool": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
     "skill_select_tool": SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True),
@@ -149,6 +148,4 @@ TOOL_SAFETY_METADATA: dict[str, SafetyMetadata] = {
     # explicit mcp_invoke fallback tools — declared for module-load gate transparency
     "browser_execute_script_tool": SafetyMetadata(),
     "send_teammate_message_tool": SafetyMetadata(is_third_party_visible=True),
-    # stateful per-turn rate limiter + SSE push: not idempotent, not concurrency-safe
-    "send_user_message_async": SafetyMetadata(),
 }

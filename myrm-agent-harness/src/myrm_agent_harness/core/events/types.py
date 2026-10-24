@@ -153,10 +153,8 @@ class AgentEventType(StrEnum):
     CAPABILITY_GAP = "capability_gap"
     SKILL_GAP = "skill_gap"
     PHASE_TRANSITION = "phase_transition"
-    WORKING_MEMORY = "working_memory"
     CUSTOM = "custom"
     CUSTOM_MESSAGE = "custom_message"
-    ASYNC_USER_MESSAGE = "async_user_message"
 
 
 class ExecutionPhase(StrEnum):
@@ -257,13 +255,3 @@ class ContextBudgetSnapshot:
         if self.builtin_tools_tokens is not None:
             payload["builtin_tools_tokens"] = self.builtin_tools_tokens
         return payload
-
-
-@dataclass(frozen=True, slots=True)
-class AsyncUserMessageEventData:
-    """Strongly typed payload for AgentEventType.ASYNC_USER_MESSAGE."""
-
-    message: str
-    category: str = "progress"
-    recommendation: str | None = None
-    call_id: str = ""

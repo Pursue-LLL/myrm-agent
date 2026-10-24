@@ -1,7 +1,7 @@
 """Who wrote a HumanMessage: the user, or the runtime acting on the user's behalf.
 
-The runtime appends HumanMessages behind the user's (working board, file-restore and sub-agent notices) and marks
-them ``is_system_synthetic``. Middlewares that act on what the user said must skip those.
+The runtime appends HumanMessages behind the user's (file-restore and sub-agent notices) and marks them
+``is_system_synthetic``. Middlewares that act on what the user said must skip those.
 
 [INPUT]
 - langchain_core.messages::BaseMessage, HumanMessage
@@ -32,4 +32,4 @@ def is_user_authored_human_message(msg: BaseMessage) -> bool:
     if kwargs.get("is_system_synthetic") is True:
         return False
 
-    return kwargs.get("source") not in ("runtime", "system", "working_memory")
+    return kwargs.get("source") not in ("runtime", "system")

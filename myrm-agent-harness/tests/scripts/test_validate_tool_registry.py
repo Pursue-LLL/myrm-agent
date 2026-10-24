@@ -352,7 +352,8 @@ def test_layer_counts_aggregates_registered_layers() -> None:
     counts = cli._layer_counts(ScanReport())
     assert counts["CORE"] >= 7
     assert counts["HIGH_PRIORITY"] >= 4
-    assert counts["EXTENDED"] >= 40
+    # Floor, not a target: the EXTENDED layer shrinks whenever unreachable tools are deleted.
+    assert counts["EXTENDED"] >= 30
     assert sum(counts.values()) == counts["CORE"] + counts["HIGH_PRIORITY"] + counts["EXTENDED"] + counts["EXTERNAL"]
 
 

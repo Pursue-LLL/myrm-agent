@@ -9,7 +9,6 @@ Third-party assistant asset detection and ingestion (Hermes, Claude Code, Codex)
 |------|------|-------------|-------|
 | `__init__.py` | Package | Third-party assistant asset detection and ingestion toolkit. | ✅ |
 | `competitor_adapter.py` | Core | Universal competitor ingestion and translation adapter (Hermes, Claude Code, Codex). | ✅ |
-| `tool.py` | Agent Tool | Agent-facing LangChain tool for competitor asset detection and ingestion. | ✅ |
 | `types.py` | Types | Type definitions for competitor asset detection and ingestion. | ✅ |
 | `bundle_archiver.py` | Core | Consistent atomic packaging and checksum-verified sovereign asset archiver. — SovereignBundleArchiver: Produces atomic verified sovereign asset bundles (.myrmpkg) for migration.; time_tag: Format short human timestamp for package identifier. | ✅ |
 | `bundle_restorer.py` | Core | Atomic unpacker, integrity validator, and path-remapping restorer for sovereign asset bundles. — SovereignBundleRestorer: Restores sovereign asset packages with checksum integrity and path remapping. | ✅ |

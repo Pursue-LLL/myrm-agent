@@ -17,15 +17,6 @@ from myrm_agent_harness.agent.context_management.salient_tool_filter import (
 from myrm_agent_harness.agent.context_management.salient_tool_filter import (
     strip_ansi_sequences as strip_ansi_sequences,
 )
-from myrm_agent_harness.agent.context_management.working_memory import (
-    LocalWorkingMemoryBlock as LocalWorkingMemoryBlock,
-)
-from myrm_agent_harness.agent.context_management.working_memory import (
-    SubtaskStatus as SubtaskStatus,
-)
-from myrm_agent_harness.agent.meta_tools.working_memory import (
-    create_working_memory_manage_tool as create_working_memory_manage_tool,
-)
 from myrm_agent_harness.agent.middlewares.approval.helpers import (
     reset_denial_counter as reset_denial_counter,
 )

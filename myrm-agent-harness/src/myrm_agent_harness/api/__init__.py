@@ -54,7 +54,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "SpendControlConfig": ("myrm_agent_harness.observability.spend_control", "SpendControlConfig"),
     "SpendInterventionDecision": ("myrm_agent_harness.observability.spend_control", "SpendInterventionDecision"),
     "SpendInterventionTier": ("myrm_agent_harness.observability.spend_control", "SpendInterventionTier"),
-    "SubtaskStatus": ("myrm_agent_harness.agent.context_management.working_memory", "SubtaskStatus"),
     "HookEvent": ("myrm_agent_harness.api.protocols", "HookEvent"),
     "reset_denial_counter": ("myrm_agent_harness.agent.middlewares.approval.helpers", "reset_denial_counter"),
     "resolve_git_branch": ("myrm_agent_harness.infra.git", "resolve_git_branch"),
@@ -109,10 +108,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "KanbanStore": ("myrm_agent_harness.api.protocols", "KanbanStore"),
     "InMemoryKanbanStore": ("myrm_agent_harness.toolkits.kanban.stores", "InMemoryKanbanStore"),
     "LLMConfig": ("myrm_agent_harness.api.config", "LLMConfig"),
-    "LocalWorkingMemoryBlock": (
-        "myrm_agent_harness.agent.context_management.working_memory",
-        "LocalWorkingMemoryBlock",
-    ),
     "MCPAnnotations": ("myrm_agent_harness.core.security.tool_registry.registry", "MCPAnnotations"),
     "MissingDependencyFailClosedError": (
         "myrm_agent_harness.core.security.missing_semantics",
@@ -203,10 +198,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "compute_workflow_fingerprint",
     ),
     "create_skill_agent": ("myrm_agent_harness.api.factory", "create_skill_agent"),
-    "create_working_memory_manage_tool": (
-        "myrm_agent_harness.agent.meta_tools.working_memory",
-        "create_working_memory_manage_tool",
-    ),
     "delete_subagent_checkpoint": ("myrm_agent_harness.api.subagents", "delete_subagent_checkpoint"),
     "drop_subagent_checkpoint_if_terminal": (
         "myrm_agent_harness.api.subagents",

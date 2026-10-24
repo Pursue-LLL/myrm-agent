@@ -69,7 +69,7 @@
 | 10 | glob_tool | 201 | `harness/agent/meta_tools/file_search/glob_tool.py` | 通配符搜索 | 通用 Agent 基线 |
 | 11 | grep_tool | 205 | `harness/agent/meta_tools/file_search/grep_tool.py` | 正则搜索 | 通用 Agent 基线 |
 
-**CORE 描述小计（Turn1）**：**2,668 tokens**（8 工具，macOS arm64 实测；`scripts/measure_turn1_token_inventory.py`）。Linux 宿主因 OS hint 更短而为 2,642（ubuntu-latest 实测）。
+**CORE 描述小计（Turn1）**：**2,655 tokens**（8 工具，macOS arm64 实测；`scripts/measure_turn1_token_inventory.py`）。Linux 宿主因 OS hint 更短而为 2,629（ubuntu-latest 口径）。
 
 ---
 
@@ -95,15 +95,7 @@
 
 ## 四、EXTENDED 工具层（harness 可选；EXTERNAL 在其后）
 
-### 4.1 工作记忆手边工作台（Turn1 挂载；`enable_working_memory_tool` 默认开启）
-
-| # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
-|---|--------|------------------:|----------|------|----------|
-| 17 | `working_memory_manage_tool` | **52** | `harness/agent/meta_tools/working_memory/working_memory_agent_tools.py` | 多步执行的工作台：子任务状态推进、死路丢弃（自动沉淀避坑防线）、结论压缩、临时备忘 | `enable_working_memory_tool`（harness 默认 True；server 目前未暴露开关） |
-
-参数 JSON Schema 本体约 **600 tokens**，计入 §六 全量口径。
-
-### 4.2 glob/grep（归属 CORE 层）
+### 4.1 glob/grep（归属 CORE 层）
 
 glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。见 §二。
 
@@ -160,7 +152,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | 49 | wiki_ingest_tool | 62 | `harness/toolkits/wiki/wiki_agent_tools.py` | 导入内容到 Wiki |
 | 50 | wiki_apply_tool | 58 | `harness/toolkits/wiki/wiki_agent_tools.py` | 窄写更新 Wiki 词条（truth/timeline/metadata/create） |
 
-> `wiki_compile_tool` / `wiki_maintain_tool` 仅保留在 Settings REST 与 `create_wiki_admin_tools()`，不进入 Turn1 LLM 工具集。
+> Wiki 编译/维护由 Settings REST 的 `app/services/wiki/maintain` 承担，不暴露 LLM 工具。
 
 ### 4.11 Goal / planning 工具
 
@@ -293,37 +285,37 @@ Token 明细（历史 tiktoken 计量保留）：
 
 ## 总计估算
 
-### 典型 Turn 1 场景（默认智能体，记忆+搜索+技能+工作台；无 answer/todo）
+### 典型 Turn 1 场景（默认智能体，记忆+搜索+技能；无 answer/todo/工作台）
 
 | 分类 | Token (tiktoken) | 明细 |
 |------|------------------:|------|
 | System Prompt 层 | **2,568** | `messages[0]` 2,269（GPT-5 族 · ZH · full）+ `messages[1]` 299，固定，跨用户缓存 |
-| CORE 工具层 | **2,668** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
-| HIGH_PRIORITY 工具层 | **2,636** | web_search + memory×3 + skill_select |
+| CORE 工具层 | **2,655** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
+| HIGH_PRIORITY 工具层 | **2,692** | web_search + memory×3 + skill_select |
 | EXTENDED 工具层 | **0** | 默认 profile 无附加（opt-in 按需挂载） |
 | schema wrapper 包装 | **845** | 13 工具 × 65（仅 API 包装，不含参数 schema） |
 | 动态注入 | ~1,200 | user_instructions + memory_context + inline_skills |
 | 消息格式 | ~500 | role tags, boundaries 等 |
 | 用户消息 | ~32 | 短消息 + datetime 标签 |
-| **tiktoken 小计** | **~10,449** | |
+| **tiktoken 小计** | **~10,494** | |
 
 ### 最小 Turn 1 场景（仅 CORE 8 工具，无 HIGH_PRIORITY/EXTENDED）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
 | System Prompt 层 | **2,568** |
-| CORE 工具层 | **2,668** |
+| CORE 工具层 | **2,655** |
 | schema wrapper 包装 | **520** (8 工具 × 65) |
 | 用户消息 | ~32 |
 | 消息格式 | ~300 |
-| **tiktoken 小计** | **~6,088** |
+| **tiktoken 小计** | **~6,075** |
 
 ### 满载场景（所有可选功能全开：浏览器+Cron+Wiki+子Agent+渲染UI+看板+日历+计算机+IM）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
 | System Prompt 层 | **2,568** |
-| CORE 工具层 | **2,668** |
+| CORE 工具层 | **2,655** |
 | HIGH_PRIORITY 工具层 | ~2,649 |
 | EXTENDED + EXTERNAL（42 + 7 = 49 工具） | ~7,400（**粗估，未逐项实测**；EXTENDED 装配依赖各 backend，无法在离线脚本中全量构建） |
 | schema wrapper 包装 | ~3,185 (49 工具 × 65) |
@@ -331,20 +323,20 @@ Token 明细（历史 tiktoken 计量保留）：
 | 消息格式 | ~500 |
 | **tiktoken 小计** | **~20,072（粗估）** |
 
-> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 62 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 42 + EXTERNAL 7）。本场景假设全部 62 工具同轮 bind；EXTENDED/EXTERNAL 描述 token 未逐项实测，仅作量级参考。
+> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 58 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 7）。本场景假设全部 58 工具同轮 bind；EXTENDED/EXTERNAL 描述 token 未逐项实测，仅作量级参考。
 
 ---
 
 ## 缓存分层效果
 
 ```
-[CORE: web_fetch + bash + file_* + glob + grep (~2,668 tok, 8 tools)]
+[CORE: web_fetch + bash + file_* + glob + grep (~2,655 tok, 8 tools)]
   ↑ 通用 Agent 基线前缀（agent 模式）
 
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,649 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: working_memory_manage_tool (52) + 可选工具 (~0~7,411 tok)]
+[EXTENDED: 可选工具 (~0~7,411 tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 2,269 (GPT-5·ZH·full) + messages[1] 299]
@@ -354,16 +346,16 @@ Token 明细（历史 tiktoken 计量保留）：
   ↑ 同用户会话内稳定
 ```
 
-**实测 Turn1 工具层合计**：描述 **5,506** + schema wrapper **975** = **6,481 tokens**（15 工具，`measure_turn1_token_inventory.py`，o200k_base，macOS arm64 宿主，bash OS hint 58）。宿主无关口径下 bash 计入静态描述 1,368，为 **6,424**——CI 门禁以该口径判定，见下方门禁表。
+**实测 Turn1 工具层合计**：描述 **5,347** + schema wrapper **845** = **6,192 tokens**（13 工具，`measure_turn1_token_inventory.py`，o200k_base，macOS arm64 宿主，bash OS hint 57）。宿主无关口径下 bash 计入静态描述 1,355，为 **6,135**——CI 门禁以该口径判定，见下方门禁表。
 
-> **口径边界（重要）**：`6,481` 为「描述 + wrapper 包装」口径，**不含工具参数 schema**。参数 schema 是真实发送给模型的 payload 一部分，全量口径见 `measure_tool_schema_tokens.py`（其 `Turn-1 Total Budget` = 描述 **5,506** + 参数 schema **5,519** + wrapper **975** = **12,000**）。下方各 Turn-1 场景表的「schema wrapper 包装」行与 harness 门禁阈值均沿用「描述 + wrapper」口径，与 `estimate_bound_tools_tokens`（`utils/token_estimation.py:117-120`）一致；该估算仅用于展示与预检，压缩与预算决策以 provider 实测 `prompt_tokens` 为准（`estimate_context_tokens` 取 `max(estimate, provider)`）。
+> **口径边界（重要）**：`6,192` 为「描述 + wrapper 包装」口径，**不含工具参数 schema**。参数 schema 是真实发送给模型的 payload 一部分，全量口径见 `measure_tool_schema_tokens.py`（其 `Turn-1 Total Budget` = 描述 **5,347** + 参数 schema + wrapper **845**）。下方各 Turn-1 场景表的「schema wrapper 包装」行与 harness 门禁阈值均沿用「描述 + wrapper」口径，与 `estimate_bound_tools_tokens`（`utils/token_estimation.py:117-120`）一致；该估算仅用于展示与预检，压缩与预算决策以 provider 实测 `prompt_tokens` 为准（`estimate_context_tokens` 取 `max(estimate, provider)`）。
 
 **CI 门禁（横跨 harness / server 两仓）**：
 
 | 仓 | 门禁文件 | 锁定项 |
 |----|----------|--------|
-| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **6,424**，余量 76：bash 计入静态 1,368、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 350 / `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
-| harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,368 计，故 macOS 与 Linux CI 结果一致 |
+| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **6,135**，余量 365：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 350 / `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
+| harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:187-224`（`cl100k_base`） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
 
 
@@ -372,7 +364,7 @@ Token 明细（历史 tiktoken 计量保留）：
 ## 工具层级注册表 (tool_layers.py)
 
 <!-- TOOL_COUNT_BEGIN -->
-LLM tools: **60** (Harness 53: CORE 8 + HIGH_PRIORITY 5 + EXTENDED 40; External 7: server vendor). Orchestration signals: **4**. Runtime hooks: **1**. PTC runtime tools: **6** (`human_ask`, `llm_query`, `llm_query_batched`, `notify`, `spawn_subagent`, `steer_child`). LLM-tool SSOT: `tool_layers.py` + `_tool_layer_bootstrap.py`. PTC SSOT: `agent/dynamic_workflow/tools.py` + `PTC_RUNTIME_TOOL_NAMES`. Orchestration SSOT: `agent/orchestration/`. Auto-generated by `scripts/validate_tool_registry.py --generate-docs`.
+LLM tools: **58** (Harness 51: CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38; External 7: server vendor). Orchestration signals: **4**. Runtime hooks: **1**. PTC runtime tools: **6** (`human_ask`, `llm_query`, `llm_query_batched`, `notify`, `spawn_subagent`, `steer_child`). LLM-tool SSOT: `tool_layers.py` + `_tool_layer_bootstrap.py`. PTC SSOT: `agent/dynamic_workflow/tools.py` + `PTC_RUNTIME_TOOL_NAMES`. Orchestration SSOT: `agent/orchestration/`. Auto-generated by `scripts/validate_tool_registry.py --generate-docs`.
 <!-- TOOL_COUNT_END -->
 未注册的工具（如 MCP 动态工具）自动归入 EXTENDED，并在运行时打印 WARNING 日志。
 完整列表请直接查看 `tool_layers.py`。

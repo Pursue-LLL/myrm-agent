@@ -1,4 +1,4 @@
-"""Evaluation suite for RecurrenceDetector and LocalWorkingMemoryBlock."""
+"""Evaluation suite for RecurrenceDetector and noise-suppression heuristics."""
 
 
 from __future__ import annotations
@@ -7,13 +7,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.agent.context_management.working_memory.block import (
-    LocalWorkingMemoryBlock,
-)
-from myrm_agent_harness.agent.context_management.working_memory.types import (
-    SubtaskStatus,
-)
-from myrm_agent_harness.toolkits.memory.consolidation import WorkingMemorySnapshot
 from myrm_agent_harness.toolkits.memory.strategies.recurrence import (
     RecurrenceDetector,
     _is_trivial_summary,
@@ -139,104 +132,11 @@ class TestRecurrenceDetectorEnhancements:
 
 
 # ---------------------------------------------------------------------------
-# 2. LocalWorkingMemoryBlock System Test
-# ---------------------------------------------------------------------------
-
-
-class TestLocalWorkingMemoryBlockSystem:
-    def setup_method(self) -> None:
-        LocalWorkingMemoryBlock.reset()
-
-    def teardown_method(self) -> None:
-        LocalWorkingMemoryBlock.reset()
-
-    def test_step_lifecycle_and_milestones(self) -> None:
-        state = LocalWorkingMemoryBlock.initialize(goal="Refactor Storage Engine")
-        state.goal = "Migrate SQLite queries to parameterized CTE statements"
-
-        s1 = LocalWorkingMemoryBlock.add_subtask("Audit legacy SQL queries")
-        assert s1 is not None
-        assert s1.status == SubtaskStatus.PENDING
-
-        LocalWorkingMemoryBlock.update_subtask(s1.id, status=SubtaskStatus.IN_PROGRESS)
-        assert state.subtasks[0].status == SubtaskStatus.IN_PROGRESS
-
-        LocalWorkingMemoryBlock.update_subtask(
-            s1.id, status=SubtaskStatus.COMPLETED, notes="Found 12 un-parameterized queries"
-        )
-        assert state.subtasks[0].status == SubtaskStatus.COMPLETED
-        assert state.subtasks[0].notes == "Found 12 un-parameterized queries"
-
-        LocalWorkingMemoryBlock.record_trap(
-            "sql_syntax_error",
-            "Raw string concatenation causes syntax errors with single quotes",
-        )
-        assert len(state.traps) == 1
-
-        LocalWorkingMemoryBlock.set_scratchpad("compatibility", "Do not break SQLite 3.35 compatibility")
-        assert len(state.scratchpad) == 1
-
-    def test_prefix_cache_friendly_turn_tail_render(self) -> None:
-        LocalWorkingMemoryBlock.initialize(goal="Ensure deterministic Markdown generation")
-        LocalWorkingMemoryBlock.add_subtask("Step 1")
-        LocalWorkingMemoryBlock.set_scratchpad("framework", "Myrmidon Harness")
-
-        rendered = LocalWorkingMemoryBlock.format_turn_tail_markdown()
-        assert "<working_board>" in rendered
-        assert "</working_board>" in rendered
-        assert "**Goal**: Ensure deterministic Markdown generation" in rendered
-        assert "timestamp" not in rendered.lower()  # Protection against cache thrashing
-
-    def test_to_working_memory_snapshot(self) -> None:
-        LocalWorkingMemoryBlock.initialize(goal="Export to consolidation snapshot")
-        s = LocalWorkingMemoryBlock.add_subtask("Build component")
-        assert s is not None
-        LocalWorkingMemoryBlock.update_subtask(s.id, SubtaskStatus.COMPLETED, notes="Component built successfully")
-        LocalWorkingMemoryBlock.record_trap("concurrency_hazard", "Watch out for thread safety in async event loop")
-
-        snapshot = LocalWorkingMemoryBlock.to_snapshot()
-        assert isinstance(snapshot, WorkingMemorySnapshot)
-        assert snapshot.goal == "Export to consolidation snapshot"
-        assert len(snapshot.subtasks) == 1
-        assert snapshot.subtasks[0].title == "Build component"
-        assert snapshot.subtasks[0].completed is True
-        assert len(snapshot.traps) == 1
-        assert "thread safety" in snapshot.traps[0].avoidance_rule
-
-
-# ---------------------------------------------------------------------------
 # 3. Working-board retention & noise suppression
 # ---------------------------------------------------------------------------
 
 
 class TestWorkingBoardRetentionAndNoise:
-    def teardown_method(self) -> None:
-        LocalWorkingMemoryBlock.reset()
-
-    def test_dimension_4_non_destructive_retention_rate(self) -> None:
-        """Dim 4: Critical goal & traps survive multi-round working-board collapse."""
-        LocalWorkingMemoryBlock.reset()
-        state = LocalWorkingMemoryBlock.initialize(goal="Mission Critical Objective")
-        LocalWorkingMemoryBlock.record_trap("safety_rule", "Critical memory safety rule")
-
-        for round_idx in range(5):
-            for step_idx in range(4):
-                s = LocalWorkingMemoryBlock.add_subtask(f"Ephemeral step r{round_idx}-s{step_idx}")
-                assert s is not None
-                LocalWorkingMemoryBlock.update_subtask(s.id, SubtaskStatus.COMPLETED)
-            active = LocalWorkingMemoryBlock.add_subtask(f"Active step r{round_idx}")
-            assert active is not None
-            LocalWorkingMemoryBlock.update_subtask(active.id, SubtaskStatus.IN_PROGRESS)
-
-            rendered = LocalWorkingMemoryBlock.format_turn_tail_markdown(token_budget=10)
-            # Render-time collapse must never destructively mutate state.
-            assert state.goal == "Mission Critical Objective"
-            assert any("Critical memory safety rule" in t.avoidance_rule for t in state.traps)
-            assert f"Active step r{round_idx}" in rendered
-            assert "prior completed subtasks collapsed]" in rendered
-
-        assert len(state.traps) == 1
-
     def test_dimension_5_noise_suppression_ratio(self) -> None:
         """Dim 5: 100% noise rejection ratio on chitchat & greetings."""
         chitchat_samples = [

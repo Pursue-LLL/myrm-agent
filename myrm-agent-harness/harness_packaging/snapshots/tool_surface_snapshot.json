@@ -217,11 +217,6 @@
   {
     "layer": "EXTENDED",
     "layer_value": 3,
-    "name": "send_user_message_async"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
     "name": "skill_manage_tool"
   },
   {
@@ -258,10 +253,5 @@
     "layer": "EXTENDED",
     "layer_value": 3,
     "name": "wiki_query_tool"
-  },
-  {
-    "layer": "EXTENDED",
-    "layer_value": 3,
-    "name": "working_memory_manage_tool"
   }
 ]

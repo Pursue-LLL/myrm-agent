@@ -157,11 +157,12 @@ from .two_stage_search_extract import (
     TwoStageSearchConfig,
 )
 from .working_memory import (
-    LocalWorkingMemoryBlock,
-    LocalWorkingState,
-    SubtaskItem,
-    SubtaskStatus,
-    TrapRecord,
+    IMMUNE_MARKS,
+    WorkingMemoryMark,
+    get_message_marks,
+    has_message_marks,
+    is_eviction_immune,
+    with_message_marks,
 )
 
 __all__ = [
@@ -213,8 +214,7 @@ __all__ = [
     "FilterProcessor",
     "FilterResult",
     "FilteredResult",
-    "LocalWorkingMemoryBlock",
-    "LocalWorkingState",
+    "IMMUNE_MARKS",
     "ProcessorContext",
     "ReasoningAnchorProcessor",
     "RefetchEvent",
@@ -222,15 +222,13 @@ __all__ = [
     "SessionNotesProcessor",
     "StructuralFilter",
     "StructuredSummary",
-    "SubtaskItem",
-    "SubtaskStatus",
     "SummarizeProcessor",
     # task_metrics
     "TaskMetrics",
     "ThinkingBlockCleaner",
     "ToolProtectionConfig",
     "ToolPruneMode",
-    "TrapRecord",
+    "WorkingMemoryMark",
     "acquire_context_lock",
     "build_default_processors",
     "clear_all_locks",
@@ -251,14 +249,18 @@ __all__ = [
     "get_artifact_tracker",
     "get_current_chat_id",
     "get_locked_session_count",
+    "get_message_marks",
     "get_or_create_artifact_tracker",
     "get_or_create_task_metrics",
     # session_lock
     "get_session_lock",
     "get_task_metrics",
+    "has_message_marks",
+    "is_eviction_immune",
     "record_archive_refetch_for_path",
     "reset_current_chat_id",
     "resolve_cache_ttl_prune_policy",
+    "with_message_marks",
     "set_current_chat_id",
     # filter
     "should_filter",

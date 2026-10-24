@@ -74,7 +74,6 @@ AUTO_APPROVED_BUILTIN_TOOLS: dict[str, str] = {
     "skill_select_tool": "read_only",
     "todo_write": "display",  # progress plan UI
     "web_search_tool": "read_only",
-    "working_memory_manage_tool": "display",  # in-session workbench progress, no external side effects
 }
 
 # Built-in tools that intentionally keep the `mcp_invoke` fallback (runtime ASK)
@@ -87,7 +86,6 @@ EXPLICIT_MCP_FALLBACK_TOOLS: frozenset[str] = frozenset(
     {
         "browser_execute_script_tool",  # arbitrary JS execution — keep ASK (plus in-tool HITL for privileged APIs)
         "send_teammate_message_tool",  # cross-agent message dispatch — external side effect, keep ASK
-        "send_user_message_async",  # agent-to-user push (rate-limited 3/turn); keeps its current ASK baseline until promoted
     }
 )
 

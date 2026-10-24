@@ -166,7 +166,6 @@ BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(
         "wiki_ingest_tool",
         "wiki_query_tool",
         "wiki_apply_tool",
-        "working_memory_manage_tool",
     }
 )
 
