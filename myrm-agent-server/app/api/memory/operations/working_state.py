@@ -1,4 +1,4 @@
-"""Working State API — cross-session task continuity and runtime workbench endpoints.
+"""Working State API — cross-session task continuity endpoints.
 
 [INPUT]
 - app.api.memory.utils::get_crud_memory_manager (POS: MemoryManager factory)

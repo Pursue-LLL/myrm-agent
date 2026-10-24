@@ -49,7 +49,7 @@ def test_intent_ledger_synthetic_message_exclusion() -> None:
         additional_kwargs={"is_system_synthetic": True},
     )
     system_runtime_msg = HumanMessage(
-        content="[WORKING_MEMORY_BOARD] Goals: None",
+        content="[RUNTIME_BOARD] Goals: None",
         additional_kwargs={"source": "runtime"},
     )
     real_user_msg = HumanMessage(content="User command: list directory.")
@@ -61,7 +61,7 @@ def test_intent_ledger_synthetic_message_exclusion() -> None:
 
     result = extract_user_intent_ledger(msgs, max_chars=1000)
     assert "[RESTORE_NOTIFICATION]" not in result
-    assert "[WORKING_MEMORY_BOARD]" not in result
+    assert "[RUNTIME_BOARD]" not in result
     assert result == "User command: list directory."
 
 

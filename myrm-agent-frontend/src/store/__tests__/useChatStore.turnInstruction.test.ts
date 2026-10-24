@@ -91,14 +91,12 @@ describe.each([
 });
 
 describe('steerMessage options', () => {
-  it('passes the reply context of an async agent question to the backend', async () => {
+  it('passes the supported steering options to the backend', async () => {
     answer(ACCEPTED);
 
     await useChatStore.getState().steerMessage('use pnpm', {
       mode: 'policy',
       quotedRef: 'artifact-1',
-      inReplyToCallId: 'call-7',
-      questionContext: 'Which package manager?',
     });
 
     const [, init] = mockFetch.mock.calls[0];
@@ -106,8 +104,6 @@ describe('steerMessage options', () => {
       message: 'use pnpm',
       mode: 'policy',
       quotedRef: 'artifact-1',
-      in_reply_to_call_id: 'call-7',
-      question_context: 'Which package manager?',
     });
   });
 

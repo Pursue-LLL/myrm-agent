@@ -135,7 +135,7 @@ async def test_a_failing_step_does_not_stop_the_remaining_disposal_steps(
     spies: Spies,
 ) -> None:
     spies.memory_purge.side_effect = RuntimeError("vector store unavailable")
-    spies.working_memory.side_effect = RuntimeError("cache corrupted")
+    spies.ephemeral_delta.side_effect = RuntimeError("cache corrupted")
     spies.worktree.side_effect = RuntimeError("worktree busy")
     await grant_and_checkpoint(checkpointer)
 

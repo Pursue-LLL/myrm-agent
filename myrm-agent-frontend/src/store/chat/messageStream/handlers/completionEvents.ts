@@ -216,7 +216,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
       actions.scheduleAutoSave();
 
-      // Refresh per-chat workspace from API so Active Working Memory chips can open file
+      // Refresh per-chat workspace from API so Active Files chips can open file
       // previews when FILE_DIFF is absent but the session workspace exists (silent=true).
       void import('@/services/chat').then(({ getChatDetail }) => {
         const chatId = H.useChatStore.getState().chatId;

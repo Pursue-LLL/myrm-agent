@@ -122,7 +122,7 @@ const CodeBlock: React.FC<{
     // 注意：这里我们使用一个简单的 hack，因为 CodeBlock 的 props 没有直接传 lineRange
     // 更好的做法是修改 CodeBlock 的 props 签名，但为了不破坏现有接口，我们使用 event 冒泡或全局状态
     // 这里我们先直接使用一个占位的 lineRange，实际的滚动逻辑由 ArtifactPortal 处理
-    // 我们假设如果这个代码块是从 ActiveWorkingMemoryPanel 点击过来的，它已经在 ArtifactPortal 中打开了
+    // 我们假设如果这个代码块是从 ActiveFilesPanel 点击过来的，它已经在 ArtifactPortal 中打开了
     // 所以这个内部的 preview 按钮不需要处理 lineRange
 
     const tempArtifact: Artifact = isHtml

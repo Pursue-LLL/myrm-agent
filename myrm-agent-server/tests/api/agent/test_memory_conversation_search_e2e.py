@@ -85,8 +85,7 @@ def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> Non
         "memory_save_tool",
         "memory_manage_tool",
     ):
-        # Word-boundary match: a bare substring check also hits the unrelated
-        # working_memory_manage_tool, whose serialized name contains this one.
+        # Word-boundary match: serialized tool names may contain a longer tool name as a substring.
         assert not re.search(rf"(?<!\w){tool_name}(?!\w)", blob), f"{tool_name} must not appear in incognito stream"
     assert not re.search(r"(?<!\w)conversation_search_tool(?!\w)", blob)
 

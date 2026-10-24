@@ -4,7 +4,7 @@
  * [INPUT] useChatStore::messages/loading/workspaceDir (POS: 会话与工具进度状态);
  *   useArtifactPortalStore (POS: Artifact 门户与内容);
  *   SSE 经 messageStreamHandler 写入 progressSteps 与 FILE_DIFF 附加的 diff。
- * [OUTPUT] 活动工作记忆筹码；有 diff 时可无 workspaceDir 直接打开 Diff Artifact；无 diff 时预览走 `/files/browse/content`，可在仅有 `chatId` 时由服务端解析 workspace（无需客户端先同步 workspace_dir）。同名文件多路径合并时优先保留「更完整」的 unified diff（同时含 +/- 行优先于仅含 + 的新增片段），避免点到只剩绿色高亮的过期 diff。
+ * [OUTPUT] 当前轮次活动文件筹码；有 diff 时可无 workspaceDir 直接打开 Diff Artifact；无 diff 时预览走 `/files/browse/content`，可在仅有 `chatId` 时由服务端解析 workspace（无需客户端先同步 workspace_dir）。同名文件多路径合并时优先保留「更完整」的 unified diff（同时含 +/- 行优先于仅含 + 的新增片段），避免点到只剩绿色高亮的过期 diff。
  * [POS] 输入区旁的路由面板：把当前轮次工具触及的文件暴露为可预览入口。
  * E2E：筹码根节点使用 data-testid / data-filename / data-diff / data-diff-truncated；Diff 打开前通过 setCachedContent
  * 预填内容与 addTab 对齐，确保 contentLoading 为 false（避免 Skeleton 挡住 Monaco）。
@@ -17,7 +17,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useTranslations } from 'next-intl';
 import type { Artifact } from '@/store/chat/types';
 import { openWorkspaceFileInPortal } from '@/services/deliverable/openWorkspaceFileInPortal';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 // 提取文件扩展名
 const getExtension = (filename: string) => {
@@ -141,8 +140,8 @@ const formatBytes = (bytes?: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-export default function ActiveWorkingMemoryPanel() {
-  const t = useTranslations('chat.workingMemory');
+export default function ActiveFilesPanel() {
+  const t = useTranslations('chat.activeFiles');
   const messages = useChatStore((s) => s.messages);
   const isGenerating = useChatStore((s) => s.loading);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
@@ -327,7 +326,7 @@ export default function ActiveWorkingMemoryPanel() {
           />
         </span>
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          {t('title', { defaultMessage: 'Active Working Memory' })}
+          {t('title')}
         </span>
       </div>
 
@@ -336,12 +335,10 @@ export default function ActiveWorkingMemoryPanel() {
           {visibleFiles.map((file, index) => (
             <Tooltip key={`${file.path}-${index}`}>
               <TooltipTrigger asChild>
-                <div
+                <button
+                  type="button"
                   onClick={() => handleChipClick(file)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={activateOnKey}
-                  data-testid="working-memory-chip"
+                  data-testid="active-file-chip"
                   data-filename={file.filename}
                   data-diff={file.diff ? '1' : '0'}
                   data-diff-truncated={file.diff_truncated ? '1' : '0'}
@@ -361,7 +358,7 @@ export default function ActiveWorkingMemoryPanel() {
                           : 'bg-emerald-400'
                     }`}
                   />
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
@@ -381,7 +378,7 @@ export default function ActiveWorkingMemoryPanel() {
                   </span>
                   <span className="text-[10px] text-slate-400 mt-1">
                     {file.sizeBytes !== undefined ? `${formatBytes(file.sizeBytes)} • ` : ''}
-                    Click to preview in Artifacts
+                    {t('previewHint')}
                   </span>
                 </div>
               </TooltipContent>

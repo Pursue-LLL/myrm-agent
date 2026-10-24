@@ -3,7 +3,7 @@
  *
  * [INPUT] browse path, chat/workspace context, pre-built Artifact shell.
  * [OUTPUT] Portal side effects (open tab, load content, errors).
- * [POS] Shared by DeliverableReferenceLink, ActiveWorkingMemoryPanel, openWorkspaceDeliverable.
+ * [POS] Shared by DeliverableReferenceLink, ActiveFilesPanel, openWorkspaceDeliverable.
  */
 
 import { fetchWithTimeout } from '@/lib/api';

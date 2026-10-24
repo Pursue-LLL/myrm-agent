@@ -5,7 +5,6 @@
   "artifact_focus",
   "artifacts",
   "artifacts_ready",
-  "async_user_message",
   "async_wakeup",
   "bash_command_executed",
   "browser_takeover_completed",
@@ -82,6 +81,5 @@
   "tools_snapshot",
   "ui_update",
   "verification_verdict",
-  "working_memory",
   "workspace_merge_failed"
 ]

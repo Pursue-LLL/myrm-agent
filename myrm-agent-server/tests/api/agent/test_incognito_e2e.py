@@ -40,7 +40,7 @@ def _collect_stream(client: TestClient, payload: dict[str, object]) -> list[dict
 
 def _assert_incognito_memory_absent(blob: str) -> None:
     for tool_name in _MEMORY_TOOL_NAMES:
-        # Whole identifiers only: ``working_memory_manage_tool`` is a different tool (the working board).
+        # Whole identifiers only: serialized tool names may contain a longer tool name as a substring.
         assert re.search(rf"(?<!\w){re.escape(tool_name)}(?!\w)", blob) is None, (
             f"{tool_name} must not appear in incognito stream"
         )

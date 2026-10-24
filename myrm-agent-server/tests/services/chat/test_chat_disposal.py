@@ -152,7 +152,7 @@ async def test_every_entry_point_tears_down_the_same_state(
     assert not is_granted()
     spies.runtime_pool.assert_awaited_once_with(CHAT_ID)
     spies.execution_cache.assert_awaited_once_with(CHAT_ID)
-    spies.working_memory.assert_called_once_with(CHAT_ID)
+    spies.ephemeral_delta.assert_called_once_with(CHAT_ID)
     spies.memory_purge.assert_awaited_once_with(CHAT_ID)
     spies.retry_queue.assert_awaited_once_with(CHAT_ID)
     spies.worktree.assert_awaited_once_with(SANDBOX_DIR, CHAT_ID)
@@ -251,7 +251,7 @@ async def test_soft_delete_stops_runtime_work_but_keeps_everything_restorable(
 
     spies.runtime_pool.assert_awaited_once_with(CHAT_ID)
     spies.execution_cache.assert_awaited_once_with(CHAT_ID)
-    spies.working_memory.assert_called_once_with(CHAT_ID)
+    spies.ephemeral_delta.assert_called_once_with(CHAT_ID)
     spies.retry_queue.assert_awaited_once_with(CHAT_ID)
     spies.memory_purge.assert_not_awaited()
     spies.workspace.assert_not_awaited()

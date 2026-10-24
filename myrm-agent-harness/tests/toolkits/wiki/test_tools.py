@@ -9,7 +9,6 @@ from langchain_core.messages import AIMessage
 from myrm_agent_harness.toolkits.wiki import (
     WikiCompiler,
     WikiConfig,
-    WikiLinter,
     WikiQueryEngine,
     WikiStructure,
     create_wiki_tools,
@@ -82,9 +81,7 @@ def wiki_tools(
     config = WikiConfig()
     compiler = WikiCompiler(mock_llm, wiki_structure, config)
     query_engine = WikiQueryEngine(mock_llm, wiki_structure, config)
-    linter = WikiLinter(mock_llm, wiki_structure, config)
-
-    return create_wiki_tools(compiler, query_engine, linter, wiki_structure)
+    return create_wiki_tools(compiler, query_engine, wiki_structure)
 
 
 def test_create_wiki_tools_returns_three_tools(wiki_tools: list) -> None:
@@ -206,13 +203,12 @@ async def test_wiki_query_no_articles(
 
 @pytest.fixture
 def direct_mock_tools(wiki_structure: WikiStructure) -> tuple:
-    """Create tools with directly mocked compiler/query/linter for error path testing."""
+    """Create tools with directly mocked compiler/query for error path testing."""
     mock_compiler = MagicMock(spec=WikiCompiler)
     mock_query_engine = MagicMock(spec=WikiQueryEngine)
-    mock_linter = MagicMock(spec=WikiLinter)
 
-    tools = create_wiki_tools(mock_compiler, mock_query_engine, mock_linter, wiki_structure)
-    return tools, mock_compiler, mock_query_engine, mock_linter
+    tools = create_wiki_tools(mock_compiler, mock_query_engine, wiki_structure)
+    return tools, mock_compiler, mock_query_engine
 
 
 @pytest.mark.asyncio
@@ -245,7 +241,7 @@ async def test_wiki_ingest_url(
 @pytest.mark.asyncio
 async def test_wiki_query_exception_at_tools_layer(direct_mock_tools: tuple) -> None:
     """Test wiki_query error path when query_engine.query raises."""
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(side_effect=RuntimeError("query crash"))
@@ -260,7 +256,7 @@ async def test_wiki_query_with_should_archive(direct_mock_tools: tuple) -> None:
     """Test wiki_query when result has should_archive=True."""
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(
@@ -285,7 +281,7 @@ async def test_wiki_query_includes_sidecar_sources(direct_mock_tools: tuple) -> 
     """wiki_query emits directory sidecar citations alongside article citations."""
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
 
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(
@@ -327,7 +323,7 @@ async def test_wiki_query_asset_only_returns_sources(direct_mock_tools: tuple) -
     """Asset-only wiki hits must not early-exit when related_articles is empty."""
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
 
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(
@@ -364,11 +360,9 @@ async def test_wiki_query_injects_wiki_scope_id(wiki_structure: WikiStructure) -
 
     mock_compiler = MagicMock(spec=WikiCompiler)
     mock_query_engine = MagicMock(spec=WikiQueryEngine)
-    mock_linter = MagicMock(spec=WikiLinter)
     tools = create_wiki_tools(
         mock_compiler,
         mock_query_engine,
-        mock_linter,
         wiki_structure,
         wiki_scope_id="agent-scope-42",
     )
@@ -402,7 +396,7 @@ async def test_wiki_query_emits_asset_source_metadata(direct_mock_tools: tuple) 
     """wiki_query forwards asset hit metadata for chat thumbnails."""
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
 
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(
@@ -437,7 +431,7 @@ async def test_wiki_query_emits_claim_snapshot_status(direct_mock_tools: tuple) 
     """wiki_query should forward claim evidence snapshot_status to chat metadata sources."""
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
 
-    tools, _, mock_qe, _ = direct_mock_tools
+    tools, _, mock_qe = direct_mock_tools
     query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 
     mock_qe.query = AsyncMock(
@@ -616,8 +610,7 @@ class TestIngestAutoCompile:
         config = WikiConfig()
         compiler = WikiCompiler(mock_llm, wiki_structure, config)
         query_engine = WikiQueryEngine(mock_llm, wiki_structure, config)
-        linter = WikiLinter(mock_llm, wiki_structure, config)
-        tools = create_wiki_tools(compiler, query_engine, linter, wiki_structure)
+        tools = create_wiki_tools(compiler, query_engine, wiki_structure)
 
         ingest_tool = next(t for t in tools if t.name == "wiki_ingest_tool")
 
@@ -645,8 +638,7 @@ class TestQueryArchiveNonBlocking:
         config = WikiConfig()
         compiler = WikiCompiler(mock_llm, wiki_structure, config)
         query_engine = WikiQueryEngine(mock_llm, wiki_structure, config)
-        linter = WikiLinter(mock_llm, wiki_structure, config)
-        tools = create_wiki_tools(compiler, query_engine, linter, wiki_structure)
+        tools = create_wiki_tools(compiler, query_engine, wiki_structure)
 
         query_tool = next(t for t in tools if t.name == "wiki_query_tool")
 

@@ -50,7 +50,7 @@ import FocusFlushButton from '../message-input-actions/FocusFlushButton';
 import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
 import { ForkButton } from './ForkButton';
 import { QueuedMessagesList } from './QueuedMessagesList';
-import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
+import ActiveFilesPanel from '../message-input-actions/ActiveFilesPanel';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import {
@@ -484,8 +484,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             />
           )}
 
-          {/* 动态工作记忆面板 (Active Working Memory) */}
-          <ActiveWorkingMemoryPanel />
+          {/* 当前轮次活动文件面板 */}
+          <ActiveFilesPanel />
 
           {/* 子代理协同常驻微进度条 */}
           <ChatInlineTeamRunVisibilityStrip />

@@ -1017,7 +1017,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 ## 十三、记忆工具的职责边界
 
-长期记忆由三个工具承担：`memory_search_tool`（检索）、`memory_save_tool`（显式写入）与 `memory_manage_tool`（更新/删除/纠正/评分）。多步执行的计划状态由 `todo_write` 单一承载，不再维护第二套运行时工作记忆板。
+长期记忆由三个工具承担：`memory_search_tool`（检索）、`memory_save_tool`（显式写入）与 `memory_manage_tool`（更新/删除/纠正/评分）。多步执行的计划状态由 `todo_write` 单一承载。
 
 ---
 

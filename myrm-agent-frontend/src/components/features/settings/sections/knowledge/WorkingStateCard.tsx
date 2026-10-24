@@ -117,6 +117,8 @@ const WorkingStateCard = memo(() => {
         </div>
       </div>
 
+      <p className="mb-2 text-xs text-muted-foreground">{t('description')}</p>
+
       {editing ? (
         <div className="space-y-2">
           <textarea

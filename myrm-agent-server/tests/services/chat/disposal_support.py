@@ -31,7 +31,7 @@ class Spies:
     retry_queue: AsyncMock
     worktree: AsyncMock
     workspace: AsyncMock
-    working_memory: MagicMock
+    ephemeral_delta: MagicMock
 
 
 def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
@@ -43,7 +43,7 @@ def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
         retry_queue=AsyncMock(),
         worktree=AsyncMock(return_value=True),
         workspace=AsyncMock(return_value={}),
-        working_memory=MagicMock(),
+        ephemeral_delta=MagicMock(),
     )
     monkeypatch.setattr(chat_disposal, "close_external_agent_pool_for_chat", recorded.runtime_pool)
     monkeypatch.setattr(chat_disposal, "close_execution_cache_for_chat_all_agents", recorded.execution_cache)
@@ -53,8 +53,8 @@ def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
     monkeypatch.setattr("app.services.chat.sandbox_worktree.cleanup_sandbox_worktree", recorded.worktree)
     monkeypatch.setattr("app.services.infra.sandbox_cleanup.cleanup_chat_workspaces", recorded.workspace)
     monkeypatch.setattr(
-        "app.services.memory.consolidation_service.ConsolidationService.clear_session_working_state",
-        recorded.working_memory,
+        "myrm_agent_harness.toolkits.memory.ephemeral_delta.notify.clear_ephemeral_deltas_for_session",
+        recorded.ephemeral_delta,
     )
     return recorded
 

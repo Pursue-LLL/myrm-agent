@@ -712,7 +712,7 @@ const useChatStore = create<ChatState>()(
       },
       steerMessage: async (
         message: string,
-        options?: { mode?: string; quotedRef?: string; inReplyToCallId?: string; questionContext?: string },
+        options?: { mode?: string; quotedRef?: string },
       ) => {
         const { chatId } = get();
         if (!chatId) {
@@ -722,20 +722,12 @@ const useChatStore = create<ChatState>()(
           message: string;
           mode?: string;
           quotedRef?: string;
-          in_reply_to_call_id?: string;
-          question_context?: string;
         } = { message };
         if (options?.mode !== undefined) {
           payload.mode = options.mode;
         }
         if (options?.quotedRef !== undefined) {
           payload.quotedRef = options.quotedRef;
-        }
-        if (options?.inReplyToCallId !== undefined) {
-          payload.in_reply_to_call_id = options.inReplyToCallId;
-        }
-        if (options?.questionContext !== undefined) {
-          payload.question_context = options.questionContext;
         }
         return postTurnInstruction(chatId, 'steer', payload);
       },
@@ -746,23 +738,6 @@ const useChatStore = create<ChatState>()(
         }
         return postTurnInstruction(chatId, 'redirect', { message });
       },
-      resolveAsyncUserMessage: (messageId: string, callId: string, resolvedText: string) => {
-        set((state) => {
-          let target = state.messages.find((m) => m.messageId === messageId);
-          if (!target?.asyncUserMessages?.some((item) => item.callId === callId)) {
-            target = state.messages.find((m) => m.asyncUserMessages?.some((item) => item.callId === callId));
-          }
-          if (!target || !target.asyncUserMessages) {
-            return;
-          }
-          const entry = target.asyncUserMessages.find((item) => item.callId === callId);
-          if (entry) {
-            entry.status = 'resolved';
-            entry.resolvedText = resolvedText;
-          }
-        });
-      },
-
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {
         const state = get();
