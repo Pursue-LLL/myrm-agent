@@ -543,36 +543,35 @@ class TestRunAgentLoopOuterErrorFaultSide:
         assert "persisted.pop('messageId', None)" in signatures
 
 class TestEffectiveRecursionLimit:
-    """The graph and its guards must read one recursion budget, and it must be a step budget."""
+    """The graph and its guards read one budget, and an explicit setting is honoured."""
 
     def test_explicit_budget_is_used_as_is(self) -> None:
-        """The configured value is already a step budget; scaling it would double-count.
+        """Raising a configured budget would override what the operator asked for.
 
         ``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto it and the builder maps
-        ``max_iterations * 2``. A real graph costs two steps per tool round (measured by bisecting
-        ``recursion_limit`` against tool-call counts), which is exactly what those mappings encode.
+        ``max_iterations * 2``; both are already step budgets (two steps per tool round, measured),
+        so a positive value passes through untouched.
         """
         from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
 
-        assert effective_recursion_limit(MagicMock(recursion_limit=1000)) == 1000
-        assert effective_recursion_limit(MagicMock(recursion_limit=50)) == 300  # floor only
+        for configured in (20, 50, 100, 300, 400, 1000):
+            assert effective_recursion_limit(MagicMock(recursion_limit=configured)) == configured
 
-    def test_floor_only_rescues_a_starved_budget(self) -> None:
+    def test_missing_budget_falls_back_to_a_workable_default(self) -> None:
         from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
 
         assert effective_recursion_limit(MagicMock(recursion_limit=None)) == 300
+        assert effective_recursion_limit(MagicMock(recursion_limit=0)) == 300
+        assert effective_recursion_limit(MagicMock(recursion_limit=-5)) == 300
         assert effective_recursion_limit(None) == 300
-        assert effective_recursion_limit(MagicMock(recursion_limit=300)) == 300
-        assert effective_recursion_limit(MagicMock(recursion_limit=301)) == 301
+        assert effective_recursion_limit(MagicMock()) == 300
 
     def test_guards_receive_the_limit_the_graph_runs_with(self) -> None:
         """A guard tuned to a smaller number would fire its thresholds proportionally early."""
         from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
         from myrm_agent_harness.agent.security.guards.loop_guard.guard import LoopGuard
 
-        limit = effective_recursion_limit(MagicMock(recursion_limit=50))
+        limit = effective_recursion_limit(MagicMock(recursion_limit=100))
         guard = LoopGuard(graph_recursion_limit=limit)
-        # The stuck budget is the graph's tool-call capacity, one short by construction so the
-        # guard speaks before the graph dies.
         capacity = limit // LoopGuard._NODES_PER_TOOL_CALL
         assert capacity - 1 <= guard._budget_stuck <= capacity

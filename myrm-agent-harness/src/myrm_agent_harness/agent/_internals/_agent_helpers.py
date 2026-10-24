@@ -63,13 +63,14 @@ def effective_recursion_limit(config: object) -> int:
     delays every safety threshold by the same factor.
 
     The configured value is already a step budget (``AgentConfig.from_env`` maps
-    ``MYRM_RECURSION_LIMIT`` onto it, and the builder maps ``max_iterations * 2``), so it is used
-    as-is. The floor only rescues a configuration that would otherwise starve a graph whose
-    middleware chain alone contributes a step per turn; it never scales an explicit setting.
+    ``MYRM_RECURSION_LIMIT`` onto it, and the builder maps ``max_iterations * 2``), so a positive
+    value is used as-is: raising it would silently override what the operator set, and 50 steps
+    already buys 24 tool rounds. The default rescues only a configuration that never chose one.
     """
     configured = getattr(config, "recursion_limit", None)
-    base = int(configured) if isinstance(configured, int) else 0
-    return max(base, _MIN_RECURSION_NODES)
+    if isinstance(configured, int) and configured > 0:
+        return configured
+    return _MIN_RECURSION_NODES
 
 
 def reset_all_guards(
