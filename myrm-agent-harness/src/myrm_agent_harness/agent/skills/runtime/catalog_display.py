@@ -137,7 +137,7 @@ def should_mount_skill_search_tool(
         available_tool_names=available_tool_names,
         available_tool_groups=available_tool_groups,
     )
-    discoverable = [s for s in resolution.filtered_skills if s.model_invocable]
+    discoverable = [s for s in resolution.filtered_skills if s.model_invocable and s.available]
     return resolution.hidden_skill_count > 0 and bool(discoverable)
 
 

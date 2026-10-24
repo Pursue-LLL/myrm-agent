@@ -220,7 +220,7 @@ def sync_discover_capability_tool(
         available_tool_names=available_tool_names,
         available_tool_groups=available_tool_groups,
     )
-    discoverable_skills = [s for s in resolution.filtered_skills if s.model_invocable]
+    discoverable_skills = [s for s in resolution.filtered_skills if s.model_invocable and s.available]
     if not discoverable_skills:
         return None
 

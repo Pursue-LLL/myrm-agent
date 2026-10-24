@@ -54,6 +54,23 @@ async def test_skill_search_mount_follows_token_budget() -> None:
 
 
 @pytest.mark.asyncio
+async def test_search_index_excludes_unavailable_skills() -> None:
+    registry = ToolRegistry()
+    skills = _many_skills(40)
+    unavailable = SkillMetadata(
+        name="unavailable_unique_skill",
+        description="unavailable_xyz capability " + "detailed capability description " * 20,
+        model_invocable=True,
+        available=False,
+    )
+    sync_discover_capability_tool(registry, skills=[*skills, unavailable])
+    entries = [e for e in registry._entries if e.tool.name == "skill_search_tool"]
+    assert entries
+    result = await entries[0].tool.ainvoke({"query": "unavailable_xyz"})
+    assert "unavailable_unique_skill" not in result
+
+
+@pytest.mark.asyncio
 async def test_sync_skips_discover_when_all_skills_inline() -> None:
     """Skills fully inside the L1 token budget must not mount skill_search_tool."""
     registry = ToolRegistry()
