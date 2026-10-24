@@ -26,8 +26,10 @@ from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.skills.mcp.description import resolve_description
 from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
+    INDEX_NOTE_TOKENS,
     INSTRUCTIONS_TOKEN_LIMIT,
     L2_MAX_TOKENS,
+    MIN_TOOL_SECTION_TOKENS,
     build_tool_section,
     cap_instructions,
     text_field,
@@ -175,9 +177,15 @@ class MCPSkillGenerator:
         # here would print an import path that no skill answers to.
         skill_name = skill_meta.name
         tools = skill_meta.mcp.tools
-        tool_list, tier = build_tool_section(tools, tool_schemas, skill_name, tool_section_budget(instructions))
-
         usage_section = SKILL_USAGE_TEMPLATE.format(skill_name=skill_name)
+        title = server_name.replace("_", " ").replace("-", " ").title()
+        fixed_prefix = f"# {title} Skill\n\n**Skill Name**: `{skill_name}` (use this exact name in import paths and doc paths)\n\n## Functions\n\n{usage_section}"
+        fixed_tokens = get_token_count(fixed_prefix)
+        instruction_cap = max(0, min(INSTRUCTIONS_TOKEN_LIMIT, L2_MAX_TOKENS - fixed_tokens - INDEX_NOTE_TOKENS - MIN_TOOL_SECTION_TOKENS))
+        instructions = cap_instructions(instructions, skill_meta.name, instruction_cap)
+        tool_list, tier = build_tool_section(
+            tools, tool_schemas, skill_name, tool_section_budget(instructions, fixed_tokens)
+        )
         index_note = {
             "names": (
                 f"\nThis server exposes {tool_count} tools, so only names are listed. "
@@ -189,10 +197,8 @@ class MCPSkillGenerator:
                 "read the tool doc when an optional parameter matters.\n"
             ),
         }.get(tier, "")
-        instructions = cap_instructions(instructions, skill_meta.name, INSTRUCTIONS_TOKEN_LIMIT)
-
         intro = f"{instructions}\n\n" if instructions else ""
-        content = f"""# {server_name.replace("_", " ").replace("-", " ").title()} Skill
+        content = f"""# {title} Skill
 
 {intro}**Skill Name**: `{skill_name}` (use this exact name in import paths and doc paths)
 

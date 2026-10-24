@@ -22,10 +22,7 @@ def test_metadata_summary_escapes_xml_values() -> None:
     summary = get_metadata_summary([skill])
     root = ET.fromstring(summary)  # noqa: S314  # parses XML produced by get_metadata_summary, not external input
 
-    routing_rules = root.find("routing_rules")
-    assert routing_rules is not None
-    assert routing_rules.text is not None
-    assert "skill_select_tool" in routing_rules.text
+    assert root.find("routing_rules") is None
 
     skill_node = root.find("skill")
     assert skill_node is not None

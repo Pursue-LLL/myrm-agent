@@ -113,6 +113,20 @@ class TestGenerateSkillContent:
         ):
             assert fragment in out, fragment
 
+    def test_l2_hard_ceiling_with_300_tools_and_verbose_instructions(self) -> None:
+        tools = [f"tool_{i}" for i in range(300)]
+        schemas = {
+            t: {
+                "description": f"Tool {t} description text.",
+                "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]},
+            }
+            for t in tools
+        }
+        schemas["__instructions__"] = {"content": "x " * 2000}
+        out = mcp_skill_generator.generate_skill_content(_skill_meta("big", tools, schemas=schemas))
+        assert get_token_count(out) <= 3000
+        assert "instructions truncated" in out or "more tools not shown" in out
+
     def test_skill_content_cached_after_generation(self) -> None:
         tools = [f"func_{i}" for i in range(5)]
         meta = _skill_meta("weather", tools)

@@ -44,9 +44,6 @@ L2_MAX_TOKENS = 3_000
 Every part is bounded below, so the assembled body can never exceed this.
 """
 
-L2_FIXED_TOKENS = 248
-"""Header + calling contract, measured on 12306 (246) with a 2-token margin."""
-
 INDEX_NOTE_TOKENS = 96
 """Reserve for the tier note the generator appends after the tool section.
 
@@ -55,8 +52,8 @@ only appended for the `required`/`names` tiers, so reserving the maximum keeps t
 whole L2 body inside `L2_MAX_TOKENS` for every tier.
 """
 
-MIN_TOOL_SECTION_TOKENS = L2_MAX_TOKENS - INSTRUCTIONS_TOKEN_LIMIT - L2_FIXED_TOKENS - INDEX_NOTE_TOKENS
-"""Floor left for tools when instructions use their whole cap (680)."""
+MIN_TOOL_SECTION_TOKENS = 680
+"""Floor left for tools when server instructions use their cap."""
 
 SIGNATURE_TOKENS_PER_TOOL = 120
 """Budget for one signature line; past it the line degrades to ``name(…)`` + a doc pointer."""
@@ -74,6 +71,8 @@ def cap_instructions(text: str, skill_name: str, limit: int) -> str:
     if not text:
         return ""
     tokens = get_token_count(text)
+    if limit <= 0:
+        return ""
     if tokens <= limit:
         return text
     budget = max(1, int(len(text) * limit / tokens))
@@ -135,10 +134,10 @@ def clean_markdown(text: str) -> str:
     return re.sub(r"\n+", " ", text).strip()
 
 
-def tool_section_budget(instructions: str) -> int:
-    """Tools get whatever the instructions leave inside the L2 ceiling, with a floor."""
+def tool_section_budget(instructions: str, fixed_tokens: int = 0) -> int:
+    """Tools get whatever the fixed L2 prefix and instructions leave."""
     used = get_token_count(instructions) if instructions else 0
-    return max(MIN_TOOL_SECTION_TOKENS, L2_MAX_TOKENS - L2_FIXED_TOKENS - INDEX_NOTE_TOKENS - used)
+    return max(0, L2_MAX_TOKENS - fixed_tokens - INDEX_NOTE_TOKENS - used)
 
 
 def build_tool_section(

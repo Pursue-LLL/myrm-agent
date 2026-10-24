@@ -19,10 +19,7 @@ from myrm_agent_harness.agent.skills.mcp.core_generator import (
 from myrm_agent_harness.agent.skills.mcp.description import resolve_description
 from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
     INDEX_NOTE_TOKENS,
-    INSTRUCTIONS_TOKEN_LIMIT,
-    L2_FIXED_TOKENS,
     L2_MAX_TOKENS,
-    MIN_TOOL_SECTION_TOKENS,
     build_tool_section,
     clean_markdown,
     tool_section_budget,
@@ -741,9 +738,8 @@ class TestToolSectionLadder:
 
     def test_budget_reserves_the_tier_note(self) -> None:
         # The tier note is appended after the tool section; the budget must leave room for it.
-        assert L2_FIXED_TOKENS + INSTRUCTIONS_TOKEN_LIMIT + MIN_TOOL_SECTION_TOKENS + INDEX_NOTE_TOKENS == L2_MAX_TOKENS
-        assert tool_section_budget("") == L2_MAX_TOKENS - L2_FIXED_TOKENS - INDEX_NOTE_TOKENS
-        assert tool_section_budget("token " * 3_000) == MIN_TOOL_SECTION_TOKENS
+        assert tool_section_budget("") == L2_MAX_TOKENS - INDEX_NOTE_TOKENS
+        assert tool_section_budget("token " * 3_000) == 0
 
         long_skill = "mcp_" + "x" * 200 + "_skill"
         note = (
@@ -756,7 +752,7 @@ class TestToolSectionLadder:
     def test_names_tier_respects_budget(self) -> None:
         # A verbose server with hundreds of tools cannot fit every name inside the ceiling.
         schemas = self._schemas(300)
-        budget = tool_section_budget("token " * 3_000)
+        budget = 300
         tool_list = build_tool_section(list(schemas), schemas, "x", budget)[0]
         assert get_token_count(tool_list) <= budget
         assert "more tools not shown" in tool_list

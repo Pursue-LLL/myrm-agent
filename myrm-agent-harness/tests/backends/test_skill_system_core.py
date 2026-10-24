@@ -413,7 +413,7 @@ class TestSkillRegistry:
         skill = _make_skill(name="memory", always=True, tags=["memory"])
         summary = get_metadata_summary([skill])
         assert 'always="true"' in summary
-        assert "routing_rules" in summary
+        assert "routing_rules" not in summary
 
     def test_summary_with_unavailable_skill(self) -> None:
         skill = SkillMetadata(

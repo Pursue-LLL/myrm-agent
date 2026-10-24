@@ -167,20 +167,17 @@ def get_metadata_summary(
     """
     if not skills:
         if hidden_skill_count > 0:
-            return "\n".join(
-                [
-                    "<skills>",
-                    " <routing_rules>",
-                    " If the user request directly matches an active tool or capability already provided in the tools schema, call that tool directly instead of selecting skills.",
-                    " If the user explicitly requests or mentions a skill by name: use skill_select_tool on turn 1 before proceeding.",
-                    " If exactly one skill clearly applies to the user's request: use skill_select_tool to read its SKILL.md.",
-                    " If multiple skills jointly apply: select all of them with one skill_select_tool call; ask the user only when their use is mutually exclusive or ambiguous.",
-                    " If no skill applies: proceed without skills.",
-                    " If the needed skill is not listed below: use skill_search_tool before skill_select_tool.",
-                    " </routing_rules>",
-                    "</skills>",
-                ]
-            )
+            lines = [
+                "<skills>",
+                " <routing_rules>",
+                " If the needed skill is not listed below: use skill_search_tool before skill_select_tool.",
+            ]
+            if hidden_skill_names:
+                lines.append(
+                    " Skills named under <hidden_skills> are still bound: pass the name to skill_select_tool directly."
+                )
+            lines.extend([" </routing_rules>", "</skills>"])
+            return "\n".join(lines)
         return "<skills>No skills available.</skills>"
 
     always_skills = [s for s in skills if s.always]
@@ -197,22 +194,15 @@ def get_metadata_summary(
             max_skills,
         )
 
-    lines = [
-        "<skills>",
-        " <routing_rules>",
-        " If the user request directly matches an active tool or capability already provided in the tools schema, call that tool directly instead of selecting skills.",
-        " If the user explicitly requests or mentions a skill by name: use skill_select_tool on turn 1 before proceeding.",
-        " If exactly one skill clearly applies to the user's request: use skill_select_tool to read its SKILL.md.",
-        " If multiple skills jointly apply: select all of them with one skill_select_tool call; ask the user only when their use is mutually exclusive or ambiguous.",
-        " If no skill applies: proceed without skills.",
-    ]
+    lines = ["<skills>"]
     if hidden_skill_count > 0:
+        lines.append(" <routing_rules>")
         lines.append(" If the needed skill is not listed below: use skill_search_tool before skill_select_tool.")
         if hidden_skill_names:
             lines.append(
                 " Skills named under <hidden_skills> are still bound: pass the name to skill_select_tool directly."
             )
-    lines.append(" </routing_rules>")
+        lines.append(" </routing_rules>")
     for s in included:
         attrs = f"name={quoteattr(s.name)} available={quoteattr(str(s.available).lower())} trust={quoteattr(s.trust.name.lower())}"
         if not s.available and s.unavailable_reason:
