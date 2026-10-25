@@ -35,6 +35,7 @@ import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { preloadMonacoEditor } from '@/lib/utils/componentPreloader';
 import { useNavBadges } from '@/hooks/shell/useNavBadges';
 
+import { UtilityMenu } from './UtilityMenu';
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
 import { IconTerminal } from '@/components/features/icons/PremiumIcons';
@@ -482,6 +483,9 @@ function NavBarInner({
             {badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
           </TooltipContent>
         </Tooltip>
+
+        {/* Secondary tools: one rail entry instead of floating capsules */}
+        <UtilityMenu />
 
         {/* Declarative Extension Slot for bottom tools */}
         <ExtensionSlot name="navbar.bottom.tools" className="flex flex-col gap-1 items-center" />

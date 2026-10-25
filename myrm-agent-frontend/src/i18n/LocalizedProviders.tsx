@@ -49,6 +49,8 @@ interface LocalizedProvidersProps {
 }
 
 export async function LocalizedProviders({ children }: LocalizedProvidersProps) {
+  // 开发者工具（UI 检查器、端口面板）只在本地开发模式渲染，生产包对终端用户不可见
+  const isDev = process.env.NODE_ENV !== 'production';
   const locale = await getLocale();
   const messages = await getMessages();
 
@@ -74,15 +76,15 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <ApprovalDrawer />
                 <DeferredAppInitializers />
                 <PageLayout>{children}</PageLayout>
-                <DesignerEyeOverlay />
-                <SystemAssistantTrigger />
-                <DevPortsBar />
-                <DevPortSplitPreviewer />
-                <ToolPickerTrigger />
-                <PresentationTrigger />
+                {isDev && <DesignerEyeOverlay />}
+                <SystemAssistantTrigger showTrigger={false} />
+                {isDev && <DevPortsBar />}
+                {isDev && <DevPortSplitPreviewer />}
+                <ToolPickerTrigger showTrigger={false} />
+                <PresentationTrigger showTrigger={false} />
                 <InteractiveSpreadsheetViewer />
-                <SessionMapTrigger />
-                <WorkbenchToggleTrigger />
+                <SessionMapTrigger showTrigger={false} />
+                <WorkbenchToggleTrigger showTrigger={false} />
                 <MultiTabWorkbench />
                 <Toaster position="top-right" expand={true} richColors />
               </ClientIntlProvider>

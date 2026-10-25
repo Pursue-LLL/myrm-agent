@@ -16,13 +16,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconBrain,
-  IconSparkles,
-} from '@/components/features/icons/PremiumIcons';
+import { IconBrain, IconSparkles } from '@/components/features/icons/PremiumIcons';
 import { SystemAssistantModal } from './SystemAssistantModal';
 
-export function SystemAssistantTrigger() {
+interface SystemAssistantTriggerProps {
+  /** 菜单内使用时只保留快捷键/事件监听与助手弹层。 */
+  showTrigger?: boolean;
+}
+
+export function SystemAssistantTrigger({ showTrigger = true }: SystemAssistantTriggerProps = {}) {
   const t = useTranslations('systemAssistant');
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -37,8 +39,14 @@ export function SystemAssistantTrigger() {
       }
     };
 
+    const handleCustomOpen = () => setIsOpen(true);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('myrm:open-system-assistant', handleCustomOpen);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('myrm:open-system-assistant', handleCustomOpen);
+    };
   }, [isOpen]);
 
   const handleClose = useCallback(() => {
@@ -48,25 +56,27 @@ export function SystemAssistantTrigger() {
   return (
     <>
       {/* Floating HUD Launcher Button */}
-      <aside
-        aria-label={t('launcherAriaLabel')}
-        className="fixed bottom-6 left-6 z-[9990] flex items-center select-none"
-      >
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium shadow-lg backdrop-blur-md bg-card/90 text-foreground border border-border/80 hover:bg-card hover:border-primary/50 ring-1 ring-border/20 hover:ring-primary/30 transition-all"
-          title={t('launcherTooltip')}
+      {showTrigger && (
+        <aside
+          aria-label={t('launcherAriaLabel')}
+          className="fixed bottom-6 left-6 z-[9990] flex items-center select-none"
         >
-          <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-            <IconBrain className="w-3.5 h-3.5" />
-          </div>
-          <span>{t('assistantName')}</span>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
-            {t('shortcutHint')}
-          </kbd>
-        </button>
-      </aside>
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium shadow-lg backdrop-blur-md bg-card/90 text-foreground border border-border/80 hover:bg-card hover:border-primary/50 ring-1 ring-border/20 hover:ring-primary/30 transition-all"
+            title={t('launcherTooltip')}
+          >
+            <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+              <IconBrain className="w-3.5 h-3.5" />
+            </div>
+            <span>{t('assistantName')}</span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
+              {t('shortcutHint')}
+            </kbd>
+          </button>
+        </aside>
+      )}
 
       {/* XiaoMo Natural Language Hub Modal */}
       <SystemAssistantModal isOpen={isOpen} onClose={handleClose} />

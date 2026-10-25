@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresentationTrigger } from '../PresentationTrigger';
 
@@ -47,6 +47,17 @@ describe('PresentationTrigger component', () => {
       key: 'p',
       altKey: true,
       metaKey: true,
+    });
+
+    expect(screen.getByText('modalTitle')).toBeInTheDocument();
+  });
+
+  it('menu mode hides the floating pill and opens from the utility event', () => {
+    render(<PresentationTrigger showTrigger={false} />);
+    expect(screen.queryByLabelText('triggerAriaLabel')).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm:open-presentation'));
     });
 
     expect(screen.getByText('modalTitle')).toBeInTheDocument();

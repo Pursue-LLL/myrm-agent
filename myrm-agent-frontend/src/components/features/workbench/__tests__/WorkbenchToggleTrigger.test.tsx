@@ -67,4 +67,12 @@ describe('WorkbenchToggleTrigger component', () => {
     window.dispatchEvent(new CustomEvent('myrm:open-workbench'));
     expect(useWorkbenchStore.getState().isOpen).toBe(true);
   });
+
+  it('menu mode renders nothing but keeps the global shortcut alive', () => {
+    const { container } = render(<WorkbenchToggleTrigger showTrigger={false} />);
+    expect(container.firstChild).toBeNull();
+
+    fireEvent.keyDown(window, { key: 'b', metaKey: true, shiftKey: true });
+    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+  });
 });

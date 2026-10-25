@@ -20,7 +20,12 @@ import { useTranslations } from 'next-intl';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 
-export function WorkbenchToggleTrigger() {
+interface WorkbenchToggleTriggerProps {
+  /** 菜单内使用时只保留快捷键监听，不再渲染悬浮胶囊。 */
+  showTrigger?: boolean;
+}
+
+export function WorkbenchToggleTrigger({ showTrigger = true }: WorkbenchToggleTriggerProps = {}) {
   const t = useTranslations('workbench');
   const isOpen = useWorkbenchStore((s) => s.isOpen);
   const toggleOpen = useWorkbenchStore((s) => s.toggleOpen);
@@ -45,6 +50,10 @@ export function WorkbenchToggleTrigger() {
       window.removeEventListener('myrm:open-workbench', handleCustomOpen);
     };
   }, [toggleOpen, setOpen]);
+
+  if (!showTrigger) {
+    return null;
+  }
 
   return (
     <aside

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionMapTrigger } from '../SessionMapTrigger';
 import type { ProjectCluster, FleetCockpitSummary } from '@/services/sessionMap';
@@ -182,6 +182,19 @@ describe('SessionMapTrigger component', () => {
     await waitFor(() => {
       expect(screen.getByText('sessionModalSubtitle')).toBeDefined();
       expect(screen.getByRole('button', { name: 'jumpInAction' })).toBeDefined();
+    });
+  });
+
+  it('menu mode hides the HUD capsule and opens from the utility event', async () => {
+    render(<SessionMapTrigger showTrigger={false} />);
+    expect(screen.queryByRole('button', { name: /hudTrigger/i })).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm:open-session-map'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('modalTitle')).toBeDefined();
     });
   });
 });

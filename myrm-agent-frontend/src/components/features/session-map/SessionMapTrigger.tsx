@@ -19,11 +19,7 @@
 
 import { useState, useEffect, useCallback, useId } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconActivity,
-  IconX,
-  IconFolder,
-} from '@/components/features/icons/PremiumIcons';
+import { IconActivity, IconX, IconFolder } from '@/components/features/icons/PremiumIcons';
 import {
   fetchSessionMapProjects,
   fetchFleetCockpitSummary,
@@ -36,7 +32,12 @@ import { SessionMapGraph } from './SessionMapGraph';
 import { AgentFleetCockpit } from './AgentFleetCockpit';
 import { SessionContextJumpModal } from './SessionContextJumpModal';
 
-export function SessionMapTrigger() {
+interface SessionMapTriggerProps {
+  /** 菜单内使用时只保留快捷键/事件监听与地图弹层。 */
+  showTrigger?: boolean;
+}
+
+export function SessionMapTrigger({ showTrigger = true }: SessionMapTriggerProps = {}) {
   const t = useTranslations('sessionMap');
   const dialogTitleId = useId();
 
@@ -57,10 +58,7 @@ export function SessionMapTrigger() {
   const loadData = useCallback(async (filter?: AgentState) => {
     setIsLoading(true);
     try {
-      const [projData, sumData] = await Promise.all([
-        fetchSessionMapProjects(filter),
-        fetchFleetCockpitSummary(),
-      ]);
+      const [projData, sumData] = await Promise.all([fetchSessionMapProjects(filter), fetchFleetCockpitSummary()]);
       setClusters(projData);
       setSummary(sumData);
     } catch {
@@ -116,28 +114,30 @@ export function SessionMapTrigger() {
   return (
     <>
       {/* Floating HUD Capsule Trigger */}
-      <aside
-        data-session-map-ignore="true"
-        aria-label={t('hudAriaLabel')}
-        className="fixed bottom-6 right-48 z-[9985] flex items-center select-none"
-      >
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium shadow-xl backdrop-blur-md transition-all border ${
-            isOpen
-              ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/40'
-              : 'bg-card/90 text-foreground border-border/80 hover:bg-card hover:border-primary/50'
-          }`}
-          title={t('toggleHint')}
+      {showTrigger && (
+        <aside
+          data-session-map-ignore="true"
+          aria-label={t('hudAriaLabel')}
+          className="fixed bottom-6 right-48 z-[9985] flex items-center select-none"
         >
-          <IconActivity className="w-4 h-4 text-emerald-500 animate-pulse" />
-          <span>{isOpen ? t('hudActive') : t('hudTrigger')}</span>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
-            {t('shortcutHint')}
-          </kbd>
-        </button>
-      </aside>
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium shadow-xl backdrop-blur-md transition-all border ${
+              isOpen
+                ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/40'
+                : 'bg-card/90 text-foreground border-border/80 hover:bg-card hover:border-primary/50'
+            }`}
+            title={t('toggleHint')}
+          >
+            <IconActivity className="w-4 h-4 text-emerald-500 animate-pulse" />
+            <span>{isOpen ? t('hudActive') : t('hudTrigger')}</span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
+              {t('shortcutHint')}
+            </kbd>
+          </button>
+        </aside>
+      )}
 
       {/* Full-screen 2D Session Map Modal Cockpit */}
       {isOpen && (
@@ -158,9 +158,7 @@ export function SessionMapTrigger() {
                   <h2 id={dialogTitleId} className="text-base font-semibold">
                     {t('modalTitle')}
                   </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {t('modalSubtitle')}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('modalSubtitle')}</p>
                 </div>
               </div>
 
@@ -215,9 +213,7 @@ export function SessionMapTrigger() {
                             ({proj.workspace_path || 'default'})
                           </span>
                         </div>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {proj.sessions.length} sessions
-                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">{proj.sessions.length} sessions</span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">

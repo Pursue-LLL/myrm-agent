@@ -22,16 +22,17 @@
 
 ## 文件清单
 
-| 文件                      | 职责                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `AppLayout.tsx`           | 主布局：三模式路由映射、侧栏 + 内容区；`LocalBackendUnavailableBanner` + `CronSchedulerHealthBanner` + `ConfigReadinessDegradedBanner` |
-| `useAppLayoutState.ts`    | AppLayout 状态/effect 逻辑（响应式、Tab 路由、侧栏宽度）                                                                               |
-| `MobileSidebarDrawer.tsx` | 移动端滑出式 NavBar + ContentSidebar                                                                                                   |
-| `NavBar.tsx`              | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口 + `navbar.bottom.tools` 扩展插槽 + macOS 交通灯自适应留白                     |
-| `ContentSidebar.tsx`      | 内容区侧栏（chat → 聊天历史，work → 智能体列表）                                                                                       |
+| 文件                      | 职责                                                                                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppLayout.tsx`           | 主布局：三模式路由映射、侧栏 + 内容区；`LocalBackendUnavailableBanner` + `CronSchedulerHealthBanner` + `ConfigReadinessDegradedBanner`                                                                                                 |
+| `useAppLayoutState.ts`    | AppLayout 状态/effect 逻辑（响应式、Tab 路由、侧栏宽度）                                                                                                                                                                               |
+| `MobileSidebarDrawer.tsx` | 移动端滑出式 NavBar + ContentSidebar                                                                                                                                                                                                   |
+| `NavBar.tsx`              | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口 + `navbar.bottom.tools` 扩展插槽 + 工具菜单 + macOS 交通灯自适应留白                                                                                                          |
+| `UtilityMenu.tsx`         | 导航栏底部的「工具」弹出菜单：工作台 / 会话地图 / 演示文稿 / 工具选择 / 小莫中枢；替代原先五个常驻悬浮胶囊，面板仍由各自组件挂载                                                                                                       |
+| `ContentSidebar.tsx`      | 内容区侧栏（chat → 聊天历史，work → 智能体列表）                                                                                                                                                                                       |
 | `PageLayout.tsx`          | 根 layout：hydration 后直进 `AppLayout`；readiness 后台；Onboarding/Boot 全屏 overlay；用 `<MotionConfig reducedMotion="user">` 包住应用内两种形态（含 `?mode=focused` 的无壳分支），让 framer-motion 过渡跟随系统「减少动态效果」偏好 |
-| `RouteSegmentLoading.tsx` | 路由 segment 统一 loading shell（chat/settings/dashboard）                                                                             |
-| `adaptive-grid/`          | 折叠屏（8:7/4:3 展开态）/平板/多窗口异构设备弹性自适应分栏网格、TUI 等宽字符视口智能伸缩与 PTY 协商驾驶舱                              |
+| `RouteSegmentLoading.tsx` | 路由 segment 统一 loading shell（chat/settings/dashboard）                                                                                                                                                                             |
+| `adaptive-grid/`          | 折叠屏（8:7/4:3 展开态）/平板/多窗口异构设备弹性自适应分栏网格、TUI 等宽字符视口智能伸缩与 PTY 协商驾驶舱                                                                                                                              |
 
 ## 依赖
 

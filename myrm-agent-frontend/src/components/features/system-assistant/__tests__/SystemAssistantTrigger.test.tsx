@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SystemAssistantTrigger } from '../SystemAssistantTrigger';
 
@@ -74,5 +74,18 @@ describe('SystemAssistantTrigger component', () => {
     });
 
     expect(screen.queryByText('hubTitle')).toBeNull();
+  });
+
+  it('menu mode hides the launcher and opens from the utility event', async () => {
+    render(<SystemAssistantTrigger showTrigger={false} />);
+    expect(screen.queryByRole('button', { name: /assistantName/i })).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm:open-system-assistant'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('hubTitle')).toBeDefined();
+    });
   });
 });

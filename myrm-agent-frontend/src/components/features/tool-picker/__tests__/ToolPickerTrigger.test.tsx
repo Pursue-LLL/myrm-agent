@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolPickerTrigger } from '../ToolPickerTrigger';
 
@@ -20,16 +20,12 @@ describe('ToolPickerTrigger component', () => {
     vi.clearAllMocks();
     localStorage.clear();
     if (!HTMLDialogElement.prototype.showModal) {
-      HTMLDialogElement.prototype.showModal = function showModalMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.showModal = function showModalMock(this: HTMLDialogElement) {
         this.open = true;
       };
     }
     if (!HTMLDialogElement.prototype.close) {
-      HTMLDialogElement.prototype.close = function closeMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.close = function closeMock(this: HTMLDialogElement) {
         this.open = false;
       };
     }
@@ -73,5 +69,16 @@ describe('ToolPickerTrigger component', () => {
     });
 
     expect(screen.queryByText('modalTitle')).toBeNull();
+  });
+
+  it('menu mode hides the capsule and opens from the utility event', () => {
+    render(<ToolPickerTrigger showTrigger={false} />);
+    expect(screen.queryByRole('button', { name: /triggerAriaLabel/i })).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm:open-tool-picker'));
+    });
+
+    expect(screen.getByText('modalTitle')).toBeDefined();
   });
 });
