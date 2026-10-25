@@ -19,6 +19,7 @@ import React, { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 interface WorkbenchToggleTriggerProps {
   /** 菜单内使用时只保留快捷键监听，不再渲染悬浮胶囊。 */
@@ -43,11 +44,11 @@ export function WorkbenchToggleTrigger({ showTrigger = true }: WorkbenchToggleTr
     const handleCustomOpen = () => setOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('myrm:open-workbench', handleCustomOpen);
+    window.addEventListener(UTILITY_PANEL_EVENTS.workbench, handleCustomOpen);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('myrm:open-workbench', handleCustomOpen);
+      window.removeEventListener(UTILITY_PANEL_EVENTS.workbench, handleCustomOpen);
     };
   }, [toggleOpen, setOpen]);
 

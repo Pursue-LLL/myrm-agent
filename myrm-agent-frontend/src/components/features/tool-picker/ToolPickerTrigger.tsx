@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { CategorizedToolPickerDrawer } from './CategorizedToolPickerDrawer';
 import { IconWrench } from '@/components/features/icons/PremiumIcons';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 interface ToolPickerTriggerProps {
   /** 菜单内使用时只保留快捷键/事件监听与抽屉。 */
@@ -39,10 +40,10 @@ export const ToolPickerTrigger: React.FC<ToolPickerTriggerProps> = ({ showTrigge
     const handleCustomOpen = () => setIsOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('myrm:open-tool-picker', handleCustomOpen);
+    window.addEventListener(UTILITY_PANEL_EVENTS.toolPicker, handleCustomOpen);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('myrm:open-tool-picker', handleCustomOpen);
+      window.removeEventListener(UTILITY_PANEL_EVENTS.toolPicker, handleCustomOpen);
     };
   }, []);
 

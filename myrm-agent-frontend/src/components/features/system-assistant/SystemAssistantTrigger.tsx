@@ -18,6 +18,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconBrain, IconSparkles } from '@/components/features/icons/PremiumIcons';
 import { SystemAssistantModal } from './SystemAssistantModal';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 interface SystemAssistantTriggerProps {
   /** 菜单内使用时只保留快捷键/事件监听与助手弹层。 */
@@ -42,10 +43,10 @@ export function SystemAssistantTrigger({ showTrigger = true }: SystemAssistantTr
     const handleCustomOpen = () => setIsOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('myrm:open-system-assistant', handleCustomOpen);
+    window.addEventListener(UTILITY_PANEL_EVENTS.assistant, handleCustomOpen);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('myrm:open-system-assistant', handleCustomOpen);
+      window.removeEventListener(UTILITY_PANEL_EVENTS.assistant, handleCustomOpen);
     };
   }, [isOpen]);
 

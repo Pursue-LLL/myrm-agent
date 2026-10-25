@@ -31,6 +31,7 @@ import {
 import { SessionMapGraph } from './SessionMapGraph';
 import { AgentFleetCockpit } from './AgentFleetCockpit';
 import { SessionContextJumpModal } from './SessionContextJumpModal';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 interface SessionMapTriggerProps {
   /** 菜单内使用时只保留快捷键/事件监听与地图弹层。 */
@@ -88,11 +89,11 @@ export function SessionMapTrigger({ showTrigger = true }: SessionMapTriggerProps
     const handleCustomOpen = () => setIsOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('myrm:open-session-map', handleCustomOpen);
+    window.addEventListener(UTILITY_PANEL_EVENTS.sessionMap, handleCustomOpen);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('myrm:open-session-map', handleCustomOpen);
+      window.removeEventListener(UTILITY_PANEL_EVENTS.sessionMap, handleCustomOpen);
     };
   }, [isOpen, isJumpModalOpen]);
 

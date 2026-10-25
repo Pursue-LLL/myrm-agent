@@ -20,6 +20,7 @@ import { Activity, Brain, PanelRightOpen, Presentation, Wrench } from 'lucide-re
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface UtilityMenuItem {
@@ -62,28 +63,28 @@ export function UtilityMenu() {
       icon: Activity,
       label: tSessionMap('hudTrigger'),
       shortcut: tSessionMap('shortcutHint'),
-      action: () => run(() => openPanel('myrm:open-session-map')),
+      action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.sessionMap)),
     },
     {
       id: 'presentation',
       icon: Presentation,
       label: tPresentation('menuLabel'),
       shortcut: '⌥⌘P',
-      action: () => run(() => openPanel('myrm:open-presentation')),
+      action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.presentation)),
     },
     {
       id: 'tool-picker',
       icon: Wrench,
       label: tToolPicker('menuLabel'),
       shortcut: '⌘⇧T',
-      action: () => run(() => openPanel('myrm:open-tool-picker')),
+      action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.toolPicker)),
     },
     {
       id: 'assistant',
       icon: Brain,
       label: tAssistant('assistantName'),
       shortcut: tAssistant('shortcutHint'),
-      action: () => run(() => openPanel('myrm:open-system-assistant')),
+      action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.assistant)),
     },
   ];
 

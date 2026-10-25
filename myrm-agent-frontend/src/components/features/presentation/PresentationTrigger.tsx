@@ -16,6 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { PresentationGeneratorModal } from './PresentationGeneratorModal';
+import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 interface PresentationTriggerProps {
   /** 菜单内使用时只保留快捷键/事件监听与生成器弹层。 */
@@ -40,10 +41,10 @@ export const PresentationTrigger: React.FC<PresentationTriggerProps> = ({ showTr
     const handleCustomOpen = () => setIsOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('myrm:open-presentation', handleCustomOpen);
+    window.addEventListener(UTILITY_PANEL_EVENTS.presentation, handleCustomOpen);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('myrm:open-presentation', handleCustomOpen);
+      window.removeEventListener(UTILITY_PANEL_EVENTS.presentation, handleCustomOpen);
     };
   }, []);
 
