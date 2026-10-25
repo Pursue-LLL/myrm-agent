@@ -279,9 +279,10 @@
   /* 使用themeLight的颜色 */
   --background: #fdfdfb;
   --foreground: #0a0a0a;
-  --card: #fbfbf8cf;
+  /* 表面阶梯：亮色下卡片用纯白，浮层同白；语义派生，主题切换自动生效 */
+  --card: #ffffff;
   --card-foreground: #0a0a0a;
-  --popover: #fbfbf8;
+  --popover: #ffffff;
   --popover-foreground: #0a0a0a;
 
   /* 使用themeColors的primary颜色 */
@@ -351,7 +352,7 @@
   --secondary: #f6f6f1;
   --secondary-foreground: #111111;
   --muted: #ededeaac;
-  --muted-foreground: #1c1c1c;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 60%, transparent);
   --accent: #f2f2edd1;
   --accent-foreground: #111111;
 
@@ -378,9 +379,10 @@
   /* 使用themeDark的颜色 */
   --background: #0a0a0a;
   --foreground: #fbfbf8;
-  --card: #0a0a0a;
+  /* 表面阶梯：从背景与前景派生，任何主题/art 组合下都保持同一套层级关系 */
+  --card: color-mix(in srgb, var(--background) 94%, var(--foreground) 6%);
   --card-foreground: #fbfbf8;
-  --popover: #0a0a0a;
+  --popover: color-mix(in srgb, var(--background) 88%, var(--foreground) 12%);
   --popover-foreground: #fbfbf8;
 
   /* 青橙默认主题：深色模式也用 teal 主色，与官网一致 */
@@ -442,7 +444,7 @@
   --secondary: #111111;
   --secondary-foreground: #fbfbf8;
   --muted: #1c1c1c;
-  --muted-foreground: #f2f2ed;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 60%, transparent);
   --accent: #111111;
   --accent-foreground: #fbfbf8;
 
