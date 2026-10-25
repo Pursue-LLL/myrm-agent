@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable, Iterable, Iterator
 from typing import Any
 
@@ -27,17 +28,31 @@ Receive = Callable[[], Awaitable[Message]]
 Send = Callable[[Message], Awaitable[None]]
 
 
+def _compile_templated_pattern(path: str) -> "re.Pattern[str]":
+    """Turn ``/x/{param}/`` into a regex that matches one concrete segment in place of ``{param}``."""
+    escaped = re.escape(path)
+    return re.compile(r"^" + re.sub(r"\\\{[^}]*\\\}", "[^/]+", escaped) + r"$")
+
+
 class TrailingSlashAliasMiddleware:
     """Rewrite ``/x`` to ``/x/`` before routing when only ``/x/`` is registered."""
 
     def __init__(self, app: Callable[[Scope, Receive, Send], Awaitable[None]], slashed_paths: Iterable[str]) -> None:
         self.app = app
-        self._slashed_paths = frozenset(slashed_paths)
+        paths = frozenset(slashed_paths)
+        # 静态集合根（/api/v1/chats/）走 O(1) 精确匹配；带路径参数的集合根
+        # （/api/v1/public/artifact-share/{token}/、/mem0/v1/memories/{memory_id}/）
+        # 必须按一段通配匹配，否则真实请求 /…/abc123 永远命中不了模板字符串。
+        self._static_paths = frozenset(path for path in paths if "{" not in path)
+        self._templated_patterns = tuple(_compile_templated_pattern(path) for path in paths if "{" in path)
+
+    def _has_slashed_alias(self, candidate: str) -> bool:
+        return candidate in self._static_paths or any(p.match(candidate) for p in self._templated_patterns)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") == "http":
             path = scope.get("path") or ""
-            if path and not path.endswith("/") and f"{path}/" in self._slashed_paths:
+            if path and not path.endswith("/") and self._has_slashed_alias(f"{path}/"):
                 scope = dict(scope)
                 scope["path"] = f"{path}/"
                 raw_path = scope.get("raw_path")
