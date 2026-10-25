@@ -17,7 +17,6 @@
 | `AgentTemplateCard.tsx` | 核心 | `<article>` 语义化模板卡片（分类/团队徽章、能力计数、场景 Pills 与克隆触发） | ✅ |
 | `ZeroPromptCloneWorkbench.tsx` | 核心 | `<dialog>` 语义化零提示词瞬时实例化工作台模态框（人设/工具/Wiki蓝图预览、自定义命名与一键克隆） | ✅ |
 | `AgentTemplateMarketplace.tsx` | 核心 | `<section>` 模板中心广场主容器（多行业分类 Tabs 筛选、搜索栏、卡片网格与空状态） | ✅ |
-| `delight/`（子包） | 核心 | 小白零门槛趣味创意灵感工坊与单文件自包含即席沙箱展示台：`QuickDelightLane`、`DelightTemplateGalleryModal`、`SingleFileSandboxShowcase`、`useDelightShowcaseStore`（Item 40 P0） | [delight/_ARCH.md](delight/_ARCH.md) |
 | `index.ts` | 门面 | 对外 re-export 公共组件与 Store | ✅ |
 
 ---

@@ -37,7 +37,6 @@ import ImeKeyGuardInitializer from '@/components/features/app-shell/ime-key-guar
 import DeferredAppInitializers from '@/components/features/app-shell/deferred-app-initializers';
 import { DesignerEyeOverlay } from '@/components/features/designer-eye';
 import { SystemAssistantTrigger } from '@/components/features/system-assistant';
-import { WorkspaceLayoutBar } from '@/components/features/workspace-layout';
 import { DevPortsBar, DevPortSplitPreviewer } from '@/components/features/dev-ports';
 import { ToolPickerTrigger } from '@/components/features/tool-picker';
 import { PresentationTrigger } from '@/components/features/presentation';
@@ -77,7 +76,6 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <PageLayout>{children}</PageLayout>
                 <DesignerEyeOverlay />
                 <SystemAssistantTrigger />
-                <WorkspaceLayoutBar />
                 <DevPortsBar />
                 <DevPortSplitPreviewer />
                 <ToolPickerTrigger />

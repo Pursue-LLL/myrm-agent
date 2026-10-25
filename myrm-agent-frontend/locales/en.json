@@ -1959,41 +1959,6 @@
     }
   },
   "chat": {
-    "squadOnboarding": {
-      "title": "Digital Employee Squads",
-      "badge": "Delegate",
-      "description": "A leader plans and delegates; specialist workers execute in parallel.",
-      "quickInsertMention": "Mention an agent",
-      "assembleSquad": "Assemble squad",
-      "mentionTip": "Type @ in the input box to bring a specific agent into this conversation.",
-      "squadReady": "{name} is ready. Describe your goal and send.",
-      "delegateTag": "Delegate",
-      "leaderLabel": "Leader:",
-      "workersLabel": "Workers:",
-      "squads": {
-        "rnd": {
-          "name": "R&D Delivery Squad",
-          "tagline": "Plan, build and review code in parallel",
-          "leader": "Tech Lead",
-          "workers": "Coder, Reviewer, Tester",
-          "prompt": "Assemble an R&D delivery squad: a tech lead who plans and delegates, plus a coder, a reviewer and a tester working in parallel. My goal: "
-        },
-        "research": {
-          "name": "Deep Research Squad",
-          "tagline": "Search widely, cross-check, write a cited report",
-          "leader": "Research Lead",
-          "workers": "Searcher, Analyst, Writer",
-          "prompt": "Assemble a deep research squad: a research lead who splits the question, plus a searcher, an analyst and a writer who produce a cited report. My topic: "
-        },
-        "strategy": {
-          "name": "Strategy Review Squad",
-          "tagline": "Challenge plans from risk, cost and market angles",
-          "leader": "Strategy Lead",
-          "workers": "Risk Analyst, Cost Analyst, Market Analyst",
-          "prompt": "Assemble a strategy review squad: a strategy lead plus a risk analyst, a cost analyst and a market analyst who each challenge my plan. My plan: "
-        }
-      }
-    },
     "specialtyRouting": {
       "codeSpecialty": "Code Specialty",
       "codeSpecialtyDesc": "Detected programming / refactoring / debugging features, routed silently to code expert model",
@@ -2832,12 +2797,6 @@
       "dedupNotice": "File already in context; duplicate content skipped",
       "alreadyInContext": "In context"
     },
-    "conversationRecall": {
-      "hintTitle": "Continue past conversations",
-      "hintBody": "Enable conversation history search in Settings to ask about earlier chats or use @chat: in the composer.",
-      "openSettings": "Memory settings",
-      "dismiss": "Dismiss"
-    },
     "message": {
       "edit": "Edit",
       "contentFiltered": "Part of the response was filtered by content policy.",
@@ -3212,20 +3171,6 @@
       "night": "Night Deep Work",
       "all": "Explore All"
     },
-    "personalClosedLoop": {
-      "badge": "Trinity Loop",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
-      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
-      "step1Title": "Todo Breakdown",
-      "step1Desc": "Kanban task planning and phase tracking",
-      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
-      "step2Title": "Daily Reconciliation",
-      "step2Desc": "DailyJournal capturing facts and decision blockers",
-      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
-      "step3Title": "Smart Weekly Report",
-      "step3Desc": "WeeklyReview blueprint aggregating metrics",
-      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective."
-    },
     "skillConnectorsPreflight": {
       "title": "Skill Connectors Preflight",
       "missingNotice": "Active skills require unconfigured connectors",
@@ -3313,14 +3258,6 @@
       "importButton": "Open Migration Wizard",
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
-    },
-    "memoryHygieneChip": {
-      "title": "5-Minute Memory Hygiene",
-      "tagline": "Monthly Memory Health Guardian",
-      "subtitle": "Inspect staleness, trim context bloat, and restore disciplined defaults with 1 click",
-      "action": "Run Checkup",
-      "dismiss": "Later",
-      "hermesBadge": "Hermes Migration Standard"
     },
     "retry": "Retry",
     "archiveRestore": {
@@ -11187,12 +11124,6 @@
         "desc": "Past conversations stay searchable, and what the agent learns about you builds into a profile that carries across chats.",
         "metricsConversations": "All conversations: {count}",
         "metricsProfile": "Profile entries: {count}"
-      },
-      "discoveryChip": {
-        "growsWithYou": "The Agent that Grows with You",
-        "loopName": "Five-Ring Closed Loop",
-        "memoriesCount": "{count, plural, one {# memory} other {# memories}}",
-        "viewLoop": "View Learning Loop"
       }
     },
     "knowledgeGraph": {
@@ -13461,32 +13392,6 @@
     "emptyHistoryNotice": "No system commands issued yet",
     "emptyHistoryHint": "Type a spoken instruction or click preset pills above to let XiaoMo orchestrate system operations"
   },
-  "workspaceLayout": {
-    "barAriaLabel": "Workspace layout preset switcher",
-    "barTooltip": "Press ⌘⇧L or click to switch workspace layout preset",
-    "shortcutHint": "⌘⇧L",
-    "modalTitle": "Switch Workspace Layout Preset",
-    "modalSubtitle": "Choose a tailored workspace topology matching your active workflow",
-    "closeAriaLabel": "Close layout selection dialog",
-    "activeLayoutPrefix": "Active Layout",
-    "doneAction": "Done",
-    "copilotTitle": "Copilot Code Review Mode",
-    "copilotDesc": "Expanded code Diff/AST trees, inline review and terminal execution logs for full-stack programming",
-    "copilotBadge": "Code Review",
-    "copilotShortLabel": "Copilot",
-    "multiAgentTitle": "Multi-Agent Cluster Mode",
-    "multiAgentDesc": "Multi-column grid streaming concurrent agent task cards, reasoning states and artifact generation",
-    "multiAgentBadge": "Multi-Agent Cluster",
-    "multiAgentShortLabel": "Agent Cluster",
-    "remoteComputeTitle": "Remote Compute Offload Mode",
-    "remoteComputeDesc": "Focused on remote GPU/workstation load, network sync streams and sandbox telemetry metrics",
-    "remoteComputeBadge": "Remote Offload",
-    "remoteComputeShortLabel": "Compute",
-    "easyMinimalTitle": "Easy Minimalist Mode",
-    "easyMinimalDesc": "Single centered prompt column, hiding complex panels for lightweight conversations and quick tasks",
-    "easyMinimalBadge": "Minimal Focus",
-    "easyMinimalShortLabel": "Minimal"
-  },
   "devPorts": {
     "barAriaLabel": "Dev ports and local service preview hub",
     "barTooltip": "Active dev ports and background services listening",
@@ -14591,31 +14496,6 @@
     "shortcutHint": "Press / to open the command matrix",
     "subtitle": "Browse and insert slash commands by category",
     "title": "Command matrix"
-  },
-  "delightShowcase": {
-    "allCategories": "All categories",
-    "close": "Close template gallery",
-    "codeCopied": "Code copied",
-    "copyCode": "Copy code",
-    "exitFullscreen": "Exit full screen",
-    "fullscreen": "Full screen",
-    "noTemplatesFound": "No matching templates",
-    "previewDemo": "Live preview",
-    "qrCodeShare": "Share via QR code",
-    "qrCodeSubtitle": "Scan with your phone to open this demo",
-    "quickLaneTitle": "Quick templates",
-    "searchPlaceholder": "Search templates",
-    "selfContainedBadge": "Single file, runs anywhere",
-    "subtitle": "Single-file demos you can preview, copy and reuse",
-    "title": "Template gallery",
-    "useTemplate": "Use this template",
-    "quickLaneSubtitle": "Click to craft an instant romantic or playful demo",
-    "celebration": "Birthdays & Festivals",
-    "interactive_fun": "Games & Interaction",
-    "romance_memory": "Romance & Milestones",
-    "utility_tools": "Party & Decision Tools",
-    "generative_art": "Fluid & Generative Art",
-    "promptPrefilled": "Inspiration prompt prefilled into input box"
   },
   "embedWidget": {
     "allowedOriginLabel": "Allowed origin",

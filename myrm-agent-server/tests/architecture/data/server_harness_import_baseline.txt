@@ -424,7 +424,6 @@ myrm_agent_harness.toolkits.acp.core.backend_detector
 myrm_agent_harness.toolkits.acp.runtime.pool
 myrm_agent_harness.toolkits.acp.toolchains
 myrm_agent_harness.toolkits.acp.types
-myrm_agent_harness.toolkits.artifacts.delight_showcase
 myrm_agent_harness.toolkits.artifacts.embed_bridge
 myrm_agent_harness.toolkits.artifacts.ui_alignment
 myrm_agent_harness.toolkits.browser

@@ -74,22 +74,6 @@ const UiVariantCompareViewer = dynamic(
   { ssr: false },
 );
 
-const DelightTemplateGalleryModal = dynamic(
-  () =>
-    import('@/components/features/templates/delight').then((module) => ({
-      default: module.DelightTemplateGalleryModal,
-    })),
-  { ssr: false },
-);
-
-const SingleFileSandboxShowcase = dynamic(
-  () =>
-    import('@/components/features/templates/delight').then((module) => ({
-      default: module.SingleFileSandboxShowcase,
-    })),
-  { ssr: false },
-);
-
 const WidgetGeneratorModal = dynamic(
   () =>
     import('@/components/features/widget').then((module) => ({
@@ -1097,8 +1081,6 @@ export default function ChatWindowSatellites({
           onClose={() => setUiAlignmentOpen(false)}
         />
       ) : null}
-      <DelightTemplateGalleryModal />
-      <SingleFileSandboxShowcase />
       {effectiveChatId && isGeneratorModalOpen ? (
         <WidgetGeneratorModal
           chatId={effectiveChatId}

@@ -1959,41 +1959,6 @@
     }
   },
   "chat": {
-    "squadOnboarding": {
-      "title": "Digitale Mitarbeiter-Squads",
-      "badge": "Delegieren",
-      "description": "Ein Leiter plant und delegiert; Fachkräfte arbeiten parallel.",
-      "quickInsertMention": "Agent erwähnen",
-      "assembleSquad": "Squad zusammenstellen",
-      "mentionTip": "Geben Sie @ in das Eingabefeld ein, um einen bestimmten Agenten in dieses Gespräch zu holen.",
-      "squadReady": "{name} ist bereit. Beschreiben Sie Ihr Ziel und senden Sie es ab.",
-      "delegateTag": "Delegieren",
-      "leaderLabel": "Leiter:",
-      "workersLabel": "Mitglieder:",
-      "squads": {
-        "rnd": {
-          "name": "Entwicklungs-Delivery-Squad",
-          "tagline": "Planen, Programmieren und Reviewen parallel",
-          "leader": "Technischer Leiter",
-          "workers": "Entwickler, Reviewer, Tester",
-          "prompt": "Stelle einen Entwicklungs-Delivery-Squad zusammen: ein Tech Lead plant und delegiert, ein Entwickler, ein Reviewer und ein Tester arbeiten parallel. Mein Ziel: "
-        },
-        "research": {
-          "name": "Deep-Research-Squad",
-          "tagline": "Breit recherchieren, gegenprüfen, Bericht mit Quellen schreiben",
-          "leader": "Rechercheleiter",
-          "workers": "Recherche, Analyse, Redaktion",
-          "prompt": "Stelle einen Deep-Research-Squad zusammen: ein Research Lead zerlegt die Frage, Recherche, Analyse und Redaktion erstellen einen Bericht mit Quellen. Mein Thema: "
-        },
-        "strategy": {
-          "name": "Strategie-Review-Squad",
-          "tagline": "Pläne aus Risiko-, Kosten- und Marktsicht hinterfragen",
-          "leader": "Strategieleiter",
-          "workers": "Risikoanalyst, Kostenanalyst, Marktanalyst",
-          "prompt": "Stelle einen Strategie-Review-Squad zusammen: ein Strategy Lead mit Risiko-, Kosten- und Marktanalyst, die meinen Plan jeweils hinterfragen. Mein Plan: "
-        }
-      }
-    },
     "specialtyRouting": {
       "codeSpecialty": "Code-Spezialisierung",
       "codeSpecialtyDesc": "Programmier-/Refaktorisierungs-/Debugging-Muster erkannt, automatisch an Code-Expertenmodell weitergeleitet",
@@ -2823,12 +2788,6 @@
       "dedupNotice": "Datei ist bereits im Kontext; doppelter Inhalt wird übersprungen",
       "alreadyInContext": "Im Kontext"
     },
-    "conversationRecall": {
-      "hintTitle": "Frühere Gespräche fortsetzen",
-      "hintBody": "Aktivieren Sie die Gesprächsverlaufssuche in den Einstellungen, um nach früheren Chats zu fragen oder @chat: im Editor zu verwenden.",
-      "openSettings": "Speichereinstellungen",
-      "dismiss": "Verwerfen"
-    },
     "message": {
       "edit": "Bearbeiten",
       "contentFiltered": "Ein Teil der Antwort wurde durch die Inhaltsrichtlinie gefiltert.",
@@ -3203,20 +3162,6 @@
       "night": "Nächtliche Tiefenarbeit",
       "all": "Alle erkunden"
     },
-    "personalClosedLoop": {
-      "badge": "Trinity-Schleife",
-      "title": "Persönlicher Workflow-Kreislauf: To-do · Protokoll · Wochenbericht",
-      "desc": "Nimmt Kanban-Aufgaben als Eingabe, erfasst tägliche Faktenprotokolle und fasst sie automatisch zu einem strukturierten Wochenrückblick zusammen – für ein ausgereiftes persönliches Ergebnis.",
-      "step1Title": "Aufgabenzerlegung",
-      "step1Desc": "Kanban-Aufgabenplanung und Phasenverfolgung",
-      "step1Prompt": "Hilf mir, meine aktuellen Kernaufgaben zu ordnen und aufzuteilen, sie zu priorisieren und mit dem Kanban-Board zu synchronisieren.",
-      "step2Title": "Täglicher Abgleich",
-      "step2Desc": "Tagesjournal mit Fakten und Entscheidungshindernissen",
-      "step2Prompt": "Hilf mir, mein heutiges Arbeitsjournal (Tagesjournal) zu verfassen und die wichtigsten Fakten, zentralen Entscheidungshindernisse und Fortschrittsbelege aufzulisten.",
-      "step3Title": "Intelligenter Wochenbericht",
-      "step3Desc": "Wochenrückblick-Vorlage zur Aggregation von Kennzahlen",
-      "step3Prompt": "Rufe die in dieser Woche erledigten Aufgaben und Tagesjournal-Einträge ab und erstelle einen strukturierten Wochenbericht: Ergebnis zuerst, datenbasierte Kennzahlen und Rückblick auf Hindernisse."
-    },
     "skillConnectorsPreflight": {
       "title": "Connector-Vorabprüfung",
       "missingNotice": "Aktive Skills hängen von unkonfigurierten Connectors ab",
@@ -3304,14 +3249,6 @@
       "importButton": "Migrationsassistent öffnen",
       "dismiss": "Vielleicht später",
       "apiKeysHint": "API-Schlüsselnamen erkannt – geben Sie die Werte manuell in den Einstellungen ein"
-    },
-    "memoryHygieneChip": {
-      "title": "5-Minuten-Gedächtnisprüfung",
-      "tagline": "Monatlicher Gedächtnis-Gesundheitswächter",
-      "subtitle": "Veraltete Erinnerungen und Kapazitätsgrenzen prüfen, mit einem Klick selbst heilen",
-      "action": "Jetzt prüfen",
-      "dismiss": "Später",
-      "hermesBadge": "Hermes-Migrationsstandard"
     },
     "retry": "Erneut versuchen",
     "archiveRestore": {
@@ -11187,12 +11124,6 @@
         "desc": "Frühere Gespräche bleiben durchsuchbar, und was der Agent über Sie lernt, wächst zu einem Profil, das über Chats hinweg gilt.",
         "metricsConversations": "Unterhaltungen insgesamt: {count}",
         "metricsProfile": "Profileinträge: {count}"
-      },
-      "discoveryChip": {
-        "growsWithYou": "Der Agent, der mit Ihnen wächst",
-        "loopName": "5-Ringe-Closed-Loop",
-        "memoriesCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
-        "viewLoop": "Lernschleife anzeigen"
       }
     },
     "knowledgeGraph": {
@@ -13461,32 +13392,6 @@
     "emptyHistoryNotice": "Noch keine Systembefehle erteilt",
     "emptyHistoryHint": "Sprechen Sie eine Anweisung oder klicken Sie oben auf eine Vorgabe, damit XiaoMo Systemvorgänge koordiniert"
   },
-  "workspaceLayout": {
-    "barAriaLabel": "Umschalter für Workspace-Layout-Vorgaben",
-    "barTooltip": "Drücken Sie ⌘⇧L oder klicken Sie, um die Workspace-Layout-Vorgabe zu wechseln",
-    "shortcutHint": "⌘⇧L",
-    "modalTitle": "Workspace-Layout-Vorgabe wechseln",
-    "modalSubtitle": "Wählen Sie eine Workspace-Topologie, die zu Ihrem aktuellen Workflow passt",
-    "closeAriaLabel": "Dialog zur Layoutauswahl schließen",
-    "activeLayoutPrefix": "Aktives Layout",
-    "doneAction": "Fertig",
-    "copilotTitle": "Copilot-Code-Review-Modus",
-    "copilotDesc": "Erweiterte Code-Diff-/AST-Bäume, Inline-Review und Terminal-Ausführungsprotokolle für Full-Stack-Programmierung",
-    "copilotBadge": "Code-Review",
-    "copilotShortLabel": "Copilot",
-    "multiAgentTitle": "Multi-Agent-Cluster-Modus",
-    "multiAgentDesc": "Mehrspaltiges Raster mit gleichzeitigen Agent-Aufgabenkarten, Reasoning-Zuständen und Artefakterzeugung",
-    "multiAgentBadge": "Multi-Agent-Cluster",
-    "multiAgentShortLabel": "Agent-Cluster",
-    "remoteComputeTitle": "Remote-Compute-Offload-Modus",
-    "remoteComputeDesc": "Fokus auf Remote-GPU-/Workstation-Last, Netzwerk-Sync-Streams und Sandbox-Telemetriemetriken",
-    "remoteComputeBadge": "Remote-Offload",
-    "remoteComputeShortLabel": "Rechenleistung",
-    "easyMinimalTitle": "Einfacher Minimalmodus",
-    "easyMinimalDesc": "Eine einzelne zentrierte Prompt-Spalte, komplexe Panels ausgeblendet – für leichte Unterhaltungen und schnelle Aufgaben",
-    "easyMinimalBadge": "Minimaler Fokus",
-    "easyMinimalShortLabel": "Schlicht"
-  },
   "devPorts": {
     "barAriaLabel": "Hub für Entwicklungsports und lokale Dienstvorschau",
     "barTooltip": "Aktive Entwicklungsports und lauschende Hintergrunddienste",
@@ -14591,31 +14496,6 @@
     "shortcutHint": "Mit / die Befehlsmatrix öffnen",
     "subtitle": "Slash-Befehle nach Kategorie durchsuchen und einfügen",
     "title": "Befehlsmatrix"
-  },
-  "delightShowcase": {
-    "allCategories": "Alle Kategorien",
-    "close": "Vorlagengalerie schließen",
-    "codeCopied": "Code kopiert",
-    "copyCode": "Code kopieren",
-    "exitFullscreen": "Vollbild beenden",
-    "fullscreen": "Vollbild",
-    "noTemplatesFound": "Keine passenden Vorlagen",
-    "previewDemo": "Live-Vorschau",
-    "qrCodeShare": "Per QR-Code teilen",
-    "qrCodeSubtitle": "Mit dem Smartphone scannen, um diese Demo zu öffnen",
-    "quickLaneTitle": "Schnellvorlagen",
-    "searchPlaceholder": "Vorlagen durchsuchen",
-    "selfContainedBadge": "Einzelne Datei, überall lauffähig",
-    "subtitle": "Einzeldatei-Demos zum Ansehen, Kopieren und Wiederverwenden",
-    "title": "Vorlagengalerie",
-    "useTemplate": "Diese Vorlage verwenden",
-    "quickLaneSubtitle": "Klicken, um sofort eine romantische oder verspielte Demo zu erstellen",
-    "celebration": "Geburtstage & Feste",
-    "interactive_fun": "Spiele & Interaktion",
-    "romance_memory": "Romantik & Meilensteine",
-    "utility_tools": "Party- & Entscheidungswerkzeuge",
-    "generative_art": "Fluid- & generative Kunst",
-    "promptPrefilled": "Inspirations-Prompt wurde in das Eingabefeld eingetragen"
   },
   "embedWidget": {
     "allowedOriginLabel": "Erlaubter Ursprung",

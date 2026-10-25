@@ -1959,41 +1959,6 @@
     }
   },
   "chat": {
-    "squadOnboarding": {
-      "title": "数字员工战队",
-      "badge": "委派协作",
-      "description": "由队长规划并委派任务，专业成员并行执行。",
-      "quickInsertMention": "提及智能体",
-      "assembleSquad": "组建战队",
-      "mentionTip": "在输入框中输入 @，即可把指定智能体加入当前对话。",
-      "squadReady": "{name}已就绪，请描述你的目标并发送。",
-      "delegateTag": "委派",
-      "leaderLabel": "队长：",
-      "workersLabel": "成员：",
-      "squads": {
-        "rnd": {
-          "name": "研发交付战队",
-          "tagline": "并行完成规划、编码与评审",
-          "leader": "技术负责人",
-          "workers": "编码员、评审员、测试员",
-          "prompt": "请组建研发交付战队：由技术负责人规划并委派，编码员、评审员、测试员并行协作。我的目标："
-        },
-        "research": {
-          "name": "深度研究战队",
-          "tagline": "广泛检索、交叉验证、输出带引用的报告",
-          "leader": "研究负责人",
-          "workers": "检索员、分析员、撰稿员",
-          "prompt": "请组建深度研究战队：由研究负责人拆解问题，检索员、分析员、撰稿员协作产出带引用的报告。我的主题："
-        },
-        "strategy": {
-          "name": "战略评审战队",
-          "tagline": "从风险、成本、市场多角度挑战方案",
-          "leader": "战略负责人",
-          "workers": "风险分析师、成本分析师、市场分析师",
-          "prompt": "请组建战略评审战队：由战略负责人带领风险、成本、市场分析师，分别对我的方案提出质疑。我的方案："
-        }
-      }
-    },
     "specialtyRouting": {
       "codeSpecialty": "代码专长",
       "codeSpecialtyDesc": "命中代码编写/重构/Debug特征，已自动路由至代码专精模型",
@@ -2832,12 +2797,6 @@
       "dedupNotice": "该文件已在上下文中，将跳过重复内容直读",
       "alreadyInContext": "已在上下文"
     },
-    "conversationRecall": {
-      "hintTitle": "接着聊以前的会话",
-      "hintBody": "在设置中开启「历史会话搜索」，即可询问此前聊过的内容，或在输入框使用 @chat: 引用指定会话。",
-      "openSettings": "记忆设置",
-      "dismiss": "不再提示"
-    },
     "message": {
       "edit": "编辑",
       "contentFiltered": "部分回复被内容策略过滤。",
@@ -3212,20 +3171,6 @@
       "night": "深夜专注",
       "all": "全部探索"
     },
-    "personalClosedLoop": {
-      "badge": "三位一体闭环",
-      "title": "个人工作流闭环：待办 · 日志 · 周报",
-      "desc": "以看板待办为输入源，沉淀每日日志事实，自动聚合生成高质量结构化周报，实现个人精细化闭环交付。",
-      "step1Title": "待办拆解",
-      "step1Desc": "Kanban 看板任务梳理与阶段跟踪",
-      "step1Prompt": "帮我梳理并拆解当前的核心工作待办事项，按优先级排期并同步至看板任务中。",
-      "step2Title": "日常对账",
-      "step2Desc": "DailyJournal 记录事实与决策卡点",
-      "step2Prompt": "帮我记录并整理今日工作日志（Daily Journal），梳理关键事实、核心决策卡点与进展证据。",
-      "step3Title": "智能周报",
-      "step3Desc": "WeeklyReview 蓝图聚合度量产出",
-      "step3Prompt": "帮我调取本周完成的待办事项与每日日志记录，按结论先行、数据度量与卡点复盘聚合生成一份标准本周工作总结报告。"
-    },
     "skillConnectorsPreflight": {
       "title": "连接器前置依赖预检",
       "missingNotice": "检测到当前启用的技能依赖未配置的连接器",
@@ -3313,14 +3258,6 @@
       "importButton": "打开迁移向导",
       "dismiss": "稍后再说",
       "apiKeysHint": "检测到 API Key 名称，请在设置中手动填写"
-    },
-    "memoryHygieneChip": {
-      "title": "5 分钟记忆体检",
-      "tagline": "月度记忆健康管家",
-      "subtitle": "主动审查陈旧记忆与容量水位，一键自愈与规范化",
-      "action": "立即体检",
-      "dismiss": "稍后再看",
-      "hermesBadge": "Hermes 迁民健康标准"
     },
     "retry": "重试",
     "archiveRestore": {
@@ -3624,8 +3561,8 @@
     "expandReasoning": "展开思考过程",
     "collapseReasoning": "收起思考过程",
     "reasoningLoading": "正在思考",
-    "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens"
+    "reasoningTokens": "{count} 个推理 Token",
+    "reasoningTokensEstimated": "≈ {count} 个推理 Token"
   },
   "mode": {
     "fast": "快速搜索",
@@ -11187,12 +11124,6 @@
         "desc": "历史对话都可被检索，Agent 对你的了解会累积成跨会话共享的画像。",
         "metricsConversations": "累计对话: {count}",
         "metricsProfile": "画像条目: {count}"
-      },
-      "discoveryChip": {
-        "growsWithYou": "越用越懂",
-        "loopName": "五环闭环",
-        "memoriesCount": "已沉淀 {count, plural, one {# 条记忆} other {# 条记忆}}",
-        "viewLoop": "查看闭环"
       }
     },
     "knowledgeGraph": {
@@ -13461,32 +13392,6 @@
     "emptyHistoryNotice": "尚未下达系统指令",
     "emptyHistoryHint": "输入口语要求或点击上方快捷建议，小莫将直接代劳全部系统操作"
   },
-  "workspaceLayout": {
-    "barAriaLabel": "工作区预置布局切换器",
-    "barTooltip": "按 ⌘⇧L 或点击切换工作区预置布局",
-    "shortcutHint": "⌘⇧L",
-    "modalTitle": "切换工作区预置布局",
-    "modalSubtitle": "选择适合您当前工作流的预置布局，系统将自动适配视口重心并持久化记忆",
-    "closeAriaLabel": "关闭布局选择对话框",
-    "activeLayoutPrefix": "当前布局",
-    "doneAction": "完成",
-    "copilotTitle": "代码副驾模式",
-    "copilotDesc": "强化大屏代码 Diff/AST 树、逐行审查与终端执行日志，专为全栈编程设计",
-    "copilotBadge": "代码评审",
-    "copilotShortLabel": "代码副驾",
-    "multiAgentTitle": "多 Agent 矩阵模式",
-    "multiAgentDesc": "多列网格分屏并排展示多个并发 Agent 任务卡、思考状态与工件产出",
-    "multiAgentBadge": "多智能体集群",
-    "multiAgentShortLabel": "Agent 矩阵",
-    "remoteComputeTitle": "云端算力监控模式",
-    "remoteComputeDesc": "侧重远端 GPU/工作站负载、网络数据流与沙箱遥测，适合高强度运算",
-    "remoteComputeBadge": "远程卸载",
-    "remoteComputeShortLabel": "算力监控",
-    "easyMinimalTitle": "精简日常模式",
-    "easyMinimalDesc": "单栏居中大输入框，隐藏所有繁复配置面板，纯粹面向日常问答与轻量任务",
-    "easyMinimalBadge": "极简专注",
-    "easyMinimalShortLabel": "精简日常"
-  },
   "devPorts": {
     "barAriaLabel": "开发端口与服务中枢",
     "barTooltip": "活跃开发端口与服务监听中",
@@ -14591,31 +14496,6 @@
     "shortcutHint": "按 / 打开指令矩阵",
     "subtitle": "按分类浏览并插入斜杠指令",
     "title": "指令矩阵"
-  },
-  "delightShowcase": {
-    "allCategories": "全部分类",
-    "close": "关闭模板库",
-    "codeCopied": "代码已复制",
-    "copyCode": "复制代码",
-    "exitFullscreen": "退出全屏",
-    "fullscreen": "全屏",
-    "noTemplatesFound": "没有匹配的模板",
-    "previewDemo": "实时预览",
-    "qrCodeShare": "二维码分享",
-    "qrCodeSubtitle": "用手机扫码打开此演示",
-    "quickLaneTitle": "快速模板",
-    "searchPlaceholder": "搜索模板",
-    "selfContainedBadge": "单文件，随处运行",
-    "subtitle": "可预览、复制和复用的单文件演示",
-    "title": "模板库",
-    "useTemplate": "使用此模板",
-    "quickLaneSubtitle": "点击即刻创作专属浪漫或趣味 Demo",
-    "celebration": "生日节日庆典",
-    "interactive_fun": "趣味小游戏与互动",
-    "romance_memory": "浪漫告白与纪念日",
-    "utility_tools": "生活聚会决策小工具",
-    "generative_art": "流体与生成式艺术",
-    "promptPrefilled": "灵感提示词已填入输入框"
   },
   "embedWidget": {
     "allowedOriginLabel": "允许的来源",

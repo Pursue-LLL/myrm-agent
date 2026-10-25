@@ -125,9 +125,6 @@ export function findUnguardedMotionSurface(path: string, source: string): Reduce
 export const ALLOWED_WITHOUT_GUARD: Readonly<Record<string, string>> = {
   'myrm-agent-server/app/api/webui/router.py':
     '欢迎页只有一次性的 0.5s fadeIn，不是循环动画；且它只在本地启动引导时出现一次',
-  'myrm-agent-server/app/services/artifacts/delight_showcase/catalog.py':
-    '8 个预置模板中 5 个用 canvas + requestAnimationFrame 绘制，CSS 守卫对 canvas 无效；' +
-    '且这些模板的交付物本身就是动画（烟花、流星雨、转盘、弹球、波浪），属用户要的结果，不由宿主强加',
 };
 
 /**

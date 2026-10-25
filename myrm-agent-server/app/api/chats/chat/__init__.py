@@ -34,10 +34,6 @@ try:  # optional feature: its harness dependency may not be present yet
 except ImportError:  # pragma: no cover - optional feature degradation
     ui_alignment_router = None
 try:  # optional feature: its harness dependency may not be present yet
-    from .delight_showcase import router as delight_showcase_router
-except ImportError:  # pragma: no cover - optional feature degradation
-    delight_showcase_router = None
-try:  # optional feature: its harness dependency may not be present yet
     from .embed_bridge import router as embed_bridge_router
 except ImportError:  # pragma: no cover - optional feature degradation
     embed_bridge_router = None
@@ -53,9 +49,6 @@ router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)
 router.include_router(memory_extract_router)
-# Literal `/delight-templates` paths must be registered ahead of core's `/{chat_id}` pattern or that pattern answers them.
-if delight_showcase_router is not None:
-    router.include_router(delight_showcase_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)

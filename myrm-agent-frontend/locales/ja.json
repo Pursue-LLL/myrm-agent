@@ -1959,41 +1959,6 @@
     }
   },
   "chat": {
-    "squadOnboarding": {
-      "title": "デジタル社員スクワッド",
-      "badge": "委任",
-      "description": "リーダーが計画して委任し、専門メンバーが並行して実行します。",
-      "quickInsertMention": "エージェントをメンション",
-      "assembleSquad": "スクワッドを編成",
-      "mentionTip": "入力欄に @ を入力すると、特定のエージェントをこの会話に呼び出せます。",
-      "squadReady": "{name}の準備ができました。目標を入力して送信してください。",
-      "delegateTag": "委任",
-      "leaderLabel": "リーダー:",
-      "workersLabel": "メンバー:",
-      "squads": {
-        "rnd": {
-          "name": "開発デリバリースクワッド",
-          "tagline": "計画・実装・レビューを並行して進行",
-          "leader": "テックリード",
-          "workers": "実装担当、レビュー担当、テスト担当",
-          "prompt": "開発デリバリースクワッドを編成してください。テックリードが計画して委任し、実装・レビュー・テスト担当が並行して作業します。目標:"
-        },
-        "research": {
-          "name": "ディープリサーチスクワッド",
-          "tagline": "幅広く検索し、相互検証して出典付きレポートを作成",
-          "leader": "リサーチリード",
-          "workers": "検索担当、分析担当、執筆担当",
-          "prompt": "ディープリサーチスクワッドを編成してください。リサーチリードが課題を分解し、検索・分析・執筆担当が出典付きレポートを作成します。テーマ:"
-        },
-        "strategy": {
-          "name": "戦略レビュースクワッド",
-          "tagline": "リスク・コスト・市場の観点から計画を検証",
-          "leader": "戦略リード",
-          "workers": "リスクアナリスト、コストアナリスト、市場アナリスト",
-          "prompt": "戦略レビュースクワッドを編成してください。戦略リードのもと、リスク・コスト・市場のアナリストがそれぞれ私の計画に異議を唱えます。計画:"
-        }
-      }
-    },
     "specialtyRouting": {
       "codeSpecialty": "コード専門",
       "codeSpecialtyDesc": "プログラミング/リファクタリング/デバッグの特性を検出し、コード専門モデルに自動ルーティングしました",
@@ -2823,12 +2788,6 @@
       "dedupNotice": "このファイルは既にコンテキストにあるため、重複する内容は省略されます",
       "alreadyInContext": "コンテキスト内"
     },
-    "conversationRecall": {
-      "hintTitle": "過去の会話を続ける",
-      "hintBody": "設定で履歴セッション検索を有効にすると、以前の会話について質問したり、入力欄で @chat: を使って特定の会話を引用できます。",
-      "openSettings": "メモリ設定",
-      "dismiss": "閉じる"
-    },
     "message": {
       "edit": "編集",
       "contentFiltered": "応答の一部がコンテンツポリシーによりフィルタリングされました。",
@@ -3203,20 +3162,6 @@
       "night": "深夜の集中作業",
       "all": "すべて探索"
     },
-    "personalClosedLoop": {
-      "badge": "トリニティループ",
-      "title": "個人ワークフローループ：ToDo · ログ · 週次レポート",
-      "desc": "カンバンのタスクを入力として日々の事実ログを記録し、構造化された週次レビューへ自動集約して、洗練された個人の成果につなげます。",
-      "step1Title": "ToDo の分解",
-      "step1Desc": "カンバンのタスク計画とフェーズ追跡",
-      "step1Prompt": "現在の重要なタスクを整理して分解し、優先順位を付けて、カンバンボードに同期してください。",
-      "step2Title": "日次の突き合わせ",
-      "step2Desc": "事実と意思決定のブロッカーを記録する日次ジャーナル",
-      "step2Prompt": "今日の作業日誌（日次ジャーナル）を作成し、重要な事実、中核となる意思決定のブロッカー、進捗の根拠を挙げてください。",
-      "step3Title": "スマート週次レポート",
-      "step3Desc": "指標を集約する週次レビューのブループリント",
-      "step3Prompt": "今週の完了済みタスクと日次ジャーナルのログを取得し、結論先行、データに裏付けられた指標、ブロッカーの振り返りに沿って、構造化された週次サマリーレポートをまとめてください。"
-    },
     "skillConnectorsPreflight": {
       "title": "コネクタ事前チェック",
       "missingNotice": "有効なスキルが未設定のコネクタに依存しています",
@@ -3304,14 +3249,6 @@
       "importButton": "移行ウィザードを開く",
       "dismiss": "後で",
       "apiKeysHint": "API キー名を検出しました — 設定で手動入力してください"
-    },
-    "memoryHygieneChip": {
-      "title": "5分間メモリ健康診断",
-      "tagline": "月次メモリヘルスガーディアン",
-      "subtitle": "古い記憶と容量水位を能動的に点検し、ワンクリックで健全化",
-      "action": "今すぐ診断",
-      "dismiss": "後で確認",
-      "hermesBadge": "Hermes 移行ヘルス基準"
     },
     "retry": "再試行",
     "archiveRestore": {
@@ -3624,8 +3561,8 @@
     "expandReasoning": "思考を展開",
     "collapseReasoning": "思考を折りたたむ",
     "reasoningLoading": "思考中",
-    "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens"
+    "reasoningTokens": "{count} 推論トークン",
+    "reasoningTokensEstimated": "≈ {count} 推論トークン"
   },
   "mode": {
     "fast": "高速検索",
@@ -11187,12 +11124,6 @@
         "desc": "過去の会話は検索でき、あなたについての理解はチャットをまたぐプロファイルとして蓄積されます。",
         "metricsConversations": "これまでの会話: {count}",
         "metricsProfile": "プロファイル項目: {count}"
-      },
-      "discoveryChip": {
-        "growsWithYou": "共に成長するエージェント",
-        "loopName": "5環閉ループ",
-        "memoriesCount": "{count, plural, one {# 件の記憶} other {# 件の記憶}}",
-        "viewLoop": "学習ループを表示"
       }
     },
     "knowledgeGraph": {
@@ -13461,32 +13392,6 @@
     "emptyHistoryNotice": "システムコマンドはまだ実行されていません",
     "emptyHistoryHint": "音声で指示を話すか、上のプリセットをクリックすると、小墨がシステム操作を調整します"
   },
-  "workspaceLayout": {
-    "barAriaLabel": "ワークスペースレイアウトのプリセット切り替え",
-    "barTooltip": "⌘⇧L を押すかクリックすると、ワークスペースのレイアウトプリセットを切り替えます",
-    "shortcutHint": "⌘⇧L",
-    "modalTitle": "ワークスペースレイアウトのプリセットを切り替え",
-    "modalSubtitle": "現在の作業内容に合ったワークスペース構成を選択してください",
-    "closeAriaLabel": "レイアウト選択ダイアログを閉じる",
-    "activeLayoutPrefix": "現在のレイアウト",
-    "doneAction": "完了",
-    "copilotTitle": "Copilot コードレビューモード",
-    "copilotDesc": "コードの Diff／AST ツリー、インラインレビュー、ターミナル実行ログを広く表示し、フルスタック開発に対応します",
-    "copilotBadge": "コードレビュー",
-    "copilotShortLabel": "Copilot",
-    "multiAgentTitle": "マルチエージェントクラスターモード",
-    "multiAgentDesc": "並行するエージェントのタスクカード、推論状態、成果物の生成を複数列のグリッドでストリーミング表示します",
-    "multiAgentBadge": "マルチエージェントクラスター",
-    "multiAgentShortLabel": "エージェントクラスター",
-    "remoteComputeTitle": "リモートコンピュートオフロードモード",
-    "remoteComputeDesc": "リモート GPU／ワークステーションの負荷、ネットワーク同期ストリーム、サンドボックスのテレメトリ指標に注目します",
-    "remoteComputeBadge": "リモートオフロード",
-    "remoteComputeShortLabel": "コンピュート",
-    "easyMinimalTitle": "イージーミニマルモード",
-    "easyMinimalDesc": "中央にプロンプト列だけを配置し、複雑なパネルを隠して、軽い会話や手早いタスクに集中できます",
-    "easyMinimalBadge": "ミニマル集中",
-    "easyMinimalShortLabel": "ミニマル"
-  },
   "devPorts": {
     "barAriaLabel": "開発ポートとローカルサービスのプレビューハブ",
     "barTooltip": "待ち受け中の開発ポートとバックグラウンドサービス",
@@ -14591,31 +14496,6 @@
     "shortcutHint": "/ キーでコマンドマトリクスを開く",
     "subtitle": "カテゴリ別にスラッシュコマンドを閲覧して挿入",
     "title": "コマンドマトリクス"
-  },
-  "delightShowcase": {
-    "allCategories": "すべてのカテゴリ",
-    "close": "テンプレートギャラリーを閉じる",
-    "codeCopied": "コードをコピーしました",
-    "copyCode": "コードをコピー",
-    "exitFullscreen": "全画面を終了",
-    "fullscreen": "全画面",
-    "noTemplatesFound": "一致するテンプレートがありません",
-    "previewDemo": "ライブプレビュー",
-    "qrCodeShare": "QRコードで共有",
-    "qrCodeSubtitle": "スマートフォンでスキャンしてこのデモを開く",
-    "quickLaneTitle": "クイックテンプレート",
-    "searchPlaceholder": "テンプレートを検索",
-    "selfContainedBadge": "単一ファイルでどこでも実行",
-    "subtitle": "プレビュー、コピー、再利用できる単一ファイルのデモ",
-    "title": "テンプレートギャラリー",
-    "useTemplate": "このテンプレートを使う",
-    "quickLaneSubtitle": "クリックして、ロマンチックまたは遊び心のあるデモをすぐに作成",
-    "celebration": "誕生日＆お祝い",
-    "interactive_fun": "ゲーム＆インタラクション",
-    "romance_memory": "ロマンス＆記念日",
-    "utility_tools": "パーティー＆意思決定ツール",
-    "generative_art": "フルイド＆ジェネラティブアート",
-    "promptPrefilled": "インスピレーション用のプロンプトを入力欄に入力しました"
   },
   "embedWidget": {
     "allowedOriginLabel": "許可するオリジン",

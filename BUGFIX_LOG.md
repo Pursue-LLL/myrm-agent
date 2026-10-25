@@ -4272,7 +4272,7 @@ except Exception:
 2. server：新增 `test_hitl_timeout.py` 27 例（真实调度器加真实回调的契约：到点经网关恢复、卡片先标记再落库、下一个中断各自挂计时器、无计时器的中断仍可答复、恢复让路给已在运行的回合、失败时释放并重开、记账失败仍挂下一个计时器等）、`test_stream_finalize_interrupt_reopen.py` 3 例、`test_session_reservation.py` 3 例、`test_orchestrator_turn_setup.py` 19 例（拆分前后行为的特征化用例，变异验证过）、渠道回调 1 例。变异检查（改一处、跑、还原）：去掉渠道回调里设置 `approval_session_key` 的一行，该例失败；把 `release_unstreamed_reservation` 改成「总是重开」「从不重开」「预占是否被释放都重开」三种，`test_session_reservation.py` 各有用例失败；还原后 14 例通过。
 3. server 回归：`tests/services/agent`、`tests/services/chat`、`test_gateway.py` 共 1876 通过、4 跳过、1 失败（`test_deep_research_wiki_vault.py::test_vault_research_blocks_credential_content`，修改前就在他人的在制品里失败）。`tests/core/channel_bridge`、`tests/core/cron`、`tests/unit`、`tests/architecture`、`tests/ai_agents` 共 3934 通过、61 失败，失败输出里没有出现本条改动的任何模块；抽查的原因是他人未提交的改动：36 例是 `finalize_channel_stream_reply()` 多了必填参数 `account_guidance`，5 例是 `create_job()` 多了 `project_id`，架构用例里有他人新增的深层 harness 导入与路由。其余没有逐项核对。本条使 `myrm_agent_harness.agent.streaming.types` 不再被 server 导入，已从深层导入基线删去这一行。触及文件的 `ruff check`、`ruff format --check` 通过；`gateway.py` 的 mypy 为 0 错误。
 4. 隔离导出验证与静态检查：提交前把「HEAD + 本条改动」导出到独立目录再跑，排除工作区里他人未提交改动的影响。server `tests/services/agent`、`tests/services/chat`、`test_gateway.py`、`test_executor_helpers_approval.py`、`tests/unit/agent` 共 1886 通过、4 跳过、2 失败（`test_myrm_llm_error_with_recovery_and_cooldown` 是他人只提交了源码没提交测试改动；`test_vault_research_blocks_credential_content` 与本条无关），两例都不在本条的改动里；前端 `store/chat`、`lib/approval`、`components/approval`、`message-box`、`chat-window`、`hooks/approval`、企业设置共 337 个文件、2023 例，2021 通过、2 失败（`messageStreamHandlerMemoryCitations`，他人的记忆引用改动），另有 8 个文件加载失败，原因是 HEAD 里的源码引用了他人还没提交的 `./memory/sovereignMigration` 与 `./in-flight-steer`；harness 相关目录（`tests/agent`、`core`、`api`、`architecture`、`unit`、`goals`、`sub_agents`、`integration`）在工作区共 23380 通过、33 失败、15 跳过，33 例都不在本条的文件里：`test_skill_manage_lock` 3 例（HEAD 上同样失败）、委派 / 子代理配置 / 技能代理隐私上下文 12 例（HEAD 上通过，由他人未提交的改动引起）、架构门禁 18 例（他人新增目录缺 `_ARCH.md`、文件行数基线、工具注册表等；其中文档链接门禁有一例是已删除的审批文字拦截文档在收集后被删，提交后不再出现）。工作区里的前端静态检查：`oxlint` 退出码 0，`prettier --check` 只有 `messageRequest.ts` 报告（出处是他人新增的 `@` 提及抽取，不在本条的改动里），`tsc --noEmit` 49 个错误都在他人的文件里，`verify-i18n` 通过。
-5. 复查修正：`stream_loop.py` 改从类型化的 `myrm_agent_harness.api.security` 导入后，mypy 错误从 25 个变为 13 个 `union-attr`，全是上面现象 7 的真问题；改用异常自带字段后该文件 mypy 为 0 错误（follow-imports 带出的其余错误在别的文件里，不在本条范围）。`test_stream_loop_missing_semantics.py` 2 例通过，新增的无 contract 一例在 HEAD 的处理器上失败（`AttributeError: 'NoneType' object has no attribute 'error_code'`，`stream_loop.py:687`），换成修复后通过。`test_execute_preamble_early_exit.py` 10 例通过（新增 3 例：装配失败重开键 2 例、成功后保持已认领 1 例）；把 `agent.py` 的装配代码换回修复前，重开键的 2 例失败（2 failed、8 passed），还原后一致。harness `api/security.py` 过 `ruff`、`ruff format --check`、`mypy`；`tests/architecture` 的 `test_public_api.py`、`test_md_python_imports.py`、`test_no_star_imports.py`、`test_harness_boundary.py`、`test_check_fractal_docs.py` 共 31 例，30 通过，1 失败（`test_harness_fractal_arch_coverage`，缺 `_ARCH.md` 的是他人新增的 `inbound_quarantine`、`delight_showcase`、`embed_bridge`、`score_honesty`，没有本条的文件）。前端复查：`verify:theme-colors` 通过，本条触及的前端文件 `oxlint` 退出码 0、`prettier --check` 通过，`tsc --noEmit` 当前 50 个错误，全在他人的移动端与工作区驾驶舱文件里。
+5. 复查修正：`stream_loop.py` 改从类型化的 `myrm_agent_harness.api.security` 导入后，mypy 错误从 25 个变为 13 个 `union-attr`，全是上面现象 7 的真问题；改用异常自带字段后该文件 mypy 为 0 错误（follow-imports 带出的其余错误在别的文件里，不在本条范围）。`test_stream_loop_missing_semantics.py` 2 例通过，新增的无 contract 一例在 HEAD 的处理器上失败（`AttributeError: 'NoneType' object has no attribute 'error_code'`，`stream_loop.py:687`），换成修复后通过。`test_execute_preamble_early_exit.py` 10 例通过（新增 3 例：装配失败重开键 2 例、成功后保持已认领 1 例）；把 `agent.py` 的装配代码换回修复前，重开键的 2 例失败（2 failed、8 passed），还原后一致。harness `api/security.py` 过 `ruff`、`ruff format --check`、`mypy`；`tests/architecture` 的 `test_public_api.py`、`test_md_python_imports.py`、`test_no_star_imports.py`、`test_harness_boundary.py`、`test_check_fractal_docs.py` 共 31 例，30 通过，1 失败（`test_harness_fractal_arch_coverage`，缺 `_ARCH.md` 的是他人新增的 `inbound_quarantine`、`embed_bridge`、`score_honesty`，没有本条的文件）。前端复查：`verify:theme-colors` 通过，本条触及的前端文件 `oxlint` 退出码 0、`prettier --check` 通过，`tsc --noEmit` 当前 50 个错误，全在他人的移动端与工作区驾驶舱文件里。
 6. 复查后的服务端回归（修改后的工作区）：`tests/services/agent/stream_session`、`tests/services/agent/streaming_support`、`tests/core/channel_bridge`、`tests/unit/services/agent` 978 通过、36 失败、2 个被标记排除；36 例全是 `finalize_channel_stream_reply()` 缺必填参数 `account_guidance`（他人未提交的改动：`test_execute_finalize.py` 20 例、`test_execute_finalize_errors.py` 16 例），没有本条的模块。回归开始之后改动的 `test_hitl_timeout.py`、`test_orchestrator_turn_setup.py` 另跑过，46 例与 19 例通过。
 
 ### 局限
@@ -5579,7 +5579,7 @@ except Exception:
 | 发现日期 | 2026-10-16 |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P2（展示给用户的指标失真，且对不上成长页真实的待审核数） |
-| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/growth/LearningLoopFiveRingHub.tsx`、`src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、六语种 `locales/*.json` |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/growth/LearningLoopFiveRingHub.tsx`、`src/services/statistics.ts`、六语种 `locales/*.json` |
 | 出现次数 | 1 |
 | 关联条目 | BUG-AGENT-2026-10-16-010（其「局限」里保留的两项在本条处理） |
 
@@ -5599,7 +5599,6 @@ except Exception:
 
 1. 后端：第 2、3 环改读成长页同源的 `summarize_skill_growth_dashboard_stats()`（案例总数、待审核、已自动落地、被拦截或失败）；第 1 环改为统计窗口内出现过 `session_end` 的不同会话数；第 4、5 环逐类型读取记忆数（任一类型读取失败则这两环为 `null`）；删除上述所有推算与写死字段、综合分与固定句。每个来源独立读取，读取失败时对应环返回 `null` 并记警告日志，不再用默认值冒充「就绪」；事件日志目录不存在是真实的 0 个会话，不算不可用。
 2. 前端：`LearningLoopFiveRingHub` 去掉页头分数、「极佳运转」徽章与底部汇总条；每环只展示接口返回的计数，`null` 的环显示「暂不可用」；指标标签与成长页统计卡同词（全部案例、待审核、已自动落地、被拦截或失败），第 1 环的标签带上回看天数，第 2、3 环是累计值，第 5 环的对话数标为累计，与第 1 环的近 N 天会话区分；待审核所在的第 3 环改为跳到设置里处理案例的页面（原先落在看板的「技能趋势」页签，那里只有趋势图，处理不了待审核案例）；环的说明去掉用户看不懂的实现词（Improvement Gate、EvalCase、FTS5、守护线程）和没有对应实现的说法（基线评测、毫秒级召回），改成与真实流程一致的描述；六语种同步。
-3. `GrowingLoopDiscoveryChip`：任一计数不可读时只省略数字、保留入口；文案去掉「活跃」「整合」这类没有依据的词；顺手把 `role="button"` 的 `div` 换成原生 `button`（oxlint `prefer-tag-over-role`），删除未使用的导入。
 4. 测试：后端用互不相同的哨兵数断言整份响应，覆盖「某个来源失败只让依赖它的环为 `null`」，并用真实数据库造一条待审核草稿与一条对话，断言第 2、3 环随之加 1 且等于成长页的同源计数，清理只删本测试新增的行；第 1 环用真实事件日志文件（含跨日会话、窗口外会话、未结束会话）并校验回看天数；前端补 Hub 与 Chip 的组件测试。
 
 ### 验证
@@ -5971,7 +5970,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16 |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（展示失真与不必要的开销，不影响数据） |
-| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
 | 出现次数 | 1 |
 | 关联条目 | BUG-AGENT-2026-10-16-015（其「局限」里的技能总数在本条删除） |
 
@@ -5980,7 +5979,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 每次打开聊天空白页，胶囊都请求整个五环状态接口；开发库里该接口 3 次实测 1.3 至 2.4 s，而 `GET /api/v1/memory/stats` 只要 8 至 12 ms。胶囊只有记忆数与技能数同时读到才显示数字，五环里任何一环读不到、或接口整体失败，整条入口都不出现。
 2. 胶囊上的「技能数」是 198，由内置 134 与本地 64 相加，用户会读成「它学会了 198 项」。
 3. 成长页第 3 环写着「被拦截或失败: 0」，正下方统计卡写着「30 failed」，同屏对不上。
-4. 手机宽度（390）下英、德、日、韩四种语言的胶囊标题被截断：标题与尾注是同一个文案，再加上「View Learning Loop」这类行动文字，英文需要 348 px、只剩 133 px（德 360/121、日 258/150、韩 237/175），中文不截断；平板 640 宽度出现记忆数后英、德再次截断，768 不截断。同类的 `MemoryHygieneDiscoverChip` 与 `ModelOrchestrationPlaybookChip` 在 sm 以下都把行动文字收起，只有这个胶囊没有。
+4. 手机宽度（390）下英、德、日、韩四种语言的胶囊标题被截断：标题与尾注是同一个文案，再加上「View Learning Loop」这类行动文字，英文需要 348 px、只剩 133 px（德 360/121、日 258/150、韩 237/175），中文不截断；平板 640 宽度出现记忆数后英、德再次截断，768 不截断。
 5. 设置页统计卡「全部案例」在韩语写「최근 사례」、德语写没翻译的「Recent Cases」，数字却是不带时间过滤的累计值（`queries.py` 的 `total`），与成长页第 2 环的「전체 사례」「Fälle gesamt」同数不同名。
 6. 无痕会话里，空白页同时显示红色横幅「开启后，本会话不读写记忆」与胶囊尾注「五环闭环运转中」：`EmptyChat.tsx` 里 `IncognitoNotice` 排在胶囊之前，胶囊没有引用无痕。服务端在无痕或关闭记忆时关掉记忆工具组、检索、自动提取与会话结束后的整合（`active_tool_groups.py`、`factory.py`）。用户在设置里关闭记忆（`MemorySettingsToggles.tsx` 的 `enableMemory`）后同样。尾注在 md 及以上才显示。
 7. 胶囊图标用 `animate-pulse`，在 Tailwind 4.3.3 里是 2 秒的无限循环：空白页一加载就开始、永不停止，系统开启「减少动态效果」时也照常播放。
@@ -6005,10 +6004,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 测试：后端删去技能目录夹具与对应的失败用例；胶囊测试改为：请求未返回前入口已可点并能跳转、有数时显示、数为 0 或请求失败时只省略数字，且固定请求带 `silent`；服务层测试固定 `getMemoryStats` 默认保留全局错误提示、传 `silent` 才压住；胶囊另加一例固定窄屏约定（记忆数与尾注 `hidden md:inline`、标题不隐藏、行动文字 `sr-only md:not-sr-only`）。
 5. 胶囊：文案键拆成 `growsWithYou`（标题）与 `loopName`（尾注），六语种同步；md（768）以下只留标题与箭头，尾注、记忆数、行动文字到 md 才显示，记忆数的断点从 sm 改到 md（640 宽度实测会把英、德标题挤断）；行动文字窄屏用 `sr-only` 而不是 `hidden`，读屏仍读得到「查看闭环」。
 6. 文案：韩语 `settings.skills.growth.summary.total` 改为「전체 사례」，德语改为「Fälle gesamt」，与第 2 环同词。
-7. 文档：`topic_09` 路线图两处写「`GrowingLoopDiscoveryChip.tsx:33,35-49` 的 `sessionStorage` 关闭键」，该文件没有关闭键（按 `sessionStorage` 搜该文件与它的 git 历史均为 0 处），删去这一处引用并写明该胶囊每次必渲染；同句里其他胶囊的引用没有动。
 8. 文案：`loopName` 的六语种只写名称、去掉原来的状态词（运转中、Active 等；中「五环闭环」、繁「五環閉環」、英「Five-Ring Closed Loop」与标题、代码注释、接口摘要同写法、日「5環閉ループ」、韩「5개 링 닫힌 루프」与查看页面标题同写法、德「5-Ringe-Closed-Loop」）。
 9. 胶囊：图标改为 `motion-safe:animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_2]`，只脉冲两次（约 4 秒）就静止，系统开启「减少动态效果」时不播放；去掉图标上与父元素重复的 `text-primary`。W3C 对自动开始、持续超过 5 秒且与内容并列的动效要求提供暂停机制，其合规示例是 5 秒后停止。
-10. 胶囊：去掉写死的 `max-w-screen-md`，宽度交给所在的空会话列（同列的 `MemoryHygieneDiscoverChip`、`ModelOrchestrationPlaybookChip` 都是 `w-full`）；单测新增「宽度取自所在列、不给自己设上限」一例。
+10. 胶囊：去掉写死的 `max-w-screen-md`，宽度交给所在的空会话列；单测新增「宽度取自所在列、不给自己设上限」一例。
 
 ### 验证
 
@@ -8507,7 +8505,6 @@ myrm_agent_harness.observability.turn_usage
 myrm_agent_harness.observability.unattended_reliability
 myrm_agent_harness.observability.visual_flight_recorder
 myrm_agent_harness.observability.workflow_throttle
-myrm_agent_harness.toolkits.artifacts.delight_showcase
 myrm_agent_harness.toolkits.artifacts.embed_bridge
 myrm_agent_harness.toolkits.artifacts.ui_alignment
 myrm_agent_harness.toolkits.swarm
