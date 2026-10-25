@@ -52,4 +52,4 @@
 - 产品界面统一关闭 `backdrop-filter`（`[class*='backdrop-blur']` 覆盖）：实测同页 GPU 69% → 38%，深色半透明底色已足够可读；新增玻璃质感请用更实的底色而不是模糊。
 - 表面语义：暗色 `--card` 由 `color-mix(background 94%, foreground 6%)` 派生、`--popover` 取 88%/12%，亮色两者取纯白；`--muted-foreground` 统一取 `foreground 60%`（暗色实测 7.08:1、亮色 5.22:1）。均由主题 token 派生，新增主题/art 组合无需逐个补色值；不要在组件里写死近黑/近白。
 
-- 字体：`app/fonts.ts` 通过 `next/font/local` 自托管 `src/assets/fonts/InterVariable-latin.woff2`（OFL，400–600，47KB），`--font-sans` 以 `var(--font-inter, ui-sans-serif)` 开头；构建与桌面打包均不依赖外网，CJK 按字形回退 PingFang/Noto。
+- 字体：`app/fonts.ts` 通过 `next/font/local` 自托管 `src/assets/fonts/InterVariable-latin.woff2`（OFL，400–600，47KB，预载）与 `AtkinsonVariable-latin.woff2`（OFL，400–700，33KB，按需）；`--font-sans` 以 `var(--font-inter, ui-sans-serif)` 开头，Atkinson 主题通过 `var(--font-atkinson)` 覆盖。构建、运行时与桌面打包都不依赖外网，CJK 按字形回退 PingFang/Noto。

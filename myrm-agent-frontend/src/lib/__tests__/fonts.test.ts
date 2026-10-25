@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FONT_CHOICES, FONT_STORAGE_KEY, type FontId, getFontStack, ensureFontLoaded } from '@/lib/fonts';
+import { FONT_CHOICES, FONT_STORAGE_KEY, type FontId, getFontStack } from '@/lib/fonts';
 
 describe('fonts module', () => {
   describe('FONT_CHOICES', () => {
@@ -26,7 +26,7 @@ describe('fonts module', () => {
 
     it('atkinson stack starts with the correct font name', () => {
       const atkinson = FONT_CHOICES.find((f) => f.id === 'atkinson');
-      expect(atkinson?.stack).toMatch(/^"Atkinson Hyperlegible Next"/);
+      expect(atkinson?.stack).toContain('var(--font-atkinson');
     });
 
     it('all stacks include CJK fallbacks', () => {
@@ -55,38 +55,6 @@ describe('fonts module', () => {
     it('is a non-empty string', () => {
       expect(typeof FONT_STORAGE_KEY).toBe('string');
       expect(FONT_STORAGE_KEY.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('ensureFontLoaded', () => {
-    let appendChildSpy: ReturnType<typeof vi.spyOn>;
-    let createElementSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      const mockLink = { rel: '', href: '' };
-      createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLElement);
-      appendChildSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => node);
-    });
-
-    afterEach(() => {
-      createElementSpy.mockRestore();
-      appendChildSpy.mockRestore();
-    });
-
-    it('does not load for inter (no external URL)', () => {
-      ensureFontLoaded('inter');
-      expect(appendChildSpy).not.toHaveBeenCalled();
-    });
-
-    it('does not load for system (no external URL)', () => {
-      ensureFontLoaded('system');
-      expect(appendChildSpy).not.toHaveBeenCalled();
-    });
-
-    it('loads stylesheet for atkinson on first call', () => {
-      ensureFontLoaded('atkinson');
-      expect(createElementSpy).toHaveBeenCalledWith('link');
-      expect(appendChildSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

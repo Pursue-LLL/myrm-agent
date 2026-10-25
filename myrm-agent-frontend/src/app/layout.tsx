@@ -16,7 +16,7 @@ import AppShellSkeleton from '@/components/features/app-shell/AppShellSkeleton';
 import E2eBridgeLoader from '@/components/dev/E2eBridgeLoader';
 import { WebVitals } from './web-vitals';
 import { getBuildTimeMetadataMessages } from '@/lib/metadata/static-metadata';
-import { inter } from './fonts';
+import { atkinson, inter } from './fonts';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 
 export default function LocaleLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={defaultLocale} className={cn('min-h-full', inter.variable)} suppressHydrationWarning>
+    <html lang={defaultLocale} className={cn('min-h-full', inter.variable, atkinson.variable)} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#fdfdfb" />

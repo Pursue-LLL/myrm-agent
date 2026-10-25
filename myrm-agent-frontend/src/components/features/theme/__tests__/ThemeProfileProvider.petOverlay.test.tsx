@@ -29,9 +29,7 @@ vi.mock('@/services/theme-assets/ThemeAssetStore', () => ({
   verifyThemeAssetAvailable: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock('@/lib/fonts', () => ({
-  ensureFontLoaded: vi.fn(),
-}));
+vi.mock('@/lib/fonts', () => ({}));
 
 import ThemeProfileProvider from '../ThemeProfileProvider';
 import { resolveThemeAssetUrl, verifyThemeAssetAvailable } from '@/services/theme-assets/ThemeAssetStore';

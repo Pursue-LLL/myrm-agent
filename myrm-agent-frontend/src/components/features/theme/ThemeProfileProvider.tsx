@@ -8,7 +8,6 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import useConfigStore from '@/store/useConfigStore';
 import useThemeStudioDomPreviewStore from '@/store/useThemeStudioDomPreviewStore';
-import { ensureFontLoaded } from '@/lib/fonts';
 import {
   applyCompiledTheme,
   compileThemeProfile,
@@ -161,7 +160,6 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   useEffect(() => {
-    ensureFontLoaded(compiled.fontId);
     applyCompiledTheme(document.documentElement, compiled);
     writeThemePreinitSnapshot(compiled, colorScheme, layoutId, sceneId, {
       artPosterUrl: posterUrl ?? (profile.art.mediaKind === 'image' ? mediaUrl : null),
