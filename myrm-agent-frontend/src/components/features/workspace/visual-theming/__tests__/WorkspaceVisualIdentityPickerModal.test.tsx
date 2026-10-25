@@ -30,7 +30,7 @@ describe('WorkspaceVisualIdentityPickerModal', () => {
     expect(
       screen.getByText('2. 选择 Tailwind 主题色彩'),
     ).toBeInTheDocument();
-    expect(screen.getByDisplayValue('架构重构')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('系统研发')).toBeInTheDocument();
   });
 
   it('updates selected icon, color, label and saves theme', () => {
