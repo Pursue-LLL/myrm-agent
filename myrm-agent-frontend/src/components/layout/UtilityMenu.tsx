@@ -95,7 +95,6 @@ export function UtilityMenu() {
             <button
               type="button"
               aria-label={t('tools')}
-              aria-haspopup="menu"
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
                 open ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -113,7 +112,6 @@ export function UtilityMenu() {
           <button
             key={id}
             type="button"
-            role="menuitem"
             onClick={action}
             className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
           >
