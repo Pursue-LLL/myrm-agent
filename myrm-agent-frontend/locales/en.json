@@ -414,6 +414,7 @@
     "close": "Close"
   },
   "nav": {
+    "tools": "Tools",
     "chat": "Chat",
     "work": "Work",
     "projects": "Projects",
@@ -3295,11 +3296,6 @@
       "runAffectedTests": "Run {count} Affected Test Suites"
     },
     "modelPlaybook": {
-      "chipTitle": "Model Orchestration Playbook",
-      "chipBadge": "Strategy",
-      "chipSubtitle": "Learn Brain vs Hands routing and cost recipes",
-      "chipAction": "Open Playbook",
-      "dismiss": "Dismiss",
       "cannotApplyMissingModels": "Cannot apply recipe: Some required models are not configured.",
       "recipeAppliedSuccess": "Recipe applied successfully!",
       "subtitle": "Architectural Guide & Recipes",
@@ -3562,7 +3558,12 @@
     "collapseReasoning": "Collapse reasoning",
     "reasoningLoading": "Thinking",
     "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens"
+    "reasoningTokensEstimated": "≈ {count} tokens",
+    "systemNotices": {
+      "title": "Notices & discover",
+      "open": "Notices",
+      "playbook": "Model orchestration playbook"
+    }
   },
   "mode": {
     "fast": "Fast Search",
@@ -13427,6 +13428,7 @@
     "sniffSuccess": "Successfully detected and registered service port"
   },
   "toolPicker": {
+    "menuLabel": "Tool picker",
     "triggerAriaLabel": "Categorized tool and skill picker",
     "triggerTooltip": "Press ⌘⇧T or click to open categorized tool & skill drawer",
     "modalTitle": "Categorized Tool & Skill Hub",
@@ -13454,6 +13456,7 @@
     "toolsCount": "{count} tools"
   },
   "presentation": {
+    "menuLabel": "Presentation",
     "triggerAriaLabel": "Enterprise presentation slide generator and visual hub",
     "triggerTooltip": "Press ⌥⌘P or click to open PPT presentation generation and preview hub",
     "modalTitle": "High-Fidelity Presentation Deck Generator",

@@ -195,7 +195,7 @@ const useChatStore = create<ChatState>()(
       currentSessionMessageId: null,
       recoveryDialogOpen: false,
       recoveryAgentId: null,
-      isConfigPanelExpanded: true, // 默认展开（聊天首页）
+      isConfigPanelExpanded: false, // 默认收起；由 AgentIndicator 的“详细配置与微调”按需展开
       _autoSaveTimer: null,
       environmentAlerts: new Set<string>(),
 
@@ -1033,7 +1033,7 @@ const useChatStore = create<ChatState>()(
             activeKnowledgeBaseNames: {},
             files: [],
             mentionReferences: [],
-            isConfigPanelExpanded: !id,
+            isConfigPanelExpanded: false,
             environmentAlerts: new Set<string>(),
             selectedModels: {
               base: null,

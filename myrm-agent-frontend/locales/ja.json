@@ -414,6 +414,7 @@
     "close": "閉じる"
   },
   "nav": {
+    "tools": "ツール",
     "chat": "チャット",
     "work": "作業",
     "projects": "プロジェクト",
@@ -3286,11 +3287,6 @@
       "runAffectedTests": "影響を受ける {count} 件のテストを実行"
     },
     "modelPlaybook": {
-      "chipTitle": "モデルオーケストレーション方針",
-      "chipBadge": "推奨戦略",
-      "chipSubtitle": "頭脳と手足の役割分担とコストレシピを確認",
-      "chipAction": "方針を開く",
-      "dismiss": "閉じる",
       "cannotApplyMissingModels": "レシピを適用できません：一部のモデルが未設定です。",
       "recipeAppliedSuccess": "レシピが正常に適用されました！",
       "subtitle": "アーキテクチャガイドとレシピ",
@@ -3562,7 +3558,12 @@
     "collapseReasoning": "思考を折りたたむ",
     "reasoningLoading": "思考中",
     "reasoningTokens": "{count} 推論トークン",
-    "reasoningTokensEstimated": "≈ {count} 推論トークン"
+    "reasoningTokensEstimated": "≈ {count} 推論トークン",
+    "systemNotices": {
+      "title": "通知と発見",
+      "open": "通知",
+      "playbook": "モデル編成プレイブック"
+    }
   },
   "mode": {
     "fast": "高速検索",
@@ -13427,6 +13428,7 @@
     "sniffSuccess": "サービスのポートを検出して登録しました"
   },
   "toolPicker": {
+    "menuLabel": "ツール選択",
     "triggerAriaLabel": "カテゴリ別ツール・スキルピッカー",
     "triggerTooltip": "⌘⇧T を押すかクリックすると、カテゴリ別のツール・スキルドロワーを開きます",
     "modalTitle": "カテゴリ別ツール・スキルハブ",
@@ -13454,6 +13456,7 @@
     "toolsCount": "{count} 件のツール"
   },
   "presentation": {
+    "menuLabel": "プレゼンテーション",
     "triggerAriaLabel": "エンタープライズ向けプレゼンテーションスライド生成とビジュアルハブ",
     "triggerTooltip": "⌥⌘P を押すかクリックすると、PPT の生成・プレビューハブを開きます",
     "modalTitle": "高精細プレゼンテーションデッキ生成",

@@ -414,6 +414,7 @@
     "close": "Schließen"
   },
   "nav": {
+    "tools": "Werkzeuge",
     "chat": "Chatten",
     "work": "Arbeiten",
     "projects": "Projekte",
@@ -3286,11 +3287,6 @@
       "runAffectedTests": "{count} betroffene Test-Suites ausführen"
     },
     "modelPlaybook": {
-      "chipTitle": "Modell-Orchestrierungs-Leitfaden",
-      "chipBadge": "Strategie",
-      "chipSubtitle": "Lernen Sie die Aufteilung in Gehirn- und Hand-Modelle kennen",
-      "chipAction": "Leitfaden öffnen",
-      "dismiss": "Schließen",
       "cannotApplyMissingModels": "Rezept kann nicht angewendet werden: Erforderliche Modelle fehlen.",
       "recipeAppliedSuccess": "Rezept erfolgreich angewendet!",
       "subtitle": "Architekturleitfaden & Rezepte",
@@ -3562,7 +3558,12 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens"
+    "reasoningTokensEstimated": "≈ {count} Tokens",
+    "systemNotices": {
+      "title": "Hinweise & Entdecken",
+      "open": "Hinweise",
+      "playbook": "Modell-Orchestrierungs-Playbook"
+    }
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -13427,6 +13428,7 @@
     "sniffSuccess": "Dienstport erkannt und registriert"
   },
   "toolPicker": {
+    "menuLabel": "Werkzeugauswahl",
     "triggerAriaLabel": "Tool- und Skill-Auswahl nach Kategorien",
     "triggerTooltip": "Drücken Sie ⌘⇧T oder klicken Sie, um die Tool- und Skill-Schublade nach Kategorien zu öffnen",
     "modalTitle": "Tool- und Skill-Hub nach Kategorien",
@@ -13454,6 +13456,7 @@
     "toolsCount": "{count} Tools"
   },
   "presentation": {
+    "menuLabel": "Präsentation",
     "triggerAriaLabel": "Generator für Unternehmenspräsentationen und visueller Hub",
     "triggerTooltip": "Drücken Sie ⌥⌘P oder klicken Sie, um den PPT-Generierungs- und Vorschau-Hub zu öffnen",
     "modalTitle": "Hochwertiger Präsentationsfolien-Generator",

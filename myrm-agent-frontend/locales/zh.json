@@ -414,6 +414,7 @@
     "close": "关闭"
   },
   "nav": {
+    "tools": "工具",
     "chat": "聊天",
     "work": "工作",
     "projects": "项目",
@@ -3295,11 +3296,6 @@
       "runAffectedTests": "运行 {count} 个受影响测试套件"
     },
     "modelPlaybook": {
-      "chipTitle": "模型编排战略手册",
-      "chipBadge": "推荐策略",
-      "chipSubtitle": "了解大脑与手脑分工及成本编排配方",
-      "chipAction": "打开手册",
-      "dismiss": "忽略",
       "cannotApplyMissingModels": "无法应用配方：部分所需模型尚未配置。",
       "recipeAppliedSuccess": "编排配方应用成功！",
       "subtitle": "架构指南与实践配方",
@@ -3562,7 +3558,12 @@
     "collapseReasoning": "收起思考过程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 个推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 个推理 Token"
+    "reasoningTokensEstimated": "≈ {count} 个推理 Token",
+    "systemNotices": {
+      "title": "提醒与发现",
+      "open": "提醒",
+      "playbook": "模型编排手册"
+    }
   },
   "mode": {
     "fast": "快速搜索",
@@ -13427,6 +13428,7 @@
     "sniffSuccess": "已成功捕获并注册服务端口"
   },
   "toolPicker": {
+    "menuLabel": "工具选择",
     "triggerAriaLabel": "工具与技能分类选择器",
     "triggerTooltip": "按 ⌘⇧T 或点击打开工具与技能分类抽屉",
     "modalTitle": "工具与技能分类中枢",
@@ -13454,6 +13456,7 @@
     "toolsCount": "{count} 个工具"
   },
   "presentation": {
+    "menuLabel": "演示文稿",
     "triggerAriaLabel": "企业级 PPT 演示文稿生成与图解中枢",
     "triggerTooltip": "按 ⌥⌘P 或点击打开 PPT 演示文稿生成与预览中枢",
     "modalTitle": "高保真 PPT 演示文稿生成引擎",

@@ -414,6 +414,7 @@
     "close": "닫기"
   },
   "nav": {
+    "tools": "도구",
     "chat": "채팅",
     "work": "작업",
     "projects": "프로젝트",
@@ -3286,11 +3287,6 @@
       "runAffectedTests": "영향받는 {count}개 테스트 실행"
     },
     "modelPlaybook": {
-      "chipTitle": "모델 오케스트레이션 가이드",
-      "chipBadge": "권장 전략",
-      "chipSubtitle": "두뇌와 손 모델 분업 및 비용 레시피 안내",
-      "chipAction": "가이드 열기",
-      "dismiss": "닫기",
       "cannotApplyMissingModels": "레시피를 적용할 수 없습니다: 일부 모델이 설정되지 않았습니다.",
       "recipeAppliedSuccess": "레시피가 성공적으로 적용되었습니다!",
       "subtitle": "아키텍처 가이드 및 레시피",
@@ -3562,7 +3558,12 @@
     "collapseReasoning": "사고 접기",
     "reasoningLoading": "사고 중",
     "reasoningTokens": "{count} 추론 토큰",
-    "reasoningTokensEstimated": "≈ {count} 추론 토큰"
+    "reasoningTokensEstimated": "≈ {count} 추론 토큰",
+    "systemNotices": {
+      "title": "알림 및 발견",
+      "open": "알림",
+      "playbook": "모델 오케스트레이션 플레이북"
+    }
   },
   "mode": {
     "fast": "빠른 검색",
@@ -13427,6 +13428,7 @@
     "sniffSuccess": "서비스 포트를 탐지하여 등록했습니다"
   },
   "toolPicker": {
+    "menuLabel": "도구 선택",
     "triggerAriaLabel": "카테고리별 도구·스킬 선택기",
     "triggerTooltip": "⌘⇧T를 누르거나 클릭하면 카테고리별 도구·스킬 서랍을 엽니다",
     "modalTitle": "카테고리별 도구·스킬 허브",
@@ -13454,6 +13456,7 @@
     "toolsCount": "도구 {count}개"
   },
   "presentation": {
+    "menuLabel": "프레젠테이션",
     "triggerAriaLabel": "엔터프라이즈 프레젠테이션 슬라이드 생성 및 비주얼 허브",
     "triggerTooltip": "⌥⌘P를 누르거나 클릭하면 PPT 생성·미리보기 허브를 엽니다",
     "modalTitle": "고해상도 프레젠테이션 덱 생성기",
