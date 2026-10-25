@@ -220,7 +220,10 @@ fn open_overlay_window(
             screen_h,
             payload.coordinate_mode
         );
-        return Ok((OpenOverlayOutcome::DegradedScreenDimensionMismatch, String::new()));
+        return Ok((
+            OpenOverlayOutcome::DegradedScreenDimensionMismatch,
+            String::new(),
+        ));
     }
 
     let highlight = resolve_overlay_box(payload, screen_w, screen_h, pos_x, pos_y);
@@ -334,7 +337,7 @@ pub fn hide_visual_approval_overlay(app: AppHandle) -> Result<(), String> {
 mod tests {
     use super::{
         is_overlay_label, monitor_dimensions_compatible, monitor_match_score, next_window_label,
-        resolve_overlay_box, scaled_box, overlay_monitor_dimension_mismatch,
+        overlay_monitor_dimension_mismatch, resolve_overlay_box, scaled_box,
         VisualApprovalOverlayPayload,
     };
 

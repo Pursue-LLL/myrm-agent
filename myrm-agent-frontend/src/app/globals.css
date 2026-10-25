@@ -276,6 +276,12 @@
 
 /* CSS 变量定义 */
 :root {
+  /* 字体：Inter 自托管（next/font/local）；CJK 回退系统字体，--font-inter 缺失时整串仍成立 */
+  --font-sans:
+    var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', 'Noto Sans', Arial, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
   /* 使用themeLight的颜色 */
   --background: #fdfdfb;
   --foreground: #0a0a0a;

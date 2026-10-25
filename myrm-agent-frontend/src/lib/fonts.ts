@@ -1,20 +1,10 @@
 /**
- * [INPUT] System & Web font fallbacks (Turbopack standalone / local font tokens)
- * [OUTPUT] fontSans, fontMono: CSS variable declarations for standard typography.
+ * [INPUT] Theme font ids and platform fallbacks (self-hosted Inter lives in src/app/fonts.ts)
  * [OUTPUT] FONT_STORAGE_KEY, FontId, FONT_CHOICES, getFontStack, ensureFontLoaded.
- * [POS] 全局字体系统 SSOT。layout.tsx 导入实例用于 self-host 加载；
- *       AppearancePanel / ThemeProfileProvider 导入 FONT_CHOICES 实现运行时切换。
+ * [POS] 全局字体栈 SSOT：theme-engine 写入 --font-override 时使用的字体栈。
+ *       AppearancePanel / ThemeProfileProvider 导入 FONT_CHOICES 实现运行时切换；
+ *       实际字体文件由 src/app/fonts.ts 通过 next/font/local 自托管。
  */
-
-export const fontSans = {
-  variable: '--font-sans',
-  className: 'font-sans',
-};
-
-export const fontMono = {
-  variable: '--font-mono',
-  className: 'font-mono',
-};
 
 export const FONT_STORAGE_KEY = 'myrm-font';
 

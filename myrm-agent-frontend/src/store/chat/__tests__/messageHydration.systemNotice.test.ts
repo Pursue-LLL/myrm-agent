@@ -15,11 +15,14 @@ function persisted(metadata: Record<string, unknown> | string | null): Message {
 }
 
 describe('parseMessages system notice marker', () => {
-  it.each(['background_job', 'voice_background_task'])('marks a persisted row carrying `%s: true` as a notice', (key) => {
-    const [parsed] = parseMessages([persisted({ [key]: true, status: 'completed' })]);
+  it.each(['background_job', 'voice_background_task'])(
+    'marks a persisted row carrying `%s: true` as a notice',
+    (key) => {
+      const [parsed] = parseMessages([persisted({ [key]: true, status: 'completed' })]);
 
-    expect(parsed.isSystemNotice).toBe(true);
-  });
+      expect(parsed.isSystemNotice).toBe(true);
+    },
+  );
 
   it('reads the marker from metadata persisted as a JSON string', () => {
     const [parsed] = parseMessages([persisted(JSON.stringify({ background_job: true }))]);

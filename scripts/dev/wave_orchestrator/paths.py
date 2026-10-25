@@ -87,15 +87,19 @@ def _state_dir_candidates() -> tuple[Path, ...]:
     return tuple(ordered)
 
 
+_SANDBOX_HOME_PARTS = frozenset({".cursor-3", "cursor-3", ".cursor2", "cursor2"})
+
+
 def _is_sandbox_home_shadow(path: Path) -> bool:
     """True when path is inside a Cursor-sandbox redirected HOME shadow dir.
 
-    Cursor redirects HOME to ~/.cursor-3 so default-inferred state dirs land under
-    the shadow; the real wave lives under the real user's home. Such paths must
-    keep participating in the open-wave scan (R287). Everything else that was
+    Cursor redirects HOME to a sandbox directory (``~/.cursor2`` was measured on
+    2026-08-08, ``~/.cursor-3`` on later builds), so default-inferred state dirs land
+    under the shadow while the real wave lives under the real user's home. Such paths
+    must keep participating in the open-wave scan (R287). Everything else that was
     explicitly set (isolated runtime state dirs, real-home shared dir) is SSOT.
     """
-    return any(part.lower() in (".cursor-3", "cursor-3") for part in path.parts)
+    return any(part.lower() in _SANDBOX_HOME_PARTS for part in path.parts)
 
 
 def resolve_wave_paths() -> WavePaths:

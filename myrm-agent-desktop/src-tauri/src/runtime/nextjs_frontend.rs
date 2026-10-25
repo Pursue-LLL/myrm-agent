@@ -237,7 +237,13 @@ async fn wait_for_http_ready(
                 port
             ));
         }
-        if client.get(&url).send().await.map(|r| r.status().is_success()).unwrap_or(false) {
+        if client
+            .get(&url)
+            .send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false)
+        {
             return Ok(());
         }
         if std::time::Instant::now() >= deadline {

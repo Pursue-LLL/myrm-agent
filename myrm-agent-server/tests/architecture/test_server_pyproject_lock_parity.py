@@ -67,7 +67,7 @@ def test_pyproject_main_deps_have_evidence_packages() -> None:
     names = _main_dependency_names()
     assert "myrm-agent-harness" in names
     assert "httpx" in names
-    assert "tenacity" in names
+    assert "sqlalchemy" in names
     assert "filelock" in names
     assert "aiofiles" not in names
 

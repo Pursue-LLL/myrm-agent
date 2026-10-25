@@ -2,7 +2,6 @@
 
 [INPUT]
 - httpx (POS: Async HTTP client)
-- tenacity (POS: Retry with exponential backoff)
 - app.services.hosting.packager::PublishFile (POS: 可部署文件的统一数据结构)
 
 [OUTPUT]
@@ -12,21 +11,60 @@
 Vercel hosting provider 的私有 API 客户端，封装 Vercel v13 部署与状态轮询。
 """
 
+import asyncio
 import json
 import logging
-from typing import Any
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import Any, ParamSpec, TypeVar
 
 import httpx
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from app.services.hosting.packager import PublishFile
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _retry_on_request_error(
+    max_attempts: int = 3,
+    min_delay: float = 2.0,
+    max_delay: float = 10.0,
+) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+    """Decorator to retry async operations on httpx.RequestError with exponential backoff."""
+
+    def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+        @wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            delay = min_delay
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except httpx.RequestError as exc:
+                    if attempt == max_attempts:
+                        logger.error(
+                            "Vercel request %s failed after %d attempts: %s",
+                            func.__name__,
+                            max_attempts,
+                            exc,
+                        )
+                        raise
+                    logger.warning(
+                        "Vercel request %s attempt %d failed: %s; retrying in %.1fs...",
+                        func.__name__,
+                        attempt,
+                        exc,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, max_delay)
+            raise RuntimeError("Unreachable")
+
+        return wrapper
+
+    return decorator
 
 
 class VercelClient:
@@ -41,12 +79,7 @@ class VercelClient:
             "Content-Type": "application/json",
         }
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.RequestError),
-        reraise=True,
-    )
+    @_retry_on_request_error(max_attempts=3, min_delay=2.0, max_delay=10.0)
     async def deploy(
         self,
         project_name: str,
@@ -102,12 +135,7 @@ class VercelClient:
                 "status": data.get("readyState", "INITIALIZING"),
             }
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.RequestError),
-        reraise=True,
-    )
+    @_retry_on_request_error(max_attempts=3, min_delay=2.0, max_delay=10.0)
     async def get_deployment_status(self, deployment_id: str) -> dict[str, Any]:
         """Get the status of a deployment."""
         url = f"{self.BASE_URL}/v13/deployments/{deployment_id}"

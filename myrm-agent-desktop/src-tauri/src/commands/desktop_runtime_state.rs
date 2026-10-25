@@ -39,12 +39,14 @@ pub fn runtime_state_path(app: &AppHandle) -> PathBuf {
 
 fn write_runtime_file(path: &Path, state: &DesktopRuntimeState) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create runtime state dir: {e}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create runtime state dir: {e}"))?;
     }
     let content = serde_json::to_string_pretty(state)
         .map_err(|e| format!("Failed to serialize desktop runtime state: {e}"))?;
     let temp_path = path.with_extension("json.tmp");
-    fs::write(&temp_path, content).map_err(|e| format!("Failed to write runtime state temp: {e}"))?;
+    fs::write(&temp_path, content)
+        .map_err(|e| format!("Failed to write runtime state temp: {e}"))?;
     fs::rename(&temp_path, path).map_err(|e| {
         let _ = fs::remove_file(&temp_path);
         format!("Failed to commit runtime state file: {e}")

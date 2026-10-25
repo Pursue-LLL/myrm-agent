@@ -92,11 +92,18 @@ mod tests {
     #[test]
     fn platform_support_reports_curtain_exclusion_ready() {
         let payload = screen_lock_platform_support();
-        assert_eq!(payload.get("curtain_capture_excluded_on_desktop").and_then(|v| v.as_bool()), Some(cfg!(any(target_os = "macos", target_os = "windows"))));
+        assert_eq!(
+            payload
+                .get("curtain_capture_excluded_on_desktop")
+                .and_then(|v| v.as_bool()),
+            Some(cfg!(any(target_os = "macos", target_os = "windows")))
+        );
         assert!(payload.get("curtain_capture_exclusion_ready").is_some());
         #[cfg(target_os = "macos")]
         assert_eq!(
-            payload.get("curtain_capture_exclusion_ready").and_then(|v| v.as_bool()),
+            payload
+                .get("curtain_capture_exclusion_ready")
+                .and_then(|v| v.as_bool()),
             Some(true),
         );
     }

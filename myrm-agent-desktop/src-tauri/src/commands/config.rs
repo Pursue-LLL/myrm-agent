@@ -83,7 +83,9 @@ pub async fn reset_system_config(
             &app,
             previous.locked_use_enabled,
         );
-        return Err(format!("Failed to sync away-mode runtime bridge: {sync_err}"));
+        return Err(format!(
+            "Failed to sync away-mode runtime bridge: {sync_err}"
+        ));
     }
 
     use tauri_plugin_autostart::ManagerExt;

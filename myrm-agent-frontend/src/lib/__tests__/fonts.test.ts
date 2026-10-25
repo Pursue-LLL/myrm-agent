@@ -1,19 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('next/font/google', () => ({
-  Inter: () => ({ variable: '--font-sans', className: 'mock-inter' }),
-  JetBrains_Mono: () => ({ variable: '--font-mono', className: 'mock-jbm' }),
-}));
-
-import {
-  FONT_CHOICES,
-  FONT_STORAGE_KEY,
-  type FontId,
-  getFontStack,
-  ensureFontLoaded,
-  fontSans,
-  fontMono,
-} from '@/lib/fonts';
+import { FONT_CHOICES, FONT_STORAGE_KEY, type FontId, getFontStack, ensureFontLoaded } from '@/lib/fonts';
 
 describe('fonts module', () => {
   describe('FONT_CHOICES', () => {
@@ -68,16 +55,6 @@ describe('fonts module', () => {
     it('is a non-empty string', () => {
       expect(typeof FONT_STORAGE_KEY).toBe('string');
       expect(FONT_STORAGE_KEY.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('font instances', () => {
-    it('fontSans has --font-sans variable', () => {
-      expect(fontSans.variable).toBe('--font-sans');
-    });
-
-    it('fontMono has --font-mono variable', () => {
-      expect(fontMono.variable).toBe('--font-mono');
     });
   });
 

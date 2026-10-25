@@ -1197,6 +1197,32 @@ export default function E2EChatBridge() {
           hasDone: /\bDONE\b/i.test(assistantText),
           hasCompletionSignal: /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(assistantText),
           lastAssistantSample: assistantText.slice(0, 200),
+          // Test-only: the shape of the last two messages, so an empty sample can be traced to
+          // the store rather than guessed at.
+          lastTwoMessages: state.messages.slice(-2).map((m) => ({
+            role: m?.role,
+            contentType: Array.isArray(m?.content) ? 'array' : typeof m?.content,
+            contentPreview:
+              typeof m?.content === 'string' ? m.content.slice(0, 160) : null,
+            keys: Object.keys(m ?? {}).slice(0, 18),
+          })),
+          // Test-only view: a tool-approval turn appends an empty assistant placeholder, so the
+          // last assistant alone under-reports the visible answer.
+          assistantSamples: assistants.slice(-4).map((m) => {
+            const c: unknown = m?.content;
+            if (typeof c === 'string') return c.slice(0, 120);
+            if (Array.isArray(c)) {
+              return c
+                .map((part) =>
+                  part && typeof part === 'object' && 'text' in part
+                    ? String((part as { text?: unknown }).text ?? '')
+                    : '',
+                )
+                .join('')
+                .slice(0, 120);
+            }
+            return '';
+          }),
           lastAssistantHasDoneSkipped: /DONE-SKIPPED/i.test(assistantText),
           clarificationAnswered: lastAssistant?.clarification?.answered === true,
           toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,
