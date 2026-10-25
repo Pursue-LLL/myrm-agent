@@ -564,7 +564,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
       <div
         data-testid="progress-steps-panel"
         className={cn(
-          'relative bg-card backdrop-blur-xl border border-border/60 rounded-2xl mt-1 mb-6 transition-all duration-300 hover:shadow-lg',
+          'relative bg-card border border-border/60 rounded-2xl mt-1 mb-6 transition-all duration-300 hover:shadow-lg',
           isExpanded ? 'p-4 sm:p-6' : 'p-3 sm:p-4 cursor-pointer',
         )}
         onClick={handleExpand}
