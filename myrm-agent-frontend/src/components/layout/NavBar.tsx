@@ -174,7 +174,7 @@ function NavBarInner({
       data-theme-shell="nav"
       className={cn(
         'flex flex-col',
-        'bg-background/95 backdrop-blur-xl',
+        'bg-background',
         'border-r border-border/50',
         'transition-all duration-300 ease-in-out',
         // 移动端使用相对定位，以便跟随父容器变换

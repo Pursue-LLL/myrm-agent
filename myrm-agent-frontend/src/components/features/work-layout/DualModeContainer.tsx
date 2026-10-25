@@ -28,11 +28,7 @@ interface DualModeContainerProps {
   className?: string;
 }
 
-export function DualModeContainer({
-  children,
-  headerSlot,
-  className = '',
-}: DualModeContainerProps) {
+export function DualModeContainer({ children, headerSlot, className = '' }: DualModeContainerProps) {
   const t = useTranslations('workLayout');
   const viewMode = useWorkLayoutStore((s) => s.viewMode);
   const computeTier = useWorkLayoutStore((s) => s.computeTier);
@@ -50,7 +46,7 @@ export function DualModeContainer({
       <header
         role="banner"
         aria-label="Mode & Compute Tier Controller"
-        className="w-full px-4 py-2 border-b border-border/50 bg-background/80 backdrop-blur-md flex items-center justify-between gap-3 z-20 shrink-0"
+        className="w-full px-4 py-2 border-b border-border/50 bg-background flex items-center justify-between gap-3 z-20 shrink-0"
       >
         <div className="flex items-center gap-2.5 truncate">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
