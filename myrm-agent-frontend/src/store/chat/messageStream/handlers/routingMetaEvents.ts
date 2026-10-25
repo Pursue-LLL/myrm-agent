@@ -88,6 +88,11 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           });
         });
         ctx.added = true;
+        // 路由帧代表本轮已在服务端启动：立刻把静态等待骨架换成带呼吸动画的消息气泡，
+        // 不让用户在首 token 到达前（实测 2~5s）一直盯着静止占位。
+        if (!ctx.state.messageAppeared) {
+          ctx.state.messageAppeared = true;
+        }
       } else {
         actions.setMessages((state) => {
           const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
@@ -162,14 +167,12 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       // Shape B: External delegation flat payload (acp / external_agents)
       const inputTokens = Number(rawData.input_tokens ?? rawData.prompt_tokens ?? 0);
       const outputTokens = Number(rawData.output_tokens ?? rawData.completion_tokens ?? 0);
-      const totalTokens = Number(rawData.total_tokens ?? (inputTokens + outputTokens));
+      const totalTokens = Number(rawData.total_tokens ?? inputTokens + outputTokens);
       const authMode = (rawData.auth_mode as string) || 'subscription';
       const billable = rawData.billable !== undefined ? Boolean(rawData.billable) : authMode === 'api_key';
       const source = (rawData.source as string) || 'delegate:external';
 
-      const savingsUsd = !billable
-        ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6))
-        : 0;
+      const savingsUsd = !billable ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6)) : 0;
 
       resolvedUsage = {
         prompt_tokens: inputTokens,
@@ -185,8 +188,8 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
         typeof rawData.cost_usd === 'number'
           ? (rawData.cost_usd as number)
           : billable
-          ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6))
-          : 0;
+            ? Number((inputTokens * 0.000003 + outputTokens * 0.000015).toFixed(6))
+            : 0;
       resolvedModelName = typeof rawData.model_name === 'string' ? (rawData.model_name as string) : source;
     }
 

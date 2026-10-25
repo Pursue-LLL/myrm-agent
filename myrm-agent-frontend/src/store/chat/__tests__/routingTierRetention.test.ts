@@ -179,4 +179,26 @@ describe('routingTier retention across SSE sequence', () => {
     expect(assistant?.routingSpecialty).toBe('code');
     expect(assistant?.content).toContain('final answer');
   });
+
+  it('reveals the assistant bubble as soon as routing_decision arrives', async () => {
+    const state = makeState();
+    const actions = makeActions(state);
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.ROUTING_DECISION,
+        messageId: MESSAGE_ID,
+        data: { tier: 'simple' },
+      } as never,
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      actions,
+    );
+
+    expect(state.messageAppeared).toBe(true);
+    expect(state.messages.some((m) => m.role === 'assistant')).toBe(true);
+  });
 });
