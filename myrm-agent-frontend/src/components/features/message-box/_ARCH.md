@@ -51,7 +51,7 @@
 | `MessageBox.tsx`                                  | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支；累积会话 `accumulatedSources` 供 MarkdownContent cite；`ReasoningBlock` 遵循全局 reasoning 显示模式；Regenerate 上报 KB 质量锚点并回传是否送出（请求被拒或回合未送出为 false，菜单据此保留自定义指令），并由 `findLastTurnAnswerId(store.messages)` 判定本条是否为最新回合的回答以决定是否提供重新生成；cancel 时清除 `waiting_for_turn` 残留步骤。 | ✅    |
 
 | `WaitingTtftIndicator.tsx`                    | 组件 | 首 token 前的等待指示：呼吸圆点 + 逐秒计时（文案走 `chat.reasoningThinking`），路由帧到达即挂载，内容/思考到达后卸载 | ✅    |
-| `MessageBoxLoading.tsx` | 辅助 | 流式生成中 assistant 气泡 loading 态 | ✅ |
+| `MessageBoxLoading.tsx` | 辅助 | 首 token 前的等待态：骨架条 + 逐秒计时（复用 `WaitingTtftIndicator`），避免数秒等待被误认为卡死 | ✅ |
 | `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section + 分层来源标签（L0/L1/L2）+ compile snapshot 三态（verified/stale/missing）+ claim `claim_status` badge（仅 contested/unsupported）+ structured claim 与 evidence excerpt 分区 + wiki asset 缩略图与分段渲染；按 `surface(chat/settings)` + `contextKey` 记录证据展开与核验停留时长埋点。 | ✅ |
 | `MessageToc.tsx` | 组件 | 长 assistant 消息目录导航（heading anchor） | ✅ |
 | `QuoteToolbar.tsx` | 组件 | 文本选中工具条：引用到输入框 / 复制；run 中「旁路提问」→ Session Advisor（主 Chat MessageBox；Mobile CC run 中经 `MobileStatusBoard.viewFull` 跳转主 Chat） | ✅ |

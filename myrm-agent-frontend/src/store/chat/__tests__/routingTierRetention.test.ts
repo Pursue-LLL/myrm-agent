@@ -201,4 +201,37 @@ describe('routingTier retention across SSE sequence', () => {
     expect(state.messageAppeared).toBe(true);
     expect(state.messages.some((m) => m.role === 'assistant')).toBe(true);
   });
+
+  it('commits messageAppeared inside the updater so a real store notifies subscribers', async () => {
+    const state = makeState();
+    let committed = state;
+    const actions: StreamHandlerActions = {
+      ...makeActions(state),
+      setMessages: (updater) => {
+        const draft: StreamHandlerState = {
+          ...state,
+          messages: state.messages.map((message) => ({ ...message })),
+        };
+        updater(draft);
+        committed = draft;
+      },
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.ROUTING_DECISION,
+        messageId: MESSAGE_ID,
+        data: { model_tier: 'medium' },
+      } as never,
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      actions,
+    );
+
+    expect(committed.messageAppeared).toBe(true);
+    expect(committed.messages.some((message) => message.role === 'assistant')).toBe(true);
+  });
 });

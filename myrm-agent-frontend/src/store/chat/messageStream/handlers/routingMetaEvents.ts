@@ -86,13 +86,13 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
             createdAt: new Date(),
             metadata: data.metadata,
           });
+          // 路由帧代表本轮已在服务端启动：在同一份 draft 里立刻标记 messageAppeared，
+          // 让 UI 从静态骨架切到带呼吸动画+秒表的气泡（在 updater 外改 state 不会通知订阅者）。
+          if (!state.messageAppeared) {
+            state.messageAppeared = true;
+          }
         });
         ctx.added = true;
-        // 路由帧代表本轮已在服务端启动：立刻把静态等待骨架换成带呼吸动画的消息气泡，
-        // 不让用户在首 token 到达前（实测 2~5s）一直盯着静止占位。
-        if (!ctx.state.messageAppeared) {
-          ctx.state.messageAppeared = true;
-        }
       } else {
         actions.setMessages((state) => {
           const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
