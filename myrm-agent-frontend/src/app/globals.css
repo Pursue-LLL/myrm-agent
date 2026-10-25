@@ -1417,3 +1417,14 @@ html[data-myrm-theme-dual-accent='true'] ::selection {
     font-size: 0.75rem;
   }
 }
+
+/*
+ * 性能：backdrop-filter 会为每块半透明面板建立独立合成层，WebKit/Chromium 在滚动或
+ * 有动画时逐帧重新采样模糊，是 GPU 占用的主要来源。实测同一页面开启模糊 GPU ~69%、
+ * 关闭后 ~39%（页面本身只剩阴影与少量脉冲动画），而深色主题下半透明底色已经足够可读。
+ * 因此产品界面统一保留半透明底色、关闭模糊；需要玻璃质感时用更实的底色替代。
+ */
+[class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
