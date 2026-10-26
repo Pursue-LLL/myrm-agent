@@ -528,7 +528,9 @@
     "unsaved": "Nicht gespeichert",
     "discardConfirm": "Es gibt ungespeicherte Änderungen. Verwerfen?",
     "previewLoadError": "Vorschau konnte nicht geladen werden",
-    "unsupportedPreview": "Dieser Dateityp kann nicht in der Vorschau angezeigt werden. Bitte herunterladen."
+    "unsupportedPreview": "Dieser Dateityp kann nicht in der Vorschau angezeigt werden. Bitte herunterladen.",
+    "folderLoadFailed": "Dieser Ordner konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
+    "mentionFile": "Diese Datei in der Nachricht referenzieren"
   },
   "loadout": {
     "title": "Agenten-Auslastung",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "Workspace-Dateien durchsuchen...",
       "emptyResults": "Keine passenden Dateien gefunden",
-      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner."
+      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner.",
+      "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es später erneut."
     },
     "terminal": {
       "headerTitle": "Terminal",

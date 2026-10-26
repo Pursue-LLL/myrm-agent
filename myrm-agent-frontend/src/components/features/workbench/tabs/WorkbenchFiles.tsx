@@ -5,25 +5,29 @@
  * - useChatStore from @/store/useChatStore (POS: workspaceDir of the current chat)
  * - useWorkspaceFiles, WorkspaceFileBrowser, WorkspaceFilePreview from @/components/features/workspace-browser
  *   (POS: the file tree, live refresh and preview shared with the sidebar workspace view)
+ * - useWorkspaceFileSearch from ./useWorkspaceFileSearch (POS: file-name search over the whole workspace)
  * - useTranslations from next-intl (namespace: 'workbench.files')
  *
  * [OUTPUT]
- * - filterFileEntries: Keeps the entries whose workspace-relative path matches a query
- * - WorkbenchFiles: Files tab of the auxiliary workbench — quick search over the shared workspace browser,
- *   with the file preview laid over the tree
+ * - WorkbenchFiles: Files tab of the auxiliary workbench — the shared workspace browser, a name search laid
+ *   over it while a query is typed, and the file preview laid over both
  *
  * [POS]
  * Files tab of the auxiliary workbench. It owns no file-reading logic: the tree, uploads, rename/move/delete
  * and previews all come from the workspace browser, so the workbench and the sidebar can never disagree.
+ * The tree only reaches a few levels deep, so a typed name is searched on the server over the whole workspace.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { FolderTree, Search } from 'lucide-react';
+import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
-import type { FileEntry } from '@/services/chat';
+import { cn } from '@/lib/utils/classnameUtils';
+import type { FileEntry, WorkspaceFileSearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { useWorkspaceFileSearch, type WorkspaceFileSearchState } from './useWorkspaceFileSearch';
 
 const panelLoading = (
   <div className="flex h-full items-center justify-center p-6">
@@ -49,39 +53,6 @@ const WorkspaceFilePreview = dynamic(
   { ssr: false, loading: () => panelLoading },
 );
 
-/**
- * Keeps entries whose workspace-relative path contains the query, plus the directories that lead to a match.
- * Matching on the relative path keeps the workspace root's own folder names from matching everything.
- */
-export function filterFileEntries(entries: FileEntry[], query: string, workspacePath: string): FileEntry[] {
-  const needle = query.trim().toLowerCase();
-  if (!needle) {
-    return entries;
-  }
-
-  const searchKey = (entry: FileEntry): string =>
-    (entry.path.startsWith(workspacePath) ? entry.path.slice(workspacePath.length) : entry.name).toLowerCase();
-
-  const keep = (list: FileEntry[]): FileEntry[] => {
-    const kept: FileEntry[] = [];
-    for (const entry of list) {
-      if (searchKey(entry).includes(needle)) {
-        kept.push(entry);
-        continue;
-      }
-      if (entry.type === 'directory' && entry.children) {
-        const children = keep(entry.children);
-        if (children.length > 0) {
-          kept.push({ ...entry, children });
-        }
-      }
-    }
-    return kept;
-  };
-
-  return keep(entries);
-}
-
 function CenteredHint({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-xs text-muted-foreground">
@@ -91,17 +62,69 @@ function CenteredHint({ children }: { children: React.ReactNode }) {
   );
 }
 
+function toFileEntry(match: WorkspaceFileSearchResult): FileEntry {
+  return {
+    name: match.name,
+    path: match.path,
+    type: 'file',
+    size: match.size,
+    mtime: null,
+    is_text: null,
+    children: null,
+  };
+}
+
+/** The folder part of a workspace-relative path: `src/lib/a.ts` gives `src/lib`. */
+function parentFolder(relativePath: string, name: string): string {
+  return relativePath.slice(0, Math.max(0, relativePath.length - name.length)).replace(/[\\/]$/, '');
+}
+
+function SearchResults({
+  search,
+  onOpen,
+}: {
+  search: WorkspaceFileSearchState;
+  onOpen: (match: WorkspaceFileSearchResult) => void;
+}) {
+  const t = useTranslations('workbench.files');
+  const { status, results } = search;
+
+  if (status === 'failed') {
+    return <CenteredHint>{t('searchFailed')}</CenteredHint>;
+  }
+  if (results.length === 0) {
+    return status === 'done' ? <CenteredHint>{t('emptyResults')}</CenteredHint> : panelLoading;
+  }
+  return (
+    <ul aria-busy={status === 'searching'} className={cn('py-1', status === 'searching' && 'opacity-60')}>
+      {results.map((match) => (
+        <li key={match.path}>
+          <button
+            type="button"
+            onClick={() => onOpen(match)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
+          >
+            <FileTypeIcon filename={match.name} isDirectory={false} />
+            <span className="shrink-0 truncate" title={match.name}>
+              {match.name}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={match.relative_path}>
+              {parentFolder(match.relative_path, match.name)}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function WorkbenchFiles() {
   const t = useTranslations('workbench.files');
   const workspaceDir = useChatStore((s) => s.workspaceDir);
-  const { files, loading, error, truncated, refresh } = useWorkspaceFiles(workspaceDir);
+  const { files, loading, error, truncated, refresh, loadChildren } = useWorkspaceFiles(workspaceDir);
   const [query, setQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
-
-  const visibleFiles = useMemo(
-    () => (workspaceDir ? filterFileEntries(files, query, workspaceDir) : []),
-    [files, query, workspaceDir],
-  );
+  const search = useWorkspaceFileSearch(workspaceDir, query);
 
   const handleFileClick = useCallback((file: FileEntry) => {
     if (file.type === 'file') {
@@ -109,13 +132,15 @@ export function WorkbenchFiles() {
     }
   }, []);
 
+  const handleOpenMatch = useCallback((match: WorkspaceFileSearchResult) => {
+    setPreviewFile(toFileEntry(match));
+  }, []);
+
   const handleClosePreview = useCallback(() => setPreviewFile(null), []);
 
   if (!workspaceDir) {
     return <CenteredHint>{t('workspaceUnavailable')}</CenteredHint>;
   }
-
-  const hasNoMatch = query.trim() !== '' && files.length > 0 && visibleFiles.length === 0;
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden text-foreground">
@@ -134,26 +159,27 @@ export function WorkbenchFiles() {
       </div>
 
       <div className="relative min-h-0 flex-1">
-        {/* Stays mounted while a search finds nothing, so the expanded folders survive editing the query. */}
+        {/* Stays mounted under the search results, so the folders opened in the tree survive a search. */}
         <WorkspaceFileBrowser
           workspacePath={workspaceDir}
-          files={visibleFiles}
+          files={files}
           loading={loading}
           error={error ? t('workspaceUnavailable') : null}
           truncated={truncated}
           onRefresh={refresh}
           onFileClick={handleFileClick}
+          onLoadChildren={loadChildren}
           className="h-full"
         />
-        {hasNoMatch ? (
-          <div className="absolute inset-0 z-10 bg-background">
-            <CenteredHint>{t('emptyResults')}</CenteredHint>
+        {search.status !== 'idle' ? (
+          <div className="absolute inset-0 z-10 overflow-y-auto bg-background">
+            <SearchResults search={search} onOpen={handleOpenMatch} />
           </div>
         ) : null}
       </div>
 
       {previewFile ? (
-        <div className="absolute inset-0 z-10 bg-background">
+        <div className="absolute inset-0 z-20 bg-background">
           <WorkspaceFilePreview
             file={previewFile}
             workspace={workspaceDir}

@@ -8,8 +8,8 @@
  * - moveInWorkspace from @/services/chat
  *
  * [OUTPUT]
- * - DeleteConfirmDialog: confirmation modal before file/dir deletion
- * - MoveDialog: modal for specifying move-target directory
+ * - DeleteConfirmDialog: confirmation modal before file/dir deletion; Escape cancels it
+ * - MoveDialog: modal for specifying move-target directory; Escape cancels it
  *
  * [POS]
  * Extracted from WorkspaceFileOps.tsx to keep each file under 400 lines.
@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { FileEntry } from '@/services/chat';
 import { moveInWorkspace } from '@/services/chat';
+import { useEscapeDismiss } from './useEscapeDismiss';
 
 // ---------------------------------------------------------------------------
 // Delete confirm dialog
@@ -35,6 +36,8 @@ interface DeleteConfirmDialogProps {
 
 export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ node, onConfirm, onCancel }) => {
   const t = useTranslations('workspace');
+
+  useEscapeDismiss(onCancel);
 
   return (
     <motion.div
@@ -96,6 +99,8 @@ export const MoveDialog: React.FC<MoveDialogProps> = ({ node, workspace, onCompl
   const t = useTranslations('workspace');
   const [targetDir, setTargetDir] = useState('');
 
+  useEscapeDismiss(onCancel);
+
   const handleSubmit = useCallback(async () => {
     const trimmed = targetDir.trim();
     if (!trimmed) {
@@ -115,11 +120,9 @@ export const MoveDialog: React.FC<MoveDialogProps> = ({ node, workspace, onCompl
     (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         handleSubmit();
-      } else if (e.key === 'Escape') {
-        onCancel();
       }
     },
-    [handleSubmit, onCancel],
+    [handleSubmit],
   );
 
   return (

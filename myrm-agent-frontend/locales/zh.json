@@ -528,7 +528,9 @@
     "unsaved": "未保存",
     "discardConfirm": "你有未保存的修改，确定要放弃吗？",
     "previewLoadError": "预览加载失败",
-    "unsupportedPreview": "暂不支持预览此文件类型，请下载查看。"
+    "unsupportedPreview": "暂不支持预览此文件类型，请下载查看。",
+    "folderLoadFailed": "无法打开此文件夹，请重试。",
+    "mentionFile": "在输入框中引用此文件"
   },
   "loadout": {
     "title": "智能体配装",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "搜索工作区文件...",
       "emptyResults": "未找到匹配的文件",
-      "workspaceUnavailable": "这个对话还没有工作区文件夹。"
+      "workspaceUnavailable": "这个对话还没有工作区文件夹。",
+      "searchFailed": "搜索失败，请稍后重试。"
     },
     "terminal": {
       "headerTitle": "终端",

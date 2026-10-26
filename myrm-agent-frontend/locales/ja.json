@@ -528,7 +528,9 @@
     "unsaved": "未保存",
     "discardConfirm": "未保存の変更があります。破棄しますか？",
     "previewLoadError": "プレビューの読み込みに失敗しました",
-    "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。"
+    "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。",
+    "folderLoadFailed": "このフォルダを開けませんでした。もう一度お試しください。",
+    "mentionFile": "このファイルをメッセージで参照"
   },
   "loadout": {
     "title": "エージェント配装",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "ワークスペースのファイルを検索...",
       "emptyResults": "一致するファイルが見つかりません",
-      "workspaceUnavailable": "この会話にはまだワークスペースのフォルダがありません。"
+      "workspaceUnavailable": "この会話にはまだワークスペースのフォルダがありません。",
+      "searchFailed": "検索に失敗しました。しばらくしてからもう一度お試しください。"
     },
     "terminal": {
       "headerTitle": "ターミナル",

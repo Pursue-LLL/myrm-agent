@@ -528,7 +528,9 @@
     "unsaved": "저장되지 않음",
     "discardConfirm": "저장하지 않은 변경 사항이 있습니다. 취소하시겠습니까?",
     "previewLoadError": "미리보기 로드 실패",
-    "unsupportedPreview": "이 파일 형식은 미리보기를 지원하지 않습니다. 다운로드하여 확인하세요."
+    "unsupportedPreview": "이 파일 형식은 미리보기를 지원하지 않습니다. 다운로드하여 확인하세요.",
+    "folderLoadFailed": "이 폴더를 열 수 없습니다. 다시 시도해 주세요.",
+    "mentionFile": "메시지에서 이 파일 참조"
   },
   "loadout": {
     "title": "에이전트 로드아웃",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "워크스페이스 파일 검색...",
       "emptyResults": "일치하는 파일이 없습니다",
-      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다."
+      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다.",
+      "searchFailed": "검색에 실패했습니다. 잠시 후 다시 시도해 주세요."
     },
     "terminal": {
       "headerTitle": "터미널",

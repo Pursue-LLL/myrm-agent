@@ -153,8 +153,6 @@ src/components/features/skills/SkillInstanceManager.tsx
 src/components/features/skills/SkillPermissionsManager.tsx
 src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx
 src/components/features/theme-studio/ThemeStudioSection.tsx
-src/components/features/workspace-browser/WorkspaceFileBrowser.tsx
-src/components/features/workspace-browser/WorkspaceFileOps.tsx
 src/components/features/workspace/ReviewPanel.tsx
 src/components/layout/NavBar.tsx
 src/hooks/agent/useAgentConfigPanel.ts

@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FileEntry } from '@/services/chat';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FileEntry, WorkspaceFileSearchResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { filterFileEntries, WorkbenchFiles } from '../tabs/WorkbenchFiles';
+import { WorkbenchFiles } from '../tabs/WorkbenchFiles';
 
 const WORKSPACE = '/vault/chat-1';
 
@@ -18,6 +18,7 @@ interface BrowserStubProps {
   files: FileEntry[];
   error?: string | null;
   onFileClick?: (file: FileEntry) => void;
+  onLoadChildren: (dirPath: string) => Promise<void>;
 }
 
 interface PreviewStubProps {
@@ -48,9 +49,12 @@ vi.mock('next/dynamic', () => ({
         </div>
       );
     }
-    return ({ workspacePath, files, error, onFileClick }: BrowserStubProps) => (
+    return ({ workspacePath, files, error, onFileClick, onLoadChildren }: BrowserStubProps) => (
       <div data-testid="file-browser" data-workspace={workspacePath}>
         {error ? <span role="alert">{error}</span> : null}
+        <button type="button" onClick={() => void onLoadChildren(`${workspacePath}/deep`)}>
+          open-deep-folder
+        </button>
         {renderEntries(files, onFileClick)}
       </div>
     );
@@ -63,6 +67,7 @@ interface HookState {
   error: string | null;
   truncated: boolean;
   refresh: () => Promise<void>;
+  loadChildren: (dirPath: string) => Promise<void>;
 }
 
 const hookState: HookState = {
@@ -71,11 +76,20 @@ const hookState: HookState = {
   error: null,
   truncated: false,
   refresh: vi.fn(async () => {}),
+  loadChildren: vi.fn(async () => {}),
 };
 const useWorkspaceFilesMock = vi.fn((_workspacePath: string | null | undefined) => hookState);
 
 vi.mock('@/components/features/workspace-browser/useWorkspaceFiles', () => ({
   useWorkspaceFiles: (workspacePath: string | null | undefined) => useWorkspaceFilesMock(workspacePath),
+}));
+
+const searchWorkspaceFilesMock = vi.fn(
+  async (_workspace: string, _query: string): Promise<WorkspaceFileSearchResponse> => ({ results: [], total: 0 }),
+);
+
+vi.mock('@/services/chat', () => ({
+  searchWorkspaceFiles: (workspace: string, query: string) => searchWorkspaceFilesMock(workspace, query),
 }));
 
 const entry = (path: string, type: FileEntry['type'], children: FileEntry[] | null = null): FileEntry => ({
@@ -93,49 +107,32 @@ const TREE: FileEntry[] = [
   entry('README.md', 'file'),
 ];
 
-describe('filterFileEntries', () => {
-  it('returns every entry for a blank query', () => {
-    expect(filterFileEntries(TREE, '   ', WORKSPACE)).toBe(TREE);
+const DEEP_MATCH = {
+  name: 'Hello.ts',
+  path: `${WORKSPACE}/src/components/Hello.ts`,
+  relative_path: 'src/components/Hello.ts',
+  size: 84,
+};
+
+/** Types a query and lets the search debounce elapse and the answer arrive. */
+async function search(query: string): Promise<void> {
+  fireEvent.change(screen.getByRole('searchbox', { name: 'searchPlaceholder' }), { target: { value: query } });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(300);
   });
-
-  it('matches names case-insensitively', () => {
-    const result = filterFileEntries(TREE, 'readme', WORKSPACE);
-
-    expect(result.map((item) => item.name)).toEqual(['README.md']);
-  });
-
-  it('keeps the directories that lead to a match but only the matching children', () => {
-    const result = filterFileEntries(TREE, 'util', WORKSPACE);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('src');
-    expect(result[0].children?.map((item) => item.name)).toEqual(['util.ts']);
-  });
-
-  it('keeps the whole content of a directory whose own path matches', () => {
-    const result = filterFileEntries(TREE, 'src', WORKSPACE);
-
-    expect(result[0].children?.map((item) => item.name)).toEqual(['index.ts', 'util.ts']);
-  });
-
-  it("does not match on the workspace root's own folder names", () => {
-    expect(filterFileEntries(TREE, 'vault', WORKSPACE)).toEqual([]);
-    expect(filterFileEntries(TREE, 'chat-1', WORKSPACE)).toEqual([]);
-  });
-
-  it('falls back to the file name for entries outside the workspace root', () => {
-    const outside: FileEntry[] = [{ ...entry('a.txt', 'file'), path: '/elsewhere/vault/a.txt' }];
-
-    expect(filterFileEntries(outside, 'vault', WORKSPACE)).toEqual([]);
-    expect(filterFileEntries(outside, 'a.txt', WORKSPACE)).toHaveLength(1);
-  });
-});
+}
 
 describe('WorkbenchFiles', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     Object.assign(hookState, { files: TREE, loading: false, error: null, truncated: false });
+    searchWorkspaceFilesMock.mockResolvedValue({ results: [DEEP_MATCH], total: 1 });
     useChatStore.setState({ chatId: 'chat-1', workspaceDir: WORKSPACE });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('browses the workspace of the current chat through the shared browser', () => {
@@ -147,6 +144,14 @@ describe('WorkbenchFiles', () => {
     expect(screen.getByText('index.ts')).toBeDefined();
   });
 
+  it('lets the browser load the folders the first scan did not reach', () => {
+    render(<WorkbenchFiles />);
+
+    fireEvent.click(screen.getByText('open-deep-folder'));
+
+    expect(hookState.loadChildren).toHaveBeenCalledWith(`${WORKSPACE}/deep`);
+  });
+
   it('says there is no workspace folder yet instead of browsing anything', () => {
     useChatStore.setState({ workspaceDir: null });
 
@@ -156,6 +161,7 @@ describe('WorkbenchFiles', () => {
     expect(screen.getByText('workspaceUnavailable')).toBeDefined();
     expect(screen.queryByTestId('file-browser')).toBeNull();
     expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(searchWorkspaceFilesMock).not.toHaveBeenCalled();
   });
 
   it('replaces a raw load failure with the localized message', () => {
@@ -167,37 +173,88 @@ describe('WorkbenchFiles', () => {
     expect(screen.queryByText(/ECONNREFUSED/)).toBeNull();
   });
 
-  it('narrows the tree to the files matching the search query', () => {
+  it('searches the whole workspace by the typed name once typing pauses', async () => {
     render(<WorkbenchFiles />);
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'searchPlaceholder' }), { target: { value: 'README' } });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'hello' } });
+    expect(searchWorkspaceFilesMock).not.toHaveBeenCalled();
 
-    expect(screen.getByText('README.md')).toBeDefined();
-    expect(screen.queryByText('src')).toBeNull();
-    expect(screen.queryByText('emptyResults')).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(searchWorkspaceFilesMock).toHaveBeenCalledTimes(1);
+    expect(searchWorkspaceFilesMock).toHaveBeenCalledWith(WORKSPACE, 'hello');
+    const results = within(screen.getByRole('list'));
+    expect(results.getByText('Hello.ts')).toBeDefined();
+    expect(results.getByText('src/components')).toBeDefined();
+    expect(screen.getByTestId('file-browser')).toBeDefined();
   });
 
-  it('reports an unmatched search while keeping the browser mounted', () => {
+  it('searches for the newest text only while the user keeps typing', async () => {
     render(<WorkbenchFiles />);
 
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'no-such-file' } });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'he' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'hello' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(searchWorkspaceFilesMock).toHaveBeenCalledTimes(1);
+    expect(searchWorkspaceFilesMock).toHaveBeenCalledWith(WORKSPACE, 'hello');
+  });
+
+  it('does not search for a blank query', async () => {
+    render(<WorkbenchFiles />);
+
+    await search('   ');
+
+    expect(searchWorkspaceFilesMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
+  it('reports an unmatched search and goes back to the tree when the query is cleared', async () => {
+    searchWorkspaceFilesMock.mockResolvedValue({ results: [], total: 0 });
+    render(<WorkbenchFiles />);
+
+    await search('no-such-file');
 
     expect(screen.getByText('emptyResults')).toBeDefined();
     expect(screen.getByTestId('file-browser')).toBeDefined();
 
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+    await search('');
 
     expect(screen.queryByText('emptyResults')).toBeNull();
     expect(screen.getByText('README.md')).toBeDefined();
   });
 
-  it('does not call an empty workspace an unmatched search', () => {
-    hookState.files = [];
-
+  it('explains a failed search in the user language without the raw error', async () => {
+    searchWorkspaceFilesMock.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:8080'));
     render(<WorkbenchFiles />);
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'anything' } });
 
-    expect(screen.queryByText('emptyResults')).toBeNull();
+    await search('hello');
+
+    expect(screen.getByText('searchFailed')).toBeDefined();
+    expect(screen.queryByText(/ECONNREFUSED/)).toBeNull();
+  });
+
+  it('previews a clicked match over the results and returns to them on close', async () => {
+    render(<WorkbenchFiles />);
+    await search('hello');
+
+    fireEvent.click(within(screen.getByRole('list')).getByText('Hello.ts'));
+
+    const preview = screen.getByTestId('file-preview');
+    expect(preview.getAttribute('data-workspace')).toBe(WORKSPACE);
+    expect(preview.textContent).toContain(DEEP_MATCH.path);
+
+    fireEvent.click(screen.getByText('close-preview'));
+
+    expect(screen.queryByTestId('file-preview')).toBeNull();
+    expect(within(screen.getByRole('list')).getByText('Hello.ts')).toBeDefined();
   });
 
   it('previews a clicked file over the tree and returns to the tree on close', () => {

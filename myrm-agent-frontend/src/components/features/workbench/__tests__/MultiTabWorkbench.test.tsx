@@ -112,6 +112,27 @@ describe('MultiTabWorkbench component', () => {
     expect(useWorkbenchStore.getState().isOpen).toBe(false);
   });
 
+  it.each(['input', 'textarea'])('keeps the workbench open when Escape is pressed in a %s', (tagName) => {
+    render(<MultiTabWorkbench />);
+    const field = document.body.appendChild(document.createElement(tagName));
+
+    fireEvent.keyDown(field, { key: 'Escape' });
+
+    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+    field.remove();
+  });
+
+  it('keeps the workbench open when something else already used the Escape key', () => {
+    const consume = (event: KeyboardEvent) => event.preventDefault();
+    window.addEventListener('keydown', consume);
+    render(<MultiTabWorkbench />);
+
+    fireEvent.keyDown(document.body, { key: 'Escape', cancelable: true });
+
+    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+    window.removeEventListener('keydown', consume);
+  });
+
   it('closes workbench on clicking close button', () => {
     render(<MultiTabWorkbench />);
 

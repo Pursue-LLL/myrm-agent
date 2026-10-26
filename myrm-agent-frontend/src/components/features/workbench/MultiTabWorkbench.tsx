@@ -17,19 +17,19 @@
 
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  FolderTree,
-  Terminal,
-  X,
-  PanelRight,
-  PanelBottom,
-  GripVertical,
-  GripHorizontal,
-} from 'lucide-react';
+import { FolderTree, Terminal, X, PanelRight, PanelBottom, GripVertical, GripHorizontal } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
 import { useWorkbenchStore, type WorkbenchTabId } from '@/store/useWorkbenchStore';
 import { WorkbenchFiles } from './tabs/WorkbenchFiles';
 import { WorkbenchTerminal } from './tabs/WorkbenchTerminal';
+
+/** A text field (rename, search, terminal prompt, file editor) owns the keys typed into it. */
+function isTextEntry(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
+}
 
 export function MultiTabWorkbench() {
   const t = useTranslations('workbench');
@@ -56,10 +56,11 @@ export function MultiTabWorkbench() {
     resetWorkspaceSession();
   }, [chatId, resetWorkspaceSession]);
 
-  // Keyboard shortcut: Escape to close workbench
+  // Escape closes the workbench unless it already did something else: a text field uses it to cancel or
+  // clear itself, and a context menu or dialog inside the drawer consumes it before it reaches window.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape' && isOpen && !e.defaultPrevented && !isTextEntry(e.target)) {
         setOpen(false);
       }
     };
@@ -116,11 +117,7 @@ export function MultiTabWorkbench() {
   return (
     <aside
       aria-label={t('workbenchAriaLabel')}
-      style={
-        placement === 'right'
-          ? { width: `${width}px` }
-          : { height: `${height}px` }
-      }
+      style={placement === 'right' ? { width: `${width}px` } : { height: `${height}px` }}
       className={`fixed z-[9970] bg-card border-border shadow-2xl flex flex-col transition-all ${
         isResizing ? 'select-none pointer-events-auto' : ''
       } ${
@@ -141,11 +138,7 @@ export function MultiTabWorkbench() {
         }`}
       >
         <span className="p-0.5 rounded bg-muted/80 text-muted-foreground group-hover:text-primary transition-colors">
-          {placement === 'right' ? (
-            <GripVertical className="w-3 h-3" />
-          ) : (
-            <GripHorizontal className="w-3 h-3" />
-          )}
+          {placement === 'right' ? <GripVertical className="w-3 h-3" /> : <GripHorizontal className="w-3 h-3" />}
         </span>
       </button>
 
@@ -186,11 +179,7 @@ export function MultiTabWorkbench() {
             aria-label={placement === 'right' ? t('dockBottom') : t('dockRight')}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            {placement === 'right' ? (
-              <PanelBottom className="w-4 h-4" />
-            ) : (
-              <PanelRight className="w-4 h-4" />
-            )}
+            {placement === 'right' ? <PanelBottom className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
           </button>
 
           {/* Close Workbench */}

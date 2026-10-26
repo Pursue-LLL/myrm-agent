@@ -409,6 +409,31 @@ export const browseWorkspaceFiles = async (path: string, depth: number = 2): Pro
   return apiRequest(`/files/browse/files?${params}`);
 };
 
+export interface WorkspaceFileSearchResult {
+  name: string;
+  path: string;
+  relative_path: string;
+  size: number | null;
+}
+
+export interface WorkspaceFileSearchResponse {
+  results: WorkspaceFileSearchResult[];
+  total: number;
+}
+
+/**
+ * Fuzzy file-name search over a whole workspace, independent of how deep the file tree was loaded.
+ * Silent: the caller shows its own failure state instead of the global error toast.
+ */
+export const searchWorkspaceFiles = async (
+  workspace: string,
+  query: string,
+  limit: number = 50,
+): Promise<WorkspaceFileSearchResponse> => {
+  const params = new URLSearchParams({ q: query, workspace, limit: String(limit) });
+  return apiRequest(`/files/browse/search?${params}`, { silent: true });
+};
+
 /** Register server-side workspace directory watch for SSE auto-refresh. */
 export const registerWorkspaceWatch = async (workspace: string): Promise<{ workspace: string }> => {
   return apiRequest('/files/browse/watch', {

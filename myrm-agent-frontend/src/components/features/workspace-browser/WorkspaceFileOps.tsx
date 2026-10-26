@@ -8,7 +8,6 @@
  * - FileEntry from @/services/chat
  *
  * [OUTPUT]
- * - ContextMenu: right-click menu with viewport boundary detection
  * - UploadDropZone: drag-and-drop overlay + hidden file input
  * - UploadButton: click-to-browse file upload button
  * - NewDirButton: inline new-directory creation
@@ -19,125 +18,21 @@
  *
  * [POS]
  * Write-operation UI primitives for WorkspaceFileBrowser.
- * Dialogs extracted to WorkspaceDialogs.tsx to stay under 400 lines.
+ * The context menu is in WorkspaceContextMenu.tsx and the dialogs in WorkspaceDialogs.tsx, to stay under 400 lines.
  */
 
 import React, { useRef, useState, useCallback, useEffect, type DragEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Upload, FolderPlus, Pencil, Move, Trash2, FolderOpen } from 'lucide-react';
+import { Upload, FolderPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { FileEntry } from '@/services/chat';
 import { uploadToWorkspace, mkdirInWorkspace, renameInWorkspace, deleteInWorkspace } from '@/services/chat';
+import type { ContextMenuState } from './WorkspaceContextMenu';
 
 export { DeleteConfirmDialog } from './WorkspaceDialogs';
 export { MoveDialog } from './WorkspaceDialogs';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface ContextMenuState {
-  x: number;
-  y: number;
-  node: FileEntry;
-}
-
-interface ContextMenuProps {
-  state: ContextMenuState;
-  onClose: () => void;
-  onRename: (node: FileEntry) => void;
-  onDelete: (node: FileEntry) => void;
-  onMove: (node: FileEntry) => void;
-  onOrganize?: (node: FileEntry) => void;
-  onSetProjectRoot?: (node: FileEntry) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Context menu
-// ---------------------------------------------------------------------------
-
-export const ContextMenu: React.FC<ContextMenuProps> = ({
-  state,
-  onClose,
-  onRename,
-  onDelete,
-  onMove,
-  onOrganize,
-  onSetProjectRoot,
-}) => {
-  const t = useTranslations('workspace');
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ x: state.x, y: state.y });
-
-  useEffect(() => {
-    const handler = () => onClose();
-    window.addEventListener('click', handler);
-    window.addEventListener('contextmenu', handler);
-    return () => {
-      window.removeEventListener('click', handler);
-      window.removeEventListener('contextmenu', handler);
-    };
-  }, [onClose]);
-
-  useEffect(() => {
-    const el = menuRef.current;
-    if (!el) {
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    setPos({
-      x: rect.right > vw ? Math.max(0, state.x - rect.width) : state.x,
-      y: rect.bottom > vh ? Math.max(0, state.y - rect.height) : state.y,
-    });
-  }, [state.x, state.y]);
-
-  const items = [
-    ...(state.node.type === 'directory' && onSetProjectRoot
-      ? [{ icon: FolderOpen, label: t('setProjectRoot'), action: () => onSetProjectRoot(state.node) }]
-      : []),
-    ...(state.node.type === 'directory' && onOrganize
-      ? [{ icon: FolderOpen, label: t('organizeFolder'), action: () => onOrganize(state.node) }]
-      : []),
-    { icon: Pencil, label: t('rename'), action: () => onRename(state.node) },
-    { icon: Move, label: t('move'), action: () => onMove(state.node) },
-    { icon: Trash2, label: t('delete'), action: () => onDelete(state.node), danger: true },
-  ];
-
-  return (
-    <motion.div
-      ref={menuRef}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.1 }}
-      className="fixed z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]"
-      style={{ left: pos.x, top: pos.y }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {items.map(({ icon: Icon, label, action, danger }) => (
-        <button
-          key={label}
-          className={cn(
-            'flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted transition-colors',
-            danger && 'text-destructive hover:text-destructive',
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            action();
-            onClose();
-          }}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          {label}
-        </button>
-      ))}
-    </motion.div>
-  );
-};
 
 // ---------------------------------------------------------------------------
 // Upload drop zone

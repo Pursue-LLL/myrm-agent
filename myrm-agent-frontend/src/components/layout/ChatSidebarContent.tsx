@@ -169,6 +169,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
       error: webFilesError,
       truncated: webFilesTruncated,
       refresh: webRefresh,
+      loadChildren: webLoadChildren,
     } = useWorkspaceFiles(showWebWorkspace && activeView === 'workspace' ? webWorkspaceDir : null);
 
     // Web file preview state
@@ -316,6 +317,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 truncated={webFilesTruncated}
                 onRefresh={webRefresh}
                 onFileClick={handleWebFileClick}
+                onLoadChildren={webLoadChildren}
               />
             </Suspense>
           ) : actionMode === 'agent' && !webWorkspaceDir ? (

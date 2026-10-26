@@ -528,7 +528,9 @@
     "unsaved": "Unsaved",
     "discardConfirm": "You have unsaved changes. Discard them?",
     "previewLoadError": "Failed to load preview",
-    "unsupportedPreview": "This file type can't be previewed. Download to view it."
+    "unsupportedPreview": "This file type can't be previewed. Download to view it.",
+    "folderLoadFailed": "Couldn't open this folder. Please try again.",
+    "mentionFile": "Reference this file in your message"
   },
   "loadout": {
     "title": "Agent loadout",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "Search workspace files...",
       "emptyResults": "No matching files found",
-      "workspaceUnavailable": "This conversation has no workspace folder yet."
+      "workspaceUnavailable": "This conversation has no workspace folder yet.",
+      "searchFailed": "Search failed. Please try again later."
     },
     "terminal": {
       "headerTitle": "Terminal",

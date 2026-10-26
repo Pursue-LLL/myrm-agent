@@ -528,7 +528,9 @@
     "unsaved": "未儲存",
     "discardConfirm": "你有未儲存的修改，確定要放棄嗎？",
     "previewLoadError": "預覽載入失敗",
-    "unsupportedPreview": "暫不支援預覽此檔案類型，請下載查看。"
+    "unsupportedPreview": "暫不支援預覽此檔案類型，請下載查看。",
+    "folderLoadFailed": "無法開啟此資料夾，請再試一次。",
+    "mentionFile": "在輸入框中引用此檔案"
   },
   "loadout": {
     "title": "智能體配裝",
@@ -13981,7 +13983,8 @@
     "files": {
       "searchPlaceholder": "搜尋工作區檔案...",
       "emptyResults": "未找到匹配的檔案",
-      "workspaceUnavailable": "這個對話還沒有工作區資料夾。"
+      "workspaceUnavailable": "這個對話還沒有工作區資料夾。",
+      "searchFailed": "搜尋失敗，請稍後再試。"
     },
     "terminal": {
       "headerTitle": "終端",
