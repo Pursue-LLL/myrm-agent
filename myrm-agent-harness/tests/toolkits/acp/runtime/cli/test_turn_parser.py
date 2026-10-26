@@ -87,22 +87,6 @@ class TestClaudeAndGenericFormats:
         )
         assert event is None
 
-    def test_error_event_dict(self) -> None:
-        event = _parse(
-            json.dumps({"type": "error", "error": {"message": "rate limited"}}),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
-
-    def test_error_event_string(self) -> None:
-        event = _parse(
-            json.dumps({"type": "error", "error": "something broke"}),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
-
     def test_invalid_json_yields_text_delta(self) -> None:
         event = _parse("not json at all", "s1")
         assert event is not None
@@ -166,22 +150,6 @@ class TestClaudeAndGenericFormats:
         )
         assert event is not None
         assert event.type == RuntimeEventType.USAGE_UPDATE
-
-    def test_codex_stream_error(self) -> None:
-        event = _parse(
-            json.dumps({"id": "0", "msg": {"type": "stream_error", "message": "rate limited"}}),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
-
-    def test_codex_error(self) -> None:
-        event = _parse(
-            json.dumps({"id": "0", "msg": {"type": "error", "message": "model not supported"}}),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
 
     def test_codex_init_line_ignored(self) -> None:
         event = _parse(
@@ -362,19 +330,6 @@ class TestCodexItemFormat:
         assert event.data["output_tokens"] == 122
         assert event.data["cache_read"] == 24448
 
-    def test_turn_failed(self) -> None:
-        event = _parse(
-            json.dumps(
-                {
-                    "type": "turn.failed",
-                    "error": {"message": "model response stream ended unexpectedly"},
-                }
-            ),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
-
     def test_thread_started_ignored(self) -> None:
         event = _parse(
             json.dumps({"type": "thread.started", "thread_id": "abc-123"}),
@@ -456,14 +411,6 @@ class TestEdgeCases:
             "s1",
         )
         assert event is None
-
-    def test_turn_failed_no_error_object(self) -> None:
-        event = _parse(
-            json.dumps({"type": "turn.failed"}),
-            "s1",
-        )
-        assert event is not None
-        assert event.type == RuntimeEventType.ERROR
 
     def test_agent_message_empty(self) -> None:
         event = _parse(

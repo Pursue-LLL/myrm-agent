@@ -9,7 +9,7 @@ it is stored the moment the CLI announces it and replayed through the CLI's resu
 - toolkits.acp.runtime._base::BaseRuntime, build_safe_env (POS: Base class for RuntimeBackend implementations)
 - toolkits.acp.runtime.cli.dialect::dialect_for, is_session_id (POS: Per-CLI launch knowledge of CliRuntime)
 - toolkits.acp.runtime.cli.failure::classify_failure (POS: Error vocabulary of CliRuntime)
-- toolkits.acp.runtime.cli.process::CliProcess, spawn_cli_process (POS: Process ownership of CliRuntime)
+- toolkits.acp.runtime.cli.process::CliLaunchError, CliProcess, spawn_cli_process (POS: Process ownership of CliRuntime)
 - toolkits.acp.runtime.cli.session::CliSessionBook (POS: Session continuity state of CliRuntime)
 - toolkits.acp.runtime.cli.turn_parser::CliResult, TurnParser (POS: Output parsing of CliRuntime)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.) [lazy]
@@ -25,6 +25,7 @@ live in the sibling modules.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from dataclasses import dataclass
@@ -33,10 +34,11 @@ from myrm_agent_harness.toolkits.acp.auth._profiles import resolve_cli_args
 from myrm_agent_harness.toolkits.acp.runtime._base import BaseRuntime, build_safe_env
 from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import CliDialect, dialect_for, is_session_id
 from myrm_agent_harness.toolkits.acp.runtime.cli.failure import classify_failure
-from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliProcess, spawn_cli_process
+from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliLaunchError, CliProcess, spawn_cli_process
 from myrm_agent_harness.toolkits.acp.runtime.cli.session import CliSessionBook
 from myrm_agent_harness.toolkits.acp.runtime.cli.turn_parser import CliResult, TurnParser
 from myrm_agent_harness.toolkits.acp.types import (
+    AcpError,
     AcpErrorCode,
     BackendCapabilities,
     BackendStatus,
@@ -52,6 +54,10 @@ from myrm_agent_harness.toolkits.acp.types import (
 
 logger = logging.getLogger(__name__)
 
+# A CLI is silent while one tool call runs (a build, a long test run). Every this many seconds of silence the turn
+# says it is still working, so the host does not take the quiet for a hang.
+_KEEPALIVE_SECONDS = 15.0
+
 _ACTIVITY_EVENTS = frozenset(
     {
         RuntimeEventType.TEXT_DELTA,
@@ -60,6 +66,11 @@ _ACTIVITY_EVENTS = frozenset(
         RuntimeEventType.TOOL_RESULT,
     }
 )
+
+
+def _elapsed(seconds: float) -> str:
+    minutes, rest = divmod(int(seconds), 60)
+    return f"{minutes}m {rest:02d}s" if minutes else f"{rest}s"
 
 
 @dataclass(slots=True)
@@ -73,6 +84,7 @@ class _Attempt:
     returncode: int = 0
     killed: bool = False
     stderr: str = ""
+    notice: str = ""
     result: CliResult | None = None
 
     def note(self, event: RuntimeEvent) -> None:
@@ -100,7 +112,8 @@ class CliRuntime(BaseRuntime):
     is resumed from the session it announced earlier, provided the turn starts in the directory that created it;
     with a ``session_store`` that id also survives a restart of the host process. A resume the CLI rejects as
     unknown is retried once as a fresh session in the same turn, and the old id is replaced only once the fresh
-    session announced itself.
+    session announced itself. While the CLI prints nothing (one long tool call) the turn reports ``working`` with
+    its running time at a fixed interval, so a host that watches for activity does not take the quiet for a hang.
     """
 
     def __init__(
@@ -153,9 +166,9 @@ class CliRuntime(BaseRuntime):
 
         from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
-        env = build_safe_env(self._config)
         cwd = self._config.cwd or str(WorkspacePathResolver.resolve_workspace_root())
         dialect = dialect_for(command)
+        env = {**(dialect.env_defaults if dialect is not None else {}), **build_safe_env(self._config)}
         args = self._launch_args(command, dialect)
 
         resume_args, notice = await self._resume_args(session_id, cwd, dialect, args)
@@ -163,19 +176,30 @@ class CliRuntime(BaseRuntime):
             yield create_event(RuntimeEventType.STATUS_UPDATE, session_id, status=notice)
 
         attempt = _Attempt()
-        async with aclosing(
-            self._run_attempt(resume_args or args, prompt, session_id, cwd, env, dialect, attempt)
-        ) as events:
-            async for event in events:
-                yield event
-
-        if resume_args is not None and attempt.is_stale_resume:
-            logger.warning("cli_resume_stale name=%s session=%s code=%d", self._name, session_id, attempt.returncode)
-            yield create_event(RuntimeEventType.STATUS_UPDATE, session_id, status=ContinuityStatus.SESSION_EXPIRED)
-            attempt = _Attempt()
-            async with aclosing(self._run_attempt(args, prompt, session_id, cwd, env, dialect, attempt)) as events:
+        try:
+            async with aclosing(
+                self._run_attempt(resume_args or args, prompt, session_id, cwd, env, dialect, attempt)
+            ) as events:
                 async for event in events:
                     yield event
+
+            if resume_args is not None and attempt.is_stale_resume:
+                logger.warning(
+                    "cli_resume_stale name=%s session=%s code=%d", self._name, session_id, attempt.returncode
+                )
+                yield create_event(RuntimeEventType.STATUS_UPDATE, session_id, status=ContinuityStatus.SESSION_EXPIRED)
+                attempt = _Attempt()
+                async with aclosing(self._run_attempt(args, prompt, session_id, cwd, env, dialect, attempt)) as events:
+                    async for event in events:
+                        yield event
+        except CliLaunchError as exc:
+            logger.warning("cli_launch_failed name=%s command=%s", self._name, command)
+            yield create_event(
+                RuntimeEventType.ERROR,
+                session_id,
+                error=AcpError(AcpErrorCode.BACKEND_NOT_FOUND, str(exc)),
+            )
+            return
 
         for event in self._closing_events(attempt, session_id):
             yield event
@@ -237,11 +261,20 @@ class CliRuntime(BaseRuntime):
         uses_stdin = "-p" in args
         argv = args if uses_stdin else [*args, prompt]
         parser = TurnParser(session_id)
+        started = time.monotonic()
         async with spawn_cli_process(argv, env=env, cwd=cwd, stdin_text=prompt if uses_stdin else None) as process:
             self._process = process
             if self._stop_requested:
                 await process.terminate()
-            async for line in process.lines():
+            async for line in process.lines(idle_tick=_KEEPALIVE_SECONDS):
+                if line is None:
+                    yield create_event(
+                        RuntimeEventType.STATUS_UPDATE,
+                        session_id,
+                        status="working",
+                        message=_elapsed(time.monotonic() - started),
+                    )
+                    continue
                 for event in parser.feed(line):
                     attempt.note(event)
                     yield event
@@ -252,6 +285,7 @@ class CliRuntime(BaseRuntime):
             attempt.returncode = await process.wait()
             attempt.killed = process.killed_by_us
             attempt.stderr = process.stderr_text
+            attempt.notice = parser.notice
             attempt.result = parser.result
 
     async def _record_session(self, session_id: str, cli_session_id: str, cwd: str, dialect: CliDialect | None) -> None:
@@ -272,6 +306,7 @@ class CliRuntime(BaseRuntime):
             returncode=attempt.returncode,
             stderr=attempt.stderr,
             killed=attempt.killed,
+            notice=attempt.notice,
         )
         done = create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
         if error is None:

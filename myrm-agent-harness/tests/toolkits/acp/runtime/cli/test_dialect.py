@@ -128,3 +128,17 @@ class TestCodexDialect:
 
         assert dialect.with_max_turns(args, 7) == args
         assert dialect.with_partial_messages(args) == args
+
+
+class TestEnvDefaults:
+    def test_claude_runs_headless_without_background_tasks(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+
+        assert dict(dialect.env_defaults) == {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"}
+
+    def test_codex_needs_no_environment(self) -> None:
+        dialect = dialect_for("codex")
+        assert dialect is not None
+
+        assert not dialect.env_defaults

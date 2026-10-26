@@ -60,10 +60,8 @@ class AcpErrorCode(StrEnum):
     BACKEND_NOT_FOUND = "backend_not_found"
     TIMEOUT = "timeout"
     RATE_LIMITED = "rate_limited"
-    CONTEXT_OVERFLOW = "context_overflow"
     PROCESS_CRASHED = "process_crashed"
     MAX_TURNS = "max_turns"
-    PERMISSION_DENIED = "permission_denied"
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
@@ -172,7 +170,6 @@ class RuntimeConfig:
     timeout_seconds: int = 300
     permission_mode: PermissionMode = "allow_all"
     allowed_tools: list[str] = field(default_factory=list)
-    strip_env_keys: list[str] = field(default_factory=list)
     auth_mode: AuthMode = "subscription"
     mcp_servers: list[McpServerConfig] = field(default_factory=list)
     max_response_chars: int = 50_000

@@ -10,7 +10,8 @@ a whole turn; formats that nest several events in one line (Claude content block
 [OUTPUT]
 - parse_json_line: Parse a JSON line, returning None for non-dict values.
 - parse_tool_use / parse_tool_result: tool call and result events with a one-line summary / bounded output
-- parse_usage / parse_error / parse_thinking: usage, error and reasoning events
+- parse_usage / parse_thinking: usage and reasoning events
+- error_message / parse_turn_failed: the text of an ``error`` line, and the error event of Codex's ``turn.failed``
 - unwrap_codex_envelope / parse_codex_item_event: the Codex legacy envelope and ``item.*`` events
 - extract_text_from_event: text of a flat or nested assistant/text event
 - tool_summary: one short line telling what a tool call works on
@@ -22,6 +23,7 @@ Shared event builders of the CLI runtime's output parsing.
 from __future__ import annotations
 
 import json
+import re
 
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
@@ -110,19 +112,29 @@ def parse_usage(data: dict[str, object], session_id: str) -> RuntimeEvent:
     )
 
 
-def parse_error(data: dict[str, object], session_id: str) -> RuntimeEvent:
-    error_msg = data.get("error", {})
-    if isinstance(error_msg, dict):
-        msg = error_msg.get("message", str(error_msg))
-    elif error_msg:
-        msg = str(error_msg)
+def error_message(data: dict[str, object], default: str) -> str:
+    """The text of an ``error`` / ``turn.failed`` line: its ``error`` object or string, else its own ``message``.
+
+    Claude and generic CLIs nest the text under ``error``; Codex puts it at the top level of the line.
+    """
+    error = data.get("error")
+    if isinstance(error, dict) and error:
+        text = error.get("message") or str(error)
     else:
-        msg = str(data.get("message", "Unknown error"))
-    return create_event(
-        RuntimeEventType.ERROR,
-        session_id,
-        error=AcpError(code=AcpErrorCode.UNKNOWN, message=msg),
-    )
+        text = error or data.get("message")
+    return str(text) if text else default
+
+
+# Codex words an HTTP failure of its model API as "unexpected status <code> <reason>: <body>". Only 401 is a
+# login problem: 403 is also what a blocked region or an organization policy answers.
+_CODEX_UNAUTHORIZED = re.compile(r"\bunexpected status 401\b")
+
+
+def parse_turn_failed(data: dict[str, object], session_id: str) -> RuntimeEvent:
+    """The error event of Codex's ``turn.failed`` — the CLI's verdict that the turn did not finish."""
+    message = error_message(data, "Turn failed")
+    code = AcpErrorCode.AUTH_FAILED if _CODEX_UNAUTHORIZED.search(message) else AcpErrorCode.UNKNOWN
+    return create_event(RuntimeEventType.ERROR, session_id, error=AcpError(code=code, message=message))
 
 
 def parse_thinking(data: dict[str, object], session_id: str) -> RuntimeEvent | None:
@@ -154,7 +166,7 @@ def parse_codex_item_event(data: dict[str, object], session_id: str) -> RuntimeE
     - ``reasoning`` → REASONING_DELTA
     - ``command_execution`` → TOOL_START (started) / TOOL_RESULT (completed)
     - ``file_change`` → TOOL_RESULT
-    - ``error`` → ERROR
+    - ``error`` → STATUS_UPDATE (``warning``): a note about one item, not a failed turn
     """
     item = data.get("item")
     if not isinstance(item, dict):

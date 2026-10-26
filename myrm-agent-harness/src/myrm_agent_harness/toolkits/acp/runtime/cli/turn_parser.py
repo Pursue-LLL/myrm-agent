@@ -1,18 +1,20 @@
 """Turn parser — the NDJSON lines of one CLI turn in, RuntimeEvents and the turn's own verdict out.
 
 Claude (``stream-json``), Codex (``item.*`` events and the legacy envelope) and plain-text CLIs share one parser.
-It is stateful because three things only exist across lines: the session the CLI announces first, the final
-``result`` line that says whether the turn failed, and which messages already went out as streamed text deltas
-(``--include-partial-messages`` repeats each message in full afterwards).
+It is stateful because four things only exist across lines: the session the CLI announces first, the final
+``result`` line that says whether the turn failed, the ``error`` lines printed on the way (Codex reports every
+retry of a request that way, so they say nothing about the turn until it ends without a verdict), and which
+messages already went out as streamed text deltas (``--include-partial-messages`` repeats each message in full
+afterwards).
 
 [INPUT]
 - toolkits.acp.runtime.cli.parser::event builders (POS: Shared event builders of the CLI runtime's output parsing)
-- toolkits.acp.types::AcpError, AcpErrorCode, RuntimeEvent (POS: ACP runtime type definitions layer.)
+- toolkits.acp.types::RuntimeEvent (POS: ACP runtime type definitions layer.)
 - utils.text_utils::strip_ansi (POS: Text helpers) [lazy]
 
 [OUTPUT]
 - CliResult: the CLI's own verdict on a finished turn
-- TurnParser: stateful per-turn parser (``feed`` a line, read ``announced`` / ``result``)
+- TurnParser: stateful per-turn parser (``feed`` a line, read ``announced`` / ``result`` / ``notice``)
 
 [POS]
 Output parsing of CliRuntime. Pure: no I/O, so every CLI output shape is testable from its text alone.
@@ -23,41 +25,41 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
+    error_message,
     extract_text_from_event,
     parse_codex_item_event,
-    parse_error,
     parse_json_line,
     parse_thinking,
     parse_tool_result,
     parse_tool_use,
+    parse_turn_failed,
     parse_usage,
     unwrap_codex_envelope,
 )
-from myrm_agent_harness.toolkits.acp.types import (
-    AcpError,
-    AcpErrorCode,
-    RuntimeEvent,
-    RuntimeEventType,
-    create_event,
-)
+from myrm_agent_harness.toolkits.acp.types import RuntimeEvent, RuntimeEventType, create_event
 
 
 @dataclass(frozen=True, slots=True)
 class CliResult:
-    """The CLI's own verdict on a finished turn (Claude's final ``result`` line)."""
+    """The CLI's own verdict on a finished turn (Claude's final ``result`` line).
+
+    ``assistant_error`` is the category Claude put on its last error message (``authentication_failed``,
+    ``rate_limit``, ...); it is also set when the CLI has no API status to report, as when nobody is logged in.
+    """
 
     is_error: bool
     subtype: str
     message: str
     terminal_reason: str
     api_error_status: int | None
+    assistant_error: str = ""
 
 
 def _text(value: object) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _parse_result(data: dict[str, object]) -> CliResult:
+def _parse_result(data: dict[str, object], assistant_error: str) -> CliResult:
     errors = data.get("errors")
     if isinstance(errors, list) and errors:
         message = "; ".join(str(error) for error in errors if error)
@@ -70,6 +72,7 @@ def _parse_result(data: dict[str, object]) -> CliResult:
         message=message,
         terminal_reason=_text(data.get("terminal_reason")),
         api_error_status=status if isinstance(status, int) and not isinstance(status, bool) else None,
+        assistant_error=assistant_error,
     )
 
 
@@ -82,7 +85,10 @@ class TurnParser:
         self._streamed: set[str] = set()
         self._current_message: str | None = None
         self._announced: str | None = None
+        self._assistant_error = ""
         self.result: CliResult | None = None
+        # The text of the last ``error`` line; the cause of a failure that comes with no verdict of its own.
+        self.notice = ""
 
     def take_announced(self) -> str | None:
         """The CLI session id announced since the last call (Claude ``system/init``, Codex ``thread.started``)."""
@@ -156,8 +162,10 @@ class TurnParser:
 
     def _assistant(self, data: dict[str, object]) -> list[RuntimeEvent]:
         """Text and tool calls of an assistant message, in the order of its content blocks."""
-        if data.get("error"):
+        error = data.get("error")
+        if error:
             # The CLI's own error notice; the final ``result`` line reports the same failure.
+            self._assistant_error = _text(error)
             return []
         message = data.get("message")
         content = message.get("content") if isinstance(message, dict) else data.get("content")
@@ -200,7 +208,7 @@ class TurnParser:
         ]
 
     def _result(self, data: dict[str, object]) -> list[RuntimeEvent]:
-        self.result = _parse_result(data)
+        self.result = _parse_result(data, self._assistant_error)
         usage = data.get("usage")
         return [parse_usage(usage, self._session_id)] if isinstance(usage, dict) else []
 
@@ -215,13 +223,7 @@ class TurnParser:
             return parse_usage(usage, session_id) if isinstance(usage, dict) else None
 
         if kind == "turn.failed":
-            error_obj = data.get("error")
-            message = error_obj.get("message", "Turn failed") if isinstance(error_obj, dict) else "Turn failed"
-            return create_event(
-                RuntimeEventType.ERROR,
-                session_id,
-                error=AcpError(code=AcpErrorCode.UNKNOWN, message=str(message)),
-            )
+            return parse_turn_failed(data, session_id)
 
         if kind == "text":
             text = extract_text_from_event(data)
@@ -245,6 +247,5 @@ class TurnParser:
             return parse_usage(info if isinstance(info, dict) else data, session_id)
 
         if kind in ("error", "stream_error"):
-            return parse_error(data, session_id)
-
+            self.notice = error_message(data, "Unknown error")
         return None

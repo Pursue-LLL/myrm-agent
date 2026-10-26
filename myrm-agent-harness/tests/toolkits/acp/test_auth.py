@@ -287,11 +287,6 @@ class TestBuildSafeEnvAuthMode:
         env = build_safe_env(cfg, base_env={"OPENAI_API_KEY": "from-host", "PATH": "/bin"})
         assert env["OPENAI_API_KEY"] == "injected"
 
-    def test_strip_env_keys_honoured(self) -> None:
-        cfg = RuntimeConfig(backend_type="cli", command="codex", strip_env_keys=["MY_TOKEN"])
-        env = build_safe_env(cfg, base_env={"MY_TOKEN": "secret", "PATH": "/bin"})
-        assert "MY_TOKEN" not in env
-
 
 _LOGIN_OK_SCRIPT = (
     "import os, pathlib;"

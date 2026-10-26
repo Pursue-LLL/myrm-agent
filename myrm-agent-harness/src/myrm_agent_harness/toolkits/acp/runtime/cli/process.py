@@ -9,6 +9,7 @@ completion even when the task awaiting it is cancelled again, so a stopped turn 
 
 [OUTPUT]
 - CliProcess: a running CLI process with ``lines``, ``wait``, ``terminate`` and the facts a turn is judged by
+- CliLaunchError: the CLI executable does not exist
 - spawn_cli_process: async context manager that spawns a CliProcess and stops it on exit
 
 [POS]
@@ -20,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import signal
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -35,6 +37,7 @@ _STDERR_READ_BYTES = 4096
 _TERMINATE_GRACE_SECONDS = 5.0
 # A grandchild that inherited the pipe can keep stderr open after the CLI exited; the tail is enough by then.
 _STDERR_DRAIN_SECONDS = 2.0
+_EXIT_POLL_SECONDS = 0.05
 _KILL = getattr(signal, "SIGKILL", signal.SIGTERM)
 
 
@@ -43,6 +46,10 @@ def _signal_group(pid: int, sig: int) -> None:
         kill_process_group(pid, sig)
     except OSError:
         logger.debug("cli_process_signal_failed pid=%d signal=%d", pid, sig, exc_info=True)
+
+
+class CliLaunchError(Exception):
+    """The CLI executable does not exist, so no process was started."""
 
 
 class CliProcess:
@@ -82,22 +89,45 @@ class CliProcess:
         except (BrokenPipeError, ConnectionResetError):
             logger.debug("cli_process_left_before_prompt pid=%d", self._process.pid)
 
-    async def lines(self) -> AsyncIterator[str]:
-        """Non-empty stdout lines until the process closes its stdout."""
+    async def lines(self, idle_tick: float | None = None) -> AsyncIterator[str | None]:
+        """Non-empty stdout lines until the process closes its stdout.
+
+        With ``idle_tick`` a ``None`` is yielded each time that many seconds pass without a line, so a caller can
+        show that a CLI which is silent (one long tool call) is still running. A tick never loses output: a line
+        that is only half written stays in the stream buffer and is returned whole once it is complete.
+        """
         stdout = self._process.stdout
         if stdout is None:
             return
-        async for raw in stdout:
+        while True:
+            try:
+                raw = await asyncio.wait_for(stdout.readline(), idle_tick)
+            except TimeoutError:
+                yield None
+                continue
+            if not raw:
+                return
             line = raw.decode("utf-8", errors="replace").strip()
             if line:
                 yield line
 
     async def wait(self) -> int:
         """Wait for the exit code, and for the stderr drain unless a leaked pipe keeps it open."""
-        returncode = await self._process.wait()
+        returncode = await self._exit_code()
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(asyncio.shield(self._stderr_task), _STDERR_DRAIN_SECONDS)
         return returncode
+
+    async def _exit_code(self) -> int:
+        """The exit code as soon as the transport knows it.
+
+        ``Process.wait()`` resolves only once every pipe is closed, so a grandchild that inherited stderr keeps a
+        waiter registered before the exit pending until the grandchild itself ends. The transport's return code
+        does not depend on the pipes.
+        """
+        while (code := self._process.returncode) is None:
+            await asyncio.sleep(_EXIT_POLL_SECONDS)
+        return code
 
     async def terminate(self) -> None:
         """Stop the process group: SIGTERM, then SIGKILL after a grace period. Safe to call repeatedly.
@@ -149,16 +179,22 @@ async def spawn_cli_process(
     stdin_text: str | None,
 ) -> AsyncIterator[CliProcess]:
     """Spawn ``args`` as its own process group, feed ``stdin_text`` (the prompt) if given, stop it on exit."""
-    process = await asyncio.create_subprocess_exec(
-        *args,
-        stdin=asyncio.subprocess.PIPE if stdin_text is not None else asyncio.subprocess.DEVNULL,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        env=env,
-        cwd=cwd,
-        limit=_STDOUT_LINE_LIMIT,
-        **get_process_group_kwargs(),
-    )
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdin=asyncio.subprocess.PIPE if stdin_text is not None else asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+            cwd=cwd,
+            limit=_STDOUT_LINE_LIMIT,
+            **get_process_group_kwargs(),
+        )
+    except FileNotFoundError as exc:
+        # A missing working directory fails the same way; only a missing program means the CLI is not installed.
+        if not os.path.isdir(cwd):
+            raise
+        raise CliLaunchError(f"CLI executable not found: {args[0]}") from exc
     cli_process = CliProcess(process)
     try:
         if stdin_text is not None:

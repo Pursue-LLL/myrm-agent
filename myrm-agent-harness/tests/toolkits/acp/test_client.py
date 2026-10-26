@@ -107,12 +107,51 @@ class TestBuildSafeEnv:
         assert env["HOME"] == "/home/user"
         assert env["PATH"] == "/usr/bin"
 
-    def test_strips_explicit_keys(self) -> None:
-        base = {"MY_SECRET": "val", "KEEP_ME": "yes"}
-        cfg = RuntimeConfig(backend_type="acp", command="test", strip_env_keys=["MY_SECRET"])
+    def test_inherits_only_the_core_variables(self) -> None:
+        # A delegated CLI hands its environment on to every command the model runs, so what the operator
+        # exported for other purposes (tokens, connection strings, agent sockets) never reaches it.
+        base = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/user",
+            "LANG": "en_US.UTF-8",
+            "HTTPS_PROXY": "http://proxy:3128",
+            "GITHUB_TOKEN": "ghp_secret",
+            "AWS_ACCESS_KEY_ID": "AKIA",
+            "DATABASE_URL": "postgres://user:pw@db/app",
+            "SSH_AUTH_SOCK": "/tmp/agent.sock",
+            "STRIPE_LIVE": "sk_live",
+            "JAVA_HOME": "/opt/java",
+        }
+        cfg = RuntimeConfig(backend_type="acp", command="test")
         env = build_safe_env(cfg, base)
-        assert "MY_SECRET" not in env
-        assert env["KEEP_ME"] == "yes"
+        assert env == {
+            "PATH": "/usr/bin",
+            "HOME": "/home/user",
+            "LANG": "en_US.UTF-8",
+            "HTTPS_PROXY": "http://proxy:3128",
+        }
+
+    def test_keeps_the_login_home_of_its_own_cli_only(self) -> None:
+        base = {"CLAUDE_CONFIG_DIR": "/vol/claude", "CODEX_HOME": "/vol/codex", "PATH": "/usr/bin"}
+        for command, kept, dropped in (
+            ("claude", "CLAUDE_CONFIG_DIR", "CODEX_HOME"),
+            ("/usr/local/bin/codex", "CODEX_HOME", "CLAUDE_CONFIG_DIR"),
+        ):
+            env = build_safe_env(RuntimeConfig(backend_type="cli", command=command), base)
+            assert kept in env
+            assert dropped not in env
+        unknown = build_safe_env(RuntimeConfig(backend_type="cli", command="/opt/custom/agent"), base)
+        assert "CLAUDE_CONFIG_DIR" not in unknown
+        assert "CODEX_HOME" not in unknown
+
+    def test_config_env_adds_what_a_backend_needs_beyond_the_core(self) -> None:
+        cfg = RuntimeConfig(backend_type="cli", command="claude", env={"JAVA_HOME": "/opt/java"})
+        env = build_safe_env(cfg, {"PATH": "/usr/bin", "JAVA_HOME": "/host/java"})
+        assert env == {"PATH": "/usr/bin", "JAVA_HOME": "/opt/java"}
+
+    def test_an_empty_base_is_an_empty_environment(self) -> None:
+        env = build_safe_env(RuntimeConfig(backend_type="cli", command="claude"), {})
+        assert env == {}
 
     def test_applies_config_env_after_strip(self) -> None:
         # api_key mode lets the host inject the provider key this backend bills against;
@@ -171,9 +210,9 @@ class TestRuntimeEvent:
         assert len(RuntimeEventType) == 9
 
     def test_error_codes_count(self) -> None:
-        assert len(AcpErrorCode) == 10
+        assert len(AcpErrorCode) == 8
         assert AcpErrorCode.MAX_TURNS == "max_turns"
-        assert AcpErrorCode.PERMISSION_DENIED == "permission_denied"
+        assert AcpErrorCode.BACKEND_NOT_FOUND == "backend_not_found"
 
 
 # ---------------------------------------------------------------------------
@@ -1313,27 +1352,6 @@ class TestBaseRuntimeStreamTruncation:
 
 class TestParserMissingBranches:
     """Tests for _parser.py uncovered branches (lines 73, 129, 172)."""
-
-    def test_parse_error_empty_string_falls_to_message_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
-
-        event = parse_error({"error": "", "message": "fallback msg"}, "s1")
-        assert event.type == RuntimeEventType.ERROR
-        assert "fallback msg" in event.data["error"].message
-
-    def test_parse_error_none_falls_to_message_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
-
-        event = parse_error({"error": None, "message": "from message"}, "s1")
-        assert event.type == RuntimeEventType.ERROR
-        assert "from message" in event.data["error"].message
-
-    def test_parse_error_none_no_message_uses_default(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
-
-        event = parse_error({"error": None}, "s1")
-        assert event.type == RuntimeEventType.ERROR
-        assert "Unknown error" in event.data["error"].message
 
     def test_parse_codex_item_reasoning_empty(self) -> None:
         from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (

@@ -112,5 +112,6 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 | §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
 | §2 类型目标 | 无 lint / 类型门禁；mypy 2252、ruff 1331 未清 | 见 §2 实测表 |
 | §7 门禁覆盖 | MCP 双结局门禁未进入 `-m architecture` job | 见 §7 门禁现状 |
+| §1 零反向依赖的精神（底层不依赖上层） | 子进程环境白名单（`EnvInheritPolicy` / `sanitize_env`）的 SSOT 放在 `toolkits/code_execution/security/env_isolation.py`；更底层的 `core/security/safe_exec.py` 与同级的 `toolkits/acp`、`toolkits/computer_use`、`agent/hooks` 都靠函数内延迟 import 取用，应下沉到 `core/security/` | `core/security/safe_exec.py:194`、`agent/hooks/executor.py:182`、`toolkits/computer_use/backends/cua_driver.py:90`、`toolkits/acp/runtime/_base.py` 的 `build_safe_env`；`scripts/boundary_config.py` 只拦截业务层前缀，不检查 harness 内部分层 |
 
 维护要求：修改框架行为、阈值、发布路径或门禁时同步更新本文对应条款。新增偏离要么修掉，要么在本表登记，不允许只在代码里悄悄存在。

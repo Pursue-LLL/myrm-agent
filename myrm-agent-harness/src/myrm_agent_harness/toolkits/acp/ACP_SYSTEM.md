@@ -121,14 +121,12 @@ RuntimeEvent (frozen dataclass)
 
 ```
 AcpErrorCode (StrEnum)
-├── AUTH_FAILED         # API Key 无效
-├── BACKEND_NOT_FOUND   # CLI 未安装
-├── TIMEOUT             # 超时
+├── AUTH_FAILED         # 凭据缺失或被拒（Claude 的 authentication_failed、Codex 的 401）
+├── BACKEND_NOT_FOUND   # CLI 未安装（拉起进程时程序不存在）
+├── TIMEOUT             # 整个回合超过 timeout_seconds
 ├── RATE_LIMITED        # 超频
-├── CONTEXT_OVERFLOW    # 上下文溢出
 ├── PROCESS_CRASHED     # 进程崩溃
 ├── MAX_TURNS           # CLI 自身的轮次上限已到（不是故障）
-├── PERMISSION_DENIED   # 权限拒绝（safe 模式下拒绝写操作等）
 ├── CANCELLED           # 用户取消
 └── UNKNOWN             # 未知错误
 
@@ -223,7 +221,7 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None, cli_s
 - **会话模式 `mode`**：`persistent`（默认）每个后端名共享一个后端实例，会话跨回合延续（CLI 的 `--resume` id、ACP 的常驻进程与会话）；`oneshot` 在**私有后端实例**上运行、回合结束即关闭（关闭失败只记 warning，不覆盖回合结果或回合异常）——总是全新会话，且不触碰 persistent 后端的会话与进程。在途 oneshot 后端按 `(name, session_id)` 登记，`cancel` 优先路由到它，`close_all` 一并关闭；同名后端的回合仍由 per-name 锁串行化（避免同一工作区同时跑两个同名 agent）
 - **空闲释放 `release_resident()`**：宿主在会话空闲时调用，只关闭并摘除常驻进程型（`backend_type == "acp"`）后端，下一回合惰性重建；CLI 后端回合之间没有进程，只持有 `--resume` 会话 id，原样保留，所以空闲回收不会让 CLI 会话断档。调用方须保证此刻池上没有在跑的回合（与 `close_all()` 同一约定）
 - **CLI 会话持久化 `cli_session_store`**：宿主可注入 `CliSessionStore`（`load` / `save`，键为 harness session id，一个 store 服务一个会话作用域），让 CLI 后端的 `--resume` id 跨宿主进程重启存活。只注入共享的 persistent 后端；oneshot 私有后端是回合结束即消失的全新会话，既不读也不写 store。store 的任何异常只记 warning 并降级（丢连续性，不丢回合）；harness 在回合收尾处直接 await store 且不设超时，调用时延由实现方自己约束；harness 本身不依赖任何存储实现
-- **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底
+- **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底；CLI 静默期间 `CliRuntime` 每 15 s 发一个 `working` 状态（见 §6 “静默心跳”），宿主的空闲看门狗据此知道它还活着
 - **委托窄协议 `DelegationPool`（`types.py`）**：委托调用方只依赖 `available_backends` / `get_config` / `run_turn` / `cancel`；`RuntimePool` 与宿主侧包装器（如按会话串行化回合的 facade）都满足它，`create_invoke_acp_agent_tool` 接受它
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测
 
@@ -236,10 +234,9 @@ RuntimeConfig (frozen dataclass)
 ├── args: list[str]                      # 命令行参数
 ├── env: dict[str, str] | None           # 额外环境变量
 ├── cwd: str | None                      # 工作目录
-├── timeout_seconds: int = 300           # 超时
+├── timeout_seconds: int = 300           # 整个回合的时间上限（含 CLI 静默的时间），由宿主按场景设置
 ├── permission_mode: PermissionMode      # 权限模式
 ├── allowed_tools: list[str]             # 工具白名单
-├── strip_env_keys: list[str]            # 需要剥离的环境变量
 ├── auth_mode: AuthMode = "subscription" # 鉴权模式：订阅登录态 / API Key
 ├── mcp_servers: list[McpServerConfig]   # MCP Server 配置
 ├── max_response_chars: int = 50_000     # 响应截断限制
@@ -248,7 +245,8 @@ RuntimeConfig (frozen dataclass)
 ```
 
 **环境变量管理 + 鉴权模式（`auth_mode`）**：
-- 敏感信息过滤：`build_safe_env()` 始终剥离子进程继承的 provider 密钥（前缀剥离 + `strip_env_keys`），各 Runtime 启动前统一调用
+- 环境基线：`build_safe_env()` 只让子进程继承核心变量（PATH、HOME、语言、代理等，复用 `code_execution/security/env_isolation.py` 的 `CORE` 策略）加上该 CLI 自己的登录目录变量（`CLAUDE_CONFIG_DIR` / `CODEX_HOME`，取自 auth profile 的 `home_env`）；宿主的 provider 密钥与其余环境一律不带——委托 CLI 会把自己的环境原样交给它执行的每条命令。后端另需的变量（`JAVA_HOME`、`SSH_AUTH_SOCK`、云厂商路由变量等）经 `RuntimeConfig.env` 设置。`CliRuntime` 与 `AcpRuntime` 启动前统一调用
+- 方言默认环境：CLI 方言的 `env_defaults` 垫在宿主与配置环境之下（后两者可覆盖）；Claude 的 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` 让无头回合不留后台任务（后台任务期间 `claude -p` 不会退出）
 - `subscription`（默认）：剥离所有 provider 密钥 **并丢弃** `env` 中注入的密钥，强制委托 CLI 走自身订阅登录态（用户的 ChatGPT Plus / Claude Max / Gemini 订阅），绝不静默回退按量计费的 API Key
 - `api_key`：业务层经 `env` 注入该后端应计费的单一 provider 密钥，剥离基线后重新应用
 - 价值：让 GUI/SaaS 用户用已购订阅驱动外部 CLI，无需重复购买 API Key（详见 3.10 auth 子系统）
@@ -285,7 +283,7 @@ auth/
 **设计铁律**：
 - 鉴权态**绝不进入** Turn1 工具描述；`create_invoke_acp_agent_tool` 使用**固定 schema**（backend 列表仅在运行时 KeyError 返回值中暴露），不破坏提示词前缀缓存
 - 凭据路径环境感知 → 控制平面通过重定向 home（如 `CODEX_HOME` → 持久卷）即可实现 SaaS 持久化，harness 零耦合
-- 登录态检测基于文件，刻意**不做运行时硬预检**：跨平台凭据存储差异（如 macOS Keychain）会导致误判，CLI 自身的未登录错误已由 `PROCESS_CRASHED`（含 stderr 提示）准确透传，状态可见性由徽章承担
+- 登录态检测基于文件，刻意**不做运行时硬预检**：跨平台凭据存储差异（如 macOS Keychain）会导致误判，CLI 自身的未登录错误以 `AUTH_FAILED`（Claude 的 `authentication_failed`、Codex 的 401）带着 CLI 原话准确透传，状态可见性由徽章承担
 
 **与竞品对比**：
 
@@ -331,13 +329,13 @@ acp/
 │   ├── pool.py             # RuntimePool
 │   └── cli/                # CLI 后端子包
 │       ├── __init__.py
-│       ├── dialect.py      # 各 CLI 的命令行差异（续接语法、原生轮次上限、增量文本）与会话 id 形态校验
-│       ├── failure.py      # 失败分类：用 CLI 自己的话（result 行 / 退出码）给出错误码
-│       ├── parser.py       # 各输出格式共享的事件构造（工具调用/结果、usage、错误、thinking、Codex item.*）
-│       ├── process.py      # CLI 进程：逐行 stdout、有界 stderr 尾部、唯一的停止入口（SIGTERM → SIGKILL）
-│       ├── runtime.py      # CliRuntime：启动、续接、失效重试、会话 id 落盘、回合收尾
+│       ├── dialect.py      # 各 CLI 的命令行差异（续接语法、原生轮次上限、增量文本、默认环境变量 env_defaults）与会话 id 形态校验
+│       ├── failure.py      # 失败分类：用 CLI 自己的话（result 行 / turn.failed / 退出码）给出错误码
+│       ├── parser.py       # 各输出格式共享的事件构造（工具调用/结果、usage、turn.failed、thinking、Codex item.*）
+│       ├── process.py      # CLI 进程：逐行 stdout（静默满一个周期产出 None 供心跳）、有界 stderr 尾部、唯一的停止入口（SIGTERM → SIGKILL）；程序不存在抛 CliLaunchError
+│       ├── runtime.py      # CliRuntime：启动、续接、失效重试、会话 id 落盘、静默心跳、回合收尾
 │       ├── session.py      # CLI 会话记录簿 CliSessionBook（内存优先 + 写穿到宿主 CliSessionStore）
-│       └── turn_parser.py  # 单回合 NDJSON 解析器（announce / result / 增量文本去重）
+│       └── turn_parser.py  # 单回合 NDJSON 解析器（announce / result / 顶层 error 通知 / 增量文本去重）
 └── toolchains/             # 隔离工具链（Node/npm）
     ├── __init__.py
     └── manager.py          # ToolchainManager
@@ -357,7 +355,7 @@ acp/
 | Session 管理 | opencode (Fork/Resume) | Fork/Resume + TTL + 自动清理 | **超越** |
 | 后端检测 | AionUi (自动检测) | 自动检测 + 版本检测 | **超越** |
 | 事件类型 | nextclaw (34类型) | 9类型（精简完整，含 status_update） | **超越** |
-| 错误处理 | craft-agents-oss (错误标记) | 结构化错误码 + retryable + PERMISSION_DENIED | **超越** |
+| 错误处理 | craft-agents-oss (错误标记) | 结构化错误码 + retryable | **超越** |
 | 安全模型 | ironclaw (纵深防御) | 环境清理 + 工具白名单 + 路径安全 | 平齐 |
 | MCP 集成 | craft-agents-oss (Session MCP) | Session MCP 注入 | 平齐 |
 
@@ -415,7 +413,8 @@ acp/
 - **Deploy 门控（Server）**：`external_cli_deploy.is_external_cli_deploy_supported()` + profile `strip_deploy_incompatible_builtin_tools`；沙箱自动剔除 `external_cli`；BuiltinToolsPanel sandbox 硬禁用 toggle
 - **MCP 会话注入**：`RuntimePool.run_turn` → `AcpRuntime.new_session(mcp_servers=…)`（无 MCP 时 Server 不传参数（None）；`RuntimeConfig.mcp_servers` 为配置源；注入前经 `capabilities.supports_mcp` 能力守卫，跳过不支持的 backends 并记录 `pool_mcp_skipped`）
 - **Host 会话级 MCP 忽略诊断**：ACP Server 侧（`new_session` / `load_session` / `fork_session` / `resume_session`）若收到 host 传入的 `mcp_servers`，记录 `acp_host_mcp_ignored` WARNING —— Myrm 内部 agent 管线自行管理 MCP，host 提供的会话级 MCP 注入不被透传，显式告警避免静默丢失
-- **失败分类**：`runtime/cli/failure.classify_failure` 按 CLI 自己的话归类——`result` 行的 `error_max_turns` → `MAX_TURNS`，`api_error_status` 401/403 → `AUTH_FAILED`、429 → 可重试的 `RATE_LIMITED`、5xx → 可重试的 `UNKNOWN`；没有 `result` 行时非零退出码才是 `PROCESS_CRASHED`（带 stderr 摘录）；本运行时自己停掉的进程一律是 `CANCELLED`。消息是 CLI 的原话，不夹带产品设置建议
+- **失败分类**：`runtime/cli/failure.classify_failure` 按 CLI 自己的话归类——Claude `result` 行的 `error_max_turns` → `MAX_TURNS`；`assistant` 行的 `error: authentication_failed`（没登录、401、403 都是这个类别）或 `api_error_status` 401/403 → `AUTH_FAILED`、429 → 可重试的 `RATE_LIMITED`、5xx → 可重试的 `UNKNOWN`；Codex 的 `turn.failed`：文本含 `unexpected status 401` → `AUTH_FAILED`，其余（含 403 区域/套餐限制、429 配额）→ `UNKNOWN`，原文原样保留；没有上述判决时非零退出码才是 `PROCESS_CRASHED`（带最后一条顶层 `error` 通知，没有则取 stderr 摘录）；本运行时自己停掉的进程一律是 `CANCELLED`。拉起进程时程序不存在（`CliLaunchError`）→ 单个 `BACKEND_NOT_FOUND` 错误事件，不做续接失效重试。顶层 `error` / `stream_error` 行不是失败：Codex 每次请求重试都会打印一条（`Reconnecting... n/5 (…)`），它们只作为通知被记住，判决只来自 `turn.failed` / `result` / 退出码。消息是 CLI 的原话，不夹带产品设置建议（给用户的处置指引由宿主按 `AcpErrorCode` 另行组织）
+- **静默心跳**：CLI 回合里 stdout 静默满 15 s（`runtime._KEEPALIVE_SECONDS`），`CliRuntime` 每 15 s 发一个 `STATUS_UPDATE(status="working", message="<已运行时长>")`（不用 `warning`：工具路径把 `warning` 当错误计数）；有输出的回合不发。宿主若有“静默多久算卡死”的看门狗（Server Gateway 的 `execution_timeout`，默认 300 s），这个状态让一次长时间无输出的编码回合不被它误杀；整个回合仍受 `timeout_seconds` 约束
 - **跨平台进程组清理**：每个 CLI 回合都在独立进程组里运行（POSIX `start_new_session`，Windows `CREATE_NEW_PROCESS_GROUP`），停止时整组终止（POSIX `killpg`，Windows `taskkill /T /F`），子进程随之清理；回合以任何方式结束（正常、异常、取消、超时、消费方提前放弃生成器）都经同一个 `spawn_cli_process` 上下文停掉仍在跑的进程
 - **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下（例外：回合开头把超过管道缓冲的提示词写进一个不再读 stdin 的 CLI 时，进程在写入完成前还没有交给运行时，停止要等写入结束才生效，上限是 `timeout_seconds`）。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）

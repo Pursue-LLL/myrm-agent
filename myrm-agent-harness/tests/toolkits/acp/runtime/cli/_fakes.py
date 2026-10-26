@@ -67,7 +67,7 @@ if isinstance(scenario, list):
 
 prompt = sys.stdin.read() if "-p" in argv else (argv[-1] if argv else "")
 with open(calls_path, "a") as handle:
-    handle.write(json.dumps({"name": name, "argv": argv, "cwd": cwd, "prompt": prompt}) + "\\n")
+    handle.write(json.dumps({"name": name, "argv": argv, "cwd": cwd, "prompt": prompt, "env": dict(os.environ)}) + "\\n")
 
 if scenario.get("ignore_sigterm"):
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
@@ -119,6 +119,7 @@ if name == "claude":
         register({"id": session_id, "cwd": cwd})
     emit({"type": "system", "subtype": "init", "session_id": session_id, "cwd": cwd})
     hang_if("hang_after_init")
+    time.sleep(scenario.get("silent_seconds", 0))
     text = scenario.get("text", session_id)
     for number in range(scenario.get("tools", 0)):
         call = {"type": "tool_use", "id": "toolu_%d" % number, "name": "Bash", "input": {"command": "echo %d" % number}}
@@ -144,6 +145,14 @@ if name == "claude":
         emit({"type": "result", "subtype": "success", "is_error": True, "result": "API Error: 400 bad",
               "api_error_status": 400, "terminal_reason": "api_error", "session_id": session_id})
         finish(1)
+    if fail == "not_logged_in":
+        # Nobody is logged in: no API call is made, so the result has no status, only the error category.
+        text = "Not logged in \\u00b7 Please run /login"
+        notice = {"id": "msg_err", "model": "<synthetic>", "content": [{"type": "text", "text": text}]}
+        emit({"type": "assistant", "error": "authentication_failed", "message": notice})
+        emit({"type": "result", "subtype": "success", "is_error": True, "result": text,
+              "api_error_status": None, "session_id": session_id})
+        finish(1)
     hang_if("hang_after_text")
     if fail == "crash":
         finish(3)
@@ -163,7 +172,20 @@ elif name == "codex":
     emit({"type": "thread.started", "thread_id": thread})
     emit({"type": "turn.started"})
     hang_if("hang_after_init")
-    if scenario.get("fail") == "turn_failed":
+    for number in range(scenario.get("retry_notices", 0)):
+        # Codex reports every retry of a request as an error line; the turn can still succeed afterwards.
+        emit({"type": "error", "message": "Reconnecting... %d/5 (stream disconnected)" % (number + 1)})
+    fail = scenario.get("fail")
+    if fail == "auth":
+        denied = "unexpected status 401 Unauthorized: Missing bearer or basic authentication in header"
+        emit({"type": "error", "message": "Reconnecting... 1/5 (" + denied + ")"})
+        emit({"type": "error", "message": denied})
+        emit({"type": "turn.failed", "error": {"message": denied}})
+        finish(1)
+    if fail == "error_line_only":
+        emit({"type": "error", "message": "model not supported"})
+        finish(1)
+    if fail == "turn_failed":
         emit({"type": "turn.failed", "error": {"message": "stream disconnected"}})
         finish(1)
     text = scenario.get("text", thread)

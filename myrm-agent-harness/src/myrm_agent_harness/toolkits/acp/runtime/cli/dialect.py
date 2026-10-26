@@ -1,4 +1,4 @@
-"""Per-CLI dialects — how each CLI resumes a conversation and limits its own turns.
+"""Per-CLI dialects — how each CLI resumes a conversation, limits its own turns and wants to be launched.
 
 The CLIs share the NDJSON event vocabulary (``parser``) but not their command lines: Claude resumes with a
 ``--resume <id>`` flag, Codex with an ``exec resume <id>`` subcommand, and only Claude has a native turn limit.
@@ -8,7 +8,7 @@ Keeping those differences in one place leaves the runtime free of per-CLI branch
 - toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
 
 [OUTPUT]
-- CliDialect: command-line differences of one CLI (resume, native turn limit, partial-message streaming)
+- CliDialect: launch differences of one CLI (resume, native turn limit, partial-message streaming, environment)
 - dialect_for: the dialect of a command, or None for a CLI without a known one
 - has_native_turn_limit: whether a command's CLI stops itself at the configured turn limit
 - is_session_id: whether a string has the shape of a CLI session id
@@ -20,6 +20,8 @@ Per-CLI launch knowledge of CliRuntime. A CLI without a dialect is spawned as co
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from types import MappingProxyType
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
 
@@ -40,6 +42,8 @@ class CliDialect:
     name = ""
     max_turns_flag: str | None = None
     partial_messages_flag: str | None = None
+    # Environment the CLI needs when a program, not a person, runs it; the host's and the configured env win.
+    env_defaults: Mapping[str, str] = MappingProxyType({})
 
     def is_resuming(self, args: list[str]) -> bool:
         """Whether the configured args already pick the conversation themselves."""
@@ -70,6 +74,9 @@ class _ClaudeDialect(CliDialect):
     name = "claude"
     max_turns_flag = "--max-turns"
     partial_messages_flag = "--include-partial-messages"
+    # Without it a turn stays open until every background task the model started has ended, so a task that
+    # never ends (a dev server) hangs the turn until the timeout. The turn then ends when the model is done.
+    env_defaults = MappingProxyType({"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"})
 
     def is_resuming(self, args: list[str]) -> bool:
         return "--resume" in args

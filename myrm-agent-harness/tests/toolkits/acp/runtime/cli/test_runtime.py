@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import sys
 from contextlib import aclosing
-from pathlib import Path
 
 import pytest
 
@@ -201,16 +200,6 @@ class TestFailures:
         assert [e.data["error"].message for e in errors] == ["stream disconnected"]
         assert types_of(events)[-1] is RuntimeEventType.ERROR
         assert RuntimeEventType.DONE not in types_of(events)
-
-    @pytest.mark.asyncio
-    async def test_a_missing_executable_is_an_error_event_not_a_raised_exception(self, tmp_path: Path) -> None:
-        runtime = CliRuntime("t", RuntimeConfig(backend_type="cli", command=str(tmp_path / "nope"), cwd=str(tmp_path)))
-
-        events = await run_turn(runtime)
-
-        errors = errors_of(events)
-        assert len(errors) == 1
-        assert "FileNotFoundError" in errors[0].data["error"].message
 
 
 class TestLaunchArgs:

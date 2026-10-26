@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime.cli import process as process_module
-from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliProcess, spawn_cli_process
+from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliLaunchError, CliProcess, spawn_cli_process
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups and signals")
 
@@ -121,6 +121,21 @@ class TestStderr:
         """
         async with _spawn(code) as process:
             await _collect(process)
+            async with asyncio.timeout(5):
+                assert await process.wait() == 0
+
+    @pytest.mark.asyncio
+    async def test_waiting_before_the_exit_is_not_held_by_a_grandchild_either(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``wait()`` is already pending while the CLI is alive: asyncio would keep it pending until the grandchild ends."""
+        monkeypatch.setattr(process_module, "_STDERR_DRAIN_SECONDS", 0.3)
+        code = """
+            import subprocess, time
+            subprocess.Popen(["sleep", "30"], stdout=subprocess.DEVNULL)
+            time.sleep(0.5)
+        """
+        async with _spawn(code) as process:
             async with asyncio.timeout(5):
                 assert await process.wait() == 0
 
@@ -265,7 +280,59 @@ class TestStopping:
             await process._process.wait()
 
     @pytest.mark.asyncio
-    async def test_an_executable_that_does_not_exist_fails_to_spawn(self) -> None:
-        with pytest.raises(FileNotFoundError):
+    async def test_an_executable_that_does_not_exist_is_a_launch_error_naming_it(self) -> None:
+        with pytest.raises(CliLaunchError, match="CLI executable not found: /nonexistent/agent"):
             async with spawn_cli_process(["/nonexistent/agent"], env=_ENV, cwd=os.getcwd(), stdin_text=None):
                 pass
+
+    @pytest.mark.asyncio
+    async def test_a_working_directory_that_does_not_exist_is_not_a_launch_error(self, tmp_path: Path) -> None:
+        with pytest.raises(FileNotFoundError):
+            async with spawn_cli_process(_python("pass"), env=_ENV, cwd=str(tmp_path / "gone"), stdin_text=None):
+                pass
+
+
+class TestIdleTicks:
+    @pytest.mark.asyncio
+    async def test_a_silent_cli_ticks_and_its_lines_arrive_in_order(self) -> None:
+        code = """
+            import sys, time
+            print("first", flush=True)
+            time.sleep(0.5)
+            print("second", flush=True)
+        """
+        async with _spawn(code) as process:
+            items = [item async for item in process.lines(idle_tick=0.1)]
+
+        assert [item for item in items if item is not None] == ["first", "second"]
+        first, second = items.index("first"), items.index("second")
+        assert items[first + 1 : second].count(None) >= 2
+        assert None not in items[:first]
+
+    @pytest.mark.asyncio
+    async def test_a_tick_in_the_middle_of_a_line_does_not_split_it(self) -> None:
+        code = """
+            import sys, time
+            sys.stdout.write("half of a ")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            sys.stdout.write("line\\n")
+            sys.stdout.flush()
+        """
+        async with _spawn(code) as process:
+            items = [item async for item in process.lines(idle_tick=0.1)]
+
+        assert [item for item in items if item is not None] == ["half of a line"]
+        assert items.count(None) >= 2
+
+    @pytest.mark.asyncio
+    async def test_without_a_tick_a_silent_cli_just_takes_its_time(self) -> None:
+        code = """
+            import time
+            time.sleep(0.3)
+            print("late", flush=True)
+        """
+        async with _spawn(code) as process:
+            items = [item async for item in process.lines()]
+
+        assert items == ["late"]

@@ -14,13 +14,21 @@ def _result(**overrides: object) -> CliResult:
         "message": "",
         "terminal_reason": "",
         "api_error_status": None,
+        "assistant_error": "",
     }
     fields.update(overrides)
     return CliResult(**fields)  # type: ignore[arg-type]
 
 
-def _classify(result: CliResult | None = None, *, returncode: int = 1, stderr: str = "", killed: bool = False):
-    return classify_failure(result=result, returncode=returncode, stderr=stderr, killed=killed)
+def _classify(
+    result: CliResult | None = None,
+    *,
+    returncode: int = 1,
+    stderr: str = "",
+    killed: bool = False,
+    notice: str = "",
+):
+    return classify_failure(result=result, returncode=returncode, stderr=stderr, killed=killed, notice=notice)
 
 
 def test_a_clean_exit_without_an_error_result_succeeded() -> None:
@@ -53,6 +61,25 @@ def test_an_unauthorized_api_error_needs_the_user_not_a_retry() -> None:
         assert error is not None
         assert error.code is AcpErrorCode.AUTH_FAILED
         assert error.retryable is False
+
+
+def test_a_missing_login_is_an_auth_failure_although_no_api_call_was_made() -> None:
+    error = _classify(
+        _result(message="Not logged in · Please run /login", assistant_error="authentication_failed"),
+    )
+
+    assert error is not None
+    assert error.code is AcpErrorCode.AUTH_FAILED
+    assert error.message == "Not logged in · Please run /login"
+    assert error.retryable is False
+
+
+def test_the_other_error_categories_do_not_make_an_auth_failure() -> None:
+    for category in ("invalid_request", "rate_limit", "billing_error", "model_not_found", "server_error"):
+        error = _classify(_result(message="boom", assistant_error=category))
+
+        assert error is not None
+        assert error.code is AcpErrorCode.UNKNOWN, category
 
 
 def test_a_rate_limit_is_retryable() -> None:
@@ -94,6 +121,22 @@ def test_a_crash_without_a_verdict_reports_the_exit_code_and_the_stderr_excerpt(
     assert error.code is AcpErrorCode.PROCESS_CRASHED
     assert error.retryable is True
     assert error.message == "CLI process exited with code 3: segfault"
+
+
+def test_the_last_error_line_explains_a_crash_better_than_the_stderr() -> None:
+    error = _classify(None, returncode=1, stderr="Reading additional input from stdin...", notice="model not supported")
+
+    assert error is not None
+    assert error.code is AcpErrorCode.PROCESS_CRASHED
+    assert error.message == "CLI process exited with code 1: model not supported"
+
+
+def test_an_error_line_never_turns_a_clean_exit_or_a_verdict_into_another_failure() -> None:
+    assert _classify(None, returncode=0, notice="Reconnecting... 2/5") is None
+    verdict = _classify(_result(message="API Error: 400", api_error_status=400), notice="Reconnecting... 2/5")
+
+    assert verdict is not None
+    assert verdict.message == "API Error: 400"
 
 
 def test_a_crash_without_stderr_has_no_dangling_colon() -> None:

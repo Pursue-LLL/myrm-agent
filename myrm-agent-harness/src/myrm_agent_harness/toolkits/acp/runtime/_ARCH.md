@@ -8,7 +8,7 @@ ACP Runtime backends — unified interface for ACP and CLI agents.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | ACP Runtime backends — unified interface for ACP and CLI agents. | ✅ |
-| _base.py | Internal | Base class for RuntimeBackend implementations — timeout control, truncation, error handling; the turn generator is closed with `aclosing`, so a timeout, a failure or an abandoned stream stops the backend process. | ✅ |
+| _base.py | Internal | Base class for RuntimeBackend implementations — timeout control, truncation, error handling; `build_safe_env` gives a child process only the core variables (shared `CORE` policy of `code_execution/security/env_isolation.py`) plus its CLI's login-home variable, then the configured `env` by `auth_mode`; the turn generator is closed with `aclosing`, so a timeout, a failure or an abandoned stream stops the backend process. | ✅ |
 | acp_callback.py | Core | ACP callback handler for the AcpRuntime backend. | ✅ |
 | acp_runtime.py | Core | ACP protocol runtime backend — session reuse, cancel, resume; prompt failures re-raise to surface as ERROR; `session/close` is sent only when `initialize` advertised `sessionCapabilities.close` and is bounded (4s), so a silent agent cannot skip the transport teardown that terminates its process. | ✅ |
 | cli/ | Core | CLI runtime sub-package: `CliRuntime` (one CLI agent process per turn), per-CLI dialects, process ownership, NDJSON turn parsing, failure classification, `CliSessionBook` (CLI session continuity). See [cli/_ARCH.md](cli/_ARCH.md). | ✅ |

@@ -5,10 +5,12 @@ environment variable sanitization, timeout control, and response truncation.
 
 [INPUT]
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
+- toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
+- toolkits.code_execution.security.env_isolation::EnvInheritPolicy, sanitize_env (POS: Child process environment isolation SSOT) [lazy]
 
 [OUTPUT]
 - BaseRuntime: Abstract base for RuntimeBackend implementations.
-- build_safe_env: Build a sanitized environment for the child process.
+- build_safe_env: Build the environment of a delegated child process: core variables only, plus the configured env.
 - truncate_response: Truncate response text if it exceeds the configured limit.
 
 [POS]
@@ -23,6 +25,7 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 
+from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,
@@ -39,9 +42,8 @@ from myrm_agent_harness.toolkits.acp.types import (
 
 logger = logging.getLogger(__name__)
 
-# Provider-secret env prefixes. A delegated child must never inherit the host's
-# model credentials: in subscription mode it would defeat the point (and silently
-# bill the user's API key), in api_key mode it would leak unrelated providers' keys.
+# Provider-secret env prefixes, for the ``config.env`` of a subscription-mode backend: an injected provider key
+# would make the CLI bill an API key instead of the user's own login session.
 # Kept exhaustive across the providers our backends (Codex/Claude/Gemini/Qwen/…) reach.
 _SENSITIVE_ENV_PREFIXES = frozenset(
     {
@@ -81,13 +83,14 @@ def build_safe_env(
     config: RuntimeConfig,
     base_env: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    """Build a sanitized environment for a delegated child process.
+    """Build the environment of a delegated child process.
 
     Two layers, both honouring ``config.auth_mode``:
 
-    1. Baseline strip — provider secrets in the parent environment (plus any in
-       ``strip_env_keys``) are always removed, so a delegated CLI can never
-       inherit the host's keys.
+    1. Baseline — from the parent environment only the shared core variables (PATH, HOME, locale, proxy, …)
+       and the variable that relocates this CLI's own login home are inherited. A delegated CLI hands its
+       environment on to every command the model runs, so provider keys and the operator's other secrets
+       stay behind; what a backend needs beyond the core is set through ``config.env``.
     2. Credential injection from ``config.env``:
        - ``api_key``: applied verbatim, letting the host inject the single
          provider key this backend should bill against.
@@ -95,12 +98,14 @@ def build_safe_env(
          secrets are dropped so the CLI is forced onto its own logged-in
          subscription session rather than silently falling back to a key.
     """
-    env = dict(base_env or os.environ)
+    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import EnvInheritPolicy, sanitize_env
 
-    explicit_strip = set(config.strip_env_keys)
-    keys_to_remove = [key for key in env if key in explicit_strip or _is_sensitive_key(key.upper())]
-    for key in keys_to_remove:
-        del env[key]
+    source = dict(os.environ if base_env is None else base_env)
+    env = sanitize_env(source, EnvInheritPolicy.CORE)
+    profile = profile_for(config.command) if config.command else None
+    home_env = profile.home_env if profile is not None else None
+    if home_env and home_env in source:
+        env[home_env] = source[home_env]
 
     if config.env:
         if config.auth_mode == "subscription":
