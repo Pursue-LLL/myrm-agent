@@ -11,8 +11,8 @@
 - is_vault_uri: predicate for vault:// paths
 - path_base: strip line-range suffix (vault-safe)
 - resolve_workspace_root: workspace for ArtifactVault reads
-- read_vault_text_content: load vault object text with optional line range and preview mode
-- read_vault_paths_to_parts: batch vault reads for file_read_tool
+- read_vault_text_content: load vault object text with optional line range and preview mode (lines are numbered by newline only)
+- read_vault_paths_to_parts: batch vault reads for file_read_tool; a truncated read continues at an absolute line of the object
 
 [POS]
 Vault URI reader for file_read_tool. Keeps vault:// handling out of FileOperationService.
@@ -69,6 +69,19 @@ def resolve_workspace_root(executor: CodeExecutor | None) -> str | None:
     return None
 
 
+def _split_lines_keepends(text: str) -> list[str]:
+    """Split on newline only, keeping each line's ending.
+
+    Every other file_read path numbers lines by newline; ``str.splitlines`` also breaks on U+2028, U+0085, U+000B
+    and a lone carriage return, so a line number printed by a truncation hint would name another line here.
+    """
+    parts = text.split("\n")
+    lines = [f"{part}\n" for part in parts[:-1]]
+    if parts[-1]:
+        lines.append(parts[-1])
+    return lines
+
+
 def read_vault_text_content(
     vault_uri: str,
     workspace_root: str,
@@ -87,7 +100,7 @@ def read_vault_text_content(
 
     raw_bytes = vault.get(vault_uri)
     text = raw_bytes.decode("utf-8", errors="replace")
-    lines = text.splitlines(keepends=True)
+    lines = _split_lines_keepends(text)
 
     if view_range is not None:
         start_idx = max(view_range.start - 1, 0)
@@ -127,8 +140,9 @@ async def read_vault_paths_to_parts(
             truncated, was_truncated, meta = truncate_file_output(
                 content,
                 max_chars=DEFAULT_FILE_IO_CONFIG.max_read_chars,
-                path_str=path_str,
+                path_str=vault_uri,
                 max_lines=DEFAULT_FILE_IO_CONFIG.max_read_lines,
+                first_line=view_range.start if view_range is not None else 1,
             )
             parts.append(f"=== {path_str} ===\n{truncated}")
             if was_truncated:

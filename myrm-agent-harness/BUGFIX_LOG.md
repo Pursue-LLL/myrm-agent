@@ -2,6 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-016 · 翻 vault 对象第二页时续读提示是坏的：路径被拼上刚读的范围、行号按本页重新计数，跟着提示读得到「对象不存在或已过期」；对象里夹 U+2028 等字符时行号还与其他读取路径对不上
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（给 `network_detail` 的大响应体设计 vault 落盘时，用真实 vault 对象走 `file_read` 逐页往下翻） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：任何超过 10,000 字符的 vault 对象（`extract_text` 落盘、超大工具结果的自动落盘）只要用范围读取（`vault://<id>:N-`）翻到第二页，提示就坏了，跟着它读还会得到误导性的「not found or expired」（对象其实在）。第一页（不带范围）的提示是对的，所以只测第一页看不出来。线上有多少次翻到第二页未测 |
+| **关联产品** | harness `agent/meta_tools/file_ops/utils/vault_read.py`、`core/file_read_truncation.py` |
+| **根因** | 两处。① `read_vault_paths_to_parts` 把带范围的原路径当作提示里的路径，并把已经切过片的内容交给 `truncate_file_output`；后者对没有行号栏的原文用「本页保留行数 + 1」当续读行号，所以范围读取得到的是相对本页的行号，还拼在带范围的路径后面。② `read_vault_text_content` 用 `str.splitlines` 切行，U+2028、U+0085、U+000B、单独的 `\r` 也算行尾；普通文件的读取（`strategies/storage_strategy.py:62`、`mcp_strategy.py:57`）与截断函数都只按 `\n` 计行，同一段文字在 vault 里行号对不上。 |
+| **修复** | `truncate_file_output` 新增 `first_line`（原文切片第一行在对象里的绝对行号，默认 1；有行号栏时仍以行号栏为准）；`read_vault_paths_to_parts` 提示里写对象本身 `vault://<id>`，并传入这次读取的起始行；`read_vault_text_content` 改按 `\n` 切行（保留行尾），与其他读取路径同一口径。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 vault 对象（3000 行，每行 10 字符，每页约 1000 行）：提交版第二页提示是 `vault://<id>:1001-:1001-`，跟着它读得到 `Vault object not found or expired`；修复后第二页提示 `:2001-`，第三页读到 2001–3000。新增 `tests/agent/meta_tools/file_ops/test_file_read_vault_continuation.py`（4 例：范围读取的提示取绝对行号；沿提示翻完整个对象，每行读到且只读一次；每行夹 U+2028 / U+0085 时同样；按 `\n` 计行）与 `test_file_read_truncation.py` 2 例（`first_line`、行号栏优先）；在提交版源码上这 6 例全部变红（4 例红在提示或行号，2 例因没有 `first_line` 参数）。file_ops 套件 805 例通过（改前 799）。 |
+| **仍然存在** | ① 带结束行的范围读取（`:100-5000`）被截断时，提示仍是不带结束行的 `:N-`，会读到对象末尾而不是原来请求的结束行；沿用原行为。② 一行（`\n` 口径）本身超过 10,000 字符时，这一行仍被截成 10,000 字符，提示指向下一行，被截掉的部分读不到；这类内容需要写入方先折行。③ 含 U+2028 等字符的已有对象，按新口径读取的行号与此前不同。 |
+| **代码位置** | `agent/meta_tools/file_ops/utils/vault_read.py`（`_split_lines_keepends`、`read_vault_paths_to_parts`）· `agent/meta_tools/file_ops/core/file_read_truncation.py`（`truncate_file_output` 的 `first_line`）· `tests/agent/meta_tools/file_ops/test_file_read_vault_continuation.py` · `tests/agent/meta_tools/file_ops/test_file_read_truncation.py` |
+
 ### BUG-HARNESS-2026-10-27-015 · 同一工作区里的多个 chat 共用一个 `todos.json`：别的 chat 的计划出现在你的 run 里并拦住它收尾，一个 chat 的 `todo_write` 把另一个的清单整个覆盖
 
 | 字段 | 内容 |

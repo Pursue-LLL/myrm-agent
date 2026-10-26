@@ -20,7 +20,7 @@ Text Editor core business logic module.
 | file_activity_tracker.py | Core | File activity tracker. Line-level conflict detection for concurrent subagent file operations. | ✅ |
 | file_edit_normalizer.py | Util | LLM input normalizer for file_edit_tool legacy flat fields（`normalize_edits_payload`、`merge_edits_for_diff`） | ✅ |
 | file_read_handlers.py | Internal | Multimodal/text/vault execution handlers for file_read_tool. Image reads route by capability: native vision blocks, else the auxiliary vision chain, else the OCR tier (`_read_image_via_ocr`), else a metadata line. PDFs go through `read_pdf_as_content_blocks` with the same vision-chain config so scanned pages survive on a text-only model | ✅ |
-| file_read_truncation.py | Internal | Output truncation helpers for file_read_tool. Complete-line-boundary head truncation with precomputed next_offset and line-count cap. | ✅ |
+| file_read_truncation.py | Internal | Output truncation helpers for file_read_tool. Complete-line-boundary head truncation with precomputed next_offset and line-count cap. A gutter carries absolute line numbers; a raw slice (a ranged vault read) counts from `first_line`, so the continuation offset is always an absolute line. | ✅ |
 | file_read_outline.py | Internal | Adaptive structural outline extractor (Markdown headings, code symbols, classes/functions with line ranges) for truncated reads and structure mode. | ✅ |
 | read_dedup.py | Core | Read dedup guard. Skips re-reading unchanged local files to protect Prompt Cache; stub + hard-block escalation, write invalidation, compression reset, env kill-switch. Agent-aware per-agent buckets. | ✅ |
 | mcp_read_next_step_hint.py | Util | One-shot MCP workflow reminder appended after batch-read of function docs | ✅ |

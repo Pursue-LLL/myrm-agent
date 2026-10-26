@@ -46,6 +46,25 @@ def test_truncate_file_output_includes_actual_path_in_hint():
     assert "src/app.py:2- to continue" in truncated
 
 
+def test_raw_slice_continues_from_its_absolute_first_line():
+    """A raw slice that starts at line 51 and shows 3 lines continues at line 54, not at 4."""
+    output = "\n".join(f"row {n:04d} " + "x" * 30 for n in range(51, 61))
+    truncated, was_truncated, meta = _truncate_file_output(output, max_chars=130, path_str="vault://abc", first_line=51)
+    assert was_truncated is True
+    assert meta["next_offset"] == 54
+    assert "Use vault://abc:54- to continue" in truncated
+    assert "row 0053" in truncated
+    assert "row 0054" not in truncated
+
+
+def test_gutter_line_numbers_win_over_first_line():
+    """A gutter already carries absolute numbers; first_line must not shift them."""
+    output = "\n".join(f"{n:>6}|" + "x" * 30 for n in range(200, 210))
+    _, was_truncated, meta = _truncate_file_output(output, max_chars=130, path_str="a.py", first_line=51)
+    assert was_truncated is True
+    assert meta["next_offset"] == 203
+
+
 def test_truncate_file_output_at_exact_boundary():
     """Output exactly at max_chars should not be truncated."""
     output = "a" * 100
@@ -67,9 +86,7 @@ def test_truncate_dir_output_with_truncation():
 def test_truncate_preserves_complete_line_boundary():
     """Truncation must cut at the last complete line, not mid-line."""
     output = "line1\nline2\nline3\nline4"
-    truncated, was_truncated, _ = _truncate_file_output(
-        output, max_chars=10, is_dir=False, path_str="f.py"
-    )
+    truncated, was_truncated, _ = _truncate_file_output(output, max_chars=10, is_dir=False, path_str="f.py")
     assert was_truncated is True
     # Only full lines "line1" fits in 10 chars; the rest are dropped.
     assert truncated.startswith("line1")
@@ -79,9 +96,7 @@ def test_truncate_preserves_complete_line_boundary():
 def test_truncate_computes_next_offset_from_gutter():
     """With a line-number gutter, next_offset is the last shown line + 1."""
     output = "\n".join(f"{i:6}|content {i}" for i in range(1, 21))
-    truncated, was_truncated, meta = _truncate_file_output(
-        output, max_chars=100, is_dir=False, path_str="big.py"
-    )
+    truncated, was_truncated, meta = _truncate_file_output(output, max_chars=100, is_dir=False, path_str="big.py")
     assert was_truncated is True
     assert meta["next_offset"] > 1
     assert f"Use big.py:{meta['next_offset']}- to continue" in truncated
@@ -91,9 +106,7 @@ def test_truncate_no_gutter_falls_back_to_line_offset():
     """Without a gutter, the continuation hint falls back to retained-line + 1
     (a line number, matching vault:: parse semantics — never a char count)."""
     output = "x" * 500
-    truncated, was_truncated, meta = _truncate_file_output(
-        output, max_chars=100, is_dir=False, path_str="raw.txt"
-    )
+    truncated, was_truncated, meta = _truncate_file_output(output, max_chars=100, is_dir=False, path_str="raw.txt")
     assert was_truncated is True
     assert "raw.txt:2- to continue" in truncated
     assert meta["next_offset"] == 2
@@ -136,5 +149,3 @@ def test_truncate_empty_string_not_truncated():
     assert was_truncated is False
     assert truncated == ""
     assert meta == {}
-
-

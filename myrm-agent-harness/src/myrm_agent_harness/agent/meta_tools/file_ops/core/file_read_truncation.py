@@ -69,13 +69,15 @@ def truncate_file_output(
     is_dir: bool = False,
     path_str: str = "file",
     max_lines: int | None = None,
+    first_line: int = 1,
 ) -> tuple[str, bool, dict[str, object]]:
     """Head-truncate file/ls output with a precomputed continuation offset.
 
     Truncation is always on a complete-line boundary (except a single over-long
     line, clamped on a code-point boundary). The returned ``metadata`` includes
-    ``next_offset`` = the last shown line number + 1 when the output carries a
-    line-number gutter, so the model can continue with ``path:next_offset-``.
+    ``next_offset`` = the last shown line number + 1, so the model can continue
+    with ``path:next_offset-``. A gutter carries the absolute line numbers; raw
+    text counts from ``first_line``.
 
     Args:
         output: Raw or gutter-rendered file content.
@@ -84,6 +86,9 @@ def truncate_file_output(
         path_str: Display path used in the continuation hint.
         max_lines: Optional line-count cap (``None`` disables it; the char
             budget is the primary guard).
+        first_line: Absolute number of the first line of a raw (gutter-less)
+            *output* that is itself a slice of a longer text (a ranged vault
+            read), so the continuation offset stays absolute.
 
     Returns:
         ``(truncated_text, was_truncated, metadata)``. When the output already
@@ -123,10 +128,11 @@ def truncate_file_output(
     head = "\n".join(lines)
 
     # With a line-number gutter (ResultFormatter), next_offset is the last shown
-    # line + 1. Without one (raw text / vault reads), fall back to the number of
-    # retained lines + 1 so the hint is always a line number, never a char count.
+    # line + 1. Without one (raw text / vault reads), count the retained lines
+    # from first_line so the hint is always an absolute line number, never a char
+    # count and never a position inside the slice.
     last_line = _last_gutter_line_number(lines)
-    next_offset = last_line + 1 if last_line is not None else len(lines) + 1
+    next_offset = last_line + 1 if last_line is not None else first_line + len(lines)
 
     hint_parts: list[str] = []
     if line_capped or char_capped:
