@@ -31,8 +31,10 @@ from app.services.wiki.source_sync.ima.state import ImaKbSelection, ImaSyncConfi
 
 @dataclass
 class FakeIma:
-    """Scripted stand-in for ``ImaClient``: pages, media and notes are plain dicts; ``fail`` injects errors per method.
+    """Scripted stand-in for ``ImaClient``: pages, media and notes are plain dicts.
 
+    ``fail`` injects an error into every call of a method (a revoked key fails ``verify`` too); ``fail_on`` into one
+    resource only, keyed by ``(method, kb_id | media_id | note_id)`` — ima's way of refusing what a working key may not read.
     The notes listing is cursor-paged: the first ``deleted_notes_head`` positions hold deleted notes the parser has
     already dropped (so the first pages come back empty), and ``after_notes_page`` runs once a page is served.
     """
@@ -42,17 +44,22 @@ class FakeIma:
     notes: list[ImaNote] = field(default_factory=list)
     note_text: dict[str, str] = field(default_factory=dict)
     fail: dict[str, ImaError] = field(default_factory=dict)
+    fail_on: dict[tuple[str, str], ImaError] = field(default_factory=dict)
     calls: list[str] = field(default_factory=list)
     deleted_notes_head: int = 0
     after_notes_page: Callable[[], None] | None = None
 
-    def _maybe_fail(self, method: str) -> None:
+    def _maybe_fail(self, method: str, resource: str = "") -> None:
         self.calls.append(method)
-        if method in self.fail:
-            raise self.fail[method]
+        error = self.fail.get(method) or self.fail_on.get((method, resource))
+        if error is not None:
+            raise error
+
+    async def verify(self) -> None:
+        self._maybe_fail("verify")
 
     async def list_knowledge_page(self, kb_id: str, *, folder_id: str = "", cursor: str = "") -> ImaListPage:
-        self._maybe_fail("list_knowledge_page")
+        self._maybe_fail("list_knowledge_page", kb_id)
         return self.pages.get((kb_id, folder_id), ImaListPage())
 
     async def list_notes_page(self, *, cursor: str) -> ImaNotesPage:
@@ -70,11 +77,11 @@ class FakeIma:
         return served
 
     async def get_media_info(self, media_id: str) -> ImaMediaInfo:
-        self._maybe_fail("get_media_info")
+        self._maybe_fail("get_media_info", media_id)
         return self.media[media_id]
 
     async def get_note_text(self, note_id: str) -> str:
-        self._maybe_fail("get_note_text")
+        self._maybe_fail("get_note_text", note_id)
         return self.note_text.get(note_id, "")
 
 

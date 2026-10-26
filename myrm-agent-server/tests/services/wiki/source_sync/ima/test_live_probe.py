@@ -1,6 +1,7 @@
 """Read-only probe against a real ima account; skipped unless ``IMA_CLIENT_ID`` and ``IMA_API_KEY`` are set.
 
-Run it to confirm the response shapes the fixtures assume (library listing, folder entries, media info, notes)::
+Run it to confirm the response shapes the fixtures assume (library listing, folder entries, media info with the host
+that serves the file, notes)::
 
     IMA_CLIENT_ID=... IMA_API_KEY=... ./myrm-dev test myrm-agent/myrm-agent-server/tests/services/wiki/source_sync/ima/test_live_probe.py -s
 
@@ -10,6 +11,7 @@ It never writes to ima or to the wiki vault.
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 
 import pytest
 
@@ -42,7 +44,8 @@ async def test_live_account_shapes() -> None:
                 info = await client.get_media_info(entry.media_id)
                 print(
                     f"  {entry.title!r} type={info.media_type} has_url={bool(info.url)} "
-                    f"signed_headers={sorted(info.headers)} note_id={bool(info.note_id)}"
+                    f"signed_headers={sorted(info.headers)} note_id={bool(info.note_id)} "
+                    f"host={urlparse(info.url).hostname if info.url else None}"
                 )
 
         notes = await client.list_notes_page(cursor="")

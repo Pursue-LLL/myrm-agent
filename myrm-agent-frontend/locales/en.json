@@ -17835,7 +17835,8 @@
         "notices": {
           "rateLimited": "ima is limiting requests for now. The import continues automatically shortly.",
           "unreachable": "Cannot reach ima right now. It will retry automatically.",
-          "notesUnavailable": "This key cannot read notes, so notes were not imported. Your knowledge bases are not affected.",
+          "unreadableNotes": "Your notes could not be read completely this time. The key may not have permission to read notes, or ima may be unavailable. What was already imported is not affected, and the next check tries again.",
+          "unreadableLibraries": "These knowledge bases could not be read completely this time. You may lack access, or ima may be unavailable: {names}. Everything else is not affected, and the next check tries again.",
           "internal": "Something went wrong on our side while importing. It will retry automatically."
         },
         "stats": {
@@ -17888,6 +17889,8 @@
           "page_unavailable": "The page could not be opened. It may need a login or a verification step, or it no longer exists",
           "auth": "ima refused access. Please reconnect",
           "rate_limit": "ima is limiting requests for now",
+          "permission": "No permission to read this item. You can retry once access is granted",
+          "not_owner": "Only the author can read this note, so it was skipped",
           "generic": "Could not be imported"
         },
         "notes": {

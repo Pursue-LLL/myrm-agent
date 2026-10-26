@@ -4,7 +4,7 @@
 - .state::ImaKbSelection (POS: selected library)
 
 [OUTPUT]
-- ImaStatus / ImaItemCounts / ImaJobStatus / ImaItemView / ImaLibrary
+- ImaStatus / ImaItemCounts / ImaJobStatus / ImaItemView / ImaLibrary / ImaUnreadable
 
 [POS]
 Typed shapes the frontend card renders. Counts and phases only; raw error text and technical detail never
@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .state import ImaKbSelection
 
@@ -45,6 +45,13 @@ class ImaJobStatus(BaseModel):
     next_run_at: datetime | None = None
 
 
+class ImaUnreadable(BaseModel):
+    """A selected part of ima that the last pass could not read completely; ``name`` stays empty for the notes."""
+
+    kind: Literal["library", "notes"]
+    name: str = ""
+
+
 class ImaStatus(BaseModel):
     connected: bool = False
     account_hint: str = ""
@@ -56,7 +63,7 @@ class ImaStatus(BaseModel):
     backfill_complete: bool = False
     last_run_at: datetime | None = None
     last_error_kind: str = ""
-    notes_unavailable: bool = False
+    unreadable: list[ImaUnreadable] = Field(default_factory=list)
     auto_compile: bool = False
     counts: ImaItemCounts
     total_chars: int = 0

@@ -23,7 +23,7 @@ from types import TracebackType
 
 import httpx
 
-from .errors import ImaAuthError, ImaError, ImaPermanentError, ImaRateLimitError, ImaTransientError
+from .errors import ImaAuthError, ImaError, ImaPermanentError, ImaPermissionError, ImaRateLimitError, ImaTransientError
 from .models import ImaCredentials, JsonObject
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,13 @@ NOTE_PREFIX = "/openapi/note/v1"
 _CODE_KEYS = ("retcode", "code")
 _MESSAGE_KEYS = ("errmsg", "msg")
 _CREDENTIAL_CODES = frozenset({20004, 200002, 110030})
-_RATE_LIMIT_CODES = frozenset({20002, 110021})
-_RETRYABLE_CODES = frozenset({110010, 100003})
+# 20002 / 110021 are the documented frequency limits; 200001 / 20005 are the gateway's other answers to the same overload
+# (seen by other ima clients, absent from the vendor tables).
+_RATE_LIMIT_CODES = frozenset({20002, 110021, 200001, 20005})
+# Documented server-side errors a later call can get past: 110010 downstream network, 100003 / 210003 internal.
+_RETRYABLE_CODES = frozenset({110010, 100003, 210003})
+# Documented "this key may not read that resource": notes written by someone else, shares without access.
+_PERMISSION_CODES = frozenset({100005, 210005, 210011, 210034})
 
 _MAX_JSON_BYTES = 16 * 1024 * 1024
 _TRANSIENT_BACKOFF_S = (1.0, 3.0)
@@ -76,13 +81,17 @@ def unwrap_envelope(payload: object, *, status_code: int) -> JsonObject:
         data = payload.get("data")
         return data if isinstance(data, dict) else {}
     message = _first_text(payload, _MESSAGE_KEYS)
+    # The numeric code is what identifies an unfamiliar failure in the log; the message alone may be empty or generic.
+    detail = f"{message} (code {code})" if message else f"code {code}"
     if code in _CREDENTIAL_CODES:
-        raise ImaAuthError(message or f"ima rejected the credentials (code {code})")
+        raise ImaAuthError(f"ima rejected the credentials: {detail}")
     if code in _RATE_LIMIT_CODES:
-        raise ImaRateLimitError(message or "ima rate limit reached", retry_after_s=_DEFAULT_RATE_LIMIT_PAUSE_S)
+        raise ImaRateLimitError(f"ima rate limit reached: {detail}", retry_after_s=_DEFAULT_RATE_LIMIT_PAUSE_S)
     if code in _RETRYABLE_CODES:
-        raise ImaTransientError(message or f"ima is temporarily unavailable (code {code})")
-    raise ImaPermanentError(message or f"ima request failed with code {code}")
+        raise ImaTransientError(f"ima is temporarily unavailable: {detail}")
+    if code in _PERMISSION_CODES:
+        raise ImaPermissionError(f"ima does not let this key read the item: {detail}")
+    raise ImaPermanentError(f"ima request failed: {detail}")
 
 
 def _classify_response(response: httpx.Response) -> JsonObject:

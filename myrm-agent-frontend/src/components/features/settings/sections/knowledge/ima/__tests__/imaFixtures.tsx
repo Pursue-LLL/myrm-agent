@@ -31,7 +31,7 @@ export function makeStatus(overrides: Partial<ImaStatus> = {}): ImaStatus {
     backfill_complete: false,
     last_run_at: null,
     last_error_kind: '',
-    notes_unavailable: false,
+    unreadable: [],
     auto_compile: true,
     counts: NO_COUNTS,
     total_chars: 0,

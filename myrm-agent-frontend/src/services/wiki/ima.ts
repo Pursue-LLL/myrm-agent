@@ -42,6 +42,12 @@ export interface ImaItemCounts {
   partial: number;
 }
 
+/** A selected part of ima the last pass could not read completely; `name` is empty for the notes. */
+export interface ImaUnreadable {
+  kind: 'library' | 'notes';
+  name: string;
+}
+
 export interface ImaStatus {
   connected: boolean;
   /** Masked client id, never the key. */
@@ -55,7 +61,7 @@ export interface ImaStatus {
   backfill_complete: boolean;
   last_run_at: string | null;
   last_error_kind: string;
-  notes_unavailable: boolean;
+  unreadable: ImaUnreadable[];
   /** The Wiki-wide "auto-compile after sync" switch, which the ima import follows once its first import is done. */
   auto_compile: boolean;
   counts: ImaItemCounts;

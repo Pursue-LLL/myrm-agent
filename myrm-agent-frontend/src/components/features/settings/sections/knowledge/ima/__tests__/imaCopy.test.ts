@@ -9,6 +9,8 @@ import {
   deriveImaSyncMode,
   deriveImaView,
   formatImaChars,
+  formatImaNames,
+  hasImaUnreadableNotes,
   imaAttentionCount,
   imaAutoCompileKey,
   IMA_DEDUP_REVIEW_ERROR_KEY,
@@ -18,6 +20,7 @@ import {
   imaProgress,
   imaReasonKey,
   imaSkippedCount,
+  imaUnreadableLibraries,
   isImaBackfilling,
   shouldPollIma,
 } from '../imaCopy';
@@ -48,7 +51,7 @@ function makeStatus(overrides: Partial<ImaStatus> = {}): ImaStatus {
     backfill_complete: false,
     last_run_at: null,
     last_error_kind: '',
-    notes_unavailable: false,
+    unreadable: [],
     auto_compile: true,
     counts: NO_COUNTS,
     total_chars: 0,
@@ -132,6 +135,28 @@ describe('progress and polling', () => {
   });
 });
 
+describe('unreadable parts', () => {
+  it('tells the libraries apart from the notes', () => {
+    const status = makeStatus({
+      unreadable: [
+        { kind: 'library', name: 'Research' },
+        { kind: 'notes', name: '' },
+        { kind: 'library', name: 'Recipes' },
+      ],
+    });
+    expect(imaUnreadableLibraries(status)).toEqual(['Research', 'Recipes']);
+    expect(hasImaUnreadableNotes(status)).toBe(true);
+    expect(imaUnreadableLibraries(makeStatus())).toEqual([]);
+    expect(hasImaUnreadableNotes(makeStatus())).toBe(false);
+  });
+
+  it('joins library names the way the reader language does', () => {
+    expect(formatImaNames(['Research'], 'en')).toBe('Research');
+    expect(formatImaNames(['Research', 'Recipes'], 'en')).toBe('Research and Recipes');
+    expect(formatImaNames(['Research', 'Recipes'], 'zh')).toBe('Research和Recipes');
+  });
+});
+
 describe('code to copy mapping', () => {
   it('maps the server error code and falls back to a generic line for anything else', () => {
     expect(imaErrorKey(new ApiError('x', 400, [], undefined, 'ima_auth_failed'))).toBe('errors.ima_auth_failed');
@@ -182,6 +207,8 @@ const SERVER_REASONS = [
   'too_large',
   'security',
   'notes_permission',
+  'permission',
+  'not_owner',
   'timeout',
   'transient',
   'permanent',
@@ -189,6 +216,8 @@ const SERVER_REASONS = [
   'auth',
   'rate_limit',
 ];
+// Notices the sync panel words directly instead of through a code mapping.
+const PANEL_NOTICES = ['notices.rateLimited', 'notices.unreachable', 'notices.internal', 'notices.unreadableNotes'];
 const SERVER_NOTES = ['images_remote', 'body_truncated', 'layout_flattened', 'redacted'];
 const SERVER_KINDS = [
   'pdf',
@@ -242,6 +271,8 @@ describe('settings.wiki.ima locale contract', () => {
       ...SERVER_REASONS.map(imaReasonKey),
       ...SERVER_NOTES.flatMap((note) => imaNoteKeys([note])),
       ...SERVER_KINDS.map(imaKindKey),
+      ...PANEL_NOTICES,
+      'notices.unreadableLibraries',
       'errors.generic',
       'reasons.generic',
       'kinds.other',
@@ -249,6 +280,7 @@ describe('settings.wiki.ima locale contract', () => {
     for (const key of keys) {
       expect(leaf(messages, key), `${locale}: ${key}`).toBeTruthy();
     }
+    expect(leaf(messages, 'notices.unreadableLibraries'), `${locale}: library names slot`).toContain('{names}');
     expect(SERVER_REASONS.map(imaReasonKey)).not.toContain('reasons.generic');
     expect(SERVER_NOTES.flatMap((note) => imaNoteKeys([note]))).toHaveLength(SERVER_NOTES.length);
     expect(SERVER_KINDS.map(imaKindKey)).not.toContain('kinds.other');

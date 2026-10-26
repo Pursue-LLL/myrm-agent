@@ -10,7 +10,7 @@
 
 [POS]
 The download URL arrives inside an API response, so it is untrusted input: https only, Tencent COS or ima's
-own resource host only, no redirects, ima credentials never attached, and the size is capped both by the
+own resource hosts only, no redirects, ima credentials never attached, and the size is capped both by the
 advertised length and while streaming.
 """
 
@@ -25,7 +25,7 @@ from .errors import ImaPermanentError, ImaTooLargeError, ImaTransientError
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
 
 _TRUSTED_ROOT_DOMAINS = ("myqcloud.com",)
-_TRUSTED_HOSTS = frozenset({"res-pkb.ima.qq.com"})
+_TRUSTED_HOSTS = frozenset({"res-pkb.ima.qq.com", "res-skb.ima.qq.com"})
 # Hop-by-hop and identity headers are never forwarded, whatever the API response suggests.
 _FORBIDDEN_HEADERS = frozenset({"connection", "content-length", "cookie", "host", "proxy-authorization", "transfer-encoding"})
 _TIMEOUT = httpx.Timeout(120.0, connect=10.0)

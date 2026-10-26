@@ -27,7 +27,10 @@ class ImaError(Exception):
 
 
 class ImaAuthError(ImaError):
-    """The client id / API key pair was rejected or lacks permission."""
+    """A request was rejected as unauthorized: the key pair is bad, or it works but may not read that one resource.
+
+    ima answers both the same way, so the rejection alone cannot tell them apart; ``SyncContext.require_valid_key`` does.
+    """
 
     kind: ClassVar[str] = "auth"
 
@@ -48,6 +51,12 @@ class ImaPermanentError(ImaError):
     """The call cannot succeed as issued (bad business code, gone media, untrusted URL)."""
 
     kind: ClassVar[str] = "permanent"
+
+
+class ImaPermissionError(ImaPermanentError):
+    """The key is valid, yet ima never lets it read this resource (another author's note, a share without access)."""
+
+    kind: ClassVar[str] = "permission"
 
 
 class ImaTooLargeError(ImaPermanentError):

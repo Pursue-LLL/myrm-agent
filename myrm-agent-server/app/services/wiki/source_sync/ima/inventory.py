@@ -11,10 +11,10 @@
 Breadth-first walk of each library's folder tree (persisted queue) followed by the notes lane. Each complete
 pass is a *generation*: rows a finished pass did not see are marked ``remote_deleted``, but only for containers
 whose walk finished cleanly. The mark means "no longer listed under that library, folder and title": a rename or
-a move reads like a deletion, and the file then arrives as a new row. Transient / rate-limit / auth failures
-propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container. A
-listing ends only where ima says it ends (``is_end``); one that stalls short of that fails its container instead of
-passing for complete.
+a move reads like a deletion, and the file then arrives as a new row. Transient / rate-limit failures and a rejected
+key propagate so the slice stops with its cursor intact; a permanent failure, or a rejection the key check shows to be
+about that one library (or the notes) alone, only drops the affected container. A listing ends only where ima says it
+ends (``is_end``); one that stalls short of that fails its container instead of passing for complete.
 """
 
 from __future__ import annotations
@@ -90,6 +90,11 @@ async def _walk_libraries(ctx: SyncContext) -> None:
             logger.warning("ima library %s could not be listed: %s", task.kb_id, exc)
             _drop_library(ctx, task.kb_id, kind=exc.kind)
             continue
+        except ImaAuthError as exc:
+            await ctx.require_valid_key(exc)
+            logger.warning("ima library %s may not be read with this key: %s", task.kb_id, exc)
+            _drop_library(ctx, task.kb_id, kind="permission")
+            continue
 
         await _record(ctx, [_kb_item(task, entry) for entry in page.items])
         state.inventory_pages += 1
@@ -129,9 +134,10 @@ async def _walk_notes(ctx: SyncContext) -> None:
         cursor = state.notes_cursor
         try:
             page = await ctx.client.list_notes_page(cursor=cursor)
-        except ImaAuthError:
-            # The key already listed libraries, so a rejection here means it lacks the notes permission.
-            logger.warning("ima notes lane skipped: the API key has no notes permission")
+        except ImaAuthError as exc:
+            # A key that still works but may not list notes skips the lane; the libraries are unaffected.
+            await ctx.require_valid_key(exc)
+            logger.warning("ima notes lane skipped: the API key may not read notes (%s)", exc)
             state.notes_cursor = None
             _mark_container_failed(ctx, NOTES_LANE)
             break

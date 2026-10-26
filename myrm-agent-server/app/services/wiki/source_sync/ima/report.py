@@ -10,7 +10,8 @@
 
 [POS]
 Counts and phases only, limited to the libraries (and notes) currently selected: switching scope never leaves
-the old selection's numbers on the card. The report exposes reason codes, never raw error text, so the UI owns all wording.
+the old selection's numbers on the card. The status also names the selected libraries (and the notes) the last
+pass could not read completely. The report exposes reason codes, never raw error text, so the UI owns all wording.
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ from .identity import NOTES_LANE
 from .job import find_job
 from .ledger import ATTENTION_STATUSES, ImaLedger, LedgerRow, LedgerStatus
 from .models import MEDIA_LABELS
-from .schemas import ImaItemCounts, ImaItemView, ImaJobStatus, ImaStatus
-from .state import load_ima_config, load_ima_state
+from .schemas import ImaItemCounts, ImaItemView, ImaJobStatus, ImaStatus, ImaUnreadable
+from .state import ImaSyncConfig, ImaSyncState, load_ima_config, load_ima_state
 
 type ItemBucket = Literal["attention", "lossy", "remote_deleted"]
 
@@ -42,6 +43,15 @@ def _upcoming(moment: datetime | None) -> datetime | None:
     if moment is None:
         return None
     return moment if (moment if moment.tzinfo else moment.replace(tzinfo=UTC)) > datetime.now(UTC) else None
+
+
+def _unreadable(config: ImaSyncConfig, state: ImaSyncState) -> list[ImaUnreadable]:
+    """The selected libraries (and the notes) the last pass could not read completely, named for the card."""
+    failed = set(state.failed_containers)
+    parts = [ImaUnreadable(kind="library", name=kb.name) for kb in config.knowledge_bases if kb.id in failed]
+    if config.include_notes and NOTES_LANE in failed:
+        parts.append(ImaUnreadable(kind="notes"))
+    return parts
 
 
 async def build_status(agent_id: str | None) -> ImaStatus:
@@ -67,7 +77,7 @@ async def build_status(agent_id: str | None) -> ImaStatus:
         backfill_complete=state.backfill_complete,
         last_run_at=state.last_run_at,
         last_error_kind=state.last_error_kind,
-        notes_unavailable=NOTES_LANE in state.failed_containers,
+        unreadable=_unreadable(config, state),
         auto_compile=auto_compile,
         counts=ImaItemCounts(
             total=counts.total,

@@ -7,6 +7,7 @@
  * ImaView / ImaSyncMode: which screen the card shows and what the running sync is doing
  * deriveImaView / deriveImaSyncMode / imaProgress / imaSkippedCount / imaAttentionCount: state derivation from `ImaStatus`
  * canImaSyncNow / imaAutoCompileKey: whether "sync now" makes sense, and which auto-compile sentence applies
+ * imaUnreadableLibraries / hasImaUnreadableNotes / formatImaNames: which selected parts of ima the last pass could not read
  * imaErrorKey / imaReasonKey / imaNoteKeys / imaKindKey / formatImaChars: server code → `settings.wiki.ima.*` i18n key
  * IMA_DEDUP_REVIEW_ERROR_KEY: the error key of "compiling is held for Duplicate Review", the one failure the card acts on
  *
@@ -45,6 +46,8 @@ const REASON_CODES = new Set([
   'too_large',
   'security',
   'notes_permission',
+  'permission',
+  'not_owner',
   'timeout',
   'transient',
   'permanent',
@@ -131,6 +134,20 @@ export function imaSkippedCount(counts: ImaItemCounts): number {
 
 export function imaAttentionCount(counts: ImaItemCounts): number {
   return counts.failed + imaSkippedCount(counts);
+}
+
+/** Names of the selected libraries the last pass could not read completely. */
+export function imaUnreadableLibraries(status: ImaStatus): string[] {
+  return status.unreadable.filter((part) => part.kind === 'library').map((part) => part.name);
+}
+
+export function hasImaUnreadableNotes(status: ImaStatus): boolean {
+  return status.unreadable.some((part) => part.kind === 'notes');
+}
+
+/** Library names are the user's own text; only the joining follows the reader's language. */
+export function formatImaNames(names: readonly string[], locale: string): string {
+  return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(names);
 }
 
 /** Keeps polling only while something can still change on its own. */

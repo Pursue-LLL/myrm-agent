@@ -10,9 +10,11 @@
 
 [POS]
 Every row ends in exactly one recorded outcome: synced, a terminal status (unsupported / too large / blocked /
-duplicate), or a failure whose retry budget reflects whether retrying can help. Only credential rejection, rate
-limiting and a run of consecutive connection-level failures stop the pool; one bad item, including a dead link,
-never aborts the slice.
+duplicate), or a failure whose retry budget reflects whether retrying can help. Only a rejected key, rate limiting
+and a run of consecutive connection-level failures stop the pool; one bad item, including a dead link or a note ima
+will not let this key read, never aborts the slice. A rejection is first checked against the key itself, because ima
+refuses an off-limits resource the same way it refuses a revoked key. The slice logs one line summarising its
+item failures instead of one per item.
 """
 
 from __future__ import annotations
@@ -30,7 +32,15 @@ from app.services.wiki.source_sync.publish_helpers import RawConflictPolicy, pub
 
 from .content import ImaContent, ImaDuplicate, ImaUnsupported, render_document, resolve_kb_item, resolve_note
 from .context import SyncContext
-from .errors import ImaAuthError, ImaError, ImaPageUnavailableError, ImaRateLimitError, ImaTooLargeError, ImaTransientError
+from .errors import (
+    ImaAuthError,
+    ImaError,
+    ImaPageUnavailableError,
+    ImaPermissionError,
+    ImaRateLimitError,
+    ImaTooLargeError,
+    ImaTransientError,
+)
 from .identity import NOTES_LANE, build_raw_path, note_item_key
 from .ledger import LedgerRow, LedgerStatus
 
@@ -91,7 +101,8 @@ async def _record_terminal(ctx: SyncContext, row: LedgerRow, status: LedgerStatu
         await db.commit()
 
 
-async def _record_failure(ctx: SyncContext, row: LedgerRow, kind: str, *, final: bool) -> None:
+async def _record_failure(ctx: SyncContext, row: LedgerRow, kind: str, *, final: bool, cause: str = "") -> None:
+    ctx.note_failure(kind, cause)
     async with get_session() as db:
         await ctx.ledger.record_failure(db, row, kind=kind, final=final)
         await db.commit()
@@ -134,26 +145,40 @@ async def _import_row(ctx: SyncContext, row: LedgerRow) -> None:
         ctx.state.generation_published += 1
 
 
+async def _on_auth_rejected(ctx: SyncContext, row: LedgerRow, rejection: ImaAuthError) -> _Outcome:
+    """ima refused one request: a bad key stops the pool (re-raised), a working key only fences this item off."""
+    try:
+        await ctx.require_valid_key(rejection)
+    except ImaTransientError as exc:
+        # The key check itself could not be completed, so the item is retried later like any transient failure.
+        await _record_failure(ctx, row, exc.kind, final=False, cause=str(exc))
+        return _Outcome.TRANSIENT
+    kind = "notes_permission" if row.container_id == NOTES_LANE else "permission"
+    await _record_failure(ctx, row, kind, final=True, cause=str(rejection))
+    return _Outcome.DONE
+
+
 async def _import_guarded(ctx: SyncContext, row: LedgerRow) -> _Outcome:
     """Run one row and record its outcome; re-raise only the failures that must stop the whole pool."""
     try:
         await _import_row(ctx, row)
-    except ImaAuthError:
-        if row.container_id != NOTES_LANE:
-            raise
-        await _record_failure(ctx, row, "notes_permission", final=True)
+    except ImaAuthError as exc:
+        return await _on_auth_rejected(ctx, row, exc)
     except ImaRateLimitError:
         raise
+    except ImaPermissionError:
+        # ima lets only the author read a note, so no retry can change this: the row is skipped, not failed.
+        await _record_terminal(ctx, row, LedgerStatus.UNSUPPORTED, "not_owner")
     except ImaTooLargeError:
         await _record_terminal(ctx, row, LedgerStatus.TOO_LARGE, "too_large")
     except ImaPageUnavailableError as exc:
         # A dead link is that item's own failure (retried on later passes), not a sign that the connection is sick.
-        await _record_failure(ctx, row, exc.kind, final=False)
+        await _record_failure(ctx, row, exc.kind, final=False, cause=str(exc))
     except ImaTransientError as exc:
-        await _record_failure(ctx, row, exc.kind, final=False)
+        await _record_failure(ctx, row, exc.kind, final=False, cause=str(exc))
         return _Outcome.TRANSIENT
     except ImaError as exc:
-        await _record_failure(ctx, row, exc.kind, final=True)
+        await _record_failure(ctx, row, exc.kind, final=True, cause=str(exc))
     except TimeoutError:
         await _record_failure(ctx, row, "timeout", final=False)
         return _Outcome.TRANSIENT
@@ -164,6 +189,16 @@ async def _import_guarded(ctx: SyncContext, row: LedgerRow) -> _Outcome:
         logger.exception("ima item %s failed unexpectedly", row.item_key)
         await _record_failure(ctx, row, "internal", final=True)
     return _Outcome.DONE
+
+
+def _log_failure_summary(ctx: SyncContext) -> None:
+    """One line per slice: which kinds of failure, how many, and the first cause (it carries ima's numeric code)."""
+    if not ctx.failures:
+        return
+    kinds = ", ".join(f"{kind}={count}" for kind, count in sorted(ctx.failures.items()))
+    logger.warning(
+        "ima slice left %d item(s) unimported (%s); first cause: %s", sum(ctx.failures.values()), kinds, ctx.failure_sample
+    )
 
 
 async def run_import(ctx: SyncContext) -> bool:
@@ -208,7 +243,10 @@ async def run_import(ctx: SyncContext) -> bool:
                 return
             await asyncio.sleep(_PACE_S)
 
-    await asyncio.gather(*(worker() for _ in range(_WORKERS)))
+    try:
+        await asyncio.gather(*(worker() for _ in range(_WORKERS)))
+    finally:
+        _log_failure_summary(ctx)
     if fatal:
         raise fatal[0]
     return drained

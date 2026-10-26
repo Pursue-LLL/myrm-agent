@@ -102,8 +102,10 @@ async def run_slice(ctx: SyncContext) -> SliceOutcome:
         return outcome(retry_after_s=None, error_kind="auth")
     except ImaRateLimitError as exc:
         state.last_error_kind = exc.kind
+        pause_s = max(exc.retry_after_s or 0.0, _MIN_RATE_LIMIT_PAUSE_S)
+        logger.warning("ima sync paused %.0fs by a rate limit: %s", pause_s, exc)
         await ctx.persist_state(force=True)
-        return outcome(retry_after_s=max(exc.retry_after_s or 0.0, _MIN_RATE_LIMIT_PAUSE_S), error_kind=exc.kind)
+        return outcome(retry_after_s=pause_s, error_kind=exc.kind)
     except ImaError as exc:
         state.failure_streak += 1
         state.last_error_kind = exc.kind

@@ -3,7 +3,8 @@
 /**
  * [INPUT]
  * @/services/wiki/ima::ImaStatus (POS: counts, phase, job state)
- * ./imaCopy::deriveImaSyncMode, imaProgress, imaSkippedCount, canImaSyncNow, imaAutoCompileKey, formatImaChars (POS: status → what the user sees)
+ * ./imaCopy::deriveImaSyncMode, imaProgress, imaSkippedCount, canImaSyncNow, imaAutoCompileKey, formatImaChars,
+ *   imaUnreadableLibraries, hasImaUnreadableNotes, formatImaNames (POS: status → what the user sees)
  *
  * [OUTPUT]
  * ImaSyncPanel: progress, outcome counts, sync now / pause / resume, the compile step and the entry to the item report
@@ -11,8 +12,9 @@
  * [POS]
  * Third screen of the ima card, shown once a sync exists. It reports outcomes honestly (imported, skipped, failed,
  * simplified, removed by the user, gone from ima) instead of one reassuring number, tells the user when the next automatic
- * check happens and lets them run it now, and puts the cost-bearing step, compiling the imported documents, behind an
- * explicit button while saying how later changes are compiled.
+ * check happens and lets them run it now, names the libraries (or the notes) ima could not be read completely, and puts
+ * the cost-bearing step, compiling the imported documents, behind an explicit button while saying how later changes
+ * are compiled.
  */
 
 import { useLocale, useTranslations } from 'next-intl';
@@ -25,10 +27,13 @@ import {
   canImaSyncNow,
   deriveImaSyncMode,
   formatImaChars,
+  formatImaNames,
+  hasImaUnreadableNotes,
   imaAutoCompileKey,
   imaAttentionCount,
   imaProgress,
   imaSkippedCount,
+  imaUnreadableLibraries,
   isImaBackfilling,
 } from './imaCopy';
 
@@ -97,6 +102,7 @@ export default function ImaSyncPanel({
   const lastRun = status.last_run_at ? new Date(status.last_run_at).toLocaleString(locale) : null;
   const nextCheck =
     mode === 'upToDate' && status.job.next_run_at ? new Date(status.job.next_run_at).toLocaleString(locale) : null;
+  const unreadableLibraries = imaUnreadableLibraries(status);
   const toggleBusy = busy === 'pause' || busy === 'resume';
 
   return (
@@ -143,8 +149,13 @@ export default function ImaSyncPanel({
         <p className="text-xs text-warning">{t('notices.unreachable')}</p>
       ) : null}
       {status.last_error_kind === 'internal' ? <p className="text-xs text-warning">{t('notices.internal')}</p> : null}
-      {status.notes_unavailable ? (
-        <p className="text-xs text-muted-foreground">{t('notices.notesUnavailable')}</p>
+      {hasImaUnreadableNotes(status) ? (
+        <p className="text-xs text-muted-foreground">{t('notices.unreadableNotes')}</p>
+      ) : null}
+      {unreadableLibraries.length > 0 ? (
+        <p className="break-words text-xs text-muted-foreground">
+          {t('notices.unreadableLibraries', { names: formatImaNames(unreadableLibraries, locale) })}
+        </p>
       ) : null}
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

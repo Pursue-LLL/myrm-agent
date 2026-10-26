@@ -15,6 +15,7 @@ from app.services.wiki.source_sync.ima import report
 from app.services.wiki.source_sync.ima.identity import NOTES_LANE
 from app.services.wiki.source_sync.ima.ledger import ImaLedger, InventoryItem, LedgerStatus
 from app.services.wiki.source_sync.ima.models import ImaCredentials
+from app.services.wiki.source_sync.ima.schemas import ImaUnreadable
 from app.services.wiki.source_sync.ima.state import ImaKbSelection, ImaSyncConfig, ImaSyncState, save_ima_config, save_ima_state
 from app.services.wiki.source_sync.schemas import WikiSourceSyncConfig
 
@@ -101,11 +102,13 @@ async def test_status_aggregates_counts_job_state_and_masks_the_account(
     await _seed(ima_db)
     async with ima_db() as db:
         await save_ima_config(
-            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="Lib")], include_notes=False), agent_id=None
+            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="Lib")], include_notes=True), agent_id=None
         )
         await save_ima_state(
             db,
-            ImaSyncState(phase="fetch", backfill_complete=False, failed_containers=[NOTES_LANE], last_error_kind="rate_limit"),
+            ImaSyncState(
+                phase="fetch", backfill_complete=False, failed_containers=[NOTES_LANE, "kb1"], last_error_kind="rate_limit"
+            ),
             agent_id=None,
         )
 
@@ -119,7 +122,8 @@ async def test_status_aggregates_counts_job_state_and_masks_the_account(
     assert status.connected and status.account_hint == "abcd…ijkl"
     assert "never-shown" not in status.model_dump_json()
     assert status.job.state == "paused" and status.job.next_run_at == NEXT_RUN
-    assert status.phase == "fetch" and status.notes_unavailable and status.last_error_kind == "rate_limit"
+    assert status.phase == "fetch" and status.last_error_kind == "rate_limit"
+    assert status.unreadable == [ImaUnreadable(kind="library", name="Lib"), ImaUnreadable(kind="notes")]
     counts = status.counts
     assert (counts.total, counts.synced, counts.partial) == (6, 2, 1)
     assert (counts.failed, counts.unsupported, counts.too_large, counts.remote_deleted) == (1, 1, 1, 1)
@@ -134,6 +138,22 @@ async def test_active_job_state(
 
     monkeypatch.setattr(report, "find_job", active_job)
     assert (await report.build_status(None)).job.state == "active"
+
+
+async def test_unreadable_parts_are_reported_only_for_the_selected_scope(
+    ima_db: async_sessionmaker[AsyncSession], connected: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def no_job(agent_id: str | None) -> None:
+        return None
+
+    monkeypatch.setattr(report, "find_job", no_job)
+    async with ima_db() as db:
+        await save_ima_config(
+            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="Lib")], include_notes=False), agent_id=None
+        )
+        await save_ima_state(db, ImaSyncState(failed_containers=[NOTES_LANE, "kb-dropped"]), agent_id=None)
+
+    assert (await report.build_status(None)).unreadable == []
 
 
 async def test_item_buckets_expose_codes_only(ima_db: async_sessionmaker[AsyncSession]) -> None:

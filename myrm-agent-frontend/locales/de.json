@@ -17835,7 +17835,8 @@
         "notices": {
           "rateLimited": "ima begrenzt gerade die Anfragen. Der Import läuft in Kürze automatisch weiter.",
           "unreachable": "ima ist gerade nicht erreichbar. Es wird automatisch erneut versucht.",
-          "notesUnavailable": "Dieser Schlüssel darf keine Notizen lesen, daher wurden keine Notizen importiert. Ihre Wissensdatenbanken sind nicht betroffen.",
+          "unreadableNotes": "Ihre Notizen ließen sich dieses Mal nicht vollständig lesen. Möglicherweise fehlt dem Schlüssel die Berechtigung für Notizen, oder ima ist vorübergehend nicht erreichbar. Bereits Importiertes bleibt unberührt, die nächste Prüfung versucht es erneut.",
+          "unreadableLibraries": "Diese Wissensdatenbanken ließen sich dieses Mal nicht vollständig lesen. Möglicherweise fehlt der Zugriff, oder ima ist vorübergehend nicht erreichbar: {names}. Alles andere bleibt unberührt, die nächste Prüfung versucht es erneut.",
           "internal": "Beim Import ist etwas schiefgelaufen. Es wird automatisch erneut versucht."
         },
         "stats": {
@@ -17888,6 +17889,8 @@
           "page_unavailable": "Die Seite ließ sich nicht öffnen. Möglicherweise ist eine Anmeldung oder Bestätigung nötig, oder sie existiert nicht mehr",
           "auth": "ima hat den Zugriff verweigert. Bitte neu verbinden",
           "rate_limit": "ima begrenzt gerade die Anfragen",
+          "permission": "Keine Berechtigung, diesen Eintrag zu lesen. Nach der Freigabe können Sie es erneut versuchen",
+          "not_owner": "Nur die Autorin oder der Autor kann diese Notiz lesen, daher wurde sie übersprungen",
           "generic": "Konnte nicht importiert werden"
         },
         "notes": {

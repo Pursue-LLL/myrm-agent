@@ -45,6 +45,7 @@ async def test_auth_failure_stops_without_a_retry_and_a_later_clean_pass_clears_
 ) -> None:
     fake, state = library(), ImaSyncState()
     fake.fail["list_knowledge_page"] = ImaAuthError("rejected")
+    fake.fail["verify"] = ImaAuthError("rejected")
 
     outcome = await run_pass(fake, tmp_path, state)
 
@@ -149,6 +150,7 @@ async def test_credential_rejection_on_a_library_item_stops_the_pool_and_keeps_t
 ) -> None:
     fake, state = library(), ImaSyncState()
     fake.fail["get_media_info"] = ImaAuthError("revoked")
+    fake.fail["verify"] = ImaAuthError("revoked")
 
     outcome = await run_pass(fake, tmp_path, state)
 

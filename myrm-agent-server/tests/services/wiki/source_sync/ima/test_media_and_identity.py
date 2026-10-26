@@ -19,6 +19,8 @@ COS_URL = "https://bucket-1.cos.ap-guangzhou.myqcloud.com/file.pdf"
         "https://evil.example.com/f",
         "https://myqcloud.com.evil.example.com/f",
         "https://notmyqcloud.com/f",
+        "https://res-other.ima.qq.com/f",
+        "https://res-skb.ima.qq.com.evil.example.com/f",
         "file:///etc/passwd",
         "https:///nohost",
     ],
@@ -28,7 +30,9 @@ def test_untrusted_media_urls_are_rejected(url: str) -> None:
         validate_media_url(url)
 
 
-@pytest.mark.parametrize("url", [COS_URL, "https://res-pkb.ima.qq.com/x", "https://myqcloud.com/x"])
+@pytest.mark.parametrize(
+    "url", [COS_URL, "https://res-pkb.ima.qq.com/x", "https://res-skb.ima.qq.com/x", "https://myqcloud.com/x"]
+)
 def test_trusted_media_urls_pass(url: str) -> None:
     validate_media_url(url)
 

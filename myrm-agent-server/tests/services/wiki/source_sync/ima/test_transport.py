@@ -8,6 +8,7 @@ import pytest
 from app.services.wiki.source_sync.ima import transport as transport_module
 from app.services.wiki.source_sync.ima.errors import (
     ImaAuthError,
+    ImaError,
     ImaPermanentError,
     ImaRateLimitError,
     ImaTransientError,
@@ -43,20 +44,45 @@ def test_success_without_data_yields_empty_object() -> None:
 
 
 @pytest.mark.parametrize(
-    ("payload", "expected"),
+    ("payload", "kind"),
     [
-        ({"retcode": 20004, "errmsg": "bad key"}, ImaAuthError),
-        ({"code": 110030, "msg": "bad key"}, ImaAuthError),
-        ({"retcode": 20002}, ImaRateLimitError),
-        ({"code": 110010}, ImaTransientError),
-        ({"retcode": 999, "errmsg": "nope"}, ImaPermanentError),
-        ({"data": {}}, ImaPermanentError),
-        ([], ImaPermanentError),
+        ({"retcode": 20004, "errmsg": "bad key"}, "auth"),
+        ({"code": 110030, "msg": "bad key"}, "auth"),
+        ({"retcode": 20002}, "rate_limit"),
+        ({"code": 110021}, "rate_limit"),
+        ({"retcode": 200001}, "rate_limit"),
+        ({"code": 20005, "msg": "too many requests"}, "rate_limit"),
+        ({"code": 110010}, "transient"),
+        ({"retcode": 100003}, "transient"),
+        ({"retcode": 210003}, "transient"),
+        ({"retcode": 100005}, "permission"),
+        ({"code": 210005}, "permission"),
+        ({"retcode": 210011, "errmsg": "no share permission"}, "permission"),
+        ({"code": 210034}, "permission"),
+        ({"retcode": 999, "errmsg": "nope"}, "permanent"),
+        ({"data": {}}, "permanent"),
+        ([], "permanent"),
     ],
 )
-def test_envelope_codes_map_to_typed_failures(payload: object, expected: type[Exception]) -> None:
-    with pytest.raises(expected):
+def test_envelope_codes_map_to_typed_failures(payload: object, kind: str) -> None:
+    with pytest.raises(ImaError) as caught:
         unwrap_envelope(payload, status_code=200)
+    assert caught.value.kind == kind
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ({"retcode": 123456, "errmsg": "weird failure"}, "weird failure (code 123456)"),
+        ({"retcode": 123456}, "code 123456"),
+        ({"code": 210011, "msg": "no share permission"}, "no share permission (code 210011)"),
+        ({"retcode": 200001}, "code 200001"),
+    ],
+)
+def test_failure_messages_carry_the_numeric_code(payload: dict[str, object], message: str) -> None:
+    with pytest.raises(ImaError) as caught:
+        unwrap_envelope(payload, status_code=200)
+    assert message in str(caught.value)
 
 
 async def test_post_sends_credentials_to_the_fixed_origin() -> None:
