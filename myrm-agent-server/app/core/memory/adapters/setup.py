@@ -6,7 +6,6 @@ myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开�
 [OUTPUT]
 resolve_context_binding: 统一解析业务侧上下文绑定合同
 create_memory_manager: 业务层记忆管理器工厂（dedup_llm=None 时使用平台 lite 单例；默认注入 on_conflict）
-create_memory_tools_for_user: 业务层记忆工具工厂
 create_conflict_callback: 冲突持久化回调工厂（importance>=0.9 写时分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆；同源冲突去重）
 shutdown_cached_memory_managers: 释放进程级记忆管理器缓存（联动清理 harness 嵌入式 Qdrant 单例）
 evict_cached_memory_manager: 关闭并逐出指定 base_path 的 MemoryManager，联动释放对应嵌入式 Qdrant 单例（隔离评测卷专用）
@@ -22,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.context_bundle.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory import (
@@ -60,10 +59,6 @@ _CONFLICT_AUTO_RESOLVE_HOURS = 72
 
 _memory_manager_cache: dict[tuple[object, ...], MemoryManager] = {}
 _memory_manager_cache_lock = asyncio.Lock()
-
-
-class _CreateMemoryTools(Protocol):
-    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode, **options: object) -> list[object]: ...
 
 
 def _memory_policy_signature(
@@ -264,43 +259,6 @@ async def create_memory_manager(
     return manager
 
 
-async def create_memory_tools_for_user(
-    binding: ResolvedContextBinding,
-    embedding_config: EmbeddingConfig | None,
-    *,
-    approval_required: bool = False,
-    dedup_llm: object | None = None,
-    recall_mode: RecallMode = RecallMode.HYBRID,
-    time_decay_half_life_days: float | None = None,
-    on_conflict: ConflictCallback | None = None,
-    search_policy: object | None = None,
-    search_backends: object | None = None,
-    description_locale: str | None = None,
-) -> tuple[MemoryManager, list[object]]:
-    """Create a MemoryManager and its agent tools in one call."""
-    from myrm_agent_harness.toolkits import create_memory_tools
-
-    create_memory_tools_fn = cast(_CreateMemoryTools, create_memory_tools)
-    manager = await create_memory_manager(
-        binding,
-        embedding_config,
-        approval_required=approval_required,
-        dedup_llm=dedup_llm,
-        recall_mode=recall_mode,
-        time_decay_half_life_days=time_decay_half_life_days,
-        on_conflict=on_conflict,
-    )
-    tool_options: dict[str, object] = {}
-    if search_policy is not None:
-        tool_options["search_policy"] = search_policy
-    if search_backends is not None:
-        tool_options["search_backends"] = search_backends
-    if description_locale is not None:
-        tool_options["description_locale"] = description_locale
-    tools = create_memory_tools_fn(manager, recall_mode=recall_mode, **tool_options)
-    return manager, tools
-
-
 def resolve_context_binding(
     *,
     namespaces: list[str] | None,
@@ -404,7 +362,6 @@ async def evict_cached_memory_manager(base_path: str | Path) -> None:
 __all__ = [
     "create_conflict_callback",
     "create_memory_manager",
-    "create_memory_tools_for_user",
     "evict_cached_memory_manager",
     "resolve_context_binding",
     "shutdown_cached_memory_managers",

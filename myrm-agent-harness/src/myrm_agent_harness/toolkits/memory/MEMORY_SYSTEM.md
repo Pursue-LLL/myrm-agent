@@ -1088,23 +1088,6 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 ---
 
-## 十八、统一异构记忆 MemCube 封装与多层调度引擎 (MemCubeEnvelope & MultiTierMemoryScheduler)
-
-针对异构记忆介质（关系事实、向量知识、图谱实体、避坑规程、技能资产）的跨层治理与跨端漫游，提供工业级标准信封协议与统筹调度中枢：
-
-- **统一异构记忆容器（`MemCubeEnvelope[T]` & `MemCubeHeader`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.cube`；
-  - 采用 Python 3.12 强类型泛型协议，全仓统一元数据头标准（`MemCubeHeader`），涵盖生命周期层级（`LifecycleTier`：L1/L2/L3/ARCHIVED）、存储路由策略（`StoragePolicy`：RELATIONAL/VECTOR/GRAPH/EPHEMERAL）、访问频次（`usage_count`）、活跃时戳（`last_accessed_at`）、优先级、权限归属与时戳；
-  - 内置规范化 Canonical JSON 序列化与 SHA256 数字指纹防篡改引擎（`compute_audit_hash` 与 `verify_audit_hash`），确保实体在导出、归档与跨端漫游过程中数据完整性可实时核验；
-  - 提供 `wrap_into_envelope` 与 `unwrap_envelope` 双向无损类型转换适配器，以及全类型自适应推导函数 `infer_tier_and_policy`。
-- **多层自适应记忆调度器（`MultiTierMemoryScheduler`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.scheduler`；
-  - 按存储策略分发写入（`dispatch_store`）：`EPHEMERAL` 不落盘；`RELATIONAL` 与 `VECTOR` 一律交给 `MemoryManager.store`；`GRAPH` 无写入目标，返回未分发；
-  - 防篡改批量导入落盘（`import_envelopes`）：先执行 SHA256 指纹校验门禁，拦截被篡改的信封，再按策略分发；调用方入口为 `MemoryManager.import_memcube_envelopes`；
-  - 生产环境暂无调用方：服务端归档不携带信封，信封只能由宿主用 `wrap_into_envelope` 自行封装后导入。
-
----
-
 ## 十九、精确事实确定性硬锁与行为模式双轨治理体系 (ExactFactHardLockAndDualTrack)
 
 针对长程会话中高熵关键符号（UUID、Git Commit SHA、语义化版本 SemVer、网络端点与端口、系统大写配置键）在自然语言泛化提取与模糊向量检索中容易发生失真和召回失效的问题，构建无损精准事实治理体系：

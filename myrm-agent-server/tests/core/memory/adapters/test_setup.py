@@ -422,55 +422,6 @@ async def test_shutdown_cached_memory_managers_logs_close_failure(
 
 
 @pytest.mark.asyncio
-async def test_create_memory_tools_for_user_propagates_optional_kwargs(
-    tmp_path: Path,
-) -> None:
-    """Optional tool kwargs are forwarded only when provided."""
-    from unittest.mock import AsyncMock, MagicMock
-    from unittest.mock import patch as mock_patch
-
-    from app.core.memory.adapters.setup import create_memory_tools_for_user
-
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
-    fake_manager = MagicMock()
-    fake_tools = [MagicMock(), MagicMock()]
-
-    async def _fake_create_manager(*_args: object, **_kwargs: object):
-        return fake_manager
-
-    with (
-        mock_patch(
-            "app.core.memory.adapters.setup.create_memory_manager",
-            new=AsyncMock(side_effect=_fake_create_manager),
-        ),
-        mock_patch(
-            "myrm_agent_harness.toolkits.create_memory_tools",
-            return_value=fake_tools,
-        ) as mock_tools,
-    ):
-        manager, tools = await create_memory_tools_for_user(
-            resolve_context_binding(
-                namespaces=None,
-                agent_id="builder",
-                channel_id=None,
-                conversation_id=None,
-                task_id=None,
-            ),
-            embedding_config=embedding_config,
-            search_policy={"k": "v"},
-            search_backends=["qdrant"],
-            description_locale="zh",
-        )
-
-    assert manager is fake_manager
-    assert tools is fake_tools
-    call_kwargs = mock_tools.call_args.kwargs
-    assert call_kwargs["search_policy"] == {"k": "v"}
-    assert call_kwargs["search_backends"] == ["qdrant"]
-    assert call_kwargs["description_locale"] == "zh"
-
-
-@pytest.mark.asyncio
 async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) -> None:
     """The conflict callback writes a PendingMemory row and returns PENDING."""
     from unittest.mock import AsyncMock, MagicMock

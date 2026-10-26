@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     logger,
-)
-from myrm_agent_harness.toolkits.memory.cube import (
-    MemCubeEnvelope,
 )
 from myrm_agent_harness.toolkits.memory.types import (
     BaseMemory,
@@ -516,23 +513,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                 logger.warning("Export failed for %s: %s", mem_type.value, e)
 
         return result
-
-    async def import_memcube_envelopes(
-        self, envelopes_data: Sequence[dict[str, object]], verify_hashes: bool = True
-    ) -> tuple[int, int]:
-        """Import sealed MemCube envelopes and route to proper tiers."""
-        from myrm_agent_harness.toolkits.memory.cube import MemCubeEnvelope
-        from myrm_agent_harness.toolkits.memory.scheduler import MultiTierMemoryScheduler
-
-        envelopes: list[MemCubeEnvelope[dict[str, object]]] = []
-        for raw in envelopes_data:
-            try:
-                envelopes.append(MemCubeEnvelope[dict[str, object]].model_validate(raw))
-            except Exception as err:
-                logger.warning("Failed to validate MemCube envelope: %s", err)
-
-        scheduler = MultiTierMemoryScheduler(memory_manager=self)  # type: ignore[arg-type]
-        return await scheduler.import_envelopes(envelopes, verify_hashes=verify_hashes)
 
     async def import_memories(
         self, data: dict[str, list[dict[str, object]]], *, skip_duplicates: bool = True
