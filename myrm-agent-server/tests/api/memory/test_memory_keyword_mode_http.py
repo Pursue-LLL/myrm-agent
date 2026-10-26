@@ -7,7 +7,7 @@ app.core.memory.adapters.setup::create_memory_manager (POS: real manager factory
 
 [OUTPUT]
 list / filter / search / export / pending review / backup answer with 200 and real data
-when ``retrieval`` settings carry no embedding, instead of 503.
+when the ``retrieval`` settings carry no embedding.
 
 [POS]
 Regression guard for the human-facing leg of keyword mode. The dependencies, handlers, manager,
