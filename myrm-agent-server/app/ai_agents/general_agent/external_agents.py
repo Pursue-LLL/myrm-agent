@@ -2,10 +2,10 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp (POS: 外部 Agent 委托协议框架)
-- myrm_agent_harness.agent.streaming.types (POS: 流式事件类型)
 - app.config.deploy_mode (POS: 部署模式检测)
 - .external_agents_runtime_config (POS: 外部 Agent 配置归一化层)
 - app.services.external_agents.cli_session_store::ChatCliSessionStore (POS: chat 行持久化的外部 CLI 会话 id，服务重启后续接同一外部对话) [lazy]
+- app.services.external_agents.direct_delegate_stream::stream_direct_delegate (POS: 外部 Agent 回合 → 前端 SSE 事件流) [lazy]
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
@@ -15,7 +15,7 @@
 - chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线；池带 ChatCliSessionStore，CLI 会话 id 随 chat 落库
 
 [POS]
-外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP/SDK 后端注册、
+外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP 后端注册、
 本地模式自动检测（请求热路径使用 path-only 探测，版本探测留给设置态），
 以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。
 Settings auth/status 仅报告安装/登录态。
@@ -79,13 +79,6 @@ def _runtime_pool_scope_id(agent: object) -> str | None:
     if isinstance(chat_id, str) and chat_id.strip():
         return chat_id.strip()
     return None
-
-
-def _token_count(value: object) -> int:
-    """Usage payload values are loosely typed; anything that is not a plain number counts as 0."""
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return 0
-    return int(value)
 
 
 async def resolve_external_agent_backends(
@@ -221,116 +214,22 @@ class ExternalAgentsMixin:
         except Exception as e:
             logger.warning("RuntimePool init for direct delegate failed: %s", e)
 
-    async def _direct_delegate_stream(
+    def _direct_delegate_stream(
         self,
         agent_name: str,
         query: object,
         *,
         cancel_token: CancellationToken | None = None,
         chat_id: str | None = None,
-    ) -> AsyncGenerator[dict[str, object], None]:
-        """Stream events from an external agent directly to the frontend.
-
-        Bypasses the LangChain Agent entirely. Converts RuntimeEvents to
-        the frontend SSE event format (AgentEventType).
-        """
-        from myrm_agent_harness.api import AgentEventType
-        from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
+    ) -> AsyncGenerator[dict[str, object]]:
+        """Stream one turn of an external agent straight to the frontend, bypassing the LangChain Agent."""
+        from app.services.external_agents.direct_delegate_stream import stream_direct_delegate
 
         assert self._runtime_pool is not None
-
-        text_query = query if isinstance(query, str) else str(query)
-        session_id = f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default"
-        _cfg = self._runtime_pool.get_config(agent_name)
-        auth_mode = _cfg.auth_mode if _cfg else "subscription"
-
-        yield {
-            "type": AgentEventType.TASKS_STEPS.value,
-            "step_key": f"delegation_{agent_name}_status",
-            "tool_name": f"delegate:{agent_name}",
-            "data": [{"text": f"{agent_name}: connecting"}],
-        }
-
-        async for event in self._runtime_pool.run_turn(agent_name, text_query, session_id=session_id):
-            if cancel_token and cancel_token.is_cancelled:
-                await self._runtime_pool.cancel(agent_name, session_id)
-                yield {"type": AgentEventType.CANCELLED.value}
-                return
-
-            if event.type == RuntimeEventType.TEXT_DELTA:
-                content = event.data.get("content")
-                if isinstance(content, str):
-                    yield {"type": AgentEventType.MESSAGE.value, "data": content}
-
-            elif event.type == RuntimeEventType.REASONING_DELTA:
-                content = event.data.get("content")
-                if isinstance(content, str):
-                    yield {
-                        "type": AgentEventType.REASONING.value,
-                        "data": {
-                            "content": content,
-                            "source": f"delegate:{agent_name}",
-                        },
-                    }
-
-            elif event.type == RuntimeEventType.TOOL_START:
-                tool_name = event.data.get("tool_name", "unknown")
-                yield {
-                    "type": AgentEventType.TASKS_STEPS.value,
-                    "step_key": f"delegation_{agent_name}_tool",
-                    "tool_name": f"delegate:{agent_name}",
-                    "data": [{"text": f"{agent_name}: {tool_name}"}],
-                }
-
-            elif event.type == RuntimeEventType.TOOL_RESULT:
-                is_error = event.data.get("is_error", False)
-                status_icon = "x" if is_error else "ok"
-                yield {
-                    "type": AgentEventType.TASKS_STEPS.value,
-                    "step_key": f"delegation_{agent_name}_tool",
-                    "tool_name": f"delegate:{agent_name}",
-                    "data": [{"text": f"{status_icon} {agent_name}: tool completed"}],
-                    "status": "error" if is_error else "completed",
-                }
-
-            elif event.type == RuntimeEventType.STATUS_UPDATE:
-                status = event.data.get("status", "")
-                message = event.data.get("message", "")
-                yield {
-                    "type": AgentEventType.TASKS_STEPS.value,
-                    "step_key": f"delegation_{agent_name}_status",
-                    "tool_name": f"delegate:{agent_name}",
-                    "data": [{"text": f"{agent_name}: {status}" + (f" — {message}" if message else "")}],
-                }
-
-            elif event.type == RuntimeEventType.USAGE_UPDATE:
-                input_tokens = _token_count(event.data.get("input_tokens"))
-                output_tokens = _token_count(event.data.get("output_tokens"))
-                total_tokens = input_tokens + output_tokens
-                if total_tokens > 0:
-                    yield {
-                        "type": AgentEventType.TOKEN_USAGE.value,
-                        "data": {
-                            "source": f"delegate:{agent_name}",
-                            "input_tokens": input_tokens,
-                            "output_tokens": output_tokens,
-                            "total_tokens": total_tokens,
-                            # Subscription runs on the user's own plan → no metered API cost.
-                            "auth_mode": auth_mode,
-                            "billable": auth_mode == "api_key",
-                        },
-                    }
-
-            elif event.type == RuntimeEventType.ERROR:
-                error_data = event.data.get("error")
-                msg = getattr(error_data, "message", str(error_data)) if error_data else "Unknown error"
-                yield {"type": AgentEventType.ERROR.value, "data": msg}
-
-        yield {
-            "type": AgentEventType.TASKS_STEPS.value,
-            "step_key": f"delegation_{agent_name}_status",
-            "tool_name": f"delegate:{agent_name}",
-            "data": [{"text": f"{agent_name}: completed"}],
-            "status": "completed",
-        }
-        yield {"type": AgentEventType.MESSAGE_END.value, "data": ""}
+        return stream_direct_delegate(
+            self._runtime_pool,
+            agent_name,
+            query if isinstance(query, str) else str(query),
+            session_id=f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default",
+            cancel_token=cancel_token,
+        )

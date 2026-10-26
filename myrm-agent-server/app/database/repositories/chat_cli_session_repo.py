@@ -6,7 +6,7 @@ sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
 CliSessionEntry: one stored external CLI session, ``{"cli_session_id": ..., "cwd": ...}``.
-ChatCliSessionRepository: read, write and remove the external CLI session entries of a chat.
+ChatCliSessionRepository: read and write the external CLI session entries of a chat.
 
 [POS]
 外部 CLI Agent 会话记录仓储。读写 Chat.external_cli_sessions（harness session id → CLI 原生会话 id 与创建它的目录），
@@ -33,7 +33,7 @@ def _sessions_of(value: object) -> dict[str, object]:
 class ChatCliSessionRepository:
     """Reads and writes the CLI-native session ids an external agent resumes a chat's conversation with.
 
-    ``put`` and ``remove`` read before they write: the caller holds the SQLite write lock for the transaction
+    ``put`` reads before it writes: the caller holds the SQLite write lock for the transaction
     (``acquire_write_lock``) so two writers cannot overwrite each other's entry.
     """
 
@@ -53,16 +53,4 @@ class ChatCliSessionRepository:
         sessions = {**_sessions_of(row.external_cli_sessions), session_id: entry}
         await db.execute(
             update(Chat).where(Chat.id == chat_id).values(external_cli_sessions=sessions, updated_at=Chat.updated_at)
-        )
-
-    @staticmethod
-    async def remove(db: AsyncSession, chat_id: str, session_id: str) -> None:
-        """Delete the entry of ``session_id`` (a name that was never stored is a no-op)."""
-        stored = (await db.execute(select(Chat.external_cli_sessions).where(Chat.id == chat_id))).scalar_one_or_none()
-        sessions = _sessions_of(stored)
-        if session_id not in sessions:
-            return
-        remaining = {key: value for key, value in sessions.items() if key != session_id}
-        await db.execute(
-            update(Chat).where(Chat.id == chat_id).values(external_cli_sessions=remaining, updated_at=Chat.updated_at)
         )

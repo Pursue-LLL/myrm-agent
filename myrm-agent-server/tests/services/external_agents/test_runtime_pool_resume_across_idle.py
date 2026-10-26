@@ -28,8 +28,8 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is
 _IDLE_SECONDS = 0.05
 _FINGERPRINT = "fp-a"
 
-# Behaves like `claude -p --output-format stream-json`: echoes the session id (the one passed via
-# --resume, else a fresh one) and records every invocation's --resume argument.
+# Behaves like `claude -p --output-format stream-json`: announces the session id (the one passed via
+# --resume, else a fresh one) in its first event, and records every invocation's --resume argument.
 _FAKE_CLAUDE = """\
 #!__PYTHON__
 import json, os, sys, uuid
@@ -39,7 +39,8 @@ resume = sys.argv[sys.argv.index("--resume") + 1] if "--resume" in sys.argv else
 sys.stdin.read()
 with open(os.path.join(here, "calls.jsonl"), "a") as handle:
     handle.write(json.dumps({"resume": resume}) + "\\n")
-session_id = resume or uuid.uuid4().hex[:8]
+session_id = resume or str(uuid.uuid4())
+print(json.dumps({"type": "system", "subtype": "init", "session_id": session_id}), flush=True)
 print(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": session_id}]}}), flush=True)
 print(json.dumps({"type": "result", "session_id": session_id}), flush=True)
 """

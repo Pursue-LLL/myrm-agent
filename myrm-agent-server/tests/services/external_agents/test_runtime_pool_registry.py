@@ -221,6 +221,52 @@ async def test_facade_cancel_does_not_deadlock_during_run_turn() -> None:
 
 
 @pytest.mark.asyncio
+async def test_closing_a_facade_turn_closes_the_pool_turn_before_the_next_turn_starts() -> None:
+    """The chat's turn lock is held until the pool's turn (and the external process behind it) has stopped."""
+    registry = ChatRuntimePoolRegistry()
+    order: list[str] = []
+
+    async def run_turn(
+        name: str,
+        prompt: str,
+        session_id: str,
+        *,
+        mode: str = "persistent",
+        mcp_servers: list | None = None,
+    ):
+        try:
+            while True:
+                yield MagicMock()
+        finally:
+            await asyncio.sleep(0.01)  # stopping the external process takes a moment
+            order.append("pool turn closed")
+
+    pool = MagicMock()
+    pool.run_turn = run_turn
+
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
+
+    async def next_turn() -> None:
+        async with registry.guard_turn("chat-1"):
+            order.append("next turn started")
+
+    turn = facade.run_turn("claude", "hi", "s1")
+    await anext(turn)
+    waiting = asyncio.create_task(next_turn())
+    await asyncio.sleep(0.01)
+    assert order == []
+
+    await turn.aclose()
+    await asyncio.wait_for(waiting, timeout=1.0)
+
+    assert order == ["pool turn closed", "next turn started"]
+
+
+@pytest.mark.asyncio
 async def test_guard_turn_noop_for_empty_scope() -> None:
     registry = ChatRuntimePoolRegistry()
     ran = False

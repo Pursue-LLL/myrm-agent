@@ -25,8 +25,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import aclosing, asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeAlias
 
@@ -277,17 +277,14 @@ class ChatScopedRuntimePoolFacade:
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         async with self._registry.guard_turn(self._chat_scope_id):
             self._pool = await self._registry.ensure_tracked(self._chat_scope_id, self._config_fingerprint, self._pool)
-            async for event in self._pool.run_turn(
-                name,
-                prompt,
-                session_id,
-                mode=mode,
-                mcp_servers=mcp_servers,
-            ):
-                yield event
+            # Closing this generator closes the pool's turn before the lock is released, so the next turn of the
+            # chat never starts while the previous external process is still being stopped.
+            async with aclosing(self._pool.run_turn(name, prompt, session_id, mode=mode, mcp_servers=mcp_servers)) as events:
+                async for event in events:
+                    yield event
 
     async def cancel(self, name: str, session_id: str) -> None:
         # Lock-exempt: callers invoke cancel from inside an active run_turn loop.

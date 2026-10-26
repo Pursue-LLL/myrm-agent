@@ -1,7 +1,8 @@
 """An external CLI agent keeps its conversation across a server restart: pool wiring + registry + chat row + real CLI process.
 
-The fake ``claude`` echoes the session id passed through ``--resume`` (a fresh one otherwise) in a ``result`` event, the
-way ``claude -p --output-format stream-json`` reports it. Nothing between the mixin and the subprocess is mocked.
+The fake ``claude`` announces the session id passed through ``--resume`` (a fresh one otherwise) in its first
+``system/init`` event, the way ``claude -p --output-format stream-json`` does. Nothing between the mixin and the
+subprocess is mocked.
 """
 
 from __future__ import annotations
@@ -33,7 +34,8 @@ resume = sys.argv[sys.argv.index("--resume") + 1] if "--resume" in sys.argv else
 sys.stdin.read()
 with open(os.path.join(here, "calls.jsonl"), "a") as handle:
     handle.write(json.dumps({"resume": resume}) + "\\n")
-session_id = resume or uuid.uuid4().hex[:8]
+session_id = resume or str(uuid.uuid4())
+print(json.dumps({"type": "system", "subtype": "init", "session_id": session_id}), flush=True)
 print(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": session_id}]}}), flush=True)
 print(json.dumps({"type": "result", "session_id": session_id}), flush=True)
 """

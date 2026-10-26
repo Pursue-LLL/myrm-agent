@@ -12,7 +12,7 @@
 | `chat_repo.py` | 核心 | 提供 Chat 和 Message 实体 CRUD、compaction CAS 与 sibling group 持久化、路由档位历史（动量窗口、被重试回合的档位），并委托消息级 FTS5 检索。重试与版本计数只作用于回合的回答，系统通知行（`SYSTEM_NOTICE_EXTRA_KEYS`）保持活跃且不入版本组。无痕会话的 `title` / `first_message` / `last_message` 在 `add_chat` 与 `update_chat_fields` 两个写入口统一不落库（单条 UPDATE 内按行上的无痕标记保留原值）。 | ✅ |
 | `chat_message_search_repo.py` | 辅助 | 聊天消息全文检索仓储，封装消息级 FTS5 查询、active message 过滤与 Conversation Recall 排除策略。提供 `get_matching_chat_ids()` 供侧边栏 keyword 搜索接入 FTS。 | ✅ |
 | `chat_history_sync_repo.py` | 辅助 | 聊天历史同步仓储：`load_branch` 读取压缩锚点之后的活跃消息有序 id 与压缩状态（不受历史条数上限约束，同刻时间戳以 id 定序）、`has_active_answer`（按 `request_message_id` 判断本回合回答已落库且活跃）、`store_token` 写 `Chat.history_sync_token`（不触碰 `updated_at`） | ✅ |
-| `chat_cli_session_repo.py` | 辅助 | 外部 CLI Agent 会话记录仓储：`get` / `put` / `remove` 读写 `Chat.external_cli_sessions`（harness session id → CLI 原生会话 id + 创建目录）。`put` 跳过不存在与无痕 chat，`put` / `remove` 都不触碰 `updated_at`（续接记录是记账，不是会话活动）；读后写由调用方持 SQLite 写锁；非 dict 的存量值按“无会话”处理 | ✅ |
+| `chat_cli_session_repo.py` | 辅助 | 外部 CLI Agent 会话记录仓储：`get` / `put` 读写 `Chat.external_cli_sessions`（harness session id → CLI 原生会话 id + 创建目录；记录只被覆盖，不删除）。`put` 跳过不存在与无痕 chat，不触碰 `updated_at`（续接记录是记账，不是会话活动）；读后写由调用方持 SQLite 写锁；非 dict 的存量值按“无会话”处理 | ✅ |
 | `fission_repo.py` | 核心 | FissionTaskRecord 数据访问层（高并发子代理任务拓扑持久化） | ✅ |
 | `channel_message_repo.py` | 核心 | 多渠道入站明细仓储（Channel Message Data Plane），提供原子写入、上下文按需拉取、知识学习候选集查询、30 天冷热生命周期滚动修剪以及当日配额调用计数（`get_daily_trigger_count`） | ✅ |
 | `conversation_recall/` | 核心 | Conversation Recall 索引子包（`repo`/`lookup_repo`/`sql`/`types`）；对外经 `__init__.py` re-export | ✅ |

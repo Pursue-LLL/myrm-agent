@@ -11,6 +11,7 @@
 
 import logging
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -110,34 +111,23 @@ async def execute_stream_pipeline(
                 force_external_agent,
                 query_preview,
             )
-            for attempt in range(2):
-                started_streaming = False
-                try:
-                    async for event in agent_wrapper._direct_delegate_stream(
+            try:
+                async with aclosing(
+                    agent_wrapper._direct_delegate_stream(
                         force_external_agent,
                         query,
                         cancel_token=cancel_token,
                         chat_id=chat_id,
-                    ):
-                        started_streaming = True
-                        yield event
-                    return
-                except Exception:
-                    if started_streaming or attempt > 0:
-                        logger.error(
-                            "Direct delegate failed: %s",
-                            force_external_agent,
-                            exc_info=True,
-                        )
-                        yield {
-                            "type": "error",
-                            "data": f"External agent '{force_external_agent}' execution failed",
-                        }
-                        return
-                    logger.warning(
-                        "Direct delegate connection failed, retrying: %s",
-                        force_external_agent,
                     )
+                ) as delegate_events:
+                    async for event in delegate_events:
+                        yield event
+            except Exception:
+                logger.error("Direct delegate failed: %s", force_external_agent, exc_info=True)
+                yield {
+                    "type": "error",
+                    "data": f"External agent '{force_external_agent}' execution failed",
+                }
             return
 
     if agent_wrapper.jit_subagents:

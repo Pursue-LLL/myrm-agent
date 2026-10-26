@@ -57,35 +57,10 @@ async def test_saving_again_replaces_the_session_of_that_name_only() -> None:
     assert await store.load("codex-chat") == CliSessionRecord("cli-x", "/work")
 
 
-async def test_deleting_one_session_keeps_the_others() -> None:
-    chat_id = await _create_chat()
-    store = ChatCliSessionStore(chat_id)
-    await store.save("claude-chat", CliSessionRecord("cli-1", "/work"))
-    await store.save("codex-chat", CliSessionRecord("cli-x", "/work"))
-
-    await store.delete("claude-chat")
-    assert await store.load("claude-chat") is None
-    assert await store.load("codex-chat") == CliSessionRecord("cli-x", "/work")
-
-    await store.delete("codex-chat")
-    assert await store.load("codex-chat") is None
-
-
-async def test_deleting_a_session_that_was_never_stored_is_a_no_op() -> None:
-    chat_id = await _create_chat()
-    store = ChatCliSessionStore(chat_id)
-    await store.save("claude-chat", CliSessionRecord("cli-1", "/work"))
-
-    await store.delete("never-stored")
-
-    assert await store.load("claude-chat") == CliSessionRecord("cli-1", "/work")
-
-
 async def test_a_chat_that_does_not_exist_stores_and_loads_nothing() -> None:
     store = ChatCliSessionStore(f"missing-{uuid.uuid4().hex[:10]}")
 
     await store.save("claude-chat", CliSessionRecord("cli-1", "/work"))
-    await store.delete("claude-chat")
 
     assert await store.load("claude-chat") is None
 
@@ -106,7 +81,6 @@ async def test_saving_a_session_is_not_chat_activity() -> None:
     store = ChatCliSessionStore(chat_id)
 
     await store.save("claude-chat", CliSessionRecord("cli-1", "/work"))
-    await store.delete("claude-chat")
 
     assert (await _updated_at(chat_id)).replace(tzinfo=UTC) == _LONG_AGO
 

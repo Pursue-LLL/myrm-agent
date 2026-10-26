@@ -10,9 +10,10 @@
 - ChatCliSessionStore: harness ``CliSessionStore`` persisting one chat's external CLI sessions on the chat row
 
 [POS]
-Server half of external-agent session continuity. The harness decides when to remember, persist or forget a
+Server half of external-agent session continuity. The harness decides when to remember and persist a
 CLI session id; this store only gives those ids a durable home, so a restart of the server resumes the same
-external conversation. Failures propagate: the harness logs them and the turn carries on.
+external conversation. A record is never deleted, the next session the CLI announces overwrites it. Failures
+propagate: the harness logs them and the turn carries on.
 """
 
 from __future__ import annotations
@@ -45,10 +46,4 @@ class ChatCliSessionStore:
         async with get_session_factory()() as db:
             await acquire_write_lock(db)
             await ChatCliSessionRepository.put(db, self._chat_id, session_id, entry)
-            await db.commit()
-
-    async def delete(self, session_id: str) -> None:
-        async with get_session_factory()() as db:
-            await acquire_write_lock(db)
-            await ChatCliSessionRepository.remove(db, self._chat_id, session_id)
             await db.commit()
