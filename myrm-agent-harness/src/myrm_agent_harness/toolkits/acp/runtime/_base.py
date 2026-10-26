@@ -134,7 +134,7 @@ class BaseRuntime:
     def __init__(self, runtime_name: str, config: RuntimeConfig, backend_type: BackendType) -> None:
         self._name = runtime_name
         self._config = config
-        self._backend_type = backend_type
+        self._backend_type: BackendType = backend_type
         self._alive = False
 
     # -- Properties (satisfy RuntimeBackend Protocol) --

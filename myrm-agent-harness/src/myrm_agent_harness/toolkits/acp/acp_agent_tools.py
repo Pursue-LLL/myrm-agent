@@ -321,8 +321,9 @@ async def _run_turn_and_collect(
             error_count += 1
             error_data = event.data.get("error")
             if hasattr(error_data, "message"):
-                logger.warning("acp_delegate_event_error agent=%s msg=%s", agent_name, error_data.message)
-                exc = RuntimeError(error_data.message)
+                message = getattr(error_data, "message", None)
+                logger.warning("acp_delegate_event_error agent=%s msg=%s", agent_name, message)
+                exc = RuntimeError(message)
                 exc.retryable = getattr(error_data, "retryable", False)  # type: ignore[attr-defined]
                 raise exc
         elif event.type == RuntimeEventType.STATUS_UPDATE:

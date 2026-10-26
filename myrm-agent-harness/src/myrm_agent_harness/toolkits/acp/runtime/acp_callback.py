@@ -61,6 +61,15 @@ def _get_attr(obj: object, *keys: str) -> object | None:
     return None
 
 
+def _as_dict(obj: object) -> dict[str, object]:
+    """Normalise an ACP payload (plain dict or pydantic model) to a dict."""
+    if isinstance(obj, dict):
+        return obj
+    dump = getattr(obj, "model_dump", None)
+    dumped = dump() if callable(dump) else None
+    return dumped if isinstance(dumped, dict) else {}
+
+
 def _extract_text_content(content: object) -> str | None:
     """Extract text from an ACP content block."""
     if content is None:
@@ -75,7 +84,7 @@ def _extract_text_content(content: object) -> str | None:
 def _find_option(options: list[object], kinds: tuple[str, ...]) -> str | None:
     """Find the first option matching any of the given kinds."""
     for opt in options:
-        opt_dict = opt if isinstance(opt, dict) else (opt.model_dump() if hasattr(opt, "model_dump") else {})
+        opt_dict = _as_dict(opt)
         if opt_dict.get("kind") in kinds:
             return str(opt_dict.get("optionId", ""))
     return None
@@ -228,11 +237,7 @@ class AcpCallbackHandler:
     ) -> dict[str, object]:
         """Handle permission requests based on configured permission_mode."""
         option_list = options if isinstance(options, list) else []
-        tool_dict = (
-            tool_call
-            if isinstance(tool_call, dict)
-            else (tool_call.model_dump() if hasattr(tool_call, "model_dump") else {})
-        )
+        tool_dict = _as_dict(tool_call)
         tool_name = str(tool_dict.get("title") or tool_dict.get("name") or "unknown")
         tool_input = {
             key: value for key, value in tool_dict.items() if key in ("command", "path", "input", "arguments", "files")

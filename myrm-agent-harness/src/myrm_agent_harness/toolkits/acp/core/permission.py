@@ -64,7 +64,7 @@ class DefaultPermissionManager:
         mode: PermissionMode = "allow_all",
         allowed_tools: list[str] | None = None,
     ) -> None:
-        self._mode = mode
+        self._mode: PermissionMode = mode
         self._allowed_tools = allowed_tools or []
         self._approval_cache: dict[str, set[str]] = {}
 
