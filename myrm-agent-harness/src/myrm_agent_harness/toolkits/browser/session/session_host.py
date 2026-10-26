@@ -9,6 +9,7 @@
 - pool::GlobalBrowserPool, pool.extension_bridge::ExtensionBridge (POS: browser pool, user-browser extension bridge)
 - observability::BrowserObservability, recording_manager::RecordingManager, session.download_manager::DownloadManager, session.session_persistence::SessionPersistence (POS: optional per-session services owned by the aggregate root)
 - captcha::CaptchaCoordinator (POS: CAPTCHA detection and solving coordination)
+- utils.runtime.user_control::UserControl, DEFAULT_WAIT_TIMEOUT_S (POS: control hold and wait budget the mixins' takeover wait is typed against)
 
 [OUTPUT]
 - SessionHost: base of the navigation, tab, CAPTCHA, network and lifecycle mixins; declares the attributes and

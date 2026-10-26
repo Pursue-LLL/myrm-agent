@@ -14,12 +14,14 @@
 - session.network_intelligence::NetworkIntelligence (POS: CDP-based lazy API response body retrieval)
 - session_vault::SessionVault (POS: AES-256-GCM encrypted session storage)
 - snapshot::RefInfo (POS: element reference metadata)
+- utils.runtime.user_control::UserControl, get_user_control (POS: process-wide human-control hold the session consults)
 - domain_filter::DomainAllowlist (POS: domain filter allowlist)
 - observability::BrowserObservability (POS: recording and profiling)
 - session.browser_session_extraction_mixin::BrowserSessionExtractionMixin (POS: content extraction and screenshot compare APIs)
 - session.browser_session_page_mixin::BrowserSessionPageMixin (POS: viewport/dialog/JS and other page-level APIs)
 - session.browser_session_persistence_mixin::BrowserSessionPersistenceMixin (POS: SessionVault persistence API)
 - session.browser_session_recording_mixin::BrowserSessionRecordingMixin (POS: trace/HAR recording API)
+- session.browser_session_takeover_mixin::BrowserSessionTakeoverMixin (POS: the wait before every call that acts on the page; stops a script planned before a hand-back)
 - session.browser_session_navigation_mixin::BrowserSessionNavigationMixin (POS: navigation, tab switching, CAPTCHA)
 - session.browser_session_lifecycle_mixin::BrowserSessionLifecycleMixin (POS: restart/close and component init)
 - session.browser_session_view_mixin::BrowserSessionViewMixin (POS: Browser Live Co-View SSE mixin)
@@ -39,6 +41,7 @@
   - get_ref_info(ref_id: str) -> RefInfo | None: get element reference info
   - get_all_refs() -> MappingProxyType[str, RefInfo]: get all element reference mappings (immutable view)
   - get_active_page() -> Page: return the active page (public facade over the tab controller)
+  - user_control / observed_generation: the process-wide control hold, and the hand-over the model last looked at the page after (the tool gate advances it)
   - get_session_hash(domain: str) -> str | None: get cached session state hash (in-memory read)
   - stats: dict[str, object]: statistics info (includes ref_failures monitoring metrics)
   - notify_progress(message) -> None: push to observability hook and agent SSE via progress_sink
@@ -61,8 +64,8 @@ Browser session manager. As the aggregate root, composes single-responsibility c
 13. DialogManager (JS dialog lifecycle handling with configurable policy)
 14. ConsentDismisser (cookie consent auto-accept after navigation, zero LLM cost)
 
-The aggregate root class combines mixins via multiple inheritance (Persistence, Recording, Extraction,
-Page, Network, Navigation, Lifecycle). MRO order is fixed: Network before Navigation before Lifecycle
+The aggregate root class combines mixins via multiple inheritance (View, Persistence, Recording, Takeover,
+Extraction, Page, Network, Navigation, Lifecycle). MRO order is fixed: Network before Navigation before Lifecycle
 so navigate() can call _initialize_components and restart().
 """
 
@@ -75,16 +78,9 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.browser.observability import BrowserObservability
 from myrm_agent_harness.toolkits.browser.recording_manager import RecordingManager
 from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_SELECTOR
-from myrm_agent_harness.utils.runtime.user_control import (
-    DEFAULT_WAIT_TIMEOUT_S,
-    UserControl,
-    UserControlTimeoutError,
-    get_user_control,
-    plan_is_stale,
-)
+from myrm_agent_harness.utils.runtime.user_control import UserControl, get_user_control
 
 from ..navigation import Navigator
-from ..takeover_errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
 from .browser_session_extraction_mixin import BrowserSessionExtractionMixin, ContentVault
 from .browser_session_lifecycle_mixin import BrowserSessionLifecycleMixin
 from .browser_session_navigation_mixin import BrowserSessionNavigationMixin
@@ -92,6 +88,7 @@ from .browser_session_network_mixin import BrowserSessionNetworkMixin
 from .browser_session_page_mixin import BrowserSessionPageMixin
 from .browser_session_persistence_mixin import BrowserSessionPersistenceMixin
 from .browser_session_recording_mixin import BrowserSessionRecordingMixin
+from .browser_session_takeover_mixin import BrowserSessionTakeoverMixin
 from .browser_session_view_mixin import BrowserSessionViewMixin
 from .console_logger import ConsoleLogger
 from .device_emulator import DeviceEmulator
@@ -126,6 +123,7 @@ class BrowserSession(
     BrowserSessionViewMixin,
     BrowserSessionPersistenceMixin,
     BrowserSessionRecordingMixin,
+    BrowserSessionTakeoverMixin,
     BrowserSessionExtractionMixin,
     BrowserSessionPageMixin,
     BrowserSessionNetworkMixin,
@@ -367,25 +365,6 @@ class BrowserSession(
             SHA-256 hash of session state, or None if not cached
         """
         return self._session_hash_cache.get(domain)
-
-    async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None:
-        """Wait while a person drives the browser; refuse once they keep it past `timeout`.
-
-        The tool gate vets a tool call once, before it starts, so this covers session calls made outside a
-        tool and the later steps of a script. The session stays locked on timeout rather than act behind
-        the person's back.
-
-        Raises:
-            UserTakeoverTimeoutError: the person still drives after `timeout` seconds.
-            UserTakeoverDuringScriptError: a running script's plan predates the person's last turn at the page.
-        """
-        try:
-            await self.user_control.wait_released(timeout)
-        except UserControlTimeoutError as exc:
-            logger.error("User takeover wait timed out (%.1fs); session stays locked", timeout)
-            raise UserTakeoverTimeoutError(timeout_seconds=exc.timeout_seconds) from exc
-        if plan_is_stale(self.user_control):
-            raise UserTakeoverDuringScriptError
 
     async def interact(self, action: str, ref: str, text: str = "", verify_goal: str | None = None) -> str:
         """Ref-based element interaction (15 action types) with optional visual verification."""

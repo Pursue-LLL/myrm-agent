@@ -8,6 +8,7 @@ single cohesive API surface. Agent tools interact exclusively with this class.
 - screenshot_processor::ScreenshotProcessor (POS: image preprocessing)
 - coordinate_scaler::CoordinateScaler (POS: coordinate transformation)
 - screen_guard::ScreenGuard (POS: lock / sleep gate with host-provided on-demand unlock)
+- utils.runtime.user_control::UserControl, get_user_control (POS: process-wide human-control hold consulted before every mutating call)
 - types::ComputerAction, ComputerUseConfig, ActionResult, PermissionStatus, ExecutionMode, ForegroundPermissionCallback, ForegroundPermissionScope, ScreenUnlockCallback (POS: shared types)
 
 [OUTPUT]
@@ -26,9 +27,7 @@ import logging
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
 from myrm_agent_harness.toolkits.computer_use.screen_guard import ScreenGuard
-from myrm_agent_harness.toolkits.computer_use.screenshot_processor import (
-    ScreenshotProcessor,
-)
+from myrm_agent_harness.toolkits.computer_use.screenshot_processor import ScreenshotProcessor
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ComputerUseConfig,

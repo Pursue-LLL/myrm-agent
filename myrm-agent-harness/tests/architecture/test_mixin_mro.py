@@ -47,6 +47,9 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_recording_mixin
 from myrm_agent_harness.toolkits.browser.session.browser_session_tab_mixin import (
     BrowserSessionTabMixin,
 )
+from myrm_agent_harness.toolkits.browser.session.browser_session_takeover_mixin import (
+    BrowserSessionTakeoverMixin,
+)
 from myrm_agent_harness.toolkits.browser.session.browser_session_view_mixin import (
     BrowserSessionViewMixin,
 )
@@ -60,6 +63,7 @@ _EXPECTED_BROWSER_SESSION_MIXIN_MRO: tuple[type[object], ...] = (
     BrowserSessionViewMixin,
     BrowserSessionPersistenceMixin,
     BrowserSessionRecordingMixin,
+    BrowserSessionTakeoverMixin,
     BrowserSessionExtractionMixin,
     BrowserSessionPageMixin,
     BrowserSessionNetworkMixin,
@@ -89,12 +93,11 @@ def test_browser_session_navigate_resolves_to_navigation_mixin() -> None:
         ("new_tab", BrowserSessionTabMixin),
         ("close_tab", BrowserSessionTabMixin),
         ("recover_active_tab", BrowserSessionTabMixin),
+        ("_ensure_not_user_takeover", BrowserSessionTakeoverMixin),
         ("_handle_captcha_if_detected", BrowserSessionCaptchaMixin),
     ],
 )
-def test_browser_session_tab_and_captcha_methods_resolve_to_their_mixins(
-    method: str, expected_owner: type[object]
-) -> None:
+def test_browser_session_methods_resolve_to_their_mixins(method: str, expected_owner: type[object]) -> None:
     owner = next(c for c in BrowserSession.__mro__ if method in c.__dict__)
     assert owner is expected_owner
 
