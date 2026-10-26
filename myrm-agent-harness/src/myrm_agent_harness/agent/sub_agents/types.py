@@ -5,6 +5,7 @@ Self-update note: when this file changes, update its INPUT/OUTPUT/POS comments.
 [INPUT]
 - utils.token_tracker::TokenUsage (POS: Token usage tracking type for prompt/completion/total tokens)
 - .hitl_tool_policy::HITL_TOOL_POLICY (POS: HITL tool registry SSOT for subagent blocking)
+- core.security.tool_registry::PARENT_BOUND_WRITER_TOOLS (POS: writers over the running agent's own todo file, goal and kanban board)
 - .handover::HandoffFinding, AgentHandoverState (POS: Subagent subsystem handover data contract)
 
 [OUTPUT]
@@ -51,6 +52,7 @@ from myrm_agent_harness.agent.sub_agents.hitl_tool_policy import (
     HITL_TOOL_POLICY,
 )
 from myrm_agent_harness.agent.sub_agents.result_output import SubAgentOutput
+from myrm_agent_harness.core.security.tool_registry import PARENT_BOUND_WRITER_TOOLS
 from myrm_agent_harness.utils.token_economics.tracker import TokenUsage
 
 # ---------------------------------------------------------------------------
@@ -73,12 +75,7 @@ class DelegationCapabilityManifest:
             "subagent_control_tool",
             "send_teammate_message_tool",
         )
-        privileged_skill_tools = frozenset(
-            {
-                "skill_manage_tool",
-                "skill_market_tool",
-            }
-        )
+        privileged_skill_tools = frozenset({"skill_manage_tool", "skill_market_tool"})
         legacy_delegation_tools = frozenset(
             {
                 "spawn_subagent_tool",
@@ -88,8 +85,11 @@ class DelegationCapabilityManifest:
                 "steer_subagent_tool",
             }
         )
-        # Memory writers are bound to the parent's MemoryManager, which no isolation policy can rebind.
-        persistent_side_effect_tools = frozenset({"cron_manage_tool", "memory_save_tool", "memory_manage_tool"})
+        # Memory writers are bound to the parent's MemoryManager and the todo, goal and kanban writers to the
+        # parent's own plan file, goal and board; no isolation policy can rebind either.
+        persistent_side_effect_tools = (
+            frozenset({"cron_manage_tool", "memory_save_tool", "memory_manage_tool"}) | PARENT_BOUND_WRITER_TOOLS
+        )
         hitl_tools = HITL_TOOL_POLICY.subagent_blocked
         return cls(
             leaf_blocked_tools=frozenset(orchestrator_child_tools)
@@ -426,7 +426,7 @@ class SubagentConfig:
 
     Tool safety: 4-layer isolation
       Layer 0 (type admission): allowed_types on create_delegate_task_tool restricts spawnable agent types
-      Layer 1 (global blacklist): _SUBAGENT_DEFAULT_BLACKLIST — orchestrator delegation tools + legacy aliases + skill management + persistent side effects (cron, memory writes)
+      Layer 1 (global blacklist): _SUBAGENT_DEFAULT_BLACKLIST — orchestrator delegation tools + legacy aliases + skill management + persistent side effects (cron, memory writes) + parent-bound writers (todo, goal, kanban)
       Layer 2 (per-config): tools (allowlist) + disallowed_tools (blocklist) from this config
       Layer 3 (parent constraint): child ⊆ parent intersection (enforced by SubagentManager._filter_tools)
 

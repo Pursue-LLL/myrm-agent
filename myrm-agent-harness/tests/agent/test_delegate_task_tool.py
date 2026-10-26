@@ -17,7 +17,6 @@ from myrm_agent_harness.agent.sub_agents.types import (
     AgentHandoverState,
     ControlScope,
     DelegateRole,
-    MemoryIsolationPolicy,
     SubagentConfig,
     SubAgentResult,
     SubAgentStatus,
@@ -524,31 +523,6 @@ class TestDelegateTaskExecution:
         assert result["status"] == "policy_denied"
         assert result["reason"] == "max_spawn_depth_denied"
         parent._spawn_child.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_read_only_global_blocks_memory_write_tools(self):
-        from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegate_task_tool import (
-            create_delegate_task_tool,
-        )
-
-        config = SubagentConfig(
-            system_prompt="test",
-            memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL,
-        )
-        catalog = AsyncMock()
-        catalog.resolve = AsyncMock(return_value=config)
-
-        parent = _make_mock_parent()
-        parent._last_context = {}
-        parent._spawn_child = AsyncMock(return_value={"success": True, "result": {}})
-
-        tool_fn = create_delegate_task_tool(parent, lambda: [], catalog)
-        await tool_fn.coroutine(agent_type="reader", objective="read task")
-
-        call_kwargs = parent._spawn_child.call_args[1]
-        spawned_config = call_kwargs["config"]
-        assert "memory_save_tool" in spawned_config.disallowed_tools
-        assert "memory_manage_tool" in spawned_config.disallowed_tools
 
     @pytest.mark.asyncio
     async def test_context_propagation(self):

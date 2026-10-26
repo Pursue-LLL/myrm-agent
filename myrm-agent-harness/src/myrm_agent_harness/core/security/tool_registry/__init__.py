@@ -11,6 +11,7 @@ preserving the flat-module import surface for all consumers.
 
 [OUTPUT]
 - BUILTIN_TOOL_NAMES / TOOL_SAFETY_METADATA — tool safety SSOT
+- PARENT_BOUND_WRITER_TOOLS — writers over the running agent's own todo file, goal and kanban board
 - TOOL_PERMISSION_MAP / AUTO_APPROVED_BUILTIN_TOOLS / EXPLICIT_MCP_FALLBACK_TOOLS / DYNAMICALLY_RESOLVED_TOOL_NAMES / RULESET_COVERAGE_WHITELIST — governance audit declarations
 - SafetyMetadata / MCPAnnotations / resolve_safety_metadata / resolve_permission_type
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
@@ -26,6 +27,7 @@ from .registry import (
     BUILTIN_TOOL_NAMES,
     DYNAMICALLY_RESOLVED_TOOL_NAMES,
     EXPLICIT_MCP_FALLBACK_TOOLS,
+    PARENT_BOUND_WRITER_TOOLS,
     RULESET_COVERAGE_WHITELIST,
     TOOL_CANONICAL_PARAMS,
     TOOL_GROUP_MAP,
@@ -55,6 +57,7 @@ __all__ = [
     "BUILTIN_TOOL_NAMES",
     "DYNAMICALLY_RESOLVED_TOOL_NAMES",
     "EXPLICIT_MCP_FALLBACK_TOOLS",
+    "PARENT_BOUND_WRITER_TOOLS",
     "RULESET_COVERAGE_WHITELIST",
     "TOOL_CANONICAL_PARAMS",
     "TOOL_GROUP_MAP",

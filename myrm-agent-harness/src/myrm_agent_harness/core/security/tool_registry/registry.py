@@ -52,6 +52,7 @@ declaration improves transparency and self-documentation.
 - BUILTIN_TOOL_NAMES: all known built-in tool names
 - TOOL_CANONICAL_PARAMS: tool name → core parameter list
 - TOOL_SAFETY_METADATA: tool name → safety attributes (opt-in whitelist)
+- PARENT_BOUND_WRITER_TOOLS: writers over the running agent's own todo file, goal and kanban board, derived from the tool groups and safety metadata
 - AUTO_APPROVED_BUILTIN_TOOLS: built-in tool → governance approval reason (audit declaration)
 - EXPLICIT_MCP_FALLBACK_TOOLS: built-in tools that intentionally keep mcp_invoke fallback (audit declaration)
 - DYNAMICALLY_RESOLVED_TOOL_NAMES: built-in tools resolved by resolve_permission_type() sub-action branches (audit declaration)
@@ -260,6 +261,16 @@ TOOL_GROUP_MAP: dict[str, frozenset[str]] = {
 TOOL_TO_GROUP: dict[str, str] = {tool: group for group, tools in TOOL_GROUP_MAP.items() for tool in tools}
 
 TOOL_GROUP_NAMES: frozenset[str] = frozenset(TOOL_GROUP_MAP)
+
+# Writers over state the running agent owns: its todo file, its goal and its kanban board. A delegated child
+# shares that state with its parent rather than owning a copy, so each of its writes would land on the
+# parent's record. A tool with no safety declaration counts as a writer.
+PARENT_BOUND_WRITER_TOOLS: frozenset[str] = frozenset(
+    name
+    for group in ("planning", "kanban")
+    for name in TOOL_GROUP_MAP[group]
+    if not TOOL_SAFETY_METADATA.get(name, _FAIL_CLOSED_DEFAULTS).is_read_only
+) | {"complete_goal_tool"}
 
 _INTERACT_ACTION_MAP: dict[str, str] = {
     "fill": "browser_fill",

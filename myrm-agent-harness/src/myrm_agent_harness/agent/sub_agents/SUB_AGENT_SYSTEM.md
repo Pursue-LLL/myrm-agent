@@ -96,6 +96,8 @@ Layer 1: DELEGATION_CAPABILITY_MANIFEST.leaf_blocked_tools
          → delegate_task_tool + subagent_control_tool + skill_manage/discovery_tool
            + 持久副作用工具 cron_manage_tool / memory_save_tool / memory_manage_tool
              （子 agent 继承到的记忆工具绑定在父 agent 的 MemoryManager 上，任何隔离策略都无法改绑，所以一律剥离，显式白名单也不能放回）
+           + 父状态写工具 `PARENT_BOUND_WRITER_TOOLS`：todo_write / complete_goal_tool / kanban 写工具
+             （绑定父 agent 自己的计划文件、目标与看板，子 agent 与父共享同一份而不是拥有自己的，写入会落在父的记录上；kanban_show / kanban_list_tasks 只读，保留）
            + HitlToolPolicy.subagent_blocked (from agent/sub_agents/hitl_tool_policy.py; HITL must stay on parent/web thread);
            同一份 manifest 同时驱动 leaf 剥离和 orchestrator child-scoped 工具注入
 
@@ -106,7 +108,7 @@ Layer 3: child ⊆ parent 交集约束
          → 子 agent 工具集 ⊆ 父 agent 工具集
 
 Layer 4: Fine-grained Sandboxing (readonly)
-         → 支持通过 readonly 参数在运行时过滤文件写/命令执行等具有副作用的工具，实现细粒度安全沙箱。原生写/编辑/命令工具由 `disallowed_tools` 剔除；所有 `READ_ONLY_SANDBOX` 配置（readonly 子 Agent 与 Verifier）在 `builder.filter_tools` 中还会剔除未声明 `readOnlyHint` 的 MCP 工具（与审批快速通道同一判据 `resolve_safety_metadata`，未标注按有副作用处理；判据是 MCP server 自报的注解，框架不核实其真伪）。
+         → 支持通过 readonly 参数在运行时过滤文件写/命令执行等具有副作用的工具，实现细粒度安全沙箱。原生写/编辑/命令工具由 `disallowed_tools` 剔除；所有 `READ_ONLY_SANDBOX` 配置（readonly 子 Agent 与 Verifier）在 `builder.filter_tools` 中还会剔除逃出沙箱的工具：未声明 `readOnlyHint` 的 MCP 工具（与审批快速通道同一判据 `resolve_safety_metadata`，未标注按有副作用处理；判据是 MCP server 自报的注解，框架不核实其真伪）、权限类型为 `invoke_external_agent` 的外部 Agent 会话（`invoke_acp_agent_tool`）、权限类型为 `knowledge_write` 的知识库写入（`wiki_ingest_tool` / `wiki_apply_tool`），与 `readonly` 安全档案拒绝的权限一致。
          → 当父 Security Profile 全局 `file_write=DENY`，或父 agent 自身运行在不含 WRITE 的 OCap 句柄下时，`spawn_prep.coerce_spawn_readonly()` 自动抬升 readonly（delegate + DW 共用 SSOT）。`delegate_task_tool` 的重复委派指纹含 `effective_readonly`，只改 readonly 的委派不会被误判为重复。
 
 Layer 5: OCap spawn handle（delegate_task 单/批量模式）
@@ -167,7 +169,7 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 - **丢弃**：ToolMessage、纯 tool_calls 无 content 的 AIMessage
 - **截断**：`max_fork_tokens` 超预算时从最旧消息开始裁剪（保留 SystemMessage）
 
-配合 builder.py 的 `system_prompt = ""` 设计，子 agent 复用父 SystemMessage 实现 100% Prefix Cache Hit。
+配合 builder.py 的 `system_prompt = ""`：fork 出的历史已以父 SystemMessage 开头，子 agent 不再叠加第二条系统提示词。子 agent 的工具集经 L1–L3 过滤后与父不同，不保证与父共享提示词缓存前缀。
 
 ### 4. 模型解析链（4 级）
 

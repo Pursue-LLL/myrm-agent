@@ -5,6 +5,15 @@ Sub-agent subsystem — lifecycle management and configuration loading.
 
 Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 
+## Child Tool Isolation
+
+A child holds the parent's own tool objects, so a tool is stripped by what it does to the parent, not by who calls it:
+
+- Bound to state only the parent can own (memory manager, schedule, plan file, goal, kanban board): blocked for every child by `DelegationCapabilityManifest.leaf_blocked_tools`; `SubagentConfig.tools` cannot restore it.
+- Valid for a child but outside a read-only child's contract (workspace writes, external agent sessions, knowledge-store writes, side-effect MCP tools): stripped for read-only children in `builder.filter_tools`.
+
+`tests/agent/sub_agents/test_child_tool_isolation_contract.py` classifies every side-effecting tool of the safety table with the mechanism that decides it; a new tool fails it until it is classified.
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
@@ -13,7 +22,7 @@ Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 | approval_journal.py | Core | Replay-safe UI approval round-trips of one delegation. LangGraph re-executes the whole `delegate_task` call after every `interrupt()`, so `delegation_task_id` derives the delegation id from the tool call's checkpoint namespace plus its fingerprint (identical on every re-execution, random outside a graph run), and `ApprovalJournal` (one per manager, `SubagentSpawnMixin.approval_journal`) records each spawn/resume step so a replay walks past answered approvals and only acts at the frontier. `ApprovalScope.settle` carries a subagent through all its approvals (finishing or failing drops the record, a pause keeps it for the next execution); `remember` pins values computed before the first pause (the verifier's workspace baseline). The journal lives in memory: when it is lost (manager recycled, process restart) a re-execution finds no steps, the answers LangGraph replays are counted as given to a subagent that no longer exists (`stale_answers`) and never applied, the stale checkpoint thread is dropped before the replacement spawns, and the user is asked again. `approvals_unanswerable()` marks calls whose approvals cannot be shown (parallel batch, race and fission children); a paused child is declined with a readable reason and its thread released. | ✅ |
 | branch_scoped_compaction.py | Core | Branch-scoped subagent artifact and structured summary compaction merger. Collects child trackers, extracts modified files, and enriches parent summaries. | ✅ |
 | budget.py | Core | Delegation budget guard. Tracks descendant spawn count for one root run. | ✅ |
-| builder.py | Core | Subagent construction helpers — tool filtering via DelegationCapabilityManifest + delegation_policy (READ_ONLY_SANDBOX configs also drop MCP tools that do not declare `readOnlyHint`), model resolution, token merge. | ✅ |
+| builder.py | Core | Subagent construction helpers — tool filtering via DelegationCapabilityManifest + delegation_policy (READ_ONLY_SANDBOX configs also drop tools that escape the sandbox: side-effect MCP tools, external agent sessions and knowledge-store writes), model resolution, token merge. | ✅ |
 | checkpointer.py | Core | Shared crash-resilient SQLite checkpointer singleton (`SubagentSqliteCheckpointer`, `get_subagent_checkpointer`, `close_subagent_checkpointer`, `delete_subagent_checkpoint`, `discard_stale_subagent_thread`, `drop_subagent_checkpoint_if_terminal`) with unwritable path `:memory:` fallback for subagent HITL approval thread isolation, SSOT hygiene cleanup, and cross-restart resumption. | ✅ |
 | delegation_policy.py | Core | Server-extensible L1 leaf blocklist (`register_leaf_blocked_tools`). | ✅ |
 | handover.py | Core | Structured subagent handover state (`AgentHandoverState`) and evidence (`HandoffFinding`) types with case-insensitive confidence normalization. | ✅ |
@@ -45,7 +54,7 @@ Detailed design: [SUB_AGENT_SYSTEM.md](SUB_AGENT_SYSTEM.md)
 | prompts.py | Core | Default prompt templates for multi-agent coordination. | ✅ |
 | registry.py | Core | Subagent configuration registry and loader. Provides global config registration and lookup. | ✅ |
 | result_output.py | Core | Subagent result payload type (`SubAgentOutput`: answer text, or a dict carrying isolation merge metadata) and `answer_text`, the single reader of a payload as text. | ✅ |
-| types.py | Config | Subagent subsystem core type definitions. Defines all subagent-related data types, enums, protocols, DelegationCapabilityManifest (with `cron_manage_tool` leaf blocking), SubagentConfig (including `timeout_seconds: int | None = None` — no wall-clock timeout by default, `__post_init__` normalizes ≤0→None and enforces min 30s floor; `max_error_chars` for error compaction control; `stale_after_seconds`/`in_tool_stale_multiplier`/`stale_auto_cancel` for staleness detection), CouncilOpinion, CouncilResult, VerificationSummary, HandoffFinding, AgentHandoverState (with summary, findings, citations, artifact_refs, context_artifacts), and SubAgentResult.verification. `SubAgentResult.internal` marks framework-internal nodes (verification workers/verifiers) hidden from user-facing trees. | ✅ |
+| types.py | Config | Subagent subsystem core type definitions. Defines all subagent-related data types, enums, protocols, DelegationCapabilityManifest (leaf blocking of delegation, skill-management, HITL, cron, memory-write and parent-bound todo/goal/kanban writer tools), SubagentConfig (including `timeout_seconds: int | None = None` — no wall-clock timeout by default, `__post_init__` normalizes ≤0→None and enforces min 30s floor; `max_error_chars` for error compaction control; `stale_after_seconds`/`in_tool_stale_multiplier`/`stale_auto_cancel` for staleness detection), CouncilOpinion, CouncilResult, VerificationSummary, HandoffFinding, AgentHandoverState (with summary, findings, citations, artifact_refs, context_artifacts), and SubAgentResult.verification. `SubAgentResult.internal` marks framework-internal nodes (verification workers/verifiers) hidden from user-facing trees. | ✅ |
 | workspace_isolation.py | Core | Workspace isolation for subagent execution. COW clone with ignore-pattern filtering (node_modules, .git, dist, etc.), max_bytes safety guard, and efficient file counting. | ✅ |
 
 **Tests mocking executor internals** must patch the defining module (e.g. `executor_attempt_mixin.build_child_agent`), not the aggregate `executor` module.

@@ -10,7 +10,7 @@
 
 [OUTPUT]
 - coerce_spawn_readonly: parent Security Profile file_write deny or a parent handle without WRITE → readonly floor
-- apply_readonly_to_config: READ_ONLY_SANDBOX policy + native mutating tool blocks (side-effect MCP tools are dropped by builder.filter_tools)
+- apply_readonly_to_config: READ_ONLY_SANDBOX policy + native mutating tool blocks (tools that escape the sandbox are dropped by builder.filter_tools)
 - build_spawn_child_context: the child's runtime context, taken only from the parent's workspace/session fields
 - apply_spawn_workspace_isolation: parallel writer ISOLATED_COPY promotion
 - sanitize_spawn_result_for_store / spawn_result_for_store_after_merge: JSON-safe durable cache rows
@@ -51,8 +51,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Native workspace mutators. MCP tools with side effects are dropped by ``builder.filter_tools``
-# for every READ_ONLY_SANDBOX config, so they need no entry here.
+# Native workspace mutators. Tools that escape the sandbox (side-effect MCP tools, external agent
+# sessions, knowledge-store writes) are dropped by ``builder.filter_tools`` for every
+# READ_ONLY_SANDBOX config, so they need no entry here.
 _READONLY_BLOCKED_TOOLS = frozenset({"file_write_tool", "file_edit_tool", "bash_code_execute_tool"})
 _READONLY_HINT = (
     "\n\n[READONLY MODE] You are in read-only mode. You can only read and analyze — "

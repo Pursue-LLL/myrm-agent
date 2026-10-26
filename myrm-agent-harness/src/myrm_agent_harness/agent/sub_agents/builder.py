@@ -7,12 +7,12 @@ Pure functions and utilities used by SubagentManager to prepare child agents.
 - utils.token_economics.tracker::TokenTracker (POS: LLM call metadata tracker. ContextVar-based request-level tracking supporting both streaming and non-streaming modes.)
 - agent.types::AgentRuntimeConfig (POS: Agent core runtime type definitions. Defines completion status, run statistics, quote attachments, workspace bindings, and runtime specs.)
 - agent.sub_agents.types::DelegationCapabilityManifest (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
-- core.security.tool_registry::resolve_safety_metadata (POS: tool safety metadata incl. MCP readOnlyHint, fail-closed for unknown tools)
+- core.security.tool_registry::resolve_safety_metadata, resolve_permission_type (POS: tool safety metadata incl. MCP readOnlyHint, fail-closed for unknown tools; tool name → permission type)
 - toolkits.mcp.config::is_mcp_tool_name (POS: ``mcp__{server}__{tool}`` name recognition)
 
 [OUTPUT]
 - build_parent_delegatable_toolkit: Parent tools eligible for L3 child ⊆ parent delegation.
-- filter_tools: Apply tool safety isolation after catalog admission; READ_ONLY_SANDBOX configs also drop MCP tools that do not declare `readOnlyHint`.
+- filter_tools: Apply tool safety isolation after catalog admission; READ_ONLY_SANDBOX configs also drop MCP tools that do not declare `readOnlyHint`, external-agent sessions and knowledge-store writes.
 - resolve_llm: Resolve child LLM with optional complexity-tier routing.
 - truncate_result: Truncate text to approximate token limit (4 chars per token).
 - merge_child_stats: Merge child agent's token usage into the parent tracker.
@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, cast
 
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.core.security.tool_registry import resolve_safety_metadata
+from myrm_agent_harness.core.security.tool_registry import resolve_permission_type, resolve_safety_metadata
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -100,12 +100,23 @@ def _is_side_effect_mcp_tool(tool_name: str) -> bool:
     return is_mcp_tool_name(tool_name) and not resolve_safety_metadata(tool_name).is_read_only
 
 
+# Permission types the ``readonly`` security profile denies besides file writes: a read-only child
+# neither starts an external agent session nor writes the shared knowledge store.
+_READ_ONLY_FORBIDDEN_PERMISSIONS = frozenset({"invoke_external_agent", "knowledge_write"})
+
+
+def _escapes_read_only_sandbox(tool_name: str) -> bool:
+    """True for a tool whose effect reaches beyond the read-only child's workspace."""
+    return _is_side_effect_mcp_tool(tool_name) or resolve_permission_type(tool_name) in _READ_ONLY_FORBIDDEN_PERMISSIONS
+
+
 def filter_tools(config: SubagentConfig, parent_tools: list[BaseTool]) -> list[BaseTool]:
     """Apply tool safety isolation (L1-L3; L0 is enforced by delegate_task).
 
     L1: DelegationCapabilityManifest.leaf_blocked_tools (always blocked)
     L2: config.tools (allowlist) + config.disallowed_tools (blocklist); a READ_ONLY_SANDBOX config
-        also drops every MCP tool not annotated read-only
+        also drops every tool that escapes the sandbox (side-effect MCP tools, external agent
+        sessions, knowledge-store writes)
     L3: child ⊆ parent intersection
     """
     parent_tool_names = {t.name for t in parent_tools}
@@ -124,7 +135,7 @@ def filter_tools(config: SubagentConfig, parent_tools: list[BaseTool]) -> list[B
                 blocked_by_l2.append(tool.name)
             continue
         if (config.tools and tool.name not in config.tools) or (
-            read_only_sandbox and _is_side_effect_mcp_tool(tool.name)
+            read_only_sandbox and _escapes_read_only_sandbox(tool.name)
         ):
             blocked_by_l2.append(tool.name)
             continue
@@ -284,8 +295,8 @@ async def build_child_agent(
     from myrm_agent_harness.agent.base_agent import BaseAgent
     from myrm_agent_harness.agent.middlewares import create_context_pipeline_middleware
 
-    # 10/10 Scheme: If context is forked, we MUST drop the system_prompt entirely.
-    # Otherwise, LangGraph prepends a new SystemMessage, shifting the array and breaking Prefix Cache!
+    # A forked history already opens with the parent's SystemMessage; a configured prompt would be
+    # prepended as a second one.
     if config.context_mode == "fork":
         system_prompt = ""
     else:
