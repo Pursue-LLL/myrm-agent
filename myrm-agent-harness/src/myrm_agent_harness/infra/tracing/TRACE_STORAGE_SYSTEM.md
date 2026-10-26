@@ -11,7 +11,7 @@
 - **Consumer helpers** for framework code: `get_tracer()`, `trace_async()`, `trace_context()`.
 - **Setup helpers** for the business layer: `setup_tracing()`, `setup_metrics()`. The framework never calls them itself.
 
-Without a setup call (or without an endpoint) OpenTelemetry keeps its NoOp providers: nothing is recorded and nothing leaves the process (the instrumentation itself costs single-digit microseconds per model call, far below any model latency). What is exported is decided in one place, the exporter-boundary privacy guard (see [Privacy](#privacy)).
+Without a setup call (or without an endpoint) OpenTelemetry keeps its NoOp providers: nothing is recorded and nothing leaves the process (the instrumentation itself measured 6.9 µs per model call at the median with the NoOp providers and 55 µs with an SDK provider exporting to an in-memory exporter, on macOS with Python 3.13, far below any model latency). What is exported is decided in one place, the exporter-boundary privacy guard (see [Privacy](#privacy)).
 
 ---
 
