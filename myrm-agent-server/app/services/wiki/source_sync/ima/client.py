@@ -89,7 +89,7 @@ class ImaClient:
         return str(data.get("content") or "").strip()
 
     async def list_notes_page(self, *, cursor: str) -> ImaNotesPage:
-        """One page of every note; an empty ``folder_id`` lists all notebooks and the first page takes an empty cursor."""
+        """One page of the notes listing; an empty ``folder_id`` lists every note and the first page takes an empty cursor."""
         data = await self._transport.post(
             NOTE_PREFIX,
             "list_note_by_folder_id",

@@ -1,4 +1,4 @@
-"""The notes lane of the inventory: cursor paging, resumption across slices, and never judging notes deleted from a listing that did not finish."""
+"""The notes lane of the inventory: cursor paging, resumption across slices, no deletion verdicts from an unfinished listing."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.source_sync.ima.client import NOTES_PAGE_LIMIT, ImaClient
 from app.services.wiki.source_sync.ima.engine import run_slice
-from app.services.wiki.source_sync.ima.errors import ImaPermanentError
+from app.services.wiki.source_sync.ima.errors import ImaAuthError, ImaError, ImaPermanentError, ImaRateLimitError
 from app.services.wiki.source_sync.ima.identity import NOTES_LANE
 from app.services.wiki.source_sync.ima.inventory import begin_generation, run_inventory
 from app.services.wiki.source_sync.ima.ledger import LedgerStatus
@@ -98,17 +98,43 @@ async def test_a_listing_that_stalls_before_its_end_is_never_taken_for_complete(
     assert await _statuses(ima_db) == {LedgerStatus.SYNCED}
 
 
-async def test_a_page_in_an_unrecognized_shape_fails_the_lane_without_judging_any_note_deleted(
-    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession]
+@pytest.mark.parametrize(
+    "error",
+    [ImaPermanentError("ima returned notes in an unrecognized shape"), ImaAuthError("no notes permission")],
+    ids=["unrecognized-shape", "no-notes-permission"],
+)
+async def test_a_listing_that_cannot_be_read_fails_the_lane_without_judging_any_note_deleted(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], error: ImaError
 ) -> None:
     fake, config, state = _fake(2), library_config(notes=True, kb_ids=()), ImaSyncState()
     await run_pass(fake, tmp_path, state, config)
 
-    fake.fail["list_notes_page"] = ImaPermanentError("ima returned notes in an unrecognized shape")
+    fake.fail["list_notes_page"] = error
     outcome = await run_pass(fake, tmp_path, state, config)
 
     assert outcome.finished and state.failed_containers == [NOTES_LANE]
     assert await _statuses(ima_db) == {LedgerStatus.SYNCED}
+
+
+async def test_a_rate_limit_between_pages_keeps_the_cursor_for_the_next_slice(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    fake, config, state = _fake(NOTES_PAGE_LIMIT + 3), library_config(notes=True, kb_ids=()), ImaSyncState()
+    fake.after_notes_page = lambda: fake.fail.update(list_notes_page=ImaRateLimitError("slow down"))
+
+    limited = await run_slice(make_ctx(fake, tmp_path, config=config, state=state))
+
+    assert limited.error_kind == "rate_limit" and not limited.finished
+    async with ima_db() as db:
+        assert (await load_ima_state(db, agent_id=None)).notes_cursor == str(NOTES_PAGE_LIMIT)
+
+    fake.fail.clear()
+    fake.after_notes_page = None
+    outcome = await run_pass(fake, tmp_path, state, config)
+
+    # first page, the limited request, then the retry of that same page: the walk never went back to the start
+    assert outcome.finished and fake.calls.count("list_notes_page") == 3
+    assert len(await rows(ima_db)) == NOTES_PAGE_LIMIT + 3
 
 
 async def test_wire_pages_of_only_deleted_notes_do_not_end_the_walk(

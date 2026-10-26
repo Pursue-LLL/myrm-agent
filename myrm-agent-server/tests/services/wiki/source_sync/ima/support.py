@@ -33,8 +33,8 @@ from app.services.wiki.source_sync.ima.state import ImaKbSelection, ImaSyncConfi
 class FakeIma:
     """Scripted stand-in for ``ImaClient``: pages, media and notes are plain dicts; ``fail`` injects errors per method.
 
-    The notes listing is cursor-paged like ima's: ``deleted_notes_head`` entries that ima still lists as deleted lead
-    it (the parser drops them, so whole pages can come back empty), and ``after_notes_page`` runs once a page is served.
+    The notes listing is cursor-paged: the first ``deleted_notes_head`` positions hold deleted notes the parser has
+    already dropped (so the first pages come back empty), and ``after_notes_page`` runs once a page is served.
     """
 
     pages: dict[tuple[str, str], ImaListPage] = field(default_factory=dict)

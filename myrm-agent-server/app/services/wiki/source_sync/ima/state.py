@@ -9,7 +9,9 @@
 
 [POS]
 ``wikiImaSync`` holds what the user chose (libraries, notes toggle); ``wikiImaSyncState`` holds the resumable
-inventory cursor so a restart or time-boxed slice continues where it stopped instead of rescanning.
+inventory cursors so a restart or time-boxed slice continues where it stopped instead of rescanning. Cursors are
+opaque ima tokens stored as received: a length cap would turn one unusually long token into state that fails to
+reload, which resets the whole sync.
 """
 
 from __future__ import annotations
@@ -56,7 +58,7 @@ class ImaWalkTask(BaseModel):
     kb_name: str = Field(max_length=256)
     folder_id: str = Field(default="", max_length=256)
     folder_path: list[str] = Field(default_factory=list, max_length=16)
-    cursor: str = Field(default="", max_length=512)
+    cursor: str = ""
 
 
 class ImaSyncState(BaseModel):
@@ -64,7 +66,7 @@ class ImaSyncState(BaseModel):
     generation: int = 0
     queue: list[ImaWalkTask] = Field(default_factory=list)
     # Notes lane position: "" means the first page is next, None means the lane is not being walked.
-    notes_cursor: str | None = Field(default=None, max_length=512)
+    notes_cursor: str | None = None
     failed_containers: list[str] = Field(default_factory=list)
     inventory_pages: int = 0
     generation_published: int = 0

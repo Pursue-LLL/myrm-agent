@@ -12,9 +12,9 @@ Breadth-first walk of each library's folder tree (persisted queue) followed by t
 pass is a *generation*: rows a finished pass did not see are marked ``remote_deleted``, but only for containers
 whose walk finished cleanly. The mark means "no longer listed under that library, folder and title": a rename or
 a move reads like a deletion, and the file then arrives as a new row. Transient / rate-limit / auth failures
-propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container. The
-notes lane ends only where ima says it ends (``is_end``); a listing that stalls short of that fails its container
-instead of passing for complete.
+propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container. A
+listing ends only where ima says it ends (``is_end``); one that stalls short of that fails its container instead of
+passing for complete.
 """
 
 from __future__ import annotations
@@ -112,10 +112,14 @@ async def _walk_libraries(ctx: SyncContext) -> None:
                     folder_path=[*task.folder_path, folder.name],
                 )
             )
-        if page.is_end or not page.next_cursor or page.next_cursor == task.cursor:
+        if page.is_end:
             state.queue.pop(0)
-        else:
+        elif page.next_cursor and page.next_cursor != task.cursor:
             state.queue[0] = task.model_copy(update={"cursor": page.next_cursor})
+        else:
+            logger.warning("ima library %s listing stopped before its end; none of its files is judged deleted", task.kb_id)
+            state.queue.pop(0)
+            _mark_container_failed(ctx, task.kb_id)
         await ctx.persist_state()
 
 
@@ -154,15 +158,16 @@ async def _walk_notes(ctx: SyncContext) -> None:
             ],
         )
         state.inventory_pages += 1
-        # A page can come back empty once its deleted notes are dropped, so only ``is_end`` ends the listing.
+        # A page can come back empty once its deleted notes are dropped, so only ``is_end`` ends the listing. One that
+        # claims more yet offers no fresh cursor (or outgrows the page cap) is incomplete and must not judge a note deleted.
         if page.is_end:
             state.notes_cursor = None
-        elif not page.next_cursor or page.next_cursor == cursor or state.inventory_pages > _MAX_INVENTORY_PAGES:
+        elif page.next_cursor and page.next_cursor != cursor and state.inventory_pages <= _MAX_INVENTORY_PAGES:
+            state.notes_cursor = page.next_cursor
+        else:
             logger.warning("ima notes listing stopped before its end; no note is judged deleted this generation")
             state.notes_cursor = None
             _mark_container_failed(ctx, NOTES_LANE)
-        else:
-            state.notes_cursor = page.next_cursor
         await ctx.persist_state()
 
 

@@ -13,8 +13,8 @@ from app.services.wiki.source_sync.ima.errors import (
     ImaPermanentError,
 )
 from app.services.wiki.source_sync.ima.ledger import ImaLedger, LedgerStatus
-from app.services.wiki.source_sync.ima.models import ImaFolder, ImaMediaInfo, ImaNote
-from app.services.wiki.source_sync.ima.state import ImaSyncState, load_ima_state, save_ima_state
+from app.services.wiki.source_sync.ima.models import ImaFolder, ImaListPage, ImaMediaInfo, ImaNote
+from app.services.wiki.source_sync.ima.state import ImaSyncState, ImaWalkTask, load_ima_state, save_ima_state
 
 from .support import (
     NOTE_MS,
@@ -128,6 +128,22 @@ async def test_a_partial_inventory_never_marks_missing_items_as_deleted(
     assert all(row.status != LedgerStatus.REMOTE_DELETED for row in (await rows(ima_db)).values())
 
 
+async def test_a_library_listing_that_stalls_before_its_end_never_marks_missing_items_as_deleted(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], downloads: Downloads
+) -> None:
+    fake, state = library(), ImaSyncState()
+    await run_pass(fake, tmp_path, state)
+    # ima claims there is more but offers no cursor to reach it; guide.md is not in the part that was listed
+    fake.pages[("kb1", "")] = ImaListPage(
+        items=(entry("m2", "talk.mp3", media_type=15),), folders=(ImaFolder("f1", "Sub"),), next_cursor="", is_end=False
+    )
+
+    outcome = await run_pass(fake, tmp_path, state)
+
+    assert outcome.finished and state.failed_containers == ["kb1"]
+    assert all(row.status != LedgerStatus.REMOTE_DELETED for row in (await rows(ima_db)).values())
+
+
 async def test_user_deleted_raw_file_is_dismissed_and_never_comes_back(
     tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], downloads: Downloads
 ) -> None:
@@ -224,6 +240,17 @@ async def test_a_linked_note_already_covered_by_the_notes_lane_is_not_imported_t
 
 async def test_state_survives_a_restart_between_slices(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession]) -> None:
     state = ImaSyncState(phase="fetch", generation=4, backfill_complete=True)
+    async with ima_db() as db:
+        await save_ima_state(db, state, agent_id=None)
+    async with ima_db() as db:
+        assert await load_ima_state(db, agent_id=None) == state
+
+
+async def test_cursors_are_opaque_and_survive_a_restart_whatever_their_length(
+    ima_db: async_sessionmaker[AsyncSession],
+) -> None:
+    cursor = "c" * 4096
+    state = ImaSyncState(phase="inventory", notes_cursor=cursor, queue=[ImaWalkTask(kb_id="kb1", kb_name="Lib", cursor=cursor)])
     async with ima_db() as db:
         await save_ima_state(db, state, agent_id=None)
     async with ima_db() as db:
