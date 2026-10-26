@@ -141,7 +141,7 @@ class TelemetryPostureResponse(BaseModel):
     metrics_exporting: bool = False
     exported_spans: int = 0
     failed_batches: int = 0
-    dropped_spans: int = 0
+    withheld_spans: int = 0
     last_success_at: float | None = None
     last_failure_at: float | None = None
     git_branch: str | None = None

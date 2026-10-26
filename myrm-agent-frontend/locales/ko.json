@@ -15995,7 +15995,7 @@
         "delivery": "전달 현황",
         "exportedSpans": "내보낸 스팬",
         "failedBatches": "실패한 배치",
-        "droppedSpans": "버려진 스팬",
+        "withheldSpans": "차단된 스팬",
         "lastSuccess": "마지막 성공",
         "lastFailure": "마지막 실패",
         "never": "없음",

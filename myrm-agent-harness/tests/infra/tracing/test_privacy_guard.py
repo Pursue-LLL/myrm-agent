@@ -203,7 +203,7 @@ def test_the_capture_switch_is_read_on_every_export(monkeypatch: pytest.MonkeyPa
     assert second["gen_ai.input.messages"] == PROMPT
 
 
-def test_a_span_that_cannot_be_sanitized_is_dropped_never_sent_raw(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_span_that_cannot_be_sanitized_is_withheld_never_sent_raw(monkeypatch: pytest.MonkeyPatch) -> None:
     good, bad = _finished(lambda span: span.set_attribute("agent.status", "completed")), _finished(_content_span)
     real = privacy.sanitize_span
 
@@ -220,17 +220,17 @@ def test_a_span_that_cannot_be_sanitized_is_dropped_never_sent_raw(monkeypatch: 
 
     assert [len(batch) for batch in inner.batches] == [1]
     assert inner.batches[0][0].attributes == {"agent.status": "completed"}
-    assert guard.stats().dropped_spans == 1
+    assert guard.stats().withheld_spans == 1
 
 
-def test_a_batch_where_every_span_is_dropped_sends_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_batch_where_every_span_is_withheld_sends_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(privacy, "sanitize_span", lambda span, *, capture_content: 1 / 0)
     inner = _Recording()
     guard = PrivacyGuardExporter(inner)
 
     assert guard.export([_finished(_content_span)]) is SpanExportResult.SUCCESS
     assert inner.batches == []
-    assert guard.stats().dropped_spans == 1
+    assert guard.stats().withheld_spans == 1
 
 
 def test_export_failures_are_counted_and_do_not_leak_exception_text(caplog: pytest.LogCaptureFixture) -> None:

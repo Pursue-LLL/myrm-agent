@@ -14,4 +14,4 @@ OTLP export plumbing shared by traces and metrics: one place decides where telem
 | posture.py | Core | Measured posture: status, endpoint, protocol, sampler, content capture, metric pipeline, export counters, last success/failure; every field is read from live state. | ✅ |
 | privacy.py | Core | `PrivacyGuardExporter`: sanitized copies of finished spans (metadata only by default, content behind the standard switch, system prompt never, credentials redacted, fail-closed). | ✅ |
 | resource.py | Core | Shared `Resource` (service, version, environment, VCS) with the standard `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES` winning over defaults. | ✅ |
-| stats.py | Core | `ExportStats`: exported / failed / dropped counters written by the guard and read by the posture. | ✅ |
+| stats.py | Core | `ExportStats`: exported / failed / withheld counters written by the guard and read by the posture. | ✅ |

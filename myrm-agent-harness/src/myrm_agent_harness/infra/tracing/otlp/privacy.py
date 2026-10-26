@@ -17,7 +17,7 @@ payload attribute (``input.value``, ``llm.input_messages.*``, ``metadata`` ...) 
 the standard ``OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`` switch is on, and the system
 prompt is never exported. Every kept text still passes credential redaction and a length cap.
 Sanitizing builds copies through the public ``ReadableSpan`` constructor (finished spans are not
-mutated) and fails closed: a span that cannot be sanitized is dropped, never sent raw.
+mutated) and fails closed: a span that cannot be sanitized is withheld, never sent raw.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ _METADATA_PREFIXES: tuple[str, ...] = (
 
 _METADATA_SANITIZER = TraceSpanSanitizer()
 _CONTENT_SANITIZER = TraceSpanSanitizer(max_value_len=CONTENT_VALUE_LIMIT)
-_DROP_LOG_EVERY = 100
+_WITHHELD_LOG_EVERY = 100
 _CLASS_NAME = re.compile(r"[A-Za-z_][\w.]*")
 
 
@@ -156,15 +156,15 @@ class PrivacyGuardExporter(SpanExporter):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         capture_content = capture_content_enabled()
         safe: list[ReadableSpan] = []
-        dropped = 0
+        withheld = 0
         for span in spans:
             try:
                 safe.append(sanitize_span(span, capture_content=capture_content))
             except Exception:
-                logger.debug("Span sanitization failed; the span is dropped", exc_info=True)
-                dropped += 1
-        if dropped:
-            self._record_dropped(dropped)
+                logger.debug("Span sanitization failed; the span is withheld", exc_info=True)
+                withheld += 1
+        if withheld:
+            self._record_withheld(withheld)
         if not safe:
             return SpanExportResult.SUCCESS
         try:
@@ -185,9 +185,9 @@ class PrivacyGuardExporter(SpanExporter):
         with self._lock:
             return self._stats
 
-    def _record_dropped(self, count: int) -> None:
+    def _record_withheld(self, count: int) -> None:
         with self._lock:
-            before = self._stats.dropped_spans
+            before = self._stats.withheld_spans
             self._stats = ExportStats(
                 self._stats.exported_spans,
                 self._stats.failed_batches,
@@ -195,9 +195,9 @@ class PrivacyGuardExporter(SpanExporter):
                 self._stats.last_success_at,
                 self._stats.last_failure_at,
             )
-        if before == 0 or (before + count) // _DROP_LOG_EVERY > before // _DROP_LOG_EVERY:
+        if before == 0 or (before + count) // _WITHHELD_LOG_EVERY > before // _WITHHELD_LOG_EVERY:
             logger.warning(
-                "Dropped %d span(s) that could not be sanitized (%d dropped in total)", count, before + count
+                "Withheld %d span(s) that could not be sanitized (%d withheld in total)", count, before + count
             )
 
     def _record_result(self, result: SpanExportResult, count: int) -> None:
@@ -208,7 +208,7 @@ class PrivacyGuardExporter(SpanExporter):
                 self._stats = ExportStats(
                     stats.exported_spans + count,
                     stats.failed_batches,
-                    stats.dropped_spans,
+                    stats.withheld_spans,
                     now,
                     stats.last_failure_at,
                 )
@@ -216,7 +216,7 @@ class PrivacyGuardExporter(SpanExporter):
                 self._stats = ExportStats(
                     stats.exported_spans,
                     stats.failed_batches + 1,
-                    stats.dropped_spans,
+                    stats.withheld_spans,
                     stats.last_success_at,
                     now,
                 )

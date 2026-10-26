@@ -30,7 +30,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _READABLE_STATUSES = frozenset({"active", "failing", "degraded", "disabled", "noop", "missing_sdk", "local_only"})
-_MEASURED_FIELDS = ("sampler", "content_capture", "metrics_exporting", "exported_spans", "failed_batches", "dropped_spans")
+_MEASURED_FIELDS = ("sampler", "content_capture", "metrics_exporting", "exported_spans", "failed_batches", "withheld_spans")
 _REMOVED_ASSERTED_FLAGS = ("three_tier_semantics", "prompt_cache_metering")
 
 _VERIFY_TELEMETRY_CARD_JS = """(() => {

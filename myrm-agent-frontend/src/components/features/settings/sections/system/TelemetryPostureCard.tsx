@@ -89,7 +89,7 @@ const UNREADABLE_POSTURE: TelemetryPosture = {
   metrics_exporting: false,
   exported_spans: 0,
   failed_batches: 0,
-  dropped_spans: 0,
+  withheld_spans: 0,
   last_success_at: null,
   last_failure_at: null,
   git_branch: null,
@@ -210,7 +210,7 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
           <div className="grid grid-cols-3 gap-3">
             <Counter label={t('exportedSpans')} value={posture.exported_spans} />
             <Counter label={t('failedBatches')} value={posture.failed_batches} tone="danger" />
-            <Counter label={t('droppedSpans')} value={posture.dropped_spans} tone="warn" />
+            <Counter label={t('withheldSpans')} value={posture.withheld_spans} tone="warn" />
           </div>
           <div className="mt-2.5 flex flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:gap-5">
             <span>

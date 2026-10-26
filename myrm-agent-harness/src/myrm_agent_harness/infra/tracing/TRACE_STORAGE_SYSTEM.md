@@ -140,7 +140,7 @@ Telemetry leaves through one door, the `PrivacyGuardExporter` wrapped around the
 - **Default: metadata only.** Numbers and booleans pass; text passes only under metadata namespaces (`gen_ai.*`, `error.*`, `agent.*`, `http.*`, ...). Prompt, reply, tool arguments and results, exception messages and stack traces, and third-party payload attributes (`input.value`, `llm.input_messages.*`, ...) are withheld.
 - **Content capture is opt-in**: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` releases `gen_ai.input.messages`, `gen_ai.output.messages` and tool call arguments/results. The system prompt and model reasoning are never exported, with or without the switch.
 - Every text that is kept is credential-redacted and length-capped.
-- The guard works on sanitized **copies** of finished spans and fails closed: a span that cannot be sanitized is dropped, never sent raw.
+- The guard works on sanitized **copies** of finished spans and fails closed: a span that cannot be sanitized is withheld, never sent raw.
 
 ---
 
@@ -193,6 +193,8 @@ The GenAI client metrics are recorded from the model call itself, so lowering th
 By design. Content is exported only with `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`.
 
 **Spans queued or dropped under load**
+
+The posture counters cover export outcomes only: `exported_spans` and `failed_batches` count what the exporter reported, and `withheld_spans` counts spans the privacy guard could not sanitize and therefore never sent. A span the `BatchSpanProcessor` discards because its queue is full never reaches the guard and appears in no counter.
 
 Enable `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true` and watch `otel.sdk.processor.span.queue.size` against `otel.sdk.processor.span.queue.capacity`.
 

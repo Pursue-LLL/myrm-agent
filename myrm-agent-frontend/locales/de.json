@@ -15995,7 +15995,7 @@
         "delivery": "Zustellung",
         "exportedSpans": "Exportierte Spans",
         "failedBatches": "Fehlgeschlagene Batches",
-        "droppedSpans": "Verworfene Spans",
+        "withheldSpans": "Zurückgehaltene Spans",
         "lastSuccess": "Letzter Erfolg",
         "lastFailure": "Letzter Fehler",
         "never": "Nie",

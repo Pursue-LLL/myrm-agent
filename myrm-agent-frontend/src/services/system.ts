@@ -179,7 +179,7 @@ export interface TelemetryPosture {
   metrics_exporting: boolean;
   exported_spans: number;
   failed_batches: number;
-  dropped_spans: number;
+  withheld_spans: number;
   /** Epoch seconds of the last successful / failed export attempt. */
   last_success_at: number | null;
   last_failure_at: number | null;

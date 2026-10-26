@@ -28,7 +28,7 @@ _MEASURED_FIELDS = (
     "metrics_exporting",
     "exported_spans",
     "failed_batches",
-    "dropped_spans",
+    "withheld_spans",
     "last_success_at",
     "last_failure_at",
 )
@@ -112,7 +112,7 @@ async def test_posture_surfaces_a_failing_pipeline_with_its_counters() -> None:
         "metrics_exporting": True,
         "exported_spans": 12,
         "failed_batches": 3,
-        "dropped_spans": 5,
+        "withheld_spans": 5,
         "last_success_at": 1_700_000_000.0,
         "last_failure_at": 1_700_000_060.0,
         "git_branch": None,
@@ -123,7 +123,7 @@ async def test_posture_surfaces_a_failing_pipeline_with_its_counters() -> None:
 
     assert data["status"] == "failing"
     assert data["failed_batches"] == 3
-    assert data["dropped_spans"] == 5
+    assert data["withheld_spans"] == 5
     assert data["last_failure_at"] == 1_700_000_060.0
     assert data["sampler"] == "ParentBased(root=TraceIdRatioBased(0.1))"
 

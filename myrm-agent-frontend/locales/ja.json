@@ -15995,7 +15995,7 @@
         "delivery": "配信状況",
         "exportedSpans": "送信済みスパン",
         "failedBatches": "失敗したバッチ",
-        "droppedSpans": "破棄されたスパン",
+        "withheldSpans": "遮断されたスパン",
         "lastSuccess": "最後の成功",
         "lastFailure": "最後の失敗",
         "never": "なし",

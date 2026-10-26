@@ -15995,7 +15995,7 @@
         "delivery": "送達情況",
         "exportedSpans": "已匯出 Span",
         "failedBatches": "失敗批次",
-        "droppedSpans": "丟棄 Span",
+        "withheldSpans": "攔截 Span",
         "lastSuccess": "最近成功",
         "lastFailure": "最近失敗",
         "never": "從未",

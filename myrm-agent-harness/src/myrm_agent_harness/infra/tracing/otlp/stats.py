@@ -4,7 +4,7 @@
 - (none: plain data, importable without the OpenTelemetry SDK)
 
 [OUTPUT]
-- ExportStats: exported / failed / dropped counters and the last success and failure times
+- ExportStats: exported / failed / withheld counters and the last success and failure times
 
 [POS]
 The exporter-boundary guard writes it; the posture probe reads it. Keeping the type SDK-free lets
@@ -18,11 +18,15 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ExportStats:
-    """What the exporter actually did, as measured at the export boundary."""
+    """What the exporter actually did, as measured at the export boundary.
+
+    ``withheld_spans`` counts spans the privacy guard could not sanitize and therefore never sent. A span the
+    ``BatchSpanProcessor`` discards because its queue is full never reaches the guard and is in no counter.
+    """
 
     exported_spans: int = 0
     failed_batches: int = 0
-    dropped_spans: int = 0
+    withheld_spans: int = 0
     last_success_at: float | None = None
     last_failure_at: float | None = None
 

@@ -15995,7 +15995,7 @@
         "delivery": "Delivery",
         "exportedSpans": "Spans exported",
         "failedBatches": "Failed batches",
-        "droppedSpans": "Spans dropped",
+        "withheldSpans": "Spans withheld",
         "lastSuccess": "Last success",
         "lastFailure": "Last failure",
         "never": "Never",

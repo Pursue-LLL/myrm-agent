@@ -136,7 +136,7 @@ def build_posture(*, initialized: bool, has_sdk: bool) -> dict[str, object]:
         "metrics_exporting": _metrics_exporting,
         "exported_spans": stats.exported_spans if stats else 0,
         "failed_batches": stats.failed_batches if stats else 0,
-        "dropped_spans": stats.dropped_spans if stats else 0,
+        "withheld_spans": stats.withheld_spans if stats else 0,
         "last_success_at": stats.last_success_at if stats else None,
         "last_failure_at": stats.last_failure_at if stats else None,
         "git_branch": runtime.git_branch,
