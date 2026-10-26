@@ -4125,6 +4125,8 @@
     "reading_webpage": "阅读网页",
     "tool_call": "调用工具: {toolName}",
     "delegation": "委派到 {agentName}",
+    "delegation_session_expired": "之前的对话无法继续，{agentName} 已开启新对话",
+    "delegation_session_workspace_changed": "工作文件夹已更改，{agentName} 已开启新对话",
     "system_step": "系统步骤",
     "tool_execution": "工具执行",
     "processing": "处理中",

@@ -140,6 +140,21 @@ export const inferStageLabel = (step: ProgressItem, t: TranslateFn): string => {
   return t(`categoryStageLabels.${category}`);
 };
 
+// `delegation_<agent>_<kind>` steps of a delegation to an external agent: its status line, one of its tool calls,
+// or a notice that the conversation it had earlier did not continue.
+const DELEGATION_STEP_RE = /^delegation_(.+)_(status|tool|session_expired|session_workspace_changed)$/;
+
+type DelegationKind = 'status' | 'tool' | 'session_expired' | 'session_workspace_changed';
+
+const parseDelegationStep = (stepKey: string | undefined): { agentName: string; kind: DelegationKind } | null => {
+  const match = stepKey ? DELEGATION_STEP_RE.exec(stepKey) : null;
+  return match ? { agentName: match[1], kind: match[2] as DelegationKind } : null;
+};
+
+/** A delegated tool call is one line ("claude: Read — note.txt") that already is the step's title, so the body has nothing to add. */
+export const isDelegationToolLine = (step: ProgressItem): boolean =>
+  parseDelegationStep(step.step_key)?.kind === 'tool' && isTextItems(step.items);
+
 /**
  * 根据 step_key 获取步骤标题
  * @param step 步骤信息
@@ -177,13 +192,21 @@ export const getStepTitle = (
     return category === 'default' ? t('workflow_stage') || 'Workflow stage update' : category;
   }
 
-  // delegation_xxx_status → 提取 agent 名称
-  if (step_key?.startsWith('delegation_') && step_key.endsWith('_status')) {
-    const agentName = step_key.slice('delegation_'.length, -'_status'.length);
-    try {
-      return t('delegation', { agentName });
-    } catch {
-      return `Delegating to ${agentName}`;
+  const delegation = parseDelegationStep(step_key);
+  if (delegation) {
+    const { agentName, kind } = delegation;
+    if (kind === 'tool') {
+      if (isTextItems(items)) {
+        return items[0].text;
+      }
+    } else if (kind === 'status') {
+      try {
+        return t('delegation', { agentName });
+      } catch {
+        return `Delegating to ${agentName}`;
+      }
+    } else {
+      return t(`delegation_${kind}`, { agentName });
     }
   }
 

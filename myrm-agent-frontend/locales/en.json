@@ -4125,6 +4125,8 @@
     "reading_webpage": "Reading webpage",
     "tool_call": "Calling tool: {toolName}",
     "delegation": "Delegating to {agentName}",
+    "delegation_session_expired": "Earlier conversation could not be continued — {agentName} started a new one",
+    "delegation_session_workspace_changed": "Working folder changed — {agentName} started a new conversation",
     "system_step": "System Step",
     "tool_execution": "Tool Execution",
     "processing": "Processing",

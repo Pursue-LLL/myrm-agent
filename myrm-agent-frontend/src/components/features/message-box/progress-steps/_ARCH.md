@@ -9,7 +9,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 | 文件                           | 地位 | 职责                                                                                     | I/O/P                          |
 | ------------------------------ | ---- | ---------------------------------------------------------------------------------------- | ------------------------------ |
 | `ProgressSteps.tsx`            | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位）；撤销提示卡发出的展开事件在撤销入口落在被折叠的中段时一并展开中段 | ✅                             |
-| `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）                                                        | ✅                             |
+| `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）；外部 agent 委派步骤 `delegation_<agent>_<status\|tool\|session_expired\|session_workspace_changed>`：状态行与「上一轮对话未能延续」提示由 step_key 本地化，单次工具调用以自身文本行作标题（`isDelegationToolLine` 让 `ProgressSteps` 不再把同一行再渲染一遍） | ✅                             |
 | `treeUtils.ts`                 | 辅助 | progressSteps 树构建；`foldRoots` 是折叠规则 SSOT（顶层步骤超过 8 个时保留前 2 个与后 3 个，中段折叠；渲染与展开事件共用） | ✅                             |
 | `toolIcons.tsx`                | 辅助 | 步骤图标与 agent 主题色                                                                  | ✅                             |
 | `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作                                                                         | ✅                             |
@@ -19,7 +19,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 | `useScrollbarStyles.ts`        | 辅助 | 展开面板滚动条样式                                                                       | ✅                             |
 | `StepDetailModal.tsx`          | 组件 | 步骤详情下钻弹窗（查看出入参、诊断建议、stdout 终端流与 Raw JSON）                       | ✅                             |
 | `renderers/`                   | 目录 | 步骤叶子渲染（终端、代码、evicted drawer 等）                                            | [_ARCH.md](renderers/_ARCH.md) |
-| `__tests__/`                   | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore、SkillManageBatchRollbackAction（成功刷新与计数提示、按 `detail.code` 选择的 5 类错误提示（已撤销 / 补偿失败 / 被较新批次覆盖 / 技能已删除 / 通用）× 中英、重复确认只发一次请求、取消不请求）、ProgressSteps.undoReveal（撤销提示展开事件：折叠中段与嵌套子步骤的撤销入口被展开，已在末尾可见的长回合不展开，短回合与其他消息不受影响）单测 | —                              |
+| `__tests__/`                   | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore、SkillManageBatchRollbackAction（成功刷新与计数提示、按 `detail.code` 选择的 5 类错误提示（已撤销 / 补偿失败 / 被较新批次覆盖 / 技能已删除 / 通用）× 中英、重复确认只发一次请求、取消不请求）、ProgressSteps.undoReveal（撤销提示展开事件：折叠中段与嵌套子步骤的撤销入口被展开，已在末尾可见的长回合不展开，短回合与其他消息不受影响）、外部 agent 委派步骤（utils.delegation：状态行 / 连续性提示 / 工具行标题与含下划线的 agent 名；ProgressSteps.delegation：工具行只出现一次、状态行正文保留、失败原因仍显示）单测 | —                              |
 
 ## 依赖
 

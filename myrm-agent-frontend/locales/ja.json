@@ -4125,6 +4125,8 @@
     "reading_webpage": "Web ページを読み取り中",
     "tool_call": "ツールを呼び出し中: {toolName}",
     "delegation": "{agentName} に委任中",
+    "delegation_session_expired": "以前の会話を続けられなかったため、{agentName} は新しい会話を開始しました",
+    "delegation_session_workspace_changed": "作業フォルダが変更されたため、{agentName} は新しい会話を開始しました",
     "system_step": "システムステップ",
     "tool_execution": "ツール実行",
     "processing": "処理中",

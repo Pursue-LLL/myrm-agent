@@ -4125,6 +4125,8 @@
     "reading_webpage": "閱讀網頁",
     "tool_call": "呼叫工具: {toolName}",
     "delegation": "委派到 {agentName}",
+    "delegation_session_expired": "先前的對話無法繼續，{agentName} 已開啟新對話",
+    "delegation_session_workspace_changed": "工作資料夾已變更，{agentName} 已開啟新對話",
     "system_step": "系統步驟",
     "tool_execution": "工具執行",
     "processing": "處理中",

@@ -25,6 +25,7 @@ import { StepDetailModal } from './StepDetailModal';
 import { useScrollbarStyles } from './useScrollbarStyles';
 import {
   getStepTitle,
+  isDelegationToolLine,
   isTextItems,
   isQueryItems,
   isUrlItems,
@@ -420,7 +421,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 </div>
               )}
 
-              {step.items && !isPlanNode && (
+              {step.items && !isPlanNode && !isDelegationToolLine(step) && (
                 <div>
                   {isSkillSelectItems(step.items) && (
                     <SkillSelectRenderer items={step.items} messageId={messageId} stepIndex={index} />

@@ -4125,6 +4125,8 @@
     "reading_webpage": "Webseite lesen",
     "tool_call": "Aufruftool: {toolName}",
     "delegation": "Delegieren an {agentName}",
+    "delegation_session_expired": "Frühere Unterhaltung konnte nicht fortgesetzt werden – {agentName} hat eine neue begonnen",
+    "delegation_session_workspace_changed": "Arbeitsordner geändert – {agentName} hat eine neue Unterhaltung begonnen",
     "system_step": "Systemschritt",
     "tool_execution": "Tool-Ausführung",
     "processing": "Verarbeitung",
