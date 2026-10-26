@@ -17,6 +17,7 @@ Clients register interest via POST /files/browse/watch; changes emit WORKSPACE_F
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 import os
 import threading
@@ -25,7 +26,7 @@ from typing import Final
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.observers.api import ObservedWatch
+from watchdog.observers.api import BaseObserver, ObservedWatch
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -85,7 +86,7 @@ class _DebouncedWorkspaceHandler(FileSystemEventHandler):
         self._schedule_emit = schedule_emit
 
     def on_any_event(self, event: FileSystemEvent) -> None:
-        src_path = event.src_path
+        src_path = os.fsdecode(event.src_path)
         if any(src_path.endswith(suffix) for suffix in _EPHEMERAL_SUFFIXES):
             return
         if _path_has_ignored_dir_component(src_path):
@@ -101,10 +102,13 @@ class WorkspaceFileWatchService:
         self._async_lock = asyncio.Lock()
         self._thread_lock = threading.Lock()
         self._refs: dict[str, int] = {}
-        self._observer: Observer | None = None
+        self._observer: BaseObserver | None = None
         self._watches: dict[str, ObservedWatch] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._debounce_tasks: dict[str, asyncio.Task[None]] = {}
+        # The bus drops an event whose payload equals the previous one on its topic, which would swallow
+        # every refresh after the first; the sequence number keeps each notification distinct.
+        self._emit_seq = itertools.count(1)
 
     async def acquire(self, workspace_path: str) -> None:
         resolved = resolve_watchable_workspace_path(workspace_path)
@@ -182,7 +186,7 @@ class WorkspaceFileWatchService:
             get_event_bus().publish(
                 AppEvent(
                     event_type=AppEventType.WORKSPACE_FILE_CHANGED,
-                    data={"workspace_path": workspace_path},
+                    data={"workspace_path": workspace_path, "seq": next(self._emit_seq)},
                 )
             )
 

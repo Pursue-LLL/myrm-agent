@@ -77,3 +77,35 @@ async def test_refcount_requires_multiple_release(watch_service: WorkspaceFileWa
 
     await watch_service.release(workspace)
     get_event_bus().unsubscribe(queue)
+
+
+async def _next_event_for(queue: asyncio.Queue, workspace: str) -> object:
+    """Next change notification for ``workspace`` (the shared bus replays other tests' backlog to new subscribers)."""
+    while True:
+        event = await asyncio.wait_for(queue.get(), timeout=3.0)
+        if event.event_type == AppEventType.WORKSPACE_FILE_CHANGED and event.data["workspace_path"] == os.path.realpath(
+            workspace
+        ):
+            return event
+
+
+@pytest.mark.anyio
+async def test_every_change_notifies_even_when_the_payload_would_repeat(watch_service: WorkspaceFileWatchService, tmp_path):
+    """The bus suppresses an event equal to the previous one, so each notification must carry a fresh sequence."""
+    workspace = str(tmp_path)
+    queue = get_event_bus().subscribe()
+    await watch_service.acquire(workspace)
+
+    seqs: list[int] = []
+    for index in range(3):
+        (tmp_path / "a.txt").write_text(str(index), encoding="utf-8")
+        event = await _next_event_for(queue, workspace)
+        seqs.append(event.data["seq"])
+        await asyncio.sleep(0.2)
+        while not queue.empty():
+            queue.get_nowait()
+
+    assert seqs == sorted(set(seqs))
+    assert len(seqs) == 3
+
+    get_event_bus().unsubscribe(queue)
