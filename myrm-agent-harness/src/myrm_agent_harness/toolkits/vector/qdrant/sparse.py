@@ -7,13 +7,16 @@ myrm_agent_harness.toolkits.vector.qdrant.filters (POS: Qdrant filter builder)
 qdrant_client (POS: Qdrant SDK, optional dependency)
 
 [OUTPUT]
-QdrantSparseMixin: ensure/upsert/search sparse-vector methods for QdrantVectorStore
+QdrantSparseMixin: ensure/upgrade/upsert/search sparse-vector methods for QdrantVectorStore
 
 [POS]
 Sparse-vector layer for the Qdrant backend. Hosts a ``bm25`` named sparse
-vector per collection so hash-indexed term-frequency retrieval (server-side
-IDF weighting) works as a persistent, incrementally-maintained BM25 channel
-without rebuilding a client-side corpus index per query. Mixin is hosted by
+vector per collection so hash-indexed term-frequency retrieval works as a
+persistent, incrementally-maintained BM25 channel without rebuilding a
+client-side corpus index per query. Every collection is created with the
+``IDF`` modifier, so the server weighs each matched term by its inverse
+document frequency at query time; mirrors created before the modifier was set
+are upgraded in place with ``upgrade_sparse_idf``. Mixin is hosted by
 QdrantVectorStore, which supplies ``_client`` / ``_with_retry`` / ``point_id_for``.
 """
 
@@ -90,7 +93,7 @@ class QdrantSparseMixin:
             return False
 
     async def ensure_sparse_collection(self, name: str) -> bool:
-        """Create a sparse-only collection. No-op if it already exists.
+        """Create a sparse-only collection with server-side IDF. No-op if it already exists.
 
         Returns:
             True if created, False if it already existed.
@@ -108,7 +111,10 @@ class QdrantSparseMixin:
                 self._client.create_collection,  # type: ignore[attr-defined]
                 collection_name=name,
                 sparse_vectors_config={
-                    BM25_SPARSE_VECTOR_NAME: models.SparseVectorParams(index=models.SparseIndexParams(on_disk=False))
+                    BM25_SPARSE_VECTOR_NAME: models.SparseVectorParams(
+                        index=models.SparseIndexParams(on_disk=False),
+                        modifier=models.Modifier.IDF,
+                    )
                 },
             )
             return True
@@ -118,6 +124,46 @@ class QdrantSparseMixin:
             if "already exists" in str(exc).lower():
                 return False
             raise
+
+    async def upgrade_sparse_idf(self, name: str) -> bool:
+        """Turn on server-side IDF for a mirror created before the modifier was set.
+
+        Never creates a collection: a type that was never written has no mirror and
+        reads as empty. Fail-open: a backend that rejects the update keeps scoring by
+        term overlap, which is what the mirror did before, so the failure is logged
+        and never raised.
+
+        Returns:
+            True if the mirror was upgraded, False if it was missing, already
+            weighted, or the upgrade failed.
+        """
+        from qdrant_client import models
+
+        try:
+            info = await self._execute(self._client.get_collection, collection_name=name)  # type: ignore[attr-defined]
+        except Exception as exc:
+            if not is_missing_collection(exc):
+                logger.warning("Could not inspect sparse mirror %s for IDF: %s", name, exc)
+            return False
+
+        sparse_params = cast("models.CollectionInfo", info).config.params.sparse_vectors or {}
+        bm25 = sparse_params.get(BM25_SPARSE_VECTOR_NAME)
+        if bm25 is None or bm25.modifier == models.Modifier.IDF:
+            return False
+
+        try:
+            await self._execute(
+                self._client.update_collection,  # type: ignore[attr-defined]
+                collection_name=name,
+                sparse_vectors_config={
+                    BM25_SPARSE_VECTOR_NAME: models.SparseVectorParams(modifier=models.Modifier.IDF)
+                },
+            )
+        except Exception as exc:
+            logger.warning("Could not enable IDF on sparse mirror %s; it keeps term-overlap scoring: %s", name, exc)
+            return False
+        logger.info("Enabled server-side IDF on sparse mirror %s", name)
+        return True
 
     async def upsert_sparse(self, collection: str, points: Sequence[SparsePoint]) -> list[str]:
         """Insert or update sparse points (idempotent replace per point id)."""
@@ -153,21 +199,30 @@ class QdrantSparseMixin:
         filters: FilterDict | None = None,
         score_threshold: float | None = None,
     ) -> list[SearchResult]:
-        """Query the ``bm25`` sparse vector with server-side IDF scoring."""
+        """Query the ``bm25`` sparse vector (IDF-weighted once the mirror carries the modifier).
+
+        A mirror is created on its first write, so a type that was never written
+        answers empty, like ``scroll_sparse`` and the dense reads.
+        """
         from qdrant_client import models
 
         from myrm_agent_harness.toolkits.vector.qdrant.filters import build_qdrant_filter
 
-        results = await self._with_retry(
-            self._client.query_points,  # type: ignore[attr-defined]
-            collection_name=collection,
-            query=models.SparseVector(indices=indices, values=values),
-            using=BM25_SPARSE_VECTOR_NAME,
-            query_filter=build_qdrant_filter(filters),
-            limit=limit,
-            score_threshold=score_threshold,
-            with_payload=True,
-        )
+        try:
+            results = await self._with_retry(
+                self._client.query_points,  # type: ignore[attr-defined]
+                collection_name=collection,
+                query=models.SparseVector(indices=indices, values=values),
+                using=BM25_SPARSE_VECTOR_NAME,
+                query_filter=build_qdrant_filter(filters),
+                limit=limit,
+                score_threshold=score_threshold,
+                with_payload=True,
+            )
+        except Exception as exc:
+            if is_missing_collection(exc):
+                return []
+            raise
         return [
             SearchResult(
                 document=self._sparse_point_to_document(point),

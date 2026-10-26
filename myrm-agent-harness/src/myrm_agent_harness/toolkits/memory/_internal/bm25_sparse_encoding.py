@@ -3,11 +3,12 @@
 [INPUT]
 - memory.protocols.vector::VectorDocument (POS: dense-path document layout)
 - retriever.bm25_retrieval::preprocess_text (POS: shared CJK/latin tokenizer)
+- memory._internal.query_terms::prune_function_words (POS: query-side function-word pruning)
 - toolkits.vector.base::SparsePoint (POS: sparse point model)
 
 [OUTPUT]
 - token_index: stable u31 token hash (zero-vocabulary, no term dictionary)
-- content_to_sparse / query_to_sparse: token stream -> (indices, values)
+- content_to_sparse / query_to_sparse: token stream -> (indices, values); queries drop function words
 - BM25_COLLECTION_SUFFIX / bm25_collection_for: sparse mirror collection naming
 - doc_to_sparse_point: dense-path document -> mirrored sparse point
 
@@ -24,6 +25,7 @@ import math
 import zlib
 from collections import Counter
 
+from myrm_agent_harness.toolkits.memory._internal.query_terms import prune_function_words
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 from myrm_agent_harness.toolkits.vector.base import SparsePoint
 
@@ -54,10 +56,14 @@ def content_to_sparse(text: str) -> tuple[list[int], list[float]]:
 
 
 def query_to_sparse(text: str) -> tuple[list[int], list[float]]:
-    """Tokenize a query into uniform-weight sparse indices (no tf on query side)."""
+    """Tokenize a query into uniform-weight sparse indices over its content terms.
+
+    Function words are pruned (the stored side keeps them), and the query carries
+    no tf: the server weighs each matched term by its inverse document frequency.
+    """
     from myrm_agent_harness.toolkits.retriever.bm25_retrieval import preprocess_text
 
-    tokens = {t for t in preprocess_text(text) if t}
+    tokens = set(prune_function_words([t for t in preprocess_text(text) if t]))
     if not tokens:
         return [], []
     indices = sorted(token_index(t) for t in tokens)

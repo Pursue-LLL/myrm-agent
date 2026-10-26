@@ -22,7 +22,8 @@ Replaces the per-query full-corpus scroll + BM25Okapi rebuild (24x build/query
 cost ratio, silent recall loss past ``bm25_max_corpus_size``) with a persisted
 sparse index. This module owns the mirror's lifecycle — write interception,
 one-shot backfill, and sparse-only routing for embeddings-less deployments —
-while encoding and query execution live in the sibling modules. Sparse sync is
+while encoding and query execution live in the sibling modules. The first sparse
+query upgrades mirrors that predate the IDF modifier. Sparse sync is
 fail-open — a broken index never blocks dense writes, the same guarantee graph
 indexing already follows.
 """
@@ -46,7 +47,7 @@ from myrm_agent_harness.toolkits.memory.protocols.vector import (
     VectorSearchResult,
     VectorStoreProtocol,
 )
-from myrm_agent_harness.toolkits.memory.types import MemorySearchResult
+from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType
 from myrm_agent_harness.toolkits.vector.qdrant.sparse import QdrantSparseMixin
 
 if TYPE_CHECKING:
@@ -78,6 +79,7 @@ class BM25SparseIndexStore:
     def __init__(self, inner: VectorStoreProtocol, *, sparse_authoritative: bool = False) -> None:
         self._inner = inner
         self._sparse_ready = False
+        self._idf_ready = False
         self._backfill_scheduled = False
         # Embeddings-less deployments keep the sparse mirror as the only
         # store: dense reads/writes have no collection to reach, so they are
@@ -200,11 +202,24 @@ class BM25SparseIndexStore:
             logger.info("BM25 sparse backfill mirrored %d documents into persistent index", total)
         return total
 
+    async def _enable_mirror_idf(self, config: MemoryConfig) -> None:
+        """Bring both mirrors to IDF weighting before the first sparse query.
+
+        Mirrors written before the modifier existed score by term overlap, and the
+        fan-out fuses semantic and episodic hits by raw score, so one weighted and
+        one unweighted mirror would not be comparable. Runs once per wrapper; the
+        backend logs a failed upgrade and leaves that mirror on its previous scoring.
+        """
+        for collection in (config.semantic_collection, config.episodic_collection):
+            await self._inner.upgrade_sparse_idf(bm25_collection_for(collection))  # type: ignore[attr-defined]
+        self._idf_ready = True
+
     async def bm25_search(
         self,
         query: str,
         config: MemoryConfig,
         *,
+        memory_types: Sequence[MemoryType] | None = None,
         limit: int | None = None,
         namespaces: list[str] | None = None,
         since: datetime | None = None,
@@ -222,10 +237,13 @@ class BM25SparseIndexStore:
             # corpus-scroll path until the backfill lands.
             self._schedule_backfill_once(config)
             return None
+        if not self._idf_ready:
+            await self._enable_mirror_idf(config)
         return await run_bm25_search(
             self._inner,
             query,
             config,
+            memory_types=memory_types,
             limit=limit,
             namespaces=namespaces,
             since=since,
@@ -262,7 +280,7 @@ class BM25SparseIndexStore:
         """
         if not self._sparse_ready:
             return []
-        return await self._inner.scroll_sparse(bm25_collection_for(collection), limit=limit)  # type: ignore[attr-defined]
+        return await self._inner.scroll_sparse(bm25_collection_for(collection), limit=limit)  # type: ignore[attr-defined,no-any-return]
 
     async def delete_sparse_only(self, collection: str, ids: list[str]) -> int:
         """Delete ids from the sparse mirror alone (dense delete skipped).

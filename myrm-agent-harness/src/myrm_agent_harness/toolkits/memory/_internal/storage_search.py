@@ -3,6 +3,7 @@
 [INPUT]
 - storage_converters::{doc_to_semantic, doc_to_episodic, doc_to_conversation, _user_filter}
 - bm25_sparse_index::{BM25SparseIndexStore, unwrap_sparse_mirror}
+- bm25_sparse_query::bm25_scope
 - memory.protocols.vector::VectorStoreProtocol
 - memory.types::{MemorySearchResult, MemoryType, SemanticMemory}
 
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -27,6 +29,7 @@ from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
     BM25SparseIndexStore,
     unwrap_sparse_mirror,
 )
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import bm25_scope
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     _user_filter,
     doc_to_conversation,
@@ -195,15 +198,23 @@ async def _scroll_vector_memories(
     config: MemoryConfig,
     namespaces: list[str] | None,
     *,
+    memory_types: Sequence[MemoryType],
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> tuple[list[VectorDocument], list[VectorDocument]]:
-    """Scroll active semantic and episodic memories in the configured namespace boundary."""
+    """Scroll the active memories of the requested types in the configured namespace boundary."""
     max_size = config.bm25_max_corpus_size
     uf = _user_filter(namespaces=namespaces, since=since, until=until)
-    (sem_docs, _), (epi_docs, _) = await asyncio.gather(
-        vector.scroll(config.semantic_collection, limit=max_size, filters=uf),
-        vector.scroll(config.episodic_collection, limit=max_size, filters=uf),
+
+    async def scroll_type(memory_type: MemoryType, collection: str) -> list[VectorDocument]:
+        if memory_type not in memory_types:
+            return []
+        docs, _ = await vector.scroll(collection, limit=max_size, filters=uf)
+        return docs
+
+    sem_docs, epi_docs = await asyncio.gather(
+        scroll_type(MemoryType.SEMANTIC, config.semantic_collection),
+        scroll_type(MemoryType.EPISODIC, config.episodic_collection),
     )
     return sem_docs, epi_docs
 
@@ -213,6 +224,7 @@ async def search_bm25(
     vector: VectorStoreProtocol,
     config: MemoryConfig,
     *,
+    memory_types: Sequence[MemoryType] | None = None,
     namespaces: list[str] | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
@@ -220,7 +232,8 @@ async def search_bm25(
     """BM25 keyword-based retrieval for proper nouns and exact matches.
 
     Complements vector search by providing keyword matching across Semantic + Episodic
-    memories. Results are fused with vector results via RRF in MemoryManager.
+    memories, narrowed to ``memory_types`` when given (types the mirror does not cover
+    are ignored). Results are fused with vector results via RRF in MemoryManager.
 
     Prefers the persistent sparse index (server-side IDF scoring, no corpus
     rebuild, no corpus-size ceiling); falls back to the legacy corpus-scroll
@@ -228,15 +241,23 @@ async def search_bm25(
     warms up. The legacy path auto-degrades to empty results (visible in
     degradation metrics) when total memory count exceeds bm25_max_corpus_size.
     """
+    searched = bm25_scope(memory_types)
+    if not searched:
+        return []
+
     # Persistent sparse channel first: the wrapper serves it once warmed.
     # isinstance (not duck-typed getattr) so AsyncMock vector stand-ins with
     # auto-generated attributes cannot shadow the legacy corpus path.
     if isinstance(vector, BM25SparseIndexStore):
-        sparse_results = await vector.bm25_search(query, config, namespaces=namespaces, since=since, until=until)
+        sparse_results = await vector.bm25_search(
+            query, config, memory_types=searched, namespaces=namespaces, since=since, until=until
+        )
         if sparse_results is not None:
             return sparse_results
 
-    sem_docs, epi_docs = await _scroll_vector_memories(vector, config, namespaces, since=since, until=until)
+    sem_docs, epi_docs = await _scroll_vector_memories(
+        vector, config, namespaces, memory_types=searched, since=since, until=until
+    )
     total_count = len(sem_docs) + len(epi_docs)
 
     if total_count > config.bm25_max_corpus_size:

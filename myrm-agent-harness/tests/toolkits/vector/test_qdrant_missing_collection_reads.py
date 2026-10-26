@@ -37,6 +37,7 @@ async def test_reads_of_a_missing_collection_answer_empty() -> None:
     assert await store.count("memory_semantic_missing") == 0
     assert await store.scroll("memory_semantic_missing") == ([], None)
     assert await store.scroll_sparse("memory_semantic_missing_bm25") == []
+    assert await store.search_sparse("memory_semantic_missing_bm25", [1], [1.0]) == []
 
 
 @pytest.mark.asyncio
@@ -47,3 +48,5 @@ async def test_a_backend_failure_still_raises() -> None:
         await store.count("memory_semantic_missing")
     with pytest.raises(RuntimeError, match="backend down"):
         await store.scroll_sparse("memory_semantic_missing_bm25")
+    with pytest.raises(RuntimeError, match="backend down"):
+        await store.search_sparse("memory_semantic_missing_bm25", [1], [1.0])

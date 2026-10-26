@@ -221,16 +221,14 @@ class TestMemoryManagerBM25Integration:
 
     @pytest.mark.asyncio
     async def test_bm25_channel_added_to_search(self, memory_manager, mock_vector_store, mock_embedding):
-        """Test that BM25 channel is automatically added to search coroutines."""
-        mock_vector_store.scroll.side_effect = [
-            ([create_vector_doc("1", "Test content")], None),
-            ([], None),
-        ]
+        """The BM25 channel is added to the search and scrolls only the requested type's collection."""
+        mock_vector_store.scroll.side_effect = [([create_vector_doc("1", "Test content")], None)]
         mock_vector_store.search.return_value = []
 
         await memory_manager.search("test query", memory_types=[MemoryType.SEMANTIC])
 
-        assert mock_vector_store.scroll.call_count == 2
+        mock_vector_store.scroll.assert_called_once()
+        assert mock_vector_store.scroll.call_args.args[0] == memory_manager.config.semantic_collection
         assert mock_embedding.embed.called
 
     @pytest.mark.asyncio

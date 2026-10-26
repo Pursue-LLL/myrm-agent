@@ -4,6 +4,7 @@
 [INPUT]
 - memory._internal.storage::{doc_to_*, load_context} (POS: internal vector storage operations)
 - memory._internal.scope::{build_scope, apply_channel_affinity} (POS: scope and namespace helpers)
+- memory._internal.bm25_sparse_query::bm25_scope (POS: memory types the BM25 mirror covers)
 - memory.retriever::MemoryRetriever (POS: RRF retriever for memory search)
 
 [OUTPUT]
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory._assistant_retrieval import search_conversation_two_pass
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import bm25_scope
 from myrm_agent_harness.toolkits.memory._internal.channel_pruning import ChannelPruner
 from myrm_agent_harness.toolkits.memory._internal.deadline_budget import deadline_remaining, embedding_budget
 from myrm_agent_harness.toolkits.memory._internal.maintenance import enrich_with_graph
@@ -560,16 +562,14 @@ class MemorySearchService:
                 until=until,
             )
 
-        needs_vector = any(
-            memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.CONVERSATION)
-            for memory_type in memory_types
-        )
-        if self._vector is not None and needs_vector:
+        bm25_types = bm25_scope(memory_types)
+        if self._vector is not None and bm25_types:
             bm25_task = asyncio.create_task(
                 search_bm25(
                     query,
                     self._vector,
                     config,
+                    memory_types=bm25_types,
                     namespaces=self._namespaces,
                     since=since,
                     until=until,

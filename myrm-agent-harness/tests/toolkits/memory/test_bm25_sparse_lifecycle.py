@@ -81,6 +81,7 @@ class _LifecycleStub:
 
         self.calls: list[tuple[str, str]] = []
         self.ensure_calls: list[str] = []
+        self.idf_upgrade_calls: list[str] = []
         self.sparse_upsert_batches: list[tuple[str, int]] = []
         self.sparse_deleted_ids: list[str] = []
         self.sparse_filter_deletes: list[str] = []
@@ -180,6 +181,10 @@ class _LifecycleStub:
     async def ensure_sparse_collection(self, name: str) -> bool:
         self.ensure_calls.append(name)
         return True
+
+    async def upgrade_sparse_idf(self, name: str) -> bool:
+        self.idf_upgrade_calls.append(name)
+        return False
 
     async def upsert_sparse(self, collection: str, points: Sequence[SparsePoint]) -> list[str]:
         self.sparse_upsert_batches.append((collection, len(points)))
@@ -444,6 +449,16 @@ class TestSearchEdges:
 
         # top score 0 → normalizer 1.0 → zero scores survive as 0.0, not div-by-zero.
         assert [h.score for h in hits] == [0.0, 0.0]
+
+    @pytest.mark.asyncio
+    async def test_first_sparse_query_enables_idf_on_both_mirrors_once(self) -> None:
+        stub = _LifecycleStub()
+        wrapped = warm(stub)
+
+        await wrapped.bm25_search("litellm", CONFIG)
+        await wrapped.bm25_search("litellm", CONFIG)
+
+        assert stub.idf_upgrade_calls == [f"{CONFIG.semantic_collection}_bm25", f"{CONFIG.episodic_collection}_bm25"]
 
     @pytest.mark.asyncio
     async def test_bm25_search_forwards_limit_and_namespace_filters(self) -> None:
