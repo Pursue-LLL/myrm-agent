@@ -104,7 +104,9 @@ async def test_a_streaming_call_is_one_chat_span_with_ttft_and_usage(telemetry: 
     assert attributes["gen_ai.usage.input_tokens"] == 40
     assert attributes["gen_ai.usage.output_tokens"] == 8
     assert attributes["gen_ai.usage.cache_read.input_tokens"] == 30
-    assert attributes["gen_ai.response.time_to_first_chunk"] >= 0.01
+    first_chunk = attributes["gen_ai.response.time_to_first_chunk"]
+    assert isinstance(first_chunk, float)
+    assert first_chunk >= 0.01
     assert span.status.status_code is StatusCode.UNSET
     assert len(telemetry.metric_points("gen_ai.client.operation.duration")) == 1
 

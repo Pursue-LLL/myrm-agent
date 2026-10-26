@@ -182,7 +182,8 @@ def test_a_collector_that_rejects_batches_is_reported_as_failing() -> None:
         assert receiver.wait_for(lambda: bool(receiver.requests))
         posture = get_telemetry_posture()
         assert posture["status"] == "failing"
-        assert posture["failed_batches"] >= 1
+        failed_batches = posture["failed_batches"]
+        assert isinstance(failed_batches, int) and failed_batches >= 1
         assert posture["last_failure_at"] is not None
         assert posture["exported_spans"] == 0
     finally:

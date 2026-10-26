@@ -8,14 +8,15 @@ and hands the process back the same way, so a failure cannot leak a provider int
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from typing import TypedDict
 
 import pytest
 from opentelemetry import metrics, trace
 from opentelemetry.metrics import _internal as metrics_internal
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+from opentelemetry.sdk.metrics.export import HistogramDataPoint, InMemoryMetricReader
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -28,6 +29,14 @@ from myrm_agent_harness.infra.tracing.metrics import exporter as metrics_exporte
 from myrm_agent_harness.infra.tracing.otlp import posture
 
 from ._receivers import OtlpGrpcReceiver, OtlpHttpReceiver
+
+
+class MetricPoint(TypedDict):
+    """One histogram data point as the tests read it."""
+
+    attributes: Mapping[str, object]
+    count: int
+    sum: float
 
 
 def reset_telemetry() -> None:
@@ -77,16 +86,18 @@ class MemoryTelemetry:
             return None
         return next(other.name for other in self.spans() if other.context.span_id == span.parent.span_id)
 
-    def metric_points(self, name: str) -> list[dict[str, object]]:
+    def metric_points(self, name: str) -> list[MetricPoint]:
         data = self.metric_reader.get_metrics_data()
-        points: list[dict[str, object]] = []
+        points: list[MetricPoint] = []
         for resource_metrics in data.resource_metrics if data else []:
             for scope_metrics in resource_metrics.scope_metrics:
                 for metric in scope_metrics.metrics:
-                    if metric.name == name:
-                        points.extend(
-                            {"attributes": dict(point.attributes), "count": point.count, "sum": point.sum}
-                            for point in metric.data.data_points
+                    if metric.name != name:
+                        continue
+                    for point in metric.data.data_points:
+                        assert isinstance(point, HistogramDataPoint), f"{name} is not a histogram"
+                        points.append(
+                            MetricPoint(attributes=dict(point.attributes or {}), count=point.count, sum=point.sum)
                         )
         return points
 

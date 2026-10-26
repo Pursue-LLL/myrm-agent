@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Link, SpanKind, Status, StatusCode
+from opentelemetry.trace import Link, Span, SpanKind, Status, StatusCode
+from opentelemetry.util.types import AttributeValue
 
 from myrm_agent_harness.infra.tracing.gen_ai.content import CAPTURE_CONTENT_ENV
 from myrm_agent_harness.infra.tracing.otlp import privacy
@@ -18,7 +19,7 @@ from myrm_agent_harness.infra.tracing.otlp.privacy import PrivacyGuardExporter, 
 PROMPT = json.dumps([{"role": "user", "parts": [{"type": "text", "content": "my card number is 4111111111111111"}]}])
 
 
-def _finished(build) -> ReadableSpan:
+def _finished(build: Callable[[Span], object]) -> ReadableSpan:
     memory = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(memory))
@@ -28,7 +29,11 @@ def _finished(build) -> ReadableSpan:
     return memory.get_finished_spans()[0]
 
 
-def _content_span(span) -> None:
+def _attrs(span: ReadableSpan) -> Mapping[str, AttributeValue]:
+    return span.attributes or {}
+
+
+def _content_span(span: Span) -> None:
     span.set_attributes(
         {
             "gen_ai.operation.name": "chat",
@@ -53,7 +58,7 @@ def _content_span(span) -> None:
 
 
 def test_by_default_only_metadata_crosses_the_boundary() -> None:
-    kept = sanitize_span(_finished(_content_span), capture_content=False).attributes
+    kept = _attrs(sanitize_span(_finished(_content_span), capture_content=False))
 
     assert kept == {
         "gen_ai.operation.name": "chat",
@@ -66,7 +71,7 @@ def test_by_default_only_metadata_crosses_the_boundary() -> None:
 
 
 def test_content_capture_releases_content_but_never_the_system_prompt() -> None:
-    kept = sanitize_span(_finished(_content_span), capture_content=True).attributes
+    kept = _attrs(sanitize_span(_finished(_content_span), capture_content=True))
 
     assert kept["gen_ai.input.messages"] == PROMPT
     assert kept["gen_ai.output.messages"] == "the answer is 42"
@@ -75,21 +80,21 @@ def test_content_capture_releases_content_but_never_the_system_prompt() -> None:
 
 
 def test_captured_content_is_still_credential_redacted_and_bounded() -> None:
-    def build(span) -> None:
+    def build(span: Span) -> None:
         span.set_attribute("gen_ai.input.messages", "call with Authorization: Bearer abcdef0123456789abcdef")
         span.set_attribute("gen_ai.output.messages", "x" * 40000)
 
-    kept = sanitize_span(_finished(build), capture_content=True).attributes
+    kept = _attrs(sanitize_span(_finished(build), capture_content=True))
 
     assert "abcdef0123456789abcdef" not in str(kept["gen_ai.input.messages"])
     assert "[TRUNCATED:len=40000" in str(kept["gen_ai.output.messages"])
 
 
 def test_metadata_text_is_credential_redacted() -> None:
-    def build(span) -> None:
+    def build(span: Span) -> None:
         span.set_attribute("http.url", "https://u:pw@host/x?api_key=SECRET123456")
 
-    kept = sanitize_span(_finished(build), capture_content=False).attributes
+    kept = _attrs(sanitize_span(_finished(build), capture_content=False))
 
     assert "SECRET123456" not in str(kept["http.url"])
     assert ":pw@" not in str(kept["http.url"])
@@ -98,7 +103,7 @@ def test_metadata_text_is_credential_redacted() -> None:
 def test_event_and_link_payloads_are_cleaned_like_span_attributes() -> None:
     other = _finished(lambda span: None).context
 
-    def build(span) -> None:
+    def build(span: Span) -> None:
         span.add_event("attempt_failed", {"retry.attempt": 2, "error.type": "RateLimitError", "note": "free text"})
         span.add_event(
             "exception",
@@ -131,7 +136,7 @@ def test_event_and_link_payloads_are_cleaned_like_span_attributes() -> None:
     ],
 )
 def test_error_status_keeps_the_class_name_but_not_the_message(description: str | None, expected: str | None) -> None:
-    def build(span) -> None:
+    def build(span: Span) -> None:
         span.set_status(Status(StatusCode.ERROR, description))
 
     status = sanitize_span(_finished(build), capture_content=False).status
@@ -141,7 +146,7 @@ def test_error_status_keeps_the_class_name_but_not_the_message(description: str 
 
 
 def test_non_error_status_never_carries_a_description() -> None:
-    def build(span) -> None:
+    def build(span: Span) -> None:
         span.set_status(Status(StatusCode.OK))
 
     assert sanitize_span(_finished(build), capture_content=False).status.status_code is StatusCode.OK

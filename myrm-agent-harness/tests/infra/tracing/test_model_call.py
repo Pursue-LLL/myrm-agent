@@ -13,7 +13,7 @@ from myrm_agent_harness.infra.tracing.gen_ai.content import CAPTURE_CONTENT_ENV
 
 from .conftest import MemoryTelemetry, install_memory_telemetry, reset_telemetry
 
-MESSAGES = [
+MESSAGES: list[dict[str, object]] = [
     {"role": "system", "content": "you are a secret persona"},
     {"role": "user", "content": "my card number is 4111111111111111"},
     {
