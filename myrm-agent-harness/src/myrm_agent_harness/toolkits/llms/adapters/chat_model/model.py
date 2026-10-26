@@ -1,23 +1,18 @@
 """LangChain LiteLLM Adapter
 
 [INPUT]
-- langchain_core.language_models.chat_models::BaseChatModel (POS: LangChain chat model base class)
-- langchain_core.messages (POS: LangChain message types)
-- litellm::litellm (POS: LiteLLM library)
-- adapters.converters (POS: message and tool call converters)
-- adapters.streaming (POS: streaming response processing)
-- adapters.concurrency (POS: concurrency gate for LLM calls)
+- langchain_core (POS: BaseChatModel base class, message, runnable, tool and env-lookup helpers)
+- litellm::litellm (POS: LiteLLM library, imported lazily)
+- adapters.chat_model.message_mixin / output_cap_recovery / session_affinity / sync_mixin / async_mixin / async_stream_mixin (POS: request assembly, output-limit recovery and generation behavior composed into the aggregate root)
 - adapters.chat_model.allowed_params::inject_allowed_params (POS: per-call allowed_openai_params injection)
-- adapters.chat_model.output_cap_recovery::ChatLiteLLMOutputCapMixin (POS: provider-stated output-limit recovery and learned model ceilings)
-- adapters.stream_aggregator (POS: stream data aggregation module)
-- adapters.tool_recovery (POS: tool call recovery module)
-- adapters.safety_termination_detector (POS: Safety termination detector for truncated tool call suppression)
-- toolkits.llms.ephemeral_output_tokens (POS: ephemeral max-output-tokens ContextVar for truncation recovery)
+- adapters.chat_model.binding (POS: bind_tools and with_structured_output assembly)
+- adapters.chat_model.exceptions (POS: adapter exceptions and constants)
+- adapters.metrics::EmptyRetryMetrics (POS: empty-response retry counters)
+- core.config.wire::WireProtocol (POS: wire protocol selection)
+- core.context_vars::prompt_routing_key_var, chat_id_var (POS: Session-scoped routing key for OpenCode gateway session affinity)
 - toolkits.llms.utils.proxy::normalize_proxy_url (POS: Egress proxy URL normalization)
 - toolkits.llms.utils.model_kwargs::clean_model_kwargs, should_skip_response_format (POS: Model-parameter compatibility helpers)
 - toolkits.llms.utils.json_document::is_json_document (POS: whether reasoning text is a JSON document the output parser accepts)
-- adapters.chat_model.session_affinity::ChatLiteLLMSessionAffinityMixin (POS: OpenAI / OpenCode / xAI session-affinity routing keys)
-- core.context_vars::prompt_routing_key_var (POS: Session-scoped routing key for OpenCode gateway session affinity)
 
 [OUTPUT]
 - ChatLiteLLM: LangChain-compatible LiteLLM chat model aggregate root (config, bind_tools, structured_output)
@@ -75,9 +70,7 @@ from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.allowed_params import inject_allowed_params
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import (
-    ChatLiteLLMAsyncMixin,
-)
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import ChatLiteLLMAsyncMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import ChatLiteLLMAsyncStreamMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.binding import (
     structured_output_bind_kwargs,
@@ -90,18 +83,10 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyStreamError,
     StreamStallTimeoutError,
 )
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import (
-    ChatLiteLLMMessageMixin,
-)
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import (
-    ChatLiteLLMOutputCapMixin,
-)
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import (
-    ChatLiteLLMSessionAffinityMixin,
-)
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import (
-    ChatLiteLLMSyncMixin,
-)
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import ChatLiteLLMMessageMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import ChatLiteLLMOutputCapMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import ChatLiteLLMSessionAffinityMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import ChatLiteLLMSyncMixin
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
 from myrm_agent_harness.toolkits.llms.utils.model_kwargs import (

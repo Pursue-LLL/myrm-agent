@@ -5,7 +5,6 @@
 
 [INPUT]
 - contextvars::ContextVar (POS: Python 标准库，提供上下文变量隔离)
-- .cost_engine::compute_cost (POS: 成本计算引擎，封装 litellm.completion_cost + CostStatus 溯源)
 - .cache_economics::compute_prompt_cache_stats (POS: 缓存命中率与相对未缓存 input 的节省比例)
 - .latency_stats::LatencyStats (POS: 由逐次调用的耗时与首 token 耗时样本汇总的延迟统计)
 - .usage_fields::extract_cached_tokens / extract_cache_write_tokens / extract_reasoning_tokens (POS: provider 缓存与推理计数字段的唯一读取入口)

@@ -6,7 +6,7 @@
 - adapters.chat_model.memo_wiring (POS: model-call memo replay and recording)
 - adapters.concurrency (POS: per-model semaphores)
 - infra.tracing.gen_ai::ModelCall (POS: one `chat` span and its metrics per logical model call)
-- utils.token_economics (POS: usage recording for non-streaming calls — lazy import)
+- adapters.chat_model.sync_mixin::_record_non_stream_usage (POS: usage, cost and ledger recording shared with the sync path, composed on the aggregate root)
 
 [OUTPUT]
 - ChatLiteLLMAsyncMixin: _agenerate (empty-response retry, api key renewal before each request; delegates streaming to the stream mixin)
