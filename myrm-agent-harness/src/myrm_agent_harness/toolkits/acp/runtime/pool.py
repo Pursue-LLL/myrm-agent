@@ -2,7 +2,7 @@
 
 Supports ACP, SDK, and CLI backends with config-driven registration,
 concurrency control via a global asyncio.Semaphore plus per-backend
-serialization locks, and optional health monitoring.
+serialization locks, and optional health monitoring of resident-process (ACP) backends.
 
 
 [INPUT]
@@ -111,9 +111,13 @@ class RuntimePool:
             raise KeyError(msg)
 
         if name not in self._backends:
-            backend = _create_runtime(name, self._configs[name], event_bus=self._event_bus)
+            config = self._configs[name]
+            backend = _create_runtime(name, config, event_bus=self._event_bus)
             self._backends[name] = backend
-            if self._health_monitor is not None:
+            # Only a resident process has a liveness worth supervising. A CLI backend spawns one process per
+            # turn, so "no process" between turns is its normal idle state: treating it as a crash would
+            # close() the backend, killing an in-flight turn and dropping the CLI session id used for --resume.
+            if self._health_monitor is not None and config.backend_type == "acp":
                 self._health_monitor.register(backend)
 
         return self._backends[name]

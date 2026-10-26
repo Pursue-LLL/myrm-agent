@@ -658,7 +658,7 @@ class TestEdgeCases:
         pool = RuntimePool(max_concurrent=2, enable_health_monitor=True)
         pool.register(
             "dummy",
-            RuntimeConfig(backend_type="cli", command="echo"),
+            RuntimeConfig(backend_type="acp", command="echo"),
         )
         pool.get("dummy")
         metrics = pool.get_health_metrics()

@@ -184,6 +184,33 @@ class TestHealthMonitorCrashHandling:
         assert len(error_events) >= 1
 
     @pytest.mark.asyncio
+    async def test_backend_recovered_during_backoff_is_not_closed(self) -> None:
+        """A turn can re-spawn the backend while the monitor backs off; close() would kill that turn."""
+        monitor = HealthMonitor(check_interval=0.01, max_restarts=5)
+        backend = _FakeBackend("b1", alive=False)
+        monitor.register(backend)
+
+        _real_sleep = asyncio.sleep
+
+        async def _sleep(seconds: float) -> None:
+            if seconds >= 1.0:  # the crash backoff (base 2s), not the poll interval
+                backend.set_alive(True)
+            await _real_sleep(0.01)
+
+        with patch(
+            "myrm_agent_harness.toolkits.acp.core.health_monitor.asyncio.sleep",
+            side_effect=_sleep,
+        ):
+            await monitor.start()
+            await _real_sleep(0.15)
+            await monitor.stop()
+
+        assert not backend.close_called
+        metrics = monitor.get_metrics("b1")
+        assert metrics is not None
+        assert metrics.restart_count == 1
+
+    @pytest.mark.asyncio
     async def test_close_failure_does_not_crash_monitor(self) -> None:
         monitor = HealthMonitor(check_interval=0.01, max_restarts=5)
         backend = _FakeBackend("b1", alive=False)

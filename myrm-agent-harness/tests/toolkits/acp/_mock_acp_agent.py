@@ -1,6 +1,6 @@
 """Minimal ACP agent for end-to-end testing.
 
-Run as a subprocess: python -m tests.acp._mock_acp_agent
+Run as a subprocess: python tests/toolkits/acp/_mock_acp_agent.py
 Implements the acp.Agent protocol over stdin/stdout, echoing prompts back
 with a prefix to verify the full ACP roundtrip.
 """

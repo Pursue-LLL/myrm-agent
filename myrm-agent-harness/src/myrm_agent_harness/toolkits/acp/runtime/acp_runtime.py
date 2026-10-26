@@ -21,7 +21,6 @@ negotiation) and bounds it, so a silent agent cannot skip the transport teardown
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager
@@ -184,15 +183,6 @@ class AcpRuntime(BaseRuntime):
                 await self._ctx_manager.__aexit__(None, None, None)
             except Exception:
                 logger.debug("acp_ctx_exit_failed name=%s", self._name, exc_info=True)
-        else:
-            if self._conn is not None:
-                try:
-                    await self._conn.close()
-                except Exception:
-                    logger.debug("acp_close_conn_failed name=%s", self._name, exc_info=True)
-            if self._process is not None:
-                with contextlib.suppress(ProcessLookupError):
-                    self._process.terminate()
 
         self._conn = None
         self._process = None

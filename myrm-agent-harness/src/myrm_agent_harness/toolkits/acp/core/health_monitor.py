@@ -1,8 +1,10 @@
 """Health monitor for RuntimeBackend instances.
 
-Periodically checks backend liveness, applies backoff + ``close()`` on dead
-backends (so the next ``run_turn`` can reconnect), enforces a restart budget,
-and publishes health events via EventBus.
+Periodically checks the liveness of resident-process backends (``AcpRuntime``), applies
+backoff + ``close()`` on dead ones (so the next ``run_turn`` can reconnect), enforces a
+restart budget, and publishes health events via EventBus. Backends that spawn one process
+per turn (``CliRuntime``) must not be registered: their idle state is indistinguishable
+from a crash here, and ``close()`` would kill an in-flight turn and drop its session id.
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer. Provides decoupled event dispatch mechanism for the Runtime system with session isolation and type filtering)
@@ -136,18 +138,21 @@ class HealthMonitor:
 
                 metrics.last_check_time = time.time()
 
-                try:
-                    alive = backend.is_alive
-                except Exception:
-                    logger.warning("health_check_error name=%s", name, exc_info=True)
-                    alive = False
-
-                if not alive:
+                if not self._probe_alive(name, backend):
                     await self._handle_crash(name, backend, metrics)
                 elif metrics._start_time is None:
                     metrics.record_start()
 
             await asyncio.sleep(self._check_interval)
+
+    @staticmethod
+    def _probe_alive(name: str, backend: RuntimeBackend) -> bool:
+        """Read ``is_alive``, treating a failing probe as dead."""
+        try:
+            return backend.is_alive
+        except Exception:
+            logger.warning("health_check_error name=%s", name, exc_info=True)
+            return False
 
     async def _handle_crash(
         self,
@@ -201,6 +206,11 @@ class HealthMonitor:
             backoff,
         )
         await asyncio.sleep(backoff)
+
+        # A turn may have re-spawned the backend while we backed off; closing it now would kill that turn.
+        if self._probe_alive(name, backend):
+            logger.info("health_backend_recovered name=%s", name)
+            return
 
         try:
             await backend.close()

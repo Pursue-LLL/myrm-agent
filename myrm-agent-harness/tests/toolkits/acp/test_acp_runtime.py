@@ -263,21 +263,6 @@ class TestAcpRuntimeLifecycle:
         assert rt._supports_session_close is expected
 
     @pytest.mark.asyncio
-    async def test_do_close_without_ctx_manager(self) -> None:
-        """Close path that closes the connection and terminates the process."""
-        rt = AcpRuntime("acp", _make_config())
-        conn = MagicMock()
-        conn.close = AsyncMock()
-        proc = _live_process()
-        rt._conn = conn
-        rt._process = proc
-
-        await rt._do_close()
-
-        conn.close.assert_awaited_once()
-        proc.terminate.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_ensure_connection_requires_command(self) -> None:
         rt = AcpRuntime("acp", _make_config(command=None))
         with pytest.raises(ValueError):

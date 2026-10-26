@@ -204,8 +204,8 @@ PermissionManager (Protocol)
 **来源**：zeroclaw 进程 Checkout/Restore + AionUi 自动重连
 
 **功能**：
-- 定期检查后端进程存活（`is_alive`）
-- 非存活时：指数退避 → `close()` 清理句柄；下一次 `run_turn` 由各 Runtime 懒加载重新拉起进程
+- 定期检查**常驻进程**后端（`AcpRuntime`）的存活（`is_alive`）。`CliRuntime` 每回合一个进程、回合之间本就没有进程，**不接入巡检**：空闲会被判成崩溃，退避后的 `close()` 会杀掉其间新启动的回合，并清掉 `--resume` 用的 CLI 会话 id
+- 非存活时：指数退避 → `close()` 清理句柄；下一次 `run_turn` 由各 Runtime 懒加载重新拉起进程。退避结束时若后端已被新回合重新拉起（`is_alive` 恢复），跳过 `close()`，避免杀掉刚恢复的进程
 - 超过最大处理次数后停止对该后端的干预并上报告警事件
 - 通过 EventBus 发布状态事件
 - 收集健康指标（计数、最近崩溃时间、累计存活时间等）
@@ -231,7 +231,7 @@ RuntimePool(*, max_concurrent: int = 4, enable_health_monitor: bool = False)
 - `RuntimeConfig.backend_type` 选择 `AcpRuntime` / `CliRuntime`
 - `max_concurrent` 限制同时执行的委托任务数，避免进程与文件句柄耗尽
 - `prompt()` 委托给 `run_turn()`，并发控制统一在 `run_turn()` 层
-- `enable_health_monitor=True` 时自动创建 HealthMonitor，后端创建时自动注册
+- `enable_health_monitor=True` 时自动创建 HealthMonitor；只有 `backend_type == "acp"` 的后端在创建时自动注册（见 §3.7）
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测
 
 ### 3.9 RuntimeConfig（统一配置）
@@ -384,7 +384,7 @@ acp/
 | core/event_bus.py | 事件系统 | 类似生命周期钩子，业务层订阅 |
 | core/permission.py | Protocol + 默认实现 | DefaultPermissionManager（4 模式 + 白名单） |
 | core/backend_detector.py | 工具 | 后端自动检测 |
-| core/health_monitor.py | 自我保护 | 存活巡检 + 退避 + `close()` + 指标 |
+| core/health_monitor.py | 自我保护 | ACP 常驻进程后端的存活巡检 + 退避 + `close()` + 指标 |
 
 ### 业务层自定义（通过 Protocol 注入）
 
