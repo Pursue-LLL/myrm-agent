@@ -7,12 +7,14 @@
 - ChatRuntimePoolRegistry: reuse RuntimePool per conversation for CLI --resume across messages
 - ChatScopedRuntimePoolFacade: per-chat single-flight guard around pool.run_turn (cancel lock-exempt)
 - get_chat_runtime_pool_registry(): process-wide singleton accessor
+- close_runtime_pool_bounded(): close a RuntimePool within a hard time limit, never raising
 
 [POS]
 Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness RuntimePool，
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
 idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 驱逐。
 配置变更或 idle 超时再 close；服务关闭时由 close_all 统一收尾。
+所有 pool 关闭都带上限（close_runtime_pool_bounded），失联的外部 agent 不会拖死持锁的 registry。
 """
 
 from __future__ import annotations
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DEFAULT_IDLE_SECONDS = 600.0
+# Slowest legitimate close is a CLI backend waiting 5s for SIGTERM before SIGKILL; backends close concurrently.
+_POOL_CLOSE_TIMEOUT_SECONDS = 10.0
 
 BuildPoolFn: TypeAlias = Callable[[], Awaitable["RuntimePool"]]
 
@@ -41,6 +45,28 @@ class _ChatPoolEntry:
     pool: RuntimePool
     config_fingerprint: str
     last_used: float
+
+
+async def close_runtime_pool_bounded(pool: RuntimePool, *, scope: str) -> None:
+    """Close a pool without letting an unresponsive backend wedge the caller.
+
+    ``RuntimePool.close_all`` has no upper bound: an ACP agent that stays alive but never answers
+    ``session/close`` keeps it pending forever, and the registry closes pools while holding its lock,
+    so one stuck close would freeze every chat. Timeouts and failures are logged, never raised;
+    cancellation still propagates.
+    """
+    try:
+        async with asyncio.timeout(_POOL_CLOSE_TIMEOUT_SECONDS):
+            await pool.close_all()
+    except TimeoutError:
+        logger.warning("runtime_pool_close_timeout scope=%s timeout_s=%.0f", scope, _POOL_CLOSE_TIMEOUT_SECONDS)
+    except Exception:
+        logger.warning("runtime_pool_close_failed scope=%s", scope, exc_info=True)
+
+
+async def _close_entries(entries: list[tuple[str, _ChatPoolEntry]]) -> None:
+    """Close several chat pools concurrently so the worst case stays one timeout, not one per pool."""
+    await asyncio.gather(*(close_runtime_pool_bounded(entry.pool, scope=chat) for chat, entry in entries))
 
 
 class ChatRuntimePoolRegistry:
@@ -96,7 +122,7 @@ class ChatRuntimePoolRegistry:
                     return entry.pool
 
                 logger.info("runtime_pool_replace chat=%s reason=config_changed", chat_scope_id)
-                await entry.pool.close_all()
+                await close_runtime_pool_bounded(entry.pool, scope=chat_scope_id)
 
             pool = await build_pool()
             self._entries[chat_scope_id] = _ChatPoolEntry(
@@ -118,19 +144,16 @@ class ChatRuntimePoolRegistry:
             entry = self._entries.pop(chat_scope_id, None)
             self._turn_locks.pop(chat_scope_id, None)
             if entry is not None:
-                await entry.pool.close_all()
+                await close_runtime_pool_bounded(entry.pool, scope=chat_scope_id)
                 logger.info("runtime_pool_closed chat=%s", chat_scope_id)
 
     async def close_all(self) -> None:
         """Shut down every pooled RuntimePool."""
         async with self._lock:
-            for chat_scope_id, entry in list(self._entries.items()):
-                try:
-                    await entry.pool.close_all()
-                except Exception:
-                    logger.warning("runtime_pool_close_all_failed chat=%s", chat_scope_id, exc_info=True)
+            entries = list(self._entries.items())
             self._entries.clear()
             self._turn_locks.clear()
+            await _close_entries(entries)
 
     def _is_turn_active(self, chat_scope_id: str) -> bool:
         """True while a delegation turn holds the chat's turn lock."""
@@ -151,10 +174,14 @@ class ChatRuntimePoolRegistry:
             for chat_scope_id, entry in self._entries.items()
             if now - entry.last_used > self._idle_seconds and not self._is_turn_active(chat_scope_id)
         ]
+        if not stale:
+            return
+        evicted: list[tuple[str, _ChatPoolEntry]] = []
         for chat_scope_id in stale:
-            entry = self._entries.pop(chat_scope_id)
+            evicted.append((chat_scope_id, self._entries.pop(chat_scope_id)))
             self._turn_locks.pop(chat_scope_id, None)
-            await entry.pool.close_all()
+        await _close_entries(evicted)
+        for chat_scope_id, _ in evicted:
             logger.info("runtime_pool_evicted_idle chat=%s idle_s=%.0f", chat_scope_id, self._idle_seconds)
 
 

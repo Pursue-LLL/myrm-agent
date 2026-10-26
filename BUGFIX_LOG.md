@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 外部 agent 卡死时关闭 pool 不返回，拖死整个 ChatRuntimePoolRegistry
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 某个外部 ACP agent 进程存活但不再应答时，只要触发一次对它的 pool 关闭（别的 chat 的 `acquire` 顺带 idle 驱逐、删除该 chat、配置变更替换），所有 chat 的外部 agent 委托、回合收尾（`release`）和删 chat 请求都永久排队；只能重启进程恢复。ephemeral 路径（无 chat scope）的回合收尾同样卡死 |
+| **根因** | `RuntimePool.close_all` 没有上限：`AcpRuntime._do_close` 里 `close_session` 请求不设超时（`acp_runtime.py:166`）；而 registry 在持有 `_lock` 时 `await entry.pool.close_all()`（配置变更替换、`close_chat`、`close_all`、idle 驱逐 4 处），`GeneralAgent.release_pooled_session` / `close` 的 ephemeral 路径也直接 `await close_all()`。uvicorn 对 lifespan 关闭同样不设上限 |
+| **修复** | 新增 `close_runtime_pool_bounded`（`asyncio.timeout(10s)`，超时/异常只记 warning 不抛，取消照常传播）；registry 4 个关闭点与 agent 的 2 个 ephemeral 关闭点全部走它；`close_all` 与 idle 驱逐对多个 pool 并发关闭。上限依据：CLI 后端最长合法关闭约 5s（SIGTERM 后等待 5s 再 SIGKILL，`cli_runtime.py:273`），backend 间本就并发（`pool.py:230`） |
+| **回归证据** | 实测（真实 `AcpRuntime` + 真实 ACP SDK + 假 ACP agent 子进程）：agent 正常应答 / 回 Method not found / 进程崩溃时 `close()` 均 0.00s 返回，**进程存活但不应答时超过 20s 仍未返回**；registry 新旧对比（`close_all` 超时调为 0.5s）：旧实现 idle 驱逐卡死 pool 时他 chat 的 `acquire` **>3s 阻塞**、3 个卡死 pool 的 `close_all` **>3s 阻塞**，新实现分别 **0.50s / 0.50s** 返回（3 个并发关闭）。新增 `test_runtime_pool_close_bound.py` 4 用例 + `test_runtime_pool_teardown.py` 4 用例（ephemeral 两条路径对着“直接 close_all”的旧行为 2 failed，registry 路径 2 passed）；`tests/services/external_agents` + shutdown + 删 chat + external agent gate + `tests/server` 共 **72 passed**，live 集成 **11 passed**；新增测试连跑 15 次 0 失败 |
+| **仍然存在** | 超时后卡死的子进程不再被 registry 跟踪，随服务进程退出（与修复前一致，但不再冻结其他 chat）；harness 的 `AcpRuntime._do_close` 仍不给 `close_session` 设上限（上限由调用方按场景设定）；触发条件（agent 存活但不应答 `session/close`）只用假 ACP agent 实测过，真实 `claude` / `codex` ACP 适配器的发生概率没有测过 |
+
 ## 2026-10-26 · 外部 CLI 委托：长任务期间被 idle 驱逐，关闭服务时子进程无人收尾
 
 | 字段 | 内容 |

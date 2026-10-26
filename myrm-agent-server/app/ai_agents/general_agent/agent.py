@@ -497,14 +497,15 @@ class GeneralAgent(ToolSetupMixin):
             from_registry = getattr(self, "_runtime_pool_from_registry", False)
             ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
             try:
-                if from_registry and isinstance(scope_id, str) and scope_id.strip():
-                    from app.services.external_agents.runtime_pool_registry import (
-                        get_chat_runtime_pool_registry,
-                    )
+                from app.services.external_agents.runtime_pool_registry import (
+                    close_runtime_pool_bounded,
+                    get_chat_runtime_pool_registry,
+                )
 
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
                     await get_chat_runtime_pool_registry().release(scope_id.strip())
                 elif ephemeral:
-                    await self._runtime_pool.close_all()
+                    await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
             except Exception as e:
                 logger.warning("RuntimePool release failed: %s", e)
             finally:
@@ -527,14 +528,15 @@ class GeneralAgent(ToolSetupMixin):
             from_registry = getattr(self, "_runtime_pool_from_registry", False)
             ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
             try:
-                if from_registry and isinstance(scope_id, str) and scope_id.strip():
-                    from app.services.external_agents.runtime_pool_registry import (
-                        get_chat_runtime_pool_registry,
-                    )
+                from app.services.external_agents.runtime_pool_registry import (
+                    close_runtime_pool_bounded,
+                    get_chat_runtime_pool_registry,
+                )
 
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
                     await get_chat_runtime_pool_registry().release(scope_id.strip())
                 elif ephemeral:
-                    await self._runtime_pool.close_all()
+                    await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
             except Exception as e:
                 logger.warning("RuntimePool release failed: %s", e)
             finally:
