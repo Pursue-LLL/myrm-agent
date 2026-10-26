@@ -21,6 +21,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
+| `support/workspace_text_api.py` | 辅助 | 文本编辑 API 测试共用：挂载 files 路由 + 净化中间件的客户端、含各类文件的示例工作区、读/存/另存请求封装 |
 | `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |
 | `support/public_api_app.py` | 辅助 | `public_api_openapi()`：全量公开 API 的 OpenAPI 路径表，并带回生成期间捕获的 `Duplicate Operation ID` 警告；`public_api_handlers()`：每个操作背后的端点函数（`app/` 下的文件、函数名、方法、客户端路径，经 `fastapi.routing.iter_route_contexts` 读出，同名函数 `create_task` / `create_job` 靠 operationId 分不出文件）；应用与两张表在进程内只生成一次，`tests/architecture` 路由类测试共用；不 import `app.main` |
 | `support/route_consumers.py` | 辅助 | 「路由有没有调用方」的共享判定：`api_operations()`、`has_frontend_caller()` / `group_by_length()`（前端路径字面量匹配）、`operations_without_frontend_caller()`、`operations_without_caller()`（`dynamic_matches_any`：前端的动态路径段如 `/agents/chats/${id}/${kind}` 默认只填路由参数，回答「有无调用证据」；打开后它能到达同形状的任一路由，回答「能否排除有人调用」；再减去 `data/route_external_consumers.txt` 登记的外部调用方；没有前端源码时为空，宁可多扫不漏扫）、`read_route_entries()`（读两个登记文件）；`architecture/test_api_route_consumers.py` 与 `test_text_entry_risk_gate.py` 共用 |
@@ -275,7 +276,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_revert_seed_integration.py` | 模块 | Revert seed 四 variant + production persist root hydrate + channel cleanup（6 项；无 RevertService mock） |
 | `services/files/test_revert_hydrate.py` | 单元 | `revert_hydrate.py` 100% 覆盖：root 解析顺序、hydrate、cleanup |
 | `services/files/test_reveal_utils_obsidian.py` | 模块 | Obsidian launch 探测：Local/Tauri gate + macOS/Windows/Linux 安装路径 |
-| `services/files/test_text_edit_io.py` | 单元 | 文本编辑字节级 I/O：版本=内容哈希、只读判定（二进制/非 UTF-8/混合换行/超限）、换行与 BOM 还原、比对保存/冲突/无变更跳过、权限位、只读文件、写失败不损坏原文件、并发单赢家、超限文件读取不越界、Windows 重试策略、`O_EXCL` 副本 |
+| `services/files/test_text_edit_io.py` | 单元 | 文本编辑字节级 I/O 读取侧：版本=内容哈希、只读判定（二进制/非 UTF-8/混合换行/超限）、换行与 BOM 报告而非混入正文、超限文件读取不越界且不哈希、预览截断在多字节字符中间不出替换符、`text_style_of` 回退 |
+| `services/files/test_text_edit_io_write.py` | 单元 | 文本编辑字节级 I/O 写入侧：比对保存/冲突/无变更跳过、换行与 BOM 还原、权限位、只读文件、写失败不损坏原文件、并发单赢家、Windows 重试策略、`O_EXCL` 副本 |
 | `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` + async Sonner wait |
 | `e2e/test_channel_routing_general_only_chrome_e2e.py` | 模块 | Channel Settings 渠道路由 Chrome MCP E2E（READ×1 SHPOIB：Settings → Channel Routing；Agent 下拉 **0 Search**；General-only SSOT 签收） |
 | `e2e/test_channel_delete_confirmation_chrome_e2e.py` | 模块 | 渠道实例删除确认 Chrome MCP E2E（PRIVATE×1 SHPOIB：主账号 WeChat 卡片删除确认「取消保留/确认登出」走真实 `POST /wechat-logout`；wechat extra 实例 seed `POST /instances` → 确认删除走真实 `DELETE /instances` → 卡片消失 + 后端实例清理断言；删除失败容错「404 → 对话框保持打开 → 取消关闭保留 stale 卡片」；`ConfirmDialog` data-testid 探针） |
@@ -318,9 +320,13 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_browser_doctor_chrome_e2e.py` | 模块 | Browser Doctor 卡片 Chrome MCP E2E（PRIVATE+READ×1：Settings/System 渲染卡片 + 运行诊断 → 真实后端报告（引擎行 + 残留进程与缓存行 + healthy/unhealthy 徽标）） |
 | `e2e/test_org_model_policy_chrome_e2e.py` | 模块 | Org model policy Chrome MCP E2E（PRIVATE×1 SHPOIB：`exclusive_backend` · SHPOIB 后 `POST /api/admin/org-model-policy-sync` seed `minimax/*` → 打开 model picker → minimax 可选 / openai-like 灰显） |
 | `api/chats/test_effective_workspace_ssot.py` | 模块 | SSOT：GET chat / suggest / browse(chat_id) / PATCH 409 — project.workspace_path 优先于 stale chat.workspace_dir |
+| `api/chats/test_user_markup_api.py` | 模块 | 用户文字保留标记（真实 `TextSanitizerMiddleware` + 聊天路由 + 真 DB）：会话标题里的 `<think>` / `<function_calls>` / `<tool_call>` 原样存入，只去掉控制字符 |
+| `api/chats/test_rewind_api.py` | 模块 | POST `/chats/{id}/rewind`（真实路由 + 真 DB）：输入框文本逐字取回（含用户写的标签，仅去首尾空白）、助手消息被拒、对话/文件回退范围、检查点清除与失败传播、回退前快照与回滚补偿、会话忙 409、无可回退 400、失败 500 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
-| `api/files/test_workspace_text.py` | 模块 | 文本编辑 API（真实路由 + `TextSanitizerMiddleware`）：读取/只读原因、保存/冲突 409 与当前版本、冲突后覆盖=重读再存、并发单赢家、base64 正文逐字节不被净化、副本编号与换行/BOM 继承、与其他工作区写接口一致的路径守卫（越界/遍历/符号链接/敏感文件）、旧 `PUT /browse/content` 已移除 |
+| `api/files/test_workspace_text_read.py` | 模块 | 文本编辑 API 读取（真实路由 + `TextSanitizerMiddleware`）：内容/版本/只读原因、绝对路径、404 与目录拒绝，与其他工作区接口一致的路径守卫（越界/遍历/符号链接/敏感文件/危险工作区） |
+| `api/files/test_workspace_text_save.py` | 模块 | 文本编辑 API 保存：保存/冲突 409 与当前版本、冲突后覆盖=重读再存、并发单赢家、base64 正文逐字节不被净化、换行/BOM 还原、不可往返文件拒绝、路径守卫、不存在无版本校验的写路由（`PUT /browse/content` 不提供） |
+| `api/files/test_workspace_text_copy.py` | 模块 | 文本编辑 API 另存副本：副本编号、换行/BOM 继承、重名时换名重试与耗尽 409、路径守卫、非文本内容拒绝 |
 | `api/files/test_browse_api.py` | 模块 | browse 目录/树/搜索 + content 文本 1MB 截断 & 二进制全量流式；`FileEntry.is_text` 三态（文本/二进制/目录）；Content-Disposition RFC 5987 转义（CR/LF 注入防御 + 非 ASCII filename*） |
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
 | `api/agent/test_workspace_rules_e2e.py` | 模块 | Workspace rules First-Match-Wins 真实 LLM E2E（`@pytest.mark.e2e` + `asyncio`：AGENTS.md > .cursorrules；规则注入 harness workspace 真实路径；async SSE 收集 + auto-approve resume 循环；断言依赖规则遵守 → 使用更强 LITE_MODEL；默认套件 deselect） |
