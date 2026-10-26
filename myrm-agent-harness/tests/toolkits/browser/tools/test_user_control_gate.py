@@ -12,7 +12,7 @@ from langchain.tools import tool
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.toolkits.browser.session.restricted_ax_session import create_restricted_ax_browser_tools
-from myrm_agent_harness.toolkits.browser.takeover_errors import UserTakeoverTimeoutError
+from myrm_agent_harness.toolkits.browser.session.takeover import UserTakeoverTimeoutError
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
 from myrm_agent_harness.toolkits.browser.tools.cancel_boundary import CANCELLED_RESULT, apply_cancel_boundary
 from myrm_agent_harness.toolkits.browser.tools.user_control_gate import (

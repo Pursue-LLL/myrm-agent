@@ -1,9 +1,9 @@
 """BrowserSession wait for a person who drives the browser.
 
 [INPUT]
-- session_host::SessionHost (POS: typed contract of the attributes the aggregate root provides, here the process-wide control hold)
+- session.session_host::SessionHost (POS: typed contract of the attributes the aggregate root provides, here the process-wide control hold)
 - utils.runtime.user_control::DEFAULT_WAIT_TIMEOUT_S, UserControlTimeoutError, plan_is_stale (POS: wait budget, timeout error and the script pin)
-- takeover_errors::UserTakeoverTimeoutError, UserTakeoverDuringScriptError (POS: errors of the human-takeover wait)
+- errors::UserTakeoverTimeoutError, UserTakeoverDuringScriptError (POS: errors of the human-takeover wait)
 
 [OUTPUT]
 - BrowserSessionTakeoverMixin: `_ensure_not_user_takeover`, the wait every session call that acts on the page makes first
@@ -20,8 +20,8 @@ import logging
 
 from myrm_agent_harness.utils.runtime.user_control import DEFAULT_WAIT_TIMEOUT_S, UserControlTimeoutError, plan_is_stale
 
-from ..takeover_errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
-from .session_host import SessionHost
+from ..session_host import SessionHost
+from .errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
-from myrm_agent_harness.toolkits.browser.takeover_errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
+from myrm_agent_harness.toolkits.browser.session.takeover import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
 from myrm_agent_harness.utils.runtime.user_control import UserControl, planned_against
 
 

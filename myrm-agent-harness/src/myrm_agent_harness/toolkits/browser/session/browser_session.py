@@ -21,7 +21,7 @@
 - session.browser_session_page_mixin::BrowserSessionPageMixin (POS: viewport/dialog/JS and other page-level APIs)
 - session.browser_session_persistence_mixin::BrowserSessionPersistenceMixin (POS: SessionVault persistence API)
 - session.browser_session_recording_mixin::BrowserSessionRecordingMixin (POS: trace/HAR recording API)
-- session.browser_session_takeover_mixin::BrowserSessionTakeoverMixin (POS: the wait before every call that acts on the page; stops a script planned before a hand-back)
+- session.takeover::BrowserSessionTakeoverMixin (POS: the wait before every call that acts on the page; stops a script planned before a hand-back)
 - session.browser_session_navigation_mixin::BrowserSessionNavigationMixin (POS: navigation, tab switching, CAPTCHA)
 - session.browser_session_lifecycle_mixin::BrowserSessionLifecycleMixin (POS: restart/close and component init)
 - session.browser_session_view_mixin::BrowserSessionViewMixin (POS: Browser Live Co-View SSE mixin)
@@ -88,7 +88,6 @@ from .browser_session_network_mixin import BrowserSessionNetworkMixin
 from .browser_session_page_mixin import BrowserSessionPageMixin
 from .browser_session_persistence_mixin import BrowserSessionPersistenceMixin
 from .browser_session_recording_mixin import BrowserSessionRecordingMixin
-from .browser_session_takeover_mixin import BrowserSessionTakeoverMixin
 from .browser_session_view_mixin import BrowserSessionViewMixin
 from .console_logger import ConsoleLogger
 from .device_emulator import DeviceEmulator
@@ -103,6 +102,7 @@ from .session_persistence import SessionPersistence
 from .snapshot_manager import SnapshotManager, SnapshotResult
 from .structured_extractor import StructuredExtractor
 from .tab_controller import TabController
+from .takeover import BrowserSessionTakeoverMixin
 from .vision_verifier import VisionVerifier
 from .web_vitals import WebVitalsCollector
 

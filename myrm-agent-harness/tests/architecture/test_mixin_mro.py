@@ -47,12 +47,10 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_recording_mixin
 from myrm_agent_harness.toolkits.browser.session.browser_session_tab_mixin import (
     BrowserSessionTabMixin,
 )
-from myrm_agent_harness.toolkits.browser.session.browser_session_takeover_mixin import (
-    BrowserSessionTakeoverMixin,
-)
 from myrm_agent_harness.toolkits.browser.session.browser_session_view_mixin import (
     BrowserSessionViewMixin,
 )
+from myrm_agent_harness.toolkits.browser.session.takeover import BrowserSessionTakeoverMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import ChatLiteLLMAsyncMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import ChatLiteLLMMessageMixin

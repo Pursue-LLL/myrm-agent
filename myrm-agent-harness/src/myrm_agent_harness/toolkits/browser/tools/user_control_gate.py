@@ -3,7 +3,7 @@
 [INPUT]
 - utils.runtime.user_control::apply_user_control_gate, ToolRole (POS: process-wide hold on the surface + the tool fence)
 - session::BrowserSession (POS: carries the control it consults and the hand-over the model last observed)
-- takeover_errors::UserTakeoverTimeoutError (POS: the browser's error for a wait that outlasted its budget)
+- session.takeover::UserTakeoverTimeoutError (POS: the browser's error for a wait that outlasted its budget)
 
 [OUTPUT]
 - apply_browser_user_control_gate: fence the browser tools in place
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.runtime.user_control import ToolRole, apply_user_control_gate
 
-from ..takeover_errors import UserTakeoverTimeoutError
+from ..session.takeover import UserTakeoverTimeoutError
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool

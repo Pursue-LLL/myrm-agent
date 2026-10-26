@@ -6,7 +6,7 @@
 - session.browser_session::BrowserSession (POS: browser session)
 - core.security.hitl_decision::is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
 - utils.runtime.user_control::planned_against (POS: pins the script's steps to the hand-over the model last observed)
-- takeover_errors::UserTakeoverDuringScriptError (POS: a step that comes after a person used the page the script was planned against)
+- session.takeover::UserTakeoverDuringScriptError (POS: a step that comes after a person used the page the script was planned against)
 
 [OUTPUT]
 - create_execute_script_tool: Create browser_execute_script tool bound to session.
@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 
 from myrm_agent_harness.utils.runtime.user_control import planned_against
 
-from ..takeover_errors import UserTakeoverDuringScriptError
+from ..session.takeover import UserTakeoverDuringScriptError
 from .common import mark_untrusted
 
 if TYPE_CHECKING:

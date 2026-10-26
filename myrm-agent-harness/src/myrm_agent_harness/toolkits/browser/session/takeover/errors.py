@@ -15,7 +15,7 @@ tool errors to the model, so their text says what did not happen and what to do 
 
 from __future__ import annotations
 
-from .exceptions import BrowserError
+from ...exceptions import BrowserError
 
 
 class UserTakeoverTimeoutError(BrowserError):

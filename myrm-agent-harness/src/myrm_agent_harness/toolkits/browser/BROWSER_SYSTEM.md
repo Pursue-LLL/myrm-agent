@@ -1189,7 +1189,7 @@ browser/
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
-│   ├── browser_session_takeover_mixin.py — 会话级接管等待（人占用时等待，脚本跨越接管时停止）
+│   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误
 │   ├── tab_controller.py — TabController
 │   ├── snapshot_manager.py — SnapshotManager（委托 FrameRegistry）
 │   ├── interactor.py — Interactor（15 ref 操作分发 + 失败诊断；行为由以下 mixin 组合）
