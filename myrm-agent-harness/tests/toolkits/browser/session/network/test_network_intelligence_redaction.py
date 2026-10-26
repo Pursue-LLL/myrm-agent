@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence
-from myrm_agent_harness.toolkits.browser.session.network_logger import POST_PREVIEW_CHARS, URL_PREVIEW_CHARS
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network.logger import POST_PREVIEW_CHARS, URL_PREVIEW_CHARS
 
 
 class TestNetworkIntelligenceRedaction:

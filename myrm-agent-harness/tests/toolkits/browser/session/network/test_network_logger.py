@@ -3,7 +3,7 @@
 import time
 from unittest.mock import Mock
 
-from myrm_agent_harness.toolkits.browser.session.network_logger import (
+from myrm_agent_harness.toolkits.browser.session.network.logger import (
     URL_PREVIEW_CHARS,
     NetworkLogger,
     RequestInfo,

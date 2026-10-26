@@ -1205,8 +1205,7 @@ browser/
 │   ├── session_persistence.py — SessionPersistence
 │   ├── session_lifecycle_hook.py — SessionLifecycleHookProtocol
 │   ├── session_memory_bridge.py — SessionMemoryBridge
-│   ├── network_intelligence.py — CDP API 请求结局与懒加载响应体检索
-│   ├── network_logger.py — 网络请求日志
+│   ├── network/ — 网络记录器：CDP 请求记录（编号、结局、懒加载响应体）与驱动事件请求日志
 │   ├── web_vitals.py — 一次性 Core Web Vitals 采集与分级建议
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证

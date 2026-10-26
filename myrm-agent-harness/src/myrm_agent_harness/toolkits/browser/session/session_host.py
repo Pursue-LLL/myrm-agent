@@ -5,7 +5,7 @@
 - navigation::Navigator (POS: throttled page navigation)
 - session.snapshot_manager::SnapshotManager, SnapshotResult (POS: snapshot generation)
 - session.interactor::Interactor, session.extractor::Extractor (POS: element interaction, content extraction)
-- session.console_logger / network_logger / network_intelligence / dialog_manager / device_emulator / consent_dismisser / vision_verifier (POS: per-page components owned by the aggregate root)
+- session.console_logger / network (NetworkLogger, NetworkIntelligence) / dialog_manager / device_emulator / consent_dismisser / vision_verifier (POS: per-page components owned by the aggregate root)
 - pool::GlobalBrowserPool, pool.extension_bridge::ExtensionBridge (POS: browser pool, user-browser extension bridge)
 - observability::BrowserObservability, recording_manager::RecordingManager, session.download_manager::DownloadManager, session.session_persistence::SessionPersistence (POS: optional per-session services owned by the aggregate root)
 - captcha::CaptchaCoordinator (POS: CAPTCHA detection and solving coordination)
@@ -43,8 +43,7 @@ if TYPE_CHECKING:
     from .download_manager import DownloadManager
     from .extractor import Extractor
     from .interactor import Interactor
-    from .network_intelligence import NetworkIntelligence
-    from .network_logger import NetworkLogger
+    from .network import NetworkIntelligence, NetworkLogger
     from .session_persistence import SessionPersistence
     from .snapshot_manager import SnapshotManager, SnapshotResult
     from .tab_controller import TabController

@@ -17,8 +17,8 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_network_mixin i
     _DETAIL_URL_MAX,
     BrowserSessionNetworkMixin,
 )
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence
-from myrm_agent_harness.toolkits.browser.session.network_logger import (
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network.logger import (
     URL_PREVIEW_CHARS,
     NetworkLogger,
     RequestInfo,

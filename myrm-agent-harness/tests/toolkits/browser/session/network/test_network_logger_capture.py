@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 from patchright.async_api import Page
 
-from myrm_agent_harness.toolkits.browser.session.network_logger import NetworkLogger
+from myrm_agent_harness.toolkits.browser.session.network.logger import NetworkLogger
 
 
 class TestNetworkLoggerCapture:

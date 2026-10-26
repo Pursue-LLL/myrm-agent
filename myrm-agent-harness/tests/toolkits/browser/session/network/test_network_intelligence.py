@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import (
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import (
     CdpRequestRecord,
     NetworkIntelligence,
 )

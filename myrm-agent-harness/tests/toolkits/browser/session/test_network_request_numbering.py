@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.browser.session.browser_session_network_mixin import BrowserSessionNetworkMixin
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence
 
 
 def _see(ni: NetworkIntelligence, request_id: str, resource_type: str = "XHR") -> None:

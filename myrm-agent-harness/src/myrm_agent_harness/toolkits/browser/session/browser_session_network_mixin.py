@@ -2,9 +2,9 @@
 
 [INPUT]
 - session.console_logger::ConsoleLogger (POS: browser console capture)
-- session.network_logger::NetworkLogger (POS: network request log capture)
-- session.network_intelligence::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
-- session.network_logger::safe_preview (POS: credential-masked text cut to a limit)
+- session.network::NetworkLogger (POS: network request log capture)
+- session.network::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
+- session.network::safe_preview (POS: credential-masked text cut to a limit)
 - core.security.redact::redact_sensitive_text (POS: credential masking of replayed response bodies)
 - session.session_host::SessionHost (POS: typed host contract the mixin builds on)
 - pool.config::BrowserEngine (POS: which engine a session runs on decides whether the console can be captured)
@@ -38,8 +38,7 @@ from __future__ import annotations
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 from ..pool.config import BrowserEngine
-from .network_intelligence import EMPTY_RESPONSE, CdpRequestRecord
-from .network_logger import URL_PREVIEW_CHARS, safe_preview
+from .network import EMPTY_RESPONSE, URL_PREVIEW_CHARS, CdpRequestRecord, safe_preview
 from .session_host import SessionHost
 
 _API_LIST_HEADER = (

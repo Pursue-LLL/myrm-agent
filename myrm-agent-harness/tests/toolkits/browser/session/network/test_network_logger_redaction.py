@@ -3,7 +3,7 @@
 from unittest.mock import Mock, PropertyMock
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.toolkits.browser.session.network_logger import (
+from myrm_agent_harness.toolkits.browser.session.network.logger import (
     POST_PREVIEW_CHARS,
     URL_PREVIEW_CHARS,
     NetworkLogger,

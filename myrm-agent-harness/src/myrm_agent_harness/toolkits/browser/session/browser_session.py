@@ -10,8 +10,8 @@
 - session.extractor::Extractor (POS: content extraction)
 - session.structured_extractor::StructuredExtractor (POS: LLM-based structured data extraction using JSON Schema)
 - session.vision_verifier::VisionVerifier (POS: 3-layer visual action verification)
-- session.network_logger::NetworkLogger (POS: network request log capture)
-- session.network_intelligence::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
+- session.network::NetworkLogger (POS: network request log capture)
+- session.network::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
 - session_vault::SessionVault (POS: AES-256-GCM encrypted session storage)
 - snapshot::RefInfo (POS: element reference metadata)
 - utils.runtime.user_control::UserControl, get_user_control (POS: process-wide human-control hold the session consults)
@@ -95,8 +95,7 @@ from .dialog_manager import DialogManager, DialogPolicy
 from .download_manager import DownloadConfig, DownloadManager, DownloadResult
 from .extractor import Extractor
 from .interactor import Interactor
-from .network_intelligence import NetworkIntelligence
-from .network_logger import NetworkLogger
+from .network import NetworkIntelligence, NetworkLogger
 from .page_analyzer import PageAnalyzer
 from .session_persistence import SessionPersistence
 from .snapshot_manager import SnapshotManager, SnapshotResult
