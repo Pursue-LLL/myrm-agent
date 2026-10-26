@@ -1,7 +1,7 @@
 """Bounded provider flush and shutdown.
 
 [INPUT]
-- (none: standard library only)
+- otlp.config::redact_endpoint (POS: masks credentials in a failure's text before it is logged)
 
 [OUTPUT]
 - run_bounded: run a blocking provider action with a deadline
@@ -16,6 +16,8 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
+
+from myrm_agent_harness.infra.tracing.otlp.config import redact_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,6 @@ def run_bounded(action: Callable[[], object], *, thread_name: str, timeout_ms: f
         logger.warning("%s timed out after %.1fms (daemon thread detached)", label, timeout_ms)
         return False
     if errors:
-        logger.error("Error during %s: %s", label, errors[0])
+        logger.error("Error during %s: %s", label, redact_endpoint(str(errors[0])))
         return False
     return True
