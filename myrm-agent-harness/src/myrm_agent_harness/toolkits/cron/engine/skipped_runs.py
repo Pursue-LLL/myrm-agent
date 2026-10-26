@@ -1,6 +1,7 @@
 """Recording of runs that did not execute to completion: skipped and deferred.
 
 [INPUT]
+- toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
 - toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
 - toolkits.cron.types::CronJob, CronRunRecord, JobResult (POS: Cron job domain types.)
@@ -11,7 +12,9 @@
 [POS]
 Mixed into ``JobExecutor``. A skipped run advances the schedule without counting a
 failure; a deferred run re-arms the job at the instant the runner says a repeat can
-succeed. Neither touches incremental monitors or delivery.
+succeed. Neither touches incremental monitors or delivery. Both write onto the stored
+job (``adopt_latest``): a job the user paused stays paused, and a deleted one is neither
+recorded nor brought back.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import secrets
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
@@ -58,10 +62,12 @@ class SkippedRunMixin:
         Used by both pre-flight probe skips and runner-level skips
         (e.g. heartbeat no-content).  Does not touch monitors.
         """
+        if not await adopt_latest(self._store, job):
+            logger.info("Job %s was deleted during execution, skipping its skipped-run record", job.id)
+            return
         now = datetime.now(UTC)
         await self._save_skipped_run(job, now, reason)
 
-        job.status = JobStatus.ACTIVE
         if job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
             try:
                 job.next_run_at = compute_next_run(job.schedule, now)
@@ -84,13 +90,12 @@ class SkippedRunMixin:
 
         Retrying before that instant only burns attempts, and failing would auto-pause the job.
         """
-        now = datetime.now(UTC)
-        await self._save_skipped_run(job, now, result.skip_reason or result.error)
-        if await self._store.get_job(job.id) is None:
+        if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping deferral", job.id)
             return
+        now = datetime.now(UTC)
+        await self._save_skipped_run(job, now, result.skip_reason or result.error)
 
-        job.status = JobStatus.ACTIVE
         job.next_run_at = result.retry_at
         job.last_run_at = now
         job.last_status = RunStatus.SKIPPED

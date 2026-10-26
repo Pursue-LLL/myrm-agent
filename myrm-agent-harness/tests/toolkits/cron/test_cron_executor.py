@@ -68,6 +68,15 @@ def _make_executor(
     return executor, store, delivery
 
 
+def _store_holds(store: AsyncMock, job: CronJob) -> None:
+    """The store holds the job under test, as it holds a dispatched job in production.
+
+    ``_make_executor`` answers ``get_job`` with a stock job for any id; tests whose outcome depends on the job's own
+    fields (monitor config, schedule kind, failure count) must have the store hold that job instead.
+    """
+    store.get_job = AsyncMock(side_effect=lambda job_id: job if job_id == job.id else None)
+
+
 # ---------------------------------------------------------------------------
 # _output_hash
 # ---------------------------------------------------------------------------
@@ -590,6 +599,7 @@ class TestRunAndRecord:
 
         mc = MonitorConfig(enabled=True, monitor_type="hash")
         job = _make_job(monitor_config=mc)
+        _store_holds(store, job)
         result = JobResult(success=True, output='{"asset":"BTC"')
         runner = AsyncMock()
         runner.run = AsyncMock(return_value=result)
@@ -809,6 +819,7 @@ class TestRunnerSkip:
             schedule=_make_schedule(ScheduleKind.ONCE),
             delete_after_run=True,
         )
+        _store_holds(store, job)
         runner = AsyncMock()
         runner.run = AsyncMock(return_value=JobResult(success=True, skipped=True, skip_reason="no-content"))
         await executor.run_and_record(job, runner)
@@ -828,6 +839,7 @@ class TestRunnerDeferral:
     async def test_rearms_job_without_counting_a_failure(self) -> None:
         executor, store, delivery = _make_executor()
         job = _make_job(consecutive_failures=2)
+        _store_holds(store, job)
         result, retry_at = self._deferred()
         runner = AsyncMock()
         runner.run = AsyncMock(return_value=result)
@@ -876,7 +888,7 @@ class TestRunnerDeferral:
         store.delete_job.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_job_deleted_during_run_is_not_resurrected(self) -> None:
+    async def test_job_deleted_during_run_is_neither_recorded_nor_resurrected(self) -> None:
         executor, store, _ = _make_executor()
         store.get_job = AsyncMock(return_value=None)
         job = _make_job()
@@ -886,7 +898,7 @@ class TestRunnerDeferral:
 
         await executor.run_and_record(job, runner)
 
-        store.save_run.assert_awaited_once()
+        store.save_run.assert_not_awaited()
         store.save_job.assert_not_awaited()
 
 

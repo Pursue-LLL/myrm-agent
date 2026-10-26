@@ -58,6 +58,7 @@ from myrm_agent_harness.toolkits.cron.engine.integrity import (
     GENESIS_HASH,
     compute_integrity_hash,
 )
+from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
 from myrm_agent_harness.toolkits.cron.types import (
@@ -564,8 +565,7 @@ class JobExecutor(SkippedRunMixin):
         new_failures: int,
         finished: datetime,
     ) -> None:
-        existing = await self._store.get_job(job.id)
-        if existing is None:
+        if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping post-run update", job.id)
             return
 

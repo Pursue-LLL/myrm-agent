@@ -12,8 +12,9 @@ concurrency control.
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
 - cron.engine.helpers::_ensure_utc, is_within_active_hours, pre_execution_check, etc. (POS: scheduling helper utilities)
+- cron.engine.job_freshness::adopt_latest (POS: stored job as the truth after the stagger and slot waits)
 - cron.engine.recovery::StartupRecovery (POS: startup recovery for missed jobs)
-- cron.types::CronConfig, CronJob, JobType (POS: cron data models)
+- cron.types::CronConfig, CronJob, JobStatus, JobType (POS: cron data models)
 
 [OUTPUT]
 - CronScheduler: precise timer-based scheduling engine with concurrency control and watchdog
@@ -45,10 +46,12 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     resolve_stagger_ms as _resolve_stagger_ms,
 )
+from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
+    JobStatus,
     JobType,
 )
 
@@ -216,9 +219,7 @@ class CronScheduler:
             # A running scheduler with no due jobs still needs a live timer: the AppLayout
             # banner derives "stopped" from has_timer/last_tick, so an idle scheduler must
             # not look dead. The watchdog tick is a cheap no-op when nothing is due.
-            self._arm_watchdog(
-                _STARTUP_TICK_DELAY_S if self._startup_tick_pending else _WATCHDOG_INTERVAL_S
-            )
+            self._arm_watchdog(_STARTUP_TICK_DELAY_S if self._startup_tick_pending else _WATCHDOG_INTERVAL_S)
             return
 
         delay = max(0.0, (_ensure_utc(next_wake) - datetime.now(UTC)).total_seconds())
@@ -442,6 +443,10 @@ class CronScheduler:
             self._active_jobs.add(job.id)
             try:
                 async with self._global_sem, self._user_sem(job.user_id):
+                    # The waits above can last minutes; the stored job decides whether the run still happens.
+                    if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
+                        logger.info("Job %s was deleted or paused before it started, skipping", job.id)
+                        return
                     job.fire_count += 1
                     await self._executor.run_and_record(
                         job,
