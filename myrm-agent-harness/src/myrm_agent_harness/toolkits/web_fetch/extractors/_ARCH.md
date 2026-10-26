@@ -11,7 +11,7 @@ SessionVault cookie store (Bilibili AI subtitles) without requiring a browser.
 - (none — pure parsing + fast-path helpers; `weixin_extractor` uses `..html_to_markdown`)
 
 [OUTPUT]
-- extract_weixin_article / get_weixin_request_headers / is_weixin_article_url
+- extract_weixin_article / get_weixin_request_headers / is_weixin_article_url / WEIXIN_BODY_TRUNCATED_MARKER
 - extract_bilibili_subtitle / is_bilibili_url
 - extract_youtube_transcript / is_youtube_url
 - extract_x_post / is_x_url
@@ -21,7 +21,7 @@ SessionVault cookie store (Bilibili AI subtitles) without requiring a browser.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Aggregation facade — re-exports the extractors' public symbols. | ✅ |
-| weixin_extractor.py | Core | WeChat Official Account fast-path — MicroMessenger UA + `#js_content` extraction (host `/s` URLs, data-src images, publish_time metadata); Browser fallback when blocked. | ✅ |
+| weixin_extractor.py | Core | WeChat Official Account fast-path — MicroMessenger UA + `#js_content` extraction (host `/s` URLs, data-src images, publish_time metadata); follows the article's one `?nwr_flag=1` bounce but never leaves https `mp.weixin.qq.com` article URLs; Browser fallback when blocked. | ✅ |
 | bilibili_extractor.py | Core | Bilibili subtitle fast-path — public API + SessionVault cookie for AI subtitles; Browser fallback when unavailable. | ✅ |
 | youtube_extractor.py | Core | YouTube transcript fast-path — `[web]` optional `youtube-transcript-api` + oEmbed metadata (title/author); HTML fallback when missing. | ✅ |
 | x_extractor.py | Core | Twitter / X post fast-path — FxTwitter API / oEmbed structured extraction (text, metrics, media); Browser fallback on failure. | ✅ |

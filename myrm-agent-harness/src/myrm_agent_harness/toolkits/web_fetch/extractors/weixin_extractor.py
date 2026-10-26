@@ -4,6 +4,8 @@
 Fetches public WeChat articles with a MicroMessenger User-Agent and extracts
 ``#js_content`` as Markdown. Uses a host-allowlisted urllib lane so L1 can succeed
 when HttpFetcher SSRF DNS pinning maps the host to a local fake-IP proxy range.
+The article URL bounces once to ``?nwr_flag=1``; redirects are followed only when
+they stay on an ``mp.weixin.qq.com`` article URL over https.
 
 When extraction fails or the page is blocked, FetchEngine falls back to the
 standard L1/L2/L3 degradation pipeline (Browser handles verification pages).
@@ -16,6 +18,7 @@ standard L1/L2/L3 degradation pipeline (Browser handles verification pages).
 - get_weixin_request_headers: Optional L1 headers for mp.weixin.qq.com
 - extract_weixin_article: Fetch + parse article as Document, or None
 - parse_weixin_article_html: Parse HTML into Document (shared by L1 fast path and L2)
+- WEIXIN_BODY_TRUNCATED_MARKER: Suffix appended when the article body is cut at the size cap
 """
 
 from __future__ import annotations
@@ -48,13 +51,21 @@ _REFERER = "https://mp.weixin.qq.com/"
 _BLOCK_MARKERS = ("环境异常", "完成验证后即可继续访问")
 _REQUEST_TIMEOUT = 15
 _MIN_BODY_CHARS = 80
-_MAX_RESPONSE_BYTES = 750_000
+# The article page weighs ~3.5 MB with ``js_content`` near the 0.5 MB mark and the
+# ``createTime`` script (the only static publish-time source) near 1.2 MB.
+_MAX_RESPONSE_BYTES = 2_000_000
+_MAX_REDIRECTS = 3
 _MAX_BODY_CHARS = 20_000
+WEIXIN_BODY_TRUNCATED_MARKER = "…（正文超长已截断 / body truncated）"
 _MAX_IMAGES = 30
 _CREATE_TIME_RE = re.compile(r"var\s+createTime\s*=\s*['\"]([^'\"]+)['\"]")
 
 
-class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+class _SameHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follow redirects only when they stay on an https ``mp.weixin.qq.com`` article URL."""
+
+    max_redirections = _MAX_REDIRECTS
+
     def redirect_request(
         self,
         req: urllib.request.Request,
@@ -63,8 +74,10 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         msg: str,
         headers: object,
         newurl: str,
-    ) -> None:
-        raise urllib.error.HTTPError(req.full_url, code, f"redirect blocked: {newurl}", headers, fp)
+    ) -> urllib.request.Request | None:
+        if urlparse(newurl).scheme != "https" or not is_weixin_article_url(newurl):
+            raise urllib.error.HTTPError(req.full_url, code, f"redirect blocked: {newurl}", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def is_weixin_article_url(url: str) -> bool:
@@ -196,7 +209,7 @@ def _content_div_to_markdown(content_div: Tag) -> str:
     markdown = converter.handle(fragment).strip()
     markdown = re.sub(r"\n{3,}", "\n\n", markdown)
     if len(markdown) > _MAX_BODY_CHARS:
-        markdown = markdown[:_MAX_BODY_CHARS] + "\n\n…（正文超长已截断 / body truncated）"
+        markdown = f"{markdown[:_MAX_BODY_CHARS]}\n\n{WEIXIN_BODY_TRUNCATED_MARKER}"
     return markdown
 
 
@@ -257,7 +270,7 @@ def parse_weixin_article_html(html_text: str, *, url: str) -> Document | None:
 
 
 def _build_opener(proxy_pool: ProxyPool | None) -> urllib.request.OpenerDirector:
-    handlers: list[urllib.request.BaseHandler] = [_NoRedirectHandler()]
+    handlers: list[urllib.request.BaseHandler] = [_SameHostRedirectHandler()]
     if proxy_pool:
         proxy_config = proxy_pool.get_next()
         proxy_url = proxy_config.to_url()
@@ -280,7 +293,7 @@ def _fetch_html(url: str, opener: urllib.request.OpenerDirector) -> str | None:
     with opener.open(req, timeout=_REQUEST_TIMEOUT) as resp:
         raw = resp.read(_MAX_RESPONSE_BYTES + 1)
         if len(raw) > _MAX_RESPONSE_BYTES:
-            logger.warning("Weixin article response exceeded size cap for %s", url)
+            logger.debug("Weixin article response truncated at size cap for %s", url)
             raw = raw[:_MAX_RESPONSE_BYTES]
         charset = resp.headers.get_content_charset() or "utf-8"
         return raw.decode(charset, errors="replace")

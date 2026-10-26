@@ -9,13 +9,14 @@ fallback.
 - (none)
 
 [OUTPUT]
-- extract_weixin_article / is_weixin_article_url / get_weixin_request_headers
+- extract_weixin_article / is_weixin_article_url / get_weixin_request_headers / WEIXIN_BODY_TRUNCATED_MARKER
 - extract_bilibili_subtitle / is_bilibili_url
 - extract_youtube_transcript / is_youtube_url
 """
 
 from .bilibili_extractor import extract_bilibili_subtitle, is_bilibili_url
 from .weixin_extractor import (
+    WEIXIN_BODY_TRUNCATED_MARKER,
     extract_weixin_article,
     get_weixin_request_headers,
     is_weixin_article_url,
@@ -24,6 +25,7 @@ from .x_extractor import extract_x_post, is_x_url
 from .youtube_extractor import extract_youtube_transcript, is_youtube_url
 
 __all__ = [
+    "WEIXIN_BODY_TRUNCATED_MARKER",
     "extract_bilibili_subtitle",
     "extract_weixin_article",
     "extract_x_post",

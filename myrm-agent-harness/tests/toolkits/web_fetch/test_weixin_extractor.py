@@ -224,14 +224,49 @@ def test_fetch_html_decodes_response_and_caps_size() -> None:
     assert result == "hello"
 
 
-def test_build_opener_blocks_redirects() -> None:
-    import urllib.error
+def _redirect(target: str) -> object:
     import urllib.request
 
-    handler = weixin_extractor_module._NoRedirectHandler()
-    req = urllib.request.Request(_ARTICLE_URL)  # noqa: S310
+    handler = weixin_extractor_module._SameHostRedirectHandler()
+    req = urllib.request.Request(_ARTICLE_URL)
+    return handler.redirect_request(req, None, 302, "Found", {}, target)
+
+
+def test_redirect_handler_follows_same_host_article_bounce() -> None:
+    import urllib.request
+
+    followed = _redirect(f"{_ARTICLE_URL}?nwr_flag=1#wechat_redirect")
+    assert isinstance(followed, urllib.request.Request)
+    assert followed.full_url.startswith("https://mp.weixin.qq.com/s/")
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "https://evil.example/",
+        "http://mp.weixin.qq.com/s/abc",
+        "https://mp.weixin.qq.com/cgi-bin/login",
+        "https://mp.weixin.qq.com.evil.example/s/abc",
+    ],
+)
+def test_redirect_handler_blocks_anything_but_https_article_urls(target: str) -> None:
+    import urllib.error
+
     with pytest.raises(urllib.error.HTTPError):
-        handler.redirect_request(req, None, 302, "Found", {}, "https://evil.example/")
+        _redirect(target)
+
+
+def test_build_opener_uses_bounded_same_host_redirects() -> None:
+    handler = weixin_extractor_module._SameHostRedirectHandler()
+    assert handler.max_redirections == weixin_extractor_module._MAX_REDIRECTS
+
+
+def test_truncated_body_carries_public_marker() -> None:
+    body = "字" * (weixin_extractor_module._MAX_BODY_CHARS + 50)
+    html = f'<html><body><div id="js_content"><p>{body}</p></div></body></html>'
+    doc = parse_weixin_article_html(html, url=_ARTICLE_URL)
+    assert doc is not None
+    assert doc.page_content.endswith(weixin_extractor_module.WEIXIN_BODY_TRUNCATED_MARKER)
 
 
 def _html_with_images(n: int) -> str:
