@@ -66,7 +66,6 @@ _READONLY_HINT = (
     "\n\n[READONLY MODE] You are in read-only mode. You can only read and analyze — "
     "do NOT attempt file writes, terminal commands, or git commits."
 )
-_MEMORY_WRITE_TOOLS = frozenset({"memory_save_tool", "memory_manage_tool"})
 
 _PARENT_CONTEXT_KEYS = (
     "workspace_path",
@@ -126,13 +125,10 @@ def apply_readonly_to_config(config: SubagentConfig, readonly: bool) -> Subagent
 
 
 def enforce_spawn_policy_on_config(config: SubagentConfig) -> SubagentConfig:
-    """LEAF scope depth cap and READ_ONLY_GLOBAL memory write blocks."""
-    updated = config
-    if updated.control_scope == ControlScope.LEAF:
-        updated = replace(updated, max_spawn_depth=0)
-    if updated.memory_isolation == MemoryIsolationPolicy.READ_ONLY_GLOBAL:
-        updated = replace(updated, disallowed_tools=updated.disallowed_tools | _MEMORY_WRITE_TOOLS)
-    return updated
+    """LEAF scope depth cap."""
+    if config.control_scope == ControlScope.LEAF:
+        return replace(config, max_spawn_depth=0)
+    return config
 
 
 def build_spawn_child_context(

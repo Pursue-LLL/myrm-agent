@@ -169,7 +169,7 @@ def test_spawn_result_for_store_after_merge() -> None:
     assert "_isolated_child_workspace" not in payload["result"]
 
 
-def test_enforce_spawn_policy_leaf_and_memory_blocks() -> None:
+def test_enforce_spawn_policy_caps_leaf_spawn_depth_and_leaves_the_rest_alone() -> None:
     config = SubagentConfig(
         system_prompt="leaf",
         control_scope=ControlScope.LEAF,
@@ -178,7 +178,12 @@ def test_enforce_spawn_policy_leaf_and_memory_blocks() -> None:
     )
     updated = enforce_spawn_policy_on_config(config)
     assert updated.max_spawn_depth == 0
-    assert "memory_save_tool" in updated.disallowed_tools
+    assert updated.disallowed_tools == config.disallowed_tools
+
+
+def test_enforce_spawn_policy_keeps_an_orchestrators_spawn_depth() -> None:
+    config = SubagentConfig(system_prompt="orchestrate", control_scope=ControlScope.ORCHESTRATOR, max_spawn_depth=2)
+    assert enforce_spawn_policy_on_config(config) is config
 
 
 def test_parallel_write_isolation_via_spawn_prep() -> None:

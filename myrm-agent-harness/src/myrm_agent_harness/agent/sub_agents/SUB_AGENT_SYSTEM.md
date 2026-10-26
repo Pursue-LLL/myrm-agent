@@ -94,6 +94,8 @@ Layer 0: create_delegate_task_tool(allowed_types=...)
 
 Layer 1: DELEGATION_CAPABILITY_MANIFEST.leaf_blocked_tools
          → delegate_task_tool + subagent_control_tool + skill_manage/discovery_tool
+           + 持久副作用工具 cron_manage_tool / memory_save_tool / memory_manage_tool
+             （子 agent 继承到的记忆工具绑定在父 agent 的 MemoryManager 上，任何隔离策略都无法改绑，所以一律剥离，显式白名单也不能放回）
            + HitlToolPolicy.subagent_blocked (from agent/sub_agents/hitl_tool_policy.py; HITL must stay on parent/web thread);
            同一份 manifest 同时驱动 leaf 剥离和 orchestrator child-scoped 工具注入
 
@@ -121,8 +123,9 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 |:--|:--|:--|:--|
 | **ControlScope** | `LEAF` | 叶子节点 | 默认，禁止再次委托，强制 max_spawn_depth=0 |
 |  | `ORCHESTRATOR` | 受控协调者 | 仅可信配置可用；必须显式通过 `role="orchestrator"` 请求，运行时注入 child-scoped `delegate_task_tool` + `subagent_control_tool` + `send_teammate_message_tool` |
-| **MemoryIsolationPolicy** | `EPHEMERAL_SESSION` | 临时会话 | 默认，独立记忆空间 |
-|  | `READ_ONLY_GLOBAL` | 只读全局 | 阻止 memory write tools（memory_save/memory_manage_tool） |
+| **MemoryIsolationPolicy** | `EPHEMERAL_SESSION` | 临时会话 | 默认；隔离管理器读穿透到父记忆，子 agent 没有记忆写工具（L1 剥离） |
+|  | `COLLABORATIVE_SESSION` | 协作会话 | 并行子 agent 共享同一个隔离管理器；同样没有记忆写工具 |
+|  | `READ_ONLY_GLOBAL` | 只读全局 | 读视图拒绝一切写入；同样没有记忆写工具 |
 | **WorkspacePolicy** | `INHERIT` | 继承 | 默认，共享父工作空间 |
 |  | `ISOLATED_COPY` | 隔离副本 | `shutil.copytree` COW 克隆工作空间 + `_sync_tree` 完美镜像同步；单 delegate 成功后在 `executor_retry_mixin` 经 `apply_isolated_sync_back_with_snapshots` 逐文件登记 SnapshotStore（Revert 可用）；merge 失败时 `record_workspace_merge_failure` + result 标记 `workspace_merge_status=error`，turn 结束 `WORKSPACE_MERGE_FAILED` SSE + `completion_status=warning` + 前端 `WorkspaceMergeWarning` 可折叠面板 |
 

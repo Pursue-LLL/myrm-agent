@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain_core.tools import BaseTool, StructuredTool
 
+from myrm_agent_harness.agent.sub_agents.builder import filter_tools
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     DelegateRole,
@@ -17,6 +18,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
 from myrm_agent_harness.agent.sub_agents.verifier_selection import VerifierUnavailableError, resolve_verifier
 
 _BASH = "bash_code_execute_tool"
+_MEMORY_TOOLS = ("memory_search_tool", "memory_save_tool", "memory_manage_tool")
 
 
 def _noop() -> str:
@@ -72,13 +74,15 @@ async def test_unresolved_verifier_falls_back_to_the_worker(catalog: AsyncMock |
     assert config.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX
 
 
+@pytest.mark.parametrize("policy", list(MemoryIsolationPolicy))
 @pytest.mark.asyncio
-async def test_fallback_verifier_keeps_the_workers_memory_write_block() -> None:
-    worker = SubagentConfig(system_prompt="work", memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL)
+async def test_fallback_verifier_never_receives_memory_write_tools(policy: MemoryIsolationPolicy) -> None:
+    worker = SubagentConfig(system_prompt="work", memory_isolation=policy)
+    parent_tools = _tools(_BASH, *_MEMORY_TOOLS)
 
-    _, config = await resolve_verifier(None, None, "coding", worker, _tools(_BASH))
+    _, config = await resolve_verifier(None, None, "coding", worker, parent_tools)
 
-    assert {"memory_save_tool", "memory_manage_tool"} <= config.disallowed_tools
+    assert {tool.name for tool in filter_tools(config, parent_tools)} == {_BASH, "memory_search_tool"}
 
 
 @pytest.mark.parametrize("from_catalog", [True, False], ids=["catalog-resolved", "worker-fallback"])
@@ -105,14 +109,15 @@ async def test_verifier_never_orchestrates_or_delegates(from_catalog: bool) -> N
 
 
 @pytest.mark.asyncio
-async def test_catalog_resolved_verifier_keeps_its_memory_write_block() -> None:
+async def test_catalog_resolved_verifier_never_receives_memory_write_tools() -> None:
     reviewer = SubagentConfig(system_prompt="review", memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL)
+    parent_tools = _tools(_BASH, *_MEMORY_TOOLS)
 
     _, config = await resolve_verifier(
-        _catalog(reviewer=reviewer), "reviewer", "coding", SubagentConfig(system_prompt="work"), _tools(_BASH)
+        _catalog(reviewer=reviewer), "reviewer", "coding", SubagentConfig(system_prompt="work"), parent_tools
     )
 
-    assert {"memory_save_tool", "memory_manage_tool"} <= config.disallowed_tools
+    assert {tool.name for tool in filter_tools(config, parent_tools)} == {_BASH, "memory_search_tool"}
 
 
 @pytest.mark.parametrize(
