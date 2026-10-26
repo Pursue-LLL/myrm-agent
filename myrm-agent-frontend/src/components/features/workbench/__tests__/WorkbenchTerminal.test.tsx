@@ -5,7 +5,8 @@ import { WorkbenchTerminal } from '../tabs/WorkbenchTerminal';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import * as workbenchService from '@/services/workbench';
 
-const stableT = (key: string) => key;
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values && 'message' in values ? `${key}:${String(values.message)}` : key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -27,11 +28,12 @@ describe('WorkbenchTerminal component', () => {
       stderr: '',
       exit_code: 0,
       duration_ms: 12,
+      truncated: false,
     });
   });
 
   it('renders empty terminal hint when logs are empty', () => {
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     expect(screen.getByText('emptyTerminalHint')).toBeDefined();
     expect(screen.getByPlaceholderText('inputPlaceholder')).toBeDefined();
@@ -57,7 +59,7 @@ describe('WorkbenchTerminal component', () => {
       ],
     });
 
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     expect(screen.getByText('ls -la')).toBeDefined();
     expect(screen.getByText(/total 0/)).toBeDefined();
@@ -68,7 +70,7 @@ describe('WorkbenchTerminal component', () => {
   });
 
   it('executes command when clicking run button', async () => {
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     const input = screen.getByPlaceholderText('inputPlaceholder');
     fireEvent.change(input, { target: { value: 'echo hello' } });
@@ -77,21 +79,21 @@ describe('WorkbenchTerminal component', () => {
     fireEvent.click(runBtn);
 
     await waitFor(() => {
-      expect(workbenchService.executeTerminalCommand).toHaveBeenCalledWith('echo hello');
+      expect(workbenchService.executeTerminalCommand).toHaveBeenCalledWith('chat-1', 'echo hello');
       expect(screen.getByText('echo hello')).toBeDefined();
       expect(screen.getAllByText(/hello/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
   it('executes command on Enter key press', async () => {
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     const input = screen.getByPlaceholderText('inputPlaceholder');
     fireEvent.change(input, { target: { value: 'echo enter' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
     await waitFor(() => {
-      expect(workbenchService.executeTerminalCommand).toHaveBeenCalledWith('echo enter');
+      expect(workbenchService.executeTerminalCommand).toHaveBeenCalledWith('chat-1', 'echo enter');
     });
   });
 
@@ -100,15 +102,57 @@ describe('WorkbenchTerminal component', () => {
       new Error('Command failed: 127'),
     );
 
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     const input = screen.getByPlaceholderText('inputPlaceholder');
     fireEvent.change(input, { target: { value: 'bad_cmd' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
     await waitFor(() => {
-      expect(screen.getByText('Error: Command failed: 127')).toBeDefined();
+      expect(screen.getByText('runFailed:Command failed: 127')).toBeDefined();
       expect(screen.getByText('exit 1')).toBeDefined();
+    });
+  });
+
+  it('says so when the output was cut', async () => {
+    vi.mocked(workbenchService.executeTerminalCommand).mockResolvedValueOnce({
+      command: 'yes',
+      stdout: 'y\n',
+      stderr: '',
+      exit_code: 0,
+      duration_ms: 12,
+      truncated: true,
+    });
+
+    render(<WorkbenchTerminal chatId="chat-1" />);
+
+    const input = screen.getByPlaceholderText('inputPlaceholder');
+    fireEvent.change(input, { target: { value: 'yes' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByText(/outputTruncated/)).toBeDefined();
+    });
+  });
+
+  it('shows a placeholder when a command prints nothing', async () => {
+    vi.mocked(workbenchService.executeTerminalCommand).mockResolvedValueOnce({
+      command: 'true',
+      stdout: '',
+      stderr: '',
+      exit_code: 0,
+      duration_ms: 3,
+      truncated: false,
+    });
+
+    render(<WorkbenchTerminal chatId="chat-1" />);
+
+    const input = screen.getByPlaceholderText('inputPlaceholder');
+    fireEvent.change(input, { target: { value: 'true' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByText('noOutput')).toBeDefined();
     });
   });
 
@@ -125,7 +169,7 @@ describe('WorkbenchTerminal component', () => {
       ],
     });
 
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     const clearBtn = screen.getByRole('button', { name: /clearAction/i });
     fireEvent.click(clearBtn);
@@ -148,7 +192,7 @@ describe('WorkbenchTerminal component', () => {
       ],
     });
 
-    render(<WorkbenchTerminal />);
+    render(<WorkbenchTerminal chatId="chat-1" />);
 
     const shareBtn = screen.getByTitle('injectToChat');
     fireEvent.click(shareBtn);

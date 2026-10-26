@@ -7,6 +7,8 @@ status transitions, progress calculation, and roadmap summary through the HTTP l
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -19,8 +21,8 @@ from app.database.connection import get_session
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.kanban import KanbanBoardModel, KanbanTaskModel
-from app.platform_utils.workspace_root import get_workspace_root
 from app.services.kanban.service import KanbanService
+from tests.support.chat_workspace import chats_bound_to_workspaces
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="projects")
@@ -39,6 +41,13 @@ async def async_client() -> httpx.AsyncClient:
         yield client
 
 
+@pytest.fixture
+def chat_workspace(tmp_path: Path) -> Iterator[Path]:
+    """The workspace every chat in the test ran in."""
+    with chats_bound_to_workspaces(default=tmp_path):
+        yield tmp_path
+
+
 async def _create_project(client: httpx.AsyncClient, name: str = "Test Project") -> dict:
     resp = await client.post(f"{PREFIX}/", json={"name": name, "description": "A test project"})
     assert resp.status_code == 200, f"Got {resp.status_code}: {resp.text}"
@@ -46,11 +55,11 @@ async def _create_project(client: httpx.AsyncClient, name: str = "Test Project")
     return data["data"]["project"]
 
 
-async def _seed_artifact_with_markdown(markdown: str, *, chat_id: str | None = None) -> str:
+async def _seed_artifact_with_markdown(markdown: str, *, workspace: Path, chat_id: str | None = None) -> str:
     artifact_id = str(uuid4())
     version_id = str(uuid4())
     object_id = uuid4().hex
-    vault = ArtifactVault(get_workspace_root())
+    vault = ArtifactVault(workspace)
     object_path = vault.get_object_path(object_id)
     object_path.parent.mkdir(parents=True, exist_ok=True)
     object_path.write_text(markdown, encoding="utf-8")
@@ -393,6 +402,7 @@ class TestMilestoneCRUD:
     async def test_import_assessment_artifact_creates_milestones_and_tasks(
         self,
         async_client: httpx.AsyncClient,
+        chat_workspace: Path,
     ) -> None:
         project = await _create_project(async_client, "Import Assessment Test")
         artifact_id = await _seed_artifact_with_markdown(
@@ -406,6 +416,7 @@ Phase one execution scope.
 Phase two execution scope.
 - [ ] Add frontend integration
 """,
+            workspace=chat_workspace,
             chat_id="chat-import-seed",
         )
 
@@ -450,6 +461,7 @@ Phase two execution scope.
     async def test_import_assessment_artifact_duplicate_version_rejected(
         self,
         async_client: httpx.AsyncClient,
+        chat_workspace: Path,
     ) -> None:
         project = await _create_project(async_client, "Duplicate Import Guard")
         artifact_id = await _seed_artifact_with_markdown(
@@ -457,6 +469,7 @@ Phase two execution scope.
 ## Milestone Dup
 - [ ] Keep import idempotent
 """,
+            workspace=chat_workspace,
             chat_id="chat-import-dup",
         )
         first_resp = await async_client.post(
@@ -487,6 +500,7 @@ Phase two execution scope.
     async def test_import_assessment_artifact_rejects_non_actionable_checklists(
         self,
         async_client: httpx.AsyncClient,
+        chat_workspace: Path,
     ) -> None:
         project = await _create_project(async_client, "Non Actionable Import Guard")
         artifact_id = await _seed_artifact_with_markdown(
@@ -495,6 +509,7 @@ Phase two execution scope.
 - [ ] Notes: captured meeting context
 - [ ] Background: discuss constraints
 """,
+            workspace=chat_workspace,
             chat_id="chat-import-non-actionable",
         )
         resp = await async_client.post(
@@ -509,6 +524,7 @@ Phase two execution scope.
     async def test_import_assessment_artifact_rejects_empty_checklist_content(
         self,
         async_client: httpx.AsyncClient,
+        chat_workspace: Path,
     ) -> None:
         project = await _create_project(async_client, "No Task Checklist Guard")
         artifact_id = await _seed_artifact_with_markdown(
@@ -516,6 +532,7 @@ Phase two execution scope.
 ## Milestone Context
 Only narrative text here.
 """,
+            workspace=chat_workspace,
             chat_id="chat-import-no-tasks",
         )
         resp = await async_client.post(
@@ -530,6 +547,7 @@ Only narrative text here.
     async def test_import_assessment_artifact_rolls_back_on_task_failure(
         self,
         async_client: httpx.AsyncClient,
+        chat_workspace: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         project = await _create_project(async_client, "Rollback Fault Injection")
@@ -539,6 +557,7 @@ Only narrative text here.
 - [ ] First actionable task
 - [ ] Second actionable task
 """,
+            workspace=chat_workspace,
             chat_id="chat-import-rollback",
         )
         kanban_service = KanbanService.get_instance()

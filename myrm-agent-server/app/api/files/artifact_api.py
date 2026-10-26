@@ -3,8 +3,9 @@
 [INPUT]
 - app.database.connection::get_session (POS: Database session)
 - app.database.models.artifact::Artifact (POS: Artifact models)
-- myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object reader for candidate probing)
+- myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object reader for candidate probing, verify and bundles)
 - app.services.project.assessment_import_service::parse_assessment_markdown (POS: Assessment import parser SSOT)
+- app.services.chat.effective_workspace::resolve_chat_workspace_root (POS: Workspace root a chat's runs wrote to)
 
 [OUTPUT]
 - router: APIRouter — Artifacts API router
@@ -13,11 +14,14 @@
 Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` and `project_id` filters for bounded, project-scoped candidate queries, optional `assessment_import_candidate` semantic probe metadata (content parse-ability + ledger eligibility), and exposes publication state via `publications[]`.
 """
 
+import asyncio
+import hashlib
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX, ArtifactVault
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +32,7 @@ from app.database.models.artifact import Artifact, ArtifactAuditLog, ArtifactVer
 from app.database.models.artifact_publication import ArtifactPublication
 from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.chat import Chat
-from app.platform_utils.workspace_root import get_workspace_root
+from app.services.chat.effective_workspace import resolve_chat_workspace_root
 from app.services.hosting.publication_store import (
     list_publications,
     list_publications_for_artifacts,
@@ -192,7 +196,10 @@ async def list_artifacts(
     target_names = {target.id: target.name for target in await list_hosting_targets(db)}
     assessment_import_candidate_map: dict[str, dict[str, str | None]] = {}
     if assessment_import_candidate:
-        candidate_vault = ArtifactVault(str(get_workspace_root()))
+        candidate_vaults = {
+            chat_id: ArtifactVault(str(await resolve_chat_workspace_root(chat_id)))
+            for chat_id in {artifact.chat_id for artifact in artifacts}
+        }
         already_imported_version_ids: set[str] = set()
         if project_id is not None:
             version_ids = [v.id for a in artifacts for v in (a.versions or []) if v.id]
@@ -206,7 +213,7 @@ async def list_artifacts(
         assessment_import_candidate_map = {
             artifact.id: _probe_assessment_import_candidate(
                 artifact,
-                vault=candidate_vault,
+                vault=candidate_vaults[artifact.chat_id],
                 already_imported_version_ids=already_imported_version_ids,
             )
             for artifact in artifacts
@@ -293,6 +300,14 @@ async def get_artifact_versions(
     }
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 @router.post("/{artifact_id}/verify/{version_id}")
 async def verify_artifact_hash(
     artifact_id: str,
@@ -300,13 +315,6 @@ async def verify_artifact_hash(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Verify the cryptographic hash of an artifact version against the physical file."""
-    import hashlib
-    import sys
-
-    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-
-    from app.api.dependencies import get_workspace_root
-
     stmt = (
         select(ArtifactVersion)
         .options(selectinload(ArtifactVersion.artifact))
@@ -318,77 +326,31 @@ async def verify_artifact_hash(
     if not version:
         raise HTTPException(status_code=404, detail="Artifact version not found")
 
-    vault = ArtifactVault(str(get_workspace_root()))
+    chat_id = version.artifact.chat_id if version.artifact else None
+    vault = ArtifactVault(str(await resolve_chat_workspace_root(chat_id)))
+    obj_path = vault.get_object_path(version.vault_uri.removeprefix(VAULT_PREFIX))
+    if not obj_path.exists():
+        raise HTTPException(status_code=404, detail="Vault object content not found on disk")
+
     try:
-        obj_path = vault.get_object_path(version.vault_uri)
-        if not obj_path.exists():
-            import os
-
-            workspace_root = str(get_workspace_root())
-            possible_path = os.path.join(workspace_root, version.vault_uri.replace("vault://", ""))
-
-            if not os.path.exists(possible_path) and version.artifact_id:
-                stmt_a = select(Artifact).where(Artifact.id == version.artifact_id)
-                res_a = await db.execute(stmt_a)
-                art = res_a.scalars().first()
-
-                if art and art.chat_id:
-                    possible_path_alt = os.path.join(workspace_root, f"sandboxes/{art.chat_id}/{art.name}")
-                    if os.path.exists(possible_path_alt):
-                        possible_path = possible_path_alt
-
-            if not os.path.exists(possible_path):
-                from pathlib import Path
-
-                for path in Path(workspace_root).rglob(art.name if "art" in locals() and art else "hello_artifact.md"):
-                    possible_path = str(path)
-                    break
-
-            if os.path.exists(possible_path):
-                obj_path = Path(possible_path)
-            else:
-                logger.warning(
-                    f"Could not find artifact on disk for verify. Expected URI: {version.vault_uri}, checked: {possible_path}"
-                )
-                if "pytest" in sys.modules:
-                    return {
-                        "version_id": version.id,
-                        "expected_hash": version.sha256_hash,
-                        "actual_hash": version.sha256_hash,
-                        "is_valid": True,
-                        "status": "TAMPER_FREE",
-                    }
-                raise HTTPException(status_code=404, detail="Vault object content not found on disk")
-
-        sha256_hash_obj = hashlib.sha256()
-        with open(obj_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
-                sha256_hash_obj.update(chunk)
-
-        actual_hash = sha256_hash_obj.hexdigest()
-
-        is_valid = actual_hash == version.sha256_hash
-
-        audit_log = ArtifactAuditLog(
-            artifact_id=artifact_id,
-            action="VERIFY_HASH",
-            ip_address="system",
-        )
-        db.add(audit_log)
-        await db.commit()
-
-        return {
-            "version_id": version.id,
-            "expected_hash": version.sha256_hash,
-            "actual_hash": actual_hash,
-            "is_valid": is_valid,
-            "status": "TAMPER_FREE" if is_valid else "CORRUPTED",
-        }
+        actual_hash = await asyncio.to_thread(_sha256_file, obj_path)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail="Physical file missing from vault") from e
     except Exception as e:
         logger.error(f"Hash verification failed: {e}")
         raise HTTPException(status_code=500, detail="Hash verification failed") from e
+
+    is_valid = actual_hash == version.sha256_hash
+    db.add(ArtifactAuditLog(artifact_id=artifact_id, action="VERIFY_HASH", ip_address="system"))
+    await db.commit()
+
+    return {
+        "version_id": version.id,
+        "expected_hash": version.sha256_hash,
+        "actual_hash": actual_hash,
+        "is_valid": is_valid,
+        "status": "TAMPER_FREE" if is_valid else "CORRUPTED",
+    }
 
 
 class BundleDownloadRequest(BaseModel):
@@ -405,9 +367,7 @@ async def download_artifact_bundle(
     """Download multiple artifacts as an organized, multi-directory ZIP archive."""
     from fastapi.responses import StreamingResponse
     from myrm_agent_harness.agent.artifacts.bundle_manifest import DeliverableManifest
-    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    from app.api.dependencies import get_workspace_root
     from app.services.artifacts.bundle_builder import build_zip_deliverable_bundle
 
     if not request.artifact_ids:
@@ -427,7 +387,7 @@ async def download_artifact_bundle(
     if not artifacts:
         raise HTTPException(status_code=404, detail="No artifacts found")
 
-    ws_root = get_workspace_root()
+    ws_root = await resolve_chat_workspace_root(request.chat_id)
     vault = ArtifactVault(str(ws_root))
     manifest = DeliverableManifest.model_validate(request.manifest) if request.manifest else None
 

@@ -3,7 +3,8 @@
 [INPUT]
 fastapi::APIRouter, Depends, HTTPException, Query (POS: FastAPI 路由与依赖注入)
 pydantic::BaseModel, Field (POS: 数据验证与序列化)
-app.api.dependencies::get_optional_llm_for_user, get_workspace_root (POS: 依赖注入函数)
+app.api.dependencies::get_optional_llm_for_user (POS: 依赖注入函数)
+app.services.chat.effective_workspace::resolve_chat_workspace_root (POS: Artifact 所属会话的工作区根目录，ingest 端点延迟导入)
 app.services.wiki::MemoryToWikiArchiver (POS: Memory→Wiki 自动归档服务)
 app.services.wiki.health_report_service::WikiHealthReportResponse (POS: 仅服务端的健康报告编排，结构化 GET 零 LLM，响应模型在此唯一定义)
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
@@ -2084,13 +2085,12 @@ async def ingest_artifact(
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
-    from app.api.dependencies import get_workspace_root
     from app.database.connection import get_session
     from app.database.models.artifact import Artifact
+    from app.services.chat.effective_workspace import resolve_chat_workspace_root
     from app.services.wiki.agent_scope import resolve_chat_agent_id
     from app.services.wiki.vault import get_wiki_archiver
 
-    workspace_root = get_workspace_root()
     try:
         async with get_session() as db:
             stmt = (
@@ -2110,7 +2110,7 @@ async def ingest_artifact(
         archiver = get_wiki_archiver(llm, manager, agent_id=effective_agent_id)
 
         latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-        vault = ArtifactVault(workspace_root)
+        vault = ArtifactVault(await resolve_chat_workspace_root(artifact.chat_id))
         vault_uri = latest_version.vault_uri
         obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
         obj_path = vault.get_object_path(obj_id)

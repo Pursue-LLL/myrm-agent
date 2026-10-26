@@ -244,8 +244,8 @@
     "Agent.settingsPreview.teamType",
     "devPorts.portLabel",
     "devPorts.portStatus",
-    "workbench.tabPlugins",
     "workbench.tabTerminal",
+    "workbench.terminal.headerTitle",
     "templateMarketplace.card.team",
     "memoryInsight.namespaceAgent",
     "voice.voiceModeAudioOnly"

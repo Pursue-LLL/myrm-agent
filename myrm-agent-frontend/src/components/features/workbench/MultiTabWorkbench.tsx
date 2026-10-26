@@ -3,35 +3,33 @@
 /**
  * [INPUT]
  * - useWorkbenchStore from @/store/useWorkbenchStore
- * - WorkbenchFileExplorer, WorkbenchDiffViewer, WorkbenchTerminal, WorkbenchPluginCenter from ./tabs
+ * - useChatStore from @/store/useChatStore (POS: the chat whose workspace the tabs work in)
+ * - WorkbenchFileExplorer, WorkbenchTerminal from ./tabs
  * - useTranslations from next-intl (namespace: 'workbench')
  *
  * [OUTPUT]
  * - MultiTabWorkbench: Resizable right & bottom multi-tab auxiliary drawer shell
  *
  * [POS]
- * Auxiliary Workbench multi-tab container orchestrator (Item 25).
- * Single file < 320 lines. Zero `any` types. Zero native emoji.
+ * Auxiliary Workbench container orchestrator: files and terminal of the current chat's workspace.
+ * Selection and terminal history reset whenever the chat changes.
  */
 
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FolderTree,
-  FileDiff,
   Terminal,
-  Boxes,
   X,
   PanelRight,
   PanelBottom,
   GripVertical,
   GripHorizontal,
 } from 'lucide-react';
+import useChatStore from '@/store/useChatStore';
 import { useWorkbenchStore, type WorkbenchTabId } from '@/store/useWorkbenchStore';
 import { WorkbenchFileExplorer } from './tabs/WorkbenchFileExplorer';
-import { WorkbenchDiffViewer } from './tabs/WorkbenchDiffViewer';
 import { WorkbenchTerminal } from './tabs/WorkbenchTerminal';
-import { WorkbenchPluginCenter } from './tabs/WorkbenchPluginCenter';
 
 export function MultiTabWorkbench() {
   const t = useTranslations('workbench');
@@ -40,16 +38,23 @@ export function MultiTabWorkbench() {
   const width = useWorkbenchStore((s) => s.width);
   const height = useWorkbenchStore((s) => s.height);
   const activeTab = useWorkbenchStore((s) => s.activeTab);
+  const chatId = useChatStore((s) => s.chatId);
 
   const setOpen = useWorkbenchStore((s) => s.setOpen);
   const setPlacement = useWorkbenchStore((s) => s.setPlacement);
   const setWidth = useWorkbenchStore((s) => s.setWidth);
   const setHeight = useWorkbenchStore((s) => s.setHeight);
   const setActiveTab = useWorkbenchStore((s) => s.setActiveTab);
+  const resetWorkspaceSession = useWorkbenchStore((s) => s.resetWorkspaceSession);
 
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startPosRef = useRef<number>(0);
   const startDimRef = useRef<number>(0);
+
+  // File selection and terminal history describe one chat's workspace
+  useEffect(() => {
+    resetWorkspaceSession();
+  }, [chatId, resetWorkspaceSession]);
 
   // Keyboard shortcut: Escape to close workbench
   useEffect(() => {
@@ -103,9 +108,7 @@ export function MultiTabWorkbench() {
 
   const tabs: Array<{ id: WorkbenchTabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'files', label: t('tabFiles'), icon: FolderTree },
-    { id: 'diff', label: t('tabDiff'), icon: FileDiff },
     { id: 'terminal', label: t('tabTerminal'), icon: Terminal },
-    { id: 'plugins', label: t('tabPlugins'), icon: Boxes },
   ];
 
   return (
@@ -203,10 +206,14 @@ export function MultiTabWorkbench() {
 
       {/* Main Tab Panel Content */}
       <div className="flex-1 overflow-hidden relative">
-        {activeTab === 'files' && <WorkbenchFileExplorer />}
-        {activeTab === 'diff' && <WorkbenchDiffViewer />}
-        {activeTab === 'terminal' && <WorkbenchTerminal />}
-        {activeTab === 'plugins' && <WorkbenchPluginCenter />}
+        {!chatId && (
+          <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center text-xs text-muted-foreground">
+            <FolderTree className="w-8 h-8 opacity-40" />
+            <span>{t('noChat')}</span>
+          </div>
+        )}
+        {chatId && activeTab === 'files' && <WorkbenchFileExplorer key={chatId} chatId={chatId} />}
+        {chatId && activeTab === 'terminal' && <WorkbenchTerminal key={chatId} chatId={chatId} />}
       </div>
     </aside>
   );

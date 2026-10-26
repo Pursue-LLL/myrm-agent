@@ -3,6 +3,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
@@ -10,62 +11,67 @@ from app.database.models.artifact_publication import ArtifactPublication
 from app.database.models.chat import Chat
 from app.database.models.project import Project
 from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID
+from tests.support.chat_workspace import chats_bound_to_workspaces
+
+
+async def _seed_vaulted_artifact(db_session: AsyncSession, workspace, content: bytes) -> tuple[str, str]:
+    """An artifact of chat ``chat-verify`` whose version points at a real vault object in ``workspace``."""
+    vault_uri = ArtifactVault(str(workspace)).put(content, "doc.txt")
+    db_session.add(Artifact(id="art-1", name="Test Doc", chat_id="chat-verify"))
+    await db_session.flush()
+    db_session.add(
+        ArtifactVersion(
+            id="ver-1",
+            artifact_id="art-1",
+            vault_uri=vault_uri,
+            sha256_hash=hashlib.sha256(content).hexdigest(),
+        )
+    )
+    await db_session.commit()
+    return "art-1", "ver-1"
 
 
 @pytest.mark.asyncio
-async def test_artifact_hash_verification(client: TestClient, db_session: AsyncSession, tmp_path):
-    """Test that the artifact API correctly verifies the SHA-256 hash of a file."""
-    # 1. Setup mock vault file
-    vault_dir = tmp_path / ".agent" / "vault" / "objects"
-    vault_dir.mkdir(parents=True, exist_ok=True)
+async def test_artifact_hash_verification(
+    client: TestClient, db_session: AsyncSession, tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """Verify reads the object from the chat's own workspace, not from the process working directory."""
+    chat_workspace = tmp_path / "chat_workspace"
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    artifact_id, version_id = await _seed_vaulted_artifact(db_session, chat_workspace, b"Hello, Enterprise Vault!")
 
-    test_content = b"Hello, Enterprise Vault!"
-    expected_hash = hashlib.sha256(test_content).hexdigest()
+    with chats_bound_to_workspaces({"chat-verify": chat_workspace}):
+        response = client.post(f"/api/v1/files/artifacts/{artifact_id}/verify/{version_id}")
+    assert response.status_code == 200
+    assert response.json()["is_valid"] is True
+    assert response.json()["status"] == "TAMPER_FREE"
 
-    obj_id = "test-uuid-1234"
-    file_path = vault_dir / obj_id
-    file_path.write_bytes(test_content)
+    # Tamper detection
+    [vault_object] = (chat_workspace / ".agent" / "vault" / "objects").iterdir()
+    vault_object.write_bytes(b"Hacked, Enterprise Vault!")
 
-    vault_uri = f"vault://{obj_id}"
+    with chats_bound_to_workspaces({"chat-verify": chat_workspace}):
+        response = client.post(f"/api/v1/files/artifacts/{artifact_id}/verify/{version_id}")
+    assert response.status_code == 200
+    assert response.json()["is_valid"] is False
+    assert response.json()["status"] == "CORRUPTED"
 
-    # 2. Insert DB records
-    artifact = Artifact(id="art-1", name="Test Doc")
-    db_session.add(artifact)
-    await db_session.flush()
 
-    version = ArtifactVersion(id="ver-1", artifact_id="art-1", vault_uri=vault_uri, sha256_hash=expected_hash)
-    db_session.add(version)
-    await db_session.commit()
+@pytest.mark.asyncio
+async def test_artifact_hash_verification_reports_a_missing_object_instead_of_passing(
+    client: TestClient, db_session: AsyncSession, tmp_path
+):
+    chat_workspace = tmp_path / "chat_workspace"
+    artifact_id, version_id = await _seed_vaulted_artifact(db_session, chat_workspace, b"payload")
+    for obj in (chat_workspace / ".agent" / "vault" / "objects").iterdir():
+        obj.unlink()
 
-    # 3. Test verification success
-    # Mock get_workspace_root_sync to return tmp_path
-    from unittest.mock import patch
+    with chats_bound_to_workspaces({"chat-verify": chat_workspace}):
+        response = client.post(f"/api/v1/files/artifacts/{artifact_id}/verify/{version_id}")
 
-    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-
-    with (
-        patch("app.api.dependencies.get_workspace_root", return_value=tmp_path),
-        patch.object(ArtifactVault, "get_object_path", return_value=file_path),
-    ):
-        response = client.post("/api/v1/files/artifacts/art-1/verify/ver-1")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is True
-        assert data["status"] == "TAMPER_FREE"
-
-    # 4. Test tamper detection
-    tampered_content = b"Hacked, Enterprise Vault!"
-    file_path.write_bytes(tampered_content)
-
-    with (
-        patch("app.api.dependencies.get_workspace_root", return_value=tmp_path),
-        patch.object(ArtifactVault, "get_object_path", return_value=file_path),
-    ):
-        response = client.post("/api/v1/files/artifacts/art-1/verify/ver-1")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is False
-        assert data["status"] == "CORRUPTED"
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -137,8 +143,6 @@ async def test_list_artifacts_returns_assessment_import_candidate_probe(
     db_session: AsyncSession,
     tmp_path,
 ):
-    from unittest.mock import patch
-
     vault_dir = tmp_path / ".agent" / "vault" / "objects"
     vault_dir.mkdir(parents=True, exist_ok=True)
     (vault_dir / "obj-importable").write_text("# Milestone\n- [ ] Ship rollout", encoding="utf-8")
@@ -176,7 +180,7 @@ async def test_list_artifacts_returns_assessment_import_candidate_probe(
     )
     await db_session.commit()
 
-    with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
+    with chats_bound_to_workspaces({"chat-probe": tmp_path}):
         response = client.get("/api/v1/files/artifacts?project_id=proj-probe&assessment_import_candidate=true")
 
     assert response.status_code == 200
@@ -202,8 +206,6 @@ async def test_probe_returns_already_imported_when_ledger_entry_exists(
     db_session: AsyncSession,
     tmp_path,
 ):
-    from unittest.mock import patch
-
     from app.database.models.assessment_import import AssessmentImportLedger
 
     vault_dir = tmp_path / ".agent" / "vault" / "objects"
@@ -234,7 +236,7 @@ async def test_probe_returns_already_imported_when_ledger_entry_exists(
     )
     await db_session.commit()
 
-    with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
+    with chats_bound_to_workspaces({"chat-ledger": tmp_path}):
         response = client.get("/api/v1/files/artifacts?project_id=proj-ledger&assessment_import_candidate=true")
 
     assert response.status_code == 200

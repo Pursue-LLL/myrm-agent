@@ -876,7 +876,7 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 
 | 模式 | SessionStore | CredentialsStore | 位置 |
 |------|--------------|------------------|------|
-| **Agent-in-Sandbox（Local/Tauri）** | `InMemorySessionStore` | AES-256加密本地文件（`.myrm/credentials.json`） | 框架层 |
+| **Agent-in-Sandbox（Local/Tauri）** | `InMemorySessionStore` | AES-256加密本地文件（状态目录下的 `credentials.json`） | 框架层 |
 | **SaaS多租户** | Redis | Redis（加密存储，租户隔离） | 控制平面 |
 
 ### 10.7 安全性

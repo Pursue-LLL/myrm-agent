@@ -6892,6 +6892,12 @@
       "exportSuccess": "导出成功",
       "svgExported": "架构图已导出为独立 SVG",
       "pngExported": "架构图已导出为高清 PNG"
+    },
+    "vaultCard": {
+      "loading": "正在读取文件...",
+      "loadFailed": "文件加载失败",
+      "unavailable": "无法加载该文件",
+      "downloadFull": "下载完整文件"
     }
   },
   "MessageSources": {
@@ -13978,9 +13984,7 @@
     "workbenchAriaLabel": "辅助工作台",
     "resizeHandleAria": "调整工作台尺寸手柄",
     "tabFiles": "文件",
-    "tabDiff": "差异",
     "tabTerminal": "终端",
-    "tabPlugins": "插件",
     "dockBottom": "停靠在底部",
     "dockRight": "停靠在右侧",
     "closeAction": "关闭辅助工作台",
@@ -13994,36 +13998,23 @@
       "refreshAction": "刷新目录树",
       "loadingTree": "正在加载工作区文件...",
       "emptyResults": "未找到匹配的文件",
-      "selectFileHint": "从左侧选择文件以查看代码与内容"
-    },
-    "diff": {
-      "modeInline": "行内差异",
-      "modeSplit": "分栏差异",
-      "copyDiff": "复制 Diff",
-      "copied": "已复制",
-      "resetDiff": "重置对比",
-      "originalHeader": "原始基准版本 (Before)",
-      "modifiedHeader": "当前变更版本 (After)"
+      "selectFileHint": "从左侧选择文件以查看代码与内容",
+      "workspaceUnavailable": "这个对话还没有工作区文件夹。",
+      "lineCount": "{count} 行"
     },
     "terminal": {
-      "headerTitle": "受控 PTY 终端",
+      "headerTitle": "终端",
       "historyEntries": "条记录",
       "clearAction": "清空终端",
       "emptyTerminalHint": "终端就绪。输入命令并按下回车执行。",
       "inputPlaceholder": "输入命令 (例如 echo, ls, git status)...",
       "runAction": "执行",
-      "injectToChat": "将日志引用到聊天输入框"
+      "injectToChat": "将日志引用到聊天输入框",
+      "noOutput": "（无输出）",
+      "outputTruncated": "[输出已截断]",
+      "runFailed": "无法执行命令：{message}"
     },
-    "plugins": {
-      "headerTitle": "GitHub 插件中心",
-      "installedCount": "个已就绪",
-      "refreshAction": "刷新插件",
-      "emptyPlugins": "暂无可用插件",
-      "probeSuccessTitle": "探活成功: {id}",
-      "viewGithub": "在 GitHub 查看",
-      "probeAction": "健康探针",
-      "repairAction": "一键修复"
-    }
+    "noChat": "打开一个对话后，即可浏览它的工作区文件并在其中运行命令。"
   },
   "workLayout": {
     "modeChat": "对话模式",

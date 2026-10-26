@@ -79,6 +79,7 @@ myrm_agent_harness.agent.goals.verification.base
 myrm_agent_harness.agent.goals.verification.gatekeeper
 myrm_agent_harness.agent.goals.verification.shell
 myrm_agent_harness.agent.goals.wait_background_bash
+myrm_agent_harness.agent.hooks.command_gate
 myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool
 myrm_agent_harness.agent.meta_tools.clarification
 myrm_agent_harness.agent.meta_tools.clarification.ask_question
@@ -293,6 +294,7 @@ myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.config.model_tier
 myrm_agent_harness.core.config.wire
+myrm_agent_harness.core.context_vars
 myrm_agent_harness.core.events
 myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
@@ -670,6 +672,7 @@ myrm_agent_harness.utils.logger_utils
 myrm_agent_harness.utils.markdown_frontmatter
 myrm_agent_harness.utils.media.image_compressor
 myrm_agent_harness.utils.mime_types
+myrm_agent_harness.utils.os_compat
 myrm_agent_harness.utils.response_locale
 myrm_agent_harness.utils.runtime.cancellation
 myrm_agent_harness.utils.runtime.progress_sink

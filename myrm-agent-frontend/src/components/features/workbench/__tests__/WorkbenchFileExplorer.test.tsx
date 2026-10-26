@@ -74,7 +74,7 @@ describe('WorkbenchFileExplorer component', () => {
   });
 
   it('renders file tree and directory nodes', async () => {
-    render(<WorkbenchFileExplorer />);
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('src')).toBeDefined();
@@ -82,10 +82,21 @@ describe('WorkbenchFileExplorer component', () => {
     });
 
     expect(screen.getByText('selectFileHint')).toBeDefined();
+    expect(workbenchService.fetchWorkspaceFiles).toHaveBeenCalledWith('chat-1', undefined, 3);
+  });
+
+  it('says the workspace is unavailable when the tree cannot be loaded', async () => {
+    vi.mocked(workbenchService.fetchWorkspaceFiles).mockRejectedValueOnce(new Error('404'));
+
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('workspaceUnavailable')).toBeDefined();
+    });
   });
 
   it('expands directory when clicked and shows child nodes', async () => {
-    render(<WorkbenchFileExplorer />);
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('src')).toBeDefined();
@@ -102,7 +113,7 @@ describe('WorkbenchFileExplorer component', () => {
   });
 
   it('loads and displays file content when a file node is selected', async () => {
-    render(<WorkbenchFileExplorer />);
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('README.md')).toBeDefined();
@@ -111,13 +122,13 @@ describe('WorkbenchFileExplorer component', () => {
     fireEvent.click(screen.getByText('README.md'));
 
     await waitFor(() => {
-      expect(workbenchService.fetchFileContent).toHaveBeenCalledWith('README.md');
+      expect(workbenchService.fetchFileContent).toHaveBeenCalledWith('chat-1', 'README.md');
       expect(screen.getByText(/hello world/)).toBeDefined();
     });
   });
 
   it('filters file nodes based on search query', async () => {
-    render(<WorkbenchFileExplorer />);
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('src')).toBeDefined();
@@ -132,7 +143,7 @@ describe('WorkbenchFileExplorer component', () => {
   });
 
   it('reloads file tree when refresh button is clicked', async () => {
-    render(<WorkbenchFileExplorer />);
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('src')).toBeDefined();

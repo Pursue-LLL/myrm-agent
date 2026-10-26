@@ -161,7 +161,11 @@ async def ensure_artifact_for_deploy(
     artifact_id: str,
     workspace_root: str,
 ) -> Artifact:
-    """Load Artifact by file_id or JIT-upsert from FilesService metadata."""
+    """Load Artifact by file_id or JIT-upsert from FilesService metadata.
+
+    A JIT upsert writes into the workspace of the chat the file came from; *workspace_root* serves
+    files that belong to no chat.
+    """
     from sqlalchemy.orm import selectinload
 
     from app.core.storage import FilesService
@@ -194,6 +198,11 @@ async def ensure_artifact_for_deploy(
         rel = file_record.storage_path
         if rel.startswith(f"sandboxes/{file_record.source_chat_id}/"):
             sandbox_path = rel.split("/", 2)[-1]
+
+    if file_record.source_chat_id:
+        from app.services.chat.effective_workspace import resolve_chat_workspace_root
+
+        workspace_root = str(await resolve_chat_workspace_root(file_record.source_chat_id))
 
     try:
         await upsert_processor_artifact(

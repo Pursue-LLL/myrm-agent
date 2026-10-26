@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MultiTabWorkbench } from '../MultiTabWorkbench';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import useChatStore from '@/store/useChatStore';
 
 const stableT = (key: string) => key;
 
@@ -11,19 +12,15 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('../tabs/WorkbenchFileExplorer', () => ({
-  WorkbenchFileExplorer: () => <div data-testid="tab-files-content">Files Content</div>,
-}));
-
-vi.mock('../tabs/WorkbenchDiffViewer', () => ({
-  WorkbenchDiffViewer: () => <div data-testid="tab-diff-content">Diff Content</div>,
+  WorkbenchFileExplorer: ({ chatId }: { chatId: string }) => (
+    <div data-testid="tab-files-content">Files of {chatId}</div>
+  ),
 }));
 
 vi.mock('../tabs/WorkbenchTerminal', () => ({
-  WorkbenchTerminal: () => <div data-testid="tab-terminal-content">Terminal Content</div>,
-}));
-
-vi.mock('../tabs/WorkbenchPluginCenter', () => ({
-  WorkbenchPluginCenter: () => <div data-testid="tab-plugins-content">Plugins Content</div>,
+  WorkbenchTerminal: ({ chatId }: { chatId: string }) => (
+    <div data-testid="tab-terminal-content">Terminal of {chatId}</div>
+  ),
 }));
 
 describe('MultiTabWorkbench component', () => {
@@ -34,7 +31,10 @@ describe('MultiTabWorkbench component', () => {
       width: 480,
       height: 320,
       activeTab: 'files',
+      selectedFilePath: null,
+      terminalLogs: [],
     });
+    useChatStore.setState({ chatId: 'chat-1' });
   });
 
   it('renders null when isOpen is false', () => {
@@ -43,38 +43,54 @@ describe('MultiTabWorkbench component', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders drawer shell, 4 tabs, and active files content', () => {
+  it('renders drawer shell, files and terminal tabs, and the active chat files content', () => {
     render(<MultiTabWorkbench />);
 
     expect(screen.getByRole('complementary', { name: 'workbenchAriaLabel' })).toBeDefined();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
     expect(screen.getByRole('tab', { name: /tabFiles/i })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /tabDiff/i })).toBeDefined();
     expect(screen.getByRole('tab', { name: /tabTerminal/i })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /tabPlugins/i })).toBeDefined();
 
-    expect(screen.getByTestId('tab-files-content')).toBeDefined();
+    expect(screen.getByTestId('tab-files-content').textContent).toBe('Files of chat-1');
+  });
+
+  it('asks for a conversation instead of browsing anything when there is no chat', () => {
+    useChatStore.setState({ chatId: undefined });
+
+    render(<MultiTabWorkbench />);
+
+    expect(screen.getByText('noChat')).toBeDefined();
+    expect(screen.queryByTestId('tab-files-content')).toBeNull();
+    expect(screen.queryByTestId('tab-terminal-content')).toBeNull();
+  });
+
+  it('drops the previous chat selection and terminal history when the chat changes', () => {
+    render(<MultiTabWorkbench />);
+    useWorkbenchStore.setState({
+      selectedFilePath: 'src/app.py',
+      terminalLogs: [{ id: 'l1', command: 'ls', output: 'x', exitCode: 0, timestamp: '2023-11-14T22:13:20Z' }],
+    });
+
+    act(() => {
+      useChatStore.setState({ chatId: 'chat-2' });
+    });
+
+    expect(useWorkbenchStore.getState().selectedFilePath).toBeNull();
+    expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
+    expect(screen.getByTestId('tab-files-content').textContent).toBe('Files of chat-2');
   });
 
   it('switches active tab when tab buttons are clicked', () => {
     render(<MultiTabWorkbench />);
 
-    // Click Diff tab
-    const diffTabBtn = screen.getByRole('tab', { name: /tabDiff/i });
-    fireEvent.click(diffTabBtn);
-    expect(useWorkbenchStore.getState().activeTab).toBe('diff');
-    expect(screen.getByTestId('tab-diff-content')).toBeDefined();
-
-    // Click Terminal tab
     const termTabBtn = screen.getByRole('tab', { name: /tabTerminal/i });
     fireEvent.click(termTabBtn);
     expect(useWorkbenchStore.getState().activeTab).toBe('terminal');
-    expect(screen.getByTestId('tab-terminal-content')).toBeDefined();
+    expect(screen.getByTestId('tab-terminal-content').textContent).toBe('Terminal of chat-1');
 
-    // Click Plugins tab
-    const pluginsTabBtn = screen.getByRole('tab', { name: /tabPlugins/i });
-    fireEvent.click(pluginsTabBtn);
-    expect(useWorkbenchStore.getState().activeTab).toBe('plugins');
-    expect(screen.getByTestId('tab-plugins-content')).toBeDefined();
+    fireEvent.click(screen.getByRole('tab', { name: /tabFiles/i }));
+    expect(useWorkbenchStore.getState().activeTab).toBe('files');
+    expect(screen.getByTestId('tab-files-content')).toBeDefined();
   });
 
   it('switches placement between right and bottom', () => {

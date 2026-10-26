@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import time
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -38,6 +39,7 @@ from app.services.artifacts.share.share_token import (
     parse_artifact_share_token,
 )
 from app.services.hosting.packager import PublishFile
+from tests.support.chat_workspace import chats_bound_to_workspaces
 
 
 def _api_client_request() -> Request:
@@ -55,6 +57,13 @@ def _api_client_request() -> Request:
             "root_path": "",
         }
     )
+
+
+@pytest.fixture(autouse=True)
+def chats_share_tmp_workspace(tmp_path: Path) -> Iterator[None]:
+    """Every chat these tests mint ran in ``tmp_path``, where the tests write the vault objects."""
+    with chats_bound_to_workspaces(default=tmp_path):
+        yield
 
 
 @pytest.fixture

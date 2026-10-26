@@ -22,7 +22,6 @@ GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -796,6 +795,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 get_agent_session_vault,
                 get_global_session_vault,
             )
+            from app.platform_utils.workspace_root import get_workspace_root
 
             pool = get_global_browser_pool(
                 config=get_browser_pool_config(),
@@ -864,6 +864,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             # Connection health is still validated by the bridge at runtime.
             ext_bridge = get_extension_bridge()
 
+            # The agent's chat workspace: the root file_read resolves vault pointers against.
+            workspace_root = str(self.declared_allowed_roots[0] if self.declared_allowed_roots else get_workspace_root())
             browser_session = BrowserSession(
                 pool,
                 ContextType.AGENT,
@@ -873,7 +875,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 domain_allowlist=domain_allowlist,
                 domain_blocklist=domain_blocklist,
                 captcha_solver=await self._build_captcha_solver(),
-                content_vault=ArtifactVault(os.getcwd()),
+                content_vault=ArtifactVault(workspace_root),
                 vision_llm=vision_llm,
                 extension_bridge=ext_bridge,
                 allow_private_networks=is_local_mode(),

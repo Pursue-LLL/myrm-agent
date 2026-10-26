@@ -50,6 +50,8 @@ class ArtifactVault:
     """多智能体共享的巨型工件金库.
 
     Default uses ``{workspace}/.agent/vault`` (see ``core.artifacts.paths``).
+    Opening a vault never touches the disk; the directories appear with the first write,
+    so reading a workspace that has no vault leaves it untouched.
     """
 
     def __init__(self, workspace_root: str):
@@ -58,6 +60,7 @@ class ArtifactVault:
         self.objects_dir = self.vault_dir / "objects"
         self.meta_dir = self.vault_dir / "meta"
 
+    def _ensure_dirs(self) -> None:
         self.objects_dir.mkdir(parents=True, exist_ok=True)
         self.meta_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,8 +81,11 @@ class ArtifactVault:
         content_type: str | None = None,
         description: str = "",
     ) -> str:
-        """存入一个对象, 返回 vault:// 指针"""
-        import fcntl
+        """存入一个对象, 返回 vault:// 指针
+
+        目标文件名是本次新生成的 UUID, 不存在并发写同一文件的情形, 因此不需要文件锁
+        (同时使其可以在没有 ``fcntl`` 的 Windows 上运行).
+        """
         import hashlib
         import mimetypes
 
@@ -87,33 +93,14 @@ class ArtifactVault:
             guessed_type, _ = mimetypes.guess_type(filename)
             content_type = guessed_type or "application/octet-stream"
 
+        self._ensure_dirs()
         obj_id = str(uuid4())
-
         obj_path = self.get_object_path(obj_id)
 
-        # 使用流式计算 Hash 并写入文件以防止 OOM
-        sha256_hash_obj = hashlib.sha256()
-        size_bytes = 0
-
-        with open(obj_path, "wb") as f:
-            # 加上排他锁, 防止并发写入导致文件损坏
-            fcntl.flock(f, fcntl.LOCK_EX)
-            try:
-                if isinstance(content, str):
-                    # 字符串较小, 直接写入
-                    content_bytes = content.encode("utf-8")
-                    f.write(content_bytes)
-                    sha256_hash_obj.update(content_bytes)
-                    size_bytes = len(content_bytes)
-                else:
-                    # 字节流可能很大, 直接写入并计算
-                    f.write(content)
-                    sha256_hash_obj.update(content)
-                    size_bytes = len(content)
-            finally:
-                fcntl.flock(f, fcntl.LOCK_UN)
-
-        sha256_hash = sha256_hash_obj.hexdigest()
+        content_bytes = content.encode("utf-8") if isinstance(content, str) else content
+        obj_path.write_bytes(content_bytes)
+        sha256_hash = hashlib.sha256(content_bytes).hexdigest()
+        size_bytes = len(content_bytes)
 
         meta = VaultObject(
             id=obj_id,
@@ -147,9 +134,8 @@ class ArtifactVault:
     ) -> str:
         """从本地文件路径存入一个大文件对象, 返回 vault:// 指针.
 
-        使用流式读取和计算 Hash, 防止读取大文件时 OOM.
+        使用流式读取和计算 Hash, 防止读取大文件时 OOM. 目标文件名是新生成的 UUID, 无需文件锁.
         """
-        import fcntl
         import hashlib
         import mimetypes
 
@@ -161,6 +147,7 @@ class ArtifactVault:
         if not source_path.exists() or not source_path.is_file():
             raise FileNotFoundError(f"Source file not found: {source_path}")
 
+        self._ensure_dirs()
         obj_id = str(uuid4())
         obj_path = self.get_object_path(obj_id)
 
@@ -169,14 +156,10 @@ class ArtifactVault:
 
         # 流式读取源文件, 计算 Hash 并写入目标文件
         with open(source_path, "rb") as src_f, open(obj_path, "wb") as dst_f:
-            fcntl.flock(dst_f, fcntl.LOCK_EX)
-            try:
-                for chunk in iter(lambda: src_f.read(8192), b""):
-                    dst_f.write(chunk)
-                    sha256_hash_obj.update(chunk)
-                    size_bytes += len(chunk)
-            finally:
-                fcntl.flock(dst_f, fcntl.LOCK_UN)
+            for chunk in iter(lambda: src_f.read(8192), b""):
+                dst_f.write(chunk)
+                sha256_hash_obj.update(chunk)
+                size_bytes += len(chunk)
 
         sha256_hash = sha256_hash_obj.hexdigest()
 

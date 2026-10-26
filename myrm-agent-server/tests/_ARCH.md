@@ -27,6 +27,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chat_db_fixtures.py` | 辅助 | 内存库夹具插件（经根 `conftest.py` 的 `pytest_plugins` 全局注册，不是 conftest：既是 conftest 又列在 `pytest_plugins` 会被注册两次，指向其目录的运行直接中止）：`db_session`（建全部表并把 `get_session_factory` 绑到它）、`fts_db`（再建 `messages_fts` trigram 虚拟表、三个同步触发器与会话回忆表）；聊天持久化与搜索类测试显式请求 |
 | `support/real_schema_db.py` | 辅助 | 文件库上的完整真实 schema：`create_real_schema_engine`（ORM 全表 + `ensure_raw_sql_schema` 的 FTS 表/触发器/原生表，外键与生产一样开启）、`seed_row`（只写关心的列，其余必填列补唯一占位值）；断言「删除了什么」的测试用它，手写的小 schema 会认同拼错的表名 |
 | `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
+| `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
 | `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出、批量导出与单技能导出三个 E2E 共用（`advance_js` 让打开在选择步骤的向导前进到复核步骤） |
 | `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（SHARED+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
@@ -51,6 +52,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/instance_archive/test_import_time_db_opens.py` | 模块 | 导入 app 模块时不得打开归档携带的数据库（启动前换入会替换它们，import 期打开会持有换入前文件） |
 | `services/instance_archive/test_export_completeness.py` | 模块 | 导出如实报告读不到的数据项：无法读取的文件、无法列出的目录计入 `unreadable`，导出途中消失的文件不计入，读得到时为空；该数量同时写入 manifest（`unreadable_count`） |
 | `services/instance_archive/test_incognito_scrub.py` | 模块 | 网页无痕会话不进任何归档副本：在真实 ORM schema + 迁移 + FTS 触发器 + WAL 源库 + 真实快照路径上，导出与导入暂存两条共用的 scrub 之后，无痕会话、其消息、全文索引与回忆索引全部消失且原文不在文件字节里、副本无 `-wal`；普通会话与转写导入（`source` 非 web 但带无痕标志）原样保留；`foreign_keys` 开不起来时整个 scrub 失败而不是留下孤儿消息；只按会话 id 记录的表（`widget_kv`）同样清除；真实 LangGraph 检查点：整条导出流水线的每个文件里都找不到无痕原文、旧归档暂存时清理紧邻的 `checkpoints.db`、检查点清除失败时该库不入包并如实报告、500 个会话分批清除；没有无痕列的旧库不动 |
+| `services/chat/test_effective_workspace_root.py` | 单元 | `find_chat_workspace_root` / `resolve_chat_workspace_root`：项目绑定 > 会话目录 > JIT 目录的取根顺序，非法 chat id 在严格版返回 `None`、宽松版回退进程工作区 |
+| `api/workbench/test_workbench_api.py` | 单元 | 工作台文件树 / 文件内容 / 终端：限定在会话工作区内（越界路径与指向工作区外的软链接都被拒，非法 chat id 不会落到进程目录）、破坏性命令被拦截而工作区内的普通清理放行、不读服务进程 stdin、超时杀掉整个进程树、超出上限的输出被截断并标记 |
+| `channels/storage/test_credentials_store.py` | 单元 | 渠道凭据默认落在 `state_dir` 下而非进程目录，换个目录重新启动后登录仍在，显式目录优先 |
+| `api/files/test_vault_api.py` | 单元 | vault 对象读取：按 `chat_id` 取该会话工作区、按指向对象的 artifact 反查所属会话、无主对象回退默认根、缺失对象 404 |
+| `api/files/test_provenance_api.py` | 单元 | 来源中心列表与详情里的产物大小，各取自该产物所属会话的工作区而非进程目录 |
+| `platform_utils/test_workspace_root.py` | 单元 | `get_workspace_root`：运行之外取进程工作目录，运行之内取该次运行绑定的根 |
 | `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
 | `services/instance_archive/test_restore_points.py` | 模块 | 恢复点：一致性快照、staging 校验、下次启动换入、拒绝更新版 schema 与被篡改快照 |

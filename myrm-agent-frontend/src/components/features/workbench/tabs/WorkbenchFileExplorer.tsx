@@ -7,11 +7,10 @@
  * - useTranslations from next-intl (namespace: 'workbench.files')
  *
  * [OUTPUT]
- * - WorkbenchFileExplorer: Workspace directory tree explorer with quick search & file preview
+ * - WorkbenchFileExplorer: Directory tree explorer of one chat's workspace with quick search & file preview
  *
  * [POS]
  * Auxiliary Workbench File Explorer tab component.
- * Single file < 320 lines. Zero `any` types. Zero native emoji.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -123,10 +122,15 @@ function FileTreeNodeItem({
   );
 }
 
-export function WorkbenchFileExplorer() {
+interface WorkbenchFileExplorerProps {
+  chatId: string;
+}
+
+export function WorkbenchFileExplorer({ chatId }: WorkbenchFileExplorerProps) {
   const t = useTranslations('workbench.files');
   const [rootNodes, setRootNodes] = useState<WorkbenchFileNode[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isUnavailable, setIsUnavailable] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
 
@@ -137,14 +141,16 @@ export function WorkbenchFileExplorer() {
   const loadTree = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await fetchWorkspaceFiles(undefined, 3);
+      const data = await fetchWorkspaceFiles(chatId, undefined, 3);
       setRootNodes(data.nodes);
+      setIsUnavailable(false);
     } catch {
-      // Graceful fallback
+      setRootNodes([]);
+      setIsUnavailable(true);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [chatId]);
 
   useEffect(() => {
     void loadTree();
@@ -166,13 +172,13 @@ export function WorkbenchFileExplorer() {
     async (node: WorkbenchFileNode) => {
       setSelectedFile(node.path, null);
       try {
-        const content = await fetchFileContent(node.path);
+        const content = await fetchFileContent(chatId, node.path);
         setSelectedFile(node.path, content);
       } catch {
-        // Fallback
+        setSelectedFile(null, null);
       }
     },
-    [setSelectedFile],
+    [chatId, setSelectedFile],
   );
 
   // Filter nodes by query
@@ -235,7 +241,7 @@ export function WorkbenchFileExplorer() {
             </div>
           ) : filteredNodes.length === 0 ? (
             <div className="p-4 text-center text-xs text-muted-foreground">
-              {t('emptyResults')}
+              {isUnavailable ? t('workspaceUnavailable') : t('emptyResults')}
             </div>
           ) : (
             filteredNodes.map((node) => (
@@ -265,7 +271,7 @@ export function WorkbenchFileExplorer() {
                   <span className="uppercase px-1.5 py-0.5 rounded bg-muted">
                     {selectedFileContent.language}
                   </span>
-                  <span>{selectedFileContent.content.split('\n').length} lines</span>
+                  <span>{t('lineCount', { count: selectedFileContent.content.split('\n').length })}</span>
                 </div>
               </div>
 

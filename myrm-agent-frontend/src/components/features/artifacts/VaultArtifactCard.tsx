@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiRequest, getApiUrl } from '@/lib/api';
 import { Download, FileText, Loader2, FileJson, FileCode, File, Database } from 'lucide-react';
 
@@ -11,10 +12,19 @@ export interface VaultObjectMeta {
   description?: string;
 }
 
-export const getVaultMeta = async (objId: string): Promise<VaultObjectMeta> => {
-  return apiRequest<VaultObjectMeta>(`/files/vault/${objId}/meta`, {
+/** Query suffix naming the chat whose workspace holds the object (objects no artifact points at have no other owner). */
+const chatQuery = (chatId?: string): string => (chatId ? `chat_id=${encodeURIComponent(chatId)}` : '');
+
+export const getVaultMeta = async (objId: string, chatId?: string): Promise<VaultObjectMeta> => {
+  const query = chatQuery(chatId);
+  return apiRequest<VaultObjectMeta>(`/files/vault/${objId}/meta${query ? `?${query}` : ''}`, {
     method: 'GET',
   });
+};
+
+export const getVaultDownloadUrl = (objId: string, chatId?: string): string => {
+  const query = ['download=1', chatQuery(chatId)].filter(Boolean).join('&');
+  return getApiUrl(`/files/vault/${objId}/content?${query}`);
 };
 
 const formatBytes = (bytes: number) => {
@@ -43,7 +53,8 @@ const getFileIcon = (contentType: string) => {
   return <File className="w-6 h-6 text-gray-500" />;
 };
 
-export default function VaultArtifactCard({ id }: { id: string }) {
+export default function VaultArtifactCard({ id, chatId }: { id: string; chatId?: string }) {
+  const t = useTranslations('artifacts.vaultCard');
   const [meta, setMeta] = useState<VaultObjectMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,13 +63,13 @@ export default function VaultArtifactCard({ id }: { id: string }) {
     let mounted = true;
     const fetchMeta = async () => {
       try {
-        const data = await getVaultMeta(id);
+        const data = await getVaultMeta(id, chatId);
         if (mounted) {
           setMeta(data);
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : '加载 Artifact 失败');
+          setError(err instanceof Error ? err.message : t('loadFailed'));
         }
       } finally {
         if (mounted) {
@@ -70,16 +81,11 @@ export default function VaultArtifactCard({ id }: { id: string }) {
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [id, chatId, t]);
 
   const handleDownload = () => {
-    // Navigate to the direct download URL or open in new tab
-    const url = getApiUrl(`/vault/${id}/content`);
     const link = document.createElement('a');
-    link.href = url;
-    // For proper auth with downloading, token logic might be needed if API is protected,
-    // but usually GET requests for static resources are either cookie-based or use a short-lived token in query param.
-    // For this prototype, we'll assume it's directly accessible or uses cookies.
+    link.href = getVaultDownloadUrl(id, chatId);
     link.setAttribute('download', meta?.filename || `artifact-${id}`);
     document.body.appendChild(link);
     link.click();
@@ -90,7 +96,7 @@ export default function VaultArtifactCard({ id }: { id: string }) {
     return (
       <div className="flex items-center gap-3 p-4 my-2 border rounded-xl bg-gray-50/50 dark:bg-gray-800/50 dark:border-gray-700 max-w-sm">
         <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-        <span className="text-sm text-gray-500 dark:text-gray-400">正在检索沙箱大文件...</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{t('loading')}</span>
       </div>
     );
   }
@@ -99,7 +105,7 @@ export default function VaultArtifactCard({ id }: { id: string }) {
     return (
       <div className="p-4 my-2 border border-red-200 bg-red-50 rounded-xl dark:bg-red-900/20 dark:border-red-800 max-w-sm">
         <span className="text-sm text-red-600 dark:text-red-400">
-          无法加载金库文件 (vault://{id.substring(0, 8)}...): {error}
+          {t('unavailable')}: {error}
         </span>
       </div>
     );
@@ -132,14 +138,13 @@ export default function VaultArtifactCard({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t dark:border-gray-800 flex items-center justify-between">
-        <div className="text-[10px] text-gray-400 font-mono tracking-tight">vault://{id.substring(0, 13)}</div>
+      <div className="mt-3 pt-3 border-t dark:border-gray-800 flex items-center justify-end">
         <button
           onClick={handleDownload}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 hover:bg-primary/5 rounded-full transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
-          下载完整文件
+          {t('downloadFull')}
         </button>
       </div>
     </div>

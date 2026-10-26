@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `listener.py` | 模块 | Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id | ✅ |
 | `processor.py` | 模块 | 业务层工件处理器（LocalArtifactProcessor）；reference-only persist；resolved_path SSOT；upsert 成功才 emit | ✅ |
-| `listener.py` | 模块 | Deploy DB upsert + sandbox path resolve | ✅ |
+| `listener.py` | 模块 | Deploy DB upsert + sandbox path resolve；预检阶段补建 artifact 时把文件写进来源会话的 vault | ✅ |
 
 ## 测试
 

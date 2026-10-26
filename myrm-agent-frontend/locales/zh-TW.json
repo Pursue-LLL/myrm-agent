@@ -6892,6 +6892,12 @@
       "exportSuccess": "匯出成功",
       "svgExported": "架構圖已匯出為獨立 SVG",
       "pngExported": "架構圖已匯出為高解析度 PNG"
+    },
+    "vaultCard": {
+      "loading": "正在讀取檔案...",
+      "loadFailed": "檔案載入失敗",
+      "unavailable": "無法載入該檔案",
+      "downloadFull": "下載完整檔案"
     }
   },
   "MessageSources": {
@@ -13978,9 +13984,7 @@
     "workbenchAriaLabel": "輔助工作臺",
     "resizeHandleAria": "調整工作臺尺寸手柄",
     "tabFiles": "檔案",
-    "tabDiff": "差異",
     "tabTerminal": "終端",
-    "tabPlugins": "外掛",
     "dockBottom": "停靠在底部",
     "dockRight": "停靠在右側",
     "closeAction": "關閉輔助工作臺",
@@ -13994,36 +13998,23 @@
       "refreshAction": "重新整理目錄樹",
       "loadingTree": "正在載入工作區檔案...",
       "emptyResults": "未找到匹配的檔案",
-      "selectFileHint": "從左側選擇檔案以檢視程式碼與內容"
-    },
-    "diff": {
-      "modeInline": "行內差異",
-      "modeSplit": "分欄差異",
-      "copyDiff": "複製 Diff",
-      "copied": "已複製",
-      "resetDiff": "重置對比",
-      "originalHeader": "原始基準版本 (Before)",
-      "modifiedHeader": "當前變更版本 (After)"
+      "selectFileHint": "從左側選擇檔案以檢視程式碼與內容",
+      "workspaceUnavailable": "這個對話還沒有工作區資料夾。",
+      "lineCount": "{count} 行"
     },
     "terminal": {
-      "headerTitle": "受控 PTY 終端",
+      "headerTitle": "終端",
       "historyEntries": "條記錄",
       "clearAction": "清空終端",
       "emptyTerminalHint": "終端就緒。輸入命令並按下回車執行。",
       "inputPlaceholder": "輸入命令 (例如 echo, ls, git status)...",
       "runAction": "執行",
-      "injectToChat": "將日誌引用到聊天輸入框"
+      "injectToChat": "將日誌引用到聊天輸入框",
+      "noOutput": "（無輸出）",
+      "outputTruncated": "[輸出已截斷]",
+      "runFailed": "無法執行命令：{message}"
     },
-    "plugins": {
-      "headerTitle": "GitHub 外掛中心",
-      "installedCount": "個已就緒",
-      "refreshAction": "重新整理外掛",
-      "emptyPlugins": "暫無可用外掛",
-      "probeSuccessTitle": "探活成功: {id}",
-      "viewGithub": "在 GitHub 檢視",
-      "probeAction": "健康探針",
-      "repairAction": "一鍵修復"
-    }
+    "noChat": "開啟一個對話後，即可瀏覽它的工作區檔案並在其中執行命令。"
   },
   "workLayout": {
     "modeChat": "對話模式",

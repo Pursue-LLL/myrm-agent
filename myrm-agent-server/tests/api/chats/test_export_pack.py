@@ -80,6 +80,7 @@ async def test_export_pack_get_zip_content(
             id=chat_id,
             title="Python 重构任务",
             source="web",
+            workspace_dir=str(tmp_path / "workspace"),
             total_calls=5,
             total_tokens=1500,
             total_usd=0.03,
@@ -92,7 +93,6 @@ async def test_export_pack_get_zip_content(
         workspace_root = tmp_path / "workspace"
         vault_objects = workspace_root / ".agent" / "vault" / "objects"
         vault_objects.mkdir(parents=True, exist_ok=True)
-        monkeypatch.setattr("app.api.chats.chat.export_pack.get_workspace_root", lambda: workspace_root)
 
         art_id = "art-patch-001"
         ver_id = "ver-001"

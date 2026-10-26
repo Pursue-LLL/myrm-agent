@@ -137,10 +137,11 @@ def ingest_env(tmp_path: Path):
                 _mock_session_ctx(artifact),
             )
         )
+        mock_resolve_root = AsyncMock(return_value=tmp_path)
         stack.enter_context(
             patch(
-                "app.api.dependencies.get_workspace_root",
-                return_value=str(tmp_path),
+                "app.services.chat.effective_workspace.resolve_chat_workspace_root",
+                mock_resolve_root,
             )
         )
 
@@ -177,6 +178,7 @@ def ingest_env(tmp_path: Path):
             "get_archiver": mock_get_archiver,
             "vault_cls": mock_vault_cls,
             "vault_instance": mock_vault_instance,
+            "resolve_root": mock_resolve_root,
             "raw_dir": raw_dir,
             "obj_file": obj_file,
         }
@@ -204,6 +206,15 @@ class TestIngestSuccess:
         written = list(mocks["raw_dir"].glob("artifact_*"))
         assert len(written) == 1
         assert written[0].read_text(encoding="utf-8") == "# Real Content\nBody text here."
+
+    def test_reads_the_artifact_from_its_chats_workspace(self, client: TestClient, ingest_env, tmp_path: Path) -> None:
+        stack, mocks = ingest_env(_FakeArtifact(chat_id="chat-legal"))
+        with stack:
+            resp = client.post("/api/v1/wiki/ingest", json={"artifact_id": "art-001"})
+
+        assert resp.status_code == 200
+        mocks["resolve_root"].assert_awaited_once_with("chat-legal")
+        mocks["vault_cls"].assert_called_once_with(tmp_path)
 
     def test_resolves_agent_vault_from_chat_id(self, client: TestClient, ingest_env) -> None:
         artifact = _FakeArtifact(name="scoped.md", chat_id="chat-legal")

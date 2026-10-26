@@ -20,7 +20,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 单 HTML 入口智能归一化 + 敏感目录排除 |
 | `viewer_scaffold.py` | ✅ 核心 | 单文件文档（PDF/Excel/Word/Markdown/图片）自适应阅读器外壳生成与 `index.html` 脚手架 |
 | `crypto_packager.py` | ✅ 核心 | 静态产物零知识密码加密封包（VFS + Web Crypto AES-256-GCM 壳注入，支持两阶段 CSSOM 拓扑资源解析与安全上下文预检） |
-| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用 |
+| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用；vault 对象从 artifact 所属会话的工作区读取 |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
 | `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |

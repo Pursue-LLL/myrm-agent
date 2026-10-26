@@ -6892,6 +6892,12 @@
       "exportSuccess": "내보내기 완료",
       "svgExported": "아키텍처 다이어그램을 독립형 SVG로 내보냈습니다",
       "pngExported": "아키텍처 다이어그램을 고해상도 PNG로 내보냈습니다"
+    },
+    "vaultCard": {
+      "loading": "파일을 불러오는 중...",
+      "loadFailed": "파일을 불러오지 못했습니다",
+      "unavailable": "이 파일을 불러올 수 없습니다",
+      "downloadFull": "전체 파일 다운로드"
     }
   },
   "MessageSources": {
@@ -13978,9 +13984,7 @@
     "workbenchAriaLabel": "보조 워크벤치",
     "resizeHandleAria": "워크벤치 크기 조절 핸들",
     "tabFiles": "파일",
-    "tabDiff": "비교",
     "tabTerminal": "터미널",
-    "tabPlugins": "플러그인",
     "dockBottom": "아래쪽에 고정",
     "dockRight": "오른쪽에 고정",
     "closeAction": "워크벤치 닫기",
@@ -13994,36 +13998,23 @@
       "refreshAction": "트리 새로고침",
       "loadingTree": "워크스페이스 파일을 불러오는 중...",
       "emptyResults": "일치하는 파일이 없습니다",
-      "selectFileHint": "트리에서 파일을 선택하면 코드를 미리 볼 수 있습니다"
-    },
-    "diff": {
-      "modeInline": "인라인 Diff",
-      "modeSplit": "분할 Diff",
-      "copyDiff": "Diff 복사",
-      "copied": "복사됨",
-      "resetDiff": "Diff 초기화",
-      "originalHeader": "원본 기준(변경 전)",
-      "modifiedHeader": "현재 변경(변경 후)"
+      "selectFileHint": "트리에서 파일을 선택하면 코드를 미리 볼 수 있습니다",
+      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다.",
+      "lineCount": "{count}줄"
     },
     "terminal": {
-      "headerTitle": "제어형 PTY 터미널",
+      "headerTitle": "터미널",
       "historyEntries": "개",
       "clearAction": "지우기",
       "emptyTerminalHint": "터미널이 준비되었습니다. 명령을 입력하고 Enter를 누르세요.",
       "inputPlaceholder": "명령을 입력하세요(예: echo, ls, git status)...",
       "runAction": "실행",
-      "injectToChat": "출력을 채팅에 삽입"
+      "injectToChat": "출력을 채팅에 삽입",
+      "noOutput": "(출력 없음)",
+      "outputTruncated": "[출력이 잘렸습니다]",
+      "runFailed": "명령을 실행하지 못했습니다: {message}"
     },
-    "plugins": {
-      "headerTitle": "GitHub 플러그인 센터",
-      "installedCount": "준비됨",
-      "refreshAction": "플러그인 새로고침",
-      "emptyPlugins": "사용 가능한 플러그인이 없습니다",
-      "probeSuccessTitle": "프로브 성공: {id}",
-      "viewGithub": "GitHub에서 보기",
-      "probeAction": "상태 프로브",
-      "repairAction": "자동 복구"
-    }
+    "noChat": "대화를 열면 해당 워크스페이스의 파일을 둘러보고 명령을 실행할 수 있습니다."
   },
   "workLayout": {
     "modeChat": "채팅 모드",

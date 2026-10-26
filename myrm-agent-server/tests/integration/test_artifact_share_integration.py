@@ -34,6 +34,7 @@ from app.services.artifacts.share.share_bundle import (
     bundle_dir_for_claims,
 )
 from app.services.artifacts.share.share_token import parse_artifact_share_token
+from tests.support.chat_workspace import chats_bound_to_workspaces
 
 
 @pytest.fixture
@@ -70,7 +71,7 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
 
     test_app.dependency_overrides[get_db] = override_get_db
     test_app.dependency_overrides[get_workspace_root] = override_workspace_root
-    with TestClient(test_app) as test_client:
+    with chats_bound_to_workspaces(default=tmp_path), TestClient(test_app) as test_client:
         yield test_client
     limiter.enabled = True
 

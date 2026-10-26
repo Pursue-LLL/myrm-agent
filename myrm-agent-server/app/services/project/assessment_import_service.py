@@ -24,7 +24,7 @@ from app.database.connection import get_session
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.project import Project
-from app.platform_utils.workspace_root import get_workspace_root
+from app.services.chat.effective_workspace import resolve_chat_workspace_root
 from app.services.kanban import KanbanService
 from app.services.project.milestone_service import MilestoneService
 
@@ -235,7 +235,7 @@ async def _load_artifact_content(
     latest = _latest_version(artifact)
     vault_uri = latest.vault_uri
     object_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
-    object_path = ArtifactVault(get_workspace_root()).get_object_path(object_id)
+    object_path = ArtifactVault(await resolve_chat_workspace_root(artifact.chat_id)).get_object_path(object_id)
     if not object_path.exists():
         raise FileNotFoundError("Artifact content not found on disk")
 

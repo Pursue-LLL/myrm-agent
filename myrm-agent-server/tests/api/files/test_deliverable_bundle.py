@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.agent.goals.goal_registry import ServerGoalManager
+from tests.support.chat_workspace import chats_bound_to_workspaces
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §1: _collect_session_deliverables
@@ -133,32 +134,24 @@ class TestDownloadBundle:
         db_session.add_all([v1, v2])
         await db_session.commit()
 
-        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-
-        def mock_get_path(obj_id: str):
-            return vault_dir / obj_id
-
-        with (
-            patch("app.api.dependencies.get_workspace_root", return_value=tmp_path),
-            patch.object(ArtifactVault, "get_object_path", side_effect=mock_get_path),
-        ):
+        with chats_bound_to_workspaces({"chat-b1": tmp_path}):
             response = client.post(
                 "/api/v1/files/artifacts/download-bundle",
                 json={"artifact_ids": ["bundle-a1", "bundle-a2"], "chat_id": "chat-b1"},
             )
-            assert response.status_code == 200
-            assert response.headers["content-type"] == "application/zip"
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/zip"
 
-            zf = zipfile.ZipFile(io.BytesIO(response.content))
-            names = zf.namelist()
-            assert "manifest.json" in names
-            assert "README.md" in names
-            assert any(n.endswith("report.docx") for n in names)
-            assert any(n.endswith("slides.pptx") for n in names)
-            report_entry = next(n for n in names if n.endswith("report.docx"))
-            slides_entry = next(n for n in names if n.endswith("slides.pptx"))
-            assert zf.read(report_entry) == content1
-            assert zf.read(slides_entry) == content2
+        zf = zipfile.ZipFile(io.BytesIO(response.content))
+        names = zf.namelist()
+        assert "manifest.json" in names
+        assert "README.md" in names
+        assert any(n.endswith("report.docx") for n in names)
+        assert any(n.endswith("slides.pptx") for n in names)
+        report_entry = next(n for n in names if n.endswith("report.docx"))
+        slides_entry = next(n for n in names if n.endswith("slides.pptx"))
+        assert zf.read(report_entry) == content1
+        assert zf.read(slides_entry) == content2
 
     @pytest.mark.asyncio
     async def test_deduplicates_filenames(self, client: TestClient, db_session: AsyncSession, tmp_path) -> None:
@@ -192,28 +185,20 @@ class TestDownloadBundle:
         db_session.add_all([v1, v2])
         await db_session.commit()
 
-        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-
-        def mock_get_path(obj_id: str):
-            return vault_dir / obj_id
-
-        with (
-            patch("app.api.dependencies.get_workspace_root", return_value=tmp_path),
-            patch.object(ArtifactVault, "get_object_path", side_effect=mock_get_path),
-        ):
+        with chats_bound_to_workspaces({"chat-dup": tmp_path}):
             response = client.post(
                 "/api/v1/files/artifacts/download-bundle",
                 json={"artifact_ids": ["dup-a1", "dup-a2"], "chat_id": "chat-dup"},
             )
-            assert response.status_code == 200
-            zf = zipfile.ZipFile(io.BytesIO(response.content))
-            names = [n for n in zf.namelist() if not n.endswith(".json") and not n.endswith(".md")]
-            assert len(names) == 2
-            assert any(n.endswith("/report.docx") or n == "report.docx" for n in names)
-            deduped = [n for n in names if not n.endswith("/report.docx") and n != "report.docx"]
-            assert len(deduped) == 1
-            # Deduplication appends _{id[:6]} to stem: report_dup-a1.docx or report_dup-a2.docx
-            assert "report_" in deduped[0] and deduped[0].endswith(".docx")
+        assert response.status_code == 200
+        zf = zipfile.ZipFile(io.BytesIO(response.content))
+        names = [n for n in zf.namelist() if not n.endswith(".json") and not n.endswith(".md")]
+        assert len(names) == 2
+        assert any(n.endswith("/report.docx") or n == "report.docx" for n in names)
+        deduped = [n for n in names if not n.endswith("/report.docx") and n != "report.docx"]
+        assert len(deduped) == 1
+        # Deduplication appends _{id[:6]} to stem: report_dup-a1.docx or report_dup-a2.docx
+        assert "report_" in deduped[0] and deduped[0].endswith(".docx")
 
     @pytest.mark.asyncio
     async def test_empty_ids_returns_400(self, client: TestClient) -> None:

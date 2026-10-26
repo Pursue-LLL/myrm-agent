@@ -1,36 +1,35 @@
 """[INPUT]
-- WorkbenchFileNode, FileTreeResponse, FileContentResponse, FileDiffRequest, FileDiffResponse, TerminalExecRequest, TerminalExecResponse, PluginItemModel, PluginProbeResponse from .models
-- Path traversal defense & asyncio subprocess execution
+- WorkbenchFileNode, FileTreeResponse, FileContentResponse, TerminalExecRequest, TerminalExecResponse from .models
+- app.services.chat.effective_workspace::find_chat_workspace_root (POS: the workspace a chat's runs work in)
+- myrm_agent_harness.agent.hooks.command_gate::gate_hook_command (POS: dangerous-command gate for person-authored shell commands)
+- myrm_agent_harness.utils.os_compat::get_process_group_kwargs, kill_process_group (POS: cross-platform process-tree control)
 
 [OUTPUT]
-- workbench_router: FastAPI APIRouter exposing workspace file explorer, Monaco Diff, PTY terminal & plugin probe APIs
+- workbench_router: FastAPI APIRouter exposing a chat workspace's file explorer and command terminal
 
 [POS]
-Backend endpoints for Independent Multi-Tab Auxiliary Workbench (Item 25).
-Strict typing: Zero Any. File length < 320 lines. Zero emoji.
+Backend endpoints for the auxiliary workbench. Every path is confined to the workspace of the chat the
+request names; commands run there under a static safety gate, a timeout that kills the whole process tree,
+and a per-stream output cap.
 """
 
 from __future__ import annotations
 
 import asyncio
-import difflib
 import os
-import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.agent.hooks.command_gate import gate_hook_command
+from myrm_agent_harness.utils.os_compat import get_process_group_kwargs, kill_process_group
+
+from app.services.chat.effective_workspace import find_chat_workspace_root
 
 from .models import (
-    DiffHunk,
     FileContentResponse,
-    FileDiffRequest,
-    FileDiffResponse,
     FileTreeResponse,
-    PluginItemModel,
-    PluginProbeResponse,
-    PluginStatus,
     TerminalExecRequest,
     TerminalExecResponse,
     WorkbenchFileNode,
@@ -38,8 +37,9 @@ from .models import (
 
 workbench_router = APIRouter()
 
-_SAFE_ROOT_FALLBACK = Path.cwd().resolve()
 _EXCLUDED_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".next", "dist", "build"}
+_MAX_STREAM_BYTES = 1_000_000
+_READ_CHUNK_BYTES = 65_536
 _EXTENSION_LANG_MAP: dict[str, str] = {
     "py": "python",
     "ts": "typescript",
@@ -59,275 +59,177 @@ _EXTENSION_LANG_MAP: dict[str, str] = {
     "sql": "sql",
 }
 
-_MOCK_PLUGINS: list[PluginItemModel] = [
-    PluginItemModel(
-        plugin_id="plugin-git-diff-inspector",
-        name="Git Diff Inspector",
-        description="Real-time multi-branch git diff visualizer and conflict resolver",
-        version="1.4.0",
-        author="Myrm Team",
-        github_repo="https://github.com/myrm-agent/git-diff-inspector",
-        status="healthy",
-        is_installed=True,
-        last_probed_at="2026-10-12T10:00:00Z",
-    ),
-    PluginItemModel(
-        plugin_id="plugin-ansi-pty-streamer",
-        name="ANSI PTY Streamer",
-        description="High-throughput pseudo-terminal multiplexer with ANSI VT100 colors",
-        version="2.1.2",
-        author="Myrm Infrastructure",
-        github_repo="https://github.com/myrm-agent/ansi-pty-streamer",
-        status="healthy",
-        is_installed=True,
-        last_probed_at="2026-10-12T10:00:00Z",
-    ),
-    PluginItemModel(
-        plugin_id="plugin-ast-code-refactorer",
-        name="AST Code Refactorer",
-        description="Language-server powered semantic refactoring probe and linter gate",
-        version="0.9.8",
-        author="Community Contributor",
-        github_repo="https://github.com/myrm-agent/ast-code-refactorer",
-        status="healthy",
-        is_installed=True,
-        last_probed_at="2026-10-12T09:45:00Z",
-    ),
-]
+
+async def _workspace_root(chat_id: str) -> Path:
+    """The existing workspace directory of ``chat_id``; there is no stand-in for a chat that has none."""
+    found = await find_chat_workspace_root(chat_id)
+    root = found.resolve() if found is not None else None
+    if root is None or not root.is_dir():
+        raise HTTPException(status_code=404, detail="Workspace directory not found")
+    return root
 
 
-def _resolve_safe_path(target_path_str: str, root_dir: Path | None = None) -> Path:
-    base = (root_dir or _SAFE_ROOT_FALLBACK).resolve()
-    target = (base / target_path_str).resolve() if not os.path.isabs(target_path_str) else Path(target_path_str).resolve()
-    try:
-        target.relative_to(base)
-    except ValueError as exc:
-        raise HTTPException(status_code=403, detail="Path traversal forbidden: outside workspace boundary") from exc
+def _resolve_safe_path(target_path_str: str, root: Path) -> Path:
+    target = Path(target_path_str) if os.path.isabs(target_path_str) else root / target_path_str
+    target = target.resolve()
+    if not target.is_relative_to(root):
+        raise HTTPException(status_code=403, detail="Path traversal forbidden: outside workspace boundary")
     return target
 
 
-def _build_tree(dir_path: Path, current_depth: int, max_depth: int) -> list[WorkbenchFileNode]:
+def _iso_mtime(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
+
+
+def _build_tree(dir_path: Path, root: Path, current_depth: int, max_depth: int) -> list[WorkbenchFileNode]:
     if current_depth > max_depth or not dir_path.is_dir():
         return []
 
-    nodes: list[WorkbenchFileNode] = []
     try:
         entries = sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
-    except (PermissionError, OSError):
+    except OSError:
         return []
 
+    nodes: list[WorkbenchFileNode] = []
     for entry in entries:
         if entry.name in _EXCLUDED_DIRS or entry.name.startswith("."):
             continue
 
         try:
             stat = entry.stat()
-            mod_iso = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+            relative = str(entry.relative_to(root))
             if entry.is_dir():
-                children = _build_tree(entry, current_depth + 1, max_depth) if current_depth < max_depth else []
+                children = _build_tree(entry, root, current_depth + 1, max_depth) if current_depth < max_depth else []
                 nodes.append(
                     WorkbenchFileNode(
                         name=entry.name,
-                        path=str(entry.relative_to(_SAFE_ROOT_FALLBACK)),
+                        path=relative,
                         node_type="directory",
-                        size_bytes=0,
-                        modified_at=mod_iso,
+                        modified_at=_iso_mtime(stat.st_mtime),
                         children=children,
                     )
                 )
             else:
-                ext = entry.suffix.lstrip(".").lower()
                 nodes.append(
                     WorkbenchFileNode(
                         name=entry.name,
-                        path=str(entry.relative_to(_SAFE_ROOT_FALLBACK)),
+                        path=relative,
                         node_type="file",
                         size_bytes=stat.st_size,
-                        modified_at=mod_iso,
-                        extension=ext,
+                        modified_at=_iso_mtime(stat.st_mtime),
+                        extension=entry.suffix.lstrip(".").lower(),
                     )
                 )
-        except (PermissionError, OSError):
+        except OSError:
             continue
 
     return nodes
 
 
+def _count_nodes(nodes: list[WorkbenchFileNode]) -> tuple[int, int]:
+    files = dirs = 0
+    for node in nodes:
+        if node.node_type == "file":
+            files += 1
+            continue
+        dirs += 1
+        child_files, child_dirs = _count_nodes(node.children or [])
+        files += child_files
+        dirs += child_dirs
+    return files, dirs
+
+
 @workbench_router.get("/files", response_model=FileTreeResponse)
 async def list_workspace_files(
-    root_dir: str | None = Query(default=None, description="Optional root path within workspace"),
+    chat_id: str = Query(..., min_length=1, description="Chat whose workspace to browse"),
+    root_dir: str | None = Query(default=None, description="Optional sub-directory within the workspace"),
     max_depth: int = Query(default=3, ge=1, le=8),
 ) -> FileTreeResponse:
-    target_root = _resolve_safe_path(root_dir) if root_dir else _SAFE_ROOT_FALLBACK
-    if not target_root.exists() or not target_root.is_dir():
+    root = await _workspace_root(chat_id)
+    target_root = _resolve_safe_path(root_dir, root) if root_dir else root
+    if not target_root.is_dir():
         raise HTTPException(status_code=404, detail="Workspace directory not found")
 
-    nodes = _build_tree(target_root, current_depth=1, max_depth=max_depth)
-
-    def count_nodes(n_list: list[WorkbenchFileNode]) -> tuple[int, int]:
-        f_count = 0
-        d_count = 0
-        for n in n_list:
-            if n.node_type == "file":
-                f_count += 1
-            else:
-                d_count += 1
-                if n.children:
-                    c_f, c_d = count_nodes(n.children)
-                    f_count += c_f
-                    d_count += c_d
-        return f_count, d_count
-
-    total_f, total_d = count_nodes(nodes)
-    return FileTreeResponse(
-        root_path=str(target_root),
-        nodes=nodes,
-        total_files=total_f,
-        total_dirs=total_d,
-    )
+    nodes = await asyncio.to_thread(_build_tree, target_root, root, 1, max_depth)
+    total_files, total_dirs = _count_nodes(nodes)
+    return FileTreeResponse(root_path=str(target_root), nodes=nodes, total_files=total_files, total_dirs=total_dirs)
 
 
 @workbench_router.get("/file/content", response_model=FileContentResponse)
-async def get_file_content(path: str = Query(..., min_length=1)) -> FileContentResponse:
-    target = _resolve_safe_path(path)
-    if not target.exists() or not target.is_file():
+async def get_file_content(
+    chat_id: str = Query(..., min_length=1, description="Chat whose workspace holds the file"),
+    path: str = Query(..., min_length=1),
+) -> FileContentResponse:
+    root = await _workspace_root(chat_id)
+    target = _resolve_safe_path(path, root)
+    if not target.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
-    ext = target.suffix.lstrip(".").lower()
-    lang = _EXTENSION_LANG_MAP.get(ext, "plaintext")
-    stat = target.stat()
-    mod_iso = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
-
     try:
-        text_content = target.read_text(encoding="utf-8", errors="replace")
-        return FileContentResponse(
-            path=str(target.relative_to(_SAFE_ROOT_FALLBACK)),
-            content=text_content,
-            language=lang,
-            size_bytes=stat.st_size,
-            is_binary=False,
-            modified_at=mod_iso,
-        )
-    except Exception as exc:
+        stat = target.stat()
+        content = await asyncio.to_thread(target.read_text, encoding="utf-8", errors="replace")
+    except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {exc}") from exc
 
-
-@workbench_router.post("/diff", response_model=FileDiffResponse)
-async def compute_file_diff(req: FileDiffRequest) -> FileDiffResponse:
-    orig = req.original_content or ""
-    mod = req.modified_content or ""
-
-    orig_lines = orig.splitlines(keepends=True)
-    mod_lines = mod.splitlines(keepends=True)
-
-    diff_gen = list(
-        difflib.unified_diff(
-            orig_lines,
-            mod_lines,
-            fromfile=f"a/{req.file_path}",
-            tofile=f"b/{req.file_path}",
-            lineterm="",
-        )
+    return FileContentResponse(
+        path=str(target.relative_to(root)),
+        content=content,
+        language=_EXTENSION_LANG_MAP.get(target.suffix.lstrip(".").lower(), "plaintext"),
+        size_bytes=stat.st_size,
+        modified_at=_iso_mtime(stat.st_mtime),
     )
-    unified_diff_str = "\n".join(diff_gen)
 
-    additions = sum(1 for line in diff_gen if line.startswith("+") and not line.startswith("+++"))
-    deletions = sum(1 for line in diff_gen if line.startswith("-") and not line.startswith("---"))
 
-    # Parse hunks
-    hunks: list[DiffHunk] = []
-    current_hunk: DiffHunk | None = None
-    hunk_header_regex = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-
-    for line in diff_gen:
-        match = hunk_header_regex.match(line)
-        if match:
-            if current_hunk:
-                hunks.append(current_hunk)
-            old_start = int(match.group(1))
-            old_lines = int(match.group(2) or 1)
-            new_start = int(match.group(3))
-            new_lines = int(match.group(4) or 1)
-            current_hunk = DiffHunk(
-                old_start=old_start,
-                old_lines=old_lines,
-                new_start=new_start,
-                new_lines=new_lines,
-                lines=[],
-            )
-        elif current_hunk is not None:
-            current_hunk.lines.append(line)
-
-    if current_hunk:
-        hunks.append(current_hunk)
-
-    return FileDiffResponse(
-        file_path=req.file_path,
-        unified_diff=unified_diff_str,
-        additions=additions,
-        deletions=deletions,
-        hunks=hunks,
-    )
+async def _read_capped(stream: asyncio.StreamReader) -> tuple[bytes, bool]:
+    """Read ``stream`` to EOF, keeping at most ``_MAX_STREAM_BYTES``; the rest is drained and dropped."""
+    kept = bytearray()
+    truncated = False
+    while chunk := await stream.read(_READ_CHUNK_BYTES):
+        room = _MAX_STREAM_BYTES - len(kept)
+        kept += chunk[:room]
+        truncated = truncated or len(chunk) > room
+    return bytes(kept), truncated
 
 
 @workbench_router.post("/terminal/exec", response_model=TerminalExecResponse)
 async def execute_terminal_command(req: TerminalExecRequest) -> TerminalExecResponse:
-    # High-risk command interception
-    forbidden_patterns = [r"rm\s+-rf\s+[/~]", r":\(\)\s*\{", r"mkfs", r"dd\s+if="]
-    for pattern in forbidden_patterns:
-        if re.search(pattern, req.command):
-            raise HTTPException(status_code=400, detail="Command rejected by safety sandbox guard")
+    if (refusal := gate_hook_command(req.command, strict=False)) is not None:
+        raise HTTPException(status_code=400, detail=f"Command rejected by safety guard: {refusal}")
 
-    cwd_path = _resolve_safe_path(req.cwd) if req.cwd else _SAFE_ROOT_FALLBACK
+    root = await _workspace_root(req.chat_id)
+    cwd = _resolve_safe_path(req.cwd, root) if req.cwd else root
+    if not cwd.is_dir():
+        raise HTTPException(status_code=400, detail=f"Working directory not found: {req.cwd}")
+
     start_time = time.perf_counter()
-
     try:
         proc = await asyncio.create_subprocess_shell(
             req.command,
-            cwd=str(cwd_path),
+            cwd=str(cwd),
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            **get_process_group_kwargs(),
         )
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=float(req.timeout_seconds)
-        )
-        duration_ms = int((time.perf_counter() - start_time) * 1000)
-
-        return TerminalExecResponse(
-            command=req.command,
-            exit_code=proc.returncode if proc.returncode is not None else 0,
-            stdout=stdout_bytes.decode("utf-8", errors="replace"),
-            stderr=stderr_bytes.decode("utf-8", errors="replace"),
-            duration_ms=duration_ms,
-        )
-    except asyncio.TimeoutError as exc:
-        raise HTTPException(status_code=408, detail=f"Command execution timed out after {req.timeout_seconds}s") from exc
-    except Exception as exc:
+    except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Execution error: {exc}") from exc
 
+    assert proc.stdout is not None and proc.stderr is not None
+    try:
+        (stdout, stdout_cut), (stderr, stderr_cut), _ = await asyncio.wait_for(
+            asyncio.gather(_read_capped(proc.stdout), _read_capped(proc.stderr), proc.wait()),
+            timeout=float(req.timeout_seconds),
+        )
+    except TimeoutError as exc:
+        kill_process_group(proc.pid)
+        await proc.wait()
+        raise HTTPException(status_code=408, detail=f"Command execution timed out after {req.timeout_seconds}s") from exc
 
-@workbench_router.get("/plugins", response_model=list[PluginItemModel])
-async def list_workbench_plugins() -> list[PluginItemModel]:
-    return _MOCK_PLUGINS
-
-
-@workbench_router.post("/plugins/{plugin_id}/probe", response_model=PluginProbeResponse)
-async def probe_plugin_health(plugin_id: str) -> PluginProbeResponse:
-    found = next((p for p in _MOCK_PLUGINS if p.plugin_id == plugin_id), None)
-    if not found:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    # Simulated microsecond ping
-    status: PluginStatus = "healthy"
-    latency_ms = 12
-    return PluginProbeResponse(
-        plugin_id=plugin_id,
-        status=status,
-        latency_ms=latency_ms,
-        message="Plugin probe completed successfully. Subsystem responsive.",
-        details={
-            "version": found.version,
-            "runtime": "python-sandboxed",
-            "uptime_rate": "99.98%",
-        },
+    return TerminalExecResponse(
+        command=req.command,
+        exit_code=proc.returncode if proc.returncode is not None else 0,
+        stdout=stdout.decode("utf-8", errors="replace"),
+        stderr=stderr.decode("utf-8", errors="replace"),
+        duration_ms=int((time.perf_counter() - start_time) * 1000),
+        truncated=stdout_cut or stderr_cut,
     )

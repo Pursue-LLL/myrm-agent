@@ -11,7 +11,6 @@ describe('useWorkbenchStore', () => {
       activeTab: 'files',
       selectedFilePath: null,
       selectedFileContent: null,
-      activeDiff: null,
       terminalLogs: [],
     });
   });
@@ -66,8 +65,8 @@ describe('useWorkbenchStore', () => {
     expect(useWorkbenchStore.getState().activeTab).toBe('terminal');
   });
 
-  it('handles selected file and active diff assignment', () => {
-    const { setSelectedFile, setActiveDiff } = useWorkbenchStore.getState();
+  it('handles selected file assignment', () => {
+    const { setSelectedFile } = useWorkbenchStore.getState();
 
     const mockContent = {
       path: 'src/app.py',
@@ -81,16 +80,6 @@ describe('useWorkbenchStore', () => {
 
     expect(useWorkbenchStore.getState().selectedFilePath).toBe('src/app.py');
     expect(useWorkbenchStore.getState().selectedFileContent).toEqual(mockContent);
-
-    const mockDiff = {
-      file_path: 'src/app.py',
-      unified_diff: '@@ -1 +1 @@',
-      additions: 1,
-      deletions: 0,
-      hunks: [],
-    };
-    setActiveDiff(mockDiff);
-    expect(useWorkbenchStore.getState().activeDiff).toEqual(mockDiff);
   });
 
   it('records terminal logs and clears them', () => {
@@ -110,5 +99,18 @@ describe('useWorkbenchStore', () => {
 
     clearTerminalLogs();
     expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
+  });
+
+  it('drops the file selection and terminal history when the workspace session resets', () => {
+    const { setSelectedFile, addTerminalLog, resetWorkspaceSession } = useWorkbenchStore.getState();
+    setSelectedFile('src/app.py', null);
+    addTerminalLog({ command: 'ls', output: 'app.py', exitCode: 0 });
+
+    resetWorkspaceSession();
+
+    const state = useWorkbenchStore.getState();
+    expect(state.selectedFilePath).toBeNull();
+    expect(state.selectedFileContent).toBeNull();
+    expect(state.terminalLogs).toHaveLength(0);
   });
 });

@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.artifacts.listener::ensure_artifact_for_deploy, resolve_sandbox_file_path
+- app.services.chat.effective_workspace::resolve_chat_workspace_root
 - app.services.hosting.packager::collect_publish_files
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: sandbox artifact storage)
 
@@ -21,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.artifacts.listener import ensure_artifact_for_deploy, resolve_sandbox_file_path
 from app.database.models.artifact import Artifact
+from app.services.chat.effective_workspace import resolve_chat_workspace_root
 from app.services.hosting.packager import PublishFile, collect_publish_files
 
 
@@ -38,6 +40,9 @@ async def resolve_artifact_deploy_files(
 ) -> tuple[Artifact, dict[str, PublishFile]]:
     """Load artifact and collect static files (vault object + sandbox asset_root).
 
+    Files are read from the workspace of the chat that produced the artifact; *workspace_root* serves
+    artifacts that belong to no chat.
+
     When *version_id* is provided the exact version is resolved (used by share
     bundle re-materialization to honour the pinned version in the JWT token).
     Otherwise the latest version is used (deploy / preflight path).
@@ -52,6 +57,8 @@ async def resolve_artifact_deploy_files(
             raise LookupError(f"Artifact version {version_id} not found")
     else:
         target_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
+    if artifact.chat_id:
+        workspace_root = str(await resolve_chat_workspace_root(artifact.chat_id))
     vault = ArtifactVault(workspace_root)
     obj_path = _vault_object_path(vault, target_version.vault_uri)
     asset_root: Path | None = None

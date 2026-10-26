@@ -6,7 +6,7 @@
 - myrm_agent_harness.api::redact_sensitive_text
 - app.database.models.chat::Chat
 - app.database.models.artifact::Artifact, ArtifactVersion
-- app.platform_utils.workspace_root::get_workspace_root
+- app.services.chat.effective_workspace::resolve_chat_workspace_root
 
 [OUTPUT]
 - router: APIRouter with HEAD and GET /{chat_id}/export-pack endpoints
@@ -41,7 +41,7 @@ from app.core.utils.errors import internal_error, not_found_error
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.database.models.chat import Chat
-from app.platform_utils.workspace_root import get_workspace_root
+from app.services.chat.effective_workspace import resolve_chat_workspace_root
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +169,7 @@ async def _generate_zip_stream(
     artifact_entries: list[tuple[str, bytes]] = []
     if include_artifacts:
         try:
-            workspace_root = get_workspace_root()
-            vault = ArtifactVault(str(workspace_root))
+            vault = ArtifactVault(str(await resolve_chat_workspace_root(chat.id)))
             vault_objects_dir = vault.objects_dir
 
             stmt = (

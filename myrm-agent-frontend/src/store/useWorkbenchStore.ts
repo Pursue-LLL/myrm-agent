@@ -1,22 +1,22 @@
 /**
  * [INPUT]
- * - Zustand create & persist (POS: client-side workbench UI state management)
- * - FileContentResponse, FileDiffResponse from @/services/workbench
+ * - Zustand create (POS: client-side workbench UI state management)
+ * - FileContentResponse from @/services/workbench
  *
  * [OUTPUT]
- * - WorkbenchTabId: ('files' | 'diff' | 'terminal' | 'plugins')
+ * - WorkbenchTabId: ('files' | 'terminal')
  * - TerminalLogEntry: Terminal execution history model
- * - useWorkbenchStore: Zustand hook managing drawer visibility, size, active tab & selection
+ * - useWorkbenchStore: Zustand hook managing drawer visibility, size, active tab, file selection & terminal history
  *
  * [POS]
- * Central UI store for Independent Multi-Tab Auxiliary Workbench (Item 25).
- * Single file < 160 lines. Zero `any` types.
+ * Central UI store for the auxiliary workbench. File selection and terminal history belong to one chat's
+ * workspace; `resetWorkspaceSession` drops them when the chat changes.
  */
 
 import { create } from 'zustand';
-import type { FileContentResponse, FileDiffResponse } from '@/services/workbench';
+import type { FileContentResponse } from '@/services/workbench';
 
-export type WorkbenchTabId = 'files' | 'diff' | 'terminal' | 'plugins';
+export type WorkbenchTabId = 'files' | 'terminal';
 export type WorkbenchPlacement = 'right' | 'bottom';
 
 export interface TerminalLogEntry {
@@ -35,7 +35,6 @@ export interface WorkbenchState {
   activeTab: WorkbenchTabId;
   selectedFilePath: string | null;
   selectedFileContent: FileContentResponse | null;
-  activeDiff: FileDiffResponse | null;
   terminalLogs: TerminalLogEntry[];
 
   // Actions
@@ -46,9 +45,9 @@ export interface WorkbenchState {
   setHeight: (height: number) => void;
   setActiveTab: (tab: WorkbenchTabId) => void;
   setSelectedFile: (path: string | null, content?: FileContentResponse | null) => void;
-  setActiveDiff: (diff: FileDiffResponse | null) => void;
   addTerminalLog: (record: { command: string; output: string; exitCode: number }) => void;
   clearTerminalLogs: () => void;
+  resetWorkspaceSession: () => void;
 }
 
 const DEFAULT_WIDTH = 480;
@@ -66,7 +65,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   activeTab: 'files',
   selectedFilePath: null,
   selectedFileContent: null,
-  activeDiff: null,
   terminalLogs: [],
 
   toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -86,8 +84,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   setSelectedFile: (path: string | null, content: FileContentResponse | null = null) =>
     set({ selectedFilePath: path, selectedFileContent: content }),
 
-  setActiveDiff: (diff: FileDiffResponse | null) => set({ activeDiff: diff }),
-
   addTerminalLog: ({ command, output, exitCode }) =>
     set((state) => {
       const entry: TerminalLogEntry = {
@@ -103,4 +99,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     }),
 
   clearTerminalLogs: () => set({ terminalLogs: [] }),
+
+  resetWorkspaceSession: () =>
+    set({ selectedFilePath: null, selectedFileContent: null, terminalLogs: [] }),
 }));

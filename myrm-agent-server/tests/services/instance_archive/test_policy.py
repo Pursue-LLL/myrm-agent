@@ -40,6 +40,7 @@ from tests.services.instance_archive.conftest import PERMISSIONS_ENFORCED
         (("wiki", "password-policy.md"), PathCategory.DATA),
         (("harness", "workspace", "app", "node_modules", "a.js"), PathCategory.DERIVED),
         (("skills", "x", ".venv", "bin", "python"), PathCategory.DERIVED),
+        (("credentials.json",), PathCategory.SECRET),  # where CredentialsStore keeps channel logins
         ((".myrm", "credentials.json"), PathCategory.SECRET),
         (("wiki", "build.lock"), PathCategory.RUNTIME),
     ],

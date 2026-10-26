@@ -6892,6 +6892,12 @@
       "exportSuccess": "Export Successful",
       "svgExported": "Architecture diagram exported as standalone SVG",
       "pngExported": "Architecture diagram exported as high-res PNG"
+    },
+    "vaultCard": {
+      "loading": "Loading the file...",
+      "loadFailed": "Could not load the file",
+      "unavailable": "This file is no longer available",
+      "downloadFull": "Download full file"
     }
   },
   "MessageSources": {
@@ -13978,9 +13984,7 @@
     "workbenchAriaLabel": "Auxiliary Workbench",
     "resizeHandleAria": "Workbench resize handle",
     "tabFiles": "Files",
-    "tabDiff": "Diff",
     "tabTerminal": "Terminal",
-    "tabPlugins": "Plugins",
     "dockBottom": "Dock to bottom",
     "dockRight": "Dock to right",
     "closeAction": "Close Workbench",
@@ -13994,36 +13998,23 @@
       "refreshAction": "Refresh tree",
       "loadingTree": "Loading workspace files...",
       "emptyResults": "No matching files found",
-      "selectFileHint": "Select a file from the tree to preview code"
-    },
-    "diff": {
-      "modeInline": "Inline diff",
-      "modeSplit": "Split diff",
-      "copyDiff": "Copy Diff",
-      "copied": "Copied",
-      "resetDiff": "Reset Diff",
-      "originalHeader": "Original Baseline (Before)",
-      "modifiedHeader": "Current Changes (After)"
+      "selectFileHint": "Select a file from the tree to preview code",
+      "workspaceUnavailable": "This conversation has no workspace folder yet.",
+      "lineCount": "{count} lines"
     },
     "terminal": {
-      "headerTitle": "Controlled PTY Terminal",
+      "headerTitle": "Terminal",
       "historyEntries": "entries",
       "clearAction": "Clear",
       "emptyTerminalHint": "Terminal ready. Enter command and press Enter.",
       "inputPlaceholder": "Enter command (e.g. echo, ls, git status)...",
       "runAction": "Run",
-      "injectToChat": "Insert output to chat"
+      "injectToChat": "Insert output to chat",
+      "noOutput": "(no output)",
+      "outputTruncated": "[Output truncated]",
+      "runFailed": "Could not run the command: {message}"
     },
-    "plugins": {
-      "headerTitle": "GitHub Plugin Center",
-      "installedCount": "ready",
-      "refreshAction": "Refresh plugins",
-      "emptyPlugins": "No plugins available",
-      "probeSuccessTitle": "Probe succeeded: {id}",
-      "viewGithub": "View on GitHub",
-      "probeAction": "Health Probe",
-      "repairAction": "Auto Repair"
-    }
+    "noChat": "Open a conversation to browse its workspace files and run commands there."
   },
   "workLayout": {
     "modeChat": "Chat Mode",

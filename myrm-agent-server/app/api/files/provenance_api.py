@@ -5,6 +5,7 @@
 - app.database.models.artifact::Artifact, ArtifactVersion, ArtifactAuditLog (POS: Artifact models)
 - app.database.models.chat::Chat (POS: Chat session model for provenance association)
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object store)
+- app.services.chat.effective_workspace::resolve_chat_workspace_root (POS: Workspace root a chat's runs wrote to)
 
 [OUTPUT]
 - router: APIRouter — Artifact Provenance & cross-session retrieval endpoints
@@ -29,7 +30,7 @@ from sqlalchemy.orm import selectinload
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.database.models.chat import Chat
-from app.platform_utils.workspace_root import get_workspace_root
+from app.services.chat.effective_workspace import resolve_chat_workspace_root
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,15 @@ def _get_artifact_size(vault: ArtifactVault, vault_uri: str | None) -> int | Non
     return None
 
 
+async def _artifact_size(vaults: dict[str | None, ArtifactVault], chat_id: str | None, vault_uri: str | None) -> int | None:
+    """Size of a vault object, opening each originating chat's vault once per request."""
+    if not vault_uri:
+        return None
+    if chat_id not in vaults:
+        vaults[chat_id] = ArtifactVault(str(await resolve_chat_workspace_root(chat_id)))
+    return _get_artifact_size(vaults[chat_id], vault_uri)
+
+
 @router.get("/provenance", response_model=ArtifactProvenanceListResponse)
 async def list_artifact_provenance(
     category: ArtifactCategory = Query("all", description="Filter by asset category"),
@@ -137,9 +147,6 @@ async def list_artifact_provenance(
     db: AsyncSession = Depends(get_db),
 ) -> ArtifactProvenanceListResponse:
     """Retrieve cross-session artifact provenance hub items with multi-category filters and statistics."""
-    workspace_root = get_workspace_root()
-    vault = ArtifactVault(workspace_root=workspace_root)
-
     # 1. Base query with preloaded versions and join on chat
     stmt = (
         select(Artifact, Chat)
@@ -179,7 +186,6 @@ async def list_artifact_provenance(
             category_counts["other"] += 1
 
         latest_version = max(artifact.versions, key=lambda v: v.created_at) if artifact.versions else None
-        size_bytes = _get_artifact_size(vault, latest_version.vault_uri if latest_version else None)
         ext = artifact.name.rsplit(".", 1)[-1] if "." in artifact.name else ""
 
         all_items.append(
@@ -197,7 +203,6 @@ async def list_artifact_provenance(
                 vault_uri=latest_version.vault_uri if latest_version else None,
                 sha256_hash=latest_version.sha256_hash if latest_version else None,
                 commit_message=latest_version.commit_message if latest_version else None,
-                size_bytes=size_bytes,
                 extension=ext,
             )
         )
@@ -209,6 +214,9 @@ async def list_artifact_provenance(
         filtered_items = all_items
 
     paginated = filtered_items[offset : offset + limit]
+    vaults: dict[str | None, ArtifactVault] = {}
+    for item in paginated:
+        item.size_bytes = await _artifact_size(vaults, item.chat_id, item.vault_uri)
 
     return ArtifactProvenanceListResponse(
         items=paginated,
@@ -223,9 +231,6 @@ async def get_artifact_provenance_detail(
     db: AsyncSession = Depends(get_db),
 ) -> ArtifactProvenanceDetailResponse:
     """Retrieve full bidirectional provenance graph, version history, and audit log count for a specific artifact."""
-    workspace_root = get_workspace_root()
-    vault = ArtifactVault(workspace_root=workspace_root)
-
     stmt = (
         select(Artifact, Chat)
         .outerjoin(Chat, Artifact.chat_id == Chat.id)
@@ -238,8 +243,9 @@ async def get_artifact_provenance_detail(
         raise HTTPException(status_code=404, detail="Artifact not found")
 
     artifact, chat = row
+    vaults: dict[str | None, ArtifactVault] = {}
     latest_version = max(artifact.versions, key=lambda v: v.created_at) if artifact.versions else None
-    size_bytes = _get_artifact_size(vault, latest_version.vault_uri if latest_version else None)
+    size_bytes = await _artifact_size(vaults, artifact.chat_id, latest_version.vault_uri if latest_version else None)
     cat = classify_artifact_category(artifact.name)
     ext = artifact.name.rsplit(".", 1)[-1] if "." in artifact.name else ""
 
@@ -263,7 +269,7 @@ async def get_artifact_provenance_detail(
 
     version_entries: list[ArtifactVersionTimelineEntry] = []
     for ver in sorted(artifact.versions, key=lambda v: v.created_at, reverse=True):
-        ver_size = _get_artifact_size(vault, ver.vault_uri)
+        ver_size = await _artifact_size(vaults, artifact.chat_id, ver.vault_uri)
         version_entries.append(
             ArtifactVersionTimelineEntry(
                 version_id=ver.id,

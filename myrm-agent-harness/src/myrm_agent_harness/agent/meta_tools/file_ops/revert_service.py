@@ -277,18 +277,10 @@ def _cleanup_artifact(path: str) -> None:
 
 
 def _schedule_disk_cleanup(store: SnapshotStore, scope: str, session_id: str, message_id: str | None = None) -> None:
-    """Fire-and-forget disk cleanup after revert.
+    """Fire-and-forget disk cleanup after revert, in the workspace root snapshots were persisted to."""
+    from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
-    Prefers the context-bound workspace root so cleanup targets the same
-    directory snapshots were persisted to (chat workspace), not the CWD.
-    """
-    from myrm_agent_harness.core.context_vars import workspace_root_var
-
-    workspace_root = workspace_root_var.get()
-    if not workspace_root:
-        from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
-
-        workspace_root = str(WorkspacePathResolver.resolve_workspace_root())
+    workspace_root = str(WorkspacePathResolver.resolve_workspace_root())
     try:
         loop = asyncio.get_running_loop()
         if scope == "message" and message_id:

@@ -224,7 +224,7 @@ const MarkdownContent = React.memo(
           if (!id) {
             return null;
           }
-          return <VaultArtifactCard id={id} />;
+          return <VaultArtifactCard id={id} chatId={chatId} />;
         },
         think: ThinkTagProcessor,
         thinking: ThinkTagProcessor,

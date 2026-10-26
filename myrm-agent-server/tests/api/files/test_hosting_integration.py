@@ -20,6 +20,9 @@ from app.database.connection import get_db
 from app.database.models.artifact_publication import ArtifactPublication
 from app.services.hosting.targets import save_hosting_targets
 from app.services.hosting.types import HostingTarget
+from tests.support.chat_workspace import chats_bound_to_workspaces
+
+_CHAT_ID = "chat-hosting-int"
 
 
 def _public_dns(*_args: object, **_kwargs: object) -> list[tuple[int, int, int, str, tuple[str, int]]]:
@@ -53,7 +56,7 @@ def hosting_integration_client(db_session: AsyncSession, tmp_path, monkeypatch) 
         lambda: workspace,
     )
 
-    with TestClient(test_app) as test_client:
+    with chats_bound_to_workspaces({_CHAT_ID: workspace}), TestClient(test_app) as test_client:
         yield test_client, workspace, db_session
 
     limiter.enabled = True
@@ -84,7 +87,7 @@ async def _seed_html_artifact(db_session: AsyncSession, workspace, *, file_id: s
         filename="index.html",
         sandbox_path=str(html_path),
         workspace_root=str(workspace),
-        chat_id="chat-hosting-int",
+        chat_id=_CHAT_ID,
     )
     return artifact_id
 

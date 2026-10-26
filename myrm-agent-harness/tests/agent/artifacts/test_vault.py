@@ -1,5 +1,6 @@
 """Unit tests for ArtifactVault."""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,11 +24,22 @@ class TestArtifactVault:
     """Tests for ArtifactVault."""
 
     def test_init(self, workspace_dir: Path, vault: ArtifactVault):
-        """Test initialization creates directories."""
+        """Opening a vault computes its layout without touching the disk."""
         assert vault.workspace_root == workspace_dir
-        assert vault.vault_dir.exists()
-        assert vault.objects_dir.exists()
-        assert vault.meta_dir.exists()
+        assert not vault.vault_dir.exists()
+
+    def test_reading_an_empty_vault_leaves_the_workspace_untouched(self, vault: ArtifactVault):
+        assert vault.list_objects() == []
+        assert vault.get_meta(f"{VAULT_PREFIX}missing") is None
+        with pytest.raises(FileNotFoundError):
+            vault.get(f"{VAULT_PREFIX}missing")
+        assert not vault.vault_dir.exists()
+
+    def test_first_write_creates_the_directories(self, vault: ArtifactVault):
+        vault.put("x", "x.txt")
+
+        assert vault.objects_dir.is_dir()
+        assert vault.meta_dir.is_dir()
 
     def test_get_object_path(self, vault: ArtifactVault):
         """Test getting object path."""
@@ -152,3 +164,24 @@ class TestArtifactVault:
         # Should skip corrupted file and return empty list
         objects = vault.list_objects()
         assert len(objects) == 0
+
+
+class TestVaultPlatformIndependence:
+    """The vault writes on platforms that ship no ``fcntl`` (Windows)."""
+
+    @pytest.fixture(autouse=True)
+    def _no_fcntl(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setitem(sys.modules, "fcntl", None)
+
+    def test_put_without_fcntl(self, vault: ArtifactVault):
+        uri = vault.put("payload", "p.txt")
+
+        assert vault.get(uri) == b"payload"
+
+    def test_put_file_without_fcntl(self, vault: ArtifactVault, tmp_path: Path):
+        src = tmp_path / "src.bin"
+        src.write_bytes(b"\x00\x01" * 10)
+
+        uri = vault.put_file(src, "src.bin")
+
+        assert vault.get(uri) == src.read_bytes()

@@ -7,11 +7,10 @@
  * - useTranslations from next-intl (namespace: 'workbench.terminal')
  *
  * [OUTPUT]
- * - WorkbenchTerminal: Real PTY terminal emulator surface with command history & chat injection
+ * - WorkbenchTerminal: Command terminal of one chat's workspace with command history & chat injection
  *
  * [POS]
  * Auxiliary Workbench Terminal tab component.
- * Single file < 300 lines. Zero `any` types. Zero native emoji.
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -29,7 +28,11 @@ import {
 import { executeTerminalCommand } from '@/services/workbench';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 
-export function WorkbenchTerminal() {
+interface WorkbenchTerminalProps {
+  chatId: string;
+}
+
+export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
   const t = useTranslations('workbench.terminal');
   const [inputCommand, setInputCommand] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
@@ -56,23 +59,24 @@ export function WorkbenchTerminal() {
     setInputCommand('');
 
     try {
-      const res = await executeTerminalCommand(cmd);
+      const res = await executeTerminalCommand(chatId, cmd);
+      const output = res.stdout || res.stderr || t('noOutput');
       addTerminalLog({
         command: cmd,
-        output: res.stdout || res.stderr || '(no output)',
+        output: res.truncated ? `${output}\n${t('outputTruncated')}` : output,
         exitCode: res.exit_code,
       });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       addTerminalLog({
         command: cmd,
-        output: `Error: ${errMsg}`,
+        output: t('runFailed', { message: errMsg }),
         exitCode: 1,
       });
     } finally {
       setIsExecuting(false);
     }
-  }, [inputCommand, isExecuting, addTerminalLog]);
+  }, [chatId, inputCommand, isExecuting, addTerminalLog, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {

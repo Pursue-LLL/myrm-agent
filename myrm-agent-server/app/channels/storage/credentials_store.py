@@ -3,6 +3,7 @@
 Provides secure local persistence of channel authentication credentials.
 
 [INPUT]
+- app.config.settings::settings (POS: state directory the default store lives in)
 
 [OUTPUT]
 - CredentialsStore: AES-256 encrypted JSON file storage
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["CredentialsStore"]
 
-_CREDENTIALS_FILE = ".myrm/credentials.json"
+_CREDENTIALS_FILE = "credentials.json"
 _DEFAULT_SALT = b"myrm-channel-creds-v1"
 
 
@@ -39,6 +40,9 @@ class CredentialsStore:
     Stores channel credentials locally with encryption at rest. Suitable for
     Agent-in-Sandbox (local, Tauri) deployments. For SaaS multi-tenant
     deployments, implement custom Redis-backed store in control plane.
+
+    The file lives in the application state directory unless ``storage_dir`` says otherwise, so saved
+    logins survive launching the server from a different working directory.
 
     Security notes:
     - Uses AES-256 via Fernet (symmetric encryption)
@@ -56,16 +60,18 @@ class CredentialsStore:
 
     def __init__(
         self,
-        storage_dir: Path | str = Path.cwd(),
+        storage_dir: Path | str | None = None,
         encryption_key: str | None = None,
     ) -> None:
         """Initialize credentials store.
 
         Args:
-            storage_dir: Base directory for `.myrm/credentials.json`
+            storage_dir: Directory holding ``credentials.json`` (defaults to the application state directory)
             encryption_key: Optional encryption passphrase (defaults to machine-id)
         """
-        self._storage_dir = Path(storage_dir)
+        from app.config.settings import settings
+
+        self._storage_dir = Path(storage_dir if storage_dir is not None else settings.database.state_dir)
         self._creds_file = self._storage_dir / _CREDENTIALS_FILE
         self._encryption_key = encryption_key or self._get_default_key()
         self._fernet = self._init_fernet(self._encryption_key)

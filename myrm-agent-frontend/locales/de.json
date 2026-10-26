@@ -6892,6 +6892,12 @@
       "exportSuccess": "Export erfolgreich",
       "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
       "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
+    },
+    "vaultCard": {
+      "loading": "Datei wird geladen...",
+      "loadFailed": "Die Datei konnte nicht geladen werden",
+      "unavailable": "Diese Datei kann nicht geladen werden",
+      "downloadFull": "Vollständige Datei herunterladen"
     }
   },
   "MessageSources": {
@@ -13978,9 +13984,7 @@
     "workbenchAriaLabel": "Zusatz-Workbench",
     "resizeHandleAria": "Größenänderungsgriff der Workbench",
     "tabFiles": "Dateien",
-    "tabDiff": "Änderungen",
     "tabTerminal": "Terminal",
-    "tabPlugins": "Plugins",
     "dockBottom": "Unten andocken",
     "dockRight": "Rechts andocken",
     "closeAction": "Workbench schließen",
@@ -13994,36 +13998,23 @@
       "refreshAction": "Baum aktualisieren",
       "loadingTree": "Workspace-Dateien werden geladen...",
       "emptyResults": "Keine passenden Dateien gefunden",
-      "selectFileHint": "Wählen Sie eine Datei im Baum aus, um den Code anzuzeigen"
-    },
-    "diff": {
-      "modeInline": "Inline-Diff",
-      "modeSplit": "Geteilter Diff",
-      "copyDiff": "Diff kopieren",
-      "copied": "Kopiert",
-      "resetDiff": "Diff zurücksetzen",
-      "originalHeader": "Ursprüngliche Basis (vorher)",
-      "modifiedHeader": "Aktuelle Änderungen (nachher)"
+      "selectFileHint": "Wählen Sie eine Datei im Baum aus, um den Code anzuzeigen",
+      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner.",
+      "lineCount": "{count} Zeilen"
     },
     "terminal": {
-      "headerTitle": "Kontrolliertes PTY-Terminal",
+      "headerTitle": "Terminal",
       "historyEntries": "Einträge",
       "clearAction": "Leeren",
       "emptyTerminalHint": "Terminal bereit. Befehl eingeben und Enter drücken.",
       "inputPlaceholder": "Befehl eingeben (z. B. echo, ls, git status)...",
       "runAction": "Ausführen",
-      "injectToChat": "Ausgabe in den Chat einfügen"
+      "injectToChat": "Ausgabe in den Chat einfügen",
+      "noOutput": "(keine Ausgabe)",
+      "outputTruncated": "[Ausgabe gekürzt]",
+      "runFailed": "Der Befehl konnte nicht ausgeführt werden: {message}"
     },
-    "plugins": {
-      "headerTitle": "GitHub-Plugin-Center",
-      "installedCount": "bereit",
-      "refreshAction": "Plugins aktualisieren",
-      "emptyPlugins": "Keine Plugins verfügbar",
-      "probeSuccessTitle": "Probe erfolgreich: {id}",
-      "viewGithub": "Auf GitHub ansehen",
-      "probeAction": "Integritätsprobe",
-      "repairAction": "Automatische Reparatur"
-    }
+    "noChat": "Öffnen Sie eine Unterhaltung, um ihre Workspace-Dateien zu durchsuchen und dort Befehle auszuführen."
   },
   "workLayout": {
     "modeChat": "Chat-Modus",

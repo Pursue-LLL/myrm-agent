@@ -25,6 +25,8 @@ import logging
 import os
 from pathlib import Path
 
+from myrm_agent_harness.core.context_vars import workspace_root_var
+
 logger = logging.getLogger(__name__)
 
 
@@ -80,10 +82,14 @@ class WorkspacePathResolver:
         """Intelligently resolve workspace root directory.
 
         Resolution order:
+        0. Workspace root bound to the active run (``workspace_root_var``)
         1. WORKSPACE_ROOT env var (user explicit config)
         2. Container /workspace path (if exists)
         3. Project root markers (.git, pyproject.toml, etc.)
         4. Current working directory (fallback)
+
+        Step 0 is per async context, so it is read before the process-wide cache and never
+        stored in it: concurrent runs bound to different workspaces each get their own root.
 
         Returns:
             Resolved workspace root Path.
@@ -91,6 +97,9 @@ class WorkspacePathResolver:
         Raises:
             WorkspaceResolutionError: If resolution fails with diagnostic info.
         """
+        if bound_root := workspace_root_var.get():
+            return Path(bound_root)
+
         # Return cached result if available AND the resolution inputs are unchanged
         cache_key = WorkspacePathResolver._current_cache_key()
         if WorkspacePathResolver._cached_workspace_root and WorkspacePathResolver._cache_key == cache_key:

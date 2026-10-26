@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from myrm_agent_harness.core.context_vars import workspace_root_var
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
     WorkspacePathResolver,
 )
@@ -100,6 +101,61 @@ class TestWorkspacePathResolver:
 
             assert result1 == result2
             assert WorkspacePathResolver._cached_workspace_root == tmp_path
+
+
+class TestRunBoundWorkspaceRoot:
+    """The root bound to the active run outranks every process-level signal."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate(self):
+        WorkspacePathResolver.reset_cache()
+        token = workspace_root_var.set("")
+        yield
+        workspace_root_var.reset(token)
+        WorkspacePathResolver.reset_cache()
+
+    def test_bound_root_beats_env_and_cwd(self, tmp_path, monkeypatch):
+        chat_ws = tmp_path / "chat_ws"
+        chat_ws.mkdir()
+        other = tmp_path / "other"
+        other.mkdir()
+        monkeypatch.chdir(other)
+        monkeypatch.setenv("WORKSPACE_ROOT", str(other))
+
+        workspace_root_var.set(str(chat_ws))
+
+        assert WorkspacePathResolver.resolve_workspace_root() == chat_ws
+
+    def test_bound_root_bypasses_process_cache(self, tmp_path, monkeypatch):
+        cached = tmp_path / "cached"
+        cached.mkdir()
+        chat_ws = tmp_path / "chat_ws"
+        chat_ws.mkdir()
+        monkeypatch.setenv("WORKSPACE_ROOT", str(cached))
+        assert WorkspacePathResolver.resolve_workspace_root() == cached
+
+        token = workspace_root_var.set(str(chat_ws))
+        try:
+            assert WorkspacePathResolver.resolve_workspace_root() == chat_ws
+        finally:
+            workspace_root_var.reset(token)
+
+        assert WorkspacePathResolver.resolve_workspace_root() == cached
+
+    def test_bound_root_does_not_poison_cache(self, tmp_path, monkeypatch):
+        chat_ws = tmp_path / "chat_ws"
+        chat_ws.mkdir()
+        fallback = tmp_path / "fallback"
+        fallback.mkdir()
+        monkeypatch.setenv("WORKSPACE_ROOT", str(fallback))
+
+        token = workspace_root_var.set(str(chat_ws))
+        try:
+            WorkspacePathResolver.resolve_workspace_root()
+        finally:
+            workspace_root_var.reset(token)
+
+        assert WorkspacePathResolver.resolve_workspace_root() == fallback
 
 
 if __name__ == "__main__":
