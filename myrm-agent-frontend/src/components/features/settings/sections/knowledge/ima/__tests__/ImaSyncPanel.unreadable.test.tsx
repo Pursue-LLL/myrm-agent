@@ -38,7 +38,7 @@ describe('ImaSyncPanel parts ima could not be read completely', () => {
       { kind: 'library', name: 'Recipes' },
     ]);
     expect(
-      screen.getByText(/These knowledge bases could not be read completely.*Research and Recipes\./),
+      screen.getByText(/Some knowledge bases could not be read completely.*Research and Recipes\./),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Your notes could not be read completely/)).not.toBeInTheDocument();
   });
@@ -57,6 +57,6 @@ describe('ImaSyncPanel parts ima could not be read completely', () => {
     ]);
 
     expect(screen.getByText(/Your notes could not be read completely/)).toBeInTheDocument();
-    expect(screen.getByText(/These knowledge bases could not be read completely.*Research\./)).toBeInTheDocument();
+    expect(screen.getByText(/Some knowledge bases could not be read completely.*Research\./)).toBeInTheDocument();
   });
 });

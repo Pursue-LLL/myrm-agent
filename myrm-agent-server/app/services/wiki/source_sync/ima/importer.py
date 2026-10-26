@@ -192,13 +192,12 @@ async def _import_guarded(ctx: SyncContext, row: LedgerRow) -> _Outcome:
 
 
 def _log_failure_summary(ctx: SyncContext) -> None:
-    """One line per slice: which kinds of failure, how many, and the first cause (it carries ima's numeric code)."""
+    """One line per slice: which kinds of failure, how many, and the first known cause (it carries ima's numeric code)."""
     if not ctx.failures:
         return
     kinds = ", ".join(f"{kind}={count}" for kind, count in sorted(ctx.failures.items()))
-    logger.warning(
-        "ima slice left %d item(s) unimported (%s); first cause: %s", sum(ctx.failures.values()), kinds, ctx.failure_sample
-    )
+    cause = f"; first cause: {ctx.failure_sample}" if ctx.failure_sample else ""
+    logger.warning("ima slice left %d item(s) unimported (%s)%s", sum(ctx.failures.values()), kinds, cause)
 
 
 async def run_import(ctx: SyncContext) -> bool:
@@ -226,15 +225,12 @@ async def run_import(ctx: SyncContext) -> bool:
         while not fatal and ctx.time_left() > 0:
             try:
                 row = await next_row()
-            except Exception as exc:
-                # The ledger itself failed: stop every worker and let the slice report it, rather than leave siblings running.
-                fatal.append(exc)
-                return
-            if row is None:
-                return
-            try:
+                if row is None:
+                    return
                 outcome = await _import_guarded(ctx, row)
-            except (ImaAuthError, ImaRateLimitError) as exc:
+            except Exception as exc:
+                # A rejected key, a rate limit or the ledger itself failing (claiming a row or recording its outcome) stops the
+                # pool: every worker winds down and the slice reports the first failure, so none keeps writing after it returned.
                 fatal.append(exc)
                 return
             transient_streak = transient_streak + 1 if outcome is _Outcome.TRANSIENT else 0

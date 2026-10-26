@@ -14,6 +14,7 @@ from app.services.wiki.source_sync.ima import engine
 from app.services.wiki.source_sync.ima.engine import run_slice
 from app.services.wiki.source_sync.ima.errors import (
     ImaAuthError,
+    ImaError,
     ImaPermanentError,
     ImaRateLimitError,
     ImaTooLargeError,
@@ -229,6 +230,35 @@ async def test_a_ledger_failure_while_claiming_waits_for_in_flight_items_and_rep
     state = ImaSyncState()
 
     outcome = await run_slice(make_ctx(library(), tmp_path, config=library_config(), state=state))
+
+    assert outcome.error_kind == "internal" and state.last_error_kind == "internal"
+    assert url("m3") in completed, "the slice must not return while a worker is still writing to the ledger"
+
+
+@pytest.mark.parametrize(
+    "failure", [ImaAuthError("refused"), ImaPermanentError("gone")], ids=["refused-by-ima", "failed-for-good"]
+)
+async def test_a_ledger_failure_while_recording_an_outcome_waits_for_in_flight_items_and_reports_internal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: ImaError
+) -> None:
+    gate, completed = asyncio.Event(), []
+
+    async def slow_download(target: str, headers: dict[str, str]) -> bytes:
+        if target == url("m3"):
+            await gate.wait()
+        completed.append(target)
+        return b"# Doc\n\nbody text"
+
+    async def locked(self: ImaLedger, *args: object, **kwargs: object) -> None:
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("app.services.wiki.source_sync.ima.content.download_media", slow_download)
+    monkeypatch.setattr(ImaLedger, "record_failure", locked)
+    asyncio.get_running_loop().call_later(0.1, gate.set)
+    fake, state = library(), ImaSyncState()
+    fake.fail_on[("get_media_info", "m1")] = failure
+
+    outcome = await run_slice(make_ctx(fake, tmp_path, config=library_config(), state=state))
 
     assert outcome.error_kind == "internal" and state.last_error_kind == "internal"
     assert url("m3") in completed, "the slice must not return while a worker is still writing to the ledger"

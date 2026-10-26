@@ -29,7 +29,7 @@
 | `context.py` | 上下文 | 单切片共享上下文：时间预算 + 节流的 state 持久化（15s）+ 切片内密钥核验 `require_valid_key`（被拒请求是「密钥失效」还是「密钥有效但无权读这一项」靠一次轻量 `verify` 区分，每片至多一次、各 worker 共用；核验自身限流则上抛、核验自身失败则按瞬时失败重试）+ 条目失败汇总（供切片末尾的单行日志） | ✅ |
 | `inventory.py` | 阶段 | 可续跑盘点：库文件夹树 BFS（持久化队列）+ 笔记（持久化游标 `notes_cursor`）；仅对干净完成的容器标 `remote_deleted`；列表只在服务端 `is_end` 时算完成（笔记页内全已删不终止），游标缺失/重复而未到 `is_end` 记为该容器失败（不标删）；某个库或笔记通道被拒时先核验密钥——失效则整片停止并要求重连，有效则只丢弃该容器（`failed_containers`，不标删），其余库照常导入 | ✅ |
 | `content.py` | 转换 | 单条解析为 Markdown + 保真度标注（`images_remote`/`body_truncated`/`layout_flattened`；笔记纯文本是 ima API 的基线，不计为有损）；复用 `bytes_to_wiki_markdown` 与 `web_fetch`；标题/目录/来源链接等远端文本在写入 frontmatter 前压成单行，换行不能结束或伪造字段 | ✅ |
-| `importer.py` | 阶段 | 有界并发导入（3 worker、单条 150s 超时、节流）；每行恰好一个终态；仅「经核验确认密钥失效」的鉴权失败、限流与连续的连接级瞬时失败会停止整池，失效网页只记为该条的失败。密钥有效但被拒的条目记为 `failed`（`permission` / 笔记通道 `notes_permission`，终局，获得授权后可由用户重试）；`ImaPermissionError`（如他人笔记）记为 `unsupported` / `not_owner`（跳过而非失败）；核验本身失败按瞬时失败重试。每片末尾只写一条 WARNING 汇总（类别计数 + 首个原因，含 ima 数字码，不含标题与正文） | ✅ |
+| `importer.py` | 阶段 | 有界并发导入（3 worker、单条 150s 超时、节流）；每行恰好一个终态；仅「经核验确认密钥失效」的鉴权失败、限流与连续的连接级瞬时失败会停止整池，失效网页只记为该条的失败。密钥有效但被拒的条目记为 `failed`（`permission` / 笔记通道 `notes_permission`，终局，获得授权后可由用户重试）；`ImaPermissionError`（如他人笔记）记为 `unsupported` / `not_owner`（跳过而非失败）；核验本身失败按瞬时失败重试。台账读写失败（认领行或记录结果）同样停池：其余 worker 收尾后才上报 `internal`，切片返回后不留在写台账的后台 worker。每片末尾只写一条 WARNING 汇总（类别计数 + 首个已知原因，含 ima 数字码，不含标题与正文） | ✅ |
 | `engine.py` | 引擎 | `run_slice`：idle→inventory→fetch 的相位推进，把失败映射为调度建议（`retry_after_s`）；限流暂停写 WARNING（暂停时长 + ima 数字码）；未预期异常记 `internal` 并退避重试，细节只进日志 | ✅ |
 | `job_runner.py` | 入口 | cron 入口 `run_ima_sync_job`：单飞锁、凭证/archiver 装配、延迟入队装配（仅 `backfill_complete` 且 `auto_compile` 时）；顺序固定为 切片 → 增量 dedup（`run_post_sync_dedup_scan`，有未被扫描覆盖的暂扣文件或一轮结束时）→ `await` 放行（`finally`；切片抛错或扫描失败时放行本轮文件）→ ingest 快照 | ✅ |
 | `job.py` | Cron | 每 agent 同步 job 的创建/恢复/暂停/批量删除与 `trigger_now`（按 command + agent_id 查找） | ✅ |
@@ -39,7 +39,7 @@
 
 ## 测试
 
-- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/变更追踪/凭证脱敏/库列表停滞不判远端删除/游标任意长度可重载（`test_sync_engine.py`）、笔记通道的游标分页/已删页不终止/跨切片续跑/限流后从游标续跑/停滞、形状异常与无笔记权限不判远端删除（`test_notes_lane.py`）与鉴权/限流/瞬时与永久失败/未知异常的内部退避、取消不被吞（`test_sync_engine_failures.py`，共享 `support.py` 与 `conftest.py` 夹具）；权限语义（`test_permission_gate.py`：被拒请求先核验密钥——库/笔记/条目三个层级、密钥失效仍要求重连、多条被拒共用一次核验、核验自身限流/失败、授权后重试、200001 等限流码暂停而非判失败、限流与失败汇总的日志内容）；业务码分类与消息带数字码（`test_transport.py`）；导入器终态与认领失败时停池；cron 入口的单飞、入队装配与 扫描 → 放行 → 快照 顺序、切片抛错/扫描失败/扫描被跳过仍放行
+- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/变更追踪/凭证脱敏/库列表停滞不判远端删除/游标任意长度可重载（`test_sync_engine.py`）、笔记通道的游标分页/已删页不终止/跨切片续跑/限流后从游标续跑/停滞、形状异常与无笔记权限不判远端删除（`test_notes_lane.py`）与鉴权/限流/瞬时与永久失败/未知异常的内部退避、取消不被吞（`test_sync_engine_failures.py`，共享 `support.py` 与 `conftest.py` 夹具）；权限语义（`test_permission_gate.py`：被拒请求先核验密钥——库/笔记/条目三个层级、密钥失效仍要求重连、多条被拒共用一次核验、核验自身限流/失败、授权后重试、200001 等限流码暂停而非判失败、限流与失败汇总的日志内容，无已知原因时汇总不带原因标签）；业务码分类与消息带数字码（`test_transport.py`）；导入器终态；认领或记录结果时台账失败都等在途条目收尾再停池（`test_sync_engine_failures.py`）；cron 入口的单飞、入队装配与 扫描 → 放行 → 快照 顺序、切片抛错/扫描失败/扫描被跳过仍放行
 - `tests/api/wiki/test_wiki_ima_routes.py` — ima 端点、凭证掩码、通用 config 端点读不到 `imaCredentials`
 
 ## 依赖

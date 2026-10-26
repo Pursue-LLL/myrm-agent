@@ -21,7 +21,7 @@ from app.services.wiki.source_sync.ima.ledger import MAX_ATTEMPTS, ImaLedger, Le
 from app.services.wiki.source_sync.ima.state import ImaSyncState
 from app.services.wiki.source_sync.ima.transport import unwrap_envelope
 
-from .support import FakeIma, entry, file_info, library, library_config, make_ctx, note, page, rows, run_pass, url
+from .support import Downloads, FakeIma, entry, file_info, library, library_config, make_ctx, note, page, rows, run_pass, url
 
 pytestmark = pytest.mark.usefixtures("ima_db", "fast_importer", "downloads")
 
@@ -276,3 +276,15 @@ async def test_a_clean_slice_logs_no_failure_summary(tmp_path: Path, caplog: pyt
         await run_pass(library(), tmp_path, ImaSyncState())
 
     assert not any("unimported" in message for message in caplog.messages)
+
+
+async def test_a_failure_with_no_known_cause_is_summarised_without_a_cause_label(
+    tmp_path: Path, downloads: Downloads, caplog: pytest.LogCaptureFixture
+) -> None:
+    downloads.errors[url("m1")] = TimeoutError()
+
+    with caplog.at_level(logging.WARNING):
+        await run_pass(library(), tmp_path, ImaSyncState())
+
+    summaries = [message for message in caplog.messages if "unimported" in message]
+    assert len(summaries) == 1 and "timeout=1" in summaries[0] and "cause" not in summaries[0]

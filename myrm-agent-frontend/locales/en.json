@@ -17836,7 +17836,7 @@
           "rateLimited": "ima is limiting requests for now. The import continues automatically shortly.",
           "unreachable": "Cannot reach ima right now. It will retry automatically.",
           "unreadableNotes": "Your notes could not be read completely this time. The key may not have permission to read notes, or ima may be unavailable. What was already imported is not affected, and the next check tries again.",
-          "unreadableLibraries": "These knowledge bases could not be read completely this time. You may lack access, or ima may be unavailable: {names}. Everything else is not affected, and the next check tries again.",
+          "unreadableLibraries": "Some knowledge bases could not be read completely this time: {names}. You may lack access, or ima may be unavailable. Everything else is not affected, and the next check tries again.",
           "internal": "Something went wrong on our side while importing. It will retry automatically."
         },
         "stats": {
