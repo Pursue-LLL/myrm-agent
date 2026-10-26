@@ -11,7 +11,7 @@
 |------|------|------|
 | `recallSimulatorTypes.ts` | 核心 | 契约层：请求/响应、候选条目、多路分数字段与治理更新类型定义 |
 | `recallSimulatorService.ts` | 核心 | 服务层：调用 `/api/memory/simulate-recall` 与 `/govern`，提供高保真离线 fallback |
-| `MemorySecondaryGovernanceToolbar.tsx` | 核心组件 | 单条记忆治理工具条：置信度滑块 0.0~1.0、负向防坑切换、锁定/禁用、合并去重 |
+| `MemorySecondaryGovernanceToolbar.tsx` | 核心组件 | 单条记忆治理工具条：置信度滑块 0.0~1.0、负向防坑切换、锁定/禁用、合并去重（目标记忆 ID 经应用内输入框获取） |
 | `MemoryRecallSimulator.tsx` | 核心组件 | 沙盒工作台抽屉：动态 Prompt 输入、耗时/命中数 KPI、Top-K 记忆片段卡片流与三维打分 |
 | `index.ts` | 门面 | 统一导出所有组件与类型 |
 

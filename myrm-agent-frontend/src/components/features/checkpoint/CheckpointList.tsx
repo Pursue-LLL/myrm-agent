@@ -7,6 +7,7 @@ import CheckpointCard from './CheckpointCard';
 import { listCheckpoints, deleteCheckpoint, cleanupCheckpoints, CheckpointInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/shared/useToast';
+import { confirmAction } from '@/lib/app-dialog';
 
 interface CheckpointListProps {
   sessionId?: string;
@@ -50,7 +51,12 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onReinitiate
   };
 
   const handleCleanup = async () => {
-    if (!confirm(t('confirmCleanup'))) {
+    const confirmed = await confirmAction({
+      variant: 'warning',
+      description: t('confirmCleanup'),
+      confirmText: t('cleanup'),
+    });
+    if (!confirmed) {
       return;
     }
 

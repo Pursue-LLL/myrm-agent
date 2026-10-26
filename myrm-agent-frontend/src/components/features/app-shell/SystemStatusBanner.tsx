@@ -23,6 +23,7 @@ import { AlertTriangle, Database, X } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
 import { fetchBackendHealth } from '@/lib/backend-health';
+import { confirmAction } from '@/lib/app-dialog';
 
 const VECTOR_DEGRADED_TOAST_ID = 'vector-degraded';
 /** Delays after mount (ms); covers the backend warmup that creates the vector store. */
@@ -92,7 +93,12 @@ export default function SystemStatusBanner() {
   }, [t]);
 
   const handleReset = async () => {
-    if (!confirm(t('databaseResetConfirm'))) {
+    const confirmed = await confirmAction({
+      variant: 'destructive',
+      description: t('databaseResetConfirm'),
+      confirmText: t('databaseResetNow'),
+    });
+    if (!confirmed) {
       return;
     }
 

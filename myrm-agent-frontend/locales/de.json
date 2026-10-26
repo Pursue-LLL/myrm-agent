@@ -5892,6 +5892,8 @@
         "startChatBlocked": "Beheben Sie zunächst Bereitschaftsprobleme",
         "readinessRecheckFailed": "Der Bereitschaftsstatus konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
         "rollbackDeleteAgentConfirm": "Auch den durch diesen Import erstellten Agenten löschen?",
+        "rollbackDeleteAgentAction": "Agent auch löschen",
+        "rollbackKeepAgentAction": "Agent behalten",
         "rollbackAgentDeleted": "Der importierte Agent wurde entfernt",
         "rollbackAvailable": "Der Rollback stellt importierte Erinnerungen, Anweisungen und Zeitpläne wieder her. Importierte Chats bleiben im Verlauf.",
         "done": "Erledigt",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "Mit Golden 5-Pack-Vorlage initialisieren"
+      "initCheckbox": "Mit Golden 5-Pack-Vorlage initialisieren",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "Golden-5-Pack-Vorlage laden",
+      "loadConfirm": "Die Fälle im Editor durch die Golden-5-Pack-Vorlage ersetzen?",
+      "loadConfirmAction": "Ersetzen"
     },
     "antiContamination": {
       "protectedBadge": "Vor Datenkontamination geschützt",
@@ -14646,6 +14652,11 @@
     "urlLabel": "Linkadresse",
     "cancel": "Abbrechen",
     "open": "Im Browser öffnen"
+  },
+  "appDialog": {
+    "titleConfirm": "Bitte bestätigen",
+    "titleDestructive": "Sind Sie sicher?",
+    "titlePrompt": "Eingabe erforderlich"
   },
   "adaptiveLayout": {
     "grid": {

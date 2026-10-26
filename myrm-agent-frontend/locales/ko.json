@@ -5892,6 +5892,8 @@
         "startChatBlocked": "먼저 준비 상태 문제를 해결하세요",
         "readinessRecheckFailed": "준비 상태를 새로고침할 수 없습니다. 다시 시도하세요.",
         "rollbackDeleteAgentConfirm": "이 가져오기로 생성된 에이전트도 삭제하시겠습니까?",
+        "rollbackDeleteAgentAction": "에이전트도 삭제",
+        "rollbackKeepAgentAction": "에이전트 유지",
         "rollbackAgentDeleted": "가져온 에이전트가 제거되었습니다",
         "rollbackAvailable": "롤백은 가져온 기억, 지시사항, 예약 작업을 복원합니다. 가져온 대화는 기록에 남습니다.",
         "done": "완료",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "Golden 5-Pack 템플릿으로 초기화"
+      "initCheckbox": "Golden 5-Pack 템플릿으로 초기화",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "Golden 5-Pack 스캐폴드 불러오기",
+      "loadConfirm": "에디터의 케이스를 Golden 5-Pack 템플릿으로 바꾸시겠습니까?",
+      "loadConfirmAction": "바꾸기"
     },
     "antiContamination": {
       "protectedBadge": "오염 방지 보호됨 (Anti-Contamination Protected)",
@@ -14646,6 +14652,11 @@
     "urlLabel": "링크 주소",
     "cancel": "취소",
     "open": "브라우저에서 열기"
+  },
+  "appDialog": {
+    "titleConfirm": "확인해 주세요",
+    "titleDestructive": "계속하시겠습니까?",
+    "titlePrompt": "내용을 입력해 주세요"
   },
   "adaptiveLayout": {
     "grid": {

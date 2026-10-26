@@ -24,6 +24,7 @@ import { Progress } from '@/components/primitives/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { getDeployMode } from '@/lib/deploy-mode';
 import { HARDWARE_RUNGS, getRungByVram } from '@/lib/utils/hardwareSimulator';
+import { confirmAction } from '@/lib/app-dialog';
 
 interface HardwareRecommendation {
   model_id: string;
@@ -214,7 +215,12 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const handleDelete = async (modelId: string) => {
     const ollamaModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
 
-    if (!window.confirm(t('confirmDelete', { model: ollamaModelName }))) {
+    const confirmed = await confirmAction({
+      variant: 'destructive',
+      description: t('confirmDelete', { model: ollamaModelName }),
+      confirmText: t('delete'),
+    });
+    if (!confirmed) {
       return;
     }
 

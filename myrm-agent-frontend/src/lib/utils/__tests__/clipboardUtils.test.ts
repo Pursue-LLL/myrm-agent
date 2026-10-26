@@ -9,12 +9,14 @@ vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({
   writeHtml: vi.fn(),
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn() }));
+vi.mock('@/lib/app-dialog', () => ({ confirmAction: vi.fn() }));
 // No translator exists in unit tests; echoing the key shows which copy each outcome resolves.
 vi.mock('@/services/i18nToastService', () => ({
   translateI18nKey: (key: string) => key,
 }));
 
 import { ask } from '@tauri-apps/plugin-dialog';
+import { confirmAction } from '@/lib/app-dialog';
 import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
 import de from '../../../../locales/de.json';
 import en from '../../../../locales/en.json';
@@ -92,6 +94,7 @@ describe('clipboardUtils toasts', () => {
 describe('clipboardUtils read-permission dialog', () => {
   beforeEach(() => {
     vi.mocked(ask).mockClear();
+    vi.mocked(confirmAction).mockReset();
     vi.mocked(tauriReadText).mockClear();
     sonner.toast.error.mockClear();
     localStorage.clear();
@@ -103,18 +106,24 @@ describe('clipboardUtils read-permission dialog', () => {
     vi.restoreAllMocks();
   });
 
-  it('browser: asks with the translated prompt and remembers an allow', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('browser: asks in the app with the translated title, prompt with remember note, and button labels', async () => {
+    vi.mocked(confirmAction).mockResolvedValue(true);
     stubClipboard({ readText: vi.fn().mockResolvedValue('pasted') });
 
     await expect(readFromClipboard()).resolves.toBe('pasted');
 
-    expect(confirmSpy).toHaveBeenCalledWith('common.clipboard.readPermissionPrompt');
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      variant: 'info',
+      title: 'common.clipboard.readPermissionTitle',
+      description: 'common.clipboard.readPermissionPrompt\n\ncommon.clipboard.readPermissionRemember',
+      confirmText: 'common.clipboard.readPermissionAllow',
+      cancelText: 'common.clipboard.readPermissionDeny',
+    });
     expect(localStorage.getItem(PERMISSION_KEY)).toBe('granted');
   });
 
   it('browser: a decline reads nothing, says so, and is not remembered', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    vi.mocked(confirmAction).mockResolvedValue(false);
     const readText = vi.fn();
     stubClipboard({ readText });
 
@@ -123,6 +132,30 @@ describe('clipboardUtils read-permission dialog', () => {
     expect(readText).not.toHaveBeenCalled();
     expect(sonner.toast.error).toHaveBeenCalledWith('common.clipboard.readRefused');
     expect(localStorage.getItem(PERMISSION_KEY)).toBeNull();
+  });
+
+  it('browser: reads that start while the question is open share it instead of stacking copies', async () => {
+    let answer!: (allowed: boolean) => void;
+    vi.mocked(confirmAction).mockReturnValue(new Promise<boolean>((resolve) => (answer = resolve)));
+    const readText = vi.fn().mockResolvedValue('pasted');
+    stubClipboard({ readText });
+
+    const reads = [readFromClipboard(), readFromClipboard()];
+    answer(true);
+
+    await expect(Promise.all(reads)).resolves.toEqual(['pasted', 'pasted']);
+    expect(confirmAction).toHaveBeenCalledTimes(1);
+    expect(readText).toHaveBeenCalledTimes(2);
+  });
+
+  it('browser: after a decline the next read asks again', async () => {
+    vi.mocked(confirmAction).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    stubClipboard({ readText: vi.fn().mockResolvedValue('pasted') });
+
+    await expect(readFromClipboard()).rejects.toThrow('Permission denied');
+    await expect(readFromClipboard()).resolves.toBe('pasted');
+
+    expect(confirmAction).toHaveBeenCalledTimes(2);
   });
 
   it('desktop: the native dialog gets translated title, prompt with remember note, and button labels', async () => {

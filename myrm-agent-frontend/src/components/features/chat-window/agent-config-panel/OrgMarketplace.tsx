@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { resolveLucideIcon } from '@/components/agent/agent-icons';
 import { activateOnKey } from '@/lib/utils/a11y';
+import { confirmAction } from '@/lib/app-dialog';
 
 interface OrgMarketplaceProps {
   className?: string;
@@ -147,7 +148,11 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
         return;
       }
 
-      const confirmed = window.confirm(t('forcePushConfirm', { name: entry.name, version: entry.latest_version }));
+      const confirmed = await confirmAction({
+        variant: 'warning',
+        description: t('forcePushConfirm', { name: entry.name, version: entry.latest_version }),
+        confirmText: t('forcePush'),
+      });
       if (!confirmed) {
         return;
       }

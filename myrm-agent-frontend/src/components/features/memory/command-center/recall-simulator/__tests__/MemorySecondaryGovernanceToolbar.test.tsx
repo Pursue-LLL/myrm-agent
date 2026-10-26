@@ -1,8 +1,11 @@
 /** @vitest-environment jsdom */
 
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import AppDialogHost from '@/components/features/app-shell/app-dialog-host';
+import { useAppDialogStore } from '@/store/useAppDialogStore';
 import { MemorySecondaryGovernanceToolbar } from '../MemorySecondaryGovernanceToolbar';
 import { RecallCandidate } from '../recallSimulatorTypes';
 
@@ -17,6 +20,8 @@ const stableT = (key: string) => {
     enableBtn: '启用',
     mergeDuplicateBtn: '合并相似项',
     mergePrompt: '请输入要合并的目标记忆 ID',
+    confirm: '确认',
+    cancel: '取消',
   };
   return table[key] ?? key;
 };
@@ -46,6 +51,7 @@ const mockCandidate: RecallCandidate = {
 describe('MemorySecondaryGovernanceToolbar', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useAppDialogStore.setState({ current: null, open: false, queue: [] });
   });
 
   afterEach(() => {
@@ -106,17 +112,52 @@ describe('MemorySecondaryGovernanceToolbar', () => {
     expect(handleUpdate).toHaveBeenCalledWith({ status: 'disabled' });
   });
 
-  it('merges duplicate when target id is provided in window.prompt', async () => {
-    const handleUpdate = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(window, 'prompt').mockReturnValue('mem-parent-99');
+  describe('merging a duplicate', () => {
+    const renderWithDialogs = (onUpdate: React.ComponentProps<typeof MemorySecondaryGovernanceToolbar>['onUpdate']) =>
+      render(
+        <>
+          <MemorySecondaryGovernanceToolbar candidate={mockCandidate} onUpdate={onUpdate} />
+          <AppDialogHost />
+        </>,
+      );
 
-    render(<MemorySecondaryGovernanceToolbar candidate={mockCandidate} onUpdate={handleUpdate} />);
+    it('asks for the target id in the app and merges into the id that was typed', async () => {
+      const user = userEvent.setup();
+      const handleUpdate = vi.fn().mockResolvedValue(undefined);
+      renderWithDialogs(handleUpdate);
 
-    const mergeBtn = screen.getByRole('button', { name: /合并相似项/i });
-    await act(async () => {
-      fireEvent.click(mergeBtn);
+      fireEvent.click(screen.getByRole('button', { name: /合并相似项/i }));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(dialog).toHaveTextContent('请输入要合并的目标记忆 ID');
+      await user.type(screen.getByRole('textbox'), '  mem-parent-99 ');
+      await user.click(screen.getByRole('button', { name: '确认' }));
+
+      await waitFor(() => expect(handleUpdate).toHaveBeenCalledWith({ status: 'disabled' }, 'mem-parent-99'));
     });
 
-    expect(handleUpdate).toHaveBeenCalledWith({ status: 'disabled' }, 'mem-parent-99');
+    it('changes nothing when the question is dismissed', async () => {
+      const user = userEvent.setup();
+      const handleUpdate = vi.fn().mockResolvedValue(undefined);
+      renderWithDialogs(handleUpdate);
+
+      fireEvent.click(screen.getByRole('button', { name: /合并相似项/i }));
+      await user.type(await screen.findByRole('textbox'), 'mem-parent-99');
+      await user.click(screen.getByRole('button', { name: '取消' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(handleUpdate).not.toHaveBeenCalled();
+    });
+
+    it('does not accept an empty target id', async () => {
+      const handleUpdate = vi.fn().mockResolvedValue(undefined);
+      renderWithDialogs(handleUpdate);
+
+      fireEvent.click(screen.getByRole('button', { name: /合并相似项/i }));
+      await screen.findByRole('alertdialog');
+
+      expect(screen.getByRole('button', { name: '确认' })).toBeDisabled();
+      expect(handleUpdate).not.toHaveBeenCalled();
+    });
   });
 });

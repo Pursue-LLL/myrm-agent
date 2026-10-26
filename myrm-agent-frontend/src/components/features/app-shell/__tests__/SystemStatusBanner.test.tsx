@@ -1,20 +1,29 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+import { confirmAction } from '@/lib/app-dialog';
 import { fetchBackendHealth } from '@/lib/backend-health';
 import SystemStatusBanner from '../SystemStatusBanner';
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string, values?: { message?: string }) => {
-    if (namespace === 'notifications' && key === 'databaseResetFailedDesc' && values?.message) {
-      return `error:${values.message}`;
-    }
-    if (namespace === 'common' && key === 'close') {
-      return 'common.close';
-    }
-    return `${namespace}.${key}`;
-  },
-}));
+type Translator = (key: string, values?: { message?: string }) => string;
+const translators = new Map<string, Translator>();
+/** One stable translator per namespace, like next-intl's: the banner lists it in an effect's dependencies. */
+const translatorFor = (namespace: string): Translator => {
+  let translate = translators.get(namespace);
+  if (!translate) {
+    translate = (key, values) =>
+      namespace === 'notifications' && key === 'databaseResetFailedDesc' && values?.message
+        ? `error:${values.message}`
+        : `${namespace}.${key}`;
+    translators.set(namespace, translate);
+  }
+  return translate;
+};
+
+vi.mock('next-intl', () => ({ useTranslations: (namespace: string) => translatorFor(namespace) }));
+
+vi.mock('@/lib/app-dialog', () => ({ confirmAction: vi.fn() }));
 
 vi.mock('sonner', () => ({
   toast: {
@@ -36,10 +45,6 @@ describe('SystemStatusBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fetchBackendHealth).mockReset();
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    );
   });
 
   it('shows degraded banner with i18n copy when database_degraded is true', async () => {
@@ -116,6 +121,57 @@ describe('SystemStatusBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
     expect(screen.queryByText('notifications.databaseDegradedTitle')).not.toBeInTheDocument();
   });
+
+  describe('resetting a corrupted database', () => {
+    const showBanner = async () => {
+      vi.mocked(fetchBackendHealth).mockResolvedValue({
+        status: 'healthy',
+        system_status: { database_degraded: true },
+      });
+      render(<SystemStatusBanner />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('wipes the local data only after the user confirms the reset', async () => {
+      vi.mocked(confirmAction).mockResolvedValue(true);
+      vi.mocked(apiRequest).mockResolvedValue(undefined);
+      await showBanner();
+
+      fireEvent.click(screen.getByRole('button', { name: 'notifications.databaseResetNow' }));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+        variant: 'destructive',
+        description: 'notifications.databaseResetConfirm',
+        confirmText: 'notifications.databaseResetNow',
+      });
+      expect(apiRequest).toHaveBeenCalledExactlyOnceWith('/health/database/reset', { method: 'POST', silent: true });
+      expect(toast.success).toHaveBeenCalledWith('notifications.databaseResetSuccessTitle', expect.anything());
+    });
+
+    it('touches nothing when the user declines', async () => {
+      vi.mocked(confirmAction).mockResolvedValue(false);
+      await showBanner();
+
+      fireEvent.click(screen.getByRole('button', { name: 'notifications.databaseResetNow' }));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(confirmAction).toHaveBeenCalledTimes(1);
+      expect(apiRequest).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'notifications.databaseResetNow' })).toBeEnabled();
+    });
+  });
+
   describe('vector store degradation', () => {
     afterEach(() => {
       vi.useRealTimers();

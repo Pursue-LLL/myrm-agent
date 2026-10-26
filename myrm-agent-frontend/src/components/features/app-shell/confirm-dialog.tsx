@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Trash2, AlertTriangle, Info } from 'lucide-react';
 import {
   AlertDialog,
@@ -14,8 +14,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useFocusReturn } from './useFocusReturn';
 
-type ConfirmDialogVariant = 'destructive' | 'warning' | 'info';
+export type ConfirmDialogVariant = 'destructive' | 'warning' | 'info';
 
 interface ConfirmDialogProps {
   // 触发器
@@ -46,18 +47,8 @@ interface ConfirmDialogProps {
 
   // 自定义样式
   className?: string;
-}
-
-/**
- * 受控且没有 trigger 的对话框，Radix 关闭时无处可还焦点，会把焦点丢到 <body>，键盘用户回到页面顶部。
- * 打开时记下当前焦点元素；焦点在菜单项上时（菜单随选择关闭、菜单项会卸载），改记菜单自己的触发按钮。
- */
-function focusReturnTarget(active: Element | null): HTMLElement | null {
-  if (!(active instanceof HTMLElement) || active === document.body) {
-    return null;
-  }
-  const triggerId = active.closest('[role="menu"]')?.getAttribute('aria-labelledby');
-  return (triggerId ? document.getElementById(triggerId) : null) ?? active;
+  /** 遮罩层样式；与 className 配合可把整个对话框抬到更高的层级。 */
+  overlayClassName?: string;
 }
 
 const variantConfig: Record<
@@ -83,6 +74,41 @@ const variantConfig: Record<
     iconColor: 'text-blue-500',
     buttonClass: 'bg-primary text-primary-foreground hover:bg-primary/90',
   },
+};
+
+/** 标题行（变体图标 + 标题）与描述，供确认类对话框共用。 */
+export const ConfirmDialogHeading = ({
+  variant,
+  icon,
+  title,
+  description,
+}: {
+  variant: ConfirmDialogVariant;
+  icon?: ReactNode;
+  title: string;
+  description: string;
+}) => {
+  const config = variantConfig[variant];
+  const Icon = icon || <config.icon size={20} />;
+  return (
+    <AlertDialogHeader>
+      <AlertDialogTitle
+        className={cn('flex items-center gap-2 animate-in slide-in-from-top-2 duration-300', config.iconColor)}
+      >
+        {Icon}
+        {title}
+      </AlertDialogTitle>
+      <AlertDialogDescription
+        className={cn(
+          'text-base pt-2 animate-in slide-in-from-top-4 duration-300 delay-75 whitespace-pre-line',
+          // 描述里常嵌用户输入（任务标题等），无空格的长串不换行会撑破对话框。
+          'wrap-anywhere',
+        )}
+      >
+        {description}
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+  );
 };
 
 /**
@@ -115,6 +141,7 @@ export const ConfirmDialog = ({
   onOpenChange: controlledOnOpenChange,
   icon,
   className,
+  overlayClassName,
 }: ConfirmDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,24 +156,8 @@ export const ConfirmDialog = ({
     }
   };
 
-  const returnFocusRef = useRef<HTMLElement | null>(null);
-  // 布局阶段、早于 Radix FocusScope 把焦点移进对话框的 effect，此时拿到的还是触发操作的元素。
-  useLayoutEffect(() => {
-    if (open && !trigger) {
-      returnFocusRef.current = focusReturnTarget(document.activeElement);
-    }
-  }, [open, trigger]);
-
-  const handleCloseAutoFocus = (event: Event) => {
-    const target = returnFocusRef.current;
-    if (!trigger && target?.isConnected) {
-      event.preventDefault();
-      target.focus();
-    }
-  };
-
-  const config = variantConfig[variant];
-  const Icon = icon || <config.icon size={20} />;
+  // 有 trigger 时 Radix 自己会把焦点还给它。
+  const handleCloseAutoFocus = useFocusReturn(open, !trigger);
 
   const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -173,25 +184,10 @@ export const ConfirmDialog = ({
       {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent
         onCloseAutoFocus={handleCloseAutoFocus}
+        overlayClassName={overlayClassName}
         className={cn('sm:max-w-[425px]', 'animate-in fade-in-0 zoom-in-95 duration-200', className)}
       >
-        <AlertDialogHeader>
-          <AlertDialogTitle
-            className={cn('flex items-center gap-2 animate-in slide-in-from-top-2 duration-300', config.iconColor)}
-          >
-            {Icon}
-            {title}
-          </AlertDialogTitle>
-          <AlertDialogDescription
-            className={cn(
-              'text-base pt-2 animate-in slide-in-from-top-4 duration-300 delay-75 whitespace-pre-line',
-              // 描述里常嵌用户输入（任务标题等），无空格的长串不换行会撑破对话框。
-              'wrap-anywhere',
-            )}
-          >
-            {description}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+        <ConfirmDialogHeading variant={variant} icon={icon} title={title} description={description} />
         <AlertDialogFooter className="sm:space-x-2 animate-in slide-in-from-bottom-2 duration-300 delay-100">
           <AlertDialogCancel
             disabled={isLoading}
@@ -206,7 +202,7 @@ export const ConfirmDialog = ({
             disabled={isLoading}
             data-testid="confirm-dialog-confirm"
             className={cn(
-              config.buttonClass,
+              variantConfig[variant].buttonClass,
               'transition-all duration-200 hover:scale-105 hover:shadow-md',
               isLoading && 'opacity-70 cursor-wait',
             )}

@@ -9,16 +9,8 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertOctagon,
-  Check,
-  CheckCircle2,
-  GitMerge,
-  Lock,
-  Sliders,
-  Unlock,
-  XCircle,
-} from 'lucide-react';
+import { AlertOctagon, Check, CheckCircle2, GitMerge, Lock, Sliders, Unlock, XCircle } from 'lucide-react';
+import { promptText } from '@/lib/app-dialog';
 import { MemoryLifecycleStatus, RecallCandidate } from './recallSimulatorTypes';
 
 interface MemorySecondaryGovernanceToolbarProps {
@@ -26,9 +18,10 @@ interface MemorySecondaryGovernanceToolbarProps {
   onUpdate: (updated: Partial<RecallCandidate>, mergedIntoId?: string) => Promise<void>;
 }
 
-export const MemorySecondaryGovernanceToolbar: React.FC<
-  MemorySecondaryGovernanceToolbarProps
-> = ({ candidate, onUpdate }) => {
+export const MemorySecondaryGovernanceToolbar: React.FC<MemorySecondaryGovernanceToolbarProps> = ({
+  candidate,
+  onUpdate,
+}) => {
   let t = (key: string): string => key;
   try {
     const translation = useTranslations('memoryRecall');
@@ -38,9 +31,7 @@ export const MemorySecondaryGovernanceToolbar: React.FC<
   }
 
   const [confidence, setConfidence] = useState<number>(candidate.confidence);
-  const [isNegativeTrap, setIsNegativeTrap] = useState<boolean>(
-    candidate.is_negative_trap
-  );
+  const [isNegativeTrap, setIsNegativeTrap] = useState<boolean>(candidate.is_negative_trap);
   const [status, setStatus] = useState<MemoryLifecycleStatus>(candidate.status);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [isSuccessFeedback, setIsSuccessFeedback] = useState<boolean>(false);
@@ -76,8 +67,7 @@ export const MemorySecondaryGovernanceToolbar: React.FC<
   };
 
   const handleToggleLockStatus = async (): Promise<void> => {
-    const nextStatus: MemoryLifecycleStatus =
-      status === 'locked' ? 'active' : 'locked';
+    const nextStatus: MemoryLifecycleStatus = status === 'locked' ? 'active' : 'locked';
     setStatus(nextStatus);
     setIsUpdating(true);
     try {
@@ -89,8 +79,7 @@ export const MemorySecondaryGovernanceToolbar: React.FC<
   };
 
   const handleToggleDisableStatus = async (): Promise<void> => {
-    const nextStatus: MemoryLifecycleStatus =
-      status === 'disabled' ? 'active' : 'disabled';
+    const nextStatus: MemoryLifecycleStatus = status === 'disabled' ? 'active' : 'disabled';
     setStatus(nextStatus);
     setIsUpdating(true);
     try {
@@ -102,13 +91,13 @@ export const MemorySecondaryGovernanceToolbar: React.FC<
   };
 
   const handleMergeDuplicate = async (): Promise<void> => {
-    const targetId = window.prompt(t('mergePrompt'));
-    if (!targetId || targetId.trim() === '') {
+    const targetId = (await promptText({ title: t('mergeDuplicateBtn'), description: t('mergePrompt') }))?.trim();
+    if (!targetId) {
       return;
     }
     setIsUpdating(true);
     try {
-      await onUpdate({ status: 'disabled' }, targetId.trim());
+      await onUpdate({ status: 'disabled' }, targetId);
       showSuccessIndicator();
     } finally {
       setIsUpdating(false);

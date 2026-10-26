@@ -19,6 +19,7 @@ import {
   downloadMessageAsHtml,
   downloadMessageAsImage,
 } from '@/lib/utils/chat-export';
+import { confirmAction } from '@/lib/app-dialog';
 import type { Message } from '@/store/chat/types';
 
 const LONG_CONTENT_THRESHOLD = 50_000;
@@ -69,16 +70,24 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
     void withGuard(() => downloadMessageAsDocx(message, includeReasoning));
   }, [message, includeReasoning, withGuard]);
 
-  const handleImage = useCallback(() => {
-    const el = markdownRef.current;
-    if (!el) {
+  const handleImage = useCallback(async () => {
+    if (!markdownRef.current) {
       return;
     }
     if (message.content.length > LONG_CONTENT_THRESHOLD) {
-      const confirmed = window.confirm(t('exportMessage.longContentWarning'));
+      const confirmed = await confirmAction({
+        variant: 'warning',
+        description: t('exportMessage.longContentWarning'),
+        confirmText: t('exportMessage.image'),
+      });
       if (!confirmed) {
         return;
       }
+    }
+    // Read again: the message may have left the screen while the question was open.
+    const el = markdownRef.current;
+    if (!el) {
+      return;
     }
     void withGuard(() => downloadMessageAsImage(el, message));
   }, [markdownRef, message, t, withGuard]);
@@ -107,7 +116,7 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
           <Globe size={14} />
           {t('exportMessage.html')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleImage} className="gap-2">
+        <DropdownMenuItem onClick={() => void handleImage()} className="gap-2">
           <FileImage size={14} />
           {t('exportMessage.image')}
         </DropdownMenuItem>

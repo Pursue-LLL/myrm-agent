@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Clock, Trash2, RotateCcw } from 'lucide-react';
 import { CheckpointInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
+import { confirmAction } from '@/lib/app-dialog';
 
 interface CheckpointCardProps {
   checkpoint: CheckpointInfo;
@@ -21,15 +22,21 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onReinitiat
   const progressPercentage = Math.round(checkpoint.progress * 100);
 
   const handleDelete = async () => {
-    if (confirm(t('confirmDelete'))) {
-      setDeleting(true);
-      try {
-        await onDelete(checkpoint.taskId);
-      } catch (error) {
-        console.error('Delete checkpoint failed:', error);
-      } finally {
-        setDeleting(false);
-      }
+    const confirmed = await confirmAction({
+      variant: 'destructive',
+      description: t('confirmDelete'),
+      confirmText: t('delete'),
+    });
+    if (!confirmed) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDelete(checkpoint.taskId);
+    } catch (error) {
+      console.error('Delete checkpoint failed:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 

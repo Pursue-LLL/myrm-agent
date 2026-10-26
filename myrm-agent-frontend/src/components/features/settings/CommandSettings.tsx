@@ -14,10 +14,12 @@ import { Input } from '@/components/primitives/input';
 import { IconPlus, IconTrash, IconEdit, IconSearch } from '@/components/features/icons/PremiumIcons';
 import { CommandEditor } from './CommandEditor';
 import { toast } from '@/lib/utils/toast';
+import { confirmAction } from '@/lib/app-dialog';
 import type { SlashCommand } from '@/types/command';
 
 export const CommandSettings = () => {
   const t = useTranslations('settings.commands');
+  const tCommon = useTranslations('common');
   const { commands, deleteCommand } = useCommandStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,8 +36,13 @@ export const CommandSettings = () => {
     : commands;
 
   // 删除
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(t('delete.confirm', { name }))) {
+  const handleDelete = async (id: string, name: string) => {
+    const confirmed = await confirmAction({
+      variant: 'destructive',
+      description: t('delete.confirm', { name }),
+      confirmText: tCommon('delete'),
+    });
+    if (confirmed) {
       deleteCommand(id);
       toast.success(t('delete.success'));
     }
@@ -98,7 +105,7 @@ export const CommandSettings = () => {
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(command)}>
                   <IconEdit className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(command.id, command.name)}>
+                <Button variant="ghost" size="sm" onClick={() => void handleDelete(command.id, command.name)}>
                   <IconTrash className="w-4 h-4" />
                 </Button>
               </div>

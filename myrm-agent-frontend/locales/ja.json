@@ -5892,6 +5892,8 @@
         "startChatBlocked": "先に準備問題を解決してください",
         "readinessRecheckFailed": "準備状態を更新できませんでした。もう一度お試しください。",
         "rollbackDeleteAgentConfirm": "このインポートで作成されたエージェントも削除しますか？",
+        "rollbackDeleteAgentAction": "エージェントも削除",
+        "rollbackKeepAgentAction": "エージェントは残す",
         "rollbackAgentDeleted": "今回のインポートで作成されたエージェントを削除しました",
         "rollbackAvailable": "ロールバックはインポートした記憶・指示・スケジュールを復元します。インポートしたチャットは履歴に残ります。",
         "done": "完了",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "Golden 5-Pack テンプレートで初期化"
+      "initCheckbox": "Golden 5-Pack テンプレートで初期化",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "Golden 5-Pack のひな形を読み込む",
+      "loadConfirm": "エディタ内のケースを Golden 5-Pack テンプレートで置き換えますか？",
+      "loadConfirmAction": "置き換える"
     },
     "antiContamination": {
       "protectedBadge": "汚染防止保護済み (Anti-Contamination Protected)",
@@ -14646,6 +14652,11 @@
     "urlLabel": "リンク先のアドレス",
     "cancel": "キャンセル",
     "open": "ブラウザで開く"
+  },
+  "appDialog": {
+    "titleConfirm": "確認してください",
+    "titleDestructive": "本当に実行しますか？",
+    "titlePrompt": "入力してください"
   },
   "adaptiveLayout": {
     "grid": {

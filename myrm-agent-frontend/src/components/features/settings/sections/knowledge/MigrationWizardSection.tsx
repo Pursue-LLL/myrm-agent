@@ -47,6 +47,7 @@ import {
   type MigrationWorkspaceBindCandidate,
 } from '@/lib/migrationChatHandoff';
 import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skill/migration';
+import { chooseAction } from '@/lib/app-dialog';
 
 import useAgentStore from '@/store/useAgentStore';
 
@@ -357,7 +358,23 @@ const MigrationWizardSection = memo(
       if (!importResult) {
         return;
       }
-      const deleteImportedAgent = importResult.agent_created && window.confirm(t('result.rollbackDeleteAgentConfirm'));
+      let deleteImportedAgent = false;
+      if (importResult.agent_created) {
+        const choice = await chooseAction({
+          variant: 'destructive',
+          title: t('result.rollbackButton'),
+          description: t('result.rollbackDeleteAgentConfirm'),
+          choices: [
+            { value: 'keep', label: t('result.rollbackKeepAgentAction') },
+            { value: 'delete', label: t('result.rollbackDeleteAgentAction'), tone: 'destructive' },
+          ],
+        });
+        // Dismissing the question stops the rollback: nothing is undone without an answer.
+        if (choice === null) {
+          return;
+        }
+        deleteImportedAgent = choice === 'delete';
+      }
       setRollingBack(true);
       try {
         const rollbackResult = await rollbackMemoryImport(importResult.import_batch_id, {

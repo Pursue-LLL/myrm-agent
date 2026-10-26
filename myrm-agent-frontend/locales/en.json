@@ -5892,6 +5892,8 @@
         "startChatBlocked": "Resolve readiness issues first",
         "readinessRecheckFailed": "Could not refresh readiness status. Try again.",
         "rollbackDeleteAgentConfirm": "Also delete the agent created by this import?",
+        "rollbackDeleteAgentAction": "Delete agent too",
+        "rollbackKeepAgentAction": "Keep agent",
         "rollbackAgentDeleted": "Imported agent was removed",
         "rollbackAvailable": "Rollback restores imported memories, instructions, and scheduled jobs. Imported chats stay in your history.",
         "done": "Done",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "Initialize with Golden 5-Pack template"
+      "initCheckbox": "Initialize with Golden 5-Pack template",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "Load Golden 5-Pack Scaffold",
+      "loadConfirm": "Replace the cases in the editor with the Golden 5-Pack template?",
+      "loadConfirmAction": "Replace"
     },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected",
@@ -14646,6 +14652,11 @@
     "urlLabel": "Link address",
     "cancel": "Cancel",
     "open": "Open in browser"
+  },
+  "appDialog": {
+    "titleConfirm": "Please confirm",
+    "titleDestructive": "Are you sure?",
+    "titlePrompt": "Enter a value"
   },
   "adaptiveLayout": {
     "grid": {

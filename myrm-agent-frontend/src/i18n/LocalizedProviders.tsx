@@ -30,6 +30,7 @@ import { GlobalErrorBoundary } from '@/components/error-boundary/GlobalErrorBoun
 import { QuarantineDialog } from '@/components/features/app-shell/QuarantineDialog';
 import { VaultUnlockModal } from '@/components/features/app-shell/VaultUnlockModal';
 import { ApprovalDrawer } from '@/components/approval/ApprovalDrawer';
+import AppDialogHost from '@/components/features/app-shell/app-dialog-host';
 import DeepLinkListener from '@/components/features/app-shell/deep-link-listener';
 import ExternalLinkConfirmDialog from '@/components/features/app-shell/external-link-confirm-dialog';
 import ExternalLinkInitializer from '@/components/features/app-shell/external-link-initializer';
@@ -70,6 +71,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <ExternalLinkInitializer />
                 <ImeKeyGuardInitializer />
                 <ExternalLinkConfirmDialog />
+                <AppDialogHost />
                 <SystemStatusBanner />
                 <QuarantineDialog />
                 <VaultUnlockModal />

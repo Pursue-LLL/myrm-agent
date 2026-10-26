@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import { confirmAction } from '@/lib/app-dialog';
 
 interface DomainToolInfo {
   name: string;
@@ -61,7 +62,12 @@ const DomainSkillsCard = memo(() => {
 
   const handleDelete = useCallback(
     async (skill: DomainSkillInfo) => {
-      if (!window.confirm(t('confirmDelete', { name: skill.name }))) {
+      const confirmed = await confirmAction({
+        variant: 'destructive',
+        description: t('confirmDelete', { name: skill.name }),
+        confirmText: t('delete'),
+      });
+      if (!confirmed) {
         return;
       }
       setDeletingId(skill.id);

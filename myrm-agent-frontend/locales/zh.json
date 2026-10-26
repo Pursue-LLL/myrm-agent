@@ -5892,6 +5892,8 @@
         "startChatBlocked": "先修复就绪问题",
         "readinessRecheckFailed": "无法刷新就绪状态，请重试。",
         "rollbackDeleteAgentConfirm": "是否同时删除本次导入创建的智能体？",
+        "rollbackDeleteAgentAction": "一并删除智能体",
+        "rollbackKeepAgentAction": "保留智能体",
         "rollbackAgentDeleted": "已删除本次导入的智能体",
         "rollbackAvailable": "回滚会恢复已导入的记忆、指令与定时任务；已导入的历史会话会保留在聊天列表中。",
         "done": "完成",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "使用 Golden 5-Pack 模板初始化"
+      "initCheckbox": "使用 Golden 5-Pack 模板初始化",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "加载 Golden 5-Pack 脚手架",
+      "loadConfirm": "要用 Golden 5-Pack 模板替换编辑器中现有的用例吗？",
+      "loadConfirmAction": "替换"
     },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected (已受防污染保护)",
@@ -14646,6 +14652,11 @@
     "urlLabel": "链接地址",
     "cancel": "取消",
     "open": "在浏览器中打开"
+  },
+  "appDialog": {
+    "titleConfirm": "请确认",
+    "titleDestructive": "确定要继续吗？",
+    "titlePrompt": "请输入内容"
   },
   "adaptiveLayout": {
     "grid": {

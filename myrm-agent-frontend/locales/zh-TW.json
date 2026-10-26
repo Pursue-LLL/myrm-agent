@@ -5892,6 +5892,8 @@
         "startChatBlocked": "先修復就緒問題",
         "readinessRecheckFailed": "無法重新整理就緒狀態，請重試。",
         "rollbackDeleteAgentConfirm": "是否同時刪除本次匯入建立的智慧體？",
+        "rollbackDeleteAgentAction": "一併刪除智慧體",
+        "rollbackKeepAgentAction": "保留智慧體",
         "rollbackAgentDeleted": "已刪除本次匯入的智慧體",
         "rollbackAvailable": "回滾會恢復已匯入的記憶、指令與排程任務；已匯入的歷史會話會保留在聊天列表中。",
         "done": "完成",
@@ -11401,7 +11403,11 @@
   },
   "evalLab": {
     "golden5Pack": {
-      "initCheckbox": "使用 Golden 5-Pack 範本初始化"
+      "initCheckbox": "使用 Golden 5-Pack 範本初始化",
+      "loadButton": "Golden 5-Pack",
+      "loadTooltip": "載入 Golden 5-Pack 腳手架",
+      "loadConfirm": "要用 Golden 5-Pack 範本取代編輯器中現有的用例嗎？",
+      "loadConfirmAction": "取代"
     },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected (已受防汙染保護)",
@@ -14646,6 +14652,11 @@
     "urlLabel": "連結網址",
     "cancel": "取消",
     "open": "在瀏覽器中開啟"
+  },
+  "appDialog": {
+    "titleConfirm": "請確認",
+    "titleDestructive": "確定要繼續嗎？",
+    "titlePrompt": "請輸入內容"
   },
   "adaptiveLayout": {
     "grid": {

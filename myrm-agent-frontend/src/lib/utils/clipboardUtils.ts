@@ -5,6 +5,7 @@ import {
 } from '@tauri-apps/plugin-clipboard-manager';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/app-dialog';
 import { translateI18nKey } from '@/services/i18nToastService';
 
 /**
@@ -156,6 +157,22 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
   }
 };
 
+let pendingWebReadPermission: Promise<boolean> | null = null;
+
+/** One question at a time: reads that start while it is open wait for the same answer instead of stacking copies. */
+function askWebReadPermission(): Promise<boolean> {
+  pendingWebReadPermission ??= confirmAction({
+    variant: 'info',
+    title: translateI18nKey('common.clipboard.readPermissionTitle'),
+    description: `${translateI18nKey('common.clipboard.readPermissionPrompt')}\n\n${translateI18nKey('common.clipboard.readPermissionRemember')}`,
+    confirmText: translateI18nKey('common.clipboard.readPermissionAllow'),
+    cancelText: translateI18nKey('common.clipboard.readPermissionDeny'),
+  }).finally(() => {
+    pendingWebReadPermission = null;
+  });
+  return pendingWebReadPermission;
+}
+
 /**
  * 请求读取剪贴板的权限
  */
@@ -201,8 +218,8 @@ const requestReadPermission = async (): Promise<boolean> => {
       return false;
     }
   } else {
-    // Web 环境下，通常浏览器会自己弹窗，但我们可以先用 confirm 确认
-    const allowed = window.confirm(translateI18nKey('common.clipboard.readPermissionPrompt'));
+    // Web 环境下，通常浏览器会自己弹窗，但我们先在应用内说明用途并确认
+    const allowed = await askWebReadPermission();
     if (allowed) {
       localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
       return true;
