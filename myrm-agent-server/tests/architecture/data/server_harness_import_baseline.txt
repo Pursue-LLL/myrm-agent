@@ -335,6 +335,7 @@ myrm_agent_harness.infra.sqlite_salvage
 myrm_agent_harness.infra.state_archive
 myrm_agent_harness.infra.tls_compat
 myrm_agent_harness.infra.tracing
+myrm_agent_harness.infra.tracing.id_generator
 myrm_agent_harness.infra.tracing.metrics
 myrm_agent_harness.observability
 myrm_agent_harness.observability.aborted_usage_ledger

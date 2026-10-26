@@ -1,7 +1,8 @@
 """Standardized API response models and builders.
 
 [INPUT]
-- (none — leaf module, depends only on pydantic/stdlib)
+- myrm_agent_harness.observability.tracing::resolve_current_trace_id
+  (POS: the trace id of the request being served, the one ``X-Trace-Id`` carries)
 
 [OUTPUT]
 - StandardSuccessResponse, StandardErrorResponse: Pydantic response envelope models
@@ -16,6 +17,7 @@ from enum import IntEnum
 from typing import Any, List
 from uuid import uuid4
 
+from myrm_agent_harness.observability.tracing import resolve_current_trace_id
 from pydantic import BaseModel, Field
 
 # Note: Pydantic requires `Any` for dynamically-typed JSON fields.
@@ -25,29 +27,37 @@ from pydantic import BaseModel, Field
 class StandardSuccessResponse(BaseModel):
     success: bool = Field(True, description="Whether the request was successful")
     code: int = Field(0, description="Business status code, 0 means success")
-    data: Any = Field(None, description="Response payload")
+    data: Any = Field(default=None, description="Response payload")
 
 
 class ErrorDetail(BaseModel):
-    field: str | None = Field(None, description="Error field name")
+    field: str | None = Field(default=None, description="Error field name")
     issue: str = Field(..., description="Error description")
 
 
+def _current_trace_id() -> str:
+    """The trace id of the request being served; a fresh one when no request is."""
+    return resolve_current_trace_id() or str(uuid4())
+
+
 class ErrorInfo(BaseModel):
-    details: list[ErrorDetail] | None = Field(None, description="Detailed error information")
-    trace_id: str = Field(default_factory=lambda: str(uuid4()), description="Trace ID")
+    details: list[ErrorDetail] | None = Field(default=None, description="Detailed error information")
+    trace_id: str = Field(
+        default_factory=_current_trace_id,
+        description="Trace ID of the request: the X-Trace-Id response header and the id its logs and spans carry",
+    )
 
 
 class StandardErrorResponse(BaseModel):
     success: bool = Field(False, description="Whether the request was successful")
     code: int = Field(..., description="Business error code")
     message: str = Field(..., description="Error message")
-    error: ErrorInfo | None = Field(None, description="Error details")
+    error: ErrorInfo | None = Field(default=None, description="Error details")
 
 
 class ListData(BaseModel):
     list: List[Any] = Field(..., description="Data list")
-    pagination: dict[str, Any] | None = Field(None, description="Pagination info")
+    pagination: dict[str, Any] | None = Field(default=None, description="Pagination info")
 
 
 class PaginationInfo(BaseModel):
@@ -109,10 +119,18 @@ def create_list_response(items: list[Any], pagination: PaginationInfo | None = N
     return StandardSuccessResponse(success=True, code=BusinessCode.SUCCESS, data=data)
 
 
+_FIRST_SERVER_FAULT_CODE = 50000  # BusinessCode 50xxx and up: the failures a user reports and an operator looks up
+
+
 def create_error_response(
     code: int, message: str, details: list[ErrorDetail] | None = None, trace_id: str | None = None
 ) -> StandardErrorResponse:
+    """Build the error envelope.
+
+    ``error`` (details and the request's trace id) is present when there are details, a trace id is given or the
+    code is a server fault. A plain client error stays a message: its toast has nothing to look up.
+    """
     error_info = None
-    if details or trace_id:
-        error_info = ErrorInfo(details=details, trace_id=trace_id or str(uuid4()))
+    if details or trace_id or code >= _FIRST_SERVER_FAULT_CODE:
+        error_info = ErrorInfo(details=details, trace_id=trace_id or _current_trace_id())
     return StandardErrorResponse(success=False, code=code, message=message, error=error_info)

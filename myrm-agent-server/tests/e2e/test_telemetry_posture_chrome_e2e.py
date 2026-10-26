@@ -29,7 +29,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-_READABLE_STATUSES = frozenset({"active", "failing", "degraded", "disabled", "noop", "missing_sdk", "local_only"})
+_READABLE_STATUSES = frozenset({"ready", "active", "failing", "degraded", "disabled", "noop", "missing_sdk", "local_only"})
 _MEASURED_FIELDS = ("sampler", "content_capture", "metrics_exporting", "exported_spans", "failed_batches", "withheld_spans")
 _REMOVED_ASSERTED_FLAGS = ("three_tier_semantics", "prompt_cache_metering")
 

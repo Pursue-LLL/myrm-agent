@@ -24,7 +24,9 @@ _OTEL_SERVICE_NAME = "myrm-agent-server"
 
 # FastAPI >= 0.142 instruments itself as soon as a real OpenTelemetry provider exists. The harness owns the
 # pipeline (the GenAI span tree behind the privacy-guarded exporter), so FastAPI must not
-# - add HTTP request spans: every health probe would become a four-span trace on the operator's backend;
+# - add HTTP request spans: every health probe would become a four-span trace on the operator's backend, and
+#   the request span, created outside TracingMiddleware with a random trace id, would pass that id to every
+#   span below it instead of the request's own;
 # - auto-configure from the environment (default on in 0.142.x, opt-in via FASTAPI_OTEL_AUTO_CONFIGURE since
 #   0.143): that attaches exporters of its own to the harness providers, which would send every span past the
 #   privacy guard, every metric twice, and unhandled exception messages and stack traces as logs.
@@ -57,19 +59,27 @@ def _setup_telemetry() -> None:
     """Export OpenTelemetry traces and metrics when the standard ``OTEL_*`` environment configures it.
 
     Endpoint, protocol, headers, sampler and the ``OTEL_SDK_DISABLED`` kill switch are resolved by the
-    harness from the standard variables; the server only names the service and what it runs as.
+    harness from the standard variables; the server only names the service and what it runs as. The traces
+    it exports carry the trace id of the request that started them (``TracingMiddleware``'s id, the one in
+    ``X-Trace-Id``, error bodies and logs), so an id a user reports finds its trace. Work that starts
+    outside a request has no such id and gets a random one.
     """
     try:
-        from myrm_agent_harness import __version__ as engine_version
         from myrm_agent_harness.infra.tracing import setup_metrics, setup_tracing
+        from myrm_agent_harness.infra.tracing.id_generator import ContextTraceIdGenerator
+        from myrm_agent_harness.observability.tracing import TracingContext
 
         from app.config.deploy_mode import get_deploy_mode
 
         resource_attributes = {
-            "service.version": engine_version,
+            "service.version": settings.app_version,
             "deployment.environment.name": get_deploy_mode().value,
         }
-        setup_tracing(service_name=_OTEL_SERVICE_NAME, resource_attributes=resource_attributes)
+        setup_tracing(
+            service_name=_OTEL_SERVICE_NAME,
+            resource_attributes=resource_attributes,
+            id_generator=ContextTraceIdGenerator(TracingContext.get_trace_id),
+        )
         setup_metrics(service_name=_OTEL_SERVICE_NAME, resource_attributes=resource_attributes)
     except Exception as e:
         logger.warning("[Telemetry] Setup failed: %s", e)

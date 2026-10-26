@@ -21,6 +21,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
+| `support/otlp_receiver.py` | 辅助 | 进程内 OTLP/HTTP 接收端（`OtlpReceiver`）：解码收到的追踪、指标与日志（`spans()`、`metric_export_count`、`metric_attribute_values`、`log_attribute_values`），断言「运维后端真正收到了什么」；遥测装配与 FastAPI 原生遥测策略的子进程测试共用 |
 | `support/public_api_app.py` | 辅助 | `public_api_openapi()`：全量公开 API 的 OpenAPI 路径表，并带回生成期间捕获的 `Duplicate Operation ID` 警告；`public_api_handlers()`：每个操作背后的端点函数（`app/` 下的文件、函数名、方法、客户端路径，经 `fastapi.routing.iter_route_contexts` 读出，同名函数 `create_task` / `create_job` 靠 operationId 分不出文件）；应用与两张表在进程内只生成一次，`tests/architecture` 路由类测试共用；不 import `app.main` |
 | `support/route_consumers.py` | 辅助 | 「路由有没有调用方」的共享判定：`api_operations()`、`has_frontend_caller()` / `group_by_length()`（前端路径字面量匹配）、`operations_without_frontend_caller()`、`operations_without_caller()`（`dynamic_matches_any`：前端的动态路径段如 `/agents/chats/${id}/${kind}` 默认只填路由参数，回答「有无调用证据」；打开后它能到达同形状的任一路由，回答「能否排除有人调用」；再减去 `data/route_external_consumers.txt` 登记的外部调用方；没有前端源码时为空，宁可多扫不漏扫）、`read_route_entries()`（读两个登记文件）；`architecture/test_api_route_consumers.py` 与 `test_text_entry_risk_gate.py` 共用 |
 | `support/frontend_api_paths.py` | 辅助 | `frontend_sources()` / `frontend_path_literals()` / `normalize_path()` / `segments()`：前端非测试源码（路径常量已内联）、路径形字符串字面量（标记是否自带 `/api/v1` 前缀）与路径归一化，「前端调用必须命中路由」与「路由必须有前端调用」两个方向的架构测试共用 |
@@ -39,7 +40,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_chrome_api_queue.py` | 单元 | `wait_for_api_queue_to_drain`（假时钟）：空闲页连续 3 次快速探针即放行；探针排队时持续等待；两次突发之间的单个快样本不放行；文档仍在加载不放行；失败探针清零连续计数；页面暂不可求值时重探；截止时间到带最后一次探针结果失败；探针 JS 是发往 API 源的带预检 GET |
 | `support/test_chrome_skill_undo_probes.py` | 单元 | `recently_edited_frontend_files`：只列起点之后保存的前端文件且最新在前，恰在起点保存的不算，`limit` 保留最新的，前端目录不存在时返回空 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry 导出卡片（端点、协议、采样器、内容外发声明）渲染与刷新端到端测试；接口须返回实测字段且不得再带写死的能力标志 |
-| `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
+| `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，资源 `service.version` 为产品版本，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
+| `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不再叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
+| `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
+| `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |

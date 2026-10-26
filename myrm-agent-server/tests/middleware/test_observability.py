@@ -14,6 +14,7 @@ from app.middleware.observability import (
     TracingMiddleware,
     _extract_session_id,
     _parse_inbound_trace_id,
+    request_trace_id,
 )
 
 
@@ -184,6 +185,39 @@ class TestTracingMiddleware:
         assert len(trace) == 32
         assert all(c in "0123456789abcdef" for c in trace)
 
+    async def test_inbound_uppercase_trace_id_is_adopted_in_lowercase(self) -> None:
+        """OpenTelemetry renders trace ids in lowercase, so the one id everyone sees must too."""
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/health", headers={"X-Trace-Id": "0AF7651916CD43DD8448EB211C80319C"})
+
+        assert resp.headers["x-trace-id"] == "0af7651916cd43dd8448eb211c80319c"
+        assert resp.json()["trace_id"] == "0af7651916cd43dd8448eb211c80319c"
+
+    async def test_inbound_trace_id_that_is_not_a_w3c_trace_id_is_replaced(self) -> None:
+        """A 64-bit hex id cannot be carried by OpenTelemetry, so it is replaced rather than half-honoured."""
+        app = _make_app()
+        short_id = "abcdef1234567890"
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/health", headers={"X-Trace-Id": short_id})
+
+        assert resp.headers["x-trace-id"] != short_id
+        assert len(resp.headers["x-trace-id"]) == 32
+
+    async def test_trace_id_is_kept_on_the_request(self) -> None:
+        """Handlers that run after the middleware has unwound read the id from the request."""
+
+        async def read_request_id(request: Request) -> JSONResponse:
+            return JSONResponse({"request_id": request_trace_id(request)})
+
+        app = Starlette(routes=[Route("/api/state", read_request_id)])
+        app.add_middleware(TracingMiddleware)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/state")
+
+        assert resp.json()["request_id"] == resp.headers["x-trace-id"]
+
     async def test_x_trace_id_takes_priority_over_traceparent(self) -> None:
         """X-Trace-Id should take priority when both headers are present."""
         app = _make_app()
@@ -215,8 +249,8 @@ class TestParseInboundTraceId:
         return Request(scope)
 
     def test_valid_x_trace_id(self) -> None:
-        req = self._make_request({"X-Trace-Id": "abcdef1234567890"})
-        assert _parse_inbound_trace_id(req) == "abcdef1234567890"
+        req = self._make_request({"X-Trace-Id": "abcdef1234567890abcdef1234567890"})
+        assert _parse_inbound_trace_id(req) == "abcdef1234567890abcdef1234567890"
 
     def test_valid_traceparent(self) -> None:
         req = self._make_request({"traceparent": "00-abcdef1234567890abcdef1234567890-0102030405060708-01"})
@@ -230,21 +264,28 @@ class TestParseInboundTraceId:
         req = self._make_request({"X-Trace-Id": "not-valid-hex!"})
         assert _parse_inbound_trace_id(req) is None
 
-    def test_too_long_rejected(self) -> None:
-        req = self._make_request({"X-Trace-Id": "a" * 65})
+    @pytest.mark.parametrize("length", [1, 16, 31, 33, 64, 65])
+    def test_hex_of_any_other_length_rejected(self, length: int) -> None:
+        req = self._make_request({"X-Trace-Id": "a" * length})
         assert _parse_inbound_trace_id(req) is None
 
-    def test_single_char_hex_accepted(self) -> None:
-        req = self._make_request({"X-Trace-Id": "f"})
-        assert _parse_inbound_trace_id(req) == "f"
+    def test_all_zero_trace_id_rejected(self) -> None:
+        assert _parse_inbound_trace_id(self._make_request({"X-Trace-Id": "0" * 32})) is None
+        assert _parse_inbound_trace_id(self._make_request({"traceparent": f"00-{'0' * 32}-0102030405060708-01"})) is None
+
+    def test_invalid_x_trace_id_does_not_hide_a_valid_traceparent(self) -> None:
+        req = self._make_request(
+            {"X-Trace-Id": "short", "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}
+        )
+        assert _parse_inbound_trace_id(req) == "0af7651916cd43dd8448eb211c80319c"
 
     def test_malformed_traceparent_rejected(self) -> None:
         req = self._make_request({"traceparent": "malformed"})
         assert _parse_inbound_trace_id(req) is None
 
-    def test_mixed_case_hex_accepted(self) -> None:
-        req = self._make_request({"X-Trace-Id": "AbCdEf0123456789"})
-        assert _parse_inbound_trace_id(req) == "AbCdEf0123456789"
+    def test_mixed_case_hex_is_normalized_to_lowercase(self) -> None:
+        req = self._make_request({"X-Trace-Id": "AbCdEf0123456789AbCdEf0123456789"})
+        assert _parse_inbound_trace_id(req) == "abcdef0123456789abcdef0123456789"
 
     def test_whitespace_in_trace_id_rejected(self) -> None:
         req = self._make_request({"X-Trace-Id": " abc123 "})
@@ -261,8 +302,3 @@ class TestParseInboundTraceId:
     def test_traceparent_non_hex_trace_id_rejected(self) -> None:
         req = self._make_request({"traceparent": "00-not_hex_at_all!!!!!!!!!!!!!!!!!-0102030405060708-01"})
         assert _parse_inbound_trace_id(req) is None
-
-    def test_64_char_hex_accepted(self) -> None:
-        long_id = "a" * 64
-        req = self._make_request({"X-Trace-Id": long_id})
-        assert _parse_inbound_trace_id(req) == long_id

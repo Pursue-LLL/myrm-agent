@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness import __version__ as engine_version
 
+from app.config.settings import settings
 from tests.support.otlp_receiver import OtlpReceiver
 
 pytestmark = pytest.mark.integration
@@ -89,7 +89,7 @@ def test_standard_endpoint_alone_exports_traces_with_the_server_identity() -> No
     assert receiver.span_names() == ["startup.probe"]
     attributes = receiver.resource_attributes()
     assert attributes["service.name"] == "myrm-agent-server"
-    assert attributes["service.version"] == engine_version
+    assert attributes["service.version"] == settings.app_version
     assert attributes["deployment.environment.name"] == "local"
 
     assert posture["status"] == "active"

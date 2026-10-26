@@ -11,7 +11,7 @@
 | `theme_profile.py` | Theme Engine Recipe Pydantic 模型（`file:` assetRef、`themeProfiles` 校验） |
 | `control_plane.py` | Server↔CP 遥测契约（含 context compaction、memory brief `envelope_id(max_length=128)` + `aggregates`/`dropped_aggregates`、memory guardian guard `envelope_id(max_length=128)` + governed `reason/guard/frequency_tier` 聚合） |
 | `memory/command_center.py` | Memory Command Center 响应模型 |
-| `responses.py` | 标准化 API 响应信封模型（`StandardSuccessResponse`/`StandardErrorResponse`）、业务码枚举 `BusinessCode`、工厂函数 `create_success_response`/`create_list_response`/`create_error_response` |
+| `responses.py` | 标准化 API 响应信封模型（`StandardSuccessResponse`/`StandardErrorResponse`）、业务码枚举 `BusinessCode`、工厂函数 `create_success_response`/`create_list_response`/`create_error_response`。错误信封的 `error.trace_id` 默认取当前请求的 trace id（`resolve_current_trace_id`：OpenTelemetry 优先，其次 TracingContext，请求之外才新生成）；带 `details`、显式 `trace_id` 或业务码 ≥ 50000（服务端故障）时才返回 `error` 块，普通 4xx 仍只有 message |
 | `security/dashboard.py` | 安全仪表盘 DTO（API + services 共用） |
 | `desktop_recorder.py` | 桌面工作流录制请求/响应 DTO（`Start/Stop/Synthesize/Analyze/Compile/Publish` 契约 + `WorkflowIntentPlanSchema`）。运行时会话状态归 services 层，故本 DTO 层不依赖 services |
 | `agent_operations.py` | Agent-Owned 多智能体协同操作 DTO（`AgentRegisterRequest`、`AgentRosterResponse`、`ResolveCapabilityRequest/Response`、`AgentScopedErrorDTO`） |
