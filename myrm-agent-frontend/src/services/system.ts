@@ -163,21 +163,29 @@ export interface DatabaseStorageBreakdown {
   total_bytes: number;
 }
 
+/** Measured state of the OpenTelemetry export pipeline; every field is read from the running exporter. */
 export interface TelemetryPosture {
-  status: 'active' | 'console' | 'degraded_console' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
+  status: 'active' | 'failing' | 'degraded' | 'disabled' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
   initialized: boolean;
   has_sdk: boolean;
   endpoint: string | null;
   protocol: string;
   headers_configured: boolean;
   local_trace_only: boolean;
-  exporter_type?: string;
-  degraded_reason?: string | null;
-  git_branch?: string | null;
-  git_commit?: string | null;
-  three_tier_semantics: boolean;
-  prompt_cache_metering: boolean;
-  error?: string;
+  exporter_type: string;
+  degraded_reason: string | null;
+  sampler: string | null;
+  content_capture: boolean;
+  metrics_exporting: boolean;
+  exported_spans: number;
+  failed_batches: number;
+  dropped_spans: number;
+  /** Epoch seconds of the last successful / failed export attempt. */
+  last_success_at: number | null;
+  last_failure_at: number | null;
+  git_branch: string | null;
+  git_commit: string | null;
+  error?: string | null;
 }
 
 export interface StorageOptimizePreflightResponse {

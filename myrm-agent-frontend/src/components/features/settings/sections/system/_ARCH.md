@@ -167,6 +167,7 @@
 | 文件                              | 职责           |
 | --------------------------------- | -------------- |
 | `DeveloperSection.tsx`            | 开发者选项入口 |
+| `TelemetryPostureCard.tsx`        | OpenTelemetry 导出卡片：端点/协议/采样器、内容外发声明、已导出/失败/丢弃计数与最近成功/失败时间，全部取自 `/system/telemetry-posture` 的实测值；仅 `active` 状态点才有呼吸动画 |
 | `DeveloperCenterSection.tsx`      | 开发者中心     |
 | `DatasetExportCard.tsx`           | 数据集导出     |
 | `ExperimentalFeaturesSection.tsx` | 实验性功能开关 |

@@ -2,68 +2,229 @@
 
 /**
  * [INPUT]
- * - services/system::systemService.getTelemetryPosture (POS: SRE OpenTelemetry Posture API)
+ * - services/system::systemService.getTelemetryPosture (POS: measured OpenTelemetry export posture)
+ * - lib/utils/relativeTime::formatRelativeTime (POS: locale-aware "x minutes ago")
  * - components/features/icons/PremiumIcons (POS: Premium SVG icon set)
  *
  * [OUTPUT]
- * - TelemetryPostureCard: Diagnostic status card for OpenTelemetry OTLP tracing and APM exporter
+ * - TelemetryPostureCard: Developer-settings card for OTLP trace and metric export: what is configured,
+ *   what the exporter actually delivered, and what is never sent
  *
  * [POS]
- * Developer settings diagnostics. Surfaces active OpenTelemetry telemetry status, protocol,
- * endpoints, and APM config snippet guides for enterprise SRE.
+ * Every value is read from the running exporter (counters, sampler, content switch), never asserted by the UI.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { Button } from '@/components/primitives/button';
 import {
   IconActivity,
+  IconAlertCircle,
+  IconAlertTriangle,
   IconCheck,
   IconCopy,
+  IconEye,
   IconGitBranch,
   IconRefresh,
-  IconWorkflow,
+  IconShieldCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { systemService, type TelemetryPosture } from '@/services/system';
 
-const STATUS_MAP = {
-  active: {
-    badge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    dot: 'bg-emerald-500',
-    labelKey: 'active',
+type Tone = 'ok' | 'warn' | 'danger' | 'idle';
+
+const TONE_CLASSES: Record<Tone, { badge: string; dot: string; notice: string; icon: string }> = {
+  ok: {
+    badge: 'border-primary/30 bg-primary/10 text-primary',
+    dot: 'bg-primary',
+    notice: 'border-primary/25 bg-primary/5',
+    icon: 'text-primary',
   },
-  console: {
-    badge: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    dot: 'bg-blue-500',
-    labelKey: 'console',
+  warn: {
+    badge: 'border-warning/40 bg-warning/10 text-warning',
+    dot: 'bg-warning',
+    notice: 'border-warning/35 bg-warning/10',
+    icon: 'text-warning',
   },
-  degraded_console: {
-    badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    dot: 'bg-amber-500',
-    labelKey: 'degradedConsole',
+  danger: {
+    badge: 'border-destructive/30 bg-destructive/10 text-destructive',
+    dot: 'bg-destructive',
+    notice: 'border-destructive/30 bg-destructive/5',
+    icon: 'text-destructive',
   },
-  noop: {
-    badge: 'bg-muted text-muted-foreground border-border/40',
+  idle: {
+    badge: 'border-border bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground/60',
-    labelKey: 'noop',
+    notice: 'border-border/60 bg-muted/40',
+    icon: 'text-muted-foreground',
   },
-  missing_sdk: {
-    badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    dot: 'bg-amber-500',
-    labelKey: 'missingSdk',
-  },
-  local_only: {
-    badge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20',
-    dot: 'bg-purple-500',
-    labelKey: 'localOnly',
-  },
-  error: {
-    badge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20',
-    dot: 'bg-rose-500',
-    labelKey: 'error',
-  },
-} as const;
+};
+
+type StatusView = { tone: Tone; labelKey: string; noticeKey: string | null };
+
+const STATUS_VIEW: Record<TelemetryPosture['status'], StatusView> = {
+  active: { tone: 'ok', labelKey: 'active', noticeKey: null },
+  failing: { tone: 'danger', labelKey: 'failing', noticeKey: 'failing' },
+  degraded: { tone: 'warn', labelKey: 'degraded', noticeKey: 'degraded' },
+  disabled: { tone: 'idle', labelKey: 'disabled', noticeKey: 'disabled' },
+  noop: { tone: 'idle', labelKey: 'noop', noticeKey: 'noop' },
+  missing_sdk: { tone: 'warn', labelKey: 'missingSdk', noticeKey: 'missingSdk' },
+  local_only: { tone: 'idle', labelKey: 'localOnly', noticeKey: 'localOnly' },
+  error: { tone: 'danger', labelKey: 'error', noticeKey: 'error' },
+};
+
+const UNREADABLE_POSTURE: TelemetryPosture = {
+  status: 'error',
+  initialized: false,
+  has_sdk: false,
+  endpoint: null,
+  protocol: 'unknown',
+  headers_configured: false,
+  local_trace_only: false,
+  exporter_type: 'none',
+  degraded_reason: null,
+  sampler: null,
+  content_capture: false,
+  metrics_exporting: false,
+  exported_spans: 0,
+  failed_batches: 0,
+  dropped_spans: 0,
+  last_success_at: null,
+  last_failure_at: null,
+  git_branch: null,
+  git_commit: null,
+};
+
+const ENV_EXAMPLE = [
+  '# OpenTelemetry export (standard variables)',
+  'OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"',
+  'OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"',
+  'OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer your-api-token"',
+  'OTEL_TRACES_SAMPLER="parentbased_traceidratio"',
+  'OTEL_TRACES_SAMPLER_ARG="0.1"',
+].join('\n');
+
+function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={cn('min-w-0 rounded-lg border border-border/40 bg-muted/30 p-2.5', className)}>
+      <span className="mb-1 block text-[11px] font-medium tracking-wide text-muted-foreground">{label}</span>
+      <div className="min-w-0 text-xs font-medium text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function Counter({ label, value, tone }: { label: string; value: number; tone?: 'warn' | 'danger' }) {
+  return (
+    <div className="min-w-0">
+      <span className="block truncate text-[11px] text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          'font-mono text-base font-semibold tabular-nums',
+          value > 0 && tone === 'danger' && 'text-destructive',
+          value > 0 && tone === 'warn' && 'text-warning',
+        )}
+      >
+        {value.toLocaleString()}
+      </span>
+    </div>
+  );
+}
+
+function PostureBody({ posture, view }: { posture: TelemetryPosture; view: StatusView }) {
+  const t = useTranslations('settings.developer.telemetry');
+  const locale = useLocale();
+  const tone = TONE_CLASSES[view.tone];
+  const NoticeIcon = view.tone === 'idle' ? IconAlertCircle : IconAlertTriangle;
+  const exporting = posture.initialized && posture.exporter_type !== 'none';
+  const lastSeen = (seconds: number | null) =>
+    seconds === null ? t('never') : formatRelativeTime(new Date(seconds * 1000).toISOString(), locale);
+
+  return (
+    <>
+      {view.noticeKey && (
+        <output
+          className={cn('mt-3 flex items-start gap-2 rounded-lg border p-3 text-xs text-foreground', tone.notice)}
+        >
+          <NoticeIcon className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', tone.icon)} />
+          <span className="min-w-0 break-words">
+            {t(`notice.${view.noticeKey}`, { reason: posture.degraded_reason ?? posture.error ?? '' })}
+          </span>
+        </output>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 pt-3.5 lg:grid-cols-4">
+        <Field label={t('endpoint')} className="col-span-2">
+          <span className="block truncate font-mono" title={posture.endpoint ?? ''}>
+            {posture.endpoint ?? t('notConfigured')}
+          </span>
+        </Field>
+        <Field label={t('protocol')}>
+          <span className="font-mono">{posture.endpoint ? posture.protocol.toUpperCase() : '-'}</span>
+        </Field>
+        <Field label={t('sampler')}>
+          <span className="block truncate font-mono" title={posture.sampler ?? ''}>
+            {posture.sampler ?? '-'}
+          </span>
+        </Field>
+
+        <Field label={t('contentCapture')} className="col-span-2">
+          <span className="flex items-center gap-1.5">
+            {posture.content_capture ? (
+              <>
+                <IconEye className="h-3.5 w-3.5 shrink-0 text-warning" />
+                <span className="text-warning">{t('contentIncluded')}</span>
+              </>
+            ) : (
+              <>
+                <IconShieldCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>{t('contentMetadataOnly')}</span>
+              </>
+            )}
+          </span>
+        </Field>
+        <Field label={t('metrics')}>{posture.metrics_exporting ? t('metricsExporting') : t('metricsOff')}</Field>
+        <Field label={t('headers')}>{posture.headers_configured ? t('configured') : t('none')}</Field>
+
+        <Field label={t('environment')} className="col-span-2 lg:col-span-4">
+          {posture.git_branch ? (
+            <div
+              className="flex items-center gap-1.5 truncate font-mono"
+              title={`${posture.git_branch} (${posture.git_commit ?? 'HEAD'})`}
+            >
+              <IconGitBranch className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="truncate">{posture.git_branch}</span>
+              {posture.git_commit && <span className="text-[10px] text-muted-foreground">({posture.git_commit})</span>}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">{t('noVcsTag')}</span>
+          )}
+        </Field>
+      </div>
+
+      {exporting && (
+        <div className="mt-3 rounded-lg border border-border/40 bg-muted/20 p-3">
+          <span className="mb-2 block text-[11px] font-medium tracking-wide text-muted-foreground">
+            {t('delivery')}
+          </span>
+          <div className="grid grid-cols-3 gap-3">
+            <Counter label={t('exportedSpans')} value={posture.exported_spans} />
+            <Counter label={t('failedBatches')} value={posture.failed_batches} tone="danger" />
+            <Counter label={t('droppedSpans')} value={posture.dropped_spans} tone="warn" />
+          </div>
+          <div className="mt-2.5 flex flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:gap-5">
+            <span>
+              {t('lastSuccess')}: <span className="text-foreground">{lastSeen(posture.last_success_at)}</span>
+            </span>
+            <span>
+              {t('lastFailure')}: <span className="text-foreground">{lastSeen(posture.last_failure_at)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export const TelemetryPostureCard = memo(() => {
   const t = useTranslations('settings.developer.telemetry');
@@ -74,20 +235,9 @@ export const TelemetryPostureCard = memo(() => {
   const fetchPosture = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await systemService.getTelemetryPosture();
-      setPosture(data);
+      setPosture(await systemService.getTelemetryPosture());
     } catch {
-      setPosture({
-        status: 'error',
-        initialized: false,
-        has_sdk: false,
-        endpoint: null,
-        protocol: 'unknown',
-        headers_configured: false,
-        local_trace_only: false,
-        three_tier_semantics: true,
-        prompt_cache_metering: true,
-      });
+      setPosture(UNREADABLE_POSTURE);
     } finally {
       setLoading(false);
     }
@@ -97,36 +247,48 @@ export const TelemetryPostureCard = memo(() => {
     fetchPosture();
   }, [fetchPosture]);
 
-  const handleCopyEnvExample = () => {
-    const example = `# OpenTelemetry APM Collector Integration\nOTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"\nOTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"\nOTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer your-api-token"\nOTEL_SAMPLE_RATE="0.1"`;
-    navigator.clipboard.writeText(example);
+  const handleCopyEnvExample = async () => {
+    try {
+      await navigator.clipboard.writeText(ENV_EXAMPLE);
+    } catch {
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const statusConfig = posture ? STATUS_MAP[posture.status] || STATUS_MAP.noop : STATUS_MAP.noop;
+  // A status this UI cannot interpret is reported as unreadable rather than guessed at.
+  const view = posture ? (STATUS_VIEW[posture.status] ?? STATUS_VIEW.error) : null;
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-4 sm:p-5 transition-all">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border/40">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+    <div className="rounded-xl border border-border/50 bg-card/60 p-4 backdrop-blur-sm transition-all sm:p-5">
+      <div className="flex flex-col gap-3 border-b border-border/40 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
             <IconActivity className="h-4 w-4" />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground tracking-tight flex items-center gap-2">
+          <div className="min-w-0">
+            <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
               {t('title')}
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border',
-                  statusConfig.badge,
-                )}
-              >
-                <span className={cn('h-1.5 w-1.5 rounded-full animate-pulse', statusConfig.dot)} />
-                {t(`status.${statusConfig.labelKey}`)}
-              </span>
+              {view && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium',
+                    TONE_CLASSES[view.tone].badge,
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      TONE_CLASSES[view.tone].dot,
+                      posture?.status === 'active' && 'animate-pulse motion-reduce:animate-none',
+                    )}
+                  />
+                  {t(`status.${view.labelKey}`)}
+                </span>
+              )}
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{t('description')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('description')}</p>
           </div>
         </div>
 
@@ -136,69 +298,23 @@ export const TelemetryPostureCard = memo(() => {
             size="sm"
             onClick={fetchPosture}
             disabled={loading}
-            className="h-8 px-2.5 text-xs gap-1.5"
+            className="h-8 gap-1.5 px-2.5 text-xs"
           >
             <IconRefresh className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
             {t('refresh')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleCopyEnvExample} className="h-8 px-2.5 text-xs gap-1.5">
-            {copied ? <IconCheck className="h-3.5 w-3.5 text-emerald-500" /> : <IconCopy className="h-3.5 w-3.5" />}
+          <Button variant="ghost" size="sm" onClick={handleCopyEnvExample} className="h-8 gap-1.5 px-2.5 text-xs">
+            {copied ? <IconCheck className="h-3.5 w-3.5 text-primary" /> : <IconCopy className="h-3.5 w-3.5" />}
             {copied ? t('copied') : t('copyEnv')}
           </Button>
         </div>
       </div>
 
-      {posture?.status === 'degraded_console' && (
-        <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
-          <div className="font-semibold flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            {t('degradedWarning')}
-          </div>
-          <div className="mt-1 text-muted-foreground">
-            {t('degradedHelp', { reason: posture.degraded_reason || 'Unknown error' })}
-          </div>
-        </div>
+      {posture && view ? (
+        <PostureBody posture={posture} view={view} />
+      ) : (
+        <div aria-hidden className="mt-3.5 h-28 animate-pulse rounded-lg bg-muted/40 motion-reduce:animate-none" />
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-3.5 text-xs">
-        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">
-          <span className="text-muted-foreground block mb-1">{t('protocol')}</span>
-          <span className="font-mono font-medium text-foreground">
-            {posture?.protocol ? posture.protocol.toUpperCase() : 'NOOP'}
-          </span>
-        </div>
-
-        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">
-          <span className="text-muted-foreground block mb-1">{t('endpoint')}</span>
-          <span className="font-mono font-medium text-foreground truncate block" title={posture?.endpoint || ''}>
-            {posture?.endpoint || t('notConfigured')}
-          </span>
-        </div>
-
-        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">
-          <span className="text-muted-foreground block mb-1">{t('environment')}</span>
-          {posture?.git_branch ? (
-            <div
-              className="flex items-center gap-1.5 font-mono font-medium text-foreground truncate"
-              title={`${posture.git_branch} (${posture.git_commit || 'HEAD'})`}
-            >
-              <IconGitBranch className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-              <span className="truncate">{posture.git_branch}</span>
-              {posture.git_commit && <span className="text-muted-foreground text-[10px]">({posture.git_commit})</span>}
-            </div>
-          ) : (
-            <span className="font-medium text-muted-foreground">{t('noVcsTag')}</span>
-          )}
-        </div>
-
-        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">
-          <span className="text-muted-foreground block mb-1">{t('features')}</span>
-          <div className="flex items-center gap-1.5 text-foreground font-medium">
-            <IconWorkflow className="h-3.5 w-3.5 text-primary" />
-            <span>{t('threeTierReady')}</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 });
