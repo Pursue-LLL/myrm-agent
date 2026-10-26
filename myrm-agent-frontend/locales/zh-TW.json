@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "在 zotero.org/settings/keys 建立的 API 金鑰",
         "zoteroBaseUrlLabel": "Zotero API 位址（選填）"
       },
+      "ima": {
+        "title": "騰訊 ima 知識庫",
+        "description": "把 ima 裡的知識庫和筆記匯入 Wiki，並定期保持同步。",
+        "account": "帳號 {hint}",
+        "loading": "載入中…",
+        "loadError": "暫時無法讀取 ima 匯入狀態",
+        "badge": {
+          "syncing": "同步中",
+          "paused": "已暫停",
+          "upToDate": "已是最新",
+          "needsReconnect": "需要重新連線"
+        },
+        "common": {
+          "cancel": "取消"
+        },
+        "connect": {
+          "hint": "請貼上你在 ima 中建立的 Client ID 和 API Key。金鑰會加密儲存，只用於讀取你的 ima 內容，之後不會再顯示。",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "貼上 Client ID",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "貼上 API Key",
+          "submit": "連線",
+          "submitting": "正在驗證…",
+          "success": "已連線 ima",
+          "reconnectNotice": "ima 拒絕了之前儲存的金鑰，同步已暫停。請重新填寫，連線成功後會自動繼續。"
+        },
+        "libraries": {
+          "hint": "選擇要匯入的知識庫。",
+          "loading": "正在讀取你的知識庫…",
+          "empty": "沒有找到知識庫，你仍然可以只匯入筆記。",
+          "reload": "重新載入",
+          "notesLabel": "同時匯入我的筆記",
+          "notesHint": "筆記會單獨匯入，並和知識庫一起保持同步。",
+          "costHint": "首次匯入會讀取全部內容，可能需要幾分鐘甚至更久，期間可以隨時暫停。",
+          "start": "開始匯入",
+          "apply": "儲存並重新同步",
+          "starting": "正在啟動…",
+          "started": "已開始匯入，可以離開此頁面，匯入會在背景繼續"
+        },
+        "mode": {
+          "reading": "正在讀取知識庫目錄…",
+          "importing": "正在匯入文件…",
+          "waiting": "稍後繼續匯入…",
+          "paused": "已暫停",
+          "upToDate": "已是最新，之後會定期自動檢查更新",
+          "progress": "已處理 {done} / {total}",
+          "progressLabel": "匯入進度",
+          "lastRun": "上次同步：{time}"
+        },
+        "actions": {
+          "pause": "暫停同步",
+          "resume": "繼續同步",
+          "viewDetails": "查看明細"
+        },
+        "notices": {
+          "rateLimited": "ima 暫時限制了存取頻率，稍後會自動繼續。",
+          "unreachable": "暫時連不上 ima，稍後會自動重試。",
+          "notesUnavailable": "目前的金鑰沒有讀取筆記的權限，筆記未匯入，知識庫內容不受影響。"
+        },
+        "stats": {
+          "imported": "已匯入",
+          "pending": "待匯入",
+          "failed": "失敗",
+          "skipped": "已略過",
+          "partial": "內容已簡化",
+          "removed": "ima 中已刪除"
+        },
+        "compile": {
+          "title": "生成知識",
+          "body": "已匯入 {count} 篇文件（約 {chars} 字）。生成知識時 AI 會逐篇閱讀並整理，文件較多時會消耗較多用量。",
+          "action": "生成知識",
+          "running": "正在提交…",
+          "queued": "已將 {count} 篇文件加入生成佇列",
+          "nothing": "沒有需要生成的文件"
+        },
+        "report": {
+          "title": "匯入明細",
+          "tabs": {
+            "attention": "需要關注",
+            "lossy": "內容已簡化",
+            "remote_deleted": "ima 中已刪除"
+          },
+          "hint": {
+            "attention": "這些內容沒有匯入，或匯入失敗。",
+            "lossy": "已匯入，但內容與原文有差異。",
+            "remote_deleted": "這些內容已在 ima 中刪除，Wiki 裡的副本會保留。"
+          },
+          "empty": "這裡沒有內容",
+          "retryFailed": "重試失敗的 {count} 項",
+          "retried": "已重新排隊 {count} 項"
+        },
+        "reasons": {
+          "unsupported_type": "暫不支援這類內容",
+          "no_download_url": "ima 沒有提供可下載的原文",
+          "no_text": "沒有可擷取的文字",
+          "too_large": "檔案太大，已略過",
+          "security": "內容含敏感資訊，已被安全檢查攔下",
+          "notes_permission": "目前的金鑰沒有讀取筆記的權限",
+          "timeout": "讀取逾時，可稍後重試",
+          "transient": "暫時無法讀取，可稍後重試",
+          "permanent": "ima 回傳的內容無法處理",
+          "page_unavailable": "網頁已失效或無法存取",
+          "auth": "ima 拒絕了存取，請重新連線",
+          "rate_limit": "ima 暫時限制了存取頻率",
+          "generic": "未能匯入"
+        },
+        "notes": {
+          "plain_text": "只匯入了文字，排版與圖片未保留",
+          "images_remote": "圖片仍指向原網頁，沒有儲存到本機",
+          "body_truncated": "文章太長，只匯入了前面一部分",
+          "layout_flattened": "表格或排版已被簡化",
+          "redacted": "已隱去其中的敏感資訊"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "網頁",
+          "word": "Word 文件",
+          "ppt": "PPT",
+          "excel": "Excel 試算表",
+          "wechat": "微信文章",
+          "markdown": "Markdown",
+          "image": "圖片",
+          "note": "筆記",
+          "ai_session": "AI 對話",
+          "text": "文字",
+          "xmind": "心智圖",
+          "audio": "音訊",
+          "video": "影片",
+          "html": "網頁檔案",
+          "epub": "電子書",
+          "other": "其他"
+        },
+        "errors": {
+          "ima_auth_failed": "ima 沒有認可這組憑證，請檢查 Client ID 和 API Key",
+          "ima_rate_limited": "ima 暫時限制了存取頻率，請稍後再試",
+          "ima_unreachable": "暫時連不上 ima，請稍後再試",
+          "ima_not_connected": "還沒有連線 ima",
+          "ima_no_selection": "請至少選擇一個知識庫，或開啟「同時匯入我的筆記」",
+          "ima_sync_not_started": "還沒有開始匯入",
+          "ima_credentials_missing": "請填寫 Client ID 和 API Key",
+          "dedup_review_required": "Wiki 裡有重複文件待處理，請先處理後再生成知識",
+          "sync_unavailable": "目前方案的排程任務數量已達上限，暫時無法開啟自動同步",
+          "generic": "操作沒有成功，請稍後再試"
+        },
+        "manage": {
+          "changeSelection": "變更匯入範圍",
+          "disconnect": "中斷連線",
+          "disconnectTitle": "中斷 ima 連線？",
+          "disconnectBody": "會刪除已儲存的金鑰並停止自動同步。已匯入到 Wiki 的文件會保留。",
+          "disconnectConfirm": "中斷連線",
+          "disconnected": "已中斷 ima 連線"
+        }
+      },
       "loading": "載入中...",
       "agentScopeLabel": "智慧體知識庫",
       "agentScopePlaceholder": "選擇智慧體",

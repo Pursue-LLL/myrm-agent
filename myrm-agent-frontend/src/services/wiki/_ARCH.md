@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-`@/services/wikiService` 分片实现：`/wiki/*` 客户端、源同步、区块标题、证据上下文解析、证据指标、query success 延迟确认。`wikiService.ts`（根）为 facade re-export。
+`@/services/wikiService` 分片实现：`/wiki/*` 客户端、源同步、ima 导入、区块标题、证据上下文解析、证据指标、query success 延迟确认。`wikiService.ts`（根）为 facade re-export。
 
 ## 文件清单
 
@@ -11,6 +11,7 @@
 | `service.ts`                         | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`buildWikiApiPath`/`buildWikiAssetUrl`；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)`；`compileWiki`（`POST /wiki/compile`，202）只把需要编译的原文入队并唤醒后台 worker，立即返回 `pending` 与 `compile_run`，进度与结束走 ingest 流                                                                                 |
 | `maintain.ts`                        | Wiki 维护运行客户端：`startWikiMaintain`（`POST /wiki/maintain`，立即返回 202 状态，已有进行中的运行则加入它）`getWikiMaintainStatus`（`GET /wiki/maintain/status`）与 `cancelWikiMaintain`（`POST /wiki/maintain/cancel`，幂等，返回当前状态）；`WikiMaintainStatus`（含 `cancelled` 状态与 `cancel_requested`）/ `WikiMaintainProgress` DTO。全量维护要数分钟，所以不做长请求，由调用方轮询 |
 | `sourceSync.ts`                      | Wiki 源同步：配置 / 状态 / 结果                                                                                                                                                                                                                                                                                                                                                               |
+| `ima.ts`                             | 腾讯 ima 知识库导入客户端：`/wiki/sources/ima/*`（状态、密钥写入/清除、知识库列表与选择、启动/暂停/继续/重试失败、只编译 ima 导入文档、分桶明细）；API Key 只写不回显；全部请求 `silent`，界面按 `ApiError.businessCode` 映射白话文案，不展示服务端 message                                                                                                                                   |
 | `sectionLabels.ts`                   | Wiki 区块标题 i18n key 解析（Chat/设置共享）                                                                                                                                                                                                                                                                                                                                                  |
 | `evidenceContextCore.ts`             | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance`），供输入 Hook 与流式发送链路复用统一口径                                                                                                                                                                                                                                                                       |
 | `evidenceMetrics.ts`                 | `/statistics/wiki-evidence/*` 客户端：证据曝光/展开/核验停留/query attempt+success/负向结果事件上报与聚合摘要查询                                                                                                                                                                                                                                                                             |
@@ -19,7 +20,7 @@
 
 ## 依赖
 
-- `@/lib/api`（service/evidenceMetrics/sourceSync）
+- `@/lib/api`（service/evidenceMetrics/sourceSync/ima）
 - `@/lib/wiki/claimStatusDisplay`（service 复用 `WikiClaimStatus`）
 - `@/store/chat/types`（evidenceMetrics 复用 `WikiSourceLevel`）
 - 父模块 [services/_ARCH.md](../_ARCH.md)

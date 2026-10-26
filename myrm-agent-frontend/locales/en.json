@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "Zotero API key from zotero.org/settings/keys",
         "zoteroBaseUrlLabel": "Zotero API base URL (optional)"
       },
+      "ima": {
+        "title": "Tencent ima knowledge bases",
+        "description": "Import the knowledge bases and notes from ima into the wiki and keep them in sync.",
+        "account": "Account {hint}",
+        "loading": "Loading…",
+        "loadError": "Could not read the ima import status right now",
+        "badge": {
+          "syncing": "Syncing",
+          "paused": "Paused",
+          "upToDate": "Up to date",
+          "needsReconnect": "Reconnect needed"
+        },
+        "common": {
+          "cancel": "Cancel"
+        },
+        "connect": {
+          "hint": "Paste the Client ID and API Key you created in ima. The key is stored encrypted, only used to read your ima content, and is never shown again.",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "Paste your Client ID",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "Paste your API Key",
+          "submit": "Connect",
+          "submitting": "Verifying…",
+          "success": "ima connected",
+          "reconnectNotice": "ima rejected the saved key, so syncing is paused. Enter it again and the import resumes once it connects."
+        },
+        "libraries": {
+          "hint": "Choose the knowledge bases to import.",
+          "loading": "Reading your knowledge bases…",
+          "empty": "No knowledge bases found. You can still import just your notes.",
+          "reload": "Reload",
+          "notesLabel": "Also import my notes",
+          "notesHint": "Notes are imported separately and kept in sync with your knowledge bases.",
+          "costHint": "The first import reads everything, which can take a few minutes or longer. You can pause at any time.",
+          "start": "Start import",
+          "apply": "Save and sync again",
+          "starting": "Starting…",
+          "started": "Import started. You can leave this page; it continues in the background"
+        },
+        "mode": {
+          "reading": "Reading the knowledge base listing…",
+          "importing": "Importing documents…",
+          "waiting": "Continuing shortly…",
+          "paused": "Paused",
+          "upToDate": "Up to date. Updates are checked automatically from time to time",
+          "progress": "{done} of {total} processed",
+          "progressLabel": "Import progress",
+          "lastRun": "Last sync: {time}"
+        },
+        "actions": {
+          "pause": "Pause sync",
+          "resume": "Resume sync",
+          "viewDetails": "View details"
+        },
+        "notices": {
+          "rateLimited": "ima is limiting requests for now. The import continues automatically shortly.",
+          "unreachable": "Cannot reach ima right now. It will retry automatically.",
+          "notesUnavailable": "This key cannot read notes, so notes were not imported. Your knowledge bases are not affected."
+        },
+        "stats": {
+          "imported": "Imported",
+          "pending": "Waiting",
+          "failed": "Failed",
+          "skipped": "Skipped",
+          "partial": "Simplified",
+          "removed": "Deleted in ima"
+        },
+        "compile": {
+          "title": "Build knowledge",
+          "body": "{count} documents imported (about {chars} characters). Building knowledge has the AI read and organize each one, which uses more of your quota when there are many documents.",
+          "action": "Build knowledge",
+          "running": "Submitting…",
+          "queued": "{count} documents queued for knowledge building",
+          "nothing": "Nothing left to build"
+        },
+        "report": {
+          "title": "Import details",
+          "tabs": {
+            "attention": "Needs attention",
+            "lossy": "Simplified",
+            "remote_deleted": "Deleted in ima"
+          },
+          "hint": {
+            "attention": "These items were not imported, or the import failed.",
+            "lossy": "Imported, but the content differs from the original.",
+            "remote_deleted": "These items were deleted in ima. Their copies stay in your wiki."
+          },
+          "empty": "Nothing here",
+          "retryFailed": "Retry {count} failed items",
+          "retried": "{count} items queued again"
+        },
+        "reasons": {
+          "unsupported_type": "This kind of content is not supported yet",
+          "no_download_url": "ima did not provide a downloadable original",
+          "no_text": "No text could be extracted",
+          "too_large": "The file is too large and was skipped",
+          "security": "Held back by the safety check because it contains sensitive information",
+          "notes_permission": "This key cannot read notes",
+          "timeout": "Timed out while reading. You can retry later",
+          "transient": "Could not be read right now. You can retry later",
+          "permanent": "ima returned content that cannot be processed",
+          "page_unavailable": "The web page is gone or not reachable",
+          "auth": "ima refused access. Please reconnect",
+          "rate_limit": "ima is limiting requests for now",
+          "generic": "Could not be imported"
+        },
+        "notes": {
+          "plain_text": "Only the text was imported; layout and images were not kept",
+          "images_remote": "Images still point to the original page and are not saved locally",
+          "body_truncated": "The article is very long, so only the first part was imported",
+          "layout_flattened": "Tables or layout were simplified",
+          "redacted": "Sensitive information was masked"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "Web page",
+          "word": "Word document",
+          "ppt": "PPT",
+          "excel": "Excel spreadsheet",
+          "wechat": "WeChat article",
+          "markdown": "Markdown",
+          "image": "Image",
+          "note": "Note",
+          "ai_session": "AI chat",
+          "text": "Text",
+          "xmind": "Mind map",
+          "audio": "Audio",
+          "video": "Video",
+          "html": "Web file",
+          "epub": "E-book",
+          "other": "Other"
+        },
+        "errors": {
+          "ima_auth_failed": "ima did not accept these credentials. Check the Client ID and API Key",
+          "ima_rate_limited": "ima is limiting requests for now. Please try again shortly",
+          "ima_unreachable": "Cannot reach ima right now. Please try again shortly",
+          "ima_not_connected": "ima is not connected yet",
+          "ima_no_selection": "Choose at least one knowledge base, or turn on \"Also import my notes\"",
+          "ima_sync_not_started": "The import has not been started yet",
+          "ima_credentials_missing": "Enter both the Client ID and the API Key",
+          "dedup_review_required": "Duplicate documents in the wiki need review first. Resolve them, then build knowledge",
+          "sync_unavailable": "Your plan has reached its limit of scheduled tasks, so automatic sync cannot be turned on",
+          "generic": "That did not work. Please try again shortly"
+        },
+        "manage": {
+          "changeSelection": "Change what is imported",
+          "disconnect": "Disconnect",
+          "disconnectTitle": "Disconnect ima?",
+          "disconnectBody": "This deletes the saved key and stops automatic sync. Documents already imported into the wiki stay.",
+          "disconnectConfirm": "Disconnect",
+          "disconnected": "ima disconnected"
+        }
+      },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",
       "agentScopePlaceholder": "Select an agent",

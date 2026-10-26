@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "API-Schlüssel von zotero.org/settings/keys",
         "zoteroBaseUrlLabel": "Zotero API-Basis-URL (optional)"
       },
+      "ima": {
+        "title": "Tencent ima Wissensdatenbanken",
+        "description": "Übernimmt die Wissensdatenbanken und Notizen aus ima ins Wiki und hält sie synchron.",
+        "account": "Konto {hint}",
+        "loading": "Wird geladen…",
+        "loadError": "Der ima-Importstatus kann gerade nicht gelesen werden",
+        "badge": {
+          "syncing": "Synchronisiert",
+          "paused": "Pausiert",
+          "upToDate": "Aktuell",
+          "needsReconnect": "Neu verbinden"
+        },
+        "common": {
+          "cancel": "Abbrechen"
+        },
+        "connect": {
+          "hint": "Fügen Sie die Client ID und den API Key ein, die Sie in ima erstellt haben. Der Schlüssel wird verschlüsselt gespeichert, nur zum Lesen Ihrer ima-Inhalte verwendet und nie wieder angezeigt.",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "Client ID einfügen",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "API Key einfügen",
+          "submit": "Verbinden",
+          "submitting": "Wird geprüft…",
+          "success": "ima verbunden",
+          "reconnectNotice": "ima hat den gespeicherten Schlüssel abgelehnt, daher ist die Synchronisierung pausiert. Geben Sie ihn erneut ein, dann läuft der Import nach der Verbindung weiter."
+        },
+        "libraries": {
+          "hint": "Wählen Sie die Wissensdatenbanken aus, die importiert werden sollen.",
+          "loading": "Ihre Wissensdatenbanken werden gelesen…",
+          "empty": "Keine Wissensdatenbanken gefunden. Sie können trotzdem nur Ihre Notizen importieren.",
+          "reload": "Neu laden",
+          "notesLabel": "Auch meine Notizen importieren",
+          "notesHint": "Notizen werden separat importiert und zusammen mit Ihren Wissensdatenbanken synchron gehalten.",
+          "costHint": "Der erste Import liest alles und kann einige Minuten oder länger dauern. Sie können jederzeit pausieren.",
+          "start": "Import starten",
+          "apply": "Speichern und erneut synchronisieren",
+          "starting": "Wird gestartet…",
+          "started": "Import gestartet. Sie können diese Seite verlassen, er läuft im Hintergrund weiter"
+        },
+        "mode": {
+          "reading": "Die Liste der Wissensdatenbank wird gelesen…",
+          "importing": "Dokumente werden importiert…",
+          "waiting": "Es geht gleich weiter…",
+          "paused": "Pausiert",
+          "upToDate": "Aktuell. Aktualisierungen werden danach regelmäßig automatisch geprüft",
+          "progress": "{done} von {total} verarbeitet",
+          "progressLabel": "Importfortschritt",
+          "lastRun": "Letzte Synchronisierung: {time}"
+        },
+        "actions": {
+          "pause": "Synchronisierung pausieren",
+          "resume": "Synchronisierung fortsetzen",
+          "viewDetails": "Details ansehen"
+        },
+        "notices": {
+          "rateLimited": "ima begrenzt gerade die Anfragen. Der Import läuft in Kürze automatisch weiter.",
+          "unreachable": "ima ist gerade nicht erreichbar. Es wird automatisch erneut versucht.",
+          "notesUnavailable": "Dieser Schlüssel darf keine Notizen lesen, daher wurden keine Notizen importiert. Ihre Wissensdatenbanken sind nicht betroffen."
+        },
+        "stats": {
+          "imported": "Importiert",
+          "pending": "Wartend",
+          "failed": "Fehlgeschlagen",
+          "skipped": "Übersprungen",
+          "partial": "Vereinfacht",
+          "removed": "In ima gelöscht"
+        },
+        "compile": {
+          "title": "Wissen aufbauen",
+          "body": "{count} Dokumente importiert (etwa {chars} Zeichen). Beim Wissensaufbau liest und ordnet die KI jedes Dokument, was bei vielen Dokumenten mehr Kontingent verbraucht.",
+          "action": "Wissen aufbauen",
+          "running": "Wird übermittelt…",
+          "queued": "{count} Dokumente für den Wissensaufbau eingereiht",
+          "nothing": "Es gibt nichts mehr aufzubauen"
+        },
+        "report": {
+          "title": "Importdetails",
+          "tabs": {
+            "attention": "Zu prüfen",
+            "lossy": "Vereinfacht",
+            "remote_deleted": "In ima gelöscht"
+          },
+          "hint": {
+            "attention": "Diese Einträge wurden nicht importiert oder der Import ist fehlgeschlagen.",
+            "lossy": "Importiert, aber der Inhalt weicht vom Original ab.",
+            "remote_deleted": "Diese Einträge wurden in ima gelöscht. Ihre Kopien bleiben im Wiki."
+          },
+          "empty": "Hier ist nichts",
+          "retryFailed": "{count} fehlgeschlagene Einträge erneut versuchen",
+          "retried": "{count} Einträge erneut eingereiht"
+        },
+        "reasons": {
+          "unsupported_type": "Diese Art von Inhalt wird noch nicht unterstützt",
+          "no_download_url": "ima hat kein herunterladbares Original bereitgestellt",
+          "no_text": "Es konnte kein Text extrahiert werden",
+          "too_large": "Die Datei ist zu groß und wurde übersprungen",
+          "security": "Von der Sicherheitsprüfung zurückgehalten, da sie sensible Informationen enthält",
+          "notes_permission": "Dieser Schlüssel darf keine Notizen lesen",
+          "timeout": "Zeitüberschreitung beim Lesen. Sie können es später erneut versuchen",
+          "transient": "Gerade nicht lesbar. Sie können es später erneut versuchen",
+          "permanent": "ima hat Inhalte geliefert, die sich nicht verarbeiten lassen",
+          "page_unavailable": "Die Webseite existiert nicht mehr oder ist nicht erreichbar",
+          "auth": "ima hat den Zugriff verweigert. Bitte neu verbinden",
+          "rate_limit": "ima begrenzt gerade die Anfragen",
+          "generic": "Konnte nicht importiert werden"
+        },
+        "notes": {
+          "plain_text": "Nur der Text wurde importiert, Layout und Bilder blieben nicht erhalten",
+          "images_remote": "Bilder verweisen weiter auf die Originalseite und sind nicht lokal gespeichert",
+          "body_truncated": "Der Artikel ist sehr lang, daher wurde nur der erste Teil importiert",
+          "layout_flattened": "Tabellen oder Layout wurden vereinfacht",
+          "redacted": "Sensible Informationen wurden unkenntlich gemacht"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "Webseite",
+          "word": "Word-Dokument",
+          "ppt": "PPT",
+          "excel": "Excel-Tabelle",
+          "wechat": "WeChat-Artikel",
+          "markdown": "Markdown",
+          "image": "Bild",
+          "note": "Notiz",
+          "ai_session": "KI-Chat",
+          "text": "Textdatei",
+          "xmind": "Mindmap",
+          "audio": "Audiodatei",
+          "video": "Videodatei",
+          "html": "Webdatei",
+          "epub": "E-Book",
+          "other": "Sonstiges"
+        },
+        "errors": {
+          "ima_auth_failed": "ima hat diese Zugangsdaten nicht akzeptiert. Prüfen Sie Client ID und API Key",
+          "ima_rate_limited": "ima begrenzt gerade die Anfragen. Bitte versuchen Sie es gleich noch einmal",
+          "ima_unreachable": "ima ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal",
+          "ima_not_connected": "ima ist noch nicht verbunden",
+          "ima_no_selection": "Wähle mindestens eine Wissensdatenbank oder aktiviere „Auch meine Notizen importieren“",
+          "ima_sync_not_started": "Der Import wurde noch nicht gestartet",
+          "ima_credentials_missing": "Geben Sie Client ID und API Key ein",
+          "dedup_review_required": "Im Wiki warten doppelte Dokumente auf eine Prüfung. Bearbeiten Sie sie zuerst und bauen Sie dann das Wissen auf",
+          "sync_unavailable": "Ihr Tarif hat das Limit für geplante Aufgaben erreicht, daher lässt sich die automatische Synchronisierung nicht aktivieren",
+          "generic": "Das hat nicht geklappt. Bitte versuchen Sie es gleich noch einmal"
+        },
+        "manage": {
+          "changeSelection": "Importumfang ändern",
+          "disconnect": "Trennen",
+          "disconnectTitle": "ima trennen?",
+          "disconnectBody": "Der gespeicherte Schlüssel wird gelöscht und die automatische Synchronisierung gestoppt. Bereits ins Wiki importierte Dokumente bleiben erhalten.",
+          "disconnectConfirm": "Trennen",
+          "disconnected": "ima getrennt"
+        }
+      },
       "loading": "Laden...",
       "agentScopeLabel": "Agenten-Wissensbasis",
       "agentScopePlaceholder": "Einen Agenten auswählen",

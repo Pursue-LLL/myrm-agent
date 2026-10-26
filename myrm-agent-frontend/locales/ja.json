@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "zotero.org/settings/keys で作成したAPIキー",
         "zoteroBaseUrlLabel": "Zotero APIベースURL（任意）"
       },
+      "ima": {
+        "title": "Tencent ima ナレッジベース",
+        "description": "ima のナレッジベースとノートを Wiki に取り込み、定期的に同期します。",
+        "account": "アカウント {hint}",
+        "loading": "読み込み中…",
+        "loadError": "ima の取り込み状況を読み込めません",
+        "badge": {
+          "syncing": "同期中",
+          "paused": "一時停止中",
+          "upToDate": "最新",
+          "needsReconnect": "再接続が必要"
+        },
+        "common": {
+          "cancel": "キャンセル"
+        },
+        "connect": {
+          "hint": "ima で作成した Client ID と API Key を貼り付けてください。キーは暗号化して保存され、ima の内容を読み取る目的にだけ使われ、再表示されることはありません。",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "Client ID を貼り付け",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "API Key を貼り付け",
+          "submit": "接続",
+          "submitting": "確認中…",
+          "success": "ima に接続しました",
+          "reconnectNotice": "保存されていたキーが ima に拒否されたため、同期を一時停止しました。入力し直すと、接続後に自動で再開します。"
+        },
+        "libraries": {
+          "hint": "取り込むナレッジベースを選択してください。",
+          "loading": "ナレッジベースを読み込み中…",
+          "empty": "ナレッジベースが見つかりません。ノートだけを取り込むこともできます。",
+          "reload": "再読み込み",
+          "notesLabel": "ノートも取り込む",
+          "notesHint": "ノートは別に取り込まれ、ナレッジベースと一緒に同期されます。",
+          "costHint": "初回はすべての内容を読み込むため、数分以上かかることがあります。いつでも一時停止できます。",
+          "start": "取り込みを開始",
+          "apply": "保存して再同期",
+          "starting": "開始中…",
+          "started": "取り込みを開始しました。このページを離れても、バックグラウンドで続行されます"
+        },
+        "mode": {
+          "reading": "ナレッジベースの一覧を読み込み中…",
+          "importing": "ドキュメントを取り込み中…",
+          "waiting": "まもなく再開します…",
+          "paused": "一時停止中",
+          "upToDate": "最新です。以降も定期的に更新を確認します",
+          "progress": "{done} / {total} 件を処理済み",
+          "progressLabel": "取り込みの進捗",
+          "lastRun": "前回の同期：{time}"
+        },
+        "actions": {
+          "pause": "同期を一時停止",
+          "resume": "同期を再開",
+          "viewDetails": "詳細を見る"
+        },
+        "notices": {
+          "rateLimited": "ima がアクセスを一時的に制限しています。まもなく自動で再開します。",
+          "unreachable": "現在 ima に接続できません。自動で再試行します。",
+          "notesUnavailable": "このキーにはノートを読む権限がないため、ノートは取り込まれていません。ナレッジベースには影響しません。"
+        },
+        "stats": {
+          "imported": "取り込み済み",
+          "pending": "待機中",
+          "failed": "失敗",
+          "skipped": "スキップ",
+          "partial": "簡略化",
+          "removed": "ima で削除済み"
+        },
+        "compile": {
+          "title": "ナレッジを生成",
+          "body": "{count} 件のドキュメントを取り込みました（約 {chars} 文字）。ナレッジの生成では AI が 1 件ずつ読み取って整理するため、件数が多いと利用量が増えます。",
+          "action": "ナレッジを生成",
+          "running": "送信中…",
+          "queued": "{count} 件のドキュメントを生成キューに追加しました",
+          "nothing": "生成するドキュメントはありません"
+        },
+        "report": {
+          "title": "取り込みの詳細",
+          "tabs": {
+            "attention": "要確認",
+            "lossy": "簡略化",
+            "remote_deleted": "ima で削除済み"
+          },
+          "hint": {
+            "attention": "取り込まれていない、または失敗した項目です。",
+            "lossy": "取り込み済みですが、内容が元と異なります。",
+            "remote_deleted": "ima で削除された項目です。Wiki 内のコピーは残ります。"
+          },
+          "empty": "該当する項目はありません",
+          "retryFailed": "失敗した {count} 件を再試行",
+          "retried": "{count} 件を再度キューに入れました"
+        },
+        "reasons": {
+          "unsupported_type": "この種類のコンテンツには未対応です",
+          "no_download_url": "ima がダウンロード可能な元データを提供していません",
+          "no_text": "抽出できるテキストがありません",
+          "too_large": "ファイルが大きすぎるためスキップしました",
+          "security": "機密情報を含むため、安全チェックで保留されました",
+          "notes_permission": "このキーにはノートを読む権限がありません",
+          "timeout": "読み込みがタイムアウトしました。後でもう一度お試しください",
+          "transient": "現在は読み込めません。後でもう一度お試しください",
+          "permanent": "ima から処理できない内容が返されました",
+          "page_unavailable": "ウェブページが無効、またはアクセスできません",
+          "auth": "ima にアクセスを拒否されました。再接続してください",
+          "rate_limit": "ima がアクセスを一時的に制限しています",
+          "generic": "取り込めませんでした"
+        },
+        "notes": {
+          "plain_text": "テキストのみ取り込み、レイアウトと画像は保持されていません",
+          "images_remote": "画像は元のページを指したままで、ローカルには保存されていません",
+          "body_truncated": "記事が長いため、前半のみ取り込みました",
+          "layout_flattened": "表やレイアウトが簡略化されています",
+          "redacted": "機密情報を伏せました"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "ウェブページ",
+          "word": "Word 文書",
+          "ppt": "PPT",
+          "excel": "Excel ブック",
+          "wechat": "WeChat 記事",
+          "markdown": "Markdown",
+          "image": "画像",
+          "note": "ノート",
+          "ai_session": "AI チャット",
+          "text": "テキスト",
+          "xmind": "マインドマップ",
+          "audio": "音声",
+          "video": "動画",
+          "html": "ウェブファイル",
+          "epub": "電子書籍",
+          "other": "その他"
+        },
+        "errors": {
+          "ima_auth_failed": "ima がこの認証情報を受け付けませんでした。Client ID と API Key を確認してください",
+          "ima_rate_limited": "ima がアクセスを一時的に制限しています。しばらくしてからお試しください",
+          "ima_unreachable": "現在 ima に接続できません。しばらくしてからお試しください",
+          "ima_not_connected": "ima にまだ接続されていません",
+          "ima_no_selection": "ナレッジベースを 1 つ以上選ぶか、「ノートも取り込む」をオンにしてください",
+          "ima_sync_not_started": "取り込みはまだ開始されていません",
+          "ima_credentials_missing": "Client ID と API Key を入力してください",
+          "dedup_review_required": "Wiki に確認待ちの重複ドキュメントがあります。先に対応してからナレッジを生成してください",
+          "sync_unavailable": "ご利用のプランの定期タスク数が上限に達しているため、自動同期を有効にできません",
+          "generic": "操作に失敗しました。しばらくしてからお試しください"
+        },
+        "manage": {
+          "changeSelection": "取り込み範囲を変更",
+          "disconnect": "接続を解除",
+          "disconnectTitle": "ima との接続を解除しますか？",
+          "disconnectBody": "保存されたキーを削除し、自動同期を停止します。Wiki に取り込み済みのドキュメントは残ります。",
+          "disconnectConfirm": "接続を解除",
+          "disconnected": "ima との接続を解除しました"
+        }
+      },
       "loading": "読み込み中...",
       "agentScopeLabel": "エージェントナレッジベース",
       "agentScopePlaceholder": "エージェントを選択",

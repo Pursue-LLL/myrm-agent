@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "zotero.org/settings/keys에서 생성한 API 키",
         "zoteroBaseUrlLabel": "Zotero API 기본 URL(선택)"
       },
+      "ima": {
+        "title": "Tencent ima 지식 베이스",
+        "description": "ima의 지식 베이스와 노트를 Wiki로 가져오고 주기적으로 동기화합니다.",
+        "account": "계정 {hint}",
+        "loading": "불러오는 중…",
+        "loadError": "지금은 ima 가져오기 상태를 읽을 수 없습니다",
+        "badge": {
+          "syncing": "동기화 중",
+          "paused": "일시 중지됨",
+          "upToDate": "최신 상태",
+          "needsReconnect": "다시 연결 필요"
+        },
+        "common": {
+          "cancel": "취소"
+        },
+        "connect": {
+          "hint": "ima에서 만든 Client ID와 API Key를 붙여 넣으세요. 키는 암호화되어 저장되며 ima 콘텐츠를 읽는 데만 쓰이고 다시 표시되지 않습니다.",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "Client ID 붙여넣기",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "API Key 붙여넣기",
+          "submit": "연결",
+          "submitting": "확인 중…",
+          "success": "ima에 연결했습니다",
+          "reconnectNotice": "저장된 키를 ima가 거부해 동기화가 일시 중지되었습니다. 다시 입력하면 연결 후 자동으로 이어집니다."
+        },
+        "libraries": {
+          "hint": "가져올 지식 베이스를 선택하세요.",
+          "loading": "지식 베이스를 불러오는 중…",
+          "empty": "지식 베이스를 찾지 못했습니다. 노트만 가져올 수도 있습니다.",
+          "reload": "다시 불러오기",
+          "notesLabel": "내 노트도 함께 가져오기",
+          "notesHint": "노트는 따로 가져오며 지식 베이스와 함께 동기화됩니다.",
+          "costHint": "처음에는 모든 내용을 읽기 때문에 몇 분 이상 걸릴 수 있습니다. 언제든 일시 중지할 수 있습니다.",
+          "start": "가져오기 시작",
+          "apply": "저장하고 다시 동기화",
+          "starting": "시작하는 중…",
+          "started": "가져오기를 시작했습니다. 이 페이지를 떠나도 백그라운드에서 계속됩니다"
+        },
+        "mode": {
+          "reading": "지식 베이스 목록을 읽는 중…",
+          "importing": "문서를 가져오는 중…",
+          "waiting": "잠시 후 이어서 진행합니다…",
+          "paused": "일시 중지됨",
+          "upToDate": "최신 상태입니다. 이후에도 주기적으로 업데이트를 확인합니다",
+          "progress": "{total}개 중 {done}개 처리됨",
+          "progressLabel": "가져오기 진행률",
+          "lastRun": "마지막 동기화: {time}"
+        },
+        "actions": {
+          "pause": "동기화 일시 중지",
+          "resume": "동기화 재개",
+          "viewDetails": "자세히 보기"
+        },
+        "notices": {
+          "rateLimited": "ima가 요청을 일시적으로 제한하고 있습니다. 잠시 후 자동으로 이어집니다.",
+          "unreachable": "지금은 ima에 연결할 수 없습니다. 자동으로 다시 시도합니다.",
+          "notesUnavailable": "이 키는 노트를 읽을 권한이 없어 노트를 가져오지 못했습니다. 지식 베이스에는 영향이 없습니다."
+        },
+        "stats": {
+          "imported": "가져옴",
+          "pending": "대기 중",
+          "failed": "실패",
+          "skipped": "건너뜀",
+          "partial": "간소화됨",
+          "removed": "ima에서 삭제됨"
+        },
+        "compile": {
+          "title": "지식 생성",
+          "body": "문서 {count}개를 가져왔습니다(약 {chars}자). 지식을 생성할 때 AI가 문서를 하나씩 읽고 정리하므로 문서가 많으면 사용량이 늘어납니다.",
+          "action": "지식 생성",
+          "running": "제출하는 중…",
+          "queued": "문서 {count}개를 생성 대기열에 추가했습니다",
+          "nothing": "생성할 문서가 없습니다"
+        },
+        "report": {
+          "title": "가져오기 상세",
+          "tabs": {
+            "attention": "확인 필요",
+            "lossy": "간소화됨",
+            "remote_deleted": "ima에서 삭제됨"
+          },
+          "hint": {
+            "attention": "가져오지 못했거나 실패한 항목입니다.",
+            "lossy": "가져왔지만 내용이 원본과 다릅니다.",
+            "remote_deleted": "ima에서 삭제된 항목입니다. Wiki에 있는 사본은 그대로 남습니다."
+          },
+          "empty": "해당 항목이 없습니다",
+          "retryFailed": "실패한 {count}개 다시 시도",
+          "retried": "{count}개를 다시 대기열에 넣었습니다"
+        },
+        "reasons": {
+          "unsupported_type": "아직 지원하지 않는 형식입니다",
+          "no_download_url": "ima가 내려받을 수 있는 원본을 제공하지 않았습니다",
+          "no_text": "추출할 수 있는 텍스트가 없습니다",
+          "too_large": "파일이 너무 커서 건너뛰었습니다",
+          "security": "민감한 정보가 있어 안전 검사에서 보류되었습니다",
+          "notes_permission": "이 키는 노트를 읽을 권한이 없습니다",
+          "timeout": "읽는 중 시간이 초과되었습니다. 나중에 다시 시도하세요",
+          "transient": "지금은 읽을 수 없습니다. 나중에 다시 시도하세요",
+          "permanent": "ima가 처리할 수 없는 내용을 반환했습니다",
+          "page_unavailable": "웹페이지가 사라졌거나 접근할 수 없습니다",
+          "auth": "ima가 접근을 거부했습니다. 다시 연결해 주세요",
+          "rate_limit": "ima가 요청을 일시적으로 제한하고 있습니다",
+          "generic": "가져오지 못했습니다"
+        },
+        "notes": {
+          "plain_text": "텍스트만 가져왔으며 레이아웃과 이미지는 유지되지 않았습니다",
+          "images_remote": "이미지는 원본 페이지를 가리키며 로컬에 저장되지 않았습니다",
+          "body_truncated": "글이 길어 앞부분만 가져왔습니다",
+          "layout_flattened": "표나 레이아웃이 간소화되었습니다",
+          "redacted": "민감한 정보를 가렸습니다"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "웹페이지",
+          "word": "Word 문서",
+          "ppt": "PPT",
+          "excel": "Excel 스프레드시트",
+          "wechat": "WeChat 글",
+          "markdown": "Markdown",
+          "image": "이미지",
+          "note": "노트",
+          "ai_session": "AI 대화",
+          "text": "텍스트",
+          "xmind": "마인드맵",
+          "audio": "오디오",
+          "video": "동영상",
+          "html": "웹 파일",
+          "epub": "전자책",
+          "other": "기타"
+        },
+        "errors": {
+          "ima_auth_failed": "ima가 이 인증 정보를 받아들이지 않았습니다. Client ID와 API Key를 확인하세요",
+          "ima_rate_limited": "ima가 요청을 일시적으로 제한하고 있습니다. 잠시 후 다시 시도하세요",
+          "ima_unreachable": "지금은 ima에 연결할 수 없습니다. 잠시 후 다시 시도하세요",
+          "ima_not_connected": "아직 ima에 연결되지 않았습니다",
+          "ima_no_selection": "지식 베이스를 하나 이상 선택하거나 \"내 노트도 함께 가져오기\"를 켜세요",
+          "ima_sync_not_started": "아직 가져오기를 시작하지 않았습니다",
+          "ima_credentials_missing": "Client ID와 API Key를 모두 입력하세요",
+          "dedup_review_required": "Wiki에 확인이 필요한 중복 문서가 있습니다. 먼저 처리한 뒤 지식을 생성하세요",
+          "sync_unavailable": "현재 요금제의 예약 작업 수가 한도에 도달해 자동 동기화를 켤 수 없습니다",
+          "generic": "작업이 완료되지 않았습니다. 잠시 후 다시 시도하세요"
+        },
+        "manage": {
+          "changeSelection": "가져올 범위 변경",
+          "disconnect": "연결 해제",
+          "disconnectTitle": "ima 연결을 해제할까요?",
+          "disconnectBody": "저장된 키를 삭제하고 자동 동기화를 중지합니다. 이미 Wiki로 가져온 문서는 그대로 남습니다.",
+          "disconnectConfirm": "연결 해제",
+          "disconnected": "ima 연결을 해제했습니다"
+        }
+      },
       "loading": "로딩 중...",
       "agentScopeLabel": "에이전트 지식 베이스",
       "agentScopePlaceholder": "에이전트 선택",

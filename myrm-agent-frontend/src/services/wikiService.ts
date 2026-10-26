@@ -4,6 +4,7 @@
 
 export * from './wiki/service';
 export * from './wiki/sourceSync';
+export * from './wiki/ima';
 export * from './wiki/maintain';
 export * from './wiki/sectionLabels';
 export * from './wiki/evidenceContextCore';

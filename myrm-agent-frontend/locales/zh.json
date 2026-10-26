@@ -17837,6 +17837,159 @@
         "zoteroApiKeyPlaceholder": "在 zotero.org/settings/keys 创建的 API 密钥",
         "zoteroBaseUrlLabel": "Zotero API 地址（可选）"
       },
+      "ima": {
+        "title": "腾讯 ima 知识库",
+        "description": "把 ima 里的知识库和笔记导入 Wiki，并定期保持同步。",
+        "account": "账号 {hint}",
+        "loading": "加载中…",
+        "loadError": "暂时无法读取 ima 导入状态",
+        "badge": {
+          "syncing": "同步中",
+          "paused": "已暂停",
+          "upToDate": "已是最新",
+          "needsReconnect": "需要重新连接"
+        },
+        "common": {
+          "cancel": "取消"
+        },
+        "connect": {
+          "hint": "请粘贴你在 ima 中创建的 Client ID 和 API Key。密钥会加密保存，只用于读取你的 ima 内容，之后不会再显示。",
+          "clientIdLabel": "Client ID",
+          "clientIdPlaceholder": "粘贴 Client ID",
+          "apiKeyLabel": "API Key",
+          "apiKeyPlaceholder": "粘贴 API Key",
+          "submit": "连接",
+          "submitting": "正在验证…",
+          "success": "已连接 ima",
+          "reconnectNotice": "ima 拒绝了之前保存的密钥，同步已暂停。请重新填写，连接成功后会自动继续。"
+        },
+        "libraries": {
+          "hint": "选择要导入的知识库。",
+          "loading": "正在读取你的知识库…",
+          "empty": "没有找到知识库，你仍然可以只导入笔记。",
+          "reload": "重新加载",
+          "notesLabel": "同时导入我的笔记",
+          "notesHint": "笔记会单独导入，并和知识库一起保持同步。",
+          "costHint": "首次导入会读取全部内容，可能需要几分钟甚至更久，期间可以随时暂停。",
+          "start": "开始导入",
+          "apply": "保存并重新同步",
+          "starting": "正在启动…",
+          "started": "已开始导入，可以离开此页面，导入会在后台继续"
+        },
+        "mode": {
+          "reading": "正在读取知识库目录…",
+          "importing": "正在导入文档…",
+          "waiting": "稍后继续导入…",
+          "paused": "已暂停",
+          "upToDate": "已是最新，之后会定期自动检查更新",
+          "progress": "已处理 {done} / {total}",
+          "progressLabel": "导入进度",
+          "lastRun": "上次同步：{time}"
+        },
+        "actions": {
+          "pause": "暂停同步",
+          "resume": "继续同步",
+          "viewDetails": "查看明细"
+        },
+        "notices": {
+          "rateLimited": "ima 暂时限制了访问频率，稍后会自动继续。",
+          "unreachable": "暂时连不上 ima，稍后会自动重试。",
+          "notesUnavailable": "当前密钥没有读取笔记的权限，笔记未导入，知识库内容不受影响。"
+        },
+        "stats": {
+          "imported": "已导入",
+          "pending": "待导入",
+          "failed": "失败",
+          "skipped": "已跳过",
+          "partial": "内容已简化",
+          "removed": "ima 中已删除"
+        },
+        "compile": {
+          "title": "生成知识",
+          "body": "已导入 {count} 篇文档（约 {chars} 字）。生成知识时 AI 会逐篇阅读并整理，文档较多时会消耗较多用量。",
+          "action": "生成知识",
+          "running": "正在提交…",
+          "queued": "已将 {count} 篇文档加入生成队列",
+          "nothing": "没有需要生成的文档"
+        },
+        "report": {
+          "title": "导入明细",
+          "tabs": {
+            "attention": "需要关注",
+            "lossy": "内容已简化",
+            "remote_deleted": "ima 中已删除"
+          },
+          "hint": {
+            "attention": "这些内容没有导入，或导入失败。",
+            "lossy": "已导入，但内容与原文有差异。",
+            "remote_deleted": "这些内容已在 ima 中删除，Wiki 里的副本会保留。"
+          },
+          "empty": "这里没有内容",
+          "retryFailed": "重试失败的 {count} 项",
+          "retried": "已重新排队 {count} 项"
+        },
+        "reasons": {
+          "unsupported_type": "暂不支持这类内容",
+          "no_download_url": "ima 没有提供可下载的原文",
+          "no_text": "没有可提取的文字",
+          "too_large": "文件太大，已跳过",
+          "security": "内容含敏感信息，已被安全检查拦下",
+          "notes_permission": "当前密钥没有读取笔记的权限",
+          "timeout": "读取超时，可稍后重试",
+          "transient": "暂时无法读取，可稍后重试",
+          "permanent": "ima 返回的内容无法处理",
+          "page_unavailable": "网页已失效或无法访问",
+          "auth": "ima 拒绝了访问，请重新连接",
+          "rate_limit": "ima 暂时限制了访问频率",
+          "generic": "未能导入"
+        },
+        "notes": {
+          "plain_text": "只导入了文字，排版与图片未保留",
+          "images_remote": "图片仍指向原网页，没有保存到本地",
+          "body_truncated": "文章太长，只导入了前面一部分",
+          "layout_flattened": "表格或排版已被简化",
+          "redacted": "已隐去其中的敏感信息"
+        },
+        "kinds": {
+          "pdf": "PDF",
+          "web": "网页",
+          "word": "Word 文档",
+          "ppt": "PPT",
+          "excel": "Excel 表格",
+          "wechat": "微信文章",
+          "markdown": "Markdown",
+          "image": "图片",
+          "note": "笔记",
+          "ai_session": "AI 对话",
+          "text": "文本",
+          "xmind": "思维导图",
+          "audio": "音频",
+          "video": "视频",
+          "html": "网页文件",
+          "epub": "电子书",
+          "other": "其他"
+        },
+        "errors": {
+          "ima_auth_failed": "ima 没有认可这组凭据，请检查 Client ID 和 API Key",
+          "ima_rate_limited": "ima 暂时限制了访问频率，请稍后再试",
+          "ima_unreachable": "暂时连不上 ima，请稍后再试",
+          "ima_not_connected": "还没有连接 ima",
+          "ima_no_selection": "请至少选择一个知识库，或打开「同时导入我的笔记」",
+          "ima_sync_not_started": "还没有开始导入",
+          "ima_credentials_missing": "请填写 Client ID 和 API Key",
+          "dedup_review_required": "Wiki 里有重复文档待处理，请先处理后再生成知识",
+          "sync_unavailable": "当前套餐的定时任务数量已达上限，暂时无法开启自动同步",
+          "generic": "操作没有成功，请稍后再试"
+        },
+        "manage": {
+          "changeSelection": "更改导入范围",
+          "disconnect": "断开连接",
+          "disconnectTitle": "断开 ima 连接？",
+          "disconnectBody": "会删除已保存的密钥并停止自动同步。已导入到 Wiki 的文档会保留。",
+          "disconnectConfirm": "断开连接",
+          "disconnected": "已断开 ima 连接"
+        }
+      },
       "loading": "加载中...",
       "agentScopeLabel": "智能体知识库",
       "agentScopePlaceholder": "选择智能体",

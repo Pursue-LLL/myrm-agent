@@ -74,6 +74,7 @@ import { WikiQueuePanel } from './WikiQueuePanel';
 import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
 import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
 import { useWikiIngestSubscription } from './useWikiIngestSubscription';
+import ImaSourceCard from './ima/ImaSourceCard';
 import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
 import { ObsidianVaultActions } from './ObsidianVaultActions';
@@ -1177,6 +1178,8 @@ export function WikiSection() {
             />
 
             <WikiSourceSyncPanel onGoToIntegrations={() => router.push('/settings/credentials')} />
+
+            <ImaSourceCard />
 
             {/* Purpose / Direction */}
             <Card>
