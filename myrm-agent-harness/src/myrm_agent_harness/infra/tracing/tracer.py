@@ -3,7 +3,7 @@
 Framework design:
 - ``get_tracer`` / ``trace_async`` / ``trace_context`` are consumer APIs for framework internals.
   They work with OpenTelemetry's default NoOp provider when no TracerProvider is configured,
-  producing zero overhead.
+  so nothing is recorded and nothing is exported.
 - ``setup_tracing`` is a convenience function for the business layer. The framework never calls
   it automatically.
 - Enablement follows the standard environment: an OTLP endpoint (the ``otlp_endpoint`` argument,
@@ -114,7 +114,7 @@ def setup_tracing(
     """Initialize OpenTelemetry tracing.
 
     This is a convenience function intended for the business layer. The framework never calls it
-    automatically; without a pipeline OpenTelemetry keeps its NoOp provider (zero overhead).
+    automatically; without a pipeline OpenTelemetry keeps its NoOp provider (nothing is recorded).
 
     Args:
         service_name: Default ``service.name`` (``OTEL_SERVICE_NAME`` wins when set).

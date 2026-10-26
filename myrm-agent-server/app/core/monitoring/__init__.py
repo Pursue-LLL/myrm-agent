@@ -1,7 +1,7 @@
 """Monitoring & Observability Manager
 
 Consolidates Prometheus metrics and OpenTelemetry (traces + metrics) initialization.
-Both stay off, at zero overhead, unless explicitly enabled: Prometheus by ``METRICS_ENABLED``,
+Both stay off unless explicitly enabled: Prometheus by ``METRICS_ENABLED``,
 OpenTelemetry by configuring an OTLP endpoint through the standard ``OTEL_*`` variables.
 Gateway runtime vitals export: `gateway_vitals_metrics.py` (updated on `/health/liveness`).
 """

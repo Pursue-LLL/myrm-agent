@@ -4,7 +4,8 @@ Provides call chain tracing and metrics collection for observability.
 
 Design: The framework provides consumer APIs (get_tracer, get_meter, trace_async,
 trace_context) that work with OpenTelemetry's default NoOp provider when no
-TracerProvider/MeterProvider is configured — zero overhead by default.
+TracerProvider/MeterProvider is configured: spans and instruments are NoOps, so by default
+nothing is recorded and nothing is exported.
 
 Initialization functions (setup_tracing, setup_metrics) are convenience helpers
 intended for the business layer. The framework never calls them automatically.
