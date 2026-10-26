@@ -38,7 +38,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 
 ### 3. CompletionGuard (基于客观证据的严格完工护栏)
 - 在 Agent 试图输出最终答案（结束任务）时，拦截请求。
-- **强制进度校验**：读取 workspace todos；若仍有未完成项，阻断完工并提示 `todo_write(merge=true)` 更新状态。
+- **强制进度校验**：读取本 chat 的 workspace todos；若仍有未完成项，且本 run 里用过 `file_write_tool` 或 `file_edit_tool`（写类工具），阻断完工并提示 `todo_write(merge=true)` 更新状态；没有用过写类工具的 run（只搜索、读取、执行命令或浏览）只在清单里带一条 WARNING（模型调用 `_completion_check` 时才看到），收尾不因未完成 todo 被拦下。
 - **强制物理证据校验 (TDD-like) 与智能模态感知**：分析 Agent 的历史工具调用记录（CallRecords）。
   - **代码任务严防死守**：如果发现 Agent 修改了代码文件（如 `.py`, `.js` 等）但没有运行任何测试/验证命令（如 `pytest`, `python script.py` 等），或者运行了但报错了，护栏将拦截完工请求，并抛出 Tool Error 逼迫 Agent 去沙箱里跑测试并修复问题。
   - **前端视觉验证提醒**：如果修改了前端渲染文件（`.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.less/.html`，通过路径片段匹配智能排除 test/store/utils/hooks/types 等非渲染目录及 `.test.`/`.spec.`/`.config.`/`.stories.` 等非渲染文件）且未使用浏览器工具验证，追加 WARNING 提示 Agent 进行视觉确认。
