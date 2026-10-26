@@ -11,6 +11,8 @@
 - authorized_context_paths: model-supplied paths the parent may itself reach without further approval
 - derive_spawn_capability: mint the child's handle from the parent's workspace, authorized directories and own handle
 - derive_verifier_capability: mint a verifier's handle, the delegating agent's reach without WRITE
+- derive_readonly_capability: mint a read-only child's handle, the delegating agent's reach narrowed to READ
+- readonly_spawn_floor: the handle a read-only spawn needs when its caller bound none that already withholds WRITE
 
 [POS]
 The only producer of subagent capability handles. A handle's authority comes from the parent's real
@@ -170,22 +172,56 @@ def derive_spawn_capability(
     return _mint_root_handle(agent_type, scope, actions)
 
 
-def derive_verifier_capability(verifier_type: str) -> CapabilityHandle:
-    """Mint the handle a verifier runs under: the delegating agent's reach without WRITE.
+def _derive_narrowed(subject_id: str, actions: frozenset[CapabilityAction]) -> CapabilityHandle:
+    """The delegating agent's reach narrowed to ``actions``, with its path scope unchanged.
 
-    A verifier runs commands and reads what the worker produced, and never changes it. It keeps the path
-    scope of the handle the delegating run is bound to. The top-level agent holds none, and a scope
-    without path patterns constrains no path, so its verifier reads as widely as that agent does.
+    The top-level agent holds no handle, and a scope without path patterns constrains no path, so what
+    its child may read stays what the agent itself may read.
 
     Raises:
         AttenuationError: if the delegating agent's handle has expired.
     """
     parent_handle = parent_capability_handle()
     if parent_handle is None:
-        return _mint_root_handle(verifier_type, ResourceScope(), _VERIFIER_ACTIONS)
+        return _mint_root_handle(subject_id, ResourceScope(), actions)
     return attenuate_capability(
         parent_handle,
-        verifier_type,
-        target_actions=_VERIFIER_ACTIONS & parent_handle.actions,
+        subject_id,
+        target_actions=actions & parent_handle.actions,
         ttl_seconds=_SPAWN_CAPABILITY_MAX_LIFETIME_SECONDS,
     )
+
+
+def derive_verifier_capability(verifier_type: str) -> CapabilityHandle:
+    """Mint the handle a verifier runs under: the delegating agent's reach without WRITE.
+
+    A verifier runs commands and reads what the worker produced, and never changes it.
+
+    Raises:
+        AttenuationError: if the delegating agent's handle has expired.
+    """
+    return _derive_narrowed(verifier_type, _VERIFIER_ACTIONS)
+
+
+def derive_readonly_capability(agent_type: str) -> CapabilityHandle:
+    """Mint the handle a read-only child runs under: the delegating agent's reach narrowed to READ.
+
+    Raises:
+        AttenuationError: if the delegating agent's handle has expired.
+    """
+    return _derive_narrowed(agent_type, _READ_ONLY_ACTIONS)
+
+
+def readonly_spawn_floor(agent_type: str) -> CapabilityHandle | None:
+    """The handle a read-only spawn must be bound to, or ``None`` when the caller's handle already withholds WRITE.
+
+    ``delegate_task`` and the verifier round bind their own handle before they spawn. Any other caller binds
+    none, so a read-only child would run unconstrained, or inherit WRITE from a writing parent's handle.
+
+    Raises:
+        AttenuationError: if the delegating agent's handle has expired.
+    """
+    held = get_current_capability()
+    if held is not None and CapabilityAction.WRITE not in held.actions:
+        return None
+    return derive_readonly_capability(agent_type)

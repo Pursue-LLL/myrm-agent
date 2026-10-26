@@ -31,7 +31,7 @@ SSOT: `{workspace_root}/.myrm/progress/<chat>/todos.json` — one list per chat.
 
 ## Bind conditions
 
-- `enable_planning=True`, or resume when any chat has a list (`.myrm/progress/<chat>/todos.json`) in the workspace. Asked while the agent is built, before the chat it serves is known, so it cannot name a chat; the chat is picked at run time (`todo_write`, the focus injection and the completion check all read the running chat's list).
+- `enable_planning=True`, or resume when any chat has a list (`.myrm/progress/<chat>/todos.json`) in the workspace. Asked while the agent is built, before the chat it serves is known, so it cannot name a chat; the chat is picked at run time (`todo_write`, the focus injection and the completion check all read the running chat's list). A delegated child never resumes: it runs in the delegating agent's chat, so the list belongs to the delegating agent.
 
 ## Server hydrate (myrm-agent-server)
 

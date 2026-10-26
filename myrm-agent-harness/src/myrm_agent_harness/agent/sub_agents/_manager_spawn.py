@@ -5,13 +5,14 @@
 - approval_journal::ApprovalJournal (POS: Replay-safe approval round-trips of one delegation)
 - checkpointer::discard_stale_subagent_thread (POS: Clears a subagent thread an earlier process left under a reused id)
 - spawn_prep::apply_spawn_workspace_isolation, resolve_delegate_parallel_write_batch (POS: Shared spawn prep SSOT)
+- spawn_capability::readonly_spawn_floor (POS: The handle a read-only spawn runs under when its caller bound none that withholds WRITE)
 - executor::SubagentExecutor (POS: Retry logic and actual agent execution)
 - streaming.types::AgentEventType (POS: SSE event types)
 - runtime.events.system_events::SubagentLifecycleData, to_json_object
 
 [OUTPUT]
 - SubagentSpawnMixin: Mixin providing _run_subagent, _run_subagent_core,
-  spawn_child (SSOT workspace isolation enforcement) and the per-manager approval_journal
+  spawn_child (SSOT workspace isolation and read-only capability floor) and the per-manager approval_journal
 
 [POS]
 Spawn and execution lifecycle for SubagentManager.
@@ -24,6 +25,7 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
+from contextlib import nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -32,11 +34,14 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.sub_agents.approval_journal import ApprovalJournal
 from myrm_agent_harness.agent.sub_agents.checkpointer import discard_stale_subagent_thread
+from myrm_agent_harness.agent.sub_agents.spawn_capability import readonly_spawn_floor
 from myrm_agent_harness.agent.sub_agents.types import (
     SubagentConfig,
     SubAgentResult,
     SubAgentStatus,
+    WorkspacePolicy,
 )
+from myrm_agent_harness.core.security.ocap import AttenuationError, capability_scope
 from myrm_agent_harness.runtime.events.system_events import (
     SubagentLifecycleData,
     to_json_object,
@@ -272,6 +277,20 @@ class SubagentSpawnMixin:
         effective_config = spawn_prep.config
         effective_context = spawn_prep.child_context
 
+        readonly_floor = None
+        if effective_config.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX:
+            try:
+                readonly_floor = readonly_spawn_floor(agent_type)
+            except AttenuationError as exc:
+                return SubAgentResult(
+                    success=False,
+                    task_id=task_id,
+                    agent_type=agent_type,
+                    error=f"Cannot bind a read-only capability to the child: {exc}",
+                    completed_at=time.time(),
+                    status=SubAgentStatus.FAILED,
+                )
+
         steering_token = SteeringToken()
         self._children_steering[task_id] = steering_token
 
@@ -280,22 +299,24 @@ class SubagentSpawnMixin:
         ACTIVE_SUBAGENTS[task_id] = self  # type: ignore[assignment]
         parent_progress_sink = get_tool_progress_sink()
 
-        task = asyncio.create_task(
-            self._run_subagent(
-                task_id=task_id,
-                agent_type=agent_type,
-                task_description=task_description,
-                config=effective_config,
-                context=effective_context,
-                tool_registry_getter=tool_registry_getter,
-                trace_id=trace_id,
-                steering_token=steering_token,
-                cancel_token=cancel_token,
-                resume_command=resume_command,
-                parent_progress_sink=parent_progress_sink,
-                complexity_tier=complexity_tier,
+        # The task copies the context at creation, so the floor must be bound here for a detached child to keep it.
+        with capability_scope(readonly_floor) if readonly_floor is not None else nullcontext():
+            task = asyncio.create_task(
+                self._run_subagent(
+                    task_id=task_id,
+                    agent_type=agent_type,
+                    task_description=task_description,
+                    config=effective_config,
+                    context=effective_context,
+                    tool_registry_getter=tool_registry_getter,
+                    trace_id=trace_id,
+                    steering_token=steering_token,
+                    cancel_token=cancel_token,
+                    resume_command=resume_command,
+                    parent_progress_sink=parent_progress_sink,
+                    complexity_tier=complexity_tier,
+                )
             )
-        )
         self._children[task_id] = task
         self._children_types[task_id] = agent_type
         self._children_descriptions[task_id] = task_description

@@ -66,7 +66,7 @@ _LOAD_CONDITION_OVERRIDES: dict[str, str] = {
     "memory_save_tool": "enable_memory + enabled_builtin_tools: memory",
     "memory_manage_tool": "enable_memory + enabled_builtin_tools: memory",
     "request_answer_user_tool": "enabled_builtin_tools: answer_tool",
-    "todo_write": "planning or existing workspace todos",
+    "todo_write": "planning, or existing workspace todos for a top-level agent (not a delegated child)",
     "bash_process_tool": "Turn1 when shell enabled (CORE; co-mounted with bash_code_execute)",
     "skill_market_tool": "enabled_builtin_tools: skill_market (server ToolSetupMixin Turn1)",
     "skill_search_tool": "Turn1 when searchable skills exist",

@@ -116,6 +116,7 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
          → 范围 = 父 agent 自己的工作区 + 经父 agent 路径策略与会话授权放行的 `context_files`；模型传入的 `context` 只进任务文本，不进子 agent 运行时上下文（`spawn_prep.build_spawn_child_context` 只取父 agent 的工作区/会话字段）。
          → 句柄只经 `capability_scope`（ContextVar）绑定到子 run，不写入子 agent 的运行时上下文：执行器校验与孙代派生读取的是同一枚句柄。
          → Verifier 轮次（`READ_ONLY_SANDBOX` 配置）另由 `derive_verifier_capability()` 从委派者句柄衰减出 {READ, EXECUTE} 句柄；不含 WRITE 的句柄使本地执行器把工作区设为只读：原生写工具被拒绝，Shell 写入由宿主 OS 沙箱阻止；容器内没有嵌套 OS 沙箱，Shell 写入只靠提示词约束，轮次结束后审计会删除 Verifier 新增的文件（见 `toolkits/code_execution/EXECUTION_SYSTEM.md`）。
+         → Dynamic Workflow 等直接调用 `SubagentManager.spawn_child` 的入口不自带句柄：`READ_ONLY_SANDBOX` 配置的派生由 `spawn_child` 经 `readonly_spawn_floor()` 在创建子任务前补一枚只含 READ 的句柄（`derive_readonly_capability`，范围沿用委派者，不额外限制读路径）。调用方已绑定且不含 WRITE 的句柄（delegate_task 的只读句柄、Verifier 句柄）原样保留；绑定的句柄含 WRITE 时衰减为 READ；委派者句柄已过期则该次派生失败。非 `READ_ONLY_SANDBOX` 的派生仍不在此处绑定句柄。
          → 父 agent 已受句柄约束时从其句柄衰减，子不超父；council / alternatives 与 DW 的子 agent 不铸造句柄。
 ```
 

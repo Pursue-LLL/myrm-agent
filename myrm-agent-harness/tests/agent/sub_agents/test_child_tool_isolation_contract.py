@@ -42,7 +42,7 @@ class Mechanism(StrEnum):
     KNOWLEDGE_STORE = "writes the shared knowledge store"
     PARENT_SESSION = "acts on the parent run's live browser session, gated per call by the permission engine"
     PERMISSION_GATED = "gated per call by the permission engine"
-    JOB_CONTROL = "manages only processes that already exist"
+    JOB_CONTROL = "acts only on processes that already exist, and checks the EXECUTE capability itself"
 
 
 _EVERY = Disposition.BLOCKED_FOR_EVERY_CHILD

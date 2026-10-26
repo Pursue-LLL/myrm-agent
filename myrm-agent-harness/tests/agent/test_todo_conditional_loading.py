@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.meta_tools.progress.storage import todos_path
+from myrm_agent_harness.agent.middlewares._session_context import set_is_subagent
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.skill_agent.tools import SkillAgentToolsMixin
 from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -174,3 +177,27 @@ async def test_build_tools_excludes_todo_when_planning_disabled() -> None:
     tools = await agent._build_tools()
     tool_names = [t.name for t in tools]
     assert "todo_write" not in tool_names
+
+
+@contextmanager
+def _delegated_child() -> Iterator[None]:
+    """Run the body the way a delegated child runs: the executor marks the task before the child starts."""
+    set_is_subagent(True)
+    try:
+        yield
+    finally:
+        set_is_subagent(False)
+
+
+def test_delegated_child_does_not_resume_the_delegators_todos() -> None:
+    harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=False)
+    has_todos = MagicMock(return_value=True)
+    with patch.object(harness, "_workspace_has_todos", new=has_todos), _delegated_child():
+        assert harness._should_load_todo_write_tool() is False
+    has_todos.assert_not_called()
+
+
+def test_delegated_child_with_planning_still_loads_todo_write() -> None:
+    harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=True)
+    with _delegated_child():
+        assert harness._should_load_todo_write_tool() is True

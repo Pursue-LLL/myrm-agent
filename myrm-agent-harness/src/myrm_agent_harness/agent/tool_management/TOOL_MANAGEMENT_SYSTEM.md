@@ -155,7 +155,7 @@ Only **LLM tools** (`_TOOL_LAYERS` + ToolRegistry) appear here. Orchestration si
 | `skill_market_tool` | EXTENDED | user_capability | — | enabled_builtin_tools: skill_market (server ToolSetupMixin Turn1) |
 | `skill_search_tool` | EXTENDED | user_capability | — | Turn1 when searchable skills exist |
 | `subagent_control_tool` | EXTENDED | user_capability | — | SubagentManagementExtension + entitlements |
-| `todo_write` | EXTENDED | user_capability | planning | planning or existing workspace todos |
+| `todo_write` | EXTENDED | user_capability | planning | planning, or existing workspace todos for a top-level agent (not a delegated child) |
 | `wiki_apply_tool` | EXTENDED | user_capability | wiki | enabled_builtin_tools: wiki |
 | `wiki_ingest_tool` | EXTENDED | user_capability | wiki | enabled_builtin_tools: wiki |
 | `wiki_query_tool` | EXTENDED | user_capability | wiki | enabled_builtin_tools: wiki |

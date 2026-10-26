@@ -5,6 +5,7 @@ via ``bash_code_execute_tool(run_in_background=True)``.
 
 [INPUT]
 - agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
+- core.security.ocap::check_capability_access (POS: the active capability handle; acting on a job needs EXECUTE)
 - runtime context (POS: session_id from RunnableConfig)
 
 [OUTPUT]
@@ -12,7 +13,9 @@ via ``bash_code_execute_tool(run_in_background=True)``.
 - BASH_PROCESS_TOOL_NAME: Stable tool id for spawn lifecycle tracking
 
 [POS]
-PTC-adjacent surface tool — bash-tool-package only; no business coupling.
+PTC-adjacent surface tool — bash-tool-package only; no business coupling. Jobs are scoped to the session,
+which a delegated child shares with its delegating agent, so the actions that signal, feed or close a job
+check the capability handle themselves: a read-only child observes the parent's jobs but cannot act on them.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     build_input_wait_hint,
 )
+from myrm_agent_harness.core.security.ocap import CapabilityAction, check_capability_access
 from myrm_agent_harness.utils.locale import is_chinese
 
 if TYPE_CHECKING:
@@ -51,6 +55,11 @@ _BASH_PROCESS_ACTIONS = Literal[
     "submit_stdin",
     "close_stdin",
 ]
+
+# The actions that only read a job. Every other action signals, feeds or closes it (the approval layer maps
+# them to ``shell_exec``, see ``resolve_permission_type``), so it needs the EXECUTE capability that
+# ``bash_code_execute_tool`` needs to start a job; an action added later is gated until it is listed here.
+_OBSERVING_ACTIONS = frozenset({"list", "output", "wait"})
 
 _MISSING_SESSION_PAYLOAD: dict[str, object] = {
     "content": (
@@ -366,6 +375,12 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
         session_id = _extract_session_id(config)
         if session_id is None:
             return _MISSING_SESSION_PAYLOAD
+
+        if action not in _OBSERVING_ACTIONS and not check_capability_access(CapabilityAction.EXECUTE):
+            return {
+                "content": f"action={action!r} is not permitted: this agent holds no execute capability.",
+                "metadata": {"error": "capability_denied", "action": action},
+            }
 
         if action == "list":
             return await _handle_list(session_id)
