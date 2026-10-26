@@ -344,7 +344,7 @@ class SpawnSubagentTool(BaseTool):
 
         try:
             try:
-                with memory_isolation_scope(parent_agent=self.parent_agent, config=config):
+                with memory_isolation_scope():
                     if use_verification:
                         if not hasattr(self.parent_agent, "_subagent_manager"):
                             logger.warning(

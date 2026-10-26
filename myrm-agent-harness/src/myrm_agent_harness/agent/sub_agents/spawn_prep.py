@@ -1,7 +1,7 @@
 """Shared subagent spawn preparation for delegate and DW PTC paths.
 
 [INPUT]
-- sub_agents.types::SubagentConfig, ControlScope, MemoryIsolationPolicy, WorkspacePolicy
+- sub_agents.types::SubagentConfig, ControlScope, WorkspacePolicy
 - agent.security.engine::disabled_permissions (POS: global permission deny probe for readonly floor)
 - sub_agents.spawn_capability::parent_capability_handle (POS: the handle the running (delegating) agent is bound to, if any)
 - core.security.ocap::CapabilityAction (POS: capability vocabulary: READ, WRITE, EXECUTE)
@@ -15,7 +15,7 @@
 - apply_spawn_workspace_isolation: parallel writer ISOLATED_COPY promotion
 - sanitize_spawn_result_for_store / spawn_result_for_store_after_merge: JSON-safe durable cache rows
 - merge_candidate_from_spawn_dict: detect pending ISOLATED_COPY merge metadata
-- MemoryIsolationScope: ContextVar memory manager for spawn lifetime
+- memory_isolation_scope: the ContextVar memory manager is a read-only view of the parent's for the spawn's lifetime
 
 [POS]
 Single SSOT for spawn prep so delegate_task_tool and SpawnSubagentTool stay aligned.
@@ -27,12 +27,11 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.sub_agents.spawn_capability import parent_capability_handle
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
-    MemoryIsolationPolicy,
     SubagentConfig,
     WorkspacePolicy,
 )
@@ -47,16 +46,9 @@ from myrm_agent_harness.core.security.ocap import CapabilityAction
 if TYPE_CHECKING:
     from contextvars import Token
 
-    from myrm_agent_harness.toolkits.memory.ephemeral import EphemeralMemoryManager
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)
-
-
-class _CollaborativeMemoryHost(Protocol):
-    """Parent agent that lazily owns the memory view its collaborative subagents share."""
-
-    _collaborative_memory: EphemeralMemoryManager
 
 
 # Native workspace mutators. MCP tools with side effects are dropped by ``builder.filter_tools``
@@ -178,34 +170,23 @@ def apply_spawn_workspace_isolation(
 
 
 @contextmanager
-def memory_isolation_scope(
-    *,
-    parent_agent: object,
-    config: SubagentConfig,
-) -> Iterator[None]:
-    """Set ephemeral/collaborative/read-only memory ContextVar for spawn lifetime."""
+def memory_isolation_scope() -> Iterator[None]:
+    """Make the ContextVar memory manager a read-only view of the parent's for the spawn's lifetime.
+
+    Memory tools are bound to the parent's manager and no ``MemoryIsolationPolicy`` can redirect them,
+    so every policy gives the child the same ContextVar manager: reads of the parent's memory, no writes.
+    """
     reset_token: Token[MemoryManager | None] | None = None
     try:
         from myrm_agent_harness.agent.skill_agent.context import (
             _memory_manager_var,
             get_memory_manager,
         )
-        from myrm_agent_harness.toolkits.memory.ephemeral import (
-            EphemeralMemoryManager,
-            ReadOnlyMemoryView,
-        )
+        from myrm_agent_harness.toolkits.memory.ephemeral import ReadOnlyMemoryView
 
         global_mem = get_memory_manager()
         if global_mem:
-            if config.memory_isolation == MemoryIsolationPolicy.COLLABORATIVE_SESSION:
-                host = cast("_CollaborativeMemoryHost", parent_agent)
-                if not hasattr(host, "_collaborative_memory"):
-                    host._collaborative_memory = EphemeralMemoryManager(global_mem)
-                reset_token = _memory_manager_var.set(host._collaborative_memory)
-            elif config.memory_isolation == MemoryIsolationPolicy.READ_ONLY_GLOBAL:
-                reset_token = _memory_manager_var.set(ReadOnlyMemoryView(global_mem))
-            else:
-                reset_token = _memory_manager_var.set(EphemeralMemoryManager(global_mem))
+            reset_token = _memory_manager_var.set(ReadOnlyMemoryView(global_mem))
         yield
     finally:
         if reset_token is not None:

@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 
+import pytest
+
 from myrm_agent_harness.agent.security.types import PermissionAction, PermissionRule, SecurityConfig
+from myrm_agent_harness.agent.skill_agent.context import get_memory_manager, set_memory_manager
 from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_spawn_capability
 from myrm_agent_harness.agent.sub_agents.spawn_prep import (
     apply_readonly_to_config,
     apply_spawn_workspace_isolation,
     coerce_spawn_readonly,
     enforce_spawn_policy_on_config,
+    memory_isolation_scope,
     merge_candidate_from_spawn_dict,
 )
 from myrm_agent_harness.agent.sub_agents.types import (
@@ -21,6 +26,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
 )
 from myrm_agent_harness.core.security.ocap import capability_scope
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.ephemeral import ReadOnlyMemoryView
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 
@@ -112,45 +118,44 @@ def test_merge_candidate_false_on_failed_spawn() -> None:
 
 
 def _memory_manager() -> MemoryManager:
-    """A real parent: the isolation managers subclass it and copy its state, so a stand-in drifts from them."""
+    """A real parent: the view subclasses it and copies its state, so a stand-in drifts from it."""
     return MemoryManager(MemoryConfig(embedding_model="m"), user_id="u1", auto_warmup=False)
 
 
-def test_memory_isolation_scope_variants(monkeypatch) -> None:
-    from myrm_agent_harness.agent.sub_agents.spawn_prep import memory_isolation_scope
+@pytest.fixture
+def parent_memory() -> Iterator[MemoryManager]:
+    manager = _memory_manager()
+    set_memory_manager(manager)
+    yield manager
+    set_memory_manager(None)
 
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.skill_agent.context.get_memory_manager",
-        _memory_manager,
-    )
-    parent = SimpleNamespace()
 
-    with memory_isolation_scope(
-        parent_agent=parent,
-        config=SubagentConfig(
-            system_prompt="e",
-            memory_isolation=MemoryIsolationPolicy.EPHEMERAL_SESSION,
-        ),
-    ):
-        pass
+@pytest.mark.asyncio
+async def test_memory_isolation_scope_gives_the_child_a_read_only_view(parent_memory: MemoryManager) -> None:
+    with memory_isolation_scope():
+        child_view = get_memory_manager()
+        assert isinstance(child_view, ReadOnlyMemoryView)
+        assert child_view.user_id == parent_memory.user_id
+        with pytest.raises(PermissionError, match="READ_ONLY_GLOBAL"):
+            await child_view.delete_all()
 
-    with memory_isolation_scope(
-        parent_agent=parent,
-        config=SubagentConfig(
-            system_prompt="c",
-            memory_isolation=MemoryIsolationPolicy.COLLABORATIVE_SESSION,
-        ),
-    ):
-        assert hasattr(parent, "_collaborative_memory")
+    assert get_memory_manager() is parent_memory
 
-    with memory_isolation_scope(
-        parent_agent=parent,
-        config=SubagentConfig(
-            system_prompt="r",
-            memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL,
-        ),
-    ):
-        pass
+
+def test_memory_isolation_scope_restores_the_parent_manager_when_the_spawn_fails(
+    parent_memory: MemoryManager,
+) -> None:
+    with pytest.raises(RuntimeError, match="spawn failed"), memory_isolation_scope():
+        raise RuntimeError("spawn failed")
+
+    assert get_memory_manager() is parent_memory
+
+
+def test_memory_isolation_scope_leaves_an_agent_without_memory_alone() -> None:
+    assert get_memory_manager() is None
+
+    with memory_isolation_scope():
+        assert get_memory_manager() is None
 
 
 def test_spawn_result_for_store_after_merge() -> None:

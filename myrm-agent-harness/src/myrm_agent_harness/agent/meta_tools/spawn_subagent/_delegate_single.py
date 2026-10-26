@@ -315,7 +315,7 @@ async def execute_single_delegation(
             ask=lambda pending: interrupt(_approval_interrupt_payload(task_id, pending)),
         )
         with (
-            memory_isolation_scope(parent_agent=parent_agent, config=config),
+            memory_isolation_scope(),
             capability_scope(spawn_capability),
         ):
             if verifier_prompt and single_wait:

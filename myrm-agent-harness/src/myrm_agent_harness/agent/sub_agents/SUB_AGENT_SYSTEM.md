@@ -123,9 +123,9 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 |:--|:--|:--|:--|
 | **ControlScope** | `LEAF` | 叶子节点 | 默认，禁止再次委托，强制 max_spawn_depth=0 |
 |  | `ORCHESTRATOR` | 受控协调者 | 仅可信配置可用；必须显式通过 `role="orchestrator"` 请求，运行时注入 child-scoped `delegate_task_tool` + `subagent_control_tool` + `send_teammate_message_tool` |
-| **MemoryIsolationPolicy** | `EPHEMERAL_SESSION` | 临时会话 | 默认；隔离管理器读穿透到父记忆，子 agent 没有记忆写工具（L1 剥离） |
-|  | `COLLABORATIVE_SESSION` | 协作会话 | 并行子 agent 共享同一个隔离管理器；同样没有记忆写工具 |
-|  | `READ_ONLY_GLOBAL` | 只读全局 | 读视图拒绝一切写入；同样没有记忆写工具 |
+| **MemoryIsolationPolicy** | `EPHEMERAL_SESSION` | 临时会话 | 默认；spawn 期间 ContextVar 记忆管理器是父记忆的只读视图（`ReadOnlyMemoryView`），子 agent 没有记忆写工具（L1 剥离） |
+|  | `COLLABORATIVE_SESSION` | 协作会话 | 框架行为与上一行一致，不存在子 agent 共享的写入层 |
+|  | `READ_ONLY_GLOBAL` | 只读全局 | 框架行为与上一行一致；三个取值只影响宿主如何装配子 agent 自带的记忆管理器 |
 | **WorkspacePolicy** | `INHERIT` | 继承 | 默认，共享父工作空间 |
 |  | `ISOLATED_COPY` | 隔离副本 | `shutil.copytree` COW 克隆工作空间 + `_sync_tree` 完美镜像同步；单 delegate 成功后在 `executor_retry_mixin` 经 `apply_isolated_sync_back_with_snapshots` 逐文件登记 SnapshotStore（Revert 可用）；merge 失败时 `record_workspace_merge_failure` + result 标记 `workspace_merge_status=error`，turn 结束 `WORKSPACE_MERGE_FAILED` SSE + `completion_status=warning` + 前端 `WorkspaceMergeWarning` 可折叠面板 |
 
