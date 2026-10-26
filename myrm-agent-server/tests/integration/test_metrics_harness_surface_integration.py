@@ -2,7 +2,7 @@
 
 Real cross-layer link for the metrics fix:
 1. Harness ``MetricsRegistry`` registers its counters on the global Prometheus
-   ``REGISTRY`` (same registry that ``app.core.monitoring._setup_metrics``
+   ``REGISTRY`` (same registry that ``app.core.monitoring._setup_prometheus``
    exposes at ``GET /metrics``).
 2. Recording an approval denial / hook failure through the real harness
    registry makes the new counters appear in the server's scrape output.
@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 def metrics_app() -> FastAPI:
     """Minimal app exposing /metrics exactly like the production endpoint body.
 
-    The production ``_setup_metrics`` serves ``Response(content=generate_latest())``;
+    The production ``_setup_prometheus`` serves ``Response(content=generate_latest())``;
     we replicate that endpoint so the test does not depend on optional extras
     (e.g. ``prometheus-fastapi-instrumentator``) being installed in the local venv.
     """

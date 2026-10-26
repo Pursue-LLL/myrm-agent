@@ -1,4 +1,4 @@
-"""Chrome MCP E2E: OpenTelemetry Trace Posture & SRE Diagnostics UI.
+"""Chrome MCP E2E: OpenTelemetry export posture UI.
 
 [INPUT]
 - tests.support.chrome_mcp_e2e::open_settings_subroute, wait_for_state, dismiss_blocking_modals
@@ -10,8 +10,8 @@
   in Settings -> Developer section (:3000/settings/developer).
 
 [POS]
-E2E browser integration test verifying that SRE OpenTelemetry Posture diagnostics render
-correctly on the live WebUI, display protocol/endpoint details, and refresh on demand.
+E2E browser integration test verifying that the measured OpenTelemetry export posture renders
+on the live WebUI (endpoint, protocol, sampler, content-capture privacy line) and refreshes on demand.
 """
 
 from __future__ import annotations
@@ -29,25 +29,29 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
+_READABLE_STATUSES = frozenset({"active", "failing", "degraded", "disabled", "noop", "missing_sdk", "local_only"})
+_MEASURED_FIELDS = ("sampler", "content_capture", "metrics_exporting", "exported_spans", "failed_batches", "dropped_spans")
+_REMOVED_ASSERTED_FLAGS = ("three_tier_semantics", "prompt_cache_metering")
+
 _VERIFY_TELEMETRY_CARD_JS = """(() => {
   try {
     const bodyText = document.body ? document.body.innerText : '';
-    const hasTitle = /OpenTelemetry Trace Posture|遥测态势|Telemetry/i.test(bodyText);
-    const hasProtocol = /Protocol|协议|HTTP\\/PROTOBUF|GRPC|NOOP/i.test(bodyText);
-    const hasEndpoint = /Endpoint|端点/i.test(bodyText);
-    const hasFeatures = /3-Tier GenAI|三层 GenAI|Capabilities|特性/i.test(bodyText);
-    const hasEnvironment = /Environment|代码环境|Branch|Non-Git/i.test(bodyText);
+    const hasTitle = /OpenTelemetry export|OpenTelemetry 遥测导出/i.test(bodyText);
+    const hasProtocol = /Protocol|导出协议/i.test(bodyText);
+    const hasEndpoint = /Traces endpoint|链路端点/i.test(bodyText);
+    const hasContentCapture = /Prompt and reply content|提示词与回复内容/i.test(bodyText);
+    const hasEnvironment = /VCS environment|代码环境/i.test(bodyText);
 
     const buttons = Array.from(document.querySelectorAll('button'));
     const refreshBtn = buttons.find(b => /Refresh|刷新|更新/i.test(b.textContent || ''));
-    const copyBtn = buttons.find(b => /Copy Env|复制/i.test(b.textContent || ''));
+    const copyBtn = buttons.find(b => /Copy config|复制配置/i.test(b.textContent || ''));
 
     return {
-      ready: hasTitle && (hasProtocol || hasEndpoint || hasFeatures || hasEnvironment),
+      ready: hasTitle && hasProtocol && hasEndpoint && hasContentCapture && hasEnvironment,
       hasTitle,
       hasProtocol,
       hasEndpoint,
-      hasFeatures,
+      hasContentCapture,
       hasEnvironment,
       hasRefreshBtn: Boolean(refreshBtn),
       hasCopyBtn: Boolean(copyBtn),
@@ -73,7 +77,11 @@ def test_telemetry_posture_card_chrome_e2e() -> None:
 
     # Verify backend API returns 200 first
     api_resp = http_json("GET", f"{api_url}/api/v1/system/telemetry-posture")
-    assert "status" in api_resp or "protocol" in api_resp or "error" not in api_resp
+    assert isinstance(api_resp, dict), f"Unexpected posture payload: {api_resp!r}"
+    assert api_resp["status"] in _READABLE_STATUSES, f"Posture could not be read: {api_resp}"
+    missing = [name for name in _MEASURED_FIELDS if name not in api_resp]
+    assert not missing, f"Posture lacks measured fields {missing}: {api_resp}"
+    assert not any(flag in api_resp for flag in _REMOVED_ASSERTED_FLAGS), "Asserted capability flags must not return"
 
     subroute = "/settings/developer"
     warm_ui_route(subroute)
@@ -88,7 +96,9 @@ def test_telemetry_posture_card_chrome_e2e() -> None:
         assert state.get("hasRefreshBtn") is True
 
         # Real User Interaction: Click refresh button via client.evaluate and verify no crash
-        refresh_res = client.evaluate(page, """(() => {
+        refresh_res = client.evaluate(
+            page,
+            """(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             const refreshBtn = buttons.find(b => /Refresh|刷新|更新/i.test(b.textContent || ''));
             if (refreshBtn) {
@@ -96,21 +106,25 @@ def test_telemetry_posture_card_chrome_e2e() -> None:
                 return { clicked: true };
             }
             return { clicked: false };
-        })()""", timeout_sec=10.0)
+        })()""",
+            timeout_sec=10.0,
+        )
         assert isinstance(refresh_res, dict)
         assert refresh_res.get("clicked") is True, f"Refresh button click failed: {refresh_res}"
 
         # Real User Interaction: Click copy env config button and verify no crash
-        copy_res = client.evaluate(page, """(() => {
+        copy_res = client.evaluate(
+            page,
+            """(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
-            const copyBtn = buttons.find(b => /Copy Env|复制/i.test(b.textContent || ''));
+            const copyBtn = buttons.find(b => /Copy config|复制配置/i.test(b.textContent || ''));
             if (copyBtn) {
                 copyBtn.click();
                 return { clicked: true };
             }
             return { clicked: false };
-        })()""", timeout_sec=10.0)
+        })()""",
+            timeout_sec=10.0,
+        )
         assert isinstance(copy_res, dict)
         assert copy_res.get("clicked") is True, f"Copy button click failed: {copy_res}"
-
-

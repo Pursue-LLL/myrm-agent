@@ -154,30 +154,16 @@ class BashAuditSettings(BaseSettings):
 
 
 # ---------------------------------------------------------------------------
-# [O] Observability — env: METRICS_ENABLED, OTEL_*
+# [O] Observability — env: METRICS_ENABLED (OTEL_* is read by the OpenTelemetry SDK, not here)
 # ---------------------------------------------------------------------------
 
 
 class MonitoringSettings(BaseSettings):
-    """Prometheus metrics and OpenTelemetry tracing toggles."""
+    """Prometheus metrics toggle. OpenTelemetry export is configured purely by the standard ``OTEL_*`` variables."""
 
     model_config = SettingsConfigDict(env_prefix="")
 
     metrics_enabled: bool = Field(default=False, validation_alias="METRICS_ENABLED")
-    otel_enabled: bool = Field(default=False, validation_alias="OTEL_ENABLED")
-    otel_exporter_otlp_endpoint: str = Field(
-        default="",
-        validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT",
-    )
-    otel_exporter_otlp_headers: str = Field(
-        default="",
-        validation_alias="OTEL_EXPORTER_OTLP_HEADERS",
-    )
-    otel_exporter_otlp_protocol: str = Field(
-        default="",
-        validation_alias="OTEL_EXPORTER_OTLP_PROTOCOL",
-    )
-    otel_sample_rate: float = Field(default=0.1, validation_alias="OTEL_SAMPLE_RATE")
 
 
 # ---------------------------------------------------------------------------

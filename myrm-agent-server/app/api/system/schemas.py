@@ -125,6 +125,8 @@ class SnapshotActionResponse(BaseModel):
 
 
 class TelemetryPostureResponse(BaseModel):
+    """Measured OpenTelemetry posture. Every field is read from live state; none is asserted."""
+
     status: str
     initialized: bool
     has_sdk: bool
@@ -134,8 +136,14 @@ class TelemetryPostureResponse(BaseModel):
     local_trace_only: bool
     exporter_type: str = "none"
     degraded_reason: str | None = None
+    sampler: str | None = None
+    content_capture: bool = False
+    metrics_exporting: bool = False
+    exported_spans: int = 0
+    failed_batches: int = 0
+    dropped_spans: int = 0
+    last_success_at: float | None = None
+    last_failure_at: float | None = None
     git_branch: str | None = None
     git_commit: str | None = None
-    three_tier_semantics: bool = True
-    prompt_cache_metering: bool = True
     error: str | None = None

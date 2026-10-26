@@ -12,6 +12,18 @@ from app.core.infra.health.server_diagnostics import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clean_otlp_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+        "OTEL_SDK_DISABLED",
+        "MYRM_LOCAL_TRACE_ONLY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.mark.asyncio
 async def test_trace_security_diagnostic_local_trace_only_pass() -> None:
     diagnostic = TraceExportSecurityDiagnostic()
@@ -68,6 +80,44 @@ async def test_trace_security_diagnostic_normal_mode_noop() -> None:
         report = await diagnostic.check_health()
         assert report.status == "pass"
         assert report.code == "OK_LOCAL_NOOP_ACTIVE"
+
+
+@pytest.mark.asyncio
+async def test_local_only_judges_the_parsed_host_and_never_prints_credentials() -> None:
+    env = {"MYRM_LOCAL_TRACE_ONLY": "1", "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:hunter2@attacker.example:4318"}
+    with patch.dict("os.environ", env):
+        report = await TraceExportSecurityDiagnostic().check_health()
+    assert report.code == "WARN_REMOTE_TRACE_IN_LOCAL_MODE"
+    assert "hunter2" not in repr(report)
+    assert "attacker.example" in (report.detail or "")
+
+
+@pytest.mark.asyncio
+async def test_local_only_audits_a_per_signal_remote_endpoint() -> None:
+    env = {
+        "MYRM_LOCAL_TRACE_ONLY": "1",
+        "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "https://metrics.corp.example/v1/metrics",
+    }
+    with patch.dict("os.environ", env):
+        report = await TraceExportSecurityDiagnostic().check_health()
+    assert report.code == "WARN_REMOTE_TRACE_IN_LOCAL_MODE"
+
+
+@pytest.mark.asyncio
+async def test_a_disabled_sdk_is_reported_as_no_export() -> None:
+    env = {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317", "OTEL_SDK_DISABLED": "true"}
+    with patch.dict("os.environ", env):
+        report = await TraceExportSecurityDiagnostic().check_health()
+    assert report.code == "OK_LOCAL_NOOP_ACTIVE"
+
+
+@pytest.mark.asyncio
+async def test_a_configured_endpoint_is_shown_without_credentials() -> None:
+    with patch.dict("os.environ", {"OTEL_EXPORTER_OTLP_ENDPOINT": "https://user:hunter2@collector.example:4318"}):
+        report = await TraceExportSecurityDiagnostic().check_health()
+    assert report.code == "OK_OTLP_EXPORT_ACTIVE"
+    assert "hunter2" not in repr(report)
+    assert "collector.example" in report.message
 
 
 @pytest.mark.asyncio

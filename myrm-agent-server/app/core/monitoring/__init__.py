@@ -1,7 +1,8 @@
 """Monitoring & Observability Manager
 
-Consolidates all metrics (Prometheus) and tracing (OpenTelemetry) initialization.
-Ensures zero overhead in local/sandbox modes unless explicitly enabled.
+Consolidates Prometheus metrics and OpenTelemetry (traces + metrics) initialization.
+Both stay off, at zero overhead, unless explicitly enabled: Prometheus by ``METRICS_ENABLED``,
+OpenTelemetry by configuring an OTLP endpoint through the standard ``OTEL_*`` variables.
 Gateway runtime vitals export: `gateway_vitals_metrics.py` (updated on `/health/liveness`).
 """
 
@@ -17,6 +18,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_OTEL_SERVICE_NAME = "myrm-agent-server"
+
 
 def is_metrics_enabled() -> bool:
     """Check if metrics are enabled based on settings and deploy mode."""
@@ -30,49 +33,38 @@ def is_metrics_enabled() -> bool:
 
 
 def setup_monitoring(app: FastAPI) -> None:
-    """Complete monitoring setup: Tracing + Metrics."""
-    _setup_tracing()
+    """Complete monitoring setup: OpenTelemetry export + Prometheus endpoint."""
+    _setup_telemetry()
 
     if is_metrics_enabled():
-        _setup_metrics(app)
+        _setup_prometheus(app)
     else:
         logger.debug("[Monitoring] Metrics disabled for current deploy mode")
 
 
-def _setup_tracing() -> None:
-    """Setup OpenTelemetry tracing via harness framework."""
-    # Active if explicitly enabled via OTEL_ENABLED, or if standard OTEL_EXPORTER_OTLP_ENDPOINT is non-empty
-    otlp_endpoint = settings.monitoring.otel_exporter_otlp_endpoint.strip()
-    if not settings.monitoring.otel_enabled and not otlp_endpoint:
-        return
+def _setup_telemetry() -> None:
+    """Export OpenTelemetry traces and metrics when the standard ``OTEL_*`` environment configures it.
 
+    Endpoint, protocol, headers, sampler and the ``OTEL_SDK_DISABLED`` kill switch are resolved by the
+    harness from the standard variables; the server only names the service and what it runs as.
+    """
     try:
-        from myrm_agent_harness.infra.tracing import setup_tracing
+        from myrm_agent_harness import __version__ as engine_version
+        from myrm_agent_harness.infra.tracing import setup_metrics, setup_tracing
 
-        sample_rate = settings.monitoring.otel_sample_rate
-        console_export = not otlp_endpoint
-        headers = settings.monitoring.otel_exporter_otlp_headers.strip() or None
-        protocol = settings.monitoring.otel_exporter_otlp_protocol.strip() or None
+        from app.config.deploy_mode import get_deploy_mode
 
-        setup_tracing(
-            service_name="myrm-agent-server",
-            console_export=console_export,
-            sample_rate=sample_rate,
-            otlp_endpoint=otlp_endpoint or None,
-            otlp_headers=headers,
-            otlp_protocol=protocol,
-        )
-        logger.info(
-            "[Tracing] OpenTelemetry enabled (endpoint=%s, protocol=%s, sample_rate=%.1f)",
-            otlp_endpoint or "console",
-            protocol or "auto",
-            sample_rate,
-        )
+        resource_attributes = {
+            "service.version": engine_version,
+            "deployment.environment.name": get_deploy_mode().value,
+        }
+        setup_tracing(service_name=_OTEL_SERVICE_NAME, resource_attributes=resource_attributes)
+        setup_metrics(service_name=_OTEL_SERVICE_NAME, resource_attributes=resource_attributes)
     except Exception as e:
-        logger.warning("[Tracing] Setup failed: %s", e)
+        logger.warning("[Telemetry] Setup failed: %s", e)
 
 
-def _setup_metrics(app: FastAPI) -> None:
+def _setup_prometheus(app: FastAPI) -> None:
     """Setup Prometheus metrics endpoints and collectors."""
     try:
         from fastapi import Response

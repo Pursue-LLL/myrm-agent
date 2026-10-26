@@ -14,6 +14,6 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 核心 | 监控入口（Prometheus 指标、OpenTelemetry 追踪初始化、DB Pool 指标注册） | ✅ |
+| `__init__.py` | 核心 | 监控入口：OpenTelemetry 追踪与指标的 OTLP 导出装配（`setup_tracing` + `setup_metrics`，启用与否、端点、协议、采样全由标准 `OTEL_*` 环境变量决定，服务身份 `myrm-agent-server` 与 `deployment.environment.name` 由本层给出）、Prometheus 指标、DB Pool 指标注册 | ✅ |
 | `prometheus_setup.py` | 核心 | FastAPI HTTP 指标初始化（prometheus_fastapi_instrumentator） | ✅ |
 | `gateway_vitals_metrics.py` | 核心 | Gateway runtime Prometheus gauges（`myrm_gateway_event_loop_lag_ms` / `_process_rss_mb` / `_active_asyncio_tasks` / `_health_status_code`）；由 liveness 探针刷新 | ✅ |

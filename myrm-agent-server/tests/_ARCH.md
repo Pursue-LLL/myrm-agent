@@ -38,7 +38,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_chrome_bridge_load.py` | 单元 | `wait_for_load_to_settle` 及其在 `wait_for_react_e2e_bridge` 中的接线（假时钟）：脚本仍在完成时不触发 heal 重载（慢 hydrate 的页面能等到 bridge），45s 无进展才重载，截止时间到仍带诊断失败；探针 JS 暴露等待所读信号，API 轮询不算加载进度 |
 | `support/test_chrome_api_queue.py` | 单元 | `wait_for_api_queue_to_drain`（假时钟）：空闲页连续 3 次快速探针即放行；探针排队时持续等待；两次突发之间的单个快样本不放行；文档仍在加载不放行；失败探针清零连续计数；页面暂不可求值时重探；截止时间到带最后一次探针结果失败；探针 JS 是发往 API 源的带预检 GET |
 | `support/test_chrome_skill_undo_probes.py` | 单元 | `recently_edited_frontend_files`：只列起点之后保存的前端文件且最新在前，恰在起点保存的不算，`limit` 保留最新的，前端目录不存在时返回空 |
-| `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |
+| `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry 导出卡片（端点、协议、采样器、内容外发声明）渲染与刷新端到端测试；接口须返回实测字段且不得再带写死的能力标志 |
+| `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
+| `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
+| `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/system/test_update_snapshots_api.py` | 单元 | 系统 API 恢复点路由：创建、列表、排队恢复（下次启动生效，运行库不被写）、删除 |
 | `api/instance_archive/test_auto_backup_router.py` | 单元 | 定时备份 HTTP 面：读取/保存/立即备份、参数错误与导出进行中的稳定码、备份文件夹读不到时报告 `folder_available=false`（不当作空）、无法解析的 `~用户名` 路径保存不返回 500（关闭状态 200 并原样回显，开启状态 400 `backup_dir_invalid`）、云端沙箱与非标准布局的 `supported=false`、配对 token 默认拒绝 |
