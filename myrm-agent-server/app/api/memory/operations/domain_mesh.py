@@ -1,13 +1,13 @@
-"""Domain Mesh API endpoints for Three-Domain progressive L0/L1/L2 memory view and migration.
+"""Domain Mesh API endpoints for the Three-Domain progressive L0/L1/L2 memory view.
 
 [INPUT]
-MemoryManager (harness 记忆管理器), HermesMigrationRequest (Hermes 迁移请求)
+MemoryManager (harness 记忆管理器)
 
 [OUTPUT]
-router: `/memory/domain-mesh` 三域认知网格概览、下钻追溯与无损迁移端点
+router: `/memory/domain-mesh` 三域认知网格概览与下钻追溯端点
 
 [POS]
-app.api.memory.operations.domain_mesh: 三域认知网格操作层，提供 User/Assistant/Task 三域概览、L0/L1/L2 追溯及迁移路由
+app.api.memory.operations.domain_mesh: 三域认知网格操作层，提供 User/Assistant/Task 三域概览与 L0/L1/L2 追溯路由
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import (
     MemoryDomain,
     MemoryManager,
-    import_hermes_bundle,
     infer_domain_and_category,
 )
 
@@ -27,8 +26,6 @@ from app.schemas.memory.domain_mesh import (
     DomainBucketOverview,
     DomainMeshOverviewResponse,
     DrillDownResponse,
-    HermesMigrationRequest,
-    HermesMigrationResponse,
     ProgressiveHighlight,
 )
 from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
@@ -192,19 +189,4 @@ async def get_memory_drill_down(
         created_at=created,
         updated_at=updated,
         metadata=meta,
-    )
-
-
-@router.post("/migrate/hermes", response_model=HermesMigrationResponse)
-async def migrate_from_hermes(
-    payload: HermesMigrationRequest,
-    manager: MemoryManager = Depends(get_memory_manager),
-) -> HermesMigrationResponse:
-    """Import and migrate Hermes or OpenViking memory bundle into memory manager."""
-    is_json = payload.format.lower() == "json"
-    success, failures = await import_hermes_bundle(manager, payload.content, is_json=is_json)
-    return HermesMigrationResponse(
-        success_count=success,
-        fail_count=failures,
-        message=f"Migration completed: {success} imported, {failures} failed.",
     )

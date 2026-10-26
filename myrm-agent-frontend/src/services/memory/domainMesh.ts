@@ -3,10 +3,10 @@
  * @/lib/api::apiRequest (POS: frontend API request helper)
  *
  * [OUTPUT]
- * Domain Mesh DTOs and API clients for three-domain progressive L0/L1/L2 memory view and Hermes migration.
+ * Domain Mesh DTOs and API clients for the three-domain progressive L0/L1/L2 memory view.
  *
  * [POS]
- * Frontend client for progressive retrieval mesh and zero-friction migration.
+ * Frontend client for the progressive retrieval mesh.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -47,31 +47,10 @@ export interface DrillDownResponse {
   metadata: Record<string, unknown>;
 }
 
-export interface HermesMigrationRequest {
-  content: string;
-  format?: 'markdown' | 'json';
-}
-
-export interface HermesMigrationResponse {
-  success_count: number;
-  fail_count: number;
-  message: string;
-}
-
 export const getDomainMeshOverview = async (): Promise<DomainMeshOverviewResponse> => {
   return apiRequest<DomainMeshOverviewResponse>('/memory/domain-mesh/overview');
 };
 
 export const getMemoryDrillDown = async (memoryId: string): Promise<DrillDownResponse> => {
   return apiRequest<DrillDownResponse>(`/memory/domain-mesh/drill-down/${encodeURIComponent(memoryId)}`);
-};
-
-export const migrateFromHermes = async (payload: HermesMigrationRequest): Promise<HermesMigrationResponse> => {
-  return apiRequest<HermesMigrationResponse>('/memory/domain-mesh/migrate/hermes', {
-    method: 'POST',
-    body: JSON.stringify({
-      content: payload.content,
-      format: payload.format || 'markdown',
-    }),
-  });
 };

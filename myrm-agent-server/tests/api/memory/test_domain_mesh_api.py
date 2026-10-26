@@ -114,34 +114,6 @@ def test_domain_mesh_drill_down_endpoint(client: TestClient, auth_headers: dict[
     assert data["domain"] == "task"
 
 
-def test_domain_mesh_hermes_migration_endpoint(
-    client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock
-) -> None:
-    mock_memory_mgr.save_memory.return_value = None
-
-    payload = {
-        "content": """---
-id: hermes-test-1
-type: semantic
-domain: user
-category: preferences
----
-User prefers fast response times.
-""",
-        "format": "markdown",
-    }
-
-    resp = client.post(
-        "/api/v1/memory/domain-mesh/migrate/hermes",
-        headers=auth_headers,
-        json=payload,
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success_count"] == 1
-    assert data["fail_count"] == 0
-
-
 def test_domain_mesh_legacy_untyped_fallback(
     client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock
 ) -> None:

@@ -4374,7 +4374,6 @@
         "title": "3개 도메인 메모리 메시",
         "badge": "멀티 도메인 동기화",
         "description": "선호도, 페르소나, 작업 경험을 지능적으로 정리해 바로 불러올 수 있게 합니다.",
-        "migrate": "Hermes에서 마이그레이션",
         "refresh": "새로고침",
         "retry": "다시 시도",
         "loadFailed": "도메인 메시 개요를 불러오지 못했습니다"
@@ -4418,20 +4417,6 @@
         "copy": "복사",
         "copied": "복사됨",
         "unavailable": "이 메모리의 상세 정보를 불러올 수 없습니다."
-      },
-      "migration": {
-        "eyebrow": "제로 프릭션 마이그레이션",
-        "title": "Hermes 또는 OpenViking에서 가져오기",
-        "description": "Hermes 등 다른 에이전트에서 내보낸 원본 Markdown(프런트매터 포함 가능) 또는 JSON을 붙여넣으세요. 항목은 선호도와 워크플로로 자동 분류되며 모든 기존 노트가 그대로 보존됩니다.",
-        "chooseFile": "파일 선택",
-        "cancel": "취소",
-        "importing": "가져오는 중...",
-        "start": "무손실 가져오기 시작",
-        "doneTitle": "마이그레이션 완료",
-        "doneDescription": "메모리 {success}개를 가져왔습니다(실패 {failed}개).",
-        "failedTitle": "마이그레이션 실패",
-        "failedDescription": "마이그레이션 중 오류가 발생했습니다.",
-        "nothingImported": "가져올 수 있는 메모리가 없습니다. Hermes 또는 OpenViking에서 내보낸 내용인지 확인한 후 다시 시도해 주세요."
       }
     },
     "title": "메모리 관리",

@@ -4374,7 +4374,6 @@
         "title": "Three-Domain Memory Mesh",
         "badge": "Multi-Domain Sync",
         "description": "Intelligently organizes preferences, persona, and task experiences for instant recall.",
-        "migrate": "Migrate from Hermes",
         "refresh": "Refresh",
         "retry": "Retry",
         "loadFailed": "Failed to load domain mesh overview"
@@ -4418,20 +4417,6 @@
         "copy": "Copy",
         "copied": "Copied",
         "unavailable": "Unable to load details for this memory."
-      },
-      "migration": {
-        "eyebrow": "Zero-Friction Migration",
-        "title": "Import from Hermes or OpenViking",
-        "description": "Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents. Items will be automatically categorized into preferences and workflows while preserving all historical notes.",
-        "chooseFile": "Choose File",
-        "cancel": "Cancel",
-        "importing": "Importing...",
-        "start": "Start Lossless Import",
-        "doneTitle": "Migration Completed",
-        "doneDescription": "Successfully imported {success} memories ({failed} failed).",
-        "failedTitle": "Migration Failed",
-        "failedDescription": "An error occurred during migration.",
-        "nothingImported": "No memories could be imported. Check that the text is an export from Hermes or OpenViking and try again."
       }
     },
     "title": "Memory Management",

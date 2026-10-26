@@ -42,7 +42,6 @@ from myrm_agent_harness.toolkits.memory.ephemeral_delta import (
     get_shared_ephemeral_delta_store,
     record_ephemeral_memory_delta,
 )
-from myrm_agent_harness.toolkits.memory.hermes_bridge import import_hermes_bundle
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.mem_cube import (
     CubeMemoryRecord,
@@ -131,7 +130,6 @@ __all__ = [
     "DynamicPreferenceVector",
     "EmbeddingCache",
     "EpisodicMemory",
-    "import_hermes_bundle",
     "infer_domain_and_category",
     "MemoryDomain",
     "MemoryArchiveManifest",

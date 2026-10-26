@@ -4374,7 +4374,6 @@
         "title": "3ドメイン・メモリメッシュ",
         "badge": "マルチドメイン同期",
         "description": "好み・ペルソナ・タスク経験を自動で整理し、すぐに呼び出せるようにします。",
-        "migrate": "Hermes から移行",
         "refresh": "更新",
         "retry": "再試行",
         "loadFailed": "ドメインメッシュの概要を読み込めませんでした"
@@ -4418,20 +4417,6 @@
         "copy": "コピー",
         "copied": "コピーしました",
         "unavailable": "このメモリの詳細を読み込めません。"
-      },
-      "migration": {
-        "eyebrow": "ゼロフリクション移行",
-        "title": "Hermes または OpenViking からインポート",
-        "description": "Hermes などのエージェントからエクスポートした Markdown（フロントマター付きも可）または JSON を貼り付けてください。項目は好みとワークフローに自動で分類され、過去のメモはすべて保持されます。",
-        "chooseFile": "ファイルを選択",
-        "cancel": "キャンセル",
-        "importing": "インポート中...",
-        "start": "ロスレスインポートを開始",
-        "doneTitle": "移行が完了しました",
-        "doneDescription": "{success} 件のメモリをインポートしました（失敗: {failed} 件）。",
-        "failedTitle": "移行に失敗しました",
-        "failedDescription": "移行中にエラーが発生しました。",
-        "nothingImported": "インポートできるメモリがありませんでした。Hermes または OpenViking からエクスポートした内容か確認して、もう一度お試しください。"
       }
     },
     "title": "メモリ管理",

@@ -104,7 +104,6 @@ myrm_agent_harness/
 │   ├── observability.py                # 业务无关记忆观测 DTO/Protocol（operation / influence / retrieval trace / space / sink）
 │   ├── reliability.py                  # 业务无关记忆可靠性 DTO（probe / repair plan / import plan / recall benchmark summary）
 │   ├── domain_types.py                 # 三域九类拓扑与 L0/L1/L2 渐进式检索领域类型
-│   ├── hermes_bridge.py                # HermesMemoryBridge（Hermes 格式与 MemCubeEnvelope 双向转换）
 │   ├── conversation_search/            # Protocol-backed 历史会话搜索工具（无业务 DB 依赖）
 │   ├── _internal/                      # 内部实现细节
 │   │   ├── storage.py                  # 存储辅助函数
@@ -1214,13 +1213,8 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
   - 常驻注入（`_manager/retrieval_write.get_learned_context`）按重要度排序并受字符预算截断，不走 L0/L1 分层。
 - **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；始终注入预算见 `_manager/retrieval_write.get_learned_context`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
-- **Hermes 异构格式与标准信封适配器（`HermesMemoryBridge`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.hermes_bridge`；
-  - 纯函数解析 Hermes Markdown 结构化文本与 YAML Frontmatter 头部元数据；
-  - 严格剔除 Markdown 代码块内包含的伪标题注释，杜绝解析歧义；
-  - 将条目转换为强类型的 `MemCubeEnvelope` 与领域分类，实现跨系统单机与沙箱无依赖平滑迁移。
 - **服务端接口与前端双端自适应可视化闭环**：
-  - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）、`POST /migrate/hermes`（导入 Hermes / OpenViking 记忆包）；
+  - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）；
   - 前端面板（`MemoryDomainMeshPanel.tsx`）采用现代响应式卡片看板设计，支持 PC 端多栏布局与移动端单列自适应折叠；零原生 emoji，遵循 Tailwind 色系标准，严密隔离内部工程元数据与用户友好展示文案。
 
 

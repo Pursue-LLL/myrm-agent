@@ -4,7 +4,7 @@
 None (数据契约模型定义)
 
 [OUTPUT]
-ProgressiveHighlight, DomainBucketOverview, DomainMeshOverviewResponse, DrillDownResponse, HermesMigrationRequest, HermesMigrationResponse
+ProgressiveHighlight, DomainBucketOverview, DomainMeshOverviewResponse, DrillDownResponse
 
 [POS]
 app.schemas.memory.domain_mesh: 三域认知网格与渐进式分层数据契约 Schema 定义
@@ -49,14 +49,3 @@ class DrillDownResponse(BaseModel):
     created_at: str
     updated_at: str
     metadata: dict[str, object] = Field(default_factory=dict)
-
-
-class HermesMigrationRequest(BaseModel):
-    content: str
-    format: str = "markdown"
-
-
-class HermesMigrationResponse(BaseModel):
-    success_count: int
-    fail_count: int
-    message: str

@@ -5,14 +5,13 @@
  * @/services/memory/domainMesh::getDomainMeshOverview, DomainMeshOverviewResponse, ProgressiveHighlight
  * ./DomainMeshCard::DomainMeshCard
  * ./MemoryDrillDownDialog::MemoryDrillDownDialog
- * ./HermesMigrationModal::HermesMigrationModal
  * next-intl::useTranslations (memory.mesh.panel, memory.mesh.domains)
- * lucide-react::RefreshCw, UploadCloud, AlertCircle
+ * lucide-react::RefreshCw, AlertCircle
  * @phosphor-icons/react::TreeStructure
  *
  * [OUTPUT]
  * MemoryDomainMeshPanel: Dashboard panel rendering the Three-Domain Progressive Retrieval
- * and Hot-Cold Mirror Memory Mesh with lossless Hermes migration integration.
+ * and Hot-Cold Mirror Memory Mesh.
  *
  * [POS]
  * Primary UI component for Item 14 OpenViking-style three-domain progressive retrieval.
@@ -20,7 +19,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { RefreshCw, UploadCloud, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { TreeStructure } from '@phosphor-icons/react';
 import {
   getDomainMeshOverview,
@@ -29,7 +28,6 @@ import {
 } from '@/services/memory/domainMesh';
 import { DomainMeshCard } from './DomainMeshCard';
 import { MemoryDrillDownDialog } from './MemoryDrillDownDialog';
-import { HermesMigrationModal } from './HermesMigrationModal';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface MemoryDomainMeshPanelProps {
@@ -45,7 +43,6 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
 
   const [selectedHighlight, setSelectedHighlight] = useState<ProgressiveHighlight | null>(null);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
-  const [migrationOpen, setMigrationOpen] = useState(false);
 
   // API failures are already reported by the request layer; the panel only shows a localized, non-technical notice.
   const loadData = useCallback(async () => {
@@ -90,14 +87,6 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMigrationOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors shadow-xs"
-          >
-            <UploadCloud className="h-3.5 w-3.5" />
-            <span>{t('migrate')}</span>
-          </button>
           <button
             type="button"
             onClick={loadData}
@@ -152,9 +141,6 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
         open={drillDownOpen}
         onOpenChange={setDrillDownOpen}
       />
-
-      {/* Hermes Migration Modal */}
-      <HermesMigrationModal open={migrationOpen} onOpenChange={setMigrationOpen} onSuccess={loadData} />
     </div>
   );
 };

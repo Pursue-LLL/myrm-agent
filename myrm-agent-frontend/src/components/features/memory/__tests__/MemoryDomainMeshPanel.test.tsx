@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryDomainMeshPanel } from '../mesh/MemoryDomainMeshPanel';
 import * as domainMeshService from '@/services/memory/domainMesh';
-import { toast } from '@/hooks/shared/useToast';
 import en from '../../../../../locales/en.json';
 import zh from '../../../../../locales/zh.json';
 
@@ -14,11 +13,6 @@ vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('nex
 vi.mock('@/services/memory/domainMesh', () => ({
   getDomainMeshOverview: vi.fn(),
   getMemoryDrillDown: vi.fn(),
-  migrateFromHermes: vi.fn(),
-}));
-
-vi.mock('@/hooks/shared/useToast', () => ({
-  toast: vi.fn(),
 }));
 
 const LOCALE_MESSAGES = { en, zh } as const;
@@ -256,100 +250,6 @@ describe('MemoryDomainMeshPanel', () => {
     expect(await screen.findByText('Memory Not Found')).toBeInTheDocument();
     expect(screen.getByText('Unable to load details for this memory.')).toBeInTheDocument();
     expect(screen.queryByText(/user-1/)).not.toBeInTheDocument();
-  });
-
-  it('opens migration modal when Migrate from Hermes is clicked', async () => {
-    renderPanel();
-
-    await waitFor(() => {
-      expect(screen.getByText('User Domain')).toBeInTheDocument();
-    });
-
-    const migrateBtn = screen.getByText('Migrate from Hermes');
-    fireEvent.click(migrateBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText('Import from Hermes or OpenViking')).toBeInTheDocument();
-      expect(screen.getByText('Start Lossless Import')).toBeInTheDocument();
-    });
-  });
-
-  describe('Hermes migration', () => {
-    const openMigrationWith = async (content: string) => {
-      renderPanel();
-      fireEvent.click(await screen.findByText('Migrate from Hermes'));
-      fireEvent.change(await screen.findByRole('textbox'), { target: { value: content } });
-    };
-
-    it('keeps the import action disabled until there is content to import', async () => {
-      renderPanel();
-      fireEvent.click(await screen.findByText('Migrate from Hermes'));
-
-      const start = (await screen.findByText('Start Lossless Import')).closest('button');
-      expect(start).toBeDisabled();
-
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: '# note' } });
-      expect(start).toBeEnabled();
-    });
-
-    it('reports the imported and failed counts and refreshes the overview after a successful import', async () => {
-      vi.mocked(domainMeshService.migrateFromHermes).mockResolvedValue({
-        success_count: 2,
-        fail_count: 1,
-        message: 'done',
-      });
-
-      await openMigrationWith('# note');
-      fireEvent.click(screen.getByText('Start Lossless Import'));
-
-      await waitFor(() => {
-        expect(toast).toHaveBeenCalledWith({
-          title: 'Migration Completed',
-          description: 'Successfully imported 2 memories (1 failed).',
-        });
-      });
-      expect(domainMeshService.migrateFromHermes).toHaveBeenCalledWith({ content: '# note', format: 'markdown' });
-      await waitFor(() => {
-        expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(2);
-      });
-    });
-
-    it('keeps the dialog and the pasted text when nothing could be imported', async () => {
-      vi.mocked(domainMeshService.migrateFromHermes).mockResolvedValue({
-        success_count: 0,
-        fail_count: 1,
-        message: 'Migration completed: 0 imported, 1 failed.',
-      });
-
-      await openMigrationWith('not an export');
-      fireEvent.click(screen.getByText('Start Lossless Import'));
-
-      await waitFor(() => {
-        expect(toast).toHaveBeenCalledWith({
-          title: 'Migration Failed',
-          description: en.memory.mesh.migration.nothingImported,
-          variant: 'destructive',
-        });
-      });
-      expect(screen.getByRole('textbox')).toHaveValue('not an export');
-      expect(screen.getByText('Import from Hermes or OpenViking')).toBeInTheDocument();
-      expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(1);
-    });
-
-    it('never surfaces the raw failure message when the import fails', async () => {
-      vi.mocked(domainMeshService.migrateFromHermes).mockRejectedValue(new Error('HTTP 500: upstream exploded'));
-
-      await openMigrationWith('# note');
-      fireEvent.click(screen.getByText('Start Lossless Import'));
-
-      await waitFor(() => {
-        expect(toast).toHaveBeenCalledWith({
-          title: 'Migration Failed',
-          description: 'An error occurred during migration.',
-          variant: 'destructive',
-        });
-      });
-    });
   });
 
   it('handles extremely long verbatim content in drill-down dialog safely with scroll container', async () => {
