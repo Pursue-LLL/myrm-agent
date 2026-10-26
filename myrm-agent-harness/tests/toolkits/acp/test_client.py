@@ -339,6 +339,9 @@ class TestAcpCallbackHandlerPermission:
 # ---------------------------------------------------------------------------
 # RuntimePool
 # ---------------------------------------------------------------------------
+_POOL_FACTORY = "myrm_agent_harness.toolkits.acp.runtime.pool._create_runtime"
+
+
 class TestRuntimePool:
     class _DummyRuntimeBackend:
         def __init__(self, name: str = "test-backend") -> None:
@@ -411,12 +414,12 @@ class TestRuntimePool:
         assert not backend.closed
 
     @pytest.mark.asyncio
-    async def test_prompt_oneshot_closes_backend(self) -> None:
+    async def test_prompt_oneshot_closes_its_own_backend(self) -> None:
         pool = RuntimePool()
         pool.register("claude", RuntimeConfig(backend_type="acp", command="claude"))
         backend = self._DummyRuntimeBackend("claude")
 
-        with patch.object(pool, "get", return_value=backend):
+        with patch(_POOL_FACTORY, return_value=backend):
             result = await pool.prompt("claude", "task", mode="oneshot")
 
         assert result == "task"
@@ -431,16 +434,17 @@ class TestRuntimePool:
             await pool.prompt("claude", "task", mode="invalid")
 
     @pytest.mark.asyncio
-    async def test_run_turn_oneshot_closes_backend(self) -> None:
+    async def test_run_turn_oneshot_closes_its_own_backend(self) -> None:
         pool = RuntimePool()
         pool.register("claude", RuntimeConfig(backend_type="acp", command="claude"))
         backend = self._DummyRuntimeBackend("claude")
 
-        with patch.object(pool, "get", return_value=backend):
+        with patch(_POOL_FACTORY, return_value=backend):
             events = [e async for e in pool.run_turn("claude", "task", session_id="s-1", mode="oneshot")]
 
         assert len(events) == 3
         assert backend.closed
+        assert pool._oneshot_backends == {}
 
     @pytest.mark.asyncio
     async def test_run_turn_invalid_mode_raises(self) -> None:

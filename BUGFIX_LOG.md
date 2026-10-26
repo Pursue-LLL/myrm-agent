@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 外部 agent 委托：`mode="oneshot"` 在共享后端上运行并关闭它，清掉同 chat 的 persistent 会话（CLI 丢 `--resume`、ACP 被杀常驻进程）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 同一 chat 里先 persistent 实现、再用 `oneshot` 让全新会话独立 review、再 persistent 按意见修改：第三步丢掉第一步的全部上下文。CLI：三次调用的 `--resume` 参数为 `[None, None, None]`；ACP：oneshot 实际复用了 persistent 会话（创建会话数仍为 1，与工具描述“oneshot creates a fresh session each time”相反），结束后 persistent 常驻进程被杀（`is_alive` 为 False），第三轮重新拉进程并创建第 2 个会话 |
+| **根因** | `RuntimePool.run_turn` 对 oneshot 与 persistent 取同一个共享后端实例（`self.get(name)`），并在 `finally` 里 `backend.close()`；`CliRuntime._do_close` 清空**所有** session 的 `--resume` id，`AcpRuntime._do_close` 关闭常驻进程并重置会话。现有测试 `test_client.py` 的两个 oneshot 用例只断言“共享实例被 close”，把错误语义固化成了规格 |
+| **修复** | oneshot 改在**私有后端实例**上运行（`_new_backend`，`get()` 复用它），回合结束即关闭，不触碰共享后端的会话与进程。在途 oneshot 后端按 `(name, session_id)` 登记到 `_oneshot_backends`（`finally` 中摘除）：`cancel` 优先路由到它，`close_all` 一并关闭，避免取消失效与关停时的孤儿进程。persistent 路径、per-name 回合锁、MCP 能力守卫不变；工具描述不改（现在变成真话，prompt cache 不受影响） |
+| **回归证据** | 修复前用真实子进程实测：CLI（假 `claude` 脚本记录 `--resume`）persistent→oneshot→persistent 为 `[None, None, None]`；ACP（mock ACP agent）oneshot 复用会话且杀掉 persistent 进程。新增回归用例（先在旧代码上确认失败）：`test_pool_cli_resume.py::test_oneshot_turn_starts_fresh_and_leaves_the_persistent_session_resumable`（`--resume` 序列 `[None, None, first]`）、`test_pool_mock_acp_agent.py::test_oneshot_runs_in_its_own_process_and_session_and_leaves_the_persistent_one_alone`（oneshot 独立 pid 与会话、persistent 的 pid 与会话不变、oneshot 进程已退出）、`test_pool_oneshot.py` 6 个用例（不碰 persistent / 失败后摘除并关闭 / 未知名 KeyError / cancel 路由到 oneshot / persistent cancel 不误伤 oneshot / `close_all` 覆盖在途 oneshot）。变异验证（撤销后重跑，已恢复源码）：cancel 不查 oneshot 登记 → cancel 路由用例失败；`close_all` 不含 oneshot → 覆盖用例失败；不摘除登记 → 失败；oneshot 退回共享实例 → 失败。harness `tests/toolkits/acp` 默认标记全过，放开全部标记 **489 passed, 5 skipped**；server external-agents / gate / teardown **53 passed**；`tests/architecture` 仅剩 2 个与本改动无关的既有失败（`uv.lock` 解析、他人未提交的 browser / computer_use 文件超行数上限）；ruff / pyright 0 error |
+| **仍然存在** | 真实 `claude` 与真实 ACP 适配器下的端到端行为未验证，只用假 `claude` 脚本与 mock ACP agent 验证；LLM 选择 `oneshot` 的真实频率没有埋点；persistent 之后的 ACP oneshot 会额外拉起一个临时进程（回合结束即关闭，与纯 oneshot 使用方式的成本一致） |
+
 ## 2026-10-26 · 外部 CLI 委托：周期性健康监控把空闲 CLI 当成“崩溃”（擦掉 `--resume` 会话、杀掉进行中的回合），整体移除；驱逐后的 pool 重新拉起的进程无人收尾
 
 | 字段 | 内容 |

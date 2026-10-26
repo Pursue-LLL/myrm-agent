@@ -2,7 +2,7 @@
 
 A CLI backend spawns one process per turn; continuity between turns lives only in the runtime's
 in-memory session id, replayed through ``--resume``. This pins that the second pool turn resumes the
-session the first turn reported.
+session the first turn reported, and that a oneshot turn in between neither reuses nor wipes it.
 """
 
 from __future__ import annotations
@@ -77,10 +77,12 @@ async def pool(fake_claude: _FakeClaude, tmp_path: Path) -> AsyncIterator[Runtim
     await runtime_pool.close_all()
 
 
-async def _run_turn(runtime_pool: RuntimePool) -> tuple[str, list[RuntimeEvent]]:
+async def _run_turn(
+    runtime_pool: RuntimePool, *, mode: str = "persistent", session_id: str = "chat-1"
+) -> tuple[str, list[RuntimeEvent]]:
     text: list[str] = []
     errors: list[RuntimeEvent] = []
-    async for event in runtime_pool.run_turn("claude", "prompt", session_id="chat-1"):
+    async for event in runtime_pool.run_turn("claude", "prompt", session_id=session_id, mode=mode):
         if event.type == RuntimeEventType.TEXT_DELTA:
             text.append(str(event.data.get("content")))
         elif event.type == RuntimeEventType.ERROR:
@@ -100,3 +102,18 @@ async def test_second_turn_resumes_the_session_the_first_turn_reported(
     assert first
     assert second == first
     assert fake_claude.resume_args() == [None, first]
+
+
+@pytest.mark.asyncio
+async def test_oneshot_turn_starts_fresh_and_leaves_the_persistent_session_resumable(
+    pool: RuntimePool, fake_claude: _FakeClaude
+) -> None:
+    """A fresh-session review between two persistent turns must not cost the chat its session."""
+    first, _ = await _run_turn(pool)
+    oneshot, oneshot_errors = await _run_turn(pool, mode="oneshot", session_id="claude-oneshot-1")
+    third, _ = await _run_turn(pool)
+
+    assert not oneshot_errors
+    assert oneshot != first
+    assert third == first
+    assert fake_claude.resume_args() == [None, None, first]

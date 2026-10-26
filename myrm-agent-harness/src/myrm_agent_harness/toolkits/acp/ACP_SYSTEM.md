@@ -208,16 +208,17 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None)
 ├── register(name, config: RuntimeConfig) -> None
 ├── get(name) -> RuntimeBackend
 ├── prompt(name, task, *, mode) -> str      # 委托 run_turn()，收集 text_delta
-├── run_turn(name, prompt, session_id) -> AsyncIterator[RuntimeEvent]  # Semaphore 并发控制
-├── cancel(name, session_id) -> None        # 级联取消 → backend.cancel()
+├── run_turn(name, prompt, session_id, *, mode, mcp_servers) -> AsyncIterator[RuntimeEvent]  # Semaphore 并发控制
+├── cancel(name, session_id) -> None        # 级联取消 → backend.cancel()（在途 oneshot 优先）
 ├── available_backends -> list[str]
-└── close_all() -> None                     # 关闭所有后端
+└── close_all() -> None                     # 关闭所有后端（含在途 oneshot）
 ```
 
 **要点**：
 - `RuntimeConfig.backend_type` 选择 `AcpRuntime` / `CliRuntime`
 - `max_concurrent` 限制同时执行的委托任务数，避免进程与文件句柄耗尽
 - `prompt()` 委托给 `run_turn()`，并发控制统一在 `run_turn()` 层
+- **会话模式 `mode`**：`persistent`（默认）每个后端名共享一个后端实例，会话跨回合延续（CLI 的 `--resume` id、ACP 的常驻进程与会话）；`oneshot` 在**私有后端实例**上运行、回合结束即关闭——总是全新会话，且不触碰 persistent 后端的会话与进程。在途 oneshot 后端按 `(name, session_id)` 登记，`cancel` 优先路由到它，`close_all` 一并关闭；同名后端的回合仍由 per-name 锁串行化（避免同一工作区同时跑两个同名 agent）
 - **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底
 - **委托窄协议 `DelegationPool`（`types.py`）**：委托调用方只依赖 `available_backends` / `get_config` / `run_turn` / `cancel`；`RuntimePool` 与宿主侧包装器（如按会话串行化回合的 facade）都满足它，`create_invoke_acp_agent_tool` 接受它
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测

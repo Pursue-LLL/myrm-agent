@@ -88,3 +88,40 @@ async def test_pool_respawns_an_acp_process_that_died_between_turns(tmp_path: Pa
 
     assert new_pid != dead_pid
     assert await _wait_until_gone(new_pid)
+
+
+def _resident(backend: object) -> tuple[int, str]:
+    """The (pid, ACP session id) a backend is currently running."""
+    process = getattr(backend, "_process", None)
+    session_id = getattr(backend, "_session_id", None)
+    assert process is not None
+    assert session_id is not None
+    return int(process.pid), str(session_id)
+
+
+@pytest.mark.asyncio
+async def test_oneshot_runs_in_its_own_process_and_session_and_leaves_the_persistent_one_alone(tmp_path: Path) -> None:
+    pool = _mock_pool(tmp_path)
+    try:
+        assert "[echo] first" in await _echo(pool, "first")
+        persistent_pid, persistent_session = _resident(pool.get("mock"))
+
+        oneshot_resident: tuple[int, str] | None = None
+        oneshot_text: list[str] = []
+        async for event in pool.run_turn("mock", "review", session_id="mock-oneshot-1", mode="oneshot"):
+            if event.type == RuntimeEventType.TEXT_DELTA:
+                oneshot_text.append(str(event.data.get("content")))
+                oneshot_resident = _resident(pool._oneshot_backends[("mock", "mock-oneshot-1")])
+
+        assert "[echo] review" in "".join(oneshot_text)
+        assert oneshot_resident is not None
+        oneshot_pid, oneshot_session = oneshot_resident
+        assert oneshot_pid != persistent_pid
+        assert oneshot_session != persistent_session
+        assert await _wait_until_gone(oneshot_pid)
+
+        # The persistent backend is the same process and session as before the oneshot turn.
+        assert "[echo] second" in await _echo(pool, "second")
+        assert _resident(pool.get("mock")) == (persistent_pid, persistent_session)
+    finally:
+        await pool.close_all()
