@@ -5,7 +5,8 @@
 - opentelemetry-exporter-otlp-proto-http / -grpc (POS: optional official exporters)
 
 [OUTPUT]
-- OtlpUnavailableError: the requested protocol cannot be served (package missing, unsupported, bad config)
+- OtlpUnavailableError: the requested protocol cannot be served (package missing, unsupported, bad config);
+  its message never quotes the target's credentials
 - create_span_exporter / create_metric_exporter: exporter for one resolved target
 
 [POS]
@@ -25,7 +26,13 @@ from typing import cast
 from opentelemetry.sdk.metrics.export import MetricExporter
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from myrm_agent_harness.infra.tracing.otlp.config import PROTOCOL_GRPC, PROTOCOL_HTTP, OtlpTarget, Signal
+from myrm_agent_harness.infra.tracing.otlp.config import (
+    PROTOCOL_GRPC,
+    PROTOCOL_HTTP,
+    OtlpTarget,
+    Signal,
+    redact_endpoint,
+)
 
 _PACKAGE_FLAVOR: dict[str, str] = {
     PROTOCOL_HTTP: "http",
@@ -84,6 +91,14 @@ def _exporter_class(target: OtlpTarget) -> type:
         ) from exc
 
 
+def _scrub(message: str, target: OtlpTarget) -> str:
+    """Mask the target's credentials in text that may quote what the exporter was given."""
+    for value in (target.headers or {}).values():
+        if value:
+            message = message.replace(value, "[REDACTED]")
+    return redact_endpoint(message)
+
+
 def _build(target: OtlpTarget) -> object:
     exporter_class = _exporter_class(target)
     kwargs: dict[str, object] = {"endpoint": target.endpoint}
@@ -92,7 +107,9 @@ def _build(target: OtlpTarget) -> object:
     try:
         return exporter_class(**kwargs)
     except Exception as exc:
-        raise OtlpUnavailableError(f"OTLP {target.signal} exporter could not be created: {exc}") from exc
+        raise OtlpUnavailableError(
+            f"OTLP {target.signal} exporter could not be created: {_scrub(str(exc), target)}"
+        ) from exc
 
 
 def create_span_exporter(target: OtlpTarget) -> SpanExporter:
