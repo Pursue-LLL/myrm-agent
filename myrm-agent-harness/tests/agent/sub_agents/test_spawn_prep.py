@@ -20,6 +20,8 @@ from myrm_agent_harness.agent.sub_agents.types import (
     WorkspacePolicy,
 )
 from myrm_agent_harness.core.security.ocap import capability_scope
+from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 
 def test_apply_readonly_promotes_read_only_sandbox() -> None:
@@ -109,15 +111,9 @@ def test_merge_candidate_false_on_failed_spawn() -> None:
     assert not merge_candidate_from_spawn_dict({"success": False, "result": {}})
 
 
-def _fake_memory_manager() -> SimpleNamespace:
-    return SimpleNamespace(
-        _user_id="u1",
-        _namespaces=[],
-        _scope="session",
-        _config=SimpleNamespace(),
-        has_relational=False,
-        has_vector=False,
-    )
+def _memory_manager() -> MemoryManager:
+    """A real parent: the isolation managers subclass it and copy its state, so a stand-in drifts from them."""
+    return MemoryManager(MemoryConfig(embedding_model="m"), user_id="u1", auto_warmup=False)
 
 
 def test_memory_isolation_scope_variants(monkeypatch) -> None:
@@ -125,7 +121,7 @@ def test_memory_isolation_scope_variants(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "myrm_agent_harness.agent.skill_agent.context.get_memory_manager",
-        lambda: _fake_memory_manager(),
+        _memory_manager,
     )
     parent = SimpleNamespace()
 
