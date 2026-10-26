@@ -454,6 +454,7 @@ def _parse_webdav_multistatus(xml_text: str) -> list[RemoteBackupFile]:
     """Parse WebDAV PROPFIND 207 multistatus response."""
     import re
     from email.utils import parsedate_to_datetime
+    from urllib.parse import unquote
 
     results: list[RemoteBackupFile] = []
 
@@ -468,7 +469,7 @@ def _parse_webdav_multistatus(xml_text: str) -> list[RemoteBackupFile]:
         if not href_match:
             continue
         href = href_match.group(1).strip()
-        filename = href.rstrip("/").rsplit("/", 1)[-1]
+        filename = unquote(href.rstrip("/").rsplit("/", 1)[-1])  # hrefs are percent-encoded
         if not filename or not filename.endswith(".gz"):
             continue
 

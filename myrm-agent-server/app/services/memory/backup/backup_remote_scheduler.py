@@ -6,7 +6,9 @@ app.services.memory.backup.snapshot::capture_snapshot/apply_snapshot/encode_snap
 
 Runs one remote backup cycle (capture snapshot, upload, rotate) and remote restores for
 WebDAV/S3. The APScheduler job in app.lifecycle.schedulers drives the periodic cycle; the
-snapshot format is shared with the local volume backups.
+snapshot format is shared with the local volume backups. Rotation deletes only files named
+the way this module names its own, for the same device and platform, so other files in the
+same folder or bucket are never touched.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
+import re
 import socket
 import tempfile
 from datetime import UTC, datetime
@@ -45,6 +48,14 @@ _RETRY_BASE_DELAY_S = 2.0
 
 # The remote name is only a selector on the storage provider; the download always lands under this fixed local name.
 _DOWNLOAD_FILE_NAME = "backup.json.gz"
+
+# The one name this module writes: myrm.<UTC timestamp>.<device>.<platform>.json.gz. The device may contain dots
+# (host names such as "mac.local"), the platform never does, so the last dotted part before the extension is
+# always the platform.
+_BACKUP_NAME = re.compile(r"myrm\.[0-9]{14}\.(?P<device>[\w.-]+)\.(?P<platform>[a-z0-9_-]+)\.json\.gz")
+_UNSAFE_DEVICE_CHARS = re.compile(r"[^\w.-]+")
+_UNSAFE_PLATFORM_CHARS = re.compile(r"[^a-z0-9_-]+")
+_MAX_DEVICE_LABEL_LENGTH = 64
 
 
 async def _upload_with_retry(
@@ -110,10 +121,10 @@ async def run_remote_backup(
     try:
         snapshot = await capture_snapshot(manager)
 
-        hostname = device_name or socket.gethostname() or "unknown"
-        device_type = platform.system().lower() or "unknown"
+        device = _device_label(device_name or socket.gethostname())
+        platform_label = _platform_label(platform.system())
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-        backup_filename = f"myrm.{timestamp}.{hostname}.{device_type}.json.gz"
+        backup_filename = f"myrm.{timestamp}.{device}.{platform_label}.json.gz"
 
         with tempfile.TemporaryDirectory(prefix="myrm_remote_backup_") as temp_dir:
             local_path = Path(temp_dir) / _DOWNLOAD_FILE_NAME
@@ -128,7 +139,7 @@ async def run_remote_backup(
             }
 
         if max_backups > 0:
-            await _rotate_backups(strategy, hostname, device_type, max_backups)
+            await _rotate_backups(strategy, device, platform_label, max_backups)
 
         return {
             "success": True,
@@ -194,25 +205,48 @@ async def restore_from_remote(
         }
 
 
+def _device_label(raw: str) -> str:
+    """The device name as it appears in a remote file name: letters, digits, dots, dashes and underscores only.
+
+    Anything else (path separators, ``#``, ``?``, ``%``, spaces) would change what the remote path means, and a
+    name that is not stable across listing and upload could never be matched again for rotation.
+    """
+    label = _UNSAFE_DEVICE_CHARS.sub("-", raw)[:_MAX_DEVICE_LABEL_LENGTH].strip(".-")
+    return label or "unknown"
+
+
+def _platform_label(raw: str) -> str:
+    return _UNSAFE_PLATFORM_CHARS.sub("-", raw.lower()).strip("-") or "unknown"
+
+
+def _is_backup_of(file_name: str, device: str, platform_label: str) -> bool:
+    match = _BACKUP_NAME.fullmatch(file_name)
+    return match is not None and match["device"] == device and match["platform"] == platform_label
+
+
 async def _rotate_backups(
     strategy: RemoteBackupStrategy,
-    hostname: str,
-    device_type: str,
+    device: str,
+    platform_label: str,
     max_backups: int,
 ) -> None:
-    """Delete old backups exceeding max_backups for this device."""
+    """Delete this device's backups beyond the newest ``max_backups``.
+
+    Only names this module wrote for exactly this device and platform qualify, and age comes from the
+    timestamp in the name: files that merely share the folder, a device whose name contains another's, or an
+    unreliable listing order and modified time can never cost a backup its place.
+    """
     try:
-        all_files = await strategy.list_files()
-
-        device_files = [f for f in all_files if hostname in f.file_name and device_type in f.file_name]
-
-        if len(device_files) <= max_backups:
-            return
-
-        to_delete = device_files[max_backups:]
-        for f in to_delete:
-            await strategy.delete(f.file_name)
-            logger.info("Rotated old backup: %s", f.file_name)
+        # Identical apart from the fixed-width timestamp, so name order is age order.
+        own = sorted(
+            (f.file_name for f in await strategy.list_files() if _is_backup_of(f.file_name, device, platform_label)),
+            reverse=True,
+        )
+        for name in own[max_backups:]:
+            if await strategy.delete(name):
+                logger.info("Rotated old backup: %s", name)
+            else:
+                logger.warning("Could not delete old backup: %s", name)
     except Exception as e:
         logger.warning("Backup rotation failed: %s", e)
 
