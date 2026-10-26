@@ -207,9 +207,9 @@ class MemoryRetriever(RetrievalScoringMixin):
         When source_diversity_weight=0, degrades to standard content-only MMR.
 
         ``content_sim`` is the highest Jaccard similarity between a candidate and anything
-        already selected. It is refreshed once per pick, so a pick costs one pass over the
-        remaining candidates rather than one pass per selected document. Candidates that
-        tie on MMR value go to the one listed first in ``scores``.
+        already selected. Each scan folds in only the newest pick, so a pick costs one pass
+        over the remaining candidates. Candidates that tie on MMR value go to the one listed
+        first in ``scores``.
 
         Returns:
             Filtered (scores, items) containing only the selected documents.
@@ -232,10 +232,16 @@ class MemoryRetriever(RetrievalScoringMixin):
         source_weight = self._config.source_diversity_weight
 
         for selected_count in range(min(limit, len(scores))):
+            newest_tokens = token_sets[selected[-1]] if selected else None
             best_id = ""
             best_mmr = float("-inf")
 
             for mid, content_sim in max_sim.items():
+                if newest_tokens is not None:
+                    overlap = _jaccard_similarity(token_sets[mid], newest_tokens)
+                    if overlap > content_sim:
+                        content_sim = max_sim[mid] = overlap
+
                 source_penalty = 0.0
                 if source_weight > 0 and selected_count > 0:
                     source_id = getattr(items[mid].memory, "source_chat_id", None)
@@ -255,12 +261,6 @@ class MemoryRetriever(RetrievalScoringMixin):
             best_source = getattr(items[best_id].memory, "source_chat_id", None)
             if best_source:
                 source_counts[best_source] = source_counts.get(best_source, 0) + 1
-
-            chosen_tokens = token_sets[best_id]
-            for mid, content_sim in max_sim.items():
-                overlap = _jaccard_similarity(token_sets[mid], chosen_tokens)
-                if overlap > content_sim:
-                    max_sim[mid] = overlap
 
         return ({mid: scores[mid] for mid in selected}, {mid: items[mid] for mid in selected})
 
