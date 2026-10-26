@@ -10,8 +10,9 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupStore, GroupStatus
 
-# What a vault's ``.raw_dedup.db`` looked like before it had a compile hold ledger.
-_LEGACY_SCHEMA = """
+# A vault database that holds decisions, groups and scan metadata but has neither the fingerprint cache nor the
+# compile hold tables.
+_SCHEMA_WITHOUT_CACHE_AND_HOLDS = """
 CREATE TABLE excluded_paths (relative_path TEXT PRIMARY KEY, reason TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE trashed_paths (
     relative_path TEXT PRIMARY KEY, trash_relpath TEXT NOT NULL, content_hash TEXT NOT NULL DEFAULT '',
@@ -130,14 +131,14 @@ def test_decisions_survive_reopening_the_store(structure: WikiStructure) -> None
     assert reopened.dispositions.get_excluded_paths() == {"a.md"}
 
 
-def test_a_vault_database_from_before_the_compile_hold_ledger_opens_with_its_data_intact(
+def test_a_vault_database_without_the_cache_and_hold_tables_opens_with_its_data_intact(
     structure: WikiStructure,
 ) -> None:
     db_path = structure.base_dir / ".raw_dedup.db"
     conn = sqlite3.connect(db_path)
     with conn:
-        conn.executescript(_LEGACY_SCHEMA)
-        conn.execute("INSERT INTO excluded_paths VALUES ('old.md', 'manual', '2026-01-01T00:00:00+00:00')")
+        conn.executescript(_SCHEMA_WITHOUT_CACHE_AND_HOLDS)
+        conn.execute("INSERT INTO excluded_paths VALUES ('decided.md', 'manual', '2026-01-01T00:00:00+00:00')")
         conn.execute(
             "INSERT INTO duplicate_groups (id, tier, fingerprint, recommended_keep_path, status, created_at, updated_at)"
             " VALUES (7, 'exact', 'f', 'x.md', 'open', '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')"
@@ -148,7 +149,7 @@ def test_a_vault_database_from_before_the_compile_hold_ledger_opens_with_its_dat
 
     store = CorpusDedupStore(structure)
 
-    assert store.dispositions.get_excluded_paths() == {"old.md"}
+    assert store.dispositions.get_excluded_paths() == {"decided.md"}
     groups = store.list_groups(status=GroupStatus.OPEN)
     assert [(group.group_id, sorted(member.relative_path for member in group.members)) for group in groups] == [
         (7, ["x.md", "y.md"])
