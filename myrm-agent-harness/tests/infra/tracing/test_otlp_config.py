@@ -89,7 +89,7 @@ def test_an_explicit_endpoint_wins_over_the_environment(monkeypatch: pytest.Monk
 def test_protocol_precedence_is_argument_then_signal_then_general_then_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://c:4317")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://c:4318")
     assert resolve_target("traces").protocol == "http/protobuf"  # type: ignore[union-attr]
 
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
@@ -100,6 +100,67 @@ def test_protocol_precedence_is_argument_then_signal_then_general_then_default(
     assert resolve_target("metrics").protocol == "grpc"  # type: ignore[union-attr]
 
     assert resolve_target("traces", protocol="GRPC").protocol == "grpc"  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "protocol"),
+    [
+        ("http://collector:4317", "grpc"),
+        ("https://jaeger.example.com:4317/", "grpc"),
+        ("collector:4317", "grpc"),
+        ("http://user:secret@collector:4317", "grpc"),
+        ("http://[::1]:4317", "grpc"),
+        ("grpc://collector:4317", "grpc"),
+        ("grpc://collector", "grpc"),
+        ("http://collector:4318", "http/protobuf"),
+        ("https://otlp.example.com", "http/protobuf"),
+        ("collector:4318", "http/protobuf"),
+        ("http://collector:43170", "http/protobuf"),
+        ("http://collector:14317", "http/protobuf"),
+        ("http://collector/4317", "http/protobuf"),
+        ("http://user:secret@collector:notaport", "http/protobuf"),
+        ("http://collector:99999", "http/protobuf"),
+        ("http://[::1", "http/protobuf"),
+    ],
+)
+def test_with_no_protocol_configured_the_endpoint_decides(endpoint: str, protocol: str) -> None:
+    target = resolve_target("traces", endpoint=endpoint)
+
+    assert target is not None and target.protocol == protocol
+
+
+def test_a_configured_protocol_beats_the_endpoint_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    explicit = resolve_target("traces", endpoint="http://collector:4317", protocol="http/protobuf")
+    assert explicit is not None
+    assert (explicit.endpoint, explicit.protocol) == ("http://collector:4317/v1/traces", "http/protobuf")
+
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+    from_env = resolve_target("metrics", endpoint="http://collector:4317")
+    assert from_env is not None
+    assert (from_env.endpoint, from_env.protocol) == ("http://collector:4317/v1/metrics", "http/protobuf")
+
+
+def test_the_hint_applies_to_the_environment_endpoints_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4317")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://metrics-collector:4318/custom")
+
+    traces, metrics = resolve_target("traces"), resolve_target("metrics")
+
+    assert traces is not None and (traces.endpoint, traces.protocol) == ("http://collector:4317", "grpc")
+    assert metrics is not None and (metrics.endpoint, metrics.protocol) == (
+        "http://metrics-collector:4318/custom",
+        "http/protobuf",
+    )
+
+
+@pytest.mark.parametrize("variable", ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"])
+def test_a_grpc_url_is_dialled_as_plaintext(variable: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    explicit = resolve_target("traces", endpoint="grpc://collector:4317")
+    assert explicit is not None and (explicit.endpoint, explicit.protocol) == ("http://collector:4317", "grpc")
+
+    monkeypatch.setenv(variable, "grpc://collector:4317")
+    from_env = resolve_target("traces")
+    assert from_env is not None and (from_env.endpoint, from_env.protocol) == ("http://collector:4317", "grpc")
 
 
 def test_exporter_none_switches_an_environment_destination_off_per_signal(monkeypatch: pytest.MonkeyPatch) -> None:

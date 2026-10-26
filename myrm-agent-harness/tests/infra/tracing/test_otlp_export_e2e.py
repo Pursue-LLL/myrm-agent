@@ -67,6 +67,13 @@ def test_grpc_protocol_reaches_a_grpc_collector(grpc_receiver: OtlpGrpcReceiver)
     assert get_telemetry_posture()["exporter_type"] == "otlp_grpc"
 
 
+def test_the_conventional_grpc_port_selects_the_grpc_exporter_when_no_protocol_is_set() -> None:
+    setup_tracing(service_name="svc-port", otlp_endpoint="http://127.0.0.1:4317")
+
+    posture = get_telemetry_posture()
+    assert (posture["protocol"], posture["exporter_type"]) == ("grpc", "otlp_grpc")
+
+
 def test_protocol_selected_by_the_standard_environment(
     grpc_receiver: OtlpGrpcReceiver, monkeypatch: pytest.MonkeyPatch
 ) -> None:

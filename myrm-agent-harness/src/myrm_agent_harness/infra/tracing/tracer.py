@@ -121,7 +121,8 @@ def setup_tracing(
         console_export: Print spans to stdout (development). Ignored when an OTLP endpoint is set.
         otlp_endpoint: Explicit endpoint; otherwise the standard ``OTEL_EXPORTER_OTLP_*`` variables.
         otlp_headers: Explicit headers (dict or ``k=v,k2=v2``); otherwise ``OTEL_EXPORTER_OTLP_HEADERS``.
-        otlp_protocol: ``http/protobuf`` or ``grpc``; otherwise the standard variables, then HTTP.
+        otlp_protocol: ``http/protobuf`` or ``grpc``; otherwise the standard variables, then what the endpoint
+            names (``grpc://`` or port 4317 means gRPC), then HTTP.
         local_trace_only: Refuse remote export (also enforced by ``MYRM_LOCAL_TRACE_ONLY``).
         sampler: Optional SDK sampler; otherwise ``OTEL_TRACES_SAMPLER`` / ``OTEL_TRACES_SAMPLER_ARG``,
             default parent-based always-on.

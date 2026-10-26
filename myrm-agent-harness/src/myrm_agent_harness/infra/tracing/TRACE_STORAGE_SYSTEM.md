@@ -73,7 +73,7 @@ All settings are the standard OpenTelemetry variables. Arguments of `setup_traci
 |----------|--------|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL for traces and metrics. HTTP/protobuf appends `/v1/traces` or `/v1/metrics`; gRPC uses it as given. Setting it switches export on. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Per-signal URL, used verbatim. |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` (and per-signal variants) | `http/protobuf` (default) or `grpc`. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` (and per-signal variants) | `http/protobuf` (default) or `grpc`. When unset, an endpoint on the conventional gRPC port `4317` (or a `grpc://` URL, dialled as plaintext) selects gRPC. |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `key=value,key2=value2` (URL-decoded), e.g. `Authorization=Bearer%20<token>`. Never shown in the posture. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT`, `..._COMPRESSION`, `..._CERTIFICATE` | Read by the official exporters. |
 | `OTEL_TRACES_EXPORTER=none` / `OTEL_METRICS_EXPORTER=none` | Switch one signal off while an endpoint is configured. |
@@ -184,7 +184,7 @@ The GenAI client metrics are recorded from the model call itself, so lowering th
 **No traces in the backend**
 
 1. `get_telemetry_posture()["status"]`: `noop` means no endpoint is configured, `disabled` means `OTEL_SDK_DISABLED=true`, `degraded` carries the reason (for example a missing `opentelemetry-exporter-otlp-proto-http`), `failing` means the collector rejected or could not receive the last batch (`last_failure_at`, `failed_batches`).
-2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317`.
+2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317` (an unset protocol is inferred from that port).
 3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design.
 4. A sampler of `always_off` or a ratio of `0` drops every trace: the posture shows the active sampler.
 

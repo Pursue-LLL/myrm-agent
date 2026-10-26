@@ -15,7 +15,9 @@
 Pure configuration logic (no SDK import). A general ``OTEL_EXPORTER_OTLP_ENDPOINT`` is a base URL
 that gets ``/v1/traces`` or ``/v1/metrics`` appended for HTTP/protobuf (a base that already ends
 with the signal path is used as is); a signal-specific URL is used verbatim; gRPC takes the endpoint
-as given. ``OTEL_TRACES_EXPORTER=none`` / ``OTEL_METRICS_EXPORTER=none`` switch one signal off.
+as given. A configured protocol always wins; with none configured the endpoint decides: a ``grpc://``
+URL (dialled as plaintext ``http://``) or the conventional gRPC port 4317 means gRPC, anything else
+HTTP/protobuf. ``OTEL_TRACES_EXPORTER=none`` / ``OTEL_METRICS_EXPORTER=none`` switch one signal off.
 The same rules serve the span exporter, the metric exporter, the posture probe and the isolation
 gate, so what is displayed is what is dialled.
 """
@@ -39,6 +41,8 @@ type Signal = Literal["traces", "metrics"]
 PROTOCOL_HTTP = "http/protobuf"
 PROTOCOL_GRPC = "grpc"
 DEFAULT_PROTOCOL = PROTOCOL_HTTP
+GRPC_PORT = 4317
+_GRPC_SCHEME = "grpc://"
 
 _SIGNAL_ENV_KEY: dict[Signal, str] = {"traces": "TRACES", "metrics": "METRICS"}
 _SIGNAL_PATH: dict[Signal, str] = {"traces": "v1/traces", "metrics": "v1/metrics"}
@@ -79,6 +83,19 @@ def parse_otlp_headers(raw_headers: str | None = None) -> dict[str, str]:
     return headers
 
 
+def _hinted_protocol(endpoint: str) -> str:
+    """The protocol an endpoint names by itself: gRPC for a ``grpc://`` URL or the conventional port 4317.
+
+    Total: a malformed authority names nothing and falls back to the default protocol.
+    """
+    try:
+        parts = urllib.parse.urlsplit(endpoint if "://" in endpoint else f"//{endpoint}")
+        is_grpc = parts.scheme == "grpc" or parts.port == GRPC_PORT
+    except ValueError:
+        return DEFAULT_PROTOCOL
+    return PROTOCOL_GRPC if is_grpc else DEFAULT_PROTOCOL
+
+
 def _signal_url(base: str, signal: Signal, protocol: str) -> str:
     if protocol == PROTOCOL_GRPC:
         return base
@@ -99,27 +116,30 @@ def resolve_target(
     ``endpoint`` has the semantics of ``OTEL_EXPORTER_OTLP_ENDPOINT`` (a base URL) and wins over the
     environment; otherwise the signal-specific variable (verbatim) precedes the general one. An
     environment-selected destination is switched off by ``OTEL_<SIGNAL>_EXPORTER=none``; an explicit
-    ``endpoint`` is a deliberate choice of the caller and is not.
+    ``endpoint`` is a deliberate choice of the caller and is not. The protocol is the argument, then the
+    signal-specific variable, then the general one, then what the endpoint names (see ``_hinted_protocol``),
+    then HTTP/protobuf.
     """
     key = _SIGNAL_ENV_KEY[signal]
     explicit_endpoint = bool(endpoint and endpoint.strip())
     if not explicit_endpoint and _env(f"OTEL_{key}_EXPORTER").lower() == "none":
         return None
-    resolved_protocol = (
-        protocol
-        or _env(f"OTEL_EXPORTER_OTLP_{key}_PROTOCOL")
-        or _env("OTEL_EXPORTER_OTLP_PROTOCOL")
-        or DEFAULT_PROTOCOL
-    ).lower()
+    configured_protocol = protocol or _env(f"OTEL_EXPORTER_OTLP_{key}_PROTOCOL") or _env("OTEL_EXPORTER_OTLP_PROTOCOL")
 
     if endpoint and explicit_endpoint:
-        url = _signal_url(endpoint.strip(), signal, resolved_protocol)
+        base, verbatim = endpoint.strip(), False
     elif signal_specific := _env(f"OTEL_EXPORTER_OTLP_{key}_ENDPOINT"):
-        url = signal_specific
+        base, verbatim = signal_specific, True
     elif general := _env("OTEL_EXPORTER_OTLP_ENDPOINT"):
-        url = _signal_url(general, signal, resolved_protocol)
+        base, verbatim = general, False
     else:
         return None
+
+    resolved_protocol = (configured_protocol or _hinted_protocol(base)).lower()
+    url = base if verbatim else _signal_url(base, signal, resolved_protocol)
+    if resolved_protocol == PROTOCOL_GRPC and url.lower().startswith(_GRPC_SCHEME):
+        # The official gRPC exporter assumes TLS for a scheme it does not know; ``grpc://`` means plaintext.
+        url = f"http://{url[len(_GRPC_SCHEME) :]}"
 
     explicit = parse_otlp_headers(headers) if isinstance(headers, str) else dict(headers or {})
     from_env = bool(_env(f"OTEL_EXPORTER_OTLP_{key}_HEADERS") or _env("OTEL_EXPORTER_OTLP_HEADERS"))
