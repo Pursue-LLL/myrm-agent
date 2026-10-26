@@ -4,9 +4,8 @@ Validates:
 1. Static contract & zero-overhead envelope sealing.
 2. Canonical SHA256 audit hash generation and tamper detection.
 3. Full coverage across all 7 memory entity kinds.
-4. Multi-tier storage dispatch (relational, vector, graph).
+4. Policy-based storage dispatch (relational and vector through the manager, graph undispatched).
 5. Anti-tamper gate in import_envelopes.
-6. Server MemoryArchiveService dry-run tamper verification.
 """
 
 from __future__ import annotations
@@ -176,36 +175,23 @@ def test_infer_tier_and_policy_all_seven_types() -> None:
 
 @pytest.mark.asyncio
 async def test_scheduler_dispatch_routes() -> None:
-    """Verify MultiTierMemoryScheduler routes entities according to storage policy."""
-    relational = AsyncMock()
-    relational.save_memory = AsyncMock()
-    vector = AsyncMock()
-    vector.save_memory = AsyncMock()
-    graph = AsyncMock()
-    graph.save_memory = AsyncMock()
-
+    """Relational and vector memories are written through the manager; graph has no write target."""
     mock_manager = AsyncMock()
-    mock_manager._relational = relational
-    mock_manager._relational_store = relational
-    mock_manager._graph_store = graph
     mock_manager.store = AsyncMock()
-
     scheduler = MultiTierMemoryScheduler(memory_manager=mock_manager)
 
-    # 1. TaskDigest -> Relational
+    # 1. TaskDigest -> RELATIONAL policy -> manager.store
     digest = TaskDigestMemory(id="td-1", task_goal="Optimize DB", source_session_id="s1")
-    res = await scheduler.dispatch_store(digest)
-    assert res is True
-    assert relational.save_memory.await_count == 1
-    assert mock_manager.store.await_count == 0
+    assert await scheduler.dispatch_store(digest) is True
+    mock_manager.store.assert_awaited_with(digest)
 
-    # 2. Semantic -> Vector (via manager.store)
+    # 2. Semantic -> VECTOR policy -> manager.store
     sem = SemanticMemory(id="sem-1", content="test")
-    res = await scheduler.dispatch_store(sem)
-    assert res is True
-    assert mock_manager.store.await_count == 1
+    assert await scheduler.dispatch_store(sem) is True
+    mock_manager.store.assert_awaited_with(sem)
+    assert mock_manager.store.await_count == 2
 
-    # 3. Claim -> Graph
+    # 3. Claim -> GRAPH policy has no write target and must not reach the manager
     claim = ClaimMemory(
         id="c-1",
         subject="A",
@@ -216,54 +202,29 @@ async def test_scheduler_dispatch_routes() -> None:
         claim_text="Text 1",
         content="Text 1",
     )
-    res = await scheduler.dispatch_store(claim)
-    assert res is True
-    assert graph.save_memory.await_count == 1
+    assert await scheduler.dispatch_store(claim) is False
+    assert mock_manager.store.await_count == 2
 
 
 @pytest.mark.asyncio
-async def test_scheduler_export_all_envelopes() -> None:
-    """Verify scheduler aggregates all stores into sealed MemCubeEnvelopes."""
-    relational = AsyncMock()
-    del relational.get_all
-    relational.list_memories = AsyncMock(
-        return_value=[
-            ProceduralMemory(id="p1", content="Rule 1", trigger="t1", action="a1"),
-            TaskDigestMemory(id="t1", task_goal="Digest 1", source_session_id="s1"),
-        ]
-    )
+async def test_scheduler_dispatch_skips_ephemeral_and_reports_write_failures() -> None:
+    """Ephemeral memories are never persisted; a rejected write is reported, not raised."""
     mock_manager = AsyncMock()
-    mock_manager._relational = relational
-    mock_manager._relational_store = relational
-
-    async def _mock_export_all(memory_types: list[MemoryType], limit: int = 1000) -> list[object]:
-        if MemoryType.SEMANTIC in memory_types:
-            return [SemanticMemory(id="s1", content="Semantic 1")]
-        return []
-
-    mock_manager.export_all = AsyncMock(side_effect=_mock_export_all)
-
     scheduler = MultiTierMemoryScheduler(memory_manager=mock_manager)
+    sem = SemanticMemory(id="sem-2", content="scratch")
 
-    envelopes = await scheduler.export_all_envelopes()
-    assert len(envelopes) == 3
+    assert await scheduler.dispatch_store(sem, policy=StoragePolicy.EPHEMERAL) is True
+    mock_manager.store.assert_not_awaited()
 
-    # All exported envelopes must have valid audit hashes
-    for env_dict in envelopes:
-        env = MemCubeEnvelope[dict[str, object]].model_validate(env_dict)
-        assert env.verify_audit_hash() is True
+    mock_manager.store.side_effect = ValueError("Unknown memory type")
+    assert await scheduler.dispatch_store(sem) is False
+    assert await MultiTierMemoryScheduler().dispatch_store(sem) is False
 
 
 @pytest.mark.asyncio
 async def test_scheduler_import_envelopes_anti_tamper() -> None:
     """Scheduler rejects tampered envelopes when verify_hashes=True."""
-    relational = AsyncMock()
-    relational.save_memory = AsyncMock()
-
     mock_manager = AsyncMock()
-    mock_manager._relational = relational
-    mock_manager._relational_store = relational
-
     scheduler = MultiTierMemoryScheduler(memory_manager=mock_manager)
 
     proc = ProceduralMemory(id="p1", content="Safe rule", trigger="t1", action="a1")
@@ -275,13 +236,13 @@ async def test_scheduler_import_envelopes_anti_tamper() -> None:
 
     with pytest.raises(ValueError, match="Tamper detected"):
         await scheduler.import_envelopes([env_dict], verify_hashes=True)
+    mock_manager.store.assert_not_awaited()
 
     # When verify_hashes=False, import proceeds
-    relational.save_memory.reset_mock()
     restored, skipped = await scheduler.import_envelopes([env_dict], verify_hashes=False)
     assert restored == 1
     assert skipped == 0
-    assert relational.save_memory.await_count == 1
+    assert mock_manager.store.await_count == 1
 
 
 def test_memcube_access_count_and_timestamp_roundtrip() -> None:
@@ -304,5 +265,3 @@ def test_memcube_access_count_and_timestamp_roundtrip() -> None:
     assert unwrapped.id == "sem-usage-test"
     assert unwrapped.access_count == 77
     assert unwrapped.last_accessed_at == accessed_time
-
-

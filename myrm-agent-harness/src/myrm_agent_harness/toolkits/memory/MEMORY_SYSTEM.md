@@ -1099,12 +1099,9 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - 提供 `wrap_into_envelope` 与 `unwrap_envelope` 双向无损类型转换适配器，以及全类型自适应推导函数 `infer_tier_and_policy`。
 - **多层自适应记忆调度器（`MultiTierMemoryScheduler`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.scheduler`；
-  - 统一物理介质分流（`dispatch_store`）：根据 `StoragePolicy` 智能解耦分流，关系型规则（如 TaskDigest、Procedural 等）优先定向路由至关系库或安全通道，向量知识路由至向量库，图谱实体路由至图存储；
-  - 全量信封封箱导出（`export_all_envelopes`）：聚合底层各存储介质中的全部记忆条目，自动密封为带有 SHA256 防篡改签名的标准 `MemCubeEnvelope` 列表；
-  - 防篡改批量导入落盘（`import_envelopes`）：在数据恢复与导入时，前置执行 SHA256 指纹校验门禁，自动识别并拦截篡改数据，同时依据策略自适应分流到目标存储底层。
-- **服务端与客户端治理闭环**：
-  - Server 端归档预检服务（`archive.py`）在导出与 dry-run 阶段深度集成 MemCube 签名校验，生成篡改安全审计警报代码；
-  - 前端恢复面板（`MemoryArchiveRestoreDialog.tsx`）采用双主题安全盾牌指示，清晰展示数据完整性合规状态。
+  - 按存储策略分发写入（`dispatch_store`）：`EPHEMERAL` 不落盘；`RELATIONAL` 与 `VECTOR` 一律交给 `MemoryManager.store`；`GRAPH` 无写入目标，返回未分发；
+  - 防篡改批量导入落盘（`import_envelopes`）：先执行 SHA256 指纹校验门禁，拦截被篡改的信封，再按策略分发；调用方入口为 `MemoryManager.import_memcube_envelopes`；
+  - 生产环境暂无调用方：服务端归档不携带信封，信封只能由宿主用 `wrap_into_envelope` 自行封装后导入。
 
 ---
 

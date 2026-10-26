@@ -59,18 +59,6 @@ class MemoryArchiveService:
 
         self._redaction_count = 0
         memory = self._redact(await self._export_memory(manager))
-        memcube_envelopes: list[dict[str, object]] = []
-        if hasattr(manager, "export_memcube_envelopes"):
-            try:
-                raw_envelopes = await manager.export_memcube_envelopes()
-                redacted_envelopes = self._redact(raw_envelopes)
-                memcube_envelopes = (
-                    [item for item in redacted_envelopes if isinstance(item, dict)]
-                    if isinstance(redacted_envelopes, list)
-                    else []
-                )
-            except Exception:
-                memcube_envelopes = []
 
         shared_context = self._redact(await self._export_shared_context())
         conversation = self._redact(await self._export_conversation())
@@ -78,7 +66,6 @@ class MemoryArchiveService:
         audit = self._redact(await self._export_audit())
         data = {
             "memory": memory,
-            "memcube_envelopes": memcube_envelopes,
             "shared_context": shared_context,
             "conversation": conversation,
             "replay": replay,

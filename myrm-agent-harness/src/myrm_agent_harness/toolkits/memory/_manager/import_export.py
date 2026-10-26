@@ -23,7 +23,6 @@ from myrm_agent_harness.toolkits.memory.types import (
     MemoryType,
     ProceduralMemory,
     SemanticMemory,
-    TaskDigestMemory,
 )
 
 # ── Path sanitization for safe sharing ─────────────────────────────
@@ -517,14 +516,6 @@ class MemoryManagerImportExportMixin:
 
         return result
 
-    async def export_memcube_envelopes(self) -> list[dict[str, object]]:
-        """Export all memories as sealed MemCube envelopes for portable tamper-proof roaming."""
-        from myrm_agent_harness.toolkits.memory.scheduler import MultiTierMemoryScheduler
-
-        scheduler = MultiTierMemoryScheduler(memory_manager=self)  # type: ignore[arg-type]
-        envelopes = await scheduler.export_all_envelopes()
-        return [env.model_dump(mode="json") for env in envelopes]
-
     async def import_memcube_envelopes(
         self, envelopes_data: Sequence[dict[str, object]], verify_hashes: bool = True
     ) -> tuple[int, int]:
@@ -563,7 +554,6 @@ class MemoryManagerImportExportMixin:
             MemoryType.CONVERSATION.value: ConversationMemory,
             MemoryType.CLAIM.value: ClaimMemory,
             MemoryType.INTEGRATION.value: IntegrationMemory,
-            MemoryType.TASK_DIGEST.value: TaskDigestMemory,
         }
 
         saved_dedup = self._deduplicator
@@ -602,20 +592,6 @@ class MemoryManagerImportExportMixin:
                     counts[type_name] = 0
                     continue
 
-                # Dedicated routing for TaskDigest to relational store directly
-                if type_name == MemoryType.TASK_DIGEST.value:
-                    imported = 0
-                    if self._relational and hasattr(self._relational, "save_memory"):
-                        for mem in memories:
-                            try:
-                                await self._relational.save_memory(mem)
-                                imported += 1
-                            except Exception as e:
-                                logger.warning("Import relational save failed for task digest: %s", e)
-                    counts[type_name] = imported
-                    continue
-
-                # Standard batch storage for other supported types
                 try:
                     stored = await self.store_batch(memories)  # type: ignore[arg-type]
                     counts[type_name] = len(stored)
