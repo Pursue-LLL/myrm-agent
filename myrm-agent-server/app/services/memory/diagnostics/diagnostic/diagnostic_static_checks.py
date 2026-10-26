@@ -2,6 +2,7 @@
 
 [INPUT]
 app.schemas.memory.command_center::MemoryCommandRuntimeStatus (POS: deployment and storage status)
+.diagnostic_probe_results::DiagnosticStatus (POS: probe status type shared by the diagnostic modules)
 
 [OUTPUT]
 Static MemoryCommandDoctorCheck builders for snapshot rendering.
@@ -14,11 +15,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
 
 from app.schemas.memory.command_center import MemoryCommandDoctorCheck, MemoryCommandRuntimeStatus
 
-DiagnosticStatus = Literal["ready", "warning", "critical", "missing"]
+from .diagnostic_probe_results import DiagnosticStatus
 
 
 def probe_relational_store(

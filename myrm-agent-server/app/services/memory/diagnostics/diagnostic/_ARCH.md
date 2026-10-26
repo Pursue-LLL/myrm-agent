@@ -9,7 +9,7 @@
 | 文件 | 类型 | 职责 | 状态 |
 | --- | --- | --- | --- |
 | `__init__.py` | 门面 | `diagnostic/` 子包入口，re-export 对外模块 | ✅ |
-| `diagnostic_probe_results.py` | 辅助 | probe 结果归一化：rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递、静态检查到可执行探针转换 | ✅ |
+| `diagnostic_probe_results.py` | 辅助 | probe 结果归一化：探针状态类型 `DiagnosticStatus`（各诊断模块共用）、rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递、静态检查到可执行探针转换 | ✅ |
 | `diagnostic_quality_governance.py` | 辅助 | 质量治理探针：读取框架层 health score，返回新鲜度/覆盖率/保留健康/一致性证据（不含内容） | ✅ |
 | `diagnostic_recall_benchmark.py` | 辅助 | 黄金召回基准：20 个合成 case（10 类别，中英双语，含长文档 Head/Tail 深层穿透与分块折叠去重验证；每条检索 `track_access=False`，命中的记忆不计入「最近使用」），返回 recall@5/ndcg@5/mrr/precision@5/duplicate_rate/distinct_sources 与 latency | ✅ |
 | `diagnostic_repair_executor.py` | 核心 | 修复执行器：白名单执行 `run_diagnostics`/`run_health_refresh`/`restore_disciplined_defaults`，配置类修复返回 blocked/manual。`restore_disciplined_defaults` 分层捕获：list 与逐条 archive 各自计失败并 `logger.warning(exc_info=True)`，失败数追加进用户可见消息（不静默谎报成功），单条失败不中断整轮清扫 | ✅ |

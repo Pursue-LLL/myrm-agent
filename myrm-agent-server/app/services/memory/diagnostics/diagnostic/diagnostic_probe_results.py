@@ -4,7 +4,8 @@
 app.schemas.memory.command_center (POS: Memory Doctor response contracts)
 
 [OUTPUT]
-Probe result construction and diagnostic rollup helpers.
+DiagnosticStatus (the probe status type every diagnostic module shares), probe result construction and
+diagnostic rollup helpers.
 
 [POS]
 单用户记忆诊断结果归一化工具。只处理状态与可视化契约，不读取业务记忆内容。
