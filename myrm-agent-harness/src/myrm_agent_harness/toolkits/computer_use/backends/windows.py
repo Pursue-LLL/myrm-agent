@@ -65,6 +65,10 @@ class WindowsBackend:
             return None
         return ActionResult(success=False, error=_POINTER_OCCLUDED_ERROR)
 
+    async def resolve_window_target(self, app_name: str, window_index: int = 0) -> tuple[int, int, int, int] | None:
+        """Window targeting is unsupported here: no window can be resolved."""
+        return None
+
     async def screenshot(self, app_name: str | None = None, window_index: int = 0) -> bytes:
         """Capture primary monitor as PNG bytes using mss."""
         if app_name:

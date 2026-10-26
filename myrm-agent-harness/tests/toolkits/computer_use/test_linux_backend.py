@@ -33,6 +33,11 @@ async def test_run_cmd(backend):
 
 
 @pytest.mark.asyncio
+async def test_window_target_is_unresolvable(backend):
+    assert await backend.resolve_window_target("gedit") is None
+
+
+@pytest.mark.asyncio
 async def test_screenshot(backend):
     with (
         patch("shutil.which", return_value=True),

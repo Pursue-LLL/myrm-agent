@@ -101,6 +101,10 @@ class TestWindowsBackendModifiers:
         return win_mod.WindowsBackend()
 
     @pytest.mark.asyncio
+    async def test_window_target_is_unresolvable(self, backend) -> None:
+        assert await backend.resolve_window_target("Notepad") is None
+
+    @pytest.mark.asyncio
     async def test_click_with_modifiers(self, backend) -> None:
         call_log: list[tuple[str, tuple]] = []
 

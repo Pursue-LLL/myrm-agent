@@ -78,6 +78,10 @@ class LinuxBackend:
         stdout, stderr = await proc.communicate()
         return stdout.decode(), stderr.decode(), proc.returncode or 0
 
+    async def resolve_window_target(self, app_name: str, window_index: int = 0) -> tuple[int, int, int, int] | None:
+        """Window targeting is unsupported here: no window can be resolved."""
+        return None
+
     async def screenshot(self, app_name: str | None = None, window_index: int = 0) -> bytes:
         if app_name:
             raise RuntimeError("window-targeted capture is not supported on Linux; use scope='foreground'")

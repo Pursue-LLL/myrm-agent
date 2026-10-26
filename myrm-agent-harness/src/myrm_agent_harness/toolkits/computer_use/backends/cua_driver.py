@@ -233,6 +233,9 @@ class CuaDriverBackend:
 
     # ── Delegated to fallback (non-input, no focus concern) ──────
 
+    async def resolve_window_target(self, app_name: str, window_index: int = 0) -> tuple[int, int, int, int] | None:
+        return await self._fallback.resolve_window_target(app_name, window_index)
+
     async def screenshot(self, app_name: str | None = None, window_index: int = 0) -> bytes:
         return await self._fallback.screenshot(app_name=app_name, window_index=window_index)
 

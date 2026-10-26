@@ -69,6 +69,13 @@ async def test_screenshot_delegates_to_fallback(backend: CuaDriverBackend, mock_
     mock_fallback.screenshot.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_resolve_window_target_delegates_to_fallback(backend: CuaDriverBackend, mock_fallback: MagicMock):
+    mock_fallback.resolve_window_target = AsyncMock(return_value=(10, 20, 800, 600))
+    assert await backend.resolve_window_target("Notes", 1) == (10, 20, 800, 600)
+    mock_fallback.resolve_window_target.assert_awaited_once_with("Notes", 1)
+
+
 def test_screen_info_delegates_to_fallback(backend: CuaDriverBackend, mock_fallback: MagicMock):
     info = backend.screen_info()
     assert info.width == 1920
