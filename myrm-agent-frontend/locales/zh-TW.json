@@ -530,7 +530,8 @@
     "previewLoadError": "預覽載入失敗",
     "unsupportedPreview": "暫不支援預覽此檔案類型，請下載查看。",
     "folderLoadFailed": "無法開啟此資料夾，請再試一次。",
-    "mentionFile": "在輸入框中引用此檔案"
+    "mentionFile": "在輸入框中引用此檔案",
+    "sessionWorkspace": "本次對話的工作區"
   },
   "loadout": {
     "title": "智能體配裝",

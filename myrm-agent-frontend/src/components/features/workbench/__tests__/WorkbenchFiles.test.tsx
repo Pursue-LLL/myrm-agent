@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry, WorkspaceFileSearchResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import { WorkbenchFiles } from '../tabs/WorkbenchFiles';
 
 const WORKSPACE = '/vault/chat-1';
@@ -16,6 +18,7 @@ vi.mock('next-intl', () => ({
 interface BrowserStubProps {
   workspacePath: string;
   files: FileEntry[];
+  loading?: boolean;
   error?: string | null;
   onFileClick?: (file: FileEntry) => void;
   onLoadChildren: (dirPath: string) => Promise<void>;
@@ -25,6 +28,7 @@ interface PreviewStubProps {
   file: FileEntry;
   workspace: string;
   onClose: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const renderEntries = (entries: FileEntry[], onFileClick?: (file: FileEntry) => void): React.ReactNode =>
@@ -40,18 +44,32 @@ const renderEntries = (entries: FileEntry[], onFileClick?: (file: FileEntry) => 
 vi.mock('next/dynamic', () => ({
   default: (loader: () => Promise<unknown>) => {
     if (String(loader).includes('WorkspaceFilePreview')) {
-      return ({ file, workspace, onClose }: PreviewStubProps) => (
-        <div data-testid="file-preview" data-workspace={workspace}>
-          <span>{file.path}</span>
-          <button type="button" onClick={onClose}>
-            close-preview
-          </button>
-        </div>
-      );
+      // Like the real preview: tells the host when edits exist or are saved, and that none remain once it is gone.
+      return ({ file, workspace, onClose, onDirtyChange }: PreviewStubProps) => {
+        useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+        return (
+          <div data-testid="file-preview" data-workspace={workspace}>
+            <span>{file.path}</span>
+            <button type="button" onClick={onClose}>
+              close-preview
+            </button>
+            <button type="button" onClick={() => onDirtyChange?.(true)}>
+              edit-preview
+            </button>
+            <button type="button" onClick={() => onDirtyChange?.(false)}>
+              save-preview
+            </button>
+          </div>
+        );
+      };
     }
-    return ({ workspacePath, files, error, onFileClick, onLoadChildren }: BrowserStubProps) => (
-      <div data-testid="file-browser" data-workspace={workspacePath}>
-        {error ? <span role="alert">{error}</span> : null}
+    return ({ workspacePath, files, loading, error, onFileClick, onLoadChildren }: BrowserStubProps) => (
+      <div
+        data-testid="file-browser"
+        data-workspace={workspacePath}
+        data-loading={String(Boolean(loading))}
+        data-error={error ?? ''}
+      >
         <button type="button" onClick={() => void onLoadChildren(`${workspacePath}/deep`)}>
           open-deep-folder
         </button>
@@ -129,10 +147,12 @@ describe('WorkbenchFiles', () => {
     Object.assign(hookState, { files: TREE, loading: false, error: null, truncated: false });
     searchWorkspaceFilesMock.mockResolvedValue({ results: [DEEP_MATCH], total: 1 });
     useChatStore.setState({ chatId: 'chat-1', workspaceDir: WORKSPACE });
+    useWorkbenchStore.setState({ isOpen: true, closeGuard: null });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('browses the workspace of the current chat through the shared browser', () => {
@@ -164,12 +184,14 @@ describe('WorkbenchFiles', () => {
     expect(searchWorkspaceFilesMock).not.toHaveBeenCalled();
   });
 
-  it('replaces a raw load failure with the localized message', () => {
-    hookState.error = 'ECONNREFUSED 127.0.0.1:8080';
+  it('hands the scan state to the browser, which words a failure for the user itself', () => {
+    Object.assign(hookState, { loading: true, error: 'ECONNREFUSED 127.0.0.1:8080' });
 
     render(<WorkbenchFiles />);
 
-    expect(screen.getByRole('alert').textContent).toBe('workspaceUnavailable');
+    const browser = screen.getByTestId('file-browser');
+    expect(browser.getAttribute('data-loading')).toBe('true');
+    expect(browser.getAttribute('data-error')).toBe('ECONNREFUSED 127.0.0.1:8080');
     expect(screen.queryByText(/ECONNREFUSED/)).toBeNull();
   });
 
@@ -278,5 +300,65 @@ describe('WorkbenchFiles', () => {
     fireEvent.click(screen.getByText('src'));
 
     expect(screen.queryByTestId('file-preview')).toBeNull();
+  });
+
+  describe('closing the drawer while the preview holds unsaved edits', () => {
+    const previewWithEdits = () => {
+      render(<WorkbenchFiles />);
+      fireEvent.click(screen.getByText('README.md'));
+      fireEvent.click(screen.getByText('edit-preview'));
+    };
+
+    it('holds the drawer back until the user, asked in their language, agrees to lose the edits', () => {
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      previewWithEdits();
+
+      useWorkbenchStore.getState().setOpen(false);
+
+      expect(confirm).toHaveBeenCalledWith('discardConfirm');
+      expect(useWorkbenchStore.getState().isOpen).toBe(true);
+
+      confirm.mockReturnValue(true);
+      useWorkbenchStore.getState().setOpen(false);
+
+      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+    });
+
+    it('does not interfere while the preview has nothing unsaved', () => {
+      const confirm = vi.spyOn(window, 'confirm');
+      render(<WorkbenchFiles />);
+      fireEvent.click(screen.getByText('README.md'));
+
+      useWorkbenchStore.getState().setOpen(false);
+
+      expect(confirm).not.toHaveBeenCalled();
+      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+    });
+
+    it.each([
+      ['the edits are saved', () => fireEvent.click(screen.getByText('save-preview'))],
+      ['the preview is closed', () => fireEvent.click(screen.getByText('close-preview'))],
+    ])('lets the drawer close freely once %s', (_name, settle) => {
+      const confirm = vi.spyOn(window, 'confirm');
+      previewWithEdits();
+
+      settle();
+      useWorkbenchStore.getState().setOpen(false);
+
+      expect(confirm).not.toHaveBeenCalled();
+      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+    });
+
+    it('leaves no guard behind when the tab itself goes away', () => {
+      const confirm = vi.spyOn(window, 'confirm');
+      previewWithEdits();
+      expect(useWorkbenchStore.getState().closeGuard).not.toBeNull();
+
+      cleanup();
+
+      expect(useWorkbenchStore.getState().closeGuard).toBeNull();
+      useWorkbenchStore.getState().setOpen(false);
+      expect(confirm).not.toHaveBeenCalled();
+    });
   });
 });

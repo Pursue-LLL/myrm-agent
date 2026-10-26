@@ -6,18 +6,20 @@
  * [INPUT]
  * - file: FileEntry to preview/edit
  * - workspace: Workspace root path for API calls
+ * - onDirtyChange: told whether the file holds edits that are not saved yet (false again when the preview goes away)
  * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
  *
  * [OUTPUT]
- * - WorkspaceFilePreview: Full-height panel showing file content with
- *   line numbers, edit mode toggle, and Ctrl+S save. Binary files
- *   (images/audio/video/PDF/office docs) are rendered by RichMediaFilePreview.
+ * - WorkspaceFilePreview: Full-height panel showing file content with line numbers, edit mode toggle, and
+ *   Ctrl+S save. Binary files (images/audio/video/PDF/office docs) are rendered by RichMediaFilePreview.
+ *   A file that cannot be read gets a localized notice; the server's reason is never shown.
  *
  * [POS]
  * File content preview/editor for the workspace browser. Fetches text file
  * content via /browse/content API and renders with line numbers. Supports
- * inline editing with Ctrl+S / Cmd+S keyboard save shortcut. Routes binary
- * files to the rich media renderer dispatcher.
+ * inline editing with Ctrl+S / Cmd+S keyboard save shortcut (ignored while the
+ * preview sits in a hidden tab panel). Routes binary files to the rich media
+ * renderer dispatcher.
  */
 
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
@@ -39,6 +41,7 @@ interface WorkspaceFilePreviewProps {
   file: FileEntry;
   workspace: string;
   onClose: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   className?: string;
 }
 
@@ -170,16 +173,17 @@ LineNumberedEditor.displayName = 'LineNumberedEditor';
 // ---------------------------------------------------------------------------
 
 export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
-  ({ file, workspace, onClose, className }) => {
+  ({ file, workspace, onClose, onDirtyChange, className }) => {
     const t = useTranslations('workspace');
     const [content, setContent] = useState<string | null>(null);
     const [editContent, setEditContent] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [editing, setEditing] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [showDiff, setShowDiff] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
 
     const previewKind = getPreviewKind(file.name);
     // Unknown extensions defer to the backend is_text flag: binary files render
@@ -195,14 +199,15 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
         return;
       }
       setLoading(true);
-      setError(null);
+      setLoadFailed(false);
       try {
         const text = await fetchWorkspaceFileContent(file.path, workspace);
         setContent(text);
         setEditContent(text);
         setDirty(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load file');
+      } catch {
+        // The server's reason names paths and system errors; the reader only needs to know the file did not open.
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -212,6 +217,12 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       loadContent();
       setEditing(false);
     }, [loadContent]);
+
+    // The host learns of unsaved edits for as long as they exist, and that they are gone once this preview is.
+    useEffect(() => {
+      onDirtyChange?.(dirty);
+      return () => onDirtyChange?.(false);
+    }, [dirty, onDirtyChange]);
 
     const handleSave = useCallback(async () => {
       if (!dirty || saving) {
@@ -246,10 +257,10 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       setEditing((prev) => !prev);
     }, [editing, dirty, content, t]);
 
-    // Ctrl+S / Cmd+S
+    // Ctrl+S / Cmd+S; the workbench keeps this preview mounted but hidden under its Terminal tab, where it stays out
     useEffect(() => {
       const handler = (e: globalThis.KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 's' && editing) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 's' && editing && !rootRef.current?.closest('[hidden]')) {
           e.preventDefault();
           handleSave();
         }
@@ -273,7 +284,11 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const language = getLanguage(file.name);
 
     return (
-      <div data-testid="workspace-file-preview" className={cn('flex flex-col h-full bg-background', className)}>
+      <div
+        ref={rootRef}
+        data-testid="workspace-file-preview"
+        className={cn('flex flex-col h-full bg-background', className)}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -340,10 +355,10 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             <div className="flex items-center justify-center h-full">
               <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : error ? (
+          ) : loadFailed ? (
             <div className="flex flex-col items-center justify-center h-full px-4 text-muted-foreground">
               <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
-              <span className="text-sm text-center">{error}</span>
+              <span className="text-sm text-center">{t('previewLoadError')}</span>
             </div>
           ) : showDiff && content !== null ? (
             <InlineWorkspaceDiff

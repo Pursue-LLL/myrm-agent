@@ -530,7 +530,8 @@
     "previewLoadError": "Failed to load preview",
     "unsupportedPreview": "This file type can't be previewed. Download to view it.",
     "folderLoadFailed": "Couldn't open this folder. Please try again.",
-    "mentionFile": "Reference this file in your message"
+    "mentionFile": "Reference this file in your message",
+    "sessionWorkspace": "This conversation's workspace"
   },
   "loadout": {
     "title": "Agent loadout",

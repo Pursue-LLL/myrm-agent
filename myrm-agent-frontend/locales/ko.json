@@ -530,7 +530,8 @@
     "previewLoadError": "미리보기 로드 실패",
     "unsupportedPreview": "이 파일 형식은 미리보기를 지원하지 않습니다. 다운로드하여 확인하세요.",
     "folderLoadFailed": "이 폴더를 열 수 없습니다. 다시 시도해 주세요.",
-    "mentionFile": "메시지에서 이 파일 참조"
+    "mentionFile": "메시지에서 이 파일 참조",
+    "sessionWorkspace": "이 대화의 워크스페이스"
   },
   "loadout": {
     "title": "에이전트 로드아웃",

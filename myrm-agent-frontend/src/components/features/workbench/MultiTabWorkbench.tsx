@@ -12,10 +12,12 @@
  *
  * [POS]
  * Auxiliary Workbench container orchestrator: files and terminal of the current chat's workspace.
- * Terminal history resets whenever the chat changes.
+ * Terminal history resets whenever the chat changes. The Files page stays mounted, only hidden, while the
+ * Terminal tab is up, so the opened folders, the search and a preview with edits are still there on return;
+ * the drawer itself unmounts when closed, which a tab with unsaved work can veto through the store's close guard.
  */
 
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FolderTree, Terminal, X, PanelRight, PanelBottom, GripVertical, GripHorizontal } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
@@ -50,11 +52,20 @@ export function MultiTabWorkbench() {
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startPosRef = useRef<number>(0);
   const startDimRef = useRef<number>(0);
+  const filesPanelRef = useRef<HTMLDivElement>(null);
+  const idPrefix = useId();
 
   // Terminal history describes one chat's workspace
   useEffect(() => {
     resetWorkspaceSession();
   }, [chatId, resetWorkspaceSession]);
+
+  // A hidden Files page keeps running, so a preview that is playing media has to be stopped on the way out.
+  useEffect(() => {
+    if (activeTab !== 'files') {
+      filesPanelRef.current?.querySelectorAll<HTMLMediaElement>('video, audio').forEach((media) => media.pause());
+    }
+  }, [activeTab]);
 
   // Escape closes the workbench unless it already did something else: a text field uses it to cancel or
   // clear itself, and a context menu or dialog inside the drawer consumes it before it reaches window.
@@ -111,6 +122,8 @@ export function MultiTabWorkbench() {
     { id: 'files', label: t('tabFiles'), icon: FolderTree },
     { id: 'terminal', label: t('tabTerminal'), icon: Terminal },
   ];
+  const tabDomId = (id: WorkbenchTabId): string => `${idPrefix}-tab-${id}`;
+  const panelDomId = (id: WorkbenchTabId): string => `${idPrefix}-panel-${id}`;
 
   // No backdrop-filter or transform on the aside: either would make it the containing block of fixed
   // descendants, and the file browser anchors its context menu and dialogs to the viewport.
@@ -145,16 +158,18 @@ export function MultiTabWorkbench() {
       {/* Workbench Header & Tab Bar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-muted/40 select-none">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+        <div role="tablist" className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                id={tabDomId(tab.id)}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
+                aria-controls={panelDomId(tab.id)}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   isActive
@@ -203,8 +218,23 @@ export function MultiTabWorkbench() {
             <span>{t('noChat')}</span>
           </div>
         )}
-        {chatId && activeTab === 'files' && <WorkbenchFiles key={chatId} />}
-        {chatId && activeTab === 'terminal' && <WorkbenchTerminal key={chatId} chatId={chatId} />}
+        {chatId && (
+          <div
+            ref={filesPanelRef}
+            id={panelDomId('files')}
+            role="tabpanel"
+            aria-labelledby={tabDomId('files')}
+            hidden={activeTab !== 'files'}
+            className="h-full"
+          >
+            <WorkbenchFiles key={chatId} />
+          </div>
+        )}
+        {chatId && activeTab === 'terminal' && (
+          <div id={panelDomId('terminal')} role="tabpanel" aria-labelledby={tabDomId('terminal')} className="h-full">
+            <WorkbenchTerminal key={chatId} chatId={chatId} />
+          </div>
+        )}
       </div>
     </aside>
   );

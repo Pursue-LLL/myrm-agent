@@ -530,7 +530,8 @@
     "previewLoadError": "プレビューの読み込みに失敗しました",
     "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。",
     "folderLoadFailed": "このフォルダを開けませんでした。もう一度お試しください。",
-    "mentionFile": "このファイルをメッセージで参照"
+    "mentionFile": "このファイルをメッセージで参照",
+    "sessionWorkspace": "この会話のワークスペース"
   },
   "loadout": {
     "title": "エージェント配装",

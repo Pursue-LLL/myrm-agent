@@ -268,4 +268,79 @@ describe('useWorkspaceFiles', () => {
     expect(result.current.files).toEqual(newerRoot.entries);
     expect(result.current.loading).toBe(false);
   });
+
+  it('keeps the tree where it is while a refresh runs and swaps it when the answer arrives', async () => {
+    const { result } = await mountLoaded();
+    const before = result.current.files;
+    const slowRoot = deferred<FileTreeResult>();
+    browseWorkspaceFilesMock.mockImplementation(async () => slowRoot.promise);
+    let pending: Promise<void> = Promise.resolve();
+
+    act(() => {
+      pending = result.current.refresh();
+    });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.files).toBe(before);
+
+    const fresh = scan(WORKSPACE, [file(`${WORKSPACE}/fresh.txt`)]);
+    await act(async () => {
+      slowRoot.resolve(fresh);
+      await pending;
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.files).toEqual(fresh.entries);
+  });
+
+  it('empties the tree as soon as the workspace changes, before the new scan answers', async () => {
+    const otherScan = scan(OTHER_WORKSPACE, [file(`${OTHER_WORKSPACE}/notes.md`)]);
+    const slowOther = deferred<FileTreeResult>();
+    browseWorkspaceFilesMock.mockImplementation(async (path) =>
+      path === OTHER_WORKSPACE ? slowOther.promise : ROOT_SCAN,
+    );
+    const { result, rerender } = renderHook(({ workspace }) => useWorkspaceFiles(workspace), {
+      initialProps: { workspace: WORKSPACE },
+    });
+    await waitFor(() => expect(result.current.files).toEqual(ROOT_SCAN.entries));
+
+    rerender({ workspace: OTHER_WORKSPACE });
+
+    expect(result.current.files).toEqual([]);
+    expect(result.current.loading).toBe(true);
+    await act(async () => {
+      slowOther.resolve(otherScan);
+    });
+    expect(result.current.files).toEqual(otherScan.entries);
+  });
+
+  it('is idle, without the old tree or failure, when the workspace goes away in the middle of a scan', async () => {
+    const slowRoot = deferred<FileTreeResult>();
+    browseWorkspaceFilesMock.mockImplementation(async () => slowRoot.promise);
+    const { result, rerender } = renderHook(({ workspace }) => useWorkspaceFiles(workspace), {
+      initialProps: { workspace: WORKSPACE as string | null },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(true));
+
+    rerender({ workspace: null });
+    await act(async () => {
+      slowRoot.resolve(ROOT_SCAN);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.files).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('forgets the failure of the previous workspace once the workspace changes', async () => {
+    serve({});
+    const { result, rerender } = renderHook(({ workspace }) => useWorkspaceFiles(workspace), {
+      initialProps: { workspace: WORKSPACE as string | null },
+    });
+    await waitFor(() => expect(result.current.error).toBe(`cannot read ${WORKSPACE}`));
+
+    rerender({ workspace: null });
+
+    expect(result.current.error).toBeNull();
+  });
 });

@@ -15,6 +15,8 @@
  * the server browse API and auto-refreshes on WORKSPACE_FILE_CHANGED SSE.
  * A scan is capped in depth and entry count, so a folder below the scanned levels arrives when the
  * user opens it; every refresh reloads the folders opened that way, so none of them goes stale.
+ * A refresh swaps the tree in place (`loading` is true meanwhile, the old tree stays); only a different
+ * workspace empties it.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -28,6 +30,9 @@ import {
 
 /** Levels per scan: the folders at the last level come back with `children: null` (not scanned). */
 const BROWSE_DEPTH = 2;
+
+/** The tree of a workspace nothing has been scanned for. One shared array lets React skip the re-render of a reset. */
+const NO_FILES: FileEntry[] = [];
 
 export interface UseWorkspaceFilesReturn {
   files: FileEntry[];
@@ -88,7 +93,7 @@ export function useWorkspaceFiles(
   workspacePath: string | null | undefined,
   enabled: boolean = true,
 ): UseWorkspaceFilesReturn {
-  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>(NO_FILES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
@@ -154,12 +159,17 @@ export function useWorkspaceFiles(
   }, []);
 
   useEffect(() => {
+    // A new workspace starts from nothing: the browser keeps the tree on screen during a refresh, so the
+    // previous workspace's tree must be gone before this one's first scan comes back.
     openedRef.current = new Map();
+    setFiles(NO_FILES);
+    setTruncated(false);
+    setError(null);
     if (workspacePath && enabled) {
       void refresh();
     } else {
-      setFiles([]);
-      setTruncated(false);
+      // A scan cut off by the switch never reaches its own `setLoading(false)`.
+      setLoading(false);
     }
     return () => {
       generationRef.current += 1;

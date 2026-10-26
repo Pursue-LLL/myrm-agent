@@ -14,6 +14,7 @@ describe('WorkbenchToggleTrigger component', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       isOpen: false,
+      closeGuard: null,
     });
   });
 
@@ -65,6 +66,18 @@ describe('WorkbenchToggleTrigger component', () => {
     expect(useWorkbenchStore.getState().isOpen).toBe(false);
 
     window.dispatchEvent(new CustomEvent('myrm:open-workbench'));
+    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+  });
+
+  it('keeps the drawer open when the capsule or the shortcut would close it against the close guard', () => {
+    const guard = vi.fn(() => false);
+    useWorkbenchStore.setState({ isOpen: true, closeGuard: guard });
+    render(<WorkbenchToggleTrigger />);
+
+    fireEvent.click(screen.getByRole('button', { name: /hudActive/i }));
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true, shiftKey: true });
+
+    expect(guard).toHaveBeenCalledTimes(2);
     expect(useWorkbenchStore.getState().isOpen).toBe(true);
   });
 

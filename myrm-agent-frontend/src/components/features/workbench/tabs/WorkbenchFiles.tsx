@@ -3,10 +3,11 @@
 /**
  * [INPUT]
  * - useChatStore from @/store/useChatStore (POS: workspaceDir of the current chat)
+ * - useWorkbenchStore from @/store/useWorkbenchStore (POS: close guard of the drawer)
  * - useWorkspaceFiles, WorkspaceFileBrowser, WorkspaceFilePreview from @/components/features/workspace-browser
  *   (POS: the file tree, live refresh and preview shared with the sidebar workspace view)
  * - useWorkspaceFileSearch from ./useWorkspaceFileSearch (POS: file-name search over the whole workspace)
- * - useTranslations from next-intl (namespace: 'workbench.files')
+ * - useTranslations from next-intl (namespaces: 'workbench.files', 'workspace')
  *
  * [OUTPUT]
  * - WorkbenchFiles: Files tab of the auxiliary workbench — the shared workspace browser, a name search laid
@@ -16,9 +17,10 @@
  * Files tab of the auxiliary workbench. It owns no file-reading logic: the tree, uploads, rename/move/delete
  * and previews all come from the workspace browser, so the workbench and the sidebar can never disagree.
  * The tree only reaches a few levels deep, so a typed name is searched on the server over the whole workspace.
+ * While the open preview holds unsaved edits, closing the drawer has to be confirmed.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { FolderTree, Search } from 'lucide-react';
@@ -27,6 +29,7 @@ import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWo
 import { cn } from '@/lib/utils/classnameUtils';
 import type { FileEntry, WorkspaceFileSearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import { useWorkspaceFileSearch, type WorkspaceFileSearchState } from './useWorkspaceFileSearch';
 
 const panelLoading = (
@@ -120,11 +123,23 @@ function SearchResults({
 
 export function WorkbenchFiles() {
   const t = useTranslations('workbench.files');
+  const tWorkspace = useTranslations('workspace');
   const workspaceDir = useChatStore((s) => s.workspaceDir);
+  const setCloseGuard = useWorkbenchStore((s) => s.setCloseGuard);
   const { files, loading, error, truncated, refresh, loadChildren } = useWorkspaceFiles(workspaceDir);
   const [query, setQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
+  const [previewDirty, setPreviewDirty] = useState(false);
   const search = useWorkspaceFileSearch(workspaceDir, query);
+
+  // Closing the drawer unmounts this tab, so unsaved edits in the preview would vanish without a word.
+  useEffect(() => {
+    if (!previewDirty) {
+      return;
+    }
+    setCloseGuard(() => window.confirm(tWorkspace('discardConfirm')));
+    return () => setCloseGuard(null);
+  }, [previewDirty, setCloseGuard, tWorkspace]);
 
   const handleFileClick = useCallback((file: FileEntry) => {
     if (file.type === 'file') {
@@ -164,7 +179,7 @@ export function WorkbenchFiles() {
           workspacePath={workspaceDir}
           files={files}
           loading={loading}
-          error={error ? t('workspaceUnavailable') : null}
+          error={error}
           truncated={truncated}
           onRefresh={refresh}
           onFileClick={handleFileClick}
@@ -184,6 +199,7 @@ export function WorkbenchFiles() {
             file={previewFile}
             workspace={workspaceDir}
             onClose={handleClosePreview}
+            onDirtyChange={setPreviewDirty}
             className="h-full"
           />
         </div>

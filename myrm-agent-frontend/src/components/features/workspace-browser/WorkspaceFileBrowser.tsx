@@ -6,13 +6,16 @@
  * [INPUT]
  * - workspacePath: Workspace root directory path
  * - files: File tree entries from useWorkspaceFiles
+ * - loading / error: Scan state from useWorkspaceFiles; a refresh leaves the tree on screen, a failed scan shows
+ *   a localized message instead of the server's text
  * - onFileClick: Callback when a file is clicked for preview
  * - onLoadChildren: Loads a folder the initial scan did not reach (`children: null`) when it is opened
  *
  * [OUTPUT]
  * - WorkspaceFileBrowser: File tree browser with expand/collapse (folders below the scanned depth load on
  *   open), icons, sizes, upload (button + drag-and-drop), new directory, inline rename, move,
- *   delete with confirmation, and right-click context menu.
+ *   delete with confirmation, and right-click context menu. The header names the chat's own workspace
+ *   in the user's language rather than by its folder id.
  *
  * [POS]
  * Main Agent's workspace file browser. Displays the workspace directory tree
@@ -48,7 +51,9 @@ import { WorkspaceFileTreeItem, containerVariants } from './WorkspaceFileTree';
 export interface WorkspaceFileBrowserProps {
   workspacePath: string;
   files: FileEntry[];
+  /** A scan is running. The tree stays on screen meanwhile; only an empty browser is replaced by a spinner. */
   loading?: boolean;
+  /** The scan failed. The browser words the failure itself: this text comes from the server and is never shown. */
   error?: string | null;
   truncated?: boolean;
   onRefresh?: () => void;
@@ -71,6 +76,7 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
     className,
   }) => {
     const t = useTranslations('workspace');
+    const chatId = useChatStore((s) => s.chatId);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
     const [loadingPaths, setLoadingPaths] = useState<ReadonlySet<string>>(new Set());
     const loadingRef = useRef<Set<string>>(new Set());
@@ -167,7 +173,13 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
       ops.setRenamingPath(null);
     }, [ops]);
 
-    const workspaceName = workspacePath.split('/').pop() || workspacePath;
+    // The chat's own workspace is a folder named after the chat id; that name means nothing to the user.
+    const folderName =
+      workspacePath
+        .split(/[\\/]+/)
+        .filter(Boolean)
+        .pop() ?? workspacePath;
+    const workspaceName = chatId && folderName === `chat_${chatId}` ? t('sessionWorkspace') : folderName;
 
     return (
       <UploadDropZone
@@ -202,14 +214,14 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
 
         {/* Content */}
         <div className="flex-1 overflow-auto py-1">
-          {loading ? (
+          {loading && files.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-muted-foreground">
               <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
-              <span className="text-sm text-center">{error}</span>
+              <span className="text-sm text-center">{t('folderLoadFailed')}</span>
             </div>
           ) : files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">

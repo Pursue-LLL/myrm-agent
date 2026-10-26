@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MultiTabWorkbench } from '../MultiTabWorkbench';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import useChatStore from '@/store/useChatStore';
@@ -12,11 +12,18 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-// Shows the chat it was mounted for, so a remount on chat switch is observable.
+// Shows the chat it was mounted for, so a remount on chat switch is observable; the clip stands for a preview.
 vi.mock('../tabs/WorkbenchFiles', () => ({
   WorkbenchFiles: () => {
     const [mountedFor] = useState(() => useChatStore.getState().chatId);
-    return <div data-testid="tab-files-content">Files of {mountedFor}</div>;
+    return (
+      <div data-testid="tab-files-content">
+        Files of {mountedFor}
+        <video data-testid="preview-clip">
+          <track kind="captions" />
+        </video>
+      </div>
+    );
   },
 }));
 
@@ -26,8 +33,14 @@ vi.mock('../tabs/WorkbenchTerminal', () => ({
   ),
 }));
 
+// jsdom does not implement media playback; the spy stands in for the browser and records who was stopped.
+const stubPause = () => vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+
 describe('MultiTabWorkbench component', () => {
+  let pause: ReturnType<typeof stubPause>;
+
   beforeEach(() => {
+    pause = stubPause();
     useWorkbenchStore.setState({
       isOpen: true,
       placement: 'right',
@@ -35,8 +48,13 @@ describe('MultiTabWorkbench component', () => {
       height: 320,
       activeTab: 'files',
       terminalLogs: [],
+      closeGuard: null,
     });
     useChatStore.setState({ chatId: 'chat-1' });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders null when isOpen is false', () => {
@@ -93,6 +111,70 @@ describe('MultiTabWorkbench component', () => {
     expect(screen.getByTestId('tab-files-content')).toBeDefined();
   });
 
+  it('keeps the Files page mounted, only hidden, while the Terminal tab is up', () => {
+    render(<MultiTabWorkbench />);
+    const filesContent = screen.getByTestId('tab-files-content');
+    const filesPanel = filesContent.closest('[role="tabpanel"]');
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabTerminal/i }));
+
+    expect(screen.getByTestId('tab-files-content')).toBe(filesContent);
+    expect(filesPanel?.hasAttribute('hidden')).toBe(true);
+    expect(screen.getByRole('tabpanel')).toBe(screen.getByTestId('tab-terminal-content').closest('[role="tabpanel"]'));
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabFiles/i }));
+
+    expect(screen.getByTestId('tab-files-content')).toBe(filesContent);
+    expect(screen.getByRole('tabpanel')).toBe(filesPanel);
+    expect(screen.queryByTestId('tab-terminal-content')).toBeNull();
+  });
+
+  it('starts a new Files page, hidden or not, when the chat changes', () => {
+    render(<MultiTabWorkbench />);
+    fireEvent.click(screen.getByRole('tab', { name: /tabTerminal/i }));
+    const before = screen.getByTestId('tab-files-content');
+
+    act(() => {
+      useChatStore.setState({ chatId: 'chat-2' });
+    });
+
+    expect(screen.getByTestId('tab-files-content')).not.toBe(before);
+    expect(screen.getByTestId('tab-files-content').textContent).toContain('Files of chat-2');
+  });
+
+  it('stops what the Files page is playing when the Terminal tab comes up, and only then', () => {
+    render(<MultiTabWorkbench />);
+    expect(pause).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabTerminal/i }));
+
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(pause.mock.contexts[0]).toBe(screen.getByTestId('preview-clip'));
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabFiles/i }));
+
+    expect(pause).toHaveBeenCalledTimes(1);
+  });
+
+  it('connects each tab with its panel for assistive technology', () => {
+    render(<MultiTabWorkbench />);
+    const tablist = screen.getByRole('tablist');
+    const filesTab = screen.getByRole('tab', { name: /tabFiles/i });
+    const terminalTab = screen.getByRole('tab', { name: /tabTerminal/i });
+    const filesPanel = screen.getByRole('tabpanel');
+
+    expect(tablist.contains(filesTab) && tablist.contains(terminalTab)).toBe(true);
+    expect(filesTab.getAttribute('aria-controls')).toBe(filesPanel.id);
+    expect(filesPanel.getAttribute('aria-labelledby')).toBe(filesTab.id);
+
+    fireEvent.click(terminalTab);
+    const terminalPanel = screen.getByRole('tabpanel');
+
+    expect(terminalPanel).not.toBe(filesPanel);
+    expect(terminalTab.getAttribute('aria-controls')).toBe(terminalPanel.id);
+    expect(terminalPanel.getAttribute('aria-labelledby')).toBe(terminalTab.id);
+  });
+
   it('switches placement between right and bottom', () => {
     render(<MultiTabWorkbench />);
 
@@ -139,6 +221,29 @@ describe('MultiTabWorkbench component', () => {
     const closeBtn = screen.getByRole('button', { name: 'closeAction' });
     fireEvent.click(closeBtn);
     expect(useWorkbenchStore.getState().isOpen).toBe(false);
+  });
+
+  describe('while a tab holds unsaved work', () => {
+    it('keeps the drawer open when the close button or Escape is refused by the close guard', () => {
+      const guard = vi.fn(() => false);
+      useWorkbenchStore.setState({ closeGuard: guard });
+      render(<MultiTabWorkbench />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'closeAction' }));
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      expect(guard).toHaveBeenCalledTimes(2);
+      expect(useWorkbenchStore.getState().isOpen).toBe(true);
+    });
+
+    it('closes the drawer when the guard agrees', () => {
+      useWorkbenchStore.setState({ closeGuard: () => true });
+      render(<MultiTabWorkbench />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'closeAction' }));
+
+      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+    });
   });
 
   it('handles mouse resize drag interaction', () => {
