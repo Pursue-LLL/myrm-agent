@@ -17897,7 +17897,7 @@
           "failed": "失敗",
           "skipped": "スキップ",
           "partial": "簡略化",
-          "removed": "ima で削除済み",
+          "removed": "ima にありません",
           "dismissed": "ユーザーが削除"
         },
         "compile": {
@@ -17916,12 +17916,12 @@
           "tabs": {
             "attention": "要確認",
             "lossy": "簡略化",
-            "remote_deleted": "ima で削除済み"
+            "remote_deleted": "ima にありません"
           },
           "hint": {
             "attention": "取り込まれていない、または失敗した項目です。",
             "lossy": "取り込み済みですが、内容が元と異なります。",
-            "remote_deleted": "ima で削除された項目です。Wiki 内のコピーは残ります。"
+            "remote_deleted": "これらの項目は、ima の元の名前・場所では見つかりません。削除、名前の変更、移動のいずれかの可能性があります。Wiki 内のコピーは残ります。名前を変更または移動したファイルは新しいドキュメントとして再び取り込まれることがあり、新旧 2 件が並ぶ場合があります。"
           },
           "empty": "該当する項目はありません",
           "retryFailed": "失敗した {count} 件を再試行",

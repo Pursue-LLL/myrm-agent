@@ -17897,7 +17897,7 @@
           "failed": "실패",
           "skipped": "건너뜀",
           "partial": "간소화됨",
-          "removed": "ima에서 삭제됨",
+          "removed": "ima에 없음",
           "dismissed": "직접 삭제함"
         },
         "compile": {
@@ -17916,12 +17916,12 @@
           "tabs": {
             "attention": "확인 필요",
             "lossy": "간소화됨",
-            "remote_deleted": "ima에서 삭제됨"
+            "remote_deleted": "ima에 없음"
           },
           "hint": {
             "attention": "가져오지 못했거나 실패한 항목입니다.",
             "lossy": "가져왔지만 내용이 원본과 다릅니다.",
-            "remote_deleted": "ima에서 삭제된 항목입니다. Wiki에 있는 사본은 그대로 남습니다."
+            "remote_deleted": "이 항목들은 ima에서 원래 이름이나 위치로 더 이상 찾을 수 없습니다. 삭제, 이름 변경 또는 이동되었을 수 있습니다. Wiki에 있는 사본은 그대로 남습니다. 이름을 바꾸거나 옮긴 파일은 새 문서로 다시 가져올 수 있어 새것과 이전 것이 함께 보일 수 있습니다."
           },
           "empty": "해당 항목이 없습니다",
           "retryFailed": "실패한 {count}개 다시 시도",

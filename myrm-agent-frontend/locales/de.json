@@ -17897,7 +17897,7 @@
           "failed": "Fehlgeschlagen",
           "skipped": "Übersprungen",
           "partial": "Vereinfacht",
-          "removed": "In ima gelöscht",
+          "removed": "Nicht mehr in ima",
           "dismissed": "Von Ihnen entfernt"
         },
         "compile": {
@@ -17916,12 +17916,12 @@
           "tabs": {
             "attention": "Zu prüfen",
             "lossy": "Vereinfacht",
-            "remote_deleted": "In ima gelöscht"
+            "remote_deleted": "Nicht mehr in ima"
           },
           "hint": {
             "attention": "Diese Einträge wurden nicht importiert oder der Import ist fehlgeschlagen.",
             "lossy": "Importiert, aber der Inhalt weicht vom Original ab.",
-            "remote_deleted": "Diese Einträge wurden in ima gelöscht. Ihre Kopien bleiben im Wiki."
+            "remote_deleted": "Diese Einträge sind in ima unter dem alten Namen oder am alten Ort nicht mehr vorhanden. Sie wurden möglicherweise gelöscht, umbenannt oder verschoben. Ihre Kopien bleiben im Wiki. Eine umbenannte oder verschobene Datei wird eventuell als neues Dokument erneut importiert, sodass zwei Kopien erscheinen können."
           },
           "empty": "Hier ist nichts",
           "retryFailed": "{count} fehlgeschlagene Einträge erneut versuchen",

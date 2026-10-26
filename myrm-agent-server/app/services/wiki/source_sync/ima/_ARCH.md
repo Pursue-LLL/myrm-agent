@@ -39,7 +39,7 @@
 
 ## 测试
 
-- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机；标识与路径预算；内容解析；引擎切片/续跑/鉴权/限流；导入器终态
+- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/鉴权/限流/未知异常的内部退避（取消不被吞）；导入器终态与认领失败时停池
 - `tests/api/wiki/test_wiki_ima_routes.py` — ima 端点、凭证掩码、通用 config 端点读不到 `imaCredentials`
 
 ## 依赖

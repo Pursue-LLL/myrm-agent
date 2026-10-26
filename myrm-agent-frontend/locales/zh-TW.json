@@ -17897,7 +17897,7 @@
           "failed": "失敗",
           "skipped": "已略過",
           "partial": "內容已簡化",
-          "removed": "ima 中已刪除",
+          "removed": "ima 中已不存在",
           "dismissed": "你已移除"
         },
         "compile": {
@@ -17916,12 +17916,12 @@
           "tabs": {
             "attention": "需要關注",
             "lossy": "內容已簡化",
-            "remote_deleted": "ima 中已刪除"
+            "remote_deleted": "ima 中已不存在"
           },
           "hint": {
             "attention": "這些內容沒有匯入，或匯入失敗。",
             "lossy": "已匯入，但內容與原文有差異。",
-            "remote_deleted": "這些內容已在 ima 中刪除，Wiki 裡的副本會保留。"
+            "remote_deleted": "這些內容在 ima 中已不在原名稱或原位置，可能被刪除、改名或移動。Wiki 裡的副本會保留；改名或移動後的檔案可能會作為新文件重新匯入，屆時會出現新舊兩份。"
           },
           "empty": "這裡沒有內容",
           "retryFailed": "重試失敗的 {count} 項",

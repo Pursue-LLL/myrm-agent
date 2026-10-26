@@ -17897,7 +17897,7 @@
           "failed": "Failed",
           "skipped": "Skipped",
           "partial": "Simplified",
-          "removed": "Deleted in ima",
+          "removed": "Gone from ima",
           "dismissed": "Removed by you"
         },
         "compile": {
@@ -17916,12 +17916,12 @@
           "tabs": {
             "attention": "Needs attention",
             "lossy": "Simplified",
-            "remote_deleted": "Deleted in ima"
+            "remote_deleted": "Gone from ima"
           },
           "hint": {
             "attention": "These items were not imported, or the import failed.",
             "lossy": "Imported, but the content differs from the original.",
-            "remote_deleted": "These items were deleted in ima. Their copies stay in your wiki."
+            "remote_deleted": "These items are no longer in ima under their old name or location. They may have been deleted, renamed or moved. Their copies stay in your wiki. A renamed or moved file may be imported again as a new document, so you could see two copies."
           },
           "empty": "Nothing here",
           "retryFailed": "Retry {count} failed items",
