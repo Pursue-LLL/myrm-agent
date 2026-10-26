@@ -25,6 +25,7 @@ from app.api.files import (
     upload,
     vault_api,
     workspace_ops,
+    workspace_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,4 +48,5 @@ router.include_router(evicted.router, tags=["files-evicted"])
 router.include_router(suggest.router, tags=["files-suggest"])
 router.include_router(local_actions.router, tags=["files-local-actions"])
 router.include_router(workspace_ops.router, tags=["files-workspace-ops"])
+router.include_router(workspace_text.router, tags=["files-workspace-text"])
 router.include_router(organize.router, tags=["files-organize"])

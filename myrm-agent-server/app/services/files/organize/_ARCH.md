@@ -17,7 +17,7 @@ Workspace 批量整理 HITL 执行层：校验 organize-plan.json、dry-run 预�
 ## 依赖关系
 
 ### 内部依赖
-- `app/api/files/workspace_ops::_resolve_workspace` / `_validate_target` (POS: workspace 写操作安全栈)
+- `validation.py` / `apply.py` 内的本地 `_resolve_workspace` / `_validate_target`（services 层不得 import api 层；语义须与 `app/api/files/workspace_ops::resolve_workspace` / `validate_target` 保持一致）
 
 ### 被依赖方
 - `app/api/files/organize.py` (POS: workspace organize HITL HTTP API)

@@ -1,11 +1,12 @@
 """Workspace file write operations API.
 
-Provides upload, mkdir, rename, move, delete and content-save for workspace
-files.  All endpoints enforce a 6-layer security stack reusing the harness
-path_security module: workspace boundary · dangerous-path block ·
-sensitive-file guard · filename legality · delete protection · upload caps.
+Provides upload, mkdir, rename, move and delete for workspace files.  All
+endpoints enforce a 6-layer security stack reusing the harness path_security
+module: workspace boundary · dangerous-path block · sensitive-file guard ·
+filename legality · delete protection · upload caps.
 
-Read-only endpoints remain in browse.py — this module handles writes only.
+Read-only endpoints remain in browse.py; editing file text (versioned read,
+compare-and-swap save) lives in workspace_text.py on top of the same guards.
 
 [INPUT]
 - myrm_agent_harness.core.security.path::is_within_boundary
@@ -22,7 +23,7 @@ Read-only endpoints remain in browse.py — this module handles writes only.
 - POST   /browse/rename   — Rename file or directory
 - POST   /browse/move     — Move file or directory
 - DELETE /browse/delete   — Delete file or directory
-- PUT    /browse/content  — Save file content (online edit)
+- resolve_workspace / validate_target / dedup_filename — path guards and naming shared with workspace_text.py
 
 [POS]
 Workspace file write operations.  Separated from browse.py (read-only) for
@@ -49,7 +50,6 @@ router = APIRouter()
 
 _MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB per file
 _MAX_UPLOAD_COUNT = 20
-_MAX_CONTENT_SAVE_SIZE = 5 * 1024 * 1024  # 5 MB for inline edit
 _MAX_FILENAME_LEN = 255
 _MAX_DELETE_ENTRIES = 500
 
@@ -81,12 +81,6 @@ class MoveRequest(BaseModel):
     target_dir: str = Field(..., description="Target directory path")
 
 
-class SaveContentRequest(BaseModel):
-    workspace: str = Field(..., description="Workspace root path")
-    path: str = Field(..., description="File path to save")
-    content: str = Field(..., description="New file content")
-
-
 class UploadResult(BaseModel):
     name: str
     path: str
@@ -98,7 +92,7 @@ class UploadResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _resolve_workspace(workspace: str) -> str:
+def resolve_workspace(workspace: str) -> str:
     """Resolve and validate workspace root."""
     from myrm_agent_harness.core.security.path import is_dangerous_path
 
@@ -110,7 +104,7 @@ def _resolve_workspace(workspace: str) -> str:
     return resolved
 
 
-def _validate_target(target: str, workspace: str, *, allow_sensitive: bool = False) -> str:
+def validate_target(target: str, workspace: str, *, allow_sensitive: bool = False) -> str:
     """Resolve target path and run boundary + danger + sensitive checks."""
     from myrm_agent_harness.core.security.path import (
         is_dangerous_path,
@@ -140,7 +134,7 @@ def _validate_name(name: str) -> None:
         raise validation_error("Name cannot be '.' or '..'")
 
 
-def _dedup_filename(directory: str, filename: str) -> str:
+def dedup_filename(directory: str, filename: str) -> str:
     """Return a unique filename by appending (1), (2), … if needed."""
     candidate = os.path.join(directory, filename)
     if not os.path.exists(candidate):
@@ -190,12 +184,12 @@ async def upload_to_workspace(
     if len(files) > _MAX_UPLOAD_COUNT:
         raise validation_error(f"Maximum {_MAX_UPLOAD_COUNT} files per upload")
 
-    ws = _resolve_workspace(workspace)
+    ws = resolve_workspace(workspace)
 
     dest_dir = ws
     if target_dir and target_dir.strip():
         raw = os.path.join(ws, target_dir.strip().lstrip("/"))
-        dest_dir = _validate_target(raw, ws, allow_sensitive=True)
+        dest_dir = validate_target(raw, ws, allow_sensitive=True)
         if not os.path.isdir(dest_dir):
             raise validation_error(f"Target directory does not exist: {target_dir}")
 
@@ -209,10 +203,10 @@ async def upload_to_workspace(
         if len(content) > _MAX_UPLOAD_SIZE:
             raise validation_error(f"File {upload_file.filename} exceeds {_MAX_UPLOAD_SIZE // (1024 * 1024)}MB limit")
 
-        safe_name = _dedup_filename(dest_dir, upload_file.filename)
+        safe_name = dedup_filename(dest_dir, upload_file.filename)
         dest_path = os.path.join(dest_dir, safe_name)
 
-        _validate_target(dest_path, ws, allow_sensitive=True)
+        validate_target(dest_path, ws, allow_sensitive=True)
 
         with open(dest_path, "wb") as f:
             f.write(content)
@@ -236,12 +230,12 @@ async def upload_to_workspace(
 @router.post("/browse/mkdir", response_model=None)
 async def mkdir_in_workspace(body: MkdirRequest) -> JSONResponse:
     """Create a directory inside the workspace."""
-    ws = _resolve_workspace(body.workspace)
+    ws = resolve_workspace(body.workspace)
 
     raw = body.path
     if not os.path.isabs(raw):
         raw = os.path.join(ws, raw)
-    target = _validate_target(raw, ws, allow_sensitive=True)
+    target = validate_target(raw, ws, allow_sensitive=True)
 
     if os.path.exists(target):
         raise validation_error("Path already exists")
@@ -256,12 +250,12 @@ async def mkdir_in_workspace(body: MkdirRequest) -> JSONResponse:
 @router.post("/browse/rename", response_model=None)
 async def rename_in_workspace(body: RenameRequest) -> JSONResponse:
     """Rename a file or directory inside the workspace."""
-    ws = _resolve_workspace(body.workspace)
+    ws = resolve_workspace(body.workspace)
 
     raw = body.path
     if not os.path.isabs(raw):
         raw = os.path.join(ws, raw)
-    source = _validate_target(raw, ws)
+    source = validate_target(raw, ws)
 
     if not os.path.exists(source):
         raise validation_error("Source does not exist")
@@ -274,7 +268,7 @@ async def rename_in_workspace(body: RenameRequest) -> JSONResponse:
 
     parent = os.path.dirname(source)
     dest = os.path.join(parent, body.new_name)
-    dest_resolved = _validate_target(dest, ws, allow_sensitive=True)
+    dest_resolved = validate_target(dest, ws, allow_sensitive=True)
 
     if os.path.exists(dest_resolved):
         raise validation_error(f"A file or directory named '{body.new_name}' already exists")
@@ -292,12 +286,12 @@ async def rename_in_workspace(body: RenameRequest) -> JSONResponse:
 @router.post("/browse/move", response_model=None)
 async def move_in_workspace(body: MoveRequest) -> JSONResponse:
     """Move a file or directory to another directory inside the workspace."""
-    ws = _resolve_workspace(body.workspace)
+    ws = resolve_workspace(body.workspace)
 
     src_raw = body.source
     if not os.path.isabs(src_raw):
         src_raw = os.path.join(ws, src_raw)
-    source = _validate_target(src_raw, ws)
+    source = validate_target(src_raw, ws)
 
     if not os.path.exists(source):
         raise validation_error("Source does not exist")
@@ -305,14 +299,14 @@ async def move_in_workspace(body: MoveRequest) -> JSONResponse:
     tgt_raw = body.target_dir
     if not os.path.isabs(tgt_raw):
         tgt_raw = os.path.join(ws, tgt_raw)
-    target_dir = _validate_target(tgt_raw, ws, allow_sensitive=True)
+    target_dir = validate_target(tgt_raw, ws, allow_sensitive=True)
 
     if not os.path.isdir(target_dir):
         raise validation_error("Target directory does not exist")
 
     basename = os.path.basename(os.path.normpath(source))
     dest = os.path.join(target_dir, basename)
-    dest_resolved = _validate_target(dest, ws, allow_sensitive=True)
+    dest_resolved = validate_target(dest, ws, allow_sensitive=True)
 
     if os.path.exists(dest_resolved):
         raise validation_error(f"'{basename}' already exists in target directory")
@@ -337,12 +331,12 @@ async def delete_in_workspace(
     Protected items (.git, workspace root) cannot be deleted.  Directories
     with more than 500 entries are rejected as a safety measure.
     """
-    ws = _resolve_workspace(workspace)
+    ws = resolve_workspace(workspace)
 
     raw = path
     if not os.path.isabs(raw):
         raw = os.path.join(ws, raw)
-    target = _validate_target(raw, ws)
+    target = validate_target(raw, ws)
 
     if not os.path.exists(target):
         raise validation_error("Path does not exist")
@@ -372,42 +366,5 @@ async def delete_in_workspace(
         data={
             "deleted": basename,
             "type": "directory" if is_dir else "file",
-        }
-    )
-
-
-@router.put("/browse/content", response_model=None)
-async def save_workspace_file(body: SaveContentRequest) -> JSONResponse:
-    """Save text content to a workspace file (online editor).
-
-    Creates the file if it does not exist.  Only text content within the
-    size limit is accepted.
-    """
-    if len(body.content.encode("utf-8")) > _MAX_CONTENT_SAVE_SIZE:
-        raise validation_error(f"Content exceeds {_MAX_CONTENT_SAVE_SIZE // (1024 * 1024)}MB limit")
-
-    ws = _resolve_workspace(body.workspace)
-
-    raw = body.path
-    if not os.path.isabs(raw):
-        raw = os.path.join(ws, raw)
-    target = _validate_target(raw, ws)
-
-    if os.path.isdir(target):
-        raise validation_error("Cannot write content to a directory")
-
-    parent = os.path.dirname(target)
-    if not os.path.isdir(parent):
-        raise validation_error("Parent directory does not exist")
-
-    with open(target, "w", encoding="utf-8") as f:
-        f.write(body.content)
-
-    size = os.path.getsize(target)
-    return success_response(
-        data={
-            "path": target,
-            "name": os.path.basename(target),
-            "size": size,
         }
     )

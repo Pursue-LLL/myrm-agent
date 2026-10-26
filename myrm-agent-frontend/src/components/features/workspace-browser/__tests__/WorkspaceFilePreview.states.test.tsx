@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchWorkspaceFileContent, saveWorkspaceFileContent, type FileEntry } from '@/services/chat';
+import type { FileEntry } from '@/services/chat';
+import { readWorkspaceText, saveWorkspaceText, type WorkspaceTextSnapshot } from '@/services/workspaceText';
 import { WorkspaceFilePreview } from '../WorkspaceFilePreview';
 
 const stableT = (key: string) => key;
@@ -19,9 +20,14 @@ vi.mock('@/components/features/files/FileTypeIcon', () => ({
 }));
 
 vi.mock('@/services/chat', () => ({
-  fetchWorkspaceFileContent: vi.fn(),
   getWorkspaceFileContentUrl: vi.fn(() => '/content'),
-  saveWorkspaceFileContent: vi.fn(),
+}));
+
+vi.mock('@/services/workspaceText', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/workspaceText')>()),
+  readWorkspaceText: vi.fn(),
+  saveWorkspaceText: vi.fn(),
+  saveWorkspaceTextCopy: vi.fn(),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -49,8 +55,22 @@ const textFile = (name: string): FileEntry => ({
   children: null,
 });
 
-const fetchMock = vi.mocked(fetchWorkspaceFileContent);
-const saveMock = vi.mocked(saveWorkspaceFileContent);
+const snapshot = (content: string, overrides: Partial<WorkspaceTextSnapshot> = {}): WorkspaceTextSnapshot => ({
+  path: `${WORKSPACE}/notes.txt`,
+  name: 'notes.txt',
+  content,
+  version: 'v1',
+  size: content.length,
+  editable: true,
+  readonlyReason: null,
+  truncated: false,
+  ...overrides,
+});
+
+const written = { path: `${WORKSPACE}/notes.txt`, name: 'notes.txt', version: 'v2', size: 6, changed: true };
+
+const readMock = vi.mocked(readWorkspaceText);
+const saveMock = vi.mocked(saveWorkspaceText);
 
 const preview = (file: FileEntry, onDirtyChange?: (dirty: boolean) => void) => (
   <WorkspaceFilePreview file={file} workspace={WORKSPACE} onClose={vi.fn()} onDirtyChange={onDirtyChange} />
@@ -65,8 +85,8 @@ function typeIntoEditor(text: string): void {
 describe('WorkspaceFilePreview unsaved edits', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock.mockResolvedValue('hello');
-    saveMock.mockResolvedValue({ path: `${WORKSPACE}/notes.txt`, name: 'notes.txt', size: 6 });
+    readMock.mockResolvedValue(snapshot('hello'));
+    saveMock.mockResolvedValue(written);
   });
 
   it('reports unsaved edits while they exist and that none remain once they are saved', async () => {
@@ -80,7 +100,7 @@ describe('WorkspaceFilePreview unsaved edits', () => {
 
     fireEvent.click(screen.getByTitle('save (Ctrl+S)'));
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
-    expect(saveMock).toHaveBeenCalledWith(WORKSPACE, `${WORKSPACE}/notes.txt`, 'hello!');
+    expect(saveMock).toHaveBeenCalledWith(WORKSPACE, `${WORKSPACE}/notes.txt`, 'hello!', 'v1');
   });
 
   it('reports that no edits remain when the preview goes away holding some', async () => {
@@ -99,8 +119,8 @@ describe('WorkspaceFilePreview unsaved edits', () => {
 describe('WorkspaceFilePreview save shortcut', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock.mockResolvedValue('hello');
-    saveMock.mockResolvedValue({ path: `${WORKSPACE}/notes.txt`, name: 'notes.txt', size: 6 });
+    readMock.mockResolvedValue(snapshot('hello'));
+    saveMock.mockResolvedValue(written);
   });
 
   const pressSave = () => fireEvent.keyDown(window, { key: 's', ctrlKey: true });
@@ -113,7 +133,7 @@ describe('WorkspaceFilePreview save shortcut', () => {
     const notPrevented = pressSave();
 
     expect(notPrevented).toBe(false);
-    await waitFor(() => expect(saveMock).toHaveBeenCalledWith(WORKSPACE, `${WORKSPACE}/notes.txt`, 'hello!'));
+    await waitFor(() => expect(saveMock).toHaveBeenCalledWith(WORKSPACE, `${WORKSPACE}/notes.txt`, 'hello!', 'v1'));
   });
 
   it('leaves Ctrl+S alone while the panel holding the preview is hidden', async () => {
@@ -145,7 +165,7 @@ describe('WorkspaceFilePreview when a file cannot be read', () => {
   });
 
   it('words the failure in the user language and never shows the reason the server gave', async () => {
-    fetchMock.mockRejectedValue(
+    readMock.mockRejectedValue(
       new Error('{"detail":"Cannot read file: [Errno 13] Permission denied: \'/Users/me/.secret\'"}'),
     );
 
@@ -156,7 +176,7 @@ describe('WorkspaceFilePreview when a file cannot be read', () => {
   });
 
   it('drops the failure notice when another file opens fine', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('boom')).mockResolvedValue('second file');
+    readMock.mockRejectedValueOnce(new Error('boom')).mockResolvedValue(snapshot('second file'));
     const { rerender } = render(preview(textFile('broken.txt')));
     await screen.findByText('previewLoadError');
 

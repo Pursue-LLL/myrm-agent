@@ -460,19 +460,6 @@ export const getWorkspaceFileContentUrl = (filePath: string, workspace: string, 
   return `${API_BASE_URL}/files/browse/content?${params}`;
 };
 
-/**
- * Fetch workspace file content as text for inline preview
- */
-export const fetchWorkspaceFileContent = async (filePath: string, workspace: string): Promise<string> => {
-  const params = new URLSearchParams({ path: filePath, workspace });
-  const res = await fetchWithTimeout(`/files/browse/content?${params}`, { method: 'GET', credentials: 'include' });
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'Unknown error');
-    throw new Error(text);
-  }
-  return res.text();
-};
-
 // ---------------------------------------------------------------------------
 // Workspace file write operations API
 // ---------------------------------------------------------------------------
@@ -564,18 +551,6 @@ export const deleteInWorkspace = async (
 ): Promise<{ deleted: string; type: string }> => {
   const params = new URLSearchParams({ workspace, path });
   return apiRequest(`/files/browse/delete?${params}`, { method: 'DELETE' });
-};
-
-export const saveWorkspaceFileContent = async (
-  workspace: string,
-  path: string,
-  content: string,
-): Promise<{ path: string; name: string; size: number }> => {
-  return apiRequest('/files/browse/content', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ workspace, path, content }),
-  });
 };
 
 // ---------------------------------------------------------------------------

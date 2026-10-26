@@ -27,12 +27,26 @@ vi.mock('@/components/features/files/FileTypeIcon', () => ({
 }));
 
 vi.mock('@/services/chat', () => ({
-  fetchWorkspaceFileContent: vi.fn().mockResolvedValue('file content'),
   getWorkspaceFileContentUrl: vi.fn(
     (path: string, _workspace: string, _download?: boolean) =>
       `/api/v1/files/browse/content?path=${encodeURIComponent(path)}`,
   ),
-  saveWorkspaceFileContent: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/services/workspaceText', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/workspaceText')>()),
+  readWorkspaceText: vi.fn().mockResolvedValue({
+    path: '/workspace/config.xyz',
+    name: 'config.xyz',
+    content: 'file content',
+    version: 'v1',
+    size: 12,
+    editable: true,
+    readonlyReason: null,
+    truncated: false,
+  }),
+  saveWorkspaceText: vi.fn(),
+  saveWorkspaceTextCopy: vi.fn(),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -64,7 +78,7 @@ vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({
   default: () => <div data-testid="xlsx" />,
 }));
 
-import { fetchWorkspaceFileContent } from '@/services/chat';
+import { readWorkspaceText } from '@/services/workspaceText';
 import { WorkspaceFilePreview } from '../WorkspaceFilePreview';
 
 const binaryFile: FileEntry = {
@@ -98,12 +112,12 @@ describe('WorkspaceFilePreview unknown-extension fallback', () => {
   it('routes unknown binary files to the unsupported download fallback without fetching text', async () => {
     renderPreview(binaryFile);
     expect(await screen.findByTestId('workspace-preview-unsupported')).toBeTruthy();
-    expect(fetchWorkspaceFileContent).not.toHaveBeenCalled();
+    expect(readWorkspaceText).not.toHaveBeenCalled();
   });
 
   it('renders unknown text files as plain text content', async () => {
     renderPreview(unknownTextFile);
     expect(await screen.findByText('file content')).toBeTruthy();
-    expect(fetchWorkspaceFileContent).toHaveBeenCalledWith('/workspace/config.xyz', '/workspace');
+    expect(readWorkspaceText).toHaveBeenCalledWith('/workspace', '/workspace/config.xyz');
   });
 });

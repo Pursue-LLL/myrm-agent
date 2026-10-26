@@ -6,7 +6,6 @@ Covers:
 - POST /browse/rename — rename file/directory
 - POST /browse/move   — move file/directory
 - DELETE /browse/delete — delete file/directory
-- PUT /browse/content — save file content (online edit)
 - Security: boundary, dangerous path, protected names, size limits
 """
 
@@ -266,70 +265,6 @@ async def test_delete_rejects_nonexistent(client: AsyncClient, workspace_dir: st
 
 
 # -----------------------------------------------------------------------
-# PUT /browse/content — save file content
-# -----------------------------------------------------------------------
-
-
-@pytest.mark.anyio
-async def test_save_content_creates_file(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "new_file.txt",
-            "content": "hello world",
-        },
-    )
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert data["name"] == "new_file.txt"
-    assert data["size"] == 11
-    with open(os.path.join(workspace_dir, "new_file.txt")) as f:
-        assert f.read() == "hello world"
-
-
-@pytest.mark.anyio
-async def test_save_content_overwrites_existing(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "readme.md",
-            "content": "# Updated",
-        },
-    )
-    assert resp.status_code == 200
-    with open(os.path.join(workspace_dir, "readme.md")) as f:
-        assert f.read() == "# Updated"
-
-
-@pytest.mark.anyio
-async def test_save_content_rejects_directory(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "src",
-            "content": "data",
-        },
-    )
-    assert resp.status_code in (400, 422)
-
-
-@pytest.mark.anyio
-async def test_save_content_rejects_outside_workspace(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "/etc/passwd",
-            "content": "hacked",
-        },
-    )
-    assert resp.status_code in (400, 422)
-
-
-# -----------------------------------------------------------------------
 # POST /browse/upload
 # -----------------------------------------------------------------------
 
@@ -405,19 +340,6 @@ async def test_mkdir_path_traversal_rejected(client: AsyncClient, workspace_dir:
 
 
 @pytest.mark.anyio
-async def test_save_content_path_traversal_rejected(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "../../../tmp/evil.txt",
-            "content": "hacked",
-        },
-    )
-    assert resp.status_code in (400, 422)
-
-
-@pytest.mark.anyio
 async def test_rename_slash_in_name_rejected(client: AsyncClient, workspace_dir: str):
     resp = await client.post(
         "/api/v1/files/browse/rename",
@@ -485,19 +407,6 @@ async def test_upload_path_traversal_target_dir_rejected(client: AsyncClient, wo
         "/api/v1/files/browse/upload",
         params={"workspace": workspace_dir, "target_dir": "../../../tmp"},
         files=[("files", ("evil.txt", b"data", "text/plain"))],
-    )
-    assert resp.status_code in (400, 422)
-
-
-@pytest.mark.anyio
-async def test_save_content_parent_dir_missing_rejected(client: AsyncClient, workspace_dir: str):
-    resp = await client.put(
-        "/api/v1/files/browse/content",
-        json={
-            "workspace": workspace_dir,
-            "path": "nonexistent_dir/file.txt",
-            "content": "data",
-        },
     )
     assert resp.status_code in (400, 422)
 

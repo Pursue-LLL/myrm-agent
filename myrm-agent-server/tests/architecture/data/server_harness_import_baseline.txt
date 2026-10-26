@@ -319,6 +319,7 @@ myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
 myrm_agent_harness.eval.protocols
 myrm_agent_harness.eval.significance
+myrm_agent_harness.infra.atomic_write
 myrm_agent_harness.infra.delivery.dead_letter
 myrm_agent_harness.infra.delivery.notification_ledger
 myrm_agent_harness.infra.delivery.storage

@@ -7,35 +7,34 @@
  * - file: FileEntry to preview/edit
  * - workspace: Workspace root path for API calls
  * - onDirtyChange: told whether the file holds edits that are not saved yet (false again when the preview goes away)
+ * - useWorkspaceTextEditor (POS: read, draft, save-against-version, conflict and copy handling)
  * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
  *
  * [OUTPUT]
  * - WorkspaceFilePreview: Full-height panel showing file content with line numbers, edit mode toggle, and
  *   Ctrl+S save. Binary files (images/audio/video/PDF/office docs) are rendered by RichMediaFilePreview.
+ *   A file the editor cannot change safely is shown view-only with a localized reason; a file that changed on
+ *   disk during an edit keeps the user's text and offers load-latest / overwrite / save-as-copy.
  *   A file that cannot be read gets a localized notice; the server's reason is never shown.
  *
  * [POS]
- * File content preview/editor for the workspace browser. Fetches text file
- * content via /browse/content API and renders with line numbers. Supports
- * inline editing with Ctrl+S / Cmd+S keyboard save shortcut (ignored while the
- * preview sits in a hidden tab panel). Routes binary files to the rich media
+ * File content preview/editor for the workspace browser. Text is read together with its version, so a save can
+ * never silently replace what changed on disk meanwhile. Supports inline editing with Ctrl+S / Cmd+S keyboard
+ * save shortcut (ignored while the preview sits in a hidden tab panel). Routes binary files to the rich media
  * renderer dispatcher.
  */
 
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye, GitCommit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
-import {
-  fetchWorkspaceFileContent,
-  getWorkspaceFileContentUrl,
-  saveWorkspaceFileContent,
-  type FileEntry,
-} from '@/services/chat';
+import { getWorkspaceFileContentUrl, type FileEntry } from '@/services/chat';
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
 import { InlineWorkspaceDiff } from './InlineWorkspaceDiff';
+import { ConflictNotice, ReadonlyNotice } from './WorkspaceTextNotices';
+import { formatBytes, getLanguage, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
+import { useWorkspaceTextEditor } from './useWorkspaceTextEditor';
 
 interface WorkspaceFilePreviewProps {
   file: FileEntry;
@@ -45,178 +44,36 @@ interface WorkspaceFilePreviewProps {
   className?: string;
 }
 
-function getLanguage(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  const map: Record<string, string> = {
-    py: 'python',
-    js: 'javascript',
-    ts: 'typescript',
-    tsx: 'tsx',
-    jsx: 'jsx',
-    json: 'json',
-    yaml: 'yaml',
-    yml: 'yaml',
-    toml: 'toml',
-    xml: 'xml',
-    html: 'html',
-    htm: 'html',
-    css: 'css',
-    scss: 'scss',
-    less: 'less',
-    md: 'markdown',
-    sql: 'sql',
-    sh: 'bash',
-    bash: 'bash',
-    zsh: 'bash',
-    rs: 'rust',
-    go: 'go',
-    java: 'java',
-    kt: 'kotlin',
-    c: 'c',
-    cpp: 'cpp',
-    h: 'c',
-    hpp: 'cpp',
-    cs: 'csharp',
-    rb: 'ruby',
-    php: 'php',
-    swift: 'swift',
-    r: 'r',
-    lua: 'lua',
-    csv: 'csv',
-    svg: 'xml',
-  };
-  return map[ext] || 'plaintext';
-}
-
-function formatBytes(bytes: number | null): string {
-  if (bytes === null) {
-    return '';
-  }
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-// ---------------------------------------------------------------------------
-// Line-numbered code viewer
-// ---------------------------------------------------------------------------
-
-const LineNumberedCode: React.FC<{ content: string; language: string }> = memo(({ content, language }) => {
-  const lines = content.split('\n');
-
-  return (
-    <div className="flex text-xs font-mono leading-relaxed">
-      <div className="select-none text-right pr-3 pl-2 text-muted-foreground/50 border-r border-border/30 shrink-0 sticky left-0 bg-background">
-        {lines.map((_, i) => (
-          <div key={i} className="h-5">
-            {i + 1}
-          </div>
-        ))}
-      </div>
-      <pre className="pl-3 pr-3 flex-1 whitespace-pre-wrap break-words text-foreground overflow-x-auto">
-        <code data-language={language}>{content}</code>
-      </pre>
-    </div>
-  );
-});
-LineNumberedCode.displayName = 'LineNumberedCode';
-
-// ---------------------------------------------------------------------------
-// Line-numbered editor
-// ---------------------------------------------------------------------------
-
-const LineNumberedEditor: React.FC<{
-  content: string;
-  onChange: (value: string) => void;
-}> = memo(({ content, onChange }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lineCountRef = useRef<HTMLDivElement>(null);
-  const lines = content.split('\n');
-
-  const syncScroll = useCallback(() => {
-    if (textareaRef.current && lineCountRef.current) {
-      lineCountRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
-  }, []);
-
-  return (
-    <div className="flex text-xs font-mono leading-relaxed h-full">
-      <div
-        ref={lineCountRef}
-        className="select-none text-right pr-3 pl-2 text-muted-foreground/50 border-r border-border/30 shrink-0 overflow-hidden bg-background"
-      >
-        {lines.map((_, i) => (
-          <div key={i} className="h-5">
-            {i + 1}
-          </div>
-        ))}
-      </div>
-      <textarea
-        ref={textareaRef}
-        value={content}
-        onChange={(e) => onChange(e.target.value)}
-        onScroll={syncScroll}
-        className="flex-1 pl-3 pr-3 bg-transparent text-foreground outline-none resize-none leading-relaxed whitespace-pre overflow-auto"
-        spellCheck={false}
-      />
-    </div>
-  );
-});
-LineNumberedEditor.displayName = 'LineNumberedEditor';
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
-
 export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
   ({ file, workspace, onClose, onDirtyChange, className }) => {
     const t = useTranslations('workspace');
-    const [content, setContent] = useState<string | null>(null);
-    const [editContent, setEditContent] = useState<string>('');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [loadFailed, setLoadFailed] = useState(false);
     const [editing, setEditing] = useState(false);
-    const [dirty, setDirty] = useState(false);
     const [showDiff, setShowDiff] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
     const previewKind = getPreviewKind(file.name);
     // Unknown extensions defer to the backend is_text flag: binary files render
     // the download fallback instead of garbled text.
-    const effectiveKind: PreviewKind | null = previewKind ?? (file.is_text === false ? 'unsupported' : null);
-    const isRichMedia = effectiveKind !== null;
+    const listedKind: PreviewKind | null = previewKind ?? (file.is_text === false ? 'unsupported' : null);
     // Only text files support inline editing; SVG needs its text fetched to render.
-    const needsText = effectiveKind === null || previewKind === 'svg';
+    const needsText = listedKind === null || previewKind === 'svg';
 
-    const loadContent = useCallback(async () => {
-      if (!needsText) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setLoadFailed(false);
-      try {
-        const text = await fetchWorkspaceFileContent(file.path, workspace);
-        setContent(text);
-        setEditContent(text);
-        setDirty(false);
-      } catch {
-        // The server's reason names paths and system errors; the reader only needs to know the file did not open.
-        setLoadFailed(true);
-      } finally {
-        setLoading(false);
-      }
-    }, [file.path, workspace, needsText]);
+    const editor = useWorkspaceTextEditor(workspace, file.path, needsText);
+    const { snapshot, dirty, save, discard } = editor;
+    const loading = editor.phase === 'loading';
+    const loadFailed = editor.phase === 'failed';
+    // A file the listing took for text can still hold binary data; it has no text to show.
+    const effectiveKind: PreviewKind | null =
+      listedKind ?? (snapshot?.readonlyReason === 'binary' ? 'unsupported' : null);
+    const isRichMedia = effectiveKind !== null;
+    const canEdit = !isRichMedia && snapshot?.editable === true;
+    const readonlyReason = !isRichMedia && snapshot ? snapshot.readonlyReason : null;
 
+    // A different file starts in view mode.
     useEffect(() => {
-      loadContent();
       setEditing(false);
-    }, [loadContent]);
+      setShowDiff(false);
+    }, [file.path, workspace]);
 
     // The host learns of unsaved edits for as long as they exist, and that they are gone once this preview is.
     useEffect(() => {
@@ -224,50 +81,27 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       return () => onDirtyChange?.(false);
     }, [dirty, onDirtyChange]);
 
-    const handleSave = useCallback(async () => {
-      if (!dirty || saving) {
-        return;
-      }
-      setSaving(true);
-      try {
-        await saveWorkspaceFileContent(workspace, file.path, editContent);
-        setContent(editContent);
-        setDirty(false);
-        toast.success(t('saveSuccess'));
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : t('saveFailed'));
-      } finally {
-        setSaving(false);
-      }
-    }, [workspace, file.path, editContent, dirty, saving, t]);
-
-    const handleEditChange = useCallback((value: string) => {
-      setEditContent(value);
-      setDirty(true);
-    }, []);
-
     const toggleEdit = useCallback(() => {
       if (editing && dirty) {
         if (!window.confirm(t('discardConfirm'))) {
           return;
         }
-        setEditContent(content || '');
-        setDirty(false);
+        discard();
       }
       setEditing((prev) => !prev);
-    }, [editing, dirty, content, t]);
+    }, [editing, dirty, discard, t]);
 
     // Ctrl+S / Cmd+S, unless a host keeps this preview mounted but hidden (the workbench does so under its Terminal tab)
     useEffect(() => {
       const handler = (e: globalThis.KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 's' && editing && !rootRef.current?.closest('[hidden]')) {
           e.preventDefault();
-          handleSave();
+          void save();
         }
       };
       window.addEventListener('keydown', handler);
       return () => window.removeEventListener('keydown', handler);
-    }, [editing, handleSave]);
+    }, [editing, save]);
 
     const handleDownload = useCallback(() => {
       const url = getWorkspaceFileContentUrl(file.path, workspace, true);
@@ -282,6 +116,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     }, [editing, dirty, onClose, t]);
 
     const language = getLanguage(file.name);
+    const size = snapshot?.size ?? file.size;
 
     return (
       <div
@@ -296,13 +131,13 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             <span className="text-sm font-medium truncate" title={file.path}>
               {file.name}
             </span>
-            {dirty && <span className="text-xs text-amber-500 shrink-0">{t('unsaved')}</span>}
-            {file.size !== null && !dirty && (
-              <span className="text-xs text-muted-foreground shrink-0">{formatBytes(file.size)}</span>
+            {dirty && <span className="text-xs text-warning shrink-0">{t('unsaved')}</span>}
+            {size !== null && !dirty && (
+              <span className="text-xs text-muted-foreground shrink-0">{formatBytes(size)}</span>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {!isRichMedia && content !== null && !loading && (
+            {canEdit && (
               <>
                 {dirty && (
                   <button
@@ -326,14 +161,16 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
                 </button>
               </>
             )}
-            {editing && dirty && (
+            {canEdit && editing && dirty && (
               <button
-                onClick={handleSave}
-                disabled={saving}
+                onClick={() => void save()}
+                disabled={editor.saving}
                 className="p-1 rounded hover:bg-muted transition-colors"
                 title={`${t('save')} (Ctrl+S)`}
               >
-                <Save className={cn('h-4 w-4', saving ? 'animate-spin text-muted-foreground' : 'text-primary')} />
+                <Save
+                  className={cn('h-4 w-4', editor.saving ? 'animate-spin text-muted-foreground' : 'text-primary')}
+                />
               </button>
             )}
             <button
@@ -349,6 +186,21 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
           </div>
         </div>
 
+        {/* Notices */}
+        {(editor.conflict || (readonlyReason !== null && readonlyReason !== 'binary')) && (
+          <div className="shrink-0 pt-2">
+            {editor.conflict && (
+              <ConflictNotice
+                busy={editor.saving}
+                onSaveCopy={() => void editor.saveCopy()}
+                onReload={() => void editor.reload()}
+                onOverwrite={() => void editor.overwrite()}
+              />
+            )}
+            {readonlyReason !== null && readonlyReason !== 'binary' && <ReadonlyNotice reason={readonlyReason} />}
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-auto py-2">
           {loading ? (
@@ -360,30 +212,30 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
               <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
               <span className="text-sm text-center">{t('previewLoadError')}</span>
             </div>
-          ) : showDiff && content !== null ? (
+          ) : showDiff && snapshot !== null ? (
             <InlineWorkspaceDiff
               file={file}
               workspace={workspace}
-              originalContent={content}
-              modifiedContent={editContent}
+              originalContent={snapshot.content}
+              modifiedContent={editor.draft}
               onClose={() => setShowDiff(false)}
             />
           ) : isRichMedia ? (
-            previewKind !== 'svg' || content !== null ? (
+            previewKind !== 'svg' || snapshot !== null ? (
               <RichMediaFilePreview
                 filePath={file.path}
                 filename={file.name}
                 workspace={workspace}
-                content={content ?? undefined}
+                content={snapshot?.content}
                 kind={effectiveKind ?? undefined}
                 onDownload={handleDownload}
               />
             ) : null
-          ) : content !== null ? (
-            editing ? (
-              <LineNumberedEditor content={editContent} onChange={handleEditChange} />
+          ) : snapshot !== null ? (
+            editing && canEdit ? (
+              <LineNumberedEditor content={editor.draft} onChange={editor.setDraft} />
             ) : (
-              <LineNumberedCode content={content} language={language} />
+              <LineNumberedCode content={snapshot.content} language={language} />
             )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
