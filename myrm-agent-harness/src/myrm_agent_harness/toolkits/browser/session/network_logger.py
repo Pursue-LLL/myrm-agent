@@ -5,6 +5,7 @@
 - patchright.async_api::Page (POS: Playwright page instance)
 - patchright.async_api::Request (POS: Playwright request object)
 - patchright.async_api::Response (POS: Playwright response object)
+- core.security.redact::redact_sensitive_text (POS: credential masking, applied before any text is cut)
 
 [OUTPUT]
 - RequestInfo: Immutable request/response record
@@ -251,7 +252,7 @@ class NetworkLogger:
 
         return "\n".join(lines)
 
-    def get_failed_summary(self) -> str:
+    def get_other_failed_summary(self) -> str:
         """Format the non-XHR/Fetch requests that answered 4xx/5xx, one line each, newest last; empty when none did.
 
         They carry no request number: network_detail opens XHR/Fetch bodies only, so a number

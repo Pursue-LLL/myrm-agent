@@ -4,6 +4,8 @@
 - patchright.async_api::Page (POS: Playwright page instance)
 - patchright.async_api::CDPSession (POS: Chrome DevTools Protocol session)
 - utils.page_health::detach_cdp_bounded (POS: bounded browser and page health primitives)
+- core.security.redact::redact_sensitive_text (POS: credential masking of response bodies)
+- session.network_logger::safe_preview, URL_PREVIEW_CHARS, POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW (POS: the masked, bounded previews the list lines share with the NetworkLogger list)
 
 [OUTPUT]
 - NetworkIntelligence: CDP-based lazy response body retrieval; numbers API requests and tells how each one ended

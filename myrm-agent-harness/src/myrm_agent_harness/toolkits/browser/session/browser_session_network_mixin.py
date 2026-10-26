@@ -5,6 +5,8 @@
 - session.network_logger::NetworkLogger (POS: network request log capture)
 - session.network_intelligence::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
 - session.network_logger::safe_preview (POS: credential-masked text cut to a limit)
+- core.security.redact::redact_sensitive_text (POS: credential masking of replayed response bodies)
+- session.session_host::SessionHost (POS: typed host contract the mixin builds on)
 - pool.config::BrowserEngine (POS: which engine a session runs on decides whether the console can be captured)
 
 [OUTPUT]
@@ -17,6 +19,8 @@ NetworkIntelligence. network_log is one list of numbered XHR/Fetch requests, who
 network_replay take, followed by the other resources that answered 4xx/5xx: those carry no number, because only
 an XHR/Fetch response body can be opened, and they are listed even when no XHR/Fetch request exists (a white page
 whose script 404s). A URL the list cut is given in full at the top of its network_detail answer.
+An engine without CDP (Firefox) has no request records to open: its driver's own XHR/Fetch list stands in,
+numbered by position, and network_detail / network_replay cannot act on those numbers.
 Replay re-sends a GET by in-page fetch via the active tab and refuses every other
 method (a recorded write is an action the page already performed: re-sending it would perform it again with
 the user's cookies and nobody's approval, and it is the same capability evaluate gates behind a person).
@@ -108,7 +112,7 @@ class BrowserSessionNetworkMixin(SessionHost):
         api_summary = self._network_intelligence.get_summary()
         # Without CDP (Firefox) the driver's own list stands in, numbered by position.
         parts = [_API_LIST_HEADER, api_summary] if api_summary else [self._network_logger.get_summary()]
-        failed_summary = self._network_logger.get_failed_summary()
+        failed_summary = self._network_logger.get_other_failed_summary()
         if failed_summary:
             parts.append(f"\n{failed_summary}")
         return "\n".join(parts)

@@ -41,7 +41,7 @@ async def _until(condition: Callable[[], bool]) -> None:
 
 
 async def _until_the_failed_script_is_logged(session: BrowserSession) -> None:
-    await _until(lambda: bool(session._network_logger.get_failed_summary()))
+    await _until(lambda: bool(session._network_logger.get_other_failed_summary()))
 
 
 async def test_a_script_that_404s_is_listed_without_a_number_and_number_one_still_opens_the_api_request() -> None:
