@@ -4,6 +4,10 @@ Tests the materialize_jit_configs function that parses ephemeral subagent
 configurations from frontend into SubagentConfig objects.
 """
 
+from types import SimpleNamespace
+
+import pytest
+from myrm_agent_harness.agent.sub_agents.builder import filter_tools
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     MemoryIsolationPolicy,
@@ -111,7 +115,7 @@ class TestMaterializeJitConfigs:
                 "system_prompt": "Data analyst.",
                 "description": "Analyzes data.",
                 "model": "gpt-4o",
-                "tools": ["web_search", "read_file"],
+                "tools": ["web_search_tool", "file_read_tool"],
                 "max_turns": 30,
                 "memory_isolation": "collaborative_session",
                 "context_mode": "fork",
@@ -128,7 +132,7 @@ class TestMaterializeJitConfigs:
         assert config.system_prompt == "Data analyst."
         assert config.description == "Analyzes data."
         assert config.model == "gpt-4o"
-        assert config.tools == ("web_search", "read_file")
+        assert config.tools == ("web_search_tool", "file_read_tool")
         assert config.max_turns == 30
         assert config.memory_isolation == MemoryIsolationPolicy.COLLABORATIVE_SESSION
         assert config.context_mode == "fork"
@@ -277,3 +281,28 @@ class TestMaterializeJitConfigs:
 
         default = materialize_jit_configs({"bash_worker": {"system_prompt": "Run bash."}})
         assert default["bash_worker"].auto_vault_threshold == 8000
+
+
+class TestMaterializedChildrenToolBoundary:
+    """What a materialised roster member may inherit from its parent, through the harness child filter."""
+
+    @staticmethod
+    def _parent_tools() -> list[SimpleNamespace]:
+        names = ("memory_search_tool", "memory_save_tool", "memory_manage_tool", "web_search_tool", "file_read_tool")
+        return [SimpleNamespace(name=name) for name in names]
+
+    @pytest.mark.parametrize("policy", [policy.value for policy in MemoryIsolationPolicy])
+    def test_member_without_an_allowlist_never_inherits_memory_write_tools(self, policy: str) -> None:
+        raw_configs = {"analyst": {"system_prompt": "Analyse.", "tools": [], "memory_isolation": policy}}
+
+        config = materialize_jit_configs(raw_configs)["analyst"]
+
+        kept = {tool.name for tool in filter_tools(config, self._parent_tools())}
+        assert kept == {"memory_search_tool", "web_search_tool", "file_read_tool"}
+
+    def test_member_allowlist_keeps_only_the_named_tools(self) -> None:
+        raw_configs = {"reader": {"system_prompt": "Read.", "tools": ["file_read_tool", "memory_save_tool"]}}
+
+        config = materialize_jit_configs(raw_configs)["reader"]
+
+        assert {tool.name for tool in filter_tools(config, self._parent_tools())} == {"file_read_tool"}

@@ -28,6 +28,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_conversation_recall_layout.py` | Conversation Recall 仓储须位于 `app/database/repositories/conversation_recall/` 子包，禁止 repositories 根 legacy 平铺文件复活 |
 | `test_e2ee_layout.py` | Mobile remote E2EE 须位于 `app/remote_access/e2ee/` 子包，禁止 remote_access 根 legacy 平铺文件复活 |
 | `test_builtin_agent_i18n_parity.py` | 前端 `builtin-agent-i18n-data.ts` 的 key 集合须与 server `_BUILTIN_AGENTS` id 严格同构 |
+| `test_blueprint_template_tools_parity.py` | 前端聊天配置面板 `BLUEPRINT_TEMPLATES`（JIT 一键编队）里每个成员的 `tools` 必须非空（空 = 继承父级全部工具）且都是 harness 注册的工具全名（`web_search` 这类界面名不会匹配任何工具，子智能体最后零工具）；自带扫描校准用例 |
 | `test_channel_catalog_i18n_boundary.py` | server 渠道 JSON catalog 边界：键集 ⊆ 白名单、全语种同构、禁止 fork harness 诊断目录（SSOT） |
 | `test_app_has_no_test_env_reads.py` | `app/**` 禁止读测试开关（`MYRM_E2E_*` / `MYRM_TEST_*` / `E2E_*`，豁免 pytest 自设的 `PYTEST_CURRENT_TEST`），也禁止读业务凭据类 env（`EMBEDDING_*` / `RERANKER_*` / `BASIC_*` / `LITE_*` / `TAVILY_*`）：前者让测试脚手架能改变生产语义，后者让「WebUI 配置」与「进程 env」两套来源并存（曾导致 FAQ 拦截在生产永远返回 None）。业务能力差异用 `DeploymentCapabilities` 语义位表达，凭据一律经 WebUI 配置注入 |
 | `test_env_templates_have_no_dead_keys.py` | 三个已入库 env 模板（`.env.example` / `.env.test.example` / `.env.sandbox.example`）里的每个键必须在代码里有读者；无读者的键等于让维护者改一个永远不会生效的值（`BASELINE_SYNC_INTERVAL` 与 `RERANKER_*` 就是这样存活的）。扫描范围覆盖 server app/tests/scripts、harness src、仓库 scripts 与 Dockerfile/compose；`SettingsConfigDict(env_prefix=...)` 拼出的键与 compose 变量按前缀放行，不需要逐键白名单。自带路径存在性守卫（路径算错时直接失败而不是空扫通过）与反向用例（注入死键必须报红）|

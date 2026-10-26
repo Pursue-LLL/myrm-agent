@@ -101,7 +101,7 @@ def materialize_jit_configs(
                     "display_name": "Researcher",
                     "system_prompt": "You are a researcher.",
                     "model": "gpt-4o",
-                    "tools": ["web_search", "read_file"]
+                    "tools": ["web_search_tool", "file_read_tool"]
                 }
             }
 
