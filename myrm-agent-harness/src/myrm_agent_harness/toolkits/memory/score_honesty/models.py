@@ -24,6 +24,7 @@ Score honesty and raw vs ranking models.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import SupportsFloat, cast
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -84,7 +85,7 @@ class ScoreBreakdown(BaseModel):
     @classmethod
     def _clamp_unit_interval(cls, v: object) -> float:
         try:
-            val = float(v)  # type: ignore[arg-type]
+            val = float(cast(SupportsFloat, v))
         except (TypeError, ValueError):
             return 0.0
         if val != val:  # NaN guard
