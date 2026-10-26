@@ -19,16 +19,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import {
-  Terminal,
-  Play,
-  Trash2,
-  Share2,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  CornerDownLeft,
-} from 'lucide-react';
+import { Terminal, Play, Trash2, Share2, Loader2, CheckCircle2, AlertCircle, CornerDownLeft } from 'lucide-react';
 import { executeTerminalCommand, TERMINAL_TIMEOUT_SECONDS } from '@/services/workbench';
 import useChatStore from '@/store/useChatStore';
 import { useWorkbenchStore, type TerminalLogEntry } from '@/store/useWorkbenchStore';
@@ -165,9 +156,7 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-mono ${
-                      log.exitCode === 0
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-rose-500/20 text-rose-400'
+                      log.exitCode === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
                     }`}
                   >
                     {log.exitCode === 0 ? (
@@ -202,9 +191,7 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
 
       {/* Terminal Input Prompt */}
       <div className="p-2 border-t border-border/60 bg-card/70 flex items-center gap-2">
-        <span className="font-mono text-emerald-500 font-bold select-none text-xs pl-1">
-          $
-        </span>
+        <span className="font-mono text-emerald-500 font-bold select-none text-xs pl-1">$</span>
         <input
           type="text"
           value={inputCommand}
@@ -220,11 +207,7 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
           disabled={!inputCommand.trim() || isExecuting}
           className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 transition-colors disabled:opacity-40"
         >
-          {isExecuting ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Play className="w-3.5 h-3.5" />
-          )}
+          {isExecuting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
           <span>{t('runAction')}</span>
         </button>
       </div>
