@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import get_args
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.acp.types import PermissionMode
 
 from app.ai_agents.general_agent.external_agents import (
     BUILTIN_CLI_VISUAL_AGENT_ID,
@@ -19,11 +21,33 @@ from app.ai_agents.general_agent.external_agents import (
     needs_runtime_pool,
     should_mount_invoke_acp_agent_tool,
 )
+from app.ai_agents.general_agent.external_agents_runtime_config import _permission_mode
 
 
 def test_auth_mode_resolves_api_key_and_subscription() -> None:
     assert _auth_mode({"authMode": "api_key"}) == "api_key"
     assert _auth_mode({}) == "subscription"
+
+
+@pytest.mark.parametrize("mode", get_args(PermissionMode))
+def test_permission_mode_keeps_each_known_mode(mode: str) -> None:
+    assert _permission_mode({"permissionMode": mode}) == mode
+
+
+@pytest.mark.parametrize("raw", [None, "", "allow-all", "ALLOW_ALL", 3, ["safe"]])
+def test_permission_mode_unknown_value_fails_closed_to_safe(raw: object) -> None:
+    # An unknown name would otherwise map to no CLI flag at all and leave the CLI on its own default.
+    assert _permission_mode({"permissionMode": raw}) == "safe"
+
+
+def test_permission_mode_missing_key_defaults_to_safe() -> None:
+    assert _permission_mode({}) == "safe"
+
+
+def test_register_backends_on_pool_registers_unknown_permission_mode_as_safe() -> None:
+    pool = MagicMock()
+    _register_backends_on_pool(pool, [{"name": "claude", "command": "claude", "permissionMode": "allow-all"}])
+    assert pool.register.call_args[0][1].permission_mode == "safe"
 
 
 def test_cfg_int_parses_and_falls_back() -> None:

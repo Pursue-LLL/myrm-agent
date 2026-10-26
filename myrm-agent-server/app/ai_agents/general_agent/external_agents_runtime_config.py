@@ -6,7 +6,7 @@
 - app.config.deploy_mode::is_local_mode (POS: deploy mode guard)
 
 [OUTPUT]
-- _auth_mode / _cfg_int: Config parsing helpers
+- _auth_mode / _permission_mode / _cfg_int: Config parsing helpers (an unknown permission mode fails closed to safe)
 - _config_fingerprint: Stable hash aligned with RuntimeConfig-relevant fields
 - _resolve_external_agent_cfgs: Resolve explicit config or local auto-detect
 - _register_backends_on_pool: Register normalized runtime configs into RuntimePool
@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
-    from myrm_agent_harness.toolkits.acp.types import AuthMode
+    from myrm_agent_harness.toolkits.acp.types import AuthMode, PermissionMode
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,26 @@ def _default_cli_args(agent_name: str) -> list[str]:
 def _auth_mode(cfg: dict[str, object]) -> AuthMode:
     """Resolve the configured auth mode, defaulting to subscription (use login state)."""
     return "api_key" if cfg.get("authMode") == "api_key" else "subscription"
+
+
+def _permission_mode(cfg: dict[str, object]) -> PermissionMode:
+    """Resolve the configured permission mode; a missing or unknown value fails closed to ``safe``.
+
+    The harness adds no CLI flag for a mode name it does not know, which would leave the CLI on its
+    own default (possibly permissive), so the name is validated here instead.
+    """
+    match cfg.get("permissionMode"):
+        case "ask":
+            return "ask"
+        case "allow_all":
+            return "allow_all"
+        case "bypass":
+            return "bypass"
+        case "safe" | None:
+            return "safe"
+        case other:
+            logger.warning("Unknown external agent permissionMode %r; using 'safe'", other)
+            return "safe"
 
 
 def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
@@ -94,7 +114,7 @@ class _NormalizedRuntimeCfg:
     cwd: str | None
     timeout_seconds: int
     max_response_chars: int
-    permission_mode: str
+    permission_mode: PermissionMode
     auth_mode: AuthMode
     max_turns: int
     description: str
@@ -121,7 +141,7 @@ def _normalize_runtime_cfg(cfg: dict[str, object]) -> _NormalizedRuntimeCfg | No
         cwd=_normalized_cwd(cfg),
         timeout_seconds=_cfg_int(cfg, "timeout", 300),
         max_response_chars=_cfg_int(cfg, "maxResponseChars", 50_000),
-        permission_mode=str(cfg.get("permissionMode", "safe")),
+        permission_mode=_permission_mode(cfg),
         auth_mode=_auth_mode(cfg),
         max_turns=_cfg_int(cfg, "maxTurns", 25),
         description=str(cfg.get("description", "")),
