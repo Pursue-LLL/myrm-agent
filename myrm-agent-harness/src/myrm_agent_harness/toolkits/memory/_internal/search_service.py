@@ -32,6 +32,7 @@ from myrm_agent_harness.toolkits.memory._internal.channel_pruning import Channel
 from myrm_agent_harness.toolkits.memory._internal.maintenance import enrich_with_graph
 from myrm_agent_harness.toolkits.memory._internal.rerank_gate import apply_cross_rerank
 from myrm_agent_harness.toolkits.memory._internal.scope import apply_channel_affinity
+from myrm_agent_harness.toolkits.memory._internal.search_deadline import deadline_remaining, embedding_budget
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     embed_single,
     search_bm25,
@@ -122,16 +123,6 @@ def _stream_warning_code(stream: str, failure_type: Literal["timeout", "failed"]
     if not codes:
         return f"GATHER_{stream.upper()}_{failure_type.upper()}"
     return codes[0] if failure_type == "timeout" else codes[1]
-
-
-def _deadline_remaining(deadline: float) -> float:
-    """Seconds left before ``deadline``, floored at zero.
-
-    Lets every network-touching retrieval stage (embed / collect / graph) share one
-    wall-clock budget, so partial results collected before the deadline survive while
-    the whole pipeline still returns in bounded time.
-    """
-    return max(0.0, deadline - perf_counter())
 
 
 def _log_background_task_failure(task: asyncio.Task[object]) -> None:
@@ -292,10 +283,11 @@ class MemorySearchService:
             embed_start = perf_counter()
             query_vector = None
             if embedding_required:
+                embed_budget = embedding_budget(deadline, runtime_config.retrieval.timeout_seconds)
                 try:
                     query_vector = await asyncio.wait_for(
                         self._embed_query_if_needed(sanitized_query, search_types),
-                        timeout=_deadline_remaining(deadline),
+                        timeout=embed_budget,
                     )
                 except TimeoutError:
                     degraded = True
@@ -303,7 +295,7 @@ class MemorySearchService:
                     get_search_metrics().record_degradation("timeout")
                     logger.warning(
                         "Memory query embedding timed out after %.1fs; continuing with local-only recall",
-                        runtime_config.retrieval.timeout_seconds,
+                        embed_budget,
                     )
                 except BaseException as exc:
                     if isinstance(exc, asyncio.CancelledError):
@@ -407,7 +399,7 @@ class MemorySearchService:
                             namespaces=self._namespaces,
                             reraise_graph_errors=True,
                         ),
-                        timeout=_deadline_remaining(deadline),
+                        timeout=deadline_remaining(deadline),
                     )
                 except TimeoutError:
                     graph_degraded = True
@@ -597,7 +589,7 @@ class MemorySearchService:
         try:
             done, pending = await asyncio.wait(
                 tasks,
-                timeout=_deadline_remaining(deadline),
+                timeout=deadline_remaining(deadline),
                 return_when=asyncio.ALL_COMPLETED,
             )
         except asyncio.CancelledError:

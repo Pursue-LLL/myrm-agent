@@ -27,21 +27,11 @@ from myrm_agent_harness.toolkits.vector.base import (
     VectorStore,
 )
 from myrm_agent_harness.toolkits.vector.config import VectorStoreConfig
-from myrm_agent_harness.toolkits.vector.qdrant.collections import QdrantCollectionMixin
+from myrm_agent_harness.toolkits.vector.qdrant.collections import QdrantCollectionMixin, is_missing_collection
 from myrm_agent_harness.toolkits.vector.qdrant.filters import build_qdrant_filter, point_id_for
 from myrm_agent_harness.toolkits.vector.qdrant.sparse import QdrantSparseMixin
 
 logger = logging.getLogger(__name__)
-
-
-def _is_missing_collection(exc: Exception) -> bool:
-    """Whether a read failed only because the collection does not exist.
-
-    Qdrant answers every read of an absent collection with ``ValueError("Collection X
-    not found")``. Collections are created lazily on their first write, so a fresh
-    install reads them before they exist: that is an empty result, not a failure.
-    """
-    return isinstance(exc, ValueError) and "not found" in str(exc).lower()
 
 
 class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
@@ -195,7 +185,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                 with_vectors=True,
             )
         except Exception as e:
-            if _is_missing_collection(e):
+            if is_missing_collection(e):
                 return []
             raise
 
@@ -245,7 +235,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                 with_vectors=True,
             )
         except Exception as e:
-            if _is_missing_collection(e):
+            if is_missing_collection(e):
                 return []
             raise
 
@@ -264,7 +254,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                 with_vectors=True,
             )
         except Exception as e:
-            if _is_missing_collection(e):
+            if is_missing_collection(e):
                 return []
             raise
         return [self._point_to_document(point) for point in points]  # type: ignore[union-attr]
@@ -305,7 +295,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                     collection_name=collection,
                 )
         except Exception as e:
-            if _is_missing_collection(e):
+            if is_missing_collection(e):
                 return 0
             raise
         return result.count  # type: ignore[union-attr]
@@ -347,7 +337,7 @@ class QdrantVectorStore(QdrantCollectionMixin, QdrantSparseMixin, VectorStore):
                 **kwargs,
             )
         except Exception as e:
-            if _is_missing_collection(e):
+            if is_missing_collection(e):
                 return [], None
             raise
 

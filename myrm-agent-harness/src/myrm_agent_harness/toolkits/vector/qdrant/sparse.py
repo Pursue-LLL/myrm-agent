@@ -2,6 +2,7 @@
 
 [INPUT]
 myrm_agent_harness.toolkits.vector.base (POS: SparsePoint model)
+myrm_agent_harness.toolkits.vector.qdrant.collections (POS: missing-collection classifier)
 myrm_agent_harness.toolkits.vector.qdrant.filters (POS: Qdrant filter builder)
 qdrant_client (POS: Qdrant SDK, optional dependency)
 
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.vector.base import (
     SparsePoint,
     VectorDocument,
 )
+from myrm_agent_harness.toolkits.vector.qdrant.collections import is_missing_collection
 
 if TYPE_CHECKING:
     from qdrant_client import models
@@ -37,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Named sparse vector used for every sparse collection created by this mixin.
 BM25_SPARSE_VECTOR_NAME = "bm25"
+
 
 def sparse_payload(point: SparsePoint) -> dict[str, object]:
     """Build the sparse-collection payload, mirroring the dense upsert layout.
@@ -105,9 +108,7 @@ class QdrantSparseMixin:
                 self._client.create_collection,  # type: ignore[attr-defined]
                 collection_name=name,
                 sparse_vectors_config={
-                    BM25_SPARSE_VECTOR_NAME: models.SparseVectorParams(
-                        index=models.SparseIndexParams(on_disk=False)
-                    )
+                    BM25_SPARSE_VECTOR_NAME: models.SparseVectorParams(index=models.SparseIndexParams(on_disk=False))
                 },
             )
             return True
@@ -180,17 +181,24 @@ class QdrantSparseMixin:
 
         Sparse-authoritative deployments (no embedding backend) keep their writes
         in the mirror alone, so listing must read it or those memories stay
-        invisible in the UI and in the list API.
+        invisible in the UI and in the list API. A mirror is created on its first
+        write, so a type that was never written answers empty, like ``scroll``.
         """
         from qdrant_client import models
 
-        records, _ = await self._with_retry(
-            self._client.scroll,  # type: ignore[attr-defined]
-            collection_name=collection,
-            limit=limit,
-            with_payload=True,
-            with_vectors=False,
-        )
+        try:
+            page = await self._with_retry(
+                self._client.scroll,  # type: ignore[attr-defined]
+                collection_name=collection,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception as exc:
+            if is_missing_collection(exc):
+                return []
+            raise
+        records, _ = cast("tuple[list[models.Record], object]", page)
         return [
             self._sparse_point_to_document(
                 models.ScoredPoint(

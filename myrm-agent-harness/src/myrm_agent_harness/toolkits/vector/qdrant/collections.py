@@ -7,6 +7,8 @@ qdrant_client (POS: Qdrant SDK, optional dependency)
 [OUTPUT]
 QdrantCollectionMixin: create / ensure / inspect / delete collections, payload indexes,
 and epoch-timestamp backfill for QdrantVectorStore
+is_missing_collection: classifier for the "collection does not exist" read failure,
+shared by the dense and sparse read paths
 
 [POS]
 Collection-lifecycle layer for the Qdrant backend. Hosts every operation that only
@@ -40,6 +42,16 @@ def _distance_of(distance: str) -> object:
         "euclidean": Distance.EUCLID,
         "dot": Distance.DOT,
     }.get(distance.lower(), Distance.COSINE)
+
+
+def is_missing_collection(exc: Exception) -> bool:
+    """Whether a read failed only because the collection does not exist.
+
+    Qdrant answers every read of an absent collection with ``ValueError("Collection X
+    not found")``. Collections are created lazily on their first write, so a fresh
+    install reads them before they exist: that is an empty result, not a failure.
+    """
+    return isinstance(exc, ValueError) and "not found" in str(exc).lower()
 
 
 class QdrantCollectionMixin:
