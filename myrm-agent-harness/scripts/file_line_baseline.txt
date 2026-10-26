@@ -5,7 +5,7 @@
 # Remove entries after splitting below 500 lines.
 myrm_agent_harness/agent/_internals/agent_runtime.py	784
 myrm_agent_harness/agent/_internals/run_lifecycle.py	530
-myrm_agent_harness/agent/base_agent.py	618
+myrm_agent_harness/agent/base_agent.py	631
 myrm_agent_harness/agent/context_management/infra/schemas.py	715
 myrm_agent_harness/agent/context_management/pipeline/processors/cache_ttl_prune_processor.py	721
 myrm_agent_harness/agent/context_management/pipeline/processors/summarize_processor.py	845
@@ -47,6 +47,7 @@ myrm_agent_harness/eval/assertions.py	693
 myrm_agent_harness/eval/protocols.py	635
 myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
+myrm_agent_harness/infra/tracing/tracer.py	700
 myrm_agent_harness/runtime/context/instance_metrics.py	694
 myrm_agent_harness/toolkits/browser/pool/browser_launcher.py	535
 myrm_agent_harness/toolkits/browser/pool/browser_pool.py	760
@@ -71,6 +72,8 @@ myrm_agent_harness/toolkits/kanban/_orchestrator_tools.py	575
 myrm_agent_harness/toolkits/kanban/dispatcher.py	687
 myrm_agent_harness/toolkits/kanban/protocols.py	539
 myrm_agent_harness/toolkits/kanban/types.py	595
+myrm_agent_harness/toolkits/llms/adapters/chat_model/async_mixin.py	550
+myrm_agent_harness/toolkits/llms/adapters/chat_model/model.py	513
 myrm_agent_harness/toolkits/llms/fallback/manager.py	609
 myrm_agent_harness/toolkits/llms/image/generator.py	557
 myrm_agent_harness/toolkits/llms/routing/complexity_router.py	803
@@ -93,7 +96,7 @@ myrm_agent_harness/toolkits/wiki/retrieval/query.py	928
 myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	542
 myrm_agent_harness/utils/context_format.py	564
 myrm_agent_harness/utils/text_utils.py	503
-myrm_agent_harness/utils/token_economics/tracker.py	570
+myrm_agent_harness/utils/token_economics/tracker.py	575
 myrm_agent_harness/utils/url_utils.py	505
 myrm_agent_harness/toolkits/wiki/core/structure.py	507
 myrm_agent_harness/toolkits/memory/strategies/merger.py	554
