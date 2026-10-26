@@ -100,6 +100,7 @@ class ExternalAgentsMixin:
         chat_id: str | None
         agent_id: str | None
         force_external_agent: str | None
+        locale: str | None
 
     async def _setup_external_agents(
         self,
@@ -232,4 +233,5 @@ class ExternalAgentsMixin:
             query if isinstance(query, str) else str(query),
             session_id=f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default",
             cancel_token=cancel_token,
+            locale=self.locale or "en",
         )

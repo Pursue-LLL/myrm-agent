@@ -4,9 +4,10 @@
 - myrm_agent_harness.toolkits.acp.core.backend_detector::BackendDetector (POS: CLI backend detection)
 - myrm_agent_harness.toolkits.acp.types::RuntimeConfig (POS: ACP runtime config contract)
 - app.config.deploy_mode::is_local_mode (POS: deploy mode guard)
+- app.config.settings::settings (POS: Gateway wall-clock ceiling that bounds a delegated turn)
 
 [OUTPUT]
-- _auth_mode / _permission_mode / _cfg_int: Config parsing helpers (an unknown permission mode fails closed to safe)
+- _auth_mode / _permission_mode / _cfg_int / _turn_timeout: Config parsing helpers (an unknown permission mode fails closed to safe; the turn timeout defaults to 30 min and stays under the Gateway ceiling)
 - _config_fingerprint: Stable hash aligned with RuntimeConfig-relevant fields
 - _resolve_external_agent_cfgs: Resolve explicit config or local auto-detect
 - _register_backends_on_pool: Register normalized runtime configs into RuntimePool
@@ -29,6 +30,11 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.types import AuthMode, PermissionMode
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_TURN_TIMEOUT_SECONDS = 1800
+# A delegated turn is cut by the Gateway's wall-clock ceiling anyway; ending it a little earlier lets the
+# runtime stop the CLI itself and report a timeout the user can read.
+_CEILING_MARGIN_SECONDS = 60
 
 
 def _default_cli_args(agent_name: str) -> list[str]:
@@ -78,6 +84,22 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
         except ValueError:
             return default
     return default
+
+
+def _turn_timeout(cfg: dict[str, object]) -> int:
+    """Whole-turn time limit of a delegated CLI turn.
+
+    A missing or non-positive value means the default, which is generous because a CLI turn that edits
+    code and runs tests takes minutes; the Gateway's wall-clock ceiling caps it.
+    """
+    from app.config.settings import settings
+
+    value = _cfg_int(cfg, "timeout", _DEFAULT_TURN_TIMEOUT_SECONDS)
+    if value <= 0:
+        logger.warning("Invalid external agent timeout %r; using %ds", cfg.get("timeout"), _DEFAULT_TURN_TIMEOUT_SECONDS)
+        value = _DEFAULT_TURN_TIMEOUT_SECONDS
+    ceiling = int(settings.agent.execution_hard_ceiling) - _CEILING_MARGIN_SECONDS
+    return min(value, max(ceiling, 1))
 
 
 def _normalized_env(cfg: dict[str, object]) -> dict[str, str] | None:
@@ -139,7 +161,7 @@ def _normalize_runtime_cfg(cfg: dict[str, object]) -> _NormalizedRuntimeCfg | No
         args=args,
         env=_normalized_env(cfg),
         cwd=_normalized_cwd(cfg),
-        timeout_seconds=_cfg_int(cfg, "timeout", 300),
+        timeout_seconds=_turn_timeout(cfg),
         max_response_chars=_cfg_int(cfg, "maxResponseChars", 50_000),
         permission_mode=_permission_mode(cfg),
         auth_mode=_auth_mode(cfg),

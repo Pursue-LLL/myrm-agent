@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型), on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流)
 - myrm_agent_harness.toolkits.acp.types (POS: 外部 Agent 委托协议：运行时事件、错误码、委托池)
+- app.services.external_agents.delegate_errors::delegate_error_event (POS: 直连委托失败的用户指引)
 
 [OUTPUT]
 - stream_direct_delegate: harness RuntimeEvent 流 → 前端 SSE 事件流
@@ -10,7 +11,8 @@
 [POS]
 绕过 LangChain Agent 的外部 Agent 直连路由的事件翻译层。每次外部工具调用是一个带 tool_call_id 的独立步骤
 （开始与结果落在同一步）；会话没有被续接时发一个只有标题的步骤，措辞由前端按当前语言给出。停止（令牌取消）
-经 pool.cancel 终止外部进程，外部 Agent 静默时同样即时生效。
+经 pool.cancel 终止外部进程，外部 Agent 静默时同样即时生效。失败时：用户能自己处置的（未登录、未安装、超时）
+给带处置步骤的错误事件，其余保持 CLI 的原话。
 """
 
 from __future__ import annotations
@@ -20,7 +22,9 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, TypeAlias
 
 from myrm_agent_harness.api import AgentEventType, on_token_cancelled
-from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, ContinuityStatus, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import AcpError, AcpErrorCode, ContinuityStatus, RuntimeEventType
+
+from app.services.external_agents.delegate_errors import delegate_error_event
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping
@@ -57,9 +61,10 @@ class _TurnTranslator:
     step) and how the turn ended.
     """
 
-    def __init__(self, agent_name: str, auth_mode: str) -> None:
+    def __init__(self, agent_name: str, auth_mode: str, locale: str) -> None:
         self._agent = agent_name
         self._auth_mode = auth_mode
+        self._locale = locale
         self._source = f"delegate:{agent_name}"
         self._tool_lines: dict[str, str] = {}
         self.outcome = _Outcome.COMPLETED
@@ -200,6 +205,10 @@ class _TurnTranslator:
             self.outcome = _Outcome.TURN_LIMIT
             return []
         self.outcome = _Outcome.FAILED
+        if isinstance(error, AcpError):
+            guidance = delegate_error_event(self._agent, error, auth_mode=self._auth_mode, locale=self._locale)
+            if guidance is not None:
+                return [guidance]
         message = getattr(error, "message", str(error)) if error else "Unknown error"
         return [{"type": AgentEventType.ERROR.value, "data": message}]
 
@@ -211,6 +220,7 @@ async def stream_direct_delegate(
     *,
     session_id: str,
     cancel_token: CancellationToken | None = None,
+    locale: str = "en",
 ) -> AsyncGenerator[SseEvent]:
     """Run one turn of ``agent_name`` on ``pool`` and stream it as frontend events.
 
@@ -219,7 +229,7 @@ async def stream_direct_delegate(
     ``CANCELLED`` event.
     """
     config = pool.get_config(agent_name)
-    turn = _TurnTranslator(agent_name, config.auth_mode if config else "subscription")
+    turn = _TurnTranslator(agent_name, config.auth_mode if config else "subscription", locale)
     yield turn.connecting()
 
     async with (

@@ -3,6 +3,7 @@
 [INPUT]
 - app.core.utils.delivery_provenance::resolve_general_agent_pipeline_labels, apply_delivery_banner (POS: Human ingress banner + structured log labels keyed by channel_name.)
 - app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware::reset_answer_tool_convergence (POS: 工具约束中间件的收敛状态重置)
+- app.services.external_agents.delegate_errors::agent_unavailable_event (POS: 直连委托失败的用户指引)
 
 [OUTPUT]
 - execute_stream_pipeline: Primary LangGraph execution loop for streamed general agent runs.
@@ -19,6 +20,7 @@ from app.core.utils.delivery_provenance import (
     apply_delivery_banner,
     resolve_general_agent_pipeline_labels,
 )
+from app.services.external_agents.delegate_errors import agent_unavailable_event
 
 if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -67,7 +69,8 @@ async def execute_stream_pipeline(
 
     Args:
         force_external_agent: If set, bypass the LLM and route the query
-            directly to the named external agent via RuntimePool.
+            directly to the named external agent via RuntimePool. An agent that is
+            not available is reported as an error, never answered by another agent.
     """
     message_id = message_id or str(uuid4())
     ch_label, ingress_label = resolve_general_agent_pipeline_labels(agent_wrapper.channel_name)
@@ -129,6 +132,11 @@ async def execute_stream_pipeline(
                     "data": f"External agent '{force_external_agent}' execution failed",
                 }
             return
+
+    if force_external_agent:
+        logger.warning("Direct external delegate unavailable: agent=%s", force_external_agent)
+        yield agent_unavailable_event(force_external_agent, agent_wrapper.locale or "en")
+        return
 
     if agent_wrapper.jit_subagents:
         roster_lines = [
