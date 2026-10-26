@@ -16015,6 +16015,7 @@
         "never": "從未",
         "status": {
           "active": "運行中",
+          "ready": "已就緒",
           "failing": "匯出失敗",
           "degraded": "已降級",
           "disabled": "已停用",
@@ -16024,6 +16025,7 @@
           "error": "探測異常"
         },
         "notice": {
+          "ready": "匯出已設定完成，但尚未傳送任何資料。智能體下一次執行後會送出第一批。",
           "noop": "遙測匯出未開啟。設定 OTEL_EXPORTER_OTLP_ENDPOINT，即可把鏈路與指標傳送到你自己的 OTLP 收集器。",
           "disabled": "遙測匯出已被 OTEL_SDK_DISABLED 關閉。",
           "localOnly": "已啟用僅限本地模式，遠端 OTLP 端點會被拒絕。",

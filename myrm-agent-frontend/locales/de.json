@@ -16015,6 +16015,7 @@
         "never": "Nie",
         "status": {
           "active": "Aktiv",
+          "ready": "Bereit",
           "failing": "Fehlerhaft",
           "degraded": "Eingeschränkt",
           "disabled": "Deaktiviert",
@@ -16024,6 +16025,7 @@
           "error": "Sondenfehler"
         },
         "notice": {
+          "ready": "Der Export ist eingerichtet, aber es wurde noch nichts gesendet. Der erste Stapel geht nach dem nächsten Agentenlauf raus.",
           "noop": "Der Export ist aus. Setzen Sie OTEL_EXPORTER_OTLP_ENDPOINT, um Traces und Metriken an Ihren eigenen OTLP-Collector zu senden.",
           "disabled": "Der Export ist durch OTEL_SDK_DISABLED abgeschaltet.",
           "localOnly": "Der Nur-lokal-Modus ist aktiv, daher werden entfernte OTLP-Endpunkte abgelehnt.",

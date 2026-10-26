@@ -16015,6 +16015,7 @@
         "never": "从未",
         "status": {
           "active": "运行中",
+          "ready": "已就绪",
           "failing": "导出失败",
           "degraded": "已降级",
           "disabled": "已禁用",
@@ -16024,6 +16025,7 @@
           "error": "探测异常"
         },
         "notice": {
+          "ready": "导出已设置完成，但尚未发送任何数据。智能体下一次运行后会发出第一批。",
           "noop": "遥测导出未开启。设置 OTEL_EXPORTER_OTLP_ENDPOINT，即可把链路与指标发送到你自己的 OTLP 收集器。",
           "disabled": "遥测导出已被 OTEL_SDK_DISABLED 关闭。",
           "localOnly": "已启用仅限本地模式，远程 OTLP 端点会被拒绝。",

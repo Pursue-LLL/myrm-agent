@@ -16015,6 +16015,7 @@
         "never": "없음",
         "status": {
           "active": "활성",
+          "ready": "준비됨",
           "failing": "전송 실패",
           "degraded": "성능 저하",
           "disabled": "비활성화됨",
@@ -16024,6 +16025,7 @@
           "error": "프로브 오류"
         },
         "notice": {
+          "ready": "내보내기가 설정되었지만 아직 아무것도 전송되지 않았습니다. 다음 에이전트 실행 후 첫 번째 배치가 전송됩니다.",
           "noop": "내보내기가 꺼져 있습니다. OTEL_EXPORTER_OTLP_ENDPOINT를 설정하면 트레이스와 메트릭을 직접 운영하는 OTLP 컬렉터로 보낼 수 있습니다.",
           "disabled": "OTEL_SDK_DISABLED로 내보내기가 꺼져 있습니다.",
           "localOnly": "로컬 전용 모드가 켜져 있어 원격 OTLP 엔드포인트는 거부됩니다.",

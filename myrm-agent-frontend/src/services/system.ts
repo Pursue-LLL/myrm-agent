@@ -165,7 +165,7 @@ export interface DatabaseStorageBreakdown {
 
 /** Measured state of the OpenTelemetry export pipeline; every field is read from the running exporter. */
 export interface TelemetryPosture {
-  status: 'active' | 'failing' | 'degraded' | 'disabled' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
+  status: 'ready' | 'active' | 'failing' | 'degraded' | 'disabled' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
   initialized: boolean;
   has_sdk: boolean;
   endpoint: string | null;

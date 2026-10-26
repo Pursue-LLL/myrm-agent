@@ -18,12 +18,14 @@ const translations: Record<string, string> = {
   failedBatches: 'Failed batches',
   withheldSpans: 'Spans withheld',
   never: 'Never',
+  'status.ready': 'Ready',
   'status.active': 'Active',
   'status.failing': 'Failing',
   'status.degraded': 'Degraded',
   'status.disabled': 'Disabled',
   'status.noop': 'Off',
   'status.error': 'Probe error',
+  'notice.ready': 'Export is set up but nothing has been sent yet. The first batch goes out after the next agent run.',
   'notice.noop': 'Export is off.',
   'notice.disabled': 'Export is switched off by OTEL_SDK_DISABLED.',
   'notice.failing': 'The last export attempt failed.',
@@ -106,6 +108,21 @@ describe('TelemetryPostureCard', () => {
     });
     expect(container.querySelector('.animate-pulse')).not.toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('says the exporter is ready, not active, until something has been delivered', async () => {
+    mockPosture(posture({ status: 'ready', exported_spans: 0, last_success_at: null }));
+
+    const { container } = render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ready')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Export is set up but nothing has been sent yet.');
+      expect(screen.getByText('Delivery')).toBeInTheDocument();
+      expect(screen.getAllByText('Never')).toHaveLength(2);
+    });
+    expect(screen.queryByText('Active')).toBeNull();
+    expect(container.querySelector('.animate-pulse')).toBeNull();
   });
 
   it('explains that export is off when nothing is configured and does not pulse', async () => {

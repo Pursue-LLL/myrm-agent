@@ -64,6 +64,7 @@ const TONE_CLASSES: Record<Tone, { badge: string; dot: string; notice: string; i
 type StatusView = { tone: Tone; labelKey: string; noticeKey: string | null };
 
 const STATUS_VIEW: Record<TelemetryPosture['status'], StatusView> = {
+  ready: { tone: 'idle', labelKey: 'ready', noticeKey: 'ready' },
   active: { tone: 'ok', labelKey: 'active', noticeKey: null },
   failing: { tone: 'danger', labelKey: 'failing', noticeKey: 'failing' },
   degraded: { tone: 'warn', labelKey: 'degraded', noticeKey: 'degraded' },

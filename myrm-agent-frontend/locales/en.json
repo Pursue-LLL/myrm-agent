@@ -16015,6 +16015,7 @@
         "never": "Never",
         "status": {
           "active": "Active",
+          "ready": "Ready",
           "failing": "Failing",
           "degraded": "Degraded",
           "disabled": "Disabled",
@@ -16024,6 +16025,7 @@
           "error": "Probe error"
         },
         "notice": {
+          "ready": "Export is set up but nothing has been sent yet. The first batch goes out after the next agent run.",
           "noop": "Export is off. Set OTEL_EXPORTER_OTLP_ENDPOINT to send traces and metrics to your own OTLP collector.",
           "disabled": "Export is switched off by OTEL_SDK_DISABLED.",
           "localOnly": "Local-only mode is on, so remote OTLP endpoints are refused.",
