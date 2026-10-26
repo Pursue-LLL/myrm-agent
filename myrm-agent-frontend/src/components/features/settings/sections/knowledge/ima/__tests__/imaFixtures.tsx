@@ -56,10 +56,10 @@ export const UP_TO_DATE = {
   counts: { ...SYNCING.counts, pending: 0, synced: 10 },
 };
 
-export function renderCard() {
+export function renderCard({ onGoToDuplicateReview = vi.fn() }: { onGoToDuplicateReview?: () => void } = {}) {
   return render(
     <WikiAgentScopeProvider agentScopeId={null} scopeRevision={0} scopeLabel="default">
-      <ImaSourceCard />
+      <ImaSourceCard onGoToDuplicateReview={onGoToDuplicateReview} />
     </WikiAgentScopeProvider>,
   );
 }

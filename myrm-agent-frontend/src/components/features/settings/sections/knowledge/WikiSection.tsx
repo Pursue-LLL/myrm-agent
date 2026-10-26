@@ -1179,7 +1179,7 @@ export function WikiSection() {
 
             <WikiSourceSyncPanel onGoToIntegrations={() => router.push('/settings/credentials')} />
 
-            <ImaSourceCard />
+            <ImaSourceCard onGoToDuplicateReview={handleOpenDuplicateReview} />
 
             {/* Purpose / Direction */}
             <Card>

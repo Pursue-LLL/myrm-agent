@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * ./useImaSync::useImaSync (POS: status, polling and every user action)
- * ./imaCopy::deriveImaView, deriveImaSyncMode (POS: which screen, what the sync is doing)
+ * ./imaCopy::deriveImaView, deriveImaSyncMode, IMA_DEDUP_REVIEW_ERROR_KEY (POS: which screen, what the sync is doing, which failure opens Duplicate Review)
  * ../WikiAgentScopeContext::useWikiAgentScope (POS: agent vault the card works on)
  * ./ImaConnectForm / ./ImaLibraryPicker / ./ImaSyncPanel / ./ImaReportDialog (POS: the card's screens)
  *
@@ -14,6 +14,7 @@
  * One card, one state machine: connect → choose libraries → importing / paused / up to date. Every screen is derived
  * from the server status, so a reload, a second window or a background run can never leave the card showing a step the
  * sync is no longer in. Failures surface as plain-language lines; server text and error codes never reach the screen.
+ * A compile refused because duplicates await review also opens Duplicate Review (through the parent), where it unblocks.
  */
 
 import { useState } from 'react';
@@ -39,10 +40,15 @@ import ImaConnectForm from './ImaConnectForm';
 import ImaLibraryPicker from './ImaLibraryPicker';
 import ImaReportDialog from './ImaReportDialog';
 import ImaSyncPanel from './ImaSyncPanel';
-import { deriveImaSyncMode, deriveImaView, type ImaView } from './imaCopy';
+import { deriveImaSyncMode, deriveImaView, IMA_DEDUP_REVIEW_ERROR_KEY, type ImaView } from './imaCopy';
 import { useImaSync, type ImaResult } from './useImaSync';
 
-export default function ImaSourceCard() {
+interface ImaSourceCardProps {
+  /** Opens Wiki → Duplicate Review, where compiling is unblocked. */
+  onGoToDuplicateReview: () => void;
+}
+
+export default function ImaSourceCard({ onGoToDuplicateReview }: ImaSourceCardProps) {
   const t = useTranslations('settings.wiki.ima');
   const locale = useLocale();
   const { agentScopeId } = useWikiAgentScope();
@@ -98,6 +104,9 @@ export default function ImaSourceCard() {
     const result = await ima.compile();
     if (!result.ok) {
       toastError(result.errorKey);
+      if (result.errorKey === IMA_DEDUP_REVIEW_ERROR_KEY) {
+        onGoToDuplicateReview();
+      }
       return;
     }
     if (result.value > 0) {

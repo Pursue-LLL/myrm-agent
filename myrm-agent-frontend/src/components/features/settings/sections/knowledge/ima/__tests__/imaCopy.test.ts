@@ -11,6 +11,7 @@ import {
   formatImaChars,
   imaAttentionCount,
   imaAutoCompileKey,
+  IMA_DEDUP_REVIEW_ERROR_KEY,
   imaErrorKey,
   imaKindKey,
   imaNoteKeys,
@@ -137,6 +138,8 @@ describe('code to copy mapping', () => {
     expect(imaErrorKey(new ApiError('x', 409, [], undefined, 'dedup_review_required'))).toBe(
       'errors.dedup_review_required',
     );
+    // The card compares against this key to decide when to open Duplicate Review, so it must track the mapping above.
+    expect(IMA_DEDUP_REVIEW_ERROR_KEY).toBe('errors.dedup_review_required');
     expect(imaErrorKey(new ApiError('x', 500, [], undefined, 'something_new'))).toBe('errors.generic');
     expect(imaErrorKey(new ApiError('x', 500))).toBe('errors.generic');
     expect(imaErrorKey(new TypeError('Failed to fetch'))).toBe('errors.generic');

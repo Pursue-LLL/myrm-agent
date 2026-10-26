@@ -8,6 +8,7 @@
  * deriveImaView / deriveImaSyncMode / imaProgress / imaSkippedCount / imaAttentionCount: state derivation from `ImaStatus`
  * canImaSyncNow / imaAutoCompileKey: whether "sync now" makes sense, and which auto-compile sentence applies
  * imaErrorKey / imaReasonKey / imaNoteKeys / imaKindKey / formatImaChars: server code → `settings.wiki.ima.*` i18n key
+ * IMA_DEDUP_REVIEW_ERROR_KEY: the error key of "compiling is held for Duplicate Review", the one failure the card acts on
  *
  * [POS]
  * The only place that knows ima's status and reason codes. The server never sends wording, so every code the UI can meet
@@ -21,6 +22,10 @@ export type ImaView = 'connect' | 'reconnect' | 'choose' | 'sync';
 
 export type ImaSyncMode = 'reading' | 'importing' | 'waiting' | 'paused' | 'upToDate';
 
+/** Compiling is held until the user has settled the duplicate groups; the card sends them to Duplicate Review. */
+const DEDUP_REVIEW_CODE = 'dedup_review_required';
+export const IMA_DEDUP_REVIEW_ERROR_KEY = `errors.${DEDUP_REVIEW_CODE}`;
+
 const ERROR_CODES = new Set([
   'ima_auth_failed',
   'ima_rate_limited',
@@ -29,7 +34,7 @@ const ERROR_CODES = new Set([
   'ima_no_selection',
   'ima_sync_not_started',
   'ima_credentials_missing',
-  'dedup_review_required',
+  DEDUP_REVIEW_CODE,
   'sync_unavailable',
 ]);
 

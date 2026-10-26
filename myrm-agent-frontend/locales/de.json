@@ -17904,7 +17904,7 @@
         "compile": {
           "title": "Kompilieren",
           "body": "{count} Dokumente importiert (etwa {chars} Zeichen). Beim Kompilieren liest und ordnet die KI jedes Dokument, was bei vielen Dokumenten mehr Kontingent verbraucht.",
-          "autoOn": "Neue oder geänderte Dokumente werden ab jetzt automatisch kompiliert.",
+          "autoOn": "Neue oder geänderte Dokumente werden ab jetzt automatisch kompiliert. Dokumente, die in der Duplikatprüfung warten, kompilieren Sie nach der Klärung über „Importierte Dokumente kompilieren“.",
           "autoPending": "Kompilieren Sie diesen ersten Import selbst über die Schaltfläche. Sobald er abgeschlossen ist, werden spätere Änderungen automatisch kompiliert.",
           "autoOff": "Automatisches Kompilieren ist aus. Aktivieren Sie bei Bedarf unter Externe Quellen „Nach Synchronisierung automatisch kompilieren“.",
           "action": "Importierte Dokumente kompilieren",

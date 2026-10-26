@@ -106,7 +106,7 @@ describe('ImaSourceCard choose and start', () => {
 
     expect(await screen.findByRole('button', { name: 'libraries.start' })).toBeDisabled();
     await userEvent.click(screen.getByLabelText('Recipes'));
-    expect(screen.getByRole('button', { name: 'libraries.start' })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'libraries.start' })).toBeEnabled());
   });
 
   it('shows a reload action when ima cannot be reached for the library list', async () => {
@@ -160,13 +160,26 @@ describe('ImaSourceCard sync', () => {
     await waitFor(() => expect(toastMock.message).toHaveBeenCalledWith('compile.nothing'));
   });
 
-  it('says so when the dedup review blocks compiling', async () => {
+  it('says so when the dedup review blocks compiling and takes the user to the review', async () => {
     imaMock.getImaStatus.mockResolvedValue(SYNCING);
     imaMock.compileImaImports.mockRejectedValue(new ApiError('resolve', 409, [], undefined, 'dedup_review_required'));
-    renderCard();
+    const onGoToDuplicateReview = vi.fn();
+    renderCard({ onGoToDuplicateReview });
 
     await userEvent.click(await screen.findByRole('button', { name: 'compile.action' }));
     await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('errors.dedup_review_required'));
+    expect(onGoToDuplicateReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays where it is when compiling fails for any other reason', async () => {
+    imaMock.getImaStatus.mockResolvedValue(SYNCING);
+    imaMock.compileImaImports.mockRejectedValue(new ApiError('boom', 500, [], undefined, 'something_unexpected'));
+    const onGoToDuplicateReview = vi.fn();
+    renderCard({ onGoToDuplicateReview });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'compile.action' }));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('errors.generic'));
+    expect(onGoToDuplicateReview).not.toHaveBeenCalled();
   });
 
   it('says how later documents get compiled, following the shared auto-compile switch and the first import', async () => {
