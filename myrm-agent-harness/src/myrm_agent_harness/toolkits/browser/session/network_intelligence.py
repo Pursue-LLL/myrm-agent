@@ -6,13 +6,17 @@
 - utils.page_health::detach_cdp_bounded (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- NetworkIntelligence: CDP-based lazy response body retrieval and request replay
+- NetworkIntelligence: CDP-based lazy response body retrieval and request replay; numbers API requests for the model
+- CdpRequestRecord: one tracked request, `seq` being the number network_log shows for it
 
 [POS]
 Provides Agent-accessible API intelligence layer that captures requestIds via CDP
 Network domain events and offers on-demand response body retrieval using
 Network.getResponseBody. Cooperates with NetworkLogger (which handles synchronous
 metadata) — this component handles asynchronous CDP body queries.
+The number network_log shows is the request's own `seq`, handed out once in arrival order to XHR/Fetch requests,
+not a position in the rolling window: the window drops its oldest records, so a position would name a different
+request by the time the model asks for it. A number that is no longer tracked is refused, never re-pointed.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, TypedDict
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
@@ -33,6 +37,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _MAX_TRACKED_REQUESTS = 100
+_API_RESOURCE_TYPES = ("XHR", "Fetch")
 _BODY_PREVIEW_MAX_CHARS = 8000
 # Redaction window before truncation: keeps a credential crossing a truncation
 # boundary structurally intact long enough to be masked (aligned with
@@ -76,6 +81,7 @@ class CdpRequestRecord:
         mime_type: Response MIME type
         post_data: Raw POST body window (for replay and GraphQL identification; display-time redaction in get_summary)
         timestamp: Request time (monotonic)
+        seq: The number network_log shows for an XHR/Fetch request, unique for the session; 0 for other types
     """
 
     request_id: str
@@ -86,6 +92,7 @@ class CdpRequestRecord:
     mime_type: str | None = None
     post_data: str | None = None
     timestamp: float = 0.0
+    seq: int = 0
 
 
 class NetworkIntelligence:
@@ -102,6 +109,7 @@ class NetworkIntelligence:
 
     def __init__(self, max_requests: int = _MAX_TRACKED_REQUESTS) -> None:
         self._requests: deque[CdpRequestRecord] = deque(maxlen=max_requests)
+        self._next_seq = 1
         self._cdp_session: CDPSession | None = None
         self._bound_page: Page | None = None
         self._enabled = False
@@ -163,6 +171,11 @@ class NetworkIntelligence:
             # happens in get_summary.
             post_data_original = post_data_raw[:_RAW_PREVIEW_WINDOW] if post_data_raw else None
 
+            seq = 0
+            if resource_type in _API_RESOURCE_TYPES:
+                seq = self._next_seq
+                self._next_seq += 1
+
             record = CdpRequestRecord(
                 request_id=request_id,
                 url=request.get("url", ""),
@@ -170,6 +183,7 @@ class NetworkIntelligence:
                 resource_type=resource_type,
                 post_data=post_data_original,
                 timestamp=time.time(),
+                seq=seq,
             )
             self._requests.append(record)
         except Exception as exc:
@@ -185,33 +199,39 @@ class NetworkIntelligence:
 
             for i in range(len(self._requests) - 1, -1, -1):
                 if self._requests[i].request_id == request_id:
-                    old = self._requests[i]
-                    self._requests[i] = CdpRequestRecord(
-                        request_id=old.request_id,
-                        url=old.url,
-                        method=old.method,
-                        resource_type=old.resource_type,
-                        status=status,
-                        mime_type=mime_type,
-                        post_data=old.post_data,
-                        timestamp=old.timestamp,
-                    )
+                    self._requests[i] = replace(self._requests[i], status=status, mime_type=mime_type)
                     break
         except Exception as exc:
             logger.debug("NetworkIntelligence: responseReceived handler error: %s", exc)
 
     def get_api_requests(self) -> list[CdpRequestRecord]:
         """Get all tracked XHR/Fetch requests (most recent last)."""
-        return [r for r in self._requests if r.resource_type in ("XHR", "Fetch")]
+        return [r for r in self._requests if r.resource_type in _API_RESOURCE_TYPES]
+
+    def find_api_request(self, index: int) -> CdpRequestRecord | None:
+        """The tracked API request that network_log numbered `index`; None once it is no longer tracked."""
+        if index < 1:  # records that carry no number (documents) are 0
+            return None
+        return next((r for r in self._requests if r.seq == index), None)
+
+    def invalid_index_error(self, index: int) -> str:
+        """The answer for a number that names no tracked API request, with the numbers that are valid now."""
+        tracked = self.get_api_requests()
+        if not tracked:
+            return f"Error: Invalid index {index}. No API requests are tracked; run network_log to refresh."
+        return (
+            f"Error: Invalid index {index}. Valid range: {tracked[0].seq}-{tracked[-1].seq}; "
+            "run network_log to see the current numbering."
+        )
 
     async def get_response_body(self, index: int) -> str:
-        """Get response body for a tracked request by index (1-based).
+        """Get response body for a tracked request by its network_log number.
 
         Uses CDP Network.getResponseBody for lazy retrieval from Chrome's cache.
         Returns truncated body if it exceeds max chars to prevent token explosion.
 
         Args:
-            index: 1-based index from the API requests list
+            index: the number network_log showed for the request
 
         Returns:
             Response body text or error message
@@ -219,11 +239,9 @@ class NetworkIntelligence:
         if self._cdp_session is None:
             return "Error: CDP session not available. Navigate to a page first."
 
-        api_requests = self.get_api_requests()
-        if index < 1 or index > len(api_requests):
-            return f"Error: Invalid index {index}. Valid range: 1-{len(api_requests)}"
-
-        record = api_requests[index - 1]
+        record = self.find_api_request(index)
+        if record is None:
+            return self.invalid_index_error(index)
 
         try:
             result = await self._cdp_session.send(
@@ -262,9 +280,9 @@ class NetworkIntelligence:
             return ""
 
         lines: list[str] = []
-        for i, req in enumerate(api_requests, 1):
+        for req in api_requests:
             status_str = str(req.status) if req.status else "pending"
-            line = f"  {i}. {req.method} {req.url} [{status_str}]"
+            line = f"  {req.seq}. {req.method} {req.url} [{status_str}]"
             if req.post_data:
                 # Redact the raw stored body before display so credentials never
                 # reach the Agent via network_log.

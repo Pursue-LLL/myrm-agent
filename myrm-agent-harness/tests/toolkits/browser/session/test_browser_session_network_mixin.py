@@ -14,27 +14,27 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_network_mixin i
     _REPLAY_OUTPUT_MAX,
     BrowserSessionNetworkMixin,
 )
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import (
-    CdpRequestRecord,
-)
+from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence
+
+
+def _see(ni: NetworkIntelligence, url: str, method: str = "GET", post_data: str | None = None) -> None:
+    request: dict[str, str] = {"url": url, "method": method}
+    if post_data is not None:
+        request["postData"] = post_data
+    ni._on_request_will_be_sent({"requestId": "req-1", "type": "Fetch", "request": request})
 
 
 class _StubSession(BrowserSessionNetworkMixin):
-    """Minimal mixin stand-in: only the replay path's dependencies are wired."""
+    """Minimal mixin stand-in: the replay path runs against a real NetworkIntelligence."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, tracked: bool = True) -> None:
         self._ensure_components = AsyncMock()
         page = MagicMock()
         self._tab_controller = MagicMock()
         self._tab_controller.get_active_page.return_value = page
-        record = CdpRequestRecord(
-            request_id="req-1",
-            url="https://api.example.com/data",
-            method="GET",
-            resource_type="Fetch",
-        )
-        self._network_intelligence = MagicMock()
-        self._network_intelligence.get_api_requests.return_value = [record]
+        self._network_intelligence = NetworkIntelligence()
+        if tracked:
+            _see(self._network_intelligence, "https://api.example.com/data")
         self.page = page
 
 
@@ -76,15 +76,13 @@ class TestReplayRedaction:
     async def test_replay_uses_raw_post_data_not_redacted(self):
         """network_replay must re-send the real body; the redacted form would
         break authenticated replays."""
-        session = _StubSession()
-        record = CdpRequestRecord(
-            request_id="req-1",
-            url="https://api.example.com/login",
+        session = _StubSession(tracked=False)
+        _see(
+            session._network_intelligence,
+            "https://api.example.com/login",
             method="POST",
-            resource_type="Fetch",
             post_data='{"op":"login","password":"mysecretvalue12345678"}',
         )
-        session._network_intelligence.get_api_requests.return_value = [record]
         session.page.evaluate = AsyncMock(return_value="ok")
 
         await session.replay_network_request(1)
@@ -104,8 +102,7 @@ class TestReplayRedaction:
 
     @pytest.mark.asyncio
     async def test_replay_invalid_index(self):
-        session = _StubSession()
-        session._network_intelligence.get_api_requests.return_value = []
+        session = _StubSession(tracked=False)
 
         result = await session.replay_network_request(1)
 

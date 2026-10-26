@@ -679,7 +679,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 基于 CDP（Chrome DevTools Protocol）的懒加载网络响应体检索，赋予 Agent "API-First" 数据提取策略：
 
 **核心能力**：
-- **自动发现 API**：通过 `network_log` action 查看 XHR/Fetch 请求列表，含 POST body 预览（前 200 字符，便于区分 GraphQL operationName；展示前先经 `redact_sensitive_text` 凭据脱敏，避免截断残片绕过脱敏）
+- **自动发现 API**：通过 `network_log` action 查看 XHR/Fetch 请求列表（编号是请求自身的序号 `seq`，只发给 XHR/Fetch、按到达顺序递增、不复用；滑出 100 条窗口的编号会被明确拒绝并给出当前有效范围，绝不会指向另一条请求），含 POST body 预览（前 200 字符，便于区分 GraphQL operationName；展示前先经 `redact_sensitive_text` 凭据脱敏，避免截断残片绕过脱敏）
 - **懒加载响应体**：通过 `network_detail` action 按需获取指定请求的完整响应体（最大 8000 字符；超过时先脱敏后截断，跨边界凭据不留明文残片），无内存浪费
 - **请求重放**：通过 `network_replay` action 在页面上下文中重放 API 请求获取最新数据（使用原始 POST body 重放保证认证有效；JS 侧返回加宽窗口，Python 侧先脱敏再截 8000）
 

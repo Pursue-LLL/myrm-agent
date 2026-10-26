@@ -65,16 +65,14 @@ class BrowserSessionNetworkMixin(SessionHost):
         return summary
 
     async def get_network_detail(self, index: int) -> str:
-        """Get response body for a tracked API request by index."""
+        """Get response body for a tracked API request by its network_log number."""
         return await self._network_intelligence.get_response_body(index)
 
     async def replay_network_request(self, index: int) -> str:
-        """Replay a tracked API request using page.evaluate(fetch(...))."""
-        api_requests = self._network_intelligence.get_api_requests()
-        if index < 1 or index > len(api_requests):
-            return f"Error: Invalid index {index}. Valid range: 1-{len(api_requests)}"
-
-        record = api_requests[index - 1]
+        """Replay the API request network_log numbered `index` using page.evaluate(fetch(...))."""
+        record = self._network_intelligence.find_api_request(index)
+        if record is None:
+            return self._network_intelligence.invalid_index_error(index)
 
         await self._ensure_components()
         page = self._tab_controller.get_active_page()
