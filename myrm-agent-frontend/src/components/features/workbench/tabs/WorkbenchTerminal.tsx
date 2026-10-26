@@ -2,19 +2,23 @@
 
 /**
  * [INPUT]
- * - executeTerminalCommand from @/services/workbench
+ * - executeTerminalCommand, TERMINAL_TIMEOUT_SECONDS from @/services/workbench
  * - useWorkbenchStore from @/store/useWorkbenchStore
+ * - useChatStore from @/store/useChatStore (POS: the composer a command's output is handed to)
+ * - ./terminalOutput (POS: snippet building and failure classification)
  * - useTranslations from next-intl (namespace: 'workbench.terminal')
  *
  * [OUTPUT]
  * - WorkbenchTerminal: Command terminal of one chat's workspace with command history & chat injection
  *
  * [POS]
- * Auxiliary Workbench Terminal tab component.
+ * Auxiliary Workbench Terminal tab component. A request that fails is written into the history in the user's
+ * language; the server's own message never reaches the screen.
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import {
   Terminal,
   Play,
@@ -25,8 +29,10 @@ import {
   AlertCircle,
   CornerDownLeft,
 } from 'lucide-react';
-import { executeTerminalCommand } from '@/services/workbench';
-import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import { executeTerminalCommand, TERMINAL_TIMEOUT_SECONDS } from '@/services/workbench';
+import useChatStore from '@/store/useChatStore';
+import { useWorkbenchStore, type TerminalLogEntry } from '@/store/useWorkbenchStore';
+import { appendToComposer, buildTerminalSnippet, classifyTerminalFailure } from './terminalOutput';
 
 interface WorkbenchTerminalProps {
   chatId: string;
@@ -77,12 +83,13 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
       if (!isCurrentSession()) {
         return;
       }
-      const errMsg = err instanceof Error ? err.message : String(err);
-      addTerminalLog({
-        command: cmd,
-        output: t('runFailed', { message: errMsg }),
-        exitCode: 1,
-      });
+      const explanations = {
+        blocked: t('blocked'),
+        workspaceUnavailable: t('workspaceUnavailable'),
+        timedOut: t('timedOut', { seconds: TERMINAL_TIMEOUT_SECONDS }),
+        failed: t('runFailed'),
+      };
+      addTerminalLog({ command: cmd, output: explanations[classifyTerminalFailure(err)], exitCode: null });
     } finally {
       setIsExecuting(false);
     }
@@ -95,14 +102,19 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
     }
   };
 
-  const handleInjectToChat = (output: string, command: string) => {
-    const snippet = `\`\`\`bash\n$ ${command}\n${output.trim()}\n\`\`\``;
-    window.dispatchEvent(
-      new CustomEvent('myrm:insert-to-chat', {
-        detail: { text: snippet },
-      }),
-    );
-  };
+  const handleInjectToChat = useCallback(
+    (log: TerminalLogEntry) => {
+      const snippet = buildTerminalSnippet({
+        command: log.command,
+        output: log.output,
+        omittedMarker: t('injectOmitted'),
+      });
+      const { inputMessage, setInputMessage } = useChatStore.getState();
+      setInputMessage(appendToComposer(inputMessage, snippet));
+      toast.success(t('injected'));
+    },
+    [t],
+  );
 
   return (
     <div className="flex flex-col h-full overflow-hidden text-foreground bg-background">
@@ -163,17 +175,20 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
                     ) : (
                       <AlertCircle className="w-2.5 h-2.5" />
                     )}
-                    <span>exit {log.exitCode}</span>
+                    <span>{log.exitCode === null ? t('failedBadge') : t('exitCode', { code: log.exitCode })}</span>
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={() => handleInjectToChat(log.output, log.command)}
-                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                    title={t('injectToChat')}
-                  >
-                    <Share2 className="w-3 h-3" />
-                  </button>
+                  {log.exitCode !== null && (
+                    <button
+                      type="button"
+                      onClick={() => handleInjectToChat(log)}
+                      className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                      title={t('injectToChat')}
+                      aria-label={t('injectToChat')}
+                    >
+                      <Share2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
 

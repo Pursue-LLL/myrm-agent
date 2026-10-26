@@ -6,7 +6,7 @@
 
 1. **右侧/底部双轴独立停靠抽屉 (`MultiTabWorkbench`)**：支持水平调宽（320px ~ 960px）与垂直调高（200px ~ 640px），双轴灵活停靠；没有当前会话时显示引导提示；切换会话时清空终端历史并让两个页签按新会话重新挂载；
 2. **会话工作区文件页 (`tabs/WorkbenchFiles`)**：文件名/相对路径搜索，目录树、实时刷新、文件预览与编辑、上传/重命名/移动/删除全部复用 [`workspace-browser/`](../workspace-browser/_ARCH.md)，与侧栏工作区视图同一份实现；预览盖在目录树上，关闭后回到目录树；
-3. **会话工作区终端面板 (`tabs/WorkbenchTerminal`)**：在会话工作区内执行命令、终端历史记录、一键将终端日志插入聊天会话上下文；
+3. **会话工作区终端面板 (`tabs/WorkbenchTerminal`)**：在会话工作区内执行命令、终端历史记录；一键把某条命令与输出（过长只留末尾 8000 字符并注明前面已省略）追加到聊天输入框，不覆盖用户已输入的内容；请求失败（被安全闸拦截、没有工作区、超时、其他）以用户语言写进历史，退出码留空并显示「失败」，不透出服务端原文；
 4. **工具菜单入口 (`WorkbenchToggleTrigger`)**：导航栏「工具」菜单唤起，保留快捷键 `Cmd+Shift+B` / `Ctrl+Shift+B` 与全局事件 `myrm:open-workbench`；`showTrigger={false}` 时只保留监听。
 
 ## 2. 模块结构与文件表
@@ -16,7 +16,8 @@
 | `MultiTabWorkbench.tsx`          | 工作台主外壳容器，包含 Tab 切换、拖拽手柄尺寸调节、停靠位置转换与无障碍 |
 | `WorkbenchToggleTrigger.tsx`     | 工具菜单入口与全局快捷键调度器（`showTrigger` 控制是否渲染入口）        |
 | `tabs/WorkbenchFiles.tsx`        | 会话工作区文件页：搜索框 + 复用 `workspace-browser` 的目录树与预览      |
-| `tabs/WorkbenchTerminal.tsx`     | 会话工作区终端控制台、命令执行与会话注入面板                            |
+| `tabs/WorkbenchTerminal.tsx`     | 会话工作区终端控制台、命令执行与追加到聊天输入框                        |
+| `tabs/terminalOutput.ts`         | 终端纯函数：注入片段（自适应围栏、尾部截断）、追加到输入框、请求失败分类 |
 | `index.ts`                       | 门面导出入口                                                            |
 | `__tests__/`                     | 组件单元测试套件                                                        |
 

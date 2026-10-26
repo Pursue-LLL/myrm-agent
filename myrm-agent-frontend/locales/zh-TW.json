@@ -14008,7 +14008,14 @@
       "injectToChat": "將日誌引用到聊天輸入框",
       "noOutput": "（無輸出）",
       "outputTruncated": "[輸出已截斷]",
-      "runFailed": "無法執行命令：{message}"
+      "runFailed": "無法執行這條命令，請稍後重試。",
+      "injected": "已將輸出加入輸入框",
+      "injectOmitted": "[前面的輸出已省略]",
+      "exitCode": "結束碼 {code}",
+      "failedBadge": "失敗",
+      "blocked": "基於安全考量，這條命令已被攔截：它可能造成無法復原的破壞。",
+      "workspaceUnavailable": "這個對話還沒有工作區資料夾。",
+      "timedOut": "命令執行超過 {seconds} 秒，已被停止。"
     },
     "noChat": "開啟一個對話後，即可瀏覽它的工作區檔案並在其中執行命令。"
   },

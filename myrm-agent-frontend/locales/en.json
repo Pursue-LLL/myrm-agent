@@ -14008,7 +14008,14 @@
       "injectToChat": "Insert output to chat",
       "noOutput": "(no output)",
       "outputTruncated": "[Output truncated]",
-      "runFailed": "Could not run the command: {message}"
+      "runFailed": "The command could not be run. Please try again.",
+      "injected": "Output added to the message box",
+      "injectOmitted": "[Earlier output omitted]",
+      "exitCode": "exit {code}",
+      "failedBadge": "Failed",
+      "blocked": "Blocked for safety: this command could cause irreversible damage.",
+      "workspaceUnavailable": "This conversation has no workspace folder yet.",
+      "timedOut": "The command ran longer than {seconds} seconds and was stopped."
     },
     "noChat": "Open a conversation to browse its workspace files and run commands there."
   },

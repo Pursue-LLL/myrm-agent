@@ -14008,7 +14008,14 @@
       "injectToChat": "将日志引用到聊天输入框",
       "noOutput": "（无输出）",
       "outputTruncated": "[输出已截断]",
-      "runFailed": "无法执行命令：{message}"
+      "runFailed": "无法执行这条命令，请稍后重试。",
+      "injected": "已将输出添加到输入框",
+      "injectOmitted": "[前面的输出已省略]",
+      "exitCode": "退出码 {code}",
+      "failedBadge": "失败",
+      "blocked": "出于安全考虑，这条命令已被拦截：它可能造成无法恢复的破坏。",
+      "workspaceUnavailable": "这个对话还没有工作区文件夹。",
+      "timedOut": "命令运行超过 {seconds} 秒，已被停止。"
     },
     "noChat": "打开一个对话后，即可浏览它的工作区文件并在其中运行命令。"
   },

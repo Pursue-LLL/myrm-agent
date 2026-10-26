@@ -14008,7 +14008,14 @@
       "injectToChat": "출력을 채팅에 삽입",
       "noOutput": "(출력 없음)",
       "outputTruncated": "[출력이 잘렸습니다]",
-      "runFailed": "명령을 실행하지 못했습니다: {message}"
+      "runFailed": "명령을 실행하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      "injected": "출력을 입력창에 추가했습니다",
+      "injectOmitted": "[앞부분 출력은 생략되었습니다]",
+      "exitCode": "종료 코드 {code}",
+      "failedBadge": "실패",
+      "blocked": "안전을 위해 차단했습니다. 이 명령은 되돌릴 수 없는 손상을 일으킬 수 있습니다.",
+      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다.",
+      "timedOut": "명령이 {seconds}초를 넘겨 실행되어 중지되었습니다."
     },
     "noChat": "대화를 열면 해당 워크스페이스의 파일을 둘러보고 명령을 실행할 수 있습니다."
   },

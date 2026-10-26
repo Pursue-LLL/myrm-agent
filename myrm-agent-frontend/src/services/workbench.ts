@@ -4,10 +4,12 @@
  *
  * [OUTPUT]
  * - TerminalExecRequest, TerminalExecResponse
- * - executeTerminalCommand
+ * - TERMINAL_TIMEOUT_SECONDS, executeTerminalCommand
  *
  * [POS]
  * Client service layer for the auxiliary workbench terminal. The call names the chat whose workspace it runs in.
+ * The request is silent: the terminal panel explains a failure itself, in the user's language, instead of the
+ * global toast repeating the server's raw message.
  * File browsing is not here: the Files tab uses the workspace browser's own services.
  */
 
@@ -29,11 +31,14 @@ export interface TerminalExecResponse {
   truncated: boolean;
 }
 
+/** How long the server lets one command run before it stops it. */
+export const TERMINAL_TIMEOUT_SECONDS = 30;
+
 export async function executeTerminalCommand(
   chatId: string,
   command: string,
   cwd?: string,
-  timeoutSeconds = 30,
+  timeoutSeconds = TERMINAL_TIMEOUT_SECONDS,
 ): Promise<TerminalExecResponse> {
   const payload: TerminalExecRequest = {
     chat_id: chatId,
@@ -41,5 +46,5 @@ export async function executeTerminalCommand(
     cwd: cwd ?? null,
     timeout_seconds: timeoutSeconds,
   };
-  return apiClient.post<TerminalExecResponse>('/workbench/terminal/exec', payload);
+  return apiClient.post<TerminalExecResponse>('/workbench/terminal/exec', payload, { silent: true });
 }

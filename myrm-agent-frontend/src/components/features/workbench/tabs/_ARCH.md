@@ -5,4 +5,5 @@
 | 文件                        | 职责                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------ |
 | `WorkbenchFiles.tsx`        | 会话工作区文件页：搜索框（`filterFileEntries`）+ 复用 `workspace-browser` 的目录树（`useWorkspaceFiles`）与文件预览 |
-| `WorkbenchTerminal.tsx`     | 终端面板：命令历史、在会话工作区执行命令（`executeTerminalCommand`）、把输出注入聊天上下文 |
+| `WorkbenchTerminal.tsx`     | 终端面板：命令历史、在会话工作区执行命令（`executeTerminalCommand`，静默请求）、把输出追加到聊天输入框、请求失败以用户语言入史 |
+| `terminalOutput.ts`         | 终端纯函数：`buildTerminalSnippet`（围栏随内容自适应、只留输出末尾）、`appendToComposer`、`classifyTerminalFailure`（按 HTTP 状态与超时错误分类） |

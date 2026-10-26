@@ -14008,7 +14008,14 @@
       "injectToChat": "Ausgabe in den Chat einfügen",
       "noOutput": "(keine Ausgabe)",
       "outputTruncated": "[Ausgabe gekürzt]",
-      "runFailed": "Der Befehl konnte nicht ausgeführt werden: {message}"
+      "runFailed": "Der Befehl konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
+      "injected": "Ausgabe zum Eingabefeld hinzugefügt",
+      "injectOmitted": "[Frühere Ausgabe ausgelassen]",
+      "exitCode": "Exit-Code {code}",
+      "failedBadge": "Fehlgeschlagen",
+      "blocked": "Aus Sicherheitsgründen blockiert: Dieser Befehl könnte nicht rückgängig zu machende Schäden verursachen.",
+      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner.",
+      "timedOut": "Der Befehl lief länger als {seconds} Sekunden und wurde beendet."
     },
     "noChat": "Öffnen Sie eine Unterhaltung, um ihre Workspace-Dateien zu durchsuchen und dort Befehle auszuführen."
   },

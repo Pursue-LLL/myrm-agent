@@ -22,7 +22,8 @@ export interface TerminalLogEntry {
   id: string;
   command: string;
   output: string;
-  exitCode: number;
+  /** Null when the command never finished (refused, timed out, or the request failed). */
+  exitCode: number | null;
   timestamp: string;
 }
 
@@ -42,7 +43,7 @@ export interface WorkbenchState {
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setActiveTab: (tab: WorkbenchTabId) => void;
-  addTerminalLog: (record: { command: string; output: string; exitCode: number }) => void;
+  addTerminalLog: (record: { command: string; output: string; exitCode: number | null }) => void;
   clearTerminalLogs: () => void;
   resetWorkspaceSession: () => void;
 }
