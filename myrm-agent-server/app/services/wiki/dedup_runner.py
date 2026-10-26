@@ -84,14 +84,15 @@ _vault_scan_locks: dict[str, threading.Lock] = {}
 _vault_scan_locks_guard = threading.Lock()
 
 
-def _scan_scope_key(agent_id: str | None) -> str:
-    return agent_id or "__default__"
-
-
 def _vault_structure(agent_id: str | None) -> WikiStructure:
     from app.services.wiki.vault import get_wiki_structure
 
     return get_wiki_structure(agent_id)
+
+
+def _vault_key(structure: WikiStructure) -> str:
+    # Scans, their lock and the running flag belong to a vault, and an implicit and a named default agent share one.
+    return str(structure.base_dir)
 
 
 def _compile_is_busy(structure: WikiStructure) -> bool:
@@ -99,9 +100,8 @@ def _compile_is_busy(structure: WikiStructure) -> bool:
 
 
 def _vault_scan_lock(structure: WikiStructure) -> threading.Lock:
-    # Keyed by the resolved vault directory: an implicit and a named default agent share one vault.
     with _vault_scan_locks_guard:
-        return _vault_scan_locks.setdefault(str(structure.base_dir), threading.Lock())
+        return _vault_scan_locks.setdefault(_vault_key(structure), threading.Lock())
 
 
 def _run_scan_sync(*, agent_id: str | None, incremental: bool) -> ScanResult:
@@ -116,11 +116,11 @@ def _run_scan_sync(*, agent_id: str | None, incremental: bool) -> ScanResult:
 
 
 async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -> None:
-    scope_key = _scan_scope_key(agent_id)
+    vault_key = _vault_key(_vault_structure(agent_id))
     try:
         await asyncio.to_thread(_run_scan_sync, agent_id=agent_id, incremental=incremental)
     except Exception as exc:
-        logger.error("Background wiki dedup scan failed for scope %s: %s", scope_key, exc)
+        logger.error("Background wiki dedup scan failed for vault %s: %s", vault_key, exc)
         try:
             CorpusDedupStore(_vault_structure(agent_id)).set_scan_progress(
                 ScanProgress(phase="failed", message="Dedup scan failed"),
@@ -129,7 +129,7 @@ async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -
             logger.warning("Failed to persist dedup scan failure progress: %s", store_exc)
     finally:
         async with _scan_lock:
-            _running_scans.discard(scope_key)
+            _running_scans.discard(vault_key)
 
 
 async def schedule_wiki_dedup_scan(
@@ -137,22 +137,23 @@ async def schedule_wiki_dedup_scan(
     agent_id: str | None = None,
     incremental: bool = True,
 ) -> WikiDedupScanScheduleResult:
-    if _compile_is_busy(_vault_structure(agent_id)):
+    structure = _vault_structure(agent_id)
+    if _compile_is_busy(structure):
         return WikiDedupScanScheduleResult(
             accepted=False,
             skipped=True,
             skipped_reason=_COMPILE_BUSY_REASON,
         )
 
-    scope_key = _scan_scope_key(agent_id)
+    vault_key = _vault_key(structure)
     async with _scan_lock:
-        if scope_key in _running_scans:
+        if vault_key in _running_scans:
             return WikiDedupScanScheduleResult(
                 accepted=False,
                 skipped=True,
                 skipped_reason=_SCAN_BUSY_REASON,
             )
-        _running_scans.add(scope_key)
+        _running_scans.add(vault_key)
         asyncio.create_task(_execute_background_scan(agent_id=agent_id, incremental=incremental))
 
     return WikiDedupScanScheduleResult(accepted=True)
@@ -241,7 +242,7 @@ def wiki_dedup_blocks_compile(*, agent_id: str | None = None) -> bool:
 
 
 def is_wiki_dedup_scan_running(*, agent_id: str | None = None) -> bool:
-    return _scan_scope_key(agent_id) in _running_scans
+    return _vault_key(_vault_structure(agent_id)) in _running_scans
 
 
 def wiki_dedup_checklist_ready(*, agent_id: str | None = None) -> bool:

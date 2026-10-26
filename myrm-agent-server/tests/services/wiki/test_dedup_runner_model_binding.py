@@ -122,7 +122,7 @@ async def test_restoring_a_trashed_source_compiles_it_with_the_users_model(
 async def test_dedup_reads_and_scans_build_no_archiver(structure: WikiStructure) -> None:
     seed_open_group(structure, "reports/a.md", "reports/b.md")
     governor = CorpusDedupGovernor(structure)
-    governor.store.add_excluded_path("reports/c.md", reason="manual")
+    governor.store.dispositions.add_excluded_path("reports/c.md", reason="manual")
 
     with patch(
         "app.services.wiki.vault.get_wiki_archiver",

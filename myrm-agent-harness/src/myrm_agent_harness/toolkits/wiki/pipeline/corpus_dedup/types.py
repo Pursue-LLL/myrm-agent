@@ -1,7 +1,17 @@
 """Types for raw corpus deduplication governance.
 
+[INPUT]
+- (none: dataclasses, enums and one Protocol)
+
+[OUTPUT]
+- DedupTier, GroupStatus, DispositionAction: enums for tiers, group lifecycle and user decisions
+- RawFileFingerprint, PlannedGroup, DuplicateGroup, DuplicateMember, DuplicateMemberSnippet: scan and review values
+- HeldFile, FileEnqueuer: compile-hold row and the Protocol a release hands files to
+- ScanProgress, ScanResult, DedupStats, DispositionResult, ExcludedRawEntry, TrashedRawEntry, VaultHygieneSnapshot
+
 [POS]
-See module docstring.
+Value contracts shared by scanner, store, governor and the server bridge: plain data plus the ``FileEnqueuer``
+Protocol, no I/O.
 """
 
 from __future__ import annotations

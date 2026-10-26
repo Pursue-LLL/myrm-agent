@@ -105,7 +105,7 @@ class FingerprintCache:
             )
 
     def prune(self, active_paths: set[str]) -> int:
-        """Forget every file that is no longer in ``active_paths``; return how many entries went.
+        """Forget every cached file that is not in ``active_paths``; return how many entries went.
 
         The stale paths are picked out here, not by a ``NOT IN`` over the live ones: that statement binds one variable
         per live file and fails outright on a corpus larger than SQLite's bound-variable limit.

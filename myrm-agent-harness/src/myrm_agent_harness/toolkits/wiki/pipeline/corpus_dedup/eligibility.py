@@ -39,7 +39,7 @@ class CorpusEligibilityFilter:
         return self._store
 
     def blocked_paths(self) -> set[str]:
-        return self._store.get_excluded_paths() | self._store.get_trashed_paths()
+        return self._store.dispositions.get_excluded_paths() | self._store.dispositions.get_trashed_paths()
 
     def is_eligible_relative_path(self, relative_path: str) -> bool:
         normalized = normalize_raw_relative_path(relative_path)

@@ -232,8 +232,8 @@ async def test_excluded_trashed_and_vanished_files_are_settled_without_queueing(
     _write(structure, "gone.md", "# Gone\n\nbody three")
     governor.hold_for_compile(["excluded.md", "trashed.md", "gone.md"])
     _scan(structure)
-    governor.store.add_excluded_path("excluded.md", reason="manual")
-    governor.store.add_trashed_path("trashed.md", trash_relpath=".corpus_trash/x", content_hash="")
+    governor.store.dispositions.add_excluded_path("excluded.md", reason="manual")
+    governor.store.dispositions.add_trashed_path("trashed.md", trash_relpath=".corpus_trash/x", content_hash="")
     structure.get_raw_file_path("gone.md").unlink()
     enqueuer = RecordingEnqueuer()
 

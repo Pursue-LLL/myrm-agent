@@ -318,7 +318,7 @@ def test_add_batch_all_filtered(queue: WikiIngestionQueue) -> None:
     blocked = queue._structure.raw_dir / "blocked.md"
     blocked.write_text("content", encoding="utf-8")
     store = CorpusDedupStore(queue._structure)
-    store.add_excluded_path("blocked.md", reason="test")
+    store.dispositions.add_excluded_path("blocked.md", reason="test")
     queue.add_batch([blocked])
     assert queue.get_pending_items() == []
 

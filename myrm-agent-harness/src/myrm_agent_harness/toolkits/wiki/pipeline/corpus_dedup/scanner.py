@@ -1,7 +1,19 @@
-"""Scan wiki raw corpus for duplicate groups.
+"""Scan the wiki raw corpus for duplicate groups.
+
+[INPUT]
+- corpus_dedup.eligibility::CorpusEligibilityFilter (POS: which raw files a scan looks at)
+- corpus_dedup.fingerprint (POS: exact / normalized / simhash builders)
+- corpus_dedup.store::CorpusDedupStore (POS: group table, fingerprint cache, scan progress and coverage)
+
+[OUTPUT]
+- CorpusDedupScanner: ``scan(incremental)`` returns a ``ScanResult``; the groups it plans replace the stored ones in
+  one transaction
 
 [POS]
-See module docstring.
+Read side of dedup governance. An incremental scan rehashes only the files whose size or mtime changed, plans exact,
+normalized and near groups in memory, swaps them in, and only then stores the fingerprints it recomputed. The cache
+therefore never runs ahead of the groups: a scan that dies midway is redone from the files, so it cannot make the next
+incremental scan trust groups that were never built.
 """
 
 from __future__ import annotations
@@ -30,9 +42,6 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     ScanResult,
 )
 
-# Fingerprints are stored in batches: far fewer transactions than one per file, and an interrupted scan keeps its work.
-_FINGERPRINT_BATCH = 200
-
 
 class CorpusDedupScanner:
     """Scan eligible raw files and persist duplicate groups."""
@@ -59,8 +68,7 @@ class CorpusDedupScanner:
         active_paths: set[str] = set()
         fingerprints: list[RawFileFingerprint] = []
         cached = self._store.fingerprints.load_all() if incremental else {}
-        unsaved: list[RawFileFingerprint] = []
-        files_recomputed = 0
+        recomputed: list[RawFileFingerprint] = []
 
         self._store.set_scan_progress(
             ScanProgress(
@@ -75,16 +83,12 @@ class CorpusDedupScanner:
             try:
                 rel = raw_file.relative_to(self._structure.raw_dir).as_posix()
                 active_paths.add(rel)
-                fingerprint, recomputed = self._resolve_fingerprint(raw_file, rel, cached.get(rel))
+                fingerprint, was_recomputed = self._resolve_fingerprint(raw_file, rel, cached.get(rel))
                 fingerprints.append(fingerprint)
-                if recomputed:
-                    files_recomputed += 1
-                    unsaved.append(fingerprint)
+                if was_recomputed:
+                    recomputed.append(fingerprint)
             except OSError:
                 continue
-            if len(unsaved) >= _FINGERPRINT_BATCH:
-                self._store.fingerprints.upsert_many(unsaved)
-                unsaved.clear()
             if index % 25 == 0 or index == total:
                 self._store.set_scan_progress(
                     ScanProgress(
@@ -95,9 +99,7 @@ class CorpusDedupScanner:
                     )
                 )
 
-        self._store.fingerprints.upsert_many(unsaved)
-        removed_cache = self._store.fingerprints.prune(active_paths)
-        if incremental and files_recomputed == 0 and removed_cache == 0:
+        if incremental and not recomputed and cached.keys() <= active_paths:
             open_groups = len(self._store.list_groups(status=GroupStatus.OPEN))
             duration_ms = int((time.perf_counter() - start) * 1000)
             self._store.confirm_scan_coverage(started_ns)
@@ -132,6 +134,10 @@ class CorpusDedupScanner:
         )
         planned = self._plan_groups(fingerprints)
         self._store.replace_scan_groups(planned, scan_started_ns=started_ns)
+        # The cache follows the groups, never leads them: a scan that dies in between is redone from the files,
+        # whereas fingerprints stored first would let the next incremental scan trust groups that never got built.
+        self._store.fingerprints.upsert_many(recomputed)
+        self._store.fingerprints.prune(active_paths)
         self._store.mark_scan_complete()
         self._store.set_scan_progress(
             ScanProgress(
@@ -270,7 +276,7 @@ class CorpusDedupScanner:
             return False
         for left_index, left in enumerate(paths):
             for right in paths[left_index + 1 :]:
-                if not self._store.is_pair_dismissed(left, right):
+                if not self._store.dispositions.is_pair_dismissed(left, right):
                     return False
         return True
 

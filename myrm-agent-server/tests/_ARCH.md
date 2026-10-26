@@ -239,7 +239,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/wiki/test_wiki_sources_status.py` | 模块 | Wiki sources API：status OAuth 标志位 + PUT config zotero 字段透传/回读断言 + exclude_unset 部分更新保持语义（断链防回归锚点） |
 | `support/wiki_compile_probe.py` | 辅助 | 排重/编译测试的真实库探针：`isolated_wiki_vault`（临时 wiki 根 + 干净归档器缓存与编译 worker 槽位）、`ReachableModel`（记录编译流水线伸手去够的属性，构造不触碰、真正编译才会调 `ainvoke`）、`clear_compile_workers` / `wait_until_queue_idle`、`write_raw` / `write_concept` / `seed_open_group`；用真实归档器与 worker 取代 mock，把「worker 没带模型」「分组表写一半」这类接线错误暴露成用户会看到的失败 |
 | `api/wiki/test_wiki_clip_model_binding.py` | 模块 | 剪藏排队编译用用户的模型，无论哪个请求唤醒 worker；`.wikiignore` 读写不构建归档器 |
-| `api/wiki/test_wiki_governance_routes.py` | 模块 | 治理工作台端点跑在真实归档器上：overview 计数、archive/revive 经过 vault 索引（回归：曾因访问不存在的 `archiver._indexer` 返回 500） |
+| `api/wiki/test_wiki_governance_routes.py` | 模块 | 治理工作台端点跑在真实归档器上：overview 计数、archive/revive 经 vault 索引（`archiver._query_engine._indexer`）完成 |
 | `api/wiki/test_wiki_dedup_hold_release.py` | 模块 | 被「先扫描后编译」暂扣的文档，在用户经 REST 处理重复组（trash/dismiss）后由用户的模型编译，无需手动点「编译」；暂扣期间队列与模型都没被触碰 |
 | `services/wiki/test_dedup_runner_model_binding.py` | 模块 | 排重扫描/列表/水合只读 vault，不构建无模型归档器、不抢编译 worker 槽位；处置与恢复走带模型的归档器 |
 | `services/wiki/test_dedup_scan_serialization.py` | 模块 | 同一 vault 的扫描一次一个：较旧的扫描不能覆盖较新的分组（`None` 与 `"default"` 是同一个 vault），并发扫描后每个重复组只出现一次 |

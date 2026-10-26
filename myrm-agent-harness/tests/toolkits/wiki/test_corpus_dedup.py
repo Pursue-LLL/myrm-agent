@@ -56,7 +56,7 @@ def test_exclude_filters_compile_queue(wiki_structure: WikiStructure) -> None:
     assert result.groups_found == 0
 
     eligibility = CorpusEligibilityFilter(wiki_structure)
-    eligibility.store.add_excluded_path("two.md", reason="manual exclude")
+    eligibility.store.dispositions.add_excluded_path("two.md", reason="manual exclude")
     queue = WikiIngestionQueue(wiki_structure)
     queue.add_batch(wiki_structure.list_raw_files())
     pending = queue.list_pending_file_paths()
@@ -320,7 +320,7 @@ def test_eligibility_filter_relative_paths_and_count(
     _write_raw(wiki_structure, "keep.md", "# keep")
     _write_raw(wiki_structure, "drop.md", "# drop")
     eligibility = CorpusEligibilityFilter(wiki_structure)
-    eligibility.store.add_excluded_path("drop.md", reason="test")
+    eligibility.store.dispositions.add_excluded_path("drop.md", reason="test")
     assert eligibility.count_eligible_raw_files() == 1
     assert eligibility.filter_relative_paths(["keep.md", "drop.md"]) == ["keep.md"]
     assert eligibility.is_eligible_raw_file(wiki_structure.get_raw_file_path("keep.md")) is True

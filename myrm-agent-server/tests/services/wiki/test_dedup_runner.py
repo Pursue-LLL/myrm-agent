@@ -88,7 +88,7 @@ async def test_schedule_wiki_dedup_scan_accepts_background_task(wiki_archiver) -
 async def test_schedule_wiki_dedup_scan_skips_when_scan_already_running(
     wiki_archiver,
 ) -> None:
-    dedup_runner._running_scans.add("__default__")
+    dedup_runner._running_scans.add(str(wiki_archiver._structure.base_dir))
     result = await dedup_runner.schedule_wiki_dedup_scan()
     assert result.accepted is False
     assert result.skipped_reason == "scan_in_progress"
@@ -216,8 +216,15 @@ async def test_execute_background_scan_records_failure_progress(wiki_archiver) -
 
 def test_is_wiki_dedup_scan_running(wiki_archiver) -> None:
     assert dedup_runner.is_wiki_dedup_scan_running() is False
-    dedup_runner._running_scans.add("__default__")
+    dedup_runner._running_scans.add(str(wiki_archiver._structure.base_dir))
     assert dedup_runner.is_wiki_dedup_scan_running() is True
+
+
+def test_a_running_scan_is_seen_under_every_name_of_its_vault(wiki_archiver) -> None:
+    dedup_runner._running_scans.add(str(wiki_archiver._structure.base_dir))
+
+    assert dedup_runner.is_wiki_dedup_scan_running(agent_id=None) is True
+    assert dedup_runner.is_wiki_dedup_scan_running(agent_id="default") is True
 
 
 @pytest.mark.asyncio

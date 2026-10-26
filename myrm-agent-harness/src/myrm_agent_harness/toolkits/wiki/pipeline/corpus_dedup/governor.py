@@ -1,7 +1,21 @@
 """Apply user dispositions to duplicate groups and release the files held back for them.
 
+[INPUT]
+- corpus_dedup.store::CorpusDedupStore (POS: groups, dispositions, compile holds, scan coverage)
+- corpus_dedup.eligibility::CorpusEligibilityFilter (POS: blocked-path filter)
+- corpus_dedup.types::FileEnqueuer (POS: what a release hands files to)
+- core.structure::WikiStructure (POS: vault paths and raw listing)
+- pipeline.raw_gate.evidence_removal, pipeline.cognitive_map (POS: evidence re-anchor and audit log)
+
+[OUTPUT]
+- CorpusDedupGovernor: ``apply_disposition`` (trash / exclude / dismiss / defer), ``restore_trashed_raw``,
+  ``undo_excluded_raw``, ``list_vault_hygiene``, ``blocking_open_groups``, and the compile hold:
+  ``hold_for_compile`` / ``has_unscanned_holds`` / ``release_held`` / ``release_unguarded``
+
 [POS]
-See module docstring.
+Policy layer over the dedup store. A disposition settles a group, and the release that follows queues the held files
+it cleared, so the survivor of a resolved group compiles without another click. A hold leaves the ledger only after its
+enqueue succeeded, and the compile pipeline's own change detection absorbs a repeated release.
 """
 
 from __future__ import annotations
@@ -112,7 +126,7 @@ class CorpusDedupGovernor:
             paths = [member.relative_path for member in group.members]
             for left_index, left in enumerate(paths):
                 for right in paths[left_index + 1 :]:
-                    self._store.add_dismissed_pair(left, right)
+                    self._store.dispositions.add_dismissed_pair(left, right)
             self._store.update_group_status(group_id, GroupStatus.RESOLVED)
             return DispositionResult(group_id=group_id, action=action, affected_paths=tuple(paths))
 
@@ -123,7 +137,7 @@ class CorpusDedupGovernor:
             if member.relative_path == keep_path:
                 continue
             if action == DispositionAction.EXCLUDE:
-                self._store.add_excluded_path(
+                self._store.dispositions.add_excluded_path(
                     normalize_raw_relative_path(member.relative_path),
                     reason=reason,
                 )
@@ -170,7 +184,7 @@ class CorpusDedupGovernor:
         trash_path = trash_dir / trash_name
         trash_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(raw_path), str(trash_path))
-        self._store.add_trashed_path(
+        self._store.dispositions.add_trashed_path(
             normalized,
             trash_relpath=f".corpus_trash/{trash_name}",
             content_hash=content_hash,
@@ -187,16 +201,16 @@ class CorpusDedupGovernor:
         return True
 
     def list_vault_hygiene(self) -> VaultHygieneSnapshot:
-        return self._store.build_vault_hygiene_snapshot()
+        return self._store.dispositions.build_vault_hygiene_snapshot()
 
     async def restore_trashed_raw(
         self,
         relative_path: str,
         *,
-        compiler: object | None = None,
+        compiler: FileEnqueuer | None = None,
     ) -> TrashedRawEntry:
         normalized = normalize_raw_relative_path(relative_path)
-        entry = self._store.get_trashed_entry(normalized)
+        entry = self._store.dispositions.get_trashed_entry(normalized)
         if entry is None:
             msg = f"Trashed raw file not found: {normalized}"
             raise ValueError(msg)
@@ -213,15 +227,13 @@ class CorpusDedupGovernor:
 
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(trash_path), str(raw_path))
-        if not self._store.remove_trashed_path(normalized):
+        if not self._store.dispositions.remove_trashed_path(normalized):
             logger.warning(
                 "Restored raw file on disk but failed to clear trashed_paths entry: %s",
                 normalized,
             )
         if compiler is not None:
-            enqueue = getattr(compiler, "enqueue_file", None)
-            if callable(enqueue):
-                enqueue(raw_path)
+            compiler.enqueue_file(raw_path)
         try:
             append_log_entry(
                 self._structure,
@@ -241,11 +253,11 @@ class CorpusDedupGovernor:
 
     def undo_excluded_raw(self, relative_path: str) -> ExcludedRawEntry:
         normalized = normalize_raw_relative_path(relative_path)
-        match = self._store.get_excluded_entry(normalized)
+        match = self._store.dispositions.get_excluded_entry(normalized)
         if match is None:
             msg = f"Excluded raw file not found: {normalized}"
             raise ValueError(msg)
-        if not self._store.remove_excluded_path(normalized):
+        if not self._store.dispositions.remove_excluded_path(normalized):
             msg = f"Excluded raw file not found: {normalized}"
             raise ValueError(msg)
         return match

@@ -1,7 +1,17 @@
 """SQLite persistence for raw corpus dedup governance.
 
+[INPUT]
+- core.structure::WikiStructure (POS: vault directory that holds ``.raw_dedup.db``)
+- corpus_dedup.disposition_ledger / fingerprint_cache / compile_holds (POS: sub-stores that own their tables)
+- corpus_dedup.types (POS: group, progress and stats value types)
+
+[OUTPUT]
+- CorpusDedupStore: duplicate groups (atomic ``replace_scan_groups``), scan progress, last-scan time and coverage instant,
+  prevented-compile counter, deferred member sets, stats; ``dispositions``, ``fingerprints`` and ``holds`` sub-stores
+
 [POS]
-See module docstring.
+One SQLite file per vault, opened per call with WAL and a busy timeout, one transaction per ``with``. The store owns
+the group tables and scan bookkeeping and creates every table of the file; the sub-stores borrow its connection factory.
 """
 
 from __future__ import annotations
@@ -14,22 +24,22 @@ from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.compile_holds import COMPILE_HOLD_SCHEMA, CompileHoldLedger
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.disposition_ledger import (
+    DISPOSITION_SCHEMA,
+    DispositionLedger,
+)
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.fingerprint_cache import (
     FINGERPRINT_SCHEMA,
     FingerprintCache,
 )
-from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.path_utils import normalize_raw_relative_path
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DedupStats,
     DedupTier,
     DuplicateGroup,
     DuplicateMember,
-    ExcludedRawEntry,
     GroupStatus,
     PlannedGroup,
     ScanProgress,
-    TrashedRawEntry,
-    VaultHygieneSnapshot,
 )
 
 _META_COMPILE_JOBS_PREVENTED = "compile_jobs_prevented"
@@ -54,6 +64,7 @@ class CorpusDedupStore:
     def __init__(self, structure: WikiStructure) -> None:
         self._structure = structure
         self.db_path = structure.base_dir / ".raw_dedup.db"
+        self.dispositions = DispositionLedger(self._conn)
         self.fingerprints = FingerprintCache(self._conn)
         self.holds = CompileHoldLedger(self._conn)
         self._init_db()
@@ -75,23 +86,6 @@ class CorpusDedupStore:
         with self._conn() as conn:
             conn.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS excluded_paths (
-                    relative_path TEXT PRIMARY KEY,
-                    reason TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS trashed_paths (
-                    relative_path TEXT PRIMARY KEY,
-                    trash_relpath TEXT NOT NULL,
-                    content_hash TEXT NOT NULL DEFAULT '',
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS dismissed_pairs (
-                    path_a TEXT NOT NULL,
-                    path_b TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    PRIMARY KEY (path_a, path_b)
-                );
                 CREATE TABLE IF NOT EXISTS duplicate_groups (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tier TEXT NOT NULL,
@@ -114,181 +108,14 @@ class CorpusDedupStore:
                     value TEXT NOT NULL
                 );
                 """
+                + DISPOSITION_SCHEMA
                 + FINGERPRINT_SCHEMA
                 + COMPILE_HOLD_SCHEMA
             )
 
-    def get_excluded_paths(self) -> set[str]:
-        with self._conn() as conn:
-            rows = conn.execute("SELECT relative_path FROM excluded_paths").fetchall()
-        return {str(row["relative_path"]) for row in rows}
-
-    def get_trashed_paths(self) -> set[str]:
-        with self._conn() as conn:
-            rows = conn.execute("SELECT relative_path FROM trashed_paths").fetchall()
-        return {str(row["relative_path"]) for row in rows}
-
-    def add_excluded_path(self, relative_path: str, *, reason: str) -> None:
-        normalized = normalize_raw_relative_path(relative_path)
-        now = datetime.now(UTC).isoformat()
-        with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO excluded_paths (relative_path, reason, created_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(relative_path) DO UPDATE SET
-                    reason = excluded.reason,
-                    created_at = excluded.created_at
-                """,
-                (normalized, reason, now),
-            )
-
-    def remove_excluded_path(self, relative_path: str) -> bool:
-        normalized = normalize_raw_relative_path(relative_path)
-        with self._conn() as conn:
-            cursor = conn.execute(
-                "DELETE FROM excluded_paths WHERE relative_path = ?",
-                (normalized,),
-            )
-            return int(cursor.rowcount) > 0
-
-    def list_excluded_entries(self) -> list[ExcludedRawEntry]:
-        with self._conn() as conn:
-            rows = conn.execute(
-                """
-                SELECT relative_path, reason, created_at
-                FROM excluded_paths
-                ORDER BY created_at DESC, relative_path ASC
-                """
-            ).fetchall()
-        return [
-            ExcludedRawEntry(
-                relative_path=str(row["relative_path"]),
-                reason=str(row["reason"]),
-                created_at=str(row["created_at"]),
-            )
-            for row in rows
-        ]
-
-    def get_excluded_entry(self, relative_path: str) -> ExcludedRawEntry | None:
-        normalized = normalize_raw_relative_path(relative_path)
-        with self._conn() as conn:
-            row = conn.execute(
-                """
-                SELECT relative_path, reason, created_at
-                FROM excluded_paths
-                WHERE relative_path = ?
-                """,
-                (normalized,),
-            ).fetchone()
-        if row is None:
-            return None
-        return ExcludedRawEntry(
-            relative_path=str(row["relative_path"]),
-            reason=str(row["reason"]),
-            created_at=str(row["created_at"]),
-        )
-
-    def add_trashed_path(
-        self,
-        relative_path: str,
-        *,
-        trash_relpath: str,
-        content_hash: str,
-    ) -> None:
-        normalized = normalize_raw_relative_path(relative_path)
-        now = datetime.now(UTC).isoformat()
-        with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO trashed_paths (relative_path, trash_relpath, content_hash, created_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(relative_path) DO UPDATE SET
-                    trash_relpath = excluded.trash_relpath,
-                    content_hash = excluded.content_hash,
-                    created_at = excluded.created_at
-                """,
-                (normalized, trash_relpath, content_hash, now),
-            )
-
-    def remove_trashed_path(self, relative_path: str) -> bool:
-        normalized = normalize_raw_relative_path(relative_path)
-        with self._conn() as conn:
-            cursor = conn.execute(
-                "DELETE FROM trashed_paths WHERE relative_path = ?",
-                (normalized,),
-            )
-            return int(cursor.rowcount) > 0
-
-    def get_trashed_entry(self, relative_path: str) -> TrashedRawEntry | None:
-        normalized = normalize_raw_relative_path(relative_path)
-        with self._conn() as conn:
-            row = conn.execute(
-                """
-                SELECT relative_path, trash_relpath, content_hash, created_at
-                FROM trashed_paths
-                WHERE relative_path = ?
-                """,
-                (normalized,),
-            ).fetchone()
-        if row is None:
-            return None
-        return TrashedRawEntry(
-            relative_path=str(row["relative_path"]),
-            trash_relpath=str(row["trash_relpath"]),
-            content_hash=str(row["content_hash"]),
-            created_at=str(row["created_at"]),
-        )
-
-    def list_trashed_entries(self) -> list[TrashedRawEntry]:
-        with self._conn() as conn:
-            rows = conn.execute(
-                """
-                SELECT relative_path, trash_relpath, content_hash, created_at
-                FROM trashed_paths
-                ORDER BY created_at DESC, relative_path ASC
-                """
-            ).fetchall()
-        return [
-            TrashedRawEntry(
-                relative_path=str(row["relative_path"]),
-                trash_relpath=str(row["trash_relpath"]),
-                content_hash=str(row["content_hash"]),
-                created_at=str(row["created_at"]),
-            )
-            for row in rows
-        ]
-
-    def build_vault_hygiene_snapshot(self) -> VaultHygieneSnapshot:
-        return VaultHygieneSnapshot(
-            trashed=tuple(self.list_trashed_entries()),
-            excluded=tuple(self.list_excluded_entries()),
-        )
-
     def collect_deferred_member_sets(self) -> set[frozenset[str]]:
         groups = self.list_groups(status=GroupStatus.DEFERRED)
         return {frozenset(member.relative_path for member in group.members) for group in groups}
-
-    def add_dismissed_pair(self, path_a: str, path_b: str) -> None:
-        left, right = sorted((path_a, path_b))
-        now = datetime.now(UTC).isoformat()
-        with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO dismissed_pairs (path_a, path_b, created_at)
-                VALUES (?, ?, ?)
-                """,
-                (left, right, now),
-            )
-
-    def is_pair_dismissed(self, path_a: str, path_b: str) -> bool:
-        left, right = sorted((path_a, path_b))
-        with self._conn() as conn:
-            row = conn.execute(
-                "SELECT 1 FROM dismissed_pairs WHERE path_a = ? AND path_b = ?",
-                (left, right),
-            ).fetchone()
-        return row is not None
 
     def replace_scan_groups(self, groups: Sequence[PlannedGroup], *, scan_started_ns: int) -> None:
         """Swap the stored groups for a scan's result in one transaction.
@@ -445,8 +272,8 @@ class CorpusDedupStore:
             duplicate_groups_pending=len(open_groups),
             compile_jobs_prevented=self.get_compile_jobs_prevented(),
             eligible_raw_count=eligible_raw_count,
-            excluded_raw_count=len(self.get_excluded_paths()),
-            trashed_raw_count=len(self.get_trashed_paths()),
+            excluded_raw_count=len(self.dispositions.get_excluded_paths()),
+            trashed_raw_count=len(self.dispositions.get_trashed_paths()),
         )
 
     def _get_meta(self, key: str) -> str:
