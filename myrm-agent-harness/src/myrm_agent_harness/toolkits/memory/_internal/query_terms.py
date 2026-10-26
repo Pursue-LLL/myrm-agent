@@ -14,7 +14,7 @@ content words. The mirror scores by weighted term overlap, so every filler token
 that also occurs in stored memories adds score to unrelated hits. Only sentence-length
 queries are pruned (``MIN_SENTENCE_TOKENS``); a short query is already a keyword query.
 Pruning happens on the query side only: stored documents keep their full token stream, so no
-mirror rewrite is needed. The legacy corpus-scroll path does not use this module;
+mirror rewrite is needed. The corpus-scroll fallback path does not use this module;
 it already selects long-query terms by corpus IDF, which the mirror client cannot
 compute because the server owns the document statistics.
 

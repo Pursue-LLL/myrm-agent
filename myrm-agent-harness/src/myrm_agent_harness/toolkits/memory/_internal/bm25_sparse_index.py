@@ -23,7 +23,7 @@ cost ratio, silent recall loss past ``bm25_max_corpus_size``) with a persisted
 sparse index. This module owns the mirror's lifecycle — write interception,
 one-shot backfill, and sparse-only routing for embeddings-less deployments —
 while encoding and query execution live in the sibling modules. The first sparse
-query upgrades mirrors that predate the IDF modifier. Sparse sync is
+query upgrades mirrors that lack the IDF modifier. Sparse sync is
 fail-open — a broken index never blocks dense writes, the same guarantee graph
 indexing already follows.
 """
@@ -205,10 +205,10 @@ class BM25SparseIndexStore:
     async def _enable_mirror_idf(self, config: MemoryConfig) -> None:
         """Bring both mirrors to IDF weighting before the first sparse query.
 
-        Mirrors written before the modifier existed score by term overlap, and the
-        fan-out fuses semantic and episodic hits by raw score, so one weighted and
-        one unweighted mirror would not be comparable. Runs once per wrapper; the
-        backend logs a failed upgrade and leaves that mirror on its previous scoring.
+        A mirror created without the IDF modifier scores by term overlap alone, and
+        the fan-out fuses semantic and episodic hits by raw score, so one weighted
+        and one unweighted mirror would not be comparable. Runs once per wrapper; the
+        backend logs a failed upgrade and leaves that mirror on overlap scoring.
         """
         for collection in (config.semantic_collection, config.episodic_collection):
             await self._inner.upgrade_sparse_idf(bm25_collection_for(collection))  # type: ignore[attr-defined]

@@ -1,7 +1,7 @@
 """Qdrant sparse mirror IDF weighting on an embedded store.
 
 A rare term must outweigh a term every document contains, both for a mirror
-created now and for one created before the modifier existed (upgraded in place).
+created with the modifier and for one created without it (upgraded in place).
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ async def _modifier(store: QdrantSparseMixin) -> models.Modifier | None:
 
 
 async def _create_without_modifier(store: QdrantSparseMixin) -> None:
-    """Create a mirror the way earlier releases did: no IDF modifier."""
+    """Create a mirror without the IDF modifier."""
     await store._execute(
         store._client.create_collection,  # type: ignore[attr-defined]
         collection_name=COLLECTION,

@@ -1,4 +1,4 @@
-"""The first sparse query brings mirrors written before the IDF modifier up to date."""
+"""The first sparse query brings mirrors that lack the IDF modifier up to date."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _doc(content: str, memory_type: str) -> VectorDocument:
 
 
 async def _create_mirror_without_modifier(store: object, collection: str) -> None:
-    """Create a mirror the way earlier releases did: no IDF modifier."""
+    """Create a mirror without the IDF modifier."""
     await store._execute(  # type: ignore[attr-defined]
         store._client.create_collection,  # type: ignore[attr-defined]
         collection_name=bm25_collection_for(collection),

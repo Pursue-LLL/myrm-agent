@@ -48,6 +48,7 @@ class StalenessReviewConfig:
     min_candidates: int = 3
     max_candidates_per_cycle: int = 20
     max_removals_per_cycle: int = 5
+    min_extension_days: int = 30
     max_extension_days: int = 730
     keep_cooldown_days: int = 30
     protected_categories: frozenset[str] = field(default_factory=lambda: frozenset({"correction"}))
@@ -219,12 +220,14 @@ class StalenessReviewer:
             return []
 
         decisions: list[StalenessDecision] = []
+        decided: set[str] = set()
         for item in data:
             if not isinstance(item, dict):
                 continue
             mid = item.get("id", "")
-            if mid not in valid_ids:
+            if mid not in valid_ids or mid in decided:
                 continue
+            decided.add(mid)
             action_str = item.get("action", "keep")
             try:
                 action = StalenessAction(action_str)
@@ -235,7 +238,9 @@ class StalenessReviewer:
             if action == StalenessAction.EXTEND:
                 raw_ext = item.get("extend_by_days", 90)
                 if isinstance(raw_ext, (int, float)) and not isinstance(raw_ext, bool):
-                    extend_by = min(int(raw_ext), self._config.max_extension_days)
+                    # A grant below the minimum would leave the memory in the queue
+                    # (or, when negative, push its TTL out of the review range).
+                    extend_by = max(self._config.min_extension_days, min(int(raw_ext), self._config.max_extension_days))
                 else:
                     extend_by = 90
 

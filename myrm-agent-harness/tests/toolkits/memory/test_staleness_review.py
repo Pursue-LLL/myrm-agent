@@ -283,6 +283,47 @@ class TestStalenessReviewer:
         assert result.reviewed_count == 0
 
     @pytest.mark.asyncio
+    async def test_extension_below_minimum_is_raised_to_the_minimum(self) -> None:
+        """A zero or negative grant must neither re-queue the memory nor drop its TTL."""
+        llm_response = json.dumps(
+            [
+                {"id": "m-1", "action": "extend", "reason": "zero", "extend_by_days": 0},
+                {"id": "m-2", "action": "extend", "reason": "negative", "extend_by_days": -500},
+                {"id": "m-3", "action": "extend", "reason": "fine", "extend_by_days": 120},
+            ]
+        )
+        llm = AsyncMock(return_value=llm_response)
+        config = StalenessReviewConfig(min_candidates=3, min_extension_days=30)
+        reviewer = StalenessReviewer(llm, config)
+        candidates = [_make_semantic(mem_id=f"m-{i}", days_old=60, expected_valid_days=30) for i in (1, 2, 3)]
+        result = await reviewer.review(candidates)
+
+        assert result.extended_updates == [("m-1", 90), ("m-2", 90), ("m-3", 180)]
+        # Every grant leaves the queue: none of the memories is a candidate again.
+        for mem_id, granted in result.extended_updates:
+            reviewed = next(m for m in candidates if m.id == mem_id)
+            reviewed.expected_valid_days = granted
+        assert select_stale_candidates(candidates, config) == []
+
+    async def test_first_decision_per_memory_wins(self) -> None:
+        """Contradicting decisions for one memory are not both applied."""
+        llm_response = json.dumps(
+            [
+                {"id": "m-1", "action": "extend", "reason": "first", "extend_by_days": 120},
+                {"id": "m-1", "action": "remove", "reason": "second"},
+                {"id": "m-2", "action": "keep", "reason": "ok"},
+                {"id": "m-3", "action": "keep", "reason": "ok"},
+            ]
+        )
+        llm = AsyncMock(return_value=llm_response)
+        reviewer = StalenessReviewer(llm, StalenessReviewConfig(min_candidates=3))
+        candidates = [_make_semantic(mem_id=f"m-{i}", days_old=60, expected_valid_days=30) for i in (1, 2, 3)]
+        result = await reviewer.review(candidates)
+
+        assert result.reviewed_count == 3
+        assert result.extended_updates == [("m-1", 180)]
+        assert result.removed_ids == []
+
     async def test_invalid_ids_in_response_ignored(self) -> None:
         """LLM returning IDs not in candidates are ignored."""
         llm_response = json.dumps(

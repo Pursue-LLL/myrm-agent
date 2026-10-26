@@ -110,7 +110,8 @@ async def run_bm25_search(
         )
         return [(r.score, r.document, memory_type) for r in results]
 
-    # The requested mirrors are queried in parallel, mirroring the legacy dual-scroll.
+    # The requested mirrors are queried in parallel; any failure degrades the whole
+    # search to the corpus-scroll fallback.
     try:
         outcomes = await asyncio.gather(*(search_one(t) for t in searched))
     except Exception as exc:

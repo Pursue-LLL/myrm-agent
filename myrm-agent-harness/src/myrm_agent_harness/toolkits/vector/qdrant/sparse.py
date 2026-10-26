@@ -15,8 +15,8 @@ vector per collection so hash-indexed term-frequency retrieval works as a
 persistent, incrementally-maintained BM25 channel without rebuilding a
 client-side corpus index per query. Every collection is created with the
 ``IDF`` modifier, so the server weighs each matched term by its inverse
-document frequency at query time; mirrors created before the modifier was set
-are upgraded in place with ``upgrade_sparse_idf``. Mixin is hosted by
+document frequency at query time; a mirror without the modifier is upgraded in
+place with ``upgrade_sparse_idf``. Mixin is hosted by
 QdrantVectorStore, which supplies ``_client`` / ``_with_retry`` / ``point_id_for``.
 """
 
@@ -126,12 +126,11 @@ class QdrantSparseMixin:
             raise
 
     async def upgrade_sparse_idf(self, name: str) -> bool:
-        """Turn on server-side IDF for a mirror created before the modifier was set.
+        """Turn on server-side IDF for a mirror that was created without the modifier.
 
         Never creates a collection: a type that was never written has no mirror and
         reads as empty. Fail-open: a backend that rejects the update keeps scoring by
-        term overlap, which is what the mirror did before, so the failure is logged
-        and never raised.
+        term overlap, so the failure is logged and never raised.
 
         Returns:
             True if the mirror was upgraded, False if it was missing, already

@@ -1,8 +1,8 @@
 """BM25 retrieval honours the requested memory types before it truncates.
 
-The mirror fan-out used to query both the semantic and the episodic mirror for every
-request, so a ``memory_types`` filter was ignored and the top-k cut could drop a hit
-of the requested type in favour of one that is filtered out later.
+The mirror fan-out queries only the mirrors of the requested types. Querying every
+mirror regardless would let the top-k cut drop a hit of a requested type in favour of
+one that is filtered out later.
 """
 
 from __future__ import annotations
