@@ -375,7 +375,6 @@ myrm_agent_harness.observability.metrics
 myrm_agent_harness.observability.metrics.db_pool_collector
 myrm_agent_harness.observability.multimodal_trace
 myrm_agent_harness.observability.org_spend_limit
-myrm_agent_harness.observability.otel_degrade
 myrm_agent_harness.observability.rate_limit_governor
 myrm_agent_harness.observability.rate_limit_split
 myrm_agent_harness.observability.reasoning_semantics

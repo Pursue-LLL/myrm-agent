@@ -129,7 +129,6 @@ from app.api.system.model_ping_api import router as system_model_ping_router
 from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
 from app.api.system.multimodal_trace_api import router as system_multimodal_trace_router
 from app.api.system.org_spend_limit_api import router as system_org_spend_limit_router
-from app.api.system.otel_degrade_api import router as system_otel_degrade_router
 from app.api.system.port_inspector import router as system_port_inspector_router
 from app.api.system.rate_limit_governor_api import router as system_rate_limit_governor_router
 from app.api.system.rate_limit_split_api import router as system_rate_limit_split_router
@@ -367,7 +366,6 @@ api_router.include_router(system_knowledge_compounding_router, prefix="/system",
 api_router.include_router(system_turn_context_provenance_router, prefix="/system", tags=["system"])
 api_router.include_router(system_deployment_funnel_router, prefix="/system", tags=["system"])
 api_router.include_router(system_stream_metrics_router, prefix="/system", tags=["system"])
-api_router.include_router(system_otel_degrade_router, prefix="/system", tags=["system"])
 api_router.include_router(system_diagnostic_stream_router, prefix="/system", tags=["system"])
 api_router.include_router(system_turn_usage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_context_breakdown_router, prefix="/system", tags=["system"])

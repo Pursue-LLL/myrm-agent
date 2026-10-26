@@ -51,7 +51,6 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | turn_context_provenance/ | 会话逐轮上下文注入来源清单、内容指纹快照与可复现审计套件：记录 System Prompt、Memory、Skill、MCP、Workspace File 注入清单、计算 SHA256 指纹与跨轮差异比对。参见 [turn_context_provenance/_ARCH.md](turn_context_provenance/_ARCH.md)。 |
 | deployment_funnel/ | 部署漏斗监控与反馈提醒回路套件：4 阶段用户转化漏斗埋点追踪（VIEW ➔ ENGAGE ➔ ACTION ➔ COMPLETE）、断点热点流失率统计、用户情感反馈与主动 Nudge 告警，支持高阶改进目标自主闭环。参见 [deployment_funnel/_ARCH.md](deployment_funnel/_ARCH.md)。 |
 | stream_metrics/ | 流式调用按最终结果计量核心套件：杜绝中间 chunk 计数污染、按终态结果（SUCCESS/ERROR/CANCELLED/TIMEOUT）归因、TTFT 首字时延度量与防虚高膨胀统计。参见 [stream_metrics/_ARCH.md](stream_metrics/_ARCH.md)。 |
-| otel_degrade/ | OpenTelemetry 缺失时优雅降级与可观测探针零硬依赖套件：缺失依赖或禁用时自动静默降级为 No-Op 空操作，保障业务执行 100% 顺畅。参见 [otel_degrade/_ARCH.md](otel_degrade/_ARCH.md)。 |
 | diagnostic_stream/ | run-stream 协议诊断事件分离与正常消息流解耦套件：双轨物理隔离正轨用户消息与旁路诊断告警，提供 ACP 会话 Hook 与多维分类统计。参见 [diagnostic_stream/_ARCH.md](diagnostic_stream/_ARCH.md)。 |
 | turn_usage/ | 回合级 Billed Usage 双计数核心架构：绝对累加账单（summed_with）与最新缓存状态（merged_with）严格解耦，支持自适应格式回写。参见 [turn_usage/_ARCH.md](turn_usage/_ARCH.md)。 |
 | context_breakdown/ | 上下文用量七分类精准解析与 60%/90% 警戒线判定核心架构：识别真实注入标签，消除余量黑盒，支持估算与提供商实报并列对比。参见 [context_breakdown/_ARCH.md](context_breakdown/_ARCH.md)。 |

@@ -35,7 +35,6 @@
 | `turn_context_provenance_api.py` | 路由 | 会话逐轮上下文装配来源清单上报 (`POST /turn-context/manifest/record`)、单轮凭证指纹查询 (`GET /turn-context/manifest/{session_id}/{turn_id}`)、跨轮最小差异分析 (`POST /turn-context/diff`) 与来源分类 Token 分解 (`GET /turn-context/token-breakdown/{session_id}/{turn_id}`) | ✅ |
 | `deployment_funnel_api.py` | 路由 | 部署漏斗流失事件上报 (`POST /deployment-funnel/event`)、用户情绪反馈登记 (`POST /deployment-funnel/feedback`)、漏斗全景转化快照与 Nudge 告警查询 (`GET /deployment-funnel/snapshot/{deployment_id}`) 以及高阶自愈目标一键派发 (`POST /deployment-funnel/dispatch-goal`) | ✅ |
 | `stream_metrics_api.py` | 路由 | 流式调用按最终结果计量 (`POST /stream-metrics/session/start`, `/chunk`, `/finalize`) 与无污染聚合大盘查询 (`GET /stream-metrics/aggregate`, `/session/{call_id}`) | ✅ |
-| `otel_degrade_api.py` | 路由 | OpenTelemetry 缺失时优雅降级姿态查询 (`GET /otel-degrade/status`)、主动探测 (`POST /otel-degrade/probe`) 与依赖缺失模拟 (`POST /otel-degrade/simulate`) | ✅ |
 | `diagnostic_stream_api.py` | 路由 | run-stream 协议诊断事件双轨解耦派发 (`POST /diagnostic-stream/emit`)、历史事件查询 (`GET /diagnostic-stream/events`) 与多维分布统计 (`GET /diagnostic-stream/stats`) | ✅ |
 | `turn_usage_api.py` | 路由 | 回合级 Billed Usage 双计数 API (`POST /turn-usage/record-round`)、双计数账单与缓存决策对比 (`GET /turn-usage/summary/{session_id}/{turn_id}`) 与自适应形状回写 (`POST /turn-usage/rewrite-shape`) | ✅ |
 | `context_breakdown_api.py` | 路由 | 上下文用量七分类占比解析 (`POST /context-breakdown/resolve`) 与 60%/90% 警戒线标准配置 (`GET /context-breakdown/thresholds`) | ✅ |
