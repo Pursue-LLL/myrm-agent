@@ -27,7 +27,10 @@ pytestmark = [
 
 _JSON = "application/json"
 _SETTLE_TIMEOUT_S = 10.0
+_SETTLE_TIMEOUT_MS = 10_000
 _BUNDLE = '<script src="/static/main.js"></script>'
+# The page reads the response and says so: the browser keeps a body for network_detail once the page has read it.
+_FETCH_API_AND_SIGNAL = "fetch('/api/ok').then(r => r.text()).then(() => { window.bodyRead = true })"
 
 
 def _page(markup: str) -> Reply:
@@ -46,13 +49,15 @@ async def _until_the_failed_script_is_logged(session: BrowserSession) -> None:
 
 async def test_a_script_that_404s_is_listed_without_a_number_and_number_one_still_opens_the_api_request() -> None:
     routes = {
-        "/app": _page(f"{_BUNDLE}<script>fetch('/api/ok')</script>"),
+        "/app": _page(f"{_BUNDLE}<script>{_FETCH_API_AND_SIGNAL}</script>"),
         "/api/ok": Reply(body=b'{"ok":1}', content_type=_JSON),
     }
     with serve(routes) as site:
         async with local_session() as session:
             await session.navigate(site.url("/app"))
-            await _until(lambda: any(r.status for r in session._network_intelligence.get_api_requests()))
+            await session._tab_controller.get_active_page().wait_for_function(
+                "window.bodyRead === true", timeout=_SETTLE_TIMEOUT_MS
+            )
             await _until_the_failed_script_is_logged(session)
 
             lines = session.get_network_log().splitlines()
