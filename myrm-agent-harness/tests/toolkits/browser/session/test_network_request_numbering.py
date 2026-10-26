@@ -49,14 +49,15 @@ def test_a_number_keeps_naming_its_request_after_older_ones_are_evicted() -> Non
     assert ni.get_summary().splitlines()[0].strip().startswith("4. GET https://api.example.com/req-4")
 
 
-def test_evicting_documents_does_not_renumber_api_requests() -> None:
-    ni = NetworkIntelligence(max_requests=4)
+def test_documents_do_not_take_window_slots_from_api_requests() -> None:
+    ni = NetworkIntelligence(max_requests=3)
     _see(ni, "a")
-    for i in range(3):
+    for i in range(5):
         _see(ni, f"doc-{i}", "Document")
     _see(ni, "b")
+    _see(ni, "c")
 
-    assert [(r.seq, r.request_id) for r in ni.get_api_requests()] == [(2, "b")]
+    assert [(r.seq, r.request_id) for r in ni.get_api_requests()] == [(1, "a"), (2, "b"), (3, "c")]
 
 
 def test_a_response_update_keeps_the_requests_number() -> None:
@@ -84,7 +85,6 @@ def test_clearing_never_reuses_a_number() -> None:
 @pytest.mark.parametrize("seq", [0, -1])
 def test_numbers_below_one_name_no_request(seq: int) -> None:
     ni = NetworkIntelligence()
-    _see(ni, "doc", "Document")
     _see(ni, "a")
 
     assert ni.find_api_request(seq) is None
@@ -135,7 +135,7 @@ class _Session(BrowserSessionNetworkMixin):
     def __init__(self, ni: NetworkIntelligence) -> None:
         self._network_intelligence = ni
         self.page = MagicMock()
-        self.page.evaluate = AsyncMock(return_value=[200, "ok"])
+        self.page.evaluate = AsyncMock(return_value=[200, "ok", False])
         self._tab_controller = MagicMock()
         self._tab_controller.get_active_page.return_value = self.page
 
@@ -166,4 +166,4 @@ async def test_a_replay_resends_the_request_with_the_number_the_log_showed() -> 
     session = _Session(ni)
 
     assert await session.replay_network_request(5) == "[HTTP 200]\nok"
-    assert "https://api.example.com/req-5" in session.page.evaluate.call_args[0][0]
+    assert session.page.evaluate.call_args[0][1][0] == "https://api.example.com/req-5"

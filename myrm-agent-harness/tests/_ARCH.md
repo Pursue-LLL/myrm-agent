@@ -84,7 +84,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    断言服务端收到几次请求，而不是只信浏览器侧结果（`Reply.delay_s` 模拟慢业务端点，用来证明表单 POST 在响应慢于驱动请求超时的情况下仍只提交一次；`declared_length` / `hold_open_s` 脚本化被截断或读到一半的响应；`Gated` 按请求头区分页面自己的请求与裸重发）；web_fetch 侧见 `tests/toolkits/web_fetch/test_fetch_ssrf_terminal.py`。
    并用本地 `ThreadingHTTPServer` 做真实页面源，避免外部网络依赖。**禁止**用猴子补丁替换
    `install_domain_filter` 或其他过滤器入口来"让环回可达"——那会遮住标志没有传到过滤器的缺陷。
-   浏览器网络工具同法取证：`tests/toolkits/browser/session/test_network_terminal_states_integration.py`（`network_log` 如实标注重定向跳转、失败请求与页面丢弃但服务端已答复的请求，并以 Chrome 自己的 `loadingFailed` 事件作对照；`network_detail` 说明为何没有响应体；`network_replay` 只重发 GET 并回答真实状态码）与 `tests/toolkits/browser/test_evaluate_write_guard_integration.py`（`evaluate` 不放行页面 JS 写请求，服务端命中数为证）；不需要定制启动参数的真实会话统一用 `tests/toolkits/browser/_local_browser_session.py::local_session`。
+   浏览器网络工具同法取证：`tests/toolkits/browser/session/test_network_terminal_states_integration.py`（`network_log` 如实标注重定向跳转、失败请求与页面丢弃但服务端已答复的请求，并以 Chrome 自己的 `loadingFailed` 事件作对照；`network_detail` 说明为何没有响应体；`network_replay` 只重发 GET 并回答真实状态码）、`tests/toolkits/browser/session/test_network_log_listing_integration.py`（404 的脚本以不带编号的一行列出、编号 1 仍打开 API 请求，没有任何 XHR/Fetch 的白屏页也列出该脚本；非 UTF-8 的 POST body 不丢记录）、`tests/toolkits/browser/session/test_network_replay_bounds_integration.py`（`network_replay` 对读不完的响应体按窗口截断后即答，对中途停住的服务端到时限带着已收到的部分答复，对一直不答的服务端以错误答复；时限在测试里缩短）与 `tests/toolkits/browser/test_evaluate_write_guard_integration.py`（`evaluate` 不放行页面 JS 写请求，服务端命中数为证）；不需要定制启动参数的真实会话统一用 `tests/toolkits/browser/_local_browser_session.py::local_session`。
 
 4. **`run_site_tool` 输出经 `mark_untrusted` 包裹**（BROWSER_SYSTEM.md 统一安全出口）。
    程序化消费必须走 `extract_wrapped_payload()` 解包后再 `json.loads`，不要直接对裸结果解析。

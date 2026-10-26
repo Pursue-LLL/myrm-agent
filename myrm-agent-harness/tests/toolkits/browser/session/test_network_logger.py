@@ -1,13 +1,17 @@
 """Unit tests for NetworkLogger — network request capture and filtering."""
 
 import time
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock
 
 from patchright.async_api import Page
 
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.browser.session.network_logger import (
+    POST_PREVIEW_CHARS,
+    URL_PREVIEW_CHARS,
     NetworkLogger,
     RequestInfo,
+    safe_preview,
 )
 
 
@@ -125,104 +129,81 @@ class TestNetworkLogger:
             "https://example.com/4",
         ]
 
-    def test_filter_requests_api_mode(self):
-        """Test filtering with 'api' mode."""
+    def test_get_summary_lists_only_api_requests(self):
         logger = NetworkLogger()
+        for method, url, resource_type in [
+            ("GET", "https://example.com/page", "document"),
+            ("GET", "https://api.example.com/data", "xhr"),
+            ("POST", "https://api.example.com/submit", "fetch"),
+        ]:
+            logger._requests.append(RequestInfo(method=method, url=url, resource_type=resource_type, timestamp=0.0))
 
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://example.com",
-                resource_type="document",
-                timestamp=0.0,
-            )
-        )
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://api.example.com/data",
-                resource_type="xhr",
-                timestamp=1.0,
-            )
-        )
-        logger._requests.append(
-            RequestInfo(
-                method="POST",
-                url="https://api.example.com/submit",
-                resource_type="fetch",
-                timestamp=2.0,
-            )
-        )
+        summary = logger.get_summary()
 
-        filtered = logger._filter_requests("api")
-        assert len(filtered) == 2
-        assert all(r.is_api_request for r in filtered)
+        assert "2 total" in summary
+        assert "GET https://api.example.com/data" in summary
+        assert "POST https://api.example.com/submit" in summary
+        assert "https://example.com/page" not in summary
 
-    def test_filter_requests_failed_mode(self):
-        """Test filtering with 'failed' mode."""
+    def test_get_failed_summary_lists_failed_non_api_requests_one_line_each_without_numbers(self):
         logger = NetworkLogger()
-
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://example.com/ok",
-                resource_type="xhr",
-                timestamp=0.0,
-                status=200,
-            )
-        )
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://example.com/notfound",
-                resource_type="xhr",
-                timestamp=1.0,
-                status=404,
-            )
-        )
-        logger._requests.append(
-            RequestInfo(
-                method="POST",
-                url="https://example.com/error",
-                resource_type="fetch",
-                timestamp=2.0,
-                status=500,
-            )
+        logger._requests.extend(
+            [
+                RequestInfo("GET", "https://example.com/app.js", "script", 0.0, status=404),
+                RequestInfo("GET", "https://example.com/ok.js", "script", 1.0, status=200),
+                RequestInfo("GET", "https://api.example.com/gone", "xhr", 2.0, status=404),
+                RequestInfo("GET", "https://example.com/", "document", 3.0, status=503),
+                RequestInfo("GET", "https://example.com/dead.js", "script", 4.0, status_text="Request Failed"),
+            ]
         )
 
-        filtered = logger._filter_requests("failed")
-        assert len(filtered) == 2
-        assert all(r.is_failed for r in filtered)
+        assert logger.get_failed_summary().splitlines() == [
+            "Other failed requests (not numbered, so network_detail cannot open them):",
+            "  script GET https://example.com/app.js [404]",
+            "  document GET https://example.com/ [503]",
+        ]
 
-    def test_filter_requests_all_mode(self):
-        """Test filtering with 'all' mode."""
+    def test_get_failed_summary_is_empty_when_no_non_api_request_failed(self):
         logger = NetworkLogger()
-
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://example.com/1",
-                resource_type="document",
-                timestamp=0.0,
-            )
-        )
-        logger._requests.append(
-            RequestInfo(
-                method="GET",
-                url="https://example.com/2",
-                resource_type="xhr",
-                timestamp=1.0,
-            )
+        logger._requests.extend(
+            [
+                RequestInfo("GET", "https://api.example.com/gone", "xhr", 0.0, status=404),
+                RequestInfo("GET", "https://example.com/ok.js", "script", 1.0, status=200),
+            ]
         )
 
-        filtered = logger._filter_requests("all")
-        assert len(filtered) == 2
+        assert logger.get_failed_summary() == ""
+
+    def test_get_failed_summary_keeps_the_latest_and_counts_the_rest(self):
+        logger = NetworkLogger(max_requests=50)
+        for i in range(25):
+            logger._requests.append(RequestInfo("GET", f"https://example.com/{i}.js", "script", float(i), status=404))
+
+        lines = logger.get_failed_summary().splitlines()
+
+        assert lines[1] == "  (5 earlier not shown)"
+        assert len(lines) == 2 + 20
+        assert lines[2].endswith("/5.js [404]")
+        assert lines[-1].endswith("/24.js [404]")
+
+    def test_get_failed_summary_masks_a_credential_before_cutting_the_url(self):
+        key = "AIza" + "S" * 35  # a bare key is recognised only whole: a fragment of it passes the mask
+        prefix = "https://cdn.example.com/a.js?p=" + "x" * 100 + "&k="
+        kept_by_a_cut_first = URL_PREVIEW_CHARS - 1 - len(prefix)
+        assert 0 < kept_by_a_cut_first < len("AIza") + 30  # the cut would end inside the key, too early to recognise it
+        logger = NetworkLogger()
+        logger._requests.append(RequestInfo("GET", prefix + key + "&z=1", "script", 0.0, status=404))
+
+        summary = logger.get_failed_summary()
+
+        assert "S" * 8 not in summary
+        assert "&k=AIza" in summary
 
     def test_get_summary_empty(self):
         """Test get_summary with no requests."""
         logger = NetworkLogger()
         summary = logger.get_summary()
-        assert "No network requests captured" in summary
+        assert summary == "No API requests captured."
 
     def test_get_summary_with_requests(self):
         """Test get_summary formatting."""
@@ -251,7 +232,7 @@ class TestNetworkLogger:
             )
         )
 
-        summary = logger.get_summary("api")
+        summary = logger.get_summary()
 
         assert "Network Log" in summary
         assert "GET https://api.example.com/data" in summary
@@ -278,7 +259,7 @@ class TestNetworkLogger:
                 )
             )
 
-        summary = logger.get_summary("api")
+        summary = logger.get_summary()
 
         assert "30 total" in summary
         assert "showing last 20" in summary
@@ -527,7 +508,7 @@ class TestNetworkLoggerIntegration:
 class TestNetworkLoggerRedaction:
     """POST body preview credential redaction.
 
-    post_data_preview is credential-redacted before the 200-char preview cut,
+    post_data_preview is credential-redacted before the preview cut (POST_PREVIEW_CHARS),
     covering both intact JSON bodies and bodies whose sensitive value crosses
     the preview boundary.
     """
@@ -559,13 +540,36 @@ class TestNetworkLoggerRedaction:
         assert "***" in preview
 
     def test_credential_crossing_preview_boundary_redacted(self):
-        """The leak: a JSON value split by the 200-char preview cut previously
+        """The leak: a JSON value split by the preview cut previously
         surfaced as a plaintext fragment (JSON structure broken by the cut)."""
-        body = '{"op":"login","payload":"' + "x" * 150 + '","password":"mysecretvalue12345678"}'
+        body = '{"op":"login","pw":"' + "x" * 32 + '","password":"mysecretvalue12345678"}'
+        assert body.index("mysecret") < POST_PREVIEW_CHARS < body.index("5678")  # the cut falls inside the credential
         preview = self._run(body)
 
         assert "mysecretval" not in preview
         assert "mysecretvalue" not in preview
+
+    def test_a_long_body_is_cut_to_the_preview_limit_and_says_so(self):
+        preview = self._run("x" * 500)
+
+        assert preview == "x" * (POST_PREVIEW_CHARS - 1) + "…"
+
+    def test_a_body_that_is_not_text_keeps_the_record(self):
+        """The driver raises for a body that is not UTF-8 text; the request must still be logged."""
+        logger = NetworkLogger()
+        req = Mock()
+        req.method = "POST"
+        req.resource_type = "fetch"
+        type(req).post_data = PropertyMock(side_effect=UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte"))
+        resp = Mock()
+        resp.request = req
+        resp.status = 200
+        resp.status_text = "OK"
+        logger._on_request(req)
+        logger._on_response(resp)
+
+        assert len(logger._requests) == 1
+        assert logger._requests[0].post_data_preview == "<binary body>"
 
     def test_form_urlencoded_password_redacted(self):
         preview = self._run("grant_type=password&username=u&password=supersecretvalue123")
@@ -600,10 +604,35 @@ class TestNetworkLoggerRedaction:
         logger._on_request(req)
         logger._on_response(resp)
 
-        summary = logger.get_summary("all")
+        summary = logger.get_summary()
 
         assert "mysecretvalue12345678" not in summary
         assert "POST body:" in summary
+
+
+class TestSafePreview:
+    """Credentials are masked first and the cut is made afterwards, so a credential the cut splits leaves no fragment."""
+
+    def test_text_within_the_limit_is_returned_whole(self):
+        assert safe_preview("GET /x", POST_PREVIEW_CHARS) == "GET /x"
+        assert safe_preview("a" * URL_PREVIEW_CHARS, URL_PREVIEW_CHARS) == "a" * URL_PREVIEW_CHARS
+
+    def test_a_cut_text_fills_the_limit_and_ends_with_an_ellipsis(self):
+        preview = safe_preview("a" * 500, URL_PREVIEW_CHARS)
+
+        assert preview == "a" * (URL_PREVIEW_CHARS - 1) + "…"
+
+    def test_a_credential_split_by_the_cut_leaves_no_fragment(self):
+        key = "AIza" + "S" * 35  # a bare key is recognised only whole: a fragment of it passes the mask
+        prefix = "https://cdn.example.com/a.js?p=" + "x" * 100 + "&k="
+        kept_by_a_cut_first = URL_PREVIEW_CHARS - 1 - len(prefix)
+        assert 0 < kept_by_a_cut_first < len("AIza") + 30  # the cut would end inside the key, too early to recognise it
+        url = prefix + key + "&z=" + "y" * 100
+
+        preview = safe_preview(url, URL_PREVIEW_CHARS)
+
+        assert preview == f"{redact_sensitive_text(url)[: URL_PREVIEW_CHARS - 1]}…"
+        assert "S" * 8 not in preview
 
 
 class TestNetworkLoggerEdgeCases:
@@ -666,28 +695,6 @@ class TestNetworkLoggerEdgeCases:
         logger._on_request_failed(mock_request)
 
         assert len(logger._requests) == 0
-
-    def test_filter_requests_unknown_mode(self):
-        """Test _filter_requests with unknown mode."""
-        logger = NetworkLogger()
-
-        mock_req = Mock()
-        mock_req.method = "GET"
-        mock_req.url = "https://api.example.com/data"
-        mock_req.resource_type = "xhr"
-        mock_req.timestamp = time.time()
-        mock_req.status = 200
-        mock_req.status_text = "OK"
-        mock_req.duration_ms = 100.0
-        mock_req.is_api_request = True
-        mock_req.is_failed = False
-
-        logger._requests.append(mock_req)
-
-        result = logger._filter_requests("unknown_mode")
-
-        assert len(result) == 1
-        assert result[0] == mock_req
 
     def test_format_request_with_status_text_only(self):
         """Test _format_request when status is None but status_text exists."""

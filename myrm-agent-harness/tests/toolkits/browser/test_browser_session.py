@@ -483,8 +483,7 @@ def test_get_console_log(browser_session: BrowserSession) -> None:
 
 
 def test_get_network_log(browser_session: BrowserSession) -> None:
-    result = browser_session.get_network_log()
-    assert "network" in result.lower() or "not yet" in result.lower()
+    assert browser_session.get_network_log() == "No API requests captured."
 
 
 # =============================================================================

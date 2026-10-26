@@ -9,9 +9,14 @@
 [OUTPUT]
 - RequestInfo: Immutable request/response record
 - NetworkLogger: Synchronous network request capture and formatting
+- URL_PREVIEW_CHARS / POST_PREVIEW_CHARS: How much of a URL / POST body a list line shows
+- RAW_PREVIEW_WINDOW: How much raw text is kept, and masked, before that cut
+- safe_preview: Credential-masked text cut to a limit (mask first, then cut)
 
 [POS]
-Network request logging for the browser toolkit. Provides self-diagnosis capability for browser session network activity.
+Network request logging for the browser toolkit. Provides self-diagnosis capability for browser session network activity:
+the XHR/Fetch list of engines without CDP, and the one-line-per-request list of the other resources that answered 4xx/5xx
+(unnumbered: their response body is never opened).
 
 """
 
@@ -32,11 +37,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _STATIC_RESOURCE_TYPES = frozenset({"image", "stylesheet", "font", "media"})
-# Bounded window over the POST body passed to redaction. Redaction runs before
-# the 200-char preview cut so a credential split by that cut stays masked; the
-# window keeps event-callback latency bounded on large upload bodies while
-# always covering the preview and its enclosing JSON structure.
-_RAW_PREVIEW_WINDOW = 4096
+# What a list line shows of a URL / POST body; network_detail gives a cut URL back in full.
+URL_PREVIEW_CHARS = 160
+POST_PREVIEW_CHARS = 80
+_MAX_LISTED = 20
+# Bounded window over the text passed to redaction. Redaction runs before the
+# preview cut so a credential split by that cut stays masked; the window keeps
+# event-callback latency bounded on large upload bodies while always covering
+# the preview and its enclosing JSON structure.
+RAW_PREVIEW_WINDOW = 4096
+_BINARY_BODY = "<binary body>"
+
+
+def safe_preview(text: str, limit: int) -> str:
+    """Return ``text`` with credentials masked, cut to ``limit`` characters (a cut ends with ``…``)."""
+    masked = redact_sensitive_text(text[:RAW_PREVIEW_WINDOW])
+    return masked if len(masked) <= limit else f"{masked[: limit - 1]}…"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +67,7 @@ class RequestInfo:
         status: HTTP status code (None if request failed)
         status_text: HTTP status text (e.g., "OK", "Not Found")
         duration_ms: Request duration in milliseconds
-        post_data_preview: First 200 chars of the POST body (credential-redacted before the preview cut)
+        post_data_preview: Start of the POST body (credential-masked before the preview cut)
     """
 
     method: str
@@ -172,14 +188,7 @@ class NetworkLogger:
             start_time = self._pending.pop(request)
             duration_ms = (time.time() - start_time) * 1000
 
-            post_data_preview: str | None = None
-            if request.method in ("POST", "PUT", "PATCH"):
-                raw = request.post_data
-                if raw:
-                    # Redact before truncating: the preview cut could otherwise
-                    # leave a credential fragment shorter than the redaction
-                    # patterns' minimum length.
-                    post_data_preview = redact_sensitive_text(raw[:_RAW_PREVIEW_WINDOW])[:200]
+            post_data_preview = self._post_data_preview(request) if request.method in ("POST", "PUT", "PATCH") else None
 
             info = RequestInfo(
                 method=request.method,
@@ -195,6 +204,15 @@ class NetworkLogger:
 
         except Exception as exc:
             logger.warning("Failed to capture response: %s", exc)
+
+    @staticmethod
+    def _post_data_preview(request: Request) -> str | None:
+        """Start of the POST body; the driver raises for a body that is not UTF-8 text, which must not cost the record."""
+        try:
+            raw = request.post_data
+        except UnicodeDecodeError:
+            return _BINARY_BODY
+        return safe_preview(raw, POST_PREVIEW_CHARS) if raw else None
 
     def _on_request_failed(self, request: Request) -> None:
         """Handle request failure event."""
@@ -219,29 +237,37 @@ class NetworkLogger:
         except Exception as exc:
             logger.warning("Failed to capture failed request: %s", exc)
 
-    def get_summary(self, filter_mode: str = "api") -> str:
-        """Get formatted summary of captured requests.
+    def get_summary(self) -> str:
+        """Format the captured XHR/Fetch requests, newest last (the list an engine without CDP offers)."""
+        api_requests = [r for r in self._requests if r.is_api_request]
+        if not api_requests:
+            return "No API requests captured."
 
-        Args:
-            filter_mode: Filter mode
-                - 'api': Only XHR/Fetch requests (default)
-                - 'failed': Only 4xx/5xx errors
-                - 'all': All captured requests
+        recent = api_requests[-_MAX_LISTED:]
 
-        Returns:
-            Formatted string with request details
-        """
-        filtered = self._filter_requests(filter_mode)
-
-        if not filtered:
-            return f"No network requests captured (filter={filter_mode})."
-
-        recent = filtered[-20:]
-
-        lines = [f"Network Log ({len(filtered)} total, showing last {len(recent)}):"]
+        lines = [f"Network Log ({len(api_requests)} total, showing last {len(recent)}):"]
         for i, req in enumerate(recent, 1):
             lines.extend(self._format_request(req, i))
 
+        return "\n".join(lines)
+
+    def get_failed_summary(self) -> str:
+        """Format the non-XHR/Fetch requests that answered 4xx/5xx, one line each, newest last; empty when none did.
+
+        They carry no request number: network_detail opens XHR/Fetch bodies only, so a number
+        would invite a call that cannot succeed.
+        """
+        failed = [r for r in self._requests if r.is_failed and not r.is_api_request]
+        if not failed:
+            return ""
+
+        shown = failed[-_MAX_LISTED:]
+        lines = ["Other failed requests (not numbered, so network_detail cannot open them):"]
+        if len(failed) > len(shown):
+            lines.append(f"  ({len(failed) - len(shown)} earlier not shown)")
+        lines.extend(
+            f"  {r.resource_type} {r.method} {safe_preview(r.url, URL_PREVIEW_CHARS)} [{r.status}]" for r in shown
+        )
         return "\n".join(lines)
 
     def _format_request(self, req: RequestInfo, index: int) -> list[str]:
@@ -269,26 +295,6 @@ class NetworkLogger:
             parts.append(f"   POST body: {req.post_data_preview}")
 
         return parts
-
-    def _filter_requests(self, filter_mode: str) -> list[RequestInfo]:
-        """Filter requests based on mode.
-
-        Args:
-            filter_mode: 'api', 'failed', or 'all'
-
-        Returns:
-            Filtered list of RequestInfo
-        """
-        match filter_mode:
-            case "api":
-                return [r for r in self._requests if r.is_api_request]
-            case "failed":
-                return [r for r in self._requests if r.is_failed]
-            case "all":
-                return list(self._requests)
-            case _:
-                logger.warning("Unknown filter mode: %s, defaulting to 'api'", filter_mode)
-                return [r for r in self._requests if r.is_api_request]
 
     def clear(self) -> None:
         """Clear all captured requests and pending state."""

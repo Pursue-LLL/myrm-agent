@@ -54,7 +54,7 @@ async def _fetch(page: Page, url: str) -> None:
 
 
 def _logged(session: BrowserSession, marker: str) -> bool:
-    return marker in session.get_network_log("all")
+    return marker in session.get_network_log()
 
 
 async def test_a_background_tab_stops_reporting_after_switch_tab(

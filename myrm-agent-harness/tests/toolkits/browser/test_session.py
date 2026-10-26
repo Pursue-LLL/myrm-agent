@@ -195,4 +195,4 @@ async def test_session_persistence(session: BrowserSession) -> None:
 def test_console_network_log(session: BrowserSession) -> None:
     """测试控制台和网络日志"""
     assert "console" in session.get_console_log().lower()
-    assert "network" in session.get_network_log().lower()
+    assert "No API requests captured." in session.get_network_log()

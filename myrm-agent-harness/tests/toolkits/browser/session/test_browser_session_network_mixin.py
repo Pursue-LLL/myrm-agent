@@ -3,8 +3,8 @@
 Covers replay_network_request: only a GET is re-sent (a recorded write was an action the user's own flow
 already performed, and replaying it would perform it again without anyone approving it), credentials in a
 replayed response body are redacted after the JS-side wider window and before the output cut, a failed
-replay says why, and the answer opens with the status the replay got (noting when the page's own request got
-another).
+replay says why, the answer opens with the status the replay got (noting when the page's own request got
+another), and a server that stops answering ends the replay at the timeout with what arrived.
 """
 
 from __future__ import annotations
@@ -15,7 +15,10 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.session.browser_session_network_mixin import (
     _REPLAY_ERROR_MAX,
+    _REPLAY_JS,
     _REPLAY_OUTPUT_MAX,
+    _REPLAY_RAW_WINDOW,
+    _REPLAY_TIMEOUT_S,
     BrowserSessionNetworkMixin,
 )
 from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence, _CdpRequest
@@ -48,7 +51,7 @@ class TestReplayRedaction:
     @pytest.mark.asyncio
     async def test_replay_output_redacted(self) -> None:
         session = _StubSession()
-        session.page.evaluate = AsyncMock(return_value=[200, '{"token":"sk-proj-abcdefghijklmnop12345678"}'])
+        session.page.evaluate = AsyncMock(return_value=[200, '{"token":"sk-proj-abcdefghijklmnop12345678"}', False])
 
         result = await session.replay_network_request(1)
 
@@ -62,7 +65,7 @@ class TestReplayRedaction:
         session = _StubSession()
         head = "x" * (_REPLAY_OUTPUT_MAX - 10)
         tail = '"password":"mysecretvalue12345678"}'
-        session.page.evaluate = AsyncMock(return_value=[200, head + tail])
+        session.page.evaluate = AsyncMock(return_value=[200, head + tail, False])
 
         result = await session.replay_network_request(1)
 
@@ -73,7 +76,7 @@ class TestReplayRedaction:
     @pytest.mark.asyncio
     async def test_replay_empty_response(self) -> None:
         session = _StubSession()
-        session.page.evaluate = AsyncMock(return_value=[200, ""])
+        session.page.evaluate = AsyncMock(return_value=[200, "", False])
 
         result = await session.replay_network_request(1)
 
@@ -173,15 +176,58 @@ class TestReplayIsReadOnly:
     @pytest.mark.asyncio
     async def test_a_get_is_re_sent_as_a_plain_fetch_of_its_url(self) -> None:
         session = _StubSession()
-        session.page.evaluate = AsyncMock(return_value=[200, "ok"])
+        session.page.evaluate = AsyncMock(return_value=[200, "ok", False])
 
         assert await session.replay_network_request(1) == "[HTTP 200]\nok"
 
-        js_code = session.page.evaluate.call_args[0][0]
-        assert 'fetch("https://api.example.com/data")' in js_code
+        js_code, arguments = session.page.evaluate.call_args[0]
+        assert arguments == ["https://api.example.com/data", _REPLAY_RAW_WINDOW, _REPLAY_TIMEOUT_S * 1000]
+        assert "fetch(url, {signal: controller.signal})" in js_code
         assert "method" not in js_code
-        assert "body" not in js_code
+        assert "body:" not in js_code
         assert "Content-Type" not in js_code
+
+    @pytest.mark.asyncio
+    async def test_the_url_reaches_the_page_as_data_never_as_code(self) -> None:
+        session = _StubSession(tracked=False)
+        hostile = 'https://api.example.com/x?q="); document.cookie; ("'
+        _see(session._network_intelligence, hostile)
+        session.page.evaluate = AsyncMock(return_value=[200, "ok", False])
+
+        await session.replay_network_request(1)
+
+        js_code, arguments = session.page.evaluate.call_args[0]
+        assert js_code == _REPLAY_JS
+        assert arguments[0] == hostile
+
+
+class TestReplayBounds:
+    @pytest.mark.asyncio
+    async def test_a_server_that_stops_mid_body_ends_the_replay_with_what_arrived(self) -> None:
+        session = _StubSession()
+        session.page.evaluate = AsyncMock(return_value=[200, "data: hello", True])
+
+        result = await session.replay_network_request(1)
+
+        assert result == f"[HTTP 200]\nStopped after {_REPLAY_TIMEOUT_S} s: the body is partial.\ndata: hello"
+
+    @pytest.mark.asyncio
+    async def test_a_server_that_sent_headers_and_no_body_before_the_timeout_says_so(self) -> None:
+        session = _StubSession()
+        session.page.evaluate = AsyncMock(return_value=[200, "", True])
+
+        result = await session.replay_network_request(1)
+
+        assert result == f"[HTTP 200]\nStopped after {_REPLAY_TIMEOUT_S} s: the body is partial.\nEmpty response"
+
+    @pytest.mark.asyncio
+    async def test_a_server_that_never_answers_is_an_error_not_a_status(self) -> None:
+        session = _StubSession()
+        session.page.evaluate = AsyncMock(return_value=[0, "", True])
+
+        result = await session.replay_network_request(1)
+
+        assert result == f"Error replaying request: no response within {_REPLAY_TIMEOUT_S} s"
 
 
 def _answered(session: _StubSession, status: int, request_id: str = "req-1") -> None:
@@ -195,7 +241,7 @@ class TestReplayStatusLine:
     async def test_the_answer_opens_with_the_status_the_replay_got(self) -> None:
         session = _StubSession()
         _answered(session, 200)
-        session.page.evaluate = AsyncMock(return_value=[200, '{"ok":true}'])
+        session.page.evaluate = AsyncMock(return_value=[200, '{"ok":true}', False])
 
         assert await session.replay_network_request(1) == '[HTTP 200]\n{"ok":true}'
 
@@ -204,7 +250,7 @@ class TestReplayStatusLine:
     async def test_an_empty_body_is_told_apart_by_its_status(self, status: int) -> None:
         session = _StubSession()
         _answered(session, status)
-        session.page.evaluate = AsyncMock(return_value=[status, ""])
+        session.page.evaluate = AsyncMock(return_value=[status, "", False])
 
         assert await session.replay_network_request(1) == f"[HTTP {status}]\nEmpty response"
 
@@ -212,7 +258,7 @@ class TestReplayStatusLine:
     async def test_a_status_other_than_the_pages_own_request_got_says_so(self) -> None:
         session = _StubSession()
         _answered(session, 200)
-        session.page.evaluate = AsyncMock(return_value=[401, '{"error":"unauthorized"}'])
+        session.page.evaluate = AsyncMock(return_value=[401, '{"error":"unauthorized"}', False])
 
         assert await session.replay_network_request(1) == (
             "[HTTP 401] the page's own request got 200; "
@@ -223,7 +269,7 @@ class TestReplayStatusLine:
     @pytest.mark.asyncio
     async def test_nothing_is_compared_while_the_page_has_no_status(self) -> None:
         session = _StubSession()
-        session.page.evaluate = AsyncMock(return_value=[200, "x"])
+        session.page.evaluate = AsyncMock(return_value=[200, "x", False])
 
         assert await session.replay_network_request(1) == "[HTTP 200]\nx"
 
@@ -233,7 +279,7 @@ class TestReplayStatusLine:
         session._network_intelligence._on_loading_failed(
             {"requestId": "req-1", "errorText": "net::ERR_FAILED", "canceled": False}
         )
-        session.page.evaluate = AsyncMock(return_value=[200, "x"])
+        session.page.evaluate = AsyncMock(return_value=[200, "x", False])
 
         assert await session.replay_network_request(1) == "[HTTP 200]\nx"
 
@@ -254,10 +300,10 @@ class TestReplayStatusLine:
         )
         _answered(session, 200, request_id="r")
 
-        session.page.evaluate = AsyncMock(return_value=[200, "ok"])
+        session.page.evaluate = AsyncMock(return_value=[200, "ok", False])
         assert await session.replay_network_request(1) == "[HTTP 200]\nok"
 
-        session.page.evaluate = AsyncMock(return_value=[403, "no"])
+        session.page.evaluate = AsyncMock(return_value=[403, "no", False])
         assert (await session.replay_network_request(1)).startswith("[HTTP 403] the page's own request got 200;")
 
     @pytest.mark.asyncio

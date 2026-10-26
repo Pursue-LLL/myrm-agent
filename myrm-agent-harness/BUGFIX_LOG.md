@@ -2,6 +2,71 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-012 · POST 体不是 UTF-8 文本时，驱动的 `request.post_data` 抛 `UnicodeDecodeError`，整条请求记录被丢弃：二进制 POST 的 4xx/5xx 不进失败列表，每条还刷一条 WARNING
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（在 bilibili 的运行日志里看到 `Failed to capture response`，再用本地服务端复现） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：二进制 POST（`sendBeacon`、压缩体、protobuf、上传）在驱动侧的记录里整条丢失，其 4xx/5xx 不会出现在失败列表。16 个可访问的真实站点中 3 个触发：bilibili 丢 8 条、bilibili 热门页 5 条、youtube 2 条（共 15 条，每条一条 WARNING） |
+| **关联产品** | harness `toolkits/browser/session/network_logger.py` |
+| **根因** | `_on_response` 取 POST 预览时读 `request.post_data`，驱动对非 UTF-8 的请求体直接抛 `UnicodeDecodeError`（解码发生在 Python 驱动的 `_impl/_network.py`：`base64.b64decode(...).decode()`，与浏览器引擎无关）；外层的宽 `except` 只写一条 WARNING，`RequestInfo` 没有追加，丢掉的是整条记录，不只是预览。 |
+| **修复** | `_post_data_preview` 单独接住 `UnicodeDecodeError`，预览记为 `<binary body>`，记录照常保存；文本体的预览改为先脱敏、再截到 80 字符（见 BUG-HARNESS-2026-10-27-010）。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 Chromium，本地服务端对所有 POST 回 500，页面各发一次 JSON POST、二进制 fetch POST、`sendBeacon`：旧源码日志 2 条 `Failed to capture response: 'utf-8' codec can't decode byte 0xf5`，驱动侧只剩 JSON 那一条（失败列表 `1 total`）；新源码 0 条 WARNING，3 条都记录，二进制体的预览是 `<binary body>`，`sendBeacon`（`ping` 类型）进入失败列表。`test_network_log_listing_integration.py::test_a_post_whose_body_is_not_text_keeps_its_record` 在旧源码上变红。 |
+| **仍然存在** | ① 编号列表（CDP 一侧）里的 `POST:` 预览仍把二进制体的字节原样当文本显示（youtube 的 gzip 体 `\x1f\x8b\x08…` 2 条；上面对照里的二进制 fetch 显示为乱码并带 NUL 字符），每条至多 80 字符，本次没改。② 真实浏览器取证只在 Chromium 上做。 |
+| **代码位置** | `session/network_logger.py`（`_post_data_preview`）· `tests/toolkits/browser/session/test_network_log_listing_integration.py` |
+
+### BUG-HARNESS-2026-10-27-011 · network_replay 把响应整个读进页面再截取，且没有超时：400 MiB 的响应让浏览器多占 414 MiB，服务端中途停住时回放一直阻塞
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（对着真实 Chromium 回放超大与卡住的响应） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：① 页内脚本 `await resp.text()` 把整个响应读成字符串，之后才取前 16,000 字符：回放 400 MiB 的响应，浏览器 RSS 从 283 MiB 涨到 697 MiB（+414 MiB）。② 没有任何超时：服务端回完响应头后不再发送、或根本不回答时，回放一直等；本机探针里服务端持有连接 60 s，15 s 时旧源码仍在阻塞。回放只对 GET 开放、由模型主动调用，真实使用中遇到巨型或卡住响应的频率未测 |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py` |
+| **根因** | 回放脚本是拼出来的字符串：`fetch(url)` 之后 `resp.text()`，没有流式读取，也没有 `AbortController`；URL 经 `json.dumps` 拼进 JS 源码。 |
+| **修复** | 脚本改为常量函数，URL、窗口、超时作为 `page.evaluate` 的参数传入（URL 不再拼进代码）；响应体按流读取，读满 16,000 字符就 `reader.cancel()` 放弃其余部分；`AbortController` 在 20 s 后中止，脚本返回 `[status, text, timedOut]`。已有响应头后超时：答复 `[HTTP n]`、`Stopped after 20 s: the body is partial.` 与已收到的部分；响应头之前超时：`Error replaying request: no response within 20 s`。状态行、脱敏、8000 字符输出上限与 `Empty response` 的规则不变。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 Chromium：400 MiB 响应，旧源码 0.8 s、浏览器 RSS +414 MiB，新源码 0.06 s、RSS 285 → 293 MiB（+8 MiB）；服务端发出 `data: hello` 后停住，旧源码 15 s 仍阻塞，新源码 20.01 s 返回 `[HTTP 200]`、partial 提示与 `data: hello`；服务端永不回答，新源码 20.00 s 返回错误；204 回放 `[HTTP 204]` 加 `Empty response`；响应体里的 `password` 值被脱敏。新增 `test_network_replay_bounds_integration.py` 3 例（超时改为 1 s：永不结束的响应体在窗口处截断并早于超时返回；中途停住保留已到的部分；永不回答报错），`TestReplayBounds` 3 例与「URL 只作为数据传入」1 例单元测试；撤掉超时夹具后这 3 个真实 Chromium 用例在旧源码上都变红（各自等满服务端的 8 s，得到 `Failed to fetch` 报错或迟到的 `late`）。 |
+| **仍然存在** | ① 20 s 与 16,000 字符是本机取值，没有用线上流量调过。② 回放仍只重发 URL，不带页面请求的请求头（BUG-HARNESS-2026-10-27-002）。③ 只在 Chromium 上取证。 |
+| **代码位置** | `session/browser_session_network_mixin.py`（`_REPLAY_JS`、`replay_network_request`）· `tests/toolkits/browser/session/test_network_replay_bounds_integration.py` · `test_browser_session_network_mixin.py`（`TestReplayBounds`） |
+
+### BUG-HARNESS-2026-10-27-010 · network_log 的列表行没有长度上限：每行完整 URL 加 200 字符 POST 体，jd.com 一次输出 43,033 token，是工具结果驱逐阈值的 8.6 倍
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（对 32 个真实站点量 network_log 的 token 数） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：32 个真实站点中 25 个有 XHR/Fetch 列表，旧格式的 token 数均值 3,641、中位 1,566、最大 43,033（jd.com，65 条，约每行 660 token）；超过 5000 token 的有 2 个（jd.com 与 news.qq.com 的 6,356）。单条工具结果超过 `tool_result_evict_threshold`（默认 5000 token，`context_management/infra/schemas.py`）时，`filter_processor` 把完整输出落盘并交给 lite LLM 做语义过滤（`semantic_filter.py` 只读前 30,000 字符），模型拿到的不再是请求列表本身；该路径来自读代码，没有在真实 Agent 回合里端到端复现 |
+| **关联产品** | harness `toolkits/browser/session/network_intelligence.py`、`network_logger.py`、`browser_session_network_mixin.py` |
+| **根因** | `NetworkIntelligence.get_summary` 每行写完整 URL 与脱敏后的前 200 字符 POST 体，窗口最多 100 行；采样里（16 个站点、566 条 XHR/Fetch URL）URL 长度中位 73、p90 329、p95 1,427 字符，16% 超过 160 字符；212 条 POST 预览（存储窗口上限 4096，输出时才截到 200）中位 876、p75 3,981 字符。 |
+| **修复** | 列表行的 URL 截到 160 字符、POST 体截到 80 字符，截断处以 `…` 结尾；先脱敏再截断（`safe_preview`：对前 4096 字符脱敏后再截）。裸格式的密钥（如 `AIza…`、`sk-…`）只有完整出现才会被识别，先截后脱敏时被截点切开的那一段（探针里 25 个字符）会原样留在输出里。`network_detail` 在被列表截过的请求的答复首行回显完整的脱敏 URL（`URL: …`，至多 2000 字符），没被截的不加；列表表头加一句说明 `…` 的含义。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 同一次页面加载，用同一批记录分别渲染旧格式（脚本按旧规则复刻，不是旧源码本身运行）与新格式（含失败块），25 个有列表的站点：均值 3,641 → 1,405 token，中位 1,566 → 987，最大 43,033 → 4,595（jd.com），超过 5000 token 的 2 个 → 0；youtube 3,310 → 2,993，news.qq.com 6,356 → 3,391；小列表因多出的表头说明略增（ifeng 111 → 129，cnblogs 250 → 270）。测试：`test_network_log_listing.py` 的详情回显 5 例（截了回显完整、没截不重复、脱敏、超出 2000 的上限、不存在的编号只给报错），`test_network_logger.py` / `test_network_intelligence.py` 的截断与先脱敏后截断边界例；把 `safe_preview` 换成先截后脱敏，5 例变红（POST 体 2 例、URL 3 例）。 |
+| **仍然存在** | ① jd.com 4,595 token 仍贴近 5000 的阈值，请求更多或行更长的页面仍可能越过。② 每个非空列表的表头多 16 token（`o200k_base`），请求很少的页面总量反而略增。③ 被截的 URL 在 160 字符之后的部分，模型要多调一次 `network_detail` 才能看到。④ 没有用真实 LLM 做对照：截断是否影响模型挑对要打开的请求，没有数据。⑤ 脱敏对每行都执行（对 4096 字符窗口约 12 ms，对 URL 约 0.27 ms，均为本机实测），耗时与旧版相同量级，没有额外优化。 |
+| **代码位置** | `session/network_logger.py`（`safe_preview`）· `session/network_intelligence.py`（`get_summary`）· `session/browser_session_network_mixin.py`（`get_network_detail`、`_API_LIST_HEADER`）· `tests/toolkits/browser/session/test_network_log_listing.py` |
+
+### BUG-HARNESS-2026-10-27-009 · network_log 的「失败请求」块自带一套从 1 开始的编号，与 XHR/Fetch 的编号撞号；页面没有 XHR/Fetch（白屏）时，失败的脚本整块不显示
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（对真实站点的 network_log 逐行核对编号，再用本地白屏页复现） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：① 模型读到失败块里的「1. GET /static/main.js [FAIL] 404」后调用 `network_detail 1`，得到的是 XHR 编号 1 的响应体，不报错，无从察觉拿错了请求。② 页面里没有任何 XHR/Fetch（入口脚本 404 的白屏）时，失败块整块被隐藏，`network_log` 只回答 `No network requests captured (filter=api).`，模型没有任何渠道得知哪个资源失败。两种情形在真实流量里的频率未测；32 个真实站点中 jd.com、stackoverflow、npmjs 在最终版本里带有非 XHR/Fetch 的 4xx/5xx 行（4、3、3 行） |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`network_logger.py`、`network_intelligence.py` |
+| **根因** | `get_network_log` 把两份各自编号的列表拼在一起：CDP 的 XHR/Fetch 列表用请求自己的 `seq`（BUG-HARNESS-2026-10-26-002 修过），驱动的失败块仍按 `enumerate(recent, 1)` 的位置编号；XHR/Fetch 列表为空时又走另一条分支，直接返回驱动自己的 `get_summary("api")`，失败块根本不拼。CDP 一侧同时还在跟踪 Document，却没有任何调用方使用它们（编号 0、不列出、`network_detail` 打不开），只占滚动窗口。 |
+| **修复** | ① 失败块只列非 XHR/Fetch 的 4xx/5xx 资源，每条一行 `type METHOD url [status]`，不编号（`network_detail` 只能打开 XHR/Fetch 的响应体，编号只会诱导一次必败的调用），表头写明 `not numbered, so network_detail cannot open them`，最近 20 条，更早的写 `(N earlier not shown)`。② 失败块接在带编号的列表之后，也接在 `No API requests captured.` 之后，没有 XHR/Fetch 时同样出现。③ 不再跟踪 Document，`seq=0` 的特例随之删除；`NetworkLogger.get_summary` 的 `filter_mode` 与 `_filter_requests` 删除（`network_log` 动作没有过滤参数，唯一调用方是 `get_network_log`）；无 CDP 的引擎（Firefox）仍用驱动自己按位置编号的 XHR/Fetch 列表。 |
+| **反复次数** | 第 2 次：BUG-HARNESS-2026-10-26-002 只修了 XHR/Fetch 列表的编号，失败块的自带编号与「列表为空时失败块被隐藏」当时都没有发现。 |
+| **踩坑** | 一份输出里出现两套编号，模型只会把它们当成同一套；凡是后续动作打不开的行，就不该带编号。 |
+| **回归** | 真实 Chromium，页面含一个 404 脚本与一个 XHR：旧输出的失败块写 `1. GET …/main.abc123.js [FAIL]`，`network_detail 1` 回答 `{"ok":1}`（XHR 的响应体）；新输出的失败块写 `script GET …/main.abc123.js [404]`，无编号，`network_detail 1` 仍回答 XHR。没有任何 XHR 的白屏页：旧输出 `No network requests captured (filter=api).`，新输出列出该脚本。新增 `test_network_log_listing.py` 11 例、真实 Chromium `test_network_log_listing_integration.py` 3 例（本条 2 例，另 1 例属 BUG-HARNESS-2026-10-27-012），旧源码上这 3 例全部变红；`tests/toolkits/browser` 里 network 相关 212 例通过。 |
+| **仍然存在** | ① 驱动侧窗口 50 条（`NetworkLogger.__init__` 的 `deque(maxlen=50)`），请求很多的页面里较早出现的 404 可能已被挤出，挤出频率未测。② 样式表、字体、图片、媒体不进失败块（`_STATIC_RESOURCE_TYPES`），404 的样式表不会被列出；传输层失败没有状态码，也不列：32 个站点里非 XHR/Fetch 的传输层失败共 6,494 个，其中 6,389 个是本产品自己的拦截（`net::ERR_BLOCKED_BY_CLIENT.Inspector`），其余 105 个（`ERR_CONNECTION_CLOSED` 87、`ERR_ABORTED` 13、`ERR_BLOCKED_BY_ORB` 4、`ERR_BLOCKED_BY_CLIENT` 1）未列出。③ 无 CDP 的路径（Firefox / Camoufox）只有单元测试，没有真实浏览器验证。 |
+| **代码位置** | `session/browser_session_network_mixin.py`（`get_network_log`）· `session/network_logger.py`（`get_summary`、`get_failed_summary`）· `session/network_intelligence.py`（`_on_request_will_be_sent`）· `tests/toolkits/browser/session/test_network_log_listing.py` · `test_network_log_listing_integration.py` |
+
 ### BUG-HARNESS-2026-10-27-008 · todo 焦点注入与 CompletionGuard 的未完成 todo 检查读不到工作区：读了运行时上下文里不存在的键、又按错误的 runtime 形状取值，这两项检查在生产中从未触发
 
 | 字段 | 内容 |

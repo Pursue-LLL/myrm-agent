@@ -21,9 +21,10 @@ browser gave up on (blocked, refused, CORS, aborted before any answer, cut off m
 so the model never waits on an answer that cannot come. A response the page itself dropped after it arrived (an empty
 body nobody read, an aborted stream: Chrome reports `canceled`) keeps the status the server gave. The one exception is a
 request a navigation cuts off before its headers: Chrome reports nothing for it, so it stays `[pending]`.
-The number network_log shows is the request's own `seq`, handed out once in arrival order to XHR/Fetch requests,
-not a position in the rolling window: the window drops its oldest records, so a position would name a different
-request by the time the model asks for it. A number that is no longer tracked is refused, never re-pointed.
+Only XHR/Fetch requests are tracked: they are the ones whose response body network_detail can open. The number
+network_log shows is the request's own `seq`, handed out once in arrival order, not a position in the rolling window:
+the window drops its oldest records, so a position would name a different request by the time the model asks for it.
+A number that is no longer tracked is refused, never re-pointed.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from typing import TYPE_CHECKING, TypedDict
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 from ..utils.page_health import detach_cdp_bounded
+from .network_logger import POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW, URL_PREVIEW_CHARS, safe_preview
 
 if TYPE_CHECKING:
     from patchright.async_api import CDPSession, Page
@@ -46,10 +48,6 @@ logger = logging.getLogger(__name__)
 _MAX_TRACKED_REQUESTS = 100
 _API_RESOURCE_TYPES = ("XHR", "Fetch")
 _BODY_PREVIEW_MAX_CHARS = 8000
-# Redaction window before truncation: keeps a credential crossing a truncation
-# boundary structurally intact long enough to be masked (aligned with
-# NetworkLogger's preview-window design).
-_RAW_PREVIEW_WINDOW = 4096
 _BODY_RAW_WINDOW = 16384
 EMPTY_RESPONSE = "Empty response"
 # Responses of these statuses carry no body by definition, so there is nothing to ask Chrome for.
@@ -101,25 +99,25 @@ class CdpRequestRecord:
         request_id: CDP-assigned request identifier for getResponseBody
         url: Request URL
         method: HTTP method
-        resource_type: Network resource type (XHR, Fetch, Document, etc.)
+        resource_type: Network resource type (XHR or Fetch)
+        seq: The number network_log shows for the request, unique for the session
         status: HTTP response status code; for a redirect hop, the status of the redirect it answered with
         mime_type: Response MIME type
         failure: The browser's error when the request ended without a usable response (e.g. net::ERR_BLOCKED_BY_CLIENT)
         post_data: Raw POST body window; get_summary redacts it before cutting it to the preview
         timestamp: Request time (monotonic)
-        seq: The number network_log shows for an XHR/Fetch request, unique for the session; 0 for other types
     """
 
     request_id: str
     url: str
     method: str
     resource_type: str
+    seq: int
     status: int | None = None
     mime_type: str | None = None
     failure: str | None = None
     post_data: str | None = None
     timestamp: float = 0.0
-    seq: int = 0
 
 
 class NetworkIntelligence:
@@ -129,9 +127,9 @@ class NetworkIntelligence:
     this component uses CDP Network domain to track requestIds and provides
     on-demand response body access via Network.getResponseBody.
 
-    Memory model: Only stores requestId + metadata (~200 bytes per request).
-    Response bodies are fetched lazily from Chrome's internal cache on demand,
-    consuming zero additional memory until explicitly requested.
+    Memory model: only metadata per request (URL, status, a POST-body window of at most 4 KiB) in a rolling
+    window of `_MAX_TRACKED_REQUESTS` requests. Response bodies are fetched lazily from Chrome's internal cache
+    on demand, consuming zero additional memory until explicitly requested.
     """
 
     def __init__(self, max_requests: int = _MAX_TRACKED_REQUESTS) -> None:
@@ -186,7 +184,7 @@ class NetworkIntelligence:
             request = params.get("request", {})
             resource_type = params.get("type", "")
 
-            if resource_type not in ("XHR", "Fetch", "Document"):
+            if resource_type not in _API_RESOURCE_TYPES:
                 return
 
             request_id = params.get("requestId", "")
@@ -202,12 +200,10 @@ class NetworkIntelligence:
             post_data_raw = request.get("postData", "")
             # Keep the raw window: get_summary redacts it before cutting it to the preview, so a credential that
             # crosses the cut is still masked.
-            post_data_original = post_data_raw[:_RAW_PREVIEW_WINDOW] if post_data_raw else None
+            post_data_original = post_data_raw[:RAW_PREVIEW_WINDOW] if post_data_raw else None
 
-            seq = 0
-            if resource_type in _API_RESOURCE_TYPES:
-                seq = self._next_seq
-                self._next_seq += 1
+            seq = self._next_seq
+            self._next_seq += 1
 
             record = CdpRequestRecord(
                 request_id=request_id,
@@ -265,12 +261,10 @@ class NetworkIntelligence:
 
     def get_api_requests(self) -> list[CdpRequestRecord]:
         """Get all tracked XHR/Fetch requests (most recent last)."""
-        return [r for r in self._requests if r.resource_type in _API_RESOURCE_TYPES]
+        return list(self._requests)
 
     def find_api_request(self, index: int) -> CdpRequestRecord | None:
         """The tracked API request that network_log numbered `index`; None once it is no longer tracked."""
-        if index < 1:  # records that carry no number (documents) are 0
-            return None
         return next((r for r in self._requests if r.seq == index), None)
 
     def _redirect_successor(self, record: CdpRequestRecord) -> CdpRequestRecord | None:
@@ -365,20 +359,17 @@ class NetworkIntelligence:
         return str(req.status) if req.status else "pending"
 
     def get_summary(self) -> str:
-        """Get formatted summary of tracked API requests for Agent display."""
-        api_requests = self.get_api_requests()
-        if not api_requests:
-            return ""
+        """Format the tracked API requests for network_log, a line each (empty when none is tracked).
 
+        URL and POST body are cut to their previews; the cut is made after credentials are masked, so a
+        credential the cut would split never reaches the Agent as a fragment.
+        """
         lines: list[str] = []
-        for req in api_requests:
-            status_str = self._status_label(req)
-            line = f"  {req.seq}. {req.method} {req.url} [{status_str}]"
+        for req in self._requests:
+            url = safe_preview(req.url, URL_PREVIEW_CHARS)
+            line = f"  {req.seq}. {req.method} {url} [{self._status_label(req)}]"
             if req.post_data:
-                # Redact the raw stored body before display so credentials never
-                # reach the Agent via network_log.
-                safe_post = redact_sensitive_text(req.post_data)[:200]
-                line += f"\n     POST: {safe_post}"
+                line += f"\n     POST: {safe_preview(req.post_data, POST_PREVIEW_CHARS)}"
             lines.append(line)
 
         return "\n".join(lines)

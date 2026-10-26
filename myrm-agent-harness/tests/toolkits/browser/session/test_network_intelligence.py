@@ -10,6 +10,7 @@ from myrm_agent_harness.toolkits.browser.session.network_intelligence import (
     CdpRequestRecord,
     NetworkIntelligence,
 )
+from myrm_agent_harness.toolkits.browser.session.network_logger import POST_PREVIEW_CHARS, URL_PREVIEW_CHARS
 
 
 class TestCdpRequestRecord:
@@ -21,6 +22,7 @@ class TestCdpRequestRecord:
             url="https://api.example.com/data",
             method="GET",
             resource_type="XHR",
+            seq=1,
             status=200,
             mime_type="application/json",
         )
@@ -37,6 +39,7 @@ class TestCdpRequestRecord:
             url="https://api.example.com/graphql",
             method="POST",
             resource_type="Fetch",
+            seq=1,
             post_data='{"operationName":"GetIssues","query":"..."}',
         )
         assert record.post_data == '{"operationName":"GetIssues","query":"..."}'
@@ -47,6 +50,7 @@ class TestCdpRequestRecord:
             url="https://example.com",
             method="GET",
             resource_type="XHR",
+            seq=1,
         )
         with pytest.raises(FrozenInstanceError):
             record.url = "https://other.com"  # type: ignore[misc]
@@ -96,12 +100,47 @@ class TestNetworkIntelligenceRedaction:
         """A credential split by the display cut in get_summary must not
         surface as a plaintext fragment (raw window is redacted first)."""
         ni = NetworkIntelligence()
-        body = '{"op":"login","payload":"' + "x" * 150 + '","password":"mysecretvalue12345678"}'
+        body = '{"op":"login","pw":"' + "x" * 32 + '","password":"mysecretvalue12345678"}'
+        assert body.index("mysecret") < POST_PREVIEW_CHARS < body.index("5678")  # the cut falls inside the credential
         self._on_post(ni, body)
 
         summary = ni.get_summary()
 
         assert "mysecretval" not in summary
+
+    def test_get_summary_cuts_the_post_body_to_the_preview_limit(self):
+        ni = NetworkIntelligence()
+        self._on_post(ni, "x" * 500)
+
+        assert ni.get_summary().splitlines()[1] == "     POST: " + "x" * (POST_PREVIEW_CHARS - 1) + "…"
+
+    def test_get_summary_masks_a_url_credential_before_cutting_the_url(self):
+        ni = NetworkIntelligence()
+        key = "AIza" + "S" * 35  # a bare key is recognised only whole: a fragment of it passes the mask
+        prefix = "https://api.example.com/data?p=" + "x" * 100 + "&k="
+        kept_by_a_cut_first = URL_PREVIEW_CHARS - 1 - len(prefix)
+        assert 0 < kept_by_a_cut_first < len("AIza") + 30  # the cut would end inside the key, too early to recognise it
+        ni._on_request_will_be_sent(
+            {"requestId": "req-1", "type": "XHR", "request": {"url": prefix + key + "&z=1", "method": "GET"}}
+        )
+
+        summary = ni.get_summary()
+
+        assert "S" * 8 not in summary
+        assert "&k=AIza" in summary
+
+    def test_get_summary_marks_a_cut_url_and_leaves_a_short_one_whole(self):
+        ni = NetworkIntelligence()
+        long_url = "https://api.example.com/" + "a" * 300
+        for request_id, url in (("long", long_url), ("short", "https://api.example.com/x")):
+            ni._on_request_will_be_sent(
+                {"requestId": request_id, "type": "XHR", "request": {"url": url, "method": "GET"}}
+            )
+
+        long_line, short_line = ni.get_summary().splitlines()
+
+        assert long_line == f"  1. GET {long_url[: URL_PREVIEW_CHARS - 1]}… [pending]"
+        assert short_line == "  2. GET https://api.example.com/x [pending]"
 
     def test_get_summary_plain_body_unchanged(self):
         ni = NetworkIntelligence()
@@ -468,8 +507,8 @@ class TestNetworkIntelligence:
         assert "truncated" in result
         assert len(result) < 10000
 
-    def test_document_type_tracked(self):
-        """Document type requests should also be tracked for navigation API discovery."""
+    def test_document_requests_are_not_tracked_and_take_no_number(self):
+        """Only XHR/Fetch bodies can be opened, so only they are tracked and numbered."""
         ni = NetworkIntelligence()
         ni._on_request_will_be_sent(
             {
@@ -478,6 +517,14 @@ class TestNetworkIntelligence:
                 "request": {"url": "https://example.com/page", "method": "GET"},
             }
         )
-        # Document is tracked in _requests but not in get_api_requests()
-        assert len(ni._requests) == 1
-        assert len(ni.get_api_requests()) == 0
+        assert ni.get_api_requests() == []
+        assert ni.get_summary() == ""
+
+        ni._on_request_will_be_sent(
+            {
+                "requestId": "req-api",
+                "type": "XHR",
+                "request": {"url": "https://api.example.com/data", "method": "GET"},
+            }
+        )
+        assert [r.seq for r in ni.get_api_requests()] == [1]
