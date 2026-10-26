@@ -992,7 +992,7 @@ class TestSharedContextRouting:
 
 
 class TestRecurrenceLlmFunc:
-    """The recurrence LLM adapter must return the extracted answer text."""
+    """The text LLM adapter (recurrence + staleness review) must return the extracted answer text."""
 
     def test_returns_none_without_consolidation_llm(self) -> None:
 
@@ -1001,7 +1001,7 @@ class TestRecurrenceLlmFunc:
         manager = MemoryManager.__new__(MemoryManager)
         manager._consolidation_llm = None  # type: ignore[attr-defined]
 
-        assert manager._build_recurrence_llm_func() is None
+        assert manager._build_text_llm_func() is None
 
     @pytest.mark.asyncio
     async def test_extracts_answer_text_from_response(self) -> None:
@@ -1014,7 +1014,7 @@ class TestRecurrenceLlmFunc:
         llm.ainvoke = AsyncMock(return_value=MagicMock(content="consolidated summary"))
         manager._consolidation_llm = llm  # type: ignore[attr-defined]
 
-        llm_func = manager._build_recurrence_llm_func()
+        llm_func = manager._build_text_llm_func()
         assert llm_func is not None
         result = await llm_func("system", "user")
 
