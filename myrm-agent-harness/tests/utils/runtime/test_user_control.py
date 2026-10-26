@@ -16,6 +16,8 @@ from myrm_agent_harness.utils.runtime.user_control import (
     UserControlTimeoutError,
     apply_user_control_gate,
     get_user_control,
+    plan_is_stale,
+    planned_against,
 )
 
 _NOTICE = "re-observe first"
@@ -333,3 +335,54 @@ def test_gate_rejects_a_tool_without_coroutine() -> None:
     sync_tool = StructuredTool.from_function(func=sync_only, name="sync_tool", description="sync")
     with pytest.raises(TypeError, match="sync_tool"):
         apply_user_control_gate([sync_tool], _surface(), roles={}, exempt=frozenset(), reobserve_notice=_NOTICE)
+
+
+def test_a_plan_is_stale_once_control_changed_hands_after_it_was_made() -> None:
+    control = UserControl()
+
+    with planned_against(control.generation):
+        assert plan_is_stale(control) is False
+        control.acquire()
+        assert plan_is_stale(control) is False, "a person who still holds control has not changed anything yet"
+        control.release()
+        assert plan_is_stale(control) is True
+
+
+def test_a_plan_made_after_the_hand_over_is_not_stale() -> None:
+    control = UserControl()
+    control.acquire()
+    control.release()
+
+    with planned_against(control.generation):
+        assert plan_is_stale(control) is False
+
+
+def test_nothing_is_stale_outside_a_plan() -> None:
+    control = UserControl()
+    control.acquire()
+    control.release()
+
+    assert plan_is_stale(control) is False
+    with planned_against(0):
+        pass
+    assert plan_is_stale(control) is False, "leaving the plan must forget it"
+
+
+@pytest.mark.asyncio
+async def test_a_plan_binds_only_the_task_that_made_it() -> None:
+    control = UserControl()
+    entered, finished = asyncio.Event(), asyncio.Event()
+
+    async def planner() -> None:
+        with planned_against(control.generation):
+            entered.set()
+            await finished.wait()
+
+    task = asyncio.create_task(planner())
+    await entered.wait()
+    control.acquire()
+    control.release()
+
+    assert plan_is_stale(control) is False
+    finished.set()
+    await task

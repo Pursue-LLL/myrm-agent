@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
 from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
-from myrm_agent_harness.utils.runtime.user_control import UserControl
+from myrm_agent_harness.toolkits.browser.takeover_errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
+from myrm_agent_harness.utils.runtime.user_control import UserControl, planned_against
 
 
 @pytest.fixture
@@ -115,3 +115,46 @@ async def test_a_new_session_starts_up_to_date_with_earlier_hand_overs() -> None
         session = BrowserSession(browser_pool=MagicMock(), context_type=MagicMock())
 
     assert session.observed_generation == control.generation
+
+
+@pytest.mark.asyncio
+async def test_a_step_of_a_plan_runs_while_nobody_took_over(session: BrowserSession) -> None:
+    with planned_against(session.observed_generation):
+        assert await session.interact(action="click", ref="ref_123") == "interaction_done"
+
+
+@pytest.mark.asyncio
+async def test_a_step_of_a_plan_stops_once_a_person_used_the_page(session: BrowserSession) -> None:
+    with planned_against(session.observed_generation):
+        session.user_control.acquire()
+        session.user_control.release()
+
+        with pytest.raises(UserTakeoverDuringScriptError):
+            await session.interact(action="click", ref="ref_123")
+
+    cast(MagicMock, session._interactor).interact.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_step_that_waited_for_the_person_stops_instead_of_acting_on_what_they_left(
+    session: BrowserSession,
+) -> None:
+    with planned_against(session.observed_generation):
+        session.user_control.acquire()
+        step = asyncio.create_task(session.interact(action="click", ref="ref_123"))
+        await asyncio.sleep(0.05)
+        assert not step.done()
+
+        session.user_control.release()
+        with pytest.raises(UserTakeoverDuringScriptError):
+            await asyncio.wait_for(step, timeout=2.0)
+
+    cast(MagicMock, session._interactor).interact.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_calls_outside_a_plan_still_run_after_a_hand_over(session: BrowserSession) -> None:
+    session.user_control.acquire()
+    session.user_control.release()
+
+    assert await session.interact(action="click", ref="ref_123") == "interaction_done"

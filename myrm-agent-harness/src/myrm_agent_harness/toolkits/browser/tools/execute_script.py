@@ -5,6 +5,8 @@
 - patchright.async_api::Page (POS: Patchright page instance)
 - session.browser_session::BrowserSession (POS: browser session)
 - core.security.hitl_decision::is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
+- utils.runtime.user_control::planned_against (POS: pins the script's steps to the hand-over the model last observed)
+- takeover_errors::UserTakeoverDuringScriptError (POS: a step that comes after a person used the page the script was planned against)
 
 [OUTPUT]
 - create_execute_script_tool: Create browser_execute_script tool bound to session.
@@ -13,7 +15,9 @@
 Allows the agent to write and execute a Python script to perform batch browser actions,
 bypassing the single-step bottleneck. Sets `session._hitl_caller_tool` for semantic HITL audit
 attribution during script execution. Uses AST transformation to inject async yields,
-preventing event loop blocking, and restricts globals for safety.
+preventing event loop blocking, and restricts globals for safety. The tool gate vets the call once, before
+it starts, so the script runs pinned to the observed hand-over: when a person used the page meanwhile, its
+next session step stops the script and reports that the earlier steps already ran.
 """
 
 from __future__ import annotations
@@ -30,6 +34,9 @@ from langchain.tools import tool
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from myrm_agent_harness.utils.runtime.user_control import planned_against
+
+from ..takeover_errors import UserTakeoverDuringScriptError
 from .common import mark_untrusted
 
 if TYPE_CHECKING:
@@ -290,10 +297,13 @@ def create_execute_script_tool(session: BrowserSession) -> BaseTool:
         session._hitl_caller_tool = "browser_execute_script_tool"
         try:
             await session.notify_progress("Starting browser script execution...")
-            # Run with a 60-second timeout
-            await asyncio.wait_for(func(session, refs_dict), timeout=60.0)
+            # Run with a 60-second timeout; every step stays pinned to what the model had observed when it began
+            with planned_against(session.observed_generation):
+                await asyncio.wait_for(func(session, refs_dict), timeout=60.0)
         except TimeoutError:
             output_buffer.write("\n[Error] Script execution timed out after 60 seconds.")
+        except UserTakeoverDuringScriptError as exc:
+            output_buffer.write(f"\n{exc}")
         except Exception:
             import traceback
 

@@ -80,10 +80,11 @@ from myrm_agent_harness.utils.runtime.user_control import (
     UserControl,
     UserControlTimeoutError,
     get_user_control,
+    plan_is_stale,
 )
 
-from ..exceptions import UserTakeoverTimeoutError
 from ..navigation import Navigator
+from ..takeover_errors import UserTakeoverDuringScriptError, UserTakeoverTimeoutError
 from .browser_session_extraction_mixin import BrowserSessionExtractionMixin, ContentVault
 from .browser_session_lifecycle_mixin import BrowserSessionLifecycleMixin
 from .browser_session_navigation_mixin import BrowserSessionNavigationMixin
@@ -370,14 +371,21 @@ class BrowserSession(
     async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None:
         """Wait while a person drives the browser; refuse once they keep it past `timeout`.
 
-        The tool gate already fences every browser tool, so this only matters for session calls made
-        outside a tool. The session stays locked on timeout rather than act behind the person's back.
+        The tool gate vets a tool call once, before it starts, so this covers session calls made outside a
+        tool and the later steps of a script. The session stays locked on timeout rather than act behind
+        the person's back.
+
+        Raises:
+            UserTakeoverTimeoutError: the person still drives after `timeout` seconds.
+            UserTakeoverDuringScriptError: a running script's plan predates the person's last turn at the page.
         """
         try:
             await self.user_control.wait_released(timeout)
         except UserControlTimeoutError as exc:
             logger.error("User takeover wait timed out (%.1fs); session stays locked", timeout)
             raise UserTakeoverTimeoutError(timeout_seconds=exc.timeout_seconds) from exc
+        if plan_is_stale(self.user_control):
+            raise UserTakeoverDuringScriptError
 
     async def interact(self, action: str, ref: str, text: str = "", verify_goal: str | None = None) -> str:
         """Ref-based element interaction (15 action types) with optional visual verification."""

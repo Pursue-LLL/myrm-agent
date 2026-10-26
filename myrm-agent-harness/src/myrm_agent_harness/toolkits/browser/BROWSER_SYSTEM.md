@@ -1005,8 +1005,9 @@ Frontend → POST /agents/agent-stream { resume_value: { action: "completed" } }
 
 与上面「Agent 请求人类」相反：用户在 Agent 运行中自己动手操作浏览器（点开 Jump In / 接管按钮）。浏览器是否被人占用是**进程级单一事实** `UserControl`（`utils/runtime/user_control.py`：`held` + 每次交还 +1 的 `generation`），会话只**读**不被**推**：新建、缓存、池化、子 Agent 的会话自动一并被围栏，无需枚举。
 
-- **围栏在工具层**（`tools/user_control_gate.py`，位于取消边界之内）：人占用期间，除 `browser_ask_human_tool` 外所有浏览器工具等待（含只读工具——此时截图会带出用户正在输入的内容）；等待超过 600s 抛 `UserTakeoverTimeoutError`，宁可锁住也不在人背后动手。Stop 取消可结束等待中的工具。
-- **交还后先看再动**：`browser_interact_tool` / `browser_execute_script_tool` 在模型成功执行 `browser_snapshot_tool` / `browser_inspect_tool` / `browser_extract_tool` 之前返回固定的「请先重新查看页面」提示，不执行；在接管期间就已排队的动作一律不执行（模型没看到过新页面）。`browser_navigate_tool` / `browser_manage_tool` 只等待。`snapshot()` 在观察过期期间强制整树（`diff=False`），diff 会掩盖用户的改动。
+- **围栏在工具层**（`tools/user_control_gate.py`，位于取消边界之内）：人占用期间，除 `browser_ask_human_tool` 外所有浏览器工具等待（含只读工具——此时截图会带出用户正在输入的内容）；等待超过 600s 抛 `UserTakeoverTimeoutError`，宁可锁住也不在人背后动手。Stop 取消可结束等待中的浏览器工具；桌面工具的等待不在取消边界内，见 `computer_use/_ARCH.md` §14。
+- **交还后先看再动**：`browser_interact_tool` / `browser_execute_script_tool` 在模型成功执行 `browser_snapshot_tool` 之前返回固定提示（请重新 snapshot，并按页面现状决定，对方可能已完成其中一部分），不执行；在接管期间就已排队的动作一律不执行（模型没看到过新页面）。只有 snapshot 算「重新看过」：它是唯一会交回新 ref 的调用，`browser_inspect_tool` / `browser_extract_tool` / `browser_navigate_tool` / `browser_manage_tool` 只等待——读完文本后用旧 ref 点击，ref 仍会按角色加名称命中人换过的页面（实测：购物车页取 ref，人跳到支付页，extract 后旧 ref 点中了支付页的同名按钮）。`snapshot()` 在观察过期期间强制整树（`diff=False`），diff 会掩盖用户的改动。
+- **脚本跨越接管**：`browser_execute_script_tool` 一次调用内含多步 `session.interact`，工具围栏只在启动前把关一次。脚本以启动时模型已观察的交还代数为基准运行（`planned_against`），之后任一会话级步骤在等待结束后发现代数已变（人用过页面），即抛 `UserTakeoverDuringScriptError` 停止脚本，输出注明此前步骤已执行；脚本内自行 `session.snapshot()` 不会续期，需模型重新观察后重跑。脚本总预算 60s，更长的接管会因超时终止而不是续跑。
 - **`browser_ask_human_tool` 豁免**：它是模型把浏览器交给人的入口，且 LangGraph `interrupt()` 恢复时会重跑该工具。
 - **围栏边界**：只拦模型能调用的工具，不拦 Agent 自己用 bash 起的进程；`UserControl` 是进程内状态，不支持多进程部署。
 - **谁置位**：由宿主调用 `get_user_control().acquire()/release()`（Server 的 `/webui/vnc/takeover`、`/resume` 经 `TakeoverCoordinator`，用户端 30s 心跳续租，300s 无心跳自动交还）。Harness 不含任何路由。

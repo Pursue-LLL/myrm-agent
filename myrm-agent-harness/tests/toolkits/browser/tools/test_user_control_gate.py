@@ -11,8 +11,8 @@ import pytest
 from langchain.tools import tool
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
 from myrm_agent_harness.toolkits.browser.session.restricted_ax_session import create_restricted_ax_browser_tools
+from myrm_agent_harness.toolkits.browser.takeover_errors import UserTakeoverTimeoutError
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
 from myrm_agent_harness.toolkits.browser.tools.cancel_boundary import CANCELLED_RESULT, apply_cancel_boundary
 from myrm_agent_harness.toolkits.browser.tools.user_control_gate import (
@@ -25,8 +25,9 @@ from myrm_agent_harness.utils.runtime import cancellation
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, set_cancel_token
 from myrm_agent_harness.utils.runtime.user_control import UserControl
 
-# They only wait for the person: navigating needs no earlier look, and manage is a bag of unrelated actions.
-_WAIT_ONLY = {"browser_navigate_tool", "browser_manage_tool"}
+# They only wait for the person. Navigating needs no earlier look and manage is a bag of unrelated actions;
+# inspect and extract read the page but hand back no refs, so they leave the model's refs as stale as they were.
+_WAIT_ONLY = {"browser_navigate_tool", "browser_manage_tool", "browser_inspect_tool", "browser_extract_tool"}
 
 
 @pytest.fixture(autouse=True)
@@ -150,16 +151,15 @@ class TestAfterTheHandOver:
         assert await tools["browser_execute_script_tool"].ainvoke({}) == "browser_execute_script_tool"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("looking", ["browser_inspect_tool", "browser_extract_tool"])
-    async def test_inspect_and_extract_also_count_as_looking(self, looking: str) -> None:
+    @pytest.mark.parametrize("reading", ["browser_inspect_tool", "browser_extract_tool"])
+    async def test_reading_the_page_does_not_count_as_looking_again(self, reading: str) -> None:
         session = _session()
         tools = {t.name: t for t in apply_browser_user_control_gate(_named_tools([]), session)}
         session.user_control.acquire()
         session.user_control.release()
 
-        await tools[looking].ainvoke({})
-
-        assert await tools["browser_interact_tool"].ainvoke({}) == "browser_interact_tool"
+        assert await tools[reading].ainvoke({}) == reading
+        assert await tools["browser_interact_tool"].ainvoke({}) == REOBSERVE_NOTICE
 
     @pytest.mark.asyncio
     async def test_the_ask_human_tool_does_not_count_as_looking(self) -> None:

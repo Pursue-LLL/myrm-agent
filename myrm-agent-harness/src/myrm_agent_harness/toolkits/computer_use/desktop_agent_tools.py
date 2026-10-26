@@ -36,8 +36,8 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 from myrm_agent_harness.utils.runtime.user_control import RoleOf, ToolRole, apply_user_control_gate
 
 _REOBSERVE_NOTICE = (
-    "Not run: a person used the desktop since you last looked at the screen, so it may have changed. "
-    "Take a fresh snapshot or screenshot, then retry."
+    "Not run: a person used the desktop since you last looked at the screen, so it may have changed "
+    "and part of this may already be done. Take a fresh snapshot or screenshot, then decide from what you see now."
 )
 
 

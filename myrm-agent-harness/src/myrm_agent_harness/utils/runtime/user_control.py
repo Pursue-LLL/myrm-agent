@@ -11,6 +11,8 @@
 - get_user_control: the process-wide instance every session defaults to
 - UserControlSurface: what the gate needs from a session (the control it consults + the generation the model last observed)
 - ToolRole: whether a tool call looks at the surface or changes it
+- planned_against / plan_is_stale: pin the steps of one multi-step plan (a script) to the hand-over they were planned
+  against, so a step that comes after a later hand-over can tell
 - apply_user_control_gate: wrap tool coroutines so a held control stops every tool, and no action runs on a
   surface the person may have changed since the model last looked at it
 
@@ -21,6 +23,7 @@ sessions, which means a session created, cached or pooled after the takeover beg
 The fence is tool-level: it stops what the model can call, not processes the agent starts on its own.
 `release()` advances `generation`; an action whose model last observed an older generation is refused until
 the model observes again, so a plan made before the takeover never executes against the page the person left.
+A plan that spans several calls inside one tool call (a script) is pinned the same way with `planned_against`.
 """
 
 from __future__ import annotations
@@ -30,11 +33,13 @@ import functools
 import logging
 import threading
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping
+    from collections.abc import Awaitable, Callable, Iterator, Mapping
 
     from langchain_core.tools import BaseTool
 
@@ -139,6 +144,29 @@ _PROCESS_CONTROL = UserControl()
 def get_user_control() -> UserControl:
     """The one `UserControl` of this process."""
     return _PROCESS_CONTROL
+
+
+_planned_against: ContextVar[int | None] = ContextVar("user_control_planned_against", default=None)
+
+
+@contextmanager
+def planned_against(generation: int) -> Iterator[None]:
+    """Mark the calls made inside as steps of one plan made while control was at `generation`.
+
+    A script is such a plan: it is written from what the model saw, then runs for a while. A step that
+    comes after control changed hands was not planned against what the person left on the page.
+    """
+    token = _planned_against.set(generation)
+    try:
+        yield
+    finally:
+        _planned_against.reset(token)
+
+
+def plan_is_stale(control: UserControl) -> bool:
+    """Whether control changed hands since the plan this call belongs to was made; False outside a plan."""
+    planned = _planned_against.get()
+    return planned is not None and control.generation != planned
 
 
 class UserControlSurface(Protocol):
