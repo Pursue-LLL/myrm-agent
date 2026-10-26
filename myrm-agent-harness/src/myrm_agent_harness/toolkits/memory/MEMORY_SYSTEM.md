@@ -543,7 +543,7 @@ final = semantic^w0 × recency^w1 × frequency^w2 × importance^w3 × preference
 - 语义主导（Semantic 权重 ≥ 0.70）
 - 无逆转：低语义分数无法通过高热度逆转
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
-- Source Decay：MMR 选择时对已选来源的记忆施加软惩罚，促进跨会话多样性。`penalty = content_sim + source_diversity_weight × (same_source_count / selected_count)`，默认 weight=0.5，设为 0 退化为纯内容 MMR。`content_sim` 取候选与已选集合的最大 Jaccard 相似度，每选中一条增量刷新一次；MMR 值并列时取在候选列表中靠前者
+- Source Decay：MMR 选择时对已选来源的记忆施加软惩罚，促进跨会话多样性。`penalty = content_sim + source_diversity_weight × (same_source_count / selected_count)`，默认 weight=0.5，设为 0 退化为纯内容 MMR。`content_sim` 取候选与已选集合的最大 Jaccard 相似度，每轮只并入最新选中的一条；MMR 值并列时取在候选列表中靠前者
 
 **类型感知信号权重**：
 
