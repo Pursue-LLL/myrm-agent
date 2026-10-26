@@ -55,4 +55,6 @@ def test_detector_flags_undeclared_calls_and_sees_the_real_ones() -> None:
         "    await other.search('c')\n"
     )
     assert _search_calls(source) == [(2, False), (3, True)]
-    assert _scan_app()[0] > 0, "no manager.search call found under app/: the receiver names no longer match"
+    assert _scan_app()[0] > 0, (
+        "no manager.search call found under app/: the receiver names the scan looks for do not occur in the code"
+    )
