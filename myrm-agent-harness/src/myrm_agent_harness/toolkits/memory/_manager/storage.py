@@ -139,7 +139,7 @@ class MemoryManagerStorageMixin:
             except Exception as err:
                 logger.warning("Failed to record exact fact in relational store: %s", err)
 
-    def _sparse_only_vector(self) -> BM25SparseIndexStore:
+    def _require_sparse_mirror(self) -> BM25SparseIndexStore:
         """Return the sparse-capable vector backend for sparse-authoritative writes.
 
         A missing sparse-capable backend keeps the previous fail-fast
@@ -158,7 +158,7 @@ class MemoryManagerStorageMixin:
         goes to the BM25 sparse mirror instead, which becomes the collection's
         authoritative store and is served by the existing BM25 fan-out.
         """
-        vector = self._sparse_only_vector()
+        vector = self._require_sparse_mirror()
         bound = self._bind_scope(memory)
         await vector.upsert_sparse_only(self._config.semantic_collection, [semantic_to_doc(bound)])
         from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
@@ -171,7 +171,7 @@ class MemoryManagerStorageMixin:
 
     async def _store_semantics_sparse_only(self, memories: list[SemanticMemory]) -> list[SemanticMemory]:
         """Batch companion to ``_store_semantic_sparse_only``."""
-        vector = self._sparse_only_vector()
+        vector = self._require_sparse_mirror()
         bound_memories = [self._bind_scope(memory) for memory in memories]
         await vector.upsert_sparse_only(
             self._config.semantic_collection,
@@ -188,14 +188,14 @@ class MemoryManagerStorageMixin:
 
     async def _store_episodic_sparse_only(self, memory: EpisodicMemory) -> EpisodicMemory:
         """Sparse-only episodic write for embeddings-less deployments."""
-        vector = self._sparse_only_vector()
+        vector = self._require_sparse_mirror()
         bound = self._bind_scope(memory)
         await vector.upsert_sparse_only(self._config.episodic_collection, [episodic_to_doc(bound)])
         return bound
 
     async def _store_episodics_sparse_only(self, memories: list[EpisodicMemory]) -> list[EpisodicMemory]:
         """Batch companion to ``_store_episodic_sparse_only``."""
-        vector = self._sparse_only_vector()
+        vector = self._require_sparse_mirror()
         bound_memories = [self._bind_scope(memory) for memory in memories]
         await vector.upsert_sparse_only(
             self._config.episodic_collection,

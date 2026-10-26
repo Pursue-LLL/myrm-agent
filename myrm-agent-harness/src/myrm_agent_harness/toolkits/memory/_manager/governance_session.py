@@ -174,7 +174,8 @@ class MemoryManagerGovernanceSessionMixin:
     def _build_text_llm_func(self) -> Callable[[str, str], Awaitable[str]] | None:
         """Adapt ``consolidation_llm`` to the ``(system, user) -> text`` callable the
         recurrence detector and the staleness reviewer take."""
-        if self._consolidation_llm is None:
+        llm = self._consolidation_llm
+        if llm is None:
             return None
 
         async def _call(system_prompt: str, user_prompt: str) -> str:
@@ -184,7 +185,7 @@ class MemoryManagerGovernanceSessionMixin:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt),
             ]
-            response = await self._consolidation_llm.ainvoke(messages)  # type: ignore[union-attr]
+            response = await llm.ainvoke(messages)
             # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
             return extract_answer_text(response)
 
