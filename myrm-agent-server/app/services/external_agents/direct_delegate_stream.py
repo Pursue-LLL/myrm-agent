@@ -1,9 +1,8 @@
 """Direct delegation: one external-agent turn streamed to the frontend as SSE events.
 
 [INPUT]
-- myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型)
+- myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型), on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流)
 - myrm_agent_harness.toolkits.acp.types (POS: 外部 Agent 委托协议：运行时事件、错误码、委托池)
-- myrm_agent_harness.utils.runtime.cancel_hook::on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流)
 
 [OUTPUT]
 - stream_direct_delegate: harness RuntimeEvent 流 → 前端 SSE 事件流
@@ -20,9 +19,8 @@ from contextlib import aclosing
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypeAlias
 
-from myrm_agent_harness.api import AgentEventType
+from myrm_agent_harness.api import AgentEventType, on_token_cancelled
 from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, ContinuityStatus, RuntimeEventType
-from myrm_agent_harness.utils.runtime.cancel_hook import on_token_cancelled
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping

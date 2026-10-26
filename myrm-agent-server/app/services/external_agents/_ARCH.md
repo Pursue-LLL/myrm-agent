@@ -40,4 +40,4 @@
 
 - `myrm_agent_harness.toolkits.acp.runtime.pool` / `acp.types`（`CliSessionRecord`）— harness Integration 层，无反向依赖
 - `app.database.repositories.chat_cli_session_repo` / `app.database.factory.acquire_write_lock` — `cli_session_store.py` 的持久化与写锁
-- `myrm_agent_harness.api.AgentEventType` / `acp.types` / `utils.runtime.cancel_hook` — `direct_delegate_stream.py` 的事件词汇、错误码与令牌取消桥
+- `myrm_agent_harness.api.AgentEventType` / `api.on_token_cancelled` / `acp.types` — `direct_delegate_stream.py` 的事件词汇、错误码与令牌取消桥

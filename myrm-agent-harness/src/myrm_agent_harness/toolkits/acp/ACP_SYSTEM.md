@@ -419,19 +419,19 @@ acp/
 - **跨平台进程组清理**：每个 CLI 回合都在独立进程组里运行（POSIX `start_new_session`，Windows `CREATE_NEW_PROCESS_GROUP`），停止时整组终止（POSIX `killpg`，Windows `taskkill /T /F`），子进程随之清理；回合以任何方式结束（正常、异常、取消、超时、消费方提前放弃生成器）都经同一个 `spawn_cli_process` 上下文停掉仍在跑的进程
 - **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）
-- **流式文本推送**：`_direct_delegate_stream` 将 RuntimeEvent 实时转换为前端 SSE 事件（MESSAGE / REASONING / TASKS_STEPS / TOKEN_USAGE / ERROR），实现外部 Agent 响应的逐字流式展示。连接前发送 connecting 状态，完成后发送 completed 状态，提供全生命周期进度反馈
+- **流式文本推送**：Server 的 `services/external_agents/direct_delegate_stream.stream_direct_delegate`（由 `ExternalAgentMixin._direct_delegate_stream` 调用）把 `pool.run_turn` 的 RuntimeEvent 实时转换为前端 SSE 事件：TEXT_DELTA → MESSAGE、REASONING_DELTA → REASONING、TOOL_START / TOOL_RESULT → TASKS_STEPS、USAGE_UPDATE → TOKEN_USAGE、其余见下。连接前发送 connecting 状态，结束时发送 completed / stopped / failed 状态步骤与 MESSAGE_END，提供全生命周期进度反馈；翻译层只依赖 harness 的 `DelegationPool` 协议
 - **REASONING_DELTA 前端传递**：`invoke_acp_agent_tool` 工具将外部 Agent 的思维链（REASONING_DELTA）通过 `ToolProgressSink` 实时推送至前端，用户可看到外部 Agent 的推理过程
 - **CLI Session 复用**：CLI 回合最先输出的一行 announce 会话（Claude `system/init` 的 `session_id`、Codex `thread.started` 的 `thread_id`），`CliRuntime` 在收到 announce 的那一刻就记录（连同创建它的工作目录，`CliSessionRecord`）并写穿到宿主 `CliSessionStore`，所以回合中途被停止的会话照样能续接；记录只看 announce，不看回合结果。续接由 `CliDialect` 按各 CLI 的语法完成：Claude 追加 `--resume <id>`，Codex 把 `exec` 改写为 `exec resume <选项> <id>`（`codex exec resume` 只认自己的选项，`--sandbox` 这类根级选项仍在 `exec` 之前，prompt 跟在 id 之后）；id 必须是规范 UUID 形态才会被重放（Codex 对格式不对的 id 会静默开新线程）。Claude Code 按工作目录存放会话（v2.1.223 之前 `--resume <id>` 只在当前项目目录里查找 id），所以记录目录与本回合启动目录不同就不续接，改开新会话并发出 `session_workspace_changed`。**失效自愈**：续接的判据是 CLI 在 announce 之前、没有任何输出、以正退出码退出（它自己在说「不认识这个会话」），此时发出 `session_expired`，同一回合内改开新会话重跑一次；旧 id 在新会话 announce 之后才被替换，重试也失败则旧记录原样保留。被本运行时取消或超时杀掉的进程说明不了会话是否存在，记录保留。Claude / Codex 之外的 CLI 没有方言，按配置原样启动、不续接
 - **Per-backend 并发串行化**：`RuntimePool.run_turn` 在全局 Semaphore 之外对同一 backend 增 per-backend `asyncio.Lock`，保证单后端实例（如 CliRuntime 的可变进程句柄）同时只跑一个 turn；`cancel()` 不取该锁（调用方在 turn 循环内取消，无死锁），不同 backend 仍可并行
 - **超时/异常/放弃的进程清理**：`BaseRuntime.run_turn` 用 `aclosing` 包住回合生成器，超时、意外异常或消费方提前放弃都会让回合收尾并停掉外部进程；超时与异常再先 `cancel()` 后产出 ERROR 事件，杜绝孤儿进程在后台继续消耗资源
-- **失败路径统一 ERROR**：一个失败的回合只以一个 ERROR 事件结束，不会被静默降级为 DONE 导致 delegate 误判成功：`AcpRuntime._do_run_turn` 的 prompt 失败会 re-raise，由 `run_turn` 转为 ERROR 并清理进程；`CliRuntime` 在回合末用 `classify_failure` 给出分类后的 ERROR（CLI 已流式给出 ERROR 事件时不重复；CLI 已产出文本却以非零码退出时记 warning 并按 DONE 结束）
+- **失败路径统一 ERROR**：一个失败的回合只以一个 ERROR 事件结束，不会被静默降级为 DONE 导致 delegate 误判成功：`AcpRuntime._do_run_turn` 的 prompt 失败会 re-raise，由 `run_turn` 转为 ERROR 并清理进程；`CliRuntime` 在回合末用 `classify_failure` 给出分类后的 ERROR（CLI 已流式给出 ERROR 事件时不重复；CLI 已产出文本、没有 `result` 行却以非零码退出时记 warning 并按 DONE 结束；`result` 行报错时一律是 ERROR）
 - **NDJSON 解析分层**：`turn_parser.TurnParser`（有状态、无 I/O）+ `parser.py`（各格式共享的事件构造），任何 CLI 输出形态都能只凭文本做单测
 - **增量文本与工具事件**：Claude 以 `--include-partial-messages` 启动（仅 stream-json 输出），文本逐段到达，随后重复的完整消息按 API message id 去重；assistant 消息里的 `tool_use` 与 user 消息里的 `tool_result` 映射为 `TOOL_START`（含一行摘要）/ `TOOL_RESULT`
 - **大输出行**：stdout 单行上限 16 MiB（一条工具结果可以是整个文件，asyncio 默认的 64 KiB 会让整回合失败）；stderr 只保留末尾 8 KiB 用于错误摘录
 - **Delegate 元数据 TypedDict**：`DelegateUsage` / `DelegateMeta` 提供精确的类型提示
 - **直连模式 Session 隔离**：基于 `chat_id` 生成独立 `session_id`，不同对话的外部 Agent 上下文互不干扰
-- **直连模式 TOOL_RESULT 事件**：展示外部 Agent 工具执行结果（成功/失败状态）
-- **直连模式错误处理**：`_direct_delegate_stream` 不做自动重试，ERROR 事件原样转发给前端；单次自动重试只存在于 `invoke_acp_agent_tool` 工具路径（对 `retryable` 错误重试一次）
+- **直连模式工具步骤**：外部 Agent 的每次工具调用是一个带 `tool_call_id` 的独立步骤（`delegation_<agent>_tool`，步骤文本为一行「agent: 工具 — 摘要」），对应的 TOOL_RESULT 更新同一步骤的状态（失败时带 CLI 原文的前 300 个字符），而不是覆盖上一个步骤；前端以这一行作标题，不再重复渲染
+- **直连模式收尾与错误处理**：直连路径不重跑整个回合；`CANCELLED`（含用户停止、令牌被取消）只发出 CANCELLED 事件、不发完成状态，`MAX_TURNS`（外部 Agent 到了自己的轮次上限）按「已停止」收尾而不是错误横幅，其余 ERROR 转成前端 error 事件并以 failed 状态步骤收尾。唯一的自动重来是 `CliRuntime` 对被 CLI 拒绝的续接在同一回合内改开新会话（见「CLI Session 复用」，用户看到一条只带标题的提示）；`invoke_acp_agent_tool` 工具路径另有对 `retryable` 错误的一次重试
 
 ---
 

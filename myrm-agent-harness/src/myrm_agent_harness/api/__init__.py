@@ -29,6 +29,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "AgentRuntimeSpec": ("myrm_agent_harness.api.types", "AgentRuntimeSpec"),
     "AgentStreamEvent": ("myrm_agent_harness.api.types", "AgentStreamEvent"),
     "CompletionStatus": ("myrm_agent_harness.api.types", "CompletionStatus"),
+    "on_token_cancelled": ("myrm_agent_harness.utils.runtime.cancel_hook", "on_token_cancelled"),
     "ComplianceAuditEngine": ("myrm_agent_harness.runtime.diagnostics.compliance", "ComplianceAuditEngine"),
     "ComplianceOutcome": ("myrm_agent_harness.observability.audit_trail", "ComplianceOutcome"),
     "ComplianceReport": ("myrm_agent_harness.runtime.diagnostics.compliance", "ComplianceReport"),

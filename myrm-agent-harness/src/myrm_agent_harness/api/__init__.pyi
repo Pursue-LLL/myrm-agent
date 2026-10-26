@@ -627,5 +627,8 @@ from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import (
 from myrm_agent_harness.utils.db.fts5 import (
     CjkFtsQueryPlanner as CjkFtsQueryPlanner,
 )
+from myrm_agent_harness.utils.runtime.cancel_hook import (
+    on_token_cancelled as on_token_cancelled,
+)
 
 __all__: list[str]
