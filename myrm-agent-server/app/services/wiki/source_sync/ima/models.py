@@ -208,11 +208,17 @@ def parse_media_info(data: Mapping[str, object]) -> ImaMediaInfo:
 
 
 def _basic_info(raw: Mapping[str, object]) -> Mapping[str, object]:
-    """Peel the ``basic_info`` wrappers around one listed note; the notes listing nests them twice."""
+    """Peel the ``basic_info`` wrappers around a listed note; one spelling nests them twice, another has none."""
     node = raw
     while isinstance(inner := node.get("basic_info"), Mapping):
         node = inner
     return node
+
+
+def _notebook_name(note: Mapping[str, object]) -> str:
+    """The notebook a listed note sits in: top-level in one spelling, under ``note_ext_info`` in the other."""
+    ext = note.get("note_ext_info")
+    return _text(note, "folder_name") or (_text(ext, "folder_name") if isinstance(ext, Mapping) else "")
 
 
 def parse_notes_page(data: Mapping[str, object]) -> ImaNotesPage:
@@ -227,7 +233,7 @@ def parse_notes_page(data: Mapping[str, object]) -> ImaNotesPage:
         basic = _basic_info(raw)
         if _int(basic.get("status")) == 1:  # 1 = deleted
             continue
-        note_id = _text(basic, "docid", "doc_id")
+        note_id = _text(basic, "docid", "doc_id", "note_id")
         if not note_id:
             unreadable += 1
             continue
@@ -235,7 +241,7 @@ def parse_notes_page(data: Mapping[str, object]) -> ImaNotesPage:
             ImaNote(
                 note_id=note_id,
                 title=_text(basic, "title") or note_id,
-                folder_name=_text(basic, "folder_name"),
+                folder_name=_notebook_name(basic),
                 modify_time=_int(basic.get("modify_time")) or 0,
             )
         )

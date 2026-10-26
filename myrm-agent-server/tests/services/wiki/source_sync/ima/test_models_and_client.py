@@ -78,6 +78,26 @@ def test_notes_page_skips_deleted_notes_and_unwraps_every_nesting() -> None:
     assert parsed.next_cursor == "c2" and parsed.is_end is False
 
 
+def test_notes_page_in_the_flat_shape_reads_the_note_id_and_the_notebook_from_the_extension_block() -> None:
+    parsed = parse_notes_page(
+        {
+            "note_book_list": [
+                {
+                    "note_id": "n1",
+                    "title": "Plan",
+                    "summary": "short",
+                    "modify_time": 1700000000000,
+                    "note_ext_info": {"folder_id": "f1", "folder_name": "Work"},
+                }
+            ],
+            "is_end": True,
+        }
+    )
+    assert [(note.note_id, note.title, note.folder_name, note.modify_time) for note in parsed.notes] == [
+        ("n1", "Plan", "Work", 1700000000000)
+    ]
+
+
 @pytest.mark.parametrize(
     "data",
     [

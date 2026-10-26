@@ -18,7 +18,7 @@
 |------|------|------|-------|
 | `__init__.py` | 门面 | 对外导出 cron 入口、用户操作、状态读取与错误类 | ✅ |
 | `errors.py` | 类型 | `ImaError` 层级；`kind` 是持久化与 UI 文案映射的稳定键，引擎仅凭 `kind` 决定重试/暂停/放弃 | ✅ |
-| `models.py` | 类型 | ima 松散响应的类型化视图与解析器（唯一知道字段拼写的位置）；媒体类型常量；笔记页里一条都读不出来时抛 `ImaPermanentError`（形状变了，不当成「账号没有笔记」） | ✅ |
+| `models.py` | 类型 | ima 松散响应的类型化视图与解析器（唯一知道字段拼写的位置）；媒体类型常量；笔记条目两种拼写都读（嵌套 `basic_info.docid` 与扁平 `note_id` + `note_ext_info`）；笔记页里一条都读不出来时抛 `ImaPermanentError`（形状变了，不当成「账号没有笔记」） | ✅ |
 | `transport.py` | 传输 | `POST https://ima.qq.com/<prefix>/<method>`、凭证头、信封解包、错误分类、瞬时失败退避；origin 为常量 | ✅ |
 | `client.py` | 客户端 | 知识库/笔记方法表（只读）：`verify`/`list_knowledge_bases`/`list_knowledge_page`/`get_media_info`/`get_note_text`/`list_notes_page`（笔记走 `list_note_by_folder_id` 游标列表，空 `folder_id` = 全部笔记，每页 ≤20） | ✅ |
 | `media.py` | 下载 | 签名 COS URL 的受限下载：仅 https + 腾讯域白名单、禁重定向、不带 ima 凭证、流式字节上限 | ✅ |
