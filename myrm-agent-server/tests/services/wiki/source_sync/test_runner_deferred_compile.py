@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSync
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupScanner
 
+from app.services.wiki.dedup_runner import WikiDedupRunResult
 from app.services.wiki.source_sync.integration_mirror import mirror_integration_sync_results_to_wiki
 from app.services.wiki.source_sync.publish_helpers import publish_source_markdown
 from app.services.wiki.source_sync.runner import run_wiki_source_sync
@@ -44,9 +45,10 @@ async def flow(tmp_path: Path) -> AsyncIterator[Flow]:
     async def snapshot(*_: object, **__: object) -> None:
         recorded.events.append("snapshot")
 
-    async def scan(*, agent_id: str | None, incremental: bool) -> None:
+    async def scan(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
         recorded.events.append("scan")
         CorpusDedupScanner(recorded.structure).scan(incremental=incremental)
+        return WikiDedupRunResult()
 
     with (
         patch("app.services.wiki.source_sync.runner.get_session") as session_ctx,
@@ -61,7 +63,7 @@ async def flow(tmp_path: Path) -> AsyncIterator[Flow]:
         yield recorded
 
 
-def _rss_publishing(bodies: dict[str, str], *, then_crash: bool = False) -> Callable[..., object]:
+def _rss_publishing(bodies: dict[str, str], *, then_crash: bool = False) -> Callable[..., Awaitable[WikiSourceSyncResult]]:
     async def sync_rss(
         structure: WikiStructure,
         *,
@@ -129,13 +131,29 @@ async def test_a_failed_scan_does_not_cost_the_documents_their_compile(flow: Flo
     assert flow.queued == ["a.md", "a-copy.md"]
 
 
+async def test_a_skipped_scan_does_not_hold_back_files_that_stored_groups_claim(flow: Flow) -> None:
+    bodies = {"rss/a.md": SAME_BODY, "rss/a-copy.md": SAME_BODY}
+
+    async def skipped_scan(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
+        CorpusDedupScanner(flow.structure).scan(incremental=incremental)
+        return WikiDedupRunResult(skipped=True, skipped_reason="compile_in_progress")
+
+    with (
+        patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=_rss_publishing(bodies)),
+        patch("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", new=skipped_scan),
+    ):
+        await run_wiki_source_sync(llm=MagicMock(), config=_config())
+
+    assert flow.queued == ["a.md", "a-copy.md"]
+
+
 async def test_nothing_is_deferred_or_queued_when_auto_compile_is_off(flow: Flow) -> None:
     seen: dict[str, object] = {}
     inner = _rss_publishing({"rss/a.md": "# A\n\nfirst"})
 
     async def spy(structure: WikiStructure, **kwargs: object) -> WikiSourceSyncResult:
         seen["compiler_enqueue"] = kwargs["compiler_enqueue"]
-        return await inner(structure, **kwargs)  # type: ignore[misc]
+        return await inner(structure, **kwargs)
 
     with patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=spy):
         await run_wiki_source_sync(llm=MagicMock(), config=_config(auto_compile=False))

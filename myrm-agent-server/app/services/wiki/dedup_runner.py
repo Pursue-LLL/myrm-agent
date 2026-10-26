@@ -6,6 +6,7 @@
 [OUTPUT]
 - schedule_wiki_dedup_scan: background scan with progress in store
 - run_wiki_dedup_scan_job: blocking scan for cron summaries
+- run_post_sync_dedup_scan: best-effort incremental scan after new raw files landed; True only when it completed
 - apply_wiki_dedup_disposition: user disposition handler
 - get_wiki_dedup_vault_hygiene: trashed/excluded listings for Settings
 - restore_wiki_dedup_trashed / undo_wiki_dedup_excluded: vault hygiene undo paths
@@ -156,6 +157,20 @@ async def run_wiki_dedup_scan_job(*, agent_id: str | None = None, incremental: b
             f"{scan_result.near_groups} near)"
         )
     return WikiDedupRunResult(scan_result=scan_result, summary_text=summary)
+
+
+async def run_post_sync_dedup_scan(*, agent_id: str | None) -> bool:
+    """Scan incrementally after new raw files landed; True only when the scan ran to completion.
+
+    A scan skipped because a compile is busy and a scan that failed both return False, so a caller that gates on the
+    result falls back to its unguarded behaviour instead of trusting stale groups.
+    """
+    try:
+        result = await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
+    except Exception as exc:
+        logger.warning("Post-sync wiki dedup scan failed: %s", exc)
+        return False
+    return not result.skipped
 
 
 async def apply_wiki_dedup_disposition(

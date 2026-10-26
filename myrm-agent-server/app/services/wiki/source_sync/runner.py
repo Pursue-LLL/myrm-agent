@@ -24,6 +24,7 @@ from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.database.connection import get_session
+from app.services.wiki.dedup_runner import run_post_sync_dedup_scan
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
 from app.services.wiki.source_sync.deferred_enqueue import DeferredCompileEnqueue
 from app.services.wiki.source_sync.feishu import sync_feishu_docs_to_wiki
@@ -69,6 +70,7 @@ async def run_wiki_source_sync(
     elif effective_config.auto_compile:
         logger.warning("Wiki source sync: auto_compile requested but no LLM configured; raw-only mode")
 
+    scan_completed = False
     try:
         run = await _pull_sources(
             structure,
@@ -81,11 +83,11 @@ async def run_wiki_source_sync(
             sync_gmail_rss=sync_gmail_rss,
         )
         if run.total_published > 0:
-            await _scan_for_duplicates(agent_id)
+            scan_completed = await run_post_sync_dedup_scan(agent_id=agent_id)
     finally:
         # Even a crashed pull must not strand files that were already written.
         if deferred is not None:
-            deferred.release()
+            deferred.release(scan_completed=scan_completed)
 
     if run.total_published > 0 and archiver is not None:
         from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
@@ -111,15 +113,6 @@ async def run_wiki_source_sync(
         logger.warning("Failed to persist wiki source sync state: %s", exc)
 
     return run
-
-
-async def _scan_for_duplicates(agent_id: str | None) -> None:
-    try:
-        from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
-
-        await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
-    except Exception as exc:
-        logger.warning("Post source-sync wiki dedup scan failed: %s", exc)
 
 
 async def _pull_sources(

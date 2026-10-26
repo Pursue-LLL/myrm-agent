@@ -59,7 +59,7 @@ def test_nothing_reaches_the_compile_queue_until_release(structure: WikiStructur
     assert deferred.has_pending
     assert compiler.queued == []
 
-    assert deferred.release() == 2
+    assert deferred.release(scan_completed=True) == 2
     assert _names(compiler) == ["a.md", "b.md"]
     assert not deferred.has_pending
 
@@ -72,8 +72,8 @@ def test_release_is_idempotent_and_a_file_published_twice_is_queued_once(structu
     deferred.enqueue_file(path)
     deferred.enqueue_file(path)
 
-    assert deferred.release() == 1
-    assert deferred.release() == 0
+    assert deferred.release(scan_completed=True) == 1
+    assert deferred.release(scan_completed=True) == 0
     assert _names(compiler) == ["a.md"]
 
 
@@ -86,7 +86,7 @@ def test_members_of_an_open_exact_group_are_held_and_the_rest_is_queued(structur
         deferred.enqueue_file(path)
     CorpusDedupScanner(structure).scan(incremental=False)
 
-    assert deferred.release() == 1
+    assert deferred.release(scan_completed=True) == 1
     assert _names(compiler) == ["unique.md"]
 
 
@@ -97,7 +97,7 @@ def test_a_normalized_duplicate_is_held_too(structure: WikiStructure) -> None:
     deferred.enqueue_file(_write(structure, "ima/page.md", "<h1>Title</h1><p>Same normalized body.</p>"))
     CorpusDedupScanner(structure).scan(incremental=False)
 
-    assert deferred.release() == 0
+    assert deferred.release(scan_completed=True) == 0
     assert compiler.queued == []
 
 
@@ -110,17 +110,27 @@ def test_near_duplicates_are_not_held_because_they_never_block_compiling(structu
     scanner.scan(incremental=False)
     assert scanner.store.list_groups(status=GroupStatus.OPEN), "the pair must be flagged as a near group"
 
-    assert deferred.release() == 2
+    assert deferred.release(scan_completed=True) == 2
 
 
-def test_files_nobody_scanned_are_released(structure: WikiStructure) -> None:
-    """A skipped scan (compile busy) leaves no group for the new files: they go through, as they always did."""
+def test_files_no_group_claims_are_released(structure: WikiStructure) -> None:
     compiler = RecordingCompiler()
     deferred = DeferredCompileEnqueue(compiler, structure)
     deferred.enqueue_file(_write(structure, "ima/a.md", SAME_BODY))
     deferred.enqueue_file(_write(structure, "ima/b.md", SAME_BODY))
 
-    assert deferred.release() == 2
+    assert deferred.release(scan_completed=True) == 2
+
+
+def test_without_a_completed_scan_nothing_is_held_even_when_groups_are_stored(structure: WikiStructure) -> None:
+    """Stored groups describe the last scan that finished, not the files published since: do not trust them."""
+    compiler = RecordingCompiler()
+    deferred = DeferredCompileEnqueue(compiler, structure)
+    deferred.enqueue_file(_write(structure, "ima/a.md", SAME_BODY))
+    deferred.enqueue_file(_write(structure, "ima/b.md", SAME_BODY))
+    CorpusDedupScanner(structure).scan(incremental=False)
+
+    assert deferred.release(scan_completed=False) == 2
 
 
 async def test_a_resolved_group_stops_holding_its_members(structure: WikiStructure) -> None:
@@ -133,7 +143,7 @@ async def test_a_resolved_group_stops_holding_its_members(structure: WikiStructu
     group = scanner.store.list_groups(status=GroupStatus.OPEN)[0]
     await CorpusDedupGovernor(structure).apply_disposition(group.group_id, DispositionAction.DISMISS, reason="")
 
-    assert deferred.release() == 2
+    assert deferred.release(scan_completed=True) == 2
 
 
 def test_an_unreadable_dedup_store_releases_everything_instead_of_losing_documents(
@@ -151,7 +161,7 @@ def test_an_unreadable_dedup_store_releases_everything_instead_of_losing_documen
     deferred.enqueue_file(_write(structure, "ima/b.md", SAME_BODY))
 
     with caplog.at_level(logging.WARNING):
-        assert deferred.release() == 2
+        assert deferred.release(scan_completed=True) == 2
     assert "dedup store locked" in caplog.text
 
 
@@ -162,6 +172,6 @@ def test_one_failing_enqueue_does_not_lose_the_others(structure: WikiStructure, 
     deferred.enqueue_file(_write(structure, "ima/good.md", "# Good\n\nsecond"))
 
     with caplog.at_level(logging.WARNING):
-        assert deferred.release() == 1
+        assert deferred.release(scan_completed=True) == 1
     assert _names(compiler) == ["good.md"]
     assert "queue unavailable" in caplog.text

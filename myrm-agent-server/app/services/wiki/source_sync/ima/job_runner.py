@@ -18,7 +18,6 @@ slice's duplicate scan has had its say), and the post-publish ingest snapshot an
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -27,6 +26,7 @@ from langchain_core.language_models import BaseChatModel
 
 from app.database.connection import get_session
 from app.services.wiki.agent_scope import normalize_agent_scope
+from app.services.wiki.dedup_runner import run_post_sync_dedup_scan
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
 from app.services.wiki.source_sync.deferred_enqueue import DeferredCompileEnqueue
 from app.services.wiki.vault import get_wiki_archiver
@@ -38,8 +38,6 @@ from .engine import SLICE_BUDGET_S, SliceOutcome, run_slice
 from .ledger import ImaLedger
 from .state import load_ima_config, load_ima_state
 from .transport import ImaTransport
-
-logger = logging.getLogger(__name__)
 
 SILENT = "[SILENT]"
 _slice_locks: dict[str, asyncio.Lock] = {}
@@ -81,6 +79,7 @@ async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None) -> ImaJobO
         DeferredCompileEnqueue(archiver._compiler, archiver._structure) if auto_compile and state.backfill_complete else None
     )
 
+    scan_completed = False
     try:
         async with ImaTransport(credentials) as transport:
             ctx = SyncContext(
@@ -95,26 +94,17 @@ async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None) -> ImaJobO
             )
             outcome = await run_slice(ctx)
         if (outcome.finished and outcome.generation_total > 0) or (deferred is not None and deferred.has_pending):
-            await _incremental_dedup(agent_id)
+            scan_completed = await run_post_sync_dedup_scan(agent_id=agent_id)
     finally:
         # A failing slice must not strand files it already wrote.
         if deferred is not None:
-            deferred.release()
+            deferred.release(scan_completed=scan_completed)
 
     if outcome.published > 0:
         from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
     return _to_job_outcome(outcome)
-
-
-async def _incremental_dedup(agent_id: str | None) -> None:
-    try:
-        from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
-
-        await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
-    except Exception as exc:
-        logger.warning("Post ima-sync wiki dedup scan failed: %s", exc)
 
 
 def _to_job_outcome(outcome: SliceOutcome) -> ImaJobOutcome:

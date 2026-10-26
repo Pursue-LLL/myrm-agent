@@ -211,3 +211,25 @@ def test_is_wiki_dedup_scan_running(wiki_archiver) -> None:
     assert dedup_runner.is_wiki_dedup_scan_running() is False
     dedup_runner._running_scans.add("__default__")
     assert dedup_runner.is_wiki_dedup_scan_running() is True
+
+
+@pytest.mark.asyncio
+async def test_post_sync_scan_reports_whether_it_completed(wiki_archiver) -> None:
+    _write_duplicate_pair(wiki_archiver)
+    assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is True
+    assert any(group.status is GroupStatus.OPEN for group in dedup_runner.list_wiki_dedup_groups())
+
+
+@pytest.mark.asyncio
+async def test_post_sync_scan_is_not_completed_when_compile_is_busy(wiki_archiver) -> None:
+    wiki_archiver._queue.get_stats = MagicMock(return_value={"processing": 1})
+    assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is False
+
+
+@pytest.mark.asyncio
+async def test_post_sync_scan_swallows_a_failing_scan(wiki_archiver, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def broken(*, agent_id: str | None = None, incremental: bool = True) -> None:
+        raise RuntimeError("scan blew up")
+
+    monkeypatch.setattr(dedup_runner, "run_wiki_dedup_scan_job", broken)
+    assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is False

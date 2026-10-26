@@ -5,14 +5,15 @@
 - myrm_agent_harness.toolkits.wiki::WikiStructure (POS: raw/ root the group member paths are relative to)
 
 [OUTPUT]
-- DeferredCompileEnqueue: ``enqueue_file`` stand-in that records paths; ``release`` queues the ones no open exact/normalized group claims
+- DeferredCompileEnqueue: ``enqueue_file`` stand-in that records paths; ``release`` queues the ones no open exact/normalized group claims once a scan has completed
 
 [POS]
 Connectors call ``compiler_enqueue.enqueue_file(path)`` the moment a file is written, long before the post-run dedup
 scan can say whether it is a copy. Handing them this object instead of the compiler defers only that call: the entry
 point scans, then releases, so identical documents are not compiled (and billed) twice. Members of an open group wait
-for the user in Duplicate Review. Anything the scan did not see (it is skipped while a compile is running) is released
-as before, never dropped.
+for the user in Duplicate Review. When the scan did not complete (it is skipped while a compile is running, or it
+failed) the stored groups say nothing reliable about the new files, so every held file is released: a document is never
+dropped.
 """
 
 from __future__ import annotations
@@ -44,10 +45,13 @@ class DeferredCompileEnqueue:
     def enqueue_file(self, file_path: Path) -> None:
         self._pending[file_path] = None
 
-    def release(self) -> int:
-        """Queue every held file that is not a member of an open exact/normalized group; return how many were queued."""
+    def release(self, *, scan_completed: bool) -> int:
+        """Queue the held files and return how many were queued.
+
+        After a completed scan, members of an open exact/normalized group stay out; without one every file is queued.
+        """
         pending, self._pending = list(self._pending), {}
-        held = self._blocked_relative_paths() if pending else frozenset()
+        held = self._blocked_relative_paths() if pending and scan_completed else frozenset()
         queued = 0
         for path in pending:
             if self._relative_path(path) in held:

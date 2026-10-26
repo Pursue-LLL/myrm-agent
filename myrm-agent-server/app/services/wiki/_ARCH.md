@@ -33,7 +33,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `vault/service.py` | SSOT | `get_wiki_archiver` 进程级缓存单例（严格按 llm, agent_id, manager, public_dirs, public_dir_labels 联合维度多重隔离，彻底根除跨库与会话挂载污染） | ✅ |
 | `chat_compound_service.py` | SSOT | `stage_chat_compound_from_message` — POST /compound DB hydrate Q&A + trust → harness pending；reject inactive/incognito assistant messages | ✅ |
 | `health_report_service.py` | SSOT | GET /wiki/health-report structural scan + merge vault full snapshot drift + `count_open_actions`；maintain 写入/读取 `reports/last-health.json`；健康报告响应模型 `WikiHealthIssueResponse` / `WikiHealthReportResponse` 的唯一定义（路由直接导入） | ✅ |
-| `dedup_runner.py` | SSOT | `schedule_wiki_dedup_scan` (202 background) / `run_wiki_dedup_scan_job` (cron blocking) / `apply_wiki_dedup_disposition` / `wiki_dedup_checklist_ready` — POST /dedup/* 与 Cron `__wiki_dedup__` 共用；compile 进行中 skip scan | ✅ |
+| `dedup_runner.py` | SSOT | `schedule_wiki_dedup_scan` (202 background) / `run_wiki_dedup_scan_job` (cron blocking) / `run_post_sync_dedup_scan`（来源同步后的尽力增量扫描，仅在扫描真正完成时返回 True）/ `apply_wiki_dedup_disposition` / `wiki_dedup_checklist_ready` — POST /dedup/* 与 Cron `__wiki_dedup__` 共用；compile 进行中 skip scan | ✅ |
 | `clip/` | 核心 | Browser extension clip — `form.py` 8MB cap · `runner.py` async jobs → harness `publish_clip_ingress` · post-write ingest SSE；见 [`clip/_ARCH.md`](clip/_ARCH.md) | ✅ |
 | `knowledge_pack/` | 域 | 知识包前置主动注入（`KnowledgePackProactiveInjectionPerAgentTurn`）— schemas DTO · selector Jaccard 相似度去重与硬预算截断；见 [`knowledge_pack/_ARCH.md`](knowledge_pack/_ARCH.md) | ✅ |
 | `wiki_query_intent.py` | 辅助 | Chat Wiki Knowledge Lane 确定性准入闸门（`should_use_wiki_knowledge_lane`） | ✅ |
