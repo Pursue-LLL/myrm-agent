@@ -11,7 +11,9 @@
 [POS]
 The cron lane calls ``run_slice`` repeatedly; each call resumes from the persisted phase, so a restart, a
 rate-limit pause or a slice that ran out of time costs nothing. The engine never decides to pause the job:
-it only reports ``retry_after_s`` and leaves scheduling to the cron layer.
+it only reports ``retry_after_s`` and leaves scheduling to the cron layer. A failure nobody anticipated (ledger,
+state or inventory code) is reported as ``internal`` with a backoff, so the card says something went wrong and the
+lane keeps retrying instead of leaving the user on "importing" forever.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ _MIN_RATE_LIMIT_PAUSE_S = 30.0
 _BACKOFF_BASE_S = 120.0
 _BACKOFF_CAP_S = 3600.0
 # Pauses that a later clean slice resolves; per-library failures recorded during inventory stay until the next pass.
-_RECOVERABLE_KINDS = frozenset({"auth", "rate_limit", "transient", "page_unavailable"})
+_RECOVERABLE_KINDS = frozenset({"auth", "rate_limit", "transient", "page_unavailable", "internal"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,3 +110,10 @@ async def run_slice(ctx: SyncContext) -> SliceOutcome:
         logger.warning("ima sync slice failed (%s, streak %d): %s", exc.kind, state.failure_streak, exc)
         await ctx.persist_state(force=True)
         return outcome(retry_after_s=_backoff_s(state.failure_streak), error_kind=exc.kind)
+    except Exception:
+        # Cancellation is a BaseException and still propagates; details stay in the log, never in the job history.
+        state.failure_streak += 1
+        state.last_error_kind = "internal"
+        logger.exception("ima sync slice failed unexpectedly (streak %d)", state.failure_streak)
+        await ctx.persist_state(force=True)
+        return outcome(retry_after_s=_backoff_s(state.failure_streak), error_kind="internal")

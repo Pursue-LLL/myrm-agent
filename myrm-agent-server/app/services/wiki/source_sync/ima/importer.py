@@ -171,7 +171,7 @@ async def run_import(ctx: SyncContext) -> bool:
     pending: deque[LedgerRow] = deque()
     attempted: set[str] = set()
     claim_lock = asyncio.Lock()
-    fatal: list[ImaError] = []
+    fatal: list[Exception] = []
     drained = False
     transient_streak = 0
 
@@ -180,7 +180,7 @@ async def run_import(ctx: SyncContext) -> bool:
         async with claim_lock:
             if not pending:
                 async with get_session() as db:
-                    rows = await ctx.ledger.claim(db, limit=_CLAIM_BATCH, containers=ctx.containers, exclude=attempted)
+                    rows = await ctx.ledger.claim(db, limit=_CLAIM_BATCH, containers=ctx.config.containers, exclude=attempted)
                 pending.extend(rows)
                 attempted.update(row.item_key for row in rows)
                 drained = not rows
@@ -189,7 +189,12 @@ async def run_import(ctx: SyncContext) -> bool:
     async def worker() -> None:
         nonlocal transient_streak
         while not fatal and ctx.time_left() > 0:
-            row = await next_row()
+            try:
+                row = await next_row()
+            except Exception as exc:
+                # The ledger itself failed: stop every worker and let the slice report it, rather than leave siblings running.
+                fatal.append(exc)
+                return
             if row is None:
                 return
             try:

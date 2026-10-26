@@ -16,6 +16,7 @@ from app.services.wiki.source_sync.ima.ledger import (
 pytestmark = pytest.mark.usefixtures("ima_db")
 
 SCOPE = "__default__"
+CONTAINERS = ["kb1", "kb2", "other"]
 
 
 def item(key: str, *, version: str = "v1", container: str = "kb1", title: str = "doc") -> InventoryItem:
@@ -33,7 +34,7 @@ def item(key: str, *, version: str = "v1", container: str = "kb1", title: str = 
 
 async def _row(factory: async_sessionmaker[AsyncSession], key: str) -> LedgerRow:
     async with factory() as db:
-        rows = await ImaLedger(SCOPE).list_rows(db, limit=100)
+        rows = await ImaLedger(SCOPE).list_rows(db, containers=CONTAINERS, limit=100)
     return next(row for row in rows if row.item_key == key)
 
 
@@ -117,7 +118,7 @@ async def test_retry_failed_restores_the_budget(ima_db: async_sessionmaker[Async
         await ledger.record_failure(db, row, kind="permanent", final=True)
         await db.commit()
     async with ima_db() as db:
-        assert await ledger.retry_failed(db) == 1
+        assert await ledger.retry_failed(db, CONTAINERS) == 1
         await db.commit()
     row = await _row(ima_db, "a")
     assert row.status == LedgerStatus.PENDING and row.attempts == 0 and row.error_kind == ""
@@ -158,17 +159,17 @@ async def test_counts_report_partial_fidelity_and_characters(ima_db: async_sessi
     row_a, row_b, row_c = await _row(ima_db, "a"), await _row(ima_db, "b"), await _row(ima_db, "c")
     async with ima_db() as db:
         await ledger.record_synced(db, row_a, raw_path="p/a.md", fidelity="full", notes=[], char_count=100)
-        await ledger.record_synced(db, row_b, raw_path="p/b.md", fidelity="partial", notes=["plain_text"], char_count=50)
+        await ledger.record_synced(db, row_b, raw_path="p/b.md", fidelity="partial", notes=["layout_flattened"], char_count=50)
         await ledger.record_terminal(db, row_c, LedgerStatus.UNSUPPORTED, reason="unsupported_type")
         await db.commit()
 
     async with ima_db() as db:
-        counts = await ledger.counts(db)
-        lossy = await ledger.list_rows(db, partial_only=True)
-        paths = await ledger.synced_paths(db)
+        counts = await ledger.counts(db, CONTAINERS)
+        lossy = await ledger.list_rows(db, containers=CONTAINERS, partial_only=True)
+        paths = await ledger.synced_paths(db, CONTAINERS)
     assert counts.of(LedgerStatus.SYNCED) == 2 and counts.of(LedgerStatus.UNSUPPORTED) == 1
     assert counts.partial == 1 and counts.total_chars == 150 and counts.total == 3
-    assert [row.fidelity_notes for row in lossy] == [("plain_text",)]
+    assert [row.fidelity_notes for row in lossy] == [("layout_flattened",)]
     assert sorted(paths) == ["p/a.md", "p/b.md"]
 
 
@@ -189,4 +190,101 @@ async def test_has_item_ignores_remote_deleted_but_not_dismissed(ima_db: async_s
 async def test_scopes_are_isolated(ima_db: async_sessionmaker[AsyncSession]) -> None:
     await _upsert(ima_db, [item("a")])
     async with ima_db() as db:
-        assert (await ImaLedger("agent-x").counts(db)).total == 0
+        assert (await ImaLedger("agent-x").counts(db, CONTAINERS)).total == 0
+
+
+async def test_reads_and_retry_cover_only_the_selected_containers(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    await _upsert(ima_db, [item("keep", container="kb1"), item("drop", container="kb2")])
+    ledger = ImaLedger(SCOPE)
+    keep, drop = await _row(ima_db, "keep"), await _row(ima_db, "drop")
+    async with ima_db() as db:
+        await ledger.record_synced(db, keep, raw_path="p/keep.md", fidelity="full", notes=[], char_count=10)
+        await ledger.record_synced(db, drop, raw_path="p/drop.md", fidelity="partial", notes=["layout_flattened"], char_count=90)
+        await db.commit()
+
+    async with ima_db() as db:
+        counts = await ledger.counts(db, ["kb1"])
+        listed = await ledger.list_rows(db, containers=["kb1"], statuses=[LedgerStatus.SYNCED])
+        paths = await ledger.synced_paths(db, ["kb1"])
+        nothing = await ledger.counts(db, [])
+    assert (counts.total, counts.partial, counts.total_chars) == (1, 0, 10)
+    assert [row.item_key for row in listed] == ["keep"] and paths == ["p/keep.md"]
+    assert nothing.total == 0
+
+    async with ima_db() as db:
+        await ledger.record_failure(db, await _row(ima_db, "keep"), kind="permanent", final=True)
+        await ledger.record_failure(db, await _row(ima_db, "drop"), kind="permanent", final=True)
+        await db.commit()
+    async with ima_db() as db:
+        assert await ledger.retry_failed(db, ["kb1"]) == 1
+        await db.commit()
+    assert (await _row(ima_db, "keep")).status == LedgerStatus.PENDING
+    assert (await _row(ima_db, "drop")).status == LedgerStatus.FAILED
+
+
+def sibling(media_id: str, *, base: str = "base", title: str = "Home", version: str | None = None) -> InventoryItem:
+    """An item whose (kb, folder, title) key is ``base``; ``media_id`` distinguishes it from same-titled siblings."""
+    return InventoryItem(
+        item_key=base,
+        fallback_key=f"{base}:{media_id}",
+        container_id="kb1",
+        container_name="Lib",
+        remote_id=media_id,
+        title=title,
+        folder_path="",
+        media_type=7,
+        remote_version=version or media_id,
+    )
+
+
+async def _keys(factory: async_sessionmaker[AsyncSession]) -> dict[str, str]:
+    async with factory() as db:
+        rows = await ImaLedger(SCOPE).list_rows(db, containers=CONTAINERS, limit=100)
+    return {row.item_key: row.remote_id for row in rows}
+
+
+async def test_same_title_siblings_in_one_batch_each_get_a_row(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    added = await _upsert(ima_db, [sibling("m1"), sibling("m2"), sibling("m3")])
+
+    assert added == 3
+    assert await _keys(ima_db) == {"base": "m1", "base:m2": "m2", "base:m3": "m3"}
+
+
+async def test_same_title_siblings_split_across_pages_keep_their_keys(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    await _upsert(ima_db, [sibling("m1")])
+    assert await _upsert(ima_db, [sibling("m2")]) == 1
+    # A page fetched again after a restart resolves to the very same rows.
+    assert await _upsert(ima_db, [sibling("m1"), sibling("m2")]) == 0
+
+    assert await _keys(ima_db) == {"base": "m1", "base:m2": "m2"}
+
+
+async def test_siblings_keep_their_keys_in_the_next_pass_and_unseen_ones_are_marked_gone(
+    ima_db: async_sessionmaker[AsyncSession],
+) -> None:
+    await _upsert(ima_db, [sibling("m1"), sibling("m2")])
+    assert await _upsert(ima_db, [sibling("m1"), sibling("m2")], generation=2) == 0
+
+    assert await _upsert(ima_db, [sibling("m1")], generation=3) == 0
+    async with ima_db() as db:
+        assert await ImaLedger(SCOPE).mark_remote_deleted(db, generation=3, container_ids=["kb1"]) == 1
+        await db.commit()
+    assert (await _row(ima_db, "base:m2")).status == LedgerStatus.REMOTE_DELETED
+    assert (await _row(ima_db, "base")).status == LedgerStatus.PENDING
+
+
+async def test_a_replaced_file_updates_its_row_instead_of_becoming_a_sibling(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    await _upsert(ima_db, [sibling("m1")])
+    await _sync(ima_db, "base")
+
+    # Same title, new media id, in a later pass: ima replaced the file in place.
+    assert await _upsert(ima_db, [sibling("m9")], generation=2) == 0
+
+    row = await _row(ima_db, "base")
+    assert row.remote_id == "m9" and row.status == LedgerStatus.PENDING and row.synced_version == "m1"
+    assert list(await _keys(ima_db)) == ["base"]
+
+
+async def test_the_same_remote_item_listed_twice_in_one_batch_is_one_row(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    assert await _upsert(ima_db, [sibling("m1"), sibling("m1")]) == 1
+    assert await _keys(ima_db) == {"base": "m1"}

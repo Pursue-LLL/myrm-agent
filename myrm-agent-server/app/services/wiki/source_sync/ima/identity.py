@@ -9,8 +9,9 @@
 
 [POS]
 ima reassigns ``media_id`` whenever a same-named file is replaced in place, so a knowledge-base item's
-identity is the (kb, parent folder, title) tuple and ``media_id`` is only the version signal. Notes are
-identified by their own id. Identity never depends on content, which keeps re-syncs idempotent.
+identity is the (kb, parent folder, title) tuple and ``media_id`` is only the version signal. Two items that
+share that tuple cannot both own the key: the later one is told apart by ``media_id`` (see the ledger). Notes
+are identified by their own id. Identity never depends on content, which keeps re-syncs idempotent.
 """
 
 from __future__ import annotations
@@ -39,8 +40,10 @@ def _digest(*parts: str) -> str:
     return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()[:24]
 
 
-def kb_item_key(kb_id: str, parent_folder_id: str, title: str) -> str:
-    return f"kb_{_digest(kb_id, parent_folder_id, title)}"
+def kb_item_key(kb_id: str, parent_folder_id: str, title: str, *, media_id: str = "") -> str:
+    """The plain key follows the (kb, folder, title) tuple; passing ``media_id`` yields the key of a same-title sibling."""
+    parts = (kb_id, parent_folder_id, title, media_id) if media_id else (kb_id, parent_folder_id, title)
+    return f"kb_{_digest(*parts)}"
 
 
 def note_item_key(note_id: str) -> str:

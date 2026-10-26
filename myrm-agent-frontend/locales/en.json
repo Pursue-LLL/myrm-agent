@@ -17859,6 +17859,7 @@
           "reload": "Reload",
           "notesLabel": "Also import my notes",
           "notesHint": "Notes are imported separately and kept in sync with your knowledge bases.",
+          "supported": "Web pages, WeChat articles, PDF, Word, PPT, Excel, Markdown, text, e-books and notes are imported. Images, audio, video and mind maps are skipped.",
           "costHint": "The first import reads everything, which can take a few minutes or longer. You can pause at any time.",
           "start": "Start import",
           "apply": "Save and sync again",
@@ -17873,17 +17874,22 @@
           "upToDate": "Up to date. Updates are checked automatically from time to time",
           "progress": "{done} of {total} processed",
           "progressLabel": "Import progress",
-          "lastRun": "Last sync: {time}"
+          "lastRun": "Last sync: {time}",
+          "nextCheck": "Next check: {time}"
         },
         "actions": {
           "pause": "Pause sync",
           "resume": "Resume sync",
+          "syncNow": "Sync now",
+          "syncNowRunning": "Starting…",
+          "syncNowStarted": "Checking ima for changes…",
           "viewDetails": "View details"
         },
         "notices": {
           "rateLimited": "ima is limiting requests for now. The import continues automatically shortly.",
           "unreachable": "Cannot reach ima right now. It will retry automatically.",
-          "notesUnavailable": "This key cannot read notes, so notes were not imported. Your knowledge bases are not affected."
+          "notesUnavailable": "This key cannot read notes, so notes were not imported. Your knowledge bases are not affected.",
+          "internal": "Something went wrong on our side while importing. It will retry automatically."
         },
         "stats": {
           "imported": "Imported",
@@ -17891,15 +17897,19 @@
           "failed": "Failed",
           "skipped": "Skipped",
           "partial": "Simplified",
-          "removed": "Deleted in ima"
+          "removed": "Deleted in ima",
+          "dismissed": "Removed by you"
         },
         "compile": {
-          "title": "Build knowledge",
-          "body": "{count} documents imported (about {chars} characters). Building knowledge has the AI read and organize each one, which uses more of your quota when there are many documents.",
-          "action": "Build knowledge",
+          "title": "Compile",
+          "body": "{count} documents imported (about {chars} characters). Compiling has the AI read and organize each one, which uses more of your quota when there are many documents.",
+          "autoOn": "Documents that are new or changed after this are compiled automatically.",
+          "autoPending": "Compile this first import yourself with the button. Once it has finished, later changes are compiled automatically.",
+          "autoOff": "Automatic compiling is off. Turn on “Auto-compile after sync” under External sources if you want it.",
+          "action": "Compile imported documents",
           "running": "Submitting…",
-          "queued": "{count} documents queued for knowledge building",
-          "nothing": "Nothing left to build"
+          "queued": "{count} documents queued for compiling",
+          "nothing": "Nothing left to compile"
         },
         "report": {
           "title": "Import details",
@@ -17928,13 +17938,12 @@
           "timeout": "Timed out while reading. You can retry later",
           "transient": "Could not be read right now. You can retry later",
           "permanent": "ima returned content that cannot be processed",
-          "page_unavailable": "The web page is gone or not reachable",
+          "page_unavailable": "The page could not be opened. It may need a login or a verification step, or it no longer exists",
           "auth": "ima refused access. Please reconnect",
           "rate_limit": "ima is limiting requests for now",
           "generic": "Could not be imported"
         },
         "notes": {
-          "plain_text": "Only the text was imported; layout and images were not kept",
           "images_remote": "Images still point to the original page and are not saved locally",
           "body_truncated": "The article is very long, so only the first part was imported",
           "layout_flattened": "Tables or layout were simplified",
@@ -17967,8 +17976,8 @@
           "ima_no_selection": "Choose at least one knowledge base, or turn on \"Also import my notes\"",
           "ima_sync_not_started": "The import has not been started yet",
           "ima_credentials_missing": "Enter both the Client ID and the API Key",
-          "dedup_review_required": "Duplicate documents in the wiki need review first. Resolve them, then build knowledge",
-          "sync_unavailable": "Your plan has reached its limit of scheduled tasks, so automatic sync cannot be turned on",
+          "dedup_review_required": "Duplicate documents in the wiki need review first. Resolve them, then compile",
+          "sync_unavailable": "Scheduled tasks are not available on your plan, or you have used them all, so automatic sync cannot be turned on. Upgrade your plan or remove an unused scheduled task, then try again",
           "generic": "That did not work. Please try again shortly"
         },
         "manage": {

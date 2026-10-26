@@ -64,11 +64,11 @@ async def _resolve(fake: FakeIma, tmp_path: Path, *, item: LedgerRow | None = No
 
 
 def test_render_document_is_deterministic_and_carries_provenance() -> None:
-    body = ImaContent(body="text", lossy=("plain_text",), source_url="https://x/y", type_label="note")
+    body = ImaContent(body="text", lossy=("layout_flattened",), source_url="https://x/y", type_label="note")
     first = render_document(row=row(), content=body, modified="2024-01-02")
     assert first == render_document(row=row(), content=body, modified="2024-01-02")
     assert 'source: "ima"' in first and 'ima_container: "Lib"' in first and 'fidelity: "partial"' in first
-    assert 'fidelity_notes: "plain_text"' in first and 'source_url: "https://x/y"' in first
+    assert 'fidelity_notes: "layout_flattened"' in first and 'source_url: "https://x/y"' in first
     assert 'modified: "2024-01-02"' in first
     assert "# Doc\n\ntext" in first
 
@@ -112,7 +112,7 @@ async def test_document_without_download_url_is_unsupported(tmp_path: Path) -> N
     assert await _resolve(fake, tmp_path) == ImaUnsupported("no_download_url")
 
 
-async def test_note_already_covered_is_a_duplicate_and_otherwise_plain_text(tmp_path: Path) -> None:
+async def test_note_already_covered_is_a_duplicate_and_otherwise_its_text_is_the_baseline(tmp_path: Path) -> None:
     fake = FakeIma(media={"m1": ImaMediaInfo(media_type=11, url="", headers={}, note_id="n1")}, note_text={"n1": "note words"})
 
     async def is_covered(_note_id: str) -> bool:
@@ -120,7 +120,7 @@ async def test_note_already_covered_is_a_duplicate_and_otherwise_plain_text(tmp_
 
     assert isinstance(await _resolve(fake, tmp_path, note_covered=is_covered), ImaDuplicate)
     resolved = await _resolve(fake, tmp_path)
-    assert resolved == ImaContent(body="note words", lossy=("plain_text",), type_label="note")
+    assert resolved == ImaContent(body="note words", type_label="note")
 
 
 async def test_empty_note_is_unsupported() -> None:

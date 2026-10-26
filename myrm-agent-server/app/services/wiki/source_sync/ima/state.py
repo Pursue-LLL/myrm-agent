@@ -23,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.wiki._userconfig_scoped import load_scoped_userconfig, save_scoped_userconfig
 
+from .identity import NOTES_LANE
+
 CONFIG_KEY = "wikiImaSync"
 STATE_KEY = "wikiImaSyncState"
 
@@ -35,6 +37,11 @@ class ImaKbSelection(BaseModel):
 class ImaSyncConfig(BaseModel):
     knowledge_bases: list[ImaKbSelection] = Field(default_factory=list, max_length=50)
     include_notes: bool = True
+
+    @property
+    def containers(self) -> list[str]:
+        """Ledger containers this configuration imports; rows of deselected libraries are left untouched, never counted."""
+        return [*(kb.id for kb in self.knowledge_bases), *([NOTES_LANE] if self.include_notes else [])]
 
     def fingerprint(self) -> str:
         """Identity of what is imported; a run restarts its inventory when this differs from the one it started with."""

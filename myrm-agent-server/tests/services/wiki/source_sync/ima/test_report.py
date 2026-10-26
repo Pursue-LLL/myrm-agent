@@ -10,13 +10,15 @@ from myrm_agent_harness.toolkits.cron.types import JobStatus
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
+from app.services.wiki.source_sync import config_store
 from app.services.wiki.source_sync.ima import report
 from app.services.wiki.source_sync.ima.identity import NOTES_LANE
 from app.services.wiki.source_sync.ima.ledger import ImaLedger, InventoryItem, LedgerStatus
 from app.services.wiki.source_sync.ima.models import ImaCredentials
 from app.services.wiki.source_sync.ima.state import ImaKbSelection, ImaSyncConfig, ImaSyncState, save_ima_config, save_ima_state
+from app.services.wiki.source_sync.schemas import WikiSourceSyncConfig
 
-NEXT_RUN = datetime(2026, 1, 1, tzinfo=UTC)
+NEXT_RUN = datetime(2999, 1, 1, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -53,7 +55,7 @@ async def _seed(ima_db: async_sessionmaker[AsyncSession]) -> None:
         await ledger.upsert_inventory(db, items, generation=1, raw_exists=lambda _path: True)
         await db.commit()
     async with ima_db() as db:
-        rows = {row.item_key: row for row in await ledger.list_rows(db)}
+        rows = {row.item_key: row for row in await ledger.list_rows(db, containers=["kb1"])}
     async with ima_db() as db:
         await ledger.record_synced(db, rows["ok"], raw_path="ima/ok.md", fidelity="full", notes=[], char_count=100)
         await ledger.record_synced(
@@ -69,6 +71,9 @@ async def _seed(ima_db: async_sessionmaker[AsyncSession]) -> None:
             db, [entry for entry in items if entry.item_key != "gone"], generation=2, raw_exists=lambda _path: True
         )
         await ledger.mark_remote_deleted(db, generation=2, container_ids=["kb1"])
+        await save_ima_config(
+            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="Lib")], include_notes=False), agent_id=None
+        )
         await db.commit()
 
 
@@ -149,3 +154,66 @@ async def test_item_buckets_expose_codes_only(ima_db: async_sessionmaker[AsyncSe
 
     gone = await report.list_items(None, "remote_deleted")
     assert [(view.title, view.status) for view in gone] == [("gone.md", "remote_deleted")]
+
+
+async def test_status_and_buckets_cover_only_the_selected_libraries(
+    ima_db: async_sessionmaker[AsyncSession], connected: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _seed(ima_db)
+    async with ima_db() as db:
+        await ImaLedger(DEFAULT_AGENT_SCOPE).upsert_inventory(
+            db, [item("old", "old.md", container="kb2")], generation=1, raw_exists=lambda _path: True
+        )
+        await db.commit()
+        row = (await ImaLedger(DEFAULT_AGENT_SCOPE).list_rows(db, containers=["kb2"]))[0]
+        await ImaLedger(DEFAULT_AGENT_SCOPE).record_failure(db, row, kind="permanent", final=True)
+        await db.commit()
+
+    async def no_job(agent_id: str | None) -> None:
+        return None
+
+    monkeypatch.setattr(report, "find_job", no_job)
+
+    status = await report.build_status(None)
+    attention = await report.list_items(None, "attention")
+
+    assert status.counts.total == 6 and status.counts.failed == 1
+    assert "old.md" not in {view.title for view in attention}
+
+
+async def test_status_reports_the_shared_auto_compile_switch(
+    ima_db: async_sessionmaker[AsyncSession], connected: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def no_job(agent_id: str | None) -> None:
+        return None
+
+    monkeypatch.setattr(report, "find_job", no_job)
+    assert (await report.build_status(None)).auto_compile is True
+
+    async with ima_db() as db:
+        await config_store.save_wiki_source_sync_config(db, WikiSourceSyncConfig(auto_compile=False), agent_id=None)
+    assert (await report.build_status(None)).auto_compile is False
+
+
+@pytest.mark.parametrize(
+    ("next_run", "shown"),
+    [
+        (datetime(2000, 1, 1, tzinfo=UTC), False),
+        (datetime(2000, 1, 1), False),
+        (datetime(2999, 1, 1), True),
+        (None, False),
+    ],
+)
+async def test_next_check_is_shown_only_while_it_is_still_ahead(
+    ima_db: async_sessionmaker[AsyncSession],
+    connected: None,
+    monkeypatch: pytest.MonkeyPatch,
+    next_run: datetime | None,
+    shown: bool,
+) -> None:
+    async def job(agent_id: str | None) -> SimpleNamespace:
+        return SimpleNamespace(status=JobStatus.ACTIVE, next_run_at=next_run)
+
+    monkeypatch.setattr(report, "find_job", job)
+
+    assert ((await report.build_status(None)).job.next_run_at is not None) is shown

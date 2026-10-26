@@ -9,8 +9,9 @@
 
 [POS]
 Single owner of ledger status transitions. Identity is the item key; ``remote_version`` is the change signal.
-A removed raw file is a user decision (``dismissed``) and is never resurrected; a remote disappearance is
-informational (``remote_deleted``) and never deletes local evidence.
+Everything the user sees or acts on (counts, reports, retry, compile) is limited to the containers currently
+selected, while rows of a deselected library stay in place. A removed raw file is a user decision (``dismissed``)
+and is never resurrected; a remote disappearance is informational (``remote_deleted``) and never deletes local evidence.
 """
 
 from __future__ import annotations
@@ -54,6 +55,8 @@ class InventoryItem:
     folder_path: str
     media_type: int | None
     remote_version: str
+    # Key to use when ``item_key`` already belongs to another item seen in the same pass (same title in one folder).
+    fallback_key: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,8 +118,11 @@ class ImaLedger:
     def __init__(self, agent_scope: str) -> None:
         self._scope = agent_scope
 
-    def _where(self) -> tuple[ColumnElement[bool], ...]:
-        return (WikiSourceLedgerEntry.agent_scope == self._scope, WikiSourceLedgerEntry.source == SOURCE)
+    def _where(self, containers: Sequence[str] | None = None) -> tuple[ColumnElement[bool], ...]:
+        scope = (WikiSourceLedgerEntry.agent_scope == self._scope, WikiSourceLedgerEntry.source == SOURCE)
+        if containers is None:
+            return scope
+        return (*scope, WikiSourceLedgerEntry.container_id.in_(list(containers)))
 
     async def upsert_inventory(
         self,
@@ -126,36 +132,50 @@ class ImaLedger:
         generation: int,
         raw_exists: Callable[[str], bool],
     ) -> int:
-        """Record a batch of inventoried items and return how many are new."""
+        """Record a batch of inventoried items and return how many are new.
+
+        Two items can share one key (same title in one folder). The first seen in a pass keeps it and later ones
+        move to their ``fallback_key``; the claim is read back from rows this pass already stamped, so a page that
+        is fetched again after a restart resolves to the same keys.
+        """
         if not items:
             return 0
-        keys = [item.item_key for item in items]
+        keys = {key for item in items for key in (item.item_key, item.fallback_key) if key}
         existing = {
             entry.item_key: entry
             for entry in (
                 await db.execute(select(WikiSourceLedgerEntry).where(*self._where(), WikiSourceLedgerEntry.item_key.in_(keys)))
             ).scalars()
         }
+
+        def holder_of(key: str) -> str | None:
+            """The remote item that already claimed *key* in this pass (new rows are registered as they are built)."""
+            entry = existing.get(key)
+            return entry.remote_id if entry is not None and entry.seen_generation == generation else None
+
         added = 0
         for item in items:
-            entry = existing.get(item.item_key)
+            remote_id = item.remote_id[:256]
+            key = item.item_key
+            if item.fallback_key and holder_of(key) not in (None, remote_id):
+                key = item.fallback_key
+            entry = existing.get(key)
             if entry is None:
-                db.add(
-                    WikiSourceLedgerEntry(
-                        agent_scope=self._scope,
-                        source=SOURCE,
-                        item_key=item.item_key,
-                        container_id=item.container_id,
-                        container_name=item.container_name[:256],
-                        remote_id=item.remote_id[:256],
-                        title=item.title[:512],
-                        folder_path=item.folder_path[:512],
-                        media_type=item.media_type,
-                        remote_version=item.remote_version[:128],
-                        status=LedgerStatus.PENDING.value,
-                        seen_generation=generation,
-                    )
+                existing[key] = entry = WikiSourceLedgerEntry(
+                    agent_scope=self._scope,
+                    source=SOURCE,
+                    item_key=key,
+                    container_id=item.container_id,
+                    container_name=item.container_name[:256],
+                    remote_id=remote_id,
+                    title=item.title[:512],
+                    folder_path=item.folder_path[:512],
+                    media_type=item.media_type,
+                    remote_version=item.remote_version[:128],
+                    status=LedgerStatus.PENDING.value,
+                    seen_generation=generation,
                 )
+                db.add(entry)
                 added += 1
                 continue
             self._refresh(entry, item, generation=generation, raw_exists=raw_exists)
@@ -281,21 +301,22 @@ class ImaLedger:
         )
         return int(getattr(result, "rowcount", 0) or 0)
 
-    async def retry_failed(self, db: AsyncSession) -> int:
+    async def retry_failed(self, db: AsyncSession, containers: Sequence[str]) -> int:
         result = await db.execute(
             update(WikiSourceLedgerEntry)
-            .where(*self._where(), WikiSourceLedgerEntry.status == LedgerStatus.FAILED.value)
+            .where(*self._where(containers), WikiSourceLedgerEntry.status == LedgerStatus.FAILED.value)
             .values(status=LedgerStatus.PENDING.value, attempts=0, error_kind="")
         )
         return int(getattr(result, "rowcount", 0) or 0)
 
-    async def counts(self, db: AsyncSession) -> LedgerCounts:
+    async def counts(self, db: AsyncSession, containers: Sequence[str]) -> LedgerCounts:
+        scope = self._where(containers)
         grouped = (
             await db.execute(
-                select(WikiSourceLedgerEntry.status, func.count()).where(*self._where()).group_by(WikiSourceLedgerEntry.status)
+                select(WikiSourceLedgerEntry.status, func.count()).where(*scope).group_by(WikiSourceLedgerEntry.status)
             )
         ).all()
-        synced_where = (*self._where(), WikiSourceLedgerEntry.status == LedgerStatus.SYNCED.value)
+        synced_where = (*scope, WikiSourceLedgerEntry.status == LedgerStatus.SYNCED.value)
         partial = (
             await db.execute(select(func.count()).where(*synced_where, WikiSourceLedgerEntry.fidelity == "partial"))
         ).scalar_one()
@@ -310,11 +331,12 @@ class ImaLedger:
         self,
         db: AsyncSession,
         *,
+        containers: Sequence[str],
         statuses: Sequence[LedgerStatus] = (),
         partial_only: bool = False,
         limit: int = 100,
     ) -> list[LedgerRow]:
-        query = select(WikiSourceLedgerEntry).where(*self._where())
+        query = select(WikiSourceLedgerEntry).where(*self._where(containers))
         if statuses:
             query = query.where(WikiSourceLedgerEntry.status.in_([status.value for status in statuses]))
         if partial_only:
@@ -324,10 +346,12 @@ class ImaLedger:
         query = query.order_by(WikiSourceLedgerEntry.updated_at.desc(), WikiSourceLedgerEntry.item_key).limit(limit)
         return [_to_row(entry) for entry in (await db.execute(query)).scalars()]
 
-    async def synced_paths(self, db: AsyncSession) -> list[str]:
+    async def synced_paths(self, db: AsyncSession, containers: Sequence[str]) -> list[str]:
         rows = await db.execute(
             select(WikiSourceLedgerEntry.raw_path).where(
-                *self._where(), WikiSourceLedgerEntry.status == LedgerStatus.SYNCED.value, WikiSourceLedgerEntry.raw_path != ""
+                *self._where(containers),
+                WikiSourceLedgerEntry.status == LedgerStatus.SYNCED.value,
+                WikiSourceLedgerEntry.raw_path != "",
             )
         )
         return [path for (path,) in rows.all()]

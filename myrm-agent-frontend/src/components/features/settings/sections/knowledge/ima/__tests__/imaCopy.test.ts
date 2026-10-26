@@ -5,10 +5,12 @@ import { ApiError } from '@/lib/api';
 import { locales } from '@/i18n/config';
 import type { ImaItemCounts, ImaStatus } from '@/services/wiki/ima';
 import {
+  canImaSyncNow,
   deriveImaSyncMode,
   deriveImaView,
   formatImaChars,
   imaAttentionCount,
+  imaAutoCompileKey,
   imaErrorKey,
   imaKindKey,
   imaNoteKeys,
@@ -46,6 +48,7 @@ function makeStatus(overrides: Partial<ImaStatus> = {}): ImaStatus {
     last_run_at: null,
     last_error_kind: '',
     notes_unavailable: false,
+    auto_compile: true,
     counts: NO_COUNTS,
     total_chars: 0,
     ...overrides,
@@ -80,6 +83,23 @@ describe('deriveImaSyncMode', () => {
     expect(deriveImaSyncMode(makeStatus({ phase: 'fetch', job: { state: 'paused', next_run_at: null } }))).toBe(
       'paused',
     );
+  });
+});
+
+describe('sync now and auto-compile wording', () => {
+  it('offers a check only between slices or once up to date, never while one is reading or importing', () => {
+    expect(canImaSyncNow(makeStatus({ phase: 'idle', backfill_complete: true }))).toBe(true);
+    expect(canImaSyncNow(makeStatus({ phase: 'idle', backfill_complete: false }))).toBe(true);
+    expect(canImaSyncNow(makeStatus({ phase: 'inventory' }))).toBe(false);
+    expect(canImaSyncNow(makeStatus({ phase: 'fetch' }))).toBe(false);
+    expect(canImaSyncNow(makeStatus({ phase: 'idle', job: { state: 'paused', next_run_at: null } }))).toBe(false);
+  });
+
+  it('only promises automatic compiling once the first import is complete and the shared switch is on', () => {
+    expect(imaAutoCompileKey(makeStatus({ auto_compile: false, backfill_complete: true }))).toBe('compile.autoOff');
+    expect(imaAutoCompileKey(makeStatus({ auto_compile: false, backfill_complete: false }))).toBe('compile.autoOff');
+    expect(imaAutoCompileKey(makeStatus({ auto_compile: true, backfill_complete: false }))).toBe('compile.autoPending');
+    expect(imaAutoCompileKey(makeStatus({ auto_compile: true, backfill_complete: true }))).toBe('compile.autoOn');
   });
 });
 
@@ -166,7 +186,7 @@ const SERVER_REASONS = [
   'auth',
   'rate_limit',
 ];
-const SERVER_NOTES = ['plain_text', 'images_remote', 'body_truncated', 'layout_flattened', 'redacted'];
+const SERVER_NOTES = ['images_remote', 'body_truncated', 'layout_flattened', 'redacted'];
 const SERVER_KINDS = [
   'pdf',
   'web',

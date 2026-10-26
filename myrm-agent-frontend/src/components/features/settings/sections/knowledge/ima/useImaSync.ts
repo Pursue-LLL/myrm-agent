@@ -8,7 +8,7 @@
  * [OUTPUT]
  * useImaSync: ima status for one agent vault, kept fresh while a sync runs, plus every user action as a typed result
  * ImaAction / ImaResult: which action is in flight and how an action ended
- * IMA_POLL_INTERVAL_MS: polling cadence
+ * IMA_POLL_INTERVAL_MS / IMA_WATCH_AFTER_SYNC_NOW_MS: polling cadence, and how long polling continues after "sync now"
  *
  * [POS]
  * State holder of the ima card. The first import takes minutes and outlives any request, so the page reads status on
@@ -34,8 +34,10 @@ import {
 import { imaErrorKey, shouldPollIma } from './imaCopy';
 
 export const IMA_POLL_INTERVAL_MS = 4000;
+/** An idle, up-to-date sync never polls on its own; after "sync now" it does for this long so the outcome shows up. */
+export const IMA_WATCH_AFTER_SYNC_NOW_MS = 60_000;
 
-export type ImaAction = 'connect' | 'disconnect' | 'start' | 'pause' | 'resume' | 'retry' | 'compile';
+export type ImaAction = 'connect' | 'disconnect' | 'start' | 'syncNow' | 'pause' | 'resume' | 'retry' | 'compile';
 
 export type ImaResult<T = void> = { ok: true; value: T } | { ok: false; errorKey: string };
 
@@ -48,6 +50,7 @@ export function useImaSync(agentId: string | null) {
   const [tracked, setTracked] = useState<TrackedStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState<ImaAction | null>(null);
+  const [watching, setWatching] = useState(false);
   const pollInFlightRef = useRef(false);
 
   // A status read for another agent vault is never shown: switching scope reads as "not loaded yet".
@@ -68,7 +71,15 @@ export function useImaSync(agentId: string | null) {
     void refresh();
   }, [refresh]);
 
-  const polling = shouldPollIma(status);
+  useEffect(() => {
+    if (!watching) {
+      return;
+    }
+    const timer = window.setTimeout(() => setWatching(false), IMA_WATCH_AFTER_SYNC_NOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [watching]);
+
+  const polling = shouldPollIma(status) || (watching && status?.connected === true && status.job.state === 'active');
   useEffect(() => {
     if (!polling) {
       return;
@@ -128,6 +139,18 @@ export function useImaSync(agentId: string | null) {
     [agentId, runStatus],
   );
 
+  /** Runs the scheduled check right away; the server only wakes the existing job, it never re-saves the selection. */
+  const syncNow = useCallback(
+    async (locale: string): Promise<ImaResult> => {
+      const result = await runStatus('syncNow', () => startImaSync(locale, agentId));
+      if (result.ok) {
+        setWatching(true);
+      }
+      return result;
+    },
+    [agentId, runStatus],
+  );
+
   const pause = useCallback(() => runStatus('pause', () => pauseImaSync(agentId)), [agentId, runStatus]);
 
   const resume = useCallback(() => runStatus('resume', () => resumeImaSync(agentId)), [agentId, runStatus]);
@@ -142,5 +165,18 @@ export function useImaSync(agentId: string | null) {
 
   const compile = useCallback(() => run('compile', () => compileImaImports(agentId)), [agentId, run]);
 
-  return { status, loadFailed, busy, refresh, connect, disconnect, startSync, pause, resume, retryFailed, compile };
+  return {
+    status,
+    loadFailed,
+    busy,
+    refresh,
+    connect,
+    disconnect,
+    startSync,
+    syncNow,
+    pause,
+    resume,
+    retryFailed,
+    compile,
+  };
 }

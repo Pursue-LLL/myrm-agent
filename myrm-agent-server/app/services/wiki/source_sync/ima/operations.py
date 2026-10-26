@@ -117,7 +117,8 @@ async def resume_sync(*, agent_id: str | None) -> None:
 
 async def retry_failed(*, agent_id: str | None) -> int:
     async with get_session() as db:
-        reset = await ImaLedger(normalize_agent_scope(agent_id)).retry_failed(db)
+        containers = (await load_ima_config(db, agent_id=agent_id)).containers
+        reset = await ImaLedger(normalize_agent_scope(agent_id)).retry_failed(db, containers)
         await db.commit()
     if reset:
         await trigger_if_active(agent_id)
@@ -125,7 +126,10 @@ async def retry_failed(*, agent_id: str | None) -> int:
 
 
 async def compile_imported(*, llm: BaseChatModel, agent_id: str | None) -> int:
-    """Queue only the documents ima imported (and that still need compiling), not the rest of the vault."""
+    """Queue only the documents ima imported for the current selection (and that still need compiling), not the rest of the vault.
+
+    The scope matches the card's count and character figure, so what is queued is what the user was shown.
+    """
     from myrm_agent_harness.toolkits.wiki.pipeline.compiler_enqueue import filter_changed_files
     from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusEligibilityFilter
 
@@ -136,7 +140,8 @@ async def compile_imported(*, llm: BaseChatModel, agent_id: str | None) -> int:
     archiver = get_wiki_archiver(llm, agent_id=agent_id)
     structure = archiver._structure
     async with get_session() as db:
-        raw_paths = await ImaLedger(normalize_agent_scope(agent_id)).synced_paths(db)
+        containers = (await load_ima_config(db, agent_id=agent_id)).containers
+        raw_paths = await ImaLedger(normalize_agent_scope(agent_id)).synced_paths(db, containers)
     existing: list[Path] = []
     for relative in raw_paths:
         try:

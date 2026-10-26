@@ -11,8 +11,9 @@
 
 [POS]
 Reuses the existing conversion and web-fetch stacks instead of re-implementing them. Lossy outcomes are named
-(``plain_text``, ``images_remote``, ``body_truncated``, ``layout_flattened``) so the ledger can report fidelity
-instead of claiming every import is exact.
+(``images_remote``, ``body_truncated``, ``layout_flattened``) so the ledger can report fidelity instead of claiming
+every import is exact. A note's plain text is all ima's API offers, so it is the baseline, not a loss: counting it
+would flag every note as simplified and bury the items that really lost something.
 """
 
 from __future__ import annotations
@@ -157,7 +158,7 @@ async def _note_text(client: ImaClient, note_id: str) -> ImaContent | ImaUnsuppo
     text = await client.get_note_text(note_id)
     if not text:
         return ImaUnsupported("no_text")
-    return ImaContent(body=text, lossy=("plain_text",), type_label="note")
+    return ImaContent(body=text, type_label="note")
 
 
 async def resolve_note(client: ImaClient, note_id: str) -> ImaContent | ImaUnsupported:

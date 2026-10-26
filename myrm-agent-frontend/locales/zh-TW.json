@@ -17859,6 +17859,7 @@
           "reload": "重新載入",
           "notesLabel": "同時匯入我的筆記",
           "notesHint": "筆記會單獨匯入，並和知識庫一起保持同步。",
+          "supported": "支援匯入網頁、微信文章、PDF、Word、PPT、Excel、Markdown、文字、電子書與筆記；圖片、音訊、影片與心智圖會被略過。",
           "costHint": "首次匯入會讀取全部內容，可能需要幾分鐘甚至更久，期間可以隨時暫停。",
           "start": "開始匯入",
           "apply": "儲存並重新同步",
@@ -17873,17 +17874,22 @@
           "upToDate": "已是最新，之後會定期自動檢查更新",
           "progress": "已處理 {done} / {total}",
           "progressLabel": "匯入進度",
-          "lastRun": "上次同步：{time}"
+          "lastRun": "上次同步：{time}",
+          "nextCheck": "下次檢查：{time}"
         },
         "actions": {
           "pause": "暫停同步",
           "resume": "繼續同步",
+          "syncNow": "立即同步",
+          "syncNowRunning": "正在啟動…",
+          "syncNowStarted": "正在檢查 ima 是否有更新…",
           "viewDetails": "查看明細"
         },
         "notices": {
           "rateLimited": "ima 暫時限制了存取頻率，稍後會自動繼續。",
           "unreachable": "暫時連不上 ima，稍後會自動重試。",
-          "notesUnavailable": "目前的金鑰沒有讀取筆記的權限，筆記未匯入，知識庫內容不受影響。"
+          "notesUnavailable": "目前的金鑰沒有讀取筆記的權限，筆記未匯入，知識庫內容不受影響。",
+          "internal": "匯入時出了點問題，稍後會自動重試。"
         },
         "stats": {
           "imported": "已匯入",
@@ -17891,15 +17897,19 @@
           "failed": "失敗",
           "skipped": "已略過",
           "partial": "內容已簡化",
-          "removed": "ima 中已刪除"
+          "removed": "ima 中已刪除",
+          "dismissed": "你已移除"
         },
         "compile": {
-          "title": "生成知識",
-          "body": "已匯入 {count} 篇文件（約 {chars} 字）。生成知識時 AI 會逐篇閱讀並整理，文件較多時會消耗較多用量。",
-          "action": "生成知識",
+          "title": "編譯",
+          "body": "已匯入 {count} 篇文件（約 {chars} 字）。編譯時 AI 會逐篇閱讀並整理，文件較多時會消耗較多用量。",
+          "autoOn": "此後新增或有變更的文件會自動編譯。",
+          "autoPending": "首次匯入的文件請點擊按鈕自行編譯；首次匯入完成後，之後的變更會自動編譯。",
+          "autoOff": "自動編譯已關閉。如需開啟，請在「外部來源」中開啟「同步後自動編譯」。",
+          "action": "編譯已匯入文件",
           "running": "正在提交…",
-          "queued": "已將 {count} 篇文件加入生成佇列",
-          "nothing": "沒有需要生成的文件"
+          "queued": "已將 {count} 篇文件加入編譯佇列",
+          "nothing": "沒有需要編譯的文件"
         },
         "report": {
           "title": "匯入明細",
@@ -17928,13 +17938,12 @@
           "timeout": "讀取逾時，可稍後重試",
           "transient": "暫時無法讀取，可稍後重試",
           "permanent": "ima 回傳的內容無法處理",
-          "page_unavailable": "網頁已失效或無法存取",
+          "page_unavailable": "網頁無法開啟，可能需要登入或驗證，也可能已經失效",
           "auth": "ima 拒絕了存取，請重新連線",
           "rate_limit": "ima 暫時限制了存取頻率",
           "generic": "未能匯入"
         },
         "notes": {
-          "plain_text": "只匯入了文字，排版與圖片未保留",
           "images_remote": "圖片仍指向原網頁，沒有儲存到本機",
           "body_truncated": "文章太長，只匯入了前面一部分",
           "layout_flattened": "表格或排版已被簡化",
@@ -17967,8 +17976,8 @@
           "ima_no_selection": "請至少選擇一個知識庫，或開啟「同時匯入我的筆記」",
           "ima_sync_not_started": "還沒有開始匯入",
           "ima_credentials_missing": "請填寫 Client ID 和 API Key",
-          "dedup_review_required": "Wiki 裡有重複文件待處理，請先處理後再生成知識",
-          "sync_unavailable": "目前方案的排程任務數量已達上限，暫時無法開啟自動同步",
+          "dedup_review_required": "Wiki 裡有重複文件待處理，請先處理後再編譯",
+          "sync_unavailable": "目前方案不支援排程任務，或排程任務數量已用完，暫時無法開啟自動同步。可升級方案或刪除不用的排程任務後重試",
           "generic": "操作沒有成功，請稍後再試"
         },
         "manage": {

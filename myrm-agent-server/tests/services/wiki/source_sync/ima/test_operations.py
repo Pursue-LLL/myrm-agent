@@ -217,9 +217,22 @@ def inventory_item(key: str) -> InventoryItem:
     )
 
 
+async def _select_libraries(ima_db: async_sessionmaker[AsyncSession], *library_ids: str) -> None:
+    async with ima_db() as db:
+        await save_ima_config(
+            db,
+            ImaSyncConfig(
+                knowledge_bases=[ImaKbSelection(id=library_id, name=library_id) for library_id in library_ids],
+                include_notes=False,
+            ),
+            agent_id=None,
+        )
+
+
 async def test_retry_failed_triggers_the_job_only_when_something_was_reset(
     recorder: Recorder, ima_db: async_sessionmaker[AsyncSession]
 ) -> None:
+    await _select_libraries(ima_db, "kb1")
     assert await operations.retry_failed(agent_id=None) == 0
     assert recorder.triggered == []
 
@@ -228,12 +241,29 @@ async def test_retry_failed_triggers_the_job_only_when_something_was_reset(
         await ledger.upsert_inventory(db, [inventory_item("a")], generation=1, raw_exists=lambda _path: True)
         await db.commit()
     async with ima_db() as db:
-        row = (await ledger.list_rows(db))[0]
+        row = (await ledger.list_rows(db, containers=["kb1"]))[0]
         await ledger.record_failure(db, row, kind="permanent", final=True)
         await db.commit()
 
     assert await operations.retry_failed(agent_id=None) == 1
     assert recorder.triggered == [None]
+
+
+async def test_retry_failed_leaves_items_of_deselected_libraries_alone(
+    recorder: Recorder, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    ledger = ImaLedger(DEFAULT_AGENT_SCOPE)
+    async with ima_db() as db:
+        await ledger.upsert_inventory(db, [inventory_item("a")], generation=1, raw_exists=lambda _path: True)
+        await db.commit()
+    async with ima_db() as db:
+        row = (await ledger.list_rows(db, containers=["kb1"]))[0]
+        await ledger.record_failure(db, row, kind="permanent", final=True)
+        await db.commit()
+    await _select_libraries(ima_db, "kb2")
+
+    assert await operations.retry_failed(agent_id=None) == 0
+    assert recorder.triggered == []
 
 
 @dataclass
@@ -274,12 +304,13 @@ def archiver(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeArchiver:
 async def _synced(
     ima_db: async_sessionmaker[AsyncSession], archiver: FakeArchiver, names: list[str], *, write: bool = True
 ) -> None:
+    await _select_libraries(ima_db, "kb1")
     ledger = ImaLedger(DEFAULT_AGENT_SCOPE)
     async with ima_db() as db:
         await ledger.upsert_inventory(db, [inventory_item(name) for name in names], generation=1, raw_exists=lambda _path: True)
         await db.commit()
     async with ima_db() as db:
-        rows = await ledger.list_rows(db)
+        rows = await ledger.list_rows(db, containers=["kb1"])
     async with ima_db() as db:
         for row in rows:
             relative = f"ima/Lib/{row.title}.md"
@@ -332,3 +363,13 @@ async def test_compile_waits_for_duplicate_review(
     with pytest.raises(ImaOperationError) as caught:
         await operations.compile_imported(llm=LLM, agent_id=None)
     assert caught.value.code == "dedup_review_required"
+
+
+async def test_compile_ignores_documents_of_deselected_libraries(
+    archiver: FakeArchiver, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    await _synced(ima_db, archiver, ["a", "b"])
+    await _select_libraries(ima_db, "kb2")
+
+    assert await operations.compile_imported(llm=LLM, agent_id=None) == 0
+    assert archiver._queue.added == []

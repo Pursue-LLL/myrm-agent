@@ -137,6 +137,7 @@ export default function ImaLibraryPicker({
         </div>
         <Switch id="ima-include-notes" checked={includeNotes} onCheckedChange={setIncludeNotes} />
       </div>
+      <p className="text-xs text-muted-foreground">{t('libraries.supported')}</p>
 
       {errorKey ? (
         <p role="alert" className="text-sm text-destructive">

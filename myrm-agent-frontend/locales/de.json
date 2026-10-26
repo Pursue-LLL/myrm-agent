@@ -17859,6 +17859,7 @@
           "reload": "Neu laden",
           "notesLabel": "Auch meine Notizen importieren",
           "notesHint": "Notizen werden separat importiert und zusammen mit Ihren Wissensdatenbanken synchron gehalten.",
+          "supported": "Webseiten, WeChat-Artikel, PDF, Word, PPT, Excel, Markdown, Text, E-Books und Notizen werden importiert. Bilder, Audio, Video und Mindmaps werden übersprungen.",
           "costHint": "Der erste Import liest alles und kann einige Minuten oder länger dauern. Sie können jederzeit pausieren.",
           "start": "Import starten",
           "apply": "Speichern und erneut synchronisieren",
@@ -17873,17 +17874,22 @@
           "upToDate": "Aktuell. Aktualisierungen werden danach regelmäßig automatisch geprüft",
           "progress": "{done} von {total} verarbeitet",
           "progressLabel": "Importfortschritt",
-          "lastRun": "Letzte Synchronisierung: {time}"
+          "lastRun": "Letzte Synchronisierung: {time}",
+          "nextCheck": "Nächste Prüfung: {time}"
         },
         "actions": {
           "pause": "Synchronisierung pausieren",
           "resume": "Synchronisierung fortsetzen",
+          "syncNow": "Jetzt synchronisieren",
+          "syncNowRunning": "Wird gestartet…",
+          "syncNowStarted": "ima wird auf Änderungen geprüft…",
           "viewDetails": "Details ansehen"
         },
         "notices": {
           "rateLimited": "ima begrenzt gerade die Anfragen. Der Import läuft in Kürze automatisch weiter.",
           "unreachable": "ima ist gerade nicht erreichbar. Es wird automatisch erneut versucht.",
-          "notesUnavailable": "Dieser Schlüssel darf keine Notizen lesen, daher wurden keine Notizen importiert. Ihre Wissensdatenbanken sind nicht betroffen."
+          "notesUnavailable": "Dieser Schlüssel darf keine Notizen lesen, daher wurden keine Notizen importiert. Ihre Wissensdatenbanken sind nicht betroffen.",
+          "internal": "Beim Import ist etwas schiefgelaufen. Es wird automatisch erneut versucht."
         },
         "stats": {
           "imported": "Importiert",
@@ -17891,15 +17897,19 @@
           "failed": "Fehlgeschlagen",
           "skipped": "Übersprungen",
           "partial": "Vereinfacht",
-          "removed": "In ima gelöscht"
+          "removed": "In ima gelöscht",
+          "dismissed": "Von Ihnen entfernt"
         },
         "compile": {
-          "title": "Wissen aufbauen",
-          "body": "{count} Dokumente importiert (etwa {chars} Zeichen). Beim Wissensaufbau liest und ordnet die KI jedes Dokument, was bei vielen Dokumenten mehr Kontingent verbraucht.",
-          "action": "Wissen aufbauen",
+          "title": "Kompilieren",
+          "body": "{count} Dokumente importiert (etwa {chars} Zeichen). Beim Kompilieren liest und ordnet die KI jedes Dokument, was bei vielen Dokumenten mehr Kontingent verbraucht.",
+          "autoOn": "Neue oder geänderte Dokumente werden ab jetzt automatisch kompiliert.",
+          "autoPending": "Kompilieren Sie diesen ersten Import selbst über die Schaltfläche. Sobald er abgeschlossen ist, werden spätere Änderungen automatisch kompiliert.",
+          "autoOff": "Automatisches Kompilieren ist aus. Aktivieren Sie bei Bedarf unter Externe Quellen „Nach Synchronisierung automatisch kompilieren“.",
+          "action": "Importierte Dokumente kompilieren",
           "running": "Wird übermittelt…",
-          "queued": "{count} Dokumente für den Wissensaufbau eingereiht",
-          "nothing": "Es gibt nichts mehr aufzubauen"
+          "queued": "{count} Dokumente zum Kompilieren eingereiht",
+          "nothing": "Es gibt nichts mehr zu kompilieren"
         },
         "report": {
           "title": "Importdetails",
@@ -17928,13 +17938,12 @@
           "timeout": "Zeitüberschreitung beim Lesen. Sie können es später erneut versuchen",
           "transient": "Gerade nicht lesbar. Sie können es später erneut versuchen",
           "permanent": "ima hat Inhalte geliefert, die sich nicht verarbeiten lassen",
-          "page_unavailable": "Die Webseite existiert nicht mehr oder ist nicht erreichbar",
+          "page_unavailable": "Die Seite ließ sich nicht öffnen. Möglicherweise ist eine Anmeldung oder Bestätigung nötig, oder sie existiert nicht mehr",
           "auth": "ima hat den Zugriff verweigert. Bitte neu verbinden",
           "rate_limit": "ima begrenzt gerade die Anfragen",
           "generic": "Konnte nicht importiert werden"
         },
         "notes": {
-          "plain_text": "Nur der Text wurde importiert, Layout und Bilder blieben nicht erhalten",
           "images_remote": "Bilder verweisen weiter auf die Originalseite und sind nicht lokal gespeichert",
           "body_truncated": "Der Artikel ist sehr lang, daher wurde nur der erste Teil importiert",
           "layout_flattened": "Tabellen oder Layout wurden vereinfacht",
@@ -17967,8 +17976,8 @@
           "ima_no_selection": "Wähle mindestens eine Wissensdatenbank oder aktiviere „Auch meine Notizen importieren“",
           "ima_sync_not_started": "Der Import wurde noch nicht gestartet",
           "ima_credentials_missing": "Geben Sie Client ID und API Key ein",
-          "dedup_review_required": "Im Wiki warten doppelte Dokumente auf eine Prüfung. Bearbeiten Sie sie zuerst und bauen Sie dann das Wissen auf",
-          "sync_unavailable": "Ihr Tarif hat das Limit für geplante Aufgaben erreicht, daher lässt sich die automatische Synchronisierung nicht aktivieren",
+          "dedup_review_required": "Im Wiki warten doppelte Dokumente auf eine Prüfung. Bearbeiten Sie sie zuerst und kompilieren Sie dann",
+          "sync_unavailable": "Geplante Aufgaben sind in Ihrem Tarif nicht verfügbar oder bereits ausgeschöpft, daher lässt sich die automatische Synchronisierung nicht aktivieren. Wechseln Sie den Tarif oder entfernen Sie eine ungenutzte geplante Aufgabe und versuchen Sie es erneut",
           "generic": "Das hat nicht geklappt. Bitte versuchen Sie es gleich noch einmal"
         },
         "manage": {

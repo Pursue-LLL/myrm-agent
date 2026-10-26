@@ -17859,6 +17859,7 @@
           "reload": "重新加载",
           "notesLabel": "同时导入我的笔记",
           "notesHint": "笔记会单独导入，并和知识库一起保持同步。",
+          "supported": "支持导入网页、微信文章、PDF、Word、PPT、Excel、Markdown、文本、电子书和笔记；图片、音频、视频和思维导图会被跳过。",
           "costHint": "首次导入会读取全部内容，可能需要几分钟甚至更久，期间可以随时暂停。",
           "start": "开始导入",
           "apply": "保存并重新同步",
@@ -17873,17 +17874,22 @@
           "upToDate": "已是最新，之后会定期自动检查更新",
           "progress": "已处理 {done} / {total}",
           "progressLabel": "导入进度",
-          "lastRun": "上次同步：{time}"
+          "lastRun": "上次同步：{time}",
+          "nextCheck": "下次检查：{time}"
         },
         "actions": {
           "pause": "暂停同步",
           "resume": "继续同步",
+          "syncNow": "立即同步",
+          "syncNowRunning": "正在启动…",
+          "syncNowStarted": "正在检查 ima 是否有更新…",
           "viewDetails": "查看明细"
         },
         "notices": {
           "rateLimited": "ima 暂时限制了访问频率，稍后会自动继续。",
           "unreachable": "暂时连不上 ima，稍后会自动重试。",
-          "notesUnavailable": "当前密钥没有读取笔记的权限，笔记未导入，知识库内容不受影响。"
+          "notesUnavailable": "当前密钥没有读取笔记的权限，笔记未导入，知识库内容不受影响。",
+          "internal": "导入时出了点问题，稍后会自动重试。"
         },
         "stats": {
           "imported": "已导入",
@@ -17891,15 +17897,19 @@
           "failed": "失败",
           "skipped": "已跳过",
           "partial": "内容已简化",
-          "removed": "ima 中已删除"
+          "removed": "ima 中已删除",
+          "dismissed": "你已移除"
         },
         "compile": {
-          "title": "生成知识",
-          "body": "已导入 {count} 篇文档（约 {chars} 字）。生成知识时 AI 会逐篇阅读并整理，文档较多时会消耗较多用量。",
-          "action": "生成知识",
+          "title": "编译",
+          "body": "已导入 {count} 篇文档（约 {chars} 字）。编译时 AI 会逐篇阅读并整理，文档较多时会消耗较多用量。",
+          "autoOn": "此后新增或有变化的文档会自动编译。",
+          "autoPending": "首次导入的文档请点击按钮自行编译；首次导入完成后，之后的变化会自动编译。",
+          "autoOff": "自动编译已关闭。如需开启，请在「外部来源」中打开「同步后自动编译」。",
+          "action": "编译已导入文档",
           "running": "正在提交…",
-          "queued": "已将 {count} 篇文档加入生成队列",
-          "nothing": "没有需要生成的文档"
+          "queued": "已将 {count} 篇文档加入编译队列",
+          "nothing": "没有需要编译的文档"
         },
         "report": {
           "title": "导入明细",
@@ -17928,13 +17938,12 @@
           "timeout": "读取超时，可稍后重试",
           "transient": "暂时无法读取，可稍后重试",
           "permanent": "ima 返回的内容无法处理",
-          "page_unavailable": "网页已失效或无法访问",
+          "page_unavailable": "网页无法打开，可能需要登录或验证，也可能已经失效",
           "auth": "ima 拒绝了访问，请重新连接",
           "rate_limit": "ima 暂时限制了访问频率",
           "generic": "未能导入"
         },
         "notes": {
-          "plain_text": "只导入了文字，排版与图片未保留",
           "images_remote": "图片仍指向原网页，没有保存到本地",
           "body_truncated": "文章太长，只导入了前面一部分",
           "layout_flattened": "表格或排版已被简化",
@@ -17967,8 +17976,8 @@
           "ima_no_selection": "请至少选择一个知识库，或打开「同时导入我的笔记」",
           "ima_sync_not_started": "还没有开始导入",
           "ima_credentials_missing": "请填写 Client ID 和 API Key",
-          "dedup_review_required": "Wiki 里有重复文档待处理，请先处理后再生成知识",
-          "sync_unavailable": "当前套餐的定时任务数量已达上限，暂时无法开启自动同步",
+          "dedup_review_required": "Wiki 里有重复文档待处理，请先处理后再编译",
+          "sync_unavailable": "当前套餐不支持定时任务，或定时任务数量已用完，暂时无法开启自动同步。可升级套餐或删除不用的定时任务后重试",
           "generic": "操作没有成功，请稍后再试"
         },
         "manage": {

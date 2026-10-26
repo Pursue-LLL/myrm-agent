@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
 from app.services.wiki.source_sync.ima import content as content_module
-from app.services.wiki.source_sync.ima import importer
+from app.services.wiki.source_sync.ima import engine, importer
 from app.services.wiki.source_sync.ima.engine import SliceOutcome, run_slice
 from app.services.wiki.source_sync.ima.errors import (
     ImaAuthError,
@@ -18,6 +19,7 @@ from app.services.wiki.source_sync.ima.errors import (
     ImaTooLargeError,
     ImaTransientError,
 )
+from app.services.wiki.source_sync.ima.identity import NOTES_LANE
 from app.services.wiki.source_sync.ima.ledger import ImaLedger, LedgerRow, LedgerStatus
 from app.services.wiki.source_sync.ima.models import ImaFolder, ImaMediaInfo, ImaNote
 from app.services.wiki.source_sync.ima.state import ImaSyncState, load_ima_state, save_ima_state
@@ -87,7 +89,7 @@ async def run_pass(fake: FakeIma, root: Path, state: ImaSyncState, config=None, 
 
 async def rows(factory: async_sessionmaker[AsyncSession]) -> dict[str, LedgerRow]:
     async with factory() as db:
-        listed = await ImaLedger(DEFAULT_AGENT_SCOPE).list_rows(db, limit=1000)
+        listed = await ImaLedger(DEFAULT_AGENT_SCOPE).list_rows(db, containers=["kb1", "kb2", NOTES_LANE], limit=1000)
     return {row.title: row for row in listed}
 
 
@@ -120,7 +122,7 @@ async def test_first_pass_imports_documents_folders_and_notes(
     assert 'source: "ima"' in guide and "body text" in guide and "Lib kb1" in guide
     note = raw_file(tmp_path, by_title["Plan"]).read_text(encoding="utf-8")
     assert 'modified: "2023-11-14"' in note and "note body text" in note
-    assert by_title["Plan"].fidelity == "partial" and "plain_text" in by_title["Plan"].fidelity_notes
+    assert by_title["Plan"].fidelity == "full" and by_title["Plan"].fidelity_notes == ()
     assert by_title["guide.md"].fidelity == "full"
 
 
@@ -364,7 +366,7 @@ async def test_permanent_item_failure_exhausts_its_budget_until_the_user_retries
     assert url("m3") not in downloads.calls
 
     async with ima_db() as db:
-        assert await ImaLedger(DEFAULT_AGENT_SCOPE).retry_failed(db) == 1
+        assert await ImaLedger(DEFAULT_AGENT_SCOPE).retry_failed(db, ["kb1"]) == 1
         await db.commit()
     await run_pass(fake, tmp_path, state)
     assert (await rows(ima_db))["deep.md"].status == LedgerStatus.SYNCED
@@ -402,3 +404,91 @@ async def test_state_survives_a_restart_between_slices(tmp_path: Path, ima_db: a
         await save_ima_state(db, state, agent_id=None)
     async with ima_db() as db:
         assert await load_ima_state(db, agent_id=None) == state
+
+
+async def test_same_titled_documents_in_one_folder_are_both_imported_and_stay_stable(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], downloads: Downloads
+) -> None:
+    fake = FakeIma(
+        pages={("kb1", ""): page(entry("m1", "Home.md"), entry("m2", "Home.md"), entry("m3", "Home.md"))},
+        media={media_id: file_info(7, url(media_id)) for media_id in ("m1", "m2", "m3")},
+    )
+    downloads.bodies = {url("m1"): b"# one\n\nfirst", url("m2"): b"# two\n\nsecond", url("m3"): b"# three\n\nthird"}
+    state = ImaSyncState()
+
+    outcome = await run_pass(fake, tmp_path, state)
+
+    assert outcome.finished and outcome.error_kind == ""
+    async with ima_db() as db:
+        listed = await ImaLedger(DEFAULT_AGENT_SCOPE).list_rows(db, containers=["kb1"])
+    assert sorted(row.remote_id for row in listed) == ["m1", "m2", "m3"]
+    assert {row.status for row in listed} == {LedgerStatus.SYNCED}
+    assert len({row.raw_path for row in listed}) == 3
+    texts = {raw_file(tmp_path, row).read_text(encoding="utf-8") for row in listed}
+    assert any("first" in text for text in texts) and any("third" in text for text in texts)
+
+    downloads.calls.clear()
+    again = await run_pass(fake, tmp_path, state)
+    assert again.finished and again.generation_total == 0 and downloads.calls == []
+
+
+async def test_an_unexpected_failure_becomes_an_internal_backoff_and_clears_after_a_clean_slice(
+    tmp_path: Path, downloads: Downloads, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake, state = library(), ImaSyncState()
+
+    async def broken(_ctx: object) -> None:
+        raise RuntimeError("ledger exploded")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(engine, "run_inventory", broken)
+        outcome = await run_slice(make_ctx(fake, tmp_path, config=library_config(), state=state))
+
+    assert outcome.error_kind == "internal" and outcome.retry_after_s is not None and outcome.retry_after_s >= 120
+    assert state.last_error_kind == "internal" and state.failure_streak == 1
+    assert "ledger exploded" not in repr(outcome)
+
+    recovered = await run_pass(fake, tmp_path, state)
+    assert recovered.finished and state.last_error_kind == "" and state.failure_streak == 0
+
+
+async def test_cancellation_is_never_swallowed_by_the_internal_failure_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def cancelled(_ctx: object) -> None:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(engine, "run_inventory", cancelled)
+    with pytest.raises(asyncio.CancelledError):
+        await run_slice(make_ctx(library(), tmp_path, config=library_config(), state=ImaSyncState()))
+
+
+async def test_a_ledger_failure_while_claiming_waits_for_in_flight_items_and_reports_internal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gate, completed = asyncio.Event(), []
+
+    async def slow_download(target: str, headers: dict[str, str]) -> bytes:
+        if target == url("m3"):
+            await gate.wait()
+        completed.append(target)
+        return b"# Doc\n\nbody text"
+
+    monkeypatch.setattr("app.services.wiki.source_sync.ima.content.download_media", slow_download)
+    real_claim, claims = ImaLedger.claim, 0
+
+    async def claim_once(self: ImaLedger, *args: object, **kwargs: object) -> list[LedgerRow]:
+        nonlocal claims
+        claims += 1
+        if claims > 1:
+            raise RuntimeError("database is locked")
+        return await real_claim(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(ImaLedger, "claim", claim_once)
+    asyncio.get_running_loop().call_later(0.1, gate.set)
+    state = ImaSyncState()
+
+    outcome = await run_slice(make_ctx(library(), tmp_path, config=library_config(), state=state))
+
+    assert outcome.error_kind == "internal" and state.last_error_kind == "internal"
+    assert url("m3") in completed, "the slice must not return while a worker is still writing to the ledger"

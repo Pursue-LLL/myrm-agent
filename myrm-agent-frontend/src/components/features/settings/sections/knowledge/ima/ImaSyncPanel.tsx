@@ -3,15 +3,16 @@
 /**
  * [INPUT]
  * @/services/wiki/ima::ImaStatus (POS: counts, phase, job state)
- * ./imaCopy::deriveImaSyncMode, imaProgress, imaSkippedCount, formatImaChars (POS: status → what the user sees)
+ * ./imaCopy::deriveImaSyncMode, imaProgress, imaSkippedCount, canImaSyncNow, imaAutoCompileKey, formatImaChars (POS: status → what the user sees)
  *
  * [OUTPUT]
- * ImaSyncPanel: progress, outcome counts, pause/resume, "build knowledge" and the entry to the item report
+ * ImaSyncPanel: progress, outcome counts, sync now / pause / resume, the compile step and the entry to the item report
  *
  * [POS]
  * Third screen of the ima card, shown once a sync exists. It reports outcomes honestly (imported, skipped, failed,
- * simplified, removed upstream) instead of one reassuring number, and puts the cost-bearing step, turning the imported
- * documents into knowledge, behind an explicit button.
+ * simplified, removed by the user or upstream) instead of one reassuring number, tells the user when the next automatic
+ * check happens and lets them run it now, and puts the cost-bearing step, compiling the imported documents, behind an
+ * explicit button while saying how later changes are compiled.
  */
 
 import { useLocale, useTranslations } from 'next-intl';
@@ -21,8 +22,10 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { ImaStatus } from '@/services/wiki/ima';
 import type { ImaAction } from './useImaSync';
 import {
+  canImaSyncNow,
   deriveImaSyncMode,
   formatImaChars,
+  imaAutoCompileKey,
   imaAttentionCount,
   imaProgress,
   imaSkippedCount,
@@ -32,6 +35,7 @@ import {
 interface ImaSyncPanelProps {
   status: ImaStatus;
   busy: ImaAction | null;
+  onSyncNow: () => void;
   onPause: () => void;
   onResume: () => void;
   onCompile: () => void;
@@ -63,6 +67,9 @@ function statTiles(status: ImaStatus): StatTile[] {
   if (counts.remote_deleted > 0) {
     tiles.push({ key: 'removed', value: counts.remote_deleted, tone: 'muted' });
   }
+  if (counts.dismissed > 0) {
+    tiles.push({ key: 'dismissed', value: counts.dismissed, tone: 'muted' });
+  }
   return tiles;
 }
 
@@ -72,7 +79,15 @@ const TILE_TONE: Record<StatTile['tone'], string> = {
   muted: 'text-muted-foreground',
 };
 
-export default function ImaSyncPanel({ status, busy, onPause, onResume, onCompile, onOpenReport }: ImaSyncPanelProps) {
+export default function ImaSyncPanel({
+  status,
+  busy,
+  onSyncNow,
+  onPause,
+  onResume,
+  onCompile,
+  onOpenReport,
+}: ImaSyncPanelProps) {
   const t = useTranslations('settings.wiki.ima');
   const locale = useLocale();
   const mode = deriveImaSyncMode(status);
@@ -80,6 +95,8 @@ export default function ImaSyncPanel({ status, busy, onPause, onResume, onCompil
   const showBar = isImaBackfilling(status) && status.counts.total > 0;
   const hasReport = imaAttentionCount(status.counts) + status.counts.partial + status.counts.remote_deleted > 0;
   const lastRun = status.last_run_at ? new Date(status.last_run_at).toLocaleString(locale) : null;
+  const nextCheck =
+    mode === 'upToDate' && status.job.next_run_at ? new Date(status.job.next_run_at).toLocaleString(locale) : null;
   const toggleBusy = busy === 'pause' || busy === 'resume';
 
   return (
@@ -88,16 +105,26 @@ export default function ImaSyncPanel({ status, busy, onPause, onResume, onCompil
         <div className="min-w-0 space-y-0.5">
           <p className="text-sm font-medium">{t(`mode.${mode}`)}</p>
           {lastRun ? <p className="text-xs text-muted-foreground">{t('mode.lastRun', { time: lastRun })}</p> : null}
+          {nextCheck ? (
+            <p className="text-xs text-muted-foreground">{t('mode.nextCheck', { time: nextCheck })}</p>
+          ) : null}
         </div>
-        {status.job.state === 'paused' ? (
-          <Button type="button" size="sm" variant="outline" disabled={toggleBusy} onClick={onResume}>
-            {t('actions.resume')}
-          </Button>
-        ) : (
-          <Button type="button" size="sm" variant="outline" disabled={toggleBusy} onClick={onPause}>
-            {t('actions.pause')}
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canImaSyncNow(status) ? (
+            <Button type="button" size="sm" variant="outline" disabled={busy === 'syncNow'} onClick={onSyncNow}>
+              {busy === 'syncNow' ? t('actions.syncNowRunning') : t('actions.syncNow')}
+            </Button>
+          ) : null}
+          {status.job.state === 'paused' ? (
+            <Button type="button" size="sm" variant="outline" disabled={toggleBusy} onClick={onResume}>
+              {t('actions.resume')}
+            </Button>
+          ) : (
+            <Button type="button" size="sm" variant="outline" disabled={toggleBusy} onClick={onPause}>
+              {t('actions.pause')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {showBar ? (
@@ -115,6 +142,7 @@ export default function ImaSyncPanel({ status, busy, onPause, onResume, onCompil
       {status.last_error_kind === 'transient' ? (
         <p className="text-xs text-warning">{t('notices.unreachable')}</p>
       ) : null}
+      {status.last_error_kind === 'internal' ? <p className="text-xs text-warning">{t('notices.internal')}</p> : null}
       {status.notes_unavailable ? (
         <p className="text-xs text-muted-foreground">{t('notices.notesUnavailable')}</p>
       ) : null}
@@ -143,6 +171,7 @@ export default function ImaSyncPanel({ status, busy, onPause, onResume, onCompil
               chars: formatImaChars(status.total_chars, locale),
             })}
           </p>
+          <p className="text-xs text-muted-foreground">{t(imaAutoCompileKey(status))}</p>
           <Button type="button" size="sm" disabled={busy === 'compile'} onClick={onCompile}>
             {busy === 'compile' ? t('compile.running') : t('compile.action')}
           </Button>

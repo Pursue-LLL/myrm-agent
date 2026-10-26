@@ -6,6 +6,7 @@
  * [OUTPUT]
  * ImaView / ImaSyncMode: which screen the card shows and what the running sync is doing
  * deriveImaView / deriveImaSyncMode / imaProgress / imaSkippedCount / imaAttentionCount: state derivation from `ImaStatus`
+ * canImaSyncNow / imaAutoCompileKey: whether "sync now" makes sense, and which auto-compile sentence applies
  * imaErrorKey / imaReasonKey / imaNoteKeys / imaKindKey / formatImaChars: server code → `settings.wiki.ima.*` i18n key
  *
  * [POS]
@@ -47,7 +48,7 @@ const REASON_CODES = new Set([
   'rate_limit',
 ]);
 
-const NOTE_CODES = new Set(['plain_text', 'images_remote', 'body_truncated', 'layout_flattened', 'redacted']);
+const NOTE_CODES = new Set(['images_remote', 'body_truncated', 'layout_flattened', 'redacted']);
 
 const KIND_CODES = new Set([
   'pdf',
@@ -89,6 +90,23 @@ export function deriveImaSyncMode(status: ImaStatus): ImaSyncMode {
     return 'importing';
   }
   return status.backfill_complete ? 'upToDate' : 'waiting';
+}
+
+/** Between slices or up to date, a check can be requested; while a slice is reading or importing it already is one. */
+export function canImaSyncNow(status: ImaStatus): boolean {
+  const mode = deriveImaSyncMode(status);
+  return mode === 'upToDate' || mode === 'waiting';
+}
+
+/**
+ * Which sentence tells the user how new documents get compiled. The first import is always compiled on the user's say-so;
+ * only once it has completed do later changes follow the shared auto-compile switch.
+ */
+export function imaAutoCompileKey(status: ImaStatus): 'compile.autoOff' | 'compile.autoPending' | 'compile.autoOn' {
+  if (!status.auto_compile) {
+    return 'compile.autoOff';
+  }
+  return status.backfill_complete ? 'compile.autoOn' : 'compile.autoPending';
 }
 
 /** The first import is still filling the wiki; later passes only top it up, so only then does a bar make sense. */

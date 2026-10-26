@@ -78,6 +78,15 @@ export default function ImaSourceCard() {
     toast.success(t('libraries.started'));
   };
 
+  const handleSyncNow = async () => {
+    const result = await ima.syncNow(locale);
+    if (!result.ok) {
+      toastError(result.errorKey);
+      return;
+    }
+    toast.message(t('actions.syncNowStarted'));
+  };
+
   const handleToggle = async (action: () => Promise<ImaResult>) => {
     const result = await action();
     if (!result.ok) {
@@ -189,6 +198,7 @@ export default function ImaSourceCard() {
           <ImaSyncPanel
             status={status}
             busy={busy}
+            onSyncNow={() => void handleSyncNow()}
             onPause={() => void handleToggle(ima.pause)}
             onResume={() => void handleToggle(ima.resume)}
             onCompile={() => void handleCompile()}

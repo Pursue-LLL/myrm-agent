@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from app.database.connection import get_session
 
 from .client import ImaClient
-from .identity import NOTES_LANE
 from .ledger import ImaLedger
 from .state import ImaSyncConfig, ImaSyncState, save_ima_state
 
@@ -44,14 +43,6 @@ class SyncContext:
 
     def time_left(self) -> float:
         return self.deadline - time.monotonic()
-
-    @property
-    def containers(self) -> list[str]:
-        """Containers this agent currently imports; rows of deselected libraries are left untouched."""
-        containers = [kb.id for kb in self.config.knowledge_bases]
-        if self.config.include_notes:
-            containers.append(NOTES_LANE)
-        return containers
 
     def raw_exists(self, relative_path: str) -> bool:
         try:

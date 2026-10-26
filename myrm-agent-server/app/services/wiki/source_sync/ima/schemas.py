@@ -57,6 +57,7 @@ class ImaStatus(BaseModel):
     last_run_at: datetime | None = None
     last_error_kind: str = ""
     notes_unavailable: bool = False
+    auto_compile: bool = False
     counts: ImaItemCounts
     total_chars: int = 0
 

@@ -49,12 +49,15 @@ export interface ImaStatus {
   needs_reauth: boolean;
   knowledge_bases: ImaLibrary[];
   include_notes: boolean;
+  /** `next_run_at` is only set while the next scheduled check is still ahead. */
   job: { state: ImaJobState; next_run_at: string | null };
   phase: ImaSyncPhase;
   backfill_complete: boolean;
   last_run_at: string | null;
   last_error_kind: string;
   notes_unavailable: boolean;
+  /** The Wiki-wide "auto-compile after sync" switch, which the ima import follows once its first import is done. */
+  auto_compile: boolean;
   counts: ImaItemCounts;
   total_chars: number;
 }

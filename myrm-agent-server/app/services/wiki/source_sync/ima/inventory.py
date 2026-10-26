@@ -25,7 +25,7 @@ from .context import SyncContext
 from .errors import ImaAuthError, ImaPermanentError
 from .identity import NOTES_LANE, kb_item_key, note_item_key
 from .ledger import InventoryItem
-from .models import MEDIA_NOTE
+from .models import MEDIA_NOTE, ImaEntry
 from .state import ImaWalkTask
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,21 @@ def _drop_library(ctx: SyncContext, kb_id: str, *, kind: str) -> None:
     ctx.state.last_error_kind = kind
 
 
+def _kb_item(task: ImaWalkTask, entry: ImaEntry) -> InventoryItem:
+    parent_id = entry.parent_folder_id or task.folder_id
+    return InventoryItem(
+        item_key=kb_item_key(task.kb_id, parent_id, entry.title),
+        fallback_key=kb_item_key(task.kb_id, parent_id, entry.title, media_id=entry.media_id),
+        container_id=task.kb_id,
+        container_name=task.kb_name,
+        remote_id=entry.media_id,
+        title=entry.title,
+        folder_path="/".join(task.folder_path),
+        media_type=entry.media_type,
+        remote_version=entry.media_id,
+    )
+
+
 async def _walk_libraries(ctx: SyncContext) -> None:
     state = ctx.state
     while state.queue and ctx.time_left() > 0:
@@ -75,23 +90,7 @@ async def _walk_libraries(ctx: SyncContext) -> None:
             _drop_library(ctx, task.kb_id, kind=exc.kind)
             continue
 
-        folder_path = "/".join(task.folder_path)
-        await _record(
-            ctx,
-            [
-                InventoryItem(
-                    item_key=kb_item_key(task.kb_id, entry.parent_folder_id or task.folder_id, entry.title),
-                    container_id=task.kb_id,
-                    container_name=task.kb_name,
-                    remote_id=entry.media_id,
-                    title=entry.title,
-                    folder_path=folder_path,
-                    media_type=entry.media_type,
-                    remote_version=entry.media_id,
-                )
-                for entry in page.items
-            ],
-        )
+        await _record(ctx, [_kb_item(task, entry) for entry in page.items])
         state.inventory_pages += 1
         if state.inventory_pages > _MAX_INVENTORY_PAGES:
             logger.warning("ima inventory exceeded %d pages; stopping the walk", _MAX_INVENTORY_PAGES)
@@ -160,7 +159,7 @@ async def _walk_notes(ctx: SyncContext) -> None:
 
 
 async def _finish(ctx: SyncContext) -> None:
-    complete = [container for container in ctx.containers if container not in ctx.state.failed_containers]
+    complete = [container for container in ctx.config.containers if container not in ctx.state.failed_containers]
     async with get_session() as db:
         await ctx.ledger.mark_remote_deleted(db, generation=ctx.state.generation, container_ids=complete)
         await db.commit()
