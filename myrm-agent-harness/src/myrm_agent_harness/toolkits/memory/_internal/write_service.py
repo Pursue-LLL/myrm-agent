@@ -204,6 +204,7 @@ class MemoryWriter:
         *,
         bypass_approval: bool = False,
         force_pending: bool = False,
+        skip_dedup: bool = False,
     ) -> list[AnyMemory]:
         if not memories:
             return []
@@ -239,10 +240,11 @@ class MemoryWriter:
             return results
 
         partitioned = self._partition_memories(safe_memories)
-        if partitioned.semantic:
-            partitioned.semantic = await self._deduplicate_semantic_batch(partitioned.semantic)
-        if partitioned.episodic:
-            partitioned.episodic = await self._deduplicate_episodic_batch(partitioned.episodic)
+        if not skip_dedup:
+            if partitioned.semantic:
+                partitioned.semantic = await self._deduplicate_semantic_batch(partitioned.semantic)
+            if partitioned.episodic:
+                partitioned.episodic = await self._deduplicate_episodic_batch(partitioned.episodic)
 
         stores: list[Awaitable[Sequence[AnyMemory]]] = []
         if partitioned.semantic:

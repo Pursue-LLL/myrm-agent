@@ -65,7 +65,12 @@ class DeniedMemoryWrites:
         self._deny()
 
     async def store_batch(
-        self, memories: Sequence[AnyMemory], *, _bypass_approval: bool = False, _force_pending: bool = False
+        self,
+        memories: Sequence[AnyMemory],
+        *,
+        _bypass_approval: bool = False,
+        _force_pending: bool = False,
+        _skip_dedup: bool = False,
     ) -> list[AnyMemory]:
         self._deny()
 

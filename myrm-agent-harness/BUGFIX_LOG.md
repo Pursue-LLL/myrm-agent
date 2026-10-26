@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-007 · `import_memories(skip_duplicates=False)` 并不跳过去重：替换式恢复遇到内容相同的条目只落一条，报「恢复不完整」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（读备份的替换式恢复路径时，对照 `import_memories` 与写入器的去重接线） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：替换式恢复先清空各类型，再以 `skip_duplicates=False` 导入并要求每条都落库；但去重仍在运行，快照里内容相同的两条只落一条，恢复抛 `Restore incomplete: semantic (1 of 2)`，此时库已被清空且只恢复了一部分，只能靠恢复前自动保存的安全备份找回。用户在导入确认里明确选择「不跳过重复」时，重复条目同样被丢弃 |
+| **关联产品** | harness `toolkits/memory/_manager/import_export/mixin.py`、`_manager/retrieval_write.py`、`_internal/write_service.py`；server `app/services/memory/backup/snapshot.py` 的 `apply_snapshot(replace=True)` |
+| **根因** | `import_memories` 靠把 `self._deduplicator` 置空来「关闭去重」，但写入器在构造时已把该对象捕获进两个批去重闭包（`_manager/core.py` 构造 `build_*_deduplicator(deduplicator=...)`），事后置空对闭包无效；而且没有去重器时语义类型仍走 `dedup_semantics`，没有嵌入模型时走稀疏镜像的精确哈希去重，两条路径都不看去重器。该参数在这条路径上是空操作。 |
+| **修复** | `store_batch` 增加 `skip_dedup`（写入器）/ `_skip_dedup`（管理器、宿主协议、只读拒绝视图，共 4 处签名），写入器据此整体跳过批去重；`import_memories` 传 `_skip_dedup=not skip_duplicates`，并去掉置空 `_deduplicator` 的 try/finally。顺带删除 `governance_session.py` 里传给 `SemanticMemory` 的 `source="recurrence_consolidation"`：模型没有 `source` 字段，该值被静默丢弃（探针确认不入库），全仓无读取方。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 「改实例属性来关闭一个已被闭包捕获的依赖」是空操作，且不会报错；开关要沿调用链传到决策点。 |
+| **回归** | 新增 `test_import_skip_duplicates.py` 3 例（真实无嵌入模型的管理器：默认只落一条；`skip_duplicates=False` 落两条；库里已有同内容时再导入仍落两条），修复前后者 2 例失败（`{'semantic': 1}`、`{'semantic': 0}`）；`test_import_memories_types.py` 增 3 例（标志映射）。探针：server `apply_snapshot(replace=True)` 对含两条同内容条目的快照，修复前 `SnapshotError: Restore incomplete: semantic (1 of 2)`，修复后 `{'semantic': 2}`；server `tests/services/memory/backup`、`import_flows`、`test_import_sessions.py`、`test_memory_archive.py`、`tests/api/test_migrations_api.py` 118 例通过。 |
+| **仍然存在** | ① 只在无嵌入模型的管理器与合成数据上取证；有嵌入模型时，同一批内的相同条目本来就不被 `dedup_semantics` 去重（server 快照测试在修复前同样通过），带 `dedup_llm` 的批内去重行为未实测。② `skip_duplicates=False` 现在按字面写入重复条目，此前选择该项的导入调用方得到的是被去重的结果。③ 合并恢复查重只看已存的前 10000 条（见 BUG-HARNESS-2026-10-27-005），本次未改。 |
+| **代码位置** | `toolkits/memory/_manager/import_export/mixin.py`（`import_memories`）· `_internal/write_service.py`（`store_batch`）· `_manager/governance_session.py` |
+
 ### BUG-HARNESS-2026-10-27-006 · 子 Agent 持有父 Agent 同一批工具对象：todo/目标/看板的写工具写进父的记录，只读子 Agent 还能启动外部 CLI 和写知识库
 
 | 字段 | 内容 |

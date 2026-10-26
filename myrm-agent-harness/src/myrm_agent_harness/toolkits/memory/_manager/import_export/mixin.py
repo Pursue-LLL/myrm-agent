@@ -12,6 +12,7 @@
 [POS]
 Store-facing half of the import/export mixin. ``export_all`` walks every type to its last page and raises
 on a store failure, so a backup or export never passes off a truncated result as complete.
+``import_memories(skip_duplicates=False)`` has the writer bypass deduplication, so a replace restore lands each entry.
 """
 
 from __future__ import annotations
@@ -214,7 +215,9 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
 
         Args:
             data: Dict keyed by memory type with lists of serialized memory objects.
-            skip_duplicates: When True (default), deduplicator filters duplicates.
+            skip_duplicates: When True (default), the writer's deduplication runs as for any other write.
+                When False it is bypassed and every entry is written as given, so a restore that must
+                land each one is not thinned.
 
         Returns:
             Dict with import counts per memory type.
@@ -229,50 +232,43 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
             MemoryType.CONVERSATION.value: ConversationMemory,
         }
 
-        saved_dedup = self._deduplicator
-        if not skip_duplicates:
-            self._deduplicator = None
+        for type_name, entries in data.items():
+            parser = type_parsers.get(type_name)
+            if parser is None:
+                if type_name == MemoryType.PROFILE.value and self._relational:
+                    imported = 0
+                    for entry in entries:
+                        try:
+                            raw_meta = entry.get("metadata")
+                            meta = raw_meta if isinstance(raw_meta, dict) else {}
+                            key = str(entry.get("key", "") or meta.get("key", ""))
+                            value = entry.get("value", "") or meta.get("value", "")
+                            if key:
+                                await self._relational.set_profile(key, str(value), scope=self._scope)
+                                imported += 1
+                        except Exception as e:
+                            logger.warning("Import profile entry failed: %s", e)
+                    counts[type_name] = imported
+                continue
 
-        try:
-            for type_name, entries in data.items():
-                parser = type_parsers.get(type_name)
-                if parser is None:
-                    if type_name == MemoryType.PROFILE.value and self._relational:
-                        imported = 0
-                        for entry in entries:
-                            try:
-                                raw_meta = entry.get("metadata")
-                                meta = raw_meta if isinstance(raw_meta, dict) else {}
-                                key = str(entry.get("key", "") or meta.get("key", ""))
-                                value = entry.get("value", "") or meta.get("value", "")
-                                if key:
-                                    await self._relational.set_profile(key, str(value), scope=self._scope)
-                                    imported += 1
-                            except Exception as e:
-                                logger.warning("Import profile entry failed: %s", e)
-                        counts[type_name] = imported
-                    continue
-
-                memories: list[AnyMemory] = []
-                for entry in entries:
-                    try:
-                        clean = {k: v for k, v in entry.items() if k not in ("id", "embedding")}
-                        mem = parser.model_validate(clean)
-                        memories.append(mem)
-                    except Exception as e:
-                        logger.warning("Import parse failed for %s entry: %s", type_name, e)
-
-                if not memories:
-                    counts[type_name] = 0
-                    continue
-
+            memories: list[AnyMemory] = []
+            for entry in entries:
                 try:
-                    stored = await self.store_batch(memories)
-                    counts[type_name] = len(stored)
+                    clean = {k: v for k, v in entry.items() if k not in ("id", "embedding")}
+                    mem = parser.model_validate(clean)
+                    memories.append(mem)
                 except Exception as e:
-                    logger.warning("Import batch store failed for %s: %s", type_name, e)
-                    counts[type_name] = 0
-        finally:
-            self._deduplicator = saved_dedup
+                    logger.warning("Import parse failed for %s entry: %s", type_name, e)
+
+            if not memories:
+                counts[type_name] = 0
+                continue
+
+            try:
+                stored = await self.store_batch(memories, _skip_dedup=not skip_duplicates)
+                counts[type_name] = len(stored)
+            except Exception as e:
+                logger.warning("Import batch store failed for %s: %s", type_name, e)
+                counts[type_name] = 0
 
         return counts

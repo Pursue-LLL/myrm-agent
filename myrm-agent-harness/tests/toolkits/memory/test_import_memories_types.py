@@ -19,9 +19,9 @@ class _Importer(MemoryManagerImportExportMixin):
     """The import mixin with a recording ``store_batch`` in place of the real writer."""
 
     def __init__(self) -> None:
-        self._deduplicator = None
         self._relational = None
         self.batches: list[list[AnyMemory]] = []
+        self.skip_dedup_flags: list[bool] = []
 
     async def store_batch(
         self,
@@ -29,8 +29,10 @@ class _Importer(MemoryManagerImportExportMixin):
         *,
         _bypass_approval: bool = False,
         _force_pending: bool = False,
+        _skip_dedup: bool = False,
     ) -> list[AnyMemory]:
         self.batches.append(list(memories))
+        self.skip_dedup_flags.append(_skip_dedup)
         return list(memories)
 
 
@@ -49,3 +51,26 @@ async def test_storable_types_reach_the_writer_and_claims_do_not() -> None:
     assert counts == {"semantic": 1}
     assert len(importer.batches) == 1
     assert [type(memory) for memory in importer.batches[0]] == [SemanticMemory]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("skip_duplicates", "writer_skips_dedup"), [(True, False), (False, True)])
+async def test_skip_duplicates_decides_whether_the_writer_deduplicates(
+    skip_duplicates: bool, writer_skips_dedup: bool
+) -> None:
+    importer = _Importer()
+
+    await importer.import_memories(
+        {"semantic": [_exported(SemanticMemory(content="prefers dark mode"))]}, skip_duplicates=skip_duplicates
+    )
+
+    assert importer.skip_dedup_flags == [writer_skips_dedup]
+
+
+@pytest.mark.asyncio
+async def test_import_deduplicates_by_default() -> None:
+    importer = _Importer()
+
+    await importer.import_memories({"semantic": [_exported(SemanticMemory(content="prefers dark mode"))]})
+
+    assert importer.skip_dedup_flags == [False]

@@ -65,11 +65,13 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
         *,
         _bypass_approval: bool = False,
         _force_pending: bool = False,
+        _skip_dedup: bool = False,
     ) -> list[AnyMemory]:
         result = await self._writer.store_batch(
             memories,
             bypass_approval=_bypass_approval,
             force_pending=_force_pending,
+            skip_dedup=_skip_dedup,
         )
         self._stores_since_consolidation += len(memories)
         trigger = self._config.consolidation.message_count_trigger

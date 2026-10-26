@@ -166,7 +166,6 @@ class MemoryManagerGovernanceSessionMixin(MemoryManagerHost):
                 content=result.consolidated_content,
                 memory_type=MemoryType.SEMANTIC,
                 importance=0.8,
-                source="recurrence_consolidation",
             )
             await self.store(memory, _bypass_approval=True)
         except Exception as e:
