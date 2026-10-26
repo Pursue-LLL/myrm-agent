@@ -6,7 +6,7 @@
 恢复时由 `MemoryManager` 重新计算 embedding，因此与 embedding 模型、向量库布局无关。
 
 ```
-MemoryManager.export_all()/import_memories()      ← 框架提供的可移植导出/导入契约
+MemoryManager.export_all()/import_memories()      ← 框架提供的可移植导出/导入契约（导出逐页读到末页，读取失败即抛出）
         │
    snapshot.py  ── capture_snapshot（先计数、再导出，数量对不上即失败）
         │        └─ apply_snapshot（replace=清空后回放并校验 / merge=跳过已有内容）
@@ -16,7 +16,7 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 
 数据安全约定：
 
-- 备份要么完整要么不存在：快照捕获发现任一记忆类型导出不全就抛 `SnapshotError`，不写文件、不上传。
+- 备份要么完整要么不存在：快照捕获发现任一记忆类型导出不全或读取失败就抛 `SnapshotError`，不写文件、不上传。
 - 恢复前先解码备份；覆盖式恢复（`overwrite=true`）先把当前记忆另存为一份新备份，再清空回放，回放后逐类型核对数量，失败时提示该备份 id。
 - 远程恢复只合并（跳过已有内容），不删除任何已有记忆。
 - 备份 id 只接受 `volume_store.py` 生成的格式，路径穿越无从谈起；远程文件名只是存储端选择器，下载总落在固定本地文件名下。

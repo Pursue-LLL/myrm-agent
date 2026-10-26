@@ -2,6 +2,48 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-005 · 导出与备份只读一页：超过 10000 条的记忆被静默漏掉，读取失败被当成该类型没有记忆
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（对照 `export_all` 的读取方式与备份的完整性校验） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P1：记忆超过 10000 条时，导出文件与「导出了 N 条」的提示都少了尾部的记忆，没有任何报错；备份的完整性校验发现不一致后整份拒绝，用户一份备份都得不到；任一类型读取抛错只记一条 warning，该类型在导出里直接消失 |
+| **关联产品** | harness `toolkits/memory/_manager/import_export.py`、`_internal/storage_by_type.py`；server `app/services/memory/backup/snapshot.py` |
+| **根因** | `export_all` 对每个类型只调用一次 `list_memories(limit=10000)`，没有读下一页；读取异常被 `except` 捕获后只写 warning（`Export failed for episodic: ...`），返回的是少了一个类型的「成功」结果。 |
+| **修复** | 新增 `iter_pages_by_type`：向量类型沿存储自己的游标读到最后一页（一遍扫完；不用 `order_by` 加偏移模拟，那样每页要重读前面所有行，还会漏掉没有 `_created_ts` 的点位），关系库类型按偏移读到「读到的行数」不足一页为止（内部 `_system_` 档案键读后才隐藏，满页含内部键不会被当成末页）；`export_all` 每页 2000 条（每页带向量，限制工作集），读取失败直接抛出；备份的 `capture_snapshot` 把失败改成不含存储细节的 `SnapshotError`，不写文件、不上传。同时删除没有调用方的 `agent_id` 子串切片（`a1` 会命中 `a10`、`global` 导出全部）：Markdown 导出、规则安全导出与前端客户端不再有该参数。 |
+| **回归** | `test_export_paging.py` 15 例（游标读到末页、整页倍数没有空尾页、空集合、归档开关、`task_digest` 只读情景集合的摘要、中途失败抛出、规则与档案按偏移读到短页、满页含内部键仍继续、没有存储时不产出；`export_all` 跨页、不封顶于一万条（10050 条）、含归档且不含 embedding、只列有数据的类型、中途失败抛出）；`test_usage_stamp_end_to_end.py` 在真实嵌入式 Qdrant 上两种存储形态各读 5 条语义、3 条规则、1 条档案（每页 2 条）；server `test_snapshot.py`（失败转为不含细节的 `SnapshotError`）。修复前的源码上「不封顶」与「失败抛出」两例变红（`10000 == 10050` 不成立；`DID NOT RAISE`）。端到端（真实嵌入式 Qdrant，10300 条语义记忆）：修复前提示与文件都是 10000 条、漏 300 条，修复后 10300 条、漏 0，耗时 1.2 s，内存增量 74 MB（修复前 147 MB）。 |
+| **仍然存在** | ① 导出期间别处新写入的记忆是否被带上，取决于写入落在游标之前还是之后；备份先读计数再导出，只会放行不少于计数的结果。② 备份的合并恢复查重只看已存的前 10000 条（`_STORED_LOOKUP_LIMIT`），库内超过后合并恢复可能重复写入，本次未改。③ 只在嵌入式 Qdrant 与合成数据上取证，远程 Qdrant 的游标行为与耗时未实测。 |
+
+### BUG-HARNESS-2026-10-27-004 · 记忆健康度的「覆盖度」取存储里的第一行：同样的数据，行序不同，覆盖度一个 0.0 一个 1.0
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（同一份数据只调换两条记忆的写入顺序，对比 `compute_health_score` 的结果） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：健康度的「覆盖度」维度取决于哪条记忆恰好排在存储遍历的最前，旧笔记排前时覆盖度 0.0、总分 40，新笔记排前时 1.0、总分 65；守护据此在 2 小时与 6 小时的维护间隔之间切换 |
+| **关联产品** | harness `toolkits/memory/_internal/maintenance_service.py`、`_manager/listing_maintenance.py` |
+| **根因** | 判断各类型「最近一次更新」时调用 `list_memories(memory_type, limit=1)`，没有排序，取到的是存储遍历顺序里的第一行，不是最新写入的那一行。 |
+| **修复** | 取样改为 `sort_by="updated_at"`（走 `_updated_ts` 数值索引）；`ListMemoriesFunc` 改成显式 `limit` / `sort_by` 关键字的 Protocol，管理器直接传入 `list_memories`，不再经手写 lambda。 |
+| **回归** | `test_health_integration.py::TestHealthCoverageSample`（存储自身顺序最旧在前，覆盖度仍按最新写入计）；真实嵌入式 Qdrant 探针（同一份数据，旧笔记排前与新笔记排前）：修复前 0.0 / 1.0、总分 40 / 65，修复后都是 1.0 / 65。该单测的函数签名随接口改为关键字形式，在修复前的源码上无法原样运行，修复前的行为以探针为准。 |
+| **仍然存在** | ① 远程 Qdrant 需要 `_updated_ts` 载荷索引才能排序读取；server 启动预热会建立并回填，只用 harness 且自管远程 Qdrant 的使用方需自行调用 `ensure_payload_indexes`，没有索引时取样失败，该类型按「无近期更新」计（嵌入式 Qdrant 无此要求，探针即在无预热的嵌入式库上取证）。② 关系库里的规则仍取其默认排序（优先级、创建时间倒序）的首行，不是 `updated_at` 最大者。 |
+
+### BUG-HARNESS-2026-10-27-003 · 记忆被召回后「最近使用」没有落库：遗忘保护、陈旧性复审、健康度都读不到，当天用过的记忆被夜间维护归档
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（逐个核对遗忘、陈旧性复审、健康度读到的 `last_accessed_at` 由谁写入，再用真实嵌入式 Qdrant 走完召回到夜间维护的整条链） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P1：智能体当天召回并用到的记忆，夜间守护维护仍按「从没用过」处理——被遗忘归档、被送去陈旧性复审、被健康度报成久未使用；归档后第二天问同一个问题搜不到它（可在回收站恢复，7 天后清除） |
+| **关联产品** | harness `toolkits/memory/_internal/maintenance.py`、`storage_converters.py`、`_storage_payload_helpers.py` |
+| **根因** | 两处叠加。① `semantic_to_doc` / `episodic_to_doc` 不写 `last_accessed_at`，`doc_to_semantic` / `doc_to_episodic` 也不读，该字段在存储里恒为空；遗忘的「近 7 天用过则保护」、陈旧性复审对近期使用事实的排除、健康度的新鲜度与「重要记忆久未使用」读到的都是 `None`。② 稠密集合里，关键词通道命中的记忆不带向量，`bump_access_counts` 把它们原样 upsert，`QdrantVectorStore.upsert` 在写任何点之前就因 `Document <id> is missing vector` 拒绝整批，异常只写成一条 warning，`access_count` 也没有写进去。 |
+| **修复** | 转换器写入并读回 `last_accessed_at`；`bump_access_counts` 按存储形态分流：只有 BM25 镜像（无 embedding，镜像是唯一副本）时写命中派生的文档；稠密集合先 `get` 取回已存的点，只改 `access_count` 与 `last_accessed_at` 再整点写回，不带命中里的旧字段——搜索之后被归档、被改了评分的点保持原样，已被删除的点不会写回，内容、向量与 `updated_at` 不变。印记随导出、导入与备份恢复保留。 |
+| **回归** | `test_maintenance_bump_counts.py`（稠密存储替身按真实 Qdrant 的规则拒绝无向量文档：不带向量的命中、一批里混入无向量命中、搜索后被归档并改了评分的点、搜索后被删除的点、只改两项使用字段、仅 BM25 镜像直接写回、写失败不外泄、多次召回累计）、`test_access_tracking_integration.py`（经 `MemoryManager.search` 的整条链）、`test_storage_converters.py`（往返与坏值读作未使用）、`test_usage_stamp_end_to_end.py`（真实嵌入式 Qdrant，稠密与无 embedding 两种形态：召回后落库、仍可搜到、遗忘放过用过的记忆并归档没用过的同类孪生记忆）。修复前的源码上这四组共 21 例变红（8 + 5 + 6 + 2），修复后全部通过。端到端（70 条合成记忆、词法哈希代替嵌入、陈旧性复审的 LLM 换成只计数的桩）：召回 16 条，修复前 0 条带印记、日志 11 条 `missing vector`，修复后 16 条；当天召回过的两条旧酒店记忆被夜间归档 2→0，送去复审的事实 6→4（其中当天用过的 2→0），被报「久未使用」的重要记忆 10→0，健康度 29→61，第二天同一问题 NOT FOUND→FOUND。写入在 `search` 返回后 p50 6.1 ms、p95 8.4 ms 内完成（150 次，嵌入式 Qdrant；不在回答路径上）。 |
+| **仍然存在** | ① 不追溯：修复前用过的记忆没有印记，下一次被召回才有。② 稠密集合是「读一次再写一次」：`get` 与 `upsert` 之间的几毫秒里别的写入者改了同一个点会被覆盖，并发召回同一条记忆时计数可能少记一次；这比修复前按搜索时刻的整条旧文档回写的窗口小，但没有消除。③ 实验用合成语料与词法哈希，健康度升到 61 仍低于守护的 70 分阈值，没有声称修复了健康度的其他扣分项。 |
+
 ### BUG-HARNESS-2026-10-27-002 · network_replay 只回答响应体：401、204 与空 200 都读作 `Empty response`，状态码丢失
 
 | 字段 | 内容 |

@@ -542,44 +542,6 @@ class TestExportMarkdownIntegration:
         content = files[0].read_text(encoding="utf-8")
         assert "New memory" in content
 
-    @pytest.mark.asyncio
-    async def test_export_agent_id_filter(self, tmp_export_dir: Path) -> None:
-        mock_data = {
-            "semantic": [
-                {
-                    "id": "agent-a-mem",
-                    "content": "Agent A knows this",
-                    "created_at": "2024-01-01T00:00:00+00:00",
-                    "updated_at": "2024-01-01T00:00:00+00:00",
-                    "metadata": {},
-                    "scope": {"namespaces": ["agent:agent-a"]},
-                },
-                {
-                    "id": "agent-b-mem",
-                    "content": "Agent B knows this",
-                    "created_at": "2024-01-01T00:00:00+00:00",
-                    "updated_at": "2024-01-01T00:00:00+00:00",
-                    "metadata": {},
-                    "scope": {"namespaces": ["agent:agent-b"]},
-                },
-            ],
-        }
-
-        from myrm_agent_harness.toolkits.memory._manager.import_export import (
-            MemoryManagerImportExportMixin,
-        )
-
-        mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = AsyncMock(return_value=mock_data)  # type: ignore[method-assign]
-
-        counts = await mixin.export_markdown(tmp_export_dir, agent_id="agent-a")
-
-        assert counts["semantic"] == 1
-        files = list((tmp_export_dir / "semantic").glob("*.md"))
-        assert len(files) == 1
-        content = files[0].read_text(encoding="utf-8")
-        assert "Agent A knows this" in content
-
 
 class TestSanitizePathsForSharing:
     def test_unix_home_replaced(self) -> None:
@@ -628,34 +590,32 @@ class TestExportRulesSafe:
     @pytest.fixture
     def mock_manager(self) -> AsyncMock:
         manager = AsyncMock()
-        manager.export_all = AsyncMock(
-            return_value={
-                "procedural": [
-                    {
-                        "id": "rule_001",
-                        "content": "Use TypeScript strict mode",
-                        "trigger": "user writes JS in /Users/bob/project/",
-                        "action": "Suggest TypeScript",
-                        "scope": {"namespaces": ["agent_work"]},
-                        "access_count": 5,
-                        "user_rating": 4,
-                        "source_chat_id": "chat_abc",
-                    },
-                    {
-                        "id": "rule_002",
-                        "content": "Avoid peanuts",
-                        "trigger": "restaurant recommendation",
-                        "action": "Filter peanut dishes",
-                        "scope": {"namespaces": ["agent_life"]},
-                    },
-                    {
-                        "id": "rule_003",
-                        "content": "Old rule without scope",
-                        "trigger": "any",
-                        "action": "do something",
-                    },
-                ],
-            }
+        manager.export_type = AsyncMock(
+            return_value=[
+                {
+                    "id": "rule_001",
+                    "content": "Use TypeScript strict mode",
+                    "trigger": "user writes JS in /Users/bob/project/",
+                    "action": "Suggest TypeScript",
+                    "scope": {"namespaces": ["agent_work"]},
+                    "access_count": 5,
+                    "user_rating": 4,
+                    "source_chat_id": "chat_abc",
+                },
+                {
+                    "id": "rule_002",
+                    "content": "Avoid peanuts",
+                    "trigger": "restaurant recommendation",
+                    "action": "Filter peanut dishes",
+                    "scope": {"namespaces": ["agent_life"]},
+                },
+                {
+                    "id": "rule_003",
+                    "content": "Old rule without scope",
+                    "trigger": "any",
+                    "action": "do something",
+                },
+            ]
         )
         return manager
 
@@ -666,24 +626,11 @@ class TestExportRulesSafe:
         )
 
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
+        mixin._export_type = mock_manager.export_type  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe()
         assert len(results) == 3
         assert all("rendered" in r for r in results)
-
-    @pytest.mark.asyncio
-    async def test_agent_id_filter_excludes_no_scope(self, mock_manager: AsyncMock) -> None:
-        from myrm_agent_harness.toolkits.memory._manager.import_export import (
-            MemoryManagerImportExportMixin,
-        )
-
-        mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
-
-        results = await mixin.export_rules_safe(agent_id="agent_work")
-        assert len(results) == 1
-        assert results[0]["id"] == "rule_001"
 
     @pytest.mark.asyncio
     async def test_rule_ids_filter(self, mock_manager: AsyncMock) -> None:
@@ -692,7 +639,7 @@ class TestExportRulesSafe:
         )
 
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
+        mixin._export_type = mock_manager.export_type  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe(rule_ids=["rule_002"])
         assert len(results) == 1
@@ -705,7 +652,7 @@ class TestExportRulesSafe:
         )
 
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
+        mixin._export_type = mock_manager.export_type  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe()
         rule_001 = next(r for r in results if r["id"] == "rule_001")
@@ -719,7 +666,7 @@ class TestExportRulesSafe:
         )
 
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
+        mixin._export_type = mock_manager.export_type  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe(output_format="json")
         rule_001_rendered = str(results[0]["rendered"])
@@ -734,7 +681,7 @@ class TestExportRulesSafe:
         )
 
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = mock_manager.export_all  # type: ignore[assignment]
+        mixin._export_type = mock_manager.export_type  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe(output_format="json")
         import json
@@ -755,10 +702,8 @@ class TestExportRulesSafe:
             "action": "run",
             "scope": {"namespaces": ["agent_work"]},
         }
-        manager = AsyncMock()
-        manager.export_all = AsyncMock(return_value={"procedural": [secret_entry]})
         mixin = MemoryManagerImportExportMixin()
-        mixin.export_all = manager.export_all  # type: ignore[assignment]
+        mixin._export_type = AsyncMock(return_value=[secret_entry])  # type: ignore[method-assign]
 
         results = await mixin.export_rules_safe(output_format="json")
         rendered = str(results[0]["rendered"])

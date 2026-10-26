@@ -65,17 +65,12 @@ async def export_memories(
 
 async def export_rules_safe(
     manager: MemoryManager = Depends(get_crud_memory_manager),
-    agent_id: str | None = Query(default=None, description="Filter by agent scope"),
     rule_ids: str | None = Query(default=None, description="Comma-separated rule IDs to export"),
     output_format: str = Query(default="markdown", description="Output format: markdown or json"),
 ) -> StreamingResponse:
     """Export procedural rules with privacy sanitization for safe sharing."""
     ids_list = [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
-    results = await manager.export_rules_safe(
-        agent_id=agent_id,
-        rule_ids=ids_list,
-        output_format=output_format,
-    )
+    results = await manager.export_rules_safe(rule_ids=ids_list, output_format=output_format)
     if not results:
         raise HTTPException(status_code=404, detail="No rules found matching criteria")
 
@@ -98,26 +93,20 @@ async def export_rules_safe(
 
 async def preview_rules_safe(
     manager: MemoryManager = Depends(get_crud_memory_manager),
-    agent_id: str | None = Query(default=None, description="Filter by agent scope"),
     rule_ids: str | None = Query(default=None, description="Comma-separated rule IDs to preview"),
     output_format: str = Query(default="markdown", description="Output format: markdown or json"),
 ) -> list[dict[str, object]]:
     """Preview sanitized rules without downloading (for frontend diff display)."""
     ids_list = [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
-    return await manager.export_rules_safe(
-        agent_id=agent_id,
-        rule_ids=ids_list,
-        output_format=output_format,
-    )
+    return await manager.export_rules_safe(rule_ids=ids_list, output_format=output_format)
 
 
 async def export_memories_markdown(
     manager: MemoryManager = Depends(get_crud_memory_manager),
-    agent_id: str | None = Query(default=None, description="Filter by agent scope"),
 ) -> StreamingResponse:
     """Export all memories as a ZIP of Markdown files with YAML frontmatter."""
     with tempfile.TemporaryDirectory() as tmp_dir:
-        counts = await manager.export_markdown(tmp_dir, agent_id=agent_id)
+        counts = await manager.export_markdown(tmp_dir)
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:

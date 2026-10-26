@@ -62,7 +62,6 @@ logger = logging.getLogger(__name__)
 _scheduler_task: Optional[asyncio.Task[None]] = None
 _last_run: Optional[float] = None
 _next_run: Optional[float] = None
-_consecutive_unhealthy: int = 0
 _last_pattern_discovery: float = 0.0
 
 _HEALTH_CRITICAL_THRESHOLD = 35
@@ -115,7 +114,6 @@ def get_memory_guardian_status(*, policy: Optional[MemoryGuardianPolicy] = None)
         "unhealthy_interval_hours": intervals.unhealthy_hours,
         "health_threshold": HEALTH_THRESHOLD,
         "seconds_until_next": max(0.0, _next_run - time.time()) if _next_run else None,
-        "consecutive_unhealthy": _consecutive_unhealthy,
         "last_pattern_discovery": _last_pattern_discovery,
         "frequency_tier": active_policy.frequency_tier,
         "quiet_window_enabled": active_policy.quiet_window_enabled,
@@ -153,7 +151,7 @@ async def _run_guardian_cycle(
     policy: Optional[MemoryGuardianPolicy] = None,
 ) -> tuple[Optional[MaintenanceReport], Optional[str]]:
     """Execute a single memory maintenance cycle with guards."""
-    global _last_run, _consecutive_unhealthy
+    global _last_run
     active_policy = policy or await load_memory_guardian_policy()
 
     if not force and active_policy.quiet_window_enabled and not is_within_quiet_window(policy=active_policy):
@@ -225,10 +223,9 @@ async def _run_guardian_cycle(
                 return None, "capacity_denied"
             ticket = ticket_or_denial
 
-    effective_force = force or _consecutive_unhealthy >= 2
     try:
         manager = await create_guardian_memory_manager()
-        report = await manager.run_maintenance_cycle(force=effective_force)
+        report = await manager.run_maintenance_cycle(force=force)
         _last_run = time.time()
 
         if adaptive_scheduler and ticket:
@@ -247,7 +244,7 @@ async def _run_guardian_cycle(
 
         await harvest_session_blind_spots()
         await sync_external_harness_transcripts()
-        await record_maintenance_event(report=report, forced=effective_force, policy=active_policy)
+        await record_maintenance_event(report=report, forced=force, policy=active_policy)
 
         await record_health_snapshot(
             report,

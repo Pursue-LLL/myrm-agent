@@ -159,6 +159,24 @@ async def test_capture_fails_instead_of_returning_an_incomplete_snapshot(tmp_pat
             await capture_snapshot(manager)
 
 
+async def test_capture_reports_a_failing_store_as_a_snapshot_error_without_its_details(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        await _seed(manager)
+
+        async def export_fails() -> dict[str, list[dict[str, object]]]:
+            raise ConnectionError("qdrant went away at 10.0.0.7")
+
+        monkeypatch.setattr(manager, "export_all", export_fails)
+
+        with pytest.raises(SnapshotError, match="could not read every memory") as raised:
+            await capture_snapshot(manager)
+
+    assert "10.0.0.7" not in str(raised.value)
+    assert isinstance(raised.value.__cause__, ConnectionError)
+
+
 async def test_capture_of_an_empty_store_is_a_valid_empty_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
         snapshot = await capture_snapshot(manager)

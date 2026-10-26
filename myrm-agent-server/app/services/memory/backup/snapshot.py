@@ -76,12 +76,16 @@ class MemorySnapshot(BaseModel):
 async def capture_snapshot(manager: MemoryManager) -> MemorySnapshot:
     """Export every snapshot type, failing when any type came back incomplete.
 
-    ``export_all`` caps each type and swallows per-type errors, so a short result would
-    otherwise look like a successful backup. Counts are read first: memories written while
-    exporting only add rows, hence fewer exported than counted means truncation or a failure.
+    ``export_all`` walks each type to its last page and raises when a store fails. Counts are
+    read first as an independent check: memories written while exporting only add rows, hence
+    fewer exported than counted means rows went missing.
     """
     expected = {memory_type: await manager.count_memories(memory_type) for memory_type in SNAPSHOT_MEMORY_TYPES}
-    exported = await manager.export_all()
+    try:
+        exported = await manager.export_all()
+    except Exception as exc:
+        logger.exception("Memory export failed while capturing a backup snapshot")
+        raise SnapshotError("Backup could not read every memory, nothing was saved") from exc
 
     memories: dict[str, list[dict[str, object]]] = {}
     incomplete: list[str] = []

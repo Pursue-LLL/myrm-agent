@@ -324,13 +324,8 @@ export const exportMemories = async (): Promise<MemoryExportResponse> => {
   return apiRequest<MemoryExportResponse>('/memory/export');
 };
 
-export const exportMemoriesMarkdown = async (agentId?: string): Promise<void> => {
-  const params = new URLSearchParams();
-  if (agentId) {
-    params.append('agent_id', agentId);
-  }
-  const qs = params.toString();
-  const response = await fetch(`/api/v1/memory/export/markdown${qs ? `?${qs}` : ''}`, {
+export const exportMemoriesMarkdown = async (): Promise<void> => {
+  const response = await fetch('/api/v1/memory/export/markdown', {
     credentials: 'include',
   });
   if (!response.ok) {
@@ -355,14 +350,10 @@ export interface SafeRulePreviewItem {
 }
 
 export const previewRulesSafe = async (params: {
-  agentId?: string;
   ruleIds?: string[];
   format?: 'markdown' | 'json';
 }): Promise<SafeRulePreviewItem[]> => {
   const qs = new URLSearchParams();
-  if (params.agentId) {
-    qs.append('agent_id', params.agentId);
-  }
   if (params.ruleIds?.length) {
     qs.append('rule_ids', params.ruleIds.join(','));
   }
@@ -373,14 +364,10 @@ export const previewRulesSafe = async (params: {
 };
 
 export const exportRulesSafe = async (params: {
-  agentId?: string;
   ruleIds?: string[];
   format?: 'markdown' | 'json';
 }): Promise<void> => {
   const qs = new URLSearchParams();
-  if (params.agentId) {
-    qs.append('agent_id', params.agentId);
-  }
   if (params.ruleIds?.length) {
     qs.append('rule_ids', params.ruleIds.join(','));
   }

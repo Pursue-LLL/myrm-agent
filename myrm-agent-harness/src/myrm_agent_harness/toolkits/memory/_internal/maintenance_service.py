@@ -21,6 +21,7 @@ import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import Protocol
 
 from myrm_agent_harness.infra.cooperative_signals import (
     CooperativePauseSignal,
@@ -50,9 +51,16 @@ from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryType, arch
 logger = logging.getLogger(__name__)
 
 CountMemoriesFunc = Callable[[MemoryType], Awaitable[int]]
-ListMemoriesFunc = Callable[[MemoryType, int], Awaitable[list[AnyMemory]]]
 ComputeHealthFunc = Callable[[], Awaitable[HealthScore]]
 ScrollAllFunc = Callable[[], Awaitable[list[AnyMemory]]]
+
+
+class ListMemoriesFunc(Protocol):
+    """List one memory type; ``sort_by`` orders the rows, ``None`` leaves the store's own order."""
+
+    def __call__(
+        self, memory_type: MemoryType, *, limit: int, sort_by: str | None = None
+    ) -> Awaitable[list[AnyMemory]]: ...
 
 
 class MaintenanceConsolidationResult(tuple[int, int, int, int, tuple[str, ...]]):
@@ -112,7 +120,7 @@ class MaintenanceService:
         result: list[AnyMemory] = []
         for memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
             try:
-                result.extend(await list_memories_func(memory_type, 5000))
+                result.extend(await list_memories_func(memory_type, limit=5000))
             except Exception as exc:
                 logger.warning(
                     "_scroll_all_memories: failed to list %s: %s",
@@ -141,7 +149,7 @@ class MaintenanceService:
         all_memories: list[ForgettableMemory] = []
         for memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
             try:
-                all_memories.extend(await list_memories_func(memory_type, 5000))  # type: ignore[arg-type]
+                all_memories.extend(await list_memories_func(memory_type, limit=5000))  # type: ignore[arg-type]
             except Exception as exc:
                 logger.warning("Health: failed to list %s: %s", memory_type.value, exc)
 
@@ -157,7 +165,8 @@ class MaintenanceService:
 
             if count > 0:
                 try:
-                    recent = await list_memories_func(memory_type, 1)
+                    # Newest row, not the store's first one: freshness must follow the latest write.
+                    recent = await list_memories_func(memory_type, limit=1, sort_by="updated_at")
                     if recent:
                         health_input.type_latest_update[memory_type.value] = recent[0].updated_at
                 except Exception:

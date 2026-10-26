@@ -10,6 +10,7 @@ from pathlib import Path
 
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
+    iter_pages_by_type,
     logger,
 )
 from myrm_agent_harness.toolkits.memory.types import (
@@ -20,6 +21,9 @@ from myrm_agent_harness.toolkits.memory.types import (
     ProceduralMemory,
     SemanticMemory,
 )
+
+# Rows per store round trip while exporting; every page carries its vectors, so this bounds the working set.
+_EXPORT_PAGE_SIZE = 2000
 
 # ── Path sanitization for safe sharing ─────────────────────────────
 
@@ -345,7 +349,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
         target_dir: str | Path,
         *,
         since_ts: datetime | None = None,
-        agent_id: str | None = None,
         memory_types: list[MemoryType] | None = None,
     ) -> dict[str, int]:
         """Export memories as Markdown files organized by type.
@@ -356,7 +359,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
         Args:
             target_dir: Root directory for exported files.
             since_ts: Only export memories created/updated after this timestamp.
-            agent_id: Only export memories belonging to this agent (via scope).
             memory_types: Only export these memory types. None = all types.
 
         Returns:
@@ -399,13 +401,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                         except (ValueError, TypeError):
                             pass
 
-                if agent_id:
-                    scope = entry.get("scope")
-                    if isinstance(scope, dict):
-                        ns_list = scope.get("namespaces", [])
-                        if not any(agent_id in str(ns) for ns in ns_list):
-                            continue
-
                 content = str(entry.get("content", ""))
                 md_content = _memory_to_markdown(entry, type_name)
 
@@ -429,7 +424,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
     async def export_rules_safe(
         self,
         *,
-        agent_id: str | None = None,
         rule_ids: list[str] | None = None,
         output_format: str = "markdown",
     ) -> list[dict[str, object]]:
@@ -439,7 +433,6 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
         metadata fields (access_count, user_rating, source_chat_id).
 
         Args:
-            agent_id: Only export rules belonging to this agent.
             rule_ids: Only export these specific rule IDs. None = all rules.
             output_format: "markdown" or "json".
 
@@ -449,24 +442,12 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
         """
         from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
-        data = await self.export_all()
-        procedural_entries = data.get(MemoryType.PROCEDURAL.value, [])
-
         results: list[dict[str, object]] = []
-        for entry in procedural_entries:
+        for entry in await self._export_type(MemoryType.PROCEDURAL):
             mem_id = str(entry.get("id", ""))
 
             if rule_ids and mem_id not in rule_ids:
                 continue
-
-            if agent_id:
-                scope = entry.get("scope")
-                if isinstance(scope, dict):
-                    ns_list = scope.get("namespaces", [])
-                    if not any(agent_id in str(ns) for ns in ns_list):
-                        continue
-                else:
-                    continue
 
             sanitized = {k: v for k, v in entry.items() if k not in _PERSONAL_FIELDS_TO_STRIP and k != "embedding"}
 
@@ -490,26 +471,34 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
 
         return results
 
+    async def _export_type(self, mem_type: MemoryType) -> list[dict[str, object]]:
+        """Serialize every stored memory of one type (embeddings excluded); a store error propagates."""
+        rows: list[dict[str, object]] = []
+        async for page in iter_pages_by_type(
+            mem_type,
+            page_size=_EXPORT_PAGE_SIZE,
+            relational=self._relational,
+            vector=self._vector,
+            config=self._config,
+            namespaces=self._namespaces,
+            include_archived=True,
+        ):
+            rows.extend(m.model_dump(mode="json", exclude={"embedding"}) for m in page)
+        return rows
+
     async def export_all(self) -> dict[str, list[dict[str, object]]]:
         """Export all memories as serializable dicts (excludes embeddings for portability).
+
+        Every type is walked to its last page, and a store failure raises: a backup or an
+        export must never pass off a truncated result as a complete one.
 
         Returns:
             Dict keyed by memory type with lists of serialized memory objects.
         """
         result: dict[str, list[dict[str, object]]] = {}
-
         for mem_type in MemoryType:
-            try:
-                memories = await self.list_memories(mem_type, limit=10000, include_archived=True)
-                if memories:
-                    serialized: list[dict[str, object]] = []
-                    for m in memories:
-                        data = m.model_dump(mode="json", exclude={"embedding"})
-                        serialized.append(data)
-                    result[mem_type.value] = serialized
-            except Exception as e:
-                logger.warning("Export failed for %s: %s", mem_type.value, e)
-
+            if rows := await self._export_type(mem_type):
+                result[mem_type.value] = rows
         return result
 
     async def import_memories(

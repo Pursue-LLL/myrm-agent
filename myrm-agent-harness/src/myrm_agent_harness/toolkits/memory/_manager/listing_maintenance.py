@@ -144,9 +144,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
 
     async def _scroll_all_memories(self) -> list[AnyMemory]:
         """Scroll all semantic + episodic memories for maintenance analysis."""
-        return await self._maintenance_service.scroll_all_memories(
-            list_memories_func=lambda memory_type, limit: self.list_memories(memory_type, limit=limit)
-        )
+        return await self._maintenance_service.scroll_all_memories(list_memories_func=self.list_memories)
 
     async def compute_health_score(self) -> HealthScore:
         """Compute a quantitative health assessment of this memory instance.
@@ -155,7 +153,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
         """
         return await self._maintenance_service.compute_health_score(
             count_memories_func=self.count_memories,
-            list_memories_func=lambda memory_type, limit: self.list_memories(memory_type, limit=limit),
+            list_memories_func=self.list_memories,
         )
 
     async def create_backup(self, strategy: MemoryBackupStrategy, description: str | None = None) -> BackupResult:

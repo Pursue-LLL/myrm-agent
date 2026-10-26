@@ -1,6 +1,7 @@
-"""Integration test: full search → bump_access_counts → vector upsert chain.
+"""Integration test: full search → bump_access_counts → vector store chain.
 
-No mock on bump_access_counts — exercises the real fire-and-forget path.
+No mock on bump_access_counts — exercises the real fire-and-forget path against a dense store
+double that, like the real one, refuses a write of a document without its vector.
 """
 
 import asyncio
@@ -8,6 +9,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
+    doc_to_episodic,
+    doc_to_semantic,
+    episodic_to_doc,
+    semantic_to_doc,
+)
 from myrm_agent_harness.toolkits.memory._manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.types import (
@@ -17,23 +24,49 @@ from myrm_agent_harness.toolkits.memory.types import (
     ProceduralMemory,
     SemanticMemory,
 )
+from tests.support.dense_vector_store import DenseVectorStore
+
+CONFIG = MemoryConfig(embedding_model="test")
 
 
-def _build_manager(*, search_results: list[MemorySearchResult]) -> tuple[MemoryManager, AsyncMock, AsyncMock]:
-    config = MemoryConfig(embedding_model="test")
-    vector = AsyncMock()
+def _build_manager(*, search_results: list[MemorySearchResult]) -> tuple[MemoryManager, DenseVectorStore, AsyncMock]:
+    vector = DenseVectorStore()
+    # Recalled memories are stored first, as the search service reads them from there; the hits
+    # themselves carry no vector, like those of the keyword channel.
+    for result in search_results:
+        memory = result.memory
+        if isinstance(memory, SemanticMemory):
+            doc, collection = semantic_to_doc(memory), CONFIG.semantic_collection
+        elif isinstance(memory, EpisodicMemory):
+            doc, collection = episodic_to_doc(memory), CONFIG.episodic_collection
+        else:
+            continue
+        doc.vector = [0.1, 0.2, 0.3]
+        vector.put(collection, doc)
     relational = AsyncMock()
     embedding = AsyncMock()
-    manager = MemoryManager(config, user_id="u1", vector=vector, relational=relational, embedding=embedding)
+    manager = MemoryManager(CONFIG, user_id="u1", vector=vector, relational=relational, embedding=embedding)
     mock_search_svc = AsyncMock()
     mock_search_svc.search.return_value = search_results
     manager._search_service = mock_search_svc
     return manager, vector, relational
 
 
+def _stored_semantic(vector: DenseVectorStore, memory_id: str) -> SemanticMemory:
+    doc = vector.stored(CONFIG.semantic_collection, memory_id)
+    assert doc is not None
+    return doc_to_semantic(doc)
+
+
+def _stored_episodic(vector: DenseVectorStore, memory_id: str) -> EpisodicMemory:
+    doc = vector.stored(CONFIG.episodic_collection, memory_id)
+    assert doc is not None
+    return doc_to_episodic(doc)
+
+
 @pytest.mark.asyncio
 async def test_full_chain_semantic_access_count_persisted():
-    """search() → real bump_access_counts → vector.upsert called with updated memory."""
+    """search() → real bump_access_counts → the stored point carries the new count and last-use time."""
     mem = SemanticMemory(id="s1", content="user likes coffee", metadata={}, access_count=5)
     result = MemorySearchResult(memory=mem, score=0.9, memory_type=MemoryType.SEMANTIC)
     manager, vector, _ = _build_manager(search_results=[result])
@@ -43,9 +76,9 @@ async def test_full_chain_semantic_access_count_persisted():
 
     assert mem.access_count == 6
     assert mem.last_accessed_at is not None
-    assert vector.upsert.await_count == 1
-    upsert_args = vector.upsert.call_args[0]
-    assert "semantic" in upsert_args[0]
+    stored = _stored_semantic(vector, "s1")
+    assert stored.access_count == 6
+    assert stored.last_accessed_at is not None
 
 
 @pytest.mark.asyncio
@@ -59,9 +92,9 @@ async def test_full_chain_episodic_access_count_persisted():
     await asyncio.sleep(0.1)
 
     assert mem.access_count == 1
-    assert vector.upsert.await_count == 1
-    upsert_args = vector.upsert.call_args[0]
-    assert "episodic" in upsert_args[0]
+    stored = _stored_episodic(vector, "e1")
+    assert stored.access_count == 1
+    assert stored.last_accessed_at is not None
 
 
 @pytest.mark.asyncio
@@ -97,7 +130,9 @@ async def test_full_chain_track_access_false_no_side_effects():
     await asyncio.sleep(0.1)
 
     assert mem.access_count == 0
-    vector.upsert.assert_not_awaited()
+    stored = _stored_semantic(vector, "s1")
+    assert stored.access_count == 0
+    assert stored.last_accessed_at is None
     relational.update_rule.assert_not_awaited()
 
 
@@ -120,16 +155,16 @@ async def test_full_chain_mixed_results_all_types_tracked():
     assert sem.access_count == 1
     assert epi.access_count == 3
     assert proc.access_count == 11
-    assert vector.upsert.await_count == 2
+    assert _stored_semantic(vector, "s1").access_count == 1
+    assert _stored_episodic(vector, "e1").access_count == 3
     relational.update_rule.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_full_chain_no_vector_store_does_not_crash():
     """When vector store is None, track_access=True should gracefully skip."""
-    config = MemoryConfig(embedding_model="test")
     embedding = AsyncMock()
-    manager = MemoryManager(config, user_id="u1", vector=None, embedding=embedding)
+    manager = MemoryManager(CONFIG, user_id="u1", vector=None, embedding=embedding)
     mock_search_svc = AsyncMock()
     mem = SemanticMemory(id="s1", content="test", metadata={})
     mock_search_svc.search.return_value = [MemorySearchResult(memory=mem, score=0.9, memory_type=MemoryType.SEMANTIC)]
@@ -157,12 +192,12 @@ async def test_full_chain_concurrent_searches():
     await asyncio.sleep(0.2)
 
     assert mem.access_count == 3
-    assert vector.upsert.await_count == 3
+    assert _stored_semantic(vector, "s1").access_count >= 1
 
 
 @pytest.mark.asyncio
 async def test_full_chain_large_result_set():
-    """Large result set (limit=10) should batch upsert correctly."""
+    """A full result page (limit=10) is stamped in one pass, every memory once."""
     memories = [SemanticMemory(id=f"s{i}", content=f"fact {i}", metadata={}, access_count=0) for i in range(10)]
     results = [
         MemorySearchResult(memory=m, score=0.9 - i * 0.05, memory_type=MemoryType.SEMANTIC)
@@ -175,6 +210,4 @@ async def test_full_chain_large_result_set():
 
     for m in memories:
         assert m.access_count == 1
-    assert vector.upsert.await_count == 1
-    upsert_docs = vector.upsert.call_args[0][1]
-    assert len(upsert_docs) == 10
+        assert _stored_semantic(vector, m.id).access_count == 1

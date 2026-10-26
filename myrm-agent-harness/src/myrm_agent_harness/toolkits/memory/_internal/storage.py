@@ -2,7 +2,7 @@
 
 [INPUT]
 - storage_converters::{doc_to_*, semantic_to_doc, episodic_to_doc, _user_filter, ...} (POS: stateless conversion layer)
-- storage_by_type::{list_by_type, count_by_type, delete_by_type} (POS: per-type CRUD dispatch)
+- storage_by_type::{list_by_type, count_by_type, delete_by_type, iter_pages_by_type} (POS: per-type CRUD dispatch)
 - storage_search::{search_profile, search_semantic, search_episodic, ...} (POS: search-specific storage operations)
 - storage_conversation::{embed_conversations, store_conversations_batch} (POS: dual-embedding conversation storage)
 - storage_context::{load_context, WORKING_STATE_*} (POS: context loading for agent prompt)
@@ -13,7 +13,7 @@
 - store_semantic, store_episodic, store_conversations_batch: Vector storage write functions
 - embed_conversations: conversation vectors computed ahead of the write
 - doc_to_semantic, doc_to_episodic, doc_to_conversation: Vector → memory model converters
-- get_from_vector, delete_from_vector, list_by_type, count_by_type, load_context: Read/query functions
+- get_from_vector, delete_from_vector, list_by_type, iter_pages_by_type, count_by_type, load_context: Read/query functions
 - MemoryError, MemoryNotFoundError: Error types
 
 [POS]
@@ -31,6 +31,7 @@ from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import is_sparse_a
 from myrm_agent_harness.toolkits.memory._internal.storage_by_type import (
     count_by_type,
     delete_by_type,
+    iter_pages_by_type,
     list_by_type,
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_context import (
@@ -122,6 +123,7 @@ __all__ = [
     "episodic_to_doc",
     # CRUD
     "get_from_vector",
+    "iter_pages_by_type",
     "list_by_type",
     "load_context",
     "search_bm25",

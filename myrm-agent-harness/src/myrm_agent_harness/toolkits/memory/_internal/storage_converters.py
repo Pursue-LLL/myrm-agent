@@ -8,6 +8,7 @@
 [OUTPUT]
 - Scope helpers: _scope_payload, _scope_from_metadata, _user_filter
 - Lifecycle helpers: _lifecycle_payload, _lifecycle_from_metadata
+- Usage-stamp helper: _stamp_access (records one use on a stored document)
 - to_doc: semantic_to_doc, episodic_to_doc
 - from_doc: doc_to_semantic, doc_to_episodic, doc_to_conversation
 
@@ -18,16 +19,20 @@ Stateless conversion layer between vector-store documents and typed memory model
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal._storage_payload_helpers import (
+    _last_accessed_from_metadata,
+    _last_accessed_payload,
     _lifecycle_from_metadata,
     _lifecycle_payload,
     _safe_float,
     _safe_int,
     _scope_from_metadata,
     _scope_payload,
+    _stamp_access,
     _status_from_metadata,
     _user_filter,
 )
@@ -56,6 +61,7 @@ __all__ = [
     "_scope_from_metadata",
     "_lifecycle_payload",
     "_lifecycle_from_metadata",
+    "_stamp_access",
     "doc_to_semantic",
     "doc_to_episodic",
     "doc_to_conversation",
@@ -114,6 +120,7 @@ _SEMANTIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "correction_of",
         "source_error",
         "tags",
+        "last_accessed_at",
     }
 )
 
@@ -122,6 +129,7 @@ _EPISODIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "event_type",
         "related_entities",
         "tags",
+        "last_accessed_at",
     }
 )
 
@@ -144,7 +152,7 @@ def _parse_domain(raw_domain: object) -> MemoryDomain:
         return MemoryDomain.USER
 
 
-def _string_list_from_metadata(meta: dict[str, object], key: str) -> list[str]:
+def _string_list_from_metadata(meta: Mapping[str, object], key: str) -> list[str]:
     """Restore a list-valued payload key (tags, related entities) as strings.
 
     The payload keeps tags and entities under single keys, which are excluded
@@ -185,6 +193,7 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
         correction_of=raw_corr or None,
         source_error=str(meta.get("source_error", "")) or None,
         access_count=_safe_int(meta.get("access_count", 0)),
+        last_accessed_at=_last_accessed_from_metadata(meta),
         user_rating=_safe_float(meta.get("user_rating", 0.5), 0.5),
         pinned=bool(meta.get("pinned", False)),
         status=_status_from_metadata(meta),
@@ -226,6 +235,7 @@ def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
         importance=_safe_float(meta.get("importance", 0.5), 0.5),
         source_chat_id=str(meta.get("source_chat_id", "")) or None,
         access_count=_safe_int(meta.get("access_count", 0)),
+        last_accessed_at=_last_accessed_from_metadata(meta),
         user_rating=_safe_float(meta.get("user_rating", 0.5), 0.5),
         pinned=bool(meta.get("pinned", False)),
         status=_status_from_metadata(meta),
@@ -361,6 +371,7 @@ def semantic_to_doc(m: SemanticMemory) -> VectorDocument:
         "domain_category": m.domain_category,
         **_scope_payload(m.scope),
         **_lifecycle_payload(m.lifecycle),
+        **_last_accessed_payload(m.last_accessed_at),
     }
     for k, v in m.metadata.items():
         if k not in payload:
@@ -402,6 +413,7 @@ def episodic_to_doc(m: EpisodicMemory) -> VectorDocument:
         "domain_category": m.domain_category,
         **_scope_payload(m.scope),
         **_lifecycle_payload(m.lifecycle),
+        **_last_accessed_payload(m.last_accessed_at),
     }
     for k, v in m.metadata.items():
         if k not in payload:

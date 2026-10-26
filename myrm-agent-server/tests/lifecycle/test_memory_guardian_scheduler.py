@@ -27,7 +27,6 @@ def _reset_scheduler_state() -> None:
     memory_guardian._scheduler_task = None
     memory_guardian._next_run = None
     memory_guardian._last_run = None
-    memory_guardian._consecutive_unhealthy = 0
     yield
     memory_guardian._scheduler_task = None
 

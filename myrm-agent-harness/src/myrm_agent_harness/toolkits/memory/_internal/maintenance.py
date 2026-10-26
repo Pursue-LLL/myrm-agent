@@ -3,6 +3,7 @@
 
 [INPUT]
 - memory._internal.storage::{storage conversion functions} (POS: internal vector storage operations)
+- memory._internal.bm25_sparse::is_sparse_authoritative (POS: whether the BM25 mirror is the only stored copy)
 - memory._internal.maintenance_claim_compile::compile_claim_graph (POS: Claim graph compilation from evaporated L2 digests)
 - memory._internal.maintenance_claim_support::search_claim_graph (POS: Claim node graph search)
 - memory._internal.maintenance_enrichment::enrich_with_graph (POS: Graph enrichment for memory search)
@@ -13,7 +14,7 @@
 [OUTPUT]
 - dedup_semantics: vector dedup (similarity ≥0.95)
 - run_forgetting: five-dimension forgetting execution
-- bump_access_counts: async access count update
+- bump_access_counts: async usage stamp (access count + last-use time) persisted for each retrieved memory
 - enrich_with_graph: re-export from maintenance_enrichment
 - compile_claim_graph: re-export from maintenance_claim_compile
 - forget_procedural_rules: procedural rule forgetting (delegated to maintenance_rule_forgetting)
@@ -30,9 +31,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import is_sparse_authoritative
 from myrm_agent_harness.toolkits.memory._internal.maintenance_claim_compile import (
     compile_claim_graph,
 )
@@ -53,6 +56,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
     episodic_to_doc,
     semantic_to_doc,
 )
+from myrm_agent_harness.toolkits.memory._internal.storage_converters import _stamp_access
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimConflictState,
@@ -324,26 +328,46 @@ async def _estimate_relation_counts(
     return dict(results)
 
 
+async def _persist_use(
+    collection: str,
+    memories: Sequence[SemanticMemory | EpisodicMemory],
+    vector: VectorStoreProtocol,
+    now: datetime,
+) -> None:
+    """Write the usage stamp of retrieved memories back to their collection.
+
+    The embeddings-less store holds exactly what a hit carries, so the hits are written
+    as they are. A dense collection refuses a document without its vector, and a hit from
+    the BM25 channel carries none (one such hit would drop the whole batch), so the stored
+    points are re-read and stamped instead; a point deleted since the search is not written back.
+    """
+    if not memories:
+        return
+    if is_sparse_authoritative(vector):
+        docs = [semantic_to_doc(m) if isinstance(m, SemanticMemory) else episodic_to_doc(m) for m in memories]
+    else:
+        docs = await vector.get(collection, [m.id for m in memories])
+        for doc in docs:
+            _stamp_access(doc, now)
+    if docs:
+        await vector.upsert(collection, docs)
+
+
 async def bump_access_counts(
     results: list[MemorySearchResult],
     vector: VectorStoreProtocol,
     config: MemoryConfig,
     relational: RelationalStoreProtocol | None = None,
 ) -> None:
-    """Fire-and-forget: increment access_count for retrieved memories."""
+    """Fire-and-forget: record one more use (count and last-use time) for each retrieved memory."""
     try:
         now = datetime.now(UTC)
-        for r in results:
-            mem = r.memory
-            if isinstance(mem, (SemanticMemory, EpisodicMemory)):
-                mem.access_count += 1
-                mem.last_accessed_at = now
-        sem_docs = [semantic_to_doc(r.memory) for r in results if isinstance(r.memory, SemanticMemory)]
-        epi_docs = [episodic_to_doc(r.memory) for r in results if isinstance(r.memory, EpisodicMemory)]
-        if sem_docs:
-            await vector.upsert(config.semantic_collection, sem_docs)
-        if epi_docs:
-            await vector.upsert(config.episodic_collection, epi_docs)
+        used = [r.memory for r in results if isinstance(r.memory, (SemanticMemory, EpisodicMemory))]
+        for memory in used:
+            memory.access_count += 1
+            memory.last_accessed_at = now
+        await _persist_use(config.semantic_collection, [m for m in used if isinstance(m, SemanticMemory)], vector, now)
+        await _persist_use(config.episodic_collection, [m for m in used if isinstance(m, EpisodicMemory)], vector, now)
         if relational:
             for r in results:
                 mem = r.memory

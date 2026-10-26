@@ -39,22 +39,20 @@ class _ExportManager:
 class _RulesManager:
     def __init__(self, results: list[dict[str, object]]) -> None:
         self.results = results
-        self.calls: list[tuple[str | None, list[str] | None, str]] = []
+        self.calls: list[tuple[list[str] | None, str]] = []
 
     async def export_rules_safe(
         self,
         *,
-        agent_id: str | None,
         rule_ids: list[str] | None,
         output_format: str,
     ) -> list[dict[str, object]]:
-        self.calls.append((agent_id, rule_ids, output_format))
+        self.calls.append((rule_ids, output_format))
         return self.results
 
 
 class _MarkdownManager:
-    async def export_markdown(self, tmp_dir: str, *, agent_id: str | None = None) -> dict[str, int]:
-        _ = agent_id
+    async def export_markdown(self, tmp_dir: str) -> dict[str, int]:
         Path(tmp_dir, "semantic.md").write_text("memory", encoding="utf-8")
         return {"semantic": 1}
 
@@ -75,12 +73,11 @@ async def test_export_rules_safe_zips_sanitized_rules() -> None:
 
     response = await export_rules_safe(
         manager=manager,  # type: ignore[arg-type]
-        agent_id="agent-1",
         rule_ids=" rule-1 , rule-2 ",
         output_format="json",
     )
 
-    assert manager.calls == [("agent-1", ["rule-1", "rule-2"], "json")]
+    assert manager.calls == [(["rule-1", "rule-2"], "json")]
     assert response.headers["X-Export-Count"] == "1"
     with zipfile.ZipFile(io.BytesIO(await read_stream(response))) as archive:
         assert archive.namelist() == ["rule_rule-123.json"]
@@ -103,13 +100,12 @@ async def test_preview_rules_safe_forwards_parsed_filters() -> None:
 
     result = await preview_rules_safe(
         manager=manager,  # type: ignore[arg-type]
-        agent_id=None,
         rule_ids="a,b",
         output_format="markdown",
     )
 
     assert result == [{"id": "rule-1", "rendered": "x"}]
-    assert manager.calls == [(None, ["a", "b"], "markdown")]
+    assert manager.calls == [(["a", "b"], "markdown")]
 
 
 @pytest.mark.asyncio

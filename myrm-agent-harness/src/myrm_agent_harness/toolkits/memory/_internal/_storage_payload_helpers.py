@@ -1,24 +1,26 @@
-"""Storage payload helpers for scope, lifecycle, and vector filter generation.
+"""Storage payload helpers for scope, lifecycle, usage stamp, and vector filter generation.
 
 [INPUT]
-- memory.protocols.vector::FilterDict (POS: filter dictionary typing)
+- memory.protocols.vector::{FilterDict, VectorDocument} (POS: filter dictionary typing and stored-document model)
 - memory.types::{ClaimConflictState, ClaimGraphState, DigestKind, EvaporationState, MemoryLifecycle, MemoryScope, MemoryStatus, MemoryTier}
 
 [OUTPUT]
 - _safe_float, _safe_int, _status_from_metadata
 - _user_filter, _scope_payload, _scope_from_metadata
 - _lifecycle_payload, _lifecycle_from_metadata
+- _last_accessed_payload, _last_accessed_from_metadata, _stamp_access: the usage-stamp payload keys (single owner)
 
 [POS]
-Internal helper functions converting domain lifecycle and scope metadata to/from storage payload structures.
+Internal helper functions converting domain lifecycle, scope, and usage-stamp metadata to/from storage payload structures.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 
-from myrm_agent_harness.toolkits.memory.protocols.vector import FilterDict
+from myrm_agent_harness.toolkits.memory.protocols.vector import FilterDict, VectorDocument
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimConflictState,
     ClaimGraphState,
@@ -42,7 +44,7 @@ def _safe_int(val: object, default: int = 0) -> int:
     return parse_int(val, default)
 
 
-def _status_from_metadata(meta: dict[str, object]) -> MemoryStatus:
+def _status_from_metadata(meta: Mapping[str, object]) -> MemoryStatus:
     """Restore the unified lifecycle status persisted in the payload."""
     raw = meta.get("status")
     if isinstance(raw, MemoryStatus):
@@ -91,7 +93,7 @@ def _scope_payload(scope: MemoryScope) -> dict[str, str | list[str]]:
     }
 
 
-def _scope_from_metadata(meta: dict[str, object]) -> MemoryScope:
+def _scope_from_metadata(meta: Mapping[str, object]) -> MemoryScope:
     raw_namespaces = meta.get("namespaces", [])
     namespaces = (
         [value for value in raw_namespaces if isinstance(value, str)] if isinstance(raw_namespaces, list) else []
@@ -125,7 +127,7 @@ def _lifecycle_payload(lifecycle: MemoryLifecycle | None) -> dict[str, str]:
     }
 
 
-def _lifecycle_from_metadata(meta: dict[str, object]) -> MemoryLifecycle | None:
+def _lifecycle_from_metadata(meta: Mapping[str, object]) -> MemoryLifecycle | None:
     raw_tier = str(meta.get("memory_tier", "")).strip()
     if raw_tier not in {tier.value for tier in MemoryTier}:
         return None
@@ -178,3 +180,22 @@ def _lifecycle_from_metadata(meta: dict[str, object]) -> MemoryLifecycle | None:
         claim_graph_updated_at=claim_graph_updated_at,
         claim_graph_conflict=claim_graph_conflict,
     )
+
+
+def _last_accessed_payload(value: datetime | None) -> dict[str, str]:
+    """Payload entry of the last-use time; absent until the memory is first recalled."""
+    return {"last_accessed_at": value.isoformat()} if value is not None else {}
+
+
+def _last_accessed_from_metadata(meta: Mapping[str, object]) -> datetime | None:
+    raw = str(meta.get("last_accessed_at", "")).strip()
+    try:
+        return datetime.fromisoformat(raw) if raw else None
+    except ValueError:
+        return None
+
+
+def _stamp_access(doc: VectorDocument, now: datetime) -> None:
+    """Record one more use on a stored document, touching only the two usage keys."""
+    doc.metadata["access_count"] = _safe_int(doc.metadata.get("access_count", 0)) + 1
+    doc.metadata.update(_last_accessed_payload(now))

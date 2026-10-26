@@ -143,21 +143,17 @@ class ReadOnlyMemoryView(DeniedMemoryWrites, MemoryManager):
         target_dir: str | Path,
         *,
         since_ts: datetime | None = None,
-        agent_id: str | None = None,
         memory_types: list[MemoryType] | None = None,
     ) -> dict[str, int]:
-        return await self._parent.export_markdown(
-            target_dir, since_ts=since_ts, agent_id=agent_id, memory_types=memory_types
-        )
+        return await self._parent.export_markdown(target_dir, since_ts=since_ts, memory_types=memory_types)
 
     async def export_rules_safe(
         self,
         *,
-        agent_id: str | None = None,
         rule_ids: list[str] | None = None,
         output_format: str = "markdown",
     ) -> list[dict[str, object]]:
-        return await self._parent.export_rules_safe(agent_id=agent_id, rule_ids=rule_ids, output_format=output_format)
+        return await self._parent.export_rules_safe(rule_ids=rule_ids, output_format=output_format)
 
     def begin_session(self, chat_id: str) -> MemorySession:
         return self._parent.begin_session(chat_id)

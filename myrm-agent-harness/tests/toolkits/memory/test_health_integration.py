@@ -7,14 +7,16 @@ using mock backends to verify correct delegation to compute_health().
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory._internal.maintenance_service import MaintenanceService
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
-from myrm_agent_harness.toolkits.memory.health import HealthScore
+from myrm_agent_harness.toolkits.memory.health import HealthScore, _HealthInput, compute_health
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
+from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
 
 
 def _make_doc(
@@ -240,3 +242,38 @@ class TestComputeHealthScore:
         from myrm_agent_harness.toolkits.memory.health import HealthScore as PublicHealthScore
 
         assert PublicHealthScore is HealthScore
+
+
+class TestHealthCoverageSample:
+    @pytest.mark.asyncio
+    async def test_freshness_follows_the_latest_write_not_the_stores_first_row(
+        self, memory_config: MemoryConfig
+    ) -> None:
+        now = datetime.now(UTC)
+        long_ago = now - timedelta(days=400)
+        oldest = SemanticMemory(id="old", content="old", created_at=long_ago, updated_at=long_ago)
+        newest = SemanticMemory(id="new", content="new", created_at=long_ago, updated_at=now - timedelta(days=1))
+        stored = [oldest, newest]  # the store's own order is oldest first
+
+        async def list_memories(
+            memory_type: MemoryType, *, limit: int, sort_by: str | None = None
+        ) -> list[SemanticMemory]:
+            rows = list(stored) if memory_type == MemoryType.SEMANTIC else []
+            if sort_by == "updated_at":
+                rows.sort(key=lambda m: m.updated_at, reverse=True)
+            return rows[:limit]
+
+        async def count_memories(memory_type: MemoryType) -> int:
+            return len(stored) if memory_type == MemoryType.SEMANTIC else 0
+
+        seen: list[_HealthInput] = []
+
+        def spy(health_input: _HealthInput) -> HealthScore:
+            seen.append(health_input)
+            return compute_health(health_input)
+
+        service = MaintenanceService(config=memory_config, vector=None, graph=None)
+        with patch("myrm_agent_harness.toolkits.memory.health.compute_health", spy):
+            await service.compute_health_score(count_memories_func=count_memories, list_memories_func=list_memories)  # type: ignore[arg-type]
+
+        assert seen[0].type_latest_update["semantic"] == newest.updated_at
