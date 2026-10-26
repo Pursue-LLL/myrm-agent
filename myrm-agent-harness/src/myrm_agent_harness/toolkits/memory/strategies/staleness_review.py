@@ -70,6 +70,7 @@ class StalenessReviewResult:
     extended_count: int = 0
     removed_count: int = 0
     removed_ids: list[str] = field(default_factory=list)
+    # (memory id, new expected_valid_days)
     extended_updates: list[tuple[str, int]] = field(default_factory=list)
     keep_cooldown_updates: list[tuple[str, int]] = field(default_factory=list)
 
@@ -156,11 +157,13 @@ class StalenessReviewer:
             return result
 
         facts_for_review = []
+        age_by_id: dict[str, int] = {}
         for mem in candidates:
             created = mem.created_at
             if created.tzinfo is None:
                 created = created.replace(tzinfo=UTC)
             age_days = (datetime.now(UTC) - created).days
+            age_by_id[mem.id] = age_days
             facts_for_review.append(
                 {
                     "id": mem.id,
@@ -188,18 +191,18 @@ class StalenessReviewer:
         result.reviewed_count = len(decisions)
         remove_ids: set[str] = set()
 
-        id_to_evd: dict[str, int] = {m.id: getattr(m, "expected_valid_days", 0) or 0 for m in candidates}
-
+        # ``expected_valid_days`` counts from creation, so a grant is anchored to the
+        # memory's age: the memory is not a candidate again until the grant has elapsed.
         for decision in decisions:
+            age_days = age_by_id[decision.memory_id]
             if decision.action == StalenessAction.REMOVE:
                 remove_ids.add(decision.memory_id)
             elif decision.action == StalenessAction.EXTEND:
                 result.extended_count += 1
-                result.extended_updates.append((decision.memory_id, decision.extend_by_days))
+                result.extended_updates.append((decision.memory_id, age_days + decision.extend_by_days))
             else:
                 result.kept_count += 1
-                new_evd = id_to_evd.get(decision.memory_id, 0) + cfg.keep_cooldown_days
-                result.keep_cooldown_updates.append((decision.memory_id, new_evd))
+                result.keep_cooldown_updates.append((decision.memory_id, age_days + cfg.keep_cooldown_days))
 
         if len(remove_ids) > cfg.max_removals_per_cycle:
             remove_ids = set(list(remove_ids)[: cfg.max_removals_per_cycle])

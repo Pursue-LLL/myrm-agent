@@ -260,7 +260,7 @@ class MemoryManagerListingMaintenanceMixin:
             scroll_all_memories_func=self._scroll_all_memories,
             run_consolidation_func=self._run_consolidation_cycle,
             preference_rebuild_func=self._run_preference_rebuild,
-            staleness_review_llm=self._consolidation_llm,
+            staleness_review_llm=self._build_text_llm_func(),
             pause_signal=pause_signal,
         )
 

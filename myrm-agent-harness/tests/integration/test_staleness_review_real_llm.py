@@ -126,9 +126,10 @@ async def test_staleness_review_real_llm_produces_valid_decisions() -> None:
     total_decisions = result.kept_count + result.extended_count + result.removed_count
     assert total_decisions == result.reviewed_count
 
-    for _mid, days in result.extended_updates:
-        assert days > 0
-        assert days <= config.max_extension_days
+    age_days = {memory.id: (datetime.now(UTC) - memory.created_at).days for memory in candidates}
+    for mid, new_expected_valid_days in result.extended_updates:
+        granted = new_expected_valid_days - age_days[mid]
+        assert 0 < granted <= config.max_extension_days
 
     assert len(result.removed_ids) <= config.max_removals_per_cycle
 

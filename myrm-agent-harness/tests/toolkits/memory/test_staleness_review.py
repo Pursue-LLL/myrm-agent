@@ -177,7 +177,30 @@ class TestStalenessReviewer:
         assert result.removed_count == 0
         assert result.extended_count == 0
         assert len(result.keep_cooldown_updates) == 3
-        assert result.keep_cooldown_updates[0] == ("m-1", 60)
+        assert result.keep_cooldown_updates[0] == ("m-1", 90)  # age 60 + cooldown 30
+
+    @pytest.mark.asyncio
+    async def test_grants_are_anchored_to_age_so_a_reviewed_memory_leaves_the_queue(self) -> None:
+        """A memory far past its TTL is not a candidate again until the grant has elapsed."""
+        llm_response = json.dumps(
+            [
+                {"id": "m-1", "action": "keep", "reason": "ok"},
+                {"id": "m-2", "action": "extend", "reason": "stable", "extend_by_days": 90},
+                {"id": "m-3", "action": "keep", "reason": "ok"},
+            ]
+        )
+        config = StalenessReviewConfig(min_candidates=3)
+        reviewer = StalenessReviewer(AsyncMock(return_value=llm_response), config)
+        candidates = [_make_semantic(mem_id=f"m-{i}", days_old=200, expected_valid_days=30) for i in (1, 2, 3)]
+
+        result = await reviewer.review(candidates)
+
+        new_evd = dict(result.keep_cooldown_updates + result.extended_updates)
+        assert new_evd == {"m-1": 230, "m-2": 290, "m-3": 230}
+        reviewed_again = [
+            _make_semantic(mem_id=mid, days_old=200, expected_valid_days=evd) for mid, evd in new_evd.items()
+        ]
+        assert select_stale_candidates(reviewed_again, config) == []
 
     @pytest.mark.asyncio
     async def test_extend_decision(self) -> None:
@@ -199,8 +222,8 @@ class TestStalenessReviewer:
         result = await reviewer.review(candidates)
 
         assert result.extended_count == 2
-        assert ("m-1", 180) in result.extended_updates
-        assert ("m-2", 365) in result.extended_updates
+        assert ("m-1", 240) in result.extended_updates  # age 60 + 180
+        assert ("m-2", 425) in result.extended_updates  # age 60 + 365
 
     @pytest.mark.asyncio
     async def test_remove_decision(self) -> None:
@@ -235,7 +258,7 @@ class TestStalenessReviewer:
         ]
         result = await reviewer.review(candidates)
 
-        assert result.extended_updates[0] == ("m-1", 730)
+        assert result.extended_updates[0] == ("m-1", 790)  # age 60 + capped 730
 
     @pytest.mark.asyncio
     async def test_malformed_llm_response_handled(self) -> None:
@@ -354,7 +377,7 @@ class TestStalenessReviewer:
         assert result.reviewed_count == 3
         assert result.removed_count == 1
         assert result.extended_count == 1
-        assert result.extended_updates[0] == ("m-3", 90)
+        assert result.extended_updates[0] == ("m-3", 150)  # age 60 + 90
         assert result.kept_count == 1
 
 

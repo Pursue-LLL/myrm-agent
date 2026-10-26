@@ -216,7 +216,7 @@ class MemoryManagerCore:
         )
         self._maintenance_service = MaintenanceService(
             config=config,
-            vector=vector,
+            vector=self._vector,
             graph=graph,
             relational=relational,
             namespaces=self._namespaces,

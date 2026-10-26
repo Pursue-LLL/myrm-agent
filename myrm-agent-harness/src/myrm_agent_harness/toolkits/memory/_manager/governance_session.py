@@ -151,7 +151,7 @@ class MemoryManagerGovernanceSessionMixin:
         if self._recurrence_detector is None:
             return
         try:
-            llm_func = self._build_recurrence_llm_func()
+            llm_func = self._build_text_llm_func()
             result = await self._recurrence_detector.check_recurrence(summary, llm_func=llm_func)
 
             if not result.triggered or not result.consolidated_content:
@@ -171,8 +171,9 @@ class MemoryManagerGovernanceSessionMixin:
         except Exception as e:
             logger.warning("Recurrence check failed (non-fatal): %s", e)
 
-    def _build_recurrence_llm_func(self) -> Callable[[str, str], Awaitable[str]] | None:
-        """Build LLM function for recurrence consolidation using consolidation_llm."""
+    def _build_text_llm_func(self) -> Callable[[str, str], Awaitable[str]] | None:
+        """Adapt ``consolidation_llm`` to the ``(system, user) -> text`` callable the
+        recurrence detector and the staleness reviewer take."""
         if self._consolidation_llm is None:
             return None
 

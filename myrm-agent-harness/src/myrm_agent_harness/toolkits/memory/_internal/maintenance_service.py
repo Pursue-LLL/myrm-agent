@@ -164,11 +164,12 @@ class MaintenanceService:
                     pass
 
         if self._graph is not None and all_memories:
+            graph = self._graph
             sample = all_memories[:_COHERENCE_SAMPLE_LIMIT]
 
             async def has_relations(memory_id: str) -> bool:
                 try:
-                    return bool(await self._graph.get_related_nodes(memory_id))
+                    return bool(await graph.get_related_nodes(memory_id))
                 except Exception:
                     return False
 
@@ -419,11 +420,10 @@ class MaintenanceService:
             select_stale_candidates,
         )
         from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, MemoryStatus, SemanticMemory
-        from myrm_agent_harness.toolkits.vector.base import VectorDocument
 
         forgettable = [m for m in all_memories if isinstance(m, (SemanticMemory, EpisodicMemory))]
         config = StalenessReviewConfig()
-        candidates = select_stale_candidates(forgettable, config)  # type: ignore[arg-type]
+        candidates = select_stale_candidates(forgettable, config)
 
         if len(candidates) < config.min_candidates:
             return (0, 0, 0)
@@ -433,26 +433,17 @@ class MaintenanceService:
 
         id_to_type: dict[str, type] = {m.id: type(m) for m in candidates}
 
-        async def _update_metadata(mid: str, meta_patch: dict[str, object]) -> None:
+        async def _update_metadata(mid: str, meta_patch: dict[str, str | int | bool]) -> None:
             mem_cls = id_to_type.get(mid)
             coll = self._config.episodic_collection if mem_cls is EpisodicMemory else self._config.semantic_collection
             docs = await self._vector.get(coll, [mid])  # type: ignore[union-attr]
             if not docs:
                 return
+            # Re-upsert the stored document itself: a rebuilt one would carry fresh
+            # created_at/updated_at stamps and silently re-date the memory.
             doc = docs[0]
-            meta = dict(doc.metadata)
-            meta.update(meta_patch)
-            await self._vector.upsert(
-                coll,
-                [
-                    VectorDocument(  # type: ignore[union-attr]
-                        id=doc.id,
-                        vector=doc.vector,
-                        content=doc.content,
-                        metadata=meta,
-                    )
-                ],
-            )
+            doc.metadata.update(meta_patch)
+            await self._vector.upsert(coll, [doc])  # type: ignore[union-attr]
 
         if self._vector is not None:
             for mid in result.removed_ids:

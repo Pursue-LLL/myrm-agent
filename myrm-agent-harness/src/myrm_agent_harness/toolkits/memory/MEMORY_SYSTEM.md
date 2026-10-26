@@ -714,8 +714,8 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 **工作流程**：
 
 1. **候选筛选** (`select_stale_candidates`)：从所有 Semantic/Episodic 记忆中筛出 `expected_valid_days` 已过期的（排除 pinned、archived、correction 链、7 天内访问过的），按过期严重度（`age_days - evd`）降序排列，取前 `max_candidates_per_cycle` 条
-2. **LLM 审查** (`StalenessReviewer.review`)：将候选事实批量发送给 LLM，LLM 对每条返回 KEEP/EXTEND/REMOVE 决策
-3. **执行决策**：REMOVE → archive（metadata 标记 `status=archived, archive_reason=staleness_review`）；EXTEND → 更新 `expected_valid_days`；KEEP → `evd += keep_cooldown_days`（冷却期，避免下次立即再审）
+2. **LLM 审查** (`StalenessReviewer.review`)：将候选事实批量发送给 LLM，LLM 对每条返回 KEEP/EXTEND/REMOVE 决策；管理器的 chat model 经 `_build_text_llm_func`（与 recurrence 共用）适配为 `(system, user) -> text`
+3. **执行决策**：REMOVE → archive（metadata 标记 `status=archived, archive_reason=staleness_review`）；EXTEND → `expected_valid_days = age_days + extend_by_days`；KEEP → `expected_valid_days = age_days + keep_cooldown_days`（`expected_valid_days` 自创建起算，授予期锚定在记忆当前年龄上，授予期未满不会再次入审）。写回复用库中原文档，仅更新 metadata，`created_at` 保持不变；写入走管理器共享的 mirror-aware 向量存储，embeddings-less 模式同样生效
 
 **安全边界**：
 
