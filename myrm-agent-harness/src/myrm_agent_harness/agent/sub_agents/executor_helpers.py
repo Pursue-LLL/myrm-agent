@@ -315,9 +315,9 @@ def clear_file_tracking(agent_id: str) -> None:
         from myrm_agent_harness.agent.meta_tools.file_ops.core.read_dedup import _dedup_guards
 
         get_file_activity_tracker().clear_agent(agent_id)
-        for guard in _integrity_guards.values():
-            guard.clear_agent(agent_id)
-        for guard in _dedup_guards.values():
-            guard.clear_agent(agent_id)
+        for integrity_guard in _integrity_guards.values():
+            integrity_guard.clear_agent(agent_id)
+        for dedup_guard in _dedup_guards.values():
+            dedup_guard.clear_agent(agent_id)
     except Exception:
-        pass
+        logger.debug("Failed to clear file tracking for %s", agent_id, exc_info=True)
