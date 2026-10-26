@@ -17964,7 +17964,7 @@
           "changeSelection": "更改导入范围",
           "disconnect": "断开连接",
           "disconnectTitle": "断开 ima 连接？",
-          "disconnectBody": "会删除已保存的密钥并停止自动同步。已导入到 Wiki 的文档会保留。",
+          "disconnectBody": "ima 的连接由所有智能体共用。断开后会删除已保存的密钥，并停止所有智能体的自动同步。已导入到 Wiki 的文档会保留。",
           "disconnectConfirm": "断开连接",
           "disconnected": "已断开 ima 连接"
         }

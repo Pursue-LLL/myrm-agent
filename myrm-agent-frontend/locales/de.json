@@ -17964,7 +17964,7 @@
           "changeSelection": "Importumfang ändern",
           "disconnect": "Trennen",
           "disconnectTitle": "ima trennen?",
-          "disconnectBody": "Der gespeicherte Schlüssel wird gelöscht und die automatische Synchronisierung gestoppt. Bereits ins Wiki importierte Dokumente bleiben erhalten.",
+          "disconnectBody": "Die ima-Verbindung wird von allen Agenten gemeinsam genutzt. Beim Trennen wird der gespeicherte Schlüssel gelöscht und die automatische Synchronisierung aller Agenten gestoppt. Bereits ins Wiki importierte Dokumente bleiben erhalten.",
           "disconnectConfirm": "Trennen",
           "disconnected": "ima getrennt"
         }

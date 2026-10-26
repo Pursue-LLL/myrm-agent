@@ -17964,7 +17964,7 @@
           "changeSelection": "取り込み範囲を変更",
           "disconnect": "接続を解除",
           "disconnectTitle": "ima との接続を解除しますか？",
-          "disconnectBody": "保存されたキーを削除し、自動同期を停止します。Wiki に取り込み済みのドキュメントは残ります。",
+          "disconnectBody": "ima との接続はすべてのエージェントで共有されています。解除すると、保存されたキーを削除し、すべてのエージェントの自動同期を停止します。Wiki に取り込み済みのドキュメントは残ります。",
           "disconnectConfirm": "接続を解除",
           "disconnected": "ima との接続を解除しました"
         }

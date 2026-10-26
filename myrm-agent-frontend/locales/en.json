@@ -17964,7 +17964,7 @@
           "changeSelection": "Change what is imported",
           "disconnect": "Disconnect",
           "disconnectTitle": "Disconnect ima?",
-          "disconnectBody": "This deletes the saved key and stops automatic sync. Documents already imported into the wiki stay.",
+          "disconnectBody": "ima is connected once for all your agents. Disconnecting deletes the saved key and stops automatic sync for every agent. Documents already imported into the wiki stay.",
           "disconnectConfirm": "Disconnect",
           "disconnected": "ima disconnected"
         }

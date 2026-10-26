@@ -17964,7 +17964,7 @@
           "changeSelection": "變更匯入範圍",
           "disconnect": "中斷連線",
           "disconnectTitle": "中斷 ima 連線？",
-          "disconnectBody": "會刪除已儲存的金鑰並停止自動同步。已匯入到 Wiki 的文件會保留。",
+          "disconnectBody": "ima 的連線由所有智慧體共用。中斷後會刪除已儲存的金鑰，並停止所有智慧體的自動同步。已匯入到 Wiki 的文件會保留。",
           "disconnectConfirm": "中斷連線",
           "disconnected": "已中斷 ima 連線"
         }
