@@ -14,11 +14,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.network.intelligence import (
-    NetworkIntelligence,
-    _CdpLoadingFailed,
-    _CdpRequestWillBeSent,
-)
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network.records import CdpLoadingFailed, CdpRequestWillBeSent
 
 _API = "https://api.example.com"
 
@@ -31,7 +28,7 @@ def _sent(
     redirected_from: int | None = None,
 ) -> None:
     """The browser starts a request; `redirected_from` is the status of the hop that sent it here."""
-    params: _CdpRequestWillBeSent = {
+    params: CdpRequestWillBeSent = {
         "requestId": request_id,
         "type": "XHR",
         "request": {"url": f"{_API}{path}", "method": "GET"},
@@ -48,7 +45,7 @@ def _answered(ni: NetworkIntelligence, request_id: str, status: int = 200) -> No
 def _failed(
     ni: NetworkIntelligence, request_id: str, error: str, cors: str | None = None, *, canceled: bool = False
 ) -> None:
-    params: _CdpLoadingFailed = {"requestId": request_id, "errorText": error, "canceled": canceled}
+    params: CdpLoadingFailed = {"requestId": request_id, "errorText": error, "canceled": canceled}
     if cors is not None:
         params["corsErrorStatus"] = {"corsError": cors}
     ni._on_loading_failed(params)
@@ -320,4 +317,5 @@ async def test_attach_listens_for_every_event_the_status_depends_on() -> None:
         "Network.requestWillBeSent",
         "Network.responseReceived",
         "Network.loadingFailed",
+        "Page.frameNavigated",
     }

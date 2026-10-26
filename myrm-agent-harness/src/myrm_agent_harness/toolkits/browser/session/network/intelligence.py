@@ -6,10 +6,10 @@
 - utils.page_health::detach_cdp_bounded (POS: bounded browser and page health primitives)
 - core.security.redact::redact_sensitive_text (POS: credential masking of response bodies)
 - network.logger::safe_preview, URL_PREVIEW_CHARS, POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW (POS: the masked, bounded previews the list lines share with the NetworkLogger list)
+- network.records::CdpRequestRecord and the CDP event payload types (POS: the shapes this recorder reads and keeps)
 
 [OUTPUT]
-- NetworkIntelligence: CDP-based lazy response body retrieval; numbers API requests and tells how each one ended
-- CdpRequestRecord: one tracked request, `seq` being the number network_log shows for it
+- NetworkIntelligence: CDP-based lazy response body retrieval; numbers the current page's API requests and tells how each one ended
 - EMPTY_RESPONSE: the answer for a response whose body is empty (network_detail and network_replay use the same words)
 
 [POS]
@@ -27,6 +27,12 @@ Only XHR/Fetch requests are tracked: they are the ones whose response body netwo
 network_log shows is the request's own `seq`, handed out once in arrival order, not a position in the rolling window:
 the window drops its oldest records, so a position would name a different request by the time the model asks for it.
 A number that is no longer tracked is refused, never re-pointed.
+The list is the current page's: every record carries the `epoch` of the page it was made on, and the epoch moves on when
+the main frame loads a new document (CDP `Page.frameNavigated`: a reload, back/forward and a link all fire it, a
+`pushState` route change does not, exactly like DevTools without "Preserve log") and when the recorder attaches to
+another page (a tab switch). Records of earlier pages stay in the window until it drops them but are neither listed nor
+openable, so the model never reads another page's request as this page's. A response whose MIME type is an image,
+audio, video or font is a file, not data: it leaves the window once it has answered and is only counted.
 """
 
 from __future__ import annotations
@@ -34,13 +40,21 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, TypedDict
+from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 from ...utils.page_health import detach_cdp_bounded
 from .logger import POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW, URL_PREVIEW_CHARS, safe_preview
+from .records import (
+    CdpFrameNavigated,
+    CdpLoadingFailed,
+    CdpRequestRecord,
+    CdpRequestWillBeSent,
+    CdpResponse,
+    CdpResponseReceived,
+)
 
 if TYPE_CHECKING:
     from patchright.async_api import CDPSession, Page
@@ -52,6 +66,12 @@ _API_RESOURCE_TYPES = ("XHR", "Fetch")
 _BODY_PREVIEW_MAX_CHARS = 8000
 _BODY_RAW_WINDOW = 16384
 EMPTY_RESPONSE = "Empty response"
+# Responses of these types are files, not data: icons and fonts would fill the window and cannot be read as text.
+_FILE_MIME_PREFIXES = ("image/", "audio/", "video/", "font/")
+_NO_CDP_ERROR = (
+    "Error: No CDP connection: response bodies cannot be read or replayed "
+    "(Firefox-based engines have none; on Chromium open a page first)."
+)
 # Responses of these statuses carry no body by definition, so there is nothing to ask Chrome for.
 _BODYLESS_STATUSES = frozenset({204, 205, 304})
 # Chrome's answer when it never kept (or no longer holds) the body: an unread empty response or an aborted stream.
@@ -59,67 +79,15 @@ _NO_BODY_KEPT_ERROR = "No data found for resource"
 _BODY_NOT_KEPT = "The browser kept no body for this request: it may still be loading, or the page dropped it"
 
 
-class _CdpRequest(TypedDict, total=False):
-    url: str
-    method: str
-    postData: str
-
-
-class _CdpResponse(TypedDict, total=False):
-    status: int
-    mimeType: str
-
-
-class _CdpRequestWillBeSent(TypedDict, total=False):
-    requestId: str
-    type: str
-    request: _CdpRequest
-    redirectResponse: _CdpResponse
-
-
-class _CdpResponseReceived(TypedDict, total=False):
-    requestId: str
-    response: _CdpResponse
-
-
-class _CdpCorsErrorStatus(TypedDict, total=False):
-    corsError: str
-
-
-class _CdpLoadingFailed(TypedDict, total=False):
-    requestId: str
-    errorText: str
-    canceled: bool
-    corsErrorStatus: _CdpCorsErrorStatus
-
-
-@dataclass(frozen=True, slots=True)
-class CdpRequestRecord:
-    """Tracked CDP request with requestId for lazy body retrieval.
-
-    Attributes:
-        request_id: CDP-assigned request identifier for getResponseBody
-        url: Request URL
-        method: HTTP method
-        resource_type: Network resource type (XHR or Fetch)
-        seq: The number network_log shows for the request, unique for the session
-        status: HTTP response status code; for a redirect hop, the status of the redirect it answered with
-        mime_type: Response MIME type
-        failure: The browser's error when the request ended without a usable response (e.g. net::ERR_BLOCKED_BY_CLIENT)
-        post_data: Raw POST body window; get_summary redacts it before cutting it to the preview
-        timestamp: Request time (monotonic)
-    """
-
-    request_id: str
-    url: str
-    method: str
-    resource_type: str
-    seq: int
-    status: int | None = None
-    mime_type: str | None = None
-    failure: str | None = None
-    post_data: str | None = None
-    timestamp: float = 0.0
+def _compact_ranges(numbers: list[int]) -> str:
+    """`[3, 4, 5, 8]` -> `3-5, 8`: the numbers an answer names, one range per run (hidden files leave gaps)."""
+    runs: list[list[int]] = []
+    for number in numbers:
+        if runs and number == runs[-1][1] + 1:
+            runs[-1][1] = number
+        else:
+            runs.append([number, number])
+    return ", ".join(str(a) if a == b else f"{a}-{b}" for a, b in runs)
 
 
 class NetworkIntelligence:
@@ -137,6 +105,8 @@ class NetworkIntelligence:
     def __init__(self, max_requests: int = _MAX_TRACKED_REQUESTS) -> None:
         self._requests: deque[CdpRequestRecord] = deque(maxlen=max_requests)
         self._next_seq = 1
+        self._epoch = 0
+        self._files_hidden = 0
         self._cdp_session: CDPSession | None = None
         self._bound_page: Page | None = None
         self._enabled = False
@@ -156,14 +126,18 @@ class NetworkIntelligence:
             return
 
         await self.detach()
+        # Another page starts here, whether or not the recorder manages to attach to it.
+        self._begin_page()
 
         try:
             cdp = await page.context.new_cdp_session(page)
             await cdp.send("Network.enable")
+            await cdp.send("Page.enable")
 
             cdp.on("Network.requestWillBeSent", self._on_request_will_be_sent)
             cdp.on("Network.responseReceived", self._on_response_received)
             cdp.on("Network.loadingFailed", self._on_loading_failed)
+            cdp.on("Page.frameNavigated", self._on_frame_navigated)
 
             self._cdp_session = cdp
             self._bound_page = page
@@ -180,7 +154,17 @@ class NetworkIntelligence:
         self._bound_page = None
         self._enabled = False
 
-    def _on_request_will_be_sent(self, params: _CdpRequestWillBeSent) -> None:
+    def _begin_page(self) -> None:
+        """A page's requests start here: everything recorded so far belongs to a page that is no longer the one shown."""
+        self._epoch += 1
+        self._files_hidden = 0
+
+    def _on_frame_navigated(self, params: CdpFrameNavigated) -> None:
+        """Handle CDP Page.frameNavigated: a new document in the main frame is a new page (a subframe is not)."""
+        if not params.get("frame", {}).get("parentId"):
+            self._begin_page()
+
+    def _on_request_will_be_sent(self, params: CdpRequestWillBeSent) -> None:
         """Handle CDP Network.requestWillBeSent event."""
         try:
             request = params.get("request", {})
@@ -215,19 +199,20 @@ class NetworkIntelligence:
                 post_data=post_data_original,
                 timestamp=time.time(),
                 seq=seq,
+                epoch=self._epoch,
             )
             self._requests.append(record)
         except Exception as exc:
             logger.debug("NetworkIntelligence: requestWillBeSent handler error: %s", exc)
 
-    def _on_response_received(self, params: _CdpResponseReceived) -> None:
+    def _on_response_received(self, params: CdpResponseReceived) -> None:
         """Handle CDP Network.responseReceived — update status and mime_type."""
         try:
             self._apply_response(params.get("requestId", ""), params.get("response", {}))
         except Exception as exc:
             logger.debug("NetworkIntelligence: responseReceived handler error: %s", exc)
 
-    def _on_loading_failed(self, params: _CdpLoadingFailed) -> None:
+    def _on_loading_failed(self, params: CdpLoadingFailed) -> None:
         """Handle CDP Network.loadingFailed — the browser gave up on the request; keep the error it names."""
         try:
             index = self._latest_index(params.get("requestId", ""))
@@ -246,13 +231,19 @@ class NetworkIntelligence:
         except Exception as exc:
             logger.debug("NetworkIntelligence: loadingFailed handler error: %s", exc)
 
-    def _apply_response(self, request_id: str, response: _CdpResponse) -> None:
-        """Record a response's status and mime type on the newest request of `request_id`."""
+    def _apply_response(self, request_id: str, response: CdpResponse) -> None:
+        """Record a response's status and mime type on the newest request of `request_id`; a file only counts."""
         index = self._latest_index(request_id)
-        if index is not None:
-            self._requests[index] = replace(
-                self._requests[index], status=response.get("status"), mime_type=response.get("mimeType", "")
-            )
+        if index is None:
+            return
+        record = self._requests[index]
+        mime_type = response.get("mimeType", "")
+        if mime_type.startswith(_FILE_MIME_PREFIXES):
+            del self._requests[index]
+            if record.epoch == self._epoch:
+                self._files_hidden += 1
+            return
+        self._requests[index] = replace(record, status=response.get("status"), mime_type=mime_type)
 
     def _latest_index(self, request_id: str) -> int | None:
         """Position of the newest tracked request of `request_id` (the hop that is current under a redirect)."""
@@ -262,12 +253,12 @@ class NetworkIntelligence:
         return None
 
     def get_api_requests(self) -> list[CdpRequestRecord]:
-        """Get all tracked XHR/Fetch requests (most recent last)."""
-        return list(self._requests)
+        """The current page's tracked XHR/Fetch requests (most recent last)."""
+        return [r for r in self._requests if r.epoch == self._epoch]
 
     def find_api_request(self, index: int) -> CdpRequestRecord | None:
-        """The tracked API request that network_log numbered `index`; None once it is no longer tracked."""
-        return next((r for r in self._requests if r.seq == index), None)
+        """The current page's API request that network_log numbered `index`; None once it is gone or from an earlier page."""
+        return next((r for r in self.get_api_requests() if r.seq == index), None)
 
     def _redirect_successor(self, record: CdpRequestRecord) -> CdpRequestRecord | None:
         """The request that carries on from `record` after its redirect: Chrome keeps the requestId across hops."""
@@ -280,12 +271,18 @@ class NetworkIntelligence:
         return record.status
 
     def invalid_index_error(self, index: int) -> str:
-        """The answer for a number that names no tracked API request, with the numbers that are valid now."""
+        """The answer for a number that names no request of the current page, with the numbers that are valid now."""
+        if self._cdp_session is None and not self._requests:
+            # Nothing was ever recorded and nothing can record: an engine without CDP.
+            return _NO_CDP_ERROR
         tracked = self.get_api_requests()
         if not tracked:
-            return f"Error: Invalid index {index}. No API requests are tracked; run network_log to refresh."
+            return (
+                f"Error: Invalid index {index}. No API requests are tracked on the current page; "
+                "run network_log to refresh."
+            )
         return (
-            f"Error: Invalid index {index}. Valid range: {tracked[0].seq}-{tracked[-1].seq}; "
+            f"Error: Invalid index {index}. Valid range: {_compact_ranges([r.seq for r in tracked])}; "
             "run network_log to see the current numbering."
         )
 
@@ -304,7 +301,7 @@ class NetworkIntelligence:
             a status without one, not kept by Chrome); otherwise an error message
         """
         if self._cdp_session is None:
-            return "Error: CDP session not available. Navigate to a page first."
+            return _NO_CDP_ERROR
 
         record = self.find_api_request(index)
         if record is None:
@@ -345,7 +342,7 @@ class NetworkIntelligence:
             if "No resource with given identifier found" in error_msg:
                 return (
                     f"Error: Response body no longer available for request #{index} "
-                    f"({record.method} {record.url}). "
+                    f"({record.method} {safe_preview(record.url, URL_PREVIEW_CHARS)}). "
                     "This happens when the page has navigated away. "
                     "Bodies are only available for the current page's requests."
                 )
@@ -367,7 +364,7 @@ class NetworkIntelligence:
         credential the cut would split never reaches the Agent as a fragment.
         """
         lines: list[str] = []
-        for req in self._requests:
+        for req in self.get_api_requests():
             url = safe_preview(req.url, URL_PREVIEW_CHARS)
             line = f"  {req.seq}. {req.method} {url} [{self._status_label(req)}]"
             if req.post_data:
@@ -376,6 +373,16 @@ class NetworkIntelligence:
 
         return "\n".join(lines)
 
+    def hidden_summary(self) -> str:
+        """What the list leaves out, in one line (empty when nothing is): earlier pages' requests and file responses."""
+        left_out: list[str] = []
+        if any(r.epoch != self._epoch for r in self._requests):
+            left_out.append("requests of earlier pages")
+        if self._files_hidden:
+            left_out.append(f"{self._files_hidden} image, audio, video and font responses")
+        return f"(not listed: {'; '.join(left_out)})" if left_out else ""
+
     def clear(self) -> None:
         """Clear all tracked requests."""
         self._requests.clear()
+        self._files_hidden = 0

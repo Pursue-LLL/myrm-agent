@@ -21,11 +21,12 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_network_mixin i
     _REPLAY_TIMEOUT_S,
     BrowserSessionNetworkMixin,
 )
-from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence, _CdpRequest
+from myrm_agent_harness.toolkits.browser.session.network.intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network.records import CdpRequest
 
 
 def _see(ni: NetworkIntelligence, url: str, method: str = "GET", post_data: str | None = None) -> None:
-    request: _CdpRequest = {"url": url, "method": method}
+    request: CdpRequest = {"url": url, "method": method}
     if post_data is not None:
         request["postData"] = post_data
     ni._on_request_will_be_sent({"requestId": "req-1", "type": "Fetch", "request": request})
@@ -39,6 +40,7 @@ class _StubSession(BrowserSessionNetworkMixin):
         self._tab_controller = MagicMock()
         self._tab_controller.get_active_page.return_value = page
         self._network_intelligence = NetworkIntelligence()
+        self._network_intelligence._cdp_session = MagicMock()  # a Chromium session: the CDP recorder is attached
         if tracked:
             _see(self._network_intelligence, "https://api.example.com/data")
         self.page = page

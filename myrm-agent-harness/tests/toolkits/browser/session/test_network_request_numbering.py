@@ -92,7 +92,8 @@ def test_numbers_below_one_name_no_request(seq: int) -> None:
 
 def test_the_invalid_index_error_names_the_tracked_range_and_how_to_refresh() -> None:
     ni = NetworkIntelligence(max_requests=3)
-    assert "No API requests are tracked" in ni.invalid_index_error(1)
+    _with_cdp(ni)
+    assert "No API requests are tracked on the current page" in ni.invalid_index_error(1)
 
     for i in range(1, 6):
         _see(ni, f"req-{i}")

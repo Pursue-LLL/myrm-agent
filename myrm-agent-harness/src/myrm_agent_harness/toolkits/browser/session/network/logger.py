@@ -17,7 +17,8 @@
 [POS]
 Network request logging for the browser toolkit. Provides self-diagnosis capability for browser session network activity:
 the XHR/Fetch list of engines without CDP, and the one-line-per-request list of the other resources that answered 4xx/5xx
-(unnumbered: their response body is never opened).
+(unnumbered: their response body is never opened). Both lists are the current page's: the log starts over when the main
+frame requests a new document and when capture moves to another page, like the CDP recorder's page.
 
 """
 
@@ -156,6 +157,7 @@ class NetworkLogger:
             return
         if self._bound_page is not None:
             self.detach_page(self._bound_page)
+        self.clear()
         self._bound_page = page
         page.on("request", self._cb_request)
         page.on("response", self._cb_response)
@@ -170,9 +172,23 @@ class NetworkLogger:
         """Whether to capture this resource type."""
         return resource_type not in _STATIC_RESOURCE_TYPES
 
+    @staticmethod
+    def _loads_main_frame_document(request: Request) -> bool:
+        """Whether the request loads a new document into the main frame (a sub-frame's navigation is not a new page)."""
+        if not request.is_navigation_request():
+            return False
+        try:
+            return request.frame.parent_frame is None
+        except Exception:
+            # The driver has no frame yet for the navigation request of a frame that is still being created.
+            return False
+
     def _on_request(self, request: Request) -> None:
         """Handle request event."""
         try:
+            if self._loads_main_frame_document(request):
+                # What was recorded belongs to the page that is going away.
+                self.clear()
             if not self._should_capture(request.resource_type):
                 return
             self._pending[request] = time.time()

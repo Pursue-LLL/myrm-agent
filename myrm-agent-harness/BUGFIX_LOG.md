@@ -2,6 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-017 · 换页后 `network_log` 仍列着上一页的请求，页面 fetch 的图片/字体占着编号和窗口位置，没有 CDP 的引擎上报错不说真话，失败资源块带着上一页的脚本
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（给 `network_detail` 的大响应体设计 vault 落盘前，用真实 Chromium 跑「两个页面，第二页再 fetch 图片和字体」对照 `network_log` 的输出） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：换页（链接、刷新、前进后退）后，`network_log` 的第一页请求和第二页请求排在同一份带编号的列表里，模型把离开的页面当成当前页：编号 1 看起来能用，`network_detail 1` 要打开时才得到「Response body no longer available」；页面用 fetch 取的图标、字体、图片也各占一个编号。100 条窗口按到达顺序滚动，多换几页后当前页的 API 请求会被挤出去。线上有多少次换页后读 `network_log` 未测 |
+| **关联产品** | harness `toolkits/browser/session/network/`（`intelligence.py`、`logger.py`、新增 `records.py`）、`session/browser_session_network_mixin.py` |
+| **根因** | 三处。① CDP 记录器没有「页面」的概念：窗口只按到达顺序滚动，主框架换了新文档、切到别的标签页都不影响列表，`find_api_request` 只按序号找，所以上一页的编号照常列出，响应体却早已取不到；驱动事件日志（没有 CDP 的引擎用它）的「其余失败资源」块同样换页不清。② 只按 `resourceType`（XHR/Fetch）筛请求：页面用 fetch 取的图片、字体、音视频（响应是文件，读成文本毫无意义）与 API 请求一样占编号和窗口位置；`Valid range` 又按「首-尾」写，一旦列表有空缺就不真实。③ 没有 CDP 的引擎永远没有 CDP 记录，`network_detail` 回答 `CDP session not available. Navigate to a page first.`（在 Firefox 系上导航并不会有 CDP），`network_replay` 回答「编号无效」，都没说真实原因；过期响应体的错误回显完整原始 URL（不限长度）。 |
+| **修复** | ① 每条记录带 `epoch`：主框架提交新文档（CDP `Page.frameNavigated` 且无 `parentId`）或记录器切换到另一个页面（`attach`，附加失败也算）时 epoch 前进，列表、编号查找、有效范围只看当前 epoch；更早页面的记录留在窗口里直到被滑出，不再列出、也打不开；`pushState` 路由切换不触发 `frameNavigated`，仍是同一页。驱动事件日志在主框架请求新文档（子框架、或驱动还不知道其 frame 的导航不算）和切换页面时清空。② MIME 以 `image/`、`audio/`、`video/`、`font/` 开头的响应在到达时移出窗口并按页面计数（`application/octet-stream`、`application/wasm` 照常列出，没有证据说明它们不装数据）；`Valid range` 按段给出（`1, 3-4`）；`network_log` 末尾用一行说明省略了什么：`(not listed: requests of earlier pages; N image, audio, video and font responses)`，什么都没省略时不出现。③ 没有 CDP 且从未记录过任何请求时回答 `Error: No CDP connection: response bodies cannot be read or replayed (Firefox-based engines have none; on Chromium open a page first).`；过期响应体错误回显的 URL 先脱敏再按 `URL_PREVIEW_CHARS` 截断。CDP 载荷类型与 `CdpRequestRecord` 拆到新增的 `records.py`，`intelligence.py` 保持在 400 行内。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 Chromium 对照（页面一：fetch `/api/one` 且引用不存在的脚本；页面二：fetch `/api/two`、`/logo.png`、`/font.woff2`）：旧源码换到页面二后列出 4 条（`1. /api/one`、`2. /api/two`、`3. /logo.png`、`4. /font.woff2`），失败块还带页面一的脚本，`network_detail 1` 回答「Response body no longer available」；修复后只列 `2. /api/two`，末尾 `(not listed: requests of earlier pages; 2 image, audio, video and font responses)`，失败块消失，`network_detail 1` 回答 `Error: Invalid index 1. Valid range: 2; run network_log to see the current numbering.`。新增 36 个单元测试（`tests/toolkits/browser/session/network/test_network_page_scope.py`、`test_network_log_listing.py`、`network/test_network_logger_capture.py`），旧源码上 32 个失败（其余 4 个是防止过度触发的对照：子框架导航、驱动不知道 frame 的导航、已附加页面重复附加、没有省略就没有说明行）；新增 6 个真实 Chromium 测试（`test_network_log_page_scope_integration.py`：换页、刷新、`pushState`、图片字体计数、失败脚本、切标签页），旧源码上 5 个失败（`pushState` 一个是对照）。 |
+| **仍然存在** | ① 切回一个早已打开的标签页，列表从切回那一刻重新开始，该标签页此前的请求不会补回。② 状态码 4xx/5xx 但 MIME 为 `image/` 等的 fetch 响应同样只计数、不列出（没有见过实际案例）。③ 浏览器 back/forward 缓存（bfcache）恢复是否触发 `Page.frameNavigated` 未验证；没有 CDP 的 Firefox 系引擎只用 Mock 请求/帧的单元测试覆盖，未跑真实引擎。④ 记录器的 CDP 会话里多发了一个 `Page.enable`（在独立会话里，不影响驱动自己的会话），页面脚本能否观察到它未做检测实验。 |
+| **代码位置** | `toolkits/browser/session/network/intelligence.py`（`_begin_page`、`_on_frame_navigated`、`_apply_response`、`get_api_requests`、`invalid_index_error`、`hidden_summary`）· `network/logger.py`（`_loads_main_frame_document`、`start_capture`）· `network/records.py` · `session/browser_session_network_mixin.py`（`get_network_log`） |
+
 ### BUG-HARNESS-2026-10-27-016 · 翻 vault 对象第二页时续读提示是坏的：路径被拼上刚读的范围、行号按本页重新计数，跟着提示读得到「对象不存在或已过期」；对象里夹 U+2028 等字符时行号还与其他读取路径对不上
 
 | 字段 | 内容 |
@@ -10,7 +26,7 @@
 | **发现时间** | 2026-10-27（给 `network_detail` 的大响应体设计 vault 落盘时，用真实 vault 对象走 `file_read` 逐页往下翻） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P2：任何超过 10,000 字符的 vault 对象（`extract_text` 落盘、超大工具结果的自动落盘）只要用范围读取（`vault://<id>:N-`）翻到第二页，提示就坏了，跟着它读还会得到误导性的「not found or expired」（对象其实在）。第一页（不带范围）的提示是对的，所以只测第一页看不出来。线上有多少次翻到第二页未测 |
-| **关联产品** | harness `agent/meta_tools/file_ops/utils/vault_read.py`、`core/file_read_truncation.py` |
+| **关联产品** | harness `agent/meta_tools/file_ops/utils/vault_read.py`、`agent/meta_tools/file_ops/core/file_read_truncation.py` |
 | **根因** | 两处。① `read_vault_paths_to_parts` 把带范围的原路径当作提示里的路径，并把已经切过片的内容交给 `truncate_file_output`；后者对没有行号栏的原文用「本页保留行数 + 1」当续读行号，所以范围读取得到的是相对本页的行号，还拼在带范围的路径后面。② `read_vault_text_content` 用 `str.splitlines` 切行，U+2028、U+0085、U+000B、单独的 `\r` 也算行尾；普通文件的读取（`strategies/storage_strategy.py:62`、`mcp_strategy.py:57`）与截断函数都只按 `\n` 计行，同一段文字在 vault 里行号对不上。 |
 | **修复** | `truncate_file_output` 新增 `first_line`（原文切片第一行在对象里的绝对行号，默认 1；有行号栏时仍以行号栏为准）；`read_vault_paths_to_parts` 提示里写对象本身 `vault://<id>`，并传入这次读取的起始行；`read_vault_text_content` 改按 `\n` 切行（保留行尾），与其他读取路径同一口径。 |
 | **反复次数** | 第 1 次发现 |
@@ -75,13 +91,13 @@
 | **发现时间** | 2026-10-26（在 bilibili 的运行日志里看到 `Failed to capture response`，再用本地服务端复现） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P3：二进制 POST（`sendBeacon`、压缩体、protobuf、上传）在驱动侧的记录里整条丢失，其 4xx/5xx 不会出现在失败列表。16 个可访问的真实站点中 3 个触发：bilibili 丢 8 条、bilibili 热门页 5 条、youtube 2 条（共 15 条，每条一条 WARNING） |
-| **关联产品** | harness `toolkits/browser/session/network_logger.py` |
+| **关联产品** | harness `toolkits/browser/session/network/logger.py` |
 | **根因** | `_on_response` 取 POST 预览时读 `request.post_data`，驱动对非 UTF-8 的请求体直接抛 `UnicodeDecodeError`（解码发生在 Python 驱动的 `_impl/_network.py`：`base64.b64decode(...).decode()`，与浏览器引擎无关）；外层的宽 `except` 只写一条 WARNING，`RequestInfo` 没有追加，丢掉的是整条记录，不只是预览。 |
 | **修复** | `_post_data_preview` 单独接住 `UnicodeDecodeError`，预览记为 `<binary body>`，记录照常保存；文本体的预览改为先脱敏、再截到 80 字符（见 BUG-HARNESS-2026-10-27-010）。 |
 | **反复次数** | 第 1 次发现 |
 | **回归** | 真实 Chromium，本地服务端对所有 POST 回 500，页面各发一次 JSON POST、二进制 fetch POST、`sendBeacon`：旧源码日志 2 条 `Failed to capture response: 'utf-8' codec can't decode byte 0xf5`，驱动侧只剩 JSON 那一条（失败列表 `1 total`）；新源码 0 条 WARNING，3 条都记录，二进制体的预览是 `<binary body>`，`sendBeacon`（`ping` 类型）进入失败列表。`test_network_log_listing_integration.py::test_a_post_whose_body_is_not_text_keeps_its_record` 在旧源码上变红。 |
 | **仍然存在** | ① 编号列表（CDP 一侧）里的 `POST:` 预览仍把二进制体的字节原样当文本显示（youtube 的 gzip 体 `\x1f\x8b\x08…` 2 条；上面对照里的二进制 fetch 显示为乱码并带 NUL 字符），每条至多 80 字符，本次没改。② 真实浏览器取证只在 Chromium 上做。 |
-| **代码位置** | `session/network_logger.py`（`_post_data_preview`）· `tests/toolkits/browser/session/test_network_log_listing_integration.py` |
+| **代码位置** | `session/network/logger.py`（`_post_data_preview`）· `tests/toolkits/browser/session/test_network_log_listing_integration.py` |
 
 ### BUG-HARNESS-2026-10-27-011 · network_replay 把响应整个读进页面再截取，且没有超时：400 MiB 的响应让浏览器多占 414 MiB，服务端中途停住时回放一直阻塞
 
@@ -107,13 +123,13 @@
 | **发现时间** | 2026-10-26（对 32 个真实站点量 network_log 的 token 数） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P2：32 个真实站点中 25 个有 XHR/Fetch 列表，旧格式的 token 数均值 3,641、中位 1,566、最大 43,033（jd.com，65 条，约每行 660 token）；超过 5000 token 的有 2 个（jd.com 与 news.qq.com 的 6,356）。单条工具结果超过 `tool_result_evict_threshold`（默认 5000 token，`context_management/infra/schemas.py`）时，`filter_processor` 把完整输出落盘并交给 lite LLM 做语义过滤（`semantic_filter.py` 只读前 30,000 字符），模型拿到的不再是请求列表本身；该路径来自读代码，没有在真实 Agent 回合里端到端复现 |
-| **关联产品** | harness `toolkits/browser/session/network_intelligence.py`、`network_logger.py`、`browser_session_network_mixin.py` |
+| **关联产品** | harness `toolkits/browser/session/network/intelligence.py`、`toolkits/browser/session/network/logger.py`、`browser_session_network_mixin.py` |
 | **根因** | `NetworkIntelligence.get_summary` 每行写完整 URL 与脱敏后的前 200 字符 POST 体，窗口最多 100 行；采样里（16 个站点、566 条 XHR/Fetch URL）URL 长度中位 73、p90 329、p95 1,427 字符，16% 超过 160 字符；212 条 POST 预览（存储窗口上限 4096，输出时才截到 200）中位 876、p75 3,981 字符。 |
 | **修复** | 列表行的 URL 截到 160 字符、POST 体截到 80 字符，截断处以 `…` 结尾；先脱敏再截断（`safe_preview`：对前 4096 字符脱敏后再截）。裸格式的密钥（如 `AIza…`、`sk-…`）只有完整出现才会被识别，先截后脱敏时被截点切开的那一段（探针里 25 个字符）会原样留在输出里。`network_detail` 在被列表截过的请求的答复首行回显完整的脱敏 URL（`URL: …`，至多 2000 字符），没被截的不加；列表表头加一句说明 `…` 的含义。 |
 | **反复次数** | 第 1 次发现 |
 | **回归** | 同一次页面加载，用同一批记录分别渲染旧格式（脚本按旧规则复刻，不是旧源码本身运行）与新格式（含失败块），25 个有列表的站点：均值 3,641 → 1,405 token，中位 1,566 → 987，最大 43,033 → 4,595（jd.com），超过 5000 token 的 2 个 → 0；youtube 3,310 → 2,993，news.qq.com 6,356 → 3,391；小列表因多出的表头说明略增（ifeng 111 → 129，cnblogs 250 → 270）。测试：`test_network_log_listing.py` 的详情回显 5 例（截了回显完整、没截不重复、脱敏、超出 2000 的上限、不存在的编号只给报错），`test_network_logger.py` / `test_network_intelligence.py` 的截断与先脱敏后截断边界例；把 `safe_preview` 换成先截后脱敏，5 例变红（POST 体 2 例、URL 3 例）。 |
 | **仍然存在** | ① jd.com 4,595 token 仍贴近 5000 的阈值，请求更多或行更长的页面仍可能越过。② 每个非空列表的表头多 16 token（`o200k_base`），请求很少的页面总量反而略增。③ 被截的 URL 在 160 字符之后的部分，模型要多调一次 `network_detail` 才能看到。④ 没有用真实 LLM 做对照：截断是否影响模型挑对要打开的请求，没有数据。能测到的只有可见性：producthunt、medium、twitch、gitlab 的 21 个 GraphQL 操作，操作名全部在前 80 字符内；12 个站点的 197 条 POST 体里，按 16 个常见键名（operationName、event、type、name 等）统计，9% 的标识键排在第 80 个字符之后（打印出的 6 例都是埋点上报）。标识字段排在 80 字符之后的 POST 体，列表里认不出是哪个操作，也没有别的途径看到它更多的内容（`network_detail` 只给响应体）。⑤ 脱敏对每行都执行（对 4096 字符窗口约 12 ms，对 URL 约 0.27 ms，均为本机实测），耗时与旧版相同量级，没有额外优化。⑥ 无 CDP 的路径（Firefox / Camoufox）不在这次的上限之内：驱动自己的列表每行写完整 URL，没有长度上限（9,000 字符的 URL 得到 9,202 字符的列表），最多 20 行。 |
-| **代码位置** | `session/network_logger.py`（`safe_preview`）· `session/network_intelligence.py`（`get_summary`）· `session/browser_session_network_mixin.py`（`get_network_detail`、`_API_LIST_HEADER`）· `tests/toolkits/browser/session/test_network_log_listing.py` |
+| **代码位置** | `session/network/logger.py`（`safe_preview`）· `session/network/intelligence.py`（`get_summary`）· `session/browser_session_network_mixin.py`（`get_network_detail`、`_API_LIST_HEADER`）· `tests/toolkits/browser/session/test_network_log_listing.py` |
 
 ### BUG-HARNESS-2026-10-27-009 · network_log 的「失败请求」块自带一套从 1 开始的编号，与 XHR/Fetch 的编号撞号；页面没有 XHR/Fetch（白屏）时，失败的脚本整块不显示
 
@@ -123,14 +139,14 @@
 | **发现时间** | 2026-10-26（对真实站点的 network_log 逐行核对编号，再用本地白屏页复现） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P2：① 模型读到失败块里的「1. GET /static/main.js [FAIL] 404」后调用 `network_detail 1`，得到的是 XHR 编号 1 的响应体，不报错，无从察觉拿错了请求。② 页面里没有任何 XHR/Fetch（入口脚本 404 的白屏）时，失败块整块被隐藏，`network_log` 只回答 `No network requests captured (filter=api).`，模型没有任何渠道得知哪个资源失败。两种情形在真实流量里的频率未测；32 个真实站点中 jd.com、stackoverflow、npmjs 在最终版本里带有非 XHR/Fetch 的 4xx/5xx 行（4、3、3 行） |
-| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`network_logger.py`、`network_intelligence.py` |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`network/logger.py`、`network/intelligence.py` |
 | **根因** | `get_network_log` 把两份各自编号的列表拼在一起：CDP 的 XHR/Fetch 列表用请求自己的 `seq`（BUG-HARNESS-2026-10-26-002 修过），驱动的失败块仍按 `enumerate(recent, 1)` 的位置编号；XHR/Fetch 列表为空时又走另一条分支，直接返回驱动自己的 `get_summary("api")`，失败块根本不拼。CDP 一侧同时还在跟踪 Document，却没有任何调用方使用它们（编号 0、不列出、`network_detail` 打不开），只占滚动窗口。 |
 | **修复** | ① 失败块只列非 XHR/Fetch 的 4xx/5xx 资源，每条一行 `type METHOD url [status]`，不编号（`network_detail` 只能打开 XHR/Fetch 的响应体，编号只会诱导一次必败的调用），表头写明 `not numbered, so network_detail cannot open them`，最近 20 条，更早的写 `(N earlier not shown)`。② 失败块接在带编号的列表之后，也接在 `No API requests captured.` 之后，没有 XHR/Fetch 时同样出现。③ 不再跟踪 Document，`seq=0` 的特例随之删除；`NetworkLogger.get_summary` 的 `filter_mode` 与 `_filter_requests` 删除（`network_log` 动作没有过滤参数，唯一调用方是 `get_network_log`）；无 CDP 的引擎（Firefox）仍用驱动自己按位置编号的 XHR/Fetch 列表。 |
 | **反复次数** | 第 2 次：BUG-HARNESS-2026-10-26-002 只修了 XHR/Fetch 列表的编号，失败块的自带编号与「列表为空时失败块被隐藏」当时都没有发现。 |
 | **踩坑** | 一份输出里出现两套编号，模型只会把它们当成同一套；凡是后续动作打不开的行，就不该带编号。 |
 | **回归** | 真实 Chromium，页面含一个 404 脚本与一个 XHR：旧输出的失败块写 `1. GET …/main.abc123.js [FAIL]`，`network_detail 1` 回答 `{"ok":1}`（XHR 的响应体）；新输出的失败块写 `script GET …/main.abc123.js [404]`，无编号，`network_detail 1` 仍回答 XHR。没有任何 XHR 的白屏页：旧输出 `No network requests captured (filter=api).`，新输出列出该脚本。新增 `test_network_log_listing.py` 11 例、真实 Chromium `test_network_log_listing_integration.py` 3 例（本条 2 例，另 1 例属 BUG-HARNESS-2026-10-27-012），旧源码上这 3 例全部变红；`tests/toolkits/browser` 里 network 相关 212 例通过。 |
 | **仍然存在** | ① 驱动侧窗口 50 条（`NetworkLogger.__init__` 的 `deque(maxlen=50)`），请求很多的页面里较早出现的 404 可能已被挤出，挤出频率未测。② 样式表、字体、图片、媒体不进失败块（`_STATIC_RESOURCE_TYPES`），404 的样式表不会被列出；传输层失败没有状态码，也不列：32 个站点里非 XHR/Fetch 的传输层失败共 6,494 个，其中 6,389 个是本产品自己的拦截（`net::ERR_BLOCKED_BY_CLIENT.Inspector`），其余 105 个（`ERR_CONNECTION_CLOSED` 87、`ERR_ABORTED` 13、`ERR_BLOCKED_BY_ORB` 4、`ERR_BLOCKED_BY_CLIENT` 1）未列出。③ 无 CDP 的路径（Firefox / Camoufox）：列表是驱动自己的 XHR/Fetch 列表，按位置编号（`1. GET …`），而 `network_detail` 回答 `Error: CDP session not available. Navigate to a page first.`，`network_replay` 回答 `Error: Invalid index 1. No API requests are tracked; run network_log to refresh.`（两句都是在没有 CDP 记录的会话里直接调用得到的，没有启动 Firefox）。这条路径上的编号打不开任何请求，与上面「踩坑」写的原则相悖；该路径只有单元测试，没有真实浏览器验证。 |
-| **代码位置** | `session/browser_session_network_mixin.py`（`get_network_log`）· `session/network_logger.py`（`get_summary`、`get_other_failed_summary`）· `session/network_intelligence.py`（`_on_request_will_be_sent`）· `tests/toolkits/browser/session/test_network_log_listing.py` · `test_network_log_listing_integration.py` |
+| **代码位置** | `session/browser_session_network_mixin.py`（`get_network_log`）· `session/network/logger.py`（`get_summary`、`get_other_failed_summary`）· `session/network/intelligence.py`（`_on_request_will_be_sent`）· `tests/toolkits/browser/session/test_network_log_listing.py` · `test_network_log_listing_integration.py` |
 
 ### BUG-HARNESS-2026-10-27-008 · todo 焦点注入与 CompletionGuard 的未完成 todo 检查读不到工作区：读了运行时上下文里不存在的键、又按错误的 runtime 形状取值，这两项检查在生产中从未触发
 
@@ -233,7 +249,7 @@
 | **发现时间** | 2026-10-26（对照 `network_replay` 与真实 Chrome 的回放结果） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P3：回放得到的 401、204、空 200 对模型是同一句 `Empty response`，分不出「回放被拒」与「本来就没有内容」；页面带请求头得到 200、裸 URL 回放得到 401 时，回答里看不出两次请求的差别 |
-| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`network_intelligence.py` |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`toolkits/browser/session/network/intelligence.py` |
 | **根因** | 页面侧的回放脚本只带回 `resp.text()`，`resp.status` 在页面侧被丢掉；回放只重发 URL，不带页面请求的请求头，页面自己的请求与回放得到的状态可能不同，却没有任何提示。 |
 | **修复** | 答复首行是 `[HTTP n]`，即回放实际得到的状态码；页面自己的那次请求（沿重定向链取末跳，`NetworkIntelligence.final_status`）的状态与之不同时，同一行注明「重放只重发 URL，不带页面请求的请求头」；响应体为空时第二行是 `Empty response`。 |
 | **回归** | `test_browser_session_network_mixin.py`（状态行、空响应按状态区分、状态不一致、页面请求未答复或失败时不比较、重定向末跳、回放脚本返回异常形状）；真 Chromium `test_network_terminal_states_integration.py`：页面带 Authorization 头得到 200，裸 URL 回放得到 401，答复写明两个状态；204 回放读作 `[HTTP 204]`（去掉说明行、改用首跳状态、去掉空响应文案各使其中若干用例变红）。 |
@@ -247,7 +263,7 @@
 | **发现时间** | 2026-10-26（用真实 Chrome 逐一取证 `Network.loadingFailed` 的触发条件） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P2：服务端已经答复的请求（没人读响应体的 204 / 空 200 / 空 401、响应头之后被页面中止的流）被标成失败，真实的 401 被 `net::ERR_ABORTED` 盖住；`network_detail` 对这类请求回答驱动的原始报错 |
-| **关联产品** | harness `toolkits/browser/session/network_intelligence.py` |
+| **关联产品** | harness `toolkits/browser/session/network/intelligence.py` |
 | **根因** | `BUG-HARNESS-2026-10-26-004` 订阅 `Network.loadingFailed`，并让失败压过先到的状态码。真实 Chrome 对「响应已到、页面没有读取就丢弃」的请求先发 `responseReceived`、再发 `loadingFailed(net::ERR_ABORTED, canceled=true)`；传输中断（`ERR_CONTENT_LENGTH_MISMATCH`）、CORS、拦截的 `canceled` 都是 false（Chromium `ResourceError::IsCancellation()` 只对 `ERR_ABORTED` 为真，CORS 状态只出现在 `ERR_FAILED` 上）。当时的真实 Chromium 用例只用了非空 JSON 响应体，没有走到这条路径。 |
 | **修复** | `canceled` 且该请求已有状态码时保留服务端的状态码、不记失败；响应到达前的取消、传输中断、CORS、拦截仍记失败。`network_detail` 同步改答：204 / 205 / 304 回答 `No response body (status N)`（不询问 Chrome），空响应体回答 `Empty response`，Chrome 没有保留响应体的请求回答 `The browser kept no body for this request: it may still be loading, or the page dropped it`，不再转述驱动的 `No data found for resource…`。 |
 | **回归** | `test_network_terminal_states.py`（canceled 保留 200 / 204 / 401 / 500；响应前取消、传输中断、重定向末跳的边界；204 / 205 / 304、空响应体、驱动报错三类回答）；真 Chromium `test_network_terminal_states_integration.py` 4 例，每例用 Chrome 自己的 `loadingFailed` 事件作对照（去掉修复则 3 例变红；把规则放宽或收窄各有边界用例变红）。 |
@@ -288,7 +304,7 @@
 | **发现时间** | 2026-10-26（network 三件套复查） |
 | **修复时间** | 2026-10-26 |
 | **严重程度** | P2：模型对一个永远不会有答案的请求空等或误判；`network_detail` 回原始驱动报错 |
-| **关联产品** | harness `toolkits/browser/session/network_intelligence.py` |
+| **关联产品** | harness `toolkits/browser/session/network/intelligence.py` |
 | **根因** | Chrome 在重定向链上复用同一 requestId，上一跳的响应只出现在下一跳 `requestWillBeSent` 的 `redirectResponse` 里，它自己没有 `responseReceived`；被浏览器放弃的请求（拦截、拒绝连接、CORS、中止）走 `Network.loadingFailed`，该事件从未被订阅。 |
 | **修复** | 回填跳转状态，`network_detail` 指向继续下去的那条请求；订阅 `loadingFailed`，日志显示 `[failed: <浏览器错误>]`（CORS 失败追加原因），`network_detail` 直接回答错误而不再询问 Chrome；`[pending]` 只表示确实在途。 |
 | **回归** | `test_network_terminal_states.py` 18 例；真 Chromium `test_network_terminal_states_integration.py` 7 例（301 / 302 / 303 / 307 / 308 跳转、拒绝连接、被过滤器拦截、replay 拒绝时服务端零命中）。 |
@@ -314,7 +330,7 @@
 | **发现时间** | 2026-10-26（network 工具复查） |
 | **修复时间** | 2026-10-26 |
 | **严重程度** | P1：`network_detail` 返回另一条请求的响应体，`network_replay` 重发另一条请求（用心跳 POST 代替价格 GET） |
-| **关联产品** | harness `toolkits/browser/session/network_intelligence.py`、`toolkits/browser/session/browser_session_network_mixin.py` |
+| **关联产品** | harness `toolkits/browser/session/network/intelligence.py`、`toolkits/browser/session/browser_session_network_mixin.py` |
 | **根因** | 编号是滚动窗口内的位置，窗口写满后每来一条新请求整体后移。 |
 | **修复** | 每条 XHR / Fetch 请求拥有按到达顺序发放一次、不复用的编号；滑出窗口的编号被明确拒绝，并给出当前有效范围。 |
 | **回归** | `test_network_request_numbering.py`、`test_browser_session_network_mixin.py`。 |
@@ -786,7 +802,7 @@
 | **踩坑** | ① 删除遥测时 ruff 报 `SIM102`：关闭会话处原来是 `if self._observability:` 里套 `if self._observability.recording_enabled:`，去掉外层的 `mark_closed()` 后两层条件合并为一个；② 被删的 `test_search_quota_and_browser_telemetry.py` 里还有三个搜索指标用例（`WebSearchMetrics` 的供应商额度计数，不属于遥测），先搬到新文件 `tests/toolkits/web_search/test_web_search_metrics.py` 再删旧文件；③ `BUG-HARNESS-2026-10-14-016` 的回归一栏提到的 `test_observability_bandwidth_integration.py` 随被测的字节统计一起删除（它测的就是被删的 `BrowserRunTelemetry`） |
 | **回归** | `tests/toolkits/browser/session/test_browser_session_takeover.py` 与 `test_takeover_hard_stop.py` 共 9 例通过；`tests/toolkits/browser` 与 `tests/toolkits/web_search` 整目录 3576 例通过、1 例跳过（另有 350 例按项目默认标记不收集）；变异验证：把调用改回 `force=True`，两个断言 `diff=False` 的用例失败（2 失败、7 通过），换回后 9 例全过；`inspect.signature(BrowserSession.snapshot).bind(force=True)` 抛 `TypeError` |
 | **局限** | ① 没有在真实浏览器里验证接管交还后第一次快照的内容，下一次 `snapshot()` 此前是否比对了接管前的旧基线只是按代码推断；② 被删的遥测没有保留任何一段，将来要做运行成本或带宽展示，读取侧与写入侧都要从头设计；③ `browser_session.py` 里还有一个与本条无关的既有 mypy 错误（`PageAnalyzer` 收到 `patchright` 的 `Page`，声明的是 `playwright` 的 `Page`），没有动 |
-| **代码位置** | `toolkits/browser/session/browser_session.py::resume_from_takeover`（`:386`）· `toolkits/browser/observability.py::BrowserObservability` · `toolkits/browser/session/network_logger.py::NetworkLogger.__init__` · `tests/toolkits/browser/session/test_browser_session_takeover.py`、`test_takeover_hard_stop.py`、`tests/toolkits/web_search/test_web_search_metrics.py` |
+| **代码位置** | `toolkits/browser/session/browser_session.py::resume_from_takeover`（`:386`）· `toolkits/browser/observability.py::BrowserObservability` · `toolkits/browser/session/network/logger.py::NetworkLogger.__init__` · `tests/toolkits/browser/session/test_browser_session_takeover.py`、`test_takeover_hard_stop.py`、`tests/toolkits/web_search/test_web_search_metrics.py` |
 
 ### BUG-HARNESS-2026-10-16-011 · 搜索链上头部供应商超时、5xx、连不上时不会转移到备用供应商，整次搜索直接失败；查询词里带 quota、429 一类词的搜索，一次超时就能把健康的头部供应商标成额度耗尽或限流
 
@@ -1503,8 +1519,8 @@
 | **修复** | ① `destroy_context(key, only_if_idle=True)`：仍有页面在用时保留上下文并返回 `False`；`close()` 改用它，删除强制清空与强删；`restart()` 经 `close()` 关闭并恢复上下文键；② `CrashWatchdog.is_page_crashed` 对在用页面保留崩溃标记，`BrowserSession.active_tab_crashed()` 暴露给边界，`cancel_boundary` 在每次工具调用前遇崩溃先 `recover_active_tab()`；③ 摘除监听改用 `remove_listener`（网络与控制台日志共 5 处），替身删去 `off`，其余用 `Mock(spec=Page)`；④ `BrowserInstance.expected_close`：池关闭托管浏览器、`restart()` 清理空浏览器前先置位，`disconnected` 处理器按 `is_managed and not expected_close` 分类，预期断开记 INFO；崩溃与浏览器断开不再向熔断器记失败（熔断器只由导航结果驱动，原来的全局崩溃域没有任何读取方）；⑤ 默认引擎返回 `CONSOLE_CAPTURE_UNAVAILABLE`，说明控制台不可捕获、不能当作无报错并指向 `network_log` / `evaluate`；Camoufox 照常返回捕获内容；工具 schema 与描述不变，不影响提示缓存。附带：`BrowserSessionNetworkMixin` 补上 `SessionHost` 基类（消掉该文件 11 处 mypy 错误）；例行事件（标签页创建/关闭、池关停统计、域名过滤器安装）由 WARNING 降为 INFO |
 | **反复次数** | 第 1 次发现；与 2026-10-14-001 / 002 同属 topic_04 #2 的资源与会话守恒复核 |
 | **踩坑** | ① 单元测试里替身遮住了 `page.off` 的错误，必须用真实 Chromium 或 `Mock(spec=Page)` 才暴露；② 崩溃判定对照组不能 `await cdp.send("Browser.crash")`：浏览器当场死亡，命令永远没有应答，要放进任务里，等断开处理器跑完后取消该任务；③ patchright 的 Console API 被设计性关闭，页面 `console.error` 已被独立的 CDP `Runtime` 监听收到，`ConsoleLogger` 仍为 0 条，所以用对照组证明是驱动不上报而不是测试写错；④ 评估过但不做的方案：为默认引擎开启 `Console.enable`（patchright 为隐身而关闭它，开启会抵消反检测设计，见 `BROWSER_SYSTEM.md` 反检测表）、给 `browser_manage` 的工具描述追加说明（改工具 schema，破坏提示缓存）、已知未修的既有竞态（`restart()` 清理空浏览器与另一会话正在 `acquire_page` 的交错；`destroy_context` 与进行中的 `acquire_page` 的时间窗）、导航 mixin 的 `or CHROMIUM_PATCHRIGHT` 引擎判断不看池默认引擎 |
-| **回归** | `tests/toolkits/browser/session/test_shared_context_close.py`（真实 Chromium，5 例，含独占上下文对照）· `session/test_crashed_tab_recovery_integration.py`（3 例，含健康标签不被替换对照）· `session/test_network_log_tab_switch.py`（2 例，含活动标签自身请求对照）· `pool/test_expected_close_accounting.py`（4 例，`Browser.crash` 真实崩溃对照）· `session/test_console_capture_integration.py`（CDP 对照：页面已打日志而会话收到 0 条）· `session/test_console_log_availability.py`（6 例，按引擎）· `session/test_tab_recovery.py`、`tools/test_cancel_boundary.py`、`session/test_network_logger.py`、`session/test_console_logger.py`、`test_crash_watchdog.py` 同步。变异验证：还原强制清空，3 例失败；去掉入口崩溃检查，2 例集成与 1 例单元失败；还原 `.off`，4 例单元失败；去掉 `expected_close`，3 例失败；去掉「不可用」分支，5 例失败 |
-| **代码位置** | `toolkits/browser/pool/browser_pool.py::destroy_context`（`:354`）· `session/browser_session_lifecycle_mixin.py::close/restart`（`:229` 调用，`:98` 置位）· `pool/crash_watchdog.py::is_page_crashed`（`:112`）/ `_handle_browser_disconnected`（`:83`）· `session/browser_session_tab_mixin.py::active_tab_crashed`（`:129`）· `tools/cancel_boundary.py`（`:64` 调用）· `session/network_logger.py` / `console_logger.py`（`remove_listener`）· `pool/browser_launcher.py::BrowserInstance.expected_close`（`:208`）· `session/browser_session_network_mixin.py::get_console_log`（`:41`） |
+| **回归** | `tests/toolkits/browser/session/test_shared_context_close.py`（真实 Chromium，5 例，含独占上下文对照）· `session/test_crashed_tab_recovery_integration.py`（3 例，含健康标签不被替换对照）· `session/test_network_log_tab_switch.py`（2 例，含活动标签自身请求对照）· `pool/test_expected_close_accounting.py`（4 例，`Browser.crash` 真实崩溃对照）· `session/test_console_capture_integration.py`（CDP 对照：页面已打日志而会话收到 0 条）· `session/test_console_log_availability.py`（6 例，按引擎）· `session/test_tab_recovery.py`、`tools/test_cancel_boundary.py`、`session/network/test_network_logger.py`、`session/test_console_logger.py`、`test_crash_watchdog.py` 同步。变异验证：还原强制清空，3 例失败；去掉入口崩溃检查，2 例集成与 1 例单元失败；还原 `.off`，4 例单元失败；去掉 `expected_close`，3 例失败；去掉「不可用」分支，5 例失败 |
+| **代码位置** | `toolkits/browser/pool/browser_pool.py::destroy_context`（`:354`）· `session/browser_session_lifecycle_mixin.py::close/restart`（`:229` 调用，`:98` 置位）· `pool/crash_watchdog.py::is_page_crashed`（`:112`）/ `_handle_browser_disconnected`（`:83`）· `session/browser_session_tab_mixin.py::active_tab_crashed`（`:129`）· `tools/cancel_boundary.py`（`:64` 调用）· `session/network/logger.py` / `console_logger.py`（`remove_listener`）· `pool/browser_launcher.py::BrowserInstance.expected_close`（`:208`）· `session/browser_session_network_mixin.py::get_console_log`（`:41`） |
 
 ### BUG-HARNESS-2026-10-14-002 · 浏览器页面崩溃事件为没人持有的页面归还并发许可：空闲页崩溃让并发上限永久抬高，调用方已释放的页面崩溃则重复归还
 

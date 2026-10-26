@@ -39,6 +39,15 @@ class _Session(BrowserSessionNetworkMixin):
             {"requestId": request_id, "type": "XHR", "request": {"url": url, "method": "GET"}}
         )
 
+    def answered(self, request_id: str, mime: str, status: int = 200) -> None:
+        self._network_intelligence._on_response_received(
+            {"requestId": request_id, "response": {"status": status, "mimeType": mime}}
+        )
+
+    def navigated(self) -> None:
+        """The main frame committed a new document."""
+        self._network_intelligence._on_frame_navigated({"frame": {}})
+
     def driver_saw(self, url: str, resource_type: str, status: int) -> None:
         self._network_logger._requests.append(RequestInfo("GET", url, resource_type, 0.0, status=status))
 
@@ -105,6 +114,65 @@ def test_without_cdp_the_drivers_own_api_list_stands_in_and_the_failed_resources
     assert lines[0] == "Network Log (1 total, showing last 1):"
     assert "1. GET https://app.example.com/api/ok" in lines
     assert lines[-2:] == [_FAILED_HEADER, "  script GET https://app.example.com/static/main.js [404]"]
+
+
+class TestTheListSaysWhatItLeftOut:
+    def test_the_requests_of_an_earlier_page_are_not_listed_and_the_log_says_so(self) -> None:
+        session = _Session()
+        session.xhr("https://app.example.com/api/old", request_id="old")
+        session.navigated()
+        session.xhr("https://app.example.com/api/new", request_id="new")
+
+        assert session.get_network_log().splitlines() == [
+            _API_LIST_HEADER,
+            "  2. GET https://app.example.com/api/new [pending]",
+            "(not listed: requests of earlier pages)",
+        ]
+
+    def test_an_image_the_page_fetched_is_not_listed_but_counted(self) -> None:
+        session = _Session()
+        session.xhr("https://app.example.com/api/ok", request_id="data")
+        session.xhr("https://app.example.com/logo.png", request_id="logo")
+        session.answered("logo", "image/png")
+
+        assert session.get_network_log().splitlines() == [
+            _API_LIST_HEADER,
+            "  1. GET https://app.example.com/api/ok [pending]",
+            "(not listed: 1 image, audio, video and font responses)",
+        ]
+
+    def test_a_page_whose_only_requests_were_files_still_says_so(self) -> None:
+        session = _Session()
+        session.xhr("https://app.example.com/logo.png")
+        session.answered("req-1", "image/png")
+
+        assert session.get_network_log().splitlines() == [
+            "No API requests captured.",
+            "(not listed: 1 image, audio, video and font responses)",
+        ]
+
+    def test_the_note_comes_before_the_failed_resources(self) -> None:
+        session = _Session()
+        session.xhr("https://app.example.com/api/old", request_id="old")
+        session.navigated()
+        session.xhr("https://app.example.com/api/new", request_id="new")
+        session.driver_saw("https://app.example.com/static/main.js", "script", 404)
+
+        assert session.get_network_log().splitlines() == [
+            _API_LIST_HEADER,
+            "  2. GET https://app.example.com/api/new [pending]",
+            "(not listed: requests of earlier pages)",
+            "",
+            _FAILED_HEADER,
+            "  script GET https://app.example.com/static/main.js [404]",
+        ]
+
+    def test_a_log_with_nothing_left_out_has_no_note(self) -> None:
+        session = _Session()
+        session.xhr("https://app.example.com/api/ok", request_id="data")
+        session.answered("data", "application/json")
+
+        assert "not listed" not in session.get_network_log()
 
 
 class TestDetailGivesBackTheUrlTheListCut:

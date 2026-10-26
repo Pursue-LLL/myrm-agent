@@ -1,7 +1,8 @@
 """Network recording of a browser session: the CDP request records and the driver-event request log.
 
 [INPUT]
-- intelligence::NetworkIntelligence, CdpRequestRecord, EMPTY_RESPONSE (POS: CDP-based API request outcomes and lazy response bodies)
+- intelligence::NetworkIntelligence, EMPTY_RESPONSE (POS: CDP-based API request outcomes and lazy response bodies)
+- records::CdpRequestRecord (POS: one tracked request)
 - logger::NetworkLogger, RequestInfo, safe_preview and the preview limits (POS: driver-event request log and the masked, bounded previews)
 
 [OUTPUT]
@@ -14,7 +15,7 @@ Recorders behind the `network_log` / `network_detail` / `network_replay` actions
 compose their answers live in `browser_session_network_mixin.py`.
 """
 
-from .intelligence import EMPTY_RESPONSE, CdpRequestRecord, NetworkIntelligence
+from .intelligence import EMPTY_RESPONSE, NetworkIntelligence
 from .logger import (
     POST_PREVIEW_CHARS,
     RAW_PREVIEW_WINDOW,
@@ -23,6 +24,7 @@ from .logger import (
     RequestInfo,
     safe_preview,
 )
+from .records import CdpRequestRecord
 
 __all__ = [
     "EMPTY_RESPONSE",

@@ -19,6 +19,8 @@ NetworkIntelligence. network_log is one list of numbered XHR/Fetch requests, who
 network_replay take, followed by the other resources that answered 4xx/5xx: those carry no number, because only
 an XHR/Fetch response body can be opened, and they are listed even when no XHR/Fetch request exists (a white page
 whose script 404s). A URL the list cut is given in full at the top of its network_detail answer.
+The list is the current page's: a new document or a tab switch starts it over, and a line names what it left out
+(requests of earlier pages; image, audio, video and font responses, which are files, not data).
 An engine without CDP (Firefox) has no request records to open: its driver's own XHR/Fetch list stands in,
 numbered by position, and network_detail / network_replay cannot act on those numbers.
 Replay re-sends a GET by in-page fetch via the active tab and refuses every other
@@ -107,10 +109,15 @@ class BrowserSessionNetworkMixin(SessionHost):
         return self._console_logger.get_summary()
 
     def get_network_log(self) -> str:
-        """The numbered XHR/Fetch requests, then the other resources that failed (listed even with no XHR/Fetch)."""
+        """The current page's numbered XHR/Fetch requests, then the other resources that failed (listed even with none).
+
+        A line says what was left out: requests of earlier pages and image, audio, video and font responses.
+        """
         api_summary = self._network_intelligence.get_summary()
         # Without CDP (Firefox) the driver's own list stands in, numbered by position.
         parts = [_API_LIST_HEADER, api_summary] if api_summary else [self._network_logger.get_summary()]
+        if hidden_summary := self._network_intelligence.hidden_summary():
+            parts.append(hidden_summary)
         failed_summary = self._network_logger.get_other_failed_summary()
         if failed_summary:
             parts.append(f"\n{failed_summary}")

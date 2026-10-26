@@ -218,8 +218,8 @@ class TestNetworkIntelligence:
 
         assert ni.is_enabled
         mock_page.context.new_cdp_session.assert_awaited_once_with(mock_page)
-        mock_cdp.send.assert_awaited_once_with("Network.enable")
-        assert mock_cdp.on.call_count == 3
+        assert [call.args[0] for call in mock_cdp.send.await_args_list] == ["Network.enable", "Page.enable"]
+        assert mock_cdp.on.call_count == 4
 
     @pytest.mark.asyncio
     async def test_attach_failure_non_critical(self):
@@ -307,13 +307,13 @@ class TestNetworkIntelligence:
             {
                 "requestId": "req-1",
                 "type": "XHR",
-                "request": {"url": "https://api.example.com/image", "method": "GET"},
+                "request": {"url": "https://api.example.com/export", "method": "GET"},
             }
         )
         ni._on_response_received(
             {
                 "requestId": "req-1",
-                "response": {"status": 200, "mimeType": "image/png"},
+                "response": {"status": 200, "mimeType": "application/octet-stream"},
             }
         )
 
@@ -323,7 +323,7 @@ class TestNetworkIntelligence:
 
         result = await ni.get_response_body(1)
         assert "Binary response" in result
-        assert "image/png" in result
+        assert "application/octet-stream" in result
 
     @pytest.mark.asyncio
     async def test_get_response_body_no_cdp(self):
@@ -337,7 +337,7 @@ class TestNetworkIntelligence:
         )
 
         result = await ni.get_response_body(1)
-        assert "Error: CDP session not available" in result
+        assert result.startswith("Error: No CDP connection")
 
     @pytest.mark.asyncio
     async def test_get_response_body_invalid_index(self):
