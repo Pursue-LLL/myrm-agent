@@ -10,7 +10,7 @@ import asyncio
 import tempfile
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import Any
+from typing import NoReturn
 
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -23,6 +23,9 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteL
 
 from .conftest import MemoryTelemetry
 
+Json = dict[str, object]
+ProviderReply = AsyncIterator[Json] | Json
+
 CHAT = "chat gpt-4o-mini"
 USAGE = {
     "prompt_tokens": 40,
@@ -30,7 +33,7 @@ USAGE = {
     "total_tokens": 48,
     "prompt_tokens_details": {"cached_tokens": 30},
 }
-CHUNKS: list[dict[str, Any]] = [
+CHUNKS: list[Json] = [
     {
         "id": "c1",
         "model": "gpt-4o-mini-2024-07-18",
@@ -39,7 +42,7 @@ CHUNKS: list[dict[str, Any]] = [
     {"id": "c1", "model": "gpt-4o-mini-2024-07-18", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
     {"id": "c1", "model": "gpt-4o-mini-2024-07-18", "choices": [], "usage": USAGE},
 ]
-RESPONSE: dict[str, Any] = {
+RESPONSE: Json = {
     "model": "gpt-4o-mini-2024-07-18",
     "choices": [{"index": 0, "message": {"role": "assistant", "content": "hello"}, "finish_reason": "stop"}],
     "usage": USAGE,
@@ -49,18 +52,18 @@ RESPONSE: dict[str, Any] = {
 class FakeClient:
     """Provider client double: one scripted behaviour per call."""
 
-    def __init__(self, *behaviours: Callable[[], Any]) -> None:
+    def __init__(self, *behaviours: Callable[[], ProviderReply]) -> None:
         self._behaviours = list(behaviours)
         self.calls = 0
 
-    async def acreate(self, **kwargs: Any) -> Any:
+    async def acreate(self, **kwargs: object) -> ProviderReply:
         behaviour = self._behaviours[min(self.calls, len(self._behaviours) - 1)]
         self.calls += 1
         return behaviour()
 
 
-def _stream(chunks: list[dict[str, Any]] = CHUNKS) -> Callable[[], AsyncIterator[dict[str, Any]]]:
-    async def gen() -> AsyncIterator[dict[str, Any]]:
+def _stream(chunks: list[Json] = CHUNKS) -> Callable[[], AsyncIterator[Json]]:
+    async def gen() -> AsyncIterator[Json]:
         await asyncio.sleep(0.01)
         for chunk in chunks:
             yield chunk
@@ -68,8 +71,8 @@ def _stream(chunks: list[dict[str, Any]] = CHUNKS) -> Callable[[], AsyncIterator
     return gen
 
 
-def _fail(exc: Exception) -> Callable[[], Any]:
-    def behaviour() -> Any:
+def _fail(exc: Exception) -> Callable[[], NoReturn]:
+    def behaviour() -> NoReturn:
         raise exc
 
     return behaviour
