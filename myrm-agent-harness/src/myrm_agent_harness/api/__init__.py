@@ -371,7 +371,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 # ``__all__`` is derived from ``_EXPORTS`` so the two cannot drift: every name is declared once,
 # in ``_EXPORTS``, which is also what ``__getattr__`` resolves against.
-__all__: list[str] = list(_EXPORTS)
+__all__: list[str] = list(_EXPORTS)  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 if __debug__:

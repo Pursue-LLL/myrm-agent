@@ -12,6 +12,11 @@ CLI backend of the ACP runtime. Facade of the ``cli`` package, whose modules are
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .runtime import CliRuntime
+
 __all__ = ["CliRuntime"]
 
 
