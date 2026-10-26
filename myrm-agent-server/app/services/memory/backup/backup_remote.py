@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -359,15 +360,23 @@ class _S3Client:
             config_kwargs["s3"] = {"addressing_style": "path"}
         return BotoConfig(**config_kwargs)
 
+    @asynccontextmanager
+    async def _client(self):
+        # aioboto3 ships no type stubs: its client factory is inferred as a sync client although it returns
+        # an async context manager.
+        import aioboto3
+
+        session = aioboto3.Session()
+        s3 = session.client("s3", config=self._client_config(), **self._session_kwargs())
+        async with s3 as client:  # pyright: ignore[reportGeneralTypeIssues]
+            yield client
+
     def _key(self, remote_name: str) -> str:
         return f"{self._prefix}{remote_name}" if self._prefix else remote_name
 
     async def check_connection(self) -> bool:
-        import aioboto3
-
         try:
-            session = aioboto3.Session()
-            async with session.client("s3", config=self._client_config(), **self._session_kwargs()) as client:
+            async with self._client() as client:
                 await client.head_bucket(Bucket=self._bucket)
             return True
         except Exception as e:
@@ -375,11 +384,8 @@ class _S3Client:
             return False
 
     async def put_file(self, local_path: Path, remote_name: str) -> bool:
-        import aioboto3
-
         try:
-            session = aioboto3.Session()
-            async with session.client("s3", config=self._client_config(), **self._session_kwargs()) as client:
+            async with self._client() as client:
                 with open(local_path, "rb") as f:
                     await client.upload_fileobj(f, self._bucket, self._key(remote_name))
             return True
@@ -388,12 +394,9 @@ class _S3Client:
             return False
 
     async def get_file(self, remote_name: str, local_path: Path) -> bool:
-        import aioboto3
-
         try:
             local_path.parent.mkdir(parents=True, exist_ok=True)
-            session = aioboto3.Session()
-            async with session.client("s3", config=self._client_config(), **self._session_kwargs()) as client:
+            async with self._client() as client:
                 with open(local_path, "wb") as f:
                     await client.download_fileobj(self._bucket, self._key(remote_name), f)
             return True
@@ -402,12 +405,9 @@ class _S3Client:
             return False
 
     async def list_files(self) -> list[RemoteBackupFile]:
-        import aioboto3
-
         results: list[RemoteBackupFile] = []
         try:
-            session = aioboto3.Session()
-            async with session.client("s3", config=self._client_config(), **self._session_kwargs()) as client:
+            async with self._client() as client:
                 response = await client.list_objects_v2(
                     Bucket=self._bucket,
                     Prefix=self._prefix,
@@ -433,11 +433,8 @@ class _S3Client:
         return results
 
     async def delete_file(self, remote_name: str) -> bool:
-        import aioboto3
-
         try:
-            session = aioboto3.Session()
-            async with session.client("s3", config=self._client_config(), **self._session_kwargs()) as client:
+            async with self._client() as client:
                 await client.delete_object(Bucket=self._bucket, Key=self._key(remote_name))
             return True
         except Exception as e:
