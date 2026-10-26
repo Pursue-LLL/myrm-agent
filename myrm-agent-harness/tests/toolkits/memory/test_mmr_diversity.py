@@ -1,5 +1,9 @@
 """Tests for MMR (Maximal Marginal Relevance) diversity reranking in MemoryRetriever."""
 
+import random
+
+import pytest
+
 from myrm_agent_harness.toolkits.memory.config import RetrievalConfig
 from myrm_agent_harness.toolkits.memory.retriever import MemoryRetriever, _jaccard_similarity
 from myrm_agent_harness.toolkits.memory.text_utils import tokenize
@@ -175,3 +179,90 @@ class TestMMRSelect:
         for r in ranked:
             assert 0.0 <= r.score <= 1.0
         assert ranked[0].score == 1.0
+
+
+_VOCAB = ("alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa")
+_SOURCES = (None, "chat-1", "chat-2", "chat-3")
+_RELEVANCE = (0.9, 0.7, 0.7, 0.5, 0.5, 0.3)  # repeated values force ties
+
+
+def _sourced_result(content: str, mem_id: str, source_chat_id: str | None) -> MemorySearchResult:
+    mem = SemanticMemory(content=content, importance=0.5, source_chat_id=source_chat_id)
+    mem.id = mem_id
+    return MemorySearchResult(memory=mem, score=0.5, memory_type=MemoryType.SEMANTIC)
+
+
+def _reference_mmr_select(
+    lam: float,
+    source_weight: float,
+    scores: dict[str, float],
+    items: dict[str, MemorySearchResult],
+    limit: int,
+) -> list[str]:
+    """MMR straight from its definition: every pick rescans the whole selected set."""
+    top = max(scores.values())
+    relevance = {mid: s / top for mid, s in scores.items()}
+    tokens = {mid: tokenize(items[mid].content) for mid in scores}
+    selected: list[str] = []
+    while len(selected) < min(limit, len(scores)):
+        best_id, best_mmr = "", float("-inf")
+        for mid in scores:
+            if mid in selected:
+                continue
+            content_sim = max((_jaccard_similarity(tokens[mid], tokens[chosen]) for chosen in selected), default=0.0)
+            source_id = items[mid].memory.source_chat_id
+            source_penalty = 0.0
+            if source_weight > 0 and selected and source_id:
+                same_source = sum(1 for chosen in selected if items[chosen].memory.source_chat_id == source_id)
+                source_penalty = source_weight * (same_source / len(selected))
+            mmr = lam * relevance[mid] - (1.0 - lam) * (content_sim + source_penalty)
+            if mmr > best_mmr:
+                best_id, best_mmr = mid, mmr
+        selected.append(best_id)
+    return selected
+
+
+class TestMMRSelectMatchesDefinition:
+    @pytest.mark.parametrize("seed", range(40))
+    def test_incremental_selection_equals_full_rescan(self, seed: int) -> None:
+        """Random pools with tied relevance, shared sources and overlapping vocabulary."""
+        rng = random.Random(seed)
+        results = [
+            _sourced_result(" ".join(rng.sample(_VOCAB, k=rng.randint(1, 5))), f"m{i}", rng.choice(_SOURCES))
+            for i in range(rng.randint(4, 30))
+        ]
+        items = {r.id: r for r in results}
+        scores = {r.id: rng.choice(_RELEVANCE) for r in results}
+
+        for lam in (0.0, 0.3, 0.7, 0.95):
+            for source_weight in (0.0, 0.5, 2.0):
+                for limit in (1, 3, 7):
+                    config = RetrievalConfig(mmr_lambda=lam, source_diversity_weight=source_weight)
+                    got_scores, got_items = MemoryRetriever(config)._mmr_select(dict(scores), dict(items), limit)
+                    expected = _reference_mmr_select(lam, source_weight, scores, items, limit)
+                    context = f"seed={seed} lam={lam} source_weight={source_weight} limit={limit}"
+                    if len(scores) <= limit:
+                        assert list(got_scores) == list(scores), context
+                    else:
+                        assert list(got_scores) == expected, context
+                        assert list(got_items) == expected, context
+                    assert all(got_scores[mid] == scores[mid] for mid in got_scores), context
+
+    def test_selection_is_complete_when_every_candidate_is_penalised(self) -> None:
+        """Pure diversity over identical, same-source content drives every MMR value below -1."""
+        config = RetrievalConfig(mmr_lambda=0.0, source_diversity_weight=0.5)
+        results = [_sourced_result("identical content", f"m{i}", "chat-1") for i in range(5)]
+        scores = {r.id: 0.5 for r in results}
+
+        selected_scores, _ = MemoryRetriever(config)._mmr_select(scores, {r.id: r for r in results}, 3)
+
+        assert len(selected_scores) == 3
+
+    def test_ties_go_to_the_candidate_listed_first(self) -> None:
+        config = RetrievalConfig(mmr_lambda=0.5)
+        results = [_sourced_result(f"topic{i}", f"m{i}", None) for i in range(4)]
+        scores = {r.id: 0.5 for r in results}
+
+        selected_scores, _ = MemoryRetriever(config)._mmr_select(scores, {r.id: r for r in results}, 2)
+
+        assert list(selected_scores) == ["m0", "m1"]

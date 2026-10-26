@@ -340,6 +340,22 @@ class TestSparseOnlyLifecycle:
         finally:
             await manager.close()
 
+    @pytest.mark.asyncio
+    async def test_failing_duplicate_lookup_keeps_the_memory_and_warns(self, caplog: pytest.LogCaptureFixture) -> None:
+        from myrm_agent_harness.toolkits.memory._internal.dedup_funcs import _drop_sparse_exact_duplicates
+
+        class _BrokenStore:
+            async def search_sparse(self, *args: object, **kwargs: object) -> list[object]:
+                raise RuntimeError("Collection `x_bm25` not found!")
+
+        memory = SemanticMemory(id=str(uuid4()), user_id="sandbox_user", content="去重校验：查询失败时保留记忆")
+
+        with caplog.at_level("WARNING"):
+            kept = await _drop_sparse_exact_duplicates([memory], _BrokenStore(), "semantic")  # type: ignore[arg-type]
+
+        assert kept == [memory]
+        assert "Sparse dedup search failed" in caplog.text
+
 
 class _KeywordUpgradeEmbedder:
     """Deterministic embedder for the upgrade-migration test (no model call)."""

@@ -89,9 +89,7 @@ async def _drop_sparse_exact_duplicates[MemoryT: (SemanticMemory, EpisodicMemory
                 )
                 duplicated = any(compute_normalized_hash(hit.document.content) == digest for hit in hits)
             except Exception as exc:
-                # The mirror is created by the first write; a lookup before it is expected.
-                if "not found" not in str(exc).lower():
-                    logger.warning("Sparse dedup search failed (non-fatal): %s", exc)
+                logger.warning("Sparse dedup search failed (non-fatal): %s", exc)
         if duplicated:
             continue
         seen.add(batch_key)

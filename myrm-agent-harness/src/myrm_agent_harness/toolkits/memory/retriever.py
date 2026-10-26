@@ -206,6 +206,11 @@ class MemoryRetriever(RetrievalScoringMixin):
         When λ=1.0, degrades to pure relevance ranking (no-op).
         When source_diversity_weight=0, degrades to standard content-only MMR.
 
+        ``content_sim`` is the highest Jaccard similarity between a candidate and anything
+        already selected. It is refreshed once per pick, so a pick costs one pass over the
+        remaining candidates rather than one pass per selected document. Candidates that
+        tie on MMR value go to the one listed first in ``scores``.
+
         Returns:
             Filtered (scores, items) containing only the selected documents.
         """
@@ -220,31 +225,24 @@ class MemoryRetriever(RetrievalScoringMixin):
 
         token_sets: dict[str, frozenset[str]] = {mid: tokenize(items[mid].content) for mid in scores}
 
-        remaining = set(scores.keys())
+        # Unselected candidates only, each mapped to its highest similarity to the selected set.
+        max_sim: dict[str, float] = dict.fromkeys(scores, 0.0)
         selected: list[str] = []
-        selected_tokens: list[frozenset[str]] = []
         source_counts: dict[str | None, int] = {}
         source_weight = self._config.source_diversity_weight
 
         for selected_count in range(min(limit, len(scores))):
             best_id = ""
-            best_mmr = -1.0
+            best_mmr = float("-inf")
 
-            for mid in remaining:
-                relevance = norm_scores[mid]
-                if selected_tokens:
-                    max_sim = max(_jaccard_similarity(token_sets[mid], st) for st in selected_tokens)
-                else:
-                    max_sim = 0.0
-
+            for mid, content_sim in max_sim.items():
                 source_penalty = 0.0
                 if source_weight > 0 and selected_count > 0:
                     source_id = getattr(items[mid].memory, "source_chat_id", None)
                     if source_id:
                         source_penalty = source_weight * (source_counts.get(source_id, 0) / selected_count)
 
-                penalty = max_sim + source_penalty
-                mmr = lam * relevance - (1.0 - lam) * penalty
+                mmr = lam * norm_scores[mid] - (1.0 - lam) * (content_sim + source_penalty)
                 if mmr > best_mmr:
                     best_mmr = mmr
                     best_id = mid
@@ -253,14 +251,18 @@ class MemoryRetriever(RetrievalScoringMixin):
                 break
 
             selected.append(best_id)
-            selected_tokens.append(token_sets[best_id])
+            del max_sim[best_id]
             best_source = getattr(items[best_id].memory, "source_chat_id", None)
             if best_source:
                 source_counts[best_source] = source_counts.get(best_source, 0) + 1
-            remaining.discard(best_id)
 
-        selected_set = set(selected)
-        return ({mid: scores[mid] for mid in selected_set}, {mid: items[mid] for mid in selected_set})
+            chosen_tokens = token_sets[best_id]
+            for mid, content_sim in max_sim.items():
+                overlap = _jaccard_similarity(token_sets[mid], chosen_tokens)
+                if overlap > content_sim:
+                    max_sim[mid] = overlap
+
+        return ({mid: scores[mid] for mid in selected}, {mid: items[mid] for mid in selected})
 
     def _normalise(
         self,
