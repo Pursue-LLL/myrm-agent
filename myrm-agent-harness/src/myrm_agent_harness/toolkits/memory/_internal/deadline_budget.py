@@ -19,8 +19,8 @@ from __future__ import annotations
 from time import perf_counter
 
 # Share of the retrieval budget kept for the local stores (BM25 and dense lookup) while the
-# query embedding is in flight, so a stalled embedding endpoint degrades recall to keyword
-# hits instead of consuming the whole deadline and returning nothing.
+# query embedding is in flight: a stalled embedding endpoint costs at most the other 75%,
+# and the keyword hits gathered locally are still returned.
 LOCAL_RECALL_RESERVE_FRACTION = 0.25
 
 

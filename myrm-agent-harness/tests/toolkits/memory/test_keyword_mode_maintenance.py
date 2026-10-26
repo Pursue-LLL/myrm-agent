@@ -1,6 +1,6 @@
 """A maintenance cycle on a keyword-mode manager (no embedding) is safe to run.
 
-Background maintenance now runs for installs without an embedding model. The cycle must
+Background maintenance also runs for installs without an embedding model. The cycle must
 complete without errors, must not consolidate (merging needs dense similarity), and must
 leave stored memories untouched even when an LLM is wired and memories are past their TTL.
 """

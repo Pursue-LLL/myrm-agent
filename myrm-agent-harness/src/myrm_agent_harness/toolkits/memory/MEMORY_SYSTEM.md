@@ -574,7 +574,7 @@ final = semantic^w0 × recency^w1 × frequency^w2 × importance^w3 × preference
 
 - 一次检索全流程（embed → collect → rank → graph）共享一个 wall-clock deadline；远端 embedding/vector store 挂起时在预算内被切断，而非无限阻塞 agent turn。
 - collect 阶段用 `asyncio.wait(timeout, ALL_COMPLETED)`：已完成的 store 结果保留，超时未完成的 store 任务取消并标记降级（partial recall，非全失败）。
-- embed / claim graph 阶段各自用 `asyncio.wait_for` 走同一 deadline，超时则跳过该阶段继续后续（fail-open）。embed 阶段至多占用 deadline 的 75%（`search_deadline.LOCAL_RECALL_RESERVE_FRACTION`），其余留给 BM25 与本地 store；embedding 端点挂起时降级为本地关键词召回，而不是耗尽整个预算后返回空。
+- embed / claim graph 阶段各自用 `asyncio.wait_for` 走同一 deadline，超时则跳过该阶段继续后续（fail-open）。embed 阶段至多占用 deadline 的 75%（`deadline_budget.LOCAL_RECALL_RESERVE_FRACTION`），其余留给 BM25 与本地 store；embedding 端点挂起时降级为本地关键词召回，而不是耗尽整个预算后返回空。
 - 降级可观测：`MemoryRetrievalTrace.degraded` 顶层标记 + `SearchMetrics.record_degradation(timeout|error)` 独立计数（与普通 0 结果区分）+ 各阶段 `status="warning"`。
 - 注入侧一致化：`memory_context_middleware` 加载静态上下文同样套 wall-clock 超时，超时返回 `not_applied/load_timeout`，不阻塞首轮 LLM 调用。
 

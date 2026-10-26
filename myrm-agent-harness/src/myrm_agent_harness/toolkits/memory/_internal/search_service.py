@@ -29,10 +29,10 @@ from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory._assistant_retrieval import search_conversation_two_pass
 from myrm_agent_harness.toolkits.memory._internal.channel_pruning import ChannelPruner
+from myrm_agent_harness.toolkits.memory._internal.deadline_budget import deadline_remaining, embedding_budget
 from myrm_agent_harness.toolkits.memory._internal.maintenance import enrich_with_graph
 from myrm_agent_harness.toolkits.memory._internal.rerank_gate import apply_cross_rerank
 from myrm_agent_harness.toolkits.memory._internal.scope import apply_channel_affinity
-from myrm_agent_harness.toolkits.memory._internal.search_deadline import deadline_remaining, embedding_budget
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     embed_single,
     search_bm25,
