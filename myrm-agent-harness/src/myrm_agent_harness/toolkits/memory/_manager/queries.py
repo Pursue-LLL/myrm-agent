@@ -15,29 +15,19 @@ Metadata and session query mixin — extracts memory ids/refs by metadata and ag
 
 from __future__ import annotations
 
-from typing import Any
-
 from myrm_agent_harness.toolkits.memory._manager.helpers import _memory_ref
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.model_collections import memory_collections
 from myrm_agent_harness.toolkits.memory._manager.shared import (
+    FilterDict,
     MemoryType,
     Sequence,
     logger,
 )
 
 
-class MemoryManagerQueriesMixin:
+class MemoryManagerQueriesMixin(MemoryManagerHost):
     """Provides metadata queries and chat session aggregation for MemoryManager."""
-
-    # Dynamic mixin attributes satisfied by MemoryManagerCore / DeletionMixin
-    _config: Any
-    _vector: Any
-    _relational: Any
-    _namespaces: Any
-    _collect_vector_ids: Any
-    _collect_vector_docs: Any
-    _owns_vector_doc: Any
-    delete_memories_by_metadata: Any
 
     async def list_memory_ids_by_metadata(
         self,
@@ -64,7 +54,7 @@ class MemoryManagerQueriesMixin:
         matches: dict[str, list[str]] = {}
 
         if self._vector is not None:
-            filters = {metadata_key: metadata_value}
+            filters: FilterDict = {metadata_key: metadata_value}
             for memory_type, collections in (await memory_collections(self._vector, self._config)).items():
                 if memory_type not in selected_types:
                     continue
@@ -119,7 +109,7 @@ class MemoryManagerQueriesMixin:
         }
 
         if self._vector is not None:
-            filters = {metadata_key: metadata_value}
+            filters: FilterDict = {metadata_key: metadata_value}
             for memory_type, collection in vector_collections.items():
                 if memory_type not in selected_types:
                     continue

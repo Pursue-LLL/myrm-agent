@@ -39,6 +39,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
     embed_conversations,
     store_conversations_batch,
 )
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.model_collections import (
     catalog_of,
     current_collection,
@@ -119,7 +120,7 @@ class _Embedded:
         return memory_id in self.documents or memory_id in self.conversations
 
 
-class MemoryManagerReindexMixin:
+class MemoryManagerReindexMixin(MemoryManagerHost):
     """Mixin providing orphan collection detection and migration."""
 
     _config: MemoryConfig

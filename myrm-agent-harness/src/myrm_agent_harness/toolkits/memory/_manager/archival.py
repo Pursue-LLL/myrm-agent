@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     ARCHIVE_RETENTION_DAYS,
     MemoryError,
@@ -57,16 +57,8 @@ def _retention_elapsed(metadata: Mapping[str, object], now: datetime, ttl_days: 
         return False
 
 
-class MemoryManagerArchivalMixin:
+class MemoryManagerArchivalMixin(MemoryManagerHost):
     """Provides expired archive purge capabilities for MemoryManager."""
-
-    # Dynamic mixin attributes satisfied by MemoryManagerCore / DeletionMixin
-    _vector: Any
-    _config: Any
-    _rel: Any
-    _namespaces: Any
-    delete_memory: Any
-    delete_rule: Any
 
     async def purge_expired_archived_memories(self, *, ttl_days: int = ARCHIVE_RETENTION_DAYS) -> int:
         """Permanently purge soft-deleted memories whose archive retention has expired.

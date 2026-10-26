@@ -6,6 +6,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import wrap_with_bm25_sparse_index
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AgentMemoryPolicy,
     BaseChatModel,
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
     from datetime import datetime
 
-    from myrm_agent_harness.toolkits.memory.session import MemorySession
     from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
         ConflictCallback,
         ConsolidationCompleteCallback,
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
     ]
 
 
-class MemoryManagerCore:
+class MemoryManagerCore(MemoryManagerHost):
     """Orchestrates all memory operations. Bound to a single user via ``user_id``."""
 
     __slots__ = (
@@ -83,6 +83,7 @@ class MemoryManagerCore:
         "_scope",
         "_search_service",
         "_session_count",
+        "_sparse_authoritative",
         "_stores_since_consolidation",
         "_user_id",
         "_vector",
@@ -154,10 +155,10 @@ class MemoryManagerCore:
             raise MemoryError("approval_required=True requires a relational backend")
         self._approval_required = approval_required
         self._retriever = MemoryRetriever(config.retrieval)
-        self._active_session: MemorySession | None = None
-        self._session_count: int = 0
-        self._stores_since_consolidation: int = 0
-        self._last_cited_memory_ids: list[str] = []
+        self._active_session = None
+        self._session_count = 0
+        self._stores_since_consolidation = 0
+        self._last_cited_memory_ids = []
         self._deduplicator = self._init_deduplicator(dedup_llm) if dedup_llm else None
         self._writer = MemoryWriter(
             config=config,
@@ -219,13 +220,13 @@ class MemoryManagerCore:
             relational=relational,
             namespaces=self._namespaces,
         )
-        self._consolidation_llm: BaseChatModel | None = consolidation_llm
+        self._consolidation_llm = consolidation_llm
         self._fts5_searcher: FTS5SearcherFunc | None = fts5_searcher
         self._maintenance_lock = asyncio.Lock()
-        self._preference_strategy: PreferenceStabilityStrategy | None = (
+        self._preference_strategy = (
             PreferenceStabilityStrategy(preference_facet_store) if preference_facet_store is not None else None
         )
-        self._recurrence_detector: RecurrenceDetector | None = (
+        self._recurrence_detector = (
             self._init_recurrence_detector(config)
             if config.recurrence.enabled and vector is not None and embedding is not None
             else None

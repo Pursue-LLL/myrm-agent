@@ -16,7 +16,7 @@ themselves, so they call the unlocked, single-collection ``_delete_owned`` (``as
 
 from __future__ import annotations
 
-import asyncio
+import inspect
 
 from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
 from myrm_agent_harness.toolkits.memory._manager.model_collections import (
@@ -141,10 +141,9 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
                 logger.warning("Error deleting graph data: %s", e)
         if self._cache is not None and hasattr(self._cache, "clear"):
             try:
-                if asyncio.iscoroutinefunction(self._cache.clear):
-                    await self._cache.clear()
-                else:
-                    self._cache.clear()
+                cleared = self._cache.clear()
+                if inspect.isawaitable(cleared):
+                    await cleared
             except Exception as e:
                 logger.warning("Error clearing cache in delete_all: %s", e)
         if failed:

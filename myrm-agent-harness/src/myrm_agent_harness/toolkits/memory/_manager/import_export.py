@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     logger,
 )
@@ -341,7 +342,7 @@ _TYPE_RENDERERS: dict[str, _RendererFn] = {
 }
 
 
-class MemoryManagerImportExportMixin:
+class MemoryManagerImportExportMixin(MemoryManagerHost):
     # ── Export / Import ──
 
     async def export_markdown(

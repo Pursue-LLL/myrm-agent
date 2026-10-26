@@ -18,8 +18,6 @@ touches the current collection only). Deleting a whole set at once lives in ``bu
 
 from __future__ import annotations
 
-from typing import Any
-
 from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import BM25SparseIndexStore
 from myrm_agent_harness.toolkits.memory._internal.graph_cascade import (
     cascade_clean_derived_graph_nodes,
@@ -49,19 +47,6 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 
 class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQueriesMixin):
     """Provides pure deletion and cascade eviction operations for MemoryManager."""
-
-    # Dynamic mixin attributes satisfied by MemoryManagerCore / StorageMixin
-    _graph: Any
-    _vector: Any
-    _embedding: Any
-    _relational: Any
-    _cache: Any
-    _config: Any
-    _namespaces: Any
-    _user_id: Any
-    _active_session: Any
-    _preference_strategy: Any
-    _rel: Any
 
     # ── Graph cascade ──
 
@@ -134,10 +119,11 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
 
     async def _delete_owned(self, collection: str, ids: list[str]) -> int:
         """Delete the owned memories among ``ids`` from ``collection`` only (the caller covers the other collections)."""
+        vector = self._vector
         docs = await self._owned_docs(collection, ids, True)
-        if not docs:
+        if not docs or vector is None:
             return 0
-        deleted = await delete_from_vector(collection, [doc.id for doc in docs], self._vector)
+        deleted = await delete_from_vector(collection, [doc.id for doc in docs], vector)
         await self._forget_derived(docs)
         return deleted
 
@@ -145,7 +131,10 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
         """The documents among ``ids`` this manager may delete: owned, and unpinned unless protected ones are allowed."""
         if not ids:
             return []
-        docs = await self._vector.get(collection, ids) or []
+        vector = self._vector
+        if vector is None:
+            raise MemoryError("Vector backend is required but not provided")
+        docs = await vector.get(collection, ids) or []
         return [
             doc for doc in docs if self._owns_vector_doc(doc) and (allow_protected or not doc.metadata.get("pinned"))
         ]

@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
     MemorySearchResult,
@@ -22,7 +23,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 _pending_tasks: set[asyncio.Task[object]] = set()
 
 
-class MemoryManagerRetrievalWriteMixin:
+class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
     @staticmethod
     def _record_ephemeral_delta_for_memory(memory: AnyMemory) -> None:
         from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (

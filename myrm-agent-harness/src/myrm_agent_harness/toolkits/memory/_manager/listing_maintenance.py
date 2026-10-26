@@ -9,6 +9,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     delete_by_type as _delete_by_type,
 )
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.model_collections import (
     current_collection,
     family_lock,
@@ -36,7 +37,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 )
 
 
-class MemoryManagerListingMaintenanceMixin:
+class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
     # ── List / Count / Delete by type (for API CRUD endpoints) ──
 
     async def list_memories(

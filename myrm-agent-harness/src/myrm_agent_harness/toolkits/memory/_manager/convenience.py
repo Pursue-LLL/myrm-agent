@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     EpisodicMemory,
     MemoryWriteTarget,
@@ -14,7 +15,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 )
 
 
-class MemoryManagerConvenienceMixin:
+class MemoryManagerConvenienceMixin(MemoryManagerHost):
     # ── Convenience: Profile ──
 
     async def set_profile_attribute(

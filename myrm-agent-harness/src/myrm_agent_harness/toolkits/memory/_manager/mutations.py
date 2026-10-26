@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     UTC,
     AnyMemory,
@@ -31,7 +32,7 @@ from myrm_agent_harness.toolkits.memory.strategies.sparse_mutation import (
 )
 
 
-class MemoryManagerMutationsMixin:
+class MemoryManagerMutationsMixin(MemoryManagerHost):
     # ── User Feedback Rating ──
 
     async def rate_memory(self, memory_id: str, score: int, collection: str | None = None) -> bool:

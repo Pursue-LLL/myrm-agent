@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.memory._manager.helpers import (
     _infer_preference_category,
 )
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
     ConsolidationConfig,
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.session import MemorySession
 
 
-class MemoryManagerGovernanceSessionMixin:
+class MemoryManagerGovernanceSessionMixin(MemoryManagerHost):
     async def submit_pending(
         self,
         memory: AnyMemory,

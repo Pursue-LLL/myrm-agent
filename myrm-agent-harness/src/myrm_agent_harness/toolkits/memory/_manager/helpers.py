@@ -14,11 +14,16 @@ Internal helper functions used by governance and deletion mixins.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from myrm_agent_harness.toolkits.memory.strategies.preference_stability import PreferenceCategory
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
-def _memory_ref(memory_id: str, metadata: dict[str, object]) -> dict[str, str]:
+
+def _memory_ref(memory_id: str, metadata: Mapping[str, object]) -> dict[str, str]:
     ref = {"id": memory_id}
     import_item_id = metadata.get("import_item_id")
     if isinstance(import_item_id, str):

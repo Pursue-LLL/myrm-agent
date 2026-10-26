@@ -9,6 +9,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     episodic_to_doc,
     semantic_to_doc,
 )
+from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
     ConsolidationConfig,
@@ -31,7 +32,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
 )
 
 
-class MemoryManagerStorageMixin:
+class MemoryManagerStorageMixin(MemoryManagerHost):
     # ── Private: backend accessors (fail-fast if not configured) ──
 
     def _vec(self) -> tuple[VectorStoreProtocol, EmbeddingProtocol]:
@@ -250,7 +251,8 @@ class MemoryManagerStorageMixin:
         Runs asynchronously in background without blocking initialization.
         Collections are loaded in parallel for faster warmup.
         """
-        if self._vector is None or self._embedding is None or self._cache is None:
+        vector, embedding, cache = self._vector, self._embedding, self._cache
+        if vector is None or embedding is None or cache is None:
             return
 
         try:
@@ -262,11 +264,11 @@ class MemoryManagerStorageMixin:
 
             async def warmup_collection(collection: str) -> int:
                 try:
-                    exists = await self._vector.collection_exists(collection)
+                    exists = await vector.collection_exists(collection)
                     if not exists:
                         return 0
 
-                    docs, _ = await self._vector.scroll(collection, limit=limit, filters={"archived": False})
+                    docs, _ = await vector.scroll(collection, limit=limit, filters={"archived": False})
                     if not docs:
                         return 0
 
@@ -285,7 +287,7 @@ class MemoryManagerStorageMixin:
                         embed_batch,
                     )
 
-                    await embed_batch(texts, self._embedding, self._cache)
+                    await embed_batch(texts, embedding, cache)
                     logger.info("Warmed up %d embeddings from %s", len(texts), collection)
                     return len(texts)
                 except Exception as e:
