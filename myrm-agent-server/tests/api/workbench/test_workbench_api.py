@@ -212,7 +212,7 @@ def test_timeout_kills_the_whole_process_tree(client: TestClient, workspace: Pat
 
 
 @posix_only
-async def test_cancelling_the_request_kills_the_whole_process_tree(workspace: Path) -> None:
+async def test_cancelling_the_handler_task_kills_the_whole_process_tree(workspace: Path) -> None:
     pid_file = workspace / "child.pid"
     request = TerminalExecRequest(
         chat_id=CHAT,
@@ -237,7 +237,7 @@ async def test_cancelling_the_request_kills_the_whole_process_tree(workspace: Pa
             return
         await asyncio.sleep(0.05)
     os.kill(child, 9)
-    pytest.fail(f"process {child} survived the cancelled request")
+    pytest.fail(f"process {child} survived the cancelled handler task")
 
 
 @posix_only

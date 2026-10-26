@@ -11,7 +11,7 @@
 [POS]
 Backend endpoints for the auxiliary workbench. Every path is confined to the workspace of the chat the
 request names; commands run there under a static safety gate, with the same credential-free environment as the
-agent's own shell, a process tree that never outlives its request, and a per-stream output cap. File previews are
+agent's own shell, a process tree killed when the wait times out or its task is cancelled, and a per-stream output cap. File previews are
 capped the same way and binary files are reported instead of decoded.
 """
 
@@ -246,7 +246,7 @@ async def execute_terminal_command(req: TerminalExecRequest) -> TerminalExecResp
     except TimeoutError as exc:
         raise HTTPException(status_code=408, detail=f"Command execution timed out after {req.timeout_seconds}s") from exc
     finally:
-        # Whatever ended the request (timeout, client abort, server shutdown), no command outlives it.
+        # Timeout or a cancelled handler task ends the wait here and no command outlives it; a client disconnect cancels nothing.
         if proc.returncode is None:
             kill_process_group(proc.pid)
             await proc.wait()
