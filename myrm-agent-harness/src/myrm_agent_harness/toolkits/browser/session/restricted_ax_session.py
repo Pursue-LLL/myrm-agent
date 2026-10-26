@@ -10,6 +10,7 @@
 - toolkits.browser.tools.manage::create_manage_tool (POS: 页面与标签管理工具)
 - toolkits.browser.tools.takeover::create_takeover_tool (POS: 人工接管工具)
 - toolkits.browser.tools.cancel_boundary::apply_cancel_boundary (POS: cancel-aware execution boundary for the browser tools)
+- toolkits.browser.tools.user_control_gate::apply_browser_user_control_gate (POS: makes the browser tools wait while a person drives the browser)
 
 [OUTPUT]
 - RestrictedAccessibilityBrowserSession: Enforces pure ARIA/accessibility semantics,
@@ -106,17 +107,16 @@ def create_restricted_ax_browser_tools(session: BrowserSession) -> list[BaseTool
     from myrm_agent_harness.toolkits.browser.tools.navigate import create_navigate_tool
     from myrm_agent_harness.toolkits.browser.tools.snapshot import create_snapshot_tool
     from myrm_agent_harness.toolkits.browser.tools.takeover import create_takeover_tool
+    from myrm_agent_harness.toolkits.browser.tools.user_control_gate import apply_browser_user_control_gate
 
     logger.info("Initializing restricted AX browser tools (excluding browser_execute_script_tool)")
-    return apply_cancel_boundary(
-        [
-            create_navigate_tool(session),
-            create_inspect_tool(session),
-            create_snapshot_tool(session),
-            create_interact_tool(session),
-            create_extract_tool(session),
-            create_manage_tool(session),
-            create_takeover_tool(session),
-        ],
-        session,
-    )
+    tools = [
+        create_navigate_tool(session),
+        create_inspect_tool(session),
+        create_snapshot_tool(session),
+        create_interact_tool(session),
+        create_extract_tool(session),
+        create_manage_tool(session),
+        create_takeover_tool(session),
+    ]
+    return apply_cancel_boundary(apply_browser_user_control_gate(tools, session), session)

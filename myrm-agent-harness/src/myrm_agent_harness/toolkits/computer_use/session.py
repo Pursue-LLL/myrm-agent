@@ -41,6 +41,12 @@ from myrm_agent_harness.toolkits.computer_use.types import (
     ScreenInfo,
     ScreenUnlockCallback,
 )
+from myrm_agent_harness.utils.runtime.user_control import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    UserControl,
+    UserControlTimeoutError,
+    get_user_control,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,61 +74,22 @@ class ComputerSession:
         self._session_permission_granted: bool = False
         self._always_permission_granted: bool = False
         self._operation_foreground_waived: bool = False
-        self._user_takeover_event: asyncio.Event = asyncio.Event()
-        self._user_takeover_event.set()
-        self._user_takeover_active: bool = False
-        self._user_takeover_timeout: float = 600.0
+        # Whether a person drives the desktop is a process-wide fact; the session only consults it.
+        # `observed_generation` is the control hand-over the model last looked at the screen after.
+        self.user_control: UserControl = get_user_control()
+        self.observed_generation: int = self.user_control.generation
 
-    @property
-    def user_takeover_active(self) -> bool:
-        """Whether human user has actively taken over the desktop/computer session."""
-        return self._user_takeover_active
+    async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None:
+        """Wait while a person drives the desktop; raise `UserControlTimeoutError` once they keep it past `timeout`.
 
-    async def pause_for_takeover(self) -> None:
-        """Pause agent computer interactions due to user-initiated takeover."""
-        self._user_takeover_active = True
-        self._user_takeover_event.clear()
-        logger.info("ComputerSession paused: user takeover activated")
-
-    async def resume_from_takeover(self) -> None:
-        """Resume agent computer interactions after user finishes takeover."""
-        self._user_takeover_active = False
-        self._user_takeover_event.set()
-        logger.info("ComputerSession resumed: user takeover finished")
-
-    @property
-    def user_takeover_timeout(self) -> float:
-        """Configured timeout in seconds before user takeover wait aborts with hard error."""
-        return self._user_takeover_timeout
-
-    @user_takeover_timeout.setter
-    def user_takeover_timeout(self, value: float) -> None:
-        self._user_takeover_timeout = max(0.0, float(value))
-
-    async def _ensure_not_user_takeover(self, timeout: float | None = None) -> None:
-        """Ensure session is not paused by user takeover before performing any desktop action.
-
-        If a takeover is active, waits up to ``timeout`` seconds. If timeout expires,
-        the session remains strictly locked and raises UserTakeoverTimeoutError to prevent
-        unauthorized ghost/stale execution behind the human user's back.
+        The tool gate already fences every desktop tool, so this only matters for session calls made
+        outside a tool. The session stays locked on timeout rather than act behind the person's back.
         """
-        effective_timeout = self._user_takeover_timeout if timeout is None else float(timeout)
-        if not self._user_takeover_event.is_set():
-            logger.info("Action waiting: ComputerSession is paused by user takeover (timeout=%.1fs)", effective_timeout)
-            try:
-                await asyncio.wait_for(self._user_takeover_event.wait(), timeout=effective_timeout)
-            except TimeoutError as exc:
-                logger.error(
-                    "User takeover wait timed out (%.1fs); ComputerSession remains strictly locked to prevent ghost execution",
-                    effective_timeout,
-                )
-                from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
-
-                raise UserTakeoverTimeoutError(
-                    f"User takeover wait timed out after {effective_timeout:.1f}s. "
-                    "Desktop session remains locked to prevent unapproved actions while human is away.",
-                    timeout_seconds=effective_timeout,
-                ) from exc
+        try:
+            await self.user_control.wait_released(timeout)
+        except UserControlTimeoutError:
+            logger.error("User takeover wait timed out (%.1fs); desktop session stays locked", timeout)
+            raise
 
     def set_screen_unlock_callback(self, callback: ScreenUnlockCallback | None) -> None:
         """Let the host unlock the screen on demand when a guarded action finds it locked."""

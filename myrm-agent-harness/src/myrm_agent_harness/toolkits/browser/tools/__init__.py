@@ -21,15 +21,17 @@ Screenshot Diff Features:
 - session::BrowserSession (POS: session manager, based on SOLID principles)
 - langchain.tools::tool (POS: LangChain tool decorator)
 - cancel_boundary::apply_cancel_boundary (POS: cancel-aware execution boundary for the browser tools)
+- user_control_gate::apply_browser_user_control_gate (POS: makes the browser tools wait while a person drives the browser)
 - pydantic::BaseModel (POS: tool parameter schema base class)
 
 [OUTPUT]
-- create_browser_tools: factory function, binds BrowserSession and returns 8 cancel-aware LangChain tools
+- create_browser_tools: factory function, binds BrowserSession and returns 8 cancel-aware, user-control-gated LangChain tools
 
 [POS]
 API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChain @tool functions,
 loaded on-demand by the Agent runtime. Thin layer: every tool call additionally runs behind the cancel
-boundary, so stopping a run releases the browser even while a driver call is stuck.
+boundary, so stopping a run releases the browser even while a driver call is stuck, and behind the
+user-control gate, so no tool touches the page while a person drives it.
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ from .manage import create_manage_tool
 from .navigate import create_navigate_tool
 from .snapshot import create_snapshot_tool
 from .takeover import create_takeover_tool
+from .user_control_gate import apply_browser_user_control_gate
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -64,16 +67,15 @@ def create_browser_tools(session: BrowserSession) -> list[BaseTool]:
     Returns:
         List of 8 LangChain tools
     """
-    return apply_cancel_boundary(
-        [
-            create_navigate_tool(session),
-            create_inspect_tool(session),
-            create_snapshot_tool(session),
-            create_interact_tool(session),
-            create_extract_tool(session),
-            create_manage_tool(session),
-            create_execute_script_tool(session),
-            create_takeover_tool(session),
-        ],
-        session,
-    )
+    tools = [
+        create_navigate_tool(session),
+        create_inspect_tool(session),
+        create_snapshot_tool(session),
+        create_interact_tool(session),
+        create_extract_tool(session),
+        create_manage_tool(session),
+        create_execute_script_tool(session),
+        create_takeover_tool(session),
+    ]
+    # The gate sits inside the cancel boundary so that stopping a run also ends a tool waiting for the person.
+    return apply_cancel_boundary(apply_browser_user_control_gate(tools, session), session)

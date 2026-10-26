@@ -1,15 +1,20 @@
 """Integration test for VNC takeover lifecycle API.
 
 Tests the full HTTP request cycle: takeover → resume, verifying
-the TakeoverCoordinator state machine transitions correctly via API.
+the TakeoverCoordinator state machine transitions correctly via API and
+that the process-wide UserControl follows it (the Agent's browser/desktop
+tools wait exactly while a person holds control).
 Does NOT require actual VNC hardware — exercises the coordinator logic
 through FastAPI endpoints.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.utils.runtime.user_control import get_user_control
 
 from app.api.webui.vnc_routes import router
 
@@ -24,14 +29,20 @@ def client() -> TestClient:
 
 
 @pytest.fixture(autouse=True)
-def _reset_coordinator() -> None:
-    """Reset the module-level coordinator between tests."""
+def _reset_coordinator() -> Iterator[None]:
+    """Reset the module-level coordinator and hand the process-wide control back after each test."""
     import app.api.webui.vnc_routes as mod
 
-    mod._takeover_coordinator = None
-    mod._pre_takeover_snapshot = ""
-    mod._pre_takeover_url = ""
-    mod._takeover_start_time = 0.0
+    def _reset() -> None:
+        mod._takeover_coordinator = None
+        mod._pre_takeover_snapshot = ""
+        mod._pre_takeover_url = ""
+        mod._takeover_start_time = 0.0
+        get_user_control().release()
+
+    _reset()
+    yield
+    _reset()
 
 
 class TestVncTakeoverApiIntegration:
@@ -95,3 +106,48 @@ class TestVncTakeoverApiIntegration:
         resp = client.post("/webui/vnc/resume")
         data = resp.json()
         assert data["learned"] is True
+
+
+class TestTakeoverStateAndUserControl:
+    def test_get_reports_who_holds_control(self, client: TestClient) -> None:
+        idle = client.get("/webui/vnc/takeover").json()
+        assert idle["state"] == "agent_active"
+        assert idle["remaining_s"] is None
+
+        client.post("/webui/vnc/takeover", json={"reason": "test"})
+        held = client.get("/webui/vnc/takeover").json()
+        assert held["state"] == "user_takeover"
+        assert held["remaining_s"] is not None and held["remaining_s"] <= 300
+
+    def test_takeover_fences_agent_tools_until_resume(self, client: TestClient) -> None:
+        control = get_user_control()
+        generation = control.generation
+        assert control.held is False
+
+        client.post("/webui/vnc/takeover", json={"reason": "captcha"})
+        assert control.held is True
+        assert control.generation == generation
+
+        client.post("/webui/vnc/resume")
+        assert control.held is False
+        assert control.generation == generation + 1
+
+    def test_repeated_takeover_renews_without_changing_hands(self, client: TestClient) -> None:
+        control = get_user_control()
+        client.post("/webui/vnc/takeover", json={"reason": "first"})
+        started_at = client.get("/webui/vnc/takeover").json()["started_at"]
+
+        renewed = client.post("/webui/vnc/takeover", json={"reason": "heartbeat"}).json()
+
+        assert renewed["state"] == "user_takeover"
+        assert renewed["started_at"] == started_at
+        assert control.held is True
+
+    def test_resume_without_takeover_keeps_generation(self, client: TestClient) -> None:
+        control = get_user_control()
+        generation = control.generation
+
+        client.post("/webui/vnc/resume")
+
+        assert control.held is False
+        assert control.generation == generation

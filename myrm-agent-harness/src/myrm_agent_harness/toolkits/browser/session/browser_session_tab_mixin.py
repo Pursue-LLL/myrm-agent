@@ -155,7 +155,7 @@ class BrowserSessionTabMixin(SessionHost):
             The id of the replacement tab, or None when nothing was replaced (page healthy,
             user takeover active, no tab, or recovery failed).
         """
-        if self._user_takeover_active:
+        if self.user_control.held:
             # The user is driving this tab by hand; closing it would destroy their work.
             return None
         async with self._tab_recovery_lock:

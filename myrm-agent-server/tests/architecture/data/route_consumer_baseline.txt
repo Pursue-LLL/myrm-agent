@@ -13,7 +13,6 @@ POST /approvals/grants/revoke
 GET /audit/bash/anomalies
 GET /browser/recording/sessions
 GET /browser/recording/sessions/{session_id}
-POST /browser/spaces/prune
 POST /budget/spend-control/record-fleet-spend
 GET /channels
 POST /channels/bitable-copilot/wrangle
@@ -89,7 +88,6 @@ GET /statistics/usage/radar
 GET /stt/status
 GET /system/processes/{pid}/lineage
 GET /user-agents/{agent_id}/statistics
-POST /webui/browser/spaces/{space_id}/stop
 GET /webui/desktop/approval/pending
 POST /webui/desktop/approval/reset-runtime
 GET /webui/desktop/envelope/status

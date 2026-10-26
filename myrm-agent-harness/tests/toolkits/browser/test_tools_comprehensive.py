@@ -8,12 +8,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools, mark_untrusted
+from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 
 @pytest.fixture
 def mock_session() -> Any:
     """Mock BrowserSession for tools testing."""
     session = MagicMock()
+    session.user_control = UserControl()
+    session.observed_generation = session.user_control.generation
 
     session.navigate = AsyncMock(return_value="Navigated to Example Page (https://example.com, status=200)")
     active_page = MagicMock()

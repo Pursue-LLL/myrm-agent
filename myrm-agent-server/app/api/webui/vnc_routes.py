@@ -3,14 +3,18 @@
 [INPUT]
 - myrm_agent_harness.toolkits.vnc::VncServer (POS: VNC server lifecycle manager)
 - myrm_agent_harness.toolkits.vnc::TakeoverCoordinator (POS: human-agent control handoff)
+- myrm_agent_harness.utils.runtime.user_control::get_user_control (POS: process-wide "a person drives the agent's browser/desktop" fact)
 - fastapi (POS: HTTP routing)
 
 [OUTPUT]
-- router: APIRouter with VNC status/start/stop/takeover/resume endpoints
+- router: APIRouter with VNC status/start/stop/takeover (GET state, POST take/renew)/resume endpoints
 
 [POS]
 HTTP API layer exposing VNC server control and takeover coordination
 for local (non-SaaS) deployments. SaaS mode uses CP API instead.
+Takeover works without VNC (a local headed window or the desktop client is taken the same way): the
+coordinator's state changes are reflected into the process-wide UserControl, which makes the Agent's
+browser and desktop tools wait while a person drives. The client renews the lease by POSTing again.
 Registers lifecycle hooks on TakeoverCoordinator to capture pre/post
 page snapshots and persist TakeoverTrace events to EventLog.
 """
@@ -25,7 +29,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.vnc import TakeoverCoordinator, VncServer
+    from myrm_agent_harness.toolkits.vnc import TakeoverCoordinator, TakeoverState, VncServer
 
 logger = logging.getLogger(__name__)
 
@@ -80,12 +84,25 @@ def _get_takeover() -> TakeoverCoordinator | None:
             from myrm_agent_harness.toolkits.vnc import TakeoverCoordinator as _Cls
 
             _takeover_coordinator = _Cls(
+                on_state_change=_reflect_in_user_control,
                 on_takeover_start=_on_takeover_start,
                 on_takeover_end=_on_takeover_end,
             )
         except ImportError:
             return None
     return _takeover_coordinator
+
+
+def _reflect_in_user_control(state: TakeoverState) -> None:
+    """Make the Agent's tools wait exactly while a person holds control."""
+    from myrm_agent_harness.toolkits.vnc import TakeoverState as _State
+    from myrm_agent_harness.utils.runtime.user_control import get_user_control
+
+    control = get_user_control()
+    if state == _State.USER_TAKEOVER:
+        control.acquire()
+    else:
+        control.release()
 
 
 async def _capture_page_state() -> tuple[str, str]:
@@ -256,9 +273,25 @@ async def vnc_stop() -> dict[str, str]:
     return {"status": "stopped"}
 
 
+@router.get("/takeover", response_model=TakeoverResponse)
+async def vnc_takeover_state() -> TakeoverResponse:
+    """Who holds control right now, and how long the lease has left."""
+    coordinator = _get_takeover()
+    if coordinator is None:
+        raise HTTPException(status_code=501, detail="Takeover module not available")
+
+    info = coordinator.get_info()
+    return TakeoverResponse(
+        state=info.state,
+        started_at=info.started_at,
+        timeout_s=info.timeout_s,
+        remaining_s=info.remaining_s,
+    )
+
+
 @router.post("/takeover", response_model=TakeoverResponse)
 async def vnc_takeover(body: TakeoverRequest | None = None) -> TakeoverResponse:
-    """Request human takeover — pauses Agent browser operations."""
+    """Take control (Agent browser and desktop tools wait), or renew the lease while holding it."""
     coordinator = _get_takeover()
     if coordinator is None:
         raise HTTPException(status_code=501, detail="Takeover module not available")

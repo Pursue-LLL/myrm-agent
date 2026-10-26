@@ -265,3 +265,58 @@ class TestAutoRevert:
         await coord.request_takeover()
         await coord.cleanup()
         await asyncio.sleep(0.2)
+
+
+class TestLeaseRenewal:
+    @pytest.mark.asyncio
+    async def test_requesting_again_renews_the_lease(self) -> None:
+        coord = TakeoverCoordinator(timeout_s=0.3)
+        await coord.request_takeover()
+
+        await asyncio.sleep(0.2)
+        await coord.request_takeover()
+        await asyncio.sleep(0.2)
+        # 0.4s after the first request, but only 0.2s after the renewal.
+        assert coord.state == TakeoverState.USER_TAKEOVER
+
+        await asyncio.sleep(0.25)
+        assert coord.state == TakeoverState.AGENT_ACTIVE
+
+    @pytest.mark.asyncio
+    async def test_renewal_restarts_the_countdown_but_keeps_the_start(self) -> None:
+        coord = TakeoverCoordinator(timeout_s=10)
+        first = await coord.request_takeover()
+        await asyncio.sleep(1.1)
+        before = coord.get_info().remaining_s
+        assert before is not None
+        assert before <= 8
+
+        renewed = await coord.request_takeover()
+        await coord.cleanup()
+
+        assert renewed.remaining_s is not None
+        assert renewed.remaining_s > before
+        assert renewed.started_at == first.started_at
+
+    @pytest.mark.asyncio
+    async def test_renewal_is_not_a_state_change(self) -> None:
+        states: list[TakeoverState] = []
+        coord = TakeoverCoordinator(timeout_s=60, on_state_change=states.append)
+
+        await coord.request_takeover()
+        await coord.request_takeover()
+        await coord.cleanup()
+
+        assert states == [TakeoverState.USER_TAKEOVER]
+
+    @pytest.mark.asyncio
+    async def test_a_timer_of_a_replaced_lease_does_not_revert_control(self) -> None:
+        coord = TakeoverCoordinator(timeout_s=0)
+        await coord.request_takeover()
+        stale_lease = coord._lease_id - 1
+
+        await coord._auto_revert(stale_lease)
+
+        assert coord._lease_id != stale_lease
+        assert coord.state == TakeoverState.USER_TAKEOVER
+        await coord.cleanup()

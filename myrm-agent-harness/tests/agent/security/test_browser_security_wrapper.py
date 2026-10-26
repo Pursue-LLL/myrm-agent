@@ -7,6 +7,7 @@ wrap_with_external_sources_tag() to provide 5-layer security protection.
 import pytest
 
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
+from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 
 @pytest.fixture
@@ -14,6 +15,10 @@ async def mock_browser_session():
     """Create a mock browser session for testing."""
 
     class MockBrowserSession:
+        def __init__(self) -> None:
+            self.user_control = UserControl()
+            self.observed_generation = self.user_control.generation
+
         async def navigate(self, url: str) -> str:
             return f"Navigated to {url}"
 

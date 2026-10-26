@@ -97,7 +97,7 @@ if TYPE_CHECKING:
     from .session_vault.backends.file_backend import FileVaultBackend, load_or_create_key
     from .session_vault.backends.protocols import SessionVaultBackend
     from .session_vault.backends.storage_backend import StorageVaultBackend
-    from .spaces import BrowserTaskSpace, HarnessTaskSpaceManager
+
 
 __all__ = [
     "ActionCaptureEngine",
@@ -110,7 +110,6 @@ __all__ = [
     "BrowserPoolError",
     "BrowserSession",
     "BrowserSessionError",
-    "BrowserTaskSpace",
     "BrowserToolError",
     "CaptureCallback",
     "CaptureSession",
@@ -124,7 +123,6 @@ __all__ = [
     "EncryptionError",
     "EngineUnavailableError",
     "FileVaultBackend",
-    "HarnessTaskSpaceManager",
     "InvalidDomainError",
     "RecordingConfig",
     "RefNotFoundError",
@@ -182,10 +180,6 @@ _LAZY_MODULES = {
         "CaptureCallback",
         "CaptureSession",
     ],
-    "spaces": [
-        "BrowserTaskSpace",
-        "HarnessTaskSpaceManager",
-    ],
 }
 
 _SYMBOL_TO_MODULE = {symbol: module_name for module_name, symbols in _LAZY_MODULES.items() for symbol in symbols}
@@ -199,7 +193,7 @@ if __debug__:
 
 
 def __getattr__(name: str) -> object:
-    """Lazy load doctor, vault, observability, capture, and spaces modules."""
+    """Lazy load doctor, vault, observability and capture modules."""
     from importlib import import_module
 
     module_name = _SYMBOL_TO_MODULE.get(name)

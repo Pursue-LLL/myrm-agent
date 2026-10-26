@@ -846,7 +846,7 @@ BrowserError (root)
 
 ### 卡死页面与 Stop 的恢复
 
-- **页面卡死自愈**：`navigate()` 遇到 `PageUnresponsiveError` 时调用 `BrowserSession.recover_active_tab()`（`session/browser_session_tab_mixin.py`）：持锁、幂等、10 s 预算，先中止挂起加载再探活，仍无应答则有界关闭该标签页并开一个空白标签页，随后抛出带「标签页已重置为空白页，请重新导航」说明的 `PageUnresponsiveError`（不自动重试）。用户接管（`_user_takeover_active`）期间跳过恢复，不会替人关掉正在操作的页面。
+- **页面卡死自愈**：`navigate()` 遇到 `PageUnresponsiveError` 时调用 `BrowserSession.recover_active_tab()`（`session/browser_session_tab_mixin.py`）：持锁、幂等、10 s 预算，先中止挂起加载再探活，仍无应答则有界关闭该标签页并开一个空白标签页，随后抛出带「标签页已重置为空白页，请重新导航」说明的 `PageUnresponsiveError`（不自动重试）。用户接管（`user_control.held`）期间跳过恢复，不会替人关掉正在操作的页面。
 - **崩溃标签页入口自愈**：渲染进程崩溃的页面 `is_closed()` 仍为 `False`，每次操作都会立刻失败。`CrashWatchdog` 对在用页面保留崩溃标记（`is_page_crashed`），`cancel_boundary` 在每次工具调用前经 `BrowserSession.active_tab_crashed()` 检查，崩溃则先 `recover_active_tab()` 换成空白标签页（同样记一次性重置提示），再执行本次调用。
 - **Stop 立即释放**：`create_browser_tools` / `create_restricted_ax_browser_tools` 返回的全部工具（8 个；受限 AX 版本 7 个）都经 `tools/cancel_boundary.py` 包装：每次调用与请求的 `CancellationToken` 赛跑（`utils/runtime/cancellation.py::run_until_cancelled`，0.25 s 轮询），Stop 后取消仍卡在驱动里的调用，恢复标签页，并返回 `CANCELLED_RESULT`（普通结果而非异常，不触发重试或 circuit breaker）。取消令牌缺失时直接透传，行为与未包装一致。
 - **非 Stop 的取消同样自愈**：执行器的工具超时（`asyncio.timeout`）、IM 通道卡死任务看门狗（令牌与任务同时取消）、关停会在不翻转令牌的情况下取消工具；边界对这类 `CancelledError` 同样先 `recover_active_tab()` 再继续抛出，否则卡死页面留在会话里，下一次运行立刻在同一个页面上再卡一次。二次取消落在自愈过程中时取消仍照常传播，自愈自身的 10 s 预算耗尽也不会吞掉取消。
@@ -1001,6 +1001,16 @@ Frontend → POST /agents/agent-stream { resume_value: { action: "completed" } }
 
 **实现位置**：`tools/takeover.py` → `create_takeover_tool(session)`
 
+#### 17.1 用户主动接管（User Control）
+
+与上面「Agent 请求人类」相反：用户在 Agent 运行中自己动手操作浏览器（点开 Jump In / 接管按钮）。浏览器是否被人占用是**进程级单一事实** `UserControl`（`utils/runtime/user_control.py`：`held` + 每次交还 +1 的 `generation`），会话只**读**不被**推**：新建、缓存、池化、子 Agent 的会话自动一并被围栏，无需枚举。
+
+- **围栏在工具层**（`tools/user_control_gate.py`，位于取消边界之内）：人占用期间，除 `browser_ask_human_tool` 外所有浏览器工具等待（含只读工具——此时截图会带出用户正在输入的内容）；等待超过 600s 抛 `UserTakeoverTimeoutError`，宁可锁住也不在人背后动手。Stop 取消可结束等待中的工具。
+- **交还后先看再动**：`browser_interact_tool` / `browser_execute_script_tool` 在模型成功执行 `browser_snapshot_tool` / `browser_inspect_tool` / `browser_extract_tool` 之前返回固定的「请先重新查看页面」提示，不执行；在接管期间就已排队的动作一律不执行（模型没看到过新页面）。`browser_navigate_tool` / `browser_manage_tool` 只等待。`snapshot()` 在观察过期期间强制整树（`diff=False`），diff 会掩盖用户的改动。
+- **`browser_ask_human_tool` 豁免**：它是模型把浏览器交给人的入口，且 LangGraph `interrupt()` 恢复时会重跑该工具。
+- **围栏边界**：只拦模型能调用的工具，不拦 Agent 自己用 bash 起的进程；`UserControl` 是进程内状态，不支持多进程部署。
+- **谁置位**：由宿主调用 `get_user_control().acquire()/release()`（Server 的 `/webui/vnc/takeover`、`/resume` 经 `TakeoverCoordinator`，用户端 30s 心跳续租，300s 无心跳自动交还）。Harness 不含任何路由。
+
 ---
 
 ### 18. Browser Live Co-View (WebUI Inspector SSE)
@@ -1139,6 +1149,7 @@ browser/
 │   ├── manage.py — browser_manage_tool
 │   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
+│   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
 │   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消同样自愈；一次性重置提示）
 │   ├── inspect.py — browser_inspect_tool
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）

@@ -68,7 +68,6 @@ so navigate() can call _initialize_components and restart().
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -76,7 +75,14 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.browser.observability import BrowserObservability
 from myrm_agent_harness.toolkits.browser.recording_manager import RecordingManager
 from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_SELECTOR
+from myrm_agent_harness.utils.runtime.user_control import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    UserControl,
+    UserControlTimeoutError,
+    get_user_control,
+)
 
+from ..exceptions import UserTakeoverTimeoutError
 from ..navigation import Navigator
 from .browser_session_extraction_mixin import BrowserSessionExtractionMixin, ContentVault
 from .browser_session_lifecycle_mixin import BrowserSessionLifecycleMixin
@@ -153,8 +159,6 @@ class BrowserSession(
         launch_mode_preference: str | None = None,
         dialog_policy: str | None = None,
         auto_dismiss_consent: bool = True,
-        task_space_id: str = "default",
-        task_space_name: str | None = None,
     ):
         """Initialize BrowserSession.
 
@@ -178,8 +182,6 @@ class BrowserSession(
             launch_mode_preference: Per-agent launch mode override (e.g. 'extension' to use user's real browser).
             dialog_policy: Dialog handling strategy ('smart', 'auto_accept', 'auto_dismiss', 'wait_for_agent').
             auto_dismiss_consent: Auto-accept cookie consent banners after navigation (default True).
-            task_space_id: Identifier of the task space this session belongs to (default 'default').
-            task_space_name: Optional human-readable name of this task space.
         """
         from myrm_agent_harness.toolkits.browser.pool.config import BrowserEngine, LaunchMode
 
@@ -247,8 +249,6 @@ class BrowserSession(
         self._vision_verifier = VisionVerifier(vision_llm)
         self._structured_extractor = StructuredExtractor(vision_llm)
         self._vision_llm = vision_llm
-        self._task_space_id: str = task_space_id or "default"
-        self._task_space_name: str | None = task_space_name
 
         self._session_lifecycle_hook = None
 
@@ -280,11 +280,10 @@ class BrowserSession(
         self._consent_dismisser = ConsentDismisser(enabled=auto_dismiss_consent)
         self._view_emit_last_monotonic = 0.0
 
-        # User takeover control: event is set (unblocked) by default.
-        # When user initiates takeover via UI, event is cleared (hard pause).
-        self._user_takeover_event: asyncio.Event = asyncio.Event()
-        self._user_takeover_event.set()
-        self._user_takeover_active: bool = False
+        # Whether a person drives the browser is a process-wide fact; the session only consults it.
+        # `observed_generation` is the control hand-over the model last looked at the page after.
+        self.user_control: UserControl = get_user_control()
+        self.observed_generation: int = self.user_control.generation
 
     async def snapshot(
         self,
@@ -308,6 +307,9 @@ class BrowserSession(
 
         if self._debug_mode:
             include_bbox = True
+        if self.observed_generation != self.user_control.generation:
+            # A person used the page since the model last looked: a diff against the old tree would hide what they changed.
+            diff = False
 
         result: SnapshotResult = await snapshot_manager.get_snapshot(
             scope=scope,
@@ -365,52 +367,17 @@ class BrowserSession(
         """
         return self._session_hash_cache.get(domain)
 
-    @property
-    def user_takeover_active(self) -> bool:
-        """Whether human user has actively taken over the browser session."""
-        return self._user_takeover_active
+    async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None:
+        """Wait while a person drives the browser; refuse once they keep it past `timeout`.
 
-    async def pause_for_takeover(self) -> None:
-        """Pause agent browser interactions due to user-initiated takeover."""
-        self._user_takeover_active = True
-        self._user_takeover_event.clear()
-        logger.info("BrowserSession paused: user takeover activated")
-
-    async def resume_from_takeover(self) -> None:
-        """Resume agent browser interactions after user finishes takeover, triggering fresh snapshot."""
-        self._user_takeover_active = False
-        self._user_takeover_event.set()
-        logger.info("BrowserSession resumed: user takeover finished, refreshing snapshot")
-        try:
-            # The result is discarded: the call only refreshes the refs and the diff baseline to the page the user
-            # left behind, so computing a diff against the pre-takeover tree would be wasted work.
-            await self.snapshot(diff=False)
-        except Exception as exc:
-            logger.warning("Failed to refresh snapshot after takeover resume: %s", exc)
-
-    async def _ensure_not_user_takeover(self, timeout: float = 600.0) -> None:
-        """Ensure session is not paused by user takeover before performing any mutation actions.
-
-        If a takeover is active, waits up to ``timeout`` seconds. If timeout expires,
-        the session remains strictly locked and raises UserTakeoverTimeoutError to prevent
-        unauthorized ghost/stale execution behind the human user's back.
+        The tool gate already fences every browser tool, so this only matters for session calls made
+        outside a tool. The session stays locked on timeout rather than act behind the person's back.
         """
-        if not self._user_takeover_event.is_set():
-            logger.info("Action waiting: BrowserSession is paused by user takeover (timeout=%.1fs)", timeout)
-            try:
-                await asyncio.wait_for(self._user_takeover_event.wait(), timeout=timeout)
-            except TimeoutError as exc:
-                logger.error(
-                    "User takeover wait timed out (%.1fs); session remains strictly locked to prevent ghost execution",
-                    timeout,
-                )
-                from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
-
-                raise UserTakeoverTimeoutError(
-                    f"User takeover wait timed out after {timeout:.1f}s. "
-                    "Session remains locked to prevent unapproved actions while human is away.",
-                    timeout_seconds=timeout,
-                ) from exc
+        try:
+            await self.user_control.wait_released(timeout)
+        except UserControlTimeoutError as exc:
+            logger.error("User takeover wait timed out (%.1fs); session stays locked", timeout)
+            raise UserTakeoverTimeoutError(timeout_seconds=exc.timeout_seconds) from exc
 
     async def interact(self, action: str, ref: str, text: str = "", verify_goal: str | None = None) -> str:
         """Ref-based element interaction (15 action types) with optional visual verification."""
@@ -554,24 +521,6 @@ class BrowserSession(
     def download_enabled(self) -> bool:
         """Whether download support is configured."""
         return self._download_manager is not None
-
-    @property
-    def task_space_id(self) -> str:
-        """Identifier of the task space this session belongs to."""
-        return self._task_space_id
-
-    @task_space_id.setter
-    def task_space_id(self, value: str) -> None:
-        self._task_space_id = value or "default"
-
-    @property
-    def task_space_name(self) -> str | None:
-        """Human-readable name of this task space."""
-        return self._task_space_name
-
-    @task_space_name.setter
-    def task_space_name(self, value: str | None) -> None:
-        self._task_space_name = value
 
     async def notify_progress(self, message: str) -> None:
         """Send progress notification to observability hook and agent SSE stream."""

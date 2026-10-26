@@ -31,9 +31,8 @@ async def collect_browser_snapshot_payload(
     *,
     chat_id: str | None = None,
     session_id: str | None = None,
-    space_id: str | None = None,
 ) -> dict[str, object]:
-    """Collect browser inspector snapshot payload scoped to one chat/session and optional task space."""
+    """Collect browser inspector snapshot payload scoped to one chat/session."""
     resolved = (chat_id or session_id or "").strip()
     if not resolved:
         raise BrowserSnapshotUnavailableError(
@@ -45,27 +44,16 @@ async def collect_browser_snapshot_payload(
     from app.services.agent.gateway import get_agent_gateway
 
     gateway = get_agent_gateway()
-    browser_session = (
-        gateway.get_active_browser_session(session_id=resolved, space_id=space_id)
-        if space_id is not None
-        else gateway.get_active_browser_session(session_id=resolved)
-    )
+    browser_session = gateway.get_active_browser_session(session_id=resolved)
     if browser_session is None:
-        msg = (
-            f"No active browser session for this chat (space={space_id})"
-            if space_id is not None
-            else "No active browser session for this chat"
-        )
         raise BrowserSnapshotUnavailableError(
             status_code=404,
             error="no_active_browser",
-            message=msg,
+            message="No active browser session for this chat",
         )
 
     from myrm_agent_harness.toolkits.browser.session.view_update_payload import (
         capture_browser_view_update_data,
     )
 
-    if space_id is not None:
-        return await capture_browser_view_update_data(browser_session, task_space_id=space_id)
     return await capture_browser_view_update_data(browser_session)

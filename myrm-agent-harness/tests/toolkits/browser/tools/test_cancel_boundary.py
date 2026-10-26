@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.browser.tools.snapshot import create_snapshot_t
 from myrm_agent_harness.toolkits.browser.tools.takeover import create_takeover_tool
 from myrm_agent_harness.utils.runtime import cancellation
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, set_cancel_token
+from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 _BOUND_S = 3.0
 
@@ -43,6 +44,8 @@ def _session() -> MagicMock:
     session.active_tab_crashed = MagicMock(return_value=False)
     session.recover_active_tab = AsyncMock(return_value=None)
     session.take_tab_reset_notice = MagicMock(return_value=None)
+    session.user_control = UserControl()
+    session.observed_generation = session.user_control.generation
     return session
 
 

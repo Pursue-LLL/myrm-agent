@@ -26,6 +26,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.utils.runtime.user_control import DEFAULT_WAIT_TIMEOUT_S, UserControl
+
     from ..captcha import CaptchaCoordinator
     from ..navigation import Navigator
     from ..observability import BrowserObservability
@@ -57,7 +59,8 @@ if TYPE_CHECKING:
         _auto_restored: bool
         _engine_preference: BrowserEngine | None
         _launch_mode_preference: LaunchMode | None
-        _user_takeover_active: bool
+        user_control: UserControl
+        observed_generation: int
         _terminal_challenges: dict[str, float]
         _captcha_coordinator: CaptchaCoordinator | None
         _consent_dismisser: ConsentDismisser
@@ -79,7 +82,7 @@ if TYPE_CHECKING:
 
         async def _initialize_components(self) -> None: ...
         async def _ensure_components(self) -> None: ...
-        async def _ensure_not_user_takeover(self, timeout: float = 600.0) -> None: ...
+        async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None: ...
         async def _publish_inspector_view(
             self, *, snapshot_result: SnapshotResult | None = None, force: bool = False
         ) -> None: ...

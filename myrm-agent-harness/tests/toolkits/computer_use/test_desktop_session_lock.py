@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSess
 from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
+from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
 
 
 @pytest.fixture
@@ -43,9 +44,7 @@ def test_action_lock_initialization(mock_backend: MagicMock, mock_config: MagicM
 
 
 @pytest.mark.asyncio
-async def test_desktop_interact_serializes_concurrent_calls(
-    mock_backend: MagicMock, mock_config: MagicMock
-) -> None:
+async def test_desktop_interact_serializes_concurrent_calls(mock_backend: MagicMock, mock_config: MagicMock) -> None:
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=2, app_name="App", window_title="Window", scope="foreground")
@@ -128,9 +127,7 @@ async def test_desktop_interact_and_vision_action_mutual_exclusion(
 
 
 @pytest.mark.asyncio
-async def test_stale_ref_returns_structured_remedy_hint(
-    mock_backend: MagicMock, mock_config: MagicMock
-) -> None:
+async def test_stale_ref_returns_structured_remedy_hint(mock_backend: MagicMock, mock_config: MagicMock) -> None:
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
 
@@ -142,9 +139,7 @@ async def test_stale_ref_returns_structured_remedy_hint(
 
 
 @pytest.mark.asyncio
-async def test_interact_failure_returns_structured_remedy_hint(
-    mock_backend: MagicMock, mock_config: MagicMock
-) -> None:
+async def test_interact_failure_returns_structured_remedy_hint(mock_backend: MagicMock, mock_config: MagicMock) -> None:
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=1, app_name="App", window_title="Window", scope="foreground")
@@ -181,40 +176,28 @@ async def test_interact_failure_returns_structured_remedy_hint(
 async def test_desktop_takeover_lock_prevents_unauthorized_actions(
     mock_backend: MagicMock, mock_config: MagicMock
 ) -> None:
-    from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
-
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    session.user_control = UserControl()
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=1, app_name="App", window_title="Window", scope="foreground")
     elem = ElementRef(ref_id="d1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
     session._refs.replace({"d1": elem}, meta)
 
-    assert session.user_takeover_active is False
-    assert session._user_takeover_event.is_set()
+    session.user_control.acquire()
 
-    # Pause for user takeover
-    await session.pause_for_takeover()
-    assert session.user_takeover_active is True
-    assert not session._user_takeover_event.is_set()
-
-    # Waiting with short timeout should raise UserTakeoverTimeoutError and keep session locked
-    with pytest.raises(UserTakeoverTimeoutError) as exc_info:
+    # The wait outlasting its budget refuses and keeps the desktop locked.
+    with pytest.raises(UserControlTimeoutError):
         await session._ensure_not_user_takeover(timeout=0.05)
-    assert "User takeover wait timed out" in str(exc_info.value)
-    assert session.user_takeover_active is True
-    assert not session._user_takeover_event.is_set()
+    assert session.user_control.held is True
 
-    # Mutation via desktop_interact should also be blocked (override default 600s with fast test timeout)
-    with patch.object(session, "_ensure_not_user_takeover", side_effect=UserTakeoverTimeoutError("Test locked")):
-        with pytest.raises(UserTakeoverTimeoutError):
-            await session.desktop_interact(ref="d1", action="click")
+    # A semantic action and a coordinate action both wait for the person instead of running.
+    interact = asyncio.create_task(session.desktop_interact(ref="d1", action="click"))
+    vision = asyncio.create_task(session.desktop_vision_action(action="mouse_move", coordinate=[100, 100]))
+    await asyncio.sleep(0.05)
+    assert not interact.done()
+    assert not vision.done()
+    mock_backend.mouse_move.assert_not_called()
 
-        # Mutation via desktop_vision_action should also be blocked
-        with pytest.raises(UserTakeoverTimeoutError):
-            await session.desktop_vision_action(action="mouse_move", coordinate=[100, 100])
-
-    # Resume takeover
-    await session.resume_from_takeover()
-    assert session.user_takeover_active is False
-    assert session._user_takeover_event.is_set()
-
+    for task in (interact, vision):
+        task.cancel()
+    await asyncio.gather(interact, vision, return_exceptions=True)

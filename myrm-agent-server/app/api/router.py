@@ -24,7 +24,6 @@ from app.api.batch_directory import router as batch_directory_router
 from app.api.browser_domain_skills import router as browser_domain_skills_router
 from app.api.browser_recording import router as browser_recording_router
 from app.api.browser_sessions import router as browser_sessions_router
-from app.api.browser_spaces import router as browser_spaces_router
 from app.api.budget import budget_router
 from app.api.chats import router as chat_router
 from app.api.chats.chat.share import public_router as chat_share_public_router
@@ -226,7 +225,6 @@ api_router.include_router(ssh_vault_router, prefix="", tags=["ssh-vault"])
 api_router.include_router(browser_domain_skills_router, prefix="/browser", tags=["browser-domain-skills"])
 api_router.include_router(browser_recording_router, prefix="/browser", tags=["browser-recording"])
 api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])
-api_router.include_router(browser_spaces_router, prefix="/browser", tags=["browser-spaces"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
 api_router.include_router(evolution_router, tags=["evolution"])
 api_router.include_router(migration_discovery_router, tags=["migration"])

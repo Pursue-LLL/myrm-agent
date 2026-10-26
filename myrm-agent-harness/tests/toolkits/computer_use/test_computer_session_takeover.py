@@ -1,21 +1,15 @@
-"""Unit tests for ComputerSession & DesktopSession takeover event gate & hard refusal.
-
-Verifies that:
-1. When takeover is paused via pause_for_takeover(), all mutation methods wait for user_takeover_event.
-2. If takeover wait times out, UserTakeoverTimeoutError is raised and the session remains strictly locked
-   (never auto-unblocking).
-3. Resuming via resume_from_takeover() restores normal execution.
-"""
+"""ComputerSession consults the process-wide user control: a held control stops every desktop action."""
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.exceptions import UserTakeoverTimeoutError
 from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
+from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
 
 
 @pytest.fixture
@@ -36,39 +30,42 @@ def mock_backend() -> MagicMock:
     return backend
 
 
-class TestComputerSessionTakeoverGate:
-    """Test user takeover gate on ComputerSession."""
+@pytest.fixture
+def session(mock_backend: MagicMock) -> ComputerSession:
+    session = ComputerSession(backend=mock_backend)
+    session.user_control = UserControl()
+    session.take_screenshot = AsyncMock(  # type: ignore[method-assign]
+        return_value=MagicMock(screenshot_base64="", screenshot_size=(1, 1))
+    )
+    return session
+
+
+class TestComputerSessionUserControl:
+    @pytest.mark.asyncio
+    async def test_nothing_waits_while_nobody_holds_control(self, session: ComputerSession) -> None:
+        await session._ensure_not_user_takeover(timeout=0.05)
 
     @pytest.mark.asyncio
-    async def test_takeover_pause_and_timeout_lock(self, mock_backend: MagicMock) -> None:
-        session = ComputerSession(backend=mock_backend)
+    async def test_holding_past_the_timeout_refuses_and_stays_locked(self, session: ComputerSession) -> None:
+        session.user_control.acquire()
 
-        assert session.user_takeover_active is False
-        assert session._user_takeover_event.is_set()
-
-        # Pause session for user takeover
-        await session.pause_for_takeover()
-        assert session.user_takeover_active is True
-        assert not session._user_takeover_event.is_set()
-
-        # Calling _ensure_not_user_takeover with short timeout must raise UserTakeoverTimeoutError
-        with pytest.raises(UserTakeoverTimeoutError) as exc_info:
+        with pytest.raises(UserControlTimeoutError, match="action was not run"):
             await session._ensure_not_user_takeover(timeout=0.05)
 
-        assert "User takeover wait timed out" in str(exc_info.value)
-        # Session MUST remain strictly locked
-        assert session.user_takeover_active is True
-        assert not session._user_takeover_event.is_set()
+        assert session.user_control.held is True
 
-        # Mutation operations must also raise UserTakeoverTimeoutError when attempting to run
-        session.user_takeover_timeout = 0.05
-        with pytest.raises(UserTakeoverTimeoutError):
-            await session.type_text("malicious or stray input")
+    @pytest.mark.asyncio
+    async def test_a_mutation_waits_for_the_person_and_runs_once_control_returns(
+        self, session: ComputerSession, mock_backend: MagicMock
+    ) -> None:
+        session.user_control.acquire()
+        typing = asyncio.create_task(session.type_text("stray input"))
 
-        # Backend type_text should NOT have been called while locked!
+        await asyncio.sleep(0.05)
+        assert not typing.done()
         mock_backend.type_text.assert_not_called()
 
-        # Resume session
-        await session.resume_from_takeover()
-        assert session.user_takeover_active is False
-        assert session._user_takeover_event.is_set()
+        session.user_control.release()
+        await asyncio.wait_for(typing, timeout=2.0)
+
+        mock_backend.type_text.assert_awaited_once()

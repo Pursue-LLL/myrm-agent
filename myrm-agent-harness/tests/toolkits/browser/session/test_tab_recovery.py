@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.browser.utils.page_health import PageUnresponsi
 from myrm_agent_harness.toolkits.browser.utils.proxy_error import is_proxy_error
 from myrm_agent_harness.utils.runtime import cancellation
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, set_cancel_token
+from myrm_agent_harness.utils.runtime.user_control import UserControl
 from tests.toolkits.browser._fake_pages import FakeCdp, FakePage
 
 _FAST_S = 0.1
@@ -147,7 +148,8 @@ async def test_other_tabs_survive_the_replacement() -> None:
 async def test_user_takeover_blocks_recovery_without_touching_the_page() -> None:
     page = FakePage(cdp=FakeCdp(), evaluate="hang")
     session, _ = await _session(FakePool(page))
-    await session.pause_for_takeover()
+    session.user_control = UserControl()
+    session.user_control.acquire()
 
     assert await session.recover_active_tab() is None
 
@@ -453,7 +455,8 @@ class TestCancelBoundaryOnARealSession:
         pool = FakePool(crashed)
         pool.crashed.add(crashed)
         session, _ = await _session(pool)
-        session._user_takeover_active = True
+        session.user_control = UserControl()
+        session.user_control.acquire()
         (echo,) = apply_cancel_boundary([_echo_tool()], session)
 
         assert await echo.ainvoke({"value": "a"}) == "echo:a"

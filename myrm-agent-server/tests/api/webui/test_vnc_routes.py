@@ -2,24 +2,63 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.vnc import TakeoverState
+from myrm_agent_harness.utils.runtime.user_control import get_user_control
 
 from app.api.webui import vnc_routes
 from app.api.webui.vnc_routes import (
     _on_takeover_end,
     _on_takeover_start,
+    _reflect_in_user_control,
 )
 
 
 @pytest.fixture(autouse=True)
-def _reset_module_state() -> None:
-    """Reset module-level globals between tests."""
-    vnc_routes._pre_takeover_snapshot = ""
-    vnc_routes._pre_takeover_url = ""
-    vnc_routes._takeover_start_time = 0.0
-    vnc_routes._takeover_coordinator = None
+def _reset_module_state() -> Iterator[None]:
+    """Reset module-level globals between tests and hand the process-wide control back."""
+
+    def _reset() -> None:
+        vnc_routes._pre_takeover_snapshot = ""
+        vnc_routes._pre_takeover_url = ""
+        vnc_routes._takeover_start_time = 0.0
+        vnc_routes._takeover_coordinator = None
+        get_user_control().release()
+
+    _reset()
+    yield
+    _reset()
+
+
+class TestReflectInUserControl:
+    def test_takeover_holds_and_agent_active_releases(self) -> None:
+        control = get_user_control()
+        generation = control.generation
+
+        _reflect_in_user_control(TakeoverState.USER_TAKEOVER)
+        assert control.held is True
+
+        _reflect_in_user_control(TakeoverState.AGENT_ACTIVE)
+        assert control.held is False
+        assert control.generation == generation + 1
+
+    def test_agent_active_while_idle_changes_nothing(self) -> None:
+        control = get_user_control()
+        generation = control.generation
+
+        _reflect_in_user_control(TakeoverState.AGENT_ACTIVE)
+
+        assert control.held is False
+        assert control.generation == generation
+
+    def test_coordinator_is_wired_to_reflect(self) -> None:
+        coordinator = vnc_routes._get_takeover()
+
+        assert coordinator is not None
+        assert coordinator.on_state_change is _reflect_in_user_control
 
 
 class TestOnTakeoverStart:

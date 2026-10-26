@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
 from myrm_agent_harness.toolkits.browser.snapshot.aria_types import RefInfo
+from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 
 def _ref(name: str = "Delete Repository") -> RefInfo:
@@ -20,8 +20,7 @@ def _make_session() -> BrowserSession:
     session = object.__new__(BrowserSession)
     session._hitl_caller_tool = None
     session._captcha_coordinator = None
-    session._user_takeover_event = asyncio.Event()
-    session._user_takeover_event.set()
+    session.user_control = UserControl()
     session._ensure_components = AsyncMock()
     session._tab_controller = MagicMock()
     session._tab_controller.clear_text_snapshot = MagicMock()

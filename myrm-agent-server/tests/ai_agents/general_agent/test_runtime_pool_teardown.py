@@ -23,7 +23,6 @@ def _agent_with_pool(pool: MagicMock, *, ephemeral: bool, scope_id: str | None) 
     agent._runtime_pool_ephemeral = ephemeral
     agent._executor = None
     agent._current_chat_id = None
-    agent._browser_spaces = {}
     agent._browser_session = None
     agent.agent = None
     return agent

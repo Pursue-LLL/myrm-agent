@@ -4,20 +4,25 @@
 - desktop_session::DesktopSession (POS: semantic desktop orchestrator with @dref registry)
 - types::ModifierKey, DesktopInteractAction, DesktopVisionAction, ScrollDirection (POS: shared computer_use types)
 - dref.types::SnapshotScope (POS: snapshot scope enum)
+- utils.runtime.user_control::apply_user_control_gate, ToolRole (POS: tool fence while a person drives the desktop)
 
 [OUTPUT]
-- create_desktop_tools(session) -> list[Tool]: 3 LangChain tools
+- create_desktop_tools(session) -> list[BaseTool]: 3 LangChain tools, all waiting while a person drives the desktop
   - desktop_snapshot_tool
   - desktop_interact_tool
   - desktop_vision_tool
 
 [POS]
-LangChain tool surface for Semantic Desktop Control (SDC).
+LangChain tool surface for Semantic Desktop Control (SDC). While a person drives the desktop every tool waits;
+afterwards an action does not run until the model has looked at the screen again (snapshot, or a vision capture).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from langchain.tools import tool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
@@ -28,10 +33,28 @@ from myrm_agent_harness.toolkits.computer_use.types import (
     ModifierKey,
     ScrollDirection,
 )
+from myrm_agent_harness.utils.runtime.user_control import RoleOf, ToolRole, apply_user_control_gate
+
+_REOBSERVE_NOTICE = (
+    "Not run: a person used the desktop since you last looked at the screen, so it may have changed. "
+    "Take a fresh snapshot or screenshot, then retry."
+)
 
 
-def create_desktop_tools(session: DesktopSession) -> list[object]:
-    """Create 3 semantic desktop tools bound to *session*."""
+def _vision_role(arguments: Mapping[str, object]) -> ToolRole:
+    """A vision call looks when it captures the screen and acts for every other action."""
+    return ToolRole.OBSERVE if arguments.get("action") in ("capture", "screenshot") else ToolRole.ACT
+
+
+_ROLES: dict[str, RoleOf] = {
+    "desktop_snapshot_tool": ToolRole.OBSERVE,
+    "desktop_interact_tool": ToolRole.ACT,
+    "desktop_vision_tool": _vision_role,
+}
+
+
+def create_desktop_tools(session: DesktopSession) -> list[BaseTool]:
+    """Create 3 semantic desktop tools bound to *session*, fenced behind the person's control."""
 
     from myrm_agent_harness.core.security.credential_vault import (
         get_global_credential_vault,
@@ -227,4 +250,10 @@ def create_desktop_tools(session: DesktopSession) -> list[object]:
             modifiers=modifiers,
         )
 
-    return [desktop_snapshot, desktop_interact, desktop_vision]
+    return apply_user_control_gate(
+        [desktop_snapshot, desktop_interact, desktop_vision],
+        session,
+        roles=_ROLES,
+        exempt=frozenset(),
+        reobserve_notice=_REOBSERVE_NOTICE,
+    )

@@ -1,7 +1,7 @@
 # tools/
 
 ## Overview
-API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChain @tool functions.
+API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChain @tool functions, each fenced behind the person's control of the browser (`user_control_gate.py`) and the cancel boundary.
 
 ## File & Submodule Index
 
@@ -10,7 +10,8 @@ API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChai
 | __init__.py | Package | API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChain @tool functions. | ✅ |
 | _semantic_risk.py | Internal | Browser-layer semantic DOM risk classification — browser action preconditions (click/dblclick/check/uncheck mutations, key activation, implicit submit) and JS eval patterns layered on the shared cross-channel lexicon from `core.security.detection.semantic_risk` (SSOT shared with desktop AX gates). Consumed by semantic_dom_hitl.py. | ✅ |
 | semantic_dom_hitl.py | Internal | Shared LangGraph HITL gate for session.interact, browser_interact_tool, and evaluate paths with key activation propagation; fail-closed when no graph context is available. | ✅ |
-| cancel_boundary.py | Core | `apply_cancel_boundary`: wraps every tool coroutine in place. Before each action it heals a tab whose renderer crashed (`active_tab_crashed` → `recover_active_tab`), so the model does not hit a dead page on every call. A stopped run aborts the in-flight browser action within ~0.25s (`run_until_cancelled`), heals the tab (`recover_active_tab`) and returns `CANCELLED_RESULT` instead of an error. A run torn down without the token (executor timeout, stuck-task watchdog, shutdown) heals the tab too, then lets the cancellation continue. A healed tab is blank, so the next text result is prefixed once with the session's reset notice (`take_tab_reset_notice`). No-op outside an agent run (no cancellation token). Applied by both tool factories (`create_browser_tools`, `create_restricted_ax_browser_tools`). | ✅ |
+| cancel_boundary.py | Core | `apply_cancel_boundary`: wraps every tool coroutine in place. Before each action it heals a tab whose renderer crashed (`active_tab_crashed` → `recover_active_tab`), so the model does not hit a dead page on every call. A stopped run aborts the in-flight browser action within ~0.25s (`run_until_cancelled`), heals the tab (`recover_active_tab`) and returns `CANCELLED_RESULT` instead of an error. A run torn down without the token (executor timeout, stuck-task watchdog, shutdown) heals the tab too, then lets the cancellation continue. A healed tab is blank, so the next text result is prefixed once with the session's reset notice (`take_tab_reset_notice`). No-op outside an agent run (no cancellation token). Applied by both tool factories (`create_browser_tools`, `create_restricted_ax_browser_tools`), outside `user_control_gate.py`. | ✅ |
+| user_control_gate.py | Core | `apply_browser_user_control_gate`: fences the browser tools behind the process-wide `UserControl` (`utils/runtime/user_control.py`). While a person drives the browser every tool waits except `browser_ask_human_tool` (the model hands the browser over with it, and a resumed run calls it again); past 600s the wait raises `UserTakeoverTimeoutError`. After the hand-over, `browser_interact_tool` / `browser_execute_script_tool` return `REOBSERVE_NOTICE` until `browser_snapshot_tool` / `browser_inspect_tool` / `browser_extract_tool` has succeeded; `browser_navigate_tool` and `browser_manage_tool` only wait. Applied under the cancel boundary by both tool factories, so stopping a run also ends a waiting tool. A test pins the classified names to the tools the factories build. | ✅ |
 | common.py | Core | Shared utilities for browser tools. `mark_untrusted`: unified output security boundary (credential redaction + untrusted-content wrapping) for every browser tool result. | ✅ |
 | execute_script.py | Core | browser_execute_script_tool: Code-as-Action batch execution with AST privileged-API scanner + HITL gating. Output redacted + wrapped via mark_untrusted. | ✅ |
 | extract.py | Core | browser_extract_tool: content extraction. | ✅ |
@@ -24,5 +25,6 @@ API layer of the browser toolkit. Maps BrowserSession capabilities to 8 LangChai
 ## Key Dependencies
 
 - `utils`
+- `utils/runtime/user_control` (process-wide human-control hold + tool gate)
 - `snapshot` (RefInfo for semantic risk classification)
 - `langgraph.types` (interrupt/resume for HITL)

@@ -29,7 +29,6 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "audit",
         "batch_directory",
         "browser_recording",
-        "browser_spaces",
         "budget",
         "channels",
         "checkpoint",
