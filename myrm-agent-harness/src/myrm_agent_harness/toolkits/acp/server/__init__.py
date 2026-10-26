@@ -16,6 +16,13 @@ ACP server direction — IDE clients talk to the hosted agent system over ACP.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .bridge import AgentBridge, AgentFactory
+    from .mcp_converter import convert_acp_mcp_servers
+    from .server import MyrmAcpServer, run_server
+
 __all__ = [
     "AgentBridge",
     "AgentFactory",
