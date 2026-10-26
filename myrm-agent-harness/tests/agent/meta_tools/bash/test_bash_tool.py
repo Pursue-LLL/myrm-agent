@@ -9,6 +9,7 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
 from myrm_agent_harness.utils.errors import ToolError
+from tests.support.run_context import real_run_context
 
 
 def _patch_bash_tool_deps():
@@ -113,10 +114,7 @@ async def test_bash_tool_myrm_tools_cat_pipe_preflight_blocks_before_executor(
     mock_bash_exec, p_ctx, p_get, p_be, p_scope = _patch_bash_tool_deps()
 
     with p_ctx as mock_ctx, p_get, p_be, p_scope:
-        mock_ctx.return_value = {
-            "session_id": "test-session",
-            "workspace_root": str(tmp_path),
-        }
+        mock_ctx.return_value = await real_run_context(tmp_path)
         tool = create_bash_code_execute_tool()
         with pytest.raises(ToolError, match="myrm_tools") as exc_info:
             await tool.ainvoke(

@@ -200,7 +200,7 @@ class TestCompletionGuardTriggerConditions:
         reset_completion_guard()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            runtime = {"configurable": {"context": {"workspace_root": tmp_dir}}}
+            runtime = {"configurable": {"context": {"workspace_path": tmp_dir}}}
             with patch(LOOP_GUARD_PATCH) as mock_guard:
                 mock_guard.return_value._window = []
                 # First rejection (rejection_count=1)
@@ -2479,7 +2479,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
                 AIMessage(content=code_msg),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = []
@@ -2512,7 +2512,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
                 AIMessage(content=code_msg),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = []
@@ -2560,7 +2560,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
                 AIMessage(content=snippet_msg),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = []
@@ -2587,7 +2587,7 @@ class TestCompletionGuardQueryGroundingIntegration:
                 AIMessage(content="订单 OD-10086 已经发货了，预计明天送达。"),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = []
@@ -2616,7 +2616,7 @@ class TestCompletionGuardQueryGroundingIntegration:
                 AIMessage(content="订单 OD-9921 已发货，工单 TK-8802 正在处理中。"),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = [rec_od]
@@ -2645,7 +2645,7 @@ class TestCompletionGuardQueryGroundingIntegration:
                 AIMessage(content="订单 OD-9921 已发货；系统查询显示工单 TK-8802 暂未查询到对应处理进度。"),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = [rec_od]
@@ -2675,7 +2675,7 @@ class TestCompletionGuardQueryGroundingIntegration:
                 AIMessage(content="订单 OD-9921 已发货，工单 TK-8802 处理中。"),
             ]
         )
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
 
         mock_loop_guard = MagicMock()
         mock_loop_guard._window = [rec_od, rec_tk]
@@ -2839,7 +2839,7 @@ class TestExecutionClaimGate:
             "```"
         )
         state = _make_state([HumanMessage(content="帮我创建 calculator"), AIMessage(content=code_msg)])
-        runtime = {"configurable": {"context": {"workspace_root": str(tmp_path)}}}
+        runtime = {"configurable": {"context": {"workspace_path": str(tmp_path)}}}
         with patch(LOOP_GUARD_PATCH) as mock_guard:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, runtime)

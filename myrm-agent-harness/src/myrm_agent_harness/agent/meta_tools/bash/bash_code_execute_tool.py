@@ -149,7 +149,7 @@ def create_bash_code_execute_tool(
 
         try:
             context = extract_context_from_runnable_config(config)
-            workspace_root = str(context.get("workspace_root", "")) or None
+            workspace_root = str(context.get("workspace_path", "")) or None
 
             check_command_url_exfiltration(command)
             check_sensitive_paths(command)

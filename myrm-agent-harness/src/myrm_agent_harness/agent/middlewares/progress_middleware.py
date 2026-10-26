@@ -115,7 +115,7 @@ def progress_middleware(
         context = getattr(request.runtime, "context", None) if hasattr(request, "runtime") and request.runtime else None
         workspace_root = None
         if isinstance(context, dict):
-            workspace_root = context.get("workspace_root")
+            workspace_root = context.get("workspace_path")
 
         store = await get_todos_fn(str(workspace_root) if workspace_root else None)
         if not store or not store.todos:

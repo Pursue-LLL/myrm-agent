@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-008 · todo 焦点注入与 CompletionGuard 的未完成 todo 检查读不到工作区：运行时上下文里没有 `workspace_root`，这两项检查在生产中从未触发
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（审查子 Agent 工具隔离时，对照 `setup_workspace` 写入的键与读取方读的键） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：① `progress_middleware` 的 todo 焦点注入不发生，有未完成 todo 的 Agent 在新一轮用户输入时看不到自己的待办。② `CompletionGuard` 的「未完成 todo」检查与「未落盘的交付物暂存」不触发，Agent 带着未完成 todo 就能结束。③ bash 预检 `check_myrm_tools_import` 对工作区内绝对路径 `.py` 的检查不生效。三处都静默失效、没有报错，真实生产实例上的触发频率未测 |
+| **关联产品** | harness `agent/middlewares/progress_middleware.py`、`agent/middlewares/completion/completion_guard.py`、`agent/meta_tools/bash/bash_code_execute_tool.py`、`agent/_internals/run_lifecycle.py` |
+| **根因** | `setup_workspace` 返回的合并上下文只含 `workspace_path` 与 `workspaces_storage_root`，没有任何生产代码写 `context["workspace_root"]`；上述三处却读 `workspace_root`，拿到空值。三处的单元测试都手写了 `workspace_root` 键喂给读取方，所以一直是绿的。 |
+| **修复** | ① 三处读取方改读运行时真实写入的 `workspace_path`（不新增键：`validate_context` 会把上下文整体交给嵌入方的 `context_schema(**context)`，多出的键会让严格 schema 抛 `TypeError`）。② 新增 `tests/support/run_context.py` 的 `real_run_context`，经真实 `setup_workspace` 产出上下文，测试不再手写键；新增 `test_workspace_context_contract.py` 2 例（todo 焦点真的进入模型请求；CompletionGuard 把未落盘交付物暂存进本次运行的工作区），bash 预检测试改用真实上下文。③ 同次审查发现 `intercept_goal_and_plan` 的 `query` / `llm` / `storage_provider` 三个参数从未使用，调用方仅为传参构造了 `LocalStorageBackend("/tmp")`，已删除，函数更名为 `apply_goal_session_invariants(goal_provider, session_id)`，职责是目标的受保护路径与篡改快照。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 测试里手写被读取的键，等于替生产代码把「写入方与读取方是否一致」这件事排除在测试之外；这类键必须由真实的写入路径产出。 |
+| **回归** | 真实 `setup_workspace` 探针：上下文只含 `workspace_path`、`workspaces_storage_root`；修复前 todo 焦点注入为 False，修复后 True，两次构建的注入文本逐字节一致，工具循环里的历史消息未被改写（保持 append-only）。新增契约测试 2 例与改用真实上下文的 bash 预检测试，在修复前的源码上 3 例失败，修复后通过；仅改源码时恰有 5 例依赖手写 `workspace_root` 的旧测试失败，已改读真实键。`tests/agent`、`tests/support`、`tests/core/security` 修复后 17685 例通过（16 跳过），另有 3 例失败，修复前的 HEAD 上同样失败（17683 通过，同样 3 例失败）。`ruff check` 与 `ruff format --check` 0 问题。 |
+| **仍然存在** | ① 行为变化：有未完成 todo 的 Agent 每个用户轮次多约 150–250 token 的焦点注入（本地估算），想结束时 CompletionGuard 最多再追加 3 轮（`max_rejections` 默认 3），强制结束时把未落盘交付物写到 `<workspace>/.myrm/staged_artifacts/`；端到端的前缀缓存命中率与前端对这些轮次的展示未测。② 注入在每个以用户消息结尾的请求上都会发生，触发条件未重新设计，没有证据表明需要。③ 未在真实线上实例上取证。 |
+| **代码位置** | `agent/middlewares/progress_middleware.py` · `agent/middlewares/completion/completion_guard.py` · `agent/meta_tools/bash/bash_code_execute_tool.py` · `agent/goals/goal_interceptor.py` · `tests/agent/middlewares/test_workspace_context_contract.py` · `tests/support/run_context.py` |
+
 ### BUG-HARNESS-2026-10-27-007 · `import_memories(skip_duplicates=False)` 并不跳过去重：替换式恢复遇到内容相同的条目只落一条，报「恢复不完整」
 
 | 字段 | 内容 |
@@ -32,8 +49,8 @@
 | **修复** | ① `registry.py` 新增 `PARENT_BOUND_WRITER_TOOLS`，由 `planning` / `kanban` 分组里安全元数据非只读的工具加 `complete_goal_tool` 派生（新增的 kanban 写工具自动进入），并入 manifest 的 `persistent_side_effect_tools`；`kanban_show` / `kanban_list_tasks` 仍可用。② `filter_tools` 对所有 `READ_ONLY_SANDBOX` 配置经 `resolve_permission_type` 剔除 `invoke_external_agent` 与 `knowledge_write` 两类权限的工具（`invoke_acp_agent_tool`、`wiki_ingest_tool`、`wiki_apply_tool`），只读子 Agent 与 Verifier 同样生效；Verifier 保留文件写工具，由 OCap 句柄与工作区快照约束。③ 新增契约测试：32 个非只读工具逐个归类并写明机制，真实 `filter_tools` 必须与归类一致，且 `READONLY_FORBIDDEN_TOOLS` ⊆ 真实只读子 Agent 的剥离集；新增工具未归类即失败。④ 删除断言已移除机制（`READ_ONLY_GLOBAL` 往 `disallowed_tools` 加记忆工具）的过期测试，等价覆盖在 `test_delegation_policy.py`。⑤ 更正 `SUB_AGENT_SYSTEM.md` 与 `builder.py` 里「复用父 SystemMessage 实现 100% Prefix Cache Hit」的表述：子 Agent 的工具集与父不同，不保证共享缓存前缀。 |
 | **反复次数** | 第 1 次发现（同类的记忆写工具已在此前单独修复） |
 | **踩坑** | 「按名单剥离」会随新增工具漂移，已声明的契约若没有测试强制就等于没有——本次的 ACP 缺口正是 `READONLY_FORBIDDEN_TOOLS` 声明了但从未被校验。判据写进了 `sub_agents/_ARCH.md`：对任何子 Agent 都功能失效（绑定父状态）→ L1；功能有效但违反只读契约 → 只读规则。 |
-| **回归** | 契约测试 37 例；在只含注册表导出、不含 manifest 与 builder 修改的源码上 17 例失败（12 个父状态工具、3 个逃出沙箱的工具、2 条不变式），修复后全部通过。`tests/agent/sub_agents`、`tests/core/security`、`tests/toolkits/acp/test_invoke_acp_agent_tool.py`、`tests/agent/test_delegate_task_tool.py` 在已含他人未提交改动的工作树副本上 2999 例通过（4 跳过）；`tests/architecture` 另有 2 例失败与本改动无关（`windows.py` 超出行数基线 +4 为 HEAD 既有，另一例依赖临时副本里不存在的 venv）。`ruff` 0 错误，`types.py` 保持 535 行基线，`registry.py` 493 行。 |
-| **仍然存在** | ① 子 Agent 失去 `todo_write` 后多步子任务的质量未测。② kanban worker 是顶层 Agent（`task_runner/runner.py` 经 `general_agent/factory.py` 构建），不经过 `filter_tools`，此点来自读代码，没有回归断言。③ 另一个未改的问题：运行时上下文里从来没有 `workspace_root`（`setup_workspace` 只写 `workspace_path`），`progress_middleware.py` 的 todo 焦点注入与 `CompletionGuard` 的「未完成 todo」检查在生产中不触发；修复会改变所有 Agent 的结束行为，需单独评审。 |
+| **回归** | 契约测试 37 例；撤去 manifest 与 builder 的修改后 17 例失败（12 个父状态工具、3 个逃出沙箱的工具、2 条不变式），修复后全部通过。`tests/agent/sub_agents`、`tests/core/security`、`tests/toolkits/acp/test_invoke_acp_agent_tool.py`、`tests/agent/test_delegate_task_tool.py` 共 2999 例通过（4 跳过）。`ruff` 0 错误，`types.py` 保持 535 行基线，`registry.py` 493 行。 |
+| **仍然存在** | ① 子 Agent 失去 `todo_write` 后多步子任务的质量未测。② kanban worker 是顶层 Agent（`task_runner/runner.py` 经 `general_agent/factory.py` 构建），不经过 `filter_tools`，此点来自读代码，没有回归断言。③ 审查时发现的另一个问题（运行时上下文里从来没有 `workspace_root`，todo 焦点注入与 CompletionGuard 的未完成 todo 检查在生产中不触发）已在 BUG-HARNESS-2026-10-27-008 修复。 |
 | **代码位置** | `core/security/tool_registry/registry.py`（`PARENT_BOUND_WRITER_TOOLS`）· `agent/sub_agents/types.py`（manifest）· `agent/sub_agents/builder.py`（`_escapes_read_only_sandbox`）· `tests/agent/sub_agents/test_child_tool_isolation_contract.py` |
 
 ### BUG-HARNESS-2026-10-27-005 · 导出与备份只读一页：超过 10000 条的记忆被静默漏掉，读取失败被当成该类型没有记忆

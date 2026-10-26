@@ -13,6 +13,7 @@ Pytest-only helpers for harness test teardown, local dev hygiene, live MCP trans
 | `mcp_live_server.py` | Core | Real uvicorn-hosted MCP servers (SSE / streamable HTTP, optionally TLS or mTLS) on pre-bound loopback ports, exposing echo/add tools and optional `initialize` instructions; single bootstrap shared by every live transport test | ✅ |
 | `mcp_tls_pki.py` | Core | Throwaway PKI (private CA, rogue CA, server leaf, plain and passphrase-encrypted client leaf) whose chains satisfy Python 3.13 strict X.509 verification, plus the TLS-rejection error-text markers | ✅ |
 | `mcp_launch_gates.py` | Core | Patch targets and `RecordingTrustGate` for the stdio launch gates (workspace trust + OSV malware check) shared by actor and enumeration tests | ✅ |
+| `run_context.py` | Core | `real_run_context`: the context the production `setup_workspace` builds for a workspace directory, so a test of a context reader goes red when the reader asks for a key a real run never writes (a hand-built context accepts any key) | ✅ |
 | `dense_vector_store.py` | Core | In-memory dense vector store double: refuses a vectorless document before writing anything and pages `scroll` by a cursor that is `None` only after the last page, so memory tests exercise the contracts a plain `AsyncMock` store hides | ✅ |
 | `test_dense_vector_store.py` | Unit | Unit tests for `dense_vector_store` (write refusal, read copies, cursor paging, filter shapes) | — |
 | `test_browser_process_cleanup.py` | Unit | Unit tests for `browser_process_cleanup` (100% line coverage) | — |

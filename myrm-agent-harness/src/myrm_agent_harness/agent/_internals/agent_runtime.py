@@ -512,30 +512,16 @@ async def run_agent_loop(
 
         set_goal_provider(goal_provider)
 
-        # --- Goal Planning Interception ---
+        # --- Goal session invariants (protected paths, tamper snapshot) ---
         if goal_provider and not isinstance(query, Command):
             try:
                 from myrm_agent_harness.agent.goals.goal_interceptor import (
-                    intercept_goal_and_plan,
-                )
-                from myrm_agent_harness.toolkits.storage.local import (
-                    LocalStorageBackend,
+                    apply_goal_session_invariants,
                 )
 
-                # Use LocalStorageBackend directly with workspace_root
-                workspace_root_path = str(merged_context.get("workspace_root", "/tmp"))
-                storage_provider = LocalStorageBackend(workspace_root_path)
-
-                if storage_provider:
-                    await intercept_goal_and_plan(
-                        goal_provider=goal_provider,
-                        session_id=session_id,
-                        query=query,
-                        llm=agent_state.llm,
-                        storage_provider=storage_provider,
-                    )
+                await apply_goal_session_invariants(goal_provider, session_id)
             except Exception as e:
-                logger.warning(f"Goal planning interception failed: {e}")
+                logger.warning(f"Goal session setup failed: {e}")
 
         run_config: RunnableConfig = {
             "recursion_limit": recursion_limit,

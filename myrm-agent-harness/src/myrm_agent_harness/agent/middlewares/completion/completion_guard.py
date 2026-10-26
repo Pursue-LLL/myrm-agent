@@ -301,7 +301,7 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
             if isinstance(configurable, dict):
                 context = configurable.get("context", {})
                 if isinstance(context, dict):
-                    workspace_root = context.get("workspace_root")
+                    workspace_root = context.get("workspace_path")
 
         _, has_critical_errors = _build_checklist(
             records, workspace_root=str(workspace_root) if workspace_root else None
