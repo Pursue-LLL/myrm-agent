@@ -3,9 +3,10 @@
 [INPUT]
 - asyncio / threading (POS: waiters are futures on the caller's loop, woken from any thread)
 - langchain_core.tools::StructuredTool (POS: the tool coroutine the gate wraps)
+- .cancellation::run_until_cancelled (POS: ends a wait when the run's cancel token fires)
 
 [OUTPUT]
-- UserControl: the single truth - `held`, `generation`, `acquire`, `release`, `wait_released`
+- UserControl: the single truth - `held`, `generation`, `acquire`, `release`, `wait_released` (ends when the run is stopped)
 - UserControlTimeoutError: the wait for the person outlasted its budget
 - DEFAULT_WAIT_TIMEOUT_S: how long a tool waits for the person before refusing
 - get_user_control: the process-wide instance every session defaults to
@@ -24,6 +25,8 @@ The fence is tool-level: it stops what the model can call, not processes the age
 `release()` advances `generation`; an action whose model last observed an older generation is refused until
 the model observes again, so a plan made before the takeover never executes against the page the person left.
 A plan that spans several calls inside one tool call (a script) is pinned the same way with `planned_against`.
+Stopping a run ends the wait it is in (`OperationCancelledError`): `wait_released` is the one place every caller
+waits on a person, so a surface with no cancel boundary of its own needs nothing but a `cancelled_result`.
 """
 
 from __future__ import annotations
@@ -37,6 +40,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol
+
+from .cancellation import OperationCancelledError, run_until_cancelled
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator, Mapping
@@ -109,6 +114,7 @@ class UserControl:
 
         Raises:
             UserControlTimeoutError: the person still holds control after `timeout` seconds.
+            OperationCancelledError: the current run was stopped while waiting; the person still holds control.
         """
         if not self._held:
             return
@@ -124,7 +130,7 @@ class UserControl:
                     return
                 self._waiters.append(waiter)
             try:
-                await asyncio.wait_for(waiter, remaining)
+                await run_until_cancelled(asyncio.wait_for(waiter, remaining))
             except TimeoutError:
                 raise UserControlTimeoutError(timeout) from None
             finally:
@@ -195,6 +201,7 @@ def apply_user_control_gate[ToolT: BaseTool](
     reobserve_notice: str,
     wait_timeout_s: float = DEFAULT_WAIT_TIMEOUT_S,
     timeout_error: Callable[[float], Exception] | None = None,
+    cancelled_result: str | None = None,
 ) -> list[ToolT]:
     """Fence every tool of `surface` behind the person's control, in place.
 
@@ -203,6 +210,8 @@ def apply_user_control_gate[ToolT: BaseTool](
     OBSERVE call has succeeded since, and an ACT call that waited out a takeover never runs: it returns
     `reobserve_notice` instead. A role may depend on the call's arguments (a tool that both looks and acts).
     `timeout_error` turns the wait timeout into the toolkit's own error; without it `UserControlTimeoutError` rises.
+    Stopping the run while a call waits for the person ends it: the call returns `cancelled_result`, or, when none
+    is given, `OperationCancelledError` rises for a cancel boundary around the tool to turn into its own result.
 
     Raises:
         TypeError: a tool has no coroutine to fence (it would silently stay unfenced).
@@ -225,6 +234,7 @@ def apply_user_control_gate[ToolT: BaseTool](
                 wait_timeout_s=wait_timeout_s,
                 timeout_error=timeout_error,
                 reobserve_notice=reobserve_notice,
+                cancelled_result=cancelled_result,
             )
     return tools
 
@@ -237,9 +247,9 @@ def _gated(
     wait_timeout_s: float,
     timeout_error: Callable[[float], Exception] | None,
     reobserve_notice: str,
+    cancelled_result: str | None,
 ) -> Callable[..., Awaitable[object]]:
-    @functools.wraps(coroutine)
-    async def run(*args: object, **kwargs: object) -> object:
+    async def fenced(*args: object, **kwargs: object) -> object:
         control = surface.user_control
         role = role_of(kwargs) if callable(role_of) else role_of
         issued_at = control.generation
@@ -259,5 +269,16 @@ def _gated(
         if role is ToolRole.OBSERVE:
             surface.observed_generation = generation
         return result
+
+    @functools.wraps(coroutine)
+    async def run(*args: object, **kwargs: object) -> object:
+        try:
+            return await fenced(*args, **kwargs)
+        except OperationCancelledError:
+            # Only a stop that met the person's hold is theirs to report: it ended the gate's own wait or the
+            # session's guard at the start of the call, and either way the action has not run.
+            if cancelled_result is None or not surface.user_control.held:
+                raise
+            return cancelled_result
 
     return run

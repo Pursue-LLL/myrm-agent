@@ -15,6 +15,7 @@
 [POS]
 LangChain tool surface for Semantic Desktop Control (SDC). While a person drives the desktop every tool waits;
 afterwards an action does not run until the model has looked at the screen again (snapshot, or a vision capture).
+Stopping the run ends that wait: the tool hands back a "not run" notice, as the desktop has no cancel boundary of its own.
 """
 
 from __future__ import annotations
@@ -39,6 +40,9 @@ _REOBSERVE_NOTICE = (
     "Not run: a person used the desktop since you last looked at the screen, so it may have changed "
     "and part of this may already be done. Take a fresh snapshot or screenshot, then decide from what you see now."
 )
+
+
+_STOPPED_NOTICE = "Not run: the run was stopped while a person was driving the desktop."
 
 
 def _vision_role(arguments: Mapping[str, object]) -> ToolRole:
@@ -256,4 +260,5 @@ def create_desktop_tools(session: DesktopSession) -> list[BaseTool]:
         roles=_ROLES,
         exempt=frozenset(),
         reobserve_notice=_REOBSERVE_NOTICE,
+        cancelled_result=_STOPPED_NOTICE,
     )

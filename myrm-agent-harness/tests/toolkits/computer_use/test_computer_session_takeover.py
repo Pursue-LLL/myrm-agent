@@ -9,6 +9,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
+from myrm_agent_harness.utils.runtime import cancellation
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, OperationCancelledError, set_cancel_token
 from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
 
 
@@ -69,3 +71,22 @@ class TestComputerSessionUserControl:
         await asyncio.wait_for(typing, timeout=2.0)
 
         mock_backend.type_text.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_stopping_the_run_ends_a_mutation_that_waits_for_the_person(
+        self, session: ComputerSession, mock_backend: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cancellation, "_POLL_INTERVAL_S", 0.02)
+        monkeypatch.setattr(cancellation, "_ABORT_GRACE_S", 0.2)
+        session.user_control.acquire()
+        token = CancellationToken("req")
+        set_cancel_token(token)
+        try:
+            asyncio.get_running_loop().call_later(0.05, token.cancel)
+            with pytest.raises(OperationCancelledError):
+                await asyncio.wait_for(session.type_text("stray input"), timeout=3.0)
+        finally:
+            set_cancel_token(None)
+
+        mock_backend.type_text.assert_not_called()
+        assert session.user_control.held is True

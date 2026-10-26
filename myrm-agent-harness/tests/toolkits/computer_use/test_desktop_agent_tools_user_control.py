@@ -3,15 +3,28 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.toolkits.computer_use.desktop_agent_tools import create_desktop_tools
+from myrm_agent_harness.utils.runtime import cancellation
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, set_cancel_token
 from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 _NOTICE_HEAD = "Not run: a person used the desktop"
+_STOPPED_NOTICE = "Not run: the run was stopped while a person was driving the desktop."
+
+
+@pytest.fixture
+def _fast_poll(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setattr(cancellation, "_POLL_INTERVAL_S", 0.02)
+    monkeypatch.setattr(cancellation, "_ABORT_GRACE_S", 0.2)
+    yield
+    set_cancel_token(None)
 
 
 def _tools() -> tuple[dict[str, BaseTool], MagicMock]:
@@ -76,3 +89,50 @@ async def test_a_vision_capture_looks_and_a_vision_click_acts() -> None:
 
     assert await tools["desktop_vision_tool"].ainvoke({"action": "capture"}) == "screen"
     assert await tools["desktop_vision_tool"].ainvoke({"action": "left_click", "coordinate": [5, 5]}) == "moved"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_fast_poll")
+@pytest.mark.parametrize(
+    ("tool_name", "arguments"),
+    [
+        ("desktop_snapshot_tool", {}),
+        ("desktop_interact_tool", {"ref": "d1", "action": "click"}),
+        ("desktop_vision_tool", {"action": "screenshot"}),
+        ("desktop_vision_tool", {"action": "left_click", "coordinate": [5, 5]}),
+    ],
+)
+async def test_stopping_the_run_ends_every_desktop_tool_that_waits_for_the_person(
+    tool_name: str, arguments: dict[str, object]
+) -> None:
+    tools, session = _tools()
+    session.user_control.acquire()
+    token = CancellationToken("req")
+    set_cancel_token(token)
+    asyncio.get_running_loop().call_later(0.05, token.cancel)
+
+    began = time.monotonic()
+    result = await asyncio.wait_for(tools[tool_name].ainvoke(arguments), timeout=3.0)
+
+    assert result == _STOPPED_NOTICE
+    assert time.monotonic() - began < 3.0
+    assert session.user_control.held is True
+    for action in (session.desktop_snapshot, session.desktop_interact, session.desktop_vision_capture):
+        action.assert_not_called()
+    session.desktop_vision_action.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_fast_poll")
+async def test_a_desktop_tool_still_runs_after_a_stopped_run_when_the_person_hands_back() -> None:
+    tools, session = _tools()
+    session.user_control.acquire()
+    token = CancellationToken("req")
+    token.cancel()
+    set_cancel_token(token)
+    assert await asyncio.wait_for(tools["desktop_snapshot_tool"].ainvoke({}), timeout=3.0) == _STOPPED_NOTICE
+
+    set_cancel_token(CancellationToken("next"))
+    session.user_control.release()
+
+    assert await tools["desktop_snapshot_tool"].ainvoke({}) == "tree"
