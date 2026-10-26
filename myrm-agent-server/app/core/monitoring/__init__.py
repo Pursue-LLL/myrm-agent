@@ -4,21 +4,32 @@ Consolidates Prometheus metrics and OpenTelemetry (traces + metrics) initializat
 Both stay off unless explicitly enabled: Prometheus by ``METRICS_ENABLED``,
 OpenTelemetry by configuring an OTLP endpoint through the standard ``OTEL_*`` variables.
 Gateway runtime vitals export: `gateway_vitals_metrics.py` (updated on `/health/liveness`).
+The FastAPI application's own telemetry policy (``FASTAPI_TELEMETRY``) lives here too.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from app.config.settings import settings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+    from fastapi.telemetry import TelemetryConfig
 
 logger = logging.getLogger(__name__)
 
 _OTEL_SERVICE_NAME = "myrm-agent-server"
+
+# FastAPI >= 0.142 instruments itself as soon as a real OpenTelemetry provider exists. The harness owns the
+# pipeline (the GenAI span tree behind the privacy-guarded exporter), so FastAPI must not
+# - add HTTP request spans: every health probe would become a four-span trace on the operator's backend;
+# - auto-configure from the environment (default on in 0.142.x, opt-in via FASTAPI_OTEL_AUTO_CONFIGURE since
+#   0.143): that attaches exporters of its own to the harness providers, which would send every span past the
+#   privacy guard, every metric twice, and unhandled exception messages and stack traces as logs.
+# Its HTTP request metrics stay on: route templates only.
+FASTAPI_TELEMETRY: Final[TelemetryConfig] = {"tracing": False, "auto_configure": False}
 
 
 def is_metrics_enabled() -> bool:

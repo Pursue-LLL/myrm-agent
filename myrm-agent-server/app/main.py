@@ -4,6 +4,7 @@
 app.api::api_router (POS: API 路由聚合)
 app.server.lifespan::optimized_lifespan (POS: 生命周期函数)
 app.config.settings::settings (POS: 统一配置中心)
+app.core.monitoring::FASTAPI_TELEMETRY (POS: FastAPI 原生遥测策略：不产出 HTTP 请求 span，不自建导出器)
 
 [OUTPUT]
 FastAPI 应用实例：HTTP 服务入口，生命周期管理，中间件注册，Prometheus metrics暴露，
@@ -51,6 +52,7 @@ from app.api.router import api_router
 from app.api.webui.router import router as webui_router
 from app.config.logging import configure_logging
 from app.config.settings import settings
+from app.core.monitoring import FASTAPI_TELEMETRY
 from app.core.security.integration_write_patterns import (
     register_server_integration_write_patterns,
 )
@@ -74,6 +76,7 @@ app = FastAPI(
     version=settings.app_version,
     description=OPENAPI_API_DESCRIPTION,
     lifespan=optimized_lifespan,
+    telemetry=FASTAPI_TELEMETRY,
 )
 
 install_custom_openapi(app)

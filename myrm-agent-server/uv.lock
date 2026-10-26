@@ -2331,7 +2331,7 @@ requires-dist = [
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "discord-py", extras = ["voice"], marker = "extra == 'channels-sdk'", specifier = ">=2.7.1" },
     { name = "edge-tts", marker = "extra == 'voice-tts'", specifier = ">=7.2.8" },
-    { name = "fastapi", specifier = ">=0.141.1" },
+    { name = "fastapi", specifier = ">=0.142.2" },
     { name = "faster-whisper", marker = "extra == 'local-stt'", specifier = ">=1.2.1" },
     { name = "filelock", specifier = ">=3.32.3" },
     { name = "fluent-runtime", specifier = ">=0.4.0" },

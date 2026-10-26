@@ -12,7 +12,7 @@ classifiers = [
 requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
 dependencies = [
   # --- Web 框架 ---
-  "fastapi>=0.141.1",         # Web API 框架 (54 文件)
+  "fastapi>=0.142.2",         # Web API 框架 (54 文件)；FastAPI(telemetry=...) 自 0.142 起提供，与 harness fastapi extra 同一下限
   "uvicorn>=0.52.4",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
