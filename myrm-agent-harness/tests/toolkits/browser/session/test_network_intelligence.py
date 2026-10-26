@@ -55,9 +55,9 @@ class TestCdpRequestRecord:
 class TestNetworkIntelligenceRedaction:
     """Credential redaction in CDP-tracked POST data display and response bodies.
 
-    Raw post_data is stored for replay; get_summary redacts it before display.
-    Response bodies are redacted before the 8000-char truncation so a credential
-    crossing the boundary stays masked.
+    Raw post_data window is stored; get_summary redacts it before cutting it to the
+    preview. Response bodies are redacted before the 8000-char truncation so a
+    credential crossing the boundary stays masked.
     """
 
     def _on_post(self, ni: NetworkIntelligence, body: str) -> None:
@@ -73,9 +73,9 @@ class TestNetworkIntelligenceRedaction:
             }
         )
 
-    def test_post_data_raw_stored_for_replay(self):
-        """The raw body (not the redacted form) must be kept so network_replay
-        can re-send the real payload."""
+    def test_post_data_raw_window_kept_for_display_redaction(self):
+        """The raw body (not the redacted form) is kept so get_summary can redact
+        the whole window before the preview cut."""
         ni = NetworkIntelligence()
         raw = '{"op":"login","password":"mysecretvalue12345678"}'
         self._on_post(ni, raw)
@@ -300,7 +300,7 @@ class TestNetworkIntelligence:
         assert ni.is_enabled
         mock_page.context.new_cdp_session.assert_awaited_once_with(mock_page)
         mock_cdp.send.assert_awaited_once_with("Network.enable")
-        assert mock_cdp.on.call_count == 2
+        assert mock_cdp.on.call_count == 3
 
     @pytest.mark.asyncio
     async def test_attach_failure_non_critical(self):

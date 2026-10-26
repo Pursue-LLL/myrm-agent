@@ -8,9 +8,9 @@
 - serve: context manager yielding a ``Site`` (base URL + every request the server received)
 
 [POS]
-Test support for browser integration tests that need real redirect chains. Every request is
-recorded as ``(method, path)``, so a test can prove how many times — and whether at all — the
-server was reached instead of trusting the browser-side outcome.
+Test support for browser integration tests that need real redirect chains. Every request (GET, POST,
+PUT, PATCH, DELETE) is recorded as ``(method, path)``, so a test can prove how many times — and whether
+at all — the server was reached instead of trusting the browser-side outcome.
 """
 
 from __future__ import annotations
@@ -79,12 +79,24 @@ def serve(routes: Mapping[str, Reply], *, host: str = "127.0.0.1") -> Iterator[S
             self.end_headers()
             self.wfile.write(reply.body)
 
+        def _reply_after_body(self, method: str) -> None:
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            self._reply(method)
+
         def do_GET(self) -> None:
             self._reply("GET")
 
         def do_POST(self) -> None:
-            self.rfile.read(int(self.headers.get("Content-Length", "0")))
-            self._reply("POST")
+            self._reply_after_body("POST")
+
+        def do_PUT(self) -> None:
+            self._reply_after_body("PUT")
+
+        def do_PATCH(self) -> None:
+            self._reply_after_body("PATCH")
+
+        def do_DELETE(self) -> None:
+            self._reply_after_body("DELETE")
 
     server = ThreadingHTTPServer((host, 0), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

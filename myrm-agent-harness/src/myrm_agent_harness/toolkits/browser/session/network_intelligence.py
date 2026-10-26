@@ -6,7 +6,7 @@
 - utils.page_health::detach_cdp_bounded (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- NetworkIntelligence: CDP-based lazy response body retrieval and request replay; numbers API requests for the model
+- NetworkIntelligence: CDP-based lazy response body retrieval; numbers API requests and tells how each one ended
 - CdpRequestRecord: one tracked request, `seq` being the number network_log shows for it
 
 [POS]
@@ -14,6 +14,10 @@ Provides Agent-accessible API intelligence layer that captures requestIds via CD
 Network domain events and offers on-demand response body retrieval using
 Network.getResponseBody. Cooperates with NetworkLogger (which handles synchronous
 metadata) — this component handles asynchronous CDP body queries.
+A request is `[pending]` only while it is really in flight: a redirect hop takes the status of the response that sent
+the browser on (Chrome reuses the requestId across hops and reports that response with the next hop), and a request the
+browser gave up on (blocked, refused, CORS, aborted) carries the browser's error, so the model never waits on an answer
+that cannot come.
 The number network_log shows is the request's own `seq`, handed out once in arrival order to XHR/Fetch requests,
 not a position in the rolling window: the window drops its oldest records, so a position would name a different
 request by the time the model asks for it. A number that is no longer tracked is refused, never re-pointed.
@@ -52,20 +56,31 @@ class _CdpRequest(TypedDict, total=False):
     postData: str
 
 
-class _CdpRequestWillBeSent(TypedDict, total=False):
-    requestId: str
-    type: str
-    request: _CdpRequest
-
-
 class _CdpResponse(TypedDict, total=False):
     status: int
     mimeType: str
 
 
+class _CdpRequestWillBeSent(TypedDict, total=False):
+    requestId: str
+    type: str
+    request: _CdpRequest
+    redirectResponse: _CdpResponse
+
+
 class _CdpResponseReceived(TypedDict, total=False):
     requestId: str
     response: _CdpResponse
+
+
+class _CdpCorsErrorStatus(TypedDict, total=False):
+    corsError: str
+
+
+class _CdpLoadingFailed(TypedDict, total=False):
+    requestId: str
+    errorText: str
+    corsErrorStatus: _CdpCorsErrorStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,9 +92,10 @@ class CdpRequestRecord:
         url: Request URL
         method: HTTP method
         resource_type: Network resource type (XHR, Fetch, Document, etc.)
-        status: HTTP response status code
+        status: HTTP response status code; for a redirect hop, the status of the redirect it answered with
         mime_type: Response MIME type
-        post_data: Raw POST body window (for replay and GraphQL identification; display-time redaction in get_summary)
+        failure: The browser's error when the request ended without a usable response (e.g. net::ERR_BLOCKED_BY_CLIENT)
+        post_data: Raw POST body window; get_summary redacts it before cutting it to the preview
         timestamp: Request time (monotonic)
         seq: The number network_log shows for an XHR/Fetch request, unique for the session; 0 for other types
     """
@@ -90,6 +106,7 @@ class CdpRequestRecord:
     resource_type: str
     status: int | None = None
     mime_type: str | None = None
+    failure: str | None = None
     post_data: str | None = None
     timestamp: float = 0.0
     seq: int = 0
@@ -136,6 +153,7 @@ class NetworkIntelligence:
 
             cdp.on("Network.requestWillBeSent", self._on_request_will_be_sent)
             cdp.on("Network.responseReceived", self._on_response_received)
+            cdp.on("Network.loadingFailed", self._on_loading_failed)
 
             self._cdp_session = cdp
             self._bound_page = page
@@ -165,10 +183,15 @@ class NetworkIntelligence:
             if not request_id:
                 return
 
+            redirect = params.get("redirectResponse")
+            if redirect:
+                # This request continues a redirect hop under the same requestId; the previous hop never gets a
+                # responseReceived of its own, so the response that redirected is the only place its status appears.
+                self._apply_response(request_id, redirect)
+
             post_data_raw = request.get("postData", "")
-            # Keep the raw window for replay: network_replay re-sends the real
-            # body, so it must not be redacted here. Display-time redaction
-            # happens in get_summary.
+            # Keep the raw window: get_summary redacts it before cutting it to the preview, so a credential that
+            # crosses the cut is still masked.
             post_data_original = post_data_raw[:_RAW_PREVIEW_WINDOW] if post_data_raw else None
 
             seq = 0
@@ -192,17 +215,38 @@ class NetworkIntelligence:
     def _on_response_received(self, params: _CdpResponseReceived) -> None:
         """Handle CDP Network.responseReceived — update status and mime_type."""
         try:
-            request_id = params.get("requestId", "")
-            response = params.get("response", {})
-            status = response.get("status")
-            mime_type = response.get("mimeType", "")
-
-            for i in range(len(self._requests) - 1, -1, -1):
-                if self._requests[i].request_id == request_id:
-                    self._requests[i] = replace(self._requests[i], status=status, mime_type=mime_type)
-                    break
+            self._apply_response(params.get("requestId", ""), params.get("response", {}))
         except Exception as exc:
             logger.debug("NetworkIntelligence: responseReceived handler error: %s", exc)
+
+    def _on_loading_failed(self, params: _CdpLoadingFailed) -> None:
+        """Handle CDP Network.loadingFailed — the request ended without a usable response."""
+        try:
+            index = self._latest_index(params.get("requestId", ""))
+            if index is None:
+                return
+            reason = params.get("errorText") or "failed"
+            cors = params.get("corsErrorStatus")
+            cors_error = cors.get("corsError") if cors else None
+            failure = f"{reason} (CORS: {cors_error})" if cors_error else reason
+            self._requests[index] = replace(self._requests[index], failure=failure)
+        except Exception as exc:
+            logger.debug("NetworkIntelligence: loadingFailed handler error: %s", exc)
+
+    def _apply_response(self, request_id: str, response: _CdpResponse) -> None:
+        """Record a response's status and mime type on the newest request of `request_id`."""
+        index = self._latest_index(request_id)
+        if index is not None:
+            self._requests[index] = replace(
+                self._requests[index], status=response.get("status"), mime_type=response.get("mimeType", "")
+            )
+
+    def _latest_index(self, request_id: str) -> int | None:
+        """Position of the newest tracked request of `request_id` (the hop that is current under a redirect)."""
+        for i in range(len(self._requests) - 1, -1, -1):
+            if self._requests[i].request_id == request_id:
+                return i
+        return None
 
     def get_api_requests(self) -> list[CdpRequestRecord]:
         """Get all tracked XHR/Fetch requests (most recent last)."""
@@ -213,6 +257,10 @@ class NetworkIntelligence:
         if index < 1:  # records that carry no number (documents) are 0
             return None
         return next((r for r in self._requests if r.seq == index), None)
+
+    def _redirect_successor(self, record: CdpRequestRecord) -> CdpRequestRecord | None:
+        """The request that carries on from `record` after its redirect: Chrome keeps the requestId across hops."""
+        return next((r for r in self._requests if r.request_id == record.request_id and r.seq > record.seq), None)
 
     def invalid_index_error(self, index: int) -> str:
         """The answer for a number that names no tracked API request, with the numbers that are valid now."""
@@ -234,7 +282,8 @@ class NetworkIntelligence:
             index: the number network_log showed for the request
 
         Returns:
-            Response body text or error message
+            Response body text, or what to read instead when the request has none: the request a redirect hop
+            continued as, or the browser's error for a request that failed; otherwise an error message
         """
         if self._cdp_session is None:
             return "Error: CDP session not available. Navigate to a page first."
@@ -242,6 +291,13 @@ class NetworkIntelligence:
         record = self.find_api_request(index)
         if record is None:
             return self.invalid_index_error(index)
+
+        if record.failure:
+            return f"Request failed: {record.failure}"
+        successor = self._redirect_successor(record)
+        if successor is not None:
+            redirected = f"Redirected ({record.status})" if record.status else "Redirected"
+            return f"{redirected}; the response is request #{successor.seq}"
 
         try:
             result = await self._cdp_session.send(
@@ -273,6 +329,13 @@ class NetworkIntelligence:
                 )
             return f"Error retrieving response body: {error_msg}"
 
+    @staticmethod
+    def _status_label(req: CdpRequestRecord) -> str:
+        """How the request ended; `pending` only while it is really in flight (a failure outranks an earlier status)."""
+        if req.failure:
+            return f"failed: {req.failure}"
+        return str(req.status) if req.status else "pending"
+
     def get_summary(self) -> str:
         """Get formatted summary of tracked API requests for Agent display."""
         api_requests = self.get_api_requests()
@@ -281,7 +344,7 @@ class NetworkIntelligence:
 
         lines: list[str] = []
         for req in api_requests:
-            status_str = str(req.status) if req.status else "pending"
+            status_str = self._status_label(req)
             line = f"  {req.seq}. {req.method} {req.url} [{status_str}]"
             if req.post_data:
                 # Redact the raw stored body before display so credentials never

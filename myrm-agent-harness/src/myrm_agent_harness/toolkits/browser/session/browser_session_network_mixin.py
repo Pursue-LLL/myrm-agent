@@ -12,9 +12,11 @@
 
 [POS]
 Console and network introspection APIs for BrowserSession. Delegates to NetworkLogger and
-NetworkIntelligence; replay uses in-page fetch via the active tab. The default Chromium engine
-never reports console output (its driver keeps `Console.enable` off to stay undetectable), so
-`get_console_log` says so there: an empty log would read as "the page has no errors".
+NetworkIntelligence; replay re-sends a GET by in-page fetch via the active tab and refuses every other
+method (a recorded write is an action the page already performed: re-sending it would perform it again with
+the user's cookies and nobody's approval, and it is the same capability evaluate gates behind a person).
+The default Chromium engine never reports console output (its driver keeps `Console.enable` off to stay
+undetectable), so `get_console_log` says so there: an empty log would read as "the page has no errors".
 """
 
 from __future__ import annotations
@@ -30,11 +32,18 @@ from .session_host import SessionHost
 # crossing the final output cut stays structurally intact for redaction.
 _REPLAY_RAW_WINDOW = 16000
 _REPLAY_OUTPUT_MAX = 8000
+_REPLAY_ERROR_MAX = 160
 
 CONSOLE_CAPTURE_UNAVAILABLE = (
     "Console capture is unavailable in this browser mode, so an empty console cannot be assumed. "
     "Use network_log for failed requests or evaluate to inspect page state."
 )
+
+
+def _failure_reason(exc: Exception) -> str:
+    """Why an in-page call failed: the driver's first line (it appends the page-side stack), redacted and bounded."""
+    lines = str(exc).strip().splitlines()
+    return redact_sensitive_text(lines[0])[:_REPLAY_ERROR_MAX] if lines else type(exc).__name__
 
 
 class BrowserSessionNetworkMixin(SessionHost):
@@ -69,28 +78,27 @@ class BrowserSessionNetworkMixin(SessionHost):
         return await self._network_intelligence.get_response_body(index)
 
     async def replay_network_request(self, index: int) -> str:
-        """Replay the API request network_log numbered `index` using page.evaluate(fetch(...))."""
+        """Re-send the GET request network_log numbered `index` from the active tab (in-page fetch).
+
+        Only a GET is replayed: a recorded POST/PUT/PATCH/DELETE was an action the page already performed, so
+        sending it again would perform it again with the user's cookies and without anyone's approval. The
+        refusal names the method and nothing else (the URL is already in network_log; it may carry a token).
+        """
         record = self._network_intelligence.find_api_request(index)
         if record is None:
             return self._network_intelligence.invalid_index_error(index)
+        if record.method != "GET":
+            return (
+                f"Error: network_replay re-sends GET requests only; request #{index} is {record.method}. "
+                "Perform that action on the page instead."
+            )
 
         await self._ensure_components()
         page = self._tab_controller.get_active_page()
 
-        url_js = json.dumps(record.url)
-        method_js = json.dumps(record.method)
-
-        fetch_opts_parts = [f'"method": {method_js}']
-        if record.post_data and record.method in ("POST", "PUT", "PATCH"):
-            body_js = json.dumps(record.post_data)
-            fetch_opts_parts.append(f'"body": {body_js}')
-            fetch_opts_parts.append('"headers": {"Content-Type": "application/json"}')
-
-        fetch_opts = "{" + ", ".join(fetch_opts_parts) + "}"
-
         js_code = f"""
             async () => {{
-                const resp = await fetch({url_js}, {fetch_opts});
+                const resp = await fetch({json.dumps(record.url)});
                 const text = await resp.text();
                 return text.substring(0, {_REPLAY_RAW_WINDOW});
             }}
@@ -98,9 +106,9 @@ class BrowserSessionNetworkMixin(SessionHost):
 
         try:
             result = await page.evaluate(js_code)
-            raw = str(result) if result else ""
-            if not raw:
-                return "Empty response"
-            return redact_sensitive_text(raw)[:_REPLAY_OUTPUT_MAX]
-        except Exception:
-            return "Error replaying request"
+        except Exception as exc:
+            return f"Error replaying request: {_failure_reason(exc)}"
+        raw = str(result) if result else ""
+        if not raw:
+            return "Empty response"
+        return redact_sensitive_text(raw)[:_REPLAY_OUTPUT_MAX]
