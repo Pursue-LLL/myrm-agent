@@ -113,6 +113,7 @@ One-time bootstrap for new core project names (OIDC cannot create projects): `sc
 | `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` at the repository root |
 | `harness-boundary.yml` | Architecture gates (`boundary_check`, fractal docs, `_ARCH` inventory, import resolvability, package layout, `-m "architecture and not slow"`) plus a `distribution-packaging-slow` job running `test_distribution_packaging.py -m "architecture and slow"` (dual-wheel COMPILED e2e, manifest drift gate, wheel artifact zip scan via `validate_pypi_wheels.py`) |
 | `harness-test.yml` | Unit suite (`-n 2`) and serial browser integration on push to `main` and PRs; locked source tree (`uv sync --locked`: `[all]` + `dev` group; `compiled-core*` excluded via `[tool.uv]`) |
+| `harness-cli-contract.yml` | Weekly and on demand: the latest real `claude` / `codex` CLIs against the CLI runtime's resume flags and failure classification (stub API, no login or billing); detects CLI release drift, not a PR gate |
 
 ## References
 

@@ -56,6 +56,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
 | CI unit | `.github/workflows/harness-test.yml` job `unit` | `uv sync --python 3.13 --locked --extra all --group dev`, then `uv run --no-sync pytest -n 2` over the whole `tests/` tree with the default marker filter; a stale `uv.lock` fails the install step (run `uv lock` after editing `pyproject.toml`; `compiled-core*` exclusion: `harness_packaging/DISTRIBUTION_SYSTEM.md` § CI) |
 | CI performance | `.github/workflows/harness-performance.yml` | `uv sync --python 3.13 --locked --extra all`, then `tests/performance/ -m performance -n0` |
 | CI browser | `.github/workflows/harness-test.yml` job `browser-integration` | Same install; `-n0`, `-m "integration or e2e"`, Patchright Chromium (`--with-deps`) |
+| CI CLI contract | `.github/workflows/harness-cli-contract.yml` | Weekly + manual; same install, the latest real `claude` / `codex` from npm, then `-m integration` over `tests/toolkits/acp/runtime/cli/test_real_cli_contract.py` and `test_real_cli_failures.py` (a local stub API refuses the requests: no login, no network, no model billed). Other jobs skip these tests because the CLIs are not installed |
 
 ## Browser integration pitfalls（实测经验，2026-08）
 

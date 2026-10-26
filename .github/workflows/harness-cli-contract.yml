@@ -1,0 +1,63 @@
+name: Harness CLI contract
+
+# The real claude and codex binaries are the contract of the CLI runtime: the flags it passes, the frames it
+# parses and the failures it classifies. They release on their own schedule, so drift is caught here, weekly and
+# on demand, and not by pull requests (the tests skip a CLI that is not installed, as on the other harness jobs).
+
+on:
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-cli-contract
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+defaults:
+  run:
+    working-directory: myrm-agent-harness
+
+jobs:
+  contract:
+    name: Real claude and codex binaries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
+        with:
+          version: "0.12.7"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --python 3.13 --locked --extra all --group dev
+
+      # The latest releases on purpose: the point is to notice when they stop behaving as the runtime expects.
+      - name: Install the CLIs
+        working-directory: ${{ runner.temp }}
+        run: |
+          npm install --prefix cli @anthropic-ai/claude-code @openai/codex
+          echo "$PWD/cli/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Show the CLI versions
+        run: |
+          claude --version
+          codex --version
+
+      - name: Run the contract tests
+        run: >-
+          uv run --no-sync pytest -m integration -q --tb=short
+          tests/toolkits/acp/runtime/cli/test_real_cli_contract.py
+          tests/toolkits/acp/runtime/cli/test_real_cli_failures.py
