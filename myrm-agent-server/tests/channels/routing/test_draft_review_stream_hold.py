@@ -59,7 +59,7 @@ class _Chat:
         monkeypatch.setattr(router, "_try_throttled_edit", self.progress)
         monkeypatch.setattr(router, "_resolve_live_placeholder_id", lambda state_key: "placeholder-1")
         monkeypatch.setattr(router, "_mark_deferred_placeholder_activity", self.activity)
-        monkeypatch.setattr(router, "_reassurance_loop", AsyncMock())
+        monkeypatch.setattr("app.channels.routing.router_stream.run_reassurance_loop", AsyncMock())
 
     async def stream(self, *, hold_reply: bool) -> OutboundMessage | None:
         result, _ = await self.router._consume_executor_stream(

@@ -11,22 +11,53 @@ Tracks streaming performance indicators:
 
 [INPUT]
 - infra.tracing.metrics::MetricsCollector (POS: Aggregates evolution metrics across all skills for system-level insights.)
+- infra.tracing::get_tracer (POS: tracer of the reply span)
 
 [OUTPUT]
 - StreamMetrics: Streaming quality metrics collector with production observability
+- stream_reply_span: the root span of one streamed reply, which the session summary annotates
 
 [POS]
-Provides observability into streaming quality via tracing infrastructure.
+Provides observability into streaming quality via tracing infrastructure. A reply is one trace: the agent run
+and every edit nest under its reply span, and the span ends with the numbers of its session (update decisions,
+edits, failed edits) instead of one span per streamed text event.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from myrm_agent_harness.infra.tracing import get_tracer
+from opentelemetry import trace
+from opentelemetry.trace import Span, Status, StatusCode
+
 logger = logging.getLogger(__name__)
+
+_TRACER_NAME = "myrm.channels.stream"
+
+
+@contextmanager
+def stream_reply_span(channel: str) -> Iterator[Span]:
+    """Root span of one streamed reply; the agent run and every edit of it nest below.
+
+    A failure records the exception class only: its message can echo the sender's text or a request URL.
+    """
+    with get_tracer(_TRACER_NAME).start_as_current_span(
+        "stream_reply",
+        attributes={"myrm.channel": channel},
+        record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        try:
+            yield span
+        except Exception as exc:
+            span.set_attribute("error.type", type(exc).__name__)
+            span.set_status(Status(StatusCode.ERROR))
+            raise
 
 
 @dataclass
@@ -163,6 +194,16 @@ class StreamMetrics:
         session = self._sessions.pop(session_key, None)
         if not session:
             return
+
+        span = trace.get_current_span()
+        if span.is_recording():
+            span.set_attributes(
+                {
+                    "myrm.stream.update_decisions": len(session.decision_reasons),
+                    "myrm.stream.edits": session.edit_count,
+                    "myrm.stream.edit_failures": session.edit_failures,
+                }
+            )
 
         if session.edit_count + session.edit_failures > 0:
             failure_rate = session.edit_failures / (session.edit_count + session.edit_failures)

@@ -93,13 +93,6 @@ class RouterStreamHost(Protocol):
 
     async def _resolve_mobile_status_deep_link(self, chat_id: str) -> str | None: ...
 
-    async def _reassurance_loop(
-        self,
-        msg: InboundMessage,
-        chat_id: str,
-        state: dict[str, float | int | str],
-    ) -> None: ...
-
     async def _send_interactive_progress(
         self,
         msg: InboundMessage,

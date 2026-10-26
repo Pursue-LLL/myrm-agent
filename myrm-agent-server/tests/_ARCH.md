@@ -75,6 +75,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_command_center_actions.py` | 单元 | 记忆指挥中心治理动作分发器：待审批批准/拒绝/编辑、共享提案动作、冲突仲裁委托，以及纠正/置顶/遗忘等通用动作 |
 | `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
+| `channels/routing/test_stream_reply_tracing.py` | 单元 | 一次流式回复就是一条 trace：真实路由器消费真实事件序列，agent 运行与每次编辑都挂在唯一的 `stream_reply` 根 span 下（每个流式文本事件不再单开 span），会话统计（更新判定数、编辑数、失败编辑数）落在该 span 上，失败只记录异常类名（消息可能回显发送者原文），取消不算错误，连续 3 次编辑失败只在第 3 次留下一次回退事件，日志里的 `trace_id` 就是该 span 的 trace id，无记录型 tracer 时回复照常流式 |
+| `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；渠道不能编辑或编辑失败时改发新消息；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |

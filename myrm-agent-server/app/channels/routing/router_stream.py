@@ -2,10 +2,12 @@
 
 [POS]
 RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance;
-methods constrain self via RouterStreamHost. Includes edit-in-place heartbeat loop
-for long-task silence detection (sends one message then edits it with elapsed time).
-Placeholder throttle interval logic in router_stream_throttle.py (pure function,
-unit-testable). Logger name consistent with router package.
+methods constrain self via RouterStreamHost. One streamed reply is one trace: the
+reply span (stream_metrics.stream_reply_span) wraps the whole consumption, so the
+agent run and every edit nest below it, and streamed text events add no spans.
+The silence heartbeat runs beside it (router_reassurance.py). Placeholder throttle
+interval logic in router_stream_throttle.py (pure function, unit-testable). Logger
+name consistent with router package.
 """
 
 from __future__ import annotations
@@ -22,13 +24,10 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.channels.i18n import channel_t, get_text
 from app.channels.routing.placeholder_strategy import DeferredPlaceholder
-from app.channels.routing.router_constants import (
-    _MAX_REASSURANCE_COUNT,
-    _MIN_PROGRESS_INTERVAL,
-    _SILENCE_REASSURANCE_THRESHOLD,
-)
+from app.channels.routing.router_constants import _MIN_PROGRESS_INTERVAL
 from app.channels.routing.router_host import RouterStreamHost
 from app.channels.routing.router_keys import routing_state_key
+from app.channels.routing.router_reassurance import run_reassurance_loop
 from app.channels.routing.router_stream_scrubber import (
     normalize_progress_stage,
     scrub_thinking_content,
@@ -36,6 +35,7 @@ from app.channels.routing.router_stream_scrubber import (
 from app.channels.routing.router_stream_throttle import (
     should_skip_throttled_placeholder_edit,
 )
+from app.channels.routing.stream_metrics import stream_reply_span
 from app.channels.types import (
     InboundMessage,
     MessagePriority,
@@ -85,92 +85,86 @@ class RouterStreamMixin:
         text is never edited into the placeholder while it is generated (progress updates
         still show). It is a separate flag because resumed turns pass no ``topic_context``.
 
+        The whole consumption runs inside one reply span: the agent run and the edits nest
+        below it, the trace id in the log lines is its trace id, and the session summary
+        (update decisions, edits, failed edits) ends up on it.
+
         Returns (result, last_progress_at) so the caller can enforce
         a minimum gap before the final edit.
         """
-        last_progress_at = 0.0
-        result: OutboundMessage | None = None
+        with stream_reply_span(msg.channel) as reply_span:
+            last_progress_at = 0.0
+            result: OutboundMessage | None = None
 
-        last_stream_at = 0.0
-        edit_failures = 0
-        should_fallback_to_new_message = False
-        has_pending_approval = False
+            last_stream_at = 0.0
+            edit_failures = 0
+            should_fallback_to_new_message = False
+            has_pending_approval = False
 
-        metrics_key = f"{msg.channel}:{chat_id}:{msg.message_id}"
-        trace_id = get_current_trace_id() or ""
-        stream_state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
-        self._stream_metrics.start_session(metrics_key, trace_id)
-        self._progress_estimator.start_session(metrics_key, msg.content)
+            metrics_key = f"{msg.channel}:{chat_id}:{msg.message_id}"
+            trace_id = get_current_trace_id() or ""
+            stream_state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
+            self._stream_metrics.start_session(metrics_key, trace_id)
+            self._progress_estimator.start_session(metrics_key, msg.content)
 
-        reassurance_state: dict[str, float | int | str] = {
-            "last_activity": time.monotonic(),
-            "step_count": 0,
-            "current_stage": "",
-        }
-        reassurance_task = asyncio.create_task(
-            self._reassurance_loop(msg, chat_id, reassurance_state),
-        )
+            reassurance_state: dict[str, float | int | str] = {
+                "last_activity": time.monotonic(),
+                "step_count": 0,
+                "current_stage": "",
+            }
+            reassurance_task = asyncio.create_task(
+                run_reassurance_loop(self._bus, msg, chat_id, reassurance_state),
+            )
 
-        try:
-            async for event in self._executor.execute_stream(
-                msg,
-                user_id,
-                cancel_token=cancel_token,
-                steering_token=steering_token,
-                topic_context=topic_context,
-            ):
-                reassurance_state["last_activity"] = time.monotonic()
+            try:
+                async for event in self._executor.execute_stream(
+                    msg,
+                    user_id,
+                    cancel_token=cancel_token,
+                    steering_token=steering_token,
+                    topic_context=topic_context,
+                ):
+                    reassurance_state["last_activity"] = time.monotonic()
 
-                if isinstance(event, ProgressUpdate):
-                    cleaned_label = normalize_progress_stage(event.label)
-                    reassurance_state["step_count"] = int(reassurance_state["step_count"]) + 1
-                    reassurance_state["current_stage"] = cleaned_label
-                    await self._mark_deferred_placeholder_activity(stream_state_key)
-                    if event.quick_replies:
-                        approval_mid = await self._send_interactive_progress(msg, chat_id, event)
-                        if approval_mid:
-                            session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
-                            self._approval_msg_ids[session_key] = approval_mid
-                        has_pending_approval = True
-                        last_progress_at = time.monotonic()
-                        continue
+                    if isinstance(event, ProgressUpdate):
+                        cleaned_label = normalize_progress_stage(event.label)
+                        reassurance_state["step_count"] = int(reassurance_state["step_count"]) + 1
+                        reassurance_state["current_stage"] = cleaned_label
+                        await self._mark_deferred_placeholder_activity(stream_state_key)
+                        if event.quick_replies:
+                            approval_mid = await self._send_interactive_progress(msg, chat_id, event)
+                            if approval_mid:
+                                session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
+                                self._approval_msg_ids[session_key] = approval_mid
+                            has_pending_approval = True
+                            last_progress_at = time.monotonic()
+                            continue
 
-                    new_ts = await self._try_throttled_edit(
-                        self._resolve_live_placeholder_id(state_key),
-                        cleaned_label,
-                        last_progress_at,
-                        _MIN_PROGRESS_INTERVAL,
-                        msg.channel,
-                        chat_id,
-                    )
-                    if new_ts is not None:
-                        last_progress_at = new_ts
+                        new_ts = await self._try_throttled_edit(
+                            self._resolve_live_placeholder_id(state_key),
+                            cleaned_label,
+                            last_progress_at,
+                            _MIN_PROGRESS_INTERVAL,
+                            msg.channel,
+                            chat_id,
+                        )
+                        if new_ts is not None:
+                            last_progress_at = new_ts
 
-                elif isinstance(event, StreamingText):
-                    await self._mark_deferred_placeholder_activity(stream_state_key)
-                    if hold_reply or should_fallback_to_new_message:
-                        continue
+                    elif isinstance(event, StreamingText):
+                        await self._mark_deferred_placeholder_activity(stream_state_key)
+                        if hold_reply or should_fallback_to_new_message:
+                            continue
 
-                    cleaned_text, is_thinking = scrub_thinking_content(event.text)
-                    if is_thinking and not cleaned_text:
-                        # LLM is producing thinking tokens; keep a clean thinking placeholder stage
-                        display_text = "💭 深度思考中..."
-                    else:
-                        display_text = cleaned_text or event.text
+                        cleaned_text, is_thinking = scrub_thinking_content(event.text)
+                        if is_thinking and not cleaned_text:
+                            # LLM is producing thinking tokens; keep a clean thinking placeholder stage
+                            display_text = "💭 深度思考中..."
+                        else:
+                            display_text = cleaned_text or event.text
 
-                    with trace_context(
-                        "myrm.channels.stream",
-                        "stream_update",
-                        {
-                            "session_key": metrics_key,
-                            "trace_id": trace_id,
-                            "content_length": len(display_text),
-                        },
-                    ) as span:
                         decision = self._stream_coordinator.should_send_update(metrics_key, display_text, is_final=False)
                         self._stream_metrics.record_decision(metrics_key, decision.reason)
-                        span.set_attribute("decision.should_send", decision.should_send)
-                        span.set_attribute("decision.reason", decision.reason)
 
                         if not decision.should_send:
                             logger.debug(
@@ -179,7 +173,6 @@ class RouterStreamMixin:
                                 decision.reason,
                                 trace_id,
                             )
-                            span.add_event("update_skipped", {"reason": decision.reason})
                             continue
 
                         if not self._session_rate_limiter.can_update(metrics_key):
@@ -189,7 +182,6 @@ class RouterStreamMixin:
                                 trace_id,
                                 self._session_rate_limiter.get_update_count(metrics_key),
                             )
-                            span.add_event("rate_limit_exceeded")
                             continue
 
                         self._session_rate_limiter.record_update(metrics_key)
@@ -201,9 +193,7 @@ class RouterStreamMixin:
                                 f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
                             )
                             final_display_text = f"{display_text}\n\n[{progress_info.percentage}%{remaining_str}]"
-                            span.set_attribute("progress.percentage", progress_info.percentage)
 
-                        span.add_event("api_call_start")
                         live_placeholder = self._resolve_live_placeholder_id(state_key)
                         success = await self._try_edit_with_retry(
                             msg.channel,
@@ -214,8 +204,6 @@ class RouterStreamMixin:
                             len(display_text),
                             msg=msg,
                         )
-                        span.add_event("api_call_end", {"success": success})
-                        span.set_attribute("api.success", success)
 
                         is_first = last_stream_at == 0.0
                         self._stream_metrics.record_edit(metrics_key, len(display_text), success, is_first=is_first)
@@ -233,57 +221,54 @@ class RouterStreamMixin:
                                     trace_id,
                                     edit_failures,
                                 )
-                                span.add_event(
-                                    "fallback_to_new_message",
-                                    {"consecutive_failures": edit_failures},
+                                reply_span.add_event("fallback_to_new_message", {"consecutive_failures": edit_failures})
+
+                    elif isinstance(event, OutboundMessage):
+                        result = dataclasses.replace(
+                            event,
+                            thread_id=msg.thread_id,
+                            reply_to_id=(
+                                (msg.message_id or str(msg.metadata["message_id"]))
+                                if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
+                                else event.reply_to_id
+                            ),
+                        )
+                        if should_fallback_to_new_message:
+                            live_placeholder = self._resolve_live_placeholder_id(state_key)
+                            if live_placeholder:
+                                await self._fx.cleanup_placeholder(
+                                    msg.channel,
+                                    chat_id,
+                                    live_placeholder,
+                                    " [Streaming interrupted]",
                                 )
+            finally:
+                reassurance_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await reassurance_task
 
-                elif isinstance(event, OutboundMessage):
-                    result = dataclasses.replace(
-                        event,
-                        thread_id=msg.thread_id,
-                        reply_to_id=(
-                            (msg.message_id or str(msg.metadata["message_id"]))
-                            if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
-                            else event.reply_to_id
-                        ),
-                    )
-                    if should_fallback_to_new_message:
-                        live_placeholder = self._resolve_live_placeholder_id(state_key)
-                        if live_placeholder:
-                            await self._fx.cleanup_placeholder(
-                                msg.channel,
-                                chat_id,
-                                live_placeholder,
-                                " [Streaming interrupted]",
-                            )
-        finally:
-            reassurance_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await reassurance_task
+            self._stream_metrics.end_session(metrics_key)
+            self._stream_coordinator.cleanup(metrics_key)
+            self._progress_estimator.cleanup(metrics_key)
 
-        self._stream_metrics.end_session(metrics_key)
-        self._stream_coordinator.cleanup(metrics_key)
-        self._progress_estimator.cleanup(metrics_key)
+            if has_pending_approval:
+                result = None
 
-        if has_pending_approval:
-            result = None
-
-        last_edit_at = max(last_progress_at, last_stream_at)
-        if result:
-            logger.info(
-                "stream_completed session_key=%s trace_id=%s content_length=%d",
-                metrics_key,
-                trace_id,
-                len(result.content),
-            )
-        else:
-            logger.warning(
-                "stream_completed_without_result session_key=%s trace_id=%s",
-                metrics_key,
-                trace_id,
-            )
-        return result, last_edit_at
+            last_edit_at = max(last_progress_at, last_stream_at)
+            if result:
+                logger.info(
+                    "stream_completed session_key=%s trace_id=%s content_length=%d",
+                    metrics_key,
+                    trace_id,
+                    len(result.content),
+                )
+            else:
+                logger.warning(
+                    "stream_completed_without_result session_key=%s trace_id=%s",
+                    metrics_key,
+                    trace_id,
+                )
+            return result, last_edit_at
 
     _EMOJI_APPROVAL_HINT = "\n\n\U0001f44d Allow once  ·  \u267e\ufe0f Allow always  ·  \U0001f44e Deny"
 
@@ -483,80 +468,3 @@ class RouterStreamMixin:
             span.set_attribute("total_delay_s", result.total_delay)
 
             return result.success
-
-    async def _reassurance_loop(
-        self: RouterStreamHost,
-        msg: InboundMessage,
-        chat_id: str,
-        state: dict[str, float | int | str],
-    ) -> None:
-        """Edit-in-place heartbeat during long silent periods.
-
-        First heartbeat sends a new message and saves its ``message_id``.
-        Subsequent heartbeats edit the same message with updated elapsed time
-        and stage info, avoiding message spam. Falls back to sending a new
-        message when the channel does not support editing or the edit fails.
-        """
-        heartbeat_mid: str | None = None
-        loop_start = time.monotonic()
-
-        channel_obj = self._bus.get_channel(msg.channel)
-        can_edit = bool(channel_obj and channel_obj.capabilities.edit)
-
-        sent_count = 0
-        while sent_count < _MAX_REASSURANCE_COUNT:
-            await asyncio.sleep(_SILENCE_REASSURANCE_THRESHOLD)
-            elapsed = time.monotonic() - float(state["last_activity"])
-            if elapsed < _SILENCE_REASSURANCE_THRESHOLD:
-                continue
-            sent_count += 1
-            steps = int(state["step_count"])
-            stage = str(state["current_stage"])
-            stage_suffix = f", {stage}" if stage else ""
-            elapsed_mins = int((time.monotonic() - loop_start) // 60)
-            text = get_text(
-                msg,
-                "reassurance_still_running",
-                steps=steps,
-                stage=stage_suffix,
-                elapsed=elapsed_mins,
-            )
-
-            try:
-                if heartbeat_mid and can_edit:
-                    ok = await self._bus.edit_channel_message(
-                        msg.channel,
-                        chat_id,
-                        heartbeat_mid,
-                        text,
-                    )
-                    if not ok:
-                        heartbeat_mid = None
-                if not heartbeat_mid:
-                    reply = OutboundMessage(
-                        channel=msg.channel,
-                        recipient_id=chat_id,
-                        content=text,
-                        user_id=msg.user_id or "",
-                        thread_id=msg.thread_id,
-                        priority=MessagePriority.NORMAL,
-                    )
-                    heartbeat_mid = await self._bus.send_tracked(reply)
-                logger.info(
-                    "reassurance_sent channel=%s chat=%s count=%d steps=%d elapsed_min=%d edit=%s",
-                    msg.channel,
-                    chat_id,
-                    sent_count,
-                    steps,
-                    elapsed_mins,
-                    heartbeat_mid is not None and can_edit,
-                )
-            except Exception:
-                logger.warning(
-                    "reassurance_send_failed channel=%s chat=%s count=%d",
-                    msg.channel,
-                    chat_id,
-                    sent_count,
-                    exc_info=True,
-                )
-            state["last_activity"] = time.monotonic()
