@@ -2,6 +2,71 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-26-005 · evaluate 只拦「method 写在首位的 fetch POST」，DELETE / PUT / PATCH / sendBeacon 与 method 靠后的 POST 无人审批直接执行
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（network 三件套复查时对照 replay 与 evaluate 的写能力） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P1：放行 `browser_evaluate`（YOLO / allowlist）的用户，页面 JS 发出的 DELETE / PUT / PATCH / beacon 写请求带着 cookie 直接执行，没有审批卡 |
+| **关联产品** | harness `toolkits/browser/tools/_semantic_risk.py` |
+| **根因** | 规则是 `fetch\s*\([^)]*method\s*:\s*['"]post`：只认 `fetch(`、只认 POST，且 `method` 必须是第一个选项（`[^)]*` 遇到 `headers: {...}`、`JSON.stringify(...)` 的右括号就断）。 |
+| **修复** | 改按 `method` 字面量判定（带引号键或裸键、任意位置、POST / PUT / PATCH / DELETE、不分大小写）并增加 `sendBeacon(`，两者共用标签 `Network write`。识别只看表达式里的字面量，运行时才算出的方法名、有副作用的 GET、WebSocket 发送不在范围，已写入 `toolkits/browser/BROWSER_SYSTEM.md`。 |
+| **回归** | `test_semantic_risk_js_network.py` 22 例（14 写 + 8 读或相似写法）、`test_semantic_dom_hitl.py::test_a_delete_fetch_needs_a_person`、真 Chromium `test_evaluate_write_guard_integration.py` 5 例（服务端非 GET 命中为空，GET 照常执行；把旧规则放回去则 4 个写例变红）。 |
+
+### BUG-HARNESS-2026-10-26-004 · network_log 把已结束的请求一直显示为 [pending]：重定向跳转与浏览器放弃的请求
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（network 三件套复查） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P2：模型对一个永远不会有答案的请求空等或误判；`network_detail` 回原始驱动报错 |
+| **关联产品** | harness `toolkits/browser/session/network_intelligence.py` |
+| **根因** | Chrome 在重定向链上复用同一 requestId，上一跳的响应只出现在下一跳 `requestWillBeSent` 的 `redirectResponse` 里，它自己没有 `responseReceived`；被浏览器放弃的请求（拦截、拒绝连接、CORS、中止）走 `Network.loadingFailed`，该事件从未被订阅。 |
+| **修复** | 回填跳转状态，`network_detail` 指向继续下去的那条请求；订阅 `loadingFailed`，日志显示 `[failed: <浏览器错误>]`（CORS 失败追加原因），`network_detail` 直接回答错误而不再询问 Chrome；`[pending]` 只表示确实在途。 |
+| **回归** | `test_network_terminal_states.py` 18 例；真 Chromium `test_network_terminal_states_integration.py` 7 例（301 / 302 / 303 / 307 / 308 跳转、拒绝连接、被过滤器拦截、replay 拒绝时服务端零命中）。 |
+
+### BUG-HARNESS-2026-10-26-003 · network_replay 无人审批地重发已记录的 POST / PUT / PATCH / DELETE
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（network 三件套复查） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P1：「复核」一次回放就重复下单、重复执行 GraphQL mutation、重复 DELETE，草稿 PUT 被截成 4096 字节，头像上传被发成空 |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py` |
+| **根因** | replay 把记录里的方法、4096 字节窗口内的 body 与固定 JSON 头原样用页面 fetch 重发。已记录的写请求是页面刚做过的动作，重放带着用户 cookie 再做一次且无人审批，与 `evaluate` 受 HITL 守卫是同一种能力。 |
+| **修复** | 只重发 GET；其他方法拒绝且不发出任何请求（回答只含方法，不回显 URL 与 body）；重放失败时回答带原因（驱动报错首行，脱敏，不超过 160 字符）。代价：GraphQL-over-POST 的读查询也不能再重放。 |
+| **回归** | `test_browser_session_network_mixin.py` 16 例；真 Chromium 以服务端命中数为证：DELETE 3 次变 1 次、订单 2 次变 1 次、GraphQL mutation 2 次变 1 次。 |
+
+### BUG-HARNESS-2026-10-26-002 · network_detail / network_replay 的请求编号是 100 条滚动窗口里的位置，窗口写满后指向另一条请求
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（network 工具复查） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P1：`network_detail` 返回另一条请求的响应体，`network_replay` 重发另一条请求（用心跳 POST 代替价格 GET） |
+| **关联产品** | harness `toolkits/browser/session/network_intelligence.py`、`toolkits/browser/session/browser_session_network_mixin.py` |
+| **根因** | 编号是滚动窗口内的位置，窗口写满后每来一条新请求整体后移。 |
+| **修复** | 每条 XHR / Fetch 请求拥有按到达顺序发放一次、不复用的编号；滑出窗口的编号被明确拒绝，并给出当前有效范围。 |
+| **回归** | `test_network_request_numbering.py`、`test_browser_session_network_mixin.py`。 |
+
+### BUG-HARNESS-2026-10-26-001 · Stop 不能结束桌面工具对「人接管」的等待
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（接管等待的取消路径复查） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P2：用户接管后点 Stop，桌面工具要等到人交还或 600 秒上限才结束 |
+| **关联产品** | harness `utils/runtime/user_control.py`、`toolkits/computer_use/desktop_agent_tools.py` |
+| **根因** | 只有浏览器把工具包在取消边界里，桌面工具的等待自己不监听 run 的取消令牌。 |
+| **修复** | 等待本身与 run 的 cancel token 竞速，工具门禁的等待与会话守卫的等待同时结束；带 `cancelled_result` 的门禁（桌面）返回该结果，不带的让 stop 上抛到工具包边界（浏览器，行为不变）。 |
+| **回归** | `tests/utils/runtime/test_user_control_stop.py`、`tests/toolkits/computer_use/test_computer_session_takeover.py`、`tests/toolkits/computer_use/test_desktop_agent_tools_user_control.py`；被取消或跨线程释放的等待不留 waiter 与 task。 |
+
 ### BUG-HARNESS-2026-10-24-025 · `+term` 在 top-k 截断后才过滤，可能丢掉唯一命中
 
 | 字段 | 内容 |
