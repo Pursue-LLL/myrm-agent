@@ -54,7 +54,7 @@ class TestSparseOnlyWrapperLifecycle:
         from myrm_agent_harness.toolkits.vector.qdrant import create_embedded_store
 
         store = await create_embedded_store(path=str(tmp_path / "qdrant"))
-        wrapped = wrap_with_bm25_sparse_index(store)
+        wrapped = wrap_with_bm25_sparse_index(store, sparse_authoritative=True)
         assert isinstance(wrapped, BM25SparseIndexStore)
 
         try:
@@ -71,7 +71,7 @@ class TestSparseOnlyWrapperLifecycle:
             got = await wrapped.get_sparse_only(CONFIG.semantic_collection, [doc.id])
             assert [d.id for d in got] == [doc.id]
 
-            # The list path falls back to the mirror when the dense side is empty.
+            # An authoritative wrapper routes the list path to the mirror.
             from myrm_agent_harness.toolkits.memory._internal.storage_by_type import list_by_type
 
             listed = await list_by_type(

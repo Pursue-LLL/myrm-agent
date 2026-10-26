@@ -45,3 +45,30 @@ async def test_forced_cycle_completes_without_consolidating_or_losing_memories(t
         assert len(await manager.list_memories(MemoryType.SEMANTIC, limit=10)) == 4
     finally:
         await manager.close()
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_archived_memories_leave_the_list_even_when_none_stay_active(tmp_path: Path) -> None:
+    """Forgetting archives sparse-only memories, and an all-archived type lists as empty."""
+    manager = await create_local_memory_manager(tmp_path / "mem", None)
+    try:
+        stale = datetime.now(UTC) - timedelta(days=700)
+        for n in range(6):
+            await manager.store(
+                SemanticMemory(
+                    id=str(uuid4()),
+                    user_id="sandbox_user",
+                    content=f"trivial remark number {n} about the weather",
+                    importance=0.1,
+                    created_at=stale,
+                )
+            )
+
+        report = await manager.run_maintenance_cycle(force=True)
+
+        assert report.archived_count == 6
+        assert await manager.list_memories(MemoryType.SEMANTIC, limit=10) == []
+        assert len(await manager.list_memories(MemoryType.SEMANTIC, limit=10, include_archived=True)) == 6
+    finally:
+        await manager.close()
