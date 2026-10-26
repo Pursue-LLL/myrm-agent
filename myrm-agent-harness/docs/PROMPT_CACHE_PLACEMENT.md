@@ -38,7 +38,7 @@ Do **not** equate “stable layout” with “100% cache hit”. Observe provide
 | Field / surface | Source |
 |-----------------|--------|
 | `cache_read_input_tokens`, `cache_creation_input_tokens` | Provider usage on completion |
-| `gen_ai.usage.cache_read_tokens` | OTLP span attributes in `toolkits/llms/adapters/chat_model/async_mixin.py` |
+| `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | OTLP `chat` span attributes written by `ModelCall.finish` in `infra/tracing/gen_ai/model_call.py` |
 | Session trace `prompt_cache_hit_ratio` | `myrm-agent-server` `session_trace_enrichment.py` (`total_cache_read_tokens / total_prompt_tokens`) |
 | `TokenTracker` / `compute_prompt_cache_stats` | `utils/token_economics/tracker.py`, `cache_economics.py` |
 | Ephemeral delta API | Layout only: delta count, system hash from preview inject, injection latency—**no** provider hit ratio |

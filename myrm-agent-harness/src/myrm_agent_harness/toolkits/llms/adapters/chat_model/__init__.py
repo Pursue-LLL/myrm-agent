@@ -9,7 +9,7 @@ exception types.
 
 [OUTPUT]
 - model: ChatLiteLLM (LangChain-compatible LiteLLM chat model aggregate root), clean_model_kwargs
-- async_mixin / sync_mixin / message_mixin: generation and message assembly mixins
+- async_mixin / async_stream_mixin / sync_mixin / message_mixin: generation and message assembly mixins
 - exceptions: EmptyChoicesError, EmptyStreamError, StreamStallTimeoutError, adapter constants
 
 [POS]

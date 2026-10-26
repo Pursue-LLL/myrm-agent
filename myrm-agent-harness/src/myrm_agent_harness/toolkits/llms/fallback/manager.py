@@ -425,10 +425,10 @@ class ModelFallbackManager[T]:
                     span.add_event(
                         "attempt_model",
                         attributes={
-                            "model": candidate.name,
-                            "priority": candidate.priority,
-                            "attempt": idx + 1,
-                            "is_probe": is_probe,
+                            "fallback.model": candidate.name,
+                            "fallback.priority": candidate.priority,
+                            "fallback.attempt": idx + 1,
+                            "fallback.is_probe": is_probe,
                         },
                     )
 
@@ -502,12 +502,12 @@ class ModelFallbackManager[T]:
                     span.add_event(
                         "model_failed",
                         attributes={
-                            "model": candidate.name,
-                            "error_reason": error_reason.value,
-                            "error_kind": error_kind.value,
-                            "recoverability": error_reason.recoverability.value,
-                            "is_failoverable": error_reason.is_failoverable,
-                            "is_probe": is_probe,
+                            "fallback.model": candidate.name,
+                            "fallback.error_reason": error_reason.value,
+                            "fallback.error_kind": error_kind.value,
+                            "fallback.recoverability": error_reason.recoverability.value,
+                            "fallback.is_failoverable": error_reason.is_failoverable,
+                            "fallback.is_probe": is_probe,
                         },
                     )
 

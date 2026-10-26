@@ -1,42 +1,18 @@
-"""Unit tests for Three-layer Trace Privacy Sanitizer and SpanProcessor.
+"""Unit tests for the three-layer trace privacy sanitizer.
 
 [TESTS]
 - Layer 1: High-risk key detection vs safe namespace prefix whitelist
 - Layer 2: Sensitive pattern redaction (Bearer, API Keys, Passwords)
 - Layer 3: Long payload bounded truncation with SHA-256 fingerprint preservation
-- SanitizingSpanProcessor: OpenTelemetry Span attribute scrub prior to export
+- Single-attribute entry point used by the exporter-boundary privacy guard
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import (
-    SimpleSpanProcessor,
-    SpanExporter,
-    SpanExportResult,
-)
-
 from myrm_agent_harness.infra.tracing.sanitizer import (
-    SanitizingSpanProcessor,
     TraceSpanSanitizer,
     sanitize_trace_payload,
 )
-
-
-class MemorySpanExporter(SpanExporter):
-    """Simple in-memory exporter capturing sanitized ReadableSpans for testing."""
-
-    def __init__(self) -> None:
-        self.spans: list[ReadableSpan] = []
-
-    def export(self, spans: list[ReadableSpan]) -> SpanExportResult:
-        self.spans.extend(spans)
-        return SpanExportResult.SUCCESS
-
-    def shutdown(self) -> None:
-        pass
 
 
 def test_layer1_key_namespace_allowlist_and_sensitive_key_redaction() -> None:
@@ -130,66 +106,14 @@ def test_sanitize_trace_payload_recursive() -> None:
     assert "[TRUNCATED:len=5000:sha256=" in massive
 
 
-def test_sanitizing_span_processor_integration() -> None:
+def test_single_attribute_entry_point_applies_all_three_layers() -> None:
     sanitizer = TraceSpanSanitizer(max_value_len=128)
-    processor = SanitizingSpanProcessor(sanitizer=sanitizer)
 
-    mock_span = MagicMock()
-    mock_span._attributes = {
-        "gen_ai.operation.name": "execute_code",
-        "user_password": "plaintext_secret_123",
-        "auth.token": "Bearer secret-token-value",
-        "massive_output": "Z" * 1000,
-    }
-
-    processor.on_end(mock_span)
-
-    attrs = mock_span._attributes
-    assert attrs is not None
-
-    # Layer 1
-    assert attrs["gen_ai.operation.name"] == "execute_code"
-    assert attrs["user_password"] == "[REDACTED_SENSITIVE_KEY]"
-
+    # Layer 1: a text value under a sensitive un-namespaced key is replaced, numbers pass through
+    assert sanitizer.sanitize_attribute("user_password", "plaintext_secret_123") == "[REDACTED_SENSITIVE_KEY]"
+    assert sanitizer.sanitize_attribute("user_password", 7) == 7
     # Layer 2
-    assert "secret-token-value" not in str(attrs.get("auth.token"))
-
+    assert "secret-token-value" not in str(sanitizer.sanitize_attribute("http.header", "Bearer secret-token-value"))
     # Layer 3
-    massive = attrs.get("massive_output")
-    assert isinstance(massive, str)
-    assert "[TRUNCATED:len=1000:sha256=" in massive
-
-
-def test_otel_sdk_tracer_provider_pipeline_sanitization() -> None:
-    """Test full real OpenTelemetry SDK pipeline with SanitizingSpanProcessor."""
-    tracer_provider = TracerProvider()
-    exporter = MemorySpanExporter()
-    sanitizer = TraceSpanSanitizer(max_value_len=120)
-
-    # Attach sanitizing processor before simple export processor
-    tracer_provider.add_span_processor(SanitizingSpanProcessor(sanitizer=sanitizer))
-    tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
-
-    tracer = tracer_provider.get_tracer("test.tracer")
-    with tracer.start_as_current_span("agent_execute") as span:
-        span.set_attribute("gen_ai.system", "open-perplexity")
-        span.set_attribute("user_password", "raw_password_should_be_scrubbed")
-        span.set_attribute("auth_header", "Bearer test_bearer_key_to_scrub")
-        span.set_attribute("large_payload", "M" * 400)
-
-    # TracerProvider ended the span, let's verify exporter received sanitized ReadableSpan
-    assert len(exporter.spans) == 1
-    exported_span = exporter.spans[0]
-    span_attrs = exported_span.attributes or {}
-
-    # Layer 1 check
-    assert span_attrs["gen_ai.system"] == "open-perplexity"
-    assert span_attrs["user_password"] == "[REDACTED_SENSITIVE_KEY]"
-
-    # Layer 2 check
-    assert span_attrs["auth_header"] == "[REDACTED_SENSITIVE_KEY]"
-
-    # Layer 3 check
-    large_val = span_attrs.get("large_payload")
-    assert isinstance(large_val, str)
-    assert "[TRUNCATED:len=400:sha256=" in large_val
+    truncated = sanitizer.sanitize_attribute("gen_ai.request.model", "Z" * 1000)
+    assert isinstance(truncated, str) and "[TRUNCATED:len=1000:sha256=" in truncated

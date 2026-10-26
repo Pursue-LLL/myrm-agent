@@ -176,7 +176,7 @@ class TestBindToolsEdges:
         with (
             patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind,
             patch(
-                "myrm_agent_harness.toolkits.llms.adapters.chat_model.model.normalize_tool_schema",
+                "myrm_agent_harness.toolkits.llms.adapters.chat_model.binding.normalize_tool_schema",
                 side_effect=ValueError("boom"),
             ),
         ):

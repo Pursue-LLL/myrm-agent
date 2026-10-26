@@ -53,6 +53,7 @@ from myrm_agent_harness.toolkits.browser.session.browser_session_view_mixin impo
 from myrm_agent_harness.toolkits.browser.session.takeover import BrowserSessionTakeoverMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import ChatLiteLLMAsyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import ChatLiteLLMAsyncStreamMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import ChatLiteLLMMessageMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import ChatLiteLLMSyncMixin
 
@@ -112,8 +113,23 @@ def test_chat_lite_llm_mixin_order_before_base_chat_model() -> None:
     message_idx = mro.index(ChatLiteLLMMessageMixin)
     sync_idx = mro.index(ChatLiteLLMSyncMixin)
     async_idx = mro.index(ChatLiteLLMAsyncMixin)
+    stream_idx = mro.index(ChatLiteLLMAsyncStreamMixin)
     base_idx = mro.index(BaseChatModel)
-    assert message_idx < sync_idx < async_idx < base_idx
+    assert message_idx < sync_idx < async_idx < stream_idx < base_idx
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("method", "expected_owner"),
+    [
+        ("_agenerate", ChatLiteLLMAsyncMixin),
+        ("_astream", ChatLiteLLMAsyncStreamMixin),
+        ("_astream_inner", ChatLiteLLMAsyncStreamMixin),
+    ],
+)
+def test_chat_lite_llm_async_methods_resolve_to_their_mixins(method: str, expected_owner: type[object]) -> None:
+    owner = next(c for c in ChatLiteLLM.__mro__ if method in c.__dict__)
+    assert owner is expected_owner
 
 
 _EXPECTED_SUBAGENT_EXECUTOR_MIXIN_MRO: tuple[type[object], ...] = (

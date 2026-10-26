@@ -21,7 +21,8 @@
 
 [OUTPUT]
 - ChatLiteLLM: LangChain-compatible LiteLLM chat model aggregate root (config, bind_tools, structured_output)
-- chat_model.message_mixin / chat_model.session_affinity / chat_model.sync_mixin / chat_model.async_mixin: message assembly, session-affinity and generation mixins
+- chat_model.message_mixin / chat_model.session_affinity / chat_model.sync_mixin / chat_model.async_mixin / chat_model.async_stream_mixin : message assembly, session-affinity and generation mixins
+- chat_model.binding: tool_bind_kwargs / structured_output_bind_kwargs / structured_output_chain (bind_tools and with_structured_output assembly)
 - chat_model.exceptions: EmptyChoicesError, EmptyStreamError, adapter constants
 - clean_model_kwargs(): utility function to clean model parameters
 
@@ -55,7 +56,6 @@ from __future__ import annotations
 import logging
 import types
 from collections.abc import Sequence
-from operator import itemgetter
 from typing import (
     Any,
     TypeVar,
@@ -65,23 +65,24 @@ from typing import (
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
-    RunnableMap,
-    RunnablePassthrough,
 )
 from langchain_core.tools import BaseTool
 from langchain_core.utils import get_from_dict_or_env
-from langchain_core.utils.function_calling import convert_to_openai_tool
-from langchain_core.utils.pydantic import is_basemodel_subclass
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.allowed_params import inject_allowed_params
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import (
     ChatLiteLLMAsyncMixin,
+)
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import ChatLiteLLMAsyncStreamMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.binding import (
+    structured_output_bind_kwargs,
+    structured_output_chain,
+    tool_bind_kwargs,
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     DEVELOPER_ROLE_PATTERN,
@@ -102,7 +103,6 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import (
     ChatLiteLLMSyncMixin,
 )
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
-from myrm_agent_harness.toolkits.llms.adapters.schema import normalize_tool_schema
 from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
 from myrm_agent_harness.toolkits.llms.utils.model_kwargs import (
     clean_model_kwargs as utils_clean_model_kwargs,
@@ -132,6 +132,7 @@ class ChatLiteLLM(
     ChatLiteLLMSessionAffinityMixin,
     ChatLiteLLMSyncMixin,
     ChatLiteLLMAsyncMixin,
+    ChatLiteLLMAsyncStreamMixin,
     BaseChatModel,
 ):
     """Minimal LangChain ChatModel adapter for litellm.
@@ -372,36 +373,10 @@ class ChatLiteLLM(
     ) -> Runnable[LanguageModelInput, dict[str, Any] | _BM]:
         if kwargs:
             raise ValueError(f"Received unsupported arguments {kwargs}")
-
-        is_pydantic_schema = isinstance(schema, type) and is_basemodel_subclass(schema)
-
-        bind_kwargs: dict[str, Any] = {
-            "_json_mode_fallback": True,
-            "stream": False,
-            "ls_structured_output_format": {"kwargs": {}, "schema": schema},
-        }
-        if not self.should_skip_response_format(self._get_model_name()):
-            bind_kwargs["response_format"] = {"type": "json_object"}
-
-        llm = self.bind(**bind_kwargs)
-
-        if is_pydantic_schema:
-            # schema is guaranteed to be Type[BaseModel] when is_pydantic_schema is True
-            output_parser: PydanticOutputParser[BaseModel] | JsonOutputParser = PydanticOutputParser(
-                pydantic_object=cast(type[BaseModel], schema)
-            )
-        else:
-            output_parser = JsonOutputParser()
-
-        if include_raw:
-            parser_assign = RunnablePassthrough.assign(
-                parsed=itemgetter("raw") | output_parser, parsing_error=lambda _: None
-            )
-            parser_none = RunnablePassthrough.assign(parsed=lambda _: None)
-            parser_with_fallback = parser_assign.with_fallbacks([parser_none], exception_key="parsing_error")
-            return RunnableMap(raw=llm) | parser_with_fallback
-
-        return llm | output_parser
+        bind_kwargs = structured_output_bind_kwargs(
+            schema, skip_response_format=self.should_skip_response_format(self._get_model_name())
+        )
+        return structured_output_chain(self.bind(**bind_kwargs), schema, include_raw=include_raw)
 
     def bind_tools(
         self,
@@ -411,97 +386,15 @@ class ChatLiteLLM(
         parallel_tool_calls: bool | None = None,
         **kwargs: Any,
     ) -> Runnable[LanguageModelInput, AIMessage]:
-        logger.debug(f"bind_tools called with {len(tools) if tools else 0} tools")
-        model_id = self.model_name or self.model
-        openai_tools: list[dict[str, Any]] = []
-        for t in tools:
-            if isinstance(t, dict) and "function" in t:
-                openai_tools.append(normalize_tool_schema(t, model_name=model_id))
-            else:
-                try:
-                    openai_tools.append(normalize_tool_schema(convert_to_openai_tool(t), model_name=model_id))
-                except Exception as e:
-                    logger.warning(
-                        "Failed to convert tool %s: %s",
-                        getattr(t, "name", t),
-                        e,
-                    )
-                    continue
-
-        tool_choice_param: str | dict[str, Any] | None = None
-        if tool_choice in ("auto", "any"):
-            tool_choice_param = "auto"
-        elif tool_choice == "none":
-            tool_choice_param = "none"
-        elif tool_choice == "required":
-            tool_choice_param = "required"
-        elif isinstance(tool_choice, str):
-            # Specific tool name requested
-            tool_choice_param = {"type": "function", "function": {"name": tool_choice}}
-        elif isinstance(tool_choice, dict):
-            tool_choice_param = tool_choice
-
-        bind_kwargs: dict[str, Any] = {"tools": openai_tools}
-        if not openai_tools:
-            logger.debug(
-                "bind_tools produced no OpenAI tools after conversion (input count=%s)",
-                len(tools),
-            )
-        if tool_choice_param:
-            bind_kwargs["tool_choice"] = tool_choice_param
-        if parallel_tool_calls is not None:
-            bind_kwargs["parallel_tool_calls"] = parallel_tool_calls
-
-        # Local weak model grammar / structured output constraint transport
-        from myrm_agent_harness.toolkits.llms.adapters.gateway_normalizer import (
-            is_transport_stripped,
+        bind_kwargs = tool_bind_kwargs(
+            tools,
+            model_id=self.model_name or self.model,
+            api_base=str(self.api_base or ""),
+            custom_llm_provider=str(self.custom_llm_provider or ""),
+            tool_choice=tool_choice,
+            parallel_tool_calls=parallel_tool_calls,
+            extra=kwargs,
         )
-        from myrm_agent_harness.toolkits.llms.adapters.model_capability import (
-            ModelCapabilityDetector,
-        )
-
-        detector = ModelCapabilityDetector()
-        api_base_url = str(self.api_base or "")
-        custom_provider = str(self.custom_llm_provider or "")
-        if (
-            openai_tools
-            and detector.supports_json_schema_constrained_tool_calls(
-                provider=custom_provider,
-                model=model_id,
-                base_url=api_base_url,
-            )
-            and "response_format" not in kwargs
-            and not is_transport_stripped(model=model_id, base_url=api_base_url)
-        ):
-            # Inject constrained tool call array schema for local llama-server/ollama/vLLM endpoints
-            bind_kwargs["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "tool_calls_transport",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "tool_calls": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "name": {"type": "string"},
-                                        "arguments": {"type": "object"},
-                                    },
-                                    "required": ["name", "arguments"],
-                                },
-                            }
-                        },
-                        "required": ["tool_calls"],
-                    },
-                },
-            }
-
-        if kwargs:
-            bind_kwargs.update(kwargs)
-
         return self.bind(**bind_kwargs)
 
 

@@ -13,6 +13,7 @@ payload, otherwise the billed cost and the reported cache hit rate disagree.
 [OUTPUT]
 - extract_cached_tokens(): prompt tokens served from the provider cache
 - extract_cache_write_tokens(): prompt tokens newly written to the provider cache
+- extract_reasoning_tokens(): completion tokens spent on reasoning (a subset of completion tokens)
 - extract_cost_tokens(): (prompt, completion, cache read, cache write) for cost computation
 
 [POS]
@@ -54,6 +55,16 @@ def extract_cached_tokens(usage: Mapping[str, object]) -> int:
 def extract_cache_write_tokens(usage: Mapping[str, object]) -> int:
     """Return the prompt tokens newly written to the provider cache (Anthropic billing)."""
     return _first_positive((usage, _prompt_details(usage)), _CACHE_WRITE_KEYS)
+
+
+def extract_reasoning_tokens(usage: Mapping[str, object]) -> int:
+    """Return the completion tokens spent on reasoning (``completion_tokens_details`` or top level)."""
+    details = usage.get("completion_tokens_details")
+    if isinstance(details, Mapping):
+        value = parse_int(details.get("reasoning_tokens"), 0, min_val=0)
+        if value:
+            return value
+    return parse_int(usage.get("reasoning_tokens"), 0, min_val=0)
 
 
 def extract_cost_tokens(usage: Mapping[str, object]) -> tuple[int, int, int, int]:

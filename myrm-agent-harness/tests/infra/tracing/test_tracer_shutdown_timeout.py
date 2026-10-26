@@ -88,6 +88,7 @@ def test_concurrent_shutdown_observability_dual_channel():
     tracer._tracer_provider = mock_tracer_provider
 
     from myrm_agent_harness.infra.tracing.metrics import exporter as metrics_exporter
+
     metrics_exporter._initialized = True
     metrics_exporter._meter_provider = mock_meter_provider
 
@@ -111,6 +112,7 @@ def test_concurrent_flush_observability_dual_channel():
     tracer._tracer_provider = mock_tracer_provider
 
     from myrm_agent_harness.infra.tracing.metrics import exporter as metrics_exporter
+
     metrics_exporter._initialized = True
     metrics_exporter._meter_provider = mock_meter_provider
 

@@ -202,20 +202,15 @@ async def tool_interceptor_middleware(
 ) -> ToolMessage | Command:
     """Unified tool interception middleware with metrics collection."""
     tool_name = request.tool_call.get("name", "unknown")
+    call_id = request.tool_call.get("id")
 
-    from myrm_agent_harness.infra.tracing import get_tracer
+    from myrm_agent_harness.infra.tracing.gen_ai import execute_tool_span
 
-    tracer = get_tracer("tool.execute")
-    with tracer.start_as_current_span("tool.execute") as span:
-        span.set_attribute("tool.name", tool_name)
-        # OpenTelemetry GenAI Semantic Conventions
-        span.set_attribute("gen_ai.system", "myrm-agent")
-        span.set_attribute("gen_ai.operation.name", "tool.call")
-        span.set_attribute("gen_ai.tool.name", tool_name)
-        call_id = request.tool_call.get("id")
-        if call_id:
-            span.set_attribute("gen_ai.tool.call.id", str(call_id))
-
+    with execute_tool_span(
+        name=tool_name,
+        call_id=str(call_id) if call_id else None,
+        arguments=_get_tool_args(request),
+    ) as span:
         try:
             result = await _tool_interceptor_middleware_inner(request, handler)
 
@@ -227,11 +222,9 @@ async def tool_interceptor_middleware(
                 status = "error"
                 error_message = getattr(result, "content", "")
                 error_category, loop_kind = _extract_failure_metadata(result)
-                span.set_attribute("tool.status", "error")
-                span.set_attribute("gen_ai.tool.status", "error")
+                span.mark_error(error_category or "tool_error")
             else:
-                span.set_attribute("tool.status", "success")
-                span.set_attribute("gen_ai.tool.status", "success")
+                span.record_result(getattr(result, "content", ""))
 
             from myrm_agent_harness.observability.metrics.registry import (
                 metrics_registry,
@@ -254,10 +247,6 @@ async def tool_interceptor_middleware(
             return result
 
         except Exception as e:
-            span.set_attribute("tool.status", "error")
-            span.set_attribute("error.type", type(e).__name__)
-            span.record_exception(e)
-
             from myrm_agent_harness.observability.metrics.registry import (
                 metrics_registry,
             )

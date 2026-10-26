@@ -1,84 +1,83 @@
-"""Tests for myrm_agent_harness.infra.tracing.sampling."""
+"""Sampling is the SDK's own: standard ``OTEL_TRACES_SAMPLER*`` variables or an explicit sampler argument."""
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
-from opentelemetry.sdk.trace.sampling import Decision, ParentBased, SamplingResult
-from opentelemetry.trace import SpanContext, SpanKind, TraceFlags
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
-from myrm_agent_harness.infra.tracing.sampling import IntelligentSampler, create_intelligent_sampler
+from myrm_agent_harness.infra.tracing import (
+    force_flush_tracing,
+    get_telemetry_posture,
+    setup_tracing,
+    trace_context,
+)
 
-
-def _sampled_parent() -> SpanContext:
-    return SpanContext(
-        trace_id=0x12345678901234567890123456789012,
-        span_id=0x1234567890123456,
-        is_remote=False,
-        trace_flags=TraceFlags(0x01),
-    )
+from ._receivers import OtlpHttpReceiver
 
 
-def test_should_sample_parent_sampled() -> None:
-    sampler = IntelligentSampler(base_rate=0.0)
-    parent = _sampled_parent()
-    result = sampler.should_sample(
-        parent,
-        0x12345678901234567890123456789012,
-        "child",
-        SpanKind.INTERNAL,
-        None,
-        None,
-        None,
-    )
-    assert result.decision == Decision.RECORD_AND_SAMPLE
+def _emit_one_span() -> None:
+    with trace_context("tests.sampling", "op"):
+        pass
+    assert force_flush_tracing(timeout_ms=5000)
+
+
+def test_every_span_is_kept_by_default(http_receiver: OtlpHttpReceiver) -> None:
+    setup_tracing(otlp_endpoint=http_receiver.endpoint)
+    _emit_one_span()
+
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()))
+    assert "AlwaysOnSampler" in str(get_telemetry_posture()["sampler"])
 
 
 @pytest.mark.parametrize(
-    ("attrs", "name"),
+    ("sampler", "argument", "expected"),
     [
-        ({"error": True}, "x"),
-        ({"exception": "e"}, "x"),
-        ({"status": "failed"}, "x"),
-        ({"error_kind": "timeout"}, "x"),
-        ({"slow_request": True}, "x"),
+        ("always_off", None, "AlwaysOffSampler"),
+        ("parentbased_traceidratio", "0.0", "TraceIdRatioBased{0.0}"),
     ],
 )
-def test_should_sample_error_and_slow_and_status(attrs: dict[str, object], name: str) -> None:
-    sampler = IntelligentSampler(base_rate=0.0)
-    result = sampler.should_sample(None, 1, name, SpanKind.INTERNAL, attrs, None, None)
-    assert result.decision == Decision.RECORD_AND_SAMPLE
+def test_standard_sampler_variables_drop_spans(
+    http_receiver: OtlpHttpReceiver,
+    monkeypatch: pytest.MonkeyPatch,
+    sampler: str,
+    argument: str | None,
+    expected: str,
+) -> None:
+    monkeypatch.setenv("OTEL_TRACES_SAMPLER", sampler)
+    if argument is not None:
+        monkeypatch.setenv("OTEL_TRACES_SAMPLER_ARG", argument)
+    setup_tracing(otlp_endpoint=http_receiver.endpoint)
+    _emit_one_span()
+
+    assert expected in str(get_telemetry_posture()["sampler"])
+    assert http_receiver.spans() == []
 
 
-@pytest.mark.parametrize(
-    "span_name",
-    ["model_fallback_invoke", "delivery_send", "llm_call_openai"],
-)
-def test_should_sample_critical_prefixes(span_name: str) -> None:
-    sampler = IntelligentSampler(base_rate=0.0)
-    result = sampler.should_sample(None, 1, span_name, SpanKind.INTERNAL, None, None, None)
-    assert result.decision == Decision.RECORD_AND_SAMPLE
+def test_a_ratio_of_one_keeps_every_span(http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_TRACES_SAMPLER", "parentbased_traceidratio")
+    monkeypatch.setenv("OTEL_TRACES_SAMPLER_ARG", "1.0")
+    setup_tracing(otlp_endpoint=http_receiver.endpoint)
+    _emit_one_span()
+
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()))
 
 
-def test_should_sample_normal_delegates_to_base_sampler() -> None:
-    sampler = IntelligentSampler(base_rate=0.0)
-    mock_base = MagicMock()
-    mock_base.should_sample.return_value = SamplingResult(Decision.DROP, None, None)
-    sampler._base_sampler = mock_base  # type: ignore[method-assign]
-    result = sampler.should_sample(None, 1, "normal_span", SpanKind.INTERNAL, None, None, None)
-    assert result.decision == Decision.DROP
-    mock_base.should_sample.assert_called_once()
+def test_an_explicit_sampler_wins_over_the_environment(
+    http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OTEL_TRACES_SAMPLER", "always_on")
+    setup_tracing(otlp_endpoint=http_receiver.endpoint, sampler=ALWAYS_OFF)
+    _emit_one_span()
+
+    assert http_receiver.spans() == []
+    assert "AlwaysOffSampler" in str(get_telemetry_posture()["sampler"])
 
 
-def test_get_description() -> None:
-    sampler = IntelligentSampler(base_rate=0.2, slow_threshold_ms=500.0)
-    text = sampler.get_description()
-    assert "IntelligentSampler" in text
-    assert "0.2" in text
-    assert "500.0" in text
+def test_the_retired_custom_rate_variable_has_no_effect(
+    http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OTEL_SAMPLE_RATE", "0.0")
+    setup_tracing(otlp_endpoint=http_receiver.endpoint)
+    _emit_one_span()
 
-
-def test_create_intelligent_sampler_returns_parent_based() -> None:
-    root = create_intelligent_sampler(base_rate=0.1)
-    assert isinstance(root, ParentBased)
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()))

@@ -1,27 +1,32 @@
-"""Unit tests for OpenTelemetry tracer."""
+"""Unit tests for the generic tracing helpers: tracers, spans, decorators, flush and VCS resource metadata."""
 
 import pytest
 
 from myrm_agent_harness.infra.tracing import (
+    force_flush_tracing,
+    get_telemetry_posture,
     get_tracer,
+    parse_otlp_headers,
     setup_tracing,
+    shutdown_tracing,
     trace_async,
     trace_context,
+    tracer,
 )
+
+from ._receivers import OtlpHttpReceiver
 
 
 def test_get_tracer_returns_noop_without_setup():
     """get_tracer returns a NoOp tracer when setup_tracing has not been called."""
-    tracer = get_tracer("noop_module")
-    assert tracer is not None
+    assert get_tracer("noop_module") is not None
 
 
 def test_setup_tracing():
     """Test tracing initialization."""
     setup_tracing(service_name="test-service", console_export=False)
 
-    tracer = get_tracer("test_module")
-    assert tracer is not None
+    assert get_tracer("test_module") is not None
 
 
 def test_trace_context():
@@ -50,8 +55,7 @@ async def test_trace_async_decorator():
     async def test_function(arg: str) -> str:
         return arg.upper()
 
-    result = await test_function("hello")
-    assert result == "HELLO"
+    assert await test_function("hello") == "HELLO"
 
 
 @pytest.mark.asyncio
@@ -76,85 +80,32 @@ async def test_trace_async_with_kwargs():
     async def function_with_kwargs(channel: str, recipient: str) -> str:
         return f"{channel}:{recipient}"
 
-    result = await function_with_kwargs(channel="telegram", recipient="user123")
-    assert result == "telegram:user123"
+    assert await function_with_kwargs(channel="telegram", recipient="user123") == "telegram:user123"
 
 
-def test_record_gen_ai_semantic_conventions():
-    """Test GenAI Semantic Conventions helper functions with recording mock span."""
-    from unittest.mock import MagicMock
+@pytest.mark.asyncio
+async def test_decorated_spans_reach_the_collector_without_argument_values(http_receiver: OtlpHttpReceiver):
+    """The decorator's span is exported with counts, while caller-supplied argument text stays local."""
+    setup_tracing(service_name="test-service", otlp_endpoint=http_receiver.endpoint)
 
-    from opentelemetry.trace import Span
+    @trace_async(span_name="deliver")
+    async def deliver(channel: str, recipient: str) -> str:
+        return f"{channel}:{recipient}"
 
-    from myrm_agent_harness.infra.tracing import (
-        GEN_AI_CACHE_HIT_RATIO,
-        GEN_AI_OPERATION_NAME,
-        GEN_AI_REQUEST_MODEL,
-        GEN_AI_SYSTEM,
-        GEN_AI_TOOL_NAME,
-        GEN_AI_USAGE_CACHE_READ_TOKENS,
-        GEN_AI_USAGE_INPUT_TOKENS,
-        record_gen_ai_agent_turn,
-        record_gen_ai_llm_request,
-        record_gen_ai_tool_call,
-    )
+    await deliver(channel="telegram", recipient="user-4711")
+    assert force_flush_tracing(timeout_ms=5000)
 
-    # 1. Agent Turn Span
-    mock_turn_span = MagicMock(spec=Span)
-    mock_turn_span.is_recording.return_value = True
-    record_gen_ai_agent_turn(
-        mock_turn_span,
-        conversation_id="conv-123",
-        turn_id="turn-1",
-        agent_type="SkillAgent",
-        query_preview="Check weather in Tokyo",
-        status="completed",
-    )
-    mock_turn_span.set_attribute.assert_any_call(GEN_AI_SYSTEM, "myrm")
-    mock_turn_span.set_attribute.assert_any_call(GEN_AI_OPERATION_NAME, "agent.turn")
-    mock_turn_span.set_attribute.assert_any_call("agent.type", "SkillAgent")
-
-    # 2. LLM Request Span with Token & Cache Hit Accounting
-    mock_llm_span = MagicMock(spec=Span)
-    mock_llm_span.is_recording.return_value = True
-    record_gen_ai_llm_request(
-        mock_llm_span,
-        model_name="deepseek-chat",
-        prompt_tokens=1000,
-        completion_tokens=200,
-        cache_read_tokens=800,
-        reasoning_tokens=50,
-        ttft_ms=120.5,
-    )
-    mock_llm_span.set_attribute.assert_any_call(GEN_AI_REQUEST_MODEL, "deepseek-chat")
-    mock_llm_span.set_attribute.assert_any_call(GEN_AI_USAGE_INPUT_TOKENS, 1000)
-    mock_llm_span.set_attribute.assert_any_call(GEN_AI_USAGE_CACHE_READ_TOKENS, 800)
-    mock_llm_span.set_attribute.assert_any_call(GEN_AI_CACHE_HIT_RATIO, 0.8)
-
-    # 3. Tool Call Span
-    mock_tool_span = MagicMock(spec=Span)
-    mock_tool_span.is_recording.return_value = True
-    record_gen_ai_tool_call(
-        mock_tool_span,
-        tool_name="web_search",
-        tool_call_id="call-456",
-        status="success",
-        duration_ms=350.0,
-    )
-    mock_tool_span.set_attribute.assert_any_call(GEN_AI_TOOL_NAME, "web_search")
-    mock_tool_span.set_attribute.assert_any_call("gen_ai.tool.call_id", "call-456")
-
-    # 4. Non-recording span safety (no-op)
-    non_recording = MagicMock(spec=Span)
-    non_recording.is_recording.return_value = False
-    record_gen_ai_agent_turn(non_recording)
-    non_recording.set_attribute.assert_not_called()
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()))
+    [span] = http_receiver.spans()
+    assert span.name == "deliver"
+    assert span.attributes["kwargs.count"] == 2
+    assert span.attributes["success"] is True
+    assert "arg.recipient" not in span.attributes
+    assert "user-4711" not in str(span.attributes)
 
 
 def test_parse_otlp_headers():
     """Test standard W3C/OTel header string parsing."""
-    from myrm_agent_harness.infra.tracing import parse_otlp_headers
-
     raw = "Authorization=Bearer%20secret-token,X-Custom-Header=value123,InvalidPart"
     headers = parse_otlp_headers(raw)
     assert headers["Authorization"] == "Bearer secret-token"
@@ -162,125 +113,8 @@ def test_parse_otlp_headers():
     assert "InvalidPart" not in headers
 
 
-def test_get_telemetry_posture_and_redaction(monkeypatch):
-    """Test telemetry posture probe and credential redaction."""
-    from myrm_agent_harness.infra.tracing import get_telemetry_posture, shutdown_tracing
-
-    shutdown_tracing()
-    monkeypatch.setenv(
-        "OTEL_EXPORTER_OTLP_ENDPOINT",
-        "http://user:secretpass@apm.internal:4318/v1/traces",
-    )
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Bearer%20abc")
-
-    posture = get_telemetry_posture()
-    assert posture["protocol"] == "http/protobuf"
-    assert posture["headers_configured"] is True
-    assert "secretpass" not in str(posture["endpoint"])
-    assert "[REDACTED]" in str(posture["endpoint"])
-    assert posture["three_tier_semantics"] is True
-    assert posture["prompt_cache_metering"] is True
-
-
-def test_active_posture_from_args_without_env_vars(monkeypatch):
-    """Test that setup_tracing via args correctly updates active posture without OS env vars."""
-    import sys
-    from unittest.mock import MagicMock
-
-    from myrm_agent_harness.infra.tracing import (
-        get_telemetry_posture,
-        setup_tracing,
-        shutdown_tracing,
-    )
-
-    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-    monkeypatch.delenv("OTEL_EXPORTER_OTLP_PROTOCOL", raising=False)
-    monkeypatch.delenv("OTEL_EXPORTER_OTLP_HEADERS", raising=False)
-
-    shutdown_tracing()
-
-    mock_module = MagicMock()
-    mock_exporter_cls = MagicMock()
-    mock_module.OTLPSpanExporter = mock_exporter_cls
-
-    with monkeypatch.context() as m:
-        m.setitem(sys.modules, "opentelemetry.exporter.otlp.proto.http.trace_exporter", mock_module)
-        setup_tracing(
-            service_name="test-args-svc",
-            otlp_endpoint="http://custom-host:4318/v1/traces",
-            otlp_protocol="http/protobuf",
-            otlp_headers="X-Token=custom123",
-            sample_rate=0.5,
-        )
-
-        posture = get_telemetry_posture()
-        assert posture["status"] == "active"
-        assert posture["endpoint"] == "http://custom-host:4318/v1/traces"
-        assert posture["protocol"] == "http/protobuf"
-        assert posture["headers_configured"] is True
-        assert posture["exporter_type"] == "otlp_http"
-        assert posture["degraded_reason"] is None
-
-    shutdown_tracing()
-
-
-def test_degraded_console_posture_when_exporters_fail(monkeypatch):
-    """Test that posture accurately flags degraded_console when remote exporters cannot initialize."""
-    import sys
-    from unittest.mock import MagicMock
-
-    from myrm_agent_harness.infra.tracing import (
-        get_telemetry_posture,
-        setup_tracing,
-        shutdown_tracing,
-    )
-
-    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-    shutdown_tracing()
-
-    # otel >= 1.45 exporters connect lazily, so an unreachable endpoint no
-    # longer fails setup. Simulate the real degradation path instead: exporter
-    # construction itself raises, for both the HTTP and gRPC candidates.
-    mock_http_module = MagicMock()
-    mock_http_module.OTLPSpanExporter.side_effect = RuntimeError("http exporter init failed")
-    mock_grpc_module = MagicMock()
-    mock_grpc_module.OTLPSpanExporter.side_effect = RuntimeError("grpc exporter init failed")
-    monkeypatch.setitem(
-        sys.modules,
-        "opentelemetry.exporter.otlp.proto.http.trace_exporter",
-        mock_http_module,
-    )
-    monkeypatch.setitem(
-        sys.modules,
-        "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
-        mock_grpc_module,
-    )
-
-    setup_tracing(
-        service_name="test-degraded-svc",
-        otlp_endpoint="http://broken-collector:4318",
-        otlp_protocol="http/protobuf",
-    )
-
-    posture = get_telemetry_posture()
-    assert posture["status"] == "degraded_console"
-    assert posture["exporter_type"] == "console"
-    assert "fallback to console" in str(posture["degraded_reason"])
-
-    shutdown_tracing()
-
-
 def test_vcs_metadata_injection_in_tracing_resource():
     """Verify VCS git branch and commit metadata is captured into resource and posture."""
-    from myrm_agent_harness.infra.tracing import (
-        get_telemetry_posture,
-        setup_tracing,
-        shutdown_tracing,
-        tracer,
-    )
-
-    shutdown_tracing()
     setup_tracing(service_name="test-vcs-svc", console_export=True)
 
     posture = get_telemetry_posture()
@@ -288,7 +122,6 @@ def test_vcs_metadata_injection_in_tracing_resource():
     assert "git_branch" in posture
     assert "git_commit" in posture
     assert tracer._tracer_provider is not None
-    # Check attributes of provider's resource
     resource_attrs = tracer._tracer_provider.resource.attributes
     assert "service.name" in resource_attrs
     if posture["git_branch"]:
@@ -297,20 +130,9 @@ def test_vcs_metadata_injection_in_tracing_resource():
     shutdown_tracing()
 
 
-def test_force_flush_tracing_bounded():
-    """Verify force_flush_tracing operates cleanly with bounded timeout."""
-    from myrm_agent_harness.infra.tracing import (
-        force_flush_tracing,
-        setup_tracing,
-        shutdown_tracing,
-    )
-
-    shutdown_tracing()
-    # Uninitialized returns False
+def test_force_flush_tracing_bounded(http_receiver: OtlpHttpReceiver):
+    """force_flush_tracing is False before setup and True once a destination is configured."""
     assert force_flush_tracing() is False
 
-    setup_tracing(service_name="test-flush-tracing", console_export=False)
+    setup_tracing(service_name="test-flush-tracing", otlp_endpoint=http_receiver.endpoint)
     assert force_flush_tracing(timeout_ms=1000.0) is True
-    shutdown_tracing()
-
-

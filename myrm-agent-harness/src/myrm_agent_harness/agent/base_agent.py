@@ -395,43 +395,30 @@ class BaseAgent(BaseAgentModesMixin):
 
         self._is_running = True
 
-        from myrm_agent_harness.infra.tracing import get_tracer
+        from myrm_agent_harness.infra.tracing.gen_ai import AgentRunSpan
 
-        tracer = get_tracer("agent.run")
         try:
-            span = tracer.start_span("agent.run")
-            span.set_attribute("agent.type", type(self).__name__)
-            # OpenTelemetry GenAI Semantic Conventions
-            span.set_attribute("gen_ai.system", "myrm-agent")
-            span.set_attribute("gen_ai.operation.name", "agent.turn")
-            if message_id:
-                span.set_attribute("agent.message_id", message_id)
-                span.set_attribute("gen_ai.conversation.id", message_id)
-            query_text = query if isinstance(query, str) else str(query)[:200]
-            span.set_attribute("agent.query", query_text)
-            span.set_attribute("gen_ai.prompt", query_text)
-
+            agent_span = AgentRunSpan(
+                agent_type=type(self).__name__,
+                query=query,
+                context_values=context,
+                message_id=message_id,
+            )
             try:
-                async for event in self._run_internal(
-                    query=query,
-                    chat_history=chat_history,
-                    message_id=message_id,
-                    context=context,
-                    cancel_token=cancel_token,
-                    steering_token=steering_token,
-                    timezone=timezone,
+                async for event in agent_span.scope(
+                    self._run_internal(
+                        query=query,
+                        chat_history=chat_history,
+                        message_id=message_id,
+                        context=context,
+                        cancel_token=cancel_token,
+                        steering_token=steering_token,
+                        timezone=timezone,
+                    )
                 ):
                     yield event
-                span.set_attribute("agent.status", "completed")
-                span.set_attribute("gen_ai.response.status", "success")
-            except Exception as exc:
-                span.set_attribute("agent.status", "error")
-                span.set_attribute("gen_ai.response.status", "error")
-                span.set_attribute("error.type", type(exc).__name__)
-                span.record_exception(exc)
-                raise
             finally:
-                span.end()
+                agent_span.end()
         finally:
             self._is_running = False
             if self._cache_keepalive is not None:

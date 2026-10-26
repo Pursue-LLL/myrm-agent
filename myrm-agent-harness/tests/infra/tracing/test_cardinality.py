@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.infra.tracing.metrics.cardinality import DynamicLabelManager
+import ast
+from pathlib import Path
+
+from myrm_agent_harness.infra.tracing.metrics.cardinality import (
+    HIGH_CARDINALITY_LABEL_BLOCKLIST,
+    DynamicLabelManager,
+)
+
+_SOURCE_ROOT = Path(__file__).resolve().parents[3] / "src" / "myrm_agent_harness"
 
 
 def test_first_access_below_threshold_is_other() -> None:
@@ -47,3 +55,33 @@ def test_get_tracked_entities_returns_copy() -> None:
     s1.add("mutated")
     s2 = mgr.get_tracked_entities()
     assert "mutated" not in s2
+
+
+def _literal_instrument_attribute_keys() -> dict[str, list[str]]:
+    """Attribute keys written as literals at ``instrument.add(...)`` / ``instrument.record(...)`` call sites."""
+    keys: dict[str, list[str]] = {}
+    for path in _SOURCE_ROOT.rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"add", "record"}
+            ):
+                continue
+            literals = [arg for arg in node.args[1:] if isinstance(arg, ast.Dict)]
+            literals += [kw.value for kw in node.keywords if kw.arg == "attributes" and isinstance(kw.value, ast.Dict)]
+            for literal in literals:
+                for key in literal.keys:
+                    if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                        keys.setdefault(key.value, []).append(f"{path.relative_to(_SOURCE_ROOT)}:{node.lineno}")
+    return keys
+
+
+def test_no_instrument_records_an_unbounded_identifier_as_an_attribute() -> None:
+    """One time series exists per attribute value, so an identifier-valued attribute is a memory leak by design."""
+    keys = _literal_instrument_attribute_keys()
+    assert {"model", "memory_type"} <= keys.keys(), "the scan must see the real attribute keys, not nothing"
+    offenders = {
+        key: sites for key, sites in keys.items() if key in HIGH_CARDINALITY_LABEL_BLOCKLIST or key.endswith("_id")
+    }
+    assert offenders == {}

@@ -403,7 +403,7 @@ class TestResponsesWireAgenerateStreaming:
     @pytest.mark.asyncio
     async def test_agenerate_streaming_exports_responses_reasoning_items(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Responses wire + streaming _agenerate must preserve reasoning blobs for Turn2 replay."""
-        import myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin as async_mod
+        import myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin as async_mod
         from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import (
             responses_event_to_completion_chunk,
         )

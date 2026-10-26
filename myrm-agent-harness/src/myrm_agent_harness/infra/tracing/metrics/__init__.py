@@ -9,18 +9,16 @@ Provides unified API for metrics collection and export to various backends.
 [OUTPUT]
 - setup_metrics: 初始化 Metrics 导出
 - get_meter: 获取 Meter 实例
-- MetricsExporter: 导出器接口
 - get_metrics_collector: 获取 MetricsCollector 单例
 
 [POS]
-Metrics export module. Supports Prometheus, OTLP, Console, and other exporters.
+Metrics export module. Pushes OTLP (HTTP/protobuf or gRPC) through the same pipeline as tracing; Prometheus stays a business-layer concern.
 
 """
 
 from .cardinality import DynamicLabelManager, sanitize_metric_labels
 from .collector import MetricsCollector, get_metrics_collector
 from .exporter import (
-    MetricsExporter,
     force_flush_metrics,
     get_meter_provider,
     is_metrics_initialized,
@@ -32,7 +30,6 @@ from .meter import get_meter
 __all__ = [
     "DynamicLabelManager",
     "MetricsCollector",
-    "MetricsExporter",
     "force_flush_metrics",
     "get_meter",
     "get_meter_provider",

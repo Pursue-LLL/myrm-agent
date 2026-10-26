@@ -395,24 +395,31 @@ async def check_local_trace_export_audit() -> HealthReport:
     Validates that:
     1. In local-trace-only mode (MYRM_LOCAL_TRACE_ONLY=1), no remote OTLP export occurs.
     2. Any remote endpoint is flagged, ensuring compliance with strict privacy baselines.
+
+    Every configured endpoint (general and per-signal) is audited by its parsed host, not by a
+    prefix match on the raw variable.
     """
-    from myrm_agent_harness.infra.tracing.tracer import is_local_trace_only
+    from myrm_agent_harness.infra.tracing.otlp.config import (
+        configured_endpoints,
+        is_local_endpoint,
+        is_local_trace_only,
+        redact_endpoint,
+    )
 
     local_only = is_local_trace_only()
-    otlp_ep = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    endpoints = configured_endpoints()
 
     if local_only:
-        if otlp_ep and not otlp_ep.startswith(
-            ("http://localhost", "http://127.0.0.1", "grpc://localhost", "grpc://127.0.0.1")
-        ):
+        remote = [redact_endpoint(endpoint) for endpoint in endpoints if not is_local_endpoint(endpoint)]
+        if remote:
             return HealthReport(
                 component_name="TraceExportAudit",
                 status="fail",
                 code="ERR_TRACE_REMOTE_LEAK_RISK",
                 message="Remote trace endpoint detected while local-trace-only mode is active.",
-                detail=f"Blocked external endpoint: '{otlp_ep}'. Trace data will remain local only.",
+                detail=f"Blocked external endpoint: '{remote[0]}'. Telemetry will not be exported to it.",
                 fix_suggestion="Unset OTEL_EXPORTER_OTLP_ENDPOINT or use a localhost collector in local mode.",
-                meta_data={"local_trace_only": True, "blocked_endpoint": otlp_ep},
+                meta_data={"local_trace_only": True, "blocked_endpoint": remote[0]},
             )
         return HealthReport(
             component_name="TraceExportAudit",
@@ -429,7 +436,10 @@ async def check_local_trace_export_audit() -> HealthReport:
         code="OK_TRACE_EXPORT_STANDARD",
         message="Trace export operating in standard mode.",
         detail="Standard telemetry export active.",
-        meta_data={"local_trace_only": False, "otlp_endpoint": otlp_ep or "none"},
+        meta_data={
+            "local_trace_only": False,
+            "otlp_endpoint": redact_endpoint(endpoints[0]) if endpoints else "none",
+        },
     )
 
 

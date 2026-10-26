@@ -4,6 +4,7 @@
 - asyncio, time, sys, resource, psutil (Standard library runtime metrics + current process RSS)
 - myrm_agent_harness.observability.diagnostics.manager::register_diagnostic (POS: 探针自动注册)
 - myrm_agent_harness.observability.diagnostics.protocols::HealthReport (POS: 标准健康检查报告)
+- myrm_agent_harness.infra.tracing.otlp.config::resolve_target, sdk_disabled (POS: the one resolver of where telemetry is exported)
 - myrm_agent_harness.infra.tracing.tracer::is_tracing_initialized (POS: OTLP trace SDK posture)
 - myrm_agent_harness.infra.tracing.metrics.exporter::is_metrics_initialized (POS: OTLP metrics SDK posture)
 
@@ -21,7 +22,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
 import time
 from collections.abc import Sequence
@@ -161,11 +161,17 @@ class GatewayHealthInspector:
 
     @classmethod
     def check_otlp_posture(cls) -> tuple[bool, bool]:
-        """Check OTLP export environment configuration and SDK initialization status."""
-        otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") or os.environ.get(
-            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+        """Report whether OTLP export is configured and whether a pipeline is live.
+
+        "Configured" follows the same resolution as export itself: an endpoint resolves for traces or
+        metrics and the SDK is not switched off, so a deliberate ``OTEL_SDK_DISABLED`` or
+        ``OTEL_<SIGNAL>_EXPORTER=none`` is not reported as a broken connection.
+        """
+        from myrm_agent_harness.infra.tracing.otlp.config import resolve_target, sdk_disabled
+
+        is_configured = not sdk_disabled() and any(
+            resolve_target(signal) is not None for signal in ("traces", "metrics")
         )
-        is_configured = bool(otlp_endpoint and otlp_endpoint.strip())
 
         is_connected = False
         try:

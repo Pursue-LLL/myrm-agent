@@ -30,12 +30,41 @@ class TestGatewayHealthInspectorVitals:
 
 
 class TestGatewayHealthInspectorOtlpPosture:
-    def test_otlp_not_configured_when_env_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+    @pytest.fixture(autouse=True)
+    def _standard_otlp_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for name in (
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_METRICS_EXPORTER",
+            "OTEL_SDK_DISABLED",
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+    def test_otlp_not_configured_when_env_missing(self) -> None:
         configured, connected = GatewayHealthInspector.check_otlp_posture()
         assert configured is False
         assert connected is False
+
+    def test_a_deliberately_disabled_sdk_is_not_reported_as_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+        monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
+        configured, _ = GatewayHealthInspector.check_otlp_posture()
+        assert configured is False
+
+    def test_both_signals_switched_off_is_not_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+        monkeypatch.setenv("OTEL_TRACES_EXPORTER", "none")
+        monkeypatch.setenv("OTEL_METRICS_EXPORTER", "none")
+        configured, _ = GatewayHealthInspector.check_otlp_posture()
+        assert configured is False
+
+    def test_a_metrics_only_endpoint_counts_as_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://localhost:4318/v1/metrics")
+        monkeypatch.setenv("OTEL_TRACES_EXPORTER", "none")
+        configured, _ = GatewayHealthInspector.check_otlp_posture()
+        assert configured is True
 
     def test_otlp_configured_and_tracing_connected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
@@ -160,8 +189,5 @@ class TestGatewayHealthRegistration:
     def test_probe_registered_in_diagnostic_manager(self) -> None:
         import myrm_agent_harness.observability.diagnostics.manager as manager_module
 
-        hook_names = [
-            getattr(hook, "__name__", "")
-            for hook in manager_module._diagnostic_hooks
-        ]
+        hook_names = [getattr(hook, "__name__", "") for hook in manager_module._diagnostic_hooks]
         assert "check_gateway_runtime_health" in hook_names

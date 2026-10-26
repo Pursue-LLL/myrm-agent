@@ -5,7 +5,6 @@
 
 [OUTPUT]
 - TraceSpanSanitizer: 三层渐进式 Trace 属性与 Payload 脱敏清洗器
-- SanitizingSpanProcessor: OpenTelemetry 导出前脱敏 Span 处理器
 - sanitize_trace_attributes: 顶层无状态 Span 属性清洗快捷函数
 - sanitize_trace_payload: 任意嵌套 JSONL / EventLog 追踪数据安全清洗器
 
@@ -24,18 +23,6 @@ import re
 from collections.abc import Mapping, Sequence
 
 from myrm_agent_harness.core.security.redact.engine import redact_sensitive_text
-
-try:
-    from opentelemetry.context import Context
-    from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-
-    HAS_OTEL_SDK = True
-except (ImportError, TypeError):
-    HAS_OTEL_SDK = False
-    SpanProcessor = object  # type: ignore[assignment,misc]
-    ReadableSpan = object  # type: ignore[assignment,misc]
-    Span = object  # type: ignore[assignment,misc]
-    Context = object  # type: ignore[assignment,misc]
 
 type AttributePrimitive = str | int | float | bool
 type AttributeValue = AttributePrimitive | Sequence[AttributePrimitive]
@@ -69,7 +56,6 @@ _SENSITIVE_KEY_KEYWORDS: tuple[str, ...] = (
     "apikey",
     "secret_key",
     "access_key",
-    "private_key",
     "key",
 )
 
@@ -133,7 +119,7 @@ class TraceSpanSanitizer:
             return f"{redacted[:head_len]}... [TRUNCATED:len={length}:sha256={fp}]"
         return redacted
 
-    def sanitize_attribute_value(self, val: AttributeValue) -> AttributeValue:
+    def sanitize_attribute_value(self, val: object) -> AttributeValue:
         """Scrub scalar or sequence attribute values preserving primitive types."""
         if isinstance(val, str):
             return self.sanitize_string_value(val)
@@ -149,22 +135,22 @@ class TraceSpanSanitizer:
             return sanitized_list
         return str(val)
 
+    def sanitize_attribute(self, key: str, value: object) -> AttributeValue:
+        """Layer 1 + 2 + 3 for one span attribute.
+
+        A credential-looking key withholds a text value only: a number cannot be a credential, and
+        counters such as ``llm.token_count.prompt`` must keep their value.
+        """
+        if isinstance(value, str) and not self.is_safe_key(key):
+            return "[REDACTED_SENSITIVE_KEY]"
+        return self.sanitize_attribute_value(value)
+
     def sanitize_attributes(
         self,
-        attributes: Mapping[str, AttributeValue],
+        attributes: Mapping[str, object],
     ) -> dict[str, AttributeValue]:
         """Layer 1 + 2 + 3 combined sanitization over span attributes."""
-        sanitized: dict[str, AttributeValue] = {}
-        for k, v in attributes.items():
-            lower_k = k.lower()
-            if any(keyword in lower_k for keyword in _SENSITIVE_KEY_KEYWORDS) and not any(
-                lower_k.startswith(p) for p in self._safe_prefixes
-            ):
-                # High-risk raw key blocked
-                sanitized[k] = "[REDACTED_SENSITIVE_KEY]"
-                continue
-            sanitized[k] = self.sanitize_attribute_value(v)
-        return sanitized
+        return {key: self.sanitize_attribute(key, value) for key, value in attributes.items()}
 
     def sanitize_payload(self, payload: Mapping[str, object]) -> dict[str, object]:
         """Recursively scrub arbitrary JSON-serializable payloads for trace export."""
@@ -208,43 +194,3 @@ def sanitize_trace_attributes(
 def sanitize_trace_payload(payload: Mapping[str, object]) -> dict[str, object]:
     """Pure convenience helper to sanitize trace event payloads via default sanitizer."""
     return _DEFAULT_SANITIZER.sanitize_payload(payload)
-
-
-class SanitizingSpanProcessor(SpanProcessor):
-    """OpenTelemetry SpanProcessor that scrubs sensitive attributes before downstream export."""
-
-    def __init__(
-        self,
-        sanitizer: TraceSpanSanitizer | None = None,
-        max_value_len: int | None = None,
-    ) -> None:
-        if sanitizer is not None:
-            self._sanitizer = sanitizer
-        elif max_value_len is not None:
-            self._sanitizer = TraceSpanSanitizer(max_value_len=max_value_len)
-        else:
-            self._sanitizer = _DEFAULT_SANITIZER
-
-    def on_start(self, span: Span, parent_context: Context | None = None) -> None:
-        pass
-
-    def on_end(self, span: ReadableSpan) -> None:
-        attrs = getattr(span, "_attributes", None)
-        if attrs is not None:
-            inner_dict = getattr(attrs, "_dict", None)
-            if isinstance(inner_dict, dict):
-                sanitized = self._sanitizer.sanitize_attributes(inner_dict)
-                inner_dict.clear()
-                inner_dict.update(sanitized)
-            elif isinstance(attrs, Mapping):
-                sanitized = self._sanitizer.sanitize_attributes(attrs)
-                try:
-                    object.__setattr__(span, "_attributes", sanitized)
-                except Exception:
-                    pass
-
-    def shutdown(self) -> None:
-        pass
-
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
-        return True

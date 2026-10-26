@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from langchain_core.messages import AIMessageChunk, BaseMessage
+from langchain_core.messages import AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
 from myrm_agent_harness.infra.memo.call_scope import (
@@ -87,7 +87,8 @@ class MemoRun:
     @property
     def replay(self) -> dict[str, object] | None:
         """The recorded answer, or None when this call has to reach the model."""
-        return self.attempt.response
+        response: dict[str, object] | None = self.attempt.response
+        return response
 
     def begin(self) -> None:
         start_memo_call(self.scope, self.attempt, self.model_name)
@@ -102,10 +103,10 @@ class MemoRun:
         fail_memo_call(self.scope, self.attempt, self.model_name, str(error))
 
 
-def memo_run(model_name: str, messages: list[BaseMessage], params: dict[str, Any]) -> MemoRun:
+def memo_run(model_name: str, message_dicts: list[dict[str, Any]], params: dict[str, Any]) -> MemoRun:
     """Open a memo handle for this request identity."""
     scope = current_llm_call_scope()
-    attempt = begin_memo_call(scope, model_name, messages, params)
+    attempt = begin_memo_call(scope, model_name, message_dicts, params)
     return MemoRun(scope=scope, attempt=attempt, model_name=model_name)
 
 

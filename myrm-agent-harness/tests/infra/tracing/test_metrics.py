@@ -1,206 +1,129 @@
-"""Unit tests for metrics collection and export."""
+"""Metrics export on the shared OTLP pipeline, plus the cardinality firewall of the collector."""
 
-import time
+from __future__ import annotations
+
+import sys
+from unittest.mock import MagicMock
 
 import pytest
 
+from myrm_agent_harness.infra.tracing import is_tracing_initialized, setup_tracing
 from myrm_agent_harness.infra.tracing.metrics import (
-    MetricsExporter,
+    force_flush_metrics,
     get_meter,
+    get_meter_provider,
+    is_metrics_initialized,
+    sanitize_metric_labels,
     setup_metrics,
+    shutdown_metrics,
 )
 
-
-@pytest.fixture(autouse=True)
-def reset_metrics():
-    """Reset metrics state between tests."""
-    import myrm_agent_harness.infra.tracing.metrics.exporter as exporter_module
-
-    exporter_module._meter_provider = None
-    exporter_module._initialized = False
-    yield
+from ._receivers import OtlpGrpcReceiver, OtlpHttpReceiver
 
 
-def test_setup_metrics_console():
-    """Test metrics setup with console exporter."""
-    setup_metrics(
-        service_name="test-service",
-        exporter=MetricsExporter.CONSOLE,
-        export_interval_ms=1000,
-    )
-
-    # Verify meter can be obtained
-    meter = get_meter("test")
-    assert meter is not None
+def _record_and_flush() -> None:
+    get_meter("tests.metrics").create_counter("tests.counter").add(3, {"tool": "bash"})
+    assert force_flush_metrics(timeout_ms=5000)
 
 
-def test_setup_metrics_idempotent():
-    """Test metrics setup is idempotent."""
-    setup_metrics(service_name="test-service")
-    setup_metrics(service_name="test-service")  # Should not raise
+def test_metrics_reach_an_http_collector_on_the_metrics_path(http_receiver: OtlpHttpReceiver) -> None:
+    setup_metrics(service_name="svc-metrics", otlp_endpoint=http_receiver.endpoint)
+    _record_and_flush()
+
+    assert http_receiver.wait_for(lambda: bool(http_receiver.metrics()))
+    assert http_receiver.paths() == ["/v1/metrics"]
+    [metric] = [m for m in http_receiver.metrics() if m.name == "tests.counter"]
+    assert metric.resource["service.name"] == "svc-metrics"
+    assert metric.points == [{"tool": "bash", "__value": 3}]
 
 
-def test_counter_metric():
-    """Test creating and using a counter metric."""
-    setup_metrics(service_name="test-service", export_interval_ms=1000)
+def test_metrics_reach_a_grpc_collector(grpc_receiver: OtlpGrpcReceiver) -> None:
+    setup_metrics(otlp_endpoint=grpc_receiver.endpoint, otlp_protocol="grpc")
+    _record_and_flush()
 
-    meter = get_meter("test")
-    counter = meter.create_counter(
-        name="test_counter",
-        description="Test counter metric",
-        unit="1",
-    )
-
-    # Record some values
-    counter.add(1, {"key": "value1"})
-    counter.add(5, {"key": "value2"})
-    counter.add(3, {"key": "value1"})
-
-    # No assertion - just verify no errors
+    assert grpc_receiver.wait_for(lambda: any(m.name == "tests.counter" for m in grpc_receiver.metrics()))
 
 
-def test_histogram_metric():
-    """Test creating and using a histogram metric."""
-    setup_metrics(service_name="test-service", export_interval_ms=1000)
+def test_one_general_endpoint_serves_traces_and_metrics(
+    http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from myrm_agent_harness.infra.tracing import force_flush_tracing, trace_context
 
-    meter = get_meter("test")
-    histogram = meter.create_histogram(
-        name="test_histogram",
-        description="Test histogram metric",
-        unit="ms",
-    )
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", http_receiver.endpoint)
+    setup_tracing(service_name="svc-both")
+    setup_metrics(service_name="svc-both")
+    with trace_context("tests", "op"):
+        pass
+    assert force_flush_tracing(timeout_ms=5000)
+    _record_and_flush()
 
-    # Record some latencies
-    histogram.record(10.5, {"endpoint": "/api/v1"})
-    histogram.record(25.3, {"endpoint": "/api/v1"})
-    histogram.record(15.7, {"endpoint": "/api/v2"})
-
-
-def test_gauge_metric():
-    """Test creating and using a gauge metric."""
-    setup_metrics(service_name="test-service", export_interval_ms=1000)
-
-    meter = get_meter("test")
-
-    from opentelemetry.metrics import Observation
-
-    # Create observable gauge with callback
-    def get_memory_usage(options):
-        return [
-            Observation(100.5, {"type": "heap"}),
-            Observation(50.2, {"type": "stack"}),
-        ]
-
-    meter.create_observable_gauge(
-        name="test_gauge",
-        description="Test gauge metric",
-        unit="MB",
-        callbacks=[get_memory_usage],
-    )
-
-    # Wait a bit for callback to be invoked
-    time.sleep(0.1)
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()) and bool(http_receiver.metrics()))
+    assert set(http_receiver.paths()) == {"/v1/traces", "/v1/metrics"}
 
 
-def test_up_down_counter_metric():
-    """Test creating and using an up-down counter metric."""
-    setup_metrics(service_name="test-service", export_interval_ms=1000)
+def test_metrics_can_be_switched_off_without_touching_traces(
+    http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", http_receiver.endpoint)
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "none")
+    setup_tracing()
+    setup_metrics()
 
-    meter = get_meter("test")
-    counter = meter.create_up_down_counter(
-        name="test_up_down_counter",
-        description="Test up-down counter metric",
-        unit="1",
-    )
-
-    # Record some values
-    counter.add(10, {"queue": "pending"})
-    counter.add(-5, {"queue": "pending"})
-    counter.add(3, {"queue": "pending"})
+    assert is_tracing_initialized()
+    assert not is_metrics_initialized()
 
 
-def test_multiple_meters():
-    """Test creating multiple meters."""
-    setup_metrics(service_name="test-service")
+def test_metrics_stay_off_without_a_destination() -> None:
+    setup_metrics(service_name="svc-off")
 
-    meter1 = get_meter("module1")
-    meter2 = get_meter("module2")
-
-    assert meter1 is not None
-    assert meter2 is not None
-
-    # Create metrics in different meters
-    counter1 = meter1.create_counter("counter1")
-    counter2 = meter2.create_counter("counter2")
-
-    counter1.add(1)
-    counter2.add(2)
-
-    def test_get_meter_provider():
-        """Test getting MeterProvider instance."""
-        from myrm_agent_harness.infra.tracing.metrics.exporter import get_meter_provider
-
-        # Initially None - wait, in test environment it might be preserved from other tests.
-        # But after setup, it MUST NOT be None if SDK is available
-        try:
-            import opentelemetry.sdk.metrics  # noqa
-        except ImportError:
-            pytest.skip("opentelemetry-sdk not installed")
-
-        # After setup
-        setup_metrics(service_name="test-service")
-        provider = get_meter_provider()
-        assert provider is not None
+    assert not is_metrics_initialized()
+    assert get_meter_provider() is None
 
 
-def test_setup_metrics_invalid_exporter():
-    """Test setup with invalid exporter raises error."""
-    try:
-        import opentelemetry.sdk.metrics  # noqa
-    except ImportError:
-        pytest.skip("opentelemetry-sdk not installed")
-    with pytest.raises(ValueError, match="Unsupported exporter"):
-        setup_metrics(service_name="test", exporter="invalid")  # type: ignore
+def test_the_kill_switch_turns_metrics_off(http_receiver: OtlpHttpReceiver, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
+    setup_metrics(otlp_endpoint=http_receiver.endpoint)
+
+    assert not is_metrics_initialized()
 
 
-def test_setup_metrics_otlp_missing_endpoint():
-    """Test OTLP exporter requires endpoint parameter or raises ImportError."""
-    try:
-        import opentelemetry.sdk.metrics  # noqa
-    except ImportError:
-        pytest.skip("opentelemetry-sdk not installed")
-    try:
-        with pytest.raises(ValueError, match="otlp_endpoint is required"):
-            setup_metrics(
-                service_name="test",
-                exporter=MetricsExporter.OTLP,
-                otlp_endpoint=None,
-            )
-    except (ImportError, TypeError):
-        # OTLP package not installed, skip
-        pytest.skip("OTLP exporter package not installed")
+def test_a_missing_http_exporter_leaves_metrics_off_and_never_swaps_protocol(
+    http_receiver: OtlpHttpReceiver, grpc_receiver: OtlpGrpcReceiver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(sys.modules, "opentelemetry.exporter.otlp.proto.http.metric_exporter", None)
+    setup_metrics(otlp_endpoint=http_receiver.endpoint)
+
+    assert not is_metrics_initialized()
+    assert http_receiver.requests == [] and grpc_receiver.requests == []
 
 
-def test_setup_metrics_otlp_success():
-    """Test OTLP exporter setup with valid endpoint."""
-    try:
-        setup_metrics(
-            service_name="test",
-            exporter=MetricsExporter.OTLP,
-            otlp_endpoint="http://localhost:4317",
-        )
-        # If package is installed, should succeed
-        meter = get_meter("test")
-        assert meter is not None
-    except (ImportError, TypeError):
-        # If package not installed, should raise informative error
-        pytest.skip("OTLP exporter package not installed")
+def test_a_remote_endpoint_is_refused_in_local_trace_only_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MYRM_LOCAL_TRACE_ONLY", "1")
+
+    with pytest.raises(PermissionError):
+        setup_metrics(otlp_endpoint="http://localhost.attacker.example:4318")
 
 
-def test_sanitize_metric_labels_blocks_high_cardinality():
+def test_console_export_for_development() -> None:
+    setup_metrics(service_name="svc-console", console_export=True, export_interval_ms=1000)
+
+    assert is_metrics_initialized()
+    assert force_flush_metrics(timeout_ms=3000) is True
+
+
+def test_setup_is_idempotent_and_shutdown_resets_the_accessors(http_receiver: OtlpHttpReceiver) -> None:
+    assert not force_flush_metrics()
+    setup_metrics(otlp_endpoint=http_receiver.endpoint)
+    first = get_meter_provider()
+    setup_metrics(otlp_endpoint=http_receiver.endpoint)
+
+    assert is_metrics_initialized() and get_meter_provider() is first
+    assert shutdown_metrics(timeout_ms=3000) is True
+    assert not is_metrics_initialized() and get_meter_provider() is None
+
+
+def test_sanitize_metric_labels_blocks_high_cardinality() -> None:
     """Verify CardinalityFirewall strips unbounded keys and preserves safe keys."""
-    from myrm_agent_harness.infra.tracing.metrics import sanitize_metric_labels
-
     raw_labels = {
         "session_id": "sess_abc123",
         "turn_id": "turn_001",
@@ -219,10 +142,8 @@ def test_sanitize_metric_labels_blocks_high_cardinality():
     assert sanitized["count"] == "42"
 
 
-def test_metrics_collector_with_cardinality_firewall():
+def test_metrics_collector_with_cardinality_firewall() -> None:
     """Verify MetricsCollector transparently cleans high-cardinality labels."""
-    from unittest.mock import MagicMock
-
     from myrm_agent_harness.infra.tracing.metrics.collector import MetricsCollector
 
     mock_meter = MagicMock()
@@ -239,7 +160,7 @@ def test_metrics_collector_with_cardinality_firewall():
     mock_counter.add.assert_called_once_with(1, attributes={"tool": "file_read"})
 
 
-def test_dynamic_label_manager_lru_and_threshold():
+def test_dynamic_label_manager_lru_and_threshold() -> None:
     """Verify DynamicLabelManager tracks frequent entities and falls back to 'other'."""
     from myrm_agent_harness.infra.tracing.metrics.cardinality import DynamicLabelManager
 
@@ -267,10 +188,8 @@ def test_dynamic_label_manager_lru_and_threshold():
     assert len(manager.get_tracked_entities()) == 0
 
 
-def test_metrics_collector_gauge_and_histogram():
+def test_metrics_collector_gauge_and_histogram() -> None:
     """Verify MetricsCollector gauge and histogram methods sanitize labels properly."""
-    from unittest.mock import MagicMock
-
     from myrm_agent_harness.infra.tracing.metrics.collector import MetricsCollector
 
     mock_meter = MagicMock()
@@ -285,53 +204,3 @@ def test_metrics_collector_gauge_and_histogram():
 
     collector.histogram("agent.turn.duration_ms", 120.5, labels={"workspace": "/tmp/ws", "status": "ok"})
     mock_histogram.record.assert_called_once_with(120.5, attributes={"status": "ok"})
-
-
-def test_force_flush_metrics_bounded():
-    """Verify force_flush_metrics handles uninitialized and active states."""
-    from myrm_agent_harness.infra.tracing.metrics import (
-        MetricsExporter,
-        force_flush_metrics,
-        setup_metrics,
-    )
-
-    # Uninitialized returns False
-    assert not force_flush_metrics()
-
-    setup_metrics(service_name="test-flush", exporter=MetricsExporter.CONSOLE)
-    # Active console provider flush completes quickly
-    assert force_flush_metrics(timeout_ms=1000.0) is True
-
-
-def test_setup_metrics_validation_and_accessors():
-    """Verify input validation and status accessors for metrics exporter."""
-    from myrm_agent_harness.infra.tracing.metrics import (
-        MetricsExporter,
-        get_meter_provider,
-        is_metrics_initialized,
-        setup_metrics,
-        shutdown_metrics,
-    )
-
-    # Initial state
-    assert not is_metrics_initialized()
-    assert get_meter_provider() is None
-
-    # Invalid exporter
-    with pytest.raises(ValueError, match="Unsupported exporter"):
-        setup_metrics(exporter="unsupported_type")  # type: ignore
-
-    # Missing OTLP endpoint
-    with pytest.raises(ValueError, match="otlp_endpoint is required"):
-        setup_metrics(exporter=MetricsExporter.OTLP, otlp_endpoint="")
-
-    # Valid console setup
-    setup_metrics(service_name="test-accessors", exporter=MetricsExporter.CONSOLE)
-    assert is_metrics_initialized()
-    assert get_meter_provider() is not None
-
-    # Clean shutdown
-    assert shutdown_metrics(timeout_ms=1000.0) is True
-    assert not is_metrics_initialized()
-    assert get_meter_provider() is None
-

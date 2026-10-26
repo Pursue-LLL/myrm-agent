@@ -1,286 +1,212 @@
 # Trace Storage Integration Guide
 
-> Production-ready guide for exporting traces to Jaeger, Zipkin, or other OTLP-compatible backends.
+> Export agent traces and metrics to Jaeger, Grafana Tempo, Langfuse, Phoenix, Datadog or any other OTLP-compatible backend, configured entirely through the standard OpenTelemetry environment.
 
 ## Overview
 
-`myrm-agent-harness` uses OpenTelemetry for distributed tracing. The framework provides:
+`myrm-agent-harness` emits OpenTelemetry telemetry through the OpenTelemetry **API** only:
 
-- **Consumer API**: `get_tracer()`, `trace_async()`, `trace_context()` (used internally)
-- **Convenience function**: `setup_tracing()` (called by business layer)
+- **GenAI span tree** per agent run: `invoke_agent {agent}` → `chat {model}` / `execute_tool {tool}`; sub-agents appear as subtrees under the tool call that started them.
+- **Standard GenAI client metrics** per model call: `gen_ai.client.token.usage`, `gen_ai.client.operation.duration`, `gen_ai.client.operation.time_to_first_chunk`.
+- **Consumer helpers** for framework code: `get_tracer()`, `trace_async()`, `trace_context()`.
+- **Setup helpers** for the business layer: `setup_tracing()`, `setup_metrics()`. The framework never calls them itself.
 
-Without explicit initialization, OpenTelemetry uses NoOp provider (zero overhead).
+Without a setup call (or without an endpoint) OpenTelemetry keeps its NoOp providers: zero overhead, nothing leaves the process. What is exported is decided in one place, the exporter-boundary privacy guard (see [Privacy](#privacy)).
 
 ---
 
-## Quick Start: Export to Jaeger
+## Quick Start: Jaeger over OTLP/HTTP
 
-### Step 1: Install Dependencies
+### 1. Install
 
 ```bash
-# Install observability extra (SDK + OTLP exporter + LangChain instrumentation)
-uv sync --extra observability
+uv sync --extra observability   # SDK + OTLP/HTTP and OTLP/gRPC exporters
 ```
 
-### Step 2: Start Jaeger (Docker)
+### 2. Start a backend
 
 ```bash
 docker run --rm -d --name jaeger \
   -p 16686:16686 \
-  -p 4317:4317 \
+  -p 4318:4318 \
   jaegertracing/all-in-one:latest
 ```
 
-Access Jaeger UI: `http://localhost:16686`
+UI: `http://localhost:16686`
 
-### Step 3: Initialize Tracing
+### 3. Point the process at it
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+export OTEL_SERVICE_NAME=my-agent
+```
+
+### 4. Initialize in the business layer
 
 ```python
 from myrm_agent_harness.infra.tracing import setup_tracing
+from myrm_agent_harness.infra.tracing.metrics import setup_metrics
 
-# Add OTLP exporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry import trace
-
-# Create provider
-provider = TracerProvider()
-
-# Add OTLP exporter (Jaeger supports OTLP protocol)
-otlp_exporter = OTLPSpanExporter(
-    endpoint="http://localhost:4317",  # Jaeger OTLP port
-    insecure=True,  # For local development
-)
-provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-
-# Set global provider
-trace.set_tracer_provider(provider)
+setup_tracing(service_name="my-agent")
+setup_metrics(service_name="my-agent")
 ```
 
-### Step 4: Verify
+Both calls read the same endpoint, protocol, headers and resource. Export is on exactly when an endpoint is configured.
 
-Run your agent, then open `http://localhost:16686` and search for traces.
+### 5. Verify
+
+```python
+from myrm_agent_harness.infra.tracing import get_telemetry_posture
+
+print(get_telemetry_posture())  # status, endpoint, protocol, sampler, exported/failed counters
+```
+
+`status` is `active` while batches are accepted, `failing` after the last export failed, `degraded` when the requested protocol cannot be served, `disabled` under the kill switch, `noop` without an endpoint. Every field is measured from live state, and credentials in the endpoint are redacted.
 
 ---
 
-## Alternative: Export to Zipkin
+## Configuration
 
-### Step 1: Install Zipkin Exporter
+All settings are the standard OpenTelemetry variables. Arguments of `setup_tracing()` / `setup_metrics()` win over the environment.
+
+| Variable | Effect |
+|----------|--------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL for traces and metrics. HTTP/protobuf appends `/v1/traces` or `/v1/metrics`; gRPC uses it as given. Setting it switches export on. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Per-signal URL, used verbatim. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` (and per-signal variants) | `http/protobuf` (default) or `grpc`. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `key=value,key2=value2` (URL-decoded), e.g. `Authorization=Bearer%20<token>`. Never shown in the posture. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT`, `..._COMPRESSION`, `..._CERTIFICATE` | Read by the official exporters. |
+| `OTEL_TRACES_EXPORTER=none` / `OTEL_METRICS_EXPORTER=none` | Switch one signal off while an endpoint is configured. |
+| `OTEL_SDK_DISABLED=true` | Kill switch for tracing and metrics. |
+| `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | Win over the defaults the application passes (this is how an operator labels an instance without a code change). |
+| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | Sampling, handled by the SDK (see [Sampling](#sampling)). |
+| `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | Opt-in capture of prompt, reply and tool content (see [Privacy](#privacy)). |
+| `MYRM_LOCAL_TRACE_ONLY=1` | Zero-egress policy: a remote endpoint is refused. The host is parsed (`localhost.attacker.example` is remote). |
+| `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true` | SDK self-monitoring metrics (`otel.sdk.processor.span.queue.size`, `.queue.capacity`, `.processed`, `otel.sdk.span.live`, `otel.sdk.span.started`); needs `setup_metrics()`, read when the tracer provider is created. |
+
+A protocol that cannot be served (the exporter package is missing) leaves that signal **off** and is reported by the posture. The framework never swaps to another protocol or to stdout, because that would silently point telemetry at an endpoint that does not speak it.
+
+### gRPC
 
 ```bash
-uv add opentelemetry-exporter-zipkin
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ```
 
-### Step 2: Start Zipkin
+### Authenticated SaaS backend
 
 ```bash
-docker run --rm -d --name zipkin \
-  -p 9411:9411 \
-  openzipkin/zipkin
-```
-
-Access Zipkin UI: `http://localhost:9411`
-
-### Step 3: Configure Exporter
-
-```python
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.zipkin.json import ZipkinExporter
-from opentelemetry import trace
-
-provider = TracerProvider()
-zipkin_exporter = ZipkinExporter(
-    endpoint="http://localhost:9411/api/v2/spans",
-)
-provider.add_span_processor(BatchSpanProcessor(zipkin_exporter))
-trace.set_tracer_provider(provider)
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example.com
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20<token>"
 ```
 
 ---
 
-## Production Configuration
+## Span tree
 
-### 1. Sampling Strategy
-
-**Problem**: In high-traffic production, 100% sampling generates massive data volume.
-
-**Solution**: Configure sampling ratio.
-
-```python
-from opentelemetry.sdk.trace.sampling import (
-    ParentBased,
-    TraceIdRatioBased,
-)
-
-# Sample 10% of traces
-sampler = ParentBased(
-    root=TraceIdRatioBased(0.1)  # 10% sampling
-)
-
-provider = TracerProvider(sampler=sampler)
+```
+invoke_agent ReactAgent                 gen_ai.operation.name, gen_ai.agent.name, gen_ai.conversation.id, agent.status
+├── chat deepseek-chat                  gen_ai.provider.name, gen_ai.request.*, gen_ai.response.*, gen_ai.usage.*
+│     (events: attempt_failed {retry.attempt, error.type})
+├── execute_tool web_search             gen_ai.tool.name, gen_ai.tool.call.id, gen_ai.tool.type
+│   └── invoke_agent ResearchAgent      (sub-agent subtree)
+│       └── chat ...
+└── chat deepseek-chat
 ```
 
-**Sampling Strategy Table**:
+- One `chat` span per **logical** model call, streaming or not. Empty-response and parameter-recovery retries are `attempt_failed` events on that span, not sibling spans. An answer replayed from the call memo makes no model call, so it creates no span, no tokens and no metrics.
+- Token usage follows the convention: `gen_ai.usage.input_tokens` includes cache read and cache creation tokens, which are reported separately as `gen_ai.usage.cache_read.input_tokens` / `gen_ai.usage.cache_creation.input_tokens`; reasoning tokens as `gen_ai.usage.reasoning.output_tokens`.
+- `agent.status` is `completed`, `error` or `cancelled`. A consumer that stops reading early is `cancelled`, not an error.
+- Failure is recorded as an error class (`error.type`); error text is not exported.
 
+### Metrics
 
-| Environment               | Sample Rate | Rationale               |
-| ------------------------- | ----------- | ----------------------- |
-| Development               | 100% (1.0)  | Debug all requests      |
-| Staging                   | 50% (0.5)   | Balance coverage & cost |
-| Production (low traffic)  | 10% (0.1)   | Reduce storage 90%      |
-| Production (high traffic) | 1% (0.01)   | Keep only 1% traces     |
+Recorded once per model call from the call's own measurements, independent of trace sampling:
 
+| Metric | Unit | Dimensions |
+|--------|------|------------|
+| `gen_ai.client.token.usage` | `{token}` | operation, provider, request/response model, `gen_ai.token.type` (input/output) |
+| `gen_ai.client.operation.duration` | `s` | operation, provider, request/response model, `error.type` |
+| `gen_ai.client.operation.time_to_first_chunk` | `s` | operation, provider, request/response model |
 
-### 2. OTLP Endpoint Configuration
-
-**Best Practice**: Use environment variables for flexibility.
-
-```python
-import os
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-
-endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-otlp_exporter = OTLPSpanExporter(
-    endpoint=endpoint,
-    insecure=endpoint.startswith("http://"),  # Auto-detect
-)
-```
-
-**Environment Variables**:
-
-```bash
-# .env.production
-OTEL_EXPORTER_OTLP_ENDPOINT=https://jaeger.example.com:4317
-OTEL_SAMPLE_RATE=0.01  # 1% sampling
-
-# .env.development
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-OTEL_SAMPLE_RATE=1.0  # 100% sampling
-```
-
-### 3. Trace Context Propagation
-
-**Use Case**: Cross-service tracing (control plane → sandbox → agent)
-
-```python
-from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-# Sender (control plane)
-propagator = TraceContextTextMapPropagator()
-carrier = {}
-propagator.inject(carrier)  # Inject 'traceparent' header
-
-# Send to sandbox with header
-response = requests.post(
-    "http://sandbox:8080/execute",
-    headers=carrier,  # e.g., {"traceparent": "00-..."}
-)
-
-# Receiver (sandbox)
-context = propagator.extract(carrier=request.headers)
-with tracer.start_as_current_span("execute_in_sandbox", context=context):
-    # This span will be part of the same trace
-    pass
-```
-
-### 4. Performance Optimization
-
-**Best Practices**:
-
-1. **Batch Processing**: Use `BatchSpanProcessor` (default) instead of `SimpleSpanProcessor`
-  - Buffer: 512 spans per batch (default)
-  - Timeout: 5 seconds (default)
-2. **Async Export**: Export happens in background thread (zero blocking)
-3. **Bounded Queue**: Set `max_queue_size` to prevent memory leak
-  ```python
-   processor = BatchSpanProcessor(
-       exporter,
-       max_queue_size=2048,
-       max_export_batch_size=512,
-       schedule_delay_millis=5000,
-   )
-  ```
+Dimensions are bounded, so series count stays flat as conversations grow. Product instruments registered through `get_metrics_collector()` pass through the cardinality firewall (unbounded keys such as session or turn ids are dropped).
 
 ---
 
-## Integration with Prometheus Metrics
+## Privacy
 
-**Pattern**: Associate trace_id with metrics for correlation.
+Telemetry leaves through one door, the `PrivacyGuardExporter` wrapped around the real exporter:
 
-```python
-from opentelemetry import trace
-from prometheus_client import Counter
+- **Default: metadata only.** Numbers and booleans pass; text passes only under metadata namespaces (`gen_ai.*`, `error.*`, `agent.*`, `http.*`, ...). Prompt, reply, tool arguments and results, exception messages and stack traces, and third-party payload attributes (`input.value`, `llm.input_messages.*`, ...) are withheld.
+- **Content capture is opt-in**: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` releases `gen_ai.input.messages`, `gen_ai.output.messages` and tool call arguments/results. The system prompt and model reasoning are never exported, with or without the switch.
+- Every text that is kept is credential-redacted and length-capped.
+- The guard works on sanitized **copies** of finished spans and fails closed: a span that cannot be sanitized is dropped, never sent raw.
 
-request_counter = Counter("http_requests_total", "Total requests", ["trace_id"])
+---
 
-# In request handler
-span = trace.get_current_span()
-trace_id = format(span.get_span_context().trace_id, "032x")
+## Sampling
 
-# Record metric with trace_id label
-request_counter.labels(trace_id=trace_id).inc()
+Sampling is the SDK's own. The default is parent-based always-on.
+
+```bash
+export OTEL_TRACES_SAMPLER=parentbased_traceidratio
+export OTEL_TRACES_SAMPLER_ARG=0.1     # keep 10% of traces
 ```
 
-**Use Case**: In Grafana, click a metric spike → see trace_id → jump to Jaeger for full trace.
+You can also pass a `Sampler` object: `setup_tracing(sampler=...)`.
+
+| Environment | Ratio | Rationale |
+|-------------|-------|-----------|
+| Development | 1.0 | Debug all requests |
+| Staging | 0.5 | Balance coverage and cost |
+| Production (low traffic) | 0.1 | Reduce storage 90% |
+| Production (high traffic) | 0.01 | Keep 1% of traces |
+
+The GenAI client metrics are recorded from the model call itself, so lowering the trace ratio does not distort token, latency or error figures.
+
+---
+
+## Operational notes
+
+- **Bounded lifecycle**: `force_flush_tracing()`, `shutdown_tracing()`, `flush_observability()` and `shutdown_observability()` run the SDK action on a daemon thread with a deadline, so a hung collector cannot block a request or process exit. Call `shutdown_observability()` from the host's shutdown hook to flush the last batch.
+- **Batching**: spans leave through `BatchSpanProcessor` (background thread, bounded queue). Tune with the standard `OTEL_BSP_*` variables.
+- **One provider per process**: if the host already installed a TracerProvider, `setup_tracing()` leaves it alone and the posture reports `degraded`.
+- **Local development**: `setup_tracing(console_export=True)` prints spans to stdout (only when no OTLP endpoint is configured).
+
+### Cross-service propagation
+
+`inject_trace_context()` and `extract_trace_context()` (`myrm_agent_harness.infra.tracing.propagation`) wrap the standard OpenTelemetry propagation API (W3C `traceparent`). A host that wants one trace across services calls them at its own service boundaries; the framework does not propagate context on its own.
 
 ---
 
 ## Troubleshooting
 
-### Issue 1: No Traces in Jaeger
+**No traces in the backend**
 
-**Check**:
+1. `get_telemetry_posture()["status"]`: `noop` means no endpoint is configured, `disabled` means `OTEL_SDK_DISABLED=true`, `degraded` carries the reason (for example a missing `opentelemetry-exporter-otlp-proto-http`), `failing` means the collector rejected or could not receive the last batch (`last_failure_at`, `failed_batches`).
+2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317`.
+3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design.
+4. A sampler of `always_off` or a ratio of `0` drops every trace: the posture shows the active sampler.
 
-1. Jaeger is running: `curl http://localhost:16686/api/services`
-2. OTLP endpoint is correct: `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`
-3. Exporter is initialized: Check logs for "Tracing initialized"
-4. Sampling ratio is not 0: Check `sampler` configuration
+**Spans are missing attributes such as prompts**
 
-### Issue 2: Traces Missing Spans
+By design. Content is exported only with `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`.
 
-**Cause**: Framework code not instrumented with `trace_async()` or `trace_context()`.
+**Spans queued or dropped under load**
 
-**Solution**: Ensure all key operations use tracing decorators.
-
-```python
-from myrm_agent_harness.infra.tracing import trace_async
-
-@trace_async()
-async def my_function():
-    # This function will be traced
-    pass
-```
-
-### Issue 3: High Storage Cost
-
-**Solution**: Reduce sampling rate.
-
-```python
-# Production: sample only 1%
-sampler = ParentBased(root=TraceIdRatioBased(0.01))
-```
+Enable `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true` and watch `otel.sdk.processor.span.queue.size` against `otel.sdk.processor.span.queue.capacity`.
 
 ---
 
 ## Reference
 
-**Official Documentation**:
+- [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/)
+- [OTLP exporter configuration](https://opentelemetry.io/docs/specs/otel/protocol/exporter/)
+- [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
 
-- [OpenTelemetry Python](https://opentelemetry.io/docs/instrumentation/python/)
-- [Jaeger](https://www.jaegertracing.io/docs/latest/)
-- [Zipkin](https://zipkin.io/pages/quickstart.html)
+Framework code:
 
-**Framework Code**:
-
-- `myrm_agent_harness/infra/tracing/tracer.py` - Tracer setup
-- `myrm_agent_harness/infra/tracing/metrics/exporter.py` - Metrics export
-
-**Environment Variables** (Standard):
-
-- `OTEL_EXPORTER_OTLP_ENDPOINT` - OTLP endpoint URL
-- `OTEL_SERVICE_NAME` - Service name for traces
-- `OTEL_SAMPLE_RATE` - Sampling ratio (0.0-1.0)
-
+- `myrm_agent_harness/infra/tracing/tracer.py` - tracer setup and consumer helpers
+- `myrm_agent_harness/infra/tracing/gen_ai/` - span tree and GenAI client metrics
+- `myrm_agent_harness/infra/tracing/otlp/` - endpoint resolution, exporters, privacy guard, posture
+- `myrm_agent_harness/infra/tracing/metrics/exporter.py` - metrics export

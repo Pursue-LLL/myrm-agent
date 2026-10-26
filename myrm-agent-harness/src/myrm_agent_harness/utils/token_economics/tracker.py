@@ -8,7 +8,7 @@
 - .cost_engine::compute_cost (POS: 成本计算引擎，封装 litellm.completion_cost + CostStatus 溯源)
 - .cache_economics::compute_prompt_cache_stats (POS: 缓存命中率与相对未缓存 input 的节省比例)
 - .latency_stats::LatencyStats (POS: 由逐次调用的耗时与首 token 耗时样本汇总的延迟统计)
-- .usage_fields::extract_cached_tokens / extract_cache_write_tokens (POS: provider 缓存计数字段的唯一读取入口)
+- .usage_fields::extract_cached_tokens / extract_cache_write_tokens / extract_reasoning_tokens (POS: provider 缓存与推理计数字段的唯一读取入口)
 - .usage_ledger::UsageRecord (POS: 审计日志记录类型，lazy import)
 - .budget_guard::BudgetChecker (POS: Budget guard protocol, TYPE_CHECKING only)
 
@@ -42,7 +42,7 @@ from myrm_agent_harness.utils.coercion import parse_int
 
 from .cache_economics import compute_prompt_cache_stats
 from .latency_stats import LatencyStats
-from .usage_fields import extract_cache_write_tokens, extract_cached_tokens
+from .usage_fields import extract_cache_write_tokens, extract_cached_tokens, extract_reasoning_tokens
 
 if TYPE_CHECKING:
     from .budget_guard import BudgetChecker
@@ -164,12 +164,7 @@ class TokenUsage:
 
     def _extract_reasoning(self, usage: Mapping[str, object]) -> int:
         """Extract reasoning_tokens from completion_tokens_details or top-level."""
-        comp_details = usage.get("completion_tokens_details", {})
-        if isinstance(comp_details, dict):
-            val = parse_int(comp_details.get("reasoning_tokens"), 0, min_val=0)
-            if val:
-                return val
-        return parse_int(usage.get("reasoning_tokens"), 0, min_val=0)
+        return extract_reasoning_tokens(usage)
 
     def _extract_citation(self, usage: Mapping[str, object]) -> int:
         """Extract citation_tokens (Perplexity/OpenAI prompt_tokens_details.citation_tokens)."""
