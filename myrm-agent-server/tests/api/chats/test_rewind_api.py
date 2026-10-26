@@ -44,7 +44,7 @@ async def _create_chat(chat_id: str) -> None:
         await db.commit()
 
 
-async def _insert_messages(chat_id: str) -> dict[str, str]:
+async def _insert_messages(chat_id: str, *, second_user_text: str = "Second question") -> dict[str, str]:
     from app.database.models.chat import Message
     from app.platform_utils import get_session_factory
 
@@ -59,7 +59,7 @@ async def _insert_messages(chat_id: str) -> dict[str, str]:
     contents = {
         "u1": "First question",
         "a1": "First answer",
-        "u2": "Second question",
+        "u2": second_user_text,
         "a2": "Second answer",
     }
     async with factory() as db:
@@ -109,6 +109,31 @@ async def test_rewind_user_message_returns_composer_text(
     assert data["composer_text"] == "Second question"
     assert data["deleted_count"] == 2
     assert data["message_index"] == 2
+
+
+@pytest.mark.asyncio
+async def test_rewind_composer_text_keeps_the_users_markup(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The composer is re-seeded with what the user typed, tags included; only surrounding whitespace is trimmed."""
+    chat_id = f"rewind-markup-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+    snippet = f"Fix this parser: {chr(60)}function_calls{chr(62)}x{chr(60)}/function_calls{chr(62)} {chr(60)}think{chr(62)}note{chr(60)}/think{chr(62)}"
+    ids = await _insert_messages(chat_id, second_user_text=f"  {snippet}\n")
+
+    async def _fake_sync(_chat_id: str) -> int:
+        return 2
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.invalidate_chat_checkpoint",
+        _fake_sync,
+    )
+
+    response = await async_client.post(f"/api/v1/chats/{chat_id}/rewind", json={"message_id": ids["u2"]})
+
+    assert response.status_code == 200
+    assert response.json()["data"]["composer_text"] == snippet
 
 
 @pytest.mark.asyncio
@@ -650,6 +675,7 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
 
     # Assert database messages are preserved (two-phase rollback prevents split-brain)
     from app.services.chat.chat_service import ChatService
+
     messages_after = await ChatService.get_all_messages(chat_id)
     assert any(m.id == ids["u2"] for m in messages_after), "Target message must not be deleted if file revert fails!"
 
@@ -781,6 +807,3 @@ async def test_rewind_continuity_sync_error_returns_500(
         json={"message_id": str(uuid.uuid4())},
     )
     assert response.status_code == 500
-
-
-

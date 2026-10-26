@@ -19,7 +19,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `max_body_size.py` | ✅ 核心 | 全局 ASGI 熔断器：包装底层 `receive` 函数，在 ASGI 层面限制请求体总大小（如 15MB），防止超大文件上传导致的 OOM 和磁盘耗尽攻击。 |
-| `text_sanitizer_middleware.py` | ✅ 核心 | 文本清洗中间件：四层防护（1）所有请求的 query 参数（2）JSON body（3）Form data body（4）LLM 输出层，移除 surrogate 字符和控制字符（调用 harness/utils/text_sanitizer） |
+| `text_sanitizer_middleware.py` | ✅ 核心 | 入站用户文本清洗：对 query 参数、JSON body（`application/json` 与 `application/*+json`，含参数/大小写变体，任意嵌套）、urlencoded 表单调用 harness `strip_control_chars`，仅移除 C0/C1 控制字符、孤立 surrogate、U+FFFD 与模型控制 token `<\|…\|>`；`<think>`、`<function_calls>` 等标记属于用户内容，原样保留（推理/工具协议标签过滤属于模型输出管线）。无法解析的 JSON（截断、超长整数、过深嵌套）原样放行交由路由校验。 |
 | `webhook_security.py` | ✅ 核心 | Webhook 安全加固中间件（原始字节防线）：在反序列化 JSON 之前强制校验请求体大小（默认 1MB），防止超大 Payload 导致单机沙箱 OOM 崩溃。 |
 | `ingress.py` | ✅ 核心 | Public Ingress 强制代理纠偏中间件：监听 `/api/` 路由，将 Scheme/Host 覆写为 `get_public_ingress_base_url()`；loopback 与 RFC1918 私有 LAN Host 跳过覆写，避免本地/内网 WebUI 被 stale 公网 URL 劫持。 |
 | `host_allowlist.py` | ✅ 核心 | WebUI 远程暴露时 Host 头 allowlist（DNS rebinding 防护） | ✅ |

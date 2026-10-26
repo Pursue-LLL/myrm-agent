@@ -200,8 +200,6 @@ class _ChatTurnMixin(_ChatServiceBase):
         When ``revert_files`` is set, file changes made by the deleted messages are
         also reverted (newest first) so the workspace matches the pre-rewind state.
         """
-        from myrm_agent_harness.utils.text_sanitizer import extract_and_strip_think_blocks
-
         from app.services.chat.session_continuity_service import (
             SessionBusyError,
             assert_session_available_for_continuity,
@@ -253,8 +251,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
             all_messages = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
             message_index = next((idx for idx, item in enumerate(all_messages) if item.id == message_id), -1)
-            clean_content, _ = extract_and_strip_think_blocks(msg.content)
-            composer_text = clean_content.strip()
+            composer_text = msg.content.strip()
 
             target_messages = all_messages[message_index:] if message_index >= 0 else []
             target_deleted_ids = [m.id for m in target_messages]

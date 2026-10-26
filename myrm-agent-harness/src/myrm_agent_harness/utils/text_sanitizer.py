@@ -6,10 +6,13 @@
 
 [OUTPUT]
 - sanitize_llm_output(): 移除 LLM 推理标签、工具协议标签、控制 token 和无效 Unicode
+- sanitize_text(): sanitize_llm_output 的通用名（仅限模型输出）
+- strip_control_chars(): 仅移除控制字符 / 控制 token / 无效 Unicode（第 4 层），保留全部标记，用于不可信的用户原文
 - extract_and_strip_think_blocks(): 静态提取 reasoning 内容并剥离原文本标签，用于历史记录提纯与 LLM 响应答案提取（chat_utils.extract_answer_text 复用）
 
 [POS]
-LLM streaming output sanitizer. Four-layer filtering ensures clean, garble-free text for user display.
+LLM streaming output sanitizer. Four-layer filtering ensures clean, garble-free text for user display;
+layer 4 alone is exposed for user-authored text, where tags are content rather than protocol leakage.
 
 """
 
@@ -71,6 +74,30 @@ def _compiled_sanitizer() -> re.Pattern[str]:
     return re.compile("|".join(patterns))
 
 
+def strip_control_chars(text: str) -> str:
+    """Remove control characters and invalid Unicode, leaving all markup intact.
+
+    This is layer 4 of ``sanitize_text`` on its own: C0/C1 control characters
+    (tab, LF and CR are kept), model-specific tokens ``<|…|>`` and their
+    full-width ``<｜…｜>`` variants, the replacement character ``\\uFFFD`` and
+    unpaired surrogates.
+
+    Use it for untrusted *user-authored* text (chat input, forms, query
+    strings), where ``<think>``, ``<function_calls>`` and similar tags are
+    legitimate content. ``sanitize_text`` is for model output only: its tag
+    layers would delete such content.
+
+    Args:
+        text: Raw text to clean.
+
+    Returns:
+        The text without control characters (may be empty string).
+    """
+    if not text:
+        return text
+    return _compiled_sanitizer().sub("", text)
+
+
 def extract_and_strip_think_blocks(text: str) -> tuple[str, str]:
     """Extract reasoning blocks from text and strip them from the original.
 
@@ -96,8 +123,8 @@ def extract_and_strip_think_blocks(text: str) -> tuple[str, str]:
         text = _think_orphan_re().sub("", text)
         text = _tool_protocol_tag_re().sub("", text)
 
-    clean_text = _compiled_sanitizer().sub("", text).strip()
-    reasoning_text = _compiled_sanitizer().sub("", "\n\n".join(reasoning_parts)).strip()
+    clean_text = strip_control_chars(text).strip()
+    reasoning_text = strip_control_chars("\n\n".join(reasoning_parts)).strip()
 
     return clean_text, reasoning_text
 
@@ -105,8 +132,10 @@ def extract_and_strip_think_blocks(text: str) -> tuple[str, str]:
 def sanitize_text(text: str) -> str:
     """Remove reasoning tags, tool protocol tags, control tokens and invalid Unicode.
 
-    Generic text sanitizer that can be used for any text source (LLM output,
-    user input, database content, etc.). Performs four-layer filtering:
+    Sanitizer for model output (and text derived from it). Layers 1-3 delete
+    markup together with its content, which is right for leaked protocol
+    fragments but destroys user-authored text that merely mentions such tags;
+    use ``strip_control_chars`` for user input. Performs four-layer filtering:
 
     1. **Paired reasoning blocks** — ``<think>…</think>`` and variants
        (thinking, thought, antthinking, reasoning, REASONING_SCRATCHPAD)
@@ -135,7 +164,7 @@ def sanitize_text(text: str) -> str:
         text = _think_block_re().sub("", text)
         text = _think_orphan_re().sub("", text)
         text = _tool_protocol_tag_re().sub("", text)
-    return _compiled_sanitizer().sub("", text)
+    return strip_control_chars(text)
 
 
 def sanitize_llm_output(text: str) -> str:

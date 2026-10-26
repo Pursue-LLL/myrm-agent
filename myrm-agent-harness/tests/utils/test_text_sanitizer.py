@@ -7,6 +7,7 @@ from myrm_agent_harness.utils.text_sanitizer import (
     extract_and_strip_think_blocks,
     sanitize_llm_output,
     sanitize_text,
+    strip_control_chars,
 )
 
 
@@ -153,3 +154,43 @@ class TestToolProtocolTagStripping:
             + "C"
         )
         assert sanitize_llm_output(raw) == "ABxC"
+
+
+def _tag(name: str, *, closing: bool = False) -> str:
+    """Build an angle-bracket tag without spelling the literal form in source."""
+    return chr(60) + ("/" if closing else "") + name + chr(62)
+
+
+class TestStripControlChars:
+    """``strip_control_chars`` is layer 4 only: user-authored markup must survive."""
+
+    def test_empty_string(self) -> None:
+        assert strip_control_chars("") == ""
+
+    @pytest.mark.parametrize("name", ["think", "function_calls", "parameter", "antml:invoke"])
+    def test_keeps_markup_that_sanitize_text_removes(self, name: str) -> None:
+        raw = f"Fix this: {_tag(name)}body{_tag(name, closing=True)} done"
+        assert strip_control_chars(raw) == raw
+        assert sanitize_text(raw) != raw
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("a\x07b", "ab"),
+            ("x\x80\x9fy", "xy"),
+            ("pre<|endoftext|>post", "prepost"),
+            ("pre<\uff5cassistant\uff5c>post", "prepost"),
+            ("ok\ufffdtail", "oktail"),
+            ("A\ud800B\udc00C", "ABC"),
+        ],
+    )
+    def test_removes_control_characters_and_invalid_unicode(self, raw: str, expected: str) -> None:
+        assert strip_control_chars(raw) == expected
+
+    def test_keeps_tab_lf_cr_and_unicode(self) -> None:
+        raw = "col1\tcol2\r\n第二行\n"
+        assert strip_control_chars(raw) == raw
+
+    def test_matches_sanitize_text_when_there_is_no_markup(self) -> None:
+        raw = "Hi\x00<|endoftext|>\nok\ufffd\x7f\ud800"
+        assert strip_control_chars(raw) == sanitize_text(raw)

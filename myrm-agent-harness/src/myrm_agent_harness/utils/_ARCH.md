@@ -33,7 +33,7 @@ Utility library exports. Public interface for the utils module providing commonl
 | network.py | Core | Pure network utilities. Get local IP using UDP socket (no actual data sent). | ✅ |
 | rwlock.py | Core | General-purpose read-write lock concurrency primitive for multi-reader single-writer scenarios. | ✅ |
 | text_cleaner.py | Core | Text cleaning utilities. Removes noise and irrelevant information from content to improve quality. | ✅ |
-| text_sanitizer.py | Core | LLM streaming output sanitizer. Three-layer filtering ensures clean, garble-free text for user displ | ✅ |
+| text_sanitizer.py | Core | LLM streaming output sanitizer. Four-layer filtering (reasoning blocks, orphan tags, tool-protocol tags, control characters) for model output via `sanitize_text`; `strip_control_chars` exposes the control-character layer alone for user-authored text, where tags are content. | ✅ |
 | text_utils.py | Core | Text processing utilities. Provides token counting, language detection, smart truncation, and output | ✅ |
 | tool_dynamic_hints.py | Core | LangChain tool `with_dynamic_hints` decorator — shared by agent and toolkits without cross-layer imports. | ✅ |
 | token_estimation.py | Core | Message-level tokens + full tool-schema estimates for the context breakdown and compress preflight; description-only approximation for the Turn-1 inventory script | ✅ |
