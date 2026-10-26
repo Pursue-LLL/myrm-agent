@@ -603,7 +603,10 @@ myrm_agent_harness.toolkits.vnc
 myrm_agent_harness.toolkits.web_fetch
 myrm_agent_harness.toolkits.web_fetch.engine
 myrm_agent_harness.toolkits.web_fetch.escalation.context
+myrm_agent_harness.toolkits.web_fetch.extractors
+myrm_agent_harness.toolkits.web_fetch.processing.content_pruning
 myrm_agent_harness.toolkits.web_fetch.escalation.protocols
+myrm_agent_harness.toolkits.web_fetch.processing.markdown_generator
 myrm_agent_harness.toolkits.web_fetch.processing.html_to_markdown
 myrm_agent_harness.toolkits.web_search
 myrm_agent_harness.toolkits.web_search.core.common
@@ -631,6 +634,7 @@ myrm_agent_harness.toolkits.wiki.mcp_server
 myrm_agent_harness.toolkits.wiki.pipeline.apply
 myrm_agent_harness.toolkits.wiki.pipeline.chat_compound
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map
+myrm_agent_harness.toolkits.wiki.pipeline.compiler_enqueue
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.schema_writer
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.snippets

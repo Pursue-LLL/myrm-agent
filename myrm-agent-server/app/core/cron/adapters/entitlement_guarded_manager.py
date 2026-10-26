@@ -5,7 +5,7 @@
 - platform_utils.sandbox.entitlements.entitlement_guard::require_cron_slot (POS: CP plan gate)
 
 [OUTPUT]
-- EntitlementGuardedCronManager: wraps create/duplicate with slot checks for REST + agent tools
+- EntitlementGuardedCronManager: wraps create/duplicate with slot checks for REST + agent tools; typed pass-through for the job lookups and lifecycle calls services make
 
 [POS]
 Server business-layer gate on harness CronManager mutations. All callers use ``get_cron_manager()``.
@@ -63,6 +63,7 @@ class EntitlementGuardedCronManager:
         model: str | None = None,
         chat_id: str | None = None,
         agent_id: str | None = None,
+        project_id: str | None = None,
         command: str | None = None,
         delivery: DeliveryConfig | None = None,
         failure_delivery: DeliveryConfig | None = None,
@@ -70,6 +71,7 @@ class EntitlementGuardedCronManager:
         active_hours: ActiveHours | None = None,
         required_capabilities: tuple[str, ...] = (),
         tools_allowed: tuple[str, ...] | None = None,
+        skill_ids: tuple[str, ...] = (),
         allowed_roots: tuple[str, ...] = (),
         max_retries: int = 2,
         retry_backoff_ms: int = 30_000,
@@ -109,6 +111,7 @@ class EntitlementGuardedCronManager:
             model=model,
             chat_id=chat_id,
             agent_id=agent_id,
+            project_id=project_id,
             command=command,
             delivery=delivery,
             failure_delivery=failure_delivery,
@@ -116,6 +119,7 @@ class EntitlementGuardedCronManager:
             active_hours=active_hours,
             required_capabilities=required_capabilities,
             tools_allowed=normalized_tools,
+            skill_ids=skill_ids,
             allowed_roots=allowed_roots,
             max_retries=max_retries,
             retry_backoff_ms=retry_backoff_ms,
@@ -167,6 +171,32 @@ class EntitlementGuardedCronManager:
     async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
         await self._enforce_slot(user_id)
         return await self._inner.duplicate_job(job_id, user_id)
+
+    async def list_jobs(
+        self,
+        user_id: str,
+        *,
+        name_filter: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[CronJob]:
+        return await self._inner.list_jobs(
+            user_id, name_filter=name_filter, chat_id=chat_id, project_id=project_id, limit=limit, offset=offset
+        )
+
+    async def pause_job(self, job_id: str, user_id: str) -> CronJob | None:
+        return await self._inner.pause_job(job_id, user_id)
+
+    async def resume_job(self, job_id: str, user_id: str) -> CronJob | None:
+        return await self._inner.resume_job(job_id, user_id)
+
+    async def delete_job(self, job_id: str, user_id: str) -> bool:
+        return await self._inner.delete_job(job_id, user_id)
+
+    async def trigger_now(self, job_id: str, user_id: str) -> bool:
+        return await self._inner.trigger_now(job_id, user_id)
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._inner, name)

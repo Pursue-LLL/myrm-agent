@@ -43,6 +43,7 @@
 | `expert_summon_metric.py` | 域模块 | ExpertSummonMetricEvent（专家召唤漏斗观测事件：曝光/搜索/召唤尝试与结果/路由应用/首条发送/丢样，含 `surface`、`trigger`、`from_search`、`used_use_case` 口径字段） | ✅ |
 | `turn_capability_metric.py` | 域模块 | TurnCapabilityMetricEvent（单轮 Skill/MCP 能力覆写观测事件：提交/生效/回退/排队/完成/失败/busy 重排队/丢样，含 selected/effective 规模口径与失败原因聚合） | ✅ |
 | `wiki_evidence_metric.py` | 域模块 | WikiEvidenceMetricEvent（证据链观测事件：surface/open/close/query/dropped/quality_outcome_negative，含 `context_key` 口径隔离与 retention 查询索引） | ✅ |
+| `wiki_source_ledger.py` | 域模块 | WikiSourceLedgerEntry（外部知识源逐条导入台账：`agent_scope+source+item_key` 主键，记录远端版本、导入状态、保真度与 raw 路径，支撑可续传回填、远端删除检测与导入报告） | ✅ |
 | `faq.py` | 域模块 | FaqCorpus（per-agent FAQ 语料库配置）, FaqEntry（Q&A 条目）, FaqHitLog（命中/未命中追踪记录） | ✅ |
 
 ## 模块依赖

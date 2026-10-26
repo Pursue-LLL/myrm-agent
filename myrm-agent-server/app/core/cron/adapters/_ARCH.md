@@ -16,7 +16,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | 文件 | 职责 |
 |------|------|
 | `setup.py` | 组装入口：创建 CronScheduler + entitlement-guarded CronManager，注入所有适配器 |
-| `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `update_job` / `duplicate_job` 调用 `require_cron_slot`、``lifecycle_guard``、``tools_policy.normalize_cron_tools_allowed``；`create_job` 透传 `workflow_template_id` / `workflow_template_args` |
+| `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `update_job` / `duplicate_job` 调用 `require_cron_slot`、``lifecycle_guard``、``tools_policy.normalize_cron_tools_allowed``；`create_job` 透传 harness 全部字段（`project_id` / `skill_ids` / `workflow_template_id` / `workflow_template_args` 等，签名漂移由 `test_create_job_forwards_every_harness_field` 守住）；`list_jobs` / `pause_job` / `resume_job` / `delete_job` / `trigger_now` 为带类型的直通方法 |
 | `lifecycle_guard.py` | 拦截 cron prompt/command/pre_condition_script 中的 myrm restart/stop 等生命周期命令（防自杀 cron） |
 | `tools_policy.py` | ``tools_allowed`` 规范化（保留 baseline 工具 ID）+ runtime 求交（含 memory 白名单剔除）+ ``resolve_cron_runtime_tool_flags``（受限 job 不强制 baseline，`enable_memory` 由 runner 按「白名单 ∩ 用户全局 enableMemory」双门控判定，与 web_search 白名单语义一致） |
 | `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD（`get_job` 路径对 legacy monitor_config 做 opportunistic 回写清洗，列表读取仅规范化映射不触发写入；启动阶段支持批量清洗并可设置批次数上限保护冷启动时延，返回结构化清洗统计与续清标记供可观测性收口） |
@@ -37,7 +37,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `sqlalchemy_trigger_provider.py` | TriggerProvider 实现：event/system/webhook 匹配 |
 | `stream_listener.py` | StreamListener 实现：出站 WS/SSE 长连接管理（重连 + 心跳 + filter 匹配 + 资源限制） |
 | `poll_listener.py` | PollListener 实现：定时 HTTP 拉取 + 内容哈希变更检测 |
-| `wiki_router_job_runner.py` | JobRunner：`JobType.ROUTER` 分发 `__wiki_source_sync__`、`__wiki_maintain__:{mode}` 与 `__wiki_daily_review_compound__`（每日复盘知识化汇总 + 停滞队列兜底 compile）至 wiki SSOT runners |
+| `wiki_router_job_runner.py` | JobRunner：`JobType.ROUTER` 分发 `__wiki_source_sync__`、`__wiki_ima_sync__`（ima 时间盒同步切片，`JobResult.retry_at` 续跑/限流退避）、`__wiki_maintain__:{mode}` 与 `__wiki_daily_review_compound__`（每日复盘知识化汇总 + 停滞队列兜底 compile）至 wiki SSOT runners |
 
 ---
 

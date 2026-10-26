@@ -4,9 +4,11 @@
 - app.services.wiki.source_sync.runner::run_wiki_source_sync (POS: wiki pull orchestration)
 - app.services.wiki.maintain::run_wiki_maintain_job (POS: wiki maintain SSOT)
 - app.services.wiki.daily_review::run_wiki_daily_review_compound_job (POS: daily review compounding SSOT)
+- app.services.wiki.source_sync.ima::run_ima_sync_job (POS: ima time-boxed sync slice)
 
 [OUTPUT]
-- WikiRouterJobRunner: cron adapter for __wiki_source_sync__ / __wiki_maintain__ / __wiki_daily_review_compound__ commands
+- WikiRouterJobRunner: cron adapter for __wiki_source_sync__ / __wiki_ima_sync__ / __wiki_maintain__ / __wiki_daily_review_compound__ commands
+- WIKI_IMA_SYNC_COMMAND: router command id of the per-agent ima sync job
 
 [POS]
 Cron adapter bridging harness RouterJobRunner to deterministic wiki router jobs.
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 WIKI_SOURCE_SYNC_COMMAND = "__wiki_source_sync__"
 WIKI_MAINTAIN_COMMAND_PREFIX = "__wiki_maintain__"
 WIKI_DEDUP_COMMAND = "__wiki_dedup__"
+WIKI_IMA_SYNC_COMMAND = "__wiki_ima_sync__"
 WIKI_DAILY_REVIEW_COMPOUND_COMMAND = "__wiki_daily_review_compound__"
 
 
@@ -56,6 +59,9 @@ class WikiRouterJobRunner:
         if job.command == WIKI_SOURCE_SYNC_COMMAND:
             return await self._run_source_sync(job, context=context)
 
+        if job.command == WIKI_IMA_SYNC_COMMAND:
+            return await self._run_ima_sync(job)
+
         if job.command == WIKI_DEDUP_COMMAND:
             return await self._run_dedup(job, context=context)
 
@@ -78,6 +84,24 @@ class WikiRouterJobRunner:
             return JobResult(success=True, output=output, exit_code=exit_code)
         except Exception as exc:
             logger.error("Wiki source sync cron failed for job %s: %s", job.id, exc)
+            return JobResult(success=False, error=str(exc), exit_code=1)
+
+    async def _run_ima_sync(self, job: CronJob) -> JobResult:
+        """One time-boxed slice. ``retry_at`` re-arms the next slice (or the rate-limit pause); no exit code 1, so nothing is delivered."""
+        try:
+            from app.services.agent.llm_access import get_optional_llm_for_user
+            from app.services.wiki.source_sync.ima import run_ima_sync_job
+
+            llm = await get_optional_llm_for_user()
+            outcome = await run_ima_sync_job(llm=llm, agent_id=job.agent_id)
+            return JobResult(
+                success=True,
+                output=outcome.summary_text,
+                skipped=outcome.skipped,
+                retry_at=outcome.retry_at,
+            )
+        except Exception as exc:
+            logger.error("Wiki ima sync cron failed for job %s: %s", job.id, exc)
             return JobResult(success=False, error=str(exc), exit_code=1)
 
     async def _run_maintain(

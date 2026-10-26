@@ -16,6 +16,7 @@ from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 from app.core.cron.adapters.wiki_router_job_runner import (
     WIKI_DAILY_REVIEW_COMPOUND_COMMAND,
     WIKI_DEDUP_COMMAND,
+    WIKI_IMA_SYNC_COMMAND,
     WIKI_MAINTAIN_COMMAND_PREFIX,
     WIKI_SOURCE_SYNC_COMMAND,
     WikiRouterJobRunner,
@@ -171,3 +172,46 @@ async def test_run_daily_review_compound_silent() -> None:
     assert result.success is True
     assert result.output == "[SILENT]"
     assert result.exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_run_ima_sync_slice_rearms_through_retry_at_without_delivering() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.wiki.source_sync.ima import ImaJobOutcome
+
+    runner = WikiRouterJobRunner()
+    retry_at = datetime(2026, 1, 1, tzinfo=UTC)
+    outcome = ImaJobOutcome("[SILENT]", skipped=False, retry_at=retry_at)
+    with (
+        patch("app.services.wiki.source_sync.ima.run_ima_sync_job", new=AsyncMock(return_value=outcome)) as run_mock,
+        patch("app.services.agent.llm_access.get_optional_llm_for_user", new=AsyncMock(return_value=MagicMock())),
+    ):
+        result = await runner.run(_router_job(command=WIKI_IMA_SYNC_COMMAND))
+
+    assert run_mock.await_args.kwargs["agent_id"] == "agent-1"
+    assert result.success is True and result.retry_at == retry_at
+    assert result.exit_code == 0, "an import slice must never trigger delivery"
+
+
+@pytest.mark.asyncio
+async def test_run_ima_sync_propagates_skip_and_reports_failures() -> None:
+    from app.services.wiki.source_sync.ima import ImaJobOutcome
+
+    runner = WikiRouterJobRunner()
+    with (
+        patch(
+            "app.services.wiki.source_sync.ima.run_ima_sync_job",
+            new=AsyncMock(return_value=ImaJobOutcome("[SILENT]", skipped=True)),
+        ),
+        patch("app.services.agent.llm_access.get_optional_llm_for_user", new=AsyncMock(return_value=MagicMock())),
+    ):
+        skipped = await runner.run(_router_job(command=WIKI_IMA_SYNC_COMMAND))
+    assert skipped.success is True and skipped.skipped is True and skipped.retry_at is None
+
+    with (
+        patch("app.services.wiki.source_sync.ima.run_ima_sync_job", new=AsyncMock(side_effect=RuntimeError("boom"))),
+        patch("app.services.agent.llm_access.get_optional_llm_for_user", new=AsyncMock(return_value=MagicMock())),
+    ):
+        failed = await runner.run(_router_job(command=WIKI_IMA_SYNC_COMMAND))
+    assert failed.success is False and failed.exit_code == 1

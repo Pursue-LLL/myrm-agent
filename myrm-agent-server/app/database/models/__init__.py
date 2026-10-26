@@ -71,6 +71,7 @@ from .vault_credential import VaultCredential
 from .web_push_subscription import WebPushSubscription
 from .widget_kv import WidgetKVEntry
 from .wiki_evidence_metric import WikiEvidenceMetricEvent
+from .wiki_source_ledger import WikiSourceLedgerEntry
 
 __all__ = [
     "Base",
@@ -175,4 +176,6 @@ __all__ = [
     "ExpertSummonMetricEvent",
     # Wiki Evidence Observability
     "WikiEvidenceMetricEvent",
+    # Wiki External Source Import Ledger
+    "WikiSourceLedgerEntry",
 ]

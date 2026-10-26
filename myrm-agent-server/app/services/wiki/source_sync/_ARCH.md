@@ -15,7 +15,7 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 | `config_store.py` | 持久化 | UserConfig `wikiSourceSync` 按 agent 读写 + exists 探测 | ✅ |
 | `state_store.py` | 持久化 | UserConfig `wikiSourceSyncState` 上次同步状态（按 agent） | ✅ |
 | `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（sniff+docx embed→wiki/assets） | ✅ |
-| `publish_helpers.py` | 辅助 | 统一 `publish_raw(caller=settings)` + frontmatter | ✅ |
+| `publish_helpers.py` | 辅助 | 统一 `publish_raw(caller=settings)` + frontmatter；`publish_source_markdown` 支持 `conflict_policy`（默认 SKIP，ima 用 SUPERSEDE）；`sanitize_path_segment` 同时受字符与字节预算约束 | ✅ |
 | `feishu/` | 连接器 | Feishu 域 — 门面 + 纯函数渲染；见 [`feishu/_ARCH.md`](feishu/_ARCH.md) | ✅ |
 | `gmail/` | 连接器 | Gmail 域 — 门面 + HTML 渲染；见 [`gmail/_ARCH.md`](gmail/_ARCH.md) | ✅ |
 | `gdrive.py` | 连接器 | Google OAuth + Drive API → raw/gdrive/ | ✅ |
@@ -23,6 +23,7 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 | `zotero.py` | 连接器 | Zotero Web API v3 文献库 → raw/zotero/<月份>/<item key>.md（top-level items 最新修改优先 + 子项高亮/注释标注 best-effort；`_is_allowed_base_url` 校验 scheme+netloc 防 SSRF） | ✅ |
 | `integration_mirror.py` | 钩子 | IntegrationSyncResult.new_items → raw/integrations/ | ✅ |
 | `read_it_later_hygiene.py` | 迁移 | 存量 agent-type read-it-later Cron → router `__wiki_source_sync__` | ✅ |
+| `ima/` | 连接器 | 腾讯 ima 知识库与笔记只读导入 — 台账 + 时间盒 cron 切片 + 断点续跑；见 [`ima/_ARCH.md`](ima/_ARCH.md) | ✅ |
 | `defaults.py` | 默认 | Google OAuth / Second Brain apply 默认开 Gmail read-later | ✅ |
 | `runner.py` | 编排 | `run_wiki_source_sync` SSOT（Feishu/Gmail/GDrive/RSS/Zotero/mirror + scoped state + post-sync dedup scan when published > 0） | ✅ |
 
@@ -33,6 +34,8 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 - `tests/services/wiki/test_feishu_images.py` — 图片下载→wiki/assets 落盘 + 失败降级
 - `tests/services/wiki/test_zotero_source_sync.py` — Zotero 连接器单测（creators 格式化/文献笔记渲染/标注渲染/config 缺失 fail-fast/base_url 校验/发布计数/拉取失败计账）
 - `tests/api/wiki/test_wiki_sources_status.py` — sources API：status 标志位 + PUT config zotero 字段透传/回读断言 + exclude_unset 部分更新保持语义（断链防回归锚点）
+- `tests/services/wiki/source_sync/test_publish_helpers.py` — 冲突策略透传 + 路径段字节预算
+- `tests/services/wiki/source_sync/ima/` — 见 [`ima/_ARCH.md`](ima/_ARCH.md)
 - `tests/services/wiki/test_read_it_later_hygiene.py`
 - `tests/services/onboarding/test_second_brain_wiki_gmail.py`
 
@@ -45,4 +48,5 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 - `app/api/integrations/google_workspace_oauth.py` — OAuth 成功默认开 Gmail sync
 - `app/services/onboarding/second_brain_preset` — preset Gmail 默认 + cron id remap
 - `app/api/wiki/sources.py` — REST（agent_id query）+ manual sync + state
-- `app/core/cron/adapters/wiki_router_job_runner.py` — Cron router 执行体（source sync + maintain）
+- `app/core/cron/adapters/wiki_router_job_runner.py` — Cron router 执行体（source sync + ima sync + maintain）
+- `app/api/wiki/routes/ima.py` — ima REST（`/sources/ima/*`）

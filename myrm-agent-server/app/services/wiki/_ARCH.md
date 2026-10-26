@@ -39,5 +39,5 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `wiki_query_intent.py` | 辅助 | Chat Wiki Knowledge Lane 确定性准入闸门（`should_use_wiki_knowledge_lane`） | ✅ |
 | `asset_index_service.py` | 核心 | Obsidian wiki/assets vision caption 索引；`build_vision_fallback_engine_from_providers` 有序视觉链；import 与手动 compile 后 `schedule_wiki_asset_index` 后台运行并在完成后 publish ingest snapshot；maintain 同步 `run_wiki_asset_index` | ✅ |
 | `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；snapshot stats 含 **`synthesis_pending_count`**；**tree_sync_required** / **stats_refresh_required** 信号 → FE REST 刷新；指纹并入本地可写 `concepts/` 编译页 stat（mtime_ns+size），Agent 编辑词条 → UI 自动刷新 | ✅ |
-| `source_sync/` | 核心 | Gmail/GDrive/RSS/Zotero 确定性 pull → `publish_raw` + compile enqueue + post-sync dedup scan；Integration mirror；Cron router；闭包：HTML2Markdown、Cron hygiene、sync state、Second Brain Gmail 默认 | ✅ |
+| `source_sync/` | 核心 | Gmail/GDrive/RSS/Zotero 确定性 pull → `publish_raw` + compile enqueue + post-sync dedup scan；Integration mirror；Cron router；腾讯 ima 知识库/笔记导入（`ima/` 子包：可续跑清单 + 逐条账本 + 分片同步 cron `__wiki_ima_sync__`，首次回填的编译须用户确认）；闭包：HTML2Markdown、Cron hygiene、sync state、Second Brain Gmail 默认 | ✅ |
 | `writeback/` | 域 | 任务使用台账与作者审阅单驱动的选择性回写引擎；见 [`writeback/_ARCH.md`](writeback/_ARCH.md) | ✅ |

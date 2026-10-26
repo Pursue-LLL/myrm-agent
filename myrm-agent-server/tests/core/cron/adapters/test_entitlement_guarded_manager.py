@@ -92,10 +92,10 @@ async def test_duplicate_job_maps_entitlement_error_to_value_error() -> None:
 
 def test_getattr_delegates_to_inner() -> None:
     inner = MagicMock()
-    inner.list_jobs = MagicMock(return_value=["job-a"])
+    inner.get_job = MagicMock(return_value="job-a")
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert mgr.list_jobs is inner.list_jobs
+    assert mgr.get_job is inner.get_job
 
 
 @pytest.mark.asyncio
@@ -123,3 +123,49 @@ async def test_update_job_clear_pre_condition_script_merges_for_lifecycle_guard(
     )
 
     inner.update_job.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> None:
+    inner = MagicMock()
+    inner.list_jobs = AsyncMock(return_value=["job"])
+    inner.pause_job = AsyncMock(return_value="paused")
+    inner.resume_job = AsyncMock(return_value="resumed")
+    inner.delete_job = AsyncMock(return_value=True)
+    inner.trigger_now = AsyncMock(return_value=True)
+    mgr = EntitlementGuardedCronManager(inner)
+
+    assert await mgr.list_jobs("user-1", name_filter="x", limit=5, offset=2) == ["job"]
+    assert await mgr.pause_job("j1", "user-1") == "paused"
+    assert await mgr.resume_job("j1", "user-1") == "resumed"
+    assert await mgr.delete_job("j1", "user-1") is True
+    assert await mgr.trigger_now("j1", "user-1") is True
+
+    inner.list_jobs.assert_awaited_once_with("user-1", name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
+    inner.pause_job.assert_awaited_once_with("j1", "user-1")
+    inner.resume_job.assert_awaited_once_with("j1", "user-1")
+    inner.delete_job.assert_awaited_once_with("j1", "user-1")
+    inner.trigger_now.assert_awaited_once_with("j1", "user-1")
+    inner.count_jobs.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_job_forwards_every_harness_field() -> None:
+    """The wrapper must accept whatever ``CronManager.create_job`` accepts, or REST/agent callers fail with TypeError."""
+    import inspect
+
+    from myrm_agent_harness.toolkits.cron.manager import CronManager
+
+    wrapper_params = set(inspect.signature(EntitlementGuardedCronManager.create_job).parameters)
+    harness_params = set(inspect.signature(CronManager.create_job).parameters)
+
+    assert harness_params <= wrapper_params, sorted(harness_params - wrapper_params)
+
+    inner = MagicMock()
+    inner.count_jobs = AsyncMock(return_value=0)
+    inner.create_job = AsyncMock(return_value=MagicMock(id="job-1"))
+    mgr = EntitlementGuardedCronManager(inner)
+    with patch(_SLOT_FN):
+        await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), project_id="p1", skill_ids=("s1",))
+    kwargs = inner.create_job.await_args.kwargs
+    assert kwargs["project_id"] == "p1" and kwargs["skill_ids"] == ("s1",)
