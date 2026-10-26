@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
+    from myrm_agent_harness.toolkits.acp.types import DelegationPool
     from myrm_agent_harness.toolkits.browser import BrowserSession
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -285,10 +286,10 @@ class GeneralAgent(ToolSetupMixin):
         self._executor: CodeExecutor | None = None
         self._current_chat_id: str | None = None
         self._session_vault = None
-        self._runtime_pool: RuntimePool | None = None
+        self._runtime_pool: DelegationPool | None = None
         self._runtime_pool_scope_id: str | None = None
         self._runtime_pool_from_registry = False
-        self._runtime_pool_ephemeral = False
+        self._owned_runtime_pool: RuntimePool | None = None
         self.quote = quote
         self.goal = goal
         self.openapi_services = openapi_services or []
@@ -490,7 +491,7 @@ class GeneralAgent(ToolSetupMixin):
             yield chunk
 
     async def _release_runtime_pool(self) -> None:
-        """Release the external-agent RuntimePool: registry-owned pools stay cached, ephemeral ones are closed."""
+        """Release the external-agent pool: registry-owned pools stay cached, a pool this agent built itself is closed."""
         if self._runtime_pool is None:
             return
         try:
@@ -502,12 +503,13 @@ class GeneralAgent(ToolSetupMixin):
             scope_id = (self._runtime_pool_scope_id or "").strip()
             if self._runtime_pool_from_registry and scope_id:
                 await get_chat_runtime_pool_registry().release(scope_id)
-            elif self._runtime_pool_ephemeral:
-                await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
+            elif self._owned_runtime_pool is not None:
+                await close_runtime_pool_bounded(self._owned_runtime_pool, scope="ephemeral")
         except Exception as e:
             logger.warning("RuntimePool release failed: %s", e)
         finally:
             self._runtime_pool = None
+            self._owned_runtime_pool = None
 
     async def release_pooled_session(self) -> None:
         """Release per-turn server resources without closing pooled SkillAgent/Browser."""

@@ -279,7 +279,6 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
-    mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
     mock_tool.name = "invoke_acp_agent_tool"
 
@@ -300,7 +299,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
             external_agent_workdir="/workspace/root",
         )
 
-    assert mixin._runtime_pool_ephemeral is True
+    assert mixin._owned_runtime_pool is mock_pool
     assert mixin._runtime_pool_from_registry is False
     assert tools == [mock_tool]
     mock_create.assert_called_once_with(
@@ -319,7 +318,6 @@ async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
-    mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
     mock_tool.name = "invoke_acp_agent_tool"
     mock_registry = MagicMock()

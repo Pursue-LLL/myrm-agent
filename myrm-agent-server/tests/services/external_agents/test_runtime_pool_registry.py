@@ -354,17 +354,17 @@ async def test_close_all_continues_after_single_pool_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_facade_delegates_properties_and_getattr() -> None:
+async def test_facade_exposes_only_the_delegation_surface() -> None:
     registry = ChatRuntimePoolRegistry()
     pool = MagicMock()
     pool.available_backends = ["claude", "codex"]
     pool.get_config = MagicMock(return_value={"name": "claude"})
-    pool.start_monitoring = AsyncMock()
 
     facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
     assert facade.available_backends == ["claude", "codex"]
     assert facade.get_config("claude") == {"name": "claude"}
-    assert facade.start_monitoring is pool.start_monitoring
+    # Anything beyond the delegation surface would reach the pool without taking the chat's turn lock.
+    assert not hasattr(facade, "prompt")
 
 
 @pytest.mark.asyncio
@@ -406,7 +406,6 @@ def _build_turn_pool(label: str, ran_on: list[str]) -> MagicMock:
     pool.run_turn = run_turn
     pool.cancel = AsyncMock()
     pool.close_all = AsyncMock()
-    pool.start_monitoring = AsyncMock()
     return pool
 
 
@@ -437,7 +436,6 @@ async def test_ensure_tracked_fast_path_does_not_wait_for_registry_lock() -> Non
         tracked = await asyncio.wait_for(registry.ensure_tracked("chat-1", "fp-a", pool), timeout=0.5)
 
     assert tracked is pool
-    pool.start_monitoring.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -451,7 +449,6 @@ async def test_ensure_tracked_readopts_evicted_pool_so_shutdown_closes_it() -> N
 
     assert tracked is pool
     assert registry._entries["chat-1"].pool is pool
-    pool.start_monitoring.assert_awaited_once()
     await registry.close_all()
     assert pool.close_all.await_count == 2
 
@@ -468,7 +465,6 @@ async def test_ensure_tracked_prefers_the_registered_pool_over_a_stale_one() -> 
     await registry.acquire("chat-1", "fp-a", build_pool)
 
     assert await registry.ensure_tracked("chat-1", "fp-a", stale) is current
-    stale.start_monitoring.assert_not_called()
 
 
 @pytest.mark.asyncio

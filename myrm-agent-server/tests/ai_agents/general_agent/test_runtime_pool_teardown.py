@@ -20,7 +20,7 @@ def _agent_with_pool(pool: MagicMock, *, ephemeral: bool, scope_id: str | None) 
     agent._runtime_pool = pool
     agent._runtime_pool_scope_id = scope_id
     agent._runtime_pool_from_registry = not ephemeral
-    agent._runtime_pool_ephemeral = ephemeral
+    agent._owned_runtime_pool = pool if ephemeral else None
     agent._executor = None
     agent._current_chat_id = None
     agent._browser_session = None

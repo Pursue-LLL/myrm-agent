@@ -167,8 +167,6 @@ class ChatRuntimePoolRegistry:
                 config_fingerprint=config_fingerprint,
                 last_used=time.monotonic(),
             )
-            # close_all stopped the pool's health monitor; resume supervising the backends it re-spawns.
-            await pool.start_monitoring()
             logger.info("runtime_pool_readopted chat=%s", chat_scope_id)
             return pool
 
@@ -220,7 +218,11 @@ class ChatRuntimePoolRegistry:
 
 
 class ChatScopedRuntimePoolFacade:
-    """Wraps a RuntimePool with per-chat turn serialization for shared CliRuntime."""
+    """Wraps a RuntimePool with per-chat turn serialization for shared CliRuntime.
+
+    Exposes exactly the ``DelegationPool`` surface: anything else (``prompt``, ``get``) would
+    bypass the turn lock, so it is deliberately not forwarded.
+    """
 
     def __init__(
         self,
@@ -264,9 +266,6 @@ class ChatScopedRuntimePoolFacade:
     async def cancel(self, name: str, session_id: str) -> None:
         # Lock-exempt: callers invoke cancel from inside an active run_turn loop.
         await self._pool.cancel(name, session_id)
-
-    def __getattr__(self, name: str) -> object:
-        return getattr(self._pool, name)
 
 
 _registry: ChatRuntimePoolRegistry | None = None

@@ -17,8 +17,7 @@
 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP/SDK 后端注册、
 本地模式自动检测（请求热路径使用 path-only 探测，版本探测留给设置态），
 以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。
-RuntimePool 启用会话内 HealthMonitor（活跃 chat 流内进程崩溃恢复）；
-Settings auth/status 仅报告安装/登录态，不暴露 ephemeral pool metrics。
+Settings auth/status 仅报告安装/登录态。
 有 chat scope 时经 ChatRuntimePoolRegistry 跨消息复用 pool（CLI --resume），
 ChatScopedRuntimePoolFacade 对 run_turn 做 per-chat single-flight 串行化。
 """
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
+    from myrm_agent_harness.toolkits.acp.types import DelegationPool
     from myrm_agent_harness.utils import CancellationToken
 
 logger = logging.getLogger(__name__)
@@ -99,10 +99,10 @@ class ExternalAgentsMixin:
 
     if TYPE_CHECKING:
         external_agents_config: list[dict[str, object]] | None
-        _runtime_pool: RuntimePool | None
+        _runtime_pool: DelegationPool | None
         _runtime_pool_scope_id: str | None
         _runtime_pool_from_registry: bool
-        _runtime_pool_ephemeral: bool
+        _owned_runtime_pool: RuntimePool | None
         chat_id: str | None
         agent_id: str | None
         force_external_agent: str | None
@@ -154,11 +154,11 @@ class ExternalAgentsMixin:
         chat_scope_id = _runtime_pool_scope_id(self)
 
         async def _build_pool() -> RuntimePool:
-            pool = RuntimePool(max_concurrent=4, enable_health_monitor=True)
+            pool = RuntimePool(max_concurrent=4)
             _register_backends_on_pool(pool, agent_cfgs)
-            await pool.start_monitoring()
             return pool
 
+        pool: DelegationPool
         if chat_scope_id:
             from app.services.external_agents.runtime_pool_registry import (
                 ChatScopedRuntimePoolFacade,
@@ -173,11 +173,12 @@ class ExternalAgentsMixin:
             )
             pool = ChatScopedRuntimePoolFacade(raw_pool, chat_scope_id, registry, fingerprint)
             self._runtime_pool_from_registry = True
-            self._runtime_pool_ephemeral = False
+            self._owned_runtime_pool = None
         else:
-            pool = await _build_pool()
+            owned_pool = await _build_pool()
+            pool = owned_pool
             self._runtime_pool_from_registry = False
-            self._runtime_pool_ephemeral = True
+            self._owned_runtime_pool = owned_pool
 
         if pool.available_backends:
             self._runtime_pool = pool

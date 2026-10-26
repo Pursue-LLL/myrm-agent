@@ -36,7 +36,7 @@ def _new_mixin(*, chat_scope_id: str) -> ExternalAgentsMixin:
     mixin._runtime_pool_scope_id = chat_scope_id
     mixin._runtime_pool = None
     mixin._runtime_pool_from_registry = False
-    mixin._runtime_pool_ephemeral = False
+    mixin._owned_runtime_pool = None
     mixin.agent_id = "general"
     mixin.force_external_agent = None
     return mixin
@@ -138,7 +138,7 @@ async def test_ephemeral_scope_skips_registry_facade() -> None:
     mixin._runtime_pool_scope_id = None
     mixin._runtime_pool = None
     mixin._runtime_pool_from_registry = False
-    mixin._runtime_pool_ephemeral = False
+    mixin._owned_runtime_pool = None
     mixin.agent_id = "general"
     mixin.force_external_agent = None
 
@@ -148,7 +148,7 @@ async def test_ephemeral_scope_skips_registry_facade() -> None:
 
     assert isinstance(mixin._runtime_pool, RuntimePool)
     assert mixin._runtime_pool_from_registry is False
-    assert mixin._runtime_pool_ephemeral is True
+    assert mixin._owned_runtime_pool is mixin._runtime_pool
 
 
 @pytest.mark.integration
@@ -325,7 +325,7 @@ async def test_live_general_agent_close_release_preserves_pool() -> None:
     agent._runtime_pool_scope_id = chat_id
     agent._runtime_pool = None
     agent._runtime_pool_from_registry = False
-    agent._runtime_pool_ephemeral = False
+    agent._owned_runtime_pool = None
     agent.agent_id = "general"
     agent.force_external_agent = None
     agent._browser_session = None
@@ -345,7 +345,7 @@ async def test_live_general_agent_close_release_preserves_pool() -> None:
     agent2._runtime_pool_scope_id = chat_id
     agent2._runtime_pool = None
     agent2._runtime_pool_from_registry = False
-    agent2._runtime_pool_ephemeral = False
+    agent2._owned_runtime_pool = None
     agent2.agent_id = "general"
     agent2.force_external_agent = None
     agent2._browser_session = None

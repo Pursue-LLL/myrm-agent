@@ -102,7 +102,7 @@ async def test_delete_chat_live_tears_down_registry_pool() -> None:
     mixin._runtime_pool_scope_id = chat_id
     mixin._runtime_pool = None
     mixin._runtime_pool_from_registry = False
-    mixin._runtime_pool_ephemeral = False
+    mixin._owned_runtime_pool = None
     mixin.agent_id = "general"
     mixin.force_external_agent = None
     await mixin._do_setup_external_agents([], mount_invoke_acp_agent_tool=False)

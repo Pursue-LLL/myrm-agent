@@ -40,7 +40,6 @@ async def test_invoke_acp_agent_tool_mounts_in_tools_not_deferred() -> None:
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
-    mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
     mock_tool.name = "invoke_acp_agent_tool"
 
@@ -62,7 +61,7 @@ async def test_invoke_acp_agent_tool_mounts_in_tools_not_deferred() -> None:
 
     assert isinstance(mixin._runtime_pool, ChatScopedRuntimePoolFacade)
     assert mixin._runtime_pool_from_registry is True
-    mock_pool.start_monitoring.assert_awaited_once()
+    assert mixin._owned_runtime_pool is None
 
 
 @pytest.mark.asyncio
@@ -87,7 +86,6 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
-    mock_pool.start_monitoring = AsyncMock()
 
     with (
         patch(
@@ -108,7 +106,7 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
     assert mixin._runtime_pool.available_backends == ["test-cli"]
     assert mixin._runtime_pool_from_registry is True
     create_tool.assert_not_called()
-    mock_pool.start_monitoring.assert_awaited_once()
+    assert mixin._owned_runtime_pool is None
 
 
 def test_should_mount_invoke_acp_agent_tool_matrix() -> None:
@@ -207,7 +205,6 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
-    mock_pool.start_monitoring = AsyncMock()
 
     with (
         patch(
@@ -223,4 +220,4 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
     assert tools == []
     create_tool.assert_not_called()
     assert mixin._runtime_pool is not None
-    mock_pool.start_monitoring.assert_awaited_once()
+    assert mixin._owned_runtime_pool is None
