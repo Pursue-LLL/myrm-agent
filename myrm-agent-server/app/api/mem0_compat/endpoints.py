@@ -134,7 +134,7 @@ async def search_memories(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> Mem0SearchResponse:
     """Semantic search across memories."""
-    results = await manager.search(body.query, limit=body.top_k)
+    results = await manager.search(body.query, limit=body.top_k, track_access=True)
     items = [memory_item_to_mem0_search(memory_to_item(r.memory, r.memory_type), r.score) for r in results]
     return Mem0SearchResponse(results=items)
 

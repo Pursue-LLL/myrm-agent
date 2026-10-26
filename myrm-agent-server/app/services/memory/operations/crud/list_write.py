@@ -319,6 +319,7 @@ async def search_memories(
         memory_types=types,
         limit=limit,
         dynamic_signal_weights=dynamic_weights,
+        track_access=True,
     )
     items = [memory_to_item(r.memory, r.memory_type) for r in results]
     scores = [r.score for r in results]

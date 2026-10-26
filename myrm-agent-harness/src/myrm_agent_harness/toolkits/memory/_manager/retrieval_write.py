@@ -93,6 +93,12 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
         track_access: bool = True,
         dynamic_signal_weights: dict[str, float] | None = None,
     ) -> list[MemorySearchResult]:
+        """Search the enabled memory types.
+
+        ``track_access`` records each hit as used (use count and last-use time), and a memory used
+        within the last week is protected from forgetting. Pass ``False`` for a lookup that is not
+        a recall: deduplication, diagnostics, existence checks.
+        """
         session_chat_id = self._active_session.chat_id if self._active_session else None
         results = await self._search_service.search(
             query,

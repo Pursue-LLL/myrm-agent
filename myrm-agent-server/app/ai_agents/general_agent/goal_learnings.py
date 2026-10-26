@@ -249,6 +249,7 @@ async def retrieve_relevant_learnings(
             query=objective,
             memory_types=[MemoryType.SEMANTIC],
             limit=limit,
+            track_access=True,
         )
         learnings: list[str] = []
         for result in results:

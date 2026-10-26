@@ -45,6 +45,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_server_scripts_arch.py` | `myrm-agent-server/scripts/**` 子树必须有 `_ARCH.md` |
 | `test_sync_arch_guard.py` | `sync_arch_file_tables.py` 不得覆盖已人工维护的 `_ARCH.md`（混合 stub/✅ 或多余章节） |
 | `test_no_app_main_in_tests.py` | `tests/**` 禁止 AST 级 `import app.main`（须用 `build_minimal_app`） |
+| `test_memory_search_declares_recall.py` | `app/**` 里每个 `manager.search(...)` 必须写明 `track_access`：检索默认把命中的记忆记为已使用（7 天内用过的记忆不被遗忘），取用类写 `True`，去重、诊断、存在性检查写 `False`；自带检测器正反例，接收者改名致扫描落空时失败 |
 | `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
 | `test_instance_archive_report_contract.py` | 整实例备份预览报告的计数键：服务端输出的键集 == 前端 `COUNT_KEYS`，且六种语言都有对应标签（前端缺标签或服务端改名都会失败） |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
