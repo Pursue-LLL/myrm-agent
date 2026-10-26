@@ -10,6 +10,7 @@ no - Base type definition module
 
 [OUTPUT]
 - RuntimeBackend: Runtime Backend abstract protocol
+- DelegationPool: the pool surface a delegation caller needs (RuntimePool and host-side wrappers satisfy it)
 - RuntimeEvent: Runtime Event type
 - AcpErrorCode: ACP error enum
 - RuntimeConfig: Runtime configuration
@@ -206,6 +207,31 @@ class RuntimeBackend(Protocol):
     async def get_info(self) -> BackendInfo: ...
 
     async def close(self) -> None: ...
+
+
+class DelegationPool(Protocol):
+    """What a caller needs to delegate turns to configured backends.
+
+    ``RuntimePool`` satisfies it, and so can a host-side wrapper that adds concerns of its own
+    (per-conversation turn serialization, pool lifetime) without subclassing the pool.
+    """
+
+    @property
+    def available_backends(self) -> list[str]: ...
+
+    def get_config(self, name: str) -> RuntimeConfig | None: ...
+
+    def run_turn(
+        self,
+        name: str,
+        prompt: str,
+        session_id: str,
+        *,
+        mode: str = "persistent",
+        mcp_servers: list[McpServerConfig] | None = None,
+    ) -> AsyncIterator[RuntimeEvent]: ...
+
+    async def cancel(self, name: str, session_id: str) -> None: ...
 
 
 @runtime_checkable

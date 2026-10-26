@@ -11,7 +11,6 @@ Facades and contracts (root):
 Shared infrastructure (core/):
 - core/event_bus.py: Unified event bus (publish-subscribe)
 - core/permission.py: Permission management (4 modes)
-- core/health_monitor.py: Backend health monitoring (backoff + restart budget)
 - core/backend_detector.py: CLI backend auto-detection
 - auth/: subscription login, credential detection, and credential import for CLI backends
 

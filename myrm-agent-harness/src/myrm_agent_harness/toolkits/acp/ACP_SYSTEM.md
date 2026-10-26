@@ -27,7 +27,7 @@
 ╠═══════════════════════════════╩═══════════════════════════════╣
 ║                    横切关注点 (core/)                          ║
 ║  types.py · core/EventBus · core/PermissionManager           ║
-║  core/BackendDetector · core/HealthMonitor                    ║
+║  core/BackendDetector                                         ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -199,42 +199,30 @@ PermissionManager (Protocol)
 **返回**：`list[DetectedBackend]`（name, path, version）
 **缓存**：进程级双缓存（带版本 / 不带版本）+ 软 TTL（默认 300s），避免重复路径扫描与重复版本探测，同时避免长期陈旧结果常驻
 
-### 3.7 HealthMonitor（健康监控）
-
-**来源**：zeroclaw 进程 Checkout/Restore + AionUi 自动重连
-
-**功能**：
-- 定期检查**常驻进程**后端（`AcpRuntime`）的存活（`is_alive`）。`CliRuntime` 每回合一个进程、回合之间本就没有进程，**不接入巡检**：空闲会被判成崩溃，退避后的 `close()` 会杀掉其间新启动的回合，并清掉 `--resume` 用的 CLI 会话 id
-- 非存活时：指数退避 → `close()` 清理句柄；下一次 `run_turn` 由各 Runtime 懒加载重新拉起进程。退避结束时若后端已被新回合重新拉起（`is_alive` 恢复），跳过 `close()`，避免杀掉刚恢复的进程
-- 超过最大处理次数后停止对该后端的干预并上报告警事件
-- 通过 EventBus 发布状态事件
-- 收集健康指标（计数、最近崩溃时间、累计存活时间等）
-
-### 3.8 RuntimePool
+### 3.7 RuntimePool
 
 **价值**：统一管理任意 `RuntimeBackend` 实例，配置驱动 + 并发控制（`asyncio.Semaphore`）。
 
 ```
-RuntimePool(*, max_concurrent: int = 4, enable_health_monitor: bool = False)
+RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None)
 ├── register(name, config: RuntimeConfig) -> None
 ├── get(name) -> RuntimeBackend
 ├── prompt(name, task, *, mode) -> str      # 委托 run_turn()，收集 text_delta
 ├── run_turn(name, prompt, session_id) -> AsyncIterator[RuntimeEvent]  # Semaphore 并发控制
 ├── cancel(name, session_id) -> None        # 级联取消 → backend.cancel()
-├── start_monitoring() -> None              # 启动 HealthMonitor（可选）
-├── get_health_metrics() -> dict            # 查询所有后端健康指标
 ├── available_backends -> list[str]
-└── close_all() -> None                     # 停止监控 + 关闭所有后端
+└── close_all() -> None                     # 关闭所有后端
 ```
 
 **要点**：
 - `RuntimeConfig.backend_type` 选择 `AcpRuntime` / `CliRuntime`
 - `max_concurrent` 限制同时执行的委托任务数，避免进程与文件句柄耗尽
 - `prompt()` 委托给 `run_turn()`，并发控制统一在 `run_turn()` 层
-- `enable_health_monitor=True` 时自动创建 HealthMonitor；只有 `backend_type == "acp"` 的后端在创建时自动注册（见 §3.7）
+- **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底
+- **委托窄协议 `DelegationPool`（`types.py`）**：委托调用方只依赖 `available_backends` / `get_config` / `run_turn` / `cancel`；`RuntimePool` 与宿主侧包装器（如按会话串行化回合的 facade）都满足它，`create_invoke_acp_agent_tool` 接受它
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测
 
-### 3.9 RuntimeConfig（统一配置）
+### 3.8 RuntimeConfig（统一配置）
 
 ```
 RuntimeConfig (frozen dataclass)
@@ -258,9 +246,9 @@ RuntimeConfig (frozen dataclass)
 - 敏感信息过滤：`build_safe_env()` 始终剥离子进程继承的 provider 密钥（前缀剥离 + `strip_env_keys`），各 Runtime 启动前统一调用
 - `subscription`（默认）：剥离所有 provider 密钥 **并丢弃** `env` 中注入的密钥，强制委托 CLI 走自身订阅登录态（用户的 ChatGPT Plus / Claude Max / Gemini 订阅），绝不静默回退按量计费的 API Key
 - `api_key`：业务层经 `env` 注入该后端应计费的单一 provider 密钥，剥离基线后重新应用
-- 价值：让 GUI/SaaS 用户用已购订阅驱动外部 CLI，无需重复购买 API Key（详见 3.11 auth 子系统）
+- 价值：让 GUI/SaaS 用户用已购订阅驱动外部 CLI，无需重复购买 API Key（详见 3.10 auth 子系统）
 
-### 3.10 _base.py（RuntimeBackend 基类）
+### 3.9 _base.py（RuntimeBackend 基类）
 
 **价值**：提取 3 种 Runtime 的通用逻辑，避免重复代码。
 
@@ -270,7 +258,7 @@ RuntimeConfig (frozen dataclass)
 - 流式响应截断（`max_response_chars`，统一对 TEXT_DELTA 事件逐字符计数）
 - 日志规范化
 
-### 3.11 auth 子系统（订阅鉴权）
+### 3.10 auth 子系统（订阅鉴权）
 
 **来源**：pi-mono `/login`（ChatGPT Plus/Pro·Claude Pro/Max）+ openhuman `openai_oauth/`（flow/store/status）+ zeroclaw「API Key vs Codex 订阅」二选一 + opencode 订阅插件
 
@@ -318,7 +306,6 @@ acp/
 │   ├── __init__.py
 │   ├── event_bus.py        # EventBus
 │   ├── permission.py       # DefaultPermissionManager
-│   ├── health_monitor.py   # 健康检查与退避（集成于 RuntimePool）
 │   └── backend_detector.py # CLI 探测（detect + detect_with_auth 安装+登录态一次性视图）
 ├── auth/                   # 订阅鉴权子系统（业务无关机制）
 │   ├── __init__.py         # 公共导出
@@ -358,7 +345,6 @@ acp/
 | 事件流 | opencode (订阅系统) | EventBus + session 过滤 | **超越** |
 | Session 管理 | opencode (Fork/Resume) | Fork/Resume + TTL + 自动清理 | **超越** |
 | 后端检测 | AionUi (自动检测) | 自动检测 + 版本检测 | **超越** |
-| 健康监控 | zeroclaw (自动重启) | 退避 + 句柄回收 + 指标 + 懒重连 | **超越** |
 | 事件类型 | nextclaw (34类型) | 9类型（精简完整，含 status_update） | **超越** |
 | 错误处理 | craft-agents-oss (错误标记) | 结构化错误码 + retryable + PERMISSION_DENIED | **超越** |
 | 安全模型 | ironclaw (纵深防御) | 环境清理 + 工具白名单 + 路径安全 | 平齐 |
@@ -384,14 +370,13 @@ acp/
 | core/event_bus.py | 事件系统 | 类似生命周期钩子，业务层订阅 |
 | core/permission.py | Protocol + 默认实现 | DefaultPermissionManager（4 模式 + 白名单） |
 | core/backend_detector.py | 工具 | 后端自动检测 |
-| core/health_monitor.py | 自我保护 | ACP 常驻进程后端的存活巡检 + 退避 + `close()` + 指标 |
 
 ### 业务层自定义（通过 Protocol 注入）
 
 | 能力 | 框架提供的扩展点 | 业务层实现示例 |
 |------|----------------|-------------|
 | 权限交互 UI | EventBus + permission_request 事件 | 订阅事件 → 展示 UI → `future.set_result()`（尚未接入：未注入 EventBus 时 ask 模式降级为只读） |
-| 监控集成 | EventBus + 健康指标 | 推送到 Prometheus / DataDog |
+| 监控集成 | EventBus 事件 | 推送到 Prometheus / DataDog |
 | 自定义后端 | RuntimeBackend Protocol | HTTP API Agent / 自研 Agent |
 | 自定义权限 | PermissionManager Protocol | 基于角色的权限管理 |
 
@@ -465,7 +450,6 @@ acp/
 | P1 | core/event_bus.py（事件总线） | 低 | types.py |
 | P1 | runtime/cli_runtime.py（CLI 后端） | 中 | types.py, _base.py, core/event_bus.py |
 | P2 | core/backend_detector.py（自动检测） | 低 | 无 |
-| P2 | core/health_monitor.py（健康监控） | 低 | core/event_bus.py |
 ---
 
 ## 9. 方案完美性评估

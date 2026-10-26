@@ -1383,40 +1383,6 @@ class TestParserMissingBranches:
         assert result is None
 
 
-class TestRuntimePoolHealthMonitor:
-    """Tests for RuntimePool health monitor integration."""
-
-    @pytest.mark.asyncio
-    async def test_start_monitoring_noop_when_disabled(self) -> None:
-        pool = RuntimePool()
-        await pool.start_monitoring()
-
-    def test_get_health_metrics_empty_when_no_monitor(self) -> None:
-        pool = RuntimePool()
-        assert pool.get_health_metrics() == {}
-
-    @pytest.mark.asyncio
-    async def test_close_all_stops_monitor(self) -> None:
-        pool = RuntimePool(enable_health_monitor=True)
-        pool.register("test", RuntimeConfig(backend_type="cli", command="echo"))
-        await pool.close_all()
-
-    @pytest.mark.asyncio
-    async def test_acp_backend_is_registered_with_monitor(self) -> None:
-        pool = RuntimePool(enable_health_monitor=True)
-        pool.register("agent", RuntimeConfig(backend_type="acp", command="echo"))
-        pool.get("agent")
-        assert "agent" in pool.get_health_metrics()
-
-    @pytest.mark.asyncio
-    async def test_cli_backend_is_not_registered_with_monitor(self) -> None:
-        """A CLI backend has no process between turns; supervising it would close() it mid-session."""
-        pool = RuntimePool(enable_health_monitor=True)
-        pool.register("agent", RuntimeConfig(backend_type="cli", command="echo"))
-        pool.get("agent")
-        assert pool.get_health_metrics() == {}
-
-
 class TestRuntimePoolRunTurnWithoutBus:
     """Tests for RuntimePool run_turn without event bus."""
 

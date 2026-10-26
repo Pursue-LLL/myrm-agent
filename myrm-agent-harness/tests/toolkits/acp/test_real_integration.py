@@ -647,26 +647,6 @@ class TestEdgeCases:
         assert rt._process is None
 
     @pytest.mark.asyncio
-    async def test_pool_health_metrics_empty(self) -> None:
-        """Health metrics should be empty when monitor is disabled."""
-        pool = RuntimePool(max_concurrent=2, enable_health_monitor=False)
-        assert pool.get_health_metrics() == {}
-
-    @pytest.mark.asyncio
-    async def test_pool_health_monitor_enabled(self) -> None:
-        """Health monitor should provide metrics when enabled."""
-        pool = RuntimePool(max_concurrent=2, enable_health_monitor=True)
-        pool.register(
-            "dummy",
-            RuntimeConfig(backend_type="acp", command="echo"),
-        )
-        pool.get("dummy")
-        metrics = pool.get_health_metrics()
-        assert "dummy" in metrics
-        assert "restart_count" in metrics["dummy"]
-        await pool.close_all()
-
-    @pytest.mark.asyncio
     @pytest.mark.skipif(not _HAS_CLAUDE, reason="claude CLI not installed")
     async def test_claude_session_id_capture(self) -> None:
         """Claude CLI should capture session_id from result events for resume."""

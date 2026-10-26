@@ -1,13 +1,13 @@
 """RuntimePool — unified pool for managing arbitrary RuntimeBackend instances.
 
-Supports ACP, SDK, and CLI backends with config-driven registration,
+Supports ACP, SDK, and CLI backends with config-driven registration and
 concurrency control via a global asyncio.Semaphore plus per-backend
-serialization locks, and optional health monitoring of resident-process (ACP) backends.
+serialization locks. Backends are created lazily on first use, and a resident
+ACP process that has exited is reconnected by its next ``run_turn``.
 
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer)
-- myrm_agent_harness.toolkits.acp.core.health_monitor::HealthMonitor (POS: runtime health monitoring layer)
 - myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent (POS: ACP runtime type definitions)
 - myrm_agent_harness.toolkits.acp.runtime.*::AcpRuntime, CliRuntime (POS: runtime backend implementations)
 
@@ -16,7 +16,7 @@ serialization locks, and optional health monitoring of resident-process (ACP) ba
 
 [POS]
 Runtime pool management layer. Provides multi-backend unified management, concurrency control,
-health monitoring, and config-driven registration — the central dispatcher of the runtime system.
+and config-driven registration — the central dispatcher of the runtime system.
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.acp.core.event_bus import EventBus
-from myrm_agent_harness.toolkits.acp.core.health_monitor import HealthMonitor
 from myrm_agent_harness.toolkits.acp.types import (
     McpServerConfig,
     RuntimeBackend,
@@ -75,16 +74,12 @@ class RuntimePool:
         *,
         max_concurrent: int = 4,
         event_bus: EventBus | None = None,
-        enable_health_monitor: bool = False,
     ) -> None:
         self._configs: dict[str, RuntimeConfig] = {}
         self._backends: dict[str, RuntimeBackend] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._backend_locks: dict[str, asyncio.Lock] = {}
         self._event_bus = event_bus
-        self._health_monitor: HealthMonitor | None = (
-            HealthMonitor(event_bus=event_bus) if enable_health_monitor else None
-        )
 
     @property
     def available_backends(self) -> list[str]:
@@ -112,13 +107,7 @@ class RuntimePool:
 
         if name not in self._backends:
             config = self._configs[name]
-            backend = _create_runtime(name, config, event_bus=self._event_bus)
-            self._backends[name] = backend
-            # Only a resident process has a liveness worth supervising. A CLI backend spawns one process per
-            # turn, so "no process" between turns is its normal idle state: treating it as a crash would
-            # close() the backend, killing an in-flight turn and dropping the CLI session id used for --resume.
-            if self._health_monitor is not None and config.backend_type == "acp":
-                self._health_monitor.register(backend)
+            self._backends[name] = _create_runtime(name, config, event_bus=self._event_bus)
 
         return self._backends[name]
 
@@ -208,21 +197,8 @@ class RuntimePool:
             await backend.cancel(session_id)
             logger.info("pool_cancel backend=%s session=%s", name, session_id)
 
-    async def start_monitoring(self) -> None:
-        """Start the health monitor if enabled. No-op if disabled."""
-        if self._health_monitor is not None:
-            await self._health_monitor.start()
-
-    def get_health_metrics(self) -> dict[str, dict[str, object]]:
-        """Return health metrics for all monitored backends."""
-        if self._health_monitor is None:
-            return {}
-        return self._health_monitor.get_all_metrics()
-
     async def close_all(self) -> None:
-        """Stop health monitoring and close all active backend connections."""
-        if self._health_monitor is not None:
-            await self._health_monitor.stop()
+        """Close all active backend connections."""
 
         async def _safe_close(name: str, backend: RuntimeBackend) -> None:
             try:

@@ -8,9 +8,9 @@ or CLI interface via the unified RuntimePool.
 - myrm_agent_harness.core.events.types::AgentEventType (POS: streaming event types and enums, framework-agnostic)
 - myrm_agent_harness.toolkits.acp.runtime._base::truncate_response (POS: Base class for RuntimeBackend implementations.)
 - myrm_agent_harness.toolkits.acp.types::RuntimeEventType (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module)
+- myrm_agent_harness.toolkits.acp.types::DelegationPool (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module) [TYPE_CHECKING]
 - myrm_agent_harness.utils.runtime.cancellation::get_cancel_token (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support)
 - myrm_agent_harness.utils.runtime.progress_sink::ToolProgressSink, get_tool_progress_sink (POS: Progress event push mechanism. Tools implicitly obtain a sink via ContextVar to push intermediate progress events to the Agent SSE stream)
-- myrm_agent_harness.toolkits.acp.runtime.pool::RuntimePool (POS: Runtime pool management layer. Provides multi-backend unified management, concurrency control, health monitoring, and config-driven registration — the central dispatcher of the runtime system) [TYPE_CHECKING]
 - myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection) [lazy]
 
 [OUTPUT]
@@ -41,7 +41,7 @@ from myrm_agent_harness.utils.runtime.progress_sink import ToolProgressSink, get
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
-    from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
+    from myrm_agent_harness.toolkits.acp.types import DelegationPool
 
 
 class DelegateUsage(TypedDict):
@@ -68,7 +68,7 @@ _DEFAULT_MAX_TURNS = 25
 
 
 def create_invoke_acp_agent_tool(
-    pool: RuntimePool,
+    pool: DelegationPool,
     *,
     cwd: str | None = None,
     session_scope: str | None = None,
@@ -76,7 +76,7 @@ def create_invoke_acp_agent_tool(
     """Create the invoke_acp_agent tool.
 
     Args:
-        pool: Pre-configured RuntimePool with registered backends.
+        pool: Pre-configured pool (a ``RuntimePool`` or any ``DelegationPool``) with registered backends.
         cwd: Working directory injected as context into delegated tasks.
         session_scope: Optional chat/session id for stable CLI resume keys.
 
@@ -234,7 +234,7 @@ def _as_int(value: object) -> int:
 
 
 async def _run_turn_and_collect(
-    pool: RuntimePool,
+    pool: DelegationPool,
     agent_name: str,
     task: str,
     *,
