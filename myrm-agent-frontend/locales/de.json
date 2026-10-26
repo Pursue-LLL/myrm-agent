@@ -1229,7 +1229,7 @@
       "jitTeam": "JIT-Teamkonfiguration",
       "jitTeamOff": "Einzelner Agent (kein Team)",
       "jitTeamPlaceholder": "Kein virtuelles Team",
-      "jitInheritMemory": "Übergeordneten Konversationsspeicher erben (Fork Context)",
+      "jitInheritMemory": "Übergeordneten Konversationsspeicher erben",
       "templateMarket": "Vorlagenmarkt",
       "categoryFilter": "Kategoriefilter",
       "categoryAll": "Alle",

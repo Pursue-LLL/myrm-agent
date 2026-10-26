@@ -1229,7 +1229,7 @@
       "jitTeam": "JIT Team",
       "jitTeamOff": "Single Agent (no team)",
       "jitTeamPlaceholder": "No virtual team",
-      "jitInheritMemory": "Inherit parent conversation memory (Fork Context)",
+      "jitInheritMemory": "Inherit parent conversation memory",
       "templateMarket": "Template Market",
       "categoryFilter": "Category Filter",
       "categoryAll": "All",

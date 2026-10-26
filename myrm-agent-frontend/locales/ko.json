@@ -1229,7 +1229,7 @@
       "jitTeam": "JIT 팀 구성",
       "jitTeamOff": "단일 Agent (팀 없음)",
       "jitTeamPlaceholder": "가상 팀 미사용",
-      "jitInheritMemory": "상위 대화 메모리 상속 (Fork Context)",
+      "jitInheritMemory": "상위 대화 메모리 상속",
       "templateMarket": "템플릿 마켓",
       "categoryFilter": "카테고리 필터",
       "categoryAll": "전체",

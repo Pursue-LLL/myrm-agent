@@ -1229,7 +1229,7 @@
       "jitTeam": "JIT 團隊配置",
       "jitTeamOff": "單 Agent (無下屬團隊)",
       "jitTeamPlaceholder": "不使用虛擬團隊",
-      "jitInheritMemory": "繼承父級對話記憶 (Fork Context)",
+      "jitInheritMemory": "繼承父級對話記憶",
       "templateMarket": "模板市場",
       "categoryFilter": "分類篩選",
       "categoryAll": "全部",

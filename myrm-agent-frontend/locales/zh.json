@@ -1229,7 +1229,7 @@
       "jitTeam": "JIT 团队配置",
       "jitTeamOff": "单 Agent (无下属团队)",
       "jitTeamPlaceholder": "不使用虚拟团队",
-      "jitInheritMemory": "继承父级对话记忆 (Fork Context)",
+      "jitInheritMemory": "继承父级对话记忆",
       "templateMarket": "模板市场",
       "categoryFilter": "分类筛选",
       "categoryAll": "全部",

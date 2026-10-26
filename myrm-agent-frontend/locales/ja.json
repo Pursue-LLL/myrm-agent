@@ -1229,7 +1229,7 @@
       "jitTeam": "JITチーム設定",
       "jitTeamOff": "単体Agent（チームなし）",
       "jitTeamPlaceholder": "仮想チームなし",
-      "jitInheritMemory": "親会話メモリを継承（Fork Context）",
+      "jitInheritMemory": "親会話メモリを継承",
       "templateMarket": "テンプレートマーケット",
       "categoryFilter": "カテゴリフィルター",
       "categoryAll": "すべて",
