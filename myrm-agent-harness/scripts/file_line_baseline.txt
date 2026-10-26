@@ -35,7 +35,7 @@ myrm_agent_harness/agent/skills/market/service.py	858
 myrm_agent_harness/agent/streaming/recovery/stream_recovery.py	785
 myrm_agent_harness/agent/streaming/stream_executor.py	628
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622
-myrm_agent_harness/agent/sub_agents/manager.py	604
+myrm_agent_harness/agent/sub_agents/manager.py	591
 myrm_agent_harness/agent/sub_agents/prompts.py	546
 myrm_agent_harness/agent/sub_agents/types.py	535
 myrm_agent_harness/backends/skills/_utils.py	839

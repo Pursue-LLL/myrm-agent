@@ -2,6 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-014 · 子 agent 的 run 开头就地重置父 run 正在用的守卫：委派之后，父的工具调用历史、频率窗口、回合预算、上下文预算、终态错误全被清空，完成门禁不再追问「写了代码没验证」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（排查 todo 与完成门禁时，把子 run 夹在父的「写代码」与「收尾」之间，对照有无委派的门禁行为） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：只要父 run 在中途委派过一次子 agent，之后的收尾检查就读不到委派前的写操作，「写了代码但没跑过任何验证」的拦截静默失效（失败向放行，不报错）。与是否开启规划无关。线上有多少 run 走到「写代码、委派、不验证就收尾」未测 |
+| **关联产品** | harness `agent/_internals/_agent_helpers.py`（`child_run_scope`、`release_child_run_state`）、`agent/sub_agents/executor_attempt_mixin.py`、`agent/sub_agents/manager.py`、`agent/sub_agents/executor_helpers.py`（`clear_file_tracking`）、`agent/middlewares/tooling/tool_interceptor_middleware.py`（`child_loop_guard`）、`agent/security/guards/{frequency_guard,tool_turn_budget_guard,context_budget}.py`、`agent/middlewares/_session_context.py`（`isolated_terminal_errors`）、`core/context_vars.py`（`scoped_value`） |
+| **根因** | 子 agent 在父的委派工具调用里内联运行，共享父的 context；LoopGuard、FrequencyGuard、ToolTurnBudgetGuard、ContextBudgetGuard、TerminalErrorRegistry 都是 ContextVar 里的单个实例，每个 run 开头 `reset_all_guards` 对找到的实例就地 `reset()`，子 run 因此清掉的是父正在用的那一个（`_loop_guard_var.get()` 先于 session 注册表查找，子拿到的就是父的）。完成门禁从 LoopGuard 的调用窗口读「本 run 写过什么、验证过什么」，窗口被清空后清单里没有写操作，不再拦截。重新绑定型的守卫（taint、隐私、审计、denial、replan）不受影响，所以问题只出在这五个「就地重置」型守卫上。 |
+| **修复** | 执行器把每次子 run 放进 `child_run_scope(task_id)`：子 agent 拥有自己的 LoopGuard（按 task id 登记在 session 注册表，审批后恢复取回同一个；`SubagentManager` 在任务终态、非待审批时 `release_child_run_state`）、FrequencyGuard、ToolTurnBudgetGuard、ContextBudgetGuard 与 terminal-error 注册表；`approval_session` 绑定为 task id 使子的 loop guard 以该 key 登记（不会覆盖父的 key），结束时一并还原；`is_subagent` / `subagent_task_id` 还原为进入前的值，而不是一律置 False。executor 之后仍读取子的 taint tracker 向父传播标签，taint 不在隔离范围内。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 `BaseAgent.run` 加真实执行器 `_run_single_attempt`（只有模型是脚本）：父写 `app.py`、不验证、收尾。无委派：6 次模型调用，3 个请求带「NO verification」提示；委派后（修复后）：7 次、3 个；委派后（旧行为，只置 `is_subagent` 标记）：3 次、0 个，门禁静默失效。新增 `test_delegation_keeps_completion_guard.py`（2 例，旧源码上「委派后」变红）与 `test_child_run_scope.py`（10 例：父的五个守卫对象与状态原样返回、子即使是 resume 也从空守卫开始、报错与取消都能还原、审批恢复取回同一个 loop guard 且终态释放、父的注册表 key 不被子占用、孙代结束后子仍是子代、真实执行器路径）；逐条去掉 scope 里的每个入口，各自有用例变红。 |
+| **仍然存在** | ① 只有脚本模型，没有用真实 LLM 复测。② 完整 `SubagentManager` 异步派生路径只由既有 manager 套件覆盖，没有新增端到端用例。③ 子 run 重新绑定的其他 ContextVar（workspace_root、chat_id 等）在委派工具体内、子返回之后仍是子的值；工具体在 LangGraph 里跑在拷贝的 context 里，包装它的中间件看不到，是否有影响未验证，本次没改。④ 审批恢复的子 agent 的上下文预算从 0 重新计起（之前与父共享同一个实例）。⑤ `tool_interceptor_middleware.py` 428 行，超过 400 行指引；该文件的 `get_loop_guard` 等名字被多处测试按模块路径补丁，拆分需另行处理。 |
+| **代码位置** | `agent/_internals/_agent_helpers.py`（`child_run_scope`）· `agent/sub_agents/executor_attempt_mixin.py`（`_run_single_attempt`）· `agent/sub_agents/manager.py`（终态释放；原有的文件跟踪清理块移到 `executor_helpers.clear_file_tracking`，行为不变，让 `manager.py` 不超出行数基线）· `tests/agent/sub_agents/test_child_run_scope.py` · `tests/agent/sub_agents/test_delegation_keeps_completion_guard.py` |
+
 ### BUG-HARNESS-2026-10-27-013 · 召回次数参与检索排序：返回即记一次使用，次数又抬高排名，被召回过的记忆越排越前，新写入的事实排不进前列
 
 | 字段 | 内容 |

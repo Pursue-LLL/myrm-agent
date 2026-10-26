@@ -13,6 +13,7 @@
 - attach_partial_output, read_partial_output: carry the text a failed attempt streamed from the attempt to the retry loop on the exception; the reader cuts an oversized text to a character budget
 - _compact_error_message, _auto_vault_or_truncate: oversized result vault (parent workspace under ISOLATED_COPY), inline artifact, file_read_tool recovery hint
 - _parse_handover_state: handover block parsing
+- clear_file_tracking: drop a finished child's file activity, integrity and read-dedup records
 
 [POS]
 Pure helper functions for SubagentExecutor mixins and external callers.
@@ -302,3 +303,21 @@ def _parse_handover_state(raw_result: str, task_id: str) -> AgentHandoverState |
             continue
 
     return None
+
+
+def clear_file_tracking(agent_id: str) -> None:
+    """Drop the file activity, integrity and read-dedup records a finished child left under its id."""
+    try:
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_activity_tracker import (
+            get_file_activity_tracker,
+        )
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import _integrity_guards
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.read_dedup import _dedup_guards
+
+        get_file_activity_tracker().clear_agent(agent_id)
+        for guard in _integrity_guards.values():
+            guard.clear_agent(agent_id)
+        for guard in _dedup_guards.values():
+            guard.clear_agent(agent_id)
+    except Exception:
+        pass

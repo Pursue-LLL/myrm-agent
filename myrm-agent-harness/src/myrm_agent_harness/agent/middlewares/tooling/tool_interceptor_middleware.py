@@ -33,6 +33,8 @@ POST-CALL:
 - tool_interceptor_middleware: unified tool interception middleware
 - get_loop_guard(): Get or create the session-scoped LoopGuard (ContextVar + session-key fallback)
 - reset_loop_guard(): Reset loop guard state; `is_resume=True` preserves CallRecord window and error signatures
+- child_loop_guard(): A LoopGuard of its own for a nested child run, restored to the parent's afterwards
+- discard_session_loop_guard(): Forget the guard kept for a session that is over
 - notify_loop_guard_compaction(): Reset iteration budget after context compaction
 
 [POS]
@@ -43,7 +45,8 @@ and _skill_failure_tracking for the actual logic.
 
 import asyncio
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 from langchain.agents.middleware import wrap_tool_call
@@ -74,6 +77,7 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
 )
 from myrm_agent_harness.agent.middlewares.tooling.tool_executor import execute_with_retry
 from myrm_agent_harness.agent.security.guards.loop_guard import LoopGuard
+from myrm_agent_harness.core.context_vars import scoped_value
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_economics.tracker import (
     get_token_tracker,
@@ -167,6 +171,27 @@ def reset_loop_guard(
     guard.unattended_mode = unattended_mode
     guard._configure_budget(graph_recursion_limit)
     _bind_loop_guard(guard)
+
+
+@contextmanager
+def child_loop_guard(session_key: str) -> Iterator[LoopGuard]:
+    """Give a nested child run a LoopGuard of its own, keyed by its session, for the ``with`` block.
+
+    A run resets the guard it finds when it starts, so a child sharing its parent's would erase the parent's
+    tool-call history. The guard stays in the session registry under ``session_key`` so a resume of the same
+    child finds it again; the child's run must run under that approval session, which is where
+    ``reset_loop_guard`` binds the guard back.
+    """
+    guard = _session_loop_guards.get(session_key)
+    if guard is None:
+        guard = _session_loop_guards[session_key] = _create_loop_guard()
+    with scoped_value(_loop_guard_var, guard):
+        yield guard
+
+
+def discard_session_loop_guard(session_key: str) -> None:
+    """Forget the guard kept for a session that is over, such as a child that finished."""
+    _session_loop_guards.pop(session_key, None)
 
 
 def notify_loop_guard_compaction() -> None:

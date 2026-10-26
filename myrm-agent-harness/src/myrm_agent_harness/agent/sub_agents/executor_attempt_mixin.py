@@ -5,6 +5,7 @@
 - .builder::build_child_agent, filter_tools, merge_child_stats (POS: Subagent construction helpers — tool filtering via DelegationCapabilityManifest, model resolution, token merge.)
 - .event_forwarder::SubagentEventForwarder (POS: Subagent event forwarder. Translates subagent events into progress and log events.)
 - .executor_delegation_mixin::SubagentExecutorDelegationMixin (POS: Orchestrator-role child agents receive scoped delegation meta-tools.)
+- agent._internals._agent_helpers::child_run_scope (POS: Run a child agent inline with guards of its own, handing the parent's back untouched.)
 - agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract.)
 - .types::SubagentBudgetExceededError, SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions.)
 - toolkits.llms.errors.exceptions::MyrmLLMError (POS: Standardized LLM Error thrown by the Harness framework.)
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, cast
 
 from langchain_core.tools import BaseTool
 
+from myrm_agent_harness.agent._internals._agent_helpers import child_run_scope
 from myrm_agent_harness.agent.security.guards.taint_tracker import get_taint_tracker
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
@@ -165,16 +167,7 @@ class SubagentExecutorAttemptMixin(SubagentExecutorDelegationMixin):
             internal=internal,
         )
 
-        # Critical: Mark execution context as subagent to prevent approval deadlocks
-        from myrm_agent_harness.agent.middlewares._session_context import (
-            set_is_subagent,
-            set_subagent_task_id,
-        )
         from myrm_agent_harness.agent.streaming.types import AgentEventType
-
-        set_is_subagent(True)
-        set_subagent_task_id(task_id)
-        logger.debug("[subagent:%s] Context marked as subagent for approval safety", task_id)
 
         chat_history: list[BaseMessage] = []
         if config.context_mode == "fork" and getattr(parent_agent, "checkpointer", None):
@@ -200,69 +193,68 @@ class SubagentExecutorAttemptMixin(SubagentExecutorDelegationMixin):
             except Exception as e:
                 logger.warning("[subagent:%s] Failed to fork parent context: %s", task_id, e)
 
-        try:
-            query: str | Command[object] = (
-                cast("Command[object]", resume_command) if resume_command is not None else task_description
-            )
-            if config.context_mode == "fork" and resume_command is None:
-                # 10/10 Scheme: Recency Bias System Override.
-                # Since we keep the parent's SystemMessage to hit the cache, we must override the persona here.
-                persona_desc = config.system_prompt or "Assistant"
-                system_override = (
-                    f"\n\n[System Override] Ignore previous global role settings in the history. "
-                    f"Your new designated role for this task is: {persona_desc}. "
-                    f"Your specific task is: {task_description}\n\n" + _HANDOVER_PROTOCOL_PROMPT
+        # The child is marked a subagent (so it never opens UI approvals nobody could answer) and runs on
+        # guards of its own: a run resets the guards it finds, which would otherwise be this parent's.
+        with child_run_scope(task_id):
+            try:
+                query: str | Command[object] = (
+                    cast("Command[object]", resume_command) if resume_command is not None else task_description
                 )
-                query = system_override
-
-            async for event in child_agent.run(
-                query=query,
-                chat_history=chat_history,
-                context=context,
-                steering_token=steering_token,
-                cancel_token=cancel_token,
-            ):
-                if cancel_flags.get(task_id, False):
-                    logger.info(
-                        "[subagent:%s] Cancel flag detected, exiting gracefully",
-                        task_id,
+                if config.context_mode == "fork" and resume_command is None:
+                    # 10/10 Scheme: Recency Bias System Override.
+                    # Since we keep the parent's SystemMessage to hit the cache, we must override the persona here.
+                    persona_desc = config.system_prompt or "Assistant"
+                    system_override = (
+                        f"\n\n[System Override] Ignore previous global role settings in the history. "
+                        f"Your new designated role for this task is: {persona_desc}. "
+                        f"Your specific task is: {task_description}\n\n" + _HANDOVER_PROTOCOL_PROMPT
                     )
-                    await fire_hook(
-                        hook_event_cls.SUBAGENT_CANCEL_START,
-                        {
-                            "task_id": task_id,
-                            "agent_type": agent_type,
-                            "elapsed_seconds": time.time() - start_time,
-                            "trace_id": trace_id,
-                        },
-                    )
-                    raise asyncio.CancelledError()
+                    query = system_override
 
-                event_type = event.get("type")
-                if event_type == AgentEventType.MESSAGE.value and not isinstance(event.get("data"), str):
-                    # The parent reads this answer as a tool result, so a payload that is not text is rendered as text.
-                    event = {**event, "data": str(event.get("data", ""))}
-                answer.feed(event)
+                async for event in child_agent.run(
+                    query=query,
+                    chat_history=chat_history,
+                    context=context,
+                    steering_token=steering_token,
+                    cancel_token=cancel_token,
+                ):
+                    if cancel_flags.get(task_id, False):
+                        logger.info(
+                            "[subagent:%s] Cancel flag detected, exiting gracefully",
+                            task_id,
+                        )
+                        await fire_hook(
+                            hook_event_cls.SUBAGENT_CANCEL_START,
+                            {
+                                "task_id": task_id,
+                                "agent_type": agent_type,
+                                "elapsed_seconds": time.time() - start_time,
+                                "trace_id": trace_id,
+                            },
+                        )
+                        raise asyncio.CancelledError()
 
-                if event_type == AgentEventType.ERROR.value:
-                    exc = MyrmLLMError(
-                        error_code=FailoverReason.UNKNOWN,
-                        default_msg=f"Subagent error: {event.get('error', 'Unknown error')}",
-                    )
-                    raise exc
-                if event_type != AgentEventType.MESSAGE.value:
-                    await event_forwarder.handle_event(event)
+                    event_type = event.get("type")
+                    if event_type == AgentEventType.MESSAGE.value and not isinstance(event.get("data"), str):
+                        # The parent reads this answer as a tool result, so a payload that is not text is rendered as text.
+                        event = {**event, "data": str(event.get("data", ""))}
+                    answer.feed(event)
 
-                event_forwarder.check_budget()
+                    if event_type == AgentEventType.ERROR.value:
+                        exc = MyrmLLMError(
+                            error_code=FailoverReason.UNKNOWN,
+                            default_msg=f"Subagent error: {event.get('error', 'Unknown error')}",
+                        )
+                        raise exc
+                    if event_type != AgentEventType.MESSAGE.value:
+                        await event_forwarder.handle_event(event)
 
-            raw_result = answer.text
-        except Exception as exc:
-            attach_partial_output(exc, answer.text)
-            raise
-        finally:
-            set_is_subagent(False)
-            set_subagent_task_id(None)
-            logger.debug("[subagent:%s] Context reset (is_subagent=False)", task_id)
+                    event_forwarder.check_budget()
+
+                raw_result = answer.text
+            except Exception as exc:
+                attach_partial_output(exc, answer.text)
+                raise
 
         # Check if child was interrupted (e.g. for approval)
         is_interrupted = False

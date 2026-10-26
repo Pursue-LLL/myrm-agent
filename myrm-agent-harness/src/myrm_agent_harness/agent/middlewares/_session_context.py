@@ -25,6 +25,7 @@ ContextVars so they are not owned by any single middleware.
 - set_turn_allowed_tool_names / get_turn_allowed_tool_names: Per-turn merged tool allowlist for execution-layer enforcement.
 - set_active_tool_registry / get_active_tool_registry / set_active_resolved_tools / get_active_resolved_tools: Tools published for the current agent run (ContextVar with a session-key fallback for LangGraph's copied contexts).
 - clear_active_tools_for_tests: Wipe every published registry and tool list for test isolation.
+- isolated_terminal_errors: A fresh terminal-error registry for the duration of a ``with`` block (a nested child run).
 
 [POS]
 Middleware session context — shared ContextVars for the middleware chain.
@@ -32,6 +33,7 @@ Middleware session context — shared ContextVars for the middleware chain.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING
 
@@ -44,7 +46,7 @@ from myrm_agent_harness.agent.security.terminal_error_registry import (
     TerminalErrorRegistry,
 )
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig
-from myrm_agent_harness.core.context_vars import approval_session_var, protected_paths_var
+from myrm_agent_harness.core.context_vars import approval_session_var, protected_paths_var, scoped_value
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -277,6 +279,11 @@ def reset_terminal_errors() -> None:
         registry = TerminalErrorRegistry()
         registry.clear()
         _terminal_errors_var.set(registry)
+
+
+def isolated_terminal_errors() -> AbstractContextManager[TerminalErrorRegistry]:
+    """A fresh registry for the ``with`` block; the caller's registry is back, untouched, when it ends."""
+    return scoped_value(_terminal_errors_var, TerminalErrorRegistry())
 
 
 _active_tool_registry_var: ContextVar[ToolRegistry | None] = ContextVar("active_tool_registry", default=None)

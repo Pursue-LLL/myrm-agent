@@ -7,6 +7,7 @@ verified orchestration) in ``orchestrator``.
 - agent.types::SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - agent.base_agent::BaseAgent (POS: Agent base class that owns a SubagentManager instance)
 - agent.security.guards.taint_tracker (POS: Taint 跨 Agent 传播追踪)
+- agent._internals._agent_helpers::release_child_run_state (POS: Drop what a finished child's session kept.)
 - utils.token_economics.tracker (POS: Token 用量追踪)
 - .builder (POS: 子 agent 构建辅助)
 - .budget::DelegationBudgetState (POS: Delegation budget guard. Tracks descendant spawn count for a root agent run without business-layer coupling.)
@@ -35,6 +36,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent._internals._agent_helpers import release_child_run_state
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     SubagentConfig,
@@ -53,6 +55,7 @@ from .checkpoint.checkpoint_manager import SubagentCheckpointManager
 from .checkpoint.saver import SubagentCheckpointStorage
 from .checkpointer import drop_subagent_checkpoint_if_terminal
 from .executor import SubagentExecutor
+from .executor_helpers import clear_file_tracking
 from .notifications import NotificationManager
 
 if TYPE_CHECKING:
@@ -467,6 +470,8 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
         result.internal = result.internal or internal
 
         is_pending_approval = result.status == SubAgentStatus.PENDING_APPROVAL
+        if not is_pending_approval:
+            release_child_run_state(task_id)
 
         if not internal:
             self._children_results[task_id] = result
@@ -505,25 +510,7 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
             self._background_tasks.add(cleanup_task)
             cleanup_task.add_done_callback(self._background_tasks.discard)
 
-        # Cleanup file conflict tracking data for completed subagent
-        try:
-            from myrm_agent_harness.agent.meta_tools.file_ops.core.file_activity_tracker import (
-                get_file_activity_tracker,
-            )
-            from myrm_agent_harness.agent.meta_tools.file_ops.core.file_integrity_guard import (
-                _integrity_guards,
-            )
-            from myrm_agent_harness.agent.meta_tools.file_ops.core.read_dedup import (
-                _dedup_guards,
-            )
-
-            get_file_activity_tracker().clear_agent(task_id)
-            for guard in _integrity_guards.values():
-                guard.clear_agent(task_id)
-            for guard in _dedup_guards.values():
-                guard.clear_agent(task_id)
-        except Exception:
-            pass
+        clear_file_tracking(task_id)
 
         if not internal:
             self._notification_manager.add_notification(result, now)

@@ -17,6 +17,7 @@ introducing forbidden dependencies (e.g. toolkits/ → agent/).
 - current_tool_call_id_var: The call the tool body is running inside (set by the tool-call middleware)
 - approval_notes_var: The human's notes on this run's approvals, keyed by tool call id
 - publish_approval_notes / stash_approval_note / claim_approval_note: the note hand-off
+- scoped_value: Bind a ContextVar for a ``with`` block and restore what it held on exit
 
 [POS]
 Foundation ContextVar registry. Eliminates coupling between agent/ and toolkits/
@@ -25,6 +26,8 @@ by providing a neutral location for runtime context that both layers need.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 user_timezone_var: ContextVar[str | None] = ContextVar("user_timezone", default=None)
@@ -80,3 +83,13 @@ def claim_approval_note(call_id: str) -> str:
     if store is None:
         return ""
     return store.pop(call_id, "")
+
+
+@contextmanager
+def scoped_value[T](var: ContextVar[T], value: T) -> Iterator[T]:
+    """Bind ``var`` to ``value`` for the ``with`` block, and restore what it held when the block ends."""
+    token = var.set(value)
+    try:
+        yield value
+    finally:
+        var.reset(token)

@@ -9,11 +9,13 @@ Four layers of protection:
 [INPUT]
 - text_utils::smart_truncate (POS: Head+Tail truncation with intelligent tail detection)
 - infra.evicted::write_evicted_content_sync (UECD persist)
+- core.context_vars::scoped_value (POS: Bind a ContextVar for a ``with`` block and restore it on exit.)
 
 [OUTPUT]
 - BudgetVerdict: persisted / truncated / warning / ok (with details)
 - ContextBudgetGuard: session-scoped instance tracking budget usage
 - reset_context_budget_guard: Clear cumulative budget before a new agent run
+- isolated_context_budget_guard: A fresh guard for the duration of a ``with`` block (a nested child run)
 
 [POS]
 Session-level guard. Integrated into tool_interceptor_middleware at
@@ -24,10 +26,12 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from contextlib import AbstractContextManager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import StrEnum
 
+from myrm_agent_harness.core.context_vars import scoped_value
 from myrm_agent_harness.utils.text_utils import get_token_count, smart_truncate
 
 logger = logging.getLogger(__name__)
@@ -304,3 +308,8 @@ def reset_context_budget_guard(*, is_resume: bool = False) -> None:
         return
     with contextlib.suppress(LookupError):
         _budget_guard_var.get().reset()
+
+
+def isolated_context_budget_guard() -> AbstractContextManager[ContextBudgetGuard]:
+    """A fresh guard for the ``with`` block; the caller's guard is back, untouched, when it ends."""
+    return scoped_value(_budget_guard_var, ContextBudgetGuard())

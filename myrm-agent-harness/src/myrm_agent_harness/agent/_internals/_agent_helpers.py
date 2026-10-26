@@ -1,39 +1,46 @@
 """Agent runtime helper functions.
 
-Per-run guard resets, query text extraction, idle task scheduling,
+Per-run guard resets, child-run guard isolation, query text extraction, idle task scheduling,
 usage ledger initialization.
 
 [INPUT]
 - agent.middlewares (POS: guard/state reset functions)
 - agent.security (POS: security guard reset functions)
+- core.context_vars (POS: scoped_value, approval_session_var)
 - agent.background_worker (POS: idle task scheduling)
 - utils.token_economics (POS: UsageLedger)
 
 [OUTPUT]
 - reset_all_guards: Reset all per-request guard state before a new agent run.
+- child_run_scope: Run a child agent inline with guards of its own, handing the parent's back untouched afterwards.
+- release_child_run_state: Drop what a finished child's session kept (its loop guard).
 - extract_query_text: Extract human-readable query string from various input types.
 - schedule_post_run_idle_tasks: Enqueue background idle tasks after a successful agent run.
 - init_usage_ledger: Attach a UsageLedger to the current request scope.
 - pop_checkpoint_incompatible_merged_context: Strip non-serializable callbacks from merged_context before LangGraph checkpoint.
 
 [POS]
-Agent runtime helper functions — guard resets, query extraction, idle tasks, usage ledger, checkpoint-safe context stripping.
+Agent runtime helper functions — guard resets, child-run guard isolation, query extraction, idle tasks, usage ledger, checkpoint-safe context stripping.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Iterator
+from contextlib import ExitStack, contextmanager
 
+from myrm_agent_harness.core.context_vars import approval_session_var, scoped_value
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_economics.tracker import set_usage_ledger
 
 logger = get_agent_logger(__name__)
 
 __all__ = [
+    "child_run_scope",
     "extract_query_text",
     "init_usage_ledger",
     "pop_checkpoint_incompatible_merged_context",
+    "release_child_run_state",
     "reset_all_guards",
     "schedule_post_run_idle_tasks",
 ]
@@ -145,6 +152,55 @@ def reset_all_guards(
     from myrm_agent_harness.core.context_vars import publish_approval_notes
 
     publish_approval_notes()
+
+
+@contextmanager
+def child_run_scope(task_id: str) -> Iterator[None]:
+    """Run a child agent inline, under its own session, without touching what its parent's run has recorded.
+
+    A child runs inside its parent's delegating tool call and shares the context the parent's guards live in.
+    Every run starts by resetting those guards in place, so a child that shared them would erase the parent's
+    tool-call history, call window, turn and context budgets and terminal errors. Inside this scope the child
+    has guards of its own; when it ends the parent's are back as they were, with the session and subagent
+    markers the child's run rebinds.
+
+    Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated counterpart here.
+    """
+    from myrm_agent_harness.agent.middlewares._session_context import (
+        get_is_subagent,
+        get_subagent_task_id,
+        isolated_terminal_errors,
+        set_is_subagent,
+        set_subagent_task_id,
+    )
+    from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import child_loop_guard
+    from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
+    from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard
+    from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import isolated_tool_turn_budget_guard
+
+    was_subagent, parent_task_id = get_is_subagent(), get_subagent_task_id()
+    with ExitStack() as scope:
+        # The child's loop guard is registered under the session its run will bind, so it is entered second.
+        scope.enter_context(scoped_value(approval_session_var, task_id))
+        scope.enter_context(child_loop_guard(task_id))
+        scope.enter_context(isolated_frequency_guard())
+        scope.enter_context(isolated_tool_turn_budget_guard())
+        scope.enter_context(isolated_context_budget_guard())
+        scope.enter_context(isolated_terminal_errors())
+        set_is_subagent(True)
+        set_subagent_task_id(task_id)
+        try:
+            yield
+        finally:
+            set_is_subagent(was_subagent)
+            set_subagent_task_id(parent_task_id)
+
+
+def release_child_run_state(task_id: str) -> None:
+    """Drop what a finished child's session kept; a child that paused for approval keeps it for its resume."""
+    from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import discard_session_loop_guard
+
+    discard_session_loop_guard(task_id)
 
 
 def extract_query_text(query: object) -> str:

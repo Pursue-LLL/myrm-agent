@@ -171,6 +171,15 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 
 配合 builder.py 的 `system_prompt = ""`：fork 出的历史已以父 SystemMessage 开头，子 agent 不再叠加第二条系统提示词。子 agent 的工具集经 L1–L3 过滤后与父不同，不保证与父共享提示词缓存前缀。
 
+### 3.1 子 run 的守卫隔离（`child_run_scope`）
+
+子 agent 在父 agent 的委派工具调用里内联运行，与父共享守卫所在的 context；而每个 run 开始时都会就地重置它找到的守卫。执行器因此把每次子 run 放进 `child_run_scope(task_id)`：
+
+- 子 agent 拥有自己的 LoopGuard（按 task id 登记在 session 注册表，审批后恢复时取回同一个；`SubagentManager` 在任务终态时释放，等待审批时保留）、FrequencyGuard、ToolTurnBudgetGuard、ContextBudgetGuard 与 terminal-error 注册表；run 结束后父的守卫原样回来。
+- 子 run 期间 `approval_session` 绑定为 task id，`is_subagent` / `subagent_task_id` 置位，结束时恢复为进入前的值（孙代结束后子代仍是子代）。
+- 隔离前，委派会清空父的工具调用历史：写了代码、委派、再收尾的父 run 不再被完成门禁追问验证。
+- 新增「就地重置」型守卫时，必须在 `child_run_scope` 里加对应的 isolated 版本；重置时重新绑定的守卫（taint 等）无需处理。
+
 ### 4. 模型解析链（4 级）
 
 ```

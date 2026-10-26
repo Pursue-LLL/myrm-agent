@@ -18,13 +18,14 @@ Response levels:
 - BREAK (100% of limit): Block execution entirely
 
 [INPUT]
-- (none — self-contained, pure standard library)
+- core.context_vars::scoped_value (POS: Bind a ContextVar for a ``with`` block and restore it on exit.)
 
 [OUTPUT]
 - FrequencyAction: ALLOW / WARN / BREAK
 - FrequencyVerdict: action + reason + remaining quota
 - FrequencyGuard: session-scoped frequency tracker
 - get_frequency_guard() / reset_frequency_guard(): ContextVar accessors
+- isolated_frequency_guard(): a fresh guard for the duration of a ``with`` block (a nested child run)
 
 [POS]
 Layer 5 (Anti-Abuse) guard, parallel to LoopGuard. Integrated into
@@ -36,9 +37,12 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from contextlib import AbstractContextManager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import StrEnum, auto, unique
+
+from myrm_agent_harness.core.context_vars import scoped_value
 
 # Default exempted tools (low-cost, high-frequency read operations)
 _DEFAULT_EXEMPTED_TOOLS: frozenset[str] = frozenset(
@@ -292,3 +296,12 @@ def reset_frequency_guard() -> None:
         guard.reset()
     except LookupError:
         pass
+
+
+def isolated_frequency_guard() -> AbstractContextManager[FrequencyGuard]:
+    """A fresh guard for the ``with`` block; the caller's guard is back, untouched, when it ends.
+
+    A nested run resets the guard it finds at its start, so one that shared its caller's would clear the
+    caller's call window.
+    """
+    return scoped_value(_frequency_guard_var, FrequencyGuard())

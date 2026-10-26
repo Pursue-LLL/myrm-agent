@@ -5,7 +5,7 @@ turn (active_message_id). web_search_tool consumes one unit per question (1–5)
 other tools consume one unit per invocation. Pre-call check and record.
 
 [INPUT]
-- (none — self-contained, pure standard library)
+- core.context_vars::scoped_value (POS: Bind a ContextVar for a ``with`` block and restore it on exit.)
 
 [OUTPUT]
 - TurnBudgetAction: ALLOW / BREAK
@@ -13,6 +13,7 @@ other tools consume one unit per invocation. Pre-call check and record.
 - ToolTurnBudgetGuard: session-scoped per-turn counter
 - resolve_turn_budget_units: map tool args → budget units
 - get_tool_turn_budget_guard() / reset_tool_turn_budget_guard(): ContextVar accessors
+- isolated_tool_turn_budget_guard(): a fresh guard for the duration of a ``with`` block (a nested child run)
 
 [POS]
 Layer 5 (Anti-Abuse) guard, integrated into tool_interceptor_middleware pre-call
@@ -21,9 +22,12 @@ phase alongside FrequencyGuard.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import StrEnum, auto, unique
+
+from myrm_agent_harness.core.context_vars import scoped_value
 
 _DEFAULT_TOOL_LIMITS: dict[str, int] = {
     "web_search_tool": 20,
@@ -177,3 +181,8 @@ def reset_tool_turn_budget_guard() -> None:
         guard.reset()
     except LookupError:
         pass
+
+
+def isolated_tool_turn_budget_guard() -> AbstractContextManager[ToolTurnBudgetGuard]:
+    """A fresh guard for the ``with`` block; the caller's guard is back, untouched, when it ends."""
+    return scoped_value(_tool_turn_budget_guard_var, ToolTurnBudgetGuard())
