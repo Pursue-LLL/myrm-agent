@@ -196,7 +196,7 @@ export default function ImaSourceCard() {
           />
         ) : null}
 
-        {status && status.connected && (view === 'sync' || view === 'reconnect') ? (
+        {status?.connected ? (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/50 pt-3">
             {view === 'sync' ? (
               <Button

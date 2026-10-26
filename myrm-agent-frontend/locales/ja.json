@@ -17856,7 +17856,8 @@
           "submit": "接続",
           "submitting": "確認中…",
           "success": "ima に接続しました",
-          "reconnectNotice": "保存されていたキーが ima に拒否されたため、同期を一時停止しました。入力し直すと、接続後に自動で再開します。"
+          "reconnectNotice": "保存されていたキーが ima に拒否されたため、同期を一時停止しました。入力し直すと、接続後に自動で再開します。",
+          "getCredentials": "ima で Client ID と API Key を取得する"
         },
         "libraries": {
           "hint": "取り込むナレッジベースを選択してください。",
@@ -17921,7 +17922,8 @@
           },
           "empty": "該当する項目はありません",
           "retryFailed": "失敗した {count} 件を再試行",
-          "retried": "{count} 件を再度キューに入れました"
+          "retried": "{count} 件を再度キューに入れました",
+          "truncated": "{total} 件のうち最初の {shown} 件を表示しています。"
         },
         "reasons": {
           "unsupported_type": "この種類のコンテンツには未対応です",

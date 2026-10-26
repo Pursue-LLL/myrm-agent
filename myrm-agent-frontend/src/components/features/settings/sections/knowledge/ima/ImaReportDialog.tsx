@@ -121,11 +121,18 @@ export default function ImaReportDialog({
             <p className="py-6 text-center text-sm text-muted-foreground">{t('report.empty')}</p>
           ) : null}
           {state.kind === 'ready' && state.items.length > 0 ? (
-            <ul className="space-y-2">
-              {state.items.map((item, index) => (
-                <ReportRow key={`${item.container_name}/${item.folder_path}/${item.title}/${index}`} item={item} />
-              ))}
-            </ul>
+            <div className="space-y-2">
+              <ul className="space-y-2">
+                {state.items.map((item, index) => (
+                  <ReportRow key={`${item.container_name}/${item.folder_path}/${item.title}/${index}`} item={item} />
+                ))}
+              </ul>
+              {state.items.length < bucketCount(bucket, counts) ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  {t('report.truncated', { shown: state.items.length, total: bucketCount(bucket, counts) })}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </DialogContent>

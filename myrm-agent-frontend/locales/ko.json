@@ -17856,7 +17856,8 @@
           "submit": "연결",
           "submitting": "확인 중…",
           "success": "ima에 연결했습니다",
-          "reconnectNotice": "저장된 키를 ima가 거부해 동기화가 일시 중지되었습니다. 다시 입력하면 연결 후 자동으로 이어집니다."
+          "reconnectNotice": "저장된 키를 ima가 거부해 동기화가 일시 중지되었습니다. 다시 입력하면 연결 후 자동으로 이어집니다.",
+          "getCredentials": "ima에서 Client ID와 API Key 받기"
         },
         "libraries": {
           "hint": "가져올 지식 베이스를 선택하세요.",
@@ -17921,7 +17922,8 @@
           },
           "empty": "해당 항목이 없습니다",
           "retryFailed": "실패한 {count}개 다시 시도",
-          "retried": "{count}개를 다시 대기열에 넣었습니다"
+          "retried": "{count}개를 다시 대기열에 넣었습니다",
+          "truncated": "전체 {total}개 중 처음 {shown}개만 표시합니다."
         },
         "reasons": {
           "unsupported_type": "아직 지원하지 않는 형식입니다",

@@ -22,14 +22,14 @@
 | `transport.py` | 传输 | `POST https://ima.qq.com/<prefix>/<method>`、凭证头、信封解包、错误分类、瞬时失败退避；origin 为常量 | ✅ |
 | `client.py` | 客户端 | 知识库/笔记方法表（只读）：`verify`/`list_knowledge_bases`/`list_knowledge_page`/`get_media_info`/`get_note_text`/`list_notes_page` | ✅ |
 | `media.py` | 下载 | 签名 COS URL 的受限下载：仅 https + 腾讯域白名单、禁重定向、不带 ima 凭证、流式字节上限 | ✅ |
-| `identity.py` | 标识 | 条目 key（`(kb, 父目录, 标题)`，`media_id` 仅作版本信号）与 `raw/ima/...` 路径（受 raw gate 路径预算约束） | ✅ |
+| `identity.py` | 标识 | 条目 key（`(kb, 父目录, 标题)`，`media_id` 仅作版本信号）与 `raw/ima/...` 路径（受 raw gate 路径预算约束；Windows 设备名如 `CON`/`NUL` 的目录段加 `_` 前缀） | ✅ |
 | `ledger.py` | 台账 | `ImaLedger`：状态机唯一属主（pending/synced/failed/unsupported/too_large/blocked/dismissed/remote_deleted/duplicate）；用户删除的 raw 视为 `dismissed` 永不复活 | ✅ |
 | `state.py` | 状态 | `wikiImaSync`（所选库/笔记开关）与 `wikiImaSyncState`（可续跑 inventory 游标、generation、`backfill_complete`、`needs_reauth`、`config_fingerprint`）的 scoped UserConfig 读写 | ✅ |
 | `credentials.py` | 凭证 | `imaCredentials`（加密，**不在** `ConfigKey` 中，通用 config 端点读不到）；只暴露掩码后的 client id | ✅ |
 | `context.py` | 上下文 | 单切片共享上下文：时间预算 + 节流的 state 持久化（15s） | ✅ |
 | `inventory.py` | 阶段 | 可续跑盘点：库文件夹树 BFS（持久化队列）+ 笔记；仅对干净完成的容器标 `remote_deleted` | ✅ |
-| `content.py` | 转换 | 单条解析为 Markdown + 保真度标注（`plain_text`/`images_remote`/`body_truncated`/`layout_flattened`）；复用 `bytes_to_wiki_markdown` 与 `web_fetch` | ✅ |
-| `importer.py` | 阶段 | 有界并发导入（3 worker、单条 150s 超时、节流）；每行恰好一个终态；仅鉴权失败与限流会停止整池 | ✅ |
+| `content.py` | 转换 | 单条解析为 Markdown + 保真度标注（`plain_text`/`images_remote`/`body_truncated`/`layout_flattened`）；复用 `bytes_to_wiki_markdown` 与 `web_fetch`；标题/目录/来源链接等远端文本在写入 frontmatter 前压成单行，换行不能结束或伪造字段 | ✅ |
+| `importer.py` | 阶段 | 有界并发导入（3 worker、单条 150s 超时、节流）；每行恰好一个终态；仅鉴权失败、限流与连续的连接级瞬时失败会停止整池，失效网页只记为该条的失败 | ✅ |
 | `engine.py` | 引擎 | `run_slice`：idle→inventory→fetch 的相位推进，把失败映射为调度建议（`retry_after_s`） | ✅ |
 | `job_runner.py` | 入口 | cron 入口 `run_ima_sync_job`：单飞锁、凭证/archiver 装配、发布后 ingest 快照与增量 dedup | ✅ |
 | `job.py` | Cron | 每 agent 同步 job 的创建/恢复/暂停/批量删除与 `trigger_now`（按 command + agent_id 查找） | ✅ |

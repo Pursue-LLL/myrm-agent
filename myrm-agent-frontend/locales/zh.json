@@ -17856,7 +17856,8 @@
           "submit": "连接",
           "submitting": "正在验证…",
           "success": "已连接 ima",
-          "reconnectNotice": "ima 拒绝了之前保存的密钥，同步已暂停。请重新填写，连接成功后会自动继续。"
+          "reconnectNotice": "ima 拒绝了之前保存的密钥，同步已暂停。请重新填写，连接成功后会自动继续。",
+          "getCredentials": "前往 ima 获取 Client ID 和 API Key"
         },
         "libraries": {
           "hint": "选择要导入的知识库。",
@@ -17921,7 +17922,8 @@
           },
           "empty": "这里没有内容",
           "retryFailed": "重试失败的 {count} 项",
-          "retried": "已重新排队 {count} 项"
+          "retried": "已重新排队 {count} 项",
+          "truncated": "仅显示前 {shown} 项，共 {total} 项。"
         },
         "reasons": {
           "unsupported_type": "暂不支持这类内容",

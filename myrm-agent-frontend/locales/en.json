@@ -17856,7 +17856,8 @@
           "submit": "Connect",
           "submitting": "Verifying…",
           "success": "ima connected",
-          "reconnectNotice": "ima rejected the saved key, so syncing is paused. Enter it again and the import resumes once it connects."
+          "reconnectNotice": "ima rejected the saved key, so syncing is paused. Enter it again and the import resumes once it connects.",
+          "getCredentials": "Get your Client ID and API Key from ima"
         },
         "libraries": {
           "hint": "Choose the knowledge bases to import.",
@@ -17921,7 +17922,8 @@
           },
           "empty": "Nothing here",
           "retryFailed": "Retry {count} failed items",
-          "retried": "{count} items queued again"
+          "retried": "{count} items queued again",
+          "truncated": "Showing the first {shown} of {total} items."
         },
         "reasons": {
           "unsupported_type": "This kind of content is not supported yet",

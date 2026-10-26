@@ -29,6 +29,10 @@ _CONTAINER_CHARS = 40
 _FOLDER_CHARS = 30
 _TITLE_CHARS = 60
 _KNOWN_DOC_SUFFIXES = frozenset({".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".md", ".txt", ".html", ".epub"})
+# Windows refuses these device names as a directory or file name, with or without an extension.
+_WINDOWS_DEVICE_NAMES = frozenset(
+    {"con", "prn", "aux", "nul", *(f"com{n}" for n in range(1, 10)), *(f"lpt{n}" for n in range(1, 10))}
+)
 
 
 def _digest(*parts: str) -> str:
@@ -44,8 +48,8 @@ def note_item_key(note_id: str) -> str:
 
 
 def _segment(value: str, max_chars: int, fallback: str) -> str:
-    cleaned = sanitize_path_segment(value)[:max_chars].strip("._-")
-    return cleaned or fallback
+    cleaned = sanitize_path_segment(value)[:max_chars].strip("._-") or fallback
+    return f"_{cleaned}" if cleaned.split(".", 1)[0].lower() in _WINDOWS_DEVICE_NAMES else cleaned
 
 
 def _title_stem(title: str) -> str:

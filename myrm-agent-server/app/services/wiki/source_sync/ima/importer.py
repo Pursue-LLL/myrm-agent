@@ -10,8 +10,9 @@
 
 [POS]
 Every row ends in exactly one recorded outcome: synced, a terminal status (unsupported / too large / blocked /
-duplicate), or a failure whose retry budget reflects whether retrying can help. Only credential rejection and
-rate limiting stop the pool; one bad item never aborts the slice.
+duplicate), or a failure whose retry budget reflects whether retrying can help. Only credential rejection, rate
+limiting and a run of consecutive connection-level failures stop the pool; one bad item, including a dead link,
+never aborts the slice.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from app.services.wiki.source_sync.publish_helpers import RawConflictPolicy, pub
 
 from .content import ImaContent, ImaDuplicate, ImaUnsupported, render_document, resolve_kb_item, resolve_note
 from .context import SyncContext
-from .errors import ImaAuthError, ImaError, ImaRateLimitError, ImaTooLargeError, ImaTransientError
+from .errors import ImaAuthError, ImaError, ImaPageUnavailableError, ImaRateLimitError, ImaTooLargeError, ImaTransientError
 from .identity import NOTES_LANE, build_raw_path, note_item_key
 from .ledger import LedgerRow, LedgerStatus
 
@@ -145,6 +146,9 @@ async def _import_guarded(ctx: SyncContext, row: LedgerRow) -> _Outcome:
         raise
     except ImaTooLargeError:
         await _record_terminal(ctx, row, LedgerStatus.TOO_LARGE, "too_large")
+    except ImaPageUnavailableError as exc:
+        # A dead link is that item's own failure (retried on later passes), not a sign that the connection is sick.
+        await _record_failure(ctx, row, exc.kind, final=False)
     except ImaTransientError as exc:
         await _record_failure(ctx, row, exc.kind, final=False)
         return _Outcome.TRANSIENT

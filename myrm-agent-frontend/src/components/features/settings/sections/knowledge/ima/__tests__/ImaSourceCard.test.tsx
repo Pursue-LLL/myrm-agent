@@ -127,6 +127,16 @@ describe('ImaSourceCard connect', () => {
     expect(await screen.findByRole('button', { name: 'connect.submit' })).toBeDisabled();
   });
 
+  it('links to the ima page where the credentials are created, opening outside the app safely', async () => {
+    imaMock.getImaStatus.mockResolvedValue(makeStatus({ connected: false }));
+    renderCard();
+
+    const link = await screen.findByRole('link', { name: 'connect.getCredentials' });
+    expect(link).toHaveAttribute('href', 'https://ima.qq.com/agent-interface');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
   it('explains that the saved key was refused and asks for it again', async () => {
     imaMock.getImaStatus.mockResolvedValue(
       makeStatus({ needs_reauth: true, job: { state: 'paused', next_run_at: null } }),
@@ -152,6 +162,20 @@ describe('ImaSourceCard choose and start', () => {
     expect(imaMock.startImaSync).toHaveBeenCalledWith('en', null);
     expect(await screen.findByText('mode.importing')).toBeInTheDocument();
     expect(toastMock.success).toHaveBeenCalledWith('libraries.started');
+  });
+
+  it('lets a wrong account be disconnected before anything was imported', async () => {
+    imaMock.getImaStatus.mockResolvedValue(makeStatus());
+    imaMock.deleteImaCredentials.mockResolvedValue(makeStatus({ connected: false }));
+    renderCard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'manage.disconnect' }));
+    await userEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'manage.disconnectConfirm' }),
+    );
+
+    expect(imaMock.deleteImaCredentials).toHaveBeenCalledWith(null);
+    expect(await screen.findByLabelText('connect.clientIdLabel')).toBeInTheDocument();
   });
 
   it('keeps the start button off until something is chosen', async () => {
@@ -285,6 +309,31 @@ describe('ImaSourceCard report', () => {
     await userEvent.click(screen.getByRole('button', { name: 'report.retryFailed' }));
     expect(imaMock.retryFailedImaItems).toHaveBeenCalledWith(null);
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('report.retried'));
+  });
+
+  it('says when the list is shorter than the count so the numbers never look contradictory', async () => {
+    imaMock.getImaStatus.mockResolvedValue(
+      makeStatus({
+        job: { state: 'active', next_run_at: null },
+        counts: { ...NO_COUNTS, total: 400, synced: 100, failed: 300 },
+      }),
+    );
+    imaMock.listImaItems.mockResolvedValue(
+      Array.from({ length: 200 }, (_, index) => ({
+        title: `Doc ${index}`,
+        folder_path: '',
+        container_name: 'Research',
+        media_kind: 'pdf',
+        status: 'failed',
+        reason: 'transient',
+        notes: [],
+      })),
+    );
+    renderCard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'actions.viewDetails' }));
+
+    expect(await screen.findByText('report.truncated')).toBeInTheDocument();
   });
 
   it('switches to the simplified bucket and explains each simplification', async () => {

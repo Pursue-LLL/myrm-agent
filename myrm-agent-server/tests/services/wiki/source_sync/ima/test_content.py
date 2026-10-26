@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 from myrm_agent_harness.toolkits.web_fetch.extractors import WEIXIN_BODY_TRUNCATED_MARKER
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
@@ -76,6 +77,24 @@ def test_render_document_does_not_repeat_an_existing_heading() -> None:
     rendered = render_document(row=row(), content=ImaContent(body="# Own heading\n\nbody"))
     assert rendered.count("# ") == 1
     assert 'fidelity: "full"' in rendered
+
+
+def test_render_document_keeps_remote_titles_inside_their_frontmatter_field() -> None:
+    hostile = row(title='Plan"\nsource: forged\n---\n# injected')
+    rendered = render_document(row=hostile, content=ImaContent(body="text", source_url="https://x/y\nkey: value"))
+
+    frontmatter, _, body = rendered.removeprefix("---\n").partition("\n---\n")
+    assert yaml.safe_load(frontmatter)["source"] == "ima"
+    assert set(yaml.safe_load(frontmatter)) == {
+        "source",
+        "title",
+        "external_id",
+        "ima_container",
+        "ima_folder",
+        "fidelity",
+        "source_url",
+    }
+    assert body.startswith("# Plan")
 
 
 async def test_unknown_media_type_is_unsupported(tmp_path: Path) -> None:

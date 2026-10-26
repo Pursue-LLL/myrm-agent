@@ -164,22 +164,32 @@ async def resolve_note(client: ImaClient, note_id: str) -> ImaContent | ImaUnsup
     return await _note_text(client, note_id)
 
 
+def _one_line(text: str) -> str:
+    """Titles and folder names are remote text: a line break inside a frontmatter value would end or forge fields."""
+    return " ".join(text.split())
+
+
 def render_document(*, row: LedgerRow, content: ImaContent, modified: str = "") -> str:
     """Deterministic raw file text: identical input always yields identical bytes, so re-syncs skip cleanly."""
-    extra = {"ima_container": row.container_name, "ima_folder": row.folder_path, "ima_type": content.type_label}
+    title = _one_line(row.title)
+    extra = {
+        "ima_container": _one_line(row.container_name),
+        "ima_folder": _one_line(row.folder_path),
+        "ima_type": content.type_label,
+    }
     extra["fidelity"] = "partial" if content.lossy else "full"
     if content.lossy:
         extra["fidelity_notes"] = ",".join(content.lossy)
     if content.source_url:
-        extra["source_url"] = content.source_url
+        extra["source_url"] = _one_line(content.source_url)
     if modified:
         extra["modified"] = modified
     frontmatter = build_frontmatter(
         source="ima",
-        title=row.title,
+        title=title,
         external_id=row.item_key,
         extra={key: value for key, value in extra.items() if value},
     )
     body = content.body.strip()
-    heading = "" if body.startswith("# ") else f"# {row.title}\n\n"
+    heading = "" if body.startswith("# ") else f"# {title}\n\n"
     return f"{frontmatter}{heading}{body}\n"

@@ -103,6 +103,14 @@ def test_path_stays_within_the_gate_budget_for_long_cjk_titles_and_deep_folders(
     assert path.endswith(".md")
 
 
+@pytest.mark.parametrize("name", ["CON", "nul", "Aux.txt", "com1", "LPT9"])
+def test_windows_device_names_never_become_a_directory_name(name: str) -> None:
+    parts = build_raw_path(container=name, folders=[name], title="doc", item_key="kb_abcdef0123456789").split("/")
+
+    assert parts[1].startswith("_") and parts[2].startswith("_")
+    assert build_raw_path(container="Contacts", folders=["Console"], title="x", item_key="k_1") == "ima/Contacts/Console/x-1.md"
+
+
 def test_known_document_suffix_is_dropped_from_the_stem() -> None:
     path = build_raw_path(container="L", folders=[], title="Report.PDF", item_key="kb_abcdef0123456789")
     assert path == "ima/L/Report-abcdef01.md"

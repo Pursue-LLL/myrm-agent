@@ -17856,7 +17856,8 @@
           "submit": "連線",
           "submitting": "正在驗證…",
           "success": "已連線 ima",
-          "reconnectNotice": "ima 拒絕了之前儲存的金鑰，同步已暫停。請重新填寫，連線成功後會自動繼續。"
+          "reconnectNotice": "ima 拒絕了之前儲存的金鑰，同步已暫停。請重新填寫，連線成功後會自動繼續。",
+          "getCredentials": "前往 ima 取得 Client ID 與 API Key"
         },
         "libraries": {
           "hint": "選擇要匯入的知識庫。",
@@ -17921,7 +17922,8 @@
           },
           "empty": "這裡沒有內容",
           "retryFailed": "重試失敗的 {count} 項",
-          "retried": "已重新排隊 {count} 項"
+          "retried": "已重新排隊 {count} 項",
+          "truncated": "僅顯示前 {shown} 項，共 {total} 項。"
         },
         "reasons": {
           "unsupported_type": "暫不支援這類內容",

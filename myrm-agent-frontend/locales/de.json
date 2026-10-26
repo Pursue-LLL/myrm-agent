@@ -17856,7 +17856,8 @@
           "submit": "Verbinden",
           "submitting": "Wird geprüft…",
           "success": "ima verbunden",
-          "reconnectNotice": "ima hat den gespeicherten Schlüssel abgelehnt, daher ist die Synchronisierung pausiert. Geben Sie ihn erneut ein, dann läuft der Import nach der Verbindung weiter."
+          "reconnectNotice": "ima hat den gespeicherten Schlüssel abgelehnt, daher ist die Synchronisierung pausiert. Geben Sie ihn erneut ein, dann läuft der Import nach der Verbindung weiter.",
+          "getCredentials": "Client ID und API Key in ima abrufen"
         },
         "libraries": {
           "hint": "Wählen Sie die Wissensdatenbanken aus, die importiert werden sollen.",
@@ -17921,7 +17922,8 @@
           },
           "empty": "Hier ist nichts",
           "retryFailed": "{count} fehlgeschlagene Einträge erneut versuchen",
-          "retried": "{count} Einträge erneut eingereiht"
+          "retried": "{count} Einträge erneut eingereiht",
+          "truncated": "Es werden die ersten {shown} von {total} Einträgen angezeigt."
         },
         "reasons": {
           "unsupported_type": "Diese Art von Inhalt wird noch nicht unterstützt",

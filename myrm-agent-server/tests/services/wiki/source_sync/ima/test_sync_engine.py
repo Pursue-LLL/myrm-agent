@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
+from app.services.wiki.source_sync.ima import content as content_module
 from app.services.wiki.source_sync.ima import importer
 from app.services.wiki.source_sync.ima.engine import SliceOutcome, run_slice
 from app.services.wiki.source_sync.ima.errors import (
@@ -326,6 +327,28 @@ async def test_each_item_failure_has_its_own_outcome_without_aborting_the_pass(
 
     assert (await run_pass(fake, tmp_path, state)).finished
     assert (await rows(ima_db))["deep.md"].status == LedgerStatus.SYNCED
+
+
+async def test_dead_web_pages_are_item_failures_and_do_not_stall_the_pass(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def crawl(url: str, *, allow_escalation: bool) -> None:
+        return None
+
+    monkeypatch.setattr(content_module.web_fetch_tools, "crawl", crawl)
+    fake, state = FakeIma(), ImaSyncState()
+    ids = [f"w{i}" for i in range(8)]
+    fake.pages[("kb1", "")] = page(*(entry(media_id, f"Page {media_id}", media_type=2) for media_id in ids))
+    fake.media = {
+        media_id: ImaMediaInfo(media_type=2, url=f"https://example.com/{media_id}", headers={}, note_id="") for media_id in ids
+    }
+
+    outcome = await run_pass(fake, tmp_path, state)
+
+    assert outcome.finished and outcome.error_kind == ""
+    assert state.failure_streak == 0 and state.backfill_complete
+    listed = (await rows(ima_db)).values()
+    assert {(row.status, row.error_kind, row.attempts) for row in listed} == {(LedgerStatus.FAILED, "page_unavailable", 1)}
 
 
 async def test_permanent_item_failure_exhausts_its_budget_until_the_user_retries(
