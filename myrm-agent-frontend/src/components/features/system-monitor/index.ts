@@ -64,8 +64,6 @@ export * from './deploymentFunnelTypes';
 export * from './DeploymentFunnelDashboard';
 export * from './streamMetricsTypes';
 export * from './StreamMetricsCockpit';
-export * from './otelDegradeTypes';
-export * from './OtelGracefulDegradeHUD';
 export * from './diagnosticStreamTypes';
 export * from './RunStreamDiagnosticDrawer';
 export * from './turnUsageTypes';

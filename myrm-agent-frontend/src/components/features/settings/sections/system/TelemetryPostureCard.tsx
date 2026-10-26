@@ -161,11 +161,13 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
         <Field label={t('protocol')}>
           <span className="font-mono">{posture.endpoint ? posture.protocol.toUpperCase() : '-'}</span>
         </Field>
-        <Field label={t('sampler')}>
+        <Field label={t('headers')}>{posture.headers_configured ? t('configured') : t('none')}</Field>
+        {/* The live sampler description is a long, unbroken SDK string: it gets a full row, never a narrow cell. */}
+        <Field label={t('sampler')} className="col-span-2 lg:col-span-4">
           <span className="block break-all font-mono">{posture.sampler ?? '-'}</span>
         </Field>
 
-        <Field label={t('contentCapture')} className="col-span-2">
+        <Field label={t('contentCapture')} className="col-span-2 lg:col-span-3">
           <span className="flex items-center gap-1.5">
             {posture.content_capture ? (
               <>
@@ -181,9 +183,8 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
           </span>
         </Field>
         <Field label={t('metrics')}>{posture.metrics_exporting ? t('metricsExporting') : t('metricsOff')}</Field>
-        <Field label={t('headers')}>{posture.headers_configured ? t('configured') : t('none')}</Field>
 
-        <Field label={t('environment')} className="col-span-2 lg:col-span-4">
+        <Field label={t('environment')} className="lg:col-span-4">
           {posture.git_branch ? (
             <div
               className="flex items-center gap-1.5 truncate font-mono"

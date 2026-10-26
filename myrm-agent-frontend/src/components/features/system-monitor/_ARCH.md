@@ -62,8 +62,6 @@
 | `DeploymentFunnelDashboard.tsx` | 组件 | 交付部署漏斗监测与反馈闭环大盘，展示 4 阶梯转化、流失断点、反馈统计与一键目标派发 | ✅ |
 | `streamMetricsTypes.ts` | 类型 | 流式调用按最终结果计量、防 Chunk 污染与会话时延 TypeScript 契约定义 | ✅ |
 | `StreamMetricsCockpit.tsx` | 组件 | 流式调用最终结果计量驾驶舱，展示真实调用数、SLA 成功率、防虚高倍数与终态分布 | ✅ |
-| `otelDegradeTypes.ts` | 类型 | OpenTelemetry 探针运行姿态、优雅降级与零硬依赖 TypeScript 契约定义 | ✅ |
-| `OtelGracefulDegradeHUD.tsx` | 组件 | OpenTelemetry 探针零硬依赖与优雅降级 HUD，展示三态运行姿态、拦截统计与故障注入模拟 | ✅ |
 | `diagnosticStreamTypes.ts` | 类型 | 运行流诊断事件解耦、严重度筛选与双轨隔离通道 TypeScript 契约定义 | ✅ |
 | `RunStreamDiagnosticDrawer.tsx` | 组件 | 运行流诊断抽屉组件，实现诊断事件流与用户消息流物理分离，杜绝聊天气泡污染 | ✅ |
 | `turnUsageTypes.ts` | 类型 | 回合级使用量双计数、Billed 账单与 Freeze 缓存状态对比 TypeScript 契约定义 | ✅ |
