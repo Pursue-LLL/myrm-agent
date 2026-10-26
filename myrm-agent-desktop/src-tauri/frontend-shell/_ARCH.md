@@ -22,7 +22,7 @@ Rust 在 Next standalone 就绪后导航到产品页；若后端启动失败，R
 
 | 文件 | 职责 |
 |------|------|
-| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：IPC 读取系统配置；0.05s 瞬时呈现工作台轮廓；监听启动失败事件并读取 `startup_error` 查询参数提供自愈指引；导航由 Rust 统一驱动 |
+| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：IPC 读取系统配置；0.05s 瞬时呈现工作台轮廓；监听启动失败事件并读取 `startup_error` 查询参数提供自愈指引；导航由 Rust 统一驱动；系统设置了「减少动态效果」时所有循环动画静止 |
 
 ## 约束
 

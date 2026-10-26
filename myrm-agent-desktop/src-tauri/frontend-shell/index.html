@@ -217,6 +217,11 @@
         0%, 100% { transform: scale(1); border-color: var(--border); }
         50% { transform: scale(1.04); border-color: #3b82f6; box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
       }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation: none !important;
+        }
+      }
     </style>
   </head>
   <body>
