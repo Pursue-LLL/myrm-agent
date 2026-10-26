@@ -12,6 +12,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 |------|------|-------------|-------|
 | `__init__.py` | Package | Public middleware exports. | ✅ |
 | `_session_context.py` | Internal | Shared ContextVars for the middleware chain. | ✅ |
+| `_run_workspace.py` | Internal | `run_workspace`: the `workspace_path` in the LangGraph `Runtime` context a hook receives; shared by `progress_middleware` and `CompletionGuard`. | ✅ |
 | `_message_origin.py` | Internal | `is_user_authored_human_message`: tells a HumanMessage the user wrote from one the runtime injected (`is_system_synthetic`); shared by the approval and security middlewares. | ✅ |
 | `advisor_risk_trigger_router.py` | Core | Adaptive risk-triggered router for MoA advisor overlay — gates advisor fan-out based on ReplanMiddleware errors, LoopGuard telemetry, fatal error bypass, and immunity/quota gates. | ✅ |
 | `clarification_guard_middleware.py` | Core | Enforces single `ask_question_tool` call per turn; blocks coexisting tool calls with synthetic errors. | ✅ |
@@ -19,7 +20,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `debug_logger_middleware.py` | Core | Full message list debug logging. | ✅ |
 | `filesystem_search_middleware.py` | Core | Inject glob/grep workspace search tools. | ✅ |
 | `plan_confirm_middleware.py` | Core | Plan-phase HITL: intercept first plan and major re-plans via `interrupt()` with 3+ items for user review. | ✅ |
-| `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage with KV cache preservation. | ✅ |
+| `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage with KV cache preservation; only for an agent that holds `todo_write`. | ✅ |
 | `goal_focus_middleware.py` | Core | ACTIVE goal objective injection into last HumanMessage. | ✅ |
 | `moa_advisor_middleware.py` | Core | Agent-loop MoA advisor overlay — ref fan-out, cache-safe transient prompt tail injection with KV-cache preservation, skip SSE for budget pressure and insufficient refs (`moa_overlay_skipped`), supports injected `privacy_redactor` for reference PII/secret scrubbing. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |

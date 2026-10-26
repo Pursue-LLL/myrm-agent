@@ -2,13 +2,15 @@
 
 [INPUT]
 - progress.schemas::TodoStore (POS: active todos)
+- agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 - langchain.agents.middleware::ModelRequest, wrap_model_call (POS: LC middleware)
 
 [OUTPUT]
 - progress_middleware: Injects non-persistent todo focus into last HumanMessage
 
 [POS]
-Surfaces active todos to the model without polluting persistent message history.
+Surfaces active todos to the model without polluting persistent message history. Which runs keep a todo list is
+decided by the ``get_todos_fn`` the host passes (it returns None for a run that cannot update one).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
+from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +115,7 @@ def progress_middleware(
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        context = getattr(request.runtime, "context", None) if hasattr(request, "runtime") and request.runtime else None
-        workspace_root = None
-        if isinstance(context, dict):
-            workspace_root = context.get("workspace_path")
-
-        store = await get_todos_fn(str(workspace_root) if workspace_root else None)
+        store = await get_todos_fn(run_workspace(getattr(request, "runtime", None)))
         if not store or not store.todos:
             return await handler(request)
 

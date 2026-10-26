@@ -95,6 +95,12 @@ def build_middlewares(
 
     params = engine_params or _EngineParams()
 
+    def keeps_todo_list() -> bool:
+        # A sub-agent shares its parent's workspace (and so its todo file) but is not given ``todo_write``;
+        # showing it, or holding it to, a list it cannot update would misdirect it. Asked per call: the
+        # registry is filled after the middleware chain is built.
+        return registry.has_tool("todo_write")
+
     middlewares: list[object] = [
         tool_history_hygiene_middleware,
         dangling_tool_call_middleware,
@@ -103,11 +109,11 @@ def build_middlewares(
         approval_guidance_delivery,
         ClarificationGuardMiddleware(),
         ToolApprovalMiddleware(),
-        CompletionGuard(),
+        CompletionGuard(keeps_todo_list=keeps_todo_list),
     ]
 
     async def get_current_todos(workspace_root: str | None = None):
-        if not workspace_root:
+        if not workspace_root or not keeps_todo_list():
             return None
         try:
             from myrm_agent_harness.agent.meta_tools.progress.storage import (

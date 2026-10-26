@@ -1,7 +1,9 @@
 """Contract: middleware readers find the workspace in the context a real run builds.
 
-A hand-built context passes any key a reader asks for. These tests take the context from the
-production setup path, so a reader of a key the run never writes goes red.
+A hand-built context passes any key a reader asks for, and a hand-built runtime passes any shape a reader
+expects. These tests take the context from the production setup path and hand it over in the LangGraph
+``Runtime`` the hooks receive, so a reader of a key the run never writes, or of a runtime shape it never
+gets, goes red.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStore
 from myrm_agent_harness.agent.meta_tools.progress.storage import (
@@ -38,8 +41,9 @@ async def test_todo_focus_reaches_the_model_request(tmp_path: Path) -> None:
     async def get_todos(workspace_root: str | None) -> TodoStore | None:
         return read_todos_sync_from_workspace(workspace_root) if workspace_root else None
 
-    runtime = type("Runtime", (), {"context": context})()
-    request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="continue")], runtime=runtime)
+    request = ModelRequest(
+        model=AsyncMock(), messages=[HumanMessage(content="continue")], runtime=Runtime(context=context)
+    )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
 
     await progress_middleware(get_todos).awrap_model_call(request, handler)
@@ -62,7 +66,7 @@ async def test_completion_guard_stages_unwritten_deliverables_in_the_run_workspa
         "```"
     )
     state = {"messages": [HumanMessage(content="写一个 worker 脚本"), AIMessage(content=f"完成：\n{draft}")]}
-    runtime = {"configurable": {"context": context}}
+    runtime = Runtime(context=context)
     guard = CompletionGuard(max_rejections=1)
     reset_completion_guard()
 

@@ -45,6 +45,7 @@ persisting across ReAct cycles.
 - agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
 - agent.middlewares.completion.deliverable_confidence_tier::resolve_deliverable_tier, should_disclose_tier (POS: Evidence tier calculation and disclosure policy)
 - agent.middlewares.completion.completion_guard_safety::is_mutating_tool, _INTERACTION_UI_TOOLS (POS: Effectful tool detection SSOT and interaction/UI carriers for Mixed Message Guard)
+- agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 
 [OUTPUT]
 - CompletionGuard: after_model middleware for critical completion verification + independent re-run
@@ -66,6 +67,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
@@ -73,6 +75,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool
 
+from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 from myrm_agent_harness.agent.middlewares.completion.completion_check_tool import (
     _completion_check_tool,
 )
@@ -191,6 +194,10 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         Master on/off switch.
     max_rejections:
         Maximum times the guard blocks before forced finish (safety valve).
+    keeps_todo_list:
+        Whether this run can update the workspace's todo list. Only then does an unfinished todo block
+        completion: a sub-agent shares its parent's workspace but cannot call ``todo_write``, so the demand
+        would be one it can never meet.
     """
 
     def __init__(
@@ -198,9 +205,11 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         *,
         enabled: bool = True,
         max_rejections: int = 3,
+        keeps_todo_list: Callable[[], bool] = lambda: True,
     ) -> None:
         self._enabled = enabled
         self._max_rejections = max_rejections
+        self._keeps_todo_list = keeps_todo_list
 
     def get_tools(self) -> list[BaseTool]:
         """Expose the internal ``_completion_check`` tool for registration."""
@@ -295,17 +304,10 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
                         return {"messages": [patched]}
             return None
 
-        workspace_root = None
-        if hasattr(runtime, "get") and isinstance(runtime, dict):
-            configurable = runtime.get("configurable", {})
-            if isinstance(configurable, dict):
-                context = configurable.get("context", {})
-                if isinstance(context, dict):
-                    workspace_root = context.get("workspace_path")
+        workspace_root = run_workspace(runtime)
+        todo_workspace = workspace_root if self._keeps_todo_list() else None
 
-        _, has_critical_errors = _build_checklist(
-            records, workspace_root=str(workspace_root) if workspace_root else None
-        )
+        _, has_critical_errors = _build_checklist(records, workspace_root=todo_workspace)
         evidence_reason = build_external_evidence_reason(
             messages=messages,
             records=filtered_records,
@@ -406,7 +408,7 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
 
             tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
             forced_args: dict[str, object] = {
-                "workspace_root": (str(workspace_root) if workspace_root else ""),
+                "workspace_root": todo_workspace or "",
                 "force_fail": True,
             }
             if evidence_reason is not None:
@@ -441,7 +443,7 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         )
 
         tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
-        tool_args: dict[str, object] = {"workspace_root": str(workspace_root) if workspace_root else ""}
+        tool_args: dict[str, object] = {"workspace_root": todo_workspace or ""}
         if evidence_reason is not None:
             tool_args["evidence_reason"] = evidence_reason
         if deliverable_write_reason is not None:

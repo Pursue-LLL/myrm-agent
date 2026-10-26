@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import (
     TodoItem,
@@ -108,12 +109,9 @@ async def test_workspace_path_from_runtime_context() -> None:
     store = TodoStore(goal="g", todos=[TodoItem(id="t1", content="step one")])
     get_todos = AsyncMock(return_value=store)
     middleware = progress_middleware(get_todos)
-    runtime = type(
-        "Runtime",
-        (),
-        {"context": {"workspace_path": "/tmp/ws"}},
-    )()
-    request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="hi")], runtime=runtime)
+    request = ModelRequest(
+        model=AsyncMock(), messages=[HumanMessage(content="hi")], runtime=Runtime(context={"workspace_path": "/tmp/ws"})
+    )
     handler = AsyncMock(return_value=ModelResponse(result=[]))
     await middleware.awrap_model_call(request, handler)
     assert get_todos.await_args.args[0] == "/tmp/ws"
