@@ -85,6 +85,20 @@ async def test_rotation_keeps_the_newest_backups_whatever_order_the_server_lists
     assert sorted(remote._storage) == sorted([_backup_name("laptop", 5), _backup_name("laptop", 6), uploaded])
 
 
+@pytest.mark.parametrize(("max_backups", "kept_older"), [(1, 0), (3, 2)])
+async def test_the_backup_just_uploaded_is_kept_even_when_older_files_carry_later_timestamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, max_backups: int, kept_older: int
+) -> None:
+    # Stamped by a clock that ran ahead: by name these outrank any backup made now.
+    ahead = [f"myrm.209901{day:02d}000000.laptop.linux.json.gz" for day in range(1, 4)]
+    remote = _ShuffledListing()
+    _seed(remote, *ahead)
+
+    uploaded = await _run(tmp_path, monkeypatch, remote, "laptop", max_backups=max_backups)
+
+    assert sorted(remote._storage) == sorted([*ahead[len(ahead) - kept_older :], uploaded])
+
+
 async def test_rotation_never_deletes_a_file_it_did_not_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     foreign = [
         "laptop-linux-notes.gz",

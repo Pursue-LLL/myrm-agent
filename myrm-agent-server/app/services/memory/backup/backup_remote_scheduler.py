@@ -140,7 +140,8 @@ async def run_remote_backup(
             }
 
         if max_backups > 0:
-            await _rotate_backups(strategy, frozenset({device, configured_device}), platform_label, max_backups)
+            devices = frozenset({device, configured_device})
+            await _rotate_backups(strategy, devices, platform_label, max_backups, keep=backup_filename)
 
         return {
             "success": True,
@@ -230,22 +231,29 @@ async def _rotate_backups(
     devices: frozenset[str],
     platform_label: str,
     max_backups: int,
+    keep: str,
 ) -> None:
-    """Delete this device's backups beyond the newest ``max_backups``.
+    """Keep ``keep`` (the backup just uploaded) and this device's newest ``max_backups - 1`` other backups.
 
     ``devices`` holds the safe label and the name exactly as configured, so backups uploaded under the
     configured name keep rotating together with the ones under the label. Only names this module writes, for
     exactly one of those devices and this platform, qualify, and age comes from the timestamp in the name:
     files that merely share the folder, a device whose name contains another's, or an unreliable listing order
-    and modified time can never cost a backup its place.
+    and modified time can never cost a backup its place. The timestamp comes from the device clock, so the
+    backup just made is kept whatever its name sorts like; otherwise older files stamped by a clock that ran
+    ahead would outrank it and rotation would delete it right after a successful upload.
     """
     try:
         # The fixed-width timestamp comes first, so name order is age order.
-        own = sorted(
-            (f.file_name for f in await strategy.list_files() if _is_backup_of(f.file_name, devices, platform_label)),
+        others = sorted(
+            (
+                f.file_name
+                for f in await strategy.list_files()
+                if f.file_name != keep and _is_backup_of(f.file_name, devices, platform_label)
+            ),
             reverse=True,
         )
-        for name in own[max_backups:]:
+        for name in others[max_backups - 1 :]:
             if await strategy.delete(name):
                 logger.info("Rotated old backup: %s", name)
             else:

@@ -170,10 +170,14 @@ class TestBackupRotation:
             name = f"myrm.{ts}.myhost.linux.json.gz"
             strategy._storage[name] = b"x" * 100
 
-        await _rotate_backups(strategy, "myhost", "linux", max_backups=3)
+        newest = "myrm.20250104120000.myhost.linux.json.gz"
+        await _rotate_backups(strategy, frozenset({"myhost"}), "linux", max_backups=3, keep=newest)
 
-        files = await strategy.list_files()
-        assert len(files) == 3
+        assert sorted(strategy._storage) == [
+            "myrm.20250102120000.myhost.linux.json.gz",
+            "myrm.20250103120000.myhost.linux.json.gz",
+            newest,
+        ]
 
     @pytest.mark.asyncio
     async def test_rotation_skips_when_under_limit(self):
@@ -183,7 +187,8 @@ class TestBackupRotation:
         strategy._storage["myrm.20250101120000.host.linux.json.gz"] = b"data"
         strategy._storage["myrm.20250102120000.host.linux.json.gz"] = b"data"
 
-        await _rotate_backups(strategy, "host", "linux", max_backups=5)
+        newest = "myrm.20250102120000.host.linux.json.gz"
+        await _rotate_backups(strategy, frozenset({"host"}), "linux", max_backups=5, keep=newest)
 
         files = await strategy.list_files()
         assert len(files) == 2
