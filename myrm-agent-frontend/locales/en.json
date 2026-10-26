@@ -14019,44 +14019,6 @@
     },
     "noChat": "Open a conversation to browse its workspace files and run commands there."
   },
-  "workLayout": {
-    "modeChat": "Chat Mode",
-    "modeWork": "Work Mode",
-    "modeSwitchTooltip": "Toggle Chat/Work Mode (⌘⇧M)",
-    "computeTierTurbo": "Turbo Fast",
-    "computeTierTurboDesc": "Low-latency responses, ideal for everyday Q&A and light tasks",
-    "computeTierPro": "Pro Reasoning",
-    "computeTierProDesc": "Deep logical reasoning, ideal for complex code & architectural tasks",
-    "sidebarCollapse": "Collapse Asset Sidebar",
-    "sidebarExpand": "Expand Asset Sidebar",
-    "tabTasks": "Tasks",
-    "tabSkills": "Skills",
-    "tabConnectors": "Connectors",
-    "tabPartners": "Partners",
-    "tasks": {
-      "headerTitle": "Task Breakdown Board",
-      "progressLabel": "Total Progress",
-      "emptyTasks": "No active tasks in current session",
-      "subtaskTitle": "Subtask Checklist"
-    },
-    "skills": {
-      "headerTitle": "Active Skill Library",
-      "activeCount": "available",
-      "triggerAction": "Invoke",
-      "searchPlaceholder": "Search skills..."
-    },
-    "connectors": {
-      "headerTitle": "External Connectors & MCP",
-      "statusConnected": "Running",
-      "statusStandby": "Standby",
-      "probeHealth": "Probe Channel"
-    },
-    "partners": {
-      "headerTitle": "Agent Partner Fleet",
-      "sandboxRunning": "Isolated Sandbox Active",
-      "inspectAction": "Inspect State"
-    }
-  },
   "compaction": {
     "capsuleTitle": "Milestone Crystallization",
     "capsuleSubtitle": "Compacted {count} messages · Saved {tokens} tokens",

@@ -14019,44 +14019,6 @@
     },
     "noChat": "打开一个对话后，即可浏览它的工作区文件并在其中运行命令。"
   },
-  "workLayout": {
-    "modeChat": "对话模式",
-    "modeWork": "工作模式",
-    "modeSwitchTooltip": "切换对话/工作模式 (⌘⇧M)",
-    "computeTierTurbo": "Turbo 极速",
-    "computeTierTurboDesc": "低延迟极速响应，适合日常问答与轻量任务",
-    "computeTierPro": "Pro 深度推理",
-    "computeTierProDesc": "深度思考与长程推理，适合复杂代码与架构重构",
-    "sidebarCollapse": "折叠资产看板",
-    "sidebarExpand": "展开资产看板",
-    "tabTasks": "工作任务",
-    "tabSkills": "技能库",
-    "tabConnectors": "连接器",
-    "tabPartners": "协同伙伴",
-    "tasks": {
-      "headerTitle": "任务拆解看板",
-      "progressLabel": "任务总进度",
-      "emptyTasks": "当前会话暂无执行中的工作任务",
-      "subtaskTitle": "子任务清单"
-    },
-    "skills": {
-      "headerTitle": "可用技能库",
-      "activeCount": "项可用",
-      "triggerAction": "快捷调用",
-      "searchPlaceholder": "搜索技能..."
-    },
-    "connectors": {
-      "headerTitle": "外部通道与连接器",
-      "statusConnected": "运行中",
-      "statusStandby": "待命中",
-      "probeHealth": "通道探针"
-    },
-    "partners": {
-      "headerTitle": "智能体伙伴编队",
-      "sandboxRunning": "隔离沙箱运行中",
-      "inspectAction": "查看状态"
-    }
-  },
   "compaction": {
     "capsuleTitle": "阶段记忆结晶",
     "capsuleSubtitle": "已压缩 {count} 条历史 · 节约 {tokens} Token",

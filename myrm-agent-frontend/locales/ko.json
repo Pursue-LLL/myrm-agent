@@ -14019,44 +14019,6 @@
     },
     "noChat": "대화를 열면 해당 워크스페이스의 파일을 둘러보고 명령을 실행할 수 있습니다."
   },
-  "workLayout": {
-    "modeChat": "채팅 모드",
-    "modeWork": "작업 모드",
-    "modeSwitchTooltip": "채팅/작업 모드 전환(⌘⇧M)",
-    "computeTierTurbo": "터보 고속",
-    "computeTierTurboDesc": "낮은 지연 시간의 응답으로 일상적인 질문과 가벼운 작업에 적합합니다",
-    "computeTierPro": "프로 추론",
-    "computeTierProDesc": "깊은 논리적 추론으로 복잡한 코드와 아키텍처 작업에 적합합니다",
-    "sidebarCollapse": "자산 사이드바 접기",
-    "sidebarExpand": "자산 사이드바 펼치기",
-    "tabTasks": "작업",
-    "tabSkills": "스킬",
-    "tabConnectors": "커넥터",
-    "tabPartners": "파트너",
-    "tasks": {
-      "headerTitle": "작업 분해 보드",
-      "progressLabel": "전체 진행률",
-      "emptyTasks": "현재 세션에 활성 작업이 없습니다",
-      "subtaskTitle": "하위 작업 체크리스트"
-    },
-    "skills": {
-      "headerTitle": "활성 스킬 라이브러리",
-      "activeCount": "사용 가능",
-      "triggerAction": "호출",
-      "searchPlaceholder": "스킬 검색..."
-    },
-    "connectors": {
-      "headerTitle": "외부 커넥터 및 MCP",
-      "statusConnected": "실행 중",
-      "statusStandby": "대기",
-      "probeHealth": "채널 프로브"
-    },
-    "partners": {
-      "headerTitle": "에이전트 파트너 플릿",
-      "sandboxRunning": "격리된 샌드박스 활성",
-      "inspectAction": "상태 확인"
-    }
-  },
   "compaction": {
     "capsuleTitle": "마일스톤 결정화",
     "capsuleSubtitle": "메시지 {count}개 압축 · 토큰 {tokens}개 절약",

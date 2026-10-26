@@ -53,7 +53,6 @@ import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
 import { isChatRouteHydratedForId, subscribeChatRouteHydrated } from './chatRouteHydration';
-import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
 import { TieredRiskGateContainer } from '../risk-approval';
 import { TaskHudOverlay } from '../task-hud';
@@ -645,18 +644,16 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                       <MessageListSkeleton />
                     </div>
                   ) : null}
-                  <DualModeContainer
-                    className="flex h-full min-h-0"
-                    key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
-                  >
+                  <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
                     <Chat
+                      key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
                       loading={loading}
                       messageAppeared={messageAppeared}
                       messagesOverride={
                         chatMessagesForRender.length > chatMessages.length ? chatMessagesForRender : undefined
                       }
                     />
-                  </DualModeContainer>
+                  </div>
                 </>
               ) : (
                 <div className="h-full overflow-y-auto p-4 bg-background">

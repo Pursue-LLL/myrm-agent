@@ -14019,44 +14019,6 @@
     },
     "noChat": "会話を開くと、そのワークスペースのファイルを閲覧し、コマンドを実行できます。"
   },
-  "workLayout": {
-    "modeChat": "チャットモード",
-    "modeWork": "ワークモード",
-    "modeSwitchTooltip": "チャット／ワークモードを切り替え（⌘⇧M）",
-    "computeTierTurbo": "ターボ高速",
-    "computeTierTurboDesc": "低レイテンシの応答。日常の質問や軽いタスクに最適です",
-    "computeTierPro": "プロ推論",
-    "computeTierProDesc": "深い論理的推論。複雑なコードやアーキテクチャのタスクに最適です",
-    "sidebarCollapse": "アセットサイドバーを折りたたむ",
-    "sidebarExpand": "アセットサイドバーを展開",
-    "tabTasks": "タスク",
-    "tabSkills": "スキル",
-    "tabConnectors": "コネクタ",
-    "tabPartners": "パートナー",
-    "tasks": {
-      "headerTitle": "タスク分解ボード",
-      "progressLabel": "全体の進捗",
-      "emptyTasks": "現在のセッションにアクティブなタスクはありません",
-      "subtaskTitle": "サブタスクチェックリスト"
-    },
-    "skills": {
-      "headerTitle": "アクティブなスキルライブラリ",
-      "activeCount": "利用可能",
-      "triggerAction": "呼び出す",
-      "searchPlaceholder": "スキルを検索..."
-    },
-    "connectors": {
-      "headerTitle": "外部コネクタと MCP",
-      "statusConnected": "稼働中",
-      "statusStandby": "スタンバイ",
-      "probeHealth": "チャネルをプローブ"
-    },
-    "partners": {
-      "headerTitle": "エージェントパートナーフリート",
-      "sandboxRunning": "分離サンドボックス稼働中",
-      "inspectAction": "状態を確認"
-    }
-  },
   "compaction": {
     "capsuleTitle": "マイルストーン結晶化",
     "capsuleSubtitle": "{count} 件のメッセージを圧縮 · {tokens} トークンを節約",

@@ -14019,44 +14019,6 @@
     },
     "noChat": "Öffnen Sie eine Unterhaltung, um ihre Workspace-Dateien zu durchsuchen und dort Befehle auszuführen."
   },
-  "workLayout": {
-    "modeChat": "Chat-Modus",
-    "modeWork": "Arbeitsmodus",
-    "modeSwitchTooltip": "Chat-/Arbeitsmodus umschalten (⌘⇧M)",
-    "computeTierTurbo": "Turbo-Schnell",
-    "computeTierTurboDesc": "Antworten mit niedriger Latenz, ideal für alltägliche Fragen und leichte Aufgaben",
-    "computeTierPro": "Pro-Reasoning",
-    "computeTierProDesc": "Tiefes logisches Schlussfolgern, ideal für komplexe Code- und Architekturaufgaben",
-    "sidebarCollapse": "Asset-Seitenleiste einklappen",
-    "sidebarExpand": "Asset-Seitenleiste ausklappen",
-    "tabTasks": "Aufgaben",
-    "tabSkills": "Fähigkeiten",
-    "tabConnectors": "Konnektoren",
-    "tabPartners": "Partner",
-    "tasks": {
-      "headerTitle": "Aufgabenaufteilungs-Board",
-      "progressLabel": "Gesamtfortschritt",
-      "emptyTasks": "Keine aktiven Aufgaben in der aktuellen Sitzung",
-      "subtaskTitle": "Teilaufgaben-Checkliste"
-    },
-    "skills": {
-      "headerTitle": "Aktive Skill-Bibliothek",
-      "activeCount": "verfügbar",
-      "triggerAction": "Aufrufen",
-      "searchPlaceholder": "Skills suchen..."
-    },
-    "connectors": {
-      "headerTitle": "Externe Konnektoren und MCP",
-      "statusConnected": "Läuft",
-      "statusStandby": "Bereitschaft",
-      "probeHealth": "Kanal prüfen"
-    },
-    "partners": {
-      "headerTitle": "Agent-Partnerflotte",
-      "sandboxRunning": "Isolierte Sandbox aktiv",
-      "inspectAction": "Zustand prüfen"
-    }
-  },
   "compaction": {
     "capsuleTitle": "Meilenstein-Kristallisierung",
     "capsuleSubtitle": "{count} Nachrichten komprimiert · {tokens} Token gespart",

@@ -14019,44 +14019,6 @@
     },
     "noChat": "開啟一個對話後，即可瀏覽它的工作區檔案並在其中執行命令。"
   },
-  "workLayout": {
-    "modeChat": "對話模式",
-    "modeWork": "工作模式",
-    "modeSwitchTooltip": "切換對話/工作模式 (⌘⇧M)",
-    "computeTierTurbo": "Turbo 極速",
-    "computeTierTurboDesc": "低延遲極速響應，適合日常問答與輕量任務",
-    "computeTierPro": "Pro 深度推理",
-    "computeTierProDesc": "深度思考與長程推理，適合複雜程式碼與架構重構",
-    "sidebarCollapse": "摺疊資產看板",
-    "sidebarExpand": "展開資產看板",
-    "tabTasks": "工作任務",
-    "tabSkills": "技能庫",
-    "tabConnectors": "聯結器",
-    "tabPartners": "協同夥伴",
-    "tasks": {
-      "headerTitle": "任務拆解看板",
-      "progressLabel": "任務總進度",
-      "emptyTasks": "當前會話暫無執行中的工作任務",
-      "subtaskTitle": "子任務清單"
-    },
-    "skills": {
-      "headerTitle": "可用技能庫",
-      "activeCount": "項可用",
-      "triggerAction": "快捷呼叫",
-      "searchPlaceholder": "搜尋技能..."
-    },
-    "connectors": {
-      "headerTitle": "外部通道與聯結器",
-      "statusConnected": "執行中",
-      "statusStandby": "待命中",
-      "probeHealth": "通道探針"
-    },
-    "partners": {
-      "headerTitle": "智慧體夥伴編隊",
-      "sandboxRunning": "隔離沙箱執行中",
-      "inspectAction": "檢視狀態"
-    }
-  },
   "compaction": {
     "capsuleTitle": "階段記憶結晶",
     "capsuleSubtitle": "已壓縮 {count} 條歷史 · 節約 {tokens} Token",
