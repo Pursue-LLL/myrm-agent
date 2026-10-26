@@ -1,10 +1,8 @@
-"""Real-world end-to-end integration tests for geometric scoring system.
+"""Real-world scenarios for the geometric scoring system.
 
-These tests simulate actual user scenarios to validate that the hotness scoring
-system delivers the expected improvements in retrieval quality.
-
-Tests focus on the retriever component with realistic memory configurations
-to validate scoring behavior in real-world scenarios.
+Each scenario ranks realistic memories the way a search would and checks the order that relevance,
+recency, importance and the memory type should produce. How often a memory was recalled plays no
+part in that order (see test_usage_not_in_ranking.py).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -29,14 +27,12 @@ class TestDeveloperWorkflowScenario:
         recent_usage = SemanticMemory(
             content="Run tests with: pytest myrm-agent-harness/tests/ -v",
             created_at=datetime.now(UTC) - timedelta(days=2),
-            access_count=15,  # Frequently accessed
             importance=0.7,
         )
 
         old_docs = SemanticMemory(
             content="Testing framework documentation: pytest, unittest, nose",
             created_at=datetime.now(UTC) - timedelta(days=180),
-            access_count=2,  # Rarely accessed
             importance=0.5,
         )
 
@@ -48,43 +44,40 @@ class TestDeveloperWorkflowScenario:
 
         ranked = retriever.rank(results, limit=5)
 
-        # Recent + hot memory should rank first
-        assert len(ranked) >= 2
-        assert len(ranked) > 0
-        assert ranked[0].score > ranked[1].score
+        # Recency and importance outweigh the old document's slightly higher relevance
+        assert [r.memory.content for r in ranked] == [recent_usage.content, old_docs.content]
 
-    def test_frequently_used_command_surfaces_quickly(self):
-        """Scenario: Developer frequently uses git commands.
+    def test_recall_count_does_not_lift_a_slightly_less_relevant_command(self):
+        """Scenario: Developer keeps being shown one git command and rarely the other.
 
-        Expected: Frequently accessed git commands should rank higher
-        than rarely used alternatives.
+        Expected: Every returned hit is stamped as recalled, so the count measures exposure. The
+        command that matches the query better still ranks first, however often the other was shown.
         """
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        hot_command = SemanticMemory(
+        often_shown = SemanticMemory(
             content="git commit -m 'message' && git push",
             created_at=datetime.now(UTC) - timedelta(days=30),
-            access_count=50,  # Very hot
+            access_count=50,
             importance=0.6,
         )
 
-        cold_command = SemanticMemory(
+        rarely_shown = SemanticMemory(
             content="git rebase -i HEAD~3",
             created_at=datetime.now(UTC) - timedelta(days=30),
-            access_count=1,  # Cold
+            access_count=1,
             importance=0.6,
         )
 
         results = [
-            MemorySearchResult(memory=hot_command, score=0.78, memory_type=MemoryType.SEMANTIC),
-            MemorySearchResult(memory=cold_command, score=0.80, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=often_shown, score=0.78, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=rarely_shown, score=0.80, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
-        # Hot command should rank first despite slightly lower semantic score
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [rarely_shown.content, often_shown.content]
 
 
 class TestConversationalContextScenario:
@@ -101,14 +94,12 @@ class TestConversationalContextScenario:
         recent_chat = EpisodicMemory(
             content="User asked about Python async/await patterns",
             created_at=datetime.now(UTC) - timedelta(hours=2),
-            access_count=3,
             importance=0.6,
         )
 
         old_chat = EpisodicMemory(
             content="User discussed Python decorators",
             created_at=datetime.now(UTC) - timedelta(days=14),
-            access_count=2,
             importance=0.6,
         )
 
@@ -120,7 +111,7 @@ class TestConversationalContextScenario:
         ranked = retriever.rank(results, limit=5)
 
         # Recent conversation should rank first (episodic has high recency weight)
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [recent_chat.content, old_chat.content]
 
     def test_stale_context_naturally_degrades(self):
         """Scenario: Old conversation context should naturally fade.
@@ -134,14 +125,12 @@ class TestConversationalContextScenario:
         fresh_memory = EpisodicMemory(
             content="Discussed React hooks best practices",
             created_at=datetime.now(UTC) - timedelta(days=3),
-            access_count=5,
             importance=0.6,
         )
 
         stale_memory = EpisodicMemory(
             content="Talked about React component patterns",
             created_at=datetime.now(UTC) - timedelta(days=60),
-            access_count=4,
             importance=0.6,
         )
 
@@ -153,53 +142,50 @@ class TestConversationalContextScenario:
         ranked = retriever.rank(results, limit=5)
 
         # Fresh memory should rank higher due to recency decay
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [fresh_memory.content, stale_memory.content]
 
 
 class TestUserPreferenceScenario:
     """Test scenario: User preferences should remain stable over time."""
 
-    def test_high_importance_with_frequency_ranks_well(self):
-        """Scenario: Memories with high importance AND frequency should rank well.
+    def test_high_importance_outranks_a_casual_mention_of_the_same_age(self):
+        """Scenario: A core preference and a passing mention, equally relevant and equally old.
 
-        Expected: Important + frequently accessed memories rank high.
+        Expected: Importance decides.
         """
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        important_frequent = SemanticMemory(
+        core_preference = SemanticMemory(
             content="User's core preference: TypeScript over JavaScript",
-            created_at=datetime.now(UTC) - timedelta(days=60),
-            access_count=25,  # Frequently accessed
-            importance=0.9,  # Very important
+            created_at=datetime.now(UTC) - timedelta(days=30),
+            importance=0.9,
         )
 
-        recent_casual = SemanticMemory(
+        casual_mention = SemanticMemory(
             content="User mentioned TypeScript briefly",
-            created_at=datetime.now(UTC) - timedelta(days=1),
-            access_count=2,
-            importance=0.4,  # Less important
+            created_at=datetime.now(UTC) - timedelta(days=30),
+            importance=0.4,
         )
 
         results = [
-            MemorySearchResult(memory=important_frequent, score=0.85, memory_type=MemoryType.SEMANTIC),
-            MemorySearchResult(memory=recent_casual, score=0.83, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=casual_mention, score=0.84, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=core_preference, score=0.84, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
-        # High importance + frequency should beat recent but casual mention
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [core_preference.content, casual_mention.content]
 
 
 class TestSemanticDominanceScenario:
-    """Test scenario: Very high semantic relevance should override hotness."""
+    """Test scenario: Very high semantic relevance should override recency and importance."""
 
-    def test_highly_relevant_beats_hot_but_irrelevant(self):
+    def test_highly_relevant_beats_fresh_but_less_relevant(self):
         """Scenario: Searching for specific topic.
 
-        Expected: Highly relevant but cold memory should beat hot but
-        less relevant memory when semantic gap is large enough.
+        Expected: A highly relevant memory should beat a fresher, less relevant one
+        when the semantic gap is large enough.
         """
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
@@ -207,60 +193,54 @@ class TestSemanticDominanceScenario:
         highly_relevant = SemanticMemory(
             content="Kubernetes deployment strategies for microservices",
             created_at=datetime.now(UTC) - timedelta(days=90),
-            access_count=5,  # Some usage
             importance=0.7,
         )
 
-        hot_but_less_relevant = SemanticMemory(
+        fresh_but_less_relevant = SemanticMemory(
             content="Docker container basics",
             created_at=datetime.now(UTC) - timedelta(days=10),
-            access_count=20,  # Hot but not extreme
             importance=0.6,
         )
 
         results = [
             MemorySearchResult(memory=highly_relevant, score=0.95, memory_type=MemoryType.SEMANTIC),
-            MemorySearchResult(memory=hot_but_less_relevant, score=0.65, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=fresh_but_less_relevant, score=0.65, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
         # High semantic score should dominate when gap is large
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [highly_relevant.content, fresh_but_less_relevant.content]
 
-    def test_moderate_semantic_difference_hotness_matters(self):
-        """Scenario: When semantic scores are close, hotness should decide.
+    def test_close_semantic_scores_are_decided_by_recency_and_importance(self):
+        """Scenario: When semantic scores are close, the context signals decide.
 
-        Expected: With similar semantic scores, hotness factors should
-        break the tie.
+        Expected: With similar semantic scores, the newer and more important memory wins.
         """
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        hot_memory = SemanticMemory(
+        recent_memory = SemanticMemory(
             content="Python list comprehensions tutorial",
             created_at=datetime.now(UTC) - timedelta(days=5),
-            access_count=25,
             importance=0.7,
         )
 
-        cold_memory = SemanticMemory(
+        old_memory = SemanticMemory(
             content="Python list operations guide",
             created_at=datetime.now(UTC) - timedelta(days=120),
-            access_count=2,
             importance=0.6,
         )
 
         # Similar semantic scores (difference < 0.15)
         results = [
-            MemorySearchResult(memory=hot_memory, score=0.82, memory_type=MemoryType.SEMANTIC),
-            MemorySearchResult(memory=cold_memory, score=0.85, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=recent_memory, score=0.82, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=old_memory, score=0.85, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
-        # Hot memory should win when semantic scores are close
-        assert len(ranked) > 0
+        assert [r.memory.content for r in ranked] == [recent_memory.content, old_memory.content]
 
 
 class TestMultiSourceFusionScenario:
@@ -278,14 +258,12 @@ class TestMultiSourceFusionScenario:
         semantic_fact = SemanticMemory(
             content="Functional programming emphasizes immutability",
             created_at=datetime.now(UTC) - timedelta(days=30),
-            access_count=10,
             importance=0.7,
         )
 
         episodic_chat = EpisodicMemory(
             content="Discussed functional programming patterns yesterday",
             created_at=datetime.now(UTC) - timedelta(days=1),
-            access_count=3,
             importance=0.6,
         )
 
@@ -305,23 +283,20 @@ class TestMultiSourceFusionScenario:
 
 
 class TestPerformanceExpectations:
-    """Test expected performance improvements from geometric scoring."""
+    """Test the ranking quality of geometric scoring on noisy near-ties."""
 
-    def test_top5_accuracy_improvement_scenario(self):
-        """Scenario: Validate that hotness scoring improves Top-5 accuracy.
+    def test_relevant_memories_surface_above_noise_with_near_equal_scores(self):
+        """Scenario: Five candidates with near-equal semantic scores, only three truly relevant.
 
-        This test simulates the expected 10-15% improvement in Top-5
-        retrieval accuracy mentioned in the original proposal.
+        Expected: Recency and importance lift the relevant memories above the noise.
         """
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        # Create a realistic scenario: 10 memories, only 3 are truly relevant
-        relevant_hot = SemanticMemory(
+        relevant_week_old = SemanticMemory(
             id="relevant_1",
             content="Python async/await best practices for web servers",
             created_at=datetime.now(UTC) - timedelta(days=7),
-            access_count=20,
             importance=0.8,
         )
 
@@ -329,7 +304,6 @@ class TestPerformanceExpectations:
             id="relevant_2",
             content="FastAPI async endpoint implementation guide",
             created_at=datetime.now(UTC) - timedelta(days=2),
-            access_count=8,
             importance=0.7,
         )
 
@@ -337,7 +311,6 @@ class TestPerformanceExpectations:
             id="relevant_3",
             content="Async programming patterns in Python web frameworks",
             created_at=datetime.now(UTC) - timedelta(days=60),
-            access_count=3,
             importance=0.6,
         )
 
@@ -346,7 +319,6 @@ class TestPerformanceExpectations:
             id="irrelevant_1",
             content="Python threading vs multiprocessing",
             created_at=datetime.now(UTC) - timedelta(days=100),
-            access_count=1,
             importance=0.5,
         )
 
@@ -354,13 +326,12 @@ class TestPerformanceExpectations:
             id="irrelevant_2",
             content="Python generators and iterators",
             created_at=datetime.now(UTC) - timedelta(days=150),
-            access_count=2,
             importance=0.5,
         )
 
         # Simulate search results with noisy semantic scores
         results = [
-            MemorySearchResult(memory=relevant_hot, score=0.85, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=relevant_week_old, score=0.85, memory_type=MemoryType.SEMANTIC),
             MemorySearchResult(memory=irrelevant_1, score=0.83, memory_type=MemoryType.SEMANTIC),
             MemorySearchResult(memory=relevant_recent, score=0.82, memory_type=MemoryType.SEMANTIC),
             MemorySearchResult(memory=irrelevant_2, score=0.80, memory_type=MemoryType.SEMANTIC),
@@ -369,17 +340,7 @@ class TestPerformanceExpectations:
 
         ranked = retriever.rank(results, limit=5)
 
-        # Count how many relevant memories are in Top-5
-        top5_ids = {r.memory.id for r in ranked[:5]}
-        relevant_ids = {"relevant_1", "relevant_2", "relevant_3"}
-        relevant_in_top5 = len(top5_ids & relevant_ids)
-
-        # With geometric scoring, we expect at least 2 out of 3 relevant memories in Top-5
-        assert relevant_in_top5 >= 2, f"Expected >= 2 relevant in Top-5, got {relevant_in_top5}"
-
-        # The most relevant and hot memory should rank in Top-3
-        top3_ids = {r.memory.id for r in ranked[:3]}
-        assert "relevant_1" in top3_ids or "relevant_2" in top3_ids
+        assert {r.memory.id for r in ranked[:3]} == {"relevant_1", "relevant_2", "relevant_3"}
 
 
 class TestEdgeCasesInRealScenarios:
@@ -390,58 +351,54 @@ class TestEdgeCasesInRealScenarios:
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        old_hot = SemanticMemory(
-            content="Frequently used old knowledge",
+        less_relevant = SemanticMemory(
+            content="Old knowledge, loosely related",
             created_at=datetime.now(UTC) - timedelta(days=365),
-            access_count=50,
             importance=0.7,
         )
 
-        old_cold = SemanticMemory(
-            content="Rarely used old knowledge",
+        more_relevant = SemanticMemory(
+            content="Old knowledge, closely related",
             created_at=datetime.now(UTC) - timedelta(days=365),
-            access_count=2,
             importance=0.7,
         )
 
         results = [
-            MemorySearchResult(memory=old_hot, score=0.80, memory_type=MemoryType.SEMANTIC),
-            MemorySearchResult(memory=old_cold, score=0.82, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=less_relevant, score=0.80, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=more_relevant, score=0.82, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
-        # Even when both are old, frequency should still matter
-        assert len(ranked) > 0
+        # Equal age leaves relevance to decide
+        assert [r.memory.content for r in ranked] == [more_relevant.content, less_relevant.content]
 
-    def test_brand_new_memory_not_over_ranked(self):
-        """Scenario: Brand new memory shouldn't dominate just because it's new."""
+    def test_recent_memory_not_over_ranked(self):
+        """Scenario: A recent memory shouldn't dominate just because it's recent."""
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        brand_new = SemanticMemory(
+        recent = SemanticMemory(
             content="Just learned about topic X",
-            created_at=datetime.now(UTC),
-            access_count=0,  # Never accessed
+            created_at=datetime.now(UTC) - timedelta(days=2),
             importance=0.5,
         )
 
         established = SemanticMemory(
             content="Deep knowledge about topic X from experience",
             created_at=datetime.now(UTC) - timedelta(days=30),
-            access_count=15,
             importance=0.8,
         )
 
         results = [
-            MemorySearchResult(memory=brand_new, score=0.75, memory_type=MemoryType.SEMANTIC),
+            MemorySearchResult(memory=recent, score=0.75, memory_type=MemoryType.SEMANTIC),
             MemorySearchResult(memory=established, score=0.85, memory_type=MemoryType.SEMANTIC),
         ]
 
         ranked = retriever.rank(results, limit=5)
 
-        # Established memory should rank higher (better semantic + hotness)
-        assert len(ranked) > 0
+        # The established memory ranks higher: better semantic score and higher importance
+        assert [r.memory.content for r in ranked] == [established.content, recent.content]
 
 
 class TestCrossTypeComparison:
@@ -458,14 +415,12 @@ class TestCrossTypeComparison:
         semantic_mem = SemanticMemory(
             content="Python best practices documentation",
             created_at=datetime.now(UTC) - timedelta(days=30),
-            access_count=10,
             importance=0.7,
         )
 
         episodic_mem = EpisodicMemory(
             content="Discussed Python best practices in meeting",
             created_at=datetime.now(UTC) - timedelta(days=2),
-            access_count=5,
             importance=0.6,
         )
 

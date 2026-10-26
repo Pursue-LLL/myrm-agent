@@ -2,10 +2,11 @@
 
 A memory the agent recalls gets a use stamp (count and last-use time). Forgetting protects what
 was used within the last week, so a stamp that never reaches the store lets the nightly pass
-archive the very facts the agent relied on that day. These scenarios run the production entry
-points (search, maintenance cycle, export) on embedded Qdrant in both storage layouts: dense
-(embedding backend configured) and embeddings-less (BM25 mirror only). Only the embedding
-service and the staleness-review LLM are stand-ins.
+archive the very facts the agent relied on that day. The stamp is lifecycle bookkeeping only: it
+never changes how a memory ranks. These scenarios run the production entry points (search,
+maintenance cycle, export) on embedded Qdrant in both storage layouts: dense (embedding backend
+configured) and embeddings-less (BM25 mirror only). Only the embedding service and the
+staleness-review LLM are stand-ins.
 """
 
 from __future__ import annotations
@@ -145,6 +146,30 @@ async def test_a_recalled_memory_stays_searchable_after_its_use_is_stamped(manag
     again = await manager.search("hotel quasimoto0 Shanghai", memory_types=[MemoryType.SEMANTIC], limit=3)
 
     assert [h.memory.content for h in again] == [_old_hotel("quasimoto0").content]
+
+
+@pytest.mark.asyncio
+async def test_recalling_a_memory_does_not_lift_it_above_its_rivals(manager: MemoryManager) -> None:
+    hotel, other = _old_hotel("quasimoto0"), _old_hotel("quasimoto1")
+    await manager.store_batch([hotel, other])
+    query = "hotel quasimoto0 Shanghai"
+
+    async def rival_score() -> float:
+        # The best hit is always reported as 1.0, so the rival's score is what shows how far the best one pulled ahead.
+        hits = await manager.search(query, memory_types=[MemoryType.SEMANTIC], limit=5, track_access=False)
+        assert hits[0].memory.content == hotel.content
+        return next(h.score for h in hits if h.memory.content == other.content)
+
+    async def stamped_to(count: int) -> bool:
+        stored = (await _stored_semantics(manager)).get(hotel.content)
+        return stored is not None and stored.access_count == count
+
+    before = await rival_score()
+    for expected in range(hotel.access_count + 1, hotel.access_count + 9):
+        await manager.search(query, memory_types=[MemoryType.SEMANTIC], limit=1)
+        await _eventually(lambda expected=expected: stamped_to(expected))
+
+    assert await rival_score() == pytest.approx(before, abs=1e-9)
 
 
 @pytest.mark.asyncio

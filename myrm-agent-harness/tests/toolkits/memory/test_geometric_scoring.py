@@ -47,31 +47,6 @@ class TestSignalCalculator:
         factor = SignalCalculator.recency_factor(mem, half_life_days=0.0)
         assert factor == 1.0
 
-    def test_frequency_factor_zero_access(self) -> None:
-        """Zero access count should give zero frequency."""
-        mem = SemanticMemory(content="test", access_count=0)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
-        assert factor == 0.0
-
-    def test_frequency_factor_saturation(self) -> None:
-        """Access count at saturation point should give 1.0."""
-        mem = SemanticMemory(content="test", access_count=50)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
-        assert factor == pytest.approx(1.0, abs=0.01)
-
-    def test_frequency_factor_logarithmic(self) -> None:
-        """Frequency should scale logarithmically (diminishing returns)."""
-        mem_10 = SemanticMemory(content="test", access_count=10)
-        mem_20 = SemanticMemory(content="test", access_count=20)
-        mem_40 = SemanticMemory(content="test", access_count=40)
-
-        f10 = SignalCalculator.frequency_factor(mem_10, saturation_point=50)
-        f20 = SignalCalculator.frequency_factor(mem_20, saturation_point=50)
-        f40 = SignalCalculator.frequency_factor(mem_40, saturation_point=50)
-
-        assert 0 < f10 < f20 < f40 < 1.0
-        assert (f20 / f10) > (f40 / f20)
-
     def test_importance_factor(self) -> None:
         """Importance should be extracted directly."""
         mem = SemanticMemory(content="test", importance=0.8)
@@ -108,19 +83,6 @@ class TestSignalCalculator:
         factor = SignalCalculator.confidence_factor(mem)
         assert factor == 1.0
 
-    def test_frequency_factor_negative_access(self) -> None:
-        """Negative access count should be treated as zero."""
-        mem = SemanticMemory(content="test", access_count=-5)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
-        assert factor == 0.0
-
-    def test_frequency_factor_no_access_count_field(self) -> None:
-        """Memory without access_count should return 0.0."""
-        mem = ProceduralMemory(content="test", trigger="test", action="test")
-        delattr(mem, "access_count")
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
-        assert factor == 0.0
-
     def test_recency_factor_no_created_at_field(self) -> None:
         """Memory without created_at should return 1.0."""
         mem = ProceduralMemory(content="test", trigger="test", action="test")
@@ -132,12 +94,6 @@ class TestSignalCalculator:
         """Future created_at should return 1.0."""
         mem = SemanticMemory(content="test", created_at=datetime.now(UTC) + timedelta(days=10))
         factor = SignalCalculator.recency_factor(mem, half_life_days=7.0)
-        assert factor == 1.0
-
-    def test_frequency_factor_exceeds_saturation(self) -> None:
-        """Frequency above saturation should be clamped to 1.0."""
-        mem = SemanticMemory(content="test", access_count=100)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
         assert factor == 1.0
 
 
@@ -165,26 +121,21 @@ class TestGeometricScoring:
 
         assert score_high > score_low
 
-    def test_hotness_boost_for_recent_frequent(self) -> None:
-        """Recent and frequent memory should get significant boost."""
+    def test_recent_important_memory_outranks_an_older_slightly_more_relevant_one(self) -> None:
+        """Recency and importance can outweigh a small relevance gap."""
         config = RetrievalConfig(min_relevance_score=0.0)
         retriever = MemoryRetriever(config)
 
-        hot_memory = SemanticMemory(
-            content="hot", created_at=datetime.now(UTC) - timedelta(days=1), access_count=30, importance=0.7
-        )
+        recent = SemanticMemory(content="recent", created_at=datetime.now(UTC) - timedelta(days=1), importance=0.7)
+        old = SemanticMemory(content="old", created_at=datetime.now(UTC) - timedelta(days=60), importance=0.5)
 
-        cold_memory = SemanticMemory(
-            content="cold", created_at=datetime.now(UTC) - timedelta(days=60), access_count=2, importance=0.5
-        )
+        result_recent = MemorySearchResult(memory=recent, score=0.7, memory_type=MemoryType.SEMANTIC)
+        result_old = MemorySearchResult(memory=old, score=0.75, memory_type=MemoryType.SEMANTIC)
 
-        result_hot = MemorySearchResult(memory=hot_memory, score=0.7, memory_type=MemoryType.SEMANTIC)
-        result_cold = MemorySearchResult(memory=cold_memory, score=0.75, memory_type=MemoryType.SEMANTIC)
+        score_recent = retriever._boost(0.7, result_recent, frozenset())
+        score_old = retriever._boost(0.75, result_old, frozenset())
 
-        score_hot = retriever._boost(0.7, result_hot, frozenset())
-        score_cold = retriever._boost(0.75, result_cold, frozenset())
-
-        assert score_hot > score_cold
+        assert score_recent > score_old
 
     def test_profile_no_decay(self) -> None:
         """Profile memories should not decay over time."""
@@ -323,7 +274,7 @@ class TestSignalWeights:
         weights = get_default_signal_weights(MemoryType.SEMANTIC)
         assert weights["semantic"] > 0.5
         assert weights["recency"] > 0
-        assert weights["frequency"] > 0
+        assert weights["type_prior"] > 0
 
     def test_half_life_by_type(self) -> None:
         """Different types should have appropriate half-lives."""
@@ -367,30 +318,19 @@ class TestEndToEndScoring:
         memories = [
             MemorySearchResult(
                 memory=SemanticMemory(
-                    content="recent hot",
-                    created_at=datetime.now(UTC) - timedelta(days=2),
-                    access_count=30,
-                    importance=0.7,
+                    content="recent", created_at=datetime.now(UTC) - timedelta(days=2), importance=0.7
                 ),
                 score=0.7,
                 memory_type=MemoryType.SEMANTIC,
             ),
             MemorySearchResult(
-                memory=SemanticMemory(
-                    content="old cold",
-                    created_at=datetime.now(UTC) - timedelta(days=60),
-                    access_count=2,
-                    importance=0.5,
-                ),
+                memory=SemanticMemory(content="old", created_at=datetime.now(UTC) - timedelta(days=60), importance=0.5),
                 score=0.75,
                 memory_type=MemoryType.SEMANTIC,
             ),
             MemorySearchResult(
                 memory=SemanticMemory(
-                    content="very relevant",
-                    created_at=datetime.now(UTC) - timedelta(days=30),
-                    access_count=10,
-                    importance=0.8,
+                    content="very relevant", created_at=datetime.now(UTC) - timedelta(days=30), importance=0.8
                 ),
                 score=0.95,
                 memory_type=MemoryType.SEMANTIC,
@@ -401,8 +341,8 @@ class TestEndToEndScoring:
 
         assert len(ranked) == 3
         assert ranked[0].content == "very relevant"
-        assert ranked[1].content == "recent hot"
-        assert ranked[2].content == "old cold"
+        assert ranked[1].content == "recent"
+        assert ranked[2].content == "old"
 
     def test_correction_chain_suppression_still_works(self) -> None:
         """Correction chain suppression should work with geometric scoring."""

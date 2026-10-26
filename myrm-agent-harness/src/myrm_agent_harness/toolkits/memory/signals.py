@@ -2,17 +2,20 @@
 
 
 [INPUT]
-- memory.types::{AnyMemory, MemoryType} (POS: memory data models)
+- memory.types::{BaseMemory, MemoryType} (POS: memory data models)
 
 [OUTPUT]
-- SignalCalculator: Normalized [0,1] signal factors (recency, frequency, importance, preference, rating)
+- SignalCalculator: Normalized [0,1] signal factors (recency, importance, preference, rating, confidence)
 - get_default_half_life: Default half-life per memory type
-- get_default_signal_weights: Default signal weight profiles
+- get_default_signal_weights: Default signal weight profiles, including each type's fixed prior
 
 [POS]
 Context signal calculator for memory retrieval scoring. Provides normalized [0,1] factors
-for recency, frequency, importance, preference, and rating. All signals are independent
-and composable via weighted geometric mean.
+for recency, importance, preference, rating and confidence. All signals are independent
+and composable via weighted geometric mean. Recall counts are deliberately not a signal: every
+returned hit is stamped, so a count measures exposure, and ranking on it would keep showing
+whatever was shown first. Only the opt-in gravity decay (off by default) lets the count into
+the recency term.
 """
 
 from __future__ import annotations
@@ -22,14 +25,14 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.types import AnyMemory, MemoryType
+    from myrm_agent_harness.toolkits.memory.types import BaseMemory, MemoryType
 
 
 class SignalCalculator:
     """Calculates normalized context signals for memory scoring."""
 
     @staticmethod
-    def recency_factor(memory: AnyMemory, half_life_days: float) -> float:
+    def recency_factor(memory: BaseMemory, half_life_days: float) -> float:
         """Calculate time-based recency factor using exponential decay.
 
         Args:
@@ -56,7 +59,7 @@ class SignalCalculator:
 
     @staticmethod
     def gravity_decay_factor(
-        memory: AnyMemory,
+        memory: BaseMemory,
         gravity: float = 1.8,
         time_scale_hours: float = 24.0,
         interaction_weight: float = 0.15,
@@ -105,27 +108,7 @@ class SignalCalculator:
         )
 
     @staticmethod
-    def frequency_factor(memory: AnyMemory, saturation_point: int = 50) -> float:
-        """Calculate access frequency factor using logarithmic scaling.
-
-        Args:
-            memory: Memory object with access_count field
-            saturation_point: Access count at which factor reaches 1.0
-
-        Returns:
-            Factor in [0, 1] where 0 = never accessed, 1 = saturation_point accesses
-        """
-        if not hasattr(memory, "access_count"):
-            return 0.0
-
-        count = max(0, memory.access_count)
-        if count == 0:
-            return 0.0
-
-        return min(1.0, math.log(1 + count) / math.log(1 + saturation_point))
-
-    @staticmethod
-    def importance_factor(memory: AnyMemory) -> float:
+    def importance_factor(memory: BaseMemory) -> float:
         """Extract importance factor from memory.
 
         Args:
@@ -137,7 +120,7 @@ class SignalCalculator:
         return max(0.0, min(1.0, getattr(memory, "importance", 0.5)))
 
     @staticmethod
-    def preference_factor(memory: AnyMemory) -> float:
+    def preference_factor(memory: BaseMemory) -> float:
         """Extract preference strength factor from memory.
 
         Args:
@@ -149,7 +132,7 @@ class SignalCalculator:
         return max(0.0, min(1.0, getattr(memory, "preference_strength", 0.0)))
 
     @staticmethod
-    def rating_factor(memory: AnyMemory) -> float:
+    def rating_factor(memory: BaseMemory) -> float:
         """Extract user feedback rating factor from memory.
 
         Args:
@@ -161,7 +144,7 @@ class SignalCalculator:
         return max(0.0, min(1.0, getattr(memory, "user_rating", 0.5)))
 
     @staticmethod
-    def confidence_factor(memory: AnyMemory) -> float:
+    def confidence_factor(memory: BaseMemory) -> float:
         """Extract confidence factor from memory.
 
         Args:
@@ -174,7 +157,7 @@ class SignalCalculator:
 
     @staticmethod
     def temporal_proximity_factor(
-        memory: AnyMemory, reference_time: datetime | None = None, threshold_hours: float = 24.0
+        memory: BaseMemory, reference_time: datetime | None = None, threshold_hours: float = 24.0
     ) -> float:
         """Calculate temporal proximity to reference time (MemPalace enhancement).
 
@@ -212,7 +195,9 @@ class SignalCalculator:
 def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
     """Get type-specific signal weights for geometric mean scoring.
 
-    Weights sum to 1.0. Semantic weight ≥ 0.6 ensures semantic dominance.
+    Each profile sums to 1.0. ``type_prior`` is the exponent of a constant signal, so it is a fixed
+    per-type discount (none for profile, small for semantic and claim, largest for episodic and
+    procedural) that does not depend on the individual memory.
 
     Args:
         memory_type: Memory type
@@ -224,7 +209,7 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
         "PROFILE": {
             "semantic": 0.20,
             "recency": 0.00,
-            "frequency": 0.00,
+            "type_prior": 0.00,
             "importance": 0.25,
             "preference": 0.45,
             "rating": 0.10,
@@ -232,7 +217,7 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
         "SEMANTIC": {
             "semantic": 0.65,
             "recency": 0.10,
-            "frequency": 0.05,
+            "type_prior": 0.05,
             "importance": 0.08,
             "preference": 0.00,
             "rating": 0.12,
@@ -240,7 +225,7 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
         "CLAIM": {
             "semantic": 0.55,
             "recency": 0.18,
-            "frequency": 0.05,
+            "type_prior": 0.05,
             "importance": 0.12,
             "preference": 0.00,
             "rating": 0.10,
@@ -248,7 +233,7 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
         "EPISODIC": {
             "semantic": 0.40,
             "recency": 0.25,
-            "frequency": 0.12,
+            "type_prior": 0.12,
             "importance": 0.08,
             "preference": 0.00,
             "rating": 0.15,
@@ -256,7 +241,7 @@ def get_default_signal_weights(memory_type: MemoryType) -> dict[str, float]:
         "PROCEDURAL": {
             "semantic": 0.30,
             "recency": 0.00,
-            "frequency": 0.12,
+            "type_prior": 0.12,
             "importance": 0.45,
             "preference": 0.00,
             "rating": 0.13,

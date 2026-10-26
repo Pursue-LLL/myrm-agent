@@ -44,7 +44,7 @@ class RetrievalScoringMixin:
         """Apply context-aware scoring boost with hybrid enhancements.
 
         Enhancements:
-        - Geometric scoring (recency/frequency/importance/preference/confidence)
+        - Geometric scoring (relevance/recency/importance/preference/rating/type prior/confidence)
         - Keyword overlap boost
         - Temporal proximity boost
         """
@@ -68,8 +68,11 @@ class RetrievalScoringMixin:
     def _geometric_score(self, semantic_score: float, result: MemorySearchResult) -> float:
         """Weighted geometric mean scoring with type-aware signal fusion.
 
-        Formula: final = semantic^w0 * recency^w1 * frequency^w2 * importance^w3 * preference^w4 * confidence
-        where Σwᵢ = 1 and weights are type-specific.
+        Formula: final = semantic^w0 * recency^w1 * type_prior^w2 * importance^w3 * preference^w4 * rating^w5
+        * confidence, where Σwᵢ = 1 and the weights are type-specific. ``type_prior`` is the constant signal
+        ``floor``, so ``floor^w2`` is a fixed per-type discount. How often a memory was recalled is not a
+        signal: every returned hit is stamped, so the count measures exposure and ranking on it would
+        keep showing whatever was shown first.
 
         Args:
             semantic_score: Base semantic similarity from RRF
@@ -110,7 +113,6 @@ class RetrievalScoringMixin:
             half_life = get_default_half_life(mem_type)
             recency = self._signal_calc.recency_factor(mem, half_life)
 
-        frequency = self._signal_calc.frequency_factor(mem, self._config.frequency_saturation)
         importance = self._signal_calc.importance_factor(mem)
         preference = self._signal_calc.preference_factor(mem)
         confidence = self._signal_calc.confidence_factor(mem)
@@ -122,7 +124,8 @@ class RetrievalScoringMixin:
         signals = {
             "semantic": semantic_score,
             "recency": max(floor, recency),
-            "frequency": max(floor, frequency),
+            # Constant on purpose: carries only the type's fixed discount, nothing about this memory.
+            "type_prior": floor,
             "importance": max(floor, importance),
             "preference": max(floor, preference) if has_preference_weight else 1.0,
             "rating": max(floor, rating) if has_rating_weight else 1.0,

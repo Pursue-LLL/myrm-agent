@@ -187,7 +187,6 @@ class RetrievalConfig:
         rrf_k: RRF constant (higher = more uniform distribution)
         type_weights: Memory type weights for RRF fusion
         correction_penalty: Penalty multiplier for corrected memories
-        frequency_saturation: Access count at which frequency factor reaches 1.0
         mmr_lambda: MMR diversity balance (1.0 = pure relevance, 0.0 = pure diversity)
         enable_conversation_raw_channel: Enable raw_embedding channel for ConversationMemory
         raw_channel_weight: Weight for raw_embedding channel (summary_channel_weight = 1 - this)
@@ -237,7 +236,6 @@ class RetrievalConfig:
         }
     )
     correction_penalty: float = 0.1
-    frequency_saturation: int = 50
     mmr_lambda: float = 0.7
     enable_conversation_raw_channel: bool = True
     raw_channel_weight: float = 0.4

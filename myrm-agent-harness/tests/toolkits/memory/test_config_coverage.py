@@ -68,7 +68,7 @@ class TestRetrievalConfigDefaults:
         config = RetrievalConfig()
         assert config.rrf_k == 60
         assert config.correction_penalty == 0.1
-        assert config.frequency_saturation == 50
+        assert config.mmr_lambda == 0.7
 
     def test_default_type_weights(self) -> None:
         """Test default type weights."""
@@ -80,10 +80,10 @@ class TestRetrievalConfigDefaults:
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
-        config = RetrievalConfig(rrf_k=80, correction_penalty=0.2, frequency_saturation=100)
+        config = RetrievalConfig(rrf_k=80, correction_penalty=0.2, mmr_lambda=0.5)
         assert config.rrf_k == 80
         assert config.correction_penalty == 0.2
-        assert config.frequency_saturation == 100
+        assert config.mmr_lambda == 0.5
 
     def test_custom_type_weights(self) -> None:
         """Test custom type weights."""

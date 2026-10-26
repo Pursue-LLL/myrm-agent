@@ -535,30 +535,33 @@ Query
 **评分机制**（加权几何平均数）：
 
 ```
-final = semantic^w0 × recency^w1 × frequency^w2 × importance^w3 × preference^w4 × confidence
+final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preference^w4 × rating^w5 × confidence
 ```
 
-- 加权几何平均，类型感知权重（见 `signals.py`）
-- 语义主导（Semantic 权重 ≥ 0.70）
-- 无逆转：低语义分数无法通过高热度逆转
+- 加权几何平均，类型感知权重（见 `signals.py`），每套权重之和为 1；除语义分数外各信号下限 0.01，权重为 0 的信号不参与
+- 语义分数是权重最大的一项（Semantic 类型 0.65）；相关度接近时由新近度、重要度、用户评分与类型先验决定先后，相关度差距大时语义分数决定
+- **召回次数不参与排序**：每条返回的命中都会被记一次使用，次数衡量的是曝光而不是有用性；用它排序会让先被展示的记忆一直被展示，新写入的事实挤不进前列（本仓库金标准召回基准：使用戳开启且次数参与排序时三次运行 ndcg@5 0.81–0.83、mrr 0.78–0.80，次数移出排序后恢复到使用戳关闭时的 0.88 / 0.88）。使用戳只服务生命周期（遗忘、陈旧性复审、健康度、记忆卡片，见「访问计数」）。唯一例外是可选的 `enable_gravity_decay`（默认关闭），它的幂律衰减把召回次数并入 recency 项
+- `type_prior` 是常量信号（下限 0.01）的指数，等价于每类记忆固定的折扣，与记忆个体无关：Profile 无折扣，Semantic / Claim 约 ×0.79（`0.01^0.05`），Episodic / Procedural 约 ×0.58（`0.01^0.12`）。它与 `RetrievalConfig.type_weights`（RRF 融合阶段的类型权重）是两处独立的类型先验
 - 纠正链抑制：被纠正记忆的分数乘以 `correction_penalty`（默认 0.1）
 - Source Decay：MMR 选择时对已选来源的记忆施加软惩罚，促进跨会话多样性。`penalty = content_sim + source_diversity_weight × (same_source_count / selected_count)`，默认 weight=0.5，设为 0 退化为纯内容 MMR。`content_sim` 取候选与已选集合的最大 Jaccard 相似度，每轮只并入最新选中的一条；MMR 值并列时取在候选列表中靠前者
 
 **类型感知信号权重**：
 
-| 类型           | Semantic | Recency | Frequency | Importance | Half-life |
-| -------------- | -------- | ------- | --------- | ---------- | --------- |
-| **Semantic**   | 0.70     | 0.12    | 0.08      | 0.10       | 30天      |
-| **Episodic**   | 0.45     | 0.30    | 0.15      | 0.10       | 7天       |
-| **Profile**    | 0.20     | 0.00    | 0.00      | 0.30       | 无衰减    |
-| **Procedural** | 0.35     | 0.00    | 0.15      | 0.50       | 无衰减    |
+| 类型           | Semantic | Recency | Type prior | Importance | Preference | Rating | Half-life |
+| -------------- | -------- | ------- | ---------- | ---------- | ---------- | ------ | --------- |
+| **Semantic**   | 0.65     | 0.10    | 0.05       | 0.08       | 0.00       | 0.12   | 30天      |
+| **Claim**      | 0.55     | 0.18    | 0.05       | 0.12       | 0.00       | 0.10   | 14天      |
+| **Episodic**   | 0.40     | 0.25    | 0.12       | 0.08       | 0.00       | 0.15   | 7天       |
+| **Procedural** | 0.30     | 0.00    | 0.12       | 0.45       | 0.00       | 0.13   | 无衰减    |
+| **Profile**    | 0.20     | 0.00    | 0.00       | 0.25       | 0.45       | 0.10   | 无衰减    |
 
 **信号计算**（见 `signals.py`）：
 
 - **Recency**: `exp(-ln(2) × age_days / half_life_days)`
-- **Frequency**: `log(1 + access_count) / log(1 + saturation_point)`
-- **Importance**: 直接提取 `memory.importance`
-- **Preference**: 直接提取 `memory.preference_strength`
+- **Importance**: 直接提取 `memory.importance`（缺省 0.5）
+- **Preference**: 直接提取 `memory.preference_strength`（仅 Profile 权重大于 0）
+- **Rating**: 直接提取 `memory.user_rating`（用户反馈经非对称 EMA 更新，缺省 0.5 为中性，见「非对称信任评分」）
+- **Type prior**: 常量，见上
 - **Confidence**: 直接提取 `memory.confidence`（作为最终乘数）
 
 **BM25 持久稀疏索引**：Qdrant 后端为 Semantic/Episodic 各维护一个 `{collection}_bm25` sparse collection（token 经 crc32 u31 哈希、词频饱和 `1+ln(tf)`、IDF 由服务端计算）。写入路径 fail-open 双镜像（upsert/delete 同步镜像，失败仅日志不阻塞 dense 写入）；首个 BM25 查询触发一次性 backfill 预热，此后增量维护。mirror 创建时即带 `IDF` modifier，未带该 modifier 的 mirror 在首个 sparse 查询时原地升级（失败 fail-open，保持词重叠打分）；查询端对句子长度（≥5 token）的查询先剔除中英文功能词（`_internal/bm25_sparse/query_terms.py`，仅查询侧，已存文档不重写；短查询本身就是关键词查询，保持原样），避免口语化长问句被虚词主导；只查询请求的 `memory_types` 对应的 mirror（先于 top-k 截断），请求不含 semantic/episodic 时不发起 BM25。无 sparse 能力的后端（及预热完成前）走 corpus-scroll + BM25Okapi fallback；此时若用户记忆总量超过 `bm25_max_corpus_size`（默认 5000），fallback 路径自动禁用并记入降级指标（`record_degradation("corpus_overflow")`，与超时/错误同级可观测）。实测（embedded Qdrant，1000 条记忆）：持久稀疏通道 8.9 ms/query vs fallback 41.6 ms/query（4.6x）；同一超上限语料下 sparse 通道正常返回，fallback 返回空结果。
@@ -942,7 +945,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 | **三层智能去重**           | `store_batch()`               | Hash（完全相同）→ Vector（相似度分段）→ 早期锁保护 → LLM（语义关系判断），支持 DUPLICATE/UPDATE_REPLACE/UPDATE_MERGE/NEW 决策，避免冗余 LLM 调用（需传递 `dedup_llm`）。`import_memories(skip_duplicates=False)` 以 `skip_dedup` 绕过整条去重，逐条写入                                                                                                                                                                                                                                                                                              |
 | **循环触发巩固**           | `_cleanup_session()` 会话结束时 | 后台异步：将会话摘要 embedding 存入专用 recurrence buffer collection；若同话题出现 ≥k 次（cosine≥0.7），触发 LLM 精炼生成高质量长期记忆。重要性旁路：健康/安全/凭证类信息立即巩固。配置：`RecurrenceConfig`（`similarity_threshold`、`recurrence_k`、`buffer_capacity`、`importance_preemption`） |
 | **定期遗忘**               | 每 N 次 `end_session()`       | 扫描低保留分数记忆并删除；`relation_count` 通过向量邻居数（sim>0.8）近似计算，仅对 Semantic 集合，零额外写入                                                                                                                                                                                                                                                                                                                                                        |
-| **访问计数**               | `search()` 返回后             | 异步将 `access_count` 加一并写入 `last_accessed_at`（fire-and-forget），两者随记忆持久化：遗忘的「近 7 日使用过」保护与 `access` 评分项、陈旧性复审的排除、健康度的新鲜度与忽视检测都读取它；稠密集合重读已存点位后只改这两项（不动内容与 `updated_at`，召回后已被删除的点位不会写回），无 embedding 模式的 BM25 镜像是唯一副本，直接写回命中文档                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **访问计数**               | `search()` 返回后             | 异步将 `access_count` 加一并写入 `last_accessed_at`（fire-and-forget），两者随记忆持久化，只服务生命周期、不参与检索排序：遗忘的「近 7 日使用过」保护与 `access` 评分项、陈旧性复审的排除、健康度的新鲜度与忽视检测都读取它；稠密集合重读已存点位后只改这两项（不动内容与 `updated_at`，召回后已被删除的点位不会写回），无 embedding 模式的 BM25 镜像是唯一副本，直接写回命中文档                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **图增强检索**             | `search()` 有 Episodic 结果时 | 通过 `get_related_nodes_with_depth` 进行多跳图遍历（支持 2-hop，`asyncio.gather` 并行），统一评分系统（token overlap + distance decay + freshness + importance + channel affinity，与 Claim Graph 公式一致），内容级去重（归一化 MD5 哈希），可配置兄弟节点数量（`graph_sibling_limit`）和遍历深度（`graph_max_depth`）                                                                                                                                                           |
 
 ---
@@ -1073,7 +1076,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - L2 先验收缩阻尼（Shrinkage Damping）：每一步拟合时微量向基准向量 $1.0$ 软收敛，防止长期漂移或极化；
   - 启发式意图与反馈捕获：支持从自然语言文本中提取偏好意图（`fit_from_feedback_text`），支持结构化行为反馈（`fit_step`，如 `MORE_CODE`, `MORE_RECENCY` 等）。
 - **检索打分层平滑融合（`retriever.py`）**：
-  - 在几何加权检索 `_geometric_score` 中，可选激活 `enable_gravity_decay`，并实时将 `dynamic_signal_weights` 动态偏好融入信号向量乘积运算；
+  - 在几何加权检索 `_geometric_score` 中，可选激活 `enable_gravity_decay`（默认关闭；这是唯一让召回次数进入评分的路径），并实时将 `dynamic_signal_weights` 动态偏好融入信号向量乘积运算；
   - 零大模型调用开销（<0.1ms），纯算术确定性推导，实现毫秒级会话粒度个性化检索重排。
 - **详细设计**：详见 [strategies/_ARCH.md](strategies/_ARCH.md)。
 

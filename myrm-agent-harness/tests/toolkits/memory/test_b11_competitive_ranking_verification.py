@@ -285,26 +285,6 @@ class TestGeometricScoringVsSqlRanking:
         factor = calc.recency_factor(ancient, half_life)
         assert factor == 1.0
 
-    def test_frequency_saturation_logarithmic(self) -> None:
-        """Frequency factor should saturate logarithmically."""
-        calc = SignalCalculator()
-
-        low_access = SemanticMemory(content="low", access_count=1)
-        mid_access = SemanticMemory(content="mid", access_count=25)
-        high_access = SemanticMemory(content="high", access_count=50)
-        extreme_access = SemanticMemory(content="extreme", access_count=500)
-
-        f_low = calc.frequency_factor(low_access, saturation_point=50)
-        f_mid = calc.frequency_factor(mid_access, saturation_point=50)
-        f_high = calc.frequency_factor(high_access, saturation_point=50)
-        f_extreme = calc.frequency_factor(extreme_access, saturation_point=50)
-
-        assert f_low < f_mid < f_high
-        # Logarithmic: extreme shouldn't be much higher than saturation
-        assert f_high <= 1.0
-        assert f_extreme <= 1.0
-        assert f_extreme - f_high < 0.5  # Saturation effect
-
     def test_confidence_gates_score(self) -> None:
         """Zero confidence should zero out entire score."""
         config = RetrievalConfig(keyword_overlap_weight=0.0, temporal_boost_weight=0.0, min_relevance_score=0.0)
@@ -576,23 +556,22 @@ class TestEndToEndRankingPipeline:
         retriever = MemoryRetriever(config)
 
         memories = [
-            # High relevance, old, low access (should rank well for SEMANTIC)
+            # High relevance, old, but superseded by the correction below
             MemorySearchResult(
                 memory=SemanticMemory(
+                    id="old-pytest-pref",
                     content="User uses pytest for all testing",
                     created_at=datetime.now(UTC) - timedelta(days=60),
-                    access_count=3,
                     importance=0.8,
                 ),
                 score=0.92,
                 memory_type=MemoryType.SEMANTIC,
             ),
-            # Medium relevance, very recent, high access
+            # Medium relevance, very recent
             MemorySearchResult(
                 memory=SemanticMemory(
                     content="pytest is a testing framework for Python",
                     created_at=datetime.now(UTC) - timedelta(hours=2),
-                    access_count=30,
                     importance=0.5,
                 ),
                 score=0.78,
@@ -605,7 +584,6 @@ class TestEndToEndRankingPipeline:
                     content="User now prefers pytest-asyncio over plain pytest",
                     correction_of="old-pytest-pref",
                     created_at=datetime.now(UTC) - timedelta(days=2),
-                    access_count=5,
                     importance=0.9,
                 ),
                 score=0.88,
@@ -616,7 +594,6 @@ class TestEndToEndRankingPipeline:
                 memory=SemanticMemory(
                     content="Maybe user uses unittest sometimes",
                     created_at=datetime.now(UTC) - timedelta(days=5),
-                    access_count=1,
                     importance=0.3,
                     confidence=0.2,
                 ),
@@ -643,9 +620,10 @@ class TestEndToEndRankingPipeline:
         top2_contents = [r.memory.content for r in ranked[:2]]
         assert "Maybe user uses unittest sometimes" not in top2_contents
 
-        # Correction should rank reasonably high
-        correction_idx = next(i for i, r in enumerate(ranked) if r.id == "correction-001")
-        assert correction_idx < 3
+        # The correction ranks reasonably high, and above the memory it supersedes
+        ids = [r.id for r in ranked]
+        assert ids.index("correction-001") < 3
+        assert ids.index("correction-001") < ids.index("old-pytest-pref")
 
     def test_full_pipeline_deterministic(self) -> None:
         """Same inputs should produce same ranking (no randomness)."""

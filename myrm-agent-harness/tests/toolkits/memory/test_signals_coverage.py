@@ -44,34 +44,6 @@ class TestRecencyFactorEdgeCases:
         assert factor == 1.0
 
 
-class TestFrequencyFactorEdgeCases:
-    """Test frequency_factor edge cases."""
-
-    def test_frequency_with_saturation_point_one(self) -> None:
-        """Test frequency with saturation_point=1."""
-        mem = SemanticMemory(content="test", access_count=1)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=1)
-        assert factor == 1.0
-
-    def test_frequency_with_very_large_saturation(self) -> None:
-        """Test frequency with very large saturation point."""
-        mem = SemanticMemory(content="test", access_count=50)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=10000)
-        assert 0.0 < factor < 0.5
-
-    def test_frequency_with_count_equals_saturation(self) -> None:
-        """Test frequency when count exactly equals saturation."""
-        mem = SemanticMemory(content="test", access_count=100)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=100)
-        assert factor == 1.0
-
-    def test_frequency_with_very_high_count(self) -> None:
-        """Test frequency with extremely high access count."""
-        mem = SemanticMemory(content="test", access_count=1000000)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
-        assert factor == 1.0
-
-
 class TestImportanceFactorEdgeCases:
     """Test importance_factor edge cases."""
 
@@ -118,7 +90,7 @@ class TestGetDefaultSignalWeightsEdgeCases:
             assert isinstance(weights, dict)
             assert "semantic" in weights
             assert "recency" in weights
-            assert "frequency" in weights
+            assert "type_prior" in weights
             assert "importance" in weights
             assert "preference" in weights
 
@@ -127,7 +99,7 @@ class TestGetDefaultSignalWeightsEdgeCases:
         weights = get_default_signal_weights(MemoryType.SEMANTIC)
         assert weights["semantic"] >= 0.6
         assert weights["semantic"] > weights["recency"]
-        assert weights["semantic"] > weights["frequency"]
+        assert weights["semantic"] > weights["type_prior"]
         assert weights["semantic"] > weights["importance"]
 
     def test_weights_profile_preference_high(self) -> None:
@@ -203,13 +175,11 @@ class TestSignalCalculatorWithRealMemoryTypes:
         )
 
         recency = SignalCalculator.recency_factor(mem, half_life_days=7.0)
-        frequency = SignalCalculator.frequency_factor(mem, saturation_point=50)
         importance = SignalCalculator.importance_factor(mem)
         preference = SignalCalculator.preference_factor(mem)
         confidence = SignalCalculator.confidence_factor(mem)
 
         assert 0.0 < recency <= 1.0
-        assert 0.0 < frequency <= 1.0
         assert importance == 0.7
         assert preference == 0.0
         assert confidence == 1.0
@@ -226,13 +196,11 @@ class TestSignalCalculatorWithRealMemoryTypes:
         )
 
         recency = SignalCalculator.recency_factor(mem, half_life_days=0.0)
-        frequency = SignalCalculator.frequency_factor(mem, saturation_point=50)
         importance = SignalCalculator.importance_factor(mem)
         preference = SignalCalculator.preference_factor(mem)
         confidence = SignalCalculator.confidence_factor(mem)
 
         assert recency == 1.0
-        assert 0.0 < frequency <= 1.0
         assert importance == 0.5
         assert preference == 0.0
         assert confidence == 1.0
@@ -250,13 +218,11 @@ class TestSignalCalculatorWithRealMemoryTypes:
         )
 
         recency = SignalCalculator.recency_factor(mem, half_life_days=30.0)
-        frequency = SignalCalculator.frequency_factor(mem, saturation_point=50)
         importance = SignalCalculator.importance_factor(mem)
         preference = SignalCalculator.preference_factor(mem)
         confidence = SignalCalculator.confidence_factor(mem)
 
         assert 0.5 < recency < 1.0
-        assert 0.0 < frequency < 1.0
         assert importance == 0.8
         assert preference == 0.7
         assert confidence == 0.9
@@ -265,12 +231,12 @@ class TestSignalCalculatorWithRealMemoryTypes:
 class TestSignalWeightsCompleteness:
     """Test that signal weights are complete and consistent."""
 
-    def test_all_types_have_five_signals(self) -> None:
-        """Test that all types define all five signals."""
+    def test_all_types_have_six_signals(self) -> None:
+        """Test that all types define all six signals."""
         for mem_type in MemoryType:
             weights = get_default_signal_weights(mem_type)
             assert len(weights) == 6
-            assert set(weights.keys()) == {"semantic", "recency", "frequency", "importance", "preference", "rating"}
+            assert set(weights.keys()) == {"semantic", "recency", "type_prior", "importance", "preference", "rating"}
 
     def test_weights_are_non_negative(self) -> None:
         """Test that all weights are non-negative."""
@@ -291,10 +257,10 @@ class TestSignalWeightsCompleteness:
         weights = get_default_signal_weights(MemoryType.PROFILE)
         assert weights["recency"] == 0.0
 
-    def test_profile_has_zero_frequency(self) -> None:
-        """Test that PROFILE has zero frequency weight."""
+    def test_profile_has_zero_type_prior(self) -> None:
+        """Test that PROFILE has no type discount."""
         weights = get_default_signal_weights(MemoryType.PROFILE)
-        assert weights["frequency"] == 0.0
+        assert weights["type_prior"] == 0.0
 
     def test_procedural_has_zero_recency(self) -> None:
         """Test that PROCEDURAL has zero recency weight."""
@@ -350,12 +316,6 @@ class TestSignalCalculatorStaticMethods:
         """Test that recency_factor can be called without instance."""
         mem = SemanticMemory(content="test", created_at=datetime.now(UTC))
         factor = SignalCalculator.recency_factor(mem, half_life_days=7.0)
-        assert 0.0 <= factor <= 1.0
-
-    def test_frequency_factor_is_static(self) -> None:
-        """Test that frequency_factor can be called without instance."""
-        mem = SemanticMemory(content="test", access_count=10)
-        factor = SignalCalculator.frequency_factor(mem, saturation_point=50)
         assert 0.0 <= factor <= 1.0
 
     def test_importance_factor_is_static(self) -> None:

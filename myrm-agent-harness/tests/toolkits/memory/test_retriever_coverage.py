@@ -393,14 +393,14 @@ class TestRetrieverInitialization:
         """Test initialization with None config creates default."""
         retriever = MemoryRetriever(None)
         assert retriever._config.rrf_k == 60
-        assert retriever._config.frequency_saturation == 50
+        assert retriever._config.mmr_lambda == 0.7
 
     def test_init_with_custom_config(self) -> None:
         """Test initialization with custom config."""
-        config = RetrievalConfig(rrf_k=80, frequency_saturation=100)
+        config = RetrievalConfig(rrf_k=80, mmr_lambda=0.5)
         retriever = MemoryRetriever(config)
         assert retriever._config.rrf_k == 80
-        assert retriever._config.frequency_saturation == 100
+        assert retriever._config.mmr_lambda == 0.5
 
     def test_init_creates_signal_calculator(self) -> None:
         """Test that initialization creates SignalCalculator instance."""

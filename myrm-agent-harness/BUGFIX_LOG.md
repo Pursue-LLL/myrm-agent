@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-013 · 召回次数参与检索排序：返回即记一次使用，次数又抬高排名，被召回过的记忆越排越前，新写入的事实排不进前列
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（核对使用戳的写入路径时，对照 `_geometric_score` 里的 `frequency` 信号） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：每条检索返回的命中都会被记一次使用，这个次数又经 `frequency` 信号乘进排序分，召回过的记忆此后每次检索都占优。受控探针（手工摆放嵌入，相关度明显更低的旧记忆对相关度更高的新记忆，只有旧记忆的召回次数不同）里，旧记忆被召回 1 次就压过新记忆，之后每多召回一次新记忆的相对分数再往下掉：旧记忆未被召回 1.0、1 次 0.9008、20 次 0.8366、100 次 0.8259。本仓库金标准召回基准在使用戳开启时 ndcg@5 / mrr 从 0.88 / 0.88 降到 0.81–0.83 / 0.78–0.80 |
+| **关联产品** | harness `toolkits/memory/signals.py`、`retriever_scoring.py`、`config.py`、`MEMORY_SYSTEM.md` |
+| **根因** | `bump_access_counts` 给每条返回的命中记一次使用（`_internal/maintenance.py`），次数衡量的是被展示过多少次，不是有没有用；`_geometric_score` 却把它作为 `frequency` 信号（对数饱和，下限 0.01）乘进几何分。从未被召回的记忆取下限 0.01，召回一次就跳到 0.18，指数权重把这个差距放大成稳定的排名优势，于是先被展示的记忆一直被展示。`MEMORY_SYSTEM.md` 曾写「无逆转：低语义分数无法通过高热度逆转」，没有测过，上面的探针推翻了它。 |
+| **修复** | 删除 `SignalCalculator.frequency_factor` 与 `RetrievalConfig.frequency_saturation`；五套权重表的 `frequency` 列改名 `type_prior`，信号取常量下限 0.01，只剩各类型固定的折扣（Profile 无折扣，Semantic / Claim 约 ×0.79，Episodic / Procedural 约 ×0.58）。这个折扣与旧分数里从未被召回的记忆逐位相同（同一字典位置、同一乘法顺序），所以从未被召回的记忆排序不变，变的只有被召回过的记忆不再领先。使用戳照常记录，只服务遗忘、陈旧性复审、健康度、记忆卡片与去重。顺带：`SignalCalculator` 的参数类型由 `AnyMemory` 改为 `BaseMemory`（`AnyMemory` 不含 `ClaimMemory`，`retriever_scoring.py` 里的 pyright 报错由 9 处清零）；`score_honesty/models.py` 里 `importance_boost` 的描述去掉「frequency-based」。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 「用得多就是有用」只在使用由用户自己的选择产生时成立；检索返回本身就是曝光，把曝光量当质量信号会自我强化。 |
+| **回归** | 新增 `tests/toolkits/memory/test_usage_not_in_ranking.py`（4 个测试函数，参数化后 11 例：5 种记忆类型 × 召回 0 / 5 / 500 次，`_geometric_score` 逐位相等；相关度更高的记忆压过被召回 500 次的记忆；全信号满分时只剩类型的固定折扣；权重键），`test_usage_stamp_end_to_end.py` 增 1 个测试函数（有嵌入与无嵌入两种布局：连续召回 8 次、每次等使用戳落库后，对手的相对分数不变）。两个文件共 21 例，对提交版 harness 运行 9 例失败、12 例通过，对当前代码 21 例全部通过。旧测试里按热度排序的断言改成真实的顺序断言（`test_real_world_scenarios.py`、`test_b11_competitive_ranking_verification.py`），删除 `test_frequency_saturation_logarithmic`。同一探针对提交版与当前代码：金标准召回基准各跑 3 次，使用戳关闭均为 0.88 / 0.88，使用戳开启提交版为 0.83 / 0.80、0.83 / 0.80、0.81 / 0.78，当前代码 3 次均为 0.88 / 0.88；4 种记忆类型 × 5 种年龄 × 3 种重要度 × 3 种评分 × 3 个语义分共 540 种组合，从未被召回的记忆的 `_geometric_score` 在两版之间逐位相同。harness 记忆套件 3517 例通过（5 跳过、42 个默认排除）。 |
+| **仍然存在** | ① 可选的 `enable_gravity_decay`（默认关闭，没有调用方打开它）仍把召回次数并入 recency 项（`signals.py` 的 `gravity_decay_factor`），是唯一让召回次数进入评分的路径，本次保留并在 `MEMORY_SYSTEM.md` 标明。② `type_prior` 与 `RetrievalConfig.type_weights`（RRF 阶段的类型权重）是两处独立的类型先验，叠加起作用，本次沿用。③ 遗忘评分仍把使用次数当保留依据（`strategies/forgetting.py:117`），同样把曝光算作用途，影响的是保留而不是排名，本次不动。④ 金标准基准只有 16 条的小语料，证明的是使用戳不再拉低质量，不是排序整体更好。 |
+| **代码位置** | `toolkits/memory/signals.py`（`get_default_signal_weights`，删 `frequency_factor`）· `retriever_scoring.py`（`_geometric_score`）· `config.py`（删 `frequency_saturation`）· `_internal/maintenance.py`（`bump_access_counts`，未改） |
+
 ### BUG-HARNESS-2026-10-27-012 · POST 体不是 UTF-8 文本时，驱动的 `request.post_data` 抛 `UnicodeDecodeError`，整条请求记录被丢弃：二进制 POST 的 4xx/5xx 不进失败列表，每条还刷一条 WARNING
 
 | 字段 | 内容 |

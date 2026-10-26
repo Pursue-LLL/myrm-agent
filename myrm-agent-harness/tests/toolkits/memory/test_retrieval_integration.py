@@ -271,17 +271,17 @@ class TestEdgeCases:
 
     def test_retriever_with_custom_config(self) -> None:
         """Test retriever initialization with custom config."""
-        config = RetrievalConfig(frequency_saturation=100, rrf_k=80)
+        config = RetrievalConfig(mmr_lambda=0.5, rrf_k=80)
         retriever = MemoryRetriever(config)
 
-        assert retriever._config.frequency_saturation == 100
+        assert retriever._config.mmr_lambda == 0.5
         assert retriever._config.rrf_k == 80
 
     def test_retriever_with_default_config(self) -> None:
         """Test retriever initialization with default config."""
         retriever = MemoryRetriever()
 
-        assert retriever._config.frequency_saturation == 50
+        assert retriever._config.mmr_lambda == 0.7
 
     def test_geometric_score_all_memory_types(self) -> None:
         """Test geometric scoring with all memory types."""
