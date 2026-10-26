@@ -35,6 +35,22 @@
 | **仍然存在** | ① 订阅登录在白名单环境下能否被两个 CLI 找到（`HOME`、`CLAUDE_CONFIG_DIR`、`CODEX_HOME`）没有验证：本机两个 CLI 都没有登录，只测了没登录与 Key 被拒。② 宿主里不在白名单的变量不再传给 CLI：`JAVA_HOME`、`PNPM_HOME`、`SSH_AUTH_SOCK`、`GH_TOKEN`、`CLAUDE_CODE_USE_BEDROCK`、`AWS_PROFILE` 等，需要的人在该 Agent 的 `env` 配置里写；`runtime/_base.py` 的基线也被 ACP 协议的运行时共用，那一路的实际表现没有单独验证。③ 只分类实测过的帧（Claude 401、403、429；Codex 401、403、429、500 加重试的文案）：CLI 升级改了文案会退回 `UNKNOWN`（界面仍显示 CLI 原话），每周工作流用最新版 CLI 去发现这种漂移，但它还没有在 GitHub 上跑过。④ Codex 的 403 不归为认证失败，Claude 的 403 仍按 Claude 自己的 `authentication_failed` 归为认证失败。⑤ Codex 没登录时要 20 至 28 秒才报错（它自己先重试），期间会出现一条 `codex: warning — …` 状态行（CLI 打印的警告被当作状态展示，改动前就有）。⑥ 心跳与关闭后台任务只在 macOS 用真实二进制加缩小的上限（8 秒、2 秒）验证，生产值（300 秒、15 秒）没有跑满，Linux 与 Windows 未验证；真实模型在没有后台能力时的行为没有测，只测了协议（CLI 拒绝 `run_in_background`）。⑦ `terminate()` 仍以管道全部关闭作为整组进程已退出的依据：孙进程在另一个进程组里占着管道时，终止要等满 5 秒宽限期再 SIGKILL（按代码阅读，未复现）。 |
 | **代码位置** | `toolkits/acp/runtime/cli/parser.py`（`error_message`、`parse_turn_failed`）· `turn_parser.py`（`notice`、`assistant_error`）· `failure.py`（`classify_failure`）· `process.py`（`CliLaunchError`、`lines`、`wait`、`_exit_code`）· `runtime.py`（`_KEEPALIVE_SECONDS`、环境合并、`CliLaunchError` 处理）· `dialect.py`（`env_defaults`）· `runtime/_base.py`（`build_safe_env`）· `types.py`（`AcpErrorCode`） |
 
+### BUG-HARNESS-2026-10-27-018 · `network_detail` 的响应体超过 8000 字符时只给开头一段，其余部分任何 action 都读不到（接口返回 22 万字符的列表，模型只看得到前 108 个列表项）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（给 `network_detail` 的大响应体设计 vault 落盘时，用真实 Chromium 对 227,012 字符的压缩 JSON 取证） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：任何返回大 JSON 的接口（商品列表、搜索结果、feed）在 `network_detail` 里只剩前 8000 字符加一句 `... [truncated, total N chars]`；`network_replay` 只读 16,000 字符的窗口，同样看不全；模型想读后面的数据只能退回别的手段（页内 `evaluate` 之类）。线上有多少次 `network_detail` 命中超长响应体未测 |
+| **关联产品** | harness `toolkits/browser/session/network/`（新增 `long_body.py`、`intelligence.py`）、`session/browser_session.py`（把 vault 交给记录器）；复用已有的 `ContentVault`（server 注入 `ArtifactVault`）与 `file_read` 的 `vault://` 读取 |
+| **根因** | `NetworkIntelligence.get_response_body` 把响应体脱敏后只留前 8000 字符，其余直接丢弃，没有任何地方存放；而压缩 JSON 往往是整整一行，即使存成文件，`file_read` 的单行上限是 10,000 字符（见 BUG-HARNESS-2026-10-27-016 仍然存在 ②），整行文件同样读不全。 |
+| **修复** | 新增 `session/network/long_body.py`：超过 8000 字符的响应体先整体脱敏、再取舍——副本取脱敏后的前 100 万字符（多给脱敏 4096 字符的余量，被上限切开的凭据仍能匹配），前 8000 个脱敏后的字符作预览，回答只有在副本装下整个脱敏后的响应体时才写 `saved in full`（脱敏会让文本变长也会变短，所以按脱敏后的长度判断），否则写明副本装了多少；脱敏放在工作线程里做，因为最坏情形（整段同一字符）约 4 秒/百万字符。副本按 200 字符折行（只按 `\n` 计行，与 `file_read` 同口径）后经注入的 `ContentVault` 存为 `text/plain`（`network_response_<seq>.txt`）；回答先给对象位置、总长度和 MIME，再接预览，模型用 `file_read` 的 `vault://<id>:起-止` 往下翻。没有 vault 或存入失败（记一条 WARNING）时仍是脱敏后的前 8000 字符加 `... [truncated, total N chars]`。`BrowserSession` 把自己的 `content_vault` 交给 `NetworkIntelligence`。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 Chromium（压缩 JSON，一整行，深处有一个 password，另有一个 `AIza…` 密钥）。227,012 字符：旧答复 8,060 字符，约 219,000 字符读不到；新答复 8,189 字符，vault 副本 228,113 字符、1,135 行、每行不超过 200 字符，最后一个列表项可读，密码与密钥在答复和副本里都不出现，耗时 133 ms（旧 14 ms）。1,067,012 字符：新答复写明 `the first 1000000 saved to vault://…`，581 ms（旧 176 ms）。3,454,012 字符：813 ms（旧 147 ms），副本仍是前 100 万字符；三种体量下事件循环最长一次停顿 23–27 ms（旧 6–79 ms，单次测量，波动大）。单测 `tests/toolkits/browser/session/network/test_network_long_body.py` 19 例（折行规则、答复首行的精确格式、「已存全部」的判断在上限两侧（脱敏后变长超过上限、略超上限但脱敏后装得下）、`file_read` 翻页读到最后一行、深处/预览边界/上限边界上的凭据都被脱敏、脱敏不在事件循环线程上、`put` 的参数、存入失败时回退并记 WARNING、不超过 8000 字符的响应体不碰 vault）；真实 Chromium `tests/toolkits/browser/session/test_network_detail_long_body_integration.py` 3 例（副本脱敏且折行、服务端只被请求一次、按行范围读到答复没有给出的部分、无 vault 时的回退），在 V1 之前的源码上 2 例变红（答复里没有 vault 指针），无 vault 的回退例保持绿。逐项改坏实现验证测试抓得到：余量设为 0 则上限边界例变红；折行改用 `splitlines` 则 2 例变红；副本存未脱敏的正文则 3 例变红；脱敏回到事件循环线程则 1 例变红；按原文长度判断「已存全部」则 2 例变红。 |
+| **仍然存在** | ① 副本最多存前 100 万字符，更靠后的内容读不到（答复会写明）。② 折行发生在固定的 200 字符处，不顾 JSON 结构，一个值可能被折到两行。③ 每次调用 `network_detail` 都存一个新对象，同一请求重复调用不去重；`ArtifactVault` 本身没有过期或配额策略，每次最多约 1 MB。④ 脱敏沿用现有规则（保留凭据首 6 位和末 4 位，如 `mysecr...5678`），没有改动。⑤ 只在 Chromium 上取证；没有用真实 LLM 测过模型是否按答复里的提示去翻页；server 端只确认注入的是同一个 `ArtifactVault` 类，没有跑完整的 server 对话。 |
+| **代码位置** | `toolkits/browser/session/network/long_body.py`（`long_body_answer`、`_mask_and_store`、`wrap_long_lines`）· `network/intelligence.py`（`get_response_body`、`__init__` 的 `content_vault`）· `session/browser_session.py`（`NetworkIntelligence(content_vault=…)`）· `tests/toolkits/browser/session/network/test_network_long_body.py` · `tests/toolkits/browser/session/test_network_detail_long_body_integration.py` |
+
 ### BUG-HARNESS-2026-10-27-017 · 换页后 `network_log` 仍列着上一页的请求，页面 fetch 的图片/字体占着编号和窗口位置，没有 CDP 的引擎上报错不说真话，失败资源块带着上一页的脚本
 
 | 字段 | 内容 |

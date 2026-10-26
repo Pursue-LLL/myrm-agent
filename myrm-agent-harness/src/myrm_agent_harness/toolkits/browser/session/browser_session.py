@@ -233,7 +233,7 @@ class BrowserSession(
         self._interactor: Interactor | None = None
         self._extractor: Extractor | None = None
         self._network_logger = NetworkLogger()
-        self._network_intelligence = NetworkIntelligence()
+        self._network_intelligence = NetworkIntelligence(content_vault=content_vault)
         self._web_vitals = WebVitalsCollector()
         self._console_logger = ConsoleLogger()
         self._persistence: SessionPersistence | None = SessionPersistence(session_vault) if session_vault else None

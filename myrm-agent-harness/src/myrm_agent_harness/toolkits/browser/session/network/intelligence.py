@@ -4,7 +4,8 @@
 - patchright.async_api::Page (POS: Playwright page instance)
 - patchright.async_api::CDPSession (POS: Chrome DevTools Protocol session)
 - utils.page_health::detach_cdp_bounded (POS: bounded browser and page health primitives)
-- core.security.redact::redact_sensitive_text (POS: credential masking of response bodies)
+- network.long_body::BODY_PREVIEW_MAX_CHARS, long_body_answer (POS: the answer for a body too long to read inline)
+- session.browser_session_extraction_mixin::ContentVault (POS: where a long body is kept; none: the answer is its start)
 - network.logger::safe_preview, URL_PREVIEW_CHARS, POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW (POS: the masked, bounded previews the list lines share with the NetworkLogger list)
 - network.records::CdpRequestRecord and the CDP event payload types (POS: the shapes this recorder reads and keeps)
 
@@ -33,6 +34,7 @@ the main frame loads a new document (CDP `Page.frameNavigated`: a reload, back/f
 another page (a tab switch). Records of earlier pages stay in the window until it drops them but are neither listed nor
 openable, so the model never reads another page's request as this page's. A response whose MIME type is an image,
 audio, video or font is a file, not data: it leaves the window once it has answered and is only counted.
+A body longer than the inline preview is answered by `long_body_answer`: its start in the answer, the rest in the vault.
 """
 
 from __future__ import annotations
@@ -43,10 +45,9 @@ from collections import deque
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
-
 from ...utils.page_health import detach_cdp_bounded
 from .logger import POST_PREVIEW_CHARS, RAW_PREVIEW_WINDOW, URL_PREVIEW_CHARS, safe_preview
+from .long_body import BODY_PREVIEW_MAX_CHARS, long_body_answer
 from .records import (
     CdpFrameNavigated,
     CdpLoadingFailed,
@@ -59,12 +60,12 @@ from .records import (
 if TYPE_CHECKING:
     from patchright.async_api import CDPSession, Page
 
+    from ..browser_session_extraction_mixin import ContentVault
+
 logger = logging.getLogger(__name__)
 
 _MAX_TRACKED_REQUESTS = 100
 _API_RESOURCE_TYPES = ("XHR", "Fetch")
-_BODY_PREVIEW_MAX_CHARS = 8000
-_BODY_RAW_WINDOW = 16384
 EMPTY_RESPONSE = "Empty response"
 # Responses of these types are files, not data: icons and fonts would fill the window and cannot be read as text.
 _FILE_MIME_PREFIXES = ("image/", "audio/", "video/", "font/")
@@ -102,7 +103,8 @@ class NetworkIntelligence:
     on demand, consuming zero additional memory until explicitly requested.
     """
 
-    def __init__(self, max_requests: int = _MAX_TRACKED_REQUESTS) -> None:
+    def __init__(self, max_requests: int = _MAX_TRACKED_REQUESTS, content_vault: ContentVault | None = None) -> None:
+        self._content_vault = content_vault
         self._requests: deque[CdpRequestRecord] = deque(maxlen=max_requests)
         self._next_seq = 1
         self._epoch = 0
@@ -329,11 +331,13 @@ class NetworkIntelligence:
 
             if not body:
                 return EMPTY_RESPONSE
-            if len(body) > _BODY_PREVIEW_MAX_CHARS:
-                return (
-                    f"{redact_sensitive_text(body[:_BODY_RAW_WINDOW])[:_BODY_PREVIEW_MAX_CHARS]}\n\n"
-                    f"... [truncated, total {len(body)} chars] "
-                    f"MIME: {record.mime_type or 'unknown'}"
+            if len(body) > BODY_PREVIEW_MAX_CHARS:
+                return await long_body_answer(
+                    body,
+                    record.mime_type,
+                    vault=self._content_vault,
+                    filename=f"network_response_{record.seq}.txt",
+                    description=f"Response body of {record.method} {safe_preview(record.url, URL_PREVIEW_CHARS)}",
                 )
             return body
 
