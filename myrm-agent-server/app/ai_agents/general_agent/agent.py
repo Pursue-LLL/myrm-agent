@@ -494,18 +494,16 @@ class GeneralAgent(ToolSetupMixin):
         """Release the external-agent RuntimePool: registry-owned pools stay cached, ephemeral ones are closed."""
         if self._runtime_pool is None:
             return
-        scope_id = getattr(self, "_runtime_pool_scope_id", None)
-        from_registry = getattr(self, "_runtime_pool_from_registry", False)
-        ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
         try:
             from app.services.external_agents.runtime_pool_registry import (
                 close_runtime_pool_bounded,
                 get_chat_runtime_pool_registry,
             )
 
-            if from_registry and isinstance(scope_id, str) and scope_id.strip():
-                await get_chat_runtime_pool_registry().release(scope_id.strip())
-            elif ephemeral:
+            scope_id = (self._runtime_pool_scope_id or "").strip()
+            if self._runtime_pool_from_registry and scope_id:
+                await get_chat_runtime_pool_registry().release(scope_id)
+            elif self._runtime_pool_ephemeral:
                 await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
         except Exception as e:
             logger.warning("RuntimePool release failed: %s", e)

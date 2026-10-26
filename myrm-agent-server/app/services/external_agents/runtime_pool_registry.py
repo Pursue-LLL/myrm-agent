@@ -50,10 +50,10 @@ class _ChatPoolEntry:
 async def close_runtime_pool_bounded(pool: RuntimePool, *, scope: str) -> None:
     """Close a pool without letting an unresponsive backend wedge the caller.
 
-    ``RuntimePool.close_all`` has no upper bound: an ACP agent that stays alive but never answers
-    ``session/close`` keeps it pending forever, and the registry closes pools while holding its lock,
-    so one stuck close would freeze every chat. Timeouts and failures are logged, never raised;
-    cancellation still propagates.
+    ``RuntimePool.close_all`` has no upper bound of its own, and the registry closes pools while
+    holding its lock, so one backend that never finishes closing would freeze every chat. This is the
+    safety net above the per-backend limits (``AcpRuntime`` bounds ``session/close`` itself).
+    Timeouts and failures are logged, never raised; cancellation still propagates.
     """
     try:
         async with asyncio.timeout(_POOL_CLOSE_TIMEOUT_SECONDS):
