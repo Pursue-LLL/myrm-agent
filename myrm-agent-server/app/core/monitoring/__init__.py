@@ -106,7 +106,7 @@ async def register_db_pool_metrics() -> None:
                 REGISTRY.unregister(collector)
 
         engine = get_database_engine()
-        collector = DatabasePoolCollector(engine, "async")
+        collector = DatabasePoolCollector(engine.sync_engine, "async")
         REGISTRY.register(collector)
         logger.info("[Metrics] Database Pool collector registered")
     except Exception as e:

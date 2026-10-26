@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from myrm_agent_harness.utils import get_local_ip
+from myrm_agent_harness.utils.network import get_local_ip
 
 from app.api.system.sandbox_recreate import router as sandbox_recreate_router
 from app.api.system.schemas import (

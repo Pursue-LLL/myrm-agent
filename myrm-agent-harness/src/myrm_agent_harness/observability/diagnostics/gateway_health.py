@@ -39,7 +39,7 @@ except ImportError:
     resource = None  # type: ignore
 
 from myrm_agent_harness.observability.diagnostics.manager import register_diagnostic
-from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
+from myrm_agent_harness.observability.diagnostics.protocols import HealthReport, HealthStatus
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +271,7 @@ async def check_gateway_runtime_health() -> HealthReport:
     """Standard diagnostic probe function integrating GatewayHealthInspector into /health/doctor."""
     dto = await GatewayHealthInspector.inspect()
 
-    level_map = {
+    level_map: dict[GatewayHealthStatus, HealthStatus] = {
         GatewayHealthStatus.HEALTHY: "pass",
         GatewayHealthStatus.DEGRADED: "warn",
         GatewayHealthStatus.UNHEALTHY: "fail",
