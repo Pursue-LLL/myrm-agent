@@ -9,8 +9,6 @@ describe('useWorkbenchStore', () => {
       width: 480,
       height: 320,
       activeTab: 'files',
-      selectedFilePath: null,
-      selectedFileContent: null,
       terminalLogs: [],
     });
   });
@@ -22,7 +20,6 @@ describe('useWorkbenchStore', () => {
     expect(state.width).toBe(480);
     expect(state.height).toBe(320);
     expect(state.activeTab).toBe('files');
-    expect(state.selectedFilePath).toBeNull();
     expect(state.terminalLogs).toHaveLength(0);
   });
 
@@ -65,24 +62,6 @@ describe('useWorkbenchStore', () => {
     expect(useWorkbenchStore.getState().activeTab).toBe('terminal');
   });
 
-  it('handles selected file assignment', () => {
-    const { setSelectedFile } = useWorkbenchStore.getState();
-
-    const mockContent = {
-      path: 'src/app.py',
-      content: 'print(1)',
-      language: 'python',
-      size_bytes: 8,
-      is_binary: false,
-      truncated: false,
-      modified_at: '2026-10-12T12:00:00Z',
-    };
-    setSelectedFile('src/app.py', mockContent);
-
-    expect(useWorkbenchStore.getState().selectedFilePath).toBe('src/app.py');
-    expect(useWorkbenchStore.getState().selectedFileContent).toEqual(mockContent);
-  });
-
   it('records terminal logs and clears them', () => {
     const { addTerminalLog, clearTerminalLogs } = useWorkbenchStore.getState();
 
@@ -102,17 +81,13 @@ describe('useWorkbenchStore', () => {
     expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
   });
 
-  it('drops the file selection and terminal history when the workspace session resets', () => {
-    const { setSelectedFile, addTerminalLog, resetWorkspaceSession } = useWorkbenchStore.getState();
-    setSelectedFile('src/app.py', null);
+  it('drops the terminal history when the workspace session resets', () => {
+    const { addTerminalLog, resetWorkspaceSession } = useWorkbenchStore.getState();
     addTerminalLog({ command: 'ls', output: 'app.py', exitCode: 0 });
 
     resetWorkspaceSession();
 
-    const state = useWorkbenchStore.getState();
-    expect(state.selectedFilePath).toBeNull();
-    expect(state.selectedFileContent).toBeNull();
-    expect(state.terminalLogs).toHaveLength(0);
+    expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
   });
 
   it('advances the session epoch on every reset so replies for a previous session can be told apart', () => {

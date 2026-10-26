@@ -13,5 +13,5 @@
 
 export { MultiTabWorkbench } from './MultiTabWorkbench';
 export { WorkbenchToggleTrigger } from './WorkbenchToggleTrigger';
-export { WorkbenchFileExplorer } from './tabs/WorkbenchFileExplorer';
+export { WorkbenchFiles } from './tabs/WorkbenchFiles';
 export { WorkbenchTerminal } from './tabs/WorkbenchTerminal';

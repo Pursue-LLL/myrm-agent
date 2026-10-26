@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MultiTabWorkbench } from '../MultiTabWorkbench';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
@@ -11,10 +12,12 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('../tabs/WorkbenchFileExplorer', () => ({
-  WorkbenchFileExplorer: ({ chatId }: { chatId: string }) => (
-    <div data-testid="tab-files-content">Files of {chatId}</div>
-  ),
+// Shows the chat it was mounted for, so a remount on chat switch is observable.
+vi.mock('../tabs/WorkbenchFiles', () => ({
+  WorkbenchFiles: () => {
+    const [mountedFor] = useState(() => useChatStore.getState().chatId);
+    return <div data-testid="tab-files-content">Files of {mountedFor}</div>;
+  },
 }));
 
 vi.mock('../tabs/WorkbenchTerminal', () => ({
@@ -31,7 +34,6 @@ describe('MultiTabWorkbench component', () => {
       width: 480,
       height: 320,
       activeTab: 'files',
-      selectedFilePath: null,
       terminalLogs: [],
     });
     useChatStore.setState({ chatId: 'chat-1' });
@@ -64,10 +66,9 @@ describe('MultiTabWorkbench component', () => {
     expect(screen.queryByTestId('tab-terminal-content')).toBeNull();
   });
 
-  it('drops the previous chat selection and terminal history when the chat changes', () => {
+  it('drops the previous chat terminal history and remounts the tab when the chat changes', () => {
     render(<MultiTabWorkbench />);
     useWorkbenchStore.setState({
-      selectedFilePath: 'src/app.py',
       terminalLogs: [{ id: 'l1', command: 'ls', output: 'x', exitCode: 0, timestamp: '2023-11-14T22:13:20Z' }],
     });
 
@@ -75,7 +76,6 @@ describe('MultiTabWorkbench component', () => {
       useChatStore.setState({ chatId: 'chat-2' });
     });
 
-    expect(useWorkbenchStore.getState().selectedFilePath).toBeNull();
     expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
     expect(screen.getByTestId('tab-files-content').textContent).toBe('Files of chat-2');
   });

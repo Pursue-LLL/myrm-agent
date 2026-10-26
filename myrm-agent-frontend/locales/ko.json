@@ -13995,14 +13995,8 @@
     "shortcutHint": "Cmd+Shift+B",
     "files": {
       "searchPlaceholder": "워크스페이스 파일 검색...",
-      "refreshAction": "트리 새로고침",
-      "loadingTree": "워크스페이스 파일을 불러오는 중...",
       "emptyResults": "일치하는 파일이 없습니다",
-      "selectFileHint": "트리에서 파일을 선택하면 코드를 미리 볼 수 있습니다",
-      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다.",
-      "lineCount": "{count}줄",
-      "binaryFile": "이 형식의 파일은 미리 볼 수 없습니다",
-      "previewTruncated": "파일이 커서 앞부분만 표시합니다"
+      "workspaceUnavailable": "이 대화에는 아직 워크스페이스 폴더가 없습니다."
     },
     "terminal": {
       "headerTitle": "터미널",

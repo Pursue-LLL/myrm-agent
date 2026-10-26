@@ -4,7 +4,7 @@
  * [INPUT]
  * - useWorkbenchStore from @/store/useWorkbenchStore
  * - useChatStore from @/store/useChatStore (POS: the chat whose workspace the tabs work in)
- * - WorkbenchFileExplorer, WorkbenchTerminal from ./tabs
+ * - WorkbenchFiles, WorkbenchTerminal from ./tabs
  * - useTranslations from next-intl (namespace: 'workbench')
  *
  * [OUTPUT]
@@ -12,7 +12,7 @@
  *
  * [POS]
  * Auxiliary Workbench container orchestrator: files and terminal of the current chat's workspace.
- * Selection and terminal history reset whenever the chat changes.
+ * Terminal history resets whenever the chat changes.
  */
 
 import React, { useRef, useCallback, useEffect, useState } from 'react';
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
 import { useWorkbenchStore, type WorkbenchTabId } from '@/store/useWorkbenchStore';
-import { WorkbenchFileExplorer } from './tabs/WorkbenchFileExplorer';
+import { WorkbenchFiles } from './tabs/WorkbenchFiles';
 import { WorkbenchTerminal } from './tabs/WorkbenchTerminal';
 
 export function MultiTabWorkbench() {
@@ -51,7 +51,7 @@ export function MultiTabWorkbench() {
   const startPosRef = useRef<number>(0);
   const startDimRef = useRef<number>(0);
 
-  // File selection and terminal history describe one chat's workspace
+  // Terminal history describes one chat's workspace
   useEffect(() => {
     resetWorkspaceSession();
   }, [chatId, resetWorkspaceSession]);
@@ -111,6 +111,8 @@ export function MultiTabWorkbench() {
     { id: 'terminal', label: t('tabTerminal'), icon: Terminal },
   ];
 
+  // No backdrop-filter or transform on the aside: either would make it the containing block of fixed
+  // descendants, and the file browser anchors its context menu and dialogs to the viewport.
   return (
     <aside
       aria-label={t('workbenchAriaLabel')}
@@ -119,7 +121,7 @@ export function MultiTabWorkbench() {
           ? { width: `${width}px` }
           : { height: `${height}px` }
       }
-      className={`fixed z-[9970] bg-card border-border shadow-2xl backdrop-blur-md flex flex-col select-none transition-all ${
+      className={`fixed z-[9970] bg-card border-border shadow-2xl flex flex-col transition-all ${
         isResizing ? 'select-none pointer-events-auto' : ''
       } ${
         placement === 'right'
@@ -148,7 +150,7 @@ export function MultiTabWorkbench() {
       </button>
 
       {/* Workbench Header & Tab Bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-muted/40">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-muted/40 select-none">
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => {
@@ -212,7 +214,7 @@ export function MultiTabWorkbench() {
             <span>{t('noChat')}</span>
           </div>
         )}
-        {chatId && activeTab === 'files' && <WorkbenchFileExplorer key={chatId} chatId={chatId} />}
+        {chatId && activeTab === 'files' && <WorkbenchFiles key={chatId} />}
         {chatId && activeTab === 'terminal' && <WorkbenchTerminal key={chatId} chatId={chatId} />}
       </div>
     </aside>

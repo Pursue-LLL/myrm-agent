@@ -13995,14 +13995,8 @@
     "shortcutHint": "Cmd+Shift+B",
     "files": {
       "searchPlaceholder": "Search workspace files...",
-      "refreshAction": "Refresh tree",
-      "loadingTree": "Loading workspace files...",
       "emptyResults": "No matching files found",
-      "selectFileHint": "Select a file from the tree to preview code",
-      "workspaceUnavailable": "This conversation has no workspace folder yet.",
-      "lineCount": "{count} lines",
-      "binaryFile": "Preview isn't available for this kind of file.",
-      "previewTruncated": "The file is large, so only its beginning is shown."
+      "workspaceUnavailable": "This conversation has no workspace folder yet."
     },
     "terminal": {
       "headerTitle": "Terminal",

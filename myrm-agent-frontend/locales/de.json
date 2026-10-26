@@ -13995,14 +13995,8 @@
     "shortcutHint": "Cmd+Shift+B",
     "files": {
       "searchPlaceholder": "Workspace-Dateien durchsuchen...",
-      "refreshAction": "Baum aktualisieren",
-      "loadingTree": "Workspace-Dateien werden geladen...",
       "emptyResults": "Keine passenden Dateien gefunden",
-      "selectFileHint": "Wählen Sie eine Datei im Baum aus, um den Code anzuzeigen",
-      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner.",
-      "lineCount": "{count} Zeilen",
-      "binaryFile": "Für diesen Dateityp ist keine Vorschau verfügbar.",
-      "previewTruncated": "Die Datei ist groß, es wird nur der Anfang angezeigt."
+      "workspaceUnavailable": "Diese Unterhaltung hat noch keinen Workspace-Ordner."
     },
     "terminal": {
       "headerTitle": "Terminal",

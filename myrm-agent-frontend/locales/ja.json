@@ -13995,14 +13995,8 @@
     "shortcutHint": "Cmd+Shift+B",
     "files": {
       "searchPlaceholder": "ワークスペースのファイルを検索...",
-      "refreshAction": "ツリーを更新",
-      "loadingTree": "ワークスペースのファイルを読み込み中...",
       "emptyResults": "一致するファイルが見つかりません",
-      "selectFileHint": "ツリーからファイルを選ぶと、コードをプレビューできます",
-      "workspaceUnavailable": "この会話にはまだワークスペースのフォルダがありません。",
-      "lineCount": "{count} 行",
-      "binaryFile": "この種類のファイルはプレビューできません",
-      "previewTruncated": "ファイルが大きいため、先頭部分のみ表示しています"
+      "workspaceUnavailable": "この会話にはまだワークスペースのフォルダがありません。"
     },
     "terminal": {
       "headerTitle": "ターミナル",

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-工作区内嵌浏览器预览与检查器联动。
+工作区内嵌浏览器预览与检查器联动。有两个使用方：侧栏工作区视图（`layout/ChatSidebarContent`）与辅助工作台的文件页（`workbench/tabs/WorkbenchFiles`），二者共用同一套目录树、实时刷新与预览。
 
 ## 文件清单
 

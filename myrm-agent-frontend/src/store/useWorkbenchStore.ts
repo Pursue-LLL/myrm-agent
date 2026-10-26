@@ -1,21 +1,19 @@
 /**
  * [INPUT]
  * - Zustand create (POS: client-side workbench UI state management)
- * - FileContentResponse from @/services/workbench
  *
  * [OUTPUT]
  * - WorkbenchTabId: ('files' | 'terminal')
  * - TerminalLogEntry: Terminal execution history model
- * - useWorkbenchStore: Zustand hook managing drawer visibility, size, active tab, file selection & terminal history
+ * - useWorkbenchStore: Zustand hook managing drawer visibility, size, active tab & terminal history
  *
  * [POS]
- * Central UI store for the auxiliary workbench. File selection and terminal history belong to one chat's
- * workspace; `resetWorkspaceSession` drops them when the chat changes and advances `sessionEpoch`, so a reply
- * still in flight for the previous chat can tell it is stale and not write into the new session.
+ * Central UI store for the auxiliary workbench. Terminal history belongs to one chat's workspace;
+ * `resetWorkspaceSession` drops it when the chat changes and advances `sessionEpoch`, so a reply still in
+ * flight for the previous chat can tell it is stale and not write into the new session.
  */
 
 import { create } from 'zustand';
-import type { FileContentResponse } from '@/services/workbench';
 
 export type WorkbenchTabId = 'files' | 'terminal';
 export type WorkbenchPlacement = 'right' | 'bottom';
@@ -34,8 +32,6 @@ export interface WorkbenchState {
   width: number;
   height: number;
   activeTab: WorkbenchTabId;
-  selectedFilePath: string | null;
-  selectedFileContent: FileContentResponse | null;
   terminalLogs: TerminalLogEntry[];
   sessionEpoch: number;
 
@@ -46,7 +42,6 @@ export interface WorkbenchState {
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setActiveTab: (tab: WorkbenchTabId) => void;
-  setSelectedFile: (path: string | null, content?: FileContentResponse | null) => void;
   addTerminalLog: (record: { command: string; output: string; exitCode: number }) => void;
   clearTerminalLogs: () => void;
   resetWorkspaceSession: () => void;
@@ -65,8 +60,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   width: DEFAULT_WIDTH,
   height: DEFAULT_HEIGHT,
   activeTab: 'files',
-  selectedFilePath: null,
-  selectedFileContent: null,
   terminalLogs: [],
   sessionEpoch: 0,
 
@@ -83,9 +76,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     set({ height: Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, height)) }),
 
   setActiveTab: (tab: WorkbenchTabId) => set({ activeTab: tab }),
-
-  setSelectedFile: (path: string | null, content: FileContentResponse | null = null) =>
-    set({ selectedFilePath: path, selectedFileContent: content }),
 
   addTerminalLog: ({ command, output, exitCode }) =>
     set((state) => {
@@ -105,8 +95,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
 
   resetWorkspaceSession: () =>
     set((state) => ({
-      selectedFilePath: null,
-      selectedFileContent: null,
       terminalLogs: [],
       sessionEpoch: state.sessionEpoch + 1,
     })),

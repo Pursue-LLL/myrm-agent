@@ -4,10 +4,10 @@
 - tests.support.chat_workspace::chats_bound_to_workspaces (POS: binds a chat to a tmp workspace)
 
 [OUTPUT]
-- Tests verifying the workbench is confined to the named chat's workspace: file tree, file content and terminal exec
+- Tests verifying the workbench terminal is confined to the named chat's workspace
 
 [POS]
-Tests for the auxiliary workbench backend: root resolution, path confinement, command gate, timeout and output cap.
+Tests for the auxiliary workbench terminal: root resolution, cwd confinement, command gate, timeout and output cap.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
+from httpx import Response
 from starlette.testclient import TestClient
 
 from app.api.workbench.models import TerminalExecRequest
@@ -35,9 +36,6 @@ posix_only = pytest.mark.skipif(sys.platform == "win32", reason="relies on POSIX
 def workspace(tmp_path: Path) -> Path:
     root = tmp_path / "workspace"
     (root / "src").mkdir(parents=True)
-    (root / "src" / "app.py").write_text("print('hi')\n", encoding="utf-8")
-    (root / "notes.md").write_text("# notes\n", encoding="utf-8")
-    (root / ".hidden").write_text("secret", encoding="utf-8")
     return root
 
 
@@ -49,97 +47,34 @@ def client(workspace: Path) -> Iterator[TestClient]:
         yield TestClient(app)
 
 
-def test_file_tree_lists_the_chats_workspace_with_relative_paths(client: TestClient, workspace: Path) -> None:
-    response = client.get(f"{PREFIX}/files", params={"chat_id": CHAT})
-
-    assert response.status_code == 200
-    data = response.json()
-    assert "root_path" not in data
-    assert [node["path"] for node in data["nodes"]] == ["src", "notes.md"]
-    assert data["nodes"][0]["children"][0]["path"] == os.path.join("src", "app.py")
-    assert (data["total_files"], data["total_dirs"]) == (2, 1)
+def _pwd() -> str:
+    return "cd" if sys.platform == "win32" else "pwd"
 
 
-def test_file_tree_requires_a_chat(client: TestClient) -> None:
-    assert client.get(f"{PREFIX}/files").status_code == 422
+def _exec(client: TestClient, chat_id: str, **fields: str | int) -> Response:
+    return client.post(f"{PREFIX}/terminal/exec", json={"chat_id": chat_id, "command": "echo x", **fields})
+
+
+def test_terminal_requires_a_chat(client: TestClient) -> None:
+    assert client.post(f"{PREFIX}/terminal/exec", json={"command": "echo x"}).status_code == 422
 
 
 def test_a_chat_without_a_workspace_directory_gets_404(client: TestClient, tmp_path: Path) -> None:
     with chats_bound_to_workspaces({"chat-empty": tmp_path / "never-created"}):
-        response = client.get(f"{PREFIX}/files", params={"chat_id": "chat-empty"})
+        response = _exec(client, "chat-empty")
 
     assert response.status_code == 404
 
 
 def test_a_chat_id_that_cannot_name_a_workspace_gets_404_not_the_process_directory(client: TestClient) -> None:
     with chats_bound_to_workspaces({}):
-        response = client.get(f"{PREFIX}/files", params={"chat_id": "../.."})
+        response = _exec(client, "../..", command=_pwd())
 
     assert response.status_code == 404
 
 
-def test_file_tree_path_traversal_blocked(client: TestClient) -> None:
-    response = client.get(f"{PREFIX}/files", params={"chat_id": CHAT, "root_dir": "../../../../etc"})
-
-    assert response.status_code == 403
-    assert "traversal forbidden" in response.json()["detail"].lower()
-
-
-def test_file_content_reads_inside_the_workspace_only(client: TestClient, workspace: Path) -> None:
-    ok = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "src/app.py"})
-    assert ok.status_code == 200
-    assert ok.json()["language"] == "python"
-    assert ok.json()["content"] == "print('hi')\n"
-    assert ok.json()["path"] == os.path.join("src", "app.py")
-    assert ok.json()["is_binary"] is False
-    assert ok.json()["truncated"] is False
-
-    assert client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "missing.py"}).status_code == 404
-    outside = workspace.parent / "outside.txt"
-    outside.write_text("nope", encoding="utf-8")
-    escape = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": str(outside)})
-    assert escape.status_code == 403
-
-
-def test_a_binary_file_is_reported_instead_of_decoded(client: TestClient, workspace: Path) -> None:
-    (workspace / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + os.urandom(64))
-
-    response = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "logo.png"})
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["is_binary"] is True
-    assert body["content"] == ""
-    assert body["size_bytes"] > 0
-
-
-def test_a_large_text_file_is_read_up_to_the_cap_and_flagged(client: TestClient, workspace: Path) -> None:
-    (workspace / "big.txt").write_text("a" + "\u00e9" * _MAX_RESPONSE_BYTES, encoding="utf-8")
-
-    response = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "big.txt"})
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["truncated"] is True
-    assert body["size_bytes"] == 1 + 2 * _MAX_RESPONSE_BYTES
-    assert 0 < len(body["content"].encode("utf-8")) <= _MAX_RESPONSE_BYTES
-    assert "\ufffd" not in body["content"], "the cut must not leave half a character behind"
-
-
-@posix_only
-def test_a_symlink_out_of_the_workspace_is_not_followed(client: TestClient, workspace: Path) -> None:
-    outside = workspace.parent / "outside.txt"
-    outside.write_text("nope", encoding="utf-8")
-    (workspace / "link.txt").symlink_to(outside)
-
-    response = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "link.txt"})
-
-    assert response.status_code == 403
-
-
 def test_terminal_runs_in_the_chats_workspace(client: TestClient, workspace: Path) -> None:
-    pwd = "cd" if sys.platform == "win32" else "pwd"
-    response = client.post(f"{PREFIX}/terminal/exec", json={"chat_id": CHAT, "command": pwd, "timeout_seconds": 10})
+    response = _exec(client, CHAT, command=_pwd(), timeout_seconds=10)
 
     assert response.status_code == 200
     body = response.json()
@@ -159,12 +94,27 @@ def test_terminal_does_not_inherit_the_servers_credentials(client: TestClient, m
     assert response.json()["stdout"].strip() == "key=absent path=present"
 
 
-def test_terminal_cwd_is_confined_to_the_workspace(client: TestClient) -> None:
-    escape = client.post(f"{PREFIX}/terminal/exec", json={"chat_id": CHAT, "command": "echo x", "cwd": ".."})
-    assert escape.status_code == 403
+def test_terminal_cwd_may_name_a_workspace_subdirectory(client: TestClient, workspace: Path) -> None:
+    response = _exec(client, CHAT, command=_pwd(), cwd="src")
 
-    missing = client.post(f"{PREFIX}/terminal/exec", json={"chat_id": CHAT, "command": "echo x", "cwd": "nope"})
-    assert missing.status_code == 400
+    assert response.status_code == 200
+    assert Path(response.json()["stdout"].strip()).resolve() == (workspace / "src").resolve()
+
+
+def test_terminal_cwd_is_confined_to_the_workspace(client: TestClient) -> None:
+    assert _exec(client, CHAT, cwd="..").status_code == 403
+    assert _exec(client, CHAT, cwd="../../../../etc").status_code == 403
+
+    assert _exec(client, CHAT, cwd="nope").status_code == 400
+
+
+@posix_only
+def test_a_cwd_symlinked_out_of_the_workspace_is_not_followed(client: TestClient, workspace: Path) -> None:
+    outside = workspace.parent / "outside"
+    outside.mkdir()
+    (workspace / "link").symlink_to(outside, target_is_directory=True)
+
+    assert _exec(client, CHAT, cwd="link").status_code == 403
 
 
 @pytest.mark.parametrize("command", ["rm -rf /", "rm -fr /", "rm -r -f /", "rm -rf ~", "mkfs.ext4 /dev/sda1"])
