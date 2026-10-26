@@ -160,3 +160,27 @@ async def test_trigger_if_active_skips_paused_and_missing_jobs(cron: Cron) -> No
     await cron.defer_next_run()
     await job_module.trigger_if_active(None)
     assert _is_due(await cron.only())
+
+
+async def test_is_job_active_follows_the_job_through_pause_resume_and_removal(cron: Cron) -> None:
+    assert not await job_module.is_job_active(None)
+
+    await job_module.start_job(None, locale="en")
+    assert await job_module.is_job_active(None)
+
+    await job_module.pause_job(None)
+    assert not await job_module.is_job_active(None)
+
+    await job_module.resume_job(None)
+    assert await job_module.is_job_active(None)
+
+    await job_module.stop_all_jobs()
+    assert not await job_module.is_job_active(None)
+
+
+async def test_is_job_active_is_asked_per_agent(cron: Cron) -> None:
+    await job_module.start_job("agent-a", locale="en")
+
+    assert await job_module.is_job_active("agent-a")
+    assert not await job_module.is_job_active("agent-b")
+    assert not await job_module.is_job_active(None)

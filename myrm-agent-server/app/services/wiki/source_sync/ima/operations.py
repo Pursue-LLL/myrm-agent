@@ -4,6 +4,7 @@
 - .client / .transport / .credentials (POS: ima access and encrypted credentials)
 - .state / .ledger (POS: selection, resumable state, per-item ledger)
 - .job (POS: cron lifecycle of the sync job)
+- .job_runner (POS: ends the slices that are running)
 
 [OUTPUT]
 - ImaOperationError, connect, disconnect, list_libraries, save_selection
@@ -27,6 +28,7 @@ from app.services.wiki.vault import get_wiki_archiver
 from .client import ImaClient
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .job import pause_job, resume_job, start_job, stop_all_jobs, trigger_if_active
+from .job_runner import stop_running_slice, stop_running_slices
 from .ledger import ImaLedger
 from .models import ImaCredentials
 from .schemas import ImaLibrary
@@ -73,8 +75,12 @@ async def connect(*, client_id: str, api_key: str, agent_id: str | None) -> None
 
 
 async def disconnect() -> None:
-    """Drop the credentials and every agent's sync job. Imported documents and the ledger stay in place."""
+    """Drop the credentials and every agent's sync job, and end the slices still running.
+
+    Imported documents and the ledger stay in place. The jobs go first: a slice that fired for one of them finds it gone.
+    """
     await stop_all_jobs()
+    stop_running_slices()
     await clear_credentials()
 
 
@@ -106,8 +112,10 @@ async def start_sync(*, agent_id: str | None, locale: str) -> None:
 
 
 async def pause_sync(*, agent_id: str | None) -> None:
+    """Pause the job, then end the agent's running slice at its next item."""
     if not await pause_job(agent_id):
         raise ImaOperationError("ima_sync_not_started", "sync has not been started")
+    stop_running_slice(agent_id)
 
 
 async def resume_sync(*, agent_id: str | None) -> None:

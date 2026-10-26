@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -12,6 +13,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.source_sync.ima.client import NOTES_PAGE_LIMIT, ImaClient
+from app.services.wiki.source_sync.ima.context import SyncContext
 from app.services.wiki.source_sync.ima.engine import run_slice
 from app.services.wiki.source_sync.ima.errors import ImaAuthError, ImaError, ImaPermanentError, ImaRateLimitError
 from app.services.wiki.source_sync.ima.identity import NOTES_LANE
@@ -61,12 +63,21 @@ async def test_the_walk_goes_past_pages_that_are_empty_once_deleted_notes_are_dr
     assert await _statuses(ima_db) == {LedgerStatus.SYNCED}
 
 
+def _time_box_ends(ctx: SyncContext) -> None:
+    ctx.deadline = 0.0
+
+
+def _user_stops(ctx: SyncContext) -> None:
+    ctx.stop.set()
+
+
+@pytest.mark.parametrize("end_the_slice", [_time_box_ends, _user_stops], ids=["time box ends", "user stops"])
 async def test_the_walk_resumes_from_its_persisted_cursor_in_the_next_slice(
-    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession]
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], end_the_slice: Callable[[SyncContext], None]
 ) -> None:
     fake, config = _fake(NOTES_PAGE_LIMIT + 3), library_config(notes=True, kb_ids=())
     ctx = make_ctx(fake, tmp_path, config=config, state=ImaSyncState())
-    fake.after_notes_page = lambda: setattr(ctx, "deadline", 0.0)  # the time box ends once the first page is in
+    fake.after_notes_page = lambda: end_the_slice(ctx)  # the slice ends once the first page is in
 
     first = await run_slice(ctx)
 

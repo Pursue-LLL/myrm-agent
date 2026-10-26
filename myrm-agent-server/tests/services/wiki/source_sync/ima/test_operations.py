@@ -44,6 +44,7 @@ class Recorder:
     cleared: bool = False
     stopped: bool = False
     paused_exists: bool = True
+    events: list[str] = field(default_factory=list)
 
 
 @pytest.fixture
@@ -65,10 +66,12 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
     async def clear() -> bool:
         rec.cleared = True
         rec.stored = None
+        rec.events.append("credentials cleared")
         return True
 
     async def stop_all() -> int:
         rec.stopped = True
+        rec.events.append("jobs removed")
         return 1
 
     async def trigger(agent_id: str | None) -> None:
@@ -85,6 +88,8 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
     monkeypatch.setattr(operations, "save_credentials", save)
     monkeypatch.setattr(operations, "clear_credentials", clear)
     monkeypatch.setattr(operations, "stop_all_jobs", stop_all)
+    monkeypatch.setattr(operations, "stop_running_slice", lambda agent_id: rec.events.append(f"slice stopped:{agent_id}"))
+    monkeypatch.setattr(operations, "stop_running_slices", lambda: rec.events.append("slices stopped"))
     monkeypatch.setattr(operations, "trigger_if_active", trigger)
     monkeypatch.setattr(operations, "start_job", start)
     monkeypatch.setattr(operations, "pause_job", pause)
@@ -134,6 +139,12 @@ async def test_reconnecting_clears_the_reauth_flag_of_the_agent(
 async def test_disconnect_removes_credentials_and_every_job(recorder: Recorder) -> None:
     await operations.disconnect()
     assert recorder.cleared and recorder.stopped
+
+
+async def test_disconnect_ends_the_running_slices_once_the_jobs_are_gone_and_before_the_credentials(recorder: Recorder) -> None:
+    await operations.disconnect()
+
+    assert recorder.events == ["jobs removed", "slices stopped", "credentials cleared"]
 
 
 async def test_operations_require_a_connection(recorder: Recorder) -> None:
@@ -202,6 +213,13 @@ async def test_pause_and_resume_fail_clearly_when_sync_was_never_started(recorde
         with pytest.raises(ImaOperationError) as caught:
             await call
         assert caught.value.code == "ima_sync_not_started"
+    assert recorder.events == []
+
+
+async def test_pause_ends_the_running_slice_of_that_agent_only(recorder: Recorder) -> None:
+    await operations.pause_sync(agent_id="agent-1")
+
+    assert recorder.events == ["slice stopped:agent-1"]
 
 
 def inventory_item(key: str) -> InventoryItem:

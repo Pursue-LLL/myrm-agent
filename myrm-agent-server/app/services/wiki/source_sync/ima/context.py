@@ -6,8 +6,8 @@
 - app.database.connection::get_session (POS: DB sessions)
 
 [OUTPUT]
-- SyncContext: everything a slice needs, plus the time budget, throttled state persistence, the once-per-slice
-  key check (``require_valid_key``) and the item-failure tally behind the slice's single log line
+- SyncContext: everything a slice needs, plus the time budget, the user's stop signal, throttled state persistence,
+  the once-per-slice key check (``require_valid_key``) and the item-failure tally behind the slice's single log line
 
 [POS]
 Keeps inventory, import and engine decoupled: each takes the context instead of a long argument list.
@@ -44,6 +44,8 @@ class SyncContext:
     ledger: ImaLedger
     deadline: float
     compiler_enqueue: object | None = None
+    # Set when the user pauses or disconnects; every loop of the slice reads it through ``time_left``.
+    stop: asyncio.Event = field(default_factory=asyncio.Event)
     failures: Counter[str] = field(default_factory=Counter)
     failure_sample: str = ""
     _last_persist: float = field(default_factory=time.monotonic)
@@ -52,7 +54,8 @@ class SyncContext:
     _key_valid: bool | None = None
 
     def time_left(self) -> float:
-        return self.deadline - time.monotonic()
+        """Seconds the slice may still run; none once the user asked it to stop, so each loop ends at its next item."""
+        return 0.0 if self.stop.is_set() else self.deadline - time.monotonic()
 
     def note_failure(self, kind: str, cause: str) -> None:
         """Count one item failure toward the slice's log line; the first cause stays as its sample."""

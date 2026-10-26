@@ -180,6 +180,42 @@ async def test_slice_out_of_time_resumes_from_the_persisted_cursor(
     assert (await rows(ima_db))["deep.md"].status == LedgerStatus.SYNCED
 
 
+async def test_a_stop_request_ends_the_import_at_an_item_boundary_and_the_next_slice_goes_on(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ids = [f"m{index}" for index in range(8)]
+    fake = FakeIma(
+        pages={("kb1", ""): page(*(entry(media_id, f"{media_id}.md") for media_id in ids))},
+        media={media_id: file_info(7, url(media_id)) for media_id in ids},
+    )
+    state, config = ImaSyncState(), library_config()
+    ctx = make_ctx(fake, tmp_path, config=config, state=state)
+    served = Downloads()
+
+    async def download(source_url: str, headers: dict[str, str]) -> bytes:
+        body = await served(source_url, headers)
+        if len(served.calls) == 2:
+            ctx.stop.set()  # the user pauses while the second document is being fetched
+        return body
+
+    monkeypatch.setattr("app.services.wiki.source_sync.ima.content.download_media", download)
+
+    stopped = await run_slice(ctx)
+
+    assert not stopped.finished and stopped.retry_after_s == 5.0 and state.phase == "fetch"
+    statuses = [row.status for row in (await rows(ima_db)).values()]
+    assert LedgerStatus.FAILED not in statuses
+    # At most the three documents being imported when the stop came finish (and one earlier one); none is started after it.
+    assert 2 <= statuses.count(LedgerStatus.SYNCED) <= 4
+    assert statuses.count(LedgerStatus.PENDING) == len(ids) - statuses.count(LedgerStatus.SYNCED)
+
+    resumed = await run_pass(fake, tmp_path, state, config)
+
+    assert resumed.finished
+    assert {row.status for row in (await rows(ima_db)).values()} == {LedgerStatus.SYNCED}
+    assert sorted(served.calls) == sorted(url(media_id) for media_id in ids)
+
+
 async def test_changing_the_selection_restarts_the_inventory_and_holds_back_auto_compile(
     tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], downloads: Downloads
 ) -> None:

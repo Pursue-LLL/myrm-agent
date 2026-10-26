@@ -5,13 +5,14 @@
 - app.core.cron.adapters.wiki_router_job_runner::WIKI_IMA_SYNC_COMMAND (POS: router command id)
 
 [OUTPUT]
-- find_job / start_job / pause_job / resume_job / stop_all_jobs / trigger_if_active
+- find_job / is_job_active / start_job / pause_job / resume_job / stop_all_jobs / trigger_if_active
 
 [POS]
 One INTERVAL router job per agent drives the lane: ``trigger_now`` starts a backfill immediately, each slice
 re-arms itself through ``JobResult.retry_at``, and the interval then keeps the library incrementally in sync.
 Pause / resume map to the cron manager so the user controls the same job the scheduler runs; disconnecting
-removes every agent's job because the credentials they share are gone.
+removes every agent's job because the credentials they share are gone. A slice that fired for the job asks
+``is_job_active`` before it starts, so a pause that landed in between is honoured.
 """
 
 from __future__ import annotations
@@ -40,6 +41,12 @@ async def find_job(agent_id: str | None) -> CronJob | None:
         if job.command == WIKI_IMA_SYNC_COMMAND and normalize_agent_scope(job.agent_id) == scope:
             return job
     return None
+
+
+async def is_job_active(agent_id: str | None) -> bool:
+    """Whether the agent's sync job exists and is neither paused nor removed."""
+    job = await find_job(agent_id)
+    return job is not None and job.status == JobStatus.ACTIVE
 
 
 async def start_job(agent_id: str | None, *, locale: str) -> None:
