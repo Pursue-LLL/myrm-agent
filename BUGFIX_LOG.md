@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 外部 CLI 委托：长任务期间被 idle 驱逐，关闭服务时子进程无人收尾
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 把一个耗时超过 10 分钟的任务委托给外部 CLI（Claude Code / Codex 等）时，中途换去别的对话发消息，正在跑的 CLI 被无声杀掉（SIGTERM，退出码 -15），委托回合被截断；同一对话再发委托，会与残留回合并发（同 chat 串行性失效）并从头开始（`--resume` 会话 id 丢失）。另：退出应用时没有任何代码收尾外部 CLI 运行时池 |
+| **根因 1** | `ChatRuntimePoolRegistry._evict_idle_unlocked` 只看 `last_used`，不看该 chat 的 turn lock 是否被持有；`last_used` 仅在 `acquire` / `release` 时刷新，委托回合期间不刷新 → 回合一旦超过 idle 窗口（默认 600s），其他 chat 的任意一次 `acquire` 就会 `close_all()` 在途 pool 并弹出 lock 对象 |
+| **根因 2** | `ChatRuntimePoolRegistry.close_all()` 只被测试调用，`lifespan._shutdown` 没有接线；ACP 常驻进程（用户手选的后端类型）与进行中的 CLI 子进程没有任何显式收尾代码 |
+| **修复** | ① 驱逐谓词复用 `_is_turn_active`（与 fingerprint 变更 defer 同一判据），持 turn lock 的 chat 不驱逐；② `guard_turn` 在 `finally` 中刷新 idle 计时（回合成功/失败/取消都从回合结束重新计时）；③ 新增 `safe_close_external_agent_pools`，在 `lifespan._shutdown` 并行关闭阶段调用 `close_all`（Gateway 已 drain） |
+| **回归证据** | 新增 3 个 registry 用例（在途回合不被驱逐且 lock 保留、回合结束刷新 idle 计时且真正空闲仍被回收、回合抛错同样刷新）+ 2 个 shutdown 用例（关闭已注册 pool、异常被吞）；把这 3 个 registry 用例对着 HEAD 旧实现运行：**3 failed / 14 passed**（`Expected 'close_all' to not have been called. Called 1 times.`），新实现 **24 passed**（registry + shutdown）；`tests/server` + `tests/services/external_agents` + 删 chat 与 gate 相关用例共 **59 passed**；ruff check / ruff format / pyright 0 error |
+| **仍然存在** | idle 驱逐仍只在 `acquire` 时机性触发，无后台 reaper（无新 acquire 时空闲 pool 不会被回收，进程退出时由 ③ 统一收尾）；真实 `claude` / `codex` 二进制与 10 分钟级真实时长未做端到端验证（用假 CLI 进程 + 真实 RuntimePool 复现过 SIGTERM / 并发 2 的现象，脚本未入库） |
+
 ## 2026-10-24 · 思考过程：首帧被丢弃 + 历史思考无法回看（附带一次被自我推翻的方案）
 
 | 字段 | 内容 |

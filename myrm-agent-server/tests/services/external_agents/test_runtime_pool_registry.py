@@ -21,6 +21,17 @@ async def _reset_registry_singleton() -> None:
     await get_chat_runtime_pool_registry().close_all()
 
 
+async def _build_mock_pool() -> MagicMock:
+    pool = MagicMock()
+    pool.available_backends = ["claude"]
+    pool.close_all = AsyncMock()
+    return pool
+
+
+async def _unexpected_build() -> MagicMock:
+    raise AssertionError("the existing pool must be reused, not rebuilt")
+
+
 @pytest.mark.asyncio
 async def test_acquire_reuses_pool_for_same_chat_and_fingerprint() -> None:
     registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
@@ -92,6 +103,71 @@ async def test_idle_eviction_closes_stale_pool() -> None:
     await asyncio.sleep(0.02)
     await registry.acquire("chat-2", "fp-a", build_pool)
     pool.close_all.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_idle_eviction_skips_pool_with_turn_in_flight() -> None:
+    """A delegation that outlives the idle window keeps its pool and its turn lock."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.02)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+    started = asyncio.Event()
+    release = asyncio.Event()
+    running = 0
+    peak_running = 0
+
+    async def turn() -> None:
+        nonlocal running, peak_running
+        async with registry.guard_turn("chat-1"):
+            running += 1
+            peak_running = max(peak_running, running)
+            started.set()
+            await release.wait()
+            running -= 1
+
+    first = asyncio.create_task(turn())
+    await started.wait()
+    await asyncio.sleep(0.05)
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+
+    pool.close_all.assert_not_called()
+    assert await registry.acquire("chat-1", "fp-a", _unexpected_build) is pool
+
+    second = asyncio.create_task(turn())
+    await asyncio.sleep(0.01)
+    assert peak_running == 1
+    release.set()
+    await asyncio.gather(first, second)
+    assert peak_running == 1
+
+
+@pytest.mark.asyncio
+async def test_guard_turn_exit_restarts_idle_clock() -> None:
+    """A turn longer than the idle window must not get its pool evicted the moment it ends."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.05)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+
+    async with registry.guard_turn("chat-1"):
+        await asyncio.sleep(0.08)
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+    pool.close_all.assert_not_called()
+
+    await asyncio.sleep(0.08)
+    await registry.acquire("chat-3", "fp-a", _build_mock_pool)
+    pool.close_all.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_guard_turn_restarts_idle_clock_when_turn_fails() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.05)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+
+    with pytest.raises(RuntimeError, match="delegation failed"):
+        async with registry.guard_turn("chat-1"):
+            await asyncio.sleep(0.08)
+            raise RuntimeError("delegation failed")
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+
+    pool.close_all.assert_not_called()
 
 
 @pytest.mark.asyncio

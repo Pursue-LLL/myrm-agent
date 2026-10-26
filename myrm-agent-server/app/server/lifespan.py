@@ -61,6 +61,7 @@ from app.lifecycle import (
 )
 from app.server.shutdown import (
     safe_close_checkpointer,
+    safe_close_external_agent_pools,
     safe_shutdown_observability,
     safe_stop_cron,
     safe_stop_gateway,
@@ -883,6 +884,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         stop_kanban_dispatchers(),
         shutdown_global_browser_pool(),
         safe_close_checkpointer(_checkpointer_cleanup),
+        safe_close_external_agent_pools(),
         stop_auth_alert_monitor(),
         stop_auth_log_cleanup_scheduler(),
         stop_context_compaction_telemetry_dispatcher(),

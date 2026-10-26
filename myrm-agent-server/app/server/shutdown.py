@@ -11,6 +11,7 @@
 - safe_stop_gateway: 安全停止 Channel Gateway
 - safe_stop_task_worker: 安全停止任务 Worker
 - safe_close_checkpointer: 安全关闭 Checkpointer
+- safe_close_external_agent_pools: 安全关闭外部 CLI/ACP Agent 运行时池
 - safe_stop_maintenance_daemon: 安全停止维护守护进程
 - safe_wait_background_tasks: 等待 Harness 后台任务完成
 - safe_shutdown_observability: 安全关闭 OpenTelemetry
@@ -66,6 +67,17 @@ async def safe_close_checkpointer(cleanup_fn: Callable[[], Awaitable[None]] | No
         await close_subagent_checkpointer()
     except Exception as exc:
         logger.debug("[Shutdown] Subagent checkpointer close error: %s", exc)
+
+
+async def safe_close_external_agent_pools() -> None:
+    """Close every chat-scoped external CLI/ACP runtime pool (in-flight turns are already drained)."""
+    try:
+        from app.services.external_agents import get_chat_runtime_pool_registry
+
+        await get_chat_runtime_pool_registry().close_all()
+        logger.info("[Shutdown] External agent runtime pools closed")
+    except Exception as e:
+        logger.warning("[Shutdown] External agent runtime pool close failed: %s", e)
 
 
 async def safe_stop_maintenance_daemon() -> None:

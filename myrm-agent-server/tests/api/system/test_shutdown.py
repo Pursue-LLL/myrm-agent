@@ -91,3 +91,39 @@ async def test_safe_shutdown_observability_helper() -> None:
     ) as mock_shutdown:
         await safe_shutdown_observability()
         mock_shutdown.assert_called_once_with(timeout_ms=1500.0)
+
+
+@pytest.mark.asyncio
+async def test_safe_close_external_agent_pools_closes_registered_pools() -> None:
+    """Shutdown closes every chat-scoped external agent pool held by the registry."""
+    from app.server.shutdown import safe_close_external_agent_pools
+    from app.services.external_agents.runtime_pool_registry import ChatRuntimePoolRegistry
+
+    registry = ChatRuntimePoolRegistry()
+    pool = MagicMock()
+    pool.available_backends = ["claude"]
+    pool.close_all = AsyncMock()
+
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+
+    with patch("app.services.external_agents.get_chat_runtime_pool_registry", return_value=registry):
+        await safe_close_external_agent_pools()
+
+    pool.close_all.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_safe_close_external_agent_pools_swallows_registry_errors() -> None:
+    """A failing pool close must never abort the rest of the shutdown sequence."""
+    from app.server.shutdown import safe_close_external_agent_pools
+
+    registry = MagicMock()
+    registry.close_all = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with patch("app.services.external_agents.get_chat_runtime_pool_registry", return_value=registry):
+        await safe_close_external_agent_pools()
+
+    registry.close_all.assert_awaited_once()

@@ -11,7 +11,8 @@
 [POS]
 Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness RuntimePool，
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
-消息结束后刷新 idle 计时；配置变更或 idle 超时再 close。
+idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 驱逐。
+配置变更或 idle 超时再 close；服务关闭时由 close_all 统一收尾。
 """
 
 from __future__ import annotations
@@ -53,13 +54,21 @@ class ChatRuntimePoolRegistry:
 
     @asynccontextmanager
     async def guard_turn(self, chat_scope_id: str | None) -> AsyncGenerator[None, None]:
-        """Serialize external CLI turns for one chat (one CliRuntime subprocess)."""
+        """Serialize external CLI turns for one chat (one CliRuntime subprocess).
+
+        The idle clock restarts when the turn ends, so a delegation that outlived the
+        idle window is not evicted the moment it finishes (which would drop the CLI
+        session id used for ``--resume``).
+        """
         if not chat_scope_id:
             yield
             return
         turn_lock = self._turn_locks.setdefault(chat_scope_id, asyncio.Lock())
         async with turn_lock:
-            yield
+            try:
+                yield
+            finally:
+                self._touch(chat_scope_id)
 
     async def acquire(
         self,
@@ -77,8 +86,8 @@ class ChatRuntimePoolRegistry:
                 return entry.pool
 
             if entry is not None:
-                turn_lock = self._turn_locks.get(chat_scope_id)
-                if entry.config_fingerprint != config_fingerprint and turn_lock is not None and turn_lock.locked():
+                # The matching-fingerprint case returned above, so reaching here means the config changed.
+                if self._is_turn_active(chat_scope_id):
                     logger.warning(
                         "runtime_pool_replace_deferred chat=%s reason=config_changed_active_turn",
                         chat_scope_id,
@@ -86,11 +95,7 @@ class ChatRuntimePoolRegistry:
                     entry.last_used = time.monotonic()
                     return entry.pool
 
-                logger.info(
-                    "runtime_pool_replace chat=%s reason=%s",
-                    chat_scope_id,
-                    "config_changed" if entry.config_fingerprint != config_fingerprint else "missing",
-                )
+                logger.info("runtime_pool_replace chat=%s reason=config_changed", chat_scope_id)
                 await entry.pool.close_all()
 
             pool = await build_pool()
@@ -105,9 +110,7 @@ class ChatRuntimePoolRegistry:
     async def release(self, chat_scope_id: str) -> None:
         """Mark a chat pool idle after a message completes (does not close CLI)."""
         async with self._lock:
-            entry = self._entries.get(chat_scope_id)
-            if entry is not None:
-                entry.last_used = time.monotonic()
+            self._touch(chat_scope_id)
 
     async def close_chat(self, chat_scope_id: str) -> None:
         """Explicitly tear down a chat pool (e.g. conversation deleted)."""
@@ -129,9 +132,25 @@ class ChatRuntimePoolRegistry:
             self._entries.clear()
             self._turn_locks.clear()
 
+    def _is_turn_active(self, chat_scope_id: str) -> bool:
+        """True while a delegation turn holds the chat's turn lock."""
+        turn_lock = self._turn_locks.get(chat_scope_id)
+        return turn_lock is not None and turn_lock.locked()
+
+    def _touch(self, chat_scope_id: str) -> None:
+        """Restart the idle clock of a chat pool (no-op once the pool is gone)."""
+        entry = self._entries.get(chat_scope_id)
+        if entry is not None:
+            entry.last_used = time.monotonic()
+
     async def _evict_idle_unlocked(self) -> None:
+        """Close pools idle past the window; a pool with an in-flight turn is never idle."""
         now = time.monotonic()
-        stale = [chat_scope_id for chat_scope_id, entry in self._entries.items() if now - entry.last_used > self._idle_seconds]
+        stale = [
+            chat_scope_id
+            for chat_scope_id, entry in self._entries.items()
+            if now - entry.last_used > self._idle_seconds and not self._is_turn_active(chat_scope_id)
+        ]
         for chat_scope_id in stale:
             entry = self._entries.pop(chat_scope_id)
             self._turn_locks.pop(chat_scope_id, None)
