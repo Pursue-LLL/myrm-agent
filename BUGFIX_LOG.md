@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 团队蓝图：一键创建的 research_squad / code_audit_squad 成员没有工具，数据分析员反而继承全部工具
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 一键创建「调研小队 / 代码审计小队」后，成员的工具白名单写的是界面式名字（`web_search`、`browser`、`read_file`、`bash_run_command`），没有一个与 harness 注册名相同，成员启动时没有任何工具；`data_analyst` 的 `tools: []` 在过滤器里表示"继承父 agent 全部工具"，它反而拿到全部（包括写工具） |
+| **根因** | `AgentConfigPanel.tsx` 的 `BLUEPRINT_TEMPLATES` 手写工具名，从未与 `TOOL_TO_GROUP` 或 harness 注册名对照；子 agent 的 `filter_tools` 对白名单做精确匹配，空白名单等于继承全部 |
+| **修复** | 改用注册名：researcher 拿 web 与浏览器六个工具，analyst 拿 `file_read_tool` / `grep_tool` / `glob_tool` 与两个 web 工具，两个审计员拿读工具加 `bash_code_execute_tool`（保持原先"读 + 执行"的意图）。新增 server 架构测试 `test_blueprint_template_tools_parity.py` 解析 TSX：白名单不得为空、名字必须在 `TOOL_TO_GROUP`，带校准用例防止正则失配后空转 |
+| **回归证据** | 先写测试，旧模板上变红（名字不在注册表、空白名单），改后变绿；`test_blueprint_materializer.py::TestMaterializedChildrenToolBoundary` 经 `filter_tools` 断言没有白名单的成员也拿不到记忆写工具 |
+| **仍然存在** | 只在代码层核对，没有打开界面一键创建后实跑一次；是否该让只读审计员带代码执行工具由产品决定，本次没有改动这一取舍 |
+
 ## 2026-10-26 · 外部 CLI 委托：服务重启后 `--resume` id 丢失；取消正在续接的回合会把仍然有效的 id 当成“过期”删掉
 
 | 字段 | 内容 |

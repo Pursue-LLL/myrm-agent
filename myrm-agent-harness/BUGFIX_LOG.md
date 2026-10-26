@@ -2,6 +2,20 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-26-006 · 子 agent 继承父 agent 的 memory_save_tool / memory_manage_tool：记忆隔离策略挡不住它们，ReadOnlyMemoryView 另有十个写方法没人归类
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（逐个核对 `MemoryIsolationPolicy` 三个取值各自隔离了什么） |
+| **修复时间** | 2026-10-26 |
+| **严重程度** | P1：`EPHEMERAL_SESSION` / `COLLABORATIVE_SESSION` 子 agent（含内置 research_squad 里 `tools: []` 的分析员）持有父 agent 的记忆写工具，可以写所有者的长期记忆；隔离策略看上去生效，实际只管住了 ContextVar 读路径 |
+| **关联产品** | harness `agent/sub_agents`、`toolkits/memory/ephemeral` |
+| **根因** | ① `memory_save_tool` / `memory_manage_tool` 闭包绑定在父 agent 的 `MemoryManager` 上，任何策略都改不了它们的目标；只有 `READ_ONLY_GLOBAL` 在 `enforce_spawn_policy_on_config` 里摘掉它们，而深度研究路径不调用这个函数。② `spawn_prep.memory_isolation_scope` 给子 agent 的 ContextVar 管理器是 dict 版 `EphemeralMemoryManager`（`COLLABORATIVE_SESSION` 另有并行子 agent 共享的写入层）；写工具指向父管理器，读码没有找到任何写入这两层的路径，它们是摆设。③ `ReadOnlyMemoryView` 跳过 `MemoryManager.__init__`，每个公有成员必须明确是「委托读」或「拒绝写」；十个写方法（`delete_memories_by_ids`、`set_system_profile_attribute`、`sparse_mutate_memory` 等）从未归类，只因为槽位缺失才碰巧失败。 |
+| **修复** | ① 两个工具进入 L1（`DELEGATION_CAPABILITY_MANIFEST.leaf_blocked_tools`，与 `cron_manage_tool` 同列），对每个 `filter_tools` 调用方生效，显式白名单也解不开；`READ_ONLY_GLOBAL` 的特例随之删除。② 三个策略统一给子 agent 父记忆的 `ReadOnlyMemoryView`；删除 `EphemeralMemoryManager`、`_CollaborativeMemoryHost` 以及 `memory_isolation_scope` 的 parent / config 参数。枚举三个取值保留，宿主用它们决定子 agent 自带哪种记忆管理器。③ 写拒绝集中到 `DeniedMemoryWrites` mixin，补上十个未归类的写方法，视图的槽位全部初始化。 |
+| **回归** | `test_delegation_policy.py` 通过 `filter_tools` 断言每个策略、显式白名单和深度研究子配置下都没有这两个写工具，`test_verifier_selection.py` 对验证子 agent 同样断言；`test_read_only_view_surface.py` 枚举 `MemoryManager` 的公有面，任何既非「委托读」也非「拒绝写」的成员都会使它变红。 |
+| **仍然存在** | 自带真实 `MemoryManager` 的子 agent（server 里非 EPHEMERAL 的自定义 agent、JIT 蓝图）在会话结束时走 `_cleanup_session` → `review.py` 的会话收尾（抽取、复发检查），这条路径是否写记忆本次没有检查。本条只能解读为"子 agent 拿不到父管理器的写工具和写入口"，不能解读为"子 agent 不可能写记忆"。 |
+
 ### BUG-HARNESS-2026-10-26-005 · evaluate 只拦「method 写在首位的 fetch POST」，DELETE / PUT / PATCH / sendBeacon 与 method 靠后的 POST 无人审批直接执行
 
 | 字段 | 内容 |
