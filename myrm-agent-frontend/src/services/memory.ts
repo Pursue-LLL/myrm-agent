@@ -3,6 +3,7 @@
  */
 
 export * from './memory/core';
+export * from './memory/guardian';
 export * from './memory/archive';
 export * from './memory/commandCenter';
 export * from './memory/preferences';

@@ -25,7 +25,8 @@ import pytest
 import pytest_asyncio
 
 from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import is_sparse_authoritative
-from myrm_agent_harness.toolkits.memory._manager import MemoryManager, import_export
+from myrm_agent_harness.toolkits.memory._manager import MemoryManager
+from myrm_agent_harness.toolkits.memory._manager.import_export import mixin as import_export_mixin
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -160,7 +161,7 @@ async def test_forgetting_spares_what_the_agent_used_and_archives_its_untouched_
 
 @pytest.mark.asyncio
 async def test_export_reads_every_page_of_a_real_store(manager: MemoryManager, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(import_export, "_EXPORT_PAGE_SIZE", 2)
+    monkeypatch.setattr(import_export_mixin, "_EXPORT_PAGE_SIZE", 2)
     await manager.store_batch([_old_hotel(f"quasimoto{i}") for i in range(5)])
     await manager.add_rule("deploying", "run smoke tests first")
     await manager.add_rule("reviewing", "read the diff twice")

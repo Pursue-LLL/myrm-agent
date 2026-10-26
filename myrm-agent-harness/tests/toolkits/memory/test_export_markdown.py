@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._manager.import_export import (
+from myrm_agent_harness.toolkits.memory._manager.import_export.markdown_render import (
     _memory_to_markdown,
     _sanitize_filename,
     sanitize_paths_for_sharing,
@@ -541,6 +541,36 @@ class TestExportMarkdownIntegration:
         assert len(files) == 1
         content = files[0].read_text(encoding="utf-8")
         assert "New memory" in content
+
+    @pytest.mark.asyncio
+    async def test_memory_types_filter_reads_only_the_requested_types(self, tmp_export_dir: Path) -> None:
+        from myrm_agent_harness.toolkits.memory._manager.import_export import (
+            MemoryManagerImportExportMixin,
+        )
+        from myrm_agent_harness.toolkits.memory.types import MemoryType
+
+        read: list[MemoryType] = []
+
+        async def export_type(mem_type: MemoryType) -> list[dict[str, object]]:
+            read.append(mem_type)
+            return [
+                {
+                    "id": f"{mem_type.value}-1",
+                    "content": f"{mem_type.value} entry",
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                    "updated_at": "2024-01-01T00:00:00+00:00",
+                    "metadata": {},
+                }
+            ]
+
+        mixin = MemoryManagerImportExportMixin()
+        mixin._export_type = export_type  # type: ignore[method-assign]
+
+        counts = await mixin.export_markdown(tmp_export_dir, memory_types=[MemoryType.SEMANTIC])
+
+        assert read == [MemoryType.SEMANTIC]
+        assert counts == {"semantic": 1}
+        assert [entry.name for entry in tmp_export_dir.iterdir()] == ["semantic"]
 
 
 class TestSanitizePathsForSharing:

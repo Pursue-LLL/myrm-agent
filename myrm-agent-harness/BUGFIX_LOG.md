@@ -10,11 +10,11 @@
 | **发现时间** | 2026-10-26（对照 `export_all` 的读取方式与备份的完整性校验） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P1：记忆超过 10000 条时，导出文件与「导出了 N 条」的提示都少了尾部的记忆，没有任何报错；备份的完整性校验发现不一致后整份拒绝，用户一份备份都得不到；任一类型读取抛错只记一条 warning，该类型在导出里直接消失 |
-| **关联产品** | harness `toolkits/memory/_manager/import_export.py`、`_internal/storage_by_type.py`；server `app/services/memory/backup/snapshot.py` |
+| **关联产品** | harness `toolkits/memory/_manager/import_export/mixin.py`、`_internal/storage_by_type.py`；server `app/services/memory/backup/snapshot.py` |
 | **根因** | `export_all` 对每个类型只调用一次 `list_memories(limit=10000)`，没有读下一页；读取异常被 `except` 捕获后只写 warning（`Export failed for episodic: ...`），返回的是少了一个类型的「成功」结果。 |
 | **修复** | 新增 `iter_pages_by_type`：向量类型沿存储自己的游标读到最后一页（一遍扫完；不用 `order_by` 加偏移模拟，那样每页要重读前面所有行，还会漏掉没有 `_created_ts` 的点位），关系库类型按偏移读到「读到的行数」不足一页为止（内部 `_system_` 档案键读后才隐藏，满页含内部键不会被当成末页）；`export_all` 每页 2000 条（每页带向量，限制工作集），读取失败直接抛出；备份的 `capture_snapshot` 把失败改成不含存储细节的 `SnapshotError`，不写文件、不上传。同时删除没有调用方的 `agent_id` 子串切片（`a1` 会命中 `a10`、`global` 导出全部）：Markdown 导出、规则安全导出与前端客户端不再有该参数。 |
 | **回归** | `test_export_paging.py` 15 例（游标读到末页、整页倍数没有空尾页、空集合、归档开关、`task_digest` 只读情景集合的摘要、中途失败抛出、规则与档案按偏移读到短页、满页含内部键仍继续、没有存储时不产出；`export_all` 跨页、不封顶于一万条（10050 条）、含归档且不含 embedding、只列有数据的类型、中途失败抛出）；`test_usage_stamp_end_to_end.py` 在真实嵌入式 Qdrant 上两种存储形态各读 5 条语义、3 条规则、1 条档案（每页 2 条）；server `test_snapshot.py`（失败转为不含细节的 `SnapshotError`）。修复前的源码上「不封顶」与「失败抛出」两例变红（`10000 == 10050` 不成立；`DID NOT RAISE`）。端到端（真实嵌入式 Qdrant，10300 条语义记忆）：修复前提示与文件都是 10000 条、漏 300 条，修复后 10300 条、漏 0，耗时 1.2 s，内存增量 74 MB（修复前 147 MB）。 |
-| **仍然存在** | ① 导出期间别处新写入的记忆是否被带上，取决于写入落在游标之前还是之后；备份先读计数再导出，只会放行不少于计数的结果。② 备份的合并恢复查重只看已存的前 10000 条（`_STORED_LOOKUP_LIMIT`），库内超过后合并恢复可能重复写入，本次未改。③ 只在嵌入式 Qdrant 与合成数据上取证，远程 Qdrant 的游标行为与耗时未实测。 |
+| **仍然存在** | ① 导出期间别处新写入的记忆是否被带上，取决于写入落在游标之前还是之后；备份先读计数再导出，只会放行不少于计数的结果。② 备份的合并恢复查重只看已存的前 10000 条（`_STORED_LOOKUP_LIMIT`），库内超过后合并恢复可能重复写入，本次未改。③ 只在嵌入式 Qdrant 与合成数据上取证，远程 Qdrant 的游标行为与耗时未实测。④ 导出的对称面 `import_memories(skip_duplicates=False)` 并不会关闭去重：各存储在构造时就捕获了去重函数（`toolkits/memory/_internal/dedup_funcs.py` 的 `build_semantic_deduplicator`），导入时临时清空 `self._deduplicator` 对它们没有影响；嵌入式 Qdrant 上用词法哈希替身嵌入实测，余弦 0.9694 的近似重复在 `True` 与 `False` 下都被丢弃（日志 `Dedup: skipped 1/1 near-duplicates`），同一批内的两条都写入（2 / 2）。网页界面始终传 `true`；备份的替换恢复先清空各类型并核对为空再导入，不受影响；直接调接口传 `false` 的调用方会比预期少写，本次未改。 |
 
 ### BUG-HARNESS-2026-10-27-004 · 记忆健康度的「覆盖度」取存储里的第一行：同样的数据，行序不同，覆盖度一个 0.0 一个 1.0
 

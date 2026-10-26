@@ -3,8 +3,11 @@
 [INPUT]
 - storage_converters::{doc_to_semantic, doc_to_episodic, doc_to_conversation, _user_filter} (POS: stateless
   conversion layer)
-- memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ProceduralMemory, MemoryType} (POS: memory
-  data models)
+- memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ProceduralMemory, ProfileEntry, MemoryType}
+  (POS: memory data models)
+- memory.protocols.vector::VectorStoreProtocol, memory.protocols.relational::RelationalStoreProtocol (POS: store
+  contracts the helpers read and delete through)
+- memory.config::MemoryConfig (POS: collection names per memory type)
 
 [OUTPUT]
 - list_by_type, count_by_type, delete_by_type: Type-dispatched CRUD helpers used by the memory management API

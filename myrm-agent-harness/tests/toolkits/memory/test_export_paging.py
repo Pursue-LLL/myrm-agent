@@ -15,7 +15,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory._internal.storage_by_type import iter_pages_by_type
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import episodic_to_doc, semantic_to_doc
-from myrm_agent_harness.toolkits.memory._manager import MemoryManager, import_export
+from myrm_agent_harness.toolkits.memory._manager import MemoryManager
+from myrm_agent_harness.toolkits.memory._manager.import_export import mixin as import_export_mixin
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.types import (
     EpisodicMemory,
@@ -230,7 +231,7 @@ def _manager(vector: DenseVectorStore | None, relational: FakeRelational | None 
 
 @pytest.mark.asyncio
 async def test_export_all_reads_past_a_single_page(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(import_export, "_EXPORT_PAGE_SIZE", 2)
+    monkeypatch.setattr(import_export_mixin, "_EXPORT_PAGE_SIZE", 2)
     store = _store_of(5)
     relational = FakeRelational(rules=[_rule(i) for i in range(3)])
 
@@ -270,7 +271,7 @@ async def test_export_all_lists_only_the_types_that_hold_rows() -> None:
 
 @pytest.mark.asyncio
 async def test_export_all_fails_when_the_store_fails_part_way(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(import_export, "_EXPORT_PAGE_SIZE", 2)
+    monkeypatch.setattr(import_export_mixin, "_EXPORT_PAGE_SIZE", 2)
     store = FlakyStore()
     for i in range(5):
         store.put(CONFIG.semantic_collection, _semantic_doc(i))

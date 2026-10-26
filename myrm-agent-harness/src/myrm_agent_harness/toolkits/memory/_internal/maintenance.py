@@ -292,7 +292,7 @@ _RELATION_CONCURRENCY = 10
 
 
 async def _estimate_relation_counts(
-    memories: list[SemanticMemory] | list[EpisodicMemory],
+    memories: Sequence[SemanticMemory | EpisodicMemory],
     collection: str,
     vector: VectorStoreProtocol,
     namespaces: list[str] | None = None,
@@ -304,7 +304,7 @@ async def _estimate_relation_counts(
     same namespaces as the candidate pool so cross-scope memories never
     inflate another agent's retention score.
     """
-    embeddable = [(m.id, m.embedding) for m in memories if getattr(m, "embedding", None)]
+    embeddable = [(m.id, m.embedding) for m in memories if m.embedding]
     if not embeddable:
         return {}
 
@@ -420,14 +420,14 @@ async def sweep_orphaned_blobs(
         return 0
 
     # 2. Scroll through Qdrant to find active blob pointers
-    active_blobs = set()
-    next_offset = 0
-    while next_offset is not None:
+    active_blobs: set[str] = set()
+    cursor: str | None = None
+    while True:
         try:
-            docs, next_offset = await vector.scroll(
+            docs, cursor = await vector.scroll(
                 config.conversation_collection,
                 limit=1000,
-                offset=next_offset,
+                offset=cursor,
                 filters=None,
             )
             if not docs:
@@ -441,6 +441,8 @@ async def sweep_orphaned_blobs(
         except Exception as e:
             logger.error("Blob GC scroll failed. Aborting GC to prevent data loss: %s", e)
             return 0
+        if cursor is None:
+            break
 
     # 3. Delete orphaned blobs
     orphans = disk_blobs - active_blobs

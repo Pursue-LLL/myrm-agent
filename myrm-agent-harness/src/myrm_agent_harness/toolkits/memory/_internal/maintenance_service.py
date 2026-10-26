@@ -165,7 +165,7 @@ class MaintenanceService:
 
             if count > 0:
                 try:
-                    # Newest row, not the store's first one: freshness must follow the latest write.
+                    # Sample the most recently updated row: a type's freshness is its latest write.
                     recent = await list_memories_func(memory_type, limit=1, sort_by="updated_at")
                     if recent:
                         health_input.type_latest_update[memory_type.value] = recent[0].updated_at

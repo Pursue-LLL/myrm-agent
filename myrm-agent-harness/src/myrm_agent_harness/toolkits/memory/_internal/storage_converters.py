@@ -44,6 +44,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     ConversationMemory,
     EpisodicMemory,
     MemoryType,
+    PreferenceType,
     SemanticMemory,
 )
 
@@ -168,11 +169,11 @@ def _string_list_from_metadata(meta: Mapping[str, object], key: str) -> list[str
 def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
     """Convert VectorDocument to SemanticMemory."""
     meta = doc.metadata
-    raw_pref = str(meta.get("preference_type", ""))
-    pref_type = raw_pref if raw_pref in ("explicit", "implicit") else None
+    raw_pref = meta.get("preference_type")
+    pref_type: PreferenceType | None = (
+        "explicit" if raw_pref == "explicit" else "implicit" if raw_pref == "implicit" else None
+    )
     raw_corr = str(meta.get("correction_of", ""))
-    raw_lang = str(meta.get("language", "en"))
-    lang = raw_lang if raw_lang in ("zh", "en") else "en"
     extra: dict[str, str | int | float | bool] = {}
     for k, v in meta.items():
         if k not in _SEMANTIC_KNOWN_KEYS and isinstance(v, (str, int, float, bool)):
@@ -201,7 +202,7 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
         metadata=extra,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
-        language=lang,
+        language="zh" if meta.get("language") == "zh" else "en",
         merge_count=_safe_int(meta.get("merge_count", 0)),
         merge_history=str(meta.get("merge_history", "")),
         scope=_scope_from_metadata(meta),
@@ -217,8 +218,6 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
 def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
     """Convert VectorDocument to EpisodicMemory."""
     meta = doc.metadata
-    raw_lang = str(meta.get("language", "en"))
-    lang = raw_lang if raw_lang in ("zh", "en") else "en"
     extra: dict[str, str | int | float | bool] = {}
     for k, v in meta.items():
         if k not in _EPISODIC_KNOWN_KEYS and isinstance(v, (str, int, float, bool)):
@@ -243,7 +242,7 @@ def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
         metadata=extra,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
-        language=lang,
+        language="zh" if meta.get("language") == "zh" else "en",
         merge_count=_safe_int(meta.get("merge_count", 0)),
         merge_history=str(meta.get("merge_history", "")),
         scope=_scope_from_metadata(meta),
