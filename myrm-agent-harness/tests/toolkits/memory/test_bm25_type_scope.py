@@ -13,11 +13,11 @@ from uuid import uuid4
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import (
     BM25SparseIndexStore,
     wrap_with_bm25_sparse_index,
 )
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import bm25_scope
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.query import bm25_scope
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager

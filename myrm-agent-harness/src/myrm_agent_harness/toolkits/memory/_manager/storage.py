@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
-    BM25SparseIndexStore,
-)
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import BM25SparseIndexStore
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     episodic_to_doc,
     semantic_to_doc,

@@ -3,7 +3,7 @@
 [INPUT]
 - memory.protocols.vector::{VectorStoreProtocol, VectorDocument} (POS: vector protocol)
 - memory.config::MemoryConfig (POS: collection names, bm25_top_k)
-- memory._internal.bm25_sparse_encoding::{bm25_collection_for, query_to_sparse} (POS: sparse encoding)
+- memory._internal.bm25_sparse.encoding::{bm25_collection_for, query_to_sparse} (POS: sparse encoding)
 - memory._internal.storage_converters::{_user_filter, doc_to_episodic, doc_to_semantic} (POS: converters)
 - memory.types::{MemorySearchResult, MemoryType} (POS: memory data models)
 
@@ -31,7 +31,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Final
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.encoding import (
     bm25_collection_for,
     query_to_sparse,
 )

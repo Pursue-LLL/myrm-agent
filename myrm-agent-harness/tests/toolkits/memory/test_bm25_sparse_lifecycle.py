@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import (
     BM25SparseIndexStore,
     _log_task_failure,
     wrap_with_bm25_sparse_index,
@@ -30,7 +30,7 @@ from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.vector import FilterDict, VectorDocument
 from myrm_agent_harness.toolkits.vector.base import SearchResult, SparsePoint
 
-logging.getLogger("myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index")
+logging.getLogger("myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index")
 
 
 CONFIG = MemoryConfig(embedding_model="test-model", collection_prefix="bml")

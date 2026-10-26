@@ -3,7 +3,7 @@
 [INPUT]
 - storage::{embed_batch} (POS: embedding generation with cache)
 - storage_converters::{_lifecycle_payload, _scope_payload} (POS: metadata serialization)
-- bm25_sparse_index::unwrap_sparse_mirror (POS: backend beneath the BM25 mirror wrapper)
+- bm25_sparse::unwrap_sparse_mirror (POS: backend beneath the BM25 mirror wrapper)
 - memory.types::{ConversationMemory, MemoryType} (POS: memory data models)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import unwrap_sparse_mirror
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import unwrap_sparse_mirror
 from myrm_agent_harness.toolkits.memory.types import ConversationMemory, MemoryType
 
 if TYPE_CHECKING:
@@ -78,12 +78,7 @@ async def _ensure_conversation_collection(
     size check. Vectors are already embedded by the caller, so this costs no model call.
     """
     dimension = next(
-        (
-            len(vec)
-            for m in memories
-            for vec in (m.raw_embedding, m.summary_embedding)
-            if vec
-        ),
+        (len(vec) for m in memories for vec in (m.raw_embedding, m.summary_embedding) if vec),
         0,
     )
     if dimension <= 0:

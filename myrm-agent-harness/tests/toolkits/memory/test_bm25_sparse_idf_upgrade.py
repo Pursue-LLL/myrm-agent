@@ -10,8 +10,8 @@ from uuid import uuid4
 import pytest
 from qdrant_client import models
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import bm25_collection_for
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.encoding import bm25_collection_for
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import (
     BM25SparseIndexStore,
     wrap_with_bm25_sparse_index,
 )

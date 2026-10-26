@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import wrap_with_bm25_sparse_index
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import wrap_with_bm25_sparse_index
 from myrm_agent_harness.toolkits.memory._internal.deadline_budget import (
     LOCAL_RECALL_RESERVE_FRACTION,
     embedding_budget,

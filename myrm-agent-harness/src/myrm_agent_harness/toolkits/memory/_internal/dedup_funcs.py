@@ -2,8 +2,7 @@
 
 [INPUT]
 - memory._internal.maintenance::dedup_semantics (POS: stateless background maintenance operations)
-- memory._internal.bm25_sparse_encoding::{bm25_collection_for, content_to_sparse} (POS: sparse mirror naming and encoding)
-- memory._internal.bm25_sparse_index::{is_sparse_authoritative, unwrap_sparse_mirror} (POS: the mirror beneath the wrapper)
+- memory._internal.bm25_sparse::{bm25_collection_for, content_to_sparse, is_sparse_authoritative, unwrap_sparse_mirror} (POS: sparse mirror naming, encoding and the backend beneath the wrapper)
 - memory._internal.hash_utils::compute_normalized_hash (POS: content normalization and hashing)
 - memory._internal.storage::_user_filter (POS: standard user-scoped filter)
 - memory.protocols::{EmbeddingCacheProtocol, EmbeddingProtocol, VectorStoreProtocol} (POS: backend contracts)
@@ -26,11 +25,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import (
     bm25_collection_for,
     content_to_sparse,
-)
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
     is_sparse_authoritative,
     unwrap_sparse_mirror,
 )

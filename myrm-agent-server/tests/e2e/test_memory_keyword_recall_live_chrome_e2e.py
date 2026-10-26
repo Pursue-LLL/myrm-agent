@@ -1,7 +1,7 @@
 """Chrome E2E: cross-chat keyword memory recall over the BM25 sparse channel.
 
 Real business task flow for the persistent BM25 sparse recall path
-(`toolkits/memory/_internal/bm25_sparse_index.py` + qdrant sparse mixin):
+(`toolkits/memory/_internal/bm25_sparse/index.py` + qdrant sparse mixin):
 a distinctive fact (service name + package manager) is written in one
 chat, then a keyword-only question is asked in a *second* chat with zero
 shared conversation context. The final reply must surface both exact

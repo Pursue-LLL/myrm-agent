@@ -20,9 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
-    BM25SparseIndexStore,
-)
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import BM25SparseIndexStore
 from myrm_agent_harness.toolkits.memory._internal.graph_cascade import (
     cascade_clean_derived_graph_nodes,
 )

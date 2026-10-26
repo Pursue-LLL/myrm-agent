@@ -2,8 +2,8 @@
 
 [INPUT]
 - memory.protocols.vector::{FilterDict, VectorDocument, VectorSearchResult, VectorStoreProtocol} (POS: vector protocol)
-- memory._internal.bm25_sparse_encoding::{bm25_collection_for, doc_to_sparse_point} (POS: sparse encoding)
-- memory._internal.bm25_sparse_query::run_bm25_search (POS: sparse query pipeline)
+- memory._internal.bm25_sparse.encoding::{bm25_collection_for, doc_to_sparse_point} (POS: sparse encoding)
+- memory._internal.bm25_sparse.query::run_bm25_search (POS: sparse query pipeline)
 - toolkits.vector.qdrant.sparse::QdrantSparseMixin (POS: sparse-capable backend)
 
 [OUTPUT]
@@ -36,11 +36,11 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.encoding import (
     bm25_collection_for,
     doc_to_sparse_point,
 )
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import run_bm25_search
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.query import run_bm25_search
 from myrm_agent_harness.toolkits.memory.protocols.vector import (
     FilterDict,
     VectorDocument,

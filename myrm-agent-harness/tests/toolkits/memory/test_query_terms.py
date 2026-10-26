@@ -8,13 +8,13 @@ from uuid import uuid4
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.encoding import (
     content_to_sparse,
     query_to_sparse,
     token_index,
 )
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import wrap_with_bm25_sparse_index
-from myrm_agent_harness.toolkits.memory._internal.query_terms import prune_function_words
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import wrap_with_bm25_sparse_index
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.query_terms import prune_function_words
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 from myrm_agent_harness.toolkits.retriever.bm25_retrieval import preprocess_text

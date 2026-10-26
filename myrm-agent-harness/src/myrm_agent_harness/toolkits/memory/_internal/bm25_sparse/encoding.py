@@ -3,7 +3,7 @@
 [INPUT]
 - memory.protocols.vector::VectorDocument (POS: dense-path document layout)
 - retriever.bm25_retrieval::preprocess_text (POS: shared CJK/latin tokenizer)
-- memory._internal.query_terms::prune_function_words (POS: query-side function-word pruning)
+- memory._internal.bm25_sparse.query_terms::prune_function_words (POS: query-side function-word pruning)
 - toolkits.vector.base::SparsePoint (POS: sparse point model)
 
 [OUTPUT]
@@ -25,7 +25,7 @@ import math
 import zlib
 from collections import Counter
 
-from myrm_agent_harness.toolkits.memory._internal.query_terms import prune_function_words
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.query_terms import prune_function_words
 from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument
 from myrm_agent_harness.toolkits.vector.base import SparsePoint
 

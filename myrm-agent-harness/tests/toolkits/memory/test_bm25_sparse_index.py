@@ -17,13 +17,13 @@ from uuid import uuid4
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_encoding import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.encoding import (
     bm25_collection_for,
     content_to_sparse,
     query_to_sparse,
     token_index,
 )
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse.index import (
     BM25SparseIndexStore,
     wrap_with_bm25_sparse_index,
 )
@@ -222,9 +222,7 @@ class TestBM25SparseE2E:
 
             stale = await wrapped.bm25_search("litellm", CONFIG, until=now - timedelta(days=400))
             assert stale is not None
-            assert [h.memory.content for h in stale] == [
-                "User deployed LiteLLM 1.77.2 gateway on prod cluster"
-            ]
+            assert [h.memory.content for h in stale] == ["User deployed LiteLLM 1.77.2 gateway on prod cluster"]
 
             # Incremental sync after warmup
             extra = make_doc("Fresh note about pytorch training run", now)
@@ -244,8 +242,6 @@ class TestBM25SparseE2E:
             overflow_before = get_search_metrics().snapshot().degradation_corpus_overflow_count
             routed = await search_bm25("litellm", wrapped, CONFIG)
             assert routed is not None and len(routed) == 2
-            assert (
-                get_search_metrics().snapshot().degradation_corpus_overflow_count == overflow_before
-            )
+            assert get_search_metrics().snapshot().degradation_corpus_overflow_count == overflow_before
         finally:
             await wrapped.close()

@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
-    wrap_with_bm25_sparse_index,
-)
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import wrap_with_bm25_sparse_index
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AgentMemoryPolicy,
     BaseChatModel,

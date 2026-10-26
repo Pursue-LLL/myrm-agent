@@ -2,8 +2,7 @@
 
 [INPUT]
 - storage_converters::{doc_to_semantic, doc_to_episodic, doc_to_conversation, _user_filter}
-- bm25_sparse_index::{BM25SparseIndexStore, unwrap_sparse_mirror}
-- bm25_sparse_query::bm25_scope
+- bm25_sparse::{BM25SparseIndexStore, bm25_scope, unwrap_sparse_mirror}
 - memory.protocols.vector::VectorStoreProtocol
 - memory.types::{MemorySearchResult, MemoryType, SemanticMemory}
 
@@ -25,11 +24,11 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import (
     BM25SparseIndexStore,
+    bm25_scope,
     unwrap_sparse_mirror,
 )
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import bm25_scope
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     _user_filter,
     doc_to_conversation,

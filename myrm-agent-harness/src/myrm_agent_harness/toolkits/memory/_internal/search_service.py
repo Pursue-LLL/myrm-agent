@@ -4,7 +4,7 @@
 [INPUT]
 - memory._internal.storage::{doc_to_*, load_context} (POS: internal vector storage operations)
 - memory._internal.scope::{build_scope, apply_channel_affinity} (POS: scope and namespace helpers)
-- memory._internal.bm25_sparse_query::bm25_scope (POS: memory types the BM25 mirror covers)
+- memory._internal.bm25_sparse::bm25_scope (POS: memory types the BM25 mirror covers)
 - memory.retriever::MemoryRetriever (POS: RRF retriever for memory search)
 
 [OUTPUT]
@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory._assistant_retrieval import search_conversation_two_pass
-from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_query import bm25_scope
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse import bm25_scope
 from myrm_agent_harness.toolkits.memory._internal.channel_pruning import ChannelPruner
 from myrm_agent_harness.toolkits.memory._internal.deadline_budget import deadline_remaining, embedding_budget
 from myrm_agent_harness.toolkits.memory._internal.maintenance import enrich_with_graph
