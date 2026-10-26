@@ -268,17 +268,7 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
                     if not docs:
                         return 0
 
-                    texts = []
-                    for doc in docs:
-                        if hasattr(doc, "content"):
-                            texts.append(doc.content)
-                        elif isinstance(doc, dict) and "content" in doc:
-                            texts.append(doc["content"])
-                        elif hasattr(doc, "payload") and doc.payload and "content" in doc.payload:
-                            texts.append(doc.payload["content"])
-
-                    if not texts:
-                        return 0
+                    texts = [doc.content for doc in docs]
                     from myrm_agent_harness.toolkits.memory._internal.storage import (
                         embed_batch,
                     )

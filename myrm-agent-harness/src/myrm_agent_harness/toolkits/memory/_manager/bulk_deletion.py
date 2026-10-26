@@ -16,8 +16,6 @@ themselves, so they call the unlocked, single-collection ``_delete_owned`` (``as
 
 from __future__ import annotations
 
-import inspect
-
 from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
 from myrm_agent_harness.toolkits.memory._manager.model_collections import (
     current_collection,
@@ -139,11 +137,9 @@ class MemoryManagerBulkDeletionMixin(MemoryManagerDeletionMixin):
                 counts["graph"] = await self._graph.delete_all_by_owner(uid)
             except Exception as e:
                 logger.warning("Error deleting graph data: %s", e)
-        if self._cache is not None and hasattr(self._cache, "clear"):
+        if self._cache is not None:
             try:
-                cleared = self._cache.clear()
-                if inspect.isawaitable(cleared):
-                    await cleared
+                await self._cache.clear()
             except Exception as e:
                 logger.warning("Error clearing cache in delete_all: %s", e)
         if failed:

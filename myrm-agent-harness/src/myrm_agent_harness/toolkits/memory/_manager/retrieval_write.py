@@ -232,9 +232,9 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
                 "action": rule.action,
                 "created_at": rule.created_at.isoformat(),
             }
-            if hasattr(rule, "reasoning") and rule.reasoning:
+            if rule.reasoning:
                 entry["reasoning"] = rule.reasoning
-            if hasattr(rule, "application") and rule.application:
+            if rule.application:
                 entry["application"] = rule.application
             if rule.tool_name:
                 entry["tool_name"] = rule.tool_name

@@ -150,11 +150,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                     logger.debug("Failed to delete exact fact for %s: %s", doc.id, e)
         texts = [doc.content for doc in docs if doc.content]
         if self._cache is not None and texts:
-            if hasattr(self._cache, "evict_batch"):
-                await self._cache.evict_batch(texts)
-            elif hasattr(self._cache, "evict"):
-                for text in texts:
-                    await self._cache.evict(text)
+            await self._cache.evict_batch(texts)
 
     async def delete_rule(self, rule_id: str, *, allow_protected: bool = True) -> bool:
         """Delete an owned procedural rule.
@@ -175,10 +171,8 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
         deleted: bool = await self._rel().delete_rule(rule_id)
         if deleted:
             await self._cascade_clean_derived_graph_nodes(rule_id)
-            evict_text = (
-                getattr(rule, "action", None) or getattr(rule, "action_text", None) or getattr(rule, "content", None)
-            )
-            if self._cache is not None and evict_text and hasattr(self._cache, "evict"):
+            evict_text = rule.action or rule.content
+            if self._cache is not None and evict_text:
                 await self._cache.evict(evict_text)
         return deleted
 

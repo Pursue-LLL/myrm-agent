@@ -3,8 +3,8 @@
 A deletion has to leave no derived trace behind: the claim graph, any exact-fact row and
 the embedding cache all key off the memory's text. Those collaborators are optional and
 differ between deployments, so the cleanup path is exercised here against each shape it
-meets — a cache that can only evict one text at a time, a cache that cannot, an exact-fact
-store that refuses, and a manager with no vector backend at all.
+meets — an exact-fact store that refuses, and a manager with no vector backend at all.
+The cache is the one collaborator held to its protocol: it evicts a deleted memory's texts in one batch.
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ from myrm_agent_harness.toolkits.vector.base import VectorDocument
 from .support import Embedder, manager_for, seed, semantic
 
 
-class _EvictOnlyCache:
-    """An embedding cache from before batch eviction existed: it can only drop one text."""
+class _BatchEvictingCache:
+    """The embedding cache protocol's eviction surface, recording what it is asked to drop."""
 
     def __init__(self) -> None:
-        self.evicted: list[str] = []
+        self.batches: list[list[str]] = []
 
-    async def evict(self, text: str) -> bool:
-        self.evicted.append(text)
-        return True
+    async def evict_batch(self, texts: list[str]) -> int:
+        self.batches.append(texts)
+        return len(texts)
 
 
 class _FakeVectorlessManager(MemoryManagerDeletionMixin):
@@ -52,23 +52,23 @@ def _doc(memory_id: str, content: str, *, pinned: bool = False) -> VectorDocumen
 
 
 class TestForgetDerived:
-    async def test_a_cache_without_batch_eviction_drops_each_text_on_its_own(self) -> None:
+    async def test_the_cache_drops_every_deleted_text_in_one_batch(self) -> None:
         manager = _FakeVectorlessManager()
-        cache = _EvictOnlyCache()
+        cache = _BatchEvictingCache()
         manager._cache = cache  # type: ignore[assignment]
 
         await manager._forget_derived([_doc("m1", "first"), _doc("m2", "second")])
 
-        assert cache.evicted == ["first", "second"]
+        assert cache.batches == [["first", "second"]]
 
     async def test_documents_without_text_are_not_offered_to_the_cache(self) -> None:
         manager = _FakeVectorlessManager()
-        cache = _EvictOnlyCache()
+        cache = _BatchEvictingCache()
         manager._cache = cache  # type: ignore[assignment]
 
         await manager._forget_derived([_doc("m1", ""), _doc("m2", "kept")])
 
-        assert cache.evicted == ["kept"]
+        assert cache.batches == [["kept"]]
 
     async def test_an_exact_fact_store_that_refuses_does_not_stop_the_rest(self) -> None:
         manager = _FakeVectorlessManager()

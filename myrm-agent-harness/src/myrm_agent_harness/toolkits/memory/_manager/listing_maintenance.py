@@ -132,11 +132,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
                     failed.append(collection)
         for memory_id in cascade_ids:
             await self._cascade_clean_derived_graph_nodes(memory_id)
-        if (
-            self._cache is not None
-            and hasattr(self._cache, "clear")
-            and memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC)
-        ):
+        if self._cache is not None and memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
             await self._cache.clear()
         if failed:
             raise MemoryError(f"delete_by_type left memories behind in: {', '.join(failed)}")

@@ -321,7 +321,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                         "archive_reason": "user_deleted",
                     }
                     await self._cascade_clean_derived_graph_nodes(memory_id)
-                    if self._cache is not None and updated.content and hasattr(self._cache, "evict"):
+                    if self._cache is not None and updated.content:
                         await self._cache.evict(updated.content)
             elif existing.status == MemoryStatus.ARCHIVED and status == MemoryStatus.ACTIVE:
                 updated.metadata.pop("archived_at", None)
