@@ -18,6 +18,8 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any
 
+from .router import router
+
 _ROUTER_MODULES: dict[str, str] = {
     "ambient_auxiliary_router": "ambient_auxiliary_accounting_api",
     "code_freshness_router": "code_freshness_api",
@@ -83,12 +85,10 @@ def __getattr__(name: str) -> Any:
     globals()[name] = value
     return value
 
-from .router import router
-"""System API routes."""
-
 
 __all__ = [
-        "ambient_auxiliary_router",
+    "router",
+    "ambient_auxiliary_router",
     "code_freshness_router",
     "cross_period_milestone_router",
     "dual_domain_metering_router",
@@ -138,5 +138,3 @@ __all__ = [
     "workflow_burn_router",
     "unattended_coverage_router",
 ]
-
-

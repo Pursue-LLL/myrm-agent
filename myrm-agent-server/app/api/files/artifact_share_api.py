@@ -57,7 +57,7 @@ from app.services.artifacts.share.share_token import (
     rebuild_artifact_share_token,
 )
 
-from .artifact_share_public import public_router  # noqa: F401  (re-export)
+from .artifact_share_public import public_router as public_router
 
 logger = logging.getLogger(__name__)
 
