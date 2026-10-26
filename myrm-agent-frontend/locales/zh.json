@@ -14000,7 +14000,9 @@
       "emptyResults": "未找到匹配的文件",
       "selectFileHint": "从左侧选择文件以查看代码与内容",
       "workspaceUnavailable": "这个对话还没有工作区文件夹。",
-      "lineCount": "{count} 行"
+      "lineCount": "{count} 行",
+      "binaryFile": "此类文件暂不支持预览",
+      "previewTruncated": "文件较大，仅显示开头部分"
     },
     "terminal": {
       "headerTitle": "终端",

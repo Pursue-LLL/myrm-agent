@@ -21,7 +21,7 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from app.api.workbench.routes import _MAX_STREAM_BYTES, workbench_router
+from app.api.workbench.routes import _MAX_RESPONSE_BYTES, workbench_router
 from tests.support.chat_workspace import chats_bound_to_workspaces
 
 PREFIX = "/api/v1/workbench"
@@ -89,12 +89,39 @@ def test_file_content_reads_inside_the_workspace_only(client: TestClient, worksp
     assert ok.json()["language"] == "python"
     assert ok.json()["content"] == "print('hi')\n"
     assert ok.json()["path"] == os.path.join("src", "app.py")
+    assert ok.json()["is_binary"] is False
+    assert ok.json()["truncated"] is False
 
     assert client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "missing.py"}).status_code == 404
     outside = workspace.parent / "outside.txt"
     outside.write_text("nope", encoding="utf-8")
     escape = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": str(outside)})
     assert escape.status_code == 403
+
+
+def test_a_binary_file_is_reported_instead_of_decoded(client: TestClient, workspace: Path) -> None:
+    (workspace / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + os.urandom(64))
+
+    response = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "logo.png"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_binary"] is True
+    assert body["content"] == ""
+    assert body["size_bytes"] > 0
+
+
+def test_a_large_text_file_is_read_up_to_the_cap_and_flagged(client: TestClient, workspace: Path) -> None:
+    (workspace / "big.txt").write_text("a" + "\u00e9" * _MAX_RESPONSE_BYTES, encoding="utf-8")
+
+    response = client.get(f"{PREFIX}/file/content", params={"chat_id": CHAT, "path": "big.txt"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["truncated"] is True
+    assert body["size_bytes"] == 1 + 2 * _MAX_RESPONSE_BYTES
+    assert 0 < len(body["content"].encode("utf-8")) <= _MAX_RESPONSE_BYTES
+    assert "\ufffd" not in body["content"], "the cut must not leave half a character behind"
 
 
 @posix_only
@@ -117,6 +144,17 @@ def test_terminal_runs_in_the_chats_workspace(client: TestClient, workspace: Pat
     assert body["exit_code"] == 0
     assert Path(body["stdout"].strip()).resolve() == workspace.resolve()
     assert body["truncated"] is False
+
+
+@posix_only
+def test_terminal_does_not_inherit_the_servers_credentials(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-canary-must-not-leak")
+    command = 'echo "key=${OPENAI_API_KEY:-absent} path=${PATH:+present}"'
+
+    response = client.post(f"{PREFIX}/terminal/exec", json={"chat_id": CHAT, "command": command, "timeout_seconds": 10})
+
+    assert response.status_code == 200
+    assert response.json()["stdout"].strip() == "key=absent path=present"
 
 
 def test_terminal_cwd_is_confined_to_the_workspace(client: TestClient) -> None:
@@ -173,11 +211,11 @@ def test_timeout_kills_the_whole_process_tree(client: TestClient, workspace: Pat
 
 @posix_only
 def test_output_beyond_the_cap_is_cut_and_flagged(client: TestClient) -> None:
-    command = f"head -c {_MAX_STREAM_BYTES * 3} /dev/zero | tr '\\0' 'a'"
+    command = f"head -c {_MAX_RESPONSE_BYTES * 3} /dev/zero | tr '\\0' 'a'"
 
     response = client.post(f"{PREFIX}/terminal/exec", json={"chat_id": CHAT, "command": command, "timeout_seconds": 30})
 
     assert response.status_code == 200
     body = response.json()
     assert body["truncated"] is True
-    assert len(body["stdout"]) == _MAX_STREAM_BYTES
+    assert len(body["stdout"]) == _MAX_RESPONSE_BYTES

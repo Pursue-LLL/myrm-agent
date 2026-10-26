@@ -4,7 +4,7 @@
 [OUTPUT]
 - WorkbenchFileNode: Recursive file tree model for workspace explorer
 - FileTreeResponse: Root-level file tree container
-- FileContentResponse: Raw text content and language metadata
+- FileContentResponse: Text preview (capped) with language, size and binary/truncated flags
 - TerminalExecRequest & TerminalExecResponse: Command execution payload
 
 [POS]
@@ -42,8 +42,9 @@ class FileContentResponse(BaseModel):
     path: str = Field(..., description="Path relative to the chat workspace")
     content: str = Field(..., description="Decoded text content")
     language: str = Field(default="plaintext", description="Inferred language identifier")
-    size_bytes: int = Field(default=0)
-    is_binary: bool = Field(default=False)
+    size_bytes: int = Field(default=0, description="Size of the whole file, not of the returned preview")
+    is_binary: bool = Field(default=False, description="Binary file: no text is returned")
+    truncated: bool = Field(default=False, description="File exceeds the preview cap; only its beginning is returned")
     modified_at: str = Field(default="")
 
 

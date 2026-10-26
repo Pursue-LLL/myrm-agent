@@ -125,6 +125,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         video_generation_params: VideoGenerationParams | None
         tts_params: TTSParams | None
         chat_id: str | None
+        declared_allowed_roots: tuple[str, ...]
         model_cfg: ModelConfig
         search_depth: str
         agent_id: str | None

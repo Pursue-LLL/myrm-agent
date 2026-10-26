@@ -57,13 +57,14 @@ async def resolve_artifact_deploy_files(
             raise LookupError(f"Artifact version {version_id} not found")
     else:
         target_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-    if artifact.chat_id:
-        workspace_root = str(await resolve_chat_workspace_root(artifact.chat_id))
+    chat_id = str(artifact.chat_id) if artifact.chat_id else None
+    if chat_id:
+        workspace_root = str(await resolve_chat_workspace_root(chat_id))
     vault = ArtifactVault(workspace_root)
     obj_path = _vault_object_path(vault, target_version.vault_uri)
     asset_root: Path | None = None
-    if artifact.chat_id and artifact.name:
-        resolved = resolve_sandbox_file_path(artifact.name, workspace_root, artifact.chat_id)
+    if chat_id and artifact.name:
+        resolved = resolve_sandbox_file_path(artifact.name, workspace_root, chat_id)
         if resolved:
             asset_root = Path(resolved).parent
     files_to_deploy = collect_publish_files(

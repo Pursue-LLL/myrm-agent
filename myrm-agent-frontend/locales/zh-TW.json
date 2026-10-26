@@ -14000,7 +14000,9 @@
       "emptyResults": "未找到匹配的檔案",
       "selectFileHint": "從左側選擇檔案以檢視程式碼與內容",
       "workspaceUnavailable": "這個對話還沒有工作區資料夾。",
-      "lineCount": "{count} 行"
+      "lineCount": "{count} 行",
+      "binaryFile": "此類檔案暫不支援預覽",
+      "previewTruncated": "檔案較大，僅顯示開頭部分"
     },
     "terminal": {
       "headerTitle": "終端",

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchTerminal } from '../tabs/WorkbenchTerminal';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
@@ -133,6 +133,24 @@ describe('WorkbenchTerminal component', () => {
     await waitFor(() => {
       expect(screen.getByText(/outputTruncated/)).toBeDefined();
     });
+  });
+
+  it('does not log output that arrives after the workspace session was reset', async () => {
+    let finish: (value: workbenchService.TerminalExecResponse) => void = () => {};
+    vi.mocked(workbenchService.executeTerminalCommand).mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    render(<WorkbenchTerminal chatId="chat-1" />);
+
+    const input = screen.getByPlaceholderText('inputPlaceholder');
+    fireEvent.change(input, { target: { value: 'sleep 5' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    act(() => useWorkbenchStore.getState().resetWorkspaceSession());
+    await act(async () =>
+      finish({ command: 'sleep 5', stdout: 'old chat', stderr: '', exit_code: 0, duration_ms: 5, truncated: false }),
+    );
+
+    expect(useWorkbenchStore.getState().terminalLogs).toHaveLength(0);
   });
 
   it('shows a placeholder when a command prints nothing', async () => {

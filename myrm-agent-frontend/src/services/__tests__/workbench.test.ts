@@ -35,6 +35,7 @@ describe('workbench service', () => {
       language: 'python',
       size_bytes: 14,
       is_binary: false,
+      truncated: false,
       modified_at: '2026-10-12T10:00:00Z',
     };
     vi.mocked(apiClient.get).mockResolvedValueOnce(mockContent);

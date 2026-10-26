@@ -14000,7 +14000,9 @@
       "emptyResults": "一致するファイルが見つかりません",
       "selectFileHint": "ツリーからファイルを選ぶと、コードをプレビューできます",
       "workspaceUnavailable": "この会話にはまだワークスペースのフォルダがありません。",
-      "lineCount": "{count} 行"
+      "lineCount": "{count} 行",
+      "binaryFile": "この種類のファイルはプレビューできません",
+      "previewTruncated": "ファイルが大きいため、先頭部分のみ表示しています"
     },
     "terminal": {
       "headerTitle": "ターミナル",

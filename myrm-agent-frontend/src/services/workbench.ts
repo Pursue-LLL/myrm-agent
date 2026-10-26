@@ -38,6 +38,7 @@ export interface FileContentResponse {
   language: string;
   size_bytes: number;
   is_binary: boolean;
+  truncated: boolean;
   modified_at: string;
 }
 

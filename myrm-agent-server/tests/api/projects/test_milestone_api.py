@@ -59,7 +59,7 @@ async def _seed_artifact_with_markdown(markdown: str, *, workspace: Path, chat_i
     artifact_id = str(uuid4())
     version_id = str(uuid4())
     object_id = uuid4().hex
-    vault = ArtifactVault(workspace)
+    vault = ArtifactVault(str(workspace))
     object_path = vault.get_object_path(object_id)
     object_path.parent.mkdir(parents=True, exist_ok=True)
     object_path.write_text(markdown, encoding="utf-8")

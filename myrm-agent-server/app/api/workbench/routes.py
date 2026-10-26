@@ -1,6 +1,7 @@
 """[INPUT]
 - WorkbenchFileNode, FileTreeResponse, FileContentResponse, TerminalExecRequest, TerminalExecResponse from .models
 - app.services.chat.effective_workspace::find_chat_workspace_root (POS: the workspace a chat's runs work in)
+- myrm_agent_harness.api::build_isolated_child_env, EnvInheritPolicy (POS: credential-free child process environment)
 - myrm_agent_harness.agent.hooks.command_gate::gate_hook_command (POS: dangerous-command gate for person-authored shell commands)
 - myrm_agent_harness.utils.os_compat::get_process_group_kwargs, kill_process_group (POS: cross-platform process-tree control)
 
@@ -9,13 +10,15 @@
 
 [POS]
 Backend endpoints for the auxiliary workbench. Every path is confined to the workspace of the chat the
-request names; commands run there under a static safety gate, a timeout that kills the whole process tree,
-and a per-stream output cap.
+request names; commands run there under a static safety gate, with the same credential-free environment as the
+agent's own shell, a timeout that kills the whole process tree, and a per-stream output cap. File previews are
+capped the same way and binary files are reported instead of decoded.
 """
 
 from __future__ import annotations
 
 import asyncio
+import codecs
 import os
 import time
 from datetime import UTC, datetime
@@ -23,6 +26,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.hooks.command_gate import gate_hook_command
+from myrm_agent_harness.api import EnvInheritPolicy, build_isolated_child_env
 from myrm_agent_harness.utils.os_compat import get_process_group_kwargs, kill_process_group
 
 from app.services.chat.effective_workspace import find_chat_workspace_root
@@ -38,8 +42,9 @@ from .models import (
 workbench_router = APIRouter()
 
 _EXCLUDED_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".next", "dist", "build"}
-_MAX_STREAM_BYTES = 1_000_000
+_MAX_RESPONSE_BYTES = 1_000_000
 _READ_CHUNK_BYTES = 65_536
+_BINARY_SNIFF_BYTES = 8192
 _EXTENSION_LANG_MAP: dict[str, str] = {
     "py": "python",
     "ts": "typescript",
@@ -155,6 +160,21 @@ async def list_workspace_files(
     return FileTreeResponse(root_path=str(target_root), nodes=nodes, total_files=total_files, total_dirs=total_dirs)
 
 
+def _read_preview(path: Path) -> tuple[str, bool, bool]:
+    """Read at most ``_MAX_RESPONSE_BYTES`` of ``path`` as text: ``(text, is_binary, truncated)``.
+
+    A NUL byte near the start marks the file binary (no text is returned). A cut that lands inside a multi-byte
+    character drops the partial character instead of emitting a replacement mark.
+    """
+    with path.open("rb") as handle:
+        raw = handle.read(_MAX_RESPONSE_BYTES + 1)
+    if b"\0" in raw[:_BINARY_SNIFF_BYTES]:
+        return "", True, False
+    truncated = len(raw) > _MAX_RESPONSE_BYTES
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    return decoder.decode(raw[:_MAX_RESPONSE_BYTES], final=not truncated), False, truncated
+
+
 @workbench_router.get("/file/content", response_model=FileContentResponse)
 async def get_file_content(
     chat_id: str = Query(..., min_length=1, description="Chat whose workspace holds the file"),
@@ -167,7 +187,7 @@ async def get_file_content(
 
     try:
         stat = target.stat()
-        content = await asyncio.to_thread(target.read_text, encoding="utf-8", errors="replace")
+        content, is_binary, truncated = await asyncio.to_thread(_read_preview, target)
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {exc}") from exc
 
@@ -176,16 +196,18 @@ async def get_file_content(
         content=content,
         language=_EXTENSION_LANG_MAP.get(target.suffix.lstrip(".").lower(), "plaintext"),
         size_bytes=stat.st_size,
+        is_binary=is_binary,
+        truncated=truncated,
         modified_at=_iso_mtime(stat.st_mtime),
     )
 
 
 async def _read_capped(stream: asyncio.StreamReader) -> tuple[bytes, bool]:
-    """Read ``stream`` to EOF, keeping at most ``_MAX_STREAM_BYTES``; the rest is drained and dropped."""
+    """Read ``stream`` to EOF, keeping at most ``_MAX_RESPONSE_BYTES``; the rest is drained and dropped."""
     kept = bytearray()
     truncated = False
     while chunk := await stream.read(_READ_CHUNK_BYTES):
-        room = _MAX_STREAM_BYTES - len(kept)
+        room = _MAX_RESPONSE_BYTES - len(kept)
         kept += chunk[:room]
         truncated = truncated or len(chunk) > room
     return bytes(kept), truncated
@@ -206,6 +228,7 @@ async def execute_terminal_command(req: TerminalExecRequest) -> TerminalExecResp
         proc = await asyncio.create_subprocess_shell(
             req.command,
             cwd=str(cwd),
+            env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

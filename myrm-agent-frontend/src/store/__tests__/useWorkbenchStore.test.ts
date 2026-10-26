@@ -74,6 +74,7 @@ describe('useWorkbenchStore', () => {
       language: 'python',
       size_bytes: 8,
       is_binary: false,
+      truncated: false,
       modified_at: '2026-10-12T12:00:00Z',
     };
     setSelectedFile('src/app.py', mockContent);
@@ -112,5 +113,15 @@ describe('useWorkbenchStore', () => {
     expect(state.selectedFilePath).toBeNull();
     expect(state.selectedFileContent).toBeNull();
     expect(state.terminalLogs).toHaveLength(0);
+  });
+
+  it('advances the session epoch on every reset so replies for a previous session can be told apart', () => {
+    const { resetWorkspaceSession } = useWorkbenchStore.getState();
+    const before = useWorkbenchStore.getState().sessionEpoch;
+
+    resetWorkspaceSession();
+    resetWorkspaceSession();
+
+    expect(useWorkbenchStore.getState().sessionEpoch).toBe(before + 2);
   });
 });

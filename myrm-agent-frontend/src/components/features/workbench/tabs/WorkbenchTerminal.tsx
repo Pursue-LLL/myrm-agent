@@ -58,8 +58,15 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
     setIsExecuting(true);
     setInputCommand('');
 
+    // Output belongs to the session that ran the command; after a chat switch it is dropped.
+    const { sessionEpoch } = useWorkbenchStore.getState();
+    const isCurrentSession = (): boolean => useWorkbenchStore.getState().sessionEpoch === sessionEpoch;
+
     try {
       const res = await executeTerminalCommand(chatId, cmd);
+      if (!isCurrentSession()) {
+        return;
+      }
       const output = res.stdout || res.stderr || t('noOutput');
       addTerminalLog({
         command: cmd,
@@ -67,6 +74,9 @@ export function WorkbenchTerminal({ chatId }: WorkbenchTerminalProps) {
         exitCode: res.exit_code,
       });
     } catch (err: unknown) {
+      if (!isCurrentSession()) {
+        return;
+      }
       const errMsg = err instanceof Error ? err.message : String(err);
       addTerminalLog({
         command: cmd,

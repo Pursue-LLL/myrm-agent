@@ -10,7 +10,8 @@
  *
  * [POS]
  * Central UI store for the auxiliary workbench. File selection and terminal history belong to one chat's
- * workspace; `resetWorkspaceSession` drops them when the chat changes.
+ * workspace; `resetWorkspaceSession` drops them when the chat changes and advances `sessionEpoch`, so a reply
+ * still in flight for the previous chat can tell it is stale and not write into the new session.
  */
 
 import { create } from 'zustand';
@@ -36,6 +37,7 @@ export interface WorkbenchState {
   selectedFilePath: string | null;
   selectedFileContent: FileContentResponse | null;
   terminalLogs: TerminalLogEntry[];
+  sessionEpoch: number;
 
   // Actions
   toggleOpen: () => void;
@@ -66,6 +68,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   selectedFilePath: null,
   selectedFileContent: null,
   terminalLogs: [],
+  sessionEpoch: 0,
 
   toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
 
@@ -101,5 +104,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   clearTerminalLogs: () => set({ terminalLogs: [] }),
 
   resetWorkspaceSession: () =>
-    set({ selectedFilePath: null, selectedFileContent: null, terminalLogs: [] }),
+    set((state) => ({
+      selectedFilePath: null,
+      selectedFileContent: null,
+      terminalLogs: [],
+      sessionEpoch: state.sessionEpoch + 1,
+    })),
 }));

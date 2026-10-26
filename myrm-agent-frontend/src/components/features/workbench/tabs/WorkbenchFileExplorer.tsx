@@ -170,12 +170,23 @@ export function WorkbenchFileExplorer({ chatId }: WorkbenchFileExplorerProps) {
 
   const handleSelectFile = useCallback(
     async (node: WorkbenchFileNode) => {
+      const { sessionEpoch } = useWorkbenchStore.getState();
       setSelectedFile(node.path, null);
+      // A reply only lands while its file is still the selection of the same session:
+      // a later click or a chat switch supersedes it.
+      const isCurrent = (): boolean => {
+        const state = useWorkbenchStore.getState();
+        return state.sessionEpoch === sessionEpoch && state.selectedFilePath === node.path;
+      };
       try {
         const content = await fetchFileContent(chatId, node.path);
-        setSelectedFile(node.path, content);
+        if (isCurrent()) {
+          setSelectedFile(node.path, content);
+        }
       } catch {
-        setSelectedFile(null, null);
+        if (isCurrent()) {
+          setSelectedFile(null, null);
+        }
       }
     },
     [chatId, setSelectedFile],
@@ -267,17 +278,31 @@ export function WorkbenchFileExplorer({ chatId }: WorkbenchFileExplorerProps) {
                   <Code className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="font-semibold">{selectedFileContent.path}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
-                  <span className="uppercase px-1.5 py-0.5 rounded bg-muted">
-                    {selectedFileContent.language}
-                  </span>
-                  <span>{t('lineCount', { count: selectedFileContent.content.split('\n').length })}</span>
-                </div>
+                {!selectedFileContent.is_binary && (
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                    <span className="uppercase px-1.5 py-0.5 rounded bg-muted">
+                      {selectedFileContent.language}
+                    </span>
+                    <span>{t('lineCount', { count: selectedFileContent.content.split('\n').length })}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1 p-3 overflow-auto font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre">
-                {selectedFileContent.content}
-              </div>
+              {selectedFileContent.truncated && (
+                <div className="px-3 py-1 border-b border-border/40 text-[10px] text-muted-foreground bg-muted/30">
+                  {t('previewTruncated')}
+                </div>
+              )}
+
+              {selectedFileContent.is_binary ? (
+                <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-muted-foreground">
+                  {t('binaryFile')}
+                </div>
+              ) : (
+                <div className="flex-1 p-3 overflow-auto font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre">
+                  {selectedFileContent.content}
+                </div>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-xs text-muted-foreground gap-1.5 p-6">

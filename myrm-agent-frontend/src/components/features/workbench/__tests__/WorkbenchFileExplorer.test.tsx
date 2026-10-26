@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchFileExplorer } from '../tabs/WorkbenchFileExplorer';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
@@ -55,6 +55,19 @@ const mockTreeData: workbenchService.FileTreeResponse = {
   ],
 };
 
+const fileReply = (
+  overrides: Partial<workbenchService.FileContentResponse>,
+): workbenchService.FileContentResponse => ({
+  path: 'README.md',
+  content: '',
+  language: 'plaintext',
+  size_bytes: 0,
+  is_binary: false,
+  truncated: false,
+  modified_at: '2023-11-14T22:13:20Z',
+  ...overrides,
+});
+
 describe('WorkbenchFileExplorer component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,6 +82,7 @@ describe('WorkbenchFileExplorer component', () => {
       language: 'typescript',
       size_bytes: 50,
       is_binary: false,
+      truncated: false,
       modified_at: '2023-11-14T22:13:20Z',
     });
   });
@@ -125,6 +139,66 @@ describe('WorkbenchFileExplorer component', () => {
       expect(workbenchService.fetchFileContent).toHaveBeenCalledWith('chat-1', 'README.md');
       expect(screen.getByText(/hello world/)).toBeDefined();
     });
+  });
+
+  it('says a binary file cannot be previewed instead of printing its bytes', async () => {
+    vi.mocked(workbenchService.fetchFileContent).mockResolvedValueOnce(
+      fileReply({ path: 'README.md', is_binary: true, size_bytes: 4096 }),
+    );
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
+    await waitFor(() => expect(screen.getByText('README.md')).toBeDefined());
+
+    fireEvent.click(screen.getByText('README.md'));
+
+    await waitFor(() => expect(screen.getByText('binaryFile')).toBeDefined());
+    expect(screen.queryByText('lineCount')).toBeNull();
+  });
+
+  it('says when only the beginning of a large file is shown', async () => {
+    vi.mocked(workbenchService.fetchFileContent).mockResolvedValueOnce(
+      fileReply({ content: 'first line', truncated: true, size_bytes: 5_000_000 }),
+    );
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
+    await waitFor(() => expect(screen.getByText('README.md')).toBeDefined());
+
+    fireEvent.click(screen.getByText('README.md'));
+
+    await waitFor(() => expect(screen.getByText('previewTruncated')).toBeDefined());
+    expect(screen.getByText('first line')).toBeDefined();
+  });
+
+  it('shows the file clicked last when an earlier file answers later', async () => {
+    let answerReadme: (value: workbenchService.FileContentResponse) => void = () => {};
+    vi.mocked(workbenchService.fetchFileContent)
+      .mockImplementationOnce(() => new Promise((resolve) => (answerReadme = resolve)))
+      .mockResolvedValueOnce(fileReply({ path: 'src/index.ts', content: 'index body' }));
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
+    await waitFor(() => expect(screen.getByText('README.md')).toBeDefined());
+
+    fireEvent.click(screen.getByText('README.md'));
+    fireEvent.click(screen.getByText('src'));
+    fireEvent.click(await screen.findByText('index.ts'));
+    await waitFor(() => expect(screen.getByText('index body')).toBeDefined());
+    await act(async () => answerReadme(fileReply({ content: 'readme body' })));
+
+    expect(screen.getByText('index body')).toBeDefined();
+    expect(screen.queryByText('readme body')).toBeNull();
+  });
+
+  it('drops a file reply that arrives after the workspace session was reset', async () => {
+    let answerReadme: (value: workbenchService.FileContentResponse) => void = () => {};
+    vi.mocked(workbenchService.fetchFileContent).mockImplementationOnce(
+      () => new Promise((resolve) => (answerReadme = resolve)),
+    );
+    render(<WorkbenchFileExplorer chatId="chat-1" />);
+    await waitFor(() => expect(screen.getByText('README.md')).toBeDefined());
+
+    fireEvent.click(screen.getByText('README.md'));
+    act(() => useWorkbenchStore.getState().resetWorkspaceSession());
+    useWorkbenchStore.getState().setSelectedFile('README.md', null);
+    await act(async () => answerReadme(fileReply({ content: 'old chat body' })));
+
+    expect(useWorkbenchStore.getState().selectedFileContent).toBeNull();
   });
 
   it('filters file nodes based on search query', async () => {

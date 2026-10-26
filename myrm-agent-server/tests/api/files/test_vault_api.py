@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
@@ -32,7 +32,7 @@ def vault_client(db_session: AsyncSession, default_root: Path) -> Iterator[TestC
     app = FastAPI()
     app.include_router(vault_router, prefix="/vault")
 
-    async def override_get_db():
+    async def override_get_db() -> AsyncIterator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
