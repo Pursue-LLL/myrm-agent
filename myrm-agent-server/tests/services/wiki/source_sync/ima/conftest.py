@@ -15,6 +15,9 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import Base
+from app.services.wiki.source_sync.ima import importer
+
+from .support import Downloads
 
 
 @pytest_asyncio.fixture
@@ -26,3 +29,16 @@ async def ima_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterat
     monkeypatch.setattr("app.database.connection.get_session_factory", lambda: factory)
     yield factory
     await engine.dispose()
+
+
+@pytest.fixture
+def fast_importer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The importer paces its downloads for ima's rate limits; tests do not need to wait."""
+    monkeypatch.setattr(importer, "_PACE_S", 0.0)
+
+
+@pytest.fixture
+def downloads(monkeypatch: pytest.MonkeyPatch) -> Downloads:
+    fake = Downloads()
+    monkeypatch.setattr("app.services.wiki.source_sync.ima.content.download_media", fake)
+    return fake

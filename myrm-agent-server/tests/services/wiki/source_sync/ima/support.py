@@ -1,4 +1,4 @@
-"""Scripted stand-in for the ima API and builders for the engine-level tests."""
+"""Scripted stand-in for the ima API, scripted downloads and builders for the engine-level tests."""
 
 from __future__ import annotations
 
@@ -8,12 +8,15 @@ from pathlib import Path
 from typing import cast
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
 from app.services.wiki.source_sync.ima.client import ImaClient
 from app.services.wiki.source_sync.ima.context import SyncContext
+from app.services.wiki.source_sync.ima.engine import SliceOutcome, run_slice
 from app.services.wiki.source_sync.ima.errors import ImaError
-from app.services.wiki.source_sync.ima.ledger import ImaLedger
+from app.services.wiki.source_sync.ima.identity import NOTES_LANE
+from app.services.wiki.source_sync.ima.ledger import ImaLedger, LedgerRow
 from app.services.wiki.source_sync.ima.models import (
     ImaEntry,
     ImaFolder,
@@ -96,3 +99,60 @@ def make_ctx(
 
 def library_config(*, notes: bool = False, kb_ids: tuple[str, ...] = ("kb1",)) -> ImaSyncConfig:
     return ImaSyncConfig(knowledge_bases=[ImaKbSelection(id=kb_id, name=f"Lib {kb_id}") for kb_id in kb_ids], include_notes=notes)
+
+
+NOTE_MS = 1_700_000_000_000  # 2023-11-14
+
+
+class Downloads:
+    """Scripted ``download_media``: bytes per URL, with optional per-URL errors."""
+
+    def __init__(self) -> None:
+        self.bodies: dict[str, bytes] = {}
+        self.errors: dict[str, Exception] = {}
+        self.calls: list[str] = []
+
+    async def __call__(self, url: str, headers: dict[str, str]) -> bytes:
+        self.calls.append(url)
+        if url in self.errors:
+            raise self.errors.pop(url)
+        return self.bodies.get(url, b"# Doc\n\nbody text")
+
+
+def url(name: str) -> str:
+    return f"https://bucket.cos.ap-guangzhou.myqcloud.com/{name}"
+
+
+def library() -> FakeIma:
+    """kb1: guide.md + an audio file at the root, deep.md in folder f1."""
+    return FakeIma(
+        pages={
+            ("kb1", ""): page(entry("m1", "guide.md"), entry("m2", "talk.mp3", media_type=15), folders=(ImaFolder("f1", "Sub"),)),
+            ("kb1", "f1"): page(entry("m3", "deep.md", parent="f1")),
+        },
+        media={
+            "m1": file_info(7, url("m1")),
+            "m2": ImaMediaInfo(media_type=15, url="", headers={}, note_id=""),
+            "m3": file_info(7, url("m3")),
+        },
+    )
+
+
+async def run_pass(fake: FakeIma, root: Path, state: ImaSyncState, config=None, *, max_slices: int = 8) -> SliceOutcome:
+    config = config or library_config()
+    outcome = await run_slice(make_ctx(fake, root, config=config, state=state))
+    for _ in range(max_slices):
+        if outcome.finished or outcome.error_kind:
+            break
+        outcome = await run_slice(make_ctx(fake, root, config=config, state=state))
+    return outcome
+
+
+async def rows(factory: async_sessionmaker[AsyncSession]) -> dict[str, LedgerRow]:
+    async with factory() as db:
+        listed = await ImaLedger(DEFAULT_AGENT_SCOPE).list_rows(db, containers=["kb1", "kb2", NOTES_LANE], limit=1000)
+    return {row.title: row for row in listed}
+
+
+def raw_file(root: Path, row: LedgerRow) -> Path:
+    return root / "raw" / row.raw_path

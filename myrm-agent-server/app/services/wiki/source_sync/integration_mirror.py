@@ -29,6 +29,7 @@ async def mirror_integration_sync_results_to_wiki(
     llm: BaseChatModel | None,
     agent_id: str | None,
     auto_compile: bool,
+    compiler_enqueue: object | None,
 ) -> WikiSourceSyncResult:
     summary = WikiSourceSyncResult(source="integrations")
     if llm is None:
@@ -38,7 +39,6 @@ async def mirror_integration_sync_results_to_wiki(
 
     archiver = get_wiki_archiver(llm, agent_id=agent_id)
     structure = archiver._structure
-    compiler = archiver._compiler
 
     for sync_result in results:
         provider = sanitize_path_segment(sync_result.provider.replace("mcp:", ""))
@@ -64,7 +64,7 @@ async def mirror_integration_sync_results_to_wiki(
                     relative_path=relative_path,
                     content=content,
                     auto_compile=auto_compile,
-                    compiler_enqueue=compiler,
+                    compiler_enqueue=compiler_enqueue,
                 )
                 if publish.written:
                     summary.published += 1

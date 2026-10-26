@@ -5,13 +5,15 @@
 - app.services.wiki.source_sync.state_store (POS: per-agent wikiSourceSyncState last-run observability)
 - app.services.wiki.vault (POS: agent wiki vault path SSOT)
 - myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
+- app.services.wiki.source_sync.deferred_enqueue (POS: holds auto-compile enqueue until the duplicate scan has run)
 
 [OUTPUT]
-- run_wiki_source_sync: Feishu/Gmail/GDrive/RSS/Zotero/mirror orchestration + optional compile enqueue + ingest SSE + persist scoped sync state
+- run_wiki_source_sync: Feishu/Gmail/GDrive/RSS/Zotero/mirror orchestration + duplicate scan + optional compile enqueue + ingest SSE + persist scoped sync state
 
 [POS]
 Server SSOT for deterministic external-source pull into wiki raw/. Pull paths are zero-LLM;
-compile enqueue requires a configured chat model when auto_compile is enabled.
+compile enqueue requires a configured chat model when auto_compile is enabled, and happens only after the
+post-run duplicate scan so identical documents are not compiled twice.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.database.connection import get_session
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
+from app.services.wiki.source_sync.deferred_enqueue import DeferredCompileEnqueue
 from app.services.wiki.source_sync.feishu import sync_feishu_docs_to_wiki
 from app.services.wiki.source_sync.gdrive import sync_gdrive_folder_to_wiki
 from app.services.wiki.source_sync.gmail import sync_gmail_label_to_wiki
@@ -49,12 +52,10 @@ async def run_wiki_source_sync(
     sync_gmail_rss: bool = True,
 ) -> WikiSourceSyncRunSummary:
     async with get_session() as db:
-        effective_config = config or await load_wiki_source_sync_config(
-            db, agent_id=agent_id
-        )
+        effective_config = config or await load_wiki_source_sync_config(db, agent_id=agent_id)
 
     structure = WikiStructure(resolve_wiki_vault_path(agent_id))
-    compiler_enqueue: object | None = None
+    deferred: DeferredCompileEnqueue | None = None
     archiver = None
     auto_compile = effective_config.auto_compile and llm is not None
 
@@ -64,12 +65,74 @@ async def run_wiki_source_sync(
         archiver = get_wiki_archiver(llm, agent_id=agent_id)
         structure = archiver._structure
         if auto_compile:
-            compiler_enqueue = archiver._compiler
+            deferred = DeferredCompileEnqueue(archiver._compiler, structure)
     elif effective_config.auto_compile:
-        logger.warning(
-            "Wiki source sync: auto_compile requested but no LLM configured; raw-only mode"
+        logger.warning("Wiki source sync: auto_compile requested but no LLM configured; raw-only mode")
+
+    try:
+        run = await _pull_sources(
+            structure,
+            effective_config,
+            llm=llm,
+            agent_id=agent_id,
+            auto_compile=auto_compile,
+            compiler_enqueue=deferred,
+            integration_sync_results=integration_sync_results,
+            sync_gmail_rss=sync_gmail_rss,
+        )
+        if run.total_published > 0:
+            await _scan_for_duplicates(agent_id)
+    finally:
+        # Even a crashed pull must not strand files that were already written.
+        if deferred is not None:
+            deferred.release()
+
+    if run.total_published > 0 and archiver is not None:
+        from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
+        await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+
+    logger.info(
+        "Wiki source sync finished: published=%d skipped=%d failed=%d",
+        run.total_published,
+        run.total_skipped,
+        run.total_failed,
+    )
+
+    try:
+        from app.services.wiki.source_sync.state_store import (
+            save_wiki_source_sync_state,
+            state_from_run_summary,
         )
 
+        async with get_session() as db:
+            await save_wiki_source_sync_state(db, state_from_run_summary(run), agent_id=agent_id)
+    except Exception as exc:
+        logger.warning("Failed to persist wiki source sync state: %s", exc)
+
+    return run
+
+
+async def _scan_for_duplicates(agent_id: str | None) -> None:
+    try:
+        from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
+
+        await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
+    except Exception as exc:
+        logger.warning("Post source-sync wiki dedup scan failed: %s", exc)
+
+
+async def _pull_sources(
+    structure: WikiStructure,
+    effective_config: WikiSourceSyncConfig,
+    *,
+    llm: BaseChatModel | None,
+    agent_id: str | None,
+    auto_compile: bool,
+    compiler_enqueue: DeferredCompileEnqueue | None,
+    integration_sync_results: list[object] | None,
+    sync_gmail_rss: bool,
+) -> WikiSourceSyncRunSummary:
     max_items = effective_config.max_items_per_run
     run = WikiSourceSyncRunSummary()
 
@@ -125,62 +188,24 @@ async def run_wiki_source_sync(
         )
         run.results.append(zotero_result)
 
-    if (
-        effective_config.mirror_integrations_to_wiki
-        and integration_sync_results
-        and llm is not None
-    ):
+    if effective_config.mirror_integrations_to_wiki and integration_sync_results and llm is not None:
         from myrm_agent_harness.toolkits.memory.integration.types import (
             IntegrationSyncResult,
         )
 
-        typed_results = [
-            r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)
-        ]
+        typed_results = [r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)]
         if typed_results:
             mirror_result = await mirror_integration_sync_results_to_wiki(
                 typed_results,
                 llm=llm,
                 agent_id=agent_id,
                 auto_compile=auto_compile,
+                compiler_enqueue=compiler_enqueue,
             )
             run.results.append(mirror_result)
 
     run.total_published = sum(item.published for item in run.results)
     run.total_skipped = sum(item.skipped for item in run.results)
     run.total_failed = sum(item.failed for item in run.results)
-
-    if run.total_published > 0 and archiver is not None:
-        from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
-
-        await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-
-    if run.total_published > 0:
-        try:
-            from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
-
-            await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
-        except Exception as exc:
-            logger.warning("Post source-sync wiki dedup scan failed: %s", exc)
-
-    logger.info(
-        "Wiki source sync finished: published=%d skipped=%d failed=%d",
-        run.total_published,
-        run.total_skipped,
-        run.total_failed,
-    )
-
-    try:
-        from app.services.wiki.source_sync.state_store import (
-            save_wiki_source_sync_state,
-            state_from_run_summary,
-        )
-
-        async with get_session() as db:
-            await save_wiki_source_sync_state(
-                db, state_from_run_summary(run), agent_id=agent_id
-            )
-    except Exception as exc:
-        logger.warning("Failed to persist wiki source sync state: %s", exc)
 
     return run

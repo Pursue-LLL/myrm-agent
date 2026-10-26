@@ -10,7 +10,7 @@
 
 ## 数据流
 
-`inventory`（BFS 遍历文件夹树 + 笔记，写台账，标记 generation，远端消失只标 `remote_deleted`）→ `fetch`（`pending` 行并发导入，每条落到唯一终态）→ 一轮结束 `backfill_complete`。首轮回填完成前不自动编译；之后仅新增/变更条目按用户的 `auto_compile` 入队。变更用户选择的库（`ImaSyncConfig.fingerprint()` 变化）会重启 inventory。
+`inventory`（BFS 遍历文件夹树 + 笔记，写台账，标记 generation，远端消失只标 `remote_deleted`）→ `fetch`（`pending` 行并发导入，每条落到唯一终态）→ 一轮结束 `backfill_complete`。首轮回填完成前不自动编译；之后仅新增/变更条目按用户的 `auto_compile` 入队，且发布时只登记（`../deferred_enqueue.py`），切片内先做增量 dedup 扫描再放行：落入待审 EXACT/NORMALIZED 重复组的条目留在 Duplicate Review，用户处理后点「编译」再入队，避免同一文档被编译两次。变更用户选择的库（`ImaSyncConfig.fingerprint()` 变化）会重启 inventory。
 
 ## 文件清单
 
@@ -31,7 +31,7 @@
 | `content.py` | 转换 | 单条解析为 Markdown + 保真度标注（`images_remote`/`body_truncated`/`layout_flattened`；笔记纯文本是 ima API 的基线，不计为有损）；复用 `bytes_to_wiki_markdown` 与 `web_fetch`；标题/目录/来源链接等远端文本在写入 frontmatter 前压成单行，换行不能结束或伪造字段 | ✅ |
 | `importer.py` | 阶段 | 有界并发导入（3 worker、单条 150s 超时、节流）；每行恰好一个终态；仅鉴权失败、限流与连续的连接级瞬时失败会停止整池，失效网页只记为该条的失败 | ✅ |
 | `engine.py` | 引擎 | `run_slice`：idle→inventory→fetch 的相位推进，把失败映射为调度建议（`retry_after_s`）；未预期异常记 `internal` 并退避重试，细节只进日志 | ✅ |
-| `job_runner.py` | 入口 | cron 入口 `run_ima_sync_job`：单飞锁、凭证/archiver 装配、发布后 ingest 快照与增量 dedup | ✅ |
+| `job_runner.py` | 入口 | cron 入口 `run_ima_sync_job`：单飞锁、凭证/archiver 装配、延迟入队装配（仅 `backfill_complete` 且 `auto_compile` 时）；顺序固定为 切片 → 增量 dedup（有待放行文件或一轮结束时）→ 放行（`finally`，切片抛错也放行）→ ingest 快照 | ✅ |
 | `job.py` | Cron | 每 agent 同步 job 的创建/恢复/暂停/批量删除与 `trigger_now`（按 command + agent_id 查找） | ✅ |
 | `operations.py` | 操作 | 连接（先校验再存）、断开、选库（名称取自 ima 列表）、启动/暂停/恢复、重试失败、仅编译 ima 已导入文档 | ✅ |
 | `report.py` | 读取 | 聚合状态与条目报告（只给原因码，不给原始报错；仅统计当前所选范围，并带上共享的自动编译开关） | ✅ |
@@ -39,12 +39,13 @@
 
 ## 测试
 
-- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/鉴权/限流/未知异常的内部退避（取消不被吞）；导入器终态与认领失败时停池
+- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/变更追踪（`test_sync_engine.py`）与鉴权/限流/瞬时与永久失败/未知异常的内部退避、取消不被吞（`test_sync_engine_failures.py`，共享 `support.py` 与 `conftest.py` 夹具）；导入器终态与认领失败时停池；cron 入口的单飞、入队装配与 扫描 → 放行 → 快照 顺序、切片抛错与扫描失败仍放行
 - `tests/api/wiki/test_wiki_ima_routes.py` — ima 端点、凭证掩码、通用 config 端点读不到 `imaCredentials`
 
 ## 依赖
 
 - `app/services/wiki/source_sync/publish_helpers.py` — `publish_source_markdown`（SUPERSEDE，`caller="settings"`）
+- `app/services/wiki/source_sync/deferred_enqueue.py` — 延迟到 dedup 扫描之后的 compile 入队
 - `app/services/wiki/source_sync/content_convert.py` — 文档转换
 - `app/services/wiki/_userconfig_scoped.py` — scoped UserConfig 持久化
 - `app/services/config/service.py` — 凭证加密存储
