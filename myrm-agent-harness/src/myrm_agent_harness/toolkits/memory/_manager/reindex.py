@@ -197,7 +197,7 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
         orphans = await self.detect_orphan_collections()
         if not orphans:
             return ReindexResult(migrated=0, skipped=0, failed=0)
-        self._vec()  # type: ignore[attr-defined]  # fail fast before touching any collection
+        self._vec()  # fail fast before touching any collection
 
         total = sum(o.document_count for o in orphans)
         tally = _Tally()
@@ -222,7 +222,7 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
 
     async def _migrate_orphan(self, orphan: OrphanCollectionInfo, tally: _Tally, on_batch: Callable[[], None]) -> None:
         """Page through one orphan collection; an unreadable remainder counts as failed."""
-        vector, _ = self._vec()  # type: ignore[attr-defined]
+        vector, _ = self._vec()
         cursor: str | None = None
         read = 0
         while True:
@@ -287,7 +287,7 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
         current collection is left as it is, and one that left it has no new vector yet, so it
         stays in the orphan (counted as failed) and moves on the next run.
         """
-        vector, _ = self._vec()  # type: ignore[attr-defined]
+        vector, _ = self._vec()
         if not await vector.collection_exists(orphan.collection_name):
             return  # a bulk deletion removed the collection while the page was embedded
         remaining = {d.id for d in await vector.get(orphan.collection_name, [d.id for d in documents]) or []}
@@ -304,19 +304,17 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
             unconfirmed |= {d.id for d in await self._missing_from(target, ready)}
         settled = [d.id for d in live if d.id not in unconfirmed]
         if settled:
-            await vector.delete_by_filter(orphan.collection_name, {"id": {"$in": settled}})
+            await vector.delete_by_filter(orphan.collection_name, {"id": settled})
         tally.failed += len(unconfirmed)
         tally.migrated += len(missing) - len(unconfirmed)
         tally.skipped += len(live) - len(missing)
 
     async def _missing_from(self, target: str, documents: list[VectorDocument]) -> list[VectorDocument]:
         """Documents whose id is not in ``target`` yet (memories written since the switch win)."""
-        vector, _ = self._vec()  # type: ignore[attr-defined]
+        vector, _ = self._vec()
         if not await vector.collection_exists(target):
             return documents
-        present, _ = await vector.scroll(
-            target, limit=len(documents), filters={"id": {"$in": [d.id for d in documents]}}
-        )
+        present, _ = await vector.scroll(target, limit=len(documents), filters={"id": [d.id for d in documents]})
         present_ids = {d.id for d in present}
         return [d for d in documents if d.id not in present_ids]
 
@@ -329,7 +327,7 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
         """
         if not documents:
             return _Embedded()
-        _, embedding = self._vec()  # type: ignore[attr-defined]
+        _, embedding = self._vec()
         if memory_type == "conversation":
             conversations = [doc_to_conversation(d, include_raw=True, config=self._config) for d in documents]
             for conversation in conversations:
@@ -346,7 +344,7 @@ class MemoryManagerReindexMixin(MemoryManagerHost):
 
     async def _write_embedded(self, memory_type: str, target: str, embedded: _Embedded, ids: list[str]) -> None:
         """Write the embedded memories ``ids`` into the current model's collection (no model call)."""
-        vector, embedding = self._vec()  # type: ignore[attr-defined]
+        vector, embedding = self._vec()
         if memory_type == "conversation":
             conversations = [embedded.conversations[memory_id] for memory_id in ids]
             await store_conversations_batch(conversations, vector, self._config, embedding, self._cache)

@@ -7,13 +7,16 @@ describe the real manager, so these tests compare them with it:
 - every stub names a member ``MemoryManager`` really defines, with the same member kind
   (method, property, staticmethod), async-ness and parameter names, kinds and defaults;
 - every declared attribute is a slot of ``MemoryManagerCore``, the class that assigns it;
-- the host carries no runtime members, so a stub can never stand in for a missing implementation.
+- the host carries no runtime members, so a stub can never stand in for a missing implementation;
+- no manager part silences the type checker with ``type: ignore``: a missing declaration belongs on the host.
 """
 
 from __future__ import annotations
 
 import ast
 import inspect
+import io
+import tokenize
 from collections.abc import Callable
 from pathlib import Path
 
@@ -147,3 +150,26 @@ def test_host_has_no_runtime_members() -> None:
         if not member.startswith("__") and (callable(value) or isinstance(value, property))
     ]
     assert runtime_members == []
+
+
+def _type_ignore_lines(source: str) -> list[int]:
+    """Lines whose comment carries ``type: ignore`` (a string that merely mentions it does not count)."""
+    return [
+        token.start[0]
+        for token in tokenize.generate_tokens(io.StringIO(source).readline)
+        if token.type == tokenize.COMMENT and "type: ignore" in token.string
+    ]
+
+
+def test_type_ignore_scan_reads_comments_only() -> None:
+    source = 'x = "# type: ignore"\ny = f()  # type: ignore[attr-defined]\n'
+    assert _type_ignore_lines(source) == [2]
+
+
+def test_manager_parts_carry_no_type_ignore() -> None:
+    parts = sorted(Path(host.__file__).parent.glob("*.py"))
+    assert len(parts) > 10, "manager package not found"
+    offenders = [
+        f"{part.name}:{line}" for part in parts for line in _type_ignore_lines(part.read_text(encoding="utf-8"))
+    ]
+    assert offenders == [], f"declare the member on MemoryManagerHost instead of ignoring the checker: {offenders}"

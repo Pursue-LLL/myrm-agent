@@ -13,11 +13,9 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     logger,
 )
 from myrm_agent_harness.toolkits.memory.types import (
-    BaseMemory,
-    ClaimMemory,
+    AnyMemory,
     ConversationMemory,
     EpisodicMemory,
-    IntegrationMemory,
     MemoryType,
     ProceduralMemory,
     SemanticMemory,
@@ -528,13 +526,12 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
         """
         counts: dict[str, int] = {}
 
-        type_parsers: dict[str, type[BaseMemory]] = {
+        # Only the types the writer stores: claims are compiled from the claim graph, never written back.
+        type_parsers: dict[str, type[AnyMemory]] = {
             MemoryType.SEMANTIC.value: SemanticMemory,
             MemoryType.EPISODIC.value: EpisodicMemory,
             MemoryType.PROCEDURAL.value: ProceduralMemory,
             MemoryType.CONVERSATION.value: ConversationMemory,
-            MemoryType.CLAIM.value: ClaimMemory,
-            MemoryType.INTEGRATION.value: IntegrationMemory,
         }
 
         saved_dedup = self._deduplicator
@@ -560,7 +557,7 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                         counts[type_name] = imported
                     continue
 
-                memories: list[BaseMemory] = []
+                memories: list[AnyMemory] = []
                 for entry in entries:
                     try:
                         clean = {k: v for k, v in entry.items() if k not in ("id", "embedding")}
@@ -574,7 +571,7 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                     continue
 
                 try:
-                    stored = await self.store_batch(memories)  # type: ignore[arg-type]
+                    stored = await self.store_batch(memories)
                     counts[type_name] = len(stored)
                 except Exception as e:
                     logger.warning("Import batch store failed for %s: %s", type_name, e)

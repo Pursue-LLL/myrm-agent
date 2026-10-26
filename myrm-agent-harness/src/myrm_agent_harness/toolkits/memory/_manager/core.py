@@ -227,8 +227,8 @@ class MemoryManagerCore(MemoryManagerHost):
             PreferenceStabilityStrategy(preference_facet_store) if preference_facet_store is not None else None
         )
         self._recurrence_detector = (
-            self._init_recurrence_detector(config)
-            if config.recurrence.enabled and vector is not None and embedding is not None
+            self._init_recurrence_detector(config, self._vector, embedding)
+            if config.recurrence.enabled and self._vector is not None and embedding is not None
             else None
         )
 
@@ -265,12 +265,18 @@ class MemoryManagerCore(MemoryManagerHost):
             logger.warning("Failed to initialize deduplicator: %s", e)
             return None
 
-    def _init_recurrence_detector(self, config: MemoryConfig) -> RecurrenceDetector:
-        """Initialize recurrence detector with config params."""
+    @staticmethod
+    def _init_recurrence_detector(
+        config: MemoryConfig, vector: VectorStoreProtocol, embedding: EmbeddingProtocol
+    ) -> RecurrenceDetector:
+        """Initialize recurrence detector with config params.
+
+        ``vector`` is the manager's wrapped store, so the detector shares the BM25 sparse mirror.
+        """
         rc = config.recurrence
         return RecurrenceDetector(
-            embedding=self._embedding,  # type: ignore[arg-type]
-            vector=self._vector,  # type: ignore[arg-type]
+            embedding=embedding,
+            vector=vector,
             collection_prefix=config.collection_prefix,
             similarity_threshold=rc.similarity_threshold,
             recurrence_k=rc.recurrence_k,
