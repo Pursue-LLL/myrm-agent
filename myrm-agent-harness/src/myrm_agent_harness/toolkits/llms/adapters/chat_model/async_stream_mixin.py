@@ -83,8 +83,8 @@ class ChatLiteLLMAsyncStreamMixin:
         first_event_timeout: float
         inter_chunk_timeout: float
         _retry_metrics: EmptyRetryMetrics
-        _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
-        _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
+        _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, object]] | None]]
+        _create_message_dicts: Callable[..., tuple[list[dict[str, object]], dict[str, object]]]
         _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
         _recover_output_cap: Callable[..., bool]
