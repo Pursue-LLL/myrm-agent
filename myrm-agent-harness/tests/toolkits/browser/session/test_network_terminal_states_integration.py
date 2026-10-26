@@ -66,7 +66,7 @@ async def _body_once_loaded(session: BrowserSession, index: int) -> str:
     async with asyncio.timeout(_SETTLE_TIMEOUT_S):
         while True:
             answer = await session.get_network_detail(index)
-            if not answer.startswith("Chrome kept no body"):
+            if not answer.startswith("The browser kept no body"):
                 return answer
             await asyncio.sleep(0.05)
 
@@ -199,7 +199,7 @@ async def test_network_detail_says_why_a_response_has_no_body() -> None:
 
             assert await session.get_network_detail(1) == "No response body (status 204)"
             assert await session.get_network_detail(2) == (
-                "Chrome kept no body for this request: it may still be loading, or the page dropped it"
+                "The browser kept no body for this request: it may still be loading, or the page dropped it"
             )
             assert await _body_once_loaded(session, 3) == "Empty response"
 

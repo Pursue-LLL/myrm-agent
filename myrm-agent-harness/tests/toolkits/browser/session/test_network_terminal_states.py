@@ -293,7 +293,7 @@ async def test_a_body_chrome_never_kept_is_explained_instead_of_quoting_the_driv
 
     assert _lines(ni) == [f"1. GET {_API}/data [200]"]
     assert await ni.get_response_body(1) == (
-        "Chrome kept no body for this request: it may still be loading, or the page dropped it"
+        "The browser kept no body for this request: it may still be loading, or the page dropped it"
     )
 
 

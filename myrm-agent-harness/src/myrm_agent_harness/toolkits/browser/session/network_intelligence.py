@@ -55,7 +55,7 @@ EMPTY_RESPONSE = "Empty response"
 _BODYLESS_STATUSES = frozenset({204, 205, 304})
 # Chrome's answer when it never kept (or no longer holds) the body: an unread empty response or an aborted stream.
 _NO_BODY_KEPT_ERROR = "No data found for resource"
-_BODY_NOT_KEPT = "Chrome kept no body for this request: it may still be loading, or the page dropped it"
+_BODY_NOT_KEPT = "The browser kept no body for this request: it may still be loading, or the page dropped it"
 
 
 class _CdpRequest(TypedDict, total=False):
