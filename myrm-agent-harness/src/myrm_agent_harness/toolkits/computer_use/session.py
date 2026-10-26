@@ -79,10 +79,10 @@ class ComputerSession:
         self.observed_generation: int = self.user_control.generation
 
     async def _ensure_not_user_takeover(self, timeout: float = DEFAULT_WAIT_TIMEOUT_S) -> None:
-        """Wait while a person drives the desktop; raise `UserControlTimeoutError` once they keep it past `timeout`.
+        """Wait while a person drives the desktop: the guard of every session call made outside the tool gate.
 
-        The tool gate already fences every desktop tool, so this only matters for session calls made
-        outside a tool. The session stays locked on timeout rather than act behind the person's back.
+        Raises `UserControlTimeoutError` past `timeout`, so the session stays locked rather than act behind the
+        person's back, or `OperationCancelledError` once the run is stopped.
         """
         try:
             await self.user_control.wait_released(timeout)

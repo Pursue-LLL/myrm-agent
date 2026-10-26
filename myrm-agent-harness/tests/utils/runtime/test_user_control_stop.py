@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from collections.abc import Callable, Iterator
 from types import SimpleNamespace
@@ -148,6 +149,36 @@ async def test_a_wait_that_ends_by_release_still_returns_normally_for_a_run_with
     control.release()
     await asyncio.wait_for(waiter, timeout=1.0)
     assert control._waiters == []
+
+
+@pytest.mark.asyncio
+async def test_a_release_from_another_thread_still_wakes_a_waiting_run_that_has_a_token() -> None:
+    control = UserControl()
+    control.acquire()
+    set_cancel_token(CancellationToken("req"))
+    waiter = asyncio.create_task(control.wait_released(timeout=5.0))
+    await asyncio.sleep(0.05)
+
+    threading.Thread(target=control.release).start()
+    await asyncio.wait_for(waiter, timeout=1.0)
+    assert control._waiters == []
+
+
+@pytest.mark.asyncio
+async def test_a_wait_cancelled_for_another_reason_leaves_no_waiter_or_task_behind() -> None:
+    control = UserControl()
+    control.acquire()
+    set_cancel_token(CancellationToken("req"))
+    waiter = asyncio.create_task(control.wait_released(timeout=5.0))
+    await asyncio.sleep(0.05)
+
+    waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+    await asyncio.sleep(0.05)
+
+    assert control._waiters == []
+    assert [t for t in asyncio.all_tasks() if t is not asyncio.current_task()] == []
 
 
 @pytest.mark.asyncio
