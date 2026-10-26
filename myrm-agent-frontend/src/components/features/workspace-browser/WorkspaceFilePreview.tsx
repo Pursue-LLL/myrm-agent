@@ -257,7 +257,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       setEditing((prev) => !prev);
     }, [editing, dirty, content, t]);
 
-    // Ctrl+S / Cmd+S; the workbench keeps this preview mounted but hidden under its Terminal tab, where it stays out
+    // Ctrl+S / Cmd+S, unless a host keeps this preview mounted but hidden (the workbench does so under its Terminal tab)
     useEffect(() => {
       const handler = (e: globalThis.KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 's' && editing && !rootRef.current?.closest('[hidden]')) {
