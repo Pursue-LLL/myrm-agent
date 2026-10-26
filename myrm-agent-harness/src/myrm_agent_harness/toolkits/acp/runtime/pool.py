@@ -211,7 +211,7 @@ class RuntimePool:
                 finally:
                     if oneshot:
                         self._oneshot_backends.pop((name, session_id), None)
-                        await backend.close()
+                        await _safe_close(name, backend)
 
     async def cancel(self, name: str, session_id: str) -> None:
         """Cancel a running turn for the named backend.

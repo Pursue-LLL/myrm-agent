@@ -34,9 +34,10 @@ class _FakeBackend:
     capabilities = BackendCapabilities()
     is_alive = True
 
-    def __init__(self, *, gated: bool = False, fail: bool = False) -> None:
+    def __init__(self, *, gated: bool = False, fail: bool = False, close_fails: bool = False) -> None:
         self.gated = gated
         self.fail = fail
+        self.close_fails = close_fails
         self.started = asyncio.Event()
         self.release = asyncio.Event()
         self.cancelled: list[str] = []
@@ -62,6 +63,8 @@ class _FakeBackend:
 
     async def close(self) -> None:
         self.closed = True
+        if self.close_fails:
+            raise RuntimeError("close failed")
 
 
 def _pool() -> RuntimePool:
@@ -99,6 +102,30 @@ async def test_oneshot_backend_is_unregistered_and_closed_when_the_turn_fails() 
 
     assert backend.closed
     assert pool._oneshot_backends == {}
+
+
+@pytest.mark.asyncio
+async def test_oneshot_close_failure_does_not_replace_the_turn_error() -> None:
+    pool = _pool()
+    backend = _FakeBackend(fail=True, close_fails=True)
+
+    with patch(_POOL_FACTORY, return_value=backend), pytest.raises(RuntimeError, match=r"^boom$"):
+        await _drain(pool.run_turn("claude", "task", "claude-oneshot-1", mode="oneshot"))
+
+    assert backend.closed
+    assert pool._oneshot_backends == {}
+
+
+@pytest.mark.asyncio
+async def test_oneshot_close_failure_after_a_finished_turn_is_only_logged(caplog: pytest.LogCaptureFixture) -> None:
+    pool = _pool()
+    backend = _FakeBackend(close_fails=True)
+
+    with patch(_POOL_FACTORY, return_value=backend), caplog.at_level("WARNING"):
+        events = await _drain(pool.run_turn("claude", "task", "claude-oneshot-1", mode="oneshot"))
+
+    assert events[-1].type == RuntimeEventType.DONE
+    assert "pool_close_failed backend=claude" in caplog.text
 
 
 @pytest.mark.asyncio

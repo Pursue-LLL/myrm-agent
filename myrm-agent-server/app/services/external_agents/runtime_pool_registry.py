@@ -12,9 +12,9 @@
 [POS]
 Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness RuntimePool，
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
-idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 回收。
+idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托与正在 acquire 的 chat 不参与 idle 回收。
 idle 超时只释放池里的常驻进程（ACP），池本身与 CLI 后端的 --resume 会话 id 保留：CLI 回合之间没有进程，
-整池驱逐只会丢会话、不释放任何资源。池只在配置变更、删 chat（close_chat）、服务关闭（close_all）时被 close。
+整池关闭只会丢会话、不释放任何资源。池只在配置变更、删 chat（close_chat）、服务关闭（close_all）时被 close。
 关闭后仍握着该池的旧 facade 再委托时，已关闭的 RuntimePool 会懒重建后端；facade 每个委托 turn 先
 ensure_tracked 把池重新登记，这些后端才会被 close_chat / close_all 收尾而不是变成孤儿进程。
 所有 pool 关闭 / 释放都带上限（_bounded），失联的外部 agent 不会拖死持锁的 registry。
@@ -48,7 +48,7 @@ class _ChatPoolEntry:
     pool: RuntimePool
     config_fingerprint: str
     last_used: float
-    # True once the idle pass has released the pool's resident processes; cleared by the next use.
+    # True once the idle pass has tried to release the pool's resident processes; cleared by the next use.
     idle_released: bool = False
 
     def touch(self) -> None:
@@ -116,7 +116,7 @@ class ChatRuntimePoolRegistry:
     ) -> RuntimePool:
         """Return an existing pool for the chat or create one with ``build_pool``."""
         async with self._lock:
-            await self._release_idle_unlocked()
+            await self._release_idle_unlocked(in_use=chat_scope_id)
             entry = self._entries.get(chat_scope_id)
             if entry is not None and entry.config_fingerprint == config_fingerprint:
                 entry.touch()
@@ -207,19 +207,23 @@ class ChatRuntimePoolRegistry:
         if entry is not None:
             entry.touch()
 
-    async def _release_idle_unlocked(self) -> None:
+    async def _release_idle_unlocked(self, *, in_use: str) -> None:
         """Free the resident processes of pools idle past the window; the pools stay registered.
 
         A CLI backend holds no process between turns, only the session id behind ``--resume``, so dropping
         its pool would lose that id and free nothing. Each due entry is taken out of ``_entries`` while its
         resident backends close, so a turn arriving meanwhile waits in ``ensure_tracked`` for the registry
-        lock instead of racing the release. A pool with an in-flight turn is never idle.
+        lock instead of racing the release. A pool with an in-flight turn is never idle, and neither is the
+        pool of ``in_use``, the chat asking for it right now.
         """
         now = time.monotonic()
         due = [
             (chat_scope_id, entry)
             for chat_scope_id, entry in self._entries.items()
-            if now - entry.last_used > self._idle_seconds and not entry.idle_released and not self._is_turn_active(chat_scope_id)
+            if chat_scope_id != in_use
+            and now - entry.last_used > self._idle_seconds
+            and not entry.idle_released
+            and not self._is_turn_active(chat_scope_id)
         ]
         if not due:
             return
