@@ -1,15 +1,16 @@
-"""Relational store protocol — Profile, Procedural, and Pending memory backend.
+"""Relational store protocol — Profile, Procedural, Pending, exact-fact index and integrity backend.
 
 
 [INPUT]
 - memory.types::{MemoryScope, MemorySearchResult, PendingRecord, ProceduralMemory, ProfileEntry} (POS: memory data models)
 
 [OUTPUT]
-- RelationalStoreProtocol: Protocol for relational storage (Profile/Procedural/Pending backends)
+- RelationalStoreProtocol: Protocol for relational storage (Profile/Procedural/Pending, exact-fact + FTS5 index, integrity check)
 
 [POS]
 Relational store protocol. Defines the relational storage interface for Profile, Procedural,
-and Pending memories. Implementations may use PostgreSQL, SQLite, DynamoDB, etc.
+and Pending memories, the exact-identifier / full-text index and the integrity check.
+Implementations may use PostgreSQL, SQLite, DynamoDB, etc.
 """
 
 from __future__ import annotations

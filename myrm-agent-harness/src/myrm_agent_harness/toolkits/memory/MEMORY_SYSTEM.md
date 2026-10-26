@@ -1132,7 +1132,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **争议冻结**：`conflict_status=conflicted` 写回已存记录，使遗忘通道在人工裁决前保留双方；
   - **撤回退役**：确认由替换产生时标记 `superseded`，排序召回路径不再返回该记录；存储、衰减与治理列表不受影响，记录仍可审计、仍会衰减。
 - **自愈式装配与单机开箱即用**：
-  - `MemoryManager` 核心构造层与 `setup_local_memory` 启动工厂原生内聚自愈装配逻辑，在未显式传递 `fts5_searcher` 时自动检测并挂载 `relational_store.search_fts5` 通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
+  - `MemoryManager` 核心构造层与 `setup_local_memory` 启动工厂原生内聚自愈装配逻辑，在未显式传递 `fts5_searcher` 时自动挂载 `relational_store.search_fts5` 通道，保障单机本地、Tauri 桌面端与云端沙箱三种部署形态下精确事实双轨召回通道 100% 畅通。
 
 ---
 

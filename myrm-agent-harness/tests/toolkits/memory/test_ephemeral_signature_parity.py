@@ -4,7 +4,7 @@
 subagent, so a caller written against ``MemoryManager`` (``store(..., _force_pending=True)``,
 ``delete_memory(..., allow_protected=False)``, ``list_memories(..., sort_by=...)``) must not hit a
 ``TypeError`` there. Each override therefore keeps the base class parameter names, kinds and
-default presence.
+default presence, and both take their identity fields from the real parent manager.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.ephemeral import EphemeralMemoryManager, ReadOnlyMemoryView
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
@@ -105,3 +106,16 @@ class TestIsolationManagersAcceptBaseKeywords:
         assert parent.get_context.await_args.kwargs["include_profile"] is False
         assert parent.list_memories.await_args.kwargs["sort_by"] == "importance"
         assert parent.count_memories.await_args.kwargs["tag_filter"] == "t"
+
+
+class TestIdentityComesFromTheRealParent:
+    @pytest.mark.parametrize("cls", [EphemeralMemoryManager, ReadOnlyMemoryView])
+    def test_identity_fields_are_copied(self, cls: type[EphemeralMemoryManager | ReadOnlyMemoryView]) -> None:
+        parent = MemoryManager(MemoryConfig(embedding_model="test-model"), user_id="u1", auto_warmup=False)
+
+        manager = cls(parent)
+
+        assert manager._user_id == "u1"
+        assert manager._recall_mode == parent._recall_mode
+        assert manager._memory_policy is parent._memory_policy
+        assert manager.namespaces == parent.namespaces

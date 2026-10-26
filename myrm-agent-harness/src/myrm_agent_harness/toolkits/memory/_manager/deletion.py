@@ -388,7 +388,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                 logger.warning("Shutdown session flush failed (non-fatal): %s", e)
             self._active_session = None
 
-        if self._relational and hasattr(self._relational, "close"):
+        if self._relational:
             await self._relational.close()
         if self._vector:
             await self._vector.close()
