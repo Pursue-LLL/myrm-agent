@@ -26,7 +26,6 @@ export interface WorkbenchFileNode {
 }
 
 export interface FileTreeResponse {
-  root_path: string;
   nodes: WorkbenchFileNode[];
   total_files: number;
   total_dirs: number;

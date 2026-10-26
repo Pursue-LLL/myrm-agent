@@ -32,7 +32,6 @@ class WorkbenchFileNode(BaseModel):
 
 
 class FileTreeResponse(BaseModel):
-    root_path: str = Field(..., description="Root directory path")
     nodes: list[WorkbenchFileNode] = Field(default_factory=list)
     total_files: int = Field(default=0)
     total_dirs: int = Field(default=0)

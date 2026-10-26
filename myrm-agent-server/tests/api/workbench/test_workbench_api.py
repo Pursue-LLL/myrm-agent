@@ -12,6 +12,7 @@ Tests for the auxiliary workbench backend: root resolution, path confinement, co
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from collections.abc import Iterator
@@ -21,7 +22,8 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from app.api.workbench.routes import _MAX_RESPONSE_BYTES, workbench_router
+from app.api.workbench.models import TerminalExecRequest
+from app.api.workbench.routes import _MAX_RESPONSE_BYTES, execute_terminal_command, workbench_router
 from tests.support.chat_workspace import chats_bound_to_workspaces
 
 PREFIX = "/api/v1/workbench"
@@ -52,7 +54,7 @@ def test_file_tree_lists_the_chats_workspace_with_relative_paths(client: TestCli
 
     assert response.status_code == 200
     data = response.json()
-    assert data["root_path"] == str(workspace.resolve())
+    assert "root_path" not in data
     assert [node["path"] for node in data["nodes"]] == ["src", "notes.md"]
     assert data["nodes"][0]["children"][0]["path"] == os.path.join("src", "app.py")
     assert (data["total_files"], data["total_dirs"]) == (2, 1)
@@ -207,6 +209,35 @@ def test_timeout_kills_the_whole_process_tree(client: TestClient, workspace: Pat
     except ProcessLookupError:
         return
     pytest.fail(f"process {child} survived the timeout")
+
+
+@posix_only
+async def test_cancelling_the_request_kills_the_whole_process_tree(workspace: Path) -> None:
+    pid_file = workspace / "child.pid"
+    request = TerminalExecRequest(
+        chat_id=CHAT,
+        command=f"sh -c 'echo $$ > {pid_file}; exec sleep 300' & wait",
+        timeout_seconds=60,
+    )
+    with chats_bound_to_workspaces({CHAT: workspace}):
+        running = asyncio.create_task(execute_terminal_command(request))
+        for _ in range(100):
+            if pid_file.exists() and pid_file.read_text().strip():
+                break
+            await asyncio.sleep(0.05)
+        running.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await running
+
+    child = int(pid_file.read_text().strip())
+    for _ in range(40):
+        try:
+            os.kill(child, 0)
+        except ProcessLookupError:
+            return
+        await asyncio.sleep(0.05)
+    os.kill(child, 9)
+    pytest.fail(f"process {child} survived the cancelled request")
 
 
 @posix_only

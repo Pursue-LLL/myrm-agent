@@ -11,7 +11,7 @@
 [POS]
 Backend endpoints for the auxiliary workbench. Every path is confined to the workspace of the chat the
 request names; commands run there under a static safety gate, with the same credential-free environment as the
-agent's own shell, a timeout that kills the whole process tree, and a per-stream output cap. File previews are
+agent's own shell, a process tree that never outlives its request, and a per-stream output cap. File previews are
 capped the same way and binary files are reported instead of decoded.
 """
 
@@ -157,7 +157,7 @@ async def list_workspace_files(
 
     nodes = await asyncio.to_thread(_build_tree, target_root, root, 1, max_depth)
     total_files, total_dirs = _count_nodes(nodes)
-    return FileTreeResponse(root_path=str(target_root), nodes=nodes, total_files=total_files, total_dirs=total_dirs)
+    return FileTreeResponse(nodes=nodes, total_files=total_files, total_dirs=total_dirs)
 
 
 def _read_preview(path: Path) -> tuple[str, bool, bool]:
@@ -244,9 +244,12 @@ async def execute_terminal_command(req: TerminalExecRequest) -> TerminalExecResp
             timeout=float(req.timeout_seconds),
         )
     except TimeoutError as exc:
-        kill_process_group(proc.pid)
-        await proc.wait()
         raise HTTPException(status_code=408, detail=f"Command execution timed out after {req.timeout_seconds}s") from exc
+    finally:
+        # Whatever ended the request (timeout, client abort, server shutdown), no command outlives it.
+        if proc.returncode is None:
+            kill_process_group(proc.pid)
+            await proc.wait()
 
     return TerminalExecResponse(
         command=req.command,

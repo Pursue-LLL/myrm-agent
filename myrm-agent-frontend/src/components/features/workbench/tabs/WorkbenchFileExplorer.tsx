@@ -283,7 +283,9 @@ export function WorkbenchFileExplorer({ chatId }: WorkbenchFileExplorerProps) {
                     <span className="uppercase px-1.5 py-0.5 rounded bg-muted">
                       {selectedFileContent.language}
                     </span>
-                    <span>{t('lineCount', { count: selectedFileContent.content.split('\n').length })}</span>
+                    {!selectedFileContent.truncated && (
+                      <span>{t('lineCount', { count: selectedFileContent.content.split('\n').length })}</span>
+                    )}
                   </div>
                 )}
               </div>

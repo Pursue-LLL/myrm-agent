@@ -22,7 +22,6 @@ vi.mock('@/services/workbench', () => ({
 }));
 
 const mockTreeData: workbenchService.FileTreeResponse = {
-  root_path: '/workspace',
   total_files: 2,
   total_dirs: 1,
   nodes: [
@@ -152,6 +151,7 @@ describe('WorkbenchFileExplorer component', () => {
 
     await waitFor(() => expect(screen.getByText('binaryFile')).toBeDefined());
     expect(screen.queryByText('lineCount')).toBeNull();
+    expect(screen.queryByText('plaintext')).toBeNull();
   });
 
   it('says when only the beginning of a large file is shown', async () => {
@@ -165,6 +165,7 @@ describe('WorkbenchFileExplorer component', () => {
 
     await waitFor(() => expect(screen.getByText('previewTruncated')).toBeDefined());
     expect(screen.getByText('first line')).toBeDefined();
+    expect(screen.queryByText('lineCount')).toBeNull();
   });
 
   it('shows the file clicked last when an earlier file answers later', async () => {

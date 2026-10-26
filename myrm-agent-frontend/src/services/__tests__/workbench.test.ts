@@ -16,7 +16,6 @@ describe('workbench service', () => {
 
   it('fetchWorkspaceFiles names the chat whose workspace it browses', async () => {
     const mockTree = {
-      root_path: '/workspace',
       nodes: [],
       total_files: 0,
       total_dirs: 0,
