@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -51,7 +52,7 @@ class TestSparseWriteWithoutMirror:
     async def test_write_raises_memory_error(
         self,
         memory_config: MemoryConfig,
-        mock_vector_store,
+        mock_vector_store: AsyncMock,
         make_memory: Callable[[], AnyMemory],
         write: Callable[[MemoryManager, AnyMemory], Awaitable[object]],
     ) -> None:

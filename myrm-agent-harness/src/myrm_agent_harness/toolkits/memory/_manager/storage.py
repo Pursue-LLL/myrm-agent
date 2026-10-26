@@ -142,9 +142,8 @@ class MemoryManagerStorageMixin:
     def _require_sparse_mirror(self) -> BM25SparseIndexStore:
         """Return the sparse-capable vector backend for sparse-authoritative writes.
 
-        A missing sparse-capable backend keeps the previous fail-fast
-        behaviour: without an embedding backend and without a sparse mirror
-        there is nowhere to persist the memory.
+        Without a sparse mirror, and with no embedding backend in this mode,
+        there is nowhere to persist the memory, so the write fails fast.
         """
         vector = self._vector
         if vector is None or not isinstance(vector, BM25SparseIndexStore):
