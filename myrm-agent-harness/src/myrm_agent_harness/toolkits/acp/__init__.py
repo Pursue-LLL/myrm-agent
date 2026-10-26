@@ -34,6 +34,13 @@ for bidirectional ACP protocol integration.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .runtime.pool import RuntimePool
+    from .server.server import MyrmAcpServer, run_server
+    from .types import RuntimeBackend, RuntimeConfig
+
 __all__ = [
     "MyrmAcpServer",
     "RuntimeBackend",

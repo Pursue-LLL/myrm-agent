@@ -14,6 +14,12 @@ ACP runtime direction — external agents are delegated to over a unified Runtim
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._base import BaseRuntime
+    from .pool import RuntimePool
+
 __all__ = [
     "BaseRuntime",
     "RuntimePool",
