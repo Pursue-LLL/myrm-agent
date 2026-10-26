@@ -119,6 +119,26 @@ async def test_a_request_the_browser_refuses_reads_as_failed_with_the_browsers_o
             assert (await session.get_network_detail(1)).startswith(f"Request failed: {reported_by_chrome[0]}")
 
 
+async def test_a_request_the_domain_filter_aborts_reads_as_failed_and_never_reaches_the_server() -> None:
+    routes = {"/app": _script_page("fetch('/api/blocked').catch(() => {})")}
+    with serve(routes) as site:
+        async with local_session() as session:
+            # The abort `domain_filter/http_filter.py::_abort_route_safely` issues for a request it refuses.
+            await session.get_active_page().route("**/api/blocked", lambda route: route.abort("blockedbyclient"))
+            chrome_failures = await _record_chrome_failures(session)
+            await session.navigate(site.url("/app"))
+            await _until_every_request_has_ended(session, expected=1)
+            await _until(lambda: len(chrome_failures) == 1)
+
+            error = str(chrome_failures[0]["errorText"])
+            assert error.startswith("net::ERR_BLOCKED_BY_CLIENT"), "control: Chrome reports it as a client block"
+            assert chrome_failures[0]["canceled"] is False, "control: a block is a failure, not a drop"
+            (line,) = _log_lines(session)
+            assert line.endswith(f"/api/blocked [failed: {error}]"), line
+            assert await session.get_network_detail(1) == f"Request failed: {error}"
+            assert "/api/blocked" not in site.paths()
+
+
 async def test_a_response_the_page_never_reads_keeps_the_status_the_server_gave() -> None:
     routes = {
         "/app": _script_page("fetch('/api/orders/7', {method: 'DELETE'}); fetch('/api/ping'); fetch('/api/me')"),
