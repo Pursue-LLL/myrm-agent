@@ -9,15 +9,13 @@ store that refuses, and a manager with no vector backend at all.
 
 from __future__ import annotations
 
+from typing import ClassVar
 from unittest.mock import AsyncMock
 
-import pytest
-
 from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
-from myrm_agent_harness.toolkits.memory.types import MemoryType
 from myrm_agent_harness.toolkits.vector.base import VectorDocument
 
-from .support import Embedder, manager_for, semantic, seed
+from .support import Embedder, manager_for, seed, semantic
 
 
 class _EvictOnlyCache:
@@ -41,7 +39,7 @@ class _FakeVectorlessManager(MemoryManagerDeletionMixin):
     _graph = None
     _config = None
     _user_id = "u1"
-    _namespaces = ["agent:default"]
+    _namespaces: ClassVar[list[str]] = ["agent:default"]
 
 
 def _doc(memory_id: str, content: str, *, pinned: bool = False) -> VectorDocument:
@@ -108,7 +106,9 @@ class TestOwnedDocsFilter:
 
 
 class TestDeleteByIdReachesEveryModel:
-    async def test_deleting_from_the_previous_model_drops_the_memory_everywhere(self, store, old_config, new_config) -> None:
+    async def test_deleting_from_the_previous_model_drops_the_memory_everywhere(
+        self, store, old_config, new_config
+    ) -> None:
         """Deleting reads the family by name: clearing the old collection also clears the current copy."""
         memory = semantic("Prefers tabs over spaces")
         await seed(store, old_config, semantics=[memory])
