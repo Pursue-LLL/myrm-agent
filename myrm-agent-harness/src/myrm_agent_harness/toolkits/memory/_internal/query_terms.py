@@ -4,14 +4,16 @@
 - none (pure functions over an already tokenized query)
 
 [OUTPUT]
-- prune_function_words: drop closed-class and conversational filler tokens from a tokenized query
+- prune_function_words: drop closed-class and conversational filler tokens from a sentence-length tokenized query
+- MIN_SENTENCE_TOKENS: the token count from which a query counts as a sentence
 
 [POS]
 Conversational queries ("what did I say about the release plan before",
 "我之前跟你说过的关于发布计划的事情是怎么来着") carry far more function words than
 content words. The mirror scores by weighted term overlap, so every filler token
-that also occurs in stored memories adds score to unrelated hits. Pruning happens
-on the query side only: stored documents keep their full token stream, so no
+that also occurs in stored memories adds score to unrelated hits. Only sentence-length
+queries are pruned (``MIN_SENTENCE_TOKENS``); a short query is already a keyword query.
+Pruning happens on the query side only: stored documents keep their full token stream, so no
 mirror rewrite is needed. The legacy corpus-scroll path does not use this module;
 it already selects long-query terms by corpus IDF, which the mirror client cannot
 compute because the server owns the document statistics.
@@ -58,11 +60,19 @@ _FUNCTION_WORDS: Final[frozenset[str]] = frozenset(_EN_FUNCTION_WORD_LIST.split(
 )
 
 
+MIN_SENTENCE_TOKENS: Final[int] = 5
+
+
 def prune_function_words(tokens: list[str]) -> list[str]:
     """Return ``tokens`` without function words, or ``tokens`` itself if nothing else is left.
 
-    A query made only of function words ("who are you") keeps its original tokens:
-    an empty query would match nothing, while the unpruned one still ranks.
+    Only sentence-length queries are pruned: a short query is already a keyword
+    query, every token chosen on purpose, and a function word in it ("between",
+    "before") may be exactly the term that singles out the memory. A query made
+    only of function words ("who are you") keeps its original tokens: an empty
+    query would match nothing, while the unpruned one still ranks.
     """
+    if len(tokens) < MIN_SENTENCE_TOKENS:
+        return tokens
     content = [token for token in tokens if token not in _FUNCTION_WORDS]
     return content or tokens

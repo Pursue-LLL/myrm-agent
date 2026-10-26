@@ -34,19 +34,32 @@ class TestPruneFunctionWords:
         assert prune_function_words(preprocess_text(query)) == expected
 
     def test_negations_are_kept(self) -> None:
-        assert prune_function_words(["do", "not", "like", "coffee"]) == ["not", "like", "coffee"]
-        assert prune_function_words(["用户", "不", "喜欢", "咖啡", "吗"]) == ["用户", "不", "喜欢", "咖啡"]
+        assert prune_function_words(["do", "you", "not", "like", "coffee"]) == ["not", "like", "coffee"]
+        assert prune_function_words(["这位", "用户", "不", "喜欢", "咖啡", "吗"]) == [
+            "这位",
+            "用户",
+            "不",
+            "喜欢",
+            "咖啡",
+        ]
 
     def test_name_like_homographs_are_kept(self) -> None:
-        assert prune_function_words(["will", "s", "birthday"]) == ["will", "birthday"]
+        assert prune_function_words(["what", "is", "will", "s", "birthday"]) == ["will", "birthday"]
 
     def test_uppercase_acronym_is_not_the_pronoun(self) -> None:
-        assert prune_function_words(["IT", "it", "support"]) == ["IT", "support"]
+        assert prune_function_words(["IT", "it", "the", "support", "desk"]) == ["IT", "support", "desk"]
 
     def test_all_function_words_fall_back_to_the_original_tokens(self) -> None:
-        tokens = ["who", "are", "you"]
+        tokens = ["what", "did", "i", "say", "about", "it"]
         assert prune_function_words(tokens) == tokens
         assert prune_function_words([]) == []
+
+    def test_short_queries_are_keyword_queries_and_stay_untouched(self) -> None:
+        """A short query chose every token on purpose, function words included."""
+        assert prune_function_words(["before", "after", "release"]) == ["before", "after", "release"]
+        assert prune_function_words(["between", "alpha", "beta", "gamma"]) == ["between", "alpha", "beta", "gamma"]
+        sentence = ["what", "is", "between", "alpha", "beta"]
+        assert prune_function_words(sentence) == ["alpha", "beta"]
 
 
 class TestQueryEncoding:
