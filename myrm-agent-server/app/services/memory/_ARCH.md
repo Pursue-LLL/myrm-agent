@@ -25,7 +25,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `manager_deps.py` | 门面 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`），供 api 与 service handler 注入 | ✅ |
+| `manager_deps.py` | 门面 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`），供 api 与 service handler 注入；embedding 未配置时返回关键词模式管理器，仅管理器创建本身失败才映射 503 | ✅ |
 | `preference_radar_service.py` | 核心 | 会话级动态用户偏好雷达服务。内存状态自适应拟合、并发锁控制、锁定态阻尼、冷启动原子持久化落盘与检索有效信号权重推导 | ✅ |
 | `reindex_run.py` | 核心 | 更换嵌入模型后的孤儿记忆迁移后台运行：进程内单飞（进行中再次触发直接加入同一轮，检查与占位之间没有 `await`，不需要锁；一轮写进启动时那个嵌入模型的集合，只有同一模型的请求可以加入，另一模型的请求抛 `ReindexBusyError`），实时 done/total 与最终 `ReindexResult`（migrated/skipped/failed）；失败标 FAILED 并 `logger.exception`，不吞错；状态只存进程内存（迁移幂等，重启后重跑即可）。由 `api/memory/operations/reindex.py` 触发与查询 | ✅ |
 | `ephemeral_delta_volume.py` | 核心 | 将 harness shared store 绑定到 Volume `memory.db`（CC/API/agent 共用） | ✅ |

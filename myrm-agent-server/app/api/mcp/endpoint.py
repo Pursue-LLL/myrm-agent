@@ -47,13 +47,11 @@ if TYPE_CHECKING:
     from mcp.types import Tool
     from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 logger = logging.getLogger(__name__)
 
 _session_manager_task: asyncio.Task[None] | None = None
 _session_manager_ready = asyncio.Event()
-_embedding_cfg: EmbeddingConfig | None = None
 _mcp_desktop_sessions: dict[str, DesktopSession] = {}
 
 _request_desktop_enabled: ContextVar[bool] = ContextVar(
@@ -81,15 +79,6 @@ def clear_mcp_desktop_sessions() -> None:
     """Clear cached external MCP desktop sessions (used in testing and shutdown)."""
     global _mcp_desktop_sessions
     _mcp_desktop_sessions.clear()
-
-
-async def _require_embedding_config() -> EmbeddingConfig:
-    global _embedding_cfg
-    if _embedding_cfg is None:
-        from app.services.agent.platform_config import require_platform_embedding_config
-
-        _embedding_cfg = await require_platform_embedding_config()
-    return _embedding_cfg
 
 
 async def _wiki_boundary_enabled_for_agent(agent_id: str) -> bool:
@@ -166,6 +155,7 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
         create_memory_manager,
         resolve_context_binding,
     )
+    from app.services.agent.platform_config import load_platform_retrieval_configs
     from app.services.memory.shared_context.shared_context import (
         resolve_shared_context_ids,
     )
@@ -179,7 +169,7 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
         task_id=None,
         shared_context_ids=shared_context_ids,
     )
-    embedding_cfg = await _require_embedding_config()
+    embedding_cfg, _ = await load_platform_retrieval_configs()
     return await create_memory_manager(
         binding,
         embedding_cfg,
@@ -381,8 +371,9 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
             create_memory_manager,
             resolve_context_binding,
         )
+        from app.services.agent.platform_config import load_platform_retrieval_configs
 
-        embedding_cfg = await _require_embedding_config()
+        embedding_cfg, _ = await load_platform_retrieval_configs()
 
         binding = resolve_context_binding(
             namespaces=None,

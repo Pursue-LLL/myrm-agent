@@ -251,9 +251,9 @@ class RouterCommandsMemoryMixin:
                 create_memory_manager,
                 resolve_context_binding,
             )
-            from app.services.agent.platform_config import require_platform_embedding_config
+            from app.services.agent.platform_config import load_platform_retrieval_configs
 
-            embedding_cfg = await require_platform_embedding_config()
+            embedding_cfg, _ = await load_platform_retrieval_configs()
             manager = await create_memory_manager(
                 resolve_context_binding(
                     namespaces=None,

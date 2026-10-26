@@ -98,7 +98,7 @@ class TurnPrewarmCoordinator:
         if self._should_warm_agent(action_mode):
             await self._schedule_agent_warm(scope_key, fingerprint, wrapper, params, task_key)
 
-        if params.enable_memory and params.embedding_config is not None:
+        if params.enable_memory:
             await self._schedule_brief_warm(scope_key, fingerprint, params, task_key)
 
     async def cancel_scope(self, chat_id: str, agent_id: str | None) -> None:
@@ -152,7 +152,7 @@ class TurnPrewarmCoordinator:
         task_key = self._task_key(scope_key, fingerprint)
 
         warm_agent = self._should_warm_agent(action_mode)
-        warm_brief = params.enable_memory and params.embedding_config is not None
+        warm_brief = params.enable_memory
 
         if warm_agent:
             await self._schedule_agent_warm(scope_key, fingerprint, wrapper, params, task_key)

@@ -263,8 +263,8 @@ async def test_run_retry_extract_uses_chat_binding_and_compressed_track(
         lambda agent_id: f"conflict-{agent_id}",
     )
     monkeypatch.setattr(
-        "app.services.agent.platform_config.require_platform_embedding_config",
-        AsyncMock(return_value=MagicMock()),
+        "app.services.agent.platform_config.load_platform_retrieval_configs",
+        AsyncMock(return_value=(MagicMock(), None)),
     )
     monkeypatch.setattr(
         "myrm_agent_harness.api.hooks.auto_extract_memories",

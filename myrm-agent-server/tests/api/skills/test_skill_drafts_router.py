@@ -541,8 +541,8 @@ async def test_materialize_semantic_memory_failure() -> None:
         content = "remember this fact"
 
     with patch(
-        "app.services.agent.platform_config.require_platform_embedding_config",
-        side_effect=RuntimeError("no embedding backend"),
+        "app.services.agent.platform_config.load_platform_retrieval_configs",
+        side_effect=RuntimeError("retrieval config unavailable"),
     ):
         result = await materialize_semantic_memory(_Draft())  # type: ignore[arg-type]
 
@@ -612,8 +612,8 @@ async def test_approve_semantic_memory_draft(mock_local_skills_dir: Path) -> Non
 
     with (
         mock_patch(
-            "app.services.agent.platform_config.require_platform_embedding_config",
-            new=AsyncMock(return_value=fake_embed_cfg),
+            "app.services.agent.platform_config.load_platform_retrieval_configs",
+            new=AsyncMock(return_value=(fake_embed_cfg, None)),
         ),
         mock_patch(
             "app.core.memory.adapters.setup.create_memory_manager",

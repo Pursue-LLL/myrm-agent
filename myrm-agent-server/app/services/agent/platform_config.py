@@ -11,7 +11,8 @@
 - load_platform_evolution_llm: WebUI 后台自进化专属 LLM
 - webui_model_preflight_warning: local/tauri 启动前 WebUI 模型缺失 warning（不阻塞）
 - resolve_xai_search_config: 从 providers 解析 xAI 凭据
-- require_platform_embedding_config: WebUI 检索设置中 embedding 配置结构检查（缺失即抛 ConfigIncompleteError）
+- load_platform_retrieval_configs: WebUI 检索设置中的 embedding / reranker 配置，均可为空；记忆管理器入口用它，embedding 缺省即关键词模式
+- require_platform_embedding_config: 必须依赖真实 embedding 的能力使用的结构检查（缺失即抛 ConfigIncompleteError）
 - verify_platform_embedding_ready: embedding 配置结构检查 + 真实探活（不可用即抛 ConfigIncompleteError）
 
 [POS]

@@ -144,3 +144,26 @@ def test_prune_agent_ready_timestamps_removes_expired_entries() -> None:
 
     assert coordinator._agent_ready_at == {}
     assert coordinator._brief_cache.get("c-expired:default", "fp") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("enable_memory", "expected_warms"), [(True, 1), (False, 0)])
+async def test_brief_is_prewarmed_for_memory_turns_without_an_embedding(enable_memory: bool, expected_warms: int) -> None:
+    """Keyword mode (no embedding) builds the same memory brief, so it is warmed like any other memory turn."""
+    coordinator = TurnPrewarmCoordinator()
+    params = _make_params()
+    params.enable_memory = enable_memory
+    params.embedding_config = None
+
+    with (
+        patch("app.services.agent.execution_cache.prewarm.coordinator.AgentFactory.create_general_agent"),
+        patch(
+            "app.services.agent.execution_cache.prewarm.coordinator.compute_execution_fingerprint",
+            return_value="fp",
+        ),
+        patch.object(coordinator, "_should_warm_agent", return_value=False),
+        patch.object(coordinator, "_schedule_brief_warm", new=AsyncMock()) as schedule_brief,
+    ):
+        await coordinator.ensure_warming(params)
+
+    assert schedule_brief.await_count == expected_warms

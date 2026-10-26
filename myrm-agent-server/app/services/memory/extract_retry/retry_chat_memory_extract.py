@@ -161,7 +161,7 @@ async def _run_retry_extract(
         create_conflict_callback,
         create_memory_manager,
     )
-    from app.services.agent.platform_config import require_platform_embedding_config
+    from app.services.agent.platform_config import load_platform_retrieval_configs
     from app.services.context.context_assembly import ContextAssemblyService
     from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
         resolve_chat_extraction_llm,
@@ -170,7 +170,7 @@ async def _run_retry_extract(
     binding_context = await ContextAssemblyService.resolve_binding_for_chat(chat_id)
     llm, extraction_llm = await resolve_chat_extraction_llm(chat_id)
 
-    embedding_cfg = await require_platform_embedding_config()
+    embedding_cfg, _ = await load_platform_retrieval_configs()
     memory_manager = await create_memory_manager(
         binding_context.binding,
         embedding_cfg,

@@ -15,13 +15,13 @@ from __future__ import annotations
 from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
-from app.services.agent.platform_config import require_platform_embedding_config
+from app.services.agent.platform_config import load_platform_retrieval_configs
 
 
 async def create_global_import_memory_manager() -> MemoryManager:
     """Create a MemoryManager scoped to global namespace for migration imports."""
 
-    embedding_cfg = await require_platform_embedding_config()
+    embedding_cfg, _ = await load_platform_retrieval_configs()
     binding = resolve_context_binding(
         namespaces=["global"],
         agent_id=None,

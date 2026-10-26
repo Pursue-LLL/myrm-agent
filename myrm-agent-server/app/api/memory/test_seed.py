@@ -4,7 +4,7 @@
 app.config.deploy_mode::is_local_mode (POS: local/tauri gate)
 app.services.config.service::config_service (POS: WebUI retrieval config store)
 app.core.memory.adapters.setup::create_memory_manager (POS: real memory pipeline)
-app.services.agent.platform_config::require_platform_embedding_config (POS: WebUI embedding config resolver)
+app.services.agent.platform_config::load_platform_retrieval_configs (POS: WebUI retrieval config resolver; embedding may be absent)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: memory facade; submit_pending queues approval proposals)
 
 [OUTPUT]
@@ -15,13 +15,14 @@ seed_pending_proposal: POST /test/seed-pending-proposal queues a CORRECT/DELETE 
 Memory API local test fixtures for Chrome E2E.
 
 The evolution fixture backs the MemoryDetailSheet evolution history E2E: it bootstraps
-WebUI retrieval embedding config BEFORE creating the memory manager (dependency-injection
-would fail fast otherwise), then seeds one semantic memory carrying merge audit fields
-through the real memory pipeline.
+WebUI retrieval embedding config BEFORE creating the memory manager (the seeded memories
+carry pre-filled dense vectors, so the manager must be built in dense mode), then seeds one
+semantic memory carrying merge audit fields through the real memory pipeline.
 
 The pending-proposal fixture backs the approval-review E2E: it queues the same
 resolution-aware record implicit-correction propagation submits, so the WebUI review and
-approve dispatch run against a real queued record. The caller owns the embedding config.
+approve dispatch run against a real queued record. The manager follows the stored retrieval
+config, so it runs in keyword mode when no embedding is configured.
 """
 
 from __future__ import annotations
@@ -95,9 +96,9 @@ async def _create_seed_manager() -> MemoryManager:
         create_memory_manager,
         resolve_context_binding,
     )
-    from app.services.agent.platform_config import require_platform_embedding_config
+    from app.services.agent.platform_config import load_platform_retrieval_configs
 
-    embedding_cfg = await require_platform_embedding_config()
+    embedding_cfg, _ = await load_platform_retrieval_configs()
     return await create_memory_manager(
         resolve_context_binding(
             namespaces=None,

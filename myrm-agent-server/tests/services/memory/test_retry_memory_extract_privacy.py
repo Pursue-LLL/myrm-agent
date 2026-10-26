@@ -335,9 +335,9 @@ class TestRunRetryExtractDeepScan:
                 return_value=(MagicMock(), MagicMock()),
             ),
             patch(
-                "app.services.agent.platform_config.require_platform_embedding_config",
+                "app.services.agent.platform_config.load_platform_retrieval_configs",
                 new_callable=AsyncMock,
-                return_value=MagicMock(),
+                return_value=(MagicMock(), None),
             ),
             patch(
                 "app.core.memory.adapters.setup.create_memory_manager",
@@ -415,9 +415,9 @@ class TestRunRetryExtractDeepScan:
                 return_value=(MagicMock(), MagicMock()),
             ),
             patch(
-                "app.services.agent.platform_config.require_platform_embedding_config",
+                "app.services.agent.platform_config.load_platform_retrieval_configs",
                 new_callable=AsyncMock,
-                return_value=MagicMock(),
+                return_value=(MagicMock(), None),
             ),
             patch(
                 "app.core.memory.adapters.setup.create_memory_manager",

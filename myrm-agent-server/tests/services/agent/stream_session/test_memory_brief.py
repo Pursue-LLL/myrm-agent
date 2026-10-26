@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
+from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
 
+from app.core.memory.adapters import setup as memory_setup
 from app.services.agent.stream_session.memory_brief import build_memory_brief_snapshot
 
 
@@ -115,3 +119,56 @@ class TestBuildMemoryBriefSnapshot:
         assert preview["learned"]["preference_count"] == 0
         assert preview["learned"]["rule_count"] == 0
         assert snapshot["learned_ctx"] == {"learned_rules": [], "learned_preferences": []}
+
+
+class TestKeywordMode:
+    """No embedding configured: the brief is built from the same relational context as for any user."""
+
+    @pytest.mark.asyncio
+    async def test_brief_carries_the_stored_profile_and_rules(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        await clear_embedded_stores()
+        monkeypatch.setattr(QdrantVectorStore, "RETRY_BASE_DELAY", 0.0)
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.get_platform_dedup_llm",
+            AsyncMock(return_value=None),
+        )
+        real_create = memory_setup.create_memory_manager
+        embeddings_seen: list[object] = []
+
+        async def isolated_create(binding, embedding_config, **kwargs):  # noqa: ANN001, ANN003, ANN202
+            embeddings_seen.append(embedding_config)
+            return await real_create(binding, embedding_config, base_path=tmp_path / "memory", **kwargs)
+
+        monkeypatch.setattr(
+            "app.services.agent.stream_session.memory_brief.create_memory_manager",
+            isolated_create,
+        )
+        params = _make_params(embedding_config=None)
+        binding = memory_setup.resolve_context_binding(
+            namespaces=None,
+            agent_id="agent-default",
+            channel_id=None,
+            conversation_id="chat-1",
+            task_id=None,
+            shared_context_ids=[],
+            memory_policy=None,
+        )
+        manager = await isolated_create(binding, None, approval_required=False)
+        try:
+            await manager.set_profile_attribute("language", "zh-CN")
+            await manager.add_rule("deploying", "run smoke tests first")
+
+            bundle = await build_memory_brief_snapshot(params)  # type: ignore[arg-type]
+
+            assert bundle is not None
+            preview, snapshot = bundle
+            expected = await manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True)
+            assert snapshot["memory_ctx"] == expected
+            assert snapshot["memory_ctx"]["peer_profile"]["language"] == "zh-CN"
+            assert preview["stable"]["rule_count"] == 1
+            assert preview["is_cold_start"] is False
+            assert embeddings_seen == [None, None]
+        finally:
+            await manager.close()
+            memory_setup._memory_manager_cache.clear()
+            await clear_embedded_stores()

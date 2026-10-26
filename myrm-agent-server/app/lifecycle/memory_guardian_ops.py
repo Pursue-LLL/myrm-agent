@@ -58,7 +58,7 @@ async def create_guardian_memory_manager() -> MemoryManager:
     )
     from app.services.agent.platform_config import (
         load_platform_evolution_llm,
-        require_platform_embedding_config,
+        load_platform_retrieval_configs,
     )
 
     binding = resolve_context_binding(
@@ -68,7 +68,7 @@ async def create_guardian_memory_manager() -> MemoryManager:
         conversation_id=None,
         task_id=None,
     )
-    embedding_cfg = await require_platform_embedding_config()
+    embedding_cfg, _ = await load_platform_retrieval_configs()
 
     consolidation_llm = None
     try:

@@ -42,7 +42,7 @@ async def _run_memory_command(records: list[PendingRecord], raw_args: str, *, lo
     msg = InboundMessage(channel="test", sender_id="u1", chat_id="chat_1", content="/memory", metadata={"locale": locale})
 
     with (
-        patch("app.services.agent.platform_config.require_platform_embedding_config", AsyncMock()),
+        patch("app.services.agent.platform_config.load_platform_retrieval_configs", AsyncMock(return_value=(None, None))),
         patch("app.core.memory.adapters.setup.create_memory_manager", AsyncMock(return_value=manager)),
     ):
         await RouterCommandsMemoryMixin._handle_memory_command(host, msg, raw_args)

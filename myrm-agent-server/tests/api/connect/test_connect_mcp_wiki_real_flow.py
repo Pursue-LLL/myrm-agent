@@ -15,7 +15,7 @@ Real (un-mocked) wiki chain through the MCP endpoint:
    the model decide the tool call, then execute it through /mcp
 
 Edge-IO mocks follow the test_connect_mcp_real_flow.py precedent and cover the
-memory tool plane only (_require_embedding_config + create_memory_manager);
+memory tool plane only (load_platform_retrieval_configs + create_memory_manager);
 the wiki plane itself (profile resolution, vault paths, engine construction,
 tool invocation) is fully real.
 """
@@ -89,9 +89,7 @@ async def _seed_platform_model_config() -> None:
             }
         ]
     }
-    default_model_payload = {
-        "baseModel": {"primary": {"providerId": pid, "model": stripped}}
-    }
+    default_model_payload = {"baseModel": {"primary": {"providerId": pid, "model": stripped}}}
 
     async with get_session() as session:
         for suffix, key, value in (
@@ -209,8 +207,8 @@ async def test_connect_mcp_wiki_real_flow(
         patch("app.services.connect.get_connect_service", return_value=service),
         patch("app.api.connect.router.get_connect_service", return_value=service),
         patch(
-            "app.api.mcp.endpoint._require_embedding_config",
-            AsyncMock(return_value=MagicMock()),
+            "app.services.agent.platform_config.load_platform_retrieval_configs",
+            AsyncMock(return_value=(MagicMock(), None)),
         ),
         patch(
             "app.core.memory.adapters.setup.create_memory_manager",
@@ -287,7 +285,12 @@ async def test_connect_mcp_wiki_real_flow(
             assert "Compilation queued" in ingested
             vault_raw = (
                 Path(os.environ["MYRM_DATA_DIR"]).expanduser()
-                / "harness" / "wiki" / "agents" / "agent-wiki" / "raw" / "onboarding-guide.md"
+                / "harness"
+                / "wiki"
+                / "agents"
+                / "agent-wiki"
+                / "raw"
+                / "onboarding-guide.md"
             )
             assert vault_raw.is_file()
 

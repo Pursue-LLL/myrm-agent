@@ -217,8 +217,8 @@ async def test_connect_mcp_wiki_pipeline_real_flow(
         patch("app.services.connect.get_connect_service", return_value=service),
         patch("app.api.connect.router.get_connect_service", return_value=service),
         patch(
-            "app.api.mcp.endpoint._require_embedding_config",
-            AsyncMock(return_value=MagicMock()),
+            "app.services.agent.platform_config.load_platform_retrieval_configs",
+            AsyncMock(return_value=(MagicMock(), None)),
         ),
         patch(
             "app.core.memory.adapters.setup.create_memory_manager",

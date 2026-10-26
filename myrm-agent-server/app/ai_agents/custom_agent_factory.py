@@ -346,27 +346,26 @@ class CustomAgentFactory:
                     create_memory_manager,
                     resolve_context_binding,
                 )
+                from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+                    get_platform_dedup_llm,
+                )
 
+                # embedding_cfg is None on a default install: the manager then runs in keyword mode.
                 embedding_cfg = await self._resolve_embedding_config()
-                if embedding_cfg is not None:
-                    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
-                        get_platform_dedup_llm,
-                    )
-
-                    dedup_llm = await get_platform_dedup_llm() or llm
-                    memory_manager = await create_memory_manager(
-                        resolve_context_binding(
-                            namespaces=None,
-                            agent_id=self._agent_id,
-                            channel_id=None,
-                            conversation_id=None,
-                            task_id=None,
-                            project_id=getattr(config, "project_id", None) or getattr(self, "_project_id", None),
-                            memory_policy=getattr(profile, "memory_policy", None),
-                        ),
-                        embedding_config=embedding_cfg,
-                        dedup_llm=dedup_llm,
-                    )
+                dedup_llm = await get_platform_dedup_llm() or llm
+                memory_manager = await create_memory_manager(
+                    resolve_context_binding(
+                        namespaces=None,
+                        agent_id=self._agent_id,
+                        channel_id=None,
+                        conversation_id=None,
+                        task_id=None,
+                        project_id=getattr(config, "project_id", None) or getattr(self, "_project_id", None),
+                        memory_policy=getattr(profile, "memory_policy", None),
+                    ),
+                    embedding_config=embedding_cfg,
+                    dedup_llm=dedup_llm,
+                )
             except Exception as e:
                 logger.warning(
                     "[CustomAgentFactory] Memory manager creation failed (degraded to no-memory): %s",

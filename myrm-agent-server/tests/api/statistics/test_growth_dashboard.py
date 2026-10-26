@@ -379,7 +379,7 @@ async def test_fetch_memory_snapshot_normal() -> None:
     fake_emb = MagicMock()
     fake_emb.get_embedding_config = MagicMock(return_value=None)
     fake_platform_config = MagicMock()
-    fake_platform_config.require_platform_embedding_config = AsyncMock(return_value=None)
+    fake_platform_config.load_platform_retrieval_configs = AsyncMock(return_value=(None, None))
 
     original_setup = sys.modules.get("app.core.memory.adapters.setup")
     original_emb = sys.modules.get("myrm_agent_harness.toolkits.retriever.embedding.factory")
@@ -609,7 +609,7 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     )
 
     mock_db = AsyncMock()
-    response = await get_growth_dashboard(days=84, db=mock_db)
+    response = await get_growth_dashboard(days=84, timezone=None, x_timezone=None, db=mock_db)
 
     import json
 
@@ -659,7 +659,7 @@ async def test_get_growth_dashboard_endpoint_error(
 
     mock_db = AsyncMock()
     with pytest.raises(StandardHTTPException):
-        await get_growth_dashboard(days=84, db=mock_db)
+        await get_growth_dashboard(days=84, timezone=None, x_timezone=None, db=mock_db)
 
 
 # ── CostSummary schema tests ─────────────────────────────────────────

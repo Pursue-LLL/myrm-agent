@@ -3,7 +3,7 @@
 [INPUT]
 app.config.deploy_identity::get_deploy_identity (POS: 部署身份哨兵)
 app.core.memory.adapters.setup (POS: MemoryManager 工厂)
-app.services.agent.platform_config (POS: 平台 embedding 配置)
+app.services.agent.platform_config (POS: 平台检索配置；embedding 缺省即关键词模式)
 
 [OUTPUT]
 get_memory_manager / get_crud_memory_manager / get_optional_memory_manager
@@ -28,7 +28,11 @@ _ManagerDep = Callable[..., Coroutine[object, object, MemoryManager]]
 
 
 def _make_manager_dependency(*, approval_required: bool) -> _ManagerDep:
-    """Factory: creates a FastAPI dependency with specific approval setting."""
+    """Factory: creates a FastAPI dependency with specific approval setting.
+
+    Embedding is optional: without it the manager runs in keyword mode, so the
+    memory pages, pending review and backup keep working on a default install.
+    """
 
     async def _dep(
         user_id: str = Depends(get_deploy_identity),
@@ -38,9 +42,9 @@ def _make_manager_dependency(*, approval_required: bool) -> _ManagerDep:
                 create_memory_manager,
                 resolve_context_binding,
             )
-            from app.services.agent.platform_config import require_platform_embedding_config
+            from app.services.agent.platform_config import load_platform_retrieval_configs
 
-            embedding_cfg = await require_platform_embedding_config()
+            embedding_cfg, _ = await load_platform_retrieval_configs()
 
             return await create_memory_manager(
                 resolve_context_binding(
@@ -73,9 +77,9 @@ async def get_optional_memory_manager(
             create_memory_manager,
             resolve_context_binding,
         )
-        from app.services.agent.platform_config import require_platform_embedding_config
+        from app.services.agent.platform_config import load_platform_retrieval_configs
 
-        embedding_cfg = await require_platform_embedding_config()
+        embedding_cfg, _ = await load_platform_retrieval_configs()
 
         return await create_memory_manager(
             resolve_context_binding(

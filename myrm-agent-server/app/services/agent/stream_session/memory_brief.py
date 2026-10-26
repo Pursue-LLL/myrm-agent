@@ -188,8 +188,6 @@ async def build_memory_brief_snapshot(
     """
     if not params.enable_memory or params.incognito_mode:
         return None
-    if params.embedding_config is None:
-        return None
 
     effective_chat_id = (params.memory_conversation_id or params.chat_id or "").strip()
     if not effective_chat_id:

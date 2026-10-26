@@ -121,16 +121,13 @@ async def _recover_incomplete_memory_import_rollbacks() -> None:
         resolve_context_binding,
     )
     from app.platform_utils import get_session_factory
-    from app.services.agent.platform_config import require_platform_embedding_config
+    from app.services.agent.platform_config import load_platform_retrieval_configs
     from app.services.memory.imports.import_sessions import MemoryImportSessionService
 
     try:
-        embedding_cfg = await require_platform_embedding_config()
+        embedding_cfg, _ = await load_platform_retrieval_configs()
     except Exception as exc:
-        logger.warning(
-            "[Startup] Memory import rollback recovery skipped: %s",
-            exc,
-        )
+        logger.warning("[Startup] Memory import rollback recovery skipped: %s", exc)
         return
 
     manager = await create_memory_manager(
