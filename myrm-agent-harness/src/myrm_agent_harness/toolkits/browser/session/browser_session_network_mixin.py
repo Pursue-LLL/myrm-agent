@@ -3,7 +3,7 @@
 [INPUT]
 - session.console_logger::ConsoleLogger (POS: browser console capture)
 - session.network_logger::NetworkLogger (POS: network request log capture)
-- session.network_intelligence::NetworkIntelligence (POS: CDP-based API response body retrieval)
+- session.network_intelligence::NetworkIntelligence (POS: CDP-based API request outcomes and lazy response bodies)
 - pool.config::BrowserEngine (POS: which engine a session runs on decides whether the console can be captured)
 
 [OUTPUT]

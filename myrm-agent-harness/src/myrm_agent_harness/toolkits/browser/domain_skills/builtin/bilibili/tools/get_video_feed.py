@@ -96,18 +96,18 @@ async def get_video_feed(session: Any, args: dict[str, Any]) -> str:
                 break
             name = (info.name or "").strip()
             # Bilibili video links usually contain BV/av or title text
-            if info.role in ("link", "article") and len(name) > 8:
-                if any(kw in name for kw in ("UP", "播放", "弹幕", "BV", "观看")):
-                    videos.append(
-                        {
-                            "title": name[:150],
-                            "author": "",
-                            "play_count": "",
-                            "danmaku": "",
-                            "url": "",
-                            "ref": ref_id,
-                        }
-                    )
+            is_video_link = info.role in ("link", "article") and len(name) > 8
+            if is_video_link and any(kw in name for kw in ("UP", "播放", "弹幕", "BV", "观看")):
+                videos.append(
+                    {
+                        "title": name[:150],
+                        "author": "",
+                        "play_count": "",
+                        "danmaku": "",
+                        "url": "",
+                        "ref": ref_id,
+                    }
+                )
 
     # 3. Tertiary fallback track: text content parsing
     if not videos and hasattr(session, "extract_text"):

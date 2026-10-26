@@ -147,6 +147,26 @@ async def test_xiaohongshu_respects_max_notes() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Xiaohongshu: get_feed_notes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_xiaohongshu_feed_notes_ignore_a_failed_overlay_dismissal() -> None:
+    get_feed_notes = _load_tool("xiaohongshu", "get_feed_notes.py", "get_feed_notes")
+
+    refs = MappingProxyType({"n1": _MockRefInfo(role="link", name="上海周末宝藏咖啡馆拍照指南")})
+    session = MagicMock()
+    session.get_all_refs.return_value = refs
+    session.interact = AsyncMock(side_effect=RuntimeError("no overlay to dismiss"))
+
+    notes = json.loads(await get_feed_notes(session, {"max_notes": 10}))
+
+    assert [note["ref"] for note in notes] == ["n1"]
+    session.interact.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
 # Douyin: get_video_feed
 # ---------------------------------------------------------------------------
 

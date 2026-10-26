@@ -84,6 +84,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    断言服务端收到几次请求，而不是只信浏览器侧结果（`Reply.delay_s` 模拟慢业务端点，用来证明表单 POST 在响应慢于驱动请求超时的情况下仍只提交一次）；web_fetch 侧见 `tests/toolkits/web_fetch/test_fetch_ssrf_terminal.py`。
    并用本地 `ThreadingHTTPServer` 做真实页面源，避免外部网络依赖。**禁止**用猴子补丁替换
    `install_domain_filter` 或其他过滤器入口来"让环回可达"——那会遮住标志没有传到过滤器的缺陷。
+   浏览器网络工具同法取证：`tests/toolkits/browser/session/test_network_terminal_states_integration.py`（`network_log` 如实标注重定向跳转与失败请求、`network_replay` 只重发 GET）与 `tests/toolkits/browser/test_evaluate_write_guard_integration.py`（`evaluate` 不放行页面 JS 写请求，服务端命中数为证）；不需要定制启动参数的真实会话统一用 `tests/toolkits/browser/_local_browser_session.py::local_session`。
 
 4. **`run_site_tool` 输出经 `mark_untrusted` 包裹**（BROWSER_SYSTEM.md 统一安全出口）。
    程序化消费必须走 `extract_wrapped_payload()` 解包后再 `json.loads`，不要直接对裸结果解析。

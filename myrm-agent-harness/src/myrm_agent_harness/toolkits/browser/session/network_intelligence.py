@@ -1,4 +1,4 @@
-"""CDP-based network intelligence for on-demand response body retrieval.
+"""CDP-based network intelligence: how each API request ended, and on-demand response bodies.
 
 [INPUT]
 - patchright.async_api::Page (POS: Playwright page instance)
@@ -11,9 +11,9 @@
 
 [POS]
 Provides Agent-accessible API intelligence layer that captures requestIds via CDP
-Network domain events and offers on-demand response body retrieval using
-Network.getResponseBody. Cooperates with NetworkLogger (which handles synchronous
-metadata) — this component handles asynchronous CDP body queries.
+Network domain events, records how each request ended, and offers on-demand response
+body retrieval using Network.getResponseBody. Cooperates with NetworkLogger (which handles
+synchronous metadata) — this component handles asynchronous CDP queries.
 A request is `[pending]` only while it is really in flight: a redirect hop takes the status of the response that sent
 the browser on (Chrome reuses the requestId across hops and reports that response with the next hop), and a request the
 browser gave up on (blocked, refused, CORS, aborted) carries the browser's error, so the model never waits on an answer

@@ -110,6 +110,16 @@ async def test_the_body_of_a_redirect_hop_is_the_next_request_not_a_fetch_from_c
     send.assert_awaited_once_with("Network.getResponseBody", {"requestId": "r"})
 
 
+@pytest.mark.asyncio
+async def test_a_hop_whose_status_is_unknown_still_points_at_the_request_that_carries_on() -> None:
+    ni = NetworkIntelligence()
+    _sent(ni, "r", "/hop")
+    _sent(ni, "r", "/target")
+    _with_cdp(ni)
+
+    assert await ni.get_response_body(1) == "Redirected; the response is request #2"
+
+
 def test_a_failed_request_shows_its_error_instead_of_pending() -> None:
     ni = NetworkIntelligence()
     _sent(ni, "a")

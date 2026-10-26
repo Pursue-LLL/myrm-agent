@@ -9,6 +9,7 @@ Domain skill tool for xiaohongshu.com explore feeds, search results, and creator
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -25,10 +26,8 @@ async def get_feed_notes(session: BrowserSession, args: dict[str, Any]) -> str:
     max_notes = int(args.get("max_notes", 10))
 
     # Known trap mitigation: dismiss modal login overlay if present via Escape
-    try:
+    with contextlib.suppress(Exception):
         await session.interact(action="press", text="Escape")
-    except Exception:
-        pass
 
     refs = session.get_all_refs()
     if not refs:

@@ -680,7 +680,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 
 **核心能力**：
 - **自动发现 API**：通过 `network_log` action 查看 XHR/Fetch 请求列表（编号是请求自身的序号 `seq`，只发给 XHR/Fetch、按到达顺序递增、不复用；滑出 100 条窗口的编号会被明确拒绝并给出当前有效范围，绝不会指向另一条请求），含 POST body 预览（前 200 字符，便于区分 GraphQL operationName；展示前先经 `redact_sensitive_text` 凭据脱敏，避免截断残片绕过脱敏）；每条请求以真实结局收尾：重定向跳转显示它收到的状态码（`[302]`；Chrome 在同一 requestId 下复用，该状态只出现在下一跳携带的 `redirectResponse` 里），被浏览器放弃的请求（拦截、拒绝连接、CORS、中止）显示浏览器给出的原因（`[failed: net::ERR_BLOCKED_BY_CLIENT.Inspector]`，来自 `Network.loadingFailed`，CORS 失败追加 `(CORS: <原因>)`），`[pending]` 只表示确实仍在途中
-- **懒加载响应体**：通过 `network_detail` action 按需获取指定请求的完整响应体（最大 8000 字符；超过时先脱敏后截断，跨边界凭据不留明文残片），无内存浪费；重定向跳转没有响应体，回答 `Redirected (302); the response is request #N`，失败请求回答 `Request failed: <浏览器错误>`，两者都不再询问 Chrome
+- **懒加载响应体**：通过 `network_detail` action 按需获取指定请求的完整响应体（最大 8000 字符；超过时先脱敏后截断，跨边界凭据不留明文残片），无内存浪费；重定向跳转没有响应体，回答 `Redirected (302); the response is request #N`，失败请求回答 `Request failed: <浏览器错误>`，两者都不询问 Chrome
 - **请求重放（仅 GET）**：通过 `network_replay` action 在页面上下文中重放 GET API 请求获取最新数据（JS 侧返回加宽窗口，Python 侧先脱敏再截 8000）；POST/PUT/PATCH/DELETE 等其他方法一律拒绝且不发出任何请求——已记录的写请求是页面刚做过的动作，重放会带着用户的 cookie 再做一次而无人审批，与 `evaluate` 受 HITL 守卫的能力等价；拒绝文案只含方法，不回显 URL/body。重放失败时回答带原因（驱动报错首行，脱敏并截 160 字符）
 
 **典型场景**：
@@ -1204,7 +1204,7 @@ browser/
 │   ├── session_persistence.py — SessionPersistence
 │   ├── session_lifecycle_hook.py — SessionLifecycleHookProtocol
 │   ├── session_memory_bridge.py — SessionMemoryBridge
-│   ├── network_intelligence.py — CDP 懒加载 API 响应体检索
+│   ├── network_intelligence.py — CDP API 请求结局与懒加载响应体检索
 │   ├── network_logger.py — 网络请求日志
 │   ├── web_vitals.py — 一次性 Core Web Vitals 采集与分级建议
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）

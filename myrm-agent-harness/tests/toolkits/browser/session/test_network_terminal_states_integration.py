@@ -9,14 +9,12 @@ is proven by the server's hit count, not by what the browser-side answer says. R
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser import BrowserSession
-from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 from tests.toolkits.browser._browser_available import chromium_available
+from tests.toolkits.browser._local_browser_session import local_session
 from tests.toolkits.browser._redirect_servers import Reply, redirect, serve
 
 pytestmark = [
@@ -27,18 +25,6 @@ pytestmark = [
 
 _JSON = "application/json"
 _SETTLE_TIMEOUT_S = 10.0
-
-
-@asynccontextmanager
-async def _local_session() -> AsyncIterator[BrowserSession]:
-    pool = GlobalBrowserPool(max_browsers=1)
-    session = BrowserSession(pool, ContextType.AGENT, allow_private_networks=True)
-    try:
-        await session.new_tab()
-        yield session
-    finally:
-        await session.close()
-        await pool.shutdown()
 
 
 def _script_page(script: str) -> Reply:
@@ -78,7 +64,7 @@ async def test_every_redirect_status_labels_its_hop_and_points_at_the_request_th
         "/api/target": Reply(body=b'{"ok": true}', content_type=_JSON),
     }
     with serve(routes) as site:
-        async with _local_session() as session:
+        async with local_session() as session:
             await session.navigate(site.url("/app"))
             await _until_every_request_has_ended(session, expected=2)
 
@@ -92,7 +78,7 @@ async def test_every_redirect_status_labels_its_hop_and_points_at_the_request_th
 async def test_a_request_the_browser_refuses_reads_as_failed_with_the_browsers_own_error() -> None:
     routes = {"/app": _script_page("fetch('http://127.0.0.1:1/never').catch(() => {})")}
     with serve(routes) as site:
-        async with _local_session() as session:
+        async with local_session() as session:
             page = session.get_active_page()
             reported_by_chrome: list[str] = []
             cdp = await page.context.new_cdp_session(page)
@@ -123,7 +109,7 @@ async def test_a_replay_re_sends_a_get_and_never_reaches_the_server_with_a_write
         "/api/drafts/7": Reply(body=b'{"saved": true}', content_type=_JSON),
     }
     with serve(routes) as site:
-        async with _local_session() as session:
+        async with local_session() as session:
             await session.navigate(site.url("/app"))
             await _until_every_request_has_ended(session, expected=4)
             number = {r.method: r.seq for r in session._network_intelligence.get_api_requests()}
