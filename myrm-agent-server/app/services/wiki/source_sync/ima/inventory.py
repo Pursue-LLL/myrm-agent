@@ -12,7 +12,9 @@ Breadth-first walk of each library's folder tree (persisted queue) followed by t
 pass is a *generation*: rows a finished pass did not see are marked ``remote_deleted``, but only for containers
 whose walk finished cleanly. The mark means "no longer listed under that library, folder and title": a rename or
 a move reads like a deletion, and the file then arrives as a new row. Transient / rate-limit / auth failures
-propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container.
+propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container. The
+notes lane ends only where ima says it ends (``is_end``); a listing that stalls short of that fails its container
+instead of passing for complete.
 """
 
 from __future__ import annotations
@@ -21,7 +23,6 @@ import logging
 
 from app.database.connection import get_session
 
-from .client import NOTES_PAGE_LIMIT
 from .context import SyncContext
 from .errors import ImaAuthError, ImaPermanentError
 from .identity import NOTES_LANE, kb_item_key, note_item_key
@@ -33,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 _MAX_FOLDER_DEPTH = 16
 _MAX_INVENTORY_PAGES = 50_000
-_MAX_NOTES = 20_000
 
 
 async def begin_generation(ctx: SyncContext) -> None:
@@ -41,7 +41,7 @@ async def begin_generation(ctx: SyncContext) -> None:
     state.generation += 1
     state.phase = "inventory"
     state.queue = [ImaWalkTask(kb_id=kb.id, kb_name=kb.name) for kb in ctx.config.knowledge_bases]
-    state.notes_start = 0 if ctx.config.include_notes else None
+    state.notes_cursor = "" if ctx.config.include_notes else None
     state.failed_containers = []
     state.inventory_pages = 0
     state.generation_published = 0
@@ -121,19 +121,19 @@ async def _walk_libraries(ctx: SyncContext) -> None:
 
 async def _walk_notes(ctx: SyncContext) -> None:
     state = ctx.state
-    while state.notes_start is not None and ctx.time_left() > 0:
-        start = state.notes_start
+    while state.notes_cursor is not None and ctx.time_left() > 0:
+        cursor = state.notes_cursor
         try:
-            page = await ctx.client.list_notes_page(start=start)
+            page = await ctx.client.list_notes_page(cursor=cursor)
         except ImaAuthError:
             # The key already listed libraries, so a rejection here means it lacks the notes permission.
             logger.warning("ima notes lane skipped: the API key has no notes permission")
-            state.notes_start = None
+            state.notes_cursor = None
             _mark_container_failed(ctx, NOTES_LANE)
             break
         except ImaPermanentError as exc:
             logger.warning("ima notes lane skipped: %s", exc)
-            state.notes_start = None
+            state.notes_cursor = None
             _mark_container_failed(ctx, NOTES_LANE)
             break
 
@@ -154,8 +154,15 @@ async def _walk_notes(ctx: SyncContext) -> None:
             ],
         )
         state.inventory_pages += 1
-        finished = page.is_end or not page.notes or start + NOTES_PAGE_LIMIT >= _MAX_NOTES
-        state.notes_start = None if finished else start + NOTES_PAGE_LIMIT
+        # A page can come back empty once its deleted notes are dropped, so only ``is_end`` ends the listing.
+        if page.is_end:
+            state.notes_cursor = None
+        elif not page.next_cursor or page.next_cursor == cursor or state.inventory_pages > _MAX_INVENTORY_PAGES:
+            logger.warning("ima notes listing stopped before its end; no note is judged deleted this generation")
+            state.notes_cursor = None
+            _mark_container_failed(ctx, NOTES_LANE)
+        else:
+            state.notes_cursor = page.next_cursor
         await ctx.persist_state()
 
 
@@ -173,5 +180,5 @@ async def run_inventory(ctx: SyncContext) -> None:
     await _walk_libraries(ctx)
     if not ctx.state.queue:
         await _walk_notes(ctx)
-    if not ctx.state.queue and ctx.state.notes_start is None:
+    if not ctx.state.queue and ctx.state.notes_cursor is None:
         await _finish(ctx)

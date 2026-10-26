@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
@@ -11,7 +12,7 @@ from myrm_agent_harness.toolkits.wiki import WikiStructure
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
-from app.services.wiki.source_sync.ima.client import ImaClient
+from app.services.wiki.source_sync.ima.client import NOTES_PAGE_LIMIT, ImaClient
 from app.services.wiki.source_sync.ima.context import SyncContext
 from app.services.wiki.source_sync.ima.engine import SliceOutcome, run_slice
 from app.services.wiki.source_sync.ima.errors import ImaError
@@ -30,7 +31,11 @@ from app.services.wiki.source_sync.ima.state import ImaKbSelection, ImaSyncConfi
 
 @dataclass
 class FakeIma:
-    """Scripted stand-in for ``ImaClient``: pages, media and notes are plain dicts; ``fail`` injects errors per method."""
+    """Scripted stand-in for ``ImaClient``: pages, media and notes are plain dicts; ``fail`` injects errors per method.
+
+    The notes listing is cursor-paged like ima's: ``deleted_notes_head`` entries that ima still lists as deleted lead
+    it (the parser drops them, so whole pages can come back empty), and ``after_notes_page`` runs once a page is served.
+    """
 
     pages: dict[tuple[str, str], ImaListPage] = field(default_factory=dict)
     media: dict[str, ImaMediaInfo] = field(default_factory=dict)
@@ -38,6 +43,8 @@ class FakeIma:
     note_text: dict[str, str] = field(default_factory=dict)
     fail: dict[str, ImaError] = field(default_factory=dict)
     calls: list[str] = field(default_factory=list)
+    deleted_notes_head: int = 0
+    after_notes_page: Callable[[], None] | None = None
 
     def _maybe_fail(self, method: str) -> None:
         self.calls.append(method)
@@ -48,9 +55,19 @@ class FakeIma:
         self._maybe_fail("list_knowledge_page")
         return self.pages.get((kb_id, folder_id), ImaListPage())
 
-    async def list_notes_page(self, *, start: int) -> ImaNotesPage:
+    async def list_notes_page(self, *, cursor: str) -> ImaNotesPage:
         self._maybe_fail("list_notes_page")
-        return ImaNotesPage(notes=tuple(self.notes[start : start + 50]), is_end=start + 50 >= len(self.notes))
+        start = int(cursor or 0)
+        end = start + NOTES_PAGE_LIMIT
+        head = self.deleted_notes_head
+        served = ImaNotesPage(
+            notes=tuple(self.notes[max(start - head, 0) : max(end - head, 0)]),
+            next_cursor=str(end),
+            is_end=end >= head + len(self.notes),
+        )
+        if self.after_notes_page is not None:
+            self.after_notes_page()
+        return served
 
     async def get_media_info(self, media_id: str) -> ImaMediaInfo:
         self._maybe_fail("get_media_info")
@@ -102,6 +119,10 @@ def library_config(*, notes: bool = False, kb_ids: tuple[str, ...] = ("kb1",)) -
 
 
 NOTE_MS = 1_700_000_000_000  # 2023-11-14
+
+
+def note(index: int) -> ImaNote:
+    return ImaNote(note_id=f"n{index}", title=f"Note {index}", folder_name="", modify_time=NOTE_MS)
 
 
 class Downloads:

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
+from myrm_agent_harness.core.security.persistence.content_scan import PersistScanResult, PersistScanVerdict
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 from app.core.security.auth.identity import LOCAL_USER_ID
@@ -142,7 +143,7 @@ def test_import_folder_supersede_writes_and_audits(tmp_path: Path) -> None:
     assert "Superseded raw source" in log_text
 
 
-def test_import_folder_blocks_credential_content(tmp_path: Path) -> None:
+def test_import_folder_redacts_credential_content(tmp_path: Path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
@@ -160,6 +161,41 @@ def test_import_folder_blocks_credential_content(tmp_path: Path) -> None:
                 "on_conflict": "skip",
             },
         )
+    finally:
+        client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["files_security_redacted"] == 1 and data["files_security_blocked"] == 0
+    assert data["security_redacted_paths"] == ["note.md"]
+    stored = structure.get_raw_file_path("note.md").read_text(encoding="utf-8")
+    assert secret not in stored and "[REDACTED:" in stored
+
+
+def test_import_folder_reports_files_the_raw_gate_blocks(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    (source_dir / "note.md").write_text("anything", encoding="utf-8")
+    blocked = PersistScanResult(
+        verdict=PersistScanVerdict.BLOCKED, cleaned_text="anything", finding_codes=["credential_unredactable"]
+    )
+
+    client, _archiver, structure = _build_import_client(tmp_path)
+
+    try:
+        with patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.security_hook.scan_raw_publish_content",
+            return_value=blocked,
+        ):
+            response = client.post(
+                "/api/v1/wiki/import/folder",
+                json={
+                    "folder_path": str(source_dir),
+                    "extensions": [".md"],
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
     finally:
         client.app.dependency_overrides.clear()
 
@@ -328,8 +364,8 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     assert "Second edition." in raw_file.read_text(encoding="utf-8")
 
 
-def test_import_urls_security_blocked(tmp_path: Path) -> None:
-    client, _archiver, _structure = _build_import_client(tmp_path)
+def test_import_urls_redacts_credential_content(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_import_client(tmp_path)
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
 
     with (
@@ -356,9 +392,12 @@ def test_import_urls_security_blocked(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["security_blocked_count"] == 1
-    assert data["enqueued_count"] == 0
-    assert data["results"][0]["status"] == "security_blocked"
+    assert data["security_redacted_count"] == 1 and data["security_blocked_count"] == 0
+    assert data["enqueued_count"] == 1
+    result = data["results"][0]
+    assert result["status"] == "security_redacted"
+    stored = structure.get_raw_file_path(result["relative_path"]).read_text(encoding="utf-8")
+    assert secret not in stored and "[REDACTED:" in stored
 
 
 def test_import_video_bilibili_success(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 """Typed views over ima's loosely-typed wire payloads, and the parsers that produce them.
 
 [INPUT]
-- (none)
+- .errors::ImaPermanentError (POS: failure taxonomy; a notes page in an unrecognized shape raises it)
 
 [OUTPUT]
 - ImaCredentials / ImaKnowledgeBase / ImaEntry / ImaFolder / ImaListPage / ImaMediaInfo / ImaNote / ImaNotesPage
@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+
+from .errors import ImaPermanentError
 
 type JsonObject = dict[str, object]
 
@@ -111,6 +113,7 @@ class ImaNote:
 @dataclass(frozen=True, slots=True)
 class ImaNotesPage:
     notes: tuple[ImaNote, ...] = ()
+    next_cursor: str = ""
     is_end: bool = True
 
 
@@ -204,34 +207,38 @@ def parse_media_info(data: Mapping[str, object]) -> ImaMediaInfo:
     return ImaMediaInfo(media_type=_int(data.get("media_type")), url=url, headers=headers, note_id=note_id)
 
 
-def _basic_info(raw: object) -> Mapping[str, object] | None:
-    """Unwrap the three nestings the notes API uses for one note (``doc.basic_info`` / ``basic_info`` / bare)."""
-    if not isinstance(raw, Mapping):
-        return None
-    doc = raw.get("doc")
-    candidate: object = doc if isinstance(doc, Mapping) else raw
-    if isinstance(candidate, Mapping):
-        basic = candidate.get("basic_info")
-        if isinstance(basic, Mapping):
-            return basic
-        return candidate
-    return None
+def _basic_info(raw: Mapping[str, object]) -> Mapping[str, object]:
+    """Peel the ``basic_info`` wrappers around one listed note; the notes listing nests them twice."""
+    node = raw
+    while isinstance(inner := node.get("basic_info"), Mapping):
+        node = inner
+    return node
 
 
 def parse_notes_page(data: Mapping[str, object]) -> ImaNotesPage:
+    """Decode one page of the notes listing and drop its deleted notes.
+
+    Entries of which none can be read mean the wire shape changed rather than that the account holds no notes, so
+    that raises instead of returning a page the inventory would take for "every note was deleted".
+    """
     notes: list[ImaNote] = []
-    for raw in _entries(data, "docs", "note_book_list"):
+    unreadable = 0
+    for raw in _entries(data, "note_book_list"):
         basic = _basic_info(raw)
-        if basic is None or _int(basic.get("status")) == 1:  # 1 = deleted
+        if _int(basic.get("status")) == 1:  # 1 = deleted
             continue
         note_id = _text(basic, "docid", "doc_id")
-        if note_id:
-            notes.append(
-                ImaNote(
-                    note_id=note_id,
-                    title=_text(basic, "title") or note_id,
-                    folder_name=_text(basic, "folder_name"),
-                    modify_time=_int(basic.get("modify_time")) or 0,
-                )
+        if not note_id:
+            unreadable += 1
+            continue
+        notes.append(
+            ImaNote(
+                note_id=note_id,
+                title=_text(basic, "title") or note_id,
+                folder_name=_text(basic, "folder_name"),
+                modify_time=_int(basic.get("modify_time")) or 0,
             )
-    return ImaNotesPage(notes=tuple(notes), is_end=bool(data.get("is_end")))
+        )
+    if unreadable and not notes:
+        raise ImaPermanentError("ima returned notes in an unrecognized shape")
+    return ImaNotesPage(notes=tuple(notes), next_cursor=_text(data, "next_cursor"), is_end=bool(data.get("is_end")))

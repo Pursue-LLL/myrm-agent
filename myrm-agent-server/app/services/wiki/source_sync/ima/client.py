@@ -30,13 +30,10 @@ from .transport import NOTE_PREFIX, WIKI_PREFIX, ImaTransport
 KB_PAGE_LIMIT = 50
 KB_SEARCH_PAGE_LIMIT = 20
 LIST_PAGE_LIMIT = 50
-NOTES_PAGE_LIMIT = 50
+NOTES_PAGE_LIMIT = 20  # ima documents 20 as the ceiling of its notes listing
 
 _MAX_KB_PAGES = 200
 _NOTE_FORMAT_PLAIN_TEXT = 0
-# Notes search sorted by last update (0) lists every note when the title query is empty.
-_NOTE_SORT_UPDATED = 0
-_NOTE_SEARCH_BY_TITLE = 0
 
 
 class ImaClient:
@@ -91,17 +88,11 @@ class ImaClient:
         )
         return str(data.get("content") or "").strip()
 
-    async def list_notes_page(self, *, start: int) -> ImaNotesPage:
-        """One ``[start, start + NOTES_PAGE_LIMIT)`` window of all notes, most recently updated first."""
+    async def list_notes_page(self, *, cursor: str) -> ImaNotesPage:
+        """One page of every note; an empty ``folder_id`` lists all notebooks and the first page takes an empty cursor."""
         data = await self._transport.post(
             NOTE_PREFIX,
-            "search_note_book",
-            {
-                "search_type": _NOTE_SEARCH_BY_TITLE,
-                "sort_type": _NOTE_SORT_UPDATED,
-                "query_info": {"title": ""},
-                "start": start,
-                "end": start + NOTES_PAGE_LIMIT,
-            },
+            "list_note_by_folder_id",
+            {"folder_id": "", "cursor": cursor, "limit": NOTES_PAGE_LIMIT},
         )
         return parse_notes_page(data)

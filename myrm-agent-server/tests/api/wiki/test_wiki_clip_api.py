@@ -360,7 +360,7 @@ def test_wiki_clip_publishes_ingest_snapshot_on_write(tmp_path: Path) -> None:
         _cleanup_wiki_client(client)
 
 
-def test_wiki_clip_security_blocked_job_response(tmp_path: Path) -> None:
+def test_wiki_clip_redacts_credential_content(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
     try:
@@ -378,11 +378,9 @@ def test_wiki_clip_security_blocked_job_response(tmp_path: Path) -> None:
         assert response.status_code == 202
         final = _poll_clip_job(client, response.json()["job_id"])
         assert final["state"] == "succeeded"
-        assert final["written"] is False
-        assert final["security_blocked"] is True
-        rel_path = str(final.get("relative_path", ""))
-        if rel_path:
-            assert not structure.get_raw_file_path(rel_path).exists()
+        assert final["written"] is True and final["security_blocked"] is False
+        stored = structure.get_raw_file_path(str(final["relative_path"])).read_text(encoding="utf-8")
+        assert secret not in stored and "[REDACTED:" in stored
     finally:
         _cleanup_wiki_client(client)
 

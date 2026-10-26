@@ -45,8 +45,8 @@ async def test_live_account_shapes() -> None:
                     f"signed_headers={sorted(info.headers)} note_id={bool(info.note_id)}"
                 )
 
-        notes = await client.list_notes_page(start=0)
-        print(f"notes page: {len(notes.notes)} notes, is_end={notes.is_end}")
+        notes = await client.list_notes_page(cursor="")
+        print(f"notes page: {len(notes.notes)} notes, is_end={notes.is_end}, has_next_cursor={bool(notes.next_cursor)}")
         if notes.notes:
             text = await client.get_note_text(notes.notes[0].note_id)
             print(f"first note body chars: {len(text)}")

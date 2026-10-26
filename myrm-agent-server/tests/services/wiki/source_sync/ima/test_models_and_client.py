@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 
 import httpx
+import pytest
 
 from app.services.wiki.source_sync.ima.client import NOTES_PAGE_LIMIT, ImaClient
+from app.services.wiki.source_sync.ima.errors import ImaPermanentError
 from app.services.wiki.source_sync.ima.models import (
     ImaCredentials,
     parse_knowledge_bases,
@@ -54,13 +56,18 @@ def test_knowledge_bases_skip_entries_without_id_or_name() -> None:
 def test_notes_page_skips_deleted_notes_and_unwraps_every_nesting() -> None:
     parsed = parse_notes_page(
         {
-            "docs": [
-                {"doc": {"basic_info": {"docid": "n1", "title": "Plan", "folder_name": "Work", "modify_time": "1700000000000"}}},
+            "note_book_list": [
+                {
+                    "basic_info": {
+                        "basic_info": {"docid": "n1", "title": "Plan", "folder_name": "Work", "modify_time": "1700000000000"}
+                    }
+                },
                 {"basic_info": {"docid": "n2", "title": "Flat", "modify_time": 5}},
                 {"docid": "n3", "title": "Bare"},
-                {"doc": {"basic_info": {"docid": "gone", "status": 1}}},
+                {"basic_info": {"basic_info": {"docid": "gone", "status": 1}}},
             ],
-            "is_end": True,
+            "next_cursor": "c2",
+            "is_end": False,
         }
     )
     assert [(note.note_id, note.title, note.folder_name, note.modify_time) for note in parsed.notes] == [
@@ -68,6 +75,30 @@ def test_notes_page_skips_deleted_notes_and_unwraps_every_nesting() -> None:
         ("n2", "Flat", "", 5),
         ("n3", "Bare", "", 0),
     ]
+    assert parsed.next_cursor == "c2" and parsed.is_end is False
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"note_book_list": [], "is_end": True},
+        {
+            "note_book_list": [{"basic_info": {"basic_info": {"docid": "gone", "status": 1}}}],
+            "next_cursor": "c2",
+            "is_end": False,
+        },
+    ],
+    ids=["empty-account", "only-deleted-notes"],
+)
+def test_notes_page_without_live_notes_is_valid_when_nothing_was_unreadable(data: dict[str, object]) -> None:
+    assert parse_notes_page(data).notes == ()
+
+
+def test_notes_page_whose_entries_none_can_be_read_raises_instead_of_looking_empty() -> None:
+    with pytest.raises(ImaPermanentError):
+        parse_notes_page(
+            {"note_book_list": [{"unknown_shape": {"id": "x"}}, {"basic_info": {"basic_info": {"status": 1}}}], "is_end": True}
+        )
 
 
 def test_media_info_reads_url_headers_and_note_id() -> None:
@@ -119,18 +150,22 @@ async def test_list_knowledge_bases_stops_on_a_repeated_cursor() -> None:
     assert calls == 4
 
 
-async def test_notes_window_and_plain_text_body_request_shapes() -> None:
+async def test_notes_listing_and_plain_text_body_request_shapes() -> None:
     bodies: list[dict[str, object]] = []
+    paths: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         bodies.append(json.loads(request.content))
+        paths.append(request.url.path)
         if request.url.path.endswith("get_doc_content"):
             return httpx.Response(200, json={"retcode": 0, "data": {"content": "  hello  "}})
-        return httpx.Response(200, json={"retcode": 0, "data": {"docs": [], "is_end": True}})
+        return httpx.Response(200, json={"retcode": 0, "data": {"note_book_list": [], "next_cursor": "", "is_end": True}})
 
     client = _client(httpx.MockTransport(handler))
-    await client.list_notes_page(start=100)
+    await client.list_notes_page(cursor="abc")
     assert await client.get_note_text("n1") == "hello"
 
-    assert bodies[0]["start"] == 100 and bodies[0]["end"] == 100 + NOTES_PAGE_LIMIT
+    assert paths[0].endswith("/note/v1/list_note_by_folder_id")
+    assert bodies[0] == {"folder_id": "", "cursor": "abc", "limit": NOTES_PAGE_LIMIT}
+    assert NOTES_PAGE_LIMIT <= 20  # ima's documented ceiling for the notes listing
     assert bodies[1]["target_content_format"] == 0

@@ -63,7 +63,8 @@ class ImaSyncState(BaseModel):
     phase: Literal["idle", "inventory", "fetch"] = "idle"
     generation: int = 0
     queue: list[ImaWalkTask] = Field(default_factory=list)
-    notes_start: int | None = None
+    # Notes lane position: "" means the first page is next, None means the lane is not being walked.
+    notes_cursor: str | None = Field(default=None, max_length=512)
     failed_containers: list[str] = Field(default_factory=list)
     inventory_pages: int = 0
     generation_published: int = 0

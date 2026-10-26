@@ -25,6 +25,7 @@ from .support import (
     library,
     library_config,
     make_ctx,
+    note,
     page,
     raw_file,
     rows,
@@ -178,6 +179,21 @@ async def test_changing_the_selection_restarts_the_inventory_and_holds_back_auto
     assert not first.finished and state.generation == 2 and state.backfill_complete is False
     assert (await run_pass(fake, tmp_path, state, config)).finished
     assert (await rows(ima_db))["other.md"].status == LedgerStatus.SYNCED
+
+
+async def test_a_note_carrying_a_credential_is_stored_redacted_and_flagged_partial(
+    tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], downloads: Downloads
+) -> None:
+    secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
+    fake = FakeIma(notes=[note(1)], note_text={"n1": f"deploy with OPENAI_API_KEY={secret}"})
+
+    outcome = await run_pass(fake, tmp_path, ImaSyncState(), library_config(notes=True, kb_ids=()))
+
+    assert outcome.finished
+    row = (await rows(ima_db))["Note 1"]
+    assert row.status == LedgerStatus.SYNCED and row.fidelity == "partial" and "redacted" in row.fidelity_notes
+    stored = raw_file(tmp_path, row).read_text(encoding="utf-8")
+    assert secret not in stored and "[REDACTED:" in stored
 
 
 async def test_notes_lane_is_skipped_entirely_when_disabled(tmp_path: Path, downloads: Downloads) -> None:
