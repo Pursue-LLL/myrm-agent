@@ -244,6 +244,7 @@ export default function RemoteBackupSection() {
             {t('title')}
           </CardTitle>
           <CardDescription>{t('description')}</CardDescription>
+          <CardDescription className="text-xs leading-relaxed">{t('notePlain')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">

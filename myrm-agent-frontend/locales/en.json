@@ -21586,6 +21586,7 @@
     "remoteBackup": {
       "title": "Memory Cloud Backup",
       "description": "Automatically sync your memories (profile, procedures, facts and past events) to WebDAV or S3-compatible cloud storage. Chats, skills and settings are not included — use Backup and restore for those.",
+      "notePlain": "Backups are ordinary, unencrypted files: anyone who can open this storage can read your memories. Use a location only you can access.",
       "provider": "Storage Provider",
       "webdav": "WebDAV",
       "s3": "S3 Compatible",

@@ -21586,6 +21586,7 @@
     "remoteBackup": {
       "title": "Cloud-Backup des Gedächtnisses",
       "description": "Synchronisiert Ihr Gedächtnis (Profil, Abläufe, Fakten und Erlebnisse) automatisch mit WebDAV oder S3-kompatiblem Cloud-Speicher. Chats, Skills und Einstellungen sind nicht enthalten – dafür gibt es „Sicherung und Wiederherstellung“.",
+      "notePlain": "Sicherungen sind gewöhnliche, unverschlüsselte Dateien: Wer diesen Speicher öffnen kann, kann Ihr Gedächtnis lesen. Nutzen Sie einen Ort, auf den nur Sie Zugriff haben.",
       "provider": "Speicheranbieter",
       "webdav": "WebDAV",
       "s3": "S3-kompatibel",
