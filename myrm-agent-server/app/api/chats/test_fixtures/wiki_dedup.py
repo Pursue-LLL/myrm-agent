@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: gate local-only access)
-- app.services.wiki.vault::get_wiki_archiver (POS: shared wiki vault accessor)
+- app.services.wiki.vault::get_wiki_structure (POS: vault layout accessor, no archiver)
 - myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup::CorpusDedupScanner (POS: dedup scan engine)
 
 [OUTPUT]
@@ -37,12 +37,10 @@ async def seed_wiki_dedup_fixture(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
     suffix = uuid4().hex[:8]
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    structure = archiver._structure
-    structure.ensure_structure()
+    structure = get_wiki_structure(agent_id)
 
     for relative_path in (f"e2e-dedup/a-{suffix}.md", f"e2e-dedup/b-{suffix}.md"):
         path = structure.get_raw_file_path(relative_path)

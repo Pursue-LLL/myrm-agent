@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - init_wiki_vault_at_startup(): migrate legacy paths and ensure directory layout
-- get_wiki_archiver(): process-scoped archiver for API and background hooks
+- get_wiki_archiver(): process-scoped archiver bound to the user's model, for compiling and querying
+- get_wiki_structure(): vault layout of one agent, for work that only touches files
 
 [POS]
 Application-level wiki vault bootstrap and shared service accessor.
@@ -60,6 +61,17 @@ async def init_wiki_vault_at_startup() -> None:
         )
 
 
+def get_wiki_structure(agent_id: str | None = None) -> WikiStructure:
+    """Return the layout of an agent's own vault without building an archiver.
+
+    Dedup scans, hygiene listings, ``.wikiignore`` edits and raw ingress only read and write files. An archiver also
+    starts a compile worker, so ``get_wiki_archiver`` belongs where the user's model is at hand to compile with.
+    """
+    structure = WikiStructure(resolve_wiki_vault_path(agent_id).expanduser().resolve())
+    structure.ensure_structure()
+    return structure
+
+
 def get_wiki_archiver(
     llm: BaseChatModel,
     manager: MemoryManager | None = None,
@@ -69,6 +81,11 @@ def get_wiki_archiver(
 ) -> MemoryToWikiArchiver:
     """Return a process-scoped archiver bound to an agent wiki vault path and mounted shared vaults."""
     global _archiver, _archiver_cache_key
+
+    if llm is None:
+        # The archiver's worker takes the vault's single worker slot: one built without a model fails every compile it picks up.
+        msg = "get_wiki_archiver requires a chat model; use get_wiki_structure when only vault files are needed"
+        raise TypeError(msg)
 
     from pathlib import Path as _FsPath
 

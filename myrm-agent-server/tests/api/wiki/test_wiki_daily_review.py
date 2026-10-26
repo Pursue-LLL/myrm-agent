@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -228,5 +228,5 @@ async def test_archiver_compiler_uses_four_dimension_prompt() -> None:
     from app.services.wiki.daily_review import FOUR_DIMENSION_EXTRACT_PROMPT
     from app.services.wiki.vault import get_wiki_archiver
 
-    archiver = get_wiki_archiver(None, agent_id="default")
+    archiver = get_wiki_archiver(MagicMock(), agent_id="default")
     assert archiver._compiler._compile_config.extract_concepts_prompt_template == FOUR_DIMENSION_EXTRACT_PROMPT

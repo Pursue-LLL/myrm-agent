@@ -45,6 +45,7 @@ from app.services.wiki.vault.resolver import (
 )
 from app.services.wiki.vault.service import (
     get_wiki_archiver,
+    get_wiki_structure,
     init_wiki_vault_at_startup,
     reset_wiki_archiver_cache_for_tests,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "after_wiki_vault_mutation",
     "build_wiki_export_zip",
     "get_wiki_archiver",
+    "get_wiki_structure",
     "init_wiki_vault_at_startup",
     "is_agent_layout_migration_complete",
     "is_legacy_migration_complete",

@@ -264,7 +264,7 @@ async def test_list_only_maintain_no_fix_and_generates_markdown_report() -> None
                     new=AsyncMock(),
                 ) as save_mock:
                     result = await run_wiki_maintain_job(
-                        llm=None,
+                        llm=MagicMock(),
                         agent_id="agent-1",
                         mode="list_only",
                     )
@@ -301,7 +301,7 @@ async def test_list_only_maintain_all_green_report() -> None:
                     new=AsyncMock(),
                 ):
                     result = await run_wiki_maintain_job(
-                        llm=None,
+                        llm=MagicMock(),
                         agent_id="agent-1",
                         mode="list_only",
                     )

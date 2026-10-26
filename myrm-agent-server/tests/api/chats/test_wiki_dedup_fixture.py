@@ -76,10 +76,9 @@ def test_seed_wiki_dedup_fixture_dismiss_then_resurface_on_new_member(
     open_or_deferred = [group for group in groups_after_dismiss.json() if group["status"] in {"open", "deferred"}]
     assert open_or_deferred == []
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
-    archiver = get_wiki_archiver(None, agent_id=None)
-    structure = archiver._structure
+    structure = get_wiki_structure()
     sample_path = member_paths[0]["relative_path"]
     folder = sample_path.rsplit("/", 1)[0]
     suffix = sample_path.rsplit("-", 1)[-1].removesuffix(".md")

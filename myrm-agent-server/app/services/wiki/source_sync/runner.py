@@ -82,12 +82,12 @@ async def run_wiki_source_sync(
             integration_sync_results=integration_sync_results,
             sync_gmail_rss=sync_gmail_rss,
         )
-        if run.total_published > 0:
+        if run.total_published > 0 or (deferred is not None and deferred.needs_scan):
             scan_completed = await run_post_sync_dedup_scan(agent_id=agent_id)
     finally:
         # Even a crashed pull must not strand files that were already written.
         if deferred is not None:
-            deferred.release(scan_completed=scan_completed)
+            await deferred.release(scan_completed=scan_completed)
 
     if run.total_published > 0 and archiver is not None:
         from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot

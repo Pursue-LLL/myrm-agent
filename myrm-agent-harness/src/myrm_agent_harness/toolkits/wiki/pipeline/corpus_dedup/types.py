@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal
+from pathlib import Path
+from typing import Literal, Protocol
 
 
 class DedupTier(StrEnum):
@@ -75,6 +76,35 @@ class DuplicateGroup:
     recommended_keep_path: str
     status: GroupStatus
     members: tuple[DuplicateMember, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlannedGroup:
+    """A duplicate group a scan has worked out and not stored yet."""
+
+    tier: DedupTier
+    fingerprint: str
+    recommended_keep_path: str
+    members: tuple[DuplicateMember, ...]
+    status: GroupStatus = GroupStatus.OPEN
+
+    @property
+    def member_paths(self) -> frozenset[str]:
+        return frozenset(member.relative_path for member in self.members)
+
+
+@dataclass(frozen=True, slots=True)
+class HeldFile:
+    """A raw file kept out of the compile queue until a scan that started after ``held_at_ns`` has looked at it."""
+
+    relative_path: str
+    held_at_ns: int
+
+
+class FileEnqueuer(Protocol):
+    """What a hold release needs from a compiler: queue one raw file for compiling."""
+
+    def enqueue_file(self, file_path: Path) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)

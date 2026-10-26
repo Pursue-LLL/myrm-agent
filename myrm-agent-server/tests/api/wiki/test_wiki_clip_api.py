@@ -52,8 +52,8 @@ def _build_wiki_client(
 
     app.dependency_overrides[_get_wiki_archiver] = _override_archiver
     patcher = patch(
-        "app.services.wiki.vault.get_wiki_archiver",
-        return_value=archiver,
+        "app.services.wiki.vault.get_wiki_structure",
+        return_value=structure,
     )
     patcher.start()
     client = TestClient(app)

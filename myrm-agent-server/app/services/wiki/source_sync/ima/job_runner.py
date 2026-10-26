@@ -93,12 +93,12 @@ async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None) -> ImaJobO
                 compiler_enqueue=deferred,
             )
             outcome = await run_slice(ctx)
-        if (outcome.finished and outcome.generation_total > 0) or (deferred is not None and deferred.has_pending):
+        if (outcome.finished and outcome.generation_total > 0) or (deferred is not None and deferred.needs_scan):
             scan_completed = await run_post_sync_dedup_scan(agent_id=agent_id)
     finally:
         # A failing slice must not strand files it already wrote.
         if deferred is not None:
-            deferred.release(scan_completed=scan_completed)
+            await deferred.release(scan_completed=scan_completed)
 
     if outcome.published > 0:
         from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot

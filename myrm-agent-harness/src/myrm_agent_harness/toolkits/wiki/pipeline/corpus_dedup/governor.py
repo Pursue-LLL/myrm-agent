@@ -1,4 +1,4 @@
-"""Apply user dispositions to duplicate groups.
+"""Apply user dispositions to duplicate groups and release the files held back for them.
 
 [POS]
 See module docstring.
@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import shutil
+import time
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +23,9 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.events import (
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.writer import (
     append_log_entry,
 )
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.eligibility import (
+    CorpusEligibilityFilter,
+)
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.path_utils import (
     normalize_raw_relative_path,
 )
@@ -33,7 +38,9 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DispositionResult,
     DuplicateGroup,
     ExcludedRawEntry,
+    FileEnqueuer,
     GroupStatus,
+    HeldFile,
     TrashedRawEntry,
     VaultHygieneSnapshot,
 )
@@ -49,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 
 class CorpusDedupGovernor:
-    """Execute trash/exclude/dismiss/defer actions for duplicate groups."""
+    """Execute trash/exclude/dismiss/defer actions for duplicate groups and release the files held for them."""
 
     def __init__(self, structure: WikiStructure) -> None:
         self._structure = structure
@@ -72,6 +79,25 @@ class CorpusDedupGovernor:
         reason: str,
         compiler: WikiCompiler | None = None,
         indexer: WikiIndexer | None = None,
+    ) -> DispositionResult:
+        """Apply the action; with a ``compiler``, held files the decision just cleared are queued for compiling."""
+        result = await self._dispose(group_id, action, reason=reason, compiler=compiler, indexer=indexer)
+        if compiler is not None:
+            try:
+                await self.release_held(compiler)
+            except Exception as exc:
+                # The decision is already stored; the held files stay held and go out with the next release.
+                logger.warning("Held files could not be released after the disposition: %s", exc)
+        return result
+
+    async def _dispose(
+        self,
+        group_id: int,
+        action: DispositionAction,
+        *,
+        reason: str,
+        compiler: WikiCompiler | None,
+        indexer: WikiIndexer | None,
     ) -> DispositionResult:
         group = self._store.get_group(group_id)
         if group is None:
@@ -227,3 +253,76 @@ class CorpusDedupGovernor:
     def blocking_open_groups(self) -> list[DuplicateGroup]:
         groups = self._store.list_groups(status=GroupStatus.OPEN)
         return [group for group in groups if group.tier in {DedupTier.EXACT, DedupTier.NORMALIZED}]
+
+    def hold_for_compile(self, relative_paths: Iterable[str]) -> None:
+        """Keep just-published raw files out of the compile queue until a scan has looked at them.
+
+        Call it after the files are written: a scan only vouches for files that existed when it started.
+        """
+        self._store.holds.hold(relative_paths, held_at_ns=time.time_ns())
+
+    def has_unscanned_holds(self) -> bool:
+        """True when a held file was written after the last scan began, so a scan is still owed."""
+        return self._store.holds.any_held_after(self._store.get_scan_coverage_ns())
+
+    async def release_held(self, enqueuer: FileEnqueuer) -> int:
+        """Queue the held files that a finished scan has cleared and return how many were queued.
+
+        A file stays held while no scan that began after it was written has finished, and while it belongs to an open
+        exact or normalized group: the user decides there, and the survivor is released by that decision.
+        """
+        coverage_ns = self._store.get_scan_coverage_ns()
+        in_open_group = {member.relative_path for group in self.blocking_open_groups() for member in group.members}
+        cleared = [
+            held
+            for held in self._store.holds.list_held()
+            if held.held_at_ns <= coverage_ns and held.relative_path not in in_open_group
+        ]
+        return await self._enqueue_held(enqueuer, cleared)
+
+    async def release_unguarded(self, enqueuer: FileEnqueuer, relative_paths: Iterable[str]) -> int:
+        """Queue these held files without a scan to vouch for them, so a failed scan never strands a document."""
+        wanted = {normalize_raw_relative_path(path) for path in relative_paths}
+        return await self._enqueue_held(
+            enqueuer, [held for held in self._store.holds.list_held() if held.relative_path in wanted]
+        )
+
+    async def _enqueue_held(self, enqueuer: FileEnqueuer, held: list[HeldFile]) -> int:
+        """Queue what still needs compiling among ``held`` and clear the holds that are settled.
+
+        Excluded, trashed and vanished files are settled without queueing; so are files whose content was compiled
+        already or is being compiled now, which makes a release safe to repeat. A hold whose enqueue failed is kept.
+        """
+        if not held:
+            return 0
+        from myrm_agent_harness.toolkits.wiki.pipeline.compiler_enqueue import filter_changed_files
+        from myrm_agent_harness.toolkits.wiki.pipeline.queue import WikiIngestionQueue
+
+        blocked = CorpusEligibilityFilter(self._structure).blocked_paths()
+        candidates: list[tuple[HeldFile, Path]] = []
+        for item in held:
+            if item.relative_path in blocked:
+                continue
+            try:
+                raw_path = self._structure.get_raw_file_path(item.relative_path)
+            except ValueError:
+                continue
+            if raw_path.is_file():
+                candidates.append((item, raw_path))
+
+        needs_compile = {str(path) for path in await filter_changed_files(self._structure, [p for _, p in candidates])}
+        in_flight = set(WikiIngestionQueue(self._structure).list_processing_file_paths())
+        queued = 0
+        enqueue_failed: set[str] = set()
+        for item, raw_path in candidates:
+            if str(raw_path) not in needs_compile or str(raw_path) in in_flight:
+                continue
+            try:
+                enqueuer.enqueue_file(raw_path)
+            except Exception as exc:
+                logger.warning("Held file could not be queued, keeping it held: %s: %s", item.relative_path, exc)
+                enqueue_failed.add(item.relative_path)
+            else:
+                queued += 1
+        self._store.holds.drop(item for item in held if item.relative_path not in enqueue_failed)
+        return queued

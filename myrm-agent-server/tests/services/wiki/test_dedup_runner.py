@@ -28,10 +28,17 @@ def wiki_archiver(tmp_path):
         mock_settings.database.harness_dir = str(harness)
         mock_settings.database.state_dir = str(tmp_path)
         archiver = get_wiki_archiver(llm)
-    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=archiver):
+    with patch("app.services.wiki.vault.get_wiki_structure", return_value=archiver._structure):
         yield archiver
     dedup_runner._running_scans.clear()
     reset_wiki_archiver_cache_for_tests()
+
+
+def _make_compile_busy(archiver) -> None:
+    """Leave one source in ``processing``, as a running compile does."""
+    path = archiver._structure.get_raw_file_path("busy.md")
+    path.write_text("# Busy\n\nBeing compiled.", encoding="utf-8")
+    archiver._queue.mark_processing(archiver._queue.add_item(path))
 
 
 def _write_duplicate_pair(archiver, *, content: str = "# Dup\n\nShared runner test body.") -> None:
@@ -63,7 +70,7 @@ async def test_run_wiki_dedup_scan_job_silent_when_no_open_groups(
 
 @pytest.mark.asyncio
 async def test_run_wiki_dedup_scan_job_skips_when_compile_busy(wiki_archiver) -> None:
-    wiki_archiver._queue.get_stats = MagicMock(return_value={"processing": 1})
+    _make_compile_busy(wiki_archiver)
     result = await dedup_runner.run_wiki_dedup_scan_job()
     assert result.skipped is True
     assert result.skipped_reason == "compile_in_progress"
@@ -138,7 +145,7 @@ async def test_apply_wiki_dedup_disposition_dismiss(wiki_archiver) -> None:
     scanner.scan(incremental=False)
     group_id = scanner.store.list_groups(status=GroupStatus.OPEN)[0].group_id
     result = await dedup_runner.apply_wiki_dedup_disposition(
-        agent_id=None,
+        archiver=wiki_archiver,
         group_id=group_id,
         action=DispositionAction.DISMISS,
         reason="",
@@ -154,7 +161,7 @@ def test_get_wiki_dedup_vault_hygiene(wiki_archiver) -> None:
 
 @pytest.mark.asyncio
 async def test_schedule_wiki_dedup_scan_skips_when_compile_busy(wiki_archiver) -> None:
-    wiki_archiver._queue.get_stats = MagicMock(return_value={"processing": 1})
+    _make_compile_busy(wiki_archiver)
     result = await dedup_runner.schedule_wiki_dedup_scan()
     assert result.accepted is False
     assert result.skipped_reason == "compile_in_progress"
@@ -167,13 +174,13 @@ async def test_restore_wiki_dedup_trashed_requeues_scan(wiki_archiver) -> None:
     scanner.scan(incremental=False)
     group_id = scanner.store.list_groups(status=GroupStatus.OPEN)[0].group_id
     await dedup_runner.apply_wiki_dedup_disposition(
-        agent_id=None,
+        archiver=wiki_archiver,
         group_id=group_id,
         action=DispositionAction.TRASH,
         reason="restore runner test",
     )
     trashed = dedup_runner.get_wiki_dedup_vault_hygiene().trashed[0].relative_path
-    restored = await dedup_runner.restore_wiki_dedup_trashed(agent_id=None, relative_path=trashed)
+    restored = await dedup_runner.restore_wiki_dedup_trashed(archiver=wiki_archiver, agent_id=None, relative_path=trashed)
     assert restored.relative_path == trashed
     assert wiki_archiver._structure.get_raw_file_path(trashed).exists()
 
@@ -185,7 +192,7 @@ async def test_undo_wiki_dedup_excluded_requeues_scan(wiki_archiver) -> None:
     scanner.scan(incremental=False)
     group_id = scanner.store.list_groups(status=GroupStatus.OPEN)[0].group_id
     await dedup_runner.apply_wiki_dedup_disposition(
-        agent_id=None,
+        archiver=wiki_archiver,
         group_id=group_id,
         action=DispositionAction.EXCLUDE,
         reason="undo runner test",
@@ -221,15 +228,19 @@ async def test_post_sync_scan_reports_whether_it_completed(wiki_archiver) -> Non
 
 
 @pytest.mark.asyncio
-async def test_post_sync_scan_is_not_completed_when_compile_is_busy(wiki_archiver) -> None:
-    wiki_archiver._queue.get_stats = MagicMock(return_value={"processing": 1})
-    assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is False
+async def test_post_sync_scan_runs_while_a_compile_is_busy(wiki_archiver) -> None:
+    """The files it vets are held back from that compile, so waiting for it would only delay their release."""
+    _make_compile_busy(wiki_archiver)
+    _write_duplicate_pair(wiki_archiver)
+
+    assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is True
+    assert any(group.status is GroupStatus.OPEN for group in dedup_runner.list_wiki_dedup_groups())
 
 
 @pytest.mark.asyncio
 async def test_post_sync_scan_swallows_a_failing_scan(wiki_archiver, monkeypatch: pytest.MonkeyPatch) -> None:
-    async def broken(*, agent_id: str | None = None, incremental: bool = True) -> None:
+    def broken(*, agent_id: str | None, incremental: bool) -> None:
         raise RuntimeError("scan blew up")
 
-    monkeypatch.setattr(dedup_runner, "run_wiki_dedup_scan_job", broken)
+    monkeypatch.setattr(dedup_runner, "_run_scan_sync", broken)
     assert await dedup_runner.run_post_sync_dedup_scan(agent_id=None) is False

@@ -1,8 +1,9 @@
 """Wiki browser clip + wikiignore REST routes.
 
 [INPUT]
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: archiver bound to the user's model, for clips queued to compile)
 - app.services.wiki.clip (POS: clip job orchestration + multipart cap)
-- app.services.wiki.vault (POS: wiki archiver)
+- app.services.wiki.vault::get_wiki_structure (POS: vault layout for .wikiignore, no archiver needed)
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress (POS: clip ingress + wikiignore)
 
 [OUTPUT]
@@ -17,9 +18,11 @@ from __future__ import annotations
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
+from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver
+from app.services.wiki import MemoryToWikiArchiver
 from app.services.wiki.clip import (
     MAX_CLIP_PAYLOAD_BYTES,
     clip_form_payload_bytes,
@@ -57,6 +60,7 @@ class WikiIgnoreUpdateRequest(BaseModel):
 @router.post("/clip", response_model=WikiClipAcceptResponse, status_code=202)
 async def clip_page_to_wiki(
     source_url: Annotated[str, Form(min_length=1, max_length=4096)],
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
     title: Annotated[str, Form(max_length=512)] = "",
     clip_mode: Annotated[str, Form(pattern="^(full_page|selection)$")] = "full_page",
     html: Annotated[str, Form()] = "",
@@ -108,6 +112,7 @@ async def clip_page_to_wiki(
     mode = ClipMode.FULL_PAGE if clip_mode == "full_page" else ClipMode.SELECTION
     compile_after = queue_compile.strip().lower() in {"true", "1", "yes", "on"}
     job_id = await schedule_wiki_clip(
+        archiver=archiver,
         agent_id=agent_id,
         source_url=source_url,
         title=title or source_url,
@@ -147,10 +152,9 @@ async def get_wiki_ignore_rules(
         wikiignore_path,
     )
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    path = wikiignore_path(archiver._structure)
+    path = wikiignore_path(get_wiki_structure(agent_id))
     content = path.read_text(encoding="utf-8") if path.is_file() else ""
     return WikiIgnoreContentResponse(content=content)
 
@@ -164,8 +168,7 @@ async def put_wiki_ignore_rules(
         write_wikiignore_patterns,
     )
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    write_wikiignore_patterns(archiver._structure, body.content)
+    write_wikiignore_patterns(get_wiki_structure(agent_id), body.content)
     return WikiIgnoreContentResponse(content=body.content)

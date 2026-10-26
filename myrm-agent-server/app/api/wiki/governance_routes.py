@@ -1,9 +1,9 @@
 """Wiki Knowledge Governance API routes.
 
 [INPUT]
-- fastapi::APIRouter, Depends, HTTPException, Query
+- fastapi::APIRouter, Depends, Query
 - pydantic::BaseModel, Field
-- app.api.dependencies::get_optional_llm_for_user
+- app.api.wiki.archiver_dependency::get_scoped_wiki_archiver
 - app.services.wiki::MemoryToWikiArchiver
 - app.services.wiki.governance::WikiGovernanceFreshnessService
 
@@ -19,9 +19,10 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
+from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver
 from app.services.wiki import MemoryToWikiArchiver
 
 logger = logging.getLogger(__name__)
@@ -46,22 +47,15 @@ class GovernanceReviveBody(BaseModel):
     concept_names: list[str] = Field(..., description="List of archived concept names to revive")
 
 
-def _get_archiver(agent_id: str | None = None) -> MemoryToWikiArchiver:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    return get_wiki_archiver(None, agent_id=agent_id)  # type: ignore[arg-type]
-
-
 @router.get("/overview")
 async def get_governance_overview(
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
     threshold_days: Annotated[int, Query(description="Freshness threshold in days")] = 90,
 ) -> dict[str, object]:
     """Get the 4-queue governance workbench overview."""
-    archiver = _get_archiver(agent_id)
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
-    pending_count = archiver._pending_mgr.count_synthesis_pending() if hasattr(archiver, "_pending_mgr") else 0
+    pending_count = archiver._pending_mgr.count_synthesis_pending()
     from myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint import (
         collect_provenance_gap_issues,
     )
@@ -73,7 +67,7 @@ async def get_governance_overview(
 
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
-        indexer=archiver._indexer,
+        indexer=archiver._query_engine._indexer,
         freshness_threshold_days=threshold_days,
     )
     res = service.get_governance_overview(pending_count=pending_count, gaps_count=gaps_count)
@@ -83,16 +77,15 @@ async def get_governance_overview(
 @router.post("/extend")
 async def extend_concepts_endpoint(
     body: GovernanceExtendBody,
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
     threshold_days: Annotated[int, Query(description="Freshness threshold in days")] = 90,
 ) -> dict[str, object]:
     """Extend concept lifespan by resetting expiration clock."""
-    archiver = _get_archiver(agent_id)
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
-        indexer=archiver._indexer,
+        indexer=archiver._query_engine._indexer,
         freshness_threshold_days=threshold_days,
     )
     result = service.extend_concepts(body.concept_names)
@@ -102,15 +95,14 @@ async def extend_concepts_endpoint(
 @router.post("/archive")
 async def archive_concepts_endpoint(
     body: GovernanceArchiveBody,
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
 ) -> dict[str, object]:
     """Atomically archive concepts into isolated directory and unindex from FTS5."""
-    archiver = _get_archiver(agent_id)
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
-        indexer=archiver._indexer,
+        indexer=archiver._query_engine._indexer,
     )
     result = await service.archive_concepts(body.concept_names, reason=body.reason)
     return result.to_dict()
@@ -119,15 +111,14 @@ async def archive_concepts_endpoint(
 @router.post("/undo")
 async def undo_archive_endpoint(
     body: GovernanceUndoBody,
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
 ) -> dict[str, object]:
     """Undo a recent batch archive operation within 30 seconds."""
-    archiver = _get_archiver(agent_id)
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
-        indexer=archiver._indexer,
+        indexer=archiver._query_engine._indexer,
     )
     result = await service.undo_archive(body.undo_token)
     return result.to_dict()
@@ -136,15 +127,14 @@ async def undo_archive_endpoint(
 @router.post("/revive")
 async def revive_concepts_endpoint(
     body: GovernanceReviveBody,
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
 ) -> dict[str, object]:
     """Revive archived concepts back into active concepts directory and reindex."""
-    archiver = _get_archiver(agent_id)
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
-        indexer=archiver._indexer,
+        indexer=archiver._query_engine._indexer,
     )
     result = await service.revive_concepts(body.concept_names)
     return result.to_dict()
@@ -157,10 +147,9 @@ class HealClaimEvidenceBody(BaseModel):
 @router.post("/claims/heal")
 async def heal_concept_claims_endpoint(
     body: HealClaimEvidenceBody,
-    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(get_scoped_wiki_archiver)],
 ) -> dict[str, object]:
     """Auto-heal shifted line ranges and refresh content_sha256 for concept claims."""
-    archiver = _get_archiver(agent_id)
     from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
         heal_claim_evidence_snapshot,
     )

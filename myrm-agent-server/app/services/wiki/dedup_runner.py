@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup (POS: scan/govern/eligibility engine)
+- app.services.wiki.vault::get_wiki_structure (POS: vault layout without an archiver)
 
 [OUTPUT]
 - schedule_wiki_dedup_scan: background scan with progress in store
@@ -13,27 +14,39 @@
 - get_wiki_dedup_group_snippets: body previews for duplicate review UI
 
 [POS]
-Server SSOT bridging POST /wiki/dedup/* and router cron __wiki_dedup__ commands.
+Server SSOT bridging POST /wiki/dedup/* and router cron __wiki_dedup__ commands. Scans, listings and hygiene work on the
+vault files alone, and scans of one vault run one at a time. Only dispositions that re-queue sources (trash, restore)
+take the caller's archiver, bound to the user's model, because the compile worker they wake must be able to compile.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.wiki import WikiIngestionQueue, WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import (
     CorpusDedupGovernor,
     CorpusDedupScanner,
+    CorpusDedupStore,
     CorpusEligibilityFilter,
+    DedupStats,
     DispositionAction,
     DispositionResult,
+    DuplicateGroup,
+    DuplicateMemberSnippet,
     ExcludedRawEntry,
     ScanProgress,
     ScanResult,
     TrashedRawEntry,
     VaultHygieneSnapshot,
 )
+
+if TYPE_CHECKING:
+    from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 
 logger = logging.getLogger(__name__)
 
@@ -67,24 +80,39 @@ class WikiDedupRunResult:
 
 _scan_lock = asyncio.Lock()
 _running_scans: set[str] = set()
+_vault_scan_locks: dict[str, threading.Lock] = {}
+_vault_scan_locks_guard = threading.Lock()
 
 
 def _scan_scope_key(agent_id: str | None) -> str:
     return agent_id or "__default__"
 
 
-def _compile_is_busy(archiver: object) -> bool:
-    queue_stats = archiver._queue.get_stats()
-    processing = queue_stats.get("processing", 0)
-    return isinstance(processing, int) and processing > 0
+def _vault_structure(agent_id: str | None) -> WikiStructure:
+    from app.services.wiki.vault import get_wiki_structure
+
+    return get_wiki_structure(agent_id)
+
+
+def _compile_is_busy(structure: WikiStructure) -> bool:
+    return WikiIngestionQueue(structure).get_stats()["processing"] > 0
+
+
+def _vault_scan_lock(structure: WikiStructure) -> threading.Lock:
+    # Keyed by the resolved vault directory: an implicit and a named default agent share one vault.
+    with _vault_scan_locks_guard:
+        return _vault_scan_locks.setdefault(str(structure.base_dir), threading.Lock())
 
 
 def _run_scan_sync(*, agent_id: str | None, incremental: bool) -> ScanResult:
-    from app.services.wiki.vault import get_wiki_archiver
+    """Scan one vault, waiting for any scan already running on it.
 
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    scanner = CorpusDedupScanner(archiver._structure)
-    return scanner.scan(incremental=incremental)
+    Overlapping scans would each rebuild the group table from their own snapshot, and whichever finished last would
+    keep a view that is older than the other's.
+    """
+    structure = _vault_structure(agent_id)
+    with _vault_scan_lock(structure):
+        return CorpusDedupScanner(structure).scan(incremental=incremental)
 
 
 async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -> None:
@@ -94,10 +122,7 @@ async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -
     except Exception as exc:
         logger.error("Background wiki dedup scan failed for scope %s: %s", scope_key, exc)
         try:
-            from app.services.wiki.vault import get_wiki_archiver
-
-            archiver = get_wiki_archiver(None, agent_id=agent_id)
-            CorpusDedupScanner(archiver._structure).store.set_scan_progress(
+            CorpusDedupStore(_vault_structure(agent_id)).set_scan_progress(
                 ScanProgress(phase="failed", message="Dedup scan failed"),
             )
         except Exception as store_exc:
@@ -112,10 +137,7 @@ async def schedule_wiki_dedup_scan(
     agent_id: str | None = None,
     incremental: bool = True,
 ) -> WikiDedupScanScheduleResult:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    if _compile_is_busy(archiver):
+    if _compile_is_busy(_vault_structure(agent_id)):
         return WikiDedupScanScheduleResult(
             accepted=False,
             skipped=True,
@@ -137,10 +159,7 @@ async def schedule_wiki_dedup_scan(
 
 
 async def run_wiki_dedup_scan_job(*, agent_id: str | None = None, incremental: bool = True) -> WikiDedupRunResult:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    if _compile_is_busy(archiver):
+    if _compile_is_busy(_vault_structure(agent_id)):
         return WikiDedupRunResult(
             skipped=True,
             skipped_reason=_COMPILE_BUSY_REASON,
@@ -162,27 +181,25 @@ async def run_wiki_dedup_scan_job(*, agent_id: str | None = None, incremental: b
 async def run_post_sync_dedup_scan(*, agent_id: str | None) -> bool:
     """Scan incrementally after new raw files landed; True only when the scan ran to completion.
 
-    A scan skipped because a compile is busy and a scan that failed both return False, so a caller that gates on the
-    result falls back to its unguarded behaviour instead of trusting stale groups.
+    It does not wait for a running compile: the files it vets are held back from the queue, so that compile is working
+    on other documents, and the scan only reads raw files and writes the dedup store. A failed scan returns False, so a
+    caller that gates on the result falls back to its unguarded behaviour instead of trusting stale groups.
     """
     try:
-        result = await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
+        await asyncio.to_thread(_run_scan_sync, agent_id=agent_id, incremental=True)
     except Exception as exc:
         logger.warning("Post-sync wiki dedup scan failed: %s", exc)
         return False
-    return not result.skipped
+    return True
 
 
 async def apply_wiki_dedup_disposition(
     *,
-    agent_id: str | None,
+    archiver: MemoryToWikiArchiver,
     group_id: int,
     action: DispositionAction,
     reason: str,
 ) -> DispositionResult:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
     return await governor.apply_disposition(
         group_id,
@@ -194,51 +211,33 @@ async def apply_wiki_dedup_disposition(
 
 
 def get_wiki_dedup_progress(*, agent_id: str | None = None) -> ScanProgress:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    scanner = CorpusDedupScanner(archiver._structure)
-    return scanner.store.get_scan_progress()
+    return CorpusDedupStore(_vault_structure(agent_id)).get_scan_progress()
 
 
-def get_wiki_dedup_stats(*, agent_id: str | None = None):
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    eligibility = CorpusEligibilityFilter(archiver._structure)
+def get_wiki_dedup_stats(*, agent_id: str | None = None) -> DedupStats:
+    eligibility = CorpusEligibilityFilter(_vault_structure(agent_id))
     return eligibility.store.build_stats(eligible_raw_count=eligibility.count_eligible_raw_files())
 
 
-def list_wiki_dedup_groups(*, agent_id: str | None = None):
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    scanner = CorpusDedupScanner(archiver._structure)
-    return scanner.store.list_groups()
+def list_wiki_dedup_groups(*, agent_id: str | None = None) -> list[DuplicateGroup]:
+    return CorpusDedupStore(_vault_structure(agent_id)).list_groups()
 
 
-def get_wiki_dedup_group_snippets(*, agent_id: str | None, group_id: int):
+def get_wiki_dedup_group_snippets(*, agent_id: str | None, group_id: int) -> list[DuplicateMemberSnippet]:
     from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.snippets import (
         build_group_body_snippets,
     )
 
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    store = CorpusDedupScanner(archiver._structure).store
-    group = store.get_group(group_id)
+    structure = _vault_structure(agent_id)
+    group = CorpusDedupStore(structure).get_group(group_id)
     if group is None:
         msg = f"Duplicate group not found: {group_id}"
         raise ValueError(msg)
-    return build_group_body_snippets(archiver._structure, group)
+    return build_group_body_snippets(structure, group)
 
 
 def wiki_dedup_blocks_compile(*, agent_id: str | None = None) -> bool:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    governor = CorpusDedupGovernor(archiver._structure)
-    return len(governor.blocking_open_groups()) > 0
+    return len(CorpusDedupGovernor(_vault_structure(agent_id)).blocking_open_groups()) > 0
 
 
 def is_wiki_dedup_scan_running(*, agent_id: str | None = None) -> bool:
@@ -246,34 +245,24 @@ def is_wiki_dedup_scan_running(*, agent_id: str | None = None) -> bool:
 
 
 def wiki_dedup_checklist_ready(*, agent_id: str | None = None) -> bool:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    store = CorpusDedupScanner(archiver._structure).store
-    raw_files = archiver._structure.list_raw_files()
-    if not raw_files:
+    structure = _vault_structure(agent_id)
+    if not structure.list_raw_files():
         return True
-    if store.get_last_scan_at() is None:
+    if CorpusDedupStore(structure).get_last_scan_at() is None:
         return False
     return not wiki_dedup_blocks_compile(agent_id=agent_id)
 
 
 def get_wiki_dedup_vault_hygiene(*, agent_id: str | None = None) -> VaultHygieneSnapshot:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    governor = CorpusDedupGovernor(archiver._structure)
-    return governor.list_vault_hygiene()
+    return CorpusDedupGovernor(_vault_structure(agent_id)).list_vault_hygiene()
 
 
 async def restore_wiki_dedup_trashed(
     *,
+    archiver: MemoryToWikiArchiver,
     agent_id: str | None,
     relative_path: str,
 ) -> TrashedRawEntry:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
     restored = await governor.restore_trashed_raw(
         relative_path,
@@ -288,10 +277,7 @@ async def undo_wiki_dedup_excluded(
     agent_id: str | None,
     relative_path: str,
 ) -> ExcludedRawEntry:
-    from app.services.wiki.vault import get_wiki_archiver
-
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    governor = CorpusDedupGovernor(archiver._structure)
+    governor = CorpusDedupGovernor(_vault_structure(agent_id))
     restored = governor.undo_excluded_raw(relative_path)
     await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
     return restored

@@ -24,10 +24,14 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DedupTier,
     DuplicateMember,
     GroupStatus,
+    PlannedGroup,
     RawFileFingerprint,
     ScanProgress,
     ScanResult,
 )
+
+# Fingerprints are stored in batches: far fewer transactions than one per file, and an interrupted scan keeps its work.
+_FINGERPRINT_BATCH = 200
 
 
 class CorpusDedupScanner:
@@ -47,11 +51,15 @@ class CorpusDedupScanner:
         return self._store
 
     def scan(self, *, incremental: bool = False) -> ScanResult:
+        # Taken before the corpus is listed: every file written earlier is part of what this scan looks at.
+        started_ns = time.time_ns()
         start = time.perf_counter()
         raw_files = self._eligibility.filter_raw_paths(self._structure.list_raw_files())
         total = len(raw_files)
         active_paths: set[str] = set()
         fingerprints: list[RawFileFingerprint] = []
+        cached = self._store.fingerprints.load_all() if incremental else {}
+        unsaved: list[RawFileFingerprint] = []
         files_recomputed = 0
 
         self._store.set_scan_progress(
@@ -67,12 +75,16 @@ class CorpusDedupScanner:
             try:
                 rel = raw_file.relative_to(self._structure.raw_dir).as_posix()
                 active_paths.add(rel)
-                fingerprint, recomputed = self._resolve_fingerprint(raw_file, rel, incremental=incremental)
+                fingerprint, recomputed = self._resolve_fingerprint(raw_file, rel, cached.get(rel))
                 fingerprints.append(fingerprint)
                 if recomputed:
                     files_recomputed += 1
+                    unsaved.append(fingerprint)
             except OSError:
                 continue
+            if len(unsaved) >= _FINGERPRINT_BATCH:
+                self._store.fingerprints.upsert_many(unsaved)
+                unsaved.clear()
             if index % 25 == 0 or index == total:
                 self._store.set_scan_progress(
                     ScanProgress(
@@ -83,10 +95,12 @@ class CorpusDedupScanner:
                     )
                 )
 
-        removed_cache = self._store.prune_file_fingerprints(active_paths)
+        self._store.fingerprints.upsert_many(unsaved)
+        removed_cache = self._store.fingerprints.prune(active_paths)
         if incremental and files_recomputed == 0 and removed_cache == 0:
             open_groups = len(self._store.list_groups(status=GroupStatus.OPEN))
             duration_ms = int((time.perf_counter() - start) * 1000)
+            self._store.confirm_scan_coverage(started_ns)
             self._store.mark_scan_complete()
             self._store.set_scan_progress(
                 ScanProgress(
@@ -116,36 +130,15 @@ class CorpusDedupScanner:
                 message="Grouping duplicates",
             )
         )
-        deferred_member_sets = self._store.collect_deferred_member_sets()
-        self._store.clear_scan_groups()
-        grouped_paths: set[str] = set()
-        exact_groups, exact_paths = self._group_by_key(
-            fingerprints,
-            key=lambda item: item.exact_hash,
-            tier=DedupTier.EXACT,
-            deferred_member_sets=deferred_member_sets,
-        )
-        grouped_paths.update(exact_paths)
-        normalized_remaining = [item for item in fingerprints if item.relative_path not in grouped_paths]
-        normalized_groups, normalized_paths = self._group_by_key(
-            normalized_remaining,
-            key=lambda item: item.normalized_hash,
-            tier=DedupTier.NORMALIZED,
-            deferred_member_sets=deferred_member_sets,
-        )
-        grouped_paths.update(normalized_paths)
-        near_remaining = [item for item in fingerprints if item.relative_path not in grouped_paths]
-        near_groups, near_paths = self._group_near(near_remaining, deferred_member_sets=deferred_member_sets)
-        grouped_paths.update(near_paths)
-
-        groups_found = exact_groups + normalized_groups + near_groups
+        planned = self._plan_groups(fingerprints)
+        self._store.replace_scan_groups(planned, scan_started_ns=started_ns)
         self._store.mark_scan_complete()
         self._store.set_scan_progress(
             ScanProgress(
                 phase="done",
                 files_scanned=total,
                 files_total=total,
-                groups_found=groups_found,
+                groups_found=len(planned),
                 message="Scan complete",
             )
         )
@@ -153,30 +146,58 @@ class CorpusDedupScanner:
         open_groups = len(self._store.list_groups(status=GroupStatus.OPEN))
         return ScanResult(
             files_scanned=total,
-            groups_found=groups_found,
+            groups_found=len(planned),
             open_groups=open_groups,
-            exact_groups=exact_groups,
-            normalized_groups=normalized_groups,
-            near_groups=near_groups,
+            exact_groups=sum(1 for group in planned if group.tier == DedupTier.EXACT),
+            normalized_groups=sum(1 for group in planned if group.tier == DedupTier.NORMALIZED),
+            near_groups=sum(1 for group in planned if group.tier == DedupTier.NEAR),
             duration_ms=duration_ms,
             incremental=incremental,
         )
 
+    @staticmethod
     def _resolve_fingerprint(
-        self,
         raw_file: Path,
         relative_path: str,
-        *,
-        incremental: bool,
+        cached: RawFileFingerprint | None,
     ) -> tuple[RawFileFingerprint, bool]:
+        """The cached fingerprint while the file is unchanged, else a fresh one (and True)."""
         stat = raw_file.stat()
-        if incremental:
-            cached = self._store.get_cached_fingerprint(relative_path)
-            if cached is not None and cached.size_bytes == stat.st_size and cached.mtime_ns == stat.st_mtime_ns:
-                return cached, False
-        fingerprint = build_fingerprint(raw_file, relative_path=relative_path)
-        self._store.upsert_file_fingerprint(fingerprint)
-        return fingerprint, True
+        if cached is not None and cached.size_bytes == stat.st_size and cached.mtime_ns == stat.st_mtime_ns:
+            return cached, False
+        return build_fingerprint(raw_file, relative_path=relative_path), True
+
+    def _plan_groups(self, fingerprints: list[RawFileFingerprint]) -> list[PlannedGroup]:
+        """Work out every duplicate group in memory; each file lands in the strictest tier that matches it."""
+        deferred_member_sets = self._store.collect_deferred_member_sets()
+        planned: list[PlannedGroup] = []
+        grouped_paths: set[str] = set()
+
+        exact = self._group_by_key(
+            fingerprints,
+            key=lambda item: item.exact_hash,
+            tier=DedupTier.EXACT,
+            deferred_member_sets=deferred_member_sets,
+        )
+        planned.extend(exact)
+        grouped_paths.update(path for group in exact for path in group.member_paths)
+
+        normalized = self._group_by_key(
+            [item for item in fingerprints if item.relative_path not in grouped_paths],
+            key=lambda item: item.normalized_hash,
+            tier=DedupTier.NORMALIZED,
+            deferred_member_sets=deferred_member_sets,
+        )
+        planned.extend(normalized)
+        grouped_paths.update(path for group in normalized for path in group.member_paths)
+
+        planned.extend(
+            self._group_near(
+                [item for item in fingerprints if item.relative_path not in grouped_paths],
+                deferred_member_sets=deferred_member_sets,
+            )
+        )
+        return planned
 
     def _group_by_key(
         self,
@@ -185,48 +206,26 @@ class CorpusDedupScanner:
         key: Callable[[RawFileFingerprint], str],
         tier: DedupTier,
         deferred_member_sets: set[frozenset[str]],
-    ) -> tuple[int, set[str]]:
+    ) -> list[PlannedGroup]:
         buckets: dict[str, list[RawFileFingerprint]] = defaultdict(list)
         for item in fingerprints:
             buckets[key(item)].append(item)
-        created = 0
-        grouped_paths: set[str] = set()
-        for bucket_key, members in buckets.items():
-            if len(members) < 2:
-                continue
-            if self._should_skip_group(members):
-                continue
-            keep_path = recommend_keep_path(members)
-            group_members = [
-                DuplicateMember(
-                    relative_path=member.relative_path,
-                    size_bytes=member.size_bytes,
-                    mtime_ns=member.mtime_ns,
-                )
-                for member in members
-            ]
-            self._store.save_group(
-                tier=tier,
-                fingerprint=bucket_key,
-                recommended_keep_path=keep_path,
-                members=group_members,
-                status=self._resolve_group_status(members, deferred_member_sets),
-            )
-            created += 1
-            grouped_paths.update(member.relative_path for member in members)
-        return created, grouped_paths
+        return [
+            self._plan_group(tier, bucket_key, members, deferred_member_sets)
+            for bucket_key, members in buckets.items()
+            if len(members) >= 2 and not self._should_skip_group(members)
+        ]
 
     def _group_near(
         self,
         fingerprints: list[RawFileFingerprint],
         *,
         deferred_member_sets: set[frozenset[str]],
-    ) -> tuple[int, set[str]]:
+    ) -> list[PlannedGroup]:
         if len(fingerprints) < 2:
-            return 0, set()
+            return []
         assigned: set[str] = set()
-        grouped_paths: set[str] = set()
-        created = 0
+        groups: list[PlannedGroup] = []
         ordered = sorted(fingerprints, key=lambda item: item.relative_path)
         for index, anchor in enumerate(ordered):
             if anchor.relative_path in assigned:
@@ -237,32 +236,33 @@ class CorpusDedupScanner:
                     continue
                 if is_near_duplicate(anchor.simhash, candidate.simhash):
                     cluster.append(candidate)
-            if len(cluster) < 2:
+            if len(cluster) < 2 or self._should_skip_group(cluster):
                 continue
-            if self._should_skip_group(cluster):
-                continue
-            keep_path = recommend_keep_path(cluster)
-            group_members = [
+            groups.append(self._plan_group(DedupTier.NEAR, f"near:{anchor.simhash:x}", cluster, deferred_member_sets))
+            assigned.update(member.relative_path for member in cluster)
+        return groups
+
+    def _plan_group(
+        self,
+        tier: DedupTier,
+        fingerprint: str,
+        members: list[RawFileFingerprint],
+        deferred_member_sets: set[frozenset[str]],
+    ) -> PlannedGroup:
+        return PlannedGroup(
+            tier=tier,
+            fingerprint=fingerprint,
+            recommended_keep_path=recommend_keep_path(members),
+            members=tuple(
                 DuplicateMember(
                     relative_path=member.relative_path,
                     size_bytes=member.size_bytes,
                     mtime_ns=member.mtime_ns,
                 )
-                for member in cluster
-            ]
-            fingerprint = f"near:{anchor.simhash:x}"
-            self._store.save_group(
-                tier=DedupTier.NEAR,
-                fingerprint=fingerprint,
-                recommended_keep_path=keep_path,
-                members=group_members,
-                status=self._resolve_group_status(cluster, deferred_member_sets),
-            )
-            for member in cluster:
-                assigned.add(member.relative_path)
-                grouped_paths.add(member.relative_path)
-            created += 1
-        return created, grouped_paths
+                for member in members
+            ),
+            status=self._resolve_group_status(members, deferred_member_sets),
+        )
 
     def _should_skip_group(self, members: list[RawFileFingerprint]) -> bool:
         paths = [member.relative_path for member in members]

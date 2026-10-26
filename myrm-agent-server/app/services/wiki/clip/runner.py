@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress (POS: clip ingress pipeline)
-- app.services.wiki.vault (POS: wiki archiver + compile queue)
+- app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: archiver bound to the user's model: compile queue and worker)
 - app.services.wiki.dedup_runner (POS: incremental dedup after clip)
 
 [OUTPUT]
@@ -19,6 +19,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
     ClipAssetInput,
@@ -27,6 +28,9 @@ from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
     ClipMode,
     publish_clip_ingress,
 )
+
+if TYPE_CHECKING:
+    from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,7 @@ async def _purge_stale_jobs() -> None:
 
 async def schedule_wiki_clip(
     *,
+    archiver: MemoryToWikiArchiver,
     agent_id: str | None,
     source_url: str,
     title: str,
@@ -100,9 +105,6 @@ async def schedule_wiki_clip(
     async def _run() -> None:
         record.state = WikiClipJobState.RUNNING
         try:
-            from app.services.wiki.vault import get_wiki_archiver
-
-            archiver = get_wiki_archiver(None, agent_id=agent_id)
             ingress_result = await publish_clip_ingress(
                 archiver._structure,
                 ClipIngressRequest(

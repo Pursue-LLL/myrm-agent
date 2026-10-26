@@ -167,7 +167,7 @@ async def _lint_and_maintain(
 
 async def _run_maintain_pipeline(
     *,
-    llm: BaseChatModel | None,
+    llm: BaseChatModel,
     agent_id: str | None = None,
     mode: MaintainMode | str = MaintainMode.STRUCTURAL,
     on_progress: MaintainProgressCallback | None = None,
@@ -176,8 +176,7 @@ async def _run_maintain_pipeline(
     from app.services.wiki.vault import get_wiki_archiver
 
     mode_literal = _mode_literal(mode)
-    # The read-only listing needs no model, so ``llm`` may be None here.
-    archiver = get_wiki_archiver(llm, agent_id=agent_id)  # type: ignore[arg-type]
+    archiver = get_wiki_archiver(llm, agent_id=agent_id)
     if _compile_is_busy(archiver):
         skipped = _silent_skip(mode_literal, _COMPILE_BUSY_REASON)
         await _save_state(skipped, agent_id)
@@ -205,7 +204,7 @@ async def _run_maintain_pipeline(
 async def _execute_run(
     run: MaintainRun,
     *,
-    llm: BaseChatModel | None,
+    llm: BaseChatModel,
     agent_id: str | None,
 ) -> WikiMaintainRunResult:
     """Run the pipeline under the time cap and record the outcome on ``run``; a failure is re-raised."""
@@ -236,7 +235,7 @@ async def _execute_run(
     return result
 
 
-async def _run_in_background(run: MaintainRun, *, llm: BaseChatModel | None, agent_id: str | None) -> None:
+async def _run_in_background(run: MaintainRun, *, llm: BaseChatModel, agent_id: str | None) -> None:
     # Nobody awaits this task: the outcome is on the run, and the pipeline has already logged a failure.
     with contextlib.suppress(Exception):
         await _execute_run(run, llm=llm, agent_id=agent_id)
@@ -244,7 +243,7 @@ async def _run_in_background(run: MaintainRun, *, llm: BaseChatModel | None, age
 
 async def run_wiki_maintain_job(
     *,
-    llm: BaseChatModel | None,
+    llm: BaseChatModel,
     agent_id: str | None = None,
     mode: MaintainMode | str = MaintainMode.STRUCTURAL,
 ) -> WikiMaintainRunResult:

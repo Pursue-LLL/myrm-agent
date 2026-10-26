@@ -10,9 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
 from myrm_agent_harness.toolkits.wiki import WikiStructure
-from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupScanner
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupGovernor, CorpusDedupScanner
 
-from app.services.wiki.dedup_runner import WikiDedupRunResult
 from app.services.wiki.source_sync.integration_mirror import mirror_integration_sync_results_to_wiki
 from app.services.wiki.source_sync.publish_helpers import publish_source_markdown
 from app.services.wiki.source_sync.runner import run_wiki_source_sync
@@ -45,10 +44,10 @@ async def flow(tmp_path: Path) -> AsyncIterator[Flow]:
     async def snapshot(*_: object, **__: object) -> None:
         recorded.events.append("snapshot")
 
-    async def scan(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
+    async def scan(*, agent_id: str | None) -> bool:
         recorded.events.append("scan")
-        CorpusDedupScanner(recorded.structure).scan(incremental=incremental)
-        return WikiDedupRunResult()
+        CorpusDedupScanner(recorded.structure).scan(incremental=True)
+        return True
 
     with (
         patch("app.services.wiki.source_sync.runner.get_session") as session_ctx,
@@ -56,7 +55,7 @@ async def flow(tmp_path: Path) -> AsyncIterator[Flow]:
         patch("app.services.wiki.source_sync.runner.resolve_wiki_vault_path", return_value="/tmp/wiki"),
         patch("app.services.wiki.vault.get_wiki_archiver", return_value=archiver),
         patch("app.services.wiki.ingest_events.publish_wiki_ingest_snapshot", new=snapshot),
-        patch("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", new=scan),
+        patch("app.services.wiki.source_sync.runner.run_post_sync_dedup_scan", new=scan),
     ):
         session_ctx.return_value.__aenter__ = AsyncMock(return_value=AsyncMock())
         session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -116,35 +115,52 @@ async def test_a_crashing_connector_still_hands_over_what_it_already_published(f
     assert flow.queued == ["a.md", "b.md"]
 
 
-async def test_a_failed_scan_does_not_cost_the_documents_their_compile(flow: Flow) -> None:
+async def test_a_scan_that_did_not_complete_does_not_cost_the_documents_their_compile(flow: Flow) -> None:
+    """Groups stored by an earlier scan say nothing reliable about files published since, so none are held back."""
+    for relative_path in ("rss/old-a.md", "rss/old-b.md"):
+        earlier = flow.structure.get_raw_file_path(relative_path)
+        earlier.parent.mkdir(parents=True, exist_ok=True)
+        earlier.write_text(SAME_BODY, encoding="utf-8")
+    CorpusDedupScanner(flow.structure).scan(incremental=False)
     bodies = {"rss/a.md": SAME_BODY, "rss/a-copy.md": SAME_BODY}
 
-    async def broken_scan(*, agent_id: str | None, incremental: bool) -> None:
-        raise RuntimeError("scan blew up")
+    async def incomplete_scan(*, agent_id: str | None) -> bool:
+        return False
 
     with (
         patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=_rss_publishing(bodies)),
-        patch("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", new=broken_scan),
+        patch("app.services.wiki.source_sync.runner.run_post_sync_dedup_scan", new=incomplete_scan),
     ):
         await run_wiki_source_sync(llm=MagicMock(), config=_config())
 
     assert flow.queued == ["a.md", "a-copy.md"]
 
 
-async def test_a_skipped_scan_does_not_hold_back_files_that_stored_groups_claim(flow: Flow) -> None:
-    bodies = {"rss/a.md": SAME_BODY, "rss/a-copy.md": SAME_BODY}
+async def test_a_run_that_published_nothing_still_scans_for_files_an_earlier_run_left_held(flow: Flow) -> None:
+    leftover = flow.structure.get_raw_file_path("rss/leftover.md")
+    leftover.parent.mkdir(parents=True, exist_ok=True)
+    leftover.write_text("# Leftover\n\nHeld by a run that died.", encoding="utf-8")
+    CorpusDedupGovernor(flow.structure).hold_for_compile(["rss/leftover.md"])
 
-    async def skipped_scan(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
-        CorpusDedupScanner(flow.structure).scan(incremental=incremental)
-        return WikiDedupRunResult(skipped=True, skipped_reason="compile_in_progress")
+    with patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=_rss_publishing({})):
+        run = await run_wiki_source_sync(llm=MagicMock(), config=_config())
 
-    with (
-        patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=_rss_publishing(bodies)),
-        patch("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", new=skipped_scan),
-    ):
+    assert run.total_published == 0
+    assert flow.events == ["scan", "enqueue:leftover.md"]
+
+
+async def test_a_run_that_published_nothing_releases_files_an_earlier_scan_already_covered(flow: Flow) -> None:
+    """A hold whose queueing failed, or whose run died after the scan, must not wait for the next new document."""
+    leftover = flow.structure.get_raw_file_path("rss/leftover.md")
+    leftover.parent.mkdir(parents=True, exist_ok=True)
+    leftover.write_text("# Leftover\n\nScanned, then the run died.", encoding="utf-8")
+    CorpusDedupGovernor(flow.structure).hold_for_compile(["rss/leftover.md"])
+    CorpusDedupScanner(flow.structure).scan(incremental=False)
+
+    with patch("app.services.wiki.source_sync.runner.sync_rss_feeds_to_wiki", new=_rss_publishing({})):
         await run_wiki_source_sync(llm=MagicMock(), config=_config())
 
-    assert flow.queued == ["a.md", "a-copy.md"]
+    assert flow.events == ["enqueue:leftover.md"]
 
 
 async def test_nothing_is_deferred_or_queued_when_auto_compile_is_off(flow: Flow) -> None:

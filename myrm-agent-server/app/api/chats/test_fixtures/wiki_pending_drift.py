@@ -9,7 +9,7 @@ backend stays the single sqlite writer) and removes them by marker prefix.
 
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: gate local-only access)
-app.services.wiki.vault::get_wiki_archiver (POS: shared wiki vault accessor)
+app.services.wiki.vault::get_wiki_structure (POS: vault layout accessor, no archiver)
 myrm_agent_harness.toolkits.wiki.pipeline.pending::WikiPendingEditsManager (POS: HITL pending draft manager, single DB writer)
 
 [OUTPUT]
@@ -26,6 +26,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.toolkits.wiki import WikiPendingEditsManager
 
 from app.config.deploy_mode import is_local_mode
 
@@ -45,10 +46,9 @@ async def seed_pending_drift_fixture(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
-    archiver = get_wiki_archiver(None, agent_id=None)
-    pending_mgr = archiver._pending_mgr
+    pending_mgr = WikiPendingEditsManager(get_wiki_structure())
     suffix = uuid4().hex[:8]
     edit_ids: list[int] = []
     for index in range(count):
@@ -73,10 +73,9 @@ async def cleanup_pending_drift_fixture() -> dict[str, object]:
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
-    archiver = get_wiki_archiver(None, agent_id=None)
-    pending_mgr = archiver._pending_mgr
+    pending_mgr = WikiPendingEditsManager(get_wiki_structure())
     # Same-process connection: the backend remains the single sqlite writer.
     with pending_mgr._get_conn() as conn:
         cursor = conn.execute(

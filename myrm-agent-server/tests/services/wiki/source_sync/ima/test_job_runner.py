@@ -11,10 +11,9 @@ from typing import cast
 
 import pytest
 from langchain_core.language_models import BaseChatModel
-from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupScanner
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupGovernor, CorpusDedupScanner
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.services.wiki.dedup_runner import WikiDedupRunResult
 from app.services.wiki.source_sync.ima import job_runner
 from app.services.wiki.source_sync.ima.context import SyncContext
 from app.services.wiki.source_sync.ima.engine import SliceOutcome
@@ -40,7 +39,7 @@ class Harness:
     events: list[str] = field(default_factory=list)
     publish: dict[str, str] = field(default_factory=dict)
     slice_error: Exception | None = None
-    scan_skipped: bool = False
+    scan_completes: bool = True
 
 
 class FakeCompiler:
@@ -91,19 +90,19 @@ def harness(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatc
         h.snapshots += 1
         h.events.append("snapshot")
 
-    async def dedup(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
+    async def dedup(*, agent_id: str | None) -> bool:
         h.dedups += 1
         h.events.append("scan")
-        if archiver._structure.raw_dir.exists():
-            CorpusDedupScanner(archiver._structure).scan(incremental=incremental)
-        return WikiDedupRunResult(skipped=h.scan_skipped)
+        if h.scan_completes and archiver._structure.raw_dir.exists():
+            CorpusDedupScanner(archiver._structure).scan(incremental=True)
+        return h.scan_completes
 
     monkeypatch.setattr(job_runner, "load_credentials", credentials)
     monkeypatch.setattr(job_runner, "run_slice", run_slice)
     monkeypatch.setattr(job_runner, "load_wiki_source_sync_config", source_config)
     monkeypatch.setattr(job_runner, "get_wiki_archiver", lambda llm, agent_id=None: archiver)
     monkeypatch.setattr("app.services.wiki.ingest_events.publish_wiki_ingest_snapshot", snapshot)
-    monkeypatch.setattr("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", dedup)
+    monkeypatch.setattr(job_runner, "run_post_sync_dedup_scan", dedup)
     job_runner._slice_locks.clear()
     return h
 
@@ -256,30 +255,51 @@ async def test_a_failing_slice_still_hands_over_what_it_already_published(
     assert harness.events == ["enqueue:a.md"]
 
 
-async def test_a_failed_scan_does_not_cost_the_documents_their_compile(
-    harness: Harness, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async def broken(*, agent_id: str | None, incremental: bool) -> WikiDedupRunResult:
-        raise RuntimeError("scan blew up")
-
-    monkeypatch.setattr("app.services.wiki.dedup_runner.run_wiki_dedup_scan_job", broken)
-    await _configure(ima_db, backfill_complete=True)
-    harness.publish = {"ima/KB1/a.md": "# A\n\nfirst"}
-    harness.outcome = SliceOutcome(finished=False, retry_after_s=5.0, published=1, generation_total=0)
-
-    await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
-
-    assert harness.events == ["enqueue:a.md", "snapshot"]
-
-
-async def test_a_skipped_scan_does_not_hold_back_files_that_stored_groups_claim(
-    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+async def test_a_scan_that_did_not_complete_does_not_hold_back_files_whatever_stored_groups_say(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession], tmp_path: Path
 ) -> None:
     await _configure(ima_db, backfill_complete=True)
-    harness.scan_skipped = True
+    structure = FakeArchiver(tmp_path, harness.events)._structure
+    for relative_path in ("ima/KB1/old-a.md", "ima/KB1/old-b.md"):
+        earlier = structure.get_raw_file_path(relative_path)
+        earlier.parent.mkdir(parents=True, exist_ok=True)
+        earlier.write_text(SAME_BODY, encoding="utf-8")
+    CorpusDedupScanner(structure).scan(incremental=False)
+    harness.scan_completes = False
     harness.publish = {"ima/KB1/a.md": SAME_BODY, "ima/KB2/a-copy.md": SAME_BODY}
     harness.outcome = SliceOutcome(finished=False, retry_after_s=5.0, published=2, generation_total=0)
 
     await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
 
     assert harness.events == ["scan", "enqueue:a.md", "enqueue:a-copy.md", "snapshot"]
+
+
+async def test_a_slice_that_published_nothing_still_scans_for_files_an_earlier_slice_left_held(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    await _configure(ima_db, backfill_complete=True)
+    structure = FakeArchiver(tmp_path, harness.events)._structure
+    leftover = structure.get_raw_file_path("ima/KB1/leftover.md")
+    leftover.parent.mkdir(parents=True, exist_ok=True)
+    leftover.write_text("# Leftover\n\nHeld by a slice that died.", encoding="utf-8")
+    CorpusDedupGovernor(structure).hold_for_compile(["ima/KB1/leftover.md"])
+
+    await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
+
+    assert harness.events == ["scan", "enqueue:leftover.md"]
+
+
+async def test_a_slice_that_published_nothing_releases_files_an_earlier_scan_already_covered(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    await _configure(ima_db, backfill_complete=True)
+    structure = FakeArchiver(tmp_path, harness.events)._structure
+    leftover = structure.get_raw_file_path("ima/KB1/leftover.md")
+    leftover.parent.mkdir(parents=True, exist_ok=True)
+    leftover.write_text("# Leftover\n\nScanned, then the slice died.", encoding="utf-8")
+    CorpusDedupGovernor(structure).hold_for_compile(["ima/KB1/leftover.md"])
+    CorpusDedupScanner(structure).scan(incremental=False)
+
+    await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
+
+    assert harness.events == ["enqueue:leftover.md"]

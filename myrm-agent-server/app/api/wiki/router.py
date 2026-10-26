@@ -33,7 +33,7 @@ import tempfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -49,6 +49,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
+from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
 from app.services.risk.refusal import reject_if_risky
@@ -461,17 +462,6 @@ class ReindexVectorsResponse(BaseModel):
     failed: int
     errors: list[str] = Field(default_factory=list)
     message: str
-
-
-async def _get_wiki_archiver(
-    llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
-    manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
-    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
-) -> MemoryToWikiArchiver:
-    """Get wiki archiver bound to an agent-scoped vault path."""
-    from app.services.wiki.vault import get_wiki_archiver
-
-    return get_wiki_archiver(llm, manager, agent_id=agent_id)
 
 
 def _compile_run_response(archiver: MemoryToWikiArchiver) -> CompileRunResponse:
@@ -908,7 +898,7 @@ async def get_wiki_dedup_group_snippets(
 async def apply_wiki_duplicate_disposition(
     group_id: int,
     request: WikiDedupDispositionRequest,
-    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> WikiDedupDispositionResponse:
     from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import DispositionAction
 
@@ -919,7 +909,7 @@ async def apply_wiki_duplicate_disposition(
         raise HTTPException(status_code=422, detail="reason is required for trash/exclude dispositions")
     try:
         result = await apply_wiki_dedup_disposition(
-            agent_id=agent_id,
+            archiver=archiver,
             group_id=group_id,
             action=action,
             reason=request.reason.strip() or "Duplicate review disposition",
@@ -981,12 +971,13 @@ async def get_wiki_dedup_vault_hygiene(
 @router.post("/dedup/trash/restore", response_model=WikiDedupTrashedEntryResponse)
 async def restore_wiki_dedup_trashed_raw(
     request: WikiDedupPathActionRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupTrashedEntryResponse:
     from app.services.wiki.dedup_runner import restore_wiki_dedup_trashed
 
     try:
-        restored = await restore_wiki_dedup_trashed(agent_id=agent_id, relative_path=request.relative_path)
+        restored = await restore_wiki_dedup_trashed(archiver=archiver, agent_id=agent_id, relative_path=request.relative_path)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return WikiDedupTrashedEntryResponse(
@@ -2106,11 +2097,12 @@ async def ingest_artifact(
         if not artifact.versions:
             raise HTTPException(status_code=400, detail="Artifact has no versions")
 
-        effective_agent_id = agent_id or await resolve_chat_agent_id(artifact.chat_id)
+        chat_id = cast("str | None", artifact.chat_id)
+        effective_agent_id = agent_id or await resolve_chat_agent_id(chat_id)
         archiver = get_wiki_archiver(llm, manager, agent_id=effective_agent_id)
 
         latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-        vault = ArtifactVault(await resolve_chat_workspace_root(artifact.chat_id))
+        vault = ArtifactVault(str(await resolve_chat_workspace_root(chat_id)))
         vault_uri = latest_version.vault_uri
         obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
         obj_path = vault.get_object_path(obj_id)

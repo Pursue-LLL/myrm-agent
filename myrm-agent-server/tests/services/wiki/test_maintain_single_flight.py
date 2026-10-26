@@ -175,7 +175,7 @@ async def test_a_read_only_listing_does_not_wait_for_the_running_maintenance() -
     assert running is not None
 
     with patch(_PIPELINE, new=pipeline):
-        result = await run_wiki_maintain_job(llm=None, agent_id="a", mode="list_only")
+        result = await run_wiki_maintain_job(llm=MagicMock(), agent_id="a", mode="list_only")
 
     assert result is listing
     assert get_wiki_maintain_run("a") is running

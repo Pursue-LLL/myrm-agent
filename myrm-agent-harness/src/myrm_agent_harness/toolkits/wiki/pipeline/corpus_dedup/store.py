@@ -9,10 +9,15 @@ from __future__ import annotations
 import contextlib
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.compile_holds import COMPILE_HOLD_SCHEMA, CompileHoldLedger
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.fingerprint_cache import (
+    FINGERPRINT_SCHEMA,
+    FingerprintCache,
+)
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.path_utils import normalize_raw_relative_path
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DedupStats,
@@ -21,7 +26,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DuplicateMember,
     ExcludedRawEntry,
     GroupStatus,
-    RawFileFingerprint,
+    PlannedGroup,
     ScanProgress,
     TrashedRawEntry,
     VaultHygieneSnapshot,
@@ -29,21 +34,18 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
 
 _META_COMPILE_JOBS_PREVENTED = "compile_jobs_prevented"
 _META_LAST_SCAN_AT = "last_scan_at"
+_META_SCAN_COVERAGE_NS = "scan_coverage_ns"
 _META_SCAN_PROGRESS = "scan_progress"
-_SIMHASH_MASK = (1 << 64) - 1
 
 
-def _simhash_to_sqlite(value: int) -> int:
-    normalized = value & _SIMHASH_MASK
-    if normalized >= (1 << 63):
-        return normalized - (1 << 64)
-    return normalized
-
-
-def _simhash_from_sqlite(value: int) -> int:
-    if value < 0:
-        return value + (1 << 64)
-    return value
+def _write_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO dedup_meta (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        (key, value),
+    )
 
 
 class CorpusDedupStore:
@@ -52,6 +54,8 @@ class CorpusDedupStore:
     def __init__(self, structure: WikiStructure) -> None:
         self._structure = structure
         self.db_path = structure.base_dir / ".raw_dedup.db"
+        self.fingerprints = FingerprintCache(self._conn)
+        self.holds = CompileHoldLedger(self._conn)
         self._init_db()
 
     @contextlib.contextmanager
@@ -109,15 +113,9 @@ class CorpusDedupStore:
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 );
-                CREATE TABLE IF NOT EXISTS file_fingerprints (
-                    relative_path TEXT PRIMARY KEY,
-                    size_bytes INTEGER NOT NULL,
-                    mtime_ns INTEGER NOT NULL,
-                    exact_hash TEXT NOT NULL,
-                    normalized_hash TEXT NOT NULL,
-                    simhash INTEGER NOT NULL
-                );
                 """
+                + FINGERPRINT_SCHEMA
+                + COMPILE_HOLD_SCHEMA
             )
 
     def get_excluded_paths(self) -> set[str]:
@@ -292,46 +290,36 @@ class CorpusDedupStore:
             ).fetchone()
         return row is not None
 
-    def clear_scan_groups(self) -> None:
+    def replace_scan_groups(self, groups: Sequence[PlannedGroup], *, scan_started_ns: int) -> None:
+        """Swap the stored groups for a scan's result in one transaction.
+
+        Readers and overlapping scans see either the old set or the new one, never a partial set, and the instant the
+        new set covers is stored with it.
+        """
+        now = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             conn.execute("DELETE FROM group_members")
             conn.execute("DELETE FROM duplicate_groups")
-
-    def save_group(
-        self,
-        *,
-        tier: DedupTier,
-        fingerprint: str,
-        recommended_keep_path: str,
-        members: list[DuplicateMember],
-        status: GroupStatus = GroupStatus.OPEN,
-    ) -> int:
-        now = datetime.now(UTC).isoformat()
-        with self._conn() as conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO duplicate_groups
-                    (tier, fingerprint, recommended_keep_path, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    tier.value,
-                    fingerprint,
-                    recommended_keep_path,
-                    status.value,
-                    now,
-                    now,
-                ),
-            )
-            group_id = int(cursor.lastrowid or 0)
-            conn.executemany(
-                """
-                INSERT INTO group_members (group_id, relative_path, size_bytes, mtime_ns)
-                VALUES (?, ?, ?, ?)
-                """,
-                [(group_id, member.relative_path, member.size_bytes, member.mtime_ns) for member in members],
-            )
-        return group_id
+            for group in groups:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO duplicate_groups
+                        (tier, fingerprint, recommended_keep_path, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (group.tier.value, group.fingerprint, group.recommended_keep_path, group.status.value, now, now),
+                )
+                conn.executemany(
+                    """
+                    INSERT INTO group_members (group_id, relative_path, size_bytes, mtime_ns)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (cursor.lastrowid, member.relative_path, member.size_bytes, member.mtime_ns)
+                        for member in group.members
+                    ],
+                )
+            _write_meta(conn, _META_SCAN_COVERAGE_NS, str(scan_started_ns))
 
     def list_groups(self, *, status: GroupStatus | None = None) -> list[DuplicateGroup]:
         query = """
@@ -442,69 +430,14 @@ class CorpusDedupStore:
         raw = self._get_meta(_META_LAST_SCAN_AT)
         return raw or None
 
-    def get_cached_fingerprint(self, relative_path: str) -> RawFileFingerprint | None:
-        with self._conn() as conn:
-            row = conn.execute(
-                """
-                SELECT relative_path, size_bytes, mtime_ns, exact_hash, normalized_hash, simhash
-                FROM file_fingerprints
-                WHERE relative_path = ?
-                """,
-                (relative_path,),
-            ).fetchone()
-        if row is None:
-            return None
-        return RawFileFingerprint(
-            relative_path=str(row["relative_path"]),
-            exact_hash=str(row["exact_hash"]),
-            normalized_hash=str(row["normalized_hash"]),
-            simhash=_simhash_from_sqlite(int(row["simhash"])),
-            size_bytes=int(row["size_bytes"]),
-            mtime_ns=int(row["mtime_ns"]),
-        )
+    def confirm_scan_coverage(self, scan_started_ns: int) -> None:
+        """Record that the stored groups still describe every file written before ``scan_started_ns``."""
+        self._set_meta(_META_SCAN_COVERAGE_NS, str(scan_started_ns))
 
-    def upsert_file_fingerprint(self, fingerprint: RawFileFingerprint) -> None:
-        with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO file_fingerprints
-                    (relative_path, size_bytes, mtime_ns, exact_hash, normalized_hash, simhash)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(relative_path) DO UPDATE SET
-                    size_bytes = excluded.size_bytes,
-                    mtime_ns = excluded.mtime_ns,
-                    exact_hash = excluded.exact_hash,
-                    normalized_hash = excluded.normalized_hash,
-                    simhash = excluded.simhash
-                """,
-                (
-                    fingerprint.relative_path,
-                    fingerprint.size_bytes,
-                    fingerprint.mtime_ns,
-                    fingerprint.exact_hash,
-                    fingerprint.normalized_hash,
-                    _simhash_to_sqlite(fingerprint.simhash),
-                ),
-            )
-
-    def prune_file_fingerprints(self, active_paths: set[str]) -> int:
-        if not active_paths:
-            with self._conn() as conn:
-                cursor = conn.execute("SELECT COUNT(*) AS count FROM file_fingerprints")
-                removed = int(cursor.fetchone()["count"])
-                conn.execute("DELETE FROM file_fingerprints")
-            return removed
-        placeholders = ",".join("?" for _ in active_paths)
-        params = tuple(sorted(active_paths))
-        with self._conn() as conn:
-            cursor = conn.execute(
-                f"""
-                DELETE FROM file_fingerprints
-                WHERE relative_path NOT IN ({placeholders})
-                """,
-                params,
-            )
-            return int(cursor.rowcount)
+    def get_scan_coverage_ns(self) -> int:
+        """The instant up to which the stored groups cover the corpus; 0 before the first scan."""
+        raw = self._get_meta(_META_SCAN_COVERAGE_NS)
+        return int(raw) if raw.isdigit() else 0
 
     def build_stats(self, *, eligible_raw_count: int) -> DedupStats:
         open_groups = self.list_groups(status=GroupStatus.OPEN)
@@ -525,10 +458,4 @@ class CorpusDedupStore:
 
     def _set_meta(self, key: str, value: str) -> None:
         with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO dedup_meta (key, value) VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (key, value),
-            )
+            _write_meta(conn, key, value)

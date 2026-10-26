@@ -214,7 +214,7 @@ class TestIngestSuccess:
 
         assert resp.status_code == 200
         mocks["resolve_root"].assert_awaited_once_with("chat-legal")
-        mocks["vault_cls"].assert_called_once_with(tmp_path)
+        mocks["vault_cls"].assert_called_once_with(str(tmp_path))
 
     def test_resolves_agent_vault_from_chat_id(self, client: TestClient, ingest_env) -> None:
         artifact = _FakeArtifact(name="scoped.md", chat_id="chat-legal")

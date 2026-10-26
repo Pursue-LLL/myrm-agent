@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: gate local-only access)
-- app.services.wiki.vault::get_wiki_archiver (POS: shared wiki vault accessor)
+- app.services.wiki.vault::get_wiki_structure (POS: vault layout accessor, no archiver)
 - app.services.wiki.structural_stats_cache::invalidate_structural_lint_cache (POS: stats TTL bust)
 
 [OUTPUT]
@@ -36,12 +36,10 @@ async def seed_wiki_provenance_gap_fixture(
     )
 
     from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
-    from app.services.wiki.vault import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_structure
 
     suffix = uuid4().hex[:8]
-    archiver = get_wiki_archiver(None, agent_id=agent_id)
-    structure = archiver._structure
-    structure.ensure_structure()
+    structure = get_wiki_structure(agent_id)
 
     relative_concept = f"e2e-provenance/gap-{suffix}.md"
     concept_path = structure.concepts_dir / relative_concept
