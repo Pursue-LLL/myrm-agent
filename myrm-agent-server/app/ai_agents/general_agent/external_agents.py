@@ -80,6 +80,13 @@ def _runtime_pool_scope_id(agent: object) -> str | None:
     return None
 
 
+def _token_count(value: object) -> int:
+    """Usage payload values are loosely typed; anything that is not a plain number counts as 0."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return 0
+    return int(value)
+
+
 async def resolve_external_agent_backends(
     external_agents_config: list[dict[str, object]] | None,
 ) -> list[dict[str, object]] | None:
@@ -164,7 +171,7 @@ class ExternalAgentsMixin:
                 fingerprint,
                 _build_pool,
             )
-            pool = ChatScopedRuntimePoolFacade(raw_pool, chat_scope_id, registry)
+            pool = ChatScopedRuntimePoolFacade(raw_pool, chat_scope_id, registry, fingerprint)
             self._runtime_pool_from_registry = True
             self._runtime_pool_ephemeral = False
         else:
@@ -292,8 +299,8 @@ class ExternalAgentsMixin:
                 }
 
             elif event.type == RuntimeEventType.USAGE_UPDATE:
-                input_tokens = int(event.data.get("input_tokens") or 0)
-                output_tokens = int(event.data.get("output_tokens") or 0)
+                input_tokens = _token_count(event.data.get("input_tokens"))
+                output_tokens = _token_count(event.data.get("output_tokens"))
                 total_tokens = input_tokens + output_tokens
                 if total_tokens > 0:
                     yield {

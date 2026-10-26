@@ -282,7 +282,11 @@ async def test_facade_cancel_does_not_deadlock_during_run_turn() -> None:
     pool.run_turn = slow_run_turn
     pool.cancel = AsyncMock()
 
-    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry)
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
 
     async def consume() -> None:
         async for _ in facade.run_turn("claude", "hi", "s1"):
@@ -357,7 +361,7 @@ async def test_facade_delegates_properties_and_getattr() -> None:
     pool.get_config = MagicMock(return_value={"name": "claude"})
     pool.start_monitoring = AsyncMock()
 
-    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry)
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
     assert facade.available_backends == ["claude", "codex"]
     assert facade.get_config("claude") == {"name": "claude"}
     assert facade.start_monitoring is pool.start_monitoring
@@ -388,3 +392,119 @@ async def test_close_external_agent_pool_for_chat_swallows_registry_errors() -> 
     ):
         await close_external_agent_pool_for_chat("chat-err")
     registry.close_chat.assert_awaited_once_with("chat-err")
+
+
+def _build_turn_pool(label: str, ran_on: list[str]) -> MagicMock:
+    """A pool whose run_turn records which pool served the turn."""
+
+    async def run_turn(name: str, prompt: str, session_id: str, *, mode: str = "persistent", mcp_servers=None):
+        ran_on.append(label)
+        yield MagicMock()
+
+    pool = MagicMock()
+    pool.available_backends = ["claude"]
+    pool.run_turn = run_turn
+    pool.cancel = AsyncMock()
+    pool.close_all = AsyncMock()
+    pool.start_monitoring = AsyncMock()
+    return pool
+
+
+async def _evict_chat_one(registry: ChatRuntimePoolRegistry, pool: MagicMock) -> None:
+    """Acquire chat-1's pool, let it go idle, and have another chat's acquire evict it."""
+
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    await asyncio.sleep(0.03)
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+    pool.close_all.assert_awaited_once()
+    assert "chat-1" not in registry._entries
+
+
+@pytest.mark.asyncio
+async def test_ensure_tracked_fast_path_does_not_wait_for_registry_lock() -> None:
+    """A turn on a registered pool must not queue behind another chat's slow pool close."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+    pool = _build_turn_pool("p", [])
+
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    async with registry._lock:
+        tracked = await asyncio.wait_for(registry.ensure_tracked("chat-1", "fp-a", pool), timeout=0.5)
+
+    assert tracked is pool
+    pool.start_monitoring.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_ensure_tracked_readopts_evicted_pool_so_shutdown_closes_it() -> None:
+    """A closed pool revives its backends on the next turn; they must stay reachable by close_all."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    pool = _build_turn_pool("p", [])
+    await _evict_chat_one(registry, pool)
+
+    tracked = await registry.ensure_tracked("chat-1", "fp-a", pool)
+
+    assert tracked is pool
+    assert registry._entries["chat-1"].pool is pool
+    pool.start_monitoring.assert_awaited_once()
+    await registry.close_all()
+    assert pool.close_all.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_ensure_tracked_prefers_the_registered_pool_over_a_stale_one() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+    current = _build_turn_pool("current", [])
+    stale = _build_turn_pool("stale", [])
+
+    async def build_pool() -> MagicMock:
+        return current
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+
+    assert await registry.ensure_tracked("chat-1", "fp-a", stale) is current
+    stale.start_monitoring.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_facade_run_turn_readopts_pool_evicted_while_the_unit_stayed_cached() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    ran_on: list[str] = []
+    pool = _build_turn_pool("p", ran_on)
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
+    await _evict_chat_one(registry, pool)
+
+    async for _ in facade.run_turn("claude", "hi", "s1"):
+        pass
+
+    assert ran_on == ["p"]
+    assert registry._entries["chat-1"].pool is pool
+    await registry.close_all()
+    assert pool.close_all.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_facade_follows_the_registered_pool_for_turns_and_cancel() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+    ran_on: list[str] = []
+    current = _build_turn_pool("current", ran_on)
+    stale = _build_turn_pool("stale", ran_on)
+
+    async def build_pool() -> MagicMock:
+        return current
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    facade = ChatScopedRuntimePoolFacade(stale, "chat-1", registry, "fp-a")
+
+    async for _ in facade.run_turn("claude", "hi", "s1"):
+        pass
+    await facade.cancel("claude", "s1")
+
+    assert ran_on == ["current"]
+    current.cancel.assert_awaited_once_with("claude", "s1")
+    stale.cancel.assert_not_called()

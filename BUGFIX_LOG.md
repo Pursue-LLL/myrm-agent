@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 外部 CLI 委托：健康监控把空闲 CLI 当成“崩溃”，擦掉 `--resume` 会话并杀掉进行中的回合；驱逐后的 pool 重新拉起的进程无人收尾
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | ① 同一 chat 内连续委托 `claude` CLI 时，pool 创建后约 3.5 分钟内（监控第 1-5 次“崩溃处理”）`--resume` 会话 id 被清空，第二个回合起丢上下文；② CLI 回合恰好在监控退避睡眠期间启动，会被随后的 `close()` 用 SIGTERM 杀掉；③ ACP 后端在退避期间已被新回合重新拉起，仍被延迟的 `close()` 杀掉；④ 超过重启预算后每个监控周期刷一条 ERROR 日志；⑤ pool 被 idle 驱逐（600s）而执行单元缓存（1800s）仍命中时，该 pool 之后重新拉起的外部 agent 子进程不再被 registry 跟踪，服务关闭时无人收尾 |
+| **根因** | ① `RuntimePool.get` 对所有后端无差别注册 `HealthMonitor`，而 CLI 后端每回合一个子进程，`is_alive` 在回合之间恒为 False，被当成崩溃，`close()` 清掉进程内 `_cli_session_ids`；② ③ `_handle_crash` 在退避睡眠之后不再复查存活就调用 `close()`；④ `restart_count` 永不复位，且对 CLI 后端必然越界；⑤ 已关闭的 `RuntimePool` 仍可用并会按需重新拉起后端，但 registry 已移除其条目，执行单元缓存命中时又不经过 `registry.acquire` |
+| **修复** | 监控只登记常驻进程后端（`backend_type == "acp"`）；`_handle_crash` 在退避之后复查 `is_alive`，已恢复则放弃 `close()`；registry 新增 `ensure_tracked(scope, fingerprint, pool)`，由 `ChatScopedRuntimePoolFacade.run_turn` 在持有 chat 回合锁时调用：已登记走无锁快路径，registry 已有另一个 pool 则以 registry 为准，无条目则带原配置指纹重新登记并启动监控；顺带删除 `AcpRuntime._do_close` 中不可达的 else 分支及其测试；`external_agents.py` 用类型化的 `_token_count` 取代 `int(object)`（消除 2 处既有 pyright 报错，运行语义对数值载荷不变） |
+| **回归证据** | 真实 `RuntimePool` + 假 `claude` 脚本（落盘记录每次调用参数）+ 真实监控：旧行为下第 2 回合不带 `--resume`、被退避期 `close()` 杀掉的回合被 SIGTERM；新用例（`test_pool_cli_health_monitor.py` 2 个）通过。真实 mock ACP agent 子进程经 `RuntimePool` 往返（`test_pool_mock_acp_agent.py`）：回显正确、ACP 后端被监控、`close_all` 后进程已退出。变异验证（逐一撤销后重跑）：让监控登记所有后端 → `test_cli_session_id_survives_the_idle_gap_between_turns` 失败；去掉退避后的存活复查 → `test_backend_recovered_during_backoff_is_not_closed` 失败；“进行中回合不被杀”用例只撤销其中一处时仍通过（复查同样保护进行中的回合），两处都撤销才失败。registry 新增 5 个用例（快路径不等锁、驱逐后重新登记使关闭覆盖、已登记 pool 优先、facade 在单元缓存命中下重新登记、facade 跟随已登记 pool）。`tests/toolkits/acp` **476 passed, 1 skipped**；server `tests/services/external_agents` 等相关 60 passed，registry 用例与监控三个文件各连跑 10 次 0 失败；ruff / 触及文件 pyright 0 error（`external_agents.py` 仍有 2 处既有报错，见下） |
+| **仍然存在** | `_cli_session_ids` 仍只在进程内存，pool 被驱逐（600s 空闲）或服务重启后 CLI 回合不再 `--resume`，与本次修复无关；真实 `claude`（真实 HOME）端到端召回未验证（该次真实运行无输出而挂起），`--resume` 行为只用假 `claude` 脚本验证；对 ACP 后端，若其进程在空闲期死亡，监控仍每周期把它记为崩溃，超过预算后仍每周期一条 ERROR 日志（按 `_handle_crash` 代码推得，未实测）；`external_agents.py` 剩 2 处既有 pyright 报错：`ChatScopedRuntimePoolFacade` 以 `__getattr__` 代理而非 `RuntimePool` 子类，赋给 `_runtime_pool: RuntimePool \| None` 与传入 `create_invoke_acp_agent_tool(pool: RuntimePool)` 时类型不符，彻底消除需在 harness 引入窄协议并级联 `agent.py`，不在本次范围 |
+
 ## 2026-10-26 · ACP 关闭：向未声明能力的 agent 发 `session/close`，且 `close_session` 无内层上限
 
 | 字段 | 内容 |

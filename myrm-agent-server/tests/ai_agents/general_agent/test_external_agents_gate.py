@@ -16,6 +16,7 @@ from app.ai_agents.general_agent.external_agents import (
     _register_backends_on_pool,
     _resolve_external_agent_cfgs,
     _runtime_pool_scope_id,
+    _token_count,
     needs_runtime_pool,
     should_mount_invoke_acp_agent_tool,
 )
@@ -31,6 +32,14 @@ def test_cfg_int_parses_and_falls_back() -> None:
     assert _cfg_int({"maxTurns": "12"}, "maxTurns", 25) == 12
     assert _cfg_int({"maxTurns": "bad"}, "maxTurns", 25) == 25
     assert _cfg_int({"maxTurns": True}, "maxTurns", 25) == 25
+
+
+def test_token_count_accepts_plain_numbers_only() -> None:
+    assert _token_count(12) == 12
+    assert _token_count(12.9) == 12
+    assert _token_count(None) == 0
+    assert _token_count(True) == 0
+    assert _token_count("12") == 0
 
 
 def test_runtime_pool_scope_id_prefers_scope_then_chat_id() -> None:

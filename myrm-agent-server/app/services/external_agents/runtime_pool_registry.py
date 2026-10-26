@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ChatRuntimePoolRegistry: reuse RuntimePool per conversation for CLI --resume across messages
-- ChatScopedRuntimePoolFacade: per-chat single-flight guard around pool.run_turn (cancel lock-exempt)
+- ChatScopedRuntimePoolFacade: per-chat single-flight guard around pool.run_turn (cancel lock-exempt); keeps its pool registered
 - get_chat_runtime_pool_registry(): process-wide singleton accessor
 - close_runtime_pool_bounded(): close a RuntimePool within a hard time limit, never raising
 
@@ -14,6 +14,9 @@ Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness 
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
 idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 驱逐。
 配置变更或 idle 超时再 close；服务关闭时由 close_all 统一收尾。
+执行单元缓存（1800s）比 idle 驱逐（600s）活得久：缓存命中的旧 facade 在池被驱逐后再委托时，
+已关闭的 RuntimePool 会懒重建后端；facade 每个委托 turn 先 ensure_tracked 把池重新登记，
+这些后端才会被 close_chat / close_all 收尾而不是变成孤儿进程。
 所有 pool 关闭都带上限（close_runtime_pool_bounded），失联的外部 agent 不会拖死持锁的 registry。
 """
 
@@ -138,6 +141,37 @@ class ChatRuntimePoolRegistry:
         async with self._lock:
             self._touch(chat_scope_id)
 
+    async def ensure_tracked(
+        self,
+        chat_scope_id: str,
+        config_fingerprint: str,
+        pool: RuntimePool,
+    ) -> RuntimePool:
+        """Return the pool a delegation turn must run on, re-registering ``pool`` if eviction dropped it.
+
+        A closed ``RuntimePool`` stays usable and re-spawns its backends on the next turn. Running on one
+        that is no longer registered would leave those processes invisible to ``close_chat`` / ``close_all``.
+        The registry is the source of truth: when it already holds a different pool for the chat, use that.
+        """
+        entry = self._entries.get(chat_scope_id)
+        if entry is not None and entry.pool is pool:
+            # Lock-free: a turn must not wait behind another chat's slow pool close. The caller holds the
+            # chat's turn lock, so idle eviction cannot drop this entry between the check and the turn.
+            return pool
+        async with self._lock:
+            entry = self._entries.get(chat_scope_id)
+            if entry is not None:
+                return entry.pool
+            self._entries[chat_scope_id] = _ChatPoolEntry(
+                pool=pool,
+                config_fingerprint=config_fingerprint,
+                last_used=time.monotonic(),
+            )
+            # close_all stopped the pool's health monitor; resume supervising the backends it re-spawns.
+            await pool.start_monitoring()
+            logger.info("runtime_pool_readopted chat=%s", chat_scope_id)
+            return pool
+
     async def close_chat(self, chat_scope_id: str) -> None:
         """Explicitly tear down a chat pool (e.g. conversation deleted)."""
         async with self._lock:
@@ -193,10 +227,12 @@ class ChatScopedRuntimePoolFacade:
         pool: RuntimePool,
         chat_scope_id: str,
         registry: ChatRuntimePoolRegistry,
+        config_fingerprint: str,
     ) -> None:
         self._pool = pool
         self._chat_scope_id = chat_scope_id
         self._registry = registry
+        self._config_fingerprint = config_fingerprint
 
     @property
     def available_backends(self) -> list[str]:
@@ -215,6 +251,7 @@ class ChatScopedRuntimePoolFacade:
         mcp_servers: list[McpServerConfig] | None = None,
     ) -> AsyncIterator[RuntimeEvent]:
         async with self._registry.guard_turn(self._chat_scope_id):
+            self._pool = await self._registry.ensure_tracked(self._chat_scope_id, self._config_fingerprint, self._pool)
             async for event in self._pool.run_turn(
                 name,
                 prompt,
