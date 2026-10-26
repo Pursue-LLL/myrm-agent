@@ -48,10 +48,10 @@ const TONE_CLASSES: Record<Tone, { badge: string; dot: string; notice: string; i
     icon: 'text-warning',
   },
   danger: {
-    badge: 'border-destructive/30 bg-destructive/10 text-destructive',
-    dot: 'bg-destructive',
+    badge: 'border-destructive/30 bg-destructive/10 text-destructive dark:text-red-400',
+    dot: 'bg-destructive dark:bg-red-400',
     notice: 'border-destructive/30 bg-destructive/5',
-    icon: 'text-destructive',
+    icon: 'text-destructive dark:text-red-400',
   },
   idle: {
     badge: 'border-border bg-muted text-muted-foreground',
@@ -116,12 +116,12 @@ function Field({ label, children, className }: { label: string; children: ReactN
 
 function Counter({ label, value, tone }: { label: string; value: number; tone?: 'warn' | 'danger' }) {
   return (
-    <div className="min-w-0">
-      <span className="block truncate text-[11px] text-muted-foreground">{label}</span>
+    <div className="flex min-w-0 items-baseline justify-between gap-3 sm:flex-col-reverse sm:items-start sm:justify-end sm:gap-0.5">
+      <span className="min-w-0 break-words text-[11px] leading-tight text-muted-foreground">{label}</span>
       <span
         className={cn(
           'font-mono text-base font-semibold tabular-nums',
-          value > 0 && tone === 'danger' && 'text-destructive',
+          value > 0 && tone === 'danger' && 'text-destructive dark:text-red-400',
           value > 0 && tone === 'warn' && 'text-warning',
         )}
       >
@@ -155,17 +155,13 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
 
       <div className="grid grid-cols-2 gap-3 pt-3.5 lg:grid-cols-4">
         <Field label={t('endpoint')} className="col-span-2">
-          <span className="block truncate font-mono" title={posture.endpoint ?? ''}>
-            {posture.endpoint ?? t('notConfigured')}
-          </span>
+          <span className="block break-all font-mono">{posture.endpoint ?? t('notConfigured')}</span>
         </Field>
         <Field label={t('protocol')}>
           <span className="font-mono">{posture.endpoint ? posture.protocol.toUpperCase() : '-'}</span>
         </Field>
         <Field label={t('sampler')}>
-          <span className="block truncate font-mono" title={posture.sampler ?? ''}>
-            {posture.sampler ?? '-'}
-          </span>
+          <span className="block break-all font-mono">{posture.sampler ?? '-'}</span>
         </Field>
 
         <Field label={t('contentCapture')} className="col-span-2">
@@ -207,7 +203,7 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
           <span className="mb-2 block text-[11px] font-medium tracking-wide text-muted-foreground">
             {t('delivery')}
           </span>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
             <Counter label={t('exportedSpans')} value={posture.exported_spans} />
             <Counter label={t('failedBatches')} value={posture.failed_batches} tone="danger" />
             <Counter label={t('withheldSpans')} value={posture.withheld_spans} tone="warn" />
