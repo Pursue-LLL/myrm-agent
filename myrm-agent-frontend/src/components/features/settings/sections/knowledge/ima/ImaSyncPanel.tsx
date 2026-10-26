@@ -10,7 +10,7 @@
  *
  * [POS]
  * Third screen of the ima card, shown once a sync exists. It reports outcomes honestly (imported, skipped, failed,
- * simplified, removed by the user or upstream) instead of one reassuring number, tells the user when the next automatic
+ * simplified, removed by the user, gone from ima) instead of one reassuring number, tells the user when the next automatic
  * check happens and lets them run it now, and puts the cost-bearing step, compiling the imported documents, behind an
  * explicit button while saying how later changes are compiled.
  */

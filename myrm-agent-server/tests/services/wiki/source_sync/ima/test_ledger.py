@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.wiki.source_sync.ima.identity import kb_item_key
 from app.services.wiki.source_sync.ima.ledger import (
     MAX_ATTEMPTS,
     ImaLedger,
@@ -139,6 +140,23 @@ async def test_remote_deletion_only_touches_unseen_rows_in_clean_containers(ima_
     assert (await _row(ima_db, "seen")).status == LedgerStatus.PENDING
     assert (await _row(ima_db, "dismissed")).status == LedgerStatus.DISMISSED
     assert (await _row(ima_db, "elsewhere")).status == LedgerStatus.PENDING
+
+
+async def test_a_renamed_file_is_gone_under_its_old_name_and_pending_under_the_new_one(
+    ima_db: async_sessionmaker[AsyncSession],
+) -> None:
+    old = kb_item_key("kb1", "folder-a", "contract.pdf")
+    renamed = kb_item_key("kb1", "folder-a", "contract-v2.pdf")
+    await _upsert(ima_db, [item(old, title="contract.pdf")])
+    await _sync(ima_db, old)
+    await _upsert(ima_db, [item(renamed, title="contract-v2.pdf")], generation=2)
+
+    async with ima_db() as db:
+        await ImaLedger(SCOPE).mark_remote_deleted(db, generation=2, container_ids=["kb1"])
+        await db.commit()
+
+    assert (await _row(ima_db, old)).status == LedgerStatus.REMOTE_DELETED
+    assert (await _row(ima_db, renamed)).status == LedgerStatus.PENDING
 
 
 async def test_reappearing_item_returns_to_its_previous_state(ima_db: async_sessionmaker[AsyncSession]) -> None:

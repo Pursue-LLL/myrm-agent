@@ -9,9 +9,10 @@
 
 [POS]
 Breadth-first walk of each library's folder tree (persisted queue) followed by the notes lane. Each complete
-pass is a *generation*: rows a finished pass did not see are marked remotely deleted, but only for containers
-whose walk finished cleanly. Transient / rate-limit / auth failures propagate so the slice stops with its
-cursor intact; a permanent failure only drops the affected container.
+pass is a *generation*: rows a finished pass did not see are marked ``remote_deleted``, but only for containers
+whose walk finished cleanly. The mark means "no longer listed under that library, folder and title": a rename or
+a move reads like a deletion, and the file then arrives as a new row. Transient / rate-limit / auth failures
+propagate so the slice stops with its cursor intact; a permanent failure only drops the affected container.
 """
 
 from __future__ import annotations

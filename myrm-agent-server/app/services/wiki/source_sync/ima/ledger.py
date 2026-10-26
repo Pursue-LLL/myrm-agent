@@ -37,7 +37,7 @@ class LedgerStatus(StrEnum):
     TOO_LARGE = "too_large"
     BLOCKED = "blocked"
     DISMISSED = "dismissed"
-    REMOTE_DELETED = "remote_deleted"
+    REMOTE_DELETED = "remote_deleted"  # unlisted under its old library/folder/title: deleted, renamed or moved
     DUPLICATE = "duplicate"
 
 

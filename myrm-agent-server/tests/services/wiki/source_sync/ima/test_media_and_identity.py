@@ -82,6 +82,12 @@ def test_item_keys_are_deterministic_and_scoped() -> None:
     assert note_item_key("n1") != note_item_key("n2")
 
 
+def test_renaming_or_moving_a_file_gives_it_a_new_key() -> None:
+    key = kb_item_key("kb", "folder-a", "contract.pdf")
+    assert kb_item_key("kb", "folder-a", "contract-v2.pdf") != key
+    assert kb_item_key("kb", "folder-b", "contract.pdf") != key
+
+
 def test_same_title_in_different_folders_never_collides() -> None:
     first = build_raw_path(container="Lib", folders=["A"], title="notes.md", item_key=kb_item_key("kb", "A", "notes.md"))
     second = build_raw_path(container="Lib", folders=["B"], title="notes.md", item_key=kb_item_key("kb", "B", "notes.md"))
