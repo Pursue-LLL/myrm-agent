@@ -1,7 +1,7 @@
 """RuntimePool.release_resident: free resident processes, keep per-turn backends and their resume state.
 
 The real-process form of this contract lives in ``test_pool_mock_acp_agent.py`` (ACP process is
-released and respawned) and ``test_pool_cli_resume.py`` (CLI ``--resume`` id survives).
+released and respawned) and ``runtime/cli/test_pool_resume.py`` (CLI ``--resume`` id survives).
 """
 
 from __future__ import annotations

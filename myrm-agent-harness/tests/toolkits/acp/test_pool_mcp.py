@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
+from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
 from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 from myrm_agent_harness.toolkits.acp.types import (
     BackendCapabilities,

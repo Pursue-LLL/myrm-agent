@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime._parser import parse_ndjson_line
-from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
+from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_ndjson_line
+from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
 from myrm_agent_harness.toolkits.acp.types import (
     AcpErrorCode,
     CliSessionRecord,
@@ -734,7 +734,7 @@ class TestSupportsMaxTurns:
     """Tests for the _supports_max_turns helper function."""
 
     def test_claude_supported(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import (
             _supports_max_turns,
         )
 
@@ -742,21 +742,21 @@ class TestSupportsMaxTurns:
         assert _supports_max_turns("/usr/local/bin/claude") is True
 
     def test_codex_not_supported(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import (
             _supports_max_turns,
         )
 
         assert _supports_max_turns("codex") is False
 
     def test_gemini_not_supported(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import (
             _supports_max_turns,
         )
 
         assert _supports_max_turns("gemini") is False
 
     def test_arbitrary_command_not_supported(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import (
             _supports_max_turns,
         )
 
@@ -1332,7 +1332,7 @@ class TestCliRuntimeMcpIgnored:
             McpServerConfig(name="git", command="mcp-git"),
         ]
         with (
-            caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli_runtime"),
+            caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.runtime"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc),
         ):
             events = [e async for e in rt._do_run_turn("hello", "s1", mcp_servers=mcp)]
@@ -1361,7 +1361,7 @@ class TestCliRuntimeMcpIgnored:
         mock_proc.wait = fake_wait
 
         with (
-            caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli_runtime"),
+            caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.runtime"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc),
         ):
             events = [e async for e in rt._do_run_turn("hello", "s1")]

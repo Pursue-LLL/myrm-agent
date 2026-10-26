@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.acp.runtime._spawn_hints import format_cli_spawn_failure_message
+from myrm_agent_harness.toolkits.acp.runtime.cli.spawn_hints import format_cli_spawn_failure_message
 
 
 def test_codex_bare_binary_includes_adapter_hint() -> None:

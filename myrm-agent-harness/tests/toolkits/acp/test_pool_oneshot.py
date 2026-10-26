@@ -1,7 +1,7 @@
 """RuntimePool oneshot turns: private backend, cancel routing and shutdown coverage.
 
 A ``oneshot`` turn runs on its own backend, so it never touches the shared (persistent) backend.
-The real-process form of this contract lives in ``test_pool_cli_resume.py`` and
+The real-process form of this contract lives in ``runtime/cli/test_pool_resume.py`` and
 ``test_pool_mock_acp_agent.py``; these tests pin the bookkeeping around it with backend doubles.
 """
 

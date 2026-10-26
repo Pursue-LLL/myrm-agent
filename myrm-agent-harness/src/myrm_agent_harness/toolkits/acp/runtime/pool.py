@@ -57,7 +57,7 @@ def _create_runtime(
         return AcpRuntime(name, config, event_bus=event_bus)
 
     if config.backend_type == "cli":
-        from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
+        from myrm_agent_harness.toolkits.acp.runtime.cli import CliRuntime
 
         return CliRuntime(name, config, session_store=cli_session_store)
 

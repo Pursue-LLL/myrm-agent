@@ -1314,28 +1314,28 @@ class TestParserMissingBranches:
     """Tests for _parser.py uncovered branches (lines 73, 129, 172)."""
 
     def test_parse_error_empty_string_falls_to_message_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import parse_error
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
 
         event = parse_error({"error": "", "message": "fallback msg"}, "s1")
         assert event.type == RuntimeEventType.ERROR
         assert "fallback msg" in event.data["error"].message
 
     def test_parse_error_none_falls_to_message_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import parse_error
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
 
         event = parse_error({"error": None, "message": "from message"}, "s1")
         assert event.type == RuntimeEventType.ERROR
         assert "from message" in event.data["error"].message
 
     def test_parse_error_none_no_message_uses_default(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import parse_error
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_error
 
         event = parse_error({"error": None}, "s1")
         assert event.type == RuntimeEventType.ERROR
         assert "Unknown error" in event.data["error"].message
 
     def test_parse_codex_item_reasoning_empty(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
             parse_codex_item_event,
         )
 
@@ -1346,7 +1346,7 @@ class TestParserMissingBranches:
         assert event is None
 
     def test_parse_codex_item_unknown_type(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
             parse_codex_item_event,
         )
 
@@ -1357,13 +1357,13 @@ class TestParserMissingBranches:
         assert event is None
 
     def test_parse_thinking_empty(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import parse_thinking
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_thinking
 
         event = parse_thinking({"thinking": ""}, "s1")
         assert event is None
 
     def test_parse_thinking_with_text_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import parse_thinking
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import parse_thinking
 
         event = parse_thinking({"text": "reasoning content"}, "s1")
         assert event is not None
@@ -1371,7 +1371,7 @@ class TestParserMissingBranches:
         assert event.data["content"] == "reasoning content"
 
     def test_extract_text_empty_content_list(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
             extract_text_from_event,
         )
 
@@ -1379,7 +1379,7 @@ class TestParserMissingBranches:
         assert result is None
 
     def test_extract_text_non_text_blocks(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime._parser import (
+        from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
             extract_text_from_event,
         )
 

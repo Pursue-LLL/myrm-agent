@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.acp.acp_agent_tools import (
     create_invoke_acp_agent_tool,
 )
 from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
-from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
+from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
 from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 from myrm_agent_harness.toolkits.acp.types import (
     McpServerConfig,

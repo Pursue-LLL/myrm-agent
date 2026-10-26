@@ -29,7 +29,7 @@ from myrm_agent_harness.toolkits.acp.types import (
     RuntimeEventType,
 )
 
-from ._cli_session_fakes import RecordingStore
+from ._fakes import RecordingStore
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a POSIX shebang script")
 

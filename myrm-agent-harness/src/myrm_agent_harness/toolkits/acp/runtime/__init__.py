@@ -1,4 +1,4 @@
-"""ACP Runtime backends — unified interface for ACP, SDK, and CLI agents.
+"""ACP Runtime backends — unified interface for ACP and CLI agents.
 
 [INPUT]
 - toolkits.acp.runtime._base::BaseRuntime (POS: Base class for RuntimeBackend implementations.) [lazy]

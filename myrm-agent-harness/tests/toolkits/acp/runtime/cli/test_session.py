@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli_session import CliSessionBook
+from myrm_agent_harness.toolkits.acp.runtime.cli.session import CliSessionBook
 from myrm_agent_harness.toolkits.acp.types import CliSessionRecord
 
-from ._cli_session_fakes import RecordingStore
+from ._fakes import RecordingStore
 
 
 def test_memory_is_bounded_and_evicts_the_oldest_record_first() -> None:

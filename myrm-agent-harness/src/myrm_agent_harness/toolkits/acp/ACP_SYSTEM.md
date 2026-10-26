@@ -325,19 +325,21 @@ acp/
 ├── runtime/                # Runtime 方向（Agent → 外部 Agent）
 │   ├── __init__.py
 │   ├── _base.py            # BaseRuntime
-│   ├── _parser.py          # 共享 NDJSON 事件解析器（CLI/SDK 复用）
-│   ├── _spawn_hints.py     # 裸 CLI 启动失败提示（错误消息生成）
 │   ├── acp_runtime.py      # ACP 子进程 + JSON-RPC
 │   ├── acp_callback.py     # ACP 回调处理器
-│   ├── cli_runtime.py      # CLI + NDJSON（Claude stream-json / Codex item.* 新格式 + legacy 兼容）+ --resume session 复用
-│   ├── cli_session.py      # CLI 会话记录簿 CliSessionBook（内存优先 + 写穿到宿主 CliSessionStore）
-│   └── pool.py             # RuntimePool
+│   ├── pool.py             # RuntimePool
+│   └── cli/                # CLI 后端子包
+│       ├── __init__.py
+│       ├── parser.py       # 共享 NDJSON 事件解析器
+│       ├── runtime.py      # CLI + NDJSON（Claude stream-json / Codex item.* 新格式 + legacy 兼容）+ --resume session 复用
+│       ├── session.py      # CLI 会话记录簿 CliSessionBook（内存优先 + 写穿到宿主 CliSessionStore）
+│       └── spawn_hints.py  # 裸 CLI 启动失败提示（错误消息生成）
 └── toolchains/             # 隔离工具链（Node/npm）
     ├── __init__.py
     └── manager.py          # ToolchainManager
 ```
 
-`toolkits/acp/acp_agent_tools.py` 通过 `RuntimePool` 发起委托，汇总 `USAGE_UPDATE` 事件的 token 消耗并推送至前端。`runtime/_parser.py` 提供 `CliRuntime` 使用的 NDJSON 事件解析逻辑（tool_use / tool_result / usage / error / thinking，以及整行入口 `parse_ndjson_line`）。`cli_runtime.py` 支持 Codex CLI 两种输出格式：新格式（`item.started/completed` + `turn.completed/failed`，含 `command_execution`、`file_change`、`reasoning` 工具事件映射）和 legacy 格式（`{"id","msg"}` envelope 解包）。
+`toolkits/acp/acp_agent_tools.py` 通过 `RuntimePool` 发起委托，汇总 `USAGE_UPDATE` 事件的 token 消耗并推送至前端。`runtime/cli/parser.py` 提供 `CliRuntime` 使用的 NDJSON 事件解析逻辑（tool_use / tool_result / usage / error / thinking，以及整行入口 `parse_ndjson_line`）。`runtime/cli/runtime.py` 支持 Codex CLI 两种输出格式：新格式（`item.started/completed` + `turn.completed/failed`，含 `command_execution`、`file_change`、`reasoning` 工具事件映射）和 legacy 格式（`{"id","msg"}` envelope 解包）。
 
 ---
 
@@ -370,7 +372,7 @@ acp/
 | types.py | 核心类型 | Protocol / dataclass / StrEnum 定义 |
 | runtime/_base.py | 基类 | 环境清理、超时、截断 = 自我保护 |
 | runtime/acp_runtime.py | 实现 | ACP 协议后端 |
-| runtime/cli_runtime.py | 实现 | CLI spawn 后端 |
+| runtime/cli/runtime.py | 实现 | CLI spawn 后端 |
 | runtime/pool.py | 管理器 | 单实例内多后端管理 |
 | core/event_bus.py | 事件系统 | 类似生命周期钩子，业务层订阅 |
 | core/permission.py | Protocol + 默认实现 | DefaultPermissionManager（4 模式 + 白名单） |
@@ -410,7 +412,7 @@ acp/
 - **Deploy 门控（Server）**：`external_cli_deploy.is_external_cli_deploy_supported()` + profile `strip_deploy_incompatible_builtin_tools`；沙箱自动剔除 `external_cli`；BuiltinToolsPanel sandbox 硬禁用 toggle
 - **MCP 会话注入**：`RuntimePool.run_turn` → `AcpRuntime.new_session(mcp_servers=…)`（无 MCP 时 Server 不传参数（None）；`RuntimeConfig.mcp_servers` 为配置源；注入前经 `capabilities.supports_mcp` 能力守卫，跳过不支持的 backends 并记录 `pool_mcp_skipped`）
 - **Host 会话级 MCP 忽略诊断**：ACP Server 侧（`new_session` / `load_session` / `fork_session` / `resume_session`）若收到 host 传入的 `mcp_servers`，记录 `acp_host_mcp_ignored` WARNING —— Myrm 内部 agent 管线自行管理 MCP，host 提供的会话级 MCP 注入不被透传，显式告警避免静默丢失
-- **Spawn 误配提示**：`runtime/_spawn_hints.format_cli_spawn_failure_message` 在 bare CLI 进程失败时返回 adapter 配置指引
+- **Spawn 误配提示**：`runtime/cli/spawn_hints.format_cli_spawn_failure_message` 在 bare CLI 进程失败时返回 adapter 配置指引
 - **跨平台进程组清理**：`CliRuntime` 创建进程组，cancel 时级联终止子进程，确保跨平台（Unix/Windows）无孤儿进程遗留
 - **委派取消传播**：通过 ContextVar 传递 `CancellationToken`，用户取消主 Agent 时 `invoke_acp_agent_tool` 的事件消费循环检测取消信号，调用 `pool.cancel()` → `backend.cancel()` 级联终止外部进程，避免"幽灵进程"继续消耗资源
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）
@@ -420,7 +422,7 @@ acp/
 - **Per-backend 并发串行化**：`RuntimePool.run_turn` 在全局 Semaphore 之外对同一 backend 增 per-backend `asyncio.Lock`，保证单后端实例（如 CliRuntime 的可变进程句柄）同时只跑一个 turn；`cancel()` 不取该锁（调用方在 turn 循环内取消，无死锁），不同 backend 仍可并行
 - **超时/异常进程清理**：`BaseRuntime.run_turn` 在超时或意外异常分支先 `cancel()` 再产出 ERROR 事件，终止可能仍存活的外部 CLI 进程，杜绝超时后孤儿进程在后台继续消耗资源
 - **失败路径统一 ERROR**：`AcpRuntime._do_run_turn` 的 prompt 失败会 re-raise（不被 finally 吞掉），与 CliRuntime 一致地由 `run_turn` 转为 ERROR 事件并清理进程——避免失败被静默降级为 DONE 事件导致 delegate 误判成功
-- **NDJSON 解析器模块化**：`_parser.py` 提取 CLI 共享的解析逻辑，消除代码重复
+- **NDJSON 解析器模块化**：`runtime/cli/parser.py` 提取 CLI 共享的解析逻辑，消除代码重复
 - **Delegate 元数据 TypedDict**：`DelegateUsage` / `DelegateMeta` 提供精确的类型提示
 - **直连模式 Session 隔离**：基于 `chat_id` 生成独立 `session_id`，不同对话的外部 Agent 上下文互不干扰
 - **直连模式 TOOL_RESULT 事件**：展示外部 Agent 工具执行结果（成功/失败状态）
@@ -453,7 +455,7 @@ acp/
 | P0 | runtime/pool.py（RuntimePool） | 低 | types.py |
 | P1 | core/permission.py（权限增强） | 中 | types.py |
 | P1 | core/event_bus.py（事件总线） | 低 | types.py |
-| P1 | runtime/cli_runtime.py（CLI 后端） | 中 | types.py, _base.py, core/event_bus.py |
+| P1 | runtime/cli/runtime.py（CLI 后端） | 中 | types.py, _base.py, core/event_bus.py |
 | P2 | core/backend_detector.py（自动检测） | 低 | 无 |
 ---
 
