@@ -15,12 +15,15 @@ from collections.abc import Callable
 from concurrent import futures
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import TYPE_CHECKING
 
-import grpc
-from google.protobuf.message import Message
 from opentelemetry.proto.collector.metrics.v1 import metrics_service_pb2, metrics_service_pb2_grpc
 from opentelemetry.proto.collector.trace.v1 import trace_service_pb2, trace_service_pb2_grpc
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+
+if TYPE_CHECKING:
+    import grpc
+    from google.protobuf.message import Message
 
 type Scalar = str | int | float | bool | bytes | list["Scalar"] | dict[str, "Scalar"] | None
 
@@ -34,7 +37,8 @@ def any_value(value: AnyValue) -> Scalar:
         return [any_value(item) for item in raw.values]
     if kind == "kvlist_value":
         return {item.key: any_value(item.value) for item in raw.values}
-    return raw
+    scalar: Scalar = raw
+    return scalar
 
 
 def attributes_of(items: list[KeyValue]) -> dict[str, Scalar]:
@@ -235,14 +239,20 @@ class OtlpGrpcReceiver(_Collected):
         receiver = self
 
         class Traces(trace_service_pb2_grpc.TraceServiceServicer):
-            def Export(self, request, context):  # noqa: N802
+            def Export(  # noqa: N802
+                self, request: trace_service_pb2.ExportTraceServiceRequest, context: grpc.ServicerContext
+            ) -> trace_service_pb2.ExportTraceServiceResponse:
                 receiver.add(ReceivedRequest("traces", dict(context.invocation_metadata()), request))
                 return trace_service_pb2.ExportTraceServiceResponse()
 
         class Metrics(metrics_service_pb2_grpc.MetricsServiceServicer):
-            def Export(self, request, context):  # noqa: N802
+            def Export(  # noqa: N802
+                self, request: metrics_service_pb2.ExportMetricsServiceRequest, context: grpc.ServicerContext
+            ) -> metrics_service_pb2.ExportMetricsServiceResponse:
                 receiver.add(ReceivedRequest("metrics", dict(context.invocation_metadata()), request))
                 return metrics_service_pb2.ExportMetricsServiceResponse()
+
+        import grpc
 
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
         trace_service_pb2_grpc.add_TraceServiceServicer_to_server(Traces(), self._server)
