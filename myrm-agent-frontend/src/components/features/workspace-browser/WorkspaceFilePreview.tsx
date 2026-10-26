@@ -6,8 +6,8 @@
  * [INPUT]
  * - file: FileEntry to preview/edit
  * - workspace: Workspace root path for API calls
- * - onDirtyChange: told whether the file holds edits that are not saved yet (false again when the preview goes away)
- * - useWorkspaceTextEditor (POS: read, draft, save-against-version, conflict and copy handling)
+ * - useWorkspaceTextEditor (POS: read, draft, kept unsaved text, save-against-version, conflict and copy handling)
+ * - chooseAction from @/lib/app-dialog (POS: asks what to do with unsaved edits before they are left behind)
  * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
  *
  * [OUTPUT]
@@ -15,6 +15,8 @@
  *   Ctrl+S save. Binary files (images/audio/video/PDF/office docs) are rendered by RichMediaFilePreview.
  *   A file the editor cannot change safely is shown view-only with a localized reason; a file that changed on
  *   disk during an edit keeps the user's text and offers load-latest / overwrite / save-as-copy.
+ *   Unsaved text from an earlier visit reopens in the editor with a notice. Closing or leaving edit mode over
+ *   unsaved edits asks to save, discard or stay; dismissing the question stays.
  *   A file that cannot be read gets a localized notice; the server's reason is never shown.
  *
  * [POS]
@@ -27,12 +29,13 @@
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye, GitCommit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { chooseAction } from '@/lib/app-dialog';
 import { cn } from '@/lib/utils/classnameUtils';
 import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import { getWorkspaceFileContentUrl, type FileEntry } from '@/services/chat';
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
 import { InlineWorkspaceDiff } from './InlineWorkspaceDiff';
-import { ConflictNotice, ReadonlyNotice } from './WorkspaceTextNotices';
+import { ConflictNotice, DraftRestoredNotice, ReadonlyNotice } from './WorkspaceTextNotices';
 import { formatBytes, getLanguage, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
 import { useWorkspaceTextEditor } from './useWorkspaceTextEditor';
 
@@ -40,14 +43,13 @@ interface WorkspaceFilePreviewProps {
   file: FileEntry;
   workspace: string;
   onClose: () => void;
-  onDirtyChange?: (dirty: boolean) => void;
   className?: string;
 }
 
 export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
-  ({ file, workspace, onClose, onDirtyChange, className }) => {
+  ({ file, workspace, onClose, className }) => {
     const t = useTranslations('workspace');
-    const [editing, setEditing] = useState(false);
+    const [editChosen, setEditChosen] = useState(false);
     const [showDiff, setShowDiff] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +61,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const needsText = listedKind === null || previewKind === 'svg';
 
     const editor = useWorkspaceTextEditor(workspace, file.path, needsText);
-    const { snapshot, dirty, save, discard } = editor;
+    const { snapshot, dirty, conflict, save, discard } = editor;
     const loading = editor.phase === 'loading';
     const loadFailed = editor.phase === 'failed';
     // A file the listing took for text can still hold binary data; it has no text to show.
@@ -71,25 +73,44 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
 
     // A different file starts in view mode.
     useEffect(() => {
-      setEditing(false);
+      setEditChosen(false);
       setShowDiff(false);
     }, [file.path, workspace]);
 
-    // The host learns of unsaved edits for as long as they exist, and that they are gone once this preview is.
+    // Unsaved text from an earlier visit is shown where it can be edited, never for a moment behind the saved text.
+    const editing = editChosen || editor.restored;
     useEffect(() => {
-      onDirtyChange?.(dirty);
-      return () => onDirtyChange?.(false);
-    }, [dirty, onDirtyChange]);
-
-    const toggleEdit = useCallback(() => {
-      if (editing && dirty) {
-        if (!window.confirm(t('discardConfirm'))) {
-          return;
-        }
-        discard();
+      if (editor.restored) {
+        setEditChosen(true);
       }
-      setEditing((prev) => !prev);
-    }, [editing, dirty, discard, t]);
+    }, [editor.restored]);
+
+    /** Asks what to do with the unsaved edits: true once none are left behind, false when the user stays with them. */
+    const resolveUnsaved = useCallback(async (): Promise<boolean> => {
+      const choice = await chooseAction({
+        variant: 'warning',
+        title: t('unsavedTitle'),
+        description: t('unsavedBody', { name: file.name }),
+        choices: [
+          // Saving over a file known to have changed would only be refused; the notice offers the real choices.
+          ...(conflict ? [] : [{ value: 'save' as const, label: t('save'), tone: 'primary' as const }]),
+          { value: 'discard' as const, label: t('discardChanges'), tone: 'destructive' as const },
+        ],
+      });
+      if (choice === 'discard') {
+        discard();
+        return true;
+      }
+      return choice === 'save' ? save() : false;
+    }, [conflict, file.name, save, discard, t]);
+
+    const toggleEdit = useCallback(async () => {
+      if (!editing) {
+        setEditChosen(true);
+      } else if (!dirty || (await resolveUnsaved())) {
+        setEditChosen(false);
+      }
+    }, [editing, dirty, resolveUnsaved]);
 
     // Ctrl+S / Cmd+S, unless a host keeps this preview mounted but hidden (the workbench does so under its Terminal tab)
     useEffect(() => {
@@ -108,12 +129,11 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       window.open(url, '_blank', 'noopener,noreferrer');
     }, [file.path, workspace]);
 
-    const handleClose = useCallback(() => {
-      if (editing && dirty && !window.confirm(t('discardConfirm'))) {
-        return;
+    const handleClose = useCallback(async () => {
+      if (!dirty || (await resolveUnsaved())) {
+        onClose();
       }
-      onClose();
-    }, [editing, dirty, onClose, t]);
+    }, [dirty, resolveUnsaved, onClose]);
 
     const language = getLanguage(file.name);
     const size = snapshot?.size ?? file.size;
@@ -149,7 +169,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
                   </button>
                 )}
                 <button
-                  onClick={toggleEdit}
+                  onClick={() => void toggleEdit()}
                   className={cn('p-1 rounded hover:bg-muted transition-colors', editing && 'bg-muted')}
                   title={editing ? t('viewMode') : t('editMode')}
                 >
@@ -180,22 +200,28 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             >
               <Download className="h-4 w-4 text-muted-foreground" />
             </button>
-            <button onClick={handleClose} className="p-1 rounded hover:bg-muted transition-colors" title={t('close')}>
+            <button
+              onClick={() => void handleClose()}
+              className="p-1 rounded hover:bg-muted transition-colors"
+              title={t('close')}
+            >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
         </div>
 
         {/* Notices */}
-        {(editor.conflict || (readonlyReason !== null && readonlyReason !== 'binary')) && (
+        {(editor.conflict || editor.restored || (readonlyReason !== null && readonlyReason !== 'binary')) && (
           <div className="shrink-0 pt-2">
-            {editor.conflict && (
+            {editor.conflict ? (
               <ConflictNotice
                 busy={editor.saving}
                 onSaveCopy={() => void editor.saveCopy()}
                 onReload={() => void editor.reload()}
                 onOverwrite={() => void editor.overwrite()}
               />
+            ) : (
+              editor.restored && <DraftRestoredNotice />
             )}
             {readonlyReason !== null && readonlyReason !== 'binary' && <ReadonlyNotice reason={readonlyReason} />}
           </div>

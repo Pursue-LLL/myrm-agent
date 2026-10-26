@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useWorkbenchStore } from '../useWorkbenchStore';
 
 describe('useWorkbenchStore', () => {
@@ -10,7 +10,6 @@ describe('useWorkbenchStore', () => {
       height: 320,
       activeTab: 'files',
       terminalLogs: [],
-      closeGuard: null,
     });
   });
 
@@ -22,7 +21,6 @@ describe('useWorkbenchStore', () => {
     expect(state.height).toBe(320);
     expect(state.activeTab).toBe('files');
     expect(state.terminalLogs).toHaveLength(0);
-    expect(state.closeGuard).toBeNull();
   });
 
   it('toggles and sets open state', () => {
@@ -100,59 +98,5 @@ describe('useWorkbenchStore', () => {
     resetWorkspaceSession();
 
     expect(useWorkbenchStore.getState().sessionEpoch).toBe(before + 2);
-  });
-
-  describe('close guard', () => {
-    beforeEach(() => {
-      useWorkbenchStore.setState({ isOpen: true });
-    });
-
-    it.each([
-      ['setOpen(false)', () => useWorkbenchStore.getState().setOpen(false)],
-      ['toggleOpen()', () => useWorkbenchStore.getState().toggleOpen()],
-    ])('keeps an open drawer open when %s is refused by the guard', (_name, close) => {
-      const guard = vi.fn(() => false);
-      useWorkbenchStore.getState().setCloseGuard(guard);
-
-      close();
-
-      expect(guard).toHaveBeenCalledTimes(1);
-      expect(useWorkbenchStore.getState().isOpen).toBe(true);
-    });
-
-    it.each([
-      ['setOpen(false)', () => useWorkbenchStore.getState().setOpen(false)],
-      ['toggleOpen()', () => useWorkbenchStore.getState().toggleOpen()],
-    ])('closes the drawer on %s once the guard agrees', (_name, close) => {
-      const guard = vi.fn(() => true);
-      useWorkbenchStore.getState().setCloseGuard(guard);
-
-      close();
-
-      expect(guard).toHaveBeenCalledTimes(1);
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
-    });
-
-    it('is not asked when the drawer opens or is already closed', () => {
-      const guard = vi.fn(() => false);
-      useWorkbenchStore.setState({ isOpen: false });
-      useWorkbenchStore.getState().setCloseGuard(guard);
-
-      useWorkbenchStore.getState().setOpen(false);
-      useWorkbenchStore.getState().toggleOpen();
-      useWorkbenchStore.getState().setOpen(true);
-
-      expect(guard).not.toHaveBeenCalled();
-      expect(useWorkbenchStore.getState().isOpen).toBe(true);
-    });
-
-    it('lets the drawer close again once the guard is removed', () => {
-      useWorkbenchStore.getState().setCloseGuard(() => false);
-      useWorkbenchStore.getState().setCloseGuard(null);
-
-      useWorkbenchStore.getState().setOpen(false);
-
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
-    });
   });
 });

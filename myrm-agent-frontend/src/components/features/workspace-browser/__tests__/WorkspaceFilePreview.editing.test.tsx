@@ -11,6 +11,7 @@ import {
   type WorkspaceTextReadonlyReason,
   type WorkspaceTextSnapshot,
 } from '@/services/workspaceText';
+import { useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { WorkspaceFilePreview } from '../WorkspaceFilePreview';
 
 const stableT = (key: string) => key;
@@ -91,6 +92,10 @@ const copyMock = vi.mocked(saveWorkspaceTextCopy);
 const preview = (file: FileEntry) => <WorkspaceFilePreview file={file} workspace={WORKSPACE} onClose={vi.fn()} />;
 
 const editor = () => screen.getByRole('textbox', { hidden: true }) as HTMLTextAreaElement;
+
+beforeEach(() => {
+  useWorkspaceDraftStore.setState({ drafts: {} });
+});
 
 describe('WorkspaceFilePreview with a file the editor must not change', () => {
   beforeEach(() => {

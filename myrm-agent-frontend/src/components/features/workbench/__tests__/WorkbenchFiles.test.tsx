@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { useEffect } from 'react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry, WorkspaceFileSearchResponse } from '@/services/chat';
+import type { WorkspaceTextSnapshot } from '@/services/workspaceText';
 import useChatStore from '@/store/useChatStore';
-import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import { useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { WorkbenchFiles } from '../tabs/WorkbenchFiles';
 
 const WORKSPACE = '/vault/chat-1';
@@ -28,7 +28,6 @@ interface PreviewStubProps {
   file: FileEntry;
   workspace: string;
   onClose: () => void;
-  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const renderEntries = (entries: FileEntry[], onFileClick?: (file: FileEntry) => void): React.ReactNode =>
@@ -44,24 +43,14 @@ const renderEntries = (entries: FileEntry[], onFileClick?: (file: FileEntry) => 
 vi.mock('next/dynamic', () => ({
   default: (loader: () => Promise<unknown>) => {
     if (String(loader).includes('WorkspaceFilePreview')) {
-      // Like the real preview: tells the host when edits exist or are saved, and that none remain once it is gone.
-      return ({ file, workspace, onClose, onDirtyChange }: PreviewStubProps) => {
-        useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-        return (
-          <div data-testid="file-preview" data-workspace={workspace}>
-            <span>{file.path}</span>
-            <button type="button" onClick={onClose}>
-              close-preview
-            </button>
-            <button type="button" onClick={() => onDirtyChange?.(true)}>
-              edit-preview
-            </button>
-            <button type="button" onClick={() => onDirtyChange?.(false)}>
-              save-preview
-            </button>
-          </div>
-        );
-      };
+      return ({ file, workspace, onClose }: PreviewStubProps) => (
+        <div data-testid="file-preview" data-workspace={workspace}>
+          <span>{file.path}</span>
+          <button type="button" onClick={onClose}>
+            close-preview
+          </button>
+        </div>
+      );
     }
     return ({ workspacePath, files, loading, error, onFileClick, onLoadChildren }: BrowserStubProps) => (
       <div
@@ -147,7 +136,7 @@ describe('WorkbenchFiles', () => {
     Object.assign(hookState, { files: TREE, loading: false, error: null, truncated: false });
     searchWorkspaceFilesMock.mockResolvedValue({ results: [DEEP_MATCH], total: 1 });
     useChatStore.setState({ chatId: 'chat-1', workspaceDir: WORKSPACE });
-    useWorkbenchStore.setState({ isOpen: true, closeGuard: null });
+    useWorkspaceDraftStore.setState({ drafts: {} });
   });
 
   afterEach(() => {
@@ -302,63 +291,70 @@ describe('WorkbenchFiles', () => {
     expect(screen.queryByTestId('file-preview')).toBeNull();
   });
 
-  describe('closing the drawer while the preview holds unsaved edits', () => {
-    const previewWithEdits = () => {
+  describe('coming back to text that was left unsaved', () => {
+    const keptSnapshot = (path: string): WorkspaceTextSnapshot => ({
+      path,
+      name: path.split('/').pop() ?? path,
+      content: 'saved text',
+      version: 'v1',
+      size: 10,
+      editable: true,
+      readonlyReason: null,
+      truncated: false,
+    });
+    const keepUnsaved = (path: string, workspace = WORKSPACE) =>
+      useWorkspaceDraftStore.getState().keep(workspace, path, keptSnapshot(path), 'unsaved text');
+
+    it('opens the file the unsaved text belongs to as soon as the tab appears', () => {
+      keepUnsaved(`${WORKSPACE}/notes/todo.md`);
+
       render(<WorkbenchFiles />);
-      fireEvent.click(screen.getByText('README.md'));
-      fireEvent.click(screen.getByText('edit-preview'));
-    };
 
-    it('holds the drawer back until the user, asked in their language, agrees to lose the edits', () => {
-      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-      previewWithEdits();
-
-      useWorkbenchStore.getState().setOpen(false);
-
-      expect(confirm).toHaveBeenCalledWith('discardConfirm');
-      expect(useWorkbenchStore.getState().isOpen).toBe(true);
-
-      confirm.mockReturnValue(true);
-      useWorkbenchStore.getState().setOpen(false);
-
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+      const preview = screen.getByTestId('file-preview');
+      expect(preview.getAttribute('data-workspace')).toBe(WORKSPACE);
+      expect(preview.textContent).toContain(`${WORKSPACE}/notes/todo.md`);
     });
 
-    it('does not interfere while the preview has nothing unsaved', () => {
-      const confirm = vi.spyOn(window, 'confirm');
+    it('opens the file edited last when several have unsaved text', () => {
+      vi.setSystemTime(1_000);
+      keepUnsaved(`${WORKSPACE}/first.md`);
+      vi.setSystemTime(2_000);
+      keepUnsaved(`${WORKSPACE}/second.md`);
+
       render(<WorkbenchFiles />);
-      fireEvent.click(screen.getByText('README.md'));
 
-      useWorkbenchStore.getState().setOpen(false);
-
-      expect(confirm).not.toHaveBeenCalled();
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+      expect(screen.getByTestId('file-preview').textContent).toContain(`${WORKSPACE}/second.md`);
     });
 
-    it.each([
-      ['the edits are saved', () => fireEvent.click(screen.getByText('save-preview'))],
-      ['the preview is closed', () => fireEvent.click(screen.getByText('close-preview'))],
-    ])('lets the drawer close freely once %s', (_name, settle) => {
-      const confirm = vi.spyOn(window, 'confirm');
-      previewWithEdits();
+    it('shows the tree when the unsaved text is in another workspace', () => {
+      keepUnsaved('/vault/chat-2/other.md', '/vault/chat-2');
 
-      settle();
-      useWorkbenchStore.getState().setOpen(false);
+      render(<WorkbenchFiles />);
 
-      expect(confirm).not.toHaveBeenCalled();
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
+      expect(screen.queryByTestId('file-preview')).toBeNull();
+      expect(screen.getByText('README.md')).toBeDefined();
     });
 
-    it('leaves no guard behind when the tab itself goes away', () => {
-      const confirm = vi.spyOn(window, 'confirm');
-      previewWithEdits();
-      expect(useWorkbenchStore.getState().closeGuard).not.toBeNull();
+    it('does not take the preview back once the user closed it', () => {
+      keepUnsaved(`${WORKSPACE}/notes/todo.md`);
+      const { rerender } = render(<WorkbenchFiles />);
 
-      cleanup();
+      fireEvent.click(screen.getByText('close-preview'));
+      rerender(<WorkbenchFiles />);
 
-      expect(useWorkbenchStore.getState().closeGuard).toBeNull();
-      useWorkbenchStore.getState().setOpen(false);
-      expect(confirm).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('file-preview')).toBeNull();
+    });
+
+    it('opens the file of the new workspace when the chat moves to one that has unsaved text', () => {
+      useChatStore.setState({ workspaceDir: null });
+      keepUnsaved(`${WORKSPACE}/notes/todo.md`);
+      const { rerender } = render(<WorkbenchFiles />);
+      expect(screen.queryByTestId('file-preview')).toBeNull();
+
+      act(() => useChatStore.setState({ workspaceDir: WORKSPACE }));
+      rerender(<WorkbenchFiles />);
+
+      expect(screen.getByTestId('file-preview').textContent).toContain(`${WORKSPACE}/notes/todo.md`);
     });
   });
 });

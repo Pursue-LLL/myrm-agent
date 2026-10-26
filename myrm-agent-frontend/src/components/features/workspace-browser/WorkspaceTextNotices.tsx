@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Notices above the text of the workspace file preview: why a file is view-only, and what to do when it changed
- * on disk during an edit.
+ * Notices above the text of the workspace file preview: why a file is view-only, that unsaved text came back, and
+ * what to do when the file changed on disk during an edit.
  *
  * [INPUT]
  * - reason: why the editor cannot change the file (not for binary files, which have no text to show)
- * - busy / onSaveCopy / onReload / onOverwrite: the choices after a save found a newer version of the file
+ * - busy / onSaveCopy / onReload / onOverwrite: the choices once the file is found to have changed under the text
  * - useTranslations from next-intl (namespace: 'workspace')
  *
  * [OUTPUT]
  * - ReadonlyNotice: quiet banner stating the file is shown view-only and why
+ * - DraftRestoredNotice: quiet banner stating that the text from an earlier visit is back
  * - ConflictNotice: alert banner with three choices; keeping the user's text as a copy is the highlighted one
  *
  * [POS]
@@ -19,7 +20,7 @@
  */
 
 import React from 'react';
-import { LockSimple, WarningCircle } from '@phosphor-icons/react';
+import { ClockCounterClockwise, LockSimple, WarningCircle } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { WorkspaceTextReadonlyReason } from '@/services/workspaceText';
@@ -39,6 +40,19 @@ export const ReadonlyNotice: React.FC<{ reason: Exclude<WorkspaceTextReadonlyRea
     >
       <LockSimple aria-hidden weight="duotone" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <span className="text-xs leading-relaxed text-muted-foreground">{t(READONLY_COPY[reason])}</span>
+    </output>
+  );
+};
+
+export const DraftRestoredNotice: React.FC = () => {
+  const t = useTranslations('workspace');
+  return (
+    <output
+      data-testid="workspace-edit-restored"
+      className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2"
+    >
+      <ClockCounterClockwise aria-hidden weight="duotone" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <span className="text-xs leading-relaxed text-foreground">{t('draftRestored')}</span>
     </output>
   );
 };

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry } from '@/services/chat';
 import { readWorkspaceText, saveWorkspaceText, type WorkspaceTextSnapshot } from '@/services/workspaceText';
+import { useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { WorkspaceFilePreview } from '../WorkspaceFilePreview';
 
 const stableT = (key: string) => key;
@@ -72,49 +73,17 @@ const written = { path: `${WORKSPACE}/notes.txt`, name: 'notes.txt', version: 'v
 const readMock = vi.mocked(readWorkspaceText);
 const saveMock = vi.mocked(saveWorkspaceText);
 
-const preview = (file: FileEntry, onDirtyChange?: (dirty: boolean) => void) => (
-  <WorkspaceFilePreview file={file} workspace={WORKSPACE} onClose={vi.fn()} onDirtyChange={onDirtyChange} />
-);
+const preview = (file: FileEntry) => <WorkspaceFilePreview file={file} workspace={WORKSPACE} onClose={vi.fn()} />;
+
+beforeEach(() => {
+  useWorkspaceDraftStore.setState({ drafts: {} });
+});
 
 /** Opens the editor and types, which leaves unsaved edits. */
 function typeIntoEditor(text: string): void {
   fireEvent.click(screen.getByTitle('editMode'));
   fireEvent.change(screen.getByRole('textbox', { hidden: true }), { target: { value: text } });
 }
-
-describe('WorkspaceFilePreview unsaved edits', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    readMock.mockResolvedValue(snapshot('hello'));
-    saveMock.mockResolvedValue(written);
-  });
-
-  it('reports unsaved edits while they exist and that none remain once they are saved', async () => {
-    const onDirtyChange = vi.fn();
-    render(preview(textFile('notes.txt'), onDirtyChange));
-    await screen.findByText('hello');
-    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
-
-    typeIntoEditor('hello!');
-    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
-
-    fireEvent.click(screen.getByTitle('save (Ctrl+S)'));
-    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
-    expect(saveMock).toHaveBeenCalledWith(WORKSPACE, `${WORKSPACE}/notes.txt`, 'hello!', 'v1');
-  });
-
-  it('reports that no edits remain when the preview goes away holding some', async () => {
-    const onDirtyChange = vi.fn();
-    const { unmount } = render(preview(textFile('notes.txt'), onDirtyChange));
-    await screen.findByText('hello');
-    typeIntoEditor('hello!');
-    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
-
-    unmount();
-
-    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
-  });
-});
 
 describe('WorkspaceFilePreview save shortcut', () => {
   beforeEach(() => {

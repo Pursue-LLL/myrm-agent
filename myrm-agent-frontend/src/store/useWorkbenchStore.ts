@@ -11,9 +11,6 @@
  * Central UI store for the auxiliary workbench. Terminal history belongs to one chat's workspace;
  * `resetWorkspaceSession` drops it when the chat changes and advances `sessionEpoch`, so a reply still in
  * flight for the previous chat can tell it is stale and not write into the new session.
- * Closing the drawer discards whatever its tabs hold, so every way of closing it (button, Escape, shortcut,
- * menu) passes through `setOpen`, where a tab with unsaved work can hold the drawer open by registering a
- * `closeGuard`.
  */
 
 import { create } from 'zustand';
@@ -38,13 +35,10 @@ export interface WorkbenchState {
   activeTab: WorkbenchTabId;
   terminalLogs: TerminalLogEntry[];
   sessionEpoch: number;
-  /** Asked before an open drawer closes; answering false keeps it open. Set while a tab holds unsaved work. */
-  closeGuard: (() => boolean) | null;
 
   // Actions
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
-  setCloseGuard: (guard: (() => boolean) | null) => void;
   setPlacement: (placement: WorkbenchPlacement) => void;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
@@ -61,7 +55,7 @@ const MAX_WIDTH = 960;
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 640;
 
-export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
+export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   isOpen: false,
   placement: 'right',
   width: DEFAULT_WIDTH,
@@ -69,19 +63,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   activeTab: 'files',
   terminalLogs: [],
   sessionEpoch: 0,
-  closeGuard: null,
 
-  toggleOpen: () => get().setOpen(!get().isOpen),
+  toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
 
-  setOpen: (open: boolean) => {
-    const { isOpen, closeGuard } = get();
-    if (isOpen && !open && closeGuard && !closeGuard()) {
-      return;
-    }
-    set({ isOpen: open });
-  },
-
-  setCloseGuard: (guard) => set({ closeGuard: guard }),
+  setOpen: (open: boolean) => set({ isOpen: open }),
 
   setPlacement: (placement: WorkbenchPlacement) => set({ placement }),
 

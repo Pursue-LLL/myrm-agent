@@ -10,6 +10,7 @@ import {
   type WorkspaceTextFailureReason,
   type WorkspaceTextSnapshot,
 } from '@/services/workspaceText';
+import { useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { useWorkspaceTextEditor } from '../useWorkspaceTextEditor';
 
 const stableT = (key: string, values?: Record<string, string>) => (values ? `${key}:${values.name}` : key);
@@ -76,8 +77,17 @@ async function openEditor(initial = 'hello') {
 const type = (hook: Awaited<ReturnType<typeof openEditor>>, value: string) =>
   act(() => hook.result.current.setDraft(value));
 
+async function saveResult(hook: Awaited<ReturnType<typeof openEditor>>): Promise<boolean> {
+  let saved = false;
+  await act(async () => {
+    saved = await hook.result.current.save();
+  });
+  return saved;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  useWorkspaceDraftStore.setState({ drafts: {} });
 });
 
 describe('reading and editing', () => {
@@ -144,13 +154,35 @@ describe('saving', () => {
     expect(hook.result.current.snapshot?.version).toBe('v3');
   });
 
+  it('says whether the file holds the text afterwards', async () => {
+    const hook = await openEditor('hello');
+    expect(await saveResult(hook)).toBe(true);
+    expect(saveMock).not.toHaveBeenCalled();
+
+    type(hook, 'hello!');
+    saveMock.mockRejectedValueOnce(new WorkspaceTextError('write_blocked'));
+    expect(await saveResult(hook)).toBe(false);
+
+    saveMock.mockRejectedValueOnce(new WorkspaceTextError('version_conflict', 'v-disk'));
+    expect(await saveResult(hook)).toBe(false);
+
+    saveMock.mockResolvedValueOnce(written('v2'));
+    expect(await saveResult(hook)).toBe(true);
+
+    readMock.mockResolvedValue(snapshot('locked', { editable: false, readonlyReason: 'not_utf8' }));
+    const locked = renderHook(() => useWorkspaceTextEditor(WORKSPACE, B, true));
+    await waitFor(() => expect(locked.result.current.phase).toBe('ready'));
+    act(() => locked.result.current.setDraft('forced'));
+    expect(await saveResult(locked)).toBe(false);
+  });
+
   it('keeps text typed while the save is in flight, still counted as unsaved', async () => {
     const hook = await openEditor('hello');
     const inFlight = deferred<ReturnType<typeof written>>();
     saveMock.mockReturnValue(inFlight.promise);
 
     type(hook, 'hello!');
-    let saving!: Promise<void>;
+    let saving!: Promise<boolean>;
     act(() => {
       saving = hook.result.current.save();
     });
@@ -285,12 +317,16 @@ describe('a file that changed on disk during the edit', () => {
     expect(hook.result.current.conflict).toBe(false);
   });
 
-  it('ends the conflict together with the draft when the user drops their text', async () => {
+  it('ends the conflict together with the draft, and shows the file as it is now rather than as it was read', async () => {
     const hook = await conflictHook();
+    readMock.mockResolvedValue(snapshot('agent wrote this', { version: 'v-disk' }));
 
     act(() => hook.result.current.discard());
 
-    expect(hook.result.current).toMatchObject({ draft: 'hello', dirty: false, conflict: false });
+    await waitFor(() =>
+      expect(hook.result.current).toMatchObject({ draft: 'agent wrote this', dirty: false, conflict: false }),
+    );
+    expect(hook.result.current.snapshot?.version).toBe('v-disk');
   });
 
   it('loads the latest version and drops the draft and the conflict', async () => {

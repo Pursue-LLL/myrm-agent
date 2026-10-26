@@ -57,6 +57,7 @@
     "import/no-cycle": "error",
     "no-console": "off",
     "no-debugger": "warn",
+    "no-alert": "error",
     "no-unused-vars": "off",
     "no-undef": "error",
     "eqeqeq": ["warn", "smart"],

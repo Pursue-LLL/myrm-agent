@@ -48,7 +48,6 @@ describe('MultiTabWorkbench component', () => {
       height: 320,
       activeTab: 'files',
       terminalLogs: [],
-      closeGuard: null,
     });
     useChatStore.setState({ chatId: 'chat-1' });
   });
@@ -221,29 +220,6 @@ describe('MultiTabWorkbench component', () => {
     const closeBtn = screen.getByRole('button', { name: 'closeAction' });
     fireEvent.click(closeBtn);
     expect(useWorkbenchStore.getState().isOpen).toBe(false);
-  });
-
-  describe('while a tab holds unsaved work', () => {
-    it('keeps the drawer open when the close button or Escape is refused by the close guard', () => {
-      const guard = vi.fn(() => false);
-      useWorkbenchStore.setState({ closeGuard: guard });
-      render(<MultiTabWorkbench />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'closeAction' }));
-      fireEvent.keyDown(window, { key: 'Escape' });
-
-      expect(guard).toHaveBeenCalledTimes(2);
-      expect(useWorkbenchStore.getState().isOpen).toBe(true);
-    });
-
-    it('closes the drawer when the guard agrees', () => {
-      useWorkbenchStore.setState({ closeGuard: () => true });
-      render(<MultiTabWorkbench />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'closeAction' }));
-
-      expect(useWorkbenchStore.getState().isOpen).toBe(false);
-    });
   });
 
   it('handles mouse resize drag interaction', () => {

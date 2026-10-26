@@ -14,7 +14,7 @@
  * Auxiliary Workbench container orchestrator: files and terminal of the current chat's workspace.
  * Terminal history resets whenever the chat changes. The Files page stays mounted, only hidden, while the
  * Terminal tab is up, so the opened folders, the search and a preview with edits are still there on return;
- * the drawer itself unmounts when closed, which a tab with unsaved work can veto through the store's close guard.
+ * the drawer itself unmounts when closed, and the Files page's editor has kept any unsaved text for the next visit.
  */
 
 import React, { useRef, useCallback, useEffect, useId, useState } from 'react';

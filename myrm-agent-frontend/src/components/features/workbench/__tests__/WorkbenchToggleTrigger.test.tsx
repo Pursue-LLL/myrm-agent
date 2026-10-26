@@ -12,10 +12,7 @@ vi.mock('next-intl', () => ({
 
 describe('WorkbenchToggleTrigger component', () => {
   beforeEach(() => {
-    useWorkbenchStore.setState({
-      isOpen: false,
-      closeGuard: null,
-    });
+    useWorkbenchStore.setState({ isOpen: false });
   });
 
   it('renders closed HUD capsule initially with trigger hint', () => {
@@ -69,16 +66,16 @@ describe('WorkbenchToggleTrigger component', () => {
     expect(useWorkbenchStore.getState().isOpen).toBe(true);
   });
 
-  it('keeps the drawer open when the capsule or the shortcut would close it against the close guard', () => {
-    const guard = vi.fn(() => false);
-    useWorkbenchStore.setState({ isOpen: true, closeGuard: guard });
+  it('closes an open drawer from the capsule and from the shortcut', () => {
+    useWorkbenchStore.setState({ isOpen: true });
     render(<WorkbenchToggleTrigger />);
 
     fireEvent.click(screen.getByRole('button', { name: /hudActive/i }));
-    fireEvent.keyDown(window, { key: 'b', ctrlKey: true, shiftKey: true });
+    expect(useWorkbenchStore.getState().isOpen).toBe(false);
 
-    expect(guard).toHaveBeenCalledTimes(2);
-    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+    useWorkbenchStore.setState({ isOpen: true });
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true, shiftKey: true });
+    expect(useWorkbenchStore.getState().isOpen).toBe(false);
   });
 
   it('menu mode renders nothing but keeps the global shortcut alive', () => {

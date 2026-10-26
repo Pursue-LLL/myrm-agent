@@ -3,11 +3,11 @@
 /**
  * [INPUT]
  * - useChatStore from @/store/useChatStore (POS: workspaceDir of the current chat)
- * - useWorkbenchStore from @/store/useWorkbenchStore (POS: close guard of the drawer)
+ * - latestDraftIn from @/store/useWorkspaceDraftStore (POS: unsaved text the editor kept, per workspace file)
  * - useWorkspaceFiles, WorkspaceFileBrowser, WorkspaceFilePreview from @/components/features/workspace-browser
  *   (POS: the file tree, live refresh and preview shared with the sidebar workspace view)
  * - useWorkspaceFileSearch from ./useWorkspaceFileSearch (POS: file-name search over the whole workspace)
- * - useTranslations from next-intl (namespaces: 'workbench.files', 'workspace')
+ * - useTranslations from next-intl (namespace: 'workbench.files')
  *
  * [OUTPUT]
  * - WorkbenchFiles: Files tab of the auxiliary workbench — the shared workspace browser, a name search laid
@@ -17,7 +17,8 @@
  * Files tab of the auxiliary workbench. It owns no file-reading logic: the tree, uploads, rename/move/delete
  * and previews all come from the workspace browser, so the workbench and the sidebar can never disagree.
  * The tree only reaches a few levels deep, so a typed name is searched on the server over the whole workspace.
- * While the open preview holds unsaved edits, closing the drawer has to be confirmed.
+ * The preview's editor keeps unsaved text, so closing the drawer or switching chats loses nothing: opening the tab
+ * again lands on the file that text belongs to.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -29,7 +30,7 @@ import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWo
 import { cn } from '@/lib/utils/classnameUtils';
 import type { FileEntry, WorkspaceFileSearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { useWorkbenchStore } from '@/store/useWorkbenchStore';
+import { latestDraftIn, type WorkspaceDraft } from '@/store/useWorkspaceDraftStore';
 import { useWorkspaceFileSearch, type WorkspaceFileSearchState } from './useWorkspaceFileSearch';
 
 const panelLoading = (
@@ -75,6 +76,11 @@ function toFileEntry(match: WorkspaceFileSearchResult): FileEntry {
     is_text: null,
     children: null,
   };
+}
+
+/** The preview of a file whose unsaved text was kept: its name and path are all the preview needs to read it again. */
+function draftFileEntry({ path, base }: WorkspaceDraft): FileEntry {
+  return { name: base.name, path, type: 'file', size: base.size, mtime: null, is_text: null, children: null };
 }
 
 /** The folder part of a workspace-relative path: `src/lib/a.ts` gives `src/lib`. */
@@ -123,23 +129,19 @@ function SearchResults({
 
 export function WorkbenchFiles() {
   const t = useTranslations('workbench.files');
-  const tWorkspace = useTranslations('workspace');
   const workspaceDir = useChatStore((s) => s.workspaceDir);
-  const setCloseGuard = useWorkbenchStore((s) => s.setCloseGuard);
   const { files, loading, error, truncated, refresh, loadChildren } = useWorkspaceFiles(workspaceDir);
   const [query, setQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
-  const [previewDirty, setPreviewDirty] = useState(false);
   const search = useWorkspaceFileSearch(workspaceDir, query);
 
-  // Closing the drawer unmounts this tab, so unsaved edits in the preview would vanish without a word.
+  // Closing the drawer unmounts this tab, but the editor kept the unsaved text: coming back opens its file again.
   useEffect(() => {
-    if (!previewDirty) {
-      return;
+    const draft = workspaceDir ? latestDraftIn(workspaceDir) : undefined;
+    if (draft) {
+      setPreviewFile(draftFileEntry(draft));
     }
-    setCloseGuard(() => window.confirm(tWorkspace('discardConfirm')));
-    return () => setCloseGuard(null);
-  }, [previewDirty, setCloseGuard, tWorkspace]);
+  }, [workspaceDir]);
 
   const handleFileClick = useCallback((file: FileEntry) => {
     if (file.type === 'file') {
@@ -199,7 +201,6 @@ export function WorkbenchFiles() {
             file={previewFile}
             workspace={workspaceDir}
             onClose={handleClosePreview}
-            onDirtyChange={setPreviewDirty}
             className="h-full"
           />
         </div>
