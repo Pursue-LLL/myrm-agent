@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - Tests proving that a span started while a request is served is exported under that request's trace id,
-  for a plain response, a server fault and an unhandled exception, with a generated and with an inbound id.
+  for a plain response, a streamed response (how chat answers), a server fault and an unhandled exception,
+  with a generated and with an inbound id.
 
 [POS]
 Runs in a fresh interpreter because OpenTelemetry installs its providers once per process. The application is
@@ -40,6 +41,7 @@ import json
 
 import httpx
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from opentelemetry import trace
 
 from myrm_agent_harness.infra.tracing import force_flush_tracing, shutdown_observability
@@ -68,6 +70,15 @@ async def chat() -> str:
     return "ok"
 
 
+@app.get("/stream")
+async def stream() -> StreamingResponse:
+    async def events():
+        await asyncio.create_task(run_agent_turn())
+        yield b"data: hello\\n\\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
 @app.get("/fault")
 async def fault() -> None:
     await asyncio.create_task(run_agent_turn())
@@ -89,6 +100,7 @@ async def drive() -> dict[str, dict[str, str | None]]:
     async with httpx.AsyncClient(transport=transport, base_url="http://probe") as client:
         for name, path, headers in (
             ("chat", "/chat", {{}}),
+            ("stream", "/stream", {{}}),
             ("fault", "/fault", {{}}),
             ("crash", "/crash", {{}}),
             ("inbound", "/chat", {{"X-Trace-Id": "{_INBOUND_TRACE_ID}"}}),
@@ -131,7 +143,7 @@ def _drive_requests() -> tuple[dict[str, dict[str, str | None]], list[str]]:
 def test_spans_are_exported_under_the_trace_id_the_user_is_shown() -> None:
     outcome, exported = _drive_requests()
 
-    shown = [outcome[name]["header"] for name in ("chat", "fault", "crash", "inbound")]
+    shown = [outcome[name]["header"] for name in ("chat", "stream", "fault", "crash", "inbound")]
     assert all(shown), outcome
     assert sorted(exported) == sorted(str(trace_id) for trace_id in shown)
     assert outcome["inbound"]["header"] == _INBOUND_TRACE_ID
