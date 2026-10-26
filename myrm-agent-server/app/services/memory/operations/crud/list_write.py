@@ -74,6 +74,7 @@ async def list_memories_paginated(
     validated_order = sort_order if sort_order in ("asc", "desc") else "desc"
     offset = (page - 1) * page_size
 
+    items: list[MemoryItem]
     if len(types) == 1:
         mem_type = types[0]
         total = await manager.count_memories(mem_type, tag_filter=tag)
@@ -88,7 +89,7 @@ async def list_memories_paginated(
         items = [memory_to_item(m, mem_type) for m in memories]
     else:
         total = 0
-        items: list[MemoryItem] = []
+        items = []
         fetch_limit = offset + page_size
         for mem_type in types:
             try:
@@ -207,7 +208,7 @@ async def create_memory(
         if MemoryType.EPISODIC not in manager.get_enabled_types():
             raise HTTPException(status_code=400, detail="Episodic memory is not enabled")
         try:
-            memory = await manager.add_event(
+            event = await manager.add_event(
                 body.content,
                 event_type="user_manual",
                 related_entities=body.related_entities or None,
@@ -217,10 +218,10 @@ async def create_memory(
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
             summary="Episodic memory created manually.",
-            memory_id=memory.id,
+            memory_id=event.id,
             memory_type=mem_type.value,
         )
-        return memory_to_item(memory, mem_type)
+        return memory_to_item(event, mem_type)
 
     elif mem_type == MemoryType.PROCEDURAL:
         if not body.trigger or not body.action:
@@ -230,14 +231,14 @@ async def create_memory(
             )
         if not manager.has_relational:
             raise HTTPException(status_code=400, detail="Procedural memory is not enabled")
-        memory = await manager.add_rule(body.trigger, body.action)
+        rule = await manager.add_rule(body.trigger, body.action)
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
             summary="Procedural memory created manually.",
-            memory_id=memory.id,
+            memory_id=rule.id,
             memory_type=mem_type.value,
         )
-        return memory_to_item(memory, mem_type)
+        return memory_to_item(rule, mem_type)
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported memory type: {body.memory_type}")
