@@ -17,9 +17,9 @@ LangChain-facing signatures and delegate here.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from operator import itemgetter
-from typing import Any, cast
+from typing import cast
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import AIMessage
@@ -34,20 +34,22 @@ from myrm_agent_harness.toolkits.llms.adapters.schema import normalize_tool_sche
 
 logger = logging.getLogger(__name__)
 
+JsonObject = dict[str, object]
+
 
 def tool_bind_kwargs(
-    tools: Sequence[dict[str, Any] | type | BaseTool | Any],
+    tools: Sequence[JsonObject | type | BaseTool | Callable[..., object]],
     *,
     model_id: str,
     api_base: str,
     custom_llm_provider: str,
-    tool_choice: str | dict[str, Any] | None,
+    tool_choice: str | JsonObject | None,
     parallel_tool_calls: bool | None,
-    extra: dict[str, Any],
-) -> dict[str, Any]:
+    extra: JsonObject,
+) -> JsonObject:
     """Keyword arguments for ``bind``: OpenAI tool schemas, tool choice and, where supported, a constrained transport."""
     logger.debug(f"bind_tools called with {len(tools) if tools else 0} tools")
-    openai_tools: list[dict[str, Any]] = []
+    openai_tools: list[JsonObject] = []
     for t in tools:
         if isinstance(t, dict) and "function" in t:
             openai_tools.append(normalize_tool_schema(t, model_name=model_id))
@@ -62,7 +64,7 @@ def tool_bind_kwargs(
                 )
                 continue
 
-    tool_choice_param: str | dict[str, Any] | None = None
+    tool_choice_param: str | JsonObject | None = None
     if tool_choice in ("auto", "any"):
         tool_choice_param = "auto"
     elif tool_choice == "none":
@@ -75,7 +77,7 @@ def tool_bind_kwargs(
     elif isinstance(tool_choice, dict):
         tool_choice_param = tool_choice
 
-    bind_kwargs: dict[str, Any] = {"tools": openai_tools}
+    bind_kwargs: JsonObject = {"tools": openai_tools}
     if not openai_tools:
         logger.debug(
             "bind_tools produced no OpenAI tools after conversion (input count=%s)",
@@ -136,11 +138,9 @@ def tool_bind_kwargs(
     return bind_kwargs
 
 
-def structured_output_bind_kwargs(
-    schema: dict[str, Any] | type | None, *, skip_response_format: bool
-) -> dict[str, Any]:
+def structured_output_bind_kwargs(schema: JsonObject | type | None, *, skip_response_format: bool) -> JsonObject:
     """Keyword arguments for ``bind`` that put the model in JSON mode for ``schema``."""
-    bind_kwargs: dict[str, Any] = {
+    bind_kwargs: JsonObject = {
         "_json_mode_fallback": True,
         "stream": False,
         "ls_structured_output_format": {"kwargs": {}, "schema": schema},
@@ -152,10 +152,10 @@ def structured_output_bind_kwargs(
 
 def structured_output_chain[BM: BaseModel](
     llm: Runnable[LanguageModelInput, AIMessage],
-    schema: dict[str, Any] | type[BM] | type | None,
+    schema: JsonObject | type[BM] | type | None,
     *,
     include_raw: bool,
-) -> Runnable[LanguageModelInput, dict[str, Any] | BM]:
+) -> Runnable[LanguageModelInput, JsonObject | BM]:
     """Chain the JSON-mode ``llm`` into the output parser that matches ``schema``."""
     if isinstance(schema, type) and is_basemodel_subclass(schema):
         # schema is guaranteed to be Type[BaseModel] when is_basemodel_subclass holds

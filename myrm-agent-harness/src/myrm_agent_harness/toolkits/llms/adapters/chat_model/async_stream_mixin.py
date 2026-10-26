@@ -27,6 +27,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 
+from langchain_core.callbacks import AsyncCallbackManagerForLLMRun
 from langchain_core.messages import (
     AIMessageChunk,
     BaseMessage,
@@ -95,7 +96,7 @@ class ChatLiteLLMAsyncStreamMixin:
         self,
         messages: list[BaseMessage],
         stop: list[str] | None = None,
-        run_manager: Any | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
         # aclosing: a consumer that stops early closes the attempt (span, semaphore) now,
@@ -111,7 +112,7 @@ class ChatLiteLLMAsyncStreamMixin:
         self,
         messages: list[BaseMessage],
         stop: list[str] | None = None,
-        run_manager: Any | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[ChatGenerationChunk]:
         model_name = self.model_name or self.model
