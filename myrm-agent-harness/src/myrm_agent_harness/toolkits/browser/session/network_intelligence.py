@@ -8,6 +8,7 @@
 [OUTPUT]
 - NetworkIntelligence: CDP-based lazy response body retrieval; numbers API requests and tells how each one ended
 - CdpRequestRecord: one tracked request, `seq` being the number network_log shows for it
+- EMPTY_RESPONSE: the answer for a response whose body is empty (network_detail and network_replay use the same words)
 
 [POS]
 Provides Agent-accessible API intelligence layer that captures requestIds via CDP
