@@ -490,26 +490,31 @@ class GeneralAgent(ToolSetupMixin):
         ):
             yield chunk
 
+    async def _release_runtime_pool(self) -> None:
+        """Release the external-agent RuntimePool: registry-owned pools stay cached, ephemeral ones are closed."""
+        if self._runtime_pool is None:
+            return
+        scope_id = getattr(self, "_runtime_pool_scope_id", None)
+        from_registry = getattr(self, "_runtime_pool_from_registry", False)
+        ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
+        try:
+            from app.services.external_agents.runtime_pool_registry import (
+                close_runtime_pool_bounded,
+                get_chat_runtime_pool_registry,
+            )
+
+            if from_registry and isinstance(scope_id, str) and scope_id.strip():
+                await get_chat_runtime_pool_registry().release(scope_id.strip())
+            elif ephemeral:
+                await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
+        except Exception as e:
+            logger.warning("RuntimePool release failed: %s", e)
+        finally:
+            self._runtime_pool = None
+
     async def release_pooled_session(self) -> None:
         """Release per-turn server resources without closing pooled SkillAgent/Browser."""
-        if self._runtime_pool is not None:
-            scope_id = getattr(self, "_runtime_pool_scope_id", None)
-            from_registry = getattr(self, "_runtime_pool_from_registry", False)
-            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
-            try:
-                from app.services.external_agents.runtime_pool_registry import (
-                    close_runtime_pool_bounded,
-                    get_chat_runtime_pool_registry,
-                )
-
-                if from_registry and isinstance(scope_id, str) and scope_id.strip():
-                    await get_chat_runtime_pool_registry().release(scope_id.strip())
-                elif ephemeral:
-                    await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
-            except Exception as e:
-                logger.warning("RuntimePool release failed: %s", e)
-            finally:
-                self._runtime_pool = None
+        await self._release_runtime_pool()
 
         if self._executor is not None and self._current_chat_id is not None:
             try:
@@ -523,24 +528,7 @@ class GeneralAgent(ToolSetupMixin):
 
     async def close(self) -> None:
         """Close Agent and release resources."""
-        if self._runtime_pool is not None:
-            scope_id = getattr(self, "_runtime_pool_scope_id", None)
-            from_registry = getattr(self, "_runtime_pool_from_registry", False)
-            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
-            try:
-                from app.services.external_agents.runtime_pool_registry import (
-                    close_runtime_pool_bounded,
-                    get_chat_runtime_pool_registry,
-                )
-
-                if from_registry and isinstance(scope_id, str) and scope_id.strip():
-                    await get_chat_runtime_pool_registry().release(scope_id.strip())
-                elif ephemeral:
-                    await close_runtime_pool_bounded(self._runtime_pool, scope="ephemeral")
-            except Exception as e:
-                logger.warning("RuntimePool release failed: %s", e)
-            finally:
-                self._runtime_pool = None
+        await self._release_runtime_pool()
 
         if hasattr(self, "_browser_spaces") and self._browser_spaces:
             for s_id, s_session in list(self._browser_spaces.items()):
