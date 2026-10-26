@@ -417,7 +417,7 @@ acp/
 - **Host 会话级 MCP 忽略诊断**：ACP Server 侧（`new_session` / `load_session` / `fork_session` / `resume_session`）若收到 host 传入的 `mcp_servers`，记录 `acp_host_mcp_ignored` WARNING —— Myrm 内部 agent 管线自行管理 MCP，host 提供的会话级 MCP 注入不被透传，显式告警避免静默丢失
 - **失败分类**：`runtime/cli/failure.classify_failure` 按 CLI 自己的话归类——`result` 行的 `error_max_turns` → `MAX_TURNS`，`api_error_status` 401/403 → `AUTH_FAILED`、429 → 可重试的 `RATE_LIMITED`、5xx → 可重试的 `UNKNOWN`；没有 `result` 行时非零退出码才是 `PROCESS_CRASHED`（带 stderr 摘录）；本运行时自己停掉的进程一律是 `CANCELLED`。消息是 CLI 的原话，不夹带产品设置建议
 - **跨平台进程组清理**：每个 CLI 回合都在独立进程组里运行（POSIX `start_new_session`，Windows `CREATE_NEW_PROCESS_GROUP`），停止时整组终止（POSIX `killpg`，Windows `taskkill /T /F`），子进程随之清理；回合以任何方式结束（正常、异常、取消、超时、消费方提前放弃生成器）都经同一个 `spawn_cli_process` 上下文停掉仍在跑的进程
-- **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
+- **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下（例外：回合开头把超过管道缓冲的提示词写进一个不再读 stdin 的 CLI 时，进程在写入完成前还没有交给运行时，停止要等写入结束才生效，上限是 `timeout_seconds`）。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）
 - **流式文本推送**：Server 的 `services/external_agents/direct_delegate_stream.stream_direct_delegate`（由 `ExternalAgentMixin._direct_delegate_stream` 调用）把 `pool.run_turn` 的 RuntimeEvent 实时转换为前端 SSE 事件：TEXT_DELTA → MESSAGE、REASONING_DELTA → REASONING、TOOL_START / TOOL_RESULT → TASKS_STEPS、USAGE_UPDATE → TOKEN_USAGE、其余见下。连接前发送 connecting 状态，结束时发送 completed / stopped / failed 状态步骤与 MESSAGE_END，提供全生命周期进度反馈；翻译层只依赖 harness 的 `DelegationPool` 协议
 - **REASONING_DELTA 前端传递**：`invoke_acp_agent_tool` 工具将外部 Agent 的思维链（REASONING_DELTA）通过 `ToolProgressSink` 实时推送至前端，用户可看到外部 Agent 的推理过程
@@ -482,7 +482,7 @@ acp/
 10. **依赖面小**：标准库 + 可选依赖 `agent-client-protocol` + 可选 Node 工具链
 11. **并发受控**：RuntimePool Semaphore
 12. **框架/业务可替换**：PermissionManager 等 Protocol 注入点明确
-13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出
+13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出（提示词写入窗口的例外见「委派取消传播」）
 14. **超时/异常/放弃不留孤儿**：回合生成器由 aclosing 收尾，超时、异常与消费方提前放弃都会停掉存活进程
 15. **双层 Max Turns 安全护栏**：Layer 1（CLI 原生上限）让支持的 CLI 自行停止并如实报告，Layer 2（delegate_tool 工具调用计数）只兜底没有原生上限的后端
 16. **Agent 能力描述**：description 注入 tool description，帮助 LLM 在多 Agent 场景下做出正确的委派决策
