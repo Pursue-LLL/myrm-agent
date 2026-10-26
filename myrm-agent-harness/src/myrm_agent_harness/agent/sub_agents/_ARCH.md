@@ -11,6 +11,7 @@ A child holds the parent's own tool objects, so a tool is stripped by what it do
 
 - Bound to state only the parent can own (memory manager, schedule, plan file, goal, kanban board): blocked for every child by `DelegationCapabilityManifest.leaf_blocked_tools`; `SubagentConfig.tools` cannot restore it.
 - Valid for a child but outside a read-only child's contract (workspace writes, external agent sessions, knowledge-store writes, side-effect MCP tools): stripped for read-only children in `builder.filter_tools`.
+- Bound to a live session of the parent run (`browser_*`): kept, and a child's call acts on the parent's browser session; children running at the same time share it.
 
 `tests/agent/sub_agents/test_child_tool_isolation_contract.py` classifies every side-effecting tool of the safety table with the mechanism that decides it; a new tool fails it until it is classified.
 

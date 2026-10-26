@@ -40,6 +40,7 @@ class Mechanism(StrEnum):
     WORKSPACE_WRITE = "writes the workspace"
     EXTERNAL_AGENT = "starts an external agent session"
     KNOWLEDGE_STORE = "writes the shared knowledge store"
+    PARENT_SESSION = "acts on the parent run's live browser session, gated per call by the permission engine"
     PERMISSION_GATED = "gated per call by the permission engine"
     JOB_CONTROL = "manages only processes that already exist"
 
@@ -74,10 +75,10 @@ _CLASSIFICATION: dict[str, tuple[Disposition, Mechanism]] = {
     "invoke_acp_agent_tool": (_READ_ONLY, Mechanism.EXTERNAL_AGENT),
     "wiki_apply_tool": (_READ_ONLY, Mechanism.KNOWLEDGE_STORE),
     "wiki_ingest_tool": (_READ_ONLY, Mechanism.KNOWLEDGE_STORE),
-    "browser_execute_script_tool": (_KEPT, Mechanism.PERMISSION_GATED),
-    "browser_interact_tool": (_KEPT, Mechanism.PERMISSION_GATED),
-    "browser_manage_tool": (_KEPT, Mechanism.PERMISSION_GATED),
-    "browser_navigate_tool": (_KEPT, Mechanism.PERMISSION_GATED),
+    "browser_execute_script_tool": (_KEPT, Mechanism.PARENT_SESSION),
+    "browser_interact_tool": (_KEPT, Mechanism.PARENT_SESSION),
+    "browser_manage_tool": (_KEPT, Mechanism.PARENT_SESSION),
+    "browser_navigate_tool": (_KEPT, Mechanism.PARENT_SESSION),
     "desktop_interact_tool": (_KEPT, Mechanism.PERMISSION_GATED),
     "desktop_vision_tool": (_KEPT, Mechanism.PERMISSION_GATED),
     "bash_process_tool": (_KEPT, Mechanism.JOB_CONTROL),

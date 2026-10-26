@@ -6,7 +6,7 @@
 
 ## 设计目标
 
-1. **安全隔离**：子 agent 的工具访问受四层安全约束（L0 类型准入 + L1 全局黑名单 + L2 per-config + L3 父子交集），防止权限逃逸。子 agent 的 taint labels 自动传播到父 agent 的 taint_tracker，防止跨 agent 注入攻击链
+1. **安全隔离**：子 agent 的工具访问受六层安全约束（L0 类型准入 + L1 全局黑名单 + L2 per-config + L3 父子交集 + L4 只读沙箱 + L5 OCap spawn 句柄），防止权限逃逸。子 agent 的 taint labels 自动传播到父 agent 的 taint_tracker，防止跨 agent 注入攻击链
 2. **资源可控**：Token 预算、并发上限、嵌套深度、每节点子任务数、每运行树总后代数均可声明式配置
 3. **Token 精确追踪**：子 agent 用量从 `last_run_stats` 精确合并到父 tracker
 4. **层级解耦**：与 BaseAgent、progress 中间件、Goal 系统通过明确接口协作
@@ -86,7 +86,7 @@
 
 ## 核心组件说明
 
-### 1. 五层工具安全隔离
+### 1. 六层工具安全隔离
 
 ```
 Layer 0: create_delegate_task_tool(allowed_types=...)

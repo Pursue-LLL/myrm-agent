@@ -11,14 +11,20 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
-from myrm_agent_harness.toolkits.memory.types import MemoryType, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, MemoryType, SemanticMemory
 
 _CONTENT = "Prefers TypeScript strict mode in every new service"
+_EVENT = "Deployed the billing service on Friday and rolled it back after the alert"
 
 
 def _twins() -> dict[str, list[dict[str, object]]]:
     entry = SemanticMemory(content=_CONTENT).model_dump(mode="json", exclude={"embedding"})
     return {"semantic": [dict(entry), dict(entry)]}
+
+
+def _episodic_twins() -> dict[str, list[dict[str, object]]]:
+    entry = EpisodicMemory(content=_EVENT, event_type="deployment").model_dump(mode="json", exclude={"embedding"})
+    return {"episodic": [dict(entry), dict(entry)]}
 
 
 @pytest.mark.slow
@@ -58,5 +64,31 @@ async def test_not_skipping_duplicates_writes_what_the_store_already_holds(tmp_p
 
         assert counts == {"semantic": 2}
         assert await manager.count_memories(MemoryType.SEMANTIC) == 3
+    finally:
+        await manager.close()
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_skipping_duplicates_keeps_one_of_two_identical_episodes(tmp_path: Path) -> None:
+    manager = await create_local_memory_manager(tmp_path / "mem", None)
+    try:
+        counts = await manager.import_memories(_episodic_twins())
+
+        assert counts == {"episodic": 1}
+        assert await manager.count_memories(MemoryType.EPISODIC) == 1
+    finally:
+        await manager.close()
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_not_skipping_duplicates_writes_every_episode(tmp_path: Path) -> None:
+    manager = await create_local_memory_manager(tmp_path / "mem", None)
+    try:
+        counts = await manager.import_memories(_episodic_twins(), skip_duplicates=False)
+
+        assert counts == {"episodic": 2}
+        assert await manager.count_memories(MemoryType.EPISODIC) == 2
     finally:
         await manager.close()
