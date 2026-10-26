@@ -51,7 +51,12 @@ async def run_sqlite_backup() -> None:
 
 
 async def create_guardian_memory_manager() -> MemoryManager:
-    """Create a MemoryManager for background maintenance (no user session context)."""
+    """Create a MemoryManager for background maintenance (no user session context).
+
+    The background evolution model is the consolidation LLM. When it cannot be loaded the
+    manager factory falls back to the dedup model (consolidation stays off without one),
+    so the failure is logged as a warning.
+    """
     from app.core.memory.adapters.setup import (
         create_memory_manager,
         resolve_context_binding,
@@ -74,7 +79,9 @@ async def create_guardian_memory_manager() -> MemoryManager:
     try:
         consolidation_llm = await load_platform_evolution_llm()
     except Exception as exc:
-        logger.debug("Memory guardian: evolution LLM not available for consolidation: %s", exc)
+        logger.warning(
+            "Memory guardian: evolution LLM unavailable, consolidation uses the dedup model if one is configured: %s", exc
+        )
 
     return await create_memory_manager(
         binding,

@@ -8,12 +8,14 @@ The manager is built from the stored retrieval settings; without an embedding it
 keyword-mode manager and the evolution LLM still reaches it as the consolidation model.
 
 [POS]
-Contract of the guardian factory: embedding is optional, a missing evolution LLM only drops
-consolidation.
+Contract of the guardian factory: embedding is optional; when the evolution LLM cannot be
+loaded the factory passes no consolidation model (the manager factory then falls back to the
+dedup model) and logs a warning.
 """
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -45,7 +47,9 @@ async def test_guardian_manager_is_built_without_an_embedding() -> None:
 
 
 @pytest.mark.asyncio
-async def test_guardian_manager_drops_consolidation_when_the_evolution_llm_is_unavailable() -> None:
+async def test_guardian_manager_warns_and_passes_no_consolidation_llm_when_the_evolution_llm_is_unavailable(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     create = AsyncMock(return_value=SimpleNamespace())
 
     with (
@@ -58,7 +62,12 @@ async def test_guardian_manager_drops_consolidation_when_the_evolution_llm_is_un
             new=AsyncMock(side_effect=RuntimeError("no evolution model")),
         ),
         patch("app.core.memory.adapters.setup.create_memory_manager", new=create),
+        caplog.at_level(logging.WARNING, logger="app.lifecycle.memory_guardian_ops"),
     ):
         await create_guardian_memory_manager()
 
     assert create.await_args.kwargs["consolidation_llm"] is None
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "uses the dedup model" in warnings[0].getMessage()
+    assert "no evolution model" in warnings[0].getMessage()
