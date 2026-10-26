@@ -468,7 +468,7 @@ class TestStalenessArchiveFieldSync:
             _make_semantic(mem_id="m-3", days_old=60, expected_valid_days=30),
         ]
 
-        reviewed, removed, extended = await service._run_staleness_review(memories, llm)
+        reviewed, removed, extended = await service._run_staleness_review(vector, memories, llm)
 
         assert reviewed == 3
         assert removed == 1

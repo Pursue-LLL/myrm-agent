@@ -105,7 +105,7 @@ class TestArchiveWriteStampsExpiration:
         service = MaintenanceService(config=config, vector=vector, graph=None, relational=None)
 
         llm = AsyncMock(return_value='[{"id": "stale-1", "action": "remove", "reason": "outdated"}]')
-        _reviewed, removed, _extended = await service._run_staleness_review(memories, llm)
+        _reviewed, removed, _extended = await service._run_staleness_review(vector, memories, llm)
 
         assert removed == 1
         archived = docs["stale-1"].metadata

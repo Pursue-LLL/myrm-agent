@@ -318,7 +318,7 @@ class MaintenanceService:
                 try:
                     all_for_staleness = await scroll_all_memories_func()
                     staleness_reviewed, staleness_removed, staleness_extended = await self._run_staleness_review(
-                        all_for_staleness, staleness_review_llm
+                        self._vector, all_for_staleness, staleness_review_llm
                     )
                 except Exception as exc:
                     logger.warning("Maintenance staleness review failed: %s", exc)
@@ -407,6 +407,7 @@ class MaintenanceService:
 
     async def _run_staleness_review(
         self,
+        vector: VectorStoreProtocol,
         all_memories: list[AnyMemory],
         llm_func: Callable[[str, str], Awaitable[str]],
     ) -> tuple[int, int, int]:
@@ -436,42 +437,41 @@ class MaintenanceService:
         async def _update_metadata(mid: str, meta_patch: dict[str, str | int | bool]) -> None:
             mem_cls = id_to_type.get(mid)
             coll = self._config.episodic_collection if mem_cls is EpisodicMemory else self._config.semantic_collection
-            docs = await self._vector.get(coll, [mid])  # type: ignore[union-attr]
+            docs = await vector.get(coll, [mid])
             if not docs:
                 return
             # Re-upsert the stored document itself: a rebuilt one would carry fresh
             # created_at/updated_at stamps and silently re-date the memory.
             doc = docs[0]
             doc.metadata.update(meta_patch)
-            await self._vector.upsert(coll, [doc])  # type: ignore[union-attr]
+            await vector.upsert(coll, [doc])
 
-        if self._vector is not None:
-            for mid in result.removed_ids:
-                try:
-                    stamps = archive_retention_stamps(datetime.now(UTC))
-                    await _update_metadata(
-                        mid,
-                        {
-                            "status": MemoryStatus.ARCHIVED.value,
-                            "archived": True,
-                            "archive_reason": "staleness_review",
-                            **stamps,
-                        },
-                    )
-                except Exception as exc:
-                    logger.warning("Staleness review: failed to archive %s: %s", mid, exc)
+        for mid in result.removed_ids:
+            try:
+                stamps = archive_retention_stamps(datetime.now(UTC))
+                await _update_metadata(
+                    mid,
+                    {
+                        "status": MemoryStatus.ARCHIVED.value,
+                        "archived": True,
+                        "archive_reason": "staleness_review",
+                        **stamps,
+                    },
+                )
+            except Exception as exc:
+                logger.warning("Staleness review: failed to archive %s: %s", mid, exc)
 
-            for mid, new_evd in result.extended_updates:
-                try:
-                    await _update_metadata(mid, {"expected_valid_days": new_evd})
-                except Exception as exc:
-                    logger.warning("Staleness review: failed to extend %s: %s", mid, exc)
+        for mid, new_evd in result.extended_updates:
+            try:
+                await _update_metadata(mid, {"expected_valid_days": new_evd})
+            except Exception as exc:
+                logger.warning("Staleness review: failed to extend %s: %s", mid, exc)
 
-            for mid, new_evd in result.keep_cooldown_updates:
-                try:
-                    await _update_metadata(mid, {"expected_valid_days": new_evd})
-                except Exception as exc:
-                    logger.warning("Staleness review: failed to cooldown %s: %s", mid, exc)
+        for mid, new_evd in result.keep_cooldown_updates:
+            try:
+                await _update_metadata(mid, {"expected_valid_days": new_evd})
+            except Exception as exc:
+                logger.warning("Staleness review: failed to cooldown %s: %s", mid, exc)
 
         if result.removed_count > 0 or result.extended_count > 0:
             logger.info(
