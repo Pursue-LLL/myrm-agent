@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def _default_cli_args(agent_name: str) -> list[str]:
     """Return sensible default CLI args for a known agent, empty list otherwise.
 
