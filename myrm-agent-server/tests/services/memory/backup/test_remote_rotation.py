@@ -123,6 +123,20 @@ async def test_rotation_reaches_backups_of_a_device_whose_name_has_dots(tmp_path
     assert sorted(remote._storage) == sorted([_backup_name(device, 4), uploaded])
 
 
+@pytest.mark.parametrize("typed_name", ["My Laptop", "Yulu's Mac", "my/laptop #1"])
+async def test_backups_uploaded_under_the_device_name_as_typed_still_rotate_with_the_new_ones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, typed_name: str
+) -> None:
+    safe_label = re.sub(r"[^\w.-]+", "-", typed_name).strip(".-")
+    other_device = _backup_name("Your Laptop", 1)
+    remote = _ShuffledListing()
+    _seed(remote, *(_backup_name(typed_name, day) for day in range(1, 4)), _backup_name(safe_label, 4), other_device)
+
+    uploaded = await _run(tmp_path, monkeypatch, remote, typed_name, max_backups=3)
+
+    assert sorted(remote._storage) == sorted([_backup_name(typed_name, 3), _backup_name(safe_label, 4), uploaded, other_device])
+
+
 async def test_rotation_continues_past_a_file_that_cannot_be_deleted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     remote = _StubbornDelete(_backup_name("laptop", 1))
     _seed(remote, *(_backup_name("laptop", day) for day in range(1, 5)))

@@ -51,8 +51,8 @@ _DOWNLOAD_FILE_NAME = "backup.json.gz"
 
 # The one name this module writes: myrm.<UTC timestamp>.<device>.<platform>.json.gz. The device may contain dots
 # (host names such as "mac.local"), the platform never does, so the last dotted part before the extension is
-# always the platform.
-_BACKUP_NAME = re.compile(r"myrm\.[0-9]{14}\.(?P<device>[\w.-]+)\.(?P<platform>[a-z0-9_-]+)\.json\.gz")
+# always the platform. Whether the device part is this device's is decided by equality, never by pattern.
+_BACKUP_NAME = re.compile(r"myrm\.[0-9]{14}\.(?P<device>.+)\.(?P<platform>[a-z0-9_-]+)\.json\.gz")
 _UNSAFE_DEVICE_CHARS = re.compile(r"[^\w.-]+")
 _UNSAFE_PLATFORM_CHARS = re.compile(r"[^a-z0-9_-]+")
 _MAX_DEVICE_LABEL_LENGTH = 64
@@ -121,7 +121,8 @@ async def run_remote_backup(
     try:
         snapshot = await capture_snapshot(manager)
 
-        device = _device_label(device_name or socket.gethostname())
+        configured_device = device_name or socket.gethostname() or "unknown"
+        device = _device_label(configured_device)
         platform_label = _platform_label(platform.system())
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         backup_filename = f"myrm.{timestamp}.{device}.{platform_label}.json.gz"
@@ -139,7 +140,7 @@ async def run_remote_backup(
             }
 
         if max_backups > 0:
-            await _rotate_backups(strategy, device, platform_label, max_backups)
+            await _rotate_backups(strategy, frozenset({device, configured_device}), platform_label, max_backups)
 
         return {
             "success": True,
@@ -219,27 +220,29 @@ def _platform_label(raw: str) -> str:
     return _UNSAFE_PLATFORM_CHARS.sub("-", raw.lower()).strip("-") or "unknown"
 
 
-def _is_backup_of(file_name: str, device: str, platform_label: str) -> bool:
+def _is_backup_of(file_name: str, devices: frozenset[str], platform_label: str) -> bool:
     match = _BACKUP_NAME.fullmatch(file_name)
-    return match is not None and match["device"] == device and match["platform"] == platform_label
+    return match is not None and match["device"] in devices and match["platform"] == platform_label
 
 
 async def _rotate_backups(
     strategy: RemoteBackupStrategy,
-    device: str,
+    devices: frozenset[str],
     platform_label: str,
     max_backups: int,
 ) -> None:
     """Delete this device's backups beyond the newest ``max_backups``.
 
-    Only names this module wrote for exactly this device and platform qualify, and age comes from the
-    timestamp in the name: files that merely share the folder, a device whose name contains another's, or an
-    unreliable listing order and modified time can never cost a backup its place.
+    ``devices`` holds the safe label and the name exactly as configured, so backups uploaded under the
+    configured name keep rotating together with the ones under the label. Only names this module writes, for
+    exactly one of those devices and this platform, qualify, and age comes from the timestamp in the name:
+    files that merely share the folder, a device whose name contains another's, or an unreliable listing order
+    and modified time can never cost a backup its place.
     """
     try:
-        # Identical apart from the fixed-width timestamp, so name order is age order.
+        # The fixed-width timestamp comes first, so name order is age order.
         own = sorted(
-            (f.file_name for f in await strategy.list_files() if _is_backup_of(f.file_name, device, platform_label)),
+            (f.file_name for f in await strategy.list_files() if _is_backup_of(f.file_name, devices, platform_label)),
             reverse=True,
         )
         for name in own[max_backups:]:
