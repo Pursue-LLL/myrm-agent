@@ -15,6 +15,9 @@ Console and network introspection APIs for BrowserSession. Delegates to NetworkL
 NetworkIntelligence; replay re-sends a GET by in-page fetch via the active tab and refuses every other
 method (a recorded write is an action the page already performed: re-sending it would perform it again with
 the user's cookies and nobody's approval, and it is the same capability evaluate gates behind a person).
+The replay answer opens with the status the replay got (`[HTTP 401]`): the body alone cannot tell an empty 204 from
+an empty 401. A replay re-sends the URL only, without the page's request headers, so when the page's own request
+ended with another status the same line says so.
 The default Chromium engine never reports console output (its driver keeps `Console.enable` off to stay
 undetectable), so `get_console_log` says so there: an empty log would read as "the page has no errors".
 """
@@ -26,6 +29,7 @@ import json
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 from ..pool.config import BrowserEngine
+from .network_intelligence import EMPTY_RESPONSE, CdpRequestRecord
 from .session_host import SessionHost
 
 # Replay response bounds: the JS side returns a wider window so a credential
@@ -77,12 +81,25 @@ class BrowserSessionNetworkMixin(SessionHost):
         """Get response body for a tracked API request by its network_log number."""
         return await self._network_intelligence.get_response_body(index)
 
+    def _replay_status_line(self, record: CdpRequestRecord, status: int) -> str:
+        """`[HTTP n]` for the replay, plus a note when the page's own request ended with another status."""
+        line = f"[HTTP {status}]"
+        page_status = self._network_intelligence.final_status(record)
+        if page_status and page_status != status:
+            line += (
+                f" the page's own request got {page_status};"
+                " replay re-sends the URL only, without the page's request headers"
+            )
+        return line
+
     async def replay_network_request(self, index: int) -> str:
         """Re-send the GET request network_log numbered `index` from the active tab (in-page fetch).
 
         Only a GET is replayed: a recorded POST/PUT/PATCH/DELETE was an action the page already performed, so
         sending it again would perform it again with the user's cookies and without anyone's approval. The
         refusal names the method and nothing else (the URL is already in network_log; it may carry a token).
+
+        The answer is the status line (`[HTTP n]`), then the redacted body or `Empty response`.
         """
         record = self._network_intelligence.find_api_request(index)
         if record is None:
@@ -100,15 +117,14 @@ class BrowserSessionNetworkMixin(SessionHost):
             async () => {{
                 const resp = await fetch({json.dumps(record.url)});
                 const text = await resp.text();
-                return text.substring(0, {_REPLAY_RAW_WINDOW});
+                return [resp.status, text.substring(0, {_REPLAY_RAW_WINDOW})];
             }}
         """
 
         try:
-            result = await page.evaluate(js_code)
+            reply = await page.evaluate(js_code)
+            status, text = int(reply[0]), str(reply[1])
         except Exception as exc:
             return f"Error replaying request: {_failure_reason(exc)}"
-        raw = str(result) if result else ""
-        if not raw:
-            return "Empty response"
-        return redact_sensitive_text(raw)[:_REPLAY_OUTPUT_MAX]
+        body = redact_sensitive_text(text)[:_REPLAY_OUTPUT_MAX] if text else EMPTY_RESPONSE
+        return f"{self._replay_status_line(record, status)}\n{body}"

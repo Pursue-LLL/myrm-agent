@@ -81,10 +81,10 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    名单与资源规则照常生效；`test_private_network_policy_integration.py`、
    `test_local_mode_navigation_policy_integration.py`、`test_document_redirect_integration.py`、`test_domain_lists_redirect_integration.py`（名单对重定向目标同样生效）、`test_hostname_resolution_policy_integration.py`（解析到环回 / 云元数据的主机名按该地址判定；用 `--host-resolver-rules` 把假域名映射到环回夹具，并替换进程内 `socket.getaddrinfo` 充当攻击者控制的 DNS）是端到端证据。
    重定向链由 `tests/toolkits/browser/_redirect_servers.py`（逐请求记录 `(method, path)` 的多服务器夹具）搭建，
-   断言服务端收到几次请求，而不是只信浏览器侧结果（`Reply.delay_s` 模拟慢业务端点，用来证明表单 POST 在响应慢于驱动请求超时的情况下仍只提交一次；`declared_length` / `hold_open_s` 脚本化被截断或读到一半的响应）；web_fetch 侧见 `tests/toolkits/web_fetch/test_fetch_ssrf_terminal.py`。
+   断言服务端收到几次请求，而不是只信浏览器侧结果（`Reply.delay_s` 模拟慢业务端点，用来证明表单 POST 在响应慢于驱动请求超时的情况下仍只提交一次；`declared_length` / `hold_open_s` 脚本化被截断或读到一半的响应；`Gated` 按请求头区分页面自己的请求与裸重发）；web_fetch 侧见 `tests/toolkits/web_fetch/test_fetch_ssrf_terminal.py`。
    并用本地 `ThreadingHTTPServer` 做真实页面源，避免外部网络依赖。**禁止**用猴子补丁替换
    `install_domain_filter` 或其他过滤器入口来"让环回可达"——那会遮住标志没有传到过滤器的缺陷。
-   浏览器网络工具同法取证：`tests/toolkits/browser/session/test_network_terminal_states_integration.py`（`network_log` 如实标注重定向跳转、失败请求与页面丢弃但服务端已答复的请求，并以 Chrome 自己的 `loadingFailed` 事件作对照；`network_detail` 说明为何没有响应体；`network_replay` 只重发 GET）与 `tests/toolkits/browser/test_evaluate_write_guard_integration.py`（`evaluate` 不放行页面 JS 写请求，服务端命中数为证）；不需要定制启动参数的真实会话统一用 `tests/toolkits/browser/_local_browser_session.py::local_session`。
+   浏览器网络工具同法取证：`tests/toolkits/browser/session/test_network_terminal_states_integration.py`（`network_log` 如实标注重定向跳转、失败请求与页面丢弃但服务端已答复的请求，并以 Chrome 自己的 `loadingFailed` 事件作对照；`network_detail` 说明为何没有响应体；`network_replay` 只重发 GET 并回答真实状态码）与 `tests/toolkits/browser/test_evaluate_write_guard_integration.py`（`evaluate` 不放行页面 JS 写请求，服务端命中数为证）；不需要定制启动参数的真实会话统一用 `tests/toolkits/browser/_local_browser_session.py::local_session`。
 
 4. **`run_site_tool` 输出经 `mark_untrusted` 包裹**（BROWSER_SYSTEM.md 统一安全出口）。
    程序化消费必须走 `extract_wrapped_payload()` 解包后再 `json.loads`，不要直接对裸结果解析。

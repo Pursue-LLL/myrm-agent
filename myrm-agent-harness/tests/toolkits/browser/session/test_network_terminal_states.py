@@ -197,6 +197,24 @@ def test_a_hop_cancelled_before_its_own_answer_fails_although_the_hop_before_it_
     assert _lines(ni) == [f"1. GET {_API}/hop [302]", f"2. GET {_API}/target [failed: net::ERR_ABORTED]"]
 
 
+def test_the_final_status_of_a_redirected_request_is_that_of_its_last_hop() -> None:
+    ni = NetworkIntelligence()
+    _sent(ni, "r", "/hop")
+    _sent(ni, "r", "/target", redirected_from=302)
+    _answered(ni, "r", 403)
+
+    first, last = ni.get_api_requests()
+
+    assert (first.status, ni.final_status(first), ni.final_status(last)) == (302, 403, 403)
+
+
+def test_the_final_status_of_a_request_nobody_answered_is_unknown() -> None:
+    ni = NetworkIntelligence()
+    _sent(ni, "a")
+
+    assert ni.final_status(ni.get_api_requests()[0]) is None
+
+
 def test_a_failure_lands_on_the_last_hop_only() -> None:
     ni = NetworkIntelligence()
     _sent(ni, "r", "/hop")

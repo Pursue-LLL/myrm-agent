@@ -135,7 +135,7 @@ class _Session(BrowserSessionNetworkMixin):
         self._network_intelligence = ni
         self._ensure_components = AsyncMock()
         self.page = MagicMock()
-        self.page.evaluate = AsyncMock(return_value="ok")
+        self.page.evaluate = AsyncMock(return_value=[200, "ok"])
         self._tab_controller = MagicMock()
         self._tab_controller.get_active_page.return_value = self.page
 
@@ -162,5 +162,5 @@ async def test_a_replay_resends_the_request_with_the_number_the_log_showed() -> 
         _see(ni, f"req-{i}")
     session = _Session(ni)
 
-    assert await session.replay_network_request(5) == "ok"
+    assert await session.replay_network_request(5) == "[HTTP 200]\nok"
     assert "https://api.example.com/req-5" in session.page.evaluate.call_args[0][0]

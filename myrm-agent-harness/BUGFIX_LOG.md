@@ -2,6 +2,20 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-002 · network_replay 只回答响应体：401、204 与空 200 都读作 `Empty response`，状态码丢失
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（对照 `network_replay` 与真实 Chrome 的回放结果） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：回放得到的 401、204、空 200 对模型是同一句 `Empty response`，分不出「回放被拒」与「本来就没有内容」；页面带请求头得到 200、裸 URL 回放得到 401 时，回答里看不出两次请求的差别 |
+| **关联产品** | harness `toolkits/browser/session/browser_session_network_mixin.py`、`network_intelligence.py` |
+| **根因** | 页面侧的回放脚本只带回 `resp.text()`，`resp.status` 在页面侧被丢掉；回放只重发 URL，不带页面请求的请求头，页面自己的请求与回放得到的状态可能不同，却没有任何提示。 |
+| **修复** | 答复首行是 `[HTTP n]`，即回放实际得到的状态码；页面自己的那次请求（沿重定向链取末跳，`NetworkIntelligence.final_status`）的状态与之不同时，同一行注明「重放只重发 URL，不带页面请求的请求头」；响应体为空时第二行是 `Empty response`。 |
+| **回归** | `test_browser_session_network_mixin.py`（状态行、空响应按状态区分、状态不一致、页面请求未答复或失败时不比较、重定向末跳、回放脚本返回异常形状）；真 Chromium `test_network_terminal_states_integration.py`：页面带 Authorization 头得到 200，裸 URL 回放得到 401，答复写明两个状态；204 回放读作 `[HTTP 204]`（去掉说明行、改用首跳状态、去掉空响应文案各使其中若干用例变红）。 |
+| **仍然存在** | 回放仍只重发 URL，不带页面请求的请求头；需要同样的请求头时应让页面再做一次这个动作。 |
+
 ### BUG-HARNESS-2026-10-27-001 · network_log 把页面丢弃的响应标成 [failed: net::ERR_ABORTED]，同一次 network_log 里同一个请求既失败又 401
 
 | 字段 | 内容 |

@@ -18,7 +18,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser import BrowserSession
 from tests.toolkits.browser._browser_available import chromium_available
 from tests.toolkits.browser._local_browser_session import local_session
-from tests.toolkits.browser._redirect_servers import Reply, redirect, serve
+from tests.toolkits.browser._redirect_servers import Gated, Reply, redirect, serve
 
 pytestmark = [
     pytest.mark.integration,
@@ -73,6 +73,11 @@ async def _body_once_loaded(session: BrowserSession, index: int) -> str:
 
 def _log_lines(session: BrowserSession) -> list[str]:
     return [line.strip() for line in session._network_intelligence.get_summary().splitlines() if line.strip()]
+
+
+def _number_of(session: BrowserSession, path: str) -> int:
+    """The network_log number of the API request whose URL ends with `path`."""
+    return next(r.seq for r in session._network_intelligence.get_api_requests() if r.url.endswith(path))
 
 
 @pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
@@ -229,3 +234,35 @@ async def test_a_replay_re_sends_a_get_and_never_reaches_the_server_with_a_write
                     f"Error: network_replay re-sends GET requests only; request #{number[method]} is {method}"
                 )
             assert [hit for hit in site.hits if hit[0] != "GET"] == writes_before, "a refused replay reached the server"
+
+
+async def test_a_replay_names_the_status_it_got_and_says_when_the_page_got_another() -> None:
+    routes = {
+        "/app": _script_page(
+            "fetch('/api/orders', {headers: {Authorization: 'Bearer t0k3n'}}); fetch('/api/items'); fetch('/api/ping')"
+        ),
+        "/api/orders": Gated(
+            header="Authorization",
+            value="Bearer t0k3n",
+            reply=Reply(body=b'[{"id": 1}]', content_type=_JSON),
+            otherwise=Reply(status=401, body=b'{"error": "unauthorized"}', content_type=_JSON),
+        ),
+        "/api/items": Reply(body=b'{"items": [7]}', content_type=_JSON),
+        "/api/ping": Reply(status=204),
+    }
+    with serve(routes) as site:
+        async with local_session() as session:
+            await session.navigate(site.url("/app"))
+            await _until_every_request_has_ended(session, expected=3)
+
+            items = await session.replay_network_request(_number_of(session, "/api/items"))
+            ping = await session.replay_network_request(_number_of(session, "/api/ping"))
+            orders = await session.replay_network_request(_number_of(session, "/api/orders"))
+
+            assert items == '[HTTP 200]\n{"items": [7]}'
+            assert ping == "[HTTP 204]\nEmpty response"
+            assert orders == (
+                "[HTTP 401] the page's own request got 200; "
+                "replay re-sends the URL only, without the page's request headers\n"
+                '{"error": "unauthorized"}'
+            )

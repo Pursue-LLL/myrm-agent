@@ -7,6 +7,7 @@
 - Reply / redirect: scripted response specs (``delay_s`` holds the answer back, like a slow business endpoint;
   ``declared_length`` promises more body than is sent and ``hold_open_s`` keeps the connection open after it, so a
   response can be cut short or left half-read)
+- Gated: a reply served only to a request that carries a given header (a page's own call versus a bare re-send)
 - serve: context manager yielding a ``Site`` (base URL + every request the server received)
 
 [POS]
@@ -41,6 +42,16 @@ class Reply:
     hold_open_s: float = 0.0
 
 
+@dataclass(frozen=True, slots=True)
+class Gated:
+    """``reply`` for a request that carries ``header: value``, ``otherwise`` for any other request."""
+
+    header: str
+    value: str
+    reply: Reply
+    otherwise: Reply
+
+
 def page(text: str) -> Reply:
     """An HTML document whose visible text is ``text``."""
     return Reply(body=f"<!DOCTYPE html><html><head></head><body>{text}</body></html>".encode())
@@ -63,8 +74,8 @@ class Site:
 
 
 @contextmanager
-def serve(routes: Mapping[str, Reply], *, host: str = "127.0.0.1") -> Iterator[Site]:
-    """Serve ``routes`` (path -> Reply, query ignored) on a free loopback port."""
+def serve(routes: Mapping[str, Reply | Gated], *, host: str = "127.0.0.1") -> Iterator[Site]:
+    """Serve ``routes`` (path -> Reply or Gated, query ignored) on a free loopback port."""
     site = Site(base_url="")
 
     class _Handler(BaseHTTPRequestHandler):
@@ -75,6 +86,8 @@ def serve(routes: Mapping[str, Reply], *, host: str = "127.0.0.1") -> Iterator[S
             path = self.path.split("?", 1)[0]
             site.hits.append((method, path))
             reply = routes.get(path, Reply(status=404, body=b"not found"))
+            if isinstance(reply, Gated):
+                reply = reply.reply if self.headers.get(reply.header) == reply.value else reply.otherwise
             time.sleep(reply.delay_s)
             length = len(reply.body) if reply.declared_length is None else reply.declared_length
             try:

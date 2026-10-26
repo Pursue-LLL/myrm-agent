@@ -276,6 +276,12 @@ class NetworkIntelligence:
         """The request that carries on from `record` after its redirect: Chrome keeps the requestId across hops."""
         return next((r for r in self._requests if r.request_id == record.request_id and r.seq > record.seq), None)
 
+    def final_status(self, record: CdpRequestRecord) -> int | None:
+        """The status the page got for `record`: that of the last hop when redirects carried the request on."""
+        while (successor := self._redirect_successor(record)) is not None:
+            record = successor
+        return record.status
+
     def invalid_index_error(self, index: int) -> str:
         """The answer for a number that names no tracked API request, with the numbers that are valid now."""
         tracked = self.get_api_requests()
