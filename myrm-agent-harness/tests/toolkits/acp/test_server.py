@@ -112,18 +112,14 @@ class TestHostMcpBinding:
         assert _has_acp_host_mcp_binding(caplog, "new_session")
 
     @pytest.mark.asyncio
-    async def test_load_session_binds_host_mcp(
-        self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_load_session_binds_host_mcp(self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level("INFO")
         resp = await server.new_session(cwd="/tmp")
         await server.load_session(cwd="/tmp", session_id=resp.session_id, mcp_servers=[_fake_mcp()])
         assert _has_acp_host_mcp_binding(caplog, "load_session")
 
     @pytest.mark.asyncio
-    async def test_fork_session_binds_host_mcp(
-        self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_fork_session_binds_host_mcp(self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level("INFO")
         resp = await server.new_session(cwd="/tmp")
         fork_resp = await server.fork_session(cwd="/tmp2", session_id=resp.session_id, mcp_servers=[_fake_mcp()])
@@ -131,9 +127,7 @@ class TestHostMcpBinding:
         assert _has_acp_host_mcp_binding(caplog, "fork_session")
 
     @pytest.mark.asyncio
-    async def test_resume_session_binds_host_mcp(
-        self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_resume_session_binds_host_mcp(self, server: MyrmAcpServer, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level("INFO")
         resp = await server.new_session(cwd="/tmp")
         await server.resume_session(cwd="/tmp", session_id=resp.session_id, mcp_servers=[_fake_mcp()])
