@@ -185,7 +185,7 @@ class SignalCalculator:
         if reference_time.tzinfo is None:
             reference_time = reference_time.replace(tzinfo=UTC)
 
-        delta_hours = abs((memory_time - reference_time).total_seconds()) / 3600.0
+        delta_hours: float = abs((memory_time - reference_time).total_seconds()) / 3600.0
         if delta_hours >= threshold_hours:
             return 0.0
 
