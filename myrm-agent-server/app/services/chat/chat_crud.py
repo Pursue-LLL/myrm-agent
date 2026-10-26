@@ -322,6 +322,8 @@ class _ChatCrudMixin(_ChatServiceBase):
                 "compacted_summary": None,
                 "compacted_before_id": None,
                 "compacted_at": None,
+                # The external agents' own conversation is part of the context being flushed.
+                "external_cli_sessions": None,
             }
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, updates)
 
@@ -330,6 +332,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             await ConversationRecallIndexService.delete_chat(sess, chat_id)
 
         await chat_disposal.clear_conversation_state(chat_id)
+        await chat_disposal.reset_external_agent_sessions(chat_id)
         return True
 
     # ── Pinned Threads ──────────────────────────────────────────────

@@ -665,4 +665,4 @@ class TestEdgeCases:
 
         has_text = any(e.type == RuntimeEventType.TEXT_DELTA for e in events)
         if has_text:
-            assert session_key in rt._cli_session_ids, "Claude should capture session_id from result events"
+            assert session_key in rt._sessions, "Claude should capture session_id from result events"

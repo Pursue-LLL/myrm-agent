@@ -1362,3 +1362,47 @@ def test_user():
     from types import SimpleNamespace
 
     return SimpleNamespace(id=str(uuid4()))
+
+
+@pytest.mark.asyncio
+async def test_fork_conversation_does_not_inherit_external_cli_sessions(db_session, test_user, monkeypatch) -> None:
+    """The fork shares the transcript, not the external agent's own conversation: it starts a new one."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    db_session.add(
+        Chat(
+            id=chat_id,
+            title="Parent",
+            external_cli_sessions={f"claude-{chat_id}": {"cli_session_id": "cli-abc", "cwd": "/work"}},
+        )
+    )
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(db=db_session, parent_chat_id=chat_id, message_index=1)
+
+    assert result.success
+    child = (await db_session.execute(select(Chat).where(Chat.id == result.new_chat_id))).scalar_one()
+    assert not child.external_cli_sessions

@@ -13,6 +13,7 @@ types and handles its own text/assistant format differences.
 - parse_tool_result: function — parse_tool_result
 - parse_usage: function — parse_usage
 - parse_error: function — parse_error
+- parse_ndjson_line: Parse one NDJSON line of a CLI agent (Claude, Codex, plain text) into a RuntimeEvent.
 
 [POS]
 Shared NDJSON event parsers for CLI and SDK runtimes.
@@ -210,5 +211,83 @@ def extract_text_from_event(data: dict[str, object]) -> str | None:
                 if isinstance(text, str) and text:
                     parts.append(text)
         return "".join(parts) if parts else None
+
+    return None
+
+
+def parse_ndjson_line(line: str, session_id: str) -> RuntimeEvent | None:
+    """Parse a single NDJSON line into a RuntimeEvent.
+
+    Handles three formats:
+    - Claude CLI stream-json (``type: "assistant"`` / ``"tool_use"`` etc.)
+    - Codex CLI legacy (``{"id","msg":{...}}`` envelope, deprecated)
+    - Codex CLI new format (``item.started`` / ``item.completed`` /
+      ``turn.completed`` / ``turn.failed``)
+    """
+    data = parse_json_line(line)
+    if data is None:
+        from myrm_agent_harness.utils.text_utils import strip_ansi
+
+        cleaned = strip_ansi(line).rstrip("\r\n")
+        return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=cleaned + "\n") if cleaned else None
+
+    data = unwrap_codex_envelope(data)
+    event_type = data.get("type", "")
+
+    # --- Codex new format: item.* events ---
+    if event_type in ("item.started", "item.updated", "item.completed"):
+        return parse_codex_item_event(data, session_id)
+
+    if event_type == "turn.completed":
+        usage = data.get("usage")
+        if isinstance(usage, dict):
+            return parse_usage(usage, session_id)
+        return None
+
+    if event_type == "turn.failed":
+        error_obj = data.get("error")
+        msg = error_obj.get("message", "Turn failed") if isinstance(error_obj, dict) else "Turn failed"
+        return create_event(
+            RuntimeEventType.ERROR,
+            session_id,
+            error=AcpError(code=AcpErrorCode.UNKNOWN, message=str(msg)),
+        )
+
+    # --- Claude CLI / generic format ---
+    if event_type in ("assistant", "text"):
+        text = extract_text_from_event(data)
+        if text:
+            return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=text)
+        return None
+
+    if event_type == "agent_message":
+        message = data.get("message")
+        if isinstance(message, str) and message:
+            return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=message)
+        return None
+
+    if event_type == "thinking":
+        return parse_thinking(data, session_id)
+
+    if event_type == "tool_use":
+        return parse_tool_use(data, session_id)
+
+    if event_type == "tool_result":
+        return parse_tool_result(data, session_id)
+
+    if event_type in ("usage", "token_count"):
+        info = data.get("info")
+        if isinstance(info, dict):
+            return parse_usage(info, session_id)
+        return parse_usage(data, session_id)
+
+    if event_type == "result":
+        usage = data.get("usage")
+        if isinstance(usage, dict):
+            return parse_usage(usage, session_id)
+        return None
+
+    if event_type in ("error", "stream_error"):
+        return parse_error(data, session_id)
 
     return None

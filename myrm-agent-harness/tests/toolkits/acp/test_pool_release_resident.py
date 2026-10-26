@@ -57,7 +57,7 @@ class _Factory:
         self.created: dict[str, list[_FakeBackend]] = {}
         self._failing_close = failing_close
 
-    def __call__(self, name: str, config: RuntimeConfig, *, event_bus=None) -> _FakeBackend:
+    def __call__(self, name: str, config: RuntimeConfig, *, event_bus=None, cli_session_store=None) -> _FakeBackend:
         error = RuntimeError("close failed") if name in self._failing_close else None
         backend = _FakeBackend(close_error=error)
         self.created.setdefault(name, []).append(backend)

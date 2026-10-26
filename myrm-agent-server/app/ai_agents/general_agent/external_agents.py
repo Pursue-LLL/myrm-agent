@@ -5,20 +5,21 @@
 - myrm_agent_harness.agent.streaming.types (POS: 流式事件类型)
 - app.config.deploy_mode (POS: 部署模式检测)
 - .external_agents_runtime_config (POS: 外部 Agent 配置归一化层)
+- app.services.external_agents.cli_session_store::ChatCliSessionStore (POS: chat 行持久化的外部 CLI 会话 id，服务重启后续接同一外部对话) [lazy]
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
 - should_mount_invoke_acp_agent_tool(): direct-only 路径是否跳过 invoke_acp_agent_tool 挂载
 - needs_runtime_pool(): factory 是否 eager 初始化 RuntimePool（与 stream lazy path 对齐）
 - BUILTIN_CLI_VISUAL_AGENT_ID: CLI Visual 内置 Agent 标识
-- chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线
+- chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线；池带 ChatCliSessionStore，CLI 会话 id 随 chat 落库
 
 [POS]
 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP/SDK 后端注册、
 本地模式自动检测（请求热路径使用 path-only 探测，版本探测留给设置态），
 以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。
 Settings auth/status 仅报告安装/登录态。
-有 chat scope 时经 ChatRuntimePoolRegistry 跨消息复用 pool（CLI --resume），
+有 chat scope 时经 ChatRuntimePoolRegistry 跨消息复用 pool（CLI --resume，会话 id 落在 chat 行，服务重启后仍续接），
 ChatScopedRuntimePoolFacade 对 run_turn 做 per-chat single-flight 串行化。
 """
 
@@ -150,11 +151,14 @@ class ExternalAgentsMixin:
 
         from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 
+        from app.services.external_agents.cli_session_store import ChatCliSessionStore
+
         fingerprint = _config_fingerprint(agent_cfgs)
         chat_scope_id = _runtime_pool_scope_id(self)
 
         async def _build_pool() -> RuntimePool:
-            pool = RuntimePool(max_concurrent=4)
+            session_store = ChatCliSessionStore(chat_scope_id) if chat_scope_id else None
+            pool = RuntimePool(max_concurrent=4, cli_session_store=session_store)
             _register_backends_on_pool(pool, agent_cfgs)
             return pool
 

@@ -76,6 +76,7 @@ async def test_fork_from_branch_creates_child_chat(
             title="Parent chat",
             action_mode="agent",
             source="web",
+            external_cli_sessions={"claude-chat": {"cli_session_id": "cli-abc", "cwd": "/work"}},
         )
     )
     await db_session.commit()
@@ -114,6 +115,8 @@ async def test_fork_from_branch_creates_child_chat(
     assert child is not None
     assert child.title == "Recovered branch"
     assert child.compacted_summary is None
+    # The branch shares the transcript, not the external agent's own conversation.
+    assert not child.external_cli_sessions
 
     count_stmt = select(func.count(Message.id)).where(Message.chat_id == result.new_chat_id)
     count = (await db_session.execute(count_stmt)).scalar_one()

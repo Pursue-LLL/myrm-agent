@@ -14,6 +14,8 @@ no - Base type definition module
 - RuntimeEvent: Runtime Event type
 - AcpErrorCode: ACP error enum
 - RuntimeConfig: Runtime configuration
+- CliSessionRecord: a CLI-native session id bound to the working directory that created it
+- CliSessionStore: protocol a host implements to keep CLI session records across process restarts
 - PermissionMode: Permission pattern type
 - PermissionDecision: Permission decision enum
 
@@ -161,6 +163,18 @@ class RuntimeConfig:
     description: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class CliSessionRecord:
+    """A CLI-native session id bound to the working directory it was created in.
+
+    Claude Code files a conversation under its project directory, so ``--resume <id>`` finds it only when
+    the process starts in that same directory.
+    """
+
+    cli_session_id: str
+    cwd: str
+
+
 class PermissionDecision(StrEnum):
     """Possible outcomes for a permission request."""
 
@@ -232,6 +246,20 @@ class DelegationPool(Protocol):
     ) -> AsyncIterator[RuntimeEvent]: ...
 
     async def cancel(self, name: str, session_id: str) -> None: ...
+
+
+class CliSessionStore(Protocol):
+    """Durable home of ``CliSessionRecord`` keyed by harness session id; one store serves one conversation scope.
+
+    A host implements it so CLI sessions survive a restart of the host process. Every failure it raises is
+    degraded by the runtime to a fresh CLI session; it never fails a turn.
+    """
+
+    async def load(self, session_id: str) -> CliSessionRecord | None: ...
+
+    async def save(self, session_id: str, record: CliSessionRecord) -> None: ...
+
+    async def delete(self, session_id: str) -> None: ...
 
 
 @runtime_checkable

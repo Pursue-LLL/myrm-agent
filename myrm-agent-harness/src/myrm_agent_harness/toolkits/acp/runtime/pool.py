@@ -6,12 +6,13 @@ serialization locks. Backends are created lazily on first use, and a resident
 ACP process that has exited is reconnected by its next ``run_turn``. A ``oneshot``
 turn runs on a private backend (fresh session, closed afterwards) so it never
 disturbs the shared backend's persistent session. ``release_resident`` frees the
-resident ACP processes of an idle pool while CLI backends keep their resume state.
+resident ACP processes of an idle pool while CLI backends keep their resume state. An optional
+``CliSessionStore`` lets the persistent CLI backends resume their sessions after the host restarts.
 
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer)
-- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent (POS: ACP runtime type definitions)
+- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent, CliSessionStore (POS: ACP runtime type definitions)
 - myrm_agent_harness.toolkits.acp.runtime.*::AcpRuntime, CliRuntime (POS: runtime backend implementations)
 
 [OUTPUT]
@@ -31,6 +32,7 @@ from uuid import uuid4
 
 from myrm_agent_harness.toolkits.acp.core.event_bus import EventBus
 from myrm_agent_harness.toolkits.acp.types import (
+    CliSessionStore,
     McpServerConfig,
     RuntimeBackend,
     RuntimeConfig,
@@ -46,6 +48,7 @@ def _create_runtime(
     config: RuntimeConfig,
     *,
     event_bus: EventBus | None = None,
+    cli_session_store: CliSessionStore | None = None,
 ) -> RuntimeBackend:
     """Factory: create the appropriate RuntimeBackend based on config.backend_type."""
     if config.backend_type == "acp":
@@ -56,7 +59,7 @@ def _create_runtime(
     if config.backend_type == "cli":
         from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
 
-        return CliRuntime(name, config)
+        return CliRuntime(name, config, session_store=cli_session_store)
 
     msg = f"Unknown backend_type: {config.backend_type!r}"
     raise ValueError(msg)
@@ -85,6 +88,7 @@ class RuntimePool:
         *,
         max_concurrent: int = 4,
         event_bus: EventBus | None = None,
+        cli_session_store: CliSessionStore | None = None,
     ) -> None:
         self._configs: dict[str, RuntimeConfig] = {}
         self._backends: dict[str, RuntimeBackend] = {}
@@ -93,6 +97,7 @@ class RuntimePool:
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._backend_locks: dict[str, asyncio.Lock] = {}
         self._event_bus = event_bus
+        self._cli_session_store = cli_session_store
 
     @property
     def available_backends(self) -> list[str]:
@@ -107,8 +112,11 @@ class RuntimePool:
         """Return the RuntimeConfig for a registered backend, or None if not found."""
         return self._configs.get(name)
 
-    def _new_backend(self, name: str) -> RuntimeBackend:
+    def _new_backend(self, name: str, *, cli_session_store: CliSessionStore | None = None) -> RuntimeBackend:
         """Create a backend for ``name`` that the pool does not keep.
+
+        Only the shared persistent backend is given the session store: a private oneshot backend
+        is a fresh session that ends with its turn, so it has nothing to resume or to persist.
 
         Raises:
             KeyError: If the name is not registered.
@@ -118,7 +126,7 @@ class RuntimePool:
             available = ", ".join(self._configs) or "(none)"
             msg = f"Unknown backend '{name}'. Available: {available}"
             raise KeyError(msg)
-        return _create_runtime(name, config, event_bus=self._event_bus)
+        return _create_runtime(name, config, event_bus=self._event_bus, cli_session_store=cli_session_store)
 
     def get(self, name: str) -> RuntimeBackend:
         """Get or lazily create the shared (persistent) RuntimeBackend by name.
@@ -128,7 +136,7 @@ class RuntimePool:
         """
         backend = self._backends.get(name)
         if backend is None:
-            backend = self._backends[name] = self._new_backend(name)
+            backend = self._backends[name] = self._new_backend(name, cli_session_store=self._cli_session_store)
         return backend
 
     async def prompt(self, name: str, task: str, *, mode: str = "persistent") -> str:

@@ -74,6 +74,11 @@ class Chat(Base):
     # HITL-granted extra directory roots for this chat session
     session_access_roots: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
+    # CLI-native session ids of external agents (Claude Code ``--resume``) keyed by harness session id, so a
+    # restart of the server resumes the same external conversation: {session_id: {cli_session_id, cwd}}.
+    # Never stored for incognito chats and never copied to forks; a context flush resets it.
+    external_cli_sessions: Mapped[dict[str, dict[str, str]] | None] = mapped_column(JSON, nullable=True)
+
     # Original repo root when sandbox (git worktree) is active
     sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 

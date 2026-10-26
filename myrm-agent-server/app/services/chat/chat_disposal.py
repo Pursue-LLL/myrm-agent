@@ -13,6 +13,7 @@
 
 [OUTPUT]
 - clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat
+- reset_external_agent_sessions: the in-memory conversation of a chat's external agents
 - clear_runtime_caches: running pools, execution scopes and ephemeral session deltas of a chat
 - remove_chat_event_log: the event log file of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
@@ -74,6 +75,16 @@ async def clear_conversation_state(chat_id: str) -> bool:
     except Exception as exc:
         logger.warning("Failed to clear session allowlist/denial state (chat=%s): %s", chat_id, exc)
     return checkpoint_cleared
+
+
+async def reset_external_agent_sessions(chat_id: str) -> None:
+    """Make the external agents of a chat forget the conversation without touching its other runtimes.
+
+    Stopping the chat's external agent pool drops every in-memory session id a CLI backend would resume and
+    ends resident ACP sessions. The persisted session ids live on the chat row and are reset in the
+    transaction that flushes the messages, so no later turn resumes the flushed conversation.
+    """
+    await close_external_agent_pool_for_chat(chat_id)
 
 
 async def clear_runtime_caches(chat_id: str) -> None:

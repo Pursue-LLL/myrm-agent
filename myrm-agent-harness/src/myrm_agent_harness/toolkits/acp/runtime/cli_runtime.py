@@ -4,9 +4,10 @@ Supports Claude CLI (``claude --output-format stream-json``), Codex CLI,
 Gemini CLI, and any CLI tool that outputs newline-delimited JSON events.
 
 [INPUT]
-- toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
+- toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, CliSessionRecord, CliSessionStore (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.runtime._base::BaseRuntime, build_safe_env (POS: Base class for RuntimeBackend implementations)
-- toolkits.acp.runtime._parser::parse_json_line, parse_tool_use, parse_tool_result, parse_thinking, parse_error, parse_usage, parse_codex_item_event, unwrap_codex_envelope, extract_text_from_event (POS: Shared NDJSON event parsers for CLI and SDK runtimes)
+- toolkits.acp.runtime._parser::parse_json_line, parse_ndjson_line (POS: Shared NDJSON event parsers for CLI and SDK runtimes)
+- toolkits.acp.runtime.cli_session::CliSessionBook (POS: Session continuity state of CliRuntime. Owns the bounded in-memory record cache and every store interaction)
 - toolkits.acp.runtime._spawn_hints::format_cli_spawn_failure_message (POS: ACP runtime spawn diagnostics. Keeps CliRuntime error messages actionable without product-layer imports)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 - utils.os_compat::get_process_group_kwargs, kill_process_group (POS: Provides unified abstractions for POSIX/Windows differences (file locks, process groups) to ensure 100% native execution across all platforms) [lazy]
@@ -28,22 +29,15 @@ from collections.abc import AsyncIterator
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import resolve_cli_args
 from myrm_agent_harness.toolkits.acp.runtime._base import BaseRuntime, build_safe_env
-from myrm_agent_harness.toolkits.acp.runtime._parser import (
-    extract_text_from_event,
-    parse_codex_item_event,
-    parse_error,
-    parse_json_line,
-    parse_thinking,
-    parse_tool_result,
-    parse_tool_use,
-    parse_usage,
-    unwrap_codex_envelope,
-)
+from myrm_agent_harness.toolkits.acp.runtime._parser import parse_json_line, parse_ndjson_line
+from myrm_agent_harness.toolkits.acp.runtime.cli_session import CliSessionBook
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,
     BackendCapabilities,
     BackendStatus,
+    CliSessionRecord,
+    CliSessionStore,
     McpServerConfig,
     RuntimeConfig,
     RuntimeEvent,
@@ -72,15 +66,23 @@ class CliRuntime(BaseRuntime):
 
     For CLI tools that support session resume (e.g. Claude CLI ``--resume``),
     the runtime captures the session ID from ``result`` events and injects
-    ``--resume <id>`` on subsequent calls to the same session. A crash on
-    resume (no output produced) drops the stale session ID so the next call
-    degrades to a fresh session.
+    ``--resume <id>`` on subsequent calls to the same session, provided the
+    turn starts in the directory that created it. With a ``session_store`` the
+    id also survives a restart of the host process. A crash on resume (no
+    output produced) drops the stale session ID so the next call degrades to
+    a fresh session.
     """
 
-    def __init__(self, runtime_name: str, config: RuntimeConfig) -> None:
+    def __init__(
+        self,
+        runtime_name: str,
+        config: RuntimeConfig,
+        *,
+        session_store: CliSessionStore | None = None,
+    ) -> None:
         super().__init__(runtime_name, config, backend_type="cli")
         self._process: asyncio.subprocess.Process | None = None
-        self._cli_session_ids: dict[str, str] = {}
+        self._sessions = CliSessionBook(runtime_name, session_store)
 
     @property
     def capabilities(self) -> BackendCapabilities:
@@ -140,17 +142,17 @@ class CliRuntime(BaseRuntime):
         if "--output-format" in args and "stream-json" in args and "--verbose" not in args:
             args.append("--verbose")
 
-        resumed = False
-        cli_session = self._cli_session_ids.get(session_id)
-        if cli_session and _supports_resume(command) and "--resume" not in args:
-            args.extend(["--resume", cli_session])
-            resumed = True
-            logger.info(
-                "cli_resume name=%s session=%s cli_session=%s",
-                self._name,
-                session_id,
-                cli_session,
-            )
+        resumed: CliSessionRecord | None = None
+        if _supports_resume(command) and "--resume" not in args:
+            resumed = await self._sessions.resumable(session_id, cwd)
+            if resumed is not None:
+                args.extend(["--resume", resumed.cli_session_id])
+                logger.info(
+                    "cli_resume name=%s session=%s cli_session=%s",
+                    self._name,
+                    session_id,
+                    resumed.cli_session_id,
+                )
 
         if self._config.max_turns > 0 and _supports_max_turns(command):
             args.extend(["--max-turns", str(self._config.max_turns)])
@@ -194,8 +196,8 @@ class CliRuntime(BaseRuntime):
                 if not line:
                     continue
 
-                self._capture_cli_session_id(line, session_id)
-                event = self._parse_ndjson_line(line, session_id)
+                self._capture_cli_session_id(line, session_id, cwd)
+                event = parse_ndjson_line(line, session_id)
                 if event is not None:
                     if event.type == RuntimeEventType.TEXT_DELTA:
                         has_text = True
@@ -209,6 +211,21 @@ class CliRuntime(BaseRuntime):
         return_code = await proc.wait()
         self._alive = False
 
+        # A resumed turn the CLI itself fails (positive exit code) without output means it no longer knows
+        # the conversation (cleared externally or expired): drop the id so the next turn starts fresh instead
+        # of failing on the same stale --resume. A process we killed (cancel, timeout: negative code) says
+        # nothing about the conversation. Otherwise the session id the turn reported is kept and persisted.
+        if resumed is not None and return_code > 0 and not has_text:
+            await self._sessions.forget(session_id)
+            logger.warning(
+                "cli_resume_invalid name=%s session=%s dropped stale cli_session=%s",
+                self._name,
+                session_id,
+                resumed.cli_session_id,
+            )
+        elif _supports_resume(command):
+            await self._sessions.persist(session_id)
+
         if return_code != 0:
             stderr_text = b"".join(stderr_chunks).decode("utf-8", errors="replace").strip()
 
@@ -220,18 +237,6 @@ class CliRuntime(BaseRuntime):
                     stderr_text[:200],
                 )
             else:
-                if resumed:
-                    # The cached CLI session id no longer resolves (e.g. cleared
-                    # externally or expired). Drop it so a retry starts a fresh
-                    # session instead of failing on the same stale --resume.
-                    self._cli_session_ids.pop(session_id, None)
-                    logger.warning(
-                        "cli_resume_invalid name=%s session=%s dropped stale cli_session=%s",
-                        self._name,
-                        session_id,
-                        cli_session,
-                    )
-
                 from myrm_agent_harness.toolkits.acp.runtime._spawn_hints import (
                     format_cli_spawn_failure_message,
                 )
@@ -279,12 +284,12 @@ class CliRuntime(BaseRuntime):
                 pass
 
     async def _do_resume(self, session_id: str) -> bool:
-        return session_id in self._cli_session_ids
+        return session_id in self._sessions
 
     async def _do_close(self) -> None:
         await self._do_cancel("")
         self._process = None
-        self._cli_session_ids.clear()
+        self._sessions.clear_memory()
 
     async def _do_get_status(self) -> BackendStatus:
         if self._process is None:
@@ -293,12 +298,13 @@ class CliRuntime(BaseRuntime):
             return "ready"
         return "error" if self._process.returncode != 0 else "stopped"
 
-    def _capture_cli_session_id(self, line: str, session_id: str) -> None:
-        """Extract and cache the CLI-native session ID from result events.
+    def _capture_cli_session_id(self, line: str, session_id: str, cwd: str) -> None:
+        """Extract and remember the CLI-native session ID from result events.
 
         Claude CLI emits ``{"type": "result", "session_id": "..."}`` at the
         end of each turn. We capture this so subsequent calls with the same
-        ``session_id`` can use ``--resume`` for context continuity.
+        ``session_id`` can use ``--resume`` for context continuity. The record is
+        persisted once the turn's outcome is known (see ``_do_run_turn``).
         """
         data = parse_json_line(line)
         if data is None:
@@ -306,94 +312,13 @@ class CliRuntime(BaseRuntime):
         if data.get("type") == "result":
             cli_sid = data.get("session_id")
             if isinstance(cli_sid, str) and cli_sid:
-                if len(self._cli_session_ids) >= 512:
-                    oldest_key = next(iter(self._cli_session_ids))
-                    self._cli_session_ids.pop(oldest_key, None)
-                self._cli_session_ids[session_id] = cli_sid
+                self._sessions.remember(session_id, CliSessionRecord(cli_sid, cwd))
                 logger.info(
                     "cli_session_captured name=%s session=%s cli_session=%s",
                     self._name,
                     session_id,
                     cli_sid,
                 )
-
-    @staticmethod
-    def _parse_ndjson_line(line: str, session_id: str) -> RuntimeEvent | None:
-        """Parse a single NDJSON line into a RuntimeEvent.
-
-        Handles three formats:
-        - Claude CLI stream-json (``type: "assistant"`` / ``"tool_use"`` etc.)
-        - Codex CLI legacy (``{"id","msg":{...}}`` envelope, deprecated)
-        - Codex CLI new format (``item.started`` / ``item.completed`` /
-          ``turn.completed`` / ``turn.failed``)
-        """
-        data = parse_json_line(line)
-        if data is None:
-            from myrm_agent_harness.utils.text_utils import strip_ansi
-
-            cleaned = strip_ansi(line).rstrip("\r\n")
-            return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=cleaned + "\n") if cleaned else None
-
-        data = unwrap_codex_envelope(data)
-        event_type = data.get("type", "")
-
-        # --- Codex new format: item.* events ---
-        if event_type in ("item.started", "item.updated", "item.completed"):
-            return parse_codex_item_event(data, session_id)
-
-        if event_type == "turn.completed":
-            usage = data.get("usage")
-            if isinstance(usage, dict):
-                return parse_usage(usage, session_id)
-            return None
-
-        if event_type == "turn.failed":
-            error_obj = data.get("error")
-            msg = error_obj.get("message", "Turn failed") if isinstance(error_obj, dict) else "Turn failed"
-            return create_event(
-                RuntimeEventType.ERROR,
-                session_id,
-                error=AcpError(code=AcpErrorCode.UNKNOWN, message=str(msg)),
-            )
-
-        # --- Claude CLI / generic format ---
-        if event_type in ("assistant", "text"):
-            text = extract_text_from_event(data)
-            if text:
-                return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=text)
-            return None
-
-        if event_type == "agent_message":
-            message = data.get("message")
-            if isinstance(message, str) and message:
-                return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=message)
-            return None
-
-        if event_type == "thinking":
-            return parse_thinking(data, session_id)
-
-        if event_type == "tool_use":
-            return parse_tool_use(data, session_id)
-
-        if event_type == "tool_result":
-            return parse_tool_result(data, session_id)
-
-        if event_type in ("usage", "token_count"):
-            info = data.get("info")
-            if isinstance(info, dict):
-                return parse_usage(info, session_id)
-            return parse_usage(data, session_id)
-
-        if event_type == "result":
-            usage = data.get("usage")
-            if isinstance(usage, dict):
-                return parse_usage(usage, session_id)
-            return None
-
-        if event_type in ("error", "stream_error"):
-            return parse_error(data, session_id)
-
-        return None
 
 
 _MAX_TURNS_COMMANDS = frozenset({"claude"})

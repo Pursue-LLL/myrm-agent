@@ -9,13 +9,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.acp.runtime._parser import parse_ndjson_line
 from myrm_agent_harness.toolkits.acp.runtime.cli_runtime import CliRuntime
 from myrm_agent_harness.toolkits.acp.types import (
     AcpErrorCode,
+    CliSessionRecord,
     McpServerConfig,
     RuntimeConfig,
     RuntimeEventType,
 )
+
+_WORK = "/work"
 
 
 def _make_config(**overrides: object) -> RuntimeConfig:
@@ -55,10 +59,10 @@ class TestCliRuntimeProperties:
 
 
 class TestCliRuntimeNdjsonParsing:
-    """Test _parse_ndjson_line directly for all event types."""
+    """Test parse_ndjson_line directly for all event types."""
 
     def test_text_event(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "assistant", "content": "hello"}),
             "s1",
         )
@@ -67,7 +71,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.data["content"] == "hello"
 
     def test_text_event_content_list(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "assistant", "content": [{"type": "text", "text": "hi"}]}),
             "s1",
         )
@@ -76,7 +80,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.data["content"] == "hi"
 
     def test_nested_message_content(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "assistant",
@@ -90,7 +94,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.data["content"] == "nested"
 
     def test_tool_use_event(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "tool_use",
@@ -106,7 +110,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.data["tool_name"] == "bash"
 
     def test_tool_result_event(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "tool_result",
@@ -121,14 +125,14 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.TOOL_RESULT
 
     def test_result_event_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "result", "result": "final answer"}),
             "s1",
         )
         assert event is None
 
     def test_error_event_dict(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "error", "error": {"message": "rate limited"}}),
             "s1",
         )
@@ -136,7 +140,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.ERROR
 
     def test_error_event_string(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "error", "error": "something broke"}),
             "s1",
         )
@@ -144,32 +148,32 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.ERROR
 
     def test_invalid_json_yields_text_delta(self) -> None:
-        event = CliRuntime._parse_ndjson_line("not json at all", "s1")
+        event = parse_ndjson_line("not json at all", "s1")
         assert event is not None
         assert event.type == RuntimeEventType.TEXT_DELTA
         assert "not json at all" in event.data["content"]
 
     def test_non_dict_json_yields_text_delta(self) -> None:
-        event = CliRuntime._parse_ndjson_line(json.dumps([1, 2, 3]), "s1")
+        event = parse_ndjson_line(json.dumps([1, 2, 3]), "s1")
         assert event is not None
         assert event.type == RuntimeEventType.TEXT_DELTA
 
     def test_unknown_type_returns_none(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "unknown_event", "data": "x"}),
             "s1",
         )
         assert event is None
 
     def test_empty_content_string(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "assistant", "content": ""}),
             "s1",
         )
         assert event is None
 
     def test_codex_agent_message(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "id": "0",
@@ -183,7 +187,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.data["content"] == "hello from codex"
 
     def test_codex_task_started_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "id": "0",
@@ -195,7 +199,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event is None
 
     def test_codex_token_count(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "id": "0",
@@ -208,7 +212,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.USAGE_UPDATE
 
     def test_codex_stream_error(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"id": "0", "msg": {"type": "stream_error", "message": "rate limited"}}),
             "s1",
         )
@@ -216,7 +220,7 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.ERROR
 
     def test_codex_error(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"id": "0", "msg": {"type": "error", "message": "model not supported"}}),
             "s1",
         )
@@ -224,14 +228,14 @@ class TestCliRuntimeNdjsonParsing:
         assert event.type == RuntimeEventType.ERROR
 
     def test_codex_init_line_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"provider": "aliyun", "model": "MiniMax-M2.5", "sandbox": "read-only"}),
             "s1",
         )
         assert event is None
 
     def test_codex_prompt_line_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"prompt": "hello"}),
             "s1",
         )
@@ -242,7 +246,7 @@ class TestCodexNewFormatParsing:
     """Tests for Codex new format (item.* / turn.* events)."""
 
     def test_item_completed_agent_message(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -256,7 +260,7 @@ class TestCodexNewFormatParsing:
         assert event.data["content"] == "Done."
 
     def test_item_completed_reasoning(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -274,7 +278,7 @@ class TestCodexNewFormatParsing:
         assert event.data["content"] == "Scanning docs..."
 
     def test_item_started_command_execution(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.started",
@@ -297,7 +301,7 @@ class TestCodexNewFormatParsing:
         assert event.data["tool_call_id"] == "item_1"
 
     def test_item_completed_command_execution_success(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -319,7 +323,7 @@ class TestCodexNewFormatParsing:
         assert event.data["is_error"] is False
 
     def test_item_completed_command_execution_failed(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -340,7 +344,7 @@ class TestCodexNewFormatParsing:
         assert event.data["is_error"] is True
 
     def test_item_completed_file_change(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -364,7 +368,7 @@ class TestCodexNewFormatParsing:
         assert event.data["is_error"] is False
 
     def test_item_completed_error(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -383,7 +387,7 @@ class TestCodexNewFormatParsing:
         assert event.data["message"] == "command output truncated"
 
     def test_turn_completed_with_usage(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "turn.completed",
@@ -403,7 +407,7 @@ class TestCodexNewFormatParsing:
         assert event.data["cache_read"] == 24448
 
     def test_turn_failed(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "turn.failed",
@@ -416,21 +420,21 @@ class TestCodexNewFormatParsing:
         assert event.type == RuntimeEventType.ERROR
 
     def test_thread_started_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "thread.started", "thread_id": "abc-123"}),
             "s1",
         )
         assert event is None
 
     def test_turn_started_ignored(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "turn.started"}),
             "s1",
         )
         assert event is None
 
     def test_item_completed_empty_agent_message(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "item.completed",
@@ -442,7 +446,7 @@ class TestCodexNewFormatParsing:
         assert event is None
 
     def test_item_no_item_field(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "item.completed"}),
             "s1",
         )
@@ -764,7 +768,7 @@ class TestCliRuntimeSessionResume:
 
     @pytest.mark.asyncio
     async def test_captures_session_id_from_result(self) -> None:
-        rt = CliRuntime("test", _make_config())
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
         result_line = json.dumps({"type": "result", "session_id": "cli-sess-abc"})
         ndjson_lines = (result_line + "\n").encode()
 
@@ -784,12 +788,12 @@ class TestCliRuntimeSessionResume:
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             _ = [e async for e in rt._do_run_turn("hello", "s1")]
 
-        assert rt._cli_session_ids.get("s1") == "cli-sess-abc"
+        assert await rt._sessions.resumable("s1", _WORK) == CliSessionRecord("cli-sess-abc", _WORK)
 
     @pytest.mark.asyncio
     async def test_resume_injects_flag(self) -> None:
-        rt = CliRuntime("test", _make_config())
-        rt._cli_session_ids["s1"] = "cli-sess-abc"
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", _WORK))
 
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -817,25 +821,49 @@ class TestCliRuntimeSessionResume:
         assert "cli-sess-abc" in captured_args
 
     @pytest.mark.asyncio
+    async def test_resume_skipped_when_session_was_created_in_another_directory(self) -> None:
+        """Claude Code only finds a conversation from the directory that created it."""
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", "/elsewhere"))
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdout.__aiter__ = lambda self: aiter([])
+        mock_proc.stderr = AsyncMock()
+        mock_proc.stderr.read = AsyncMock(return_value=b"")
+        mock_proc.stdin = None
+
+        async def fake_wait() -> int:
+            mock_proc.returncode = 0
+            return 0
+
+        mock_proc.wait = fake_wait
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as exec_mock:
+            _ = [e async for e in rt._do_run_turn("hello", "s1")]
+
+        assert "--resume" not in exec_mock.call_args[0]
+
+    @pytest.mark.asyncio
     async def test_do_resume_returns_true_when_session_exists(self) -> None:
-        rt = CliRuntime("test", _make_config())
-        rt._cli_session_ids["s1"] = "cli-sess-abc"
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", _WORK))
         assert await rt._do_resume("s1") is True
 
     @pytest.mark.asyncio
     async def test_do_resume_returns_false_when_no_session(self) -> None:
-        rt = CliRuntime("test", _make_config())
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
         assert await rt._do_resume("s1") is False
 
     def test_is_alive_with_running_process(self) -> None:
-        rt = CliRuntime("test", _make_config())
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
         mock_proc = MagicMock()
         mock_proc.returncode = None
         rt._process = mock_proc
         assert rt.is_alive is True
 
     def test_is_alive_with_finished_process(self) -> None:
-        rt = CliRuntime("test", _make_config())
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         rt._process = mock_proc
@@ -849,8 +877,8 @@ class TestCliRuntimeSessionResume:
         externally / expired) made the retry reuse the same stale --resume and
         fail twice instead of degrading to a fresh session.
         """
-        rt = CliRuntime("test", _make_config())
-        rt._cli_session_ids["s1"] = "cli-sess-abc"
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", _WORK))
 
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -882,7 +910,7 @@ class TestCliRuntimeSessionResume:
         error_events = [e for e in events if e.type == RuntimeEventType.ERROR]
         assert len(error_events) == 1
         assert error_events[0].data["error"].retryable is True
-        assert "s1" not in rt._cli_session_ids, "stale CLI session id must be dropped on crash"
+        assert "s1" not in rt._sessions, "stale CLI session id must be dropped on crash"
 
     @pytest.mark.asyncio
     async def test_resume_kept_on_nonzero_exit_with_output(self) -> None:
@@ -891,8 +919,8 @@ class TestCliRuntimeSessionResume:
         Only a crash without any output (spawn/resume failure) is treated as a
         stale-resume signal; a partial-response failure must not lose context.
         """
-        rt = CliRuntime("test", _make_config())
-        rt._cli_session_ids["s1"] = "cli-sess-abc"
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", _WORK))
 
         ndjson_lines = (json.dumps({"type": "assistant", "content": "partial"}) + "\n").encode()
         mock_proc = MagicMock()
@@ -911,7 +939,7 @@ class TestCliRuntimeSessionResume:
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             _ = [e async for e in rt._do_run_turn("hello", "s1")]
 
-        assert rt._cli_session_ids.get("s1") == "cli-sess-abc"
+        assert await rt._sessions.resumable("s1", _WORK) == CliSessionRecord("cli-sess-abc", _WORK)
 
     @pytest.mark.asyncio
     async def test_crash_without_resume_keeps_cached_session_id(self) -> None:
@@ -920,8 +948,8 @@ class TestCliRuntimeSessionResume:
         Only a stale --resume crash signals an invalid cache entry; a first-time
         spawn failure (e.g. auth error) must not discard a valid session id.
         """
-        rt = CliRuntime("test", _make_config(command="codex"))
-        rt._cli_session_ids["s1"] = "cli-sess-abc"
+        rt = CliRuntime("test", _make_config(command="codex", cwd=_WORK))
+        rt._sessions.remember("s1", CliSessionRecord("cli-sess-abc", _WORK))
 
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -940,7 +968,7 @@ class TestCliRuntimeSessionResume:
             _ = [e async for e in rt._do_run_turn("hello", "s1")]
 
         assert "--resume" not in exec_mock.call_args[0], "codex must not get --resume injected"
-        assert rt._cli_session_ids.get("s1") == "cli-sess-abc"
+        assert await rt._sessions.resumable("s1", _WORK) == CliSessionRecord("cli-sess-abc", _WORK)
 
     @pytest.mark.asyncio
     async def test_do_cancel_falls_back_to_sigkill_when_sigterm_ignored(self) -> None:
@@ -949,7 +977,7 @@ class TestCliRuntimeSessionResume:
 
         from myrm_agent_harness.utils import os_compat
 
-        rt = CliRuntime("test", _make_config())
+        rt = CliRuntime("test", _make_config(cwd=_WORK))
         proc = MagicMock()
         proc.pid = 4242
         proc.returncode = None
@@ -1167,7 +1195,7 @@ class TestCliRuntimeNdjsonEdgeCases:
     """Additional NDJSON parsing edge cases."""
 
     def test_usage_event_with_info_field(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "usage", "info": {"input_tokens": 500, "output_tokens": 200}}),
             "s1",
         )
@@ -1176,7 +1204,7 @@ class TestCliRuntimeNdjsonEdgeCases:
         assert event.data["input_tokens"] == 500
 
     def test_usage_event_without_info(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "usage", "input_tokens": 100, "output_tokens": 50}),
             "s1",
         )
@@ -1184,7 +1212,7 @@ class TestCliRuntimeNdjsonEdgeCases:
         assert event.type == RuntimeEventType.USAGE_UPDATE
 
     def test_text_event_type(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "text", "content": "hello"}),
             "s1",
         )
@@ -1192,7 +1220,7 @@ class TestCliRuntimeNdjsonEdgeCases:
         assert event.type == RuntimeEventType.TEXT_DELTA
 
     def test_result_event_with_usage(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps(
                 {
                     "type": "result",
@@ -1205,14 +1233,14 @@ class TestCliRuntimeNdjsonEdgeCases:
         assert event.type == RuntimeEventType.USAGE_UPDATE
 
     def test_turn_completed_without_usage(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "turn.completed"}),
             "s1",
         )
         assert event is None
 
     def test_turn_failed_no_error_object(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "turn.failed"}),
             "s1",
         )
@@ -1220,14 +1248,14 @@ class TestCliRuntimeNdjsonEdgeCases:
         assert event.type == RuntimeEventType.ERROR
 
     def test_agent_message_empty(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "agent_message", "message": ""}),
             "s1",
         )
         assert event is None
 
     def test_thinking_event(self) -> None:
-        event = CliRuntime._parse_ndjson_line(
+        event = parse_ndjson_line(
             json.dumps({"type": "thinking", "thinking": "hmm let me think"}),
             "s1",
         )
@@ -1236,18 +1264,18 @@ class TestCliRuntimeNdjsonEdgeCases:
 
     def test_capture_session_id_non_json(self) -> None:
         rt = CliRuntime("test", _make_config())
-        rt._capture_cli_session_id("not json", "s1")
-        assert "s1" not in rt._cli_session_ids
+        rt._capture_cli_session_id("not json", "s1", _WORK)
+        assert "s1" not in rt._sessions
 
     def test_capture_session_id_non_result(self) -> None:
         rt = CliRuntime("test", _make_config())
-        rt._capture_cli_session_id(json.dumps({"type": "text"}), "s1")
-        assert "s1" not in rt._cli_session_ids
+        rt._capture_cli_session_id(json.dumps({"type": "text"}), "s1", _WORK)
+        assert "s1" not in rt._sessions
 
     def test_capture_session_id_empty_session(self) -> None:
         rt = CliRuntime("test", _make_config())
-        rt._capture_cli_session_id(json.dumps({"type": "result", "session_id": ""}), "s1")
-        assert "s1" not in rt._cli_session_ids
+        rt._capture_cli_session_id(json.dumps({"type": "result", "session_id": ""}), "s1", _WORK)
+        assert "s1" not in rt._sessions
 
 
 async def aiter(items: list[bytes]) -> asyncio.StreamReader:
@@ -1377,19 +1405,19 @@ class TestCliRuntimeMcpIgnored:
     def test_parse_ndjson_line_ansi_strip(self) -> None:
         """Raw non-JSON lines with ANSI escape codes must be stripped."""
         raw_ansi_line = "\x1b[31;1mError:\x1b[0m Connection failed\r\n"
-        event = CliRuntime._parse_ndjson_line(raw_ansi_line, "s1")
+        event = parse_ndjson_line(raw_ansi_line, "s1")
         assert event is not None
         assert event.type == RuntimeEventType.TEXT_DELTA
         assert event.data["content"] == "Error: Connection failed\n"
 
     def test_capture_cli_session_id_bounded(self) -> None:
-        """_cli_session_ids must evict oldest items once 512 capacity is reached."""
+        """Captured session records must evict oldest items once 512 capacity is reached."""
         rt = CliRuntime("test", _make_config())
         for i in range(515):
             line = json.dumps({"type": "result", "session_id": f"cli-id-{i}"})
-            rt._capture_cli_session_id(line, f"sess-{i}")
+            rt._capture_cli_session_id(line, f"sess-{i}", _WORK)
 
-        assert len(rt._cli_session_ids) == 512
+        assert len(rt._sessions) == 512
 
     @pytest.mark.asyncio
     async def test_permission_mode_args_resolved_per_backend(self) -> None:

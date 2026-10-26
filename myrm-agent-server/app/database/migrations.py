@@ -694,6 +694,9 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN tool_gateway_config JSON",
     "ALTER TABLE kanban_boards ADD COLUMN specify_max_tokens INTEGER NOT NULL DEFAULT 6000",
     "ALTER TABLE kanban_boards ADD COLUMN auto_specify_on_create BOOLEAN NOT NULL DEFAULT 0",
+    # CLI-native session ids of external agents, so a server restart resumes the same external conversation.
+    # New DBs get the column from create_all; this append-only ALTER covers existing databases.
+    "ALTER TABLE chats ADD COLUMN external_cli_sessions JSON",
 ]
 
 # 创建索引的SQL语句列表

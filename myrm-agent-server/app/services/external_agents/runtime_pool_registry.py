@@ -14,7 +14,7 @@ Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness 
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
 idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托与正在 acquire 的 chat 不参与 idle 回收。
 idle 超时只释放池里的常驻进程（ACP），池本身与 CLI 后端的 --resume 会话 id 保留：CLI 回合之间没有进程，
-整池关闭只会丢会话、不释放任何资源。池只在配置变更、删 chat（close_chat）、服务关闭（close_all）时被 close。
+整池关闭不释放任何资源，只丢内存里的会话 id（落在 chat 行里的那份由下一个后端续接）。池只在配置变更、删 chat（close_chat）、服务关闭（close_all）时被 close。
 关闭后仍握着该池的旧 facade 再委托时，已关闭的 RuntimePool 会懒重建后端；facade 每个委托 turn 先
 ensure_tracked 把池重新登记，这些后端才会被 close_chat / close_all 收尾而不是变成孤儿进程。
 所有 pool 关闭 / 释放都带上限（_bounded），失联的外部 agent 不会拖死持锁的 registry。
