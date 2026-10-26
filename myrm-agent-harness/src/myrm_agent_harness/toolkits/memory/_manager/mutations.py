@@ -352,7 +352,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                 idents = ExactFactClassifier.extract_identifiers(updated.content)
                 updated.exact_identifiers = idents
                 updated.metadata["exact_identifiers"] = idents
-                if self._relational is not None and hasattr(self._relational, "record_exact_fact"):
+                if self._relational is not None:
                     try:
                         await self._relational.record_exact_fact(
                             memory_id=updated.id,
@@ -367,7 +367,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             else:
                 updated.exact_identifiers = []
                 updated.metadata["exact_identifiers"] = []
-                if self._relational is not None and hasattr(self._relational, "delete_exact_fact"):
+                if self._relational is not None:
                     try:
                         await self._relational.delete_exact_fact(updated.id)
                     except Exception as err:
@@ -376,7 +376,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             idents = ExactFactClassifier.extract_identifiers(updated.content)
             updated.exact_identifiers = idents
             updated.metadata["exact_identifiers"] = idents
-            if self._relational is not None and hasattr(self._relational, "record_exact_fact"):
+            if self._relational is not None:
                 try:
                     await self._relational.record_exact_fact(
                         memory_id=updated.id,

@@ -26,7 +26,6 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | cube.py                  | Core     | 统一异构记忆 MemCubeEnvelope 泛型容器、LifecycleTier 与 StoragePolicy 定义，提供 SHA256 验签防篡改与活跃度保真能力。 | ✅    |
 | domain_types.py          | Core     | Three-domain memory partitions (User, Assistant, Task) and 9 fine-grained categories with semantic classification heuristics. | ✅    |
 | scheduler.py             | Core     | 多层记忆调度器 MultiTierMemoryScheduler，按存储策略分发写入并对导入信封做防篡改校验。       | ✅    |
-| ephemeral.py             | Core     | Ephemeral and read-only memory managers for subagent isolation.                                               | ✅    |
 | health.py                | Core     | Memory system diagnostics — instance-level health and maintenance reports.                                    | ✅    |
 | intent_recognizers.py    | Core     | Query intent recognition and deterministic sub-graph router (5 query intents, ReDoS safety, zero-token cost). | ✅    |
 | metrics.py               | Core     | Memory search quality metrics — lightweight, thread-safe counters.                                            | ✅    |
@@ -64,6 +63,7 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | handoff/ | Strongly typed cross-agent/cross-session handoff protocol with atomic exactly-once claim and durable session finalizer. See [handoff/_ARCH.md](handoff/_ARCH.md). |
 | onboarding/ | Onboarding insight sampling and first-encounter reporting for users migrating from other agent tools (sliding-window sampling, local redaction, fact distillation). See [onboarding/_ARCH.md](onboarding/_ARCH.md). |
 | tool_guidance/ | Deterministic, cache-stable synthesis of procedural tool memory (traps) into bounded, zero-LLM tool guidance. See [tool_guidance/_ARCH.md](tool_guidance/_ARCH.md). |
+| ephemeral/ | Subagent memory isolation: dict-backed `EphemeralMemoryManager` and read-only `ReadOnlyMemoryView`. See [ephemeral/_ARCH.md](ephemeral/_ARCH.md). |
 | ephemeral_delta/ | In-memory, session-scoped transient buffer for prompt-cache-preserving deltas. See [ephemeral_delta/_ARCH.md](ephemeral_delta/_ARCH.md). |
 | two_layer_dialectic/ | Dual-layer context injection engine preserving LLM Prompt Cache while resolving contradictions. See [two_layer_dialectic/_ARCH.md](two_layer_dialectic/_ARCH.md). |
 | chunking/ | Incremental Sliding Window Markdown Chunker Suite: semantic sliding window with 80-token overlap, content-hash incremental diffing, and line-level pointers. See [chunking/_ARCH.md](chunking/_ARCH.md). |

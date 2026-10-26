@@ -2,7 +2,7 @@
 
 
 [INPUT]
-- memory.types::{MemoryScope, PendingRecord, ProceduralMemory, ProfileEntry} (POS: memory data models)
+- memory.types::{MemoryScope, MemorySearchResult, PendingRecord, ProceduralMemory, ProfileEntry} (POS: memory data models)
 
 [OUTPUT]
 - RelationalStoreProtocol: Protocol for relational storage (Profile/Procedural/Pending backends)
@@ -14,10 +14,12 @@ and Pending memories. Implementations may use PostgreSQL, SQLite, DynamoDB, etc.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from myrm_agent_harness.toolkits.memory.types import (
     MemoryScope,
+    MemorySearchResult,
     PendingRecord,
     ProceduralMemory,
     ProfileAttributeSnapshot,
@@ -100,6 +102,51 @@ class RelationalStoreProtocol(Protocol):
 
     async def batch_mark_pending(self, pending_ids: list[str], status: str) -> int:
         """Batch update status. Returns number of records updated."""
+        ...
+
+    async def delete_pending_by_source_chat_id(self, source_chat_id: str) -> int:
+        """Delete the pending records raised from one chat. Returns the number removed."""
+        ...
+
+    async def count_pending_by_source_chat_id(self, source_chat_id: str) -> int:
+        """Count the pending records raised from one chat."""
+        ...
+
+    # ── Exact facts & full-text index ────────────────────────────────
+
+    async def record_exact_fact(
+        self,
+        *,
+        memory_id: str,
+        user_id: str,
+        content: str,
+        identifiers: list[str],
+        primary_namespace: str = "",
+        namespaces: list[str] | None = None,
+    ) -> None:
+        """Index a memory's exact identifiers and its text for full-text search."""
+        ...
+
+    async def delete_exact_fact(self, memory_id: str) -> None:
+        """Remove a memory's exact-identifier and full-text index entries."""
+        ...
+
+    async def search_fts5(
+        self,
+        query: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        *,
+        namespaces: list[str] | None = None,
+    ) -> list[MemorySearchResult]:
+        """Match exact identifiers, then full-text search, within the time window."""
+        ...
+
+    # ── Diagnostics ──────────────────────────────────────────────────
+
+    async def check_integrity(self) -> tuple[bool, str]:
+        """Check the physical and index integrity. Returns ``(is_intact, detail_message)``."""
         ...
 
     async def close(self) -> None:

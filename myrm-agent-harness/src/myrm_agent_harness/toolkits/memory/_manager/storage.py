@@ -123,11 +123,7 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
 
     async def _record_exact_fact_if_needed(self, memory: SemanticMemory) -> None:
         """Mirror identifier-bearing memories into the relational exact-fact index (fail-open)."""
-        if (
-            self._relational is not None
-            and hasattr(self._relational, "record_exact_fact")
-            and (memory.is_exact_fact or memory.exact_identifiers)
-        ):
+        if self._relational is not None and (memory.is_exact_fact or memory.exact_identifiers):
             try:
                 await self._relational.record_exact_fact(
                     memory_id=memory.id,

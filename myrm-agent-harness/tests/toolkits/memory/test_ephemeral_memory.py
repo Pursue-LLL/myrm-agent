@@ -1,4 +1,4 @@
-"""Tests for ephemeral.py: ReadOnlyMemoryView and EphemeralMemoryManager.
+"""Tests for the ephemeral package: ReadOnlyMemoryView and EphemeralMemoryManager.
 
 Covers:
 - ReadOnlyMemoryView: all write/mutate methods raise PermissionError
@@ -247,7 +247,17 @@ class TestReadOnlyMemoryViewReadDelegation:
     async def test_search_delegates(self):
         view, parent = self._make_view()
         await view.search("query")
-        parent.search.assert_awaited_once_with("query", memory_types=None, limit=10)
+        parent.search.assert_awaited_once_with(
+            "query",
+            memory_types=None,
+            limit=10,
+            use_rrf=True,
+            include_raw=False,
+            since=None,
+            until=None,
+            track_access=True,
+            dynamic_signal_weights=None,
+        )
 
     @pytest.mark.asyncio
     async def test_get_context_delegates(self):

@@ -341,7 +341,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
         Returns:
             tuple[bool, str]: (is_intact, message)
         """
-        if self._relational is not None and hasattr(self._relational, "check_integrity"):
+        if self._relational is not None:
             return await self._relational.check_integrity()
         return True, "ok"
 

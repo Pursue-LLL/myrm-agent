@@ -116,6 +116,7 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 # Feature packages shipped as readable source; list a package in core_manifest.yaml to compile it.
                 "budget_packing",
                 "chunking",
+                "ephemeral",
                 "ephemeral_delta",
                 "mem_cube",
                 "migration",

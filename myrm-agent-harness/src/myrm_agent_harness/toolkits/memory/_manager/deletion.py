@@ -143,7 +143,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
         """Clean the claim graph, exact facts and embedding cache of memories whose documents were deleted."""
         for doc in docs:
             await self._cascade_clean_derived_graph_nodes(doc.id)
-            if self._relational is not None and hasattr(self._relational, "delete_exact_fact"):
+            if self._relational is not None:
                 try:
                     await self._relational.delete_exact_fact(doc.id)
                 except Exception as e:
