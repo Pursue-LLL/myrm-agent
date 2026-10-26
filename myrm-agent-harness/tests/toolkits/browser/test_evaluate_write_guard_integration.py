@@ -1,4 +1,4 @@
-"""Real-Chromium proof that `evaluate` does not let page JS write to a server without a person.
+"""Real-Chromium proof that a page-JS write spelled with a method literal or `sendBeacon` never reaches the server.
 
 Outside an agent run nobody can approve, so a guarded expression is blocked (fail closed). The loopback server
 records every request it receives, so "stopped" is proven by the server's hit count, not by the answer the model

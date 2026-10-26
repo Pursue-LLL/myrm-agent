@@ -56,7 +56,8 @@ _JS_MUTATION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"location\.(?:href|assign|replace)\s*="), "Navigation redirect"),
     (re.compile(r"location\.(?:assign|replace)\s*\("), "Navigation redirect"),
     # A write is recognised by its method literal (quoted or bare key, any position among the request options),
-    # not by the call it appears in; sendBeacon always sends a POST.
+    # not by the call it appears in; sendBeacon always sends a POST. A method computed at run time is invisible
+    # to this static check.
     (re.compile(r"""\bmethod['"`]?\s*:\s*['"`](?:post|put|patch|delete)['"`]""", re.IGNORECASE), "Network write"),
     (re.compile(r"\bsendBeacon\s*\("), "Network write"),
     (re.compile(r"XMLHttpRequest"), "Legacy XHR mutation"),
