@@ -40,6 +40,7 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import (
     RerankerConfig,
     get_reranker_service,
 )
+from myrm_agent_harness.toolkits.vector.base import VectorStore
 from myrm_agent_harness.toolkits.vector.config import DeploymentMode, VectorStoreConfig
 from myrm_agent_harness.toolkits.vector.qdrant.factory import create_vector_store
 
@@ -102,7 +103,7 @@ async def create_local_memory_manager(
     task_id: str | None = None,
     memory_policy: AgentMemoryPolicy | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
-    vector_store: object | None = None,
+    vector_store: VectorStore | None = None,
     reranker_config: RerankerConfig | None = None,
     time_decay_half_life_days: float | None = None,
     on_conflict: ConflictCallback | None = None,
@@ -125,6 +126,8 @@ async def create_local_memory_manager(
             existing BM25 search channel until an embedding backend is configured.
         approval_required: Whether writes need human approval.
         dedup_llm: Optional LLM for smart deduplication.
+        consolidation_llm: Optional LLM for consolidation, staleness review and recurrence
+            checks; defaults to ``dedup_llm`` when not given.
 
     Returns:
         A fully initialized MemoryManager.
@@ -165,16 +168,18 @@ async def create_local_memory_manager(
     # Ensure collections exist. Dense collections need an embedding dimension;
     # without an embedding backend they are skipped and the BM25 sparse mirror
     # is ensured on the first sparse write instead.
-    mem_config_args = {
-        "embedding_model": embedding_config.model if embedding_config is not None else _SPARSE_ONLY_EMBEDDING_MODEL
-    }
-    if time_decay_half_life_days is not None:
+    embedding_model = embedding_config.model if embedding_config is not None else _SPARSE_ONLY_EMBEDDING_MODEL
+    if time_decay_half_life_days is None:
+        mem_config = MemoryConfig(embedding_model=embedding_model)
+    else:
         from myrm_agent_harness.toolkits.memory.strategies.forgetting import (
             ForgettingConfig,
         )
 
-        mem_config_args["forgetting"] = ForgettingConfig(time_decay_half_life_days=time_decay_half_life_days)
-    mem_config = MemoryConfig(**mem_config_args)
+        mem_config = MemoryConfig(
+            embedding_model=embedding_model,
+            forgetting=ForgettingConfig(time_decay_half_life_days=time_decay_half_life_days),
+        )
     if vector_store and dim:
         for coll in [mem_config.semantic_collection, mem_config.episodic_collection]:
             try:
@@ -215,7 +220,9 @@ async def create_local_memory_manager(
     graph_store = SQLiteGraphStore(db_path=str(graph_db_path))
 
     # 6. Create and return the MemoryManager
-    consolidation_llm = dedup_llm  # Reuse dedup_llm for consolidation
+    # An explicit consolidation model wins; callers that pass only a dedup model
+    # get that same model for consolidation, staleness review and recurrence checks.
+    consolidation_llm = consolidation_llm if consolidation_llm is not None else dedup_llm
 
     # Cross-encoder rerank gate for the retrieval pipeline; the factory-level
     # process cache dedupes identical configs across manager instances.

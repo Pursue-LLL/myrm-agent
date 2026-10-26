@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, PropertyMock, patch
 
 import pytest
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
@@ -12,13 +13,9 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingCon
 async def test_create_local_memory_manager(tmp_path: Path):
     base_path = tmp_path / "memory"
 
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
-    manager = await create_local_memory_manager(
-        base_path=base_path, embedding_config=embedding_config
-    )
+    manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     assert isinstance(manager, MemoryManager)
 
@@ -27,12 +24,40 @@ async def test_create_local_memory_manager(tmp_path: Path):
     assert (base_path / "vector_store").exists()
 
     # Check that the manager has the expected stores
-    assert (
-        hasattr(manager, "_relational_store")
-        or hasattr(manager, "relational_store")
-        or hasattr(manager, "store")
-    )
+    assert hasattr(manager, "_relational_store") or hasattr(manager, "relational_store") or hasattr(manager, "store")
     await manager.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("pass_dedup", "pass_consolidation", "expected"),
+    [
+        (False, True, "consolidation"),
+        (True, True, "consolidation"),
+        (True, False, "dedup"),
+        (False, False, None),
+    ],
+    ids=["consolidation-only", "consolidation-beats-dedup", "dedup-fallback", "neither"],
+)
+async def test_consolidation_llm_prefers_the_explicit_model_and_falls_back_to_dedup(
+    tmp_path: Path, pass_dedup: bool, pass_consolidation: bool, expected: str | None
+):
+    models = {
+        "dedup": FakeListChatModel(responses=["dedup"]),
+        "consolidation": FakeListChatModel(responses=["consolidation"]),
+    }
+
+    manager = await create_local_memory_manager(
+        base_path=tmp_path / "memory",
+        embedding_config=None,
+        dedup_llm=models["dedup"] if pass_dedup else None,
+        consolidation_llm=models["consolidation"] if pass_consolidation else None,
+    )
+
+    try:
+        assert manager.consolidation_llm is (models[expected] if expected else None)
+    finally:
+        await manager.close()
 
 
 @pytest.mark.asyncio
@@ -55,9 +80,7 @@ async def test_create_local_memory_manager_passes_memory_policy(tmp_path: Path):
             AsyncMock(return_value=mock_vector_store),
         ),
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     assert isinstance(manager, MemoryManager)
     assert manager.user_id == "sandbox_user"
@@ -87,9 +110,7 @@ async def test_create_local_memory_manager_probes_dimension_when_missing(
             AsyncMock(return_value=mock_vector_store),
         ) as mock_create_vector_store,
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     mock_embedding_service.embed.assert_awaited_once_with("dimension probe")
     assert mock_create_vector_store.await_args.args[0].embedding_dimension == 384
@@ -120,9 +141,7 @@ async def test_create_local_memory_manager_falls_back_to_default_dimension_on_pr
             AsyncMock(return_value=mock_vector_store),
         ) as mock_create_vector_store,
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     # The store default is not the model's size; the guess must never reach ensure/create.
     assert mock_create_vector_store.await_args.args[0].embedding_dimension == 1536
@@ -139,9 +158,7 @@ async def test_create_local_memory_manager_probes_dimension_when_property_raises
     base_path = tmp_path / "memory"
     embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small")
     mock_embedding_service = AsyncMock()
-    type(mock_embedding_service).dimension = PropertyMock(
-        side_effect=RuntimeError("dimension not yet detected")
-    )
+    type(mock_embedding_service).dimension = PropertyMock(side_effect=RuntimeError("dimension not yet detected"))
     mock_embedding_service.embed = AsyncMock(return_value=[0.1] * 384)
     mock_embedding_service.embed_batch = AsyncMock(return_value=[[0.1] * 384])
     mock_vector_store = AsyncMock()
@@ -157,9 +174,7 @@ async def test_create_local_memory_manager_probes_dimension_when_property_raises
             AsyncMock(return_value=mock_vector_store),
         ) as mock_create_vector_store,
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     mock_embedding_service.embed.assert_awaited_once_with("dimension probe")
     assert mock_create_vector_store.await_args.args[0].embedding_dimension == 384
@@ -221,9 +236,7 @@ async def test_create_local_memory_manager_creates_the_conversation_collection_w
             AsyncMock(return_value=mock_vector_store),
         ),
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     assert isinstance(manager, MemoryManager)
     mock_vector_store.create_named_vector_collection.assert_awaited_once_with(
@@ -254,9 +267,7 @@ async def test_create_local_memory_manager_continues_when_collection_ensure_fail
             AsyncMock(return_value=mock_vector_store),
         ),
     ):
-        manager = await create_local_memory_manager(
-            base_path=base_path, embedding_config=embedding_config
-        )
+        manager = await create_local_memory_manager(base_path=base_path, embedding_config=embedding_config)
 
     assert isinstance(manager, MemoryManager)
     await manager.close()

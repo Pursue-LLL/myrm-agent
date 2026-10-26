@@ -4,7 +4,9 @@ The reviewer takes a ``(system, user) -> text`` callable; the manager owns a cha
 These tests run the whole cycle on a real manager with a real ``BaseChatModel``
 subclass, so the adapter, the shared mirror-aware vector store and the metadata
 write-back are exercised together: a decision must reach the stored memory without
-re-dating it, and a reviewed memory must leave the review queue.
+re-dating it, and a reviewed memory must leave the review queue. The model is handed
+in both ways a caller can: as the dedup model (which consolidation falls back to) and
+as the consolidation model alone, which is how the memory guardian builds its manager.
 """
 
 from __future__ import annotations
@@ -24,7 +26,10 @@ _AGE_DAYS = 200
 
 
 @pytest.mark.asyncio
-async def test_cycle_applies_a_chat_models_decisions_without_redating_memories(tmp_path: Path) -> None:
+@pytest.mark.parametrize("consolidation_only", [False, True], ids=["dedup-model", "consolidation-model-only"])
+async def test_cycle_applies_a_chat_models_decisions_without_redating_memories(
+    tmp_path: Path, consolidation_only: bool
+) -> None:
     ids = [str(uuid4()) for _ in range(4)]
     review = json.dumps(
         [
@@ -34,7 +39,13 @@ async def test_cycle_applies_a_chat_models_decisions_without_redating_memories(t
             {"id": ids[3], "action": "keep", "reason": "still true"},
         ]
     )
-    manager = await create_local_memory_manager(tmp_path / "mem", None, dedup_llm=FakeListChatModel(responses=[review]))
+    model = FakeListChatModel(responses=[review])
+    manager = await create_local_memory_manager(
+        tmp_path / "mem",
+        None,
+        dedup_llm=None if consolidation_only else model,
+        consolidation_llm=model if consolidation_only else None,
+    )
     try:
         created = datetime.now(UTC) - timedelta(days=_AGE_DAYS)
         for n, memory_id in enumerate(ids):

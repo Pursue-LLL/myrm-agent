@@ -729,6 +729,8 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 **触发时机**：在 maintenance cycle 中，forgetting 之后、preference rebuild 之前执行。复用 consolidation LLM。
 
+**模型来源**：整理、陈旧复审与复发检测共用同一个 consolidation LLM。工厂 `create_local_memory_manager` 以显式传入的 `consolidation_llm` 为准，未传入时回落到 `dedup_llm`；两者都缺省时整理与陈旧复审不运行，复发检测退化为取最近一条对话片段作为合并结果。
+
 ### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `named_entity_guard.py`)
 
 跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成。
