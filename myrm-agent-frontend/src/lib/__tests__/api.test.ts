@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { apiRequest, fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
+import { apiRequest, fetchOnPageExit, fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
 
 const ensureLocalBackendReady = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
 const markLocalBackendUnreachable = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
@@ -176,6 +176,25 @@ describe('fetchWithTimeout Global Auth Interceptor', () => {
 
     expect(localStorage.getItem('auth_token')).toBeNull();
     expect(window.location.href).toBe('');
+  });
+
+  it('fetchOnPageExit sends a keepalive request in the same tick, before any readiness probe could resolve', () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ status: 200, ok: true } as Response);
+
+    fetchOnPageExit('/webui/vnc/resume', { method: 'POST' });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8080/webui/vnc/resume',
+      expect.objectContaining({ method: 'POST', keepalive: true, credentials: 'include', cache: 'no-store' }),
+    );
+  });
+
+  it('fetchOnPageExit swallows a failed request', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    expect(() => fetchOnPageExit('/webui/vnc/resume', { method: 'POST' })).not.toThrow();
+    await Promise.resolve();
   });
 });
 

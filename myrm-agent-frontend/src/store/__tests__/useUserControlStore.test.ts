@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchWithTimeout = vi.fn();
+const fetchOnPageExit = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   fetchWithTimeout: (...args: unknown[]) => fetchWithTimeout(...args),
+  fetchOnPageExit: (...args: unknown[]) => fetchOnPageExit(...args),
 }));
 
 import useUserControlStore from '../useUserControlStore';
@@ -26,6 +28,7 @@ describe('useUserControlStore', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     fetchWithTimeout.mockReset();
+    fetchOnPageExit.mockReset();
     fetchWithTimeout.mockResolvedValue(ok({ state: 'user_takeover', learned: false }));
   });
 
@@ -154,12 +157,14 @@ describe('useUserControlStore', () => {
 
     window.dispatchEvent(new Event('pagehide'));
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith(RESUME, { method: 'POST', keepalive: true });
+    expect(fetchOnPageExit).toHaveBeenCalledWith(RESUME, { method: 'POST' });
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
   it('has nothing to hand back on pagehide when the person never held control', () => {
     window.dispatchEvent(new Event('pagehide'));
 
+    expect(fetchOnPageExit).not.toHaveBeenCalled();
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 });

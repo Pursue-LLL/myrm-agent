@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - zustand::create (POS: Lightweight state management)
- * - @/lib/api::fetchWithTimeout (POS: Direct REST client)
+ * - @/lib/api::fetchWithTimeout, fetchOnPageExit (POS: Direct REST client; the latter survives page teardown)
  *
  * [OUTPUT]
  * useUserControlStore: whether the person currently drives the agent's browser/desktop (`held`),
@@ -15,7 +15,7 @@
  */
 
 import { create } from 'zustand';
-import { fetchWithTimeout } from '@/lib/api';
+import { fetchOnPageExit, fetchWithTimeout } from '@/lib/api';
 
 const TAKEOVER_ENDPOINT = '/webui/vnc/takeover';
 const RESUME_ENDPOINT = '/webui/vnc/resume';
@@ -120,7 +120,7 @@ const useUserControlStore = create<UserControlState>((set) => ({
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', () => {
     if (useUserControlStore.getState().held) {
-      void fetchWithTimeout(RESUME_ENDPOINT, { method: 'POST', keepalive: true }).catch(() => undefined);
+      fetchOnPageExit(RESUME_ENDPOINT, { method: 'POST' });
     }
   });
 }

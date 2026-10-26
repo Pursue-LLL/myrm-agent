@@ -253,6 +253,32 @@ function inferRetriable(httpCode: number, businessCode?: number | string): boole
   return false;
 }
 
+function withRequestDefaults(options: RequestInit, signal: AbortSignal | undefined): RequestInit {
+  const incomingHeaders =
+    options.headers instanceof Headers
+      ? Object.fromEntries(options.headers.entries())
+      : ((options.headers as Record<string, string> | undefined) ?? {});
+  return {
+    // 强制禁用 Next.js 缓存，防止在开发模式下缓存 502/ECONNREFUSED 错误
+    cache: 'no-store',
+    ...options,
+    headers: withMobilePairHeaders(incomingHeaders),
+    signal,
+    // 默认携带 credentials 以确保 SSE 和普通请求都发送认证 cookie。
+    // SHPOIB E2E: private :180xx auth is loopback-trusted; omit cookies on cross-origin SSE.
+    // Applied after spread so callers cannot accidentally override with credentials: 'include'.
+    credentials: options.credentials ?? (resolveE2eApiBase() ? 'omit' : 'include'),
+  };
+}
+
+/**
+ * 页面卸载（`pagehide`）时发出的即发即忘请求。
+ * 请求必须同步发出：标签页关闭时，`fetchWithTimeout` 先 await 的就绪探测之后的代码可能永远不会执行。
+ */
+export const fetchOnPageExit = (endpoint: string, options: RequestInit = {}): void => {
+  fetch(getApiUrl(endpoint), { ...withRequestDefaults(options, undefined), keepalive: true }).catch(() => undefined);
+};
+
 /**
  * 带超时控制的 fetch 函数。
  * 当调用者已传入 signal 时，通过 AbortSignal.any() 将取消信号与超时信号组合，
@@ -279,23 +305,7 @@ export const fetchWithTimeout = async (
   const combinedSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
 
   try {
-    // 强制禁用 Next.js 缓存，防止在开发模式下缓存 502/ECONNREFUSED 错误
-    // 默认携带 credentials 以确保 SSE 和普通请求都发送认证 cookie
-    const incomingHeaders =
-      options.headers instanceof Headers
-        ? Object.fromEntries(options.headers.entries())
-        : ((options.headers as Record<string, string> | undefined) ?? {});
-    const headers = withMobilePairHeaders(incomingHeaders);
-    const fetchOptions: RequestInit = {
-      cache: 'no-store',
-      ...options,
-      headers,
-      signal: combinedSignal,
-      // SHPOIB E2E: private :180xx auth is loopback-trusted; omit cookies on cross-origin SSE.
-      // Applied after spread so callers cannot accidentally override with credentials: 'include'.
-      credentials: options.credentials ?? (resolveE2eApiBase() ? 'omit' : 'include'),
-    };
-    const response = await fetch(url, fetchOptions);
+    const response = await fetch(url, withRequestDefaults(options, combinedSignal));
 
     // 全局 401/403 强制登出拦截 (底层 Fetch 拦截)
     if (response.status === 401) {
