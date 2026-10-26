@@ -30,6 +30,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandRuntimeStatus,
 )
 from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import (
+    DiagnosticStatus,
     critical_probe,
     doctor_check_to_probe,
     missing_probe,
@@ -55,8 +56,6 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import 
 )
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.memory.shared_context.shared_context_health import check_shared_context_memory_health
-
-DiagnosticStatus = str
 
 
 class MemoryDiagnosticsService:
@@ -104,7 +103,7 @@ class MemoryDiagnosticsService:
         if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
             try:
                 rel_store = self._memory_manager._relational
-                if hasattr(rel_store, "check_integrity"):
+                if rel_store is not None and hasattr(rel_store, "check_integrity"):
                     relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
             except Exception as e:
                 relational_integrity_ok = False
@@ -169,7 +168,7 @@ class MemoryDiagnosticsService:
         if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
             try:
                 rel_store = self._memory_manager._relational
-                if hasattr(rel_store, "check_integrity"):
+                if rel_store is not None and hasattr(rel_store, "check_integrity"):
                     relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
             except Exception as e:
                 relational_integrity_ok = False
@@ -326,7 +325,7 @@ class MemoryDiagnosticsService:
                 next_action="Enable relational or vector memory storage, then rerun diagnostics.",
             )
         try:
-            results = await manager.search("memory reliability retrieval probe 记忆诊断", limit=1)
+            results = await manager.search("memory reliability retrieval probe 记忆诊断", limit=1, track_access=False)
             trace = manager.last_retrieval_trace
         except Exception as exc:
             return critical_probe(
@@ -377,6 +376,7 @@ class MemoryDiagnosticsService:
                 memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC],
                 limit=1,
                 use_rrf=True,
+                track_access=False,
             )
         except Exception as exc:
             return critical_probe(

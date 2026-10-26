@@ -37,6 +37,7 @@ class _FakeSharedMemoryManager:
     def __init__(self, existing_results: list[MemorySearchResult] | None = None) -> None:
         self.existing_results = existing_results or []
         self.stored: list[tuple[SemanticMemory | EpisodicMemory, bool]] = []
+        self.search_tracking: list[bool] = []
 
     async def search(
         self,
@@ -45,8 +46,10 @@ class _FakeSharedMemoryManager:
         memory_types: list[MemoryType] | None = None,
         limit: int = 10,
         use_rrf: bool = True,
+        track_access: bool = True,
     ) -> list[MemorySearchResult]:
         _ = (query, memory_types, limit, use_rrf)
+        self.search_tracking.append(track_access)
         return self.existing_results
 
     async def store(
@@ -253,6 +256,8 @@ async def test_shared_context_proposal_materializer_writes_audited_semantic_memo
     assert memory.metadata["shared_context_proposal_id"] == proposal.id
     assert memory.metadata["shared_context_source_type"] == "chat_history"
     assert "nested" not in memory.metadata
+    # The existence check before writing is bookkeeping: it must not mark what it finds as used.
+    assert manager.search_tracking == [False]
 
 
 @pytest.mark.asyncio

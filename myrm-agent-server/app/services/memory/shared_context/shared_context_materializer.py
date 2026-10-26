@@ -170,5 +170,6 @@ class SharedContextProposalMaterializer:
             memory_types=[_proposal_memory_type(proposal)],
             limit=10,
             use_rrf=False,
+            track_access=False,
         )
         return any(_is_same_proposal(result, proposal.id) for result in results)

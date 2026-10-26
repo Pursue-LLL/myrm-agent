@@ -19,7 +19,7 @@ from myrm_agent_harness.toolkits.memory import MemoryOperationStatus
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticProbeResult, MemoryCommandDoctorCheck
 
-DiagnosticStatus = str
+DiagnosticStatus = Literal["ready", "warning", "critical", "missing"]
 DiagnosticCategory = Literal["storage", "index", "embedding", "ledger", "deployment", "quality"]
 
 

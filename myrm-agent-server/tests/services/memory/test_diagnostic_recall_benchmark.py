@@ -178,7 +178,10 @@ async def test_run_golden_recall_benchmark_mock_manager() -> None:
 
     mock_manager.store = AsyncMock(side_effect=mock_store)
 
+    search_kwargs: list[dict[str, object]] = []
+
     async def mock_search(query: str, **kwargs):
+        search_kwargs.append(kwargs)
         return [
             MagicMock(
                 id=f"mem_{len(query)}",
@@ -197,3 +200,6 @@ async def test_run_golden_recall_benchmark_mock_manager() -> None:
     assert "Golden recall:" in result.evidence
     assert result.benchmark_summary is not None
     assert result.benchmark_summary.case_count > 0
+    # A benchmark query is not a recall: it must not mark the memories it hits as used.
+    assert len(search_kwargs) == result.benchmark_summary.case_count
+    assert all(kwargs["track_access"] is False for kwargs in search_kwargs)

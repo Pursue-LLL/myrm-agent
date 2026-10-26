@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from time import perf_counter
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import (
     EpisodicMemory,
@@ -48,7 +49,7 @@ class _BenchmarkPair:
     content: str
     query: str
     memory_type: MemoryType
-    language: str = "en"
+    language: Literal["zh", "en"] = "en"
 
 
 _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
@@ -387,7 +388,8 @@ async def _run_case(
     category: str = "",
 ) -> MemoryRecallBenchmarkResult:
     t0 = perf_counter()
-    results = await manager.search(case.query, memory_types=[memory_type], limit=case.top_k, use_rrf=True)
+    # A probe is not a recall: stamping the hits would mark real memories as used.
+    results = await manager.search(case.query, memory_types=[memory_type], limit=case.top_k, use_rrf=True, track_access=False)
     latency_ms = round((perf_counter() - t0) * 1000, 2)
     hit_ids = [result.id for result in results]
     matching_ranks = [idx + 1 for idx, memory_id in enumerate(hit_ids) if memory_id in case.expected_memory_ids]
