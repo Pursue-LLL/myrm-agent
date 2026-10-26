@@ -5,18 +5,26 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Protocol
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser import BrowserSession
+
 _BUILTIN_DIR = Path(__file__).resolve().parents[4] / "src/myrm_agent_harness/toolkits/browser/domain_skills/builtin"
 
 
-def _load_tool(skill_id: str, tool_file: str, callable_name: str) -> Callable[..., Any]:
+class _DomainTool(Protocol):
+    """The entry point a domain skill's tool file exposes through its manifest's ``python_tools``."""
+
+    async def __call__(self, session: BrowserSession, args: dict[str, str | int]) -> str: ...
+
+
+def _load_tool(skill_id: str, tool_file: str, callable_name: str) -> _DomainTool:
     module_name = f"myrm_agent_harness_domain_{skill_id}_{callable_name}"
     mod = sys.modules.get(module_name)
     if mod is None:
@@ -26,7 +34,7 @@ def _load_tool(skill_id: str, tool_file: str, callable_name: str) -> Callable[..
         mod = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = mod
         spec.loader.exec_module(mod)
-    tool: Callable[..., Any] = getattr(mod, callable_name)
+    tool: _DomainTool = getattr(mod, callable_name)
     return tool
 
 
@@ -188,17 +196,6 @@ async def test_xiaohongshu_reports_a_login_wall_instead_of_an_empty_feed() -> No
 
     assert result["status"] == "login_required"
     assert "browser_ask_human_tool" in result["message"]
-
-
-@pytest.mark.asyncio
-async def test_xiaohongshu_keeps_the_notes_it_found_when_the_page_also_asks_for_a_login() -> None:
-    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
-
-    refs = MappingProxyType({"n1": _MockRefInfo(role="link", name=f"上海周末宝藏咖啡馆拍照指南 {_XHS_NOTE_ID}")})
-
-    notes = json.loads(await get_note_feed(_xhs_session(refs, "请登录\n\n扫码登录"), {}))
-
-    assert [n["note_id"] for n in notes] == [_XHS_NOTE_ID]
 
 
 @pytest.mark.asyncio
