@@ -397,8 +397,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
-| `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理） |
-| `services/memory/test_backup_remote.py` | 模块 | 远程备份策略与调度：配置/WebDAV XML 解析、`_upload_with_retry`、`_rotate_backups`、运行互斥、下载失败与版本不符的恢复拒绝、远程备份路由（配置缺失与可达性） |
+| `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理）· `test_remote_rotation.py`（按文件名时间戳留最新、不删自己没写的文件、设备名包含/带点/按输入写法的轮转、单个删除失败不中断、`max_backups` 为 0 不轮转、设备名清洗）· `test_remote_s3_client.py`（S3 备份客户端：前缀下往返、列表跳过目录占位、空桶、每次操作只开关一个客户端、区域与端点缺省、失败如实上报）· `test_remote_webdav_parser.py`（WebDAV 列表解析：非 `.gz` 过滤、名字按上传时的写法还原、解码后含路径分隔符的条目跳过） |
+| `services/memory/test_backup_remote.py` | 模块 | 远程备份策略与调度：配置、`_upload_with_retry`、`_rotate_backups`、运行互斥、下载失败与版本不符的恢复拒绝、远程备份路由（配置缺失与可达性） |
 | `api/memory/test_memory_backup_smoke.py` | 集成 | 备份 HTTP 全流程（真实路由 + 服务 + 卷存储 + 离线记忆管理器）：创建→列表→覆盖恢复（含自动留底）→删除；合并恢复；未知/畸形 id 404 且不动记忆；快照不完整与备份损坏的 `success=false` 响应形状 |
 | `lifecycle/test_cognitive_clock.py` | 模块 | 认知时钟调度：T2 维护流水线每一步按真实签名调用（签名约束桩 autospec，健康快照与 SQLite 备份的调用必须匹配真实签名）、T3 仅随 T2 放行的 tick 且满一周才运行、首次读取唤醒守卫前的 15 分钟空闲间隔不遮住用户活动让步、唤醒心跳随协调器启停 |
 | `lifecycle/test_wakeup_guard.py` | 模块 | 唤醒平滑守卫：两次读取之间的空闲间隔本身不算唤醒、墙钟与单调时钟漂移不论间隔多长都算唤醒、心跳运行期间的漏拍算唤醒、心跳启动时忘掉此前的时间、心跳停止期间的空闲间隔不算冻结 |
