@@ -117,3 +117,14 @@ async def test_oneshot_turn_starts_fresh_and_leaves_the_persistent_session_resum
     assert oneshot != first
     assert third == first
     assert fake_claude.resume_args() == [None, None, first]
+
+
+@pytest.mark.asyncio
+async def test_releasing_resident_backends_keeps_the_cli_resume_id(pool: RuntimePool, fake_claude: _FakeClaude) -> None:
+    """Idle cleanup frees ACP processes; a CLI chat must still resume where it left off afterwards."""
+    first, _ = await _run_turn(pool)
+    await pool.release_resident()
+    second, _ = await _run_turn(pool)
+
+    assert second == first
+    assert fake_claude.resume_args() == [None, first]

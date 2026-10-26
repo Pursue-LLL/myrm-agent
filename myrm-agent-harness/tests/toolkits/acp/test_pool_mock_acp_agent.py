@@ -107,11 +107,13 @@ async def test_oneshot_runs_in_its_own_process_and_session_and_leaves_the_persis
         persistent_pid, persistent_session = _resident(pool.get("mock"))
 
         oneshot_resident: tuple[int, str] | None = None
+        oneshot_backend: object | None = None  # referenced so garbage collection cannot stand in for close()
         oneshot_text: list[str] = []
         async for event in pool.run_turn("mock", "review", session_id="mock-oneshot-1", mode="oneshot"):
             if event.type == RuntimeEventType.TEXT_DELTA:
                 oneshot_text.append(str(event.data.get("content")))
-                oneshot_resident = _resident(pool._oneshot_backends[("mock", "mock-oneshot-1")])
+                oneshot_backend = pool._oneshot_backends[("mock", "mock-oneshot-1")]
+                oneshot_resident = _resident(oneshot_backend)
 
         assert "[echo] review" in "".join(oneshot_text)
         assert oneshot_resident is not None
@@ -125,3 +127,26 @@ async def test_oneshot_runs_in_its_own_process_and_session_and_leaves_the_persis
         assert _resident(pool.get("mock")) == (persistent_pid, persistent_session)
     finally:
         await pool.close_all()
+
+
+@pytest.mark.asyncio
+async def test_release_resident_stops_the_acp_process_and_the_next_turn_starts_a_new_one(tmp_path: Path) -> None:
+    pool = _mock_pool(tmp_path)
+    try:
+        assert "[echo] first" in await _echo(pool, "first")
+        released_pid = _pid_of(pool)
+        # Keep the backend referenced: an unreferenced one could be torn down by garbage collection
+        # and make the process look released even if release_resident never closed it.
+        released_backend = pool.get("mock")
+
+        await pool.release_resident()
+
+        assert await _wait_until_gone(released_pid)
+        assert released_backend is not pool.get("mock")
+        assert "[echo] second" in await _echo(pool, "second")
+        new_pid = _pid_of(pool)
+    finally:
+        await pool.close_all()
+
+    assert new_pid != released_pid
+    assert await _wait_until_gone(new_pid)

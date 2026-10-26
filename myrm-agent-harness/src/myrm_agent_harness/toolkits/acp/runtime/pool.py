@@ -5,7 +5,8 @@ concurrency control via a global asyncio.Semaphore plus per-backend
 serialization locks. Backends are created lazily on first use, and a resident
 ACP process that has exited is reconnected by its next ``run_turn``. A ``oneshot``
 turn runs on a private backend (fresh session, closed afterwards) so it never
-disturbs the shared backend's persistent session.
+disturbs the shared backend's persistent session. ``release_resident`` frees the
+resident ACP processes of an idle pool while CLI backends keep their resume state.
 
 
 [INPUT]
@@ -59,6 +60,14 @@ def _create_runtime(
 
     msg = f"Unknown backend_type: {config.backend_type!r}"
     raise ValueError(msg)
+
+
+async def _safe_close(name: str, backend: RuntimeBackend) -> None:
+    """Close a backend, logging instead of raising so one failure cannot strand the others."""
+    try:
+        await backend.close()
+    except Exception:
+        logger.warning("pool_close_failed backend=%s", name, exc_info=True)
 
 
 class RuntimePool:
@@ -219,15 +228,27 @@ class RuntimePool:
             await backend.cancel(session_id)
             logger.info("pool_cancel backend=%s session=%s", name, session_id)
 
+    async def release_resident(self) -> None:
+        """Stop the backends that keep an OS process between turns (ACP) and keep the rest.
+
+        A CLI backend runs one process per turn, so between turns it holds nothing but the session id
+        behind ``--resume``; that stays. A released ACP backend is recreated by its next turn.
+        Call it only while no turn is running on this pool.
+        """
+        resident = {
+            name: backend
+            for name, backend in self._backends.items()
+            if (config := self._configs.get(name)) is not None and config.backend_type == "acp"
+        }
+        if not resident:
+            return
+        for name in resident:
+            del self._backends[name]
+        await asyncio.gather(*[_safe_close(name, backend) for name, backend in resident.items()])
+        logger.info("runtime_pool_released_resident backends=%s", ",".join(resident))
+
     async def close_all(self) -> None:
         """Close all active backend connections, including in-flight oneshot turns."""
-
-        async def _safe_close(name: str, backend: RuntimeBackend) -> None:
-            try:
-                await backend.close()
-            except Exception:
-                logger.warning("pool_close_failed backend=%s", name, exc_info=True)
-
         backends = [*self._backends.items(), *((n, b) for (n, _), b in self._oneshot_backends.items())]
         if backends:
             await asyncio.gather(*[_safe_close(n, b) for n, b in backends])
