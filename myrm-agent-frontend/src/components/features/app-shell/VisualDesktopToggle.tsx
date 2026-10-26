@@ -2,13 +2,15 @@
  * [INPUT]
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
  * - useBrowserTakeoverActions (POS: Complete/Skip 与 VNC resume 同步)
+ * - useUserControlStore (POS: 用户是否正在操作 Agent 的浏览器/桌面，接管与交还)
  * - VisualDesktop (POS: VNC/noVNC 实时桌面嵌入视图)
  *
  * [OUTPUT]
- * VisualDesktopToggle: managed 模式 VNC 浮动面板与 HITL takeover 条
+ * VisualDesktopToggle: managed 模式 VNC 浮动面板、接管/交还控制条与 HITL takeover 条
  *
  * [POS]
- * 沙箱/本地 VNC 桌面入口。extension 模式 takeover 由 ExtensionTakeoverBanner 处理，本组件不脉冲/不自动打开。
+ * 沙箱/本地 VNC 桌面入口。面板默认仅查看；接管后才能点击/输入，期间 Agent 的浏览器与桌面工具暂停，交还后继续。
+ * 关闭面板即交还（除非 Agent 正在等 Done/Skip）。extension 模式 takeover 由 ExtensionTakeoverBanner 处理，本组件不脉冲/不自动打开。
  */
 
 'use client';
@@ -16,12 +18,16 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { MonitorPlay, X, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { MonitorPlay, X, RefreshCw, CheckCircle2, XCircle, Eye, MousePointerClick, Undo2 } from 'lucide-react';
 import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { useBrowserTakeoverActions } from '@/hooks/approval/useBrowserTakeoverActions';
 import { isSandbox } from '@/lib/deploy-mode';
 import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
+import { cn } from '@/lib/utils/classnameUtils';
+import { OPEN_VISUAL_DESKTOP_EVENT, type OpenVisualDesktopDetail } from '@/lib/visualDesktopEvents';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+import useUserControlStore from '@/store/useUserControlStore';
 
 const VisualDesktop = dynamic(() => import('./VisualDesktop').then((module) => ({ default: module.VisualDesktop })), {
   ssr: false,
@@ -39,9 +45,49 @@ export const VisualDesktopToggle = () => {
   const uiMode = useBrowserTakeoverStore((s) => s.uiMode);
   const autoDetectCompletion = useBrowserTakeoverStore((s) => s.autoDetectCompletion);
   const takeoverReason = useBrowserTakeoverStore((s) => s.reason);
+  const held = useUserControlStore((s) => s.held);
+  const [controlBusy, setControlBusy] = useState(false);
   const managedTakeoverPending = pending && uiMode === 'managed';
   const awaitingUserAction = managedTakeoverPending && !autoDetectCompletion;
+  const interactive = held || managedTakeoverPending;
   const { handleTakeoverComplete, handleTakeoverSkip } = useBrowserTakeoverActions();
+
+  const takeControl = useCallback(async () => {
+    setControlBusy(true);
+    try {
+      if (!(await useUserControlStore.getState().acquire('User took control'))) {
+        toast.error(t('takeControlFailed'));
+      }
+    } finally {
+      setControlBusy(false);
+    }
+  }, [t]);
+
+  const handBack = useCallback(async (): Promise<boolean> => {
+    setControlBusy(true);
+    try {
+      await useUserControlStore.getState().release();
+      return true;
+    } catch {
+      toast.error(t('handBackFailed'));
+      return false;
+    } finally {
+      setControlBusy(false);
+    }
+  }, [t]);
+
+  // The agent waits for Done/Skip while a managed takeover is pending; closing the panel must not hand control back then.
+  const shouldHandBackOnLeave = useCallback(() => {
+    const takeover = useBrowserTakeoverStore.getState();
+    return useUserControlStore.getState().held && !(takeover.pending && takeover.uiMode === 'managed');
+  }, []);
+
+  const closePanel = useCallback(async () => {
+    if (shouldHandBackOnLeave() && !(await handBack())) {
+      return;
+    }
+    setIsOpen(false);
+  }, [handBack, shouldHandBackOnLeave]);
 
   useEffect(() => {
     if (managedTakeoverPending && !isOpen) {
@@ -50,14 +96,29 @@ export const VisualDesktopToggle = () => {
   }, [managedTakeoverPending, isOpen]);
 
   useEffect(() => {
-    const handleOpenVisualDesktop = () => {
+    const handleOpenVisualDesktop = (event: Event) => {
       setIsOpen(true);
+      if ((event as CustomEvent<OpenVisualDesktopDetail>).detail?.takeover) {
+        void takeControl();
+      }
     };
-    window.addEventListener('open_visual_desktop', handleOpenVisualDesktop);
+    window.addEventListener(OPEN_VISUAL_DESKTOP_EVENT, handleOpenVisualDesktop);
     return () => {
-      window.removeEventListener('open_visual_desktop', handleOpenVisualDesktop);
+      window.removeEventListener(OPEN_VISUAL_DESKTOP_EVENT, handleOpenVisualDesktop);
     };
-  }, []);
+  }, [takeControl]);
+
+  useEffect(
+    () => () => {
+      if (shouldHandBackOnLeave()) {
+        void useUserControlStore
+          .getState()
+          .release()
+          .catch(() => undefined);
+      }
+    },
+    [shouldHandBackOnLeave],
+  );
 
   const loadVnc = useCallback(
     async (isMounted: { current: boolean }) => {
@@ -117,7 +178,7 @@ export const VisualDesktopToggle = () => {
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? void closePanel() : setIsOpen(true))}
         className={`fixed bottom-24 right-6 p-3 rounded-full shadow-lg transition-colors z-50 flex items-center justify-center max-sm:bottom-20 max-sm:right-4 ${managedTakeoverPending ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
         title={managedTakeoverPending ? takeoverReason : t('toggleTitle')}
         aria-label={t('toggleTitle')}
@@ -142,7 +203,7 @@ export const VisualDesktopToggle = () => {
                 <RefreshCw size={16} />
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => void closePanel()}
                 className="text-muted-foreground hover:text-foreground"
                 aria-label={t('close')}
               >
@@ -150,6 +211,42 @@ export const VisualDesktopToggle = () => {
               </button>
             </div>
           </div>
+          {!managedTakeoverPending && (
+            <div
+              data-testid="visual-desktop-control-bar"
+              className={cn(
+                'px-4 py-2 border-b flex items-center gap-3',
+                held ? 'bg-primary/10 border-primary/20' : 'bg-muted/50 border-border',
+              )}
+            >
+              {held ? (
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+              ) : (
+                <Eye size={14} className="text-muted-foreground shrink-0" />
+              )}
+              <p className="text-sm flex-1 min-w-0 truncate">
+                <span className="font-medium text-foreground">{held ? t('inControl') : t('viewOnly')}</span>
+                <span className="hidden sm:inline text-muted-foreground">
+                  {' · '}
+                  {held ? t('inControlHint') : t('viewOnlyHint')}
+                </span>
+              </p>
+              <button
+                onClick={() => void (held ? handBack() : takeControl())}
+                disabled={controlBusy}
+                data-testid={held ? 'visual-desktop-hand-back' : 'visual-desktop-take-control'}
+                className={cn(
+                  'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-60',
+                  held
+                    ? 'bg-muted text-foreground hover:bg-muted/80'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                )}
+              >
+                {held ? <Undo2 size={14} /> : <MousePointerClick size={14} />}
+                {held ? t('handBack') : t('takeControl')}
+              </button>
+            </div>
+          )}
           {managedTakeoverPending && (
             <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
@@ -194,7 +291,12 @@ export const VisualDesktopToggle = () => {
               </div>
             ) : null}
             {!loadError && effectiveWsUrl && !isLoadingUrl ? (
-              <VisualDesktop wsUrl={effectiveWsUrl} className="w-full h-full" onReconnect={handleReconnect} />
+              <VisualDesktop
+                wsUrl={effectiveWsUrl}
+                className="w-full h-full"
+                onReconnect={handleReconnect}
+                viewOnly={!interactive}
+              />
             ) : null}
           </div>
         </div>

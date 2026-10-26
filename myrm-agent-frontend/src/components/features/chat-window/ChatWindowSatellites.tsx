@@ -151,14 +151,6 @@ const DeviceLiveView = dynamic(
   { ssr: false },
 );
 
-const TaskSpaceDock = dynamic(
-  () =>
-    import('@/components/features/browser/TaskSpaceDock').then((module) => ({
-      default: module.TaskSpaceDock,
-    })),
-  { ssr: false },
-);
-
 const FileSnapshotPanel = dynamic(() => import('@/components/features/checkpoint/FileSnapshotPanel'), { ssr: false });
 
 const SessionRevertButton = dynamic(() => import('@/components/features/message-actions/SessionRevertButton'), {
@@ -1032,7 +1024,6 @@ export default function ChatWindowSatellites({
       <BrowserLiveView onSendInstruction={onInspectorInstruction} />
       <BrowserRecordingToggle />
       <BrowserRecordingPanel />
-      <TaskSpaceDock />
       <DesktopInspectorToggle />
       <DesktopLiveView onSendInstruction={onDesktopInspectorInstruction} />
       <DeviceInspectorToggle />

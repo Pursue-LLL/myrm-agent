@@ -5,6 +5,7 @@
  * @/store/chat/useSubagentStore::SubagentNode (POS: Multi-agent execution tree and stream state store)
  * @/store/useBrowserInspectorStore::useBrowserInspectorStore (POS: Browser Inspector state management; selectScopedBrowserViewData)
  * @/store/useChatStore::useChatStore (POS: Active chat session identification)
+ * @/lib/visualDesktopEvents::openVisualDesktop (POS: Open the visual desktop panel, optionally taking control)
  *
  * [OUTPUT]
  * SubagentViewportTab: Sandboxed browser live peek panel and terminal snapshot view for subagents.
@@ -31,6 +32,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
+import { openVisualDesktop } from '@/lib/visualDesktopEvents';
 import type { SubagentNode } from '@/store/chat/useSubagentStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
@@ -136,11 +138,9 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
     return null;
   }, [node.stream, node.last_tool, node.agent_type, node.status, scopedInspectorView, isBrowserActive]);
 
-  const handleOpenDesktop = () => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('open_visual_desktop'));
-      toast.info(t('viewportSwitchingToast'));
-    }
+  const handleOpenDesktop = (takeover: boolean) => {
+    openVisualDesktop({ takeover });
+    toast.info(t('viewportSwitchingToast'));
   };
 
   const handleCopyUrl = (url: string) => {
@@ -168,7 +168,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
         <Button
           variant="outline"
           size="sm"
-          onClick={handleOpenDesktop}
+          onClick={() => handleOpenDesktop(false)}
           data-testid="subagent-viewport-open-desktop-btn"
           className="text-xs gap-1.5"
         >
@@ -255,7 +255,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
           <Button
             size="sm"
             variant="default"
-            onClick={handleOpenDesktop}
+            onClick={() => handleOpenDesktop(true)}
             data-testid="subagent-viewport-takeover-btn"
             className="h-7 px-2.5 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
           >

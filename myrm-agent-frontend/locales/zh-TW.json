@@ -2829,6 +2829,7 @@
       "toggleTitle": "切換瀏覽器檢查器",
       "viewMode": "檢視模式",
       "inspectMode": "檢查模式",
+      "takeoverDesktop": "接管沙箱桌面",
       "refresh": "重新整理",
       "close": "關閉",
       "resizePanel": "調整面板大小",
@@ -12479,7 +12480,15 @@
       "takeoverCaptchaAutoHint": "智慧體正在自動處理驗證，請稍候。",
       "takeoverLearned": "操作已記錄 — Agent 將從你的示範中學習",
       "takeoverResumeFailed": "恢復 Agent 失敗，請重試",
-      "takeoverVncOpenFailed": "無法開啟視覺化桌面以接管瀏覽器，請重連或重試。"
+      "takeoverVncOpenFailed": "無法開啟視覺化桌面以接管瀏覽器，請重連或重試。",
+      "viewOnly": "僅檢視",
+      "viewOnlyHint": "接管後才能點擊或輸入，接管期間 Agent 會暫停。",
+      "takeControl": "接管操作",
+      "takeControlFailed": "接管失敗，請重試",
+      "inControl": "目前由你操作",
+      "inControlHint": "交還之前，Agent 會保持暫停。",
+      "handBack": "交還 Agent",
+      "handBackFailed": "交還失敗，請重試"
     },
     "pricing": {
       "title": "定價",
@@ -13841,20 +13850,6 @@
       "skills": "業務技能",
       "sandbox": "沙箱執行"
     }
-  },
-  "taskSpaces": {
-    "title": "並行瀏覽器任務空間",
-    "badgeRunning": "執行中",
-    "badgeIdle": "閒置待命",
-    "badgeTakeover": "人工接管中",
-    "takeoverBtn": "接管",
-    "releaseTakeoverBtn": "交還智慧體",
-    "closeSpaceBtn": "關閉空間",
-    "activePages": "{count} 個作用中分頁",
-    "emptyState": "目前暫無作用中的並行瀏覽器空間",
-    "snapshotPreview": "即時空間快照",
-    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。",
-    "snapshotAlt": "任務空間快照"
   },
   "modelPlaybook": {
     "title": "模型編排戰略手冊",

@@ -45,6 +45,7 @@ describe('InspectorToolbar', () => {
     expect(dispatchSpy).toHaveBeenCalledTimes(1);
     const dispatchedEvent = dispatchSpy.mock.calls[0][0] as CustomEvent;
     expect(dispatchedEvent.type).toBe('open_visual_desktop');
+    expect(dispatchedEvent.detail).toEqual({ takeover: true });
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 

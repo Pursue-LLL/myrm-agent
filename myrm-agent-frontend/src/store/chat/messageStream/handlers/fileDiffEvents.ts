@@ -2,6 +2,7 @@
  * [INPUT]
  * - handlerDeps (POS: SSE handler 切片共享依赖)
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
+ * - useUserControlStore (POS: 用户是否正在操作 Agent 的浏览器/桌面；managed takeover 请求时接管、Agent 自行完成时交还)
  *
  * [OUTPUT]
  * fileDiffEvents: FILE_DIFF / TOOL_IMAGE / BROWSER_TAKEOVER SSE 切片（含 extension live-assist 链接生成）
@@ -315,19 +316,14 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     actions.setLoading(false);
 
     if (uiMode === 'managed') {
-      const { fetchWithTimeout } = await import('@/lib/api');
-      void fetchWithTimeout('/webui/vnc/takeover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: data.data.reason || '' }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
+      const { default: useUserControlStore } = await import('@/store/useUserControlStore');
+      void useUserControlStore
+        .getState()
+        .acquire(eventReason)
+        .then(async (granted) => {
+          if (!granted) {
             await notifyTakeoverVncOpenFailed();
           }
-        })
-        .catch(async () => {
-          await notifyTakeoverVncOpenFailed();
         });
     } else {
       const { default: useChatStore } = await import('@/store/useChatStore');
@@ -376,7 +372,19 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_COMPLETED) {
     const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
-    useBrowserTakeoverStore.getState().completeTakeover();
+    const takeover = useBrowserTakeoverStore.getState();
+    const heldForAgentRequest = takeover.pending && takeover.uiMode === 'managed';
+    takeover.completeTakeover();
+    if (heldForAgentRequest) {
+      // The agent finished the step itself (e.g. auto-resolved verification): its tools must not keep waiting on the person.
+      const { default: useUserControlStore } = await import('@/store/useUserControlStore');
+      void useUserControlStore
+        .getState()
+        .release()
+        .catch((error: unknown) => {
+          console.warn('[TAKEOVER] Failed to hand control back after completion:', error);
+        });
+    }
     return done(ctx);
   }
 

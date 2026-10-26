@@ -67,7 +67,7 @@ describe('SubagentViewportTab', () => {
     expect(screen.getByText('viewportEmptyTitle')).toBeDefined();
   });
 
-  it('dispatches open_visual_desktop event when clicking open desktop button in placeholder card', () => {
+  it('opens the desktop view-only when clicking the peek button in the placeholder card', () => {
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const node = makeNode({});
 
@@ -79,6 +79,7 @@ describe('SubagentViewportTab', () => {
     expect(dispatchSpy).toHaveBeenCalledTimes(1);
     const event = dispatchSpy.mock.calls[0][0] as CustomEvent;
     expect(event.type).toBe('open_visual_desktop');
+    expect(event.detail).toEqual({ takeover: false });
   });
 
   it('renders active viewport when subagent stream contains screenshot base64 json', () => {
@@ -107,7 +108,7 @@ describe('SubagentViewportTab', () => {
     expect(img.src).toContain('data:image/png;base64');
   });
 
-  it('dispatches open_visual_desktop when takeover button is clicked in active viewport', () => {
+  it('opens the desktop and takes control when the takeover button is clicked in the active viewport', () => {
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const node = makeNode({
       stream: [
@@ -130,6 +131,7 @@ describe('SubagentViewportTab', () => {
     expect(dispatchSpy).toHaveBeenCalledTimes(1);
     const event = dispatchSpy.mock.calls[0][0] as CustomEvent;
     expect(event.type).toBe('open_visual_desktop');
+    expect(event.detail).toEqual({ takeover: true });
   });
 
   it('falls back to scoped browser inspector view when subagent is running browser tools', () => {

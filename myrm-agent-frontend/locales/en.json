@@ -2838,6 +2838,7 @@
       "toggleTitle": "Toggle Browser Inspector",
       "viewMode": "View Mode",
       "inspectMode": "Inspect Mode",
+      "takeoverDesktop": "Take control of the sandbox desktop",
       "refresh": "Refresh",
       "close": "Close",
       "resizePanel": "Resize panel",
@@ -12479,7 +12480,15 @@
       "takeoverCaptchaAutoHint": "The agent is handling verification automatically. Please wait.",
       "takeoverLearned": "Behavior recorded — Agent will learn from your demonstration",
       "takeoverResumeFailed": "Failed to resume agent, please try again",
-      "takeoverVncOpenFailed": "Unable to open the visual desktop for browser takeover. Reconnect or retry."
+      "takeoverVncOpenFailed": "Unable to open the visual desktop for browser takeover. Reconnect or retry.",
+      "viewOnly": "View only",
+      "viewOnlyHint": "Take control to click or type. The agent pauses while you work.",
+      "takeControl": "Take control",
+      "takeControlFailed": "Couldn't take control. Please try again.",
+      "inControl": "You're in control",
+      "inControlHint": "The agent is paused until you hand back.",
+      "handBack": "Hand back",
+      "handBackFailed": "Couldn't hand control back. Please try again."
     },
     "pricing": {
       "title": "Pricing",
@@ -13841,20 +13850,6 @@
       "skills": "Skills",
       "sandbox": "Sandbox"
     }
-  },
-  "taskSpaces": {
-    "title": "Parallel Browser Spaces",
-    "badgeRunning": "Running",
-    "badgeIdle": "Idle",
-    "badgeTakeover": "Human Takeover",
-    "takeoverBtn": "Takeover",
-    "releaseTakeoverBtn": "Release to Agent",
-    "closeSpaceBtn": "Close Space",
-    "activePages": "{count} active tabs",
-    "emptyState": "No active parallel browser spaces",
-    "snapshotPreview": "Live Space Snapshot",
-    "takeoverHint": "You have full control of this workspace. Click release when done.",
-    "snapshotAlt": "Task space snapshot"
   },
   "modelPlaybook": {
     "title": "Model Orchestration Playbook",

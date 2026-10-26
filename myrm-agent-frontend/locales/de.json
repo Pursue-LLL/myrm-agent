@@ -2829,6 +2829,7 @@
       "toggleTitle": "Browser-Inspektor umschalten",
       "viewMode": "Ansichtsmodus",
       "inspectMode": "Inspektionsmodus",
+      "takeoverDesktop": "Sandbox-Desktop übernehmen",
       "refresh": "Aktualisieren",
       "close": "Schließen",
       "resizePanel": "Panelgröße ändern",
@@ -12479,7 +12480,15 @@
       "takeoverCaptchaAutoHint": "Der Agent bearbeitet die Verifizierung automatisch. Bitte warten.",
       "takeoverLearned": "Verhalten aufgezeichnet — Agent lernt aus Ihrer Demonstration",
       "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen",
-      "takeoverVncOpenFailed": "Visueller Desktop für Browser-Übernahme konnte nicht geöffnet werden. Bitte erneut verbinden oder wiederholen."
+      "takeoverVncOpenFailed": "Visueller Desktop für Browser-Übernahme konnte nicht geöffnet werden. Bitte erneut verbinden oder wiederholen.",
+      "viewOnly": "Nur ansehen",
+      "viewOnlyHint": "Übernehmen Sie die Steuerung, um zu klicken oder zu tippen. Der Agent pausiert, solange Sie arbeiten.",
+      "takeControl": "Steuerung übernehmen",
+      "takeControlFailed": "Steuerung konnte nicht übernommen werden. Bitte erneut versuchen.",
+      "inControl": "Sie steuern",
+      "inControlHint": "Der Agent pausiert, bis Sie die Steuerung zurückgeben.",
+      "handBack": "An Agent zurückgeben",
+      "handBackFailed": "Steuerung konnte nicht zurückgegeben werden. Bitte erneut versuchen."
     },
     "pricing": {
       "title": "Preise",
@@ -13841,20 +13850,6 @@
       "skills": "Fähigkeiten",
       "sandbox": "Sicherheits-Sandbox"
     }
-  },
-  "taskSpaces": {
-    "title": "Parallele Browser-Arbeitsbereiche",
-    "badgeRunning": "Aktiv",
-    "badgeIdle": "Bereit",
-    "badgeTakeover": "Manuelle Übernahme",
-    "takeoverBtn": "Übernehmen",
-    "releaseTakeoverBtn": "An Agent übergeben",
-    "closeSpaceBtn": "Bereich schließen",
-    "activePages": "{count} aktive Tabs",
-    "emptyState": "Keine aktiven parallelen Browser-Bereiche",
-    "snapshotPreview": "Live-Bereichs-Snapshot",
-    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben.",
-    "snapshotAlt": "Snapshot des Aufgabenbereichs"
   },
   "modelPlaybook": {
     "title": "Modell-Orchestrierungs-Leitfaden",

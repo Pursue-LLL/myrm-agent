@@ -2829,6 +2829,7 @@
       "toggleTitle": "브라우저 인스펙터 전환",
       "viewMode": "보기 모드",
       "inspectMode": "검사 모드",
+      "takeoverDesktop": "샌드박스 데스크톱 제어권 가져오기",
       "refresh": "새로고침",
       "close": "닫기",
       "resizePanel": "패널 크기 조정",
@@ -12479,7 +12480,15 @@
       "takeoverCaptchaAutoHint": "에이전트가 자동으로 인증을 처리하고 있습니다. 잠시만 기다려주세요.",
       "takeoverLearned": "동작이 기록되었습니다 — 에이전트가 시연에서 학습합니다",
       "takeoverResumeFailed": "에이전트 재개 실패, 다시 시도해주세요",
-      "takeoverVncOpenFailed": "브라우저 인수를 위한 비주얼 데스크톱을 열 수 없습니다. 다시 연결하거나 재시도해주세요."
+      "takeoverVncOpenFailed": "브라우저 인수를 위한 비주얼 데스크톱을 열 수 없습니다. 다시 연결하거나 재시도해주세요.",
+      "viewOnly": "보기 전용",
+      "viewOnlyHint": "제어권을 가져오면 클릭하거나 입력할 수 있습니다. 작업하는 동안 에이전트는 일시 중지됩니다.",
+      "takeControl": "제어권 가져오기",
+      "takeControlFailed": "제어권을 가져오지 못했습니다. 다시 시도해주세요.",
+      "inControl": "직접 제어 중",
+      "inControlHint": "제어권을 돌려줄 때까지 에이전트는 일시 중지됩니다.",
+      "handBack": "에이전트에게 돌려주기",
+      "handBackFailed": "제어권을 돌려주지 못했습니다. 다시 시도해주세요."
     },
     "pricing": {
       "title": "요금제",
@@ -13841,20 +13850,6 @@
       "skills": "스킬",
       "sandbox": "샌드박스"
     }
-  },
-  "taskSpaces": {
-    "title": "병렬 브라우저 작업 공간",
-    "badgeRunning": "실행 중",
-    "badgeIdle": "대기 중",
-    "badgeTakeover": "수동 개입 중",
-    "takeoverBtn": "개입하기",
-    "releaseTakeoverBtn": "에이전트 반환",
-    "closeSpaceBtn": "공간 닫기",
-    "activePages": "활성 탭 {count}개",
-    "emptyState": "활성 병렬 브라우저 공간이 없습니다",
-    "snapshotPreview": "실시간 공간 스냅샷",
-    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요.",
-    "snapshotAlt": "작업 공간 스냅샷"
   },
   "modelPlaybook": {
     "title": "모델 오케스트레이션 가이드",

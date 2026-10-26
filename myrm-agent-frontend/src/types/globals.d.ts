@@ -449,6 +449,7 @@ declare module '@novnc/novnc' {
     constructor(target: HTMLElement, url: string, options?: NoVncOptions);
     scaleViewport: boolean;
     resizeSession: boolean;
+    viewOnly: boolean;
     disconnect(): void;
   }
 }

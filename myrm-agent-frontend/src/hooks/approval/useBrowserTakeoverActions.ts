@@ -2,10 +2,10 @@
  * [INPUT]
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
  * - useChatStore (POS: 当前会话消息发送与流式状态)
- * - @/lib/api::fetchWithTimeout (POS: 带超时的 REST 客户端)
+ * - useUserControlStore (POS: 用户是否正在操作 Agent 的浏览器/桌面；managed 模式 Done/Skip 时交还)
  *
  * [OUTPUT]
- * useBrowserTakeoverActions: Complete/Skip 操作与 managed 模式 VNC resume 同步
+ * useBrowserTakeoverActions: Complete/Skip 操作与 managed 模式交还控制权同步
  *
  * [POS]
  * 浏览器 takeover 用户操作的共享 Hook。Extension 横幅与 VNC 面板共用，避免重复逻辑。
@@ -19,17 +19,13 @@ import { toast } from 'sonner';
 import { resolveBrowserTakeoverMessageId } from '@/store/useApprovalStore';
 import useBrowserTakeoverStore, { type BrowserTakeoverUiMode } from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
+import useUserControlStore from '@/store/useUserControlStore';
 
 async function resumeVncSession(uiMode: BrowserTakeoverUiMode): Promise<{ learned: boolean } | null> {
   if (uiMode !== 'managed') {
     return null;
   }
-  const { fetchWithTimeout } = await import('@/lib/api');
-  const resumeRes = await fetchWithTimeout('/webui/vnc/resume', { method: 'POST' });
-  if (!resumeRes.ok) {
-    throw new Error(`VNC resume failed with status ${resumeRes.status}`);
-  }
-  return (await resumeRes.json()) as { learned: boolean };
+  return useUserControlStore.getState().release();
 }
 
 export function useBrowserTakeoverActions() {

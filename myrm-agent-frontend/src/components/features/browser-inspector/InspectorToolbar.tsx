@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/lib/utils/classnameUtils::cn (POS: Tailwind class name utilities)
+ * @/lib/visualDesktopEvents::openVisualDesktop (POS: Open the visual desktop panel)
  *
  * [OUTPUT]
  * InspectorToolbar: Toolbar with mode toggle, page info, refresh, and sandbox desktop takeover.
@@ -13,6 +14,7 @@
 
 import React, { useCallback } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { openVisualDesktop } from '@/lib/visualDesktopEvents';
 import { Eye, MousePointerClick, X, RefreshCw, ExternalLink, MonitorPlay } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -40,9 +42,7 @@ const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
   const t = useTranslations('chat.browserInspector');
 
   const handleTakeoverDesktop = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('open_visual_desktop'));
-    }
+    openVisualDesktop({ takeover: true });
     onClose();
   }, [onClose]);
 
@@ -99,8 +99,8 @@ const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
           type="button"
           onClick={handleTakeoverDesktop}
           className="p-1 text-muted-foreground hover:text-foreground transition-colors hover:bg-muted-foreground/10 rounded-md"
-          title="Takeover Sandbox Desktop"
-          aria-label="Takeover Sandbox Desktop"
+          title={t('takeoverDesktop')}
+          aria-label={t('takeoverDesktop')}
           data-testid="inspector-takeover-desktop-button"
         >
           <MonitorPlay className="w-3.5 h-3.5" />

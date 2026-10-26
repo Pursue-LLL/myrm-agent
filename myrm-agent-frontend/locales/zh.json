@@ -2838,6 +2838,7 @@
       "toggleTitle": "切换浏览器检查器",
       "viewMode": "查看模式",
       "inspectMode": "检查模式",
+      "takeoverDesktop": "接管沙箱桌面",
       "refresh": "刷新",
       "close": "关闭",
       "resizePanel": "调整面板大小",
@@ -12479,7 +12480,15 @@
       "takeoverCaptchaAutoHint": "智能体正在自动处理验证，请稍候。",
       "takeoverLearned": "操作已记录 — Agent 将从你的示范中学习",
       "takeoverResumeFailed": "恢复 Agent 失败，请重试",
-      "takeoverVncOpenFailed": "无法打开可视化桌面以接管浏览器，请重连或重试。"
+      "takeoverVncOpenFailed": "无法打开可视化桌面以接管浏览器，请重连或重试。",
+      "viewOnly": "仅查看",
+      "viewOnlyHint": "接管后才能点击或输入，接管期间 Agent 会暂停。",
+      "takeControl": "接管操作",
+      "takeControlFailed": "接管失败，请重试",
+      "inControl": "当前由你操作",
+      "inControlHint": "交还之前，Agent 会保持暂停。",
+      "handBack": "交还 Agent",
+      "handBackFailed": "交还失败，请重试"
     },
     "pricing": {
       "title": "定价",
@@ -13841,20 +13850,6 @@
       "skills": "技能引擎",
       "sandbox": "沙箱运行时"
     }
-  },
-  "taskSpaces": {
-    "title": "任务浏览器沙箱",
-    "badgeRunning": "运行中",
-    "badgeIdle": "空闲待命",
-    "badgeTakeover": "人工接管中",
-    "takeoverBtn": "人工接管",
-    "releaseTakeoverBtn": "交回智能体",
-    "closeSpaceBtn": "关闭该任务沙箱",
-    "activePages": "{count} 个活跃页面",
-    "emptyState": "暂无快照数据",
-    "snapshotPreview": "实时快照预览",
-    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。",
-    "snapshotAlt": "任务空间快照"
   },
   "modelPlaybook": {
     "title": "模型编排战略手册",

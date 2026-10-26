@@ -7,6 +7,8 @@ interface VisualDesktopProps {
   wsUrl: string;
   className?: string;
   onReconnect?: () => void;
+  /** Watch only: mouse and keyboard stay local until the person takes control. */
+  viewOnly?: boolean;
 }
 
 type NoVNCClient = {
@@ -14,13 +16,23 @@ type NoVNCClient = {
   disconnect: () => void;
   scaleViewport: boolean;
   resizeSession: boolean;
+  viewOnly: boolean;
 };
 
-export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, onReconnect }) => {
+export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, onReconnect, viewOnly = false }) => {
   const t = useTranslations('billing.vnc');
   const containerRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<NoVNCClient | null>(null);
+  const viewOnlyRef = useRef(viewOnly);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  // Switching between watching and driving must not tear the connection down.
+  useEffect(() => {
+    viewOnlyRef.current = viewOnly;
+    if (rfbRef.current) {
+      rfbRef.current.viewOnly = viewOnly;
+    }
+  }, [viewOnly]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -54,6 +66,7 @@ export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, 
 
         rfbRef.current.scaleViewport = true;
         rfbRef.current.resizeSession = true;
+        rfbRef.current.viewOnly = viewOnlyRef.current;
       } catch (err) {
         console.error('Failed to initialize noVNC:', err);
         if (mounted) {

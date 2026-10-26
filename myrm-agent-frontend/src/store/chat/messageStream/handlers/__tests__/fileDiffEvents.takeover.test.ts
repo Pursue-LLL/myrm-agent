@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentEventType } from '@/store/chat/types';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
+import useUserControlStore from '@/store/useUserControlStore';
 import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 import type { StreamCtx } from '../../streamContext';
 import { fileDiffEvents } from '../fileDiffEvents';
@@ -74,6 +75,11 @@ describe('fileDiffEvents browser takeover', () => {
     });
   });
 
+  afterEach(async () => {
+    fetchWithTimeout.mockResolvedValue({ ok: true, json: async () => ({ learned: false }) });
+    await useUserControlStore.getState().release();
+  });
+
   it('skips VNC POST when harness reports is_managed=false', async () => {
     const { ctx, setLoading } = buildCtx({
       type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
@@ -105,7 +111,14 @@ describe('fileDiffEvents browser takeover', () => {
 
     await fileDiffEvents(ctx);
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith('/webui/vnc/takeover', expect.objectContaining({ method: 'POST' }));
+    await vi.waitFor(() => expect(useUserControlStore.getState().held).toBe(true));
+    expect(fetchWithTimeout).toHaveBeenCalledWith(
+      '/webui/vnc/takeover',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ reason: 'Complete payment in sandbox browser' }),
+      }),
+    );
     expect(useBrowserTakeoverStore.getState().uiMode).toBe('managed');
   });
 
@@ -129,6 +142,50 @@ describe('fileDiffEvents browser takeover', () => {
       );
     });
     expect(useBrowserTakeoverStore.getState().pending).toBe(true);
+    expect(useUserControlStore.getState().held).toBe(false);
+  });
+
+  describe('BROWSER_TAKEOVER_COMPLETED', () => {
+    const completed = () =>
+      buildCtx({ type: AgentEventType.BROWSER_TAKEOVER_COMPLETED, messageId: 'msg-50', data: {} }).ctx;
+
+    async function holdControlForManagedRequest() {
+      await fileDiffEvents(
+        buildCtx({
+          type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
+          messageId: 'msg-50',
+          data: { reason: 'Solve the CAPTCHA', is_managed: true, auto_detect_completion: true },
+        }).ctx,
+      );
+      await vi.waitFor(() => expect(useUserControlStore.getState().held).toBe(true));
+      fetchWithTimeout.mockClear();
+      fetchWithTimeout.mockResolvedValue({ ok: true, json: async () => ({ learned: false }) });
+    }
+
+    it('hands control back when the agent finishes a managed step itself', async () => {
+      await holdControlForManagedRequest();
+
+      await fileDiffEvents(completed());
+
+      await vi.waitFor(() => expect(useUserControlStore.getState().held).toBe(false));
+      expect(fetchWithTimeout).toHaveBeenCalledWith('/webui/vnc/resume', { method: 'POST' });
+      expect(useBrowserTakeoverStore.getState().pending).toBe(false);
+    });
+
+    it('leaves control alone when no managed request is pending (the person already handed back)', async () => {
+      await fileDiffEvents(completed());
+
+      expect(fetchWithTimeout).not.toHaveBeenCalled();
+    });
+
+    it('does not hand back for an extension takeover', async () => {
+      useBrowserTakeoverStore.getState().requestTakeover({ reason: 'Enter MFA code', ui_mode: 'extension' });
+
+      await fileDiffEvents(completed());
+
+      expect(fetchWithTimeout).not.toHaveBeenCalled();
+      expect(useBrowserTakeoverStore.getState().pending).toBe(false);
+    });
   });
 
   it('creates signed takeover live link for extension takeover', async () => {
