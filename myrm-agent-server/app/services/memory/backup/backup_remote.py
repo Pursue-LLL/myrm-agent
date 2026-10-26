@@ -467,7 +467,8 @@ def _parse_webdav_multistatus(xml_text: str) -> list[RemoteBackupFile]:
             continue
         href = href_match.group(1).strip()
         filename = unquote(href.rstrip("/").rsplit("/", 1)[-1])  # hrefs are percent-encoded
-        if not filename or not filename.endswith(".gz"):
+        # An encoded separator would turn a direct child into a path that leaves the backup folder.
+        if not filename or "/" in filename or not filename.endswith(".gz"):
             continue
 
         lastmod_match = lastmod_pattern.search(resp_block)

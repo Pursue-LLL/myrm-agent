@@ -144,6 +144,20 @@ class TestWebDAVXMLParser:
         names = [f.file_name for f in _parse_webdav_multistatus(xml)]
         assert names == ["myrm.20260101000000.小明.linux.json.gz", "myrm.20260101000000.my laptop.linux.json.gz"]
 
+    def test_parse_skips_names_that_decode_into_a_path(self):
+        xml = """<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/myrm-backups/..%2F..%2Fsecret.gz</d:href>
+    <d:propstat><d:prop><d:getcontentlength>10</d:getcontentlength></d:prop></d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/myrm-backups/myrm.20260101000000.laptop.linux.json.gz</d:href>
+    <d:propstat><d:prop><d:getcontentlength>10</d:getcontentlength></d:prop></d:propstat>
+  </d:response>
+</d:multistatus>"""
+        names = [f.file_name for f in _parse_webdav_multistatus(xml)]
+        assert names == ["myrm.20260101000000.laptop.linux.json.gz"]
+
     def test_parse_handles_missing_length(self):
         xml = """<d:multistatus xmlns:d="DAV:">
   <d:response>
