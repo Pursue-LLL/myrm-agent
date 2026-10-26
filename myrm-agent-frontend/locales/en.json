@@ -17904,7 +17904,7 @@
           "title": "Compile",
           "body": "{count} documents imported (about {chars} characters). Compiling has the AI read and organize each one, which uses more of your quota when there are many documents.",
           "autoOn": "Documents that are new or changed after this are compiled automatically.",
-          "autoPending": "Compile this first import yourself with the button. Once it has finished, later changes are compiled automatically.",
+          "autoPending": "Use the button to compile this first import yourself. Once the import has finished, later changes are compiled automatically.",
           "autoOff": "Automatic compiling is off. Turn on “Auto-compile after sync” under External sources if you want it.",
           "action": "Compile imported documents",
           "running": "Submitting…",

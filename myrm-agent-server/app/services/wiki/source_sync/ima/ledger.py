@@ -134,9 +134,10 @@ class ImaLedger:
     ) -> int:
         """Record a batch of inventoried items and return how many are new.
 
-        Two items can share one key (same title in one folder). The first seen in a pass keeps it and later ones
-        move to their ``fallback_key``; the claim is read back from rows this pass already stamped, so a page that
-        is fetched again after a restart resolves to the same keys.
+        Two items can share one key (same title in one folder). An item that already owns a row keeps it, so the
+        order of a listing never moves documents between rows. Otherwise the first item seen in a pass takes the
+        key and later ones move to their ``fallback_key``; the claim is read back from rows this pass already
+        stamped, so a page that is fetched again after a restart resolves to the same keys.
         """
         if not items:
             return 0
@@ -153,12 +154,19 @@ class ImaLedger:
             entry = existing.get(key)
             return entry.remote_id if entry is not None and entry.seen_generation == generation else None
 
+        def key_of(item: InventoryItem, remote_id: str) -> str:
+            for key in (item.item_key, item.fallback_key):
+                entry = existing.get(key)
+                if entry is not None and entry.remote_id == remote_id:
+                    return key
+            if item.fallback_key and holder_of(item.item_key) not in (None, remote_id):
+                return item.fallback_key
+            return item.item_key
+
         added = 0
         for item in items:
             remote_id = item.remote_id[:256]
-            key = item.item_key
-            if item.fallback_key and holder_of(key) not in (None, remote_id):
-                key = item.fallback_key
+            key = key_of(item, remote_id)
             entry = existing.get(key)
             if entry is None:
                 existing[key] = entry = WikiSourceLedgerEntry(

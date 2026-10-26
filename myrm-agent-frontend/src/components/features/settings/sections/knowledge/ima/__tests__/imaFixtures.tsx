@@ -65,7 +65,7 @@ export function renderCard() {
 }
 
 /** Fresh mocks and real timers around every test of the calling file. */
-export function useImaCardLifecycle(): void {
+export function installImaCardLifecycle(): void {
   beforeEach(resetImaMocks);
   afterEach(() => {
     vi.useRealTimers();

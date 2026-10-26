@@ -273,6 +273,19 @@ async def test_siblings_keep_their_keys_in_the_next_pass_and_unseen_ones_are_mar
     assert (await _row(ima_db, "base")).status == LedgerStatus.PENDING
 
 
+async def test_siblings_keep_their_rows_when_the_listing_order_changes(ima_db: async_sessionmaker[AsyncSession]) -> None:
+    await _upsert(ima_db, [sibling("m1"), sibling("m2")])
+    await _sync(ima_db, "base", path="ima/Lib/Home-aaaa.md")
+    await _sync(ima_db, "base:m2", path="ima/Lib/Home-bbbb.md")
+
+    # Editing one document can move it ahead of its namesake in the next listing.
+    assert await _upsert(ima_db, [sibling("m2"), sibling("m1")], generation=2) == 0
+
+    assert await _keys(ima_db) == {"base": "m1", "base:m2": "m2"}
+    assert (await _row(ima_db, "base")).status == LedgerStatus.SYNCED
+    assert (await _row(ima_db, "base:m2")).status == LedgerStatus.SYNCED
+
+
 async def test_a_replaced_file_updates_its_row_instead_of_becoming_a_sibling(ima_db: async_sessionmaker[AsyncSession]) -> None:
     await _upsert(ima_db, [sibling("m1")])
     await _sync(ima_db, "base")

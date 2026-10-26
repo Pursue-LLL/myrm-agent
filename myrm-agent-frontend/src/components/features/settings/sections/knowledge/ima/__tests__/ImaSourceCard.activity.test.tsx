@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import { IMA_POLL_INTERVAL_MS, IMA_WATCH_AFTER_SYNC_NOW_MS } from '../useImaSync';
-import { makeStatus, NO_COUNTS, renderCard, SYNCING, UP_TO_DATE, useImaCardLifecycle } from './imaFixtures';
+import { makeStatus, NO_COUNTS, renderCard, SYNCING, UP_TO_DATE, installImaCardLifecycle } from './imaFixtures';
 import { imaMock, toastMock } from './imaMocks';
 
 vi.mock('sonner', async () => ({ toast: (await import('./imaMocks')).toastMock }));
 vi.mock('@/services/wiki/ima', async () => (await import('./imaMocks')).imaMock);
 
-useImaCardLifecycle();
+installImaCardLifecycle();
 
 describe('ImaSourceCard sync now', () => {
   it('tells the user when the next automatic check is and runs it on request without touching the selection', async () => {
@@ -48,6 +48,28 @@ describe('ImaSourceCard sync now', () => {
       await vi.advanceTimersByTimeAsync(IMA_POLL_INTERVAL_MS * 3);
     });
     expect(imaMock.getImaStatus.mock.calls.length).toBe(callsWhenQuiet);
+  });
+
+  it('restarts the observation window on a second click instead of cutting it short', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    imaMock.getImaStatus.mockResolvedValue(UP_TO_DATE);
+    imaMock.startImaSync.mockResolvedValue(UP_TO_DATE);
+    renderCard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'actions.syncNow' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMA_WATCH_AFTER_SYNC_NOW_MS * 0.66);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'actions.syncNow' }));
+    // The first window would have ended by now; the second click keeps the card following the check.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMA_WATCH_AFTER_SYNC_NOW_MS * 0.42);
+    });
+    const callsInsideSecondWindow = imaMock.getImaStatus.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMA_POLL_INTERVAL_MS * 2);
+    });
+    expect(imaMock.getImaStatus.mock.calls.length).toBeGreaterThan(callsInsideSecondWindow);
   });
 
   it('is not offered while a slice is already reading or importing, nor while paused', async () => {

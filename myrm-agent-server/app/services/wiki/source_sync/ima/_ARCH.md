@@ -23,7 +23,7 @@
 | `client.py` | 客户端 | 知识库/笔记方法表（只读）：`verify`/`list_knowledge_bases`/`list_knowledge_page`/`get_media_info`/`get_note_text`/`list_notes_page` | ✅ |
 | `media.py` | 下载 | 签名 COS URL 的受限下载：仅 https + 腾讯域白名单、禁重定向、不带 ima 凭证、流式字节上限 | ✅ |
 | `identity.py` | 标识 | 条目 key（`(kb, 父目录, 标题)`，`media_id` 仅作版本信号；同目录同标题的后到条目改用含 `media_id` 的 fallback key）与 `raw/ima/...` 路径（受 raw gate 路径预算约束；Windows 设备名如 `CON`/`NUL` 的目录段加 `_` 前缀） | ✅ |
-| `ledger.py` | 台账 | `ImaLedger`：状态机唯一属主（pending/synced/failed/unsupported/too_large/blocked/dismissed/remote_deleted/duplicate）；用户删除的 raw 视为 `dismissed` 永不复活；同 key 冲突时先到者保留、后到者落到 fallback key；计数/报告/重试/编译只读当前所选范围（容器），已取消选择的库行原样保留 | ✅ |
+| `ledger.py` | 台账 | `ImaLedger`：状态机唯一属主（pending/synced/failed/unsupported/too_large/blocked/dismissed/remote_deleted/duplicate）；用户删除的 raw 视为 `dismissed` 永不复活；同 key 冲突时已拥有行的条目保持原行（列表顺序不会让文档换行），其余先到者占 key、后到者落到 fallback key；计数/报告/重试/编译只读当前所选范围（容器），已取消选择的库行原样保留 | ✅ |
 | `state.py` | 状态 | `wikiImaSync`（所选库/笔记开关）与 `wikiImaSyncState`（可续跑 inventory 游标、generation、`backfill_complete`、`needs_reauth`、`config_fingerprint`）的 scoped UserConfig 读写 | ✅ |
 | `credentials.py` | 凭证 | `imaCredentials`（加密，**不在** `ConfigKey` 中，通用 config 端点读不到）；只暴露掩码后的 client id | ✅ |
 | `context.py` | 上下文 | 单切片共享上下文：时间预算 + 节流的 state 持久化（15s） | ✅ |

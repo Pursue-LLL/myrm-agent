@@ -3,13 +3,13 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { makeStatus, renderCard, SYNCING, useImaCardLifecycle } from './imaFixtures';
+import { makeStatus, renderCard, SYNCING, installImaCardLifecycle } from './imaFixtures';
 import { imaMock, toastMock } from './imaMocks';
 
 vi.mock('sonner', async () => ({ toast: (await import('./imaMocks')).toastMock }));
 vi.mock('@/services/wiki/ima', async () => (await import('./imaMocks')).imaMock);
 
-useImaCardLifecycle();
+installImaCardLifecycle();
 
 describe('ImaSourceCard connect', () => {
   it('asks for the credentials first and sends them trimmed, then moves on to the library choice', async () => {

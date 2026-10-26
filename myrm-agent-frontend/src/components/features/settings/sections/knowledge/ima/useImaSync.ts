@@ -50,7 +50,8 @@ export function useImaSync(agentId: string | null) {
   const [tracked, setTracked] = useState<TrackedStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState<ImaAction | null>(null);
-  const [watching, setWatching] = useState(false);
+  // Bumped by every "sync now" so each click restarts the observation window; 0 means not watching.
+  const [watchRun, setWatchRun] = useState(0);
   const pollInFlightRef = useRef(false);
 
   // A status read for another agent vault is never shown: switching scope reads as "not loaded yet".
@@ -72,14 +73,15 @@ export function useImaSync(agentId: string | null) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!watching) {
+    if (watchRun === 0) {
       return;
     }
-    const timer = window.setTimeout(() => setWatching(false), IMA_WATCH_AFTER_SYNC_NOW_MS);
+    const timer = window.setTimeout(() => setWatchRun(0), IMA_WATCH_AFTER_SYNC_NOW_MS);
     return () => window.clearTimeout(timer);
-  }, [watching]);
+  }, [watchRun]);
 
-  const polling = shouldPollIma(status) || (watching && status?.connected === true && status.job.state === 'active');
+  const polling =
+    shouldPollIma(status) || (watchRun > 0 && status?.connected === true && status.job.state === 'active');
   useEffect(() => {
     if (!polling) {
       return;
@@ -144,7 +146,7 @@ export function useImaSync(agentId: string | null) {
     async (locale: string): Promise<ImaResult> => {
       const result = await runStatus('syncNow', () => startImaSync(locale, agentId));
       if (result.ok) {
-        setWatching(true);
+        setWatchRun((run) => run + 1);
       }
       return result;
     },
