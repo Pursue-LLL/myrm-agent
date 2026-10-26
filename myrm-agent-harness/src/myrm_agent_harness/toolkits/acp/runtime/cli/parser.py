@@ -1,22 +1,22 @@
-"""Shared NDJSON event parsers for CLI runtimes.
+"""Event builders shared by the CLI output formats.
 
-Provides common parsing logic for tool_use, tool_result, usage, and error
-events. Each runtime delegates to these shared parsers for identical event
-types and handles its own text/assistant format differences.
+Each function turns one decoded NDJSON object (or part of it) of a CLI agent into a RuntimeEvent: tool calls and
+results, usage, errors, thinking and the Codex ``item.*`` events. ``TurnParser`` composes them into the parser of
+a whole turn; formats that nest several events in one line (Claude content blocks) are split there.
 
 [INPUT]
 - toolkits.acp.types::AcpError, AcpErrorCode, RuntimeEvent (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 
 [OUTPUT]
 - parse_json_line: Parse a JSON line, returning None for non-dict values.
-- parse_tool_use: Parse a thinking/reasoning event. Returns None if no cont...
-- parse_tool_result: function — parse_tool_result
-- parse_usage: function — parse_usage
-- parse_error: function — parse_error
-- parse_ndjson_line: Parse one NDJSON line of a CLI agent (Claude, Codex, plain text) into a RuntimeEvent.
+- parse_tool_use / parse_tool_result: tool call and result events with a one-line summary / bounded output
+- parse_usage / parse_error / parse_thinking: usage, error and reasoning events
+- unwrap_codex_envelope / parse_codex_item_event: the Codex legacy envelope and ``item.*`` events
+- extract_text_from_event: text of a flat or nested assistant/text event
+- tool_summary: one short line telling what a tool call works on
 
 [POS]
-Shared NDJSON event parsers for CLI and SDK runtimes.
+Shared event builders of the CLI runtime's output parsing.
 """
 
 from __future__ import annotations
@@ -45,13 +45,46 @@ def parse_json_line(line: str) -> dict[str, object] | None:
     return data if isinstance(data, dict) else None
 
 
+# One tool result can be a whole file; consumers only show a short excerpt of it.
+_MAX_TOOL_OUTPUT_CHARS = 2000
+_MAX_SUMMARY_CHARS = 80
+_SUMMARY_KEYS = ("file_path", "path", "command", "pattern", "query", "url", "description")
+
+
+def tool_summary(tool_input: object) -> str:
+    """One short line telling what a tool call works on (a path, a command, a query); empty when nothing fits."""
+    if not isinstance(tool_input, dict):
+        return ""
+    for key in _SUMMARY_KEYS:
+        value = tool_input.get(key)
+        if isinstance(value, str) and value.strip():
+            first_line = value.strip().splitlines()[0].strip()
+            if len(first_line) > _MAX_SUMMARY_CHARS:
+                return first_line[: _MAX_SUMMARY_CHARS - 1] + "…"
+            return first_line
+    return ""
+
+
+def _result_text(content: object) -> str:
+    """The text of a tool result: a plain string or a list of content blocks; anything else has none."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block["text"] for block in content if isinstance(block, dict) and isinstance(block.get("text"), str)
+        )
+    return ""
+
+
 def parse_tool_use(data: dict[str, object], session_id: str) -> RuntimeEvent:
+    tool_input = data.get("input", {})
     return create_event(
         RuntimeEventType.TOOL_START,
         session_id,
         tool_name=data.get("name", "unknown"),
-        tool_input=data.get("input", {}),
+        tool_input=tool_input,
         tool_call_id=data.get("id", ""),
+        summary=tool_summary(tool_input),
     )
 
 
@@ -60,7 +93,7 @@ def parse_tool_result(data: dict[str, object], session_id: str) -> RuntimeEvent:
         RuntimeEventType.TOOL_RESULT,
         session_id,
         tool_call_id=data.get("tool_use_id", ""),
-        output=str(data.get("content", "")),
+        output=_result_text(data.get("content", ""))[:_MAX_TOOL_OUTPUT_CHARS],
         is_error=data.get("is_error", False),
     )
 
@@ -145,18 +178,20 @@ def parse_codex_item_event(data: dict[str, object], session_id: str) -> RuntimeE
     if item_type == "command_execution":
         item_id = str(item.get("id", ""))
         if event_type == "item.started":
+            tool_input = {"command": item.get("command", "")}
             return create_event(
                 RuntimeEventType.TOOL_START,
                 session_id,
                 tool_name="command_execution",
-                tool_input={"command": item.get("command", "")},
+                tool_input=tool_input,
                 tool_call_id=item_id,
+                summary=tool_summary(tool_input),
             )
         return create_event(
             RuntimeEventType.TOOL_RESULT,
             session_id,
             tool_call_id=item_id,
-            output=str(item.get("aggregated_output", "")),
+            output=str(item.get("aggregated_output", ""))[:_MAX_TOOL_OUTPUT_CHARS],
             is_error=item.get("status") == "failed",
         )
 
@@ -211,83 +246,5 @@ def extract_text_from_event(data: dict[str, object]) -> str | None:
                 if isinstance(text, str) and text:
                     parts.append(text)
         return "".join(parts) if parts else None
-
-    return None
-
-
-def parse_ndjson_line(line: str, session_id: str) -> RuntimeEvent | None:
-    """Parse a single NDJSON line into a RuntimeEvent.
-
-    Handles three formats:
-    - Claude CLI stream-json (``type: "assistant"`` / ``"tool_use"`` etc.)
-    - Codex CLI legacy (``{"id","msg":{...}}`` envelope, deprecated)
-    - Codex CLI new format (``item.started`` / ``item.completed`` /
-      ``turn.completed`` / ``turn.failed``)
-    """
-    data = parse_json_line(line)
-    if data is None:
-        from myrm_agent_harness.utils.text_utils import strip_ansi
-
-        cleaned = strip_ansi(line).rstrip("\r\n")
-        return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=cleaned + "\n") if cleaned else None
-
-    data = unwrap_codex_envelope(data)
-    event_type = data.get("type", "")
-
-    # --- Codex new format: item.* events ---
-    if event_type in ("item.started", "item.updated", "item.completed"):
-        return parse_codex_item_event(data, session_id)
-
-    if event_type == "turn.completed":
-        usage = data.get("usage")
-        if isinstance(usage, dict):
-            return parse_usage(usage, session_id)
-        return None
-
-    if event_type == "turn.failed":
-        error_obj = data.get("error")
-        msg = error_obj.get("message", "Turn failed") if isinstance(error_obj, dict) else "Turn failed"
-        return create_event(
-            RuntimeEventType.ERROR,
-            session_id,
-            error=AcpError(code=AcpErrorCode.UNKNOWN, message=str(msg)),
-        )
-
-    # --- Claude CLI / generic format ---
-    if event_type in ("assistant", "text"):
-        text = extract_text_from_event(data)
-        if text:
-            return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=text)
-        return None
-
-    if event_type == "agent_message":
-        message = data.get("message")
-        if isinstance(message, str) and message:
-            return create_event(RuntimeEventType.TEXT_DELTA, session_id, content=message)
-        return None
-
-    if event_type == "thinking":
-        return parse_thinking(data, session_id)
-
-    if event_type == "tool_use":
-        return parse_tool_use(data, session_id)
-
-    if event_type == "tool_result":
-        return parse_tool_result(data, session_id)
-
-    if event_type in ("usage", "token_count"):
-        info = data.get("info")
-        if isinstance(info, dict):
-            return parse_usage(info, session_id)
-        return parse_usage(data, session_id)
-
-    if event_type == "result":
-        usage = data.get("usage")
-        if isinstance(usage, dict):
-            return parse_usage(usage, session_id)
-        return None
-
-    if event_type in ("error", "stream_error"):
-        return parse_error(data, session_id)
 
     return None

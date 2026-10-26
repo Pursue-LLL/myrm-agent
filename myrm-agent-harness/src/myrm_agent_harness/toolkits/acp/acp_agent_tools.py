@@ -1,15 +1,17 @@
 """Delegate tasks to external ACP-compatible agents.
 
 Allows any LangChain agent to hand off work to Claude Code, Codex CLI,
-Gemini CLI, or any other agent that implements the ACP protocol, SDK,
-or CLI interface via the unified RuntimePool.
+Gemini CLI, or any other agent that implements the ACP protocol or a CLI
+interface via the unified RuntimePool.
 
 [INPUT]
 - myrm_agent_harness.core.events.types::AgentEventType (POS: streaming event types and enums, framework-agnostic)
 - myrm_agent_harness.toolkits.acp.runtime._base::truncate_response (POS: Base class for RuntimeBackend implementations.)
-- myrm_agent_harness.toolkits.acp.types::RuntimeEventType (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module)
+- myrm_agent_harness.toolkits.acp.runtime.cli.dialect::has_native_turn_limit (POS: Per-CLI launch knowledge of CliRuntime)
+- myrm_agent_harness.toolkits.acp.types::AcpErrorCode, ContinuityStatus, RuntimeEventType (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module)
 - myrm_agent_harness.toolkits.acp.types::DelegationPool (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module) [TYPE_CHECKING]
 - myrm_agent_harness.utils.runtime.cancellation::get_cancel_token (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support)
+- myrm_agent_harness.utils.runtime.cancel_hook::on_token_cancelled (POS: Cancellation bridge for streams that must be stopped from outside)
 - myrm_agent_harness.utils.runtime.progress_sink::ToolProgressSink, get_tool_progress_sink (POS: Progress event push mechanism. Tools implicitly obtain a sink via ContextVar to push intermediate progress events to the Agent SSE stream)
 - myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection) [lazy]
 
@@ -26,6 +28,7 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 from uuid import uuid4
 
@@ -34,7 +37,9 @@ from pydantic import BaseModel, Field
 
 from myrm_agent_harness.core.events.types import AgentEventType
 from myrm_agent_harness.toolkits.acp.runtime._base import truncate_response
-from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
+from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import has_native_turn_limit
+from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, ContinuityStatus, RuntimeEventType
+from myrm_agent_harness.utils.runtime.cancel_hook import on_token_cancelled
 from myrm_agent_harness.utils.runtime.cancellation import get_cancel_token
 from myrm_agent_harness.utils.runtime.progress_sink import ToolProgressSink, get_tool_progress_sink
 
@@ -259,6 +264,9 @@ async def _run_turn_and_collect(
 
     config = pool.get_config(agent_name)
     max_turns = config.max_turns if config else _DEFAULT_MAX_TURNS
+    # A CLI with its own turn limit stops itself and says so (ERROR/MAX_TURNS). Counting its tool calls here would
+    # cut it off early, since one turn can run several tool calls; every other backend is counted below.
+    native_limit = config is not None and config.backend_type == "cli" and has_native_turn_limit(config.command)
 
     sink: ToolProgressSink | None = get_tool_progress_sink()
     cancel_token = get_cancel_token()
@@ -268,86 +276,112 @@ async def _run_turn_and_collect(
     input_tokens = 0
     output_tokens = 0
     was_cancelled = False
-    turns_exceeded = False
+    turns_used: int | None = None
 
-    async for event in pool.run_turn(agent_name, task, session_id=session_id, mode=mode):
-        if cancel_token and cancel_token.is_cancelled:
-            logger.warning("acp_delegate_cancelled agent=%s session=%s", agent_name, session_id)
-            await pool.cancel(agent_name, session_id)
-            was_cancelled = True
-            break
+    # The watcher stops the delegated process the moment the token trips, even while its stream is silent.
+    async with (
+        aclosing(pool.run_turn(agent_name, task, session_id=session_id, mode=mode)) as events,
+        on_token_cancelled(cancel_token, lambda: pool.cancel(agent_name, session_id)),
+    ):
+        async for event in events:
+            if cancel_token and cancel_token.is_cancelled:
+                logger.warning("acp_delegate_cancelled agent=%s session=%s", agent_name, session_id)
+                await pool.cancel(agent_name, session_id)
+                was_cancelled = True
+                break
 
-        if event.type == RuntimeEventType.TEXT_DELTA:
-            content = event.data.get("content")
-            if isinstance(content, str):
-                text_parts.append(content)
-        elif event.type == RuntimeEventType.REASONING_DELTA:
-            if sink:
-                reasoning_content = event.data.get("content")
-                if isinstance(reasoning_content, str) and reasoning_content:
+            if event.type == RuntimeEventType.TEXT_DELTA:
+                content = event.data.get("content")
+                if isinstance(content, str):
+                    text_parts.append(content)
+            elif event.type == RuntimeEventType.REASONING_DELTA:
+                if sink:
+                    reasoning_content = event.data.get("content")
+                    if isinstance(reasoning_content, str) and reasoning_content:
+                        await sink.emit(
+                            {
+                                "type": AgentEventType.REASONING.value,
+                                "data": {"content": reasoning_content, "source": f"delegate:{agent_name}"},
+                            }
+                        )
+            elif event.type == RuntimeEventType.TOOL_START:
+                tool_calls += 1
+                tool_name = event.data.get("tool_name", "unknown")
+                logger.info("acp_delegate_tool agent=%s tool=%s (%d/%d)", agent_name, tool_name, tool_calls, max_turns)
+                if max_turns > 0 and not native_limit and tool_calls >= max_turns:
+                    logger.warning(
+                        "acp_delegate_max_turns agent=%s turns=%d limit=%d",
+                        agent_name,
+                        tool_calls,
+                        max_turns,
+                    )
+                    await pool.cancel(agent_name, session_id)
+                    turns_used = tool_calls
+                    break
+                if sink:
+                    summary = event.data.get("summary")
                     await sink.emit(
                         {
-                            "type": AgentEventType.REASONING.value,
-                            "data": {"content": reasoning_content, "source": f"delegate:{agent_name}"},
+                            "type": AgentEventType.TASKS_STEPS.value,
+                            "step_key": f"delegation_{agent_name}_tool",
+                            "tool_name": f"delegate:{agent_name}",
+                            "data": [{"text": f"{agent_name}: {tool_name}" + (f" — {summary}" if summary else "")}],
                         }
                     )
-        elif event.type == RuntimeEventType.TOOL_START:
-            tool_calls += 1
-            tool_name = event.data.get("tool_name", "unknown")
-            logger.info("acp_delegate_tool agent=%s tool=%s (%d/%d)", agent_name, tool_name, tool_calls, max_turns)
-            if max_turns > 0 and tool_calls >= max_turns:
-                logger.warning(
-                    "acp_delegate_max_turns agent=%s turns=%d limit=%d",
-                    agent_name,
-                    tool_calls,
-                    max_turns,
-                )
-                await pool.cancel(agent_name, session_id)
-                turns_exceeded = True
-                break
-            if sink:
-                await sink.emit(
-                    {
-                        "type": AgentEventType.TASKS_STEPS.value,
-                        "step_key": f"delegation_{agent_name}_tool",
-                        "tool_name": f"delegate:{agent_name}",
-                        "data": [{"text": f"{agent_name}: {tool_name}"}],
-                    }
-                )
-        elif event.type == RuntimeEventType.USAGE_UPDATE:
-            input_tokens += _as_int(event.data.get("input_tokens"))
-            output_tokens += _as_int(event.data.get("output_tokens"))
-        elif event.type == RuntimeEventType.ERROR:
-            error_count += 1
-            error_data = event.data.get("error")
-            if hasattr(error_data, "message"):
-                message = getattr(error_data, "message", None)
-                logger.warning("acp_delegate_event_error agent=%s msg=%s", agent_name, message)
-                exc = RuntimeError(message)
-                exc.retryable = getattr(error_data, "retryable", False)  # type: ignore[attr-defined]
-                raise exc
-        elif event.type == RuntimeEventType.STATUS_UPDATE:
-            status = event.data.get("status", "")
-            message = event.data.get("message", "")
-            if status == "warning":
-                error_count += 1
-            logger.info("acp_delegate_status agent=%s status=%s msg=%s", agent_name, status, message)
-            if sink:
-                await sink.emit(
-                    {
-                        "type": AgentEventType.TASKS_STEPS.value,
-                        "step_key": f"delegation_{agent_name}_status",
-                        "tool_name": f"delegate:{agent_name}",
-                        "data": [{"text": f"{agent_name}: {status}" + (f" — {message}" if message else "")}],
-                    }
-                )
+            elif event.type == RuntimeEventType.USAGE_UPDATE:
+                input_tokens += _as_int(event.data.get("input_tokens"))
+                output_tokens += _as_int(event.data.get("output_tokens"))
+            elif event.type == RuntimeEventType.ERROR:
+                error_data = event.data.get("error")
+                code = getattr(error_data, "code", None)
+                if code is AcpErrorCode.CANCELLED:
+                    was_cancelled = True
+                elif code is AcpErrorCode.MAX_TURNS:
+                    logger.info("acp_delegate_native_max_turns agent=%s limit=%d", agent_name, max_turns)
+                    turns_used = max_turns
+                else:
+                    error_count += 1
+                    if hasattr(error_data, "message"):
+                        message = getattr(error_data, "message", None)
+                        logger.warning("acp_delegate_event_error agent=%s msg=%s", agent_name, message)
+                        exc = RuntimeError(message)
+                        exc.retryable = getattr(error_data, "retryable", False)  # type: ignore[attr-defined]
+                        raise exc
+            elif event.type == RuntimeEventType.STATUS_UPDATE:
+                status = event.data.get("status", "")
+                message = event.data.get("message", "")
+                if status == "warning":
+                    error_count += 1
+                logger.info("acp_delegate_status agent=%s status=%s msg=%s", agent_name, status, message)
+                if sink:
+                    continuity = ContinuityStatus.of(status)
+                    if continuity is not None:
+                        # A notice the UI words itself (title only), not a step that is still running.
+                        await sink.emit(
+                            {
+                                "type": AgentEventType.TASKS_STEPS.value,
+                                "step_key": f"delegation_{agent_name}_{continuity}",
+                                "tool_name": f"delegate:{agent_name}",
+                                "status": "completed",
+                                "data": [],
+                            }
+                        )
+                    else:
+                        await sink.emit(
+                            {
+                                "type": AgentEventType.TASKS_STEPS.value,
+                                "step_key": f"delegation_{agent_name}_status",
+                                "tool_name": f"delegate:{agent_name}",
+                                "data": [{"text": f"{agent_name}: {status}" + (f" — {message}" if message else "")}],
+                            }
+                        )
 
     max_chars = config.max_response_chars if config else 50_000
     collected = "".join(text_parts)
     if was_cancelled:
         collected += "\n\n[cancelled — user aborted delegation]"
-    elif turns_exceeded:
-        collected += f"\n\n[stopped — max turns limit reached ({tool_calls}/{max_turns})]"
+    elif turns_used is not None:
+        collected += f"\n\n[stopped — max turns limit reached ({turns_used}/{max_turns})]"
     result = truncate_response(collected, max_chars)
 
     meta = DelegateMeta(tool_calls=tool_calls, errors=error_count)

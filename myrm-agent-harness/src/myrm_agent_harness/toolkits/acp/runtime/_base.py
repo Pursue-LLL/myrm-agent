@@ -20,7 +20,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
+from contextlib import aclosing
 
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
@@ -159,7 +160,7 @@ class BaseRuntime:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         """Execute a turn with timeout control and streaming truncation.
 
         Wraps ``_do_run_turn`` with ``asyncio.timeout``, applies per-character
@@ -171,8 +172,12 @@ class BaseRuntime:
         truncated = False
 
         try:
-            async with asyncio.timeout(self._config.timeout_seconds):
-                async for event in self._do_run_turn(prompt, session_id, mcp_servers=mcp_servers):
+            # ``aclosing`` ends the turn generator (and so its process) the moment this stream stops, not at GC.
+            async with (
+                asyncio.timeout(self._config.timeout_seconds),
+                aclosing(self._do_run_turn(prompt, session_id, mcp_servers=mcp_servers)) as events,
+            ):
+                async for event in events:
                     if truncated:
                         if event.type == RuntimeEventType.TEXT_DELTA:
                             continue
@@ -260,7 +265,7 @@ class BaseRuntime:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         raise NotImplementedError
         yield  # pragma: no cover — makes this an async generator
 

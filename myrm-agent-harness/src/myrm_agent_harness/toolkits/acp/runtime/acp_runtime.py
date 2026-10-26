@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING
 
@@ -95,7 +95,7 @@ class AcpRuntime(BaseRuntime):
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         if not self.is_alive:
             yield create_event(
                 RuntimeEventType.STATUS_UPDATE,
@@ -150,7 +150,7 @@ class AcpRuntime(BaseRuntime):
     @staticmethod
     async def _consume_events(
         handler: AcpCallbackHandler,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         """Consume RuntimeEvents from the handler's queue in real-time."""
         while True:
             event = await handler.event_queue.get()

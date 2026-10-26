@@ -1,6 +1,6 @@
 """RuntimePool — unified pool for managing arbitrary RuntimeBackend instances.
 
-Supports ACP, SDK, and CLI backends with config-driven registration and
+Supports ACP and CLI backends with config-driven registration and
 concurrency control via a global asyncio.Semaphore plus per-backend
 serialization locks. Backends are created lazily on first use, and a resident
 ACP process that has exited is reconnected by its next ``run_turn``. A ``oneshot``
@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.acp.core.event_bus import EventBus
@@ -57,7 +58,7 @@ def _create_runtime(
         return AcpRuntime(name, config, event_bus=event_bus)
 
     if config.backend_type == "cli":
-        from myrm_agent_harness.toolkits.acp.runtime.cli import CliRuntime
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
 
         return CliRuntime(name, config, session_store=cli_session_store)
 
@@ -169,7 +170,7 @@ class RuntimePool:
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]:
+    ) -> AsyncGenerator[RuntimeEvent]:
         """Stream events from a backend turn with concurrency control.
 
         Use this instead of ``prompt()`` when you need the full event stream.
@@ -208,14 +209,13 @@ class RuntimePool:
                 if oneshot:
                     self._oneshot_backends[(name, session_id)] = backend
                 try:
-                    async for event in backend.run_turn(
-                        prompt,
-                        session_id,
-                        mcp_servers=effective_mcp or None,
-                    ):
-                        if self._event_bus is not None:
-                            await self._event_bus.emit(event)
-                        yield event
+                    async with aclosing(
+                        backend.run_turn(prompt, session_id, mcp_servers=effective_mcp or None)
+                    ) as events:
+                        async for event in events:
+                            if self._event_bus is not None:
+                                await self._event_bus.emit(event)
+                            yield event
                 finally:
                     if oneshot:
                         self._oneshot_backends.pop((name, session_id), None)

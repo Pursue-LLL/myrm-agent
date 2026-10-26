@@ -6,7 +6,7 @@
 
 ## 1. 设计原则
 
-- **Runtime 独立层**：对外部 Agent 统一抽象为 `RuntimeBackend`（ACP / SDK / CLI）
+- **Runtime 独立层**：对外部 Agent 统一抽象为 `RuntimeBackend`（ACP / CLI）
 - **能力 ≥ 竞品**：覆盖主流竞品核心能力，在关键维度可对标或超出
 - **禁止过度设计**：每个组件有明确职责与参照价值
 - **Python 原生**：asyncio、Protocol、dataclass、StrEnum，无额外编排框架依赖
@@ -39,14 +39,14 @@
 
 **来源**：openclaw AcpRuntime + workany AgentPlugin + LobsterAI CoworkRuntime
 
-**价值**：将 ACP 协议连接、SDK 直接调用、CLI spawn 统一为一个接口，添加新后端零成本。
+**价值**：将 ACP 协议连接与 CLI spawn 统一为一个接口，新增后端只需实现这个 Protocol。
 
 ```
 RuntimeBackend (Protocol)
 ├── name: str                                    # 后端标识
 ├── capabilities: BackendCapabilities            # 能力声明
 ├── is_alive: bool                               # 存活检查
-├── run_turn(prompt, session_id, **) -> AsyncIterator[RuntimeEvent]  # 核心执行
+├── run_turn(prompt, session_id, **) -> AsyncGenerator[RuntimeEvent]  # 核心执行；消费方提前停止时用 aclosing 关闭
 ├── cancel(session_id) -> None                   # 取消当前轮次
 ├── resume(session_id) -> bool                   # 恢复会话
 ├── get_info() -> BackendInfo                    # 后端元数据
@@ -63,19 +63,19 @@ RuntimeBackend (Protocol)
 - `supports_streaming`：是否支持流式传输
 - `supports_tools`：是否支持原生工具调用
 
-**3 种实现**：
+**2 种实现**：
 
 | Runtime | 协议 | 参考项目 | 适用场景 |
 |---------|------|---------|---------|
 | AcpRuntime | ACP JSON-RPC (stdin/stdout) | openclaw, zeroclaw | 需 ACP 桥接器（claude-agent-acp / acpx），原生 CLI 不支持 ACP |
-| CliRuntime | spawn CLI + NDJSON 解析（含 reasoning/usage） | ironclaw, nullclaw, picoclaw | Claude/Codex/Gemini CLI（推荐，开箱即用） |
+| CliRuntime | spawn CLI + NDJSON 解析（含 reasoning/usage/工具调用）；Claude / Codex 经 CLI 自己的会话 id 跨回合续接 | ironclaw, nullclaw, picoclaw | Claude/Codex/Gemini CLI（推荐，开箱即用） |
 
 **BackendInfo**：
 ```
 BackendInfo
 ├── name: str
 ├── version: str | None
-├── backend_type: "acp" | "sdk" | "cli"
+├── backend_type: "acp" | "cli"
 ├── status: "ready" | "starting" | "error" | "stopped"
 ├── capabilities: BackendCapabilities
 └── metadata: dict[str, object] | None
@@ -101,8 +101,8 @@ RuntimeEvent (frozen dataclass)
 |---------|------|----------|
 | `text_delta` | LLM 文本增量 | content: str |
 | `reasoning_delta` | 思维链增量 | content: str |
-| `tool_start` | 工具调用开始 | tool_name, tool_input, tool_call_id |
-| `tool_result` | 工具调用结果 | tool_call_id, output, is_error |
+| `tool_start` | 工具调用开始 | tool_name, tool_input, tool_call_id, summary（一行摘要，可为空） |
+| `tool_result` | 工具调用结果 | tool_call_id, output（CLI 后端截断到 2000 字符）, is_error |
 | `permission_request` | 权限请求 | tool_name, tool_input, options, response_future: asyncio.Future[PermissionDecision] |
 | `usage_update` | Token 用量更新 | input_tokens, output_tokens, cache_read, cache_write |
 | `status_update` | 后端状态变化 | status: str, message: str &#124; None |
@@ -112,7 +112,7 @@ RuntimeEvent (frozen dataclass)
 **设计亮点**：
 - `reasoning_delta` — 支持思维链展示（参考 nextclaw MessageReasoningDelta）
 - `usage_update` — 实时 Token 监控（参考 craft-agents-oss token 估算）
-- `status_update` — 后端状态变化通知（starting, compacting, reconnecting 等），UI 可精确展示后端状态
+- `status_update` — 后端状态变化通知（starting, compacting, reconnecting 等），UI 可精确展示后端状态；会话连续性通知由 `types.ContinuityStatus` 定义：`session_expired`（CLI 已不认识上次的会话，本回合改开新会话）与 `session_workspace_changed`（工作目录变了，不续接），宿主据此提示用户而不是当作错误
 - `permission_request` 包含 `response_future` — 参考 Claude-Cowork PendingPermission 模式，run_turn 内部 await Future，订阅者通过 `future.set_result(decision)` 响应，超时按 PermissionManager 默认策略处理
 
 ### 3.3 结构化错误体系
@@ -127,6 +127,7 @@ AcpErrorCode (StrEnum)
 ├── RATE_LIMITED        # 超频
 ├── CONTEXT_OVERFLOW    # 上下文溢出
 ├── PROCESS_CRASHED     # 进程崩溃
+├── MAX_TURNS           # CLI 自身的轮次上限已到（不是故障）
 ├── PERMISSION_DENIED   # 权限拒绝（safe 模式下拒绝写操作等）
 ├── CANCELLED           # 用户取消
 └── UNKNOWN             # 未知错误
@@ -176,7 +177,7 @@ PermissionManager (Protocol)
 - `safe`：只允许读操作（Read, Glob, Grep, Search）
 - `ask`：每次工具调用都询问用户（通过 EventBus 发送 permission_request）
 - `allow_all`：自动批准所有工具
-- `bypass`：跳过权限检查（SDK 内置权限接管）
+- `bypass`：跳过框架侧权限检查（由外部后端自身的权限机制接管）
 
 **增强功能**：
 - **工具白名单 + 参数级通配符**：`allowed_tools: list[str]`，支持 `Bash(npm run *)` 格式
@@ -208,7 +209,7 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None, cli_s
 ├── register(name, config: RuntimeConfig) -> None
 ├── get(name) -> RuntimeBackend
 ├── prompt(name, task, *, mode) -> str      # 委托 run_turn()，收集 text_delta
-├── run_turn(name, prompt, session_id, *, mode, mcp_servers) -> AsyncIterator[RuntimeEvent]  # Semaphore 并发控制
+├── run_turn(name, prompt, session_id, *, mode, mcp_servers) -> AsyncGenerator[RuntimeEvent]  # Semaphore 并发控制
 ├── cancel(name, session_id) -> None        # 级联取消 → backend.cancel()（在途 oneshot 优先）
 ├── available_backends -> list[str]
 ├── release_resident() -> None              # 只释放常驻进程型（ACP）后端，保留 CLI 后端及其 --resume 状态
@@ -221,7 +222,7 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None, cli_s
 - `prompt()` 委托给 `run_turn()`，并发控制统一在 `run_turn()` 层
 - **会话模式 `mode`**：`persistent`（默认）每个后端名共享一个后端实例，会话跨回合延续（CLI 的 `--resume` id、ACP 的常驻进程与会话）；`oneshot` 在**私有后端实例**上运行、回合结束即关闭（关闭失败只记 warning，不覆盖回合结果或回合异常）——总是全新会话，且不触碰 persistent 后端的会话与进程。在途 oneshot 后端按 `(name, session_id)` 登记，`cancel` 优先路由到它，`close_all` 一并关闭；同名后端的回合仍由 per-name 锁串行化（避免同一工作区同时跑两个同名 agent）
 - **空闲释放 `release_resident()`**：宿主在会话空闲时调用，只关闭并摘除常驻进程型（`backend_type == "acp"`）后端，下一回合惰性重建；CLI 后端回合之间没有进程，只持有 `--resume` 会话 id，原样保留，所以空闲回收不会让 CLI 会话断档。调用方须保证此刻池上没有在跑的回合（与 `close_all()` 同一约定）
-- **CLI 会话持久化 `cli_session_store`**：宿主可注入 `CliSessionStore`（`load` / `save` / `delete`，键为 harness session id，一个 store 服务一个会话作用域），让 CLI 后端的 `--resume` id 跨宿主进程重启存活。只注入共享的 persistent 后端；oneshot 私有后端是回合结束即消失的全新会话，既不读也不写 store。store 的任何异常只记 warning 并降级（丢连续性，不丢回合）；harness 在回合收尾处直接 await store 且不设超时，调用时延由实现方自己约束；harness 本身不依赖任何存储实现
+- **CLI 会话持久化 `cli_session_store`**：宿主可注入 `CliSessionStore`（`load` / `save`，键为 harness session id，一个 store 服务一个会话作用域），让 CLI 后端的 `--resume` id 跨宿主进程重启存活。只注入共享的 persistent 后端；oneshot 私有后端是回合结束即消失的全新会话，既不读也不写 store。store 的任何异常只记 warning 并降级（丢连续性，不丢回合）；harness 在回合收尾处直接 await store 且不设超时，调用时延由实现方自己约束；harness 本身不依赖任何存储实现
 - **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底
 - **委托窄协议 `DelegationPool`（`types.py`）**：委托调用方只依赖 `available_backends` / `get_config` / `run_turn` / `cancel`；`RuntimePool` 与宿主侧包装器（如按会话串行化回合的 facade）都满足它，`create_invoke_acp_agent_tool` 接受它
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测
@@ -230,7 +231,7 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None, cli_s
 
 ```
 RuntimeConfig (frozen dataclass)
-├── backend_type: "acp" | "sdk" | "cli"
+├── backend_type: "acp" | "cli"
 ├── command: str | None                  # CLI/ACP 的可执行文件路径
 ├── args: list[str]                      # 命令行参数
 ├── env: dict[str, str] | None           # 额外环境变量
@@ -242,7 +243,7 @@ RuntimeConfig (frozen dataclass)
 ├── auth_mode: AuthMode = "subscription" # 鉴权模式：订阅登录态 / API Key
 ├── mcp_servers: list[McpServerConfig]   # MCP Server 配置
 ├── max_response_chars: int = 50_000     # 响应截断限制
-├── max_turns: int = 25                  # 安全护栏：最大工具调用轮次
+├── max_turns: int = 25                  # 轮次上限：有原生上限的 CLI（Claude）经 --max-turns 自行停止，其余后端由 delegate 按工具调用数兜底
 └── description: str = ""                # Agent 能力描述（注入 tool description）
 ```
 
@@ -254,11 +255,11 @@ RuntimeConfig (frozen dataclass)
 
 ### 3.9 _base.py（RuntimeBackend 基类）
 
-**价值**：提取 3 种 Runtime 的通用逻辑，避免重复代码。
+**价值**：提取各 Runtime 的通用逻辑，避免重复代码。
 
 **通用功能**：
 - 环境变量清理（`build_safe_env`）
-- 超时控制（`asyncio.timeout`）
+- 超时控制（`asyncio.timeout`）；回合生成器由 `aclosing` 收尾，超时、异常或消费方提前放弃都会停掉外部进程
 - 流式响应截断（`max_response_chars`，统一对 TEXT_DELTA 事件逐字符计数）
 - 日志规范化
 
@@ -330,16 +331,19 @@ acp/
 │   ├── pool.py             # RuntimePool
 │   └── cli/                # CLI 后端子包
 │       ├── __init__.py
-│       ├── parser.py       # 共享 NDJSON 事件解析器
-│       ├── runtime.py      # CLI + NDJSON（Claude stream-json / Codex item.* 新格式 + legacy 兼容）+ --resume session 复用
+│       ├── dialect.py      # 各 CLI 的命令行差异（续接语法、原生轮次上限、增量文本）与会话 id 形态校验
+│       ├── failure.py      # 失败分类：用 CLI 自己的话（result 行 / 退出码）给出错误码
+│       ├── parser.py       # 各输出格式共享的事件构造（工具调用/结果、usage、错误、thinking、Codex item.*）
+│       ├── process.py      # CLI 进程：逐行 stdout、有界 stderr 尾部、唯一的停止入口（SIGTERM → SIGKILL）
+│       ├── runtime.py      # CliRuntime：启动、续接、失效重试、会话 id 落盘、回合收尾
 │       ├── session.py      # CLI 会话记录簿 CliSessionBook（内存优先 + 写穿到宿主 CliSessionStore）
-│       └── spawn_hints.py  # 裸 CLI 启动失败提示（错误消息生成）
+│       └── turn_parser.py  # 单回合 NDJSON 解析器（announce / result / 增量文本去重）
 └── toolchains/             # 隔离工具链（Node/npm）
     ├── __init__.py
     └── manager.py          # ToolchainManager
 ```
 
-`toolkits/acp/acp_agent_tools.py` 通过 `RuntimePool` 发起委托，汇总 `USAGE_UPDATE` 事件的 token 消耗并推送至前端。`runtime/cli/parser.py` 提供 `CliRuntime` 使用的 NDJSON 事件解析逻辑（tool_use / tool_result / usage / error / thinking，以及整行入口 `parse_ndjson_line`）。`runtime/cli/runtime.py` 支持 Codex CLI 两种输出格式：新格式（`item.started/completed` + `turn.completed/failed`，含 `command_execution`、`file_change`、`reasoning` 工具事件映射）和 legacy 格式（`{"id","msg"}` envelope 解包）。
+`toolkits/acp/acp_agent_tools.py` 通过 `RuntimePool` 发起委托，汇总 `USAGE_UPDATE` 事件的 token 消耗并推送至前端；用户停止时经 `utils/runtime/cancel_hook.on_token_cancelled` 停掉外部进程。`runtime/cli/turn_parser.py` 把一个回合的 NDJSON 行解析为 `RuntimeEvent`：Claude stream-json（content block 里的文本与 tool_use / tool_result，`--include-partial-messages` 的 `stream_event` 增量文本并按 API message id 去重）、Codex 新格式（`item.started/completed` + `turn.completed/failed`，含 `command_execution`、`file_change`、`reasoning` 事件映射）与 legacy `{"id","msg"}` envelope、纯文本；同时暴露 CLI 最先 announce 的会话 id 与 CLI 自己的 `result` 结论。`runtime/cli/parser.py` 提供各格式共用的事件构造。
 
 ---
 
@@ -347,7 +351,7 @@ acp/
 
 | 能力 | 竞品最佳 | 新方案 | 超越/平齐 |
 |------|---------|--------|----------|
-| 可插拔后端 | openclaw (AcpRuntime) | ACP + SDK + CLI + cancel() + get_info() | **超越** |
+| 可插拔后端 | openclaw (AcpRuntime) | ACP + CLI + cancel() + get_info() | **超越** |
 | 权限管理 | craft-agents-oss (4模式) | 4模式 + 参数级通配符 + 缓存 | **超越** |
 | 事件流 | opencode (订阅系统) | EventBus + session 过滤 | **超越** |
 | Session 管理 | opencode (Fork/Resume) | Fork/Resume + TTL + 自动清理 | **超越** |
@@ -357,7 +361,7 @@ acp/
 | 安全模型 | ironclaw (纵深防御) | 环境清理 + 工具白名单 + 路径安全 | 平齐 |
 | MCP 集成 | craft-agents-oss (Session MCP) | Session MCP 注入 | 平齐 |
 
-**结果：8 项超越，2 项平齐，0 项落后**
+**结果：7 项超越，2 项平齐，0 项落后**
 
 ---
 
@@ -404,25 +408,26 @@ acp/
 - **前端名称唯一性校验**：保存时检测重复 Agent 名称，防止配置冲突
 - **命令可用性测试**（本地模式）：通过 `POST /channels/manage/external-agents/test` 检测命令是否存在并返回版本信息
 - **流式事件消费**：`invoke_acp_agent_tool` 通过 `pool.run_turn()` 逐事件消费，实时日志输出工具调用和状态更新，返回结果包含 tool_calls 计数等元数据
-- **前端实时进度推送**：通过 ContextVar + `ToolProgressSink` 机制，`invoke_acp_agent_tool` 在执行期间将外部 Agent 的工具调用和状态事件实时推送至前端 SSE 流（复用 `TASKS_STEPS` 事件类型，前端零改动）
+- **前端实时进度推送**：通过 ContextVar + `ToolProgressSink` 机制，`invoke_acp_agent_tool` 在执行期间将外部 Agent 的工具调用和状态事件实时推送至前端 SSE 流（复用 `TASKS_STEPS` 事件类型；会话连续性通知是只带标题的已完成步骤，措辞由前端按 `step_key` 本地化）
 - **前端预设模板**：新增模式下提供 Claude Code / Codex CLI / Gemini CLI 一键填充，降低配置门槛
-- **委派取消传播**：CancellationToken → pool.cancel() → backend.cancel()，全链路级联终止
-- **Max Turns 双层安全护栏**：Layer 1 传递 CLI `--max-turns` 参数（Claude Code 原生优雅停止），Layer 2 在 delegate_tool 事件循环中统计 TOOL_START 计数并在超限时 pool.cancel()（所有后端通用兜底）
+- **Max Turns 双层安全护栏**：Layer 1 是 CLI 自己的轮次上限——`CliDialect.with_max_turns` 为 Claude 追加 `--max-turns`，到限后 CLI 自行结束并在 `result` 行报告，`classify_failure` 把它归为 `AcpErrorCode.MAX_TURNS`，工具路径据此返回「已达轮次上限」而不是故障；Layer 2 是 delegate 工具对 `TOOL_START` 的计数，只用于没有原生上限的后端（`has_native_turn_limit`），超限时 `pool.cancel()`——Claude 的一个 agent 轮次可发出多个工具调用，对它计数会提前截断
 - **稳定 Tool Schema**：`invoke_acp_agent_tool` 使用固定 tool description（不含动态 agent 列表），保护 Turn1 Prompt Cache；`agent_name` 无效时错误响应列出 `available_backends`
 - **Deploy 门控（Server）**：`external_cli_deploy.is_external_cli_deploy_supported()` + profile `strip_deploy_incompatible_builtin_tools`；沙箱自动剔除 `external_cli`；BuiltinToolsPanel sandbox 硬禁用 toggle
 - **MCP 会话注入**：`RuntimePool.run_turn` → `AcpRuntime.new_session(mcp_servers=…)`（无 MCP 时 Server 不传参数（None）；`RuntimeConfig.mcp_servers` 为配置源；注入前经 `capabilities.supports_mcp` 能力守卫，跳过不支持的 backends 并记录 `pool_mcp_skipped`）
 - **Host 会话级 MCP 忽略诊断**：ACP Server 侧（`new_session` / `load_session` / `fork_session` / `resume_session`）若收到 host 传入的 `mcp_servers`，记录 `acp_host_mcp_ignored` WARNING —— Myrm 内部 agent 管线自行管理 MCP，host 提供的会话级 MCP 注入不被透传，显式告警避免静默丢失
-- **Spawn 误配提示**：`runtime/cli/spawn_hints.format_cli_spawn_failure_message` 在 bare CLI 进程失败时返回 adapter 配置指引
-- **跨平台进程组清理**：`CliRuntime` 创建进程组，cancel 时级联终止子进程，确保跨平台（Unix/Windows）无孤儿进程遗留
-- **委派取消传播**：通过 ContextVar 传递 `CancellationToken`，用户取消主 Agent 时 `invoke_acp_agent_tool` 的事件消费循环检测取消信号，调用 `pool.cancel()` → `backend.cancel()` 级联终止外部进程，避免"幽灵进程"继续消耗资源
+- **失败分类**：`runtime/cli/failure.classify_failure` 按 CLI 自己的话归类——`result` 行的 `error_max_turns` → `MAX_TURNS`，`api_error_status` 401/403 → `AUTH_FAILED`、429 → 可重试的 `RATE_LIMITED`、5xx → 可重试的 `UNKNOWN`；没有 `result` 行时非零退出码才是 `PROCESS_CRASHED`（带 stderr 摘录）；本运行时自己停掉的进程一律是 `CANCELLED`。消息是 CLI 的原话，不夹带产品设置建议
+- **跨平台进程组清理**：每个 CLI 回合都在独立进程组里运行（POSIX `start_new_session`，Windows `CREATE_NEW_PROCESS_GROUP`），停止时整组终止（POSIX `killpg`，Windows `taskkill /T /F`），子进程随之清理；回合以任何方式结束（正常、异常、取消、超时、消费方提前放弃生成器）都经同一个 `spawn_cli_process` 上下文停掉仍在跑的进程
+- **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）
 - **流式文本推送**：`_direct_delegate_stream` 将 RuntimeEvent 实时转换为前端 SSE 事件（MESSAGE / REASONING / TASKS_STEPS / TOKEN_USAGE / ERROR），实现外部 Agent 响应的逐字流式展示。连接前发送 connecting 状态，完成后发送 completed 状态，提供全生命周期进度反馈
 - **REASONING_DELTA 前端传递**：`invoke_acp_agent_tool` 工具将外部 Agent 的思维链（REASONING_DELTA）通过 `ToolProgressSink` 实时推送至前端，用户可看到外部 Agent 的推理过程
-- **CLI Session 复用**：`CliRuntime` 捕获 CLI 返回的 session_id（连同创建它的工作目录记为 `CliSessionRecord`），后续调用自动注入 `--resume` 参数，实现多轮对话上下文保持（支持 claude CLI）。Claude Code 按工作目录存放会话（v2.1.223 之前 `--resume <id>` 只在当前项目目录里查找 id），所以记录的目录与本回合启动目录不同就不 resume，改开新会话，对新旧版本都安全；宿主提供 `CliSessionStore` 时记录在回合结果确定后写穿（未变化不重写），宿主进程重启后仍能续接；**resume 失效自愈**——注入 `--resume` 后 CLI 自身以正退出码失败且无输出（PROCESS_CRASHED）时丢弃失效记录（内存与 store 一并删除；store 删不掉时本进程也不再从 store 读回它，下一回合开新会话并覆盖旧记录），重试降级开新会话，避免拿着过期 id 二次失败；被取消或超时杀掉的进程（负退出码）说明不了会话是否存在，记录保留
+- **CLI Session 复用**：CLI 回合最先输出的一行 announce 会话（Claude `system/init` 的 `session_id`、Codex `thread.started` 的 `thread_id`），`CliRuntime` 在收到 announce 的那一刻就记录（连同创建它的工作目录，`CliSessionRecord`）并写穿到宿主 `CliSessionStore`，所以回合中途被停止的会话照样能续接；记录只看 announce，不看回合结果。续接由 `CliDialect` 按各 CLI 的语法完成：Claude 追加 `--resume <id>`，Codex 把 `exec` 改写为 `exec resume <选项> <id>`（`codex exec resume` 只认自己的选项，`--sandbox` 这类根级选项仍在 `exec` 之前，prompt 跟在 id 之后）；id 必须是规范 UUID 形态才会被重放（Codex 对格式不对的 id 会静默开新线程）。Claude Code 按工作目录存放会话（v2.1.223 之前 `--resume <id>` 只在当前项目目录里查找 id），所以记录目录与本回合启动目录不同就不续接，改开新会话并发出 `session_workspace_changed`。**失效自愈**：续接的判据是 CLI 在 announce 之前、没有任何输出、以正退出码退出（它自己在说「不认识这个会话」），此时发出 `session_expired`，同一回合内改开新会话重跑一次；旧 id 在新会话 announce 之后才被替换，重试也失败则旧记录原样保留。被本运行时取消或超时杀掉的进程说明不了会话是否存在，记录保留。Claude / Codex 之外的 CLI 没有方言，按配置原样启动、不续接
 - **Per-backend 并发串行化**：`RuntimePool.run_turn` 在全局 Semaphore 之外对同一 backend 增 per-backend `asyncio.Lock`，保证单后端实例（如 CliRuntime 的可变进程句柄）同时只跑一个 turn；`cancel()` 不取该锁（调用方在 turn 循环内取消，无死锁），不同 backend 仍可并行
-- **超时/异常进程清理**：`BaseRuntime.run_turn` 在超时或意外异常分支先 `cancel()` 再产出 ERROR 事件，终止可能仍存活的外部 CLI 进程，杜绝超时后孤儿进程在后台继续消耗资源
-- **失败路径统一 ERROR**：`AcpRuntime._do_run_turn` 的 prompt 失败会 re-raise（不被 finally 吞掉），与 CliRuntime 一致地由 `run_turn` 转为 ERROR 事件并清理进程——避免失败被静默降级为 DONE 事件导致 delegate 误判成功
-- **NDJSON 解析器模块化**：`runtime/cli/parser.py` 提取 CLI 共享的解析逻辑，消除代码重复
+- **超时/异常/放弃的进程清理**：`BaseRuntime.run_turn` 用 `aclosing` 包住回合生成器，超时、意外异常或消费方提前放弃都会让回合收尾并停掉外部进程；超时与异常再先 `cancel()` 后产出 ERROR 事件，杜绝孤儿进程在后台继续消耗资源
+- **失败路径统一 ERROR**：一个失败的回合只以一个 ERROR 事件结束，不会被静默降级为 DONE 导致 delegate 误判成功：`AcpRuntime._do_run_turn` 的 prompt 失败会 re-raise，由 `run_turn` 转为 ERROR 并清理进程；`CliRuntime` 在回合末用 `classify_failure` 给出分类后的 ERROR（CLI 已流式给出 ERROR 事件时不重复；CLI 已产出文本却以非零码退出时记 warning 并按 DONE 结束）
+- **NDJSON 解析分层**：`turn_parser.TurnParser`（有状态、无 I/O）+ `parser.py`（各格式共享的事件构造），任何 CLI 输出形态都能只凭文本做单测
+- **增量文本与工具事件**：Claude 以 `--include-partial-messages` 启动（仅 stream-json 输出），文本逐段到达，随后重复的完整消息按 API message id 去重；assistant 消息里的 `tool_use` 与 user 消息里的 `tool_result` 映射为 `TOOL_START`（含一行摘要）/ `TOOL_RESULT`
+- **大输出行**：stdout 单行上限 16 MiB（一条工具结果可以是整个文件，asyncio 默认的 64 KiB 会让整回合失败）；stderr 只保留末尾 8 KiB 用于错误摘录
 - **Delegate 元数据 TypedDict**：`DelegateUsage` / `DelegateMeta` 提供精确的类型提示
 - **直连模式 Session 隔离**：基于 `chat_id` 生成独立 `session_id`，不同对话的外部 Agent 上下文互不干扰
 - **直连模式 TOOL_RESULT 事件**：展示外部 Agent 工具执行结果（成功/失败状态）
@@ -435,7 +440,7 @@ acp/
 | 不做 | 原因 | 竞品参考 |
 |------|------|---------|
 | 容器化执行 | 不是 Sandbox，不需要 Docker 沙箱 | ironclaw, nanoclaw |
-| 15+ 后端 | 3 种后端已覆盖主流场景 | AionUi |
+| 15+ 后端 | ACP 与 CLI 两种后端已覆盖主流场景 | AionUi |
 | Transcript Hash Resume | ACP 协议已有 session resume | nullclaw |
 | 流式消息缓冲 | 场景不需要 120ms 批量写入 | AionUi |
 | Config Watcher | 配置变更通过重启处理 | craft-agents-oss |
@@ -467,21 +472,23 @@ acp/
 
 1. **Runtime 与 Server 解耦**：外部 Agent 集成不污染 IDE 桥接路径
 2. **能力全面对标竞品**：对比项中多数为超越或平齐
-3. **抽象层次稳定**：`RuntimeBackend` 统一三种接入方式，扩展成本低
+3. **抽象层次稳定**：`RuntimeBackend` 统一 ACP 与 CLI 两种接入方式，扩展成本低
 4. **生命周期完整**：run_turn + cancel + resume + close + get_info
 5. **结构化错误**：错误码 + retryable + 详情字段
 6. **事件模型克制**：9 种事件类型覆盖委托与观测需求
 7. **安全默认**：环境清理、白名单、工作目录内 FS 回调
 8. **边界清晰**：明确非目标列表，避免范围蔓延
 9. **Server 层职责单一**：桥接与翻译与 Runtime 正交
-10. **依赖面小**：标准库 + 现有 acp SDK + 可选 Node/SDK
+10. **依赖面小**：标准库 + 可选依赖 `agent-client-protocol` + 可选 Node 工具链
 11. **并发受控**：RuntimePool Semaphore
 12. **框架/业务可替换**：PermissionManager 等 Protocol 注入点明确
-13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → delegate_tool → pool.cancel() → backend.cancel() → 进程终止，零资源泄漏
-14. **超时零孤儿**：run_turn 超时/异常分支自动 cancel 存活进程，外部 CLI 无后台残留
-15. **双层 Max Turns 安全护栏**：Layer 1（CLI 参数）让支持的 CLI 优雅停止，Layer 2（delegate_tool 事件计数）对所有后端通用兜底——业界唯一的双层方案
+13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出
+14. **超时/异常/放弃不留孤儿**：回合生成器由 aclosing 收尾，超时、异常与消费方提前放弃都会停掉存活进程
+15. **双层 Max Turns 安全护栏**：Layer 1（CLI 原生上限）让支持的 CLI 自行停止并如实报告，Layer 2（delegate_tool 工具调用计数）只兜底没有原生上限的后端
 16. **Agent 能力描述**：description 注入 tool description，帮助 LLM 在多 Agent 场景下做出正确的委派决策
 17. **MCP 注入能力守卫**：`supports_mcp` 在 `RuntimePool` 层统一校验，杜绝竞品（qwen-audio）「向不支持的 ACP 后端注入 MCP 导致 session 崩溃」同类缺陷；直接调用 `CliRuntime` 与 ACP Server 侧 host MCP 均显式告警，防御路径零静默降级
 
 **已知局限**：
 - 外部 CLI 的权限语义受其自身命令行契约限制，无法表达交互式逐次询问
+- 宿主进程自身被强杀时，已启动的外部 CLI 进程不在清理保证内
+- 会话续接与原生轮次上限只覆盖 Claude / Codex；其他 CLI 按配置原样启动

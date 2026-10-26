@@ -13,6 +13,7 @@ no - Base type definition module
 - DelegationPool: the pool surface a delegation caller needs (RuntimePool and host-side wrappers satisfy it)
 - RuntimeEvent: Runtime Event type
 - AcpErrorCode: ACP error enum
+- ContinuityStatus: status_update statuses for a CLI conversation that could not be continued
 - RuntimeConfig: Runtime configuration
 - CliSessionRecord: a CLI-native session id bound to the working directory that created it
 - CliSessionStore: protocol a host implements to keep CLI session records across process restarts
@@ -28,7 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal, Protocol, runtime_checkable
@@ -61,9 +62,25 @@ class AcpErrorCode(StrEnum):
     RATE_LIMITED = "rate_limited"
     CONTEXT_OVERFLOW = "context_overflow"
     PROCESS_CRASHED = "process_crashed"
+    MAX_TURNS = "max_turns"
     PERMISSION_DENIED = "permission_denied"
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
+
+
+class ContinuityStatus(StrEnum):
+    """``status_update`` statuses telling that the conversation a CLI agent recorded earlier is not continued."""
+
+    SESSION_EXPIRED = "session_expired"
+    WORKSPACE_CHANGED = "session_workspace_changed"
+
+    @classmethod
+    def of(cls, status: object) -> ContinuityStatus | None:
+        """The continuity status that ``status`` stands for, or None for any other status."""
+        try:
+            return cls(status)
+        except ValueError:
+            return None
 
 
 PermissionMode = Literal["safe", "ask", "allow_all", "bypass"]
@@ -192,7 +209,7 @@ class PermissionDecision(StrEnum):
 
 @runtime_checkable
 class RuntimeBackend(Protocol):
-    """Unified interface for ACP, SDK, and CLI agent backends.
+    """Unified interface for ACP and CLI agent backends.
 
     Implementations must support the full lifecycle: run_turn, cancel, resume,
     get_info, and close.
@@ -213,7 +230,7 @@ class RuntimeBackend(Protocol):
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]: ...
+    ) -> AsyncGenerator[RuntimeEvent]: ...
 
     async def cancel(self, session_id: str) -> None: ...
 
@@ -244,7 +261,7 @@ class DelegationPool(Protocol):
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
-    ) -> AsyncIterator[RuntimeEvent]: ...
+    ) -> AsyncGenerator[RuntimeEvent]: ...
 
     async def cancel(self, name: str, session_id: str) -> None: ...
 
@@ -253,15 +270,14 @@ class CliSessionStore(Protocol):
     """Durable home of ``CliSessionRecord`` keyed by harness session id; one store serves one conversation scope.
 
     A host implements it so CLI sessions survive a restart of the host process. The runtime awaits every call
-    while a turn finishes, so an implementation bounds its own latency; a call that raises is degraded by the
-    runtime to a fresh CLI session and never fails a turn.
+    while a turn runs (a record is saved as soon as the CLI announces its session), so an implementation bounds
+    its own latency; a call that raises is degraded by the runtime to a fresh CLI session and never fails a turn.
+    A record is never deleted: the next session the CLI announces overwrites it.
     """
 
     async def load(self, session_id: str) -> CliSessionRecord | None: ...
 
     async def save(self, session_id: str, record: CliSessionRecord) -> None: ...
-
-    async def delete(self, session_id: str) -> None: ...
 
 
 @runtime_checkable

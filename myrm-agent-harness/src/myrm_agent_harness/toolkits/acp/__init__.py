@@ -2,7 +2,7 @@
 
 Provides bidirectional ACP capabilities:
 - Server (server/): Bridges IDE clients (Cursor, Zed, VS Code) to the agent system.
-- Runtime (runtime/): Connects to external agents via ACP protocol, SDK, or CLI.
+- Runtime (runtime/): Connects to external agents via the ACP protocol or a CLI process.
 
 Facades and contracts (root):
 - types.py: Core type definitions (RuntimeBackend Protocol, RuntimeEvent, etc.)

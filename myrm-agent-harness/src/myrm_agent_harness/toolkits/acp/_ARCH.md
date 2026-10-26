@@ -17,7 +17,7 @@ Detailed design: [ACP_SYSTEM.md](ACP_SYSTEM.md)
 | Submodule | Description |
 |-----------|-------------|
 | auth/ | Subscription authentication for external CLI backends. See [auth/_ARCH.md](auth/_ARCH.md). |
-| core/ | Shared runtime infrastructure — event bus, permission, health monitor, backend detector. |
+| core/ | Shared runtime infrastructure — event bus, permission, backend detector. |
 | runtime/ | ACP Runtime backends — unified interface for ACP and CLI agents. |
 | server/ | ACP Server — bridges IDE clients to the agent system via ACP protocol. |
 | toolchains/ | Isolated toolchain manager for external CLI agents. See [toolchains/_ARCH.md](toolchains/_ARCH.md). |

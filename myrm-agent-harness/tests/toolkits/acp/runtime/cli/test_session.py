@@ -9,6 +9,8 @@ from myrm_agent_harness.toolkits.acp.types import CliSessionRecord
 
 from ._fakes import RecordingStore
 
+_RECORD = CliSessionRecord("cli-1", "/work")
+
 
 def test_memory_is_bounded_and_evicts_the_oldest_record_first() -> None:
     book = CliSessionBook("test")
@@ -31,20 +33,91 @@ def test_overwriting_a_record_at_capacity_evicts_nothing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_forgotten_record_is_written_again_when_the_same_record_comes_back() -> None:
-    """Forgetting empties the store, so persisting an identical record afterwards must not be skipped."""
+async def test_a_remembered_record_is_read_back_without_touching_the_store() -> None:
     store = RecordingStore()
     book = CliSessionBook("test", store)
-    record = CliSessionRecord("cli-1", "/work")
-    book.remember("s1", record)
-    await book.persist("s1")
-    await book.forget("s1")
-    assert store.records == {}
+    book.remember("s1", _RECORD)
 
-    book.remember("s1", record)
+    assert await book.recorded("s1") == _RECORD
+    assert store.ops == []
+
+
+@pytest.mark.asyncio
+async def test_a_memory_miss_loads_from_the_store_once() -> None:
+    store = RecordingStore()
+    store.records["s1"] = _RECORD
+    book = CliSessionBook("test", store)
+
+    assert await book.recorded("s1") == _RECORD
+    assert await book.recorded("s1") == _RECORD
+    assert store.ops == [("load", "s1")]
+
+
+@pytest.mark.asyncio
+async def test_without_a_store_an_unknown_session_has_no_record() -> None:
+    assert await CliSessionBook("test").recorded("s1") is None
+
+
+@pytest.mark.asyncio
+async def test_a_record_just_loaded_is_not_written_back() -> None:
+    store = RecordingStore()
+    store.records["s1"] = _RECORD
+    book = CliSessionBook("test", store)
+    await book.recorded("s1")
+
     await book.persist("s1")
 
-    assert store.records == {"s1": record}
+    assert store.ops == [("load", "s1")]
+
+
+@pytest.mark.asyncio
+async def test_persist_writes_a_new_record_once_and_a_replaced_record_again() -> None:
+    store = RecordingStore()
+    book = CliSessionBook("test", store)
+    book.remember("s1", _RECORD)
+    await book.persist("s1")
+    await book.persist("s1")
+    renewed = CliSessionRecord("cli-2", "/work")
+    book.remember("s1", renewed)
+    await book.persist("s1")
+
+    assert [op for op, _ in store.ops] == ["save", "save"]
+    assert store.records == {"s1": renewed}
+
+
+@pytest.mark.asyncio
+async def test_persist_without_a_record_or_a_store_is_a_no_op() -> None:
+    store = RecordingStore()
+    await CliSessionBook("test", store).persist("unknown")
+    book = CliSessionBook("test")
+    book.remember("s1", _RECORD)
+    await book.persist("s1")
+
+    assert store.ops == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_save_is_retried_by_the_next_persist() -> None:
+    store = RecordingStore()
+    store.failing = {"save"}
+    book = CliSessionBook("test", store)
+    book.remember("s1", _RECORD)
+
+    await book.persist("s1")
+    store.failing = set()
+    await book.persist("s1")
+
+    assert store.records == {"s1": _RECORD}
+    assert [op for op, _ in store.ops] == ["save", "save"]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_load_is_a_missing_record_not_an_error() -> None:
+    store = RecordingStore()
+    store.failing = {"load"}
+    store.records["s1"] = _RECORD
+
+    assert await CliSessionBook("test", store).recorded("s1") is None
 
 
 @pytest.mark.asyncio
@@ -52,55 +125,22 @@ async def test_an_evicted_record_is_still_loadable_from_the_store() -> None:
     store = RecordingStore()
     store.records["s0"] = CliSessionRecord("cli-0", "/work")
     book = CliSessionBook("test", store)
-    await book.resumable("s0", "/work")
+    await book.recorded("s0")
     for index in range(1, 600):
         book.remember(f"s{index}", CliSessionRecord(f"cli-{index}", "/work"))
     assert "s0" not in book
 
-    assert await book.resumable("s0", "/work") == CliSessionRecord("cli-0", "/work")
+    assert await book.recorded("s0") == CliSessionRecord("cli-0", "/work")
 
 
 @pytest.mark.asyncio
-async def test_a_record_the_store_failed_to_delete_is_not_read_back() -> None:
+async def test_clearing_memory_keeps_what_the_store_holds() -> None:
     store = RecordingStore()
-    store.failing = {"delete"}
-    record = CliSessionRecord("cli-1", "/work")
-    store.records["s1"] = record
     book = CliSessionBook("test", store)
-    book.remember("s1", record)
-
-    await book.forget("s1")
-
-    assert "s1" not in book
-    assert await book.resumable("s1", "/work") is None
-    assert store.ops == [("delete", "s1")]
-
-
-@pytest.mark.asyncio
-async def test_a_fresh_record_lifts_the_ban_on_reading_the_store_for_that_session() -> None:
-    store = RecordingStore()
-    store.failing = {"delete"}
-    store.records["s1"] = CliSessionRecord("dead", "/work")
-    book = CliSessionBook("test", store)
-    await book.forget("s1")
-    fresh = CliSessionRecord("fresh", "/work")
-    book.remember("s1", fresh)
+    book.remember("s1", _RECORD)
     await book.persist("s1")
-    for index in range(600):
-        book.remember(f"other-{index}", CliSessionRecord(f"cli-{index}", "/work"))
-    assert "s1" not in book
-
-    assert await book.resumable("s1", "/work") == fresh
-
-
-@pytest.mark.asyncio
-async def test_clearing_memory_returns_the_book_to_reading_the_store() -> None:
-    store = RecordingStore()
-    store.failing = {"delete"}
-    store.records["s1"] = CliSessionRecord("dead", "/work")
-    book = CliSessionBook("test", store)
-    await book.forget("s1")
 
     book.clear_memory()
 
-    assert await book.resumable("s1", "/work") == CliSessionRecord("dead", "/work")
+    assert len(book) == 0
+    assert await book.recorded("s1") == _RECORD

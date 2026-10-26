@@ -29,10 +29,10 @@ def _make_pool(backends: dict[str, RuntimeConfig] | None = None) -> MagicMock:
     return pool
 
 
-def _cfg(desc: str = "", max_turns: int = 25) -> RuntimeConfig:
+def _cfg(desc: str = "", max_turns: int = 25, command: str = "claude") -> RuntimeConfig:
     return RuntimeConfig(
         backend_type="cli",
-        command="claude",
+        command=command,
         description=desc,
         max_turns=max_turns,
     )
@@ -201,7 +201,8 @@ class TestRunTurnAndCollect:
 
     @pytest.mark.asyncio
     async def test_max_turns_exceeded(self) -> None:
-        pool = _make_pool({"claude": _cfg(max_turns=2)})
+        """A CLI without a native turn limit is stopped once its tool calls reach the configured limit."""
+        pool = _make_pool({"codex": _cfg(max_turns=2, command="codex")})
 
         async def fake_run_turn(name, task, session_id, mode="persistent"):
             yield create_event(RuntimeEventType.TOOL_START, session_id, tool_name="bash")
@@ -209,8 +210,8 @@ class TestRunTurnAndCollect:
             yield create_event(RuntimeEventType.TOOL_START, session_id, tool_name="write")
 
         pool.run_turn = fake_run_turn
-        result, _meta = await _run_turn_and_collect(pool, "claude", "task", mode="persistent")
-        assert "max turns limit reached" in result
+        result, _meta = await _run_turn_and_collect(pool, "codex", "task", mode="persistent")
+        assert "max turns limit reached (2/2)" in result
         pool.cancel.assert_awaited()
 
     @pytest.mark.asyncio

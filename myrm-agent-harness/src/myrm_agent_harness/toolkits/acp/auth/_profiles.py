@@ -92,7 +92,9 @@ _PROFILES: dict[str, AuthProfile] = {
         logout_args=("logout",),
         needs_code_input=False,
         api_key_env=("OPENAI_API_KEY",),
-        cli_launch_args=("exec", "--json"),
+        # A delegated workspace is not necessarily a git repository, and `exec` refuses to start outside one
+        # unless told otherwise. The sandbox the permission mode selects is unaffected by the flag.
+        cli_launch_args=("exec", "--json", "--skip-git-repo-check"),
     ),
     "claude": AuthProfile(
         backend="claude",

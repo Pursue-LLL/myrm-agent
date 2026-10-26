@@ -49,7 +49,7 @@ class DefaultPermissionManager:
     - ``safe``: Only allow read operations.
     - ``ask``: Delegate to external decision (caller must handle the Future).
     - ``allow_all``: Auto-approve everything.
-    - ``bypass``: Skip permission checks entirely (SDK handles permissions).
+    - ``bypass``: Skip permission checks entirely (the external backend applies its own).
 
     Tool allowlists support parameter-level wildcards::
 

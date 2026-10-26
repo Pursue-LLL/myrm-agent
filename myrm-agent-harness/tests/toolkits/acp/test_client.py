@@ -171,7 +171,8 @@ class TestRuntimeEvent:
         assert len(RuntimeEventType) == 9
 
     def test_error_codes_count(self) -> None:
-        assert len(AcpErrorCode) == 9
+        assert len(AcpErrorCode) == 10
+        assert AcpErrorCode.MAX_TURNS == "max_turns"
         assert AcpErrorCode.PERMISSION_DENIED == "permission_denied"
 
 
@@ -1053,7 +1054,7 @@ class TestRuntimePoolFactory:
     def test_create_cli_runtime_no_resume(self) -> None:
         from myrm_agent_harness.toolkits.acp.runtime.pool import _create_runtime
 
-        cfg = RuntimeConfig(backend_type="cli", command="codex")
+        cfg = RuntimeConfig(backend_type="cli", command="gemini")
         rt = _create_runtime("test", cfg)
         assert rt.name == "test"
         assert rt.capabilities.supports_resume is False
