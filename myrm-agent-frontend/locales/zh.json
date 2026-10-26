@@ -5449,33 +5449,6 @@
         "noCommits": "未检测到近期的 Commit 历史",
         "gitUnavailable": "当前工作区未检测到 Git 仓库"
       },
-      "competitorMigration": {
-        "title": "导入你的其他助手",
-        "description": "在这台电脑上查找 Hermes、Claude Code 或 Codex 的数据，并把它们的记忆、技能和规则迁移过来。",
-        "scan": "查找其他助手",
-        "scanning": "正在查找…",
-        "empty": "开始查找，看看这台电脑上有哪些助手可以导入。",
-        "foundCount": "找到 {count} 个助手",
-        "found": "已找到",
-        "notFound": "未找到",
-        "import": "导入",
-        "importing": "正在导入…",
-        "resultTitle": "导入完成",
-        "memories": "{count} 条记忆",
-        "skills": "{count} 个技能",
-        "rules": "{count} 条规则",
-        "sources": {
-          "hermes": "记忆、自定义技能和设置",
-          "claude_code": "你的全局规则和项目规则",
-          "codex": "共用规则和技能"
-        },
-        "errors": {
-          "scan": "查找其他助手失败，请重试。",
-          "import": "无法从这个助手导入，请重试。"
-        },
-        "backupHint": "想把整个应用迁移到另一台设备？",
-        "backupLink": "打开备份与恢复"
-      },
       "migrationOpenWizard": "导入记忆",
       "migrationSourcesTitle": "支持的来源"
     },

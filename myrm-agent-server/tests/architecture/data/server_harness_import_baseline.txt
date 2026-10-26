@@ -572,7 +572,6 @@ myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.score_honesty
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
-myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback

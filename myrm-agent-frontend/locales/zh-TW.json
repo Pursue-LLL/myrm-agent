@@ -5449,33 +5449,6 @@
         "noCommits": "未偵測到近期的 Commit 歷史",
         "gitUnavailable": "目前工作區未偵測到 Git 倉庫"
       },
-      "competitorMigration": {
-        "title": "匯入你的其他助手",
-        "description": "在這台電腦上尋找 Hermes、Claude Code 或 Codex 的資料，並把它們的記憶、技能與規則遷移過來。",
-        "scan": "尋找其他助手",
-        "scanning": "正在尋找…",
-        "empty": "開始尋找，看看這台電腦上有哪些助手可以匯入。",
-        "foundCount": "找到 {count} 個助手",
-        "found": "已找到",
-        "notFound": "未找到",
-        "import": "匯入",
-        "importing": "正在匯入…",
-        "resultTitle": "匯入完成",
-        "memories": "{count} 則記憶",
-        "skills": "{count} 個技能",
-        "rules": "{count} 條規則",
-        "sources": {
-          "hermes": "記憶、自訂技能與設定",
-          "claude_code": "你的全域規則與專案規則",
-          "codex": "共用規則與技能"
-        },
-        "errors": {
-          "scan": "尋找其他助手失敗，請重試。",
-          "import": "無法從這個助手匯入，請重試。"
-        },
-        "backupHint": "想把整個應用遷移到另一台裝置？",
-        "backupLink": "開啟備份與復原"
-      },
       "migrationOpenWizard": "匯入記憶",
       "migrationSourcesTitle": "支援的來源"
     },

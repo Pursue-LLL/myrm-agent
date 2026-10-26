@@ -25,8 +25,6 @@
 | `MemoryEconomicsPanel.tsx`              | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理 | ✅    |
 | `MemoryEconomicsKpiCards.tsx`           | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI   | ✅    |
 | `MemoryParasiticGovernanceList.tsx`     | 辅助 | 经济学面板沉睡治理子组件：低效沉睡记忆列表、单条与批量归档操作   | ✅    |
-| `CompetitorMigrationCard.tsx`           | 核心 | 竞品智能体迁入卡片：嗅探本机 Hermes/Claude Code/Codex 资产并一键迁入记忆、技能与规则；整机备份与恢复在设置页（features/instance-archive） | ✅    |
-| `CompetitorAssetDetectionView.tsx`      | 辅助 | 竞品迁入卡片子组件：呈现本机第三方智能体资产嗅探结果、单源一键迁入与迁入计数 | ✅    |
 | `FirstEncounterReportCard.tsx` | 核心 | 历史会话轻量采样与“初见报告”冷启动卡片：多源 Agent 探测雷达、首2尾12关键帧采样、香农熵双轨零泄漏脱敏与个人技术画像一键入库 | ✅    |
 | `PrivateNotebookCard.tsx` | 核心 | 透明可检视模型私有笔记本卡片：对标 Codex PR #42385 超越版、Notes 5 工具操作台、历史交互检索与平滑跨窗口接力 | ✅    |
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |

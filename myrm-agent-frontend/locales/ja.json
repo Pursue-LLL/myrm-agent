@@ -5449,33 +5449,6 @@
         "noCommits": "最近のコミット履歴が検出されませんでした",
         "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
       },
-      "competitorMigration": {
-        "title": "ほかのアシスタントを取り込む",
-        "description": "このパソコン上の Hermes、Claude Code、Codex のデータを探し、記憶・スキル・ルールを引き継ぎます。",
-        "scan": "ほかのアシスタントを探す",
-        "scanning": "探しています…",
-        "empty": "検索すると、このパソコンで取り込めるアシスタントが表示されます。",
-        "foundCount": "{count} 件のアシスタントが見つかりました",
-        "found": "見つかりました",
-        "notFound": "見つかりません",
-        "import": "取り込む",
-        "importing": "取り込み中…",
-        "resultTitle": "取り込みが完了しました",
-        "memories": "記憶 {count} 件",
-        "skills": "スキル {count} 件",
-        "rules": "ルール {count} 件",
-        "sources": {
-          "hermes": "記憶、カスタムスキル、設定",
-          "claude_code": "グローバルルールとプロジェクトのルール",
-          "codex": "共有のルールとスキル"
-        },
-        "errors": {
-          "scan": "ほかのアシスタントを探せませんでした。もう一度お試しください。",
-          "import": "このアシスタントから取り込めませんでした。もう一度お試しください。"
-        },
-        "backupHint": "アプリ全体を別のデバイスへ移したい場合は、こちら。",
-        "backupLink": "バックアップと復元を開く"
-      },
       "migrationOpenWizard": "記憶をインポート",
       "migrationSourcesTitle": "対応ソース"
     },

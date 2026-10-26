@@ -5449,33 +5449,6 @@
         "noCommits": "Kein aktueller Commit-Verlauf erkannt",
         "gitUnavailable": "Im aktuellen Arbeitsbereich wurde kein Git-Repository erkannt"
       },
-      "competitorMigration": {
-        "title": "Andere Assistenten übernehmen",
-        "description": "Sucht auf diesem Computer nach Daten von Hermes, Claude Code oder Codex und übernimmt deren Gedächtnis, Skills und Regeln.",
-        "scan": "Nach anderen Assistenten suchen",
-        "scanning": "Suche läuft …",
-        "empty": "Starten Sie die Suche, um zu sehen, welche Assistenten auf diesem Computer übernommen werden können.",
-        "foundCount": "{count, plural, =0 {Keine Assistenten gefunden} one {# Assistent gefunden} other {# Assistenten gefunden}}",
-        "found": "Gefunden",
-        "notFound": "Nicht gefunden",
-        "import": "Übernehmen",
-        "importing": "Wird übernommen …",
-        "resultTitle": "Erfolgreich übernommen",
-        "memories": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
-        "skills": "{count, plural, one {# Skill} other {# Skills}}",
-        "rules": "{count, plural, one {# Regel} other {# Regeln}}",
-        "sources": {
-          "hermes": "Gedächtnis, eigene Skills und Einstellungen",
-          "claude_code": "Ihre globalen Regeln und Projektregeln",
-          "codex": "Gemeinsame Regeln und Skills"
-        },
-        "errors": {
-          "scan": "Die Suche nach anderen Assistenten ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-          "import": "Die Übernahme von diesem Assistenten ist fehlgeschlagen. Bitte versuchen Sie es erneut."
-        },
-        "backupHint": "Möchten Sie stattdessen die ganze App auf ein anderes Gerät übertragen?",
-        "backupLink": "Sicherung und Wiederherstellung öffnen"
-      },
       "migrationOpenWizard": "Erinnerungen importieren",
       "migrationSourcesTitle": "Unterstützte Quellen"
     },

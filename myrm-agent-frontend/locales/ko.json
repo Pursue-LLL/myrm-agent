@@ -5449,33 +5449,6 @@
         "noCommits": "최근 커밋 기록이 감지되지 않음",
         "gitUnavailable": "현재 작업 영역에서 Git 저장소가 감지되지 않았습니다"
       },
-      "competitorMigration": {
-        "title": "다른 어시스턴트 가져오기",
-        "description": "이 컴퓨터에서 Hermes, Claude Code, Codex 데이터를 찾아 기억, 스킬, 규칙을 가져옵니다.",
-        "scan": "다른 어시스턴트 찾기",
-        "scanning": "찾는 중…",
-        "empty": "검색하면 이 컴퓨터에서 가져올 수 있는 어시스턴트가 표시됩니다.",
-        "foundCount": "어시스턴트 {count}개를 찾았습니다",
-        "found": "찾음",
-        "notFound": "찾지 못함",
-        "import": "가져오기",
-        "importing": "가져오는 중…",
-        "resultTitle": "가져오기가 완료되었습니다",
-        "memories": "기억 {count}개",
-        "skills": "스킬 {count}개",
-        "rules": "규칙 {count}개",
-        "sources": {
-          "hermes": "기억, 사용자 지정 스킬, 설정",
-          "claude_code": "전역 규칙과 프로젝트 규칙",
-          "codex": "공용 규칙과 스킬"
-        },
-        "errors": {
-          "scan": "다른 어시스턴트를 찾지 못했습니다. 다시 시도해 주세요.",
-          "import": "이 어시스턴트에서 가져오지 못했습니다. 다시 시도해 주세요."
-        },
-        "backupHint": "앱 전체를 다른 기기로 옮기고 싶으신가요?",
-        "backupLink": "백업 및 복원 열기"
-      },
       "migrationOpenWizard": "기억 가져오기",
       "migrationSourcesTitle": "지원 소스"
     },

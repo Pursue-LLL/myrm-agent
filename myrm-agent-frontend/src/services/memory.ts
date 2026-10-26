@@ -11,7 +11,6 @@ export * from './memory/health';
 export * from './memory/integration';
 export * from './memory/cognitiveClock';
 export * from './memory/profileNotes';
-export * from './memory/competitorMigration';
 export * from './memory/onboardingInsight';
 export * from './memory/privateNotebook';
 export * from './memory/ephemeralDelta';

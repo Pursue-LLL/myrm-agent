@@ -30,7 +30,6 @@ import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { ToolGuidancePanel } from './ToolGuidancePanel';
 import { CognitiveClockPanel } from './CognitiveClockPanel';
 import { DualLayerMemoryCard } from '@/components/agent/DualLayerMemoryCard';
-import { CompetitorMigrationCard } from './CompetitorMigrationCard';
 import { MEMORY_TYPES, translateSpaceKind, type MemoryTranslation } from './memoryCommandCenterFormat';
 import { Panel, MetricTile, EmptyState } from './MemoryCommandCenterPrimitives';
 import { EventList, RuntimePanel, CostPanel, ReplayRow } from './MemoryCommandCenterObservationPanels';
@@ -169,7 +168,6 @@ export const ActSection = ({
     <DualLayerMemoryCard />
     <CognitiveClockPanel />
     <ToolGuidancePanel />
-    <CompetitorMigrationCard />
   </div>
 );
 

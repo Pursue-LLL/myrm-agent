@@ -5449,33 +5449,6 @@
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
       },
-      "competitorMigration": {
-        "title": "Bring in your other assistants",
-        "description": "Finds Hermes, Claude Code or Codex data on this computer and carries their memories, skills and rules over.",
-        "scan": "Look for other assistants",
-        "scanning": "Looking…",
-        "empty": "Run a search to see which assistants on this computer can be imported.",
-        "foundCount": "{count, plural, =0 {No assistants found} one {# assistant found} other {# assistants found}}",
-        "found": "Found",
-        "notFound": "Not found",
-        "import": "Import",
-        "importing": "Importing…",
-        "resultTitle": "Imported successfully",
-        "memories": "{count, plural, one {# memory} other {# memories}}",
-        "skills": "{count, plural, one {# skill} other {# skills}}",
-        "rules": "{count, plural, one {# rule} other {# rules}}",
-        "sources": {
-          "hermes": "Memories, custom skills and settings",
-          "claude_code": "Your global and project rules",
-          "codex": "Shared rules and skills"
-        },
-        "errors": {
-          "scan": "Couldn't look for other assistants. Please try again.",
-          "import": "Couldn't import from this assistant. Please try again."
-        },
-        "backupHint": "Want to move this whole app to another device instead?",
-        "backupLink": "Open backup and restore"
-      },
       "migrationOpenWizard": "Import memories",
       "migrationSourcesTitle": "Supported sources"
     },

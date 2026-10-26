@@ -20,7 +20,6 @@
 | `cognitiveClock.ts`       | 嵌套多频认知时钟客户端：时钟调度状态查询、用户活跃通知上报与 T1 会话防抖手动提炼触发                                                                                                                                                                                                             |
 | `markdownChunker.ts`      | 增量滑动窗口Markdown切片与重叠索引管道客户端：400-token滑动窗口切片、80-token重叠、行级回溯水合与增量Token节省率分析                                                                                                                                                                             |
 | `reindex.ts`              | 更换嵌入模型后的孤儿记忆迁移客户端：估算（`GET /memory/reindex/estimate`）、202 启动（`POST /memory/reindex`，同一嵌入模型已有进行中则加入同一轮，另一模型的进行中为 409）与进度/结果轮询（`GET /memory/reindex/status`）；全部 `silent`，错误由 `useRetrievalStore` 归一成界面状态              |
-| `competitorMigration.ts`  | 竞品智能体迁入客户端：嗅探本机 Hermes/Claude Code/Codex 资产（`detect-competitors`）并一键迁入记忆、技能与规则（`ingest-competitors`）                                                                                                                                                           |
 
 ## 依赖
 

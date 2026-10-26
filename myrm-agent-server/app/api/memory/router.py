@@ -24,9 +24,6 @@ from app.api.memory.mem_cube_router import (
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
-from app.api.memory.migration_router import (
-    router as memory_migration_router,
-)
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -95,7 +92,6 @@ router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
 router.include_router(profile_notes_router, tags=["memory-profile-notes"])
-router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
