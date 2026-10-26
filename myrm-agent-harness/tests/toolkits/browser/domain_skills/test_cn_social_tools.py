@@ -97,73 +97,121 @@ async def test_bilibili_fallback_text_extraction() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Xiaohongshu: get_explore_notes
+# Xiaohongshu: get_note_feed
 # ---------------------------------------------------------------------------
+
+_XHS_NOTE_ID = "66b8c9d0000000001f012345"
+_XHS_OTHER_NOTE_ID = "66b8cae1000000002f067890"
+_XHS_THIRD_NOTE_ID = "66b8cbf2000000003f078901"
+
+
+def _xhs_session(refs: MappingProxyType[str, _MockRefInfo], page_text: str = "") -> MagicMock:
+    session = MagicMock()
+    session.get_all_refs.return_value = refs
+    session.snapshot = AsyncMock(return_value=MagicMock())
+    session.extract_text = AsyncMock(return_value=page_text)
+    return session
 
 
 @pytest.mark.asyncio
-async def test_xiaohongshu_extracts_notes_from_refs_and_handles_overlay() -> None:
-    get_explore_notes = _load_tool("xiaohongshu", "get_explore_notes.py", "get_explore_notes")
+async def test_xiaohongshu_reads_note_ids_from_card_names_and_skips_short_controls() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
 
     refs = MappingProxyType(
         {
-            "n1": _MockRefInfo(role="link", name="上海周末宝藏咖啡馆拍照指南", url="/explore/66b8c9d0000000001f012345"),
-            "n2": _MockRefInfo(role="button", name="关注", url=""),
-            "n3": _MockRefInfo(role="link", name="极简风穿搭灵感合集", url="/explore/66b8cae1000000002f067890"),
+            "n1": _MockRefInfo(role="link", name=f"上海周末宝藏咖啡馆拍照指南 {_XHS_NOTE_ID}"),
+            "n2": _MockRefInfo(role="button", name="关注"),
+            "n3": _MockRefInfo(role="link", name=f"极简风穿搭灵感合集 视频 {_XHS_OTHER_NOTE_ID}"),
         }
     )
-    session = MagicMock()
-    session.url = "https://www.xiaohongshu.com/explore"
-    session.get_all_refs.return_value = refs
-    session.interact = AsyncMock(return_value="ok")
 
-    result = await get_explore_notes(session, {"max_notes": 10})
-    notes = json.loads(result)
+    notes = json.loads(await get_note_feed(_xhs_session(refs), {"max_items": 10}))
 
-    assert len(notes) == 2
-    assert notes[0]["ref"] == "n1"
-    assert "上海周末宝藏咖啡馆" in notes[0]["title"]
-    assert "https://www.xiaohongshu.com/explore/66b8c9d0" in notes[0]["url"]
-    # Verifies unauthenticated overlay penetration (Escape + scroll)
-    session.interact.assert_any_await(action="press", text="Escape")
-    session.interact.assert_any_await(action="scroll", text="300")
+    assert [n["note_id"] for n in notes] == [_XHS_NOTE_ID, _XHS_OTHER_NOTE_ID]
+    assert notes[0]["title"].startswith("上海周末宝藏咖啡馆拍照指南")
+    assert notes[0]["url"] == f"https://www.xiaohongshu.com/explore/{_XHS_NOTE_ID}"
+    assert [n["note_type"] for n in notes] == ["image", "video"]
 
 
 @pytest.mark.asyncio
-async def test_xiaohongshu_respects_max_notes() -> None:
-    get_explore_notes = _load_tool("xiaohongshu", "get_explore_notes.py", "get_explore_notes")
+async def test_xiaohongshu_files_a_card_without_an_id_under_its_ref_and_leaves_the_url_empty() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
+
+    refs = MappingProxyType({"n7": _MockRefInfo(role="link", name="极简风穿搭灵感合集分享")})
+
+    notes = json.loads(await get_note_feed(_xhs_session(refs), {}))
+
+    assert [(n["note_id"], n["url"]) for n in notes] == [("xhs_ref_n7", "")]
+
+
+@pytest.mark.asyncio
+async def test_xiaohongshu_lists_a_note_once_and_stops_at_max_items_without_reading_the_page_text() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
 
     refs = MappingProxyType(
-        {f"n{i}": _MockRefInfo(role="link", name=f"小红书笔记标题 #{i}", url=f"/explore/note_{i}") for i in range(10)}
+        {
+            "n1": _MockRefInfo(role="link", name=f"上海周末宝藏咖啡馆拍照指南 {_XHS_NOTE_ID}"),
+            "n2": _MockRefInfo(role="link", name=f"上海周末宝藏咖啡馆拍照指南（图文版）{_XHS_NOTE_ID}"),
+            "n3": _MockRefInfo(role="link", name=f"极简风穿搭灵感合集分享 {_XHS_OTHER_NOTE_ID}"),
+            "n4": _MockRefInfo(role="link", name=f"周末露营装备清单分享 {_XHS_THIRD_NOTE_ID}"),
+        }
     )
-    session = MagicMock()
-    session.url = "https://www.xiaohongshu.com/explore"
-    session.get_all_refs.return_value = refs
-    session.interact = AsyncMock(return_value="ok")
+    session = _xhs_session(refs)
 
-    result = await get_explore_notes(session, {"max_notes": 3})
-    notes = json.loads(result)
-    assert len(notes) == 3
+    notes = json.loads(await get_note_feed(session, {"max_items": 2}))
 
-
-# ---------------------------------------------------------------------------
-# Xiaohongshu: get_feed_notes
-# ---------------------------------------------------------------------------
+    assert [n["note_id"] for n in notes] == [_XHS_NOTE_ID, _XHS_OTHER_NOTE_ID]
+    session.extract_text.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_xiaohongshu_feed_notes_ignore_a_failed_overlay_dismissal() -> None:
-    get_feed_notes = _load_tool("xiaohongshu", "get_feed_notes.py", "get_feed_notes")
+async def test_xiaohongshu_falls_back_to_the_page_text_when_no_card_is_named() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
 
-    refs = MappingProxyType({"n1": _MockRefInfo(role="link", name="上海周末宝藏咖啡馆拍照指南")})
-    session = MagicMock()
-    session.get_all_refs.return_value = refs
-    session.interact = AsyncMock(side_effect=RuntimeError("no overlay to dismiss"))
+    session = _xhs_session(MappingProxyType({}), "上海周末宝藏咖啡馆拍照指南\n小鹿\n\n极简风穿搭灵感合集分享\n阿杰")
 
-    notes = json.loads(await get_feed_notes(session, {"max_notes": 10}))
+    notes = json.loads(await get_note_feed(session, {"max_items": 5}))
 
-    assert [note["ref"] for note in notes] == ["n1"]
-    session.interact.assert_awaited_once()
+    session.snapshot.assert_awaited_once()
+    assert [(n["note_id"], n["title"], n["author"]) for n in notes] == [
+        ("note_1", "上海周末宝藏咖啡馆拍照指南", "小鹿"),
+        ("note_2", "极简风穿搭灵感合集分享", "阿杰"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_xiaohongshu_reports_a_login_wall_instead_of_an_empty_feed() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
+
+    session = _xhs_session(MappingProxyType({}), "登录后查看更多优质内容\n扫码登录")
+
+    result = json.loads(await get_note_feed(session, {}))
+
+    assert result["status"] == "login_required"
+    assert "browser_ask_human_tool" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_xiaohongshu_keeps_the_notes_it_found_when_the_page_also_asks_for_a_login() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
+
+    refs = MappingProxyType({"n1": _MockRefInfo(role="link", name=f"上海周末宝藏咖啡馆拍照指南 {_XHS_NOTE_ID}")})
+
+    notes = json.loads(await get_note_feed(_xhs_session(refs, "请登录\n\n扫码登录"), {}))
+
+    assert [n["note_id"] for n in notes] == [_XHS_NOTE_ID]
+
+
+@pytest.mark.asyncio
+async def test_xiaohongshu_csv_export_is_excel_ready() -> None:
+    get_note_feed = _load_tool("xiaohongshu", "get_note_feed.py", "get_note_feed")
+
+    refs = MappingProxyType({"n1": _MockRefInfo(role="link", name=f"收藏夹，周末探店攻略 {_XHS_NOTE_ID}")})
+
+    result = await get_note_feed(_xhs_session(refs), {"export_format": "csv"})
+
+    assert result.startswith("\ufeffnote_id,title,author,likes,note_type,url\r\n")
+    assert _XHS_NOTE_ID in result
 
 
 # ---------------------------------------------------------------------------
