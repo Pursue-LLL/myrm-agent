@@ -11,6 +11,7 @@ from langgraph.runtime import Runtime
 
 import myrm_agent_harness.agent.middlewares.completion.completion_guard as _cg_mod
 import myrm_agent_harness.agent.middlewares.completion.completion_guard_state as _cg_state
+from myrm_agent_harness.agent.meta_tools.progress.storage import todos_path
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     COMPLETION_CHECK_TOOL_NAME,
     CompletionGuard,
@@ -650,9 +651,9 @@ class TestBuildChecklist:
 
     def test_todo_uncompleted_critical_with_writes(self, tmp_path: Path) -> None:
         """Uncompleted todos are CRITICAL when file writes exist."""
-        progress_dir = tmp_path / ".myrm" / "progress"
-        progress_dir.mkdir(parents=True)
-        progress_dir.joinpath("todos.json").write_text(
+        todos_file = todos_path(str(tmp_path))
+        todos_file.parent.mkdir(parents=True)
+        todos_file.write_text(
             """{
   "goal": "Test goal",
   "todos": [
@@ -679,9 +680,9 @@ class TestBuildChecklist:
 
     def test_todo_uncompleted_warning_without_writes(self, tmp_path: Path) -> None:
         """Uncompleted todos are WARNING when no file writes."""
-        progress_dir = tmp_path / ".myrm" / "progress"
-        progress_dir.mkdir(parents=True)
-        progress_dir.joinpath("todos.json").write_text(
+        todos_file = todos_path(str(tmp_path))
+        todos_file.parent.mkdir(parents=True)
+        todos_file.write_text(
             """{
   "goal": "Test goal",
   "todos": [

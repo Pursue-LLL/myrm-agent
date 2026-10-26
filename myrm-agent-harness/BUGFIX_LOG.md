@@ -2,6 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-015 · 同一工作区里的多个 chat 共用一个 `todos.json`：别的 chat 的计划出现在你的 run 里并拦住它收尾，一个 chat 的 `todo_write` 把另一个的清单整个覆盖
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness 存储、构建期恢复检测，server 的读写点同步改） |
+| **发现时间** | 2026-10-27（排查 todo 焦点与完成门禁时，把两个 chat 放进同一个工作区目录对照） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：项目下的所有 chat 以项目目录为工作区（server `resolve_effective_chat_workspace` 先取项目目录），同一项目的两个 chat 读写同一个 `.myrm/progress/todos.json`。chat B 的 run 看到的是 chat A 的计划，写过文件之后被 A 的未完成项拦在收尾前（直到拒绝次数上限）；B 调一次 `todo_write(merge=false)` 就把 A 的清单换成 B 的。线上有多少项目开了多个 chat 并用规划，未测 |
+| **关联产品** | harness `agent/meta_tools/progress/storage.py`（`todo_scope`、按 chat 的路径与读写删、`workspace_todos_exist`）、`agent/skill_agent/tools.py`（构建期恢复检测）、`agent/_internals/_agent_build.py`；server `app/services/chat/chat_todo_sync.py`、`app/services/agent/goals/goal_branch_stash.py` |
+| **根因** | 清单路径只由工作区决定（`<workspace>/.myrm/progress/todos.json`），没有 chat 维度；`todo_write`、todo 焦点注入、完成门禁、目标续作检查，以及 server 的回退同步、计划接口回落读取和分支暂存都读写这同一个文件。工作区按项目共享，所以同一项目的 chat 互相可见、互相覆盖。 |
+| **修复** | 每个 chat 一份：`.myrm/progress/<chat>/todos.json`。`todo_scope` 取 chat（默认是运行中的 `chat_id_var`；去掉 `chat_` 会话前缀，只留一个安全的路径分量，所以任何 id 都指不到进度目录之外；没有 chat 身份的 run 用 `default`），所有读写默认取运行中的 chat，server 各读写点显式传 chat id。构建 agent 时（此时还不知道服务哪个 chat）的恢复检测改为「任一 chat 在工作区里有清单」。该检测原先还会问存储后端 `.myrm/progress/todos.json` 是否存在，而清单是写在工作区本地文件里，后端探测的是它自己根目录下的 key，读不到 `todo_write` 写的文件，该分支和 `storage_backend is None` 的前置判断一并去掉，`_workspace_has_todos`、`_should_load_todo_write_tool`、`_create_todo_write_tool` 随之改为同步。server 的回退同步、计划接口回落读取按 `find_chat_workspace_root` 找 chat 的 run 实际工作的目录，不再固定用 chat 自己的沙箱目录。旧布局（直接放在 `.myrm/progress/` 下的 `todos.json`）不读也不迁移。 |
+| **反复次数** | 第 1 次发现 |
+| **回归** | 真实 `BaseAgent.run`（只有模型是脚本）：同一工作区、两个 chat，旧存储上两例变红：B 的请求里出现 A 的步骤、B 被拦在 A 的未完成项上；B 先规划之后 A 的 run 看到的是 B 的步骤、A 自己的步骤没了。修复后 A 的清单原样保留，B 不被拦。新增：单测覆盖路径与会话前缀同一清单、路径穿越串、含斜杠或反斜杠的 id、`..`、`.hidden` 都落在进度目录之内、各 chat 只读自己的、删一个留其余、旧平铺文件不被识别为任何 chat 的清单；`todo_write` 双 chat 用例；委派子 agent 之后父 run 仍被自己的清单拦住（`test_delegation_keeps_completion_guard.py` 2 例；在委派工具体里改写 `chat_id_var` 父 run 也看不到）。server 新增 5 例（回退同步落在项目目录里该 chat 自己的清单上，旧代码红；回退到开头只删自己的；会话键与 chat id 同一清单；计划回落读自己的；切分支只搬走切换者的清单）。 |
+| **仍然存在** | ① 旧平铺文件不迁移：升级前已有、尚未完成的计划新 run 看不到，需要重新规划。② 没有 chat 身份的 run 仍共用 `default` 一份。③ 恢复检测只能问到「任一 chat 有清单」，所以一个工作区里只要有 chat 规划过，同一工作区的其他 chat 也会挂上 `todo_write` 工具（改前是共享文件，行为相同）；它们的焦点注入与收尾检查只读自己的清单，没有就什么都不注入。④ 预置技能 `personal-todo-daily-weekly-loop/SKILL.md` 与仓库外的官网文档、根 `ARCHITECTURE.md` 仍写旧的平铺路径；技能是提示词资产，本次没动。⑤ 只用脚本模型，没有用真实 LLM 复测；server 部分没有连真实项目 chat 复现。 |
+| **代码位置** | `agent/meta_tools/progress/storage.py`（`todo_scope`）· `agent/skill_agent/tools.py`（`_workspace_has_todos`）· server `app/services/chat/chat_todo_sync.py` · `tests/agent/middlewares/test_run_workspace.py` · `tests/agent/meta_tools/progress/` · server `tests/services/chat/test_chat_todo_sync_scope.py` |
+
 ### BUG-HARNESS-2026-10-27-014 · 子 agent 的 run 开头就地重置父 run 正在用的守卫：委派之后，父的工具调用历史、频率窗口、回合预算、上下文预算、终态错误全被清空，完成门禁不再追问「写了代码没验证」
 
 | 字段 | 内容 |

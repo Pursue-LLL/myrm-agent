@@ -6,7 +6,7 @@ Main-agent **todo progress meta-tool** — workspace-backed todos for opt-in mul
 
 **Placement rule**: Session-bound todo progress lives under `agent/meta_tools/progress/` (same category as `meta_tools/bash/`). Do not add a sibling directory under `agent/` for LangChain tools, and do not put this in `toolkits/` (toolkits must not import `agent/`).
 
-SSOT: `{workspace_root}/.myrm/progress/todos.json`
+SSOT: `{workspace_root}/.myrm/progress/<chat>/todos.json` — one list per chat. Chats of a project share its workspace directory, so a single file would let one chat's plan appear in, and hold back, another chat's run. `<chat>` is the chat id with the `chat_` session prefix stripped, cut to one safe path component (`storage.todo_scope`); a run with no chat identity uses `default`. A `todos.json` left directly under `.myrm/progress/` by an earlier layout is not read and not migrated.
 
 ## File Index
 
@@ -14,7 +14,7 @@ SSOT: `{workspace_root}/.myrm/progress/todos.json`
 |------|------|-------------|-------|
 | `__init__.py` | Package | Public exports for progress meta-tool | ✅ |
 | `schemas.py` | Config | `TodoItem`, `TodoStore`, plan-compat adapter for Goal API | ✅ |
-| `storage.py` | Core | Read/write/merge todos in chat workspace (atomic write via `infra.atomic_write`) | ✅ |
+| `storage.py` | Core | Read/write/merge/delete a chat's todos in the workspace (atomic write via `infra.atomic_write`); `todo_scope` maps a chat id to its directory, defaulting to the running chat (`chat_id_var`); `workspace_todos_exist` is true when any chat has a list | ✅ |
 | `events.py` | Core | Emit `tasks_steps` for ProgressSteps UI and attach `tool_result_details` for session-tree binding | ✅ |
 | `todo_write_tool.py` | Core | LangChain `todo_write` factory (main agent, no sub-agent LLM) | ✅ |
 
@@ -31,12 +31,12 @@ SSOT: `{workspace_root}/.myrm/progress/todos.json`
 
 ## Bind conditions
 
-- `enable_planning=True`, or resume when `.myrm/progress/todos.json` exists in workspace
+- `enable_planning=True`, or resume when any chat has a list (`.myrm/progress/<chat>/todos.json`) in the workspace. Asked while the agent is built, before the chat it serves is known, so it cannot name a chat; the chat is picked at run time (`todo_write`, the focus injection and the completion check all read the running chat's list).
 
 ## Server hydrate (myrm-agent-server)
 
-- `app/platform_utils/workspace_session.to_workspace_session_id` — map chat id → `chat_{id}` workspace key
-- `GET /api/v1/goals/{chat_id}/plan` — reads SSOT and returns plan-compat shape for GoalControlPlane
+- `app/services/chat/effective_workspace.find_chat_workspace_root` — the workspace a chat's runs work in (its project's directory, its own workspace, or its `chat_{id}` sandbox); the server reads, rewrites and stashes todos there, always for the one chat (`to_rest_chat_id`)
+- `GET /api/v1/goals/{chat_id}/plan` — the folded conversation branch first, else the chat's own list; returns plan-compat shape for GoalControlPlane
 
 ## Key Dependencies
 

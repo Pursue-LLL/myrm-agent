@@ -8,6 +8,7 @@ runtime object, the context and the bound tools are the ones production hands th
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
@@ -35,7 +36,13 @@ from myrm_agent_harness.toolkits.code_execution import create_executor
 from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
 
 _PARENT_STEP = "migrate the billing database"
+_OTHER_CHAT_STEP = "draft the release notes"
 _WRITE_OUT = {"name": "file_write_tool", "args": {"path": "out.txt", "content": "x"}, "id": "call_write"}
+_PLAN_OTHER = {
+    "name": "todo_write",
+    "args": {"todos": [{"id": "o1", "content": _OTHER_CHAT_STEP}]},
+    "id": "call_plan",
+}
 
 
 @pytest.fixture(autouse=True)
@@ -91,10 +98,12 @@ class _Workspace:
         self.path.mkdir()
         storage = root / "storage"
         storage.mkdir()
-        write_todos_sync_to_workspace(
-            str(self.path), TodoStore(goal="Ship the release", todos=[TodoItem(id="p1", content=_PARENT_STEP)])
-        )
         session_id = f"chat_run_workspace_{root.name}"
+        write_todos_sync_to_workspace(
+            str(self.path),
+            TodoStore(goal="Ship the release", todos=[TodoItem(id="p1", content=_PARENT_STEP)]),
+            session_id,
+        )
         self.context: dict[str, object] = {
             "workspaces_storage_root": str(storage),
             "session_id": session_id,
@@ -102,6 +111,17 @@ class _Workspace:
             "workspace_path": str(self.path),
         }
         self.executor = create_executor()
+
+    def another_chat(self) -> _Workspace:
+        """A second chat working in this same workspace: the same directory and executor, its own chat id."""
+        other = copy.copy(self)
+        session_id = f"{self.context['session_id']}_other"
+        other.context = {
+            **self.context,
+            "session_id": session_id,
+            "workspace_binding": WorkspaceBinding(mode="chat", root_path=str(self.path), chat_id=session_id),
+        }
+        return other
 
     def agent(self, model: _RecordingModel, tools: list[BaseTool]) -> BaseAgent:
         base = SecurityConfig.workspace(allowed_roots=(str(self.path),))
@@ -194,3 +214,36 @@ async def test_a_run_that_delegated_to_a_child_is_still_held_to_its_todo_list(tm
 
     assert any("incomplete todos" in request for request in parent_model.requests[2:])
     assert not any(_PARENT_STEP in request or "incomplete todos" in request for request in child_model.requests)
+
+
+async def test_a_chat_neither_sees_nor_is_held_to_another_chats_todo_list_in_a_shared_workspace(
+    tmp_path: Path,
+) -> None:
+    """Chats of one project share its workspace; a todo list belongs to the chat that made it."""
+    workspace = _Workspace(tmp_path)
+    model = _script(_WRITE_OUT)
+    agent = workspace.agent(
+        model, [create_file_write_tool(), create_todo_write_tool(workspace_root=str(workspace.path))]
+    )
+
+    await _run(agent, "write out.txt and finish", workspace.another_chat())
+
+    assert not any(_PARENT_STEP in request or "incomplete todos" in request for request in model.requests)
+    assert len(model.requests) == 2
+
+
+async def test_a_chats_todo_list_survives_another_chat_planning_in_the_same_workspace(tmp_path: Path) -> None:
+    workspace = _Workspace(tmp_path)
+    planner_model = _script(_PLAN_OTHER)
+    planner = workspace.agent(planner_model, [create_todo_write_tool(workspace_root=str(workspace.path))])
+    await _run(planner, "plan the release", workspace.another_chat())
+
+    model = _script(_WRITE_OUT)
+    agent = workspace.agent(
+        model, [create_file_write_tool(), create_todo_write_tool(workspace_root=str(workspace.path))]
+    )
+    await _run(agent, "write out.txt and finish", workspace)
+
+    assert _PARENT_STEP in model.requests[0]
+    assert _OTHER_CHAT_STEP not in model.requests[0]
+    assert any("incomplete todos" in request for request in model.requests[1:])

@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 项目下的 chat 回退、读计划回落时，server 读写的是 chat 自己的沙箱目录，而不是它的 run 实际工作的项目目录
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server 的回退同步与计划回落读取；清单按 chat 分开存放见 harness `BUG-HARNESS-2026-10-27-015`） |
+| **症状** | 绑定了项目的 chat，其 run 的工作区是项目目录（`resolve_effective_chat_workspace` 先取项目路径）。按代码阅读：① 回退、重试、撤销、切换兄弟分支之后，server 把折叠出的清单写进（或删除）chat 自己的沙箱目录里的文件，run 实际读的项目目录里的清单不变；② 对话树折叠不出清单时，计划接口回落去读沙箱目录，读不到项目目录里的清单。 |
+| **根因** | `chat_todo_sync._resolve_workspace_root_safely` 固定用 harness 工作区服务按 `chat_{id}` 取沙箱目录，不看项目绑定与 chat 的 `workspace_dir`；项目绑定的 chat 的 run 用的是 `find_chat_workspace_root` 所给的目录。 |
+| **修复** | `_resolve_workspace_root_safely` 改用 `find_chat_workspace_root`（项目目录、chat 自己的工作区、`chat_{id}` 沙箱，按这个顺序，只读不建目录）；回退同步与计划回落读取都只动这个 chat 自己的清单（`to_rest_chat_id`），同一目录里其他 chat 的清单不受影响。 |
+| **回归证据** | 新增 `tests/services/chat/test_chat_todo_sync_scope.py` 4 例（项目绑定的 chat 回退后清单落在项目目录里；回退到开头只删自己的；会话键 `chat_x` 与 chat id `x` 是同一份；计划回落只读自己的），修复前全部变红；既有的 `tests/api/goals` 与回退同步用例按新的清单路径更新后通过。 |
+| **仍然存在** | ① 症状来自代码阅读与上述用例，没有用真实的项目 chat 在运行中复现；② 分支监视器仍把配置的项目目录当作所有会话的工作区（`goal_branch_stash._watch_branch_changes`），未改；③ 改前已存在的平铺清单文件不迁移。 |
+
+
 ## 2026-10-27 · 工作区文本编辑：保存不核对文件是否已被别人改过，换行与 BOM 丢失，二进制与超限文件会被存坏；关抽屉、换对话丢掉未保存的文本；桌面应用里的「确认」恒等于已确认；文件变化只刷新第一次；用户输入里的标记被当作模型输出改写
 
 | 字段 | 内容 |

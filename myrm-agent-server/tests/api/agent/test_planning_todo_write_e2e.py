@@ -46,7 +46,7 @@ async def _read_workspace_todos(chat_id: str) -> object | None:
     workspace_svc = create_workspace_service(root_dir=harness_root)
     workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
     workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
-    return read_todos_sync_from_workspace(workspace_root)
+    return read_todos_sync_from_workspace(workspace_root, chat_id)
 
 
 async def _write_workspace_todos(chat_id: str, store: TodoStore) -> None:
@@ -54,7 +54,7 @@ async def _write_workspace_todos(chat_id: str, store: TodoStore) -> None:
     workspace_svc = create_workspace_service(root_dir=harness_root)
     workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
     workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
-    write_todos_sync_to_workspace(workspace_root, store)
+    write_todos_sync_to_workspace(workspace_root, store, chat_id)
 
 
 @pytest.mark.e2e

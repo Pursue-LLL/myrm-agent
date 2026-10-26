@@ -8,6 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.goals.storage import GoalStorage
 from myrm_agent_harness.agent.goals.types import GoalStatus
+from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStore
+from myrm_agent_harness.agent.meta_tools.progress.storage import (
+    read_todos_sync_from_workspace,
+    write_todos_sync_to_workspace,
+)
 
 from app.config.settings import settings
 from app.services.agent.goals import goal_branch_stash
@@ -82,6 +87,46 @@ async def test_branch_switch_stashes_and_restores_goals_per_branch(mock_storage)
         assert active_on_a.goal_id == goal_a.goal_id
         assert active_on_a.status == GoalStatus.ACTIVE
         assert (await provider.get_goal(goal_b.goal_id)).status == GoalStatus.PAUSED
+
+        GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_branch_switch_moves_only_this_chats_todos(mock_storage, tmp_path) -> None:
+    """Chats of one workspace each keep their own todo list; a branch switch moves the switching chat's list alone."""
+    session_id = "test-branch-todos-session"
+    workspace = str(tmp_path)
+    own = TodoStore(goal="Build auth", todos=[TodoItem(id="a1", content="auth step")])
+    other = TodoStore(goal="Other chat", todos=[TodoItem(id="o1", content="other step")])
+    write_todos_sync_to_workspace(workspace, own, session_id)
+    write_todos_sync_to_workspace(workspace, other, "another-chat-in-the-workspace")
+
+    with (
+        patch(_BRANCH_GETTER, new_callable=AsyncMock) as mock_branch_getter,
+        patch(_STORAGE_GETTER, return_value=mock_storage),
+    ):
+        GoalRegistry.unregister(session_id)
+        provider = GoalRegistry.get_or_create_provider(session_id)
+
+        mock_branch_getter.return_value = "branch_a"
+        await check_and_handle_branch_stash(session_id, workspace)
+        await provider.create_goal(session_id=session_id, objective="Fix the crash")
+        assert await provider.stash_goal(session_id, "branch_b")
+        await provider.create_goal(session_id=session_id, objective="Build auth module")
+
+        mock_branch_getter.return_value = "branch_b"
+        await check_and_handle_branch_stash(session_id, workspace)
+
+        assert read_todos_sync_from_workspace(workspace, session_id) is None
+        kept = read_todos_sync_from_workspace(workspace, "another-chat-in-the-workspace")
+        assert kept is not None and kept.goal == "Other chat"
+
+        mock_branch_getter.return_value = "branch_a"
+        await check_and_handle_branch_stash(session_id, workspace)
+
+        restored = read_todos_sync_from_workspace(workspace, session_id)
+        assert restored is not None and restored.goal == "Build auth"
+        assert read_todos_sync_from_workspace(workspace, "another-chat-in-the-workspace") is not None
 
         GoalRegistry.unregister(session_id)
 

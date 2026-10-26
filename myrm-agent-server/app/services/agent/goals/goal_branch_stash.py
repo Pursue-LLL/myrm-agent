@@ -4,7 +4,7 @@
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: session-scoped GoalProvider registry)
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: public stash reader)
 - myrm_agent_harness.infra.git::resolve_git_branch (POS: zero-subprocess branch reader)
-- myrm_agent_harness.agent.meta_tools.progress (POS: workspace todo store)
+- myrm_agent_harness.agent.meta_tools.progress (POS: workspace todo store; one list per chat, so a switch moves only this session's)
 - app.platform_utils::get_storage_provider (POS: framework storage singleton)
 
 [OUTPUT]
@@ -84,7 +84,7 @@ async def _stash_or_migrate(
     ws_root = workspace_dir or ""
     progress_state: dict[str, object] | None = None
     if ws_root:
-        store = read_todos_sync_from_workspace(ws_root)
+        store = read_todos_sync_from_workspace(ws_root, session_id)
         if store is not None:
             progress_state = store.model_dump()
 
@@ -97,7 +97,7 @@ async def _stash_or_migrate(
     if stashed:
         logger.info("Branch switch perceived: stashed active goal and todos for branch %s", last_branch)
         if ws_root:
-            delete_todos_sync_from_workspace(ws_root)
+            delete_todos_sync_from_workspace(ws_root, session_id)
     return False
 
 
@@ -115,7 +115,7 @@ async def _restore_branch_goal(
     progress_raw = restored.get("progress_state")
     if isinstance(progress_raw, dict) and workspace_dir:
         try:
-            write_todos_sync_to_workspace(workspace_dir, TodoStore.model_validate(progress_raw))
+            write_todos_sync_to_workspace(workspace_dir, TodoStore.model_validate(progress_raw), session_id)
             logger.info("Branch switch perceived: restored goal and todos for branch %s", branch)
         except Exception as e:
             logger.error("Failed to restore todos for branch %s: %s", branch, e)

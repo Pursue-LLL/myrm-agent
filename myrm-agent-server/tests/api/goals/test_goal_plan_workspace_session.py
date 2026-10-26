@@ -46,6 +46,7 @@ async def test_get_goal_plan_uses_chat_workspace_session(goals_client: tuple[Tes
                 TodoItem(id="todo_2", content="External API key", status=TodoStatus.BLOCKED),
             ],
         ),
+        chat_id,
     )
 
     with patch("app.config.settings.get_settings") as mock_settings:
@@ -82,6 +83,7 @@ async def test_get_goal_dag_reads_workspace_todos(goals_client: tuple[TestClient
                 TodoItem(id="todo_b", content="Step B", status=TodoStatus.COMPLETED),
             ],
         ),
+        chat_id,
     )
 
     with patch("app.config.settings.get_settings") as mock_settings:

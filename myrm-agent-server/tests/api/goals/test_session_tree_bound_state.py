@@ -89,6 +89,7 @@ async def test_get_goal_plan_prioritizes_active_branch_over_workspace(
             todos=[TodoItem(id="old_1", content="Stale item", status=TodoStatus.COMPLETED)],
             revision=1,
         ),
+        chat_id,
     )
 
     # 2. Prepare active message branch with authoritative state
@@ -241,8 +242,9 @@ async def test_sync_workspace_todos_after_rewind_clears_stale_file(tmp_path: Pat
     write_todos_sync_to_workspace(
         workspace_root,
         TodoStore(todos=[TodoItem(id="future_task", content="Deleted turn", status=TodoStatus.COMPLETED)]),
+        chat_id,
     )
-    assert todos_path(workspace_root).is_file()
+    assert todos_path(workspace_root, chat_id).is_file()
 
     with patch("app.config.settings.get_settings") as mock_settings:
         mock_settings.return_value.database.harness_dir = str(tmp_path)
@@ -252,7 +254,7 @@ async def test_sync_workspace_todos_after_rewind_clears_stale_file(tmp_path: Pat
             await sync_workspace_todos_after_rewind(chat_id)
 
     # Verify stale workspace file was purged
-    assert not todos_path(workspace_root).is_file()
+    assert not todos_path(workspace_root, chat_id).is_file()
 
 
 @pytest.mark.asyncio
@@ -275,6 +277,7 @@ async def test_sync_workspace_todos_after_rewind_restores_earlier_state(tmp_path
             ],
             revision=5,
         ),
+        chat_id,
     )
 
     # But rewind left only message with step 1 in_progress
@@ -295,7 +298,7 @@ async def test_sync_workspace_todos_after_rewind_restores_earlier_state(tmp_path
             await sync_workspace_todos_after_rewind(chat_id)
 
     # Workspace should now reflect the rewound earlier state
-    synced = read_todos_sync_from_workspace(workspace_root)
+    synced = read_todos_sync_from_workspace(workspace_root, chat_id)
     assert synced is not None
     assert len(synced.todos) == 1
     assert synced.todos[0].id == "s1"
@@ -356,8 +359,8 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
         todos=[TodoItem(id="x1", content="Existing step", status=TodoStatus.PENDING)],
         revision=1,
     )
-    write_todos_sync_to_workspace(workspace_root, initial_store)
-    assert todos_path(workspace_root).is_file()
+    write_todos_sync_to_workspace(workspace_root, initial_store, chat_id)
+    assert todos_path(workspace_root, chat_id).is_file()
 
     # Remaining messages exist (e.g. user prompt only, without tool details)
     msg_without_todos = _create_fake_message(
@@ -375,8 +378,8 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
                 await sync_workspace_todos_after_rewind(chat_id)
 
     # Workspace file must NOT have been unlinked!
-    assert todos_path(workspace_root).is_file()
-    preserved = read_todos_sync_from_workspace(workspace_root)
+    assert todos_path(workspace_root, chat_id).is_file()
+    preserved = read_todos_sync_from_workspace(workspace_root, chat_id)
     assert preserved is not None
     assert preserved.todos[0].id == "x1"
 
@@ -394,7 +397,7 @@ async def test_sync_workspace_todos_for_active_branch_on_sibling_switch(tmp_path
         todos=[TodoItem(id="b1", content="Stripe checkout", status=TodoStatus.COMPLETED)],
         revision=1,
     )
-    write_todos_sync_to_workspace(workspace_root, branch_1_store)
+    write_todos_sync_to_workspace(workspace_root, branch_1_store, chat_id)
 
     # User switches to Branch 2 with PayPal plan
     branch_2_store = TodoStore(
@@ -413,7 +416,7 @@ async def test_sync_workspace_todos_for_active_branch_on_sibling_switch(tmp_path
             mock_root.return_value = workspace_root
             await sync_workspace_todos_for_active_branch(chat_id)
 
-    synced = read_todos_sync_from_workspace(workspace_root)
+    synced = read_todos_sync_from_workspace(workspace_root, chat_id)
     assert synced is not None
     assert len(synced.todos) == 1
     assert synced.todos[0].id == "b2"
@@ -431,8 +434,9 @@ async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_pa
     write_todos_sync_to_workspace(
         workspace_root,
         TodoStore(todos=[TodoItem(id="u1", content="To be undone", status=TodoStatus.IN_PROGRESS)]),
+        chat_id,
     )
-    assert todos_path(workspace_root).is_file()
+    assert todos_path(workspace_root, chat_id).is_file()
 
     with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
         mock_msgs.return_value = []
@@ -440,7 +444,7 @@ async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_pa
             mock_root.return_value = workspace_root
             await sync_workspace_todos_for_active_branch(chat_id)
 
-    assert not todos_path(workspace_root).is_file()
+    assert not todos_path(workspace_root, chat_id).is_file()
 
 
 @pytest.mark.asyncio
@@ -470,6 +474,7 @@ async def test_sync_workspace_todos_for_active_branch_on_regenerate(tmp_path: Pa
             ],
             revision=2,
         ),
+        chat_id,
     )
 
     with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
@@ -478,7 +483,7 @@ async def test_sync_workspace_todos_for_active_branch_on_regenerate(tmp_path: Pa
             mock_root.return_value = workspace_root
             await sync_workspace_todos_for_active_branch(chat_id)
 
-    synced = read_todos_sync_from_workspace(workspace_root)
+    synced = read_todos_sync_from_workspace(workspace_root, chat_id)
     assert synced is not None
     assert len(synced.todos) == 1
     assert synced.todos[0].id == "base1"

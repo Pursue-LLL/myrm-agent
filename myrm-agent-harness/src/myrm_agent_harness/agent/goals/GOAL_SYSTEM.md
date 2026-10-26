@@ -34,7 +34,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 ### 2. Goal Interceptor (前置会话不变量)
 - 在主 Agent 循环启动前，拦截 `/goal` 请求。
 - 设置 Goal 的 `protected_paths` 与 tamper 快照；**不再**调用子 Agent 生成计划，也**不再**自动进入 `PENDING_APPROVAL` / `interrupt()`。
-- 多步进度由主 Agent 在运行中通过 `todo_write` 维护（SSOT：`.myrm/progress/todos.json`）。
+- 多步进度由主 Agent 在运行中通过 `todo_write` 维护（SSOT：`.myrm/progress/<chat>/todos.json`，每个 chat 一份）。
 
 ### 3. CompletionGuard (基于客观证据的严格完工护栏)
 - 在 Agent 试图输出最终答案（结束任务）时，拦截请求。

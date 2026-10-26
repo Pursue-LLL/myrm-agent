@@ -8,7 +8,7 @@
 - plan-compat helpers for Goal API hydration
 
 [POS]
-Data models for `.myrm/progress/todos.json` SSOT and server plan endpoint.
+Data models for the `.myrm/progress/<chat>/todos.json` SSOT and server plan endpoint.
 """
 
 from __future__ import annotations

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import tempfile
-from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -26,6 +25,7 @@ from myrm_agent_harness.agent.goals.continuation_checkpoint import (
     check_todo_checkpoint,
 )
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
+from myrm_agent_harness.agent.meta_tools.progress.storage import todos_path
 
 _PATCH_WS_ROOT = "myrm_agent_harness.agent.middlewares._session_context.get_workspace_root"
 
@@ -46,10 +46,9 @@ def _make_goal(
 
 
 def _write_todos(workspace: str, todos: list[dict[str, str]]) -> None:
-    progress_dir = Path(workspace) / ".myrm" / "progress"
-    progress_dir.mkdir(parents=True, exist_ok=True)
-    store = {"todos": todos}
-    (progress_dir / "todos.json").write_text(json.dumps(store))
+    todos_file = todos_path(workspace)
+    todos_file.parent.mkdir(parents=True, exist_ok=True)
+    todos_file.write_text(json.dumps({"todos": todos}))
 
 
 @pytest.mark.asyncio

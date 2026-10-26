@@ -7,10 +7,12 @@ import json
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import MAX_TODOS, TodoItem, TodoStatus
+from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace, todos_path
 from myrm_agent_harness.agent.meta_tools.progress.todo_write_tool import (
     _enforce_single_in_progress,
     create_todo_write_tool,
 )
+from myrm_agent_harness.core.context_vars import chat_id_var, scoped_value
 
 
 @pytest.mark.asyncio
@@ -45,8 +47,7 @@ async def test_todo_write_replace_and_merge(tmp_path) -> None:
     assert second_data["summary"]["completed"] == 1
     assert second_data["summary"]["in_progress"] == 1
 
-    todos_file = workspace / ".myrm" / "progress" / "todos.json"
-    assert todos_file.is_file()
+    assert todos_path(str(workspace)).is_file()
 
 
 @pytest.mark.asyncio
@@ -197,8 +198,7 @@ async def test_todo_write_rejects_over_max(tmp_path) -> None:
     assert "error" in data
     assert str(MAX_TODOS) in data["error"]
 
-    todos_file = workspace / ".myrm" / "progress" / "todos.json"
-    assert not todos_file.exists()
+    assert not todos_path(str(workspace)).exists()
 
 
 @pytest.mark.asyncio
@@ -407,3 +407,22 @@ class TestEnforceSingleInProgress:
         assert items[1].status == TodoStatus.BLOCKED  # Must stay blocked!
         assert items[2].status == TodoStatus.IN_PROGRESS
 
+
+@pytest.mark.asyncio
+async def test_todo_write_keeps_one_list_per_chat_in_a_shared_workspace(tmp_path) -> None:
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    tool = create_todo_write_tool(str(workspace))
+
+    with scoped_value(chat_id_var, "chat_a"):
+        await tool.ainvoke({"todos": [{"id": "1", "content": "a step"}], "goal": "A"})
+    with scoped_value(chat_id_var, "chat_b"):
+        await tool.ainvoke({"todos": [{"id": "1", "content": "b step"}], "goal": "B"})
+        await tool.ainvoke({"todos": [{"id": "1", "status": "completed"}], "merge": True})
+
+    first = read_todos_sync_from_workspace(str(workspace), "a")
+    second = read_todos_sync_from_workspace(str(workspace), "b")
+    assert first is not None and first.goal == "A"
+    assert [(item.content, item.status) for item in first.todos] == [("a step", TodoStatus.PENDING)]
+    assert second is not None and second.goal == "B"
+    assert [(item.content, item.status) for item in second.todos] == [("b step", TodoStatus.COMPLETED)]

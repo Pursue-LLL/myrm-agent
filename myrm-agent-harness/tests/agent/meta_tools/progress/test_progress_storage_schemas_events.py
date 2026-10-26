@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -14,15 +14,59 @@ from myrm_agent_harness.agent.meta_tools.progress.storage import (
     merge_todo_items,
     parse_todo_payload,
     read_todos_sync_from_workspace,
+    todo_scope,
     todos_path,
     workspace_todos_exist,
     write_todos_sync_to_workspace,
 )
+from myrm_agent_harness.core.context_vars import chat_id_var, scoped_value
 
 
-def test_todos_path_under_myrm_progress(tmp_path) -> None:
-    path = todos_path(str(tmp_path))
-    assert path == tmp_path / ".myrm" / "progress" / "todos.json"
+def test_todos_path_is_one_directory_per_chat_under_myrm_progress(tmp_path) -> None:
+    assert todos_path(str(tmp_path), "c1") == tmp_path / ".myrm" / "progress" / "c1" / "todos.json"
+
+
+def test_a_session_key_and_its_chat_id_name_the_same_todo_list(tmp_path) -> None:
+    assert todos_path(str(tmp_path), "chat_c1") == todos_path(str(tmp_path), "c1")
+
+
+def test_todo_scope_defaults_to_the_running_chat() -> None:
+    with scoped_value(chat_id_var, "c7"):
+        assert todo_scope() == "c7"
+    assert todo_scope("c8") == "c8"
+
+
+def test_a_run_without_a_chat_shares_the_default_scope() -> None:
+    with scoped_value(chat_id_var, ""):
+        assert todo_scope() == "default"
+    assert todo_scope("chat_") == "default"
+
+
+@pytest.mark.parametrize("chat_id", ["../../etc", "a/b", "..", ".hidden", "a\\b"])
+def test_a_chat_id_never_names_a_path_outside_the_progress_directory(tmp_path, chat_id: str) -> None:
+    progress_dir = tmp_path / ".myrm" / "progress"
+    path = todos_path(str(tmp_path), chat_id)
+    assert path.parent.parent == progress_dir
+    assert path.parent.name == todo_scope(chat_id)
+    assert path.parent.name not in {"", ".", ".."}
+
+
+def test_each_chat_reads_only_its_own_list(tmp_path) -> None:
+    write_todos_sync_to_workspace(str(tmp_path), TodoStore(goal="a", todos=[]), "chat_a")
+    write_todos_sync_to_workspace(str(tmp_path), TodoStore(goal="b", todos=[]), "chat_b")
+    first = read_todos_sync_from_workspace(str(tmp_path), "a")
+    second = read_todos_sync_from_workspace(str(tmp_path), "b")
+    assert first is not None and first.goal == "a"
+    assert second is not None and second.goal == "b"
+    assert read_todos_sync_from_workspace(str(tmp_path), "c") is None
+
+
+def test_deleting_one_chats_list_leaves_the_others(tmp_path) -> None:
+    write_todos_sync_to_workspace(str(tmp_path), TodoStore(goal="a", todos=[]), "a")
+    write_todos_sync_to_workspace(str(tmp_path), TodoStore(goal="b", todos=[]), "b")
+    delete_todos_sync_from_workspace(str(tmp_path), "a")
+    assert read_todos_sync_from_workspace(str(tmp_path), "a") is None
+    assert read_todos_sync_from_workspace(str(tmp_path), "b") is not None
 
 
 def test_read_todos_missing_file_returns_none(tmp_path) -> None:
@@ -132,7 +176,6 @@ def test_merge_todo_items_falls_back_to_id_when_content_empty() -> None:
     assert merged[0].content == "1"
 
 
-
 def test_incomplete_todos_excludes_completed_and_cancelled() -> None:
     store = TodoStore(
         todos=[
@@ -187,43 +230,29 @@ def test_merge_todo_items_status_only_update_preserves_content() -> None:
     assert merged[0].status == TodoStatus.COMPLETED
 
 
-@pytest.mark.asyncio
-async def test_workspace_todos_exist_no_root() -> None:
-    assert await workspace_todos_exist(MagicMock(), workspace_root=None) is False
+def test_workspace_todos_exist_no_root() -> None:
+    assert workspace_todos_exist(workspace_root=None) is False
+    assert workspace_todos_exist(workspace_root="") is False
 
 
-@pytest.mark.asyncio
-async def test_workspace_todos_exist_via_backend(tmp_path) -> None:
-    backend = MagicMock()
-    backend.exists = AsyncMock(return_value=True)
-    assert await workspace_todos_exist(backend, workspace_root=str(tmp_path)) is True
-    backend.exists.assert_awaited_once_with(".myrm/progress/todos.json")
+def test_workspace_todos_exist_is_false_for_a_workspace_without_lists(tmp_path) -> None:
+    assert workspace_todos_exist(workspace_root=str(tmp_path)) is False
+    (tmp_path / ".myrm" / "progress" / "empty_chat").mkdir(parents=True)
+    assert workspace_todos_exist(workspace_root=str(tmp_path)) is False
 
 
-@pytest.mark.asyncio
-async def test_workspace_todos_exist_falls_back_when_backend_returns_false(tmp_path) -> None:
+def test_workspace_todos_exist_when_any_chat_has_a_list(tmp_path) -> None:
     store = TodoStore(todos=[TodoItem(id="1", content="x", status=TodoStatus.PENDING)])
-    write_todos_sync_to_workspace(str(tmp_path), store)
-    backend = MagicMock()
-    backend.exists = AsyncMock(return_value=False)
-    assert await workspace_todos_exist(backend, workspace_root=str(tmp_path)) is True
+    write_todos_sync_to_workspace(str(tmp_path), store, "some_chat")
+    assert workspace_todos_exist(workspace_root=str(tmp_path)) is True
 
 
-@pytest.mark.asyncio
-async def test_workspace_todos_exist_fallback_to_filesystem(tmp_path) -> None:
-    store = TodoStore(todos=[TodoItem(id="1", content="x", status=TodoStatus.PENDING)])
-    write_todos_sync_to_workspace(str(tmp_path), store)
-    backend = MagicMock(spec=[])
-    assert await workspace_todos_exist(backend, workspace_root=str(tmp_path)) is True
-
-
-@pytest.mark.asyncio
-async def test_workspace_todos_exist_backend_error_falls_back(tmp_path) -> None:
-    store = TodoStore(todos=[TodoItem(id="1", content="x", status=TodoStatus.PENDING)])
-    write_todos_sync_to_workspace(str(tmp_path), store)
-    backend = MagicMock()
-    backend.exists = AsyncMock(side_effect=RuntimeError("backend down"))
-    assert await workspace_todos_exist(backend, workspace_root=str(tmp_path)) is True
+def test_a_list_in_the_old_flat_layout_is_not_a_chat_list(tmp_path) -> None:
+    flat = tmp_path / ".myrm" / "progress" / "todos.json"
+    flat.parent.mkdir(parents=True)
+    flat.write_text('{"goal":"g","todos":[{"id":"1","content":"x","status":"pending"}]}', encoding="utf-8")
+    assert workspace_todos_exist(workspace_root=str(tmp_path)) is False
+    assert read_todos_sync_from_workspace(str(tmp_path), "any_chat") is None
 
 
 def test_emit_todo_progress_events_dispatches_root_and_steps() -> None:
@@ -264,4 +293,3 @@ def test_todo_status_to_plan_status_mapping() -> None:
     assert _todo_status_to_plan_status(TodoStatus.COMPLETED) == "completed"
     assert _todo_status_to_plan_status(TodoStatus.CANCELLED) == "skipped"
     assert _todo_status_to_plan_status(TodoStatus.PENDING) == "pending"
-

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.agent.meta_tools.progress.storage import todos_path
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.skill_agent.tools import SkillAgentToolsMixin
 from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -40,49 +41,43 @@ def _sample_skill() -> SkillMetadata:
     )
 
 
-@pytest.mark.asyncio
-async def test_should_load_todo_when_planning_enabled() -> None:
+def test_should_load_todo_when_planning_enabled() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=True)
-    assert await harness._should_load_todo_write_tool() is True
+    assert harness._should_load_todo_write_tool() is True
 
 
-@pytest.mark.asyncio
-async def test_should_load_todo_when_workspace_has_todos() -> None:
+def test_should_load_todo_when_workspace_has_todos() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=False)
-    with patch.object(harness, "_workspace_has_todos", new=AsyncMock(return_value=True)):
-        assert await harness._should_load_todo_write_tool() is True
+    with patch.object(harness, "_workspace_has_todos", return_value=True):
+        assert harness._should_load_todo_write_tool() is True
 
 
-@pytest.mark.asyncio
-async def test_should_skip_todo_when_disabled_and_no_todos() -> None:
+def test_should_skip_todo_when_disabled_and_no_todos() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=False)
-    with patch.object(harness, "_workspace_has_todos", new=AsyncMock(return_value=False)):
-        assert await harness._should_load_todo_write_tool() is False
+    with patch.object(harness, "_workspace_has_todos", return_value=False):
+        assert harness._should_load_todo_write_tool() is False
 
 
-@pytest.mark.asyncio
-async def test_create_todo_write_skipped_without_planning_or_existing_todos() -> None:
+def test_create_todo_write_skipped_without_planning_or_existing_todos() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=False)
-    with patch.object(harness, "_workspace_has_todos", new=AsyncMock(return_value=False)):
-        result = await harness._create_todo_write_tool()
+    with patch.object(harness, "_workspace_has_todos", return_value=False):
+        result = harness._create_todo_write_tool()
     assert result is None
 
 
-@pytest.mark.asyncio
-async def test_create_todo_write_created_when_planning_enabled() -> None:
+def test_create_todo_write_created_when_planning_enabled() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=True)
     mock_tool = MagicMock(name="todo_write")
     with patch(
         "myrm_agent_harness.agent.meta_tools.progress.todo_write_tool.create_todo_write_tool",
         return_value=mock_tool,
     ) as mock_create:
-        result = await harness._create_todo_write_tool()
+        result = harness._create_todo_write_tool()
     assert result is mock_tool
     mock_create.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_create_todo_write_skips_when_user_provided_override() -> None:
+def test_create_todo_write_skips_when_user_provided_override() -> None:
     user_tool = MagicMock()
     user_tool.name = "todo_write"
     harness = _TodoHarness(
@@ -93,35 +88,25 @@ async def test_create_todo_write_skips_when_user_provided_override() -> None:
     with patch(
         "myrm_agent_harness.agent.meta_tools.progress.todo_write_tool.create_todo_write_tool",
     ) as mock_create:
-        result = await harness._create_todo_write_tool()
+        result = harness._create_todo_write_tool()
     assert result is None
     mock_create.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_create_todo_write_returns_none_on_factory_exception() -> None:
+def test_create_todo_write_returns_none_on_factory_exception() -> None:
     harness = _TodoHarness(storage_backend=MagicMock(), enable_planning=True)
     with patch(
         "myrm_agent_harness.agent.meta_tools.progress.todo_write_tool.create_todo_write_tool",
         side_effect=RuntimeError("factory failed"),
     ):
-        result = await harness._create_todo_write_tool()
+        result = harness._create_todo_write_tool()
     assert result is None
 
 
-@pytest.mark.asyncio
-async def test_workspace_has_todos_returns_false_without_storage_backend() -> None:
+def test_workspace_has_todos_returns_false_without_a_workspace() -> None:
     harness = _TodoHarness(storage_backend=None, enable_planning=False)
-    assert await harness._workspace_has_todos() is False
-
-
-@pytest.mark.asyncio
-async def test_workspace_has_todos_returns_false_on_backend_error() -> None:
-    backend = MagicMock()
-    backend.exists = AsyncMock(side_effect=RuntimeError("backend down"))
-    harness = _TodoHarness(storage_backend=backend, enable_planning=False, task_workspace_root="/tmp/ws")
-    with patch.object(harness, "_resolve_task_workspace_root", return_value="/tmp/ws"):
-        assert await harness._workspace_has_todos() is False
+    with patch.object(harness, "_resolve_task_workspace_root", return_value=None):
+        assert harness._workspace_has_todos() is False
 
 
 def test_resolve_task_workspace_root_prefers_live_session_context() -> None:
@@ -142,22 +127,27 @@ def test_resolve_task_workspace_root_falls_back_to_bound_root() -> None:
         assert harness._resolve_task_workspace_root() == "/bound/path"
 
 
-@pytest.mark.asyncio
-async def test_workspace_has_todos_detects_sandbox_file(tmp_path) -> None:
+def test_workspace_has_todos_detects_a_chats_list_in_the_workspace(tmp_path) -> None:
     workspace = tmp_path / "chat_resume"
-    progress_dir = workspace / ".myrm" / "progress"
-    progress_dir.mkdir(parents=True)
-    progress_dir.joinpath("todos.json").write_text(
+    todos_file = todos_path(str(workspace), "earlier_chat")
+    todos_file.parent.mkdir(parents=True)
+    todos_file.write_text(
         '{"goal":"g","todos":[{"id":"1","content":"step","status":"pending"}]}',
         encoding="utf-8",
     )
     harness = _TodoHarness(
-        storage_backend=MagicMock(),
+        storage_backend=None,
         enable_planning=False,
         task_workspace_root=str(workspace),
     )
-    assert await harness._workspace_has_todos() is True
-    assert await harness._should_load_todo_write_tool() is True
+    assert harness._workspace_has_todos() is True
+    assert harness._should_load_todo_write_tool() is True
+
+
+def test_workspace_without_a_todo_list_does_not_load_todo_write(tmp_path) -> None:
+    harness = _TodoHarness(storage_backend=None, enable_planning=False, task_workspace_root=str(tmp_path))
+    assert harness._workspace_has_todos() is False
+    assert harness._should_load_todo_write_tool() is False
 
 
 @pytest.mark.asyncio

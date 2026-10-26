@@ -48,7 +48,7 @@ class SkillAgentToolsMixin:
     - _embedding_config, skill_configs, _similarity_checker
     - _file_access_mode, _enable_shell_tools
     - _skill_env_map, _default_skill_instances, state_manager
-    - storage_backend, llm, config
+    - llm, config
     - _task_workspace_root (chat sandbox path for progress persistence)
     - _wiki_base_dir, _wiki_public_dirs, _wiki_search_fn
     - user_tools, user_middlewares
@@ -154,7 +154,7 @@ class SkillAgentToolsMixin:
             locale=prompt_locale,
         )
 
-        todo_tool = await self._create_todo_write_tool()
+        todo_tool = self._create_todo_write_tool()
         if todo_tool is not None:
             meta_tools.append(todo_tool)
 
@@ -242,28 +242,17 @@ class SkillAgentToolsMixin:
         )
         return resolved
 
-    async def _workspace_has_todos(self) -> bool:
-        """Return True when persisted todos exist in the chat workspace."""
-        if self.storage_backend is None:  # type: ignore[attr-defined]
-            return False
-        try:
-            from myrm_agent_harness.agent.meta_tools.progress.storage import (
-                workspace_todos_exist,
-            )
+    def _workspace_has_todos(self) -> bool:
+        """Return True when any chat has a persisted todo list in the workspace."""
+        from myrm_agent_harness.agent.meta_tools.progress.storage import workspace_todos_exist
 
-            return await workspace_todos_exist(
-                self.storage_backend,  # type: ignore[attr-defined]
-                workspace_root=self._resolve_task_workspace_root(),
-            )
-        except Exception as e:
-            logger.warning("Failed to check workspace todos existence: %s", e)
-            return False
+        return workspace_todos_exist(workspace_root=self._resolve_task_workspace_root())
 
-    async def _should_load_todo_write_tool(self) -> bool:
+    def _should_load_todo_write_tool(self) -> bool:
         """todo_write loads when planning is enabled or when resuming existing todos."""
         if self._enable_planning:  # type: ignore[attr-defined]
             return True
-        if await self._workspace_has_todos():
+        if self._workspace_has_todos():
             logger.info("todo_write: loading for existing workspace todos (resume)")
             return True
         return False
@@ -282,9 +271,9 @@ class SkillAgentToolsMixin:
             return bound_root.strip()
         return None
 
-    async def _create_todo_write_tool(self) -> BaseTool | None:
+    def _create_todo_write_tool(self) -> BaseTool | None:
         """Auto-create todo_write when planning is enabled or workspace has todos."""
-        if not await self._should_load_todo_write_tool():
+        if not self._should_load_todo_write_tool():
             logger.info("todo_write: skipped (planning disabled, no existing todos)")
             return None
         if any(

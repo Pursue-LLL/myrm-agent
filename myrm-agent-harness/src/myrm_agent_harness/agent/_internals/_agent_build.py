@@ -53,6 +53,7 @@ from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
     from myrm_agent_harness.agent.types import EngineParams
 
 logger = get_agent_logger(__name__)
@@ -112,7 +113,7 @@ def build_middlewares(
         CompletionGuard(keeps_todo_list=keeps_todo_list),
     ]
 
-    async def get_current_todos(workspace_root: str | None = None):
+    async def get_current_todos(workspace_root: str | None = None) -> TodoStore | None:
         if not workspace_root or not keeps_todo_list():
             return None
         try:
@@ -211,14 +212,14 @@ async def build_tools(
     )
 
     for mw in cached_middlewares:
-        if hasattr(mw, "get_tools") and callable(mw.get_tools):  # type: ignore[attr-defined]
+        if hasattr(mw, "get_tools") and callable(mw.get_tools):
             try:
-                mw_tools = mw.get_tools()  # type: ignore[attr-defined]
+                mw_tools = mw.get_tools()
                 if mw_tools:
                     for t in mw_tools:
                         is_internal = t.name.startswith("_")
                         bind_mode = ToolBindMode.RUNTIME_ONLY if is_internal else ToolBindMode.TURN1
-                        registry.register(t, source=ToolSource.MIDDLEWARE, bind_mode=bind_mode)  # type: ignore[arg-type]
+                        registry.register(t, source=ToolSource.MIDDLEWARE, bind_mode=bind_mode)
                     logger.info(
                         " Loaded %d tools from middleware: %s",
                         len(mw_tools),

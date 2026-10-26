@@ -1,12 +1,16 @@
-"""Workspace SSOT for session todos (`.myrm/progress/todos.json`).
+"""Workspace SSOT for chat todos (`.myrm/progress/<chat>/todos.json`).
+
+Chats of one project share its workspace directory, so each chat keeps its own list under its own directory.
 
 [INPUT]
 - progress.schemas::TodoItem, TodoStore (POS: models)
 - infra.atomic_write::atomic_write (POS: crash-safe writes)
+- context_management.infra.evicted::normalize_delivery_chat_id (POS: session id to chat id, the same key the evicted-content directories use)
+- core.context_vars::chat_id_var (POS: the chat of the running agent)
 
 [OUTPUT]
-- read/write/merge todos under workspace `.myrm/progress/`
-- todos_path, workspace_todos_exist helpers
+- read/write/merge todos under workspace `.myrm/progress/<chat>/`
+- todo_scope, todos_path, workspace_todos_exist helpers
 
 [POS]
 Persists main-agent todo state in chat workspace (atomic JSON).
@@ -16,23 +20,40 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 
+from myrm_agent_harness.agent.context_management.infra.evicted import normalize_delivery_chat_id
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
+from myrm_agent_harness.core.context_vars import chat_id_var
 from myrm_agent_harness.infra.atomic_write import atomic_write
 
 logger = logging.getLogger(__name__)
 
 PROGRESS_RELATIVE_DIR = ".myrm/progress"
 TODOS_FILENAME = "todos.json"
+DEFAULT_TODO_SCOPE = "default"
+
+_UNSAFE_SCOPE_CHARS = re.compile(r"[^A-Za-z0-9_.-]")
 
 
-def todos_path(workspace_root: str) -> Path:
-    return Path(workspace_root) / PROGRESS_RELATIVE_DIR / TODOS_FILENAME
+def todo_scope(chat_id: str | None = None) -> str:
+    """The directory a chat's todo list lives in, under the workspace's progress directory.
+
+    ``None`` names the chat of the running agent. A run that has no chat identity at all shares the
+    ``default`` list. The name is a single path component, so no id can point outside the progress directory.
+    """
+    raw = chat_id_var.get() if chat_id is None else chat_id
+    scope = _UNSAFE_SCOPE_CHARS.sub("_", normalize_delivery_chat_id(raw)).lstrip(".")
+    return scope or DEFAULT_TODO_SCOPE
 
 
-def read_todos_sync_from_workspace(workspace_root: str) -> TodoStore | None:
-    path = todos_path(workspace_root)
+def todos_path(workspace_root: str, chat_id: str | None = None) -> Path:
+    return Path(workspace_root) / PROGRESS_RELATIVE_DIR / todo_scope(chat_id) / TODOS_FILENAME
+
+
+def read_todos_sync_from_workspace(workspace_root: str, chat_id: str | None = None) -> TodoStore | None:
+    path = todos_path(workspace_root, chat_id)
     if not path.is_file():
         return None
     try:
@@ -45,28 +66,24 @@ def read_todos_sync_from_workspace(workspace_root: str) -> TodoStore | None:
         return None
 
 
-def write_todos_sync_to_workspace(workspace_root: str, store: TodoStore) -> None:
-    path = todos_path(workspace_root)
+def write_todos_sync_to_workspace(workspace_root: str, store: TodoStore, chat_id: str | None = None) -> None:
+    path = todos_path(workspace_root, chat_id)
     atomic_write(path, store.model_dump_json(indent=2))
 
 
-async def workspace_todos_exist(storage_backend: object, *, workspace_root: str | None) -> bool:
+def workspace_todos_exist(*, workspace_root: str | None) -> bool:
+    """True when any chat has a todo list in the workspace.
+
+    Asked while an agent is built, before the chat it will serve is known, so it cannot name a chat.
+    """
     if not workspace_root:
         return False
-    path = todos_path(workspace_root)
-    exists_fn = getattr(storage_backend, "exists", None)
-    if callable(exists_fn):
-        try:
-            rel_key = f"{PROGRESS_RELATIVE_DIR}/{TODOS_FILENAME}"
-            if await exists_fn(rel_key):
-                return True
-        except Exception as exc:
-            logger.warning("Failed to check todos existence via storage backend: %s", exc)
-    return path.is_file()
+    progress_dir = Path(workspace_root) / PROGRESS_RELATIVE_DIR
+    return any(progress_dir.glob(f"*/{TODOS_FILENAME}"))
 
 
-def delete_todos_sync_from_workspace(workspace_root: str) -> None:
-    path = todos_path(workspace_root)
+def delete_todos_sync_from_workspace(workspace_root: str, chat_id: str | None = None) -> None:
+    path = todos_path(workspace_root, chat_id)
     if path.is_file():
         path.unlink()
 
