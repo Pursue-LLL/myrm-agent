@@ -465,7 +465,12 @@ const ScenarioBlueprintSelector = memo(() => {
       </div>
       {selected !== '__off__' && (
         <div className="flex items-center gap-2 mt-1 ml-1 pl-5">
-          <Switch checked={inheritMemory} onCheckedChange={handleToggleInherit} className="scale-75 origin-left" />
+          <Switch
+            checked={inheritMemory}
+            onCheckedChange={handleToggleInherit}
+            aria-label={t('jitInheritMemory')}
+            className="scale-75 origin-left"
+          />
           <span className="text-xs text-muted-foreground">{t('jitInheritMemory')}</span>
         </div>
       )}
