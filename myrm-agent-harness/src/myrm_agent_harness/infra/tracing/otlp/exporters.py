@@ -7,7 +7,8 @@
 [OUTPUT]
 - OtlpUnavailableError: the requested protocol cannot be served (package missing, unsupported, bad config);
   its message never quotes the target's credentials
-- create_span_exporter / create_metric_exporter: exporter for one resolved target
+- create_span_exporter / create_metric_exporter: exporter for one resolved target; a malformed entry of the
+  OTLP header variables is reported without its text
 
 [POS]
 One factory for both signals so traces and metrics share protocol, endpoint and header handling.
@@ -15,11 +16,14 @@ A request that cannot be honoured raises ``OtlpUnavailableError``; the caller de
 factory never substitutes another protocol or a console exporter, because a silent swap would
 point telemetry at an endpoint that does not speak that protocol. The exporter packages are
 imported literally (inside small loaders) so a frozen desktop bundle collects them and a missing
-optional package surfaces as ``ImportError`` only when its protocol is requested.
+optional package surfaces as ``ImportError`` only when its protocol is requested. The stock exporters
+read ``OTEL_EXPORTER_OTLP_*HEADERS`` from the environment themselves and, for an entry that is not
+``name=value``, log the entry verbatim; an entry is a credential, so that warning's text is replaced.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import cast
 
@@ -39,9 +43,28 @@ _PACKAGE_FLAVOR: dict[str, str] = {
     PROTOCOL_GRPC: "grpc",
 }
 
+# The logger the SDK's header parser warns through (``opentelemetry.util.re``).
+_HEADER_PARSER_LOGGER = "opentelemetry.util.re"
+
 
 class OtlpUnavailableError(Exception):
     """The requested OTLP protocol cannot be served by this installation or configuration."""
+
+
+class _WithholdHeaderEntry(logging.Filter):
+    """Replace the header parser's warning text, which quotes the malformed entry verbatim."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = "An entry of the OTLP headers is not name=value and is ignored (its text is withheld)."
+        record.args = None
+        return True
+
+
+def _withhold_header_text() -> None:
+    """Install the filter once per process, before an exporter reads the header variables."""
+    parser_logger = logging.getLogger(_HEADER_PARSER_LOGGER)
+    if not any(isinstance(existing, _WithholdHeaderEntry) for existing in parser_logger.filters):
+        parser_logger.addFilter(_WithholdHeaderEntry())
 
 
 def _http_span_exporter() -> type:
@@ -100,6 +123,7 @@ def _scrub(message: str, target: OtlpTarget) -> str:
 
 
 def _build(target: OtlpTarget) -> object:
+    _withhold_header_text()
     exporter_class = _exporter_class(target)
     kwargs: dict[str, object] = {"endpoint": target.endpoint}
     if target.headers is not None:

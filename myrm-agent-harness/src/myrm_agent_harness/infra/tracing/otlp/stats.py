@@ -31,6 +31,11 @@ class ExportStats:
     last_failure_at: float | None = None
 
     @property
+    def attempted(self) -> bool:
+        """True once the exporter has tried to send a batch, whatever the outcome."""
+        return self.last_success_at is not None or self.last_failure_at is not None
+
+    @property
     def last_export_failed(self) -> bool:
         """True when the most recent export attempt failed."""
         if self.last_failure_at is None:

@@ -62,6 +62,7 @@ from myrm_agent_harness.infra.tracing.otlp.posture import (
 
 if TYPE_CHECKING:
     from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.id_generator import IdGenerator
     from opentelemetry.sdk.trace.sampling import Sampler
 
 HAS_OTEL_SDK = importlib.util.find_spec("opentelemetry.sdk") is not None
@@ -110,6 +111,7 @@ def setup_tracing(
     local_trace_only: bool = False,
     sampler: Sampler | None = None,
     resource_attributes: Mapping[str, str] | None = None,
+    id_generator: IdGenerator | None = None,
 ) -> None:
     """Initialize OpenTelemetry tracing.
 
@@ -127,6 +129,8 @@ def setup_tracing(
         sampler: Optional SDK sampler; otherwise ``OTEL_TRACES_SAMPLER`` / ``OTEL_TRACES_SAMPLER_ARG``,
             default parent-based always-on.
         resource_attributes: Default resource attributes (``OTEL_RESOURCE_ATTRIBUTES`` wins).
+        id_generator: Optional SDK id generator; ``ContextTraceIdGenerator`` makes the trace id of exported
+            spans the id the application already shows its users. Default: random ids.
 
     A requested protocol that cannot be served (missing exporter package) leaves tracing off and is
     reported by the posture probe; it never falls back to another protocol or to stdout.
@@ -174,7 +178,7 @@ def setup_tracing(
         exporter, exporter_type = ConsoleSpanExporter(), EXPORTER_CONSOLE
 
     resource = build_resource(service_name, resource_attributes)
-    provider = TracerProvider(resource=resource, sampler=sampler)
+    provider = TracerProvider(resource=resource, sampler=sampler, id_generator=id_generator)
     guard = PrivacyGuardExporter(exporter)
     provider.add_span_processor(BatchSpanProcessor(guard))
 

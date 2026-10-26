@@ -61,7 +61,7 @@ from myrm_agent_harness.infra.tracing import get_telemetry_posture
 print(get_telemetry_posture())  # status, endpoint, protocol, sampler, exported/failed counters
 ```
 
-`status` is `active` while batches are accepted, `failing` after the last export failed, `degraded` when the requested protocol cannot be served, `disabled` under the kill switch, `noop` without an endpoint. Every field is measured from live state, and credentials in the endpoint are redacted.
+`status` is `ready` once the pipeline is built and until the first batch has been delivered or refused (nothing proves the destination works yet), `active` while the latest batch was accepted, `failing` after the last export failed, `degraded` when the requested protocol cannot be served, `disabled` under the kill switch, `noop` without an endpoint. Every field is measured from live state, and credentials in the endpoint are redacted.
 
 ---
 
@@ -183,7 +183,7 @@ The GenAI client metrics are recorded from the model call itself, so lowering th
 
 **No traces in the backend**
 
-1. `get_telemetry_posture()["status"]`: `noop` means no endpoint is configured, `disabled` means `OTEL_SDK_DISABLED=true`, `degraded` carries the reason (for example a missing `opentelemetry-exporter-otlp-proto-http`), `failing` means the collector rejected or could not receive the last batch (`last_failure_at`, `failed_batches`).
+1. `get_telemetry_posture()["status"]`: `ready` means the pipeline is up but nothing has been sent yet (no span has finished, or the first batch is still queued; `active` follows the first accepted batch), `noop` means no endpoint is configured, `disabled` means `OTEL_SDK_DISABLED=true`, `degraded` carries the reason (for example a missing `opentelemetry-exporter-otlp-proto-http`), `failing` means the collector rejected or could not receive the last batch (`last_failure_at`, `failed_batches`).
 2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317` (an unset protocol is inferred from that port).
 3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design.
 4. A sampler of `always_off` or a ratio of `0` drops every trace: the posture shows the active sampler.

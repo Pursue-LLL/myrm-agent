@@ -208,6 +208,43 @@ def test_a_healthy_collector_is_reported_active_with_counters(http_receiver: Otl
     )
 
 
+def test_a_built_pipeline_is_ready_not_active_until_a_batch_has_been_delivered(
+    http_receiver: OtlpHttpReceiver,
+) -> None:
+    setup_tracing(otlp_endpoint=http_receiver.endpoint)
+
+    before = get_telemetry_posture()
+    assert (before["status"], before["exported_spans"], before["last_success_at"], before["last_failure_at"]) == (
+        "ready",
+        0,
+        None,
+        None,
+    )
+
+    _emit()
+    assert http_receiver.wait_for(lambda: bool(http_receiver.spans()))
+    assert get_telemetry_posture()["status"] == "active"
+
+
+def test_a_collector_that_recovers_is_reported_active_again() -> None:
+    receiver = OtlpHttpReceiver(status=400)
+    receiver.start()
+    try:
+        setup_tracing(otlp_endpoint=receiver.endpoint)
+        with trace_context("tests.otlp", "rejected", {}):
+            pass
+        force_flush_tracing(timeout_ms=5000)
+        assert get_telemetry_posture()["status"] == "failing"
+
+        receiver.status = 200
+        with trace_context("tests.otlp", "accepted", {}):
+            pass
+        force_flush_tracing(timeout_ms=5000)
+        assert get_telemetry_posture()["status"] == "active"
+    finally:
+        receiver.stop()
+
+
 def test_a_malformed_endpoint_neither_breaks_setup_nor_the_posture() -> None:
     setup_tracing(otlp_endpoint="http://user:secretpass@[::1")
     posture = get_telemetry_posture()

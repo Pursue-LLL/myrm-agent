@@ -102,12 +102,21 @@ def reset_metrics() -> None:
 
 
 def _status(*, has_sdk: bool, initialized: bool, runtime: _TracesRuntime, stats: ExportStats | None) -> str:
+    """One word for the whole pipeline.
+
+    ``ready``: built, but no batch has been delivered or refused yet, so nothing proves the destination works.
+    ``active``: the latest delivery was accepted. ``failing``: the latest delivery failed. The others say why
+    nothing is built: ``missing_sdk``, ``disabled`` (kill switch), ``degraded`` (the requested pipeline cannot
+    be served), ``local_only`` (remote export refused by local-only mode), ``noop`` (no destination).
+    """
     if not has_sdk:
         return "missing_sdk"
     if sdk_disabled():
         return "disabled"
     if initialized and runtime.exporter_type != EXPORTER_NONE:
-        return "failing" if stats is not None and stats.last_export_failed else "active"
+        if stats is None or not stats.attempted:
+            return "ready"
+        return "failing" if stats.last_export_failed else "active"
     if runtime.degraded_reason:
         return "degraded"
     if is_local_trace_only():

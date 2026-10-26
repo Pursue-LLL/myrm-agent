@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from opentelemetry.context import Context
 
 from myrm_agent_harness.infra.tracing.propagation import (
@@ -11,6 +12,7 @@ from myrm_agent_harness.infra.tracing.propagation import (
     get_current_span_id,
     get_current_trace_id,
     inject_trace_context,
+    parse_trace_id,
 )
 
 
@@ -59,3 +61,36 @@ def test_get_current_trace_and_span_ids_no_valid_span() -> None:
     with patch("myrm_agent_harness.infra.tracing.propagation.trace.get_current_span", return_value=mock_span):
         assert get_current_trace_id() is None
         assert get_current_span_id() is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "parsed"),
+    [
+        ("4bf92f3577b34da6a3ce929d0e0e4736", 0x4BF92F3577B34DA6A3CE929D0E0E4736),
+        ("4BF92F3577B34DA6A3CE929D0E0E4736", 0x4BF92F3577B34DA6A3CE929D0E0E4736),
+        ("0" * 31 + "1", 1),
+    ],
+)
+def test_parse_trace_id_accepts_32_hex_digits(raw: str, parsed: int) -> None:
+    assert parse_trace_id(raw) == parsed
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        "",
+        "-",
+        "abc",
+        "0" * 32,
+        "4bf92f3577b34da6a3ce929d0e0e473",
+        "4bf92f3577b34da6a3ce929d0e0e47360",
+        "4bf92f3577b34da6a3ce929d0e0e473g",
+        " 4bf92f3577b34da6a3ce929d0e0e473",
+        "4bf92f3577b34da6a3ce929d0e0e4736\n",
+        "0x4bf92f3577b34da6a3ce929d0e0e47",
+        "4bf92f35_77b34da6a3ce929d0e0e473",
+    ],
+)
+def test_parse_trace_id_rejects_everything_else(raw: str | None) -> None:
+    assert parse_trace_id(raw) is None
