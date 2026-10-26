@@ -26,7 +26,12 @@ _USER_ID = "default"
 SYNC_INTERVAL_MS = 6 * 3600 * 1000
 # A slice is time-boxed well below this; the headroom absorbs the last in-flight items.
 JOB_TIMEOUT_S = 600
-_NAMES = {"zh": "ima 知识库同步", "en": "ima Knowledge Sync"}
+# (name, description). The description is the line the cron list shows under the name; the cron manager requires
+# one for every non-shell job, and a router job never reaches a model, so it only describes the sync to the user.
+_COPY = {
+    "zh": ("ima 知识库同步", "定期把 ima 里的知识库和笔记导入 Wiki，保持更新"),
+    "en": ("ima Knowledge Sync", "Imports your ima knowledge bases and notes into the wiki and keeps them up to date"),
+}
 
 
 async def find_job(agent_id: str | None) -> CronJob | None:
@@ -38,16 +43,18 @@ async def find_job(agent_id: str | None) -> CronJob | None:
 
 
 async def start_job(agent_id: str | None, *, locale: str) -> None:
-    """Create (or resume) the job and run it now. A cron slot limit surfaces as ``ValueError``."""
+    """Create (or resume) the job and run it now. A cron refusal (slot limit, rejected definition) is a ``ValueError``."""
     manager = get_cron_manager()
     job = await find_job(agent_id)
     if job is None:
+        name, description = _COPY["zh" if locale.lower().startswith("zh") else "en"]
         job = await manager.create_job(
             _USER_ID,
-            _NAMES["zh" if locale.lower().startswith("zh") else "en"],
+            name,
             JobType.ROUTER,
             Schedule(kind=ScheduleKind.INTERVAL, interval_ms=SYNC_INTERVAL_MS),
             agent_id=agent_id,
+            prompt=description,
             command=WIKI_IMA_SYNC_COMMAND,
             timeout_seconds=JOB_TIMEOUT_S,
             deduplicate=True,

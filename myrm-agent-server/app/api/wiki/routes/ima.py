@@ -68,7 +68,9 @@ def _raise_for(exc: Exception) -> NoReturn:
     if isinstance(exc, ima.ImaError):
         raise HTTPException(status_code=502, detail={"code": "ima_unreachable", "message": "ima could not be reached"}) from exc
     if isinstance(exc, ValueError):
-        # The cron manager reports plan limits (job slots) as ValueError.
+        # The cron manager reports plan limits (job slots) and rejected job definitions as ValueError; the UI only
+        # sees the plan wording, so the reason is logged to keep a defect from passing as a plan limit.
+        logger.warning("ima sync was refused by the cron manager: %s", exc)
         raise HTTPException(status_code=409, detail={"code": "sync_unavailable", "message": str(exc)}) from exc
     logger.error("ima request failed: %s", exc)
     raise HTTPException(status_code=500, detail={"code": "ima_failed", "message": "ima request failed"}) from exc

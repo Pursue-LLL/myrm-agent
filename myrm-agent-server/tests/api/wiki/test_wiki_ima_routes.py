@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
@@ -81,6 +82,16 @@ def test_failures_map_to_stable_codes_and_never_leak_upstream_text(
     assert response.json()["detail"]["code"] == code
     leaked = ("upstream said", "10.0.0.1", "internal detail", "/secret/path", SECRET)
     assert not any(fragment in response.text for fragment in leaked)
+
+
+def test_a_refusal_from_the_cron_manager_is_logged_with_its_reason(client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    refusal = ValueError("ROUTER job requires a non-empty 'prompt'")
+    with caplog.at_level(logging.WARNING, logger="app.api.wiki.routes.ima"), patched("start_sync", side_effect=refusal):
+        response = client.post("/sources/ima/sync/start", json={"locale": "en"})
+
+    assert response.status_code == 409 and response.json()["detail"]["code"] == "sync_unavailable"
+    assert [record.levelno for record in caplog.records] == [logging.WARNING]
+    assert "requires a non-empty 'prompt'" in caplog.text
 
 
 def test_libraries_and_disconnect(client: TestClient) -> None:
