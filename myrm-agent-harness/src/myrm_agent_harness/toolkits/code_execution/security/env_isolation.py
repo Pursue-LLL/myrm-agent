@@ -233,11 +233,16 @@ SENSITIVE_WILDCARDS: Final[tuple[str, ...]] = (
     "PASS",
 )
 
-# Dynamic linker / loader injection prefixes
+# Prefixes that inject code into a child or re-route its telemetry: dynamic linker / loader hooks, and
+# OpenTelemetry configuration. ``OTEL_EXPORTER_OTLP_*`` holds the operator's collector endpoint and its
+# credentials, and downstream redaction does not recognise the URL-encoded (``%20``) header form that the
+# OTLP specification prescribes, so a model-run program must never inherit them. A program that needs
+# OpenTelemetry sets ``OTEL_*`` inline on its own command line.
 DANGEROUS_PREFIXES: Final[tuple[str, ...]] = (
     "LD_",
     "DYLD_",
     "GIT_SSL_",
+    "OTEL_",
 )
 
 # Controlled internal PTC RPC bridge variables
@@ -408,7 +413,7 @@ def build_isolated_child_env(
 
             # Codex PR #38941 & #37607 parity: auth tokens and launch context cannot be restored via overrides
             if _is_sensitive_key(k):
-                logger.warning("Blocked non-inheritable credential override in child env: %s", k)
+                logger.warning("Blocked non-inheritable override in child env: %s", k)
                 continue
             sanitized[k] = str(v)
 
@@ -420,7 +425,7 @@ def build_isolated_child_env(
         if is_sentinel_voucher(val):
             continue
         if _is_sensitive_key(k):
-            logger.warning("Stripped non-inheritable credential from child env: %s", k)
+            logger.warning("Stripped non-inheritable variable from child env: %s", k)
             sanitized.pop(k, None)
 
     return sanitized

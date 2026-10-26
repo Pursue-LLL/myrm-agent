@@ -163,7 +163,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 | 1 | `shell_command_analyzer` | Shell 注入检测、危险命令识别、可疑模式分析 |
 | 2 | `blacklist` | Python 模块黑名单（核心危险 + 网络模块）、环境变量黑名单 |
 | 3 | `validator` | 路径白名单、域名白名单、命令验证 |
-| 4 | `sanitize_env` | 环境变量过滤（57 个危险变量 + 3 个前缀：链接器注入、模块注入、代理注入、TLS 绕过、包管理器重定向、Git/编译器劫持） |
+| 4 | `sanitize_env` | 环境变量过滤（52 个精确变量名 + 4 个前缀 + 敏感名通配：链接器注入、模块注入、代理注入、TLS 绕过、包管理器重定向、Git/编译器劫持、`OTEL_*` 遥测路由；显式覆盖同样被剥离，模型运行的程序需要 OpenTelemetry 时在命令行内联设置 `OTEL_*`） |
 | 5 | `archive_sanitizer` | 压缩包解压安全增强（防止 zip bomb、路径遍历） |
 
 ### 5. Workspace（工作空间）

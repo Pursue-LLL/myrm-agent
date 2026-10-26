@@ -8,6 +8,7 @@ while preserving developer toolchain variables and preventing dynamic injection 
 from __future__ import annotations
 
 import os
+from typing import ClassVar
 from unittest.mock import patch
 
 import pytest
@@ -333,3 +334,50 @@ class TestExecutorAndHookSubprocessIsolation:
             assert "SSH_AUTH_SOCK" not in hook_env
             assert "MYRM_VAULT_MASTER_KEY" not in hook_env
             assert hook_env.get("HOOK_EVENT") == "tool_preflight"
+
+
+class TestTelemetryRoutingIsolation:
+    """OpenTelemetry configuration (OTEL_*) never reaches a model-run child process."""
+
+    _OTLP_ENV: ClassVar[dict[str, str]] = {
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.example.com",
+        "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic%20cGstbGYtMTIzOnNrLWxmLTQ1Ng==",
+        "OTEL_SERVICE_NAME": "myrm-agent-server",
+        "OTEL_RESOURCE_ATTRIBUTES": "service.instance.id=sandbox-1",
+    }
+
+    @pytest.mark.parametrize("policy", [EnvInheritPolicy.ALL, EnvInheritPolicy.CORE])
+    def test_sanitize_env_strips_otel_configuration_case_insensitively(self, policy: EnvInheritPolicy) -> None:
+        raw_env = {"PATH": "/usr/bin", **self._OTLP_ENV, "otel_sdk_disabled": "false"}
+
+        assert sanitize_env(raw_env, inherit_policy=policy) == {"PATH": "/usr/bin"}
+
+    def test_local_executor_build_env_strips_otlp_credentials_but_keeps_trace_context(self) -> None:
+        from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
+        from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
+
+        executor = LocalExecutor(config=ExecutionConfig(), workspace_path="/tmp")
+        host_env = {
+            **self._OTLP_ENV,
+            "TRACEPARENT": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+            "ORDINARY_TOOL_SETTING": "kept",
+        }
+        with patch.dict(os.environ, host_env):
+            built_env = executor._build_bash_env(user_env={"OTEL_TRACES_EXPORTER": "otlp"})
+
+        assert [key for key in built_env if key.upper().startswith("OTEL_")] == []
+        assert built_env["TRACEPARENT"] == host_env["TRACEPARENT"]
+        assert built_env["ORDINARY_TOOL_SETTING"] == "kept"
+
+    def test_build_isolated_child_env_strips_otel_overrides(self) -> None:
+        res = build_isolated_child_env(
+            base_env={"PATH": "/usr/bin"},
+            extra_env={
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "https://collector.attacker.example",
+                "otel_sdk_disabled": "false",
+                "NORMAL_VAR": "val",
+            },
+            inherit_policy=EnvInheritPolicy.CORE,
+        )
+
+        assert res == {"PATH": "/usr/bin", "NORMAL_VAR": "val"}
