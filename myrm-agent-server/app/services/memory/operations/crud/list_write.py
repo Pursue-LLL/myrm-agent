@@ -45,6 +45,9 @@ from app.services.memory.operations.presentation import memory_to_item, parse_me
 
 logger = logging.getLogger(__name__)
 
+# Number of ranked results a relevance search can page through.
+_SEARCH_WINDOW = 50
+
 
 async def list_memories_paginated(
     type: str | None = Query(None, description="Filter by memory type"),
@@ -108,8 +111,11 @@ async def list_memories_paginated(
         items.sort(key=lambda m: getattr(m, sort_attr, 0) or 0, reverse=reverse)
         items = items[offset : offset + page_size]
 
-    total_pages = max(1, (total + page_size - 1) // page_size)
+    return _page_response(items, total=total, page=page, page_size=page_size)
 
+
+def _page_response(items: list[MemoryItem], *, total: int, page: int, page_size: int) -> MemoryListPaginatedResponse:
+    total_pages = max(1, (total + page_size - 1) // page_size)
     return MemoryListPaginatedResponse(
         items=items,
         pagination=PaginationInfo(
@@ -132,31 +138,25 @@ async def _search_memories_paginated(
     page_size: int,
     manager: MemoryManager,
 ) -> MemoryListPaginatedResponse:
-    """Handle the ``search`` parameter by delegating to the semantic search pipeline."""
+    """Handle the ``search`` parameter by delegating to the semantic search pipeline.
+
+    Every page is a slice of one fixed-size ranked window: retrieval re-runs per
+    request, so sizing the query by page would reorder earlier pages and cap
+    ``total`` at ``page * page_size``, which leaves ``has_next`` false for good.
+    Browsing is not recall, so the search does not bump access counts: those feed
+    the ranking and the staleness protection, and bumping them between page
+    requests would also reorder the window under the reader.
+    """
     types: list[MemoryType] | None = [parse_memory_type(type)] if type else None
-    results = await manager.search(search, memory_types=types, limit=page * page_size)
+    results = await manager.search(search, memory_types=types, limit=_SEARCH_WINDOW, track_access=False)
 
     search_items = [memory_to_item(r.memory, r.memory_type) for r in results]
     if tag:
         tag_lower = tag.lower()
         search_items = [m for m in search_items if any(t.lower() == tag_lower for t in m.tags)]
 
-    total = len(search_items)
     offset = (page - 1) * page_size
-    paginated = search_items[offset : offset + page_size]
-    total_pages = max(1, (total + page_size - 1) // page_size)
-
-    return MemoryListPaginatedResponse(
-        items=paginated,
-        pagination=PaginationInfo(
-            page=page,
-            page_size=page_size,
-            total=total,
-            total_pages=total_pages,
-            has_next=page < total_pages,
-            has_prev=page > 1,
-        ),
-    )
+    return _page_response(search_items[offset : offset + page_size], total=len(search_items), page=page, page_size=page_size)
 
 
 async def create_memory(

@@ -8,6 +8,7 @@ path; only the operation ledger write is patched out (it needs a request-scoped 
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -168,6 +169,56 @@ async def test_search_memories_paginated_filters_by_tag(keyword_manager) -> None
     )
 
     assert [item.tags for item in response.items] == [["编辑器"]]
+
+
+async def _search_page(manager, *, page: int, page_size: int):
+    return await list_memories_paginated(
+        type=None,
+        search="typescript",
+        tag=None,
+        sort_by="created_at",
+        sort_order="desc",
+        page=page,
+        page_size=page_size,
+        manager=manager,
+    )
+
+
+async def test_search_pagination_pages_through_one_ranked_window(keyword_manager) -> None:
+    """Each page is a slice of the same ranking and has_next follows the window, not the page."""
+    for index in range(45):
+        await _store_knowledge(keyword_manager, f"typescript pagination note topic{index} detail{index}")
+
+    pages = [await _search_page(keyword_manager, page=page, page_size=20) for page in (1, 2, 3)]
+    whole = await _search_page(keyword_manager, page=1, page_size=100)
+
+    assert [len(page.items) for page in pages] == [20, 20, 5]
+    assert [page.pagination.has_next for page in pages] == [True, True, False]
+    assert {page.pagination.total for page in pages} == {45}
+    assert [item.id for page in pages for item in page.items] == [item.id for item in whole.items]
+
+
+async def test_search_pagination_stops_at_the_window(keyword_manager) -> None:
+    for index in range(60):
+        await _store_knowledge(keyword_manager, f"typescript window note topic{index} detail{index}")
+
+    last = await _search_page(keyword_manager, page=3, page_size=20)
+
+    assert last.pagination.total == 50
+    assert len(last.items) == 10
+    assert last.pagination.has_next is False
+
+
+async def test_search_pagination_does_not_reinforce_what_it_shows(keyword_manager) -> None:
+    """Browsing the Memory page is not recall: it must not bump access counts."""
+    await _store_knowledge(keyword_manager, "typescript browsing note")
+
+    with patch("myrm_agent_harness.toolkits.memory._internal.maintenance.bump_access_counts", new=AsyncMock()) as bump:
+        response = await _search_page(keyword_manager, page=1, page_size=20)
+        await asyncio.sleep(0)
+
+    assert len(response.items) == 1
+    bump.assert_not_called()
 
 
 async def test_rate_memory_updates_and_reports_missing(keyword_manager) -> None:
