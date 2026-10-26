@@ -237,7 +237,7 @@ async def test_a_replay_re_sends_a_get_and_never_reaches_the_server_with_a_write
 
 
 async def test_a_replay_names_the_status_it_got_and_says_when_the_page_got_another() -> None:
-    routes = {
+    routes: dict[str, Reply | Gated] = {
         "/app": _script_page(
             "fetch('/api/orders', {headers: {Authorization: 'Bearer t0k3n'}}); fetch('/api/items'); fetch('/api/ping')"
         ),

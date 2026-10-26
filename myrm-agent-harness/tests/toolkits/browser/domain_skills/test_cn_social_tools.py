@@ -18,17 +18,16 @@ _BUILTIN_DIR = Path(__file__).resolve().parents[4] / "src/myrm_agent_harness/too
 
 def _load_tool(skill_id: str, tool_file: str, callable_name: str) -> Callable[..., Any]:
     module_name = f"myrm_agent_harness_domain_{skill_id}_{callable_name}"
-    if module_name in sys.modules:
-        mod = sys.modules[module_name]
-        return getattr(mod, callable_name)
-
-    tool_path = _BUILTIN_DIR / skill_id / "tools" / tool_file
-    spec = importlib.util.spec_from_file_location(module_name, tool_path)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = mod
-    spec.loader.exec_module(mod)
-    return getattr(mod, callable_name)
+    mod = sys.modules.get(module_name)
+    if mod is None:
+        tool_path = _BUILTIN_DIR / skill_id / "tools" / tool_file
+        spec = importlib.util.spec_from_file_location(module_name, tool_path)
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+    tool: Callable[..., Any] = getattr(mod, callable_name)
+    return tool
 
 
 class _MockRefInfo:

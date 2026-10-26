@@ -14,7 +14,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.network_intelligence import NetworkIntelligence
+from myrm_agent_harness.toolkits.browser.session.network_intelligence import (
+    NetworkIntelligence,
+    _CdpLoadingFailed,
+    _CdpRequestWillBeSent,
+)
 
 _API = "https://api.example.com"
 
@@ -27,7 +31,7 @@ def _sent(
     redirected_from: int | None = None,
 ) -> None:
     """The browser starts a request; `redirected_from` is the status of the hop that sent it here."""
-    params: dict[str, object] = {
+    params: _CdpRequestWillBeSent = {
         "requestId": request_id,
         "type": "XHR",
         "request": {"url": f"{_API}{path}", "method": "GET"},
@@ -44,9 +48,9 @@ def _answered(ni: NetworkIntelligence, request_id: str, status: int = 200) -> No
 def _failed(
     ni: NetworkIntelligence, request_id: str, error: str, cors: str | None = None, *, canceled: bool = False
 ) -> None:
-    params: dict[str, object] = {"requestId": request_id, "errorText": error, "canceled": canceled}
+    params: _CdpLoadingFailed = {"requestId": request_id, "errorText": error, "canceled": canceled}
     if cors is not None:
-        params["corsErrorStatus"] = {"corsError": cors, "failedParameter": ""}
+        params["corsErrorStatus"] = {"corsError": cors}
     ni._on_loading_failed(params)
 
 
@@ -55,10 +59,11 @@ def _lines(ni: NetworkIntelligence) -> list[str]:
 
 
 def _with_cdp(ni: NetworkIntelligence, body: str = "{}") -> AsyncMock:
+    send = AsyncMock(return_value={"body": body, "base64Encoded": False})
     cdp = AsyncMock()
-    cdp.send = AsyncMock(return_value={"body": body, "base64Encoded": False})
+    cdp.send = send
     ni._cdp_session = cdp
-    return cdp.send
+    return send
 
 
 def test_a_request_still_in_flight_stays_pending() -> None:

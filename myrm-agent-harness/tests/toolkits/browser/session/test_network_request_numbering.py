@@ -21,10 +21,11 @@ def _see(ni: NetworkIntelligence, request_id: str, resource_type: str = "XHR") -
 
 
 def _with_cdp(ni: NetworkIntelligence, body: str = "{}") -> AsyncMock:
+    send = AsyncMock(return_value={"body": body, "base64Encoded": False})
     cdp = AsyncMock()
-    cdp.send = AsyncMock(return_value={"body": body, "base64Encoded": False})
+    cdp.send = send
     ni._cdp_session = cdp
-    return cdp.send
+    return send
 
 
 def test_numbers_count_api_requests_only_so_documents_leave_no_gaps() -> None:
@@ -133,11 +134,13 @@ async def test_a_response_body_is_fetched_by_the_number_the_log_showed() -> None
 class _Session(BrowserSessionNetworkMixin):
     def __init__(self, ni: NetworkIntelligence) -> None:
         self._network_intelligence = ni
-        self._ensure_components = AsyncMock()
         self.page = MagicMock()
         self.page.evaluate = AsyncMock(return_value=[200, "ok"])
         self._tab_controller = MagicMock()
         self._tab_controller.get_active_page.return_value = self.page
+
+    async def _ensure_components(self) -> None:
+        """The replay needs only the active page; no browser components are built."""
 
 
 @pytest.mark.asyncio
