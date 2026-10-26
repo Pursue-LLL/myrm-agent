@@ -55,7 +55,10 @@ _JS_MUTATION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\beval\s*\("), "Dynamic code execution"),
     (re.compile(r"location\.(?:href|assign|replace)\s*="), "Navigation redirect"),
     (re.compile(r"location\.(?:assign|replace)\s*\("), "Navigation redirect"),
-    (re.compile(r"fetch\s*\([^)]*method\s*:\s*['\"]post", re.IGNORECASE), "Network POST"),
+    # A write is spelled by its method literal wherever it sits among the other fetch options, so the rule is
+    # not tied to `fetch(` or to `method` being the first option.
+    (re.compile(r"""\bmethod['"`]?\s*:\s*['"`](?:post|put|patch|delete)['"`]""", re.IGNORECASE), "Network write"),
+    (re.compile(r"\bsendBeacon\s*\("), "Network beacon write"),
     (re.compile(r"XMLHttpRequest"), "Legacy XHR mutation"),
     (re.compile(r"删除"), "destructive"),
     (re.compile(r"支付|付款|购买|下单"), "financial"),

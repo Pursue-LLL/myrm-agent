@@ -211,6 +211,19 @@ class TestEnforceJsEvalGuard:
         assert payload.get("element") is None
 
     @pytest.mark.asyncio
+    async def test_a_delete_fetch_needs_a_person(self, mock_session: MagicMock) -> None:
+        expr = "fetch('/api/items/7', {method: 'DELETE'})"
+        with patch("langgraph.types.interrupt", return_value={"decision": "reject"}) as mock_interrupt:
+            result = await enforce_js_eval_guard(
+                session=mock_session,
+                tool_name="browser_manage_tool",
+                expression=expr,
+            )
+        assert result is not None
+        assert "[BLOCKED]" in result
+        mock_interrupt.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_mutating_expression_string_yes_approved(self, mock_session: MagicMock) -> None:
         with patch("langgraph.types.interrupt", return_value="yes"):
             result = await enforce_js_eval_guard(
