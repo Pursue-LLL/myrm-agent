@@ -167,8 +167,9 @@ class RuntimeConfig:
 class CliSessionRecord:
     """A CLI-native session id bound to the working directory it was created in.
 
-    Claude Code files a conversation under its project directory, so ``--resume <id>`` finds it only when
-    the process starts in that same directory.
+    Claude Code files a conversation under its project directory, and before v2.1.223 ``--resume <id>`` finds
+    it only from that directory. A turn resumes a record only when it starts in the directory that created
+    it, which holds for every version.
     """
 
     cli_session_id: str
@@ -251,8 +252,9 @@ class DelegationPool(Protocol):
 class CliSessionStore(Protocol):
     """Durable home of ``CliSessionRecord`` keyed by harness session id; one store serves one conversation scope.
 
-    A host implements it so CLI sessions survive a restart of the host process. Every failure it raises is
-    degraded by the runtime to a fresh CLI session; it never fails a turn.
+    A host implements it so CLI sessions survive a restart of the host process. The runtime awaits every call
+    while a turn finishes, so an implementation bounds its own latency; a call that raises is degraded by the
+    runtime to a fresh CLI session and never fails a turn.
     """
 
     async def load(self, session_id: str) -> CliSessionRecord | None: ...

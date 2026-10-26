@@ -28,7 +28,8 @@
 ## 会话持久化（服务重启后续接）
 
 - **写入时机**：`CliRuntime` 在回合结果确定后才写 store（`CliSessionBook.persist`），未变化不重写；每个 chat 一个 `ChatCliSessionStore(chat_id)`，由 `external_agents._build_pool` 在有 chat scope 时注入 `RuntimePool(cli_session_store=…)`；无 chat scope 的临时池不落库，oneshot 私有后端不接触 store。
-- **读取时机**：后端内存里没有该 session 的记录时才读一次 chat 行（稳态零读写）。记录里带创建目录，与本回合启动目录不同就不 resume（Claude Code 按目录存放会话）。
+- **读取时机**：支持 `--resume` 的 CLI（claude）在后端内存里没有该 session 的记录时读一次 chat 行（进程重启后的首个回合，或此前没产生过记录的回合）；已有记录且 id 不变的回合既不读也不写（`claude --resume` 沿用原 session id）。记录里带创建目录，与本回合启动目录不同就不 resume（Claude Code 按目录存放会话，v2.1.223 之前 `--resume` 只在当前项目目录里找 id，之后跨项目查找，按目录判断对新旧版本都安全）。
+- **写锁等待**：回合收尾处直接 await store，harness 不设超时。`save` / `delete` 遇到他人长期占着 SQLite 写锁时最多等一个 `busy_timeout`（默认 30 s，上限 60 s，网络共享存储降级时 ×3），随后异常上抛，harness 记 warning，回合不受影响（`save` 失败的记录下一回合重试写入；`delete` 失败时该进程不再读回这条失效记录，下一回合开新会话并覆盖它，重启后若仍残留则续接失败一次后再删）；对 `save` 的取消也不能提前结束这段等待，所以 harness 不加超时包装。
 - **失效**：CLI 自身以正退出码失败且无输出时删除记录，下一回合开新会话；取消/超时杀掉的进程不删。Claude Code 默认只保留 30 天会话，过期后走同一条失效路径。
 - **配置变更替换池**不清记录（重启与不重启一致：上下文跟着 chat，直到 flush 或失效）。
 - **上下文 flush**：`ChatService.focus_flush_session` 在清消息的同一事务里把 `external_cli_sessions` 置空，提交后 `chat_disposal.reset_external_agent_sessions` 关闭该 chat 的外部 Agent 池，两半缺一都会让下一回合续接已清掉的对话。

@@ -11,9 +11,8 @@
 
 [POS]
 Server half of external-agent session continuity. The harness decides when to remember, persist or forget a
-CLI session id; this store only gives those ids a durable home so a restart of the server resumes the same
-external conversation instead of silently starting a new one. Failures propagate: the harness degrades them
-to a fresh session.
+CLI session id; this store only gives those ids a durable home, so a restart of the server resumes the same
+external conversation. Failures propagate: the harness logs them and the turn carries on.
 """
 
 from __future__ import annotations

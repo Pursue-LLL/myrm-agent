@@ -41,6 +41,9 @@ class CliSessionBook:
         self._records: dict[str, CliSessionRecord] = {}
         # The record last known to be in the store, so an unchanged record is not rewritten on every turn.
         self._stored: dict[str, CliSessionRecord] = {}
+        # Sessions the CLI rejected whose store copy could not be deleted: reading it back would make every turn
+        # resume the same dead conversation.
+        self._undeleted: set[str] = set()
 
     def __len__(self) -> int:
         return len(self._records)
@@ -50,6 +53,7 @@ class CliSessionBook:
 
     def remember(self, session_id: str, record: CliSessionRecord) -> None:
         """Keep ``record`` in memory for ``session_id`` (not persisted until ``persist``)."""
+        self._undeleted.discard(session_id)
         if session_id not in self._records and len(self._records) >= _MAX_RECORDS:
             oldest = next(iter(self._records))
             del self._records[oldest]
@@ -87,7 +91,11 @@ class CliSessionBook:
         self._stored[session_id] = record
 
     async def forget(self, session_id: str) -> None:
-        """Drop the record from memory and the store (the CLI no longer knows the conversation)."""
+        """Drop the record from memory and the store (the CLI no longer knows the conversation).
+
+        A store that cannot delete it is not read back from, so the next turn starts a fresh session whose
+        record then overwrites the dead one.
+        """
         self._records.pop(session_id, None)
         self._stored.pop(session_id, None)
         if self._store is None:
@@ -96,14 +104,16 @@ class CliSessionBook:
             await self._store.delete(session_id)
         except Exception:
             logger.warning("cli_session_delete_failed name=%s session=%s", self._owner, session_id, exc_info=True)
+            self._undeleted.add(session_id)
 
     def clear_memory(self) -> None:
         """Release in-memory state; the store keeps its records so a later backend can resume them."""
         self._records.clear()
         self._stored.clear()
+        self._undeleted.clear()
 
     async def _load(self, session_id: str) -> CliSessionRecord | None:
-        if self._store is None:
+        if self._store is None or session_id in self._undeleted:
             return None
         try:
             record = await self._store.load(session_id)

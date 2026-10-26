@@ -2,9 +2,9 @@
 
 A CLI backend spawns one process per turn, so the only thing that makes turn N+1 remember turn N is the CLI-native
 session id replayed through ``--resume``. Without a store that id lives in memory and dies with the process; with one,
-a new pool resumes the conversation. The fake ``claude`` below reproduces the two real Claude Code behaviours the
-runtime depends on: a conversation is only found from the directory that created it, and resuming an unknown one
-fails fast (exit 1, ``No conversation found``) instead of starting a new conversation.
+a new pool resumes the conversation. The fake ``claude`` below reproduces the two Claude Code behaviours (before
+v2.1.223) the runtime depends on: a conversation is only found from the directory that created it, and resuming
+an unknown one fails fast (exit 1, ``No conversation found``) instead of starting a new conversation.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli_session import CliSessionBook
 from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 from myrm_agent_harness.toolkits.acp.types import (
     AcpErrorCode,
@@ -29,6 +28,8 @@ from myrm_agent_harness.toolkits.acp.types import (
     RuntimeEvent,
     RuntimeEventType,
 )
+
+from ._cli_session_fakes import RecordingStore
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a POSIX shebang script")
 
@@ -59,32 +60,6 @@ if resume is None:
 print(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": session_id}]}}), flush=True)
 print(json.dumps({"type": "result", "session_id": session_id}), flush=True)
 """
-
-
-class _RecordingStore:
-    """In-memory ``CliSessionStore`` that logs every operation and can be told to fail one."""
-
-    def __init__(self) -> None:
-        self.records: dict[str, CliSessionRecord] = {}
-        self.ops: list[tuple[str, str]] = []
-        self.failing: set[str] = set()
-
-    async def load(self, session_id: str) -> CliSessionRecord | None:
-        self._enter("load", session_id)
-        return self.records.get(session_id)
-
-    async def save(self, session_id: str, record: CliSessionRecord) -> None:
-        self._enter("save", session_id)
-        self.records[session_id] = record
-
-    async def delete(self, session_id: str) -> None:
-        self._enter("delete", session_id)
-        self.records.pop(session_id, None)
-
-    def _enter(self, op: str, session_id: str) -> None:
-        self.ops.append((op, session_id))
-        if op in self.failing:
-            raise RuntimeError(f"{op} failed")
 
 
 @dataclass
@@ -173,7 +148,7 @@ async def test_a_new_pool_resumes_the_session_a_previous_pool_stored(
     fake_cli: _FakeCli, pools: list[RuntimePool]
 ) -> None:
     """A server restart builds a new pool; the chat must still pick up where it left off."""
-    store = _RecordingStore()
+    store = RecordingStore()
     first_pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
     first, first_errors = await _run_turn(first_pool)
     await first_pool.close_all()
@@ -207,7 +182,7 @@ async def test_a_session_stored_for_another_directory_is_not_resumed(
     fake_cli: _FakeCli, pools: list[RuntimePool]
 ) -> None:
     """Claude Code finds a conversation only from the directory that created it; the chat moved to another folder."""
-    store = _RecordingStore()
+    store = RecordingStore()
     in_a = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
     id_a, _ = await _run_turn(in_a)
 
@@ -225,7 +200,7 @@ async def test_a_session_stored_for_another_directory_is_not_resumed(
 @pytest.mark.asyncio
 async def test_oneshot_turns_never_touch_the_store(fake_cli: _FakeCli, pools: list[RuntimePool]) -> None:
     """A oneshot review is a throwaway fresh session: it must neither read nor overwrite the chat's stored one."""
-    store = _RecordingStore()
+    store = RecordingStore()
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
     first, _ = await _run_turn(pool)
     oneshot, _ = await _run_turn(pool, mode="oneshot", session_id="claude-oneshot-1")
@@ -240,7 +215,7 @@ async def test_oneshot_turns_never_touch_the_store(fake_cli: _FakeCli, pools: li
 @pytest.mark.asyncio
 async def test_an_unchanged_session_is_loaded_and_saved_once(fake_cli: _FakeCli, pools: list[RuntimePool]) -> None:
     """Steady state costs no store traffic: the session id is read once and written once, not on every turn."""
-    store = _RecordingStore()
+    store = RecordingStore()
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
     for _ in range(3):
         await _run_turn(pool)
@@ -251,7 +226,7 @@ async def test_an_unchanged_session_is_loaded_and_saved_once(fake_cli: _FakeCli,
 @pytest.mark.asyncio
 async def test_store_failures_never_fail_a_turn(fake_cli: _FakeCli, pools: list[RuntimePool]) -> None:
     """A broken store degrades to in-memory continuity, and the unsaved record is retried on the next turn."""
-    store = _RecordingStore()
+    store = RecordingStore()
     store.failing = {"load", "save"}
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
 
@@ -270,7 +245,7 @@ async def test_a_stale_stored_session_is_deleted_and_the_next_turn_starts_fresh(
     fake_cli: _FakeCli, pools: list[RuntimePool]
 ) -> None:
     """Claude Code expired the conversation: the record must not keep failing every turn after every restart."""
-    store = _RecordingStore()
+    store = RecordingStore()
     store.records["chat-1"] = CliSessionRecord("deadbeef", str(fake_cli.work_a))
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
 
@@ -288,9 +263,28 @@ async def test_a_stale_stored_session_is_deleted_and_the_next_turn_starts_fresh(
 
 
 @pytest.mark.asyncio
+async def test_a_store_that_cannot_delete_a_dead_session_does_not_wedge_the_conversation(
+    fake_cli: _FakeCli, pools: list[RuntimePool]
+) -> None:
+    """Without this, every turn would reload the dead id from the store and fail on it again."""
+    store = RecordingStore()
+    store.records["chat-1"] = CliSessionRecord("deadbeef", str(fake_cli.work_a))
+    store.failing = {"delete"}
+    pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
+
+    _, errors = await _run_turn(pool)
+    fresh, fresh_errors = await _run_turn(pool)
+
+    assert [event.data["error"].code for event in errors] == [AcpErrorCode.PROCESS_CRASHED]
+    assert not fresh_errors
+    assert fake_cli.resume_args() == ["deadbeef", None]
+    assert store.records == {"chat-1": CliSessionRecord(fresh, str(fake_cli.work_a))}
+
+
+@pytest.mark.asyncio
 async def test_cancelling_a_resumed_turn_keeps_the_stored_session(fake_cli: _FakeCli, pools: list[RuntimePool]) -> None:
     """Stop pressed before the CLI says anything is not evidence that it forgot the conversation."""
-    store = _RecordingStore()
+    store = RecordingStore()
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
     first, _ = await _run_turn(pool)
     fake_cli.hang_flag.touch()
@@ -315,7 +309,7 @@ async def test_cancelling_a_resumed_turn_keeps_the_stored_session(fake_cli: _Fak
 async def test_commands_without_resume_support_never_touch_the_store(
     fake_cli: _FakeCli, pools: list[RuntimePool]
 ) -> None:
-    store = _RecordingStore()
+    store = RecordingStore()
     pool = _make_pool(pools, fake_cli.codex, fake_cli.work_a, store, name="codex")
 
     await _run_turn(pool, name="codex")
@@ -330,7 +324,7 @@ async def test_a_dropped_session_is_not_reloaded_from_the_store_in_the_same_proc
     fake_cli: _FakeCli, pools: list[RuntimePool]
 ) -> None:
     """After a stale drop, the same pool's next turn must not resurrect the id it just deleted."""
-    store = _RecordingStore()
+    store = RecordingStore()
     store.records["chat-1"] = CliSessionRecord("deadbeef", str(fake_cli.work_a))
     pool = _make_pool(pools, fake_cli.claude, fake_cli.work_a, store)
 
@@ -338,51 +332,3 @@ async def test_a_dropped_session_is_not_reloaded_from_the_store_in_the_same_proc
     await _run_turn(pool)
 
     assert fake_cli.resume_args().count("deadbeef") == 1
-
-
-class TestCliSessionBook:
-    def test_memory_is_bounded_and_evicts_the_oldest_record_first(self) -> None:
-        book = CliSessionBook("test")
-        for index in range(600):
-            book.remember(f"s{index}", CliSessionRecord(f"cli-{index}", "/work"))
-
-        assert len(book) == 512
-        assert "s0" not in book
-        assert "s599" in book
-
-    def test_overwriting_a_record_at_capacity_evicts_nothing(self) -> None:
-        book = CliSessionBook("test")
-        for index in range(512):
-            book.remember(f"s{index}", CliSessionRecord(f"cli-{index}", "/work"))
-        book.remember("s5", CliSessionRecord("renewed", "/work"))
-
-        assert len(book) == 512
-        assert "s0" in book
-
-    @pytest.mark.asyncio
-    async def test_a_forgotten_record_is_written_again_when_the_same_record_comes_back(self) -> None:
-        """Forgetting empties the store, so persisting an identical record afterwards must not be skipped."""
-        store = _RecordingStore()
-        book = CliSessionBook("test", store)
-        record = CliSessionRecord("cli-1", "/work")
-        book.remember("s1", record)
-        await book.persist("s1")
-        await book.forget("s1")
-        assert store.records == {}
-
-        book.remember("s1", record)
-        await book.persist("s1")
-
-        assert store.records == {"s1": record}
-
-    @pytest.mark.asyncio
-    async def test_an_evicted_record_is_still_loadable_from_the_store(self) -> None:
-        store = _RecordingStore()
-        store.records["s0"] = CliSessionRecord("cli-0", "/work")
-        book = CliSessionBook("test", store)
-        await book.resumable("s0", "/work")
-        for index in range(1, 600):
-            book.remember(f"s{index}", CliSessionRecord(f"cli-{index}", "/work"))
-        assert "s0" not in book
-
-        assert await book.resumable("s0", "/work") == CliSessionRecord("cli-0", "/work")
