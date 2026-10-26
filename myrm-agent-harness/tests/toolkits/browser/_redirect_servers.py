@@ -4,13 +4,16 @@
 - stdlib http.server (POS: in-process HTTP server)
 
 [OUTPUT]
-- Reply / redirect: scripted response specs (``delay_s`` holds the answer back, like a slow business endpoint)
+- Reply / redirect: scripted response specs (``delay_s`` holds the answer back, like a slow business endpoint;
+  ``declared_length`` promises more body than is sent and ``hold_open_s`` keeps the connection open after it, so a
+  response can be cut short or left half-read)
 - serve: context manager yielding a ``Site`` (base URL + every request the server received)
 
 [POS]
 Test support for browser integration tests that need real redirect chains. Every request (GET, POST,
 PUT, PATCH, DELETE) is recorded as ``(method, path)``, so a test can prove how many times — and whether
-at all — the server was reached instead of trusting the browser-side outcome.
+at all — the server was reached instead of trusting the browser-side outcome. A page that hangs up mid-reply
+(an aborted fetch) is a scenario under test, so the handler ends quietly when the connection is gone.
 """
 
 from __future__ import annotations
@@ -34,6 +37,8 @@ class Reply:
     content_type: str = HTML
     headers: tuple[tuple[str, str], ...] = ()
     delay_s: float = 0.0
+    declared_length: int | None = None
+    hold_open_s: float = 0.0
 
 
 def page(text: str) -> Reply:
@@ -71,13 +76,18 @@ def serve(routes: Mapping[str, Reply], *, host: str = "127.0.0.1") -> Iterator[S
             site.hits.append((method, path))
             reply = routes.get(path, Reply(status=404, body=b"not found"))
             time.sleep(reply.delay_s)
-            self.send_response(reply.status)
-            self.send_header("Content-Type", reply.content_type)
-            self.send_header("Content-Length", str(len(reply.body)))
-            for name, value in reply.headers:
-                self.send_header(name, value)
-            self.end_headers()
-            self.wfile.write(reply.body)
+            length = len(reply.body) if reply.declared_length is None else reply.declared_length
+            try:
+                self.send_response(reply.status)
+                self.send_header("Content-Type", reply.content_type)
+                self.send_header("Content-Length", str(length))
+                for name, value in reply.headers:
+                    self.send_header(name, value)
+                self.end_headers()
+                self.wfile.write(reply.body)
+                time.sleep(reply.hold_open_s)
+            except (BrokenPipeError, ConnectionResetError):
+                return
 
         def _reply_after_body(self, method: str) -> None:
             self.rfile.read(int(self.headers.get("Content-Length", "0")))

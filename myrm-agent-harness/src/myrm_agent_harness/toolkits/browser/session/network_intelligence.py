@@ -16,8 +16,10 @@ body retrieval using Network.getResponseBody. Cooperates with NetworkLogger (whi
 synchronous metadata) — this component handles asynchronous CDP queries.
 A request is `[pending]` only while it is really in flight: a redirect hop takes the status of the response that sent
 the browser on (Chrome reuses the requestId across hops and reports that response with the next hop), and a request the
-browser gave up on (blocked, refused, CORS, aborted) carries the browser's error, so the model never waits on an answer
-that cannot come.
+browser gave up on (blocked, refused, CORS, aborted before any answer, cut off mid-transfer) carries the browser's error,
+so the model never waits on an answer that cannot come. A response the page itself dropped after it arrived (an empty
+body nobody read, an aborted stream: Chrome reports `canceled`) keeps the status the server gave. The one exception is a
+request a navigation cuts off before its headers: Chrome reports nothing for it, so it stays `[pending]`.
 The number network_log shows is the request's own `seq`, handed out once in arrival order to XHR/Fetch requests,
 not a position in the rolling window: the window drops its oldest records, so a position would name a different
 request by the time the model asks for it. A number that is no longer tracked is refused, never re-pointed.
@@ -48,6 +50,12 @@ _BODY_PREVIEW_MAX_CHARS = 8000
 # NetworkLogger's preview-window design).
 _RAW_PREVIEW_WINDOW = 4096
 _BODY_RAW_WINDOW = 16384
+EMPTY_RESPONSE = "Empty response"
+# Responses of these statuses carry no body by definition, so there is nothing to ask Chrome for.
+_BODYLESS_STATUSES = frozenset({204, 205, 304})
+# Chrome's answer when it never kept (or no longer holds) the body: an unread empty response or an aborted stream.
+_NO_BODY_KEPT_ERROR = "No data found for resource"
+_BODY_NOT_KEPT = "Chrome kept no body for this request: it may still be loading, or the page dropped it"
 
 
 class _CdpRequest(TypedDict, total=False):
@@ -80,6 +88,7 @@ class _CdpCorsErrorStatus(TypedDict, total=False):
 class _CdpLoadingFailed(TypedDict, total=False):
     requestId: str
     errorText: str
+    canceled: bool
     corsErrorStatus: _CdpCorsErrorStatus
 
 
@@ -220,16 +229,21 @@ class NetworkIntelligence:
             logger.debug("NetworkIntelligence: responseReceived handler error: %s", exc)
 
     def _on_loading_failed(self, params: _CdpLoadingFailed) -> None:
-        """Handle CDP Network.loadingFailed — the request ended without a usable response."""
+        """Handle CDP Network.loadingFailed — the browser gave up on the request; keep the error it names."""
         try:
             index = self._latest_index(params.get("requestId", ""))
             if index is None:
+                return
+            record = self._requests[index]
+            # Chrome reports `canceled` when the page dropped the request (ERR_ABORTED). Once the response had arrived
+            # (an empty body nobody read, an aborted stream) the server's answer stands, so that is no failure.
+            if params.get("canceled") and record.status:
                 return
             reason = params.get("errorText") or "failed"
             cors = params.get("corsErrorStatus")
             cors_error = cors.get("corsError") if cors else None
             failure = f"{reason} (CORS: {cors_error})" if cors_error else reason
-            self._requests[index] = replace(self._requests[index], failure=failure)
+            self._requests[index] = replace(record, failure=failure)
         except Exception as exc:
             logger.debug("NetworkIntelligence: loadingFailed handler error: %s", exc)
 
@@ -283,7 +297,8 @@ class NetworkIntelligence:
 
         Returns:
             Response body text, or what to read instead when the request has none: the request a redirect hop
-            continued as, or the browser's error for a request that failed; otherwise an error message
+            continued as, the browser's error for a request that failed, or the reason there is no body (empty,
+            a status without one, not kept by Chrome); otherwise an error message
         """
         if self._cdp_session is None:
             return "Error: CDP session not available. Navigate to a page first."
@@ -298,6 +313,8 @@ class NetworkIntelligence:
         if successor is not None:
             redirected = f"Redirected ({record.status})" if record.status else "Redirected"
             return f"{redirected}; the response is request #{successor.seq}"
+        if record.status in _BODYLESS_STATUSES:
+            return f"No response body (status {record.status})"
 
         try:
             result = await self._cdp_session.send(
@@ -310,6 +327,8 @@ class NetworkIntelligence:
             if is_base64:
                 return f"[Binary response, {len(body)} base64 chars] MIME: {record.mime_type or 'unknown'}"
 
+            if not body:
+                return EMPTY_RESPONSE
             if len(body) > _BODY_PREVIEW_MAX_CHARS:
                 return (
                     f"{redact_sensitive_text(body[:_BODY_RAW_WINDOW])[:_BODY_PREVIEW_MAX_CHARS]}\n\n"
@@ -327,6 +346,8 @@ class NetworkIntelligence:
                     "This happens when the page has navigated away. "
                     "Bodies are only available for the current page's requests."
                 )
+            if _NO_BODY_KEPT_ERROR in error_msg:
+                return _BODY_NOT_KEPT
             return f"Error retrieving response body: {error_msg}"
 
     @staticmethod

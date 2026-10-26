@@ -2,6 +2,20 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-001 · network_log 把页面丢弃的响应标成 [failed: net::ERR_ABORTED]，同一次 network_log 里同一个请求既失败又 401
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-26（用真实 Chrome 逐一取证 `Network.loadingFailed` 的触发条件） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：服务端已经答复的请求（没人读响应体的 204 / 空 200 / 空 401、响应头之后被页面中止的流）被标成失败，真实的 401 被 `net::ERR_ABORTED` 盖住；`network_detail` 对这类请求回答驱动的原始报错 |
+| **关联产品** | harness `toolkits/browser/session/network_intelligence.py` |
+| **根因** | `BUG-HARNESS-2026-10-26-004` 订阅 `Network.loadingFailed`，并让失败压过先到的状态码。真实 Chrome 对「响应已到、页面没有读取就丢弃」的请求先发 `responseReceived`、再发 `loadingFailed(net::ERR_ABORTED, canceled=true)`；传输中断（`ERR_CONTENT_LENGTH_MISMATCH`）、CORS、拦截的 `canceled` 都是 false（Chromium `ResourceError::IsCancellation()` 只对 `ERR_ABORTED` 为真，CORS 状态只出现在 `ERR_FAILED` 上）。当时的真实 Chromium 用例只用了非空 JSON 响应体，没有走到这条路径。 |
+| **修复** | `canceled` 且该请求已有状态码时保留服务端的状态码、不记失败；响应到达前的取消、传输中断、CORS、拦截仍记失败。`network_detail` 同步改答：204 / 205 / 304 回答 `No response body (status N)`（不询问 Chrome），空响应体回答 `Empty response`，Chrome 没有保留响应体的请求回答 `Chrome kept no body for this request: it may still be loading, or the page dropped it`，不再转述驱动的 `No data found for resource…`。 |
+| **回归** | `test_network_terminal_states.py`（canceled 保留 200 / 204 / 401 / 500；响应前取消、传输中断、重定向末跳的边界；204 / 205 / 304、空响应体、驱动报错三类回答）；真 Chromium `test_network_terminal_states_integration.py` 4 例，每例用 Chrome 自己的 `loadingFailed` 事件作对照（去掉修复则 3 例变红；把规则放宽或收窄各有边界用例变红）。 |
+| **仍然存在** | 导航在响应头到达前截断的请求，Chrome 不上报任何事件，`network_log` 里保持 `[pending]`，`network_detail` 回答「页面已导航」，已在 `BROWSER_SYSTEM.md` 与模块文档记为例外。只在 HeadlessChrome 156.0.8078.4 与 Google Chrome 155.0.8059.86 上取证，其他版本的行为未验证。 |
+
 ### BUG-HARNESS-2026-10-26-006 · 子 agent 继承父 agent 的 memory_save_tool / memory_manage_tool：记忆隔离策略挡不住它们，ReadOnlyMemoryView 另有十个写方法没人归类
 
 | 字段 | 内容 |
