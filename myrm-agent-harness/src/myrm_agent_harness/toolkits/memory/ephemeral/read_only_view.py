@@ -344,7 +344,7 @@ class ReadOnlyMemoryView(MemoryManager):
     # ── Read operations that lack internal deps — return safe defaults ──
 
     async def get_profile_attribute(self, key: str) -> str | None:
-        return await self._parent.get_profile_attribute(key) if hasattr(self._parent, "get_profile_attribute") else None
+        return await self._parent.get_profile_attribute(key)
 
     async def list_pending(self, *, limit: int = 50) -> list[PendingRecord]:
         return []
