@@ -12,12 +12,12 @@
 [POS]
 Server 业务层外部 Agent 运行时池生命周期。按 chat 复用 harness RuntimePool，
 支持 per-chat turn lock 串行化 CLI run_turn；cancel 为 lock-exempt 中断语义。
-idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 驱逐。
-配置变更或 idle 超时再 close；服务关闭时由 close_all 统一收尾。
-执行单元缓存（1800s）比 idle 驱逐（600s）活得久：缓存命中的旧 facade 在池被驱逐后再委托时，
-已关闭的 RuntimePool 会懒重建后端；facade 每个委托 turn 先 ensure_tracked 把池重新登记，
-这些后端才会被 close_chat / close_all 收尾而不是变成孤儿进程。
-所有 pool 关闭都带上限（close_runtime_pool_bounded），失联的外部 agent 不会拖死持锁的 registry。
+idle 计时在 acquire / release / 每次委托 turn 结束时刷新；持 turn lock 的在途委托不参与 idle 回收。
+idle 超时只释放池里的常驻进程（ACP），池本身与 CLI 后端的 --resume 会话 id 保留：CLI 回合之间没有进程，
+整池驱逐只会丢会话、不释放任何资源。池只在配置变更、删 chat（close_chat）、服务关闭（close_all）时被 close。
+关闭后仍握着该池的旧 facade 再委托时，已关闭的 RuntimePool 会懒重建后端；facade 每个委托 turn 先
+ensure_tracked 把池重新登记，这些后端才会被 close_chat / close_all 收尾而不是变成孤儿进程。
+所有 pool 关闭 / 释放都带上限（_bounded），失联的外部 agent 不会拖死持锁的 registry。
 """
 
 from __future__ import annotations
@@ -48,23 +48,33 @@ class _ChatPoolEntry:
     pool: RuntimePool
     config_fingerprint: str
     last_used: float
+    # True once the idle pass has released the pool's resident processes; cleared by the next use.
+    idle_released: bool = False
+
+    def touch(self) -> None:
+        self.last_used = time.monotonic()
+        self.idle_released = False
 
 
-async def close_runtime_pool_bounded(pool: RuntimePool, *, scope: str) -> None:
-    """Close a pool without letting an unresponsive backend wedge the caller.
+async def _bounded(operation: Callable[[], Awaitable[None]], *, action: str, scope: str) -> None:
+    """Run one pool teardown step without letting an unresponsive backend wedge the caller.
 
-    ``RuntimePool.close_all`` has no upper bound of its own, and the registry closes pools while
-    holding its lock, so one backend that never finishes closing would freeze every chat. This is the
-    safety net above the per-backend limits (``AcpRuntime`` bounds ``session/close`` itself).
-    Timeouts and failures are logged, never raised; cancellation still propagates.
+    The registry runs these while holding its lock, so one backend that never finishes closing would
+    freeze every chat. This is the safety net above the per-backend limits (``AcpRuntime`` bounds
+    ``session/close`` itself). Timeouts and failures are logged, never raised; cancellation still propagates.
     """
     try:
         async with asyncio.timeout(_POOL_CLOSE_TIMEOUT_SECONDS):
-            await pool.close_all()
+            await operation()
     except TimeoutError:
-        logger.warning("runtime_pool_close_timeout scope=%s timeout_s=%.0f", scope, _POOL_CLOSE_TIMEOUT_SECONDS)
+        logger.warning("runtime_pool_%s_timeout scope=%s timeout_s=%.0f", action, scope, _POOL_CLOSE_TIMEOUT_SECONDS)
     except Exception:
-        logger.warning("runtime_pool_close_failed scope=%s", scope, exc_info=True)
+        logger.warning("runtime_pool_%s_failed scope=%s", action, scope, exc_info=True)
+
+
+async def close_runtime_pool_bounded(pool: RuntimePool, *, scope: str) -> None:
+    """Close a pool within the teardown bound (``RuntimePool.close_all`` has none of its own)."""
+    await _bounded(pool.close_all, action="close", scope=scope)
 
 
 async def _close_entries(entries: list[tuple[str, _ChatPoolEntry]]) -> None:
@@ -86,8 +96,7 @@ class ChatRuntimePoolRegistry:
         """Serialize external CLI turns for one chat (one CliRuntime subprocess).
 
         The idle clock restarts when the turn ends, so a delegation that outlived the
-        idle window is not evicted the moment it finishes (which would drop the CLI
-        session id used for ``--resume``).
+        idle window does not get its processes released the moment it finishes.
         """
         if not chat_scope_id:
             yield
@@ -107,10 +116,10 @@ class ChatRuntimePoolRegistry:
     ) -> RuntimePool:
         """Return an existing pool for the chat or create one with ``build_pool``."""
         async with self._lock:
-            await self._evict_idle_unlocked()
+            await self._release_idle_unlocked()
             entry = self._entries.get(chat_scope_id)
             if entry is not None and entry.config_fingerprint == config_fingerprint:
-                entry.last_used = time.monotonic()
+                entry.touch()
                 logger.debug("runtime_pool_reuse chat=%s", chat_scope_id)
                 return entry.pool
 
@@ -121,7 +130,7 @@ class ChatRuntimePoolRegistry:
                         "runtime_pool_replace_deferred chat=%s reason=config_changed_active_turn",
                         chat_scope_id,
                     )
-                    entry.last_used = time.monotonic()
+                    entry.touch()
                     return entry.pool
 
                 logger.info("runtime_pool_replace chat=%s reason=config_changed", chat_scope_id)
@@ -147,7 +156,7 @@ class ChatRuntimePoolRegistry:
         config_fingerprint: str,
         pool: RuntimePool,
     ) -> RuntimePool:
-        """Return the pool a delegation turn must run on, re-registering ``pool`` if eviction dropped it.
+        """Return the pool a delegation turn must run on, re-registering ``pool`` if teardown dropped it.
 
         A closed ``RuntimePool`` stays usable and re-spawns its backends on the next turn. Running on one
         that is no longer registered would leave those processes invisible to ``close_chat`` / ``close_all``.
@@ -156,7 +165,7 @@ class ChatRuntimePoolRegistry:
         entry = self._entries.get(chat_scope_id)
         if entry is not None and entry.pool is pool:
             # Lock-free: a turn must not wait behind another chat's slow pool close. The caller holds the
-            # chat's turn lock, so idle eviction cannot drop this entry between the check and the turn.
+            # chat's turn lock, and the idle release never takes the entry of a chat with an active turn.
             return pool
         async with self._lock:
             entry = self._entries.get(chat_scope_id)
@@ -196,25 +205,38 @@ class ChatRuntimePoolRegistry:
         """Restart the idle clock of a chat pool (no-op once the pool is gone)."""
         entry = self._entries.get(chat_scope_id)
         if entry is not None:
-            entry.last_used = time.monotonic()
+            entry.touch()
 
-    async def _evict_idle_unlocked(self) -> None:
-        """Close pools idle past the window; a pool with an in-flight turn is never idle."""
+    async def _release_idle_unlocked(self) -> None:
+        """Free the resident processes of pools idle past the window; the pools stay registered.
+
+        A CLI backend holds no process between turns, only the session id behind ``--resume``, so dropping
+        its pool would lose that id and free nothing. Each due entry is taken out of ``_entries`` while its
+        resident backends close, so a turn arriving meanwhile waits in ``ensure_tracked`` for the registry
+        lock instead of racing the release. A pool with an in-flight turn is never idle.
+        """
         now = time.monotonic()
-        stale = [
-            chat_scope_id
+        due = [
+            (chat_scope_id, entry)
             for chat_scope_id, entry in self._entries.items()
-            if now - entry.last_used > self._idle_seconds and not self._is_turn_active(chat_scope_id)
+            if now - entry.last_used > self._idle_seconds and not entry.idle_released and not self._is_turn_active(chat_scope_id)
         ]
-        if not stale:
+        if not due:
             return
-        evicted: list[tuple[str, _ChatPoolEntry]] = []
-        for chat_scope_id in stale:
-            evicted.append((chat_scope_id, self._entries.pop(chat_scope_id)))
-            self._turn_locks.pop(chat_scope_id, None)
-        await _close_entries(evicted)
-        for chat_scope_id, _ in evicted:
-            logger.info("runtime_pool_evicted_idle chat=%s idle_s=%.0f", chat_scope_id, self._idle_seconds)
+        for chat_scope_id, _ in due:
+            del self._entries[chat_scope_id]
+        try:
+            await asyncio.gather(
+                *(_bounded(entry.pool.release_resident, action="release", scope=chat_scope_id) for chat_scope_id, entry in due)
+            )
+            for _, entry in due:
+                entry.idle_released = True
+        finally:
+            # Also on cancellation: a pool must never stay unregistered, or its processes lose their owner.
+            for chat_scope_id, entry in due:
+                self._entries[chat_scope_id] = entry
+        for chat_scope_id, _ in due:
+            logger.info("runtime_pool_released_idle chat=%s idle_s=%.0f", chat_scope_id, self._idle_seconds)
 
 
 class ChatScopedRuntimePoolFacade:

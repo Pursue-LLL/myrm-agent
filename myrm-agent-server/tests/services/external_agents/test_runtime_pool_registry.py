@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,6 +26,7 @@ async def _build_mock_pool() -> MagicMock:
     pool = MagicMock()
     pool.available_backends = ["claude"]
     pool.close_all = AsyncMock()
+    pool.release_resident = AsyncMock()
     return pool
 
 
@@ -89,25 +91,51 @@ async def test_release_does_not_close_pool() -> None:
 
 
 @pytest.mark.asyncio
-async def test_idle_eviction_closes_stale_pool() -> None:
+async def test_idle_pool_releases_resident_backends_and_stays_registered() -> None:
+    """Idle cleanup frees processes but must keep the pool: its CLI backends hold the --resume ids."""
     registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
-
-    async def build_pool() -> MagicMock:
-        pool = MagicMock()
-        pool.available_backends = ["claude"]
-        pool.close_all = AsyncMock()
-        return pool
-
-    pool = await registry.acquire("chat-1", "fp-a", build_pool)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
     await registry.release("chat-1")
     await asyncio.sleep(0.02)
-    await registry.acquire("chat-2", "fp-a", build_pool)
-    pool.close_all.assert_awaited_once()
+
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+
+    pool.release_resident.assert_awaited_once()
+    pool.close_all.assert_not_called()
+    assert await registry.acquire("chat-1", "fp-a", _unexpected_build) is pool
 
 
 @pytest.mark.asyncio
-async def test_idle_eviction_skips_pool_with_turn_in_flight() -> None:
-    """A delegation that outlives the idle window keeps its pool and its turn lock."""
+async def test_a_chat_returning_after_the_idle_window_gets_its_own_pool_back() -> None:
+    """The returning chat's own acquire runs the idle pass first; it must not rebuild the pool."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+    await asyncio.sleep(0.02)
+
+    assert await registry.acquire("chat-1", "fp-a", _unexpected_build) is pool
+    pool.close_all.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_released_pool_is_released_again_only_after_it_was_used() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.02)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+    await asyncio.sleep(0.03)
+
+    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+    await registry.acquire("chat-3", "fp-a", _build_mock_pool)
+    assert pool.release_resident.await_count == 1
+
+    async with registry.guard_turn("chat-1"):
+        pass
+    await asyncio.sleep(0.03)
+    await registry.acquire("chat-4", "fp-a", _build_mock_pool)
+    assert pool.release_resident.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_idle_release_skips_pool_with_turn_in_flight() -> None:
+    """A delegation that outlives the idle window keeps its processes and its turn lock."""
     registry = ChatRuntimePoolRegistry(idle_seconds=0.02)
     pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
     started = asyncio.Event()
@@ -129,6 +157,7 @@ async def test_idle_eviction_skips_pool_with_turn_in_flight() -> None:
     await asyncio.sleep(0.05)
     await registry.acquire("chat-2", "fp-a", _build_mock_pool)
 
+    pool.release_resident.assert_not_called()
     pool.close_all.assert_not_called()
     assert await registry.acquire("chat-1", "fp-a", _unexpected_build) is pool
 
@@ -142,18 +171,18 @@ async def test_idle_eviction_skips_pool_with_turn_in_flight() -> None:
 
 @pytest.mark.asyncio
 async def test_guard_turn_exit_restarts_idle_clock() -> None:
-    """A turn longer than the idle window must not get its pool evicted the moment it ends."""
+    """A turn longer than the idle window must not get its processes released the moment it ends."""
     registry = ChatRuntimePoolRegistry(idle_seconds=0.05)
     pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
 
     async with registry.guard_turn("chat-1"):
         await asyncio.sleep(0.08)
     await registry.acquire("chat-2", "fp-a", _build_mock_pool)
-    pool.close_all.assert_not_called()
+    pool.release_resident.assert_not_called()
 
     await asyncio.sleep(0.08)
     await registry.acquire("chat-3", "fp-a", _build_mock_pool)
-    pool.close_all.assert_awaited_once()
+    pool.release_resident.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -167,7 +196,7 @@ async def test_guard_turn_restarts_idle_clock_when_turn_fails() -> None:
             raise RuntimeError("delegation failed")
     await registry.acquire("chat-2", "fp-a", _build_mock_pool)
 
-    pool.close_all.assert_not_called()
+    pool.release_resident.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -406,18 +435,18 @@ def _build_turn_pool(label: str, ran_on: list[str]) -> MagicMock:
     pool.run_turn = run_turn
     pool.cancel = AsyncMock()
     pool.close_all = AsyncMock()
+    pool.release_resident = AsyncMock()
     return pool
 
 
-async def _evict_chat_one(registry: ChatRuntimePoolRegistry, pool: MagicMock) -> None:
-    """Acquire chat-1's pool, let it go idle, and have another chat's acquire evict it."""
+async def _close_chat_one(registry: ChatRuntimePoolRegistry, pool: MagicMock) -> None:
+    """Acquire chat-1's pool, then tear the chat down (deleted conversation) so the pool is unregistered."""
 
     async def build_pool() -> MagicMock:
         return pool
 
     await registry.acquire("chat-1", "fp-a", build_pool)
-    await asyncio.sleep(0.03)
-    await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+    await registry.close_chat("chat-1")
     pool.close_all.assert_awaited_once()
     assert "chat-1" not in registry._entries
 
@@ -439,11 +468,11 @@ async def test_ensure_tracked_fast_path_does_not_wait_for_registry_lock() -> Non
 
 
 @pytest.mark.asyncio
-async def test_ensure_tracked_readopts_evicted_pool_so_shutdown_closes_it() -> None:
+async def test_ensure_tracked_readopts_closed_pool_so_shutdown_closes_it() -> None:
     """A closed pool revives its backends on the next turn; they must stay reachable by close_all."""
-    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
     pool = _build_turn_pool("p", [])
-    await _evict_chat_one(registry, pool)
+    await _close_chat_one(registry, pool)
 
     tracked = await registry.ensure_tracked("chat-1", "fp-a", pool)
 
@@ -468,12 +497,12 @@ async def test_ensure_tracked_prefers_the_registered_pool_over_a_stale_one() -> 
 
 
 @pytest.mark.asyncio
-async def test_facade_run_turn_readopts_pool_evicted_while_the_unit_stayed_cached() -> None:
-    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+async def test_facade_run_turn_readopts_pool_closed_while_the_unit_stayed_cached() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
     ran_on: list[str] = []
     pool = _build_turn_pool("p", ran_on)
     facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
-    await _evict_chat_one(registry, pool)
+    await _close_chat_one(registry, pool)
 
     async for _ in facade.run_turn("claude", "hi", "s1"):
         pass
@@ -504,3 +533,86 @@ async def test_facade_follows_the_registered_pool_for_turns_and_cancel() -> None
     assert ran_on == ["current"]
     current.cancel.assert_awaited_once_with("claude", "s1")
     stale.cancel.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_turn_arriving_during_an_idle_release_waits_for_it() -> None:
+    """The release closes ACP processes; a turn that starts meanwhile must run only after it finished."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    events: list[str] = []
+    release_gate = asyncio.Event()
+    pool = _build_turn_pool("p", events)
+
+    async def slow_release() -> None:
+        events.append("release_begin")
+        await release_gate.wait()
+        events.append("release_end")
+
+    pool.release_resident = AsyncMock(side_effect=slow_release)
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
+
+    async def build_pool() -> MagicMock:
+        return pool
+
+    await registry.acquire("chat-1", "fp-a", build_pool)
+    await asyncio.sleep(0.02)
+    releasing = asyncio.create_task(registry.acquire("chat-2", "fp-a", _build_mock_pool))
+    await _wait_for(lambda: "release_begin" in events)
+
+    async def deliver() -> None:
+        async for _ in facade.run_turn("claude", "hi", "s1"):
+            pass
+
+    turn = asyncio.create_task(deliver())
+    await asyncio.sleep(0.05)
+    assert events == ["release_begin"]
+
+    release_gate.set()
+    await asyncio.gather(releasing, turn)
+    assert events == ["release_begin", "release_end", "p"]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_idle_release_keeps_the_pool_registered() -> None:
+    """A release interrupted by cancellation must not leave the pool unregistered (its processes untracked)."""
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    started = asyncio.Event()
+
+    async def never_returns() -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+    pool.release_resident = AsyncMock(side_effect=never_returns)
+    await asyncio.sleep(0.02)
+
+    releasing = asyncio.create_task(registry.acquire("chat-2", "fp-a", _build_mock_pool))
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+    releasing.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await releasing
+
+    assert registry._entries["chat-1"].pool is pool
+    await asyncio.wait_for(registry.release("chat-1"), timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_failed_idle_release_keeps_the_pool_registered(caplog: pytest.LogCaptureFixture) -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
+    pool = await registry.acquire("chat-1", "fp-a", _build_mock_pool)
+    pool.release_resident = AsyncMock(side_effect=RuntimeError("boom"))
+    await asyncio.sleep(0.02)
+
+    with caplog.at_level("WARNING"):
+        await registry.acquire("chat-2", "fp-a", _build_mock_pool)
+
+    assert registry._entries["chat-1"].pool is pool
+    assert "runtime_pool_release_failed scope=chat-1" in caplog.text
+
+
+async def _wait_for(condition: Callable[[], bool], *, timeout: float = 1.0) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while not condition():
+        if asyncio.get_running_loop().time() > deadline:
+            raise AssertionError("condition not met in time")
+        await asyncio.sleep(0.005)

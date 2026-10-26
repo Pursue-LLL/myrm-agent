@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-26 · 外部 CLI 委托：idle 回收把整个 pool 驱逐，丢掉 CLI 会话的 `--resume` id，却没释放任何进程
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED** |
+| **症状** | 同一 chat 先委托 `claude` CLI，隔过 idle 窗口（600s）后再追问，委托回合不再带 `--resume`，外部 agent 从头开始、丢掉前面的全部上下文。真实触发路径：别的 chat 的 `acquire` 顺带跑 idle 扫描；该 chat 自己重建 agent 时 `acquire` 先扫描再查自己的条目（连自己的 pool 也被驱逐）；`acquire` 只在 agent 构建时调用（`external_agents.py:169`），执行单元缓存空闲 1800s 回收后再次构建（`settings.py:491`）就会走到它 |
+| **根因** | 旧的 `ChatRuntimePoolRegistry._evict_idle_unlocked` 对到期条目 `pool.close_all()` 并把整条移出 `_entries`；`close_all` 清空 `_backends`，`CliRuntime._do_close` 清空 `_cli_session_ids`（`cli_runtime.py:287`）。CLI 后端在回合之间没有常驻进程，所以这次“驱逐”只丢了 id、没释放任何进程；真正占着进程的只有 ACP 后端。每个仅含 CLI 后端的 pool 实测约 3.85 KiB（1000 个 pool × 4 个后端 = 3854 KiB，不含 id 字典内容），回收它没有收益 |
+| **修复** | harness：`RuntimePool.release_resident()` 只关闭并摘除 `backend_type == "acp"` 的后端（CLI 后端及其 `--resume` id 保留；前提是该 pool 没有进行中的回合），单个后端关闭失败只记 warning。server：registry 的 idle 回收由“驱逐”改为“释放”——到期条目（超窗口、未释放过、该 chat 无回合在途）先从 `_entries` 摘出，并发（`asyncio.gather`，每个有 10s 上限）调用 `release_resident`，`finally` 中放回（取消时也放回，保证进程不会失去 owner），仅正常完成才置 `idle_released=True`，之后再次使用（`touch()`）才重新有资格被释放。回收期间到来的回合在 `ensure_tracked` 慢路径等 registry 锁，不会与释放竞态。`_turn_locks` 不再随 idle 弹出（只有 `close_chat` / `close_all` 弹出）。**与方案的偏离**：方案写“在该 chat 的回合锁下释放”，实现改为“摘出 + 放回，在 registry 锁下”——复用既有的安全协议，避免在 registry 锁内再取回合锁带来的死锁风险；效果等价（回合在途的 chat 不会被选中；到来的回合等待释放完成） |
+| **回归证据** | 修复前复现（临时脚本 E7，真实子进程：假 `claude` 记录 `--resume`，idle 窗口缩到 0.05s）：同一 chat 三次委托的 `--resume` 为 `[None, '3aa81f10', None]`（第三次丢失）。新增 `test_runtime_pool_resume_across_idle.py` 两个场景（别的 chat 触发 idle 扫描后追问；本 chat 越窗口重建 agent 后追问），期望 `[None, first]`。registry 新用例：idle 释放后 pool 仍登记且调用 `release_resident`、越窗口回来拿回自己的 pool、已释放的 pool 只有被使用后才会再次释放、释放期间到来的回合等待其完成、释放被取消 / 失败时 pool 仍登记；close-bound 用例：卡死 pool 的释放在 10s 上限内返回且不冻结其他 chat。harness 新增 `test_pool_release_resident.py`（4 个）、CLI id 保留与真实 mock ACP 进程释放各 1 个。变异检查（逐个改坏实现、测试必须变红、再还原并 `diff` 确认）：整池驱逐 → 10 个失败（含两个 resume 场景）；释放期间不摘出条目 → 竞态用例红；不用 `finally` 放回 → 取消用例红；忽略 `idle_released` / `touch()` 不清标志 → 重复释放用例红；不排除在途回合 → 在途用例红；释放不设上限 → close-bound 用例红。结果：`tests/services/external_agents` 33 passed；加上 gate / teardown / eager-entitlement / timeout-cleanup / live 集成 / 删 chat 共 80 passed（`-m ""`）；harness `tests/toolkits/acp` 496 passed, 5 skipped；ruff / format / pyright 干净 |
+| **仍然存在** | 本条解决了上一批条目“仍然存在”里 idle 驱逐丢 `--resume` 的那一半，**服务重启后 `--resume` 仍丢**（`_cli_session_ids` 只在进程内存，未做持久化，不在本次范围）；ACP 后端被释放后会话上下文仍丢失（与修复前一致，未做 `session/load` 续接）；保留下来的 CLI id 可能过期，此时下一回合失败一次后由 `cli_resume_invalid` 丢弃该 id（`cli_runtime.py:223-231`）；因删除竞态被 `ensure_tracked` 重新登记的条目，现在会留到关停（约 3.85 KiB / 条，此前由 idle 驱逐清理）；真实 `claude` 二进制端到端、真实 ACP 适配器的空闲行为、`oneshot` 的真实使用频率、超过 10 分钟的追问占比、CLI 与 ACP 混合 pool 的占比，均未实测；关停窗口内 `ensure_tracked` 重新登记的竞态未验证 |
+
 ## 2026-10-26 · 外部 agent 委托：`mode="oneshot"` 在共享后端上运行并关闭它，清掉同 chat 的 persistent 会话（CLI 丢 `--resume`、ACP 被杀常驻进程）
 
 | 字段 | 内容 |

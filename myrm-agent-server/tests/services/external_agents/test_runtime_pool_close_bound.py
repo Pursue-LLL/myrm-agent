@@ -34,6 +34,7 @@ def _hung_pool() -> MagicMock:
     pool = MagicMock()
     pool.available_backends = ["acp"]
     pool.close_all = AsyncMock(side_effect=_hang_forever)
+    pool.release_resident = AsyncMock(side_effect=_hang_forever)
     return pool
 
 
@@ -41,6 +42,7 @@ def _healthy_pool() -> MagicMock:
     pool = MagicMock()
     pool.available_backends = ["claude"]
     pool.close_all = AsyncMock()
+    pool.release_resident = AsyncMock()
     return pool
 
 
@@ -52,7 +54,7 @@ def _pool_builder(pool: MagicMock) -> Callable[[], Awaitable[MagicMock]]:
 
 
 @pytest.mark.asyncio
-async def test_hung_pool_during_idle_eviction_does_not_freeze_other_chats(caplog: pytest.LogCaptureFixture) -> None:
+async def test_hung_pool_during_idle_release_does_not_freeze_other_chats(caplog: pytest.LogCaptureFixture) -> None:
     registry = ChatRuntimePoolRegistry(idle_seconds=0.01)
     hung = _hung_pool()
     await registry.acquire("chat-hung", "fp-a", _pool_builder(hung))
@@ -63,9 +65,9 @@ async def test_hung_pool_during_idle_eviction_does_not_freeze_other_chats(caplog
         acquired = await asyncio.wait_for(registry.acquire("chat-ok", "fp-a", _pool_builder(healthy)), timeout=2.0)
 
     assert acquired is healthy
-    hung.close_all.assert_awaited_once()
-    assert "chat-hung" not in registry._entries
-    assert "runtime_pool_close_timeout scope=chat-hung" in caplog.text
+    hung.release_resident.assert_awaited_once()
+    assert registry._entries["chat-hung"].pool is hung
+    assert "runtime_pool_release_timeout scope=chat-hung" in caplog.text
     # The registry lock is free again: later calls do not queue behind the hung close.
     await asyncio.wait_for(registry.release("chat-ok"), timeout=1.0)
 
