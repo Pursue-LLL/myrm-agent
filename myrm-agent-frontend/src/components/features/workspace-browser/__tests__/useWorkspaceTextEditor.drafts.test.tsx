@@ -1,15 +1,21 @@
 /** @vitest-environment jsdom */
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  readWorkspaceText,
-  saveWorkspaceText,
-  WorkspaceTextError,
-  type WorkspaceTextSnapshot,
-} from '@/services/workspaceText';
+import { WorkspaceTextError } from '@/services/workspaceText';
 import { keptDraft, useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { useWorkspaceTextEditor } from '../useWorkspaceTextEditor';
+import {
+  A,
+  B,
+  deferred,
+  readMock,
+  resetEditorTest,
+  saveMock,
+  snapshot,
+  toastError,
+  WORKSPACE,
+  written,
+} from './editorTestKit';
 
 const stableT = (key: string) => key;
 
@@ -27,37 +33,6 @@ vi.mock('@/services/workspaceText', async (importOriginal) => ({
   saveWorkspaceText: vi.fn(),
   saveWorkspaceTextCopy: vi.fn(),
 }));
-
-const WORKSPACE = '/ws';
-const A = '/ws/a.txt';
-const B = '/ws/b.txt';
-
-const snapshot = (content: string, overrides: Partial<WorkspaceTextSnapshot> = {}): WorkspaceTextSnapshot => ({
-  path: A,
-  name: 'a.txt',
-  content,
-  version: 'v1',
-  size: content.length,
-  editable: true,
-  readonlyReason: null,
-  truncated: false,
-  ...overrides,
-});
-
-const written = (version: string) => ({ path: A, name: 'a.txt', version, size: 1, changed: true });
-
-const readMock = vi.mocked(readWorkspaceText);
-const saveMock = vi.mocked(saveWorkspaceText);
-const toastError = vi.mocked(toast.error);
-
-/** A promise the test settles by hand, to hold a request in flight. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
 
 type EditorHook = ReturnType<typeof renderHook<ReturnType<typeof useWorkspaceTextEditor>, { path: string }>>;
 
@@ -80,10 +55,7 @@ async function leaveWithUnsavedText(text = 'my edit', content = 'hello'): Promis
   hook.unmount();
 }
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  useWorkspaceDraftStore.setState({ drafts: {} });
-});
+beforeEach(resetEditorTest);
 
 describe('keeping what is typed', () => {
   it('keeps it for exactly as long as it differs from the file', async () => {

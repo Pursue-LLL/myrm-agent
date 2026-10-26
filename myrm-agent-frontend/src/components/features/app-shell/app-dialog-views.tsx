@@ -124,7 +124,8 @@ export function ChoiceView({ spec, title, cancelText, open, onAnswer }: ChoiceVi
         onCloseAutoFocus={handleCloseAutoFocus}
       >
         <ConfirmDialogHeading variant={spec.variant} title={title} description={spec.description} />
-        <AlertDialogFooter>
+        {/* Cancel plus every option can be wider than the dialog in some languages, so the row wraps. */}
+        <AlertDialogFooter className="sm:flex-wrap sm:gap-2 sm:space-x-0">
           <AlertDialogCancel>{cancelText}</AlertDialogCancel>
           {spec.choices.map((choice) => (
             <Button

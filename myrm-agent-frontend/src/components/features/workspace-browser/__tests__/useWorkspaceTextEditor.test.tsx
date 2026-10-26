@@ -1,17 +1,28 @@
 /** @vitest-environment jsdom */
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  readWorkspaceText,
-  saveWorkspaceText,
-  saveWorkspaceTextCopy,
   WorkspaceTextError,
   type WorkspaceTextFailureReason,
   type WorkspaceTextSnapshot,
 } from '@/services/workspaceText';
-import { useWorkspaceDraftStore } from '@/store/useWorkspaceDraftStore';
 import { useWorkspaceTextEditor } from '../useWorkspaceTextEditor';
+import {
+  A,
+  B,
+  deferred,
+  openEditor,
+  readMock,
+  resetEditorTest,
+  saveMock,
+  saveResult,
+  snapshot,
+  toastError,
+  toastSuccess,
+  type,
+  WORKSPACE,
+  written,
+} from './editorTestKit';
 
 const stableT = (key: string, values?: Record<string, string>) => (values ? `${key}:${values.name}` : key);
 
@@ -30,65 +41,7 @@ vi.mock('@/services/workspaceText', async (importOriginal) => ({
   saveWorkspaceTextCopy: vi.fn(),
 }));
 
-const WORKSPACE = '/ws';
-const A = '/ws/a.txt';
-const B = '/ws/b.txt';
-
-const snapshot = (content: string, overrides: Partial<WorkspaceTextSnapshot> = {}): WorkspaceTextSnapshot => ({
-  path: A,
-  name: 'a.txt',
-  content,
-  version: 'v1',
-  size: content.length,
-  editable: true,
-  readonlyReason: null,
-  truncated: false,
-  ...overrides,
-});
-
-const written = (version: string, name = 'a.txt') => ({ path: `/ws/${name}`, name, version, size: 1, changed: true });
-
-const readMock = vi.mocked(readWorkspaceText);
-const saveMock = vi.mocked(saveWorkspaceText);
-const copyMock = vi.mocked(saveWorkspaceTextCopy);
-const toastError = vi.mocked(toast.error);
-const toastSuccess = vi.mocked(toast.success);
-
-/** A promise the test settles by hand, to hold a request in flight. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
-async function openEditor(initial = 'hello') {
-  readMock.mockResolvedValue(snapshot(initial));
-  const hook = renderHook(({ path, enabled }) => useWorkspaceTextEditor(WORKSPACE, path, enabled), {
-    initialProps: { path: A, enabled: true },
-  });
-  await waitFor(() => expect(hook.result.current.phase).toBe('ready'));
-  return hook;
-}
-
-const type = (hook: Awaited<ReturnType<typeof openEditor>>, value: string) =>
-  act(() => hook.result.current.setDraft(value));
-
-async function saveResult(hook: Awaited<ReturnType<typeof openEditor>>): Promise<boolean> {
-  let saved = false;
-  await act(async () => {
-    saved = await hook.result.current.save();
-  });
-  return saved;
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  useWorkspaceDraftStore.setState({ drafts: {} });
-});
+beforeEach(resetEditorTest);
 
 describe('reading and editing', () => {
   it('opens with a draft equal to what the file holds', async () => {
@@ -274,94 +227,6 @@ describe('saving', () => {
 
     expect(toastError).toHaveBeenCalledWith('saveFailed');
     expect(hook.result.current.draft).toBe('hello!');
-  });
-});
-
-describe('a file that changed on disk during the edit', () => {
-  const conflictHook = async () => {
-    const hook = await openEditor('hello');
-    saveMock.mockRejectedValueOnce(new WorkspaceTextError('version_conflict', 'v-disk'));
-    type(hook, 'my edit');
-    await act(() => hook.result.current.save());
-    return hook;
-  };
-
-  it('keeps the draft, raises the conflict and does not pretend the save failed', async () => {
-    const { result } = await conflictHook();
-
-    expect(result.current).toMatchObject({ draft: 'my edit', dirty: true, conflict: true, saving: false });
-    expect(toastError).not.toHaveBeenCalled();
-    expect(toastSuccess).not.toHaveBeenCalled();
-  });
-
-  it('overwrites on purpose by saving against the version found on disk', async () => {
-    const hook = await conflictHook();
-    saveMock.mockResolvedValueOnce(written('v-new'));
-
-    await act(() => hook.result.current.overwrite());
-
-    expect(saveMock).toHaveBeenLastCalledWith(WORKSPACE, A, 'my edit', 'v-disk');
-    expect(hook.result.current).toMatchObject({ conflict: false, dirty: false });
-    expect(hook.result.current.snapshot?.version).toBe('v-new');
-  });
-
-  it('asks the user again when the file changed once more before the overwrite', async () => {
-    const hook = await conflictHook();
-    saveMock.mockRejectedValueOnce(new WorkspaceTextError('version_conflict', 'v-disk-2'));
-
-    await act(() => hook.result.current.overwrite());
-    saveMock.mockResolvedValueOnce(written('v-new'));
-    await act(() => hook.result.current.overwrite());
-
-    expect(saveMock).toHaveBeenLastCalledWith(WORKSPACE, A, 'my edit', 'v-disk-2');
-    expect(hook.result.current.conflict).toBe(false);
-  });
-
-  it('ends the conflict together with the draft, and shows the file as it is now rather than as it was read', async () => {
-    const hook = await conflictHook();
-    readMock.mockResolvedValue(snapshot('agent wrote this', { version: 'v-disk' }));
-
-    act(() => hook.result.current.discard());
-
-    await waitFor(() =>
-      expect(hook.result.current).toMatchObject({ draft: 'agent wrote this', dirty: false, conflict: false }),
-    );
-    expect(hook.result.current.snapshot?.version).toBe('v-disk');
-  });
-
-  it('loads the latest version and drops the draft and the conflict', async () => {
-    const hook = await conflictHook();
-    readMock.mockResolvedValue(snapshot('agent wrote this', { version: 'v-disk' }));
-
-    await act(() => hook.result.current.reload());
-
-    expect(hook.result.current).toMatchObject({ draft: 'agent wrote this', dirty: false, conflict: false });
-    expect(hook.result.current.snapshot?.version).toBe('v-disk');
-  });
-
-  it('keeps the draft as a copy, names the new file, and leaves the decision open', async () => {
-    const hook = await conflictHook();
-    copyMock.mockResolvedValue(written('v9', 'a (1).txt'));
-
-    await act(() => hook.result.current.saveCopy());
-
-    expect(copyMock).toHaveBeenCalledWith(WORKSPACE, A, 'my edit');
-    expect(toastSuccess).toHaveBeenCalledWith('saveCopySuccess:a (1).txt');
-    expect(hook.result.current).toMatchObject({ draft: 'my edit', conflict: true, saving: false });
-  });
-
-  it.each<[Error, string]>([
-    [new WorkspaceTextError('write_blocked'), 'saveBlocked'],
-    [new WorkspaceTextError('name_unavailable'), 'saveCopyFailed'],
-    [new TypeError('Failed to fetch'), 'saveCopyFailed'],
-  ])('words a failed copy (%s) as %s', async (failure, copy) => {
-    const hook = await conflictHook();
-    copyMock.mockRejectedValue(failure);
-
-    await act(() => hook.result.current.saveCopy());
-
-    expect(toastError).toHaveBeenCalledWith(copy);
-    expect(hook.result.current).toMatchObject({ draft: 'my edit', conflict: true, saving: false });
   });
 });
 
