@@ -21,7 +21,7 @@
 - **配置变更**：fingerprint 变化且回合在途时 defer，回合结束后的下一次 `acquire` 再替换。
 - **服务关闭**：`app/server/shutdown.py::safe_close_external_agent_pools` 由 lifespan `_shutdown` 调用 `close_all`（此时 Gateway 已 drain，在途回合已结束），不依赖 CLI 子进程随父进程退出。
 
-- **关闭有上限**：`RuntimePool.close_all` 本身无上限（ACP agent 进程存活但不回应 `session/close` 时永不返回），而 registry 在持有 `_lock` 时关闭 pool，一次卡死会冻结所有 chat 的 `acquire` / `release` / 删 chat。因此 registry 的 4 个关闭点（配置变更替换、`close_chat`、`close_all`、idle 驱逐）与 `GeneralAgent.release_pooled_session` / `close` 的 ephemeral 路径统一走 `close_runtime_pool_bounded`：`asyncio.timeout(10s)`，超时或异常只记 warning（`runtime_pool_close_timeout` / `runtime_pool_close_failed`）不抛出，取消照常传播；`close_all` 与 idle 驱逐对多个 pool 并发关闭，最坏耗时是一个上限而不是每个 pool 一个。超时后失联的子进程不再被跟踪，随服务进程退出。
+- **关闭有上限**：`RuntimePool.close_all` 本身无上限（ACP agent 进程存活但不回应 `session/close` 时永不返回），而 registry 在持有 `_lock` 时关闭 pool，一次卡死会冻结所有 chat 的 `acquire` / `release` / 删 chat。因此 registry 的 4 个关闭点（配置变更替换、`close_chat`、`close_all`、idle 驱逐）与 `GeneralAgent.release_pooled_session` / `close` 的 ephemeral 路径统一走 `close_runtime_pool_bounded`：`asyncio.timeout(10s)`，超时或异常只记 warning（`runtime_pool_close_timeout` / `runtime_pool_close_failed`）不抛出，取消照常传播；`close_all` 与 idle 驱逐对多个 pool 并发关闭，最坏耗时是一个上限而不是每个 pool 一个。超时后失联的子进程不再被跟踪，随服务进程退出。harness 层 `AcpRuntime` 另有 4s 的 `session/close` 内层上限（且只向声明了 `sessionCapabilities.close` 的 agent 发送），保证正常的传输层收尾（终止子进程）先于这个 10s 外层上限完成，外层上限只做兜底。
 
 ## 依赖
 

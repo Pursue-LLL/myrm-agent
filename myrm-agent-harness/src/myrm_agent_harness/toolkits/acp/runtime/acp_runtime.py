@@ -14,7 +14,8 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 - AcpRuntime: RuntimeBackend implementation using the ACP protocol (std...
 
 [POS]
-ACP protocol runtime backend.
+ACP protocol runtime backend. Sends `session/close` only when the agent advertises it (ACP capability
+negotiation) and bounds it, so a silent agent cannot skip the transport teardown that terminates its process.
 """
 
 from __future__ import annotations
@@ -46,6 +47,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# `session/close` is advisory. Bounded so an agent that advertises it but never answers still reaches the
+# transport teardown (SDK-bounded terminate/kill) that actually stops the process.
+_CLOSE_SESSION_TIMEOUT_SECONDS = 4.0
+
 
 class AcpRuntime(BaseRuntime):
     """RuntimeBackend implementation using the ACP protocol (stdin/stdout JSON-RPC).
@@ -67,6 +72,7 @@ class AcpRuntime(BaseRuntime):
         self._session_id: str | None = None
         self._ctx_manager: AbstractAsyncContextManager[tuple[ClientSideConnection, Process]] | None = None
         self._handler: AcpCallbackHandler | None = None
+        self._supports_session_close = False
         self._event_bus = event_bus
 
     @property
@@ -161,9 +167,15 @@ class AcpRuntime(BaseRuntime):
         return self._session_id is not None and self.is_alive
 
     async def _do_close(self) -> None:
-        if self._conn is not None and self._session_id is not None:
+        # ACP: a client MUST NOT call `session/close` unless the agent advertised sessionCapabilities.close.
+        if self._conn is not None and self._session_id is not None and self._supports_session_close:
             try:
-                await self._conn.close_session(session_id=self._session_id)
+                async with asyncio.timeout(_CLOSE_SESSION_TIMEOUT_SECONDS):
+                    await self._conn.close_session(session_id=self._session_id)
+            except TimeoutError:
+                logger.warning(
+                    "acp_close_session_timeout name=%s timeout_s=%.0f", self._name, _CLOSE_SESSION_TIMEOUT_SECONDS
+                )
             except Exception:
                 logger.debug("acp_close_session_failed name=%s", self._name, exc_info=True)
 
@@ -187,6 +199,7 @@ class AcpRuntime(BaseRuntime):
         self._session_id = None
         self._ctx_manager = None
         self._handler = None
+        self._supports_session_close = False
 
     async def _do_get_status(self) -> BackendStatus:
         if self.is_alive:
@@ -241,7 +254,7 @@ class AcpRuntime(BaseRuntime):
         self._process = process
         self._alive = True
 
-        await conn.initialize(
+        init_response = await conn.initialize(
             protocol_version=PROTOCOL_VERSION,
             client_capabilities=ClientCapabilities(
                 fs=FileSystemCapabilities(read_text_file=True, write_text_file=True),
@@ -249,6 +262,9 @@ class AcpRuntime(BaseRuntime):
             ),
             client_info=Implementation(name="myrm-acp-client", version="1.0.0"),
         )
+        agent_caps = init_response.agent_capabilities
+        session_caps = agent_caps.session_capabilities if agent_caps is not None else None
+        self._supports_session_close = session_caps is not None and session_caps.close is not None
         logger.info("acp_runtime_connected name=%s pid=%s", self._name, process.pid)
 
     async def _create_session(self, *, mcp_servers: list[McpServerConfig] | None = None) -> None:
@@ -267,14 +283,11 @@ class AcpRuntime(BaseRuntime):
             response = await self._conn.new_session(cwd=cwd, mcp_servers=acp_mcp)
         else:
             response = await self._conn.new_session(cwd=cwd)
-        self._session_id = response.session_id
+        session_id = response.session_id
+        self._session_id = session_id
         if self._handler is not None:
-            self._handler.session_id = self._session_id
-        logger.info(
-            "acp_runtime_session_created name=%s session_id=%s",
-            self._name,
-            self._session_id,
-        )
+            self._handler.session_id = session_id
+        logger.info("acp_runtime_session_created name=%s session_id=%s", self._name, session_id)
 
 
 def _mcp_configs_to_acp_stdio(
