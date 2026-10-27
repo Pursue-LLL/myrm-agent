@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-040 · 文档与官网写着「沙箱环境变量挂载暗桩、系统提示词零动态 Token、Prompt 缓存 100% 命中、首 Token 提速 350ms」，代码里暗桩从未被挂载，金丝雀恰恰被追加在系统提示词里
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（对照 `base_agent.py` 与全仓调用方核查 canary 相关文档时） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：没有运行时行为错误；但文档站、官网和内部材料宣称了产品不具备的安全与缓存能力。 |
+| **关联产品** | harness `agent/security/detection/canary_guard.py`、`core/security/egress/`；品牌仓文档站与官网 |
+| **根因** | ① `inject_canary_environment_variables` 全仓没有调用方，`MYRM_CANARY_TOKEN` 没有任何地方设置，函数文档却写成「保留 100% 提示缓存」；`build_canary_instruction` 的文档说「追加到系统提示词会击穿缓存，请用环境变量」，而 `agent/base_agent.py:169-182` 正是这样追加的。② `HoneytokenTrap.generate_sandbox_canaries` 全仓（含控制平面）只有定义，全局 trap 一直是空的，代理里的扫描因 `has_tokens()` 为假不执行。③ `LoopbackEgressProxy` 只在跟踪到凭证占位符时由本地执行器启动（`executor.py:593-599`），而且不传 `gateway`，403 握手阻断不生效。④ 命中后是 `writer.close()`，没有设置 SO_LINGER，代码里没有 TCP RST。⑤ 材料里写的前端 `IndirectInjectionAlertCard` 在仓库里没有这个文件。 |
+| **修复** | 删除死函数 `inject_canary_environment_variables` 及其 2 个测试；改正 `build_canary_instruction`、`honeytoken.py`、`egress/_ARCH.md` 的说明。文档站 en/zh 该章节重写为「会话金丝雀默认开启，暗桩与污点网关需宿主启用」，去掉未经验证的 350ms、85% 与竞品对比；官网 en/zh/ko 各删除一条；内部材料 `SECURITY_ADVANTAGE.md` 删除对比行、改写 ⑳ 并列出不得对外宣称项。Intake 路由器的「<0.15ms」改为实测说法（短提示词远低于 1 毫秒，8 KB 粘贴约 2 毫秒）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 最初只把「金丝雀不拼接系统提示词」当成问题，范围是 3 处文档；追查 `generate_sandbox_canaries` 的调用方后才发现暗桩、403 闸门、TCP RST、前端卡片都不成立，范围扩到官网与内部材料。 |
+| **回归** | `test_canary_guard.py` 41 例、`test_honeytoken.py` 11 例通过（删除 2 个死函数测试）；没有新增行为，所以没有新增用例。 |
+| **仍然存在** | ① 没有测量金丝雀令牌对跨会话提示缓存命中的影响，文档只陈述「每会话不同」。② 暗桩诱饵没有接入产品：接入会把假凭证写进沙箱环境变量，可能覆盖用户真实的 `OPENAI_API_KEY`、`GITHUB_TOKEN`，这一点没有评估。③ `SECURITY_ADVANTAGE.md` 里其他处的「Prompt Cache 100% 命中」（执行内核、洋葱圈过滤）没有逐条核对；其中 2026-09-28 的「2347 项测试」「94% 覆盖率」是历史记录，没有复测。④ 文档站与官网其余安全数字没有逐条验证。 |
+| **代码位置** | `agent/security/detection/canary_guard.py` · `agent/middlewares/security/security_guardrail_middleware.py:_guard_canary` · `core/security/egress/honeytoken.py`、`proxy_server.py`、`_ARCH.md` · `toolkits/code_execution/executors/local/executor.py:_ensure_egress_proxy` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx`、`myrm-website/locales/*.json` |
+
 ### BUG-HARNESS-2026-10-27-039 · 委托给 Claude 或 Codex 命令行的回合带不了图片（运行时协议没有这一项）；`agent` 门面里 44 个导出名一用就 AttributeError，`LatencyStats` 指向了错的模块；9 个惰性导出的包对类型检查器是 `object`
 
 | 字段 | 内容 |
