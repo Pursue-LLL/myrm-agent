@@ -6,7 +6,8 @@
  * [OUTPUT]
  * - PASTE_CARD_MIN_CHARS: length from which a pasted text folds into a card in the user bubble.
  * - SPILLOVER_MIN_CHARS: length from which the server keeps a pasted text in a file instead of the conversation.
- * - isLongPaste: whether a text folds into a card (by length, or by its token pressure for CJK text).
+ * - estimateTokenPressure: the server's token estimate of a text, which weighs each character by its kind.
+ * - isLongPaste: whether a text folds into a card (by length, or by its token pressure).
  * - isParkedPaste: whether the server keeps a text in a file (by the same two measures, at higher limits).
  * - normalizeSpillover: the persisted `spillover` metadata of a history message, or undefined.
  * - pastedTextOf: the collapsed form of a user message that is a long paste, or null.
@@ -32,9 +33,27 @@ export const SPILLOVER_MIN_CHARS = 64_000;
 /** Mirrors the server's token-pressure limit for the text of a person (`USER_TEXT_LIMITS`), which CJK text reaches at about 8,900 characters. */
 const SPILLOVER_MAX_TOKEN_PRESSURE = 16_000;
 
-/** The server's estimate weighs a wide character (CJK, kana, hangul, fullwidth, emoji) 1.8 and any other one 0.25. */
-const WIDE_CHARACTER_WEIGHT = 1.8;
-const NARROW_CHARACTER_WEIGHT = 0.25;
+/**
+ * What one character adds to the server's estimate (`estimate_token_pressure`), in hundredths of a token. Whole
+ * numbers keep the sum exact, so it rounds the same way here as on the server.
+ */
+const PLAIN_CENTI_WEIGHT = 25; // a lowercase letter or white space
+const SYMBOL_CENTI_WEIGHT = 40; // any other ASCII character
+const DIGIT_CENTI_WEIGHT = 75;
+const UPPER_CENTI_WEIGHT = 100;
+const ALPHABET_CENTI_WEIGHT = 50; // a non-ASCII narrow character: Cyrillic, Arabic, Indic, Thai, accented Latin
+const WIDE_CENTI_WEIGHT = 180; // CJK, kana, hangul, fullwidth, emoji
+
+const ASCII_CENTI_WEIGHTS = Uint8Array.from({ length: 128 }, (_, code) => {
+  const char = String.fromCharCode(code);
+  if (/[a-z \t\n\r]/.test(char)) {
+    return PLAIN_CENTI_WEIGHT;
+  }
+  if (/[A-Z]/.test(char)) {
+    return UPPER_CENTI_WEIGHT;
+  }
+  return /[0-9]/.test(char) ? DIGIT_CENTI_WEIGHT : SYMBOL_CENTI_WEIGHT;
+});
 
 /** East Asian wide and fullwidth characters: the main blocks of what the server's estimate counts as wide. */
 const WIDE_CHARACTERS =
@@ -64,17 +83,40 @@ export function normalizeSpillover(raw: unknown): MessageSpillover | undefined {
   return { path, chars, preview: typeof record.preview === 'string' ? record.preview : '' };
 }
 
-/** Whether a text is past a limit by length or, for wide (CJK) text, by the server's token-pressure estimate. */
+/** The server's `estimate_token_pressure` for a text: each character weighs by its kind. */
+export function estimateTokenPressure(text: string): number {
+  let centi = 0;
+  let nonAscii = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    if (code < 128) {
+      centi += ASCII_CENTI_WEIGHTS[code];
+    } else {
+      nonAscii += 1;
+      // A surrogate pair is one character.
+      const next = code >= 0xd800 && code <= 0xdbff ? text.charCodeAt(i + 1) : 0;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        i += 1;
+      }
+    }
+  }
+  if (nonAscii > 0) {
+    const wide = text.match(WIDE_CHARACTERS)?.length ?? 0;
+    centi += wide * WIDE_CENTI_WEIGHT + (nonAscii - wide) * ALPHABET_CENTI_WEIGHT;
+  }
+  return Math.floor(centi / 100);
+}
+
+/** Whether a text is past a limit by length or by the server's token-pressure estimate. */
 function exceeds(text: string, maxChars: number, maxTokenPressure: number): boolean {
   if (text.length > maxChars) {
     return true;
   }
   // Even all-wide text of this length stays under the token-pressure limit: skip counting on the typing path.
-  if (text.length * WIDE_CHARACTER_WEIGHT <= maxTokenPressure) {
+  if (text.length * WIDE_CENTI_WEIGHT <= maxTokenPressure * 100) {
     return false;
   }
-  const wide = text.match(WIDE_CHARACTERS)?.length ?? 0;
-  return Math.floor(wide * WIDE_CHARACTER_WEIGHT + (text.length - wide) * NARROW_CHARACTER_WEIGHT) > maxTokenPressure;
+  return estimateTokenPressure(text) > maxTokenPressure;
 }
 
 /** Whether a text is long enough to fold into a card in the user bubble; the model still receives it whole. */

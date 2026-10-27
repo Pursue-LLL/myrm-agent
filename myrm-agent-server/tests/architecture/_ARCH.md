@@ -9,7 +9,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | 文件 | 职责 |
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
-| `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与字符权重必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
+| `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与六类字符权重（小写与空白、大写、数字、其余 ASCII、非 ASCII 窄字符、宽字符）必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
 | `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与六语言文案，都会失败）|
 | `test_privacy_entrypoints.py` | 每个构造 `GeneralAgentParams` 的服务端入口（IM、cron、语音、目标、看板）必须展开 `**privacy_agent_params(...)`，wakeup 复制路径必须调用它；否则设置页的隐私开关只覆盖 Web 对话（豁免：Web converter、eval executor）。AST 逐调用点检查，并自带正反例自检 |

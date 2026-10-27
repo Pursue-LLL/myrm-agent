@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PASTE_CARD_MIN_CHARS,
   SPILLOVER_MIN_CHARS,
+  estimateTokenPressure,
   isLongPaste,
   isParkedPaste,
   normalizeSpillover,
@@ -60,13 +61,64 @@ describe('pastedTextOf', () => {
   });
 });
 
+describe('estimateTokenPressure', () => {
+  // The expected numbers are what the server's `estimate_token_pressure` returns for the same texts
+  // (`myrm-agent-harness/tests/agent/context_guard/test_token_pressure.py`): keep the two in step.
+  it.each([
+    ['a', 25],
+    [' ', 25],
+    ['\n', 25],
+    ['A', 100],
+    ['7', 75],
+    ['{', 40],
+    ['\u0000', 40],
+    ['é', 50],
+    ['я', 50],
+    ['ก', 50],
+    ['字', 180],
+    ['あ', 180],
+    ['한', 180],
+    ['，', 180],
+    ['😀', 180],
+  ])('weighs %j at %i hundredths of a token', (char, centi) => {
+    expect(estimateTokenPressure(char.repeat(1_000))).toBe(centi * 10);
+  });
+
+  it('sums the weights before it rounds down', () => {
+    expect(estimateTokenPressure('')).toBe(0);
+    expect(estimateTokenPressure('aaa')).toBe(0);
+    expect(estimateTokenPressure('字')).toBe(1);
+    expect(
+      estimateTokenPressure(
+        'a'.repeat(100) +
+          'A'.repeat(100) +
+          '1'.repeat(100) +
+          '{'.repeat(100) +
+          ' '.repeat(100) +
+          'я'.repeat(100) +
+          '字'.repeat(100),
+      ),
+    ).toBe(495);
+  });
+
+  it('counts a character outside the basic plane once, and a lone surrogate as a narrow character', () => {
+    expect(estimateTokenPressure('😀😀')).toBe(3);
+    expect(estimateTokenPressure('\ud83d')).toBe(0);
+    expect(estimateTokenPressure('\ud83d'.repeat(100))).toBe(50);
+  });
+});
+
 describe('isLongPaste', () => {
-  // A card folds from the same two measures as the server's, at lower limits (wide characters weigh 1.8, others 0.25,
-  // token pressure 8,000); the expected sides below are what the server's estimator returns for the same texts.
+  // A card folds from the same two measures as the server's, at lower limits (token pressure 8,000, which the
+  // weights of `estimateTokenPressure` count); the expected sides below are what the server's estimator returns.
   it.each([
     ['x'.repeat(PASTE_CARD_MIN_CHARS), false],
     ['x'.repeat(PASTE_CARD_MIN_CHARS + 1), true],
     ['x'.repeat(15_000), false],
+    ['A'.repeat(8_000), false],
+    ['A'.repeat(8_001), true],
+    ['7'.repeat(10_667), false],
+    ['7'.repeat(10_668), true],
     ['中'.repeat(4_444), false],
     ['中'.repeat(4_445), true],
     ['中'.repeat(5_000), true],
@@ -91,6 +143,13 @@ describe('isParkedPaste', () => {
     ['x'.repeat(SPILLOVER_MIN_CHARS), false],
     ['x'.repeat(SPILLOVER_MIN_CHARS + 1), true],
     ['x'.repeat(PASTE_CARD_MIN_CHARS + 1), false],
+    // Dense text costs more tokens per character than prose, so it is parked at fewer characters.
+    ['A'.repeat(16_000), false],
+    ['A'.repeat(16_001), true],
+    ['7'.repeat(21_334), false],
+    ['7'.repeat(21_335), true],
+    ['{'.repeat(40_000), false],
+    ['{'.repeat(40_003), true],
     ['中'.repeat(5_000), false],
     ['中'.repeat(8_889), false],
     ['中'.repeat(8_890), true],

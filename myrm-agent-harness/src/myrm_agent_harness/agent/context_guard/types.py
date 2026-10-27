@@ -2,25 +2,28 @@
 
 [INPUT]
 - dataclasses::dataclass, field (POS: Python 数据类标准库)
+- collections::Counter (POS: Python 字符计数标准库)
 - unicodedata::unicodedata (POS: Python Unicode 东亚宽度标准库)
 
 [OUTPUT]
 - TRANSIENT_SPILLOVER_DIR / KEPT_SPILLOVER_DIR: workspace-relative directories of the two spill lifetimes
 - ContextGuardConfig: thresholds controlling when a payload is spilled
 - SpilloverPayload / SpilloverResult: spilled-file metadata and evaluation outcome
-- estimate_token_pressure: adaptive token estimate weighting CJK glyphs at ~1.8x
+- estimate_token_pressure: token estimate that weighs each character by its kind (wide, capital, digit, symbol, ...)
 
 [POS]
-Value-object and measurement layer of the context guard subsystem. Keeps the CJK-aware
-token estimate next to the config it feeds, since a naive chars/4 heuristic would
-under-count CJK text by roughly an order of magnitude and let oversized payloads slip
-past the guard. The directory names live here because the spill writer, the sweeper and
-the file read tool's path scope must agree on them. Pure computation: no filesystem access.
+Value-object and measurement layer of the context guard subsystem. Keeps the token
+estimate next to the config it feeds, since a naive chars/4 heuristic would under-count
+CJK text by roughly an order of magnitude and dense ASCII (hex, base64, logs, minified
+JSON) by up to a factor of three, and let oversized payloads slip past the guard. The
+directory names live here because the spill writer, the sweeper and the file read tool's
+path scope must agree on them. Pure computation: no filesystem access.
 """
 
 from __future__ import annotations
 
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass, field
 
 # A spill nothing refers to after the turn: the sweeper removes it after the TTL.
@@ -31,7 +34,7 @@ KEPT_SPILLOVER_DIR = ".myrm/pastes"
 
 @dataclass(slots=True)
 class ContextGuardConfig:
-    """Configuration for message size limits, CJK token weighting, and spillover paths."""
+    """Configuration for message size limits, the token-pressure limit, and spillover paths."""
 
     max_message_chars: int = 16_000
     # Equivalent token threshold (e.g. 8,000 tokens)
@@ -42,28 +45,41 @@ class ContextGuardConfig:
     spillover_ttl_seconds: int = 86_400  # 24 hours
 
 
+# What one character adds to the estimate, in hundredths of a token. Whole numbers keep the sum exact, so a
+# language that mirrors this estimate (the composer in the web UI) rounds it the same way.
+_PLAIN_WEIGHT = 25  # a lowercase letter or white space: prose is cheap
+_SYMBOL_WEIGHT = 40  # any other ASCII character: punctuation, operators, control codes
+_DIGIT_WEIGHT = 75
+_UPPER_WEIGHT = 100  # capitals are rare in prose and frequent in ids, hashes and base64
+_ALPHABET_WEIGHT = 50  # a non-ASCII narrow character: Cyrillic, Arabic, Indic, Thai, accented Latin
+_WIDE_WEIGHT = 180  # East Asian wide and fullwidth characters (CJK, kana, hangul, emoji)
+
+
+def _centi_weight(char: str) -> int:
+    if char < "\x80":
+        if "a" <= char <= "z" or char in " \t\n\r":
+            return _PLAIN_WEIGHT
+        if "A" <= char <= "Z":
+            return _UPPER_WEIGHT
+        if "0" <= char <= "9":
+            return _DIGIT_WEIGHT
+        return _SYMBOL_WEIGHT
+    if unicodedata.east_asian_width(char) in ("W", "F") or "\u4e00" <= char <= "\u9fff":
+        return _WIDE_WEIGHT
+    return _ALPHABET_WEIGHT
+
+
 def estimate_token_pressure(text: str) -> int:
-    """Estimate token pressure, weighting each CJK glyph at 1.8 and every other character at 0.25.
+    """Estimate how many tokens a text costs, from the kind of each character.
 
-    The weights are a conservative proxy, not a tokenizer: on mixed Chinese/English documents the
-    estimate lands 1.1x-1.6x above the real cl100k/o200k token count, so a payload is parked
-    slightly early rather than slipping past the guard.
+    A proxy, not a tokenizer: English prose costs about 0.2 token per character, while hex, base64, logs, URLs
+    and minified JSON cost 0.4-0.7 (digits, capitals and symbols break into short pieces), Thai and Indic text
+    about 0.35-0.5, and CJK about 0.8-1.0. Weighing every non-CJK character the same would let a dense text of
+    twice the tokens pass a limit set for prose. The weights are fitted to tiktoken ``o200k_base``: against the
+    recorded samples in ``tests/agent/context_guard/test_token_pressure.py`` the estimate stays within 0.4x-1.3x
+    of the real count. Other tokenizers split non-Latin text into more tokens than ``o200k_base`` does.
     """
-    if not text:
-        return 0
-
-    cjk_count = 0
-    non_cjk_count = 0
-
-    for char in text:
-        # Check East Asian Width or common CJK Unified Ideographs
-        width = unicodedata.east_asian_width(char)
-        if width in ("W", "F") or ("\u4e00" <= char <= "\u9fff"):
-            cjk_count += 1
-        else:
-            non_cjk_count += 1
-
-    return int(cjk_count * 1.8 + non_cjk_count * 0.25)
+    return sum(_centi_weight(char) * count for char, count in Counter(text).items()) // 100
 
 
 @dataclass(slots=True)

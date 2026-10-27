@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 from myrm_agent_harness.agent.context_guard import estimate_token_pressure
 
 from app.services.chat.context_bomb_guard import USER_TEXT_LIMITS
@@ -29,8 +30,16 @@ def test_frontend_limits_equal_the_limits_of_the_text_of_a_person() -> None:
     assert _ts_number("SPILLOVER_PREVIEW_CHARS") == USER_TEXT_LIMITS.preview_chars
 
 
-def test_frontend_character_weights_equal_the_engine_estimate() -> None:
-    wide, narrow = _ts_number("WIDE_CHARACTER_WEIGHT"), _ts_number("NARROW_CHARACTER_WEIGHT")
-
-    assert estimate_token_pressure("字" * 1_000) == int(1_000 * wide)
-    assert estimate_token_pressure("a" * 1_000) == int(1_000 * narrow)
+@pytest.mark.parametrize(
+    ("constant", "char"),
+    [
+        ("PLAIN_CENTI_WEIGHT", "a"),
+        ("SYMBOL_CENTI_WEIGHT", "{"),
+        ("DIGIT_CENTI_WEIGHT", "7"),
+        ("UPPER_CENTI_WEIGHT", "A"),
+        ("ALPHABET_CENTI_WEIGHT", "я"),
+        ("WIDE_CENTI_WEIGHT", "字"),
+    ],
+)
+def test_frontend_character_weights_equal_the_engine_estimate(constant: str, char: str) -> None:
+    assert estimate_token_pressure(char * 1_000) == int(_ts_number(constant)) * 10

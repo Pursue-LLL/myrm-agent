@@ -19,6 +19,13 @@ by gracefully converting oversized payloads (>16,000 chars) into referenced file
 - **The limits are the caller's.** The `ContextGuardConfig` defaults (16,000 chars, token pressure 8,000) suit third-party text. A caller that
   parks the text of a person passes higher limits of its own, and a caller that copies a parked file to another workspace uses an engine
   with zero limits, so that the copy does not depend on the limit the text was parked under.
+- **The estimate weighs each character by its kind.** `estimate_token_pressure` is a proxy for the real token count, and
+  what matters is how far it can fall below it: a text that costs twice what the estimate says passes a limit set for prose.
+  Lowercase letters and white space weigh 0.25, capitals 1, digits 0.75, other ASCII 0.4, non-ASCII narrow characters 0.5 and
+  East Asian wide characters 1.8, as whole hundredths so the web composer (`spillover.ts`) sums to the same number. Against
+  tiktoken `o200k_base` the recorded samples (prose, code, logs, URLs, minified JSON, hex, base64, seven scripts) stay within
+  0.4x-1.3x of the real count (`tests/agent/context_guard/test_token_pressure.py`). The cost of the weights: ALL CAPS and
+  Title Case prose are over-estimated by 2-3x and park earlier than their token count calls for.
 - **Two lifetimes, one engine.** A spill nothing refers to after the turn (a document a messaging channel attached) goes to
   the transient directory and is swept. The text a person pasted is referred to by the conversation for as long as it lasts
   (the agent thread replays the stub of the first turn), so it goes to the kept directory, which has no sweeper: the owner of
@@ -37,6 +44,6 @@ by gracefully converting oversized payloads (>16,000 chars) into referenced file
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Public re-exports for the context guard engine, sweeper, and config/payload types. | ✅ |
-| types.py | Core | Context guard data models (`ContextGuardConfig`, `SpilloverPayload`, `SpilloverResult`), the two spill directory names and `estimate_token_pressure`. | ✅ |
+| types.py | Core | Context guard data models (`ContextGuardConfig`, `SpilloverPayload`, `SpilloverResult`), the two spill directory names and `estimate_token_pressure` (weights per kind of character). | ✅ |
 | spillover_engine.py | Core | `SpilloverEngine` — atomic, content-addressed extraction of context bombs into workspace files; renders the byte-stable stub (start and end preview, relative path, digest). | ✅ |
 | sweeper.py | Core | `EphemeralTransientSweeper` — 24-hour cleanup sweeper for transient spillover files. | ✅ |

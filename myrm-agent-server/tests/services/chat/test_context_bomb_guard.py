@@ -210,11 +210,18 @@ def test_a_document_of_that_size_is_parked_all_the_same_for_it_is_third_party_te
 @pytest.mark.parametrize(
     ("text", "parked"),
     [
-        ("X" * USER_TEXT_LIMITS.max_message_chars, False),
-        ("X" * (USER_TEXT_LIMITS.max_message_chars + 1), True),
+        ("x" * USER_TEXT_LIMITS.max_message_chars, False),
+        ("x" * (USER_TEXT_LIMITS.max_message_chars + 1), True),
         # A wide (CJK) character weighs 1.8 in the token pressure: 8,889 of them reach its limit, 8,890 pass it.
         ("字" * 8_889, False),
         ("字" * 8_890, True),
+        # A capital weighs 1, a digit 0.75, a symbol 0.4: dense text reaches the limit in fewer characters than prose.
+        ("A" * 16_000, False),
+        ("A" * 16_001, True),
+        ("7" * 21_334, False),
+        ("7" * 21_335, True),
+        ("{" * 40_000, False),
+        ("{" * 40_003, True),
     ],
 )
 def test_the_size_check_and_the_engine_draw_the_line_at_the_same_place(tmp_path: Path, text: str, parked: bool) -> None:
