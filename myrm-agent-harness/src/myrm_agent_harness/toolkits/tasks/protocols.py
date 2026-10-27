@@ -157,50 +157,6 @@ class Task:
             return False
         return not (self.error and self.error.recoverable == ErrorRecoverability.PERMANENT)
 
-    def mark_started(self, worker_id: str) -> None:
-        """Mark task as started by worker."""
-        self.status = TaskStatus.RUNNING
-        self.started_at = datetime.now(UTC)
-        self.updated_at = self.started_at
-        self.worker_id = worker_id
-        self.worker_heartbeat_at = self.started_at
-
-    def mark_succeeded(self, result: dict[str, object]) -> None:
-        """Mark task as succeeded."""
-        self.status = TaskStatus.SUCCEEDED
-        self.result = result
-        self.progress = 1.0
-        self.next_retry_at = None
-        self.completed_at = datetime.now(UTC)
-        self.updated_at = self.completed_at
-
-    def mark_failed(self, error: TaskError) -> None:
-        """Mark task as failed."""
-        self.status = TaskStatus.FAILED
-        self.error = error
-        self.next_retry_at = None
-        self.completed_at = datetime.now(UTC)
-        self.updated_at = self.completed_at
-
-    def mark_cancelled(self, reason: str | None = None) -> None:
-        """Mark task as cancelled."""
-        self.status = TaskStatus.CANCELLED
-        self.cancellation_reason = reason
-        self.next_retry_at = None
-        self.completed_at = datetime.now(UTC)
-        self.updated_at = self.completed_at
-
-    def update_progress(self, progress: float, message: str | None = None) -> None:
-        """Update task execution progress."""
-        self.progress = max(0.0, min(1.0, progress))
-        self.progress_message = message
-        self.updated_at = datetime.now(UTC)
-
-    def heartbeat(self) -> None:
-        """Update worker heartbeat timestamp."""
-        self.worker_heartbeat_at = datetime.now(UTC)
-        self.updated_at = self.worker_heartbeat_at
-
 
 __all__ = [
     "ErrorRecoverability",

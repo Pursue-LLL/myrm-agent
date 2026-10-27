@@ -129,7 +129,8 @@ from the caller.
 - Finish: `RUNNING → SUCCEEDED | FAILED` with `expected={RUNNING}`.
 - Cancel: `PENDING | QUEUED | RUNNING → CANCELLED`; a terminal task is left alone. The cancel API writes the row, then asks the worker to `abort` the in-flight run.
 - Restart: tasks a previous process left `RUNNING` are failed as `interrupted` (transient, retryable) at worker start; a graceful stop does the same for in-flight runs.
-- Retry: `FAILED → PENDING` with `expected={FAILED}`.
+- Retry: `FAILED → PENDING` with `expected={FAILED}`. The Myrm worker never schedules a retry itself: a failed task waits for the user's retry request. `RetryPolicy`, `retry_count`, `next_retry_at` and the store's `ready_before` filter are the contract for a host that does retry on a schedule. `worker_heartbeat_at` holds the moment the worker claimed the task; nothing refreshes it afterwards.
+- A `Task` is a record: its status never changes in memory. Every transition above is a store write.
 - `TaskFilters.order_by` is a comma-separated `column [ASC|DESC]` list over a column whitelist;
   anything else raises `ValueError` (a silently rewritten sort order once turned the priority queue into LIFO).
 

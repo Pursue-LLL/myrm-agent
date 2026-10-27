@@ -1,7 +1,6 @@
 """Tests for Task protocol and Task dataclass."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 
 from myrm_agent_harness.toolkits.tasks import (
     ErrorRecoverability,
@@ -10,10 +9,6 @@ from myrm_agent_harness.toolkits.tasks import (
     TaskError,
     TaskStatus,
 )
-
-
-def _future_retry_at() -> datetime:
-    return datetime.now(UTC) + timedelta(minutes=5)
 
 
 def test_task_creation():
@@ -73,88 +68,6 @@ def test_task_is_terminal():
         payload={},
     )
     assert cancelled_task.is_terminal()
-
-
-def test_task_mark_started():
-    """Test Task.mark_started()."""
-    task = Task(
-        task_id="t1",
-        task_type="test",
-        user_id="u1",
-        status=TaskStatus.PENDING,
-        payload={},
-    )
-
-    task.mark_started(worker_id="worker-1")
-
-    assert task.status == TaskStatus.RUNNING
-    assert task.worker_id == "worker-1"
-    assert task.started_at is not None
-    assert task.worker_heartbeat_at is not None
-
-
-def test_task_mark_succeeded():
-    """Test Task.mark_succeeded()."""
-    task = Task(
-        task_id="t1",
-        task_type="test",
-        user_id="u1",
-        status=TaskStatus.RUNNING,
-        payload={},
-        next_retry_at=_future_retry_at(),
-    )
-
-    result = {"output": "success"}
-    task.mark_succeeded(result)
-
-    assert task.status == TaskStatus.SUCCEEDED
-    assert task.result == result
-    assert task.progress == 1.0
-    assert task.next_retry_at is None
-    assert task.completed_at is not None
-
-
-def test_task_mark_failed():
-    """Test Task.mark_failed()."""
-    task = Task(
-        task_id="t1",
-        task_type="test",
-        user_id="u1",
-        status=TaskStatus.RUNNING,
-        payload={},
-        next_retry_at=_future_retry_at(),
-    )
-
-    error = TaskError(
-        error_type="timeout",
-        message="Task timed out",
-        recoverable=ErrorRecoverability.PERMANENT,
-    )
-    task.mark_failed(error)
-
-    assert task.status == TaskStatus.FAILED
-    assert task.error == error
-    assert task.next_retry_at is None
-    assert task.completed_at is not None
-
-
-def test_task_mark_cancelled():
-    """Test Task.mark_cancelled()."""
-    task = Task(
-        task_id="t1",
-        task_type="test",
-        user_id="u1",
-        status=TaskStatus.RUNNING,
-        payload={},
-        next_retry_at=_future_retry_at(),
-    )
-
-    task.mark_cancelled(reason="User cancelled")
-
-    assert task.status == TaskStatus.CANCELLED
-    assert task.cancellation_reason == "User cancelled"
-    assert task.next_retry_at is None
-    assert task.completed_at is not None
 
 
 def test_task_can_retry():
@@ -225,25 +138,6 @@ def test_task_can_retry_permanent_error():
         ),
     )
     assert not task.can_retry()
-
-
-def test_task_update_progress_clamps():
-    """update_progress() clamps to [0, 1] and stores message."""
-    task = Task("t1", "test", "u1", TaskStatus.RUNNING, {})
-    task.update_progress(1.5, message="almost")
-    assert task.progress == 1.0
-    assert task.progress_message == "almost"
-    task.update_progress(-0.2)
-    assert task.progress == 0.0
-
-
-def test_task_heartbeat_updates_timestamp():
-    """heartbeat() refreshes worker heartbeat fields."""
-    task = Task("t1", "test", "u1", TaskStatus.RUNNING, {})
-    assert task.worker_heartbeat_at is None
-    task.heartbeat()
-    assert task.worker_heartbeat_at is not None
-    assert task.updated_at == task.worker_heartbeat_at
 
 
 def test_task_cancellation_event():
