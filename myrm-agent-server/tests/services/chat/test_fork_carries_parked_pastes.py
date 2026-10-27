@@ -7,15 +7,16 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR
+from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, ContextGuardConfig, SpilloverEngine
 from sqlalchemy import select
 
 from app.database.models import Chat, Message
 from app.services.agent.params.workspace_resolve import default_chat_workspace_path
 from app.services.chat.context_bomb_guard import ContextBombDefenseService, _carry_parked_files
 from app.services.chat.conversation_fork_manager import ConversationForkManager
+from tests.support.oversized_paste import paste_between_the_limits, paste_over_the_limit
 
-_PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
+_PASTE = paste_over_the_limit("meeting-line: the decision was to keep watching and review next week\n")
 
 
 @pytest.fixture
@@ -134,3 +135,17 @@ def test_only_files_directly_under_the_kept_directory_are_carried(tmp_path: Path
 
     assert carried == 1
     assert sorted(path.name for path in target.rglob("*.md")) == [Path(parked.relative_path).name]
+
+
+def test_a_file_parked_under_a_lower_limit_is_carried_all_the_same(tmp_path: Path) -> None:
+    """A paste parked when the limit was lower is below today's limit: copying it must not depend on the limit."""
+    source, target = tmp_path / "source", tmp_path / "target"
+    text = paste_between_the_limits("meeting-line: the decision was to keep watching and review next week\n")
+    parked = SpilloverEngine(ContextGuardConfig(spillover_dir_name=KEPT_SPILLOVER_DIR)).process_content(text, base_dir=source)
+    assert parked.payload is not None
+    assert not ContextBombDefenseService.is_oversized(text)
+
+    carried = _carry_parked_files(source, target, [parked.payload.relative_path])
+
+    assert carried == 1
+    assert (target / parked.payload.relative_path).read_text(encoding="utf-8") == text

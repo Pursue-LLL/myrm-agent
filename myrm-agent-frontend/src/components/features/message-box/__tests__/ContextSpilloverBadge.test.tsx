@@ -18,8 +18,14 @@ describe('ContextSpilloverBadge', () => {
     expect(screen.getByTestId('context-spillover-badge').textContent).toBe('spillover.notice');
   });
 
+  it('stays hidden for a text that only folds into a card, which the model still receives whole', () => {
+    render(<ContextSpilloverBadge text={'中'.repeat(5_000)} />);
+
+    expect(screen.queryByTestId('context-spillover-badge')).toBeNull();
+  });
+
   it('tells it for Chinese text, which the server finds too long far earlier', () => {
-    render(<ContextSpilloverBadge text={'中'.repeat(4_445)} />);
+    render(<ContextSpilloverBadge text={'中'.repeat(8_890)} />);
 
     expect(screen.getByTestId('context-spillover-badge')).toBeTruthy();
   });

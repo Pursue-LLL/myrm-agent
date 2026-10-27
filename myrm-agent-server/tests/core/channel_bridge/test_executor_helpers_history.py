@@ -19,8 +19,9 @@ from app.core.channel_bridge.executor_helpers.history import (
 from app.services.agent.params.workspace_resolve import default_chat_workspace_path
 from app.services.chat.chat_helpers import ChannelHistoryEntry
 from app.services.context.context_assembly import ContextAssemblyService
+from tests.support.oversized_paste import paste_over_the_limit
 
-_OVERSIZED_PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
+_OVERSIZED_PASTE = paste_over_the_limit("meeting-line: the decision was to keep watching and review next week\n")
 
 
 @pytest.mark.asyncio

@@ -17,7 +17,8 @@ from app.services.agent.params.workspace_resolve import (
     resolve_default_chat_workspace_dir,
 )
 from app.services.chat.chat_service import ChatService
-from app.services.chat.context_bomb_guard import ContextBombDefenseService
+from app.services.chat.context_bomb_guard import USER_TEXT_LIMITS, ContextBombDefenseService
+from tests.support.oversized_paste import paste_over_the_limit
 
 
 def _new_chat_id() -> str:
@@ -38,9 +39,8 @@ async def test_context_guard_service_under_threshold() -> None:
 
 @pytest.mark.asyncio
 async def test_context_guard_service_spillover_overflow() -> None:
-    # Create a large prompt exceeding 16,000 characters
-    large_prompt = "Critical system logs:\n" + ("ERROR 500: Database connection timed out.\n" * 400)
-    assert len(large_prompt) > 16_000
+    large_prompt = "Critical system logs:\n" + paste_over_the_limit("ERROR 500: Database connection timed out.\n")
+    assert len(large_prompt) > USER_TEXT_LIMITS.max_message_chars
 
     result = await ContextGuardService.guard_inbound_prompt(
         chat_id=_new_chat_id(),
@@ -58,7 +58,7 @@ async def test_context_guard_service_spillover_overflow() -> None:
 async def test_new_chat_prompt_spills_into_the_workspace_the_agent_runs_in() -> None:
     """A new chat has no row until its first assistant output, yet the model must find the file."""
     chat_id = _new_chat_id()
-    prompt = "needle-line\n" * 2_000
+    prompt = paste_over_the_limit("needle-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=chat_id, raw_prompt=prompt)
 
@@ -79,7 +79,7 @@ async def test_existing_chat_prompt_spills_into_its_bound_workspace(tmp_path: Pa
         message_id=str(uuid4()),
     )
     await ChatService.update_chat_fields(chat_id, {"workspace_dir": str(tmp_path)})
-    prompt = "bound-line\n" * 2_000
+    prompt = paste_over_the_limit("bound-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=chat_id, raw_prompt=prompt)
 
@@ -90,7 +90,7 @@ async def test_existing_chat_prompt_spills_into_its_bound_workspace(tmp_path: Pa
 @pytest.mark.asyncio
 async def test_spilled_prompt_keeps_an_explicit_skill_invocation_in_front() -> None:
     """The harness only recognizes ``[use skill]`` at the very start of the user's text."""
-    prompt = "[use pdf-skill] summarize this report\n" + "report-line\n" * 2_000
+    prompt = "[use pdf-skill] summarize this report\n" + paste_over_the_limit("report-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=_new_chat_id(), raw_prompt=prompt)
 
@@ -103,7 +103,7 @@ async def test_spilled_prompt_keeps_an_explicit_skill_invocation_in_front() -> N
 
 @pytest.mark.asyncio
 async def test_spilled_prompt_without_an_invocation_starts_with_the_reference() -> None:
-    prompt = "see [use pdf-skill] later\n" + "report-line\n" * 2_000
+    prompt = "see [use pdf-skill] later\n" + paste_over_the_limit("report-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=_new_chat_id(), raw_prompt=prompt)
 
@@ -114,7 +114,7 @@ async def test_spilled_prompt_without_an_invocation_starts_with_the_reference() 
 @pytest.mark.asyncio
 async def test_prompt_without_a_chat_stays_intact() -> None:
     """With no workspace the agent could read, replacing the prompt by a file reference loses it."""
-    prompt = "orphan-line\n" * 2_000
+    prompt = paste_over_the_limit("orphan-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=None, raw_prompt=prompt)
 
@@ -132,7 +132,7 @@ def test_default_chat_workspace_path_rejects_ids_that_cannot_name_a_workspace(un
 @pytest.mark.asyncio
 async def test_prompt_of_a_chat_whose_id_cannot_name_a_workspace_stays_intact() -> None:
     """The id is untrusted input: it must never steer the spill file out of the workspaces root."""
-    prompt = "escape-line\n" * 2_000
+    prompt = paste_over_the_limit("escape-line\n")
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id="../escape", raw_prompt=prompt)
 
@@ -198,7 +198,7 @@ def test_context_guard_service_sweep_workspaces() -> None:
 async def test_the_file_a_turn_starts_from_outlives_the_housekeeping_sweeps(tmp_path: Path) -> None:
     """The agent's thread replays the first turn's stub on every later turn, so its file must still be there."""
     workspace = tmp_path / "chat_kept"
-    prompt = "first-turn-line\n" * 2_000
+    prompt = paste_over_the_limit("first-turn-line\n")
 
     with patch.object(ContextGuardService, "_resolve_base_dir", new=AsyncMock(return_value=workspace)):
         result = await ContextGuardService.guard_inbound_prompt(chat_id="chat_kept", raw_prompt=prompt)

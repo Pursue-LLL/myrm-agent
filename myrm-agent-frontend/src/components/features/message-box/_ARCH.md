@@ -59,9 +59,9 @@
 | `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑） | ✅ |
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
-| `UserMessage.tsx` | 核心 | 用户消息气泡：编辑重发、Rewind、Fork；动作行触屏常显、桌面悬停或键盘聚焦时显示（`REVEAL_ON_HOVER`）；发送失败时气泡下显示 `SendFailedNotice`；超长粘贴文本显示为 `PastedTextCard`（动作行随之换到卡片下方；已转存的历史消息没有可复制、可编辑的原文，故不提供复制与编辑）；附件预览交给 `UserMessageAttachments` | ✅ |
-| `PastedTextCard.tsx` | 组件 | 超长粘贴文本的折叠卡片：标题、字数与开头预览（3 行截断）；历史消息的原文在文件里，按钮在侧边面板打开全文；刚发出的消息原文仍在内存，按钮原地展开/收起（`aria-expanded`）；只用主题变量，手机上占满一行 | ✅ |
-| `ContextSpilloverBadge.tsx` | 组件 | 输入框上方的长文本提示：文本按 `isLongPaste` 判为长文（含中日韩文本的词元压力）时告知「文本随会话保存、助手从中读取全文」；只用主题变量 | ✅ |
+| `UserMessage.tsx` | 核心 | 用户消息气泡：编辑重发、Rewind、Fork；动作行触屏常显、桌面悬停或键盘聚焦时显示（`REVEAL_ON_HOVER`）；发送失败时气泡下显示 `SendFailedNotice`；长文本（`isLongPaste`）显示为 `PastedTextCard`（动作行随之换到卡片下方；原文就在消息里的长文本仍可复制、编辑；只有已被服务端转存成文件的历史消息没有可复制、可编辑的原文，故不提供复制与编辑）；附件预览交给 `UserMessageAttachments` | ✅ |
+| `PastedTextCard.tsx` | 组件 | 超长粘贴文本的折叠卡片：标题、字数与开头预览（3 行截断）；已转存的历史消息原文在文件里，按钮在侧边面板打开全文；原文在消息里的长文本（刚发出的、或服务端没转存的历史消息）按钮原地展开/收起（`aria-expanded`）；只用主题变量，手机上占满一行 | ✅ |
+| `ContextSpilloverBadge.tsx` | 组件 | 输入框上方的长文本提示：文本按 `isParkedPaste` 判为会被服务端存成文件（含中日韩文本的词元压力；只折成卡片的长文本不提示）时告知「文本随会话保存、助手从中读取全文」；只用主题变量 | ✅ |
 | `__tests__/PastedTextCard.test.tsx` | 测试 | 历史粘贴的打开按钮回调、内存原文展开/收起、无预览的旧记录不渲染预览行 | ✅ |
 | `__tests__/ContextSpilloverBadge.test.tsx` | 测试 | 阈值内不显示、超过阈值显示提示、中文长文按词元压力显示提示 | ✅ |
 | `UserMessageAttachments.tsx` | 组件 | 已发送气泡的附件预览：图片缩略图（加载失败回退占位）与文档卡片（扩展名说明、新标签页打开、下载）；下载按钮用 `REVEAL_ON_HOVER`：触屏常显、桌面悬停或键盘聚焦时显示 | ✅ |

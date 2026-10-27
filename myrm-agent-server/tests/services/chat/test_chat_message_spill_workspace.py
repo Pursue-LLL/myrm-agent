@@ -21,8 +21,9 @@ from app.services.agent.context_guard_service import ContextGuardService
 from app.services.agent.params.workspace_resolve import default_chat_workspace_path, resolve_default_chat_workspace_dir
 from app.services.chat.chat_service import ChatService
 from app.services.chat.context_bomb_guard import ContextBombDefenseService
+from tests.support.oversized_paste import paste_between_the_limits, paste_over_the_limit
 
-_PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
+_PASTE = paste_over_the_limit("meeting-line: the decision was to keep watching and review next week\n")
 
 
 @pytest.fixture
@@ -94,6 +95,21 @@ async def test_assistant_message_is_never_spilled(db_session: AsyncSession, tmp_
 def _age(path: Path, days: int) -> None:
     then = time.time() - days * 86_400
     os.utime(path, (then, then))
+
+
+@pytest.mark.asyncio
+async def test_a_message_within_the_limit_of_a_person_is_stored_as_it_is(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    del db_session, fake_home
+    workspace = tmp_path / "agent-workspace"
+    text = paste_between_the_limits("meeting-line: the decision was to keep watching and review next week\n")
+
+    message = await _append(await _channel_chat_id(), "user", text, spill_workspace=workspace)
+
+    assert message.content == text
+    assert message.extra_data is None or "spillover" not in message.extra_data
+    assert not workspace.exists()
 
 
 @pytest.mark.asyncio

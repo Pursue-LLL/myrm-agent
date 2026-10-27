@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.agent.context_guard_service import ContextGuardService
+from tests.support.oversized_paste import paste_over_the_limit
 
 
 @pytest.mark.asyncio
@@ -26,8 +27,7 @@ async def test_context_guard_service_short_prompt() -> None:
 async def test_context_guard_service_oversized_prompt() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch.object(ContextGuardService, "_resolve_base_dir", new=AsyncMock(return_value=Path(tmpdir))):
-            # 20k characters to exceed 16k chars cap
-            oversized_content = "X" * 20_000
+            oversized_content = paste_over_the_limit()
             res = await ContextGuardService.guard_inbound_prompt(
                 chat_id="test_chat",
                 raw_prompt=oversized_content,

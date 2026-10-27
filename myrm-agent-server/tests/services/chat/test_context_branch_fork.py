@@ -18,6 +18,7 @@ from app.services.chat.context_branch_fork import (
     _resolve_snapshot_path,
 )
 from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
+from tests.support.oversized_paste import paste_over_the_limit
 
 
 def test_parse_snapshot_messages_skips_meta_and_maps_roles() -> None:
@@ -142,7 +143,7 @@ async def test_fork_from_branch_of_a_sandbox_chat_carries_the_pasted_files_its_s
 
     repo, worktree = tmp_path / "repo", tmp_path / "repo" / ".sandboxes" / "sandbox-abc"
     worktree.mkdir(parents=True)
-    paste = "meeting-line: the decision was to keep watching\n" * 500
+    paste = paste_over_the_limit("meeting-line: the decision was to keep watching\n")
     parked = ContextBombDefenseService.process_incoming_content(paste, workspace_root=worktree, kept=True)
     assert parked.relative_path is not None
 

@@ -16,6 +16,9 @@ by gracefully converting oversized payloads (>16,000 chars) into referenced file
 
 ## Design Notes
 
+- **The limits are the caller's.** The `ContextGuardConfig` defaults (16,000 chars, token pressure 8,000) suit third-party text. A caller that
+  parks the text of a person passes higher limits of its own (the server's `USER_TEXT_LIMITS`), and a caller that copies a parked file to
+  another workspace uses an engine with zero limits, so that the copy does not depend on the limit the text was parked under.
 - **Two lifetimes, one engine.** A spill nothing refers to after the turn (a document a messaging channel attached) goes to
   the transient directory and is swept. The text a person pasted is referred to by the conversation for as long as it lasts
   (the agent thread replays the stub of the first turn), so it goes to the kept directory, which has no sweeper: the owner of

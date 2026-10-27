@@ -10,13 +10,15 @@ from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT
 from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
 
 from app.services.chat.context_bomb_guard import (
+    USER_TEXT_LIMITS,
     ContextBombDefenseService,
     SpilloverPayloadResult,
     extract_text_from_query,
     replace_query_text,
 )
+from tests.support.oversized_paste import paste_between_the_limits, paste_over_the_limit
 
-_OVERSIZED = "X" * 20_000
+_OVERSIZED = paste_over_the_limit()
 
 
 def test_extract_text_from_query() -> None:
@@ -86,7 +88,7 @@ def test_the_same_text_parks_into_the_same_file_and_the_same_stub(tmp_path: Path
 
 
 def test_the_stub_shows_the_end_of_the_text_so_a_trailing_question_is_not_lost(tmp_path: Path) -> None:
-    text = "log-line\n" * 3_000 + "QUESTION: which service failed first?"
+    text = paste_over_the_limit("log-line\n") + "QUESTION: which service failed first?"
 
     res = ContextBombDefenseService.process_incoming_content(text, workspace_root=tmp_path, kept=True)
 
@@ -186,6 +188,40 @@ def test_spilled_message_keeps_an_explicit_skill_invocation_in_front(tmp_path: P
     assert invocation is not None
     assert invocation.references == ("pdf-skill",)
     assert invocation.text.startswith("<file_spillover path=")
+
+
+def test_a_text_within_the_limit_of_a_person_goes_into_the_prompt_as_it_is(tmp_path: Path) -> None:
+    text = paste_between_the_limits()
+
+    res = ContextBombDefenseService.process_incoming_content(text, workspace_root=tmp_path, kept=True)
+
+    assert not ContextBombDefenseService.is_oversized(text)
+    assert res == SpilloverPayloadResult.intact(text)
+    assert not (tmp_path / ".myrm").exists()
+
+
+def test_a_document_of_that_size_is_parked_all_the_same_for_it_is_third_party_text(tmp_path: Path) -> None:
+    res = ContextBombDefenseService.process_incoming_content(paste_between_the_limits(), workspace_root=tmp_path)
+
+    assert res.is_spilled
+    assert res.relative_path is not None and res.relative_path.startswith(f"{TRANSIENT_SPILLOVER_DIR}/")
+
+
+@pytest.mark.parametrize(
+    ("text", "parked"),
+    [
+        ("X" * USER_TEXT_LIMITS.max_message_chars, False),
+        ("X" * (USER_TEXT_LIMITS.max_message_chars + 1), True),
+        # A wide (CJK) character weighs 1.8 in the token pressure: 8,889 of them reach its limit, 8,890 pass it.
+        ("字" * 8_889, False),
+        ("字" * 8_890, True),
+    ],
+)
+def test_the_size_check_and_the_engine_draw_the_line_at_the_same_place(tmp_path: Path, text: str, parked: bool) -> None:
+    res = ContextBombDefenseService.process_incoming_content(text, workspace_root=tmp_path, kept=True)
+
+    assert ContextBombDefenseService.is_oversized(text) is parked
+    assert res.is_spilled is parked
 
 
 def test_sweep_removes_only_transient_files_older_than_the_ttl(tmp_path: Path) -> None:

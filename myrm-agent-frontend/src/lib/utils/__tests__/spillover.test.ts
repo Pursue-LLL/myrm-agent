@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PASTE_CARD_MIN_CHARS,
   SPILLOVER_MIN_CHARS,
   isLongPaste,
+  isParkedPaste,
   normalizeSpillover,
   pastedTextOf,
   userMessageDisplayText,
@@ -43,8 +45,8 @@ describe('pastedTextOf', () => {
     expect(pastedTextOf('<file_spillover/>', stored)).toEqual({ chars: stored.chars, preview: stored.preview });
   });
 
-  it('keeps the whole text of a long paste still in memory so it can unfold', () => {
-    const text = 'x'.repeat(SPILLOVER_MIN_CHARS + 1);
+  it('keeps the whole text of a long paste the server did not park, in memory or from history, so it can unfold', () => {
+    const text = 'x'.repeat(PASTE_CARD_MIN_CHARS + 1);
 
     const pasted = pastedTextOf(text);
 
@@ -54,16 +56,16 @@ describe('pastedTextOf', () => {
   });
 
   it('leaves a text at the limit alone', () => {
-    expect(pastedTextOf('x'.repeat(SPILLOVER_MIN_CHARS))).toBeNull();
+    expect(pastedTextOf('x'.repeat(PASTE_CARD_MIN_CHARS))).toBeNull();
   });
 });
 
 describe('isLongPaste', () => {
-  // The server measures a text by length and by token pressure (wide characters weigh 1.8, others 0.25, limit 8,000);
-  // the expected sides below are what its estimator returns for the same texts.
+  // A card folds from the same two measures as the server's, at lower limits (wide characters weigh 1.8, others 0.25,
+  // token pressure 8,000); the expected sides below are what the server's estimator returns for the same texts.
   it.each([
-    ['x'.repeat(SPILLOVER_MIN_CHARS), false],
-    ['x'.repeat(SPILLOVER_MIN_CHARS + 1), true],
+    ['x'.repeat(PASTE_CARD_MIN_CHARS), false],
+    ['x'.repeat(PASTE_CARD_MIN_CHARS + 1), true],
     ['x'.repeat(15_000), false],
     ['中'.repeat(4_444), false],
     ['中'.repeat(4_445), true],
@@ -79,6 +81,31 @@ describe('isLongPaste', () => {
 
   it('lets a Chinese paste of that length be sent as a card while it is still in memory', () => {
     expect(pastedTextOf('中'.repeat(5_000))?.chars).toBe(5_000);
+  });
+});
+
+describe('isParkedPaste', () => {
+  // The server keeps the text of a person in a file past 64,000 characters or a token pressure of 16,000; the
+  // expected sides below are what its estimator returns for the same texts (8,889 wide characters weigh 16,000).
+  it.each([
+    ['x'.repeat(SPILLOVER_MIN_CHARS), false],
+    ['x'.repeat(SPILLOVER_MIN_CHARS + 1), true],
+    ['x'.repeat(PASTE_CARD_MIN_CHARS + 1), false],
+    ['中'.repeat(5_000), false],
+    ['中'.repeat(8_889), false],
+    ['中'.repeat(8_890), true],
+    ['あ'.repeat(8_890), true],
+    ['中'.repeat(6_000) + 'x'.repeat(40_000), true],
+    ['中'.repeat(4_000) + 'x'.repeat(30_000), false],
+  ])('judges %#: parked paste is %s', (text, expected) => {
+    expect(isParkedPaste(text)).toBe(expected);
+  });
+
+  it('is always a card too: a text the server parks never shows whole in the bubble', () => {
+    expect(PASTE_CARD_MIN_CHARS).toBeLessThan(SPILLOVER_MIN_CHARS);
+    for (const text of ['x'.repeat(SPILLOVER_MIN_CHARS + 1), '中'.repeat(8_890)]) {
+      expect(isParkedPaste(text) && isLongPaste(text)).toBe(true);
+    }
   });
 });
 

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ClipboardText } from '@phosphor-icons/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { isLongPaste } from '@/lib/utils/spillover';
+import { isParkedPaste } from '@/lib/utils/spillover';
 
 interface ContextSpilloverBadgeProps {
   text: string;
@@ -16,7 +16,7 @@ export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({ te
   const t = useTranslations('chat');
   const locale = useLocale();
 
-  if (!isLongPaste(text)) {
+  if (!isParkedPaste(text)) {
     return null;
   }
 

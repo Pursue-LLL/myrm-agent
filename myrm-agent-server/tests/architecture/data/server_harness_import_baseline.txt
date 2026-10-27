@@ -15,9 +15,6 @@ myrm_agent_harness.agent.config.llm
 myrm_agent_harness.agent.config.parsers
 myrm_agent_harness.agent.config.readiness
 myrm_agent_harness.agent.context_guard
-myrm_agent_harness.agent.context_guard.spillover_engine
-myrm_agent_harness.agent.context_guard.sweeper
-myrm_agent_harness.agent.context_guard.types
 myrm_agent_harness.agent.context_management
 myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store

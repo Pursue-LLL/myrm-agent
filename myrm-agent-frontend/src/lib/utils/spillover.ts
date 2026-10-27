@@ -4,23 +4,33 @@
  * - ./messageUtils::stripUserMessageDisplayText (POS: Message text cleanup helpers)
  *
  * [OUTPUT]
+ * - PASTE_CARD_MIN_CHARS: length from which a pasted text folds into a card in the user bubble.
  * - SPILLOVER_MIN_CHARS: length from which the server keeps a pasted text in a file instead of the conversation.
- * - isLongPaste: whether the server keeps a text in a file (by length, or by its token pressure for CJK text).
+ * - isLongPaste: whether a text folds into a card (by length, or by its token pressure for CJK text).
+ * - isParkedPaste: whether the server keeps a text in a file (by the same two measures, at higher limits).
  * - normalizeSpillover: the persisted `spillover` metadata of a history message, or undefined.
- * - pastedTextOf: the collapsed form of a user message that is a very long paste, or null.
+ * - pastedTextOf: the collapsed form of a user message that is a long paste, or null.
  * - userMessageDisplayText: the text a user message is listed by (titles, turn rail).
  *
  * [POS]
  * Pasted-text helpers shared by the composer notice, the user bubble and the places that list a message by its text.
+ * Two lines apart: a text folds into a card in the bubble long before the server stops sending it to the model whole,
+ * so a card can hold the full text (copy and edit stay) and only a parked one points at a file.
  */
 import type { Message, MessageSpillover } from '@/store/chat/types';
 import { stripUserMessageDisplayText } from './messageUtils';
 
-/** Mirrors the server's message size limit (`ContextGuardConfig.max_message_chars`); longer pastes are kept in a file. */
-export const SPILLOVER_MIN_CHARS = 16_000;
+/** A text folds into a card in the bubble from this length: how the chat looks, not what the model receives. */
+export const PASTE_CARD_MIN_CHARS = 16_000;
 
-/** Mirrors the server's token-pressure limit (`ContextGuardConfig.max_token_pressure`), which CJK text reaches at about 4,400 characters. */
-const SPILLOVER_MAX_TOKEN_PRESSURE = 8_000;
+/** The token pressure from which a text folds into a card, which CJK text reaches at about 4,400 characters. */
+const PASTE_CARD_MAX_TOKEN_PRESSURE = 8_000;
+
+/** Mirrors the server's message size limit for the text of a person (`USER_TEXT_LIMITS`); longer pastes are kept in a file. */
+export const SPILLOVER_MIN_CHARS = 64_000;
+
+/** Mirrors the server's token-pressure limit for the text of a person (`USER_TEXT_LIMITS`), which CJK text reaches at about 8,900 characters. */
+const SPILLOVER_MAX_TOKEN_PRESSURE = 16_000;
 
 /** The server's estimate weighs a wide character (CJK, kana, hangul, fullwidth, emoji) 1.8 and any other one 0.25. */
 const WIDE_CHARACTER_WEIGHT = 1.8;
@@ -54,23 +64,30 @@ export function normalizeSpillover(raw: unknown): MessageSpillover | undefined {
   return { path, chars, preview: typeof record.preview === 'string' ? record.preview : '' };
 }
 
-/** Whether the server keeps this text in a file instead of the conversation. */
-export function isLongPaste(text: string): boolean {
-  if (text.length > SPILLOVER_MIN_CHARS) {
+/** Whether a text is past a limit by length or, for wide (CJK) text, by the server's token-pressure estimate. */
+function exceeds(text: string, maxChars: number, maxTokenPressure: number): boolean {
+  if (text.length > maxChars) {
     return true;
   }
   // Even all-wide text of this length stays under the token-pressure limit: skip counting on the typing path.
-  if (text.length * WIDE_CHARACTER_WEIGHT <= SPILLOVER_MAX_TOKEN_PRESSURE) {
+  if (text.length * WIDE_CHARACTER_WEIGHT <= maxTokenPressure) {
     return false;
   }
   const wide = text.match(WIDE_CHARACTERS)?.length ?? 0;
-  return (
-    Math.floor(wide * WIDE_CHARACTER_WEIGHT + (text.length - wide) * NARROW_CHARACTER_WEIGHT) >
-    SPILLOVER_MAX_TOKEN_PRESSURE
-  );
+  return Math.floor(wide * WIDE_CHARACTER_WEIGHT + (text.length - wide) * NARROW_CHARACTER_WEIGHT) > maxTokenPressure;
 }
 
-/** A user message that is a very long paste reads as a character count plus its opening lines, not as the whole text. */
+/** Whether a text is long enough to fold into a card in the user bubble; the model still receives it whole. */
+export function isLongPaste(text: string): boolean {
+  return exceeds(text, PASTE_CARD_MIN_CHARS, PASTE_CARD_MAX_TOKEN_PRESSURE);
+}
+
+/** Whether the server keeps this text in a file instead of the conversation. */
+export function isParkedPaste(text: string): boolean {
+  return exceeds(text, SPILLOVER_MIN_CHARS, SPILLOVER_MAX_TOKEN_PRESSURE);
+}
+
+/** A user message that is a long paste reads as a character count plus its opening lines, not as the whole text. */
 export function pastedTextOf(text: string, spillover?: MessageSpillover): PastedText | null {
   if (spillover) {
     return { chars: spillover.chars, preview: spillover.preview };

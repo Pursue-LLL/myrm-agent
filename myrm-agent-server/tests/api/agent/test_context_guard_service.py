@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from app.services.agent.context_guard_service import ContextGuardService
+from tests.support.oversized_paste import paste_over_the_limit
 
 
 @pytest.mark.asyncio
@@ -27,7 +28,7 @@ async def test_context_guard_service_normal_message() -> None:
 async def test_context_guard_service_oversized_message() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         with patch.object(ContextGuardService, "_resolve_base_dir", return_value=Path(tmp_dir)):
-            oversized_text = "A" * 20_000
+            oversized_text = paste_over_the_limit("A")
             res = await ContextGuardService.guard_inbound_prompt(
                 chat_id="test_chat_2",
                 raw_prompt=oversized_text,
@@ -36,7 +37,7 @@ async def test_context_guard_service_oversized_message() -> None:
             assert Path(res.spillover_path).exists()
             assert Path(res.spillover_path).read_text(encoding="utf-8") == oversized_text
             assert "<file_spillover" in res.processed_content
-            assert 'chars="20000"' in res.processed_content
+            assert f'chars="{len(oversized_text)}"' in res.processed_content
             assert "file_read_tool" in res.processed_content
 
 

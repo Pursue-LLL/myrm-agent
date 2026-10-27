@@ -1,10 +1,10 @@
 """Context bomb guard: parks an oversized user text in the chat's workspace and leaves a stub in its place.
 
-An oversized text (>16,000 characters, or a token pressure >8,000) is saved as a file in the workspace the chat's
-agent runs in, and the prompt carries a stub: the start and the end of the text, the file's workspace-relative path
-and an instruction to read the file. The text of a person is parked in ``.myrm/pastes`` (kept as long as the
-workspace is, and copied along when a chat is forked); a document attached from a messaging channel in
-``.myrm/spillover`` (swept after 24 hours).
+An oversized text is saved as a file in the workspace the chat's agent runs in, and the prompt carries a stub: the
+start and the end of the text, the file's workspace-relative path and an instruction to read the file. The text of
+a person is parked in ``.myrm/pastes`` (kept as long as the workspace is, and copied along when a chat is forked)
+once it passes ``USER_TEXT_LIMITS``; a document attached from a messaging channel in ``.myrm/spillover`` (swept
+after 24 hours) once it passes the harness defaults, which are lower because that text is third-party content.
 
 [INPUT]
 - app.services.agent.params.models::MultimodalQuery (POS: agent query payload type)
@@ -13,6 +13,7 @@ workspace is, and copied along when a chat is forked); a document attached from 
 - myrm_agent_harness.agent.context_guard (POS: spillover engine, its two directories and CJK token pressure)
 
 [OUTPUT]
+- USER_TEXT_LIMITS: The size from which the text of a person is parked instead of going into the prompt.
 - ContextBombDefenseService: size check, parking of one text or of a query's text, and the sweep of transient files.
 - replace_query_text: A query's text swapped for a replacement, its other blocks kept.
 - carry_parked_files_to_fork: The parked files a forked conversation names, copied into the fork's workspace.
@@ -46,10 +47,20 @@ from app.services.agent.params.models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 
-_THRESHOLDS = ContextGuardConfig()
+# A text of a person goes into the prompt as it is up to this size: 16,000 tokens is an eighth of a 128k window and
+# half of a 32k one, so the paste cannot crowd the window out, yet an ordinary article or document is still read
+# whole, in one model call, and stays copyable and editable in the chat. Past it the text is parked in a file.
+USER_TEXT_LIMITS = ContextGuardConfig(
+    max_message_chars=64_000,
+    max_token_pressure=16_000,
+    spillover_dir_name=KEPT_SPILLOVER_DIR,
+)
+# A fork copies every file its stubs name, whatever limit the text was parked under: a zero limit parks any text.
+_CARRY_LIMITS = ContextGuardConfig(max_message_chars=0, max_token_pressure=0, spillover_dir_name=KEPT_SPILLOVER_DIR)
 # The one place a stub names its file; every stub comes from the engine, so the attribute order is fixed.
 _STUB_PATH = re.compile(r'<file_spillover path="([^"]+)"')
-_KEPT_ENGINE = SpilloverEngine(ContextGuardConfig(spillover_dir_name=KEPT_SPILLOVER_DIR))
+_KEPT_ENGINE = SpilloverEngine(USER_TEXT_LIMITS)
+_CARRY_ENGINE = SpilloverEngine(_CARRY_LIMITS)
 _TRANSIENT_ENGINE = SpilloverEngine()
 
 
@@ -121,7 +132,10 @@ class ContextBombDefenseService:
     @staticmethod
     def is_oversized(content: str) -> bool:
         """Whether ``content`` is too long to go into a prompt as it is."""
-        return len(content) > _THRESHOLDS.max_message_chars or estimate_token_pressure(content) > _THRESHOLDS.max_token_pressure
+        return (
+            len(content) > USER_TEXT_LIMITS.max_message_chars
+            or estimate_token_pressure(content) > USER_TEXT_LIMITS.max_token_pressure
+        )
 
     @staticmethod
     def process_incoming_content(
@@ -197,8 +211,9 @@ def _is_kept_path(relative_path: str) -> bool:
 def _carry_parked_files(source: Path, target: Path, relative_paths: Iterable[str]) -> int:
     """Copy the kept files ``relative_paths`` name from workspace ``source`` into workspace ``target``.
 
-    The copy goes through the engine that parked the text: the same text lands under the same name, next to the
-    ignore file that keeps it out of version control. A file that is gone, or not a kept file, is skipped.
+    The copy goes through an engine that parks any text: the same text lands under the same name, next to the
+    ignore file that keeps it out of version control, however long it was when it was parked. A file that is gone,
+    or not a kept file, is skipped.
     """
     if source.resolve() == target.resolve():
         return 0
@@ -207,7 +222,7 @@ def _carry_parked_files(source: Path, target: Path, relative_paths: Iterable[str
         origin = source / relative_path
         if not _is_kept_path(relative_path) or not origin.is_file():
             continue
-        result = _KEPT_ENGINE.process_content(origin.read_text(encoding="utf-8"), base_dir=target)
+        result = _CARRY_ENGINE.process_content(origin.read_text(encoding="utf-8"), base_dir=target)
         if result.payload is not None and result.payload.relative_path == relative_path:
             carried += 1
     return carried

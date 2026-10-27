@@ -99,7 +99,8 @@ const UserMessage = React.memo(
     const cleanContent = stripUserMessageDisplayText(content);
     const parts = splitTextWithAtLinks(cleanContent);
     const pasted = useMemo(() => pastedTextOf(cleanContent, spillover), [cleanContent, spillover]);
-    // The full text of a history message lives in a file; there is nothing to copy or edit in place.
+    // The full text of a parked message lives in a file; there is nothing to copy or edit in place. A long text the
+    // server did not park is in the message itself, so it folds into a card that keeps both.
     const textInPlace = !spillover;
     const openFullText = useCallback(() => {
       if (spillover) {

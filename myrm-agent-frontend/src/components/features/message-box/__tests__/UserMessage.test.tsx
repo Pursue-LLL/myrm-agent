@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
-import { SPILLOVER_MIN_CHARS } from '@/lib/utils/spillover';
+import { PASTE_CARD_MIN_CHARS } from '@/lib/utils/spillover';
 import type { File as FileType } from '@/store/chat/types';
 
 import UserMessage from '../UserMessage';
@@ -128,8 +128,8 @@ describe('UserMessage pasted text', () => {
     expect(screen.queryByRole('button', { name: 'pastedText.viewFull' })).toBeNull();
   });
 
-  it('folds a long paste still in memory, keeping copy and edit', () => {
-    const text = 'x'.repeat(SPILLOVER_MIN_CHARS + 1);
+  it('folds a long text the server did not park, in memory or from history, keeping copy and edit', () => {
+    const text = 'x'.repeat(PASTE_CARD_MIN_CHARS + 1);
     render(<UserMessage {...bubble} content={text} onEdit={vi.fn()} />);
 
     expect(screen.getByTestId('pasted-text-card')).not.toBeNull();
@@ -142,7 +142,7 @@ describe('UserMessage pasted text', () => {
   });
 
   it('leaves a message at the limit as plain text', () => {
-    render(<UserMessage {...bubble} content={'x'.repeat(SPILLOVER_MIN_CHARS)} />);
+    render(<UserMessage {...bubble} content={'x'.repeat(PASTE_CARD_MIN_CHARS)} />);
 
     expect(screen.queryByTestId('pasted-text-card')).toBeNull();
   });

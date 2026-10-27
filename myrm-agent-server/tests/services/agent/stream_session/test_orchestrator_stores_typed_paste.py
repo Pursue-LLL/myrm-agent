@@ -12,13 +12,15 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.dto import MessageDTO
 from app.services.agent.params.workspace_resolve import default_chat_workspace_path
 from app.services.agent.stream_session import chat_history_bootstrap, run_agent_stream
 from app.services.agent.stream_session.orchestrator_turn_launch import launch_early_buffered_stream
 from app.services.chat.chat_service import ChatService
+from tests.support.oversized_paste import paste_between_the_limits, paste_over_the_limit
 
 _ORCHESTRATOR = "app.services.agent.stream_session.orchestrator"
-_PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
+_PASTE = paste_over_the_limit("meeting-line: the decision was to keep watching and review next week\n")
 
 
 @pytest.fixture
@@ -39,13 +41,13 @@ def http_request() -> MagicMock:
     return http
 
 
-def _web_request(chat_id: str) -> MagicMock:
+def _web_request(chat_id: str, query: str) -> MagicMock:
     request = MagicMock()
     request.action_mode = "general"
     request.resume_value = None
     request.chat_id = chat_id
     request.message_id = "msg-paste"
-    request.query = _PASTE
+    request.query = query
     request.regenerate_instruction = None
     request.sibling_group_id = None
     request.timestamp = None
@@ -57,16 +59,11 @@ def _web_request(chat_id: str) -> MagicMock:
     return request
 
 
-@pytest.mark.asyncio
-async def test_the_turn_stores_the_stub_its_run_reads_and_both_name_one_durable_file(
-    db_session: AsyncSession,
-    fake_home: Path,
-    http_request: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    del db_session, fake_home
-    chat_id = (await ChatService.get_or_create_channel_chat("test:typed-paste", "test")).id
-    request = _web_request(chat_id)
+async def _run_the_turn(
+    chat_id: str, query: str, http_request: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> tuple[str, MessageDTO]:
+    """Run a web turn up to its launch, which stores the user message; returns what the run reads and what is stored."""
+    request = _web_request(chat_id, query)
     monkeypatch.setattr(f"{_ORCHESTRATOR}.try_stream_reconnect", AsyncMock(return_value=None))
     monkeypatch.setattr(f"{_ORCHESTRATOR}.check_stream_risk", AsyncMock(return_value=None))
     monkeypatch.setattr(f"{_ORCHESTRATOR}._count_pending_approvals", AsyncMock(return_value=0))
@@ -89,6 +86,21 @@ async def test_the_turn_stores_the_stub_its_run_reads_and_both_name_one_durable_
     assert response.status_code == 202
     (reference,) = read_by_the_run
     (message,) = [m for m in await ChatService.get_all_messages(chat_id) if m.role == "user"]
+    return reference, message
+
+
+@pytest.mark.asyncio
+async def test_the_turn_stores_the_stub_its_run_reads_and_both_name_one_durable_file(
+    db_session: AsyncSession,
+    fake_home: Path,
+    http_request: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del db_session, fake_home
+    chat_id = (await ChatService.get_or_create_channel_chat("test:typed-paste", "test")).id
+
+    reference, message = await _run_the_turn(chat_id, _PASTE, http_request, monkeypatch)
+
     assert reference.startswith("<file_spillover") and f"{KEPT_SPILLOVER_DIR}/" in reference
     assert TRANSIENT_SPILLOVER_DIR not in reference
     assert message.content == reference
@@ -99,6 +111,25 @@ async def test_the_turn_stores_the_stub_its_run_reads_and_both_name_one_durable_
     assert parked.read_text(encoding="utf-8") == _PASTE
     assert len(list(parked.parent.glob("payload_*.md"))) == 1
     assert not (parked.parent.parent / "spillover").exists()
+
+
+@pytest.mark.asyncio
+async def test_a_text_within_the_limit_of_a_person_is_read_and_stored_as_it_is(
+    db_session: AsyncSession,
+    fake_home: Path,
+    http_request: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del db_session, fake_home
+    chat_id = (await ChatService.get_or_create_channel_chat("test:typed-in-band", "test")).id
+    text = paste_between_the_limits("meeting-line: the decision was to keep watching and review next week\n")
+
+    reference, message = await _run_the_turn(chat_id, text, http_request, monkeypatch)
+
+    assert reference == text
+    assert message.content == text
+    assert message.extra_data is None or "spillover" not in message.extra_data
+    assert not (default_chat_workspace_path(chat_id) / ".myrm").exists()
 
 
 @pytest.mark.asyncio
