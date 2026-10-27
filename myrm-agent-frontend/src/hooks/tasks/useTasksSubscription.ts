@@ -1,38 +1,23 @@
 /**
  * [INPUT]
  * - @/services/taskEventStream::{subscribeTaskUpdateEvents,isTaskUpdateEventStreamOpen} (POS: multiplexed task SSE fan-out)
- * - @/services/notification::notificationService (POS: Web Notification + toast fallback)
- * - @/store/useConfigStore::enableWebNotifications (POS: personal notification preference gate)
  *
  * [OUTPUT]
- * - useTasksSubscription / useTaskSubscription: Chat task card realtime state + terminal notifications
+ * - useTasksSubscription / useTaskSubscription: Chat task card realtime state
  *
  * [POS]
  * Chat-side task SSE subscriber. Shares one browser EventSource with Panel, tray, and global media notify via taskEventStream.
+ * Raises no notifications: useGlobalMediaTaskNotifications is the single owner of terminal media task notifications.
  */
 
-import { useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
 import type { Task } from '@/store/tasks/types';
-import { notificationService } from '@/services/notification';
 import { isTaskUpdateEventStreamOpen, subscribeTaskUpdateEvents } from '@/services/taskEventStream';
-import useConfigStore from '@/store/useConfigStore';
 
 export function useTasksSubscription(task_ids: string[]) {
   const [tasks, setTasks] = useState<Map<string, Task>>(new Map());
-  const t = useTranslations('notifications');
 
   const stableIds = useMemo(() => task_ids.join(','), [task_ids]);
-
-  // Read the latest translator without resubscribing the task stream when the locale changes.
-  const notifyTerminalTask = useEffectEvent((task: Task) => {
-    const title =
-      task.status === 'succeeded'
-        ? t('taskCompleted', { taskType: task.task_type })
-        : t('taskFailed', { taskType: task.task_type });
-    const body = task.status === 'failed' ? task.error?.message || t('taskUnknownError') : undefined;
-    notificationService.notify(title, { body });
-  });
 
   useEffect(() => {
     if (!stableIds) {
@@ -40,7 +25,6 @@ export function useTasksSubscription(task_ids: string[]) {
     }
 
     const ids = stableIds.split(',');
-    const notifiedTerminalTaskIds = new Set<string>();
     let disposed = false;
     let nextSnapshotSyncAtMs = 0;
 
@@ -50,22 +34,6 @@ export function useTasksSubscription(task_ids: string[]) {
         next.set(task.task_id, task);
         return next;
       });
-    };
-
-    const notifyIfTerminal = (task: Task) => {
-      if (task.status !== 'succeeded' && task.status !== 'failed') {
-        return;
-      }
-      if (!useConfigStore.getState().enableWebNotifications) {
-        return;
-      }
-      const dedupeKey = `${task.task_id}:${task.status}`;
-      if (notifiedTerminalTaskIds.has(dedupeKey)) {
-        return;
-      }
-      notifiedTerminalTaskIds.add(dedupeKey);
-
-      notifyTerminalTask(task);
     };
 
     const fetchTaskById = async (taskId: string): Promise<Task | null> => {
@@ -94,7 +62,6 @@ export function useTasksSubscription(task_ids: string[]) {
         const tasksMap = new Map<string, Task>();
         for (const task of data.tasks) {
           tasksMap.set(task.task_id, task);
-          notifyIfTerminal(task);
         }
         setTasks(tasksMap);
       } catch (error) {
@@ -123,7 +90,6 @@ export function useTasksSubscription(task_ids: string[]) {
           return;
         }
         upsertTask(task);
-        notifyIfTerminal(task);
       });
     });
 

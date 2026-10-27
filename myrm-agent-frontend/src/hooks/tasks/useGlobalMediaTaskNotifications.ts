@@ -54,7 +54,7 @@ export function useGlobalMediaTaskNotifications() {
 
   useEffect(() => {
     const notifiedTerminalKeys = new Set<string>();
-    const disposed = false;
+    let disposed = false;
 
     const notifyIfTerminal = (task: Task) => {
       if (!isMediaTaskType(task.task_type)) {
@@ -108,7 +108,7 @@ export function useGlobalMediaTaskNotifications() {
       })();
     };
 
-    return subscribeTaskUpdateEvents((eventData) => {
+    const unsubscribe = subscribeTaskUpdateEvents((eventData) => {
       if (eventData.sync_required) {
         return;
       }
@@ -129,5 +129,10 @@ export function useGlobalMediaTaskNotifications() {
         notifyIfTerminal(task);
       });
     });
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
   }, [router, t]);
 }

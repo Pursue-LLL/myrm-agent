@@ -2,33 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { resetTaskUpdateEventStreamForTests } from '@/services/taskEventStream';
 
-const stableT = (key: string, params?: Record<string, string>) => {
-  if (key === 'taskCompleted') {
-    return `${params?.taskType} completed`;
-  }
-  if (key === 'taskFailed') {
-    return `${params?.taskType} failed`;
-  }
-  if (key === 'taskUnknownError') {
-    return 'Unknown error';
-  }
-  return key;
-};
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
-
 const mockNotify = vi.fn();
 vi.mock('@/services/notification', () => ({
   notificationService: { notify: (...args: unknown[]) => mockNotify(...args) },
-}));
-
-let mockEnableWebNotifications = true;
-vi.mock('@/store/useConfigStore', () => ({
-  default: {
-    getState: () => ({ enableWebNotifications: mockEnableWebNotifications }),
-  },
 }));
 
 type TaskStatus = 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
@@ -110,7 +86,6 @@ describe('useTasksSubscription', () => {
     MockEventSource.reset();
     resetTaskUpdateEventStreamForTests();
     mockNotify.mockClear();
-    mockEnableWebNotifications = true;
     vi.useFakeTimers();
     taskById.clear();
     pollTasks = [];
@@ -169,11 +144,19 @@ describe('useTasksSubscription', () => {
     expect(mockFetch).toHaveBeenCalledWith('/api/v1/tasks/task-1');
   });
 
-  it('sends localized notification on task success', async () => {
+  it.each(['succeeded', 'failed'] as const)('raises no notification when a task %s', async (status) => {
     const { useTasksSubscription } = await import('../useTasksSubscription');
 
-    taskById.set('task-2', createTask('task-2', 'succeeded', { progress: 100 }));
-    renderHook(() => useTasksSubscription(['task-2']));
+    taskById.set(
+      'task-2',
+      createTask('task-2', status, {
+        error:
+          status === 'failed'
+            ? { error_type: 'provider', message: 'Bearer sk-secret', recoverable: 'permanent' }
+            : undefined,
+      }),
+    );
+    const { result } = renderHook(() => useTasksSubscription(['task-2']));
 
     await act(async () => {
       MockEventSource.instances[0].emit('task_update', { task_id: 'task-2' });
@@ -181,58 +164,8 @@ describe('useTasksSubscription', () => {
       await Promise.resolve();
     });
 
-    expect(mockNotify).toHaveBeenCalledWith('image_generate completed', { body: undefined });
-  });
-
-  it('does not notify when enableWebNotifications is disabled', async () => {
-    mockEnableWebNotifications = false;
-    const { useTasksSubscription } = await import('../useTasksSubscription');
-
-    taskById.set('task-2b', createTask('task-2b', 'succeeded', { progress: 100 }));
-    renderHook(() => useTasksSubscription(['task-2b']));
-
-    await act(async () => {
-      MockEventSource.instances[0].emit('task_update', { task_id: 'task-2b' });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
+    expect(result.current.get('task-2')?.status).toBe(status);
     expect(mockNotify).not.toHaveBeenCalled();
-  });
-
-  it('sends localized notification on task failure with error message', async () => {
-    const { useTasksSubscription } = await import('../useTasksSubscription');
-
-    taskById.set(
-      'task-3',
-      createTask('task-3', 'failed', {
-        error: { error_type: 'timeout', message: 'Request timed out', recoverable: 'transient' },
-      }),
-    );
-    renderHook(() => useTasksSubscription(['task-3']));
-
-    await act(async () => {
-      MockEventSource.instances[0].emit('task_update', { task_id: 'task-3' });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockNotify).toHaveBeenCalledWith('image_generate failed', { body: 'Request timed out' });
-  });
-
-  it('sends unknown error message when error field is missing', async () => {
-    const { useTasksSubscription } = await import('../useTasksSubscription');
-
-    taskById.set('task-4', createTask('task-4', 'failed'));
-    renderHook(() => useTasksSubscription(['task-4']));
-
-    await act(async () => {
-      MockEventSource.instances[0].emit('task_update', { task_id: 'task-4' });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockNotify).toHaveBeenCalledWith('image_generate failed', { body: 'Unknown error' });
   });
 
   it('ignores events for non-subscribed task_ids', async () => {

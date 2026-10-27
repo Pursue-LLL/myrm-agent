@@ -237,6 +237,38 @@ describe('useGlobalMediaTaskNotifications', () => {
     expect(mockNotify).not.toHaveBeenCalled();
   });
 
+  it('raises nothing for a task detail that arrives after the hook unmounted', async () => {
+    let resolveTask: (task: unknown) => void = () => undefined;
+    mockFetchMediaTask.mockReturnValue(new Promise((resolve) => (resolveTask = resolve)));
+
+    const { useGlobalMediaTaskNotifications } = await import('../useGlobalMediaTaskNotifications');
+    const { unmount } = renderHook(() => useGlobalMediaTaskNotifications());
+
+    await act(async () => {
+      listeners[0]?.({ task_id: 'img-late', status: 'succeeded', task_type: 'image_generate' });
+      await Promise.resolve();
+    });
+    unmount();
+    expect(listeners).toHaveLength(0);
+
+    await act(async () => {
+      resolveTask({
+        task_id: 'img-late',
+        task_type: 'image_generate',
+        status: 'succeeded',
+        payload: { prompt: 'A cat', chat_id: 'chat-99' },
+        priority: 5,
+        progress: 100,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:10Z',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('skips non-media SSE events without fetching task detail', async () => {
     const { useGlobalMediaTaskNotifications } = await import('../useGlobalMediaTaskNotifications');
     renderHook(() => useGlobalMediaTaskNotifications());
