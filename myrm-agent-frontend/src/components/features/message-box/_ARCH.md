@@ -56,7 +56,8 @@
 | `MessageToc.tsx` | 组件 | 长 assistant 消息目录导航（heading anchor） | ✅ |
 | `QuoteToolbar.tsx` | 组件 | 文本选中工具条：引用到输入框 / 复制；run 中「旁路提问」→ Session Advisor（主 Chat MessageBox；Mobile CC run 中经 `MobileStatusBoard.viewFull` 跳转主 Chat） | ✅ |
 | `__tests__/QuoteToolbarAdvisor.test.tsx` | 测试 | run 中旁路提问 dispatch `copilot-open-advisor` + selection | ✅ |
-| `Suggestions.tsx` | 组件 | 回合结束 follow-up 建议 chips | ✅ |
+| `Suggestions.tsx` | 组件 | 回合结束 follow-up 建议列表：点击即把建议原文作为用户消息发送；建议为空（模型认为无需追问）、尚未请求、回答仍在流式输出时都不渲染 | ✅ |
+| `__tests__/Suggestions.test.tsx` | 测试 | 每条建议一个按钮、点击按原文发送；空数组、未请求、流式输出中三种情况什么都不渲染（服务端对收尾回合返回 `[]`，该约定由此锁定） | ✅ |
 | `TokenUsageDisplay.tsx` | 组件 | Token 用量详情 tooltip：5 类 token 分类、费用、缓存命中率与节省、cache break 归因、模型/工具分解、智能路由归因与判定说明（routingReason 经 `lib/chat/routingReason` 映射为本地化文案，未识别原因不展示）、TTFT/P95/TPS、会话基线对比、View Trace | ✅ |
 | `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑） | ✅ |
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
