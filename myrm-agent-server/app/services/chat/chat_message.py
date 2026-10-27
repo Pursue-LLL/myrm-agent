@@ -48,10 +48,10 @@ async def _park_user_text(
 
     An oversized message is stored as a stub naming a file in the chat's workspace (``workspace``, or the one
     the chat's agent runs in when omitted): the database keeps only a preview, so the file lives as long as the
-    workspace does and the agent's file tools can read it back. The stub is the one the live turn already carried,
-    and the path it names is relative to the workspace, so a copy of the chat (a fork, a migrated instance) finds
-    the file at the same place. When the file cannot be written, or the chat has no workspace to hold it, the
-    message stays in the database as it is.
+    workspace does and the agent's file tools can read it back. The stub is byte-identical to the one the live
+    turn carries, and the path it names is relative to the workspace, so a copy of the chat (a fork, a migrated
+    instance) finds the file at the same place. When the file cannot be written, or the chat has no workspace to
+    hold it, the message stays in the database as it is.
     """
     from app.services.chat.context_bomb_guard import ContextBombDefenseService, replace_query_text
 
