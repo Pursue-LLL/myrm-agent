@@ -25,6 +25,9 @@ _SETTINGS_SYSTEM = "/settings/system"
 _SETTINGS_WORKBENCH = "/settings/workbench"
 # `component` of the HEALTH_ALERT that scheduled instance backups raise (auto_backup.ALERT_COMPONENT).
 _BACKUP_ALERT_COMPONENT = "instance_backup"
+# `component` of the HEALTH_ALERT that the scheduled cloud sync of memories raises (remote_sync.ALERT_COMPONENT).
+_CLOUD_SYNC_ALERT_COMPONENT = "remote_memory_backup"
+_SETTINGS_CLOUD_SYNC = "/settings/memory?sub=cloud-backup"
 _SETTINGS_CHANNELS = "/settings/channels"
 _SETTINGS_CREDENTIALS = "/settings/credentials"
 
@@ -99,6 +102,9 @@ def resolve_push_url(event: AppEvent) -> str:
 
     if event_type == AppEventType.HEALTH_ALERT and data.get("component") == _BACKUP_ALERT_COMPONENT:
         return _SETTINGS_WORKBENCH
+
+    if event_type == AppEventType.HEALTH_ALERT and data.get("component") == _CLOUD_SYNC_ALERT_COMPONENT:
+        return _SETTINGS_CLOUD_SYNC
 
     if event_type in {AppEventType.HEALTH_ALERT, AppEventType.BUDGET_ALERT}:
         return _SETTINGS_SYSTEM

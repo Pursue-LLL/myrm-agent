@@ -26,6 +26,8 @@ from tests.support.offline_memory import offline_memory_manager
 
 pytestmark = pytest.mark.integration
 
+TAG = "1a2b3c4d"
+
 
 async def _seed(manager: MemoryManager) -> None:
     await manager.add_knowledge("User prefers dark mode in every editor.")
@@ -52,12 +54,12 @@ async def test_remote_backup_restores_into_a_fresh_device_and_is_safe_to_repeat(
     ):
         await _seed(laptop)
 
-        backup = await run_remote_backup(laptop, remote, device_name="laptop", max_backups=5)
+        backup = await run_remote_backup(laptop, remote, instance_tag=TAG, device_name="laptop", max_backups=5)
 
-        assert backup["success"] is True
-        file_name = str(backup["file_name"])
+        assert backup.status == "ok"
+        file_name = str(backup.file_name)
         assert file_name in remote._storage
-        assert backup["size_bytes"] == len(remote._storage[file_name])
+        assert backup.size_bytes == len(remote._storage[file_name])
         uploaded = decode_snapshot(remote._storage[file_name])
         assert {name: len(items) for name, items in uploaded.memories.items()} == {
             "profile": 1,
@@ -70,8 +72,8 @@ async def test_remote_backup_restores_into_a_fresh_device_and_is_safe_to_repeat(
         after_first_restore = await _contents(phone)
         await restore_from_remote(phone, remote, file_name)
 
-        assert restored["success"] is True
-        assert restored["restored_count"] == 5
+        assert restored.success is True
+        assert restored.restored_count == 5
         assert after_first_restore == await _contents(laptop)
         assert await _contents(phone) == after_first_restore
         assert await phone.count_memories(MemoryType.PROCEDURAL) == 1
@@ -87,9 +89,9 @@ async def test_remote_restore_never_deletes_memories_the_device_already_has(
     ):
         await _seed(laptop)
         await phone.add_knowledge("Only the phone knows this fact.")
-        backup = await run_remote_backup(laptop, remote, device_name="laptop")
+        backup = await run_remote_backup(laptop, remote, instance_tag=TAG, device_name="laptop")
 
-        await restore_from_remote(phone, remote, str(backup["file_name"]))
+        await restore_from_remote(phone, remote, str(backup.file_name))
 
         assert "Only the phone knows this fact." in (await _contents(phone))["semantic"]
         assert await phone.count_memories(MemoryType.SEMANTIC) == 3
@@ -110,10 +112,11 @@ async def test_remote_backup_uploads_nothing_when_the_snapshot_would_be_incomple
 
         monkeypatch.setattr(laptop, "export_all", export_without_semantic)
 
-        result = await run_remote_backup(laptop, remote, device_name="laptop")
+        result = await run_remote_backup(laptop, remote, instance_tag=TAG, device_name="laptop")
 
-    assert result["success"] is False
-    assert "incomplete" in str(result["error"])
+    assert result.status == "failed"
+    assert result.error_code == "snapshot"
+    assert "incomplete" in str(result.error)
     assert remote._storage == {}
 
 
@@ -126,12 +129,12 @@ async def test_remote_restore_reports_an_approval_queue_manager_instead_of_losin
         offline_memory_manager(tmp_path / "phone", monkeypatch, approval_required=True) as phone,
     ):
         await _seed(laptop)
-        backup = await run_remote_backup(laptop, remote, device_name="laptop")
+        backup = await run_remote_backup(laptop, remote, instance_tag=TAG, device_name="laptop")
 
-        result = await restore_from_remote(phone, remote, str(backup["file_name"]))
+        result = await restore_from_remote(phone, remote, str(backup.file_name))
 
-        assert result["success"] is False
-        assert "approval queue" in str(result["error"])
+        assert result.success is False
+        assert "approval queue" in str(result.error)
         assert await phone.count_memories(MemoryType.SEMANTIC) == 0
 
 
@@ -147,12 +150,12 @@ async def test_remote_file_names_cannot_steer_where_the_download_lands_and_temp_
         offline_memory_manager(tmp_path / "phone", monkeypatch) as phone,
     ):
         await _seed(laptop)
-        backup = await run_remote_backup(laptop, remote, device_name="laptop")
-        remote._storage["../../escape.json.gz"] = remote._storage[str(backup["file_name"])]
+        backup = await run_remote_backup(laptop, remote, instance_tag=TAG, device_name="laptop")
+        remote._storage["../../escape.json.gz"] = remote._storage[str(backup.file_name)]
 
         result = await restore_from_remote(phone, remote, "../../escape.json.gz")
 
-        assert result["success"] is True
+        assert result.success is True
     assert not (tmp_path / "escape.json.gz").exists()
     assert not (scratch.parent / "escape.json.gz").exists()
     assert list(scratch.iterdir()) == []

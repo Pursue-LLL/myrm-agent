@@ -121,6 +121,15 @@ class TestResolvePushUrl:
         )
         assert resolve_push_url(event) == "/settings/workbench"
 
+    def test_remote_memory_backup_alert_routes_to_the_cloud_sync_settings(self) -> None:
+        from app.services.memory.backup.remote_sync import ALERT_COMPONENT
+
+        event = AppEvent(
+            event_type=AppEventType.HEALTH_ALERT,
+            data={"component": ALERT_COMPONENT, "status": "fail", "message": "Automatic remote memory backup has failed"},
+        )
+        assert resolve_push_url(event) == "/settings/memory?sub=cloud-backup"
+
     def test_budget_alert_routes_to_system_settings(self) -> None:
         event = AppEvent(
             event_type=AppEventType.BUDGET_ALERT,

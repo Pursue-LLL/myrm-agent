@@ -11,14 +11,16 @@
 Two JSON files under ``{state_dir}/instance_archive``. That directory is a runtime
 class of the archive policy, so neither file travels inside a backup or is touched
 by an import: a restore changes the data, never the schedule that protects it, nor
-the tag that marks which backups belong to this instance. Settings and state share
-one file that is rewritten as a whole under a lock, so the API thread (settings)
-and the runner thread (state) never lose each other's update; unreadable or hostile
-content falls back to defaults and the counts are clamped into the allowed bounds, while
-a recorded moment is kept as written (the schedule rules decide what a moment dated in
-the future is worth). The tag lives
-in its own file, written once and never by a settings or state save, so a read that
-fails on the settings can neither mint a new tag nor rewrite the settings.
+the tag that marks which backups belong to this instance (the remote memory backup
+marks its files with the same tag). Settings and state share one file that is
+rewritten as a whole under a lock, so the API thread (settings) and the runner thread
+(state) never lose each other's update; unreadable or hostile content falls back to
+defaults and the counts are clamped into the allowed bounds, while a recorded moment
+is kept as written (the schedule rules decide what a moment dated in the future is
+worth). The tag lives in its own file, written once and never by a settings or state
+save, so a read that fails on the settings can neither mint a new tag nor rewrite the
+settings. One lock serves every store, so stores first used at the same moment still
+agree on a single tag.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ from app.services.instance_archive.models import ArchivePaths, read_json, write_
 _FILE_NAME = "auto_backup.json"
 _TAG_FILE_NAME = "auto_backup_instance.json"
 _TAG_BYTES = 4  # hex-encoded to the length INSTANCE_TAG_PATTERN accepts
+_TAG_LOCK = threading.Lock()  # the tag file belongs to the instance, not to one store object
 
 
 class AutoBackupStore:
@@ -71,7 +74,7 @@ class AutoBackupStore:
         Backups are told apart by the tag, not by a host name, so two instances that share one folder
         (a synced drive, a NAS share) never count or prune each other's files, even on identical hosts.
         """
-        with self._lock:
+        with _TAG_LOCK:
             tag = self._read_tag()
             if tag is None:
                 tag = secrets.token_hex(_TAG_BYTES)

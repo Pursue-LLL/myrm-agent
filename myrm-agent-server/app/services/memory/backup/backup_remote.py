@@ -7,7 +7,10 @@ Implements backup upload/download/list/delete operations for:
 - WebDAV (坚果云 / Nextcloud / 自建等)
 - S3-compatible storage (AWS S3 / MinIO / 阿里云 OSS 等)
 
-Used by the auto-backup scheduler and remote backup API endpoints.
+Used by the scheduled remote sync and the remote backup API endpoints. Writes report failure as ``False``. A listing
+that cannot be read raises (``RemoteStorageError`` for a refusal, the transport error otherwise) instead of returning
+an empty list, so an unreachable remote never looks like one without backups. S3 lists a single page (up to 1000
+objects).
 """
 
 from __future__ import annotations
@@ -26,6 +29,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class RemoteStorageError(RuntimeError):
+    """The remote storage answered, but refused to list its backups."""
+
+
 @dataclass(frozen=True)
 class RemoteBackupFile:
     """Metadata for a remote backup file."""
@@ -36,19 +43,8 @@ class RemoteBackupFile:
 
 
 @dataclass
-class RemoteBackupConfig:
-    """Base configuration for remote backup."""
-
-    enabled: bool = False
-    auto_sync: bool = False
-    sync_interval_minutes: int = 60
-    max_backups: int = 10
-    device_name: str = ""
-
-
-@dataclass
-class WebDAVBackupConfig(RemoteBackupConfig):
-    """WebDAV-specific backup configuration."""
+class WebDAVBackupConfig:
+    """WebDAV connection settings."""
 
     host: str = ""
     username: str = ""
@@ -57,8 +53,8 @@ class WebDAVBackupConfig(RemoteBackupConfig):
 
 
 @dataclass
-class S3BackupConfig(RemoteBackupConfig):
-    """S3-compatible storage backup configuration."""
+class S3BackupConfig:
+    """S3-compatible storage connection settings."""
 
     endpoint: str = ""
     region: str = ""
@@ -82,7 +78,10 @@ class RemoteBackupStrategy(ABC):
 
     @abstractmethod
     async def list_files(self) -> list[RemoteBackupFile]:
-        """List all backup files on remote storage, newest first."""
+        """List all backup files on remote storage, newest first.
+
+        Raises when the storage cannot be read: an unreadable listing must never look like an empty one.
+        """
 
     @abstractmethod
     async def delete(self, remote_name: str) -> bool:
@@ -278,32 +277,28 @@ class _WebDAVClient:
     async def list_files(self) -> list[RemoteBackupFile]:
         import httpx
 
-        results: list[RemoteBackupFile] = []
-        try:
-            propfind_body = (
-                '<?xml version="1.0" encoding="utf-8"?>'
-                '<propfind xmlns="DAV:">'
-                "<prop><getlastmodified/><getcontentlength/></prop>"
-                "</propfind>"
+        propfind_body = (
+            '<?xml version="1.0" encoding="utf-8"?>'
+            '<propfind xmlns="DAV:">'
+            "<prop><getlastmodified/><getcontentlength/></prop>"
+            "</propfind>"
+        )
+        async with httpx.AsyncClient(
+            auth=(self._username, self._password),
+            timeout=30.0,
+            follow_redirects=True,
+        ) as client:
+            resp = await client.request(
+                "PROPFIND",
+                self._url() + "/",
+                content=propfind_body.encode(),
+                headers={"Depth": "1", "Content-Type": "application/xml"},
             )
-            async with httpx.AsyncClient(
-                auth=(self._username, self._password),
-                timeout=30.0,
-                follow_redirects=True,
-            ) as client:
-                resp = await client.request(
-                    "PROPFIND",
-                    self._url() + "/",
-                    content=propfind_body.encode(),
-                    headers={"Depth": "1", "Content-Type": "application/xml"},
-                )
-                if resp.status_code != 207:
-                    return results
-                results = _parse_webdav_multistatus(resp.text)
-        except Exception as e:
-            logger.error("WebDAV list error: %s", e)
-        results.sort(key=lambda f: f.modified_time, reverse=True)
-        return results
+        if resp.status_code == 404:
+            return []  # nothing has been uploaded yet: the first upload creates the folder
+        if resp.status_code != 207:
+            raise RemoteStorageError(f"WebDAV listing refused: HTTP {resp.status_code}")
+        return sorted(_parse_webdav_multistatus(resp.text), key=lambda f: f.modified_time, reverse=True)
 
     async def delete_file(self, remote_name: str) -> bool:
         import httpx
@@ -406,29 +401,26 @@ class _S3Client:
 
     async def list_files(self) -> list[RemoteBackupFile]:
         results: list[RemoteBackupFile] = []
-        try:
-            async with self._client() as client:
-                response = await client.list_objects_v2(
-                    Bucket=self._bucket,
-                    Prefix=self._prefix,
-                )
-                for obj in response.get("Contents", []):
-                    key = obj["Key"]
-                    name = key[len(self._prefix) :] if self._prefix and key.startswith(self._prefix) else key
-                    if not name or name.endswith("/"):
-                        continue
-                    mod_time = obj["LastModified"]
-                    if mod_time.tzinfo is None:
-                        mod_time = mod_time.replace(tzinfo=UTC)
-                    results.append(
-                        RemoteBackupFile(
-                            file_name=name,
-                            modified_time=mod_time,
-                            size_bytes=obj["Size"],
-                        )
+        async with self._client() as client:
+            response = await client.list_objects_v2(
+                Bucket=self._bucket,
+                Prefix=self._prefix,
+            )
+            for obj in response.get("Contents", []):
+                key = obj["Key"]
+                name = key[len(self._prefix) :] if self._prefix and key.startswith(self._prefix) else key
+                if not name or name.endswith("/"):
+                    continue
+                mod_time = obj["LastModified"]
+                if mod_time.tzinfo is None:
+                    mod_time = mod_time.replace(tzinfo=UTC)
+                results.append(
+                    RemoteBackupFile(
+                        file_name=name,
+                        modified_time=mod_time,
+                        size_bytes=obj["Size"],
                     )
-        except Exception as e:
-            logger.error("S3 list error: %s", e)
+                )
         results.sort(key=lambda f: f.modified_time, reverse=True)
         return results
 

@@ -181,7 +181,9 @@ async def test_blank_region_and_endpoint_fall_back_to_the_provider_defaults(s3: 
     assert opened["config"].s3 is None
 
 
-async def test_failures_are_reported_as_unsuccessful_and_the_client_is_still_closed(tmp_path: Path, s3: _FakeS3) -> None:
+async def test_failures_are_reported_as_unsuccessful_a_listing_raises_and_the_client_is_still_closed(
+    tmp_path: Path, s3: _FakeS3
+) -> None:
     strategy = _strategy()
     source = tmp_path / "backup.json.gz"
     source.write_bytes(b"memories")
@@ -190,7 +192,8 @@ async def test_failures_are_reported_as_unsuccessful_and_the_client_is_still_clo
     assert await strategy.check_connection() is False
     assert await strategy.upload(source, "n") is False
     assert await strategy.download("n", tmp_path / "out") is False
-    assert await strategy.list_files() == []
+    with pytest.raises(ConnectionError):
+        await strategy.list_files()  # an unreadable bucket is not an empty one
     assert await strategy.delete("n") is False
     s3.failing = False
     assert await strategy.upload(tmp_path / "absent.json.gz", "n") is False

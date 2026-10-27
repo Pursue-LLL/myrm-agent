@@ -11,7 +11,7 @@
 - **「完成」的语义**：文件已落到目标位置、manifest 读得回、大小一致、已刷盘。这证明「写好且结构可读」，不是 payload 全量哈希校验；恢复时的校验仍是权威。界面写「最近一次备份」，不写「已验证」。
 - **读不到的数据项不算备份完成**：导出遇到无法列出的目录、无法读取的文件时，会把这些路径随结果带回（`ExportResult.unreadable`，与「导出途中已不存在」的文件区分：后者是正常的并发变化，不计入）。这样的运行记为失败 `backup_incomplete`，不记成功，也不清零连续失败，告警走同一条连续失败路径；已经产出的归档仍然保留，改名为 `…-YYYYMMDD-HHMMSS.incomplete.zip`，用户能恢复它收下的那部分，而不是什么都没有。`.incomplete.zip` 不匹配完整备份的文件名模式，所以不计入保留份数、不进备份列表、不影响到期判断；同一实例只留最新一份，下一次完整备份成功后清掉，裁剪永不碰完整备份。
 - **文件夹是「已备份」的唯一事实**：不记「上次成功」。最近一次备份的时间与大小、是否到期、是否严重逾期、保留份数，全部从目标文件夹里本实例的文件推导；用户手动删光文件或换到另一个文件夹，下一次检查看到的就是真实状态，不会因为一条陈旧记录而误判已受保护。持久化的运行状态只剩 `last_attempt_at`、连续失败数与最近错误码（失败退避所需）。
-- **文件名带本实例标记**：`myrm-auto-backup-{tag}-YYYYMMDD-HHMMSS.zip`（UTC）。`tag` 是首次使用时随机生成的 8 位十六进制，存于独立的 `auto_backup_instance.json`（RUNTIME 类，恢复不覆盖；只在文件不存在时写入一次，读取失败不会重新生成，设置文件读不出来也不会连带改写它）；不用主机名（`localhost`、WSL 等会撞名）。多台设备共用同一个同步文件夹或 NAS 共享时，各自只列出、只裁剪带自己标记的文件，不会互相删备份。
+- **文件名带本实例标记**：`myrm-auto-backup-{tag}-YYYYMMDD-HHMMSS.zip`（UTC）。`tag` 是首次使用时随机生成的 8 位十六进制，存于独立的 `auto_backup_instance.json`（RUNTIME 类，恢复不覆盖；只在文件不存在时写入一次，读取失败不会重新生成，设置文件读不出来也不会连带改写它）；不用主机名（`localhost`、WSL 等会撞名）。多台设备共用同一个同步文件夹或 NAS 共享时，各自只列出、只裁剪带自己标记的文件，不会互相删备份。云端记忆备份的文件名也用这同一个标记（`services/memory/backup/remote_sync`），一个实例只有一个标记；生成标记的锁是模块级的，不同的 store 对象同时首次使用也只会生成一个。
 - **目标位置**：状态目录之外任意可写位置；状态目录之内只允许 `{state}/backups/`（策略分类为 LOCAL_HISTORY，不进归档、不被导入换入或清扫），其余位置一律拒绝。
 - **保留策略只动自己的文件**：只匹配本实例标记的 `.zip`、`.incomplete.zip` 与遗留的 `.partial`，手动下载、其他归档、其他实例的备份、符号链接永不列出、永不删除；完整备份成功后才裁剪完整备份（并清掉被它取代的 `.incomplete.zip`），失败与不完整的运行不会减少用户已有的完整备份，且刚写好的那份永不被裁掉。
 - **日期在未来的文件**（时钟曾被拨快后又校正）既不算「最近一次备份」（否则会让备份停摆到那个日期），也不被自动删除（时钟临时回拨时，真实备份会暂时看起来在未来）；它只占一个保留名额。记录的**尝试时刻**同理：晚于当前时间的尝试视为不存在（`schedule._attempt_so_far`），既不顶替读不到的文件夹，也不让失败后的重试被推迟到时钟追上它为止，下一次每小时检查即可重试；读不到的文件夹遇到这种尝试没有可依托的参考，会在下一次检查尝试备份，写入不可用即记为失败。
@@ -42,7 +42,7 @@
 |------|------|------|-------|
 | `__init__.py` | 门面 | 导出服务、调度入口与前后端共用常量 | ✅ |
 | `models.py` | 核心 | 设置/运行状态/备份文件契约、保留份数边界、实例标记格式、稳定错误码异常（无 I/O） | ✅ |
-| `store.py` | 核心 | 设置与运行状态的单文件 JSON 持久化（整体重写 + 锁，读到异常内容回落默认并钳到边界）；实例标记另存独立文件，首次使用时生成一次 | ✅ |
+| `store.py` | 核心 | 设置与运行状态的单文件 JSON 持久化（整体重写 + 锁，读到异常内容回落默认并钳到边界）；实例标记另存独立文件，首次使用时生成一次（锁为模块级，同一实例的所有 store 对象共用） | ✅ |
 | `destination.py` | 核心 | 目标文件夹解析（默认 `{state}/backups/instance`；`~用户名` 无法确定家目录时保持原样，由预检按 `backup_dir_invalid` 拒绝，而不是让每个调用方抛 `RuntimeError`）、校验、创建与可写探测；`prepare_destination_guarded` 经守卫执行同一件事，不回答的文件夹映射为 `backup_write_failed`（服务与运行器唯一的预检入口） | ✅ |
 | `retention.py` | 核心 | 带实例标记的文件命名（完整备份 `.zip` 与不完整副本 `.incomplete.zip`，后者不匹配前者的模式）、列举（最新在前；文件夹读不出时抛 `OSError`，不当作空）、最近一次备份（忽略未来日期）、裁剪（仅限本实例的文件：`prune` 裁完整备份并清不完整副本，`prune_incomplete` 只留最新一份不完整副本、不碰完整备份；读不出则不裁） | ✅ |
 | `folder_guard.py` | 核心 | 访问备份文件夹的有界守卫：单条私有守护线程逐个执行，`call` 最多等超时时间，`call_progressing` 按进展等待长搬运（连续无进展超时才放弃，无总时长上限；等待方自身被冻结时重置计时），`Pulse` 汇报进展并在被放弃后令操作收尾；卡住后后续调用立即失败，已放弃的排队调用不执行，空闲即退出。不让失联的共享拖垮共享线程池 | ✅ |
@@ -52,4 +52,4 @@
 
 ## 依赖方向
 
-`app/api/instance_archive/auto_backup.py` 与 `app/lifecycle/schedulers.py` → 本目录 → `app/services/instance_archive/{export_jobs,models,policy}` → `myrm_agent_harness.infra.state_archive`。本目录不依赖 API 层；父包不依赖本目录（`export_jobs` 只暴露 `done` / `is_busy` / 注册表供其使用）；harness 不感知本目录。
+`app/api/instance_archive/auto_backup.py` 与 `app/lifecycle/schedulers.py` → 本目录 → `app/services/instance_archive/{export_jobs,models,policy}` → `myrm_agent_harness.infra.state_archive`。`services/memory/backup/remote_sync/state.py` 只读取本目录的实例标记（`AutoBackupStore.tag()`）。本目录不依赖 API 层；父包不依赖本目录（`export_jobs` 只暴露 `done` / `is_busy` / 注册表供其使用）；harness 不感知本目录。

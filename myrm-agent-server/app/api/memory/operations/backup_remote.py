@@ -2,9 +2,10 @@
 
 Provides REST endpoints for managing remote backup sync:
 - Check connection
-- Trigger manual backup
-- List remote backups
+- Trigger manual backup (a success ends a failure streak of the scheduled sync)
+- List remote backups (a listing that cannot be read is an error, never an empty list)
 - Restore from remote backup (merges into the current memories, never deletes)
+- Read how the scheduled sync is doing
 - Configure auto-sync via Omni-Config (backupSync key)
 
 Backing up and restoring need a manager that stores directly (``get_crud_memory_manager``):
@@ -12,6 +13,7 @@ restored memories must not land in the approval queue.
 """
 
 import logging
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,6 +31,7 @@ from app.services.memory.backup.backup_remote_scheduler import (
     restore_from_remote,
     run_remote_backup,
 )
+from app.services.memory.backup.remote_sync import default_store, record_manual_success
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +70,8 @@ class RemoteBackupRequest(BaseModel):
     provider: Literal["webdav", "s3"] = Field(..., description="Storage provider type")
     webdav: WebDAVConfigRequest | None = None
     s3: S3ConfigRequest | None = None
-    device_name: str = Field("", description="Device identifier for backup naming")
-    max_backups: int = Field(10, ge=1, le=100, description="Max backups to retain per device")
+    device_name: str = Field("", description="Device label in the backup file name; empty uses the host name")
+    max_backups: int = Field(10, ge=1, le=100, description="Max backups to retain for this instance")
 
 
 class ConnectionCheckRequest(BaseModel):
@@ -112,7 +115,7 @@ class RemoteBackupListResponse(BaseModel):
 
 
 class RemoteBackupResponse(BaseModel):
-    """Response for backup/restore operations."""
+    """Response for backup/restore operations; ``error_code`` is the stable reason of a backup that did not succeed."""
 
     success: bool
     file_name: str | None = None
@@ -120,6 +123,7 @@ class RemoteBackupResponse(BaseModel):
     restored_count: int | None = None
     duration_ms: float = 0
     error: str | None = None
+    error_code: str | None = None
 
 
 class ConnectionCheckResponse(BaseModel):
@@ -127,6 +131,15 @@ class ConnectionCheckResponse(BaseModel):
 
     connected: bool
     error: str | None = None
+
+
+class RemoteAutoStatusResponse(BaseModel):
+    """How the scheduled backup is doing, as its runs recorded it (ISO 8601 moments)."""
+
+    last_success_at: str | None = None
+    last_attempt_at: str | None = None
+    last_error_code: str | None = None
+    consecutive_failures: int = 0
 
 
 # ============================================================================
@@ -154,22 +167,25 @@ async def trigger_backup(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> RemoteBackupResponse:
     """Trigger a manual remote backup."""
-    import platform
-
     try:
         strategy = _build_strategy(request.provider, request.webdav, request.s3)
+        store = default_store()
         result = await run_remote_backup(
             manager=manager,
             strategy=strategy,
-            device_name=request.device_name or platform.node(),
+            instance_tag=store.tag(),
+            device_name=request.device_name,
             max_backups=request.max_backups,
         )
+        if result.status == "ok":
+            record_manual_success(store, datetime.now(UTC))
         return RemoteBackupResponse(
-            success=result.get("success", False),
-            file_name=result.get("file_name"),
-            size_bytes=result.get("size_bytes"),
-            duration_ms=result.get("duration_ms", 0),
-            error=result.get("error"),
+            success=result.status == "ok",
+            file_name=result.file_name,
+            size_bytes=result.size_bytes,
+            duration_ms=result.duration_ms,
+            error=result.error,
+            error_code="busy" if result.status == "busy" else result.error_code,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
@@ -222,10 +238,10 @@ async def restore_remote_backup(
             file_name=request.file_name,
         )
         return RemoteBackupResponse(
-            success=result.get("success", False),
-            restored_count=result.get("restored_count"),
-            duration_ms=result.get("duration_ms", 0),
-            error=result.get("error"),
+            success=result.success,
+            restored_count=result.restored_count,
+            duration_ms=result.duration_ms,
+            error=result.error,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
@@ -235,6 +251,18 @@ async def restore_remote_backup(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Remote restore failed",
         ) from e
+
+
+@router.get("/auto-status", response_model=RemoteAutoStatusResponse)
+async def auto_sync_status() -> RemoteAutoStatusResponse:
+    """How the scheduled backup is doing: when it last succeeded and how the last attempt went."""
+    state = default_store().load()
+    return RemoteAutoStatusResponse(
+        last_success_at=state.last_success_at.isoformat() if state.last_success_at else None,
+        last_attempt_at=state.last_attempt_at.isoformat() if state.last_attempt_at else None,
+        last_error_code=state.last_error_code,
+        consecutive_failures=state.consecutive_failures,
+    )
 
 
 @router.post("/delete")

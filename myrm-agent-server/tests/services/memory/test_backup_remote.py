@@ -4,8 +4,8 @@ Tests core backup remote modules:
 - backup_remote.py: Strategy, config dataclasses
 - backup_remote_scheduler.py: _upload_with_retry, _rotate_backups, the run/restore guards
 - API endpoints: check-connection, trigger, list, restore, delete
-(the snapshot round trip, the WebDAV listing parser, the rotation matrix and the S3 client live in
-tests/services/memory/backup/)
+(the snapshot round trip, the WebDAV listing, the rotation matrix, the S3 client and the scheduled sync live in
+tests/services/memory/backup/; the status endpoint and the manual-backup recording in tests/api/memory/)
 """
 
 from __future__ import annotations
@@ -42,15 +42,11 @@ client = TestClient(app)
 class TestConfigDataclasses:
     def test_webdav_config_defaults(self):
         config = WebDAVBackupConfig()
-        assert config.enabled is False
         assert config.host == ""
         assert config.path == "/myrm-backups"
-        assert config.sync_interval_minutes == 60
-        assert config.max_backups == 10
 
     def test_s3_config_defaults(self):
         config = S3BackupConfig()
-        assert config.enabled is False
         assert config.endpoint == ""
         assert config.bucket == ""
         assert config.prefix == "myrm-backups/"
@@ -62,11 +58,10 @@ class TestConfigDataclasses:
             username="user",
             password="pass",
             path="/custom-path",
-            enabled=True,
         )
         assert config.host == "https://dav.example.com"
         assert config.username == "user"
-        assert config.enabled is True
+        assert config.path == "/custom-path"
 
     def test_remote_backup_file_frozen(self):
         f = RemoteBackupFile(
@@ -147,9 +142,11 @@ class TestRunRemoteBackup:
         sched._auto_backup_running = True
 
         strategy = InMemoryBackupStrategy()
-        result = await sched.run_remote_backup(manager=MagicMock(), strategy=strategy, device_name="test")
-        assert result["success"] is False
-        assert "already in progress" in str(result.get("error", "")).lower()
+        result = await sched.run_remote_backup(
+            manager=MagicMock(), strategy=strategy, instance_tag="1a2b3c4d", device_name="test"
+        )
+        assert result.status == "busy"
+        assert "already in progress" in str(result.error).lower()
 
         sched._auto_backup_running = original
 
@@ -167,15 +164,15 @@ class TestBackupRotation:
         strategy = InMemoryBackupStrategy()
         for i in range(5):
             ts = f"2025010{i}120000"
-            name = f"myrm.{ts}.myhost.linux.json.gz"
+            name = f"myrm.{ts}.myhost.1a2b3c4d.linux.json.gz"
             strategy._storage[name] = b"x" * 100
 
-        newest = "myrm.20250104120000.myhost.linux.json.gz"
-        await _rotate_backups(strategy, frozenset({"myhost"}), "linux", max_backups=3, keep=newest)
+        newest = "myrm.20250104120000.myhost.1a2b3c4d.linux.json.gz"
+        await _rotate_backups(strategy, "1a2b3c4d", max_backups=3, keep=newest)
 
         assert sorted(strategy._storage) == [
-            "myrm.20250102120000.myhost.linux.json.gz",
-            "myrm.20250103120000.myhost.linux.json.gz",
+            "myrm.20250102120000.myhost.1a2b3c4d.linux.json.gz",
+            "myrm.20250103120000.myhost.1a2b3c4d.linux.json.gz",
             newest,
         ]
 
@@ -184,11 +181,11 @@ class TestBackupRotation:
         from app.services.memory.backup.backup_remote_scheduler import _rotate_backups
 
         strategy = InMemoryBackupStrategy()
-        strategy._storage["myrm.20250101120000.host.linux.json.gz"] = b"data"
-        strategy._storage["myrm.20250102120000.host.linux.json.gz"] = b"data"
+        strategy._storage["myrm.20250101120000.host.1a2b3c4d.linux.json.gz"] = b"data"
+        strategy._storage["myrm.20250102120000.host.1a2b3c4d.linux.json.gz"] = b"data"
 
-        newest = "myrm.20250102120000.host.linux.json.gz"
-        await _rotate_backups(strategy, frozenset({"host"}), "linux", max_backups=5, keep=newest)
+        newest = "myrm.20250102120000.host.1a2b3c4d.linux.json.gz"
+        await _rotate_backups(strategy, "1a2b3c4d", max_backups=5, keep=newest)
 
         files = await strategy.list_files()
         assert len(files) == 2
@@ -210,8 +207,8 @@ class TestRestoreFromRemote:
             strategy=strategy,
             file_name="nonexistent.json.gz",
         )
-        assert result["success"] is False
-        assert "download" in str(result.get("error", "")).lower()
+        assert result.success is False
+        assert "download" in str(result.error).lower()
 
     @pytest.mark.asyncio
     async def test_restore_fails_on_invalid_version(self):
@@ -227,8 +224,8 @@ class TestRestoreFromRemote:
             strategy=strategy,
             file_name="old_backup.json.gz",
         )
-        assert result["success"] is False
-        assert "version" in str(result.get("error", "")).lower()
+        assert result.success is False
+        assert "version" in str(result.error).lower()
 
 
 # ============================================================================

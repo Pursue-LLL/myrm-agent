@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 from typing import TYPE_CHECKING
 
 from app.core.infra.background_task import spawn_observed_task
@@ -762,125 +761,54 @@ async def stop_kanban_dispatchers() -> None:
 _remote_backup_scheduler_task: asyncio.Task[None] | None = None
 
 
-def _section(config: dict[str, object], key: str) -> dict[str, object]:
-    section = config.get(key)
-    return section if isinstance(section, dict) else {}
-
-
-def _text(config: dict[str, object], key: str, default: str = "") -> str:
-    value = config.get(key)
-    return value if isinstance(value, str) else default
-
-
-def _flag(config: dict[str, object], key: str, default: bool) -> bool:
-    value = config.get(key)
-    return value if isinstance(value, bool) else default
-
-
-def _count(config: dict[str, object], key: str, default: int) -> int:
-    value = config.get(key)
-    return value if isinstance(value, int) and not isinstance(value, bool) else default
-
-
 async def _remote_backup_auto_sync_job() -> None:
-    """Periodic remote backup job. Reads config and syncs if enabled."""
+    """Hourly check of the scheduled remote memory backup; starts one only when the user's interval has passed."""
     try:
-        from app.services.config.service import config_service
-
-        record = await config_service.get("backupSync")
-        if not record:
-            return
-
-        value = record.value if hasattr(record, "value") else {}
-        enabled = value.get("enabled", False)
-        auto_sync = value.get("autoSync", False)
-
-        if not enabled or not auto_sync:
-            return
-
-        provider = _text(value, "provider")
-        if not provider:
-            return
+        from datetime import UTC, datetime
 
         from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
-        from app.services.memory.backup.backup_remote import (
-            RemoteBackupStrategy,
-            S3BackupConfig,
-            S3BackupStrategy,
-            WebDAVBackupConfig,
-            WebDAVBackupStrategy,
+        from app.services.config.service import config_service
+        from app.services.memory.backup.remote_sync import default_store, sync_tick
+
+        record = await config_service.get("backupSync")
+        await sync_tick(
+            record.value if record else None,
+            store=default_store(),
+            manager_factory=create_guardian_memory_manager,
+            now=datetime.now(UTC),
         )
-        from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
-
-        device_name = _text(value, "deviceName") or platform.node()
-        max_backups = _count(value, "maxBackups", 10)
-
-        strategy: RemoteBackupStrategy
-        if provider == "webdav":
-            webdav_cfg = _section(value, "webdav")
-            strategy = WebDAVBackupStrategy(
-                WebDAVBackupConfig(
-                    host=_text(webdav_cfg, "host"),
-                    username=_text(webdav_cfg, "username"),
-                    password=_text(webdav_cfg, "password"),
-                    path=_text(webdav_cfg, "path", "/myrm-backups"),
-                )
-            )
-        elif provider == "s3":
-            s3_cfg = _section(value, "s3")
-            strategy = S3BackupStrategy(
-                S3BackupConfig(
-                    endpoint=_text(s3_cfg, "endpoint"),
-                    region=_text(s3_cfg, "region"),
-                    bucket=_text(s3_cfg, "bucket"),
-                    access_key_id=_text(s3_cfg, "accessKeyId"),
-                    secret_access_key=_text(s3_cfg, "secretAccessKey"),
-                    prefix=_text(s3_cfg, "prefix", "myrm-backups/"),
-                    force_path_style=_flag(s3_cfg, "forcePathStyle", True),
-                )
-            )
-        else:
-            logger.warning("Unknown backup provider: %s", provider)
-            return
-
-        result = await run_remote_backup(
-            manager=await create_guardian_memory_manager(),
-            strategy=strategy,
-            device_name=device_name,
-            max_backups=max_backups,
-        )
-
-        if result.get("success"):
-            logger.info("Auto remote backup completed: %s", result.get("file_name"))
-        else:
-            logger.warning("Auto remote backup failed: %s", result.get("error"))
-
     except Exception as exc:
         logger.warning("Remote backup auto-sync job failed: %s", exc)
 
 
 async def start_remote_backup_scheduler() -> None:
-    """Start remote backup auto-sync scheduler.
+    """Start the hourly check of the scheduled remote memory backup.
 
-    Default interval: 60 minutes (configurable via backupSync config).
-    Only runs if backupSync.enabled and backupSync.autoSync are true.
+    Whether a backup is due comes from the recorded last success and the user's ``backupSync.syncInterval``, so a
+    restart never repeats one. The job does nothing unless ``backupSync.enabled`` and ``backupSync.autoSync`` are true.
     """
     global _remote_backup_scheduler_task
 
     try:
+        from datetime import UTC, datetime, timedelta
+
         from apscheduler import AsyncScheduler
         from apscheduler.triggers.interval import IntervalTrigger
 
+        from app.services.memory.backup.remote_sync.schedule import TICK_MINUTES
+
         async def run_scheduler() -> None:
             async with AsyncScheduler() as scheduler:
+                # First check a few minutes after boot (not at once) so a backup due from a closed period does
+                # not compete with startup.
                 await scheduler.add_schedule(
                     _remote_backup_auto_sync_job,
-                    IntervalTrigger(minutes=60),
+                    IntervalTrigger(minutes=TICK_MINUTES, start_time=datetime.now(UTC) + timedelta(minutes=5)),
                     id="remote_backup_auto_sync",
                 )
                 # APScheduler runs schedules only after an explicit start.
                 await scheduler.start_in_background()
-                logger.info("Remote backup auto-sync scheduler started (every 60 min)")
+                logger.info("Remote backup auto-sync scheduler started (checks every %d min)", TICK_MINUTES)
                 await asyncio.Event().wait()
 
         _remote_backup_scheduler_task = spawn_observed_task(run_scheduler(), name="remote_backup_auto_sync")

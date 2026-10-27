@@ -153,6 +153,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
+| `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付）；任务内任何失败都不逃逸给调度器 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
@@ -395,7 +396,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/statistics/test_pending_approvals_integration.py` | 模块 | pendingApprovals 全链路集成（真实 store seed IN_REVIEW → badges/fleet KPI 反映真实行；approve/reject 后回落；goal+kanban 合并） |
 | `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级） |
 | `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
-| `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页、自动备份告警直达备份设置） |
+| `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页、自动备份告警直达备份设置、云端同步告警直达云端备份页） |
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
 | `platform_utils/sandbox/_ARCH.md` | 模块 | `platform_utils/sandbox` 业务逻辑回归（platform provider seed 14 例 + tool gateway merge），见子目录清单 |
 | `services/skills/test_scan_risk_policy.py` | 模块 | 后台学习的高危新增复核策略（真实扫描器）：新技能对比空内容、同类发现数量增加仍判新增（计数差分）、原有发现不重复拦截、语境型类别仅 CRITICAL 生效、扫描异常 fail-closed、信号词汇 |
@@ -403,9 +404,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
-| `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理）· `test_remote_rotation.py`（按文件名时间戳留最新、不删自己没写的文件、设备名包含/带点/按输入写法的轮转、单个删除失败不中断、`max_backups` 为 0 不轮转、设备名清洗）· `test_remote_s3_client.py`（S3 备份客户端：前缀下往返、列表跳过目录占位、空桶、每次操作只开关一个客户端、区域与端点缺省、失败如实上报）· `test_remote_webdav_parser.py`（WebDAV 列表解析：非 `.gz` 过滤、名字按上传时的写法还原、解码后含路径分隔符的条目跳过） |
+| `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理）· `test_remote_rotation.py`（按文件名时间戳留最新、刚上传的一份总被保留、不删自己没写的文件、共用文件夹且设备名相同的两个实例互不裁剪、改设备名后历史仍按实例标记轮转、设备名带点或形似标记也能轮转、单个删除失败不中断、`max_backups` 为 0 不轮转、列表读不到时跳过轮转且备份仍算成功、设备名清洗）· `test_remote_s3_client.py`（S3 备份客户端：前缀下往返、列表跳过目录占位、空桶、每次操作只开关一个客户端、区域与端点缺省、写失败如实报告为不成功而列表抛出，客户端照常关闭）· `test_remote_webdav_parser.py`（WebDAV 列表解析：非 `.gz` 过滤、名字按上传时的写法还原、解码后含路径分隔符的条目跳过）· `test_remote_webdav_listing.py`（真实 WebDAV 客户端经进程内 httpx 传输：读取文件夹里的备份、文件夹尚不存在为空、被拒绝与服务器不可达都抛出而不是当作空文件夹） |
+| `services/memory/backup/remote_sync/` | 模块 | 云端定时备份：`test_remote_sync_schedule.py`（纯规则、显式时钟：间隔钳在一个 tick 到一天之间、到期与抖动余量、未来日期的成功不算数、失败等下个 tick 重试、连续失败只告警一次且短暂故障静默）· `test_remote_sync_state.py`（真实文件：往返、损坏文件回落默认、恶意取值钳制、状态位于 RUNTIME 目录而不被实例导入替换、整实例备份与远程备份共用同一个实例标记、两个 store 同时首次使用也只生成一个标记）· `test_remote_sync_job.py`（真实 tick 与状态文件，只替换备份运行器与记忆管理器：关闭时不运行、到期才备份且以所选间隔为准、重启不重传、失败记录并重试、每段连续失败只告警一次、忙不记失败、设置与记忆存储失败分别记 `config`/`internal`、手动备份结束失败期、告警走事件总线且发布失败不崩溃） |
 | `services/memory/test_backup_remote.py` | 模块 | 远程备份策略与调度：配置、`_upload_with_retry`、`_rotate_backups`、运行互斥、下载失败与版本不符的恢复拒绝、远程备份路由（配置缺失与可达性） |
 | `api/memory/test_memory_backup_smoke.py` | 集成 | 备份 HTTP 全流程（真实路由 + 服务 + 卷存储 + 离线记忆管理器）：创建→列表→覆盖恢复（含自动留底）→删除；合并恢复；未知/畸形 id 404 且不动记忆；快照不完整与备份损坏的 `success=false` 响应形状 |
+| `api/memory/test_remote_backup_api.py` | 单元 | 云端备份 HTTP 面（真实路由 + 临时状态目录，运行器与远端存储替换）：定时备份状态（从未运行为空、如实反映记录）· 列表（列出备份；读不到是错误而不是空列表）· 立即备份（带本实例标记与按输入的设备名；成功结束失败期；不成功时带稳定 `error_code` 且不计入定时备份的失败）· 恢复的类型化结果 · 远端拒绝的删除报告失败 |
 | `lifecycle/test_cognitive_clock.py` | 模块 | 认知时钟调度：T2 维护流水线每一步按真实签名调用（签名约束桩 autospec，健康快照与 SQLite 备份的调用必须匹配真实签名）、T3 仅随 T2 放行的 tick 且满一周才运行、首次读取唤醒守卫前的 15 分钟空闲间隔不遮住用户活动让步、唤醒心跳随协调器启停 |
 | `lifecycle/test_wakeup_guard.py` | 模块 | 唤醒平滑守卫：两次读取之间的空闲间隔本身不算唤醒、墙钟与单调时钟漂移不论间隔多长都算唤醒、心跳运行期间的漏拍算唤醒、心跳启动时忘掉此前的时间、心跳停止期间的空闲间隔不算冻结 |
 | `lifecycle/test_cognitive_clock_schedule.py` | 模块 | 虚拟时钟下真实协调器循环 + 唤醒心跳 + 守卫的节拍：空闲不算唤醒、间隔中途宿主挂起不拖延下一轮 T2、轮前一分钟挂起则等宽限期后重试、整个场景里 T3 只运行一次 |
