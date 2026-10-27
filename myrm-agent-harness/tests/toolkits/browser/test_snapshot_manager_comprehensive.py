@@ -31,15 +31,17 @@ async def test_snapshot_with_optimization_tip() -> None:
         assert "scope='interactive'" in result.tree or "compact=True" in result.tree
         assert result.meta.ref_count == len(refs)
 
+
 @pytest.mark.asyncio
 async def test_snapshot_manager_diff_output_integration() -> None:
     """测试 SnapshotManager 全流程集成：diff=True 时的 baseline 维护、Fast Path 与指标暴露"""
     mock_page = MagicMock()
     # 构建具有一定体积的树结构以验证 Token 节省度量
-    tree_1 = "\n".join([f'  e{i}: [button] "Action item {i} in current view with detailed description"' for i in range(20)])
+    tree_1 = "\n".join(
+        [f'  e{i}: [button] "Action item {i} in current view with detailed description"' for i in range(20)]
+    )
     refs_1 = {
-        f"e{i}": RefInfo(role="button", name=f"Action item {i}", nth=None, bbox=None, position=None)
-        for i in range(20)
+        f"e{i}": RefInfo(role="button", name=f"Action item {i}", nth=None, bbox=None, position=None) for i in range(20)
     }
 
     with patch("myrm_agent_harness.toolkits.browser.snapshot.FrameRegistry") as mock_page_snapshot_cls:

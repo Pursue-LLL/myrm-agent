@@ -575,4 +575,3 @@ class TestBuiltinCnSocialPacks:
         assert "get_video_feed" in dy.python_tools
         assert store.is_builtin("douyin") is True
         assert len(store.match("https://www.douyin.com/hot")) >= 1
-

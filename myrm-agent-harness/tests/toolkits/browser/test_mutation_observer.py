@@ -137,9 +137,7 @@ async def test_observer_recovers_after_body_replacement(browser_session: Browser
     await browser_session.new_tab("about:blank")
 
     tab_handle = browser_session._tab_controller._tabs["tab0"]
-    await tab_handle.page.set_content(
-        "<!DOCTYPE html><html><body><button id='btn'>Old</button></body></html>"
-    )
+    await tab_handle.page.set_content("<!DOCTYPE html><html><body><button id='btn'>Old</button></body></html>")
 
     manager = browser_session._snapshot_manager
     page_snapshot = manager._frame_registry

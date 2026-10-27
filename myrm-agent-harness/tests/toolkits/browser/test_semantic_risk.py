@@ -449,5 +449,3 @@ def test_type_without_newline_on_high_risk_element_safe(text: str):
     verdict = classify_interaction_risk("type", ref, text=text)
     assert verdict.level is SemanticRiskLevel.SAFE
     assert verdict.reason == ""
-
-

@@ -47,9 +47,7 @@ def _browser_processes(driver: psutil.Process) -> list[psutil.Process]:
     if found:
         return found
     return [
-        proc
-        for proc in psutil.Process().children(recursive=True)
-        if _is_alive(proc) and _is_chromium_process(proc)
+        proc for proc in psutil.Process().children(recursive=True) if _is_alive(proc) and _is_chromium_process(proc)
     ]
 
 

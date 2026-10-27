@@ -171,11 +171,14 @@ class TestNavigatorThrottleIntegration:
 
         navigator = Navigator(mock_page, throttle=mock_throttle)
 
-        with patch.object(
-            Navigator,
-            "_do_navigate",
-            new=AsyncMock(side_effect=RuntimeError("Navigation failed")),
-        ), pytest.raises(RuntimeError):
+        with (
+            patch.object(
+                Navigator,
+                "_do_navigate",
+                new=AsyncMock(side_effect=RuntimeError("Navigation failed")),
+            ),
+            pytest.raises(RuntimeError),
+        ):
             await navigator.goto("https://example.com")
 
         mock_throttle.record_response.assert_called_once_with("https://example.com", False)

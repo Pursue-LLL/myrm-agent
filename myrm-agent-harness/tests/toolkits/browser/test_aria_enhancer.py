@@ -523,4 +523,3 @@ class TestAriaEnhancer:
 
         assert enhanced[0].hover_hint == "[hover first: Shoes | Bags | Accessories]"
         assert enhanced[1].hover_hint is None
-

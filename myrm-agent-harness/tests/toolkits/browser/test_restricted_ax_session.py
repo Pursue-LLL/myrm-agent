@@ -21,6 +21,7 @@ def test_restricted_ax_session_flags_and_eval_blocking():
     # evaluate() must physically raise RestrictedAxSecurityViolationError
     with pytest.raises(RestrictedAxSecurityViolationError) as exc_info:
         import asyncio
+
         asyncio.run(session.evaluate("document.cookie"))
 
     err_msg = str(exc_info.value)

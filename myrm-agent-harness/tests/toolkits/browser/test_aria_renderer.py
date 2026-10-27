@@ -123,4 +123,3 @@ class TestAriaRenderer:
         assert '- button "Products" [ref=e0] [hover first: Shoes | Bags]' in text
         assert '- [blocked] button "Old Button"' in text
         assert meta.ref_count == 1
-

@@ -278,4 +278,3 @@ class TestBrowserObservability:
         obs.cleanup_recording()
 
         assert obs.video_path == new_video
-
