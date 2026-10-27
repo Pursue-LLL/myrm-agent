@@ -4,9 +4,11 @@ import { render, screen } from '@testing-library/react';
 import type { Task } from '@/store/tasks/types';
 import { MediaTaskRow } from '../MediaTaskRow';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: (namespace?: string) => (key: string) => (namespace ? `${namespace}.${key}` : key),
+  useTranslations: () => stableT,
 }));
 
 function failedTask(error: Task['error']): Task {
@@ -36,7 +38,7 @@ describe('MediaTaskRow', () => {
       />,
     );
 
-    expect(screen.getByText('taskCard.interrupted')).toBeInTheDocument();
+    expect(screen.getByText('interrupted')).toBeInTheDocument();
     expect(screen.queryByText(/interrupted before it finished/)).not.toBeInTheDocument();
   });
 
