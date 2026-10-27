@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.security.share.share_hmac (POS: HMAC signing + password-protection detection)
+- app.core.security.share.share_attempt_guard (POS: wrong-password lockout for the gate)
 - app.core.security.share.share_headers (POS: shared share privacy headers)
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
@@ -31,7 +32,10 @@ to expiry to issue an unlock cookie (no redirect loop). The HMAC unlock
 credential issued after a correct password keeps the share's ``artifact_type``
 so extension-less entries (e.g. a PDF artifact named without a suffix) still
 resolve the right media type when the browser re-authenticates via the unlock
-cookie instead of a password parameter.
+cookie instead of a password parameter. Wrong passwords are counted per share and
+client; after five the gate answers 429 with ``Retry-After`` and refuses further
+guesses (even a correct one) until the window passes, while visitors holding an
+unlock cookie keep their access.
 """
 
 from __future__ import annotations
@@ -44,6 +48,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
 from app.core.infra.limiter import limiter
+from app.core.security.share.share_attempt_guard import (
+    password_lockout_response,
+    record_password_failure,
+    record_password_success,
+)
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import is_password_protected
 from app.core.security.share.share_password_page import (
@@ -221,9 +230,10 @@ def _auth_or_gate(
     """Authenticate a password-protected share using ``p`` or a prior unlock cookie.
 
     Returns ``ArtifactShareClaims`` on success, or a ``Response`` (password-gate
-    page or 404 status page) when a password is required but missing/wrong or
-    the share is invalid/expired. The unlock cookie lets static-asset requests
-    (which do not carry the password) pass once unlocked.
+    page, its 429 locked-out variant, or 404 status page) when a password is
+    required but missing/wrong/locked out or the share is invalid/expired. The
+    unlock cookie lets static-asset requests (which do not carry the password)
+    pass once unlocked.
     """
     protected = is_password_protected(token)
     if protected and not password:
@@ -234,9 +244,14 @@ def _auth_or_gate(
                 return unlocked_claims
         return HTMLResponse(render_password_gate_html(), status_code=403)
 
+    guessing = protected and bool(password)
+    if guessing and (locked := password_lockout_response(request, token)) is not None:
+        return locked
+
     claims = parse_artifact_share_token(token, password=password)
     if claims is None:
-        if protected and password:
+        if guessing:
+            record_password_failure(request, token)
             return HTMLResponse(
                 render_password_gate_html(wrong_password=True),
                 status_code=403,
@@ -248,6 +263,8 @@ def _auth_or_gate(
             message="This share link has expired or is no longer valid.",
             headers=_SHARE_RESPONSE_HEADERS,
         )
+    if guessing:
+        record_password_success(request, token)
     return claims
 
 
@@ -304,22 +321,22 @@ async def get_public_artifact_share(
     if revoked_response is not None:
         return revoked_response
     result = _auth_or_gate(request, token, password)
-    if isinstance(result, HTMLResponse):
+    if isinstance(result, Response):
         return result
     secure = request.url.scheme == "https"
     if request.method == "POST":
         redirect_path = str(request.url.path)
         if bundle_asset_count(result) > 1 and not redirect_path.endswith("/"):
             redirect_path += "/"
-        response = RedirectResponse(url=redirect_path, status_code=303)
-        if _attach_unlock_cookie(response, result, token, password, secure=secure):
-            return response
+        redirect = RedirectResponse(url=redirect_path, status_code=303)
+        if _attach_unlock_cookie(redirect, result, token, password, secure=secure):
+            return redirect
         return await _serve_share_bundle(result, db, workspace_root, None, request)
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
-        response = RedirectResponse(url=redirect_url, status_code=307)
-        _attach_unlock_cookie(response, result, token, password, secure=secure)
-        return response
+        redirect = RedirectResponse(url=redirect_url, status_code=307)
+        _attach_unlock_cookie(redirect, result, token, password, secure=secure)
+        return redirect
     response = await _serve_share_bundle(result, db, workspace_root, None, request)
     _attach_unlock_cookie(response, result, token, password, secure=secure)
     return response
@@ -340,12 +357,12 @@ async def get_public_artifact_share_index(
     if revoked_response is not None:
         return revoked_response
     result = _auth_or_gate(request, token, password)
-    if isinstance(result, HTMLResponse):
+    if isinstance(result, Response):
         return result
     if request.method == "POST":
-        response = RedirectResponse(url=str(request.url.path), status_code=303)
-        if _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https"):
-            return response
+        redirect = RedirectResponse(url=str(request.url.path), status_code=303)
+        if _attach_unlock_cookie(redirect, result, token, password, secure=request.url.scheme == "https"):
+            return redirect
         return await _serve_share_bundle(result, db, workspace_root, None, request)
     response = await _serve_share_bundle(result, db, workspace_root, None, request)
     _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https")
@@ -368,11 +385,11 @@ async def get_public_artifact_share_asset(
     if revoked_response is not None:
         return revoked_response
     result = _auth_or_gate(request, token, password)
-    if isinstance(result, HTMLResponse):
+    if isinstance(result, Response):
         return result
     if request.method == "POST":
-        response = RedirectResponse(url=str(request.url.path), status_code=303)
-        if _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https"):
-            return response
+        redirect = RedirectResponse(url=str(request.url.path), status_code=303)
+        if _attach_unlock_cookie(redirect, result, token, password, secure=request.url.scheme == "https"):
+            return redirect
         return await _serve_share_bundle(result, db, workspace_root, asset_path, request)
     return await _serve_share_bundle(result, db, workspace_root, asset_path, request)

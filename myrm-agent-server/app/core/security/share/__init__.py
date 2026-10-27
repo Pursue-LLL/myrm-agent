@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - Aggregate facade re-exporting every public name from the ``share`` subpackage:
-  - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint
+  - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload
+  - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
   - share_status_page: browser-friendly share 404 page + Accept-based JSON fallback
   - share_unlock: per-share unlock-cookie name/credential mechanics
@@ -19,11 +20,17 @@ attributes, TTL thresholds, privacy headers, password handling) stay centralized
 and can never drift apart.
 """
 
+from app.core.security.share.share_attempt_guard import (
+    password_lockout_response,
+    record_password_failure,
+    record_password_success,
+)
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import (
     b64url_decode,
     b64url_encode,
     create_share_token,
+    decode_unverified_payload,
     is_password_protected,
     parse_share_token,
     sign_share_token,
@@ -52,9 +59,13 @@ __all__ = [
     "b64url_encode",
     "build_unlock_credential",
     "create_share_token",
+    "decode_unverified_payload",
     "is_password_protected",
     "parse_share_token",
     "parse_unlock_credential",
+    "password_lockout_response",
+    "record_password_failure",
+    "record_password_success",
     "render_password_gate_html",
     "render_share_status_html",
     "resolve_gate_password",

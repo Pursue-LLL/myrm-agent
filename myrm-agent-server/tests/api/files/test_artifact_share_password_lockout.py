@@ -1,0 +1,147 @@
+"""Password-gate lockout of the public artifact share routes (real router, stubbed bundle serving)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi import FastAPI, Response
+from fastapi.testclient import TestClient
+
+from app.api.dependencies import get_workspace_root
+from app.api.files.artifact_share_public import public_router
+from app.core.security.share.share_hmac import b64url_encode
+from app.core.security.share.share_unlock import unlock_cookie_name
+from app.database.connection import get_db
+from app.services.artifacts.share.share_token import create_artifact_share_token
+
+_PASSWORD = "s3cret"
+_BASE = "/public/artifact-share"
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    app = FastAPI()
+    app.include_router(public_router, prefix=_BASE)
+
+    async def _no_db() -> None:
+        return None
+
+    async def _workspace_root() -> str:
+        return "/unused"
+
+    app.dependency_overrides[get_db] = _no_db
+    app.dependency_overrides[get_workspace_root] = _workspace_root
+    with (
+        patch("app.api.files.artifact_share_public.is_token_revoked", new=AsyncMock(return_value=False)),
+        patch("app.api.files.artifact_share_public._serve_share_bundle", new=AsyncMock(return_value=Response("shared"))),
+        TestClient(app) as test_client,
+    ):
+        yield test_client
+
+
+def _protected_token(artifact_id: str = "artifact-1") -> str:
+    token, _ = create_artifact_share_token(artifact_id, "version-1", ttl_seconds=3600, password=_PASSWORD)
+    return token
+
+
+def _guess(client: TestClient, token: str, password: str, *, post: bool = False) -> Response:
+    if post:
+        return client.post(f"{_BASE}/{token}", data={"p": password}, follow_redirects=False)
+    return client.get(f"{_BASE}/{token}", params={"p": password}, follow_redirects=False)
+
+
+def test_wrong_guesses_answer_403_then_the_sixth_attempt_is_429(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(5):
+        wrong = _guess(client, token, "wrong")
+        assert wrong.status_code == 403
+        assert "Incorrect password" in wrong.text
+
+    locked = _guess(client, token, "wrong")
+
+    assert locked.status_code == 429
+    assert 1 <= int(locked.headers["Retry-After"]) <= 60
+    assert "Too many incorrect attempts" in locked.text
+
+
+def test_locked_share_rejects_even_the_correct_password(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(5):
+        _guess(client, token, "wrong")
+
+    assert _guess(client, token, _PASSWORD).status_code == 429
+    assert _guess(client, token, _PASSWORD, post=True).status_code == 429
+
+
+def test_form_submissions_count_like_query_guesses(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(5):
+        assert _guess(client, token, "wrong", post=True).status_code == 403
+
+    assert _guess(client, token, "wrong", post=True).status_code == 429
+
+
+def test_index_and_asset_routes_share_the_same_lockout(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(5):
+        assert client.get(f"{_BASE}/{token}/", params={"p": "wrong"}).status_code == 403
+
+    assert client.get(f"{_BASE}/{token}/app.js", params={"p": _PASSWORD}).status_code == 429
+    assert _guess(client, token, _PASSWORD).status_code == 429
+
+
+def test_other_shares_are_unaffected(client: TestClient) -> None:
+    locked_token = _protected_token("artifact-1")
+    other_token = _protected_token("artifact-2")
+    for _ in range(5):
+        _guess(client, locked_token, "wrong")
+
+    assert _guess(client, other_token, _PASSWORD).status_code == 200
+
+
+def test_correct_password_resets_the_failure_count(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(4):
+        _guess(client, token, "wrong")
+    assert _guess(client, token, _PASSWORD).status_code == 200
+
+    for _ in range(4):
+        assert _guess(client, token, "wrong").status_code == 403
+    assert _guess(client, token, _PASSWORD).status_code == 200
+
+
+def test_unlock_cookie_holders_are_not_locked_out(client: TestClient) -> None:
+    token = _protected_token()
+    unlocked = _guess(client, token, _PASSWORD)
+    cookie_name = unlock_cookie_name("artifact_share_unlock", token)
+    cookie = unlocked.cookies.get(cookie_name)
+    assert cookie is not None
+    for _ in range(5):
+        _guess(client, token, "wrong")
+
+    revisit = client.get(f"{_BASE}/{token}", headers={"Cookie": f"{cookie_name}={cookie}"})
+
+    assert revisit.status_code == 200
+
+
+def test_requests_without_a_password_never_count(client: TestClient) -> None:
+    token = _protected_token()
+    for _ in range(10):
+        assert client.get(f"{_BASE}/{token}").status_code == 403
+
+    assert _guess(client, token, _PASSWORD).status_code == 200
+
+
+def test_unprotected_links_never_lock(client: TestClient) -> None:
+    token, _ = create_artifact_share_token("artifact-1", "version-1", ttl_seconds=3600)
+    for _ in range(10):
+        assert _guess(client, token, "anything").status_code != 429
+
+
+@pytest.mark.parametrize("body", [b"[1]", b"1", b'"x"', b"null"])
+def test_token_with_a_non_object_body_is_an_invalid_link_not_a_server_error(client: TestClient, body: bytes) -> None:
+    response = client.get(f"{_BASE}/{b64url_encode(body)}.sig", headers={"Accept": "application/json"})
+
+    assert response.status_code == 404

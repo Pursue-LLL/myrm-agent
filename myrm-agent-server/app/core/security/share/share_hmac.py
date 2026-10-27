@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - create_share_token / sign_share_token / parse_share_token / is_password_protected
+- decode_unverified_payload: signature-less payload read (JSON objects only) for lifecycle lookups
 - token_fingerprint: deterministic non-reversible lookup key for persisted shares
 - sign_share_token: sign with an explicit ``exp`` (used to rebuild persisted
   links from registry fields); create_share_token derives exp from ttl
@@ -117,6 +118,20 @@ def create_share_token(
     return sign_share_token(payload, salt=salt, exp=exp, password=password), exp
 
 
+def decode_unverified_payload(token: str) -> dict[str, Any] | None:
+    """Decode a token's payload without checking its signature.
+
+    Anonymous callers choose the token text, so anything but a JSON object yields ``None``.
+    """
+    if not token or "." not in token:
+        return None
+    try:
+        decoded = json.loads(b64url_decode(token.rsplit(".", 1)[0]))
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return decoded if isinstance(decoded, dict) else None
+
+
 def parse_share_token(
     token: str,
     *,
@@ -128,12 +143,8 @@ def parse_share_token(
         return None
     body, sig = token.rsplit(".", 1)
 
-    try:
-        raw: dict[str, Any] = json.loads(b64url_decode(body))
-    except (json.JSONDecodeError, ValueError):
-        return None
-
-    if raw.get("v") != _TOKEN_VERSION:
+    raw = decode_unverified_payload(token)
+    if raw is None or raw.get("v") != _TOKEN_VERSION:
         return None
 
     is_protected = raw.get("p") == 1
@@ -154,14 +165,8 @@ def parse_share_token(
 
 def is_password_protected(token: str) -> bool:
     """Check if a token requires a password without full verification."""
-    if not token or "." not in token:
-        return False
-    body = token.rsplit(".", 1)[0]
-    try:
-        raw = json.loads(b64url_decode(body))
-    except (json.JSONDecodeError, ValueError):
-        return False
-    return isinstance(raw, dict) and raw.get("p") == 1
+    raw = decode_unverified_payload(token)
+    return raw is not None and raw.get("p") == 1
 
 
 def token_fingerprint(token: str) -> str:

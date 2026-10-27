@@ -26,8 +26,8 @@ Operation = tuple[str, str]
 
 _SELF_AUTHENTICATED: dict[Operation, str] = {
     ("POST", "/api/v1/public/artifact-share/{token}"): (
-        "read-only serving: the HMAC-signed token in the path and an optional body password gate access "
-        "(app/api/files/artifact_share_public.py `_auth_or_gate`)"
+        "read-only serving: the HMAC-signed token in the path and an optional body password gate access, "
+        "wrong passwords are locked out per share and client (app/api/files/artifact_share_public.py `_auth_or_gate`)"
     ),
     ("POST", "/api/v1/public/artifact-share/{token}/"): "same gate as the bare token route",
     ("POST", "/api/v1/public/artifact-share/{token}/{asset_path}"): "same gate as the bare token route",

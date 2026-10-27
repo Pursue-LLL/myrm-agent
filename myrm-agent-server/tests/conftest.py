@@ -527,6 +527,20 @@ def _isolate_oauth_token_state() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _isolate_share_password_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Start every test with an empty share-password failure memory.
+
+    Failures are keyed by share token and client address; tests mint identical tokens within the same second
+    and always call from the same test client, so one test's wrong guesses would lock the next one out.
+    """
+    module = sys.modules.get("app.core.security.share.share_attempt_guard")
+    if module is not None:
+        from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
+
+        monkeypatch.setattr(module, "_guard", FailedAttemptGuard())
+
+
+@pytest.fixture(autouse=True)
 def _isolate_subagent_checkpointer() -> Iterator[None]:
     """Give every test its own sub-agent checkpointer.
 

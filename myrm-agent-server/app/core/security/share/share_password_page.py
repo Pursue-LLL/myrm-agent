@@ -4,7 +4,7 @@
 - starlette.requests::Request (POS: password-gate form submission)
 
 [OUTPUT]
-- render_password_gate_html: returns a self-contained HTML page
+- render_password_gate_html: returns a self-contained HTML page (optionally in the locked-out variant)
 - resolve_gate_password: resolves the gate password from a POST form / GET query
 
 [POS]
@@ -55,6 +55,8 @@ button{width:100%%;padding:.625rem;border:none;border-radius:8px;
 background:#6366f1;color:#fff;font-size:.875rem;font-weight:500;
 cursor:pointer;margin-top:.75rem;transition:background .15s}
 button:hover{background:#4f46e5}
+button:disabled,input:disabled{opacity:.5;cursor:not-allowed}
+button:disabled:hover{background:#6366f1}
 .err{color:#ef4444;font-size:.8125rem;margin-top:.5rem;display:%(err_display)s}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}}
 </style>
@@ -65,8 +67,8 @@ button:hover{background:#4f46e5}
 <h1>Password Required</h1>
 <p>This shared content is password-protected.</p>
 <form method="post" action="">
-<input type="password" name="p" placeholder="Enter password" required autofocus/>
-<button type="submit">Unlock</button>
+<input type="password" name="p" placeholder="Enter password" required autofocus%(disabled)s/>
+<button type="submit"%(disabled)s>Unlock</button>
 </form>
 <div class="err">%(err_msg)s</div>
 </div>
@@ -74,12 +76,23 @@ button:hover{background:#4f46e5}
 </html>"""
 
 
-def render_password_gate_html(*, wrong_password: bool = False) -> str:
-    """Return self-contained HTML for the password gate page."""
+def render_password_gate_html(*, wrong_password: bool = False, retry_after: int | None = None) -> str:
+    """Return self-contained HTML for the password gate page.
+
+    ``retry_after`` renders the locked-out variant: the form is disabled and the
+    visitor is told how many seconds remain before another attempt is accepted.
+    """
+    if retry_after is not None:
+        message = f"Too many incorrect attempts. Try again in {retry_after} seconds."
+    elif wrong_password:
+        message = "Incorrect password. Please try again."
+    else:
+        message = ""
     return _TEMPLATE % {
         "lock_svg": _LOCK_SVG,
-        "err_display": "block" if wrong_password else "none",
-        "err_msg": "Incorrect password. Please try again." if wrong_password else "",
+        "err_display": "block" if message else "none",
+        "err_msg": message,
+        "disabled": " disabled" if retry_after is not None else "",
     }
 
 

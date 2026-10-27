@@ -5,6 +5,7 @@
 - app.services.chat.share_renderer (POS: HTML generation)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
 - app.core.security.share.share_hmac (POS: password-protection detection)
+- app.core.security.share.share_attempt_guard (POS: wrong-password lockout for the gate)
 - app.core.security.share.share_headers (POS: shared share privacy headers)
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
@@ -27,7 +28,10 @@ revoke, so recreating a share for the same chat can never resurrect a previously
 revoked link; previously issued (non-revoked) links keep working until their own
 TTL expires. Revoked or deleted links are retired before the password gate, so a
 dead password-protected link answers 404 to every visitor instead of presenting
-a password prompt for content that no longer exists. The status endpoint reports
+a password prompt for content that no longer exists. Wrong passwords are counted
+per share and client; after five the gate answers 429 with ``Retry-After`` and
+refuses further guesses (even a correct one) until the window passes, while
+visitors holding an unlock cookie keep their access. The status endpoint reports
 the current share state (unshared /
 revoked / active / password-protected) so the GUI can reopen the share dialog
 with the live link and a working revoke entry; unprotected links are rebuilt
@@ -49,7 +53,6 @@ export.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -61,9 +64,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
 from app.core.infra.limiter import limiter
+from app.core.security.share.share_attempt_guard import (
+    password_lockout_response,
+    record_password_failure,
+    record_password_success,
+)
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import (
-    b64url_decode,
+    decode_unverified_payload,
     is_password_protected,
     token_fingerprint,
 )
@@ -135,11 +143,8 @@ def _decode_share_claims_unverified(token: str) -> ChatShareClaims | None:
     revoked or deleted link answers 404 instead of presenting as alive behind
     the password gate.
     """
-    if not token or "." not in token:
-        return None
-    try:
-        raw = json.loads(b64url_decode(token.rsplit(".", 1)[0]))
-    except (json.JSONDecodeError, ValueError):
+    raw = decode_unverified_payload(token)
+    if raw is None:
         return None
     chat_id = raw.get("cid")
     exp = raw.get("exp")
@@ -392,9 +397,13 @@ async def get_public_chat_share(
                 )
             return HTMLResponse(render_password_gate_html(), status_code=403)
     else:
+        guessing = protected and bool(password)
+        if guessing and (locked := password_lockout_response(request, token)) is not None:
+            return locked
         claims = parse_chat_share_token(token, password=password)
         if claims is None:
-            if protected and password:
+            if guessing:
+                record_password_failure(request, token)
                 return HTMLResponse(
                     render_password_gate_html(wrong_password=True),
                     status_code=403,
@@ -406,6 +415,8 @@ async def get_public_chat_share(
                 message="This share link has expired or is no longer valid.",
                 headers=_SHARE_RESPONSE_HEADERS,
             )
+        if guessing:
+            record_password_success(request, token)
 
     if chat is None:
         chat = await ChatService.get_chat_metadata(claims.chat_id)
@@ -430,9 +441,9 @@ async def get_public_chat_share(
 
     secure = request.url.scheme == "https"
     if request.method == "POST":
-        response = RedirectResponse(url=str(request.url.path), status_code=303)
-        if _attach_unlock_cookie(response, claims, token, password, secure=secure):
-            return response
+        redirect = RedirectResponse(url=str(request.url.path), status_code=303)
+        if _attach_unlock_cookie(redirect, claims, token, password, secure=secure):
+            return redirect
 
     response = HTMLResponse(content=html_content, headers=_SHARE_RESPONSE_HEADERS)
     _attach_unlock_cookie(response, claims, token, password, secure=secure)
