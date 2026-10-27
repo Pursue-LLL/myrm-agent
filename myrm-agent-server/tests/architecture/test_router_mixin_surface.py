@@ -28,7 +28,7 @@ _REQUIRED_ROUTER_METHODS = (
     "_dispatch_system_command",
     # pipeline/turn.py
     "_handle_merged",
-    # router_execution.py
+    # pipeline/execution.py
     "_resolve_topic",
     "_prepare_execution_context",
     "_execute_prepared_context",

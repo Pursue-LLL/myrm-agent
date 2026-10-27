@@ -1,8 +1,18 @@
 """Agent execution: resolve the topic, prepare the context, run the turn.
 
-[POS] RouterExecutionMixin is composed into AgentRouter via multiple inheritance; it builds on RouterDeliveryMixin
-(typing/placeholder effects, reply delivery, cleanup: ``pipeline/delivery.py``); methods use RouterExecutionHost
-to constrain self attributes.
+[INPUT]
+- channels.routing.pipeline.delivery::RouterDeliveryMixin (POS: typing/placeholder effects, reply delivery, draft hold, cleanup)
+- channels.routing.pipeline.hosts::RouterExecutionHost (POS: typing protocol for the router attributes this mixin uses)
+- channels.routing.context_document::enrich_context_document (POS: document-text enrichment right before the executor stream)
+- channels.routing.pending_approvals::resume_topic_context (POS: the topic context a resumed approval run is given)
+- channels.routing.router_models::_ActiveTask, _AgentTurnScratch, _RouterExecutionContext (POS: internal data classes)
+
+[OUTPUT]
+- RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``
+
+[POS]
+Execution segment of ``AgentRouter``, composed into it via multiple inheritance. It builds on ``RouterDeliveryMixin``
+and runs after ``RouterTurnMixin`` (``pipeline/turn.py``) has handed it one merged message.
 """
 
 from __future__ import annotations
@@ -19,10 +29,10 @@ from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.routing.context_document import enrich_context_document
 from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY, resume_topic_context
 from app.channels.routing.pipeline.delivery import RouterDeliveryMixin
+from app.channels.routing.pipeline.hosts import RouterExecutionHost
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
 )
-from app.channels.routing.router_host import RouterExecutionHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import (
     _ActiveTask,
@@ -64,9 +74,7 @@ class RouterExecutionMixin(RouterDeliveryMixin):
                     avatar_url=(chat_avatar_url if isinstance(chat_avatar_url, str) else None),
                 )
             except Exception as e:
-                import logging
-
-                logging.getLogger(__name__).warning(f"Failed to sync topic metadata: {e}")
+                logger.warning("Failed to sync topic metadata: %s", e)
 
         # 1. Thread-level binding
         if msg.thread_id:

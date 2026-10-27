@@ -29,7 +29,7 @@ import time
 from myrm_agent_harness.utils.locale import resolve_locale
 
 from app.channels.delegation import is_delegation_intent
-from app.channels.i18n import get_text
+from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.routing.commands import is_explicit_approval_command, parse_approval_command
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.pipeline.hosts import RouterInboundHost
@@ -56,7 +56,6 @@ class RouterInboundMixin:
             return
 
         if msg.is_group and self._topic_resolver is not None:
-            from app.channels.i18n import resolve_message_locale
             from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
 
             note_group_activity(

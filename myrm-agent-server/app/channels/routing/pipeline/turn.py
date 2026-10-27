@@ -47,10 +47,14 @@ from app.channels.media.video_enrichment import (
 from app.channels.media.video_enrichment import (
     has_video_attachment as has_video_attachment_fn,
 )
+from app.channels.reliability.inbound_journal import create_journal_entry_from_inbound
 from app.channels.routing.command_defs import CommandKind
 from app.channels.routing.commands import parse_topic_args
+from app.channels.routing.friendly_errors import friendly_error_message
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.pipeline.hosts import RouterTurnHost
+from app.channels.routing.placeholder_strategy import DeferredPlaceholder
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import _AgentTurnScratch
 from app.channels.types import InboundMessage
 from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
@@ -87,10 +91,6 @@ class RouterTurnMixin:
         """
         journal_entry_id: str | None = None
         if self._inbound_journal and not msg.metadata.get("is_recovery"):
-            from app.channels.reliability.inbound_journal import (
-                create_journal_entry_from_inbound,
-            )
-
             entry = create_journal_entry_from_inbound(msg)
             self._inbound_journal.write(entry)
             journal_entry_id = entry.id
@@ -100,10 +100,6 @@ class RouterTurnMixin:
         channel_instance = self._bus.get_channel(msg.channel)
         if channel_instance and msg.channel_capabilities is None:
             msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
-
-        from app.channels.routing.router_keys import (
-            routing_state_key,
-        )
 
         chat_id_for_key = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id_for_key, msg.thread_id)
@@ -224,10 +220,6 @@ class RouterTurnMixin:
                         )
 
                 except Exception as e:
-                    from app.channels.routing.friendly_errors import (
-                        friendly_error_message,
-                    )
-
                     friendly, ref_id = friendly_error_message(e, msg=exec_for_error)
                     logger.error(
                         "AgentRouter: failed to handle message from %s/%s [ref: %s]: %s",
@@ -248,10 +240,6 @@ class RouterTurnMixin:
                             failure_emoji=rp.failure_emoji,
                             had_ack=rp.should_processing,
                         )
-                    from app.channels.routing.placeholder_strategy import (
-                        DeferredPlaceholder,
-                    )
-
                     resolved_placeholder: str | None = None
                     if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
                         resolved_placeholder = await scratch.deferred_placeholder.wait_for_id()

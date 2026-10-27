@@ -1,4 +1,4 @@
-"""Unit tests for outbound [SILENT] content filtering in router_execution."""
+"""Unit tests for outbound [SILENT] content filtering in ``pipeline/delivery.py``."""
 
 from __future__ import annotations
 
@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.channels.core.bus import MessageBus
+from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.pending_approvals import PendingApprovals
+from app.channels.routing.pipeline import RouterDeliveryMixin
 from app.channels.routing.router_constants import _is_silent_content
+from app.channels.routing.router_models import ReactionPolicy, _ActiveTask, _CleanupEntry
+from app.channels.types import VoiceConfig
 
 
 class TestIsSilentContent:
@@ -50,19 +56,25 @@ class TestIsSilentContent:
         assert _is_silent_content(text) is False
 
 
+class _DeliveryHost(RouterDeliveryMixin):
+    """The router attributes ``_deliver_agent_result`` reads, mocked; the rest of ``AgentRouter`` is not needed."""
+
+    def __init__(self, fx: MessageEffects, bus: MessageBus) -> None:
+        self._fx = fx
+        self._bus = bus
+        self._voice: VoiceConfig | None = None
+        self._active_tasks: dict[str, _ActiveTask] = {}
+        self._cleanups: dict[str, _CleanupEntry] = {}
+        self._pending_approvals: PendingApprovals = AsyncMock()
+        self._reaction_policy: ReactionPolicy = AsyncMock()
+
+
 class TestDeliverAgentResultSilentFilter:
     """Integration test: _deliver_agent_result suppresses silent output."""
 
-    def _make_mixin(self) -> tuple:
-        from app.channels.routing.router_execution import RouterExecutionMixin
-
-        fx = AsyncMock()
-        bus = AsyncMock()
-        mixin = RouterExecutionMixin()
-        mixin._fx = fx  # type: ignore[attr-defined]
-        mixin._bus = bus  # type: ignore[attr-defined]
-        mixin._voice = None  # type: ignore[attr-defined]
-        return mixin, fx, bus
+    def _make_mixin(self) -> tuple[_DeliveryHost, AsyncMock, AsyncMock]:
+        fx, bus = AsyncMock(), AsyncMock()
+        return _DeliveryHost(fx, bus), fx, bus
 
     @pytest.mark.asyncio
     async def test_silent_result_with_placeholder_cleans_up(self) -> None:
@@ -107,6 +119,7 @@ class TestDeliverAgentResultSilentFilter:
 
         mixin, _fx, bus = self._make_mixin()
         doc = make_ephemeral_doc("report.pdf")
+        assert doc.path is not None
         result = OutboundMessage(channel="telegram", recipient_id="chat1", content="[SILENT]", user_id="u1", media=(doc,))
         deferred = AsyncMock()
         deferred.resolve_for_delivery = AsyncMock(return_value=None)
@@ -232,7 +245,7 @@ class TestDeliverAgentResultSilentFilter:
         from app.channels.types import InboundMessage, OutboundMessage
 
         mixin, fx, bus = self._make_mixin()
-        mixin._voice = AsyncMock()  # type: ignore[attr-defined]
+        mixin._voice = AsyncMock()
 
         result = OutboundMessage(
             channel="telegram",

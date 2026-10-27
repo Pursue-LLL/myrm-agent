@@ -11,8 +11,7 @@ Also supports voice STT/TTS via voice_handler module.
 
 [INPUT]
 - channels.core.bus::MessageBus (POS: async message bus)
-- channels.routing.pipeline::RouterLifecycleMixin, RouterInboundMixin, RouterCommandDispatchMixin, RouterTurnMixin (POS: the router's run loop, inbound routing, command dispatch and turn handling)
-- channels.routing.router_execution::RouterExecutionMixin (POS: execution — prepare the context and run the turn; builds on pipeline.delivery::RouterDeliveryMixin for effects, delivery and cleanup)
+- channels.routing.pipeline::RouterLifecycleMixin, RouterInboundMixin, RouterCommandDispatchMixin, RouterTurnMixin, RouterExecutionMixin (POS: the router's run loop, inbound routing, command dispatch, turn handling and execution; execution builds on pipeline.delivery::RouterDeliveryMixin for effects, delivery and cleanup)
 - channels.routing.router_stream::RouterStreamMixin (POS: execute_stream consumption and placeholder throttled editing)
 - channels.routing.commands::RouterCommandsMixin (POS: slash-command handlers, including /stop, approval, topic and /draft)
 - channels.routing.command_registry::CommandRegistry (POS: central O(1) command lookup)
@@ -124,6 +123,7 @@ from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.pending_approvals import PendingApprovals
 from app.channels.routing.pipeline import (
     RouterCommandDispatchMixin,
+    RouterExecutionMixin,
     RouterInboundMixin,
     RouterLifecycleMixin,
     RouterTurnMixin,
@@ -137,9 +137,6 @@ from app.channels.routing.retry_policy import (
 )
 from app.channels.routing.router_constants import (
     _MAX_CONCURRENT_AGENTS,
-)
-from app.channels.routing.router_execution import (
-    RouterExecutionMixin,
 )
 from app.channels.routing.router_models import (
     ReactionPolicy,

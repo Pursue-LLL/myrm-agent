@@ -93,8 +93,7 @@ class RouterStreamMixin:
 
         ``hold_reply`` marks a reply that a human must approve before the chat sees it: its
         text is never edited into the placeholder while it is generated (progress updates
-        still show). It is a separate flag because a resumed run may get no ``topic_context`` (see ``resume_topic_context``) and
-        still streams the same held reply.
+        still show). It is a separate flag because a resumed run may get no ``topic_context`` yet streams the same held reply.
 
         The whole consumption runs inside one reply span: the agent run and the edits nest
         below it, the trace id in the log lines is its trace id, and the session summary

@@ -11,7 +11,7 @@ import pytest
 from app.channels.core.base import BaseChannel
 from app.channels.routing import context_document as enrichment
 from app.channels.routing.context_document import enrich_context_document
-from app.channels.routing.router_execution import RouterExecutionMixin
+from app.channels.routing.pipeline import RouterExecutionMixin
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
 from app.channels.types import (
     METADATA_CONTEXT_DOCUMENT_KEY,
@@ -137,7 +137,7 @@ async def test_the_agent_stream_gets_the_document_but_the_arrival_message_does_n
     host = _TurnHost(_DocumentChannel(document))
     ctx = _context()
 
-    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=False, inbound_had_voice=False)  # type: ignore[arg-type]
+    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=False, inbound_had_voice=False)  # type: ignore[misc]
 
     assert host.streamed is not None
     assert ContextDocument.from_metadata(host.streamed.metadata[METADATA_CONTEXT_DOCUMENT_KEY]) == document
@@ -149,7 +149,7 @@ async def test_a_resumed_turn_does_not_ask_the_channel() -> None:
     host = _TurnHost(channel)
     ctx = _context()
 
-    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=True, inbound_had_voice=False)  # type: ignore[arg-type]
+    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=True, inbound_had_voice=False)  # type: ignore[misc]
 
     assert channel.asked == []
     assert host.streamed is ctx.exec_msg

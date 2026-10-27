@@ -198,7 +198,7 @@ class TestKeepaliveIntegration:
 
     @pytest.mark.asyncio
     async def test_full_router_flow_set_typing_plus_keepalive(self) -> None:
-        """Simulate the exact router_execution call sequence."""
+        """Simulate the exact call sequence of ``pipeline/delivery.py`` and ``pipeline/execution.py``."""
         fx, ch = self._build_fx_with_real_caps(0.03)
         await fx.set_typing("ch", "cid", composing=True)
         ch.start_typing.assert_called_once_with("cid")

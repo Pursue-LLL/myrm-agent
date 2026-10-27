@@ -6,13 +6,13 @@ placeholder must not carry it - on a first turn and on a resumed turn alike. Pro
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.channels.routing.pipeline import RouterExecutionMixin
 from app.channels.routing.router import AgentRouter
-from app.channels.routing.router_execution import RouterExecutionMixin
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
 from app.channels.types import (
     InboundMessage,
@@ -29,7 +29,9 @@ _REPLY = "Your refund of $500 is approved, and we also owe you a 20% discount."
 class _ScriptedExecutor:
     """Yields the event sequence of a real channel turn: progress, growing streamed text, final reply."""
 
-    async def execute_stream(self, msg: InboundMessage, user_id: str, **_: object) -> AsyncIterator[object]:
+    async def execute_stream(
+        self, msg: InboundMessage, user_id: str, **_: object
+    ) -> AsyncGenerator[ProgressUpdate | StreamingText | OutboundMessage, None]:
         yield ProgressUpdate(label="Looking up your order")
         yield StreamingText(text=_REPLY[:30])
         yield StreamingText(text=_REPLY)
@@ -144,7 +146,7 @@ async def test_the_hold_follows_the_topic_and_not_the_kind_of_turn(
         exec_msg=_inbound(),
     )
 
-    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=is_resume, inbound_had_voice=False)  # type: ignore[arg-type]
+    await host._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=is_resume, inbound_had_voice=False)  # type: ignore[misc]
 
     assert host.stream_kwargs["hold_reply"] is expect_hold
     assert host.stream_kwargs["topic_context"] is (None if is_resume else topic)

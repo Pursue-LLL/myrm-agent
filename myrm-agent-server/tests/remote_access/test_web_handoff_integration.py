@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.channels.routing.router_execution import RouterExecutionMixin
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.routing.pipeline import RouterExecutionMixin
+from app.channels.types import ActionButton, InboundMessage, OutboundMessage
 from app.remote_access.tunnel_manager import TunnelManager, TunnelState
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import ServerEventBus
@@ -62,6 +62,7 @@ async def test_attach_web_handoff_resolves_db_uuid() -> None:
     assert patched.components, "Expected handoff button to be attached"
     last_row = patched.components[-1]
     btn = last_row[0]
+    assert isinstance(btn, ActionButton)
     assert btn.action_id == "web:continue_chat"
     assert db_uuid in btn.url, f"URL must contain DB UUID {db_uuid}, got {btn.url}"
     assert "integration-test-peer-42" not in btn.url, "URL must NOT contain IM peer_id"
@@ -102,7 +103,9 @@ async def test_attach_web_handoff_resolves_a_topic_scoped_chat() -> None:
     patched = await RouterExecutionMixin._attach_web_handoff(result, inbound)
 
     assert patched.components, "a topic-scoped chat must still get the handoff button"
-    assert chat.id in patched.components[-1][0].url
+    button = patched.components[-1][0]
+    assert isinstance(button, ActionButton)
+    assert chat.id in button.url
 
 
 async def test_attach_web_handoff_ignores_a_longer_peer_with_the_same_prefix() -> None:
@@ -288,6 +291,7 @@ async def test_btw_notifier_delivers_handoff_for_a_source_chat(monkeypatch: pyte
     components = sent[-1].components or ()
     assert components, "the originating chat must get the handoff button"
     btn = components[-1][0]
+    assert isinstance(btn, ActionButton)
     assert chat.id in btn.url
     assert "btw-notify-peer-7" not in btn.url
 

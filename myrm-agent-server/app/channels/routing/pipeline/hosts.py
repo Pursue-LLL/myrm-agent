@@ -9,6 +9,7 @@ instance, so it type-checks without importing the router (see also ``router_host
 - channels.routing.command_defs::CommandAction, CommandDef (POS: slash command data model)
 - channels.routing.command_registry::CommandRegistry, ResolvedCommand (POS: central O(1) command lookup)
 - channels.routing.commands::ApprovalDecision, DenyWithReason, TopicCommand (POS: parsed slash-command arguments)
+- channels.routing.placeholder_strategy::DeferredPlaceholder (POS: deferred placeholder handle)
 - channels.routing.router_models::_ActiveTask, _CleanupEntry, _AgentTurnScratch, _RouterExecutionContext, ReactionPolicy (POS: internal data classes)
 - channels.protocols.*::LocaleProvider, SkillCommandHandler, TopicManager (POS: business-layer injection points)
 - channels.types::InboundMessage, OutboundMessage, VoiceConfig, TopicContext (POS: channel message and routing types)
@@ -19,6 +20,7 @@ instance, so it type-checks without importing the router (see also ``router_host
 - RouterCommandDispatchHost: structural contract for ``RouterCommandDispatchMixin``
 - RouterTurnHost: structural contract for ``RouterTurnMixin``
 - RouterDeliveryHost: structural contract for ``RouterDeliveryMixin``
+- RouterExecutionHost: structural contract for ``RouterExecutionMixin``
 
 [POS]
 Typing protocols only, imported for annotations; nothing here runs. ``AgentRouter`` satisfies every protocol structurally.
@@ -30,6 +32,9 @@ import asyncio
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
     from app.channels.core.bus import MessageBus
     from app.channels.delegation import DelegationCoordinator
     from app.channels.media.sticker_vision import StickerVisionService
@@ -42,6 +47,7 @@ if TYPE_CHECKING:
     from app.channels.routing.commands import ApprovalDecision, DenyWithReason, TopicCommand
     from app.channels.routing.message_effects import MessageEffects
     from app.channels.routing.pending_approvals import PendingApprovals
+    from app.channels.routing.placeholder_strategy import DeferredPlaceholder
     from app.channels.routing.policy_resolver import PolicyResolver
     from app.channels.routing.router_models import (
         ReactionPolicy,
@@ -261,5 +267,62 @@ class RouterDeliveryHost(Protocol):
         original_msg: InboundMessage,
         chat_id: str,
         topic_ctx: TopicContext,
+        placeholder_id: str | None,
+    ) -> None: ...
+
+
+class RouterExecutionHost(Protocol):
+    """Structural contract for ``RouterExecutionMixin`` (prepare the context, run the turn)."""
+
+    _bus: MessageBus
+    _fx: MessageEffects
+    _resolver: PolicyResolver
+    _active_tasks: dict[str, _ActiveTask]
+    _new_session_peers: dict[str, float]
+    _topic_resolver: TopicManager | None
+
+    async def _consume_executor_stream(
+        self,
+        msg: InboundMessage,
+        user_id: str,
+        state_key: str,
+        chat_id: str,
+        *,
+        cancel_token: CancellationToken | None = None,
+        steering_token: SteeringToken | None = None,
+        topic_context: TopicContext | None = None,
+        hold_reply: bool = False,
+    ) -> tuple[OutboundMessage | None, float]: ...
+
+    def _resolve_live_placeholder_id(self, state_key: str) -> str | None: ...
+
+    async def _resolve_topic(self, msg: InboundMessage) -> TopicContext | None: ...
+
+    async def _setup_message_effects(
+        self,
+        msg: InboundMessage,
+        state_key: str,
+        chat_id: str,
+        message_id: str | None,
+        is_resume: bool,
+    ) -> DeferredPlaceholder | None: ...
+
+    async def _deliver_agent_result(
+        self,
+        result: OutboundMessage | None,
+        deferred: DeferredPlaceholder | None,
+        msg: InboundMessage,
+        chat_id: str,
+        last_progress_at: float,
+        inbound_had_voice: bool,
+        topic_ctx: TopicContext | None = None,
+    ) -> bool: ...
+
+    async def _cleanup_effects(
+        self,
+        state_key: str,
+        chat_id: str,
+        channel: str,
+        message_id: str | None,
         placeholder_id: str | None,
     ) -> None: ...

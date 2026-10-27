@@ -15,7 +15,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.channels.routing.router_execution import RouterExecutionMixin
+from app.channels.core.bus import MessageBus
+from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.pending_approvals import PendingApprovals
+from app.channels.routing.pipeline import RouterDeliveryMixin
+from app.channels.routing.router_models import ReactionPolicy, _ActiveTask, _CleanupEntry
 from app.channels.types import (
     ActionButton,
     DraftTimeoutAction,
@@ -25,6 +29,7 @@ from app.channels.types import (
     OutboundMessage,
     ReplyMode,
     TopicContext,
+    VoiceConfig,
 )
 from app.services.approvals.outbound_draft import send_outbound_draft_payload
 from app.services.approvals.registry import ApprovalRegistry
@@ -58,22 +63,39 @@ def _reply(tmp_path: Path, *media: MediaAttachment) -> OutboundMessage:
     )
 
 
+def _draft_payload(create: AsyncMock) -> dict[str, object]:
+    """The ``payload`` the held reply was stored with."""
+    call = create.await_args
+    assert call is not None
+    payload: dict[str, object] = call.kwargs["payload"]
+    return payload
+
+
 async def _attach_handoff(result: OutboundMessage, msg: InboundMessage) -> OutboundMessage:
     return dataclasses.replace(result, components=result.components + ((_HANDOFF_BUTTON,),))
 
 
+class _DeliveryHost(RouterDeliveryMixin):
+    """The router attributes ``_deliver_agent_result`` reads, mocked; the rest of ``AgentRouter`` is not needed."""
+
+    def __init__(self, fx: MessageEffects, bus: MessageBus) -> None:
+        self._fx = fx
+        self._bus = bus
+        self._voice: VoiceConfig | None = None
+        self._active_tasks: dict[str, _ActiveTask] = {}
+        self._cleanups: dict[str, _CleanupEntry] = {}
+        self._pending_approvals: PendingApprovals = AsyncMock()
+        self._reaction_policy: ReactionPolicy = AsyncMock()
+
+
 @pytest.fixture
-def router() -> Iterator[tuple[RouterExecutionMixin, AsyncMock, AsyncMock]]:
+def router() -> Iterator[tuple[_DeliveryHost, AsyncMock, AsyncMock]]:
     fx, bus = AsyncMock(), AsyncMock()
-    mixin = RouterExecutionMixin()
-    mixin._fx = fx  # type: ignore[attr-defined]
-    mixin._bus = bus  # type: ignore[attr-defined]
-    mixin._voice = None  # type: ignore[attr-defined]
-    with patch.object(RouterExecutionMixin, "_attach_web_handoff", new=AsyncMock(side_effect=_attach_handoff)):
-        yield mixin, fx, bus
+    with patch.object(RouterDeliveryMixin, "_attach_web_handoff", new=AsyncMock(side_effect=_attach_handoff)):
+        yield _DeliveryHost(fx, bus), fx, bus
 
 
-async def _deliver(mixin: RouterExecutionMixin, result: OutboundMessage, *, placeholder_id: str | None = None) -> bool:
+async def _deliver(mixin: _DeliveryHost, result: OutboundMessage, *, placeholder_id: str | None = None) -> bool:
     deferred = AsyncMock()
     deferred.resolve_for_delivery = AsyncMock(return_value=placeholder_id)
     return await mixin._deliver_agent_result(
@@ -88,11 +110,12 @@ async def _deliver(mixin: RouterExecutionMixin, result: OutboundMessage, *, plac
 
 
 async def test_draft_holds_the_whole_reply_and_sends_nothing(
-    router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path
+    router: tuple[_DeliveryHost, AsyncMock, AsyncMock], tmp_path: Path
 ) -> None:
     """A reply with a screenshot, a file and the browser button is held whole as one draft; nothing reaches the channel."""
     mixin, _fx, bus = router
     shot = make_ephemeral_doc("shot.png")
+    assert shot.path is not None
     reply = _reply(tmp_path, shot)
 
     with patch.object(ApprovalRegistry, "create_approval", new=AsyncMock()) as create:
@@ -101,7 +124,7 @@ async def test_draft_holds_the_whole_reply_and_sends_nothing(
     assert delivered is False
     bus.publish_outbound.assert_not_called()
     create.assert_awaited_once()
-    payload = create.await_args.kwargs["payload"]
+    payload = _draft_payload(create)
     held = OutboundMessage.from_dict(json.loads(json.dumps(payload["outbound"])))
     assert payload["draft_content"] == "Here is the report"
     assert "draft_media" not in payload
@@ -113,7 +136,7 @@ async def test_draft_holds_the_whole_reply_and_sends_nothing(
 
 @pytest.mark.parametrize("placeholder_id", ["ph_9", None])
 async def test_the_held_reply_remembers_the_message_the_sender_is_waiting_on(
-    router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path, placeholder_id: str | None
+    router: tuple[_DeliveryHost, AsyncMock, AsyncMock], tmp_path: Path, placeholder_id: str | None
 ) -> None:
     """Whoever decides on the draft later has to close that message, so it travels with the draft."""
     mixin, fx, _bus = router
@@ -121,21 +144,21 @@ async def test_the_held_reply_remembers_the_message_the_sender_is_waiting_on(
     with patch.object(ApprovalRegistry, "create_approval", new=AsyncMock()) as create:
         await _deliver(mixin, _reply(tmp_path), placeholder_id=placeholder_id)
 
-    payload = create.await_args.kwargs["payload"]
+    payload = _draft_payload(create)
     assert payload["placeholder_id"] == placeholder_id
     assert json.loads(json.dumps(payload))["placeholder_id"] == placeholder_id, "must survive the approval record's JSON column"
     assert fx.cleanup_placeholder.await_count == (1 if placeholder_id else 0)
 
 
 async def test_approved_draft_is_sent_exactly_as_the_agent_wrote_it(
-    router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path
+    router: tuple[_DeliveryHost, AsyncMock, AsyncMock], tmp_path: Path
 ) -> None:
     mixin, _fx, _bus = router
     reply = _reply(tmp_path)
 
     with patch.object(ApprovalRegistry, "create_approval", new=AsyncMock()) as create:
         await _deliver(mixin, reply)
-    stored = json.loads(json.dumps(create.await_args.kwargs["payload"]))  # what the approval record persists
+    stored = json.loads(json.dumps(_draft_payload(create)))  # what the approval record persists
 
     gateway = AsyncMock()
     with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
@@ -151,10 +174,11 @@ async def test_approved_draft_is_sent_exactly_as_the_agent_wrote_it(
 
 
 async def test_failing_to_hold_the_reply_withholds_it(
-    router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path, caplog: pytest.LogCaptureFixture
+    router: tuple[_DeliveryHost, AsyncMock, AsyncMock], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     mixin, fx, bus = router
     shot = make_ephemeral_doc("shot.png")
+    assert shot.path is not None
 
     with (
         patch.object(ApprovalRegistry, "create_approval", new=AsyncMock(side_effect=RuntimeError("database is locked"))),

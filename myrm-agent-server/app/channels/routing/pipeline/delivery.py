@@ -14,7 +14,7 @@
 - RouterDeliveryMixin: ``_setup_message_effects`` (reaction, deferred placeholder, typing, cleanup registration), ``_deliver_agent_result`` (silent filter, web handoff button, TTS, draft review hold, placeholder edit or new message, data-plane record), ``_create_outbound_draft`` (held reply as an approval), ``_cleanup_effects``, ``_register_cleanup`` (TTL janitor closure), ``_resolve_live_placeholder_id`` and ``_attach_web_handoff``
 
 [POS]
-Delivery segment of ``AgentRouter``, split from the execution mixin. A reply that draft review holds is never sent unreviewed: when it cannot be held it is withheld.
+Delivery segment of ``AgentRouter``. A reply that draft review holds is never sent unreviewed: when it cannot be held it is withheld.
 """
 
 from __future__ import annotations

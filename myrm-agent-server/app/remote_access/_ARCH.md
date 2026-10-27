@@ -58,7 +58,7 @@
 
 - `app/services/agent/params/converter.py` — 消费 trust_zone 叠加 remote tool deny
 - `app/channels/routing/router_stream.py` — HITL 审批 outbound mobile deep link 按钮
-- `app/channels/routing/router_execution.py` — IM 回复附加 WebUI 续聊 deep link 按钮
+- `app/channels/routing/pipeline/delivery.py` — IM 回复附加 WebUI 续聊 deep link 按钮
 - `app/core/channel_bridge/btw_notifier.py` — BTW 完成通知附加 WebUI 续聊 deep link 按钮
 - `myrm_agent_harness.agent.security.config.remote_exposed_permissions` — deny key SSOT
 
