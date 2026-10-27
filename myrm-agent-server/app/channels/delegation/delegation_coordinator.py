@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -29,7 +29,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.channels.routing.friendly_errors import friendly_error_message, is_error_reply
 from app.channels.types import OutboundMessage, StreamingText
 
-from .delegation_delivery import build_delivery_card_content, scan_workspace_artifacts
+from .delegation_delivery import build_delivery_message
 from .delegation_models import DelegationStatus, DelegationTask
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("myrm.channels.delegation.coordinator")
 
-_TERMINAL_STATUSES = (DelegationStatus.COMPLETED, DelegationStatus.FAILED)
+_TERMINAL_STATUSES = (DelegationStatus.COMPLETED, DelegationStatus.FAILED, DelegationStatus.TIMED_OUT)
 
 
 class DelegationCoordinator:
@@ -67,7 +67,6 @@ class DelegationCoordinator:
         status: DelegationStatus,
         *,
         error_message: str = "",
-        result_summary: str = "",
     ) -> None:
         """Transition task lifecycle status."""
         task = self._tasks.get(task_id)
@@ -83,8 +82,6 @@ class DelegationCoordinator:
 
         if error_message:
             task.error_message = error_message
-        if result_summary:
-            task.result_summary = result_summary
 
         logger.info("DelegationCoordinator: Task %s transitioned to %s", task_id, status.value)
 
@@ -145,11 +142,7 @@ class DelegationCoordinator:
             started = task.started_at or task.created_at
             timeout = task.timeout_seconds or max_age_seconds
             if now - started > timeout:
-                self.update_task_status(
-                    task_id,
-                    DelegationStatus.FAILED,
-                    error_message=f"Task timed out after {int(now - started)} seconds",
-                )
+                self.update_task_status(task_id, DelegationStatus.TIMED_OUT)
                 cancel_token = self._cancellation_tokens.get(task_id)
                 if cancel_token:
                     cancel_token.cancel()
@@ -157,8 +150,8 @@ class DelegationCoordinator:
                 logger.warning("DelegationCoordinator: Reaped stale task %s", task_id)
         return reaped
 
-    def _settle_finished_stream(self, task: DelegationTask, final_reply: OutboundMessage | None, snapshot: str) -> None:
-        """Record how a finished stream ended, unless the task was already failed or cancelled while it ran.
+    def _settle_finished_stream(self, task: DelegationTask, final_reply: OutboundMessage | None) -> None:
+        """Record how a finished stream ended, unless the reaper already timed the task out while it ran.
 
         A failed turn arrives as an ordinary reply flagged as an error; its text is already member-safe.
         """
@@ -166,13 +159,8 @@ class DelegationCoordinator:
             return
         if final_reply is not None and is_error_reply(final_reply):
             self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=final_reply.content)
-            return
-        result_text = final_reply.content if final_reply is not None else snapshot
-        self.update_task_status(
-            task.task_id,
-            DelegationStatus.COMPLETED,
-            result_summary=result_text[:200] if result_text else "Task finished successfully.",
-        )
+        else:
+            self.update_task_status(task.task_id, DelegationStatus.COMPLETED)
 
     async def execute_task_lifecycle(
         self,
@@ -180,23 +168,17 @@ class DelegationCoordinator:
         executor: AgentExecutor,
         bus: MessageBus,
         original_msg: InboundMessage,
-        *,
-        workspace_dir: str | Path = "",
-        server_base_url: str = "",
     ) -> None:
-        """Run delegated task lifecycle in background, handle status transitions, and publish delivery card."""
-        from dataclasses import replace
-
+        """Run the delegated task in the background, then deliver its outcome to the chat it came from."""
         self.update_task_status(task.task_id, DelegationStatus.RUNNING)
         cancel_token = self.get_cancellation_token(task.task_id)
         steering_token = self.get_steering_token(task.task_id)
 
+        # StreamingText events are cumulative snapshots; the last OutboundMessage is the authoritative reply.
+        snapshot = ""
+        final_reply: OutboundMessage | None = None
         try:
             task_msg = replace(original_msg, content=task.normalized_prompt)
-            # StreamingText events are cumulative snapshots; the last OutboundMessage is the authoritative reply.
-            snapshot = ""
-            final_reply: OutboundMessage | None = None
-
             async for event in executor.execute_stream(
                 task_msg,
                 task.origin_user_id,
@@ -207,42 +189,18 @@ class DelegationCoordinator:
                     final_reply = event
                 elif isinstance(event, StreamingText):
                     snapshot = event.text
-
-            artifacts = []
-            if workspace_dir:
-                artifacts = scan_workspace_artifacts(
-                    workspace_dir,
-                    server_base_url=server_base_url,
-                )
-                task.artifacts = artifacts
-
-            self._settle_finished_stream(task, final_reply, snapshot)
-
-            card_content = build_delivery_card_content(task, artifacts, server_base_url=server_base_url)
-            outbound = OutboundMessage(
-                channel=task.origin_channel,
-                recipient_id=task.origin_chat_id,
-                content=card_content,
-                user_id=task.origin_user_id,
-                metadata={"delegation_task_id": task.task_id, "is_delegation_delivery": True},
-            )
-            await bus.publish_outbound(outbound)
-            logger.info(
-                "DelegationCoordinator: Task %s finished as %s and delivered to %s",
-                task.task_id,
-                task.status.value,
-                task.origin_chat_id,
-            )
-
+            self._settle_finished_stream(task, final_reply)
         except Exception as exc:
             safe_text, ref_id = friendly_error_message(exc, original_msg)
             logger.exception("DelegationCoordinator: Task %s failed [ref: %s]: %s", task.task_id, ref_id, exc)
+            snapshot, final_reply = "", None
             if task.status not in _TERMINAL_STATUSES:
                 self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=safe_text)
-            fail_msg = OutboundMessage(
-                channel=task.origin_channel,
-                recipient_id=task.origin_chat_id,
-                content=f"❌ 异步任务 `[{task.task_id}]` 执行失败：{task.error_message or safe_text}",
-                user_id=task.origin_user_id,
-            )
-            await bus.publish_outbound(fail_msg)
+
+        await bus.publish_outbound(build_delivery_message(task, original_msg, final_reply, snapshot))
+        logger.info(
+            "DelegationCoordinator: Task %s finished as %s and delivered to %s",
+            task.task_id,
+            task.status.value,
+            task.origin_chat_id,
+        )

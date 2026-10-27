@@ -27,6 +27,12 @@ delegation_receipt =
     💡 **タスク内容**：{ $prompt }
     ⏳ **状況**：バックグラウンドのサンドボックスが自律的に実行中です。チャットを閉じても構いません。完了すると結果カードがここに届きます。
     { "*" }(ヒント：実行中でもメッセージを送ると、タスクに追加の指示を渡せます)*
+delegation_done = ✅ **バックグラウンドタスクが完了しました** `[{ $task_id }]` · 所要時間 { $duration }
+delegation_failed = ❌ **バックグラウンドタスクが失敗しました** `[{ $task_id }]` · { $duration } で停止
+delegation_timed_out = ⏱ **バックグラウンドタスクを停止しました** `[{ $task_id }]` · 制限時間の { $minutes } 分を超えました。
+delegation_no_output = タスクは終了しましたが、文章の結果は出力されませんでした。
+delegation_duration_minutes = { $minutes } 分 { $seconds } 秒
+delegation_duration_seconds = { $seconds } 秒
 goal_system_not_configured =  この環境ではゴールシステムが設定されていません。
 goal_management_not_available = ゴール管理は利用できません。
 agent_is_running_goal = Agent は実行中です — 実行中は /goal status、/goal pause、/goal clear をご利用ください。新しいゴールを設定する前に /stop で Agent を停止してください。

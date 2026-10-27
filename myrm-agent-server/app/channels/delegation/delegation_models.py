@@ -1,4 +1,4 @@
-"""Pure data models for mobile-to-desktop cross-platform task delegation and delivery.
+"""Pure data models for mobile-to-desktop cross-platform task delegation.
 
 Strictly decoupled from concrete I/O, networking, and UI rendering.
 Defines the typed task entity and lifecycle status of an asynchronous delegation.
@@ -9,7 +9,6 @@ Defines the typed task entity and lifecycle status of an asynchronous delegation
 [OUTPUT]
 - DelegationStatus: Enum of asynchronous task execution states.
 - DelegationTask: Core persistent task entity.
-- DeliveryArtifact: Metadata descriptor for generated multi-modal deliverable.
 
 [POS]
 Domain contract SSOT for app/channels/delegation/ subsystem.
@@ -29,20 +28,7 @@ class DelegationStatus(str, enum.Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-
-
-@dataclass
-class DeliveryArtifact:
-    """Descriptor for a file or deliverable produced during task execution."""
-
-    file_name: str
-    file_path: str
-    file_size_bytes: int
-    mime_type: str = "application/octet-stream"
-    sha256_hash: str = ""
-    is_oversized: bool = False
-    direct_download_url: str = ""
-    created_at: float = field(default_factory=time.time)
+    TIMED_OUT = "timed_out"
 
 
 @dataclass
@@ -60,6 +46,4 @@ class DelegationTask:
     started_at: float | None = None
     completed_at: float | None = None
     error_message: str = ""
-    result_summary: str = ""
-    artifacts: list[DeliveryArtifact] = field(default_factory=list)
     timeout_seconds: float = 3600.0

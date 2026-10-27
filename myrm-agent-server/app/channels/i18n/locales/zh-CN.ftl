@@ -27,6 +27,12 @@ delegation_receipt =
     💡 **任务内容**：{ $prompt }
     ⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动推送成果卡片。
     { "*" }(提示：中途可直接发送消息为任务补充指引)*
+delegation_done = ✅ **后台任务已完成** `[{ $task_id }]` · 用时 { $duration }
+delegation_failed = ❌ **后台任务失败** `[{ $task_id }]` · 运行 { $duration } 后中止
+delegation_timed_out = ⏱ **后台任务已中止** `[{ $task_id }]` · 运行超过 { $minutes } 分钟的时限。
+delegation_no_output = 任务已结束，但没有产出文字结果。
+delegation_duration_minutes = { $minutes } 分 { $seconds } 秒
+delegation_duration_seconds = { $seconds } 秒
 goal_system_not_configured =  当前环境未配置目标系统。
 goal_management_not_available = 目标管理不可用。
 agent_is_running_goal = Agent 正在运行 — 请在运行中使用 /goal status、/goal pause 或 /goal clear。设置新目标前请先使用 /stop 停止 Agent。

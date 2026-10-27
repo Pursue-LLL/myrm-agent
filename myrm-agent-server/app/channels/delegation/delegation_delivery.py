@@ -1,17 +1,16 @@
-"""Deliverable artifact scanning, oversized auto-fallback, and mobile rich delivery card builder.
+"""Delivery of a finished delegated task to the chat it came from.
 
-Discovers multi-modal deliverables (PPTX, XLSX, PDF, HTML, Diff, Media) generated
-within the task sandbox workspace, computes checksums, applies 20MB channel
-bandwidth safety caps with deep-link fallback, and formats delivery cards.
+The answer a delegated task delivers is the executor's own final reply: the same
+text, attachments and thread a normal chat turn would have produced. This module
+only puts a one-line, localized status header in front of it.
 
 [INPUT]
-- .delegation_models::DelegationTask, DeliveryArtifact
-- Local sandbox workspace path strings.
+- .delegation_models::DelegationStatus, DelegationTask
+- app.channels.i18n::get_text (POS: channel catalog in the sender's locale)
+- app.channels.types::InboundMessage, OutboundMessage
 
 [OUTPUT]
-- scan_workspace_artifacts: Discover deliverables within workspace folder.
-- build_delivery_card_content: Render structured completion report for mobile IM.
-- format_file_size: Human-readable byte formatting helper.
+- build_delivery_message: The message that reports a finished task to its origin chat.
 
 [POS]
 Delivery and presentation layer for app/channels/delegation/.
@@ -19,199 +18,71 @@ Delivery and presentation layer for app/channels/delegation/.
 
 from __future__ import annotations
 
-import hashlib
-import mimetypes
-import os
-from pathlib import Path
+from dataclasses import replace
+from typing import TYPE_CHECKING
 
-from .delegation_models import DelegationStatus, DelegationTask, DeliveryArtifact
+from app.channels.i18n import get_text
 
-# Standard channel direct attachment threshold (20MB)
-DEFAULT_MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+from .delegation_models import DelegationStatus, DelegationTask
 
-_CARD_OUTCOME_TITLES: dict[DelegationStatus, str] = {
-    DelegationStatus.COMPLETED: "后台委派任务执行完成",
-    DelegationStatus.FAILED: "后台委派任务执行失败",
-}
-
-_SUPPORTED_DELIVERABLE_EXTS: frozenset[str] = frozenset(
-    {
-        ".pptx",
-        ".ppt",
-        ".xlsx",
-        ".xls",
-        ".docx",
-        ".doc",
-        ".pdf",
-        ".html",
-        ".htm",
-        ".zip",
-        ".tar.gz",
-        ".diff",
-        ".patch",
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".webp",
-        ".mp4",
-        ".csv",
-        ".json",
-        ".md",
-    }
-)
+if TYPE_CHECKING:
+    from app.channels.types import InboundMessage, OutboundMessage
 
 
-def format_file_size(size_bytes: int) -> str:
-    """Format byte integer to readable human string (KB, MB, GB)."""
-    if size_bytes < 1024:
-        return f"{size_bytes} B"
-    if size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
-    if size_bytes < 1024 * 1024 * 1024:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
-    return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+def _duration_text(msg: InboundMessage, seconds: float) -> str:
+    minutes, secs = divmod(max(0, round(seconds)), 60)
+    if minutes:
+        return get_text(msg, "delegation_duration_minutes", minutes=minutes, seconds=secs)
+    return get_text(msg, "delegation_duration_seconds", seconds=secs)
 
 
-def compute_file_sha256(file_path: Path, max_bytes_to_read: int = 10 * 1024 * 1024) -> str:
-    """Compute SHA256 hex digest for a file."""
-    h = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            while chunk := f.read(65536):
-                h.update(chunk)
-                if f.tell() >= max_bytes_to_read:
-                    break
-        return h.hexdigest()
-    except Exception:
-        return ""
+def _origin_reply(task: DelegationTask, msg: InboundMessage, content: str) -> OutboundMessage:
+    """A message to the chat the task came from, in the request's thread and locale."""
+    reply = msg.get_or_create_correlation_context().create_reply(content, metadata={"delegation_task_id": task.task_id})
+    # The task's ids carry the router's fallbacks for a message that has no chat or user id.
+    return replace(reply, recipient_id=task.origin_chat_id, user_id=task.origin_user_id)
 
 
-def scan_workspace_artifacts(
-    workspace_dir: str | Path,
-    *,
-    max_attachment_bytes: int = DEFAULT_MAX_ATTACHMENT_BYTES,
-    server_base_url: str = "",
-) -> list[DeliveryArtifact]:
-    """Scan sandbox directory for newly created deliverable files.
-
-    Args:
-        workspace_dir: Sandbox folder to scan.
-        max_attachment_bytes: File size cap for native IM transfer (default: 20MB).
-        server_base_url: Optional server URL prefix for direct download links.
-
-    Returns:
-        List of DeliveryArtifact metadata objects.
-    """
-    path = Path(workspace_dir)
-    if not path.is_dir():
-        return []
-
-    artifacts: list[DeliveryArtifact] = []
-    for root, _, files in os.walk(path):
-        for f in files:
-            # Skip hidden files and temp locks
-            if f.startswith((".", "~$", "__")):
-                continue
-
-            file_path = Path(root) / f
-            ext = file_path.suffix.lower()
-            if ext not in _SUPPORTED_DELIVERABLE_EXTS:
-                continue
-
-            try:
-                stat = file_path.stat()
-                size = stat.st_size
-                if size == 0:
-                    continue
-
-                mime, _ = mimetypes.guess_type(str(file_path))
-                mime_type = mime or "application/octet-stream"
-                sha = compute_file_sha256(file_path)
-                is_oversized = size > max_attachment_bytes
-
-                download_url = ""
-                if server_base_url:
-                    rel = file_path.relative_to(path)
-                    download_url = f"{server_base_url.rstrip('/')}/api/artifacts/download?path={rel}"
-
-                artifacts.append(
-                    DeliveryArtifact(
-                        file_name=file_path.name,
-                        file_path=str(file_path.resolve()),
-                        file_size_bytes=size,
-                        mime_type=mime_type,
-                        sha256_hash=sha,
-                        is_oversized=is_oversized,
-                        direct_download_url=download_url,
-                        created_at=stat.st_mtime,
-                    )
-                )
-            except Exception:
-                continue
-
-    # Sort newest first
-    artifacts.sort(key=lambda a: a.created_at, reverse=True)
-    return artifacts
-
-
-def build_delivery_card_content(
+def build_delivery_message(
     task: DelegationTask,
-    artifacts: list[DeliveryArtifact] | None = None,
-    *,
-    tracking_deep_link: str = "",
-    server_base_url: str = "",
-) -> str:
-    """Render structured completion report and artifact delivery card for mobile IM.
+    msg: InboundMessage,
+    final_reply: OutboundMessage | None,
+    snapshot: str,
+) -> OutboundMessage:
+    """Build the message that reports a finished task to the chat it came from.
+
+    A completed task delivers the executor's final reply (its text, attachments and thread), or the last
+    streamed snapshot when the run ended without one. A failed task delivers its member-safe failure text.
+    A timed-out task delivers only the notice: whatever the cancelled run left behind is not an answer.
 
     Args:
-        task: Finished DelegationTask instance (completed, failed or cancelled).
-        artifacts: List of discovered DeliveryArtifact objects.
-        tracking_deep_link: Optional deep-link URL to WebUI/Tauri workspace.
-        server_base_url: Optional base URL for direct download URLs.
-
-    Returns:
-        Structured Markdown text formatted for mobile display.
+        task: The finished task; its status selects the header and body.
+        msg: The inbound request, which fixes the locale and the thread.
+        final_reply: The executor's last reply, if the run produced one.
+        snapshot: The last streamed text snapshot, used only when there is no final reply.
     """
-    duration_str = ""
-    if task.started_at and task.completed_at:
-        elapsed = int(task.completed_at - task.started_at)
-        mins, secs = divmod(elapsed, 60)
-        duration_str = f"{mins}分{secs}秒" if mins else f"{secs}秒"
+    if task.status is DelegationStatus.TIMED_OUT:
+        minutes = max(1, round(task.timeout_seconds / 60))
+        return _origin_reply(task, msg, get_text(msg, "delegation_timed_out", task_id=task.task_id, minutes=minutes))
 
-    status_symbol = "✅" if task.status == DelegationStatus.COMPLETED else "❌"
-    outcome_title = _CARD_OUTCOME_TITLES.get(task.status, "后台委派任务已结束")
-    lines = [
-        f"{status_symbol} **任务交付通知 ({outcome_title})**",
-        f"• **任务编号**：`{task.task_id}`",
-        f"• **任务内容**：{task.raw_prompt[:60]}{'...' if len(task.raw_prompt) > 60 else ''}",
-    ]
+    started = task.started_at if task.started_at is not None else task.created_at
+    ended = task.completed_at if task.completed_at is not None else started
+    failed = task.status is DelegationStatus.FAILED
+    header = get_text(
+        msg,
+        "delegation_failed" if failed else "delegation_done",
+        task_id=task.task_id,
+        duration=_duration_text(msg, ended - started),
+    )
 
-    if duration_str:
-        lines.append(f"• **总共耗时**：{duration_str}")
+    if failed:
+        body = task.error_message
+    else:
+        body = (final_reply.content if final_reply is not None else snapshot).strip()
+        if not body and not (final_reply is not None and final_reply.media):
+            body = get_text(msg, "delegation_no_output")
+    content = f"{header}\n\n{body}" if body else header
 
-    if task.result_summary:
-        lines.extend(["", "**📊 执行结果摘要：**", task.result_summary])
-    elif task.error_message:
-        lines.extend(["", "**⚠️ 异常信息：**", f"`{task.error_message}`"])
-
-    # Artifact list
-    effective_artifacts = artifacts or task.artifacts
-    if effective_artifacts:
-        lines.extend(["", "**📦 生成交付物清单：**"])
-        for idx, art in enumerate(effective_artifacts, start=1):
-            size_fmt = format_file_size(art.file_size_bytes)
-            icon = "📊" if art.file_name.endswith((".xlsx", ".csv")) else ("📑" if art.file_name.endswith(".pptx") else "📄")
-            if art.is_oversized:
-                lines.append(f"{idx}. {icon} **{art.file_name}** `[{size_fmt} · 大文件已生成下载链接]`")
-                if art.direct_download_url:
-                    lines.append(f"   ↳ [点击极速下载]({art.direct_download_url})")
-            else:
-                if art.direct_download_url:
-                    lines.append(f"{idx}. {icon} **[{art.file_name}]({art.direct_download_url})** `[{size_fmt}]`")
-                else:
-                    lines.append(f"{idx}. {icon} **{art.file_name}** `[{size_fmt}]`")
-
-    if tracking_deep_link:
-        lines.extend(["", f"🔗 [在桌面端/WebUI打开完整工作区]({tracking_deep_link})"])
-
-    return "\n".join(lines)
+    if final_reply is not None:
+        return replace(final_reply, content=content)
+    return _origin_reply(task, msg, content)

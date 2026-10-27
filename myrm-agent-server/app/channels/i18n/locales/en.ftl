@@ -27,6 +27,12 @@ delegation_receipt =
     💡 **Task**: { $prompt }
     ⏳ **Status**: A background sandbox is working on it. You can leave the chat; a result card is pushed here when it finishes.
     { "*" }(Tip: send a message at any time to add guidance to the running task)*
+delegation_done = ✅ **Background task finished** `[{ $task_id }]` · took { $duration }
+delegation_failed = ❌ **Background task failed** `[{ $task_id }]` · after { $duration }
+delegation_timed_out = ⏱ **Background task stopped** `[{ $task_id }]` · it ran past the { $minutes }-minute limit.
+delegation_no_output = The task finished without a written result.
+delegation_duration_minutes = { $minutes } min { $seconds } s
+delegation_duration_seconds = { $seconds } s
 goal_system_not_configured =  Goal system is not configured in this environment.
 goal_management_not_available = Goal management is not available.
 agent_is_running_goal = Agent is running — use /goal status, /goal pause, or /goal clear mid-run. Stop the agent first with /stop before setting a new goal.

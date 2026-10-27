@@ -8,14 +8,16 @@ Asynchronous delegation of long-running chat requests: a `/delegate` (or detecte
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package Root | Subsystem initialization. | ✅ |
-| `delegation_models.py` | Models | `DelegationStatus`, `DelegationTask` and `DeliveryArtifact`. | ✅ |
-| `delegation_coordinator.py` | Core | Central coordinator managing task state machines, steering, watchdog reaping, and background execution lifecycle. The task result is the last `OutboundMessage` of the (cumulative) stream; a reply marked as a failed turn finishes the task as FAILED with its member-safe text, an exception finishes it as FAILED with the same wording (raw error only in the log), and a status already set by the reaper is never overwritten. | ✅ |
-| `delegation_ingress.py` | Ingress | Channel message parsing, delegation trigger extraction, and the per-user concurrency guard. The four acknowledgements of the `/delegate` flow (task missing, quota reached, receipt, steering injected) are built by `routing/router.py` from the channel catalog (`delegation_*` in `i18n/locales`) in the sender's locale; the delivery card of `delegation_delivery.py` and the failure notice of the coordinator are still Chinese only. | ✅ |
-| `delegation_delivery.py` | Delivery | Workspace artifact scanning, 20MB limit fallback, and the completion card; the card title follows the final status (completed / failed). | ✅ |
+| `delegation_models.py` | Models | `DelegationStatus` (pending / running / completed / failed / timed_out) and `DelegationTask`. | ✅ |
+| `delegation_coordinator.py` | Core | Central coordinator managing task state machines, steering, watchdog reaping, and background execution lifecycle. The task result is the last `OutboundMessage` of the (cumulative) stream; a reply marked as a failed turn finishes the task as FAILED with its member-safe text, an exception finishes it as FAILED with the same wording (raw error only in the log), and a task the reaper already marked `TIMED_OUT` keeps that status when its cancelled stream ends. The outcome is delivered through `build_delivery_message`. | ✅ |
+| `delegation_ingress.py` | Ingress | Channel message parsing, delegation trigger extraction, and the per-user concurrency guard. The four acknowledgements of the `/delegate` flow (task missing, quota reached, receipt, steering injected) are built by `routing/router.py` from the channel catalog (`delegation_*` in `i18n/locales`) in the sender's locale. | ✅ |
+| `delegation_delivery.py` | Delivery | `build_delivery_message`: the delivered message is the executor's own final reply (text, attachments, thread) under a one-line localized header (`delegation_done` / `delegation_failed` / `delegation_timed_out`, `delegation_duration_*`, `delegation_no_output` in `i18n/locales`); a failed task delivers its member-safe text, a timed-out task only the notice; without a final reply the message is built with `CorrelationContext.create_reply`. | ✅ |
 
 
 ## Key Dependencies
 
 - `app.channels` (underlying channel transports)
+- `app.channels.i18n` (delivery header and notices in the sender's locale)
+- `app.channels.routing.friendly_errors` (member-safe failure text)
 - `myrm_agent_harness.utils.runtime.steering` (steering tokens)
 - `myrm_agent_harness.utils.runtime.cancellation` (cancellation tokens)
