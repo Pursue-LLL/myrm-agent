@@ -284,6 +284,7 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
           projectId={workspaceMountProject.id}
           projectName={workspaceMountProject.name}
           initialPath={workspaceMountProject.workspacePath}
+          workspaceUsable={workspaceMountProject.workspaceUsable !== false}
           open
           onOpenChange={(nextOpen) => {
             if (!nextOpen) {

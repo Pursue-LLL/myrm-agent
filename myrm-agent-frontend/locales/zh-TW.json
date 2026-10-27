@@ -12745,6 +12745,7 @@
     "workspaceMount": {
       "title": "關聯資料夾",
       "emptyHint": "選擇筆記或文檔目錄，助手將直接讀寫其中的檔案。",
+      "unusableHint": "這個資料夾範圍過大，對話目前不會在其中作業。請改選更具體的資料夾。",
       "chooseFolder": "選擇資料夾",
       "clear": "取消關聯",
       "close": "關閉",

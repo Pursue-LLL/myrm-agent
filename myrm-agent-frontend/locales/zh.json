@@ -12745,6 +12745,7 @@
     "workspaceMount": {
       "title": "关联文件夹",
       "emptyHint": "选择笔记或文档目录，助手将直接读写其中的文件。",
+      "unusableHint": "这个文件夹范围过大，对话暂未在其中工作。请改选更具体的文件夹。",
       "chooseFolder": "选择文件夹",
       "clear": "取消关联",
       "close": "关闭",

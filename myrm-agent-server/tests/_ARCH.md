@@ -331,9 +331,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
 | `integration/test_artifact_share_integration.py` | 模块 | 工件分享真实全链路集成（无 mock）：`ArtifactVault.put` 真实落盘 → DB artifact/version → create share 真实物化 → public entry redirect → 静态资源放行；密码分享 gate + 签名解锁 cookie 授权 asset；SQLite 内存库 + TestClient 进程内 |
 | `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链（含**无 cookie 新访客直接 404「Link Revoked」，不显示密码 gate**）；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |
+| `api/config/test_readiness_empty_install.py` | 模块 | 全新安装、没选默认模型的供应商、封存供应商配置的密钥丢失，都按「供应商未就绪」的正常答案返回（不降级），引导标志取自数据库；配置齐全即就绪；真正的加载失败仍报降级 |
 | `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
-| `api/config/test_readiness_empty_install.py` | 模块 | 全新安装、没选默认模型的供应商、封存供应商配置的密钥丢失，都按「供应商未就绪」的正常答案返回（不降级），引导标志取自数据库；配置齐全即就绪；真正的加载失败仍报降级 |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
 | `e2e/test_search_priority_chain_chrome_e2e.py` | 模块 | Search priority chain signoff（API integration persist + Chrome READ `lane=READ private_backend=False` Settings priority badges；payload Tavily p1 + Perplexity p2；`@pytest.mark.timeout(180)`） |
 | `integration/test_fallback_integration.py` | 模块 | Harness provider_chain 集成：invalid primary hop、legacy role 迁移；SearXNG 不可用时 skip（`AllQueriesFailedError`） |
@@ -394,6 +394,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_workspace_text_save.py` | 模块 | 文本编辑 API 保存：保存/冲突 409 与当前版本、冲突后覆盖=重读再存、并发单赢家、base64 正文逐字节不被净化、换行/BOM 还原、不可往返文件拒绝、路径守卫、不存在无版本校验的写路由（`PUT /browse/content` 不提供） |
 | `api/files/test_workspace_text_copy.py` | 模块 | 文本编辑 API 另存副本：副本编号、换行/BOM 继承、重名时换名重试与耗尽 409、路径守卫、非文本内容拒绝 |
 | `api/files/test_browse_api.py` | 模块 | browse 目录/树/搜索 + content 文本 1MB 截断 & 二进制全量流式；`FileEntry.is_text` 三态（文本/二进制/目录）；Content-Disposition RFC 5987 转义（CR/LF 注入防御 + 非 ASCII filename*） |
+| `services/project/test_project_payload.py` | 单元 | 项目载荷的 `workspaceUsable`：无文件夹与普通文件夹为可用，家目录与 `/` 这类包含受保护目录的文件夹报告为不可用 |
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
 | `api/agent/test_workspace_rules_e2e.py` | 模块 | Workspace rules First-Match-Wins 真实 LLM E2E（`@pytest.mark.e2e` + `asyncio`：AGENTS.md > .cursorrules；规则注入 harness workspace 真实路径；async SSE 收集 + auto-approve resume 循环；断言依赖规则遵守 → 使用更强 LITE_MODEL；默认套件 deselect） |
 | `api/agent/test_workspace_boundary_approval_e2e.py` | 模块 | Workspace 边界确定性路径策略（`PathPolicy` 外部写文件 → ASK，无 LLM）+ 越界文件访问审批 LLM E2E（`@pytest.mark.e2e`；LLM 类默认 skip：flaky + PathPolicy 已由确定性用例覆盖） |

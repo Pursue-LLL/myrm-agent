@@ -12745,6 +12745,7 @@
     "workspaceMount": {
       "title": "Link-Ordner",
       "emptyHint": "Wählen Sie einen Ordner mit Notizen oder Dokumenten aus. Der Assistent liest und schreibt dort direkt Dateien.",
+      "unusableHint": "Dieser Ordner ist zu umfassend, daher arbeiten Chats nicht darin. Wählen Sie einen genaueren Ordner.",
       "chooseFolder": "Ordner auswählen",
       "clear": "Verknüpfung aufheben",
       "close": "Schließen",

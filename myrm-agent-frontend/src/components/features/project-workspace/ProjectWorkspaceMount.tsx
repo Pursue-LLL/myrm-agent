@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FolderOpen, FolderClosed, ChevronRight, ArrowLeft, Check, X, Clock } from 'lucide-react';
+import { FolderOpen, FolderClosed, FolderX, ChevronRight, ArrowLeft, Check, X, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -43,6 +43,8 @@ export interface ProjectWorkspaceMountProps {
   projectId: string;
   projectName: string;
   initialPath?: string | null;
+  /** False when the stored folder is too broad to be a workspace; chats then run outside it. */
+  workspaceUsable?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBound: (workspacePath: string | null) => void;
@@ -53,6 +55,7 @@ export default function ProjectWorkspaceMount({
   projectId,
   projectName,
   initialPath,
+  workspaceUsable = true,
   open,
   onOpenChange,
   onBound,
@@ -231,6 +234,16 @@ export default function ProjectWorkspaceMount({
         </div>
       ) : (
         <p className="text-[10px] text-muted-foreground leading-relaxed">{t('emptyHint')}</p>
+      )}
+
+      {!workspaceUsable && Boolean(initialPath) && currentPath === initialPath && (
+        <div
+          role="alert"
+          className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 px-2 py-1.5 text-[10px] leading-relaxed text-foreground/80"
+        >
+          <FolderX className="mt-px h-3 w-3 shrink-0 text-warning" aria-hidden="true" />
+          <span>{t('unusableHint')}</span>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-1.5">

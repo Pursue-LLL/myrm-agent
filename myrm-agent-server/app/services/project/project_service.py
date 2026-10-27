@@ -1,5 +1,6 @@
 """
 [INPUT] database.models.project::Project, database.models.chat::Chat
+[INPUT] app.services.workspace.workspace_path_policy::is_workspace_root_grantable (POS: whether a stored workspace is still usable)
 [OUTPUT] ProjectService: 项目 CRUD 服务
 [POS] 项目管理服务。提供项目的增删改查和会话归属管理。
 """
@@ -15,6 +16,7 @@ from sqlalchemy import CursorResult, delete, func, select, update
 from app.database.connection import get_session
 from app.database.models.chat import Chat
 from app.database.models.project import Project
+from app.services.workspace.workspace_path_policy import is_workspace_root_grantable
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,8 @@ def _project_to_dict(p: Project) -> dict[str, object]:
         "color": p.color,
         "sortOrder": p.sort_order,
         "workspacePath": p.workspace_path or "",
+        # A folder bound before breadth was checked (home, a drive root) is no longer handed to the sandbox.
+        "workspaceUsable": is_workspace_root_grantable(p.workspace_path) if p.workspace_path else True,
         "defaultAgentId": p.default_agent_id,
         "goalSummary": p.goal_summary,
         "createdAt": p.created_at.isoformat() if p.created_at else None,

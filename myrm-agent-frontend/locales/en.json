@@ -12745,6 +12745,7 @@
     "workspaceMount": {
       "title": "Link folder",
       "emptyHint": "Pick a notes or documents folder. The assistant reads and writes files there directly.",
+      "unusableHint": "This folder is too broad, so chats are not working inside it. Choose a more specific folder.",
       "chooseFolder": "Choose folder",
       "clear": "Unlink",
       "close": "Close",

@@ -13,6 +13,7 @@ export interface Project {
   color: string;
   sortOrder: number;
   workspacePath?: string;
+  workspaceUsable?: boolean;
   defaultAgentId?: string | null;
   goalSummary: string;
   createdAt: string | null;
