@@ -59,7 +59,7 @@ _ATTENDED_ESCALATION = {
     ),
 }
 _UNATTENDED_ESCALATION = (
-    "{count} {breach} denials for this scheduled job (threshold: {threshold}). "
+    "{count} {breach} denials for this scheduled job. "
     "Do not retry the denied actions. "
     "Finish whatever does not need them and state in your final reply what was blocked and why."
 )

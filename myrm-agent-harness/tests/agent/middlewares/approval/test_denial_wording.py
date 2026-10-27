@@ -60,6 +60,7 @@ def test_an_unattended_run_is_not_promised_a_human_and_is_told_to_report(breach:
     hint = denial_hint(DenialCause.POLICY, breach, 3, 3, unattended=True)
 
     assert "scheduled job" in hint
+    assert "threshold" not in hint
     assert "Do not retry" in hint
     assert "final reply" in hint
     assert "human approval" not in hint
