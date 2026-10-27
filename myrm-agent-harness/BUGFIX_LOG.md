@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-021 · 定时任务按「到点时读出的快照」走完整个流程：错峰、排队等并发槽位期间被暂停或删除的任务照样执行一次，收尾写回把用户的暂停改回启用，被删除的任务还会先写运行记录而因外键失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（腾讯 ima 同步复核「暂停」：用真实 `CronScheduler` + `JobExecutor` + `CronManager` + SQLite 回放「错峰等待中、排队等并发槽位中、运行中」由用户暂停或删除任务，旧代码把暂停改回启用，被删除的任务照样执行并报外键错误） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：所有定时任务共用这条路径。任务到点时读出一份快照，之后的错峰等待（随机延迟）、等全局与每用户并发槽位（可达数分钟）、运行、投递、收尾都用这份快照，而用户在这段时间里做的暂停、改调度、删除只写进了库里。① 等待期间被暂停的任务照样执行一次，界面却显示它已暂停。② 运行结束时被暂停的任务，被收尾写回的快照改回启用（`_record_skipped` 与 `_record_deferred` 更是直接写启用），用户的暂停被悄悄撤销——腾讯 ima 同步的「暂停」因此失效，见产品台账同日条目。③ 等待或运行期间被删除的任务照样执行；`_record_skipped` 不检查任务是否还在，`_record_deferred` 先写运行记录才检查，运行记录的写入报 `FOREIGN KEY constraint failed`。④（按旧代码阅读）收尾写回用快照整行覆盖，用户在运行期间改的调度等字段也会被改回去。 |
+| **关联产品** | harness `toolkits/cron/engine/`（新增 `job_freshness.py`；`scheduler.py`、`executor.py`、`skipped_runs.py`）；产品侧腾讯 ima 知识库同步的暂停与断开连接依赖它 |
+| **根因** | 调度器在错峰等待与取得并发槽位之后，直接用到点时读出的任务开跑（旧 `scheduler.py:444-445`，没有重新读库）。执行器收尾 `_update_after_run` 读了库里的任务，却只拿来判断是否被删（旧 `executor.py:567-570`），写回的是运行前的那份快照整行（旧 `:617`），快照里的状态仍是启用。`_record_skipped` 与 `_record_deferred` 更直接：写回前把状态强制设为启用（旧 `skipped_runs.py:64`、`:93`），前者不检查任务是否还在，后者先写运行记录再检查（旧 `:88-91`）。没有任何一步在「等待之后」或「写回之前」采用库里最新的任务。 |
+| **修复** | 新增 `engine/job_freshness.py::adopt_latest(store, job)`：把库里最新的任务逐字段采用到手里的快照上，只保留运行自己拥有的 `RUN_OWNED_FIELDS`（`fire_count`：调度器在开跑时加一，库里还没有；`last_output_hash`：投递中途设置）；任务已被删返回 `False`。四处调用：调度器取得全部信号量之后、`fire_count` 加一之前（`scheduler.py:447`，任务已删或不再是启用就放弃这次运行）；执行器收尾写回之前（`executor.py:568`，取代只判断是否被删的 `get_job`）；`_record_skipped`（`skipped_runs.py:65`）与 `_record_deferred`（`:93`）写运行记录之前，两处强制写启用的语句删除，被删的任务不再写运行记录。之后只应用本次运行自己决定的东西（下次运行时间、最近状态、失败计数、熔断或重试用尽导致的暂停），其余字段一律以库为准。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 快照在 `await` 之后不再是事实：每个会等待的步骤（错峰、信号量、运行、投递）之后，凡是要写回的都得先拿库里最新的任务。`_update_after_run` 早就读了库里的任务，却只拿来判断是否被删，写回仍是快照——知道库里有更新版本而不采用，等于没读。 |
+| **回归** | 对照方法：旧树 = `git archive 6e0ed6bd0` 导出的 server 与 harness，同一探针对旧树与当前树运行（真实 `CronScheduler` + `JobExecutor` + `CronManager` + SQLite 临时库；只有任务执行器是记录调用次数的假件，错峰窗口固定 4000 毫秒）。错峰期间暂停：旧树执行 1 次、最终启用，当前树执行 0 次、保持暂停；错峰期间删除：旧树执行 1 次并报 `FOREIGN KEY constraint failed`，当前树 0 次、任务已不存在；排队等占满的每用户槽位时被暂停：旧树执行 1 次、最终启用，当前树 0 次、保持暂停；没人动的对照任务两棵树都执行 1 次（`fire_count=1`）。端到端（腾讯 ima 同步）：暂停后旧树 5 秒内任务变回启用并跑完 300/300，当前树保持暂停，详见产品台账同日条目。自动化：新增 `tests/toolkits/cron/test_cron_stale_snapshot.py`（23 例，真实调度器与执行器 + 内存存储，覆盖每种运行结局下的暂停与删除、跳过与分片重排、错峰与排队等待、调度与其他字段的编辑、`adopt_latest` 本身）；调用点未接线的实现上 14 例失败、9 例通过；变异检查把 4 个调用点（调度器等待后、执行器收尾、`_record_skipped`、`_record_deferred`）逐个拿掉，每个都有用例变红；`test_cron_executor.py` 的存储替身改为「库里持有这份任务」（`_store_holds`）。harness cron 与 stores 套件 758 例通过（7 秒）；改动文件的 ruff check 与 format 干净。 |
+| **仍然存在** | ① 「读最新」与「写回」之间还有毫秒级窗口（两次存储调用不是一个事务）：窗口内的改动仍会被这次写回覆盖，没有做版本号式的乐观并发。② `executor.py` 仍是 747 行，等于文件行数基线上限（本次行数不变），没有顺势拆分。③ 其他执行器测试仍用默认的 `get_job` 替身（返回同一个对象），没有走过「库里是另一个版本」的路径，这一路径只由新增的 23 例守护。 |
+| **代码位置** | `toolkits/cron/engine/job_freshness.py`（`adopt_latest`、`RUN_OWNED_FIELDS`）· `engine/scheduler.py:447` · `engine/executor.py:568`（`_update_after_run`）· `engine/skipped_runs.py:65`、`:93`（`_record_skipped`、`_record_deferred`）· 测试 `tests/toolkits/cron/test_cron_stale_snapshot.py`、`test_cron_executor.py` · 文档 `engine/_ARCH.md` |
+
 ### BUG-HARNESS-2026-10-27-020 · 子 Agent 的第二道门没关：委派子 Agent 在父已有 todo 时自行挂上 `todo_write`，只读子 Agent 能杀掉、喂入、关闭父的后台进程，且只读约束只在个别调用路径上生效
 
 | 字段 | 内容 |
