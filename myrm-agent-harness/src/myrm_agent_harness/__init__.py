@@ -19,8 +19,14 @@ Quick Start:
 """
 
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 __version__ = "0.1.0rc6"
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.api.config import LLMConfig
+    from myrm_agent_harness.api.factory import SkillAgent, create_skill_agent
+    from myrm_agent_harness.api.types import AgentEventType, AgentRuntimeConfig
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     "SkillAgent": ("myrm_agent_harness.api.factory", "SkillAgent"),

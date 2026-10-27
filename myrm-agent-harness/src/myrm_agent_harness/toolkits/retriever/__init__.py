@@ -17,6 +17,7 @@ Hybrid retrieval toolkit public facade re-exporting key entrypoints.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.retriever.bm25.tokenizer import preload_tokenizer
     from myrm_agent_harness.toolkits.retriever.bm25_retrieval import bm25_retrieval
     from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import (
         build_cjk_index_segment,

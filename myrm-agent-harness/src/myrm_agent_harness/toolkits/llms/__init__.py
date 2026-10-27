@@ -13,7 +13,8 @@ if TYPE_CHECKING:
         is_payload_overflow,
     )
     from .errors.resilient import resilient_llm_call
-    from .fallback import FallbackModel, ManagedLLM, ScenarioType
+    from .fallback.managed_llm import FallbackModel, ManagedLLM
+    from .fallback.scenario import ScenarioType
     from .probe import (
         ProviderBalanceProbeProtocol,
         ProviderBalanceResult,

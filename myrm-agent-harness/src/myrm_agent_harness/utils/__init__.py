@@ -23,6 +23,31 @@ Utility library exports. Public interface for the utils module providing commonl
 """
 
 from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.utils.chat_utils import extract_answer_text, extract_litellm_answer_text
+    from myrm_agent_harness.utils.context_format import (
+        TruncationStats,
+        format_crawl_results,
+        format_documents_with_metadata,
+        wrap_with_external_sources_tag,
+        wrap_with_tool_output_tag,
+    )
+    from myrm_agent_harness.utils.device_fingerprint import derive_key_from_fingerprint, get_device_fingerprint
+    from myrm_agent_harness.utils.document_utils import extract_original_content, parse_front_matter
+    from myrm_agent_harness.utils.encryption_key import resolve_local_encryption_key
+    from myrm_agent_harness.utils.files import extract_file_id_from_url
+    from myrm_agent_harness.utils.network import get_local_ip
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+    from myrm_agent_harness.utils.rwlock import RWLock
+    from myrm_agent_harness.utils.shell_quote import (
+        posix_shell_quote,
+        shell_quote,
+        windows_cmd_quote,
+        windows_powershell_quote,
+    )
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     # Runtime utilities

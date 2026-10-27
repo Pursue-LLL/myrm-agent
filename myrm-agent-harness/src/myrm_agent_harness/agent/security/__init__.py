@@ -14,6 +14,66 @@ Agent 安全子系统入口。提供 6 层洋葱防御架构的类型、引擎�
 """
 
 from importlib import import_module as _import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .audit import SecurityDecision, get_audit_entries, record_decision, reset_audit_log
+    from .batch_risk import (
+        BatchApprovalItem,
+        BatchItemRiskLevel,
+        BatchRiskItemDetail,
+        BatchRiskReport,
+        classify_batch_approval_risk,
+    )
+    from .config import from_config, parse_security_config
+    from .detection.pseudonym_store import PseudonymStore, get_pseudonym_store
+    from .detection.pseudonymizer import PIIItem, PseudonymRestorer, pseudonymize_text
+    from .engine import check_capability, disabled_permissions, evaluate, evaluate_tool_call, extract_url_domains, merge
+    from .guards.privacy_tracker import get_pending_privacy_event, get_privacy_tracker, reset_privacy_tracker
+    from .message_filtering import FilterConfig, FilterContext, MessageFilter, MessageFilterPipeline, SystemRoleFilter
+    from .redact import RedactingFormatter, redact_sensitive_text
+    from .script_operand_verifier import (
+        compute_file_content_digest,
+        extract_script_file_operand,
+        verify_script_operand_integrity,
+    )
+    from .single_use_tickets import (
+        SingleUseTicket,
+        SingleUseTicketManager,
+        TicketStatus,
+        TokenType,
+        compute_content_digest,
+        get_single_use_ticket_manager,
+    )
+    from .team_identity import (
+        CredentialTrack,
+        TeamIdentityScope,
+        TeamIdentitySpec,
+        credential_track_for,
+        memory_namespace_for,
+        sanitize_identity_id,
+    )
+    from .transcript_classifier import TranscriptClassifier
+    from .types import (
+        DEFAULT_CAPABILITIES,
+        DEFAULT_RULESET,
+        Capability,
+        CapabilitySet,
+        EphemeralUserCredential,
+        PathPolicy,
+        PermissionAction,
+        PermissionRule,
+        PermissionRuleset,
+        PIIAction,
+        PrivacyPolicy,
+        RecentToolCall,
+        ReviewDecision,
+        ReviewResult,
+        SecurityConfig,
+        SecurityReviewerProtocol,
+        SensitivityLevel,
+        user_credentials_ctx,
+    )
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     # types.py
@@ -98,7 +158,74 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "get_single_use_ticket_manager": (".single_use_tickets", "get_single_use_ticket_manager"),
 }
 
-__all__ = list(_EXPORTS.keys())
+__all__ = [
+    "BatchApprovalItem",
+    "BatchItemRiskLevel",
+    "BatchRiskItemDetail",
+    "BatchRiskReport",
+    "Capability",
+    "CapabilitySet",
+    "CredentialTrack",
+    "DEFAULT_CAPABILITIES",
+    "DEFAULT_RULESET",
+    "EphemeralUserCredential",
+    "FilterConfig",
+    "FilterContext",
+    "MessageFilter",
+    "MessageFilterPipeline",
+    "PIIAction",
+    "PIIItem",
+    "PathPolicy",
+    "PermissionAction",
+    "PermissionRule",
+    "PermissionRuleset",
+    "PrivacyPolicy",
+    "PseudonymRestorer",
+    "PseudonymStore",
+    "RecentToolCall",
+    "RedactingFormatter",
+    "ReviewDecision",
+    "ReviewResult",
+    "SecurityConfig",
+    "SecurityDecision",
+    "SecurityReviewerProtocol",
+    "SensitivityLevel",
+    "SingleUseTicket",
+    "SingleUseTicketManager",
+    "SystemRoleFilter",
+    "TeamIdentityScope",
+    "TeamIdentitySpec",
+    "TicketStatus",
+    "TokenType",
+    "TranscriptClassifier",
+    "check_capability",
+    "classify_batch_approval_risk",
+    "compute_content_digest",
+    "compute_file_content_digest",
+    "credential_track_for",
+    "disabled_permissions",
+    "evaluate",
+    "evaluate_tool_call",
+    "extract_script_file_operand",
+    "extract_url_domains",
+    "from_config",
+    "get_audit_entries",
+    "get_pending_privacy_event",
+    "get_privacy_tracker",
+    "get_pseudonym_store",
+    "get_single_use_ticket_manager",
+    "memory_namespace_for",
+    "merge",
+    "parse_security_config",
+    "pseudonymize_text",
+    "record_decision",
+    "redact_sensitive_text",
+    "reset_audit_log",
+    "reset_privacy_tracker",
+    "sanitize_identity_id",
+    "user_credentials_ctx",
+    "verify_script_operand_integrity",
+]
 
 
 def __getattr__(name: str) -> object:

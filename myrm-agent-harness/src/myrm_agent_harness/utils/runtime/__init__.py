@@ -7,6 +7,22 @@ and a rule shared by two packages cannot be hosted by either.
 """
 
 from importlib import import_module as _import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .cancellation import (
+        CancellationMonitor,
+        CancellationToken,
+        OperationCancelledError,
+        create_cancellation_context,
+        get_cancel_token,
+        reraise_if_cancelled,
+        run_until_cancelled,
+        set_cancel_token,
+    )
+    from .cancellation_metrics import CancellationMetrics
+    from .progress_sink import ToolProgressSink, create_queue_sink, get_tool_progress_sink, set_tool_progress_sink
+    from .steering import STEERING_SKIP_MESSAGE, SteeringToken, get_steering_token, set_steering_token
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     # cancellation.py
@@ -31,7 +47,25 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "set_steering_token": (".steering", "set_steering_token"),
 }
 
-__all__ = list(_EXPORTS.keys())
+__all__ = [
+    "CancellationMetrics",
+    "CancellationMonitor",
+    "CancellationToken",
+    "OperationCancelledError",
+    "STEERING_SKIP_MESSAGE",
+    "SteeringToken",
+    "ToolProgressSink",
+    "create_cancellation_context",
+    "create_queue_sink",
+    "get_cancel_token",
+    "get_steering_token",
+    "get_tool_progress_sink",
+    "reraise_if_cancelled",
+    "run_until_cancelled",
+    "set_cancel_token",
+    "set_steering_token",
+    "set_tool_progress_sink",
+]
 
 
 def __getattr__(name: str) -> object:

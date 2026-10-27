@@ -1,6 +1,43 @@
 """Agent core module — public API."""
 
 from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.base_agent import BaseAgent
+    from myrm_agent_harness.agent.config import LLMConfig
+    from myrm_agent_harness.agent.context_guard import (
+        ContextGuardConfig,
+        EphemeralTransientSweeper,
+        SpilloverEngine,
+        SpilloverPayload,
+        SpilloverResult,
+    )
+    from myrm_agent_harness.agent.context_management import (
+        InvalidGeneratedTitleRecoverySuite,
+        TwoStageRankedSnippetAndSelectiveDeepExtractSuite,
+    )
+    from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+    from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
+    from myrm_agent_harness.agent.hooks import HookEvent, HookExecutor, HookRegistry, fire_hook
+    from myrm_agent_harness.agent.hooks.graceful_shutdown import GracefulShutdownManager, get_shutdown_manager
+    from myrm_agent_harness.agent.skill_agent import SkillAgent
+    from myrm_agent_harness.agent.skill_agent.factory import create_skill_agent
+    from myrm_agent_harness.agent.sub_agents.registry import (
+        SUBAGENT_CONFIGS,
+        auto_register_subagent_configs,
+        register_subagent_configs,
+        register_subagent_configs_from_directory,
+    )
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig, SubAgentResult, SubAgentStatus
+    from myrm_agent_harness.agent.types import (
+        AgentRunStatistics,
+        AgentRuntimeConfig,
+        CompletionStatus,
+        map_to_completion_status,
+    )
+    from myrm_agent_harness.core.events.types import AgentEventType
+    from myrm_agent_harness.utils.token_economics.tracker import TokenUsage
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     "BaseAgent": ("myrm_agent_harness.agent.base_agent", "BaseAgent"),
@@ -75,239 +112,19 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.agent.context_guard",
         "SpilloverPayload",
     ),
-    "CrossHarnessSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "CrossHarnessSuite",
-    ),
-    "CrossHarnessContextStateASTAndLosslessRehydrationSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "CrossHarnessContextStateASTAndLosslessRehydrationSuite",
-    ),
-    "HeterogeneousContextHydrationBridge": (
-        "myrm_agent_harness.agent.context_management",
-        "HeterogeneousContextHydrationBridge",
-    ),
-    "ArtifactContinuityGateway": (
-        "myrm_agent_harness.agent.context_management",
-        "ArtifactContinuityGateway",
-    ),
-    "SessionStateASTEngine": (
-        "myrm_agent_harness.agent.context_management",
-        "SessionStateASTEngine",
-    ),
-    "BilateralSovereigntyArchiveHub": (
-        "myrm_agent_harness.agent.context_management",
-        "BilateralSovereigntyArchiveHub",
-    ),
-    "ZeroLockinUniversalContextPortabilitySuite": (
-        "myrm_agent_harness.agent.context_management",
-        "ZeroLockinUniversalContextPortabilitySuite",
-    ),
-    "UniversalArchiveSpecEngine": (
-        "myrm_agent_harness.agent.context_management",
-        "UniversalArchiveSpecEngine",
-    ),
-    "CrossPlatformTranscriptNormalizer": (
-        "myrm_agent_harness.agent.context_management",
-        "CrossPlatformTranscriptNormalizer",
-    ),
-    "OfflineMemoryProfileHydrationEngine": (
-        "myrm_agent_harness.agent.context_management",
-        "OfflineMemoryProfileHydrationEngine",
-    ),
-    "DecoupledMemoryConsolidationSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "DecoupledMemoryConsolidationSuite",
-    ),
-    "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite",
-    ),
-    "DirectMemoryDriveChannel": (
-        "myrm_agent_harness.agent.context_management",
-        "DirectMemoryDriveChannel",
-    ),
-    "NightlyDreamingPipeline": (
-        "myrm_agent_harness.agent.context_management",
-        "NightlyDreamingPipeline",
-    ),
-    "LockFreeSnapshotBroadcaster": (
-        "myrm_agent_harness.agent.context_management",
-        "LockFreeSnapshotBroadcaster",
-    ),
-    "DeterministicPersonaMemoryDriftAuditSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "DeterministicPersonaMemoryDriftAuditSuite",
-    ),
-    "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite",
-    ),
-    "LineByLineRealityReconciler": (
-        "myrm_agent_harness.agent.context_management",
-        "LineByLineRealityReconciler",
-    ),
-    "PurificationDiffEngine": (
-        "myrm_agent_harness.agent.context_management",
-        "PurificationDiffEngine",
-    ),
-    "EndToEndSealedDecisionHandoffSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "EndToEndSealedDecisionHandoffSuite",
-    ),
-    "DecisionSealPacker": (
-        "myrm_agent_harness.agent.context_management",
-        "DecisionSealPacker",
-    ),
-    "DecisionInvalidationGraph": (
-        "myrm_agent_harness.agent.context_management",
-        "DecisionInvalidationGraph",
-    ),
-    "PreSealSecretMasker": (
-        "myrm_agent_harness.agent.context_management",
-        "PreSealSecretMasker",
-    ),
     "TwoStageRankedSnippetAndSelectiveDeepExtractSuite": (
         "myrm_agent_harness.agent.context_management",
         "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
-    ),
-    "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite",
-    ),
-    "CacheWarmthGauge": (
-        "myrm_agent_harness.agent.context_management",
-        "CacheWarmthGauge",
-    ),
-    "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite",
-    ),
-    "DynamicRollForwardEngine": (
-        "myrm_agent_harness.agent.context_management",
-        "DynamicRollForwardEngine",
-    ),
-    "PostCompactionToolLoopGuardSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "PostCompactionToolLoopGuardSuite",
-    ),
-    "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite",
-    ),
-    "HierarchicalMetaSessionOrchestrator": (
-        "myrm_agent_harness.agent.context_management",
-        "HierarchicalMetaSessionOrchestrator",
-    ),
-    "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite",
-    ),
-    "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite",
-    ),
-    "ProjectBoundSessionLauncherSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "ProjectBoundSessionLauncherSuite",
-    ),
-    "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite",
-    ),
-    "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite",
-    ),
-    "MultiSessionParallelWorkspaceAndRootDiscoverySuite": (
-        "myrm_agent_harness.agent.context_management",
-        "MultiSessionParallelWorkspaceAndRootDiscoverySuite",
-    ),
-    "TerminalMissingSilentEndServerReconcileSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "TerminalMissingSilentEndServerReconcileSuite",
-    ),
-    "PromptCacheLookbackPositionAlignedPruneFloorSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "PromptCacheLookbackPositionAlignedPruneFloorSuite",
-    ),
-    "SummaryCallOverflowTailClipRetrySuite": (
-        "myrm_agent_harness.agent.context_management",
-        "SummaryCallOverflowTailClipRetrySuite",
-    ),
-    "StructuredTestReportPayloadCompressorSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "StructuredTestReportPayloadCompressorSuite",
     ),
     "InvalidGeneratedTitleRecoverySuite": (
         "myrm_agent_harness.agent.context_management",
         "InvalidGeneratedTitleRecoverySuite",
     ),
-    "CompactBeforeSendTokenChipSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "CompactBeforeSendTokenChipSuite",
-    ),
-    "SandboxZeroCopyBranchLabSuite": (
-        "myrm_agent_harness.agent.file_snapshot",
-        "SandboxZeroCopyBranchLabSuite",
-    ),
-    "VoiceCommandLocalBypassAndTieredIntentRoutingSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "VoiceCommandLocalBypassAndTieredIntentRoutingSuite",
-    ),
-    "VoiceScreenshotContextAwarenessSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "VoiceScreenshotContextAwarenessSuite",
-    ),
 }
 
 __all__ = [
-    "CompactBeforeSendTokenChipSuite",
-    "SandboxZeroCopyBranchLabSuite",
-    "VoiceCommandLocalBypassAndTieredIntentRoutingSuite",
-    "VoiceScreenshotContextAwarenessSuite",
-    "ArtifactContinuityGateway",
-    "BilateralSovereigntyArchiveHub",
-    "CacheWarmthGauge",
-    "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite",
-    "DynamicRollForwardEngine",
-    "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite",
-    "PostCompactionToolLoopGuardSuite",
-    "HierarchicalMetaSessionOrchestrator",
-    "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite",
-    "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite",
-    "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite",
-    "ProjectBoundSessionLauncherSuite",
-    "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite",
-    "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite",
-    "MultiSessionParallelWorkspaceAndRootDiscoverySuite",
-    "TerminalMissingSilentEndServerReconcileSuite",
-    "PromptCacheLookbackPositionAlignedPruneFloorSuite",
-    "SummaryCallOverflowTailClipRetrySuite",
-    "StructuredTestReportPayloadCompressorSuite",
     "InvalidGeneratedTitleRecoverySuite",
-    "CrossHarnessContextStateASTAndLosslessRehydrationSuite",
-    "CrossHarnessSuite",
-    "CrossPlatformTranscriptNormalizer",
-    "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite",
-    "DecoupledMemoryConsolidationSuite",
-    "DecisionInvalidationGraph",
-    "DecisionSealPacker",
-    "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite",
-    "DeterministicPersonaMemoryDriftAuditSuite",
-    "DirectMemoryDriveChannel",
-    "EndToEndSealedDecisionHandoffSuite",
-    "HeterogeneousContextHydrationBridge",
-    "LineByLineRealityReconciler",
-    "LockFreeSnapshotBroadcaster",
-    "NightlyDreamingPipeline",
-    "OfflineMemoryProfileHydrationEngine",
-    "PreSealSecretMasker",
-    "PurificationDiffEngine",
     "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
-    "UniversalArchiveSpecEngine",
-    "ZeroLockinUniversalContextPortabilitySuite",
-    "SessionStateASTEngine",
     "SUBAGENT_CONFIGS",
     "AgentEventType",
     "AgentRunStatistics",

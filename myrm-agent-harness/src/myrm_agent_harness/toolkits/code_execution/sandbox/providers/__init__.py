@@ -6,6 +6,8 @@
 - appcontainer.py:   AppContainerProvider   — Windows AppContainer native isolation
 """
 
+from typing import TYPE_CHECKING
+
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.bwrap import (
     BwrapProvider,
 )
@@ -15,6 +17,9 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import (
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.seatbelt import (
     SeatbeltProvider,
 )
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer import AppContainerProvider
 
 __all__ = ["AppContainerProvider", "BwrapProvider", "NullProvider", "SeatbeltProvider"]
 
