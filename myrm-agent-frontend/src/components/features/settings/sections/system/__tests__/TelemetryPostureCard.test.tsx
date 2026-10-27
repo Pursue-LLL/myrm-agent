@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TelemetryPostureCard from '../TelemetryPostureCard';
 import { systemService, type TelemetryPosture } from '@/services/system';
 
+const METRICS_NOTICE = 'The latest metrics batch was not delivered.';
+
 const translations: Record<string, string> = {
   title: 'OpenTelemetry export',
   notConfigured: 'Not configured',
@@ -29,7 +31,7 @@ const translations: Record<string, string> = {
   'notice.noop': 'Export is off.',
   'notice.disabled': 'Export is switched off by OTEL_SDK_DISABLED.',
   'notice.failing': 'The last export attempt failed.',
-  'notice.metricsFailing': 'The collector refused the latest metrics batch.',
+  'notice.metricsFailing': METRICS_NOTICE,
   'notice.degraded': 'Export could not start as configured: {reason}',
   'notice.error': 'The export status could not be read.',
 };
@@ -211,16 +213,16 @@ describe('TelemetryPostureCard', () => {
       expect(metricsValue().getByText(label)).toBeInTheDocument();
     });
     expect(metricsValue().getByText(label)).not.toHaveClass('text-destructive');
-    expect(screen.queryByText('The collector refused the latest metrics batch.')).toBeNull();
+    expect(screen.queryByText(METRICS_NOTICE)).toBeNull();
   });
 
-  it('names a collector that refuses metrics even while traces are delivered', async () => {
+  it('flags undelivered metrics even while traces are delivered', async () => {
     mockPosture(posture({ status: 'active', metrics_status: 'failing' }));
 
     render(<TelemetryPostureCard />);
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('The collector refused the latest metrics batch.');
+      expect(screen.getByRole('status')).toHaveTextContent(METRICS_NOTICE);
     });
     expect(metricsValue().getByText('Failing')).toHaveClass('text-destructive');
     expect(screen.getAllByText('Active')).toHaveLength(1);
@@ -234,7 +236,7 @@ describe('TelemetryPostureCard', () => {
     await waitFor(() => {
       expect(screen.getAllByRole('status').map((notice) => notice.textContent)).toEqual([
         'The last export attempt failed.',
-        'The collector refused the latest metrics batch.',
+        METRICS_NOTICE,
       ]);
     });
   });

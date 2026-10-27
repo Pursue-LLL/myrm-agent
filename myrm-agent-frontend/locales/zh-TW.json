@@ -16069,7 +16069,7 @@
           "localOnly": "已啟用僅限本地模式，遠端 OTLP 端點會被拒絕。",
           "missingSdk": "目前的建置未安裝 OpenTelemetry SDK。",
           "failing": "最近一次匯出失敗。請檢查收集器位址、憑證與網路連線。",
-          "metricsFailing": "收集器拒絕了最近一批指標。只接收鏈路的後端（例如 Jaeger）會這樣；設定 OTEL_METRICS_EXPORTER=none 可停止傳送指標。",
+          "metricsFailing": "最近一批指標沒有送達。如果後端只接收鏈路（例如 Jaeger），請設定 OTEL_METRICS_EXPORTER=none 停止傳送指標；否則請檢查收集器位址、憑證與網路連線。",
           "degraded": "匯出未能依設定啟動：{reason}",
           "error": "無法讀取遙測匯出狀態。"
         }

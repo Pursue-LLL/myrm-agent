@@ -16069,7 +16069,7 @@
           "localOnly": "로컬 전용 모드가 켜져 있어 원격 OTLP 엔드포인트는 거부됩니다.",
           "missingSdk": "이 빌드에는 OpenTelemetry SDK가 설치되어 있지 않습니다.",
           "failing": "마지막 내보내기에 실패했습니다. 컬렉터 주소, 자격 증명, 네트워크를 확인하세요.",
-          "metricsFailing": "컬렉터가 최근 메트릭 배치를 거부했습니다. Jaeger처럼 트레이스만 받는 백엔드에서 발생합니다. 메트릭 전송을 중단하려면 OTEL_METRICS_EXPORTER=none을 설정하세요.",
+          "metricsFailing": "최근 메트릭 배치가 전달되지 않았습니다. Jaeger처럼 트레이스만 받는 백엔드라면 OTEL_METRICS_EXPORTER=none을 설정해 메트릭 전송을 중단하세요. 그렇지 않다면 컬렉터 주소, 자격 증명, 네트워크를 확인하세요.",
           "degraded": "구성한 대로 내보내기를 시작할 수 없습니다: {reason}",
           "error": "내보내기 상태를 읽을 수 없습니다."
         }

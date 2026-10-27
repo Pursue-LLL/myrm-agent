@@ -16069,7 +16069,7 @@
           "localOnly": "Local-only mode is on, so remote OTLP endpoints are refused.",
           "missingSdk": "The OpenTelemetry SDK is not installed in this build.",
           "failing": "The last export attempt failed. Check the collector address, credentials and network.",
-          "metricsFailing": "The collector refused the latest metrics batch. Backends that only take traces (for example Jaeger) do this; set OTEL_METRICS_EXPORTER=none to stop sending metrics.",
+          "metricsFailing": "The latest metrics batch was not delivered. If your backend only takes traces (for example Jaeger), set OTEL_METRICS_EXPORTER=none to stop sending metrics; otherwise check the collector address, credentials and network.",
           "degraded": "Export could not start as configured: {reason}",
           "error": "The export status could not be read."
         }
