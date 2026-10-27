@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 旧版本写进浏览器存储的含密钥离线队列条目，在后端不可达期间一直明文留着；`ConfigSyncManager.ts` 拆分
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（frontend 配置同步层）。关闭「配置加密密钥文件 `.encryption_key` 不在受保护路径里……」那一条的「仍然存在 ①」。 |
+| **症状** | 旧版本把任意待同步变更写进 `localStorage` 的 `config-offline-queue`，包括含密钥的键。上一轮加了白名单只管新写入；已经在存储里的旧条目，后端保持不可达时既不会在启动时被清掉（离线分支在读队列之前就返回），也会在之后的一次保存里被合并写回。 |
+| **根因** | 白名单只过滤「写」，没有人处理「读到的旧数据」；清理放在了后端可达之后。 |
+| **修复** | `offlineQueue.ts:79` `takeUnpersistableOfflineEntries()` 在管理器初始化的最开头（先于后端可达性检查）把非白名单条目移出存储，留在内存里等待重放；白名单条目原样不动，存储里没有要移的就不写。后端可达时这些条目仍走原来的过期闸门重放（服务端已前进则丢弃，服务端值胜出）。顺带把 945 行的 `ConfigSyncManager.ts` 拆到 497 行：`offlineQueue.ts`、`offlineReplay.ts`、`conflictResolution.ts`、`initialLoad.ts`、`configListeners.ts`、`startupNormalization.ts`、`e2eSearchSyncGate.ts`，管理器只保留缓存、队列状态与调度。 |
+| **回归证据** | [1] `ConfigSyncManager.legacyOfflineQueue.test.ts` 4 例：对拆分前的管理器 3 红 1 绿（第 4 例是「只有白名单键的队列原样不动」的不退化守卫），对拆分后 4 绿。[2] 拆分不改行为：新增 `ConfigSyncManager.conflicts.test.ts` 10 例刻画冲突消解（此前该路径没有任何测试），同一份测试在拆分前后的管理器上都是 10 全绿；`offlineQueue`、`configListeners`、`initialLoad` 各有单测；`src/services/config` 73 例通过，`src/services/config`、`src/store`、`app-shell` 215 个文件 1616 通过，`tsc --noEmit` 干净。[3] 真实浏览器：往 `localStorage` 写一条含哨兵字符串的 `privacyRoutingSecret` 与一条 `chatSettings`，停掉后端后重载，存储里只剩 `chatSettings`，哨兵字符串不在任何键里；前一条的受控重放在拆分后的管理器上同样成立（行版本不变、横幅可见）。 |
+| **仍然存在** | ① 被移出的条目只在内存里：后端恢复之前就关掉页面，这些条目随之消失，这是「密钥不落盘」的既定取舍。② `ConfigSyncManager.ts` 仍是 497 行，超过 400 行的建议值，在基线里；再往下拆需要把离线重放的编排（在线事件、重试、合并）做成独立对象，本次没做。 |
+
 ## 2026-10-27 · 配置密钥丢失后，启动归一化把读不出的密文行覆盖成默认值；全新安装被当成「配置读取失败」而藏起引导；换钥后的 OAuth 刷新抛错；未设置字段存成 null 让设置页崩溃
 
 | 字段 | 内容 |
@@ -50,7 +61,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness 一条受保护路径规则、frontend 离线队列白名单、server 与 frontend 各一处测试夹具；brand 仓文档站与根仓素材库里关于设置密钥保管方式的 5 处自相矛盾的说法订正；控制平面、提示词与工具描述都不动，没有新增界面文案）。接着上面「本地模型端点的密钥明文存在偏好行里……」那一条的「仍然存在 ①⑤」。**离线队列还留一个缺口，见「仍然存在 ①」，没有修。** |
+| **状态** | **FIXED**（harness 一条受保护路径规则、frontend 离线队列白名单、server 与 frontend 各一处测试夹具；brand 仓文档站与根仓素材库里关于设置密钥保管方式的 5 处自相矛盾的说法订正；控制平面、提示词与工具描述都不动，没有新增界面文案）。接着上面「本地模型端点的密钥明文存在偏好行里……」那一条的「仍然存在 ①⑤」。**离线队列还留一个缺口，见「仍然存在 ①」，没有修。**（该缺口已在同日更新的条目「旧版本写进浏览器存储的含密钥离线队列条目……」中关闭。） |
 | **症状** | ① 本地模式的配置加密密钥文件 `.encryption_key` 不在 `SENSITIVE_FILE_PATTERNS` 里：bash 守卫拦得住对 `data.db` 的 `rm/mv/cp/cat/重定向`，对同目录密钥文件的同样五条命令全部放行；密钥文件缺失时启动会静默重新生成，旧密文随即打不开（`open_sealed_config` 返回 `None`）。② 前端 `ConfigSyncManager.saveOfflineQueue` 在后端不可达时把任意待同步变更写进 `localStorage['config-offline-queue']`，用真实管理器复现：本地模型密钥以明文出现在里面，`providers`、各渠道凭据同理。③ `test_web_fetch_escalation_integration.py` 的 `cleanup_config_db` 夹具依赖前一个测试已建好表，单独运行或换顺序会失败；`SecurityPrivacyPanel.test.tsx` 的 `useTranslations` mock 每次渲染返回新函数，`verify:stable-mocks` 失败。④ 文档站安全架构页（中、英）、中英竞品对比页与素材库把设置里的密钥写成托管在系统钥匙串；只有智能体机密金库的主密钥走钥匙串。 |
 | **根因** | ① 规则表里的文件名后缀类规则（`*.key`、`*.pem` 等）覆盖不到没有后缀的 `.encryption_key`，没有人把「能打开所有封存行的钥匙」当作与数据库同级的受保护对象。② 离线队列按「全部键」落盘，没有区分服务端已封存的键；新增键默认会被写进浏览器。③ 夹具各自假设别的测试已经初始化数据库；mock 工厂在每次渲染里新建函数。④ 文档把「设置密钥用 AES-256-GCM」与「金库主密钥在钥匙串」合并成了一句。 |
 | **修复** | harness：`core/security/path/rules.py:56` 新增 `**/.encryption_key*`，bash 守卫（`path_guard.py:288` `check_sensitive_paths`）、文件工具校验、沙箱隐私阶梯、快照共用同一张表；`_ARCH.md` 同步。frontend：新增 `services/config/offlinePersistableKeys.ts:15` 白名单（7 个服务端也不加密存储的键），`ConfigSyncManager.ts:882` 落盘前按白名单过滤，含密钥的键只在内存队列里重试；用白名单而不是黑名单，新增键默认不落盘；server 的 `tests/architecture/test_offline_persistable_keys_parity.py` 要求白名单恰好等于前端全部配置键减去 `SENSITIVE_CONFIG_KEYS`。测试夹具：`cleanup_config_db` 先 `init_database()`，`SecurityPrivacyPanel.test.tsx` 把翻译函数提升为稳定引用。文档：五处订正为「金库主密钥在钥匙串，设置里的密钥是 AES-256-GCM 密文，其密钥在环境变量或 0600 文件里，同时拿到数据库和该文件的人读得到」。`services/config/_ARCH.md` 一并过了 prettier（表格列宽，26 行）。 |
