@@ -25,6 +25,10 @@ from myrm_agent_harness.agent.middlewares import (
     debug_logger_middleware,
     tool_interceptor_middleware,
 )
+from myrm_agent_harness.agent.middlewares._session_context import (
+    get_security_config,
+    resolve_security_config_from_runtime,
+)
 from myrm_agent_harness.agent.middlewares.approval import ToolApprovalMiddleware
 from myrm_agent_harness.agent.middlewares.completion import CompletionGuard
 from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
@@ -48,6 +52,7 @@ from myrm_agent_harness.agent.middlewares.tooling.dangling_tool_call_middleware 
 from myrm_agent_harness.agent.middlewares.tooling.tool_history_hygiene import (
     tool_history_hygiene_middleware,
 )
+from myrm_agent_harness.agent.security.engine import file_write_disabled
 from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
 from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -102,6 +107,15 @@ def build_middlewares(
         # is built.
         return registry.has_tool("todo_write")
 
+    def can_save_files(runtime: object) -> bool:
+        # A deliverable can only be held to being saved by a run that holds ``file_write_tool`` and whose policy
+        # does not deny ``file_write``. The policy is read the way tool approval reads it (the turn's snapshot,
+        # else the one bound to the run), so the demand is never one approval would refuse. Asked per call, like
+        # ``keeps_todo_list``.
+        if not registry.has_tool("file_write_tool"):
+            return False
+        return not file_write_disabled(resolve_security_config_from_runtime(runtime) or get_security_config())
+
     middlewares: list[object] = [
         tool_history_hygiene_middleware,
         dangling_tool_call_middleware,
@@ -110,7 +124,7 @@ def build_middlewares(
         approval_guidance_delivery,
         ClarificationGuardMiddleware(),
         ToolApprovalMiddleware(),
-        CompletionGuard(keeps_todo_list=keeps_todo_list),
+        CompletionGuard(keeps_todo_list=keeps_todo_list, can_save_files=can_save_files),
     ]
 
     async def get_current_todos(workspace_root: str | None = None) -> TodoStore | None:

@@ -31,6 +31,10 @@ unverified content reach the user.
 Internal tool CallRecords (``_``-prefixed names like ``_completion_check``)
 are excluded from the checklist to prevent self-feedback loops.
 
+A deliverable code block is held to being saved (and staged into the workspace on a forced finish) only when the
+run can save a file (``can_save_files``, decided where the chain is built): a run without ``file_write_tool``, or
+under a policy that denies ``file_write``, could never meet the demand, so it is not made.
+
 State is stored as module-level variables (not ContextVar) because LangGraph
 executes nodes in copied contexts, which prevents ContextVar state from
 persisting across ReAct cycles.
@@ -198,6 +202,10 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         Whether this run keeps a todo list, i.e. was given ``todo_write``. Only then does an unfinished todo
         block completion: a run without the tool (a delegated child with planning off) has no list to finish,
         so the demand would be one it can never meet.
+    can_save_files:
+        Whether this run can save a file, given the runtime of the call. Only then is a deliverable code block
+        in the answer held to being saved (and staged into the workspace when the demand fails): a run without
+        ``file_write_tool``, or under a policy that denies ``file_write``, can never meet the demand.
     """
 
     def __init__(
@@ -206,10 +214,12 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         enabled: bool = True,
         max_rejections: int = 3,
         keeps_todo_list: Callable[[], bool] = lambda: True,
+        can_save_files: Callable[[object], bool] = lambda runtime: True,
     ) -> None:
         self._enabled = enabled
         self._max_rejections = max_rejections
         self._keeps_todo_list = keeps_todo_list
+        self._can_save_files = can_save_files
 
     def get_tools(self) -> list[BaseTool]:
         """Expose the internal ``_completion_check`` tool for registration."""
@@ -324,7 +334,7 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
         if last_ai_msg.content:
             content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content)
             deliverable_write_reason = check_deliverable_write_claim(content_str, filtered_records)
-            if deliverable_write_reason is None:
+            if deliverable_write_reason is None and self._can_save_files(runtime):
                 unwritten_reason, unwritten_deliverables = check_unwritten_deliverables(
                     content=content_str,
                     records=filtered_records,

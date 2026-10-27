@@ -14,6 +14,7 @@
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
+- file_write_disabled(): whether a SecurityConfig unconditionally denies ``file_write``
 - extract_url_domains(): extract hostnames from URL-bearing tool arguments
 
 [POS]
@@ -420,6 +421,16 @@ def disabled_permissions(
         if rule.action == PermissionAction.DENY:
             result.add(perm)
     return frozenset(result)
+
+
+def file_write_disabled(config: SecurityConfig | None) -> bool:
+    """Whether the policy unconditionally denies ``file_write``: a run under it cannot save a file however it asks.
+
+    ``None`` and any object that is not a ``SecurityConfig`` carry no policy to read, so they deny nothing.
+    """
+    if not isinstance(config, SecurityConfig):
+        return False
+    return "file_write" in disabled_permissions(["file_write"], config.ruleset, config.capabilities)
 
 
 def extract_url_domains(
