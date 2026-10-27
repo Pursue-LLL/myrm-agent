@@ -48,7 +48,7 @@ def _no_store() -> Iterator[None]:
 def _screened(text: str, policy: PrivacyPolicy) -> str:
     """What the model is shown for *text* as the user's latest message."""
     screened = screen_user_input([HumanMessage(content=text)], policy)
-    content = text if screened is None else screened[0].content
+    content = screened[0].content if screened else text
     assert isinstance(content, str)
     return content
 

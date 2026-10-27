@@ -6,10 +6,11 @@ See module docstring.
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Sequence
 
-from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import SystemMessage
+from langchain.agents.middleware import AgentMiddleware, AgentState
+from langchain_core.messages import BaseMessage, SystemMessage
+from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.middlewares._session_context import (
     get_security_config,
@@ -20,10 +21,13 @@ from myrm_agent_harness.agent.security.session_access import render_session_acce
 _SESSION_ACCESS_MARKER = "<session-access>"
 
 
-class SessionAccessMiddleware(AgentMiddleware):  # type: ignore[type-arg]
-    """Append available directory roots before each model call."""
+class SessionAccessMiddleware(AgentMiddleware):
+    """Append the available directory roots when the message history does not carry them yet.
 
-    def before_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
+    State merges what a hook returns: the new message is appended, the messages already there stay as they are.
+    """
+
+    def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Sequence[BaseMessage]] | None:
         config = get_security_config()
         if config is None:
             return None
@@ -46,8 +50,4 @@ class SessionAccessMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 return None
 
         content = f"{_SESSION_ACCESS_MARKER}\n{block}\n</session-access>"
-        new_messages = [*messages, SystemMessage(content=content)]
-        return {"messages": new_messages}
-
-    def after_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
-        return None
+        return {"messages": [SystemMessage(content=content)]}

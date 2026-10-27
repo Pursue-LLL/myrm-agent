@@ -179,8 +179,11 @@ class AgentRuntimeSpec:
 class EngineParams:
     """Tunable parameters for the agent execution engine (middlewares)."""
 
-    max_tool_calls: int = field(default=30)
-    max_bash_calls: int = field(default=15)
+    # Tool calls one run may make, all tools and ``bash_code_execute_tool`` alone; a call past the cap is answered
+    # with an error result instead of running. ``None`` sets no cap: a run is bounded by its round budget and the
+    # loop guards.
+    max_tool_calls: int | None = None
+    max_bash_calls: int | None = None
     max_replan_attempts: int = field(default=3)
     enable_replan: bool = field(default=True)
     enable_context_compression: bool = field(default=True)

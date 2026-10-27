@@ -11,14 +11,6 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from myrm_agent_harness.agent.config.llm_safety import normalize_messages
 
 
-def _unwrap_middleware(middleware: object) -> object:
-    from myrm_agent_harness.agent.middlewares.sync_hook_parity import SyncHookParityAdapter
-
-    if isinstance(middleware, SyncHookParityAdapter):
-        return object.__getattribute__(middleware, "_inner")
-    return middleware
-
-
 class TestBuildMiddlewaresWiring:
     """build_middlewares must wire hygiene before dangling (SSOT: _agent_build.py)."""
 
@@ -29,7 +21,7 @@ class TestBuildMiddlewaresWiring:
         )
 
         middlewares = build_middlewares(create_registry(), [])
-        class_names = [type(_unwrap_middleware(mw)).__name__ for mw in middlewares]
+        class_names = [type(mw).__name__ for mw in middlewares]
         hygiene_idx = class_names.index("ToolHistoryHygieneMiddleware")
         dangling_idx = class_names.index("DanglingToolCallMiddleware")
         assert hygiene_idx < dangling_idx

@@ -16,10 +16,11 @@ FINALIZATION → forbid tool calls and force final output.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections.abc import Sequence
 
-from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain.agents.middleware import AgentMiddleware, AgentState
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langgraph.runtime import Runtime
 
 from .budget_guard import BudgetStatus
 
@@ -45,7 +46,7 @@ def _build_finalize_hint(remaining: float | None) -> str:
     )
 
 
-class BudgetBoundaryMiddleware(AgentMiddleware):  # type: ignore[type-arg]
+class BudgetBoundaryMiddleware(AgentMiddleware):
     """Enforces budget limits within the agent loop.
 
     Hooks into after_model to inspect the current budget status (set by
@@ -56,13 +57,16 @@ class BudgetBoundaryMiddleware(AgentMiddleware):  # type: ignore[type-arg]
       Includes dynamic remaining budget amount for informed LLM decision-making.
     - FINALIZATION/EXCEEDED: Strips pending tool_calls from the last AI message,
       forcing the agent to produce a text-only final response next turn.
+
+    A hook returns only the messages it adds or replaces: state appends the new ones and swaps those
+    that carry the id of one already there.
     """
 
     def __init__(self, *, enabled: bool = True) -> None:
         self._enabled = enabled
         self._finalization_injected = False
 
-    def before_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
+    def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Sequence[BaseMessage]] | None:
         if not self._enabled:
             return None
 
@@ -76,23 +80,16 @@ class BudgetBoundaryMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         remaining = tracker.budget_checker.get_remaining_budget()
 
         if status == BudgetStatus.WARNING:
-            messages = list(state.get("messages", []))
-            if not _has_budget_hint(messages):
-                hint = _build_warning_hint(remaining)
-                messages.append(HumanMessage(content=f"[SYSTEM INSTRUCTION] {_HINT_PREFIX}\n{hint}"))
-                return {"messages": messages}
+            if not _has_budget_hint(state.get("messages", [])):
+                return _hint_update(_build_warning_hint(remaining))
 
-        elif status in (BudgetStatus.FINALIZATION, BudgetStatus.EXCEEDED):
-            if not self._finalization_injected:
-                self._finalization_injected = True
-                messages = list(state.get("messages", []))
-                hint = _build_finalize_hint(remaining)
-                messages.append(HumanMessage(content=f"[SYSTEM INSTRUCTION] {_HINT_PREFIX}\n{hint}"))
-                return {"messages": messages}
+        elif status in (BudgetStatus.FINALIZATION, BudgetStatus.EXCEEDED) and not self._finalization_injected:
+            self._finalization_injected = True
+            return _hint_update(_build_finalize_hint(remaining))
 
         return None
 
-    def after_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
+    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Sequence[BaseMessage]] | None:
         """Strip tool_calls when budget is in FINALIZATION/EXCEEDED state."""
         if not self._enabled:
             return None
@@ -132,14 +129,25 @@ class BudgetBoundaryMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             id=last_msg.id,
         )
 
-        new_messages = list(messages[:-1])
-        new_messages.append(patched_msg)
-        return {"messages": new_messages}
+        return {"messages": [patched_msg]}
 
 
-def _has_budget_hint(messages: list[Any]) -> bool:
-    """Check if budget hint is already present (idempotency)."""
-    for msg in reversed(messages[-3:]):
-        if isinstance(msg, HumanMessage) and isinstance(msg.content, str) and _HINT_PREFIX in msg.content:
+def _hint_update(hint: str) -> dict[str, Sequence[BaseMessage]]:
+    """The state update that appends *hint*, as a message the runtime wrote: the user-input screens skip it."""
+    message = HumanMessage(
+        content=f"[SYSTEM INSTRUCTION] {_HINT_PREFIX}\n{hint}",
+        additional_kwargs={"is_system_synthetic": True},
+    )
+    return {"messages": [message]}
+
+
+def _has_budget_hint(messages: Sequence[BaseMessage]) -> bool:
+    """Whether the current run already carries the hint: look back to the user's latest message, no further."""
+    for msg in reversed(messages):
+        if not isinstance(msg, HumanMessage):
+            continue
+        if isinstance(msg.content, str) and _HINT_PREFIX in msg.content:
             return True
+        if not msg.additional_kwargs.get("is_system_synthetic"):
+            return False
     return False

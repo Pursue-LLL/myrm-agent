@@ -20,7 +20,7 @@ import re
 from collections.abc import Awaitable, Callable
 
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
@@ -108,7 +108,7 @@ def _build_progress_injection(store: TodoStore, incomplete: list[TodoItem]) -> s
 def progress_middleware(
     get_todos_fn: Callable[[str | None], Awaitable[TodoStore | None]],
 ) -> Callable[[ModelRequest, Callable[[ModelRequest], Awaitable[ModelResponse]]], Awaitable[ModelResponse]]:
-    """Inject active todo focus into the last HumanMessage (non-persistent)."""
+    """Inject active todo focus into the last HumanMessage, ignoring SystemMessages behind it (non-persistent)."""
 
     @wrap_model_call(name="progress_middleware")  # type: ignore[arg-type]
     async def _middleware(
@@ -134,17 +134,22 @@ def progress_middleware(
         # past HumanMessages MUST NOT be rewritten or stripped, as modifying historical
         # messages breaks KV cache prefix matching. The model already sees latest task
         # state via the ToolMessage from todo_write.
-        if not isinstance(new_messages[-1], HumanMessage):
+        # The boundary rules and the session directories are SystemMessages behind the user's message on the first
+        # model call; the todo focus belongs on the user's message, not after them.
+        tail = len(new_messages) - 1
+        while tail > 0 and isinstance(new_messages[tail], SystemMessage):
+            tail -= 1
+        if not isinstance(new_messages[tail], HumanMessage):
             if not any(isinstance(m, HumanMessage) for m in new_messages):
                 # Fallback for synthetic requests without any HumanMessage
                 new_messages.append(HumanMessage(content=injection_text))
                 return await handler(request.override(messages=new_messages))
             return await handler(request)
 
-        last_msg = new_messages[-1]
+        last_msg = new_messages[tail]
         if isinstance(last_msg.content, str):
             cleaned_content = _strip_previous_progress(last_msg.content)
-            new_messages[-1] = HumanMessage(
+            new_messages[tail] = HumanMessage(
                 content=f"{cleaned_content}\n\n{injection_text}" if cleaned_content else injection_text,
                 id=last_msg.id,
             )
@@ -157,7 +162,7 @@ def progress_middleware(
                         cleaned_parts.append({**part, "text": cleaned_text})
                 else:
                     cleaned_parts.append(part)
-            new_messages[-1] = HumanMessage(
+            new_messages[tail] = HumanMessage(
                 content=[*cleaned_parts, {"type": "text", "text": f"\n\n{injection_text}"}],
                 id=last_msg.id,
             )

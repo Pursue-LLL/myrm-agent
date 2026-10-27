@@ -185,7 +185,7 @@ def test_text_the_main_loop_already_processed_is_left_byte_identical(raw: str, s
     set_security_config(SecurityConfig(privacy_policy=policy))
     set_pseudonym_store(PseudonymStore(":memory:"))
     screened = screen_user_input([HumanMessage(content=raw)], policy)
-    main_loop_text = raw if screened is None else str(screened[0].content)
+    main_loop_text = str(screened[0].content) if screened else raw
     messages: list[dict[str, object]] = [{"role": "user", "content": main_loop_text}]
 
     guard_outbound_messages(messages)

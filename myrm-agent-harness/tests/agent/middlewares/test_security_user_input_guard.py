@@ -17,6 +17,7 @@ from typing import Literal
 
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langgraph.graph.message import add_messages
 
 from myrm_agent_harness.agent.middlewares._session_context import (
     reset_terminal_errors,
@@ -63,8 +64,10 @@ def _tool_turn() -> list[BaseMessage]:
 
 
 def _screen(messages: list[BaseMessage]) -> list[BaseMessage] | None:
-    result = SecurityGuardrailMiddleware().before_model({"messages": messages}, None)
-    return None if result is None else result["messages"]
+    """The thread as the graph holds it once the hook ran: its update merged into the state by message id."""
+    state = add_messages([], messages)
+    update = SecurityGuardrailMiddleware().before_model({"messages": state}, None)
+    return None if update is None else add_messages(state, update["messages"])
 
 
 def _decisions() -> list[str]:
@@ -135,6 +138,20 @@ class TestScreenedMessage:
         assert screened is not None
         assert screened[0].content.startswith(CAUTION)
         assert screened[1] is board
+
+    def test_only_the_rewritten_messages_are_returned_each_under_its_own_id(self) -> None:
+        set_security_config(_privacy())
+        state = _history(f"my phone is {PHONE}")
+
+        rewritten = user_input_guard.screen_user_input(state, _privacy().privacy_policy)
+
+        assert [message.id for message in rewritten] == ["u1"]
+        assert PHONE not in str(rewritten[0].content)
+
+    def test_nothing_is_returned_when_no_message_needs_a_rewrite(self) -> None:
+        set_security_config(_privacy())
+
+        assert user_input_guard.screen_user_input(_history("hello"), _privacy().privacy_policy) == []
 
     def test_runtime_messages_are_not_screened(self) -> None:
         set_security_config(_privacy())

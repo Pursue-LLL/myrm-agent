@@ -26,7 +26,7 @@ rewrites are stable under repetition, so rescanning the state on every call chan
 - agent.security.audit::record_decision (POS: Cross-cutting concern. Called from tool_interceptor_middleware and all security guard modules at every decision point.)
 
 [OUTPUT]
-- screen_user_input: the message list with the user's messages screened, or None when nothing changed
+- screen_user_input: the user's messages it rewrote, each with the id of the message it replaces; empty when nothing changed
 
 [POS]
 Input-side layers (intent router, prompt guard, PII guard) of the security guardrail middleware.
@@ -61,23 +61,20 @@ logger = logging.getLogger(__name__)
 Stage = Literal["first_call", "later_call", "earlier"]
 
 
-def screen_user_input(messages: Sequence[BaseMessage], policy: PrivacyPolicy) -> list[BaseMessage] | None:
-    """Screen the user-authored messages; return the rewritten message list, or None if it needs no change."""
+def screen_user_input(messages: Sequence[BaseMessage], policy: PrivacyPolicy) -> list[BaseMessage]:
+    """Screen the user-authored messages; return the ones it rewrote, in message order (empty when none changed).
+
+    A rewrite keeps the id of its message, so a state update carrying it swaps it in place.
+    """
     index = _latest_user_index(messages)
     if index is None:
-        return None
+        return []
     config = _security_config()
     replaced = _screen_earlier(messages, index, policy, config)
     latest = _screened(messages[index], _Screen(policy, config, _latest_stage(messages, index)))
     if latest is not None:
         replaced[index] = latest
-    if not replaced:
-        return None
-
-    result = list(messages)
-    for position, message in replaced.items():
-        result[position] = message
-    return result
+    return [replaced[position] for position in sorted(replaced)]
 
 
 def _screen_earlier(

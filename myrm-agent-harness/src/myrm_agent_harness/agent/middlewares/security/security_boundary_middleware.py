@@ -50,6 +50,3 @@ class SecurityBoundaryMiddleware(AgentMiddleware):
         if not messages or _carries_rules(messages):
             return None
         return {"messages": [SystemMessage(content=SECURITY_BOUNDARY_SYSTEM_RULES)]}
-
-    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Sequence[BaseMessage]] | None:
-        return None

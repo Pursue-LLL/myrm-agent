@@ -20,14 +20,14 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `debug_logger_middleware.py` | Core | Full message list debug logging. | ✅ |
 | `filesystem_search_middleware.py` | Core | Inject glob/grep workspace search tools. | ✅ |
 | `plan_confirm_middleware.py` | Core | Plan-phase HITL: intercept first plan and major re-plans via `interrupt()` with 3+ items for user review. | ✅ |
-| `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage with KV cache preservation; only for an agent that holds `todo_write`. | ✅ |
+| `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage (SystemMessages behind it, such as the boundary rules, are skipped) with KV cache preservation; only for an agent that holds `todo_write`. | ✅ |
 | `goal_focus_middleware.py` | Core | ACTIVE goal objective injection into last HumanMessage. | ✅ |
 | `moa_advisor_middleware.py` | Core | Agent-loop MoA advisor overlay — ref fan-out, cache-safe transient prompt tail injection with KV-cache preservation, skip SSE for budget pressure and insufficient refs (`moa_overlay_skipped`), supports injected `privacy_redactor` for reference PII/secret scrubbing. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
-| `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before each model call; dedup via marker. | ✅ |
+| `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |
 | `subagent_limit_middleware.py` | Core | Max concurrent subagents per turn. | ✅ |
-| `sync_hook_parity.py` | Internal | `SyncHookParityAdapter` wraps middlewares missing sync `wrap_tool_call`/`wrap_model_call` so sync ToolNode paths don't raise; `apply_sync_hook_parity()` auto-wraps the middleware list. | ✅ |
+| `sync_hook_parity.py` | Internal | `apply_sync_hook_parity()` gives each middleware that defines only the async `awrap_tool_call`/`awrap_model_call` a pass-through sync variant, so sync ToolNode paths don't raise. It moves the instance onto a cached subclass of its own class: LangChain reads `before_model`/`after_model` (graph nodes) from the class, so a forwarding wrapper object would hide them. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

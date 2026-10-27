@@ -34,7 +34,8 @@ after_model (runs after each LLM call):
        in state, keeping conversation history clean for compliance and
        preventing credential accumulation across turns
 
-A rewrite replaces only the message ``content`` (``model_copy``); status, metadata and ids stay intact.
+A rewrite replaces only the message ``content`` (``model_copy``); status, metadata and ids stay intact. A hook
+returns only the messages it rewrote: state swaps each one for the message that carries its id.
 
 Streaming note: ``before_model``/``after_model`` operate on the graph state,
 not on streamed chunks. Streaming chunks are yielded during the model node
@@ -111,31 +112,25 @@ _CIRCUIT_BREAKER_HINTS: dict[str, str] = {
 }
 
 
-def _last_ai_message(messages: Sequence[BaseMessage]) -> tuple[int, AIMessage] | None:
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
-        if isinstance(msg, AIMessage):
-            return i, msg
-    return None
+def _last_ai_message(messages: Sequence[BaseMessage]) -> AIMessage | None:
+    return next((msg for msg in reversed(messages) if isinstance(msg, AIMessage)), None)
 
 
-def _redact_recent_tool_results(messages: Sequence[BaseMessage]) -> list[BaseMessage] | None:
+def _redact_recent_tool_results(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
     """Layer ③: redact credentials in the tool results since the last AI or human message.
 
-    Returns the rewritten list, or None when no result held a credential.
+    Returns the results it rewrote, in message order, each with the id of the result it replaces.
     """
-    redacted: list[BaseMessage] | None = None
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
+    redacted: list[BaseMessage] = []
+    for msg in reversed(messages):
         if isinstance(msg, ToolMessage):
             content = map_text_blocks(msg.content, redact_leaks)
             if content != msg.content:
-                if redacted is None:
-                    redacted = list(messages)
-                redacted[i] = msg.model_copy(update={"content": content})
+                redacted.append(msg.model_copy(update={"content": content}))
                 logger.warning("[SECURITY] Redacted credentials in tool result: %s", msg.name or "unknown")
         elif isinstance(msg, (AIMessage, HumanMessage)):
             break
+    redacted.reverse()
     return redacted
 
 
@@ -226,20 +221,17 @@ class SecurityGuardrailMiddleware(AgentMiddleware):
         if not messages:
             return None
 
-        screened = screen_user_input(messages, get_privacy_policy())
-        redacted = _redact_recent_tool_results(messages if screened is None else screened)
-        result = screened if redacted is None else redacted
-        return None if result is None else {"messages": result}
+        rewritten = [*screen_user_input(messages, get_privacy_policy()), *_redact_recent_tool_results(messages)]
+        return {"messages": rewritten} if rewritten else None
 
     def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Sequence[BaseMessage]] | None:
         messages = state.get("messages", [])
         if not messages:
             return None
 
-        last_ai = _last_ai_message(messages)
-        if last_ai is None:
+        last_ai_msg = _last_ai_message(messages)
+        if last_ai_msg is None:
             return None
-        last_ai_idx, last_ai_msg = last_ai
 
         content = last_ai_msg.content
         modified = _guard_canary(content if isinstance(content, str) else "", last_ai_msg.tool_calls)
@@ -250,7 +242,4 @@ class SecurityGuardrailMiddleware(AgentMiddleware):
         if not isinstance(content, str) or modified == content:
             return None
 
-        new_messages = list(messages)
-        new_messages[last_ai_idx] = last_ai_msg.model_copy(update={"content": modified})
-
-        return {"messages": new_messages}
+        return {"messages": [last_ai_msg.model_copy(update={"content": modified})]}

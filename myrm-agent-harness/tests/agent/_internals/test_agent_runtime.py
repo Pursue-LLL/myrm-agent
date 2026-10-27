@@ -10,16 +10,8 @@ from langchain_core.tools import tool
 from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 
 
-def _unwrap_middleware(middleware: object) -> object:
-    from myrm_agent_harness.agent.middlewares.sync_hook_parity import SyncHookParityAdapter
-
-    if isinstance(middleware, SyncHookParityAdapter):
-        return object.__getattribute__(middleware, "_inner")
-    return middleware
-
-
 def _middleware_class_names(middlewares: list[object]) -> list[str]:
-    return [type(_unwrap_middleware(middleware)).__name__ for middleware in middlewares]
+    return [type(middleware).__name__ for middleware in middlewares]
 
 
 class TestExtractQueryText:
@@ -104,7 +96,7 @@ class TestBuildMiddlewares:
         from myrm_agent_harness.agent.middlewares import debug_logger_middleware
 
         result = build_middlewares(create_registry(), [])
-        assert _unwrap_middleware(result[-1]) is debug_logger_middleware
+        assert result[-1] is debug_logger_middleware
 
     def test_deferred_normalizer_runs_before_after_model_policies(self):
         from myrm_agent_harness.agent._internals.agent_runtime import (
@@ -124,7 +116,7 @@ class TestBuildMiddlewares:
         )
 
         result = build_middlewares(create_registry(), [])
-        class_names = {type(_unwrap_middleware(mw)).__name__ for mw in result}
+        class_names = set(_middleware_class_names(result))
         assert "ToolHistoryHygieneMiddleware" in class_names
         assert "DanglingToolCallMiddleware" in class_names
         assert "ToolApprovalMiddleware" in class_names

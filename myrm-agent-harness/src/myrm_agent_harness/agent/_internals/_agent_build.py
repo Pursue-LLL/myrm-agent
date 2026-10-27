@@ -130,14 +130,18 @@ def build_middlewares(
     if params.enable_replan:
         middlewares.append(ReplanMiddleware(max_attempts=params.max_replan_attempts))
 
-    middlewares.extend(
-        [
-            ToolCallLimitMiddleware(run_limit=params.max_tool_calls, exit_behavior="continue"),
+    if params.max_tool_calls is not None:
+        middlewares.append(ToolCallLimitMiddleware(run_limit=params.max_tool_calls, exit_behavior="continue"))
+    if params.max_bash_calls is not None:
+        middlewares.append(
             ToolCallLimitMiddleware(
                 tool_name="bash_code_execute_tool",
                 run_limit=params.max_bash_calls,
                 exit_behavior="continue",
-            ),
+            )
+        )
+    middlewares.extend(
+        [
             BudgetBoundaryMiddleware(),
             SecurityBoundaryMiddleware(),
             SessionAccessMiddleware(),

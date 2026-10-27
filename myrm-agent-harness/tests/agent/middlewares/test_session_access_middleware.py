@@ -88,10 +88,10 @@ class TestBeforeModel:
             result = mw.before_model({"messages": [HumanMessage(content="hi")]}, None)
             assert result is not None
             messages = result["messages"]
-            assert len(messages) == 2
-            assert isinstance(messages[-1], SystemMessage)
-            assert _SESSION_ACCESS_MARKER in messages[-1].content
-            assert "</session-access>" in messages[-1].content
+            assert len(messages) == 1
+            assert isinstance(messages[0], SystemMessage)
+            assert _SESSION_ACCESS_MARKER in messages[0].content
+            assert "</session-access>" in messages[0].content
 
     def test_skips_when_marker_already_present(self) -> None:
         mw = SessionAccessMiddleware()
@@ -110,11 +110,5 @@ class TestBeforeModel:
                 return_value="- /ws [read-write]",
             ),
         ):
-            result = mw.before_model(
-                {"messages": [HumanMessage(content="hi"), existing]}, None
-            )
+            result = mw.before_model({"messages": [HumanMessage(content="hi"), existing]}, None)
             assert result is None
-
-    def test_after_model_returns_none(self) -> None:
-        mw = SessionAccessMiddleware()
-        assert mw.after_model({"messages": []}, None) is None

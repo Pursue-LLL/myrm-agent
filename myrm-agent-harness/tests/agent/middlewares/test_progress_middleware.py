@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import (
@@ -297,3 +297,22 @@ async def test_tool_loop_does_not_modify_earlier_messages_preserving_cache() -> 
     assert passed_request.messages[0] is original_human
     assert passed_request.messages[0].content == "Please refactor auth module"
     assert passed_request.messages == request.messages
+
+
+@pytest.mark.asyncio
+async def test_focus_lands_on_the_user_message_when_system_messages_follow_it() -> None:
+    """On the first model call the boundary rules and the session directories sit behind the user's message."""
+    store = TodoStore(goal="Ship it", todos=[TodoItem(id="t1", content="step one")])
+    middleware = progress_middleware(AsyncMock(return_value=store))
+    rules, session = SystemMessage(content="<data_boundary_rules>"), SystemMessage(content="<session-access>")
+    request = ModelRequest(model=AsyncMock(), messages=[HumanMessage(content="do it", id="u1"), rules, session])
+    handler = AsyncMock(return_value=ModelResponse(result=[]))
+
+    await middleware.awrap_model_call(request, handler)
+
+    sent = handler.await_args.args[0].messages
+    assert sent[0].id == "u1"
+    assert "do it" in sent[0].content
+    assert "Ship it" in sent[0].content
+    assert sent[1] is rules
+    assert sent[2] is session

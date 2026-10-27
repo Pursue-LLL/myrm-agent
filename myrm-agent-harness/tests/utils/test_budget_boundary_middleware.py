@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
 from myrm_agent_harness.utils.token_economics.budget_boundary_middleware import (
     _HINT_PREFIX,
     BudgetBoundaryMiddleware,
@@ -79,12 +80,24 @@ class TestBeforeModel:
         ):
             result = mw.before_model({"messages": messages}, None)
             assert result is not None
-            assert len(result["messages"]) == 2
-            last = result["messages"][-1]
-            assert isinstance(last, HumanMessage)
-            assert "Budget is running low" in last.content
-            assert "$0.80" in last.content
-            assert _HINT_PREFIX in last.content
+            assert len(result["messages"]) == 1
+            hint = result["messages"][0]
+            assert isinstance(hint, HumanMessage)
+            assert "Budget is running low" in hint.content
+            assert "$0.80" in hint.content
+            assert _HINT_PREFIX in hint.content
+
+    def test_the_hint_is_the_runtimes_message_not_the_users(self) -> None:
+        """The input screens act on what the user wrote; the hint is not that, and must not be taken for it."""
+        mw = BudgetBoundaryMiddleware()
+        with patch(
+            "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
+            return_value=_make_tracker(BudgetStatus.FINALIZATION, remaining=0.12),
+        ):
+            result = mw.before_model({"messages": [HumanMessage(content="hi")]}, None)
+
+        assert result is not None
+        assert not is_user_authored_human_message(result["messages"][0])
 
     def test_warning_hint_graceful_when_remaining_none(self) -> None:
         """Hint degrades gracefully when get_remaining_budget() returns None."""
@@ -111,6 +124,41 @@ class TestBeforeModel:
         ):
             result = mw.before_model({"messages": messages}, None)
             assert result is None
+
+    def test_the_hint_is_not_repeated_however_long_the_run_goes_on(self) -> None:
+        """A run is the messages behind the user's latest one: the hint stays in it, many tool rounds back."""
+        mw = BudgetBoundaryMiddleware()
+        hint = HumanMessage(
+            content=f"[SYSTEM INSTRUCTION] {_HINT_PREFIX}\nlow", additional_kwargs={"is_system_synthetic": True}
+        )
+        rounds = [
+            message
+            for n in range(6)
+            for message in (
+                AIMessage(content=f"a{n}"),
+                HumanMessage(content=f"t{n}", additional_kwargs={"is_system_synthetic": True}),
+            )
+        ]
+        with patch(
+            "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
+            return_value=_make_tracker(BudgetStatus.WARNING, remaining=0.50),
+        ):
+            assert mw.before_model({"messages": [HumanMessage(content="hi"), hint, *rounds]}, None) is None
+
+    def test_a_new_user_message_starts_a_run_that_gets_its_own_hint(self) -> None:
+        mw = BudgetBoundaryMiddleware()
+        hint = HumanMessage(
+            content=f"[SYSTEM INSTRUCTION] {_HINT_PREFIX}\nlow", additional_kwargs={"is_system_synthetic": True}
+        )
+        messages = [HumanMessage(content="first"), hint, AIMessage(content="answer"), HumanMessage(content="second")]
+        with patch(
+            "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
+            return_value=_make_tracker(BudgetStatus.WARNING, remaining=0.50),
+        ):
+            result = mw.before_model({"messages": messages}, None)
+
+        assert result is not None
+        assert _HINT_PREFIX in result["messages"][0].content
 
     def test_injects_finalization_hint_once(self) -> None:
         mw = BudgetBoundaryMiddleware()
@@ -141,18 +189,20 @@ class TestAfterModel:
 
     def test_strips_tool_calls_on_finalization(self) -> None:
         mw = BudgetBoundaryMiddleware()
-        ai_msg = AIMessage(content="thinking")
+        ai_msg = AIMessage(content="thinking", id="a1")
         ai_msg.tool_calls = [{"name": "search", "args": {}, "id": "tc1"}]  # type: ignore[assignment]
 
         with patch(
             "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
             return_value=_make_tracker(BudgetStatus.FINALIZATION),
         ):
-            result = mw.after_model({"messages": [ai_msg]}, None)
+            result = mw.after_model({"messages": [HumanMessage(content="hi"), ai_msg]}, None)
             assert result is not None
-            last = result["messages"][-1]
-            assert isinstance(last, AIMessage)
-            assert not last.tool_calls
+            assert len(result["messages"]) == 1
+            patched = result["messages"][0]
+            assert isinstance(patched, AIMessage)
+            assert patched.id == "a1"
+            assert not patched.tool_calls
 
     def test_no_strip_when_no_tool_calls(self) -> None:
         mw = BudgetBoundaryMiddleware()
