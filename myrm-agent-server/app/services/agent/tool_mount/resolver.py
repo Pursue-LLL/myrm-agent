@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - resolve_agent_mount: surface + profile flags → meta mount flags (FileAccessMode on WEB_FAST)
+- resolve_child_meta_mount: file/shell mount of a delegated child, from the capability it holds
 - apply_ptc_meta_mount: MCP PTC dependency injection at factory time
 
 [POS]
@@ -16,9 +17,10 @@ assembles tools; this module decides FileAccessMode / shell per entry.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.core.security.ocap import CapabilityAction, check_capability_access
 
 from app.services.agent.tool_mount.surfaces import ExecutionSurface
 
@@ -55,6 +57,28 @@ def resolve_agent_mount(
         profile_flags,
         file_access_mode=FileAccessMode.FULL,
         enable_shell_tools=True,
+    )
+
+
+class ChildMetaMount(TypedDict):
+    """``create_skill_agent`` file/shell mount arguments for a delegated child."""
+
+    file_access_mode: FileAccessMode
+    enable_shell_tools: bool
+
+
+def resolve_child_meta_mount() -> ChildMetaMount:
+    """Mount only the file/shell meta tools the child's bound capability lets it use.
+
+    A child under a handle without WRITE or EXECUTE is refused those tools at call time; offering them anyway
+    only makes the model retry refused calls. This asks the executors' own predicate, so the mount cannot
+    drift from enforcement. With no handle bound (not a delegated child) the full surface stays.
+    """
+    return ChildMetaMount(
+        file_access_mode=(
+            FileAccessMode.FULL if check_capability_access(CapabilityAction.WRITE) else FileAccessMode.WORKSPACE_READ_ONLY
+        ),
+        enable_shell_tools=check_capability_access(CapabilityAction.EXECUTE),
     )
 
 

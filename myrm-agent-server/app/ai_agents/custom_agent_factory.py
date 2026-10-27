@@ -296,6 +296,7 @@ class CustomAgentFactory:
 
         from app.ai_agents.general_agent.tools import ensure_tool_layer_bootstrap
         from app.platform_utils import get_storage_provider
+        from app.services.agent.tool_mount import resolve_child_meta_mount
 
         # A subagent can be the first agent built in this process; HTTP startup no longer
         # registers tool layers eagerly, so await the same idempotent bootstrap here.
@@ -464,6 +465,7 @@ class CustomAgentFactory:
             tools=all_tools,
             collect_artifacts=False,
             checkpointer=get_subagent_checkpointer(),
+            **resolve_child_meta_mount(),
         )
 
         logger.info(
@@ -505,6 +507,7 @@ class EphemeralAgentFactory:
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.platform_utils import get_storage_provider
+        from app.services.agent.tool_mount import resolve_child_meta_mount
 
         # 10/10 Scheme: If context is forked, we MUST drop the system_prompt entirely.
         # Otherwise, LangGraph prepends a new SystemMessage, shifting the array and breaking Prefix Cache!
@@ -577,6 +580,7 @@ class EphemeralAgentFactory:
             tools=all_tools,
             collect_artifacts=False,
             checkpointer=get_subagent_checkpointer(),
+            **resolve_child_meta_mount(),
         )
 
         logger.info(

@@ -43,7 +43,7 @@ Design notes:
 | `goals/` | ✅ 核心 | Goal 域：会话级 Goal 注册表 + draft 生成 + headless 流触发 + WAIT/orphan 恢复 | [_ARCH.md](goals/_ARCH.md) |
 | `profile/` | ✅ 核心 | Agent Profile 域：配置解析（`profile_resolver`）+ builtin 工具标志映射 + 快照回滚服务 | [_ARCH.md](profile/_ARCH.md) |
 | `background_job/` | ✅ 核心 | 后台 bash 任务域：启动 reconcile + finish 闭环 WebUI 通知 | [_ARCH.md](background_job/_ARCH.md) |
-| `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
+| `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `resolve_child_meta_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
 | `marketplace/` | ✅ 核心 | Agent Marketplace 导入/导出与包契约 SSOT | [_ARCH.md](marketplace/_ARCH.md) |
 | `params/` | ✅ 核心 | HTTP 请求 → `GeneralAgentParams` 转换层 | [_ARCH.md](params/_ARCH.md) |
 | `readiness/` | ✅ 核心 | Per-agent 配置就绪预检（6 维度 ready/warning/blocked + Settings deep link） | [_ARCH.md](readiness/_ARCH.md) |

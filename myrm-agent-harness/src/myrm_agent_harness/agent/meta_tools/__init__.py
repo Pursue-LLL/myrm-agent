@@ -195,13 +195,17 @@ def get_meta_tools(
     else:
         logger.info(" request_answer_user_tool 已跳过 (enable_answer_tool=False)")
 
-    if resolved_file_access == FileAccessMode.FULL:
-        file_read_tool = create_file_read_tool(skills=skills, locale=locale)
-        file_write_tool = create_file_write_tool(skills=skills, locale=locale)
-        file_edit_tool = create_file_edit_tool(skills=skills, locale=locale)
-        glob_tool = create_glob_tool(locale=locale)
-        grep_tool = create_grep_tool(locale=locale)
-        tools.extend([file_read_tool, file_write_tool, file_edit_tool, glob_tool, grep_tool])
+    if resolved_file_access in (FileAccessMode.FULL, FileAccessMode.WORKSPACE_READ_ONLY):
+        # Tool order is part of the cached prompt prefix: FULL keeps read, write, edit, glob, grep.
+        can_write = resolved_file_access == FileAccessMode.FULL
+        tools.append(create_file_read_tool(skills=skills, locale=locale))
+        if can_write:
+            tools.append(create_file_write_tool(skills=skills, locale=locale))
+            tools.append(create_file_edit_tool(skills=skills, locale=locale))
+        else:
+            logger.info(" Workspace read-only file tools mounted (no write/edit)")
+        tools.append(create_glob_tool(locale=locale))
+        tools.append(create_grep_tool(locale=locale))
     elif resolved_file_access == FileAccessMode.SPILL_AND_UPLOADS:
         file_read_tool = create_file_read_tool(skills=skills, path_policy="evicted_uploaded", locale=locale)
         tools.append(file_read_tool)

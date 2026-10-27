@@ -311,6 +311,7 @@ myrm_agent_harness.core.security.detection.token_start
 myrm_agent_harness.core.security.guards.ssrf
 myrm_agent_harness.core.security.http.secure_fetch
 myrm_agent_harness.core.security.inbound_quarantine
+myrm_agent_harness.core.security.ocap
 myrm_agent_harness.core.security.path
 myrm_agent_harness.core.security.readonly_research_sandbox
 myrm_agent_harness.core.security.tool_registry

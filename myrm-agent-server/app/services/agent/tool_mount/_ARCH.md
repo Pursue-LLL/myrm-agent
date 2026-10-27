@@ -14,6 +14,7 @@ Harness `get_meta_tools(file_access_mode, enable_shell_tools)` remains the facto
 | `WEB_FAST` | `SPILL_AND_UPLOADS` | Off | `resolve_agent_mount` |
 | `CRON` unrestricted | `FULL` | On | `resolve_agent_mount` |
 | `CRON` restricted | Allow-list | Allow-list | `tools_policy` intersect + `resolve_agent_mount(..., cron_job_tools_allowed=...)` |
+| Delegated child (`CustomAgentFactory`, `EphemeralAgentFactory`) | `FULL` if the bound capability allows WRITE, else `WORKSPACE_READ_ONLY` | On iff the capability allows EXECUTE (no handle bound: `FULL`, On) | `resolve_child_meta_mount` |
 
 ## PTC
 
@@ -24,6 +25,6 @@ Harness `get_meta_tools(file_access_mode, enable_shell_tools)` remains the facto
 | File | Role |
 | --- | --- |
 | `surfaces.py` | `ExecutionSurface` enum |
-| `resolver.py` | `resolve_agent_mount`, `apply_ptc_meta_mount` — preserves profile flags including `enable_skill_market` / `enable_skill_manage` |
+| `resolver.py` | `resolve_agent_mount`, `resolve_child_meta_mount`, `apply_ptc_meta_mount` — preserves profile flags including `enable_skill_market` / `enable_skill_manage` |
 
 Persist catalog ID `code_execute` remains in `builtin_tool_ids.AGENT_BASELINE_BUILTIN_TOOLS`; runtime flag is `enable_shell_tools`.
