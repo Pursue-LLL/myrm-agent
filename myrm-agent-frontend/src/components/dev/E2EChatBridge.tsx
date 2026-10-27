@@ -35,7 +35,6 @@ import type { DefaultModelConfig, ProviderConfig, CustomModelInfo } from '@/stor
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
-import useDeviceInspectorStore, { selectScopedDeviceViewData } from '@/store/useDeviceInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
@@ -2061,22 +2060,6 @@ export default function E2EChatBridge() {
           updatedAt: store.viewData?.updatedAt ?? null,
         };
       },
-      getDeviceInspectorSnapshot: () => {
-        const store = useDeviceInspectorStore.getState();
-        const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
-        const scopedView = selectScopedDeviceViewData(store.viewData, activeChatId);
-        return {
-          isOpen: store.isOpen,
-          isDeviceActive: store.isDeviceActive,
-          hasScreenshot: Boolean(store.viewData?.screenshotBase64),
-          scopedHasScreenshot: Boolean(scopedView?.screenshotBase64),
-          sourceChatId: store.viewData?.sourceChatId ?? '',
-          activeChatId,
-          mode: store.mode,
-          notificationRedaction: store.notificationRedaction,
-          updatedAt: store.viewData?.updatedAt ?? null,
-        };
-      },
       simulateDesktopViewUpdate: async (chatId: string) => {
         const normalizedChatId = chatId.trim();
         if (!normalizedChatId) {
@@ -2262,16 +2245,10 @@ export default function E2EChatBridge() {
       refresh: () => undefined,
     };
 
-    (
-      window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }
-    ).__MYRM_DEVICE_INSPECTOR_STORE__ = useDeviceInspectorStore;
-
     return () => {
       delete window.__MYRM_E2E_CHAT__;
       delete window.__MYRM_E2E_SUBAGENT__;
       delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-      delete (window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore })
-        .__MYRM_DEVICE_INSPECTOR_STORE__;
     };
   }, []);
 

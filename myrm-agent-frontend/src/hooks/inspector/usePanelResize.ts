@@ -23,7 +23,7 @@ interface SeparatorProps {
 }
 
 /**
- * Width state for a right-docked, drag-resizable panel (Browser / Desktop / Device inspectors).
+ * Width state for a right-docked, drag-resizable panel (Browser / Desktop inspectors).
  * The left-edge separator is operable by pointer and keyboard (WAI-ARIA window splitter:
  * Left/Right adjust, Home/End jump to the limits); callers add their own `aria-label` and styling.
  */

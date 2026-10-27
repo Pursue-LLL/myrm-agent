@@ -15319,24 +15319,6 @@
       "screenLockGuardLocked": "잠김",
       "setupGuideStep3": "에이전트 설정에서 데스크톱 제어를 켜고 채팅에서 첫 앱 승인을 완료하세요."
     },
-    "mobileAdb": {
-      "title": "모바일 무선 ADB 디버깅",
-      "description": "실제 Android 디바이스를 연결하여 자동화 작업, UI 트리 추출 및 크로스 디바이스 워크플로우를 수행합니다",
-      "activeDevices": "연결된 디바이스",
-      "noDevicesFound": "연결된 Android 디바이스가 없습니다",
-      "pairPrompt": "스마트폰 개발자 옵션에서 무선 디버깅을 활성화한 후 페어링 코드를 입력하세요",
-      "wirelessPairing": "무선 디버깅 페어링 (Android 11+)",
-      "pairingCodePlaceholder": "6자리 페어링 코드 (예: 123456)",
-      "pairButton": "디바이스 페어링",
-      "directConnect": "직접 연결 (페어링된 디바이스)",
-      "connectButton": "연결",
-      "refresh": "디바이스 새로고침",
-      "fillAllFields": "호스트, 포트, 페어링 코드의 모든 필수 항목을 입력하세요",
-      "pairSuccess": "무선 디바이스 페어링 성공!",
-      "pairFailed": "페어링 실패. 호스트 IP, 포트 및 페어링 코드를 확인하세요",
-      "connectSuccess": "디바이스가 성공적으로 연결되었습니다!",
-      "connectFailed": "연결에 실패했습니다. 동일한 Wi-Fi에서 무선 디버깅이 활성화되어 있는지 확인하세요"
-    },
     "rate_limits": {
       "title": "속도 제한 모니터",
       "no_data": "아직 속도 제한 데이터가 없습니다. 요청을 만들어 추적을 시작하세요.",

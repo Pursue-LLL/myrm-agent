@@ -15319,24 +15319,6 @@
       "screenLockGuardLocked": "已鎖定",
       "setupGuideStep3": "在智能體設定中啟用「桌面控制」，並在對話中完成首次應用審批。"
     },
-    "mobileAdb": {
-      "title": "行動裝置無線除錯 (ADB)",
-      "description": "連線 Android 實體裝置執行自動化操作、UI 樹解析與跨端協同任務",
-      "activeDevices": "目前已連線裝置",
-      "noDevicesFound": "暫無已連線的 Android 裝置",
-      "pairPrompt": "請在手機開發人員選項中開啟「無線除錯」，輸入配對碼或連接埠進行連線",
-      "wirelessPairing": "無線除錯配對 (Android 11+)",
-      "pairingCodePlaceholder": "6位配對碼 (例如: 123456)",
-      "pairButton": "開始配對",
-      "directConnect": "直接連線 (已配對裝置)",
-      "connectButton": "建立連線",
-      "refresh": "重新整理裝置清單",
-      "fillAllFields": "請填寫完整的主機、連接埠和配對資訊",
-      "pairSuccess": "無線裝置配對成功！",
-      "pairFailed": "無線配對失敗，請檢查 IP、連接埠與配對碼",
-      "connectSuccess": "裝置連線成功！",
-      "connectFailed": "連線失敗，請確認裝置是否在同一區域網路並已開啟無線除錯"
-    },
     "rate_limits": {
       "title": "速率限制監控",
       "no_data": "暫無速率限制資料。發起請求後開始追蹤。",

@@ -10,7 +10,6 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
-import useDeviceInspectorStore from '@/store/useDeviceInspectorStore';
 import { useUiAlignmentStore } from '@/components/features/artifacts/ui_alignment';
 import { useWidgetBridgeStore } from '@/components/features/widget';
 
@@ -131,22 +130,6 @@ const DesktopLiveView = dynamic(
   () =>
     import('@/components/features/desktop-inspector').then((module) => ({
       default: module.DesktopLiveView,
-    })),
-  { ssr: false },
-);
-
-const DeviceInspectorToggle = dynamic(
-  () =>
-    import('@/components/features/device-inspector').then((module) => ({
-      default: module.DeviceInspectorToggle,
-    })),
-  { ssr: false },
-);
-
-const DeviceLiveView = dynamic(
-  () =>
-    import('@/components/features/device-inspector').then((module) => ({
-      default: module.DeviceLiveView,
     })),
   { ssr: false },
 );
@@ -1005,10 +988,6 @@ export default function ChatWindowSatellites({
   const closeDesktopInspector = useDesktopInspectorStore((s) => s.closePanel);
   useClosePanelOnChatSwitch(effectiveChatId, isDesktopInspectorOpen, closeDesktopInspector);
 
-  const isDeviceInspectorOpen = useDeviceInspectorStore((s) => s.isOpen);
-  const closeDeviceInspector = useDeviceInspectorStore((s) => s.closePanel);
-  useClosePanelOnChatSwitch(effectiveChatId, isDeviceInspectorOpen, closeDeviceInspector);
-
   const isUiAlignmentOpen = useUiAlignmentStore((s) => s.isOpen);
   const setUiAlignmentOpen = useUiAlignmentStore((s) => s.setOpen);
 
@@ -1026,8 +1005,6 @@ export default function ChatWindowSatellites({
       <BrowserRecordingPanel />
       <DesktopInspectorToggle />
       <DesktopLiveView onSendInstruction={onDesktopInspectorInstruction} />
-      <DeviceInspectorToggle />
-      <DeviceLiveView onSendInstruction={onDesktopInspectorInstruction} />
       <FileSnapshotPanel />
       <PreferenceRadarToggle chatId={chatId} />
       {chatId ? (

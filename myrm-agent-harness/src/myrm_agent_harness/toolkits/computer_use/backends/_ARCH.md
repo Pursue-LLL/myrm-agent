@@ -20,9 +20,7 @@ Platform-specific implementations of the ComputerBackend protocol. Provides macO
 | cua_driver.py | Enhancement | Background-input backend via cua-driver MCP. Wraps a native backend. | ✅ |
 | cua_driver_spawn.py | Enhancement | MCP stdio argv policy — ``--no-overlay`` defaults and ``--help`` capability probe. | ✅ |
 
-Desktop backends cover macOS / Windows / Linux only. Android device control is a
-separate toolkit (`toolkits/mobile_adb/`) with its own session, safety guard and @mref
-parser — it is not a `ComputerBackend` implementation.
+Desktop backends cover macOS / Windows / Linux only.
 
 ## Backend Selection (session.py → create_computer_session)
 

@@ -15319,24 +15319,6 @@
       "screenLockGuardLocked": "Gesperrt",
       "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen."
     },
-    "mobileAdb": {
-      "title": "Mobiles drahtloses ADB-Debugging",
-      "description": "Verbinden Sie echte Android-Geräte für Automatisierung, UI-Baum-Extraktion und geräteübergreifende Workflows",
-      "activeDevices": "Verbundene Geräte",
-      "noDevicesFound": "Keine verbundenen Android-Geräte gefunden",
-      "pairPrompt": "Aktivieren Sie Drahtloses Debugging in den Entwickleroptionen Ihres Telefons und geben Sie den Kopplungscode ein",
-      "wirelessPairing": "Drahtloses Debugging-Pairing (Android 11+)",
-      "pairingCodePlaceholder": "6-stelliger Kopplungscode (z. B. 123456)",
-      "pairButton": "Gerät koppeln",
-      "directConnect": "Direktverbindung (Gekoppeltes Gerät)",
-      "connectButton": "Verbinden",
-      "refresh": "Geräteliste aktualisieren",
-      "fillAllFields": "Bitte füllen Sie alle erforderlichen Host-, Port- und Kopplungsfelder aus",
-      "pairSuccess": "Drahtloses Gerät erfolgreich gekoppelt!",
-      "pairFailed": "Kopplung fehlgeschlagen. Überprüfen Sie Host-IP, Port und Kopplungscode",
-      "connectSuccess": "Gerät erfolgreich verbunden!",
-      "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass drahtloses Debugging im selben WLAN aktiv ist"
-    },
     "rate_limits": {
       "title": "Rate-Limit-Überwachung",
       "no_data": "Noch keine Rate-Limit-Daten verfügbar. Senden Sie eine Anfrage, um die Verfolgung zu starten.",

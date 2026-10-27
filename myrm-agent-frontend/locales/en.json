@@ -15319,24 +15319,6 @@
       "screenLockGuardLocked": "Locked",
       "setupGuideStep3": "In your agent config, turn on Desktop Control and complete the first app approval in chat."
     },
-    "mobileAdb": {
-      "title": "Mobile Wireless ADB Debugging",
-      "description": "Connect real Android devices for automation, UI tree extraction, and cross-device workflows",
-      "activeDevices": "Connected Devices",
-      "noDevicesFound": "No connected Android devices found",
-      "pairPrompt": "Enable 'Wireless debugging' in Developer options on your phone, then enter the pairing code or connect directly",
-      "wirelessPairing": "Wireless Pairing (Android 11+)",
-      "pairingCodePlaceholder": "6-digit pairing code (e.g. 123456)",
-      "pairButton": "Pair Device",
-      "directConnect": "Direct Connect (Paired Device)",
-      "connectButton": "Connect",
-      "refresh": "Refresh Devices",
-      "fillAllFields": "Please fill in all required host, port, and pairing fields",
-      "pairSuccess": "Wireless device paired successfully!",
-      "pairFailed": "Pairing failed. Check host IP, port, and pairing code",
-      "connectSuccess": "Device connected successfully!",
-      "connectFailed": "Connection failed. Ensure wireless debugging is active on the same Wi-Fi"
-    },
     "rate_limits": {
       "title": "Rate Limit Monitor",
       "no_data": "No rate limit data available yet. Make a request to start tracking.",

@@ -92,9 +92,6 @@ GET /webui/desktop/approval/pending
 POST /webui/desktop/approval/reset-runtime
 GET /webui/desktop/envelope/status
 GET /webui/desktop/screen-lock/status
-POST /webui/device/connect
-GET /webui/device/doctor
-POST /webui/device/pair
 POST /webui/vnc/start
 GET /webui/vnc/status
 POST /webui/vnc/stop

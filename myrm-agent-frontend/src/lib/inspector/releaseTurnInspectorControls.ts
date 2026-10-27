@@ -23,18 +23,12 @@
  */
 export async function releaseTurnInspectorControls(chatId: string): Promise<void> {
   try {
-    const [
-      { default: useDesktopInspectorStore },
-      { default: useBrowserInspectorStore },
-      { default: useDeviceInspectorStore },
-    ] = await Promise.all([
+    const [{ default: useDesktopInspectorStore }, { default: useBrowserInspectorStore }] = await Promise.all([
       import('@/store/useDesktopInspectorStore'),
       import('@/store/useBrowserInspectorStore'),
-      import('@/store/useDeviceInspectorStore'),
     ]);
     useDesktopInspectorStore.getState().releaseTurnEngagement(chatId);
     useBrowserInspectorStore.getState().releaseTurnEngagement(chatId);
-    useDeviceInspectorStore.getState().releaseTurnEngagement(chatId);
   } catch {
     // Best-effort teardown; chunk load failure should not break the stop path.
   }

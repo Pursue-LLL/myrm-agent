@@ -15319,24 +15319,6 @@
       "screenLockGuardLocked": "ロック中",
       "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。"
     },
-    "mobileAdb": {
-      "title": "モバイルワイヤレスADBデバッグ",
-      "description": "実機Android端末を接続し、自動化操作・UIツリー解析・クロスデバイスワークフローを実行します",
-      "activeDevices": "接続中のデバイス",
-      "noDevicesFound": "接続されたAndroidデバイスが見つかりません",
-      "pairPrompt": "スマートフォンの開発者オプションで「ワイヤレスデバッグ」を有効にし、ペアリングコードを入力してください",
-      "wirelessPairing": "ワイヤレスデバッグペアリング (Android 11+)",
-      "pairingCodePlaceholder": "6桁のペアリングコード (例: 123456)",
-      "pairButton": "デバイスをペアリング",
-      "directConnect": "直接接続 (ペアリング済み端末)",
-      "connectButton": "接続",
-      "refresh": "デバイス一覧を更新",
-      "fillAllFields": "ホスト、ポート、ペアリングコードのすべての必須項目を入力してください",
-      "pairSuccess": "ワイヤレスデバイスのペアリングに成功しました！",
-      "pairFailed": "ペアリングに失敗しました。ホストIP、ポート、ペアリングコードを確認してください",
-      "connectSuccess": "デバイスに接続しました！",
-      "connectFailed": "接続に失敗しました。同一Wi-Fiでワイヤレスデバッグが有効か確認してください"
-    },
     "rate_limits": {
       "title": "レート制限モニタリング",
       "no_data": "レート制限データはまだありません。リクエストを送信すると追跡が開始されます。",

@@ -59,7 +59,6 @@
 | `machines/` | ✅ 核心 | 自托管机群全局监控看板与远程人机同屏接管服务（对标 Cursor My Machines & Live Takeover） | [_ARCH.md](machines/_ARCH.md) |
 | `providers/` | ✅ 核心 | LLM 供应商服务（多供应商余额实时探活、并发缓存、Fail-open 本地流水兜底） | [_ARCH.md](providers/_ARCH.md) |
 | `webui/` | ✅ 辅助 | WebUI 专用服务（Remote 模式认证、二维码） | [_ARCH.md](webui/_ARCH.md) |
-| `device/` | ✅ 核心 | 移动设备桥接服务（ADB 发现、按需抓帧、物理状态栏脱敏、触控中继） | [_ARCH.md](device/_ARCH.md) |
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |
 | `instance_archive/` | ✅ 核心 | 整实例导出/导入与恢复点：路径与表分类策略、口令信封、可续传上传、启动前原子换入与撤销、本地/桌面定时整实例备份（`auto_backup/`；机制在 harness `infra/state_archive/`） | [_ARCH.md](instance_archive/_ARCH.md) |
 | `locked_use/` | ✅ 辅助 | Locked Use 协调层（Computer Use 锁屏解锁编排，集成 SleepInhibitor + Tauri IPC） | [_ARCH.md](locked_use/_ARCH.md) |

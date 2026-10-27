@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-WebUI 辅助服务：二维码/URL 组装、移动端设备桥接（ADB 探针、物理屏幕抓取、状态栏脱敏、触控中继），以及**本地/远程单机**下的浏览器会话认证（admin 密码 + httpOnly Cookie）。
+WebUI 辅助服务：二维码/URL 组装、Open Graph 链接预览抓取，以及**本地/远程单机**下的浏览器会话认证（admin 密码 + httpOnly Cookie）。
 
 认证由控制平面处理的 **Sandbox 部署**不在此包实现。
 
@@ -11,6 +11,7 @@ WebUI 辅助服务：二维码/URL 组装、移动端设备桥接（ADB 探针�
 | 文件 | 职责 |
 |------|------|
 | `qrcode.py` | 二维码与访问 URL |
+| `og_metadata.py` | Open Graph 元数据抓取（内存 LRU），服务端代理绕过浏览器 CORS |
 | `admin_store.py` | `~/.myrm/webui/admin.json` 管理员凭据 |
 | `passwords.py` | scrypt 密码哈希 |
 | `temp_token.py` | 首次 setup 临时令牌（含 `WEBUI_SETUP_TOKEN`） |

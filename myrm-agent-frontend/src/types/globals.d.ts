@@ -74,7 +74,6 @@ interface Window {
       marketUpdate: boolean;
     }) => void;
   };
-  __MYRM_DEVICE_INSPECTOR_STORE__?: typeof import('@/store/useDeviceInspectorStore').default;
   __MYRM_E2E_CHAT__?: {
     __e2eFallback: boolean;
     setInputMessage: (message: string) => void;
@@ -276,17 +275,6 @@ interface Window {
       activeChatId: string;
       appName: string;
       refCount: number;
-      updatedAt: number | null;
-    };
-    getDeviceInspectorSnapshot?: () => {
-      isOpen: boolean;
-      isDeviceActive: boolean;
-      hasScreenshot: boolean;
-      scopedHasScreenshot: boolean;
-      sourceChatId: string;
-      activeChatId: string;
-      mode: string;
-      notificationRedaction: boolean;
       updatedAt: number | null;
     };
     simulateDesktopViewUpdate?: (

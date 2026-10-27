@@ -10,7 +10,6 @@ from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
 
 from app.api.webui.auth_routes import router as webui_auth_router
-from app.api.webui.device_routes import router as device_router
 from app.api.webui.vnc_routes import router as vnc_router
 from app.config.settings import settings
 from app.services.webui.og_metadata import fetch_og_metadata
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webui", tags=["webui"])
 router.include_router(webui_auth_router)
 router.include_router(vnc_router)
-router.include_router(device_router)
 
 
 @router.get("/og-metadata")

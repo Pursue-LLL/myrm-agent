@@ -16,4 +16,4 @@ Desktop / Browser Inspector（agent 控制镜像）的 React Hook 层。与 stor
 ## 依赖
 
 - `@/store/*` — inspector store（由调用方传入 closePanel）
-- 消费者：`DesktopInspectorToggle`、`DesktopLiveView`、`BrowserLiveView`、`DeviceLiveView`（`usePanelResize`）
+- 消费者：`DesktopInspectorToggle`、`DesktopLiveView`、`BrowserLiveView`（`usePanelResize`）
