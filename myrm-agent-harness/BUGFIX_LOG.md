@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-041 · 工具调用被拒（用户拒绝、审批超时、策略拒绝、定时任务无人可批、与澄清同轮）后，模型读不到拒绝的原因，这一回合就此结束；审批超时被说成「用户拒绝」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness；只有拒绝时才出现在工具结果里的几句英文是新增的，系统提示词没有改；没有用真实模型验证新措辞是否让模型照做，见「仍然存在」）。 |
+| **发现时间** | 2026-10-27（逐条核对「拒绝的原因有没有到达模型」时，用整栈脚本化模型实测出来） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：不是崩溃，是模型读不到拒绝。用户在拒绝时写的理由、策略拒绝的原因与处置建议、澄清与其他工具同轮的错误提示，模型一条也看不到；调用被拒后整个回合直接结束，定时任务没有机会在最终回复里说明被拦下了什么。 |
+| **关联产品** | harness `agent/middlewares/approval/`、`agent/middlewares/clarification_guard_middleware.py` |
+| **根因** | ① 审批中间件的三个出口（全部自动拒绝、`_fallback_auto_deny`、中断恢复后的合并）和澄清守卫，都把被拒的调用从 `AIMessage.tool_calls` 里删掉，再补一条 ToolMessage。LangChain 只为没有 ToolMessage 的调用跑工具，删掉调用之后那条 ToolMessage 成了没有对应调用的孤儿，`agent/middlewares/tooling/dangling_tool_call_middleware.py:356-402` 在下一次模型请求前把孤儿丢掉，所以模型读不到。② 所有调用都被删光时，AI 消息不再带调用，回合在这里结束，模型没有机会回应。③ 审批超时由计时器以 `{"decision": "reject", "feedback": "Auto-rejected: approval timeout (300s)"}` 恢复，拒绝分支把它拼成「Action rejected by user: Auto-rejected…」并附上「不要绕过安全拦截」的提示：没有人回答被说成人拒绝，用户拒绝被说成安全拦截。④ 连续拒绝的升级提示写「之后所有操作都需要人工批准」，对定时任务（会话键 `cron:{job.id}`，计数器跨运行保留）没有人可批准。 |
+| **修复** | 被拒的调用留在 AI 消息里，由 error ToolMessage 回答（LangChain 1.4.6 自带的人工审批中间件就是这样：`langchain/agents/middleware/human_in_the_loop.py:653` 返回保留的调用与回答消息，`:283` 拒绝的回答是 `status="error"`）。审批在不经中断的分支只返回 ToolMessage；中断恢复后用 `keep_answered_calls` 合并：批准的调用按批准（或编辑后）的形态保留，被拒绝的调用保留并已有回答，既没批准也没回答的调用丢弃（失败即关闭，不让没人放行的调用跑起来）。审批跳过前一个守卫已经回答过的调用，所以被澄清守卫拦下的调用不会再弹给用户批准。拒绝的措辞按原因分开（新增 `_denial_wording.py`）：策略拒绝的原文不变；用户拒绝写明「用户拒绝了，带上他的理由，别绕过」；超时由计时器恢复值里的 `timed_out` 标出，写明「没有人回答，别自己重跑，告诉用户并等他回复」；连续或累计拒绝超过阈值后，交互会话的升级原文不变，定时任务改为「不要重试，把被拦下的内容写进最终回复」。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 整栈测试里的脚本化模型重复回复时沿用同一条 AIMessage 对象，LangGraph 按 id 替换而不是追加，循环用例里模型一直只看见第一次拒绝，升级提示出不来；重复的回复改成新消息、新调用 id 之后才测准。② 第一次用 `recursion_limit=12` 测循环，默认中间件链每轮约占 10 个超步，模型只被叫了一次，用例白过；限额改为 40，断言写成「至少 3 次、不超过限额」，不绑定精确轮数。③ `test_approval_edge_cases.py` 里一个测试的函数头在更早的提交里丢了，主体并进了上一个测试；顺手拆回独立用例 `test_middleware_passes_taint_labels_to_reviewer`。 |
+| **回归** | 对照方法：旧树 = `git archive HEAD` 导出的 `myrm-agent-harness/src`，同一批新用例用 `pytest -o pythonpath=<导出树>` 跑（用「新模块 ImportError」确认确实在用旧树）。旧树上新增的整栈用例 `test_refusal_reaches_model.py` 7 例全部失败：用户拒绝后模型只被叫 1 次而不是 2 次，批次、编辑、澄清用例里模型看不到拒绝文本，循环用例不出现 `GraphRecursionError`（回合直接结束）。新树 7 例全过。另外新增 `test_answered_calls.py` 6 例、`test_denial_wording.py` 14 例；`test_scheduler.py` 两例加断言 `timed_out`。15 个断言了旧行为（调用被删除、AI 消息排在返回首位）的用例按新契约改写。变异实测，下面四种各被至少一个新用例杀死：`keep_answered_calls` 不再保留被拒的调用、审批不再跳过已回答的调用、全局决定丢掉 `timed_out`、定时任务措辞永不触发。范围：审批、澄清、整栈、`hitl_decision`、流式共 1344 例通过、3 跳过；更大范围（`tests/agent/{middlewares,security,streaming,e2e,integration,orchestration,goals,resilience}` 与 `tests/core/security`）7855 通过、2 失败，失败的是 `test_leak_detector_json_keys.py` 的「耗时小于 1 秒」断言，`-n 4` 并行负载下超时，单独运行 65 例全过，与本改动无关。服务端 `tests/services/chat/test_session_cleanup_allowlist.py`（调用 `record_denial`）通过。`ruff`、`mypy`、`boundary_check`、`check_import_resolvability`、`check_fractal_docs` 通过；`_batch_decisions.py` 698→697 行，基线同步收紧。 |
+| **仍然存在** | ① 没有用真实模型验证新措辞：只证明文本进了模型请求，没有证明模型照做。② 模型无视「不要重试」时会在 `recursion_limit` 内重复被拒的调用：实测默认中间件链每轮约 10 个超步，限额 40 时模型被叫 4 次、80 时 8 次，之后 `GraphRecursionError`；升级提示从第 3 次拒绝出现，生产默认限额 50～100。③ `_fallback_auto_deny`（缺 `task_id` 的子代理）的措辞没改，仍是一句含糊的「task_id 缺失」。④ 中断恢复后给用户的引导 HumanMessage 夹在 AI 消息与后到的工具结果之间，是此前就有的顺序，没有对 Anthropic 这类要求 tool_result 紧跟 tool_use 的服务商验证。⑤ 界面里拒绝步骤的错误文本没有用浏览器核对（前端没有改动，错误文本来自同一个 ToolMessage）。⑥ `scripts/check_file_line_limit.py` 目前对 `toolkits/computer_use/backends/windows.py` 报超限，是别处的在途改动，不是本条。 |
+| **代码位置** | `agent/middlewares/approval/_answered_calls.py:24,35`（`answered_call_ids`、`keep_answered_calls`）· `approval/_denial_wording.py:22,68,73`（`DenialCause`、`rejection_message`、`denial_hint`）· `approval/helpers.py:121,145`（`record_denial(cause=)`、`record_rejection`）· `approval/middleware.py:74,125,297,320`（`_error_answer`、已回答调用过滤、中断后合并、`timed_out` 透传）· `approval/_batch_decisions.py:670` · `approval/scheduler.py:166` · `clarification_guard_middleware.py:103` · 测试 `tests/agent/middlewares/approval/test_refusal_reaches_model.py`、`test_answered_calls.py`、`test_denial_wording.py` |
+
 ### BUG-HARNESS-2026-10-27-040 · 文档与官网写着「沙箱环境变量挂载暗桩、系统提示词零动态 Token、Prompt 缓存 100% 命中、首 Token 提速 350ms」，代码里暗桩从未被挂载，金丝雀恰恰被追加在系统提示词里
 
 | 字段 | 内容 |
