@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 文件读取按 `paths` 传文件时，审批卡的「授权此目录」取不到目录：授权没有落下去，同一目录的下一次读取还要再问
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端 `src/lib/approval`；与 harness `BUG-HARNESS-2026-10-27-057` 配套。没有改任何提示词、工具 schema 与服务端代码）。没有目视检查审批卡，没有在真实模型上走过。 |
+| **症状** | 文件读取工具的主参数是列表 `paths`。harness 修复之前，`paths` 调用根本不进路径判决（工作区外的文件不弹审批卡）；修复之后，工作区外的文件会弹卡，而卡片只从 `path`、`file_path`、`target_path` 三个单数参数里取文件，`paths` 调用取到空串，`grantDirectoryMeta` 里没有目录。服务端在恢复回合开头只认前端传来的这个目录来授权，所以按代码对 `paths` 调用点「授权此目录」是空操作，下一次读同一目录还要再问。这一条是读代码得出的，没有在真实的审批往返里复现。 |
+| **根因** | `resolvePathGrantMeta` 只认三个单数键，列表里的文件没有来源。 |
+| **修复** | `resolveGrantSourcePath` 先收集三个单数键与 `paths` 列表里的字符串，取第一个落在工作区外的绝对路径（那就是触发这张卡的文件），没有则取第一个；工作区根取自 `extensions.workspaceRoot`。写入类工具的可写标记不变。 |
+| **回归证据** | `src/lib/approval/__tests__/buildToolApprovalRequest.test.ts` 新增 7 例（单个 `path` 给出所在目录、`paths` 里的文件给出所在目录、列表里取第一个工作区外的文件、没有绝对路径时取列表第一个、写入类工具标记可写、调用没有文件名时仍可授权但不带路径、与路径无关的审批不提供授权）；`bunx vitest run src/lib/approval` 16 个文件 193 例通过。 |
+| **仍然存在** | ① 一次调用里有多个不同的工作区外目录时，卡片只授权第一个，其余的下一次读取还会再问。② 没有目视检查审批卡。 |
+| **代码位置** | `src/lib/approval/buildToolApprovalRequest.ts:56-101,124`（`resolveGrantSourcePath`、`resolvePathGrantMeta`）· `src/lib/approval/_ARCH.md`（文件表）。 |
+
 ## 2026-10-27 · 绑定了专属智能体的聊天里，批准工具审批后的恢复回合找不到提问时的聊天，批准静默失败
 
 | 字段 | 内容 |
