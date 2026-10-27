@@ -89,6 +89,7 @@ def bootstrap_session_access_roots(
             grant_path,
             workspace_dir=workspace_dir,
             sandbox_active=sandbox_active,
+            writable=root.writable,
         ):
             logger.warning(
                 "Skipping persisted session access root outside deployment boundary: %s",
@@ -187,8 +188,13 @@ def is_directory_grant_allowed_for_deployment(
     *,
     workspace_dir: str | None,
     sandbox_active: bool,
+    writable: bool = True,
 ) -> bool:
-    """Gate directory grants by deployment mode (cloud volume vs local desktop)."""
+    """Gate directory grants by deployment mode (cloud volume vs local desktop).
+
+    ``writable`` selects the mount mode the gate checks: a write grant is also refused when it
+    contains a dangerous root (a home directory, a drive root), a read-only grant is not.
+    """
     from myrm_agent_harness.api.hooks import (
         MountMode,
         MountSpec,
@@ -205,7 +211,7 @@ def is_directory_grant_allowed_for_deployment(
             boundaries.append(os.path.realpath(os.path.expanduser(workspace_dir)))
         allowed_boundaries = tuple(boundaries)
 
-    spec = MountSpec(source_path=grant_path, mode=MountMode.RW)
+    spec = MountSpec(source_path=grant_path, mode=MountMode.RW if writable else MountMode.RO)
     result = validate_mount_spec(spec, allowed_boundaries=allowed_boundaries)
     return result.is_valid
 
@@ -226,6 +232,7 @@ def _apply_validated_grant(
         grant_path,
         workspace_dir=workspace_dir,
         sandbox_active=sandbox_active,
+        writable=writable,
     ):
         logger.warning(
             "Directory grant rejected by deployment boundary: path=%s workspace=%s",

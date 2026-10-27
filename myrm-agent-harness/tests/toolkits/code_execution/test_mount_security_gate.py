@@ -5,6 +5,7 @@ Tests cover:
 - Empty and null byte path detection
 - Blocked device paths (CON, NUL, COM*, \\\\.\\*, /dev/*)
 - Dangerous system/user roots (/etc, /proc, ~/.ssh, ~/.aws)
+- Writable mounts that contain a dangerous root (home directory, drive root)
 - Path traversal (..)
 - Symlink escape detection
 - Boundary enclosure verification (with case-insensitivity on macOS / Windows)
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -97,6 +99,50 @@ class TestMountValidationRules:
         spec = MountSpec(source_path="/etc")
         result = validate_mount_spec(spec, allow_dangerous_override=True)
         assert result.is_valid is True
+
+    @pytest.fixture
+    def fake_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        home = tmp_path / "home"
+        (home / ".ssh").mkdir(parents=True)
+        (home / "proj").mkdir()
+        monkeypatch.setattr(
+            "myrm_agent_harness.core.security.path.filesystem.DANGEROUS_PATHS",
+            frozenset({os.path.realpath(home / ".ssh")}),
+        )
+        return home
+
+    def test_writable_mount_containing_dangerous_root_rejected(self, fake_home: Path) -> None:
+        for source in (fake_home, fake_home.parent):
+            result = validate_mount_spec(MountSpec(source_path=str(source), mode=MountMode.RW))
+            assert result.is_valid is False
+            assert result.violation_type == MountViolationType.OVERBROAD_WRITE_ROOT
+
+    def test_read_only_mount_containing_dangerous_root_allowed(self, fake_home: Path) -> None:
+        result = validate_mount_spec(MountSpec(source_path=str(fake_home), mode=MountMode.RO))
+        assert result.is_valid is True
+
+    def test_writable_project_beside_dangerous_root_allowed(self, fake_home: Path) -> None:
+        result = validate_mount_spec(MountSpec(source_path=str(fake_home / "proj"), mode=MountMode.RW))
+        assert result.is_valid is True
+
+    def test_overbroad_writable_mount_override(self, fake_home: Path) -> None:
+        result = validate_mount_spec(MountSpec(source_path=str(fake_home)), allow_dangerous_override=True)
+        assert result.is_valid is True
+
+    def test_real_home_and_filesystem_root_rejected_as_writable(self) -> None:
+        for source in ("~", "/"):
+            result = validate_mount_spec(MountSpec(source_path=source, mode=MountMode.RW))
+            assert result.is_valid is False
+            assert result.violation_type == MountViolationType.OVERBROAD_WRITE_ROOT
+
+    def test_batch_drops_overbroad_writable_mount_and_keeps_siblings(self, fake_home: Path) -> None:
+        sanitized = validate_and_sanitize_mounts(
+            [
+                MountSpec(source_path=str(fake_home), mode=MountMode.RW),
+                MountSpec(source_path=str(fake_home / "proj"), mode=MountMode.RW),
+            ]
+        )
+        assert [s.source_path for s in sanitized] == [os.path.normpath(fake_home / "proj")]
 
     def test_boundary_enclosure_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

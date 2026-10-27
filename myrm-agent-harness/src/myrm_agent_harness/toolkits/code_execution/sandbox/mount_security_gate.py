@@ -4,11 +4,11 @@ Single source of truth for sandbox filesystem mount validation across local OS p
 sandboxes (bwrap, seatbelt, appcontainer) and multi-session workspace directory grants.
 
 [INPUT]
-- core.security.path::DANGEROUS_PATHS, is_dangerous_path, is_blocked_device_path, is_within_boundary
+- core.security.path::DANGEROUS_PATHS, is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary
 
 [OUTPUT]
 - MountMode (Enum: RO, RW)
-- MountViolationType (Enum: NULL_BYTE, PATH_TRAVERSAL, DANGEROUS_PATH, BLOCKED_DEVICE, SYMLINK_ESCAPE, PERMISSION_VIOLATION, UNAUTHORIZED_BOUNDARY, TARGET_COLLISION)
+- MountViolationType (Enum: NULL_BYTE, EMPTY_PATH, PATH_TRAVERSAL, DANGEROUS_PATH, OVERBROAD_WRITE_ROOT, BLOCKED_DEVICE, SYMLINK_ESCAPE, PERMISSION_VIOLATION, UNAUTHORIZED_BOUNDARY, TARGET_COLLISION)
 - MountSpec (immutable dataclass)
 - MountValidationResult (immutable dataclass)
 - validate_mount_spec(spec, ...) -> MountValidationResult
@@ -29,6 +29,7 @@ from enum import StrEnum
 from typing import Final
 
 from myrm_agent_harness.core.security.path import (
+    covers_dangerous_path,
     is_blocked_device_path,
     is_dangerous_path,
 )
@@ -74,6 +75,7 @@ class MountViolationType(StrEnum):
     EMPTY_PATH = "empty_path"
     PATH_TRAVERSAL = "path_traversal"
     DANGEROUS_PATH = "dangerous_path"
+    OVERBROAD_WRITE_ROOT = "overbroad_write_root"
     BLOCKED_DEVICE = "blocked_device"
     SYMLINK_ESCAPE = "symlink_escape"
     PERMISSION_VIOLATION = "permission_violation"
@@ -248,7 +250,8 @@ def validate_mount_spec(
     1. Null byte & empty string check.
     2. UNC / SMB network share injection check (prevent NTLM hash relay).
     3. Blocked device check (CON, NUL, COM*, \\\\.\\*, /dev/*).
-    4. Dangerous host system paths check (/etc, /proc, ~/.ssh, etc.).
+    4. Dangerous host system paths check (/etc, /proc, ~/.ssh, etc.), plus a writable source that
+       contains one of them (a home directory, drive root or ``/``).
     5. Physical canonical path resolution & boundary enclosure check.
     6. In-sandbox target path validation (prevent container system file overwrite).
     7. Read-Only vs Read-Write least privilege enforcement.
@@ -308,6 +311,15 @@ def validate_mount_spec(
             is_valid=False,
             violation_type=MountViolationType.DANGEROUS_PATH,
             error_message=f"Resolved mount source falls under a dangerous root: {resolved_src}",
+        )
+
+    # A writable source that contains a dangerous root exposes it through the tree: write access to
+    # a home directory is write access to ~/.ssh. Read-only mounts are exempt, they cannot alter it.
+    if not allow_dangerous_override and spec.is_writable and covers_dangerous_path(resolved_src):
+        return MountValidationResult(
+            is_valid=False,
+            violation_type=MountViolationType.OVERBROAD_WRITE_ROOT,
+            error_message=f"Writable mount source contains a dangerous system or user root: {resolved_src}",
         )
 
     # 5. Boundary enclosure check

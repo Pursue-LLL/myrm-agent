@@ -152,6 +152,18 @@ def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path
     )
 
 
+def test_write_grant_containing_a_dangerous_root_is_refused_but_read_grant_is_not(tmp_path) -> None:
+    home = os.path.expanduser("~")
+    kwargs = {"workspace_dir": None, "sandbox_active": False}
+
+    assert is_directory_grant_allowed_for_deployment(home, writable=True, **kwargs) is False
+    assert is_directory_grant_allowed_for_deployment(home, writable=False, **kwargs) is True
+
+    project = tmp_path / "project"
+    project.mkdir()
+    assert is_directory_grant_allowed_for_deployment(str(project), writable=True, **kwargs) is True
+
+
 @pytest.mark.asyncio
 async def test_persist_session_access_roots_writes_chat_fields(
     monkeypatch: pytest.MonkeyPatch,
