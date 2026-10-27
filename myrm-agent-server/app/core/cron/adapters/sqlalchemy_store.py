@@ -30,6 +30,7 @@ from app.core.cron.adapters.sqlalchemy_mapping import (
     run_to_domain,
 )
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
 logger = logging.getLogger(__name__)
@@ -242,6 +243,9 @@ class SqlAlchemyCronStore:
 
     async def save_job(self, job: CronJob) -> CronJob:
         async with get_session() as session:
+            # The row is read, merged and written back. A writer committing in between aborts that with
+            # SQLITE_BUSY_SNAPSHOT, and a claimed job whose post-run write is lost this way never fires again.
+            await acquire_write_lock(session)
             existing = (await session.execute(select(CronJobModel).where(CronJobModel.id == job.id))).scalar_one_or_none()
 
             if existing:
