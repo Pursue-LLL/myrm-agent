@@ -40,12 +40,40 @@ _TERMINAL_STATUS_VALUES = {
 }
 
 
-def _is_terminal_status(status: TaskStatus | str | None) -> bool:
-    if status is None:
-        return False
+_ERROR_COLUMNS = ("error_type", "error_message", "error_recoverable", "error_traceback")
+_JSON_COLUMNS = frozenset({"payload", "metadata", "tags"})
+_TIME_COLUMNS = frozenset({"started_at", "completed_at", "next_retry_at", "worker_heartbeat_at"})
+_PLAIN_COLUMNS = frozenset({"progress", "progress_message", "cancellation_reason", "worker_id", "retry_count"})
+
+
+def _is_terminal_status(status: object) -> bool:
     if isinstance(status, TaskStatus):
         return status.value in _TERMINAL_STATUS_VALUES
-    return status.lower() in _TERMINAL_STATUS_VALUES
+    return isinstance(status, str) and status.lower() in _TERMINAL_STATUS_VALUES
+
+
+def _assignments(key: str, value: object) -> list[tuple[str, object]]:
+    """The (column, SQL value) pairs one update key writes. Column names come only from this function."""
+    if key == "status":
+        return [("status", value.value if isinstance(value, TaskStatus) else str(value).lower())]
+    if key == "error":
+        if value is None:
+            return [(column, None) for column in _ERROR_COLUMNS]
+        if not isinstance(value, TaskError):
+            raise TypeError("error must be a TaskError or None")
+        error_values = (value.error_type, value.message, value.recoverable.value, value.traceback)
+        return list(zip(_ERROR_COLUMNS, error_values, strict=True))
+    if key == "result":
+        return [("result", None if value is None else json.dumps(value))]
+    if key in _JSON_COLUMNS:
+        return [(key, json.dumps(value))]
+    if key in _TIME_COLUMNS:
+        if value is not None and not isinstance(value, datetime):
+            raise TypeError(f"{key} must be a datetime or None")
+        return [(key, value.isoformat() if value else None)]
+    if key in _PLAIN_COLUMNS:
+        return [(key, value)]
+    raise ValueError(f"Unknown task column: {key}")
 
 
 class TaskStore(Protocol):
@@ -53,8 +81,10 @@ class TaskStore(Protocol):
 
     async def create_task(self, task: Task) -> Task: ...
     async def get_task(self, task_id: str) -> Task | None: ...
-    async def update_task(self, task_id: str, **updates) -> Task: ...
-    async def update_task_if_status(self, task_id: str, expected: Collection[TaskStatus], **updates) -> Task | None: ...
+    async def update_task(self, task_id: str, **updates: object) -> Task | None: ...
+    async def update_task_if_status(
+        self, task_id: str, expected: Collection[TaskStatus], **updates: object
+    ) -> Task | None: ...
     async def list_tasks(self, filters: TaskFilters) -> list[Task]: ...
     async def find_by_idempotency_key(self, key: str) -> Task | None: ...
     async def find_by_cache_key(self, key: str) -> Task | None: ...
@@ -206,12 +236,14 @@ class SQLiteTaskStore:
         finally:
             conn.close()
 
-    async def update_task(self, task_id: str, **updates) -> Task:
-        """Update task fields."""
+    async def update_task(self, task_id: str, **updates: object) -> Task | None:
+        """Update task fields; None when the task does not exist."""
         self._write_update(task_id, updates, expected=None)
         return await self.get_task(task_id)
 
-    async def update_task_if_status(self, task_id: str, expected: Collection[TaskStatus], **updates) -> Task | None:
+    async def update_task_if_status(
+        self, task_id: str, expected: Collection[TaskStatus], **updates: object
+    ) -> Task | None:
         """Compare-and-set: write *updates* only while the task is still in one of the *expected* statuses.
 
         Returns the updated task, or None when the task is gone or another writer moved it first.
@@ -222,72 +254,22 @@ class SQLiteTaskStore:
         return await self.get_task(task_id)
 
     def _write_update(self, task_id: str, updates: dict[str, object], expected: Collection[TaskStatus] | None) -> bool:
+        assignments = [pair for key, value in updates.items() for pair in _assignments(key, value)]
+        if "next_retry_at" not in updates and _is_terminal_status(updates.get("status")):
+            assignments.append(("next_retry_at", None))
+        assignments.append(("updated_at", datetime.now(UTC).isoformat()))
+
+        params: list[object] = [value for _, value in assignments]
+        params.append(task_id)
+        where = "task_id = ?"
+        if expected is not None:
+            where += f" AND status IN ({','.join('?' * len(expected))})"
+            params.extend(status.value for status in expected)
+
+        set_clause = ", ".join(f"{column} = ?" for column, _ in assignments)
         conn = self._conn()
         try:
-            # Build SET clause dynamically
-            set_parts = []
-            values = []
-
-            for key, value in updates.items():
-                if key == "status":
-                    set_parts.append("status = ?")
-                    values.append(value.value if isinstance(value, TaskStatus) else str(value).lower())
-                elif key == "error":
-                    set_parts.extend(
-                        [
-                            "error_type = ?",
-                            "error_message = ?",
-                            "error_recoverable = ?",
-                            "error_traceback = ?",
-                        ]
-                    )
-                    error: TaskError | None = value
-                    if error is None:
-                        values.extend([None, None, None, None])
-                    else:
-                        values.extend(
-                            [
-                                error.error_type,
-                                error.message,
-                                error.recoverable.value,
-                                error.traceback,
-                            ]
-                        )
-                elif key == "result":
-                    set_parts.append("result = ?")
-                    values.append(None if value is None else json.dumps(value))
-                elif key in ("payload", "metadata"):
-                    set_parts.append(f"{key} = ?")
-                    values.append(json.dumps(value))
-                elif key == "tags":
-                    set_parts.append("tags = ?")
-                    values.append(json.dumps(value))
-                elif key in (
-                    "started_at",
-                    "completed_at",
-                    "next_retry_at",
-                    "worker_heartbeat_at",
-                ):
-                    set_parts.append(f"{key} = ?")
-                    values.append(value.isoformat() if value else None)
-                else:
-                    set_parts.append(f"{key} = ?")
-                    values.append(value)
-
-            if "next_retry_at" not in updates and _is_terminal_status(updates.get("status")):
-                set_parts.append("next_retry_at = ?")
-                values.append(None)
-
-            set_parts.append("updated_at = ?")
-            values.append(datetime.now(UTC).isoformat())
-            values.append(task_id)
-
-            where = "task_id = ?"
-            if expected is not None:
-                where += f" AND status IN ({','.join('?' * len(expected))})"
-                values.extend(status.value for status in expected)
-
-            cursor = conn.execute(f"UPDATE tasks SET {', '.join(set_parts)} WHERE {where}", values)
+            cursor = conn.execute(f"UPDATE tasks SET {set_clause} WHERE {where}", params)
             conn.commit()
             return cursor.rowcount > 0
         finally:
@@ -297,8 +279,8 @@ class SQLiteTaskStore:
         """List tasks with filters."""
         conn = self._conn()
         try:
-            where_parts = []
-            values = []
+            where_parts: list[str] = []
+            values: list[object] = []
 
             if filters.status:
                 statuses = filters.status if isinstance(filters.status, list) else [filters.status]

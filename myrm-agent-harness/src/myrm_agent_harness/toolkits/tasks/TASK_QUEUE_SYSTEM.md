@@ -120,7 +120,10 @@ Several writers move the same row: the worker (claim, finish), the cancel/retry 
 startup sweep. Plain `update_task` is last-write-wins and lets a late `SUCCEEDED` overwrite a
 user's `CANCELLED`. A writer that must not clobber another uses
 `update_task_if_status(task_id, expected, **updates)`: the status check and the write are one SQL
-statement, so exactly one writer wins and the loser gets `None`.
+statement, so exactly one writer wins and the loser gets `None`. Both updates accept only the task columns the store maps
+(`status`, `error`, `result`, `payload`, `metadata`, `tags`, the four timestamps, `progress`, `progress_message`,
+`cancellation_reason`, `worker_id`, `retry_count`); any other keyword raises `ValueError`, so column names never come
+from the caller.
 
 - Claim: `PENDING → RUNNING` with `expected={PENDING}`.
 - Finish: `RUNNING → SUCCEEDED | FAILED` with `expected={RUNNING}`.

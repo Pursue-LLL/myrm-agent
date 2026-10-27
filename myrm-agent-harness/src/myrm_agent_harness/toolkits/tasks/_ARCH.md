@@ -41,7 +41,7 @@ Detailed design: [TASK_QUEUE_SYSTEM.md](TASK_QUEUE_SYSTEM.md).
 | __init__.py | Package | Queue protocol exports (Task, store, executor) | ✅ |
 | protocols.py | Core | Task, TaskStatus, RetryPolicy, state machine | ✅ |
 | query.py | Core | TaskFilters — list 查询过滤器；`order_by` 构造时按列白名单校验（支持多列 `priority DESC, created_at ASC`），非法值抛 `ValueError`，不静默改写排序 | ✅ |
-| store.py | Core | SQLiteTaskStore — CRUD, priority, idempotency, cache；支持 `ready_before` 过滤，避免 future `next_retry_at` 任务被提前消费；终态状态更新默认清空遗留 `next_retry_at`；`update_task_if_status` 是单条 SQL 的 compare-and-set 写入（先到先得，多写者只有一个赢家） | ✅ |
+| store.py | Core | SQLiteTaskStore — CRUD, priority, idempotency, cache；支持 `ready_before` 过滤，避免 future `next_retry_at` 任务被提前消费；终态状态更新默认清空遗留 `next_retry_at`；`update_task_if_status` 是单条 SQL 的 compare-and-set 写入（先到先得，多写者只有一个赢家）；更新时普通列经 `_PLAIN_COLUMNS` 白名单，未知列抛 `ValueError`，列名不会进入 SQL 文本 | ✅ |
 | TASK_QUEUE_SYSTEM.md | L2 | Placement, scenarios, integration recipes | — |
 
 ## Consumers

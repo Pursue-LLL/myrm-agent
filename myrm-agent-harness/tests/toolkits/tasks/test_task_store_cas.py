@@ -100,6 +100,18 @@ async def test_plain_update_task_is_still_unconditional(store):
     assert row.status is TaskStatus.SUCCEEDED
 
 
+@pytest.mark.parametrize("key", ["task_id = 'x', status", "no_such_column", "payload; DROP TABLE tasks; --"])
+async def test_update_rejects_a_key_that_is_not_a_task_column(store, key):
+    await _create(store, "t1")
+
+    with pytest.raises(ValueError, match="Unknown task column"):
+        await store.update_task("t1", **{key: "boom"})
+
+    row = await store.get_task("t1")
+    assert row is not None
+    assert row.status is TaskStatus.PENDING
+
+
 async def test_priority_then_arrival_order_is_what_the_listing_returns(store):
     base = datetime.now(UTC)
     for index, priority in enumerate([5, 5, 9, 5, 1, 9]):
