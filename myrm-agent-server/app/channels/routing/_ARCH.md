@@ -65,7 +65,7 @@ Telegram's inbound parser is the only one that turns a click into
 "origin_message_id": ...})`. No other provider sets `callback_prefix`, so clicks
 on other channels never reach the guard below.
 
-`_dispatch_inbound_message` (`pipeline/inbound.py`) intercepts this **before** `parse_approval_command`
+`_claim_approval_input` (`pipeline/inbound.py`, the first step of `_dispatch_inbound_message`) intercepts this **before** `parse_approval_command`
 (which only handles text/emoji input) with a dedicated guard:
 
 ```python

@@ -13,7 +13,7 @@
 - channels.types::InboundMessage, OutboundMessage (POS: channel message envelopes)
 
 [OUTPUT]
-- RouterInboundMixin: ``_dispatch_inbound_message`` (dedup, group activity, locale, approval shortcuts, command registry, event triggers, busy-input steering, delegation, then the session gate), the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
+- RouterInboundMixin: ``_dispatch_inbound_message``, the sequence of steps one message passes (dedup, group activity, locale, then the steps that may claim it: ``_claim_approval_input``, ``_claim_command``, ``_claim_steering``, ``_claim_delegation``, ``_claim_delegated_task_steering``, with ``_fire_event_triggers`` between the commands and the steering, and finally the session gate); the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
 
 [POS]
 Inbound segment of ``AgentRouter``. Runs on the consume loop, one message at a time, so every check here must either finish fast or hand off to a task.
@@ -41,12 +41,19 @@ from app.core.cron.adapters.inbound_event_dispatch import dispatch_cron_event_fo
 
 logger = logging.getLogger("app.channels.routing.router")
 
+_STEER_PREVIEW_CHARS = 80
+_DELEGATION_MIN_CONFIDENCE = 0.85
+
 
 class RouterInboundMixin:
     """Mixin: dedup, sender checks, locale, and the routing of one consumed inbound message."""
 
     async def _dispatch_inbound_message(self: RouterInboundHost, msg: InboundMessage) -> None:
-        """Route one consumed message; the consume loop survives a failure here."""
+        """Route one consumed message; the consume loop survives a failure here.
+
+        Each step either claims the message, which ends the dispatch, or leaves it for the next; what no step claims
+        reaches the session gate and becomes a turn.
+        """
         if self._is_duplicate(msg):
             logger.debug(
                 "Duplicate message %s from %s, skipping",
@@ -55,27 +62,7 @@ class RouterInboundMixin:
             )
             return
 
-        if msg.is_group and self._topic_resolver is not None:
-            from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
-
-            note_group_activity(
-                msg.channel,
-                msg.chat_id or msg.sender_id,
-                msg.thread_id,
-                msg.sender_id,
-                msg.sender_name,
-                resolve_message_locale(msg),
-            )
-            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-
-            asyncio.create_task(
-                scan_stalled_threads(
-                    bus=self._bus,
-                    resolve_topic=self._topic_resolver.resolve_topic,
-                    record_outbound=ChannelDataPlaneService.record_outbound,
-                )
-            )
-
+        self._note_group_activity(msg)
         msg = await self._enrich_message_locale(msg)
 
         # NOTE: inbound ledger persistence is single-sourced in PolicyResolver
@@ -83,36 +70,73 @@ class RouterInboundMixin:
         # is_trigger semantics. A second unconditional write here would race
         # those records and permanently mislabel observed messages as triggers.
 
+        if self._claim_approval_input(msg) or await self._claim_command(msg):
+            return
+        await self._fire_event_triggers(msg)
+        if await self._claim_steering(msg) or await self._claim_delegation(msg) or await self._claim_delegated_task_steering(msg):
+            return
+        self._gate.submit(msg)
+
+    def _note_group_activity(self: RouterInboundHost, msg: InboundMessage) -> None:
+        """Record who spoke in a group's topic and look for threads that have gone quiet."""
+        if not msg.is_group or self._topic_resolver is None:
+            return
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+        from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
+
+        note_group_activity(
+            msg.channel,
+            msg.chat_id or msg.sender_id,
+            msg.thread_id,
+            msg.sender_id,
+            msg.sender_name,
+            resolve_message_locale(msg),
+        )
+        asyncio.create_task(
+            scan_stalled_threads(
+                bus=self._bus,
+                resolve_topic=self._topic_resolver.resolve_topic,
+                record_outbound=ChannelDataPlaneService.record_outbound,
+            )
+        )
+
+    def _claim_approval_input(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Hand an answer to an approval (a button click, a reaction, a typed word) to the approval handlers.
+
+        A reaction never starts a turn, so one that answers no open request is dropped here.
+        """
         if msg.metadata.get("callback_prefix") == "act" and isinstance(msg.content, str) and msg.content.startswith("approval:"):
             asyncio.create_task(self._handle_action_button_approval(msg))
-            return
-
-        is_reaction = bool(msg.metadata.get("reaction"))
-        if is_reaction:
-            approval_cmd = parse_approval_command(msg.content)
-            if approval_cmd is not None and self._is_reaction_approval_valid(msg):
-                asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
-            return
+            return True
 
         approval_cmd = parse_approval_command(msg.content)
-        if approval_cmd is not None:
-            if is_explicit_approval_command(msg.content) or self._has_pending_approval(msg):
+        if msg.metadata.get("reaction"):
+            if approval_cmd is not None and self._is_reaction_approval_valid(msg):
                 asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
-                return
+            return True
 
+        if approval_cmd is not None and (is_explicit_approval_command(msg.content) or self._has_pending_approval(msg)):
+            asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
+            return True
+        return False
+
+    async def _claim_command(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Run a slash command the registry knows, or answer a raw shell command."""
         resolved = self._registry.resolve(msg.content)
-        if resolved is not None:
-            handled = await self._dispatch_resolved(msg, resolved)
-            if handled:
-                return
-
+        if resolved is not None and await self._dispatch_resolved(msg, resolved):
+            return True
         if self._is_bang_command(msg.content):
             asyncio.create_task(self._handle_bang_command(msg))
-            return
+            return True
+        return False
 
-        # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy and
-        # the same tool fence as a chat turn from that sender. The resolvers that enforce both run later and have
-        # side effects, hence the read-only checks.
+    async def _fire_event_triggers(self: RouterInboundHost, msg: InboundMessage) -> None:
+        """Start the jobs whose event trigger this message matches. Never claims the message.
+
+        Event triggers start unattended jobs on the owner's account, so they follow the same sender policy and the same
+        tool fence as a chat turn from that sender. The resolvers that enforce both run later and have side effects,
+        hence the read-only checks.
+        """
         if await self._is_sender_admitted(msg):
             await dispatch_cron_event_for_inbound_message(
                 msg.content,
@@ -121,91 +145,81 @@ class RouterInboundMixin:
                 untrusted=await self._is_untrusted_event_sender(msg),
             )
 
-        # Auto busy_input_mode dispatch (steer / redirect) when an active task is running. A finished turn that stays
-        # registered only to keep its approval answerable has no run to steer: the text is a turn of its own.
-        chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
-        active = self._active_tasks.get(session_key)
+    async def _claim_steering(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Take text typed while a turn runs into that turn, when the turn's busy-input mode is steer or redirect.
+
+        A finished turn that stays registered only to keep its approval answerable has no run to steer: the text is a
+        turn of its own.
+        """
+        active = self._active_tasks.get(routing_state_key(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id))
+        token = active.steering_token if active is not None and not active.task.done() else None
         clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
-        if active and not active.task.done() and active.steering_token and clean_content and not clean_content.startswith("/"):
-            mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
-            if mode in ("steer", "redirect") and await hold_risky_inbound(self._bus, msg, clean_content):
-                return
-            if mode == "steer":
-                active.steering_token.steer(clean_content)
-                preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
-                reply = OutboundMessage(
-                    channel=msg.channel,
-                    recipient_id=chat_id,
-                    content=get_text(msg, "steering_applied", preview=preview),
-                    user_id=msg.user_id or "",
-                    thread_id=msg.thread_id,
-                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-                )
-                asyncio.create_task(self._bus.publish_outbound(reply))
-                return
-            elif mode == "redirect":
-                active.steering_token.redirect(clean_content)
-                preview = clean_content[:80] + "..." if len(clean_content) > 80 else clean_content
-                reply = OutboundMessage(
-                    channel=msg.channel,
-                    recipient_id=chat_id,
-                    content=get_text(msg, "steering_applied", preview=preview),
-                    user_id=msg.user_id or "",
-                    thread_id=msg.thread_id,
-                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-                )
-                asyncio.create_task(self._bus.publish_outbound(reply))
-                return
+        if active is None or token is None or not clean_content or clean_content.startswith("/"):
+            return False
 
-        # Mobile-to-Desktop Asynchronous Task Delegation. A delegated run and its in-flight steering skip the
-        # per-turn identity pipeline (no DM policy, no untrusted-ingress fence), so only the owner may use them;
-        # anyone else's message continues as an ordinary turn below.
-        if msg.content and isinstance(msg.content, str):
-            is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
-            if is_delegated and confidence >= 0.85 and await self._check_admin_permission(msg):
-                if not clean_prompt:
-                    reply = OutboundMessage(
-                        channel=msg.channel,
-                        recipient_id=chat_id,
-                        content=get_text(msg, "delegation_task_missing"),
-                        user_id=msg.user_id or "",
-                        thread_id=msg.thread_id,
-                    )
-                    asyncio.create_task(self._bus.publish_outbound(reply))
-                    return
-                if await hold_risky_inbound(self._bus, msg, clean_prompt):
-                    return
-                handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
-                if handled_delegation:
-                    return
+        mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
+        if mode not in ("steer", "redirect"):
+            return False
+        if await hold_risky_inbound(self._bus, msg, clean_content):
+            return True
+        if mode == "steer":
+            token.steer(clean_content)
+        else:
+            token.redirect(clean_content)
+        preview = clean_content[:_STEER_PREVIEW_CHARS] + "..." if len(clean_content) > _STEER_PREVIEW_CHARS else clean_content
+        self._reply_in_background(msg, get_text(msg, "steering_applied", preview=preview), quote_in_group=True)
+        return True
 
-        # In-flight steering for active delegation task
+    async def _claim_delegation(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Start a delegated task when the owner asks for one (mobile-to-desktop asynchronous delegation).
+
+        A delegated run and its in-flight steering skip the per-turn identity pipeline (no DM policy, no
+        untrusted-ingress fence), so only the owner may use them; anyone else's message continues as an ordinary turn.
+        """
+        if not msg.content or not isinstance(msg.content, str):
+            return False
+        is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
+        if not (is_delegated and confidence >= _DELEGATION_MIN_CONFIDENCE and await self._check_admin_permission(msg)):
+            return False
+        if not clean_prompt:
+            self._reply_in_background(msg, get_text(msg, "delegation_task_missing"))
+            return True
+        if await hold_risky_inbound(self._bus, msg, clean_prompt):
+            return True
+        return await self._handle_delegation_inbound(msg, clean_prompt)
+
+    async def _claim_delegated_task_steering(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Pass the owner's text on to the delegated task running for them in this chat, while no turn of the chat runs."""
+        chat_id = msg.chat_id or msg.sender_id
         user_id = msg.user_id or msg.sender_id
-        active_del = self._delegation_coordinator.find_active_task(msg.channel, chat_id, user_id)
-        if (
-            active_del
+        task = self._delegation_coordinator.find_active_task(msg.channel, chat_id, user_id)
+        if not (
+            task
             and msg.content
             and isinstance(msg.content, str)
             and not msg.content.startswith("/")
-            and not self._active_tasks.get(session_key)
+            and not self._active_tasks.get(routing_state_key(msg.channel, chat_id, msg.thread_id))
             and await self._check_admin_permission(msg)
         ):
-            if await hold_risky_inbound(self._bus, msg, msg.content):
-                return
-            injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
-            if injected:
-                reply = OutboundMessage(
-                    channel=msg.channel,
-                    recipient_id=chat_id,
-                    content=get_text(msg, "delegation_steering_injected", task_id=active_del.task_id),
-                    user_id=msg.user_id or "",
-                    thread_id=msg.thread_id,
-                )
-                asyncio.create_task(self._bus.publish_outbound(reply))
-                return
+            return False
+        if await hold_risky_inbound(self._bus, msg, msg.content):
+            return True
+        if not self._delegation_coordinator.inject_steering(task.task_id, msg.content.strip(), user_id):
+            return False
+        self._reply_in_background(msg, get_text(msg, "delegation_steering_injected", task_id=task.task_id))
+        return True
 
-        self._gate.submit(msg)
+    def _reply_in_background(self: RouterInboundHost, msg: InboundMessage, content: str, *, quote_in_group: bool = False) -> None:
+        """Answer the sender from a task, so the consume loop does not wait for the channel to take the reply."""
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=msg.chat_id or msg.sender_id,
+            content=content,
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=(msg.message_id or str(msg.metadata.get("message_id", ""))) if quote_in_group and msg.is_group else None,
+        )
+        asyncio.create_task(self._bus.publish_outbound(reply))
 
     async def _enrich_message_locale(self: RouterInboundHost, msg: InboundMessage) -> InboundMessage:
         """Inject resolved locale into inbound message metadata."""

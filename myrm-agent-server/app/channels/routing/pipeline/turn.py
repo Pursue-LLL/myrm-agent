@@ -12,7 +12,7 @@
 - channels.types.topics::METADATA_ROUTE_AGENT_KEY (POS: alias route marker)
 
 [OUTPUT]
-- RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: journal, yolo and personality state, attachment enrichment, risk gate, agent-route alias, then prepare and execute the turn under the concurrency semaphore, with the friendly error path) and ``_acknowledge_inbound``
+- RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments``, the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
 Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it.
@@ -85,100 +85,30 @@ class RouterTurnMixin:
 
         ``exec_for_error`` is the InboundMessage passed to ``send_error_reply`` and
         used for ``channel`` on the outer ``cleanup_placeholder`` path: it matches
-        ``msg`` after ``transcribe_inbound`` (when voice ran), and ``ctx.exec_msg``
+        ``msg`` after attachment enrichment (voice transcription included), and ``ctx.exec_msg``
         after ``_prepare_execution_context`` succeeds. Successful ``prepare`` hands
         off to ``_execute_prepared_context`` (active task registration, stream, delivery).
         """
-        journal_entry_id: str | None = None
-        if self._inbound_journal and not msg.metadata.get("is_recovery"):
-            entry = create_journal_entry_from_inbound(msg)
-            self._inbound_journal.write(entry)
-            journal_entry_id = entry.id
-        elif self._inbound_journal and msg.metadata.get("recovery_entry_id"):
-            journal_entry_id = str(msg.metadata["recovery_entry_id"])
-
-        channel_instance = self._bus.get_channel(msg.channel)
-        if channel_instance and msg.channel_capabilities is None:
-            msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
-
-        chat_id_for_key = msg.chat_id or msg.sender_id
-        session_key = routing_state_key(msg.channel, chat_id_for_key, msg.thread_id)
-        yolo_state = self._session_yolo.get(session_key)
-        if yolo_state:
-            enabled_at, timeout = yolo_state
-            if timeout:
-                elapsed = time.time() - enabled_at
-                if elapsed < timeout:
-                    msg.metadata["yolo_state"] = (enabled_at, timeout)
-                else:
-                    del self._session_yolo[session_key]
-            else:
-                msg.metadata["yolo_state"] = (enabled_at, None)
-
-        session_personality = self._session_personality.get(session_key)
-        if session_personality:
-            msg.metadata["personality_style"] = session_personality
+        journal_entry_id = self._journal_inbound(msg)
+        msg = self._apply_session_state(msg)
 
         scratch = _AgentTurnScratch()
         chat_id: str = ""
-        exec_for_error: InboundMessage = msg
         is_resume = bool(msg.resume_value)
         inbound_had_voice = has_audio_attachment(msg) if not is_resume else False
 
-        if inbound_had_voice:
-            msg = await transcribe_inbound(msg, self._voice, self._bus.get_channel)
-            exec_for_error = msg
-
-        if msg.metadata.get("is_sticker") and self._sticker_vision:
-            msg = await describe_sticker_inbound(msg, self._sticker_vision, self._bus.get_channel)
-            exec_for_error = msg
-
-        if not is_resume and has_video_attachment_fn(msg):
-            msg = enrich_video_inbound(msg)
-            exec_for_error = msg
-            if has_video_with_audio(msg):
-                msg = await transcribe_video_inbound(msg, self._voice, self._bus.get_channel)
-                exec_for_error = msg
-
-        if not is_resume and has_image_attachment_fn(msg):
-            msg = await enrich_image_inbound(msg, self._bus.get_channel)
-            exec_for_error = msg
-
-        if not is_resume and has_contact_attachment(msg):
-            msg = await enrich_contact_inbound(msg)
-            exec_for_error = msg
-
-        if not is_resume and has_document_attachment(msg):
-            from app.core.channel_bridge.config_loader import load_user_configs
-            from app.services.files.attachment_settings import (
-                should_extract_document_text,
-            )
-
-            configs = await load_user_configs()
-            extract_docs = should_extract_document_text(configs.personal_settings_dict)
-            msg = await enrich_document_inbound(
-                msg,
-                self._bus.get_channel,
-                extract_enabled=extract_docs,
-            )
-            exec_for_error = msg
+        msg = await self._enrich_attachments(msg, is_resume=is_resume, inbound_had_voice=inbound_had_voice)
+        exec_for_error: InboundMessage = msg
 
         if not is_resume and msg.content and await hold_risky_inbound(self._bus, msg, msg.content):
             self._acknowledge_inbound(journal_entry_id)
             return
 
-        agent_route_resolved = self._registry.resolve(msg.content)
-        if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:
-            agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
-            if agent_route_resolved.raw_args:
-                msg = dataclasses.replace(msg, content=agent_route_resolved.raw_args)
-                msg.metadata[METADATA_ROUTE_AGENT_KEY] = agent_id
-            else:
-                topic_cmd = parse_topic_args("bind", agent_id)
-                asyncio.create_task(self._handle_topic_command(msg, topic_cmd))
-                set_correlation_context(None)
-                self._acknowledge_inbound(journal_entry_id)
-                return
+        routed = self._apply_agent_route(msg)
+        if routed is None:
+            self._acknowledge_inbound(journal_entry_id)
+            return
+        msg = routed
 
         try:
             async with self._semaphore:
@@ -220,37 +150,150 @@ class RouterTurnMixin:
                         )
 
                 except Exception as e:
-                    friendly, ref_id = friendly_error_message(e, msg=exec_for_error)
-                    logger.error(
-                        "AgentRouter: failed to handle message from %s/%s [ref: %s]: %s",
-                        exec_for_error.channel,
-                        exec_for_error.sender_id,
-                        ref_id,
-                        e,
-                        exc_info=e,
-                    )
-                    rp = self._reaction_policy
-                    if msg.message_id and rp.should_completion:
-                        await self._fx.completion_reaction(
-                            exec_for_error.channel,
-                            chat_id,
-                            msg.message_id,
-                            success=False,
-                            success_emoji=rp.completion_emoji,
-                            failure_emoji=rp.failure_emoji,
-                            had_ack=rp.should_processing,
-                        )
-                    resolved_placeholder: str | None = None
-                    if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
-                        resolved_placeholder = await scratch.deferred_placeholder.wait_for_id()
-                    if resolved_placeholder and chat_id:
-                        await self._fx.cleanup_placeholder(
-                            exec_for_error.channel,
-                            chat_id,
-                            resolved_placeholder,
-                            friendly,
-                        )
-                    await self._fx.send_error_reply(exec_for_error, friendly)
+                    await self._report_turn_failure(e, msg=msg, exec_for_error=exec_for_error, chat_id=chat_id, scratch=scratch)
         finally:
             self._acknowledge_inbound(journal_entry_id)
             self._gate.on_task_complete(msg)
+
+    def _journal_inbound(self: RouterTurnHost, msg: InboundMessage) -> str | None:
+        """Write the message to the inbound journal and return the id of the entry to acknowledge afterwards.
+
+        A message replayed after a restart has its entry already: it is neither written again nor, without an entry
+        id, acknowledged.
+        """
+        if self._inbound_journal and not msg.metadata.get("is_recovery"):
+            entry = create_journal_entry_from_inbound(msg)
+            self._inbound_journal.write(entry)
+            return entry.id
+        if self._inbound_journal and msg.metadata.get("recovery_entry_id"):
+            return str(msg.metadata["recovery_entry_id"])
+        return None
+
+    def _apply_session_state(self: RouterTurnHost, msg: InboundMessage) -> InboundMessage:
+        """Put what the channel and the session decided onto the message: capabilities, the yolo window, the personality.
+
+        An expired yolo window is dropped from the session here, the one place that reads it.
+        """
+        channel_instance = self._bus.get_channel(msg.channel)
+        if channel_instance and msg.channel_capabilities is None:
+            msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
+
+        chat_id = msg.chat_id or msg.sender_id
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
+        yolo_state = self._session_yolo.get(session_key)
+        if yolo_state:
+            enabled_at, timeout = yolo_state
+            if timeout:
+                elapsed = time.time() - enabled_at
+                if elapsed < timeout:
+                    msg.metadata["yolo_state"] = (enabled_at, timeout)
+                else:
+                    del self._session_yolo[session_key]
+            else:
+                msg.metadata["yolo_state"] = (enabled_at, None)
+
+        session_personality = self._session_personality.get(session_key)
+        if session_personality:
+            msg.metadata["personality_style"] = session_personality
+        return msg
+
+    async def _enrich_attachments(
+        self: RouterTurnHost, msg: InboundMessage, *, is_resume: bool, inbound_had_voice: bool
+    ) -> InboundMessage:
+        """Turn the attachments of a new turn into text the agent can read: transcripts, descriptions, extracted text.
+
+        The answer to an approval carries no new attachments, so only a sticker is described then.
+        """
+        if inbound_had_voice:
+            msg = await transcribe_inbound(msg, self._voice, self._bus.get_channel)
+
+        if msg.metadata.get("is_sticker") and self._sticker_vision:
+            msg = await describe_sticker_inbound(msg, self._sticker_vision, self._bus.get_channel)
+
+        if is_resume:
+            return msg
+
+        if has_video_attachment_fn(msg):
+            msg = enrich_video_inbound(msg)
+            if has_video_with_audio(msg):
+                msg = await transcribe_video_inbound(msg, self._voice, self._bus.get_channel)
+
+        if has_image_attachment_fn(msg):
+            msg = await enrich_image_inbound(msg, self._bus.get_channel)
+
+        if has_contact_attachment(msg):
+            msg = await enrich_contact_inbound(msg)
+
+        if has_document_attachment(msg):
+            from app.core.channel_bridge.config_loader import load_user_configs
+            from app.services.files.attachment_settings import (
+                should_extract_document_text,
+            )
+
+            configs = await load_user_configs()
+            extract_docs = should_extract_document_text(configs.personal_settings_dict)
+            msg = await enrich_document_inbound(
+                msg,
+                self._bus.get_channel,
+                extract_enabled=extract_docs,
+            )
+        return msg
+
+    def _apply_agent_route(self: RouterTurnHost, msg: InboundMessage) -> InboundMessage | None:
+        """Rewrite an agent-route alias (``/claude do this``) into a turn on that agent.
+
+        An alias with no request binds the chat to the agent instead, which ends the turn: ``None`` then.
+        """
+        resolved = self._registry.resolve(msg.content)
+        if not resolved or resolved.command_def.kind != CommandKind.AGENT_ROUTE:
+            return msg
+        agent_id = resolved.command_def.agent_id or resolved.command_def.name
+        if resolved.raw_args:
+            msg = dataclasses.replace(msg, content=resolved.raw_args)
+            msg.metadata[METADATA_ROUTE_AGENT_KEY] = agent_id
+            return msg
+        asyncio.create_task(self._handle_topic_command(msg, parse_topic_args("bind", agent_id)))
+        set_correlation_context(None)
+        return None
+
+    async def _report_turn_failure(
+        self: RouterTurnHost,
+        error: Exception,
+        *,
+        msg: InboundMessage,
+        exec_for_error: InboundMessage,
+        chat_id: str,
+        scratch: _AgentTurnScratch,
+    ) -> None:
+        """Tell the chat the turn failed, in words that carry a reference and no internals: reaction, placeholder, reply."""
+        friendly, ref_id = friendly_error_message(error, msg=exec_for_error)
+        logger.error(
+            "AgentRouter: failed to handle message from %s/%s [ref: %s]: %s",
+            exec_for_error.channel,
+            exec_for_error.sender_id,
+            ref_id,
+            error,
+            exc_info=error,
+        )
+        rp = self._reaction_policy
+        if msg.message_id and rp.should_completion:
+            await self._fx.completion_reaction(
+                exec_for_error.channel,
+                chat_id,
+                msg.message_id,
+                success=False,
+                success_emoji=rp.completion_emoji,
+                failure_emoji=rp.failure_emoji,
+                had_ack=rp.should_processing,
+            )
+        resolved_placeholder: str | None = None
+        if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
+            resolved_placeholder = await scratch.deferred_placeholder.wait_for_id()
+        if resolved_placeholder and chat_id:
+            await self._fx.cleanup_placeholder(
+                exec_for_error.channel,
+                chat_id,
+                resolved_placeholder,
+                friendly,
+            )
+        await self._fx.send_error_reply(exec_for_error, friendly)
