@@ -1,5 +1,21 @@
 'use client';
 
+/**
+ * Collapsible, copyable code panel of a progress step.
+ *
+ * [INPUT]
+ * - code / language / maxCollapsedLines / title: the text, its Prism language, how many lines show while collapsed, a caption
+ * - lib/syntax/prism::resolveLanguage (POS: the one place that knows which grammars are registered and which texts are
+ *   too risky to colour)
+ *
+ * [OUTPUT]
+ * - EnhancedSyntaxHighlighter: syntax-coloured code panel with copy and expand / collapse; a text over 50,000
+ *   characters, or with a line past `MAX_HIGHLIGHT_LINE_CHARS`, is shown uncoloured
+ *
+ * [POS]
+ * Leaf renderer behind `CodeRenderer` (shell commands) and `TextItemsRenderer` (tool results formatted as JSON or text).
+ */
+
 import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';

@@ -2,24 +2,28 @@
 
 代码高亮的共享注册表。`prism-react-renderer` 自带的 Prism 只有 28 种语法，产品里却到处用到它没有的语言：shell 命令步骤用 `bash`、聊天里的 ```diff 代码块、文件按扩展名推断出的 java / ruby / toml 等。四个高亮入口经这一个模块取得 Prism 与语言判定，不再各自碰 `prism-react-renderer` 的语法表。
 
-## 文件
+## 文件清单
 
-| 文件                                 | 职责                                                                                                                                                                                                                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prism.ts`                           | 注册 bash（含 sh、shell，另把 zsh 指向同一份）、diff、java、ruby、csharp、toml、lua、r、php、dart；导出 `Prism`、`MAX_HIGHLIGHT_LINE_CHARS`（10,000）与 `resolveLanguage(language, code?)`：语言没有语法、或代码里有一行超过上限时返回 `text`，否则原样返回语言名     |
-| `__tests__/prism.test.ts`            | 每种新语法能识别各自的代码片段、`sh/shell/zsh` 别名、原有语法保留、`resolveLanguage` 的名字与长行判定（恰好等于上限不拦、多一个字符才拦、CRLF 与首行同样生效）；`EXT_TO_LANGUAGE` 里的每个语言都必须能被 `resolveLanguage` 原样解析，增删语法或映射时两边对不上就失败 |
-| `__tests__/grammarSurfaces.test.tsx` | 四个真实入口（`CodeBlock`、`EnhancedSyntaxHighlighter`、`DiffViewer`、`LineNumberedCode`）里 bash 的关键字确实带上主题色，长行文件在四处都保持无色；```diff 块的增删行有底色且没有删除线与下划线                                                                      |
+| 文件                                 | 地位 | 职责                                                                                                                                                                                                                                                                  | I/O/P |
+| ------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `prism.ts`                           | 核心 | 注册 bash（含 sh、shell，另把 zsh 指向同一份）、diff、java、ruby、csharp、toml、lua、r、php、dart；导出 `Prism`、`MAX_HIGHLIGHT_LINE_CHARS`（10,000）与 `resolveLanguage(language, code?)`：语言没有语法、或代码里有一行超过上限时返回 `text`，否则原样返回语言名     | ✅    |
+| `__tests__/prism.test.ts`            | 测试 | 每种新语法能识别各自的代码片段、`sh/shell/zsh` 别名、原有语法保留、`resolveLanguage` 的名字与长行判定（恰好等于上限不拦、多一个字符才拦、CRLF 与首行同样生效）；`EXT_TO_LANGUAGE` 里的每个语言都必须能被 `resolveLanguage` 原样解析，增删语法或映射时两边对不上就失败 | ✅    |
+| `__tests__/grammarSurfaces.test.tsx` | 测试 | 四个真实入口（`CodeBlock`、`EnhancedSyntaxHighlighter`、`DiffViewer`、`LineNumberedCode`）里 bash 的关键字确实带上主题色，长行文本在四处都保持无色；```diff 块的增删行有底色且没有删除线与下划线                                                                      | ✅    |
 
 ## 设计要点
 
-- **用 `require` 而不是 `import` 注册语法**：prismjs 的语法文件读取全局 `Prism`，所以全局必须先于它们存在。这些文件要在本模块里按语句顺序 `require`。前端 `package.json` 的 `sideEffects` 只列了 CSS，凡是只为设置全局而存在的模块都会被生产构建丢掉，语法随之什么都不注册、也不报错。在 Next.js 16.3.0（Turbopack）的生产构建里实测：单独的副作用模块写法 `bash`、`diff` 都未注册，本模块的写法全部注册。
+- **用 `require` 而不是 `import` 注册语法**：prismjs 的语法文件读取全局 `Prism`，所以全局必须先于它们存在，这些文件要在本模块里按语句顺序 `require`。前端 `package.json` 的 `sideEffects` 只列了 CSS，凡是只为设置全局而存在的模块都会被生产构建丢掉，语法随之什么都不注册、也不报错。Next.js 16.3.0（Turbopack）生产构建里实测：单独的副作用模块写法 bash、diff 都未注册，本模块的写法全部注册。
 - **scss 故意不注册**：scss 语法对一行 50,000 字符的 data URI 要 11 秒，而它所继承的 css 只要 1 毫秒，带内联图片的样式表会冻住页面。`EXT_TO_LANGUAGE` 里没有 scss 项，`.scss` 文件按纯文本显示。
-- **每行上限**：markdown 语法对 base64 长行 10K / 50K / 100K 字符分别耗时 36 ms / 0.85 s / 3.5 s，css 语法对未闭合引号的长行更久。任何一行超过 `MAX_HIGHLIGHT_LINE_CHARS` 就让整份内容保持纯文本；上限处最坏耗时 133 ms（Chromium）/ 286 ms（WebKit）。
+- **每行上限不分语法**：41 个语法 × 10 种单行形态实测（Chromium，机器负载很高）：10,000 字符时最慢的是 coffeescript 709 ms、typescript 654 ms、javascript 492 ms（裸 base64），lua 219 ms，css 130 ms（未闭合引号）、111 ms（长引号串），其余不超过 50 ms；100,000 字符时 lua 22 s、css 13 s、markdown 3.4 s，JavaScript 一族在 10,000 字符已超过 400 ms、没有再测更长的。同样的字符切成 80 字符一行后，除 css 外都降到 0.5 s 以内（最慢的是 tsx 的紧凑 JSON，100,000 字符 499 ms）。几乎每个语法都受影响，所以限制放在行长上，不按语法单独设。任何一行超过 `MAX_HIGHLIGHT_LINE_CHARS` 就让整份内容保持纯文本。
+- **上限的代价**：压缩成一行的合法代码（`.min.css`、`.min.js`、一行的 JSON）超过 10,000 字符就不上色，而这类输入分词很快（压缩成一行的 88,107 字符样式 7 ms）；工具结果 JSON 里有一段超过 10,000 字符的字符串值时，整块 JSON 也不上色。
+- **上限挡不住的**：css 语法对非 CSS 文本随整份文本平方增长，100,000 字符、80 字符一行的未闭合引号文本 13.3 s；合法样式表不受影响（真实的 `pdf_viewer.css` 100,000 字符 10 ms）。
 - **语言名按原样查表**：不做大小写归一化，`Bash` 与未注册的 docker、ini、makefile、powershell 一样按纯文本显示。
 
-## 消费方
+## 模块依赖
 
-- `components/features/markdown-render-tools/CodeBlock.tsx`（聊天代码块；```diff 块额外去掉主题加的删除线与下划线）
-- `components/features/message-box/progress-steps/renderers/EnhancedSyntaxHighlighter.tsx`（`CodeRenderer` 的 shell 命令步骤等）
-- `lib/diff/DiffViewer.tsx`（按文件名推断的语言逐行高亮）
-- `components/features/workspace-browser/WorkspaceTextViews.tsx`（只读行号代码视图）
+- 依赖：`prism-react-renderer`（Prism 实例与主题）、`prismjs`（语法定义，精确固定 1.30.0）
+- 消费方：
+  - `components/features/markdown-render-tools/CodeBlock.tsx`（聊天代码块；```diff 块额外去掉主题加的删除线与下划线）
+  - `components/features/message-box/progress-steps/renderers/EnhancedSyntaxHighlighter.tsx`（`CodeRenderer` 的 shell 命令步骤等）
+  - `lib/diff/DiffViewer.tsx`（按文件名推断的语言逐行高亮）
+  - `components/features/workspace-browser/WorkspaceTextViews.tsx`（只读行号代码视图）

@@ -6,6 +6,8 @@
  * [INPUT]
  * - content / language / label / onChange: what to show, the Prism grammar to colour it with, what the editor is
  *   called for assistive technology, and where typing goes
+ * - lib/syntax/prism::resolveLanguage (POS: the one place that knows which grammars are registered and which texts are
+ *   too risky to colour)
  *
  * [OUTPUT]
  * - LineNumberedCode: read-only code view, one row per line; coloured with Prism when its language has a grammar, no

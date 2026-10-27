@@ -43,10 +43,11 @@ Prism.languages.zsh = Prism.languages.bash;
 export { Prism };
 
 /**
- * Grammars are backtracking regular expressions, and on one very long line some of them take time that grows with the
- * square of its length: markdown needs 36 ms for a 10,000-character data URI, 0.9 s for 50,000 and 3.5 s for 100,000.
- * Minified code and embedded data are the usual such lines, and colouring them has little value, so a text with a line
- * past this is left uncoloured.
+ * Grammars are backtracking regular expressions, and on one very long line many of them take time that grows with the
+ * square of its length. For a bare base64 line of 10,000 and of 100,000 characters: markdown 36 ms and 3.4 s, lua 219 ms
+ * and 22 s, typescript 654 ms at 10,000 (the 100,000 run was skipped), css 130 ms and 13 s when the line is an unclosed
+ * string. The same characters cut into 80-character lines stay under 0.5 s at 100,000 (css apart). Minified code and embedded data are the
+ * usual such lines, and colouring them has little value, so a text with a line past this is left uncoloured.
  */
 export const MAX_HIGHLIGHT_LINE_CHARS = 10_000;
 
