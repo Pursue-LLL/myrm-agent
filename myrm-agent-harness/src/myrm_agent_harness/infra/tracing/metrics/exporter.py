@@ -5,6 +5,8 @@ Design:
 - The exporter comes from the shared OTLP factory, so protocol, endpoint and header semantics match
   the trace pipeline: one ``OTEL_EXPORTER_OTLP_ENDPOINT`` serves both signals, and
   ``OTEL_METRICS_EXPORTER=none`` switches metrics off on their own.
+- Every exporter is wrapped in a delivery tracker, because the periodic reader ignores the outcome of an
+  export: the posture reports a collector that refuses metrics as failing instead of exporting.
 - No HTTP server is started here; Prometheus scraping stays a business-layer decision.
 
 [INPUT]
@@ -98,7 +100,11 @@ def setup_metrics(
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 
-    from myrm_agent_harness.infra.tracing.otlp.exporters import OtlpUnavailableError, create_metric_exporter
+    from myrm_agent_harness.infra.tracing.otlp.exporters import (
+        DeliveryTrackingMetricExporter,
+        OtlpUnavailableError,
+        create_metric_exporter,
+    )
     from myrm_agent_harness.infra.tracing.otlp.resource import build_resource
 
     if target is not None:
@@ -110,7 +116,8 @@ def setup_metrics(
     else:
         exporter = ConsoleMetricExporter()
 
-    reader = PeriodicExportingMetricReader(exporter, export_interval_millis=export_interval_ms)
+    tracked = DeliveryTrackingMetricExporter(exporter)
+    reader = PeriodicExportingMetricReader(tracked, export_interval_millis=export_interval_ms)
     provider = MeterProvider(resource=build_resource(service_name, resource_attributes), metric_readers=[reader])
     set_meter_provider(provider)
     if current_meter_provider() is not provider:
@@ -120,7 +127,7 @@ def setup_metrics(
 
     _meter_provider = provider
     _initialized = True
-    record_metrics(exporting=True)
+    record_metrics(stats=tracked.stats)
     logger.info(
         "Metrics initialized: service=%s endpoint=%s",
         service_name,

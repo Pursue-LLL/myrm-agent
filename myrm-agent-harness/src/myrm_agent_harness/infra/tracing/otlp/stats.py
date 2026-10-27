@@ -1,4 +1,4 @@
-"""Measured outcome of span export.
+"""Measured outcome of telemetry export.
 
 [INPUT]
 - (none: plain data, importable without the OpenTelemetry SDK)
@@ -7,8 +7,9 @@
 - ExportStats: exported / failed / withheld counters and the last success and failure times
 
 [POS]
-The exporter-boundary guard writes it; the posture probe reads it. Keeping the type SDK-free lets
-the probe answer "is telemetry actually leaving, and is it failing" without importing an exporter.
+The exporter-boundary guard (spans) and the metric delivery tracker write it; the posture probe reads it.
+Keeping the type SDK-free lets the probe answer "is telemetry actually leaving, and is it failing" without
+importing an exporter.
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ class ExportStats:
 
     ``withheld_spans`` counts spans the privacy guard could not sanitize and therefore never sent. A span the
     ``BatchSpanProcessor`` discards because its queue is full never reaches the guard and is in no counter.
+    The metric pipeline fills only the delivery fields (``failed_batches`` and the two timestamps); its span
+    counters stay zero.
     """
 
     exported_spans: int = 0

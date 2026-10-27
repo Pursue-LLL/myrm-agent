@@ -63,6 +63,8 @@ print(get_telemetry_posture())  # status, endpoint, protocol, sampler, exported/
 
 `status` is `ready` once the pipeline is built and until the first batch has been delivered or refused (nothing proves the destination works yet), `active` while the latest batch was accepted, `failing` after the last export failed, `degraded` when the requested protocol cannot be served, `disabled` under the kill switch, `noop` without an endpoint. Every field is measured from live state, and credentials in the endpoint are redacted.
 
+`metrics_status` applies the same rule to the metric pipeline: `off` when no metric exporter was built, otherwise `ready`, `active` or `failing` by the latest export. A collector that refuses `/v1/metrics`, as Jaeger does, shows `failing` for metrics while traces stay `active`.
+
 ---
 
 ## Configuration
@@ -187,6 +189,10 @@ The GenAI client metrics are recorded from the model call itself, so lowering th
 2. Check the protocol/port pair: HTTP/protobuf is conventionally `:4318`, gRPC `:4317` (an unset protocol is inferred from that port).
 3. `MYRM_LOCAL_TRACE_ONLY=1` refuses remote endpoints by design.
 4. A sampler of `always_off` or a ratio of `0` drops every trace: the posture shows the active sampler.
+
+**No metrics in the backend**
+
+`get_telemetry_posture()["metrics_status"]`: `off` means no metric exporter was built (no endpoint, `OTEL_METRICS_EXPORTER=none`, or a protocol that cannot be served), `ready` means no export has been attempted yet (the default push interval is 60 s), `failing` means the last export was refused or errored; traces-only backends such as Jaeger answer 404 on `/v1/metrics`.
 
 **Spans are missing attributes such as prompts**
 

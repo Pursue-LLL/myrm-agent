@@ -5,14 +5,14 @@
 - myrm_agent_harness.observability.diagnostics.manager::register_diagnostic (POS: 探针自动注册)
 - myrm_agent_harness.observability.diagnostics.protocols::HealthReport (POS: 标准健康检查报告)
 - myrm_agent_harness.infra.tracing.otlp.config::resolve_target, sdk_disabled (POS: the one resolver of where telemetry is exported)
-- myrm_agent_harness.infra.tracing.tracer::is_tracing_initialized (POS: OTLP trace SDK posture)
-- myrm_agent_harness.infra.tracing.metrics.exporter::is_metrics_initialized (POS: OTLP metrics SDK posture)
+- myrm_agent_harness.infra.tracing::get_telemetry_posture (POS: measured delivery state of the trace and metric pipelines)
 
 [OUTPUT]
 - GatewayHealthStatus: StrEnum (HEALTHY, DEGRADED, UNHEALTHY)
 - GatewayVitals: Immutable dataclass capturing event loop lag, RSS memory, uptime, and active tasks
 - GatewayRedactedHealthDTO: Standard zero-payload export contract strictly excluding all user prompts and chat content
-- GatewayHealthInspector: Diagnostics engine measuring runtime vitals and OTLP assembly status
+- OtlpHealth: OTLP export as the doctor reports it (configured, connected by measured delivery, failing signals)
+- GatewayHealthInspector: Diagnostics engine measuring runtime vitals and OTLP delivery
 
 [POS]
 Harness-level 24/7 gateway health monitor providing pure zero-payload redacted health export and event loop latency probing.
@@ -94,7 +94,7 @@ class GatewayRedactedHealthDTO:
         status: High-level GatewayHealthStatus.
         vitals: GatewayVitals snapshot.
         otlp_endpoint_configured: Whether an OTLP export endpoint is configured.
-        otlp_connected: Whether OpenTelemetry tracer/exporter is initialized.
+        otlp_connected: Whether the destination is accepting OTLP export (measured delivery, not initialization).
         redacted_diagnostics: Actionable remediation hints and health notes.
     """
 
@@ -113,6 +113,21 @@ class GatewayRedactedHealthDTO:
             "otlp_connected": self.otlp_connected,
             "redacted_diagnostics": list(self.redacted_diagnostics),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class OtlpHealth:
+    """OTLP export as the doctor reports it, read from the measured telemetry posture.
+
+    Attributes:
+        configured: An endpoint resolves for traces or metrics and the SDK is not switched off.
+        connected: Some signal's latest export was accepted and no signal is failing.
+        failing: The signals whose latest export was refused or errored.
+    """
+
+    configured: bool
+    connected: bool
+    failing: tuple[str, ...] = ()
 
 
 class GatewayHealthInspector:
@@ -160,12 +175,14 @@ class GatewayHealthInspector:
             return 0.0
 
     @classmethod
-    def check_otlp_posture(cls) -> tuple[bool, bool]:
-        """Report whether OTLP export is configured and whether a pipeline is live.
+    def check_otlp_posture(cls) -> OtlpHealth:
+        """Report whether OTLP export is configured and whether the destination is accepting it.
 
         "Configured" follows the same resolution as export itself: an endpoint resolves for traces or
         metrics and the SDK is not switched off, so a deliberate ``OTEL_SDK_DISABLED`` or
-        ``OTEL_<SIGNAL>_EXPORTER=none`` is not reported as a broken connection.
+        ``OTEL_<SIGNAL>_EXPORTER=none`` is not reported as a broken connection. "Connected" is measured
+        delivery from the telemetry posture, so a pipeline that was built but has not exported yet, or whose
+        collector refuses batches, is not connected.
         """
         from myrm_agent_harness.infra.tracing.otlp.config import resolve_target, sdk_disabled
 
@@ -173,22 +190,19 @@ class GatewayHealthInspector:
             resolve_target(signal) is not None for signal in ("traces", "metrics")
         )
 
-        is_connected = False
         try:
-            from myrm_agent_harness.infra.tracing.tracer import is_tracing_initialized
-
-            is_connected = is_tracing_initialized()
+            from myrm_agent_harness.infra.tracing import get_telemetry_posture
         except ImportError:
-            pass
-        if not is_connected:
-            try:
-                from myrm_agent_harness.infra.tracing.metrics.exporter import is_metrics_initialized
+            return OtlpHealth(configured=is_configured, connected=False)
 
-                is_connected = is_metrics_initialized()
-            except ImportError:
-                pass
-
-        return is_configured, is_connected
+        posture = get_telemetry_posture()
+        states = {"traces": posture["status"], "metrics": posture["metrics_status"]}
+        failing = tuple(signal for signal, state in states.items() if state == "failing")
+        return OtlpHealth(
+            configured=is_configured,
+            connected=not failing and "active" in states.values(),
+            failing=failing,
+        )
 
     @classmethod
     async def collect_vitals(cls) -> GatewayVitals:
@@ -214,7 +228,7 @@ class GatewayHealthInspector:
     async def inspect(cls) -> GatewayRedactedHealthDTO:
         """Perform comprehensive zero-payload health inspection."""
         vitals = await cls.collect_vitals()
-        otlp_conf, otlp_conn = cls.check_otlp_posture()
+        otlp = cls.check_otlp_posture()
 
         diagnostics: list[str] = []
         status = GatewayHealthStatus.HEALTHY
@@ -249,11 +263,14 @@ class GatewayHealthInspector:
                 "Consider recycling idle sessions or compacting state DB."
             )
 
-        # 3. OTLP posture note
-        if otlp_conf and not otlp_conn:
+        # 3. OTLP delivery note
+        if otlp.failing:
             diagnostics.append(
-                "OTLP endpoint configured but OpenTelemetry tracing or metrics SDK is not actively connected."
+                f"OTLP {' and '.join(otlp.failing)} export is failing: "
+                "the destination refused or dropped the latest delivery."
             )
+        elif otlp.configured and not otlp.connected:
+            diagnostics.append("OTLP endpoint configured but no export has been accepted yet.")
 
         if not diagnostics:
             diagnostics.append("Gateway vitals and event loop scheduling are operating nominally.")
@@ -261,8 +278,8 @@ class GatewayHealthInspector:
         return GatewayRedactedHealthDTO(
             status=status,
             vitals=vitals,
-            otlp_endpoint_configured=otlp_conf,
-            otlp_connected=otlp_conn,
+            otlp_endpoint_configured=otlp.configured,
+            otlp_connected=otlp.connected,
             redacted_diagnostics=diagnostics,
         )
 

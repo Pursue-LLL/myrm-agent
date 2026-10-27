@@ -2,6 +2,7 @@
 
 [INPUT]
 - otlp.config::OtlpTarget (POS: resolved endpoint, protocol and headers)
+- otlp.stats::ExportStats (POS: measured export outcome read by the posture probe)
 - opentelemetry-exporter-otlp-proto-http / -grpc (POS: optional official exporters)
 
 [OUTPUT]
@@ -9,6 +10,7 @@
   its message never quotes the target's credentials
 - create_span_exporter / create_metric_exporter: exporter for one resolved target; a malformed entry of the
   OTLP header variables is reported without its text
+- DeliveryTrackingMetricExporter: wraps a metric exporter and records whether each export was accepted
 
 [POS]
 One factory for both signals so traces and metrics share protocol, endpoint and header handling.
@@ -18,16 +20,21 @@ point telemetry at an endpoint that does not speak that protocol. The exporter p
 imported literally (inside small loaders) so a frozen desktop bundle collects them and a missing
 optional package surfaces as ``ImportError`` only when its protocol is requested. The stock exporters
 read ``OTEL_EXPORTER_OTLP_*HEADERS`` from the environment themselves and, for a malformed entry, log
-the entry verbatim; an entry is a credential, so that warning's text is replaced.
+the entry verbatim; an entry is a credential, so that warning's text is replaced. The SDK's periodic metric
+reader discards the result of every export, so the tracking wrapper is the only place a refused metric batch
+can be observed.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from collections.abc import Callable
+from dataclasses import replace
 from typing import cast
 
-from opentelemetry.sdk.metrics.export import MetricExporter
+from opentelemetry.sdk.metrics.export import MetricExporter, MetricExportResult, MetricsData
 from opentelemetry.sdk.trace.export import SpanExporter
 
 from myrm_agent_harness.infra.tracing.otlp.config import (
@@ -37,6 +44,9 @@ from myrm_agent_harness.infra.tracing.otlp.config import (
     Signal,
     redact_endpoint,
 )
+from myrm_agent_harness.infra.tracing.otlp.stats import ExportStats
+
+logger = logging.getLogger(__name__)
 
 _PACKAGE_FLAVOR: dict[str, str] = {
     PROTOCOL_HTTP: "http",
@@ -142,3 +152,48 @@ def create_span_exporter(target: OtlpTarget) -> SpanExporter:
 
 def create_metric_exporter(target: OtlpTarget) -> MetricExporter:
     return cast(MetricExporter, _build(target))
+
+
+class DeliveryTrackingMetricExporter(MetricExporter):
+    """Wraps a metric exporter and records whether each export was accepted.
+
+    Without it a collector that refuses metrics (Jaeger answers 404 on ``/v1/metrics``) would look healthy,
+    because the periodic reader ignores the outcome of an export. Temporality and aggregation are the wrapped
+    exporter's own: the reader takes both from the exporter it is given.
+    """
+
+    def __init__(self, inner: MetricExporter) -> None:
+        super().__init__(
+            preferred_temporality=inner._preferred_temporality,
+            preferred_aggregation=inner._preferred_aggregation,
+        )
+        self._inner = inner
+        self._lock = threading.Lock()
+        self._stats = ExportStats()
+
+    def export(self, metrics_data: MetricsData, timeout_millis: float = 10_000, **kwargs: object) -> MetricExportResult:
+        try:
+            result = self._inner.export(metrics_data, timeout_millis=timeout_millis, **kwargs)
+        except Exception as exc:
+            logger.warning("OTLP metric export raised %s", type(exc).__name__)
+            result = MetricExportResult.FAILURE
+        self._record(result)
+        return result
+
+    def force_flush(self, timeout_millis: float = 10_000) -> bool:
+        return self._inner.force_flush(timeout_millis)
+
+    def shutdown(self, timeout_millis: float = 30_000, **kwargs: object) -> None:
+        self._inner.shutdown(timeout_millis=timeout_millis, **kwargs)
+
+    def stats(self) -> ExportStats:
+        with self._lock:
+            return self._stats
+
+    def _record(self, result: MetricExportResult) -> None:
+        now = time.time()
+        with self._lock:
+            if result is MetricExportResult.SUCCESS:
+                self._stats = replace(self._stats, last_success_at=now)
+            else:
+                self._stats = replace(self._stats, failed_batches=self._stats.failed_batches + 1, last_failure_at=now)

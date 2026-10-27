@@ -17,7 +17,7 @@ Framework-level self-inspection and health-check protocol. Supports structured i
 | system_exhaustion.py | Core | Host-level system resource exhaustion probe `check_system_exhaustion`: Swap / Pagefile pressure, Linux CommitLimit saturation, and system/process file descriptor (FD / Handle) leaks. A nearly full swap fails only while available physical memory is also under 10% (macOS sizes swap on demand, so full swap alone is a warning); typed snapshot `SystemExhaustionSnapshot`. | ✅ |
 | supply_chain.py | Core | Runtime dependency and supply chain security probe `check_supply_chain_health` (installed package scanning against offline advisories and OSV.dev). | ✅ |
 | protocols.py | Core | Provides HealthReport (with measured/expected/cause fields), DiagnosticProtocol, redact_health_report. | ✅ |
-| gateway_health.py | Core | Gateway runtime vitals probe (event loop lag, process RSS, asyncio task count), zero-payload redacted health DTO, and OTLP posture detection. Registered into `/health/doctor`. | ✅ |
+| gateway_health.py | Core | Gateway runtime vitals probe (event loop lag, process RSS, asyncio task count), zero-payload redacted health DTO, and OTLP delivery detection (`OtlpHealth`: configured, connected by measured delivery of the latest export, failing signals; read from the telemetry posture, so a collector that refuses batches is never reported connected). Registered into `/health/doctor`. | ✅ |
 | `fleet_telemetry/` | Subpackage | 分布式机队六态健康遥测与模型上游配额耗尽诊断子包：五级探针自省流水线 (`FleetSixStateDiagnoser`) 与异常归因分类器 (`classify_provider_error`)。 | ✅ |
 
 ## Key Dependencies

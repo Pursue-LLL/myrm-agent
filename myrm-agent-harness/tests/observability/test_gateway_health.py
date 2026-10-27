@@ -11,6 +11,7 @@ from myrm_agent_harness.observability.diagnostics.gateway_health import (
     GatewayHealthStatus,
     GatewayRedactedHealthDTO,
     GatewayVitals,
+    OtlpHealth,
     check_gateway_runtime_health,
 )
 
@@ -41,56 +42,77 @@ class TestGatewayHealthInspectorOtlpPosture:
             "OTEL_SDK_DISABLED",
         ):
             monkeypatch.delenv(name, raising=False)
+        self._measured(monkeypatch, traces="noop", metrics="off")
+
+    @staticmethod
+    def _measured(monkeypatch: pytest.MonkeyPatch, *, traces: str, metrics: str) -> None:
+        """Pin the measured state the doctor reads, so the process-global pipelines cannot leak in."""
+        monkeypatch.setattr(
+            "myrm_agent_harness.infra.tracing.get_telemetry_posture",
+            lambda: {"status": traces, "metrics_status": metrics},
+        )
 
     def test_otlp_not_configured_when_env_missing(self) -> None:
-        configured, connected = GatewayHealthInspector.check_otlp_posture()
-        assert configured is False
-        assert connected is False
+        health = GatewayHealthInspector.check_otlp_posture()
+        assert health == OtlpHealth(configured=False, connected=False)
 
     def test_a_deliberately_disabled_sdk_is_not_reported_as_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
         monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
-        configured, _ = GatewayHealthInspector.check_otlp_posture()
-        assert configured is False
+        assert GatewayHealthInspector.check_otlp_posture().configured is False
 
     def test_both_signals_switched_off_is_not_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
         monkeypatch.setenv("OTEL_TRACES_EXPORTER", "none")
         monkeypatch.setenv("OTEL_METRICS_EXPORTER", "none")
-        configured, _ = GatewayHealthInspector.check_otlp_posture()
-        assert configured is False
+        assert GatewayHealthInspector.check_otlp_posture().configured is False
 
     def test_a_metrics_only_endpoint_counts_as_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://localhost:4318/v1/metrics")
         monkeypatch.setenv("OTEL_TRACES_EXPORTER", "none")
-        configured, _ = GatewayHealthInspector.check_otlp_posture()
-        assert configured is True
+        assert GatewayHealthInspector.check_otlp_posture().configured is True
 
-    def test_otlp_configured_and_tracing_connected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.parametrize(
+        ("traces", "metrics"),
+        [("active", "off"), ("ready", "active"), ("active", "active")],
+    )
+    def test_a_signal_whose_latest_export_was_accepted_is_connected(
+        self, monkeypatch: pytest.MonkeyPatch, traces: str, metrics: str
+    ) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        with patch(
-            "myrm_agent_harness.infra.tracing.tracer.is_tracing_initialized",
-            return_value=True,
-        ):
-            configured, connected = GatewayHealthInspector.check_otlp_posture()
-        assert configured is True
-        assert connected is True
+        self._measured(monkeypatch, traces=traces, metrics=metrics)
 
-    def test_otlp_configured_metrics_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert GatewayHealthInspector.check_otlp_posture() == OtlpHealth(configured=True, connected=True)
+
+    @pytest.mark.parametrize(
+        ("traces", "metrics"),
+        [("ready", "ready"), ("ready", "off"), ("degraded", "off"), ("missing_sdk", "off"), ("local_only", "off")],
+    )
+    def test_a_pipeline_that_has_delivered_nothing_is_not_connected(
+        self, monkeypatch: pytest.MonkeyPatch, traces: str, metrics: str
+    ) -> None:
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        with (
-            patch(
-                "myrm_agent_harness.infra.tracing.tracer.is_tracing_initialized",
-                return_value=False,
-            ),
-            patch(
-                "myrm_agent_harness.infra.tracing.metrics.exporter.is_metrics_initialized",
-                return_value=True,
-            ),
-        ):
-            configured, connected = GatewayHealthInspector.check_otlp_posture()
-        assert configured is True
-        assert connected is True
+        self._measured(monkeypatch, traces=traces, metrics=metrics)
+
+        assert GatewayHealthInspector.check_otlp_posture() == OtlpHealth(configured=True, connected=False)
+
+    @pytest.mark.parametrize(
+        ("traces", "metrics", "failing"),
+        [
+            ("failing", "off", ("traces",)),
+            ("active", "failing", ("metrics",)),
+            ("failing", "failing", ("traces", "metrics")),
+        ],
+    )
+    def test_a_failing_signal_is_never_reported_connected(
+        self, monkeypatch: pytest.MonkeyPatch, traces: str, metrics: str, failing: tuple[str, ...]
+    ) -> None:
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        self._measured(monkeypatch, traces=traces, metrics=metrics)
+
+        assert GatewayHealthInspector.check_otlp_posture() == OtlpHealth(
+            configured=True, connected=False, failing=failing
+        )
 
 
 class TestGatewayHealthInspectorInspect:
@@ -104,7 +126,7 @@ class TestGatewayHealthInspectorInspect:
         )
         with (
             patch.object(GatewayHealthInspector, "collect_vitals", AsyncMock(return_value=vitals)),
-            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=(False, False)),
+            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=OtlpHealth(False, False)),
         ):
             dto = await GatewayHealthInspector.inspect()
 
@@ -122,7 +144,7 @@ class TestGatewayHealthInspectorInspect:
         )
         with (
             patch.object(GatewayHealthInspector, "collect_vitals", AsyncMock(return_value=vitals)),
-            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=(False, False)),
+            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=OtlpHealth(False, False)),
         ):
             dto = await GatewayHealthInspector.inspect()
 
@@ -139,12 +161,47 @@ class TestGatewayHealthInspectorInspect:
         )
         with (
             patch.object(GatewayHealthInspector, "collect_vitals", AsyncMock(return_value=vitals)),
-            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=(False, False)),
+            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=OtlpHealth(False, False)),
         ):
             dto = await GatewayHealthInspector.inspect()
 
         assert dto.status == GatewayHealthStatus.DEGRADED
         assert any("RSS memory elevated" in note for note in dto.redacted_diagnostics)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("health", "note"),
+        [
+            (OtlpHealth(True, False, ("traces",)), "OTLP traces export is failing"),
+            (OtlpHealth(True, False, ("traces", "metrics")), "OTLP traces and metrics export is failing"),
+            (OtlpHealth(True, False), "no export has been accepted yet"),
+        ],
+    )
+    async def test_an_otlp_problem_is_named_in_the_diagnostics_without_changing_the_status(
+        self, health: OtlpHealth, note: str
+    ) -> None:
+        vitals = GatewayVitals(event_loop_lag_ms=5.0, memory_rss_mb=256.0, uptime_seconds=120.0, active_tasks=4)
+        with (
+            patch.object(GatewayHealthInspector, "collect_vitals", AsyncMock(return_value=vitals)),
+            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=health),
+        ):
+            dto = await GatewayHealthInspector.inspect()
+
+        assert dto.status == GatewayHealthStatus.HEALTHY
+        assert any(note in line for line in dto.redacted_diagnostics)
+        assert (dto.otlp_endpoint_configured, dto.otlp_connected) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_a_connected_destination_adds_no_otlp_note(self) -> None:
+        vitals = GatewayVitals(event_loop_lag_ms=5.0, memory_rss_mb=256.0, uptime_seconds=120.0, active_tasks=4)
+        with (
+            patch.object(GatewayHealthInspector, "collect_vitals", AsyncMock(return_value=vitals)),
+            patch.object(GatewayHealthInspector, "check_otlp_posture", return_value=OtlpHealth(True, True)),
+        ):
+            dto = await GatewayHealthInspector.inspect()
+
+        assert not any("OTLP" in line for line in dto.redacted_diagnostics)
+        assert dto.otlp_connected is True
 
     @pytest.mark.asyncio
     async def test_dto_to_dict_excludes_sensitive_fields(self) -> None:

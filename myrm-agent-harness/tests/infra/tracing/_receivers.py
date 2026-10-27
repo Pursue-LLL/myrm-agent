@@ -174,11 +174,16 @@ class _Collected:
 
 
 class OtlpHttpReceiver(_Collected):
-    """OTLP/HTTP protobuf collector on an ephemeral loopback port."""
+    """OTLP/HTTP protobuf collector on an ephemeral loopback port.
 
-    def __init__(self, *, status: int = 200) -> None:
+    ``status`` answers accepted requests; ``refused`` lists path suffixes answered with 404, the way a traces-only
+    backend such as Jaeger answers ``/v1/metrics``. Both can be changed while the receiver runs.
+    """
+
+    def __init__(self, *, status: int = 200, refused: tuple[str, ...] = ()) -> None:
         super().__init__()
         self.status = status
+        self.refused = refused
         receiver = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -192,6 +197,10 @@ class OtlpHttpReceiver(_Collected):
                     raw = zlib.decompress(raw)
                 body: Message
                 response: Message
+                if self.path.endswith(receiver.refused):
+                    self.send_response(404)
+                    self.end_headers()
+                    return
                 if self.path.endswith("/v1/traces"):
                     body = trace_service_pb2.ExportTraceServiceRequest()
                     response = trace_service_pb2.ExportTraceServiceResponse()

@@ -11,8 +11,9 @@
 
 [POS]
 Every field is read from live state, never asserted: the provider/exporter that setup actually built,
-the sampler the SDK is using, the export counters of the privacy guard, whether the metric pipeline
-exists. Importable without the OpenTelemetry SDK so a bare install can still answer "disabled".
+the sampler the SDK is using, the export counters of the privacy guard, and whether the metric
+destination accepted the latest export. Importable without the OpenTelemetry SDK so a bare install can
+still answer "disabled".
 """
 
 from __future__ import annotations
@@ -54,7 +55,7 @@ class _TracesRuntime:
 
 _lock = threading.Lock()
 _traces = _TracesRuntime()
-_metrics_exporting = False
+_metrics_stats: Callable[[], ExportStats] | None = None
 
 
 def record_traces(
@@ -86,9 +87,11 @@ def record_traces_degraded(*, target: OtlpTarget | None, reason: str) -> None:
         _traces = _TracesRuntime(target=target, degraded_reason=reason)
 
 
-def record_metrics(*, exporting: bool) -> None:
-    global _metrics_exporting
-    _metrics_exporting = exporting
+def record_metrics(*, stats: Callable[[], ExportStats]) -> None:
+    """Record the metric pipeline that setup actually built; ``stats`` reads what its exporter delivered."""
+    global _metrics_stats
+    with _lock:
+        _metrics_stats = stats
 
 
 def reset_traces() -> None:
@@ -98,7 +101,23 @@ def reset_traces() -> None:
 
 
 def reset_metrics() -> None:
-    record_metrics(exporting=False)
+    global _metrics_stats
+    with _lock:
+        _metrics_stats = None
+
+
+def _delivery(stats: ExportStats | None) -> str:
+    """``ready`` until a batch has been delivered or refused, then ``active`` or ``failing`` by the latest outcome."""
+    if stats is None or not stats.attempted:
+        return "ready"
+    return "failing" if stats.last_export_failed else "active"
+
+
+def _metrics_status() -> str:
+    """``off`` without a metric pipeline; otherwise ``ready`` / ``active`` / ``failing`` as for traces."""
+    with _lock:
+        stats = _metrics_stats
+    return "off" if stats is None else _delivery(stats())
 
 
 def _status(*, has_sdk: bool, initialized: bool, runtime: _TracesRuntime, stats: ExportStats | None) -> str:
@@ -114,9 +133,7 @@ def _status(*, has_sdk: bool, initialized: bool, runtime: _TracesRuntime, stats:
     if sdk_disabled():
         return "disabled"
     if initialized and runtime.exporter_type != EXPORTER_NONE:
-        if stats is None or not stats.attempted:
-            return "ready"
-        return "failing" if stats.last_export_failed else "active"
+        return _delivery(stats)
     if runtime.degraded_reason:
         return "degraded"
     if is_local_trace_only():
@@ -142,7 +159,7 @@ def build_posture(*, initialized: bool, has_sdk: bool) -> dict[str, object]:
         "degraded_reason": runtime.degraded_reason,
         "sampler": runtime.sampler,
         "content_capture": capture_content_enabled(),
-        "metrics_exporting": _metrics_exporting,
+        "metrics_status": _metrics_status(),
         "exported_spans": stats.exported_spans if stats else 0,
         "failed_batches": stats.failed_batches if stats else 0,
         "withheld_spans": stats.withheld_spans if stats else 0,
