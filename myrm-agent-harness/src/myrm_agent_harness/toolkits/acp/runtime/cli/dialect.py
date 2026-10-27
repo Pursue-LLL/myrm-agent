@@ -7,7 +7,7 @@ Keeping those differences in one place leaves the runtime free of per-CLI branch
 
 [INPUT]
 - toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
-- toolkits.acp.runtime.cli.image_blocks::ImageBlock (POS: Image input of CliRuntime for a CLI that takes base64 blocks)
+- toolkits.acp.runtime.image_blocks::ImageBlock (POS: Image input shared by CliRuntime and AcpRuntime)
 
 [OUTPUT]
 - CliDialect: launch differences of one CLI (resume, native turn limit, partial-message streaming, images, environment)
@@ -27,7 +27,7 @@ from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
-from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock
+from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock
 
 # Claude and Codex both identify a conversation by a canonical hyphenated UUID. A resume id comes from a store
 # the CLI did not write, and Codex starts a brand-new thread (instead of failing) on a malformed one, so an id

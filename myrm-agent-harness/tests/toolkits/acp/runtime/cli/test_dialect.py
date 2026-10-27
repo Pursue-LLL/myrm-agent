@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import (
     has_native_turn_limit,
     is_session_id,
 )
-from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock
+from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock
 
 _ID = "0198a7c3-5d2e-7c41-9b8e-1f2a3b4c5d6e"
 _BLOCK = ImageBlock("image/png", "AAEC")

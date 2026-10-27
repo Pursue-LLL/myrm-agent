@@ -1,8 +1,9 @@
-"""Image files of a turn as the base64 blocks a CLI reads from its stdin.
+"""Image files of a turn as the base64 blocks an agent takes in its request.
 
-A CLI that is only told a path decides for itself what to do with it: Claude's ``@`` file mention silently drops
-every image above 256 KiB, which is below most screenshots. A block carries the bytes in the request itself, so
-the image reaches the model whatever its size, whatever directory it lives in and whatever the permission mode.
+An agent that is only told a path decides for itself what to do with it: Claude's ``@`` file mention silently drops
+every image above 256 KiB, which is below most screenshots. A block carries the bytes in the request itself (a JSON
+message on a CLI's stdin, an image content block of an ACP prompt), so the image reaches the model whatever its size,
+whatever directory it lives in and whatever the permission mode.
 
 [INPUT]
 - utils.mime_types::VISION_IMAGE_MIME_TYPES, detect_image_mime (POS: Centralized image MIME type utilities.)
@@ -12,8 +13,9 @@ the image reaches the model whatever its size, whatever directory it lives in an
 - load_image_blocks: the readable image files of a turn, in order
 
 [POS]
-Image input of CliRuntime for a CLI that takes base64 blocks. The host bounds the size of what it hands over (the
-server stages at most 5 MiB per image); this module only decides whether a file is an image the CLIs accept.
+Image input shared by CliRuntime (a CLI that takes base64 blocks) and AcpRuntime (an agent that advertises image
+prompts). The host bounds the size of what it hands over (the server stages at most 5 MiB per image); this module
+only decides whether a file is an image the models accept.
 """
 
 from __future__ import annotations
@@ -48,12 +50,12 @@ def load_image_blocks(paths: Sequence[str]) -> list[ImageBlock]:
         try:
             raw = Path(path).read_bytes()
         except OSError as exc:
-            logger.warning("cli_image_skipped reason=unreadable error=%s", type(exc).__name__)
+            logger.warning("image_skipped reason=unreadable error=%s", type(exc).__name__)
             continue
         # The first bytes say what a file is, its name does not.
         media_type = detect_image_mime(raw, fallback="")
         if media_type not in VISION_IMAGE_MIME_TYPES:
-            logger.warning("cli_image_skipped reason=unknown_format")
+            logger.warning("image_skipped reason=unknown_format")
             continue
         blocks.append(ImageBlock(media_type, base64.b64encode(raw).decode("ascii")))
     return blocks

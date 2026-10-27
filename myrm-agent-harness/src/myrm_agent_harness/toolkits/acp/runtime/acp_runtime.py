@@ -8,6 +8,7 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 - toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer. Provides decoupled event dispatch mechanism for the Runtime system with session isolation and type filtering.)
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations.)
 - toolkits.acp.runtime.acp_callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
+- toolkits.acp.runtime.image_blocks::ImageBlock, load_image_blocks (POS: Image input shared by CliRuntime and AcpRuntime)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
@@ -18,11 +19,17 @@ ACP protocol runtime backend. Sends `session/close` only when the agent advertis
 negotiation) and bounds it, so a silent agent cannot skip the transport teardown that terminates its process.
 A silent agent (one long tool call) is reported as still working at a fixed interval, as ``CliRuntime`` does, and a
 missing ACP SDK (the optional ``acp`` extra) ends the turn with a ``BACKEND_NOT_FOUND`` error that says how to install it.
+
+The images of a turn travel as image content blocks after the text, only to an agent that advertised
+``promptCapabilities.image`` in ``initialize``. A prompt with images is one request of several MiB, so an agent that
+has stopped reading its stdin leaves it half written and the SDK queues ``session/cancel`` and its own shutdown behind
+it: cancel and transport exit are bounded, and the agent process is ended when it does not let go in time.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -37,6 +44,7 @@ from myrm_agent_harness.toolkits.acp.runtime._base import (
     working_status,
 )
 from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock, load_image_blocks
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,
@@ -60,9 +68,20 @@ logger = logging.getLogger(__name__)
 # transport teardown (SDK-bounded terminate/kill) that actually stops the process.
 _CLOSE_SESSION_TIMEOUT_SECONDS = 4.0
 
+# How long cancel and the transport exit wait on an agent that has stopped reading its stdin; the SDK's own graceful
+# shutdown (close stdin, wait 2 s, terminate) fits well inside it.
+_STALLED_AGENT_TIMEOUT_SECONDS = 5.0
+
 
 class _AcpSdkMissingError(Exception):
     """The ACP SDK (the optional ``acp`` extra of the harness) is not installed."""
+
+
+def _kill_process(process: Process | None) -> None:
+    """End the agent process; the write it never read then fails, which frees everything queued behind it."""
+    if process is not None and process.returncode is None:
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
 
 
 def _require_acp_sdk() -> None:
@@ -96,6 +115,7 @@ class AcpRuntime(BaseRuntime):
         self._ctx_manager: AbstractAsyncContextManager[tuple[ClientSideConnection, Process]] | None = None
         self._handler: AcpCallbackHandler | None = None
         self._supports_session_close = False
+        self._prompt_images = False
         self._event_bus = event_bus
 
     @property
@@ -105,6 +125,7 @@ class AcpRuntime(BaseRuntime):
             supports_mcp=True,
             supports_streaming=True,
             supports_tools=True,
+            supports_images=True,
         )
 
     @property
@@ -121,11 +142,6 @@ class AcpRuntime(BaseRuntime):
         mcp_servers: list[McpServerConfig] | None = None,
         images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
-        if images:
-            # The prompt travels as text only; the pool already withholds images from a backend without the capability.
-            logger.warning(
-                "acp_runtime_images_ignored backend=%s images=%d reason=unsupported", self._name, len(images)
-            )
         if not self.is_alive:
             yield create_event(
                 RuntimeEventType.STATUS_UPDATE,
@@ -153,7 +169,8 @@ class AcpRuntime(BaseRuntime):
             raise RuntimeError(msg)
         handler.reset()
 
-        prompt_task = asyncio.create_task(self._run_prompt(prompt, handler))
+        blocks = await self._image_blocks(images) if images else []
+        prompt_task = asyncio.create_task(self._run_prompt(prompt, blocks, handler))
 
         try:
             async for event in self._consume_events(handler, session_id):
@@ -172,13 +189,26 @@ class AcpRuntime(BaseRuntime):
                 # behavior instead of degrading to a silent DONE.
                 raise
 
-    async def _run_prompt(self, prompt: str, handler: AcpCallbackHandler) -> None:
-        """Run the ACP prompt and signal completion via the handler's queue."""
-        from acp.schema import TextContentBlock
+    async def _image_blocks(self, images: list[str]) -> list[ImageBlock]:
+        """The blocks of this turn's images; none when the agent did not advertise image prompts."""
+        if not self._prompt_images:
+            logger.info(
+                "acp_runtime_images_skipped backend=%s images=%d reason=agent_without_image_prompt",
+                self._name,
+                len(images),
+            )
+            return []
+        return await asyncio.to_thread(load_image_blocks, images)
 
+    async def _run_prompt(self, prompt: str, blocks: list[ImageBlock], handler: AcpCallbackHandler) -> None:
+        """Run the ACP prompt (the text, then its images) and signal completion via the handler's queue."""
+        from acp.schema import ImageContentBlock, TextContentBlock
+
+        content: list[TextContentBlock | ImageContentBlock] = [TextContentBlock(type="text", text=prompt)]
+        content.extend(ImageContentBlock(type="image", data=block.data, mime_type=block.media_type) for block in blocks)
         try:
             response = await self._conn.prompt(  # type: ignore[union-attr]
-                prompt=[TextContentBlock(type="text", text=prompt)],
+                prompt=content,
                 session_id=self._session_id,
             )
             handler.mark_done(response.stop_reason)
@@ -210,8 +240,15 @@ class AcpRuntime(BaseRuntime):
             yield event
 
     async def _do_cancel(self, session_id: str) -> None:
-        if self._conn is not None and self._session_id is not None:
-            await self._conn.cancel(session_id=self._session_id)
+        if self._conn is None or self._session_id is None:
+            return
+        try:
+            async with asyncio.timeout(_STALLED_AGENT_TIMEOUT_SECONDS):
+                await self._conn.cancel(session_id=self._session_id)
+        except TimeoutError:
+            # The notification waits behind a prompt the agent is not reading; ending the process is the stop left.
+            logger.warning("acp_cancel_timeout name=%s timeout_s=%.0f", self._name, _STALLED_AGENT_TIMEOUT_SECONDS)
+            _kill_process(self._process)
 
     async def _do_resume(self, session_id: str) -> bool:
         return self._session_id is not None and self.is_alive
@@ -231,7 +268,7 @@ class AcpRuntime(BaseRuntime):
 
         if self._ctx_manager is not None:
             try:
-                await self._ctx_manager.__aexit__(None, None, None)
+                await self._exit_transport(self._ctx_manager, self._process)
             except Exception:
                 logger.debug("acp_ctx_exit_failed name=%s", self._name, exc_info=True)
 
@@ -241,6 +278,32 @@ class AcpRuntime(BaseRuntime):
         self._ctx_manager = None
         self._handler = None
         self._supports_session_close = False
+        self._prompt_images = False
+
+    async def _exit_transport(
+        self,
+        ctx: AbstractAsyncContextManager[tuple[ClientSideConnection, Process]],
+        process: Process | None,
+    ) -> None:
+        """Leave the SDK transport, ending the agent process when it does not let go within the bound.
+
+        The SDK's sender waits for a write the agent never reads and swallows the cancellation of that wait, so a
+        timeout around the exit cannot interrupt it; only the end of the process, which fails the write, can.
+        """
+        leaving = asyncio.ensure_future(ctx.__aexit__(None, None, None))
+        try:
+            await asyncio.wait({leaving}, timeout=_STALLED_AGENT_TIMEOUT_SECONDS)
+            if not leaving.done():
+                logger.warning(
+                    "acp_transport_exit_timeout name=%s timeout_s=%.0f", self._name, _STALLED_AGENT_TIMEOUT_SECONDS
+                )
+                _kill_process(process)
+                await asyncio.wait({leaving}, timeout=_STALLED_AGENT_TIMEOUT_SECONDS)
+        finally:
+            if not leaving.done():
+                leaving.cancel()
+        if leaving.done() and not leaving.cancelled():
+            leaving.result()
 
     async def _do_get_status(self) -> BackendStatus:
         if self.is_alive:
@@ -307,6 +370,8 @@ class AcpRuntime(BaseRuntime):
         agent_caps = init_response.agent_capabilities
         session_caps = agent_caps.session_capabilities if agent_caps is not None else None
         self._supports_session_close = session_caps is not None and session_caps.close is not None
+        prompt_caps = agent_caps.prompt_capabilities if agent_caps is not None else None
+        self._prompt_images = prompt_caps is not None and bool(prompt_caps.image)
         logger.info("acp_runtime_connected name=%s pid=%s", self._name, process.pid)
 
     async def _create_session(self, *, mcp_servers: list[McpServerConfig] | None = None) -> None:

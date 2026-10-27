@@ -128,7 +128,7 @@ class TestClaude:
         notes.write_text("not an image")
         runtime = make_runtime(fake_cli, "claude")
 
-        with caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks"):
+        with caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.image_blocks"):
             events = await _turn(runtime, "look", [str(notes), str(tmp_path / "gone.png")])
 
         assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == "look"

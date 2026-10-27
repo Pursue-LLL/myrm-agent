@@ -2,12 +2,16 @@
 
 Run as a subprocess: python tests/toolkits/acp/_mock_acp_agent.py
 Implements the acp.Agent protocol over stdin/stdout, echoing prompts back
-with a prefix to verify the full ACP roundtrip.
+with a prefix to verify the full ACP roundtrip. With ``--images`` it advertises
+``promptCapabilities.image`` and reports every image block it received as
+``[images] <mimeType>:<base64 length>:<sha256 prefix>``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import sys
 import uuid
 from typing import Any
 
@@ -15,10 +19,12 @@ import acp
 from acp.schema import (
     AgentCapabilities,
     CloseSessionResponse,
+    ImageContentBlock,
     Implementation,
     InitializeResponse,
     ListSessionsResponse,
     NewSessionResponse,
+    PromptCapabilities,
     PromptResponse,
     TextContentBlock,
 )
@@ -41,9 +47,10 @@ class MockAcpAgent:
         client_info: object | None = None,
         **kwargs: Any,
     ) -> InitializeResponse:
+        advertise_images = "--images" in sys.argv[1:]
         return InitializeResponse(
             protocol_version=protocol_version,
-            agent_capabilities=AgentCapabilities(),
+            agent_capabilities=AgentCapabilities(prompt_capabilities=PromptCapabilities(image=advertise_images)),
             agent_info=Implementation(name="mock-acp-agent", version="1.0.0"),
         )
 
@@ -77,7 +84,7 @@ class MockAcpAgent:
 
     async def prompt(
         self,
-        prompt: list[TextContentBlock],
+        prompt: list[TextContentBlock | ImageContentBlock],
         session_id: str,
         message_id: str | None = None,
         **kwargs: Any,
@@ -95,6 +102,16 @@ class MockAcpAgent:
                 session_id=session_id,
                 update=acp.update_agent_message_text(f"[echo] {user_text}"),
             )
+            received = [
+                f"{block.mime_type}:{len(block.data)}:{hashlib.sha256(block.data.encode()).hexdigest()[:16]}"
+                for block in prompt
+                if isinstance(block, ImageContentBlock)
+            ]
+            if received:
+                await self._conn.session_update(
+                    session_id=session_id,
+                    update=acp.update_agent_message_text(f"[images] {' '.join(received)}"),
+                )
 
         return PromptResponse(stop_reason="end_turn")
 

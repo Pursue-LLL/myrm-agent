@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock, load_image_blocks
+from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock, load_image_blocks
 
 _PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 _JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 8
@@ -15,7 +15,7 @@ _GIF87 = b"GIF87a" + b"\x00" * 8
 _GIF89 = b"GIF89a" + b"\x00" * 8
 _WEBP = b"RIFF\x24\x00\x00\x00WEBPVP8 "
 _WAV = b"RIFF\x24\x00\x00\x00WAVEfmt "
-_LOGGER = "myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks"
+_LOGGER = "myrm_agent_harness.toolkits.acp.runtime.image_blocks"
 
 
 class TestFormats:
@@ -112,7 +112,7 @@ class TestLoadImageBlocks:
             blocks = load_image_blocks([str(text), str(good)])
 
         assert [block.media_type for block in blocks] == ["image/gif"]
-        assert [record.getMessage() for record in caplog.records] == ["cli_image_skipped reason=unknown_format"]
+        assert [record.getMessage() for record in caplog.records] == ["image_skipped reason=unknown_format"]
 
     def test_a_missing_or_unreadable_path_is_left_out_and_logged_without_its_path(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -122,8 +122,8 @@ class TestLoadImageBlocks:
 
         assert blocks == []
         assert [record.getMessage() for record in caplog.records] == [
-            "cli_image_skipped reason=unreadable error=FileNotFoundError",
-            "cli_image_skipped reason=unreadable error=IsADirectoryError",
+            "image_skipped reason=unreadable error=FileNotFoundError",
+            "image_skipped reason=unreadable error=IsADirectoryError",
         ]
         assert "secret-user" not in caplog.text
 
