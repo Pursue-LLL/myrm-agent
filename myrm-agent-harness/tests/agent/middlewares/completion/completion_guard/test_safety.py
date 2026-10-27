@@ -1,6 +1,8 @@
-"""Tests for is_mutating_tool SSOT used by Cron post-run verification."""
+"""Tests for is_mutating_tool SSOT used by Cron post-run verification, and the finish tool the guard watches for."""
 
+from myrm_agent_harness.agent.meta_tools.answer_user_tool import request_answer_user_tool
 from myrm_agent_harness.agent.middlewares.completion import is_mutating_tool
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.safety import FINISH_TOOL_NAMES
 from myrm_agent_harness.core.security.tool_registry import (
     SafetyMetadata,
     register_ptc_safety_metadata,
@@ -73,3 +75,9 @@ def test_is_mutating_tool_mcp_readonly_annotated() -> None:
 def test_is_mutating_tool_mcp_unannotated_fail_closed() -> None:
     """Unregistered MCP tool defaults to non-read-only (fail-closed) → mutating."""
     assert is_mutating_tool("mcp__payments__charge_card") is True
+
+
+def test_the_finish_tool_the_guard_watches_for_is_the_one_the_model_is_given() -> None:
+    """The guard treats a call to this tool as the model handing in its answer, so the name it holds
+    must stay the name the tool is mounted under."""
+    assert {request_answer_user_tool.name} == FINISH_TOOL_NAMES

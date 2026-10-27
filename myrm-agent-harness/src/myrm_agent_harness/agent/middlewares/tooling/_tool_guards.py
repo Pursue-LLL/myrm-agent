@@ -636,7 +636,7 @@ async def run_post_call_guards(
     freq_guard.record(tool_name)
 
     if tool_name == "bash_code_execute_tool":
-        from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist import (
+        from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import (
             classify_verification,
         )
 

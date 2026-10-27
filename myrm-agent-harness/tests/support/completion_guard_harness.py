@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - CHECK_MARK: the text every guard rejection starts with in the request the model reads
-- state / runtime / verdict: one ``aafter_model`` call for a request and a scripted answer
+- state / make_state / runtime / verdict: one ``aafter_model`` call for a request and a scripted answer, and the graph state holding any messages
 - stamped: the messages as the graph state holds them, each with the id the state reducer gives every stored message
 - GUARD_DECISIONS: the reasons of every answer the guard held back since the current test began (filled by the middleware conftest)
 - pending / reasons_of / directive_of: the instruction a rejecting verdict leaves for the model, the reasons it answers, and its text
@@ -41,9 +41,9 @@ from myrm_agent_harness.agent._factory.builder import create_skill_agent
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.middlewares._session_context import EFFECTIVE_SECURITY_CONFIG_CONTEXT_KEY
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import CompletionGuard
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import PendingDirective, current_run_state
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import PendingDirective, current_run_state
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
 from myrm_agent_harness.agent.types import WorkspaceBinding
@@ -81,6 +81,11 @@ def stamped(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
 
 def state(request: str, reply: str) -> dict[str, object]:
     return {"messages": stamped([HumanMessage(content=request), AIMessage(content=reply)])}
+
+
+def make_state(messages: Sequence[BaseMessage]) -> dict[str, object]:
+    """The graph state holding ``messages``, each stamped with an id."""
+    return {"messages": stamped(messages)}
 
 
 def runtime(workspace: Path, security: SecurityConfig | None = None) -> Runtime:

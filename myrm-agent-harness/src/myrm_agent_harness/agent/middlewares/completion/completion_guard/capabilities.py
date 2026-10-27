@@ -11,7 +11,7 @@ policy of a turn arrives with the turn.
 
 [INPUT]
 - agent.middlewares._session_context::get_security_config, resolve_security_config_from_runtime (POS: the policy of the turn, else the one bound to the run)
-- agent.middlewares.completion.completion_guard_external_evidence::can_produce_external_evidence (POS: which tools can produce external evidence)
+- agent.middlewares.completion.completion_guard.external_evidence::can_produce_external_evidence (POS: which tools can produce external evidence)
 - agent.security.engine::file_write_disabled (POS: whether the policy denies file_write)
 - agent.tool_management::ToolRegistry (POS: the tools the run holds)
 
@@ -34,7 +34,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_security_config,
     resolve_security_config_from_runtime,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_external_evidence import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.external_evidence import (
     can_produce_external_evidence,
 )
 from myrm_agent_harness.agent.security.engine import file_write_disabled

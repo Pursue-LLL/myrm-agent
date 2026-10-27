@@ -17,26 +17,16 @@ Temporal ordering enforcement: when code is modified AFTER the last successful
 verification, the guard independently re-runs the verification command in the
 sandbox before allowing completion — zero LLM cost, no agent trust required.
 
-Also implements the **Mixed Message Guard**: when an LLM outputs both a
-substantive final response AND read-only tool_calls in the same message,
-strips the tool_calls to let the agent terminate immediately — saving
-unnecessary tool execution rounds and extra LLM calls. A call is preserved
-when it is effectful (`is_mutating_tool`) or is an interaction/UI carrier
-(`_INTERACTION_UI_TOOLS`) — dropping either would lose a user-visible side
-effect or break the interaction chain. When the user request demands external
-evidence (freshness/citation) and no successful evidence exists yet, the
-tool_calls are kept so the agent gathers real data instead of letting
-unverified content reach the user.
+A message that is not a completion attempt but already holds a finished answer next to read-only tool calls goes to
+the Mixed Message Guard (``mixed_message``).
 
 Internal tool CallRecords (``_``-prefixed names) are excluded from the checklist to prevent self-feedback loops.
 
 A held-back answer is never turned into a tool call: the guard routes the run back to the model
 (``jump_to="model"``) and records the instruction in the turn's guard state; ``CompletionDirectiveMiddleware``
 appends it to the next model request only. Nothing the guard says to the model is stored in the conversation, shown
-as a task step, approved, counted by the loop guard or scanned as tool output. A draft that carries a finish tool
-call and says nothing is taken out of the conversation (``RemoveMessage``) and the instruction follows the message
-before it, so neither an unanswered call nor an empty assistant message stays in the thread; one that says something
-stays, without the call.
+as a task step, approved, counted by the loop guard or scanned as tool output. What happens to the draft itself is
+decided by ``hold_back``.
 
 A demand is made only of a run that could meet it (``CompletionCapabilities``): a deliverable code block is held to
 being saved (and staged into the workspace on a forced finish) only when the run can save a file, an unfinished
@@ -51,23 +41,21 @@ persisting across ReAct cycles.
 [INPUT]
 - langchain.agents.middleware::AgentMiddleware, hook_config (POS: LangChain middleware base and the declaration that a hook may route back to the model)
 - agent.middlewares.tooling.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
-- agent.middlewares.completion.completion_guard_checklist::build_checklist, classify_verification, find_last_successful_verification_command (POS: Verification command classification, checklist generation, and temporal-order verification command extraction for CompletionGuard.)
-- agent.middlewares.completion.completion_directive::BlockReasons, render_completion_directive (POS: what the model reads for each held-back answer)
-- agent.middlewares.completion.completion_guard_events::log_guard_decision, announce_superseded_draft (POS: records each held-back answer in the session event log and tells the stream its draft is superseded)
-- agent.middlewares.completion.completion_capabilities::CompletionCapabilities (POS: what the run can do, so a demand is made only of a run that could meet it)
-- agent.middlewares.completion.completion_guard_external_evidence::build_external_evidence_reason (POS: Freshness-sensitive external evidence gate including MCP PTC bash via skills.mcp_* and Direct FC via mcp__{server}__{tool})
+- agent.middlewares.completion.completion_guard.checklist::build_checklist, find_last_successful_verification_command, CODE_EXTENSIONS, is_code_file, has_post_verification_code_write (POS: task-aware verification checklist and temporal-order analysis)
+- agent.middlewares.completion.completion_guard.directive::BlockReasons (POS: why one completion attempt was held back)
+- agent.middlewares.completion.completion_guard.hold_back::hold_back (POS: what happens to the draft and where the instruction follows)
+- agent.middlewares.completion.completion_guard.mixed_message::strip_readonly_calls_beside_answer (POS: early termination of a finished answer that still carries read-only calls)
+- agent.middlewares.completion.completion_guard.capabilities::CompletionCapabilities (POS: what the run can do, so a demand is made only of a run that could meet it)
+- agent.middlewares.completion.completion_guard.external_evidence::build_external_evidence_reason, extract_latest_human_text (POS: Freshness-sensitive external evidence gate including MCP PTC bash via skills.mcp_* and Direct FC via mcp__{server}__{tool})
+- agent.middlewares.completion.completion_guard.rerun::rerun_verification_in_sandbox (POS: independent sandbox re-run of the last verification command)
+- agent.middlewares.completion.completion_guard.safety::FINISH_TOOL_NAMES (POS: which tool call is a completion attempt)
 - agent.middlewares.completion.deliverable_write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
 - agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
-- agent.middlewares.completion.deliverable_confidence_tier::resolve_deliverable_tier, should_disclose_tier (POS: Evidence tier calculation and disclosure policy)
-- agent.middlewares.completion.completion_guard_rerun::rerun_verification_in_sandbox (POS: independent sandbox re-run of the last verification command)
-- agent.middlewares.completion.completion_guard_safety::is_mutating_tool, _INTERACTION_UI_TOOLS (POS: Effectful tool detection SSOT and interaction/UI carriers for Mixed Message Guard)
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 
 [OUTPUT]
 - CompletionGuard: after_model middleware for critical completion verification + independent re-run; a held-back answer routes the run back to the model with the instruction pending in the turn state
-- classify_verification(): re-export from completion_guard_checklist
 - reset_completion_guard(): reset this run's guard state
-- is_mutating_tool(): re-export from completion_guard_safety
 
 [POS]
 Fills the "Agent finishing" gap in the guard chain. Existing guards cover
@@ -83,43 +71,33 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from copy import deepcopy
 from dataclasses import replace
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
-from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
+from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
-from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
-    BlockReasons,
-    render_completion_directive,
-)
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist import (
-    _CODE_EXTENSIONS,
-    _has_post_verification_code_write,
-    _is_code_file,
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import CompletionCapabilities
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist import (
+    CODE_EXTENSIONS,
     build_checklist,
-    classify_verification,
     find_last_successful_verification_command,
+    has_post_verification_code_write,
+    is_code_file,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_events import (
-    announce_superseded_draft,
-    log_guard_decision,
-)
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_external_evidence import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.external_evidence import (
     build_external_evidence_reason,
     extract_latest_human_text,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_rerun import rerun_verification_in_sandbox
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_safety import (
-    _INTERACTION_UI_TOOLS,
-    is_mutating_tool,
-    is_substantive_final_response,
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.hold_back import hold_back
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.mixed_message import (
+    strip_readonly_calls_beside_answer,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
-    PendingDirective,
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.rerun import rerun_verification_in_sandbox
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.safety import FINISH_TOOL_NAMES
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import (
     RunGuardState,
     current_run_state,
     publish_disclosure,
@@ -146,13 +124,9 @@ from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier im
     check_query_grounding_claim,
 )
 from myrm_agent_harness.agent.security.guards.loop_guard import (
-    CallRecord,
     ToolGroup,
     get_tool_group,
 )
-
-_build_checklist = build_checklist
-_find_last_verification_cmd = find_last_successful_verification_command
 
 logger = logging.getLogger(__name__)
 
@@ -242,68 +216,21 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         if not last_ai_msg.tool_calls:
             is_attempting_completion = True
         else:
-            finish_tool_names = {
-                "request_answer_user_tool",
-                "answer_user",
-                "finish",
-                "complete_task",
-            }
             has_finish_tool = any(
-                tc.get("name") in finish_tool_names for tc in last_ai_msg.tool_calls if isinstance(tc, dict)
+                tc.get("name") in FINISH_TOOL_NAMES for tc in last_ai_msg.tool_calls if isinstance(tc, dict)
             )
             if has_finish_tool:
                 is_attempting_completion = True
 
         if not is_attempting_completion:
-            # --- Mixed Message Guard ---
-            if last_ai_msg.content and last_ai_msg.tool_calls:
-                content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content)
-                if is_substantive_final_response(content_str):
-                    has_non_strippable = any(
-                        is_mutating_tool(str(tc.get("name", ""))) or str(tc.get("name", "")) in _INTERACTION_UI_TOOLS
-                        for tc in last_ai_msg.tool_calls
-                        if isinstance(tc, dict)
-                    )
-                    if not has_non_strippable:
-                        # 防假完成：用户请求外部/新鲜数据但会话中尚无成功证据时，
-                        # 保留只读工具调用让 Agent 真正获取数据，避免未核实内容直接到达用户。
-                        requires_evidence = (
-                            build_external_evidence_reason(
-                                messages=messages,
-                                records=filtered_records,
-                            )
-                            is not None
-                        )
-                        query_grounding_reason = check_query_grounding_claim(
-                            user_text=latest_user_text,
-                            assistant_text=content_str,
-                            records=filtered_records,
-                        )
-                        execution_claim_reason = check_execution_claim(
-                            user_text=latest_user_text,
-                            assistant_text=content_str,
-                            records=filtered_records,
-                        )
-                        if (
-                            requires_evidence
-                            or query_grounding_reason is not None
-                            or execution_claim_reason is not None
-                        ):
-                            return None
-                        logger.info(
-                            "[CompletionGuard] Mixed message detected: content is substantive "
-                            "final response with %d read-only tool_calls — stripping to terminate early.",
-                            len(last_ai_msg.tool_calls),
-                        )
-                        patched = deepcopy(last_ai_msg)
-                        patched.tool_calls = []
-                        return {"messages": [patched]}
-            return None
+            return strip_readonly_calls_beside_answer(
+                last_ai_msg, messages=messages, records=filtered_records, user_text=latest_user_text
+            )
 
         workspace_root = run_workspace(runtime)
         todo_workspace = workspace_root if self._capabilities.keeps_todo_list() else None
 
-        _, has_critical_errors = _build_checklist(records, workspace_root=todo_workspace)
+        _, has_critical_errors = build_checklist(records, workspace_root=todo_workspace)
         evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, filtered_records)
         deliverable_write_reason: str | None = None
         unwritten_deliverables: list[UnwrittenDeliverable] = []
@@ -371,11 +298,11 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             and ppt_outline_reason is None
         ):
             has_code_writes = any(
-                get_tool_group(r.tool_name) == ToolGroup.WRITE and _is_code_file(str(r.args.get("path", "")))
+                get_tool_group(r.tool_name) == ToolGroup.WRITE and is_code_file(str(r.args.get("path", "")))
                 for r in filtered_records
             )
-            if has_code_writes and _has_post_verification_code_write(filtered_records, _CODE_EXTENSIONS):
-                rerun_cmd = _find_last_verification_cmd(filtered_records)
+            if has_code_writes and has_post_verification_code_write(filtered_records, CODE_EXTENSIONS):
+                rerun_cmd = find_last_successful_verification_command(filtered_records)
                 if rerun_cmd:
                     rerun_passed = await rerun_verification_in_sandbox(rerun_cmd)
                     if rerun_passed:
@@ -409,8 +336,15 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
                 if staged_metas_dict:
                     publish_disclosure(staged_artifacts=staged_metas_dict)
             reasons = replace(reasons, forced_finish=True, staged_artifacts=tuple(staged_metas_dict))
-            return await self._hold_back(
-                run_state, messages, last_ai_msg, reasons, records, todo_workspace, current_rejections
+            return await hold_back(
+                run_state,
+                messages,
+                last_ai_msg,
+                reasons,
+                records,
+                todo_workspace,
+                rejection=current_rejections,
+                max_rejections=self._max_rejections,
             )
 
         run_state.rejections = current_rejections + 1
@@ -421,62 +355,19 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         )
         if evidence_unreachable:
             run_state.evidence_disclosure_requested = True
-        return await self._hold_back(
-            run_state, messages, last_ai_msg, reasons, records, todo_workspace, current_rejections + 1
+        return await hold_back(
+            run_state,
+            messages,
+            last_ai_msg,
+            reasons,
+            records,
+            todo_workspace,
+            rejection=current_rejections + 1,
+            max_rejections=self._max_rejections,
         )
-
-    async def _hold_back(
-        self,
-        run_state: RunGuardState,
-        messages: Sequence[BaseMessage],
-        draft: AIMessage,
-        reasons: BlockReasons,
-        records: Sequence[CallRecord],
-        workspace_root: str | None,
-        rejection: int,
-    ) -> dict[str, Any] | None:
-        """Route the run back to the model, with the instruction owed to it pending for the next request.
-
-        The instruction follows the last message the model will see again. A draft that says something stays in the
-        conversation and the instruction follows it; a finish-tool call it carries is dropped, because that call
-        never runs. A finish-tool draft that says nothing leaves the conversation altogether, so neither an
-        unanswered call nor an empty assistant message stays in the thread every later request reads, and the
-        instruction follows the message before it.
-
-        A message the runtime stamped no id on cannot be addressed, so that answer is let through.
-        """
-        removes_draft = bool(draft.tool_calls) and not draft.text.strip()
-        anchor = _message_before(messages, draft) if removes_draft else draft
-        if draft.id is None or anchor is None or anchor.id is None:
-            logger.warning(
-                "[CompletionGuard] Held-back answer cannot be addressed (message without id); letting it through."
-            )
-            return None
-        await log_guard_decision(reasons, rejection=rejection, max_rejections=self._max_rejections)
-        await announce_superseded_draft()
-        run_state.pending_directive = PendingDirective(
-            anchor_id=anchor.id,
-            text=render_completion_directive(reasons, records=records, workspace_root=workspace_root),
-        )
-        update: dict[str, Any] = {"jump_to": "model"}
-        if removes_draft:
-            update["messages"] = [RemoveMessage(id=draft.id)]
-        elif draft.tool_calls:
-            kept = deepcopy(draft)
-            kept.tool_calls = []
-            update["messages"] = [kept]
-        return update
-
-
-def _message_before(messages: Sequence[BaseMessage], draft: AIMessage) -> BaseMessage | None:
-    """The message that precedes ``draft`` in the conversation, if any."""
-    index = next((i for i in range(len(messages) - 1, -1, -1) if messages[i] is draft), 0)
-    return messages[index - 1] if index > 0 else None
 
 
 __all__ = [
     "CompletionGuard",
-    "classify_verification",
-    "is_mutating_tool",
     "reset_completion_guard",
 ]

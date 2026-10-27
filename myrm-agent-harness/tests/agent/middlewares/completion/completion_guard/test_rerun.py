@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_rerun import rerun_verification_in_sandbox
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.rerun import rerun_verification_in_sandbox
 
 _GET_EXECUTOR = "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor"
 

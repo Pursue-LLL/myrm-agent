@@ -23,7 +23,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_is_subagent,
     set_subagent_task_id,
 )
-from myrm_agent_harness.agent.middlewares.completion import completion_guard_state as turn_state
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import state as turn_state
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
     _session_loop_guards,
     discard_session_loop_guard,

@@ -6,11 +6,11 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.middlewares.completion import is_mutating_tool
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import (
     BlockReasons,
     render_completion_directive,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
 
 
 class TestIsMutatingTool:

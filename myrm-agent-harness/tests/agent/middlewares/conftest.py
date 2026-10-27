@@ -21,7 +21,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_subagent_task_id,
     set_workspace_root,
 )
-from myrm_agent_harness.agent.middlewares.completion import completion_guard
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import hold_back as hold_back_module
 from tests.support.completion_guard_harness import GUARD_DECISIONS
 
 
@@ -29,13 +29,13 @@ from tests.support.completion_guard_harness import GUARD_DECISIONS
 def _record_guard_decisions(monkeypatch: pytest.MonkeyPatch):
     """Keep the reasons of every answer the completion guard holds back, for tests that read what it found."""
     GUARD_DECISIONS.clear()
-    log_decision = completion_guard.log_guard_decision
+    log_decision = hold_back_module.log_guard_decision
 
     async def recording(reasons, **kwargs):
         GUARD_DECISIONS.append(reasons)
         await log_decision(reasons, **kwargs)
 
-    monkeypatch.setattr(completion_guard, "log_guard_decision", recording)
+    monkeypatch.setattr(hold_back_module, "log_guard_decision", recording)
 
 
 @pytest.fixture(autouse=True)

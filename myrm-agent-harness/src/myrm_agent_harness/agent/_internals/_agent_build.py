@@ -2,7 +2,7 @@
 
 [INPUT]
 - agent.middlewares (POS: Various middleware implementations)
-- agent.middlewares.completion.completion_capabilities::capabilities_of (POS: what the run can do, read from its registry and policy, so the completion guard demands only what the run could meet)
+- agent.middlewares.completion.completion_guard.capabilities::capabilities_of (POS: what the run can do, read from its registry and policy, so the completion guard demands only what the run could meet)
 - agent.tool_management (POS: ToolRegistry, ToolSource)
 
 [OUTPUT]
@@ -28,7 +28,7 @@ from myrm_agent_harness.agent.middlewares import (
 )
 from myrm_agent_harness.agent.middlewares.approval import ToolApprovalMiddleware
 from myrm_agent_harness.agent.middlewares.completion import CompletionGuard
-from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import capabilities_of
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import capabilities_of
 from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
     create_safety_dispatcher,
 )
@@ -87,7 +87,7 @@ def build_middlewares(
     from myrm_agent_harness.agent.middlewares.clarification_guard_middleware import (
         ClarificationGuardMiddleware,
     )
-    from myrm_agent_harness.agent.middlewares.completion.completion_directive_middleware import (
+    from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive_middleware import (
         CompletionDirectiveMiddleware,
     )
     from myrm_agent_harness.agent.middlewares.goal_focus_middleware import (

@@ -28,7 +28,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_terminal_errors,
     set_approval_session,
 )
-from myrm_agent_harness.agent.middlewares.completion import completion_guard_state as turn_state
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import state as turn_state
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
     _session_loop_guards,
     get_loop_guard,

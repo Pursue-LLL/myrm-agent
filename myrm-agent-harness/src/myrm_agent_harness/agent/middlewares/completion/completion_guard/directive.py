@@ -6,7 +6,7 @@ once the rejection budget is spent, and, with no reason named, the task-aware ve
 this run's tool records.
 
 [INPUT]
-- agent.middlewares.completion.completion_guard_checklist::build_checklist (POS: task-aware verification checklist)
+- agent.middlewares.completion.completion_guard.checklist::build_checklist (POS: task-aware verification checklist)
 - agent.security.guards.loop_guard::CallRecord (POS: one recorded tool call)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ this run's tool records.
 
 [POS]
 The only place the guard's model-facing wording is defined. The directive reaches the model as a request-only
-message after the held-back draft (see ``completion_directive_middleware``), never as a tool call or a stored message.
+message after the held-back draft (see ``directive_middleware``), never as a tool call or a stored message.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist import build_checklist
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist import build_checklist
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 
 

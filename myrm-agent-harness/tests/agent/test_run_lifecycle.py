@@ -777,7 +777,7 @@ class TestPostRunEventsDisclosure:
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             set_current_message_id,
         )
-        from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
+        from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import (
             publish_disclosure,
         )
 

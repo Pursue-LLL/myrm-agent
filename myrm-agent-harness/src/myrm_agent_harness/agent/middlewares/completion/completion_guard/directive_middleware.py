@@ -8,7 +8,7 @@ changes no earlier byte of the request (the prompt-cache prefix stays intact).
 
 [INPUT]
 - langchain.agents.middleware::AgentMiddleware, ModelRequest, ModelResponse (POS: LangChain model-call wrapper contract)
-- agent.middlewares.completion.completion_guard_state::current_run_state (POS: the turn's pending instruction)
+- agent.middlewares.completion.completion_guard.state::current_run_state (POS: the turn's pending instruction)
 
 [OUTPUT]
 - CompletionDirectiveMiddleware: appends the pending instruction after the message it follows
@@ -26,7 +26,7 @@ from typing import Any
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import current_run_state
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import current_run_state
 
 
 class CompletionDirectiveMiddleware(AgentMiddleware[Any, Any, Any]):

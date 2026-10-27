@@ -17,12 +17,12 @@ from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.middlewares._session_context import set_security_config
-from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     CompletionGuard,
     reset_completion_guard,
 )
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import CompletionCapabilities
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
 from tests.support.completion_guard_harness import (
     CountingModel,
     built_guard,

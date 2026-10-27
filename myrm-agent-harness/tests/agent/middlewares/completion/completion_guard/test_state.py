@@ -7,7 +7,7 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
     set_current_message_id,
 )
-from myrm_agent_harness.agent.middlewares.completion import completion_guard_state as state_mod
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import state as state_mod
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,

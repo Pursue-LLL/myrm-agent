@@ -7,7 +7,7 @@ or stores it next to the answer that replaces it.
 
 [INPUT]
 - agent.middlewares._session_context::get_event_logger (POS: the session's event logger, when one is configured)
-- agent.middlewares.completion.completion_directive::BlockReasons (POS: why one completion attempt was held back)
+- agent.middlewares.completion.completion_guard.directive::BlockReasons (POS: why one completion attempt was held back)
 - utils.event_utils::dispatch_custom_event (POS: puts a status step on the run's stream)
 
 [OUTPUT]
@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.middlewares._session_context import get_event_logger
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
 from myrm_agent_harness.utils.event_utils import dispatch_custom_event
 
 logger = logging.getLogger(__name__)

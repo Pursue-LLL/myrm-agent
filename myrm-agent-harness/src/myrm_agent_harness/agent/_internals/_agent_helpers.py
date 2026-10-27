@@ -193,7 +193,7 @@ def isolated_run_guards(scope_key: str) -> Iterator[None]:
     Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated counterpart here.
     """
     from myrm_agent_harness.agent.middlewares._session_context import isolated_terminal_errors
-    from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import isolated_run_state
+    from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import isolated_run_state
     from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import child_loop_guard
     from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
     from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard

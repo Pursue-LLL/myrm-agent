@@ -5,7 +5,7 @@ and the server-side Cron post-run verification (which runs need an
 adversarial-reviewer pass). Classification order:
 
 1. Static alias sets are authoritative (`_MUTATION_TOOLS`,
-   `_INTERACTION_UI_TOOLS`).
+   `INTERACTION_UI_TOOLS`).
 2. Everything else resolves via registry safety metadata with a fail-closed
    default: unknown tools are assumed effectful, since a side effect must
    never go unverified.
@@ -14,14 +14,24 @@ adversarial-reviewer pass). Classification order:
 - core.security.tool_registry::resolve_safety_metadata (POS: tool safety metadata incl. MCP readOnlyHint)
 
 [OUTPUT]
+- FINISH_TOOL_NAMES: the tool a model calls to hand in its answer
+- INTERACTION_UI_TOOLS: tools that carry a user-visible interaction
 - is_mutating_tool(): True when the tool mutates workspace or external state
+- is_substantive_final_response(): whether a message content reads as a finished answer, not narration
+
+[POS]
+The guard's shared vocabulary about tools: which call is a completion attempt, which calls a stripped message
+must keep, and which tools are effectful.
 """
 
 from __future__ import annotations
 
 from myrm_agent_harness.core.security.tool_registry import resolve_safety_metadata
 
-_MUTATION_TOOLS: frozenset[str] = frozenset(
+# The tool a model calls to hand in its answer (mounted in Fast Search): a call to it is a completion attempt.
+FINISH_TOOL_NAMES: frozenset[str] = frozenset({"request_answer_user_tool"})
+
+_MUTATION_TOOLS: frozenset[str] = FINISH_TOOL_NAMES | frozenset(
     {
         # 写/执行/管理类（会改变工作区或外部状态）
         "write_file",
@@ -40,10 +50,6 @@ _MUTATION_TOOLS: frozenset[str] = frozenset(
         "apply_diff",
         "delegate_task_tool",
         "spawn_subagent",
-        "request_answer_user_tool",
-        "answer_user",
-        "finish",
-        "complete_task",
         "browser_navigate_tool",
         "browser_click_tool",
         "browser_type_tool",
@@ -55,7 +61,7 @@ _MUTATION_TOOLS: frozenset[str] = frozenset(
 )
 
 # 交互/UI 承载类：registry 标只读，但剥离会丢失用户可见功能（提问/授权/人类接管）
-_INTERACTION_UI_TOOLS: frozenset[str] = frozenset(
+INTERACTION_UI_TOOLS: frozenset[str] = frozenset(
     {
         "ask_question_tool",
         "browser_ask_human_tool",
@@ -108,7 +114,8 @@ def is_substantive_final_response(content: str) -> bool:
 
 
 __all__ = [
-    "_INTERACTION_UI_TOOLS",
+    "FINISH_TOOL_NAMES",
+    "INTERACTION_UI_TOOLS",
     "is_mutating_tool",
     "is_substantive_final_response",
 ]

@@ -16,14 +16,14 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
-    BlockReasons,
-    render_completion_directive,
-)
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     CompletionGuard,
     reset_completion_guard,
+)
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import CompletionCapabilities
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import (
+    BlockReasons,
+    render_completion_directive,
 )
 from myrm_agent_harness.agent.tool_management import ToolSource
 from tests.support.completion_guard_harness import (

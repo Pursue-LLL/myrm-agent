@@ -8,11 +8,11 @@ Intercepted calls (``success_level is None``) never count as evidence —
 an unexecuted tool provides no external data.
 
 Whether a request needs external data at all is decided by
-``completion_guard_freshness``; this module checks the run's records against it.
+``freshness``; this module checks the run's records against it.
 
 [INPUT]
 - langchain_core.messages::HumanMessage (POS: human turn content extraction)
-- completion.completion_guard_freshness::demands_external_evidence (POS: does the request need fresh external data)
+- completion.completion_guard.freshness::demands_external_evidence (POS: does the request need fresh external data)
 - agent.security.guards.loop_guard::CallRecord (POS: loop guard types)
 - toolkits.mcp.config::is_mcp_tool_name (POS: Direct FC MCP tool-name recognition)
 
@@ -33,7 +33,7 @@ from collections.abc import Iterable, Sequence
 
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_freshness import demands_external_evidence
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.freshness import demands_external_evidence
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 
 _BASH_TOOL_NAME = "bash_code_execute_tool"

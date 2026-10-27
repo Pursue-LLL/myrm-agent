@@ -1018,7 +1018,7 @@ class TestPostCallRareBranches:
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist.classify_verification",
+                "myrm_agent_harness.agent.middlewares.completion.completion_guard.verification.classify_verification",
                 return_value="echo",
             ),
         ):

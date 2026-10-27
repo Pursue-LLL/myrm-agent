@@ -1,17 +1,18 @@
-"""Completion guard checklist generation and verification command classification.
+"""Completion guard checklist generation and temporal verification analysis.
 
 [INPUT]
 - agent.security.guards.loop_guard::CallRecord, ToolGroup, SuccessLevel (POS: loop guard types)
 
 [OUTPUT]
-- classify_verification(): detect verification commands in bash tool args
-- build_checklist(): generate task-aware verification checklist from CallRecords
+- CODE_EXTENSIONS, is_code_file(): which written files count as code
+- has_post_verification_code_write(): whether code was written after the last successful verification
 - find_last_successful_verification_command(): extract the last successful verification bash command from records
+- build_checklist(): generate task-aware verification checklist from CallRecords
 
 [POS]
-Verification command classification and task-aware checklist generation for CompletionGuard.
-Includes temporal ordering analysis: detects when code files are modified AFTER the
-last successful verification, requiring re-verification before completion.
+Task-aware checklist generation for CompletionGuard. Includes temporal ordering analysis: detects when code files
+are modified AFTER the last successful verification, requiring re-verification before completion. Which bash
+commands count as verification is decided by ``verification``.
 """
 
 from __future__ import annotations
@@ -22,71 +23,12 @@ from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,
     ToolGroup,
-    VerificationCategory,
     get_tool_group,
 )
 
 logger = logging.getLogger(__name__)
 
-_VERIFICATION_PATTERNS: dict[str, VerificationCategory] = {
-    "pytest": VerificationCategory.TEST,
-    "python -m pytest": VerificationCategory.TEST,
-    "npm test": VerificationCategory.TEST,
-    "npm run test": VerificationCategory.TEST,
-    "npx jest": VerificationCategory.TEST,
-    "yarn test": VerificationCategory.TEST,
-    "bun test": VerificationCategory.TEST,
-    "pnpm test": VerificationCategory.TEST,
-    "pnpm run test": VerificationCategory.TEST,
-    "deno test": VerificationCategory.TEST,
-    "cargo test": VerificationCategory.TEST,
-    "go test": VerificationCategory.TEST,
-    "dotnet test": VerificationCategory.TEST,
-    "mvn test": VerificationCategory.TEST,
-    "gradle test": VerificationCategory.TEST,
-    "vitest": VerificationCategory.TEST,
-    "unittest": VerificationCategory.TEST,
-    "python": VerificationCategory.TEST,
-    "node": VerificationCategory.TEST,
-    "ts-node": VerificationCategory.TEST,
-    "bun run": VerificationCategory.TEST,
-    "deno run": VerificationCategory.TEST,
-    "go run": VerificationCategory.TEST,
-    "ruby": VerificationCategory.TEST,
-    "php": VerificationCategory.TEST,
-    "gcc": VerificationCategory.BUILD,
-    "g++": VerificationCategory.BUILD,
-    "javac": VerificationCategory.BUILD,
-    "java": VerificationCategory.TEST,
-    "ruff check": VerificationCategory.LINT,
-    "ruff format": VerificationCategory.LINT,
-    "eslint": VerificationCategory.LINT,
-    "flake8": VerificationCategory.LINT,
-    "pylint": VerificationCategory.LINT,
-    "biome check": VerificationCategory.LINT,
-    "biome lint": VerificationCategory.LINT,
-    "prettier": VerificationCategory.LINT,
-    "black": VerificationCategory.LINT,
-    "isort": VerificationCategory.LINT,
-    "clippy": VerificationCategory.LINT,
-    "golangci-lint": VerificationCategory.LINT,
-    "mypy": VerificationCategory.TYPECHECK,
-    "pyright": VerificationCategory.TYPECHECK,
-    "tsc": VerificationCategory.TYPECHECK,
-    "npx tsc": VerificationCategory.TYPECHECK,
-    "cargo build": VerificationCategory.BUILD,
-    "npm run build": VerificationCategory.BUILD,
-    "yarn build": VerificationCategory.BUILD,
-    "pnpm run build": VerificationCategory.BUILD,
-    "bun run build": VerificationCategory.BUILD,
-    "make build": VerificationCategory.BUILD,
-    "go build": VerificationCategory.BUILD,
-    "dotnet build": VerificationCategory.BUILD,
-    "gradle build": VerificationCategory.BUILD,
-}
-
-
-_CODE_EXTENSIONS: frozenset[str] = frozenset(
+CODE_EXTENSIONS: frozenset[str] = frozenset(
     {
         ".py",
         ".js",
@@ -108,11 +50,12 @@ _CODE_EXTENSIONS: frozenset[str] = frozenset(
 )
 
 
-def _is_code_file(path: str) -> bool:
-    return any(path.lower().endswith(ext) for ext in _CODE_EXTENSIONS)
+def is_code_file(path: str) -> bool:
+    """Whether ``path`` names a source file the guard asks verification for."""
+    return any(path.lower().endswith(ext) for ext in CODE_EXTENSIONS)
 
 
-def _has_post_verification_code_write(
+def has_post_verification_code_write(
     records: list[CallRecord],
     code_extensions: frozenset[str],
 ) -> bool:
@@ -154,35 +97,6 @@ def find_last_successful_verification_command(records: list[CallRecord]) -> str 
     return None
 
 
-def _is_command_at_boundary(cmd: str, pattern: str) -> bool:
-    """Check if pattern matches at a word boundary (followed by space or end-of-string)."""
-    return cmd == pattern or cmd.startswith(pattern + " ")
-
-
-def classify_verification(tool_args: dict[str, object]) -> VerificationCategory | None:
-    """Detect if a bash command is a verification action (test/lint/typecheck/build).
-
-    Uses word-boundary matching to minimise false positives. For example,
-    ``pip install pytest`` will NOT match because ``pytest`` does not appear
-    at a command boundary, and ``npm test-helper`` will NOT match ``npm test``
-    because the pattern is followed by ``-`` instead of a space or end-of-string.
-    """
-    command = str(tool_args.get("command", "")).strip()
-    if not command:
-        return None
-    cmd_lower = command.lower()
-    for pattern, category in sorted(_VERIFICATION_PATTERNS.items(), key=lambda x: len(x[0]), reverse=True):
-        if _is_command_at_boundary(cmd_lower, pattern):
-            return category
-        for sep in (" && ", "; "):
-            idx = cmd_lower.find(sep + pattern)
-            if idx >= 0:
-                tail = cmd_lower[idx + len(sep) :]
-                if _is_command_at_boundary(tail, pattern):
-                    return category
-    return None
-
-
 def build_checklist(records: list[CallRecord], workspace_root: str | None = None) -> tuple[str, bool]:
     """Generate a verification checklist from LoopGuard CallRecords.
 
@@ -214,7 +128,7 @@ def build_checklist(records: list[CallRecord], workspace_root: str | None = None
         write_records = groups[ToolGroup.WRITE]
         write_tools = {r.tool_name for r in write_records}
 
-        has_code_writes = any(_is_code_file(str(rec.args.get("path", ""))) for rec in write_records)
+        has_code_writes = any(is_code_file(str(rec.args.get("path", ""))) for rec in write_records)
 
         if not verifications:
             if has_code_writes:
@@ -245,7 +159,7 @@ def build_checklist(records: list[CallRecord], workspace_root: str | None = None
         else:
             # Temporal order check: code writes AFTER the last successful verification
             # invalidate the verification — the agent must re-verify.
-            if has_code_writes and _has_post_verification_code_write(records, _CODE_EXTENSIONS):
+            if has_code_writes and has_post_verification_code_write(records, CODE_EXTENSIONS):
                 has_critical_errors = True
                 items.append(
                     "CRITICAL: Code files were modified AFTER the last successful verification. "

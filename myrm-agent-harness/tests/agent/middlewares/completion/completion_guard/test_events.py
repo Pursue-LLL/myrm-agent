@@ -12,9 +12,9 @@ import pytest
 
 from myrm_agent_harness.agent.event_log.types import get_persistent_event_types
 from myrm_agent_harness.agent.middlewares._session_context import set_event_logger
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import CompletionGuard, reset_completion_guard
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_events import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.events import (
     COMPLETION_GUARD_EVENT,
     log_guard_decision,
 )

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.agent.middlewares._session_context import set_security_config
-from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import (
     CompletionCapabilities,
     capabilities_of,
 )

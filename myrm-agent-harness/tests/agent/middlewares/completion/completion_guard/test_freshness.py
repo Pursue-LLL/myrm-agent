@@ -18,10 +18,10 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_external_evidence import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.external_evidence import (
     build_external_evidence_reason,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_freshness import demands_external_evidence
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.freshness import demands_external_evidence
 
 NEEDS_FRESH_DATA: tuple[str, ...] = (
     "今天最新的 AI 新闻是什么？",

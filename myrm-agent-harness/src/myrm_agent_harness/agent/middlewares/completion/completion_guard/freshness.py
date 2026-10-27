@@ -11,7 +11,7 @@ A short question about this very day or moment ("is the bridge closed right now?
 changing topic, unless it asks for advice; a long message is pasted material and never read that way.
 
 The rule is a set of word lists, not a classifier: it is deterministic, costs no model call, and is pinned by a
-labeled prompt set (``tests/agent/middlewares/completion/test_completion_guard_freshness.py``). The lists cover
+labeled prompt set (``tests/agent/middlewares/completion/completion_guard/test_freshness.py``). The lists cover
 English, Simplified Chinese and Traditional Chinese; a request in another language is not recognised.
 
 [INPUT]
@@ -21,7 +21,7 @@ English, Simplified Chinese and Traditional Chinese; a request in another langua
 - demands_external_evidence(): whether the request needs fresh external data
 
 [POS]
-The trigger of the external-evidence gate. ``completion_guard_external_evidence`` decides whether the run's tool
+The trigger of the external-evidence gate. ``external_evidence`` decides whether the run's tool
 records satisfy the demand; this module decides whether there is a demand.
 """
 

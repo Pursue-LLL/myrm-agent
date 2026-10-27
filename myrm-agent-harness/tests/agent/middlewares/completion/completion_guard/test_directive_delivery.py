@@ -19,11 +19,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-from myrm_agent_harness.agent.middlewares.completion.completion_directive_middleware import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive_middleware import (
     CompletionDirectiveMiddleware,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import (
     PendingDirective,
     current_run_state,
 )

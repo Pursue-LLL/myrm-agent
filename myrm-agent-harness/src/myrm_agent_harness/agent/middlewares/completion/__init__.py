@@ -1,9 +1,7 @@
 """Completion guard subsystem — finish gate, verification, and deliverable checks.
 
 [INPUT]
-- .completion_guard::CompletionGuard, classify_verification, reset_completion_guard (POS: completion guard orchestrator)
-- .completion_guard_checklist::build_checklist (POS: verification checklist builder)
-- .completion_guard_safety::is_mutating_tool (POS: mutating tool detection)
+- .completion_guard::CompletionGuard, classify_verification, reset_completion_guard, build_checklist, is_mutating_tool, attach_disclosure_to_event (POS: the finish gate package: gate, checklist, verification classifier, tool safety, per-turn disclosure)
 - .deliverable_auto_staging::stage_unwritten_deliverables, StagedArtifactMeta (POS: deliverable auto staging)
 - .deliverable_confidence_tier::DeliverableConfidenceTier, resolve_deliverable_tier (POS: tier resolver)
 - .deliverable_write_verifier::check_deliverable_write_claim, check_unwritten_deliverables, UnwrittenDeliverable (POS: deliverable write verification)
@@ -19,17 +17,11 @@ Completion Guard 完成门禁子系统入口。确保智能体在具备验证、
 
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     CompletionGuard,
-    classify_verification,
-    reset_completion_guard,
-)
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist import (
-    build_checklist,
-)
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_safety import (
-    is_mutating_tool,
-)
-from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
     attach_disclosure_to_event,
+    build_checklist,
+    classify_verification,
+    is_mutating_tool,
+    reset_completion_guard,
 )
 from myrm_agent_harness.agent.middlewares.completion.deliverable_auto_staging import (
     StagedArtifactMeta,
