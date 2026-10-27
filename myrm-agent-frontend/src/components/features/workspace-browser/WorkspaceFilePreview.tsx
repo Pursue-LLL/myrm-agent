@@ -36,6 +36,7 @@ import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye, GitCommit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { chooseAction } from '@/lib/app-dialog';
+import { inferLanguage } from '@/lib/diff/parseUnifiedDiff';
 import { cn } from '@/lib/utils/classnameUtils';
 import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import { getWorkspaceFileContentUrl, type FileEntry } from '@/services/chat';
@@ -303,7 +304,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
                 workspace={workspace}
               />
             ) : (
-              <LineNumberedCode content={snapshot.content} />
+              <LineNumberedCode content={snapshot.content} language={inferLanguage(file.name)} />
             )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

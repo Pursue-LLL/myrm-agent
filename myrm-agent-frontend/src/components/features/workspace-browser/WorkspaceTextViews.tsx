@@ -4,11 +4,12 @@
  * Text views of the workspace file preview: the read-only code view and the editor, both with line numbers.
  *
  * [INPUT]
- * - content / label / onChange: what to show, what the editor is called for assistive technology, and where typing
- *   goes
+ * - content / language / label / onChange: what to show, the Prism grammar to colour it with, what the editor is
+ *   called for assistive technology, and where typing goes
  *
  * [OUTPUT]
- * - LineNumberedCode: read-only code view, one row per line; the numbers are drawn by `numbered-code.css`
+ * - LineNumberedCode: read-only code view, one row per line, syntax-coloured up to MAX_HIGHLIGHTED_ROWS rows when the
+ *   language has a grammar; the numbers are drawn by `numbered-code.css`
  * - LineNumberedEditor: textarea editor whose line-number gutter follows its scrolling
  * - formatBytes: human-readable file size; empty when the size is unknown
  *
@@ -16,6 +17,8 @@
  * Presentation pieces of WorkspaceFilePreview, kept apart from the editing state in useWorkspaceTextEditor.
  */
 
+import { useTheme } from 'next-themes';
+import { Highlight, Prism, themes } from 'prism-react-renderer';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -70,6 +73,13 @@ const MAX_NUMBERED_ROWS = 100_000;
  */
 const LAZY_ROWS_FROM = 2_000;
 
+/**
+ * Colouring tokenizes the whole file and adds an element per token, so only files up to this many rows get it. At
+ * 2,000 rows it takes 87 ms to render in Chromium (plain: 7 ms; 379 ms against 35 ms on a 4x slower CPU) and puts
+ * about 15,000 elements in the page instead of 2,000; past that the file opens plain.
+ */
+const MAX_HIGHLIGHTED_ROWS = LAZY_ROWS_FROM;
+
 /** The rows of a file: every line with the line break that ends it, so the rows read back exactly as the file. */
 function splitRows(content: string): string[] {
   const lines = content.split('\n');
@@ -81,7 +91,60 @@ function splitRows(content: string): string[] {
   return rows;
 }
 
-export const LineNumberedCode: React.FC<{ content: string }> = memo(({ content }) => {
+/** What may follow a row's text in the file: its line break (CRLF included), or nothing on the last row. */
+const ROW_END = /^\r?\n?$/;
+
+/**
+ * The rows coloured by Prism, which reads the whole file so a comment or string that spans lines keeps its colour on
+ * every row. Prism's lines and the rows are two splits of the same text, so a row takes its colours only while the
+ * tokens of its line spell exactly the row's text (the line break aside); any other row stays plain, which keeps the
+ * text a copy yields identical to the file.
+ */
+const HighlightedRows: React.FC<{ content: string; rows: string[]; language: string }> = ({
+  content,
+  rows,
+  language,
+}) => {
+  const { resolvedTheme } = useTheme();
+  return (
+    <Highlight theme={resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight} code={content} language={language}>
+      {({ tokens, getTokenProps }) =>
+        rows.map((row, index) => {
+          const pieces = (tokens[index] ?? []).map((token) => ({ token, text: token.content.replace(/\n$/, '') }));
+          const spelled = pieces.map((piece) => piece.text).join('');
+          const ending = row.startsWith(spelled) ? row.slice(spelled.length) : null;
+          if (ending === null || !ROW_END.test(ending)) {
+            return (
+              <span key={index} className="numbered-code-line">
+                {row}
+              </span>
+            );
+          }
+          return (
+            <span key={index} className="numbered-code-line">
+              {pieces.map(({ token, text }, position) => {
+                const { className, style } = getTokenProps({ token });
+                return text === '' ? null : (
+                  <span key={position} className={className} style={style}>
+                    {text}
+                  </span>
+                );
+              })}
+              {ending}
+            </span>
+          );
+        })
+      }
+    </Highlight>
+  );
+};
+
+/** Whether Prism can colour the language; `text` is its name for "nothing to colour". */
+function hasGrammar(language: string | undefined): language is string {
+  return language !== undefined && language !== 'text' && Boolean(Prism.languages[language]);
+}
+
+export const LineNumberedCode: React.FC<{ content: string; language?: string }> = memo(({ content, language }) => {
   const rows = useMemo(() => splitRows(content), [content]);
 
   if (rows.length > MAX_NUMBERED_ROWS) {
@@ -94,12 +157,16 @@ export const LineNumberedCode: React.FC<{ content: string }> = memo(({ content }
       className={cn('numbered-code font-mono text-foreground', rows.length > LAZY_ROWS_FROM && 'numbered-code-lazy')}
       style={{ '--numbered-code-digits': String(rows.length).length } as React.CSSProperties}
     >
-      {rows.map((row, index) => (
-        // Rows have no identity beyond their position: the list is replaced as a whole when the file changes.
-        <span key={index} className="numbered-code-line">
-          {row}
-        </span>
-      ))}
+      {rows.length <= MAX_HIGHLIGHTED_ROWS && hasGrammar(language) ? (
+        <HighlightedRows content={content} rows={rows} language={language} />
+      ) : (
+        rows.map((row, index) => (
+          // Rows have no identity beyond their position: the list is replaced as a whole when the file changes.
+          <span key={index} className="numbered-code-line">
+            {row}
+          </span>
+        ))
+      )}
     </pre>
   );
 });

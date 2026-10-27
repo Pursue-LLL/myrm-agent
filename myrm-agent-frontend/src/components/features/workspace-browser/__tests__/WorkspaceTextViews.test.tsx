@@ -1,8 +1,14 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LineNumberedCode, LineNumberedEditor } from '../WorkspaceTextViews';
+
+const appTheme = vi.hoisted(() => ({ resolved: 'light' }));
+
+vi.mock('next-themes', () => ({
+  useTheme: () => ({ resolvedTheme: appTheme.resolved }),
+}));
 
 function Editor({ initial }: { initial: string }) {
   const [content, setContent] = useState(initial);
@@ -65,10 +71,10 @@ describe('LineNumberedEditor', () => {
   });
 });
 
-describe('LineNumberedCode', () => {
-  const rowsOf = (container: HTMLElement): HTMLElement[] =>
-    Array.from(container.querySelectorAll<HTMLElement>('.numbered-code-line'));
+const rowsOf = (container: HTMLElement): HTMLElement[] =>
+  Array.from(container.querySelectorAll<HTMLElement>('.numbered-code-line'));
 
+describe('LineNumberedCode', () => {
   it('renders one row per line, and copying the rows gives the file back byte for byte', () => {
     const withFinalBreak = render(<LineNumberedCode content={'one\n\n  two\t \nthree\n'} />);
     expect(rowsOf(withFinalBreak.container)).toHaveLength(4);
@@ -128,5 +134,125 @@ describe('LineNumberedCode', () => {
     const { container } = render(<LineNumberedCode content={content} />);
     expect(rowsOf(container)).toHaveLength(0);
     expect(container.querySelector('pre')?.textContent).toBe(content);
+  });
+});
+
+describe('LineNumberedCode syntax highlighting', () => {
+  const colouredSpans = (scope: ParentNode): HTMLElement[] =>
+    Array.from(scope.querySelectorAll<HTMLElement>('span')).filter((span) => span.style.color !== '');
+
+  const FIXTURES: Record<string, { language: string; content: string }> = {
+    'a block comment and a template literal over several lines': {
+      language: 'typescript',
+      content: 'const a = `x\n${1}\ny`;\n/* one\n   two */\nfunction f() {}\n',
+    },
+    json: { language: 'json', content: '{\n  "a": [1, 2],\n  "b": null\n}\n' },
+    'a python docstring': { language: 'python', content: 'def f():\n    """doc\n    string"""\n    return 1\n' },
+    'markdown with a fence': { language: 'markdown', content: '# Title\n\n```ts\nconst a = 1;\n```\n' },
+    'blank lines, tabs and trailing spaces': { language: 'tsx', content: 'a\n\n\tb \t\n  \nc' },
+    'no final line break': { language: 'typescript', content: 'const a = 1;' },
+    'CRLF line breaks': { language: 'typescript', content: 'const a = 1;\r\nconst b = 2;\r\n' },
+    'a lone carriage return inside a line': { language: 'typescript', content: 'a\rb\nconst x = 1;\n' },
+    'a lone carriage return that shifts later lines onto lines of the same length': {
+      language: 'typescript',
+      content: 'aaa\rbbb\nccc\n',
+    },
+    'non-ASCII text': { language: 'typescript', content: 'const s = "héllo 你好 🙂";\n' },
+    'an empty file': { language: 'typescript', content: '' },
+    'nothing but line breaks': { language: 'typescript', content: '\n\n\n' },
+  };
+
+  it.each(Object.entries(FIXTURES))('shows %s exactly as plain text does: same text, same rows', (_name, fixture) => {
+    const plain = render(<LineNumberedCode content={fixture.content} />);
+    const plainRows = rowsOf(plain.container).length;
+    plain.unmount();
+
+    const { container } = render(<LineNumberedCode content={fixture.content} language={fixture.language} />);
+
+    expect(container.textContent).toBe(fixture.content);
+    expect(rowsOf(container)).toHaveLength(plainRows);
+  });
+
+  it('colours the tokens of a known language', () => {
+    const { container } = render(<LineNumberedCode content={'const answer = 42;\n'} language="typescript" />);
+
+    expect(colouredSpans(container).find((span) => span.textContent === 'const')).toBeTruthy();
+  });
+
+  it('reads the file as one source: a block comment keeps its colour on every row it covers', () => {
+    const { container } = render(
+      <LineNumberedCode content={'/* first\nconst inside = 1;\n*/\nconst outside = 2;\n'} language="typescript" />,
+    );
+    const [first, inside, closing, outside] = rowsOf(container);
+
+    const commentColour = colouredSpans(first)[0]?.style.color;
+    expect(commentColour).toBeTruthy();
+    expect(colouredSpans(inside).map((span) => span.style.color)).toEqual([commentColour]);
+    expect(colouredSpans(closing).map((span) => span.style.color)).toEqual([commentColour]);
+    expect(colouredSpans(outside).find((span) => span.textContent === 'const')?.style.color).not.toBe(commentColour);
+  });
+
+  it('keeps every row with its own tokens when the line breaks are CRLF', () => {
+    const { container } = render(
+      <LineNumberedCode content={'const a = 1;\r\nconst b = 2;\r\n'} language="typescript" />,
+    );
+
+    for (const row of rowsOf(container)) {
+      expect(colouredSpans(row).find((span) => span.textContent === 'const')).toBeTruthy();
+    }
+  });
+
+  it('shows a row plain when the highlighter split the file differently than the rows: a lone carriage return', () => {
+    const { container } = render(<LineNumberedCode content={'const\rconst x\nconst x = 1;\n'} language="typescript" />);
+
+    for (const row of rowsOf(container)) {
+      expect(colouredSpans(row)).toHaveLength(0);
+    }
+  });
+
+  it('highlights up to the lazy-rendering threshold and stays plain beyond it', () => {
+    const line = 'const a = 1;\n';
+    const atThreshold = render(<LineNumberedCode content={line.repeat(2000)} language="typescript" />);
+    expect(colouredSpans(atThreshold.container).length).toBeGreaterThan(0);
+    atThreshold.unmount();
+
+    const content = line.repeat(2001);
+    const beyond = render(<LineNumberedCode content={content} language="typescript" />);
+    expect(colouredSpans(beyond.container)).toHaveLength(0);
+    expect(beyond.container.textContent).toBe(content);
+  });
+
+  it.each([undefined, 'text', 'no-such-language'])('stays plain without a grammar for it (%s)', (language) => {
+    const { container } = render(<LineNumberedCode content={'const a = 1;\n'} language={language} />);
+
+    expect(colouredSpans(container)).toHaveLength(0);
+    expect(container.textContent).toBe('const a = 1;\n');
+  });
+
+  it('keeps showing a file with an extreme number of lines as plain text, whatever its language', () => {
+    const content = '\n'.repeat(100_001);
+    const { container } = render(<LineNumberedCode content={content} language="typescript" />);
+
+    expect(rowsOf(container)).toHaveLength(0);
+    expect(container.querySelector('pre')?.textContent).toBe(content);
+  });
+
+  it('follows the app theme', () => {
+    const keywordColour = (): string | undefined => {
+      const { container, unmount } = render(<LineNumberedCode content={'const a = 1;\n'} language="typescript" />);
+      const colour = colouredSpans(container).find((span) => span.textContent === 'const')?.style.color;
+      unmount();
+      return colour;
+    };
+
+    appTheme.resolved = 'light';
+    const light = keywordColour();
+    appTheme.resolved = 'dark';
+    const dark = keywordColour();
+    appTheme.resolved = 'light';
+
+    expect(light).toBeTruthy();
+    expect(dark).toBeTruthy();
+    expect(light).not.toBe(dark);
   });
 });

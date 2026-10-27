@@ -229,3 +229,28 @@ describe('WorkspaceFilePreview of a file that has a rendered view', () => {
     expect(isPressed('renderedView')).toBe('true');
   });
 });
+
+describe('WorkspaceFilePreview source colouring', () => {
+  const colouredTokens = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('.numbered-code-line span')).filter(
+      (span) => span.style.color !== '',
+    );
+
+  it('colours the source by the language of the file name', async () => {
+    readMock.mockResolvedValue(snapshot('main.ts', 'const answer = 42;\n'));
+
+    render(preview(entry('main.ts')));
+
+    await waitFor(() => expect(colouredTokens().length).toBeGreaterThan(0));
+    expect(sourceRows()?.textContent).toBe('const answer = 42;\n');
+  });
+
+  it('leaves the source of a file with no known language plain', async () => {
+    readMock.mockResolvedValue(snapshot('notes.txt', 'const answer = 42;\n'));
+
+    render(preview(entry('notes.txt')));
+
+    await waitFor(() => expect(sourceRows()).not.toBeNull());
+    expect(colouredTokens()).toHaveLength(0);
+  });
+});
