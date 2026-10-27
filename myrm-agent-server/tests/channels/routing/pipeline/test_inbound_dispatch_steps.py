@@ -2,7 +2,8 @@
 
 Runs the real ``AgentRouter`` dispatch with the handlers each step hands off to replaced by recorders, so what is pinned
 is the order of the steps and what each one does with the message, not what the handlers do. This module covers the
-steps before a running turn is considered: duplicates, group activity, approvals, commands and event triggers.
+steps before a running turn is considered: duplicates, group activity, approvals, commands and event triggers, and the
+sender checks that must fail closed without dropping the message.
 """
 
 from __future__ import annotations
@@ -211,3 +212,32 @@ async def test_event_triggers_see_a_message_that_is_then_steered_into_the_runnin
 
     dispatch.assert_awaited_once()
     assert token.activate() == ["only the 2026 rows"]
+
+
+# --- sender checks that fail -----------------------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_failing_admission_check_skips_the_event_triggers_but_not_the_message() -> None:
+    router = dispatch_router()
+    del router._is_sender_admitted  # the real check, asking a resolver that raises
+    router._resolver.is_sender_admitted = AsyncMock(side_effect=RuntimeError("store down"))
+
+    with patch(f"{PIPELINE}.dispatch_cron_event_for_inbound_message", new=AsyncMock()) as dispatch:
+        await run_dispatch(router, inbound_msg("what is the weather tomorrow"))
+
+    dispatch.assert_not_awaited()
+    assert len(gate_submissions(router)) == 1, "an error in the check must not end the dispatch before the gate"
+
+
+@pytest.mark.asyncio
+async def test_a_failing_trust_check_fences_the_job_and_still_delivers_the_message() -> None:
+    router = dispatch_router()
+    router._is_sender_admitted = AsyncMock(return_value=True)
+    router._resolver.is_untrusted_event_sender = AsyncMock(side_effect=RuntimeError("store down"))
+
+    with patch(f"{PIPELINE}.dispatch_cron_event_for_inbound_message", new=AsyncMock()) as dispatch:
+        await run_dispatch(router, inbound_msg("deploy now"))
+
+    dispatch.assert_awaited_once_with("deploy now", "telegram", "", untrusted=True)
+    assert len(gate_submissions(router)) == 1, "an error in the check must not end the dispatch before the gate"

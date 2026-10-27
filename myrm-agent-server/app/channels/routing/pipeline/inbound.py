@@ -250,8 +250,8 @@ class RouterInboundMixin:
     async def _check_admin_permission(self: RouterInboundHost, msg: InboundMessage) -> bool:
         """Whether the sender is the sandbox owner, which owner-only commands, delegation and held-reply decisions need.
 
-        A DM sender is not automatically the owner: an open DM policy admits any account. Fails closed, because
-        this runs on the consume loop, where a store error must neither raise nor grant access.
+        A DM sender is not automatically the owner: an open DM policy admits any account. Fails closed: an error
+        here would end the dispatch before the session gate and drop the message, and must never grant access.
         """
         try:
             return await is_admin_sender(self._resolver.pairing, msg)
@@ -260,7 +260,11 @@ class RouterInboundMixin:
             return False
 
     async def _is_sender_admitted(self: RouterInboundHost, msg: InboundMessage) -> bool:
-        """Whether the access policy admits the sender. Fails closed: the consume loop has no per-message guard."""
+        """Whether the access policy admits the sender.
+
+        Fails closed: an error here would end the dispatch before the session gate and drop the message, so a
+        failed check only skips the event triggers.
+        """
         try:
             return await self._resolver.is_sender_admitted(msg)
         except Exception:
@@ -270,7 +274,8 @@ class RouterInboundMixin:
     async def _is_untrusted_event_sender(self: RouterInboundHost, msg: InboundMessage) -> bool:
         """Whether a job this sender's message starts runs under the tool fence of an untrusted chat turn.
 
-        Fails closed (the sender counts as untrusted): the consume loop has no per-message guard.
+        Fails closed (the sender counts as untrusted): an error here would end the dispatch before the session gate
+        and drop the message.
         """
         try:
             return await self._resolver.is_untrusted_event_sender(msg)

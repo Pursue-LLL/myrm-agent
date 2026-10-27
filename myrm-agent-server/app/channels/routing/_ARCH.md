@@ -106,7 +106,7 @@ pairing role is ADMIN. A DM sender is not automatically the owner — an open DM
 policy admits any account.
 
 `AgentRouter._check_admin_permission` wraps it and fails closed (a lookup error
-denies, because the consume loop has no per-message guard). It gates:
+denies, because an error would end the dispatch before the session gate and drop the message). It gates:
 
 - built-in system commands (`CommandDef.owner_only`), in DMs and groups alike.
   Commands are dispatched before `PolicyResolver`, before any identity or fence
@@ -133,7 +133,7 @@ replies, loop-guard budget), so the router first asks `PolicyResolver` two read-
 (`sender_admission.py`, both change nothing): `is_sender_admitted` (mirrors the admission rules: may this sender start
 a job) and `is_untrusted_event_sender` (is this sender anyone but the owner). `AgentRouter._is_sender_admitted` and
 `_is_untrusted_event_sender` fail closed (a lookup error skips the trigger, respectively fences the job, and logs a
-warning, because the consume loop has no per-message guard).
+warning, because an error would end the dispatch before the session gate and drop the message).
 
 - Admitted: control-plane forwards (they carry an identity the control plane already resolved,
   `api/channels/channel_ingress.py`), the owner, DM senders the DM policy lets in (OPEN, an ACTIVE pairing — a
