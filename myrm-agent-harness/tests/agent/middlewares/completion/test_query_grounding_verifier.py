@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard.types import (
     CallRecord,
     SuccessLevel,
 )
-from tests.support.completion_guard_harness import reasons_of
+from tests.support.completion_guard_harness import reasons_of, stamped
 
 
 def _record(
@@ -269,7 +269,7 @@ async def test_completion_guard_blocks_ungrounded_entity_query() -> None:
         HumanMessage(content="帮我查一下工单 TK-998 的处理进度"),
         AIMessage(content="工单 TK-998 已经由运维团队处理完毕。"),
     ]
-    state = {"messages": messages}
+    state = {"messages": stamped(messages)}
     result = await guard.aafter_model(state, runtime={})
 
     assert "no query or MCP tool was executed" in reasons_of(result).query_grounding
@@ -293,7 +293,7 @@ async def test_completion_guard_blocks_multi_entity_missing_one_query() -> None:
             HumanMessage(content="帮我查一下订单 OD-9921 和工单 TK-8802 的状态"),
             AIMessage(content="订单 OD-9921 已发货，工单 TK-8802 已由运维团队处理完毕。"),
         ]
-        state = {"messages": messages}
+        state = {"messages": stamped(messages)}
         result = await guard.aafter_model(state, runtime={})
 
     reason_str = reasons_of(result).query_grounding

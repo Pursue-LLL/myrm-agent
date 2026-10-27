@@ -15,10 +15,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_directive_middleware import (
     CompletionDirectiveMiddleware,
 )
@@ -36,6 +36,7 @@ _FROM_MEMORY = "根据我所知，近期 AI 领域的主要进展包括多模态
 _DIRECTIVE = f"{CHECK_MARK}: say where the news came from."
 _HONEST = "我这里没有联网检索工具，无法核实今天的最新新闻。以上内容来自训练数据，可能已过时。"
 _TOOL_EVENTS = {"tool_start", "tool_approval_request"}
+_FINISH_TOOL = "request_answer_user_tool"
 
 
 class _ServerMiddleware(AgentMiddleware):
@@ -46,8 +47,8 @@ def _draft() -> AIMessage:
     return AIMessage(content=_FROM_MEMORY, id="draft-1")
 
 
-def _owe(draft_id: str | None, text: str = _DIRECTIVE) -> None:
-    current_run_state().pending_directive = PendingDirective(draft_id=draft_id, text=text, reasons=BlockReasons())
+def _owe(anchor_id: str, text: str = _DIRECTIVE) -> None:
+    current_run_state().pending_directive = PendingDirective(anchor_id=anchor_id, text=text)
 
 
 async def _delivered(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -170,6 +171,72 @@ class TestRealAgent:
         for transcript in model.transcripts:
             assert not any(isinstance(m, AIMessage) and m.tool_calls for m in transcript)
             assert not any(isinstance(m, ToolMessage) for m in transcript)
+
+
+class TestFinishToolDraft:
+    """A draft that ends in the finish tool leaves the conversation: the model is asked again, so that call never runs.
+
+    The whole agent runs with the run unable to look anything up, so the guard asks it once to say so; only the
+    model is scripted, and it answers the first time with the finish tool and an empty message.
+    """
+
+    def setup_method(self) -> None:
+        reset_completion_guard()
+
+    @staticmethod
+    def _model() -> CountingModel:
+        draft = AIMessage(
+            content="", tool_calls=[{"name": _FINISH_TOOL, "args": {}, "id": "call_finish", "type": "tool_call"}]
+        )
+        return CountingModel(responses=[draft, AIMessage(content=_HONEST)], answer_after_check=_HONEST)
+
+    async def _run(
+        self, tmp_path: Path, model: CountingModel, *, then: tuple[str, ...] = ()
+    ) -> list[dict[str, object]]:
+        events: list[dict[str, object]] = []
+        await run_agent(
+            tmp_path,
+            build_channel_security_config("web_chat", None, local_mode=True),
+            model,
+            request=_REQUEST,
+            file_access_mode=FileAccessMode.WORKSPACE_READ_ONLY,
+            enable_shell_tools=False,
+            events=events,
+            checkpointer=InMemorySaver(),
+            then=then,
+        )
+        return events
+
+    @pytest.mark.asyncio
+    async def test_the_model_is_asked_again_with_the_instruction_after_the_users_message(self, tmp_path: Path) -> None:
+        model = self._model()
+
+        events = await self._run(tmp_path, model)
+
+        first, asked_again = model.transcripts[:2]
+        *conversation, instruction = asked_again
+        assert [(type(m), m.id) for m in conversation] == [(type(m), m.id) for m in first]
+        assert isinstance(instruction, HumanMessage)
+        assert str(instruction.content).startswith(CHECK_MARK)
+        assert "tool_approval_request" not in {e["type"] for e in events}
+
+    @pytest.mark.asyncio
+    async def test_no_request_of_the_turn_carries_an_empty_assistant_message(self, tmp_path: Path) -> None:
+        model = self._model()
+
+        await self._run(tmp_path, model)
+
+        for transcript in model.transcripts:
+            assert not any(isinstance(m, AIMessage) and not m.content for m in transcript)
+
+    @pytest.mark.asyncio
+    async def test_the_next_turn_of_the_chat_does_not_carry_the_draft(self, tmp_path: Path) -> None:
+        model = self._model()
+
+        await self._run(tmp_path, model, then=("谢谢，用一句话总结。",))
+
+        next_turn = model.transcripts[2]
+        assert [str(m.content) for m in next_turn if isinstance(m, AIMessage)] == [_HONEST]
 
 
 class TestSupersededDraft:

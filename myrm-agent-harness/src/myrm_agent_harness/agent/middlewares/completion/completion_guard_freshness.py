@@ -7,8 +7,12 @@ own project or material, or only transforms text it was given (translate, proofr
 it asks for it. Without that, a time word in a sentence about anything else ("current month's orders", "live
 migration", "translate: nice weather today") would hold the answer to evidence no tool could give it.
 
+A short question about this very day or moment ("is the bridge closed right now?") is a lookup even when it names no
+changing topic, unless it asks for advice; a long message is pasted material and never read that way.
+
 The rule is a set of word lists, not a classifier: it is deterministic, costs no model call, and is pinned by a
-labeled prompt set (``tests/agent/middlewares/completion/test_completion_guard_freshness.py``).
+labeled prompt set (``tests/agent/middlewares/completion/test_completion_guard_freshness.py``). The lists cover
+English, Simplified Chinese and Traditional Chinese; a request in another language is not recognised.
 
 [INPUT]
 - (none)
@@ -34,7 +38,7 @@ def _pattern(words: Iterable[str]) -> re.Pattern[str]:
 
 
 # Settle it alone: the user asks for the newest state of something, wherever it lives.
-_STRONG_CUES = _pattern(("latest", "newest", "most recent", "breaking", "最新", "刚刚"))
+_STRONG_CUES = _pattern(("latest", "newest", "most recent", "breaking", "最新", "刚刚", "剛剛"))
 
 # Time words that say little alone ("today I feel tired", "live migration"): they count beside a changing topic.
 _TIME_CUES = _pattern(
@@ -73,6 +77,12 @@ _TIME_CUES = _pattern(
         "今晚",
         "昨天",
         "昨晚",
+        "當前",
+        "現在",
+        "實時",
+        "這兩天",
+        "這幾天",
+        "本週",
     )
 )
 
@@ -114,19 +124,61 @@ _CHANGING_TOPICS = _pattern(
         "纳指",
         "多少钱",
         "赛程",
+        "新聞",
+        "價格",
+        "發佈",
+        "動態",
+        "報導",
+        "收盤",
+        "納指",
+        "多少錢",
+        "賽程",
+        "熱門",
+        "熱搜",
     )
 )
 
 # Changes by nature: asking for it is asking for the present value, with or without a time word.
 _VOLATILE_FACTS = _pattern(
-    ("weather", "forecast", "exchange rate", "stock price", "box office", "天气", "汇率", "股价", "比分", "票房")
+    (
+        "weather",
+        "forecast",
+        "exchange rate",
+        "stock price",
+        "box office",
+        "天气",
+        "天氣",
+        "汇率",
+        "匯率",
+        "股价",
+        "股價",
+        "比分",
+        "票房",
+    )
 )
 
 # Asks the run to look something up or to show where it came from.
 _CITATION_CUES = _pattern(
-    ("source", "sources", "citation", "citations", "reference", "references", "来源", "出处", "链接", "官网")
+    (
+        "source",
+        "sources",
+        "citation",
+        "citations",
+        "reference",
+        "references",
+        "来源",
+        "來源",
+        "出处",
+        "出處",
+        "链接",
+        "連結",
+        "官网",
+        "官網",
+    )
 )
-_WEB_CUES = _pattern(("web", "internet", "online", "search", "website", "网址", "网页", "网站", "搜索", "联网"))
+_WEB_CUES = _pattern(
+    ("web", "internet", "online", "search", "website", "网址", "网页", "網頁", "网站", "搜索", "搜尋", "联网", "聯網")
+)
 
 # The "latest" of the user's own project or material is theirs to read, not the web's to answer.
 _OWN_WORK_CUES = _pattern(
@@ -180,13 +232,90 @@ _OWN_WORK_CUES = _pattern(
         "表格",
         "附件",
         "文档",
+        "代碼",
+        "專案",
+        "倉庫",
+        "模組",
+        "介面",
+        "重構",
+        "函式",
+        "邏輯",
+        "測試",
+        "腳本",
+        "日誌",
+        "報錯",
+        "編譯",
+        "文檔",
     )
 )
 
 # The text to work on is in the request; nothing in it is asked of the outside world.
 _TEXT_TRANSFORMS = _pattern(
-    ("translate", "translation", "proofread", "paraphrase", "rewrite", "翻译", "润色", "改写", "校对", "纠错")
+    (
+        "translate",
+        "translation",
+        "proofread",
+        "paraphrase",
+        "rewrite",
+        "翻译",
+        "翻譯",
+        "润色",
+        "潤色",
+        "改写",
+        "改寫",
+        "校对",
+        "校對",
+        "纠错",
+        "糾錯",
+    )
 )
+
+# A short question about this very day or moment is a lookup even when it names no changing topic ("what's the score
+# tonight?", "is the bridge closed right now?").
+_MOMENT_CUES = _pattern(
+    (
+        "today",
+        "tonight",
+        "right now",
+        "last night",
+        "yesterday",
+        "this week",
+        "this weekend",
+        "今天",
+        "今晚",
+        "本周",
+        "这周",
+        "本週",
+        "這週",
+        "昨天",
+        "昨晚",
+        "现在",
+        "現在",
+        "刚刚",
+        "剛剛",
+    )
+)
+_QUESTION_FORM = re.compile(
+    r"\?|？|^(?:is|are|does|do|did|will|can|has|have)\b|\b(?:what|how|when|where|who|which)\b"
+    r"|吗|嗎|什么|什麼|怎么|怎麼|怎样|怎樣|几点|幾點|哪|是否|有没有|有沒有|多少|如何"
+)
+# Asks for a view or a plan for the user, not for a fact about the world.
+_ADVICE_ASKS = re.compile(
+    r"\b(?:should i|shall i|can i)\b|\bany tips\b|我(?:现在|現在|今天)?(?:应该|應該|该|該|想)|要不要|应该先|應該先"
+    r"|有什么.{0,4}建议|有什麼.{0,4}建議|入门建议|入門建議"
+)
+# A question is short. Pasted material (a contract, a log, a listing) carries its own "today" and its own question
+# marks, and holding the answer about it to web evidence would be wrong.
+_MOMENT_QUESTION_MAX_CHARS = 200
+
+
+def _asks_about_the_moment(text: str) -> bool:
+    return (
+        len(text) <= _MOMENT_QUESTION_MAX_CHARS
+        and _MOMENT_CUES.search(text) is not None
+        and _QUESTION_FORM.search(text) is not None
+        and _ADVICE_ASKS.search(text) is None
+    )
 
 
 def demands_external_evidence(request: str) -> bool:
@@ -204,7 +333,9 @@ def demands_external_evidence(request: str) -> bool:
         return False
     if _VOLATILE_FACTS.search(text):
         return True
-    return _TIME_CUES.search(text) is not None and (asks_to_look_up or _CHANGING_TOPICS.search(text) is not None)
+    if _TIME_CUES.search(text) is not None and (asks_to_look_up or _CHANGING_TOPICS.search(text) is not None):
+        return True
+    return _asks_about_the_moment(text)
 
 
 __all__ = ["demands_external_evidence"]

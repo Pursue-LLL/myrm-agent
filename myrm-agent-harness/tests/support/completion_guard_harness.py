@@ -8,11 +8,13 @@
 [OUTPUT]
 - CHECK_MARK: the text every guard rejection starts with in the request the model reads
 - state / runtime / verdict: one ``aafter_model`` call for a request and a scripted answer
+- stamped: the messages as the graph state holds them, each with the id the state reducer gives every stored message
+- GUARD_DECISIONS: the reasons of every answer the guard held back since the current test began (filled by the middleware conftest)
 - pending / reasons_of / directive_of: the instruction a rejecting verdict leaves for the model, the reasons it answers, and its text
 - registry_of / named_tool / built_guard: the guard of the chain ``build_middlewares`` assembles over a registry of mounted tools
 - writes_allowed / writes_denied: a policy that lets a run write files, and one with the Read Only profile's deny set on top
 - CountingModel: scripted model that counts its calls, keeps what each call was shown, and can answer differently once the guard has spoken
-- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model (optionally collecting its events), and the tools it mounted
+- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model (optionally collecting its events, keeping the chat across turns), and the tools it mounted
 
 [POS]
 Harness pytest-only helper shared by the completion-guard capability tests, so each one states its case
@@ -31,6 +33,7 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.tools import BaseTool, StructuredTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.runtime import Runtime
 from pydantic import Field
 
@@ -68,8 +71,16 @@ def writes_denied(workspace: Path) -> SecurityConfig:
     return replace(allowed, ruleset=(*allowed.ruleset, *_READ_ONLY_DENIALS))
 
 
+GUARD_DECISIONS: list[BlockReasons] = []
+
+
+def stamped(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
+    """The messages as the graph state holds them: its reducer gives every stored message an id."""
+    return [m if m.id is not None else m.model_copy(update={"id": f"message-{i}"}) for i, m in enumerate(messages)]
+
+
 def state(request: str, reply: str) -> dict[str, object]:
-    return {"messages": [HumanMessage(content=request), AIMessage(content=reply)]}
+    return {"messages": stamped([HumanMessage(content=request), AIMessage(content=reply)])}
 
 
 def runtime(workspace: Path, security: SecurityConfig | None = None) -> Runtime:
@@ -96,7 +107,9 @@ def pending(result: dict[str, object] | None) -> PendingDirective:
 
 
 def reasons_of(result: dict[str, object] | None) -> BlockReasons:
-    return pending(result).reasons
+    """The reasons the guard gave for the answer a rejecting verdict held back."""
+    pending(result)
+    return GUARD_DECISIONS[-1]
 
 
 def directive_of(result: dict[str, object] | None) -> str:
@@ -161,10 +174,13 @@ async def run_agent(
     file_access_mode: FileAccessMode,
     enable_shell_tools: bool,
     events: list[dict[str, object]] | None = None,
+    checkpointer: BaseCheckpointSaver | bool = False,
+    then: Sequence[str] = (),
 ) -> tuple[SkillAgent, Path]:
     """Run ``request`` through a real agent whose only scripted part is the model; returns it and its workspace.
 
-    The events the run streams are appended to ``events`` when given.
+    The events the run streams are appended to ``events`` when given. Each request in ``then`` is a further turn of
+    the same chat, which sees what the checkpointer kept of the turns before it.
     """
     workspace = (tmp_path / "project").resolve()
     workspace.mkdir()
@@ -182,7 +198,7 @@ async def run_agent(
         llm=model,
         tools=[],
         storage_backend=LocalStorageBackend(str(tmp_path / "storage")),
-        checkpointer=False,
+        checkpointer=checkpointer,
         file_access_mode=file_access_mode,
         enable_shell_tools=enable_shell_tools,
     )
@@ -192,9 +208,10 @@ async def run_agent(
         "workspaces_storage_root": str(tmp_path / "workspaces"),
         "session_id": chat,
     }
-    async for event in agent.run(query=request, context=context):
-        if events is not None:
-            events.append(event)
+    for query in (request, *then):
+        async for event in agent.run(query=query, context=context):
+            if events is not None:
+                events.append(event)
     return agent, workspace
 
 

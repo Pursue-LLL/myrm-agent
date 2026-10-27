@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
+from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 
 import myrm_agent_harness.agent.middlewares.completion.completion_guard_state as _cg_state
@@ -33,13 +34,13 @@ from myrm_agent_harness.core.security.tool_registry import (
     SafetyMetadata,
     register_ptc_safety_metadata,
 )
-from tests.support.completion_guard_harness import directive_of, pending, reasons_of
+from tests.support.completion_guard_harness import directive_of, pending, reasons_of, stamped
 
 LOOP_GUARD_PATCH = "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard"
 
 
-def _make_state(messages: list[object]) -> dict[str, object]:
-    return {"messages": messages}
+def _make_state(messages: list[BaseMessage]) -> dict[str, object]:
+    return {"messages": stamped(messages)}
 
 
 class TestCompletionGuardTriggerConditions:
@@ -74,6 +75,7 @@ class TestCompletionGuardTriggerConditions:
         """Should trigger when AIMessage calls finish tool after modifying code without verification."""
         state = _make_state(
             [
+                HumanMessage(content="Change main.py and tell me when it is done."),
                 AIMessage(
                     content="",
                     tool_calls=[
@@ -98,7 +100,8 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value._window = [code_write_record]
             result = await self.guard.aafter_model(state, None)
 
-        assert pending(result).draft_id is None
+        user_message = state["messages"][0]
+        assert pending(result).anchor_id == user_message.id
 
     @pytest.mark.asyncio
     async def test_skips_when_no_critical_errors(self) -> None:
@@ -355,6 +358,7 @@ class TestCompletionGuardTriggerConditions:
         _cg_state.current_run_state().rejections = 2
         state = _make_state(
             [
+                HumanMessage(content="Change main.py and tell me when it is done."),
                 AIMessage(
                     content="",
                     tool_calls=[
@@ -364,7 +368,7 @@ class TestCompletionGuardTriggerConditions:
                             "args": {"reason": "Task complete"},
                         }
                     ],
-                )
+                ),
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
@@ -383,13 +387,12 @@ class TestCompletionGuardTriggerConditions:
         assert released is None
 
     @pytest.mark.asyncio
-    async def test_guard_injection_does_not_mutate_original_message(self) -> None:
-        """aafter_model must deep-copy the last AI message instead of mutating the
-        state reference. Mutating the reference duplicates the tool_call declaration
-        (two AIMessages, one ToolMessage) which hard-fails strict providers with
-        'insufficient tool messages following tool_calls message'."""
+    async def test_a_held_back_finish_tool_draft_leaves_the_conversation(self) -> None:
+        """The draft's finish-tool call never runs, so it is removed instead of staying unanswered or as an empty
+        assistant message; the instruction follows the message before it, and the draft object is left untouched."""
         state = _make_state(
             [
+                HumanMessage(content="Change main.py and tell me when it is done."),
                 AIMessage(
                     content="",
                     tool_calls=[
@@ -399,10 +402,10 @@ class TestCompletionGuardTriggerConditions:
                             "args": {"reason": "Task complete"},
                         }
                     ],
-                )
+                ),
             ]
         )
-        original_ai = state["messages"][0]
+        user_message, original_ai = state["messages"]
         with patch(LOOP_GUARD_PATCH) as mock_guard:
             mock_guard.return_value._window = [
                 CallRecord(
@@ -414,12 +417,69 @@ class TestCompletionGuardTriggerConditions:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert pending(result).draft_id == original_ai.id
-        stripped = result["messages"][0]
-        assert stripped is not original_ai
-        assert stripped.id == original_ai.id
-        assert stripped.tool_calls == []
+        assert pending(result).anchor_id == user_message.id
+        assert [(type(m), m.id) for m in result["messages"]] == [(RemoveMessage, original_ai.id)]
+        assert add_messages(state["messages"], result["messages"]) == [user_message]
         assert original_ai.tool_calls[0]["name"] == "request_answer_user_tool"
+
+    @pytest.mark.asyncio
+    async def test_a_finish_tool_draft_that_says_something_keeps_its_words_and_loses_the_call(self) -> None:
+        state = _make_state(
+            [
+                HumanMessage(content="Change main.py and tell me when it is done."),
+                AIMessage(
+                    content="Both files are updated.",
+                    tool_calls=[{"id": "tc_answer", "name": "request_answer_user_tool", "args": {}}],
+                ),
+            ]
+        )
+        original_ai = state["messages"][1]
+        with patch(LOOP_GUARD_PATCH) as mock_guard:
+            mock_guard.return_value._window = [
+                CallRecord(
+                    tool_name="file_write_tool",
+                    args_hash="abc",
+                    args={"path": "/tmp/a.py"},
+                    success_level=SuccessLevel.FULL_SUCCESS,
+                )
+            ]
+            result = await self.guard.aafter_model(state, None)
+
+        assert pending(result).anchor_id == original_ai.id
+        (kept,) = add_messages(state["messages"], result["messages"])[1:]
+        assert (kept.id, kept.content, kept.tool_calls) == (original_ai.id, "Both files are updated.", [])
+        assert original_ai.tool_calls[0]["name"] == "request_answer_user_tool"
+
+    @pytest.mark.asyncio
+    async def test_a_held_back_text_draft_stays_and_the_instruction_follows_it(self) -> None:
+        state = _make_state(
+            [
+                HumanMessage(content="今天最新的 AI 新闻是什么？"),
+                AIMessage(content="根据我所知，近期 AI 领域的主要进展包括多模态模型。"),
+            ]
+        )
+        with patch(LOOP_GUARD_PATCH) as mock_guard:
+            mock_guard.return_value._window = []
+            result = await self.guard.aafter_model(state, None)
+
+        assert pending(result).anchor_id == state["messages"][1].id
+        assert "messages" not in result
+
+    @pytest.mark.asyncio
+    async def test_an_answer_that_cannot_be_addressed_is_let_through(self) -> None:
+        """A message without an id cannot anchor the instruction, so nothing is held back for it."""
+        state = {
+            "messages": [
+                HumanMessage(content="今天最新的 AI 新闻是什么？"),
+                AIMessage(content="根据我所知，近期 AI 领域的主要进展包括多模态模型。"),
+            ]
+        }
+        with patch(LOOP_GUARD_PATCH) as mock_guard:
+            mock_guard.return_value._window = []
+            result = await self.guard.aafter_model(state, None)
+
+        assert result is None
+        assert _cg_state.current_run_state().pending_directive is None
 
 
 class TestCompletionGuardReset:
@@ -1346,6 +1406,7 @@ class TestMixedMessageGuard:
         """When tool_calls include finish tool, take completion path not mixed guard."""
         state = _make_state(
             [
+                HumanMessage(content="Change main.py and tell me when it is done."),
                 AIMessage(
                     content=self._long_answer(),
                     tool_calls=[
@@ -1369,7 +1430,7 @@ class TestMixedMessageGuard:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert pending(result).reasons == BlockReasons()
+        assert reasons_of(result) == BlockReasons()
         assert pending(result).text
 
     @pytest.mark.asyncio
@@ -1518,9 +1579,19 @@ class TestMixedMessageGuard:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_strips_readonly_annotated_mcp_tool_calls(self) -> None:
-        """MCP tool with explicit readOnlyHint=True is safe to strip — keeps
-        the token-saving optimization for genuinely read-only MCP servers."""
+    @pytest.mark.parametrize(
+        ("question", "stripped"),
+        [
+            pytest.param("用一段话介绍北京的气候特点", True, id="timeless-question-strips"),
+            pytest.param("北京现在多少度？", False, id="live-question-keeps-the-lookup"),
+        ],
+    )
+    async def test_annotated_readonly_mcp_tool_calls_strip_only_when_no_live_data_is_owed(
+        self, question: str, stripped: bool
+    ) -> None:
+        """MCP tool with explicit readOnlyHint=True is safe to strip — keeps the token-saving optimization for
+        genuinely read-only MCP servers — unless the question asks for the moment's data and no evidence exists yet:
+        then the lookup must run."""
         tool_name = "mcp__meteo__get_temperature"
         register_ptc_safety_metadata(
             "mcp_meteo_skill",
@@ -1530,16 +1601,10 @@ class TestMixedMessageGuard:
         )
         state = _make_state(
             [
-                HumanMessage(content="北京现在多少度？"),
+                HumanMessage(content=question),
                 AIMessage(
                     content=self._long_answer(),
-                    tool_calls=[
-                        {
-                            "id": "tc1",
-                            "name": tool_name,
-                            "args": {"city": "Beijing"},
-                        },
-                    ],
+                    tool_calls=[{"id": "tc1", "name": tool_name, "args": {"city": "Beijing"}}],
                 ),
             ]
         )
@@ -1547,9 +1612,11 @@ class TestMixedMessageGuard:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        ai_msg = result["messages"][0]
-        assert ai_msg.tool_calls == []
+        if stripped:
+            assert result is not None
+            assert result["messages"][0].tool_calls == []
+        else:
+            assert result is None
 
 
 class TestTemporalOrderChecking:

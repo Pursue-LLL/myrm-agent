@@ -33,7 +33,10 @@ Internal tool CallRecords (``_``-prefixed names) are excluded from the checklist
 A held-back answer is never turned into a tool call: the guard routes the run back to the model
 (``jump_to="model"``) and records the instruction in the turn's guard state; ``CompletionDirectiveMiddleware``
 appends it to the next model request only. Nothing the guard says to the model is stored in the conversation, shown
-as a task step, approved, counted by the loop guard or scanned as tool output.
+as a task step, approved, counted by the loop guard or scanned as tool output. A draft that carries a finish tool
+call and says nothing is taken out of the conversation (``RemoveMessage``) and the instruction follows the message
+before it, so neither an unanswered call nor an empty assistant message stays in the thread; one that says something
+stays, without the call.
 
 A demand is made only of a run that could meet it (``CompletionCapabilities``): a deliverable code block is held to
 being saved (and staged into the workspace on a forced finish) only when the run can save a file, an unfinished
@@ -56,6 +59,7 @@ persisting across ReAct cycles.
 - agent.middlewares.completion.deliverable_write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
 - agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
 - agent.middlewares.completion.deliverable_confidence_tier::resolve_deliverable_tier, should_disclose_tier (POS: Evidence tier calculation and disclosure policy)
+- agent.middlewares.completion.completion_guard_rerun::rerun_verification_in_sandbox (POS: independent sandbox re-run of the last verification command)
 - agent.middlewares.completion.completion_guard_safety::is_mutating_tool, _INTERACTION_UI_TOOLS (POS: Effectful tool detection SSOT and interaction/UI carriers for Mixed Message Guard)
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 
@@ -84,7 +88,7 @@ from dataclasses import replace
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
 
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
@@ -108,6 +112,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard_external_e
     build_external_evidence_reason,
     extract_latest_human_text,
 )
+from myrm_agent_harness.agent.middlewares.completion.completion_guard_rerun import rerun_verification_in_sandbox
 from myrm_agent_harness.agent.middlewares.completion.completion_guard_safety import (
     _INTERACTION_UI_TOOLS,
     is_mutating_tool,
@@ -155,45 +160,6 @@ logger = logging.getLogger(__name__)
 def reset_completion_guard() -> None:
     """Reset this run's guard state — call at the start of each agent run."""
     reset_run_state()
-
-
-_RERUN_TIMEOUT_SECONDS: int = 120
-
-
-async def _rerun_verification_in_sandbox(command: str) -> bool:
-    """Execute a verification command independently in the sandbox.
-
-    Returns True only when the command exits with code 0. Any executor
-    unavailability or execution failure returns False (fail-closed).
-    """
-    try:
-        from myrm_agent_harness.toolkits.code_execution.executors.base import (
-            get_executor,
-        )
-        from myrm_agent_harness.toolkits.code_execution.executors.models import (
-            ExecutionContext,
-        )
-
-        executor = get_executor()
-        if not executor:
-            logger.warning("[CompletionGuard] Sandbox executor unavailable — skipping independent re-run.")
-            return False
-
-        context = ExecutionContext(code=command, timeout=_RERUN_TIMEOUT_SECONDS)
-        result = await executor.execute_bash(context)
-
-        if result.exit_code == 0:
-            return True
-
-        logger.warning(
-            "[CompletionGuard] Independent re-run failed (exit_code=%d): %s",
-            result.exit_code,
-            (result.stderr or result.stdout or "")[:500],
-        )
-        return False
-    except Exception:
-        logger.warning("[CompletionGuard] Independent re-run raised exception.", exc_info=True)
-        return False
 
 
 class CompletionGuard(AgentMiddleware[Any, Any, Any]):
@@ -411,7 +377,7 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             if has_code_writes and _has_post_verification_code_write(filtered_records, _CODE_EXTENSIONS):
                 rerun_cmd = _find_last_verification_cmd(filtered_records)
                 if rerun_cmd:
-                    rerun_passed = await _rerun_verification_in_sandbox(rerun_cmd)
+                    rerun_passed = await rerun_verification_in_sandbox(rerun_cmd)
                     if rerun_passed:
                         logger.info(
                             "[CompletionGuard] Independent re-run of '%s' passed — allowing completion.",
@@ -443,7 +409,9 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
                 if staged_metas_dict:
                     publish_disclosure(staged_artifacts=staged_metas_dict)
             reasons = replace(reasons, forced_finish=True, staged_artifacts=tuple(staged_metas_dict))
-            return await self._hold_back(run_state, last_ai_msg, reasons, records, todo_workspace, current_rejections)
+            return await self._hold_back(
+                run_state, messages, last_ai_msg, reasons, records, todo_workspace, current_rejections
+            )
 
         run_state.rejections = current_rejections + 1
         logger.warning(
@@ -453,35 +421,57 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         )
         if evidence_unreachable:
             run_state.evidence_disclosure_requested = True
-        return await self._hold_back(run_state, last_ai_msg, reasons, records, todo_workspace, current_rejections + 1)
+        return await self._hold_back(
+            run_state, messages, last_ai_msg, reasons, records, todo_workspace, current_rejections + 1
+        )
 
     async def _hold_back(
         self,
         run_state: RunGuardState,
+        messages: Sequence[BaseMessage],
         draft: AIMessage,
         reasons: BlockReasons,
         records: Sequence[CallRecord],
         workspace_root: str | None,
         rejection: int,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         """Route the run back to the model, with the instruction owed to it pending for the next request.
 
-        A draft that still carries tool calls (a finish tool) loses them: the model is asked again, so a call that
-        never runs must not stay in the conversation unanswered.
+        The instruction follows the last message the model will see again. A draft that says something stays in the
+        conversation and the instruction follows it; a finish-tool call it carries is dropped, because that call
+        never runs. A finish-tool draft that says nothing leaves the conversation altogether, so neither an
+        unanswered call nor an empty assistant message stays in the thread every later request reads, and the
+        instruction follows the message before it.
+
+        A message the runtime stamped no id on cannot be addressed, so that answer is let through.
         """
+        leaves = bool(draft.tool_calls) and not draft.text.strip()
+        anchor = _message_before(messages, draft) if leaves else draft
+        if draft.id is None or anchor is None or anchor.id is None:
+            logger.warning(
+                "[CompletionGuard] Held-back answer cannot be addressed (message without id); letting it through."
+            )
+            return None
         await log_guard_decision(reasons, rejection=rejection, max_rejections=self._max_rejections)
         await announce_superseded_draft()
         run_state.pending_directive = PendingDirective(
-            draft_id=draft.id,
+            anchor_id=anchor.id,
             text=render_completion_directive(reasons, records=records, workspace_root=workspace_root),
-            reasons=reasons,
         )
         update: dict[str, Any] = {"jump_to": "model"}
-        if draft.tool_calls:
-            stripped = deepcopy(draft)
-            stripped.tool_calls = []
-            update["messages"] = [stripped]
+        if leaves:
+            update["messages"] = [RemoveMessage(id=draft.id)]
+        elif draft.tool_calls:
+            kept = deepcopy(draft)
+            kept.tool_calls = []
+            update["messages"] = [kept]
         return update
+
+
+def _message_before(messages: Sequence[BaseMessage], draft: AIMessage) -> BaseMessage | None:
+    """The message that precedes ``draft`` in the conversation, if any."""
+    index = next((i for i in range(len(messages) - 1, -1, -1) if messages[i] is draft), 0)
+    return messages[index - 1] if index > 0 else None
 
 
 __all__ = [

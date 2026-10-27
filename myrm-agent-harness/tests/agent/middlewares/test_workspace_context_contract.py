@@ -26,7 +26,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     reset_completion_guard,
 )
 from myrm_agent_harness.agent.middlewares.progress_middleware import progress_middleware
-from tests.support.completion_guard_harness import reasons_of
+from tests.support.completion_guard_harness import reasons_of, stamped
 from tests.support.run_context import real_run_context
 
 _LOOP_GUARD = "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard"
@@ -66,7 +66,7 @@ async def test_completion_guard_stages_unwritten_deliverables_in_the_run_workspa
         "    time.sleep(1)\n"
         "```"
     )
-    state = {"messages": [HumanMessage(content="写一个 worker 脚本"), AIMessage(content=f"完成：\n{draft}")]}
+    state = {"messages": stamped([HumanMessage(content="写一个 worker 脚本"), AIMessage(content=f"完成：\n{draft}")])}
     runtime = Runtime(context=context)
     guard = CompletionGuard(max_rejections=1)
     reset_completion_guard()

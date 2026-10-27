@@ -1,14 +1,16 @@
 """The freshness trigger holds back answers that need outside data, and leaves every other request alone.
 
-The prompts are written by hand, by the author of the rule, in four batches: the first shaped the rule, the second
-and third shaped its second revision, the fourth was written after the rule was frozen. Each prompt is labeled by
-what the request needs, not by what the rule says. They are a regression net, not an accuracy estimate: the
-negatives mostly contain a time or topic word on purpose, and nothing here says how often real traffic does.
+The prompts are written by hand, by the author of the rule, in six batches. The first shaped the rule, the second
+and third shaped its word lists, the fourth was written after those were frozen, the fifth shaped the short-question
+branch (its false triggers decided the advice exclusion), and the sixth was written after that branch was frozen.
+Each prompt is labeled by what the request needs, not by what the rule says. They are a regression net, not an
+accuracy estimate: the negatives mostly contain a time or topic word on purpose, every prompt is a short sentence,
+and nothing here says how often real traffic does.
 
-On these prompts, the word list the rule replaced (any one of "latest/today/current/live/news/price/stock/..." and
-their Chinese forms, unless a code word was present) missed 23 of 52 requests and held 25 of 52 that needed nothing.
-This one misses 11 of 52 and holds 1; ``KNOWN_MISSES`` and ``KNOWN_FALSE_TRIGGERS`` list those, strictly, so a
-change that fixes one has to move it out of the list.
+On these 77 requests that need outside data and 77 that need nothing, the word list the rule replaced (any one of
+"latest/today/current/live/news/price/stock/..." and their Chinese forms, unless a code word was present) missed 39
+and held 33 of the second kind. This rule misses 5 and holds 4; ``KNOWN_MISSES`` and ``KNOWN_FALSE_TRIGGERS`` list
+those, strictly, so a change that fixes one has to move it out of the list.
 """
 
 from __future__ import annotations
@@ -63,6 +65,37 @@ NEEDS_FRESH_DATA: tuple[str, ...] = (
     "What's the current gas price in California?",
     "国内最新的大模型榜单是什么？",
     "Give me the live score for tonight's Warriors game",
+    "Who won the match last night?",
+    "Which team leads the Premier League table right now?",
+    "本周有哪些新上映的电影？",
+    "Is the Shanghai metro running normally today?",
+    "What time does the sun set in Paris today?",
+    "What's happening in the Middle East today?",
+    "小米 SU7 现在的售价是多少？",
+    "What's the weather like in Berlin today?",
+    "Did the Fed change interest rates this week?",
+    "今天北京限行尾号是多少？",
+    "苹果现在的股价是多少？",
+    "Is GitHub down right now?",
+    "What did the president say in tonight's speech?",
+    "昨晚欧冠谁赢了？",
+    "Are flights from Heathrow delayed today?",
+    "这周末上海有什么展览？",
+    "What's the score of the Lakers game tonight?",
+    "Is the Golden Gate Bridge closed right now?",
+    "Who is leading the polls today?",
+    "What is Bitcoin trading at today?",
+    "Are there any train strikes in France this week?",
+    "Has OpenAI announced anything new today?",
+    "今天上海的 PM2.5 是多少？",
+    "现在美元兑人民币汇率是多少？",
+    "昨晚的 NBA 比赛结果怎么样？",
+    "这周有哪些大模型新发布？",
+    "苹果最新发布会讲了什么？",
+    "现在北京堵车严重吗？",
+    "今天高雄會下雨嗎？",
+    "現在台積電股價多少？",
+    "這週末台北有什麼活動？",
 )
 
 NEEDS_NOTHING_EXTERNAL: tuple[str, ...] = (
@@ -98,7 +131,6 @@ NEEDS_NOTHING_EXTERNAL: tuple[str, ...] = (
     "这个函数的最新参数是什么意思？",
     "How do stock options vest over four years?",
     "帮我把这个 SQL 优化一下，现在查询要跑 30 秒",
-    "今天是周几？怎么用 Python 打印当前日期？",
     "What is a stock ticker symbol?",
     "给我讲讲牛顿第二定律",
     "Please translate this contract clause into plain English",
@@ -117,23 +149,45 @@ NEEDS_NOTHING_EXTERNAL: tuple[str, ...] = (
     "这周的周报我写好了，帮我检查一下语法",
     "Explain the live/dead variable analysis in compilers",
     "Explain the difference between a mutex and a semaphore",
+    "How do I schedule a cron job to run every day at 9am?",
+    "今天我想复习线性代数，帮我列个学习计划",
+    "Write a short poem about this morning's sunrise.",
+    "What does 'currently' mean in a present continuous sentence?",
+    "What's the difference between a list and a tuple in Python?",
+    "Can you rewrite this paragraph so it sounds more formal? I need it today.",
+    "解释一下什么是通货膨胀",
+    "What should I cook for dinner tonight if I only have rice and eggs?",
+    "我现在应该先学 Rust 还是先学 Go？",
+    "Explain how HTTP caching works.",
+    "I'm feeling stressed today, any tips to relax?",
+    "Can you proofread this email? I have to send it today.",
+    "What should I name my new puppy?",
+    "Write a function that returns today's date in ISO format.",
+    "What's the difference between affect and effect?",
+    "今天我想学点 Python，有什么入门建议吗？",
+    "帮我把这段话翻译成英文，今天要交。",
+    "什么是量子纠缠？",
+    "我今天应该先复习数学还是英语？",
+    "解释一下什么是哈希表",
+    "今天想學吉他，有什麼入門建議嗎？",
+    "請幫我把這段文字改寫得更正式",
+    "什麼是機器學習？",
 )
 
 KNOWN_MISSES: tuple[str, ...] = (
-    "Who won the match last night?",
     "Can you check if the Python 3.14 release date has been announced?",
-    "Which team leads the Premier League table right now?",
     "最近有哪些值得关注的 AI 论文？",
-    "本周有哪些新上映的电影？",
-    "Is the Shanghai metro running normally today?",
-    "What time does the sun set in Paris today?",
-    "What's happening in the Middle East today?",
-    "小米 SU7 现在的售价是多少？",
     "Has the new MacBook been released yet?",
     "明天上海会下雨吗？",
+    "How much is a Tesla Model Y at the moment?",
 )
 
-KNOWN_FALSE_TRIGGERS: tuple[str, ...] = ('Translate "the latest news" into French',)
+KNOWN_FALSE_TRIGGERS: tuple[str, ...] = (
+    "今天是周几？怎么用 Python 打印当前日期？",
+    'Translate "the latest news" into French',
+    "现在我有三个苹果，吃了一个，还剩几个？",
+    "现在有 5 个人，每人分 2 块饼干，一共需要多少块？",
+)
 
 
 @pytest.mark.parametrize("request_text", NEEDS_FRESH_DATA)
@@ -200,3 +254,64 @@ class TestGuardReason:
 
     def test_no_reason_for_a_request_that_needs_nothing_external(self) -> None:
         assert build_external_evidence_reason(messages=[HumanMessage("今天心情不好，给我讲个笑话")], records=[]) is None
+
+
+class TestQuestionAboutTheMoment:
+    """A short question about today or right now is a lookup; pasted material and requests for advice are not."""
+
+    @pytest.mark.parametrize(
+        "request_text",
+        [
+            pytest.param(
+                "The parties agree that, as of today, the supplier shall deliver the goods within thirty days. " * 8
+                + "\nIs clause 3 enforceable if the buyer pays late?",
+                id="contract",
+            ),
+            pytest.param(
+                "def f(x):\n    return x.today()\n" * 10 + "\nWhy does this raise an error?", id="code-listing"
+            ),
+            pytest.param(
+                "今天的会议纪要如下：" + "我们讨论了预算和排期，决定下周开始。" * 20 + "\n这份纪要里有哪些风险？",
+                id="meeting-minutes",
+            ),
+        ],
+    )
+    def test_pasted_material_with_a_question_is_left_alone(self, request_text: str) -> None:
+        assert len(request_text) > 200
+        assert not demands_external_evidence(request_text)
+
+    @pytest.mark.parametrize(
+        "request_text",
+        [
+            "Should I bring an umbrella tomorrow or today?",
+            "What should I cook tonight?",
+            "我今天应该先复习数学还是英语？",
+        ],
+    )
+    def test_a_request_for_advice_is_left_alone(self, request_text: str) -> None:
+        assert not demands_external_evidence(request_text)
+
+    def test_a_statement_about_today_is_left_alone(self) -> None:
+        assert not demands_external_evidence("It rained a lot today and the match was cancelled.")
+
+
+TRADITIONAL_CHINESE: tuple[tuple[str, str, bool], ...] = (
+    ("现在比特币的价格是多少？", "現在比特幣的價格是多少？", True),
+    ("北京明天的天气怎么样？", "北京明天的天氣怎麼樣？", True),
+    ("目前美元兑人民币的汇率是多少", "目前美元兌人民幣的匯率是多少", True),
+    ("请联网查询今天的油价", "請聯網查詢今天的油價", True),
+    ("美股今天收盘了吗，纳指涨了多少", "美股今天收盤了嗎，納指漲了多少", True),
+    ("今天台北天气如何？", "今天台北天氣如何？", True),
+    ("把这段话翻译成英文：今天天气真好", "把這段話翻譯成英文：今天天氣真好", False),
+    ("请帮我润色这封邮件，明天要发给客户", "請幫我潤色這封郵件，明天要發給客戶", False),
+    ("帮我分析一下这个 CSV 里最新一周的销量变化", "幫我分析一下這個 CSV 裡最新一週的銷量變化", False),
+    ("解释一下什么是实时操作系统", "解釋一下什麼是實時作業系統", False),
+)
+
+
+@pytest.mark.parametrize(("simplified", "traditional", "needs_fresh_data"), TRADITIONAL_CHINESE)
+def test_traditional_chinese_is_judged_as_its_simplified_form_is(
+    simplified: str, traditional: str, needs_fresh_data: bool
+) -> None:
+    assert demands_external_evidence(simplified) is needs_fresh_data
+    assert demands_external_evidence(traditional) is needs_fresh_data
