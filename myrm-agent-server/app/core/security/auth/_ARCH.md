@@ -15,6 +15,7 @@
 | `public_paths.py` | ✅ 核心 | 无需 API Key 的路径规则 `is_public_path(path, method)`：任意方法开放的前缀与精确路径（`/webui/auth/` 浏览器登录、分享链接）；GET/HEAD 只对存活与就绪探针开放（`/api/v1/health`、`/liveness`、`/ready` 三个精确路径），其余健康端点（诊断、指标、资源与浏览器状态）和变更类运维动作（重置、清空、修复、探测）都走正常准入与 Host 白名单 | ✅ |
 | `identity.py` | ✅ 核心 | HTTP/WS 共享身份解析；远程暴露时 pair token 或 WebUI session | ✅ |
 | `cp_proxy.py` | ✅ 核心 | CP 反代 HMAC-SHA256 验签（`INTERNAL_SERVICE_KEY`） | ✅ |
+| `failed_attempt_guard.py` | ✅ 核心 | 凭证校验的暴力破解节流：按 key 统计失败次数，窗口内达到上限即锁定并返回剩余秒数，成功后清零；key 集合有上限（key 可能来自未认证输入），仅进程内存，供 WebUI 登录与分享密码门共用 | ✅ |
 
 ---
 
