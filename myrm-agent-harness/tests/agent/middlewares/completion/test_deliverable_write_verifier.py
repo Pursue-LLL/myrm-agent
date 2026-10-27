@@ -205,11 +205,7 @@ class TestCheckUnwrittenDeliverables:
         # it should be recognized as a substantive deliverable.
         full_app_lines = [f"line_{i} = {i}" for i in range(25)]
         code = (
-            "```python\n"
-            + "\n".join(full_app_lines)
-            + "\nif __name__ == '__main__':\n"
-            + "    print('run')\n"
-            + "```"
+            "```python\n" + "\n".join(full_app_lines) + "\nif __name__ == '__main__':\n" + "    print('run')\n" + "```"
         )
         reason, items = check_unwritten_deliverables(
             content=code,
@@ -282,5 +278,3 @@ class TestCheckUnwrittenDeliverables:
         assert len(items) == 1
         assert items[0].filename_hint == "src/gateway/server.py"
         assert items[0].suggested_ext == ".py"
-
-

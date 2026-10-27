@@ -1,7 +1,7 @@
 """The trace keeps a runtime hook's invocation without any ``tasks_steps`` event for it.
 
-The streaming layer no longer emits a task step for the completion guard's ``_completion_check`` hook; the
-``tool_start``/``tool_end`` lifecycle pair published for every tool execution is then the hook's only trace
+The streaming layer emits no task step for the completion guard's ``_completion_check`` hook, so the
+``tool_start``/``tool_end`` lifecycle pair published for every tool execution is the hook's only trace
 record, and it is enough: one successful call with its timing and id.
 """
 

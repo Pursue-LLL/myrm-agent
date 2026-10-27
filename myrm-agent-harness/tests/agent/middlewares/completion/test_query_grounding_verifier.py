@@ -107,9 +107,12 @@ class TestQueryCallRecords:
         assert is_query_call_record(_record("web_search_tool")) is True
         assert is_query_call_record(_record("sql_query_tool")) is True
         assert is_query_call_record(_record("query_database")) is True
-        assert is_query_call_record(
-            _record("bash_code_execute_tool", args={"command": "python -c 'import skills.mcp_order'"})
-        ) is True
+        assert (
+            is_query_call_record(
+                _record("bash_code_execute_tool", args={"command": "python -c 'import skills.mcp_order'"})
+            )
+            is True
+        )
         assert is_query_call_record(_record("file_write_tool")) is False
         assert is_query_call_record(_record("_completion_check")) is False
 
@@ -290,9 +293,7 @@ async def test_completion_guard_blocks_multi_entity_missing_one_query() -> None:
         args={"order_id": "OD-9921"},
         success_level=SuccessLevel.FULL_SUCCESS,
     )
-    with patch(
-        "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard"
-    ) as mock_lg:
+    with patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard") as mock_lg:
         mock_lg.return_value._window = [rec]
         guard = CompletionGuard(enabled=True)
         messages = [
@@ -313,4 +314,3 @@ async def test_completion_guard_blocks_multi_entity_missing_one_query() -> None:
     reason_str = str(tc["args"]["query_grounding_reason"])
     assert "TK-8802" in reason_str
     assert "multiple business entities" in reason_str
-

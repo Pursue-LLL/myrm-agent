@@ -363,16 +363,16 @@ def build_checklist(records: list[CallRecord], workspace_root: str | None = None
             if store:
                 incomplete = store.incomplete_todos()
                 if incomplete:
-                    blocked_items = [item for item in incomplete if item.status.value == "blocked"]
-                    actionable_items = [item for item in incomplete if item.status.value != "blocked"]
+                    blocked_items = [todo for todo in incomplete if todo.status.value == "blocked"]
+                    actionable_items = [todo for todo in incomplete if todo.status.value != "blocked"]
 
                     if has_writes:
                         has_critical_errors = True
                         lines.append("  CRITICAL: You have incomplete todos in your task list!")
                     else:
                         lines.append("  WARNING: You have incomplete todos in your task list.")
-                    for item in incomplete:
-                        lines.append(f" - Todo {item.id}: {item.content} (Status: {item.status.value})")
+                    for todo in incomplete:
+                        lines.append(f" - Todo {todo.id}: {todo.content} (Status: {todo.status.value})")
                     if has_writes:
                         if actionable_items:
                             lines.append(
