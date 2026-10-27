@@ -1,8 +1,9 @@
 """A turn told to stop holds a resume back, whoever started it, checked against the real gateway.
 
-A goal turn the server starts on its own (a follow-up after a finished turn, a resume, a wake after a background
-job) has no cancel token and no message id; only the chat turn of a sent message has both. Both are stopped by a
-pause, and a resume right after must wait for either, not only for the one with a token.
+The chat turn of a sent message and a goal turn the server starts carry a message id and a registered cancel
+token. The auto-resume after an approval timeout carries neither and is stopped through the gateway's interrupt
+signal alone. A pause stops all of them, and a resume right after must wait for any of them, not only for the
+one with a token.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ class _Turns:
         self._message_ids: list[str] = []
 
     async def start(self, session_id: str, *, chat_turn: bool) -> _Turn:
-        """A chat turn has a message id and a registered token; a server-started one has neither."""
+        """A chat turn has a message id and a registered token; the other kind has neither."""
         message_id: str | None = None
         if chat_turn:
             message_id = f"msg-{uuid.uuid4().hex[:8]}"
@@ -110,7 +111,7 @@ async def _active_goal(session_id: str) -> Goal:
     return await GoalRegistry.get_or_create_provider(session_id).create_goal(session_id, "Ship the report")
 
 
-@pytest.mark.parametrize("chat_turn", [False, True], ids=["started_by_server", "chat_turn"])
+@pytest.mark.parametrize("chat_turn", [False, True], ids=["tokenless_turn", "chat_turn"])
 async def test_a_turn_told_to_stop_is_stopping_until_it_winds_down(turns: _Turns, session_id: str, chat_turn: bool) -> None:
     goal = await _active_goal(session_id)
     turn = await turns.start(session_id, chat_turn=chat_turn)
@@ -124,7 +125,7 @@ async def test_a_turn_told_to_stop_is_stopping_until_it_winds_down(turns: _Turns
     assert not goal_controls.is_turn_stopping(session_id)
 
 
-@pytest.mark.parametrize("chat_turn", [False, True], ids=["started_by_server", "chat_turn"])
+@pytest.mark.parametrize("chat_turn", [False, True], ids=["tokenless_turn", "chat_turn"])
 async def test_a_turn_that_was_not_told_to_stop_does_not_hold_a_resume_back(
     turns: _Turns, session_id: str, chat_turn: bool
 ) -> None:
@@ -146,7 +147,7 @@ async def test_the_turn_after_a_stopped_one_is_not_stopping(turns: _Turns, sessi
     assert not goal_controls.is_turn_stopping(session_id)
 
 
-@pytest.mark.parametrize("chat_turn", [False, True], ids=["started_by_server", "chat_turn"])
+@pytest.mark.parametrize("chat_turn", [False, True], ids=["tokenless_turn", "chat_turn"])
 async def test_resume_right_after_pause_waits_for_the_turn_then_starts_one_turn(
     api: httpx.AsyncClient, goal_stream_trigger: AsyncMock, turns: _Turns, session_id: str, chat_turn: bool
 ) -> None:

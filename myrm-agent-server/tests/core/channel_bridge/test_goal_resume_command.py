@@ -117,8 +117,8 @@ async def test_resume_is_refused_while_the_stopped_turn_never_finishes(
     assert await ChannelGoalCommandHandler().get_resume_kickoff_message(_message()) is None
 
 
-async def test_resume_is_refused_while_a_turn_the_server_started_is_still_stopping(chat_id: str, gateway: MagicMock) -> None:
-    """A turn the server started has no message and no cancel token; the interrupt signal is its only mark."""
+async def test_resume_is_refused_while_a_turn_without_a_token_is_still_stopping(chat_id: str, gateway: MagicMock) -> None:
+    """A turn without a message id and a cancel token (the auto-resume after an approval timeout) is marked by the interrupt signal alone."""
     goal_id = await _paused_goal(chat_id)
     gateway.is_session_active.return_value = True
     gateway.is_session_interrupted.return_value = True

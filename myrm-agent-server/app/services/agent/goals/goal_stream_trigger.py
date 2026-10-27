@@ -1,8 +1,10 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, gateway (AgentBusyError), unattended_goal_failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
+[INPUT] streaming, gateway (session reservation), CancellationRegistry, unattended_goal_failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*
-[POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
+[POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile. The turn
+takes its session and registers a cancel token before its agent is built, like a chat turn does, so a pause,
+the chat Stop button and the emergency stop reach it.
 """
 
 from __future__ import annotations
@@ -10,8 +12,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken
 
 from app.services.agent.goals.unattended_goal_failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
 
@@ -130,7 +135,7 @@ async def trigger_goal_stream(
         resolve_model_config,
     )
     from app.core.security.privacy_settings import privacy_agent_params
-    from app.services.agent.gateway import AgentBusyError
+    from app.services.agent.gateway import AgentBusyError, AgentDrainingError, get_agent_gateway
     from app.services.agent.streaming import ai_agent_service_stream
 
     logger.info(
@@ -252,6 +257,8 @@ async def trigger_goal_stream(
     inject_event_log_config(params, session_id_override=goal_event_log_sid)
 
     async def _run_stream() -> None:
+        gateway = get_agent_gateway()
+        turn_id = f"goal-turn-{uuid.uuid4().hex}"
         try:
             from app.services.agent.execution_cache.types import ExecutionMode
             from app.services.agent.runtime_context import build_agent_runtime_context
@@ -260,12 +267,16 @@ async def trigger_goal_stream(
                 execution_mode=ExecutionMode.POOLED,
                 base={"goal_provider": provider} if provider is not None else None,
             )
-            async for _ in ai_agent_service_stream(params, extra_context=extra_context):
+            # The session and the token are taken before the agent is built, as a chat turn does, so a pause, the
+            # chat Stop button and the emergency stop find this turn from the start. A turn that took the session
+            # first (a message, or an earlier start of this goal) carries the goal on.
+            gateway.reserve_session(session_id, active_message_id=turn_id)
+            cancel_token = CancellationToken(request_id=turn_id)
+            CancellationRegistry.register(cancel_token)
+            async for _ in ai_agent_service_stream(params, cancel_token=cancel_token, extra_context=extra_context):
                 pass
-        except AgentBusyError:
-            # The session is claimed only once the agent is built, so a second start of this goal, or a message
-            # sent meanwhile, can take it first. That turn carries the goal on: this start is not a failure.
-            logger.info("Goal %s: session %s already has a turn, %s not started", goal.goal_id, session_id, context)
+        except (AgentBusyError, AgentDrainingError) as exc:
+            logger.info("Goal %s: %s not started: %s", goal.goal_id, context, exc)
         except Exception as e:
             logger.error(
                 "Background goal stream failed for goal %s: %s",
@@ -281,6 +292,11 @@ async def trigger_goal_stream(
                 context=context,
             )
         finally:
+            CancellationRegistry.unregister(turn_id)
+            # Gives back a reservation the stream never took over; the stream's own end clears the rest. The turn
+            # id keeps this from releasing the reservation of a message that took the session in the meantime.
+            if gateway.get_active_message_id(session_id) == turn_id:
+                gateway.release_if_reserved_only(session_id)
             _running_goal_tasks.discard(task)
 
     task = asyncio.create_task(_run_stream())

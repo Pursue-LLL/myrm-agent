@@ -89,8 +89,9 @@ def can_start_goal_turn(session_id: str) -> bool:
 def is_turn_stopping(session_id: str) -> bool:
     """Whether the turn running in the session was told to stop and has not wound down yet.
 
-    A chat turn is stopped through its message's cancel token; a turn the server started on its own has no
-    token, and is stopped through the gateway's interrupt signal alone. Either one means it is still winding down.
+    A turn is stopped through its message's cancel token: a chat turn has its own, and a goal turn the server
+    starts registers one before its agent is built. A turn without one (the auto-resume after an approval
+    timeout) is stopped through the gateway's interrupt signal alone. Either one means it is still winding down.
     """
     gateway = get_agent_gateway()
     message_id = gateway.get_active_message_id(session_id)
