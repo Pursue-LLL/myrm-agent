@@ -61,9 +61,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
-from app.core.infra.limiter import limiter
 from app.core.security.share.share_attempt_guard import (
     password_lockout_response,
     record_password_failure,
@@ -205,7 +203,6 @@ class CreateChatShareResponse(BaseModel):
 
 
 @router.post("/{chat_id}/share", response_model=CreateChatShareResponse)
-@limiter.limit(settings.rate_limit.chat)
 async def create_chat_share(
     request: Request,
     chat_id: str,
@@ -255,9 +252,7 @@ async def create_chat_share(
 
 
 @router.delete("/{chat_id}/share", status_code=204)
-@limiter.limit(settings.rate_limit.chat)
 async def revoke_chat_share(
-    request: Request,
     chat_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
@@ -293,7 +288,6 @@ class ChatShareStatusResponse(BaseModel):
 
 
 @router.get("/{chat_id}/share", response_model=ChatShareStatusResponse)
-@limiter.limit(settings.rate_limit.chat)
 async def get_chat_share_status(
     request: Request,
     chat_id: str,
@@ -340,7 +334,6 @@ async def get_chat_share_status(
 
 @public_router.get("/{token}")
 @public_router.post("/{token}")
-@limiter.limit("30/minute")
 async def get_public_chat_share(
     request: Request,
     token: str,

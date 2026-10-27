@@ -1,8 +1,6 @@
 """MCP Registry search/detail proxy and localhost connectivity probe endpoints.
 
 [INPUT]
-- app.config.settings::settings (POS: Server configuration)
-- app.core.infra.limiter::limiter (POS: Rate limiter)
 - app.core.utils.errors::external_service_error, validation_error (POS: Error response helpers)
 - app.core.utils.response_utils::success_response (POS: Standard JSON response builder)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: Deployment mode capabilities)
@@ -33,8 +31,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.utils.errors import external_service_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
@@ -111,7 +107,6 @@ class RegistryDetailData(BaseModel):
 
 
 @router.get("/registry/search", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def registry_search(
     request: Request,
     q: str = Query("", description="Search query"),
@@ -148,7 +143,6 @@ async def registry_search(
 
 
 @router.get("/registry/detail/{qualified_name:path}", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def registry_detail(
     request: Request,
     qualified_name: str,
@@ -310,7 +304,6 @@ def _is_network_unreachable_connect_error(exc: Exception) -> bool:
 
 
 @router.post("/probe", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONResponse:
     """Probe a local MCP server URL for reachability before connecting."""
     _ = request

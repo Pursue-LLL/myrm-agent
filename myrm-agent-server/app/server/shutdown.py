@@ -6,7 +6,6 @@
 - app.core.cron.adapters.setup (POS: Cron Scheduler 管理)
 
 [OUTPUT]
-- stop_rate_limiter_cleanup: 停止限流器清理
 - safe_stop_cron: 安全停止 Cron Scheduler
 - safe_stop_gateway: 安全停止 Channel Gateway
 - safe_stop_task_worker: 安全停止任务 Worker
@@ -26,16 +25,6 @@ import logging
 from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
-
-
-async def stop_rate_limiter_cleanup() -> None:
-    try:
-        from app.core.infra.limiter import limiter
-
-        await limiter.stop_cleanup()
-        logger.info("[Shutdown] Rate limiter cleanup task stopped")
-    except Exception as e:
-        logger.error("[Shutdown] Rate limiter cleanup task stop failed: %s", e)
 
 
 async def safe_stop_cron() -> None:

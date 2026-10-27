@@ -15,7 +15,8 @@
 Generates follow-up question suggestions from recent chat history using the
 configured lite/filter model. Falls back to default model if no lite model set.
 A suggestion is sent as the user's own message when clicked, so the model's reply is validated like user
-input, and the call runs inside a fixed cost envelope: bounded output tokens, bounded conversation window.
+input, and the call is bounded: capped output tokens, capped conversation window. It runs once per finished reply
+and the client decides when to call it; the server applies no per-client call limit.
 The model answers with an empty array when the last message only closes the conversation: a valid reply that
 offers nothing, unlike a reply with no usable label, which is logged.
 """
@@ -27,14 +28,12 @@ import unicodedata
 from collections.abc import Iterable
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_list
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.types import ModelConfig
 from app.core.utils.chat_utils import extract_answer_text
 
@@ -82,10 +81,8 @@ class SuggestionsRequest(BaseModel):
 
 
 @router.post("/suggestions")
-@limiter.limit(settings.rate_limit.chat)
 async def get_suggestions(
     request: SuggestionsRequest,
-    http_request: Request,
 ) -> JSONResponse:
     """Generate follow-up question suggestions using the filter model."""
     from app.core.channel_bridge.config_loader import load_user_configs

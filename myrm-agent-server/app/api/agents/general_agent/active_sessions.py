@@ -7,7 +7,6 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.core.infra.limiter import limiter
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.gateway import get_agent_gateway
 
@@ -95,10 +94,7 @@ async def attach_to_chat(
 
 
 @router.get("/active-sessions")
-@limiter.limit("30/minute")
-async def get_active_sessions(
-    request: Request,
-) -> JSONResponse:
+async def get_active_sessions() -> JSONResponse:
     """Get active agent sessions for Multi-Pane status overview.
 
     Returns running sessions and available concurrent execution slots.

@@ -18,14 +18,12 @@ import asyncio
 import logging
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
 from pydantic import BaseModel, SecretStr
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.services.agent.params.providers import (
     _find_provider_api_key,
     _resolve_image_api_key_provider,
@@ -138,10 +136,8 @@ async def _probe_volcengine_tts(api_key: str, model: str) -> tuple[bool, str]:
 
 
 @router.post("/test-media-config")
-@limiter.limit(settings.rate_limit.chat)
 async def test_media_config(
     request: TestMediaConfigRequest,
-    http_request: Request,
 ) -> JSONResponse:
     """Test media generation config by verifying API key and provider connectivity."""
     from app.core.utils.response_utils import error_response, success_response
@@ -238,10 +234,7 @@ async def test_media_config(
 
 
 @router.get("/media-provider-status")
-@limiter.limit(settings.rate_limit.chat)
-async def media_provider_status(
-    http_request: Request,
-) -> JSONResponse:
+async def media_provider_status() -> JSONResponse:
     """Return availability status for all video providers (has API key + health check)."""
     from app.core.utils.response_utils import success_response
 

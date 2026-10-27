@@ -4,7 +4,6 @@
 - app.services.theme.package.inspect_service::inspect_theme_package (POS: ZIP 安全解包与 recipe 校验)
 - app.services.theme.package.install_service::install_theme_package (POS: 会话消费与 FilesService 资产落盘)
 - app.services.theme.package.export_service::export_theme_package (POS: profile + file: 资产打包 ZIP)
-- app.core.infra.limiter::limiter (POS: 上传速率限制)
 
 [OUTPUT]
 - POST /theme/packages/inspect — 上传 .myrmtheme，返回预览会话与缩略图
@@ -21,13 +20,11 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
@@ -104,9 +101,7 @@ class ThemePackageExportRequest(BaseModel):
 
 
 @router.post("/packages/inspect", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def inspect_package(
-    request: Request,
     file: UploadFile = File(..., description=".myrmtheme ZIP package"),
 ) -> JSONResponse:
     content = await file.read()
@@ -140,9 +135,7 @@ async def inspect_package(
 
 
 @router.post("/packages/install", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def install_package(
-    request: Request,
     body: ThemePackageInstallRequest,
 ) -> JSONResponse:
     try:
@@ -160,9 +153,7 @@ async def install_package(
 
 
 @router.post("/packages/export")
-@limiter.limit(settings.rate_limit.file_upload)
 async def export_package(
-    request: Request,
     body: ThemePackageExportRequest,
 ) -> Response:
     try:
@@ -176,9 +167,7 @@ async def export_package(
 
 
 @router.post("/packages/install-from-marketplace", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def install_from_marketplace(
-    request: Request,
     listing_id: Annotated[str, Form()],
     package_sha256: Annotated[str, Form()],
     transport_signature: Annotated[str, Form()],

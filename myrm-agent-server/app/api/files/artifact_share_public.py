@@ -47,7 +47,6 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
-from app.core.infra.limiter import limiter
 from app.core.security.share.share_attempt_guard import (
     password_lockout_response,
     record_password_failure,
@@ -298,7 +297,6 @@ async def _ensure_not_revoked(
 
 @public_router.get("/{token}", response_model=None)
 @public_router.post("/{token}", response_model=None)
-@limiter.limit("30/minute")
 async def get_public_artifact_share(
     request: Request,
     token: str,
@@ -344,7 +342,6 @@ async def get_public_artifact_share(
 
 @public_router.get("/{token}/")
 @public_router.post("/{token}/")
-@limiter.limit("30/minute")
 async def get_public_artifact_share_index(
     request: Request,
     token: str,
@@ -371,7 +368,6 @@ async def get_public_artifact_share_index(
 
 @public_router.get("/{token}/{asset_path:path}")
 @public_router.post("/{token}/{asset_path:path}")
-@limiter.limit("60/minute")
 async def get_public_artifact_share_asset(
     request: Request,
     token: str,

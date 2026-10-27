@@ -102,17 +102,6 @@ async def _init_integration_memory() -> None:
         logger.warning("[Startup] IntegrationMemoryService init failed (non-critical): %s", exc)
 
 
-async def _start_rate_limiter_cleanup() -> None:
-    try:
-        from app.core.infra.limiter import limiter
-
-        await limiter.start_cleanup()
-        logger.info("[Startup] Rate limiter cleanup task started")
-    except Exception as e:
-        logger.error("[Startup] Rate limiter cleanup task failed to start: %s", e)
-        raise
-
-
 async def _recover_incomplete_memory_import_rollbacks() -> None:
     """Resume memory import rollbacks that were journaled before interruption."""
 
@@ -231,7 +220,6 @@ async def run_async_warmup() -> None:
             start_db_maintenance_scheduler(),
             start_login_session_cleanup_scheduler(),
             start_maintenance_scheduler(),
-            _start_rate_limiter_cleanup(),
             start_approval_ttl_scheduler(),
             start_cancellation_cleanup_scheduler(),
             start_memory_guardian_scheduler(),

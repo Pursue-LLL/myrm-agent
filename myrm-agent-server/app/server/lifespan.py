@@ -67,7 +67,6 @@ from app.server.shutdown import (
     safe_stop_maintenance_daemon,
     safe_stop_task_worker,
     safe_wait_background_tasks,
-    stop_rate_limiter_cleanup,
 )
 from app.server.warmup import run_async_warmup
 from app.services.agent.evolution.evolution_runtime import (
@@ -893,7 +892,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
         stop_remote_backup_scheduler(),
         safe_stop_task_worker(),
         safe_stop_maintenance_daemon(),
-        stop_rate_limiter_cleanup(),
         safe_wait_background_tasks(),
         safe_shutdown_observability(),
         shutdown_evolution_runtime(),

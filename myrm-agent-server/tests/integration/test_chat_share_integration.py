@@ -28,7 +28,6 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.chats.chat.share import public_router, router
 from app.core.infra.ingress import invalidate_public_ingress_cache
-from app.core.infra.limiter import limiter
 from app.core.security.share.share_hmac import sign_share_token
 from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
@@ -58,7 +57,6 @@ async def db_engine():
 @pytest.fixture()
 def client(db_engine) -> TestClient:
     """Real-DB FastAPI app with the chat share routers wired in."""
-    limiter.enabled = False
     invalidate_public_ingress_cache()
     TestSessionLocal = sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -87,8 +85,6 @@ def client(db_engine) -> TestClient:
     ):
         with TestClient(test_app) as test_client:
             yield test_client
-
-    limiter.enabled = True
 
 
 def _insert_chat(db_engine, *, chat_id: str = "chat-1") -> None:

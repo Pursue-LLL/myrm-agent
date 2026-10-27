@@ -25,14 +25,12 @@ import logging
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
 from app.config.deploy_mode import is_local_mode
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.storage import files_service
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
@@ -119,10 +117,8 @@ async def _resolve_document_path(
 
 
 @router.post("/extract-document", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def extract_document(
     body: DocumentExtractRequest,
-    request: Request,
 ) -> JSONResponse:
     """Extract text from a document (.docx, .xlsx, .xls, .pptx, .ppt, .ipynb).
 

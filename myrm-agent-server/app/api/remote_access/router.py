@@ -19,7 +19,6 @@ from app.api.remote_access.schemas import (
     TunnelStartRequest,
 )
 from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.remote_access.e2ee import (
     e2ee_success_response,
@@ -63,8 +62,7 @@ async def e2ee_public_key() -> dict[str, object]:
 
 
 @router.post("/e2ee/handshake")
-@limiter.limit("30/minute")
-async def e2ee_handshake(body: E2EEHelloRequest, request: Request) -> dict[str, object]:
+async def e2ee_handshake(body: E2EEHelloRequest) -> dict[str, object]:
     if body.type != "e2ee_hello":
         raise HTTPException(status_code=400, detail="Expected e2ee_hello")
     keypair = load_or_create_daemon_keypair()
@@ -240,7 +238,6 @@ async def mobile_spawn_options(
 
 
 @router.post("/mobile/spawn")
-@limiter.limit("30/minute")
 async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, object]:
     """Create a new chat session from Mobile Hub and return a scoped pair token."""
     require_remote_access_gate(request)
@@ -335,7 +332,6 @@ async def mobile_takeover_snapshot(
 
 
 @router.post("/node/events")
-@limiter.limit("60/minute")
 async def receive_node_event(body: NodeEventRequest, request: Request) -> dict[str, object]:
     """Ingest a system event from a paired mobile node or external automation.
 

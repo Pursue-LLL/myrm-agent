@@ -1,5 +1,4 @@
 import uuid
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -9,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.files.hosting_api import router as hosting_router
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.database.models.artifact_publication import ArtifactPublication
@@ -55,19 +53,8 @@ def _patch_resolve_deploy_files(artifact: Artifact, files: dict[str, PublishFile
     )
 
 
-@pytest.fixture(autouse=True)
-def bypass_rate_limit():
-    with patch(
-        "app.core.infra.limiter.limiter._limiter.check",
-        new_callable=AsyncMock,
-        return_value=SimpleNamespace(allowed=True, retry_after_seconds=None),
-    ):
-        yield
-
-
 @pytest.fixture
 def hosting_client(db_session) -> TestClient:
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(hosting_router)
 
@@ -77,7 +64,6 @@ def hosting_client(db_session) -> TestClient:
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as test_client:
         yield test_client
-    limiter.enabled = True
 
 
 @pytest.fixture

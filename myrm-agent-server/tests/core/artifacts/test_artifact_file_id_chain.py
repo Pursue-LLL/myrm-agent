@@ -13,7 +13,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.files.hosting_api import router as hosting_router
 from app.core.artifacts.listener import ensure_artifact_for_deploy, upsert_processor_artifact
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion
@@ -38,7 +37,6 @@ async def db_session() -> AsyncSession:
 
 @pytest.fixture
 def publish_client(db_session: AsyncSession) -> TestClient:
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(hosting_router)
 
@@ -48,7 +46,6 @@ def publish_client(db_session: AsyncSession) -> TestClient:
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as test_client:
         yield test_client
-    limiter.enabled = True
 
 
 @pytest.mark.asyncio

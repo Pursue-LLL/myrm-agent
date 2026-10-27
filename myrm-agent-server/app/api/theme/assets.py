@@ -2,7 +2,6 @@
 
 [INPUT]
 app.config.settings::settings (POS: 全局配置)
-app.core.infra.limiter::limiter (POS: 限流器)
 app.core.storage::files_service (POS: 文件存储服务)
 
 [OUTPUT]
@@ -22,7 +21,6 @@ from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
 from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.storage import files_service
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
@@ -78,7 +76,6 @@ def _build_content_url(request: Request, file_id: str) -> str:
 
 
 @router.post("/assets/upload", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def upload_theme_asset(
     request: Request,
     file: UploadFile = Form(..., description="Theme hero/poster media"),

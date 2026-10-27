@@ -25,7 +25,6 @@ from app.api.files.artifact_share_public import (
     _unlock_claims_from_cookie,
     public_router,
 )
-from app.core.infra.limiter import limiter
 from app.core.security.share.share_hmac import create_share_token, sign_share_token
 from app.core.security.share.share_unlock import build_unlock_credential, unlock_cookie_name
 from app.database.connection import get_db
@@ -72,7 +71,6 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(share_router)
     test_app.include_router(public_router, prefix="/public/artifact-share")
@@ -87,7 +85,6 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
     test_app.dependency_overrides[get_workspace_root] = override_workspace_root
     with TestClient(test_app) as test_client:
         yield test_client
-    limiter.enabled = True
 
 
 @pytest.fixture

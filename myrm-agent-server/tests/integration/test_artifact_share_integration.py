@@ -24,7 +24,6 @@ from sqlalchemy.pool import StaticPool
 from app.api.dependencies import get_workspace_root
 from app.api.files.artifact_share_api import router as share_router
 from app.api.files.artifact_share_public import public_router
-from app.core.infra.limiter import limiter
 from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models import Base
@@ -58,7 +57,6 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(share_router)
     test_app.include_router(public_router, prefix="/public/artifact-share")
@@ -73,7 +71,6 @@ def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestC
     test_app.dependency_overrides[get_workspace_root] = override_workspace_root
     with chats_bound_to_workspaces(default=tmp_path), TestClient(test_app) as test_client:
         yield test_client
-    limiter.enabled = True
 
 
 async def _seed_html_artifact(

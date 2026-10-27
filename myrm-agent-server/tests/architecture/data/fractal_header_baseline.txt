@@ -129,7 +129,6 @@ app/core/cron/push_store.py
 app/core/errors/llm_errors.py
 app/core/infra/cors_validator.py
 app/core/infra/frontend_launcher.py
-app/core/infra/limiter.py
 app/core/integrations/catalog/models.py
 app/core/integrations/catalog/registry.py
 app/core/kanban/adapters/sqlalchemy_store.py

@@ -10,8 +10,6 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.services.agent.params import AgentRequest
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import run_agent_stream
@@ -52,7 +50,6 @@ async def _risk_refusal(message: str, chat_id: str) -> JSONResponse | None:
 
 
 @router.post("/agent-stream", response_model=None)
-@limiter.limit(settings.rate_limit.chat)
 async def agent_stream(
     request: AgentRequest,
     http_request: Request,
@@ -79,10 +76,8 @@ class TestMediaConfigRequest(BaseModel):
 
 
 @router.post("/agent/{message_id}/cancel")
-@limiter.limit(settings.rate_limit.chat)
 async def cancel_agent_request(
     message_id: str,
-    http_request: Request,
 ) -> JSONResponse:
     from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
@@ -110,7 +105,6 @@ class SteerRequest(BaseModel):
 
 
 @router.post("/chats/{chat_id}/steer")
-@limiter.limit(settings.rate_limit.chat)
 async def steer_agent(
     chat_id: str,
     body: SteerRequest,
@@ -180,7 +174,6 @@ async def steer_agent(
 
 
 @router.get("/chats/{chat_id}/steer-metrics")
-@limiter.limit(settings.rate_limit.chat)
 async def steer_metrics(
     chat_id: str,
     http_request: Request,
@@ -196,7 +189,6 @@ async def steer_metrics(
 
 
 @router.post("/chats/{chat_id}/redirect")
-@limiter.limit(settings.rate_limit.chat)
 async def redirect_agent(
     chat_id: str,
     body: SteerRequest,
@@ -223,7 +215,6 @@ async def redirect_agent(
 
 
 @router.post("/chats/{chat_id}/cancel")
-@limiter.limit(settings.rate_limit.chat)
 async def cancel_active_chat_agent(
     chat_id: str,
     http_request: Request,

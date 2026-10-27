@@ -17,13 +17,11 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db, get_session
 from app.services.hosting.credentials import (
     get_target_credential_status,
@@ -227,9 +225,7 @@ async def publish_preflight(
 
 
 @router.post("/{artifact_id}/publish")
-@limiter.limit(settings.rate_limit.artifact_deploy)
 async def publish_artifact(
-    request: Request,
     artifact_id: str,
     body: PublishRequest,
     db: AsyncSession = Depends(get_db),

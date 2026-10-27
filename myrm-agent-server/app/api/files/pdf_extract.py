@@ -14,15 +14,13 @@ import logging
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFExtractConfig
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from pydantic.alias_generators import to_camel
 
 from app.config.deploy_mode import is_local_mode
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.storage import files_service
 from app.core.storage.chat_bound import pdf_extract_source
 from app.core.utils.errors import not_found_error, validation_error
@@ -181,10 +179,8 @@ async def _resolve_pdf_path(body: PDFExtractRequest) -> Path:
 
 
 @router.post("/extract-pdf", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def extract_pdf(
     body: PDFExtractRequest,
-    request: Request,
 ) -> JSONResponse:
     """Extract text and/or images from a PDF file.
 

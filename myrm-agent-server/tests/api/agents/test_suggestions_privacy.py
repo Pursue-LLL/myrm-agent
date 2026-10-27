@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import inspect
 import json
 from collections.abc import Iterator
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.agent.middlewares.security.outbound_privacy_guard import set_process_privacy_policy
@@ -48,7 +47,7 @@ async def _suggest(personal_settings: dict[str, object]) -> str:
         ),
         patch("myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config", new=AsyncMock(return_value=llm)),
     ):
-        response = await inspect.unwrap(get_suggestions)(request=request, http_request=MagicMock())
+        response = await get_suggestions(request=request)
 
     assert json.loads(response.body)["data"]["suggestions"] == _REPLY
     return "\n".join(sent)

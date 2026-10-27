@@ -7,7 +7,6 @@
 - C4: SecretStr 字段
 - C5: field_validator (port / pool_size / busy_timeout)
 - C6: config_summary() 脱敏
-- C7: RateLimitSettings.register_limit validation_alias
 - C8: LLMProvider / get_provider / get_provider_cache_config
 - C9: 嵌套子配置独立性
 """
@@ -22,7 +21,6 @@ from app.config.settings import (
     DatabaseSettings,
     LLMProvider,
     McpSettings,
-    RateLimitSettings,
     WebUISettings,
 )
 
@@ -67,12 +65,6 @@ class TestDefaultValues:
         assert s.mcp.require_https is True
         assert s.mcp.max_response_size == 10 * 1024 * 1024
 
-    def test_rate_limit_defaults(self) -> None:
-        s = _make_settings()
-        assert s.rate_limit.chat == "30/minute;500/hour"
-        assert s.rate_limit.register_limit == "3/hour"
-        assert s.rate_limit.webhook == "60/minute;300/hour"
-
     def test_agent_gateway_defaults(self) -> None:
         s = _make_settings()
         assert s.agent.max_concurrent == 20
@@ -89,9 +81,7 @@ class TestDefaultValues:
         assert s.sqlite_pool_size == 5
         assert s.sqlite_busy_timeout_ms == 30000
 
-    def test_database_path_defaults_derive_from_state_dir(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_database_path_defaults_derive_from_state_dir(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MEMORY_BASE_PATH", raising=False)
         monkeypatch.delenv("EVENT_LOG_DIR", raising=False)
         db = DatabaseSettings()
@@ -363,29 +353,6 @@ class TestConfigSummary:
 
 
 # ---------------------------------------------------------------------------
-# C7: RateLimitSettings validation_alias
-# ---------------------------------------------------------------------------
-
-
-class TestRateLimitAlias:
-    def test_register_alias_from_env(self) -> None:
-        old = os.environ.get("RATE_LIMIT_REGISTER")
-        os.environ["RATE_LIMIT_REGISTER"] = "10/hour"
-        try:
-            rl = RateLimitSettings()
-            assert rl.register_limit == "10/hour"
-        finally:
-            if old is None:
-                os.environ.pop("RATE_LIMIT_REGISTER", None)
-            else:
-                os.environ["RATE_LIMIT_REGISTER"] = old
-
-    def test_register_default(self) -> None:
-        rl = RateLimitSettings()
-        assert rl.register_limit == "3/hour"
-
-
-# ---------------------------------------------------------------------------
 # C8: LLMProvider helpers
 # ---------------------------------------------------------------------------
 
@@ -445,10 +412,6 @@ class TestSubConfigIsolation:
     def test_webui_independent(self) -> None:
         webui = WebUISettings()
         assert webui.port == 25808
-
-    def test_rate_limit_independent(self) -> None:
-        rl = RateLimitSettings()
-        assert rl.chat == "30/minute;500/hour"
 
 
 # ---------------------------------------------------------------------------

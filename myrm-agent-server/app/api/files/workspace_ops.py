@@ -12,8 +12,6 @@ compare-and-swap save) lives in workspace_text.py on top of the same guards.
 - myrm_agent_harness.core.security.path::is_within_boundary
 - myrm_agent_harness.core.security.path::is_dangerous_path
 - myrm_agent_harness.core.security.path::is_sensitive_file
-- app.config.settings::settings.rate_limit.file_upload
-- app.core.infra.limiter::limiter
 - app.core.utils.errors::validation_error
 - app.core.utils.response_utils::success_response
 
@@ -35,12 +33,10 @@ import os
 import re
 import shutil
 
-from fastapi import APIRouter, Form, Query, Request, UploadFile
+from fastapi import APIRouter, Form, Query, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 
@@ -167,9 +163,7 @@ def _count_entries(path: str) -> int:
 
 
 @router.post("/browse/upload", response_model=None)
-@limiter.limit(settings.rate_limit.file_upload)
 async def upload_to_workspace(
-    request: Request,
     workspace: str = Query(..., description="Workspace root path"),
     target_dir: str = Query("", description="Target directory (relative to workspace, empty = root)"),
     files: list[UploadFile] = Form(..., description="Files to upload"),

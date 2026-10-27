@@ -31,16 +31,14 @@ from __future__ import annotations
 import logging
 from calendar import timegm
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
-from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share.share_bundle import materialize_share_bundle
@@ -131,9 +129,7 @@ def _record_share_path(row: ActiveShareRow) -> str | None:
 
 
 @router.post("/{artifact_id}/share-preview", response_model=CreateArtifactShareResponse)
-@limiter.limit(settings.rate_limit.artifact_deploy)
 async def create_artifact_share_preview(
-    request: Request,
     artifact_id: str,
     body: CreateArtifactShareRequest,
     db: AsyncSession = Depends(get_db),

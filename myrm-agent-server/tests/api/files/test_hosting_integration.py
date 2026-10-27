@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -15,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.files.hosting_api import router as hosting_router
 from app.core.artifacts.listener import upsert_processor_artifact
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact_publication import ArtifactPublication
 from app.services.hosting.targets import save_hosting_targets
@@ -29,21 +27,10 @@ def _public_dns(*_args: object, **_kwargs: object) -> list[tuple[int, int, int, 
     return [(2, 1, 6, "", ("8.8.8.8", 0))]
 
 
-@pytest.fixture(autouse=True)
-def bypass_rate_limit():
-    with patch(
-        "app.core.infra.limiter.limiter._limiter.check",
-        new_callable=AsyncMock,
-        return_value=SimpleNamespace(allowed=True, retry_after_seconds=None),
-    ):
-        yield
-
-
 @pytest.fixture
 def hosting_integration_client(db_session: AsyncSession, tmp_path, monkeypatch) -> TestClient:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(hosting_router)
 
@@ -58,8 +45,6 @@ def hosting_integration_client(db_session: AsyncSession, tmp_path, monkeypatch) 
 
     with chats_bound_to_workspaces({_CHAT_ID: workspace}), TestClient(test_app) as test_client:
         yield test_client, workspace, db_session
-
-    limiter.enabled = True
 
 
 async def _seed_webhook_target(db_session: AsyncSession, target_id: str) -> None:

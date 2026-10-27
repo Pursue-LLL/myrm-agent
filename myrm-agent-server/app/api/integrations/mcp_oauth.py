@@ -28,7 +28,7 @@ import secrets
 import time
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
 from myrm_agent_harness.toolkits.mcp.oauth import (
     MCPOAuthConfig,
@@ -38,7 +38,6 @@ from myrm_agent_harness.toolkits.mcp.oauth import (
 )
 from pydantic import BaseModel, Field
 
-from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.services.agent.backends.mcp_oauth_store import get_mcp_oauth_token_store
 
@@ -107,8 +106,7 @@ class MCPOAuthCallbackRequest(BaseModel):
 
 
 @router.post("/start")
-@limiter.limit("10/minute")
-async def start_mcp_oauth(body: MCPOAuthStartRequest, request: Request) -> JSONResponse:
+async def start_mcp_oauth(body: MCPOAuthStartRequest) -> JSONResponse:
     """Start MCP OAuth authorization flow.
 
     Generates a PKCE code pair, persists the state, and returns the
@@ -154,9 +152,7 @@ async def start_mcp_oauth(body: MCPOAuthStartRequest, request: Request) -> JSONR
 
 
 @router.get("/callback")
-@limiter.limit("10/minute")
 async def handle_mcp_oauth_callback(
-    request: Request,
     code: str,
     state: str,
     error: str | None = None,

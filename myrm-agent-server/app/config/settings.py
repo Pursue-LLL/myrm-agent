@@ -13,7 +13,7 @@
     仅进程级 [P] 与运维级 [O] 字段可通过环境变量覆盖（完整清单见 .env.example AppSettings index）。
     LLM / Embedding / Search 等业务配置必须在 WebUI Settings（DB）或 harness 实例注入中配置。
     [S] 见 .env.sandbox.example；[T] 见 .env.test.example（pytest only）。
-    子配置使用各自的 env_prefix（如 RATE_LIMIT_*, MCP_* 等）。
+    子配置使用各自的 env_prefix（如 MCP_*, GLOBAL_BROWSER_POOL_* 等）。
 """
 
 from enum import Enum
@@ -196,28 +196,6 @@ class McpSettings(BaseSettings):
     enable_ssrf_protection: bool = True  # MCP_ENABLE_SSRF_PROTECTION
     verify_timeout: int = 10  # MCP_VERIFY_TIMEOUT (seconds)
     max_response_size: int = 10 * 1024 * 1024  # MCP_MAX_RESPONSE_SIZE (bytes)
-
-
-# ---------------------------------------------------------------------------
-# [O] Rate limits — env prefix: RATE_LIMIT_
-# ---------------------------------------------------------------------------
-
-
-class RateLimitSettings(BaseSettings):
-    """SlowAPI rate-limit rules (semicolon-separated windows)."""
-
-    model_config = SettingsConfigDict(env_prefix="RATE_LIMIT_", populate_by_name=True)
-
-    mcp_verify: str = "10/minute;100/hour"  # RATE_LIMIT_MCP_VERIFY
-    chat: str = "30/minute;500/hour"  # RATE_LIMIT_CHAT
-    file_upload: str = "10/hour"  # RATE_LIMIT_FILE_UPLOAD
-    login: str = "5/minute;20/hour"  # RATE_LIMIT_LOGIN
-    register_limit: str = Field(
-        default="3/hour",
-        validation_alias="RATE_LIMIT_REGISTER",
-    )
-    webhook: str = "60/minute;300/hour"  # RATE_LIMIT_WEBHOOK
-    artifact_deploy: str = "20/hour"  # RATE_LIMIT_ARTIFACT_DEPLOY
 
 
 # ---------------------------------------------------------------------------
@@ -611,7 +589,6 @@ class AppSettings(BaseSettings):
     monitoring: MonitoringSettings = Field(default_factory=MonitoringSettings)
     channel_dingtalk: DingTalkChannelSettings = Field(default_factory=DingTalkChannelSettings)
     mcp: McpSettings = Field(default_factory=McpSettings)
-    rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
     browser_pool: BrowserPoolSettings = Field(default_factory=BrowserPoolSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     code_execution: CodeExecutionSettings = Field(default_factory=CodeExecutionSettings)
@@ -716,7 +693,6 @@ __all__ = [
     "McpSettings",
     "PROVIDER_CACHE_CONFIGS",
     "ProviderCacheConfig",
-    "RateLimitSettings",
     "BashAuditSettings",
     "DingTalkChannelSettings",
     "MonitoringSettings",

@@ -28,7 +28,6 @@ from myrm_agent_harness.toolkits.mcp.oauth import generate_pkce_pair
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.integrations import google_workspace_oauth_flow as flow
-from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
@@ -66,7 +65,6 @@ async def get_google_workspace_oauth_config(request: Request) -> JSONResponse:
 
 
 @router.post("/start")
-@limiter.limit("10/minute")
 async def start_google_workspace_oauth(request: Request) -> JSONResponse:
     """Start Google Workspace OAuth authorization flow."""
     flow.require_oauth_configured()
@@ -103,9 +101,7 @@ async def start_google_workspace_oauth(request: Request) -> JSONResponse:
 
 
 @router.get("/callback")
-@limiter.limit("10/minute")
 async def handle_google_workspace_oauth_callback(
-    request: Request,
     code: str,
     state: str,
     db: AsyncSession = Depends(get_db),

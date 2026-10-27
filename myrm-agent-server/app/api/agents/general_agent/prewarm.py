@@ -21,8 +21,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
 
-from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.services.agent.execution_cache.prewarm.coordinator import get_turn_prewarm_coordinator
 from app.services.agent.execution_cache.prewarm.params import resolve_prewarm_agent_params
 
@@ -42,7 +40,6 @@ class TurnPrewarmRequest(BaseModel):
 
 
 @router.post("/chats/{chat_id}/prewarm")
-@limiter.limit(settings.rate_limit.chat)
 async def prewarm_chat_turn(
     chat_id: str,
     body: TurnPrewarmRequest,
@@ -72,7 +69,6 @@ async def prewarm_chat_turn(
 
 
 @router.delete("/chats/{chat_id}/prewarm")
-@limiter.limit(settings.rate_limit.chat)
 async def cancel_prewarm_chat_turn(
     chat_id: str,
     http_request: Request,

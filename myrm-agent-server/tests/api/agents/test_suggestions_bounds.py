@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 from collections.abc import Iterator
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.agent.middlewares.security.outbound_privacy_guard import set_process_privacy_policy
@@ -53,11 +52,7 @@ async def _call(
         patch("app.api.agents.suggestions._resolve_lite_model", new=lambda *_args: lite),
         patch("myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config", new=build_llm),
     ):
-        # Past the rate limiter: the endpoint itself is under test.
-        response = await inspect.unwrap(get_suggestions)(
-            request=SuggestionsRequest(chat_history=history),
-            http_request=MagicMock(),
-        )
+        response = await get_suggestions(request=SuggestionsRequest(chat_history=history))
 
     assert build_llm.await_args is not None
     return json.loads(response.body)["data"]["suggestions"], build_llm.await_args.args[0], "\n".join(sent)

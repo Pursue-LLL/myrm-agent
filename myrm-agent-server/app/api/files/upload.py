@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
 from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.storage import files_service
 from app.core.utils.errors import internal_error, validation_error
 from app.core.utils.response_utils import success_response
@@ -130,7 +129,6 @@ async def _stream_to_bytes(upload: UploadFile, max_bytes: int) -> bytes:
 
 
 @router.post("/upload", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.file_upload)
 async def upload_files(
     request: Request,
     files: list[UploadFile] = Form(..., description="要上传的文件列表"),

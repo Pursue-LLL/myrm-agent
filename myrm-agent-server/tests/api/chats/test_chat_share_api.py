@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 
 from app.api.chats.chat.share import public_router
 from app.api.chats.chat.share import router as share_router
-from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.dto import ChatDTO, MessageDTO
 
@@ -66,7 +65,6 @@ def _make_messages(chat_id: str = "chat-1") -> list[MessageDTO]:
 
 @pytest.fixture
 def share_client() -> TestClient:
-    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(share_router, prefix="/chats")
     test_app.include_router(public_router, prefix="/public/chat-share")

@@ -37,7 +37,6 @@ from app.api.integrations.mcp_probe_registry import (
     router as _probe_registry_router,
 )
 from app.config.settings import settings
-from app.core.infra.limiter import limiter
 from app.core.types import MCPServerConfig
 from app.core.utils.errors import (
     external_service_error,
@@ -149,7 +148,6 @@ class MCPScanBatchData(BaseModel):
 
 
 @router.post("/scan", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def scan_mcp_config_endpoint(mcp_server_config: MCPServerConfig, request: Request) -> JSONResponse:
     """Static pre-flight scan for MCP configuration (no network connection)."""
     _ = request
@@ -158,7 +156,6 @@ async def scan_mcp_config_endpoint(mcp_server_config: MCPServerConfig, request: 
 
 
 @router.post("/scan-batch", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def scan_mcp_config_batch_endpoint(body: MCPScanBatchBody, request: Request) -> JSONResponse:
     """Batch static pre-flight scan for multiple MCP configurations."""
     _ = request
@@ -171,7 +168,6 @@ async def scan_mcp_config_batch_endpoint(body: MCPScanBatchBody, request: Reques
 
 
 @router.post("/verify", response_model=StandardSuccessResponse)
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def verify_mcp_service(
     mcp_server_config: MCPServerConfig,
     request: Request,
@@ -321,9 +317,7 @@ async def verify_mcp_service(
 
 
 @router.get("/resource")
-@limiter.limit(settings.rate_limit.mcp_verify)
 async def read_mcp_resource(
-    request: Request,
     uri: str = Query(..., description="MCP resource URI (e.g. ui://server/path)"),
     server: str = Query(..., description="MCP server name that owns the resource"),
 ) -> JSONResponse:

@@ -23,12 +23,11 @@ import logging
 import time
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.services.agent.oauth_token_policy import resolve_expires_at
@@ -72,8 +71,7 @@ def _evict_expired_pending() -> None:
 
 
 @router.post("/start")
-@limiter.limit("5/minute")
-async def start_xai_oauth(request: Request) -> JSONResponse:
+async def start_xai_oauth() -> JSONResponse:
     """Initiate xAI device-code authorization flow.
 
     Returns the user_code and verification URL for the user to complete in their browser.
@@ -124,9 +122,7 @@ async def start_xai_oauth(request: Request) -> JSONResponse:
 
 
 @router.post("/poll")
-@limiter.limit("30/minute")
 async def poll_xai_oauth(
-    request: Request,
     user_code: str = "",
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
