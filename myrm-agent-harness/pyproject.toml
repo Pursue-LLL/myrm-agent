@@ -336,11 +336,13 @@ markers = [
   "allow_blocking_io: Opt out of the blockbuster blocking-IO gate for this test",
 ]
 
-# 覆盖率门禁：核心模块行覆盖率 ≥80%。
+# 覆盖率门禁：核心模块行覆盖率 ≥80%（fail_under）。只在带 `--cov` 运行时生效：
+# harness-test.yml 的 unit 作业不带 `--cov`，没有任何 CI 作业评估这条门禁，也没有作业调用
+# scripts/check_module_coverage.py；需要时手动运行 `pytest -n 2 --dist=loadscope tests/ --cov`。
 # 依赖真实文件系统/数据库的基础设施模块由独立集成任务覆盖。
 # Default addopts already apply the memory-safe marker filter and -n0.
-# CI unit job: myrm-agent/.github/workflows/harness-test.yml (pytest -n 2). Browser: separate job.
-#     coverage report
+# exclude_lines 只排除整行就是 `...` 的桩体：匹配到 `def` 头的任意一行（如 `tuple[str, ...]`），
+# coverage 会把整个函数从统计里排除。
 [tool.coverage.run]
 source = ["myrm_agent_harness"]
 omit = [
@@ -421,7 +423,7 @@ include = [
   "*/myrm_agent_harness/toolkits/llms/consensus/*",
   "*/myrm_agent_harness/toolkits/code_execution/sandbox/*",
 ]
-exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "\\.\\.\\."]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "^\\s*\\.\\.\\.\\s*$"]
 
 [dependency-groups]
 build = [
