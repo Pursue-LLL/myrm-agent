@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.web_fetch.escalation.context import get_bound_escalation_providers
 
-from app.database.connection import get_session
+from app.database.connection import get_session, init_database
 from app.database.models import ConfigAuditLog, UserConfig
 from app.schemas.config import WebFetchEscalationConfigValue
 from app.services.web_fetch.binding import open_web_fetch_escalation_context
@@ -37,6 +37,8 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 async def cleanup_config_db() -> Iterator[None]:
+    # Earlier suites dispose the engine and delete the shared database file, so the schema cannot be assumed.
+    await init_database()
     async with get_session() as session:
         await session.execute(ConfigAuditLog.__table__.delete())
         await session.execute(UserConfig.__table__.delete())

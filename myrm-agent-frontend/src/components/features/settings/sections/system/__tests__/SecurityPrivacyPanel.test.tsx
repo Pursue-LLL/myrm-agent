@@ -4,14 +4,15 @@ import userEvent from '@testing-library/user-event';
 import useConfigStore from '@/store/useConfigStore';
 import SecurityPrivacyPanel from '../SecurityPrivacyPanel';
 
-const { mockFetch, mockSetLocalApiKey, secretState } = vi.hoisted(() => ({
+const { mockFetch, mockSetLocalApiKey, secretState, stableT } = vi.hoisted(() => ({
+  stableT: (key: string) => key,
   mockFetch: vi.fn(),
   mockSetLocalApiKey: vi.fn(),
   secretState: { value: '' },
 }));
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/api', () => ({
