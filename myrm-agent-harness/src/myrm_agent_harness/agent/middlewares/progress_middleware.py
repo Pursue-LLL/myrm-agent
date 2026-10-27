@@ -19,7 +19,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
+from langchain.agents.middleware import AgentMiddleware, AgentState, ModelRequest, ModelResponse, wrap_model_call
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
@@ -107,10 +107,10 @@ def _build_progress_injection(store: TodoStore, incomplete: list[TodoItem]) -> s
 
 def progress_middleware(
     get_todos_fn: Callable[[str | None], Awaitable[TodoStore | None]],
-) -> Callable[[ModelRequest, Callable[[ModelRequest], Awaitable[ModelResponse]]], Awaitable[ModelResponse]]:
+) -> AgentMiddleware[AgentState[object], None, object]:
     """Inject active todo focus into the last HumanMessage, ignoring SystemMessages behind it (non-persistent)."""
 
-    @wrap_model_call(name="progress_middleware")  # type: ignore[arg-type]
+    @wrap_model_call(name="progress_middleware")
     async def _middleware(
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
@@ -154,7 +154,7 @@ def progress_middleware(
                 id=last_msg.id,
             )
         elif isinstance(last_msg.content, list):
-            cleaned_parts: list[dict[str, object]] = []
+            cleaned_parts: list[str | dict[str, object]] = []
             for part in last_msg.content:
                 if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
                     cleaned_text = _strip_previous_progress(part["text"])

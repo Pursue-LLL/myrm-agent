@@ -49,13 +49,13 @@ def _build_finalize_hint(remaining: float | None) -> str:
 class BudgetBoundaryMiddleware(AgentMiddleware):
     """Enforces budget limits within the agent loop.
 
-    Hooks into after_model to inspect the current budget status (set by
-    TokenTracker.record() → BudgetChecker.record_cost()). Applies:
+    Reads the budget status (set by TokenTracker.record() → BudgetChecker.record_cost()) around each
+    model call. Applies:
 
-    - WARNING: Appends a budget-aware HumanMessage hint at the end of messages
-      (uses HumanMessage to preserve SystemMessage hash stability → no cache break).
-      Includes dynamic remaining budget amount for informed LLM decision-making.
-    - FINALIZATION/EXCEEDED: Strips pending tool_calls from the last AI message,
+    - before_model, WARNING: adds one budget-aware HumanMessage hint per run (a HumanMessage preserves
+      SystemMessage hash stability → no cache break), carrying the remaining budget amount.
+    - before_model, FINALIZATION/EXCEEDED: adds a final-answer hint, once per middleware instance.
+    - after_model, FINALIZATION/EXCEEDED: strips pending tool_calls from the last AI message,
       forcing the agent to produce a text-only final response next turn.
 
     A hook returns only the messages it adds or replaces: state appends the new ones and swaps those

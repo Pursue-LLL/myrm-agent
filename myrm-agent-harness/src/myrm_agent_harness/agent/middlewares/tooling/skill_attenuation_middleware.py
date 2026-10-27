@@ -33,6 +33,7 @@ from langchain.agents.middleware import (
     ModelResponse,
 )
 from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.tools import BaseTool
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
@@ -47,7 +48,7 @@ from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 logger = logging.getLogger(__name__)
 
 
-class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, object]):
+class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], None, object]):
     """Apply skill attenuation and resolve dynamic tools without mutating ``bind_tools``."""
 
     def __init__(self, registry: ToolRegistry) -> None:
@@ -55,16 +56,16 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
 
     def wrap_model_call(
         self,
-        request: ModelRequest[object],
-        handler: Callable[[ModelRequest[object]], ModelResponse[object]],
+        request: ModelRequest[None],
+        handler: Callable[[ModelRequest[None]], ModelResponse[object]],
     ) -> ModelResponse[object]:
         request = self._apply_turn_tool_policy(request)
         return self._repair_tool_call_names(handler(request), request)
 
     async def awrap_model_call(
         self,
-        request: ModelRequest[object],
-        handler: Callable[[ModelRequest[object]], Awaitable[ModelResponse[object]]],
+        request: ModelRequest[None],
+        handler: Callable[[ModelRequest[None]], Awaitable[ModelResponse[object]]],
     ) -> ModelResponse[object]:
         request = self._apply_turn_tool_policy(request)
         return self._repair_tool_call_names(await handler(request), request)
@@ -72,7 +73,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
     def _repair_tool_call_names(
         self,
         response: ModelResponse[object],
-        request: ModelRequest[object],
+        request: ModelRequest[None],
     ) -> ModelResponse[object]:
         """Repair a hallucinated tool name before the graph dispatches it.
 
@@ -125,7 +126,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
             return response
         return dataclasses.replace(response, result=repaired_messages)
 
-    def _apply_turn_tool_policy(self, request: ModelRequest[object]) -> ModelRequest[object]:
+    def _apply_turn_tool_policy(self, request: ModelRequest[None]) -> ModelRequest[None]:
         from myrm_agent_harness.agent.middlewares.tooling._skill_tool_choice import (
             build_allowed_tools_tool_choice,
             extract_bound_tool_names,
@@ -197,7 +198,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
         else:
             candidate_names.add(call_name.removesuffix("_tool"))
 
-        search_pool: list[object] = []
+        search_pool: list[BaseTool] = []
         if resolved_tools:
             search_pool.extend(resolved_tools)
         search_pool.extend(registry.resolve())

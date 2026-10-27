@@ -10,7 +10,7 @@ LLM call full-chain economic metrics: token usage tracking (7 token types), cost
 | __init__.py | Package | LLM call full-chain economic metrics: token usage tracking (7 token types), cost calculation, and budget management. | — |
 | budget_guard.py | Core | Budget guard protocol + simple daily implementation. Defines BudgetChecker protocol and BudgetStatus enum. | ✅ |
 | multidim_budget.py | Core | Multi-dimensional budget guard. Supports per-session, daily, and per-call limits with three-level progressive response. | ✅ |
-| budget_boundary_middleware.py | Core | AgentMiddleware that enforces budget limits mid-conversation via prompt injection (a HumanMessage marked `is_system_synthetic`, so the input screens do not take it for the user's) and tool-call stripping; its hooks return only what they add or replace. | ✅ |
+| budget_boundary_middleware.py | Core | AgentMiddleware that enforces budget limits mid-conversation via prompt injection (a HumanMessage marked `is_system_synthetic`, so the input screens do not take it for the user's; one WARNING hint per run, one final-answer hint per middleware instance) and tool-call stripping; its hooks return only what they add or replace. | ✅ |
 | cache_economics.py | Core | Framework-neutral utilities under ``utils/``; safe for any layer to import. | ✅ |
 | cache_savings.py | Core | Provides calculate_cache_savings_usd. | ✅ |
 | cost_engine.py | Core | Thin wrapper over litellm.completion_cost() that adds CostStatus provenance. | ✅ |
