@@ -110,6 +110,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `channels/test_router_busy_input_mode.py` | 单元 | `busy_input_mode` 的 steer / redirect 自动分发、斜杠命令不被转向；已结束、只因审批保留登记的回合不被转向，文字作为新的回合 |
 | `support/pending_approvals.py` | 辅助 | 路由器待决审批测试共用：`inbound_message`、`router_with_agent`（真实路由器配脚本化智能体，可记录续跑）、`said_by`（总线发出的文本）、`asked_in` / `waiting` / `empty_registry`（登记簿里的未决请求） |
+| `support/channel_chat_rows.py` | 辅助 | 渠道会话键查找测试共用：`seed_channel_chat`（按键与空闲分钟数存一个聊天）、`seed_costed_reply`（存一条带成本的助手回复，按本地日历日计预算日） |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
 | `channels/test_goal_command_unwait.py` | 模块 | IM `/goal unwait`：路由器提交让目标回到工作的续跑消息（与 `/goal resume` 同一路径），没有续跑消息时什么也不提交 |
 | `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定；事件触发的发送者信任判定（`is_untrusted_event_sender`）：DM 与群聊每个会跑回合的用例都与聊天回合实际使用的围栏逐例一致且不改配对，只有 ACTIVE 的 ADMIN 配对算所有者（成员、待审批、已拉黑、陌生人一律不可信），控制面转发按其携带的身份判定（含访客回合标记），预置的 `user_id` 不能让陌生人变成所有者 |
@@ -203,6 +204,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
+| `database/test_channel_key_match.py` | 模块 | 渠道会话键的边界匹配对真实 SQLite：续接匹配含自身与话题、智能体、纪元，纪元匹配只含自身与 `:e=` 键；更长的对端、相邻对端与 `_` 通配符都不被匹配；解析器与交接写出的各策略纪元键都被纪元匹配命中 |
+| `core/channel_bridge/test_idle_session_key.py` | 模块 | 空闲重置策略对真实 SQLite：窗口内续用本会话的聊天（含裸键），超时或首条消息开新纪元；更长对端、同对端的话题与智能体、`_` 通配符的聊天不被续用，且本会话的聊天优先于更新的邻居 |
+| `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
+| `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付，被已丢失密钥封存的设置经真实 `ConfigService.get` 按「不可读」交付并暂停同步）；任务内任何失败都不逃逸给调度器 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |

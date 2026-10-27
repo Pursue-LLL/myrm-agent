@@ -37,6 +37,7 @@ from sqlalchemy import and_, func, select
 
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
+from app.database.repositories.channel_key_match import channel_key_extends
 from app.platform_utils import get_session_factory
 
 logger = logging.getLogger(__name__)
@@ -211,7 +212,7 @@ async def _query_channel_today_cost(channel_session_key: str) -> float:
                 .join(Chat, Message.chat_id == Chat.id)
                 .where(
                     and_(
-                        Chat.channel_session_key.like(f"{channel_session_key}%"),
+                        channel_key_extends(channel_session_key),
                         Message.role == "assistant",
                         Message.extra_data.isnot(None),
                         Message.created_at >= today_start,
@@ -254,14 +255,14 @@ async def save_channel_budget_policy(policy: ChannelBudgetPolicy) -> None:
             existing = {p.channel_key: p for p in config.policies}
             existing[policy.channel_key] = policy
             config.policies = list(existing.values())
-            row.config_value = config.model_dump()  # type: ignore[assignment]
+            row.config_value = config.model_dump()
             row.version = now_version
         else:
             config = ChannelBudgetPoliciesConfig(policies=[policy])
             new_config = UserConfig(
                 id=str(uuid.uuid4()),
                 config_key=CHANNEL_BUDGET_CONFIG_KEY,
-                config_value=config.model_dump(),  # type: ignore[assignment]
+                config_value=config.model_dump(),
                 version=now_version,
                 last_device_id="server",
                 is_encrypted=False,
@@ -289,7 +290,7 @@ async def delete_channel_budget_policy(channel_key: str) -> bool:
             return False
 
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
-        row.config_value = config.model_dump()  # type: ignore[assignment]
+        row.config_value = config.model_dump()
         row.version = now_version
         await session.commit()
 

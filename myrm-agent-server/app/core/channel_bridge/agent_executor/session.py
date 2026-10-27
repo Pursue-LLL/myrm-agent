@@ -115,29 +115,33 @@ async def _resolve_idle_key(
     base_key: str,
     idle_minutes: int,
 ) -> str:
-    """Resolve session key for idle mode by checking the latest Chat's activity."""
+    """Resolve session key for idle mode by checking the latest Chat's activity.
+
+    Only the conversation's own chats count (its key and its reset epochs): the chat of another
+    peer, topic or agent that shares the key's leading characters must not be continued.
+    """
     from datetime import UTC, datetime
 
     from sqlalchemy import select
 
     from app.database.connection import get_session
     from app.database.models import Chat
+    from app.database.repositories.channel_key_match import channel_key_epochs
 
     async with get_session() as session:
         result = await session.execute(
             select(Chat.updated_at, Chat.channel_session_key)
-            .where(
-                Chat.channel_session_key.like(f"{base_key}%"),
-            )
+            .where(channel_key_epochs(base_key))
             .order_by(Chat.updated_at.desc())
             .limit(1)
         )
         row = result.first()
 
     now = datetime.now(tz=UTC)
+    new_epoch_key = f"{base_key}:e={now.strftime('%Y%m%dT%H%M')}"
 
-    if row is None:
-        return f"{base_key}:e={now.strftime('%Y%m%dT%H%M')}"
+    if row is None or row[1] is None:
+        return new_epoch_key
 
     updated_at: datetime = row[0]
     existing_key: str = row[1]
@@ -147,6 +151,6 @@ async def _resolve_idle_key(
 
     elapsed = (now - updated_at).total_seconds()
     if elapsed > idle_minutes * 60:
-        return f"{base_key}:e={now.strftime('%Y%m%dT%H%M')}"
+        return new_epoch_key
 
     return existing_key

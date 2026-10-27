@@ -236,6 +236,7 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
         from sqlalchemy import and_, func, select
 
         from app.database.models.chat import Chat, Message
+        from app.database.repositories.channel_key_match import channel_key_extends
         from app.platform_utils import get_session_factory
 
         session_factory = get_session_factory()
@@ -253,7 +254,7 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
                 .join(Chat, Message.chat_id == Chat.id)
                 .where(
                     and_(
-                        Chat.channel_session_key.like(f"{channel_key}%"),
+                        channel_key_extends(channel_key),
                         Message.role == "assistant",
                         Message.extra_data.isnot(None),
                         Message.created_at >= since,

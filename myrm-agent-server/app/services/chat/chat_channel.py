@@ -17,6 +17,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.database.dto import ChatDTO
+from app.database.repositories.channel_key_match import channel_key_extends
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
@@ -40,26 +41,16 @@ class _ChatChannelMixin(_ChatServiceBase):
 
         ``channel_session_key`` appends the reset epoch and the bound agent, so the key a caller
         can build is not always the one stored. An extension continues after a ``:`` segment
-        boundary, so ``…:peer-a`` never matches ``…:peer-ab``. The range form keeps SQLite on the
-        ``channel_session_key`` index; a ``LIKE`` prefix would scan the table.
+        boundary, so ``…:peer-a`` never matches ``…:peer-ab`` (see ``channel_key_extends``).
         """
-        from sqlalchemy import or_, select
+        from sqlalchemy import select
 
         from app.database.models import Chat
 
-        lo = f"{base_key}:"
-        hi = f"{base_key};"
         async with UnitOfWork() as uow:
+            assert uow.session is not None
             result = await uow.session.execute(
-                select(Chat.channel_session_key)
-                .where(
-                    or_(
-                        Chat.channel_session_key == base_key,
-                        (Chat.channel_session_key >= lo) & (Chat.channel_session_key < hi),
-                    )
-                )
-                .order_by(Chat.updated_at.desc())
-                .limit(1)
+                select(Chat.channel_session_key).where(channel_key_extends(base_key)).order_by(Chat.updated_at.desc()).limit(1)
             )
             row = result.first()
             if row is None:
