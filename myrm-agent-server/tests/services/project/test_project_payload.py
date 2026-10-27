@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -37,3 +38,15 @@ def test_a_folder_that_contains_protected_locations_is_reported_unusable(path: s
     payload = _project_to_dict(_project(path))
     assert payload["workspacePath"] == path
     assert payload["workspaceUsable"] is False
+
+
+def test_the_state_directory_is_reported_unusable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    monkeypatch.setattr(
+        "app.config.settings.get_settings",
+        lambda: SimpleNamespace(database=SimpleNamespace(state_dir=str(state_dir))),
+    )
+    assert _project_to_dict(_project(str(state_dir)))["workspaceUsable"] is False
+    assert _project_to_dict(_project(str(tmp_path)))["workspaceUsable"] is False
+    assert _project_to_dict(_project(str(state_dir / "chat_1")))["workspaceUsable"] is True

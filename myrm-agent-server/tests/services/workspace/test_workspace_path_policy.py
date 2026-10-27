@@ -102,6 +102,33 @@ class TestIsWorkspaceRootGrantable:
         """Container deployments keep their workspace under a protected root such as /root."""
         assert is_workspace_root_grantable(os.path.join(HOME, ".config", "myrm-workspace"))
 
+    def test_the_state_directory_and_its_ancestors_are_not(self, state_dir: Path) -> None:
+        assert not is_workspace_root_grantable(str(state_dir))
+        assert not is_workspace_root_grantable(str(state_dir.parent))
+
+    def test_a_chat_workspace_below_the_state_directory_is(self, state_dir: Path) -> None:
+        chat_workspace = state_dir / "harness" / "workspaces" / "chat_1"
+        chat_workspace.mkdir(parents=True)
+        assert is_workspace_root_grantable(str(chat_workspace))
+
+    def test_a_symlink_to_the_state_directory_is_judged_by_its_target(self, state_dir: Path, tmp_path: Path) -> None:
+        link = tmp_path / "shortcut"
+        link.symlink_to(state_dir, target_is_directory=True)
+        assert not is_workspace_root_grantable(str(link))
+
+    def test_it_agrees_with_the_gate_on_breadth(self, state_dir: Path, tmp_path: Path) -> None:
+        """A folder is never bindable yet unusable, nor usable yet unbindable."""
+        below = state_dir / "chat"
+        below.mkdir()
+        for folder in (HOME, "/", str(state_dir), str(state_dir.parent), str(below), str(tmp_path)):
+            try:
+                resolve_workspace_path(folder)
+                bindable = True
+            except WorkspacePathValidationError as exc:
+                assert exc.issue is WorkspacePathIssue.TOO_BROAD
+                bindable = False
+            assert bindable is is_workspace_root_grantable(folder), folder
+
 
 def test_http_error_names_the_field_and_the_issue() -> None:
     error = WorkspacePathValidationError(WorkspacePathIssue.TOO_BROAD, "too broad")

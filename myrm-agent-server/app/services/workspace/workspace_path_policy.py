@@ -10,7 +10,7 @@
 - WorkspacePathIssue: machine-readable rejection reasons surfaced to clients as ``ErrorDetail.issue``
 - WorkspacePathValidationError: a rejected path, carrying its issue
 - resolve_workspace_path: expand, canonicalize and validate a path that may become a workspace
-- is_workspace_root_grantable: read-side check that an already stored workspace may still be used
+- is_workspace_root_grantable: read-side check that an already stored workspace may still be used (same breadth rule)
 - workspace_path_http_error: 400 response for a rejected path
 
 [POS]
@@ -63,6 +63,17 @@ def _contains_state_dir(path: str) -> bool:
         return False
 
 
+def _is_too_broad(resolved: str) -> bool:
+    """Whether write access to ``resolved`` would also reach a protected location through the folder tree.
+
+    The one breadth rule: the bind gate, the read-side net for stored workspaces and the ``workspaceUsable``
+    flag all ask this, so a folder is never accepted by one of them and refused by another.
+    """
+    from myrm_agent_harness.agent.security.path_security import covers_dangerous_path
+
+    return covers_dangerous_path(resolved) or _contains_state_dir(resolved)
+
+
 def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_broad: bool = False) -> str:
     """Expand and canonicalize ``raw``; raise ``WorkspacePathValidationError`` when it cannot be a workspace.
 
@@ -70,7 +81,7 @@ def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_b
     directory is always refused). ``allow_broad`` skips the too-broad check for callers that only
     observe a folder (file-tree watching) instead of granting the sandbox write access to it.
     """
-    from myrm_agent_harness.agent.security.path_security import covers_dangerous_path, is_dangerous_path
+    from myrm_agent_harness.agent.security.path_security import is_dangerous_path
 
     trimmed = raw.strip()
     expanded = os.path.expanduser(trimmed)
@@ -80,7 +91,7 @@ def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_b
     resolved = os.path.realpath(expanded)
     if is_dangerous_path(resolved):
         raise WorkspacePathValidationError(WorkspacePathIssue.DANGEROUS, f"Access denied for path: {trimmed}")
-    if not allow_broad and (covers_dangerous_path(resolved) or _contains_state_dir(resolved)):
+    if not allow_broad and _is_too_broad(resolved):
         raise WorkspacePathValidationError(
             WorkspacePathIssue.TOO_BROAD,
             f"Path contains protected locations and is too broad to be a workspace: {trimmed}",
@@ -95,12 +106,12 @@ def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_b
 def is_workspace_root_grantable(path: str) -> bool:
     """Whether an already stored workspace may still be handed to the sandbox as a write root.
 
-    Only a path that is or contains a protected root is refused, the same predicate the sandbox policy
-    factory enforces; a workspace nested inside one (``/root/workspace`` in a container) stays usable.
+    A path that is or contains a protected root or the application state directory is refused, exactly as
+    ``resolve_workspace_path`` refuses it as too broad, so data bound before that gate existed cannot grant
+    what the gate would deny. A workspace nested inside a protected root (``/root/workspace`` in a
+    container) stays usable: the gate's dangerous-path check is deliberately not repeated here.
     """
-    from myrm_agent_harness.agent.security.path_security import covers_dangerous_path
-
-    return not covers_dangerous_path(path)
+    return not _is_too_broad(path)
 
 
 def workspace_path_http_error(exc: WorkspacePathValidationError, *, field: str) -> StandardHTTPException:
