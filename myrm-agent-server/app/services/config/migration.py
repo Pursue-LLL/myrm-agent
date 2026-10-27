@@ -22,7 +22,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.services.config.encryption import get_encryption_service, is_sensitive_config
-from app.services.config.service import _extract_cipher
+from app.services.config.service import extract_cipher
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,7 +100,7 @@ def _sealed_history_value(
     encryption_service: ConfigEncryptionService, config_key: str, value: object
 ) -> dict[str, object] | None:
     """The cipher envelope for a plaintext history value; None when there is nothing to seal."""
-    if not isinstance(value, dict) or _extract_cipher(value) is not None:
+    if not isinstance(value, dict) or extract_cipher(value) is not None:
         return None
     ciphertext, is_encrypted = encryption_service.encrypt_if_needed(config_key, {str(k): v for k, v in value.items()})
     return {"_cipher": ciphertext} if is_encrypted else None
@@ -161,7 +161,8 @@ async def migrate_configs_with_recovery_key(db: "AsyncSession", recovery_key: by
     from app.database.models import UserConfig
 
     encryption_service = get_encryption_service()
-    if not encryption_service.has_key:
+    current_key = encryption_service.raw_key
+    if current_key is None:
         raise RuntimeError("Current encryption service has no key. Cannot re-encrypt.")
 
     result = await db.execute(select(UserConfig))
@@ -181,7 +182,7 @@ async def migrate_configs_with_recovery_key(db: "AsyncSession", recovery_key: by
 
         # Try to decrypt with current key first to see if it's already migrated
         try:
-            ConfigCrypto.decrypt_value(config.config_value, encryption_service.raw_key)
+            ConfigCrypto.decrypt_value(config.config_value, current_key)
             # If it succeeds, it's already encrypted with the current key
             stats["skipped"] += 1
             continue
@@ -196,7 +197,7 @@ async def migrate_configs_with_recovery_key(db: "AsyncSession", recovery_key: by
             encrypted_value, is_encrypted = encryption_service.encrypt_if_needed(config.config_key, decrypted_dict)
 
             if is_encrypted:
-                config.config_value = encrypted_value
+                config.config_value = encrypted_value  # type: ignore
 
                 stats["migrated"] += 1
                 logger.info(f"Recovered and re-encrypted config: config_key={config.config_key}")
@@ -231,7 +232,7 @@ async def validate_recovery_key(db: "AsyncSession", recovery_key: bytes) -> dict
 
     from app.database.models import UserConfig
 
-    encryption_service = get_encryption_service()
+    current_key = get_encryption_service().raw_key
 
     result = await db.execute(select(UserConfig))
     configs = result.scalars().all()
@@ -249,9 +250,9 @@ async def validate_recovery_key(db: "AsyncSession", recovery_key: bytes) -> dict
             continue
 
         # Try to decrypt with current key first to see if it's already migrated
-        if encryption_service.has_key:
+        if current_key is not None:
             try:
-                ConfigCrypto.decrypt_value(config.config_value, encryption_service.raw_key)
+                ConfigCrypto.decrypt_value(config.config_value, current_key)
                 # If it succeeds, it's already encrypted with the current key
                 stats["skipped"] += 1
                 continue

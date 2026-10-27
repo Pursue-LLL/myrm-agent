@@ -19,6 +19,7 @@ import os
 from collections.abc import AsyncGenerator
 
 import pytest
+from myrm_agent_harness.utils.crypto import EncryptionError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -146,3 +147,10 @@ async def test_a_mode_that_stores_secrets_in_plaintext_leaves_the_history_as_it_
         assert await migration.migrate_config_history_to_encrypted(db) == 0
 
     assert (await _audit_row(sessions, "secret")).new_value == _OLD
+
+
+def test_a_secret_that_must_be_sealed_but_has_no_key_fails_with_a_readable_error() -> None:
+    keyless = ConfigEncryptionService(encryption_key=None, is_sandbox=False, is_local=True)
+
+    with pytest.raises(EncryptionError, match="No encryption key is available for config 'backupSync'"):
+        keyless.encrypt_if_needed("backupSync", _NEW)

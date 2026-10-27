@@ -143,6 +143,8 @@ class ConfigEncryptionService:
         """
         if self.should_encrypt(key):
             try:
+                if self._key is None:
+                    raise EncryptionError(f"No encryption key is available for config '{key}'")
                 return ConfigCrypto.encrypt_value(value, self._key), True
 
             except EncryptionError as e:

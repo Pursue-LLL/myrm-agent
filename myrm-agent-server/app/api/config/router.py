@@ -747,10 +747,10 @@ async def apply_telegram_assistant_onboarding(
     return TelegramAssistantOnboardingResponse(
         success=True,
         message="Telegram assistant onboarding applied successfully",
-        bot_username=bot_username,
-        agent_id=agent_id,
-        agent_name=agent_name,
-        channel_enabled=True,
+        botUsername=bot_username,
+        agentId=agent_id,
+        agentName=agent_name,
+        channelEnabled=True,
         connected=connected,
         status=status,
     )
@@ -995,8 +995,8 @@ async def get_config(
                 key=config_key,
                 value={},
                 version="0",
-                updated_at="",
-                device_id="",
+                updatedAt="",
+                deviceId="",
             )
         return record
     except HTTPException:

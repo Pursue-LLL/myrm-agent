@@ -63,7 +63,7 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 
 **审计历史同样封存**：`config_audit_logs` 逐次重复保存过的值（`ConfigService.set` 写入时与主行同形，敏感键为 `{"_cipher": ...}`）。键在被列为敏感之前留下的明文旧值，由 `migrate_config_history_to_encrypted` 在同一时机补封；已封的值与非敏感键的历史原样保留，第二次运行不改任何行。
 
-**不变量**：迁移写入密文的同时置 `is_encrypted`——读取按这个标志而不是按值的形状判断是否解密，漏置时读回的是 `{}`。
+**不变量**：`migrate_configs_to_encrypted` 写入密文的同时置 `is_encrypted`——读取按这个标志而不是按值的形状判断是否解密，漏置时读回的是 `{}`。
 
 ### 4. Onboarding (`onboarding.py`)
 

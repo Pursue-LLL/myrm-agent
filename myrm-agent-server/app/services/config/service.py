@@ -100,7 +100,7 @@ def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
 
     service = get_encryption_service()
     raw = config.config_value
-    cipher = _extract_cipher(raw)
+    cipher = extract_cipher(raw)
     if cipher is None:
         logger.warning("Config '%s' marked encrypted but no cipher found, returning as-is", config.config_key)
         return {str(k): v for k, v in raw.items()} if isinstance(raw, dict) else {}
@@ -120,7 +120,7 @@ def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
     return decrypted  # type: ignore[return-value]
 
 
-def _extract_cipher(raw: object) -> str | None:
+def extract_cipher(raw: object) -> str | None:
     """Extract cipher string from raw config value."""
     if isinstance(raw, str):
         return raw
@@ -173,7 +173,7 @@ def _decrypt_audit_log_value(config_key: str, value: dict[str, object] | None) -
     """Decrypt audit log value if it is encrypted."""
     if value is None:
         return None
-    cipher = _extract_cipher(value)
+    cipher = extract_cipher(value)
     if cipher is None:
         return {str(k): v for k, v in value.items()}
     service = get_encryption_service()

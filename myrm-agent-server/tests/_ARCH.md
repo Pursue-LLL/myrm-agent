@@ -45,6 +45,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，资源 `service.version` 为产品版本，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
 | `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
+| `server/test_lifespan_config_migration.py` | 单元 | 本地模式启动阶段确实调用配置迁移与配置审计历史迁移（读启动函数源码，删掉调用即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -71,7 +72,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/instance_archive/test_restore_points.py` | 模块 | 恢复点：一致性快照、staging 校验、下次启动换入、拒绝更新版 schema 与被篡改快照 |
 | `services/instance_archive/test_schema_reconciliation.py` | 模块 | 把归档策略钉到真实 ORM schema，表/列改名（含配置审计历史表的列）或新增密钥列不会悄悄使策略失效；远程备份设置按 PORTABLE_SECRET 携带 |
 | `services/instance_archive/test_config_history_scrub.py` | 模块 | 配置审计历史不比主行活得久：导出与导入暂存两条共用 scrub 之后，不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行全部消失、普通配置的历史保留，明文旧值连同空闲页都不在导出文件字节里，没有审计表的库照常处理；完整往返：远程备份设置只在口令下携带、导入后重新加密到目标密钥且不带来历史 |
-| `services/config/test_backup_sync_encryption.py` | 模块 | 远程备份设置按敏感配置落盘加密；加密之前保存的明文行迁移后读回原值；审计历史里敏感键的明文旧值被封存且仍可解密，已封与非敏感的历史不动、重复运行不改任何行、不加密的模式不动历史 |
+| `services/config/test_backup_sync_encryption.py` | 模块 | 远程备份设置按敏感配置落盘加密；加密之前保存的明文行迁移后读回原值；审计历史里敏感键的明文旧值被封存且仍可解密，已封与非敏感的历史不动、重复运行不改任何行、不加密的模式不动历史；需要加密却没有密钥时抛带配置名的 `EncryptionError` |
 | `services/instance_archive/test_uploads.py` | 模块 | 分块上传会话：块几何、续传、校验与路径安全 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
