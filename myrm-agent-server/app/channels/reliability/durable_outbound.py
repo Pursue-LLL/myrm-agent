@@ -101,7 +101,7 @@ class DurableOutboundGate:
         return isinstance(meta, dict) and bool(meta.get(METADATA_RECOVERED))
 
     async def prepare_enqueue(self, msg: OutboundMessage) -> OutboundMessage:
-        """Persist outbound obligation before in-memory enqueue."""
+        """Persist outbound obligation before in-memory enqueue; a persistence failure degrades to an unpersisted send."""
         if not self.is_enabled() or not self.is_durable_channel(msg.channel):
             return msg
         if self.is_recovered(msg):
@@ -119,7 +119,18 @@ class DurableOutboundGate:
             priority=msg.priority.value,
             phase="pending",
         )
-        await save_delivery(delivery, base_dir=self._base_dir)
+        try:
+            await save_delivery(delivery, base_dir=self._base_dir)
+        except Exception:
+            # The disk record is a crash-recovery aid, not a precondition for sending: a full disk or an
+            # unwritable directory must not turn every reply into an exception. The message goes out from
+            # memory without a delivery id (so mark_attempting/ack stay no-ops) and is merely not recoverable.
+            logger.warning(
+                "Durable outbound persist failed for channel=%s; sending without a disk record",
+                msg.channel,
+                exc_info=True,
+            )
+            return msg
 
         meta = dict(msg.metadata) if isinstance(msg.metadata, dict) else {}
         meta[METADATA_DELIVERY_ID] = delivery_id
