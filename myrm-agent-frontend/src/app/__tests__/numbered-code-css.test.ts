@@ -33,6 +33,11 @@ describe('numbered code stylesheet', () => {
     expect(before).toMatch(/content:\s*counter\(numbered-line\)\s*\/\s*''/);
   });
 
+  it("draws the number in the theme's secondary text colour, which stays readable on both themes", () => {
+    const before = css.match(/\.numbered-code-line::before\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(before).toMatch(/color:\s*var\(--muted-foreground\);/);
+  });
+
   it('lets the browser skip off-screen rows of long files only, and remember the height of rows it has seen', () => {
     expect(css).toMatch(/\.numbered-code-lazy\s*>\s*\.numbered-code-line\s*\{[^}]*content-visibility:\s*auto/);
     expect(css).toMatch(/\.numbered-code-lazy\s*>\s*\.numbered-code-line\s*\{[^}]*contain-intrinsic-size:\s*auto/);

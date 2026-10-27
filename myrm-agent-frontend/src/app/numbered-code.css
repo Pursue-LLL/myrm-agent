@@ -55,6 +55,6 @@
     width: calc(var(--numbered-code-digits, 1) * 1ch);
     text-align: right;
     user-select: none;
-    color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+    color: var(--muted-foreground);
   }
 }

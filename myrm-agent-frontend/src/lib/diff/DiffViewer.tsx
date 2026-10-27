@@ -27,8 +27,9 @@ import React, { memo, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Highlight } from 'prism-react-renderer';
 import { resolveLanguage } from '@/lib/syntax/prism';
+import { syntaxThemeFor, type SyntaxTheme } from '@/lib/syntax/theme';
 import { useTheme } from 'next-themes';
 import { useDiffParser } from '@/hooks/shared/useDiffParser';
 import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
@@ -64,12 +65,16 @@ function getLineBackground(type: DiffLine['type']): string {
   }
 }
 
-function getLineNumberStyle(type: DiffLine['type']): string {
+/** 行号列：增删由行底色与前缀符号表达，行号统一用次要文字色（明暗主题及增删行底色上对比度都不低于 4.5:1） */
+const LINE_NUMBER_CLASS = 'w-12 text-right pr-2 py-0.5 select-none border-r border-border/50 text-muted-foreground';
+
+/** 前缀符号（+/-）的颜色：浅色主题用 800 / 700 档，保证落在增删行底色上不低于 4.5:1 */
+function getLineSignStyle(type: DiffLine['type']): string {
   switch (type) {
     case 'addition':
-      return 'text-green-600 dark:text-green-400';
+      return 'text-green-800 dark:text-green-400';
     case 'deletion':
-      return 'text-red-600 dark:text-red-400';
+      return 'text-red-700 dark:text-red-400';
     default:
       return 'text-muted-foreground';
   }
@@ -90,7 +95,7 @@ function getLinePrefix(type: DiffLine['type']): string {
 const HighlightedContent: React.FC<{
   content: string;
   language: string;
-  prismTheme: typeof themes.oneLight;
+  prismTheme: SyntaxTheme;
 }> = memo(({ content, language, prismTheme }) => {
   const grammar = resolveLanguage(language, content);
   if (grammar === 'text' || !content.trim()) {
@@ -116,10 +121,10 @@ HighlightedContent.displayName = 'HighlightedContent';
 const UnifiedDiffLine: React.FC<{
   line: DiffLine;
   language: string;
-  prismTheme: typeof themes.oneLight;
+  prismTheme: SyntaxTheme;
 }> = memo(({ line, language, prismTheme }) => {
   const bgClass = getLineBackground(line.type);
-  const numClass = getLineNumberStyle(line.type);
+  const signClass = getLineSignStyle(line.type);
 
   if (line.type === 'header') {
     return (
@@ -133,13 +138,9 @@ const UnifiedDiffLine: React.FC<{
 
   return (
     <div className={cn('flex font-mono text-xs hover:bg-muted/50', bgClass)}>
-      <span className={cn('w-12 text-right pr-2 py-0.5 select-none border-r border-border/50', numClass)}>
-        {line.oldLineNumber ?? ''}
-      </span>
-      <span className={cn('w-12 text-right pr-2 py-0.5 select-none border-r border-border/50', numClass)}>
-        {line.newLineNumber ?? ''}
-      </span>
-      <span className={cn('w-6 text-center py-0.5 font-bold', numClass)}>{getLinePrefix(line.type)}</span>
+      <span className={LINE_NUMBER_CLASS}>{line.oldLineNumber ?? ''}</span>
+      <span className={LINE_NUMBER_CLASS}>{line.newLineNumber ?? ''}</span>
+      <span className={cn('w-6 text-center py-0.5 font-bold', signClass)}>{getLinePrefix(line.type)}</span>
       <HighlightedContent content={line.content} language={language} prismTheme={prismTheme} />
     </div>
   );
@@ -151,7 +152,7 @@ const SplitHalf: React.FC<{
   line: DiffLine | null;
   side: 'left' | 'right';
   language: string;
-  prismTheme: typeof themes.oneLight;
+  prismTheme: SyntaxTheme;
 }> = memo(({ line, side, language, prismTheme }) => {
   const isDeletion = line?.type === 'deletion';
   const isAddition = line?.type === 'addition';
@@ -160,18 +161,11 @@ const SplitHalf: React.FC<{
     : isAddition
       ? 'bg-green-500/10 dark:bg-green-500/20'
       : '';
-  const numClass = isDeletion
-    ? 'text-red-600 dark:text-red-400'
-    : isAddition
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-muted-foreground';
   const lineNumber = side === 'left' ? line?.oldLineNumber : line?.newLineNumber;
 
   return (
     <div className={cn('flex-1 flex', side === 'left' ? 'border-r border-border' : '', bgClass)}>
-      <span className={cn('w-12 text-right pr-2 py-0.5 select-none border-r border-border/50', numClass)}>
-        {lineNumber ?? ''}
-      </span>
+      <span className={LINE_NUMBER_CLASS}>{lineNumber ?? ''}</span>
       {line ? (
         <HighlightedContent content={line.content} language={language} prismTheme={prismTheme} />
       ) : (
@@ -186,7 +180,7 @@ SplitHalf.displayName = 'SplitHalf';
 const SplitDiffLine: React.FC<{
   pair: SplitPair;
   language: string;
-  prismTheme: typeof themes.oneLight;
+  prismTheme: SyntaxTheme;
 }> = memo(({ pair, language, prismTheme }) => (
   <div className="flex font-mono text-xs">
     <SplitHalf line={pair.left} side="left" language={language} prismTheme={prismTheme} />
@@ -200,7 +194,7 @@ const HunkContent: React.FC<{
   hunk: DiffHunk;
   viewMode: ViewMode;
   language: string;
-  prismTheme: typeof themes.oneLight;
+  prismTheme: SyntaxTheme;
 }> = memo(({ hunk, viewMode, language, prismTheme }) => {
   const splitPairs = useMemo(() => (viewMode === 'split' ? buildSplitPairs(hunk.lines) : []), [hunk.lines, viewMode]);
 
@@ -236,9 +230,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
     const displayPath = filePath || parsed.filePath || 'Unknown file';
     const language = useMemo(() => resolveLanguage(inferLanguage(displayPath)), [displayPath]);
 
-    const prismTheme = useMemo(() => {
-      return resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight;
-    }, [resolvedTheme]);
+    const prismTheme = syntaxThemeFor(resolvedTheme);
 
     const handleCopy = useCallback(async () => {
       try {

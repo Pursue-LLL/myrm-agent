@@ -1,14 +1,16 @@
 # lib/syntax/
 
-代码高亮的共享注册表。`prism-react-renderer` 自带的 Prism 只有 28 种语法，产品里却到处用到它没有的语言：shell 命令步骤用 `bash`、聊天里的 bash 围栏代码块、文档预览里的 diff 围栏代码块、文件按扩展名推断出的 java / ruby / toml 等。四个高亮入口经这一个模块取得 Prism 与语言判定，不再各自碰 `prism-react-renderer` 的语法表。
+代码高亮的共享注册表。`prism-react-renderer` 自带的 Prism 只有 28 种语法，产品里却到处用到它没有的语言：shell 命令步骤用 `bash`、聊天里的 bash 围栏代码块、文档预览里的 diff 围栏代码块、文件按扩展名推断出的 java / ruby / toml 等。四个高亮入口经这一个模块取得 Prism 与语言判定，不再各自碰 `prism-react-renderer` 的语法表；高亮的颜色同样只有一份，由 `theme.ts` 给出。
 
 ## 文件清单
 
-| 文件                                 | 地位 | 职责                                                                                                                                                                                                                                                                  | I/O/P |
-| ------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `prism.ts`                           | 核心 | 注册 bash（含 sh、shell，另把 zsh 指向同一份）、diff、java、ruby、csharp、toml、lua、r、php、dart；导出 `Prism`、`MAX_HIGHLIGHT_LINE_CHARS`（10,000）与 `resolveLanguage(language, code?)`：语言没有语法、或代码里有一行超过上限时返回 `text`，否则原样返回语言名     | ✅    |
-| `__tests__/prism.test.ts`            | 测试 | 每种新语法能识别各自的代码片段、`sh/shell/zsh` 别名、原有语法保留、`resolveLanguage` 的名字与长行判定（恰好等于上限不拦、多一个字符才拦、CRLF 与首行同样生效）；`EXT_TO_LANGUAGE` 里的每个语言都必须能被 `resolveLanguage` 原样解析，增删语法或映射时两边对不上就失败 | ✅    |
-| `__tests__/grammarSurfaces.test.tsx` | 测试 | 四个真实入口（`CodeBlock`、`EnhancedSyntaxHighlighter`、`DiffViewer`、`LineNumberedCode`）里 bash 的关键字确实带上主题色，长行文本在四处都保持无色；直接经 `CodeBlock` 渲染的 diff 围栏块增删行有底色且没有删除线与下划线                                             | ✅    |
+| 文件                                 | 地位 | 职责                                                                                                                                                                                                                                                                                                                                                                                                       | I/O/P |
+| ------------------------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `prism.ts`                           | 核心 | 注册 bash（含 sh、shell，另把 zsh 指向同一份）、diff、java、ruby、csharp、toml、lua、r、php、dart；导出 `Prism`、`MAX_HIGHLIGHT_LINE_CHARS`（10,000）与 `resolveLanguage(language, code?)`：语言没有语法、或代码里有一行超过上限时返回 `text`，否则原样返回语言名                                                                                                                                          | ✅    |
+| `theme.ts`                           | 核心 | `syntaxThemeFor(resolvedTheme)` 给出当前明暗主题的代码着色（`SyntaxTheme`）：One Light / One Dark 里在产品的代码表面上对比度低于 4.5:1 的颜色换成同色相的更深或更浅一档（浅色 6 种：注释、数字与属性名、红、绿、蓝、url；深色 2 种：注释、红），其余颜色保持原样；四个入口都从这里取主题，不再各自选 `themes.oneLight` / `themes.oneDark`                                                                  | ✅    |
+| `__tests__/prism.test.ts`            | 测试 | 每种新语法能识别各自的代码片段、`sh/shell/zsh` 别名、原有语法保留、`resolveLanguage` 的名字与长行判定（恰好等于上限不拦、多一个字符才拦、CRLF 与首行同样生效）；`EXT_TO_LANGUAGE` 里的每个语言都必须能被 `resolveLanguage` 原样解析，增删语法或映射时两边对不上就失败                                                                                                                                      | ✅    |
+| `__tests__/theme.test.ts`            | 测试 | 明暗两套主题里每个颜色在每个能出现它的表面上都不低于 4.5:1（面板、聊天代码块、步骤面板、悬停行、diff 增删行底色，以及 diff 围栏块里按语法只会出现的增删与 hunk 行底色）；行号用的次要文字色（`--muted-foreground`，从 `globals.css` 读）在同样的表面上也不低于 4.5:1；主题与原版只有颜色不同，原版里已经达标的颜色保持原样；替换表的键对不上原版（升级后写法变了）时以「某颜色在某表面上不达标」的形式失败 | ✅    |
+| `__tests__/grammarSurfaces.test.tsx` | 测试 | 四个真实入口（`CodeBlock`、`EnhancedSyntaxHighlighter`、`DiffViewer`、`LineNumberedCode`）里 bash 的关键字与字符串确实带上本模块调色板里的颜色，行号带次要文字色类，长行文本在四处都保持无色；直接经 `CodeBlock` 渲染的 diff 围栏块增删行有底色且没有删除线与下划线                                                                                                                                        | ✅    |
 
 ## 设计要点
 
@@ -18,10 +20,11 @@
 - **上限的代价**：压缩成一行的合法代码（`.min.css`、`.min.js`、一行的 JSON）超过 10,000 字符就不上色，而这类输入分词很快（压缩成一行的 88,107 字符样式 7 ms）；`TextItemsRenderer` 缩进后的 JSON 里有一段超过 10,000 字符的字符串值时，那一块也不上色，但步骤文本项目前只收到短句（本机 4,504 个最长 456 字符，没有 JSON），碰不到这条路径。上限是预防 base64 一类病态长行的保险：本机 shell 步骤最长一行 348 字符、聊天围栏代码块最长一行 274 字符，都没有触发；391 个含超长行的工作区文件里，大小不超过 100,000 字节的 140 个去掉上限直接分词，最慢 317 ms，没有超过 1 s。
 - **上限挡不住的**：css 语法对非 CSS 文本随整份文本平方增长，100,000 字符、80 字符一行的未闭合引号文本 13.3 s；合法样式表不受影响（真实的 `pdf_viewer.css` 100,000 字符 10 ms）。
 - **语言名按原样查表**：不做大小写归一化，`Bash` 与未注册的 docker、ini、makefile、powershell 一样按纯文本显示。
+- **颜色按对比度换，不换整套配色**：原版 One Light 在代码表面上注释 2.2:1、字符串 2.7:1、数字 3.5:1，diff 行底色上更低；本产品自己的标准是 4.5:1（`theme-engine/oklch.ts` 的 `meetsContrast` 默认值，精选主题也都标了对比度）。只换不达标的颜色，保留色相与其余颜色，替换值写成 `#rrggbb`，每个值取刚好越过 4.5:1 再留约 0.1 的余量（吸收悬停行的底色变化）。主题引擎只改主色与强调色，不改 `--background`，所以这份静态调色板对用户可选的主题都成立；背景图主题下功能页面的表面不透明度有下限（0.94，`theme-engine/scene-surfaces.ts`），按纯黑（浅色）或纯白（深色）图垫在下面估算，最弱的一对约 4.0:1（浅色注释 4.11:1、深色注释 3.95:1，是计算值，没有在浏览器里复现）。diff 行底色上，深色的红要比其余深色配色浅一档，因为 diff 围栏块里删除行的底色（`rgb(74,42,57)`）比面板亮。
 
 ## 模块依赖
 
-- 依赖：`prism-react-renderer`（Prism 实例与主题）、`prismjs`（语法定义，精确固定 1.30.0）
+- 依赖：`prism-react-renderer`（Prism 实例与主题）、`prismjs`（语法定义，精确固定 1.30.0）；测试读 `theme-engine/oklch.ts` 的 `contrastRatio` 与 `app/globals.css` 的主题变量
 - 消费方：
   - `components/features/markdown-render-tools/CodeBlock.tsx`（聊天里的代码块，以及文档预览、看板、技能详情里的 Markdown 代码块；diff 块额外有增删行底色并去掉主题加的删除线与下划线。聊天里的 diff 围栏代码块由 `InlineDiffViewer` 渲染，不走这里）
   - `components/features/message-box/progress-steps/renderers/EnhancedSyntaxHighlighter.tsx`（`CodeRenderer` 的 shell 命令步骤等）

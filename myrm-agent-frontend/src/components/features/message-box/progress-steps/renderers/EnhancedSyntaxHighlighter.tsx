@@ -7,6 +7,7 @@
  * - code / language / maxCollapsedLines / title: the text, its Prism language, how many lines show while collapsed, a caption
  * - lib/syntax/prism::resolveLanguage (POS: the one place that knows which grammars are registered and which texts are
  *   too risky to colour)
+ * - lib/syntax/theme::syntaxThemeFor (POS: the colours of the current appearance, each readable at 4.5:1)
  *
  * [OUTPUT]
  * - EnhancedSyntaxHighlighter: syntax-coloured code panel with copy and expand / collapse; a text over 50,000
@@ -20,8 +21,9 @@ import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Highlight } from 'prism-react-renderer';
 import { resolveLanguage } from '@/lib/syntax/prism';
+import { syntaxThemeFor } from '@/lib/syntax/theme';
 import { useTheme } from 'next-themes';
 import { IconChevronDown, IconChevronUp, IconCopy, IconCheck } from '@/components/features/icons/PremiumIcons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,8 +60,6 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const codeTheme = resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight;
 
   // 【性能高亮熔断机制】代码超过 50000 字符，降级为纯文本，彻底防冻结主线程
   const isTooLongToHighlight = code.length > 50000;
@@ -150,7 +150,7 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
             }
           }}
         >
-          <Highlight theme={codeTheme} code={displayedCode} language={safeLanguage}>
+          <Highlight theme={syntaxThemeFor(resolvedTheme)} code={displayedCode} language={safeLanguage}>
             {({ className, style, tokens, getLineProps, getTokenProps }) => (
               <pre
                 className={cn(
@@ -176,7 +176,7 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
 
                     return (
                       <div key={i} {...getLineProps({ line, key: i })} className="flex w-full">
-                        <span className="select-none w-8 text-right pr-4 text-zinc-400/50 dark:text-zinc-500/50 text-xs leading-relaxed flex-shrink-0">
+                        <span className="select-none w-8 text-right pr-4 text-muted-foreground text-xs leading-relaxed flex-shrink-0">
                           {i + 1}
                         </span>
                         <span

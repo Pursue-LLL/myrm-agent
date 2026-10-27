@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import { themes } from 'prism-react-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 import CodeBlock from '@/components/features/markdown-render-tools/CodeBlock';
@@ -8,6 +7,7 @@ import { LineNumberedCode } from '@/components/features/workspace-browser/Worksp
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { MAX_HIGHLIGHT_LINE_CHARS } from '@/lib/syntax/prism';
+import { SYNTAX_THEME_LIGHT } from '@/lib/syntax/theme';
 
 vi.mock('next-themes', () => ({
   useTheme: () => ({ theme: 'light', resolvedTheme: 'light' }),
@@ -29,9 +29,9 @@ const SHELL_DIFF = [
   '+if [ -f "$b" ]; then echo ok; fi',
 ].join('\n');
 
-/** The colour the light palette gives the `if` keyword, in the form the DOM reports it. */
-function lightKeywordColor(): string {
-  const rule = themes.oneLight.styles.find((entry) => entry.types.includes('keyword'));
+/** The colour the light palette gives a token of `type`, in the form the DOM reports it. */
+function lightColor(type: string): string {
+  const rule = SYNTAX_THEME_LIGHT.styles.find((entry) => entry.types.includes(type));
   const probe = document.createElement('span');
   probe.style.color = String(rule?.style.color);
   return probe.style.color;
@@ -45,6 +45,20 @@ function keywordIf(): HTMLElement {
   return keyword;
 }
 
+/** The first string token on the page: the colour that had to be replaced for contrast, so it shows the palette in use. */
+function firstString(): HTMLElement {
+  const string = document.querySelector<HTMLElement>('.string');
+  if (!string) {
+    throw new Error('no string token was rendered');
+  }
+  return string;
+}
+
+function expectPalette(): void {
+  expect(keywordIf().style.color).toBe(lightColor('keyword'));
+  expect(firstString().style.color).toBe(lightColor('string'));
+}
+
 describe('shell code is coloured wherever the product shows it', () => {
   it('in a chat code block', () => {
     render(
@@ -53,22 +67,49 @@ describe('shell code is coloured wherever the product shows it', () => {
       </TooltipProvider>,
     );
     expect(keywordIf().className).toContain('keyword');
-    expect(keywordIf().style.color).toBe(lightKeywordColor());
+    expectPalette();
   });
 
   it('in the progress step of a shell command', () => {
     render(<EnhancedSyntaxHighlighter code={SHELL} language="bash" />);
-    expect(keywordIf().style.color).toBe(lightKeywordColor());
+    expectPalette();
   });
 
   it('in a diff of a .sh file', () => {
     render(<DiffViewer diff={SHELL_DIFF} filePath="run.sh" embedded />);
-    expect(keywordIf().style.color).toBe(lightKeywordColor());
+    expectPalette();
   });
 
   it('in the read-only view of a .sh file', () => {
     render(<LineNumberedCode content={SHELL} language="bash" />);
-    expect(keywordIf().style.color).toBe(lightKeywordColor());
+    expectPalette();
+  });
+});
+
+describe('line numbers', () => {
+  const numbersIn = (): HTMLElement[] => screen.getAllByText('1');
+  const expectSecondaryText = (): void => {
+    numbersIn().forEach((number) => expect(number.className).toContain('text-muted-foreground'));
+  };
+
+  it('take the secondary text colour in a chat code block', () => {
+    render(
+      <TooltipProvider>
+        <CodeBlock language="bash" value={SHELL} />
+      </TooltipProvider>,
+    );
+    expectSecondaryText();
+  });
+
+  it('take the secondary text colour in the progress step of a shell command', () => {
+    render(<EnhancedSyntaxHighlighter code={SHELL} language="bash" />);
+    expectSecondaryText();
+  });
+
+  it('take the secondary text colour in a diff, whatever the kind of the line', () => {
+    render(<DiffViewer diff={SHELL_DIFF} filePath="run.sh" embedded />);
+    expect(numbersIn().length).toBeGreaterThan(1);
+    expectSecondaryText();
   });
 });
 

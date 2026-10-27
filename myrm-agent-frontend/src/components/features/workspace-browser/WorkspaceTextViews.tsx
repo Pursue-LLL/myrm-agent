@@ -8,6 +8,7 @@
  *   called for assistive technology, and where typing goes
  * - lib/syntax/prism::resolveLanguage (POS: the one place that knows which grammars are registered and which texts are
  *   too risky to colour)
+ * - lib/syntax/theme::syntaxThemeFor (POS: the colours of the current appearance, each readable at 4.5:1)
  *
  * [OUTPUT]
  * - LineNumberedCode: read-only code view, one row per line; coloured with Prism when its language has a grammar, no
@@ -21,9 +22,10 @@
  */
 
 import { useTheme } from 'next-themes';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Highlight } from 'prism-react-renderer';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { resolveLanguage } from '@/lib/syntax/prism';
+import { syntaxThemeFor } from '@/lib/syntax/theme';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export function formatBytes(bytes: number | null): string {
@@ -58,7 +60,7 @@ const LineNumbers: React.FC<{ count: number; className: string; ref?: React.Ref<
       <div
         ref={ref}
         aria-hidden="true"
-        className={`select-none whitespace-pre text-right pr-3 pl-2 text-muted-foreground/50 border-r border-border/30 shrink-0 bg-background ${className}`}
+        className={`select-none whitespace-pre text-right pr-3 pl-2 text-muted-foreground border-r border-border/30 shrink-0 bg-background ${className}`}
       >
         {numbers}
       </div>
@@ -124,7 +126,7 @@ const HighlightedRows: React.FC<{ content: string; rows: string[]; language: str
 }) => {
   const { resolvedTheme } = useTheme();
   return (
-    <Highlight theme={resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight} code={content} language={language}>
+    <Highlight theme={syntaxThemeFor(resolvedTheme)} code={content} language={language}>
       {({ tokens, getTokenProps }) => {
         if (tokens.reduce((count, line) => count + line.length, 0) > MAX_HIGHLIGHTED_TOKENS) {
           return <PlainRows rows={rows} />;

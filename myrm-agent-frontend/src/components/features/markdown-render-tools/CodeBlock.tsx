@@ -14,6 +14,7 @@
  * [依赖]
  * - prism-react-renderer: 语法高亮引擎
  * - lib/syntax/prism: 已注册全部语法的 Prism 与语言校验（`diff` 语法使 diff 行底色分支生效）
+ * - lib/syntax/theme: 各明暗主题下满足 4.5:1 对比度的代码着色
  * - MarkdownContent: 父组件，传递 isStreaming prop
  *
  * [优化收益]
@@ -25,14 +26,20 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Check, Copy, Play } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Highlight } from 'prism-react-renderer';
 import { resolveLanguage } from '@/lib/syntax/prism';
+import { syntaxThemeFor } from '@/lib/syntax/theme';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import type { Artifact, ArtifactType } from '@/store/chat/types';
-import { CODE_BLOCK_THEME, CODE_BLOCK_CONTAINER, CODE_BLOCK_TOOLBAR } from '@/lib/constants/codeblock-theme';
+import {
+  CODE_BLOCK_THEME,
+  CODE_BLOCK_CONTAINER,
+  CODE_BLOCK_LINE_NUMBER,
+  CODE_BLOCK_TOOLBAR,
+} from '@/lib/constants/codeblock-theme';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 const HTML_PREVIEW_LANGUAGES = new Set(['html', 'svg']);
@@ -161,17 +168,7 @@ const CodeBlock: React.FC<{
   // 确保语言是被支持的
   const safeLanguage = resolveLanguage(language, displayValue);
 
-  // 根据当前主题选择代码高亮主题
-  const getTheme = useCallback(() => {
-    switch (resolvedTheme) {
-      case 'light':
-        return themes.oneLight;
-      case 'dark':
-        return themes.oneDark;
-      default:
-        return themes.oneLight;
-    }
-  }, [resolvedTheme]);
+  const syntaxTheme = syntaxThemeFor(resolvedTheme);
 
   // 使用缓存机制优化高亮性能
   const cacheKey = `${safeLanguage}:${resolvedTheme}:${displayValue}`;
@@ -185,7 +182,7 @@ const CodeBlock: React.FC<{
 
     // 渲染高亮代码
     const result = (
-      <Highlight theme={getTheme()} code={displayValue} language={safeLanguage}>
+      <Highlight theme={syntaxTheme} code={displayValue} language={safeLanguage}>
         {({ className: _highlightClassName, style: _style, tokens, getLineProps, getTokenProps }) => (
           <div
             className={cn(
@@ -218,13 +215,7 @@ const CodeBlock: React.FC<{
                   id={`code-line-${i + 1}`}
                   className={cn(restLineProps.className, diffBgClass)}
                 >
-                  <span
-                    className={cn(
-                      'mr-4 inline-block w-5 text-right select-none',
-                      CODE_BLOCK_THEME.light.lineNumber,
-                      `dark:${CODE_BLOCK_THEME.dark.lineNumber}`,
-                    )}
-                  >
+                  <span className={cn('mr-4 inline-block w-5 text-right select-none', CODE_BLOCK_LINE_NUMBER)}>
                     {i + 1}
                   </span>
                   {line.map((token, k) => {
@@ -260,7 +251,7 @@ const CodeBlock: React.FC<{
     }
 
     return result;
-  }, [cacheKey, safeLanguage, displayValue, getTheme, isStreaming]);
+  }, [cacheKey, safeLanguage, displayValue, syntaxTheme, isStreaming]);
 
   return (
     <div

@@ -13,8 +13,6 @@ export const CODE_BLOCK_THEME = {
     text: 'text-gray-700',
     /** 边框颜色 - 极浅的边框 */
     border: 'border-[#e8e8e3]',
-    /** 行号颜色 */
-    lineNumber: 'text-gray-400',
     /** hover 背景色 */
     hover: 'hover:bg-[#ededea]',
   },
@@ -27,12 +25,13 @@ export const CODE_BLOCK_THEME = {
     text: 'text-gray-300',
     /** 边框颜色 - 柔和的边框 */
     border: 'border-gray-700',
-    /** 行号颜色 */
-    lineNumber: 'text-gray-500',
     /** hover 背景色 */
     hover: 'hover:bg-gray-700',
   },
 } as const;
+
+/** 行号颜色：用主题的次要文字色，明暗两套主题以及 diff 行底色上对比度都不低于 4.5:1 */
+export const CODE_BLOCK_LINE_NUMBER = 'text-muted-foreground';
 
 /** 代码块容器样式 */
 export const CODE_BLOCK_CONTAINER = {
