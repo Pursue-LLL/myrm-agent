@@ -276,8 +276,11 @@ class DelegationCoordinator:
             if task.status in (DelegationStatus.RUNNING, DelegationStatus.COMPLETED):
                 self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=safe_text)
 
+        # Nothing is delivered for a run handed over at an approval (it has not finished) or stopped by the user
+        # (``/stop`` already answered, and what the run left behind is not an answer).
+        deliver = not stopped_at_approval and task.status is not DelegationStatus.CANCELLED
         try:
-            if not stopped_at_approval:
+            if deliver:
                 await bus.publish_outbound(build_delivery_message(task, original_msg, final_reply, snapshot))
         finally:
             self._forget(task.task_id)
@@ -285,5 +288,5 @@ class DelegationCoordinator:
             "DelegationCoordinator: Task %s ended as %s; %s",
             task.task_id,
             task.status.value,
-            "handed to the chat at a tool approval" if stopped_at_approval else f"delivered to {task.origin_chat_id}",
+            f"delivered to {task.origin_chat_id}" if deliver else "nothing to deliver",
         )

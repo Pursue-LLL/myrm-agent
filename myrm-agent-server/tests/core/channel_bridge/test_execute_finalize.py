@@ -160,7 +160,7 @@ async def test_compressed_note_always_kept() -> None:
 
 @pytest.mark.asyncio
 async def test_empty_content_with_button_uses_deliverable_text() -> None:
-    """Empty content with a deep-link button must not fall back to '[No response generated]'."""
+    """Empty content with a deep-link button must not fall back to the empty-reply text."""
     acc = StreamAccumulator()
     button = MagicMock()
     persist_mock, reply = await _finalize(acc, ((button,), frozenset()))

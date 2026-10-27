@@ -14,9 +14,7 @@ _SESSION = "app.core.channel_bridge.agent_executor.execute_preamble.session"
 
 
 def _msg() -> InboundMessage:
-    return InboundMessage(
-        channel="telegram", sender_id="user-1", chat_id="chat-1", content="hi", metadata={"locale": "en"}
-    )
+    return InboundMessage(channel="telegram", sender_id="user-1", chat_id="chat-1", content="hi", metadata={"locale": "en"})
 
 
 @pytest.mark.asyncio

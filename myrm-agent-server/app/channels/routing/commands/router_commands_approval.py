@@ -10,10 +10,10 @@
 - services.approvals.registry::ApprovalRegistry (POS: unified approval flow scheduler that persists, pushes and resolves approvals.)
 
 [OUTPUT]
-- RouterCommandsApprovalMixin: _abort_session_task, approval command handlers, decision resume payloads
+- RouterCommandsApprovalMixin: _abort_session_task, /stop (the chat's turn first, then the sender's delegated tasks), approval command handlers, decision resume payloads
 
 [POS]
-Router approval mixin segment. Cancels active tasks, validates reaction/button
+Router approval mixin segment. Cancels the active turn (or the sender's delegated tasks), validates reaction/button
 approvals, and builds harness-compatible resume_value for LangGraph interrupt resume.
 """
 

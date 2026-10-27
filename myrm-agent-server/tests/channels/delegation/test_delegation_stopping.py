@@ -34,6 +34,19 @@ class _HungExecutor:
         await asyncio.Event().wait()
 
 
+class _StopAwareExecutor:
+    """Treats a cancellation as the end of its stream and returns what it has so far, as an executor that catches it would."""
+
+    def execute_stream(self, *_args: object, **_kwargs: object) -> AsyncGenerator[object, None]:
+        return self._stream()
+
+    async def _stream(self) -> AsyncGenerator[object, None]:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            yield OutboundMessage(channel="telegram", recipient_id="chat-1", user_id="user-1", content="half an answer")
+
+
 async def _no_hand_over(_request: ProgressUpdate) -> None:
     raise AssertionError("a run that never reached an approval must not hand one over")
 
@@ -45,14 +58,19 @@ def _inbound() -> InboundMessage:
 
 
 async def _start(
-    coordinator: DelegationCoordinator, bus: _Bus, *, user: str = "user-1", chat: str = "chat-1"
+    coordinator: DelegationCoordinator,
+    bus: _Bus,
+    *,
+    user: str = "user-1",
+    chat: str = "chat-1",
+    executor: object | None = None,
 ) -> tuple[DelegationTask, asyncio.Task[None]]:
     task = build_delegation_task(origin_channel="telegram", origin_user_id=user, origin_chat_id=chat, prompt="do the report")
     coordinator.register_task(task)
     runner = asyncio.create_task(
         coordinator.execute_task_lifecycle(
             task,
-            _HungExecutor(),  # type: ignore[arg-type]
+            executor or _HungExecutor(),  # type: ignore[arg-type]
             bus,  # type: ignore[arg-type]
             _inbound(),
             hand_over_approval=_no_hand_over,
@@ -136,3 +154,31 @@ async def test_a_run_cancelled_from_outside_ends_cancelled_without_a_message() -
     assert task.status is DelegationStatus.CANCELLED
     assert bus.published == []
     assert coordinator.get_task(task.task_id) is None
+
+
+@pytest.mark.asyncio
+async def test_a_stopped_run_that_ends_its_stream_gracefully_still_delivers_nothing() -> None:
+    coordinator, bus = DelegationCoordinator(), _Bus()
+    task, runner = await _start(coordinator, bus, executor=_StopAwareExecutor())
+
+    assert coordinator.cancel_for_chat("telegram", "chat-1", "user-1") == [task.task_id]
+    await runner  # the stream ended on its own: the lifecycle returns instead of re-raising
+
+    assert task.status is DelegationStatus.CANCELLED
+    assert bus.published == []  # the half answer is not reported as a finished task
+    assert coordinator.get_task(task.task_id) is None
+
+
+@pytest.mark.asyncio
+async def test_a_reaped_run_that_ends_its_stream_gracefully_delivers_only_the_timeout_notice() -> None:
+    coordinator, bus = DelegationCoordinator(), _Bus()
+    task, runner = await _start(coordinator, bus, executor=_StopAwareExecutor())
+    task.started_at = 1.0
+
+    assert coordinator.reap_stale_tasks() == [task.task_id]
+    await runner
+
+    assert task.status is DelegationStatus.TIMED_OUT
+    assert [m.content for m in bus.published] == [
+        f"⏱ **Background task stopped** `[{task.task_id}]` · it ran past the 60-minute limit."
+    ]
