@@ -6,7 +6,8 @@ The worker loop is implemented in ``myrm-agent-server/app/tasks/worker.py``.
 
 [INPUT]
 - tasks.protocols (POS: core task data models and status types)
-- tasks.store::SQLiteTaskStore, TaskFilters, TaskStoreProtocol (POS: persistence)
+- tasks.query::TaskFilters (POS: validated list-query filters)
+- tasks.store::SQLiteTaskStore, TaskStore (POS: persistence)
 
 [OUTPUT]
 - Task, TaskStatus, TaskError, RetryPolicy, ErrorRecoverability: core task models
@@ -23,7 +24,8 @@ from .protocols import (
     TaskError,
     TaskStatus,
 )
-from .store import SQLiteTaskStore, TaskFilters, TaskStore
+from .query import TaskFilters
+from .store import SQLiteTaskStore, TaskStore
 
 __all__ = [
     "ErrorRecoverability",

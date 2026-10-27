@@ -114,6 +114,20 @@ result_json = await tools.generate_image(prompt="...", chat_id="...")
 3. `TaskWorker` + media executors (`ImageTaskExecutor`, `VideoTaskExecutor`) consume queue (`next_retry_at` in future stays queued; only due tasks are consumed; terminal status persistence clears stale `next_retry_at`)
 4. `TaskEventBus` → SSE `/api/v1/tasks/stream` → task cards (`ImageTaskCard` / `VideoTaskCard`)
 
+## Concurrent writers
+
+Several writers move the same row: the worker (claim, finish), the cancel/retry API, and the
+startup sweep. Plain `update_task` is last-write-wins and lets a late `SUCCEEDED` overwrite a
+user's `CANCELLED`. A writer that must not clobber another uses
+`update_task_if_status(task_id, expected, **updates)`: the status check and the write are one SQL
+statement, so exactly one writer wins and the loser gets `None`.
+
+- Claim: `PENDING → RUNNING` with `expected={PENDING}`.
+- Finish: `RUNNING → SUCCEEDED | FAILED` with `expected={RUNNING}`.
+- Cancel: `PENDING | QUEUED | RUNNING → CANCELLED`; a terminal task is left alone.
+- `TaskFilters.order_by` is a comma-separated `column [ASC|DESC]` list over a column whitelist;
+  anything else raises `ValueError` (a silently rewritten sort order once turned the priority queue into LIFO).
+
 ## Crypto Boundary
 
 - **Harness store**: crypto-agnostic JSON payload in SQLite
@@ -131,7 +145,8 @@ result_json = await tools.generate_image(prompt="...", chat_id="...")
 | Location | Role |
 |----------|------|
 | `toolkits/tasks/protocols.py` | `Task`, `TaskStatus`, retry policy |
-| `toolkits/tasks/store.py` | `SQLiteTaskStore` |
+| `toolkits/tasks/store.py` | `SQLiteTaskStore` (CRUD, compare-and-set update) |
+| `toolkits/tasks/query.py` | `TaskFilters` (validated list query) |
 | `toolkits/llms/image/async_image_engine.py` | Image enqueue |
 | `myrm-agent-server/app/tasks/worker.py` | Consumer loop |
 | `myrm-agent-server/app/lifecycle/task_worker.py` | Store singleton + startup |

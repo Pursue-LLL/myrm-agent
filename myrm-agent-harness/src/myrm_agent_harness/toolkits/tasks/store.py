@@ -11,10 +11,10 @@ This module provides a SQLite-based task store with support for:
 
 [INPUT]
 - tasks.protocols::Task, TaskStatus, TaskError, RetryPolicy, ErrorRecoverability (POS: core task data models)
+- tasks.query::TaskFilters (POS: validated list-query filters)
 
 [OUTPUT]
-- TaskFilters: query filter builder for task listing
-- TaskStoreProtocol: abstract task store interface protocol
+- TaskStore: abstract task store interface protocol (create / update / compare-and-set update / list)
 - SQLiteTaskStore: SQLite-backed task store implementation
 
 [POS]
@@ -24,53 +24,20 @@ result caching, and multi-tenant isolation for the async task system.
 
 import json
 import sqlite3
+from collections.abc import Collection
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
 from .protocols import ErrorRecoverability, RetryPolicy, Task, TaskError, TaskStatus
+from .query import TaskFilters
 
-_DEFAULT_ORDER_BY = "created_at DESC"
-_ALLOWED_ORDER_COLUMNS = {
-    "created_at",
-    "updated_at",
-    "started_at",
-    "completed_at",
-    "priority",
-    "status",
-    "task_type",
-    "user_id",
-    "task_id",
-}
-_ALLOWED_ORDER_DIRECTIONS = {"ASC", "DESC"}
 _TERMINAL_STATUS_VALUES = {
     TaskStatus.SUCCEEDED.value,
     TaskStatus.FAILED.value,
     TaskStatus.CANCELLED.value,
 }
-
-
-def _sanitize_order_by(order_by: str) -> str:
-    normalized = " ".join(order_by.strip().split())
-    if not normalized:
-        return _DEFAULT_ORDER_BY
-
-    parts = normalized.split(" ")
-    if len(parts) == 1:
-        column = parts[0]
-        direction = "ASC"
-    elif len(parts) == 2:
-        column, direction = parts
-    else:
-        return _DEFAULT_ORDER_BY
-
-    direction_normalized = direction.upper()
-    if column not in _ALLOWED_ORDER_COLUMNS:
-        return _DEFAULT_ORDER_BY
-    if direction_normalized not in _ALLOWED_ORDER_DIRECTIONS:
-        return _DEFAULT_ORDER_BY
-    return f"{column} {direction_normalized}"
 
 
 def _is_terminal_status(status: TaskStatus | str | None) -> bool:
@@ -81,42 +48,13 @@ def _is_terminal_status(status: TaskStatus | str | None) -> bool:
     return status.lower() in _TERMINAL_STATUS_VALUES
 
 
-class TaskFilters:
-    """Filters for querying tasks."""
-
-    def __init__(
-        self,
-        status: TaskStatus | list[TaskStatus] | None = None,
-        task_type: str | list[str] | None = None,
-        user_id: str | None = None,
-        tags: list[str] | None = None,
-        created_after: datetime | None = None,
-        created_before: datetime | None = None,
-        ready_before: datetime | None = None,
-        limit: int = 100,
-        offset: int = 0,
-        order_by: str = _DEFAULT_ORDER_BY,
-        task_ids: list[str] | None = None,
-    ):
-        self.status = status
-        self.task_type = task_type
-        self.user_id = user_id
-        self.tags = tags
-        self.created_after = created_after
-        self.created_before = created_before
-        self.ready_before = ready_before
-        self.limit = limit
-        self.offset = offset
-        self.order_by = _sanitize_order_by(order_by)
-        self.task_ids = task_ids
-
-
 class TaskStore(Protocol):
     """Protocol for task storage."""
 
     async def create_task(self, task: Task) -> Task: ...
     async def get_task(self, task_id: str) -> Task | None: ...
     async def update_task(self, task_id: str, **updates) -> Task: ...
+    async def update_task_if_status(self, task_id: str, expected: Collection[TaskStatus], **updates) -> Task | None: ...
     async def list_tasks(self, filters: TaskFilters) -> list[Task]: ...
     async def find_by_idempotency_key(self, key: str) -> Task | None: ...
     async def find_by_cache_key(self, key: str) -> Task | None: ...
@@ -270,6 +208,20 @@ class SQLiteTaskStore:
 
     async def update_task(self, task_id: str, **updates) -> Task:
         """Update task fields."""
+        self._write_update(task_id, updates, expected=None)
+        return await self.get_task(task_id)
+
+    async def update_task_if_status(self, task_id: str, expected: Collection[TaskStatus], **updates) -> Task | None:
+        """Compare-and-set: write *updates* only while the task is still in one of the *expected* statuses.
+
+        Returns the updated task, or None when the task is gone or another writer moved it first.
+        The check and the write are one SQL statement, so concurrent writers see exactly one winner.
+        """
+        if not self._write_update(task_id, updates, expected=expected):
+            return None
+        return await self.get_task(task_id)
+
+    def _write_update(self, task_id: str, updates: dict[str, object], expected: Collection[TaskStatus] | None) -> bool:
         conn = self._conn()
         try:
             # Build SET clause dynamically
@@ -330,10 +282,14 @@ class SQLiteTaskStore:
             values.append(datetime.now(UTC).isoformat())
             values.append(task_id)
 
-            conn.execute(f"UPDATE tasks SET {', '.join(set_parts)} WHERE task_id = ?", values)
-            conn.commit()
+            where = "task_id = ?"
+            if expected is not None:
+                where += f" AND status IN ({','.join('?' * len(expected))})"
+                values.extend(status.value for status in expected)
 
-            return await self.get_task(task_id)
+            cursor = conn.execute(f"UPDATE tasks SET {', '.join(set_parts)} WHERE {where}", values)
+            conn.commit()
+            return cursor.rowcount > 0
         finally:
             conn.close()
 

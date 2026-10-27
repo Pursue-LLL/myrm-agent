@@ -28,6 +28,9 @@ class TaskStatus(StrEnum):
     """Task execution status.
 
     State machine: PENDING → QUEUED → RUNNING → (SUCCEEDED | FAILED | CANCELLED)
+
+    Terminal states are final except FAILED → PENDING (retry). A write that must not overwrite a
+    concurrent terminal write goes through ``SQLiteTaskStore.update_task_if_status``.
     """
 
     PENDING = "pending"  # Created, waiting to be queued

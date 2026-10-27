@@ -169,19 +169,20 @@ async def test_list_tasks_ready_before_filter(temp_store):
 
 
 @pytest.mark.asyncio
-async def test_list_tasks_sanitizes_order_by(temp_store):
-    """Unsafe order_by falls back to default safe sort."""
+async def test_list_tasks_validates_order_by(temp_store):
+    """order_by is whitelisted: normalized when valid, rejected (never rewritten) when not."""
     task = Task("safe-order", "image_generate", "user-1", TaskStatus.PENDING, {})
     await temp_store.create_task(task)
 
-    filters = TaskFilters(order_by="created_at DESC; DROP TABLE tasks")
-    listed = await temp_store.list_tasks(filters)
-
+    listed = await temp_store.list_tasks(TaskFilters(order_by="created_at DESC"))
     assert len(listed) == 1
-    assert filters.order_by == "created_at DESC"
 
-    normalized = TaskFilters(order_by="updated_at asc")
-    assert normalized.order_by == "updated_at ASC"
+    assert TaskFilters(order_by="updated_at asc").order_by == "updated_at ASC"
+    assert TaskFilters(order_by="priority desc,  created_at").order_by == "priority DESC, created_at ASC"
+
+    for unsafe in ("created_at DESC; DROP TABLE tasks", "password DESC", "created_at DESC LIMIT 1", "", "created_at,"):
+        with pytest.raises(ValueError, match="Unsupported order_by"):
+            TaskFilters(order_by=unsafe)
 
 
 @pytest.mark.asyncio
