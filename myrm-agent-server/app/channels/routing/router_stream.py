@@ -1,5 +1,14 @@
 """Consume AgentExecutor event streams: progress, streaming text, interactive approvals, silence heartbeat.
 
+[INPUT]
+- app.channels.routing.router_host::RouterStreamHost (POS: the host attributes the mixin methods rely on)
+- app.channels.routing.stream_metrics::stream_reply_span (POS: root span of one streamed reply)
+- app.channels.routing.router_reassurance::run_reassurance_loop (POS: silence heartbeat that runs beside the stream)
+- app.channels.routing.router_stream_scrubber / router_stream_throttle (POS: progress scrubbing, placeholder edit throttle)
+
+[OUTPUT]
+- RouterStreamMixin: stream consumption, throttled placeholder edits and approval message tracking of AgentRouter
+
 [POS]
 RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance;
 methods constrain self via RouterStreamHost. One streamed reply is one trace: the
@@ -87,7 +96,8 @@ class RouterStreamMixin:
 
         The whole consumption runs inside one reply span: the agent run and the edits nest
         below it, the trace id in the log lines is its trace id, and the session summary
-        (update decisions, edits, failed edits) ends up on it.
+        (update decisions, edits, failed edits) ends up on it, also when the stream fails
+        or is stopped.
 
         Returns (result, last_progress_at) so the caller can enforce
         a minimum gap before the final edit.
@@ -246,10 +256,9 @@ class RouterStreamMixin:
                 reassurance_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await reassurance_task
-
-            self._stream_metrics.end_session(metrics_key)
-            self._stream_coordinator.cleanup(metrics_key)
-            self._progress_estimator.cleanup(metrics_key)
+                self._stream_metrics.end_session(metrics_key)
+                self._stream_coordinator.cleanup(metrics_key)
+                self._progress_estimator.cleanup(metrics_key)
 
             if has_pending_approval:
                 result = None

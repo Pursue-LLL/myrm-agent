@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import patch
+
+import pytest
 
 from app.channels.routing.stream_metrics import (
     StreamingSession,
@@ -144,6 +147,17 @@ class TestEndSessionMetrics:
 
         with patch("app.channels.routing.stream_metrics.logger"):
             m.end_session("s1")
+
+    def test_a_normal_completion_is_logged_below_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        m = StreamMetrics()
+        m.start_session("s1", trace_id="trace-1")
+        m.record_edit("s1", text_length=50, success=True, is_first=True)
+
+        with caplog.at_level(logging.INFO, logger="app.channels.routing.stream_metrics"):
+            m.end_session("s1")
+
+        completed = [r for r in caplog.records if r.getMessage().startswith("Stream session completed")]
+        assert [r.levelno for r in completed] == [logging.INFO]
 
     def test_end_empty_session(self) -> None:
         m = StreamMetrics()

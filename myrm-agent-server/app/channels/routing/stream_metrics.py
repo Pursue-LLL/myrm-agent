@@ -20,7 +20,7 @@ Tracks streaming performance indicators:
 [POS]
 Provides observability into streaming quality via tracing infrastructure. A reply is one trace: the agent run
 and every edit nest under its reply span, and the span ends with the numbers of its session (update decisions,
-edits, failed edits) instead of one span per streamed text event.
+edits, failed edits).
 """
 
 from __future__ import annotations
@@ -190,7 +190,8 @@ class StreamMetrics:
         session.decision_reasons.append(reason)
 
     def end_session(self, session_key: str) -> None:
-        """End session and emit final metrics."""
+        """End the session: its counters go onto the current span (the reply span inside ``stream_reply_span``)
+        and its quality figures to the metrics collector."""
         session = self._sessions.pop(session_key, None)
         if not session:
             return
@@ -259,7 +260,7 @@ class StreamMetrics:
             decision_summary = self._summarize_decisions(session.decision_reasons)
             trace_info = f" trace_id={session.trace_id}" if session.trace_id else ""
 
-            logger.warning(
+            logger.info(
                 "Stream session completed: edits=%d failures=%d chars=%d first_edit_ms=%.1f "
                 "transmission_efficiency=%.1f%% p95_latency=%.1fms decisions=%s%s",
                 session.edit_count,

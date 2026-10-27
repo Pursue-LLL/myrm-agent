@@ -1,9 +1,8 @@
 """One streamed reply is one trace.
 
-Every streamed text event used to open a span of its own with nothing around it, so a backend showed a handful of
-disconnected one-span traces per reply and the agent run as yet another trace. The consumption now runs inside a
-single reply span: the agent run and every edit nest below it, the numbers of the session end up on it, and a
-failure is recorded by class only (its message can echo the sender's text).
+The consumption of a reply runs inside a single reply span: the agent run and every edit nest below it, the numbers
+of the session end up on it, and a failure is recorded by class only (its message can echo the sender's text).
+A backend therefore shows one trace per reply, with no span of its own for each streamed text event.
 """
 
 from __future__ import annotations
@@ -28,6 +27,7 @@ from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, 
 
 _REPLY = "Your refund is approved and will reach your card within five days of today."
 _DELTAS = 3
+_METRICS_KEY = "telegram:chat-1:m1"
 
 
 @dataclass(frozen=True)
@@ -58,10 +58,18 @@ def telemetry(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Telemetry]:
 class _Executor:
     """Plays a real turn: the agent run is a span of its own that nests wherever the consumer is."""
 
-    def __init__(self, tracer: Tracer, *, deltas: int = _DELTAS, fail_with: Exception | None = None) -> None:
+    def __init__(
+        self,
+        tracer: Tracer,
+        *,
+        deltas: int = _DELTAS,
+        fail_with: Exception | None = None,
+        stalled: asyncio.Event | None = None,
+    ) -> None:
         self._tracer = tracer
         self._deltas = deltas
         self._fail_with = fail_with
+        self._stalled = stalled
 
     async def execute_stream(self, msg: InboundMessage, user_id: str, **_: object) -> AsyncIterator[object]:
         with self._tracer.start_as_current_span("invoke_agent"):
@@ -69,6 +77,9 @@ class _Executor:
         yield ProgressUpdate(label="Looking up your order")
         for step in range(1, self._deltas + 1):
             yield StreamingText(text=_REPLY[: 10 * step + 30])
+        if self._stalled is not None:
+            self._stalled.set()
+            await asyncio.Event().wait()
         if self._fail_with is not None:
             raise self._fail_with
         yield OutboundMessage(channel=msg.channel, recipient_id=msg.chat_id or "", content=_REPLY, user_id=user_id)
@@ -96,6 +107,14 @@ def _router(monkeypatch: pytest.MonkeyPatch, executor: _Executor, *, edits_succe
     return router
 
 
+def _spy_on_cleanups(router: AgentRouter, monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, MagicMock]:
+    """Replace the per-session cleanups of the stream collaborators with spies."""
+    coordinator, estimator = MagicMock(), MagicMock()
+    monkeypatch.setattr(router._stream_coordinator, "cleanup", coordinator)
+    monkeypatch.setattr(router._progress_estimator, "cleanup", estimator)
+    return coordinator, estimator
+
+
 async def _stream(router: AgentRouter) -> OutboundMessage | None:
     result, _ = await router._consume_executor_stream(_inbound(), "guest_u1", "telegram:chat-1", "chat-1")
     return result
@@ -110,7 +129,7 @@ async def test_the_whole_reply_is_one_trace(telemetry: _Telemetry, monkeypatch: 
     assert reply.parent is None
     assert {span.context.trace_id for span in spans} == {reply.context.trace_id}
     assert all(span.parent is not None for span in spans if span is not reply)
-    # one span per streamed text event is gone; what remains is the run and the edits it caused
+    # the trace holds the run and the edits it caused, with no span per streamed text event
     assert Counter(span.name for span in spans) == {"stream_reply": 1, "invoke_agent": 1, "edit_with_retry": _DELTAS}
 
 
@@ -148,6 +167,36 @@ async def test_a_failed_reply_records_the_error_class_only(telemetry: _Telemetry
     assert (reply.attributes or {})["error.type"] == "RuntimeError"
     assert reply.events == ()
     assert secret not in repr([(span.attributes, span.events, span.status) for span in telemetry.spans()])
+
+
+async def test_a_failed_reply_still_ends_its_session(telemetry: _Telemetry, monkeypatch: pytest.MonkeyPatch) -> None:
+    router = _router(monkeypatch, _Executor(telemetry.tracer, fail_with=RuntimeError("upstream down")))
+    coordinator, estimator = _spy_on_cleanups(router, monkeypatch)
+
+    with pytest.raises(RuntimeError):
+        await _stream(router)
+
+    assert (telemetry.only("stream_reply").attributes or {})["myrm.stream.edits"] == _DELTAS
+    coordinator.assert_called_once_with(_METRICS_KEY)
+    estimator.assert_called_once_with(_METRICS_KEY)
+
+
+async def test_a_stopped_reply_still_ends_its_session(telemetry: _Telemetry, monkeypatch: pytest.MonkeyPatch) -> None:
+    stalled = asyncio.Event()
+    router = _router(monkeypatch, _Executor(telemetry.tracer, stalled=stalled))
+    coordinator, estimator = _spy_on_cleanups(router, monkeypatch)
+    consumer = asyncio.create_task(_stream(router))
+    await asyncio.wait_for(stalled.wait(), timeout=5)
+
+    consumer.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await consumer
+
+    reply = telemetry.only("stream_reply")
+    assert reply.status.status_code is StatusCode.UNSET
+    assert (reply.attributes or {})["myrm.stream.edits"] == _DELTAS
+    coordinator.assert_called_once_with(_METRICS_KEY)
+    estimator.assert_called_once_with(_METRICS_KEY)
 
 
 async def test_a_cancelled_reply_is_not_an_error(telemetry: _Telemetry) -> None:
