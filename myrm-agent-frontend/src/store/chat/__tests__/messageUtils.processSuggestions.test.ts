@@ -88,6 +88,8 @@ describe('processSuggestions', () => {
     ['a user message', message({ messageId: 'u2', role: 'user', content: 'Hi' })],
     ['an empty answer', message({ messageId: 'a2', role: 'assistant', content: '  ' })],
     ['an answer that already has follow-ups', { ...answer, suggestions: ['Already here'] }],
+    // The server answers [] for a closing message: the answer is settled, so a repeated terminal event must not ask again.
+    ['an answer the model found nothing to follow up on', { ...answer, suggestions: [] }],
   ])('does nothing for %s', async (_label, last) => {
     await processSuggestions(last, [question, last], updateMessage);
 
