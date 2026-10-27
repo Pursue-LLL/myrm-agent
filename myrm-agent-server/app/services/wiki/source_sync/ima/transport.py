@@ -9,9 +9,9 @@
 - WIKI_PREFIX / NOTE_PREFIX: the two OpenAPI namespaces
 
 [POS]
-Every ima call is ``POST https://ima.qq.com/<prefix>/<method>`` with two credential headers and an HTTP 200
-status envelope even for business failures, so classifying failures here keeps retry policy out of callers.
-The origin is a constant: credentials can never be sent to a caller-chosen host.
+Every ima call is ``POST https://ima.qq.com/<prefix>/<method>`` with two credential headers; a business failure is
+reported in the response envelope rather than by the HTTP status alone, so classifying failures here keeps retry
+policy out of callers. The origin is a constant: credentials can never be sent to a caller-chosen host.
 """
 
 from __future__ import annotations
@@ -32,8 +32,9 @@ API_ORIGIN = "https://ima.qq.com"
 WIKI_PREFIX = "/openapi/wiki/v1"
 NOTE_PREFIX = "/openapi/note/v1"
 
-# The envelope is documented as {retcode, errmsg, data} while live responses also use {code, msg, data};
-# reading only one spelling would turn every success into "failed with code None".
+# Two spellings of the envelope are in use, {retcode, errmsg, data} and {code, msg, data}: Tencent's own connector
+# accepts both and another ima client reports the notes API on the second. Reading only one spelling would turn
+# every success into "failed with code None".
 _CODE_KEYS = ("retcode", "code")
 _MESSAGE_KEYS = ("errmsg", "msg")
 _CREDENTIAL_CODES = frozenset({20004, 200002, 110030})

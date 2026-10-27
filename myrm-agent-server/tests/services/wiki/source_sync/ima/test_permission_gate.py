@@ -1,4 +1,4 @@
-"""A refused request is not always a revoked key: ima refuses a resource the key may not read the same way.
+"""A refused request is not always a revoked key, and the refusal alone cannot tell the two apart.
 
 The slice asks once whether the key still works (``SyncContext.require_valid_key``). A bad key stops everything and asks
 for a reconnect; a working key only fences off the library, note or item ima refused. Failure details reach the log as

@@ -12,9 +12,9 @@
 Every row ends in exactly one recorded outcome: synced, a terminal status (unsupported / too large / blocked /
 duplicate), or a failure whose retry budget reflects whether retrying can help. Only a rejected key, rate limiting
 and a run of consecutive connection-level failures stop the pool; one bad item, including a dead link or a note ima
-will not let this key read, never aborts the slice. A rejection is first checked against the key itself, because ima
-refuses an off-limits resource the same way it refuses a revoked key. The slice logs one line summarising its
-item failures instead of one per item.
+will not let this key read, never aborts the slice. A rejection is first checked against the key itself, because it
+can mean a bad key or only a resource the key may not read (see ``ImaAuthError``). The slice logs one line
+summarising its item failures instead of one per item.
 """
 
 from __future__ import annotations

@@ -79,7 +79,7 @@ class ImaClient:
         return parse_media_info(await self._transport.post(WIKI_PREFIX, "get_media_info", {"media_id": media_id}))
 
     async def get_note_text(self, note_id: str) -> str:
-        """A note's body as plain text; ima only reliably supports the plain-text target format."""
+        """A note's body as plain text, the read format ima's reference recommends."""
         if not note_id:
             raise ImaPermanentError("ima note id is missing")
         # ima's published notes references disagree on the id's name (the skill reference says ``note_id``, the notes

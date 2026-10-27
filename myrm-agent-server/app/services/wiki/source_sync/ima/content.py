@@ -12,8 +12,9 @@
 [POS]
 Reuses the existing conversion and web-fetch stacks instead of re-implementing them. Lossy outcomes are named
 (``images_remote``, ``body_truncated``, ``layout_flattened``) so the ledger can report fidelity instead of claiming
-every import is exact. A note's plain text is all ima's API offers, so it is the baseline, not a loss: counting it
-would flag every note as simplified and bury the items that really lost something.
+every import is exact. A note's plain text is the format ima's reference recommends for reading a note (Markdown is
+documented there as unsupported), so it is the baseline, not a loss: counting it would flag every note as simplified
+and bury the items that really lost something.
 """
 
 from __future__ import annotations

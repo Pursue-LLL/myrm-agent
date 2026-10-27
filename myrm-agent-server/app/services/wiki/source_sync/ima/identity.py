@@ -8,8 +8,8 @@
 - build_raw_path: ``ima/<container>/<folders>/<title>-<suffix>.md`` within the raw gate's path budget
 
 [POS]
-ima reassigns ``media_id`` whenever a same-named file is replaced in place, so a knowledge-base item's
-identity is the (kb, parent folder, title) tuple and ``media_id`` is only the version signal. Two items that
+A knowledge-base item's identity is the (kb, parent folder, title) tuple and ``media_id`` is only the version
+signal: the same title under a new ``media_id`` is the next version of that item, not a second item. Two items that
 share that tuple cannot both own the key: the later one is told apart by ``media_id`` (see the ledger). Notes
 are identified by their own id. Identity never depends on content, which keeps re-syncs idempotent.
 """

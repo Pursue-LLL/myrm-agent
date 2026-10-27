@@ -66,10 +66,10 @@ class SyncContext:
     async def require_valid_key(self, rejection: ImaAuthError) -> None:
         """Return when ima refused one request although the key itself works; raise ``rejection`` when the key is bad.
 
-        ima refuses a resource the key may not read (a library shared without access, a teammate's note) exactly like a
-        revoked key. One cheap authenticated call per slice, shared by every worker, tells the two apart. When even that
-        call fails, the rejection is neither accepted nor dismissed: it surfaces as a transient failure to retry. A rate
-        limit raised by the check propagates so the engine can pause.
+        A rejection can mean a revoked key or only a resource the key may not read (``ImaAuthError`` names the code that
+        is ambiguous). One cheap authenticated call per slice, shared by every worker, tells the two apart. When even
+        that call fails, the rejection is neither accepted nor dismissed: it surfaces as a transient failure to retry.
+        A rate limit raised by the check propagates so the engine can pause.
         """
         valid = await self._key_is_valid()
         if valid is False:

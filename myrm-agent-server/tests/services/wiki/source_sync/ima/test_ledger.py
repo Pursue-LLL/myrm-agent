@@ -308,7 +308,7 @@ async def test_a_replaced_file_updates_its_row_instead_of_becoming_a_sibling(ima
     await _upsert(ima_db, [sibling("m1")])
     await _sync(ima_db, "base")
 
-    # Same title, new media id, in a later pass: ima replaced the file in place.
+    # Same title, new media id, in a later pass: the row takes the new version instead of gaining a sibling.
     assert await _upsert(ima_db, [sibling("m9")], generation=2) == 0
 
     row = await _row(ima_db, "base")

@@ -10,8 +10,8 @@
 
 [POS]
 The single place that knows ima's field spellings. ima mixes documents and folders in one list and names the
-same fields differently across endpoints, so every spelling seen in Tencent's own connector and live
-responses is accepted here and nowhere else.
+same fields differently across endpoints, so every spelling seen in Tencent's own connector and in other ima
+clients is accepted here and nowhere else.
 """
 
 from __future__ import annotations

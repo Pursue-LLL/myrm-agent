@@ -29,7 +29,9 @@ class ImaError(Exception):
 class ImaAuthError(ImaError):
     """A request was rejected as unauthorized: the key pair is bad, or it works but may not read that one resource.
 
-    ima answers both the same way, so the rejection alone cannot tell them apart; ``SyncContext.require_valid_key`` does.
+    ``20004`` / ``200002`` are authentication failures, but the vendor table words ``110030`` as "no permission" while
+    Tencent's own connector reads it as invalid credentials, and which it is has not been checked against a real key.
+    The rejection alone cannot tell the two apart; ``SyncContext.require_valid_key`` does.
     """
 
     kind: ClassVar[str] = "auth"
