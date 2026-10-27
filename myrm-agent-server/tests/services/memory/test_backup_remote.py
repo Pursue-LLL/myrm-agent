@@ -1,11 +1,11 @@
 """Cloud Backup Remote integration tests.
 
 Tests core backup remote modules:
-- backup_remote.py: Strategy, config dataclasses
-- backup_remote_scheduler.py: _upload_with_retry, _rotate_backups, the run/restore guards
+- remote_sync/storage: the connection config dataclasses
+- remote_sync/runner.py: _upload_with_retry, _rotate_backups, the run/restore guards
 - API endpoints: check-connection, trigger, list, restore, delete
 (the snapshot round trip, the WebDAV listing, the rotation matrix, the S3 client and the scheduled sync live in
-tests/services/memory/backup/; the status endpoint and the manual-backup recording in tests/api/memory/)
+tests/services/memory/backup/remote_sync/; the status endpoint and the manual-backup recording in tests/api/memory/)
 """
 
 from __future__ import annotations
@@ -25,10 +25,13 @@ from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
 from app.api.memory.utils import get_crud_memory_manager
-from app.services.memory.backup.backup_remote import (
+from app.services.memory.backup.remote_sync import runner
+from app.services.memory.backup.remote_sync.storage import (
     RemoteBackupFile,
     S3BackupConfig,
+    S3BackupStrategy,
     WebDAVBackupConfig,
+    WebDAVBackupStrategy,
 )
 
 client = TestClient(app)
@@ -82,8 +85,10 @@ class TestConfigDataclasses:
 
 class TestUploadRetry:
     @pytest.mark.asyncio
-    async def test_upload_success_first_attempt(self):
-        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
+    async def test_upload_success_first_attempt(self, monkeypatch: pytest.MonkeyPatch):
+        from app.services.memory.backup.remote_sync.runner import _upload_with_retry
+
+        monkeypatch.setattr(runner, "_RETRY_BASE_DELAY_S", 0.0)
 
         strategy = InMemoryBackupStrategy()
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -97,8 +102,10 @@ class TestUploadRetry:
         path.unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    async def test_upload_retries_on_failure(self):
-        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
+    async def test_upload_retries_on_failure(self, monkeypatch: pytest.MonkeyPatch):
+        from app.services.memory.backup.remote_sync.runner import _upload_with_retry
+
+        monkeypatch.setattr(runner, "_RETRY_BASE_DELAY_S", 0.0)
 
         strategy = InMemoryBackupStrategy(fail_count=2)
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -112,8 +119,10 @@ class TestUploadRetry:
         path.unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    async def test_upload_fails_after_max_retries(self):
-        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
+    async def test_upload_fails_after_max_retries(self, monkeypatch: pytest.MonkeyPatch):
+        from app.services.memory.backup.remote_sync.runner import _upload_with_retry
+
+        monkeypatch.setattr(runner, "_RETRY_BASE_DELAY_S", 0.0)
 
         strategy = InMemoryBackupStrategy(fail_upload=True)
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -134,21 +143,16 @@ class TestUploadRetry:
 
 class TestRunRemoteBackup:
     @pytest.mark.asyncio
-    async def test_backup_mutex_prevents_concurrent(self):
+    async def test_backup_mutex_prevents_concurrent(self, monkeypatch: pytest.MonkeyPatch):
         """Verify mutex lock prevents concurrent backup execution."""
-        import app.services.memory.backup.backup_remote_scheduler as sched
-
-        original = sched._auto_backup_running
-        sched._auto_backup_running = True
+        monkeypatch.setattr(runner, "_auto_backup_running", True)
 
         strategy = InMemoryBackupStrategy()
-        result = await sched.run_remote_backup(
+        result = await runner.run_remote_backup(
             manager=MagicMock(), strategy=strategy, instance_tag="1a2b3c4d", device_name="test"
         )
         assert result.status == "busy"
         assert "already in progress" in str(result.error).lower()
-
-        sched._auto_backup_running = original
 
 
 # ============================================================================
@@ -159,7 +163,7 @@ class TestRunRemoteBackup:
 class TestBackupRotation:
     @pytest.mark.asyncio
     async def test_rotation_deletes_old_backups(self):
-        from app.services.memory.backup.backup_remote_scheduler import _rotate_backups
+        from app.services.memory.backup.remote_sync.runner import _rotate_backups
 
         strategy = InMemoryBackupStrategy()
         for i in range(5):
@@ -178,7 +182,7 @@ class TestBackupRotation:
 
     @pytest.mark.asyncio
     async def test_rotation_skips_when_under_limit(self):
-        from app.services.memory.backup.backup_remote_scheduler import _rotate_backups
+        from app.services.memory.backup.remote_sync.runner import _rotate_backups
 
         strategy = InMemoryBackupStrategy()
         strategy._storage["myrm.20250101120000.host.1a2b3c4d.linux.json.gz"] = b"data"
@@ -199,7 +203,7 @@ class TestBackupRotation:
 class TestRestoreFromRemote:
     @pytest.mark.asyncio
     async def test_restore_fails_on_download_error(self):
-        from app.services.memory.backup.backup_remote_scheduler import restore_from_remote
+        from app.services.memory.backup.remote_sync.runner import restore_from_remote
 
         strategy = InMemoryBackupStrategy()
         result = await restore_from_remote(
@@ -212,7 +216,7 @@ class TestRestoreFromRemote:
 
     @pytest.mark.asyncio
     async def test_restore_fails_on_invalid_version(self):
-        from app.services.memory.backup.backup_remote_scheduler import restore_from_remote
+        from app.services.memory.backup.remote_sync.runner import restore_from_remote
 
         strategy = InMemoryBackupStrategy()
         backup_data = {"version": 1, "collections": {}}
@@ -288,8 +292,15 @@ class TestRemoteBackupAPI:
         )
         assert response.status_code == 400
 
-    def test_trigger_with_valid_webdav_config_reaches_connection(self):
-        """With valid structure but unreachable host, should return 500 or failure."""
+    def test_trigger_with_valid_webdav_config_reaches_connection(self, monkeypatch: pytest.MonkeyPatch):
+        """A well-formed WebDAV body reaches the WebDAV strategy; an unreachable storage reports not connected."""
+        reached: list[WebDAVBackupConfig] = []
+
+        async def unreachable(self: WebDAVBackupStrategy) -> bool:
+            reached.append(self._config)
+            return False
+
+        monkeypatch.setattr(WebDAVBackupStrategy, "check_connection", unreachable)
         response = client.post(
             "/api/v1/memory/backup/remote/check-connection",
             json={
@@ -305,9 +316,17 @@ class TestRemoteBackupAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["connected"] is False
+        assert [(c.host, c.username, c.path) for c in reached] == [("https://unreachable.invalid.local", "user", "/myrm-backups")]
 
-    def test_trigger_with_valid_s3_config_reaches_connection(self):
-        """With valid structure but unreachable endpoint, should fail gracefully."""
+    def test_trigger_with_valid_s3_config_reaches_connection(self, monkeypatch: pytest.MonkeyPatch):
+        """A well-formed S3 body reaches the S3 strategy; an unreachable storage reports not connected."""
+        reached: list[S3BackupConfig] = []
+
+        async def unreachable(self: S3BackupStrategy) -> bool:
+            reached.append(self._config)
+            return False
+
+        monkeypatch.setattr(S3BackupStrategy, "check_connection", unreachable)
         response = client.post(
             "/api/v1/memory/backup/remote/check-connection",
             json={
@@ -326,3 +345,6 @@ class TestRemoteBackupAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["connected"] is False
+        assert [(c.endpoint, c.bucket, c.access_key_id) for c in reached] == [
+            ("https://unreachable.invalid.local", "test-bucket", "fake-key")
+        ]

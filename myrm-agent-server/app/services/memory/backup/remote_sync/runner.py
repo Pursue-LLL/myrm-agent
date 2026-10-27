@@ -1,14 +1,14 @@
 """Remote backup runner: one backup cycle and remote restores for WebDAV/S3.
 
 [INPUT]
-app.services.memory.backup.backup_remote::RemoteBackupStrategy (POS: 本服务远程备份策略)
-app.services.memory.backup.snapshot::capture_snapshot/apply_snapshot/encode_snapshot/decode_snapshot (POS: 本服务备份快照契约)
+app.services.memory.backup.remote_sync.storage::RemoteBackupStrategy (POS: remote storage contract)
+app.services.memory.backup.snapshot::capture_snapshot/apply_snapshot/encode_snapshot/decode_snapshot (POS: portable snapshot contract)
 
 [OUTPUT]
 run_remote_backup / restore_from_remote: one cycle or one restore, reported as RemoteBackupResult / RemoteRestoreResult
 
-Runs one remote backup cycle (capture snapshot, upload, rotate) and remote restores. The scheduled sync in
-``remote_sync`` and the manual API both drive it; the snapshot format is shared with the local volume backups.
+Runs one remote backup cycle (capture snapshot, upload, rotate) and remote restores. The scheduled sync (``job.py``)
+and the manual API both drive it; the snapshot format is shared with the local volume backups.
 
 A backup is named ``myrm.<UTC timestamp>.<device>.<instance tag>.<platform>.json.gz``. The device is a label for people;
 the instance tag says whose backup it is. Rotation deletes only files that follow this name and carry this instance's
@@ -41,9 +41,7 @@ from app.services.memory.backup.snapshot import (
 )
 
 if TYPE_CHECKING:
-    from app.services.memory.backup.backup_remote import (
-        RemoteBackupStrategy,
-    )
+    from app.services.memory.backup.remote_sync.storage import RemoteBackupStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -87,39 +85,24 @@ class RemoteRestoreResult:
 
 
 async def _upload_with_retry(
-    strategy: "RemoteBackupStrategy",
+    strategy: RemoteBackupStrategy,
     local_path: Path,
     remote_name: str,
 ) -> bool:
     """Upload with exponential backoff retry (max 3 attempts)."""
     for attempt in range(1, _MAX_UPLOAD_RETRIES + 1):
+        failure = "was rejected"
         try:
-            ok = await strategy.upload(local_path, remote_name)
-            if ok:
+            if await strategy.upload(local_path, remote_name):
                 return True
-            if attempt < _MAX_UPLOAD_RETRIES:
-                delay = _RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
-                logger.warning(
-                    "Upload attempt %d/%d failed, retrying in %.1fs",
-                    attempt,
-                    _MAX_UPLOAD_RETRIES,
-                    delay,
-                )
-                await asyncio.sleep(delay)
         except Exception as e:
-            if attempt < _MAX_UPLOAD_RETRIES:
-                delay = _RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
-                logger.warning(
-                    "Upload attempt %d/%d error: %s, retrying in %.1fs",
-                    attempt,
-                    _MAX_UPLOAD_RETRIES,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-            else:
+            failure = f"raised: {e}"
+            if attempt == _MAX_UPLOAD_RETRIES:
                 logger.error("Upload failed after %d attempts: %s", _MAX_UPLOAD_RETRIES, e)
-                return False
+        if attempt < _MAX_UPLOAD_RETRIES:
+            delay = _RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
+            logger.warning("Upload attempt %d/%d %s, retrying in %.1fs", attempt, _MAX_UPLOAD_RETRIES, failure, delay)
+            await asyncio.sleep(delay)
     return False
 
 

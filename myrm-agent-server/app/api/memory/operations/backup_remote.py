@@ -21,17 +21,17 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
 
 from app.api.memory.utils import get_crud_memory_manager
-from app.services.memory.backup.backup_remote import (
+from app.services.memory.backup.remote_sync import default_store, record_manual_success
+from app.services.memory.backup.remote_sync.runner import (
+    restore_from_remote,
+    run_remote_backup,
+)
+from app.services.memory.backup.remote_sync.storage import (
     S3BackupConfig,
     S3BackupStrategy,
     WebDAVBackupConfig,
     WebDAVBackupStrategy,
 )
-from app.services.memory.backup.backup_remote_scheduler import (
-    restore_from_remote,
-    run_remote_backup,
-)
-from app.services.memory.backup.remote_sync import default_store, record_manual_success
 
 logger = logging.getLogger(__name__)
 

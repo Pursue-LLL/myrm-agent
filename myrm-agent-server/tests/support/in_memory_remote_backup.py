@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.services.memory.backup.backup_remote import RemoteBackupFile, RemoteBackupStrategy
+from app.services.memory.backup.remote_sync.storage import RemoteBackupFile, RemoteBackupStrategy
 
 
 class InMemoryBackupStrategy(RemoteBackupStrategy):

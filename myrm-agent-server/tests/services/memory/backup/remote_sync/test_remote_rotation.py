@@ -1,13 +1,13 @@
 """Remote backup file names and rotation.
 
 [INPUT]
-app.services.memory.backup.backup_remote_scheduler::run_remote_backup
+app.services.memory.backup.remote_sync.runner::run_remote_backup
 
 [OUTPUT]
 What a backup cycle uploads, and what it deletes from a folder or bucket other files and other instances share.
 
 [POS]
-Real memory stores and the real scheduler; only the remote storage is an in-memory double, and it lists
+Real memory stores and the real runner; only the remote storage is an in-memory double, and it lists
 in whatever order and with whatever modified times a test needs.
 """
 
@@ -20,9 +20,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.memory.backup import backup_remote_scheduler
-from app.services.memory.backup.backup_remote import RemoteBackupFile
-from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
+from app.services.memory.backup.remote_sync import runner
+from app.services.memory.backup.remote_sync.runner import run_remote_backup
+from app.services.memory.backup.remote_sync.storage import RemoteBackupFile
 from tests.support.in_memory_remote_backup import InMemoryBackupStrategy
 from tests.support.offline_memory import offline_memory_manager
 
@@ -63,7 +63,7 @@ class _UnreadableListing(InMemoryBackupStrategy):
 
 @pytest.fixture(autouse=True)
 def _linux(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(backup_remote_scheduler, "platform", SimpleNamespace(system=lambda: "Linux"))
+    monkeypatch.setattr(runner, "platform", SimpleNamespace(system=lambda: "Linux"))
 
 
 def _backup_name(device: str, day: int, tag: str = TAG, platform_label: str = "linux") -> str:

@@ -1,7 +1,7 @@
 """Remote (WebDAV/S3 shaped) backup: capture, upload, download and non-destructive restore.
 
 [INPUT]
-app.services.memory.backup.backup_remote_scheduler::run_remote_backup/restore_from_remote
+app.services.memory.backup.remote_sync.runner::run_remote_backup/restore_from_remote
 
 [OUTPUT]
 Remote round trip on real memory stores through an in-memory remote storage.
@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 
-from app.services.memory.backup.backup_remote_scheduler import restore_from_remote, run_remote_backup
+from app.services.memory.backup.remote_sync.runner import restore_from_remote, run_remote_backup
 from app.services.memory.backup.snapshot import decode_snapshot
 from tests.support.in_memory_remote_backup import InMemoryBackupStrategy
 from tests.support.offline_memory import offline_memory_manager

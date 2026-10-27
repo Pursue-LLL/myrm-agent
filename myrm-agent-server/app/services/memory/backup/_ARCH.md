@@ -11,9 +11,8 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
    snapshot.py  ── capture_snapshot（先计数、再导出，数量对不上即失败）
         │        └─ apply_snapshot（replace=清空后回放并校验 / merge=跳过已有内容）
         ├── volume_store.py + service.py   本地备份：创建 / 列表 / 恢复 / 删除
-        └── backup_remote_scheduler.py     远程备份：创建→上传→轮转 / 远程恢复（merge）
-                 ▲
-           remote_sync/                    云端定时备份：按所选间隔调用它，记录结果，连续失败只告警一次
+        └── remote_sync/                   远程备份：存储适配（WebDAV/S3）→ 运行器（创建→上传→轮转 / 远程恢复 merge）
+                                           → 云端定时备份（按所选间隔运行，记录结果，连续失败只告警一次）
 ```
 
 数据安全约定：
@@ -38,6 +37,4 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 | `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获、`apply_snapshot` 覆盖/合并回放与回放核对（覆盖只清当前嵌入模型的集合：快照里没有旧模型遗留的记忆，覆盖不能把它们一并销毁）、`encode_snapshot`/`decode_snapshot` | ✅ |
 | `volume_store.py` | 核心 | 沙箱持久卷备份库（默认 `~/.myrm/backups/{backup_id}/`）：`save`/`list_backups`/`load`/`delete`；`metadata.json` 最后原子写入，缺它即非完整备份；备份 id 严格校验 | ✅ |
 | `service.py` | 核心 | 本地备份编排 `MemoryBackupService`：`create`、`restore`（覆盖式恢复先留底，失败不丢副本） | ✅ |
-| `backup_remote.py` | 核心 | 远程备份策略模块：WebDAV/S3 云端备份的 upload/download/list/delete 抽象和实现。写操作失败返回 `False`；列表读不到时抛出（存储端拒绝为 `RemoteStorageError`，传输错误原样抛出），不把「读不到」当作「没有备份」，WebDAV 文件夹尚不存在（404）才是空；S3 只读第一页（最多 1000 个对象） | ✅ |
-| `backup_remote_scheduler.py` | 核心 | 远程备份运行器（定时调度本身在 `remote_sync/`）：执行单次远程备份（捕获快照→上传→轮转）和远程恢复（合并），结果以 `RemoteBackupResult` / `RemoteRestoreResult` 返回（失败码 `snapshot` / `upload` / `internal`，已有一次在运行时为 `busy`）；远程文件名的唯一写法与轮转规则 | ✅ |
-| `remote_sync/` | 子包 | 云端定时备份：按用户所选间隔调用运行器，记录每次结果，连续失败只告警一次；手动备份成功会结束失败期。见 [`remote_sync/_ARCH.md`](remote_sync/_ARCH.md) | ✅ |
+| `remote_sync/` | 子包 | 远程（云端）备份的全部：存储适配（`storage/`，WebDAV/S3）、运行器（单次备份与远程恢复，远程文件名的唯一写法与轮转规则）、云端定时备份（按用户所选间隔运行，记录每次结果，连续失败只告警一次）。见 [`remote_sync/_ARCH.md`](remote_sync/_ARCH.md) | ✅ |

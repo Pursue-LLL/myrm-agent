@@ -1,7 +1,7 @@
 """S3 remote backup client: operations, key prefix and client lifecycle.
 
 [INPUT]
-app.services.memory.backup.backup_remote::S3BackupStrategy/S3BackupConfig
+app.services.memory.backup.remote_sync.storage.s3::S3BackupStrategy/S3BackupConfig
 
 [OUTPUT]
 What each S3 operation sends, how a listing is read, and that every operation closes the client it opened.
@@ -20,7 +20,7 @@ from typing import BinaryIO
 
 import pytest
 
-from app.services.memory.backup.backup_remote import S3BackupConfig, S3BackupStrategy
+from app.services.memory.backup.remote_sync.storage import S3BackupConfig, S3BackupStrategy
 
 _DEFAULT_MODIFIED = datetime(2026, 1, 1, tzinfo=UTC)
 

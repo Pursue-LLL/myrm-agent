@@ -1,8 +1,8 @@
 """One tick of the scheduled remote memory backup, and the wiring a backup cycle needs.
 
 [INPUT]
-- app.services.memory.backup.backup_remote_scheduler::run_remote_backup, RemoteBackupResult (POS: one backup cycle, outcome as a value)
-- app.services.memory.backup.backup_remote::WebDAVBackupStrategy, S3BackupStrategy and their configs (POS: remote storage)
+- app.services.memory.backup.remote_sync.runner::run_remote_backup, RemoteBackupResult (POS: one backup cycle, outcome as a value)
+- app.services.memory.backup.remote_sync.storage::WebDAVBackupStrategy, S3BackupStrategy and their configs (POS: remote storage)
 - app.services.memory.backup.remote_sync.schedule::interval_minutes, is_due, should_alert (POS: pure schedule rules)
 - app.services.memory.backup.remote_sync.state::RemoteSyncStore (POS: persisted outcome of the scheduled runs)
 - app.services.event.app_event_bus::get_event_bus (POS: HEALTH_ALERT fan-out to the UI, IM and push)
@@ -29,16 +29,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-from app.services.memory.backup.backup_remote import (
+from app.services.memory.backup.remote_sync.runner import run_remote_backup
+from app.services.memory.backup.remote_sync.schedule import interval_minutes, is_due, should_alert
+from app.services.memory.backup.remote_sync.state import RemoteSyncStore
+from app.services.memory.backup.remote_sync.storage import (
     RemoteBackupStrategy,
     S3BackupConfig,
     S3BackupStrategy,
     WebDAVBackupConfig,
     WebDAVBackupStrategy,
 )
-from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
-from app.services.memory.backup.remote_sync.schedule import interval_minutes, is_due, should_alert
-from app.services.memory.backup.remote_sync.state import RemoteSyncStore
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager

@@ -1,7 +1,7 @@
 """WebDAV directory listing parser: which entries count as backups and how their names are read.
 
 [INPUT]
-app.services.memory.backup.backup_remote::_parse_webdav_multistatus
+app.services.memory.backup.remote_sync.storage.webdav::_parse_webdav_multistatus
 
 [OUTPUT]
 Which PROPFIND entries become backup files, and that each name comes back as it was uploaded.
@@ -12,7 +12,7 @@ Pure parser tests on literal XML answers; no network and no strategy.
 
 from __future__ import annotations
 
-from app.services.memory.backup.backup_remote import _parse_webdav_multistatus
+from app.services.memory.backup.remote_sync.storage.webdav import _parse_webdav_multistatus
 
 
 class TestWebDAVXMLParser:

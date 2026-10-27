@@ -1,7 +1,7 @@
 """WebDAV listing: an unreadable remote is never reported as an empty folder.
 
 [INPUT]
-app.services.memory.backup.backup_remote::WebDAVBackupStrategy/WebDAVBackupConfig/RemoteStorageError
+app.services.memory.backup.remote_sync.storage::WebDAVBackupStrategy/WebDAVBackupConfig/RemoteStorageError
 
 [OUTPUT]
 That a listing which the server refuses or cannot answer raises, while a folder that does not exist yet lists as empty.
@@ -18,7 +18,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from app.services.memory.backup.backup_remote import RemoteStorageError, WebDAVBackupConfig, WebDAVBackupStrategy
+from app.services.memory.backup.remote_sync.storage import RemoteStorageError, WebDAVBackupConfig, WebDAVBackupStrategy
 
 _NAME = "myrm.20250101120000.laptop.1a2b3c4d.linux.json.gz"
 _MULTISTATUS = f"""<?xml version="1.0" encoding="UTF-8"?>

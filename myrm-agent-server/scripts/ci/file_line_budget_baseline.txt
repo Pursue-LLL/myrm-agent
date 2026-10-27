@@ -132,7 +132,6 @@ app/services/hosting/crypto_packager.py
 app/services/kanban/task_runner/runner.py
 app/services/memory/archive/restore/archive_restore.py
 app/services/memory/archive/restore/archive_restore_executor.py
-app/services/memory/backup/backup_remote.py
 app/services/memory/diagnostics/diagnostic/diagnostic_recall_benchmark.py
 app/services/memory/diagnostics/diagnostics.py
 app/services/memory/imports/import_sessions.py

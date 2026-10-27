@@ -27,9 +27,9 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 from app.api.memory.operations import backup_remote as api
 from app.api.memory.utils import get_crud_memory_manager
 from app.services.instance_archive.models import ArchivePaths
-from app.services.memory.backup.backup_remote import RemoteBackupFile, RemoteBackupStrategy, RemoteStorageError
-from app.services.memory.backup.backup_remote_scheduler import RemoteBackupResult, RemoteRestoreResult
+from app.services.memory.backup.remote_sync.runner import RemoteBackupResult, RemoteRestoreResult
 from app.services.memory.backup.remote_sync.state import RemoteSyncState, RemoteSyncStore
+from app.services.memory.backup.remote_sync.storage import RemoteBackupFile, RemoteBackupStrategy, RemoteStorageError
 from tests.support.in_memory_remote_backup import InMemoryBackupStrategy
 from tests.support.minimal_app import build_minimal_app
 

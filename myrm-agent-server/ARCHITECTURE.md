@@ -211,7 +211,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 ### 0.1 统一本地存储架构 (Unified Local Storage)
 
-无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/backup_remote.py` lazy import），未配置 S3 时不加载。
+无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/remote_sync/storage/s3.py` lazy import），未配置 S3 时不加载。
 
 **持久化分层（Agent-in-Sandbox）**：
 

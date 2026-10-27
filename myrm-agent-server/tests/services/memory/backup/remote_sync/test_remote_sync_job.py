@@ -26,8 +26,6 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from app.services.event.app_event_bus import AppEvent, AppEventType
 from app.services.instance_archive.models import ArchivePaths
-from app.services.memory.backup.backup_remote import RemoteBackupStrategy, S3BackupStrategy, WebDAVBackupStrategy
-from app.services.memory.backup.backup_remote_scheduler import RemoteBackupResult
 from app.services.memory.backup.remote_sync import ALERT_COMPONENT, job
 from app.services.memory.backup.remote_sync.job import (
     publish_failure_alert,
@@ -35,7 +33,9 @@ from app.services.memory.backup.remote_sync.job import (
     strategy_from_config,
     sync_tick,
 )
+from app.services.memory.backup.remote_sync.runner import RemoteBackupResult
 from app.services.memory.backup.remote_sync.state import RemoteSyncState, RemoteSyncStore
+from app.services.memory.backup.remote_sync.storage import RemoteBackupStrategy, S3BackupStrategy, WebDAVBackupStrategy
 from tests.support.in_memory_remote_backup import InMemoryBackupStrategy
 
 NOW = datetime(2026, 10, 26, 12, 0, tzinfo=UTC)
