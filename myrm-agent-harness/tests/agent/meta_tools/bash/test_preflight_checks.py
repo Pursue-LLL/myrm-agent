@@ -95,6 +95,11 @@ class TestSensitivePathParityWithFileTools:
             'cat > "vault/secrets.json" <<EOF',
             "printf 'x' > .env",
             "tee deploy/server.pem",
+            "rm ~/.myrm/.encryption_key",
+            "mv ~/.myrm/.encryption_key /tmp/key.old",
+            "cp ~/.myrm/.encryption_key /tmp/",
+            "cat ~/.myrm/.encryption_key",
+            "echo x > ~/.myrm/.encryption_key",
         ],
     )
     def test_blocks_paths_the_file_tools_also_block(self, command: str) -> None:

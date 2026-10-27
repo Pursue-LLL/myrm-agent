@@ -3,7 +3,6 @@
 Mirrors `core.security.path.rules`.
 """
 
-
 from myrm_agent_harness.core.security.path import (
     SENSITIVE_FILE_PATTERNS,
     is_evidence_readonly_file,
@@ -41,6 +40,24 @@ class TestIsSensitiveFile:
         assert is_sensitive_file("passwd") is True
         assert is_sensitive_file("shadow") is True
 
+    def test_config_encryption_key_and_its_copies(self) -> None:
+        for path in (
+            ".encryption_key",
+            "/home/user/.myrm/.encryption_key",
+            "/home/user/.myrm/.ENCRYPTION_KEY",
+            "/home/user/.myrm/.encryption_key.bak",
+        ):
+            assert is_sensitive_file(path) is True, path
+
+    def test_config_encryption_key_pattern_does_not_swallow_neighbours(self) -> None:
+        for path in ("encryption_key_notes.md", "/home/user/.myrm/encryption.py", "/home/user/.myrm/.encryption"):
+            assert is_sensitive_file(path) is False, path
+
+    def test_covers_the_filename_the_key_loader_writes(self) -> None:
+        from myrm_agent_harness.utils.encryption_key import _KEY_FILENAME
+
+        assert is_sensitive_file(f"/home/user/.myrm/{_KEY_FILENAME}") is True
+
     def test_safe_files(self) -> None:
         assert is_sensitive_file("main.py") is False
         assert is_sensitive_file("README.md") is False
@@ -59,6 +76,7 @@ class TestIsSensitiveFile:
     def test_case_variants_in_nested_directories(self) -> None:
         assert is_sensitive_file("/home/user/.AWS/Credentials") is True
         assert is_sensitive_file("/project/.GIT/Config") is True
+
 
 class TestIsEvidenceReadonlyFile:
     """Verify the evidence guard cannot be side-stepped by respelling a directory."""

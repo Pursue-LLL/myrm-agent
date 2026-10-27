@@ -52,6 +52,8 @@ SENSITIVE_FILE_PATTERNS: tuple[str, ...] = (
     "**/*.key",
     "**/*.p12",
     "**/*.pfx",
+    # Local config encryption key: it opens every sealed row in the database, so it is protected like the database itself
+    "**/.encryption_key*",
     # Environment files
     "**/.env*",
     "**/credentials.json",
