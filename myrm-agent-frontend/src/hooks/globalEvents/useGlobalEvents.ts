@@ -15,7 +15,12 @@ import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationT
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showKanbanTaskToast } from '@/hooks/globalEvents/kanbanTaskToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
-import { BACKUP_ALERT_COMPONENT, showBackupFailureToast } from '@/hooks/globalEvents/backupAlertToast';
+import {
+  BACKUP_ALERT_COMPONENT,
+  CLOUD_SYNC_ALERT_COMPONENT,
+  showBackupFailureToast,
+  showCloudSyncFailureToast,
+} from '@/hooks/globalEvents/backupAlertToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
@@ -320,6 +325,8 @@ export function useGlobalEvents(): void {
 
         if (component === BACKUP_ALERT_COMPONENT && status === 'fail') {
           showBackupFailureToast({ t, router, toast: pushToast, notifyIfLeader });
+        } else if (component === CLOUD_SYNC_ALERT_COMPONENT && status === 'fail') {
+          showCloudSyncFailureToast({ t, router, toast: pushToast, notifyIfLeader });
         } else if (status === 'fail') {
           pushToast.error(t('healthAlertFail', { component, layer }), {
             description: `${message}${fixSuggestion ? `\n${t('healthAlertTip', { tip: fixSuggestion })}` : ''}`,
