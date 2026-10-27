@@ -5,7 +5,7 @@
 [OUTPUT]
 - text_api_client(): 挂载 files 路由 + 净化中间件的 httpx AsyncClient
 - make_workspace(root): 含 LF / CRLF / BOM / 二进制 / 非 UTF-8 / 混合换行 / 超限 / 敏感文件的示例工作区
-- read_text / save_text / copy_text: 对 GET / PUT / POST `/browse/text*` 的请求封装
+- read_text / save_text / copy_text: 对 GET / PUT / POST `/browse/text*` 的请求封装（`read_text` 可带 `if_version`）
 - b64 / sha / reasons: 请求正文编码、内容版本令牌、错误详情 `{field: issue}`
 - BASE / BOM: 端点路径与 UTF-8 BOM
 
@@ -74,8 +74,11 @@ def make_workspace(root: Path) -> Path:
     return root
 
 
-async def read_text(client: AsyncClient, ws: Path, path: str) -> Response:
-    return await client.get(BASE, params={"workspace": str(ws), "path": path})
+async def read_text(client: AsyncClient, ws: Path, path: str, *, if_version: str | None = None) -> Response:
+    params = {"workspace": str(ws), "path": path}
+    if if_version is not None:
+        params["if_version"] = if_version
+    return await client.get(BASE, params=params)
 
 
 async def save_text(client: AsyncClient, ws: Path, path: str, text: str, base_version: str) -> Response:

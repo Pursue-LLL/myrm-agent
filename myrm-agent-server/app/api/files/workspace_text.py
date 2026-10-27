@@ -8,7 +8,8 @@
 - app.core.utils.response_utils::success_response
 
 [OUTPUT]
-- GET  /browse/text       — Read a text file with its content version and an editable / read-only verdict
+- GET  /browse/text       — Read a text file with its content version and an editable / read-only verdict;
+                            with ``if_version`` an unchanged file is answered without its content
 - PUT  /browse/text       — Save against ``base_version``; 409 when the file changed since it was read
 - POST /browse/text/copy  — Write the edited text to a new sibling file ("name (1).ext")
 
@@ -90,11 +91,14 @@ def _decode_content(content_b64: str) -> str:
         raise validation_error("Content is not base64-encoded UTF-8", details=_reason("invalid_content")) from exc
 
 
-def _snapshot_payload(snapshot: TextSnapshot, target: str) -> dict[str, object]:
+def _snapshot_payload(snapshot: TextSnapshot, target: str, *, held_version: str | None = None) -> dict[str, object]:
+    # A file too large to be versioned has an empty version, which no held version can equal: it is always sent.
+    unchanged = held_version is not None and snapshot.version == held_version
     return {
         "path": target,
         "name": os.path.basename(target),
-        "content": snapshot.content,
+        "content": None if unchanged else snapshot.content,
+        "unchanged": unchanged,
         "version": snapshot.version,
         "size": snapshot.size,
         "editable": snapshot.editable,
@@ -122,11 +126,17 @@ def _invalid_content_error(exc: InvalidContent) -> Exception:
 async def read_text_file(
     workspace: str = Query(..., description="Workspace root path"),
     path: str = Query(..., description="File path (absolute or relative to the workspace)"),
+    if_version: str | None = Query(
+        None,
+        pattern=r"^[0-9a-f]{64}$",
+        description="Version the caller already holds; when the file still has it, the content is left out",
+    ),
 ) -> JSONResponse:
     """Read a text file for editing.
 
     Files the editor cannot round-trip byte-exactly (binary, non-UTF-8, mixed line endings, over 1 MiB) are
-    returned read-only with the reason; only the first 1 MiB of an oversized file is returned.
+    returned read-only with the reason; only the first 1 MiB of an oversized file is returned. With ``if_version``
+    an open file is kept current without re-sending it: the answer says ``unchanged`` and carries no content.
     """
     target = _resolve_file(workspace, path)
     try:
@@ -135,7 +145,7 @@ async def read_text_file(
         raise not_found_error("File", details=_reason("not_found")) from exc
     except PermissionError as exc:
         raise validation_error("Permission denied", details=_reason("read_blocked")) from exc
-    return success_response(data=_snapshot_payload(snapshot, target))
+    return success_response(data=_snapshot_payload(snapshot, target, held_version=if_version))
 
 
 @router.put("/browse/text", response_model=None)

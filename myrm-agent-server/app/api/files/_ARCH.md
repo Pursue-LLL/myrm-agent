@@ -28,5 +28,5 @@
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object；对象所在工作区由可选 `chat_id` 指定，缺省时按指向它的 artifact 所属会话定位，都没有才回退进程工作区 | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |
 | `workspace_ops.py` | 模块 | Workspace file write operations API（上传/mkdir/重命名/移动/删除）；`resolve_workspace` / `validate_target` / `dedup_filename` 是工作区边界、危险路径、敏感文件守卫与重名规则的唯一出处，`workspace_text.py` 复用 | ✅ |
-| `workspace_text.py` | 模块 | 工作区文本编辑 API：`GET /browse/text`（内容 + sha256 版本 + 可编辑判定/只读原因）、`PUT /browse/text`（`base_version` 比对后保存，冲突 409、无无条件写路径）、`POST /browse/text/copy`（排他创建同目录副本）；正文走 `content_b64`，避免请求文本净化改写文件内容；所有拒绝都带 `reason` 明细（`version_conflict` / `write_blocked` / `binary` / `not_utf8` / `mixed_line_endings` / `too_large` / …）供前端本地化，**不使用 403/423**（前端 api 层会据此跳登录/弹锁屏） | ✅ |
+| `workspace_text.py` | 模块 | 工作区文本编辑 API：`GET /browse/text`（内容 + sha256 版本 + 可编辑判定/只读原因；带 `if_version` 且文件仍是该版本时返回 `unchanged: true` 且不含正文，超大文件无版本故总是全量返回）、`PUT /browse/text`（`base_version` 比对后保存，冲突 409、无无条件写路径）、`POST /browse/text/copy`（排他创建同目录副本）；正文走 `content_b64`，避免请求文本净化改写文件内容；所有拒绝都带 `reason` 明细（`version_conflict` / `write_blocked` / `binary` / `not_utf8` / `mixed_line_endings` / `too_large` / …）供前端本地化，**不使用 403/423**（前端 api 层会据此跳登录/弹锁屏） | ✅ |
 | `organize.py` | 模块 | Workspace organize HITL API — apply/rollback（含 `jobStatus`）/ latest-job | ✅ |

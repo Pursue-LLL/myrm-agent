@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { expect, vi } from 'vitest';
 import {
   readWorkspaceText,
+  readWorkspaceTextIfChanged,
   saveWorkspaceText,
   saveWorkspaceTextCopy,
   type WorkspaceTextSnapshot,
@@ -42,6 +43,7 @@ export const written = (version: string, name = 'a.txt') => ({
 });
 
 export const readMock = vi.mocked(readWorkspaceText);
+export const refreshMock = vi.mocked(readWorkspaceTextIfChanged);
 export const saveMock = vi.mocked(saveWorkspaceText);
 export const copyMock = vi.mocked(saveWorkspaceTextCopy);
 export const toastError = vi.mocked(toast.error);

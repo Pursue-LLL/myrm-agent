@@ -338,7 +338,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_rewind_api.py` | 模块 | POST `/chats/{id}/rewind`（真实路由 + 真 DB）：输入框文本逐字取回（含用户写的标签，仅去首尾空白）、助手消息被拒、对话/文件回退范围、检查点清除与失败传播、回退前快照与回滚补偿、会话忙 409、无可回退 400、失败 500 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
-| `api/files/test_workspace_text_read.py` | 模块 | 文本编辑 API 读取（真实路由 + `TextSanitizerMiddleware`）：内容/版本/只读原因、绝对路径、404 与目录拒绝，与其他工作区接口一致的路径守卫（越界/遍历/符号链接/敏感文件/危险工作区） |
+| `api/files/test_workspace_text_read.py` | 模块 | 文本编辑 API 读取（真实路由 + `TextSanitizerMiddleware`）：内容/版本/只读原因、绝对路径、404 与目录拒绝，与其他工作区接口一致的路径守卫（越界/遍历/符号链接/敏感文件/危险工作区）、`if_version` 条件读取（未变不带正文、已变全量、体积差、超大文件总是全量、格式校验、同样的路径守卫） |
 | `api/files/test_workspace_text_save.py` | 模块 | 文本编辑 API 保存：保存/冲突 409 与当前版本、冲突后覆盖=重读再存、并发单赢家、base64 正文逐字节不被净化、换行/BOM 还原、不可往返文件拒绝、路径守卫、不存在无版本校验的写路由（`PUT /browse/content` 不提供） |
 | `api/files/test_workspace_text_copy.py` | 模块 | 文本编辑 API 另存副本：副本编号、换行/BOM 继承、重名时换名重试与耗尽 409、路径守卫、非文本内容拒绝 |
 | `api/files/test_browse_api.py` | 模块 | browse 目录/树/搜索 + content 文本 1MB 截断 & 二进制全量流式；`FileEntry.is_text` 三态（文本/二进制/目录）；Content-Disposition RFC 5987 转义（CR/LF 注入防御 + 非 ASCII filename*） |

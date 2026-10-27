@@ -7,6 +7,7 @@
  * - workspace / path: the file being edited; a different file starts a fresh visit
  * - enabled: false for files that are never edited as text (rich media), which are then not read here
  * - @/services/workspaceText (POS: versioned read, save against that version, save as copy)
+ * - useWorkspaceFileChanged (POS: one call per burst of file changes in the workspace)
  * - @/store/useWorkspaceDraftStore (POS: unsaved text kept between visits to a file)
  *
  * [OUTPUT]
@@ -23,6 +24,9 @@
  * Unsaved text is kept in the draft store for exactly as long as it differs from the file, so leaving the file, the
  * drawer or the chat does not lose it: the next visit starts from that text (`restored`), laid over the version it
  * was typed against, and raises `conflict` at once when the file has moved on since.
+ * The file is kept current while it is open: a change on disk replaces what is shown when nothing was typed, and
+ * over typed text it raises the same `conflict` (the text is never touched). Asking costs a few hundred bytes while
+ * the file is unchanged, and the editor's own saves never look like a foreign change.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,6 +34,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   readWorkspaceText,
+  readWorkspaceTextIfChanged,
   saveWorkspaceText,
   saveWorkspaceTextCopy,
   WorkspaceTextError,
@@ -37,6 +42,7 @@ import {
   type WorkspaceTextSnapshot,
 } from '@/services/workspaceText';
 import { keptDraft, useWorkspaceDraftStore, type WorkspaceDraft } from '@/store/useWorkspaceDraftStore';
+import { useWorkspaceFileChanged } from './useWorkspaceFileChanged';
 
 interface ReadyState {
   phase: 'ready';
@@ -173,6 +179,42 @@ export function useWorkspaceTextEditor(workspace: string, path: string, enabled:
       drafts.keep(workspace, path, snapshotNow, draftNow);
     }
   }, [workspace, path, snapshotNow, draftNow]);
+
+  // What the check of the open file compares with, read when it runs rather than when it was scheduled.
+  const readyNow = useRef<ReadyState | null>(null);
+  useEffect(() => {
+    readyNow.current = ready;
+  });
+
+  const refreshFromDisk = useCallback(async () => {
+    const mine = session.current;
+    const current = readyNow.current;
+    // A file too large to be versioned shows only its beginning, which an appended-to file keeps. A save in flight
+    // is about to settle the version itself; looking now would take its own write for somebody else's.
+    if (!current || current.snapshot.version === '' || writing.current !== null) {
+      return;
+    }
+    const known = current.snapshot.version;
+    let latest: WorkspaceTextSnapshot | null;
+    try {
+      latest = await readWorkspaceTextIfChanged(workspace, path, known);
+    } catch {
+      return; // A file that cannot be read now is said so by the save that needs it; the next change asks again.
+    }
+    if (latest === null || mine !== session.current) {
+      return;
+    }
+    updateReady((now) => {
+      if (now.snapshot.version !== known) {
+        return now; // saved or read again meanwhile: that is newer than this answer
+      }
+      if (now.draft === now.snapshot.content || now.draft === latest.content) {
+        return { ...now, snapshot: latest, draft: latest.content, conflictVersion: null, restored: false };
+      }
+      return now.conflictVersion === latest.version ? now : { ...now, conflictVersion: latest.version };
+    });
+  }, [workspace, path, updateReady]);
+  useWorkspaceFileChanged(refreshFromDisk, ready !== null);
 
   const failureCopy = useCallback(
     (error: unknown, fallback: string) =>

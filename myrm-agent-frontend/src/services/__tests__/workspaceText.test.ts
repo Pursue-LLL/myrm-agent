@@ -3,6 +3,7 @@ import { ApiError, apiRequest } from '@/lib/api';
 import {
   encodeUtf8Base64,
   readWorkspaceText,
+  readWorkspaceTextIfChanged,
   saveWorkspaceText,
   saveWorkspaceTextCopy,
   WorkspaceTextError,
@@ -81,6 +82,47 @@ describe('readWorkspaceText', () => {
     apiRequestMock.mockRejectedValue(failure);
 
     await expect(readWorkspaceText('/ws', 'a.txt')).rejects.toBe(failure);
+  });
+});
+
+describe('readWorkspaceTextIfChanged', () => {
+  const HELD = 'a'.repeat(64);
+  const meta = { path: '/ws/a.txt', name: 'a.txt', size: 4, editable: true, readonly_reason: null, truncated: false };
+
+  it('says which version it holds and gets null back while the file still has it', async () => {
+    apiRequestMock.mockResolvedValue({ ...meta, content: null, unchanged: true, version: HELD });
+
+    const latest = await readWorkspaceTextIfChanged('/ws', '/ws/a.txt', HELD);
+
+    expect(latest).toBeNull();
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      `/files/browse/text?workspace=%2Fws&path=%2Fws%2Fa.txt&if_version=${HELD}`,
+      { silent: true },
+    );
+  });
+
+  it('gets the file as a snapshot once it has another version', async () => {
+    apiRequestMock.mockResolvedValue({ ...meta, content: 'new\n', unchanged: false, version: 'b'.repeat(64) });
+
+    const latest = await readWorkspaceTextIfChanged('/ws', '/ws/a.txt', HELD);
+
+    expect(latest).toEqual({
+      path: '/ws/a.txt',
+      name: 'a.txt',
+      content: 'new\n',
+      version: 'b'.repeat(64),
+      size: 4,
+      editable: true,
+      readonlyReason: null,
+      truncated: false,
+    });
+  });
+
+  it('lets a failure through untouched, as a plain read does', async () => {
+    const failure = refusal(404, { field: 'reason', issue: 'not_found' });
+    apiRequestMock.mockRejectedValue(failure);
+
+    await expect(readWorkspaceTextIfChanged('/ws', 'a.txt', HELD)).rejects.toMatchObject({ reason: 'not_found' });
   });
 });
 

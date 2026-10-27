@@ -6,6 +6,7 @@
  *
  * [OUTPUT]
  * - readWorkspaceText: file text plus the version token and whether the editor may change it
+ * - readWorkspaceTextIfChanged: the same read for a file already held, answered without the text while it is unchanged
  * - saveWorkspaceText: save that the server refuses (`version_conflict`) when the file changed since it was read
  * - saveWorkspaceTextCopy: write the edited text to a new file next to the original
  * - WorkspaceTextError: a refusal the server named, with `reason` (and `currentVersion` for a conflict)
@@ -65,15 +66,25 @@ export interface WorkspaceTextWritten {
   changed: boolean;
 }
 
-interface SnapshotPayload {
+interface SnapshotMeta {
   path: string;
   name: string;
-  content: string;
   version: string;
   size: number;
   editable: boolean;
   readonly_reason: WorkspaceTextReadonlyReason | null;
   truncated: boolean;
+}
+
+interface SnapshotPayload extends SnapshotMeta {
+  content: string;
+  unchanged: false;
+}
+
+/** The answer to a read that named the version it holds, when the file still has it. */
+interface UnchangedPayload extends SnapshotMeta {
+  content: null;
+  unchanged: true;
 }
 
 /** A refusal the server named; anything it did not name is rethrown as it came. */
@@ -122,10 +133,7 @@ async function request<T>(endpoint: string, init: RequestInit = {}): Promise<T> 
   }
 }
 
-/** Reads `path` for editing. A file the editor cannot change still comes back, flagged with the reason. */
-export async function readWorkspaceText(workspace: string, path: string): Promise<WorkspaceTextSnapshot> {
-  const params = new URLSearchParams({ workspace, path });
-  const payload = await request<SnapshotPayload>(`/files/browse/text?${params}`);
+function toSnapshot(payload: SnapshotPayload): WorkspaceTextSnapshot {
   return {
     path: payload.path,
     name: payload.name,
@@ -136,6 +144,26 @@ export async function readWorkspaceText(workspace: string, path: string): Promis
     readonlyReason: payload.readonly_reason,
     truncated: payload.truncated,
   };
+}
+
+/** Reads `path` for editing. A file the editor cannot change still comes back, flagged with the reason. */
+export async function readWorkspaceText(workspace: string, path: string): Promise<WorkspaceTextSnapshot> {
+  const params = new URLSearchParams({ workspace, path });
+  return toSnapshot(await request<SnapshotPayload>(`/files/browse/text?${params}`));
+}
+
+/**
+ * Reads `path` again for a caller that holds `version`: null while the file still has it, so a check of an open file
+ * costs a few hundred bytes however large the file is. `version` must be a real version token (never empty).
+ */
+export async function readWorkspaceTextIfChanged(
+  workspace: string,
+  path: string,
+  version: string,
+): Promise<WorkspaceTextSnapshot | null> {
+  const params = new URLSearchParams({ workspace, path, if_version: version });
+  const payload = await request<SnapshotPayload | UnchangedPayload>(`/files/browse/text?${params}`);
+  return payload.unchanged ? null : toSnapshot(payload);
 }
 
 /** Saves `content` over `path` if the file still has `baseVersion`; otherwise throws `version_conflict`. */

@@ -1,5 +1,6 @@
 """Workspace text editor API, read side: GET /browse/text — content, version, editable / read-only verdict, and the
-same boundary, traversal, symlink and sensitive-file guards as the other workspace endpoints.
+same boundary, traversal, symlink and sensitive-file guards as the other workspace endpoints. With ``if_version`` the
+read answers "unchanged" without the content, which is how an open file is kept current cheaply.
 """
 
 import os
@@ -106,3 +107,76 @@ async def test_read_does_not_follow_a_symlink_out_of_the_workspace(client: Async
 
     assert resp.status_code == 400
     assert "top secret" not in resp.text
+
+
+# --------------------------------------------------------------------------------------
+# GET /browse/text?if_version=
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_read_with_the_current_version_says_unchanged_and_leaves_the_content_out(client: AsyncClient, ws: Path):
+    held = sha(b"alpha\nbeta\n")
+
+    resp = await read_text(client, ws, "notes.txt", if_version=held)
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["unchanged"] is True
+    assert data["content"] is None
+    assert (data["version"], data["size"], data["name"]) == (held, 11, "notes.txt")
+
+
+@pytest.mark.anyio
+async def test_read_with_an_old_version_answers_in_full(client: AsyncClient, ws: Path):
+    resp = await read_text(client, ws, "notes.txt", if_version=sha(b"what it held before\n"))
+
+    data = resp.json()["data"]
+    assert data["unchanged"] is False
+    assert data["content"] == "alpha\nbeta\n"
+    assert data["version"] == sha(b"alpha\nbeta\n")
+
+
+@pytest.mark.anyio
+async def test_read_without_a_version_is_never_unchanged(client: AsyncClient, ws: Path):
+    data = (await read_text(client, ws, "notes.txt")).json()["data"]
+
+    assert data["unchanged"] is False
+    assert data["content"] == "alpha\nbeta\n"
+
+
+@pytest.mark.anyio
+async def test_the_unchanged_answer_is_a_few_hundred_bytes_for_a_file_of_hundreds_of_kilobytes(
+    client: AsyncClient, tmp_path: Path
+):
+    body = b"processed job 12345 ok\n" * 20_000
+    (tmp_path / "big.log").write_bytes(body)
+
+    full = await read_text(client, tmp_path, "big.log")
+    unchanged = await read_text(client, tmp_path, "big.log", if_version=sha(body))
+
+    assert len(full.content) > 400_000
+    assert len(unchanged.content) < 600
+    assert unchanged.json()["data"]["unchanged"] is True
+
+
+@pytest.mark.anyio
+async def test_a_file_too_large_to_be_versioned_is_always_sent(client: AsyncClient, ws: Path):
+    resp = await read_text(client, ws, "big.txt", if_version="0" * 64)
+
+    data = resp.json()["data"]
+    assert data["unchanged"] is False
+    assert data["truncated"] is True
+    assert data["content"]
+
+
+@pytest.mark.anyio
+async def test_if_version_must_be_a_sha256(client: AsyncClient, ws: Path):
+    resp = await read_text(client, ws, "notes.txt", if_version="not-a-version")
+    assert resp.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_read_with_a_version_is_guarded_like_a_plain_read(client: AsyncClient, ws: Path):
+    resp = await read_text(client, ws, "../../../etc/passwd", if_version=sha(b""))
+    assert resp.status_code == 400
