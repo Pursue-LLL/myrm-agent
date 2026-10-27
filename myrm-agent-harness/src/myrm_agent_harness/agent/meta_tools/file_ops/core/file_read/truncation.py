@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from .file_read_outline import extract_truncated_outline
+from .outline import extract_truncated_outline
 
 # Matches the ``{LINE_NUMBER_WIDTH}|`` gutter emitted by ResultFormatter,
 # e.g. ``     12|def foo()``. Used to derive the next_offset continuation line.

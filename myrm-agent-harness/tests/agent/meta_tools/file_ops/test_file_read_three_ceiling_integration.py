@@ -18,7 +18,7 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_truncation import (
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import (
     truncate_file_output,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import create_file_read_tool

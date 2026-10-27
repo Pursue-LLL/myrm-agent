@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import _read_via_service
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths import _read_via_service
 
-_HANDLERS = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers"
+_HANDLERS = "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths"
 _CONTINUE = re.compile(r"Use (\S+) to continue")
 _ROW = re.compile(r"\|row-(\d{5})")
 _LAST_ROW = 2400

@@ -5,7 +5,7 @@
 - core::FileOperationService, OperationContext, OperationType (POS: 文件操作服务)
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
-- file_read_handlers::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
+- core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
 - file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill 路径拦截)
 - core.security.path::is_blocked_device_path (POS: Pre-IO 设备路径安全阻断)
@@ -23,7 +23,7 @@
 [POS]
 File read tool factory and orchestration. Supports full workspace reads or Fast-track
 evicted_uploaded scope (UECD spill, spilled long pastes and chat uploads only). Heavy read
-logic lives in core/file_read_handlers.py.
+logic lives in core/file_read/.
 """
 
 from __future__ import annotations
@@ -59,11 +59,11 @@ from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
 from myrm_agent_harness.agent.security.path_security import is_blocked_device_path
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
-from myrm_agent_harness.toolkits.code_execution.executors.base import get_executor
+from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, get_executor
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
-from .core.file_read_handlers import (
+from .core.file_read import (
     append_media_text_parts,
     build_multimodal_result,
     process_text_paths,
@@ -311,7 +311,7 @@ def create_file_read_tool(
     path_policy: FileReadPathPolicy = "full",
     locale: str | None = None,
 ) -> BaseTool:
-    """创建 file_read_tool（详见 file_read_handlers 与 FileOperationService）。"""
+    """创建 file_read_tool（详见 core/file_read 与 FileOperationService）。"""
 
     @tool(
         "file_read_tool",
@@ -374,7 +374,7 @@ def create_file_read_tool(
 
             ctx = extract_context_from_runnable_config(config)
             try:
-                executor = ensure_executor(config)
+                executor: CodeExecutor | None = ensure_executor(config)
             except RuntimeError:
                 executor = get_executor()
             await _assert_paths_allowed_for_read(valid_paths, config, executor)

@@ -1,4 +1,4 @@
-"""Tests for vault-related paths in file_read_handlers."""
+"""Tests for vault-related paths in the file_read handlers."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
     append_media_text_parts,
     build_multimodal_result,
-    process_text_paths,
 )
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths import process_text_paths
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.vault_read import (
     path_base,
     read_vault_paths_to_parts,
@@ -170,7 +170,7 @@ async def test_process_text_paths_via_service(tmp_path: Path) -> None:
     mock_executor.workspace_path = str(tmp_path)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers._read_via_service",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
         new_callable=AsyncMock,
         return_value="=== hello.txt ===\nhello\n",
     ) as mock_read:

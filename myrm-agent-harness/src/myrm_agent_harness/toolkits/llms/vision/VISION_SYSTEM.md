@@ -204,7 +204,7 @@ Client                    Server
 | `VisionFallbackProcessor` (harness pipeline) | catch → 保留原始 image block，由后续 `MediaFilterProcessor` strip |
 | `chat_utils._process_image_item` (server) | catch → 返回固定无敏感信息文本 `[Image could not be analyzed]`，详细错误保留在 logger |
 | `sticker_vision.py` | catch → 返回 None，跳过该贴纸描述 |
-| `file_read_handlers.py` | catch → 返回固定无敏感信息文本，详细错误保留在 logger |
+| `file_ops/core/file_read/multimodal.py` | catch → 返回固定无敏感信息文本，详细错误保留在 logger |
 
 ## 容量型 Provider Failover 链
 

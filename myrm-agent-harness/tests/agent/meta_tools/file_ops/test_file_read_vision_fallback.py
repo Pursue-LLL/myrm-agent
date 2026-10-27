@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
     build_multimodal_result as _build_multimodal_result,
 )
 
@@ -275,7 +275,7 @@ async def test_text_mode_keeps_pdf_text_when_the_reader_returns_blocks():
     Regression: it only appended the result when it was a ``str``, so with an auxiliary chain
     configured the whole document vanished from the text parts.
     """
-    from myrm_agent_harness.agent.meta_tools.file_ops.core import file_read_handlers as _handlers
+    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read import multimodal as _handlers
 
     blocks = [
         {"type": "text", "text": "[PDF: /tmp/probe.pdf]\nbody"},
@@ -284,7 +284,7 @@ async def test_text_mode_keeps_pdf_text_when_the_reader_returns_blocks():
     parts: list[str] = []
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_pdf_as_content_blocks",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_pdf_as_content_blocks",
         new=AsyncMock(return_value=blocks),
     ):
         await _handlers.append_media_text_parts(

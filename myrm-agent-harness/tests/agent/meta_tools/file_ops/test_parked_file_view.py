@@ -12,7 +12,7 @@ import re
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_ops.core import parked_file_view
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_truncation import truncate_file_output
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import truncate_file_output
 from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
 from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
     PAGE_TOKEN_BUDGET,
@@ -135,7 +135,7 @@ def _render(lines: list[str], *, path: str, start: int = 1, max_line_length: int
 
 
 def _cut_page(rendered: str) -> tuple[str, bool, dict[str, object]]:
-    """One page of a parked file's rendered output, cut the way ``file_read_handlers`` cuts it."""
+    """One page of a parked file's rendered output, cut the way ``text_paths`` cuts it."""
     return truncate_file_output(rendered, max_chars=parked_page_chars(rendered), path_str=_PARKED, max_lines=None)
 
 

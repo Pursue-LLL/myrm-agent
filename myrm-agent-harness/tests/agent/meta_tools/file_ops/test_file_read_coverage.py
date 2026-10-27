@@ -1,4 +1,4 @@
-"""Additional coverage for file_read_handlers and file_read_tool vault-adjacent paths."""
+"""Additional coverage for the file_read multimodal and text-path handlers and file_read_tool vault-adjacent paths."""
 
 from __future__ import annotations
 
@@ -8,11 +8,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
-    _dispatch_truncation_event,
-    _read_via_service,
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
     append_media_text_parts,
     build_multimodal_result,
+)
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths import (
+    _dispatch_truncation_event,
+    _read_via_service,
     process_text_paths,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
@@ -50,17 +52,17 @@ async def test_build_multimodal_vision_and_pdf(tmp_path: Path) -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
             new_callable=AsyncMock,
             return_value=[{"type": "text", "text": "img block"}],
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_pdf_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_pdf_as_content_blocks",
             new_callable=AsyncMock,
             return_value="pdf text",
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_video_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_video_as_content_blocks",
             new_callable=AsyncMock,
             return_value="video text",
         ),
@@ -112,7 +114,7 @@ async def test_append_media_vision_fallback_path() -> None:
 @pytest.mark.asyncio
 async def test_build_multimodal_pdf_list_blocks() -> None:
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_pdf_as_content_blocks",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_pdf_as_content_blocks",
         new_callable=AsyncMock,
         return_value=[{"type": "text", "text": "pdf blocks"}],
     ):
@@ -153,22 +155,22 @@ async def test_append_media_text_parts_with_executor(tmp_path: Path) -> None:
     parts: list[str] = []
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
             new_callable=AsyncMock,
             return_value="image text",
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_pdf_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_pdf_as_content_blocks",
             new_callable=AsyncMock,
             return_value="pdf text",
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_document_as_text",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_document_as_text",
             new_callable=AsyncMock,
             return_value="doc text",
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_video_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_video_as_content_blocks",
             new_callable=AsyncMock,
             return_value="video text",
         ),
@@ -193,15 +195,15 @@ async def test_read_via_service_dispatches_truncation_event() -> None:
     mock_service.execute = AsyncMock(return_value="long output")
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.FileOperationService",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths.FileOperationService",
             return_value=mock_service,
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.truncate_file_output",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths.truncate_file_output",
             return_value=("short", True, {"tokens": 1}),
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers._dispatch_truncation_event",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._dispatch_truncation_event",
             new_callable=AsyncMock,
         ) as mock_dispatch,
     ):
@@ -228,7 +230,7 @@ async def test_process_text_paths_preview_mode(tmp_path: Path) -> None:
     mock_executor.workspace_path = str(tmp_path)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_file_preview",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths.read_file_preview",
         new_callable=AsyncMock,
         return_value="preview chunk",
     ):
@@ -253,7 +255,7 @@ async def test_process_text_paths_stream_mode(tmp_path: Path) -> None:
     mock_executor.workspace_path = str(tmp_path)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_file_chunked",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths.read_file_chunked",
         new_callable=AsyncMock,
         return_value="chunked",
     ):
@@ -288,7 +290,7 @@ async def test_file_read_tool_multimodal_with_preserve_context(tmp_path: Path) -
             return_value=ctx,
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
             new_callable=AsyncMock,
             return_value=[{"type": "text", "text": "vision ok"}],
         ),
@@ -365,7 +367,7 @@ async def test_file_read_tool_text_preserve_in_context(tmp_path: Path) -> None:
             return_value=mock_executor,
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.process_text_paths",
+            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.process_text_paths",
             new_callable=AsyncMock,
             return_value=["note body"],
         ),
@@ -431,7 +433,7 @@ async def test_file_read_tool_redacts_secrets(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_build_multimodal_image_list_blocks() -> None:
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
         new_callable=AsyncMock,
         return_value=[{"type": "text", "text": "img-list"}],
     ):
@@ -454,7 +456,7 @@ async def test_build_multimodal_image_list_blocks() -> None:
 @pytest.mark.asyncio
 async def test_build_multimodal_image_no_vision_string_result() -> None:
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
         new_callable=AsyncMock,
         return_value="plain image text",
     ):
@@ -524,7 +526,7 @@ async def test_build_multimodal_image_empty_ocr_falls_back_to_metadata() -> None
             ),
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
             new_callable=AsyncMock,
             return_value="metadata only",
         ),
@@ -565,7 +567,7 @@ async def test_build_multimodal_image_propagates_block_list_from_plain_reader() 
             ),
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_image_as_content_blocks",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_image_as_content_blocks",
             new_callable=AsyncMock,
             return_value=[{"type": "text", "text": "block-a"}, {"type": "text", "text": "block-b"}],
         ),
@@ -592,7 +594,7 @@ class TestReadImageViaOcr:
 
     @pytest.mark.asyncio
     async def test_returns_text_when_ocr_reads_the_image(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
             _read_image_via_ocr,
         )
         from myrm_agent_harness.toolkits.llms.vision.types import VisionBackendKind, VisionResult
@@ -609,7 +611,7 @@ class TestReadImageViaOcr:
 
     @pytest.mark.asyncio
     async def test_returns_none_when_ocr_finds_no_text(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
             _read_image_via_ocr,
         )
         from myrm_agent_harness.toolkits.llms.vision.types import VisionBackendKind, VisionResult
@@ -626,7 +628,7 @@ class TestReadImageViaOcr:
     @pytest.mark.asyncio
     async def test_returns_none_when_the_ocr_extra_is_absent(self) -> None:
         """A missing extra must not be reported as "the image had no text"."""
-        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers import (
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal import (
             _read_image_via_ocr,
         )
 
@@ -643,7 +645,7 @@ class TestReadImageViaOcr:
 @pytest.mark.asyncio
 async def test_build_multimodal_video_list_blocks() -> None:
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_video_as_content_blocks",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.multimodal.read_video_as_content_blocks",
         new_callable=AsyncMock,
         return_value=[{"type": "text", "text": "vid-list"}],
     ):
@@ -695,7 +697,7 @@ async def test_process_text_paths_mcp_and_directory(tmp_path: Path) -> None:
     d.mkdir()
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers._read_via_service",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
         new_callable=AsyncMock,
         side_effect=["mcp content", "dir listing"],
     ) as mock_read:
@@ -721,12 +723,12 @@ async def test_process_text_paths_exception_fallback(tmp_path: Path) -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers.read_file_preview",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths.read_file_preview",
             new_callable=AsyncMock,
             side_effect=OSError("read fail"),
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers._read_via_service",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
             new_callable=AsyncMock,
             return_value="fallback content",
         ) as mock_service,
@@ -919,7 +921,7 @@ async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
     mock_executor.workspace_path = str(tmp_path)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_handlers._read_via_service",
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._read_via_service",
         new_callable=AsyncMock,
         return_value=code,
     ):

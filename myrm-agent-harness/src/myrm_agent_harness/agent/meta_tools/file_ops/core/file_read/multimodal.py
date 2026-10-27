@@ -1,48 +1,39 @@
-"""Execution handlers for file_read_tool (multimodal, text paths, media fallbacks).
+"""Multimodal reads for file_read_tool: image, PDF, document and video blocks, and their text-mode fallbacks.
 
 [INPUT]
-- core::FileOperationService, OperationContext, OperationType (POS: 文件操作服务)
-- streaming::read_file_chunked, read_file_preview (POS: large-file streaming reader)
+- core.file_operation_service::FileOperationService, core.operation_context::OperationContext, OperationType (POS: 文件操作服务)
+- file_read.text_paths::read_structure_outline (POS: structure-mode outline of a text path)
 - utils.*_reader (POS: image/pdf/video/document readers)
 - utils.vault_read::read_vault_paths_to_parts (POS: vault URI batch reader)
-- file_read_truncation::truncate_file_output (POS: output truncation)
-- parked_file_view::is_parked_path, parked_page_chars (POS: page size of context-guard parked text)
 - agent.security.redact::redact_sensitive_text (POS: tool output redaction)
 - backends.skills.types::SkillMetadata (POS: MCP skill metadata)
 
 [OUTPUT]
 - build_multimodal_result: multimodal content blocks for vision/document paths
 - append_media_text_parts: text-mode fallbacks for image/pdf/document/video
-- process_text_paths: streaming/preview/all text path reads
 
 [POS]
-Multimodal and text read execution handlers for file_read_tool.
+Multimodal read execution for file_read_tool; plain text paths are read in text_paths.py.
 """
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages.content import ContentBlock, create_text_block
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 
-from ..streaming import read_file_chunked, read_file_preview
-from ..utils.document_reader import read_document_as_text, read_document_multimodal
-from ..utils.image_reader import read_image_as_content_blocks
-from ..utils.pdf_reader import read_pdf_as_content_blocks
-from ..utils.vault_read import path_base, read_vault_paths_to_parts
-from ..utils.video_reader import read_video_as_content_blocks
-from .file_integrity_guard import get_file_integrity_guard
-from .file_operation_service import FileOperationService
-from .file_read_truncation import truncate_file_output
-from .operation_context import OperationContext, OperationType
-from .parked_file_view import is_parked_path, parked_page_chars
-from .result_formatter import clamp_line
+from ...utils.document_reader import read_document_as_text, read_document_multimodal
+from ...utils.image_reader import read_image_as_content_blocks
+from ...utils.pdf_reader import read_pdf_as_content_blocks
+from ...utils.vault_read import read_vault_paths_to_parts
+from ...utils.video_reader import read_video_as_content_blocks
+from ..file_operation_service import FileOperationService
+from ..operation_context import OperationContext, OperationType
+from .text_paths import read_structure_outline
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -180,20 +171,10 @@ async def build_multimodal_result(
 
     if text_paths:
         if parse_mode == "structure":
-            from .file_read_outline import extract_file_outline
-
             for tp in text_paths:
-                base_tp = path_base(tp)
-                raw_out = await _read_via_service(tp, executor, skills, reason, config=config, max_lines=5000)
-                outline = extract_file_outline(raw_out, base_tp, max_symbols=100)
-                if outline:
-                    blocks.append(create_text_block(outline))
-                else:
-                    blocks.append(
-                        create_text_block(
-                            f"[DOCUMENT STRUCTURE OUTLINE: {base_tp}]:\n  (No structural symbols detected)"
-                        )
-                    )
+                blocks.append(
+                    create_text_block(await read_structure_outline(tp, executor, skills, reason, config=config))
+                )
         else:
             op_context = OperationContext(
                 operation=OperationType.VIEW,
@@ -301,170 +282,3 @@ async def append_media_text_parts(
                 text_parts.append(vid_result)
         else:
             text_parts.append(f"[Video file: {vid_path}] (No workspace filesystem available)")
-
-
-async def _dispatch_truncation_event(
-    meta: dict[str, object],
-    *,
-    tool: str,
-    config: RunnableConfig,
-) -> None:
-    from myrm_agent_harness.utils.event_utils import dispatch_custom_event
-
-    await dispatch_custom_event(
-        "agent_status",
-        {"event": "tool_truncated", "tool": tool, "metadata": meta},
-        config=config,
-    )
-
-
-def _clamp_multiline(text: str, max_line_length: int | None) -> str:
-    """Apply per-line clamp to raw (non-gutter) text on display only.
-
-    Preview/stream branches bypass ``ResultFormatter``, so clamp each line here
-    to keep a minified/wide line from blowing the context budget in any read
-    mode. Never touches the file on disk, so read/version hashes stay intact.
-    """
-    if max_line_length is None or not text:
-        return text
-    lines = text.split("\n")
-    return "\n".join(clamp_line(line, max_line_length) for line in lines)
-
-
-async def _read_via_service(
-    path_str: str,
-    executor: CodeExecutor | None,
-    skills: list[SkillMetadata] | None,
-    reason: str | None,
-    *,
-    is_dir: bool = False,
-    config: RunnableConfig,
-    max_lines: int | None = None,
-) -> str:
-    op_context = OperationContext(
-        operation=OperationType.VIEW,
-        executor=executor,
-        skills=skills or [],
-        paths=[path_str],
-        reason=reason,
-    )
-    service = FileOperationService(op_context)
-    raw_out = await service.execute()
-    if max_lines is None:
-        max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
-    # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
-    hint_path = path_str if is_dir else path_base(path_str)
-    # Text the context guard parked is read in pages sized in o200k tokens, not the code-file character cap.
-    parked = not is_dir and is_parked_path(hint_path)
-    truncated_text, was_truncated, meta = truncate_file_output(
-        raw_out,
-        max_chars=parked_page_chars(raw_out) if parked else DEFAULT_FILE_IO_CONFIG.max_read_chars,
-        is_dir=is_dir,
-        path_str=hint_path,
-        max_lines=max_lines,
-    )
-    if was_truncated:
-        await _dispatch_truncation_event(meta, tool="file_read" if not is_dir else "list_dir", config=config)
-    return truncated_text
-
-
-async def process_text_paths(
-    text_paths: list[str],
-    executor: CodeExecutor | None,
-    skills: list[SkillMetadata] | None,
-    reason: str | None,
-    mode: str,
-    chunk_size_mb: int,
-    *,
-    config: RunnableConfig,
-    parse_mode: str | None = None,
-) -> list[str]:
-    """Read plain text paths with preview/stream/all modes and truncation."""
-    max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
-    text_content_parts: list[str] = []
-
-    for path_str in text_paths:
-        base_path_str = path_base(path_str)
-
-        if parse_mode == "structure":
-            from .file_read_outline import extract_file_outline
-
-            raw_out = await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=5000)
-            outline = extract_file_outline(raw_out, base_path_str, max_symbols=100)
-            if outline:
-                text_content_parts.append(outline)
-            else:
-                text_content_parts.append(
-                    f"[DOCUMENT STRUCTURE OUTLINE: {base_path_str}]:\n  (No structural symbols detected)"
-                )
-            continue
-
-        if ":" in path_str or not executor:
-            text_content_parts.append(
-                await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=max_lines)
-            )
-            continue
-
-        try:
-            if base_path_str.startswith("/mcp/"):
-                text_content_parts.append(
-                    await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=max_lines)
-                )
-                continue
-
-            workspace_path = Path(base_path_str)
-            if not workspace_path.is_absolute():
-                cwd = Path(executor.workspace_path) if executor else Path.cwd()
-                workspace_path = cwd / workspace_path
-
-            if not workspace_path.exists() or workspace_path.is_dir():
-                text_content_parts.append(
-                    await _read_via_service(
-                        path_str,
-                        executor,
-                        skills,
-                        reason,
-                        is_dir=workspace_path.is_dir(),
-                        config=config,
-                        max_lines=max_lines,
-                    )
-                )
-                continue
-
-            file_size_mb = workspace_path.stat().st_size / (1024 * 1024)
-            # preview and stream bypass the page cap and clamp long lines: a parked paste is always read as pages.
-            effective_mode = "all" if is_parked_path(base_path_str) else mode
-            if file_size_mb > 100 and effective_mode == "all":
-                effective_mode = "preview"
-                logger.warning(
-                    "File %s is %.1fMB (>100MB). Auto-fallback to preview mode to prevent OOM.",
-                    base_path_str,
-                    file_size_mb,
-                )
-
-            if effective_mode == "preview":
-                guard = get_file_integrity_guard(executor)
-                if guard is not None:
-                    guard.record_read_marker(str(workspace_path))
-                content = await read_file_preview(workspace_path)
-                content = _clamp_multiline(content, DEFAULT_FILE_IO_CONFIG.max_read_line_length)
-                text_content_parts.append(f"=== {base_path_str} (preview mode) ===\n{content}")
-            elif effective_mode == "stream":
-                guard = get_file_integrity_guard(executor)
-                if guard is not None:
-                    guard.record_read_marker(str(workspace_path))
-                content = await read_file_chunked(workspace_path, chunk_size_mb=chunk_size_mb)
-                content = _clamp_multiline(content, DEFAULT_FILE_IO_CONFIG.max_read_line_length)
-                text_content_parts.append(f"=== {base_path_str} ===\n{content}")
-            else:
-                text_content_parts.append(
-                    await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=max_lines)
-                )
-
-        except Exception as e:
-            logger.exception("Error processing %s with mode=%s: %s", path_str, mode, e)
-            text_content_parts.append(
-                await _read_via_service(path_str, executor, skills, reason, config=config, max_lines=max_lines)
-            )
-
-    return text_content_parts

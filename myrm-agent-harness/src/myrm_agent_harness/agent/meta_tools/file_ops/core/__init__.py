@@ -30,12 +30,12 @@ file_ops 核心业务逻辑子包。聚合工具执行时的核心服务、编�
 from .file_edit_normalizer import merge_edits_for_diff, normalize_edits_payload
 from .file_integrity_guard import FileIntegrityGuard, get_file_integrity_guard
 from .file_operation_service import FileOperationService
-from .file_read_handlers import (
+from .file_read import (
     append_media_text_parts,
     build_multimodal_result,
     process_text_paths,
+    truncate_file_output,
 )
-from .file_read_truncation import truncate_file_output
 from .mcp_read_next_step_hint import (
     append_mcp_docs_next_step_hint,
     is_mcp_function_doc_batch,

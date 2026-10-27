@@ -1,7 +1,7 @@
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_outline import (
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
     extract_truncated_outline,
 )
-from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_truncation import (
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import (
     truncate_file_output,
 )
 
@@ -155,7 +155,7 @@ def test_non_code_files_return_empty_outline():
 
 
 def test_markdown_outline_extraction():
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_outline import (
+    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
         extract_file_outline,
     )
 
@@ -177,7 +177,7 @@ Endpoints description.
 
 
 def test_markdown_outline_ignores_code_block_comments():
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_outline import (
+    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
         extract_file_outline,
     )
 
@@ -209,7 +209,7 @@ Conclusion text.
 
 
 def test_markdown_outline_ignores_indented_code_comments():
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_outline import (
+    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
         extract_file_outline,
     )
 
@@ -227,7 +227,7 @@ def test_markdown_outline_ignores_indented_code_comments():
 
 
 def test_markdown_outline_ignores_yaml_frontmatter_comments():
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_outline import (
+    from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.outline import (
         extract_file_outline,
     )
 
