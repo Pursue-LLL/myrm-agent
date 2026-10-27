@@ -138,7 +138,7 @@ def test_only_files_directly_under_the_kept_directory_are_carried(tmp_path: Path
 
 
 def test_a_file_parked_under_a_lower_limit_is_carried_all_the_same(tmp_path: Path) -> None:
-    """A paste parked when the limit was lower is below today's limit: copying it must not depend on the limit."""
+    """A file parked under a lower limit than a person's is carried as well: the copy depends on no limit."""
     source, target = tmp_path / "source", tmp_path / "target"
     text = paste_between_the_limits("meeting-line: the decision was to keep watching and review next week\n")
     parked = SpilloverEngine(ContextGuardConfig(spillover_dir_name=KEPT_SPILLOVER_DIR)).process_content(text, base_dir=source)
