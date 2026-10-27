@@ -19,6 +19,57 @@
 | **仍然存在** | ① 没有用真实模型验证（预警措辞对真实模型的效果、真实模型在多轮里的调用成本）；没有在真实浏览器里看过渲染截图，前端只验证到「步骤键、标题文案、提示键」这一层，未看视觉。② 没有核实已经保存在历史消息里的旧 loop_guard 步骤（带英文正文与工具名）在重新打开时如何显示。③ 完成门禁的钩子 `_completion_check` 仍会经过 LoopGuard 并发出 `loop_guard_warn`（033「仍然存在 ③」）：文案不再是英文原句与内部工具名，改为「重复同样的步骤」一类的本地化标题，但事件本身还在发（它落在哪一类没有实测）。 |
 | **代码位置** | `agent/_internals/agent_runtime.py`（`run_agent_loop`）· `agent/middlewares/tooling/_tool_guards.py`（`_emit_loop_guard_event`）· `agent/security/guards/loop_guard/guard.py`（`_check_round_budget`）、`types.py`（`ITERATION_BUDGET_KIND`）· `myrm-agent-frontend/src/store/chat/messageStream/handlers/loopGuardStepKey.ts`、`statusStreamProgressSteps.ts` · `tests/agent/_internals/test_round_budget_run.py`、`tests/agent/_internals/test_agent_runtime.py` |
 
+### BUG-HARNESS-2026-10-27-034 · 默认中间件链里一批同步钩子在生产中从不运行：隐私与密钥脱敏、安全边界规则、会话目录说明、预算提示都没有到达模型，工具调用限额也从未生效
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（脚本化模型 + 默认链的真实编译图上验证；真实服务商的线路表现与提示缓存影响没有验证，见「仍然存在」） |
+| **发现时间** | 2026-10-27（BUG-HARNESS-2026-10-27-028 的调查里发现并留作它的「仍然存在 ①」：当时写出的不丢钩子版本会破坏 `progress_middleware` 的「最后一条是用户消息」假设，没有提交） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P0（隐私策略开启时）：`SecurityGuardrailMiddleware.awrap_model_call` 在模型调用外设置「本循环已由中间件执行隐私策略」标记，wire 级脱敏看到标记就整个跳过（`outbound_privacy_guard.py:90-91`），而真正脱敏的 `before_model` 钩子没有运行，两层都没有脱敏。探针（脚本化模型 + `build_middlewares` 默认链 + REDACT 策略）：HEAD 上标记为 True、手机号原样出现在模型输入里；修复后标记仍为 True、手机号已被替换。同一原因造成：工具结果里的密钥不被脱敏（隐私策略关闭时同样）；`SecurityBoundary` 的边界规则与 `SessionAccess` 的 `<session-access>` 目录说明从未发给模型；`BudgetBoundary` 的预算预警与收尾提示从未发出；`ToolCallLimitMiddleware` 的上限从未生效（显式 `run_limit=3` 的链把脚本里的 35 次工具调用全部执行了）。没有线上触发频率数据，隐私策略是否默认开启没有核对。 |
+| **关联产品** | harness `agent/middlewares/sync_hook_parity.py`、`session_access_middleware.py`、`progress_middleware.py`、`security/`（`security_guardrail_middleware.py`、`security_boundary_middleware.py`、`user_input_guard.py`）、`utils/token_economics/budget_boundary_middleware.py`、`agent/_internals/_agent_build.py`、`agent/types.py`（`EngineParams`） |
+| **根因** | LangChain `create_agent` 按中间件的**类**属性决定图上有哪些钩子节点（`m.__class__.before_model is not AgentMiddleware.before_model`）。`SyncHookParityAdapter` 是另一个包装类：它没有被包装中间件的 `before_model` / `after_model` 与 `state_schema`，对每个没有同步 `wrap_tool_call` 的中间件都做了包装，并无条件定义 `aafter_model`（图上多出 9 个空节点），所以被包装的中间件里凡是靠同步钩子工作的都没有跑过。钩子失效没被发现，是因为我读到的相关测试要么直接调用钩子方法，要么只用单个中间件建图，没有把 `build_middlewares` 的整条链编译成图再看模型收到什么。 |
+| **修复** | ① `apply_sync_hook_parity` 不再包装：只给「定义了异步 `awrap_*`、没有同步 `wrap_*`」的中间件换到一个缓存的子类上（`__class__` 赋值，子类补直通的同步 `wrap_tool_call` / `wrap_model_call`），钩子、`state_schema`、名字都保持原样，也不再多出空节点。② 钩子只返回自己改过的消息：`add_messages` 按 id 覆盖，原先整表返回会把同一批消息当成新消息重复发事件、重复计数。`BudgetBoundary` 返回提示消息（`HumanMessage`，带 `is_system_synthetic`，否则会被当成用户最新输入筛查），`SessionAccess` 返回新增的 SystemMessage，`screen_user_input` 与 `SecurityGuardrail` 只返回被改写的消息。③ `progress_middleware` 找用户消息时跳过末尾的 SystemMessage。④ `BudgetBoundary` 的预警提示每次运行只发一次（钩子生效后探针里 8 轮发了 6 次），收尾/超限提示本来就只发一次。⑤ `ToolCallLimitMiddleware` 变成按需：`EngineParams.max_tool_calls` / `max_bash_calls` 默认改为 `None`（原来是 30 / 15，但从未生效），只有配置了才注册；这是为了不让「钩子生效」顺带给所有运行加上一个从来没有执行过的上限。⑥ 删掉 `SecurityBoundary`、`SessionAccess` 里空的 `after_model`。默认链每轮图步数 20 → 11（`graph_recursion_limit` 按编译后的图计数，自动适应）。没有改任何提示词文本，也没有改工具定义。 |
+| **反复次数** | 第 2 次处理（028 时发现，未修） |
+| **踩坑** | ① 先尝试 028 里的做法（保留钩子）会让 3 个 todo 用例失败，原因是钩子生效后在用户消息之后追加了 SystemMessage；根因在 `progress_middleware`，不在钩子。② 钩子若返回整张消息表，`process_updates_chunk` 会把其中每条都当作新消息处理（发事件、计入 `tool_call_count`、进入 `collected_messages`），所以必须在流事件层断言（`test_shipped_stack_hooks.py` 的流公告与升级老会话用例）。③ 钩子一旦生效，`ToolCallLimitMiddleware` 的状态 schema 也生效，限额开始计数；探针里要让每次调用的参数与输出不同，否则先被 LoopGuard 拦下，看不出限额。 |
+| **回归** | 新增 `tests/agent/middlewares/test_shipped_stack_hooks.py` 13 例（默认链编译成真实图：各钩子节点的集合；边界规则与会话说明每次运行一次且 Human 在 System 之前；REDACT / PSEUDONYMIZE / BLOCK 三种策略下手机号都不到达模型；工具结果里的密钥不到达模型；预算提示带 `is_system_synthetic` 且不被筛查；流事件层只公告新增消息；升级前的老会话不重放；`EngineParams` 的限额参数；预算提示每次运行一次）；改写 `test_sync_hook_parity.py` 11 例；`test_budget_boundary_middleware.py` 21 例、`test_progress_middleware.py` 15 例、`test_security_user_input_guard.py` 47 例、`test_session_access_middleware.py` 5 例各有改动；`test_agent_runtime.py` 与 `test_tool_history_hygiene_integration.py` 不再解包适配器。同一批测试在 HEAD 源码上（`-o pythonpath` 指向 HEAD 导出目录）：shipped-stack 11/13 失败、parity 5/11、budget 5/21、progress 1/15、user_input_guard 2/47、session_access 1/5、agent_runtime 3/43；修复后全部通过。`tests/agent tests/integration tests/utils tests/core tests/toolkits` 宽范围运行 38711 通过、6 失败：5 个（SSE 节流、macOS AX 脚本编译、请求超时、稀疏记忆降级、分块并发基准）单独重跑通过，整批运行时机器负载 60–90，没有逐个查原因；1 个（`test_verifier_shell_command_is_execution_evidence`）在 HEAD 源码上同样失败，不是这次改动引入。 |
+| **仍然存在** | ① **没有用真实服务商验证**：钩子生效后，中间会话里多出 SystemMessage（边界规则 517 字符、会话目录说明至少 161 字符，每次运行约 +170 token），LiteLLM 对各家服务商如何转换（合并到 system、转成 user、或被拒绝）与提示缓存是否受影响，只在脚本化模型上看过消息顺序。② **限额默认不再有**：原来写的 30 / 15 从未生效，没有恢复成默认；`app/ai_agents/general_agent/factory.py:1154` 对弱模型显式写了 `max_tool_calls = 10`、评测的各基准写了自己的预算（`app/core/eval/benchmarks.py:251-264`），这些现在会真正生效：弱模型一次运行第 11 次工具调用起得到错误结果，评测按基准预算截止。这是行为变化，没有用真实模型看过效果。③ **同步 `invoke` 整条默认链仍然失败**（`ClarificationGuard` / `ToolApproval` / `CompletionGuard` 只有异步实现，报 `TypeError ... aafter_model`），HEAD 与修复后相同，生产只走异步路径，没有改。④ `BudgetBoundary._finalization_injected` 不随运行重置（修复前就如此）。⑤ MoA advisor 在末尾有 SystemMessage 时会另追加一条 HumanMessage（读过，没有改）。⑥ 没有核对线上隐私策略的开启比例，所以无法说有多少真实对话受到影响。 |
+| **代码位置** | `agent/middlewares/sync_hook_parity.py`（`apply_sync_hook_parity`、`_with_sync_hooks`）· `agent/middlewares/session_access_middleware.py` · `agent/middlewares/progress_middleware.py` · `agent/middlewares/security/`（`security_guardrail_middleware.py`、`user_input_guard.py`） · `utils/token_economics/budget_boundary_middleware.py` · `agent/_internals/_agent_build.py` · `agent/types.py` · `tests/agent/middlewares/test_shipped_stack_hooks.py` |
+
+### BUG-HARNESS-2026-10-27-035 · 模型返回需要修正的工具名时，修正步骤抛 `AttributeError`，整次模型调用失败（单元测试用 MagicMock 掩盖了这个错误）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（复核默认链时读到 `skill_attenuation_middleware.py` 的修正分支） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P1：模型给出可修正的幻觉工具名（例如把 `todo_write` 写成 `todo_write_tool`）、修正生效的那一轮必现；`_repair_tool_call_names` 没有异常保护，`AttributeError` 直接从模型调用抛出，而该分支存在的目的正是让这一轮不失败。外层错误处理如何呈现这次失败没有核对；没有线上触发频率数据。 |
+| **关联产品** | harness `agent/middlewares/tooling/skill_attenuation_middleware.py` |
+| **根因** | 修正后用 `response.model_copy(update=...)` 重建响应，而 LangChain 的 `ModelResponse` 是 dataclass，没有 `model_copy`。原测试把响应写成 `MagicMock`，并给它的 `model_copy` 配了 side_effect，所以永远通过。 |
+| **修复** | 改用 `dataclasses.replace(response, result=repaired_messages)`（`structured_response` 保留），`repaired_messages` 标注为 `list[BaseMessage]`。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 只改源码、不换测试里的替身，测试仍然绿；必须把替身换成真实的 `ModelResponse`，并加上经 `wrap_model_call` / `awrap_model_call` 的两条中间件级用例。 |
+| **回归** | `test_skill_attenuation_tool_name_repair.py` 6 例（改用真实 `ModelResponse`，新增异步与同步中间件级用例各 1，并断言 `structured_response` 保留）；HEAD 源码上 3 例失败，修复后通过。 |
+| **仍然存在** | 该文件有 8 个既有 mypy 泛型参数告警，不在本次改动内，没有处理。 |
+| **代码位置** | `agent/middlewares/tooling/skill_attenuation_middleware.py`（`_repair_tool_call_names`）· `tests/agent/middlewares/test_skill_attenuation_tool_name_repair.py` |
+
+### BUG-HARNESS-2026-10-27-036 · 工具结果里的普通状态句「you are now logged in」「You are now on branch main」「你现在是登录状态」被注入检测判成 prompt injection
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（BUG-HARNESS-2026-10-27-033 里的强制收尾指令被同一条规则误判，当时只豁免了运行时钩子，规则本身没动） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：命中面是任何含这两个短语的工具结果（登录态、切换分支、阅读页面的提示等）；命中后判为无效（非搜索类 `severity=error`，搜索类 `warning`）。没有线上触发频率数据。 |
+| **关联产品** | harness `agent/security/detection/tool_result_validator.py` |
+| **根因** | `INJECTION_PATTERNS` 里的 `"you are now"` 与 `"你现在是"` 是裸子串，任何出现该子串的文本都命中。 |
+| **修复** | 两条裸子串改为 `_ROLE_ASSIGNMENT` 正则，只匹配「赋予角色」的形式：`you are now` 后接 `a/an/my/the/no longer` 或 `in developer/dan/god/admin/debug/unrestricted/jailbreak mode`；`你现在是` 后接 `一个/一名/一位/我的`。`ignore previous instructions`、`disregard all prior`、`new role:`、`忽略之前的指令` 保持不变。 |
+| **反复次数** | 第 2 次处理（033 绕开了症状） |
+| **踩坑** | 033 的回归用例把强制收尾指令当作「换成别的工具名仍会被扫描」的对照，规则收窄后这个对照不再成立；改为两条用例：指令文本不被任何工具名扫描，以及真正的注入文本只有运行时钩子豁免。 |
+| **回归** | `test_tool_result_validator.py` 35 例（新增 1 个参数化用例：4 组状态句 × 3 个工具都不再被判注入；真阳性用例改成真正的赋予角色句式，并保留其余模式），`test_tool_helpers.py` 改 1 例 + 新增 1 例；HEAD 源码上 5 例失败，修复后通过。 |
+| **仍然存在** | ① 收窄后 `you are now a …`、`你现在是一个…` 仍会命中（它们既可能是注入也可能是网页正文，例如「you are now a member」），没有更细的上下文判断。② 英文的其他角色赋予句式（`act as`、`pretend to be` 等）本来就不在规则里，没有新增。③ 没有用线上真实工具结果做误报 / 漏报统计。 |
+| **代码位置** | `agent/security/detection/tool_result_validator.py`（`INJECTION_PATTERNS`、`_ROLE_ASSIGNMENT`、`validate_tool_result`）· `tests/agent/security/test_tool_result_validator.py` · `tests/agent/middlewares/test_tool_helpers.py` |
+
 ### BUG-HARNESS-2026-10-27-033 · 完成门禁的内部钩子被当成任务步骤发给用户（强制收尾时是一整段英文指令的错误步骤），指令还被自家的注入检测判成「疑似 prompt injection」
 
 | 字段 | 内容 |
@@ -108,7 +159,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | FIXED（轮数预算）；同一调查里发现的 `SyncHookParityAdapter` 问题见「仍然存在 ①」，未修 |
+| **状态** | FIXED（轮数预算）；同一调查里发现的 `SyncHookParityAdapter` 问题见「仍然存在 ①」，已在 BUG-HARNESS-2026-10-27-034 修复 |
 | **发现时间** | 2026-10-27（复核 Deep Research 的 research agent 默认 `max_research_agent_turns=16` 为何几乎不调用工具时） |
 | **修复时间** | 2026-10-27 |
 | **严重程度** | P1：凡经 `run_agent_loop` 运行的 agent 都受影响，轮数预算按「每轮 2 步」写成 `recursion_limit`（`_factory/builder.py` 的 `max_iterations * 2`、`sub_agents/builder.py` 的 `max_turns * 2`），而 LangChain `create_agent` 给每个中间件的每个 `before_model` / `after_model` 钩子各建一个图节点，LangGraph 每个节点计一步。研究 agent 的默认链（`build_standalone_agent` + `build_research_subagent_config`）实测每轮 22 步：`recursion_limit` 32 只够 1 轮工具调用，50 够 2 轮，100 够 4 轮，200 够 9 轮，400 够 19 轮。真实脚本化模型、真实 `_dispatch_research_agents`：默认 16 轮的 research agent 只执行了 1 次工具调用。主 Agent 的链由同一个 `build_middlewares` 构造，没有单独实测它的每轮步数；它的 `max_iterations` 默认值与线上实际配置没有核对 |
