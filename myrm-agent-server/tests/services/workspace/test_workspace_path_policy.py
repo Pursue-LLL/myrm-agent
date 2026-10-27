@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,6 +17,17 @@ from app.services.workspace.workspace_path_policy import (
 )
 
 HOME = str(Path.home())
+
+
+@pytest.fixture
+def state_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    folder = tmp_path / "outer" / "state"
+    folder.mkdir(parents=True)
+    monkeypatch.setattr(
+        "app.config.settings.get_settings",
+        lambda: SimpleNamespace(database=SimpleNamespace(state_dir=str(folder))),
+    )
+    return folder
 
 
 def _issue(raw: str, **kwargs: bool) -> WorkspacePathIssue:
@@ -43,6 +55,20 @@ class TestResolveWorkspacePath:
 
     def test_a_protected_location_itself_is_dangerous(self) -> None:
         assert _issue(os.path.join(HOME, ".ssh")) is WorkspacePathIssue.DANGEROUS
+
+    def test_the_state_directory_and_its_ancestors_are_too_broad(self, state_dir: Path) -> None:
+        assert _issue(str(state_dir)) is WorkspacePathIssue.TOO_BROAD
+        assert _issue(str(state_dir.parent)) is WorkspacePathIssue.TOO_BROAD
+
+    def test_a_workspace_below_the_state_directory_is_fine(self, state_dir: Path) -> None:
+        chat_workspace = state_dir / "harness" / "workspaces" / "chat_1"
+        chat_workspace.mkdir(parents=True)
+        assert resolve_workspace_path(str(chat_workspace)) == os.path.realpath(chat_workspace)
+
+    def test_a_symlink_to_the_state_directory_is_judged_by_its_target(self, state_dir: Path, tmp_path: Path) -> None:
+        link = tmp_path / "shortcut"
+        link.symlink_to(state_dir, target_is_directory=True)
+        assert _issue(str(link)) is WorkspacePathIssue.TOO_BROAD
 
     def test_a_symlink_to_home_is_judged_by_its_target(self, tmp_path: Path) -> None:
         link = tmp_path / "innocent"

@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.security.path_security::is_dangerous_path, covers_dangerous_path
+- app.config.settings::get_settings (POS: state_dir, the directory holding the database and every chat workspace)
 - app.core.utils.errors::validation_error
 - app.schemas.responses::ErrorDetail
 
@@ -14,15 +15,16 @@
 
 [POS]
 Binding a workspace grants the sandbox write access to the whole folder tree. A folder that is, or
-contains, a credential or system root (home, a drive root, ``/``) must therefore never become a
-workspace, whichever entry point proposed it: project create/adopt, chat workspace PATCH, IM ``/bind``
-or an imported transcript.
+contains, a credential or system root (home, a drive root, ``/``) or the application state directory
+must therefore never become a workspace, whichever entry point proposed it: project create/adopt, chat
+workspace PATCH, IM ``/bind`` or an imported transcript.
 """
 
 from __future__ import annotations
 
 import os
 from enum import StrEnum
+from pathlib import Path
 
 from app.core.utils.errors import StandardHTTPException, validation_error
 from app.schemas.responses import ErrorDetail
@@ -45,6 +47,22 @@ class WorkspacePathValidationError(ValueError):
         self.issue = issue
 
 
+def _contains_state_dir(path: str) -> bool:
+    """Whether ``path`` is the application state directory or one of its ancestors.
+
+    Compared by file identity, so another spelling of the same folder (case, symlink) cannot slip past.
+    The database sits directly in that directory; a workspace below it, such as a chat's own, is fine.
+    """
+    from app.config.settings import get_settings
+
+    state_dir = Path(os.path.realpath(get_settings().database.state_dir))
+    try:
+        candidate = os.stat(path)
+        return any(os.path.samestat(candidate, os.stat(folder)) for folder in (state_dir, *state_dir.parents))
+    except OSError:
+        return False
+
+
 def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_broad: bool = False) -> str:
     """Expand and canonicalize ``raw``; raise ``WorkspacePathValidationError`` when it cannot be a workspace.
 
@@ -62,7 +80,7 @@ def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_b
     resolved = os.path.realpath(expanded)
     if is_dangerous_path(resolved):
         raise WorkspacePathValidationError(WorkspacePathIssue.DANGEROUS, f"Access denied for path: {trimmed}")
-    if not allow_broad and covers_dangerous_path(resolved):
+    if not allow_broad and (covers_dangerous_path(resolved) or _contains_state_dir(resolved)):
         raise WorkspacePathValidationError(
             WorkspacePathIssue.TOO_BROAD,
             f"Path contains protected locations and is too broad to be a workspace: {trimmed}",
