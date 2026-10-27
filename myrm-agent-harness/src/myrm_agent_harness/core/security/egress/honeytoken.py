@@ -12,9 +12,10 @@
 - get_global_honeytoken_trap: Process-scoped singleton accessor
 
 [POS]
-Harness core security egress layer. Provides zero-prompt-overhead honeytoken traps.
-Decoys are mounted as sandbox environment variables or mock vault entries, keeping
-system prompt static (100% Prompt Cache intact) and terminating exfiltration at the proxy boundary.
+Harness core security egress layer. Provides honeytoken traps that need no system prompt text.
+The host mints decoys with ``generate_sandbox_canaries`` and mounts them as sandbox environment
+variables; the egress proxy closes the connection when a registered decoy appears in a request body.
+Nothing in the harness calls ``generate_sandbox_canaries``, so a trap stays empty until a host arms it.
 """
 
 from __future__ import annotations
