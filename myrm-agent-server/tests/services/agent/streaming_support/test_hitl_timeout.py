@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langgraph.types import Command
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
 from app.services.agent.execution_cache.types import ExecutionMode
 from app.services.agent.gateway import AgentGateway, GatewayConfig
@@ -25,6 +26,7 @@ from app.services.agent.streaming_support.hitl_timeout import (
     schedule_approval_timeout,
     schedule_clarification_timeout,
 )
+from app.services.agent.turn_lease import lease
 
 CHAT_ID = "chat-hitl"
 FAST = 0.02
@@ -54,8 +56,17 @@ def _fresh_scheduler() -> Iterator[None]:
 def gateway() -> Iterator[AgentGateway]:
     config = GatewayConfig(max_global=10, max_per_user=3, queue_timeout=2.0, execution_timeout=5.0, execution_hard_ceiling=60.0)
     gw = AgentGateway(config)
-    with patch.object(hitl_timeout, "get_agent_gateway", return_value=gw):
+    with patch.object(lease, "get_agent_gateway", return_value=gw):
         yield gw
+
+
+@pytest.fixture
+def background_jobs() -> Iterator[AsyncMock]:
+    """The ``kill_session_jobs`` of the registry the resume asks to end a stopped turn's background jobs."""
+    registry = MagicMock()
+    registry.kill_session_jobs = AsyncMock(return_value=0)
+    with patch("myrm_agent_harness.api.hooks.get_background_registry", return_value=registry):
+        yield registry.kill_session_jobs
 
 
 @pytest.fixture
@@ -295,6 +306,53 @@ async def test_a_failed_resume_releases_the_chat_and_reopens_the_interrupt(
     assert not gateway.is_session_active(CHAT_ID), "a reservation that never reached the stream must not leave the chat busy"
     assert scheduler.resolve_if_first(CHAT_ID) is True
     assert persisted == []
+
+
+@pytest.mark.asyncio
+async def test_the_resume_runs_under_a_cancel_token_a_stop_reaches(
+    gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The chat Stop button, a pause and the emergency stop find a turn by its message id; the resume is such a turn."""
+    seen: dict[str, object] = {}
+
+    async def stream(
+        params: MagicMock, extra_context: dict[str, object] | None = None, **kwargs: object
+    ) -> AsyncGenerator[dict[str, object], None]:
+        seen["token"] = kwargs.get("cancel_token")
+        seen["chat_active"] = gateway.is_session_active(CHAT_ID)
+        seen["stop_reached_it"] = CancellationRegistry.cancel(params.message_id, CancelReason.USER_CANCELLED)
+        yield MESSAGE_EVENT
+
+    _arm("clarification", _params(), monkeypatch)
+
+    with patch("app.services.agent.streaming.ai_agent_service_stream", stream):
+        await _settle()
+
+    token = seen["token"]
+    assert isinstance(token, CancellationToken)
+    assert token.request_id == "msg-1"
+    assert token.is_cancelled
+    assert seen["chat_active"] is True
+    assert seen["stop_reached_it"] is True
+    assert not gateway.is_session_active(CHAT_ID)
+    assert not CancellationRegistry.cancel("msg-1", CancelReason.USER_CANCELLED), "the token must be given back"
+
+
+@pytest.mark.asyncio
+async def test_a_stopped_resume_ends_the_background_jobs_it_started(
+    gateway: AgentGateway, persisted: list[str], background_jobs: AsyncMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def stream(params: MagicMock, **_kwargs: object) -> AsyncGenerator[dict[str, object], None]:
+        CancellationRegistry.cancel(params.message_id, CancelReason.ESTOP)
+        yield MESSAGE_EVENT
+
+    _arm("clarification", _params(), monkeypatch)
+
+    with patch("app.services.agent.streaming.ai_agent_service_stream", stream):
+        await _settle()
+
+    background_jobs.assert_awaited_once_with(CHAT_ID)
+    assert not gateway.is_session_active(CHAT_ID)
 
 
 @pytest.mark.asyncio

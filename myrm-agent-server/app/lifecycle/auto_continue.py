@@ -4,6 +4,7 @@
 - app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、正常完成后清理)
 - app.services.agent.runtime_context::build_agent_runtime_context (POS: Business-layer helper，为每个 agent 入口注入统一的运行时上下文)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层，创建 Agent 并经 Gateway 执行，输出 message/message_end 事件)
+- app.services.agent.turn_lease::server_turn_lease (POS: 服务端自启回合的会话占用 + 取消令牌，使聊天「停止」与 E-Stop 能到达重放回合)
 - app.services.chat.chat_service::ChatService (POS: 聊天业务门面层，为 API、Agent 入口提供统一聊天业务接口)
 
 [OUTPUT]
@@ -12,7 +13,7 @@
 
 [POS]
 崩溃自动续跑层。重启后扫描 InterruptedTurnMarker，对 freshness 窗口内且未超 crash-loop 上限的标记
-后台重跑被中断的普通回合，将流内 message_end.token_economics 快照作为消息 extra_data 持久化，
+后台重跑被中断的普通回合（在 server_turn_lease 下运行，会话已被消息占用则不重放），将流内 message_end.token_economics 快照作为消息 extra_data 持久化，
 与主路径共享消息级成本记账口径；成功/失败均创建 SystemNotification。
 """
 
@@ -118,7 +119,6 @@ async def _dispatch_auto_continue(
 
         from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
         from myrm_agent_harness.runtime.context.session import HISTORY_MODE_CONTEXT_KEY
-        from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
         from app.ai_agents import GeneralAgentParams
         from app.services.agent.execution_cache.types import ExecutionMode
@@ -127,6 +127,7 @@ async def _dispatch_auto_continue(
         from app.services.agent.streaming_support.stream_collector_helpers import (
             string_keyed_dict,
         )
+        from app.services.agent.turn_lease import server_turn_lease
         from app.services.chat.chat_service import ChatService
 
         params = GeneralAgentParams.model_validate(marker.serialized_params)
@@ -147,8 +148,6 @@ async def _dispatch_auto_continue(
             set_steering_token,
         )
 
-        token = CancellationToken(request_id=params.message_id or marker.id)
-
         # Replay persisted pending steering messages upon recovery
         if marker.pending_steering_messages:
             logger.info(
@@ -161,26 +160,27 @@ async def _dispatch_auto_continue(
 
         logger.info("[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id)
 
-        runtime_context = await build_agent_runtime_context(
-            execution_mode=ExecutionMode.POOLED,
-        )
-
         answer = AnswerDraft()
         token_economics: dict[str, object] | None = None
-        # The interrupted run left its partial state on the thread; the replay rebuilds the thread from history.
-        stream = ai_agent_service_stream(
-            params=params,
-            cancel_token=token,
-            extra_context={**runtime_context, HISTORY_MODE_CONTEXT_KEY: "replace"},
-        )
-        async for chunk in stream:
-            if not isinstance(chunk, dict):
-                continue
-            answer.feed(chunk)
-            if chunk.get("type") == "message_end":
-                # Keep the persisted snapshot aligned with the canonical path:
-                # stream_finalize extracts token_economics from this same event.
-                token_economics = string_keyed_dict(chunk.get("token_economics"))
+        # A chat a message took first is not replayed on top of it (AgentBusyError -> the failure notice below).
+        async with server_turn_lease(marker.chat_id, params.message_id) as token:
+            runtime_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.POOLED,
+            )
+            # The interrupted run left its partial state on the thread; the replay rebuilds the thread from history.
+            stream = ai_agent_service_stream(
+                params=params,
+                cancel_token=token,
+                extra_context={**runtime_context, HISTORY_MODE_CONTEXT_KEY: "replace"},
+            )
+            async for chunk in stream:
+                if not isinstance(chunk, dict):
+                    continue
+                answer.feed(chunk)
+                if chunk.get("type") == "message_end":
+                    # Keep the persisted snapshot aligned with the canonical path:
+                    # stream_finalize extracts token_economics from this same event.
+                    token_economics = string_keyed_dict(chunk.get("token_economics"))
 
         if answer and marker.chat_id:
             extra_data: dict[str, object] | None = None

@@ -2,7 +2,8 @@
 
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: per-chat timer and first-resolver arbitration)
-- app.services.agent.gateway::get_agent_gateway (POS: chat session reservation shared with user turns)
+- app.services.agent.turn_lease::server_turn_lease (POS: chat session claim + cancel token of a turn the server starts)
+- app.services.agent.gateway::AgentBusyError, AgentDrainingError (POS: the chat is held by a live run, or the app drains)
 - app.services.agent.streaming::ai_agent_service_stream (POS: gateway-managed agent run, imported lazily)
 - app.services.agent.streaming_support.sse_helpers (POS: interrupt event detection)
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
@@ -16,9 +17,10 @@
 
 [POS]
 A turn that stops at an interrupt leaves a suspended graph; when nobody answers, the timer resumes it with the
-timeout decision. The resumed run goes through the same gateway as a user turn, so it reserves the chat first and
-yields to a run that is already live. When it stops at the next interrupt it arms that interrupt's timer; an
-interrupt without a timer is reopened so its manual answer is not refused as already resolved.
+timeout decision. The resumed run takes the chat under a server turn lease like any turn the server starts, so it
+yields to a run that is already live and the chat Stop button and the emergency stop reach it. When it stops at the
+next interrupt it arms that interrupt's timer; an interrupt without a timer is reopened so its manual answer is not
+refused as already resolved.
 """
 
 from __future__ import annotations
@@ -30,12 +32,13 @@ import orjson
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 from myrm_agent_harness.utils.coercion import parse_float
 
-from app.services.agent.gateway import AgentBusyError, AgentDrainingError, get_agent_gateway
+from app.services.agent.gateway import AgentBusyError, AgentDrainingError
 from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_timeout,
     extract_clarification_required,
 )
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+from app.services.agent.turn_lease import server_turn_lease
 
 if TYPE_CHECKING:
     from app.ai_agents import GeneralAgentParams
@@ -175,34 +178,31 @@ async def _resume_after_timeout(
     from app.services.chat.chat_service import ChatService
 
     scheduler = ApprovalTimeoutScheduler.get()
-    gateway = get_agent_gateway()
-    try:
-        gateway.reserve_session(chat_id, active_message_id=params.message_id)
-    except (AgentBusyError, AgentDrainingError) as exc:
-        # The live run owns the suspended graph and arms its own interrupt when it stops.
-        scheduler.reopen(chat_id)
-        logger.warning("HITL timeout resume skipped: chat_id=%s, reason=%s", chat_id, exc)
-        return
-
     resume_params = params.model_copy()
     resume_params.query = Command(resume=resume_value)
     collector = StreamContentCollector()
     next_approval_timeout: dict[str, object] | None = None
     clarification_pending = False
     try:
-        extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
-        async for chunk in ai_agent_service_stream(params=resume_params, extra_context=extra_context):
-            sse_line = f"{_DATA_PREFIX}{orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
-            collector.feed_sse(sse_line)
-            next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
-            clarification_pending = clarification_pending or extract_clarification_required(sse_line)
+        # A message id keys the cancel token; the original turn's token is gone by the time a timer fires.
+        async with server_turn_lease(chat_id, params.message_id or f"hitl-resume-{chat_id}") as cancel_token:
+            extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
+            async for chunk in ai_agent_service_stream(
+                params=resume_params, cancel_token=cancel_token, extra_context=extra_context
+            ):
+                sse_line = f"{_DATA_PREFIX}{orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
+                collector.feed_sse(sse_line)
+                next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
+                clarification_pending = clarification_pending or extract_clarification_required(sse_line)
+    except (AgentBusyError, AgentDrainingError) as exc:
+        # The live run owns the suspended graph and arms its own interrupt when it stops.
+        scheduler.reopen(chat_id)
+        logger.warning("HITL timeout resume skipped: chat_id=%s, reason=%s", chat_id, exc)
+        return
     except Exception:
         # The suspended graph was not consumed by a finished run: let a manual answer through.
         scheduler.reopen(chat_id)
         raise
-    finally:
-        # The run releases its own reservation once the stream took it over; this only clears a reservation that never reached the stream.
-        gateway.release_if_reserved_only(chat_id)
 
     try:
         # Mark before persisting: the continuation may carry a new unanswered card that must stay unanswered.

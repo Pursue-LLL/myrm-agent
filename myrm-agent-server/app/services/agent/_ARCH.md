@@ -48,6 +48,7 @@ Design notes:
 | `params/` | ✅ 核心 | HTTP 请求 → `GeneralAgentParams` 转换层 | [_ARCH.md](params/_ARCH.md) |
 | `readiness/` | ✅ 核心 | Per-agent 配置就绪预检（6 维度 ready/warning/blocked + Settings deep link） | [_ARCH.md](readiness/_ARCH.md) |
 | `stream_session/` | ✅ 核心 | General Agent SSE 流式会话编排 | [_ARCH.md](stream_session/_ARCH.md) |
+| `turn_lease/` | ✅ 核心 | 服务端自启回合（目标续跑、审批超时恢复、崩溃重放）的会话占用 + 取消令牌租约，被取消时结束后台任务 | [_ARCH.md](turn_lease/_ARCH.md) |
 | `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer | [_ARCH.md](streaming_support/_ARCH.md) |
 | `adaptive_wakeup/` | ✅ 核心 | 后台长任务与子智能体完成自适应唤醒宿主驱动器与有界轮次熔断保护服务（`service.py`） | - |
 

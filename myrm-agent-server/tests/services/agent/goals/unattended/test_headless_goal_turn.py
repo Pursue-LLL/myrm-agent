@@ -31,6 +31,15 @@ def chat_id() -> Iterator[str]:
     get_agent_gateway().release_session(chat)
 
 
+@pytest.fixture
+def background_jobs() -> Iterator[AsyncMock]:
+    """The ``kill_session_jobs`` of the registry the turn asks to end a stopped turn's background jobs."""
+    registry = MagicMock()
+    registry.kill_session_jobs = AsyncMock(return_value=0)
+    with patch("myrm_agent_harness.api.hooks.get_background_registry", return_value=registry):
+        yield registry.kill_session_jobs
+
+
 def _goal(chat: str) -> Goal:
     return Goal(
         goal_id="g-runtime",
@@ -193,6 +202,28 @@ async def test_a_pause_stops_the_turn_the_server_started_through_its_cancel_toke
         await _settle()
 
     assert not goal_controls.is_turn_stopping(chat_id)
+    assert _released(chat_id, agent.turn_id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("stopped", "jobs_ended"), [(True, True), (False, False)], ids=["paused", "ran_to_the_end"])
+async def test_only_a_stopped_turn_ends_the_background_jobs_it_started(
+    chat_id: str, background_jobs: AsyncMock, stopped: bool, jobs_ended: bool
+) -> None:
+    """A pause ends what the turn left running, as the chat Stop button does; a turn that finished leaves it for the goal."""
+    agent = _Agent(chat_id)
+
+    with _trigger_environment(agent):
+        await _start(chat_id)
+        await asyncio.wait_for(agent.running.wait(), timeout=_WAIT_SECONDS)
+        if stopped:
+            assert goal_controls.stop_goal_turn(chat_id, _goal(chat_id))
+        agent.gate.set()
+        await _settle()
+
+    assert background_jobs.await_count == int(jobs_ended)
+    if jobs_ended:
+        background_jobs.assert_awaited_once_with(chat_id)
     assert _released(chat_id, agent.turn_id)
 
 
