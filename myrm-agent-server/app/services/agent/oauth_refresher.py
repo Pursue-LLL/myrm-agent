@@ -30,6 +30,7 @@ from collections.abc import Mapping
 
 import httpx
 from myrm_agent_harness.agent.security.types import EphemeralUserCredential
+from myrm_agent_harness.utils.crypto import DecryptionError
 from sqlalchemy import select
 
 from app.database.connection import get_session
@@ -225,7 +226,12 @@ async def _refresh_serialized(issuer: str) -> EphemeralUserCredential | None:
                 return None
 
             service = get_encryption_service()
-            credentials_dict = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
+            try:
+                credentials_dict = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
+            except DecryptionError:
+                # The blob was sealed under a key this device no longer has: unavailable, like a missing row.
+                logger.warning("refresh_oauth_token: '%s' cannot be decrypted with the current key", CONFIG_KEY)
+                return None
 
             if issuer not in credentials_dict:
                 logger.warning("refresh_oauth_token: no credentials for '%s'", issuer)

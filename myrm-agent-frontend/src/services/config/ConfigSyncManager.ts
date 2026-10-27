@@ -261,6 +261,13 @@ class ConfigSyncManager {
   }
 
   /**
+   * 已加密存储但密钥丢失、读不出内容的配置键（用户显式保存后即不再列出）。
+   */
+  getUnreadableKeys(): ConfigKey[] {
+    return [...this.cache.values()].filter((record) => record.unreadable).map((record) => record.key);
+  }
+
+  /**
    * 获取配置记录（包含元数据）
    */
   getRecord<K extends ConfigKey>(key: K): ConfigRecord<K> | null {
@@ -280,6 +287,10 @@ class ConfigSyncManager {
    */
   commitIfDirty<K extends ConfigKey>(key: K, value: ConfigValueMap[K]): boolean {
     const base = this.baseCache.get(key);
+    if (base?.unreadable) {
+      // 服务端已有加密数据但打不开：空值不是「用户没配置」，自动回写默认值会覆盖它，只能等用户显式保存。
+      return false;
+    }
     if (base && valuesEqual(base.value, value)) {
       return false;
     }

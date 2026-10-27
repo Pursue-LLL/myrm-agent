@@ -776,8 +776,8 @@ async def _remote_backup_auto_sync_job() -> None:
             store=default_store(),
             manager_factory=create_guardian_memory_manager,
             now=datetime.now(UTC),
-            # A stored row that decrypts to nothing (its key is gone) is not the same as settings that were never saved.
-            settings_unreadable=record is not None and record.encrypted and not record.value,
+            # A stored row whose key is gone is not the same as settings that were never saved.
+            settings_unreadable=record is not None and record.unreadable,
         )
     except Exception as exc:
         logger.warning("Remote backup auto-sync job failed: %s", exc)

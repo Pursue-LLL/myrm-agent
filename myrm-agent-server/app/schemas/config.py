@@ -414,6 +414,7 @@ class ConfigRecord(BaseModel):
     device_id: str = Field(..., alias="deviceId")
     encrypted: bool = False
     is_system_default: bool = Field(default=False, alias="isSystemDefault")
+    unreadable: bool = Field(default=False, description="Stored sealed but the key that opened it is gone; ``value`` is empty")
 
     class Config:
         populate_by_name = True

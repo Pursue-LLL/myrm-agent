@@ -34,12 +34,13 @@
 - `sync_configs()`：批量同步（含版本冲突检测；内容相同则幂等接受）
 - `_apply_runtime_effects()`：提交后让配置的运行时副作用生效（`personalSettings` → 重新发布 harness 进程级隐私策略；`set` / `delete` / `sync` 共用写入口，因此 PUT、`/config/sync`、回滚都覆盖）
 - `_encrypt_if_sensitive()`：写入前条件加密（含双重加密防护）
-- `_decrypt_if_needed()`：读取后解密（含旧 key fallback 迁移 + 双重加密修复）
+- `_decrypt_with_status()`：读取后解密，返回 `(值, unreadable)`（含旧 key fallback 迁移 + 双重加密修复）；`_decrypt_if_needed()` 是只取值的薄封装
 
 **解密 fallback 机制**：
 1. 当前 key 解密 → 成功则返回
 2. 如果失败，尝试 legacy device-fingerprint key → 成功则记录 WARNING 日志
 3. 双重加密检测：解密后如果仍是 `{"_cipher": "..."}` 结构，自动再解密一层
+4. 全部失败（封存它的密钥已丢失）→ 值为 `{}`，`ConfigRecord.unreadable = True`。`{}` 与「从未保存」「保存的就是空」无法区分，所以靠这个显式标志：前端据此不把默认值回写覆盖该行并提示用户，远程备份调度据此不把它当成未配置
 
 ### 2. 加密策略 (`encryption.py`)
 

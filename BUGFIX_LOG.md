@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 配置密钥丢失后，启动归一化把读不出的密文行覆盖成默认值；全新安装被当成「配置读取失败」而藏起引导；换钥后的 OAuth 刷新抛错；未设置字段存成 null 让设置页崩溃
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server 配置服务、就绪接口、远程备份调度、OAuth 刷新；frontend 配置同步层、一个横幅与六种语言各两句文案；harness 一条脱敏规则另记 `BUG-HARNESS-2026-10-27-051`；控制平面、提示词与工具描述不动）。接着「配置加密密钥文件 `.encryption_key` 不在受保护路径里……」那一条；那一条留下的旧队列缺口由上面一条（同日）关闭。 |
+| **症状** | ① 本地配置加密密钥文件丢了（备份只还原数据库、换机器、手动删除）：启动时静默生成一把新密钥，已封存的 `providers` 行解不开，服务端按空值返回；前端启动归一化把空值当成「用户没配置」，用 28 个默认内置服务商写回，覆盖那一行。② 全新安装（没有服务商、没完成引导）：就绪接口把「还没有服务商」当成读取失败，返回 `degraded: true` 与 `onboarding_completed: true`，引导向导被藏起来，出现一条与事实不符的「配置读取失败」横幅。③ OAuth 凭据换了密钥封存后，`refresh_oauth_token` 抛出 `DecryptionError`，wiki 的 gdrive、gmail 同步调用方没有接。④ 服务端把未设置的字段存成 `null`，归一化把 `null` 当作已设置的值保留，`personalSettings` 里列表型默认字段变成 `null`，设置页读 `.length` 崩溃。 |
+| **根因** | ① 解密失败返回 `{}`，与「用户没配置」没有区别；前端也没有「读不出」这个状态，归一化只比较值，空值与默认值不同就写回。② 就绪路由把 `ConfigIncompleteError`（没有服务商或默认模型，这是全新安装的正常状态）和真故障放在同一个 `except Exception`。③ `decrypt_oauth_credentials` 的失败没有统一的接住点。④ 归一化的展开把 `null` 当成有值。 |
+| **修复** | server：`app/services/config/service.py:87` `_decrypt_with_status` 返回 `(值, 读不出)`，`ConfigRecord.unreadable`（`schemas/config.py`）随接口返回；`lifecycle/schedulers.py:780` 的远程备份调度改用该标志，不再猜「已加密且为空」；`config_readiness.py:30` 的 `load_readiness_inputs()` 在 `ConfigIncompleteError` 时直接读存储的服务商与搜索配置判定缺项，路由（`router.py:515-522`）不再把全新安装当失败，真故障仍是降级；`oauth_refresher.py:231` 接住 `DecryptionError` 并返回 `None`。frontend：`ConfigSyncManager.commitIfDirty` 对 `unreadable` 的键不回写，只有用户显式保存才覆盖，保存即解除标记；`getUnreadableKeys()` 加上 `app-shell/config-unreadable-banner.tsx`（挂在 `AppLayout`）提示用户，可关闭；归一化与 `useConfigStore` 订阅一并丢弃 `null`（`configNormalizer.dropNullFields`）。 |
+| **回归证据** | [1] 先红后绿：服务端 `test_unreadable_flag.py` 6 例、`test_readiness_empty_install.py` 6 例、`test_oauth_refresher_unreadable.py` 1 例；前端 `ConfigSyncManager.unreadable.test.ts` 4 例（真管理器 + 模拟 fetch：启动归一化不写读不出的行、可读的行仍会补齐内置服务商、用户保存后写入并解除标记）、横幅 5 例、`null` 相关 5 例。[2] 真实浏览器受控重放（真实前端 + 临时后端 + 临时状态目录，不碰用户的 13000 / 8080）：删密钥文件后启动，`providers` 行版本 `1793117293311_0`、`unreadable: true`，页面加载并等待防抖同步窗口之后版本不变，横幅可见；用户保存才写入并让横幅消失。全新安装的重放：引导向导显示。[3] 套件：服务端 config、API config、调度、OAuth 相关 269 通过；frontend `src/services/config`、`src/store`、`src/components/features/app-shell` 215 个文件 1616 通过；`tsc --noEmit` 干净。 |
+| **仍然存在** | ① 横幅只说「部分已保存的设置读不出」，不指出具体是哪几项。② 云沙箱的渐进加载（先核心键、后台再取其余）没有在真实环境验证，横幅只列已进缓存的键。③ 密钥轮换（云沙箱换钥）这条路径没有验证，只验证了本地密钥文件丢失。④ 没有遥测，不知道真实发生频率。⑤ 在这之前已经被覆盖的行：旧密文还留在 `config_audit_logs.previous_value`，那是找回的线索，不是保证；本次没有做恢复工具。⑥ 浏览器重放用的是只带配置路由的临时后端，页面上的其他横幅与 500 来自它，不是应用本身。⑦ OAuth 之外其他调用 `decrypt` 的位置没有逐一审查。 |
+
 ## 2026-10-27 · 委派任务的收口：审批无人应答后的续跑不归路由器管（`/stop` 取消不到、通知与回复拼在一条里）、委派运行的审批只等两分钟、服务停止时后台任务无声消失、审批卡与心跳露出写死的英文与内部阶段文案
 
 | 字段 | 内容 |

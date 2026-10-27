@@ -84,8 +84,11 @@ def _encrypt_if_sensitive(key: str, value: dict[str, object]) -> tuple[dict[str,
     return service.encrypt_if_needed(key, value)
 
 
-def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
-    """Decrypt the config value if it was encrypted at rest.
+def _decrypt_with_status(config: UserConfig) -> tuple[dict[str, object], bool]:
+    """Decrypt the config value if it was encrypted at rest; the flag is True when it is sealed but cannot be opened.
+
+    An unreadable row comes back as ``{}`` like a row that holds nothing, so callers that must tell "lost key" from
+    "never saved" (a client that would otherwise overwrite it with defaults) read the flag.
 
     Handles:
     - Normal decryption with current key
@@ -95,19 +98,19 @@ def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
     if not config.is_encrypted:
         raw_value = config.config_value
         if isinstance(raw_value, dict):
-            return {str(k): v for k, v in raw_value.items()}
-        return {}
+            return {str(k): v for k, v in raw_value.items()}, False
+        return {}, False
 
     service = get_encryption_service()
     raw = config.config_value
     cipher = extract_cipher(raw)
     if cipher is None:
         logger.warning("Config '%s' marked encrypted but no cipher found, returning as-is", config.config_key)
-        return {str(k): v for k, v in raw.items()} if isinstance(raw, dict) else {}
+        return ({str(k): v for k, v in raw.items()} if isinstance(raw, dict) else {}), False
 
     decrypted = _try_decrypt(cipher, service, config.config_key)
     if decrypted is None:
-        return {}
+        return {}, True
 
     if isinstance(decrypted, dict) and "_cipher" in decrypted and len(decrypted) == 1:
         inner = decrypted["_cipher"]
@@ -115,9 +118,14 @@ def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
             logger.warning("Config '%s' was double-encrypted, performing second decryption", config.config_key)
             decrypted = _try_decrypt(inner, service, config.config_key)
             if decrypted is None:
-                return {}
+                return {}, True
 
-    return decrypted  # type: ignore[return-value]
+    return decrypted, False  # type: ignore[return-value]
+
+
+def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:
+    """Decrypt the config value if it was encrypted at rest (``{}`` when it cannot be opened)."""
+    return _decrypt_with_status(config)[0]
 
 
 def extract_cipher(raw: object) -> str | None:
@@ -181,7 +189,13 @@ def _decrypt_audit_log_value(config_key: str, value: dict[str, object] | None) -
     return decrypted if decrypted is not None else {}
 
 
-def _build_config_record(config: UserConfig, value: dict[str, object], *, is_system_default: bool = False) -> ConfigRecord:
+def _build_config_record(
+    config: UserConfig,
+    value: dict[str, object],
+    *,
+    is_system_default: bool = False,
+    unreadable: bool = False,
+) -> ConfigRecord:
     """Build ConfigRecord from UserConfig model."""
     return ConfigRecord(
         key=config.config_key,
@@ -191,6 +205,7 @@ def _build_config_record(config: UserConfig, value: dict[str, object], *, is_sys
         deviceId=config.last_device_id,
         encrypted=config.is_encrypted,
         isSystemDefault=is_system_default,
+        unreadable=unreadable,
     )
 
 
@@ -232,8 +247,8 @@ class ConfigService:
 
             for config in result.scalars().all():
                 try:
-                    value = _decrypt_if_needed(config)
-                    output[config.config_key] = _build_config_record(config, value)
+                    value, unreadable = _decrypt_with_status(config)
+                    output[config.config_key] = _build_config_record(config, value, unreadable=unreadable)
                 except Exception as e:
                     logger.warning("Failed to process config '%s': %s, skipping", config.config_key, str(e))
 
@@ -247,8 +262,8 @@ class ConfigService:
             config = result.scalar_one_or_none()
 
             if config:
-                value = _decrypt_if_needed(config)
-                return _build_config_record(config, value)
+                value, unreadable = _decrypt_with_status(config)
+                return _build_config_record(config, value, unreadable=unreadable)
 
             return None
 

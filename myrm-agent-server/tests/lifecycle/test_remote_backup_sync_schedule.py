@@ -86,7 +86,7 @@ async def test_the_hourly_check_is_registered_a_few_minutes_after_boot(recording
 
 async def test_the_job_hands_the_stored_settings_to_the_tick(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = {"enabled": True, "autoSync": True, "provider": "webdav"}
-    record = SimpleNamespace(value=settings, encrypted=True)
+    record = SimpleNamespace(value=settings, unreadable=False)
     monkeypatch.setattr("app.services.config.service.config_service.get", AsyncMock(return_value=record))
     tick = AsyncMock()
     monkeypatch.setattr("app.services.memory.backup.remote_sync.sync_tick", tick)
@@ -106,12 +106,12 @@ async def test_the_job_hands_the_stored_settings_to_the_tick(monkeypatch: pytest
 @pytest.mark.parametrize(
     ("record", "unreadable"),
     [
-        (SimpleNamespace(value={}, encrypted=True), True),  # sealed, but the key that sealed it no longer opens it
-        (SimpleNamespace(value={}, encrypted=False), False),  # an empty row that was never secret
-        (SimpleNamespace(value={"enabled": False}, encrypted=True), False),
+        (SimpleNamespace(value={}, unreadable=True), True),  # sealed, but the key that sealed it no longer opens it
+        (SimpleNamespace(value={}, unreadable=False), False),  # an empty row that was never secret, or sealed and saved empty
+        (SimpleNamespace(value={"enabled": False}, unreadable=False), False),
         (None, False),
     ],
-    ids=["undecryptable", "plain-empty", "readable", "never-saved"],
+    ids=["undecryptable", "empty-but-readable", "readable", "never-saved"],
 )
 async def test_stored_settings_that_cannot_be_decrypted_are_told_apart_from_settings_that_were_never_saved(
     monkeypatch: pytest.MonkeyPatch, record: SimpleNamespace | None, unreadable: bool

@@ -18,6 +18,7 @@ interface ApiConfigResponse<K extends ConfigKey = ConfigKey> {
   updatedAt: string;
   deviceId: string;
   encrypted: boolean;
+  unreadable?: boolean;
 }
 
 interface ApiAllConfigsResponse {
@@ -153,6 +154,7 @@ export class SandboxConfigAdapter extends BaseConfigAdapter {
         deviceId: data.deviceId,
       },
       encrypted: data.encrypted,
+      unreadable: data.unreadable,
     };
   }
 

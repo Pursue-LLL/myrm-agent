@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isNormalizedDirty, normalizePersonalSettings, normalizeProviders } from '@/services/config/configNormalizer';
+import {
+  dropNullFields,
+  isNormalizedDirty,
+  normalizePersonalSettings,
+  normalizeProviders,
+} from '@/services/config/configNormalizer';
 import { DEFAULT_PERSONAL_SETTINGS } from '@/services/config/types';
 import type { ProviderConfig } from '@/store/config/providerTypes';
 import { getInitialDefaultModelConfig, getInitialProviders } from '@/store/config/providerTypes';
@@ -9,6 +14,29 @@ describe('configNormalizer', () => {
     const normalized = normalizePersonalSettings({ enableMemory: false });
     expect(normalized.enableMemory).toBe(false);
     expect(normalized.timezone).toBe(DEFAULT_PERSONAL_SETTINGS.timezone);
+  });
+
+  it('treats a server null as unset instead of overriding a default', () => {
+    const fromServer = {
+      timezone: null,
+      privacyCustomPatternsS2: null,
+      enableMemory: false,
+    } as unknown as Parameters<typeof normalizePersonalSettings>[0];
+    const normalized = normalizePersonalSettings(fromServer);
+    expect(normalized.timezone).toBe(DEFAULT_PERSONAL_SETTINGS.timezone);
+    expect(normalized).not.toHaveProperty('privacyCustomPatternsS2');
+    expect(normalized.enableMemory).toBe(false);
+  });
+
+  it('dropNullFields keeps falsy values that are not null', () => {
+    expect(dropNullFields({ a: 0, b: '', c: false, d: [], e: null, f: undefined })).toEqual({
+      a: 0,
+      b: '',
+      c: false,
+      d: [],
+      f: undefined,
+    });
+    expect(dropNullFields(undefined)).toEqual({});
   });
 
   it('merges built-in providers on normalize', () => {

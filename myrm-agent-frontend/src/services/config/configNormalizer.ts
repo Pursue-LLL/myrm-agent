@@ -80,12 +80,20 @@ export function normalizeProviders(raw: ProvidersConfigValue | null | undefined)
   };
 }
 
+/**
+ * The server serializes every field the user never set as null, while the value types declare no null:
+ * a null means "unset". Spreading it over a default (or a store seed) would replace a usable value with null.
+ */
+export function dropNullFields<T extends object>(raw: T | null | undefined): T {
+  return Object.fromEntries(Object.entries(raw ?? {}).filter(([, value]) => value !== null)) as T;
+}
+
 export function normalizePersonalSettings(
   raw: Partial<PersonalSettingsConfigValue> | null | undefined,
 ): PersonalSettingsConfigValue {
   const merged: PersonalSettingsConfigValue = {
     ...DEFAULT_PERSONAL_SETTINGS,
-    ...raw,
+    ...dropNullFields(raw),
   };
   const migrated = migratePersonalSettingsMedia(merged);
   const themeProfiles = stripStudioPreviewProfiles(migrated.themeProfiles ?? []);

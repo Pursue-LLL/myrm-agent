@@ -17,7 +17,7 @@ import {
   DEFAULT_MCP_SERVERS,
   DEFAULT_SEARCH_SERVICES,
 } from '@/services/config';
-import { normalizePersonalSettings } from '@/services/config/configNormalizer';
+import { dropNullFields, normalizePersonalSettings } from '@/services/config/configNormalizer';
 import { invalidateLocalCapabilitiesProbeCache } from '@/services/localCapabilitiesProbe';
 import * as mcpManager from './config/mcp';
 import * as searchServiceManager from './config/searchService';
@@ -36,7 +36,7 @@ const syncPersonalSettings = (state: Partial<PersonalSettingsConfigValue>) => {
   const currentValue = syncManager.get('personalSettings');
   const newValue: PersonalSettingsConfigValue = {
     ...DEFAULT_PERSONAL_SETTINGS,
-    ...currentValue,
+    ...dropNullFields(currentValue),
     ...state,
   };
   syncManager.set('personalSettings', newValue);
@@ -475,10 +475,8 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       });
 
       syncManager.subscribe('personalSettings', (_key, value) => {
-        set({
-          ...(value as PersonalSettingsConfigValue),
-          personalSettings: value as PersonalSettingsConfigValue,
-        });
+        const settings = dropNullFields(value as PersonalSettingsConfigValue);
+        set({ ...settings, personalSettings: settings });
       });
 
       syncManager.subscribe('mcpServers', (_key, value) => {

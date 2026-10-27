@@ -26,6 +26,7 @@ interface ApiConfigResponse<K extends ConfigKey = ConfigKey> {
   updatedAt: string;
   deviceId: string;
   isSystemDefault?: boolean;
+  unreadable?: boolean;
 }
 
 interface ApiAllConfigsResponse {
@@ -330,6 +331,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
         deviceId: data.deviceId,
       },
       isSystemDefault: data.isSystemDefault,
+      unreadable: data.unreadable,
     };
   }
 }

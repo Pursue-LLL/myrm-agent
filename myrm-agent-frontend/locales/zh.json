@@ -1933,6 +1933,10 @@
       "description": "你可以继续使用应用，配置状态会在后台刷新。",
       "retry": "重新检查"
     },
+    "configUnreadable": {
+      "title": "部分已保存的设置无法读取",
+      "description": "API 密钥等机密内容是用本设备上已找不到的密钥保存的，所以现在显示为空。恢复之前的应用数据并重启即可找回；也可以重新填写，保存后会替换无法读取的旧内容。"
+    },
     "operationFailed": "操作失败",
     "crashRecovery": {
       "title": "服务异常",

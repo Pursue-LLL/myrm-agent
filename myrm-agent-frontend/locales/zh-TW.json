@@ -1933,6 +1933,10 @@
       "description": "你可以繼續使用應用，配置狀態會在後臺重新整理。",
       "retry": "重新檢查"
     },
+    "configUnreadable": {
+      "title": "部分已儲存的設定無法讀取",
+      "description": "API 金鑰等機密內容是用本裝置上已找不到的金鑰儲存的，所以現在顯示為空。還原之前的應用資料並重新啟動即可找回；也可以重新填寫，儲存後會取代無法讀取的舊內容。"
+    },
     "operationFailed": "操作失敗",
     "crashRecovery": {
       "title": "服務異常",

@@ -1933,6 +1933,10 @@
       "description": "Sie können die App weiter nutzen, während der Konfigurationsstatus aktualisiert wird.",
       "retry": "Erneut prüfen"
     },
+    "configUnreadable": {
+      "title": "Einige gespeicherte Einstellungen sind nicht lesbar",
+      "description": "Geheimnisse wie API-Schlüssel wurden mit einem Schlüssel gespeichert, der auf diesem Gerät nicht mehr vorhanden ist, und erscheinen deshalb leer. Stellen Sie Ihre früheren App-Daten wieder her und starten Sie neu, um sie zurückzubekommen, oder geben Sie sie erneut ein. Das Speichern ersetzt die nicht lesbaren Inhalte."
+    },
     "operationFailed": "Vorgang fehlgeschlagen",
     "crashRecovery": {
       "title": "Dienst nicht verfügbar",

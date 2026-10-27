@@ -547,6 +547,8 @@ export interface ConfigRecord<K extends ConfigKey = ConfigKey> {
   encrypted?: boolean;
   /** 该配置来自 __system__ 默认配置，用户尚未自定义 */
   isSystemDefault?: boolean;
+  /** 已加密存储但封存它的密钥已丢失：value 为空，不是「用户没配置」，不能用默认值覆盖回写 */
+  unreadable?: boolean;
 }
 
 // ============================================================================

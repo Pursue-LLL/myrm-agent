@@ -27,6 +27,7 @@ import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 import CronSchedulerHealthBanner from '@/components/features/app-shell/cron-scheduler-health-banner';
+import ConfigUnreadableBanner from '@/components/features/app-shell/config-unreadable-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
@@ -177,6 +178,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
         >
           <LocalBackendUnavailableBanner />
           <CronSchedulerHealthBanner />
+          <ConfigUnreadableBanner />
           <ConfigReadinessDegradedBanner
             visible={configReadinessDegraded && !dismissedReadinessDegraded}
             onRetry={onRetryConfigReadiness}

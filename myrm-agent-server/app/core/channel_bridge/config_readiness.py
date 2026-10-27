@@ -8,6 +8,7 @@ at least one enabled and valid LLM provider configured.
 
 [OUTPUT]
 - ConfigReadinessResult: provider configuration status
+- load_readiness_inputs: the stored provider bundle and the search-configured flag the checkers judge
 
 [POS]
 Business-layer provider readiness check. Inherits framework-level
@@ -19,10 +20,31 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.config.readiness import ConfigReadinessResult
+from myrm_agent_harness.api.config import ConfigIncompleteError
 
 from app.core.channel_bridge.model_resolver import _extract_all_active_keys
 
 logger = logging.getLogger(__name__)
+
+
+async def load_readiness_inputs() -> tuple[dict[str, object] | None, bool]:
+    """Load what the readiness checkers judge: the provider bundle and whether search is user-configured.
+
+    ``load_user_configs`` also resolves the default model and refuses to return without one, which is exactly the
+    state of a fresh install. That is the checkers' "not configured" answer, not a failure to load, so the stored
+    rows are read directly then; a provider bundle that cannot be opened reads as empty.
+    """
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import is_search_user_configured
+    from app.services.config.service import config_service
+
+    try:
+        configs = await load_user_configs()
+    except ConfigIncompleteError:
+        providers = await config_service.get("providers")
+        search = await config_service.get("searchServices")
+        return (providers.value if providers else {}), is_search_user_configured(search.value if search else None)
+    return configs.providers_dict, configs.search_is_user_configured
 
 
 class ProviderConfigChecker:
@@ -115,4 +137,4 @@ class SearchConfigChecker:
         return ConfigReadinessResult(is_ready=True)
 
 
-__all__ = ["ProviderConfigChecker", "SearchConfigChecker"]
+__all__ = ["ProviderConfigChecker", "SearchConfigChecker", "load_readiness_inputs"]

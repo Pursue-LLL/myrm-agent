@@ -76,6 +76,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/instance_archive/test_config_history_scrub.py` | 模块 | 配置审计历史不比主行活得久：导出与导入暂存两条共用 scrub 之后，不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行全部消失、普通配置的历史保留，明文旧值连同空闲页都不在导出文件字节里，没有审计表的库照常处理；完整往返：远程备份设置只在口令下携带、导入后重新加密到目标密钥且不带来历史 |
 | `services/config/test_backup_sync_encryption.py` | 模块 | 远程备份设置按敏感配置落盘加密；加密之前保存的明文行迁移后读回原值；审计历史里敏感键的明文旧值被封存且仍可解密，已封与非敏感的历史不动、重复运行不改任何行、不加密的模式不动历史；需要加密却没有密钥时抛带配置名的 `EncryptionError` |
 | `services/config/test_config_key_classification.py` | 单元 | 每个公开 `ConfigKey` 要么在敏感名单里、要么在测试里明列的「不含密钥」清单里，新增配置键不表态即红；清单里不能混进已封存的键；本地模型端点的密钥行既封存、又在口令归档下携带 |
+| `services/config/test_unreadable_flag.py` | 模块 | 封存行的密钥丢失后读回为空且带 `unreadable` 标志（单键与 `get_all` 一致），可读行、明文行、保存的空值行都不带标志；标志随 API 序列化，用新密钥重写后清除；解密助手返回 `(值, 标志)` 且只取值的封装保持不变 |
 | `services/config/test_voice_encryption.py` | 模块 | 语音设置（识别与朗读密钥）落盘加密且读回原值；明文保存的语音行与它的审计历史被封存后仍可读 |
 | `services/config/test_privacy_routing_secret.py` | 模块 | 本地模型端点密钥独立成封存行：配置服务保存的值在主行与审计历史里都是密文；启动迁移把偏好里的密钥搬进该行并从当前偏好与全部 `personalSettings` 快照清除（其余偏好与快照保留、偏好换新版本）、已有密文行优先、清空的密钥不留痕、失败不改任何库行、换主密钥不改写、第二次运行无事可做、不加密的模式同样搬走 |
 | `services/config/test_migration_encrypted_flag.py` | 模块 | 启动迁移封存明文敏感行后置 `is_encrypted`，读回原值；已封的行（裸密文、配置服务写入的信封）与不含密钥的行原样保留，第二次运行不改任何行 |
@@ -310,6 +311,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链（含**无 cookie 新访客直接 404「Link Revoked」，不显示密码 gate**）；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |
 | `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
+| `api/config/test_readiness_empty_install.py` | 模块 | 全新安装、没选默认模型的供应商、封存供应商配置的密钥丢失，都按「供应商未就绪」的正常答案返回（不降级），引导标志取自数据库；配置齐全即就绪；真正的加载失败仍报降级 |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
 | `e2e/test_search_priority_chain_chrome_e2e.py` | 模块 | Search priority chain signoff（API integration persist + Chrome READ `lane=READ private_backend=False` Settings priority badges；payload Tavily p1 + Perplexity p2；`@pytest.mark.timeout(180)`） |
 | `integration/test_fallback_integration.py` | 模块 | Harness provider_chain 集成：invalid primary hop、legacy role 迁移；SearXNG 不可用时 skip（`AllQueriesFailedError`） |

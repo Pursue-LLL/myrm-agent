@@ -509,17 +509,17 @@ async def get_config_readiness() -> dict[str, object]:
         "onboarding_completed": false
     }
     """
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.config_readiness import (
         ProviderConfigChecker,
         SearchConfigChecker,
+        load_readiness_inputs,
     )
     from app.database.connection import get_session
     from app.services.config.onboarding import check_onboarding_status
 
     try:
-        user_configs = await asyncio.wait_for(
-            load_user_configs(),
+        providers_dict, search_configured = await asyncio.wait_for(
+            load_readiness_inputs(),
             timeout=_readiness_db_timeout_sec(),
         )
     except TimeoutError:
@@ -559,10 +559,10 @@ async def get_config_readiness() -> dict[str, object]:
         }
 
     provider_checker = ProviderConfigChecker()
-    provider_result = provider_checker.check(user_configs.providers_dict)
+    provider_result = provider_checker.check(providers_dict)
 
     search_checker = SearchConfigChecker()
-    if user_configs.search_is_user_configured:
+    if search_configured:
         search_result = search_checker.check({"searchServiceConfigs": [{"enabled": True}]})
     else:
         search_result = search_checker.check(None)

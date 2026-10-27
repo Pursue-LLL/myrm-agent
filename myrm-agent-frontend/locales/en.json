@@ -1933,6 +1933,10 @@
       "description": "You can keep using the app while configuration status refreshes.",
       "retry": "Retry check"
     },
+    "configUnreadable": {
+      "title": "Some saved settings can't be read",
+      "description": "Secrets such as API keys were saved with a key that is no longer on this device, so they show up empty. Restore your previous app data and restart to get them back, or enter them again. Saving replaces the unreadable ones."
+    },
     "operationFailed": "Operation failed",
     "crashRecovery": {
       "title": "Service Unavailable",
