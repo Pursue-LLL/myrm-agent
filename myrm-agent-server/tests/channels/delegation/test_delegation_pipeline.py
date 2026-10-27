@@ -75,8 +75,7 @@ async def test_coordinator_lifecycle_and_steering() -> None:
         origin_channel="telegram",
         origin_user_id="user_456",
         origin_chat_id="chat_789",
-        raw_prompt="生成竞品报告",
-        normalized_prompt="生成竞品报告",
+        prompt="生成竞品报告",
     )
 
     coordinator.register_task(task)
@@ -105,8 +104,7 @@ def test_coordinator_reap_stale_tasks() -> None:
         origin_channel="wechat",
         origin_user_id="user_timeout",
         origin_chat_id="chat_timeout",
-        raw_prompt="测试超时任务",
-        normalized_prompt="测试超时任务",
+        prompt="测试超时任务",
         timeout_seconds=0.1,
     )
     coordinator.register_task(task)

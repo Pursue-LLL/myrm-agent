@@ -3,7 +3,7 @@
 [INPUT]
 - .delegation_coordinator::DelegationCoordinator
 - .delegation_delivery::build_delivery_message
-- .delegation_ingress::DelegationIngressGuard, build_delegation_task
+- .delegation_ingress::DelegationIngressGuard, build_delegation_task, is_delegation_intent
 - .delegation_models::DelegationStatus, DelegationTask
 
 [OUTPUT]

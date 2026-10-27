@@ -27,7 +27,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.channels.routing.friendly_errors import friendly_error_message, is_error_reply
-from app.channels.types import OutboundMessage, StreamingText
+from app.channels.types import OutboundMessage, ProgressUpdate, StreamingText
 
 from .delegation_delivery import build_delivery_message
 from .delegation_models import DelegationStatus, DelegationTask
@@ -60,6 +60,12 @@ class DelegationCoordinator:
     def get_task(self, task_id: str) -> DelegationTask | None:
         """Retrieve task by ID."""
         return self._tasks.get(task_id)
+
+    def _forget(self, task_id: str) -> None:
+        """Drop everything held for a task whose outcome has been handled."""
+        self._tasks.pop(task_id, None)
+        self._cancellation_tokens.pop(task_id, None)
+        self._steering_tokens.pop(task_id, None)
 
     def update_task_status(
         self,
@@ -177,8 +183,9 @@ class DelegationCoordinator:
         # StreamingText events are cumulative snapshots; the last OutboundMessage is the authoritative reply.
         snapshot = ""
         final_reply: OutboundMessage | None = None
+        awaiting_approval = False
         try:
-            task_msg = replace(original_msg, content=task.normalized_prompt)
+            task_msg = replace(original_msg, content=task.prompt)
             async for event in executor.execute_stream(
                 task_msg,
                 task.origin_user_id,
@@ -189,6 +196,8 @@ class DelegationCoordinator:
                     final_reply = event
                 elif isinstance(event, StreamingText):
                     snapshot = event.text
+                elif isinstance(event, ProgressUpdate) and event.quick_replies:
+                    awaiting_approval = True
             self._settle_finished_stream(task, final_reply)
         except Exception as exc:
             safe_text, ref_id = friendly_error_message(exc, original_msg)
@@ -197,10 +206,16 @@ class DelegationCoordinator:
             if task.status not in _TERMINAL_STATUSES:
                 self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=safe_text)
 
-        await bus.publish_outbound(build_delivery_message(task, original_msg, final_reply, snapshot))
+        # A stream that stopped at a tool approval has not finished the work; the approval timeout reports its outcome.
+        stopped_at_approval = awaiting_approval and task.status is DelegationStatus.COMPLETED
+        try:
+            if not stopped_at_approval:
+                await bus.publish_outbound(build_delivery_message(task, original_msg, final_reply, snapshot))
+        finally:
+            self._forget(task.task_id)
         logger.info(
-            "DelegationCoordinator: Task %s finished as %s and delivered to %s",
+            "DelegationCoordinator: Task %s ended as %s; %s",
             task.task_id,
             task.status.value,
-            task.origin_chat_id,
+            "stopped at a tool approval, nothing delivered" if stopped_at_approval else f"delivered to {task.origin_chat_id}",
         )

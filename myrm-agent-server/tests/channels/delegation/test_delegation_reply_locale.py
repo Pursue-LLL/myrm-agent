@@ -139,7 +139,7 @@ async def test_the_receipt_is_in_english_for_an_english_sender_and_keeps_the_tas
 
 
 @pytest.mark.asyncio
-async def test_the_chinese_receipt_is_the_text_the_router_used_to_hard_code(rig: _Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_chinese_receipt_names_the_task_and_what_happens_next(rig: _Rig, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(rig.router._delegation_coordinator, "execute_task_lifecycle", AsyncMock())
 
     await rig.router._handle_delegation_inbound(_message("/delegate 做季度总结", "zh-CN"), "做季度总结")
@@ -151,7 +151,7 @@ async def test_the_chinese_receipt_is_the_text_the_router_used_to_hard_code(rig:
     assert receipt.content == (
         f"📋 **已收到异步任务委派** `[{task_id}]`\n\n"
         "💡 **任务内容**：做季度总结\n"
-        "⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动推送成果卡片。\n"
+        "⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动把结果发到这里。\n"
         "*(提示：中途可直接发送消息为任务补充指引)*"
     )
 

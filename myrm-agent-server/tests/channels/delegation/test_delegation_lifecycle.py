@@ -17,7 +17,15 @@ import pytest
 
 from app.channels.delegation import DelegationCoordinator, DelegationStatus, DelegationTask, build_delegation_task
 from app.channels.delegation import delegation_coordinator as coordinator_module
-from app.channels.types import InboundMessage, MediaAttachment, MediaType, OutboundMessage, StreamingText
+from app.channels.types import (
+    InboundMessage,
+    MediaAttachment,
+    MediaType,
+    OutboundMessage,
+    ProgressUpdate,
+    QuickReply,
+    StreamingText,
+)
 
 _REF = re.compile(r"\[ref: ([0-9a-f]{8})\]")
 _RAW_ERROR = "Sandbox container out of memory: /var/lib/sandbox/secret-token-42"
@@ -74,16 +82,15 @@ def _inbound(locale: str, thread_id: str | None) -> InboundMessage:
     )
 
 
-async def _run(
+async def _run_lifecycle(
     stream: StreamFactory, *, locale: str = "en", thread_id: str | None = None, timeout_seconds: float = 3600.0
-) -> tuple[DelegationTask, OutboundMessage]:
+) -> tuple[DelegationCoordinator, DelegationTask, list[OutboundMessage]]:
     coordinator = DelegationCoordinator()
     task = build_delegation_task(
         origin_channel="telegram",
         origin_user_id="user-1",
         origin_chat_id="chat-1",
-        raw_prompt="do the report",
-        normalized_prompt="do the report",
+        prompt="do the report",
         timeout_seconds=timeout_seconds,
     )
     coordinator.register_task(task)
@@ -95,9 +102,17 @@ async def _run(
         bus,  # type: ignore[arg-type]
         _inbound(locale, thread_id),
     )
+    return coordinator, task, bus.published
 
-    assert len(bus.published) == 1
-    return task, bus.published[0]
+
+async def _run(
+    stream: StreamFactory, *, locale: str = "en", thread_id: str | None = None, timeout_seconds: float = 3600.0
+) -> tuple[DelegationTask, OutboundMessage]:
+    _coordinator, task, published = await _run_lifecycle(
+        stream, locale=locale, thread_id=thread_id, timeout_seconds=timeout_seconds
+    )
+    assert len(published) == 1
+    return task, published[0]
 
 
 @pytest.mark.asyncio
@@ -291,3 +306,60 @@ async def test_the_timed_out_notice_is_localized() -> None:
     task, delivered = await _run(stream, locale="zh-CN")
 
     assert delivered.content == f"⏱ **后台任务已中止** `[{task.task_id}]` · 运行超过 60 分钟的时限。"
+
+
+_APPROVE = ProgressUpdate(
+    label="shell needs approval: run the build",
+    quick_replies=(QuickReply(label="Approve", text="/approve", required=True),),
+)
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_stops_at_a_tool_approval_is_not_announced_as_finished() -> None:
+    """The executor ends the stream at the approval request; its leftover reply is not a result."""
+
+    async def stream(_c: DelegationCoordinator, _t: DelegationTask) -> AsyncGenerator[object, None]:
+        yield _APPROVE
+        yield _reply("[No response generated]")
+
+    _coordinator, task, published = await _run_lifecycle(stream)
+
+    assert published == []
+    assert task.status == DelegationStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_a_task_timed_out_at_an_approval_still_gets_its_stopped_notice() -> None:
+    async def stream(coordinator: DelegationCoordinator, task: DelegationTask) -> AsyncGenerator[object, None]:
+        yield _APPROVE
+        coordinator.update_task_status(task.task_id, DelegationStatus.TIMED_OUT)
+
+    _coordinator, task, published = await _run_lifecycle(stream)
+
+    assert len(published) == 1
+    assert published[0].content.startswith(f"⏱ **Background task stopped** `[{task.task_id}]`")
+
+
+@pytest.mark.asyncio
+async def test_progress_without_choices_does_not_hold_back_the_delivery() -> None:
+    async def stream(_c: DelegationCoordinator, _t: DelegationTask) -> AsyncGenerator[object, None]:
+        yield ProgressUpdate(label="Searching the web")
+        yield _reply("Hello world")
+
+    task, delivered = await _run(stream)
+
+    assert task.status == DelegationStatus.COMPLETED
+    assert delivered.content.endswith("\n\nHello world")
+
+
+@pytest.mark.asyncio
+async def test_a_handled_task_leaves_nothing_behind_in_the_coordinator() -> None:
+    async def stream(_c: DelegationCoordinator, _t: DelegationTask) -> AsyncGenerator[object, None]:
+        yield _reply("Hello world")
+
+    coordinator, task, _published = await _run_lifecycle(stream)
+
+    assert coordinator.get_task(task.task_id) is None
+    assert coordinator.get_cancellation_token(task.task_id) is None
+    assert coordinator.get_steering_token(task.task_id) is None
+    assert coordinator.find_active_task("telegram", "user-1") is None

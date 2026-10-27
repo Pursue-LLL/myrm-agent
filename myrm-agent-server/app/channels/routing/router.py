@@ -791,8 +791,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             origin_channel=msg.channel,
             origin_user_id=user_id,
             origin_chat_id=chat_id,
-            raw_prompt=msg.content or clean_prompt,
-            normalized_prompt=clean_prompt,
+            prompt=clean_prompt,
         )
         self._delegation_coordinator.register_task(task)
         self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
