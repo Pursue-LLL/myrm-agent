@@ -16,7 +16,8 @@ only needs to resolve a path safely does not pull protection policy into scope.
 - coerce_filesystem_path(value) -> Path | None — runtime path coercion; rejects unittest.mock objects and text content
 - is_within_boundary(target, boundary) -> bool — boundary check immune to symlink escape
 - safe_join_path(base_dir, user_input) -> Path — secure path resolution against traversal
-- is_dangerous_path(path) -> bool — unified check function
+- is_dangerous_path(path) -> bool — unified check function (path inside a dangerous root)
+- covers_dangerous_path(path) -> bool — path equals or contains a dangerous root (grant too broad)
 - is_blocked_device_path(path) -> bool — pre-IO device path blocklist check
 
 [POS]
@@ -35,6 +36,7 @@ __all__ = (
     "DANGEROUS_PATHS",
     "MAX_PATH_LENGTH",
     "coerce_filesystem_path",
+    "covers_dangerous_path",
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",
@@ -293,6 +295,23 @@ def is_dangerous_path(path: str) -> bool:
         normalised = os.path.realpath(os.path.expanduser(path))
         return any(is_within_boundary(normalised, dp) for dp in DANGEROUS_PATHS)
     except Exception:
+        return False
+
+
+def covers_dangerous_path(path: str) -> bool:
+    """Check if *path* is, or is an ancestor of, any dangerous root.
+
+    The counterpart of ``is_dangerous_path``: that check refuses a path *inside* a dangerous root,
+    this one refuses a path that *contains* one. A grant of write access to a home directory, a
+    drive root or ``/`` reaches ``~/.ssh`` and ``/etc`` through the tree even though none of them
+    is the path itself.
+    """
+    if not path or not path.strip() or is_content_not_path(path):
+        return False
+    try:
+        root = Path(os.path.realpath(os.path.expanduser(path)))
+        return any(Path(dp).is_relative_to(root) for dp in DANGEROUS_PATHS)
+    except (OSError, ValueError):
         return False
 
 

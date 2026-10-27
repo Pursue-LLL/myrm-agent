@@ -13,6 +13,7 @@ from myrm_agent_harness.core.security.path import (
     BLOCKED_DEVICE_NAMES,
     DANGEROUS_PATHS,
     coerce_filesystem_path,
+    covers_dangerous_path,
     is_blocked_device_path,
     is_dangerous_path,
     safe_join_path,
@@ -99,6 +100,53 @@ class TestIsDangerousPath:
 
     def test_tilde_expansion(self) -> None:
         assert is_dangerous_path("~/.aws/credentials") is True
+
+class TestCoversDangerousPath:
+    """covers_dangerous_path() refuses a path that equals or contains a dangerous root."""
+
+    @pytest.fixture
+    def fake_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        home = tmp_path / "home"
+        (home / ".ssh").mkdir(parents=True)
+        (home / "proj").mkdir()
+        monkeypatch.setattr(
+            "myrm_agent_harness.core.security.path.filesystem.DANGEROUS_PATHS",
+            frozenset({os.path.realpath(home / ".ssh")}),
+        )
+        return home
+
+    def test_ancestor_of_a_dangerous_root_is_covered(self, fake_home: Path) -> None:
+        assert covers_dangerous_path(str(fake_home)) is True
+        assert covers_dangerous_path(str(fake_home.parent)) is True
+
+    def test_the_dangerous_root_itself_is_covered(self, fake_home: Path) -> None:
+        assert covers_dangerous_path(str(fake_home / ".ssh")) is True
+
+    def test_sibling_project_and_dangerous_descendant_are_not_covered(self, fake_home: Path) -> None:
+        assert covers_dangerous_path(str(fake_home / "proj")) is False
+        # A path *inside* the root is is_dangerous_path's business, not this predicate's.
+        assert covers_dangerous_path(str(fake_home / ".ssh" / "keys")) is False
+
+    def test_symlink_to_an_ancestor_is_resolved(self, fake_home: Path, tmp_path: Path) -> None:
+        link = tmp_path / "shortcut"
+        link.symlink_to(fake_home, target_is_directory=True)
+        assert covers_dangerous_path(str(link)) is True
+
+    def test_partial_name_is_not_an_ancestor(self, fake_home: Path) -> None:
+        (fake_home.parent / "home-extra").mkdir()
+        assert covers_dangerous_path(str(fake_home.parent / "home-extra")) is False
+
+    def test_empty_and_non_path_text_are_not_covered(self) -> None:
+        assert covers_dangerous_path("") is False
+        assert covers_dangerous_path("   ") is False
+        assert covers_dangerous_path("line one\nline two") is False
+
+    def test_real_roots_filesystem_root_and_home(self) -> None:
+        assert covers_dangerous_path("/") is True
+        assert covers_dangerous_path("~") is True
+        assert covers_dangerous_path("/etc") is True
+        assert covers_dangerous_path("/tmp/safe_project") is False
+
 
 class TestSafeJoinPathAndBoundary:
     """Test safe_join_path and is_within_boundary functions."""

@@ -17,7 +17,7 @@ bypass the predicates that carry the security policy.
 - path.rules (POS: Protected-path policy)
 
 [OUTPUT]
-- is_dangerous_path, is_blocked_device_path, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
+- is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file
 - DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH
 - SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS
@@ -37,6 +37,9 @@ from myrm_agent_harness.core.security.path.filesystem import (
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     coerce_filesystem_path as coerce_filesystem_path,
+)
+from myrm_agent_harness.core.security.path.filesystem import (
+    covers_dangerous_path as covers_dangerous_path,
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     is_blocked_device_path as is_blocked_device_path,
@@ -80,6 +83,7 @@ __all__ = (
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
     "coerce_filesystem_path",
+    "covers_dangerous_path",
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",
