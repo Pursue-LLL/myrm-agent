@@ -22,6 +22,7 @@ enforcement uses the same turn allowlist via ``check_trust_attenuation``.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -31,7 +32,7 @@ from langchain.agents.middleware import (
     ModelRequest,
     ModelResponse,
 )
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
@@ -98,7 +99,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
 
         repairer = ToolNameFuzzyRepairer()
         changed = False
-        repaired_messages: list[object] = []
+        repaired_messages: list[BaseMessage] = []
         for message in response.result:
             tool_calls = getattr(message, "tool_calls", None)
             if not tool_calls:
@@ -122,7 +123,7 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], object, obj
                 repaired_messages.append(message)
         if not changed:
             return response
-        return response.model_copy(update={"result": repaired_messages})
+        return dataclasses.replace(response, result=repaired_messages)
 
     def _apply_turn_tool_policy(self, request: ModelRequest[object]) -> ModelRequest[object]:
         from myrm_agent_harness.agent.middlewares.tooling._skill_tool_choice import (

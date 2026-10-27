@@ -14,7 +14,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
-from langchain_core.messages import AIMessage
+import pytest
+from langchain.agents.middleware import ModelRequest, ModelResponse
+from langchain_core.messages import AIMessage, HumanMessage
 
 from myrm_agent_harness.agent.middlewares.tooling.skill_attenuation_middleware import (
     SkillAttenuationMiddleware,
@@ -48,18 +50,13 @@ def _request_with_tools(*names: str) -> MagicMock:
     return request
 
 
-def _response_with_calls(*names: str) -> MagicMock:
+def _response_with_calls(*names: str) -> ModelResponse[object]:
+    """What a model call returns: the real response type, not a stand-in that accepts any method."""
     message = AIMessage(
         content="",
-        tool_calls=[
-            {"name": name, "args": {"todos": []}, "id": f"call_{index}"}
-            for index, name in enumerate(names)
-        ],
+        tool_calls=[{"name": name, "args": {"todos": []}, "id": f"call_{index}"} for index, name in enumerate(names)],
     )
-    response = MagicMock()
-    response.result = [message]
-    response.model_copy.side_effect = lambda update: MagicMock(**update)
-    return response
+    return ModelResponse(result=[message], structured_response={"kept": True})
 
 
 def test_hallucinated_suffix_is_repaired_from_the_registry() -> None:
@@ -74,6 +71,29 @@ def test_hallucinated_suffix_is_repaired_from_the_registry() -> None:
     # The arguments and the call id must survive the repair untouched.
     assert calls[0]["args"] == {"todos": []}
     assert calls[0]["id"] == "call_0"
+    assert repaired.structured_response == {"kept": True}
+
+
+@pytest.mark.asyncio
+async def test_a_model_call_returns_the_repaired_response_through_the_middleware() -> None:
+    middleware = _middleware("todo_write")
+    request = ModelRequest(model=MagicMock(), messages=[HumanMessage(content="plan it")])
+
+    async def handler(_request: ModelRequest[object]) -> ModelResponse[object]:
+        return _response_with_calls("todo_write_tool")
+
+    response = await middleware.awrap_model_call(request, handler)
+
+    assert response.result[0].tool_calls[0]["name"] == "todo_write"
+
+
+def test_a_sync_model_call_returns_the_repaired_response_through_the_middleware() -> None:
+    middleware = _middleware("todo_write")
+    request = ModelRequest(model=MagicMock(), messages=[HumanMessage(content="plan it")])
+
+    response = middleware.wrap_model_call(request, lambda _request: _response_with_calls("todo_write_tool"))
+
+    assert response.result[0].tool_calls[0]["name"] == "todo_write"
 
 
 def test_registered_names_are_left_alone() -> None:
