@@ -39,9 +39,32 @@
 
 ## 测试
 
-- `tests/services/wiki/source_sync/ima/` — 夹具契约（`httpx.MockTransport`）：信封/错误分类/列表与笔记解析/媒体白名单；台账状态机（同标题条目各占一行且不随列表顺序换行、只统计与重试所选范围）；标识与路径预算；内容解析；引擎切片/续跑/变更追踪/凭证脱敏/库列表停滞不判远端删除/游标任意长度可重载（`test_sync_engine.py`）、笔记通道的游标分页/已删页不终止/跨切片续跑/限流后从游标续跑/停滞、形状异常与无笔记权限不判远端删除（`test_notes_lane.py`）与鉴权/限流/瞬时与永久失败/未知异常的内部退避、取消不被吞（`test_sync_engine_failures.py`，共享 `support.py` 与 `conftest.py` 夹具）；权限语义（`test_permission_gate.py`：被拒请求先核验密钥——库/笔记/条目三个层级、密钥失效仍要求重连、多条被拒共用一次核验、核验自身限流/失败、授权后重试、200001 等限流码暂停而非判失败、限流与失败汇总的日志内容，无已知原因时汇总不带原因标签）；业务码分类与消息带数字码（`test_transport.py`）；导入器终态；认领或记录结果时台账失败都等在途条目收尾再停池（`test_sync_engine_failures.py`）；cron 入口的单飞、入队装配与 扫描 → 放行 → 快照 顺序、切片抛错/扫描失败/扫描被跳过仍放行（`test_job_runner.py`，替身在 `job_runner_support.py`，`harness` 夹具在 `conftest.py`）；切片运行中 job 被暂停/删除或所选范围变了即收尾、只改库名或重复保存同一选择不收尾、撤回只影响该 agent 的切片且各读各自的选择、暂停落在读 job 之后仍被发现、读不到答案不收尾且只记一条 WARNING 之后仍会再问、看护任务随切片结束（含抛错与被取消）、job 已暂停/删除时不启动切片（`test_job_runner_mandate.py`）；停止请求让导入在条目边界收尾并由下一片续跑、笔记游标同样续跑（`test_sync_engine.py` / `test_notes_lane.py`）；暂停只暂停该 agent 的 job、断开先删 job 再清凭证（`test_operations.py`）；库存页写入在另一个写者持写锁时先等锁再读、写者提交后落库（`test_inventory_write_contention.py`，真实事务策略的文件库，夹具 `tests/support/policy_sqlite.py`）
-- `tests/services/wiki/source_sync/ima/test_job.py` — 真实 `CronManager` + 内存存储（不用假 cron：创建校验、暂停/恢复/删除/触发都是真实语义）：创建一个 INTERVAL router 任务并立即触发、说明文案随 locale 且不含实现术语、重复启动复用并恢复已暂停任务、按 agent 隔离且忽略其他 command、批量删除只动 ima 任务、`is_job_active`（按 id）随暂停/恢复/删除变化、`find_active_job` 按 agent 区分且跳过已暂停的 job
-- `tests/api/wiki/test_wiki_ima_routes.py` — ima 端点、凭证掩码、通用 config 端点读不到 `imaCredentials`、cron 拒绝（`ValueError`）映射为 `sync_unavailable` 并把原因记为 WARNING
+目录 `tests/services/wiki/source_sync/ima/`（夹具契约，用 `httpx.MockTransport`，不碰真实 ima），外加目录外的两个文件。
+
+| 文件 | 类型 | 覆盖 |
+|---|---|---|
+| `conftest.py` | 夹具 | 隔离的文件库（不用 `:memory:`：导入器并发 worker 各开短会话，内存库会让它们共用一个连接而互相回滚）；cron 入口的 `harness` 夹具 |
+| `support.py` | 替身 | 脚本化的 ima API、脚本化下载，以及引擎级测试的构造器 |
+| `job_runner_support.py` | 替身 | cron 入口测试用的替身：切片运行器接线到什么、它们记录了什么 |
+| `test_transport.py` | 测试 | 信封的各种拼写、业务码分类与消息带数字码、重试策略、固定 origin 与凭证头 |
+| `test_models_and_client.py` | 测试 | 对照录制的载荷形状：列表页里目录与文档的各种拼写、缺 id 或名称的库被跳过、笔记页跳过已删笔记并剥掉任意层嵌套、扁平形状从扩展块读笔记 id 与笔记本、没有任何一条能读时抛错而不是当作空页、媒体信息、两个端点的库合并去重并排序、游标重复即停、笔记列表与纯文本正文的请求形状（正文请求同时带 `doc_id` 与 `note_id`） |
+| `test_media_and_identity.py` | 测试 | 下载：不可信 URL 拒绝、可信放行、只转发安全头、不跟随重定向、状态码分类、上限按声明长度与流式累计两处执行；标识：条目 key 确定且按范围区分、改名或移动换 key、不同目录同名不冲突、路径在门禁预算内（超长 CJK 标题与深目录）、Windows 设备名不成目录名、已知文档后缀从标题里去掉 |
+| `test_content.py` | 测试 | 条目解析：渲染确定且带出处、不重复已有标题、远端标题留在 frontmatter 字段内；未知类型、音视频、无下载地址、空笔记、转换后为空都判不支持；已被笔记通道覆盖的是重复；网页走 web fetch 并标注截断，不可达是可重试而非不支持；带签名头的网页快照按 HTML 下载；PDF 标注排版被展平 |
+| `test_credentials.py` | 测试 | 凭证静态加密且不是公开配置键、往返与清除、只存了一半视为未连接、client id 掩码 |
+| `test_ledger.py` | 测试 | 台账状态机：新条目 pending 并计数、版本变化重新入队、用户删掉 raw 文件即永久跳过、认领顺序与重试预算、`retry_failed` 恢复预算、远端删除只动干净容器里没见到的行、改名与替换与重现、保真度与字符计数、范围隔离、只统计与重试所选范围；同标题条目（同批、跨页、下一遍、列表换序）各占一行且 key 稳定，同一远端条目同批出现两次只算一行 |
+| `test_report.py` | 测试 | 状态聚合与条目分桶，只给计数与原因码：新装为未连接且为空、聚合计数与 job 状态并掩码账号、「读不全」只针对所选范围、桶不含原始报错、状态与分桶只覆盖所选库、共享的自动编译开关、下次检查只在仍在未来时显示 |
+| `test_sync_engine.py` | 测试 | 真实台账、状态存储与 raw 门之上的端到端切片：首遍导入文档、文件夹与笔记；未变的第二遍不下载不发布；替换文件被取代；远端删除只记录且保留本地副本；不完整的盘点与停滞的库列表都不判远端删除；关闭笔记通道则整条跳过，已被笔记通道覆盖的链接笔记不重复导入；超时从持久游标续跑，游标任意长度可重载；停止请求让导入在条目边界收尾并由下一片续跑；换选择重启盘点并暂扣自动编译；含凭证的笔记脱敏并标部分保真；同名文档各自导入且稳定；状态跨重启 |
+| `test_notes_lane.py` | 测试 | 笔记通道：游标分页、已删页不终止、跨切片续跑、限流后从游标续跑；停滞、形状异常与无笔记权限都不判远端删除；笔记游标同样在停止后续跑 |
+| `test_sync_engine_failures.py` | 测试 | 鉴权、限流、瞬时与永久失败、未知异常的内部退避，取消不被吞；每个条目失败各有终态且不中止整遍；库条目凭证被拒停池且行保持 pending；无笔记权限只让笔记失败而整遍照常完成；认领或记录结果时台账失败都等在途条目收尾再停池 |
+| `test_permission_gate.py` | 测试 | 权限语义：被拒请求先核验密钥（库、笔记、条目三个层级）、密钥失效仍要求重连、多条被拒共用一次核验、核验自身限流或失败、授权后重试、200001 等限流码暂停而非判失败、限流与失败汇总的日志内容，无已知原因时汇总不带原因标签 |
+| `test_job.py` | 测试 | 真实 `CronManager` + 内存存储（不用假 cron：创建校验、暂停、恢复、删除、触发都是真实语义）：创建一个 INTERVAL router 任务并立即触发、说明文案随 locale 且不含实现术语、重复启动复用并恢复已暂停任务、按 agent 隔离且忽略其他 command、批量删除只动 ima 任务、`is_job_active`（按 id）随暂停、恢复、删除变化、`find_active_job` 按 agent 区分且跳过已暂停的 job；另有真实调度器的契约（调度器约 2 秒后才取走任务，测试里用一个挂起的运行器）：运行中的任务读到的仍是 ACTIVE、运行结束后仍 ACTIVE 且下一次在 6 小时之后，运行中被暂停或删除立刻被 `is_job_active` 与 `find_active_job` 看到。切片收尾的看护全靠这个答案，调度器若在运行期间改了任务状态，每个切片都会立刻收尾 |
+| `test_job_runner.py` | 测试 | cron 入口：单飞、入队装配、扫描 → 放行 → 快照的顺序，切片抛错、扫描失败、扫描被跳过仍放行，以及切片结果到调度建议的映射 |
+| `test_job_runner_mandate.py` | 测试 | 切片运行中 job 被暂停或删除、所选范围变了即收尾；只改库名或重复保存同一选择不收尾；撤回只影响该 agent 的切片且各读各自的选择；暂停落在读 job 之后仍被发现；读不到答案不收尾且只记一条 WARNING、之后仍会再问；看护任务随切片结束（含抛错与被取消）；job 已暂停或删除时不启动切片 |
+| `test_operations.py` | 测试 | 用户操作：连接先校验再存、被拒的凭证不落盘、空白凭证不发网络请求、重连清掉该 agent 的重连标记、断开先删 job 再清凭证；选库名取自 ima、丢未知 id、去重、封顶；开始需要凭证与所选内容；暂停只动该 agent 的 job；`retry_failed` 只在有条目被重置时触发 job 且不碰未选库；按范围的 compile（只排队 ima 导入的文档、跳过编译器正在处理的、没有文件时不动作、等重复审阅、忽略未选库） |
+| `test_inventory_write_contention.py` | 测试 | 库存页的写入在另一个写者持写锁时先等锁再读，写者提交后落库（真实事务策略的文件库，夹具 `tests/support/policy_sqlite.py`） |
+| `test_live_probe.py` | 探针 | 只读地探测真实 ima 账号的响应形状，不写 ima 也不写 vault；没有 `IMA_CLIENT_ID` 与 `IMA_API_KEY` 时跳过。运行：`IMA_CLIENT_ID=... IMA_API_KEY=... ./myrm-dev test myrm-agent/myrm-agent-server/tests/services/wiki/source_sync/ima/test_live_probe.py -s` |
+| `tests/api/wiki/test_wiki_ima_routes.py` | 测试 | ima 端点、凭证掩码、通用 config 端点读不到 `imaCredentials`、cron 拒绝（`ValueError`）映射为 `sync_unavailable` 并把原因记为 WARNING |
+| `tests/core/cron/test_wiki_router_job_runner.py` | 测试 | `__wiki_ima_sync__` 分发：一个切片通过 `retry_at` 重新排期且不投递 |
 
 ## 依赖
 

@@ -1,14 +1,29 @@
-"""Cron lifecycle of the per-agent sync job, against the real cron manager over the in-memory store."""
+"""Cron lifecycle of the per-agent sync job, against the real cron manager over the in-memory store.
+
+The last tests also run the real scheduler: the running slice asks ``is_job_active`` whether the sync is still wanted,
+so what that answers while a run is in progress is part of the contract with the scheduler.
+"""
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import pytest_asyncio
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobStatus, JobType, Schedule, ScheduleKind, SessionTarget
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    JobResult,
+    JobStatus,
+    JobType,
+    Schedule,
+    ScheduleKind,
+    SessionTarget,
+)
 
 from app.core.cron.adapters.wiki_router_job_runner import WIKI_IMA_SYNC_COMMAND
 from app.services.wiki.source_sync.ima import job as job_module
@@ -189,3 +204,86 @@ async def test_find_active_job_is_asked_per_agent_and_skips_a_paused_job(cron: C
 
     await job_module.pause_job("agent-a")
     assert await job_module.find_active_job("agent-a") is None
+
+
+# The scheduler's first tick comes about two seconds after it starts; the bound only keeps a broken run from hanging.
+_PICKUP_TIMEOUT_S = 15.0
+
+
+class _HeldRun:
+    """Stands in for the router runner: a run starts, says so, and goes on until the test lets it end."""
+
+    def __init__(self) -> None:
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def run(self, job: CronJob, *, context: str = "") -> JobResult:
+        self.entered.set()
+        await self.release.wait()
+        return JobResult(success=True, output="[SILENT]")
+
+
+@dataclass
+class Running:
+    cron: Cron
+    held: _HeldRun
+
+    async def start_and_wait_for_the_run(self) -> CronJob:
+        await job_module.start_job(None, locale="en")
+        await asyncio.wait_for(self.held.entered.wait(), timeout=_PICKUP_TIMEOUT_S)
+        return await self.cron.only()
+
+    async def wait_for_the_run_to_be_recorded(self) -> None:
+        async def poll() -> None:
+            while (await self.cron.only()).last_run_at is None:
+                await asyncio.sleep(0.02)
+
+        await asyncio.wait_for(poll(), timeout=_PICKUP_TIMEOUT_S)
+
+
+@pytest_asyncio.fixture
+async def running(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Running]:
+    store = InMemoryCronStore()
+    held = _HeldRun()
+    scheduler = CronScheduler(store=store, runners={JobType.ROUTER: held}, delivery=_NoDelivery(), config=CronConfig())
+    cron = Cron(manager=CronManager(store, scheduler), store=store)
+    monkeypatch.setattr(job_module, "get_cron_manager", lambda: cron.manager)
+    await scheduler.start()
+    yield Running(cron=cron, held=held)
+    held.release.set()
+    await asyncio.sleep(0.1)
+    await scheduler.stop()
+
+
+async def _pause() -> None:
+    await job_module.pause_job(None)
+
+
+async def _remove() -> None:
+    await job_module.stop_all_jobs()
+
+
+async def test_a_job_the_scheduler_is_running_reads_as_active_and_still_does_when_the_run_ends(running: Running) -> None:
+    job = await running.start_and_wait_for_the_run()
+
+    assert await job_module.is_job_active(job.id)
+    found = await job_module.find_active_job(None)
+    assert found is not None and found.id == job.id
+
+    running.held.release.set()
+    await running.wait_for_the_run_to_be_recorded()
+    after = await running.cron.only()
+    assert after.status == JobStatus.ACTIVE and await job_module.is_job_active(job.id)
+    assert after.next_run_at is not None and after.next_run_at > datetime.now(UTC) + timedelta(hours=5)
+
+
+@pytest.mark.parametrize("withdraw", [_pause, _remove], ids=["paused", "removed"])
+async def test_withdrawing_the_job_while_it_runs_is_seen_at_once(
+    running: Running, withdraw: Callable[[], Awaitable[None]]
+) -> None:
+    job = await running.start_and_wait_for_the_run()
+
+    await withdraw()
+
+    assert not await job_module.is_job_active(job.id)
+    assert await job_module.find_active_job(None) is None
