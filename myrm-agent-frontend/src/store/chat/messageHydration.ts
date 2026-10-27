@@ -2,10 +2,11 @@
  * [INPUT]
  * @/store/chat/clarificationState::normalizeHydratedClarification (POS: pending clarify restore)
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
+ * @/lib/utils/spillover::normalizeSpillover (POS: parked pasted-text metadata)
  *
  * [OUTPUT]
  * parseMessages: Normalize persisted API messages into store Message objects (metadata, cited memory refs,
- *   system notice marker).
+ *   system notice marker, parked pasted text).
  *
  * [POS]
  * Pure hydration helpers for chat history; no store access.
@@ -14,6 +15,7 @@
 import type { Message } from '@/store/chat/types';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
+import { normalizeSpillover } from '@/lib/utils/spillover';
 
 /** Metadata keys the server sets on assistant rows it appends itself (its `SYSTEM_NOTICE_EXTRA_KEYS`). */
 const SYSTEM_NOTICE_METADATA_KEYS = ['background_job', 'voice_background_task'] as const;
@@ -21,10 +23,11 @@ const SYSTEM_NOTICE_METADATA_KEYS = ['background_job', 'voice_background_task'] 
 export function parseMessages(raw: Message[]): Message[] {
   return raw.map((msg) => {
     const rawRecord = msg as Record<string, unknown>;
-    const metadata =
+    const { spillover: rawSpillover, ...metadata } =
       typeof rawRecord.metadata === 'string'
         ? (JSON.parse(rawRecord.metadata) as Record<string, unknown>)
         : ((rawRecord.metadata as Record<string, unknown> | undefined) ?? {});
+    const spillover = normalizeSpillover(rawSpillover);
 
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
@@ -43,6 +46,7 @@ export function parseMessages(raw: Message[]): Message[] {
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
       ...(turnLoadedSkills ? { turnLoadedSkills } : {}),
+      ...(spillover ? { spillover } : {}),
     } as Message;
 
     const persistedRequestMessageId = metadata.request_message_id;

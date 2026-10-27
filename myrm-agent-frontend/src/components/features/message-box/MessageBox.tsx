@@ -425,6 +425,7 @@ const MessageBox = ({
         onRetry={handleFailedRetry}
         sendFailed={message.sendFailed}
         files={message.files}
+        spillover={message.spillover}
       />
     );
   }

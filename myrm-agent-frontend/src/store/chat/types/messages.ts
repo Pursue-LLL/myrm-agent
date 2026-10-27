@@ -3,7 +3,7 @@
  * 多模块 Message 字段依赖（artifacts, tokens, agentStream 等）
  *
  * [OUTPUT]
- * Message, File, ChatHistoryItem, MentionReference, PaginationInfo, Clarification*.
+ * Message, MessageSpillover, File, ChatHistoryItem, MentionReference, PaginationInfo, Clarification*.
  *
  * [POS]
  * 持久化与渲染用的聊天消息实体。
@@ -18,6 +18,13 @@ import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
 import type { ToolImageOutput } from './agentStream/part3';
 import type { PhaseTransitionPayload } from './agentStream/part1';
+
+/** A pasted text too long for the conversation: saved as a file, the chat keeps its path and opening lines. */
+export interface MessageSpillover {
+  path: string;
+  chars: number;
+  preview: string;
+}
 
 export interface McpAppView {
   resourceUri: string;
@@ -165,6 +172,7 @@ export type Message = {
   isFadingOut?: boolean; // 标记内容正在淡出（工具调用时清空中间内容）
   files?: File[];
   sendFailed?: boolean;
+  spillover?: MessageSpillover; // 超长粘贴文本转存为文件后，会话里只留下的指针与开头预览
   clarification?: {
     question?: string;
     answered: boolean;

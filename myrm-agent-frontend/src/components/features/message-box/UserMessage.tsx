@@ -2,13 +2,17 @@
  * [INPUT]
  * - ./SendFailedNotice::SendFailedNotice (POS: Failed-send line of a user bubble)
  * - ./UserMessageAttachments::HistoryImageItem, FileContentBlock (POS: Attachment previews of a sent user bubble)
+ * - ./PastedTextCard::PastedTextCard (POS: Collapsed form of a very long pasted text)
+ * - @/lib/utils/spillover::pastedTextOf (POS: Pasted-text detection)
+ * - @/services/deliverable/openWorkspaceDeliverable (POS: Opens a workspace file in the side panel)
  * - ./QuoteToolbar::QuoteToolbar, useQuoteSelection (POS: Text-selection toolbar of a message)
  * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: Hover/focus/touch reveal contract of the action row)
  * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
  * - @/lib/utils/urlUtils::splitTextWithAtLinks (POS: URL helpers, splits message text at @links)
  *
  * [OUTPUT]
- * - UserMessage: one user bubble with attachments, copy, inline edit, rewind, fork and the retry line of a failed send.
+ * - UserMessage: one user bubble with attachments, copy, inline edit, rewind, fork and the retry line of a failed send;
+ *   a very long paste shows as a card.
  *
  * [POS]
  * Renders one user message of the transcript. Edit submit and retry are handed to the caller through callbacks.
@@ -22,7 +26,10 @@ import { SkillActivationChips } from './SkillActivationChips';
 import { SendFailedNotice } from './SendFailedNotice';
 import { HistoryImageItem, FileContentBlock } from './UserMessageAttachments';
 import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
-import { File as FileType } from '@/store/chat/types';
+import { pastedTextOf } from '@/lib/utils/spillover';
+import { openWorkspaceDeliverable } from '@/services/deliverable/openWorkspaceDeliverable';
+import { PastedTextCard } from './PastedTextCard';
+import { File as FileType, MessageSpillover } from '@/store/chat/types';
 import { isImageFile } from '@/lib/utils/fileUtils';
 import { useLocale, useTranslations } from 'next-intl';
 import { localizeReactNode } from '@/lib/utils/locale';
@@ -50,6 +57,7 @@ interface UserMessageProps {
   onRetry?: () => void;
   sendFailed?: boolean;
   files?: FileType[];
+  spillover?: MessageSpillover;
 }
 
 const EDIT_TEXTAREA_MAX_HEIGHT = 300;
@@ -71,6 +79,7 @@ const UserMessage = React.memo(
     onRetry,
     sendFailed,
     files,
+    spillover,
   }: UserMessageProps) => {
     const [copied, setCopied] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -89,6 +98,14 @@ const UserMessage = React.memo(
     const skillActivation = useMemo(() => parseExplicitSkillActivation(content), [content]);
     const cleanContent = stripUserMessageDisplayText(content);
     const parts = splitTextWithAtLinks(cleanContent);
+    const pasted = useMemo(() => pastedTextOf(cleanContent, spillover), [cleanContent, spillover]);
+    // The full text of a history message lives in a file; there is nothing to copy or edit in place.
+    const textInPlace = !spillover;
+    const openFullText = useCallback(() => {
+      if (spillover) {
+        void openWorkspaceDeliverable({ path: spillover.path, chatId });
+      }
+    }, [spillover, chatId]);
 
     useEffect(() => {
       if (isEditing) {
@@ -149,7 +166,11 @@ const UserMessage = React.memo(
     return localizeReactNode(
       <>
         <div className={cn('w-full group', isFirst ? 'pt-16' : 'pt-8', 'break-words')}>
-          <div ref={contentRef} data-message-id={messageId} className="flex items-start gap-3">
+          <div
+            ref={contentRef}
+            data-message-id={messageId}
+            className={cn('flex items-start gap-3', pasted && 'flex-wrap')}
+          >
             {isEditing ? (
               <div className="flex-1 lg:w-9/12">
                 <textarea
@@ -198,30 +219,40 @@ const UserMessage = React.memo(
                     className="mb-2 lg:w-9/12"
                   />
                 ) : null}
-                <h2
-                  className={cn(
-                    'font-medium text-2xl lg:w-9/12 flex-1',
-                    sendFailed ? 'text-destructive dark:text-destructive' : 'text-black dark:text-white',
-                  )}
-                >
-                  {parts.map((part, index) => {
-                    if (part.type === 'link') {
-                      const url = part.content.substring(1);
-                      return (
-                        <a
-                          key={index}
-                          href={url.startsWith('http') ? url : `https://${url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary-hover transition-colors cursor-pointer underline decoration-2"
-                        >
-                          {part.content}
-                        </a>
-                      );
-                    }
-                    return <span key={index}>{part.content}</span>;
-                  })}
-                </h2>
+                {pasted ? (
+                  <PastedTextCard
+                    chars={pasted.chars}
+                    preview={pasted.preview}
+                    fullText={pasted.fullText}
+                    onOpen={spillover && chatId ? openFullText : undefined}
+                    failed={sendFailed}
+                  />
+                ) : (
+                  <h2
+                    className={cn(
+                      'font-medium text-2xl lg:w-9/12 flex-1',
+                      sendFailed ? 'text-destructive dark:text-destructive' : 'text-black dark:text-white',
+                    )}
+                  >
+                    {parts.map((part, index) => {
+                      if (part.type === 'link') {
+                        const url = part.content.substring(1);
+                        return (
+                          <a
+                            key={index}
+                            href={url.startsWith('http') ? url : `https://${url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary-hover transition-colors cursor-pointer underline decoration-2"
+                          >
+                            {part.content}
+                          </a>
+                        );
+                      }
+                      return <span key={index}>{part.content}</span>;
+                    })}
+                  </h2>
+                )}
 
                 <div
                   className={cn(
@@ -234,14 +265,16 @@ const UserMessage = React.memo(
                       {timestamp.label}
                     </span>
                   )}
-                  <button
-                    onClick={handleCopy}
-                    className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
-                    title="复制 / Copy"
-                  >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
-                  {onEdit && (
+                  {textInPlace && (
+                    <button
+                      onClick={handleCopy}
+                      className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
+                      title="复制 / Copy"
+                    >
+                      {copied ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  )}
+                  {onEdit && textInPlace && (
                     <button
                       onClick={onEdit}
                       disabled={continuityBlocked}

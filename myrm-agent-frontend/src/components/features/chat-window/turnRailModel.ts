@@ -4,7 +4,8 @@
  * [INPUT]
  * - @/store/chat/types::Message (POS: 内存中已加载的聊天消息)
  * - @/services/chat::TurnOutlineItem (POS: 全会话轻量轮次大纲投影)
- * - @/lib/utils/messageUtils::stripMarkdown/stripUserMessageDisplayText (POS: 预览文本净化)
+ * - @/lib/utils/messageUtils::stripMarkdown (POS: 预览文本净化)
+ * - @/lib/utils/spillover::userMessageDisplayText (POS: 用户消息列表展示文本，超长粘贴取开头预览)
  *
  * [OUTPUT]
  * - MIN_TURNS_FOR_RAIL / FALLBACK_PREVIEW_LIMIT 常量
@@ -18,7 +19,8 @@
 
 import type { Message } from '@/store/chat/types';
 import type { TurnOutlineItem } from '@/services/chat';
-import { stripMarkdown, stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
+import { stripMarkdown } from '@/lib/utils/messageUtils';
+import { userMessageDisplayText } from '@/lib/utils/spillover';
 
 /** 最少轮次阈值，超过此值才激活导航栏 */
 export const MIN_TURNS_FOR_RAIL = 3;
@@ -74,7 +76,7 @@ export function normalizeRailItems(messages: Message[], turnOutlines?: TurnOutli
       const msg = messages[i];
       const mId = String(msg.messageId || '');
       if (msg.role === 'user' && mId && !outlineMsgIds.has(mId)) {
-        const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content || ''));
+        const cleanText = stripMarkdown(userMessageDisplayText(msg));
         items.push({
           turnIndex: nextTurnIndex++,
           userMessageId: mId,
@@ -99,7 +101,7 @@ export function normalizeRailItems(messages: Message[], turnOutlines?: TurnOutli
     const msg = messages[i];
     if (msg.role === 'user' && msg.content) {
       currentTurn++;
-      const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content));
+      const cleanText = stripMarkdown(userMessageDisplayText(msg));
       const msgId = String(msg.messageId || `turn-${currentTurn}`);
       fallbackItems.push({
         turnIndex: currentTurn,

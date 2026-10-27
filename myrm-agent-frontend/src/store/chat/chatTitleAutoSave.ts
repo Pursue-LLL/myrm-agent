@@ -12,7 +12,7 @@
 
 import type { ChatHistoryItem, Message } from '@/store/chat/types';
 import { generateChatTitle, updateChatTitle } from '@/services/chat';
-import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
+import { userMessageDisplayText } from '@/lib/utils/spillover';
 import { disambiguateChatTitle } from '@/lib/utils/titleUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
@@ -56,8 +56,8 @@ export const autoSaveChat = async (
 
     const lastMessage = messages[messages.length - 1]?.content || '';
     const firstUserMessage = messages.find((msg) => msg.role === 'user');
-    const firstMessage = firstUserMessage?.content
-      ? stripUserMessageDisplayText(firstUserMessage.content).slice(0, CHAT_SUMMARY_MAX_LENGTH)
+    const firstMessage = firstUserMessage
+      ? userMessageDisplayText(firstUserMessage).slice(0, CHAT_SUMMARY_MAX_LENGTH)
       : '';
 
     _updateSidebar(chatId, title, firstMessage, lastMessage, actionMode);
@@ -76,7 +76,7 @@ function _generateTitle(messages: Message[]): Promise<string> {
 
 function _fallbackTitle(messages: Message[]): string {
   const firstUserMessage = messages.find((msg) => msg.role === 'user');
-  const clean = firstUserMessage?.content ? stripUserMessageDisplayText(firstUserMessage.content) : '';
+  const clean = firstUserMessage ? userMessageDisplayText(firstUserMessage) : '';
   return clean
     ? clean.slice(0, CHAT_TITLE_MAX_LENGTH) + (clean.length > CHAT_TITLE_MAX_LENGTH ? '...' : '')
     : 'Untitled Chat';

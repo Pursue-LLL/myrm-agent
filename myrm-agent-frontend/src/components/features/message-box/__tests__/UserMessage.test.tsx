@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { SPILLOVER_MIN_CHARS } from '@/lib/utils/spillover';
 import type { File as FileType } from '@/store/chat/types';
 
 import UserMessage from '../UserMessage';
@@ -16,6 +17,8 @@ vi.mock('../SkillActivationChips', () => ({ SkillActivationChips: () => null }))
 vi.mock('../../chat-window/ForkButton', () => ({ ForkButton: () => null }));
 vi.mock('../../chat-window/RewindButton', () => ({ RewindButton: () => null }));
 vi.mock('../../message-input-actions/ImageLightbox', () => ({ ImageLightbox: () => null }));
+const portal = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('@/services/deliverable/openWorkspaceDeliverable', () => ({ openWorkspaceDeliverable: portal.open }));
 
 // The global next-intl stub renders every translation key as itself.
 const RETRY = 'retry';
@@ -94,5 +97,53 @@ describe('UserMessage document attachments', () => {
 
     expect(screen.getByText('attachment_document_generic')).not.toBeNull();
     expect(screen.queryByText('attachment_document')).toBeNull();
+  });
+});
+
+describe('UserMessage pasted text', () => {
+  const stored = { path: '/work/.myrm/pastes/payload_1.md', chars: 48_000, preview: 'Q3 review of the roadmap' };
+  const stub = '<file_spillover path="/work/.myrm/pastes/payload_1.md" total_chars="48000"></file_spillover>';
+
+  it('shows a stored paste as a card that opens its file, not as the stub the chat keeps', () => {
+    portal.open.mockClear();
+    render(<UserMessage {...bubble} content={stub} chatId="chat-1" spillover={stored} />);
+
+    expect(screen.getByText(stored.preview)).not.toBeNull();
+    expect(screen.queryByText(/file_spillover/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'pastedText.viewFull' }));
+
+    expect(portal.open).toHaveBeenCalledWith({ path: stored.path, chatId: 'chat-1' });
+  });
+
+  it('offers neither copy nor edit for a stored paste, whose stored text is only a pointer', () => {
+    render(<UserMessage {...bubble} content={stub} chatId="chat-1" spillover={stored} onEdit={vi.fn()} />);
+
+    expect(screen.queryByTitle('Copy')).toBeNull();
+    expect(screen.queryByTitle('message.edit')).toBeNull();
+  });
+
+  it('offers no way to open the file where the message has no chat to resolve it in', () => {
+    render(<UserMessage {...bubble} content={stub} spillover={stored} />);
+
+    expect(screen.queryByRole('button', { name: 'pastedText.viewFull' })).toBeNull();
+  });
+
+  it('folds a long paste still in memory, keeping copy and edit', () => {
+    const text = 'x'.repeat(SPILLOVER_MIN_CHARS + 1);
+    render(<UserMessage {...bubble} content={text} onEdit={vi.fn()} />);
+
+    expect(screen.getByTestId('pasted-text-card')).not.toBeNull();
+    expect(screen.queryByText(text)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'pastedText.expand' }));
+
+    expect(screen.getByText(text)).not.toBeNull();
+    expect(screen.getByTitle('Copy')).not.toBeNull();
+    expect(screen.getByTitle('message.edit')).not.toBeNull();
+  });
+
+  it('leaves a message at the limit as plain text', () => {
+    render(<UserMessage {...bubble} content={'x'.repeat(SPILLOVER_MIN_CHARS)} />);
+
+    expect(screen.queryByTestId('pasted-text-card')).toBeNull();
   });
 });
