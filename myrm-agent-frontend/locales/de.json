@@ -20243,7 +20243,7 @@
     "extractDocumentText": "Anhangstext extrahieren",
     "extractDocumentTextDesc": "Wenn diese Option aktiviert ist, werden PDF- und Office-Anhänge in Chats, Kanälen und Kanban in Text umgewandelt, bevor sie an das Modell gesendet werden. Deaktivieren Sie das Speichern von Tokens (das Modell sieht nur Dateinamen).",
     "generateSearchSuggestions": "Folgevorschläge",
-    "generateSearchSuggestionsDesc": "Generieren Sie nach jeder Antwort Vorschläge für Folgefragen",
+    "generateSearchSuggestionsDesc": "Generiert nach jeder Antwort Vorschläge für Folgefragen mit dem leichtgewichtigen Modell (ohne dieses: mit dem Primärmodell). Dadurch werden zusätzliche Token verbraucht.",
     "enableCostEstimation": "Statistiken zur Token-Nutzung",
     "enableCostEstimationDesc": "Statistiken zur Token-Nutzung in Konversationen anzeigen",
     "enableCacheBreakNotification": "Benachrichtigung zum Zurücksetzen des Caches",

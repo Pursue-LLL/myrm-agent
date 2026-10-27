@@ -20243,7 +20243,7 @@
     "extractDocumentText": "첨부 파일 텍스트 추출",
     "extractDocumentTextDesc": "활성화하면 채팅, 채널, 칸반의 PDF 및 Office 첨부 파일이 모델에 전송되기 전에 텍스트로 변환됩니다. 토큰을 절약하려면 비활성화할 수 있습니다 (모델은 파일 이름만 볼 수 있음).",
     "generateSearchSuggestions": "후속 질문 제안",
-    "generateSearchSuggestionsDesc": "각 응답 후 후속 질문 제안 생성",
+    "generateSearchSuggestionsDesc": "각 응답 후 경량 모델로 후속 질문 제안을 생성합니다(경량 모델이 설정되지 않은 경우 기본 모델 사용). 추가 토큰을 소모합니다.",
     "enableCostEstimation": "토큰 사용 통계",
     "enableCostEstimationDesc": "대화에서 토큰 사용 통계 표시",
     "enableCacheBreakNotification": "캐시 초기화 알림",

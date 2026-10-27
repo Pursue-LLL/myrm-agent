@@ -20243,7 +20243,7 @@
     "extractDocumentText": "添付ファイルのテキストを抽出",
     "extractDocumentTextDesc": "有効にすると、チャット・チャンネル・カンバン内の PDF/Office 添付ファイルがモデルに送信前にテキスト化されます。無効にするとトークンを節約できます（モデルはファイル名のみ確認可能）。",
     "generateSearchSuggestions": "フォローアップ提案",
-    "generateSearchSuggestionsDesc": "各回答の後にフォローアップ質問を生成",
+    "generateSearchSuggestionsDesc": "各回答の後に軽量モデルでフォローアップ質問を生成します（軽量モデル未設定の場合は主モデルを使用）。追加のトークンを消費します。",
     "enableCostEstimation": "Token 使用量統計",
     "enableCostEstimationDesc": "有効にすると会話内でトークン使用量の統計を表示",
     "enableCacheBreakNotification": "キャッシュ無効通知",

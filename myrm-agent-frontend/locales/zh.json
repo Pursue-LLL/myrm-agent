@@ -20243,7 +20243,7 @@
     "extractDocumentText": "提取附件文本",
     "extractDocumentTextDesc": "开启后，聊天、渠道消息与看板任务中的 PDF/Office 附件会先解析为文本再发给模型；关闭可节省 Token（模型仅能看到文件名）。",
     "generateSearchSuggestions": "后续建议",
-    "generateSearchSuggestionsDesc": "每次回答后生成后续问题建议",
+    "generateSearchSuggestionsDesc": "每次回答后由轻量模型生成后续问题建议（未设置轻量模型时使用主模型）。会额外消耗 token。",
     "enableCostEstimation": "Token 使用量统计",
     "enableCostEstimationDesc": "开启后在对话中显示 Token 使用量统计",
     "enableCacheBreakNotification": "缓存失效通知",

@@ -20243,7 +20243,7 @@
     "extractDocumentText": "Extract Attachment Text",
     "extractDocumentTextDesc": "When enabled, PDF and Office attachments in chat, channels, and Kanban are converted to text before sending to the model. Disable to save tokens (the model will only see file names).",
     "generateSearchSuggestions": "Follow-up Suggestions",
-    "generateSearchSuggestionsDesc": "Generate follow-up question suggestions after each response",
+    "generateSearchSuggestionsDesc": "Generate follow-up question suggestions after each response using the Lightweight Model (or the Primary Model if none is set). This consumes additional tokens.",
     "enableCostEstimation": "Token Usage Statistics",
     "enableCostEstimationDesc": "Show token usage statistics in conversations",
     "enableCacheBreakNotification": "Cache Reset Notification",

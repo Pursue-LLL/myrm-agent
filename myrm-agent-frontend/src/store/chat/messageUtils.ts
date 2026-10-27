@@ -1,10 +1,14 @@
 /**
  * [POS]
  * chat store 消息工具函数集：assistant 消息查找/占位创建、restart 协议草稿清空
- * （`clearAssistantDraft` / `discardStreamedDraft`）、UI artifact 定位与建议生成。
+ * （`clearAssistantDraft` / `discardStreamedDraft`）、UI artifact 定位与建议生成
+ * （回合停在等用户决定时不生成，见 `isTurnWaitingForUser`）。
  */
 import { Message } from '@/store/chat/types';
+import useBrowserTakeoverStore from '../useBrowserTakeoverStore';
 import useConfigStore from '../useConfigStore';
+import useDesktopControlApprovalStore from '../useDesktopControlApprovalStore';
+import useToolApprovalStore from '../useToolApprovalStore';
 import { getSuggestions as getSuggestionsService } from '@/services/chat';
 import { buildSimpleChatHistory } from './chatHistoryBuilder';
 
@@ -107,6 +111,35 @@ export const discardStreamedDraft = (ctx: StreamDraftBuffers): void => {
 const suggestionsInFlight = new Set<string>();
 
 /**
+ * Whether the turn that just ended stopped to ask the user for a decision (approval, question, plan, takeover).
+ *
+ * Scoped to this turn: a decision another chat or a background task is waiting for must not silence this chat's
+ * follow-ups, so the companion's global "blocked on user" flag is not reused. A generic approval carries no message
+ * id and is matched on the chat.
+ */
+const isTurnWaitingForUser = async (turn: Message): Promise<boolean> => {
+  if (
+    (turn.clarification && !turn.clarification.answered) ||
+    turn.planConfirmation?.status === 'waiting' ||
+    turn.humanGate?.status === 'waiting'
+  ) {
+    return true;
+  }
+  const desktopControl = useDesktopControlApprovalStore.getState();
+  const browserTakeover = useBrowserTakeoverStore.getState();
+  if (
+    useToolApprovalStore.getState().queue.some((request) => request.messageId === turn.messageId) ||
+    (desktopControl.pending && desktopControl.messageId === turn.messageId) ||
+    (browserTakeover.pending && browserTakeover.messageId === turn.messageId)
+  ) {
+    return true;
+  }
+  // The approval store imports the chat store, which imports this module: loaded on demand to keep the graph acyclic.
+  const { default: useApprovalStore } = await import('@/store/useApprovalStore');
+  return useApprovalStore.getState().queue.some((approval) => approval.chat_id === turn.chatId);
+};
+
+/**
  * 处理建议生成
  *
  * 搜索模式和 Agent 模式均支持。后端从 DB 读取 filter model 配置。
@@ -128,6 +161,15 @@ export const processSuggestions = async (
   }
 
   if (lastMsg.role !== 'assistant' || lastMsg.content.trim().length === 0 || lastMsg.suggestions) {
+    return;
+  }
+  // A turn that stopped for the user's decision has no finished answer yet; the resumed turn asks when it ends.
+  // A check that cannot be evaluated must not cost the user their follow-ups, and the caller does not await us.
+  const waitingForUser = await isTurnWaitingForUser(lastMsg).catch((error: unknown) => {
+    console.warn('Could not tell whether the turn is waiting for the user:', error);
+    return false;
+  });
+  if (waitingForUser) {
     return;
   }
   if (suggestionsInFlight.has(lastMsg.messageId)) {
