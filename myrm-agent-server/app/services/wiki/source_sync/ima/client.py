@@ -82,8 +82,8 @@ class ImaClient:
         """A note's body as plain text; ima only reliably supports the plain-text target format."""
         if not note_id:
             raise ImaPermanentError("ima note id is missing")
-        # ima's notes API reference names the id ``note_id`` in its current edition and ``doc_id`` in earlier ones; the
-        # request carries both so it matches whichever spelling is read.
+        # ima's published notes references disagree on the id's name (the skill reference says ``note_id``, the notes
+        # API page says ``doc_id``); the request carries both so it matches whichever spelling the server reads.
         data = await self._transport.post(
             NOTE_PREFIX,
             "get_doc_content",
