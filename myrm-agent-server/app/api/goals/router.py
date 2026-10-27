@@ -282,6 +282,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
                     raise HTTPException(status_code=409, detail="Goal cannot be resumed right now")
             else:
                 await provider.exit_wait(goal.goal_id)
+                await continue_resumed_goal(session_id, provider, goal.goal_id)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid action: {request.action}")
 

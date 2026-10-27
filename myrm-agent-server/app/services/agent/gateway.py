@@ -208,6 +208,15 @@ class AgentGateway:
         logger.info("Interrupt signal sent for chat_id=%s", chat_id)
         return True
 
+    def is_session_interrupted(self, chat_id: str) -> bool:
+        """Whether the turn running in ``chat_id`` was told to stop and has not wound down yet.
+
+        The interrupt event lives exactly as long as the turn's stream, so an idle session is never interrupted.
+        """
+        user_events = self._interrupt_events.get("sandbox")
+        event = user_events.get(chat_id) if user_events else None
+        return event is not None and event.is_set()
+
     def get_active_message_id(self, chat_id: str) -> str | None:
         info = self._session_info.get(chat_id)
         return info.current_message_id if info else None

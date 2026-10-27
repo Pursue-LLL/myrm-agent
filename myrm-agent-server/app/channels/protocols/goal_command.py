@@ -94,7 +94,7 @@ class GoalCommandHandler(Protocol):
     async def get_resume_kickoff_message(self, msg: InboundMessage) -> InboundMessage | None:
         """Build a kickoff message that puts a just-resumed goal back to work.
 
-        Called after a /goal resume. Returns None when no turn should start: the goal is not active,
+        Called after a /goal resume or /goal unwait. Returns None when no turn should start: the goal is not active,
         or the session already has a turn running or is draining.
         """
         ...

@@ -155,8 +155,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_steer_risk_gate.py` | 模块 | steer / redirect 接口的风险闸门：命中规则的指令返回 `success:false` 且不送达回合，干净指令照常送达，对 Agent 提问的回复同样过闸 |
 | `api/goals/test_goal_stops_running_turn.py` | 模块 | 通过 HTTP 暂停/取消目标：正在干活的目标中断会话在途回合（网关中断信号 + 取消注册表令牌），等待中/待复核/预算受限/已暂停的目标不碰会话回合，没有在途回合时照常成功 |
 | `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则 409 且目标保持暂停）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
+| `api/goals/test_goal_stop_real_gateway.py` | 模块 | 暂停后的恢复对「已被叫停」的回合的判定（真实 `AgentGateway`，回合由测试用事件闸门卡住）：无消息 id、无取消令牌的服务端自启回合与聊天回合同样被识别为正在停止；无人叫停的回合不拖住恢复；停止后的下一个回合不继承停止标记；暂停后立即恢复先等回合收尾、会话空闲时恰好启动一个回合；回合收尾不了则 409、目标保持暂停且不启动 |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
-| `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则回复稍后再发且目标保持暂停）；恢复后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
+| `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，服务端自启且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
+| `services/agent/test_goal_stream_trigger_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标；流启动时会话已被占用（`AgentBusyError`，含真实网关的二次启动）不算目标失败、占用会话的回合不受扰动，其余异常仍走失败策略 |
 | `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |
 | `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |

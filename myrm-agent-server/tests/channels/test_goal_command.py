@@ -365,6 +365,36 @@ class TestHandleGoalCommand:
         host._gate.submit.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_unwait_submits_the_kickoff_that_puts_the_goal_back_to_work(self) -> None:
+        from app.channels.routing.commands import (
+            RouterCommandsMixin,
+        )
+
+        kickoff_msg = _make_msg("goal text")
+        handler = MagicMock()
+        handler.handle_goal = AsyncMock(return_value="Goal no longer waiting")
+        handler.get_resume_kickoff_message = AsyncMock(return_value=kickoff_msg)
+        host = self._make_host(goal_handler=handler)
+        await RouterCommandsMixin._handle_goal_command(host, _make_msg(), "unwait")
+
+        host._gate.submit.assert_called_once_with(kickoff_msg)
+        handler.get_kickoff_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unwait_without_kickoff_submits_nothing(self) -> None:
+        from app.channels.routing.commands import (
+            RouterCommandsMixin,
+        )
+
+        handler = MagicMock()
+        handler.handle_goal = AsyncMock(return_value="Goal is not waiting")
+        handler.get_resume_kickoff_message = AsyncMock(return_value=None)
+        host = self._make_host(goal_handler=handler)
+        await RouterCommandsMixin._handle_goal_command(host, _make_msg(), "unwait")
+
+        host._gate.submit.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_pause_does_not_trigger_kickoff(self) -> None:
         from app.channels.routing.commands import (
             RouterCommandsMixin,

@@ -1,7 +1,7 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
-[OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure, resolve_user_locale
+[INPUT] streaming, gateway (AgentBusyError), unattended_goal_failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
+[OUTPUT] GoalStreamAgentContext, trigger_goal_stream*
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
 """
 
@@ -11,7 +11,9 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
+
+from app.services.agent.goals.unattended_goal_failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
@@ -20,8 +22,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _running_goal_tasks: set[asyncio.Task[None]] = set()
-
-TriggerFailurePolicy = Literal["needs_human_review", "keep_active"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,99 +34,6 @@ class GoalStreamAgentContext:
     agent_skill_ids: list[str] | None = None
     enabled_builtin_tools: list[str] | None = None
     agent_security_raw: dict[str, object] | None = None
-
-
-async def resolve_user_locale() -> str:
-    """Load locale from personal settings (WebUI / Tauri / sandbox user config)."""
-    from myrm_agent_harness.utils.locale import normalize_locale, resolve_locale
-
-    from app.core.channel_bridge.config_loader import load_user_configs
-
-    try:
-        configs = await load_user_configs()
-        ps = configs.personal_settings_dict if configs else None
-        raw_locale = ps.get("locale") if ps else None
-        if not raw_locale and ps:
-            raw_locale = ps.get("language")
-        locale_str = str(raw_locale) if raw_locale else None
-        return resolve_locale(metadata_locale=locale_str, platform_locale=None, channel=None)
-    except Exception:
-        logger.debug("Failed to load user locale for goal stream failure", exc_info=True)
-        return normalize_locale(None)
-
-
-async def publish_goal_needs_review_notification(session_id: str, goal_id: str) -> None:
-    """Publish goal_needs_review SSE after an unattended failure or orphan recovery."""
-    from app.channels.i18n.engine import channel_t
-    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-    locale = await resolve_user_locale()
-    title = channel_t(locale, "goal_stream_failed_title")
-    message = channel_t(locale, "goal_stream_failed_message")
-
-    get_event_bus().publish(
-        AppEvent(
-            event_type=AppEventType.SYSTEM_NOTIFICATION,
-            data={
-                "title": title,
-                "message": message,
-                "meta_data": {
-                    "kind": "goal_needs_review",
-                    "chat_id": session_id,
-                    "goal_id": goal_id,
-                },
-            },
-        )
-    )
-
-
-async def handle_unattended_goal_stream_failure(
-    session_id: str,
-    goal_id: str,
-    provider: GoalProvider | None,
-    *,
-    on_failure: TriggerFailurePolicy,
-    context: str,
-) -> None:
-    """Apply unattended stream failure policy — review state or Cron keep-active.
-
-    Only a goal still ACTIVE is escalated: a run that already parked, paused or finished
-    the goal before failing must not have that state overwritten.
-    """
-    if on_failure == "keep_active":
-        logger.error(
-            "Goal %s remains ACTIVE for Cron fallback after %s failure",
-            goal_id,
-            context,
-        )
-        return
-
-    if provider is None:
-        logger.warning(
-            "Cannot mark goal %s as NEEDS_HUMAN_REVIEW: no GoalProvider",
-            goal_id,
-        )
-        return
-
-    from myrm_agent_harness.agent.goals.types import GoalStatus
-
-    try:
-        goal = await provider.get_goal(goal_id)
-        if goal is None or goal.status is not GoalStatus.ACTIVE:
-            logger.info("Goal %s already left ACTIVE during %s; keeping its state", goal_id, context)
-            return
-        await provider.update_status(goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
-    except Exception:
-        logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
-        return
-
-    try:
-        await publish_goal_needs_review_notification(session_id, goal_id)
-    except Exception:
-        logger.exception(
-            "Failed to publish goal_needs_review notification for goal %s",
-            goal_id,
-        )
 
 
 async def _resolve_goal_stream_agent_context(
@@ -223,6 +130,7 @@ async def trigger_goal_stream(
         resolve_model_config,
     )
     from app.core.security.privacy_settings import privacy_agent_params
+    from app.services.agent.gateway import AgentBusyError
     from app.services.agent.streaming import ai_agent_service_stream
 
     logger.info(
@@ -354,6 +262,10 @@ async def trigger_goal_stream(
             )
             async for _ in ai_agent_service_stream(params, extra_context=extra_context):
                 pass
+        except AgentBusyError:
+            # The session is claimed only once the agent is built, so a second start of this goal, or a message
+            # sent meanwhile, can take it first. That turn carries the goal on: this start is not a failure.
+            logger.info("Goal %s: session %s already has a turn, %s not started", goal.goal_id, session_id, context)
         except Exception as e:
             logger.error(
                 "Background goal stream failed for goal %s: %s",

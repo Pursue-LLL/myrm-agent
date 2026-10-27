@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -33,6 +33,21 @@ def stopping_message_id() -> Iterator[str]:
     token.cancel(CancelReason.USER_CANCELLED)
     yield message_id
     CancellationRegistry.unregister(message_id)
+
+
+def _gateway_stub(
+    *,
+    is_draining: bool = False,
+    is_session_active: bool = False,
+    message_id: Callable[[str], str | None] = lambda _sid: None,
+) -> SimpleNamespace:
+    """A gateway reduced to what the goal controls read; its turn is stopping only through the message id's token."""
+    return SimpleNamespace(
+        is_draining=is_draining,
+        is_session_active=lambda _sid: is_session_active,
+        get_active_message_id=message_id,
+        is_session_interrupted=lambda _sid: False,
+    )
 
 
 async def _goal_in_status(sid: str, status: GoalStatus) -> tuple[GoalProvider, str]:
@@ -92,8 +107,8 @@ async def test_resume_puts_the_goal_back_to_work(
 @pytest.mark.parametrize(
     "gateway",
     [
-        SimpleNamespace(is_draining=False, is_session_active=lambda _sid: True, get_active_message_id=lambda _sid: None),
-        SimpleNamespace(is_draining=True, is_session_active=lambda _sid: False, get_active_message_id=lambda _sid: None),
+        _gateway_stub(is_session_active=True),
+        _gateway_stub(is_draining=True),
     ],
     ids=["session-busy", "app-draining"],
 )
@@ -118,11 +133,7 @@ async def test_resume_waits_for_the_stopped_turn_before_starting_the_next(
 ) -> None:
     await _goal_in_status(session_id, GoalStatus.PAUSED)
     polls = iter([stopping_message_id, stopping_message_id])
-    gateway = SimpleNamespace(
-        is_draining=False,
-        is_session_active=lambda _sid: False,
-        get_active_message_id=lambda _sid: next(polls, None),
-    )
+    gateway = _gateway_stub(message_id=lambda _sid: next(polls, None))
 
     with (
         patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=gateway),
@@ -139,11 +150,7 @@ async def test_resume_is_refused_while_the_stopped_turn_is_still_stopping(
     client: TestClient, goal_stream_trigger: AsyncMock, session_id: str, stopping_message_id: str
 ) -> None:
     provider, goal_id = await _goal_in_status(session_id, GoalStatus.PAUSED)
-    gateway = SimpleNamespace(
-        is_draining=False,
-        is_session_active=lambda _sid: True,
-        get_active_message_id=lambda _sid: stopping_message_id,
-    )
+    gateway = _gateway_stub(is_session_active=True, message_id=lambda _sid: stopping_message_id)
 
     with (
         patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=gateway),

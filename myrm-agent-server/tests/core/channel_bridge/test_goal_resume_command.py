@@ -38,6 +38,7 @@ def gateway() -> Iterator[MagicMock]:
     """An idle gateway that is not draining."""
     mock = MagicMock(spec=AgentGateway)
     mock.is_session_active.return_value = False
+    mock.is_session_interrupted.return_value = False
     mock.get_active_message_id.return_value = None
     mock.is_draining = False
     with (
@@ -116,6 +117,18 @@ async def test_resume_is_refused_while_the_stopped_turn_never_finishes(
     assert await ChannelGoalCommandHandler().get_resume_kickoff_message(_message()) is None
 
 
+async def test_resume_is_refused_while_a_turn_the_server_started_is_still_stopping(chat_id: str, gateway: MagicMock) -> None:
+    """A turn the server started has no message and no cancel token; the interrupt signal is its only mark."""
+    goal_id = await _paused_goal(chat_id)
+    gateway.is_session_active.return_value = True
+    gateway.is_session_interrupted.return_value = True
+
+    reply = await _resume(chat_id)
+
+    assert reply == get_text(_message(), "goal_resume_stopping")
+    assert await _status(chat_id, goal_id) is GoalStatus.PAUSED
+
+
 async def test_resume_is_not_held_up_by_a_turn_nobody_stopped(chat_id: str, gateway: MagicMock, live_turn: str) -> None:
     goal_id = await _paused_goal(chat_id)
     gateway.is_session_active.return_value = True
@@ -167,3 +180,18 @@ async def test_no_kickoff_when_the_goal_is_not_active(chat_id: str, gateway: Mag
 
 async def test_no_kickoff_without_a_goal(chat_id: str, gateway: MagicMock) -> None:
     assert await ChannelGoalCommandHandler().get_resume_kickoff_message(_message()) is None
+
+
+async def test_unwait_puts_the_goal_back_to_work_with_the_same_kickoff_as_resume(chat_id: str, gateway: MagicMock) -> None:
+    provider = GoalRegistry.get_or_create_provider(chat_id)
+    goal = await provider.create_goal(chat_id, _OBJECTIVE)
+    await provider.enter_wait(goal.goal_id, reason="CI is running")
+    handler = ChannelGoalCommandHandler()
+
+    reply = await handler._unwait_goal(_message(), chat_id)  # noqa: SLF001 - command under test
+    kickoff = await handler.get_resume_kickoff_message(_message())
+
+    assert reply == get_text(_message(), "goal_unwait", objective=_OBJECTIVE)
+    assert await _status(chat_id, goal.goal_id) is GoalStatus.ACTIVE
+    assert kickoff is not None
+    assert kickoff.content == _OBJECTIVE

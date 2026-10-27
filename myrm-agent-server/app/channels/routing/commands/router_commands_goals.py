@@ -109,7 +109,7 @@ class RouterCommandsGoalsMixin:
         kickoff_msg: InboundMessage | None = None
         if subcommand == GoalSubcommand.SET:
             kickoff_msg = await self._goal_handler.get_kickoff_message(msg, sub_args)
-        elif subcommand == GoalSubcommand.RESUME:
+        elif subcommand in {GoalSubcommand.RESUME, GoalSubcommand.UNWAIT}:
             kickoff_msg = await self._goal_handler.get_resume_kickoff_message(msg)
         if kickoff_msg:
             self._gate.submit(kickoff_msg)
