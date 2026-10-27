@@ -8,12 +8,16 @@ at all; reasoning that follows or accompanies an answer leaves that answer's edi
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, OutboundMessage, StreamingText
+
+if TYPE_CHECKING:
+    from app.channels.protocols.agent import AgentExecutor
 
 _ANSWER = "Your refund is approved and will reach your card within five days of today."
 _THINKING_ONLY = "<think>I should look up the order before answering"
@@ -35,7 +39,7 @@ def _router(monkeypatch: pytest.MonkeyPatch, texts: list[str]) -> tuple[AgentRou
     """A real router and a real stream coordinator; only the chat edits are recorded instead of sent."""
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=None)
-    router = AgentRouter(bus=bus, pairing_store=MagicMock(), agent_executor=_Executor(texts))
+    router = AgentRouter(bus=bus, pairing_store=MagicMock(), agent_executor=cast("AgentExecutor", _Executor(texts)))
     edit_progress = AsyncMock(return_value=True)
     monkeypatch.setattr(router._fx, "edit_progress", edit_progress)
     monkeypatch.setattr(router, "_try_throttled_edit", AsyncMock(return_value=None))
