@@ -10,7 +10,7 @@ drop final replies. Web/chat channels are excluded (SSE already durable).
 - channels.i18n::channel_t (POS: recovery marker i18n)
 
 [OUTPUT]
-- DurableOutboundGate: persist / mark_attempting / ack / recover / count_pending / track_enqueued / release_inflight
+- DurableOutboundGate: persist (degrades to an unpersisted send on storage failure) / mark_attempting / ack / recover / count_pending / track_enqueued / release_inflight
 - OutboundPublisher: protocol of the queue front-end recovered deliveries are re-published into
 - METADATA_DELIVERY_ID: internal metadata key for delivery correlation
 
