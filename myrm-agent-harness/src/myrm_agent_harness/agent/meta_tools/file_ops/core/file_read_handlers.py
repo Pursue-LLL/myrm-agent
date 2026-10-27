@@ -354,7 +354,7 @@ async def _read_via_service(
         max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
     # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
     hint_path = path_str if is_dir else path_base(path_str)
-    # Text the context guard parked is read in pages sized in real tokens, not the code-file character cap.
+    # Text the context guard parked is read in pages sized in o200k tokens, not the code-file character cap.
     parked = not is_dir and is_parked_path(hint_path)
     truncated_text, was_truncated, meta = truncate_file_output(
         raw_out,

@@ -1,7 +1,7 @@
 """A long paste the context guard parked is read back through the real file_read_tool in few calls.
 
 Parks real files with the real spillover engine and reads them with the real tool, following the continuation
-hint the way the model does. The contract: a parked text is paged by real tokens and a long line is split into
+hint the way the model does. The contract: a parked text is paged by o200k tokens and a long line is split into
 rows, so the last character of any paste is reachable; every other file keeps the code-file read caps.
 
 Run under the harness monorepo via ``./myrm test -m integration``.

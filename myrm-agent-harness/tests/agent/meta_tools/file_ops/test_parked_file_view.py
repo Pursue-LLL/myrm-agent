@@ -1,6 +1,6 @@
 """Unit tests for the view of a long text the context guard parked in the workspace.
 
-A parked paste is read in pages of real tokens and a line over the per-line cap is split into rows, so no
+A parked paste is read in pages of o200k tokens and a line over the per-line cap is split into rows, so no
 character of it is out of reach (a secret in it is masked before the split); every other file keeps the
 code-file read caps.
 """

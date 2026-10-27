@@ -5,18 +5,18 @@ pasted without line breaks), and it runs to several times the size of an ordinar
 sized for code files: they hand the model a page of 10,000 characters, so a large paste costs one model call per
 10,000 characters, and they cut a line at 2,000 characters, so the rest of a long line cannot be read at all.
 Files in the two parked directories get their own view instead: a long line is split into rows rather than cut,
-and a page holds a fixed number of real tokens whatever the density of the text.
+and a page holds a fixed number of o200k tokens whatever the density of the text.
 
 [INPUT]
 - agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: the directories the guard writes to)
 - agent.security.redact::redact_sensitive_text (POS: tool output redaction)
-- utils.text_utils::get_token_count (POS: real token count)
+- utils.text_utils::get_token_count (POS: tiktoken count, o200k)
 
 [OUTPUT]
 - is_parked_path: whether a path names a file the context guard parked
 - wrap_long_lines: split lines over a width into rows, after redacting the lines it splits
 - wrapped_rows_notice: the one-line note that row numbers no longer match the file's line numbers
-- parked_page_chars: how many characters of a parked file's rendered output make up one page of real tokens
+- parked_page_chars: how many characters of a parked file's rendered output make up one page of o200k tokens
 
 [POS]
 View rules for parked-text files; result_formatter splits the rows, file_read_handlers sizes the page.
@@ -87,7 +87,7 @@ def wrapped_rows_notice(width: int, first_split_line: int) -> str:
 
 
 def parked_page_chars(output: str) -> int:
-    """Characters from the start of *output* that make up one page of ``PAGE_TOKEN_BUDGET`` real tokens.
+    """Characters from the start of *output* that make up one page of ``PAGE_TOKEN_BUDGET`` o200k tokens.
 
     Only the window that becomes the page is measured, so the cost does not grow with the size of the file.
     """
