@@ -1,8 +1,8 @@
-"""A delegated child never takes over the delegating agent's todo list.
+"""A delegated child never resumes the workspace's todos.
 
-A child runs in the chat of the agent that delegated to it, so the list in that chat is the
-delegating agent's own: a child built over a workspace that already holds it must neither mount
-``todo_write`` nor be shown the list. The delegation, the child's run through
+Resuming is how a top-level agent picks up its own earlier plan: it mounts ``todo_write`` and is shown
+the list. A child continues no earlier plan, so a child built over a workspace that already holds a
+list must neither mount ``todo_write`` nor be shown it. The delegation, the child's run through
 ``SubagentExecutor._run_single_attempt`` and the child's tool assembly are real; only the model is
 scripted.
 """
@@ -150,7 +150,7 @@ async def test_top_level_agent_resumes_the_workspace_todos(workspace: Path, tmp_
 
 
 @pytest.mark.asyncio
-async def test_delegated_child_does_not_mount_todo_write_over_the_parents_list(workspace: Path, tmp_path: Path) -> None:
+async def test_delegated_child_does_not_resume_the_workspace_todos(workspace: Path, tmp_path: Path) -> None:
     model = _scripted()
     child = await _build_agent(workspace, tmp_path, model, mode="subagent")
 

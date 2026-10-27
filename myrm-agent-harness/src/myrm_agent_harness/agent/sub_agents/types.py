@@ -85,8 +85,8 @@ class DelegationCapabilityManifest:
                 "steer_subagent_tool",
             }
         )
-        # Memory writers are bound to the parent's MemoryManager and the todo, goal and kanban writers to the
-        # parent's own plan file, goal and board; no isolation policy can rebind either.
+        # Memory writers are bound to the parent's MemoryManager and the goal and kanban writers to the parent's
+        # own goal and board; no isolation policy can rebind either. The todo writer writes the child's own list.
         persistent_side_effect_tools = (
             frozenset({"cron_manage_tool", "memory_save_tool", "memory_manage_tool"}) | PARENT_BOUND_WRITER_TOOLS
         )

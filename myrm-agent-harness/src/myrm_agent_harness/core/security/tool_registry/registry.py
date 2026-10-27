@@ -263,8 +263,8 @@ TOOL_TO_GROUP: dict[str, str] = {tool: group for group, tools in TOOL_GROUP_MAP.
 TOOL_GROUP_NAMES: frozenset[str] = frozenset(TOOL_GROUP_MAP)
 
 # Writers over state the running agent owns: its todo file, its goal and its kanban board. A delegated child
-# shares that state with its parent rather than owning a copy, so each of its writes would land on the
-# parent's record. A tool with no safety declaration counts as a writer.
+# shares the goal and the board with its parent rather than owning a copy, so those writes land on the parent's
+# record; its todo file is its own, under its task id. A tool with no safety declaration counts as a writer.
 PARENT_BOUND_WRITER_TOOLS: frozenset[str] = frozenset(
     name
     for group in ("planning", "kanban")

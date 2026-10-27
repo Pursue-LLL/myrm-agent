@@ -17,7 +17,7 @@ The tool list is only one door. `SkillAgent` also mounts tools itself whatever `
 
 - File and shell executors enforce the child's capability handle. `delegate_task` and the verifier round bind one; for every other read-only spawn (dynamic workflow) `SubagentManager.spawn_child` binds the READ-only floor.
 - `bash_process_tool` jobs are scoped to the session a child shares with its parent, so every action except `list` / `output` / `wait` checks the EXECUTE capability itself.
-- A delegated child never resumes the workspace's todos (`SkillAgent` checks `get_is_subagent()`, which the executor sets before the child runs), so it never mounts `todo_write` over the parent's todo list.
+- A delegated child never resumes the workspace's todos (`SkillAgent` checks `get_is_subagent()`, which the executor sets before the child runs), so a workspace that already holds todos never makes it mount `todo_write`; a child's own list lives under its task id, apart from the parent's.
 
 `tests/agent/sub_agents/test_child_tool_isolation_contract.py` classifies every side-effecting tool of the safety table with the mechanism that decides it; a new tool fails it until it is classified.
 

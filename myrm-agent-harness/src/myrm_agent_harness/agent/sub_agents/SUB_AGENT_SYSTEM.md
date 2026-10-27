@@ -97,7 +97,7 @@ Layer 1: DELEGATION_CAPABILITY_MANIFEST.leaf_blocked_tools
            + 持久副作用工具 cron_manage_tool / memory_save_tool / memory_manage_tool
              （子 agent 继承到的记忆工具绑定在父 agent 的 MemoryManager 上，任何隔离策略都无法改绑，所以一律剥离，显式白名单也不能放回）
            + 父状态写工具 `PARENT_BOUND_WRITER_TOOLS`：todo_write / complete_goal_tool / kanban 写工具
-             （绑定父 agent 自己的计划文件、目标与看板，子 agent 与父共享同一份而不是拥有自己的，写入会落在父的记录上；kanban_show / kanban_list_tasks 只读，保留）
+             （complete_goal_tool 与 kanban 写工具绑定父 agent 的目标与看板，子 agent 与父共享同一份，写入会落在父的记录上；todo_write 写的是子 agent 自己任务 id 目录下的清单，不碰父的，仍与它们一并从传给子 agent 的工具列表里剥离，开了 enable_planning 的子 agent 由自己的构建挂载；kanban_show / kanban_list_tasks 只读，保留）
            + HitlToolPolicy.subagent_blocked (from agent/sub_agents/hitl_tool_policy.py; HITL must stay on parent/web thread);
            同一份 manifest 同时驱动 leaf 剥离和 orchestrator child-scoped 工具注入
 

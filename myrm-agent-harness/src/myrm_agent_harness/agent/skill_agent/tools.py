@@ -250,7 +250,7 @@ class SkillAgentToolsMixin:
         return workspace_todos_exist(workspace_root=self._resolve_task_workspace_root())
 
     def _should_load_todo_write_tool(self) -> bool:
-        """todo_write loads for planning, or for a top-level agent resuming todos; a child's list is its delegator's."""
+        """todo_write loads for planning, or for a top-level agent resuming todos; a delegated child resumes nothing."""
         if self._enable_planning:  # type: ignore[attr-defined]
             return True
         if not get_is_subagent() and self._workspace_has_todos():
