@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage, ToolMessage
 from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 
@@ -421,6 +421,36 @@ class TestCompletionGuardTriggerConditions:
         assert [(type(m), m.id) for m in result["messages"]] == [(RemoveMessage, original_ai.id)]
         assert add_messages(state["messages"], result["messages"]) == [user_message]
         assert original_ai.tool_calls[0]["name"] == "request_answer_user_tool"
+
+    @pytest.mark.asyncio
+    async def test_a_finish_tool_draft_after_a_tool_round_leaves_the_instruction_behind_the_tool_result(self) -> None:
+        """After a tool round the message before the draft is the tool result, so that is where the instruction goes:
+        the request the model sees next ends with the tool result, not with an unanswered call."""
+        state = _make_state(
+            [
+                HumanMessage(content="Change main.py and tell me when it is done."),
+                AIMessage(
+                    content="",
+                    tool_calls=[{"id": "tc_write", "name": "file_write_tool", "args": {"path": "/tmp/a.py"}}],
+                ),
+                ToolMessage(content="written", tool_call_id="tc_write"),
+                AIMessage(content="", tool_calls=[{"id": "tc_answer", "name": "request_answer_user_tool", "args": {}}]),
+            ]
+        )
+        tool_result = state["messages"][2]
+        with patch(LOOP_GUARD_PATCH) as mock_guard:
+            mock_guard.return_value._window = [
+                CallRecord(
+                    tool_name="file_write_tool",
+                    args_hash="abc",
+                    args={"path": "/tmp/a.py"},
+                    success_level=SuccessLevel.FULL_SUCCESS,
+                )
+            ]
+            result = await self.guard.aafter_model(state, None)
+
+        assert pending(result).anchor_id == tool_result.id
+        assert add_messages(state["messages"], result["messages"])[-1].id == tool_result.id
 
     @pytest.mark.asyncio
     async def test_a_finish_tool_draft_that_says_something_keeps_its_words_and_loses_the_call(self) -> None:
