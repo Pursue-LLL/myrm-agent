@@ -29,4 +29,4 @@
 
 ## 依赖方向
 
-`app/lifecycle/schedulers.py` 与 `app/api/memory/operations/backup_remote.py` → 本目录。包内单向：`job.py` → `runner.py`、`schedule.py`、`state.py`、`storage/`；`runner.py` → `storage/`（仅类型）与 `memory/backup/snapshot.py`；`storage/` 与 `schedule.py` 不依赖包内其他模块。对外依赖 `instance_archive/{models,auto_backup/store}`、`services/event/app_event_bus`。本目录不依赖 API 层与 lifecycle：一次备份不知道自己被谁调度。
+`app/lifecycle/schedulers.py` 与 `app/api/memory/operations/backup_remote.py` → 本目录。包内单向：`job.py` → `runner.py`、`schedule.py`、`state.py`、`storage/`；`schedule.py` → `state.py`；`runner.py` → `storage/`（仅类型）与 `memory/backup/snapshot.py`；`state.py` 与 `storage/` 不依赖包内其他模块。对外依赖 `instance_archive/{models,auto_backup/store}`、`services/event/app_event_bus`。本目录不依赖 API 层与 lifecycle：一次备份不知道自己被谁调度。
