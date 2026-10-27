@@ -1,7 +1,9 @@
 """REST API router for Diamond Topology Orchestrator & Blinded Adversarial Auditor."""
 
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from app.schemas.diamond_graph import (
     AdversarialVerdictDTO,
     AuditDeliveryRequest,

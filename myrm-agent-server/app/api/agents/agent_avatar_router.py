@@ -11,7 +11,7 @@ app/api/agents/agent_avatar_router.py: REST endpoints for deterministic SVG dice
 AI prompt avatar dispatch, and profile avatar locking.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
 from app.services.agent.agent_avatar_service import (

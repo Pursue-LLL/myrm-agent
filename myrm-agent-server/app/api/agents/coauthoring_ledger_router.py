@@ -1,7 +1,9 @@
 """REST API router for Multi-Human Multi-Agent Live Document Co-Authoring Ledger."""
 
 from typing import Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from app.schemas.coauthoring_ledger import (
     AcceptProposalRequest,
     AcquireLeaseRequest,

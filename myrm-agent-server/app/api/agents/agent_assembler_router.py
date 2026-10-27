@@ -15,7 +15,6 @@ from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
 from app.services.agent.agent_assembler_service import (
-    AgentAssemblerService,
     AssemblyBlueprint,
     CapabilityBlock,
     CapabilityBlockCategory,

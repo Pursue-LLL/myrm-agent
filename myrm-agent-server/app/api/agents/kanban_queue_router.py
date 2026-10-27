@@ -1,7 +1,9 @@
 """REST API router for Persistent Kanban Job Queue and Massive Parallel Dogfooding Runner."""
 
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from app.schemas.kanban_queue import (
     AddCommentRequest,
     BatchRunnerStatusDTO,
