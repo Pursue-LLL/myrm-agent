@@ -31,6 +31,7 @@ import {
 } from '@/lib/directoryBrowseRecent';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 import { previewWorkspaceTrustManifest } from '@/services/workspaceTrust';
 import WorkspaceTrustFolderGate from './WorkspaceTrustFolderGate';
 
@@ -58,6 +59,7 @@ export default function ProjectWorkspaceMount({
   className,
 }: ProjectWorkspaceMountProps) {
   const t = useTranslations('project.workspaceMount');
+  const tIssue = useTranslations('common.workspacePathIssue');
   const [browseOpen, setBrowseOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>(initialPath ?? '');
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
@@ -90,13 +92,14 @@ export default function ProjectWorkspaceMount({
         onBound(bound);
         onOpenChange(false);
         setBrowseOpen(false);
-      } catch {
-        toast({ title: t('invalidPath'), variant: 'destructive' });
+      } catch (error) {
+        const issueKey = workspacePathIssueMessageKey(error);
+        toast({ title: issueKey ? tIssue(issueKey) : t('invalidPath'), variant: 'destructive' });
       } finally {
         setSubmitting(false);
       }
     },
-    [onBound, onOpenChange, projectId, t],
+    [onBound, onOpenChange, projectId, t, tIssue],
   );
 
   const persistWorkspace = useCallback(

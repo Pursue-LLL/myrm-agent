@@ -34,6 +34,7 @@ import {
 import { toast } from '@/hooks/shared/useToast';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 
 function addRecentDir(dir: string): void {
   rememberDirectoryPath(PROJECT_WORKSPACE_RECENT_KEY, dir);
@@ -53,6 +54,7 @@ export default function ProjectWorkspaceAdoptDialog({
   className,
 }: ProjectWorkspaceAdoptDialogProps) {
   const t = useTranslations('project.workspaceMount');
+  const tIssue = useTranslations('common.workspacePathIssue');
   const adoptProject = useProjectStore((s) => s.adoptProject);
   const chatId = useChatStore((s) => s.chatId);
   const setWorkspaceDir = useChatStore((s) => s.setWorkspaceDir);
@@ -158,15 +160,16 @@ export default function ProjectWorkspaceAdoptDialog({
       });
       onOpenChange(false);
     } catch (error) {
+      const issueKey = workspacePathIssueMessageKey(error);
       toast({
         title: t('bindFailed'),
-        description: error instanceof Error ? error.message : String(error),
+        description: issueKey ? tIssue(issueKey) : error instanceof Error ? error.message : String(error),
         variant: 'destructive',
       });
     } finally {
       setSubmitting(false);
     }
-  }, [currentPath, projectName, adoptProject, chatId, setWorkspaceDir, t, onOpenChange]);
+  }, [currentPath, projectName, adoptProject, chatId, setWorkspaceDir, t, tIssue, onOpenChange]);
 
   const filteredEntries = useMemo(() => {
     if (!filterQuery.trim()) {

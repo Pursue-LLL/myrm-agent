@@ -11,6 +11,7 @@ import { browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '
 import { toast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { desktopBridge } from '@/lib/desktopBridge';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 
 const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
@@ -46,6 +47,7 @@ interface WorkspaceDirPickerProps {
 
 export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProps) {
   const t = useTranslations('chat.workspaceDir');
+  const tIssue = useTranslations('common.workspacePathIssue');
   const chatId = useChatStore((s) => s.chatId);
   const actionMode = useChatStore((s) => s.actionMode);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
@@ -123,8 +125,9 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
       }
       toast({ title: dir ? t('updated') : t('cleared') });
       setOpen(false);
-    } catch {
-      toast({ title: t('invalidPath'), variant: 'destructive' });
+    } catch (error) {
+      const issueKey = workspacePathIssueMessageKey(error);
+      toast({ title: issueKey ? tIssue(issueKey) : t('invalidPath'), variant: 'destructive' });
     }
   };
 

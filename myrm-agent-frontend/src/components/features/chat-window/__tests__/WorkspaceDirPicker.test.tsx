@@ -18,6 +18,8 @@ const translations: Record<string, string> = {
   cleared: 'Working directory cleared',
   recent: 'Recent',
   filter: 'Filter directories...',
+  tooBroad: 'This folder is too broad',
+  dangerous: 'This folder cannot be used',
 };
 
 const stableT = (key: string) => translations[key] ?? key;
@@ -53,6 +55,7 @@ vi.mock('@/lib/tauri', () => ({
 }));
 
 import { browseDirectories, updateChatWorkspaceDir } from '@/services/chat';
+import { ApiError } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
 
 function renderPicker() {
@@ -194,6 +197,43 @@ describe('WorkspaceDirPicker', () => {
 
     expect(screen.getByText('dir-3')).toBeInTheDocument();
     expect(screen.queryByText('dir-0')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['too_broad', 'This folder is too broad'],
+    ['dangerous', 'This folder cannot be used'],
+  ])('explains a folder the server refuses as %s and keeps the current directory', async (issue, message) => {
+    vi.mocked(updateChatWorkspaceDir).mockRejectedValue(
+      new ApiError('refused', 40001, [{ field: 'workspace_dir', issue }]),
+    );
+    renderPicker();
+    fireEvent.click(screen.getByTitle('Set a working directory'));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle('Select this directory'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: message, variant: 'destructive' });
+    });
+    expect(mockState.setWorkspaceDir).not.toHaveBeenCalled();
+    expect(localStorage.getItem('myrm.workspaceDirPicker.recent')).toBeNull();
+  });
+
+  it('keeps the generic message for other failures', async () => {
+    vi.mocked(updateChatWorkspaceDir).mockRejectedValue(new Error('network down'));
+    renderPicker();
+    fireEvent.click(screen.getByTitle('Set a working directory'));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle('Select this directory'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: 'Invalid path', variant: 'destructive' });
+    });
   });
 
   it('shows error toast on invalid path', async () => {

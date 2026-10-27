@@ -1974,6 +1974,10 @@
     "unknownError": "Unbekannter Fehler",
     "apiErrorDetails": "Einzelheiten",
     "apiErrorTraceId": "Trace-ID",
+    "workspacePathIssue": {
+      "tooBroad": "Dieser Ordner ist zu umfassend. Wähle stattdessen einen konkreten Projektordner.",
+      "dangerous": "Aus Sicherheitsgründen kann dieser Ordner nicht verwendet werden."
+    },
     "clipboard": {
       "copied": "In die Zwischenablage kopiert",
       "copyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",

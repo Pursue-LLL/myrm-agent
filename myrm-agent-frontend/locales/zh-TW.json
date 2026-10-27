@@ -1974,6 +1974,10 @@
     "unknownError": "未知錯誤",
     "apiErrorDetails": "詳情",
     "apiErrorTraceId": "追蹤 ID",
+    "workspacePathIssue": {
+      "tooBroad": "這個資料夾範圍太大，請選擇具體的專案資料夾",
+      "dangerous": "基於安全考量，無法使用這個資料夾"
+    },
     "clipboard": {
       "copied": "已複製到剪貼簿",
       "copyFailed": "複製失敗，請檢查剪貼簿權限",

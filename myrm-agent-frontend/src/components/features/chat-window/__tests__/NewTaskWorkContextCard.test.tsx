@@ -27,6 +27,7 @@ const translations: Record<string, string> = {
   placeholder: 'Enter path...',
   selectThis: 'Select this directory',
   back: 'Back',
+  tooBroad: 'This folder is too broad',
 };
 
 const stableT = (key: string) => translations[key] ?? key;
@@ -65,7 +66,8 @@ vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => false),
 }));
 
-import { browseDirectories, mkdirInWorkspace } from '@/services/chat';
+import { browseDirectories, mkdirInWorkspace, updateChatWorkspaceDir } from '@/services/chat';
+import { ApiError } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
 
 describe('NewTaskWorkContextCard', () => {
@@ -169,6 +171,39 @@ describe('NewTaskWorkContextCard', () => {
 
     await waitFor(() => {
       expect(mockState.setWorkspaceDir).toHaveBeenCalledWith('/home/user/workspace/project-a');
+    });
+  });
+
+  async function selectBrowsedDirectory(): Promise<void> {
+    render(<NewTaskWorkContextCard />);
+    const bindBtn = screen.getByText('No workspace selected (click to bind)').closest('button');
+    expectNonNull(bindBtn, 'bindBtn');
+    fireEvent.click(bindBtn);
+    await waitFor(() => {
+      expect(screen.getByTitle('Select this directory')).toBeDefined();
+    });
+    fireEvent.click(screen.getByTitle('Select this directory'));
+  }
+
+  it('does not bind a folder the server refuses as too broad', async () => {
+    vi.mocked(updateChatWorkspaceDir).mockRejectedValue(
+      new ApiError('refused', 40001, [{ field: 'workspace_dir', issue: 'too_broad' }]),
+    );
+    await selectBrowsedDirectory();
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: 'This folder is too broad', variant: 'destructive' });
+    });
+    expect(mockState.setWorkspaceDir).not.toHaveBeenCalled();
+    expect(mockState.setActionMode).not.toHaveBeenCalled();
+  });
+
+  it('still binds locally when the chat cannot be updated yet', async () => {
+    vi.mocked(updateChatWorkspaceDir).mockRejectedValue(new Error('chat not created'));
+    await selectBrowsedDirectory();
+
+    await waitFor(() => {
+      expect(mockState.setWorkspaceDir).toHaveBeenCalledWith('/home/user/workspace');
     });
   });
 

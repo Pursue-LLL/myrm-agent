@@ -42,6 +42,7 @@ import useChatStore from '@/store/useChatStore';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 
 export type NewTaskMode = 'local' | 'cloud' | 'chat';
 
@@ -82,6 +83,7 @@ interface NewTaskWorkContextCardProps {
 export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ className }: NewTaskWorkContextCardProps) {
   const t = useTranslations('chat.newTaskCard');
   const tDir = useTranslations('chat.workspaceDir');
+  const tIssue = useTranslations('common.workspacePathIssue');
 
   const chatId = useChatStore((s) => s.chatId);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
@@ -171,14 +173,20 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
   // Apply selected directory to chat store and backend
   const applyDirectory = useCallback(
     async (dir: string | null) => {
-      setWorkspaceDir(dir);
       if (chatId) {
         try {
           await updateChatWorkspaceDir(chatId, dir);
-        } catch {
-          // Non-blocking for offline or pre-chat states
+        } catch (error) {
+          // A folder the server refuses must not look bound; other failures (offline, chat not created yet)
+          // stay non-blocking.
+          const issueKey = workspacePathIssueMessageKey(error);
+          if (issueKey) {
+            toast({ title: tIssue(issueKey), variant: 'destructive' });
+            return;
+          }
         }
       }
+      setWorkspaceDir(dir);
       if (dir) {
         addRecentDir(dir);
         setActionMode('agent');
@@ -189,7 +197,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       }
       setPickerOpen(false);
     },
-    [chatId, setActionMode, setSandboxMode, setWorkspaceDir, tDir],
+    [chatId, setActionMode, setSandboxMode, setWorkspaceDir, tDir, tIssue],
   );
 
   // Native OS dialog picker for Tauri desktop

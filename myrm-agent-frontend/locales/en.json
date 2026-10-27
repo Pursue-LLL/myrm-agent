@@ -1974,6 +1974,10 @@
     "unknownError": "Unknown error",
     "apiErrorDetails": "Details",
     "apiErrorTraceId": "Trace ID",
+    "workspacePathIssue": {
+      "tooBroad": "This folder is too broad. Choose a specific project folder instead.",
+      "dangerous": "This folder can't be used for security reasons."
+    },
     "clipboard": {
       "copied": "Copied to clipboard",
       "copyFailed": "Copy failed. Check clipboard permissions.",

@@ -1974,6 +1974,10 @@
     "unknownError": "不明なエラー",
     "apiErrorDetails": "詳細",
     "apiErrorTraceId": "トレースID",
+    "workspacePathIssue": {
+      "tooBroad": "このフォルダは範囲が広すぎます。具体的なプロジェクトフォルダを選んでください。",
+      "dangerous": "セキュリティ上の理由により、このフォルダは使用できません。"
+    },
     "clipboard": {
       "copied": "クリップボードにコピーしました",
       "copyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",

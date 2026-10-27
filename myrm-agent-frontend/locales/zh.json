@@ -1974,6 +1974,10 @@
     "unknownError": "未知错误",
     "apiErrorDetails": "详情",
     "apiErrorTraceId": "追踪 ID",
+    "workspacePathIssue": {
+      "tooBroad": "这个文件夹范围太大，请选择具体的项目文件夹",
+      "dangerous": "出于安全考虑，不能使用这个文件夹"
+    },
     "clipboard": {
       "copied": "已复制到剪贴板",
       "copyFailed": "复制失败，请检查剪贴板权限",
