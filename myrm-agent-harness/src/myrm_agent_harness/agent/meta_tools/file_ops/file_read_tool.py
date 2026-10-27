@@ -6,11 +6,9 @@
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
 - core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
+- core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, is_url (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
-- file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill 路径拦截)
 - core.security.path::is_blocked_device_path (POS: Pre-IO 设备路径安全阻断)
-- context_management.infra.evicted::normalize_delivery_chat_id (POS: UECD 会话 id 归一化，读写侧对称)
-- agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: 长文本落盘目录，与写入方同源)
 - utils.vault_read::is_vault_uri, path_base, read_vault_paths_to_parts (POS: vault:// URI 读取)
 - mcp_read_next_step_hint::append_mcp_docs_next_step_hint (POS: MCP 函数文档批量读取后的下一步操作提示)
 - utils.*_reader (POS: 多模态与文档读取)
@@ -23,7 +21,7 @@
 [POS]
 File read tool factory and orchestration. Supports full workspace reads or Fast-track
 evicted_uploaded scope (UECD spill, spilled long pastes and chat uploads only). Heavy read
-logic lives in core/file_read/.
+logic and the read-scope guards live in core/file_read/.
 """
 
 from __future__ import annotations
@@ -31,7 +29,6 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from langchain.tools import tool
@@ -39,12 +36,8 @@ from langchain_core.messages.content import create_text_block
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from myrm_agent_harness.agent.context_management.context import (
     extract_context_from_runnable_config,
-)
-from myrm_agent_harness.agent.context_management.infra.evicted.content import (
-    normalize_delivery_chat_id,
 )
 from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executor
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
@@ -52,20 +45,19 @@ from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     format_path_not_found_hint,
     suggest_similar_paths,
 )
-from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
-    get_disabled_skill_roots,
-    is_under_disabled_skill_root,
-)
 from myrm_agent_harness.agent.security.path_security import is_blocked_device_path
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
-from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
+from myrm_agent_harness.core.context_vars import workspace_root_var
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, get_executor
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
 from .core.file_read import (
     append_media_text_parts,
+    assert_evicted_uploaded_read_scope,
+    assert_paths_allowed_for_read,
     build_multimodal_result,
+    is_url,
     process_text_paths,
 )
 from .core.mcp_read_next_step_hint import append_mcp_docs_next_step_hint
@@ -82,102 +74,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_URL_SCHEMES = ("http://", "https://", "ftp://", "ftps://")
-
 FileReadPathPolicy = Literal["full", "evicted_uploaded"]
-
-
-def _is_url(path: str) -> bool:
-    return path.lower().startswith(_URL_SCHEMES)
-
-
-def _normalize_path_hint(raw_path: str) -> str:
-    normalized = raw_path.replace("\\", "/")
-    while normalized.startswith("./"):
-        normalized = normalized[2:]
-    return normalized
-
-
-def _evicted_uploaded_scopes(chat_id: str) -> tuple[str, ...]:
-    """Workspace-relative directories the Fast track may read: UECD spill, chat uploads, spilled long pastes."""
-    return (f".context/{chat_id}/evicted", "_uploaded", KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR)
-
-
-def _path_hint_allowed_for_evicted_uploaded(raw_path: str, chat_id: str) -> bool:
-    normalized = _normalize_path_hint(raw_path)
-    # A ``..`` segment can leave a scope after its prefix matched: such a path is judged by where it resolves.
-    if ".." in normalized.split("/"):
-        return False
-    return any(normalized == scope or normalized.startswith(f"{scope}/") for scope in _evicted_uploaded_scopes(chat_id))
-
-
-async def _assert_evicted_uploaded_read_scope(
-    paths: list[str],
-    *,
-    chat_id: str,
-    executor: object | None,
-) -> None:
-    """Restrict reads to UECD spill files, spilled long pastes and chat uploads (Fast / search track)."""
-    # Persist side normalizes chat_<id> session keys to <id> (infra/evicted/content.py);
-    # mirror it here so saved paths match the read scope check.
-    session_chat_id = normalize_delivery_chat_id(chat_id.strip() or chat_id_var.get().strip())
-    if not session_chat_id:
-        raise ToolError(
-            message="file_read_tool blocked: missing chat_id for evicted-read scope",
-            user_hint="Cannot read evicted output without an active chat session.",
-        )
-    workspace_root = workspace_root_var.get().strip()
-    resolve_path = getattr(executor, "resolve_path", None) if executor else None
-    scopes = _evicted_uploaded_scopes(session_chat_id)
-    hint = f"Fast search mode only allows reading spill, pasted-text and upload files under: {', '.join(scopes)}."
-    for raw in paths:
-        if is_vault_uri(raw):
-            continue
-        if _path_hint_allowed_for_evicted_uploaded(raw, session_chat_id):
-            continue
-        if not workspace_root or resolve_path is None:
-            raise ToolError(
-                message=f"file_read_tool blocked: {raw}",
-                user_hint=hint,
-            )
-        base = path_base(raw)
-        try:
-            resolved = await resolve_path(base)
-        except ValueError:
-            resolved = base
-        resolved_path = Path(str(resolved)).resolve()
-        allowed_roots = [(Path(workspace_root) / scope).resolve() for scope in scopes]
-        if not any(resolved_path == root or root in resolved_path.parents for root in allowed_roots):
-            raise ToolError(
-                message=f"file_read_tool blocked: {raw}",
-                user_hint=f"{hint} Switch to Agent mode for full workspace file access.",
-            )
-
-
-async def _assert_paths_allowed_for_read(
-    paths: list[str],
-    config: RunnableConfig,
-    executor: object | None,
-) -> None:
-    disabled_roots = get_disabled_skill_roots(config)
-    if not disabled_roots or executor is None:
-        return
-    resolve_path = getattr(executor, "resolve_path", None)
-    if resolve_path is None:
-        return
-    for raw in paths:
-        if is_vault_uri(raw) or _is_url(raw):
-            continue
-        base = path_base(raw)
-        try:
-            resolved = await resolve_path(base)
-        except ValueError:
-            resolved = base
-        if is_under_disabled_skill_root(str(resolved), disabled_roots):
-            raise ToolError(
-                message=f"Path blocked: {raw}",
-                user_hint="This path belongs to a disabled skill and cannot be read.",
-            )
 
 
 class FileReadInput(BaseModel):
@@ -339,8 +236,8 @@ def create_file_read_tool(
                         user_hint="Access to device paths and reserved system devices is forbidden.",
                     )
 
-            url_paths = [p for p in paths if _is_url(p)]
-            valid_paths = [p for p in paths if not _is_url(p)]
+            url_paths = [p for p in paths if is_url(p)]
+            valid_paths = [p for p in paths if not is_url(p)]
 
             url_errors: list[str] = []
             if url_paths:
@@ -377,10 +274,10 @@ def create_file_read_tool(
                 executor: CodeExecutor | None = ensure_executor(config)
             except RuntimeError:
                 executor = get_executor()
-            await _assert_paths_allowed_for_read(valid_paths, config, executor)
+            await assert_paths_allowed_for_read(valid_paths, config, executor)
             if path_policy == "evicted_uploaded":
                 chat_id = str(ctx.get("chat_id") or "")
-                await _assert_evicted_uploaded_read_scope(valid_paths, chat_id=chat_id, executor=executor)
+                await assert_evicted_uploaded_read_scope(valid_paths, chat_id=chat_id, executor=executor)
             supports_vision = bool(ctx.get("supports_vision", False))
             supports_video = bool(ctx.get("supports_video", False))
             vision_fallback_model_cfg = ctx.get("vision_fallback_model_cfg")

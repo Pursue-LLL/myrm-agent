@@ -7,14 +7,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
-    FileReadInput,
-    _assert_evicted_uploaded_read_scope,
-    _assert_paths_allowed_for_read,
-    _normalize_path_hint,
-    _path_hint_allowed_for_evicted_uploaded,
-    create_file_read_tool,
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope import (
+    assert_evicted_uploaded_read_scope,
+    assert_paths_allowed_for_read,
+    normalize_path_hint,
+    path_hint_allowed_for_evicted_uploaded,
 )
+from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import FileReadInput, create_file_read_tool
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from myrm_agent_harness.utils.errors import ToolError
 
@@ -24,24 +23,20 @@ _DUMMY_CONFIG = RunnableConfig()
 def test_normalize_path_hint_strips_leading_dot_slash() -> None:
     chat_id = "chat-norm"
     raw = f"./.context/{chat_id}/evicted/web_fetch_ab12cd34.md"
-    assert (
-        _normalize_path_hint(raw) == f".context/{chat_id}/evicted/web_fetch_ab12cd34.md"
-    )
-    assert _path_hint_allowed_for_evicted_uploaded(raw, chat_id)
+    assert normalize_path_hint(raw) == f".context/{chat_id}/evicted/web_fetch_ab12cd34.md"
+    assert path_hint_allowed_for_evicted_uploaded(raw, chat_id)
 
 
 def test_path_hint_allows_evicted_and_uploaded() -> None:
     chat_id = "chat-1"
-    assert _path_hint_allowed_for_evicted_uploaded(
-        f".context/{chat_id}/evicted/web_fetch_ab12cd34.md", chat_id
-    )
-    assert _path_hint_allowed_for_evicted_uploaded("_uploaded/report.pdf", chat_id)
-    assert _path_hint_allowed_for_evicted_uploaded("_uploaded", chat_id)
+    assert path_hint_allowed_for_evicted_uploaded(f".context/{chat_id}/evicted/web_fetch_ab12cd34.md", chat_id)
+    assert path_hint_allowed_for_evicted_uploaded("_uploaded/report.pdf", chat_id)
+    assert path_hint_allowed_for_evicted_uploaded("_uploaded", chat_id)
 
 
 def test_path_hint_blocks_workspace_source() -> None:
-    assert not _path_hint_allowed_for_evicted_uploaded("src/main.py", "chat-1")
-    assert not _path_hint_allowed_for_evicted_uploaded("evil/_uploaded/x.txt", "chat-1")
+    assert not path_hint_allowed_for_evicted_uploaded("src/main.py", "chat-1")
+    assert not path_hint_allowed_for_evicted_uploaded("evil/_uploaded/x.txt", "chat-1")
 
 
 @pytest.mark.asyncio
@@ -62,9 +57,7 @@ async def test_scope_blocks_workspace_file(tmp_path) -> None:
                 return str(workspace / path)
 
         with pytest.raises(ToolError, match="blocked"):
-            await _assert_evicted_uploaded_read_scope(
-                ["secret.txt"], chat_id=chat_id, executor=_Executor()
-            )
+            await assert_evicted_uploaded_read_scope(["secret.txt"], chat_id=chat_id, executor=_Executor())
     finally:
         workspace_root_var.reset(token_ws)
         chat_id_var.reset(token_chat)
@@ -88,9 +81,7 @@ async def test_scope_allows_evicted_file(tmp_path) -> None:
             async def resolve_path(self, path: str) -> str:
                 return str(workspace / path)
 
-        await _assert_evicted_uploaded_read_scope(
-            [rel], chat_id=chat_id, executor=_Executor()
-        )
+        await assert_evicted_uploaded_read_scope([rel], chat_id=chat_id, executor=_Executor())
     finally:
         workspace_root_var.reset(token_ws)
         chat_id_var.reset(token_chat)
@@ -101,7 +92,7 @@ async def test_scope_missing_chat_id_raises() -> None:
     token_chat = chat_id_var.set("")
     try:
         with pytest.raises(ToolError, match="missing chat_id"):
-            await _assert_evicted_uploaded_read_scope(
+            await assert_evicted_uploaded_read_scope(
                 [".context/x/evicted/a.md"],
                 chat_id="",
                 executor=None,
@@ -112,7 +103,7 @@ async def test_scope_missing_chat_id_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_scope_allows_vault_uri_without_workspace() -> None:
-    await _assert_evicted_uploaded_read_scope(
+    await assert_evicted_uploaded_read_scope(
         ["vault://artifact-uuid-1"],
         chat_id="chat-vault",
         executor=None,
@@ -122,7 +113,7 @@ async def test_scope_allows_vault_uri_without_workspace() -> None:
 @pytest.mark.asyncio
 async def test_scope_blocks_when_no_workspace_and_path_not_hint_allowed() -> None:
     with pytest.raises(ToolError, match="blocked"):
-        await _assert_evicted_uploaded_read_scope(
+        await assert_evicted_uploaded_read_scope(
             ["reports/summary.md"],
             chat_id="chat-no-ws",
             executor=None,
@@ -147,7 +138,7 @@ async def test_scope_blocks_resolved_path_outside_allowed_roots(tmp_path) -> Non
                 return str(outside)
 
         with pytest.raises(ToolError, match="blocked"):
-            await _assert_evicted_uploaded_read_scope(
+            await assert_evicted_uploaded_read_scope(
                 ["outside.txt"],
                 chat_id=chat_id,
                 executor=_Executor(),
@@ -175,7 +166,7 @@ async def test_scope_uses_base_when_resolve_path_raises_value_error(tmp_path) ->
             async def resolve_path(self, path: str) -> str:
                 raise ValueError("bad path")
 
-        await _assert_evicted_uploaded_read_scope(
+        await assert_evicted_uploaded_read_scope(
             [rel],
             chat_id=chat_id,
             executor=_Executor(),
@@ -200,7 +191,7 @@ async def test_scope_resolve_value_error_falls_back_to_base(tmp_path) -> None:
                 raise ValueError("ambiguous")
 
         with pytest.raises(ToolError, match="blocked"):
-            await _assert_evicted_uploaded_read_scope(
+            await assert_evicted_uploaded_read_scope(
                 ["web_fetch_ab12cd34.md"],
                 chat_id=chat_id,
                 executor=_Executor(),
@@ -253,9 +244,7 @@ async def test_scope_allows_evicted_file_with_chat_prefix_chat_id(tmp_path) -> N
             async def resolve_path(self, path: str) -> str:
                 return str(workspace / path)
 
-        await _assert_evicted_uploaded_read_scope(
-            [rel], chat_id=chat_id, executor=_Executor()
-        )
+        await assert_evicted_uploaded_read_scope([rel], chat_id=chat_id, executor=_Executor())
     finally:
         workspace_root_var.reset(token_ws)
         chat_id_var.reset(token_chat)
@@ -333,16 +322,16 @@ async def test_assert_paths_allowed_for_read_blocks_disabled_skill() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.get_disabled_skill_roots",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope.get_disabled_skill_roots",
             return_value=["/disabled-root"],
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.is_under_disabled_skill_root",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope.is_under_disabled_skill_root",
             return_value=True,
         ),
         pytest.raises(ToolError, match="Path blocked"),
     ):
-        await _assert_paths_allowed_for_read(
+        await assert_paths_allowed_for_read(
             ["skill/readme.md"],
             _DUMMY_CONFIG,
             _Executor(),
@@ -388,7 +377,7 @@ async def test_file_read_preserve_in_context_wraps_output(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_assert_paths_allowed_for_read_skips_without_resolve_path() -> None:
-    await _assert_paths_allowed_for_read(["file.md"], _DUMMY_CONFIG, object())
+    await assert_paths_allowed_for_read(["file.md"], _DUMMY_CONFIG, object())
 
 
 @pytest.mark.asyncio
@@ -399,15 +388,15 @@ async def test_assert_paths_allowed_for_read_resolve_value_error_continues() -> 
 
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.get_disabled_skill_roots",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope.get_disabled_skill_roots",
             return_value=["/skills"],
         ),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.is_under_disabled_skill_root",
+            "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope.is_under_disabled_skill_root",
             return_value=False,
         ),
     ):
-        await _assert_paths_allowed_for_read(
+        await assert_paths_allowed_for_read(
             ["file.md"],
             _DUMMY_CONFIG,
             _Executor(),

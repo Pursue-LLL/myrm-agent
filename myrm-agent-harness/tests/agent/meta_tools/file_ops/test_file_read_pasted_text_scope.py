@@ -14,11 +14,11 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, ContextGuardConfig, SpilloverEngine
-from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
-    _assert_evicted_uploaded_read_scope,
-    _path_hint_allowed_for_evicted_uploaded,
-    create_file_read_tool,
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.scope import (
+    assert_evicted_uploaded_read_scope,
+    path_hint_allowed_for_evicted_uploaded,
 )
+from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import create_file_read_tool
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from myrm_agent_harness.toolkits.code_execution import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
@@ -39,7 +39,7 @@ _CHAT_ID = "chat-paste"
     ],
 )
 def test_the_directories_the_context_guard_writes_are_readable(path: str) -> None:
-    assert _path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
+    assert path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
 
 
 @pytest.mark.parametrize(
@@ -55,7 +55,7 @@ def test_the_directories_the_context_guard_writes_are_readable(path: str) -> Non
     ],
 )
 def test_a_lookalike_or_neighbouring_directory_stays_closed(path: str) -> None:
-    assert not _path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
+    assert not path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
 
 
 @pytest.mark.parametrize(
@@ -67,7 +67,7 @@ def test_a_lookalike_or_neighbouring_directory_stays_closed(path: str) -> None:
     ],
 )
 def test_a_parent_segment_is_never_trusted_by_its_prefix(path: str) -> None:
-    assert not _path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
+    assert not path_hint_allowed_for_evicted_uploaded(path, _CHAT_ID)
 
 
 class _Executor:
@@ -86,7 +86,7 @@ async def test_a_path_that_climbs_out_of_the_scope_is_judged_by_where_it_resolve
     token_ws = workspace_root_var.set(str(workspace))
     try:
         with pytest.raises(ToolError, match="blocked"):
-            await _assert_evicted_uploaded_read_scope(
+            await assert_evicted_uploaded_read_scope(
                 [".myrm/pastes/../../secret.txt"], chat_id=_CHAT_ID, executor=_Executor(workspace)
             )
     finally:
@@ -106,7 +106,7 @@ async def test_the_absolute_path_of_a_pasted_file_is_readable(tmp_path: Path) ->
             async def resolve_path(self, path: str) -> str:
                 return path
 
-        await _assert_evicted_uploaded_read_scope([str(paste)], chat_id=_CHAT_ID, executor=_Absolute(workspace))
+        await assert_evicted_uploaded_read_scope([str(paste)], chat_id=_CHAT_ID, executor=_Absolute(workspace))
     finally:
         workspace_root_var.reset(token_ws)
 
