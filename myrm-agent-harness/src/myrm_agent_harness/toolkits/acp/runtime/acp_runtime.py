@@ -4,7 +4,7 @@ Spawns an external ACP-compatible agent process (Claude Code, Codex CLI, etc.)
 and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 
 [INPUT]
-- toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, BackendStatus, McpServerConfig (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
+- toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, BackendStatus, McpServerConfig, images_not_sent_event (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer. Provides decoupled event dispatch mechanism for the Runtime system with session isolation and type filtering.)
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations.)
 - toolkits.acp.runtime.acp_callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
@@ -21,7 +21,8 @@ A silent agent (one long tool call) is reported as still working at a fixed inte
 missing ACP SDK (the optional ``acp`` extra) ends the turn with a ``BACKEND_NOT_FOUND`` error that says how to install it.
 
 The images of a turn travel as image content blocks after the text, only to an agent that advertised
-``promptCapabilities.image`` in ``initialize``. A prompt with images is one request of several MiB, so an agent that
+``promptCapabilities.image`` in ``initialize``; for any other agent the turn opens with an ``images_not_sent`` status
+update and carries the text alone. A prompt with images is one request of several MiB, so an agent that
 has stopped reading its stdin leaves it half written and the SDK queues ``session/cancel`` and its own shutdown behind
 it: cancel and transport exit are bounded, and the agent process is ended when it does not let go in time.
 """
@@ -55,6 +56,7 @@ from myrm_agent_harness.toolkits.acp.types import (
     RuntimeEvent,
     RuntimeEventType,
     create_event,
+    images_not_sent_event,
 )
 
 if TYPE_CHECKING:
@@ -169,7 +171,16 @@ class AcpRuntime(BaseRuntime):
             raise RuntimeError(msg)
         handler.reset()
 
-        blocks = await self._image_blocks(images) if images else []
+        blocks: list[ImageBlock] = []
+        if images and self._prompt_images:
+            blocks = await asyncio.to_thread(load_image_blocks, images)
+        elif images:
+            logger.info(
+                "acp_runtime_images_skipped backend=%s images=%d reason=agent_without_image_prompt",
+                self._name,
+                len(images),
+            )
+            yield images_not_sent_event(session_id, len(images))
         prompt_task = asyncio.create_task(self._run_prompt(prompt, blocks, handler))
 
         try:
@@ -188,17 +199,6 @@ class AcpRuntime(BaseRuntime):
                 # BaseRuntime cleans up the process, matching CliRuntime
                 # behavior instead of degrading to a silent DONE.
                 raise
-
-    async def _image_blocks(self, images: list[str]) -> list[ImageBlock]:
-        """The blocks of this turn's images; none when the agent did not advertise image prompts."""
-        if not self._prompt_images:
-            logger.info(
-                "acp_runtime_images_skipped backend=%s images=%d reason=agent_without_image_prompt",
-                self._name,
-                len(images),
-            )
-            return []
-        return await asyncio.to_thread(load_image_blocks, images)
 
     async def _run_prompt(self, prompt: str, blocks: list[ImageBlock], handler: AcpCallbackHandler) -> None:
         """Run the ACP prompt (the text, then its images) and signal completion via the handler's queue."""

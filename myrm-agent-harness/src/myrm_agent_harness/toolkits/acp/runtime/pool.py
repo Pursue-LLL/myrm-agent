@@ -12,7 +12,7 @@ resident ACP processes of an idle pool while CLI backends keep their resume stat
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer)
-- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent, CliSessionStore (POS: ACP runtime type definitions)
+- myrm_agent_harness.toolkits.acp.types::RuntimeBackend, RuntimeConfig, RuntimeEvent, CliSessionStore, images_not_sent_event (POS: ACP runtime type definitions)
 - myrm_agent_harness.toolkits.acp.runtime.*::AcpRuntime, CliRuntime (POS: runtime backend implementations)
 
 [OUTPUT]
@@ -39,6 +39,7 @@ from myrm_agent_harness.toolkits.acp.types import (
     RuntimeConfig,
     RuntimeEvent,
     RuntimeEventType,
+    images_not_sent_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -180,8 +181,9 @@ class RuntimePool:
         A ``oneshot`` turn runs on a private backend that is closed when the turn ends: it always
         starts a fresh session and never touches the persistent backend's session or process.
 
-        ``images`` are local image files for this turn; only a backend that declares ``supports_images`` gets them
-        (the others are told nothing, so a host keeps the file path in its prompt as the fallback).
+        ``images`` are local image files for this turn; only a backend that declares ``supports_images`` gets them.
+        For the others the turn opens with an ``images_not_sent`` status update, and a host keeps the file path in its
+        prompt as the fallback.
         """
         if mode not in {"persistent", "oneshot"}:
             msg = f"Invalid mode: {mode}"
@@ -205,6 +207,7 @@ class RuntimePool:
                     len(effective_mcp),
                 )
                 effective_mcp = None
+            images_withheld = 0
             if images and not backend.capabilities.supports_images:
                 logger.info(
                     "pool_images_skipped backend=%s type=%s images=%d reason=unsupported",
@@ -212,6 +215,7 @@ class RuntimePool:
                     type(backend).__name__,
                     len(images),
                 )
+                images_withheld = len(images)
                 images = None
             # Serialize turns per backend: a backend instance (e.g. CliRuntime)
             # holds mutable per-turn state (active process handle) that cannot
@@ -224,6 +228,11 @@ class RuntimePool:
                     async with aclosing(
                         backend.run_turn(prompt, session_id, mcp_servers=effective_mcp or None, images=images or None)
                     ) as events:
+                        if images_withheld:
+                            notice = images_not_sent_event(session_id, images_withheld)
+                            if self._event_bus is not None:
+                                await self._event_bus.emit(notice)
+                            yield notice
                         async for event in events:
                             if self._event_bus is not None:
                                 await self._event_bus.emit(event)

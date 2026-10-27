@@ -10,7 +10,13 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from myrm_agent_harness.api import AgentEventType
-from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, ContinuityStatus, RuntimeEvent, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import (
+    IMAGES_NOT_SENT_STATUS,
+    AcpErrorCode,
+    ContinuityStatus,
+    RuntimeEvent,
+    RuntimeEventType,
+)
 from myrm_agent_harness.utils import CancellationToken
 
 from app.services.external_agents.delegation.stream import stream_direct_delegate
@@ -42,6 +48,23 @@ async def test_a_continuity_status_becomes_a_title_only_notice(continuity: Conti
         "status": "completed",
         "data": [],
     }
+
+
+async def test_images_that_were_not_handed_to_the_agent_become_a_title_only_notice() -> None:
+    pool = ScriptedPool(playing(scripted_event(RuntimeEventType.STATUS_UPDATE, status=IMAGES_NOT_SENT_STATUS, images=2)))
+
+    events = await stream_turn(pool)
+
+    (notice,) = steps_of(events, "delegation_claude_images_not_sent")
+    assert notice == {
+        "type": STEPS,
+        "step_key": "delegation_claude_images_not_sent",
+        "tool_name": "delegate:claude",
+        "status": "completed",
+        "data": [],
+    }
+    # Only the opening and closing lines of the status step: the notice is not one more update of it.
+    assert len(steps_of(events, "delegation_claude_status")) == 2
 
 
 async def test_a_status_update_shows_only_what_the_cli_itself_said() -> None:

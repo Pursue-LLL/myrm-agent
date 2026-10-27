@@ -12,7 +12,7 @@
 [POS]
 绕过 LangChain Agent 的外部 Agent 直连路由的事件翻译层。每次外部工具调用是一个带 tool_call_id 的独立步骤
 （开始与结果落在同一步）。状态步骤的措辞由前端按当前语言给出，这里只带 CLI 自己给的内容（已运行时长、CLI 的
-警告原文）；会话没有被续接、回合停在轮数上限，都是只有标题的已完成步骤。停止（令牌取消）经 pool.cancel
+警告原文）；会话没有被续接、图片没有直接交给外部 Agent、回合停在轮数上限，都是只有标题的已完成步骤。停止（令牌取消）经 pool.cancel
 终止外部进程，外部 Agent 静默时同样即时生效。失败时：用户能自己处置的（未登录、未安装、超时）给带处置步骤的
 错误事件（API Key 被拒时点名该 Agent 读取的环境变量），CLI 的原话改记 WARNING 日志（脱敏并截断）；其余保持 CLI 的原话。
 """
@@ -26,7 +26,13 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from myrm_agent_harness.api import AgentEventType, on_token_cancelled, redact_sensitive_text
 from myrm_agent_harness.toolkits.acp.auth import profile_for
-from myrm_agent_harness.toolkits.acp.types import AcpError, AcpErrorCode, ContinuityStatus, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import (
+    IMAGES_NOT_SENT_STATUS,
+    AcpError,
+    AcpErrorCode,
+    ContinuityStatus,
+    RuntimeEventType,
+)
 
 from app.services.external_agents.delegation.errors import delegate_error_event
 
@@ -187,6 +193,8 @@ class _TurnTranslator:
         continuity = ContinuityStatus.of(status)
         if continuity is not None:
             return self._notice(continuity)
+        if status == IMAGES_NOT_SENT_STATUS:
+            return self._notice(status)
         message = data.get("message")
         if status in _STATUSES_WITH_BODY and isinstance(message, str):
             return self._status_step(message)

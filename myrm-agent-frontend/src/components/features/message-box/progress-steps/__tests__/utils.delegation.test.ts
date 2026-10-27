@@ -22,6 +22,7 @@ describe('getStepTitle delegation steps', () => {
   it.each([
     ['delegation_claude_session_expired', 'delegation_session_expired|claude'],
     ['delegation_claude_session_workspace_changed', 'delegation_session_workspace_changed|claude'],
+    ['delegation_claude_images_not_sent', 'delegation_images_not_sent|claude'],
     ['delegation_claude_turn_limit', 'delegation_turn_limit|claude'],
   ])('words the title-only notice %s from its step key alone', (stepKey, title) => {
     expect(getStepTitle(delegationStep(stepKey, { items: [] }), t)).toBe(title);
@@ -35,6 +36,9 @@ describe('getStepTitle delegation steps', () => {
     );
     expect(getStepTitle(delegationStep('delegation_code_review_turn_limit'), t)).toBe(
       'delegation_turn_limit|code_review',
+    );
+    expect(getStepTitle(delegationStep('delegation_my_status_images_not_sent'), t)).toBe(
+      'delegation_images_not_sent|my_status',
     );
   });
 

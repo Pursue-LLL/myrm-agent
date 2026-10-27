@@ -9,7 +9,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 | 文件                           | 地位 | 职责                                                                                     | I/O/P                          |
 | ------------------------------ | ---- | ---------------------------------------------------------------------------------------- | ------------------------------ |
 | `ProgressSteps.tsx`            | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位）；撤销提示卡发出的展开事件在撤销入口落在被折叠的中段时一并展开中段 | ✅                             |
-| `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）；外部 agent 委派步骤 `delegation_<agent>_<status\|tool\|session_expired\|session_workspace_changed>`：状态行与「上一轮对话未能延续」提示由 step_key 本地化，单次工具调用以自身文本行作标题（`isDelegationToolLine` 让 `ProgressSteps` 不再把同一行再渲染一遍） | ✅                             |
+| `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）；外部 agent 委派步骤 `delegation_<agent>_<status\|tool\|session_expired\|session_workspace_changed\|images_not_sent\|turn_limit>`：状态行与「上一轮对话未能延续」「图片没有直接交给该 agent」「已达回合上限」提示由 step_key 本地化，单次工具调用以自身文本行作标题（`isDelegationToolLine` 让 `ProgressSteps` 不再把同一行再渲染一遍） | ✅                             |
 | `treeUtils.ts`                 | 辅助 | progressSteps 树构建；`foldRoots` 是折叠规则 SSOT（顶层步骤超过 8 个时保留前 2 个与后 3 个，中段折叠；渲染与展开事件共用） | ✅                             |
 | `toolIcons.tsx`                | 辅助 | 步骤图标与 agent 主题色                                                                  | ✅                             |
 | `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作                                                                         | ✅                             |

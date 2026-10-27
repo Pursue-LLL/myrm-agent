@@ -14,6 +14,7 @@ no - Base type definition module
 - RuntimeEvent: Runtime Event type
 - AcpErrorCode: ACP error enum
 - ContinuityStatus: status_update statuses for a CLI conversation that could not be continued
+- IMAGES_NOT_SENT_STATUS, images_not_sent_event: the status_update telling that a turn's images were not handed to the agent
 - RuntimeConfig: Runtime configuration
 - CliSessionRecord: a CLI-native session id bound to the working directory that created it
 - CliSessionStore: protocol a host implements to keep CLI session records across process restarts
@@ -80,6 +81,10 @@ class ContinuityStatus(StrEnum):
         except ValueError:
             return None
 
+
+# The ``status_update`` status of a turn whose images were not handed to the agent (its backend or the agent itself
+# takes none); the agent still has the image's location in the prompt.
+IMAGES_NOT_SENT_STATUS = "images_not_sent"
 
 PermissionMode = Literal["safe", "ask", "allow_all", "bypass"]
 
@@ -307,6 +312,11 @@ def create_event(
 ) -> RuntimeEvent:
     """Convenience factory for creating RuntimeEvent instances."""
     return RuntimeEvent(type=event_type, data=data, session_id=session_id)
+
+
+def images_not_sent_event(session_id: str, images: int) -> RuntimeEvent:
+    """The notice that the ``images`` image files of a turn were not handed to the agent."""
+    return create_event(RuntimeEventType.STATUS_UPDATE, session_id, status=IMAGES_NOT_SENT_STATUS, images=images)
 
 
 def create_permission_request(

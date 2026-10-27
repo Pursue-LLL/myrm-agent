@@ -64,12 +64,15 @@ describe('ProgressSteps delegated external agent steps', () => {
     expect(screen.queryByText(/claude:/)).not.toBeInTheDocument();
   });
 
-  it.each(['session_expired', 'turn_limit'])('renders the %s notice as a title-only step', async (kind) => {
-    await open([
-      { step_key: `delegation_claude_${kind}`, tool_name: 'delegate:claude', items: [], status: 'complete' },
-    ]);
-    expect(screen.getByText(`delegation_${kind}`)).toBeInTheDocument();
-  });
+  it.each(['session_expired', 'images_not_sent', 'turn_limit'])(
+    'renders the %s notice as a title-only step',
+    async (kind) => {
+      await open([
+        { step_key: `delegation_claude_${kind}`, tool_name: 'delegate:claude', items: [], status: 'complete' },
+      ]);
+      expect(screen.getByText(`delegation_${kind}`)).toBeInTheDocument();
+    },
+  );
 
   it('still shows the error of a failed delegated tool call', async () => {
     await open([toolStep({ status: 'error', error: 'Permission denied' })]);

@@ -17,7 +17,7 @@ import pytest
 from myrm_agent_harness.toolkits.acp.runtime import acp_runtime
 from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
 from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
-from myrm_agent_harness.toolkits.acp.types import RuntimeConfig, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import IMAGES_NOT_SENT_STATUS, RuntimeConfig, RuntimeEvent, RuntimeEventType
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the stalled agent is ended with a POSIX signal")
 
@@ -57,14 +57,22 @@ def _pool(cwd: Path, *agent_args: str) -> RuntimePool:
     return pool
 
 
-async def _turn(pool: RuntimePool, images: list[str]) -> tuple[str, list[RuntimeEventType]]:
+async def _turn(pool: RuntimePool, images: list[str]) -> tuple[str, list[RuntimeEvent]]:
     text: list[str] = []
-    kinds: list[RuntimeEventType] = []
+    events: list[RuntimeEvent] = []
     async for event in pool.run_turn("mock", "look at this", session_id="chat-1", images=images):
-        kinds.append(event.type)
+        events.append(event)
         if event.type == RuntimeEventType.TEXT_DELTA:
             text.append(str(event.data.get("content")))
-    return "".join(text), kinds
+    return "".join(text), events
+
+
+def _not_sent_notices(events: list[RuntimeEvent]) -> list[RuntimeEvent]:
+    return [
+        event
+        for event in events
+        if event.type == RuntimeEventType.STATUS_UPDATE and event.data.get("status") == IMAGES_NOT_SENT_STATUS
+    ]
 
 
 class TestImagePrompts:
@@ -74,50 +82,56 @@ class TestImagePrompts:
         second, second_body = _png(tmp_path, "b.png", 9_000)
         pool = _pool(tmp_path, "--images")
         try:
-            text, _ = await _turn(pool, [str(first), str(second)])
+            text, events = await _turn(pool, [str(first), str(second)])
         finally:
             await pool.close_all()
 
         assert "[echo] look at this" in text
         assert f"[images] {_digest(first_body)} {_digest(second_body)}" in text
+        assert _not_sent_notices(events) == []
 
     @pytest.mark.asyncio
     async def test_an_image_of_the_largest_size_the_server_stages_arrives_whole(self, tmp_path: Path) -> None:
         image, body = _png(tmp_path, "big.png", 5 * 1024 * 1024)
         pool = _pool(tmp_path, "--images")
         try:
-            text, kinds = await _turn(pool, [str(image)])
+            text, events = await _turn(pool, [str(image)])
         finally:
             await pool.close_all()
 
         assert f"[images] {_digest(body)}" in text
-        assert kinds[-1] == RuntimeEventType.DONE
+        assert events[-1].type == RuntimeEventType.DONE
 
     @pytest.mark.asyncio
-    async def test_an_agent_that_does_not_advertise_image_prompts_gets_the_text_and_the_turn_completes(
+    async def test_an_agent_that_does_not_advertise_image_prompts_gets_the_text_and_the_turn_says_so(
         self, tmp_path: Path
     ) -> None:
-        image, _ = _png(tmp_path, "a.png", 4_000)
+        first, _ = _png(tmp_path, "a.png", 4_000)
+        second, _ = _png(tmp_path, "b.png", 5_000)
         pool = _pool(tmp_path)
         try:
-            text, kinds = await _turn(pool, [str(image)])
+            text, events = await _turn(pool, [str(first), str(second)])
         finally:
             await pool.close_all()
 
         assert "[echo] look at this" in text
         assert "[images]" not in text
-        assert kinds[-1] == RuntimeEventType.DONE
+        assert events[-1].type == RuntimeEventType.DONE
+        notices = _not_sent_notices(events)
+        assert [notice.data.get("images") for notice in notices] == [2]
+        assert events.index(notices[0]) < next(i for i, e in enumerate(events) if e.type == RuntimeEventType.TEXT_DELTA)
 
     @pytest.mark.asyncio
     async def test_a_turn_without_images_sends_the_text_alone(self, tmp_path: Path) -> None:
         pool = _pool(tmp_path, "--images")
         try:
-            text, _ = await _turn(pool, [])
+            text, events = await _turn(pool, [])
         finally:
             await pool.close_all()
 
         assert "[echo] look at this" in text
         assert "[images]" not in text
+        assert _not_sent_notices(events) == []
 
 
 async def _stalled_turn(directory: Path) -> tuple[AcpRuntime, asyncio.Task[None], Process]:
