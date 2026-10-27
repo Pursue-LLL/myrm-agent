@@ -335,6 +335,27 @@ class TestToolRegistryBindMode:
         assert len(turn1_snaps) == 1
 
 
+class TestToolRegistryToolNames:
+    def test_empty_registry_has_no_names(self) -> None:
+        assert ToolRegistry().tool_names() == frozenset()
+
+    def test_names_cover_every_source_and_bind_mode_once(self) -> None:
+        reg = ToolRegistry()
+        reg.register(_make_tool("meta_one"), source=ToolSource.META)
+        reg.register(_make_tool("user_one"), source=ToolSource.USER)
+        reg.register(_make_tool("hook_one"), source=ToolSource.META, bind_mode=ToolBindMode.RUNTIME_ONLY)
+        reg.register(_make_tool("meta_one"), source=ToolSource.USER)
+
+        assert reg.tool_names() == frozenset({"meta_one", "user_one", "hook_one"})
+
+    def test_names_follow_removal(self) -> None:
+        reg = ToolRegistry()
+        reg.register(_make_tool("gone"), source=ToolSource.META)
+        reg.remove_tool("gone")
+
+        assert reg.tool_names() == frozenset()
+
+
 class TestToolRegistryHasTool:
     def test_has_tool_exists(self) -> None:
         reg = ToolRegistry()

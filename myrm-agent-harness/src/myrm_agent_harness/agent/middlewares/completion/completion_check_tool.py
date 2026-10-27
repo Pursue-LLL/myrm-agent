@@ -35,6 +35,7 @@ def _completion_check_tool(
     workspace_root: str = "",
     force_fail: bool = False,
     evidence_reason: str = "",
+    evidence_unreachable: bool = False,
     deliverable_write_reason: str = "",
     execution_claim_reason: str = "",
     query_grounding_reason: str = "",
@@ -64,6 +65,15 @@ def _completion_check_tool(
                 "The warning in your final response must state that explicitly."
             )
         return msg
+
+    if evidence_reason.strip() and evidence_unreachable:
+        return (
+            " CRITICAL COMPLETION CHECK: This response appears to depend on current external information, "
+            "and this run has no tool that can look it up.\n"
+            f"Reason: {evidence_reason}\n"
+            "Do not present the answer as verified. Revise it to say plainly that you could not check current "
+            "information and that what you give comes from prior knowledge and may be out of date, then finish."
+        )
 
     if evidence_reason.strip():
         return (

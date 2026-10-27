@@ -24,7 +24,7 @@ and inline deliverables stay clean).
 - agent.security.guards.loop_guard::CallRecord (POS: 工具调用记录)
 
 [OUTPUT]
-- current_run_state / reset_run_state: 当前回合的拦截预算与强制收尾闩锁
+- current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁与"已请求如实声明无法核实"标记
 - isolated_run_state: 嵌套运行（子 agent）期间与调用方回合隔离，结束时不留痕
 - publish_disclosure / pop_run_disclosure / publish_tier_disclosure: 每轮披露载荷的写入与取用
 - attach_disclosure_to_event(): 把披露载荷挂到 message_end 事件
@@ -52,7 +52,7 @@ _NESTED_RUN_KEY_PREFIX = "nested:"
 
 @dataclass(slots=True)
 class RunGuardState:
-    """Rejection budget, forced-finish latch and evidence ledger for one turn.
+    """Rejection budget, forced-finish latch, evidence-disclosure request and evidence ledger for one turn.
 
     A turn can run in several segments (HITL resume, retry, continuation). The
     disclosure must describe what the *turn* produced, so the evidence recorded
@@ -62,6 +62,7 @@ class RunGuardState:
 
     rejections: int = 0
     forced_finish: bool = False
+    evidence_disclosure_requested: bool = False
     evidence: list[CallRecord] = field(default_factory=list)
 
 
@@ -91,10 +92,7 @@ def current_run_state() -> RunGuardState:
 
 def record_evidence(records: list[CallRecord]) -> list[CallRecord]:
     """Merge the current segment's records into the turn ledger (idempotent)."""
-    seen = {
-        (record.tool_name, record.args_hash, record.result_hash)
-        for record in current_run_state().evidence
-    }
+    seen = {(record.tool_name, record.args_hash, record.result_hash) for record in current_run_state().evidence}
     for record in records:
         key = (record.tool_name, record.args_hash, record.result_hash)
         if key in seen:

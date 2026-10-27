@@ -21,6 +21,7 @@ the exemption.
 [OUTPUT]
 - build_external_evidence_reason(): block reason when evidence is required but missing
 - has_external_evidence(): True when web/browser or MCP evidence exists
+- can_produce_external_evidence(): True when a set of mounted tools could ever produce such evidence
 - extract_latest_human_text(): latest non-empty human message text
 
 [POS]
@@ -31,12 +32,13 @@ separation — keeps completion_guard.py focused on orchestration and mixed-mess
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 
+_BASH_TOOL_NAME = "bash_code_execute_tool"
 _MCP_PTC_BASH_MARKER = "skills.mcp_"
 
 _EXTERNAL_EVIDENCE_TOOLS: frozenset[str] = frozenset(
@@ -214,7 +216,7 @@ def _bash_mcp_ptc_evidence_succeeded(record: object) -> bool:
     an unexecuted tool provides no external data.
     """
     tool_name = getattr(record, "tool_name", "")
-    if tool_name != "bash_code_execute_tool":
+    if tool_name != _BASH_TOOL_NAME:
         return False
     success_level = getattr(record, "success_level", None)
     if success_level is None:
@@ -262,6 +264,16 @@ def has_external_evidence(records: Sequence[object]) -> bool:
     return False
 
 
+def can_produce_external_evidence(tool_names: Iterable[str]) -> bool:
+    """True when a run holding ``tool_names`` could ever make ``has_external_evidence`` true.
+
+    A shell counts: it may import an MCP server through ``skills.mcp_*``, which is evidence.
+    """
+    return any(
+        name in _EXTERNAL_EVIDENCE_TOOLS or name == _BASH_TOOL_NAME or is_mcp_tool_name(name) for name in tool_names
+    )
+
+
 def build_external_evidence_reason(
     *,
     messages: list[object],
@@ -280,6 +292,7 @@ def build_external_evidence_reason(
 
 __all__ = [
     "build_external_evidence_reason",
+    "can_produce_external_evidence",
     "extract_latest_human_text",
     "has_external_evidence",
 ]

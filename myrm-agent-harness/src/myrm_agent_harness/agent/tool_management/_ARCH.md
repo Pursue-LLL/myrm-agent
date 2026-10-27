@@ -26,7 +26,7 @@ LLM tools: **56** (Harness 51: CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38; External 
 |------|------|-------------|-------|
 | __init__.py | Package | Tool management subsystem — unified tool registration, dedup, ordering, and lifecycle. | — |
 | lifecycle_manager.py | Core | Orchestrates tool lifecycle: initialize_tools() -> cleanup_tools() | ✅ |
-| registry.py | Core | Replaces the scattered ``_deduplicate_tools()`` + ``sort_tools()`` calls in BaseAgent. ``ToolBindMode``: TURN1 (LLM Action Tools) + RUNTIME_ONLY (internal hooks, not LLM tools). | ✅ |
+| registry.py | Core | Replaces the scattered ``_deduplicate_tools()`` + ``sort_tools()`` calls in BaseAgent. ``ToolBindMode``: TURN1 (LLM Action Tools) + RUNTIME_ONLY (internal hooks, not LLM tools). ``has_tool`` / ``tool_names`` answer what a run holds, whatever the source or bind mode. | ✅ |
 | action_space.py | Core | ActionSpaceProfiler: 动作空间量化引擎，计算工具 Schema 复杂度 (ASCS)。 | ✅ |
 | tool_layers.py | Core | Tool layer priority registry + **Tool loading dual-track SSOT** (CORE/HIGH_PRIORITY/EXTENDED/EXTERNAL). HIGH_PRIORITY layer sorts with stable rank (search -> memory -> skill_select); EXTENDED layer sorts alphabetically. CORE: web_fetch/bash/file_*/glob/grep — General Agent baseline, no GUI toggle. | ✅ |
 | tool_catalog.py | Core | Action Tool catalog: load conditions; layer-product CI gate (`validate_layer_product_consistency`); `product_id` derived from `TOOL_TO_GROUP` + `BUILTIN_TOOL_ID_TO_GROUP`. | ✅ |

@@ -31,9 +31,11 @@ unverified content reach the user.
 Internal tool CallRecords (``_``-prefixed names like ``_completion_check``)
 are excluded from the checklist to prevent self-feedback loops.
 
-A deliverable code block is held to being saved (and staged into the workspace on a forced finish) only when the
-run can save a file (``can_save_files``, decided where the chain is built): a run without ``file_write_tool``, or
-under a policy that denies ``file_write``, could never meet the demand, so it is not made.
+A demand is made only of a run that could meet it (``CompletionCapabilities``): a deliverable code block is held to
+being saved (and staged into the workspace on a forced finish) only when the run can save a file, an unfinished
+todo blocks only a run that keeps a todo list, and a freshness question is held to external evidence only when the
+run holds a tool that can produce it. A run that holds none is asked once to say plainly it could not check, and
+the answer then passes: no further attempt could change what it holds.
 
 State is stored as module-level variables (not ContextVar) because LangGraph
 executes nodes in copied contexts, which prevents ContextVar state from
@@ -44,6 +46,7 @@ persisting across ReAct cycles.
 - langchain_core.tools::tool (POS: tool decorator)
 - agent.middlewares.tooling.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
 - agent.middlewares.completion.completion_guard_checklist::build_checklist, classify_verification, find_last_successful_verification_command (POS: Verification command classification, checklist generation, and temporal-order verification command extraction for CompletionGuard.)
+- agent.middlewares.completion.completion_capabilities::CompletionCapabilities (POS: what the run can do, so a demand is made only of a run that could meet it)
 - agent.middlewares.completion.completion_guard_external_evidence::build_external_evidence_reason (POS: Freshness-sensitive external evidence gate including MCP PTC bash via skills.mcp_* and Direct FC via mcp__{server}__{tool})
 - agent.middlewares.completion.deliverable_write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
 - agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
@@ -71,7 +74,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import Any
 
@@ -80,6 +83,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
+from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
 from myrm_agent_harness.agent.middlewares.completion.completion_check_tool import (
     _completion_check_tool,
 )
@@ -101,6 +105,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard_safety imp
     is_substantive_final_response,
 )
 from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
+    RunGuardState,
     current_run_state,
     publish_disclosure,
     publish_tier_disclosure,
@@ -198,14 +203,9 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         Master on/off switch.
     max_rejections:
         Maximum times the guard blocks before forced finish (safety valve).
-    keeps_todo_list:
-        Whether this run keeps a todo list, i.e. was given ``todo_write``. Only then does an unfinished todo
-        block completion: a run without the tool (a delegated child with planning off) has no list to finish,
-        so the demand would be one it can never meet.
-    can_save_files:
-        Whether this run can save a file, given the runtime of the call. Only then is a deliverable code block
-        in the answer held to being saved (and staged into the workspace when the demand fails): a run without
-        ``file_write_tool``, or under a policy that denies ``file_write``, can never meet the demand.
+    capabilities:
+        What this run can do, so a demand is made only of a run that could meet it. Without it the run is held
+        to every demand.
     """
 
     def __init__(
@@ -213,17 +213,30 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         *,
         enabled: bool = True,
         max_rejections: int = 3,
-        keeps_todo_list: Callable[[], bool] = lambda: True,
-        can_save_files: Callable[[object], bool] = lambda runtime: True,
+        capabilities: CompletionCapabilities | None = None,
     ) -> None:
         self._enabled = enabled
         self._max_rejections = max_rejections
-        self._keeps_todo_list = keeps_todo_list
-        self._can_save_files = can_save_files
+        self._capabilities = capabilities or CompletionCapabilities()
 
     def get_tools(self) -> list[BaseTool]:
         """Expose the internal ``_completion_check`` tool for registration."""
         return [_completion_check_tool]
+
+    def _evidence_demand(
+        self, run_state: RunGuardState, messages: list[object], records: Sequence[object]
+    ) -> tuple[str | None, bool]:
+        """The external-evidence demand on this answer, and whether the run is unable to meet it.
+
+        A run that cannot gather evidence is asked once to say plainly it could not check, so the demand
+        comes back flagged unreachable the first time and is dropped after: repeating it only costs calls.
+        """
+        reason = build_external_evidence_reason(messages=messages, records=records)
+        if reason is None or self._capabilities.can_gather_evidence():
+            return reason, False
+        if run_state.evidence_disclosure_requested:
+            return None, False
+        return reason, True
 
     async def aafter_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
         """Intercept completion attempts and inject verification when critical errors exist."""
@@ -315,13 +328,10 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             return None
 
         workspace_root = run_workspace(runtime)
-        todo_workspace = workspace_root if self._keeps_todo_list() else None
+        todo_workspace = workspace_root if self._capabilities.keeps_todo_list() else None
 
         _, has_critical_errors = _build_checklist(records, workspace_root=todo_workspace)
-        evidence_reason = build_external_evidence_reason(
-            messages=messages,
-            records=filtered_records,
-        )
+        evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, filtered_records)
         deliverable_write_reason: str | None = None
         unwritten_deliverables: list[UnwrittenDeliverable] = []
         latest_human_for_grounding = latest_user_text
@@ -334,7 +344,7 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         if last_ai_msg.content:
             content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content)
             deliverable_write_reason = check_deliverable_write_claim(content_str, filtered_records)
-            if deliverable_write_reason is None and self._can_save_files(runtime):
+            if deliverable_write_reason is None and self._capabilities.can_save_files(runtime):
                 unwritten_reason, unwritten_deliverables = check_unwritten_deliverables(
                     content=content_str,
                     records=filtered_records,
@@ -456,6 +466,9 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         tool_args: dict[str, object] = {"workspace_root": todo_workspace or ""}
         if evidence_reason is not None:
             tool_args["evidence_reason"] = evidence_reason
+            if evidence_unreachable:
+                tool_args["evidence_unreachable"] = True
+                run_state.evidence_disclosure_requested = True
         if deliverable_write_reason is not None:
             tool_args["deliverable_write_reason"] = deliverable_write_reason
         if execution_claim_reason is not None:

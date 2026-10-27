@@ -285,6 +285,10 @@ class ToolRegistry:
         """Check whether a tool with the given name has been registered."""
         return any(e.tool.name == name for e in self._entries)
 
+    def tool_names(self) -> frozenset[str]:
+        """Names of every registered tool, whatever its source or bind mode."""
+        return frozenset(e.tool.name for e in self._entries)
+
     def remove_tool(self, name: str) -> bool:
         """Remove all registry entries for *name*. Returns True if any were removed."""
         before = len(self._entries)

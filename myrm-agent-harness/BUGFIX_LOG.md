@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-032 · 完成门禁要求没有任何取证工具的运行「先联网取证」：模型被拒 3 次、每次原样重复回答，哪怕它已经如实说了「我无法联网核实」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（复核 BUG-HARNESS-2026-10-27-027 时发现门禁的另一项要求同样不问运行能不能满足） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：命中面窄。要同时满足：用户问的是「今天 / 最新 / 新闻 / 价格」类时效问题，且本次运行没有 web 搜索、web 抓取、浏览器、MCP 工具，也没有 shell。`web_fetch_tool` 默认挂载，只有 agent 的安全能力显式给出且不含 `net_fetch` 才关闭（`myrm-agent-server/app/services/agent/resolve_enable_web_fetch.py:17-27`），所以代码上能确认的触发形态只有这一种；线上没有触发频率数据。命中时每次拒绝多一次计费的模型调用，最终还走强制收尾。 |
+| **关联产品** | harness `agent/middlewares/completion/`（`completion_guard.py`、`completion_check_tool.py`、`completion_guard_external_evidence.py`、`completion_guard_state.py`、新增 `completion_capabilities.py`）、`agent/_internals/_agent_build.py`、`agent/tool_management/registry.py` |
+| **根因** | 外部证据门控只看请求里有没有时效关键词、调用记录里有没有成功的取证调用，不问这个运行有没有可能取证。没有取证工具的运行永远满足不了「至少做一次成功的取证步骤」，而钩子文案里也没有「如实说明做不到」这个出口：脚本化模型在被拒后答「我没有联网检索工具，无法核实」，门禁照样判它没满足，继续拒绝直到 3 次额度用完，最后强制收尾。与 BUG-HARNESS-2026-10-27-027 同源：门禁的各项要求都没有先确认运行有能力满足。 |
+| **修复** | ① 新增 `completion_capabilities.py`：`CompletionCapabilities`（`keeps_todo_list` / `can_save_files` / `can_gather_evidence` 三个按次询问的探针，默认全为真）与 `capabilities_of(registry)`；原先内联在 `_agent_build.build_middlewares` 里的两个探针搬进来，`CompletionGuard` 的构造参数由两个可调用对象收成一个 `capabilities`。② `ToolRegistry.tool_names()`；`can_produce_external_evidence(tool_names)` 与 `has_external_evidence` 放在同一个模块，「什么算证据」只有一份定义：六个 web/浏览器工具、Direct FC 的 MCP 工具，以及 shell（可能经 `skills.mcp_*` 取到 MCP 证据，按保守处理）。③ 没有取证能力的运行第一次被拒时带 `evidence_unreachable`，钩子文案改为：不要把回答说成已核实，改成如实说明无法核实、内容来自既有知识且可能过时，然后收尾；`RunGuardState.evidence_disclosure_requested` 记下已提醒，之后不再提这项要求，其余阻断原因照常。有取证工具的运行行为不变。没有直接放行这项要求：那样会去掉门禁对「把过期数据当最新数据交付」的唯一拦截，所以保留一次提醒（多 1 次调用）。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 最初以为「只读子 Agent / WEB_FAST 快速对话」会命中，是探针里把 `tools` 传成 `[]` 造成的假象：`web_fetch_tool` 默认挂载，这两类运行在真实装配里并不缺取证工具，已更正。② 判断「有没有取证工具」必须按次读注册表：中间件链建好之后注册表才被填满，建链时读一次会永远得到空集合。③ shell 不能算「没有取证能力」：它可能经 PTC 导入 MCP 服务，算进去会让有 shell 的运行也被放过。 |
+| **回归** | 新增 39 例：`test_completion_capabilities.py` 21 例（三个探针各自的判定、注册表晚于建链填充、策略读取顺序）、`test_completion_guard_evidence_capability.py` 15 例（门禁判定 3、钩子文案 2、`build_middlewares` 所给探针的读取 8（含 4 例参数化展开）、真实 `create_skill_agent` 2）、`test_tool_management_registry.py` 3 例。写盘能力的测试从 15 例收为 12 例（三项策略读取判定改由 capabilities 测试覆盖），并迁到共享的 `tests/support/completion_guard_harness.py`，其余行为不变。红灯：在未改代码的提交版上，取证能力测试 3 例失败（无取证工具的运行第一次被拒后第二次仍被拒、注册表晚填充的读取、真实运行），其中「无取证工具的运行答 2 次而不是 5 次」得到 5（模型每次请求的消息数 `[2, 4, 6, 8, 10]`）。脚本化模型、真实 `create_skill_agent` 与真实中间件链的前后对比（`WORKSPACE_READ_ONLY`、无 shell、请求「今天最新的 AI 新闻是什么？」、模型被拒后如实声明）：模型调用 5 → 2，输入字符总量 16139 → 4970（约 3.2 倍）。挂了 shell 且模型从不照做的运行仍是 5 次调用（有取证可能，行为不变）。`ruff check` / `ruff format --check` 在改动文件上 0 错误，harness 改动源文件 `mypy` 0 错误；中间件、流式、事件日志、工具管理、安全、`_internals` 与测试支撑相关套件 6484 例通过、5 例跳过；1 例失败是 `test_canonical_hash_performance.py` 的计时对比（并行负载下偶发，单独运行 2 例通过）。 |
+| **仍然存在** | ① 没有用真实模型验证：不知道真实模型收到这条提醒后是否真的改写成如实声明；「5 → 2」是脚本化模型上的数，不是线上账单。② 线上触发频率没有埋点。③ 提醒之后不检查回答里有没有真的写出免责声明，只提醒一次就放行，这是为了封住调用次数的取舍。④ 父 Agent 若持有委派工具，原则上可以让子 Agent 取证，但门禁既不把子 Agent 的取证算作证据，提示也不引导委派，这次没有改。 |
+| **代码位置** | `agent/middlewares/completion/completion_capabilities.py`（`CompletionCapabilities`、`capabilities_of`）· `agent/middlewares/completion/completion_guard.py`（`_evidence_demand`）· `agent/middlewares/completion/completion_check_tool.py`（`evidence_unreachable` 文案）· `agent/middlewares/completion/completion_guard_external_evidence.py`（`can_produce_external_evidence`）· `agent/middlewares/completion/completion_guard_state.py`（`evidence_disclosure_requested`）· `agent/_internals/_agent_build.py` · `agent/tool_management/registry.py`（`tool_names`） |
+
 ### BUG-HARNESS-2026-10-27-029 · 预算用满时守卫抛 stuck 中断，运行死在一张没有内容的「已暂停」卡片里；预警按工具调用次数而不是模型轮次计数，并行调用让预算缩到三分之一；守卫的计数跨运行累积
 
 | 字段 | 内容 |
