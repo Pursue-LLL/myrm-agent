@@ -1,7 +1,8 @@
 """Inbound control commands: the router's slash-command handlers, composed from one mixin per command family.
 
 [INPUT]
-- channels.routing.commands.router_commands_approval::RouterCommandsApprovalMixin (POS: /stop, reaction/button approval, resume payloads)
+- channels.routing.commands.router_commands_approval::RouterCommandsApprovalMixin (POS: reaction/button approval, resume payloads)
+- channels.routing.commands.router_commands_stop::RouterCommandsStopMixin (POS: /stop and the session abort shared with /new)
 - channels.routing.commands.router_commands_session::RouterCommandsSessionMixin (POS: /new, /compact, /retry, /undo, topic commands)
 - channels.routing.commands.router_commands_modes::RouterCommandsModesMixin (POS: /yolo, /personality, /steer, /queue)
 - channels.routing.commands.router_commands_goals::RouterCommandsGoalsMixin (POS: /goal, /subgoal, /background, /handoff)
@@ -29,10 +30,12 @@ from .router_commands_memory import RouterCommandsMemoryMixin
 from .router_commands_modes import RouterCommandsModesMixin
 from .router_commands_quota import RouterCommandsQuotaMixin
 from .router_commands_session import RouterCommandsSessionMixin
+from .router_commands_stop import RouterCommandsStopMixin
 
 
 class RouterCommandsMixin(
     RouterCommandsApprovalMixin,
+    RouterCommandsStopMixin,
     RouterCommandsSessionMixin,
     RouterCommandsModesMixin,
     RouterCommandsGoalsMixin,

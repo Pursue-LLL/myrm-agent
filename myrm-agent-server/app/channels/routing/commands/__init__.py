@@ -17,6 +17,7 @@
   - router_commands_modes: RouterCommandsModesMixin (/yolo, /personality, /topic)
   - router_commands_quota: RouterCommandsQuotaMixin (/quota)
   - router_commands_session: RouterCommandsSessionMixin (/new, /compact, /retry, /undo)
+  - router_commands_stop: RouterCommandsStopMixin (/stop and the session abort shared with /new)
 
 [POS]
 Server business layer. Single command domain for AgentRouter: parsing and handling
@@ -54,6 +55,7 @@ from app.channels.routing.commands.router_commands_memory import RouterCommandsM
 from app.channels.routing.commands.router_commands_modes import RouterCommandsModesMixin
 from app.channels.routing.commands.router_commands_quota import RouterCommandsQuotaMixin
 from app.channels.routing.commands.router_commands_session import RouterCommandsSessionMixin
+from app.channels.routing.commands.router_commands_stop import RouterCommandsStopMixin
 
 __all__ = [
     "ApprovalDecision",
@@ -68,6 +70,7 @@ __all__ = [
     "RouterCommandsModesMixin",
     "RouterCommandsQuotaMixin",
     "RouterCommandsSessionMixin",
+    "RouterCommandsStopMixin",
     "TopicCommand",
     "handle_compact",
     "handle_new_session",

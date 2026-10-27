@@ -15,7 +15,7 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.channels.routing.router import AgentRouter
-from app.channels.routing.router_models import _ActiveTask
+from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
 from app.channels.types import InboundMessage, ProgressUpdate, QuickReply, StreamingText
 
 _CHAT_KEY = "telegram:c1"
@@ -87,6 +87,34 @@ async def test_stop_ends_the_timer_of_the_approval_the_chat_was_waiting_on(_sche
     router, _bus = _router()
     router._active_tasks[_CHAT_KEY] = _entry()
     router._approval_msg_ids[_CHAT_KEY] = "card-1"
+    resumed = _arm_timer(_scheduler)
+
+    await router._cancel_active_task(_inbound())
+    await _let_a_timer_fire()
+
+    resumed.assert_not_awaited()
+    assert _scheduler.pending_count == 0
+
+
+@pytest.mark.asyncio
+async def test_stop_ends_the_timer_of_a_turn_that_ended_at_an_approval_request(_scheduler: ApprovalTimeoutScheduler) -> None:
+    """The router itself keeps the turn's entry and approval marker once its stream ends at the request."""
+
+    async def stream(*_a: object, **_k: object) -> AsyncGenerator[object, None]:
+        yield StreamingText(text="checking the build")
+        yield _APPROVE
+
+    router, _bus = _router(stream)
+    ctx = _RouterExecutionContext(
+        user_id="u1", state_key=_CHAT_KEY, chat_id="c1", message_id="m1", topic_ctx=None, exec_msg=_inbound("build it")
+    )
+    # The router runs a turn in its own task, and that is the task a stop cancels.
+    turn = asyncio.create_task(
+        router._execute_prepared_context(ctx, _AgentTurnScratch(), is_resume=False, inbound_had_voice=False)
+    )
+    await turn
+    assert _CHAT_KEY in router._active_tasks
+    assert router._approval_msg_ids == {_CHAT_KEY: "prompt-1"}
     resumed = _arm_timer(_scheduler)
 
     await router._cancel_active_task(_inbound())

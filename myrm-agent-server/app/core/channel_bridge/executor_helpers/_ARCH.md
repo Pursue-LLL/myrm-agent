@@ -12,7 +12,7 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 | `history.py` | 模块 | 频道聊天历史持久化、标题生成；**入站新 turn 前 `run_pre_reply_stale_compact_gate`**；persist/resume 时 sync topic workspace；入站 user 消息持久化时把超大文本外溢到频道智能体实际运行的 JIT 工作区（`agent_workspace()`），智能体事后能读回 | ✅ |
 | `agent_workspace.py` | 模块 | `agent_workspace(chat_id)`：频道聊天的智能体实际运行目录（JIT 工作区，纯路径计算不建目录；频道智能体参数不带绑定工作区，topic 绑定不影响它；不能命名目录的 id 返回 None）。给智能体停放文件的所有调用方（超大入站文本、参考文档）共用这一个答案 | ✅ |
 | `topic_workspace_sync.py` | 模块 | Topic 绑定目录写入/清空 chat SSOT（project_id / workspace_dir） | ✅ |
-| `approval.py` | 模块 | 审批超时调度与超时结果通知（调度时记下审批提问所用的 locale，超时通知按它从渠道目录取 `approval_timeout_approved` / `approval_timeout_denied`，不再是写死的英文）；超时 resume 的回复文本同样经 `AnswerDraft` 累积；超时自动 resume 的 agent 运行经 `track_background_agent_run` 计入 liveness `busy`；回调抛错时归还审批键的认领（`reopen`），用户随后的回复不会被当作「已被超时处理」拒收（失败发生在回答之后的节点时，回复重试该节点，不改写已记录的自动决定） | ✅ |
+| `approval.py` | 模块 | 审批超时调度与超时结果通知（调度时记下审批提问所用的 locale，超时通知按它从渠道目录取 `approval_timeout_approved` / `approval_timeout_denied`）；超时 resume 的回复文本同样经 `AnswerDraft` 累积；超时自动 resume 的 agent 运行经 `track_background_agent_run` 计入 liveness `busy`；回调抛错时归还审批键的认领（`reopen`），用户随后的回复不会被当作「已被超时处理」拒收（失败发生在回答之后的节点时，回复重试该节点，不改写已记录的自动决定） | ✅ |
 | `stream.py` | 模块 | StreamAccumulator（回复文本 `draft` 是 harness 的 `AnswerDraft`：恢复重放只丢最近一次工具步骤之后的在途段落；含致命错误的原始文本 `error_message` 与错误类型 `error_kind`）、进度标签、ShareableArtifact | ✅ |
 | `quick_replies.py` | 模块 | 快捷回复建议、externalAgents 解析 | ✅ |
 
