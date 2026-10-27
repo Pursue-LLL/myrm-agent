@@ -83,10 +83,6 @@ export interface FileMutationFailure {
   error_preview: string;
 }
 
-export interface WorkspaceMergeFailure {
-  message: string;
-}
-
 /** Canonical clickable URL for a web source (harness-normalized `url` field). */
 export function resolveSourceClickUrl(source: Source): string | undefined {
   return source.url;

@@ -201,7 +201,7 @@ export function WorkspacePolicySection({ editor, t }: SectionProps) {
         <p className="text-xs text-muted-foreground mt-0.5">{t('agent.workspacePolicyDesc')}</p>
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
-        {(['INHERIT_REQUESTER', 'ISOLATED_COPY', 'READ_ONLY_SANDBOX'] as const).map((policy) => (
+        {(['INHERIT_REQUESTER', 'READ_ONLY_SANDBOX'] as const).map((policy) => (
           <button
             key={policy}
             type="button"

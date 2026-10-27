@@ -11,7 +11,7 @@
 
 import { AgentEventType } from './part1';
 import type { BaseAgentEvent } from './part1';
-import type { FileMutationFailure, WorkspaceMergeFailure } from '../sources';
+import type { FileMutationFailure } from '../sources';
 
 export interface FileDiffStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.FILE_DIFF;
@@ -29,15 +29,6 @@ export interface FileMutationFailedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.FILE_MUTATION_FAILED;
   data: {
     files: FileMutationFailure[];
-  };
-}
-
-export interface WorkspaceMergeFailedStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.WORKSPACE_MERGE_FAILED;
-  data: {
-    errors: WorkspaceMergeFailure[];
-    failed_count?: number;
-    truncated?: number;
   };
 }
 

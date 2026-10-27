@@ -79,7 +79,6 @@ import type {
   DesktopViewUpdateStreamEvent,
   FileDiffStreamEvent,
   FileMutationFailedStreamEvent,
-  WorkspaceMergeFailedStreamEvent,
   FissionTopologyUpdateStreamEvent,
   PtcNotifyStreamEvent,
   ToolImageOutputStreamEvent,
@@ -139,7 +138,6 @@ export type AgentStreamEvent =
   | TeammateMessageStreamEvent
   | FileDiffStreamEvent
   | FileMutationFailedStreamEvent
-  | WorkspaceMergeFailedStreamEvent
   | ToolImageOutputStreamEvent
   | BrowserViewUpdateStreamEvent
   | DesktopViewUpdateStreamEvent

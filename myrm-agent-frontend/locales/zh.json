@@ -857,7 +857,6 @@
     "workspacePolicyDesc": "控制子智能体对主工作空间的访问权限",
     "workspacePolicyOption": {
       "INHERIT_REQUESTER": "继承父级",
-      "ISOLATED_COPY": "隔离副本",
       "READ_ONLY_SANDBOX": "只读沙箱"
     },
     "maxParallelFission": "最大并行裂变数",
@@ -2823,12 +2822,8 @@
       "edit": "编辑",
       "contentFiltered": "部分回复被内容策略过滤。",
       "budgetBlocked": "已达每日预算上限，执行被拦截。请在设置中调整预算限额后继续使用。",
-      "workflowMergeWarning": "部分 workspace 文件未能合并回主目录，请查看工具输出了解详情。",
       "fileMutationFailed": "{count, plural, one {# 个文件修改失败} other {# 个文件修改失败}} — 变更已自动回滚。",
       "fileMutationFailedTitle": "文件修改失败",
-      "workspaceMergeFailed": "{count, plural, one {# 条合并错误} other {# 条合并错误}}",
-      "workspaceMergeFailedTitle": "工作区合并失败",
-      "workspaceMergeFailedMore": "{count, plural, one {还有 # 条错误未显示} other {还有 # 条错误未显示}}",
       "workflowTemplateSave": {
         "title": "保存为工作流模板",
         "description": "保存本次编排脚本，下次可确定性复跑，无需 LLM 重新生成 planner。",

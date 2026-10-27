@@ -857,7 +857,6 @@
     "workspacePolicyDesc": "Control subagent access to the parent workspace",
     "workspacePolicyOption": {
       "INHERIT_REQUESTER": "Inherit Parent",
-      "ISOLATED_COPY": "Isolated Copy",
       "READ_ONLY_SANDBOX": "Read-Only Sandbox"
     },
     "maxParallelFission": "Max Parallel Fission",
@@ -2823,12 +2822,8 @@
       "edit": "Edit",
       "contentFiltered": "Part of the response was filtered by content policy.",
       "budgetBlocked": "Execution blocked by daily budget policy. Adjust your budget limit in Settings to continue.",
-      "workflowMergeWarning": "Some workspace files could not be merged back. Check the tool output for details.",
       "fileMutationFailed": "{count, plural, one {# file modification failed} other {# file modifications failed}} — the changes were rolled back automatically.",
       "fileMutationFailedTitle": "File Modification Failed",
-      "workspaceMergeFailed": "{count, plural, one {# merge error} other {# merge errors}}",
-      "workspaceMergeFailedTitle": "Workspace Merge Failed",
-      "workspaceMergeFailedMore": "{count, plural, one {# more error not shown} other {# more errors not shown}}",
       "workflowTemplateSave": {
         "title": "Save as Workflow Template",
         "description": "Store this orchestration script for deterministic reruns without regenerating the planner.",

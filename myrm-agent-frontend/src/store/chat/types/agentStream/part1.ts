@@ -72,7 +72,6 @@ export const AgentEventType = {
   MODEL_FAILOVER: 'model_failover',
   MODEL_RECOVERY: 'model_recovery',
   FILE_MUTATION_FAILED: 'file_mutation_failed',
-  WORKSPACE_MERGE_FAILED: 'workspace_merge_failed',
   MASCOT_XP_UPDATE: 'mascot_xp_update',
   DAG_STATE_UPDATE: 'dag_state_update',
   TOOL_IMAGE_OUTPUT: 'tool_image_output',
@@ -417,5 +416,3 @@ export interface PhaseTransitionStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.PHASE_TRANSITION;
   data: PhaseTransitionPayload;
 }
-
-

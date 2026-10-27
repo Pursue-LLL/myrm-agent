@@ -70,4 +70,4 @@ export interface ToolApprovalRequest {
   scriptOperandProtected?: boolean;
 }
 export type CompletionStatus =
-  'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'warning' | 'success' | 'error' | 'cancelled';
+  'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'success' | 'error' | 'cancelled';

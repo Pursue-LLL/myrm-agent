@@ -107,7 +107,7 @@ export interface OpenAPIServiceConfig {
 }
 
 export type AgentType = 'individual' | 'team';
-export type WorkspacePolicy = 'INHERIT_REQUESTER' | 'ISOLATED_COPY' | 'READ_ONLY_SANDBOX';
+export type WorkspacePolicy = 'INHERIT_REQUESTER' | 'READ_ONLY_SANDBOX';
 export type SessionResetMode = 'persistent' | 'daily' | 'idle';
 
 export interface AgentSessionPolicy {

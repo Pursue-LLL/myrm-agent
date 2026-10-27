@@ -240,24 +240,6 @@ describe('stream handlers write through the live store', () => {
     expect(message.fileMutationFailures).toEqual(files);
   });
 
-  it('workspace_merge_failed reports what could not be merged back', async () => {
-    const errors = [{ message: 'conflict in notes.md' }];
-    const message = await streamTurn([
-      stepEvent('file_write_tool', 'call-1'),
-      {
-        type: AgentEventType.WORKSPACE_MERGE_FAILED,
-        messageId: MESSAGE_ID,
-        data: { errors, failed_count: 3, truncated: 1 },
-      },
-    ]);
-
-    expect(message).toMatchObject({
-      workspaceMergeFailures: errors,
-      workspaceMergeFailedCount: 3,
-      workspaceMergeTruncated: 1,
-    });
-  });
-
   it('message_end hands the finished answer to the follow-up suggestions', async () => {
     await streamTurn([
       stepEvent('file_read_tool', 'call-1'),

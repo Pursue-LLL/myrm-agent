@@ -80,6 +80,5 @@
   "tool_token_usage",
   "tools_snapshot",
   "ui_update",
-  "verification_verdict",
-  "workspace_merge_failed"
+  "verification_verdict"
 ]

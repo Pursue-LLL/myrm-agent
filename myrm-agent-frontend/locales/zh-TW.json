@@ -857,7 +857,6 @@
     "workspacePolicyDesc": "控制子智慧體對主工作空間的訪問許可權",
     "workspacePolicyOption": {
       "INHERIT_REQUESTER": "繼承父級",
-      "ISOLATED_COPY": "隔離副本",
       "READ_ONLY_SANDBOX": "只讀沙箱"
     },
     "maxParallelFission": "最大並行裂變數",
@@ -2814,12 +2813,8 @@
       "edit": "編輯",
       "contentFiltered": "部分回覆被內容策略過濾。",
       "budgetBlocked": "已達每日預算上限，執行被攔截。請在設定中調整預算限額後繼續使用。",
-      "workflowMergeWarning": "部分 workspace 檔案未能合併回主目錄，請查看工具輸出了解詳情。",
       "fileMutationFailed": "{count, plural, one {# 個檔案修改失敗} other {# 個檔案修改失敗}} — 變更已自動回滾。",
       "fileMutationFailedTitle": "檔案修改失敗",
-      "workspaceMergeFailed": "{count, plural, one {# 條合併錯誤} other {# 條合併錯誤}}",
-      "workspaceMergeFailedTitle": "工作區合併失敗",
-      "workspaceMergeFailedMore": "{count, plural, one {還有 # 條錯誤未顯示} other {還有 # 條錯誤未顯示}}",
       "workflowTemplateSave": {
         "title": "儲存為工作流模板",
         "description": "儲存本次編排腳本，下次可確定性復跑，無需 LLM 重新生成 planner。",

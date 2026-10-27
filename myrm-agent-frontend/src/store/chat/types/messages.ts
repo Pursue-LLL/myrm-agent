@@ -13,7 +13,7 @@ import type { Artifact } from './artifacts';
 import type { CostStatus, ContextBudget } from './contextMetrics';
 import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
 import type { CompletionStatus } from './toolApproval';
-import type { CitedMemoryReference, FileMutationFailure, Source, WorkspaceMergeFailure } from './sources';
+import type { CitedMemoryReference, FileMutationFailure, Source } from './sources';
 import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
 import type { ToolImageOutput } from './agentStream/part3';
@@ -220,9 +220,6 @@ export type Message = {
   turnLoadedSkills?: TurnLoadedSkillReceipt[]; // 本回复参考的工作技能（turn 级 receipt，metadata only）
   memoryRetrievalDegraded?: boolean; // 本条回复期间记忆检索发生过降级（超时/后端错误）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
-  workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
-  workspaceMergeFailedCount?: number; // merge 失败总数（可大于 failures 列表长度）
-  workspaceMergeTruncated?: number; // 未展示的额外错误条数
   toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
   councilResult?: CouncilResultView; // 多专家 Council 编排结构化会商与仲裁结果
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
