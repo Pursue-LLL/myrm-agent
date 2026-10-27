@@ -385,6 +385,9 @@ class SqlAlchemyCronStore:
 
     async def save_monitor_state(self, state: MonitorState) -> None:
         async with get_session() as session:
+            # Same read-then-write as save_job: a writer committing in between aborts it with SQLITE_BUSY_SNAPSHOT, the
+            # executor counts that as a failed monitor run, and the new baseline is not stored.
+            await acquire_write_lock(session)
             existing = (
                 await session.execute(select(MonitorStateModel).where(MonitorStateModel.job_id == state.job_id))
             ).scalar_one_or_none()
