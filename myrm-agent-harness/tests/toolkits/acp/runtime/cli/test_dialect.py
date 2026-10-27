@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import dialect_for, has_native_turn_limit, is_session_id
+from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import (
+    CliDialect,
+    dialect_for,
+    has_native_turn_limit,
+    is_session_id,
+)
+from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock
 
 _ID = "0198a7c3-5d2e-7c41-9b8e-1f2a3b4c5d6e"
+_BLOCK = ImageBlock("image/png", "AAEC")
+_BLOCK_JPEG = ImageBlock("image/jpeg", "/9j/")
 
 
 class TestSessionId:
@@ -146,67 +156,88 @@ class TestEnvDefaults:
 
 class TestImages:
     def test_a_cli_without_a_dialect_class_for_images_takes_none(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import CliDialect
-
         args = ["gemini", "--output-format", "stream-json"]
 
         assert CliDialect.takes_images is False
+        assert CliDialect.sends_image_blocks is False
         assert CliDialect().with_images(args, ["/img/a.png"]) == args
-        assert CliDialect().with_image_references("look", ["/img/a.png"]) == "look"
+        assert CliDialect().with_image_blocks(args, "look", [_BLOCK]) == (args, "look")
 
-    def test_claude_names_each_image_as_a_quoted_mention_after_the_text(self) -> None:
+    def test_claude_sends_the_images_and_the_prompt_as_one_stream_json_user_message(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+        args = ["claude", "-p", "--output-format", "stream-json"]
+
+        new_args, stdin = dialect.with_image_blocks(args, "what is wrong?", [_BLOCK, _BLOCK_JPEG])
+
+        assert dialect.takes_images and dialect.sends_image_blocks
+        assert new_args == [*args, "--input-format", "stream-json"]
+        assert "\n" not in stdin
+        assert json.loads(stdin) == {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AAEC"}},
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "/9j/"}},
+                    {"type": "text", "text": "what is wrong?"},
+                ],
+            },
+        }
+
+    def test_a_prompt_with_newlines_and_non_ascii_text_stays_one_line_and_survives_intact(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+        prompt = '第一行\n"quoted" \\ [Image: /Users/张 三/a.png]\r\n'
+
+        _, stdin = dialect.with_image_blocks(["claude", "-p"], prompt, [_BLOCK])
+
+        assert "\n" not in stdin
+        assert json.loads(stdin)["message"]["content"][-1] == {"type": "text", "text": prompt}
+
+    @pytest.mark.parametrize("prompt", ["", "  \n"])
+    def test_a_blank_prompt_sends_the_images_alone(self, prompt: str) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
 
-        assert dialect.takes_images
-        assert dialect.with_image_references("what is wrong?", ["/s/a.png"]) == 'what is wrong?\n\n@"/s/a.png"'
-        assert dialect.with_image_references("two", ["/s/a.png", "/s/b.jpg"]) == 'two\n\n@"/s/a.png"\n@"/s/b.jpg"'
+        _, stdin = dialect.with_image_blocks(["claude", "-p"], prompt, [_BLOCK])
 
-    def test_the_quotes_are_what_carries_a_path_with_a_space_or_non_ascii_characters(self) -> None:
-        dialect = dialect_for("claude")
-        assert dialect is not None
-        path = "/Users/张 三/Library/Application Support/Myrm (dev)/delegation-images/a1.png"
+        assert [block["type"] for block in json.loads(stdin)["message"]["content"]] == ["image"]
 
-        assert dialect.with_image_references("look", [path]).endswith(f'\n\n@"{path}"')
-
-    def test_claude_puts_the_mentions_after_the_text_whatever_the_text_ends_with(self) -> None:
-        dialect = dialect_for("claude")
-        assert dialect is not None
-
-        assert dialect.with_image_references("look  \n\n", ["/a.png"]) == 'look\n\n@"/a.png"'
-        assert dialect.with_image_references("", ["/a.png"]) == '@"/a.png"'
-        assert dialect.with_image_references("  \n", ["/a.png"]) == '@"/a.png"'
-
-    def test_claude_without_images_leaves_the_prompt_and_the_command_line_alone(self) -> None:
+    def test_claude_without_blocks_keeps_a_plain_text_turn(self) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
         args = ["claude", "-p"]
 
-        assert dialect.with_image_references("look  ", []) == "look  "
+        assert dialect.with_image_blocks(args, "look  ", []) == (args, "look  ")
         assert dialect.with_images(args, ["/a.png"]) == args
 
-    def test_a_path_that_cannot_be_quoted_is_left_out_and_logged_without_the_path(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_an_input_format_the_args_already_hold_is_not_repeated(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+        args = ["claude", "-p", "--input-format", "stream-json"]
+
+        new_args, _ = dialect.with_image_blocks(args, "look", [_BLOCK])
+
+        assert new_args == args
+
+    def test_a_resumed_claude_turn_keeps_the_input_format_before_the_resume_flag(self) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
 
-        with caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.dialect"):
-            result = dialect.with_image_references("look", ['/odd"dir/a.png', "/ok/b.png"])
+        args, _ = dialect.with_image_blocks(["claude", "-p"], "look", [_BLOCK])
 
-        assert result == 'look\n\n@"/ok/b.png"'
-        assert [r.message for r in caplog.records] == ["cli_image_not_attached reason=quote_in_path"]
-        assert dialect.with_image_references("look", ['/odd"dir/a.png']) == "look"
+        assert dialect.with_resume(args, _ID) == ["claude", "-p", "--input-format", "stream-json", "--resume", _ID]
 
     def test_codex_attaches_each_image_as_an_image_flag_in_the_equals_form(self) -> None:
         dialect = dialect_for("codex")
         assert dialect is not None
         args = ["codex", "exec", "--json"]
 
-        assert dialect.takes_images
+        assert dialect.takes_images and not dialect.sends_image_blocks
         assert dialect.with_images(args, ["/a b.png", "/c.png"]) == [*args, "--image=/a b.png", "--image=/c.png"]
         assert dialect.with_images(args, []) == args
-        assert dialect.with_image_references("look", ["/a.png"]) == "look"
+        assert dialect.with_image_blocks(args, "look", [_BLOCK]) == (args, "look")
 
     def test_a_resumed_codex_turn_keeps_the_images_before_the_session_id_and_the_prompt(self) -> None:
         dialect = dialect_for("codex")

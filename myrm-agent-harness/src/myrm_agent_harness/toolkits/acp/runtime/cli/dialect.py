@@ -2,11 +2,12 @@
 
 The CLIs share the NDJSON event vocabulary (``parser``) but not their command lines: Claude resumes with a
 ``--resume <id>`` flag, Codex with an ``exec resume <id>`` subcommand, only Claude has a native turn limit, and
-an attached image reaches Claude as an ``@"<file>"`` mention in the prompt and Codex as an ``--image`` file.
+an attached image reaches Claude as a base64 block in its stream-json input and Codex as an ``--image`` file.
 Keeping those differences in one place leaves the runtime free of per-CLI branching.
 
 [INPUT]
 - toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
+- toolkits.acp.runtime.cli.image_blocks::ImageBlock (POS: Image input of CliRuntime for a CLI that takes base64 blocks)
 
 [OUTPUT]
 - CliDialect: launch differences of one CLI (resume, native turn limit, partial-message streaming, images, environment)
@@ -20,14 +21,13 @@ Per-CLI launch knowledge of CliRuntime. A CLI without a dialect is spawned as co
 
 from __future__ import annotations
 
-import logging
+import json
 import re
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
-
-logger = logging.getLogger(__name__)
+from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock
 
 # Claude and Codex both identify a conversation by a canonical hyphenated UUID. A resume id comes from a store
 # the CLI did not write, and Codex starts a brand-new thread (instead of failing) on a malformed one, so an id
@@ -48,9 +48,10 @@ class CliDialect:
     partial_messages_flag: str | None = None
     # Environment the CLI needs when a program, not a person, runs it; the host's and the configured env win.
     env_defaults: Mapping[str, str] = MappingProxyType({})
-    # Whether the CLI is handed an attached image file: on its command line (``with_images``) or in its prompt
-    # (``with_image_references``).
+    # Whether the CLI takes an attached image: as a file on its command line (``with_images``) or as a base64
+    # block in its input (``sends_image_blocks``, ``with_image_blocks``).
     takes_images = False
+    sends_image_blocks = False
 
     def is_resuming(self, args: list[str]) -> bool:
         """Whether the configured args already pick the conversation themselves."""
@@ -74,12 +75,12 @@ class CliDialect:
         return [*args, flag]
 
     def with_images(self, args: list[str], images: Sequence[str]) -> list[str]:
-        """``args`` attaching this turn's image files; unchanged for a CLI that takes none or takes them in the prompt."""
+        """``args`` attaching this turn's image files; unchanged for a CLI that takes none or takes blocks."""
         return args
 
-    def with_image_references(self, prompt: str, images: Sequence[str]) -> str:
-        """``prompt`` naming this turn's image files the way the CLI attaches them; unchanged for a CLI that takes none."""
-        return prompt
+    def with_image_blocks(self, args: list[str], prompt: str, blocks: Sequence[ImageBlock]) -> tuple[list[str], str]:
+        """``args`` and the stdin ``prompt`` carrying this turn's images as blocks; unchanged for a CLI that takes none."""
+        return args, prompt
 
     def _resume(self, args: list[str], cli_session_id: str) -> list[str] | None:
         return None
@@ -93,28 +94,29 @@ class _ClaudeDialect(CliDialect):
     # never ends (a dev server) hangs the turn until the timeout. The turn then ends when the model is done.
     env_defaults = MappingProxyType({"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"})
     takes_images = True
+    sends_image_blocks = True
 
     def is_resuming(self, args: list[str]) -> bool:
         return "--resume" in args
 
-    def with_image_references(self, prompt: str, images: Sequence[str]) -> str:
-        """Claude attaches a file named as ``@"<path>"`` in the prompt: the CLI reads it into the turn's first request.
+    def with_image_blocks(self, args: list[str], prompt: str, blocks: Sequence[ImageBlock]) -> tuple[list[str], str]:
+        """Claude takes images as base64 blocks of one user message in ``--input-format stream-json``.
 
-        A bare path in the prompt is only text, and the image would reach the model only if the model chose to open
-        it with a tool. The quotes carry a path with a space through (macOS keeps application data in
-        ``Application Support``); unquoted, the mention is silently left as text. A path holding a double quote
-        cannot be quoted, so that image is left out.
+        The message is the stdin line: the images first, then the prompt as its text block (left out when blank).
+        Only a turn with images switches the input format; a plain turn keeps the plain-text prompt. An ``@`` file
+        mention is not used: the CLI silently drops a mentioned image above 256 KiB.
         """
-        mentions = []
-        for image in images:
-            if '"' in image:
-                logger.warning("cli_image_not_attached reason=quote_in_path")
-                continue
-            mentions.append(f'@"{image}"')
-        if not mentions:
-            return prompt
-        block = "\n".join(mentions)
-        return f"{prompt.rstrip()}\n\n{block}" if prompt.strip() else block
+        if not blocks:
+            return args, prompt
+        content: list[dict[str, object]] = [
+            {"type": "image", "source": {"type": "base64", "media_type": block.media_type, "data": block.data}}
+            for block in blocks
+        ]
+        if prompt.strip():
+            content.append({"type": "text", "text": prompt})
+        message = {"type": "user", "message": {"role": "user", "content": content}}
+        flag = [] if "--input-format" in args else ["--input-format", "stream-json"]
+        return [*args, *flag], json.dumps(message)
 
     def _resume(self, args: list[str], cli_session_id: str) -> list[str] | None:
         return [*args, "--resume", cli_session_id]

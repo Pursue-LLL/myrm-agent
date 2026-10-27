@@ -1,15 +1,16 @@
-"""The real claude binary attaches an image named as a quoted ``@`` mention in the prompt, on the turn's first request.
+"""The real claude binary receives an attached image as a base64 block on stdin, whatever its size or permission mode.
 
 A local stub API records what the CLI sends and answers with plain text, so nothing here needs a login, a network or
-a model (and no model is billed). The point of the ``@"<path>"`` mention is that the image does not depend on the model
-choosing to open a path with a tool; the stub never asks for one, so an image in the first request can only have come
-from the mention. The turn runs through the production runtime with the production argv and permission rules.
-Run with ``-m integration``; a CLI that is not installed skips its tests.
+a model (and no model is billed). The stub never asks the model to open a file, so an image in a request can only have
+come from the image block on stdin. The sizes straddle 256 KiB, above which the CLI's own ``@`` file mention silently
+drops an image, and stop below the 5 MiB the server stages at most. The turn runs through the production runtime with
+the production argv and permission rules. Run with ``-m integration``; a CLI that is not installed skips its tests.
 """
 
 from __future__ import annotations
 
 import json
+import random
 import shutil
 import struct
 import threading
@@ -31,16 +32,27 @@ _CLAUDE = shutil.which("claude")
 needs_claude = pytest.mark.skipif(_CLAUDE is None, reason="claude CLI not installed")
 
 
-def _write_png(path: Path) -> Path:
-    """A valid 1x1 red PNG, so the CLI has an image it can decode."""
+# Above this size the CLI's own ``@`` file mention drops an image without telling the model.
+_MENTION_LIMIT = 256 * 1024
+# What the server stages at most per image.
+_STAGING_CAP = 5 * 1024 * 1024
+
+
+def _write_png(path: Path, size_kib: int = 0) -> Path:
+    """A valid PNG of about ``size_kib`` KiB, or a 1x1 one for 0; random pixels, stored uncompressed, keep the size."""
 
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
 
-    header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    pixel = zlib.compress(b"\x00" + bytes([255, 0, 0, 255]))
+    width = 512 if size_kib else 1
+    height = size_kib * 1024 // (1 + 3 * width) if size_kib else 1
+    rng = random.Random(size_kib)
+    rows = b"".join(b"\x00" + rng.randbytes(3 * width) for _ in range(height))
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", pixel) + chunk(b"IEND", b""))
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows, 0)) + chunk(b"IEND", b"")
+    )
     return path
 
 
@@ -125,15 +137,25 @@ class _Recorder:
         self._server.shutdown()
         self._server.server_close()
 
-    def block_kinds(self) -> list[str]:
-        """The content-block kinds of every message in the first model request."""
-        messages = self.conversations[0]["messages"]
+    def blocks(self, request: int = 0) -> list[dict[str, object]]:
+        """The content blocks of every message in a model request (the first by default), in order."""
+        messages = self.conversations[request]["messages"]
         assert isinstance(messages, list)
-        kinds: list[str] = []
+        blocks: list[dict[str, object]] = []
         for message in messages:
             content = message["content"]
-            kinds += ["text"] if isinstance(content, str) else [block["type"] for block in content]
-        return kinds
+            blocks += [{"type": "text", "text": content}] if isinstance(content, str) else content
+        return blocks
+
+    def image_positions(self, request: int = 0) -> list[int]:
+        return [i for i, block in enumerate(self.blocks(request)) if block["type"] == "image"]
+
+    def text_position(self, needle: str, request: int = 0) -> int:
+        """Where the first text block containing ``needle`` sits; the CLI adds its own text around a prompt."""
+        for i, block in enumerate(self.blocks(request)):
+            if block["type"] == "text" and needle in str(block["text"]):
+                return i
+        raise AssertionError(f"no text block contains {needle!r}")
 
 
 @pytest.fixture
@@ -168,28 +190,71 @@ def _claude(tmp_path: Path, base_url: str, permission_mode: str) -> CliRuntime:
     return CliRuntime("claude", config)
 
 
+async def _run(runtime: CliRuntime, prompt: str, images: list[str] | None = None, session: str = "s1") -> None:
+    events = [event async for event in runtime.run_turn(prompt, session, images=images)]
+    assert RuntimeEventType.DONE in [event.type for event in events]
+
+
 @needs_claude
 @pytest.mark.asyncio
-@pytest.mark.parametrize("permission_mode", ["safe", "ask", "allow_all"])
-async def test_an_image_outside_the_working_directory_is_in_the_first_request_in_every_permission_mode(
-    tmp_path: Path, stub_api: _Recorder, permission_mode: str
+@pytest.mark.parametrize(
+    ("permission_mode", "size_kib"),
+    [
+        pytest.param("safe", 0, id="safe-1x1"),
+        pytest.param("safe", 200, id="safe-below-256KiB"),
+        pytest.param("safe", 300, id="safe-above-256KiB"),
+        pytest.param("safe", 4800, id="safe-near-5MiB"),
+        pytest.param("ask", 300, id="ask-above-256KiB"),
+        pytest.param("allow_all", 300, id="allow_all-above-256KiB"),
+    ],
+)
+async def test_an_image_outside_the_working_directory_is_in_the_first_request_at_any_size_and_permission_mode(
+    tmp_path: Path, stub_api: _Recorder, permission_mode: str, size_kib: int
 ) -> None:
-    # The directory name is the one macOS gives application data: a space, which only the quotes carry through.
-    image = _write_png(tmp_path.parent / f"{tmp_path.name}-state" / "Application Support" / "a1.png")
-    runtime = _claude(tmp_path, stub_api.url, permission_mode)
+    # The directory name is the one macOS gives application data, which has a space in it.
+    image = _write_png(tmp_path.parent / f"{tmp_path.name}-state" / "Application Support" / "a1.png", size_kib)
+    assert (image.stat().st_size > _MENTION_LIMIT) == (size_kib > 256)
+    assert image.stat().st_size <= _STAGING_CAP
 
-    events = [event async for event in runtime.run_turn("what is in this?", "s1", images=[str(image)])]
+    await _run(_claude(tmp_path, stub_api.url, permission_mode), "what is in this?", [str(image)])
 
-    assert RuntimeEventType.DONE in [event.type for event in events]
-    assert "image" in stub_api.block_kinds()
+    assert len(stub_api.image_positions()) == 1
+    assert stub_api.text_position("what is in this?") > stub_api.image_positions()[0]
+
+
+@needs_claude
+@pytest.mark.asyncio
+async def test_two_images_arrive_as_two_blocks_in_one_message(tmp_path: Path, stub_api: _Recorder) -> None:
+    big = _write_png(tmp_path / "big.png", 300)
+    small = _write_png(tmp_path / "small.png")
+
+    await _run(_claude(tmp_path, stub_api.url, "safe"), "compare", [str(big), str(small)])
+
+    first, second = stub_api.image_positions()
+    assert second == first + 1
+    assert stub_api.text_position("compare") > second
+
+
+@needs_claude
+@pytest.mark.asyncio
+async def test_an_image_on_a_resumed_turn_reaches_the_model_after_the_history(
+    tmp_path: Path, stub_api: _Recorder
+) -> None:
+    image = _write_png(tmp_path / "later.png", 300)
+    runtime = _claude(tmp_path, stub_api.url, "safe")
+
+    await _run(runtime, "first question")
+    await _run(runtime, "and this picture?", [str(image)])
+
+    assert len(stub_api.conversations) == 2
+    assert stub_api.image_positions(0) == []
+    (position,) = stub_api.image_positions(1)
+    assert stub_api.text_position("first question", 1) < position < stub_api.text_position("and this picture?", 1)
 
 
 @needs_claude
 @pytest.mark.asyncio
 async def test_a_turn_without_images_sends_no_image(tmp_path: Path, stub_api: _Recorder) -> None:
-    runtime = _claude(tmp_path, stub_api.url, "safe")
+    await _run(_claude(tmp_path, stub_api.url, "safe"), "hello")
 
-    events = [event async for event in runtime.run_turn("hello", "s1")]
-
-    assert RuntimeEventType.DONE in [event.type for event in events]
-    assert "image" not in stub_api.block_kinds()
+    assert stub_api.image_positions() == []

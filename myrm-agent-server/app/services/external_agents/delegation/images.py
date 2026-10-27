@@ -11,10 +11,11 @@
 - StagedImages: 图片块已指向暂存文件的用户回合，与暂存文件的路径
 
 [POS]
-外部 CLI 只收文本与本地文件。Web 模式里图片是本服务的存储 URL（CLI 读不到：Claude 的 `Read` 一个 http 地址得到
-File does not exist），Tauri 里是任意位置的 `file://`。这里把存储 URL、`file://`、data URL 三种来源的图片校验后落成
-状态目录下的一个私有文件，并把图片块改指向它，提示词里的路径一行与交给 CLI 的文件因此是同一个：能收图的 CLI
-（Claude、Codex）由 harness 按各自的方式附上这个文件，收不了图的后端仍有这一行路径。文件在回合之后删除（调用方在
+外部 CLI 不认本服务的图片来源。Web 模式里图片是本服务的存储 URL（Claude 的 `Read` 一个 http 地址得到
+File does not exist），Tauri 里是任意位置的 `file://`（Claude 的 `Read` 默认只到工作目录）。
+这里把存储 URL、`file://`、data URL 三种来源的图片校验后落成状态目录下的一个私有文件，并把图片块改指向它，
+提示词里的路径一行与交给 CLI 的文件因此是同一个：能收图的 CLI
+（Claude、Codex）由 harness 按各自的方式带上这张图，收不了图的后端仍有这一行路径。文件在回合之后删除（调用方在
 上下文里以 `aclosing` 跑回合流，上下文退出时 CLI 已停止）；服务中途退出遗留的文件由之后的暂存清掉。任何一张图落盘
 失败都只记一条 WARNING 并保持原样，不让回合失败；外部 http(s) 地址从不被抓取。
 """

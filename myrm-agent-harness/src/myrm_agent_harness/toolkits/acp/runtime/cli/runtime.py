@@ -9,6 +9,7 @@ it is stored the moment the CLI announces it and replayed through the CLI's resu
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations)
 - toolkits.acp.runtime.cli.dialect::dialect_for, is_session_id (POS: Per-CLI launch knowledge of CliRuntime)
 - toolkits.acp.runtime.cli.failure::classify_failure (POS: Error vocabulary of CliRuntime)
+- toolkits.acp.runtime.cli.image_blocks::load_image_blocks (POS: Image input of CliRuntime for a CLI that takes base64 blocks)
 - toolkits.acp.runtime.cli.process::CliLaunchError, CliProcess, spawn_cli_process (POS: Process ownership of CliRuntime)
 - toolkits.acp.runtime.cli.session::CliSessionBook (POS: Session continuity state of CliRuntime)
 - toolkits.acp.runtime.cli.turn_parser::CliResult, TurnParser (POS: Output parsing of CliRuntime)
@@ -24,6 +25,7 @@ live in the sibling modules.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncGenerator, Sequence
@@ -39,6 +41,7 @@ from myrm_agent_harness.toolkits.acp.runtime._base import (
 )
 from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import CliDialect, dialect_for, is_session_id
 from myrm_agent_harness.toolkits.acp.runtime.cli.failure import classify_failure
+from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import load_image_blocks
 from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliLaunchError, CliProcess, spawn_cli_process
 from myrm_agent_harness.toolkits.acp.runtime.cli.session import CliSessionBook
 from myrm_agent_harness.toolkits.acp.runtime.cli.turn_parser import CliResult, TurnParser
@@ -176,8 +179,9 @@ class CliRuntime(BaseRuntime):
             )
         env = {**(dialect.env_defaults if dialect is not None else {}), **build_safe_env(self._config)}
         args = self._launch_args(command, dialect, images or ())
-        if dialect is not None:
-            prompt = dialect.with_image_references(prompt, images or ())
+        if images and dialect is not None and dialect.sends_image_blocks:
+            blocks = await asyncio.to_thread(load_image_blocks, images)
+            args, prompt = dialect.with_image_blocks(args, prompt, blocks)
 
         resume_args, notice = await self._resume_args(session_id, cwd, dialect, args)
         if notice is not None:

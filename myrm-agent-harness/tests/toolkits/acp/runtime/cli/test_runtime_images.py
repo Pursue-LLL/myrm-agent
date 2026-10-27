@@ -1,7 +1,9 @@
-"""Image files reach a CLI the way its dialect wants: Claude quoted ``@`` mentions in the prompt, Codex ``--image=`` files."""
+"""Image files reach a CLI the way its dialect wants: Claude base64 blocks on stdin, Codex ``--image=`` files."""
 
 from __future__ import annotations
 
+import base64
+import json
 import sys
 from pathlib import Path
 
@@ -21,6 +23,25 @@ def _argv(fake_cli: FakeCli, name: str, index: int = 0) -> list[str]:
     return argv
 
 
+def _png(path: Path, body: bytes = b"pixels") -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + body)
+    return path
+
+
+def _stdin_content(fake_cli: FakeCli, index: int = 0) -> list[dict[str, object]]:
+    """The content blocks of the one stream-json user message Claude was handed on stdin."""
+    message = json.loads(str(fake_cli.calls("claude")[index]["prompt"]))
+    assert message["type"] == "user"
+    return message["message"]["content"]
+
+
+def _decoded(block: dict[str, object]) -> bytes:
+    source = block["source"]
+    assert isinstance(source, dict)
+    return base64.b64decode(str(source["data"]))
+
+
 async def _turn(runtime: CliRuntime, prompt: str, images: list[str] | None = None) -> list[RuntimeEvent]:
     return [event async for event in runtime.run_turn(prompt, "s1", images=images)]
 
@@ -38,33 +59,61 @@ class TestCapability:
 
 class TestClaude:
     @pytest.mark.asyncio
-    async def test_each_image_is_a_quoted_mention_after_the_prompt_and_no_directory_is_granted(
+    async def test_each_image_is_a_base64_block_before_the_prompt_on_stdin(
         self, fake_cli: FakeCli, tmp_path: Path
     ) -> None:
-        image = tmp_path / "Application Support" / "a.png"
+        first = _png(tmp_path / "Application Support" / "a.png", b"first" * 100_000)
+        second = _png(tmp_path / "b.png", b"second")
         runtime = make_runtime(fake_cli, "claude")
 
-        await _turn(runtime, "describe [Image: /x.png]", [str(image)])
+        events = await _turn(runtime, "describe [Image: /x.png]", [str(first), str(second)])
 
-        assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == f'describe [Image: /x.png]\n\n@"{image}"'
-        assert not any(a.startswith("--add-dir") for a in _argv(fake_cli, "claude"))
-
-    @pytest.mark.asyncio
-    async def test_a_resumed_turn_names_its_images_too(self, fake_cli: FakeCli) -> None:
-        runtime = make_runtime(fake_cli, "claude")
-
-        await _turn(runtime, "first")
-        events = await _turn(runtime, "second", ["/img/a.png"])
-
-        assert str(fake_cli.calls("claude")[1]["prompt"]).strip() == 'second\n\n@"/img/a.png"'
-        assert "--resume" in _argv(fake_cli, "claude", 1)
+        content = _stdin_content(fake_cli)
+        assert [block["type"] for block in content] == ["image", "image", "text"]
+        assert [_decoded(block) for block in content[:2]] == [first.read_bytes(), second.read_bytes()]
+        assert content[2] == {"type": "text", "text": "describe [Image: /x.png]"}
+        argv = _argv(fake_cli, "claude")
+        assert argv[argv.index("--input-format") + 1] == "stream-json"
+        assert not any(a.startswith("--add-dir") or str(tmp_path) in a for a in argv)
         assert RuntimeEventType.DONE in types_of(events)
 
     @pytest.mark.asyncio
-    async def test_a_turn_without_images_sends_the_prompt_as_it_is(self, fake_cli: FakeCli) -> None:
+    async def test_a_resumed_turn_sends_its_images_too_with_the_input_format_before_the_resume_flag(
+        self, fake_cli: FakeCli, tmp_path: Path
+    ) -> None:
+        image = _png(tmp_path / "a.png")
+        runtime = make_runtime(fake_cli, "claude")
+
+        await _turn(runtime, "first")
+        events = await _turn(runtime, "second", [str(image)])
+
+        argv = _argv(fake_cli, "claude", 1)
+        assert argv.index("--input-format") < argv.index("--resume")
+        assert [block["type"] for block in _stdin_content(fake_cli, 1)] == ["image", "text"]
+        assert RuntimeEventType.DONE in types_of(events)
+
+    @pytest.mark.asyncio
+    async def test_a_turn_without_images_keeps_the_plain_text_prompt_and_input_format(self, fake_cli: FakeCli) -> None:
         await _turn(make_runtime(fake_cli, "claude"), "plain")
 
         assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == "plain"
+        assert "--input-format" not in _argv(fake_cli, "claude")
+
+    @pytest.mark.asyncio
+    async def test_when_no_image_can_be_read_the_turn_goes_on_as_a_plain_text_turn(
+        self, fake_cli: FakeCli, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        notes = tmp_path / "notes.png"
+        notes.write_text("not an image")
+        runtime = make_runtime(fake_cli, "claude")
+
+        with caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks"):
+            events = await _turn(runtime, "look", [str(notes), str(tmp_path / "gone.png")])
+
+        assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == "look"
+        assert "--input-format" not in _argv(fake_cli, "claude")
+        assert RuntimeEventType.DONE in types_of(events)
+        assert len(caplog.records) == 2
 
 
 class TestCodex:
