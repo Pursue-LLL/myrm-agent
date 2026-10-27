@@ -3,8 +3,9 @@
 A scripted model issues a real browser tool call (a navigation to a server that never answers, a
 snapshot of a wedged renderer) inside a real LangGraph agent driven by the production
 `StreamExecutor` with the production tool interceptor. Without the cancel boundary the stop flag is
-never looked at and the run stays blocked; with it the run ends, the browser tab is healthy and
-the model is not asked again. A run ended from outside (the executor's own timeout, the stuck-task
+never looked at and the run is released only by that backstop; with it the run ends at once, the browser tab is healthy and
+the model is not asked again. Without the boundary the tool gate is the backstop: it cancels the call when its
+grace period after the stop is over, so no call outlives a stopped run. A run ended from outside (the executor's own timeout, the stuck-task
 watchdog) must leave a healthy tab and a whole permit pool as well, and a Stop during the cold start
 must not leak the permit it was acquiring.
 
@@ -151,7 +152,7 @@ async def test_stop_ends_the_run_heals_the_tab_and_the_model_is_not_asked_again(
     assert "title=Good" in await asyncio.wait_for(session.navigate(servers.ok), timeout=30.0)
 
 
-async def test_control_without_the_boundary_the_stopped_run_stays_blocked(
+async def test_control_without_the_boundary_only_the_gate_backstop_releases_the_stopped_run(
     session: BrowserSession, servers: StallServers
 ) -> None:
     unguarded_navigate = create_navigate_tool(session)
@@ -164,7 +165,9 @@ async def test_control_without_the_boundary_the_stopped_run_stays_blocked(
     await asyncio.sleep(_CONTROL_WAIT_S)
 
     try:
-        assert not executing.done(), "the flag alone releases nothing: this is the defect the boundary removes"
+        assert not executing.done(), "the flag alone releases nothing at once: this is what the boundary adds"
+        await asyncio.wait_for(executing, timeout=tool_executor._STOP_GRACE_S + _STOP_BOUND_S)
+        assert run.stats.was_cancelled, "the backstop ended the call, so the run ended"
     finally:
         executing.cancel()
         with contextlib.suppress(BaseException):

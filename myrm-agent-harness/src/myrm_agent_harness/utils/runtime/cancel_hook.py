@@ -9,12 +9,13 @@ a watcher fires the callback within one poll interval while the guarded block ke
 
 [OUTPUT]
 - on_token_cancelled: async context manager that calls ``callback`` once if the token is cancelled inside the block
-- DeadlineCut / cut_deadline_on_cancel: end an ``asyncio.timeout`` scope as soon as the token is cancelled and record that the token, not the clock, ended it
+- DeadlineCut / cut_deadline_on_cancel: end an ``asyncio.timeout`` scope as soon as the token is cancelled (or after a grace period that lets cooperative work answer first) and record that the token, not the clock, ended it
 
 [POS]
 Cancellation bridge for streams that must be stopped from outside; the counterpart of ``run_until_cancelled``, which
 aborts an awaited operation instead. ``cut_deadline_on_cancel`` suits work that already unwinds through its own
-timeout handling (kill the process, keep the partial output): the cancel takes the same exit as a timeout.
+timeout handling (kill the process, keep the partial output): the cancel takes the same exit as a timeout. A grace
+period lets an inner scope that is cut at once return its partial result before an outer scope gives up on the work.
 """
 
 from __future__ import annotations
@@ -72,16 +73,22 @@ async def cut_deadline_on_cancel(
     token: CancellationToken | None,
     deadline: asyncio.Timeout,
     cut: DeadlineCut,
+    grace_s: float = 0.0,
 ) -> AsyncIterator[None]:
-    """End ``deadline`` now when ``token`` is cancelled inside the block, and record that in ``cut``.
+    """End ``deadline`` when ``token`` is cancelled inside the block (after ``grace_s``), and record that in ``cut``.
 
     The scope then fails with ``TimeoutError`` exactly as an expired deadline does; ``cut.by_cancel`` tells the
-    handler which of the two happened. A ``None`` token never cuts.
+    handler which of the two happened. The grace period is for an outer scope around work that already ends itself on
+    cancel: nested timeout scopes that fire together surface the outer error and lose the inner result, so the outer
+    one waits long enough for the inner unwind. A ``None`` token never cuts.
     """
 
     async def cut_now() -> None:
         cut.by_cancel = True
-        deadline.reschedule(asyncio.get_running_loop().time())
+        cut_at = asyncio.get_running_loop().time() + grace_s
+        current = deadline.when()
+        # A cut never postpones a deadline that was due sooner.
+        deadline.reschedule(cut_at if current is None else min(current, cut_at))
 
     async with on_token_cancelled(token, cut_now):
         yield

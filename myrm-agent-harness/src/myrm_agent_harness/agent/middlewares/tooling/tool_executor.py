@@ -8,6 +8,8 @@
 - agent.middlewares._session_context (POS: Middleware session context)
 - agent.streaming.types::AgentEventType (POS: Agent event type definitions)
 - utils.errors::ToolError (POS: Framework-level tool errors)
+- agent.middlewares.tooling._tool_execution_lifecycle::report_tool_cancelled (POS: hook + stream event + result for a cancelled tool call)
+- utils.runtime.cancel_hook::DeadlineCut, cut_deadline_on_cancel (POS: end a timeout scope when the request token is cancelled)
 - utils.runtime.cancellation::get_cancel_token (POS: request-level cancellation token; a stopped request is never retried)
 
 [OUTPUT]
@@ -17,7 +19,9 @@
 Tool execution engine. Encapsulates timeout/retry/backoff logic with event logging
 and stream emission. Called from tool_interceptor_middleware after pre-call guards pass.
 A request that was stopped meanwhile ends the backoff at once and gets no retry: a retry would run again a call
-the user already stopped.
+the user already stopped. The stop also ends a call that is still running: a tool that reacts to the stop returns its
+own result within the grace period, any other (a remote call that only looks at its deadline) is cancelled when the
+period ends, so no call keeps running after the request is over.
 """
 
 from __future__ import annotations
@@ -37,6 +41,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_event_logger,
     get_terminal_errors,
 )
+from myrm_agent_harness.agent.middlewares.tooling._tool_execution_lifecycle import report_tool_cancelled
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     format_tool_error,
     get_tool_timeout,
@@ -46,11 +51,28 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
-from myrm_agent_harness.utils.runtime.cancellation import get_cancel_token
+from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
+from myrm_agent_harness.utils.runtime.cancellation import CancelReason, get_cancel_token
 
 logger = get_agent_logger(__name__)
 
 _STOP_POLL_S = 0.25
+# How long a call that is already ending itself on the stop may take to hand back its result before the gate cancels it.
+# It has to outlast the slowest cleanup such a call performs, because a second cancel arriving mid-cleanup abandons it:
+# a shell that ignores SIGTERM is killed after two 2s grace periods, a wedged browser tab is healed in about a second.
+# A call that does not react to the stop (a remote call) is cancelled only when this period is over.
+_STOP_GRACE_S = 5.0
+
+
+def _stop_reason() -> str:
+    """The stream-event vocabulary for why the request was stopped."""
+    token = get_cancel_token()
+    reason = token.cancel_reason if token is not None else None
+    if reason == CancelReason.TIMEOUT:
+        return "timeout"
+    if reason == CancelReason.DISCONNECT:
+        return "session_ended"
+    return "user_cancelled"
 
 
 def _request_stopped() -> bool:
@@ -110,8 +132,12 @@ async def execute_with_retry(
                 f"{tool_name} was cancelled (request stopped) and not retried.",
                 error_category=ToolErrorCategory.TOOL_CANCELLED,
             )
+        stop_cut = DeadlineCut()
         try:
-            async with asyncio.timeout(timeout):
+            async with (
+                asyncio.timeout(timeout) as deadline,
+                cut_deadline_on_cancel(get_cancel_token(), deadline, stop_cut, grace_s=_STOP_GRACE_S),
+            ):
                 with URLAllowlistGuard.apply(allowed_domains):
                     result = await handler(request)
 
@@ -159,6 +185,14 @@ async def execute_with_retry(
 
                 return result
         except TimeoutError as e:
+            if stop_cut.by_cancel:
+                return await report_tool_cancelled(
+                    tool_name,
+                    tool_call_id,
+                    tool_args if isinstance(tool_args, dict) else {},
+                    start_time,
+                    _stop_reason(),
+                )
             elapsed = (time.time() - start_time) * 1000
             error_history.append(
                 {

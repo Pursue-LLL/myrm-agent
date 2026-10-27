@@ -5,6 +5,8 @@
 - ``start()`` gives up on an owner task that never reports readiness instead of hanging its caller;
 - a crashing dynamic refresh keeps the previous tool map;
 - the serve loop skips cancelled resource reads and never loses a call that arrives while a keepalive probe fails;
+- a caller that gives up cancels its in-flight call and the loop serves the next one, while a cancelled loop still
+  fails the call it was running;
 - notification handler errors stay inside the handler; a missing SDK is reported for resource reads.
 """
 
@@ -171,6 +173,24 @@ class _ServeActor:
         self._queue: asyncio.Queue[object] = asyncio.Queue()
         self._keepalive_interval = keepalive_interval
         self.read_uris: list[str] = []
+        self.entered: asyncio.Queue[str] = asyncio.Queue()
+        self.cancelled: list[str] = []
+        self.release = asyncio.Event()
+
+    async def _invoke(self, tool_name: str, params: dict[str, object]) -> object:
+        """``block`` waits for ``release`` (recording a cancellation); ``fail`` breaks the transport."""
+        await self.entered.put(tool_name)
+        if tool_name == "fail":
+            raise ConnectionError("pipe closed")
+        if tool_name == "self-cancel":
+            raise asyncio.CancelledError
+        if tool_name == "block":
+            try:
+                await self.release.wait()
+            except asyncio.CancelledError:
+                self.cancelled.append(tool_name)
+                raise
+        return f"result:{tool_name}"
 
     async def _keepalive_ok(self, session: object) -> bool:
         return True
@@ -214,6 +234,67 @@ class TestServeLoopEdges:
 
         assert outcome is _ServeOutcome.RECONNECT
         assert actor._queue.get_nowait() is call
+
+    @pytest.mark.asyncio
+    async def test_a_caller_that_gives_up_cancels_its_call_and_the_loop_serves_the_next_one(self) -> None:
+        actor = _ServeActor()
+        loop = asyncio.get_running_loop()
+        blocked = _ToolCall("block", {}, loop.create_future())
+        next_call = _ToolCall("echo", {}, loop.create_future())
+        await actor._queue.put(blocked)
+        await actor._queue.put(next_call)
+        serving = asyncio.create_task(serve_actor_queue(actor, object()))  # type: ignore[arg-type]
+        try:
+            assert await asyncio.wait_for(actor.entered.get(), timeout=2) == "block"
+
+            blocked.future.cancel()  # the caller was stopped while its call is in flight
+
+            assert await asyncio.wait_for(next_call.future, timeout=2) == "result:echo"
+            assert actor.cancelled == ["block"]
+            await actor._queue.put(_SHUTDOWN)
+            assert await asyncio.wait_for(serving, timeout=2) is _ServeOutcome.SHUTDOWN
+        finally:
+            serving.cancel()
+
+    @pytest.mark.asyncio
+    async def test_a_cancelled_loop_cancels_the_call_it_runs_and_fails_the_caller(self) -> None:
+        actor = _ServeActor()
+        blocked = _ToolCall("block", {}, asyncio.get_running_loop().create_future())
+        await actor._queue.put(blocked)
+        serving = asyncio.create_task(serve_actor_queue(actor, object()))  # type: ignore[arg-type]
+        assert await asyncio.wait_for(actor.entered.get(), timeout=2) == "block"
+
+        serving.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await serving
+        with pytest.raises(RuntimeError, match="closed during call"):
+            blocked.future.result()
+        assert actor.cancelled == ["block"]  # no call is left running behind a stopped loop
+
+    @pytest.mark.asyncio
+    async def test_a_call_that_cancels_itself_is_not_taken_for_a_caller_leaving(self) -> None:
+        actor = _ServeActor()
+        call = _ToolCall("self-cancel", {}, asyncio.get_running_loop().create_future())
+        await actor._queue.put(call)
+
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(serve_actor_queue(actor, object()), timeout=2)  # type: ignore[arg-type]
+
+        with pytest.raises(RuntimeError, match="closed during call"):
+            call.future.result()
+
+    @pytest.mark.asyncio
+    async def test_a_transport_error_from_the_call_reaches_the_caller_and_reconnects(self) -> None:
+        actor = _ServeActor()
+        call = _ToolCall("fail", {}, asyncio.get_running_loop().create_future())
+        await actor._queue.put(call)
+
+        outcome = await asyncio.wait_for(serve_actor_queue(actor, object()), timeout=2)  # type: ignore[arg-type]
+
+        assert outcome is _ServeOutcome.RECONNECT
+        with pytest.raises(ConnectionError, match="pipe closed"):
+            call.future.result()
 
 
 class TestSdkGuards:

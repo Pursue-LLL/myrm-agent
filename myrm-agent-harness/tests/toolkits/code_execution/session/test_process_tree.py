@@ -63,6 +63,7 @@ async def test_descendants_are_reaped_even_when_the_shell_exited_after_the_snaps
         sleeper = psutil.Process(process.pid).children(recursive=True)[0]
         gone = MagicMock(wraps=process)
         gone.pid = process.pid
+        gone.returncode = None  # exited after the snapshot but not yet reaped, so its PID is still ours
         gone.terminate.side_effect = ProcessLookupError
         gone.kill.side_effect = ProcessLookupError
         with patch.object(process_tree, "_descendants", return_value=[sleeper]):

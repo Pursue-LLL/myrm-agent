@@ -13,7 +13,8 @@ executions, and structured error / cancellation handling.
 [OUTPUT]
 - resolve_dynamic_tool: Resolve ToolNode misses via the active agent ToolRegistry
 - emit_tool_heartbeat: Periodic heartbeat for long-running tools
-- handle_cancellation: Structured cancellation handling
+- handle_cancellation: Structured cancellation handling for a tool task that was cancelled
+- report_tool_cancelled: hook + stream event + the cancelled result, shared by a cancelled task and a cut-off call
 - handle_execution_error: Structured error handling with ToolStuckException support + terminal error registration
 
 [POS]
@@ -144,11 +145,7 @@ async def handle_cancellation(
     tool_args: dict[str, object],
     start_time: float,
 ) -> ToolMessage:
-    """Handle tool cancellation with hooks and event emission."""
-    from myrm_agent_harness.agent.hooks.executor import fire_hook
-    from myrm_agent_harness.agent.hooks.types import HookEvent
-    from myrm_agent_harness.agent.streaming.types import AgentEventType
-
+    """Handle a cancelled tool task: report it unless the stop was aimed at this very task, which is re-raised."""
     reraise_if_cancelled(e)
 
     error_msg = str(e) if e.args else ""
@@ -160,6 +157,25 @@ async def handle_cancellation(
         cancel_reason = "session_ended"
     else:
         cancel_reason = "user_cancelled"
+
+    return await report_tool_cancelled(tool_name, tool_call_id, tool_args, start_time, cancel_reason)
+
+
+async def report_tool_cancelled(
+    tool_name: str,
+    tool_call_id: str,
+    tool_args: dict[str, object],
+    start_time: float,
+    cancel_reason: str,
+) -> ToolMessage:
+    """Announce a cancelled tool call (hook, stream event) and build the result the model sees.
+
+    The result says the outcome is unknown: a call cut off mid-flight may have done part or all of its work, so the
+    model must look at the current state before repeating it.
+    """
+    from myrm_agent_harness.agent.hooks.executor import fire_hook
+    from myrm_agent_harness.agent.hooks.types import HookEvent
+    from myrm_agent_harness.agent.streaming.types import AgentEventType
 
     logger.warning("Tool cancelled [%s]: %s", tool_name, cancel_reason)
 
@@ -197,7 +213,8 @@ async def handle_cancellation(
     return make_error_msg(
         tool_name,
         tool_call_id,
-        f"{tool_name} was cancelled ({cancel_reason})",
+        f"{tool_name} was cancelled ({cancel_reason}) before it finished. Whether it took effect is unknown: "
+        "check the current state before repeating it.",
         error_category=ToolErrorCategory.TOOL_CANCELLED,
     )
 

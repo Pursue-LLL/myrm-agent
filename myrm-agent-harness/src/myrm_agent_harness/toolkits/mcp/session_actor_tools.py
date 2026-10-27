@@ -15,6 +15,7 @@
 - check_actor_stdio_security_gates: enforces WorkspaceTrustGate and OSV malware checks before stdio spawn
 - build_actor_client_target: builds transport context manager (stdio / sse / streamable_http with TLS & SSRF guard)
 - refresh_actor_auth_headers: re-fetches auth headers on reconnect
+- serve_actor_queue: serves queued calls one at a time on the warm session; a caller that gives up cancels its in-flight request
 
 [POS]
 Internal support module for ``session_actor.py``.
@@ -23,6 +24,7 @@ Internal support module for ``session_actor.py``.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, cast
@@ -36,6 +38,7 @@ if TYPE_CHECKING:
     from mcp.client._transport import TransportStreams
 
     from .session_actor import MCPSessionActor
+    from .session_actor_types import _ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -320,10 +323,40 @@ async def refresh_actor_auth_headers(actor: MCPSessionActor, conn: dict[str, obj
         )
 
 
+_CALLER_GONE = object()
+
+
+async def _invoke_for_caller(actor: MCPSessionActor, call: _ToolCall) -> object:
+    """Run one call as its own task so a caller that gives up cancels the request that is in flight.
+
+    Awaited inline, a cancelled caller would leave the actor busy until the remote call ended and the server would keep
+    working on a result nobody wants. As a task, the caller's cancellation reaches the MCP SDK, which sends
+    ``notifications/cancelled`` and frees the session for the next call. Cancelling the owner task itself still
+    propagates, so shutdown behaves as before. Returns ``_CALLER_GONE`` when the caller left.
+    """
+
+    def _cancel_when_caller_leaves(future: asyncio.Future[object]) -> None:
+        if future.cancelled():
+            worker.cancel()
+
+    worker = asyncio.ensure_future(actor._invoke(call.tool_name, call.params))
+    call.future.add_done_callback(_cancel_when_caller_leaves)
+    try:
+        await asyncio.wait({worker})
+    except asyncio.CancelledError:
+        worker.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await worker
+        raise
+    if worker.cancelled():
+        if call.future.cancelled():
+            return _CALLER_GONE
+        raise asyncio.CancelledError
+    return worker.result()
+
+
 async def serve_actor_queue(actor: MCPSessionActor, session: object) -> object:
     """Serve queued calls on ``session`` until shutdown or a transport break."""
-    import contextlib
-
     from .session_actor_types import (
         _REFRESH_SIGNAL,
         _SHUTDOWN,
@@ -382,7 +415,9 @@ async def serve_actor_queue(actor: MCPSessionActor, session: object) -> object:
             if not isinstance(item, _ToolCall) or item.future.cancelled():
                 continue
             try:
-                result = await actor._invoke(item.tool_name, item.params)
+                result = await _invoke_for_caller(actor, item)
+                if result is _CALLER_GONE:
+                    continue
                 if not item.future.done():
                     item.future.set_result(result)
             except asyncio.CancelledError:

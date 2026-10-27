@@ -330,6 +330,7 @@ class TestProcessGroupKill:
 
         mock_process = MagicMock()
         mock_process.pid = 12345
+        mock_process.returncode = None  # still running: a reaped shell is never signalled
         mock_process.terminate = MagicMock()
         mock_process.kill = MagicMock()
         mock_process.wait = AsyncMock(return_value=None)
@@ -360,6 +361,7 @@ class TestProcessGroupKill:
 
         mock_process = MagicMock()
         mock_process.pid = 99999
+        mock_process.returncode = None
         mock_process.wait = AsyncMock(return_value=None)
 
         real_my_pgid = os.getpgid(os.getpid())
@@ -370,6 +372,11 @@ class TestProcessGroupKill:
                 side_effect=lambda pid: fake_child_pgid if pid == 99999 else real_my_pgid,
             ),
             patch("os.killpg") as mock_killpg,
+            # The mock pid is made up: it must not be looked up in the real process table.
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.session.process_tree._descendants",
+                return_value=[],
+            ),
         ):
             await kill_process_tree(mock_process, is_windows=False, grace_period=1.0)
             mock_killpg.assert_any_call(fake_child_pgid, signal.SIGTERM)
@@ -862,6 +869,7 @@ class TestKillProcessTreeEdgeCases:
 
         mock_process = MagicMock()
         mock_process.pid = 12345
+        mock_process.returncode = None
 
         mock_sub = MagicMock()
         mock_sub.wait = AsyncMock(return_value=0)
@@ -889,6 +897,7 @@ class TestKillProcessTreeEdgeCases:
 
         mock_process = MagicMock()
         mock_process.pid = 12345
+        mock_process.returncode = None
         mock_process.kill = MagicMock()
 
         with patch(
@@ -910,6 +919,7 @@ class TestKillProcessTreeEdgeCases:
 
         mock_process = MagicMock()
         mock_process.pid = 12345
+        mock_process.returncode = None  # still running: a reaped shell is never signalled
         mock_process.terminate = MagicMock()
         mock_process.kill = MagicMock()
         mock_process.wait = AsyncMock(side_effect=TimeoutError)
@@ -938,6 +948,7 @@ class TestKillProcessTreeEdgeCases:
 
         mock_process = MagicMock()
         mock_process.pid = 99999
+        mock_process.returncode = None
         mock_process.wait = AsyncMock(side_effect=TimeoutError)
 
         real_my_pgid = os.getpgid(os.getpid())
@@ -948,6 +959,11 @@ class TestKillProcessTreeEdgeCases:
                 side_effect=lambda pid: fake_child_pgid if pid == 99999 else real_my_pgid,
             ),
             patch("os.killpg") as mock_killpg,
+            # The mock pid is made up: it must not be looked up in the real process table.
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.session.process_tree._descendants",
+                return_value=[],
+            ),
         ):
             await kill_process_tree(mock_process, is_windows=False, grace_period=0.1)
             mock_killpg.assert_any_call(fake_child_pgid, signal.SIGTERM)
