@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models.agent import Agent
+from app.services.chat.chat_helpers import exported_user_text
 from app.services.chat.chat_service import ChatService
 
 _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
@@ -54,7 +55,7 @@ async def _get_agent_info(db: AsyncSession, agent_id: str | None) -> dict[str, s
         return {"name": "Agent", "model": "", "description": ""}
     model_name = ""
     if agent.model_selection and isinstance(agent.model_selection, dict):
-        model_name = agent.model_selection.get("model", "")
+        model_name = str(agent.model_selection.get("model", ""))
     return {
         "name": agent.name or "Agent",
         "model": model_name,
@@ -86,7 +87,8 @@ def _build_html(
     for msg in messages[-200:]:
         if msg.role not in visible_roles:
             continue
-        msg_html_parts.append(_render_message(msg.role, msg.content, msg.created_at))
+        content = exported_user_text(msg) if msg.role == "user" else msg.content
+        msg_html_parts.append(_render_message(msg.role, content, msg.created_at))
 
     messages_html = "\n".join(msg_html_parts)
     agent_card = ""

@@ -1,39 +1,36 @@
 """Context Guard Service — Gateway & Ingress defense against context bomb payloads.
 
 [INPUT]
-- myrm_agent_harness.agent.context_guard::SpilloverEngine, ContextGuardConfig (POS: pure framework engine)
+- myrm_agent_harness.agent.context_guard::EphemeralTransientSweeper (POS: TTL sweeper of transient spill files)
+- app.services.chat.context_bomb_guard::ContextBombDefenseService (POS: parks an oversized text in a workspace file)
 - app.services.chat.effective_workspace::resolve_effective_chat_workspace (POS: chat sandbox workspace resolution)
 - app.services.agent.params.workspace_resolve::default_chat_workspace_path, default_workspaces_root
   (POS: JIT chat workspace locations)
 - app.services.chat.chat_service::ChatService (POS: chat metadata lookup)
-- app.core.utils.skill_invocation::decorate_behind_skill_tag (POS: keeps a leading ``[use skill]`` tag first)
 
 [OUTPUT]
 - ContextGuardService: service wrapper for protecting agent ingress and streaming pipelines
-- guard_inbound_prompt: transparently spill oversized prompts into the workspace the agent runs in,
-  leaving an explicit skill invocation in front of the reference
-- sweep_all_workspaces: housekeeping that purges expired spillover files from the chat workspaces
+- guard_inbound_prompt: park an oversized prompt in the workspace the agent runs in (kept with the workspace, the
+  same file and stub the stored message gets), leaving an explicit skill invocation in front of the stub
+- sweep_all_workspaces: housekeeping that purges expired transient spill files from the chat workspaces
 
 [POS]
-Integrates harness ContextGuard with server session workspace paths and background housekeeping.
+Integrates the context guard with server session workspace paths and background housekeeping.
 The spill target is always the directory the agent's file tools resolve relative paths against;
-a file anywhere else would hide the user's prompt from the model.
+a file anywhere else would hide the user's prompt from the model. The prompt a run starts from is
+kept in the agent's thread and replayed on later turns, so its file must outlive the turn: only
+transient files (a channel document) are ever swept.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from dataclasses import replace
 from pathlib import Path
 
-from myrm_agent_harness.agent.context_guard.spillover_engine import SpilloverEngine
-from myrm_agent_harness.agent.context_guard.sweeper import EphemeralTransientSweeper
-from myrm_agent_harness.agent.context_guard.types import (
-    SpilloverResult,
-    estimate_token_pressure,
-)
+from myrm_agent_harness.agent.context_guard import EphemeralTransientSweeper
 
-from app.core.utils.skill_invocation import decorate_behind_skill_tag
+from app.services.chat.context_bomb_guard import ContextBombDefenseService, SpilloverPayloadResult
 
 logger = logging.getLogger(__name__)
 
@@ -41,51 +38,22 @@ logger = logging.getLogger(__name__)
 class ContextGuardService:
     """Server-side coordinator for Context Guard and transparent file spillover."""
 
-    _engine: SpilloverEngine = SpilloverEngine()
     _sweeper: EphemeralTransientSweeper = EphemeralTransientSweeper()
 
     @classmethod
-    def get_engine(cls) -> SpilloverEngine:
-        return cls._engine
-
-    @classmethod
-    def get_sweeper(cls) -> EphemeralTransientSweeper:
-        return cls._sweeper
-
-    @classmethod
-    async def guard_inbound_prompt(
-        cls,
-        *,
-        chat_id: str | None,
-        raw_prompt: str,
-        role: str = "user",
-    ) -> SpilloverResult:
-        """Evaluate raw prompt and transparently spill to the chat workspace if over threshold.
+    async def guard_inbound_prompt(cls, *, chat_id: str | None, raw_prompt: str) -> SpilloverPayloadResult:
+        """Park the raw prompt in the chat workspace if it is over the threshold.
 
         Without a workspace the agent can read, nothing is written: the prompt stays intact and the
         gateway size backstop applies, rather than replacing it with a reference the model cannot follow.
         A leading ``[use skill]`` tag stays in front of the reference so the invocation still counts.
         """
+        if not ContextBombDefenseService.is_oversized(raw_prompt):
+            return SpilloverPayloadResult.intact(raw_prompt)
         base_dir = await cls._resolve_base_dir(chat_id)
-        if base_dir is None:
-            return SpilloverResult(
-                spilled=False,
-                sanitized_content=raw_prompt,
-                original_char_count=len(raw_prompt),
-                estimated_tokens=estimate_token_pressure(raw_prompt),
-            )
-        result = cls._engine.process_content(
-            raw_prompt,
-            base_dir=base_dir,
-            role=role,
-            session_id=chat_id,
-        )
-        if not result.spilled:
-            return result
-        reference = result.sanitized_content
-        return replace(
-            result,
-            sanitized_content=decorate_behind_skill_tag(raw_prompt, lambda _user_text: reference),
+        # The guard writes the file; keep that I/O off the event loop.
+        return await asyncio.to_thread(
+            ContextBombDefenseService.process_incoming_content, raw_prompt, workspace_root=base_dir, kept=True
         )
 
     @classmethod

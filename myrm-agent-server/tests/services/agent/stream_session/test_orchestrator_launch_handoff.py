@@ -44,7 +44,7 @@ def handoff(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(f"{_ORCHESTRATOR}._count_pending_approvals", AsyncMock(return_value=0))
     monkeypatch.setattr(
         "app.services.agent.context_guard_service.ContextGuardService.guard_inbound_prompt",
-        AsyncMock(return_value=SimpleNamespace(spilled=False)),
+        AsyncMock(return_value=SimpleNamespace(is_spilled=False)),
     )
 
     reservation = MagicMock()

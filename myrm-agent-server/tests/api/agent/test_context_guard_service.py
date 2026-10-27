@@ -18,8 +18,8 @@ async def test_context_guard_service_normal_message() -> None:
         chat_id="test_chat_1",
         raw_prompt=short_text,
     )
-    assert res.spilled is False
-    assert res.sanitized_content == short_text
+    assert res.is_spilled is False
+    assert res.processed_content == short_text
     assert res.original_char_count == len(short_text)
 
 
@@ -32,13 +32,12 @@ async def test_context_guard_service_oversized_message() -> None:
                 chat_id="test_chat_2",
                 raw_prompt=oversized_text,
             )
-            assert res.spilled is True
-            assert res.payload is not None
-            assert Path(res.payload.file_path).exists()
-            assert Path(res.payload.file_path).read_text(encoding="utf-8") == oversized_text
-            assert "<file_spillover" in res.sanitized_content
-            assert 'chars="20000"' in res.sanitized_content
-            assert "file_read_tool" in res.sanitized_content
+            assert res.is_spilled is True
+            assert Path(res.spillover_path).exists()
+            assert Path(res.spillover_path).read_text(encoding="utf-8") == oversized_text
+            assert "<file_spillover" in res.processed_content
+            assert 'chars="20000"' in res.processed_content
+            assert "file_read_tool" in res.processed_content
 
 
 def test_context_guard_sweep_all_workspaces() -> None:

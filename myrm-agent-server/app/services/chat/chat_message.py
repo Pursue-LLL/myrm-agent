@@ -46,10 +46,12 @@ async def _park_user_text(
 ) -> tuple[str, str, dict[str, object] | None]:
     """What to persist for a user message: its text, the short form chat lists show, and its extra data.
 
-    An oversized message is stored as a pointer to a file in the chat's workspace (``workspace``, or the one
+    An oversized message is stored as a stub naming a file in the chat's workspace (``workspace``, or the one
     the chat's agent runs in when omitted): the database keeps only a preview, so the file lives as long as the
-    workspace does and the agent's file tools can read it back. When the file cannot be written the message
-    stays in the database as it is.
+    workspace does and the agent's file tools can read it back. The stub is the one the live turn already carried,
+    and the path it names is relative to the workspace, so a copy of the chat (a fork, a migrated instance) finds
+    the file at the same place. When the file cannot be written, or the chat has no workspace to hold it, the
+    message stays in the database as it is.
     """
     from app.services.chat.context_bomb_guard import ContextBombDefenseService, replace_query_text
 
@@ -62,7 +64,7 @@ async def _park_user_text(
     try:
         # The guard writes the file; keep that I/O off the event loop.
         parked = await asyncio.to_thread(
-            ContextBombDefenseService.process_incoming_content, content, chat_id=chat_id, workspace_root=workspace, kept=True
+            ContextBombDefenseService.process_incoming_content, content, workspace_root=workspace, kept=True
         )
     except OSError:
         logger.warning(
@@ -72,7 +74,7 @@ async def _park_user_text(
     if not parked.is_spilled:
         return content, content, extra_data
     spillover = {
-        "spillover_path": parked.spillover_path,
+        "spillover_path": parked.relative_path,
         "original_char_count": parked.original_char_count,
         "sha256": parked.content_sha256,
         "preview": parked.preview,
@@ -99,6 +101,8 @@ class _ChatMessageMixin(_ChatServiceBase):
         sent_at: datetime,
     ) -> None:
         """Persist the derived recall index without gating the canonical message row.
+
+        ``content`` is the text a person can search for: the preview of a parked message, not its stub.
 
         Chat/message rows are the source of truth.  The recall tables are rebuilt by
         startup bootstrap when this bounded best-effort side effect is unavailable.
@@ -199,7 +203,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 chat_id=chat_id,
                 message_id=msg.id,
                 role=role,
-                content=final_content,
+                content=shown_text,
                 sent_at=sent_at,
             )
             return msg
@@ -313,7 +317,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 chat_id=chat_id,
                 message_id=msg.id,
                 role="user",
-                content=final_content,
+                content=shown_text,
                 sent_at=sent_at,
             )
             return msg

@@ -1,39 +1,40 @@
-"""Context Bomb Guard and Transparent File Spillover Engine.
+"""Context bomb guard: parks an oversized user text in the chat's workspace and leaves a stub in its place.
 
-Detects oversized incoming user payloads (>16,000 characters or >8,000 token pressure), safely offloads them
-to POSIX-isolated sandbox workspace files (.myrm/spillover/payload_<sha256>.md, swept after 24 hours; or
-.myrm/pastes/payload_<sha256>.md for a persisted user message, which is never swept),
-and transparently injects structured XML file references into the agent prompt context.
+An oversized text (>16,000 characters, or a token pressure >8,000) is saved as a file in the workspace the chat's
+agent runs in, and the prompt carries a stub: the start and the end of the text, the file's workspace-relative path
+and an instruction to read the file. The text of a person is parked in ``.myrm/pastes`` (kept as long as the
+workspace is, and copied along when a chat is forked); a document attached from a messaging channel in
+``.myrm/spillover`` (swept after 24 hours).
 
 [INPUT]
 - app.services.agent.params.models::MultimodalQuery (POS: agent query payload type)
 - app.core.utils.skill_invocation::decorate_behind_skill_tag (POS: keeps a leading ``[use skill]`` tag first)
-- myrm_agent_harness.agent.context_guard (POS: harness spillover engine and CJK token pressure)
-- pathlib.Path, hashlib, time, uuid
+- app.services.chat.effective_workspace::find_chat_workspace_root (POS: workspace a chat's files live in)
+- myrm_agent_harness.agent.context_guard (POS: spillover engine, its two directories and CJK token pressure)
 
 [OUTPUT]
-- ContextBombDefenseService: Inbound query guard, spillover manager, and stale file sweeper.
+- ContextBombDefenseService: size check, parking of one text or of a query's text, and the sweep of transient files.
 - replace_query_text: A query's text swapped for a replacement, its other blocks kept.
-- SpilloverMetadata: Metadata describing spilled payloads.
-- SpilloverPayloadResult: Frozen result tuple for high-level pipeline compatibility.
+- carry_parked_files_to_fork: The parked files a forked conversation names, copied into the fork's workspace.
+- SpilloverPayloadResult: Frozen result of parking one text.
 
 [POS]
-Chat/Agent ingress safety layer protecting model context window, prompt cache, and billing.
+Chat/Agent ingress safety layer protecting model context window, prompt cache, and billing. One engine writes the
+file and renders the stub for every entry (a live turn, a turn with attachments, the stored message), so a stub is
+byte-identical wherever it appears and always names a file that is still there.
 """
 
 from __future__ import annotations
 
-import contextlib
-import hashlib
+import asyncio
 import logging
-import os
-import time
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Final
-from uuid import uuid4
+import re
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
 from myrm_agent_harness.agent.context_guard import (
+    KEPT_SPILLOVER_DIR,
     ContextGuardConfig,
     EphemeralTransientSweeper,
     SpilloverEngine,
@@ -45,37 +46,11 @@ from app.services.agent.params.models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 
-MESSAGE_MAX_CHARS: Final[int] = 16_000
-MAX_TOKEN_PRESSURE: Final[int] = 8_000
-PREVIEW_MAX_CHARS: Final[int] = 300
-SPILLED_DIR_NAME: Final[str] = ".myrm/spillover"
-# The database keeps only a preview of a persisted paste, so its file lives as long as the workspace.
-KEPT_DIR_NAME: Final[str] = ".myrm/pastes"
-SPILLED_FILE_TTL_SECONDS: Final[float] = 86_400.0  # 24 hours
-DIR_PERMISSIONS: Final[int] = 0o700
-FILE_PERMISSIONS: Final[int] = 0o600
-
-
-@dataclass(slots=True)
-class SpilloverMetadata:
-    """Metadata regarding a spilled text payload."""
-
-    sha256: str
-    file_path: str
-    total_chars: int
-    preview: str
-    estimated_tokens: int = 0
-    created_at: float = field(default_factory=time.time)
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "sha256": self.sha256,
-            "filePath": self.file_path,
-            "totalChars": self.total_chars,
-            "preview": self.preview,
-            "estimatedTokens": self.estimated_tokens,
-            "createdAt": self.created_at,
-        }
+_THRESHOLDS = ContextGuardConfig()
+# The one place a stub names its file; every stub comes from the engine, so the attribute order is fixed.
+_STUB_PATH = re.compile(r'<file_spillover path="([^"]+)"')
+_KEPT_ENGINE = SpilloverEngine(ContextGuardConfig(spillover_dir_name=KEPT_SPILLOVER_DIR))
+_TRANSIENT_ENGINE = SpilloverEngine()
 
 
 @dataclass(slots=True, frozen=True)
@@ -86,9 +61,16 @@ class SpilloverPayloadResult:
     processed_content: str
     original_char_count: int
     spillover_path: str | None = None
+    # The file's path relative to the workspace: what the stub and the stored message name.
+    relative_path: str | None = None
     content_sha256: str | None = None
     estimated_tokens: int = 0
     preview: str = ""
+
+    @classmethod
+    def intact(cls, content: str) -> SpilloverPayloadResult:
+        """The outcome for a text that stays as it is."""
+        return cls(is_spilled=False, processed_content=content, original_char_count=len(content))
 
 
 def extract_text_from_query(query: MultimodalQuery | object) -> str:
@@ -133,242 +115,133 @@ def replace_query_text(query: MultimodalQuery, replacement: str) -> MultimodalQu
     return str(replacement)
 
 
-def build_spillover_prompt_block(
-    file_path: str,
-    total_chars: int,
-    sha256: str,
-    preview: str,
-    estimated_tokens: int = 0,
-) -> str:
-    """Construct structured, prompt-cache-friendly XML reference block."""
-    token_hint = f", ~{estimated_tokens:,} tokens" if estimated_tokens > 0 else ""
-    return (
-        f'<file_spillover path="{file_path}" total_chars="{total_chars}" sha256="{sha256}">\n'
-        f"<preview>\n{preview}\n...\n</preview>\n"
-        f"<instruction>\n"
-        f"Notice: User provided a large document payload ({total_chars:,} characters{token_hint}) that exceeds direct context threshold.\n"
-        f"It has been safely preserved at '{file_path}' (sha256: {sha256}).\n"
-        f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'file_read_tool' tool to inspect this file.\n"
-        f"</instruction>\n"
-        f"</file_spillover>"
-    )
-
-
 class ContextBombDefenseService:
     """Inbound safety gateway preventing context window exhaustion and prompt cache invalidation."""
 
-    def __init__(
-        self,
-        max_chars: int = MESSAGE_MAX_CHARS,
-        max_tokens: int = MAX_TOKEN_PRESSURE,
-        preview_chars: int = PREVIEW_MAX_CHARS,
-        ttl_seconds: float = SPILLED_FILE_TTL_SECONDS,
-    ) -> None:
-        self.max_chars = max_chars
-        self.max_tokens = max_tokens
-        self.preview_chars = preview_chars
-        self.ttl_seconds = ttl_seconds
-        self._harness_engine = SpilloverEngine(
-            ContextGuardConfig(
-                max_message_chars=max_chars,
-                max_token_pressure=max_tokens,
-                preview_chars=preview_chars,
-                spillover_ttl_seconds=int(ttl_seconds),
-            )
-        )
-        self._harness_sweeper = EphemeralTransientSweeper(ContextGuardConfig(spillover_ttl_seconds=int(ttl_seconds)))
-
-    @classmethod
-    def get_spillover_dir(cls, workspace_root: Path | str | None = None, *, kept: bool = False) -> Path:
-        """Resolve and initialize the spillover storage directory (the never-swept one when ``kept``)."""
-        root = Path.home() if workspace_root is None else Path(workspace_root)
-        base_dir = root / (KEPT_DIR_NAME if kept else SPILLED_DIR_NAME)
-
-        base_dir.mkdir(parents=True, exist_ok=True)
-        with contextlib.suppress(OSError):
-            os.chmod(base_dir, DIR_PERMISSIONS)
-        if kept:
-            # The workspace may be a project folder under version control: the directory ignores itself and its files.
-            ignore_file = base_dir / ".gitignore"
-            if not ignore_file.exists():
-                with contextlib.suppress(OSError):
-                    ignore_file.write_text("*\n", encoding="utf-8")
-        return base_dir
-
-    @classmethod
-    def is_oversized(cls, content: str, max_chars: int = MESSAGE_MAX_CHARS) -> bool:
+    @staticmethod
+    def is_oversized(content: str) -> bool:
         """Whether ``content`` is too long to go into a prompt as it is."""
-        return len(content) > max_chars or estimate_token_pressure(content) > MAX_TOKEN_PRESSURE
+        return len(content) > _THRESHOLDS.max_message_chars or estimate_token_pressure(content) > _THRESHOLDS.max_token_pressure
 
-    @classmethod
+    @staticmethod
     def process_incoming_content(
-        cls,
         content: str,
         *,
-        chat_id: str | None = None,
-        workspace_root: Path | str | None = None,
-        max_chars: int = MESSAGE_MAX_CHARS,
+        workspace_root: Path | str | None,
         kept: bool = False,
     ) -> SpilloverPayloadResult:
-        """Inspect plain text message length and transparently spill to workspace file if exceeding cap.
+        """Park ``content`` as a file in ``workspace_root`` when it is oversized.
 
-        ``kept`` parks the original of a persisted user message, so the file stays out of the 24-hour sweep.
+        ``kept`` parks the text of a person (the file is named by a stored message and lives as long as the
+        workspace does); without it the file is swept after 24 hours. Without a workspace nothing is written and
+        the text stays as it is: there is no directory the agent's file tools could read it back from.
+
+        Raises:
+            OSError: The file could not be written.
         """
-        char_count = len(content)
-        token_pressure = estimate_token_pressure(content)
-
-        if char_count <= max_chars and token_pressure <= MAX_TOKEN_PRESSURE:
-            return SpilloverPayloadResult(
-                is_spilled=False,
-                processed_content=content,
-                original_char_count=char_count,
-                estimated_tokens=token_pressure,
-            )
-
-        sha256_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        short_hash = sha256_hash[:16]
-        preview = content[:PREVIEW_MAX_CHARS].strip()
-
-        target_dir = cls.get_spillover_dir(workspace_root, kept=kept)
-        target_file = target_dir / f"payload_{short_hash}.md"
-
-        # Security check: verify no path traversal
-        try:
-            target_file.resolve().relative_to(target_dir.resolve())
-        except ValueError as err:
-            logger.error("Security violation: spillover path escaped target dir: %s", target_file)
-            raise PermissionError("Path traversal violation in spillover directory") from err
-
-        # Idempotent atomic file write with unique tmp file
-        if not target_file.exists():
-            tmp_file = target_dir / f".tmp_{short_hash}_{uuid4().hex[:6]}"
-            try:
-                tmp_file.write_text(content, encoding="utf-8")
-                with contextlib.suppress(OSError):
-                    os.chmod(tmp_file, FILE_PERMISSIONS)
-                tmp_file.replace(target_file)
-            except Exception as e:
-                logger.error("Failed to write transient spillover file: %s", e, exc_info=True)
-                truncated = content[:max_chars]
-                return SpilloverPayloadResult(
-                    is_spilled=False,
-                    processed_content=truncated
-                    + f"\n\n[System Warning: Text truncated to {max_chars} chars due to file spillover write failure]",
-                    original_char_count=char_count,
-                    estimated_tokens=token_pressure,
-                )
-            finally:
-                if tmp_file.exists():
-                    with contextlib.suppress(OSError):
-                        tmp_file.unlink(missing_ok=True)
-
-        saved_path = str(target_file.resolve())
-        # A leading ``[use skill]`` tag only counts at the very start of the text: keep it in front of the reference.
-        prompt_block = decorate_behind_skill_tag(
-            content,
-            lambda _user_text: build_spillover_prompt_block(
-                file_path=saved_path,
-                total_chars=char_count,
-                sha256=sha256_hash,
-                preview=preview,
-                estimated_tokens=token_pressure,
-            ),
-        )
-        logger.info(
-            "ContextBombDefenseService mitigated large payload: chars=%d (~%d tokens) sha256=%s path=%s for chat_id=%s",
-            char_count,
-            token_pressure,
-            short_hash,
-            saved_path,
-            chat_id or "unknown",
-        )
+        if workspace_root is None:
+            return SpilloverPayloadResult.intact(content)
+        engine = _KEPT_ENGINE if kept else _TRANSIENT_ENGINE
+        result = engine.process_content(content, base_dir=workspace_root)
+        payload = result.payload
+        if not result.spilled or payload is None:
+            return SpilloverPayloadResult.intact(content)
+        # A leading ``[use skill]`` tag only counts at the very start of the text: keep it in front of the stub.
+        stub = decorate_behind_skill_tag(content, lambda _user_text: result.sanitized_content)
         return SpilloverPayloadResult(
             is_spilled=True,
-            processed_content=prompt_block,
-            original_char_count=char_count,
-            spillover_path=saved_path,
-            content_sha256=sha256_hash,
-            estimated_tokens=token_pressure,
-            preview=preview,
+            processed_content=stub,
+            original_char_count=payload.char_count,
+            spillover_path=payload.file_path,
+            relative_path=payload.relative_path,
+            content_sha256=payload.sha256_digest,
+            estimated_tokens=payload.estimated_tokens,
+            preview=payload.summary_preview,
         )
 
+    @staticmethod
     def guard_and_spill_query(
-        self,
         query: MultimodalQuery,
         workspace_dir: str | Path | None = None,
-        session_id: str | None = None,
-    ) -> tuple[MultimodalQuery, bool, SpilloverMetadata | None]:
-        """Inspect inbound query for context bomb conditions.
+    ) -> tuple[MultimodalQuery, SpilloverPayloadResult]:
+        """The query of a turn, its text parked when oversized (the person's text: kept with the workspace).
 
-        If total character length or token pressure exceeds limit, transparently saves payload
-        to sandbox workspace file and returns a transformed query with structured XML reference.
+        When the file cannot be written the query is returned as it is: the gateway's size backstop applies.
         """
         raw_text = extract_text_from_query(query)
-        res = self.process_incoming_content(
-            raw_text,
-            chat_id=session_id,
-            workspace_root=workspace_dir,
-            max_chars=self.max_chars,
+        try:
+            parked = ContextBombDefenseService.process_incoming_content(raw_text, workspace_root=workspace_dir, kept=True)
+        except OSError:
+            logger.warning("A long query could not be saved as a file in its workspace", exc_info=True)
+            return query, SpilloverPayloadResult.intact(raw_text)
+        if not parked.is_spilled:
+            return query, parked
+        return replace_query_text(query, parked.processed_content), parked
+
+    @staticmethod
+    def sweep_stale_spillover_files(workspace_dir: str | Path | None, ttl_seconds: int | None = None) -> int:
+        """Remove the transient files of ``workspace_dir`` older than the TTL (24 hours by default)."""
+        if workspace_dir is None:
+            return 0
+        config = ContextGuardConfig() if ttl_seconds is None else ContextGuardConfig(spillover_ttl_seconds=ttl_seconds)
+        return EphemeralTransientSweeper(config).sweep_directory(workspace_dir)
+
+
+def _is_kept_path(relative_path: str) -> bool:
+    """Whether ``relative_path`` names a file directly under the kept directory (no ``..``, not absolute)."""
+    parts = PurePosixPath(relative_path).parts
+    kept_parts = PurePosixPath(KEPT_SPILLOVER_DIR).parts
+    return len(parts) == len(kept_parts) + 1 and parts[:-1] == kept_parts and ".." not in parts
+
+
+def _carry_parked_files(source: Path, target: Path, relative_paths: Iterable[str]) -> int:
+    """Copy the kept files ``relative_paths`` name from workspace ``source`` into workspace ``target``.
+
+    The copy goes through the engine that parked the text: the same text lands under the same name, next to the
+    ignore file that keeps it out of version control. A file that is gone, or not a kept file, is skipped.
+    """
+    if source.resolve() == target.resolve():
+        return 0
+    carried = 0
+    for relative_path in dict.fromkeys(relative_paths):
+        origin = source / relative_path
+        if not _is_kept_path(relative_path) or not origin.is_file():
+            continue
+        result = _KEPT_ENGINE.process_content(origin.read_text(encoding="utf-8"), base_dir=target)
+        if result.payload is not None and result.payload.relative_path == relative_path:
+            carried += 1
+    return carried
+
+
+async def carry_parked_files_to_fork(
+    *,
+    parent_chat_id: str,
+    child_chat_id: str,
+    child_workspace: str | None,
+    messages: Iterable[str],
+) -> int:
+    """Copy the parked files the ``messages`` of a fork name from the parent's workspace into the fork's.
+
+    The stubs name a path relative to the workspace, so the child finds the files where it expects them.
+    A copy that fails leaves the fork as it is: the stubs still carry the start and the end of each text.
+
+    Returns:
+        How many files were copied.
+    """
+    from app.services.agent.params.workspace_resolve import default_chat_workspace_path
+    from app.services.chat.effective_workspace import find_chat_workspace_root
+
+    paths = [path for message in messages for path in _STUB_PATH.findall(message)]
+    if not paths:
+        return 0
+    source = await find_chat_workspace_root(parent_chat_id)
+    if source is None:
+        return 0
+    target = Path(child_workspace) if child_workspace else default_chat_workspace_path(child_chat_id)
+    try:
+        return await asyncio.to_thread(_carry_parked_files, source, target, paths)
+    except OSError:
+        logger.warning(
+            "Parked files of chat %s could not be copied into its fork %s", parent_chat_id, child_chat_id, exc_info=True
         )
-        if not res.is_spilled:
-            return query, False, None
-
-        preview = raw_text[: self.preview_chars].strip()
-        metadata = SpilloverMetadata(
-            sha256=res.content_sha256 or hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
-            file_path=res.spillover_path or "",
-            total_chars=res.original_char_count,
-            preview=preview,
-            estimated_tokens=res.estimated_tokens,
-        )
-        prompt_block = res.processed_content
-        transformed_query = replace_query_text(query, prompt_block)
-        return transformed_query, True, metadata
-
-    def sweep_stale_spillover_files(
-        self,
-        workspace_dir: str | Path | None = None,
-        ttl_seconds: float | None = None,
-    ) -> int:
-        """Purge spilled files older than TTL (default 24h) to avoid disk exhaustion."""
-        effective_ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
-        sweeper = (
-            EphemeralTransientSweeper(ContextGuardConfig(spillover_ttl_seconds=int(effective_ttl)))
-            if effective_ttl != self.ttl_seconds
-            else self._harness_sweeper
-        )
-        purged = sweeper.sweep_directory(workspace_dir) if workspace_dir else 0
-
-        fallback_dir = Path("/tmp/myrm_spillover").resolve()
-        if fallback_dir.exists():
-            cutoff = time.time() - effective_ttl
-            for entry in fallback_dir.rglob("*.md"):
-                try:
-                    if entry.is_symlink() or entry.stat().st_mtime < cutoff:
-                        entry.unlink(missing_ok=True)
-                        purged += 1
-                except OSError as err:
-                    logger.debug("Failed cleaning stale spillover file %s: %s", entry, err)
-
-        if purged > 0:
-            logger.info("ContextBombDefenseService swept %d stale spillover files", purged)
-        return purged
-
-    @classmethod
-    def cleanup_transient_spillover_cache(
-        cls,
-        workspace_root: Path | str | None = None,
-        ttl_seconds: float = SPILLED_FILE_TTL_SECONDS,
-    ) -> int:
-        """Alias for sweep_stale_spillover_files matching classmethod contract."""
-        return get_context_bomb_defense_service().sweep_stale_spillover_files(
-            workspace_dir=workspace_root, ttl_seconds=ttl_seconds
-        )
-
-
-_GLOBAL_CONTEXT_BOMB_GUARD = ContextBombDefenseService()
-
-
-def get_context_bomb_defense_service() -> ContextBombDefenseService:
-    """Return singleton instance of ContextBombDefenseService."""
-    return _GLOBAL_CONTEXT_BOMB_GUARD
+        return 0

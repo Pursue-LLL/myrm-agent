@@ -746,3 +746,43 @@ async def test_export_chat_deep_redacts_nested_metadata_structures(
     # Verify nested list of tokens
     assert "ghp_nestedgithubtoken0123456789012345678" not in str(meta)
     assert meta["custom_tokens"][0] != "ghp_nestedgithubtoken0123456789012345678"
+
+
+@pytest.mark.asyncio
+async def test_export_shows_a_parked_paste_as_its_opening_and_size(async_client: httpx.AsyncClient) -> None:
+    """The stub a parked paste is stored as names a file the reader of an export does not have."""
+    from datetime import datetime, timezone
+
+    from app.database.models.chat import Message
+    from app.platform_utils import get_session_factory
+
+    chat_id = f"test-export-paste-{uuid.uuid4().hex[:8]}"
+    await _create_chat_with_messages(chat_id)
+    async with get_session_factory()() as db:
+        db.add(
+            Message(
+                id=f"msg-paste-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="user",
+                content='<file_spillover path=".myrm/pastes/payload_1.md" chars="41200"></file_spillover>',
+                extra_data={
+                    "spillover": {
+                        "spillover_path": ".myrm/pastes/payload_1.md",
+                        "original_char_count": 41_200,
+                        "preview": "meeting-line: the decision",
+                    }
+                },
+                sent_at=datetime.now(tz=timezone.utc),
+                sent_timezone="UTC",
+            )
+        )
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+
+    contents = [m["content"] for m in res.json()["data"]["messages"] if m["role"] == "user"]
+    pasted = next(c for c in contents if "meeting-line" in c)
+    assert pasted.startswith("meeting-line: the decision")
+    assert "41,200 characters" in pasted
+    assert not any("file_spillover" in c for c in contents)

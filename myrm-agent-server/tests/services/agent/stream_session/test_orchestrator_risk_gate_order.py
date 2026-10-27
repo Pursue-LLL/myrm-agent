@@ -125,7 +125,7 @@ async def test_the_guard_and_size_check_read_the_prompt_without_the_regeneration
     regeneration_request.query = "A" * 360_001
     regeneration_request.regenerate_instruction = "be more concise"
     gate = AsyncMock(return_value=None)
-    guard = AsyncMock(return_value=SimpleNamespace(spilled=False))
+    guard = AsyncMock(return_value=SimpleNamespace(is_spilled=False))
     monkeypatch.setattr(f"{_ORCHESTRATOR}.check_stream_risk", gate)
     monkeypatch.setattr(f"{_ORCHESTRATOR}.try_stream_reconnect", AsyncMock(return_value=None))
     monkeypatch.setattr(ContextGuardService, "guard_inbound_prompt", guard)
@@ -135,4 +135,4 @@ async def test_the_guard_and_size_check_read_the_prompt_without_the_regeneration
     assert isinstance(response, JSONResponse)
     assert response.status_code == 400
     assert [call.args[0] for call in gate.await_args_list] == [regeneration_request.query, "be more concise"]
-    guard.assert_awaited_once_with(chat_id="chat-regen", raw_prompt=regeneration_request.query, role="user")
+    guard.assert_awaited_once_with(chat_id="chat-regen", raw_prompt=regeneration_request.query)

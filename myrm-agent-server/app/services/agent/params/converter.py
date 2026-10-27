@@ -16,6 +16,7 @@ web search; deep search uses web_fetch + sufficiency, not browser eager bind.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Literal
@@ -967,29 +968,27 @@ async def convert_to_general_agent_params(
 
     final_query = rewrite_learn_query_if_needed(final_query)
 
-    from app.services.chat.context_bomb_guard import get_context_bomb_defense_service
+    from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
-    guard_service = get_context_bomb_defense_service()
-    # Guard against context bomb (>16,000 chars) and transparently spill to workspace file
-    spilled_query, was_spilled, spill_meta = guard_service.guard_and_spill_query(
-        query=final_query,
-        workspace_dir=chat_workspace_dir,
-        session_id=request.chat_id,
+    # A long text of a turn with attachments (a plain text query was parked at the stream entry): parked in a
+    # workspace file the same way the stored message is, so the stub of the live turn and of the history agree.
+    # The write is blocking I/O: keep it off the event loop.
+    final_query, parked = await asyncio.to_thread(
+        ContextBombDefenseService.guard_and_spill_query, final_query, chat_workspace_dir
     )
-    if was_spilled and spill_meta:
-        final_query = spilled_query
+    if parked.is_spilled:
         logger.info(
-            "ContextBombGuard spilled query for chat_id=%s: total_chars=%d path=%s sha256=%s",
+            "ContextBombGuard parked query for chat_id=%s: chars=%d path=%s sha256=%s",
             request.chat_id,
-            spill_meta.total_chars,
-            spill_meta.file_path,
-            spill_meta.sha256,
+            parked.original_char_count,
+            parked.relative_path,
+            parked.content_sha256,
         )
-    # Background sweep of stale spillover files (>24h)
+    # Background sweep of stale transient spill files (>24h)
     try:
-        guard_service.sweep_stale_spillover_files(workspace_dir=chat_workspace_dir)
-    except Exception:
-        pass
+        ContextBombDefenseService.sweep_stale_spillover_files(chat_workspace_dir)
+    except OSError:
+        logger.debug("Sweep of stale spill files failed for chat_id=%s", request.chat_id, exc_info=True)
 
     security_overlay = security_overlay.model_copy(
         update={"learn_authoring": learn_authoring_prompt_text(final_query) is not None}

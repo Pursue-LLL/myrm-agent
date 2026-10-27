@@ -11,6 +11,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, ContextGuardConfig
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,7 @@ from app.database.dto import MessageDTO
 from app.services.agent.context_guard_service import ContextGuardService
 from app.services.agent.params.workspace_resolve import default_chat_workspace_path, resolve_default_chat_workspace_dir
 from app.services.chat.chat_service import ChatService
-from app.services.chat.context_bomb_guard import PREVIEW_MAX_CHARS, ContextBombDefenseService
+from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
 _PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
 
@@ -52,15 +53,16 @@ async def test_oversized_user_message_is_parked_in_the_named_workspace(
     (parked,) = list((workspace / ".myrm" / "pastes").glob("payload_*.md"))
     assert parked.read_text(encoding="utf-8") == _PASTE
     assert message.content.startswith("<file_spillover")
-    assert str(parked.resolve()) in message.content
+    assert f"{KEPT_SPILLOVER_DIR}/{parked.name}" in message.content
+    assert str(workspace) not in message.content
     assert "file_read_tool" in message.content
     assert message.extra_data is not None
     spillover = message.extra_data["spillover"]
     assert isinstance(spillover, dict)
-    assert spillover["spillover_path"] == str(parked.resolve())
+    assert spillover["spillover_path"] == f"{KEPT_SPILLOVER_DIR}/{parked.name}"
     assert spillover["original_char_count"] == len(_PASTE)
     assert spillover["preview"] == _PASTE[: len(str(spillover["preview"]))]
-    assert 0 < len(str(spillover["preview"])) <= PREVIEW_MAX_CHARS
+    assert 0 < len(str(spillover["preview"])) <= ContextGuardConfig().preview_chars
     assert not (fake_home / ".myrm").exists()
 
 
@@ -126,7 +128,7 @@ async def test_the_agent_reads_a_parked_paste_without_asking_for_approval(
     spillover = message.extra_data["spillover"]
     assert isinstance(spillover, dict)
 
-    action, _ = check_path_policy(str(spillover["spillover_path"]), PathPolicy(), str(workspace))
+    action, _ = check_path_policy(str(workspace / str(spillover["spillover_path"])), PathPolicy(), str(workspace))
 
     assert action is PermissionAction.ALLOW
 
@@ -257,6 +259,48 @@ async def test_a_message_stays_whole_in_the_conversation_when_its_file_cannot_be
     blocked.write_text("a file where the workspace should be", encoding="utf-8")
 
     message = await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=blocked)
+
+    assert message.content == _PASTE
+    assert message.extra_data is None
+
+
+@pytest.mark.asyncio
+async def test_the_recall_index_gets_the_readable_start_of_a_paste_not_its_stub(
+    db_session: AsyncSession, fake_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A search over past conversations can only match words a person could have typed."""
+    del db_session, fake_home
+    from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
+
+    indexed: list[str] = []
+
+    async def record(*_args: object, content: str, **_kwargs: object) -> None:
+        indexed.append(content)
+
+    monkeypatch.setattr(ConversationRecallIndexService, "append_message", record)
+
+    message = await ChatService.ensure_chat_and_append_user_message(str(uuid4()), _PASTE, datetime.now(UTC), "UTC")
+
+    assert message.content.startswith("<file_spillover")
+    (text,) = indexed
+    assert text.startswith("meeting-line: the decision")
+    assert "file_spillover" not in text
+
+
+@pytest.mark.asyncio
+async def test_a_paste_of_a_chat_without_any_workspace_stays_in_the_database(
+    db_session: AsyncSession, fake_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no directory the agent's file tools could read from, a stub would point at nothing."""
+    del db_session, fake_home
+    from app.services.chat import effective_workspace
+
+    async def no_workspace(_chat_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(effective_workspace, "find_chat_workspace_root", no_workspace)
+
+    message = await ChatService.ensure_chat_and_append_user_message(str(uuid4()), _PASTE, datetime.now(UTC), "UTC")
 
     assert message.content == _PASTE
     assert message.extra_data is None

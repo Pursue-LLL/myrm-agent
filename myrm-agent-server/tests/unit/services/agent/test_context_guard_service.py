@@ -17,9 +17,9 @@ async def test_context_guard_service_short_prompt() -> None:
                 chat_id="test_chat",
                 raw_prompt="Short user query",
             )
-            assert res.spilled is False
-            assert res.sanitized_content == "Short user query"
-            assert res.payload is None
+            assert res.is_spilled is False
+            assert res.processed_content == "Short user query"
+            assert res.spillover_path is None
 
 
 @pytest.mark.asyncio
@@ -32,13 +32,12 @@ async def test_context_guard_service_oversized_prompt() -> None:
                 chat_id="test_chat",
                 raw_prompt=oversized_content,
             )
-            assert res.spilled is True
-            assert res.payload is not None
-            assert Path(res.payload.file_path).exists()
-            assert Path(res.payload.file_path).read_text(encoding="utf-8") == oversized_content
-            assert "<file_spillover" in res.sanitized_content
-            assert res.payload.sha256_digest[:16] in res.sanitized_content
-            assert res.payload.relative_path in res.sanitized_content
+            assert res.is_spilled is True
+            assert Path(res.spillover_path).exists()
+            assert Path(res.spillover_path).read_text(encoding="utf-8") == oversized_content
+            assert "<file_spillover" in res.processed_content
+            assert res.content_sha256[:16] in res.processed_content
+            assert res.relative_path in res.processed_content
 
 
 def test_context_guard_service_sweep_workspaces() -> None:

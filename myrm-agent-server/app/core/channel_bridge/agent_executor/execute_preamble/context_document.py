@@ -3,7 +3,8 @@
 [INPUT]
 - app.channels.types::ContextDocument, ContextDocumentStatus, METADATA_CONTEXT_DOCUMENT_KEY (POS: reference document contract)
 - executor_helpers.agent_workspace::agent_workspace (POS: the directory the channel agent can read back)
-- app.services.chat.context_bomb_guard::ContextBombDefenseService (POS: size guard that parks oversized text in a workspace file)
+- app.services.chat.context_bomb_guard::ContextBombDefenseService (POS: size guard that saves oversized text in a workspace file; a document is
+  transient, swept after a day, unlike a user's own paste)
 - myrm_agent_harness.agent.security.detection.content_boundary::wrap_tool_output (POS: boundary that marks text as reference data, not instructions)
 
 [OUTPUT]
@@ -74,7 +75,6 @@ async def _render(document: ContextDocument, chat_id: str) -> str:
         placed = await asyncio.to_thread(
             ContextBombDefenseService.process_incoming_content,
             document.markdown,
-            chat_id=chat_id,
             workspace_root=workspace,
         )
     except OSError:
@@ -87,7 +87,7 @@ async def _render(document: ContextDocument, chat_id: str) -> str:
     if placed.is_spilled:
         # No preview of the text: it is third-party content, so it only ever reaches the model through a boundary.
         return (
-            f"The document's text ({_size(document)}; {_MAY_BE_MISSING}) is saved at '{placed.spillover_path}', "
+            f"The document's text ({_size(document)}; {_MAY_BE_MISSING}) is saved at '{placed.relative_path}', "
             "too long to show here. Read what you need with file_read_tool."
         )
     return f"Text of the document ({_size(document)}; {_MAY_BE_MISSING}):\n{wrap_tool_output(document.markdown)}"

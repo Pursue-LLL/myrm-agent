@@ -1,4 +1,4 @@
-"""A web turn stores what the person pasted, parked in the chat workspace, not the reference the run reads instead."""
+"""A web turn stores the very stub its run reads, and both name the one file the paste is parked in."""
 
 from __future__ import annotations
 
@@ -9,12 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.agent.params.workspace_resolve import default_chat_workspace_path
 from app.services.agent.stream_session import chat_history_bootstrap, run_agent_stream
 from app.services.agent.stream_session.orchestrator_turn_launch import launch_early_buffered_stream
 from app.services.chat.chat_service import ChatService
-from app.services.chat.context_bomb_guard import KEPT_DIR_NAME
 
 _ORCHESTRATOR = "app.services.agent.stream_session.orchestrator"
 _PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
@@ -57,7 +58,7 @@ def _web_request(chat_id: str) -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_the_turn_stores_the_paste_in_a_file_that_outlives_the_runs_own_copy(
+async def test_the_turn_stores_the_stub_its_run_reads_and_both_name_one_durable_file(
     db_session: AsyncSession,
     fake_home: Path,
     http_request: MagicMock,
@@ -87,14 +88,17 @@ async def test_the_turn_stores_the_paste_in_a_file_that_outlives_the_runs_own_co
 
     assert response.status_code == 202
     (reference,) = read_by_the_run
-    assert reference.startswith("<file_spillover") and ".myrm/spillover/" in reference
     (message,) = [m for m in await ChatService.get_all_messages(chat_id) if m.role == "user"]
-    assert message.content.startswith("<file_spillover") and f"{KEPT_DIR_NAME}/" in message.content
-    assert ".myrm/spillover/" not in message.content
+    assert reference.startswith("<file_spillover") and f"{KEPT_SPILLOVER_DIR}/" in reference
+    assert TRANSIENT_SPILLOVER_DIR not in reference
+    assert message.content == reference
     assert message.extra_data is not None
     spillover = message.extra_data["spillover"]
     assert isinstance(spillover, dict)
-    assert Path(str(spillover["spillover_path"])).read_text(encoding="utf-8") == _PASTE
+    parked = default_chat_workspace_path(chat_id) / str(spillover["spillover_path"])
+    assert parked.read_text(encoding="utf-8") == _PASTE
+    assert len(list(parked.parent.glob("payload_*.md"))) == 1
+    assert not (parked.parent.parent / "spillover").exists()
 
 
 @pytest.mark.asyncio

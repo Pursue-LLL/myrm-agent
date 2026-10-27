@@ -164,16 +164,15 @@ async def run_agent_stream(
         guard_res = await ContextGuardService.guard_inbound_prompt(
             chat_id=request.chat_id,
             raw_prompt=text_content,
-            role="user",
         )
-        if guard_res.spilled:
+        if guard_res.is_spilled:
             logger.info(
                 "ContextGuard mitigated large prompt for chat_id=%s message_id=%s (%d chars -> spilled file)",
                 request.chat_id,
                 request.message_id,
                 guard_res.original_char_count,
             )
-            text_content = guard_res.sanitized_content
+            text_content = guard_res.processed_content
             # Update in-memory request query string/content
             if isinstance(request.query, str):
                 request.query = text_content

@@ -20,7 +20,7 @@ from app.database.dto import (
     MessageResponse,
 )
 from app.schemas.responses import StandardSuccessResponse
-from app.services.chat.chat_helpers import filter_messages
+from app.services.chat.chat_helpers import exported_user_text, filter_messages
 from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
@@ -192,7 +192,7 @@ async def export_chat(
 
         items = []
         for msg in filtered_messages:
-            content = msg.content
+            content = exported_user_text(msg) if msg.role == "user" else msg.content
             metadata = msg.extra_data or {}
             if msg.role == "assistant":
                 content, think_reasoning = extract_and_strip_think_blocks(content)

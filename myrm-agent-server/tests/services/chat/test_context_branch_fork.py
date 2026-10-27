@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
+from app.services.chat.context_bomb_guard import ContextBombDefenseService
 from app.services.chat.context_branch_fork import (
     ContextBranchForkService,
     _parse_snapshot_messages,
@@ -121,6 +122,43 @@ async def test_fork_from_branch_creates_child_chat(
     count_stmt = select(func.count(Message.id)).where(Message.chat_id == result.new_chat_id)
     count = (await db_session.execute(count_stmt)).scalar_one()
     assert count == 2
+
+
+@pytest.mark.asyncio
+async def test_fork_from_branch_of_a_sandbox_chat_carries_the_pasted_files_its_snapshot_names(
+    db_session: AsyncSession,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import myrm_agent_harness.runtime.context.context_branches as branches_write
+
+    async def _noop_rebuild(_db: object, _chat_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(ConversationRecallIndexService, "rebuild_chat", _noop_rebuild)
+    root = tmp_path / "persistent"
+    root.mkdir()
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
+
+    repo, worktree = tmp_path / "repo", tmp_path / "repo" / ".sandboxes" / "sandbox-abc"
+    worktree.mkdir(parents=True)
+    paste = "meeting-line: the decision was to keep watching\n" * 500
+    parked = ContextBombDefenseService.process_incoming_content(paste, workspace_root=worktree, kept=True)
+    assert parked.relative_path is not None
+
+    chat_id = "chat-branch-fork-paste"
+    db_session.add(Chat(id=chat_id, title="Parent", workspace_dir=str(worktree), sandbox_base_dir=str(repo)))
+    await db_session.commit()
+    snapshot_rel = f".context/{chat_id}/snapshots/pre-compact.jsonl"
+    snapshot_file = root / ".context" / chat_id / "snapshots" / "pre-compact.jsonl"
+    snapshot_file.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_file.write_text(json.dumps({"type": "human", "content": parked.processed_content}), encoding="utf-8")
+    branch = branches_write.append_context_branch(chat_id, snapshot_path=snapshot_rel, label="Before compact")
+
+    result = await ContextBranchForkService.fork_from_branch(db_session, chat_id, branch.branch_id)
+
+    assert result.success is True
+    assert (repo / parked.relative_path).read_text(encoding="utf-8") == paste
 
 
 def test_resolve_snapshot_path_rejects_empty_path() -> None:

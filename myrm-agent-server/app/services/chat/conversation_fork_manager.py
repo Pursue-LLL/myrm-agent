@@ -350,6 +350,15 @@ class ConversationForkManager:
             await db.commit()
             logger.debug("Fork created successfully: %s (parent=%s)", new_chat_id, parent_chat_id)
 
+            from app.services.chat.context_bomb_guard import carry_parked_files_to_fork
+
+            await carry_parked_files_to_fork(
+                parent_chat_id=parent_chat_id,
+                child_chat_id=new_chat_id,
+                child_workspace=fork_workspace_dir,
+                messages=[message.content for message in cloned_messages],
+            )
+
             from app.services.chat.session_continuity_service import (
                 CheckpointClearError,
                 invalidate_chat_checkpoint,

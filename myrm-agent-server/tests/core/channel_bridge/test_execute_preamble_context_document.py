@@ -68,7 +68,8 @@ async def test_a_long_document_is_saved_in_the_agent_workspace_and_only_its_path
     assert workspace is not None
     (saved,) = list((workspace / ".myrm" / "spillover").glob("payload_*.md"))
     assert saved.read_text(encoding="utf-8") == body
-    assert f"'{saved}'" in result
+    assert f"'{saved.relative_to(workspace)}'" in result
+    assert str(workspace) not in result
     assert "file_read_tool" in result
     assert "may be missing or flattened" in result
     assert "FIRST-LINE-OF-THE-DOCUMENT" not in result

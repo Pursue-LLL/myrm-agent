@@ -16,10 +16,10 @@
 import type { Message, MessageSpillover } from '@/store/chat/types';
 import { stripUserMessageDisplayText } from './messageUtils';
 
-/** Mirrors the server's message size limit (`MESSAGE_MAX_CHARS`); longer pastes are kept in a file. */
+/** Mirrors the server's message size limit (`ContextGuardConfig.max_message_chars`); longer pastes are kept in a file. */
 export const SPILLOVER_MIN_CHARS = 16_000;
 
-/** Mirrors the server's token-pressure limit (`MAX_TOKEN_PRESSURE`), which CJK text reaches at about 4,400 characters. */
+/** Mirrors the server's token-pressure limit (`ContextGuardConfig.max_token_pressure`), which CJK text reaches at about 4,400 characters. */
 const SPILLOVER_MAX_TOKEN_PRESSURE = 8_000;
 
 /** The server's estimate weighs a wide character (CJK, kana, hangul, fullwidth, emoji) 1.8 and any other one 0.25. */
@@ -30,7 +30,7 @@ const NARROW_CHARACTER_WEIGHT = 0.25;
 const WIDE_CHARACTERS =
   /[\u1100-\u115F\u2E80-\u4DBF\u4E00-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6B\uFF01-\uFF60\uFFE0-\uFFE6\u{17000}-\u{18CD5}\u{1B000}-\u{1B2FB}\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6C5}\u{1F900}-\u{1F9FF}\u{20000}-\u{3FFFD}]/gu;
 
-/** Mirrors the server's preview length (`PREVIEW_MAX_CHARS`). */
+/** Mirrors the server's preview length (`ContextGuardConfig.preview_chars`). */
 const SPILLOVER_PREVIEW_CHARS = 300;
 
 export interface PastedText {

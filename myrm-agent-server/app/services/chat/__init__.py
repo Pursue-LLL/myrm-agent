@@ -2,11 +2,11 @@
 
 [INPUT]
 - .chat_service::ChatService
-- .context_bomb_guard::ContextBombDefenseService, SpilloverPayloadResult, MESSAGE_MAX_CHARS, SPILLED_FILE_TTL_SECONDS
+- .context_bomb_guard::ContextBombDefenseService, SpilloverPayloadResult
 - .turn_outline_service::TurnOutlineProjectionService
 
 [OUTPUT]
-- ChatService, ContextBombDefenseService, SpilloverPayloadResult, MESSAGE_MAX_CHARS, SPILLED_FILE_TTL_SECONDS, TurnOutlineProjectionService
+- ChatService, ContextBombDefenseService, SpilloverPayloadResult, TurnOutlineProjectionService
 
 [POS]
 Domain service package in app/services/chat/.
@@ -14,8 +14,6 @@ Domain service package in app/services/chat/.
 
 from app.services.chat.chat_service import ChatService
 from app.services.chat.context_bomb_guard import (
-    MESSAGE_MAX_CHARS,
-    SPILLED_FILE_TTL_SECONDS,
     ContextBombDefenseService,
     SpilloverPayloadResult,
 )
@@ -27,7 +25,5 @@ __all__ = [
     "ChatService",
     "ContextBombDefenseService",
     "SpilloverPayloadResult",
-    "MESSAGE_MAX_CHARS",
-    "SPILLED_FILE_TTL_SECONDS",
     "TurnOutlineProjectionService",
 ]

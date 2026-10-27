@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -15,6 +17,7 @@ from app.services.agent.params.workspace_resolve import (
     resolve_default_chat_workspace_dir,
 )
 from app.services.chat.chat_service import ChatService
+from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
 
 def _new_chat_id() -> str:
@@ -28,8 +31,8 @@ async def test_context_guard_service_under_threshold() -> None:
         chat_id="test_chat_short",
         raw_prompt=short_prompt,
     )
-    assert not result.spilled
-    assert result.sanitized_content == short_prompt
+    assert not result.is_spilled
+    assert result.processed_content == short_prompt
     assert result.original_char_count == len(short_prompt)
 
 
@@ -44,12 +47,11 @@ async def test_context_guard_service_spillover_overflow() -> None:
         raw_prompt=large_prompt,
     )
 
-    assert result.spilled is True
-    assert result.payload is not None
+    assert result.is_spilled is True
     assert result.original_char_count == len(large_prompt)
-    assert "<file_spillover" in result.sanitized_content
-    assert "payload" in result.sanitized_content
-    assert Path(result.payload.file_path).read_text(encoding="utf-8") == large_prompt
+    assert "<file_spillover" in result.processed_content
+    assert "payload" in result.processed_content
+    assert Path(result.spillover_path).read_text(encoding="utf-8") == large_prompt
 
 
 @pytest.mark.asyncio
@@ -60,10 +62,10 @@ async def test_new_chat_prompt_spills_into_the_workspace_the_agent_runs_in() -> 
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=chat_id, raw_prompt=prompt)
 
-    assert result.payload is not None
+    assert result.relative_path is not None
     agent_workspace = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=False)
     assert agent_workspace is not None
-    assert (Path(agent_workspace) / result.payload.relative_path).read_text(encoding="utf-8") == prompt
+    assert (Path(agent_workspace) / result.relative_path).read_text(encoding="utf-8") == prompt
 
 
 @pytest.mark.asyncio
@@ -81,8 +83,8 @@ async def test_existing_chat_prompt_spills_into_its_bound_workspace(tmp_path: Pa
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=chat_id, raw_prompt=prompt)
 
-    assert result.payload is not None
-    assert (tmp_path / result.payload.relative_path).read_text(encoding="utf-8") == prompt
+    assert result.relative_path is not None
+    assert (tmp_path / result.relative_path).read_text(encoding="utf-8") == prompt
 
 
 @pytest.mark.asyncio
@@ -92,8 +94,8 @@ async def test_spilled_prompt_keeps_an_explicit_skill_invocation_in_front() -> N
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=_new_chat_id(), raw_prompt=prompt)
 
-    assert result.spilled is True
-    invocation = parse_use_tag(result.sanitized_content)
+    assert result.is_spilled is True
+    invocation = parse_use_tag(result.processed_content)
     assert invocation is not None
     assert invocation.references == ("pdf-skill",)
     assert invocation.text.startswith("<file_spillover path=")
@@ -105,8 +107,8 @@ async def test_spilled_prompt_without_an_invocation_starts_with_the_reference() 
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=_new_chat_id(), raw_prompt=prompt)
 
-    assert result.spilled is True
-    assert result.sanitized_content.startswith("<file_spillover path=")
+    assert result.is_spilled is True
+    assert result.processed_content.startswith("<file_spillover path=")
 
 
 @pytest.mark.asyncio
@@ -116,8 +118,8 @@ async def test_prompt_without_a_chat_stays_intact() -> None:
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id=None, raw_prompt=prompt)
 
-    assert result.spilled is False
-    assert result.sanitized_content == prompt
+    assert result.is_spilled is False
+    assert result.processed_content == prompt
     assert result.original_char_count == len(prompt)
 
 
@@ -134,8 +136,8 @@ async def test_prompt_of_a_chat_whose_id_cannot_name_a_workspace_stays_intact() 
 
     result = await ContextGuardService.guard_inbound_prompt(chat_id="../escape", raw_prompt=prompt)
 
-    assert result.spilled is False
-    assert result.sanitized_content == prompt
+    assert result.is_spilled is False
+    assert result.processed_content == prompt
 
 
 @pytest.mark.asyncio
@@ -190,3 +192,23 @@ def test_context_guard_service_sweep_workspaces() -> None:
         cleaned = ContextGuardService.sweep_all_workspaces(root_dir=root_path)
         assert cleaned == 1
         assert not expired_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_the_file_a_turn_starts_from_outlives_the_housekeeping_sweeps(tmp_path: Path) -> None:
+    """The agent's thread replays the first turn's stub on every later turn, so its file must still be there."""
+    workspace = tmp_path / "chat_kept"
+    prompt = "first-turn-line\n" * 2_000
+
+    with patch.object(ContextGuardService, "_resolve_base_dir", new=AsyncMock(return_value=workspace)):
+        result = await ContextGuardService.guard_inbound_prompt(chat_id="chat_kept", raw_prompt=prompt)
+
+    assert result.is_spilled and result.spillover_path is not None
+    parked = Path(result.spillover_path)
+    two_days_ago = time.time() - 2 * 86_400
+    os.utime(parked, (two_days_ago, two_days_ago))
+
+    ContextGuardService.sweep_all_workspaces(root_dir=tmp_path)
+    ContextBombDefenseService.sweep_stale_spillover_files(workspace)
+
+    assert parked.read_text(encoding="utf-8") == prompt

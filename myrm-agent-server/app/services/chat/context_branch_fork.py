@@ -277,6 +277,14 @@ class ContextBranchForkService:
                 error=str(exc),
             )
 
+        from app.services.chat.context_bomb_guard import carry_parked_files_to_fork
+
+        await carry_parked_files_to_fork(
+            parent_chat_id=parent_chat_id,
+            child_chat_id=new_chat_id,
+            child_workspace=fork_workspace_dir,
+            messages=[str(item["content"]) for item in parsed],
+        )
         logger.info(
             "Context branch fork created parent=%s branch=%s child=%s messages=%d",
             parent_chat_id,

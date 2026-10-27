@@ -237,3 +237,38 @@ async def test_render_share_html_with_agent_model_selection() -> None:
         assert html is not None
         assert "Code Developer" in html
         assert "gpt-4o" in html
+
+
+async def test_a_parked_paste_reads_as_its_opening_and_size_on_the_shared_page(mock_db) -> None:
+    """The stored stub names a file of the owner's workspace; a visitor of the page must not see it."""
+    now = datetime.now(timezone.utc)
+    stub = '<file_spillover path=".myrm/pastes/payload_1.md" chars="41200"><preview_start>x</preview_start></file_spillover>'
+    parked = MessageDTO(
+        id="m1",
+        chat_id="chat-1",
+        role="user",
+        content=stub,
+        extra_data={
+            "spillover": {
+                "spillover_path": ".myrm/pastes/payload_1.md",
+                "original_char_count": 41_200,
+                "preview": "meeting-line: the decision",
+            }
+        },
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+    )
+    with (
+        patch(
+            "app.services.chat.share_renderer.ChatService.get_chat_metadata", new_callable=AsyncMock, return_value=_make_chat()
+        ),
+        patch("app.services.chat.share_renderer.ChatService.get_all_messages", new_callable=AsyncMock, return_value=[parked]),
+    ):
+        html = await render_share_html("chat-1", mock_db)
+
+    assert html is not None
+    assert "meeting-line: the decision" in html
+    assert "41,200 characters" in html
+    assert "file_spillover" not in html
+    assert ".myrm" not in html
