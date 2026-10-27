@@ -31,7 +31,6 @@ from .patterns import (
     _DB_CONNSTR_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
-    _JSON_FIELD_RE,
     _JWT_RE,
     _PREFIX_RE,
     _PRIVATE_KEY_RE,
@@ -47,6 +46,14 @@ from .patterns import (
     _redact_env_assignment,
     _redact_form_body,
     _redact_yaml_assignment,
+)
+from .structured_fields import (
+    _JSON_ESCAPED_FIELD_RE,
+    _JSON_FIELD_RE,
+    _REPR_DIAGNOSTIC_LINE_RE,
+    _redact_json_escaped_field,
+    _redact_json_field,
+    _redact_repr_diagnostic_line,
 )
 
 _REDACT_ENABLED = True
@@ -227,7 +234,10 @@ def redact_sensitive_text(text: str) -> str:
     # 参数（由 _URL_QUERY_RE 处理），此处无条件执行——含 URL 的混合文本同样脱敏。
     text = _replace_pattern_bounded(text, _ENV_ASSIGN_LOWER_RE, _redact_env_assignment)
 
-    text = _replace_pattern_bounded(text, _JSON_FIELD_RE, lambda m: f'{m.group(1)}: "{_mask_token(m.group(2))}"')
+    # Credential-named fields in JSON, in JSON nested inside a JSON string, and in Python repr diagnostics
+    text = _replace_pattern_bounded(text, _JSON_FIELD_RE, _redact_json_field)
+    text = _replace_pattern_bounded(text, _JSON_ESCAPED_FIELD_RE, _redact_json_escaped_field)
+    text = _replace_pattern_bounded(text, _REPR_DIAGNOSTIC_LINE_RE, _redact_repr_diagnostic_line)
 
     # Unquoted / quoted YAML-colon config（`password: secret`、`password: "hunter2!"`）。
     # 正则锚定行首且 key 字符类不含 `:`/`/`/`?`，天然不匹配 URL 行，无需全局 URL 开关。

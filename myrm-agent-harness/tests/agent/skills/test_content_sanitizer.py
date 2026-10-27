@@ -83,6 +83,15 @@ class TestJsonFields:
         result = content_sanitizer.sanitize('"token": "abc123def456"', "config.json")
         assert not result.is_safe
 
+    @pytest.mark.parametrize("key", ["refreshToken", "clientSecret", "client_secret", "stripeSecretKey"])
+    def test_json_credential_field_in_any_spelling(self, key):
+        result = content_sanitizer.sanitize(f'"{key}": "opaqueValue1234567890"', "config.json")
+        assert not result.is_safe
+        assert "opaqueValue1234567890" not in result.sanitized_content
+
+    def test_json_pagination_cursor_is_not_a_secret(self):
+        assert content_sanitizer.sanitize('"nextPageToken": "CAEQAA"', "page.json").is_safe
+
 
 class TestDatabaseConnections:
     """Detect database connection string passwords."""

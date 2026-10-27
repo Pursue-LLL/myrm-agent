@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-051 · 脱敏引擎的 JSON 成员规则只认 12 个整名：`clientSecret`、`Authorization`、`refreshToken` 这类常见凭据字段名、嵌在 JSON 字符串里的 JSON、pytest 打印的 Python 字典，值都原样通过
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness `core/security/redact` 与 `agent/skills/security/content_sanitizer.py` 的一处导入；用合成字符串与 86 个新用例验证，没有用真实工具输出语料测过误报率，见「仍然存在」）。 |
+| **发现时间** | 2026-10-27（把 Hermes 与 OpenClaw 的脱敏规则同本仓逐种形态对照时） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：这是工具输出进入模型上下文、日志与落盘文件之前的文本层脱敏。漏的是「没有厂商前缀的不透明值，且 JSON 字段名不在 12 个整名里」这一类；带厂商前缀的令牌、`KEY=值` 赋值、Bearer 头、连接串走别的规则，不受影响。 |
+| **关联产品** | 所有调用 `redact_sensitive_text` 的路径（bash 输出、技能内容检查等）；server 不改。 |
+| **根因** | `patterns.py` 的 `_JSON_FIELD_RE` 把字段名写成 12 个整名的并列（`api_?key`、`token`、`secret`、`password`、`access_token`、`refresh_token`、`auth_token`、`bearer`、`secret_value`、`raw_secret`、`secret_input`、`key_material`），而且名字两侧必须正好是引号：多一个前缀（`clientSecret`、`stripeSecretKey`）、换一种拼写（`refreshToken`、`x-api-key`）、不在列表里（`Authorization`）都不命中。规则只认带普通引号的 JSON，JSON 字符串里再嵌 JSON（引号被转义成 `\"`）、解释器打印的 Python 字典 repr（pytest 断言行、末行异常）都不在它的视野里。 |
+| **修复** | 新增 `redact/structured_fields.py`：一个字段名策略 `_is_secret_field_name` 供三种形态共用。裸凭据词（`token`、`secret`、`bearer`、`authorization`、`cookie` 等）只在整名相等时命中；其余以不含糊的凭据名词结尾（`api key`、`client secret`、`refresh token`、`password` 等）的名字命中，snake、kebab、点号、camel、Pascal 拼写都认；裸 `token` / `secret` 不做后缀匹配，所以 `nextPageToken`、`token_count` 保持可读。三个检测器：普通 JSON 成员、JSON 字符串内嵌的 JSON、解释器诊断行里的 Python 字典 repr（只处理 pytest 断言行与末行异常，源码字面量不动）。`engine.py` 改用它们，`patterns.py` 删除旧的 `_JSON_KEY_NAMES` / `_JSON_FIELD_RE`，`content_sanitizer.py` 的导入跟随。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | `_mask_token` 保留值的前 6 位和后 4 位，拿「值的前缀是否出现在输出里」判泄漏会误报；对照探针用不透明值、整串比较。 |
+| **回归** | [1] 测试：`tests/core/security/redact/test_structured_fields.py` 81 例（字段名策略的命中清单与保留清单、三种形态、旧规则原本就处理的名字仍被处理、两例线性时间），`tests/agent/skills/test_content_sanitizer.py` 新增 5 例（4 种拼写，加分页游标不算秘密）。[2] 对照探针：复刻旧的 `_JSON_FIELD_RE` 单独运行，对 `clientSecret`、`stripeSecretKey`、`Authorization`、`refreshToken`、JSON 内嵌 JSON、pytest 断言行这 6 种形态都不命中；新引擎全部遮蔽；`nextPageToken` 新旧都原样保留。注意这是旧「JSON 成员规则」单独的对照，不是旧整条脱敏管线的对照（管线里别的规则可能已经遮住其中几种）。[3] 套件：`tests/core/security` 加 `tests/agent/skills` 3563 通过；`tests/core/security`、`test_content_sanitizer.py`、`tests/agent/meta_tools/bash` 2474 通过。 |
+| **仍然存在** | ① 没有用真实工具输出语料测误报率：新规则按字段名遮蔽，「名字像凭据、值不是秘密」的字段会被一并遮住，只有保留清单里列出的名字有测试。② 字段名清单只覆盖英文凭据名词。③ Python 字典 repr 只处理诊断行，普通日志里的字典 repr 不处理，这是有意的取舍（避免误伤源码字面量与测试夹具）；代价是这类行里的凭据仍靠其他规则。④ 引号之外的结构（YAML、环境变量赋值）走原有的其他规则，本条没改。 |
+| **代码位置** | `src/myrm_agent_harness/core/security/redact/structured_fields.py`、`redact/engine.py`、`redact/patterns.py`、`agent/skills/security/content_sanitizer.py`；测试 `tests/core/security/redact/test_structured_fields.py`、`tests/agent/skills/test_content_sanitizer.py`。 |
+
 ### BUG-HARNESS-2026-10-27-050 · 在卡死的 ACP 代理上点停止，委派流抛 `RuntimeError: async generator ignored GeneratorExit`，收不到「已取消」
 
 | 字段 | 内容 |

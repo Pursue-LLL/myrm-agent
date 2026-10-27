@@ -35,7 +35,6 @@ from myrm_agent_harness.core.security.redact.patterns import (
     _DB_CONNSTR_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
-    _JSON_FIELD_RE,
     _JWT_RE,
     _PREFIX_RE,
     _PRIVATE_KEY_RE,
@@ -47,6 +46,7 @@ from myrm_agent_harness.core.security.redact.patterns import (
     _YAML_ASSIGN_RE,
     _redact_value,
 )
+from myrm_agent_harness.core.security.redact.structured_fields import _JSON_FIELD_RE
 
 logger = logging.getLogger(__name__)
 

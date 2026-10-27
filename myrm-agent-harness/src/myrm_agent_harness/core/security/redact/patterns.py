@@ -257,13 +257,6 @@ _ENV_LOOKUP_VALUE_RE = re.compile(
 # 恰好 6+3+4 字符形态的概率可忽略（API token 字符集不含 `...`）。
 _MASKED_VALUE_RE = re.compile(r"^(?:\*{3}|[^\"']{6}\.{3}[^\"']{4})$")
 
-_JSON_KEY_NAMES = (
-    r"(?:api_?[Kk]ey|token|secret|password|access_token|"
-    r"refresh_token|auth_token|bearer|secret_value|raw_secret|secret_input|key_material)"
-)
-# JSON 字符串值支持 `\"` 转义引号（`{"password": "my\"secret"}` 整体捕获不截断）。
-_JSON_FIELD_RE = re.compile(rf'("{_JSON_KEY_NAMES}")\s*:\s*"((?:[^"\\\\]|\\.)*)"', re.IGNORECASE)
-
 _DB_CONNSTR_RE = re.compile(
     r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp)://[^:]+:)([^@]+)(@)",
     re.IGNORECASE,
