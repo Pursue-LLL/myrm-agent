@@ -85,10 +85,10 @@ function resolveChatIdFromLocation(): string | undefined {
   }
   const [segment] = segments;
   const isChatId =
-    segment.startsWith('c-') ||
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+    segment.startsWith('c-') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
   return isChatId ? segment : undefined;
-}function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
+}
+function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
   const refreshed = useProviderStore.getState();
   if (!refreshed.isInitialized) {
     return false;
@@ -1201,15 +1201,16 @@ export default function E2EChatBridge() {
           lastTwoMessages: state.messages.slice(-2).map((m) => ({
             role: m?.role,
             contentType: Array.isArray(m?.content) ? 'array' : typeof m?.content,
-            contentPreview:
-              typeof m?.content === 'string' ? m.content.slice(0, 160) : null,
+            contentPreview: typeof m?.content === 'string' ? m.content.slice(0, 160) : null,
             keys: Object.keys(m ?? {}).slice(0, 18),
           })),
           // Test-only view: a tool-approval turn appends an empty assistant placeholder, so the
           // last assistant alone under-reports the visible answer.
           assistantSamples: assistants.slice(-4).map((m) => {
             const c: unknown = m?.content;
-            if (typeof c === 'string') return c.slice(0, 120);
+            if (typeof c === 'string') {
+              return c.slice(0, 120);
+            }
             if (Array.isArray(c)) {
               return c
                 .map((part) =>

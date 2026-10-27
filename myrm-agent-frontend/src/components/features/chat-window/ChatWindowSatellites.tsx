@@ -113,10 +113,9 @@ const BrowserRecordingPanel = dynamic(
   { ssr: false },
 );
 
-const DigitalSelfDraftInboxSatellite = dynamic(
-  () => import('./digital-self/DigitalSelfDraftInboxSatellite'),
-  { ssr: false },
-);
+const DigitalSelfDraftInboxSatellite = dynamic(() => import('./digital-self/DigitalSelfDraftInboxSatellite'), {
+  ssr: false,
+});
 
 const DesktopInspectorToggle = dynamic(
   () =>
@@ -173,10 +172,9 @@ const SubagentFailureFactBanner = dynamic(
   { ssr: false },
 );
 
-const AgentDebateStream = dynamic(
-  () => import('./AgentDebateStream').then((m) => ({ default: m.AgentDebateStream })),
-  { ssr: false },
-);
+const AgentDebateStream = dynamic(() => import('./AgentDebateStream').then((m) => ({ default: m.AgentDebateStream })), {
+  ssr: false,
+});
 
 const ExternalAgentProcessLane = dynamic(
   () => import('./ExternalAgentProcessLane').then((m) => ({ default: m.ExternalAgentProcessLane })),
@@ -284,7 +282,10 @@ const PipelineIntegrityDoctorCard = dynamic(
 );
 
 const ConversationalSpecialistSummoningCard = dynamic(
-  () => import('./ConversationalSpecialistSummoningCard').then((m) => ({ default: m.ConversationalSpecialistSummoningCard })),
+  () =>
+    import('./ConversationalSpecialistSummoningCard').then((m) => ({
+      default: m.ConversationalSpecialistSummoningCard,
+    })),
   { ssr: false },
 );
 
@@ -333,10 +334,6 @@ const LightweightFusenBoardCard = dynamic(
   { ssr: false },
 );
 
-
-
-
-
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;
@@ -351,16 +348,28 @@ export default function ChatWindowSatellites({
   const [isContextInspectorOpen, setIsContextInspectorOpen] = useState(false);
   const [isReportFifoOpen, setIsReportFifoOpen] = useState(false);
   const [isFailureFactsOpen, setIsFailureFactsOpen] = useState(false);
-  const [currentFailureFact, setCurrentFailureFact] = useState<import('./SubagentFailureFactBanner').StructuredFailureFactItem | null>(null);
+  const [currentFailureFact, setCurrentFailureFact] = useState<
+    import('./SubagentFailureFactBanner').StructuredFailureFactItem | null
+  >(null);
   const [isDebateStreamOpen, setIsDebateStreamOpen] = useState(false);
-  const [currentDebateRoom, setCurrentDebateRoom] = useState<import('./AgentDebateStream').DebateRoomStateData | null>(null);
+  const [currentDebateRoom, setCurrentDebateRoom] = useState<import('./AgentDebateStream').DebateRoomStateData | null>(
+    null,
+  );
   const [isExternalLaneOpen, setIsExternalLaneOpen] = useState(false);
-  const [currentLaneConfig, setCurrentLaneConfig] = useState<import('./ExternalAgentProcessLane').ExternalAgentConfigData | null>(null);
-  const [currentLaneReceipts, setCurrentLaneReceipts] = useState<import('./ExternalAgentProcessLane').ProcessReceiptData[]>([]);
+  const [currentLaneConfig, setCurrentLaneConfig] = useState<
+    import('./ExternalAgentProcessLane').ExternalAgentConfigData | null
+  >(null);
+  const [currentLaneReceipts, setCurrentLaneReceipts] = useState<
+    import('./ExternalAgentProcessLane').ProcessReceiptData[]
+  >([]);
   const [isTradeoffMatrixOpen, setIsTradeoffMatrixOpen] = useState(false);
-  const [currentTradeoffMatrix, setCurrentTradeoffMatrix] = useState<import('./DebateTradeoffMatrixCard').TradeoffMatrixData | null>(null);
+  const [currentTradeoffMatrix, setCurrentTradeoffMatrix] = useState<
+    import('./DebateTradeoffMatrixCard').TradeoffMatrixData | null
+  >(null);
   const [isTeamSupervisionOpen, setIsTeamSupervisionOpen] = useState(false);
-  const [currentTeamProjection, setCurrentTeamProjection] = useState<import('./LiveTeamSupervisionKanban').TeamProjectionData | null>(null);
+  const [currentTeamProjection, setCurrentTeamProjection] = useState<
+    import('./LiveTeamSupervisionKanban').TeamProjectionData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenTeams = (e: Event) => {
@@ -380,8 +389,12 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isFailurePolicyOpen, setIsFailurePolicyOpen] = useState(false);
-  const [currentFailurePolicyDecision, setCurrentFailurePolicyDecision] = useState<import('./SubagentFailurePolicyCard').RemediationDecisionItem | null>(null);
-  const [currentFailurePolicyItem, setCurrentFailurePolicyItem] = useState<import('./SubagentFailurePolicyCard').RolePolicyItem | undefined>(undefined);
+  const [currentFailurePolicyDecision, setCurrentFailurePolicyDecision] = useState<
+    import('./SubagentFailurePolicyCard').RemediationDecisionItem | null
+  >(null);
+  const [currentFailurePolicyItem, setCurrentFailurePolicyItem] = useState<
+    import('./SubagentFailurePolicyCard').RolePolicyItem | undefined
+  >(undefined);
 
   useEffect(() => {
     const handleOpenFailurePolicy = (e: Event) => {
@@ -407,7 +420,9 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isWorkspaceBlueprintOpen, setIsWorkspaceBlueprintOpen] = useState(false);
-  const [currentWorkspaceResolution, setCurrentWorkspaceResolution] = useState<import('./WorkspaceTeamBlueprintBar').WorkspaceBlueprintResolutionData | null>(null);
+  const [currentWorkspaceResolution, setCurrentWorkspaceResolution] = useState<
+    import('./WorkspaceTeamBlueprintBar').WorkspaceBlueprintResolutionData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenWorkspaceBlueprint = (e: Event) => {
@@ -427,7 +442,9 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isScopeGuardrailsOpen, setIsScopeGuardrailsOpen] = useState(false);
-  const [currentScopeAudit, setCurrentScopeAudit] = useState<import('./SafeTeamDesignGuardrailsCard').TeamScopeAuditData | null>(null);
+  const [currentScopeAudit, setCurrentScopeAudit] = useState<
+    import('./SafeTeamDesignGuardrailsCard').TeamScopeAuditData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenScopeGuardrails = (e: Event) => {
@@ -447,7 +464,9 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isAutonomousLoopOpen, setIsAutonomousLoopOpen] = useState(false);
-  const [currentAutonomousLoopState, setCurrentAutonomousLoopState] = useState<import('./AutonomousLoopModePill').AutonomousLoopStateData | null>(null);
+  const [currentAutonomousLoopState, setCurrentAutonomousLoopState] = useState<
+    import('./AutonomousLoopModePill').AutonomousLoopStateData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenAutonomousLoop = (e: Event) => {
@@ -467,7 +486,9 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isCreatorModeOpen, setIsCreatorModeOpen] = useState(false);
-  const [currentCreatorModeDraft, setCurrentCreatorModeDraft] = useState<import('./CreatorModeStudioModal').AgentPresetDraftData | null>(null);
+  const [currentCreatorModeDraft, setCurrentCreatorModeDraft] = useState<
+    import('./CreatorModeStudioModal').AgentPresetDraftData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenCreatorMode = (e: Event) => {
@@ -485,7 +506,9 @@ export default function ChatWindowSatellites({
   }, []);
 
   const [isTriRoleOpen, setIsTriRoleOpen] = useState(false);
-  const [currentTriRoleSession, setCurrentTriRoleSession] = useState<import('./TriRolePipelinePanel').TriRoleSessionData | null>(null);
+  const [currentTriRoleSession, setCurrentTriRoleSession] = useState<
+    import('./TriRolePipelinePanel').TriRoleSessionData | null
+  >(null);
 
   useEffect(() => {
     const handleOpenTriRole = (e: Event) => {
@@ -877,8 +900,6 @@ export default function ChatWindowSatellites({
     };
   }, []);
 
-
-
   useEffect(() => {
     const handleOpen = () => setIsContextInspectorOpen(true);
     window.addEventListener('myrm:open-context-inspector', handleOpen);
@@ -1031,10 +1052,7 @@ export default function ChatWindowSatellites({
           <PetPalette />
         </>
       ) : null}
-      <ContextFootprintInspector
-        open={isContextInspectorOpen}
-        onClose={() => setIsContextInspectorOpen(false)}
-      />
+      <ContextFootprintInspector open={isContextInspectorOpen} onClose={() => setIsContextInspectorOpen(false)} />
       <TaskExecutionTimelineDrawer />
       {chatId ? (
         <div className="fixed top-3.5 right-28 z-40 max-sm:hidden">
@@ -1058,10 +1076,7 @@ export default function ChatWindowSatellites({
       ) : null}
       {effectiveChatId && isReportFifoOpen ? (
         <div className="fixed top-16 right-6 z-50 max-w-md w-full animate-in fade-in slide-in-from-top-2">
-          <OrderedReportSettlementFeed
-            chatId={effectiveChatId}
-            className="shadow-xl"
-          />
+          <OrderedReportSettlementFeed chatId={effectiveChatId} className="shadow-xl" />
         </div>
       ) : null}
       {effectiveChatId && isFailureFactsOpen && currentFailureFact ? (
@@ -1350,7 +1365,6 @@ export default function ChatWindowSatellites({
         />
       ) : null}
 
-
       <DigitalSelfDraftInboxSatellite />
       <DashboardWorkspaceDrawer />
       <ActiveSubagentSwimlanesBar />
@@ -1479,7 +1493,8 @@ export const ExportedCodingWavePresetModal = dynamic(
 );
 
 export const ExportedSubagentLifecycleToolchainCard = dynamic(
-  () => import('./SubagentLifecycleToolchainCard').then((module) => ({ default: module.SubagentLifecycleToolchainCard })),
+  () =>
+    import('./SubagentLifecycleToolchainCard').then((module) => ({ default: module.SubagentLifecycleToolchainCard })),
   { ssr: false },
 );
 
@@ -1494,12 +1509,14 @@ export const ExportedZeroTokenContractCard = dynamic(
 );
 
 export const ExportedCrossSurfaceActivityBridgeCard = dynamic(
-  () => import('./CrossSurfaceActivityBridgeCard').then((module) => ({ default: module.CrossSurfaceActivityBridgeCard })),
+  () =>
+    import('./CrossSurfaceActivityBridgeCard').then((module) => ({ default: module.CrossSurfaceActivityBridgeCard })),
   { ssr: false },
 );
 
 export const ExportedMultiLaneParallelExecutionCard = dynamic(
-  () => import('./MultiLaneParallelExecutionCard').then((module) => ({ default: module.MultiLaneParallelExecutionCard })),
+  () =>
+    import('./MultiLaneParallelExecutionCard').then((module) => ({ default: module.MultiLaneParallelExecutionCard })),
   { ssr: false },
 );
 
@@ -1509,7 +1526,8 @@ export const ExportedDeterministicSessionForkCard = dynamic(
 );
 
 export const ExportedSharedTokenBudgetGovernanceCard = dynamic(
-  () => import('./SharedTokenBudgetGovernanceCard').then((module) => ({ default: module.SharedTokenBudgetGovernanceCard })),
+  () =>
+    import('./SharedTokenBudgetGovernanceCard').then((module) => ({ default: module.SharedTokenBudgetGovernanceCard })),
   { ssr: false },
 );
 
@@ -1519,7 +1537,10 @@ export const ExportedPipelineIntegrityDoctorCard = dynamic(
 );
 
 export const ExportedConversationalSpecialistSummoningCard = dynamic(
-  () => import('./ConversationalSpecialistSummoningCard').then((module) => ({ default: module.ConversationalSpecialistSummoningCard })),
+  () =>
+    import('./ConversationalSpecialistSummoningCard').then((module) => ({
+      default: module.ConversationalSpecialistSummoningCard,
+    })),
   { ssr: false },
 );
 
@@ -1529,12 +1550,18 @@ export const ExportedSwarmTopologyMeshCard = dynamic(
 );
 
 export const ExportedSubagentWorkspaceInheritanceCard = dynamic(
-  () => import('./SubagentWorkspaceInheritanceCard').then((module) => ({ default: module.SubagentWorkspaceInheritanceCard })),
+  () =>
+    import('./SubagentWorkspaceInheritanceCard').then((module) => ({
+      default: module.SubagentWorkspaceInheritanceCard,
+    })),
   { ssr: false },
 );
 
 export const ExportedSubagentReplayDedupHarmonizerCard = dynamic(
-  () => import('./SubagentReplayDedupHarmonizerCard').then((module) => ({ default: module.SubagentReplayDedupHarmonizerCard })),
+  () =>
+    import('./SubagentReplayDedupHarmonizerCard').then((module) => ({
+      default: module.SubagentReplayDedupHarmonizerCard,
+    })),
   { ssr: false },
 );
 
@@ -1549,7 +1576,8 @@ export const ExportedVirtualRoomCoDevCockpitCard = dynamic(
 );
 
 export const ExportedHighConcurrencySwarmOffloadCard = dynamic(
-  () => import('./HighConcurrencySwarmOffloadCard').then((module) => ({ default: module.HighConcurrencySwarmOffloadCard })),
+  () =>
+    import('./HighConcurrencySwarmOffloadCard').then((module) => ({ default: module.HighConcurrencySwarmOffloadCard })),
   { ssr: false },
 );
 
@@ -1574,17 +1602,24 @@ export const ExportedVerticalPresetsAndSandboxCard = dynamic(
 );
 
 export const ExportedCouncilOfAgentsDeliberationCard = dynamic(
-  () => import('./CouncilOfAgentsDeliberationCard').then((module) => ({ default: module.CouncilOfAgentsDeliberationCard })),
+  () =>
+    import('./CouncilOfAgentsDeliberationCard').then((module) => ({ default: module.CouncilOfAgentsDeliberationCard })),
   { ssr: false },
 );
 
 export const ExportedVisualKanbanWorkflowDispatcherCard = dynamic(
-  () => import('./VisualKanbanWorkflowDispatcherCard').then((module) => ({ default: module.VisualKanbanWorkflowDispatcherCard })),
+  () =>
+    import('./VisualKanbanWorkflowDispatcherCard').then((module) => ({
+      default: module.VisualKanbanWorkflowDispatcherCard,
+    })),
   { ssr: false },
 );
 
 export const ExportedExternalCliSubagentPassthroughCard = dynamic(
-  () => import('./ExternalCliSubagentPassthroughCard').then((module) => ({ default: module.ExternalCliSubagentPassthroughCard })),
+  () =>
+    import('./ExternalCliSubagentPassthroughCard').then((module) => ({
+      default: module.ExternalCliSubagentPassthroughCard,
+    })),
   { ssr: false },
 );
 
@@ -1619,7 +1654,8 @@ export const ExportedBotForgeStudioCard = dynamic(
 );
 
 export const ExportedExternalAgentBundleManagerCard = dynamic(
-  () => import('./ExternalAgentBundleManagerCard').then((module) => ({ default: module.ExternalAgentBundleManagerCard })),
+  () =>
+    import('./ExternalAgentBundleManagerCard').then((module) => ({ default: module.ExternalAgentBundleManagerCard })),
   { ssr: false },
 );
 
@@ -1647,21 +1683,3 @@ export const ExportedSubagentLiveTranscriptCard = dynamic(
   () => import('./SubagentLiveTranscriptCard').then((module) => ({ default: module.SubagentLiveTranscriptCard })),
   { ssr: false },
 );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
