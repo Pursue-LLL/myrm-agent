@@ -188,4 +188,5 @@ async def test_notes_listing_and_plain_text_body_request_shapes() -> None:
     assert paths[0].endswith("/note/v1/list_note_by_folder_id")
     assert bodies[0] == {"folder_id": "", "cursor": "abc", "limit": NOTES_PAGE_LIMIT}
     assert NOTES_PAGE_LIMIT <= 20  # ima's documented ceiling for the notes listing
-    assert bodies[1]["target_content_format"] == 0
+    assert paths[1].endswith("/note/v1/get_doc_content")
+    assert bodies[1] == {"doc_id": "n1", "note_id": "n1", "target_content_format": 0}
