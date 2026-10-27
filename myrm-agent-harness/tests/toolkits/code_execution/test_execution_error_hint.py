@@ -172,7 +172,9 @@ class TestProtectedGitMetadataHint:
         assert "chmod" not in hint
 
     def test_other_permission_errors_keep_the_generic_hint(self) -> None:
-        result = ExecutionResult(success=False, stderr="bash: ./run.sh: Permission denied", error_category="permission_denied")
+        result = ExecutionResult(
+            success=False, stderr="bash: ./run.sh: Permission denied", error_category="permission_denied"
+        )
 
         assert "chmod" in (generate_error_hint(result) or "")
 

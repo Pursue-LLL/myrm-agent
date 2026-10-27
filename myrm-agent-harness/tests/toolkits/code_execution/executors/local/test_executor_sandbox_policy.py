@@ -24,12 +24,12 @@ async def test_shell_config_carries_the_run_workspace_mode(
             super().__init__()
             configs.append(config)
 
-    monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.code_execution.session.LocalPersistentSession", _RecordingSession
-    )
+    monkeypatch.setattr("myrm_agent_harness.toolkits.code_execution.session.LocalPersistentSession", _RecordingSession)
     executor = LocalExecutor(config=ExecutionConfig(), workspace_path=str(tmp_path))
     context = ExecutionContext(code="true", session_id="s", readonly_workspace=readonly, allow_network=network)
 
     await executor._get_or_create_bash_session(context, {})
 
-    assert [(c.readonly_workspace, c.allow_network, c.work_dir) for c in configs] == [(readonly, network, str(tmp_path))]
+    assert [(c.readonly_workspace, c.allow_network, c.work_dir) for c in configs] == [
+        (readonly, network, str(tmp_path))
+    ]

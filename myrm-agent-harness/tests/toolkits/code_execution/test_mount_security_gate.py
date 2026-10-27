@@ -141,7 +141,9 @@ class TestMountValidationRules:
         assert verdict(fake_home / ".ssh") == MountViolationType.OVERBROAD_WRITE_ROOT
         assert verdict(fake_home) == MountViolationType.OVERBROAD_WRITE_ROOT
         # Without the flag the same subtree is refused as lying inside the dangerous root.
-        assert validate_mount_spec(MountSpec(source_path=str(inside))).violation_type == MountViolationType.DANGEROUS_PATH
+        assert (
+            validate_mount_spec(MountSpec(source_path=str(inside))).violation_type == MountViolationType.DANGEROUS_PATH
+        )
 
     def test_real_home_and_filesystem_root_rejected_as_writable(self) -> None:
         for source in ("~", "/"):
@@ -271,12 +273,8 @@ class TestMountValidationRules:
             os.makedirs(sub2, exist_ok=True)
 
             mounts = [
-                MountSpec(
-                    source_path=sub1, target_path="/workspace/data", mode=MountMode.RW
-                ),
-                MountSpec(
-                    source_path=sub2, target_path="/workspace/data", mode=MountMode.RO
-                ),  # collision
+                MountSpec(source_path=sub1, target_path="/workspace/data", mode=MountMode.RW),
+                MountSpec(source_path=sub2, target_path="/workspace/data", mode=MountMode.RO),  # collision
             ]
 
             sanitized = validate_and_sanitize_mounts(mounts)
@@ -322,9 +320,7 @@ class TestBatchMountSanitizationAndPolicyBridge:
 
             access_roots = (
                 AccessRoot(path=extra_valid, writable=True, source="test"),
-                AccessRoot(
-                    path="/etc/passwd", writable=True, source="malicious"
-                ),  # rejected
+                AccessRoot(path="/etc/passwd", writable=True, source="malicious"),  # rejected
             )
 
             policy = build_sandbox_policy_from_path_policy(
