@@ -42,6 +42,7 @@ event_handlers._handle_tool_result()  ← 事件转换层
     │ 发送 TASKS_STEPS 事件（step_key="{tool_name}_tool_error", status="error", tool_call_id=msg.tool_call_id）
     │ fault_side 归因：ToolMessage.error_category（ToolErrorCategory）→ classify_tool_fault_side()
     │   - guard/guardrail 类（pii_guard/estop/loop_guard/guardrail_blocked 等）→ owner（用户内容/配置触发）
+    │   - 审批拒绝类：policy_denied（策略拒绝）→ owner；user_declined（用户拒绝）、approval_timeout（审批超时没人回答）→ unknown（不归咎任何一方，前端不显示归因标签）
     │   - 执行类（timeout/oom/syntax/not_found 等）→ harness_tool（内置工具自身失败）
     │   - 无 error_category 时默认 harness_tool
     │ tool_call_id 与成功路径一致：trace_builder 借此将 error 步骤与

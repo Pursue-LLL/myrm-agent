@@ -909,6 +909,7 @@ class TestMiddlewareRareBranches:
         tool_messages = [m for m in result["messages"] if hasattr(m, "tool_call_id")]
         assert len(tool_messages) == 1
         assert "[SYSTEM_ENFORCED]" in tool_messages[0].content
+        assert tool_messages[0].additional_kwargs["error_category"] == "policy_denied"
 
     @pytest.mark.asyncio
     async def test_subagent_fallback_deny_with_metrics(self, monkeypatch) -> None:

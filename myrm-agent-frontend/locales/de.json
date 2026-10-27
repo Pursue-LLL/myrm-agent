@@ -2950,33 +2950,6 @@
         "deniedNotice": "Abgelehnt. Diese Anfrage wird in dieser Sitzung nicht mehr gestellt."
       }
     },
-    "deviceInspector": {
-      "title": "Mobiles Gerät – Live-Ansicht",
-      "toggleTitle": "Geräte-Inspektor umschalten",
-      "viewMode": "Ansichtsmodus",
-      "inspectMode": "Inspektionsmodus",
-      "close": "Schließen",
-      "refresh": "Aktualisieren",
-      "enabledHint": "Der Geräte-Inspektor öffnet sich hier, sobald der Agent ein mobiles Gerät verbindet",
-      "resizePanel": "Panelgröße anpassen",
-      "screenshotAlt": "Screenshot des Mobilgeräts",
-      "waitingForDevice": "Warte auf Aktivität des Mobilgeräts...",
-      "waitingHint": "Die Live-Ansicht erscheint, sobald der Agent ein echtes Gerät oder einen Emulator bedient",
-      "deviceDisconnected": "Mobiles Gerät getrennt. Bitte ADB- oder Netzwerkverbindung prüfen",
-      "notificationRedaction": "Statusleisten-Datenschutz-Ausblendung",
-      "redactionBadge": "Datenschutz-Schwärzung",
-      "notificationRedacted": "Benachrichtigungen in der Statusleiste sind ausgeblendet",
-      "notificationRedactedHint": "Die Systembenachrichtigungsleiste wird automatisch unkenntlich gemacht, damit private Daten und Codes nicht in den Prompt gelangen",
-      "instructionPlaceholder": "Beschreiben Sie, was Sie auf dem Mobilgerät tun möchten...",
-      "instructionWithElement": "Was soll der Agent mit diesem mobilen Element tun?",
-      "send": "Anweisung senden",
-      "doctorAdbMissing": "ADB-Toolchain nicht erkannt. Bitte Android platform-tools installieren.",
-      "doctorDeviceOffline": "Kein Mobilgerät oder Emulator verbunden. USB-Debugging aktivieren und anschließen.",
-      "navBack": "Zurück",
-      "navHome": "Startbildschirm",
-      "navRecents": "Aktuelle Apps",
-      "navPower": "Ein/Aus"
-    },
     "clarification": {
       "formTitle": "Klärungsformular",
       "badge": "Eingabe erforderlich",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "Frühere Unterhaltung konnte nicht fortgesetzt werden – {agentName} hat eine neue begonnen",
     "delegation_session_workspace_changed": "Arbeitsordner geändert – {agentName} hat eine neue Unterhaltung begonnen",
     "delegation_turn_limit": "{agentName} hat das Rundenlimit erreicht und angehalten – senden Sie eine Nachricht, um fortzufahren",
+    "delegation_images_not_sent": "{agentName} kann Bilder nicht direkt annehmen – es wurde nur mitgeteilt, wo das Bild liegt",
     "system_step": "Systemschritt",
     "tool_execution": "Tool-Ausführung",
     "processing": "Verarbeitung",
@@ -4358,7 +4332,10 @@
       "post_hook_blocked": "Nach Ausführung blockiert",
       "tool_cancelled": "Abgesagt",
       "guardrail_blocked": "Sicherheit blockiert",
-      "benchmark_blocked": "Benchmark gesperrt"
+      "benchmark_blocked": "Benchmark gesperrt",
+      "policy_denied": "Durch Richtlinie abgelehnt",
+      "user_declined": "Vom Nutzer abgelehnt",
+      "approval_timeout": "Freigabe abgelaufen"
     },
     "categoryStageLabels": {
       "thinking": "Denken",

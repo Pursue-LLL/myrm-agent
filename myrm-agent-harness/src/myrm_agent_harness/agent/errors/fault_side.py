@@ -155,6 +155,8 @@ _OWNER_TOOL_CATEGORIES: frozenset[str] = frozenset(
         # ``loop_guard`` / ``sandbox_boundary``: tripping it means the user asked
         # for more output than policy allows, so the block is OWNER-caused.
         "output_limit",
+        # The security policy refused the call: the user's request or configuration is what it blocked.
+        "policy_denied",
     }
 )
 
@@ -167,7 +169,8 @@ def classify_tool_fault_side(error_category: str | None) -> FaultSide:
     Execution categories (``timeout``, ``oom``, ``syntax``...) are HARNESS_TOOL:
     the built-in tool itself failed to complete the requested operation.
 
-    Returns UNKNOWN for ``None`` or unrecognized categories (abstain).
+    Returns UNKNOWN for ``None`` or unrecognized categories (abstain). ``user_declined`` and
+    ``approval_timeout`` abstain on purpose: a person saying no, or nobody answering, is nobody's fault.
     """
     if not error_category:
         return FaultSide.UNKNOWN

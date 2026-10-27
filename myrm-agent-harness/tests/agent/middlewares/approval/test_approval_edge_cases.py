@@ -1119,6 +1119,7 @@ async def test_middleware_fallback_auto_deny():
     assert len(error_msgs) == 2
     system_enforced = [m for m in error_msgs if "SYSTEM_ENFORCED" in m.content]
     assert len(system_enforced) == 1
+    assert {m.additional_kwargs["error_category"] for m in error_msgs} == {"policy_denied"}
 
 
 @pytest.mark.asyncio

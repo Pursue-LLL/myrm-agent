@@ -29,6 +29,7 @@
 - `ToolApprovalMiddleware.aafter_model()` 只读取该结果，对pending_approval列表一次性调用`interrupt()`（同步）
 - 分成两个节点是因为 LangGraph 在用户回答后把调用 `interrupt()` 的节点从第一行重跑；评估有副作用（审核模型调用、拒绝计数、限流），放在同一节点会跑两遍
 - Resume时按顺序处理decisions数组：批准的调用以批准（或编辑后）的形态留在AIMessage.tool_calls；被拒绝的调用也留着，由一条ToolMessage(error)回答（带用户的理由；审批超时则写明无人回答），模型因此读得到拒绝的原因
+- 所有拒绝的回答都由 `approval/refusal/answer.py::refusal_answer` 构造，并在 `additional_kwargs["error_category"]` 标出是谁拒绝的：`policy_denied`（策略拒绝）、`user_declined`（用户拒绝）、`approval_timeout`（审批超时）。流式层据此给出步骤标签和归因（策略拒绝归 owner，用户拒绝与超时不归咎任何一方），不会再把拒绝显示成「内置工具失败」
 
 **用户体验**：
 - 单工具：1次interrupt → 1次决策

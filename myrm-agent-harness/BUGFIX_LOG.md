@@ -19,6 +19,23 @@
 | **仍然存在** | ① 没有用真实模型验证新措辞：只证明文本进了提示、文件读得回，没有证明弱模型会照做。② 新提示比旧提示每个粘贴多 138～253 词元，每轮由线程重放；没有测量对提示缓存命中的影响（提示逐字固定，缓存前缀不变，但没有实测）。③ 预览长度 `preview_chars` 沿用原值，没有按真实粘贴分布调过。 |
 | **代码位置** | `agent/context_guard/types.py:27,29,41`（目录常量与配置）· `agent/context_guard/spillover_engine.py:49,85`（提示渲染与落盘）· `agent/meta_tools/file_ops/file_read_tool.py:101,106,131`（快速通道范围）· `agent/context_guard/_ARCH.md`、`agent/meta_tools/file_ops/_ARCH.md`（设计说明） |
 
+### BUG-HARNESS-2026-10-27-043 · 被审批拒绝的工具调用在界面和追踪里被记成「内置工具失败」：拒绝的回答没有错误类别，流式层缺省把它归因给工具
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness 加前端三条标签文案 ×6 语言；没有改任何给模型的文本；没有在浏览器里看新标签，见「仍然存在」） |
+| **发现时间** | 2026-10-27（逐条核对拒绝路径的流式事件时，读 `agent/streaming/event_handlers.py` 的错误分支发现：回答没有 `error_category` 时，归因被写成 `harness_tool`） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：用户点了「拒绝」、审批超时、策略拒绝，步骤上的归因都是「内置工具失败」（`fault_side=harness_tool`），追踪与评测把一次拒绝记成工具故障；界面也没有任何一个标签说明这次是被谁拒绝的。 |
+| **关联产品** | harness `agent/middlewares/approval/refusal/`、`utils/errors.py`、`agent/errors/fault_side.py`；frontend `locales/*.json` 的 `progressSteps.errorCategories` |
+| **根因** | 回答被拒调用的 error ToolMessage 在 `_batch_decisions.py` 里有 6 处各自构造（策略自动拒绝、动作摘要不符、脚本操作数漂移、脚本内容被改、编辑后的命令被拦、用户或计时器的拒绝），`middleware.py` 的 `_error_answer` 又有 3 处调用，都不带 `additional_kwargs["error_category"]`；`ToolErrorCategory` 里也没有拒绝类的成员。流式层在没有类别时把归因写成 `HARNESS_TOOL`（`event_handlers.py` 错误分支）。 |
+| **修复** | `ToolErrorCategory` 新增 `policy_denied`、`user_declined`、`approval_timeout`；新增 `approval/refusal/answer.py`：`refusal_answer(tool_call, content, cause)` 是回答被拒调用的唯一构造器，类别由 `DenialCause` 决定；`rejection_cause(decision)` 区分计时器（`timed_out`）与人，`record_rejection` 与决策落地共用它。9 处构造全部改走 `refusal_answer`，`_error_answer` 删除。归因：`policy_denied` → owner（用户的请求或配置被拦）；`user_declined`、`approval_timeout` 故意弃权（unknown）：用户说不、没人回答都不是谁的错，前端对 unknown 不显示归因标签。前端 `progressSteps.errorCategories` 在 6 种语言里各加这三条。给模型的文本一字未改。`_batch_decisions.py` 从 697 行减到 671 行，基线同步收紧。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① `tests/agent/errors/test_fault_side.py::TestEnumCoverageGuard` 要求每个成员都不能归为 unknown，与「用户拒绝不归咎任何一方」冲突：守卫里按名字列出这两个成员，并单独断言它们弃权；以后新增成员漏映射仍然会红。② 起初把用户拒绝映射成 owner，撤回：前端 owner 标签是「输入或配置问题」，用户自己点拒绝不是这个意思。③ 服务端 `test_tool_error_category_i18n_sync.py` 原先只检查 4 种语言（缺 ko、de），顺手补成 6 种；ko、de 本来就与枚举同步。④ 想过把三个新类别加进 `NON_SKILL_FAILURE_CATEGORIES`：被拒的调用在 `after_model` 就被回答，不会进入工具拦截器，加了是永远不会被执行到的代码，没加。 |
+| **回归** | 对照方法：旧树 = `git archive HEAD` 导出的 `myrm-agent-harness/src`，同一份 `test_refusal_reaches_model.py` 用 `pytest -o pythonpath=<导出树>` 跑：新增的 4 例整栈用例（用户拒绝、审批超时、策略拒绝、批次里只有被拒的那条带类别）全部失败（`KeyError: 'error_category'`），原有 7 例通过。新树 11 例全过。另有 `test_refusal_error_category.py` 7 例（6 个构造点逐个断言类别，旧树先因枚举没有成员失败，补上枚举后 7 例都因类别为空失败）、`refusal/test_refusal_answer.py` 9 例、`test_fault_side.py` 两例弃权断言、`test_approval_edge_cases.py` 与 `test_approval_rare_branches.py` 各一处断言子代理兜底拒绝带 `policy_denied`。变异实测（改一份源码拷贝，共 157 例）：`rejection_cause` 恒返回用户 → 4 例红；策略映射成 `user_declined` → 7 例红；`policy_denied` 不归 owner → 3 例红。服务端 `test_tool_error_category_i18n_sync.py` 6 种语言 54 例通过；前端 `verify:i18n`、`check-icu-syntax`、`verify:theme-colors` 通过。 |
+| **仍然存在** | ① 没有在浏览器里看三个新标签：只验证了流式事件里的 `error_category`、`fault_side` 和 6 种语言的文案同步；标签沿用已有的红色徽章，用户自己拒绝也显示成红色徽章。② 评估阶段的自动拒绝只带原文不带原因，所以审批限流（「Too many approval requests」）、定时任务无人可批也都归为 `policy_denied`。③ `ClarificationGuard` 回答与 `ask_question_tool` 同轮的其他调用时，仍没有类别，仍被归因给内置工具，不在这次范围。④ 各服务商适配器如何处理出站的 `ToolMessage.additional_kwargs` 没有逐个验证（`post_hook_blocked` 已经用同样的方式携带类别）。⑤ 服务端的 Chrome e2e 用例 `test_tool_error_category_locale_payload_chrome_e2e.py` 没有跑。 |
+| **代码位置** | `agent/middlewares/approval/refusal/answer.py`（`refusal_answer`、`rejection_cause`）· `approval/_batch_decisions.py`（6 处构造点）· `approval/middleware.py`（评估阶段拒绝与子代理兜底拒绝）· `approval/helpers.py`（`record_rejection`）· `utils/errors.py`（三个新成员）· `agent/errors/fault_side.py`（`policy_denied` 归 owner）· 前端 `locales/*.json` · 测试 `tests/agent/middlewares/approval/test_refusal_error_category.py`、`approval/refusal/test_refusal_answer.py`、`approval/test_refusal_reaches_model.py`、`tests/agent/errors/test_fault_side.py`、服务端 `tests/integration/test_tool_error_category_i18n_sync.py` |
+
 ### BUG-HARNESS-2026-10-27-042 · 工具批次停在「等用户批准」时，安全审查员每次恢复都被重新问一遍；审查员的结论中途翻成「放行」时，用户已点的「拒绝」被丢掉，命令照样执行
 
 | 字段 | 内容 |

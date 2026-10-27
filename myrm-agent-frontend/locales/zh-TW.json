@@ -2950,33 +2950,6 @@
         "deniedNotice": "已拒絕，該請求在本會話內不再詢問。"
       }
     },
-    "deviceInspector": {
-      "title": "行動裝置即時視圖",
-      "toggleTitle": "切換行動裝置檢查器",
-      "viewMode": "檢視模式",
-      "inspectMode": "檢查模式",
-      "close": "關閉",
-      "refresh": "重新整理",
-      "enabledHint": "Agent 連接行動裝置後，檢查器將在此開啟",
-      "resizePanel": "調整面板大小",
-      "screenshotAlt": "行動裝置螢幕截圖",
-      "waitingForDevice": "等待行動裝置活動...",
-      "waitingHint": "當 Agent 操作行動端真機或模擬器時，即時視圖將自動顯示",
-      "deviceDisconnected": "行動裝置已中斷連線，請檢查 ADB 或網路狀態",
-      "notificationRedaction": "頂部狀態列隱私脫敏",
-      "redactionBadge": "隱私脫敏",
-      "notificationRedacted": "狀態列通知已脫敏遮蔽",
-      "notificationRedactedHint": "頂部系統通知欄已自動模糊遮蔽，防止私密資訊與驗證碼洩漏入 Prompt",
-      "instructionPlaceholder": "描述你想在行動裝置上做什麼...",
-      "instructionWithElement": "Agent 應該對這個行動端元素做什麼？",
-      "send": "傳送指令",
-      "doctorAdbMissing": "未檢測到 ADB 工具鏈，請安裝 Android platform-tools",
-      "doctorDeviceOffline": "未連接可用行動裝置或模擬器，請開啟 USB 除錯並連線",
-      "navBack": "返回鍵",
-      "navHome": "主畫面",
-      "navRecents": "多工",
-      "navPower": "電源/喚醒"
-    },
     "clarification": {
       "formTitle": "澄清表單",
       "badge": "需要你確認",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "先前的對話無法繼續，{agentName} 已開啟新對話",
     "delegation_session_workspace_changed": "工作資料夾已變更，{agentName} 已開啟新對話",
     "delegation_turn_limit": "{agentName} 已達到回合上限而停止，傳送訊息即可繼續",
+    "delegation_images_not_sent": "{agentName} 無法直接接收圖片，僅告知了圖片所在的位置",
     "system_step": "系統步驟",
     "tool_execution": "工具執行",
     "processing": "處理中",
@@ -4358,7 +4332,10 @@
       "post_hook_blocked": "執行後攔截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全攔截",
-      "benchmark_blocked": "評測內容攔截"
+      "benchmark_blocked": "評測內容攔截",
+      "policy_denied": "策略攔截",
+      "user_declined": "使用者已拒絕",
+      "approval_timeout": "審批逾時"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

@@ -29,7 +29,7 @@ from enum import StrEnum
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 from myrm_agent_harness.agent.security.command_allowlist_pattern import derive_command_pattern
 
-from .refusal import DenialCause, denial_hint, rejection_message
+from .refusal import DenialCause, denial_hint, rejection_cause, rejection_message
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +149,9 @@ def record_rejection(decision: Mapping[str, object], tool_name: str, session_key
     nobody answered; any other reads as the person's own refusal with their reason.
     """
     feedback = str(decision.get("feedback") or "").strip() or "User rejected this action."
-    timed_out = bool(decision.get("timed_out"))
-    hint = record_denial(tool_name, session_key, cause=DenialCause.TIMEOUT if timed_out else DenialCause.USER)
-    return feedback, rejection_message(feedback, timed_out=timed_out) + hint
+    cause = rejection_cause(decision)
+    hint = record_denial(tool_name, session_key, cause=cause)
+    return feedback, rejection_message(feedback, timed_out=cause is DenialCause.TIMEOUT) + hint
 
 
 def record_approval(session_key: str | None = None) -> None:

@@ -2950,33 +2950,6 @@
         "deniedNotice": "거부되었습니다. 이 세션 동안 이 요청을 다시 묻지 않습니다."
       }
     },
-    "deviceInspector": {
-      "title": "모바일 기기 실시간 보기",
-      "toggleTitle": "기기 검사기 전환",
-      "viewMode": "보기 모드",
-      "inspectMode": "검사 모드",
-      "close": "닫기",
-      "refresh": "새로 고침",
-      "enabledHint": "에이전트가 모바일 기기에 연결되면 검사기가 여기에 열립니다",
-      "resizePanel": "패널 크기 조정",
-      "screenshotAlt": "모바일 기기 스크린샷",
-      "waitingForDevice": "모바일 기기 활동 대기 중...",
-      "waitingHint": "에이전트가 모바일 기기나 에뮬레이터를 조작할 때 실시간 보기가 표시됩니다",
-      "deviceDisconnected": "모바일 기기 연결이 끊겼습니다. ADB 또는 네트워크 연결을 확인하세요",
-      "notificationRedaction": "상태 표시줄 개인정보 비식별화",
-      "redactionBadge": "개인정보 비식별화",
-      "notificationRedacted": "상태 표시줄 알림이 가려졌습니다",
-      "notificationRedactedHint": "상단 시스템 알림 표시줄은 자동으로 흐림 처리되어 개인 정보와 인증 코드가 프롬프트에 새어 들어가는 것을 방지합니다",
-      "instructionPlaceholder": "모바일 기기에서 하고 싶은 작업을 설명하세요...",
-      "instructionWithElement": "이 모바일 요소로 에이전트가 무엇을 해야 할까요?",
-      "send": "지시 전송",
-      "doctorAdbMissing": "ADB 도구 모음이 감지되지 않았습니다. Android platform-tools를 설치하세요.",
-      "doctorDeviceOffline": "사용 가능한 모바일 기기나 에뮬레이터가 연결되지 않았습니다. USB 디버깅을 켜고 연결하세요。",
-      "navBack": "뒤로",
-      "navHome": "홈",
-      "navRecents": "최근 앱",
-      "navPower": "전원 / 화면 켜기"
-    },
     "clarification": {
       "formTitle": "명확화 양식",
       "badge": "입력 필요",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "이전 대화를 이어갈 수 없어 {agentName}이(가) 새 대화를 시작했습니다",
     "delegation_session_workspace_changed": "작업 폴더가 변경되어 {agentName}이(가) 새 대화를 시작했습니다",
     "delegation_turn_limit": "{agentName}이(가) 턴 한도에서 멈췄습니다. 메시지를 보내면 이어서 진행합니다",
+    "delegation_images_not_sent": "{agentName}이(가) 이미지를 직접 받을 수 없어 이미지가 있는 위치만 전달했습니다",
     "system_step": "시스템 단계",
     "tool_execution": "도구 실행",
     "processing": "처리 중",
@@ -4358,7 +4332,10 @@
       "post_hook_blocked": "실행 후 차단됨",
       "tool_cancelled": "취소됨",
       "guardrail_blocked": "안전 차단됨",
-      "benchmark_blocked": "평가 콘텐츠 차단"
+      "benchmark_blocked": "평가 콘텐츠 차단",
+      "policy_denied": "정책에 의해 거부됨",
+      "user_declined": "사용자가 거부함",
+      "approval_timeout": "승인 시간 초과"
     },
     "categoryStageLabels": {
       "thinking": "사고 중",

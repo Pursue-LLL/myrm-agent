@@ -2959,33 +2959,6 @@
         "deniedNotice": "Denied. This request will not be asked again in this session."
       }
     },
-    "deviceInspector": {
-      "title": "Mobile Device Live View",
-      "toggleTitle": "Toggle Device Inspector",
-      "viewMode": "View Mode",
-      "inspectMode": "Inspect Mode",
-      "close": "Close",
-      "refresh": "Refresh",
-      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
-      "resizePanel": "Resize panel",
-      "screenshotAlt": "Mobile device screenshot",
-      "waitingForDevice": "Waiting for mobile device activity...",
-      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
-      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
-      "notificationRedaction": "Status Bar Notification Redaction",
-      "redactionBadge": "Redaction",
-      "notificationRedacted": "Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs and sensitive messages",
-      "instructionPlaceholder": "Describe what you want to do on the device...",
-      "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction",
-      "doctorAdbMissing": "ADB toolchain not detected. Please install Android platform-tools.",
-      "doctorDeviceOffline": "No mobile device or emulator connected. Enable USB debugging and connect.",
-      "navBack": "Back",
-      "navHome": "Home",
-      "navRecents": "Recents",
-      "navPower": "Power / Wake"
-    },
     "clarification": {
       "formTitle": "Clarification form",
       "badge": "Needs your input",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "Earlier conversation could not be continued — {agentName} started a new one",
     "delegation_session_workspace_changed": "Working folder changed — {agentName} started a new conversation",
     "delegation_turn_limit": "{agentName} stopped at its turn limit — send a message to continue",
+    "delegation_images_not_sent": "{agentName} can't take images directly — it was only told where the image is",
     "system_step": "System Step",
     "tool_execution": "Tool Execution",
     "processing": "Processing",
@@ -4373,7 +4347,10 @@
       "post_hook_blocked": "Blocked After Run",
       "tool_cancelled": "Cancelled",
       "guardrail_blocked": "Safety Blocked",
-      "benchmark_blocked": "Benchmark Blocked"
+      "benchmark_blocked": "Benchmark Blocked",
+      "policy_denied": "Blocked by Policy",
+      "user_declined": "Declined by User",
+      "approval_timeout": "Approval Timed Out"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

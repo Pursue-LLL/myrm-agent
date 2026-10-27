@@ -32,7 +32,7 @@ Every decision is recorded via security.audit.record_decision() for post-hoc aud
 
 [INPUT]
 - approval.evaluation::APPROVAL_EVALUATION_KEY, evaluate_target, evaluation_matches, pending_calls, refused_calls, resolve_approval_target (POS: The verdicts the evaluation node stored for the latest model response, and the target they are about.)
-- approval.refusal::kept_tool_calls (POS: Which calls the AI message keeps once some were approved, edited or refused.)
+- approval.refusal::DenialCause, kept_tool_calls, refusal_answer (POS: Which calls the AI message keeps once some were approved, edited or refused, and the marked answer to a refused call.)
 - middlewares._session_context::get_is_shadow_agent, get_is_subagent, get_subagent_task_id (POS: Middleware session context — shared ContextVars for the middleware chain.)
 - langgraph.types::interrupt (POS: Pauses the node until the person answers.)
 
@@ -50,7 +50,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import AIMessage, ToolCall, ToolMessage
+from langchain_core.messages import AIMessage, ToolCall
 from langgraph.types import interrupt
 
 from myrm_agent_harness.agent.middlewares._session_context import (
@@ -71,19 +71,9 @@ from .evaluation import (
     resolve_approval_target,
 )
 from .helpers import reset_denial_counter
-from .refusal import kept_tool_calls
+from .refusal import DenialCause, kept_tool_calls, refusal_answer
 
 logger = logging.getLogger(__name__)
-
-
-def _error_answer(tool_call: ToolCall, content: str) -> ToolMessage:
-    """The error result that answers a refused call, so the model reads the refusal as the call's own result."""
-    return ToolMessage(
-        content=content,
-        name=tool_call.get("name", "unknown"),
-        tool_call_id=tool_call.get("id", ""),
-        status="error",
-    )
 
 
 class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
@@ -123,7 +113,12 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         if not pending_approval:
             if auto_denied:
                 refusals = sorted(auto_denied, key=lambda denied: denied[0])
-                return {**spent, "messages": [_error_answer(tool_call, content) for _, tool_call, content in refusals]}
+                return {
+                    **spent,
+                    "messages": [
+                        refusal_answer(tool_call, content, DenialCause.POLICY) for _, tool_call, content in refusals
+                    ],
+                }
             return spent or None
 
         # We use LangGraph's native interrupt() mechanism for ALL agents, including subagents.
@@ -311,12 +306,13 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
                 continue
 
             artificial_tool_messages.append(
-                _error_answer(
+                refusal_answer(
                     tool_call,
                     "[SYSTEM_ENFORCED] High-risk operations requiring user UI approval "
                     "are strictly forbidden for autonomous Subagents when task_id is missing. "
                     "This safeguard prevents deadlocks since Subagents have no frontend channel. "
                     "Please use a safe alternative or delegate this operation to the parent agent.",
+                    DenialCause.POLICY,
                 )
             )
 
@@ -329,7 +325,9 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
                 tool_call_id=tool_call.get("id", ""),
             )
 
-        artificial_tool_messages.extend(_error_answer(tool_call, content) for _, tool_call, content in auto_denied)
+        artificial_tool_messages.extend(
+            refusal_answer(tool_call, content, DenialCause.POLICY) for _, tool_call, content in auto_denied
+        )
         return {"messages": artificial_tool_messages}
 
 

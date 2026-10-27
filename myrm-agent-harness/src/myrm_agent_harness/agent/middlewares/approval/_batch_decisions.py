@@ -3,6 +3,7 @@
 [INPUT]
 - agent.security (POS: security types, approval flow, audit, engine)
 - agent.security.script_operand_verifier::compute_file_content_digest, extract_script_file_operand (POS: TOCTOU Defense verification)
+- .refusal::DenialCause, refusal_answer, rejection_cause (POS: the answer to a refused call, marked with who refused)
 
 [OUTPUT]
 - build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools).
@@ -35,6 +36,7 @@ from myrm_agent_harness.core.security.redact import redact_for_display
 
 from .guidance_delivery import bounded_note
 from .helpers import add_to_allowlist_if_needed, record_approval, record_denial, record_rejection
+from .refusal import DenialCause, refusal_answer, rejection_cause
 
 logger = logging.getLogger(__name__)
 
@@ -374,14 +376,7 @@ async def apply_approval_decisions(
         denied = next(((d_idx, tc, msg) for d_idx, tc, msg in auto_denied if d_idx == idx), None)
         if denied:
             _, _, error_msg = denied
-            artificial_tool_messages.append(
-                ToolMessage(
-                    content=error_msg,
-                    name=tool_call.get("name", "unknown"),
-                    tool_call_id=tool_call.get("id", ""),
-                    status="error",
-                )
-            )
+            artificial_tool_messages.append(refusal_answer(tool_call, error_msg, DenialCause.POLICY))
             continue
 
         if idx in interrupt_indices:
@@ -446,15 +441,12 @@ async def apply_approval_decisions(
                         )
                         hint = record_denial(tool_name, session_key)
                         artificial_tool_messages.append(
-                            ToolMessage(
-                                content=(
-                                    f"Security Blocked: Financial action digest verification failed. "
-                                    f"Expected '{expected_digest[:16]}...', received '{user_digest[:16] if user_digest else 'none'}...'. "
-                                    f"Execution aborted to prevent parameter tampering.{hint}"
-                                ),
-                                name=tool_name,
-                                tool_call_id=tool_call_id,
-                                status="error",
+                            refusal_answer(
+                                tool_call,
+                                f"Security Blocked: Financial action digest verification failed. "
+                                f"Expected '{expected_digest[:16]}...', received '{user_digest[:16] if user_digest else 'none'}...'. "
+                                f"Execution aborted to prevent parameter tampering.{hint}",
+                                DenialCause.POLICY,
                             )
                         )
                         continue
@@ -480,14 +472,11 @@ async def apply_approval_decisions(
                         )
                         hint = record_denial(tool_name, session_key)
                         artificial_tool_messages.append(
-                            ToolMessage(
-                                content=(
-                                    f"Security Blocked: {drift_reason or 'Approved script content was modified before execution (TOCTOU detected)'}. "
-                                    f"Execution aborted to prevent unreviewed code from running.{hint}"
-                                ),
-                                name=tool_name,
-                                tool_call_id=tool_call_id,
-                                status="error",
+                            refusal_answer(
+                                tool_call,
+                                f"Security Blocked: {drift_reason or 'Approved script content was modified before execution (TOCTOU detected)'}. "
+                                f"Execution aborted to prevent unreviewed code from running.{hint}",
+                                DenialCause.POLICY,
                             )
                         )
                         continue
@@ -516,11 +505,8 @@ async def apply_approval_decisions(
                         )
                         hint = record_denial(tool_name, session_key)
                         artificial_tool_messages.append(
-                            ToolMessage(
-                                content=f"Security Blocked: {script_fail_reason}{hint}",
-                                name=tool_name,
-                                tool_call_id=tool_call_id,
-                                status="error",
+                            refusal_answer(
+                                tool_call, f"Security Blocked: {script_fail_reason}{hint}", DenialCause.POLICY
                             )
                         )
                         continue
@@ -629,12 +615,7 @@ async def apply_approval_decisions(
                         record_decision(tool_name, "USER_EDIT_REJECTED", edit_block_reason)
                         hint = record_denial(tool_name, session_key)
                         artificial_tool_messages.append(
-                            ToolMessage(
-                                content=f"{edit_block_reason}{hint}",
-                                name=tool_name,
-                                tool_call_id=tool_call_id,
-                                status="error",
-                            )
+                            refusal_answer(tool_call, f"{edit_block_reason}{hint}", DenialCause.POLICY)
                         )
                     else:
                         logger.warning("[APPROVAL] Tool %s: user edited args", tool_name)
@@ -670,14 +651,7 @@ async def apply_approval_decisions(
                 feedback, content = record_rejection(decision, tool_name, session_key)
                 logger.warning("[SECURITY] Tool %s REJECTED by user: %s", tool_name, feedback)
                 record_decision(tool_name, "USER_REJECTED", feedback)
-                artificial_tool_messages.append(
-                    ToolMessage(
-                        content=content,
-                        name=tool_name,
-                        tool_call_id=tool_call_id,
-                        status="error",
-                    )
-                )
+                artificial_tool_messages.append(refusal_answer(tool_call, content, rejection_cause(decision)))
 
             if guidance_text:
                 logger.info(

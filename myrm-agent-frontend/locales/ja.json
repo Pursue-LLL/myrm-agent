@@ -2950,33 +2950,6 @@
         "deniedNotice": "拒否されました。このリクエストは本セッション内では再確認されません。"
       }
     },
-    "deviceInspector": {
-      "title": "モバイルデバイスのライブビュー",
-      "toggleTitle": "デバイスインスペクターを切り替え",
-      "viewMode": "表示モード",
-      "inspectMode": "検査モード",
-      "close": "閉じる",
-      "refresh": "更新",
-      "enabledHint": "Agent がモバイルデバイスに接続すると、インスペクターがここに開きます",
-      "resizePanel": "パネルサイズを変更",
-      "screenshotAlt": "モバイルデバイスのスクリーンショット",
-      "waitingForDevice": "モバイルデバイスのアクティビティを待機中...",
-      "waitingHint": "Agent がモバイル実機またはエミュレータを操作すると、ライブビューが表示されます",
-      "deviceDisconnected": "モバイルデバイスが切断されました。ADB またはネットワーク接続を確認してください",
-      "notificationRedaction": "ステータスバーのプライバシー遮蔽",
-      "redactionBadge": "プライバシー遮蔽",
-      "notificationRedacted": "ステータスバーの通知は非表示にしています",
-      "notificationRedactedHint": "上部のシステム通知バーは自動的にぼかし遮蔽され、個人情報や認証コードがプロンプトに漏れるのを防ぎます",
-      "instructionPlaceholder": "モバイルデバイスで何をしたいかを記述してください...",
-      "instructionWithElement": "Agent はこのモバイル要素をどうしますか？",
-      "send": "指示を送信",
-      "doctorAdbMissing": "ADB ツールチェーンが検出されませんでした。Android platform-tools をインストールしてください。",
-      "doctorDeviceOffline": "利用可能なモバイルデバイスまたはエミュレータが接続されていません。USB デバッグを有効にして接続してください。",
-      "navBack": "戻る",
-      "navHome": "ホーム",
-      "navRecents": "最近のアプリ",
-      "navPower": "電源"
-    },
     "clarification": {
       "formTitle": "確認フォーム",
       "badge": "入力が必須です",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "以前の会話を続けられなかったため、{agentName} は新しい会話を開始しました",
     "delegation_session_workspace_changed": "作業フォルダが変更されたため、{agentName} は新しい会話を開始しました",
     "delegation_turn_limit": "{agentName} はターン数の上限で停止しました。メッセージを送ると続行します",
+    "delegation_images_not_sent": "{agentName} は画像を直接受け取れないため、画像の場所だけを伝えました",
     "system_step": "システムステップ",
     "tool_execution": "ツール実行",
     "processing": "処理中",
@@ -4358,7 +4332,10 @@
       "post_hook_blocked": "実行後に制限",
       "tool_cancelled": "キャンセル",
       "guardrail_blocked": "安全制限",
-      "benchmark_blocked": "ベンチマーク遮断"
+      "benchmark_blocked": "ベンチマーク遮断",
+      "policy_denied": "ポリシーで拒否",
+      "user_declined": "ユーザーが拒否",
+      "approval_timeout": "承認タイムアウト"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

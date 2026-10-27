@@ -2959,33 +2959,6 @@
         "deniedNotice": "已拒绝，该请求在本会话内不再询问。"
       }
     },
-    "deviceInspector": {
-      "title": "移动设备实时视图",
-      "toggleTitle": "切换移动设备检查器",
-      "viewMode": "查看模式",
-      "inspectMode": "检查模式",
-      "close": "关闭",
-      "refresh": "刷新",
-      "enabledHint": "Agent 连接移动设备后，检查器将在此打开",
-      "resizePanel": "调整面板大小",
-      "screenshotAlt": "移动设备屏幕截图",
-      "waitingForDevice": "等待移动设备活动...",
-      "waitingHint": "当 Agent 操作移动端真机或模拟器时，实时视图将自动显示",
-      "deviceDisconnected": "移动设备已断开连接，请检查 ADB 或网络状态",
-      "notificationRedaction": "顶部状态栏隐私脱敏",
-      "redactionBadge": "隐私脱敏",
-      "notificationRedacted": "状态栏通知已脱敏遮蔽",
-      "notificationRedactedHint": "顶部系统通知栏已自动模糊遮蔽，防止私密信息与验证码泄露入 Prompt",
-      "instructionPlaceholder": "描述你想在移动设备上做什么...",
-      "instructionWithElement": "Agent 应该对这个移动端元素做什么？",
-      "send": "发送指令",
-      "doctorAdbMissing": "未检测到 ADB 工具链，请安装 Android platform-tools",
-      "doctorDeviceOffline": "未连接可用移动设备或模拟器，请开启 USB 调试并连线",
-      "navBack": "返回键",
-      "navHome": "主屏幕",
-      "navRecents": "多任务",
-      "navPower": "电源/唤醒"
-    },
     "clarification": {
       "formTitle": "澄清表单",
       "badge": "需要你确认",
@@ -4152,6 +4125,7 @@
     "delegation_session_expired": "之前的对话无法继续，{agentName} 已开启新对话",
     "delegation_session_workspace_changed": "工作文件夹已更改，{agentName} 已开启新对话",
     "delegation_turn_limit": "{agentName} 已达到回合上限而停止，发送消息即可继续",
+    "delegation_images_not_sent": "{agentName} 无法直接接收图片，只告知了图片所在的位置",
     "system_step": "系统步骤",
     "tool_execution": "工具执行",
     "processing": "处理中",
@@ -4373,7 +4347,10 @@
       "post_hook_blocked": "执行后拦截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全拦截",
-      "benchmark_blocked": "评测内容拦截"
+      "benchmark_blocked": "评测内容拦截",
+      "policy_denied": "策略拦截",
+      "user_declined": "用户已拒绝",
+      "approval_timeout": "审批超时"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

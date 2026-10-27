@@ -31,6 +31,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
 )
 from myrm_agent_harness.agent.middlewares.approval.helpers import clear_all_session_denials_for_tests
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig
+from myrm_agent_harness.agent.streaming.event_handlers import _handle_tool_result
 
 RAN: list[str] = []
 THREAD = {"configurable": {"thread_id": "t"}}
@@ -217,3 +218,62 @@ async def test_a_tool_called_next_to_ask_question_tool_is_refused_in_a_way_the_m
     assert RAN == []
     assert any("only tool in this turn" in t for t in _tool_texts(model.calls[1]))
     _assert_every_call_is_answered_once(result["messages"])
+
+
+async def _step_shown_for(refusal: ToolMessage) -> dict[str, object]:
+    """The step the stream tells the person about for this result."""
+    return await anext(_handle_tool_result(refusal, "m1", None))
+
+
+def _refusals(messages: list[BaseMessage]) -> list[ToolMessage]:
+    return [m for m in messages if isinstance(m, ToolMessage) and m.status == "error"]
+
+
+async def test_a_call_the_user_declined_is_shown_as_declined_and_blames_no_tool() -> None:
+    _, agent = _agent([_calls(("s1", "step", {"text": "a"})), AIMessage(content="ok")])
+
+    result = await _ask_then_resume(agent, {"decisions": [{"type": "reject", "feedback": "not now"}]})
+
+    [refusal] = _refusals(result["messages"])
+    step = await _step_shown_for(refusal)
+    assert step["error_category"] == "user_declined"
+    assert step["fault_side"] == "unknown"
+
+
+async def test_a_call_whose_approval_timed_out_is_shown_as_timed_out_and_blames_no_tool() -> None:
+    _, agent = _agent([_calls(("s1", "step", {"text": "a"})), AIMessage(content="ok")])
+
+    result = await _ask_then_resume(
+        agent, {"decision": "reject", "feedback": "Auto-rejected: approval timeout (300s)", "timed_out": True}
+    )
+
+    [refusal] = _refusals(result["messages"])
+    step = await _step_shown_for(refusal)
+    assert step["error_category"] == "approval_timeout"
+    assert step["fault_side"] == "unknown"
+
+
+async def test_a_call_the_policy_refused_is_shown_as_the_owners_to_change_and_not_as_a_tool_failure() -> None:
+    set_approval_session("cron:job-3")
+    _, agent = _agent([_calls(("s1", "step", {"text": "a"})), AIMessage(content="report")])
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="run the job")]}, THREAD)
+
+    [refusal] = _refusals(result["messages"])
+    step = await _step_shown_for(refusal)
+    assert step["error_category"] == "policy_denied"
+    assert step["fault_side"] == "owner"
+
+
+async def test_only_the_refused_call_of_a_batch_is_marked() -> None:
+    first = _calls(("s1", "step", {"text": "a"}), ("s2", "step", {"text": "b"}))
+    _, agent = _agent([first, AIMessage(content="ok")])
+
+    result = await _ask_then_resume(
+        agent, {"decisions": [{"type": "approve"}, {"type": "reject", "feedback": "not b"}]}
+    )
+
+    answers = {m.tool_call_id: m for m in result["messages"] if isinstance(m, ToolMessage)}
+    assert answers["s1"].status == "success"
+    assert "error_category" not in answers["s1"].additional_kwargs
+    assert answers["s2"].additional_kwargs["error_category"] == "user_declined"

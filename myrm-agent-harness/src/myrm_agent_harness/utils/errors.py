@@ -80,6 +80,11 @@ class ToolErrorCategory(str, enum.Enum):
     # --- Benchmark decontamination (web tool content policy) ---
     BENCHMARK_BLOCKED = "benchmark_blocked"
 
+    # --- Approval refusals: the call never ran because someone or something refused it ---
+    POLICY_DENIED = "policy_denied"
+    USER_DECLINED = "user_declined"
+    APPROVAL_TIMEOUT = "approval_timeout"
+
 
 class ToolError(Exception):
     """Agent 工具执行错误（诊断信息 + 修复建议 + format_for_llm 协议）。

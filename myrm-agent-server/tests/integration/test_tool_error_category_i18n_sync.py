@@ -18,7 +18,7 @@ from myrm_agent_harness.agent.errors import ToolErrorCategory
 
 FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
-LOCALE_FILES = ("en.json", "zh.json", "ja.json", "zh-TW.json")
+LOCALE_FILES = ("en.json", "zh.json", "ja.json", "zh-TW.json", "ko.json", "de.json")
 
 I18N_NAMESPACE = "progressSteps"
 I18N_KEY_GROUP = "errorCategories"

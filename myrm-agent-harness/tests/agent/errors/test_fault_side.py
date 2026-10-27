@@ -143,23 +143,15 @@ class TestClassifyDiagnosticFaultSide:
 
 
 class TestClassifyFaultSideUnified:
-
     def test_priority_error_kind_wins(self) -> None:
         # error_kind (most specific) should win over category/type.
-        assert (
-            classify_fault_side(error_kind="rate_limit", error_type="api_key")
-            is FaultSide.ENV
-        )
+        assert classify_fault_side(error_kind="rate_limit", error_type="api_key") is FaultSide.ENV
 
     def test_falls_back_to_error_category(self) -> None:
-        assert (
-            classify_fault_side(error_category="timeout") is FaultSide.HARNESS_TOOL
-        )
+        assert classify_fault_side(error_category="timeout") is FaultSide.HARNESS_TOOL
 
     def test_falls_back_to_error_type(self) -> None:
-        assert (
-            classify_fault_side(error_type="connection") is FaultSide.ENV
-        )
+        assert classify_fault_side(error_type="connection") is FaultSide.ENV
 
     def test_error_kind_takes_priority_over_category(self) -> None:
         assert (
@@ -174,10 +166,7 @@ class TestClassifyFaultSideUnified:
         assert classify_fault_side() is FaultSide.UNKNOWN
 
     def test_unrecognized_all_is_unknown(self) -> None:
-        assert (
-            classify_fault_side(error_kind="x", error_category="y", error_type="z")
-            is FaultSide.UNKNOWN
-        )
+        assert classify_fault_side(error_kind="x", error_category="y", error_type="z") is FaultSide.UNKNOWN
 
     def test_enum_values_are_stable_tokens(self) -> None:
         # Values are stable API tokens (not user-facing text).
@@ -190,6 +179,10 @@ class TestClassifyFaultSideUnified:
         assert FaultSide.UNKNOWN.value == "unknown"
 
 
+# A person saying no, or nobody answering, is nobody's fault: these categories abstain by design.
+_ABSTAINING_TOOL_CATEGORIES = frozenset({ToolErrorCategory.USER_DECLINED, ToolErrorCategory.APPROVAL_TIMEOUT})
+
+
 class TestEnumCoverageGuard:
     """Regression guard: every canonical enum member must be classifiable.
 
@@ -199,12 +192,18 @@ class TestEnumCoverageGuard:
     instead, so the sets stay in sync with the enums.
     """
 
-    @pytest.mark.parametrize("category", list(ToolErrorCategory))
+    @pytest.mark.parametrize("category", [c for c in ToolErrorCategory if c not in _ABSTAINING_TOOL_CATEGORIES])
     def test_all_tool_error_categories_classifiable(self, category: ToolErrorCategory) -> None:
         assert classify_tool_fault_side(category.value) is not FaultSide.UNKNOWN, (
             f"ToolErrorCategory.{category.name} is not mapped in fault_side — add it to "
             "_HARNESS_TOOL_CATEGORIES or _OWNER_TOOL_CATEGORIES"
         )
+
+    @pytest.mark.parametrize("category", sorted(_ABSTAINING_TOOL_CATEGORIES))
+    def test_a_refusal_by_a_person_or_the_approval_timer_names_no_side_on_purpose(
+        self, category: ToolErrorCategory
+    ) -> None:
+        assert classify_tool_fault_side(category.value) is FaultSide.UNKNOWN
 
     @pytest.mark.parametrize("kind", [k for k in ErrorKind if k is not ErrorKind.UNKNOWN])
     def test_all_error_kinds_classifiable(self, kind: ErrorKind) -> None:
