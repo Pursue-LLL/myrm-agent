@@ -48,7 +48,7 @@ router = APIRouter()
 _MAX_SUGGESTIONS = 3
 _MIN_LABEL_CHARS = 3
 _MAX_LABEL_CHARS = 120
-# Three questions as a JSON array are ~40 tokens; the cap bounds what a thinking model may spend on this call.
+# Three questions as a JSON array measure ~50 tokens (p90 ~80); the cap bounds what a thinking model may spend on this call.
 _MAX_OUTPUT_TOKENS = 1024
 _HISTORY_MESSAGES = 6
 # The opening and the ending of a long message stay, so the prompt does not grow with the answer's length.
