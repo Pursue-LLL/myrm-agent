@@ -53,6 +53,42 @@ describe('useGoalAction', () => {
     expect(postMock.mock.calls.map(([, action]) => action)).toEqual(['unwait', 'cancel']);
   });
 
+  it('keeps a control that is still out from holding the controls of another chat', async () => {
+    let answer: (outcome: 'done') => void = () => undefined;
+    postMock.mockReturnValueOnce(new Promise((resolve) => (answer = resolve))).mockResolvedValue('done');
+    const { result, rerender } = renderHook(({ chatId }) => useGoalAction(chatId), {
+      initialProps: { chatId: 'chat-1' },
+    });
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    await act(async () => {
+      first = result.current.run('resume');
+    });
+    expect(result.current.pendingAction).toBe('resume');
+
+    rerender({ chatId: 'chat-2' });
+    expect(result.current.pendingAction).toBeNull();
+    await act(async () => {
+      expect(await result.current.run('pause')).toBe(true);
+    });
+
+    rerender({ chatId: 'chat-1' });
+    expect(result.current.pendingAction).toBe('resume');
+    await act(async () => {
+      expect(await result.current.run('resume')).toBe(false);
+    });
+    expect(postMock.mock.calls.map(([chatId, action]) => [chatId, action])).toEqual([
+      ['chat-1', 'resume'],
+      ['chat-2', 'pause'],
+    ]);
+
+    await act(async () => {
+      answer('done');
+      await first;
+    });
+    expect(result.current.pendingAction).toBeNull();
+  });
+
   it('sends nothing without a chat', async () => {
     const { result } = renderHook(() => useGoalAction(null));
 

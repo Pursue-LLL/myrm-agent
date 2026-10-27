@@ -17,24 +17,25 @@ const STATUS_AFTER_ACTION: Record<GoalAction, GoalStatus> = {
 };
 
 /**
- * Sends the goal controls of one chat, one at a time: a press that arrives while another control is still out is
- * ignored, so a double click neither repeats the request nor shows its toast twice.
+ * Sends the goal controls, one at a time per chat: a press that arrives while another control of that chat is still
+ * out is ignored, so a double click neither repeats the request nor shows its toast twice. A control that is out for
+ * one chat does not hold the controls of another.
  *
  * `run` resolves whether the server took the action; a held note, a refusal or a failure leaves the goal as it was.
- * `pendingAction` is the control that is out, for the buttons to wait on.
+ * `pendingAction` is the control of the current chat that is out, for the buttons to wait on.
  */
 export function useGoalAction(chatId: string | null | undefined) {
   const t = useTranslations('Goal');
-  const [pendingAction, setPendingAction] = useState<GoalAction | null>(null);
-  const isOut = useRef(false);
+  const [pendingByChat, setPendingByChat] = useState<Readonly<Record<string, GoalAction>>>({});
+  const outChatIds = useRef(new Set<string>());
 
   const run = useCallback(
     async (action: GoalAction, note?: string): Promise<boolean> => {
-      if (!chatId || isOut.current) {
+      if (!chatId || outChatIds.current.has(chatId)) {
         return false;
       }
-      isOut.current = true;
-      setPendingAction(action);
+      outChatIds.current.add(chatId);
+      setPendingByChat((current) => ({ ...current, [chatId]: action }));
       try {
         const outcome = await postGoalAction(chatId, action, note);
         if (outcome === 'busy') {
@@ -50,12 +51,12 @@ export function useGoalAction(chatId: string | null | undefined) {
         }
         return outcome === 'done';
       } finally {
-        isOut.current = false;
-        setPendingAction(null);
+        outChatIds.current.delete(chatId);
+        setPendingByChat((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== chatId)));
       }
     },
     [chatId, t],
   );
 
-  return { run, pendingAction };
+  return { run, pendingAction: (chatId ? pendingByChat[chatId] : undefined) ?? null };
 }
