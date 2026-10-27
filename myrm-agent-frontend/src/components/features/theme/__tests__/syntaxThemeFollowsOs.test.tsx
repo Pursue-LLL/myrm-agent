@@ -18,8 +18,10 @@ vi.mock('next-themes', () => ({
   useTheme: () => mockThemes.current,
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
   useLocale: () => 'en',
 }));
 
