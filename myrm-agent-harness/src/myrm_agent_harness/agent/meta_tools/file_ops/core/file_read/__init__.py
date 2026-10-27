@@ -1,10 +1,10 @@
 """How file_read_tool reads and shows a file: multimodal blocks, text pages, truncation and outlines.
 
 [INPUT]
-- file_read.multimodal: image/PDF/document/video blocks and their text-mode fallbacks
-- file_read.text_paths: preview/stream/all text reads and the structure outline
-- file_read.truncation: complete-line truncation with a precomputed continuation offset
-- file_read.outline: symbol and heading outline extraction
+- file_read.multimodal::build_multimodal_result, append_media_text_parts (POS: multimodal read execution)
+- file_read.text_paths::process_text_paths, read_structure_outline (POS: text read execution)
+- file_read.truncation::truncate_file_output (POS: complete-line truncation with a precomputed continuation offset)
+- file_read.outline::extract_file_outline, extract_truncated_outline (POS: symbol and heading outline extraction)
 
 [OUTPUT]
 - build_multimodal_result / append_media_text_parts: multimodal and media text-mode read handlers

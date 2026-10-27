@@ -36,10 +36,12 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 # A page is 20,000 o200k tokens (16% of a 128k window), so a long paste is read in a few calls. A model with another
 # tokenizer sees more tokens in the same page (CJK, for one).
 PAGE_TOKEN_BUDGET = 20_000
-# A model whose window is within the MEDIUM tier gets a page of a tenth of its window instead: the context pruner keeps
-# the five most recent tool results in full, so five pages stay within half the window, where compression starts.
+# A model whose window is in the MEDIUM tier or below gets a page of a tenth of its window instead: the context pruner
+# keeps the five most recent tool results in full (``ContextConfig.keep_recent_calls``), so five consecutive pages take
+# half the window.
 _SMALL_WINDOW_PAGE_DIVISOR = 10
-# Smaller pages would cost one model call per page without keeping more of the window free.
+# Floor on a page, so a very small window does not turn one paste into dozens of model calls. A window under 20,000
+# tokens therefore gets more than a tenth of it per page.
 MIN_PAGE_TOKEN_BUDGET = 2_000
 # A page may overshoot by a tenth rather than cut a text a few lines short of fitting.
 _PAGE_TOLERANCE_PERCENT = 10
