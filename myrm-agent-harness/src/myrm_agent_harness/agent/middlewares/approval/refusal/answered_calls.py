@@ -1,17 +1,16 @@
-"""Which tool calls of a model response already have an answer, and which of them may stay in it.
+"""Which tool calls of a model response still need a verdict, and which of them stay in the AI message.
 
 [INPUT]
-- langchain_core.messages::AIMessage, BaseMessage, ToolMessage (POS: LangGraph message types)
+- langchain_core.messages::AIMessage, BaseMessage, ToolCall, ToolMessage (POS: LangGraph message types)
 
 [OUTPUT]
 - answered_call_ids: ids of the calls of one AI message that a ToolMessage after it already answers
-- keep_answered_calls: the tool calls an AI message keeps once some were approved, edited or refused
+- kept_tool_calls: the tool calls an AI message keeps once some were approved, edited or refused
 
 [POS]
-A refused call stays in the AI message, answered by an error ToolMessage, instead of being deleted. LangGraph
-runs only the calls that have no ToolMessage, and the model reads the refusal as the result of its own call. A
-call that was deleted left an orphan ToolMessage that the dangling-call repair drops before the next model call,
-so the model never learned that the call was refused or why.
+LangGraph runs only the tool calls that have no ToolMessage, and the model reads a ToolMessage as the result of
+its own call. A refused call therefore stays in the AI message, answered by an error ToolMessage, so the model
+learns that it was refused and why. A call an earlier guard already answered is not put to a person again.
 """
 
 from __future__ import annotations
@@ -32,10 +31,10 @@ def answered_call_ids(messages: Sequence[BaseMessage], ai_message: AIMessage) ->
     return answered
 
 
-def keep_answered_calls(
+def kept_tool_calls(
     original: Sequence[ToolCall], approved: Sequence[ToolCall], answered_ids: Collection[str]
 ) -> list[ToolCall]:
-    """*original* with each approved call in its approved (possibly edited) form and each refused call kept.
+    """*original* with each approved call in its approved (possibly edited) form and each answered call kept.
 
     A call that is neither approved nor answered is dropped: it must not run without anyone having cleared it.
     """

@@ -1,8 +1,8 @@
 """What the model is told when a tool call is refused, through the agent's own middleware stack.
 
 A refused call stays in the AI message and is answered by an error ToolMessage, so the model reads who refused it
-and why as the result of its own call. When the call was deleted instead, the ToolMessage that explained the
-refusal became an orphan and the dangling-call repair dropped it before the next model call.
+and why as the result of its own call, and the dangling-call repair finds no orphan to drop before the next model
+call.
 """
 
 from __future__ import annotations

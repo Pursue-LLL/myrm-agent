@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
 
-from myrm_agent_harness.agent.middlewares.approval._answered_calls import answered_call_ids, keep_answered_calls
+from myrm_agent_harness.agent.middlewares.approval.refusal import answered_call_ids, kept_tool_calls
 
 
 def _call(call_id: str, **args: str) -> ToolCall:
@@ -36,7 +36,7 @@ def test_an_approved_call_keeps_its_edit_and_a_refused_call_stays_to_be_answered
     original = [_call("c1", text="a"), _call("c2", text="b"), _call("c3", text="c")]
     edited = _call("c1", text="edited")
 
-    kept = keep_answered_calls(original, [edited], {"c2", "c3"})
+    kept = kept_tool_calls(original, [edited], {"c2", "c3"})
 
     assert kept == [edited, original[1], original[2]]
 
@@ -44,10 +44,10 @@ def test_an_approved_call_keeps_its_edit_and_a_refused_call_stays_to_be_answered
 def test_a_call_that_is_neither_approved_nor_answered_is_dropped() -> None:
     original = [_call("c1"), _call("c2")]
 
-    assert keep_answered_calls(original, [original[0]], set()) == [original[0]]
+    assert kept_tool_calls(original, [original[0]], set()) == [original[0]]
 
 
 def test_the_order_of_the_model_is_kept() -> None:
     original = [_call("c1"), _call("c2"), _call("c3")]
 
-    assert keep_answered_calls(original, [original[2], original[0]], {"c2"}) == original
+    assert kept_tool_calls(original, [original[2], original[0]], {"c2"}) == original

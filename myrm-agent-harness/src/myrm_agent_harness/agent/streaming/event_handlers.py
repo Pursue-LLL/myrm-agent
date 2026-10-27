@@ -33,6 +33,7 @@ from myrm_agent_harness.agent.errors.fault_side import (
     classify_tool_fault_side,
 )
 from myrm_agent_harness.agent.streaming.types import AgentEventType
+from myrm_agent_harness.core.security.model_directed_notes import user_facing_text
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     scrub_sensitive_info,
 )
@@ -195,7 +196,8 @@ async def _handle_tool_result(
             "tool_call_id": msg.tool_call_id or None,
             "tool_name": tool_name,
             "status": "error",
-            "error": scrub_sensitive_info(error_content),
+            # A refusal result ends in notes that instruct the model; the person watching reads only its first part.
+            "error": scrub_sensitive_info(user_facing_text(error_content) or "Unknown error"),
             "messageId": message_id,
         }
 

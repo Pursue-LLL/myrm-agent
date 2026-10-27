@@ -29,7 +29,7 @@ from enum import StrEnum
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 from myrm_agent_harness.agent.security.command_allowlist_pattern import derive_command_pattern
 
-from ._denial_wording import DenialCause, denial_hint, rejection_message
+from .refusal import DenialCause, denial_hint, rejection_message
 
 logger = logging.getLogger(__name__)
 

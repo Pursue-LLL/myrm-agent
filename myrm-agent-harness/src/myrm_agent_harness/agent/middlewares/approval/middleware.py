@@ -60,13 +60,13 @@ from myrm_agent_harness.agent.middlewares._session_context import (
 from myrm_agent_harness.agent.security.tool_registry import compute_canonical_args_hash
 from myrm_agent_harness.agent.security.types import RecentToolCall
 
-from ._answered_calls import answered_call_ids, keep_answered_calls
 from .batch_processor import (
     apply_approval_decisions,
     build_interrupt_payload,
     evaluate_tool_batch,
 )
 from .helpers import reset_denial_counter
+from .refusal import answered_call_ids, kept_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +294,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         await self._fire_correction_hook(decisions, pending_approval, session_key)
 
         answered_ids |= {message.tool_call_id for message in artificial_tool_messages}
-        source_msg.tool_calls = keep_answered_calls(source_msg.tool_calls, revised_tool_calls, answered_ids)
+        source_msg.tool_calls = kept_tool_calls(source_msg.tool_calls, revised_tool_calls, answered_ids)
         return {"messages": [source_msg, *artificial_tool_messages, *guidance_messages]}
 
     @staticmethod

@@ -17,6 +17,7 @@ from myrm_agent_harness.core.security.auto_review_resolution import (
     DenialDiagnosticReporter,
     DenialReasonCodeEnum,
 )
+from myrm_agent_harness.core.security.model_directed_notes import DIAGNOSTIC_OPEN
 
 
 def infer_denial_reason_code(reason: str, tool_name: str) -> DenialReasonCodeEnum:
@@ -61,7 +62,7 @@ def build_auto_review_denial_message(tool_name: str, reason: str, hint: str = ""
     message_parts = [
         f"Tool execution denied by security policy: {reason}{hint}",
         "",
-        "[SECURITY_DENIAL_DIAGNOSTIC]",
+        DIAGNOSTIC_OPEN,
         f"Diagnostic ID: {diag.diagnostic_id}",
         f"Reason Code: {diag.reason_code.value}",
         f"Suggested Branch: {diag.suggested_branch.value}",

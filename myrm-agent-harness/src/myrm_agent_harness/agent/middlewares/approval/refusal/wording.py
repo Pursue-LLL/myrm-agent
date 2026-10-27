@@ -1,7 +1,7 @@
 """How a refusal reads to the model: who refused, and what to do next.
 
 [INPUT]
-- (none — pure text)
+- core.security.model_directed_notes::SYSTEM_NOTE_OPEN (POS: the opening every model-directed note shares)
 
 [OUTPUT]
 - DenialCause: who or what refused the call (a policy, a person, an approval timeout)
@@ -9,7 +9,7 @@
 - denial_hint: the ``[System: ...]`` note appended to a refusal, escalated once a denial threshold is breached
 
 [POS]
-Text only. The counters and thresholds live in helpers.py and the decision branches in _batch_decisions.py.
+Text only. The counters and thresholds live in ../helpers.py and the decision branches in ../_batch_decisions.py.
 A refusal that blames a "security block" for a person's "no", or that tells the model a person declined when
 nobody answered, makes the model argue with the wrong party, so the cause picks the wording.
 """
@@ -17,6 +17,8 @@ nobody answered, makes the model argue with the wrong party, so the cause picks 
 from __future__ import annotations
 
 from enum import StrEnum
+
+from myrm_agent_harness.core.security.model_directed_notes import SYSTEM_NOTE_OPEN
 
 
 class DenialCause(StrEnum):
@@ -27,21 +29,26 @@ class DenialCause(StrEnum):
     TIMEOUT = "timeout"
 
 
+def _note(text: str) -> str:
+    """A note for the model, set off from the refusal text a person reads."""
+    return f"\n\n{SYSTEM_NOTE_OPEN}{text}]"
+
+
 _HINTS = {
-    DenialCause.POLICY: (
-        "\n\n[System: This action was denied. "
+    DenialCause.POLICY: _note(
+        "This action was denied. "
         "Find a safer alternative approach to achieve the user's goal. "
-        "Do NOT attempt to circumvent or route around the security block.]"
+        "Do NOT attempt to circumvent or route around the security block."
     ),
-    DenialCause.USER: (
-        "\n\n[System: The user declined this action. "
+    DenialCause.USER: _note(
+        "The user declined this action. "
         "Do not run it again or look for a way around the refusal. "
-        "If their reason allows a different approach, take it; otherwise ask them how to proceed.]"
+        "If their reason allows a different approach, take it; otherwise ask them how to proceed."
     ),
-    DenialCause.TIMEOUT: (
-        "\n\n[System: The user did not answer in time. "
+    DenialCause.TIMEOUT: _note(
+        "The user did not answer in time. "
         "Do not run this action again on your own. "
-        "Tell the user what you were trying to do and wait for their reply.]"
+        "Tell the user what you were trying to do and wait for their reply."
     ),
 }
 
@@ -80,4 +87,4 @@ def denial_hint(cause: DenialCause, breach: str, count: int, threshold: int, *, 
     if breach == "none":
         return _HINTS[cause]
     template = _UNATTENDED_ESCALATION if unattended else _ATTENDED_ESCALATION[breach]
-    return "\n\n[System: " + template.format(count=count, breach=breach, threshold=threshold) + "]"
+    return _note(template.format(count=count, breach=breach, threshold=threshold))

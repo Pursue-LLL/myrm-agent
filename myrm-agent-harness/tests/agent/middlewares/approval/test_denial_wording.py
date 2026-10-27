@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.agent.middlewares._session_context import set_approval_session
-from myrm_agent_harness.agent.middlewares.approval._denial_wording import DenialCause, denial_hint, rejection_message
 from myrm_agent_harness.agent.middlewares.approval.helpers import (
     clear_all_session_denials_for_tests,
     record_denial,
     record_rejection,
 )
+from myrm_agent_harness.agent.middlewares.approval.refusal import DenialCause, denial_hint, rejection_message
 
 _POLICY_HINT = (
     "\n\n[System: This action was denied. "
