@@ -5,11 +5,12 @@
 - agent.context_management.infra.evicted.content::normalize_delivery_chat_id (POS: UECD chat id normalization, symmetric with the writer)
 - agent.meta_tools.file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill path blocking)
 - core.context_vars::chat_id_var, workspace_root_var (POS: run-scoped chat id and workspace root)
+- core.security.tool_registry::is_url (POS: the one definition of a network URL)
 - utils.vault_read::is_vault_uri, path_base (POS: vault:// URI test and ``:range`` suffix stripping)
 - utils.errors::ToolError (POS: tool error type)
 
 [OUTPUT]
-- is_url: whether a path is a network URL, which the tool refuses
+- partition_urls: splits a call into its local paths and the refusal naming the URLs the tool will not read
 - normalize_path_hint / path_hint_allowed_for_evicted_uploaded: lexical check of a path against the Fast-track scope
 - assert_evicted_uploaded_read_scope: restricts a Fast-track read to UECD spill, chat uploads and spilled long pastes
 - assert_paths_allowed_for_read: blocks a path under a disabled skill
@@ -33,15 +34,26 @@ from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
     is_under_disabled_skill_root,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
+from myrm_agent_harness.core.security.tool_registry import is_url
 from myrm_agent_harness.utils.errors import ToolError
 
 from ...utils.vault_read import is_vault_uri, path_base
 
-_URL_SCHEMES = ("http://", "https://", "ftp://", "ftps://")
+_URLS_NAMED = 3
 
 
-def is_url(path: str) -> bool:
-    return path.lower().startswith(_URL_SCHEMES)
+def partition_urls(paths: list[str]) -> tuple[list[str], str]:
+    """The local paths of a call, and the refusal that names its URLs (empty when it has none)."""
+    local = [path for path in paths if not is_url(path)]
+    urls = [path for path in paths if is_url(path)]
+    if not urls:
+        return local, ""
+    named = ", ".join(urls[:_URLS_NAMED])
+    more = f" (and {len(urls) - _URLS_NAMED} more)" if len(urls) > _URLS_NAMED else ""
+    return (
+        local,
+        f"file_read_tool cannot read URLs: {named}{more}. This tool only supports local file paths, not web URLs.",
+    )
 
 
 def normalize_path_hint(raw_path: str) -> str:

@@ -6,7 +6,7 @@
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
 - core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
-- core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, is_url (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
+- core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, partition_urls (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
 - core.security.path::is_blocked_device_path (POS: Pre-IO 设备路径安全阻断)
 - utils.vault_read::is_vault_uri, path_base, read_vault_paths_to_parts (POS: vault:// URI 读取)
@@ -57,7 +57,7 @@ from .core.file_read import (
     assert_evicted_uploaded_read_scope,
     assert_paths_allowed_for_read,
     build_multimodal_result,
-    is_url,
+    partition_urls,
     process_text_paths,
 )
 from .core.mcp_read_next_step_hint import append_mcp_docs_next_step_hint
@@ -236,21 +236,12 @@ def create_file_read_tool(
                         user_hint="Access to device paths and reserved system devices is forbidden.",
                     )
 
-            url_paths = [p for p in paths if is_url(p)]
-            valid_paths = [p for p in paths if not is_url(p)]
-
-            url_errors: list[str] = []
-            if url_paths:
-                rejected = ", ".join(url_paths[:3])
-                suffix = f" (and {len(url_paths) - 3} more)" if len(url_paths) > 3 else ""
-                url_errors.append(
-                    f"file_read_tool cannot read URLs: {rejected}{suffix}. "
-                    "This tool only supports local file paths, not web URLs."
-                )
+            valid_paths, url_refusal = partition_urls(paths)
+            url_errors = [url_refusal] if url_refusal else []
 
             if not valid_paths:
-                if url_errors:
-                    return "\n".join(url_errors)
+                if url_refusal:
+                    return url_refusal
                 raise ValueError("No valid paths provided.")
 
             # 2. Unicode normalization candidate probing & self-healing

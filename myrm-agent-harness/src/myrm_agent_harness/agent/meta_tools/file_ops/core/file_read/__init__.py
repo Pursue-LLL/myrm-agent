@@ -5,14 +5,14 @@
 - file_read.text_paths::process_text_paths, read_structure_outline (POS: text read execution)
 - file_read.truncation::truncate_file_output (POS: complete-line truncation with a precomputed continuation offset)
 - file_read.outline::extract_file_outline, extract_truncated_outline (POS: symbol and heading outline extraction)
-- file_read.scope::is_url, assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope (POS: read-scope guards)
+- file_read.scope::partition_urls, assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope (POS: read-scope guards)
 
 [OUTPUT]
 - build_multimodal_result / append_media_text_parts: multimodal and media text-mode read handlers
 - process_text_paths / read_structure_outline: text path read handlers
 - truncate_file_output: file_read output truncation
 - extract_file_outline / extract_truncated_outline: structural outlines
-- is_url / assert_paths_allowed_for_read / assert_evicted_uploaded_read_scope: read-scope guards the tool runs before reading
+- partition_urls / assert_paths_allowed_for_read / assert_evicted_uploaded_read_scope: read-scope guards the tool runs before reading
 
 [POS]
 file_read_tool execution subpackage; file_read_tool.py is the tool facade, core/__init__ re-exports the handlers and only the tool uses the scope guards.
@@ -20,7 +20,7 @@ file_read_tool execution subpackage; file_read_tool.py is the tool facade, core/
 
 from .multimodal import append_media_text_parts, build_multimodal_result
 from .outline import extract_file_outline, extract_truncated_outline
-from .scope import assert_evicted_uploaded_read_scope, assert_paths_allowed_for_read, is_url
+from .scope import assert_evicted_uploaded_read_scope, assert_paths_allowed_for_read, partition_urls
 from .text_paths import process_text_paths, read_structure_outline
 from .truncation import truncate_file_output
 
@@ -31,7 +31,7 @@ __all__ = [
     "build_multimodal_result",
     "extract_file_outline",
     "extract_truncated_outline",
-    "is_url",
+    "partition_urls",
     "process_text_paths",
     "read_structure_outline",
     "truncate_file_output",
