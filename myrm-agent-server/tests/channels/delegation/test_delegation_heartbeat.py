@@ -1,7 +1,8 @@
 """A delegated run that stays quiet for minutes tells its chat it is still working, and stops when the run does.
 
 The run's own progress is not shown in the chat, so the heartbeat is the only sign of life. It edits one message in
-place, counts the run's steps, and ends with the run, whether the run finished, was stopped or stopped at an approval.
+place, counts the run's steps without saying what the run is doing, and ends with the run, whether the run finished,
+was stopped or stopped at an approval.
 """
 
 from __future__ import annotations
@@ -102,7 +103,7 @@ def _slow(seconds: float, *events: object) -> Stream:
 
 
 @pytest.mark.asyncio
-async def test_a_long_run_edits_one_heartbeat_in_place_with_its_task_and_steps() -> None:
+async def test_a_long_run_edits_one_heartbeat_in_place_with_its_task_and_steps_only() -> None:
     bus = _bus()
     progress = ProgressUpdate(label="searching the web")
 
@@ -114,6 +115,9 @@ async def test_a_long_run_edits_one_heartbeat_in_place_with_its_task_and_steps()
     assert "Background task" in first.content and "2 steps" in first.content
     assert bus.edit_channel_message.call_count >= 1
     assert bus.edit_channel_message.call_args.args[:3] == ("telegram", "c1", "beat-1")
+    # what the run is doing stays out of the chat, in the first message and in every edit
+    shown = [first.content, *(call.args[3] for call in bus.edit_channel_message.call_args_list)]
+    assert all("searching" not in text.lower() for text in shown)
 
 
 @pytest.mark.asyncio

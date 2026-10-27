@@ -22,7 +22,10 @@ from dataclasses import dataclass, field
 
 
 class DelegationStatus(str, enum.Enum):
-    """Lifecycle states of an asynchronous delegated task."""
+    """Lifecycle states of an asynchronous delegated task.
+
+    ``CANCELLED`` is the user's ``/stop``; ``INTERRUPTED`` is the service going down under a running task.
+    """
 
     PENDING = "pending"
     RUNNING = "running"
@@ -30,6 +33,7 @@ class DelegationStatus(str, enum.Enum):
     FAILED = "failed"
     TIMED_OUT = "timed_out"
     CANCELLED = "cancelled"
+    INTERRUPTED = "interrupted"
 
 
 @dataclass

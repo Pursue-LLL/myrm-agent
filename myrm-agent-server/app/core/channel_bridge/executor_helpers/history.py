@@ -6,6 +6,7 @@
 - executor_helpers.agent_workspace::agent_workspace (POS: the workspace the channel agent runs in)
 
 [OUTPUT]
+- ChannelChatHistory: the agent-facing chat history shape
 - build_chat_history_with_metadata, persist_and_load_history, load_history_without_persist
 - persist_assistant_message, generate_channel_title
 
@@ -29,6 +30,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# ``[role, content]`` entries, a human one with ``{"ts": ...}`` appended: the history shape ``GeneralAgent.process_stream`` takes.
+ChannelChatHistory = list[list[str | object]]
+
 
 async def _sync_chat_workspace_from_topic(
     chat: "ChatDTO",
@@ -43,9 +47,9 @@ async def _sync_chat_workspace_from_topic(
 
 def build_chat_history_with_metadata(
     entries: list[ChannelHistoryEntry],
-) -> list[list[str | object]]:
+) -> ChannelChatHistory:
     """Convert structured history entries to framework chat_history format."""
-    history: list[list[str | object]] = []
+    history: ChannelChatHistory = []
     for entry in entries:
         if entry.role == "human":
             history.append(["human", entry.content, {"ts": entry.created_at.isoformat()}])

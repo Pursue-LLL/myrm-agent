@@ -2,7 +2,6 @@
 
 [INPUT]
 - channels.routing.router_reassurance::run_reassurance_loop (POS: edit-in-place heartbeat loop)
-- channels.routing.router_stream_scrubber::normalize_progress_stage (POS: user-friendly progress stage labels)
 - channels.delegation.delegation_models::DelegationTask (POS: the delegated task and its time limit)
 - channels.core.bus::MessageBus (POS: sends the heartbeat and edits it in place)
 
@@ -12,7 +11,8 @@
 
 [POS]
 A delegated run's progress is not shown in the chat, so the run counts as quiet from its first second and the
-heartbeat is time-triggered, not silence-gated. It edits one message in place (a channel that cannot edit gets the
+heartbeat is time-triggered, not silence-gated. It says only that the task is alive (elapsed minutes and step count):
+what the run is doing stays out of the chat. It edits one message in place (a channel that cannot edit gets the
 first one only) and never outlives the block: it ends when the run finishes, is stopped, or stops at an approval.
 At most one heartbeat per interval fits in the task's time limit.
 """
@@ -26,7 +26,6 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from app.channels.routing.router_reassurance import run_reassurance_loop
-from app.channels.routing.router_stream_scrubber import normalize_progress_stage
 from app.channels.types import InboundMessage, ProgressUpdate
 
 if TYPE_CHECKING:
@@ -46,9 +45,8 @@ async def delegated_run_heartbeat(
     # Quiet since one interval before the start, so the first check at the end of the first interval always fires.
     state: dict[str, float | int | str] = {"last_activity": time.monotonic() - interval, "step_count": 0, "current_stage": ""}
 
-    def note_progress(update: ProgressUpdate) -> None:
+    def note_progress(_update: ProgressUpdate) -> None:
         state["step_count"] = int(state["step_count"]) + 1
-        state["current_stage"] = normalize_progress_stage(update.label)
 
     beat = asyncio.create_task(
         run_reassurance_loop(

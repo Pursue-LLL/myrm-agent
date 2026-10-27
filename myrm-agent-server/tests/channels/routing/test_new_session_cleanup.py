@@ -15,8 +15,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.routing.commands import RouterCommandsMixin
+from app.channels.routing.pending_approvals import PendingApprovals
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
+from tests.support.pending_approvals import empty_registry, waiting
 
 
 def _msg(
@@ -60,7 +62,7 @@ def _make_active_task(
 @dataclass(slots=True)
 class _Host(RouterCommandsMixin):
     _active_tasks: dict[str, _ActiveTask] = field(default_factory=dict)
-    _approval_msg_ids: dict[str, str] = field(default_factory=dict)
+    _pending_approvals: PendingApprovals = field(default_factory=empty_registry)
     _bus: MagicMock = field(default_factory=MagicMock)
     _fx: MagicMock = field(default_factory=MagicMock)
     _gate: MagicMock = field(default_factory=MagicMock)
@@ -109,14 +111,14 @@ class TestAbortSessionTask:
         active.task.cancel.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_clears_approval_msg_ids(self) -> None:
+    async def test_clears_the_pending_approval(self) -> None:
         active = _make_active_task()
         h = _host(
             _active_tasks={"telegram:user1": active},
-            _approval_msg_ids={"telegram:user1": "msg-42"},
+            _pending_approvals=waiting("telegram:user1", "msg-42"),
         )
         await h._abort_session_task("telegram:user1", reason="cleanup")
-        assert "telegram:user1" not in h._approval_msg_ids
+        assert "telegram:user1" not in h._pending_approvals
 
     @pytest.mark.asyncio
     async def test_cleans_up_placeholder(self) -> None:

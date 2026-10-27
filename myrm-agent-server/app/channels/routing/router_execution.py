@@ -17,6 +17,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.routing.context_document import enrich_context_document
+from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
 )
@@ -102,7 +103,10 @@ class RouterExecutionMixin:
         chat_id = inbound.chat_id or inbound.sender_id
         state_key = routing_state_key(inbound.channel, chat_id, inbound.thread_id)
 
-        if inbound.is_group:
+        if inbound.resume_value and inbound.metadata.get(METADATA_APPROVAL_TIMED_OUT_KEY) and inbound.user_id:
+            # The router built this message itself to resume a run for the sender it already admitted: no new admission.
+            user_id, exec_msg = inbound.user_id, inbound
+        elif inbound.is_group:
             resolved = await self._resolver.resolve_group_user(inbound)
             if not resolved:
                 return None
@@ -374,8 +378,7 @@ class RouterExecutionMixin:
         session so that numeric shortcut replies (e.g. "1") are correctly
         routed to the approval handler instead of being treated as new messages.
         """
-        has_pending_approval = state_key in self._approval_msg_ids
-        if not has_pending_approval:
+        if state_key not in self._pending_approvals:
             self._active_tasks.pop(state_key, None)
         self._cleanups.pop(state_key, None)
         if not placeholder_id:

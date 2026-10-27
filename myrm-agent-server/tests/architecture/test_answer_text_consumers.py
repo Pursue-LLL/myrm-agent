@@ -26,7 +26,6 @@ _ACCUMULATORS = ("AnswerDraft", "StreamContentCollector")
 # The file that makes the call also accumulates the answer.
 _ACCUMULATES_HERE = {
     "api/openai_compat/completions.py",
-    "core/channel_bridge/executor_helpers/approval.py",
     "core/cron/adapters/agent_runner.py",
     "lifecycle/auto_continue.py",
     "services/agent/streaming_support/hitl_timeout.py",

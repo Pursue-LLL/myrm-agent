@@ -64,6 +64,8 @@ from .status import (
     StartMode,
 )
 from .streaming import (
+    METADATA_APPROVAL_WINDOW_SECONDS_KEY,
+    ApprovalExpiry,
     FissionTopologyNode,
     FissionTopologyUpdate,
     ProgressUpdate,
@@ -79,11 +81,13 @@ from .topics import (
 from .voice import STTResult, TTSMode, VoiceConfig
 
 __all__ = [
+    "METADATA_APPROVAL_WINDOW_SECONDS_KEY",
     "METADATA_CONTEXT_DOCUMENT_KEY",
     "METADATA_EXPLICIT_MENTION_KEY",
     "METADATA_GUEST_TURN_KEY",
     "METADATA_NOTIFY_KEY",
     "ActionButton",
+    "ApprovalExpiry",
     "ButtonStyle",
     "ChannelActivity",
     "ChannelCapabilities",

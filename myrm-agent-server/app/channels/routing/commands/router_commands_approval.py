@@ -1,7 +1,8 @@
-"""Router approval mixin: reaction/button approval and decision resume payloads.
+"""Router approval mixin: reaction/button approval, decision resume payloads and the timeout resume.
 
 [INPUT]
 - channels.routing.commands::ApprovalDecision, DenyWithReason (POS: slash command argument parsing and handling.)
+- channels.routing.pending_approvals::PendingApproval (POS: the open approval request a decision or a timeout answers.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it.)
@@ -10,11 +11,14 @@
 - services.approvals.registry::ApprovalRegistry (POS: unified approval flow scheduler that persists, pushes and resolves approvals.)
 
 [OUTPUT]
-- RouterCommandsApprovalMixin: approval command handlers, reaction/button approval, decision resume payloads
+- RouterCommandsApprovalMixin: approval command handlers, reaction/button approval, decision resume payloads,
+  ``_resume_after_approval_timeout`` (the registry's expiry callback)
 
 [POS]
 Router approval mixin segment. Validates reaction/button approvals and builds harness-compatible resume_value for
-LangGraph interrupt resume.
+LangGraph interrupt resume. A person's answer ends the chat's open request in ``_pending_approvals`` before the run
+resumes; when nobody answers in time the registry's timer calls ``_resume_after_approval_timeout``, which tells the chat
+the outcome and resumes the run through the ``SessionGate`` like any answered request.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
+from app.channels.routing.pending_approvals import PendingApproval
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
@@ -46,28 +51,40 @@ async def _show_outcome_on_card(bus: MessageBus, msg: InboundMessage, chat_id: s
         await bus.edit_channel_message(msg.channel, chat_id, str(origin_message_id), get_text(msg, text_key, **params))
 
 
+async def _reply_text(bus: MessageBus, msg: InboundMessage, chat_id: str, text_key: str) -> None:
+    """Answer ``msg`` in its chat with the catalog message ``text_key``."""
+    await bus.publish_outbound(
+        OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=get_text(msg, text_key),
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        )
+    )
+
+
 class RouterCommandsApprovalMixin:
     """Mixin: reaction/button approval and decision resume payloads."""
 
     def _has_pending_approval(self: RouterCommandsHost, msg: InboundMessage) -> bool:
         """Check if the session has a pending approval request.
 
-        Returns True if there's an active agent task for this session, which may
-        be waiting for user approval via interrupt(). Used to gate numeric shortcut
-        commands (like plain "1" or "2") to prevent misinterpretation as approval.
+        Used to gate numeric shortcut commands (like plain "1" or "2") so they are only
+        read as an approval while the session really waits on one.
         """
         chat_id = msg.chat_id or msg.sender_id
         state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
-        return self._active_tasks.get(state_key) is not None
+        return state_key in self._pending_approvals
 
     def _is_reaction_approval_valid(self: RouterCommandsHost, msg: InboundMessage) -> bool:
         """Validate an inbound emoji reaction as an approval command.
 
         Layered checks (a single failure aborts the approval):
 
-        1. **Pending approval gate** — there must be an active agent task
-           awaiting an interrupt() resume on this chat. Reactions on stale
-           messages are silently dropped.
+        1. **Pending approval gate** — the chat must wait on an approval
+           request. Reactions on stale messages are silently dropped.
         2. **Target match** — when ``target_message_id`` is present in the
            reaction metadata it must equal the stored approval message id;
            otherwise the reaction targets some other message (e.g. an old
@@ -85,11 +102,11 @@ class RouterCommandsApprovalMixin:
         state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
         active = self._active_tasks.get(state_key)
-        if active is None:
+        if active is None or state_key not in self._pending_approvals:
             return False
 
         target_mid = msg.metadata.get("target_message_id")
-        stored_mid = self._approval_msg_ids.get(state_key)
+        stored_mid = self._pending_approvals.card_message_id(state_key)
         if target_mid and stored_mid and str(target_mid) != stored_mid:
             return False
 
@@ -137,16 +154,8 @@ class RouterCommandsApprovalMixin:
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
-        if self._active_tasks.get(session_key) is None:
-            reply = OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=get_text(msg, "no_pending_approval"),
-                user_id=msg.user_id or "",
-                thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-            )
-            await self._bus.publish_outbound(reply)
+        if session_key not in self._pending_approvals:
+            await _reply_text(self._bus, msg, chat_id, "no_pending_approval")
             return
 
         if isinstance(decision, DenyWithReason):
@@ -173,10 +182,50 @@ class RouterCommandsApprovalMixin:
             metadata={**msg.metadata, "is_resume": True},
         )
 
-        approval_mid = self._approval_msg_ids.pop(session_key, None)
-        if approval_mid:
-            await self._bus.edit_channel_message(msg.channel, chat_id, approval_mid, status_msg)
+        answered = self._pending_approvals.pop(session_key)
+        if answered is None:
+            # The wait ended while the decision was being checked (the timeout resumed the run, or /stop ended it).
+            await _reply_text(self._bus, msg, chat_id, "approval_already_handled")
+            return
+        if answered.card_message_id:
+            await self._bus.edit_channel_message(msg.channel, chat_id, answered.card_message_id, status_msg)
 
+        self._gate.submit(resume_msg)
+
+    async def _resume_after_approval_timeout(
+        self: RouterCommandsHost,
+        state_key: str,
+        pending: PendingApproval,
+        resume_value: dict[str, object],
+    ) -> None:
+        """No one answered the approval in time: say what the timeout decided and resume the run as an ordinary turn.
+
+        The resumed run is a router turn like one a person answered, so ``/stop`` reaches it and its reply is
+        delivered the same way. The outcome replaces the approval card, or is sent as a message when the channel
+        returned no card id or cannot edit.
+        """
+        resume_msg = pending.resume_message(resume_value)
+        chat_id = resume_msg.chat_id or resume_msg.sender_id
+        outcome_key = "approval_timeout_approved" if resume_value.get("decision") == "approve" else "approval_timeout_denied"
+        notice = get_text(resume_msg, outcome_key)
+        shown = bool(pending.card_message_id) and await self._bus.edit_channel_message(
+            resume_msg.channel, chat_id, pending.card_message_id, notice
+        )
+        if not shown:
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=resume_msg.channel,
+                    recipient_id=chat_id,
+                    content=notice,
+                    user_id=pending.user_id,
+                    thread_id=resume_msg.thread_id,
+                )
+            )
+
+        # The turn that asked kept its entry only to keep the approval answerable; the resumed turn takes its place.
+        entry = self._active_tasks.get(state_key)
+        if entry is not None and entry.task.done():
+            del self._active_tasks[state_key]
         self._gate.submit(resume_msg)
 
     async def _handle_action_button_approval(
@@ -290,6 +339,7 @@ class RouterCommandsApprovalMixin:
                 resume_value=resume_value,
                 metadata={**msg.metadata, "is_resume": True},
             )
+            self._pending_approvals.pop(session_key)
             self._gate.submit(resume_msg)
         else:
             # No active task in router (e.g. Agent resumed via WebUI concurrently).

@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.channel_bridge.executor_helpers.history import (
+    build_chat_history_with_metadata,
     load_history_without_persist,
     persist_and_load_history,
     persist_assistant_message,
@@ -212,3 +213,18 @@ async def test_persist_assistant_message_appends() -> None:
 
     mock_append.assert_awaited_once()
     mock_session.commit.assert_awaited_once()
+
+
+def test_build_chat_history_with_metadata_adds_timestamp_for_human() -> None:
+    created = datetime(2026, 7, 13, 6, 0, tzinfo=timezone.utc)
+    entries = [
+        ChannelHistoryEntry(role="human", content="Hi", created_at=created),
+        ChannelHistoryEntry(role="assistant", content="Hello", created_at=created),
+    ]
+
+    history = build_chat_history_with_metadata(entries)
+
+    assert history == [
+        ["human", "Hi", {"ts": "2026-07-13T06:00:00+00:00"}],
+        ["assistant", "Hello"],
+    ]

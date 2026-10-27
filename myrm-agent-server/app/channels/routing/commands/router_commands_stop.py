@@ -2,13 +2,12 @@
 
 [INPUT]
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
-- channels.routing.router_keys::routing_state_key, routing_session_key (POS: channel+peer+topic state-map key and chat-wide key formats.)
-- myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: approval timeout scheduling)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - channels.i18n::get_text (POS: multi-language gateway command replies and system-generated channel messages.)
 
 [OUTPUT]
-- RouterCommandsStopMixin: _abort_session_task (ends a session's turn and the timeout of an approval it waits on), /stop (the chat's turn first, then the sender's delegated tasks; the reply names the delegated tasks)
+- RouterCommandsStopMixin: _abort_session_task (ends a session's turn and the approval wait with its timer), /stop (the chat's turn first, then the sender's delegated tasks; the reply names the delegated tasks)
 
 [POS]
 Router stop mixin segment. Cancels the active turn of a session, or the delegated tasks the sender started from the
@@ -19,11 +18,9 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
-
 from app.channels.i18n import get_text
 from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key, routing_state_key
+from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 logger = logging.getLogger("app.channels.routing.router")
@@ -48,14 +45,11 @@ class RouterCommandsStopMixin:
         Shared by ``/stop`` and ``/new`` to avoid duplicated cancel logic.
         Returns True when a task was actually cancelled.
         """
+        # A session that waits on an approval would otherwise be resumed by the timeout after the user ended it.
+        self._pending_approvals.pop(state_key)
         active = self._active_tasks.pop(state_key, None)
         if active is None:
             return False
-
-        if self._approval_msg_ids.pop(state_key, None) is not None:
-            # The session was waiting on an approval; its timeout guard would otherwise resume the session the
-            # user just ended. The guard is keyed by chat, so only a session that itself waits may end it.
-            ApprovalTimeoutScheduler.get().cancel(routing_session_key(active.channel, active.chat_id))
 
         active.cancel_token.cancel(reason)
         if not active.task.done():

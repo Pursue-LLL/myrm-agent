@@ -12,6 +12,7 @@ import pytest
 from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage
+from tests.support.pending_approvals import asked_in
 
 
 def _make_bus() -> MagicMock:
@@ -578,7 +579,7 @@ class TestReapStuckTasks:
             placeholder_id=None,
             started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
         )
-        router._approval_msg_ids[state_key] = "approval-msg-1"
+        router._pending_approvals.register(state_key, asked_in("test", "chat-1", card_message_id="approval-msg-1"), None)
 
         router._fx = MagicMock()
         router._fx.stop_typing_keepalive = AsyncMock()
@@ -589,7 +590,7 @@ class TestReapStuckTasks:
         await router._reap_stuck_tasks(time.monotonic())
 
         assert state_key not in router._active_tasks
-        assert state_key not in router._approval_msg_ids
+        assert state_key not in router._pending_approvals
 
     @pytest.mark.asyncio
     async def test_empty_locale_fallback_no_metadata(self) -> None:

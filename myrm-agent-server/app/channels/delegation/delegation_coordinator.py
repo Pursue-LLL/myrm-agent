@@ -7,12 +7,13 @@ injections to running Agent sandboxes via SteeringToken.
 - .delegation_models::DelegationTask, DelegationStatus
 - .delegation_heartbeat::delegated_run_heartbeat (POS: tells the chat the run is still working)
 - app.channels.routing.friendly_errors::friendly_error_message, is_error_reply (POS: member-safe failure wording and failed-turn flag)
+- app.channels.types::METADATA_APPROVAL_WINDOW_SECONDS_KEY (POS: lets a run wait for a tool approval as long as the task may run)
 - myrm_agent_harness.utils.runtime.steering::SteeringToken
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken
 
 [OUTPUT]
 - ApprovalHandOver: callback through which a run that stopped at a tool approval is handed to the chat it came from.
-- DelegationCoordinator: Central coordinator managing task state machines, steering, stopping, and the background execution lifecycle.
+- DelegationCoordinator: Central coordinator managing task state machines, steering, stopping, interruption at shutdown, and the background execution lifecycle.
 
 [POS]
 Execution lifecycle and coordination engine for app/channels/delegation/.
@@ -31,7 +32,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.channels.routing.friendly_errors import friendly_error_message, is_error_reply
-from app.channels.types import OutboundMessage, ProgressUpdate, StreamingText
+from app.channels.types import METADATA_APPROVAL_WINDOW_SECONDS_KEY, OutboundMessage, ProgressUpdate, StreamingText
 
 from .delegation_delivery import build_delivery_message
 from .delegation_heartbeat import delegated_run_heartbeat
@@ -49,6 +50,7 @@ _TERMINAL_STATUSES = (
     DelegationStatus.FAILED,
     DelegationStatus.TIMED_OUT,
     DelegationStatus.CANCELLED,
+    DelegationStatus.INTERRUPTED,
 )
 
 ApprovalHandOver = Callable[[ProgressUpdate], Awaitable[None]]
@@ -202,6 +204,24 @@ class DelegationCoordinator:
                 logger.warning("DelegationCoordinator: Reaped stale task %s", task_id)
         return reaped
 
+    async def interrupt_all(self, *, grace_seconds: float = 5.0) -> list[str]:
+        """Stop every running task because the service is going down; each run tells its chat before it ends.
+
+        The notices are queued while the channels are still up. A run that does not settle within the grace period
+        is left to the cancellation already delivered to it, so a stuck run cannot hold the shutdown.
+
+        Returns:
+            IDs of the interrupted tasks.
+        """
+        interrupted = [task.task_id for task in self._tasks.values() if task.status is DelegationStatus.RUNNING]
+        runners = [runner for task_id in interrupted if (runner := self._runners.get(task_id)) is not None]
+        for task_id in interrupted:
+            self.update_task_status(task_id, DelegationStatus.INTERRUPTED)
+            self._interrupt(task_id, "Service stopping")
+        if runners:
+            await asyncio.wait(runners, timeout=grace_seconds)
+        return interrupted
+
     def _settle_finished_stream(self, task: DelegationTask, final_reply: OutboundMessage | None) -> None:
         """Record how a finished stream ended, unless the task was already timed out or stopped while it ran.
 
@@ -215,9 +235,9 @@ class DelegationCoordinator:
             self.update_task_status(task.task_id, DelegationStatus.COMPLETED)
 
     async def _settle_interrupted(self, task: DelegationTask, bus: MessageBus, original_msg: InboundMessage) -> None:
-        """Close a run whose task was cancelled: a timed-out run tells its chat why; a stopped one was already answered by /stop."""
+        """Close a run whose task was cancelled: a timed-out or interrupted run tells its chat why; a stopped one was already answered by /stop."""
         try:
-            if task.status is DelegationStatus.TIMED_OUT:
+            if task.status in (DelegationStatus.TIMED_OUT, DelegationStatus.INTERRUPTED):
                 await bus.publish_outbound(build_delivery_message(task, original_msg, None, ""))
             elif task.status not in _TERMINAL_STATUSES:
                 self.update_task_status(task.task_id, DelegationStatus.CANCELLED)
@@ -255,7 +275,12 @@ class DelegationCoordinator:
         approval_request: ProgressUpdate | None = None
         stopped_at_approval = False
         try:
-            task_msg = replace(original_msg, content=task.prompt)
+            # The requester is not watching the chat, so a tool approval may wait as long as the task itself may run.
+            task_msg = replace(
+                original_msg,
+                content=task.prompt,
+                metadata={**original_msg.metadata, METADATA_APPROVAL_WINDOW_SECONDS_KEY: task.timeout_seconds},
+            )
             async with delegated_run_heartbeat(task, bus, original_msg) as note_progress:
                 async for event in executor.execute_stream(
                     task_msg,

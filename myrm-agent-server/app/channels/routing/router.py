@@ -170,6 +170,7 @@ from app.channels.routing.graceful_degradation import (
 )
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.pending_approvals import PendingApprovals
 from app.channels.routing.policy_resolver import PolicyResolver
 from app.channels.routing.policy_resolver_support import is_admin_sender
 from app.channels.routing.retry_policy import (
@@ -311,7 +312,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._task: asyncio.Task[None] | None = None
         self._active_tasks: dict[str, _ActiveTask] = {}
         self._cleanups: dict[str, _CleanupEntry] = {}
-        self._approval_msg_ids: dict[str, str] = {}
+        self._pending_approvals = PendingApprovals(on_expire=self._resume_after_approval_timeout)
         self._approval_co_approvers: frozenset[str] = approval_co_approvers or frozenset()
         self._janitor_task: asyncio.Task[None] | None = None
         self._seen_messages: dict[str, float] = {}
@@ -389,8 +390,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         logger.info("AgentRouter started (max_concurrent=%d)", _MAX_CONCURRENT_AGENTS)
 
     async def stop(self) -> None:
-        """Stop the consumption loop and cancel all in-flight agent tasks."""
+        """Stop the consumption loop and cancel all in-flight agent tasks.
+
+        Delegated tasks are interrupted first, while the channels are still up, so each tells its chat the work was cut short.
+        """
         self._running = False
+        await self._delegation_coordinator.interrupt_all()
 
         for entry in self._active_tasks.values():
             entry.cancel_token.cancel("Router stopping")
@@ -399,7 +404,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         self._active_tasks.clear()
         self._cleanups.clear()
-        self._approval_msg_ids.clear()
+        self._pending_approvals.clear()
 
         await self._stop_janitor()
 
@@ -523,7 +528,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
             self._active_tasks.pop(state_key, None)
             self._cleanups.pop(state_key, None)
-            self._approval_msg_ids.pop(state_key, None)
+            self._pending_approvals.pop(state_key)
 
             synthetic_msg = InboundMessage(
                 channel=entry.channel,

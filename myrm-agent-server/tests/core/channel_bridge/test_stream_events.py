@@ -7,11 +7,8 @@ from collections.abc import AsyncIterator
 import pytest
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
-from app.channels.types import ProgressUpdate, StreamingText
-from app.core.channel_bridge.agent_executor.stream_events import (
-    ChannelStreamEventState,
-    iter_channel_stream_progress,
-)
+from app.channels.types import ApprovalExpiry, FissionTopologyNode, FissionTopologyUpdate, ProgressUpdate, StreamingText
+from app.core.channel_bridge.agent_executor.stream_events import iter_channel_stream_progress
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
 
 
@@ -23,13 +20,12 @@ async def _events(*items: dict[str, object]) -> AsyncIterator[dict[str, object]]
 @pytest.mark.asyncio
 async def test_message_event_yields_writing_progress_and_streaming_text() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
     progress = [
         item
         async for item in iter_channel_stream_progress(
             _events({"type": "message", "data": "Hello"}),
             acc,
-            state,
+            locale="en",
         )
     ]
     assert len(progress) == 2
@@ -41,9 +37,8 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
 
 
 @pytest.mark.asyncio
-async def test_tool_approval_request_sets_timeout_state() -> None:
+async def test_tool_approval_request_carries_its_time_limit() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
     event = {
         "type": "tool_approval_request",
         "data": {
@@ -51,16 +46,36 @@ async def test_tool_approval_request_sets_timeout_state() -> None:
             "extensions": {"timeout": {"seconds": 120, "behavior": "allow"}},
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, state)]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
-    assert state.approval_timeout_info == {"seconds": 120, "behavior": "allow"}
+    assert progress[0].expiry == ApprovalExpiry(seconds=120, behavior="allow")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("extensions", "expected"),
+    [
+        ({}, ApprovalExpiry(seconds=300, behavior="deny")),
+        ({"timeout": {"seconds": "45", "behavior": "deny"}}, ApprovalExpiry(seconds=45, behavior="deny")),
+        ({"timeout": {"seconds": 90, "behavior": "anything-else"}}, ApprovalExpiry(seconds=90, behavior="deny")),
+    ],
+)
+async def test_tool_approval_request_defaults_to_denying_after_the_default_window(
+    extensions: dict[str, object], expected: ApprovalExpiry
+) -> None:
+    event = {
+        "type": "tool_approval_request",
+        "data": {"actionRequests": [{"action": "bash", "description": "run ls"}], "extensions": extensions},
+    }
+    progress = [item async for item in iter_channel_stream_progress(_events(event), StreamAccumulator(), locale="en")]
+    assert isinstance(progress[0], ProgressUpdate)
+    assert progress[0].expiry == expected
 
 
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_not_configured_yields_progress_update() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
     event = {
         "type": "capability_gap",
         "data": {
@@ -70,7 +85,7 @@ async def test_capability_gap_web_search_not_configured_yields_progress_update()
             "display_message": "Web search is enabled but no search API is configured.",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, state)]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].label == "Web search is enabled but no search API is configured."
@@ -79,7 +94,6 @@ async def test_capability_gap_web_search_not_configured_yields_progress_update()
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_unreachable_yields_progress_update() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
     event = {
         "type": "capability_gap",
         "data": {
@@ -88,7 +102,7 @@ async def test_capability_gap_web_search_unreachable_yields_progress_update() ->
             "display_message": "Web search provider is unreachable.",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, state)]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].label == "Web search provider is unreachable."
@@ -97,7 +111,6 @@ async def test_capability_gap_web_search_unreachable_yields_progress_update() ->
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_skipped_when_display_message_empty() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
     event = {
         "type": "capability_gap",
         "data": {
@@ -106,31 +119,47 @@ async def test_capability_gap_web_search_skipped_when_display_message_empty() ->
             "display_message": "",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, state)]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert "search API" in progress[0].label
 
 
 @pytest.mark.asyncio
-async def test_fission_topology_yields_raw_data() -> None:
+async def test_fission_topology_update_is_passed_on_unchanged() -> None:
     acc = StreamAccumulator()
-    state = ChannelStreamEventState()
-    payload = {"nodes": ["a"]}
+    update = FissionTopologyUpdate(
+        fission_id="f1", nodes=(FissionTopologyNode(node_id="n1", agent_type="research", objective="A", status="running"),)
+    )
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(
+            _events({"type": "fission_topology", "data": update}),
+            acc,
+            locale="en",
+        )
+    ]
+    assert progress == [update]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("payload", [{"nodes": ["a"]}, None])
+async def test_a_fission_topology_event_without_an_update_is_dropped(payload: object) -> None:
+    acc = StreamAccumulator()
     progress = [
         item
         async for item in iter_channel_stream_progress(
             _events({"type": "fission_topology", "data": payload}),
             acc,
-            state,
+            locale="en",
         )
     ]
-    assert progress == [payload]
+    assert progress == []
 
 
 async def _consume(*events: dict[str, object]) -> StreamAccumulator:
     acc = StreamAccumulator()
-    async for _ in iter_channel_stream_progress(_events(*events), acc, ChannelStreamEventState()):
+    async for _ in iter_channel_stream_progress(_events(*events), acc, locale="en"):
         pass
     return acc
 

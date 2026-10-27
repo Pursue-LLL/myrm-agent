@@ -39,6 +39,7 @@ from app.channels.types import (
     SessionPolicy,
 )
 from app.core.channel_bridge.executor_helpers import (
+    ChannelChatHistory,
     StreamAccumulator,
     generate_channel_title,
     persist_assistant_message,
@@ -82,7 +83,7 @@ async def finalize_channel_stream_reply(
     channel_budget_key: str | None,
     memory_settings: dict[str, object],
     lite_model_cfg: ModelConfig | None,
-    chat_history: list[object],
+    chat_history: ChannelChatHistory,
     session_was_auto_reset: bool,
     session_policy: SessionPolicy,
     account_guidance: bool,

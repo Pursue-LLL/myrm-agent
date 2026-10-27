@@ -9,6 +9,7 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.routing.identity_scope import TurnMemoryScope
+from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY
 from app.channels.types import METADATA_CONTEXT_DOCUMENT_KEY, ContextDocument, InboundMessage, OutboundMessage
 from app.core.channel_bridge.agent_executor.execute_preamble.agent import (
     build_channel_execution_agent,
@@ -124,6 +125,7 @@ async def _build_resume_with_failure(
     *,
     create_agent_error: Exception | None = None,
     credentials_error: Exception | None = None,
+    msg: InboundMessage | None = None,
 ) -> ChannelAgentBuildOutcome:
     """Build a resume turn against the real scheduler; the failing stage is selected by the caller."""
     with (
@@ -146,7 +148,7 @@ async def _build_resume_with_failure(
     ):
         return await build_channel_execution_agent(
             **_agent_build_kwargs(
-                _inbound_message(resume_value={"type": "approve"}),
+                msg or _inbound_message(resume_value={"type": "approve"}),
                 is_resume=True,
                 configs=_minimal_user_configs(),
                 enabled_builtin_tools=["code_execution"],
@@ -181,6 +183,23 @@ async def test_build_agent_keeps_resume_claim_after_successful_assembly() -> Non
         outcome = await _build_resume_with_failure()
         assert outcome.result is not None
         assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is False
+    finally:
+        scheduler.reopen(_RESUME_APPROVAL_KEY)
+
+
+@pytest.mark.asyncio
+async def test_build_agent_resumes_a_timed_out_approval_the_timer_already_claimed() -> None:
+    scheduler = ApprovalTimeoutScheduler.get()
+    scheduler.reopen(_RESUME_APPROVAL_KEY)
+    assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is True  # the timer's claim, taken before it resumes
+    timed_out = _inbound_message(resume_value={"decision": "reject", "timed_out": True})
+    timed_out.metadata[METADATA_APPROVAL_TIMED_OUT_KEY] = True
+
+    try:
+        outcome = await _build_resume_with_failure(msg=timed_out)
+        assert outcome.early_reply is None
+        assert outcome.result is not None
+        assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is False  # still claimed: a late manual answer is refused
     finally:
         scheduler.reopen(_RESUME_APPROVAL_KEY)
 

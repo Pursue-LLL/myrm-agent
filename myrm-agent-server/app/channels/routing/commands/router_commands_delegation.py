@@ -25,6 +25,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.channels.delegation import build_delegation_task
 from app.channels.i18n import get_text, resolve_message_locale
+from app.channels.routing.pending_approvals import PendingApproval
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import _ActiveTask
@@ -92,13 +93,15 @@ class RouterCommandsDelegationMixin:
 
         The run's stream has ended at the approval, which leaves the chat in the state a foreground turn leaves:
         the prompt's message id plus an entry for the finished task, which ``/approve``, the approval buttons and
-        reactions look up. The answer then resumes the run's thread as an ordinary turn. An entry of a turn that is
-        still running keeps its place: its cleanup retains it while the message id is set.
+        reactions look up. The answer then resumes the run's thread as an ordinary turn, and so does the timeout of an
+        unanswered approval. An entry of a turn that is still running keeps its place: its cleanup retains it while
+        the chat's approval is pending.
         """
         chat_id = msg.chat_id or msg.sender_id
         state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
-        approval_message_id = await self._send_interactive_progress(msg, chat_id, progress)
-        self._approval_msg_ids[state_key] = approval_message_id or ""
+        card_message_id = await self._send_interactive_progress(msg, chat_id, progress)
+        user_id = msg.user_id or msg.sender_id
+        self._pending_approvals.register(state_key, PendingApproval(card_message_id or "", msg, user_id), progress.expiry)
 
         entry = self._active_tasks.get(state_key)
         runner = asyncio.current_task()

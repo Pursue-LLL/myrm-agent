@@ -18,11 +18,13 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.channels.routing.commands import RouterCommandsMixin
+from app.channels.routing.pending_approvals import PendingApprovals
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
+from tests.support.pending_approvals import empty_registry
 
 _engine = create_async_engine("sqlite+aiosqlite:///:memory:")
 _factory = async_sessionmaker(_engine, expire_on_commit=False)
@@ -108,7 +110,7 @@ def _make_active_task(
 @dataclass(slots=True)
 class _Host(RouterCommandsMixin):
     _active_tasks: dict[str, _ActiveTask] = field(default_factory=dict)
-    _approval_msg_ids: dict[str, str] = field(default_factory=dict)
+    _pending_approvals: PendingApprovals = field(default_factory=empty_registry)
     _approval_co_approvers: frozenset[str] = field(default_factory=frozenset)
     _bus: MagicMock = field(default_factory=MagicMock)
     _gate: MagicMock = field(default_factory=MagicMock)

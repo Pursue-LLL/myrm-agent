@@ -16,13 +16,15 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
-from app.channels.types import InboundMessage, ProgressUpdate, QuickReply, StreamingText
+from app.channels.types import ApprovalExpiry, InboundMessage, ProgressUpdate, QuickReply, StreamingText
+from tests.support.pending_approvals import asked_in
 
 _CHAT_KEY = "telegram:c1"
 _TIMER_SECONDS = 0.05
 _APPROVE = ProgressUpdate(
     label="shell needs approval: run the build",
     quick_replies=(QuickReply(label="Approve", text="/approve", required=True),),
+    expiry=ApprovalExpiry(seconds=_TIMER_SECONDS),
 )
 
 
@@ -56,6 +58,7 @@ def _router(stream: object | None = None) -> tuple[AgentRouter, MagicMock]:
     executor.execute_stream = stream
     router = AgentRouter(bus=bus, pairing_store=MagicMock(), agent_executor=executor)
     router._resolve_mobile_status_deep_link = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    router._gate.submit = MagicMock()  # type: ignore[method-assign]  # a timeout resume would land here
     return router, bus
 
 
@@ -71,11 +74,15 @@ def _entry() -> _ActiveTask:
     )
 
 
-def _arm_timer(scheduler: ApprovalTimeoutScheduler) -> AsyncMock:
-    """Arm the chat's approval timer the way the channel executor does: one key per chat, no topic."""
-    resumed = AsyncMock()
-    scheduler.schedule(_CHAT_KEY, _TIMER_SECONDS, "deny", resumed)
-    return resumed
+def _wait_on_approval(router: AgentRouter, state_key: str = _CHAT_KEY, *, thread_id: str | None = None) -> None:
+    """The chat waits on an approval whose timer would fire after ``_TIMER_SECONDS``."""
+    router._pending_approvals.register(
+        state_key, asked_in("telegram", "c1", thread_id=thread_id), ApprovalExpiry(seconds=_TIMER_SECONDS)
+    )
+
+
+def _resumed(router: AgentRouter) -> MagicMock:
+    return router._gate.submit  # type: ignore[return-value]
 
 
 async def _let_a_timer_fire() -> None:
@@ -86,19 +93,19 @@ async def _let_a_timer_fire() -> None:
 async def test_stop_ends_the_timer_of_the_approval_the_chat_was_waiting_on(_scheduler: ApprovalTimeoutScheduler) -> None:
     router, _bus = _router()
     router._active_tasks[_CHAT_KEY] = _entry()
-    router._approval_msg_ids[_CHAT_KEY] = "card-1"
-    resumed = _arm_timer(_scheduler)
+    _wait_on_approval(router)
 
     await router._cancel_active_task(_inbound())
     await _let_a_timer_fire()
 
-    resumed.assert_not_awaited()
+    _resumed(router).assert_not_called()
     assert _scheduler.pending_count == 0
+    assert _CHAT_KEY not in router._pending_approvals
 
 
 @pytest.mark.asyncio
 async def test_stop_ends_the_timer_of_a_turn_that_ended_at_an_approval_request(_scheduler: ApprovalTimeoutScheduler) -> None:
-    """The router itself keeps the turn's entry and approval marker once its stream ends at the request."""
+    """The router itself keeps the turn's entry and the open approval once its stream ends at the request."""
 
     async def stream(*_a: object, **_k: object) -> AsyncGenerator[object, None]:
         yield StreamingText(text="checking the build")
@@ -114,13 +121,13 @@ async def test_stop_ends_the_timer_of_a_turn_that_ended_at_an_approval_request(_
     )
     await turn
     assert _CHAT_KEY in router._active_tasks
-    assert router._approval_msg_ids == {_CHAT_KEY: "prompt-1"}
-    resumed = _arm_timer(_scheduler)
+    assert router._pending_approvals.card_message_id(_CHAT_KEY) == "prompt-1"
+    assert _scheduler.pending_count == 1  # the router armed the timer from the request's own time limit
 
     await router._cancel_active_task(_inbound())
     await _let_a_timer_fire()
 
-    resumed.assert_not_awaited()
+    _resumed(router).assert_not_called()
     assert _scheduler.pending_count == 0
 
 
@@ -130,13 +137,13 @@ async def test_a_new_session_ends_the_timer_of_the_approval_the_old_one_was_wait
 ) -> None:
     router, _bus = _router()
     router._active_tasks[_CHAT_KEY] = _entry()
-    router._approval_msg_ids[_CHAT_KEY] = "card-1"
-    resumed = _arm_timer(_scheduler)
+    _wait_on_approval(router)
 
     assert await router._abort_session_task(_CHAT_KEY, reason="New session") is True
     await _let_a_timer_fire()
 
-    resumed.assert_not_awaited()
+    _resumed(router).assert_not_called()
+    assert _scheduler.pending_count == 0
 
 
 @pytest.mark.asyncio
@@ -152,16 +159,16 @@ async def test_stop_ends_the_timer_of_a_delegated_runs_approval(
     bus.send_tracked = AsyncMock(return_value=card_id)
     await router._handle_delegation_inbound(_inbound("/delegate x"), "x")
     for _ in range(300):
-        if _CHAT_KEY in router._approval_msg_ids:
+        if _CHAT_KEY in router._pending_approvals:
             break
         await asyncio.sleep(0.01)
-    assert _CHAT_KEY in router._approval_msg_ids
-    resumed = _arm_timer(_scheduler)
+    assert _CHAT_KEY in router._pending_approvals
+    assert _scheduler.pending_count == 1
 
     await router._cancel_active_task(_inbound())
     await _let_a_timer_fire()
 
-    resumed.assert_not_awaited()
+    _resumed(router).assert_not_called()
     assert _scheduler.pending_count == 0
 
 
@@ -170,9 +177,8 @@ async def test_stopping_one_topic_leaves_the_approval_timer_of_another_topic(_sc
     """The timer is keyed by the chat, not the topic; only the topic whose own session waits may end it."""
     router, _bus = _router()
     router._active_tasks[f"{_CHAT_KEY}:t1"] = _entry()
-    router._approval_msg_ids[f"{_CHAT_KEY}:t1"] = "card-1"
+    _wait_on_approval(router, f"{_CHAT_KEY}:t1", thread_id="t1")
     router._active_tasks[f"{_CHAT_KEY}:t2"] = _entry()
-    resumed = _arm_timer(_scheduler)
 
     await router._cancel_active_task(_inbound(thread_id="t2"))
     assert _scheduler.pending_count == 1
@@ -180,19 +186,19 @@ async def test_stopping_one_topic_leaves_the_approval_timer_of_another_topic(_sc
     await router._cancel_active_task(_inbound(thread_id="t1"))
     await _let_a_timer_fire()
 
-    resumed.assert_not_awaited()
+    _resumed(router).assert_not_called()
     assert _scheduler.pending_count == 0
 
 
 @pytest.mark.asyncio
-async def test_stopping_a_turn_that_was_not_waiting_on_an_approval_leaves_the_chats_timer(
+async def test_stopping_a_turn_that_was_not_waiting_on_an_approval_leaves_the_other_topics_timer(
     _scheduler: ApprovalTimeoutScheduler,
 ) -> None:
     router, _bus = _router()
     router._active_tasks[_CHAT_KEY] = _entry()
-    resumed = _arm_timer(_scheduler)
+    _wait_on_approval(router, f"{_CHAT_KEY}:t1", thread_id="t1")
 
     await router._cancel_active_task(_inbound())
-    await _let_a_timer_fire()
 
-    resumed.assert_awaited_once()
+    assert _scheduler.pending_count == 1
+    assert f"{_CHAT_KEY}:t1" in router._pending_approvals

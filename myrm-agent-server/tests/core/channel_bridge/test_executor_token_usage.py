@@ -6,10 +6,7 @@ import asyncio
 
 import pytest
 
-from app.core.channel_bridge.agent_executor.stream_events import (
-    ChannelStreamEventState,
-    iter_channel_stream_progress,
-)
+from app.core.channel_bridge.agent_executor.stream_events import iter_channel_stream_progress
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
 
 
@@ -18,7 +15,7 @@ async def _apply_stream_events(acc: StreamAccumulator, *events: dict[str, object
         for event in events:
             yield event
 
-    async for _ in iter_channel_stream_progress(_gen(), acc, ChannelStreamEventState()):
+    async for _ in iter_channel_stream_progress(_gen(), acc, locale="en"):
         pass
 
 

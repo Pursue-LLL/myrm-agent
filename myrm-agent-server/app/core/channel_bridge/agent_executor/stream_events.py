@@ -2,13 +2,14 @@
 
 [INPUT]
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, step_to_label (POS: Stream accumulation for channel turns.)
-- app.channels.types::ProgressUpdate, StreamingText, QuickReply, ToolStep (POS: Channel message types.)
+- app.channels.types::FissionTopologyUpdate, ProgressUpdate, StreamingText, ToolStep (POS: Channel message types.)
+- agent_executor.approval_card::build_approval_card (POS: the localized approval card with its time limit)
 - llms.errors.classifier::ErrorKind (POS: LLM error classification)
 - agent_executor.deliverable::collect_channel_artifacts (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 
 [OUTPUT]
-- ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
-- iter_channel_stream_progress: maps harness stream events to channel progress yields; answer text goes through
+- iter_channel_stream_progress: maps harness stream events to channel progress yields (a tool approval becomes the card
+  worded for ``locale``, carrying its time limit as ``ProgressUpdate.expiry``); answer text goes through
   ``acc.draft`` so a recovery that replays the in-flight segment does not duplicate it;
   capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
   leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
@@ -22,28 +23,22 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
-from dataclasses import dataclass, field
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
-from app.channels.types import ProgressUpdate, QuickReply, StreamingText, ToolStep
+from app.channels.types import FissionTopologyUpdate, ProgressUpdate, StreamingText, ToolStep
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, step_to_label
 
+from .approval_card import build_approval_card
 from .deliverable import collect_channel_artifacts
-
-
-@dataclass
-class ChannelStreamEventState:
-    """Side effects produced while consuming the harness event stream."""
-
-    approval_timeout_info: dict[str, object] | None = field(default=None)
 
 
 async def iter_channel_stream_progress(
     events: AsyncIterable[dict[str, object]],
     acc: StreamAccumulator,
-    state: ChannelStreamEventState,
-) -> AsyncGenerator[ProgressUpdate | StreamingText | object, None]:
+    *,
+    locale: str,
+) -> AsyncGenerator[ProgressUpdate | StreamingText | FissionTopologyUpdate, None]:
     """Map harness stream events to channel progress updates and streaming text."""
     first_message_seen = False
 
@@ -53,7 +48,9 @@ async def iter_channel_stream_progress(
         acc.draft.feed(event)
 
         if event_type == "fission_topology":
-            yield event["data"]
+            topology = event.get("data")
+            if isinstance(topology, FissionTopologyUpdate):
+                yield topology
 
         elif event_type == "tasks_steps":
             step_key = str(event.get("step_key", ""))
@@ -85,58 +82,7 @@ async def iter_channel_stream_progress(
         elif event_type == "tool_approval_request":
             data = event.get("data", {})
             if isinstance(data, dict):
-                action_requests = data.get("actionRequests", [])
-                extensions = data.get("extensions", {})
-                timeout_info = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
-                timeout_secs = timeout_info.get("seconds", 300) if isinstance(timeout_info, dict) else 300
-                timeout_behavior = timeout_info.get("behavior", "deny") if isinstance(timeout_info, dict) else "deny"
-
-                if isinstance(action_requests, list) and action_requests:
-                    tool_names = [str(req.get("action", "unknown")) for req in action_requests if isinstance(req, dict)]
-                    reasons = [
-                        str(req.get("description", ""))
-                        for req in action_requests
-                        if isinstance(req, dict) and req.get("description")
-                    ]
-                    tools_str = ", ".join(tool_names) if tool_names else "unknown"
-                    reason_str = "; ".join(reasons) if reasons else ""
-                else:
-                    tools_str = str(data.get("tool_name", "unknown"))
-                    reason_str = str(data.get("reason", ""))
-
-                timeout_action = "auto-approve" if timeout_behavior == "allow" else "auto-deny"
-
-                review_configs = data.get("reviewConfigs", [])
-                has_smart_denied = isinstance(review_configs, list) and any(
-                    isinstance(rc, dict) and rc.get("smartDenied") is True for rc in review_configs
-                )
-                smart_prefix = "⚠️ [Security reviewer recommends denial] " if has_smart_denied else ""
-                label = f"{smart_prefix}{tools_str} needs approval: {reason_str}\n⏱ Timeout: {timeout_secs}s ({timeout_action})"
-
-                is_batch = isinstance(action_requests, list) and len(action_requests) > 1
-                quick_replies: tuple[QuickReply, ...] = (
-                    QuickReply(label="✅ Approve", text="/approve", required=True),
-                    QuickReply(label="❌ Deny", text="/deny", required=True),
-                )
-                if is_batch:
-                    quick_replies = (
-                        QuickReply(
-                            label="✅ Approve All",
-                            text="/approve",
-                            required=True,
-                        ),
-                        QuickReply(label="❌ Deny All", text="/deny", required=True),
-                        QuickReply(
-                            label="📋 Batch",
-                            text=f"/batch {','.join('a' for _ in action_requests)}",
-                            required=True,
-                        ),
-                    )
-                yield ProgressUpdate(label=label, quick_replies=quick_replies)
-                state.approval_timeout_info = {
-                    "seconds": timeout_secs,
-                    "behavior": timeout_behavior,
-                }
+                yield build_approval_card(data, locale=locale)
 
         elif event_type == "tool_image_output":
             img_data = event.get("data", {})

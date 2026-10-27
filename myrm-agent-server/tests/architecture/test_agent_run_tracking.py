@@ -25,7 +25,6 @@ _GATEWAY_COUNTED = {
 # Call the pipeline directly; the file must wrap the run in ``track_background_agent_run``.
 _TRACKED = {
     "core/channel_bridge/agent_executor/executor.py": 1,
-    "core/channel_bridge/executor_helpers/approval.py": 1,
     "core/cron/adapters/agent_runner.py": 1,
     "core/eval/executor.py": 1,
     "services/kanban/task_runner/runner.py": 1,
@@ -77,7 +76,7 @@ def test_detector_finds_only_a_real_tracker_scope() -> None:
 
 
 def test_the_scan_sees_the_known_call_sites() -> None:
-    assert len(_process_stream_sites()) >= 7, "the source scan found fewer call sites than exist; the guard is blind"
+    assert len(_process_stream_sites()) >= 6, "the source scan found fewer call sites than exist; the guard is blind"
 
 
 @pytest.mark.architecture

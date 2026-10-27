@@ -39,9 +39,16 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.i18n import resolve_message_locale
 from app.channels.routing.identity_scope import is_untrusted_sender
-from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, StreamingText, TopicContext
+from app.channels.types import (
+    FissionTopologyUpdate,
+    InboundMessage,
+    OutboundMessage,
+    ProgressUpdate,
+    StreamingText,
+    TopicContext,
+)
 from app.core.agent.run_activity import track_background_agent_run
-from app.core.channel_bridge.executor_helpers import StreamAccumulator, schedule_channel_approval_timeout
+from app.core.channel_bridge.executor_helpers import StreamAccumulator
 from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
 from app.services.agent.fission_config import max_parallel_from_engine_params
 from app.services.agent.swarm_fission_resume import stream_with_swarm_fission_resume
@@ -54,7 +61,7 @@ from .execute_errors import (
 )
 from .execute_finalize import finalize_channel_stream_reply
 from .execute_preamble import prepare_channel_execution
-from .stream_events import ChannelStreamEventState, iter_channel_stream_progress
+from .stream_events import iter_channel_stream_progress
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +87,13 @@ class ChannelAgentExecutor:
         cancel_token: CancellationToken | None = None,
         steering_token: SteeringToken | None = None,
         topic_context: TopicContext | None = None,
-    ) -> AsyncGenerator[ProgressUpdate | StreamingText | OutboundMessage, None]:
+    ) -> AsyncGenerator[ProgressUpdate | StreamingText | FissionTopologyUpdate | OutboundMessage, None]:
         agent = None
         token_ctx = None
         chat_id = ""
         params: GeneralAgentParams | None = None
         runtime_context: dict[str, object] | None = None
         is_resume = bool(msg.resume_value)
-        stream_state = ChannelStreamEventState()
 
         # Bind the resolved user_id into the harness approval ContextVar so the
         # downstream allow-always path (`add_to_allowlist_if_needed`) keys the
@@ -181,7 +187,7 @@ class ChannelAgentExecutor:
                     max_concurrent=max_parallel_from_engine_params(agent_engine_params),
                 ),
                 acc,
-                stream_state,
+                locale=resolve_message_locale(msg),
             ):
                 yield progress
 
@@ -219,18 +225,6 @@ class ChannelAgentExecutor:
                 from myrm_agent_harness.agent.security import user_credentials_ctx
 
                 user_credentials_ctx.reset(token_ctx)
-            # A run the user stopped while it wound down after the approval request must not leave a timer behind.
-            stopped_by_user = cancel_token is not None and cancel_token.is_cancelled
-            if stream_state.approval_timeout_info and chat_id and params is not None and not stopped_by_user:
-                schedule_channel_approval_timeout(
-                    channel=msg.channel,
-                    peer=msg.chat_id or msg.sender_id,
-                    chat_id=chat_id,
-                    timeout_info=stream_state.approval_timeout_info,
-                    params=params,
-                    user_id=msg.user_id or msg.sender_id or "",
-                    locale=resolve_message_locale(msg),
-                )
             if agent and params is not None:
                 await finalize_agent_session(
                     agent,

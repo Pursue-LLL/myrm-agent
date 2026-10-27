@@ -29,6 +29,7 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfi
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.routing.identity_scope import TurnMemoryScope
+from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY
 from app.channels.types import InboundMessage, ProgressUpdate
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
@@ -278,7 +279,8 @@ async def build_channel_execution_agent(
 
     approval_peer = msg.chat_id or msg.sender_id
     approval_key = f"{msg.channel}:{approval_peer}"
-    if is_resume:
+    # The timeout claims the request itself before it resumes the run; a person's answer claims it here.
+    if is_resume and not msg.metadata.get(METADATA_APPROVAL_TIMED_OUT_KEY):
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
             logger.warning(
                 "Channel resume rejected (already resolved): key=%s",

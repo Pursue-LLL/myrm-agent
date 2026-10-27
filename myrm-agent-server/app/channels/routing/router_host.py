@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         GracefulDegradationController,
     )
     from app.channels.routing.message_effects import MessageEffects
+    from app.channels.routing.pending_approvals import PendingApprovals
     from app.channels.routing.placeholder_strategy import DeferredPlaceholder
     from app.channels.routing.policy_resolver import PolicyResolver
     from app.channels.routing.retry_policy import RetryPolicy
@@ -80,7 +81,7 @@ class RouterStreamHost(Protocol):
     _bus: MessageBus
     _fx: MessageEffects
     _active_tasks: dict[str, _ActiveTask]
-    _approval_msg_ids: dict[str, str]
+    _pending_approvals: PendingApprovals
     _stream_coordinator: StreamCoordinator
     _progress_estimator: ProgressEstimator
     _stream_metrics: StreamMetrics
@@ -140,7 +141,7 @@ class RouterCommandsHost(Protocol):
     _fx: MessageEffects
     _active_tasks: dict[str, _ActiveTask]
     _gate: SessionGate
-    _approval_msg_ids: dict[str, str]
+    _pending_approvals: PendingApprovals
     _approval_co_approvers: frozenset[str]
     _compact_handler: CompactHandler | None
     _retry_handler: RetryHandler | None
@@ -204,7 +205,7 @@ class RouterExecutionHost(Protocol):
     _resolver: PolicyResolver
     _active_tasks: dict[str, _ActiveTask]
     _cleanups: dict[str, _CleanupEntry]
-    _approval_msg_ids: dict[str, str]
+    _pending_approvals: PendingApprovals
     _new_session_peers: dict[str, float]
     _topic_resolver: TopicManager | None
     _voice: VoiceConfig | None

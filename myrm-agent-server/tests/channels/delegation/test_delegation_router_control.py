@@ -108,7 +108,7 @@ async def test_a_delegated_approval_reaches_the_chat_and_the_chats_answer_resume
     entry = router._active_tasks[_STATE_KEY]
     assert entry.requester_id == "u1"
     assert entry.steering_token is None and entry.busy_input_mode is None
-    assert router._approval_msg_ids == {_STATE_KEY: "prompt-1"}
+    assert router._pending_approvals.card_message_id(_STATE_KEY) == "prompt-1"
     assert len(_said(bus)) == 1  # the receipt; the run has not finished, so no completion notice
 
     await router._handle_approval_command(_inbound("/approve"), "allow_once")
@@ -116,7 +116,7 @@ async def test_a_delegated_approval_reaches_the_chat_and_the_chats_answer_resume
     resume = router._gate.submit.call_args.args[0]  # type: ignore[attr-defined]
     assert resume.resume_value["decisions"][0]["type"] == "approve"
     bus.edit_channel_message.assert_awaited_once()
-    assert router._approval_msg_ids == {}
+    assert _STATE_KEY not in router._pending_approvals
 
 
 @pytest.mark.asyncio
@@ -141,7 +141,8 @@ async def test_a_turn_running_in_the_chat_keeps_its_entry_when_a_delegated_appro
     await _until(lambda: bus.send_tracked.call_count == 1)
 
     assert router._active_tasks[_STATE_KEY] is running
-    assert router._approval_msg_ids == {_STATE_KEY: "prompt-1"}  # the turn's cleanup keeps its entry while this is set
+    # the turn's cleanup keeps its entry while this is set
+    assert router._pending_approvals.card_message_id(_STATE_KEY) == "prompt-1"
     turn.cancel()
 
 
@@ -197,7 +198,7 @@ async def test_stop_abandons_a_delegated_approval_that_is_waiting_for_an_answer(
     await router._cancel_active_task(_inbound("/stop"))
 
     assert _said(bus)[-1] == get_text(_inbound(), "execution_stopped")
-    assert router._active_tasks == {} and router._approval_msg_ids == {}
+    assert router._active_tasks == {} and _STATE_KEY not in router._pending_approvals
     await router._handle_approval_command(_inbound("/approve"), "allow_once")
     assert _said(bus)[-1] == get_text(_inbound(), "no_pending_approval")
     router._gate.submit.assert_not_called()  # type: ignore[attr-defined]

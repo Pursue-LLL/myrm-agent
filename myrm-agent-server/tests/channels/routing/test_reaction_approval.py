@@ -32,9 +32,11 @@ from app.channels.routing.commands import (
     normalize_approval_emoji,
     parse_approval_command,
 )
+from app.channels.routing.pending_approvals import PendingApprovals
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
+from tests.support.pending_approvals import asked_in, empty_registry
 from tests.support.risk_gate import API_KEY_RULE, SECRET, build_service_with_rules
 
 # ---------------------------------------------------------------------------
@@ -72,7 +74,7 @@ class _MixinHost(RouterCommandsMixin):
     """Minimal stub satisfying ``RouterCommandsHost`` for the mixin under test."""
 
     _active_tasks: dict[str, _ActiveTask] = field(default_factory=dict)
-    _approval_msg_ids: dict[str, str] = field(default_factory=dict)
+    _pending_approvals: PendingApprovals = field(default_factory=empty_registry)
     _approval_co_approvers: frozenset[str] = field(default_factory=frozenset)
     _bus: MagicMock = field(default_factory=MagicMock)
     _gate: MagicMock = field(default_factory=MagicMock)
@@ -158,7 +160,7 @@ class TestReactionAuthorisation:
         host = _host(_approval_co_approvers=co_approvers)
         key = routing_session_key("slack", "C1")
         host._active_tasks[key] = _make_active_task("alice")
-        host._approval_msg_ids[key] = "M1"
+        host._pending_approvals.register(key, asked_in("slack", "C1", card_message_id="M1"), None)
         return host
 
     def test_dm_bypasses_sender_check(self) -> None:
@@ -207,7 +209,7 @@ class TestHandleApprovalContract:
         host = _host()
         key = routing_session_key("slack", "C1")
         host._active_tasks[key] = _make_active_task("alice")
-        host._approval_msg_ids[key] = "MSGID"
+        host._pending_approvals.register(key, asked_in("slack", "C1", card_message_id="MSGID"), None)
         msg = _reaction(sender_id="alice")
         return host, msg
 
@@ -279,7 +281,7 @@ class TestHandleApprovalContract:
         host._gate.submit.assert_not_called()
         host._bus.publish_outbound.assert_awaited_once()
         assert SECRET not in host._bus.publish_outbound.call_args[0][0].content
-        assert routing_session_key("slack", "C1") in host._approval_msg_ids
+        assert routing_session_key("slack", "C1") in host._pending_approvals
         host._bus.edit_channel_message.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -295,5 +297,5 @@ class TestHandleApprovalContract:
         host, msg = self._setup()
         key = routing_session_key("slack", "C1")
         await host._handle_approval_command(msg, "allow_once")
-        assert key not in host._approval_msg_ids
+        assert key not in host._pending_approvals
         host._bus.edit_channel_message.assert_awaited_once()

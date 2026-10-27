@@ -154,7 +154,7 @@ Agent执行 → interrupt() → GraphInterrupt → SSE stream结束
 ```
 平台 → AgentRouter._consume_loop() → _handle_merged()
   → _prepare_execution_context(): 身份解析 + session 检查 + topic 验证；返回 `_RouterExecutionContext`（`router_models.py` 冻结类型），含策略变换后的执行用 InboundMessage（群聊：前缀剥离、context_messages 等）
-  → _execute_prepared_context(): 注册 `_active_tasks`（asyncio.Task、CancellationToken、channel、chat_id、placeholder_id）+ `_setup_message_effects` + `_consume_executor_stream`（`router_stream.RouterStreamMixin`）+ `_deliver_agent_result`；`finally` 中 `_cleanup_effects`（当 `_approval_msg_ids` 中有 pending approval 时保留 `_active_tasks` 条目，确保数字快捷回复如 "1" 能被正确识别为审批命令）；占位符 id 写入 `_AgentTurnScratch`（`router_models.py`）供 `_handle_merged` 外层异常路径
+  → _execute_prepared_context(): 注册 `_active_tasks`（asyncio.Task、CancellationToken、channel、chat_id、placeholder_id）+ `_setup_message_effects` + `_consume_executor_stream`（`router_stream.RouterStreamMixin`）+ `_deliver_agent_result`；`finally` 中 `_cleanup_effects`（当 `_pending_approvals` 中有 pending approval 时保留 `_active_tasks` 条目，确保数字快捷回复如 "1" 能被正确识别为审批命令）；占位符 id 写入 `_AgentTurnScratch`（`router_models.py`）供 `_handle_merged` 外层异常路径
 ```
 
 - `RouterStreamMixin` / `RouterCommandsMixin` 所需宿主实例字段由 `routing/router_host.py` 中的 `RouterStreamHost`、`RouterCommandsHost`（`typing.Protocol`）描述。
@@ -167,7 +167,7 @@ Agent执行 → interrupt() → GraphInterrupt → SSE stream结束
 ```
 Agent执行 → interrupt() → GraphInterrupt → stream结束
 → ProgressUpdate(quick_replies) 经 Router 发送为独立消息
-→ _approval_msg_ids[session_key] 记录该审批消息的 message_id（用于后续编辑状态文案）
+→ _pending_approvals[session_key] 登记该审批请求（审批卡 message_id 用于后续编辑状态文案，ProgressUpdate.expiry 带等待时长与超时决定；到点由路由器续跑，见下）
 → _consume_executor_stream 检测 has_pending_approval，丢弃最终 OutboundMessage（避免在用户审批前发送中间结果）
 ```
 
@@ -178,6 +178,8 @@ Agent执行 → interrupt() → GraphInterrupt → stream结束
 → 单条：resume_value = {"decisions": [{"type": "approve"|"reject"}]}；批量：decisions 与待审工具顺序一一对应
 → InboundMessage(resume_value=..., metadata 含 is_resume=True) 重新进入 SessionGate
 ```
+
+无人应答时，路由器的 `PendingApprovals` 到点（`ApprovalTimeoutScheduler`）把审批卡改写为超时结果，并以同样方式提交一条续跑消息（`resume_value` 为调度器构造的超时决定，metadata 额外带 `approval_timed_out`），所以续跑是路由器里的普通回合，`/stop` 可以取消。
 
 ### Resume处理流程
 ```

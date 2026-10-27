@@ -5,6 +5,8 @@
 
 [OUTPUT]
 - ProgressUpdate, StreamingText: placeholder-edit transport events
+- ApprovalExpiry: how long a tool approval waits and what the timeout decides
+- METADATA_APPROVAL_WINDOW_SECONDS_KEY: ``InboundMessage.metadata`` key that sets a turn's approval wait
 - FissionTopologyNode, FissionTopologyUpdate: swarm fission topology events
 
 [POS]
@@ -15,8 +17,19 @@ zero I/O, pure data.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from .components import QuickReply
+
+METADATA_APPROVAL_WINDOW_SECONDS_KEY = "approval_window_seconds"
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalExpiry:
+    """How long a tool approval waits for an answer and the decision its timeout applies."""
+
+    seconds: float
+    behavior: Literal["deny", "allow"] = "deny"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,11 +41,13 @@ class ProgressUpdate:
 
     When ``quick_replies`` is non-empty, the Router sends them alongside
     the progress text — enabling interactive prompts like tool approval
-    buttons in IM channels.
+    buttons in IM channels. ``expiry`` is set on such a prompt when the wait has a
+    time limit; the Router then owns the timer that ends it.
     """
 
     label: str
     quick_replies: tuple[QuickReply, ...] = ()
+    expiry: ApprovalExpiry | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -23,6 +23,7 @@ from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, 
 from app.channels.types.thread_sharing import ThreadSharingMode
 from app.core.channel_bridge.config_parsers import SessionPolicy, session_policy_from_agent_dict
 from app.core.channel_bridge.executor_helpers import (
+    ChannelChatHistory,
     build_chat_history_with_metadata,
     load_history_without_persist,
     persist_and_load_history,
@@ -44,7 +45,7 @@ logger = logging.getLogger(__name__)
 class ChannelSessionContext:
     session_key: str
     chat_id: str
-    chat_history: list[object]
+    chat_history: ChannelChatHistory
     session_was_auto_reset: bool
     session_policy: SessionPolicy
     query: str | list[dict[str, object]]

@@ -53,7 +53,7 @@ def build_delivery_message(
 
     A completed task delivers the executor's final reply (its text, attachments and thread), or the last
     streamed snapshot when the run ended without one. A failed task delivers its member-safe failure text.
-    A timed-out task delivers only the notice: whatever the cancelled run left behind is not an answer.
+    A timed-out or interrupted task delivers only its notice: whatever the cancelled run left behind is not an answer.
 
     Args:
         task: The finished task; its status selects the header and body.
@@ -64,6 +64,8 @@ def build_delivery_message(
     if task.status is DelegationStatus.TIMED_OUT:
         minutes = max(1, round(task.timeout_seconds / 60))
         return _origin_reply(task, msg, get_text(msg, "delegation_timed_out", task_id=task.task_id, minutes=minutes))
+    if task.status is DelegationStatus.INTERRUPTED:
+        return _origin_reply(task, msg, get_text(msg, "delegation_interrupted", task_id=task.task_id))
 
     started = task.started_at if task.started_at is not None else task.created_at
     ended = task.completed_at if task.completed_at is not None else started
