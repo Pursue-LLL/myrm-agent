@@ -1,9 +1,10 @@
-"""Cron entry: single flight, wiring decisions and the mapping of a slice outcome to scheduler advice."""
+"""Cron entry: single flight, wiring decisions, ending a slice whose sync was withdrawn, and the mapping of a slice outcome to scheduler advice."""
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,11 +20,24 @@ from app.services.wiki.source_sync.ima import job_runner
 from app.services.wiki.source_sync.ima.context import SyncContext
 from app.services.wiki.source_sync.ima.engine import SliceOutcome
 from app.services.wiki.source_sync.ima.models import ImaCredentials
-from app.services.wiki.source_sync.ima.state import ImaSyncConfig, ImaSyncState, save_ima_config, save_ima_state
+from app.services.wiki.source_sync.ima.state import (
+    ImaKbSelection,
+    ImaSyncConfig,
+    ImaSyncState,
+    save_ima_config,
+    save_ima_state,
+)
 from app.services.wiki.source_sync.publish_helpers import RawConflictPolicy, publish_source_markdown
 
 LLM = cast(BaseChatModel, object())
 CREDENTIALS = ImaCredentials(client_id="cid", api_key="key")
+_POLL_S = 0.01
+# A withdrawal must reach the slice within this long: about a hundred polls, so a slow machine does not flake it.
+_PATIENCE_S = 1.0
+
+
+def _job_id(agent_id: str | None) -> str:
+    return f"job:{agent_id}"
 
 
 @dataclass
@@ -41,7 +55,20 @@ class Harness:
     publish: dict[str, str] = field(default_factory=dict)
     slice_error: Exception | None = None
     scan_completes: bool = True
-    job_active: bool = True
+    # Jobs the user paused or removed.
+    paused: set[str] = field(default_factory=set)
+    # Raised when the running slice asks whether its sync is still wanted.
+    mandate_read_error: Exception | None = None
+    # The user pauses right after the cron job was read for admission.
+    pause_after_admission: bool = False
+
+    def pause(self, agent_id: str | None) -> None:
+        self.paused.add(_job_id(agent_id))
+
+    def release(self) -> None:
+        """Let the slices held at the gate go on."""
+        if self.gate is not None:
+            self.gate.set()
 
 
 class FakeCompiler:
@@ -61,7 +88,7 @@ class FakeArchiver:
 
 
 @pytest.fixture
-def harness(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch) -> Harness:
+def harness(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch) -> Iterator[Harness]:
     h = Harness()
     archiver = FakeArchiver(tmp_path, h.events)
 
@@ -99,10 +126,21 @@ def harness(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatc
             CorpusDedupScanner(archiver._structure).scan(incremental=True)
         return h.scan_completes
 
-    async def job_active(agent_id: str | None) -> bool:
-        return h.job_active
+    async def find_active_job(agent_id: str | None) -> SimpleNamespace | None:
+        if _job_id(agent_id) in h.paused:
+            return None
+        if h.pause_after_admission:
+            h.pause(agent_id)
+        return SimpleNamespace(id=_job_id(agent_id))
 
-    monkeypatch.setattr(job_runner, "is_job_active", job_active)
+    async def is_job_active(job_id: str) -> bool:
+        if h.mandate_read_error is not None:
+            raise h.mandate_read_error
+        return job_id not in h.paused
+
+    monkeypatch.setattr(job_runner, "find_active_job", find_active_job)
+    monkeypatch.setattr(job_runner, "is_job_active", is_job_active)
+    monkeypatch.setattr(job_runner, "_MANDATE_POLL_S", _POLL_S)
     monkeypatch.setattr(job_runner, "load_credentials", credentials)
     monkeypatch.setattr(job_runner, "run_slice", run_slice)
     monkeypatch.setattr(job_runner, "load_wiki_source_sync_config", source_config)
@@ -110,8 +148,8 @@ def harness(tmp_path: Path, ima_db: async_sessionmaker[AsyncSession], monkeypatc
     monkeypatch.setattr("app.services.wiki.ingest_events.publish_wiki_ingest_snapshot", snapshot)
     monkeypatch.setattr(job_runner, "run_post_sync_dedup_scan", dedup)
     job_runner._slice_locks.clear()
-    job_runner._running.clear()
-    return h
+    yield h
+    h.release()
 
 
 async def _configure(
@@ -119,10 +157,11 @@ async def _configure(
     *,
     backfill_complete: bool = False,
     notes: bool = True,
+    libraries: tuple[ImaKbSelection, ...] = (),
     agent_id: str | None = None,
 ) -> None:
     async with ima_db() as db:
-        await save_ima_config(db, ImaSyncConfig(knowledge_bases=[], include_notes=notes), agent_id=agent_id)
+        await save_ima_config(db, ImaSyncConfig(knowledge_bases=list(libraries), include_notes=notes), agent_id=agent_id)
         await save_ima_state(db, ImaSyncState(backfill_complete=backfill_complete), agent_id=agent_id)
 
 
@@ -156,78 +195,186 @@ async def test_a_second_overlapping_run_for_the_same_agent_is_skipped(
     assert overlapping.skipped and len(harness.contexts) == 1
 
 
-async def _run_two_agents_and(
-    harness: Harness, ima_db: async_sessionmaker[AsyncSession], stop: Callable[[], None]
-) -> dict[str | None, bool]:
-    """Run a slice for the default agent and for ``other``, call ``stop`` while both run, and report which one was still allowed to go on."""
-    await _configure(ima_db)
-    await _configure(ima_db, agent_id="other")
+async def _start_slices(
+    harness: Harness,
+    ima_db: async_sessionmaker[AsyncSession],
+    *agents: str | None,
+    libraries: tuple[ImaKbSelection, ...] = (),
+) -> list[asyncio.Task[job_runner.ImaJobOutcome]]:
+    """Start one slice per agent and wait until each has begun; they run until ``harness.gate`` is set."""
     harness.gate = asyncio.Event()
-    runs = [asyncio.create_task(job_runner.run_ima_sync_job(llm=LLM, agent_id=agent)) for agent in (None, "other")]
-    while len(harness.contexts) < 2:
+    for agent in agents:
+        await _configure(ima_db, libraries=libraries, agent_id=agent)
+    begun = len(harness.contexts)
+    runs = [asyncio.create_task(job_runner.run_ima_sync_job(llm=LLM, agent_id=agent)) for agent in agents]
+    while len(harness.contexts) - begun < len(agents):
         await asyncio.sleep(0)
-
-    stop()
-    may_go_on = {ctx.agent_id: ctx.time_left() > 0 for ctx in harness.contexts}
-    harness.gate.set()
-    await asyncio.gather(*runs)
-    return may_go_on
+    return runs
 
 
-async def test_stopping_one_agent_reaches_only_its_running_slice(
+async def _is_told_to_end(ctx: SyncContext) -> bool:
+    try:
+        await asyncio.wait_for(ctx.stop.wait(), timeout=_PATIENCE_S)
+    except TimeoutError:
+        return False
+    return True
+
+
+async def _stays_running(ctx: SyncContext) -> bool:
+    """Let the watcher ask many times, then report whether the slice may still go on."""
+    await asyncio.sleep(20 * _POLL_S)
+    return ctx.time_left() > 0
+
+
+def _watchers() -> list[asyncio.Task[object]]:
+    return [task for task in asyncio.all_tasks() if task.get_name() == "ima-sync-mandate"]
+
+
+async def test_a_slice_ends_when_its_job_is_paused_or_removed_while_it_runs(
     harness: Harness, ima_db: async_sessionmaker[AsyncSession]
 ) -> None:
-    may_go_on = await _run_two_agents_and(harness, ima_db, lambda: job_runner.stop_running_slice(None))
+    (run,) = await _start_slices(harness, ima_db, None)
+    (ctx,) = harness.contexts
+    assert ctx.time_left() > 0
 
-    assert may_go_on == {None: False, "other": True}
+    harness.pause(None)
+
+    assert await _is_told_to_end(ctx)
+    assert ctx.time_left() <= 0
+    harness.release()
+    await run
 
 
-async def test_stopping_all_slices_reaches_every_agent(harness: Harness, ima_db: async_sessionmaker[AsyncSession]) -> None:
-    may_go_on = await _run_two_agents_and(harness, ima_db, job_runner.stop_running_slices)
+async def test_a_slice_ends_when_the_selection_changes_while_it_runs(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    (run,) = await _start_slices(harness, ima_db, None)
+    (ctx,) = harness.contexts
 
-    assert may_go_on == {None: False, "other": False}
+    async with ima_db() as db:
+        await save_ima_config(
+            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="One")], include_notes=True), agent_id=None
+        )
+
+    assert await _is_told_to_end(ctx)
+    harness.release()
+    await run
 
 
-async def test_a_slice_leaves_no_stop_signal_behind_however_it_ends(
+async def test_saving_the_same_selection_again_leaves_the_slice_alone(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    """The selection is which ids are imported: a renamed library or a save that changes nothing is no reason to restart."""
+    (run,) = await _start_slices(harness, ima_db, None, libraries=(ImaKbSelection(id="kb1", name="One"),))
+    (ctx,) = harness.contexts
+    async with ima_db() as db:
+        await save_ima_config(
+            db, ImaSyncConfig(knowledge_bases=[ImaKbSelection(id="kb1", name="One, renamed")], include_notes=True), agent_id=None
+        )
+
+    assert await _stays_running(ctx)
+    harness.release()
+    await run
+
+
+async def test_a_slice_asks_about_the_selection_of_its_own_agent(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    """Only the other agent has a selection; reading the default agent's instead would look like a change."""
+    (run,) = await _start_slices(harness, ima_db, "other", libraries=(ImaKbSelection(id="kb1", name="One"),))
+    (ctx,) = harness.contexts
+
+    assert await _stays_running(ctx)
+    harness.release()
+    await run
+
+
+async def test_a_slice_nobody_withdrew_runs_on(harness: Harness, ima_db: async_sessionmaker[AsyncSession]) -> None:
+    (run,) = await _start_slices(harness, ima_db, None)
+    (ctx,) = harness.contexts
+
+    assert await _stays_running(ctx)
+    harness.release()
+    await run
+
+
+async def test_a_withdrawal_reaches_only_the_slice_of_that_agent(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    runs = await _start_slices(harness, ima_db, None, "other")
+    by_agent = {ctx.agent_id: ctx for ctx in harness.contexts}
+
+    harness.pause("other")
+
+    assert await _is_told_to_end(by_agent["other"])
+    assert await _stays_running(by_agent[None])
+    harness.release()
+    await asyncio.gather(*runs)
+
+
+async def test_a_pause_that_lands_right_after_the_job_was_read_is_still_noticed(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession]
+) -> None:
+    """Nothing is registered anywhere, so no ordering against the slice's start can lose a pause: the job is asked as it is now."""
+    harness.pause_after_admission = True
+    (run,) = await _start_slices(harness, ima_db, None)
+    (ctx,) = harness.contexts
+
+    assert await _is_told_to_end(ctx)
+    harness.release()
+    await run
+
+
+async def test_a_failed_check_does_not_end_the_slice_and_is_asked_again(
+    harness: Harness, ima_db: async_sessionmaker[AsyncSession], caplog: pytest.LogCaptureFixture
+) -> None:
+    harness.mandate_read_error = RuntimeError("database is locked")
+    (run,) = await _start_slices(harness, ima_db, None)
+    (ctx,) = harness.contexts
+
+    assert await _stays_running(ctx)
+    # However often it was asked, the failure is reported once.
+    complaints = [record for record in caplog.records if "could not check" in record.getMessage()]
+    assert [record.levelno for record in complaints] == [logging.WARNING]
+
+    harness.mandate_read_error = None
+    harness.pause(None)
+    assert await _is_told_to_end(ctx)
+    harness.release()
+    await run
+
+
+async def test_the_watcher_ends_with_the_slice_however_it_ends(
     harness: Harness, ima_db: async_sessionmaker[AsyncSession]
 ) -> None:
     await _configure(ima_db)
     await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
-    assert job_runner._running == {}
+    assert _watchers() == []
 
     harness.slice_error = RuntimeError("transport died")
     with pytest.raises(RuntimeError, match="transport died"):
         await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
-    assert job_runner._running == {}
+    assert _watchers() == []
+
+    harness.slice_error = None
+    (run,) = await _start_slices(harness, ima_db, None)
+    assert len(_watchers()) == 1
+    run.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await run
+    assert _watchers() == []
 
 
 async def test_a_job_paused_or_removed_after_it_fired_starts_no_slice(
     harness: Harness, ima_db: async_sessionmaker[AsyncSession]
 ) -> None:
     await _configure(ima_db)
-    harness.job_active = False
+    harness.pause(None)
 
     outcome = await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
 
     assert outcome.skipped and outcome.retry_at is None
-    assert harness.contexts == [] and job_runner._running == {}
-
-
-async def test_a_pause_that_lands_while_the_slice_is_admitted_is_not_lost(
-    harness: Harness, ima_db: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The job is read after the slice registered, so a pause that comes in between that read and the slice's start reaches it."""
-    await _configure(ima_db)
-
-    async def pause_lands_during_the_read(agent_id: str | None) -> bool:
-        job_runner.stop_running_slice(agent_id)
-        return True  # the answer was already read: the job was still active then
-
-    monkeypatch.setattr(job_runner, "is_job_active", pause_lands_during_the_read)
-
-    await job_runner.run_ima_sync_job(llm=LLM, agent_id=None)
-
-    assert harness.contexts[0].time_left() <= 0
+    assert harness.contexts == [] and _watchers() == []
 
 
 @pytest.mark.parametrize(

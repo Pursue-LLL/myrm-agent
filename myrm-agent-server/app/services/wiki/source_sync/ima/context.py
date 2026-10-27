@@ -44,7 +44,8 @@ class SyncContext:
     ledger: ImaLedger
     deadline: float
     compiler_enqueue: object | None = None
-    # Set when the user pauses or disconnects; every loop of the slice reads it through ``time_left``.
+    # Set when the sync is withdrawn mid-slice (job paused or removed, selection changed); every loop of the slice reads
+    # it through ``time_left``.
     stop: asyncio.Event = field(default_factory=asyncio.Event)
     failures: Counter[str] = field(default_factory=Counter)
     failure_sample: str = ""
@@ -54,7 +55,7 @@ class SyncContext:
     _key_valid: bool | None = None
 
     def time_left(self) -> float:
-        """Seconds the slice may still run; none once the user asked it to stop, so each loop ends at its next item."""
+        """Seconds the slice may still run; none once its sync was withdrawn, so each loop ends at its next item."""
         return 0.0 if self.stop.is_set() else self.deadline - time.monotonic()
 
     def note_failure(self, kind: str, cause: str) -> None:

@@ -2,26 +2,31 @@
 
 [INPUT]
 - .engine::run_slice (POS: time-boxed slice)
-- .job::is_job_active (POS: the cron job is the user's switch for the sync)
+- .job::find_active_job / is_job_active (POS: the cron job is the user's switch for the sync)
 - .credentials / .state / .ledger (POS: stored credentials, resumable state, per-item ledger)
 - app.services.wiki.vault (POS: vault path and archiver SSOT)
 - app.services.wiki.source_sync.deferred_enqueue (POS: holds auto-compile enqueue until the duplicate scan has run)
 
 [OUTPUT]
-- ImaJobOutcome / run_ima_sync_job / stop_running_slice / stop_running_slices
+- ImaJobOutcome / run_ima_sync_job
 
 [POS]
 Bridges the ``__wiki_ima_sync__`` router command to the engine. It owns the wiring the engine must not know
 about: credentials, the wiki archiver, whether published files may be queued for compilation (only after the
-slice's duplicate scan has had its say), and the post-publish ingest snapshot and incremental dedup. It also
-knows which slices are running, so the user's pause or disconnect ends them at their next item instead of when
-the time budget runs out.
+slice's duplicate scan has had its say), and the post-publish ingest snapshot and incremental dedup. While a slice
+runs it keeps asking whether the sync is still wanted (its job exists and is active, the selection is the one the
+slice started with) and ends the slice at its next item when it is not, instead of when the time budget runs out.
+Asking, rather than being told, is what lets it notice a withdrawal from any door: the settings card, the cron
+list, the agent's own cron tool.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -38,15 +43,17 @@ from .client import ImaClient
 from .context import SyncContext
 from .credentials import load_credentials
 from .engine import SLICE_BUDGET_S, SliceOutcome, run_slice
-from .job import is_job_active
+from .job import find_active_job, is_job_active
 from .ledger import ImaLedger
 from .state import load_ima_config, load_ima_state
 from .transport import ImaTransport
 
+logger = logging.getLogger(__name__)
+
 SILENT = "[SILENT]"
 _slice_locks: dict[str, asyncio.Lock] = {}
-# Stop signals of the slices running now, by scope: the user's pause or disconnect sets them.
-_running: dict[str, asyncio.Event] = {}
+# How often a running slice asks whether the sync is still wanted: a single-row job read and the selection read.
+_MANDATE_POLL_S = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,37 +66,57 @@ class ImaJobOutcome:
 _NOTHING_TO_DO = ImaJobOutcome(SILENT, skipped=True)
 
 
-def stop_running_slice(agent_id: str | None) -> None:
-    """End the agent's running slice at its next item; nothing happens when none is running."""
-    stop = _running.get(normalize_agent_scope(agent_id))
-    if stop is not None:
-        stop.set()
-
-
-def stop_running_slices() -> None:
-    """End every agent's running slice."""
-    for stop in _running.values():
-        stop.set()
-
-
 async def run_ima_sync_job(*, llm: BaseChatModel, agent_id: str | None) -> ImaJobOutcome:
     scope = normalize_agent_scope(agent_id)
     lock = _slice_locks.setdefault(scope, asyncio.Lock())
     if lock.locked():
         return _NOTHING_TO_DO
     async with lock:
-        stop = _running[scope] = asyncio.Event()
+        # The user may have paused or removed the job after it fired.
+        job = await find_active_job(agent_id)
+        if job is None:
+            return _NOTHING_TO_DO
+        return await _run_slice_locked(llm, agent_id, job.id)
+
+
+async def _selection_unchanged(agent_id: str | None, fingerprint: str) -> bool:
+    async with get_session() as db:
+        return (await load_ima_config(db, agent_id=agent_id)).fingerprint() == fingerprint
+
+
+async def _watch_mandate(ctx: SyncContext, job_id: str) -> None:
+    """Set the slice's stop signal once its job is paused or removed, or the selection it started with has changed.
+
+    A failed read is no answer: the slice goes on and the next tick asks again.
+    """
+    fingerprint = ctx.config.fingerprint()
+    complained = False
+    while not ctx.stop.is_set():
+        await asyncio.sleep(_MANDATE_POLL_S)
         try:
-            # The user may have paused or removed the job after it fired. Asked once the slice is registered: a pause
-            # that lands later finds the slice, one that landed earlier shows here.
-            if not await is_job_active(agent_id):
-                return _NOTHING_TO_DO
-            return await _run_slice_locked(llm, agent_id, stop)
-        finally:
-            del _running[scope]
+            wanted = await is_job_active(job_id) and await _selection_unchanged(ctx.agent_id, fingerprint)
+        except Exception:
+            if not complained:
+                logger.warning("ima sync could not check whether it is still wanted; the slice goes on", exc_info=True)
+                complained = True
+            continue
+        if not wanted:
+            logger.info("ima sync was paused, removed or re-scoped while a slice ran; the slice ends at its next item")
+            ctx.stop.set()
 
 
-async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None, stop: asyncio.Event) -> ImaJobOutcome:
+@asynccontextmanager
+async def _ended_when_withdrawn(ctx: SyncContext, job_id: str) -> AsyncIterator[None]:
+    """Watch beside the body for the sync being withdrawn; the watcher never outlives the body."""
+    watcher = asyncio.create_task(_watch_mandate(ctx, job_id), name="ima-sync-mandate")
+    try:
+        yield
+    finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
+
+
+async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None, job_id: str) -> ImaJobOutcome:
     credentials = await load_credentials()
     if credentials is None:
         return _NOTHING_TO_DO
@@ -119,9 +146,9 @@ async def _run_slice_locked(llm: BaseChatModel, agent_id: str | None, stop: asyn
                 ledger=ImaLedger(normalize_agent_scope(agent_id)),
                 deadline=time.monotonic() + SLICE_BUDGET_S,
                 compiler_enqueue=deferred,
-                stop=stop,
             )
-            outcome = await run_slice(ctx)
+            async with _ended_when_withdrawn(ctx, job_id):
+                outcome = await run_slice(ctx)
         if (outcome.finished and outcome.generation_total > 0) or (deferred is not None and deferred.needs_scan):
             scan_completed = await run_post_sync_dedup_scan(agent_id=agent_id)
     finally:

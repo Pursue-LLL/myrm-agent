@@ -44,6 +44,7 @@ class Recorder:
     cleared: bool = False
     stopped: bool = False
     paused_exists: bool = True
+    paused: list[str | None] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
 
 
@@ -81,6 +82,10 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
         rec.started.append((agent_id, locale))
 
     async def pause(agent_id: str | None) -> bool:
+        rec.paused.append(agent_id)
+        return rec.paused_exists
+
+    async def resume(agent_id: str | None) -> bool:
         return rec.paused_exists
 
     monkeypatch.setattr(operations, "_verify", verify)
@@ -88,12 +93,10 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
     monkeypatch.setattr(operations, "save_credentials", save)
     monkeypatch.setattr(operations, "clear_credentials", clear)
     monkeypatch.setattr(operations, "stop_all_jobs", stop_all)
-    monkeypatch.setattr(operations, "stop_running_slice", lambda agent_id: rec.events.append(f"slice stopped:{agent_id}"))
-    monkeypatch.setattr(operations, "stop_running_slices", lambda: rec.events.append("slices stopped"))
     monkeypatch.setattr(operations, "trigger_if_active", trigger)
     monkeypatch.setattr(operations, "start_job", start)
     monkeypatch.setattr(operations, "pause_job", pause)
-    monkeypatch.setattr(operations, "resume_job", pause)
+    monkeypatch.setattr(operations, "resume_job", resume)
     return rec
 
 
@@ -141,10 +144,11 @@ async def test_disconnect_removes_credentials_and_every_job(recorder: Recorder) 
     assert recorder.cleared and recorder.stopped
 
 
-async def test_disconnect_ends_the_running_slices_once_the_jobs_are_gone_and_before_the_credentials(recorder: Recorder) -> None:
+async def test_disconnect_removes_the_jobs_before_the_credentials(recorder: Recorder) -> None:
+    """A slice that fired for one of the jobs finds it gone; that is how it learns to end."""
     await operations.disconnect()
 
-    assert recorder.events == ["jobs removed", "slices stopped", "credentials cleared"]
+    assert recorder.events == ["jobs removed", "credentials cleared"]
 
 
 async def test_operations_require_a_connection(recorder: Recorder) -> None:
@@ -216,10 +220,10 @@ async def test_pause_and_resume_fail_clearly_when_sync_was_never_started(recorde
     assert recorder.events == []
 
 
-async def test_pause_ends_the_running_slice_of_that_agent_only(recorder: Recorder) -> None:
+async def test_pause_pauses_the_job_of_that_agent_only(recorder: Recorder) -> None:
     await operations.pause_sync(agent_id="agent-1")
 
-    assert recorder.events == ["slice stopped:agent-1"]
+    assert recorder.paused == ["agent-1"]
 
 
 def inventory_item(key: str) -> InventoryItem:

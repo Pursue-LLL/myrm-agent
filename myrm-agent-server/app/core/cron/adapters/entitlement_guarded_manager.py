@@ -172,6 +172,9 @@ class EntitlementGuardedCronManager:
         await self._enforce_slot(user_id)
         return await self._inner.duplicate_job(job_id, user_id)
 
+    async def get_job(self, job_id: str, user_id: str) -> CronJob | None:
+        return await self._inner.get_job(job_id, user_id)
+
     async def list_jobs(
         self,
         user_id: str,

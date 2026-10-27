@@ -5,14 +5,15 @@
 - app.core.cron.adapters.wiki_router_job_runner::WIKI_IMA_SYNC_COMMAND (POS: router command id)
 
 [OUTPUT]
-- find_job / is_job_active / start_job / pause_job / resume_job / stop_all_jobs / trigger_if_active
+- find_job / find_active_job / is_job_active / start_job / pause_job / resume_job / stop_all_jobs / trigger_if_active
 
 [POS]
 One INTERVAL router job per agent drives the lane: ``trigger_now`` starts a backfill immediately, each slice
 re-arms itself through ``JobResult.retry_at``, and the interval then keeps the library incrementally in sync.
 Pause / resume map to the cron manager so the user controls the same job the scheduler runs; disconnecting
-removes every agent's job because the credentials they share are gone. A slice that fired for the job asks
-``is_job_active`` before it starts, so a pause that landed in between is honoured.
+removes every agent's job because the credentials they share are gone. The job is also how a running slice learns
+the sync was withdrawn: it asks ``find_active_job`` before it starts and ``is_job_active`` while it runs, so a pause
+or removal is honoured whichever door it came through (the card, the cron list, the agent's cron tool).
 """
 
 from __future__ import annotations
@@ -43,9 +44,15 @@ async def find_job(agent_id: str | None) -> CronJob | None:
     return None
 
 
-async def is_job_active(agent_id: str | None) -> bool:
-    """Whether the agent's sync job exists and is neither paused nor removed."""
+async def find_active_job(agent_id: str | None) -> CronJob | None:
+    """The agent's sync job unless it is paused or removed."""
     job = await find_job(agent_id)
+    return job if job is not None and job.status == JobStatus.ACTIVE else None
+
+
+async def is_job_active(job_id: str) -> bool:
+    """Whether the job still exists and is neither paused nor removed; asked by id, so it is a single-row read."""
+    job = await get_cron_manager().get_job(job_id, _USER_ID)
     return job is not None and job.status == JobStatus.ACTIVE
 
 
@@ -99,6 +106,6 @@ async def stop_all_jobs() -> int:
 
 
 async def trigger_if_active(agent_id: str | None) -> None:
-    job = await find_job(agent_id)
-    if job is not None and job.status == JobStatus.ACTIVE:
+    job = await find_active_job(agent_id)
+    if job is not None:
         await get_cron_manager().trigger_now(job.id, _USER_ID)

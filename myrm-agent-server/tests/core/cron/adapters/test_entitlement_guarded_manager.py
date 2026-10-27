@@ -92,10 +92,10 @@ async def test_duplicate_job_maps_entitlement_error_to_value_error() -> None:
 
 def test_getattr_delegates_to_inner() -> None:
     inner = MagicMock()
-    inner.get_job = MagicMock(return_value="job-a")
+    inner.list_runs = MagicMock(return_value="runs-a")
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert mgr.get_job is inner.get_job
+    assert mgr.list_runs is inner.list_runs
 
 
 @pytest.mark.asyncio
@@ -128,19 +128,22 @@ async def test_update_job_clear_pre_condition_script_merges_for_lifecycle_guard(
 @pytest.mark.asyncio
 async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> None:
     inner = MagicMock()
-    inner.list_jobs = AsyncMock(return_value=["job"])
-    inner.pause_job = AsyncMock(return_value="paused")
-    inner.resume_job = AsyncMock(return_value="resumed")
+    inner.get_job = AsyncMock(return_value=object())
+    inner.list_jobs = AsyncMock(return_value=[object()])
+    inner.pause_job = AsyncMock(return_value=object())
+    inner.resume_job = AsyncMock(return_value=object())
     inner.delete_job = AsyncMock(return_value=True)
     inner.trigger_now = AsyncMock(return_value=True)
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert await mgr.list_jobs("user-1", name_filter="x", limit=5, offset=2) == ["job"]
-    assert await mgr.pause_job("j1", "user-1") == "paused"
-    assert await mgr.resume_job("j1", "user-1") == "resumed"
+    assert await mgr.get_job("j1", "user-1") is inner.get_job.return_value
+    assert await mgr.list_jobs("user-1", name_filter="x", limit=5, offset=2) is inner.list_jobs.return_value
+    assert await mgr.pause_job("j1", "user-1") is inner.pause_job.return_value
+    assert await mgr.resume_job("j1", "user-1") is inner.resume_job.return_value
     assert await mgr.delete_job("j1", "user-1") is True
     assert await mgr.trigger_now("j1", "user-1") is True
 
+    inner.get_job.assert_awaited_once_with("j1", "user-1")
     inner.list_jobs.assert_awaited_once_with("user-1", name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
     inner.pause_job.assert_awaited_once_with("j1", "user-1")
     inner.resume_job.assert_awaited_once_with("j1", "user-1")
