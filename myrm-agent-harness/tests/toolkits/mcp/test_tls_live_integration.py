@@ -26,8 +26,8 @@ from urllib.parse import urlparse
 import pytest
 
 from myrm_agent_harness.toolkits.mcp.session_actor import MCPSessionActor
-from tests.support.mcp_live_server import error_chain_text, serve_probe_mcp
-from tests.support.mcp_tls_pki import ABORTED_CONNECTION_MARKERS, VERIFY_FAILURE_MARKERS, TlsPki
+from tests.support.mcp_testkit.live_server import error_chain_text, serve_probe_mcp
+from tests.support.mcp_testkit.tls_pki import ABORTED_CONNECTION_MARKERS, VERIFY_FAILURE_MARKERS, TlsPki
 
 _CONNECT_TIMEOUT_SEC = 10.0
 _TRANSPORTS = ("streamable_http", "sse")

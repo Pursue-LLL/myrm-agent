@@ -31,8 +31,8 @@ from starlette.routing import Route
 from myrm_agent_harness.core.security.http.redirect_guard import InsecureRedirectSecurityError
 from myrm_agent_harness.toolkits.mcp.client import MCPClientManager
 from myrm_agent_harness.toolkits.mcp.session_actor import MCPSessionActor
-from tests.support.mcp_live_server import LiveServer, start_live_server
-from tests.support.mcp_tls_pki import TlsPki
+from tests.support.mcp_testkit.live_server import LiveServer, start_live_server
+from tests.support.mcp_testkit.tls_pki import TlsPki
 
 # Credential headers httpx leaves untouched on redirect but the guard classifies as sensitive.
 _CREDENTIALS = {"X-API-Key": "k-live-secret", "X-Auth-Token": "t-live-secret"}

@@ -13,7 +13,7 @@ import pytest
 from myrm_agent_harness.toolkits.mcp import agent as agent_module
 from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
-from tests.support.mcp_launch_gates import PATCH_OSV_CHECK, PATCH_TRUST_GATE, RecordingTrustGate
+from tests.support.mcp_testkit.launch_gates import PATCH_OSV_CHECK, PATCH_TRUST_GATE, RecordingTrustGate
 
 
 @pytest.mark.asyncio

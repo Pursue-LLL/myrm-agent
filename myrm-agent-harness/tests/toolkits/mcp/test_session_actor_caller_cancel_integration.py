@@ -19,10 +19,10 @@ import pytest
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from myrm_agent_harness.toolkits.mcp.connection_pool_types import MCPConnection
-from tests.support import mcp_cancel_probe_server
 from tests.support.marked_processes import wait_until
-from tests.support.mcp_cancel_probe_server import CANCELLED, STARTED, build_cancel_probe_server
-from tests.support.mcp_live_server import HTTP_ENDPOINT_PATH, start_live_server
+from tests.support.mcp_testkit import cancel_probe_server
+from tests.support.mcp_testkit.cancel_probe_server import CANCELLED, STARTED, build_cancel_probe_server
+from tests.support.mcp_testkit.live_server import HTTP_ENDPOINT_PATH, start_live_server
 
 _SLOW_SECONDS = 60.0
 # A call that waited out the slow one would take ~60s; serving the next call at once takes milliseconds.
@@ -44,7 +44,7 @@ async def _probe_connection(transport: str, marks_dir: Path) -> AsyncIterator[MC
             name="cancelprobe",
             type="stdio",
             command=sys.executable,
-            args=[mcp_cancel_probe_server.__file__, str(marks_dir)],
+            args=[cancel_probe_server.__file__, str(marks_dir)],
             description="cancel probe",
             connect_timeout=30.0,
         )

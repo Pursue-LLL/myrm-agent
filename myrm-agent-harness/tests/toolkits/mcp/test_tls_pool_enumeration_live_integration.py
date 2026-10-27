@@ -22,8 +22,8 @@ import pytest
 from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
-from tests.support.mcp_live_server import serve_probe_mcp
-from tests.support.mcp_tls_pki import ABORTED_CONNECTION_MARKERS, VERIFY_FAILURE_MARKERS, TlsPki
+from tests.support.mcp_testkit.live_server import serve_probe_mcp
+from tests.support.mcp_testkit.tls_pki import ABORTED_CONNECTION_MARKERS, VERIFY_FAILURE_MARKERS, TlsPki
 
 _SERVER_NAME = "tls-probe"
 _CONNECT_TIMEOUT_SEC = 10.0

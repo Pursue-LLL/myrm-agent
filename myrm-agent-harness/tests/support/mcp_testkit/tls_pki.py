@@ -107,12 +107,14 @@ def _build_leaf(
     san: x509.SubjectAlternativeName | None = None,
 ) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     key = _new_key()
+    ca_public_key = ca_cert.public_key()
+    assert isinstance(ca_public_key, rsa.RSAPublicKey)
     builder = (
         _builder(_name(common_name), ca_cert.subject, key.public_key())
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(x509.KeyUsage(**_LEAF_USAGE_FLAGS), critical=True)
         .add_extension(x509.ExtendedKeyUsage([usage]), critical=False)
-        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_public_key), critical=False)
     )
     if san is not None:
         builder = builder.add_extension(san, critical=False)

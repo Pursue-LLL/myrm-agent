@@ -36,7 +36,7 @@ from myrm_agent_harness.toolkits.mcp.session_actor_types import (
     build_notification_handler,
     read_mcp_resource,
 )
-from tests.support.mcp_launch_gates import PATCH_OSV_CHECK, PATCH_TRUST_GATE, RecordingTrustGate
+from tests.support.mcp_testkit.launch_gates import PATCH_OSV_CHECK, PATCH_TRUST_GATE, RecordingTrustGate
 
 _NPX_CONN: dict[str, object] = {"transport": "stdio", "command": "npx", "args": ["-y", "left-pad"]}
 

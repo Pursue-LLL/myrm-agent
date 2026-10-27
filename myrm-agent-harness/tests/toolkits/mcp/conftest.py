@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.mcp_tls_pki import TlsPki, generate_tls_pki
+from tests.support.mcp_testkit.tls_pki import TlsPki, generate_tls_pki
 
 
 @pytest.fixture(scope="session")

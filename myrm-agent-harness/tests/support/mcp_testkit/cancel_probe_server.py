@@ -10,7 +10,7 @@
 
 [POS]
 Harness pytest-only helper for caller-cancellation tests over real transports. Runnable as a stdio server
-(``python mcp_cancel_probe_server.py <marks_dir>``) and importable to be served over HTTP, so both transports run the
+(``python cancel_probe_server.py <marks_dir>``) and importable to be served over HTTP, so both transports run the
 same tool code. Self-contained (stdlib + ``mcp`` only) because the stdio child does not see the ``tests`` package.
 """
 

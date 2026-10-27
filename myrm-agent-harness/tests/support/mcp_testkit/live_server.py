@@ -3,7 +3,7 @@
 [INPUT]
 - uvicorn::Server (POS: real HTTP / HTTPS listener on a loopback socket the caller pre-binds and can observe)
 - mcp.server.mcpserver::MCPServer (POS: real MCP protocol server exposing echo/add)
-- tests.support.mcp_tls_pki::TlsPki (POS: server / CA certificate material for TLS and mTLS listeners)
+- tests.support.mcp_testkit.tls_pki::TlsPki (POS: server / CA certificate material for TLS and mTLS listeners)
 - tests.support.sse_shutdown_flag::reset_sse_shutdown_flag (POS: per-server teardown)
 
 [OUTPUT]
@@ -32,7 +32,7 @@ import uvicorn
 from mcp.server.mcpserver import MCPServer
 from starlette.types import ASGIApp
 
-from tests.support.mcp_tls_pki import TlsPki
+from tests.support.mcp_testkit.tls_pki import TlsPki
 from tests.support.sse_shutdown_flag import reset_sse_shutdown_flag
 
 HTTP_ENDPOINT_PATH = {"streamable_http": "/mcp", "sse": "/sse"}
@@ -86,13 +86,17 @@ async def start_live_server(
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
 
-    tls_kwargs: dict[str, str | int] = {}
-    if tls is not None:
-        tls_kwargs = {"ssl_keyfile": str(tls.server_key), "ssl_certfile": str(tls.server_cert)}
-        if require_client_cert:
-            tls_kwargs |= {"ssl_ca_certs": str(tls.ca_cert), "ssl_cert_reqs": ssl.CERT_REQUIRED}
-
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error", ws="none", **tls_kwargs)
+    config = uvicorn.Config(
+        app,
+        host="127.0.0.1",
+        port=port,
+        log_level="error",
+        ws="none",
+        ssl_keyfile=str(tls.server_key) if tls is not None else None,
+        ssl_certfile=str(tls.server_cert) if tls is not None else None,
+        ssl_ca_certs=str(tls.ca_cert) if tls is not None and require_client_cert else None,
+        ssl_cert_reqs=ssl.CERT_REQUIRED if require_client_cert else ssl.CERT_NONE,
+    )
     runner = uvicorn.Server(config)
     serve_task = asyncio.create_task(runner.serve(sockets=[sock]))
     server = LiveServer(
