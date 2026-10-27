@@ -2,6 +2,7 @@
 
 [INPUT]
 - channels.routing.commands.router_commands_approval::RouterCommandsApprovalMixin (POS: reaction/button approval, resume payloads)
+- channels.routing.commands.router_commands_approval_end::RouterCommandsApprovalEndMixin (POS: the ends of an open approval without an answer: timeout resume and superseded request)
 - channels.routing.commands.router_commands_stop::RouterCommandsStopMixin (POS: /stop and the session abort shared with /new)
 - channels.routing.commands.router_commands_session::RouterCommandsSessionMixin (POS: /new, /compact, /retry, /undo, topic commands)
 - channels.routing.commands.router_commands_modes::RouterCommandsModesMixin (POS: /yolo, /personality, /steer, /queue)
@@ -23,6 +24,7 @@ router_keys.routing_session_key. Logger name is consistent with the router packa
 from __future__ import annotations
 
 from .router_commands_approval import RouterCommandsApprovalMixin
+from .router_commands_approval_end import RouterCommandsApprovalEndMixin
 from .router_commands_delegation import RouterCommandsDelegationMixin
 from .router_commands_draft import RouterCommandsDraftMixin
 from .router_commands_goals import RouterCommandsGoalsMixin
@@ -35,6 +37,7 @@ from .router_commands_stop import RouterCommandsStopMixin
 
 class RouterCommandsMixin(
     RouterCommandsApprovalMixin,
+    RouterCommandsApprovalEndMixin,
     RouterCommandsStopMixin,
     RouterCommandsSessionMixin,
     RouterCommandsModesMixin,
