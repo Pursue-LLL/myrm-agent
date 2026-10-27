@@ -110,6 +110,9 @@ export const discardStreamedDraft = (ctx: StreamDraftBuffers): void => {
 /** Answers whose follow-ups are being requested; a repeated terminal event must not ask the model twice. */
 const suggestionsInFlight = new Set<string>();
 
+/** The server reads only this many trailing messages (`_HISTORY_MESSAGES`); the rest of a long chat is upload for nothing. */
+const SUGGESTION_CONTEXT_MESSAGES = 6;
+
 /**
  * Whether the turn that just ended stopped to ask the user for a decision (approval, question, plan, takeover).
  *
@@ -178,7 +181,9 @@ export const processSuggestions = async (
 
   suggestionsInFlight.add(lastMsg.messageId);
   try {
-    const suggestions = await getSuggestionsService(buildSimpleChatHistory(messages));
+    const suggestions = await getSuggestionsService(
+      buildSimpleChatHistory(messages.slice(-SUGGESTION_CONTEXT_MESSAGES)),
+    );
     updateMessage(lastMsg.messageId, suggestions);
   } catch (error) {
     console.error('Failed to get suggestions:', error);

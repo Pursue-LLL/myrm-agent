@@ -40,7 +40,7 @@ describe('processSuggestions', () => {
     useConfigStore.setState({ generateSearchSuggestions: true });
   });
 
-  it('asks for follow-ups from the whole conversation and files them under the answer', async () => {
+  it('asks for follow-ups from the conversation and files them under the answer', async () => {
     vi.mocked(getSuggestions).mockResolvedValue(['Why Rust?', 'Rust vs Go?']);
 
     await processSuggestions(answer, [question, answer], updateMessage);
@@ -50,6 +50,29 @@ describe('processSuggestions', () => {
       ['assistant', 'A systems language.'],
     ]);
     expect(updateMessage).toHaveBeenCalledWith('a1', ['Why Rust?', 'Rust vs Go?']);
+  });
+
+  it('uploads only the last six messages, in order: the server reads no more', async () => {
+    vi.mocked(getSuggestions).mockResolvedValue(['Why Rust?']);
+    const history = Array.from({ length: 20 }, (_, index) =>
+      message({
+        messageId: `m${index}`,
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `turn ${index}`,
+      }),
+    );
+
+    await processSuggestions(history[19], history, updateMessage);
+
+    expect(getSuggestions).toHaveBeenCalledWith([
+      ['human', 'turn 14'],
+      ['assistant', 'turn 15'],
+      ['human', 'turn 16'],
+      ['assistant', 'turn 17'],
+      ['human', 'turn 18'],
+      ['assistant', 'turn 19'],
+    ]);
+    expect(updateMessage).toHaveBeenCalledWith('m19', ['Why Rust?']);
   });
 
   it('does nothing when the user turned follow-ups off', async () => {
