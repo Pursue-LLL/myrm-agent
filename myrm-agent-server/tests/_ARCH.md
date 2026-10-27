@@ -92,6 +92,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；编辑失败时改发新消息，渠道不能编辑时只发首条；调用方可自带间隔、次数与消息文案（间隔次数覆盖前台默认值）；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
+| `channels/core/test_outbound_drain.py` | 单元 | `MessageBus.drain_outbound`：等到排队与正在发送的消息都投递完才返回、队列为空与未启动时立即返回、发送永不返回时在时限处放弃、投递循环没在跑时不空等 |
+| `channels/core/test_gateway_shutdown.py` | 集成 | 真实 `ChannelGateway.stop()`：路由器在停止时发出的委托任务中断通知，在发送本身要花时间的渠道（0.3 秒）上也先于渠道关闭送达 |
 | `channels/delegation/test_delegation_interruption.py` | 集成 | 服务停止时的委托任务：真实路由器 `stop()` 让运行中的委托任务各自按发送者语言（en/ja/zh-CN）在原聊天与话题里收到「已中断、请重发」通知并释放配额，运行仍能收尾；用户刚 `/stop`、刚到时限、已完成的任务不会被重复通知；不肯停的运行不会拖住关停（有限宽限期）；通知发不出去也不让关停失败 |
 | `channels/delegation/test_delegation_approval_window.py` | 集成 | 委托运行的审批等待取任务时限：运行从带时限的消息起步而请求者原消息不被改动，经真实渠道安全配置组装后 harness 的等待为任务时限（上限为 harness 上限 3600 秒），智能体档案显式设定的等待仍优先，前台回合沿用配置值，被聊天应答恢复的运行再次请求审批时沿用配置值（时限不随恢复消息带走） |
 | `core/channel_bridge/test_execute_preamble_security_config.py` | 单元 | 回合安全配置组装：回合审批等待覆盖配置值且不改动入参、无配置时也生效、非正数/布尔/非数值被忽略、与 YOLO 状态并存 |

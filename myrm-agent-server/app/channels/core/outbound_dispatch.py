@@ -10,8 +10,9 @@
 - services.channels.cp_egress_client (POS: sandbox-to-control-plane outbound bridge)
 
 [OUTPUT]
-- OutboundDispatchMixin: _dispatch_loop (queued delivery), send_now (strict direct send that raises on failure),
-  send_tracked (lenient wrapper returning the message id), control-plane egress routing, durable outbound recovery
+- OutboundDispatchMixin: _dispatch_loop (queued delivery), drain_outbound (bounded wait until the queue is delivered),
+  send_now (strict direct send that raises on failure), send_tracked (lenient wrapper returning the message id),
+  control-plane egress routing, durable outbound recovery
 
 [POS]
 Delivery half of MessageBus. The host owns queues, channel registry and limiters; the mixin only drives them.
@@ -49,6 +50,8 @@ logger = logging.getLogger(__name__)
 # Control-plane egress carries plain text only, so it prepares messages with the most limited capabilities.
 _TEXT_ONLY = ChannelCapabilities()
 
+_DRAIN_POLL_SECONDS = 0.05
+
 
 def _is_partial_delivery(exc: Exception) -> bool:
     """The platform already accepted part of the message, so the channel itself is healthy."""
@@ -80,10 +83,13 @@ class OutboundDispatchMixin(OutboundFailureMixin):
     _limiters: dict[str, TokenBucket]
     _last_send_times: dict[str, float]
     _running: bool
+    _dispatching: int
 
     if TYPE_CHECKING:
 
         def _ensure_queues(self) -> None: ...
+
+        def is_dispatch_loop_alive(self) -> bool: ...
 
     async def send_now(self, msg: OutboundMessage) -> str | None:
         """Deliver ``msg`` immediately (bypassing the queue); raise unless the recipient provably got it.
@@ -276,6 +282,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             except asyncio.CancelledError:
                 break
 
+            self._dispatching += 1
             try:
                 await self._dispatch_one(msg)
             except asyncio.CancelledError:
@@ -293,6 +300,22 @@ class OutboundDispatchMixin(OutboundFailureMixin):
                 except Exception:
                     logger.exception("Could not settle the failed outbound message; releasing obligation")
                     self._release_unqueued(msg)
+            finally:
+                self._dispatching -= 1
+
+    async def drain_outbound(self, timeout: float) -> bool:
+        """Wait until every queued message has been dispatched, so a shutdown does not cut off what was just published.
+
+        Returns:
+            True when the queue is empty and nothing is mid-send; False when the timeout ran out first (or the
+            dispatch loop is not running, so waiting could not help).
+        """
+        deadline = time.monotonic() + timeout
+        while self._outbound is not None and (not self._outbound.empty() or self._dispatching):
+            if not self.is_dispatch_loop_alive() or time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(_DRAIN_POLL_SECONDS)
+        return True
 
     async def _dispatch_one(self, msg: OutboundMessage) -> None:
         """Route one dequeued message; the dispatch loop survives a failure raised here."""

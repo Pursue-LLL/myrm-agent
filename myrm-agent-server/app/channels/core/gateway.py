@@ -27,6 +27,7 @@ Health loop:
 [POS]
 Channel system entry point. Manages all channel lifecycles, health checks, and error isolation.
 Supports outbound-only mode (push only) and bidirectional mode (push + receive + agent processing).
+Shutdown stops the router, waits (bounded) for the outbound queue it filled, then closes the channels and the bus.
 """
 
 from __future__ import annotations
@@ -108,6 +109,7 @@ _MAX_BACKOFF = 300.0
 _BACKOFF_FACTOR = 2.0
 _JITTER_RATIO = 0.25
 _DEGRADED_THRESHOLD = 2
+_SHUTDOWN_OUTBOUND_DRAIN_SECONDS = 5.0
 
 
 class ChannelGateway:
@@ -306,6 +308,8 @@ class ChannelGateway:
 
         if self._router:
             await self._router.stop()
+        # What the router just published (a delegated task's interruption notice) goes out before the channels close.
+        await self.bus.drain_outbound(_SHUTDOWN_OUTBOUND_DRAIN_SECONDS)
 
         if self._health_task:
             self._health_task.cancel()

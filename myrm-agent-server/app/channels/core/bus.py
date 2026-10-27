@@ -16,6 +16,7 @@ priority-based dispatch with back-pressure.
 - MessageBus: async message bus managing outbound/inbound queues, channel registration and DLQ admin
 - MessageBus.publish_outbound(): enqueues with DurableOutboundGate disk persist (IM channels)
 - MessageBus.send_now() / send_tracked(): direct send that raises / returns the message id (from the dispatch mixin)
+- MessageBus.drain_outbound(): bounded wait until the queued messages are delivered (from the dispatch mixin)
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
 - create_default_message_bus: convenience factory with DLQ support
 
@@ -86,6 +87,7 @@ class MessageBus(OutboundDispatchMixin):
         self._max_queue_size = max_queue_size
         self._outbound = None
         self._outbound_seq = 0
+        self._dispatching = 0
         self._inbound: asyncio.Queue[InboundMessage] | None = None
         self._channels = {}
         self._limiters = {}
