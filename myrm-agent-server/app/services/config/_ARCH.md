@@ -13,7 +13,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测 | ✅ |
+| `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测；`create_initial_version` / `increment_version` 是版本号的唯一生成处，启动迁移同用 | ✅ |
 | `encryption.py` | 核心 | 业务层加密策略：密钥注入、敏感配置判定、encrypt/decrypt 委托到 harness ConfigCrypto | ✅ |
 | `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级；`seal_stored_configs` 是启动时的整体入口（一个会话里先封配置行、再封审计历史、最后迁移本地模型密钥） | ✅ |
 | `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
@@ -69,7 +69,7 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 
 **不变量**：
 - `migrate_configs_to_encrypted` 写入密文的同时置 `is_encrypted`——读取按这个标志而不是按值的形状判断是否解密，漏置时读回的是 `{}`。
-- 已封的行不再封第二次：裸密文字符串与 `ConfigService` 写入的 `{"_cipher": ...}` 信封都原样跳过，否则值会被埋进第二层（读取侧仍能解开，但整实例归档按单层处理）。
+- 已封的行不再封第二次：裸密文字符串与 `ConfigService` 写入的 `{"_cipher": ...}` 信封都原样跳过，否则值会被埋进第二层（读取侧与整实例归档仍能解开，但第二层是无谓的嵌套）。
 
 ### 4. Onboarding (`onboarding.py`)
 

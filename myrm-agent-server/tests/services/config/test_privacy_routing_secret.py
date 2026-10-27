@@ -6,8 +6,8 @@ app.services.config.service::ConfigService (POS: the one writer of config rows a
 app.services.config.encryption::ConfigEncryptionService
 
 [OUTPUT]
-That a key saved through the service is sealed in the row and in its history, that the startup sweep carries a key an
-older build saved inside ``personalSettings`` into that row and removes it from the row and from every snapshot of it,
+That a key saved through the service is sealed in the row and in its history, that the startup sweep carries a key held
+inside ``personalSettings`` into that row and removes it from the row and from every snapshot of it,
 and that a second sweep, a stale field, a failure and a different master key each leave the stored data as they should.
 
 [POS]
@@ -66,7 +66,7 @@ async def sessions(
 
 
 async def _save_preferences(*, key: str | None, theme: str, expected_version: str | None = None) -> str:
-    """Save the preferences the way an older build did: the key sits inside ``privacyRouting``."""
+    """Save preferences whose ``privacyRouting`` holds the key itself."""
     routing = {**_ROUTING, "localApiKey": key} if key is not None else dict(_ROUTING)
     record = await service.ConfigService().set(
         "personalSettings", {"privacyRouting": routing, "theme": theme}, "browser", expected_version=expected_version

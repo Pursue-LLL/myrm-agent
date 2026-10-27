@@ -76,7 +76,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/config/test_backup_sync_encryption.py` | 模块 | 远程备份设置按敏感配置落盘加密；加密之前保存的明文行迁移后读回原值；审计历史里敏感键的明文旧值被封存且仍可解密，已封与非敏感的历史不动、重复运行不改任何行、不加密的模式不动历史；需要加密却没有密钥时抛带配置名的 `EncryptionError` |
 | `services/config/test_config_key_classification.py` | 单元 | 每个公开 `ConfigKey` 要么在敏感名单里、要么在测试里明列的「不含密钥」清单里，新增配置键不表态即红；清单里不能混进已封存的键；本地模型端点的密钥行既封存、又在口令归档下携带 |
 | `services/config/test_voice_encryption.py` | 模块 | 语音设置（识别与朗读密钥）落盘加密且读回原值；明文保存的语音行与它的审计历史被封存后仍可读 |
-| `services/config/test_privacy_routing_secret.py` | 模块 | 本地模型端点密钥独立成封存行：配置服务保存的值在主行与审计历史里都是密文；启动迁移把旧版偏好里的密钥搬进该行并从当前偏好与全部 `personalSettings` 快照清除（其余偏好与快照保留、偏好换新版本）、已有密文行优先、清空的密钥不留痕、失败不改任何库行、换主密钥不改写、第二次运行无事可做、不加密的模式同样搬走 |
+| `services/config/test_privacy_routing_secret.py` | 模块 | 本地模型端点密钥独立成封存行：配置服务保存的值在主行与审计历史里都是密文；启动迁移把偏好里的密钥搬进该行并从当前偏好与全部 `personalSettings` 快照清除（其余偏好与快照保留、偏好换新版本）、已有密文行优先、清空的密钥不留痕、失败不改任何库行、换主密钥不改写、第二次运行无事可做、不加密的模式同样搬走 |
 | `services/config/test_migration_encrypted_flag.py` | 模块 | 启动迁移封存明文敏感行后置 `is_encrypted`，读回原值；已封的行（裸密文、配置服务写入的信封）与不含密钥的行原样保留，第二次运行不改任何行 |
 | `services/config/test_seal_stored_configs.py` | 模块 | 沙箱模式的服务把语音与远程备份设置的明文行及其审计历史封存、非敏感配置不动；不加密的模式里每一行都原样不动 |
 | `services/instance_archive/test_uploads.py` | 模块 | 分块上传会话：块几何、续传、校验与路径安全 |

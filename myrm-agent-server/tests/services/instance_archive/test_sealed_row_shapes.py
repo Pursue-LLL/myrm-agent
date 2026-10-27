@@ -7,7 +7,7 @@ app.services.config.service::ConfigService, _decrypt_if_needed (POS: the writer 
 
 [OUTPUT]
 That a row stored as ``{"_cipher": ...}`` (what ``ConfigService.set`` writes), as the bare ciphertext string, and as an
-envelope sealed a second time under the same key (what the startup sweep of an older build left behind) is carried when
+envelope sealed a second time under the same key is carried when
 the user sets a passphrase, and that after the import the target reads exactly one layer under its own key.
 
 [POS]

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const manager = vi.hoisted(() => ({
   get: vi.fn(),
@@ -53,13 +53,87 @@ describe('privacyRoutingSecret', () => {
     await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('sk-after-sync');
   });
 
-  it('asks the backend for the row once per page session, even when none exists', async () => {
-    await secret.loadPrivacyRoutingSecret();
-    await secret.loadPrivacyRoutingSecret();
-    await secret.loadPrivacyRoutingSecret();
+  describe('loading the row', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    });
 
-    expect(manager.ensureKeyLoaded).toHaveBeenCalledTimes(1);
-    expect(manager.ensureKeyLoaded).toHaveBeenCalledWith('privacyRoutingSecret');
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('does not ask the backend for a row that is already cached', async () => {
+      manager.get.mockReturnValue({ localApiKey: 'sk-cached' });
+
+      await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('sk-cached');
+      await secret.loadPrivacyRoutingSecret();
+
+      expect(manager.ensureKeyLoaded).not.toHaveBeenCalled();
+    });
+
+    it('treats a row that holds an empty key as cached', async () => {
+      manager.get.mockReturnValue({ localApiKey: '' });
+
+      await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('');
+
+      expect(manager.ensureKeyLoaded).not.toHaveBeenCalled();
+    });
+
+    it('asks for a row that does not exist once per window, then again', async () => {
+      await secret.loadPrivacyRoutingSecret();
+      await secret.loadPrivacyRoutingSecret();
+      expect(manager.ensureKeyLoaded).toHaveBeenCalledTimes(1);
+      expect(manager.ensureKeyLoaded).toHaveBeenCalledWith('privacyRoutingSecret');
+
+      vi.advanceTimersByTime(10_000);
+      await secret.loadPrivacyRoutingSecret();
+
+      expect(manager.ensureKeyLoaded).toHaveBeenCalledTimes(2);
+    });
+
+    it('shares one request between calls that arrive together', async () => {
+      let finish: () => void = () => undefined;
+      manager.ensureKeyLoaded.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+
+      const calls = Promise.all([secret.loadPrivacyRoutingSecret(), secret.loadPrivacyRoutingSecret()]);
+      finish();
+      await calls;
+
+      expect(manager.ensureKeyLoaded).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not block the caller when the row cannot be loaded, and picks it up once it can', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      manager.ensureKeyLoaded.mockRejectedValueOnce(new Error('offline'));
+
+      await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('');
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      manager.get.mockReturnValue({ localApiKey: 'sk-recovered' });
+      manager.ensureKeyLoaded.mockResolvedValue(undefined);
+      await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('sk-recovered');
+    });
+
+    it('asks again after the window when an earlier request got nothing', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      manager.ensureKeyLoaded.mockRejectedValueOnce(new Error('offline'));
+      await secret.loadPrivacyRoutingSecret();
+
+      vi.advanceTimersByTime(10_000);
+      manager.ensureKeyLoaded.mockImplementation(async () => {
+        manager.get.mockReturnValue({ localApiKey: 'sk-late' });
+      });
+
+      await expect(secret.loadPrivacyRoutingSecret()).resolves.toBe('sk-late');
+      expect(manager.ensureKeyLoaded).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('buildPrivacyRoutingRequest', () => {

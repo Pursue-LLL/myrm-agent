@@ -1,13 +1,13 @@
 """Config encryption migration service.
 
 Seals plaintext sensitive configs: the rows saved before their key was listed as sensitive, or before encryption was
-available to the instance. Also moves the key of the user's own model endpoint, which an older build saved inside the
-preferences, into the sealed row that holds it now.
+available to the instance. Also moves the key of the user's own model endpoint out of the preferences into the sealed
+row that holds it.
 
 [INPUT]
 - app.database.connection::get_session
 - app.services.config.encryption::get_encryption_service/is_sensitive_config
-- app.services.config.service::extract_cipher (POS: cipher envelope reader)
+- app.services.config.service::extract_cipher, create_initial_version, increment_version (POS: cipher envelope reader; version stamps)
 
 [OUTPUT]
 - seal_stored_configs: the startup sweep, one session for all migrations below
@@ -26,7 +26,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.services.config.encryption import get_encryption_service, is_sensitive_config
-from app.services.config.service import _create_initial_version, _increment_version, extract_cipher
+from app.services.config.service import create_initial_version, extract_cipher, increment_version
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -192,7 +192,7 @@ def _add_privacy_routing_secret_row(db: "AsyncSession", local_api_key: str) -> N
     value: dict[str, object] = {_LEGACY_KEY_FIELD: local_api_key}
     stored, encrypted = get_encryption_service().encrypt_if_needed(_PRIVACY_ROUTING_SECRET, value)
     db_value: dict[str, object] = {"_cipher": stored} if isinstance(stored, str) and encrypted else value
-    version = _create_initial_version()
+    version = create_initial_version()
     db.add(
         UserConfig(
             id=str(uuid.uuid4()),
@@ -218,10 +218,10 @@ def _add_privacy_routing_secret_row(db: "AsyncSession", local_api_key: str) -> N
 async def move_privacy_routing_key(db: "AsyncSession") -> bool:
     """Move the local model key from the preferences into its own sealed row; returns whether anything was changed.
 
-    An older build saved the key as ``personalSettings.privacyRouting.localApiKey``: a plain row, so the key sat in
-    plaintext on disk and in an instance archive, and every snapshot in the audit history repeated each key ever saved.
+    A key kept as ``personalSettings.privacyRouting.localApiKey`` sits in a plain row: in plaintext on disk and in an
+    instance archive, and every snapshot in the audit history repeats each key ever saved there.
     The key found in the current preferences is carried into the ``privacyRoutingSecret`` row, unless that row already
-    exists (it was written after the key, so it wins). The field is then removed from the preferences, which get a new
+    exists (the settings write that row, so it wins). The field is then removed from the preferences, which get a new
     version so a client that still holds the old value resolves a conflict instead of writing the key back, and from every
     snapshot. All of it is one transaction: a failure changes nothing, and a second run finds nothing to move.
     """
@@ -241,7 +241,7 @@ async def move_privacy_routing_key(db: "AsyncSession") -> bool:
             if isinstance(legacy_key, str) and legacy_key and not secret_exists:
                 _add_privacy_routing_secret_row(db, legacy_key)
             preferences.config_value = without_key
-            preferences.version = _increment_version(preferences.version)
+            preferences.version = increment_version(preferences.version)
             preferences.last_device_id = _MIGRATION_DEVICE_ID
             changed = True
 

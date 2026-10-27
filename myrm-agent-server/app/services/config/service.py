@@ -38,7 +38,7 @@ class VersionConflictError(Exception):
         super().__init__(f"Version conflict for key '{key}': expected={expected_version}, server={server_version}")
 
 
-def _create_initial_version() -> str:
+def create_initial_version() -> str:
     return f"{int(datetime.now().timestamp() * 1000)}_0"
 
 
@@ -60,7 +60,7 @@ def _apply_runtime_effects(config_key: str, value: dict[str, object] | None) -> 
         sync_privacy_policy(value)
 
 
-def _increment_version(current: str) -> str:
+def increment_version(current: str) -> str:
     now = int(datetime.now().timestamp() * 1000)
     parts = current.split("_")
     if len(parts) != 2:
@@ -285,7 +285,7 @@ class ConfigService:
                 previous_db_value = existing.config_value
 
                 existing.config_value = db_value
-                existing.version = _increment_version(existing.version)
+                existing.version = increment_version(existing.version)
                 existing.last_device_id = device_id
                 existing.is_encrypted = encrypted
                 existing.updated_at = datetime.now()
@@ -308,7 +308,7 @@ class ConfigService:
                 _apply_runtime_effects(config_key, value)
                 return _build_config_record(existing, value)
             else:
-                new_version = _create_initial_version()
+                new_version = create_initial_version()
                 new_config = UserConfig(
                     id=str(uuid.uuid4()),
                     config_key=config_key,

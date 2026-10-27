@@ -119,8 +119,8 @@ def config_needs_reentry(key: str) -> bool:
 def open_sealed_config(raw_value: str, key: bytes) -> dict[str, object] | None:
     """The plain value of a stored config row that is sealed under ``key``; None when it is not, or does not open.
 
-    The config service stores the ciphertext inside ``{"_cipher": ...}``, a bare string is the other shape, and a row
-    swept by an older startup holds an envelope sealed once more under the same key. All three open here, so what is
+    The config service stores the ciphertext inside ``{"_cipher": ...}``, a bare string is the other shape, and an
+    envelope may be sealed once more under the same key. All three open here, so what is
     carried or re-keyed is exactly one layer.
     """
     try:
@@ -230,8 +230,8 @@ def _drop_web_incognito_chats(conn: sqlite3.Connection, existing: set[str], colu
 def _drop_history_of_rows_that_do_not_travel(conn: sqlite3.Connection, existing: set[str]) -> None:
     """Delete the saved values of every config row that does not travel as plain data.
 
-    The history repeats what the row held, so a secret that was saved before its key was encrypted (or an older archive
-    that still carries such history) would otherwise travel in plaintext next to the sealed row it belongs to.
+    The history repeats what the row held, so a secret that was saved before its key was encrypted (or an archive
+    that carries such history) would otherwise travel in plaintext next to the sealed row it belongs to.
     """
     if CONFIG_HISTORY_TABLE not in existing:
         return

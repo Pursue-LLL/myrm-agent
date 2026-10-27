@@ -9,9 +9,10 @@
 [POS] 配置服务 API 数据模型层。定义请求、响应结构以及 Omni-Config 强类型校验 Schema。
 """
 
-from typing import Literal, Self
+from typing import Literal, Self, cast
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic.config import JsonDict
 
 from app.schemas.theme_profile import ThemeProfileRecipeModel
 
@@ -127,24 +128,27 @@ class SearchServicesConfigValue(BaseModel):
         return self
 
 
-def _personal_settings_field(
+def _personal_settings_field[T](
     section: str,
-    *args: object,
+    *,
+    default: T,
+    description: str,
     group: str = "basic",
     visible_if: str | None = None,
     requires_field: str | None = None,
-    **kwargs: object,
-) -> Field:
-    """Attach x-ui-section / x-ui-group metadata for Schema-Driven UI filtering."""
-    json_schema_extra = dict(kwargs.pop("json_schema_extra", {}) or {})
-    json_schema_extra["x-ui-section"] = section
+) -> T:
+    """A ``Field`` carrying the x-ui-section / x-ui-group metadata Schema-Driven UI filters on.
+
+    Typed as the default's own type, the way pydantic types ``Field``, so the annotated attribute keeps its declared type.
+    """
+    json_schema_extra: JsonDict = {"x-ui-section": section}
     if section == "preferences":
         json_schema_extra["x-ui-group"] = group
     if visible_if is not None:
         json_schema_extra["x-ui-visible-if"] = visible_if
     if requires_field is not None:
         json_schema_extra["x-ui-requires-field"] = requires_field
-    return Field(*args, json_schema_extra=json_schema_extra, **kwargs)
+    return cast(T, Field(default=default, description=description, json_schema_extra=json_schema_extra))
 
 
 class PersonalSettingsConfigValue(BaseModel):
@@ -337,12 +341,12 @@ class WebFetchFirecrawlConfig(BaseModel):
         description="Reuse enabled Firecrawl API key from searchServices when true",
     )
     api_key: str | None = Field(
-        None,
+        default=None,
         description="Dedicated Firecrawl API key override",
         json_schema_extra={"ui:widget": "password"},
     )
     api_base: str | None = Field(
-        None,
+        default=None,
         alias="apiBase",
         description="Custom Firecrawl API base URL for self-hosted instances",
     )
