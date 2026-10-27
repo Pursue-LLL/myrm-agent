@@ -29,6 +29,7 @@ import {
   Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { stripYamlFrontmatter } from '@/lib/utils/frontmatter';
 import { resolveSkillDescription } from '@/lib/utils/skillUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -51,11 +52,7 @@ import { SkillDetailHistoryTabs } from './SkillDetailHistoryTabs';
 import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { saveSkillFile } from '@/services/skill/core';
-import {
-  getSkillVersionDetail,
-  listSkillVersions,
-  rollbackSkillVersion,
-} from '@/services/skill/optimization';
+import { getSkillVersionDetail, listSkillVersions, rollbackSkillVersion } from '@/services/skill/optimization';
 import { useState, useEffect } from 'react';
 import {
   EvalCasesSection,
@@ -63,11 +60,6 @@ import {
   SecurityScanSection,
   type SkillSectionTranslator,
 } from './SkillDetailHelpers';
-
-function stripYamlFrontmatter(content: string): string {
-  const match = content.match(/^---\s*\n[\s\S]*?\n---\s*\n/);
-  return match ? content.slice(match[0].length) : content;
-}
 
 const trustColors: Record<string, string> = {
   builtin: 'text-accent-warm',
@@ -161,9 +153,7 @@ export function SkillDetailSheetContent({
             ? t('detail.sourceSavedWithVersion', { version: res.version_number })
             : t('detail.sourceSaved');
         const undoPreviousVersion =
-          res.version_persisted && res.version_number != null && res.version_number > 1
-            ? res.version_number - 1
-            : null;
+          res.version_persisted && res.version_number != null && res.version_number > 1 ? res.version_number - 1 : null;
 
         if (undoPreviousVersion != null) {
           toast.success(versionLabel, {

@@ -9,6 +9,7 @@
  * - useWorkspaceTextEditor (POS: read, draft, kept unsaved text, save-against-version, conflict and copy handling)
  * - chooseAction from @/lib/app-dialog (POS: asks what to do with unsaved edits before they are left behind)
  * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
+ * - RenderedTextPreview (POS: the rendered view of markdown / CSV files and the Preview / Source switch)
  *
  * [OUTPUT]
  * - WorkspaceFilePreview: Full-height panel showing file content with line numbers, edit mode toggle, and
@@ -18,6 +19,8 @@
  *   Unsaved text from an earlier visit reopens in the editor with a notice. Closing or leaving edit mode over
  *   unsaved edits asks to save, discard or stay; dismissing the question stays.
  *   A file that cannot be read gets a localized notice; the server's reason is never shown.
+ *   A markdown or CSV file opens rendered, or as source above RENDER_BY_DEFAULT_MAX_BYTES or when it was cut short;
+ *   the header switch changes the view and editing is always on the source.
  *
  * [POS]
  * File content preview/editor for the workspace browser. Text is read together with its version, so a save can
@@ -35,6 +38,13 @@ import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import { getWorkspaceFileContentUrl, type FileEntry } from '@/services/chat';
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
 import { InlineWorkspaceDiff } from './InlineWorkspaceDiff';
+import {
+  getRenderedKind,
+  RENDER_BY_DEFAULT_MAX_BYTES,
+  RenderedTextPreview,
+  ViewSwitch,
+  type TextView,
+} from './RenderedTextPreview';
 import { ConflictNotice, DraftRestoredNotice, ReadonlyNotice } from './WorkspaceTextNotices';
 import { formatBytes, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
 import { useWorkspaceTextEditor } from './useWorkspaceTextEditor';
@@ -51,6 +61,8 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const t = useTranslations('workspace');
     const [editChosen, setEditChosen] = useState(false);
     const [showDiff, setShowDiff] = useState(false);
+    // null = the file's default view
+    const [viewChoice, setViewChoice] = useState<TextView | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
 
     const previewKind = getPreviewKind(file.name);
@@ -70,11 +82,11 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const isRichMedia = effectiveKind !== null;
     const canEdit = !isRichMedia && snapshot?.editable === true;
     const readonlyReason = !isRichMedia && snapshot ? snapshot.readonlyReason : null;
-
-    // A different file starts in view mode.
+    // A different file starts in view mode, in its default view.
     useEffect(() => {
       setEditChosen(false);
       setShowDiff(false);
+      setViewChoice(null);
     }, [file.path, workspace]);
 
     // Unsaved text from an earlier visit is shown where it can be edited, never for a moment behind the saved text.
@@ -84,6 +96,12 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
         setEditChosen(true);
       }
     }, [editor.restored]);
+
+    // A file cut short at the read limit is shown as the source only: a table or document made of part of it would mislead.
+    const renderedKind = !isRichMedia && snapshot !== null && !snapshot.truncated ? getRenderedKind(file.name) : null;
+    const textView: TextView =
+      viewChoice ?? ((snapshot?.size ?? 0) <= RENDER_BY_DEFAULT_MAX_BYTES ? 'rendered' : 'source');
+    const showRendered = renderedKind !== null && !editing && textView === 'rendered';
 
     /** Asks what to do with the unsaved edits: true once none are left behind, false when the user stays with them. */
     const resolveUnsaved = useCallback(async (): Promise<boolean> => {
@@ -156,6 +174,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {renderedKind !== null && !editing && <ViewSwitch value={textView} onChange={setViewChoice} />}
             {canEdit && (
               <>
                 {dirty && (
@@ -227,7 +246,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-auto py-2">
+        <div className={cn('flex-1', showRendered ? 'overflow-hidden' : 'overflow-auto py-2')}>
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -258,6 +277,14 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
           ) : snapshot !== null ? (
             editing && canEdit ? (
               <LineNumberedEditor content={editor.draft} label={file.name} onChange={editor.setDraft} />
+            ) : showRendered && renderedKind !== null ? (
+              <RenderedTextPreview
+                kind={renderedKind}
+                content={snapshot.content}
+                filePath={file.path}
+                filename={file.name}
+                workspace={workspace}
+              />
             ) : (
               <LineNumberedCode content={snapshot.content} />
             )

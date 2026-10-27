@@ -1,10 +1,14 @@
 'use client';
 
-import React, { memo, Suspense, useRef } from 'react';
+import React, { memo, Suspense, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { stripYamlFrontmatter } from '@/lib/utils/frontmatter';
 import MermaidChart from '../../markdown-render-tools/MermaidChart';
 import CodeBlock from '../../markdown-render-tools/CodeBlock';
 import DocumentSelectionToolbar from '../portal/DocumentSelectionToolbar';
+
+/** Where a relative image or link of a markdown document points. */
+type UrlResolver = (url: string) => string;
 
 /** 简单加载状态 */
 const LoadingState: React.FC = () => (
@@ -31,8 +35,13 @@ const SkeletonLoader: React.FC = () => (
   </div>
 );
 
+interface MarkdownProps {
+  content: string;
+  resolveUrl?: UrlResolver;
+}
+
 /** ReactMarkdown 渲染器（分离以便懒加载） */
-const ReactMarkdownRenderer: React.FC<{ content: string }> = memo(({ content }) => {
+const ReactMarkdownRenderer: React.FC<MarkdownProps> = memo(({ content, resolveUrl }) => {
   const ReactMarkdown = require('react-markdown').default;
   const remarkGfm = require('remark-gfm').default;
   const remarkMath = require('remark-math').default;
@@ -81,12 +90,28 @@ const ReactMarkdownRenderer: React.FC<{ content: string }> = memo(({ content }) 
             </code>
           );
         },
-        img: ({ src, alt, ...props }: { src?: string; alt?: string }) => (
-          <img src={src} alt={alt || ''} loading="lazy" className="rounded-lg shadow-md max-w-full h-auto" {...props} />
+        img: ({ node: _node, src, alt, ...props }: { node?: unknown; src?: string; alt?: string }) => (
+          // oxlint-disable-next-line next/no-img-element -- src is an arbitrary address written in the document, which next/image cannot optimize
+          <img
+            src={src && resolveUrl ? resolveUrl(src) : src}
+            alt={alt || ''}
+            loading="lazy"
+            className="rounded-lg shadow-md max-w-full h-auto"
+            {...props}
+          />
         ),
-        a: ({ href, children, ...props }: { href?: string; children?: React.ReactNode }) => (
+        a: ({
+          node: _node,
+          href,
+          children,
+          ...props
+        }: {
+          node?: unknown;
+          href?: string;
+          children?: React.ReactNode;
+        }) => (
           <a
-            href={href}
+            href={href && resolveUrl ? resolveUrl(href) : href}
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary underline hover:text-primary/80"
@@ -103,9 +128,16 @@ const ReactMarkdownRenderer: React.FC<{ content: string }> = memo(({ content }) 
 });
 ReactMarkdownRenderer.displayName = 'ReactMarkdownRenderer';
 
+interface MarkdownPreviewProps extends MarkdownProps {
+  artifactId?: string;
+}
+
 /** Markdown 实时渲染预览组件 */
-const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo(({ content, artifactId }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = memo(({ content, artifactId, resolveUrl }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // The front matter is metadata about the file, not part of the page. The selection toolbar still gets the whole
+  // file: it looks selected text up in it to know where an edit goes.
+  const body = useMemo(() => stripYamlFrontmatter(content), [content]);
 
   return (
     <div
@@ -124,6 +156,8 @@ const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo
         'prose-code:bg-gray-100 dark:prose-code:bg-gray-800',
         'prose-code:text-gray-900 dark:prose-code:text-gray-100',
         'prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm',
+        // The typography plugin wraps inline code in literal backticks; the grey chip already marks it.
+        'prose-code:before:content-none prose-code:after:content-none',
         'prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0',
         'prose-pre:rounded-none prose-pre:shadow-none',
         '[&_pre:not([data-code-block])]:bg-gray-100 [&_pre:not([data-code-block])]:dark:bg-gray-800',
@@ -137,7 +171,7 @@ const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo
       )}
     >
       <Suspense fallback={<SkeletonLoader />}>
-        <ReactMarkdownRenderer content={content} />
+        <ReactMarkdownRenderer content={body} resolveUrl={resolveUrl} />
       </Suspense>
       {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />}
     </div>
@@ -145,33 +179,33 @@ const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo
 });
 MarkdownPreview.displayName = 'MarkdownPreview';
 
-/** 文档/Markdown 预览组件 */
-const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId?: string }> = memo(
-  ({ content, filename, artifactId }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const isMarkdown = filename?.match(/\.(md|markdown|mdx)$/i);
+interface DocumentPreviewProps extends MarkdownPreviewProps {
+  filename?: string;
+}
 
-    if (isMarkdown) {
-      return <MarkdownPreview content={content} artifactId={artifactId} />;
-    }
+/** 文档/Markdown 预览组件。`resolveUrl` 只作用于 Markdown：宿主决定相对图片与链接指向哪里，不给则原样使用。 */
+const DocumentPreview: React.FC<DocumentPreviewProps> = memo(({ content, filename, artifactId, resolveUrl }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isMarkdown = filename?.match(/\.(md|markdown|mdx)$/i);
 
-    return (
-      <div
-        ref={containerRef}
-        className={cn(
-          'h-full overflow-auto p-6 relative',
-          'bg-background',
-          'prose prose-sm dark:prose-invert max-w-none',
-        )}
-      >
-        <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
-        {artifactId && (
-          <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />
-        )}
-      </div>
-    );
-  },
-);
+  if (isMarkdown) {
+    return <MarkdownPreview content={content} artifactId={artifactId} resolveUrl={resolveUrl} />;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        'h-full overflow-auto p-6 relative',
+        'bg-background',
+        'prose prose-sm dark:prose-invert max-w-none',
+      )}
+    >
+      <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
+      {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />}
+    </div>
+  );
+});
 DocumentPreview.displayName = 'DocumentPreview';
 
 export default DocumentPreview;

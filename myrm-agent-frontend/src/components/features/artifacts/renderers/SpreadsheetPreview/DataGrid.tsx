@@ -8,6 +8,7 @@ import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
 import { SpreadsheetSelectionToolbar } from './SpreadsheetSelectionToolbar';
+import { computeColumnWidths } from './columnWidths';
 import { activateOnKey } from '@/lib/utils/a11y';
 
 interface DataGridProps {
@@ -81,6 +82,9 @@ const DataGrid: React.FC<DataGridProps> = memo(
     const [selectedRow, setSelectedRow] = useState<number | null>(null);
 
     const numericCols = useMemo(() => detectNumericColumns(headers, rows), [headers, rows]);
+    // One width per column for the header and every row: cells sized by their own text drift out of line.
+    const columnWidths = useMemo(() => computeColumnWidths(headers, rows), [headers, rows]);
+    const gridWidth = useMemo(() => columnWidths.reduce((sum, width) => sum + width, 0), [columnWidths]);
 
     const filteredRows = useMemo(() => {
       if (!deferredSearch.trim()) {
@@ -235,13 +239,23 @@ const DataGrid: React.FC<DataGridProps> = memo(
 
         {/* Table */}
         <div ref={parentRef} className="flex-1 min-h-0 overflow-auto">
-          <div style={{ height: `${virtualizer.getTotalSize() + ROW_HEIGHT}px`, position: 'relative' }}>
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize() + ROW_HEIGHT}px`,
+              position: 'relative',
+              minWidth: gridWidth,
+            }}
+          >
             {/* Sticky header */}
-            <div className="sticky top-0 z-10 flex bg-muted border-b border-border" style={{ height: ROW_HEIGHT }}>
+            <div
+              className="sticky top-0 z-10 flex bg-muted border-b border-border"
+              style={{ height: ROW_HEIGHT, minWidth: gridWidth }}
+            >
               {headers.map((h, i) => (
                 <div
                   key={i}
                   onClick={() => handleSort(i)}
+                  // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a column header sharing the flex layout of the row cells; keyboard activation comes from activateOnKey
                   role="button"
                   tabIndex={0}
                   onKeyDown={activateOnKey}
@@ -250,7 +264,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
                     'border-r border-border last:border-r-0 hover:bg-muted/80 transition-colors',
                     numericCols[i] && 'justify-end',
                   )}
-                  style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
+                  style={{ width: columnWidths[i], flex: '1 0 auto' }}
                 >
                   <span className="truncate">{h || columnLabel(i)}</span>
                   {sortCol === i && <span className="ml-1 text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>}
@@ -266,6 +280,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
                 <div
                   key={vRow.index}
                   onClick={() => setSelectedRow(isSelected ? null : vRow.index)}
+                  // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a row of block cells, which a native button cannot contain; keyboard activation comes from activateOnKey
                   role="button"
                   tabIndex={0}
                   onKeyDown={activateOnKey}
@@ -280,6 +295,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
                   style={{
                     height: ROW_HEIGHT,
                     top: vRow.start + ROW_HEIGHT,
+                    minWidth: gridWidth,
                   }}
                 >
                   {headers.map((_, ci) => {
@@ -293,7 +309,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
                           numericCols[ci] ? 'justify-end font-mono' : 'text-foreground',
                           isEmpty && 'text-muted-foreground/40',
                         )}
-                        style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
+                        style={{ width: columnWidths[ci], flex: '1 0 auto' }}
                         title={val}
                       >
                         <span className="truncate">{isEmpty ? '—' : val}</span>

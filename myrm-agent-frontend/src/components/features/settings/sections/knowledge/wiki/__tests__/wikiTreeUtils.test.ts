@@ -5,7 +5,6 @@ import {
   extractSourceMessageIdFromFrontmatter,
   filterFolderNodes,
   resolveCreateParentFolder,
-  stripYamlFrontmatter,
 } from '../wikiTreeUtils';
 import type { TreeNode } from '@/services/wikiService';
 
@@ -64,13 +63,6 @@ describe('wikiTreeUtils', () => {
     expect(extractSourceMessageIdFromFrontmatter(doubleQuoted)).toBe('msg:colon-id');
     expect(extractSourceMessageIdFromFrontmatter(singleQuoted)).toBe('msg-single');
     expect(extractSourceMessageIdFromFrontmatter('no frontmatter')).toBeNull();
-  });
-
-  it('strips a leading YAML frontmatter block', () => {
-    const withMeta = '---\nsource_chat: chat-abc\nsource_message: msg-xyz\n---\n# title\n\nbody';
-    expect(stripYamlFrontmatter(withMeta)).toBe('# title\n\nbody');
-    expect(stripYamlFrontmatter('# plain markdown')).toBe('# plain markdown');
-    expect(stripYamlFrontmatter('\n# starts with blank line')).toBe('\n# starts with blank line');
   });
 
   it('ignores same-key lines in the body outside the frontmatter block', () => {

@@ -548,7 +548,10 @@
     "unsupportedPreview": "Dieser Dateityp kann nicht in der Vorschau angezeigt werden. Bitte herunterladen.",
     "folderLoadFailed": "Dieser Ordner konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
     "mentionFile": "Diese Datei in der Nachricht referenzieren",
-    "sessionWorkspace": "Workspace dieser Unterhaltung"
+    "sessionWorkspace": "Workspace dieser Unterhaltung",
+    "renderedView": "Vorschau",
+    "sourceView": "Quellcode",
+    "viewAsLabel": "Ansicht"
   },
   "loadout": {
     "title": "Agenten-Auslastung",

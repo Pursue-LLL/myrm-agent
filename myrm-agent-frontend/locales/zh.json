@@ -548,7 +548,10 @@
     "unsupportedPreview": "暂不支持预览此文件类型，请下载查看。",
     "folderLoadFailed": "无法打开此文件夹，请重试。",
     "mentionFile": "在输入框中引用此文件",
-    "sessionWorkspace": "本次对话的工作区"
+    "sessionWorkspace": "本次对话的工作区",
+    "renderedView": "预览",
+    "sourceView": "源码",
+    "viewAsLabel": "显示方式"
   },
   "loadout": {
     "title": "智能体配装",

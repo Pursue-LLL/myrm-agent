@@ -548,7 +548,10 @@
     "unsupportedPreview": "This file type can't be previewed. Download to view it.",
     "folderLoadFailed": "Couldn't open this folder. Please try again.",
     "mentionFile": "Reference this file in your message",
-    "sessionWorkspace": "This conversation's workspace"
+    "sessionWorkspace": "This conversation's workspace",
+    "renderedView": "Preview",
+    "sourceView": "Source",
+    "viewAsLabel": "View as"
   },
   "loadout": {
     "title": "Agent loadout",

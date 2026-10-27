@@ -12,11 +12,8 @@ import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
 import { WikiScopeChip } from './WikiScopeChip';
 import { WikiMarkdownEditor } from './wiki/WikiMarkdownEditor';
-import {
-  extractSourceChatIdFromFrontmatter,
-  extractSourceMessageIdFromFrontmatter,
-  stripYamlFrontmatter,
-} from './wiki/wikiTreeUtils';
+import { stripYamlFrontmatter } from '@/lib/utils/frontmatter';
+import { extractSourceChatIdFromFrontmatter, extractSourceMessageIdFromFrontmatter } from './wiki/wikiTreeUtils';
 
 interface WikiPendingEditsProps {
   agentScopeId?: string | null;
@@ -98,7 +95,7 @@ export function WikiPendingEdits({
         setIsLoading(false);
       }
     },
-    [agentScopeId, t]
+    [agentScopeId, t],
   );
 
   useEffect(() => {

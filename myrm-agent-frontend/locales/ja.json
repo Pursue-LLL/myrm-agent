@@ -548,7 +548,10 @@
     "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。",
     "folderLoadFailed": "このフォルダを開けませんでした。もう一度お試しください。",
     "mentionFile": "このファイルをメッセージで参照",
-    "sessionWorkspace": "この会話のワークスペース"
+    "sessionWorkspace": "この会話のワークスペース",
+    "renderedView": "プレビュー",
+    "sourceView": "ソース",
+    "viewAsLabel": "表示形式"
   },
   "loadout": {
     "title": "エージェント配装",

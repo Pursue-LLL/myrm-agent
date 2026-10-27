@@ -118,6 +118,35 @@ describe('DataGrid', () => {
     expect(screen.getByText(/50,000/)).toBeDefined();
   });
 
+  it('gives a column the same width in the header and in every row, so the columns stay in line', () => {
+    const headers = ['Name', 'Amount'];
+    const rows = [
+      ['Alexander the Great of Macedon', '1'],
+      ['Bo', '1,234,567.89'],
+      ['', '2'],
+    ];
+    render(<DataGrid headers={headers} rows={rows} />);
+
+    const widthsOf = (cells: HTMLElement[]) => cells.map((cell) => cell.style.width);
+    const headerRow = screen.getByText('Name').closest('[role="button"]')?.parentElement;
+    const bodyRows = screen
+      .getAllByRole('button')
+      .filter((element) => element.className.includes('absolute') && element.parentElement !== headerRow);
+    expect(bodyRows).toHaveLength(rows.length);
+
+    const header = widthsOf(Array.from(headerRow?.children ?? []) as HTMLElement[]);
+    expect(header.every((width) => /^\d+px$/.test(width))).toBe(true);
+    for (const row of bodyRows) {
+      expect(widthsOf(Array.from(row.children) as HTMLElement[])).toEqual(header);
+    }
+
+    const total = header.reduce((sum, width) => sum + parseInt(width, 10), 0);
+    expect(headerRow?.style.minWidth).toBe(`${total}px`);
+    for (const row of bodyRows) {
+      expect(row.style.minWidth).toBe(`${total}px`);
+    }
+  });
+
   it('allows quoting selected row to scoped artifact store', () => {
     useScopedArtifactStore.getState().clearTarget();
     render(<DataGrid headers={HEADERS} rows={ROWS} />);
