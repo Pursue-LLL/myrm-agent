@@ -10,9 +10,8 @@
 - SkillAgentToolsMixin: Mixin providing tool building methods for SkillAgent
 
 [POS]
-Tool building mixin for SkillAgent. Assembles meta-tools, todo_write (when
-enable_planning, or when a top-level agent resumes existing workspace todos),
-wiki tools, and RUNTIME_ONLY hooks.
+Tool building mixin for SkillAgent. Assembles meta-tools, todo_write (planning, or a top-level agent resuming
+workspace todos), wiki tools, and RUNTIME_ONLY hooks.
 """
 
 from __future__ import annotations
@@ -251,11 +250,7 @@ class SkillAgentToolsMixin:
         return workspace_todos_exist(workspace_root=self._resolve_task_workspace_root())
 
     def _should_load_todo_write_tool(self) -> bool:
-        """todo_write loads when planning is enabled, or when a top-level agent resumes existing todos.
-
-        A delegated child never resumes: it runs in the chat of the delegating agent, so the list it would
-        resume is the delegating agent's own.
-        """
+        """todo_write loads for planning, or for a top-level agent resuming todos; a child's list is its delegator's."""
         if self._enable_planning:  # type: ignore[attr-defined]
             return True
         if not get_is_subagent() and self._workspace_has_todos():
