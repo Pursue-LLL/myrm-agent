@@ -17,8 +17,8 @@ factory never substitutes another protocol or a console exporter, because a sile
 point telemetry at an endpoint that does not speak that protocol. The exporter packages are
 imported literally (inside small loaders) so a frozen desktop bundle collects them and a missing
 optional package surfaces as ``ImportError`` only when its protocol is requested. The stock exporters
-read ``OTEL_EXPORTER_OTLP_*HEADERS`` from the environment themselves and, for an entry that is not
-``name=value``, log the entry verbatim; an entry is a credential, so that warning's text is replaced.
+read ``OTEL_EXPORTER_OTLP_*HEADERS`` from the environment themselves and, for a malformed entry, log
+the entry verbatim; an entry is a credential, so that warning's text is replaced.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ class _WithholdHeaderEntry(logging.Filter):
     """Replace the header parser's warning text, which quotes the malformed entry verbatim."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = "An entry of the OTLP headers is not name=value and is ignored (its text is withheld)."
+        record.msg = "An entry of the OTLP headers is malformed and is ignored (its text is withheld)."
         record.args = None
         return True
 
