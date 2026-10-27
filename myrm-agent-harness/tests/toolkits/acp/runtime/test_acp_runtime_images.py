@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime import acp_runtime
+from myrm_agent_harness.toolkits.acp.runtime import stalled_agent
 from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
 from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 from myrm_agent_harness.toolkits.acp.types import IMAGES_NOT_SENT_STATUS, RuntimeConfig, RuntimeEvent, RuntimeEventType
@@ -178,7 +178,7 @@ class TestStalledAgent:
     async def test_cancel_ends_an_agent_that_stopped_reading_a_large_prompt(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(acp_runtime, "_STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
         runtime, turn, process = await _stalled_turn(tmp_path)
         try:
             started = time.monotonic()
@@ -194,7 +194,7 @@ class TestStalledAgent:
     async def test_close_ends_an_agent_that_stopped_reading_a_large_prompt(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(acp_runtime, "_STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
         runtime, turn, process = await _stalled_turn(tmp_path)
         try:
             turn.cancel()
@@ -212,7 +212,7 @@ class TestStalledAgent:
     async def test_a_healthy_agent_is_not_ended_by_cancel(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(acp_runtime, "_STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
         pool = _pool(tmp_path, "--images")
         try:
             await _turn(pool, [])

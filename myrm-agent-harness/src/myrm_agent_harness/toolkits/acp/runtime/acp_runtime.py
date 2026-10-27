@@ -9,6 +9,7 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations.)
 - toolkits.acp.runtime.acp_callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
 - toolkits.acp.runtime.image_blocks::ImageBlock, load_image_blocks (POS: Image input shared by CliRuntime and AcpRuntime)
+- toolkits.acp.runtime.stalled_agent::cancel_session, leave_transport (POS: Bounded stop of an ACP agent that has stopped reading its stdin)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
@@ -22,15 +23,13 @@ missing ACP SDK (the optional ``acp`` extra) ends the turn with a ``BACKEND_NOT_
 
 The images of a turn travel as image content blocks after the text, only to an agent that advertised
 ``promptCapabilities.image`` in ``initialize``; for any other agent the turn opens with an ``images_not_sent`` status
-update and carries the text alone. A prompt with images is one request of several MiB, so an agent that
-has stopped reading its stdin leaves it half written and the SDK queues ``session/cancel`` and its own shutdown behind
-it: cancel and transport exit are bounded, and the agent process is ended when it does not let go in time.
+update and carries the text alone. Cancel and transport exit are bounded (``stalled_agent``), so an agent that has
+stopped reading a prompt of several MiB cannot hold up a stop.
 """
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -46,6 +45,7 @@ from myrm_agent_harness.toolkits.acp.runtime._base import (
 )
 from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock, load_image_blocks
+from myrm_agent_harness.toolkits.acp.runtime.stalled_agent import cancel_session, leave_transport
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,
@@ -70,20 +70,9 @@ logger = logging.getLogger(__name__)
 # transport teardown (SDK-bounded terminate/kill) that actually stops the process.
 _CLOSE_SESSION_TIMEOUT_SECONDS = 4.0
 
-# How long cancel and the transport exit wait on an agent that has stopped reading its stdin; the SDK's own graceful
-# shutdown (close stdin, wait 2 s, terminate) fits well inside it.
-_STALLED_AGENT_TIMEOUT_SECONDS = 5.0
-
 
 class _AcpSdkMissingError(Exception):
     """The ACP SDK (the optional ``acp`` extra of the harness) is not installed."""
-
-
-def _kill_process(process: Process | None) -> None:
-    """End the agent process; the write it never read then fails, which frees everything queued behind it."""
-    if process is not None and process.returncode is None:
-        with contextlib.suppress(ProcessLookupError):
-            process.kill()
 
 
 def _require_acp_sdk() -> None:
@@ -242,13 +231,7 @@ class AcpRuntime(BaseRuntime):
     async def _do_cancel(self, session_id: str) -> None:
         if self._conn is None or self._session_id is None:
             return
-        try:
-            async with asyncio.timeout(_STALLED_AGENT_TIMEOUT_SECONDS):
-                await self._conn.cancel(session_id=self._session_id)
-        except TimeoutError:
-            # The notification waits behind a prompt the agent is not reading; ending the process is the stop left.
-            logger.warning("acp_cancel_timeout name=%s timeout_s=%.0f", self._name, _STALLED_AGENT_TIMEOUT_SECONDS)
-            _kill_process(self._process)
+        await cancel_session(self._conn, self._session_id, self._process, self._name)
 
     async def _do_resume(self, session_id: str) -> bool:
         return self._session_id is not None and self.is_alive
@@ -268,7 +251,7 @@ class AcpRuntime(BaseRuntime):
 
         if self._ctx_manager is not None:
             try:
-                await self._exit_transport(self._ctx_manager, self._process)
+                await leave_transport(self._ctx_manager, self._process, self._name)
             except Exception:
                 logger.debug("acp_ctx_exit_failed name=%s", self._name, exc_info=True)
 
@@ -279,31 +262,6 @@ class AcpRuntime(BaseRuntime):
         self._handler = None
         self._supports_session_close = False
         self._prompt_images = False
-
-    async def _exit_transport(
-        self,
-        ctx: AbstractAsyncContextManager[tuple[ClientSideConnection, Process]],
-        process: Process | None,
-    ) -> None:
-        """Leave the SDK transport, ending the agent process when it does not let go within the bound.
-
-        The SDK's sender waits for a write the agent never reads and swallows the cancellation of that wait, so a
-        timeout around the exit cannot interrupt it; only the end of the process, which fails the write, can.
-        """
-        leaving = asyncio.ensure_future(ctx.__aexit__(None, None, None))
-        try:
-            await asyncio.wait({leaving}, timeout=_STALLED_AGENT_TIMEOUT_SECONDS)
-            if not leaving.done():
-                logger.warning(
-                    "acp_transport_exit_timeout name=%s timeout_s=%.0f", self._name, _STALLED_AGENT_TIMEOUT_SECONDS
-                )
-                _kill_process(process)
-                await asyncio.wait({leaving}, timeout=_STALLED_AGENT_TIMEOUT_SECONDS)
-        finally:
-            if not leaving.done():
-                leaving.cancel()
-        if leaving.done() and not leaving.cancelled():
-            leaving.result()
 
     async def _do_get_status(self) -> BackendStatus:
         if self.is_alive:
