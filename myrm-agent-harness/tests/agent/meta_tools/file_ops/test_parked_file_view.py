@@ -15,8 +15,8 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core import parked_file_view
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import truncate_file_output
 from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
 from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
+    DEFAULT_PAGE_TOKEN_BUDGET,
     MIN_PAGE_TOKEN_BUDGET,
-    PAGE_TOKEN_BUDGET,
     is_parked_path,
     page_token_budget,
     parked_page_chars,
@@ -28,7 +28,7 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 
 _PARKED = ".myrm/pastes/payload_0123456789abcdef.md"
 _ROW_NUMBER = re.compile(r"^\s*(\d+)\|", re.MULTILINE)
-_PAGE_BUDGETS = [PAGE_TOKEN_BUDGET, 6_400, MIN_PAGE_TOKEN_BUDGET]
+_PAGE_BUDGETS = [DEFAULT_PAGE_TOKEN_BUDGET, 6_400, MIN_PAGE_TOKEN_BUDGET]
 
 
 def _ceiling(page_tokens: int) -> int:
@@ -143,14 +143,14 @@ def _render(lines: list[str], *, path: str, start: int = 1, max_line_length: int
     return ResultFormatter.format_file_content(content, max_line_length=max_line_length)
 
 
-def _cut_page(rendered: str, page_tokens: int = PAGE_TOKEN_BUDGET) -> tuple[str, bool, dict[str, object]]:
+def _cut_page(rendered: str, page_tokens: int = DEFAULT_PAGE_TOKEN_BUDGET) -> tuple[str, bool, dict[str, object]]:
     """One page of a parked file's rendered output, cut the way ``text_paths`` cuts it."""
     return truncate_file_output(
         rendered, max_chars=parked_page_chars(rendered, page_tokens), path_str=_PARKED, max_lines=None
     )
 
 
-def _read_pages(lines: list[str], page_tokens: int = PAGE_TOKEN_BUDGET) -> list[tuple[str, dict[str, object]]]:
+def _read_pages(lines: list[str], page_tokens: int = DEFAULT_PAGE_TOKEN_BUDGET) -> list[tuple[str, dict[str, object]]]:
     """Read a parked file page by page the way the model does: follow ``next_offset`` until the end."""
     pages: list[tuple[str, dict[str, object]]] = []
     start = 1
@@ -208,18 +208,18 @@ def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(
 @pytest.mark.parametrize(
     ("window", "budget"),
     [
-        (None, PAGE_TOKEN_BUDGET),
-        (0, PAGE_TOKEN_BUDGET),
-        (-1, PAGE_TOKEN_BUDGET),
-        (4_096, MIN_PAGE_TOKEN_BUDGET),
-        (16_384, MIN_PAGE_TOKEN_BUDGET),
-        (20_000, MIN_PAGE_TOKEN_BUDGET),
+        (None, 20_000),
+        (0, 20_000),
+        (-1, 20_000),
+        (4_096, 2_000),
+        (16_384, 2_000),
+        (20_000, 2_000),
         (32_000, 3_200),
         (64_000, 6_400),
         (65_536, 6_553),
-        (65_537, PAGE_TOKEN_BUDGET),
-        (131_072, PAGE_TOKEN_BUDGET),
-        (1_000_000, PAGE_TOKEN_BUDGET),
+        (65_537, 20_000),
+        (131_072, 20_000),
+        (1_000_000, 20_000),
     ],
 )
 def test_a_window_within_the_medium_tier_gets_a_tenth_of_it_and_any_other_window_the_full_page(

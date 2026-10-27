@@ -22,8 +22,8 @@ from langchain_core.runnables import RunnableConfig
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, ContextGuardConfig, SpilloverEngine
 from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
+    DEFAULT_PAGE_TOKEN_BUDGET,
     MIN_PAGE_TOKEN_BUDGET,
-    PAGE_TOKEN_BUDGET,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import create_file_read_tool
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
@@ -44,7 +44,7 @@ def _ceiling(page_tokens: int) -> int:
     return page_tokens * 110 // 100 + 300
 
 
-_PAGE_CEILING = _ceiling(PAGE_TOKEN_BUDGET)
+_PAGE_CEILING = _ceiling(DEFAULT_PAGE_TOKEN_BUDGET)
 _CLAUSE = (
     "Section {n}. The supplier shall deliver the goods within thirty days of the purchase order. Late delivery "
     "incurs a penalty of 0.5% per day, capped at 10% of the order value.\n"

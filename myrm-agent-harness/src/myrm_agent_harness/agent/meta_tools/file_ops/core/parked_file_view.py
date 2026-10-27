@@ -35,7 +35,7 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 
 # A page is 20,000 o200k tokens (16% of a 128k window), so a long paste is read in a few calls. A model with another
 # tokenizer sees more tokens in the same page (CJK, for one).
-PAGE_TOKEN_BUDGET = 20_000
+DEFAULT_PAGE_TOKEN_BUDGET = 20_000
 # A model whose window is in the MEDIUM tier or below gets a page of a tenth of its window instead: the context pruner
 # keeps the five most recent tool results in full (``ContextConfig.keep_recent_calls``), so five consecutive pages take
 # half the window.
@@ -99,14 +99,14 @@ def page_token_budget(window_tokens: int | None) -> int:
     """o200k tokens in one page for a model whose context window is *window_tokens* (``None``: not reported).
 
     A window in the MEDIUM tier or below gets a tenth of it, at least ``MIN_PAGE_TOKEN_BUDGET``. A larger or unknown
-    window, and a value that is not a window (zero, negative), gets ``PAGE_TOKEN_BUDGET``.
+    window, and a value that is not a window (zero, negative), gets ``DEFAULT_PAGE_TOKEN_BUDGET``.
     """
     if window_tokens is None or window_tokens <= 0 or infer_model_tier("", None, window_tokens) is ModelTier.STRONG:
-        return PAGE_TOKEN_BUDGET
+        return DEFAULT_PAGE_TOKEN_BUDGET
     return max(window_tokens // _SMALL_WINDOW_PAGE_DIVISOR, MIN_PAGE_TOKEN_BUDGET)
 
 
-def parked_page_chars(output: str, page_tokens: int = PAGE_TOKEN_BUDGET) -> int:
+def parked_page_chars(output: str, page_tokens: int = DEFAULT_PAGE_TOKEN_BUDGET) -> int:
     """Characters from the start of *output* that make up one page of *page_tokens* o200k tokens.
 
     Only the window that becomes the page is measured, so the cost does not grow with the size of the file.
