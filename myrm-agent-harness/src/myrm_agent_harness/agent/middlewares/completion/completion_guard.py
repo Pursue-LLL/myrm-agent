@@ -195,9 +195,9 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
     max_rejections:
         Maximum times the guard blocks before forced finish (safety valve).
     keeps_todo_list:
-        Whether this run can update the workspace's todo list. Only then does an unfinished todo block
-        completion: a sub-agent shares its parent's workspace but cannot call ``todo_write``, so the demand
-        would be one it can never meet.
+        Whether this run keeps a todo list, i.e. was given ``todo_write``. Only then does an unfinished todo
+        block completion: a run without the tool (a delegated child with planning off) has no list to finish,
+        so the demand would be one it can never meet.
     """
 
     def __init__(

@@ -97,9 +97,9 @@ def build_middlewares(
     params = engine_params or _EngineParams()
 
     def keeps_todo_list() -> bool:
-        # A sub-agent shares its parent's workspace (and so its todo file) but is not given ``todo_write``;
-        # showing it, or holding it to, a list it cannot update would misdirect it. Asked per call: the
-        # registry is filled after the middleware chain is built.
+        # Only a run given ``todo_write`` keeps a todo list: a delegated child without it (planning off) has
+        # none to show or to be held to. Asked per call: the registry is filled after the middleware chain
+        # is built.
         return registry.has_tool("todo_write")
 
     middlewares: list[object] = [
