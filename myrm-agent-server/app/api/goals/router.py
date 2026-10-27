@@ -28,6 +28,7 @@ from app.services.agent.goals.goal_controls import (
     NON_TERMINAL_GOAL_STATUSES,
     continue_resumed_goal,
     select_cancellable_goal,
+    stop_goal_turn,
 )
 from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.risk.refusal import reject_if_risky
@@ -262,6 +263,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
             await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
             if request.note and hasattr(provider, "update_metadata"):
                 await provider.update_metadata(goal.goal_id, {"pause_reason": request.note.strip()})
+            stop_goal_turn(session_id, goal)
         elif request.action == "resume":
             if hasattr(provider, "resume_goal"):
                 await provider.resume_goal(goal.goal_id, reset_turns=True)
@@ -270,6 +272,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
             await continue_resumed_goal(session_id, provider, goal.goal_id)
         elif request.action == "cancel":
             await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)
+            stop_goal_turn(session_id, goal)
         elif request.action == "approve":
             await provider.update_status(goal.goal_id, GoalStatus.COMPLETE)
         elif request.action == "reject":

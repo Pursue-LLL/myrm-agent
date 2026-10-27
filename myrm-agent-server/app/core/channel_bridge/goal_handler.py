@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, app.channels.protocols.goal_command (POS)
-- app.services.agent.goals.goal_registry::GoalRegistry, app.services.agent.goals.goal_controls::select_cancellable_goal, app.services.chat.chat_service::ChatService (POS)
+- app.services.agent.goals.goal_registry::GoalRegistry, app.services.agent.goals.goal_controls::select_cancellable_goal, stop_goal_turn, app.services.chat.chat_service::ChatService (POS)
 
 [OUTPUT]
 - ChannelGoalCommandHandler: GoalCommandHandler protocol implementation
@@ -232,6 +232,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_to_pause")
 
+        from app.services.agent.goals.goal_controls import stop_goal_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
@@ -246,6 +247,7 @@ class ChannelGoalCommandHandler:
         note = note.strip()
         if note:
             await provider.update_metadata(goal.goal_id, {"pause_reason": note})
+        stop_goal_turn(chat_id, goal)
         return get_text(msg, "goal_paused", objective=goal.objective[:60])
 
     async def _wait_goal(self, msg: InboundMessage, chat_id: str | None, reason: str) -> str:
@@ -366,7 +368,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_to_clear")
 
-        from app.services.agent.goals.goal_controls import select_cancellable_goal
+        from app.services.agent.goals.goal_controls import select_cancellable_goal, stop_goal_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
@@ -378,6 +380,7 @@ class ChannelGoalCommandHandler:
             return get_text(msg, "no_active_goal_to_clear")
 
         await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)
+        stop_goal_turn(chat_id, goal)
         return get_text(msg, "goal_cleared", objective=goal.objective[:60])
 
     async def _set_budget(self, msg: InboundMessage, chat_id: str | None, args: str) -> str:

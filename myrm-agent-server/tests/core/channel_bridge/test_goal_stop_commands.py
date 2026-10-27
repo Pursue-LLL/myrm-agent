@@ -1,11 +1,11 @@
-"""IM `/goal clear` acts on the same goal the web card's cancel does."""
+"""IM `/goal clear` and `/goal pause` act on the same goals, and stop the same work, as the web card."""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from myrm_agent_harness.agent.goals.types import GoalStatus
@@ -14,6 +14,7 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from app.channels.i18n import get_text
 from app.channels.types import InboundMessage
 from app.core.channel_bridge.goal_handler import ChannelGoalCommandHandler
+from app.services.agent.gateway import AgentGateway
 from app.services.agent.goals.goal_registry import GoalRegistry
 
 _OBJECTIVE = "Ship the report"
@@ -25,6 +26,16 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
     with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))):
         yield cid
     GoalRegistry.unregister(cid)
+
+
+@pytest.fixture
+def gateway() -> Iterator[MagicMock]:
+    """A gateway that has a live turn for every chat."""
+    mock = MagicMock(spec=AgentGateway)
+    mock.get_active_message_id.return_value = None
+    mock.interrupt_session.return_value = True
+    with patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=mock):
+        yield mock
 
 
 async def _clear(chat_id: str) -> tuple[str, InboundMessage]:
@@ -61,3 +72,37 @@ async def test_clear_leaves_a_finished_goal_alone(chat_id: str) -> None:
     kept = await provider.get_goal(goal.goal_id)
     assert kept is not None
     assert kept.status is GoalStatus.COMPLETE
+
+
+async def test_clear_stops_the_turn_of_a_working_goal(chat_id: str, gateway: MagicMock) -> None:
+    provider = GoalRegistry.get_or_create_provider(chat_id)
+    await provider.create_goal(chat_id, _OBJECTIVE)
+
+    await _clear(chat_id)
+
+    gateway.interrupt_session.assert_called_once_with(chat_id)
+
+
+async def test_clear_of_a_paused_goal_leaves_the_chat_turn_alone(chat_id: str, gateway: MagicMock) -> None:
+    provider = GoalRegistry.get_or_create_provider(chat_id)
+    goal = await provider.create_goal(chat_id, _OBJECTIVE)
+    await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
+
+    await _clear(chat_id)
+
+    gateway.interrupt_session.assert_not_called()
+
+
+async def test_pause_stops_the_turn_and_keeps_the_note(chat_id: str, gateway: MagicMock) -> None:
+    provider = GoalRegistry.get_or_create_provider(chat_id)
+    goal = await provider.create_goal(chat_id, _OBJECTIVE)
+    msg = InboundMessage(channel="test", sender_id="user-1", content="/goal pause waiting for review")
+
+    reply = await ChannelGoalCommandHandler()._pause_goal(msg, chat_id, "waiting for review")  # noqa: SLF001 - command under test
+
+    assert reply == get_text(msg, "goal_paused", objective=_OBJECTIVE)
+    gateway.interrupt_session.assert_called_once_with(chat_id)
+    paused = await provider.get_goal(goal.goal_id)
+    assert paused is not None
+    assert paused.status is GoalStatus.PAUSED
+    assert paused.metadata["pause_reason"] == "waiting for review"
