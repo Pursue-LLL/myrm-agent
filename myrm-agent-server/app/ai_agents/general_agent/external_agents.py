@@ -6,6 +6,7 @@
 - .external_agents_runtime_config (POS: 外部 Agent 配置归一化层)
 - app.services.external_agents.cli_session_store::ChatCliSessionStore (POS: chat 行持久化的外部 CLI 会话 id，服务重启后续接同一外部对话) [lazy]
 - app.services.external_agents.direct_delegate_stream::stream_direct_delegate (POS: 外部 Agent 回合 → 前端 SSE 事件流) [lazy]
+- app.services.external_agents.delegation_prompt::delegation_prompt (POS: 用户回合（含多模态块与引用片段）→ 外部 CLI 只收文本的提示词) [lazy]
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
@@ -101,6 +102,7 @@ class ExternalAgentsMixin:
         agent_id: str | None
         force_external_agent: str | None
         locale: str | None
+        quote: str | None
 
     async def _setup_external_agents(
         self,
@@ -224,13 +226,14 @@ class ExternalAgentsMixin:
         chat_id: str | None = None,
     ) -> AsyncGenerator[dict[str, object]]:
         """Stream one turn of an external agent straight to the frontend, bypassing the LangChain Agent."""
+        from app.services.external_agents.delegation_prompt import delegation_prompt
         from app.services.external_agents.direct_delegate_stream import stream_direct_delegate
 
         assert self._runtime_pool is not None
         return stream_direct_delegate(
             self._runtime_pool,
             agent_name,
-            query if isinstance(query, str) else str(query),
+            delegation_prompt(query, self.quote),
             session_id=f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default",
             cancel_token=cancel_token,
             locale=self.locale or "en",

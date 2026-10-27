@@ -61,7 +61,7 @@ IDENTITY_TABLES: frozenset[str] = frozenset({"commitments", "skill_permission_us
 # Sensitive user_configs rows that are portable across machines (provider keys, MCP, search, remote backup storage).
 # Every other sensitive row (channel logins, proxies, org-managed servers) stays with its host.
 CARRIED_SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
-    {"providers", "retrieval", "searchServices", "mcpServers", "mcpOAuthTokens", "backupSync"}
+    {"providers", "retrieval", "searchServices", "mcpServers", "externalAgents", "mcpOAuthTokens", "backupSync"}
 )
 
 # Non-sensitive config rows that still describe this host (paths, outbound sync, security posture).

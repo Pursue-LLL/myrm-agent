@@ -18,6 +18,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_answer_text_consumers.py` | 每个 `process_stream` / `ai_agent_service_stream` 调用点必须归类：自己或其委托的协作者用 `AnswerDraft` / `StreamContentCollector` 拼装回复，或不拼装文本（语音、丢弃事件、网关出口，附理由），使恢复重启只替换在途段落；新增调用点未归类即失败，并自带探测器自检 |
 | `test_agent_run_tracking.py` | 每个 `process_stream` 调用点必须登记：经 `AgentGateway.execute_stream`（计入 `activeCount`）或文件内 `with track_background_agent_run()`（计入 `backgroundRunCount`），否则托管空闲回收器会在该运行中途暂停沙箱；新增/删除调用点未登记即失败，并自带探测器正反例自检 |
 | `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
+| `test_acp_sdk_dependency.py` | server 的 `myrm-agent-harness[...]` 依赖必须带 `acp` extra（外部智能体可配 `type: "acp"`，缺 SDK 会在首个 ACP 回合 ImportError），且 `agent-client-protocol<1` 约束保留（server 用 `prerelease = "allow"` 解析，否则会取到 1.0 候选版）|
 | `test_settings_deep_links.py` | 前端源码、server 推送/提示与预置技能资产里写死的 `/settings/<tab>` 深链必须落在前端路由 SSOT `settingsRoutes.ts`（`SETTINGS_TABS` ∪ `SETTINGS_TAB_REDIRECTS`）内，杜绝 404 死链 |
 | `test_memory_brief_prometheus_rules_contract.py` | memory brief 告警规则契约（flush HTTP attempts-based ratio + strict dedup reject ratio/burst 关键片段；直接跑 pytest 时本地无 promtool 可 skip；`scripts/ci/run_architecture_gates.sh` 与 CI 均强制 promtool `check rules`） |
 | `test_memory_brief_telemetry_layout.py` | memory brief CP 遥测须位于 `app/services/agent/memory_brief_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |

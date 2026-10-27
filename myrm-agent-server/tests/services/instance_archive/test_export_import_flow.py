@@ -57,6 +57,7 @@ def test_export_carries_no_plaintext_secret_and_leaves_machine_state_behind(sour
         b"RESIDUE-SECRET-MARKER",  # deleted row must not survive in free pages
         b"sk-source-provider",
         b"tg-secret",
+        b"external-agent-secret",
         b"source-secret",
         b"source-agent-secret",
         b"fp-123",
@@ -85,8 +86,10 @@ def test_export_without_passphrase_drops_every_sensitive_config(source_state: Pa
     assert metadata["config_envelope"] is None
     assert read_config(extracted, "providers") is None
     assert read_config(extracted, "mcpServers") is None
+    assert read_config(extracted, "externalAgents") is None
     assert read_config(extracted, "onboarding") == {"done": True}
     assert "config:providers" in metadata["reentry"]
+    assert "config:externalAgents" in metadata["reentry"]
 
 
 def test_export_cancel_leaves_no_partial_file(source_state: Path, tmp_path: Path) -> None:
@@ -146,6 +149,13 @@ def test_stage_grafts_target_posture_rekeys_secrets_and_neutralizes(
     assert ConfigCrypto.decrypt_value(providers, TARGET_KEY) == {"openai": "sk-source-provider"}
     with pytest.raises(DecryptionError):
         ConfigCrypto.decrypt_value(providers, SOURCE_KEY)
+    external_agents = read_config(staged, "externalAgents")
+    assert isinstance(external_agents, str)
+    assert ConfigCrypto.decrypt_value(external_agents, TARGET_KEY)["agents"][0]["env"] == {
+        "HTTPS_PROXY": "http://u:external-agent-secret@proxy"
+    }
+    with pytest.raises(DecryptionError):
+        ConfigCrypto.decrypt_value(external_agents, SOURCE_KEY)
     assert read_config(staged, "onboarding") == {"done": True}
 
     # Share links, whitelisted keys and in-flight state never arrive.
@@ -188,7 +198,8 @@ def test_sandbox_target_never_receives_secrets(source_state: Path, target_state:
     providers = read_config(staged, "providers")
     assert isinstance(providers, str)  # the target's own row (grafted), not the archive's
     assert ConfigCrypto.decrypt_value(providers, TARGET_KEY) == {"openai": "sk-target-provider"}
-    assert "config:providers" in report.reentry
+    assert read_config(staged, "externalAgents") is None  # a sandbox gets none of the source's secrets
+    assert {"config:providers", "config:externalAgents"} <= set(report.reentry)
 
 
 def test_newer_schema_is_rejected_and_staging_cleaned(source_state: Path, target_state: Path, tmp_path: Path) -> None:

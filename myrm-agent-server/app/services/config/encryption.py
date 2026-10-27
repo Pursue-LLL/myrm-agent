@@ -39,6 +39,7 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "retrieval",
         "searchServices",
         "mcpServers",
+        "externalAgents",
         "mcpOAuthTokens",
         "backupSync",
         "orgMcpServers",

@@ -7,6 +7,7 @@ shrunk (production: 15 s keepalive against a 300 s idle limit).
 
 from __future__ import annotations
 
+import re
 import sys
 from collections.abc import AsyncGenerator
 
@@ -58,12 +59,18 @@ async def _through_the_gateway(pool: RuntimePool) -> list[dict[str, object]]:
 async def test_a_cli_silent_past_the_idle_limit_finishes_because_it_keeps_saying_it_is_working(
     pool: RuntimePool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(cli_runtime, "_KEEPALIVE_SECONDS", 0.1)
+    monkeypatch.setattr(cli_runtime, "KEEPALIVE_SECONDS", 0.1)
 
     events = await _through_the_gateway(pool)
 
-    lines = [str(step["data"]) for step in events if step["type"] == AgentEventType.TASKS_STEPS.value]
-    assert any("quiet: working" in line for line in lines)
+    # The status step shows how long the CLI has been working ("12s", "1m 05s"), in no language of ours.
+    lines = [
+        item["text"]
+        for step in events
+        if step["type"] == AgentEventType.TASKS_STEPS.value and step["step_key"] == "delegation_quiet_status"
+        for item in step["data"]
+    ]
+    assert any(re.fullmatch(r"(\d+m )?\d+s", line) for line in lines)
     assert not any(event["type"] == AgentEventType.ERROR.value for event in events)
     assert events[-1]["type"] == AgentEventType.MESSAGE_END.value
 
@@ -71,7 +78,7 @@ async def test_a_cli_silent_past_the_idle_limit_finishes_because_it_keeps_saying
 async def test_without_the_keepalive_the_same_silence_is_cut_by_the_idle_limit(
     pool: RuntimePool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(cli_runtime, "_KEEPALIVE_SECONDS", 60.0)
+    monkeypatch.setattr(cli_runtime, "KEEPALIVE_SECONDS", 60.0)
 
     with pytest.raises(AgentExecutionTimeout):
         await _through_the_gateway(pool)

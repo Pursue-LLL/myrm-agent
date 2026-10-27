@@ -1,10 +1,10 @@
-"""Unit tests for force_external_agent security gate in stream_pipeline."""
+"""Unit tests for the security gate of a turn forced onto an external agent."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.ai_agents.general_agent.stream_pipeline import _force_external_delegate_denial_reason
+from app.ai_agents.general_agent.forced_delegate import denial_reason
 
 
 def _security_raw(*, invoke_external: str) -> dict[str, object]:
@@ -23,19 +23,19 @@ def _security_raw(*, invoke_external: str) -> dict[str, object]:
 
 def test_force_external_denied_when_security_config_missing() -> None:
     agent = SimpleNamespace(security_config_raw=None)
-    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
+    reason = denial_reason(agent, "echo-cli")
     assert reason is not None
     assert "security config missing" in reason.lower()
 
 
 def test_force_external_allowed_when_invoke_external_allowed() -> None:
     agent = SimpleNamespace(security_config_raw=_security_raw(invoke_external="allow"))
-    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
+    reason = denial_reason(agent, "echo-cli")
     assert reason is None
 
 
 def test_force_external_denied_when_invoke_external_ask() -> None:
     agent = SimpleNamespace(security_config_raw=_security_raw(invoke_external="ask"))
-    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
+    reason = denial_reason(agent, "echo-cli")
     assert reason is not None
     assert "ask" in reason.lower()

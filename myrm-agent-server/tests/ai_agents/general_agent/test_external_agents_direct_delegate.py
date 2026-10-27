@@ -11,10 +11,11 @@ from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
 
 
 def _mixin(pool: MagicMock, *, locale: str = "en") -> ExternalAgentsMixin:
-    """The mixin holding ``pool``; a real agent also has the session ``locale``."""
+    """The mixin holding ``pool``; a real agent also has the session ``locale`` and the quoted passage."""
     mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
     mixin._runtime_pool = pool
     mixin.locale = locale
+    mixin.quote = None
     return mixin
 
 

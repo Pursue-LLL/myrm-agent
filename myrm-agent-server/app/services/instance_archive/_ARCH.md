@@ -29,7 +29,7 @@
 | 配置审计历史 | 不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行随行删除，其余照常携带 | `config_audit_logs` 重复保存过的每个值，键被加密之前写下的明文也在其中；导出、定时备份、导入暂存共用 `scrub_sensitive_surface`，来自旧版本归档的明文历史在导入暂存时同样被删 |
 | IDENTITY | 仅当导入身份 = 导出身份时携带 | `commitments`、技能权限使用日志、产物审计日志 |
 | DERIVED / RUNTIME / LOCAL_HISTORY | 不进归档 | `skill_scans`、locks、cache、logs、snapshots、`subagent_checkpoints.sqlite`（按文件名识别：目录由部署决定，内容按任务而非按会话记录，线程重启后不可恢复） |
-| PORTABLE_SECRET | 仅在口令信封下以**原密文**携带（`providers`、`retrieval`、`searchServices`、`mcpServers`、`mcpOAuthTokens`、`backupSync`） | 导出时用户设置口令；信封只包裹 32 字节配置密钥，归档内无明文；`backupSync` 存的是远程备份的 WebDAV 密码 / S3 密钥 |
+| PORTABLE_SECRET | 仅在口令信封下以**原密文**携带（`providers`、`retrieval`、`searchServices`、`mcpServers`、`externalAgents`、`mcpOAuthTokens`、`backupSync`） | 导出时用户设置口令；信封只包裹 32 字节配置密钥，归档内无明文；`backupSync` 存的是远程备份的 WebDAV 密码 / S3 密钥 |
 
 导入后：计划任务一律以暂停态进入；携带的密钥重新加密到目标主机；含可执行内容（定时命令、MCP stdio、技能脚本）须用户显式确认信任。
 

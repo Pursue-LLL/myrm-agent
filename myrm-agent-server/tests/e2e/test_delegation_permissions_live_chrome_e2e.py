@@ -47,9 +47,7 @@ _EXPLORE_FORCE_EXTERNAL_BLOCK_JS = """(async () => {
     body: JSON.stringify(body),
   });
   const text = await res.text();
-  const denied =
-    /external agent delegation denied/i.test(text) ||
-    /invoke_external_agent denied/i.test(text);
+  const denied = /external_agent_denied/.test(text);
   const delegated = /delegate:|delegation_/i.test(text);
   return {
     ok: denied && !delegated,

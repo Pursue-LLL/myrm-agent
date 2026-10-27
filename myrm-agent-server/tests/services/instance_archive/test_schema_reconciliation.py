@@ -88,4 +88,9 @@ def test_carried_sensitive_keys_are_really_sensitive() -> None:
 
 def test_the_remote_backup_row_travels_as_a_portable_secret() -> None:
     assert table_policy.config_row_policy("backupSync") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
+def test_the_external_agents_row_travels_as_a_portable_secret() -> None:
+    assert table_policy.config_row_policy("externalAgents") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
+    assert table_policy.config_needs_reentry("externalAgents")
+
+
     assert table_policy.config_needs_reentry("backupSync")

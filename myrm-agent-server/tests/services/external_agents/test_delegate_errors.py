@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -17,10 +18,16 @@ from myrm_agent_harness.toolkits.acp.types import (
 )
 
 from app.schemas.streaming import SSEEnvelope
-from app.services.external_agents.delegate_errors import agent_unavailable_event, delegate_error_event
+from app.services.external_agents.delegate_errors import (
+    agent_unavailable_event,
+    delegate_denied_event,
+    delegate_error_event,
+    delegate_failed_event,
+)
 from app.services.external_agents.direct_delegate_stream import SseEvent, stream_direct_delegate
 
 _SETTINGS_URL = "/settings/developer"
+_SECURITY_URL = "/settings/security"
 
 # (error code, auth mode of the agent, expected error_type)
 _GUIDED = [
@@ -113,6 +120,31 @@ def test_other_failures_keep_the_words_of_the_cli(code: AcpErrorCode) -> None:
     assert delegate_error_event("claude", error, auth_mode="subscription", locale="en") is None
 
 
+# Failures the pipeline raises before any CLI turn exists: (event builder, expected error_type)
+_STANDALONE = [
+    (agent_unavailable_event, "external_agent_unavailable"),
+    (delegate_denied_event, "external_agent_denied"),
+    (delegate_failed_event, "external_agent_failed"),
+]
+
+
+@pytest.mark.parametrize(("build", "error_type"), _STANDALONE)
+@pytest.mark.parametrize("locale", ["en", "zh", "zh-CN", "ja", ""])
+def test_a_failure_before_any_turn_follows_the_frontend_error_contract(build, error_type: str, locale: str) -> None:
+    event = build("codex", locale)
+    diagnostic = _diagnostic(event)
+
+    assert event["type"] == AgentEventType.ERROR.value
+    assert event["data"] == diagnostic["user_message"]
+    assert diagnostic["error_type"] == error_type
+    assert diagnostic["locale"] in {"en", "zh"}
+    steps = diagnostic["resolution_steps"]
+    assert isinstance(steps, list) and steps and all(isinstance(step, str) for step in steps)
+    for text in [str(diagnostic["user_message"]), *steps]:
+        assert "{" not in text and "}" not in text  # no unfilled placeholder
+    assert "codex" in str(diagnostic["user_message"])
+
+
 def test_an_unavailable_agent_is_an_error_with_a_way_to_the_settings() -> None:
     event = agent_unavailable_event("codex", "zh-CN")
     diagnostic = _diagnostic(event)
@@ -121,6 +153,26 @@ def test_an_unavailable_agent_is_an_error_with_a_way_to_the_settings() -> None:
     assert diagnostic["locale"] == "zh"
     assert "codex" in str(diagnostic["user_message"])
     assert event["recovery_actions"] == [{"id": "open_external_agents", "label": "打开设置", "url": _SETTINGS_URL}]
+
+
+def test_a_denied_delegation_sends_the_user_to_the_security_policy_in_their_language() -> None:
+    english = delegate_denied_event("codex", "en")
+    chinese = delegate_denied_event("codex", "zh")
+
+    assert english["recovery_actions"] == [{"id": "open_security_settings", "label": "Open Settings", "url": _SECURITY_URL}]
+    assert chinese["recovery_actions"] == [{"id": "open_security_settings", "label": "打开设置", "url": _SECURITY_URL}]
+    assert "Security Policy" in " ".join(_diagnostic(english)["resolution_steps"])
+    assert "安全策略" in " ".join(_diagnostic(chinese)["resolution_steps"])
+    # The user reads what to change, never the policy engine's wording of the refusal.
+    visible = " ".join([str(english["data"]), *_diagnostic(english)["resolution_steps"]]).lower()
+    assert "denied" not in visible and "blocked" not in visible and "reason" not in visible
+
+
+def test_a_broken_delegation_asks_for_a_retry_and_points_to_the_settings() -> None:
+    event = delegate_failed_event("claude", "en")
+
+    assert _diagnostic(event)["resolution_steps"][0] == "Send your message again."
+    assert event["recovery_actions"] == [{"id": "open_external_agents", "label": "Open Settings", "url": _SETTINGS_URL}]
 
 
 def test_the_guidance_reaches_the_frontend_through_the_sse_envelope() -> None:
@@ -183,3 +235,44 @@ async def test_a_failure_the_user_cannot_fix_still_shows_the_cli_text() -> None:
     _, errors = await _errors(pool)
 
     assert errors == [{"type": AgentEventType.ERROR.value, "data": "claude exited with code 1"}]
+
+
+_STREAM_LOGGER = "app.services.external_agents.direct_delegate_stream"
+
+
+def _failure_logs(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [record for record in caplog.records if record.getMessage().startswith("external_agent_failure")]
+
+
+async def test_the_cli_words_behind_the_guidance_are_logged_without_credentials(caplog: pytest.LogCaptureFixture) -> None:
+    key = "sk-ant-api03-" + "a1B2c3D4e5F6g7H8i9J0" * 2
+    pool = _FailingPool(AcpError(code=AcpErrorCode.AUTH_FAILED, message=f"Invalid API key {key} for claude"))
+
+    with caplog.at_level(logging.WARNING, logger=_STREAM_LOGGER):
+        events, _ = await _errors(pool)
+
+    (record,) = _failure_logs(caplog)
+    assert record.levelno == logging.WARNING
+    assert "agent=claude" in record.getMessage() and "code=auth_failed" in record.getMessage()
+    assert "Invalid API key" in record.getMessage()
+    assert key not in caplog.text
+    assert key not in json.dumps(events)  # the user is shown steps, never the CLI's words
+
+
+async def test_the_logged_cli_words_are_cut_to_their_start(caplog: pytest.LogCaptureFixture) -> None:
+    pool = _FailingPool(AcpError(code=AcpErrorCode.TIMEOUT, message="slow " * 2000))
+
+    with caplog.at_level(logging.WARNING, logger=_STREAM_LOGGER):
+        await _errors(pool)
+
+    (record,) = _failure_logs(caplog)
+    assert len(record.getMessage()) < 700
+
+
+async def test_a_failure_shown_with_the_cli_words_is_not_logged_a_second_time(caplog: pytest.LogCaptureFixture) -> None:
+    pool = _FailingPool(AcpError(code=AcpErrorCode.PROCESS_CRASHED, message="claude exited with code 1"))
+
+    with caplog.at_level(logging.WARNING, logger=_STREAM_LOGGER):
+        await _errors(pool)
+
+    assert _failure_logs(caplog) == []

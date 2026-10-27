@@ -3,7 +3,7 @@
 [INPUT]
 - app.core.utils.delivery_provenance::resolve_general_agent_pipeline_labels, apply_delivery_banner (POS: Human ingress banner + structured log labels keyed by channel_name.)
 - app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware::reset_answer_tool_convergence (POS: 工具约束中间件的收敛状态重置)
-- app.services.external_agents.delegate_errors::agent_unavailable_event (POS: 直连委托失败的用户指引)
+- app.ai_agents.general_agent.forced_delegate::stream_forced_delegate (POS: 指定外部 Agent 的直连委托：安全闸门、可用性检查、失败指引)
 
 [OUTPUT]
 - execute_stream_pipeline: Primary LangGraph execution loop for streamed general agent runs.
@@ -13,44 +13,26 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
+from app.ai_agents.general_agent.forced_delegate import stream_forced_delegate
 from app.core.utils.delivery_provenance import (
     apply_delivery_banner,
     resolve_general_agent_pipeline_labels,
 )
-from app.services.external_agents.delegate_errors import agent_unavailable_event
 
 if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
+    from langgraph.types import Command
+    from myrm_agent_harness.agent.goals.protocols import GoalProvider
+    from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
     from app.ai_agents.general_agent.agent import GeneralAgent
 
 logger = logging.getLogger(__name__)
-
-
-def _force_external_delegate_denial_reason(
-    agent_wrapper: "GeneralAgent",
-    force_external_agent: str,
-) -> str | None:
-    """Return denial reason when invoke_external_agent is blocked for direct delegate."""
-    from myrm_agent_harness.agent.security.config import parse_security_config
-    from myrm_agent_harness.agent.security.engine import evaluate_tool_call
-    from myrm_agent_harness.agent.security.types import PermissionAction
-
-    config = parse_security_config(agent_wrapper.security_config_raw)
-    if config is None:
-        return "invoke_external_agent denied: security config missing"
-    action, reason = evaluate_tool_call(
-        "invoke_external_agent",
-        {"agent": force_external_agent},
-        config,
-    )
-    if action != PermissionAction.ALLOW:
-        return reason or f"invoke_external_agent {action.value} by security policy"
-    return None
 
 
 async def execute_stream_pipeline(
@@ -81,62 +63,26 @@ async def execute_stream_pipeline(
         message_id,
         chat_id or "",
     )
-    query = apply_delivery_banner(query, channel_label=ch_label, ingress_label=ingress_label)
-    query_preview = query if isinstance(query, str) else "[multimodal]"
 
     if chat_id:
         agent_wrapper._runtime_pool_scope_id = chat_id
 
     if force_external_agent:
-        deny_reason = _force_external_delegate_denial_reason(
-            agent_wrapper,
-            force_external_agent,
-        )
-        if deny_reason:
-            logger.warning(
-                "Direct external delegate blocked by security policy: agent=%s reason=%s",
+        async with aclosing(
+            stream_forced_delegate(
+                agent_wrapper,
+                query,
                 force_external_agent,
-                deny_reason,
+                cancel_token=cancel_token,
+                chat_id=chat_id,
             )
-            yield {
-                "type": "error",
-                "data": f"External agent delegation denied: {deny_reason}",
-            }
-            return
-
-    if force_external_agent and agent_wrapper._runtime_pool is None:
-        await agent_wrapper._ensure_runtime_pool()
-
-    if force_external_agent and agent_wrapper._runtime_pool is not None:
-        if force_external_agent in agent_wrapper._runtime_pool.available_backends:
-            logger.warning(
-                "🔗 Direct routing to external agent: %s query='%s'",
-                force_external_agent,
-                query_preview,
-            )
-            try:
-                async with aclosing(
-                    agent_wrapper._direct_delegate_stream(
-                        force_external_agent,
-                        query,
-                        cancel_token=cancel_token,
-                        chat_id=chat_id,
-                    )
-                ) as delegate_events:
-                    async for event in delegate_events:
-                        yield event
-            except Exception:
-                logger.error("Direct delegate failed: %s", force_external_agent, exc_info=True)
-                yield {
-                    "type": "error",
-                    "data": f"External agent '{force_external_agent}' execution failed",
-                }
-            return
-
-    if force_external_agent:
-        logger.warning("Direct external delegate unavailable: agent=%s", force_external_agent)
-        yield agent_unavailable_event(force_external_agent, agent_wrapper.locale or "en")
+        ) as forced_events:
+            async for event in forced_events:
+                yield event
         return
+
+    query = apply_delivery_banner(query, channel_label=ch_label, ingress_label=ingress_label)
+    query_preview = query if isinstance(query, str) else "[multimodal]"
 
     if agent_wrapper.jit_subagents:
         roster_lines = [
@@ -309,7 +255,7 @@ async def execute_stream_pipeline(
             context["on_goal_hold"] = build_goal_hold_callback()
 
             # Enrich active goal with relevant historical learnings
-            goal_provider = context["goal_provider"]
+            goal_provider = cast("GoalProvider", context["goal_provider"])
             active_goal = await goal_provider.get_active_goal(effective_chat_id)
             if active_goal and memory_manager is not None and not active_goal.metadata.get("relevant_learnings"):
                 learnings = await retrieve_relevant_learnings(
@@ -349,9 +295,10 @@ async def execute_stream_pipeline(
                 browser_source=getattr(agent_wrapper, "browser_source", None),
             ):
                 try:
+                    # process_stream takes the loosely typed shapes its many callers pass; these are the ones run() accepts.
                     async for event in agent_wrapper.agent.run(
-                        query,
-                        chat_history=chat_history,
+                        cast("str | list[dict[str, object]] | Command[object]", query),
+                        chat_history=cast("ChatHistoryReq | list[BaseMessage] | None", chat_history),
                         message_id=message_id,
                         context=context,
                         cancel_token=cancel_token,

@@ -100,7 +100,7 @@ async def test_the_turn_runs_the_prompt_on_the_given_session() -> None:
     assert pool.turns == [("claude", "do it", "claude-chat-1")]
 
 
-async def test_a_turn_streams_its_text_and_reasoning_between_a_connecting_and_a_completed_step() -> None:
+async def test_a_turn_streams_its_text_and_reasoning_between_a_running_and_a_completed_status_step() -> None:
     pool = _ScriptedPool(
         _playing(
             _event(RuntimeEventType.REASONING_DELTA, content="hmm"),
@@ -110,13 +110,15 @@ async def test_a_turn_streams_its_text_and_reasoning_between_a_connecting_and_a_
 
     events = await _stream(pool)
 
+    # The status step carries no wording of ours: the frontend words its title in the user's language.
     assert [(event["type"], event.get("data")) for event in events] == [
-        (_STEPS, [{"text": "claude: connecting"}]),
+        (_STEPS, []),
         (AgentEventType.REASONING.value, {"content": "hmm", "source": "delegate:claude"}),
         (AgentEventType.MESSAGE.value, "hello"),
-        (_STEPS, [{"text": "claude: completed"}]),
+        (_STEPS, []),
         (_MESSAGE_END, ""),
     ]
+    assert "status" not in events[0]
     assert events[-2]["step_key"] == "delegation_claude_status"
     assert events[-2]["status"] == "completed"
 
@@ -280,18 +282,36 @@ async def test_a_continuity_status_becomes_a_title_only_notice(continuity: Conti
     }
 
 
-async def test_any_other_status_update_is_a_status_line() -> None:
+async def test_a_status_update_shows_only_what_the_cli_itself_said() -> None:
     pool = _ScriptedPool(
         _playing(
-            _event(RuntimeEventType.STATUS_UPDATE, status="starting"),
+            _event(RuntimeEventType.STATUS_UPDATE, status="working", message="1m 05s"),
             _event(RuntimeEventType.STATUS_UPDATE, status="warning", message="slow"),
         )
     )
 
-    _, starting, warning, _ = _steps(await _stream(pool), "delegation_claude_status")
+    _, working, warning, _ = _steps(await _stream(pool), "delegation_claude_status")
 
-    assert (_line(starting), _line(warning)) == ("claude: starting", "claude: warning — slow")
-    assert "status" not in starting
+    assert (_line(working), _line(warning)) == ("1m 05s", "slow")
+    assert "status" not in working and "status" not in warning
+
+
+@pytest.mark.parametrize(
+    "update",
+    [
+        {"status": "starting"},
+        {"status": "starting", "message": "Spawning ACP agent process"},
+        {"status": "working"},
+        {"status": "working", "message": 5},
+        {"status": "something_new", "message": "text of ours"},
+    ],
+)
+async def test_a_status_update_with_nothing_for_the_user_leaves_the_status_step_without_text(update: dict[str, object]) -> None:
+    pool = _ScriptedPool(_playing(_event(RuntimeEventType.STATUS_UPDATE, **update)))
+
+    _, step, _ = _steps(await _stream(pool), "delegation_claude_status")
+
+    assert step["data"] == []
 
 
 async def test_reaching_the_turn_limit_is_a_stop_and_not_an_error() -> None:
@@ -300,7 +320,16 @@ async def test_reaching_the_turn_limit_is_a_stop_and_not_an_error() -> None:
     events = await _stream(pool)
 
     assert AgentEventType.ERROR.value not in _types(events)
-    assert (_line(events[-2]), events[-2]["status"]) == ("claude: stopped at its turn limit", "completed")
+    status, notice = events[-3], events[-2]
+    assert (status["step_key"], status["status"], status["data"]) == ("delegation_claude_status", "completed", [])
+    # The sentence is the frontend's, in the user's language: a title-only, already finished step.
+    assert notice == {
+        "type": _STEPS,
+        "step_key": "delegation_claude_turn_limit",
+        "tool_name": "delegate:claude",
+        "status": "completed",
+        "data": [],
+    }
     assert events[-1]["type"] == _MESSAGE_END
 
 
@@ -312,7 +341,7 @@ async def test_a_failed_turn_reports_the_error_and_marks_its_last_step_failed() 
     assert [event for event in events if event["type"] == AgentEventType.ERROR.value] == [
         {"type": AgentEventType.ERROR.value, "data": "claude exited with code 1"}
     ]
-    assert (_line(events[-2]), events[-2]["status"]) == ("claude: failed", "error")
+    assert (events[-2]["step_key"], events[-2]["status"], events[-2]["data"]) == ("delegation_claude_status", "error", [])
     assert events[-1]["type"] == _MESSAGE_END
 
 

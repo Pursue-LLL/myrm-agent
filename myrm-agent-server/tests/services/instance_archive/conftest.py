@@ -117,6 +117,14 @@ def source_state(tmp_path: Path) -> Path:
         seal_config({"servers": {"fs": {"command": "npx", "args": ["x"]}}}, SOURCE_KEY),
         encrypted=True,
     )
+    put_config(
+        conn,
+        "externalAgents",
+        seal_config(
+            {"agents": [{"name": "claude", "env": {"HTTPS_PROXY": "http://u:external-agent-secret@proxy"}}]}, SOURCE_KEY
+        ),
+        encrypted=True,
+    )
     put_config(conn, "telegramCredentials", seal_config({"bot": "tg-secret"}, SOURCE_KEY), encrypted=True)
     put_config(conn, "channelInstances", {"telegram": ["a"]})
     put_config(conn, "onboarding", {"done": True})

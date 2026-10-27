@@ -1,7 +1,7 @@
 """Direct delegation: one external-agent turn streamed to the frontend as SSE events.
 
 [INPUT]
-- myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型), on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流)
+- myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型), on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流), redact_sensitive_text (POS: 写日志前的凭证脱敏)
 - myrm_agent_harness.toolkits.acp.types (POS: 外部 Agent 委托协议：运行时事件、错误码、委托池)
 - app.services.external_agents.delegate_errors::delegate_error_event (POS: 直连委托失败的用户指引)
 
@@ -10,18 +10,20 @@
 
 [POS]
 绕过 LangChain Agent 的外部 Agent 直连路由的事件翻译层。每次外部工具调用是一个带 tool_call_id 的独立步骤
-（开始与结果落在同一步）；会话没有被续接时发一个只有标题的步骤，措辞由前端按当前语言给出。停止（令牌取消）
-经 pool.cancel 终止外部进程，外部 Agent 静默时同样即时生效。失败时：用户能自己处置的（未登录、未安装、超时）
-给带处置步骤的错误事件，其余保持 CLI 的原话。
+（开始与结果落在同一步）。状态步骤的措辞由前端按当前语言给出，这里只带 CLI 自己给的内容（已运行时长、CLI 的
+警告原文）；会话没有被续接、回合停在轮数上限，都是只有标题的已完成步骤。停止（令牌取消）经 pool.cancel
+终止外部进程，外部 Agent 静默时同样即时生效。失败时：用户能自己处置的（未登录、未安装、超时）给带处置步骤的
+错误事件，CLI 的原话改记 WARNING 日志（脱敏并截断）；其余保持 CLI 的原话。
 """
 
 from __future__ import annotations
 
+import logging
 from contextlib import aclosing
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypeAlias
 
-from myrm_agent_harness.api import AgentEventType, on_token_cancelled
+from myrm_agent_harness.api import AgentEventType, on_token_cancelled, redact_sensitive_text
 from myrm_agent_harness.toolkits.acp.types import AcpError, AcpErrorCode, ContinuityStatus, RuntimeEventType
 
 from app.services.external_agents.delegate_errors import delegate_error_event
@@ -32,10 +34,18 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.types import DelegationPool, RuntimeEvent
     from myrm_agent_harness.utils import CancellationToken
 
+logger = logging.getLogger(__name__)
+
 SseEvent: TypeAlias = dict[str, object]
 
 # A failed tool call shows the start of the text it failed with, not the whole output.
 _MAX_TOOL_ERROR_CHARS = 300
+# The CLI's own words of a failure the user is given steps for instead; logged, so only their start is kept.
+_MAX_LOGGED_FAILURE_CHARS = 500
+
+# Statuses whose message the CLI itself supplies and the user can read as is: how long a silent turn has run, and
+# the CLI's own warning. Every other status (``starting``, ...) is only the step's running state.
+_STATUSES_WITH_BODY = frozenset({"working", "warning"})
 
 
 class _Outcome(StrEnum):
@@ -70,7 +80,7 @@ class _TurnTranslator:
         self.outcome = _Outcome.COMPLETED
 
     def connecting(self) -> SseEvent:
-        return self._status_step("connecting")
+        return self._status_step()
 
     def translate(self, event: RuntimeEvent) -> list[SseEvent]:
         data = event.data
@@ -103,25 +113,36 @@ class _TurnTranslator:
 
     def closing(self) -> list[SseEvent]:
         """The final status line and the end of the message (a cancelled turn has neither)."""
+        end: SseEvent = {"type": AgentEventType.MESSAGE_END.value, "data": ""}
         match self.outcome:
             case _Outcome.TURN_LIMIT:
-                status = self._status_step("stopped at its turn limit", state="completed")
+                return [self._status_step(state="completed"), self._notice("turn_limit"), end]
             case _Outcome.FAILED:
-                status = self._status_step("failed", state="error")
+                return [self._status_step(state="error"), end]
             case _:
-                status = self._status_step("completed", state="completed")
-        return [status, {"type": AgentEventType.MESSAGE_END.value, "data": ""}]
+                return [self._status_step(state="completed"), end]
 
-    def _status_step(self, text: str, *, state: str | None = None) -> SseEvent:
+    def _status_step(self, text: str = "", *, state: str | None = None) -> SseEvent:
+        """The delegation's status line. The frontend words its title; ``text`` is only what the CLI itself said."""
         event: SseEvent = {
             "type": AgentEventType.TASKS_STEPS.value,
             "step_key": f"delegation_{self._agent}_status",
             "tool_name": self._source,
-            "data": [{"text": f"{self._agent}: {text}"}],
+            "data": [{"text": text}] if text else [],
         }
         if state:
             event["status"] = state
         return event
+
+    def _notice(self, kind: str) -> SseEvent:
+        """A finished step the UI words itself (title only): ``kind`` picks the sentence, not a step still running."""
+        return {
+            "type": AgentEventType.TASKS_STEPS.value,
+            "step_key": f"delegation_{self._agent}_{kind}",
+            "tool_name": self._source,
+            "status": "completed",
+            "data": [],
+        }
 
     def _tool_step(self, call_id: str, line: str, *, state: str | None = None, error: str | None = None) -> SseEvent:
         # Every update resends the line: the frontend replaces a step's items with whatever the update carries.
@@ -159,19 +180,14 @@ class _TurnTranslator:
         return self._tool_step(call_id, line, state="completed")
 
     def _status_update(self, data: Mapping[str, object]) -> SseEvent:
-        status = data.get("status", "")
+        status = str(data.get("status", ""))
         continuity = ContinuityStatus.of(status)
         if continuity is not None:
-            # A notice the UI words itself (title only), not a step that is still running.
-            return {
-                "type": AgentEventType.TASKS_STEPS.value,
-                "step_key": f"delegation_{self._agent}_{continuity}",
-                "tool_name": self._source,
-                "status": "completed",
-                "data": [],
-            }
-        message = data.get("message", "")
-        return self._status_step(f"{status}" + (f" — {message}" if message else ""))
+            return self._notice(continuity)
+        message = data.get("message")
+        if status in _STATUSES_WITH_BODY and isinstance(message, str):
+            return self._status_step(message)
+        return self._status_step()
 
     def _usage(self, data: Mapping[str, object]) -> list[SseEvent]:
         input_tokens = _token_count(data.get("input_tokens"))
@@ -208,6 +224,13 @@ class _TurnTranslator:
         if isinstance(error, AcpError):
             guidance = delegate_error_event(self._agent, error, auth_mode=self._auth_mode, locale=self._locale)
             if guidance is not None:
+                # The user is given steps instead of the CLI's words; keep the words for whoever debugs it.
+                logger.warning(
+                    "external_agent_failure agent=%s code=%s detail=%s",
+                    self._agent,
+                    error.code.value,
+                    redact_sensitive_text(error.message)[:_MAX_LOGGED_FAILURE_CHARS],
+                )
                 return [guidance]
         message = getattr(error, "message", str(error)) if error else "Unknown error"
         return [{"type": AgentEventType.ERROR.value, "data": message}]
