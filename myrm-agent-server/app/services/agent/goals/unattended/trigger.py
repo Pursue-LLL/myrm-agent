@@ -1,6 +1,6 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, gateway (session reservation), CancellationRegistry, unattended_goal_failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
+[INPUT] streaming, gateway (session reservation), CancellationRegistry, failure, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile. The turn
 takes its session and registers a cancel token before its agent is built, like a chat turn does, so a pause,
@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken
 
-from app.services.agent.goals.unattended_goal_failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
+from app.services.agent.goals.unattended.failure import TriggerFailurePolicy, handle_unattended_goal_stream_failure
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider

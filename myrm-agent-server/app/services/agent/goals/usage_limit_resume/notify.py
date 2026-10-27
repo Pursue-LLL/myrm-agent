@@ -1,7 +1,7 @@
 """User notification for a goal parked on, resumed from, or stopped by a provider usage limit.
 
 [INPUT]
-- app.services.agent.goals.unattended_goal_failure::resolve_user_locale (POS: personal-settings locale)
+- app.services.agent.goals.unattended::resolve_user_locale (POS: personal-settings locale)
 - app.channels.i18n.engine::channel_t (POS: localized notification copy)
 - app.services.event.app_event_bus (POS: SYSTEM_NOTIFICATION fan-out to WebUI/Tauri)
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.channels.i18n.engine import channel_t
-from app.services.agent.goals.unattended_goal_failure import resolve_user_locale
+from app.services.agent.goals.unattended import resolve_user_locale
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 GOAL_USAGE_LIMIT_KIND = "goal_usage_limit"

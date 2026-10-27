@@ -50,7 +50,7 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
+            "app.services.agent.goals.unattended.trigger_goal_stream_with_failure_policy",
             new_callable=AsyncMock,
             return_value=True,
         ) as mock_trigger,
@@ -99,7 +99,7 @@ async def test_maybe_resume_goal_skips_unmatched_job_id():
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
+            "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
             new_callable=AsyncMock,
         ) as mock_trigger,
     ):
@@ -150,7 +150,7 @@ async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
+            "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
             new_callable=AsyncMock,
             side_effect=RuntimeError("stream failed"),
         ),

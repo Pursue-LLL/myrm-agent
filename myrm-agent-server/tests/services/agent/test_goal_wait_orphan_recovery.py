@@ -99,7 +99,7 @@ async def test_release_orphaned_wait_goals_updates_status() -> None:
             return_value=mock_storage,
         ),
         patch(
-            "app.services.agent.goals.unattended_goal_failure.publish_goal_needs_review_notification",
+            "app.services.agent.goals.unattended.publish_goal_needs_review_notification",
             new_callable=AsyncMock,
         ) as notify,
     ):

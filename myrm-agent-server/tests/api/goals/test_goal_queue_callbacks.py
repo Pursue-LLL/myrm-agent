@@ -7,7 +7,7 @@ import pytest
 from app.ai_agents.general_agent.goal_learnings import _try_dequeue_next, build_loop_restart_callback
 
 _REGISTRY = "app.services.agent.goals.goal_registry.GoalRegistry"
-_TRIGGER = "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream_with_failure_policy"
+_TRIGGER = "app.services.agent.goals.unattended.trigger_goal_stream_with_failure_policy"
 _EVENT_BUS = "app.services.event.app_event_bus.get_event_bus"
 
 

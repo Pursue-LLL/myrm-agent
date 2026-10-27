@@ -480,7 +480,7 @@ class TestTryDequeueNext:
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
+                "app.services.agent.goals.unattended.trigger_goal_stream_with_failure_policy",
                 new_callable=AsyncMock,
                 return_value=True,
             ) as mock_trigger,
@@ -516,7 +516,7 @@ class TestTryDequeueNext:
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
+                "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
                 new_callable=AsyncMock,
             ) as mock_trigger,
         ):
@@ -549,7 +549,7 @@ class TestTryDequeueNext:
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
+                "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
                 new_callable=AsyncMock,
             ) as mock_trigger,
         ):

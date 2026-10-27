@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal persistence and lifecycle)
 - app.services.agent.gateway::get_agent_gateway (POS: in-flight session, interrupt signal and drain state)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: cancels the running message)
-- app.services.agent.goals.goal_stream_trigger::trigger_goal_stream_with_failure_policy (POS: unattended goal continuation stream)
+- app.services.agent.goals.unattended::trigger_goal_stream_with_failure_policy (POS: unattended goal continuation stream)
 
 [OUTPUT]
 - NON_TERMINAL_GOAL_STATUSES: statuses a goal can still leave
@@ -30,7 +30,7 @@ from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancelReason
 
 from app.services.agent.gateway import get_agent_gateway
-from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider

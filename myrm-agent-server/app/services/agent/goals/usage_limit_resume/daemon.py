@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api.hooks::GOAL_WAIT_* / PROVIDER_WINDOW_HOLD_MAX_S / pause_goal_after_missed_wake (POS: parked-goal vocabulary)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: session GoalProvider)
-- app.services.agent.goals.goal_stream_trigger::trigger_goal_stream_with_failure_policy (POS: unattended headless stream)
+- app.services.agent.goals.unattended::trigger_goal_stream_with_failure_policy (POS: unattended headless stream)
 - app.services.agent.gateway::get_agent_gateway (POS: in-flight session and drain state)
 - app.services.agent.goals.usage_limit_resume.notify (POS: user notification)
 
@@ -42,7 +42,7 @@ from myrm_agent_harness.api.hooks import (
 
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.goals.goal_registry import GoalRegistry
-from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 from app.services.agent.goals.usage_limit_resume.notify import publish_goal_usage_limit_notification
 
 logger = logging.getLogger(__name__)

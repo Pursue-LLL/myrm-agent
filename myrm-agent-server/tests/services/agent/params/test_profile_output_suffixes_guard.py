@@ -23,7 +23,7 @@ PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
         "app/api/voice/realtime.py",
         "app/api/voice/gemini_live.py",
         "app/ai_agents/custom_agent_factory.py",
-        "app/services/agent/goals/goal_stream_trigger.py",
+        "app/services/agent/goals/unattended/trigger.py",
     }
 )
 

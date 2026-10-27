@@ -17,7 +17,8 @@ from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
 from app.services.agent.gateway import AgentDrainingError, get_agent_gateway
-from app.services.agent.goals import goal_controls, goal_stream_trigger
+from app.services.agent.goals import goal_controls
+from app.services.agent.goals.unattended import trigger
 
 _WAIT_SECONDS = 2.0
 
@@ -86,7 +87,7 @@ def _trigger_environment(stream: Callable[..., AsyncIterator[object]]) -> Iterat
         stack.enter_context(patch("app.services.agent.streaming.ai_agent_service_stream", stream))
         handler = stack.enter_context(
             patch(
-                "app.services.agent.goals.goal_stream_trigger.handle_unattended_goal_stream_failure",
+                "app.services.agent.goals.unattended.trigger.handle_unattended_goal_stream_failure",
                 new_callable=AsyncMock,
             )
         )
@@ -141,14 +142,14 @@ def _trigger_environment(stream: Callable[..., AsyncIterator[object]]) -> Iterat
 
 
 async def _start(chat: str, provider: AsyncMock | None = None) -> None:
-    await goal_stream_trigger.trigger_goal_stream(
+    await trigger.trigger_goal_stream(
         chat, _goal(chat), provider=provider or AsyncMock(), on_failure="needs_human_review", context="runtime test"
     )
 
 
 async def _settle() -> None:
     """Wait for every goal stream the trigger started to end; call it once the stand-in agent is no longer held."""
-    pending = tuple(goal_stream_trigger._running_goal_tasks)
+    pending = tuple(trigger._running_goal_tasks)
     if pending:
         await asyncio.wait_for(asyncio.gather(*pending), timeout=_WAIT_SECONDS)
 

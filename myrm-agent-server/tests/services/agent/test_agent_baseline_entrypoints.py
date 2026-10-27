@@ -34,7 +34,7 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
         "ExecutionSurface.KANBAN",
     ),
     (
-        "app/services/agent/goals/goal_stream_trigger.py",
+        "app/services/agent/goals/unattended/trigger.py",
         "resolve_agent_mount",
         "ExecutionSurface.WEB_CHAT",
     ),

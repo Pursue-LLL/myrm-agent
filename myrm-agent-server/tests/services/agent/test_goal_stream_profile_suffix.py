@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
-from app.services.agent.goals.goal_stream_trigger import (
+from app.services.agent.goals.unattended.trigger import (
     GoalStreamAgentContext,
     _resolve_goal_stream_agent_context,
     trigger_goal_stream,
@@ -155,7 +155,7 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
 
     with (
         patch(
-            "app.services.agent.goals.goal_stream_trigger._resolve_goal_stream_agent_context",
+            "app.services.agent.goals.unattended.trigger._resolve_goal_stream_agent_context",
             new_callable=AsyncMock,
             return_value=agent_ctx,
         ),
@@ -270,7 +270,7 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
 
     with (
         patch(
-            "app.services.agent.goals.goal_stream_trigger._resolve_goal_stream_agent_context",
+            "app.services.agent.goals.unattended.trigger._resolve_goal_stream_agent_context",
             new_callable=AsyncMock,
             return_value=agent_ctx,
         ),

@@ -37,7 +37,7 @@ and pushes human-readable notifications to user-configured IM channels
 | `NEW_SKILL_DRAFT` | ✅ | `skills/draft_notification` |
 | `MESSAGE_DEAD_LETTERED` | ✅ | `channels/__init__` |
 | `CHANNEL_DISCONNECTED` | ✅ | `core/channel_bridge/setup` |
-| `SYSTEM_NOTIFICATION` | ✅ | `background_job_finish_handler`, `skills/nightly_review`, `checkpoint/*`, `cron/push_store`, `goals/goal_stream_trigger`, `channel_bridge/webui_voice_work_notifier` (idle-task completions never raise one) |
+| `SYSTEM_NOTIFICATION` | ✅ | `background_job_finish_handler`, `skills/nightly_review`, `checkpoint/*`, `cron/push_store`, `goals/unattended/trigger`, `channel_bridge/webui_voice_work_notifier` (idle-task completions never raise one) |
 | `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push (the `detail` is the task's result or blocked reason; a failed task carries none); lifecycle events silently skipped |
 | `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, turns_used, execution_duration_s, total_tokens, total_cost_usd and verifications. Additionally, `GoalTerminalNotifier` (in `channel_bridge/goal_terminal_notifier.py`) delivers results back to the originating IM thread when the Goal carries source channel metadata |
 | `OAUTH_REAUTH_REQUIRED` | ✅ | `services/agent/oauth_refresher` — published when the provider rejects the refresh grant (HTTP 400/401 with an OAuth error body), or the refresh_token is missing; per-issuer 300s dedup to avoid notification storms |

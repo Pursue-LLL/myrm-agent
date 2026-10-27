@@ -47,7 +47,7 @@ _NO_ANSWER_TEXT = {
     "api/voice/agent_bridge.py": "spoken output is not retractable",
     "api/voice/realtime.py": "spoken output is not retractable",
     # Drains the stream to completion for its side effects and discards every event.
-    "services/agent/goals/goal_stream_trigger.py": "events are discarded",
+    "services/agent/goals/unattended/trigger.py": "events are discarded",
 }
 
 
