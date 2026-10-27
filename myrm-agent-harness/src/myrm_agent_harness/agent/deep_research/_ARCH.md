@@ -13,7 +13,8 @@ Detailed design: [DEEP_RESEARCH_SYSTEM.md](DEEP_RESEARCH_SYSTEM.md)
 | config.py | Config | Configuration and type definitions (`DeepResearchPhase`: CLARIFY→PLAN→EXPLORE→RESEARCH→REPORT) | ✅ |
 | helpers.py | Core | Stateless helper functions for orchestrator phases and cost estimation | ✅ |
 | orchestrator.py | Core | Multi-phase orchestrator event loop; composes plan/research + phase mixins | ✅ |
-| _orchestrator_phases.py | Internal | Clarification (`CLARIFICATION_REQUIRED` + `MESSAGE`), research dispatch, and report generation mixin | ✅ |
+| _orchestrator_phases.py | Internal | Clarification (`CLARIFICATION_REQUIRED` + `MESSAGE`) and report generation mixin | ✅ |
+| _orchestrator_dispatch.py | Internal | Parallel research agent dispatch mixin; each agent runs inside `ephemeral_run_scope`, on guards of its own and under the dispatching run's approval session | ✅ |
 | _orchestrator_plan_research.py | Internal | Plan + research-loop phase mixin (`_phase_plan`, `_phase_research`) | ✅ |
 | prompts.py | Core | All prompt templates for the Deep Research system | ✅ |
 

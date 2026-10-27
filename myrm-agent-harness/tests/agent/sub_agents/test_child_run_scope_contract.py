@@ -1,10 +1,10 @@
-"""Every reset a run opens with is accounted for in ``child_run_scope``.
+"""Every reset a run opens with is accounted for in ``isolated_run_guards``.
 
-``reset_all_guards`` is what a run does first, and it is the list ``child_run_scope`` has to answer: a guard it
-clears in place would be cleared out from under the parent by a child's run, unless the scope hands the child
-a guard of its own. The classification below is read against the functions themselves, so a reset added to
-``reset_all_guards`` fails here until someone decides which kind it is, and an in-place one fails until the
-child scope isolates it.
+``reset_all_guards`` is what a run does first, and it is the list ``isolated_run_guards`` (the guard isolation
+under ``child_run_scope`` and ``ephemeral_run_scope``) has to answer: a guard it clears in place would be cleared
+out from under the caller by a nested run, unless the scope hands that run a guard of its own. The
+classification below is read against the functions themselves, so a reset added to ``reset_all_guards`` fails
+here until someone decides which kind it is, and an in-place one fails until the scope isolates it.
 """
 
 from __future__ import annotations
@@ -14,9 +14,9 @@ import inspect
 import textwrap
 from collections.abc import Callable
 
-from myrm_agent_harness.agent._internals._agent_helpers import child_run_scope, reset_all_guards
+from myrm_agent_harness.agent._internals._agent_helpers import isolated_run_guards, reset_all_guards
 
-# Clears state shared by every run of the process or the context, and the guard ``child_run_scope`` gives a child instead.
+# Clears state shared by every run of the process or the context, and the guard ``isolated_run_guards`` gives a nested run instead.
 _RESET_IN_PLACE = {
     "reset_loop_guard": "child_loop_guard",
     "reset_frequency_guard": "isolated_frequency_guard",
@@ -54,13 +54,13 @@ def test_every_reset_a_run_opens_with_is_classified() -> None:
     assert resets == set(_RESET_IN_PLACE) | _RESET_REBINDING
 
 
-def test_every_reset_that_clears_in_place_has_its_isolated_counterpart_in_the_child_scope() -> None:
+def test_every_reset_that_clears_in_place_has_its_isolated_counterpart_in_the_guard_scope() -> None:
     entered = {
         name
-        for call in _calls_in(child_run_scope)
+        for call in _calls_in(isolated_run_guards)
         if isinstance(call.func, ast.Attribute) and call.func.attr == "enter_context"
         for argument in call.args
         if isinstance(argument, ast.Call) and (name := _name_of(argument))
     }
 
-    assert entered - {"scoped_value"} == set(_RESET_IN_PLACE.values())
+    assert entered == set(_RESET_IN_PLACE.values())

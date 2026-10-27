@@ -12,7 +12,9 @@ usage ledger initialization.
 
 [OUTPUT]
 - reset_all_guards: Reset all per-request guard state before a new agent run.
-- child_run_scope: Run a child agent inline with guards of its own, handing the parent's back untouched afterwards.
+- isolated_run_guards: Run a nested agent on per-run guards of its own, handing the caller's back untouched afterwards.
+- child_run_scope: Run a child agent inline as a sub-agent under its own session, on isolated guards.
+- ephemeral_run_scope: Isolated guards for a nested run that keeps its caller's identity and is never resumed.
 - release_child_run_state: Drop what a finished child's session kept (its loop guard).
 - extract_query_text: Extract human-readable query string from various input types.
 - schedule_post_run_idle_tasks: Enqueue background idle tasks after a successful agent run.
@@ -37,8 +39,10 @@ logger = get_agent_logger(__name__)
 
 __all__ = [
     "child_run_scope",
+    "ephemeral_run_scope",
     "extract_query_text",
     "init_usage_ledger",
+    "isolated_run_guards",
     "pop_checkpoint_incompatible_merged_context",
     "release_child_run_state",
     "reset_all_guards",
@@ -155,40 +159,50 @@ def reset_all_guards(
 
 
 @contextmanager
-def child_run_scope(task_id: str) -> Iterator[None]:
-    """Run a child agent inline, under its own session, without touching what its parent's run has recorded.
+def isolated_run_guards(scope_key: str) -> Iterator[None]:
+    """Run a nested agent on per-run guards of its own, handing the caller's back as they were.
 
-    A child runs inside its parent's delegating tool call and shares the context the parent's guards live in.
-    Every run starts by resetting those guards in place, so a child that shared them would erase the parent's
-    tool-call history, call window, turn and context budgets, terminal errors and the completion guard's
-    turn state. Inside this scope the child has guards of its own; when it ends the parent's are back as
-    they were, with the session, turn and subagent markers the child's run rebinds.
+    A run starts by resetting the guards it finds, in place. A nested run that shared its caller's would
+    erase the caller's tool-call history, call window, turn and context budgets, terminal errors and the
+    completion guard's turn state; nested runs that overlap would also count each other's tool calls as their
+    own. The nested run's loop guard is filed in the session registry under ``scope_key``.
 
     Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated counterpart here.
     """
-    from myrm_agent_harness.agent.middlewares._session_context import (
-        get_is_subagent,
-        get_subagent_task_id,
-        isolated_terminal_errors,
-        set_is_subagent,
-        set_subagent_task_id,
-    )
+    from myrm_agent_harness.agent.middlewares._session_context import isolated_terminal_errors
     from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import isolated_run_state
     from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import child_loop_guard
     from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
     from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard
     from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import isolated_tool_turn_budget_guard
 
-    was_subagent, parent_task_id = get_is_subagent(), get_subagent_task_id()
     with ExitStack() as scope:
-        # The child's loop guard is registered under the session its run will bind, so it is entered second.
-        scope.enter_context(scoped_value(approval_session_var, task_id))
-        scope.enter_context(child_loop_guard(task_id))
+        scope.enter_context(child_loop_guard(scope_key))
         scope.enter_context(isolated_frequency_guard())
         scope.enter_context(isolated_tool_turn_budget_guard())
         scope.enter_context(isolated_context_budget_guard())
         scope.enter_context(isolated_terminal_errors())
-        scope.enter_context(isolated_run_state(task_id))
+        scope.enter_context(isolated_run_state(scope_key))
+        yield
+
+
+@contextmanager
+def child_run_scope(task_id: str) -> Iterator[None]:
+    """Run a child agent inline, as a sub-agent under its own session, without touching its parent's run.
+
+    The child runs inside its parent's delegating tool call, so it gets the isolated guards of
+    ``isolated_run_guards``, the approval session ``task_id`` and the subagent markers. When it ends the
+    parent's guards are back as they were, with the session, turn and subagent markers the child's run rebinds.
+    """
+    from myrm_agent_harness.agent.middlewares._session_context import (
+        get_is_subagent,
+        get_subagent_task_id,
+        set_is_subagent,
+        set_subagent_task_id,
+    )
+
+    was_subagent, parent_task_id = get_is_subagent(), get_subagent_task_id()
+    with scoped_value(approval_session_var, task_id), isolated_run_guards(task_id):
         set_is_subagent(True)
         set_subagent_task_id(task_id)
         try:
@@ -196,6 +210,21 @@ def child_run_scope(task_id: str) -> Iterator[None]:
         finally:
             set_is_subagent(was_subagent)
             set_subagent_task_id(parent_task_id)
+
+
+@contextmanager
+def ephemeral_run_scope(scope_key: str) -> Iterator[None]:
+    """``isolated_run_guards`` for a nested run that keeps its caller's identity and is never resumed.
+
+    The run stays under the caller's approval session and does not become a sub-agent; a deep-research agent
+    is such a run. Nothing will resume it, so the loop guard filed for it is dropped when the block ends,
+    however it ends.
+    """
+    try:
+        with isolated_run_guards(scope_key):
+            yield
+    finally:
+        release_child_run_state(scope_key)
 
 
 def release_child_run_state(task_id: str) -> None:

@@ -7,17 +7,33 @@ clears in place; ``guard_state`` reads those marks back as one comparable value.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent._internals._agent_helpers import reset_all_guards
-from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import set_current_message_id
-from myrm_agent_harness.agent.middlewares._session_context import get_terminal_errors
+from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+    get_bound_message_id,
+    scoped_message_id,
+    set_current_message_id,
+)
+from myrm_agent_harness.agent.middlewares._session_context import (
+    get_terminal_errors,
+    set_approval_session,
+    set_is_subagent,
+    set_subagent_task_id,
+)
 from myrm_agent_harness.agent.middlewares.completion import completion_guard_state as turn_state
-from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import get_loop_guard
+from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
+    _session_loop_guards,
+    discard_session_loop_guard,
+    get_loop_guard,
+)
 from myrm_agent_harness.agent.security.guards.context_budget import get_context_budget_guard
 from myrm_agent_harness.agent.security.guards.frequency_guard import get_frequency_guard
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import get_tool_turn_budget_guard
+from myrm_agent_harness.core.context_vars import approval_session_var, chat_id_var, scoped_value
 
 MESSAGE = "msg_1"
 PARENT_TURN = "turn_parent"
@@ -41,6 +57,7 @@ class GuardState:
 
 def guard_state() -> GuardState:
     turn = turn_state.current_run_state()
+    tier = turn_state._run_disclosures.get(turn_state.run_key(), {}).get("deliverable_tier")
     return GuardState(
         tool_calls=len(get_loop_guard()._window),
         frequency_calls=int(get_frequency_guard().get_stats()["current_window_size"]),
@@ -50,7 +67,7 @@ def guard_state() -> GuardState:
         turn_refusals=turn.rejections,
         turn_forced_finish=turn.forced_finish,
         turn_evidence=len(turn.evidence),
-        turn_tier=turn_state._run_disclosures.get(turn_state.run_key(), {}).get("deliverable_tier"),
+        turn_tier=tier if isinstance(tier, dict) else None,
     )
 
 
@@ -77,3 +94,27 @@ def start_run(*, turn: str, is_resume: bool = False) -> None:
 def turn_registries() -> tuple[frozenset[str], frozenset[str]]:
     """The turn ids the completion guard currently holds state and disclosure for."""
     return frozenset(turn_state._run_states), frozenset(turn_state._run_disclosures)
+
+
+@contextmanager
+def parent_run_in_progress() -> Iterator[None]:
+    """A parent run in progress: its guards are reset and it has done some work.
+
+    The bindings the test started with and the loop guards the run registered are put back afterwards.
+    """
+    sessions_before = set(_session_loop_guards)
+    # ``set_approval_session`` overwrites both session vars; the scopes hand the test's own values back.
+    with (
+        scoped_value(approval_session_var, approval_session_var.get()),
+        scoped_value(chat_id_var, chat_id_var.get()),
+        scoped_message_id(get_bound_message_id()),
+    ):
+        set_approval_session("chat_parent")
+        start_run(turn=PARENT_TURN)
+        use_every_guard(error="network_blocked")
+        yield
+        turn_state.reset_run_state()
+        for session in set(_session_loop_guards) - sessions_before:
+            discard_session_loop_guard(session)
+        set_is_subagent(False)
+        set_subagent_task_id(None)

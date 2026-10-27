@@ -84,3 +84,18 @@ def test_child_guards_count_against_the_same_limit() -> None:
             pass
 
     assert len(_session_loop_guards) == SESSION_LOOP_GUARD_LIMIT
+
+
+def test_a_child_guard_stays_under_its_own_key_when_the_run_keeps_its_parents_session() -> None:
+    parent = _start_run("chat_parent")
+
+    def child_run() -> LoopGuard:
+        with child_loop_guard("research_1") as child:
+            reset_loop_guard()  # the child's run opens under the session it was dispatched with: the parent's
+            assert get_loop_guard() is child
+            return child
+
+    child = _in_fresh_context("chat_parent", child_run)
+
+    assert _session_loop_guards["chat_parent"] is parent
+    assert _session_loop_guards["research_1"] is child

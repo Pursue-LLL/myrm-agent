@@ -17,12 +17,12 @@
 
 ```
 DeepResearchOrchestrator (orchestrator.py)
-    │ inherits _OrchestratorPhasesMixin
+    │ inherits the plan/research, dispatch and phases mixins
     ▼
-┌──────────────┬─────────────────┬──────────────┐
-│ Clarification│ Research dispatch│ Report gen   │
-│ (_phases)    │ (parallel agents)│ (_phases)    │
-└──────────────┴─────────────────┴──────────────┘
+┌──────────────┬──────────────────┬──────────────┐
+│ Clarification│ Research dispatch │ Report gen   │
+│ (_phases)    │ (_dispatch)       │ (_phases)    │
+└──────────────┴──────────────────┴──────────────┘
          │                │
          ▼                ▼
    clarification/     sub_agents spawn
@@ -36,7 +36,8 @@ DeepResearchOrchestrator (orchestrator.py)
 | 文件 | 职责 |
 |------|------|
 | `orchestrator.py` | 主事件循环与阶段编排入口 |
-| `_orchestrator_phases.py` | 澄清 / research dispatch / 报告生成 mixin |
+| `_orchestrator_phases.py` | 澄清 / 报告生成 mixin |
+| `_orchestrator_dispatch.py` | research agent 并行分派 mixin（`_dispatch_research_agents`），每个 agent 在自己的守卫上运行 |
 | `_orchestrator_plan_research.py` | 规划 + 研究循环 mixin（`_phase_plan` / `_phase_research`） |
 | `config.py` | 配置与类型定义 |
 | `prompts.py` | 全阶段 prompt 模板 |
@@ -80,9 +81,19 @@ Server 层通过 `PhaseWaiter`（通用阶段暂停/恢复门控）实现 Clarif
 
 ---
 
+## Research agent 的守卫隔离
+
+research agent 与分派它们的 run 在同一个 context 里并行运行，而每个 run 开始时都会就地重置它找到的守卫。`_dispatch_research_agents` 因此把每个 agent 放进 `agent/_internals/_agent_helpers.ephemeral_run_scope(scope_key)`（`scope_key = research-<分派 id>-<序号>`）：
+
+- 每个 agent 拥有自己的 LoopGuard、FrequencyGuard、ToolTurnBudgetGuard、ContextBudgetGuard、terminal-error 注册表与完成门禁回合状态，结束时分派方的守卫原样回来。没有隔离时，三个 agent 抓同一个 URL 会把调用数加在同一个循环检测窗口上，每个 agent 只抓了几次就被判定为循环（见 `tests/agent/deep_research/test_dispatch_real_agents.py`），且任何一个 agent 的启动都会清空其余 agent 与分派方的窗口。
+- 与子 agent（`child_run_scope`）不同，research agent 保持分派方的 approval session，也不置 `is_subagent`：它们的工具审批仍按分派方的会话走，不会被当成委派出来的子任务。
+- 没有任何东西会恢复一个 research agent，所以它登记在 loop guard 注册表里的条目在 `ephemeral_run_scope` 结束时（无论怎样结束）即被释放。
+
+---
+
 ## 扩展指南
 
-1. 新阶段 → 对应 phase mixin（`_orchestrator_phases.py` 或 `_orchestrator_plan_research.py`）+ prompts
+1. 新阶段 → 对应 phase mixin（`_orchestrator_phases.py`、`_orchestrator_dispatch.py` 或 `_orchestrator_plan_research.py`）+ prompts
 2. 公开 API 仅通过 `deep_research/__init__.py` 导出
 3. 更新 [deep_research/_ARCH.md](_ARCH.md)
 

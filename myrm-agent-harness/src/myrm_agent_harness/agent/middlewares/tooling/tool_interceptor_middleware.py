@@ -34,7 +34,7 @@ POST-CALL:
 - SESSION_LOOP_GUARD_LIMIT: How many sessions keep a LoopGuard between run segments (least recently used dropped first)
 - get_loop_guard(): Get or create the session-scoped LoopGuard (ContextVar + session-key fallback)
 - reset_loop_guard(): Reset loop guard state; `is_resume=True` preserves CallRecord window and error signatures
-- child_loop_guard(): A LoopGuard of its own for a nested child run, restored to the parent's afterwards
+- child_loop_guard(): A LoopGuard of its own for a nested child run, filed under its own key, restored to the parent's afterwards
 - discard_session_loop_guard(): Forget the guard kept for a session that is over
 - notify_loop_guard_compaction(): Reset iteration budget after context compaction
 
@@ -93,12 +93,14 @@ logger = get_agent_logger(__name__)
 SESSION_LOOP_GUARD_LIMIT = 128
 
 _loop_guard_var: ContextVar[LoopGuard | None] = ContextVar("loop_guard", default=None)
+# The registry key a ``child_loop_guard`` block files its guard under; outside one, the approval session is the key.
+_loop_guard_key_var: ContextVar[str | None] = ContextVar("loop_guard_key", default=None)
 _session_loop_guards: dict[str, LoopGuard] = {}
 _BASH_POLL_TOOLS = frozenset({BASH_PROCESS_TOOL_NAME})
 
 
 def _loop_guard_session_key() -> str:
-    session_key = get_approval_session()
+    session_key = _loop_guard_key_var.get() or get_approval_session()
     return session_key if session_key else "__default__"
 
 
@@ -192,18 +194,19 @@ def reset_loop_guard(
 
 @contextmanager
 def child_loop_guard(session_key: str) -> Iterator[LoopGuard]:
-    """Give a nested child run a LoopGuard of its own, keyed by its session, for the ``with`` block.
+    """Give a nested child run a LoopGuard of its own, filed under ``session_key``, for the ``with`` block.
 
     A run resets the guard it finds when it starts, so a child sharing its parent's would erase the parent's
     tool-call history. The guard stays in the session registry under ``session_key`` so a resume of the same
-    child finds it again; the child's run must run under that approval session, which is where
-    ``reset_loop_guard`` binds the guard back.
+    child finds it again. Inside the block that key is where every binding of the guard files it, whichever
+    approval session the child's run was started under, so a child dispatched under its parent's session
+    never takes over the parent's registry slot.
     """
     guard = _session_loop_guards.get(session_key)
     if guard is None:
         guard = _create_loop_guard()
     _remember_loop_guard(session_key, guard)
-    with scoped_value(_loop_guard_var, guard):
+    with scoped_value(_loop_guard_var, guard), scoped_value(_loop_guard_key_var, session_key):
         yield guard
 
 

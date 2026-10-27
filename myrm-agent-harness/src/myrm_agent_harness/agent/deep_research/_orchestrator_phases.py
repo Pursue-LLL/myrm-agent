@@ -1,6 +1,6 @@
 """Phase implementations for Deep Research orchestrator.
 
-Contains the clarification phase and research agent dispatch logic.
+Contains the clarification phase and the report phase.
 
 [INPUT]
 - config::DeepResearchConfig (POS: configuration)
@@ -11,10 +11,10 @@ Contains the clarification phase and research agent dispatch logic.
 - utils.chat_utils::extract_answer_text (POS: 兼容 reasoning 模型 content 空回退的答案提取)
 
 [OUTPUT]
-- DeepResearchPhasesMixin: Mixin providing _phase_clarify and _dispatch_research_agents.
+- DeepResearchPhasesMixin: Mixin providing _phase_clarify and _phase_report.
 
 [POS]
-Phase implementations for Deep Research orchestrator (clarification, dispatch).
+Phase implementations for Deep Research orchestrator (clarification, report).
 """
 
 from __future__ import annotations
@@ -37,14 +37,15 @@ from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .helpers import (
     accumulate_usage,
-    build_research_subagent_config,
     extract_tool_calls,
     format_research_context,
 )
 from .prompts import CLARIFICATION_PROMPT
 
 if TYPE_CHECKING:
-    pass
+    from langchain_core.language_models import BaseChatModel
+
+    from .config import DeepResearchConfig
 
 logger = get_agent_logger(__name__)
 
@@ -102,23 +103,30 @@ def _format_clarify_answer(form: AskQuestionInput, answer: object) -> str:
     return _render_value(answer).strip()
 
 
+def _is_finalize_tool(tool: object) -> bool:
+    """Whether ``tool`` is the schema of the finalize signal."""
+    if not isinstance(tool, dict):
+        return False
+    function = tool.get("function")
+    return isinstance(function, dict) and function.get("name") == FINALIZE_TOOL_NAME
+
+
 class DeepResearchPhasesMixin:
-    """Mixin providing clarification phase and research agent dispatch.
+    """Mixin providing the clarification and report phases.
 
     Expects host class to have:
     - _llm: BaseChatModel
-    - _research_agent_llm: BaseChatModel | None
     - _config: DeepResearchConfig
-    - _parent_tools: list[BaseTool]
-    - _cancel_token: CancellationToken | None
-    - _context: dict
-    - _executor: object | None
     - _on_clarify: callback | None
     - _result: DeepResearchResult
     - _source_tracker: SourceTracker
+    - _phase: DeepResearchPhase
     - _make_event(...): dict
-    - _accumulate_child_usage(event): None
+    - _format_research_context(...): str
     """
+
+    _llm: BaseChatModel
+    _config: DeepResearchConfig
 
     async def _phase_clarify(
         self, history: list[BaseMessage], message_id: str, datetime_str: str
@@ -126,18 +134,12 @@ class DeepResearchPhasesMixin:
         """Phase 1: Ask clarification questions if needed."""
         from .config import DeepResearchPhase
 
-        self._phase = DeepResearchPhase.CLARIFY  # type: ignore[attr-defined]
+        self._phase = DeepResearchPhase.CLARIFY
 
         system_prompt = CLARIFICATION_PROMPT.format(current_datetime=datetime_str)
         messages: list[BaseMessage] = [SystemMessage(content=system_prompt), *history]
 
-        finalize_schema = [
-            t
-            for t in build_orchestrator_tools(include_think=False)
-            if isinstance(t, dict)
-            and isinstance(t.get("function"), dict)
-            and t["function"].get("name") == FINALIZE_TOOL_NAME
-        ]
+        finalize_schema = [t for t in build_orchestrator_tools(include_think=False) if _is_finalize_tool(t)]
 
         ask_question_schema = build_signal_schema(
             "ask_question_tool",
@@ -234,131 +236,6 @@ class DeepResearchPhasesMixin:
                     exc_info=True,
                 )
 
-    async def _dispatch_research_agents(
-        self,
-        tasks: list[dict[str, str]],
-        message_id: str,
-        event_queue: asyncio.Queue[dict[str, object]] | None = None,
-    ) -> list[str]:
-        """Run research sub-agents in parallel, returning their result texts.
-
-        When event_queue is provided, sub-agent status events are pushed to it
-        for real-time streaming to the client.
-        """
-        from myrm_agent_harness.agent.sub_agents.builder import (
-            build_standalone_agent,
-            filter_tools,
-        )
-
-        config = build_research_subagent_config(self._config)  # type: ignore[attr-defined]
-        sem = asyncio.Semaphore(self._config.max_concurrent_agents)  # type: ignore[attr-defined]
-
-        def _push_status(idx: int, task_text: str, status: str, **extra: object) -> None:
-            if event_queue is None:
-                return
-            event_queue.put_nowait(
-                self._make_event(  # type: ignore[attr-defined]
-                    AgentEventType.STATUS,
-                    message_id,
-                    data={
-                        "phase": "research",
-                        "agent_index": idx,
-                        "agent_status": status,
-                        "task": task_text[:120],
-                        **extra,
-                    },
-                )
-            )
-
-        async def run_one(task_text: str, idx: int) -> str:
-            async with sem:
-                _push_status(idx, task_text, "started")
-                messages: list[str] = []
-                try:
-                    filtered_tools = filter_tools(config, self._parent_tools)  # type: ignore[attr-defined]
-                    child = build_standalone_agent(
-                        llm=self._research_agent_llm or self._llm,  # type: ignore[attr-defined]
-                        config=config,
-                        tools=filtered_tools,
-                        task_description=task_text,
-                        executor=self._executor,  # type: ignore[attr-defined]
-                    )
-                    async for event in child.run(
-                        query=task_text,
-                        chat_history=[],
-                        context=dict(self._context),  # type: ignore[attr-defined]
-                        cancel_token=self._cancel_token,  # type: ignore[attr-defined]
-                    ):
-                        event_type = event.get("type")
-                        if event_type == AgentEventType.MESSAGE.value:
-                            content = event.get("data", "")
-                            text = content if isinstance(content, str) else str(content)
-                            messages.append(text)
-                            if event_queue is not None:
-                                event_queue.put_nowait(
-                                    self._make_event(  # type: ignore[attr-defined]
-                                        AgentEventType.STATUS,
-                                        message_id,
-                                        data={
-                                            "phase": "research",
-                                            "agent_index": idx,
-                                            "agent_status": "streaming",
-                                            "task": task_text[:120],
-                                            "content": text,
-                                        },
-                                    )
-                                )
-                        elif event_type == AgentEventType.TOOL_START.value:
-                            tool_name = event.get("tool_name", "")
-                            _push_status(idx, task_text, "tool_call", tool_name=tool_name)
-                        elif event_type == AgentEventType.SOURCES.value:
-                            raw = event.get("data", [])
-                            if isinstance(raw, list) and raw and event_queue is not None:
-                                deduped = self._source_tracker.add_batch(raw)  # type: ignore[attr-defined]
-                                if deduped:
-                                    event_queue.put_nowait(
-                                        self._make_event(  # type: ignore[attr-defined]
-                                            AgentEventType.SOURCES, message_id, data=deduped
-                                        )
-                                    )
-                        elif event_type == AgentEventType.MESSAGE_END.value:
-                            self._accumulate_child_usage(event)  # type: ignore[attr-defined]
-                        elif event_type == AgentEventType.ERROR.value:
-                            err = event.get("error", "Unknown error")
-                            logger.error("[deep-research] Research agent %d error: %s", idx, err)
-                            if messages:
-                                partial = "".join(messages)
-                                self._result.agent_results.append(  # type: ignore[attr-defined]
-                                    {"task": task_text, "result": partial, "partial": True}
-                                )
-                                _push_status(idx, task_text, "error", result_length=len(partial), partial=True)
-                                return f"{partial}\n\n[Partial — agent encountered error]"
-                            _push_status(idx, task_text, "error")
-                            return "[Research error]"
-
-                    result_text = "".join(messages)
-                    self._result.agent_results.append(  # type: ignore[attr-defined]
-                        {"task": task_text, "result": result_text}
-                    )
-                    _push_status(idx, task_text, "complete", result_length=len(result_text))
-                    logger.info("[deep-research] Agent %d completed: %d chars", idx, len(result_text))
-                    return result_text or "[No findings]"
-
-                except Exception as e:
-                    logger.error("[deep-research] Research agent %d failed: %s", idx, e, exc_info=True)
-                    if messages:
-                        partial = "".join(messages)
-                        self._result.agent_results.append(  # type: ignore[attr-defined]
-                            {"task": task_text, "result": partial, "partial": True}
-                        )
-                        _push_status(idx, task_text, "error", result_length=len(partial), partial=True)
-                        return f"{partial}\n\n[Partial — agent failed]"
-                    _push_status(idx, task_text, "error")
-                    return "[Research agent failed]"
-
-        coros = [run_one(t["task"], i) for i, t in enumerate(tasks)]
-        return list(await asyncio.gather(*coros))
-
     async def _phase_report(
         self,
         query: str,
@@ -399,10 +276,8 @@ class DeepResearchPhasesMixin:
         report_usage_captured = False
         truncated = False
         try:
-            async with asyncio.timeout(
-                self._config.report_timeout_seconds  # type: ignore[attr-defined]
-            ):
-                async for chunk in self._llm.astream(messages):  # type: ignore[attr-defined]
+            async with asyncio.timeout(self._config.report_timeout_seconds):
+                async for chunk in self._llm.astream(messages):
                     content = str(chunk.content) if chunk.content else ""
                     if content:
                         report_chunks.append(content)
@@ -420,7 +295,7 @@ class DeepResearchPhasesMixin:
             truncated = True
             logger.warning(
                 "[deep-research] Report generation timed out after %ds",
-                self._config.report_timeout_seconds,  # type: ignore[attr-defined]
+                self._config.report_timeout_seconds,
             )
 
         self._result.report = "".join(report_chunks)  # type: ignore[attr-defined]
@@ -467,5 +342,5 @@ class DeepResearchPhasesMixin:
         """Format all research agent results into a single report-context block."""
         return format_research_context(
             agent_results=self._result.agent_results,  # type: ignore[attr-defined]
-            max_chars=self._config.max_report_context_chars,  # type: ignore[attr-defined]
+            max_chars=self._config.max_report_context_chars,
         )

@@ -34,7 +34,7 @@ class DeepResearchPlanResearchMixin:
         from .config import DeepResearchPhase
         from .prompts import RESEARCH_PLAN_PROMPT, RESEARCH_PLAN_REMINDER
 
-        self._phase = DeepResearchPhase.PLAN  # type: ignore[attr-defined]
+        self._phase = DeepResearchPhase.PLAN
 
         system_prompt = RESEARCH_PLAN_PROMPT.format(current_datetime=datetime_str)
         messages: list[BaseMessage] = [
@@ -81,7 +81,7 @@ class DeepResearchPlanResearchMixin:
             build_orchestrator_reminder,
         )
 
-        self._phase = DeepResearchPhase.RESEARCH  # type: ignore[attr-defined]
+        self._phase = DeepResearchPhase.RESEARCH
         cycle = 0
         empty_iterations = 0
 
@@ -173,7 +173,9 @@ class DeepResearchPlanResearchMixin:
                 empty_iterations = 0
                 agent_event_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
                 dispatch_future = asyncio.ensure_future(
-                    self._dispatch_research_agents(dispatch_tasks, message_id, agent_event_queue)
+                    self._dispatch_research_agents(  # type: ignore[attr-defined]
+                        dispatch_tasks, message_id, agent_event_queue
+                    )
                 )
                 while not dispatch_future.done():
                     try:
@@ -254,7 +256,7 @@ class DeepResearchPlanResearchMixin:
                     )
                     break
                 if not getattr(self, "_budget_warning_sent", False) and self._is_budget_warning():  # type: ignore[attr-defined]
-                    self._budget_warning_sent = True  # type: ignore[attr-defined]
+                    self._budget_warning_sent = True
                     logger.warning(
                         "[deep-research] Budget warning ($%.4f >= %.0f%% of $%.2f) at cycle %d",
                         self._result.estimated_cost_usd,  # type: ignore[attr-defined]

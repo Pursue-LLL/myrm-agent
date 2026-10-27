@@ -180,7 +180,8 @@ Layer 5: OCap spawn handle（delegate_task 单/批量模式）
 - 子 run 期间 `approval_session` 绑定为 task id，`is_subagent` / `subagent_task_id` 置位，结束时恢复为进入前的值（孙代结束后子代仍是子代）。
 - 委派不动父的工具调用历史：写了代码、委派、再收尾的父 run，完成门禁仍按父自己的历史追问验证、拦未完成的 todo。
 - 委派不重置父的拒绝预算：每个 run 开头先重置它找到的那个消息 id 下的回合状态、之后才绑定自己的 id，所以子 run 若沿用父的 id 就会清掉父的预算；`isolated_run_state` 先绑一个临时 id 接住这次重置，因此「每次被拒就委派一次」的父 run 仍会在第 3 次拒绝后被放行收尾，而不是每次委派都重新得到 3 次。
-- 新增「就地重置」型守卫时，必须在 `child_run_scope` 里加对应的 isolated 版本；重置时重新绑定的守卫（taint 等）无需处理。
+- 新增「就地重置」型守卫时，必须在 `isolated_run_guards`（`child_run_scope` 与 `ephemeral_run_scope` 共用的守卫隔离部分）里加对应的 isolated 版本；重置时重新绑定的守卫（taint 等）无需处理。
+- 守卫隔离本身不绑定身份：`child_run_scope` 在其上再绑 approval session 与子 agent 标记，Deep Research 的 research agent 用 `ephemeral_run_scope`，保持分派方的会话（见 `deep_research/DEEP_RESEARCH_SYSTEM.md`）。
 
 ### 4. 模型解析链（4 级）
 

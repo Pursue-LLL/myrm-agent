@@ -39,6 +39,7 @@ from myrm_agent_harness.agent.streaming.source_tracker import SourceTracker
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
+from ._orchestrator_dispatch import DeepResearchDispatchMixin
 from ._orchestrator_phases import DeepResearchPhasesMixin
 from ._orchestrator_plan_research import DeepResearchPlanResearchMixin
 from .config import DeepResearchConfig, DeepResearchPhase
@@ -71,7 +72,7 @@ logger = get_agent_logger(__name__)
 __all__ = ["DeepResearchOrchestrator", "DeepResearchResult"]
 
 
-class DeepResearchOrchestrator(DeepResearchPlanResearchMixin, DeepResearchPhasesMixin):
+class DeepResearchOrchestrator(DeepResearchPlanResearchMixin, DeepResearchDispatchMixin, DeepResearchPhasesMixin):
     """State-machine orchestrator for Deep Research.
 
     Usage::
