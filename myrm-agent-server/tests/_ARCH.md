@@ -88,6 +88,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
+| `channels/test_goal_command_unwait.py` | 模块 | IM `/goal unwait`：路由器提交让目标回到工作的续跑消息（与 `/goal resume` 同一路径），没有续跑消息时什么也不提交 |
 | `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定；事件触发的发送者信任判定（`is_untrusted_event_sender`）：DM 与群聊每个会跑回合的用例都与聊天回合实际使用的围栏逐例一致且不改配对，只有 ACTIVE 的 ADMIN 配对算所有者（成员、待审批、已拉黑、陌生人一律不可信），控制面转发按其携带的身份判定（含访客回合标记），预置的 `user_id` 不能让陌生人变成所有者 |
 | `channels/routing/risk_gate_testkit.py` | 辅助 | 入站风险闸门测试的共享构建器：`make_bus()`（桩消息总线，出站消息可断言）与 `make_router()`（接在该总线上、配对仓库与执行器皆为桩的 `AgentRouter`） |
 | `channels/routing/test_inbound_risk_gate_integration.py` | 单元 | 入站风险闸门对真实检测引擎：命中规则的消息不进入 Agent 回合，发送者收到固定提示（群聊发到群里，私聊发给发送者）；干净消息、没有规则、续跑消息与空内容照常放行；多条规则时第一条命中即拦下 |
@@ -159,6 +160,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/goals/test_goal_stops_running_turn.py` | 模块 | 通过 HTTP 暂停/取消目标：正在干活的目标中断会话在途回合（网关中断信号 + 取消注册表令牌），等待中/待复核/预算受限/已暂停的目标不碰会话回合，没有在途回合时照常成功 |
 | `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则 409 且目标保持暂停）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
 | `api/goals/test_goal_stop_real_gateway.py` | 模块 | 暂停后的恢复对「已被叫停」的回合的判定（真实 `AgentGateway`，回合由测试用事件闸门卡住）：无消息 id、无取消令牌的回合（审批超时后的自动恢复）与带令牌的聊天回合同样被识别为正在停止；无人叫停的回合不拖住恢复；停止后的下一个回合不继承停止标记；暂停后立即恢复先等回合收尾、会话空闲时恰好启动一个回合；回合收尾不了则 409、目标保持暂停且不启动 |
+| `api/goals/test_goal_unwait.py` | 模块 | 经 HTTP 结束等待：等待中的目标回到运行并启动目标回合；会话已被用户消息的回合占用时只置回运行、不另起回合 |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
