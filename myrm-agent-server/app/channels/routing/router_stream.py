@@ -32,7 +32,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.channels.i18n import channel_t, get_text
-from app.channels.routing.pending_approvals import PendingApproval
+from app.channels.routing.pending_approvals import PendingApproval, session_agent_id
 from app.channels.routing.placeholder_strategy import DeferredPlaceholder
 from app.channels.routing.router_constants import _MIN_PROGRESS_INTERVAL
 from app.channels.routing.router_host import RouterStreamHost
@@ -146,7 +146,7 @@ class RouterStreamMixin:
                             card_message_id = await self._send_interactive_progress(msg, chat_id, event)
                             self._pending_approvals.register(
                                 stream_state_key,
-                                PendingApproval(card_message_id or "", msg, user_id),
+                                PendingApproval(card_message_id or "", msg, user_id, session_agent_id(topic_context)),
                                 event.expiry,
                             )
                             has_pending_approval = True

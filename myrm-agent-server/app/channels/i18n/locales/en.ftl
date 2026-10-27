@@ -16,6 +16,7 @@ approval_batch_processing_always =  Processing { $approve_count } approvals ({ $
 approval_already_handled = ℹ This approval has already been handled (it timed out or was answered elsewhere). No action needed.
 approval_timeout_approved = ⏱ Approval timed out — approved automatically.
 approval_timeout_denied = ⏱ Approval timed out — denied automatically.
+approval_superseded = ℹ This approval request was cancelled because a new message arrived. The tool was not run. Ask again if you still need it.
 approval_request = { $tools } needs approval: { $reason }
 approval_request_no_reason = { $tools } needs approval
 approval_timeout_line_deny = ⏱ Timeout: { $seconds }s (auto-deny)

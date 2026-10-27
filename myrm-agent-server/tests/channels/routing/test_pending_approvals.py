@@ -13,9 +13,14 @@ from typing import Literal
 import pytest
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
-from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY, PendingApproval, PendingApprovals
-from app.channels.types import ApprovalExpiry
-from tests.support.pending_approvals import asked_in
+from app.channels.routing.pending_approvals import (
+    METADATA_APPROVAL_TIMED_OUT_KEY,
+    PendingApproval,
+    PendingApprovals,
+    session_agent_id,
+)
+from app.channels.types import ApprovalExpiry, TopicContext
+from tests.support.pending_approvals import asked_in, empty_registry
 
 _TIMER_SECONDS = 0.05
 _CHAT_KEY = "telegram:c1"
@@ -192,3 +197,30 @@ class TestResumeMessage:
 
     def test_the_timer_key_is_the_chat_wide_key_even_inside_a_topic(self) -> None:
         assert asked_in(thread_id="t1").timer_key == asked_in().timer_key == _CHAT_KEY
+
+
+class TestTheAgentTheRequestBelongsTo:
+    """An approval belongs to the session of the agent whose turn asked, and the agent is part of the session key."""
+
+    def test_get_returns_the_open_request_without_ending_it(self) -> None:
+        registry = empty_registry()
+        pending = asked_in()
+        registry.register(_CHAT_KEY, pending, None)
+
+        assert registry.get(_CHAT_KEY) is pending
+        assert _CHAT_KEY in registry
+        assert registry.get("telegram:other") is None
+
+    @pytest.mark.parametrize(
+        ("topic_context", "expected"),
+        [
+            (None, None),
+            (TopicContext(topic_id="t1", enabled=True), None),
+            (TopicContext(topic_id="t1", agent_id="agent-x", enabled=True), "agent-x"),
+            (TopicContext(topic_id="t1", agent_id="agent-x", enabled=True, identity_revoked=True), None),
+        ],
+    )
+    def test_the_agent_of_a_turn_is_the_one_the_executor_runs_it_as(
+        self, topic_context: TopicContext | None, expected: str | None
+    ) -> None:
+        assert session_agent_id(topic_context) == expected

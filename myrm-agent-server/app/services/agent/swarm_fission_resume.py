@@ -2,43 +2,74 @@
 
 [INPUT]
 - myrm_agent_harness.agent.parallel.fission::execute_swarm_fission (POS: Parallel spawn + resume contract)
-- myrm_agent_harness.agent.base_agent::BaseAgent (POS: Agent execution base class)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: Business-layer agent wrapper whose inner SkillAgent holds the delegate tool)
 
 [OUTPUT]
-- execute_swarm_fission_for_agent: Run parallel TaskRequest batch for a fission payload
+- execute_swarm_fission_for_agent: Run parallel TaskRequest batch for a fission payload on the agent's inner SkillAgent
 - stream_with_swarm_fission_resume: Wrap agent streams with automatic Yield-Resume loop
 
 [POS]
 Server-side Swarm Fission orchestration. Keeps Web, Channel, Kanban, and FastSearch entry
-points from duplicating execute_swarm_fission + Command(resume) wiring.
+points from duplicating execute_swarm_fission + Command(resume) wiring. The harness spawns the
+parallel children through the ``delegate_task`` tool and the context of the agent it is given,
+both of which live on the wrapper's inner SkillAgent, so that is the agent it is handed.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from typing import TYPE_CHECKING, TypedDict
 
 from myrm_agent_harness.agent.parallel.config import resolve_max_parallel_fission
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.base_agent import BaseAgent
+    from app.ai_agents.general_agent.agent import GeneralAgent
+
+
+class _TaskItem(TypedDict):
+    text: str
+    agent_type: str
+    task_index: int
+
+
+class _FissionNode(TypedDict):
+    node_id: str
+    agent_type: str
+    objective: str
+    status: str
+    error: str | None
+    cost_usd: float
+
+
+class _Progress(TypedDict):
+    index: int
+    status: str
+    res: dict[str, object] | None
 
 
 async def execute_swarm_fission_for_agent(
-    agent: BaseAgent,
+    agent: GeneralAgent,
     fission_payload: dict[str, object],
     *,
     max_concurrent: int | None = None,
-    on_progress: Callable[[int, str, dict[str, object] | None], Any] | None = None,
+    on_progress: Callable[[int, str, dict[str, object] | None], Awaitable[None]] | None = None,
 ) -> dict[str, object]:
     from myrm_agent_harness.agent.parallel.fission import execute_swarm_fission
 
+    inner_agent = agent.agent
+    if inner_agent is None:
+        raise RuntimeError("Swarm fission needs the agent's built SkillAgent: the turn has not created it or it was closed.")
     return await execute_swarm_fission(
-        agent,
+        inner_agent,
         fission_payload,
         max_concurrent=max_concurrent,
         on_progress=on_progress,
     )
+
+
+def _as_int(value: object) -> int:
+    """A count read from an untyped result payload; anything that is not an integer counts as zero."""
+    return value if isinstance(value, int) else 0
 
 
 def _task_count_from_payload(fission_payload: dict[str, object]) -> int:
@@ -50,29 +81,23 @@ def _task_count_from_payload(fission_payload: dict[str, object]) -> int:
 
 def _task_items_from_payload(
     fission_payload: dict[str, object],
-) -> list[dict[str, object]]:
+) -> list[_TaskItem]:
     raw_tasks = fission_payload.get("tasks")
     if not isinstance(raw_tasks, list):
         return []
-    items: list[dict[str, object]] = []
+    items: list[_TaskItem] = []
     for index, entry in enumerate(raw_tasks):
         if not isinstance(entry, dict):
             continue
         objective = entry.get("objective") or entry.get("goal") or ""
         agent_type = entry.get("agent_type") or "general"
-        items.append(
-            {
-                "text": str(objective),
-                "agent_type": str(agent_type),
-                "task_index": index,
-            }
-        )
+        items.append(_TaskItem(text=str(objective), agent_type=str(agent_type), task_index=index))
     return items
 
 
 def _fission_step_status(fission_result: dict[str, object], task_count: int) -> str:
-    failed_count = int(fission_result.get("failed_count") or 0)
-    completed_count = int(fission_result.get("completed_count") or 0)
+    failed_count = _as_int(fission_result.get("failed_count"))
+    completed_count = _as_int(fission_result.get("completed_count"))
     status = str(fission_result.get("status") or "")
     if status == "partial_success" or (failed_count > 0 and completed_count > 0):
         return "partial_success"
@@ -86,7 +111,7 @@ def _fission_step_status(fission_result: dict[str, object], task_count: int) -> 
 
 
 async def stream_with_swarm_fission_resume(
-    agent: BaseAgent,
+    agent: GeneralAgent,
     initial_query: object,
     open_stream: Callable[[object], AsyncGenerator[dict[str, object], None]],
     *,
@@ -135,39 +160,35 @@ async def stream_with_swarm_fission_resume(
             break
 
         fission_id = str(uuid.uuid4())
-        fission_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+        fission_queue: asyncio.Queue[_Progress] = asyncio.Queue()
 
         async def _fission_on_progress(
-            idx: int, status: str, res: dict[str, object] | None, queue: asyncio.Queue[dict[str, object]] = fission_queue
+            idx: int, status: str, res: dict[str, object] | None, queue: asyncio.Queue[_Progress] = fission_queue
         ) -> None:
-            await queue.put({"index": idx, "status": status, "res": res})
+            await queue.put(_Progress(index=idx, status=status, res=res))
 
         task_items = _task_items_from_payload(fission_payload)
-        nodes_state: dict[int, dict[str, object]] = {}
-        for item in task_items:
-            nodes_state[item["task_index"]] = {
-                "node_id": f"node_{item['task_index']}",
-                "agent_type": item["agent_type"],
-                "objective": item["text"],
-                "status": "pending",
-                "error": None,
-                "cost_usd": 0.0,
-            }
+        nodes_state: dict[int, _FissionNode] = {
+            item["task_index"]: _FissionNode(
+                node_id=f"node_{item['task_index']}",
+                agent_type=item["agent_type"],
+                objective=item["text"],
+                status="pending",
+                error=None,
+                cost_usd=0.0,
+            )
+            for item in task_items
+        }
 
-        async def _save_to_db(fid: str = fission_id, nstate: dict[int, dict[str, object]] = nodes_state) -> None:
+        async def _save_to_db(fid: str = fission_id, nstate: dict[int, _FissionNode] = nodes_state) -> None:
             try:
-                chat_id_from_agent = "default"
-                if hasattr(agent, "_current_chat_id") and agent._current_chat_id:
-                    chat_id_from_agent = agent._current_chat_id
-                agent_id = agent.id if hasattr(agent, "id") else "default_agent"
-
                 async with get_session_factory()() as db:
                     await FissionRepository.create_or_update_record(
                         db,
                         fission_id=fid,
-                        chat_id=chat_id_from_agent,
-                        agent_id=agent_id,
-                        nodes=list(nstate.values()),
+                        chat_id=agent._current_chat_id or "default",
+                        agent_id=agent.agent_id or "default_agent",
+                        nodes=[dict(node) for node in nstate.values()],
                         total_cost_usd=0.0,
                     )
             except Exception as e:
@@ -198,13 +219,12 @@ async def stream_with_swarm_fission_resume(
                 needs_db_sync = False
                 while not fission_queue.empty():
                     progress = fission_queue.get_nowait()
-                    idx = int(progress.get("index", -1))
+                    idx = progress["index"]
                     if idx in nodes_state:
-                        nodes_state[idx]["status"] = progress.get("status", "running")
-                        res_info = progress.get("res")
-                        if isinstance(res_info, dict):
-                            if "error" in res_info:
-                                nodes_state[idx]["error"] = str(res_info["error"])
+                        nodes_state[idx]["status"] = progress["status"]
+                        res_info = progress["res"]
+                        if isinstance(res_info, dict) and "error" in res_info:
+                            nodes_state[idx]["error"] = str(res_info["error"])
                     needs_db_sync = True
 
                 if needs_db_sync:
@@ -225,8 +245,8 @@ async def stream_with_swarm_fission_resume(
         await _save_to_db()
 
         task_count = _task_count_from_payload(fission_payload)
-        completed_count = int(fission_result.get("completed_count") or 0)
-        failed_count = int(fission_result.get("failed_count") or 0)
+        completed_count = _as_int(fission_result.get("completed_count"))
+        failed_count = _as_int(fission_result.get("failed_count"))
         partial_success = bool(fission_result.get("partial_success")) or (failed_count > 0 and completed_count > 0)
         step_status = _fission_step_status(fission_result, task_count)
 

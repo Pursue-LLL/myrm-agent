@@ -16,6 +16,7 @@ approval_batch_processing_always =  { $approve_count } 件の承認（{ $always_
 approval_already_handled = ℹ この承認はタイムアウトしたか、すでに別の場所で処理されました。操作不要です。
 approval_timeout_approved = ⏱ 承認がタイムアウトしたため、自動的に承認されました。
 approval_timeout_denied = ⏱ 承認がタイムアウトしたため、自動的に拒否されました。
+approval_superseded = ℹ 新しいメッセージが届いたため、この承認リクエストは取り消されました。ツールは実行されていません。必要な場合は改めて依頼してください。
 approval_request = { $tools } の承認が必要です：{ $reason }
 approval_request_no_reason = { $tools } の承認が必要です
 approval_timeout_line_deny = ⏱ タイムアウト：{ $seconds } 秒（自動拒否）

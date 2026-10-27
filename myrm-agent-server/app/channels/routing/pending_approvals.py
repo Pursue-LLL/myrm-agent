@@ -3,18 +3,20 @@
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: idempotent timeout-vs-answer claim and audit record)
 - app.channels.routing.router_keys::routing_session_key (POS: the chat-wide key the resume claim is made under)
-- app.channels.types::ApprovalExpiry, InboundMessage (POS: the wait's time limit; the message a timeout resume is derived from)
+- app.channels.types::ApprovalExpiry, InboundMessage, TopicContext (POS: the wait's time limit; the message a timeout resume is derived from; the agent binding a turn runs under)
 
 [OUTPUT]
 - METADATA_APPROVAL_TIMED_OUT_KEY: marks a resume turn that the timeout, not a person, answered
 - PendingApproval: one open approval request of a chat
+- session_agent_id: the agent whose session a turn runs in, the identity of the run an approval belongs to
 - PendingApprovals: the router's registry of them, owner of the timer of each
 
 [POS]
 A turn that stops at a tool approval leaves its chat waiting. Whoever ends the wait (the chat's answer, ``/stop``,
-the janitor, the timeout) goes through this registry, so the chat, the approval card and the timer never disagree
-about whether a request is open. The timeout reports through ``on_expire``; the router resumes the run then as an
-ordinary turn, the same way it resumes one a person answered, so the resumed run is visible to ``/stop``.
+the janitor, the timeout, or a turn that starts in the session the request waits in, which takes the run it belongs
+to away) goes through this registry, so the chat, the approval card and the timer never disagree about whether a
+request is open. The timeout reports through ``on_expire``; the router resumes the run then as an ordinary turn, the
+same way it resumes one a person answered, so the resumed run is visible to ``/stop``.
 The timer's claim key is chat-wide (``channel:peer``), the key the manual resume claims under: one chat holds one
 timer at a time, so when two forum topics wait the later request's timer replaces the earlier one's, which then waits
 for an answer without a time limit.
@@ -28,12 +30,22 @@ from collections.abc import Awaitable, Callable
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.channels.routing.router_keys import routing_session_key
-from app.channels.types import ApprovalExpiry, InboundMessage
+from app.channels.types import ApprovalExpiry, InboundMessage, TopicContext
 
 METADATA_APPROVAL_TIMED_OUT_KEY = "approval_timed_out"
 
 # Set per message from the chat's session state when a turn starts; a copy from an earlier turn must not outlive it.
 _SESSION_SCOPED_METADATA = ("yolo_state", "personality_style", "force_new_epoch")
+
+
+def session_agent_id(topic_context: TopicContext | None) -> str | None:
+    """The agent whose session a turn runs in (``None``: the default agent), as the executor resolves it.
+
+    The agent is a dimension of the session key, so a turn of another agent runs in another session.
+    """
+    if topic_context is None or topic_context.identity_revoked:
+        return None
+    return topic_context.agent_id
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -42,11 +54,13 @@ class PendingApproval:
 
     ``card_message_id`` is the platform id of the approval card, ``""`` when the channel returned none. ``message`` is
     the message of the turn that asked, ``user_id`` the identity that turn ran as: a resume runs as the same sender.
+    ``agent_id`` is the agent whose session the asking run belongs to (see ``session_agent_id``).
     """
 
     card_message_id: str
     message: InboundMessage
     user_id: str
+    agent_id: str | None = None
 
     @property
     def timer_key(self) -> str:
@@ -83,6 +97,10 @@ class PendingApprovals:
 
     def __contains__(self, state_key: str) -> bool:
         return state_key in self._open
+
+    def get(self, state_key: str) -> PendingApproval | None:
+        """The chat's open request; None when it waits on nothing."""
+        return self._open.get(state_key)
 
     def card_message_id(self, state_key: str) -> str | None:
         """The approval card's message id (``""`` when it has none); None when the chat waits on no approval."""

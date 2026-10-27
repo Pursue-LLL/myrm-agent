@@ -23,16 +23,8 @@ def _make_bus() -> MagicMock:
     return bus
 
 
-def _make_router(**overrides: object) -> AgentRouter:
-    bus = overrides.pop("bus", _make_bus())
-    pairing = overrides.pop("pairing", MagicMock())
-    executor = overrides.pop("executor", MagicMock())
-    return AgentRouter(
-        bus=bus,
-        pairing_store=pairing,
-        agent_executor=executor,
-        **overrides,
-    )
+def _make_router(*, bus: MagicMock) -> AgentRouter:
+    return AgentRouter(bus=bus, pairing_store=MagicMock(), agent_executor=MagicMock())
 
 
 @pytest.mark.asyncio
@@ -161,3 +153,42 @@ async def test_router_busy_input_mode_skips_slash_commands() -> None:
 
     # Steering token should NOT receive slash commands
     assert not steering_token.has_pending
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["steer", "redirect"])
+async def test_text_is_not_steered_into_a_turn_that_has_already_finished(mode: str) -> None:
+    """A turn that stopped at a tool approval stays registered so the approval can be answered, but it has no run left.
+
+    Steering it would acknowledge the text and drop it, so the text goes to the chat as a turn of its own.
+    """
+    bus = _make_bus()
+    router = _make_router(bus=bus)
+    router._gate.submit = MagicMock()  # type: ignore[method-assign]
+
+    channel, chat_id = "telegram", "chat-finished-1"
+    finished = asyncio.create_task(asyncio.sleep(0))
+    await finished
+    steering_token = SteeringToken()
+    router._active_tasks[routing_session_key(channel, chat_id)] = _ActiveTask(
+        task=finished,
+        cancel_token=CancellationToken(),
+        channel=channel,
+        chat_id=chat_id,
+        placeholder_id=None,
+        started_at=0.0,
+        steering_token=steering_token,
+        busy_input_mode=mode,
+    )
+
+    msg = InboundMessage(
+        channel=channel, sender_id="user-1", content="who exactly will it go to?", chat_id=chat_id, message_id="msg-104"
+    )
+    router._running = True
+    bus.consume_inbound = AsyncMock(side_effect=[msg, asyncio.CancelledError])
+    await router._consume_loop()
+
+    assert not steering_token.has_pending
+    router._gate.submit.assert_called_once()
+    assert router._gate.submit.call_args.args[0].content == msg.content
+    bus.publish_outbound.assert_not_awaited()

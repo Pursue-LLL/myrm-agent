@@ -112,6 +112,19 @@ class RouterStreamHost(Protocol):
         chat_id: str,
     ) -> float | None: ...
 
+    async def _try_edit_with_retry(
+        self,
+        channel: str,
+        chat_id: str,
+        placeholder_id: str | None,
+        content: str,
+        metrics_key: str,
+        full_text_length: int,
+        max_retries: int = 3,
+        *,
+        msg: InboundMessage | None = None,
+    ) -> bool: ...
+
 
 class PersonalityInfo(Protocol):
     """Minimal personality template info required by the command handler."""

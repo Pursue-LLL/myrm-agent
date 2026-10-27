@@ -686,12 +686,13 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 untrusted=await self._is_untrusted_event_sender(msg),
             )
 
-        # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
+        # Auto busy_input_mode dispatch (steer / redirect) when an active task is running. A finished turn that stays
+        # registered only to keep its approval answerable has no run to steer: the text is a turn of its own.
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         active = self._active_tasks.get(session_key)
         clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
-        if active and active.steering_token and clean_content and not clean_content.startswith("/"):
+        if active and not active.task.done() and active.steering_token and clean_content and not clean_content.startswith("/"):
             mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
             if mode in ("steer", "redirect") and await hold_risky_inbound(self._bus, msg, clean_content):
                 return
@@ -1220,6 +1221,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
                     chat_id = ctx.chat_id
                     exec_for_error = ctx.exec_msg
+                    if not is_resume:
+                        await self._retire_open_approval(ctx)
 
                     rp = self._reaction_policy
                     if rp.should_processing:

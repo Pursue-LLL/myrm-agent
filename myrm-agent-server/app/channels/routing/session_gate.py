@@ -3,7 +3,7 @@
 Groups rapid-fire messages from the same conversation into a single
 merged InboundMessage before forwarding to Agent execution.
 
-Three complementary mechanisms:
+Four complementary mechanisms:
 1. **Debounce Timer**: Accumulates messages within a configurable time
    window (default 300 ms). The timer resets on each new message.
 2. **Active-Session Pending Queue**: When a session already has an Agent
@@ -14,6 +14,11 @@ Three complementary mechanisms:
    ``on_busy_ack`` callback notifies the caller so the Router can send
    an immediate acknowledgment to the user. Debounced at 30 s per
    session to prevent ack spam.
+4. **Answers Run Alone and First**: A message that answers a run suspended
+   at a tool approval (``resume_value``) is never merged into text, never
+   dropped because the queue is full, and runs before any text waiting
+   beside it. Merging builds a plain message, which would lose the answer,
+   and any other turn of the session ends the run the answer belongs to.
 
 [INPUT]
 - channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
@@ -68,6 +73,21 @@ class _SessionState:
     pending: list[InboundMessage] = dataclasses.field(default_factory=list)
     timer: asyncio.TimerHandle | None = None
     active: bool = False
+
+
+def _is_answer(msg: InboundMessage) -> bool:
+    """Whether ``msg`` answers a run suspended at a tool approval rather than carrying text."""
+    return msg.resume_value is not None
+
+
+def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
+    """Remove from ``queue`` what runs next: its oldest answer on its own, else all of its text as one turn."""
+    for index, msg in enumerate(queue):
+        if _is_answer(msg):
+            return (queue.pop(index),)
+    turn = tuple(queue)
+    queue.clear()
+    return turn
 
 
 def gate_key(msg: InboundMessage) -> str:
@@ -180,6 +200,9 @@ class SessionGate:
         state = self._get_state(key)
 
         if state.active:
+            if _is_answer(msg):
+                state.pending.append(msg)
+                return
             max_pending = self._config.max_pending_per_session
             if len(state.pending) < max_pending:
                 state.pending.append(msg)
@@ -213,7 +236,9 @@ class SessionGate:
         state = self._sessions.get(key)
         if not state or not state.buffer:
             return
-        msgs = tuple(state.buffer)
+        msgs = _take_next_turn(state.buffer)
+        # What stays behind waits for this turn like anything that arrives while a turn runs.
+        state.pending[:0] = state.buffer
         state.buffer.clear()
         state.timer = None
         state.active = True
@@ -268,9 +293,7 @@ class SessionGate:
                 self._last_ack_time.pop(key, None)
             return
 
-        pending = tuple(state.pending)
-        state.pending.clear()
-        asyncio.ensure_future(self._fire(key, pending))
+        asyncio.ensure_future(self._fire(key, _take_next_turn(state.pending)))
 
     def on_task_complete(self, msg: InboundMessage) -> None:
         """Signal that the agent task for this session has completed.
