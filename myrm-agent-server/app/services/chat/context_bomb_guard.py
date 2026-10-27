@@ -13,6 +13,7 @@ and transparently injects structured XML file references into the agent prompt c
 
 [OUTPUT]
 - ContextBombDefenseService: Inbound query guard, spillover manager, and stale file sweeper.
+- replace_query_text: A query's text swapped for a replacement, its other blocks kept.
 - SpilloverMetadata: Metadata describing spilled payloads.
 - SpilloverPayloadResult: Frozen result tuple for high-level pipeline compatibility.
 
@@ -108,6 +109,28 @@ def extract_text_from_query(query: MultimodalQuery | object) -> str:
                     parts.append(str(item["text"]))
         return "\n".join(parts)
     return ""
+
+
+def replace_query_text(query: MultimodalQuery, replacement: str) -> MultimodalQuery:
+    """The query with all its text standing as ``replacement``; images and other blocks stay as they are."""
+    if isinstance(query, str):
+        return replacement
+
+    if isinstance(query, list):
+        replaced: list[dict[str, object]] = []
+        replaced_text = False
+        for item in query:
+            if isinstance(item, dict) and item.get("type") == "text":
+                if not replaced_text:
+                    replaced.append({"type": "text", "text": replacement})
+                    replaced_text = True
+            else:
+                replaced.append(dict(item))
+        if not replaced_text:
+            replaced.insert(0, {"type": "text", "text": replacement})
+        return replaced
+
+    return str(replacement)
 
 
 def build_spillover_prompt_block(
@@ -299,33 +322,8 @@ class ContextBombDefenseService:
             estimated_tokens=res.estimated_tokens,
         )
         prompt_block = res.processed_content
-        transformed_query = self._transform_query_with_spillover(query, prompt_block)
+        transformed_query = replace_query_text(query, prompt_block)
         return transformed_query, True, metadata
-
-    def _transform_query_with_spillover(
-        self,
-        query: MultimodalQuery,
-        prompt_block: str,
-    ) -> MultimodalQuery:
-        """Replace oversized text payload with structured file reference block."""
-        if isinstance(query, str):
-            return prompt_block
-
-        if isinstance(query, list):
-            transformed_list: list[dict[str, object]] = []
-            replaced_text = False
-            for item in query:
-                if isinstance(item, dict) and item.get("type") == "text":
-                    if not replaced_text:
-                        transformed_list.append({"type": "text", "text": prompt_block})
-                        replaced_text = True
-                else:
-                    transformed_list.append(dict(item))
-            if not replaced_text:
-                transformed_list.insert(0, {"type": "text", "text": prompt_block})
-            return transformed_list
-
-        return str(prompt_block)
 
     def sweep_stale_spillover_files(
         self,

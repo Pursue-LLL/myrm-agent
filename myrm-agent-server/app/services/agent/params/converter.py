@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Literal, cast
+from typing import Literal
 
 from fastapi import Request
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryWritePolicy
@@ -71,7 +71,7 @@ __all__ = [
 
 async def convert_to_general_agent_params(
     request: AgentRequest,
-    chat_history: list[list[str | dict[str, object]]],
+    chat_history: ChatHistoryReq,
     http_request: Request | None = None,
 ) -> tuple[
     GeneralAgentParams,
@@ -1078,7 +1078,7 @@ async def convert_to_general_agent_params(
         agent_id=request.agent_id,
         project_id=chat.project_id if chat_loaded and chat else None,
         query=final_query,
-        chat_history=cast(ChatHistoryReq, chat_history),
+        chat_history=chat_history,
         model_cfg=model_cfg,
         fallback_model_cfg=fallback_model_cfg,
         fallback_model_cfgs=fallback_model_cfgs,

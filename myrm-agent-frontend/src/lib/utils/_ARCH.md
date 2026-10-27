@@ -43,7 +43,7 @@
 - `domUtils.ts`：DOM 滚动检测 — `isNearBottom` 滚动接近底部判定（阈值可调）。
 - `hardwareSimulator.ts`：硬件阶梯估算 — HardwareRungInfo 阶梯信息与 64k 上下文 KV Cache 内存估算。
 - `messageUtils.ts`：消息处理工具 — 时间戳标签剥离、ui_action JSON 块剥离、用户消息展示清理、explicit skill wire（`[use s1,s2]`）解析与构建、skill chip 展示名、markdown 纯化、浏览器时区获取。
-- `spillover.ts`：超长粘贴文本的前端约定 — `SPILLOVER_MIN_CHARS`（与服务端 16,000 字符门禁同值）、`normalizeSpillover`（服务端 `spillover` 元数据 → `MessageSpillover`）、`pastedTextOf`（一条用户消息是否按「字数 + 开头预览」折叠显示；刚发出的消息带着 `fullText` 可原地展开，历史消息只剩预览与文件路径）、`userMessageDisplayText`（标题与轮次导轨列出消息所用的文本）；单测 `__tests__/spillover.test.ts`。
+- `spillover.ts`：超长粘贴文本的前端约定 — `SPILLOVER_MIN_CHARS`（与服务端 16,000 字符门禁同值）、`isLongPaste`（服务端把一段文本存成文件的完整判据：长度超过 16,000，或词元压力超过 8,000——宽字符按 1.8、其余按 0.25 估算，中日韩文本约 4,445 字即达上限；宽字符类取 Unicode 主要块，与服务端估算器逐码点比对只在表情与未分配码位上有出入）、`normalizeSpillover`（服务端 `spillover` 元数据 → `MessageSpillover`）、`pastedTextOf`（用 `isLongPaste` 判定一条用户消息是否按「字数 + 开头预览」折叠显示；刚发出的消息带着 `fullText` 可原地展开，历史消息只剩预览与文件路径）、`userMessageDisplayText`（标题与轮次导轨列出消息所用的文本）；单测 `__tests__/spillover.test.ts`。
 - `modelFormatUtils.ts`：数值紧凑格式化 — token 数量 K/M 紧凑展示。
 - `networkResilience.ts`：网络韧性策略层 — HTTP 状态码瞬时错误可重试判定、WebSocket close code 可重试判定、`FatalNetworkError` 不可重试错误类、归档恢复校验失效识别、可中止等待 `abortableDelay`（重试退避与轮询间隔；中止信号立即结束等待，计时器与监听不残留），统一重试与 fail-fast 决策。
 - `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。

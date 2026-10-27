@@ -9,10 +9,12 @@ Several chats are cleaned in one call so the shared vault is scanned once, not o
 
 import asyncio
 import logging
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.code_execution import create_workspace_service
+from myrm_agent_harness.toolkits.code_execution.security import validate_path_component
 
 from app.config.settings import settings
 
@@ -35,6 +37,18 @@ def _purge_vault_objects(harness_dir: Path, chat_ids: Sequence[str]) -> int:
     # The shared root holds task-tagged objects of every chat; the whole batch is scanned once.
     purged_total += ArtifactVault(str(harness_dir)).purge_by_task_ids(chat_ids)
     return purged_total
+
+
+def _remove_unregistered_sandbox(directory: Path) -> bool:
+    """Remove a sandbox directory no run has registered yet; True when nothing of it is left.
+
+    A long pasted message is saved into its chat's sandbox before the chat's first run: the directory
+    exists without the metadata the workspace service finds a sandbox by.
+    """
+    if not directory.is_dir():
+        return True
+    shutil.rmtree(directory, ignore_errors=True)
+    return not directory.exists()
 
 
 class WorkspaceCleanupService:
@@ -96,8 +110,9 @@ class WorkspaceCleanupService:
 
             workspace = await workspace_service.find_by_session_id(session_id)
             if not workspace:
-                logger.debug("No workspace found for session=%s", session_id)
-                return True
+                if not validate_path_component(session_id, "chat workspace id").is_safe:
+                    return True
+                return await asyncio.to_thread(_remove_unregistered_sandbox, workspace_service.workspaces_root / session_id)
 
             deleted = await workspace_service.delete(workspace)
             if deleted:

@@ -139,6 +139,8 @@ async def run_agent_stream(
             )
 
     text_content = stream_text_content(request)
+    # What the person typed: the guard below may turn text_content into a stub for the run, but the stored message is the typed text.
+    typed_text = text_content
 
     # The risk gate reads what the user typed: the spill below replaces a long paste with a stub that hides its contents.
     # The regeneration guidance is typed too and becomes a system-level instruction, so it is screened on its own; it
@@ -259,6 +261,7 @@ async def run_agent_stream(
             request=request,
             http_request=http_request,
             text_content=text_content,
+            typed_text=typed_text,
             stream_started_at_monotonic=stream_started_at_monotonic,
             registry=registry,
             buffer=buffer,

@@ -1,4 +1,4 @@
-"""Cleaning many chats must scan the shared artifact vault once, not once per chat."""
+"""Cleaning many chats must scan the shared artifact vault once, not once per chat; a chat leaves no sandbox behind."""
 
 from __future__ import annotations
 
@@ -99,3 +99,29 @@ async def test_vault_cleanup_does_not_stall_the_event_loop(harness_dir: Path, mo
 
     # 0.5 s of purge leaves room for ~50 beats; a blocked loop manages at most one.
     assert heartbeats >= 20
+
+
+@pytest.mark.asyncio
+async def test_a_sandbox_no_run_has_registered_is_removed_with_its_chat(harness_dir: Path) -> None:
+    """A long pasted message is saved into the sandbox before the chat's first run."""
+    pastes = harness_dir / "workspaces" / "chat_chat-y" / ".myrm" / "pastes"
+    pastes.mkdir(parents=True)
+    (pastes / "payload_1.md").write_text("pasted text", encoding="utf-8")
+    neighbour = harness_dir / "workspaces" / "chat_chat-z"
+    neighbour.mkdir(parents=True)
+
+    assert await cleanup_chat_workspace("chat-y") == {"storage_workspace": True, "artifact_vault": True}
+
+    assert not (harness_dir / "workspaces" / "chat_chat-y").exists()
+    assert neighbour.exists()
+
+
+@pytest.mark.asyncio
+async def test_a_chat_id_that_could_name_a_path_outside_the_sandboxes_removes_nothing(harness_dir: Path) -> None:
+    bystander = harness_dir / "bystander"
+    bystander.mkdir()
+    (harness_dir / "workspaces" / "chat_x").mkdir(parents=True)
+
+    await cleanup_chat_workspace("x/../../bystander")
+
+    assert bystander.exists()

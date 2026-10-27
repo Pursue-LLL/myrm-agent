@@ -85,6 +85,7 @@ async def execute_agent_turn_after_reserve(
     request: AgentRequest,
     http_request: Request,
     text_content: str,
+    typed_text: str | None = None,
     stream_started_at_monotonic: float,
     registry: GlobalStreamRegistry,
     buffer: ResilientStreamBuffer,
@@ -101,6 +102,7 @@ async def execute_agent_turn_after_reserve(
     persisted_message_id = await chat_history_bootstrap.persist_user_message(
         request,
         text_content=text_content,
+        typed_text=typed_text,
     )
     pending_draft = persisted_message_id.pending_draft if persisted_message_id is not None else None
 

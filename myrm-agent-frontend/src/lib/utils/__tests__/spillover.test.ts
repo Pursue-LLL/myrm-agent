@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { SPILLOVER_MIN_CHARS, normalizeSpillover, pastedTextOf, userMessageDisplayText } from '../spillover';
+import {
+  SPILLOVER_MIN_CHARS,
+  isLongPaste,
+  normalizeSpillover,
+  pastedTextOf,
+  userMessageDisplayText,
+} from '../spillover';
 
 const stored = { path: '/work/.myrm/pastes/payload_1.md', chars: 48_000, preview: 'Q3 review of the roadmap' };
 
@@ -49,6 +55,30 @@ describe('pastedTextOf', () => {
 
   it('leaves a text at the limit alone', () => {
     expect(pastedTextOf('x'.repeat(SPILLOVER_MIN_CHARS))).toBeNull();
+  });
+});
+
+describe('isLongPaste', () => {
+  // The server measures a text by length and by token pressure (wide characters weigh 1.8, others 0.25, limit 8,000);
+  // the expected sides below are what its estimator returns for the same texts.
+  it.each([
+    ['x'.repeat(SPILLOVER_MIN_CHARS), false],
+    ['x'.repeat(SPILLOVER_MIN_CHARS + 1), true],
+    ['x'.repeat(15_000), false],
+    ['中'.repeat(4_444), false],
+    ['中'.repeat(4_445), true],
+    ['中'.repeat(5_000), true],
+    ['あ'.repeat(4_445), true],
+    ['한'.repeat(4_445), true],
+    ['，'.repeat(4_445), true],
+    ['中'.repeat(3_000) + 'x'.repeat(12_000), true],
+    ['中'.repeat(2_000) + 'x'.repeat(8_000), false],
+  ])('judges %#: long paste is %s', (text, expected) => {
+    expect(isLongPaste(text)).toBe(expected);
+  });
+
+  it('lets a Chinese paste of that length be sent as a card while it is still in memory', () => {
+    expect(pastedTextOf('中'.repeat(5_000))?.chars).toBe(5_000);
   });
 });
 

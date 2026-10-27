@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import time
@@ -16,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dto import MessageDTO
 from app.services.agent.context_guard_service import ContextGuardService
-from app.services.agent.params.workspace_resolve import default_chat_workspace_path
+from app.services.agent.params.workspace_resolve import default_chat_workspace_path, resolve_default_chat_workspace_dir
 from app.services.chat.chat_service import ChatService
 from app.services.chat.context_bomb_guard import PREVIEW_MAX_CHARS, ContextBombDefenseService
 
@@ -168,6 +169,22 @@ async def test_a_web_paste_is_parked_in_the_chat_workspace_not_the_home_director
 
 
 @pytest.mark.asyncio
+async def test_the_sandbox_a_run_creates_adopts_the_directory_that_already_holds_a_paste(
+    db_session: AsyncSession, fake_home: Path
+) -> None:
+    del db_session, fake_home
+    chat_id = str(uuid4())
+    await ChatService.ensure_chat_and_append_user_message(chat_id, _PASTE, datetime.now(UTC), "UTC")
+    (parked,) = list((default_chat_workspace_path(chat_id) / ".myrm" / "pastes").glob("payload_*.md"))
+
+    created = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=False)
+
+    assert created is not None
+    assert Path(created).resolve() == default_chat_workspace_path(chat_id).resolve()
+    assert parked.read_text(encoding="utf-8") == _PASTE
+
+
+@pytest.mark.asyncio
 async def test_a_short_web_message_costs_no_workspace_lookup_and_writes_nothing(
     db_session: AsyncSession, fake_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -202,3 +219,44 @@ async def test_a_parked_paste_stays_out_of_the_version_control_of_a_project_work
     assert (project / ".myrm" / "pastes").is_dir()
     status = subprocess.run(["git", "-C", str(project), "status", "--porcelain"], check=True, capture_output=True, text=True)
     assert status.stdout == ""
+
+
+@pytest.mark.asyncio
+async def test_a_paste_sent_with_an_attachment_reaches_neither_the_row_nor_the_replayed_history_in_full(
+    db_session: AsyncSession, fake_home: Path
+) -> None:
+    """A query with an image keeps its blocks in ``original_query``; the text block of it is the paste again."""
+    del db_session, fake_home
+    chat_id = str(uuid4())
+    image = {"type": "image_url", "image_url": {"url": "file:///tmp/shot.png"}}
+    query = [{"type": "text", "text": _PASTE}, image]
+
+    message = await ChatService.ensure_chat_and_append_user_message(
+        chat_id, _PASTE, datetime.now(UTC), "UTC", extra_data={"original_query": query}
+    )
+    history = await ChatService.load_web_chat_history(chat_id)
+
+    assert json.dumps(_PASTE)[1:-1] not in json.dumps(message.extra_data)
+    (human,) = [entry for entry in history if entry[0] == "human"]
+    replayed = human[1]
+    assert isinstance(replayed, list)
+    assert image in replayed
+    texts = [block["text"] for block in replayed if block.get("type") == "text"]
+    assert len(texts) == 1
+    assert texts[0] == message.content
+    assert (default_chat_workspace_path(chat_id) / ".myrm" / "pastes").is_dir()
+
+
+@pytest.mark.asyncio
+async def test_a_message_stays_whole_in_the_conversation_when_its_file_cannot_be_written(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    """Losing the person's message is worse than carrying it in the database."""
+    del db_session, fake_home
+    blocked = tmp_path / "not-a-directory"
+    blocked.write_text("a file where the workspace should be", encoding="utf-8")
+
+    message = await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=blocked)
+
+    assert message.content == _PASTE
+    assert message.extra_data is None

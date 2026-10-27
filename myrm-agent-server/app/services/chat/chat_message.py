@@ -48,15 +48,27 @@ async def _park_user_text(
 
     An oversized message is stored as a pointer to a file in the chat's workspace (``workspace``, or the one
     the chat's agent runs in when omitted): the database keeps only a preview, so the file lives as long as the
-    workspace does and the agent's file tools can read it back.
+    workspace does and the agent's file tools can read it back. When the file cannot be written the message
+    stays in the database as it is.
     """
-    from app.services.chat.context_bomb_guard import ContextBombDefenseService
+    from app.services.chat.context_bomb_guard import ContextBombDefenseService, replace_query_text
 
-    if workspace is None and ContextBombDefenseService.is_oversized(content):
+    if not ContextBombDefenseService.is_oversized(content):
+        return content, content, extra_data
+    if workspace is None:
         from app.services.chat.effective_workspace import find_chat_workspace_root
 
         workspace = await find_chat_workspace_root(chat_id)
-    parked = ContextBombDefenseService.process_incoming_content(content, chat_id=chat_id, workspace_root=workspace, kept=True)
+    try:
+        # The guard writes the file; keep that I/O off the event loop.
+        parked = await asyncio.to_thread(
+            ContextBombDefenseService.process_incoming_content, content, chat_id=chat_id, workspace_root=workspace, kept=True
+        )
+    except OSError:
+        logger.warning(
+            "Message of chat %s is too long for the conversation but could not be saved as a file", chat_id, exc_info=True
+        )
+        return content, content, extra_data
     if not parked.is_spilled:
         return content, content, extra_data
     spillover = {
@@ -65,7 +77,12 @@ async def _park_user_text(
         "sha256": parked.content_sha256,
         "preview": parked.preview,
     }
-    return parked.processed_content, parked.preview, {**(extra_data or {}), SPILLOVER_EXTRA_KEY: spillover}
+    parked_extra: dict[str, object] = {**(extra_data or {}), SPILLOVER_EXTRA_KEY: spillover}
+    original_query = parked_extra.get("original_query")
+    if isinstance(original_query, list):
+        # The blocks of a query sent with attachments are what the history replays: they must not carry the paste again.
+        parked_extra["original_query"] = replace_query_text(original_query, parked.processed_content)
+    return parked.processed_content, parked.preview, parked_extra
 
 
 class _ChatMessageMixin(_ChatServiceBase):

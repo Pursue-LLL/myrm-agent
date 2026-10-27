@@ -25,7 +25,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.core.types import ModelConfig
+from app.core.types import ChatHistoryReq, ModelConfig
 from app.services.agent.params import _resolve_model_config, convert_to_general_agent_params
 from app.services.agent.params.routing_memory import remember_turn_routing
 
@@ -55,7 +55,7 @@ class TurnParams:
 
 async def build_turn_params(
     request: AgentRequest,
-    chat_history: list[list[str | dict[str, object]]],
+    chat_history: ChatHistoryReq,
     http_request: Request,
 ) -> TurnParams:
     """Apply what a resume carries, then convert the request into agent params.

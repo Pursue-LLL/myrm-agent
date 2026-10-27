@@ -4,19 +4,19 @@ import * as React from 'react';
 import { ClipboardText } from '@phosphor-icons/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { SPILLOVER_MIN_CHARS } from '@/lib/utils/spillover';
+import { isLongPaste } from '@/lib/utils/spillover';
 
 interface ContextSpilloverBadgeProps {
-  charCount: number;
+  text: string;
   className?: string;
 }
 
 /** Composer notice for a text too long to send as is: it is kept with the chat and the assistant reads it from there. */
-export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({ charCount, className }) => {
+export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({ text, className }) => {
   const t = useTranslations('chat');
   const locale = useLocale();
 
-  if (charCount <= SPILLOVER_MIN_CHARS) {
+  if (!isLongPaste(text)) {
     return null;
   }
 
@@ -31,7 +31,7 @@ export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({ ch
     >
       <ClipboardText size={16} weight="duotone" aria-hidden className="shrink-0 text-primary" />
       <span className="font-medium">
-        {t('spillover.notice', { chars: new Intl.NumberFormat(locale).format(charCount) })}
+        {t('spillover.notice', { chars: new Intl.NumberFormat(locale).format(text.length) })}
       </span>
     </div>
   );

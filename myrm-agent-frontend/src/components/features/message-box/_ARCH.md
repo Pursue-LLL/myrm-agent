@@ -61,9 +61,9 @@
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
 | `UserMessage.tsx` | 核心 | 用户消息气泡：编辑重发、Rewind、Fork；动作行触屏常显、桌面悬停或键盘聚焦时显示（`REVEAL_ON_HOVER`）；发送失败时气泡下显示 `SendFailedNotice`；超长粘贴文本显示为 `PastedTextCard`（动作行随之换到卡片下方；已转存的历史消息没有可复制、可编辑的原文，故不提供复制与编辑）；附件预览交给 `UserMessageAttachments` | ✅ |
 | `PastedTextCard.tsx` | 组件 | 超长粘贴文本的折叠卡片：标题、字数与开头预览（3 行截断）；历史消息的原文在文件里，按钮在侧边面板打开全文；刚发出的消息原文仍在内存，按钮原地展开/收起（`aria-expanded`）；只用主题变量，手机上占满一行 | ✅ |
-| `ContextSpilloverBadge.tsx` | 组件 | 输入框上方的长文本提示：超过 `SPILLOVER_MIN_CHARS` 时告知「文本随会话保存、助手从中读取全文」；只用主题变量 | ✅ |
+| `ContextSpilloverBadge.tsx` | 组件 | 输入框上方的长文本提示：文本按 `isLongPaste` 判为长文（含中日韩文本的词元压力）时告知「文本随会话保存、助手从中读取全文」；只用主题变量 | ✅ |
 | `__tests__/PastedTextCard.test.tsx` | 测试 | 历史粘贴的打开按钮回调、内存原文展开/收起、无预览的旧记录不渲染预览行 | ✅ |
-| `__tests__/ContextSpilloverBadge.test.tsx` | 测试 | 阈值内不显示、超过阈值显示提示 | ✅ |
+| `__tests__/ContextSpilloverBadge.test.tsx` | 测试 | 阈值内不显示、超过阈值显示提示、中文长文按词元压力显示提示 | ✅ |
 | `UserMessageAttachments.tsx` | 组件 | 已发送气泡的附件预览：图片缩略图（加载失败回退占位）与文档卡片（扩展名说明、新标签页打开、下载）；下载按钮用 `REVEAL_ON_HOVER`：触屏常显、桌面悬停或键盘聚焦时显示 | ✅ |
 | `__tests__/UserMessage.test.tsx` | 测试 | 失败重试行只在发送失败且非编辑态出现并回调 `onRetry`；`@链接` 渲染为新标签页打开、带 `rel="noopener noreferrer"` 的锚点，裸域名补 `https://`、已带协议的保持原样；文档附件卡片按扩展名（无扩展名走通用文案）说明并以本地化文案命名下载按钮；动作行带齐悬停/聚焦/触屏三条显现路径；超长粘贴按卡片显示（历史消息打开文件、无复制与编辑，内存消息原地展开、保留复制与编辑，阈值处按普通文本） | ✅ |
 | `SendFailedNotice.tsx` | 组件 | 发送失败行：连接提示 + 重试按钮；行可换行、按钮保持自身尺寸，因此占满整行的提示不会在窄屏上把按钮标签拆开（中日韩逐字、德语逐词） | ✅ |

@@ -18,6 +18,7 @@ import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from app.core.types.business import ChatHistoryReq
 from app.services.agent.params import AgentRequest, _extract_text_from_query
 from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.chat.chat_service import ChatService
@@ -44,8 +45,13 @@ async def persist_user_message(
     request: AgentRequest,
     *,
     text_content: str,
+    typed_text: str | None = None,
 ) -> BootstrappedMessageId | None:
     """Commit the user row for existing chats, or defer persistence for new chats.
+
+    The row holds ``typed_text``, what the person typed; ``text_content`` is what the run reads, which
+    differs when the context guard shortened a long paste to a reference for this turn. ``typed_text``
+    defaults to ``text_content``.
 
     For new sessions, database persistence is deferred until the first active
     assistant output (First Token Barrier), preventing ghost empty sessions.
@@ -53,6 +59,7 @@ async def persist_user_message(
     if not request.chat_id:
         logger.info("E1 user persist skipped: missing chat_id message_id=%s", request.message_id)
         return None
+    stored_text = text_content if typed_text is None else typed_text
 
     is_regenerate = request.sibling_group_id is not None
     if request.resume_value is not None or is_regenerate:
@@ -79,7 +86,7 @@ async def persist_user_message(
     if existing_chat is not None:
         msg = await ChatService.ensure_chat_and_append_user_message(
             chat_id=request.chat_id,
-            content=text_content,
+            content=stored_text,
             sent_at=sent_at_utc,
             sent_timezone=sent_timezone,
             message_id=request.message_id,
@@ -104,7 +111,7 @@ async def persist_user_message(
     resolved_id = request.message_id or str(uuid4())
     draft = PendingSessionDraft(
         chat_id=request.chat_id,
-        user_content=text_content,
+        user_content=stored_text,
         sent_at=sent_at_utc,
         sent_timezone=sent_timezone,
         message_id=resolved_id,
@@ -128,7 +135,7 @@ async def load_chat_history(
     request: AgentRequest,
     *,
     exclude_message_id: str | None = None,
-) -> list[list[str | dict[str, object]]]:
+) -> ChatHistoryReq:
     """Load canonical history after all pre-agent setup gates have run.
 
     A regenerate persists no user row, so nothing can be excluded by id; the query it re-sends is the last user
