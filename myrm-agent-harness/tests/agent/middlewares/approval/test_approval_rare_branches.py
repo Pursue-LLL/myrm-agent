@@ -454,11 +454,11 @@ class TestMiddlewareRareBranches:
     async def test_runtime_config_resolution_fallback(self, monkeypatch) -> None:
         """config None + runtime.config.security_config present → uses runtime config."""
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.middlewares.approval.middleware.get_security_config",
+            "myrm_agent_harness.agent.middlewares.approval.evaluation.target.get_security_config",
             lambda: None,
         )
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.middlewares.approval.middleware.resolve_security_config_from_runtime",
+            "myrm_agent_harness.agent.middlewares.approval.evaluation.target.resolve_security_config_from_runtime",
             lambda runtime: None,
         )
         calls = []
@@ -467,7 +467,7 @@ class TestMiddlewareRareBranches:
             calls.append(config)
 
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.middlewares.approval.middleware.set_security_config",
+            "myrm_agent_harness.agent.middlewares.approval.evaluation.target.set_security_config",
             _set,
         )
 

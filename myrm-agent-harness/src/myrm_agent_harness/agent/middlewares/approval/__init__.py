@@ -5,7 +5,8 @@ with rate limiting, denial tracking, allowlist management, and optional
 LLM-based security review (Layer 4.5).
 
 Components:
-- middleware: ToolApprovalMiddleware (after_model hook orchestrator)
+- middleware: ToolApprovalMiddleware (after_model hook that asks the person and applies the answers)
+- evaluation: ApprovalEvaluationMiddleware (after_model hook that judges the tool calls once, before anyone is asked)
 - batch_processor: Batch evaluation, interrupt payload construction, decision application
 - helpers: Denial counter, allowlist helpers
 - rate_limiter: Sliding-window rate limiter for approval requests
@@ -21,6 +22,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_workspace_root,
 )
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import register_security_reviewer
+from myrm_agent_harness.agent.middlewares.approval.evaluation import ApprovalEvaluationMiddleware
 from myrm_agent_harness.agent.middlewares.approval.helpers import (
     ThresholdBreach,
     add_to_allowlist_if_needed,
@@ -38,6 +40,7 @@ from myrm_agent_harness.agent.middlewares.approval.tiered_risk_evaluator import 
 )
 
 __all__ = [
+    "ApprovalEvaluationMiddleware",
     "ApprovalRateLimiter",
     "RiskTier",
     "ThresholdBreach",

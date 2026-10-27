@@ -24,11 +24,10 @@
 ### 3. 批量审批
 当Agent单轮调用多个需审批工具时，系统自动合并为一次`interrupt()`，用户一次性决策所有工具。
 
-**实现机制**（after_model hook）：
-- 使用`ToolApprovalMiddleware.aafter_model()`拦截AIMessage
-- 在工具执行前批量评估所有`tool_calls`
-- 分类为：auto_approved、auto_denied、pending_approval
-- 对pending_approval列表一次性调用`interrupt()`（同步）
+**实现机制**（两个 after_model 节点）：
+- `ApprovalEvaluationMiddleware.aafter_model()` 在工具执行前批量评估所有`tool_calls`，分类为：auto_approved、auto_denied、pending_approval，把结果存进私有检查点状态键 `approval_evaluation`
+- `ToolApprovalMiddleware.aafter_model()` 只读取该结果，对pending_approval列表一次性调用`interrupt()`（同步）
+- 分成两个节点是因为 LangGraph 在用户回答后把调用 `interrupt()` 的节点从第一行重跑；评估有副作用（审核模型调用、拒绝计数、限流），放在同一节点会跑两遍
 - Resume时按顺序处理decisions数组：批准的调用以批准（或编辑后）的形态留在AIMessage.tool_calls；被拒绝的调用也留着，由一条ToolMessage(error)回答（带用户的理由；审批超时则写明无人回答），模型因此读得到拒绝的原因
 
 **用户体验**：
@@ -193,49 +192,34 @@ execute_stream()检测is_resume=True
 
 ### Backend（middlewares/approval/）
 
-使用`aafter_model` hook实现批量审批，按单一职责原则拆分为4个方法：
+使用两个`aafter_model` hook实现批量审批：评估一次，再向用户发问。
 
 ```python
+class ApprovalEvaluationMiddleware(AgentMiddleware):
+    async def aafter_model(self, state, runtime):
+        """评估节点：副作用（审核模型、拒绝计数、限流）只在这里发生一次"""
+        target = resolve_approval_target(state, runtime)   # 最新带工具调用的AI消息 + 会话上下文
+        if target is None:
+            return None
+        return {"approval_evaluation": await evaluate_target(target)}  # 私有检查点状态键，按AI消息id对应
+
+
 class ToolApprovalMiddleware(AgentMiddleware):
     async def aafter_model(self, state, runtime):
-        """主流程协调（92行）"""
-        # 1. 获取context并加载allowlist
-        config, last_ai_msg, session_key, user_id = ...
-        
-        # 2. 评估所有tool_calls
-        auto_approved, auto_denied, pending = await self._evaluate_tool_batch(
-            last_ai_msg.tool_calls, config, allowlist, is_cron, user_id, ...
-        )
-        
-        # 3. 构建payload并interrupt
+        """发问节点：用户回答后会从第一行重跑，所以interrupt()之前只读"""
+        evaluation = state["approval_evaluation"]            # 没有存档时才自己评估并告警
+        pending = pending_calls(evaluation)
         if pending:
-            payload, indices = self._build_interrupt_payload(pending, session_key)
+            payload, indices = build_interrupt_payload(pending, session_key)
             batch_response = interrupt(payload)
-            
-            # 4. 应用决策
-            revised_calls, messages = await self._apply_approval_decisions(
-                batch_response["decisions"], last_ai_msg, auto_denied, pending, indices, user_id
-            )
-        
-        return {"messages": [last_ai_msg, *messages]}
-    
-    async def _evaluate_tool_batch(...):
-        """5层安全评估+分类（109行）"""
-        # YOLO快速路径→Capability→Shell Analyzer→Path Policy→Permission Rules→Allowlist
-    
-    def _build_interrupt_payload(...):
-        """构造LangChain标准payload（63行）"""
-        # actionRequests + reviewConfigs + extensions
-    
-    async def _apply_approval_decisions(...):
-        """应用决策+allowlist更新+审计（93行）"""
-        # approve→保留tool_call / edit→修改args / reject→保留tool_call并以ToolMessage(error)回答
+            revised_calls, messages, guidance = await apply_approval_decisions(...)
+        return {"messages": [source_msg, *messages, *guidance], "approval_evaluation": None}
 ```
 
 **设计特性**：
 - 在工具执行前统一拦截（after_model时机）
 - 同步调用`interrupt()`，确保异常正确传播
-- 每个方法职责单一，符合SRP原则
+- 评估与发问分属两个节点：节点重跑不会重复评估，审核模型第二次改判不会推翻用户刚做的决定
 
 ### Frontend（ToolApprovalDialog.tsx）
 

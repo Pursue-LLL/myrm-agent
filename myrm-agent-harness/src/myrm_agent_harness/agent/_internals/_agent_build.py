@@ -26,7 +26,7 @@ from myrm_agent_harness.agent.middlewares import (
     debug_logger_middleware,
     tool_interceptor_middleware,
 )
-from myrm_agent_harness.agent.middlewares.approval import ToolApprovalMiddleware
+from myrm_agent_harness.agent.middlewares.approval import ApprovalEvaluationMiddleware, ToolApprovalMiddleware
 from myrm_agent_harness.agent.middlewares.completion import CompletionGuard
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import capabilities_of
 from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
@@ -71,12 +71,15 @@ def build_middlewares(
     """Build the full middleware chain for a BaseAgent.
 
     The ordering matters: dedup -> dangling -> subagent-limit -> interceptor ->
-    approval -> clarification-guard -> completion -> progress -> goal-focus -> replan ->
-    call-limits -> budget -> security -> user -> completion-directive -> safety ->
-    skill-attenuation -> debug.
+    approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
+    goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
+    safety -> skill-attenuation -> debug.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
-    response meets the completion guard first, the clarification guard next and tool approval
-    last: a call the guards hold back or strip is never put to the user for approval.
+    response meets the completion guard first, the clarification guard next, then the evaluation
+    of the tool calls and last the approval that may ask the user: a call the guards hold back or
+    strip is never put to the user for approval, and the evaluation sits in a node of its own
+    because an approval pause re-runs the node that asked, so whatever it did before asking would
+    be done twice.
     SkillAttenuationMiddleware sits after the safety dispatcher so its awrap_tool_call can resolve
     dynamic tools; the completion directive sits innermost of the middlewares that rewrite the
     request, so the others append to the user's own message.
@@ -116,6 +119,7 @@ def build_middlewares(
         tool_interceptor_middleware,
         approval_guidance_delivery,
         ToolApprovalMiddleware(),
+        ApprovalEvaluationMiddleware(),
         ClarificationGuardMiddleware(),
         CompletionGuard(capabilities=capabilities),
     ]

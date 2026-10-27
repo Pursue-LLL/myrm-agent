@@ -204,7 +204,8 @@ BaseAgent (基础 Agent)
 │
 ├─ middlewares/ (中间件)
 │   ├─ ContextPipelineMiddleware (上下文管道)
-│   ├─ ToolApprovalMiddleware (工具审批)
+│   ├─ ApprovalEvaluationMiddleware (工具调用评估，只评估一次)
+│   ├─ ToolApprovalMiddleware (工具审批：向用户发问并落地决策)
 │   └─ SecurityGuardrailMiddleware (安全护栏)
 │
 ├─ goals/ (目标引擎与状态机)

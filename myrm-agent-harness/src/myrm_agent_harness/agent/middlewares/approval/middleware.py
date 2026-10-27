@@ -1,12 +1,16 @@
-"""Tool approval middleware — intercepts tool calls that require user confirmation.
+"""Tool approval middleware — asks the person about the tool calls that require confirmation.
 
-Uses ``after_model`` hook to intercept AIMessage with tool_calls *before* execution.
-Decision flow:
+Uses ``after_model`` hook to intercept AIMessage with tool_calls *before* execution. Two graph nodes share the work:
 
-1. evaluate_tool_call() → ALLOW / ASK / DENY
-2. ALLOW: taint check → proceed or escalate to ASK
-3. DENY: inject artificial ToolMessage with error
-4. ASK: allowlist → cron policy (cron sessions) → skill hooks → domain HITL runtime check → batch interrupt()
+1. ``ApprovalEvaluationMiddleware`` (``evaluation/``) judges the calls once: ALLOW / ASK / DENY per call, the reviewer
+   model, the refusal counters, the approval rate limit. Its verdicts are stored in the graph state.
+2. This middleware reads those verdicts. ALLOW needs nothing more. DENY answers the call with an error ToolMessage.
+   ASK goes to the person: allowlist → cron policy (cron sessions) → skill hooks → domain HITL runtime check → one
+   batch interrupt().
+
+The split exists because LangGraph resumes an interrupted node by running it again from its first line: whatever this
+node does before ``interrupt()`` is repeated once the person has answered. Judging a call has side effects (a reviewer
+model call, refusal counters), so it happens in the node before; this node only reads.
 
 Batch approval: When multiple tools require approval in a single turn, all are
 collected and presented in one interrupt() call. Users decide for all tools at once.
@@ -27,15 +31,16 @@ Uses LangGraph's native ``interrupt()`` mechanism for Human-in-the-Loop:
 Every decision is recorded via security.audit.record_decision() for post-hoc auditing.
 
 [INPUT]
-- middlewares._session_context::get_security_config, (POS: Middleware session context — shared ContextVars for the middleware chain.)
-- agent.security.tool_registry::compute_canonical_args_hash (POS: Pure functions, no side effects, trivially testable. Browser tools use dynamic resolution: browser_interact's permission varies by ``action`` parameter (fill→browser_fill, upload_file→browser_upload, etc.). MCP tools (``mcp__`` prefixed) and unknown tools both map to ``mcp_invoke``. Canonical parameter hashing ensures same functional operation produces same hash, regardless of LLM's wording variations in auxiliary fields. Safety metadata declares all built-in tools with four categories: read-only concurrent-safe, concurrent-safe with side effects, destructive, and stateful. Undeclared tools (e.g. MCP) get fail-closed defaults. Used by safety_dispatcher middleware for concurrency control.)
-- langgraph.types::interrupt (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- approval.evaluation::APPROVAL_EVALUATION_KEY, evaluate_target, evaluation_matches, pending_calls, refused_calls, resolve_approval_target (POS: The verdicts the evaluation node stored for the latest model response, and the target they are about.)
+- approval.refusal::kept_tool_calls (POS: Which calls the AI message keeps once some were approved, edited or refused.)
+- middlewares._session_context::get_is_shadow_agent, get_is_subagent, get_subagent_task_id (POS: Middleware session context — shared ContextVars for the middleware chain.)
+- langgraph.types::interrupt (POS: Pauses the node until the person answers.)
 
 [OUTPUT]
-- ToolApprovalMiddleware: after_model middleware orchestrating batch approval flow
+- ToolApprovalMiddleware: after_model middleware that puts the pending calls to the person and applies the answers
 
 [POS]
-Bridges the Permission Engine with the LangGraph tool pipeline.
+Bridges the Permission Engine with the LangGraph tool pipeline. Runs right after ``ApprovalEvaluationMiddleware``.
 """
 
 from __future__ import annotations
@@ -49,24 +54,24 @@ from langchain_core.messages import AIMessage, ToolCall, ToolMessage
 from langgraph.types import interrupt
 
 from myrm_agent_harness.agent.middlewares._session_context import (
-    get_approval_session,
     get_is_shadow_agent,
     get_is_subagent,
-    get_security_config,
-    get_workspace_root,
-    resolve_security_config_from_runtime,
-    set_security_config,
 )
-from myrm_agent_harness.agent.security.tool_registry import compute_canonical_args_hash
-from myrm_agent_harness.agent.security.types import RecentToolCall
 
 from .batch_processor import (
     apply_approval_decisions,
     build_interrupt_payload,
-    evaluate_tool_batch,
+)
+from .evaluation import (
+    APPROVAL_EVALUATION_KEY,
+    evaluate_target,
+    evaluation_matches,
+    pending_calls,
+    refused_calls,
+    resolve_approval_target,
 )
 from .helpers import reset_denial_counter
-from .refusal import answered_call_ids, kept_tool_calls
+from .refusal import kept_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -85,150 +90,41 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
     """Tool approval middleware using after_model hook for batch approval."""
 
     async def aafter_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
-        """Intercept AIMessage with tool_calls before execution.
+        """Put the calls the evaluation left pending to the person, then apply the answers.
 
-        Orchestrates batch approval flow: evaluate → interrupt → apply decisions.
+        Orchestrates batch approval flow: read verdicts → interrupt → apply decisions. This node is run again from
+        its first line when the person has answered, so everything before ``interrupt()`` only reads.
         """
-        config = get_security_config()
-        runtime_config = resolve_security_config_from_runtime(runtime)
-        if runtime_config is not None:
-            config = runtime_config
-            set_security_config(config)
-        elif config is None:
-            runtime_sec = getattr(getattr(runtime, "config", None), "security_config", None)
-            if runtime_sec is not None:
-                config = runtime_sec
-                set_security_config(config)
-            else:
-                from myrm_agent_harness.agent.security.channel_presets import (
-                    build_channel_security_config,
-                )
+        stored = state.get(APPROVAL_EVALUATION_KEY)
+        # The verdicts are spent once this node finishes; they must not linger in every later checkpoint.
+        spent: dict[str, Any] = {APPROVAL_EVALUATION_KEY: None} if stored is not None else {}
 
-                logger.error(
-                    "[SECURITY] security_config missing in async context — "
-                    "applying fail-closed web_chat defaults (session=%s)",
-                    get_approval_session(),
-                )
-                config = build_channel_security_config("web_chat", None, local_mode=True)
-                set_security_config(config)
+        target = resolve_approval_target(state, runtime)
+        if target is None:
+            return spent or None
 
-        messages = state.get("messages", [])
-        if not messages:
-            return None
+        config = target.config
+        session_key = target.session_key
+        workspace_root = target.workspace_root
+        last_ai_msg = target.unanswered
+        source_msg = target.source
 
-        last_ai_msg = next((msg for msg in reversed(messages) if isinstance(msg, AIMessage)), None)
-        if not last_ai_msg or not last_ai_msg.tool_calls:
-            return None
-
-        # A guard that ran before this one may already have answered some calls; those never reach the user.
-        source_msg = last_ai_msg
-        answered_ids = answered_call_ids(messages, source_msg)
-        if answered_ids:
-            last_ai_msg = source_msg.model_copy(
-                update={"tool_calls": [tc for tc in source_msg.tool_calls if tc.get("id") not in answered_ids]}
+        evaluation = stored if evaluation_matches(stored, source_msg.id) else None
+        if evaluation is None:
+            logger.warning(
+                "[APPROVAL] No stored evaluation for this model response; judging it here, "
+                "which an approval pause would repeat (session=%s)",
+                session_key,
             )
-            if not last_ai_msg.tool_calls:
-                return None
-
-        session_key = get_approval_session()
-        workspace_root = get_workspace_root() or None
-        is_cron = session_key.startswith("cron:")
-
-        args_hashes = {
-            idx: compute_canonical_args_hash(tc.get("name", "unknown"), tc.get("args"))
-            for idx, tc in enumerate(last_ai_msg.tool_calls)
-        }
-
-        # Extract user intent ledger (Reasoning-Blind: authentic user directives, anchored & un-truncated latest)
-        from myrm_agent_harness.agent.middlewares.approval.intent_ledger import (
-            extract_user_intent_ledger,
-        )
-
-        intent_context = extract_user_intent_ledger(messages, max_chars=2500)
-
-        # Extract recent tool call sequence for cross-tool context (Reasoning-Blind)
-        window_size = config.transcript_window_size
-        recent_tool_calls: tuple[RecentToolCall, ...] = ()
-        if config.auto_mode_enabled:
-            tc_list: list[RecentToolCall] = []
-            for msg in messages[-(window_size * 2) :]:
-                if isinstance(msg, AIMessage) and msg.tool_calls:
-                    for tc in msg.tool_calls:
-                        tc_list.append(
-                            RecentToolCall(
-                                tool_name=tc.get("name", "unknown"),
-                                args=tc.get("args", {}),
-                            )
-                        )
-            recent_tool_calls = tuple(tc_list[-window_size:])
-
-        # Extract session-level taint labels for the classifier
-        session_taint_labels: frozenset[str] | None = None
-        if config.auto_mode_enabled:
-            from myrm_agent_harness.agent.security.guards.taint_tracker import (
-                get_taint_tracker,
-            )
-
-            tracker = get_taint_tracker()
-            if tracker.is_tainted:
-                session_taint_labels = frozenset(str(lbl) for lbl in tracker.labels)
-
-        is_interactive = not is_cron and not get_is_shadow_agent()
-
-        _auto_approved, auto_denied, pending_approval = await evaluate_tool_batch(
-            last_ai_msg.tool_calls,
-            config,
-            is_cron,
-            workspace_root,
-            session_key,
-            args_hashes,
-            intent_context=intent_context,
-            recent_tool_calls=recent_tool_calls,
-            taint_labels=session_taint_labels,
-            is_interactive=is_interactive,
-        )
-
-        if pending_approval:
-            from myrm_agent_harness.agent.middlewares._session_context import (
-                get_approval_user_id,
-            )
-            from myrm_agent_harness.agent.middlewares.approval import (
-                get_approval_rate_limiter,
-            )
-            from myrm_agent_harness.agent.security.audit import record_decision
-
-            user_id = get_approval_user_id()
-            if user_id:
-                rate_limiter = get_approval_rate_limiter()
-                if not rate_limiter.check_limit(user_id):
-                    logger.warning("[RATE_LIMIT] Approval rate limit exceeded for user %s", user_id)
-                    for (
-                        idx,
-                        tool_call,
-                        _permission_type,
-                        _reason,
-                        _,
-                    ) in pending_approval:
-                        auto_denied.append(
-                            (
-                                idx,
-                                tool_call,
-                                "Too many approval requests. Rate limit exceeded. Please try again later.",
-                            )
-                        )
-                        record_decision(
-                            tool_call.get("name", "unknown"),
-                            "DENY",
-                            "Approval rate limit exceeded",
-                            tool_call_id=tool_call.get("id", ""),
-                        )
-                    pending_approval.clear()
+            evaluation = await evaluate_target(target)
+        auto_denied = refused_calls(evaluation)
+        pending_approval = pending_calls(evaluation)
 
         if not pending_approval:
             if auto_denied:
                 refusals = sorted(auto_denied, key=lambda denied: denied[0])
-                return {"messages": [_error_answer(tool_call, content) for _, tool_call, content in refusals]}
-            return None
+                return {**spent, "messages": [_error_answer(tool_call, content) for _, tool_call, content in refusals]}
+            return spent or None
 
         # We use LangGraph's native interrupt() mechanism for ALL agents, including subagents.
         # Subagents must have a checkpointer configured for this to work.
@@ -255,7 +151,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
             task_id = get_subagent_task_id()
             if not task_id:
                 logger.warning("Subagent context active but no task_id found. Falling back to auto-deny.")
-                return self._fallback_auto_deny(last_ai_msg, pending_approval, auto_denied, session_key)
+                return {**spent, **self._fallback_auto_deny(last_ai_msg, pending_approval, auto_denied, session_key)}
             payload["action_type"] = action_type
             payload["subagent_task_id"] = task_id
 
@@ -266,7 +162,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
                 "requiring user approval — auto-denying. session_key=%s",
                 session_key,
             )
-            return self._fallback_auto_deny(last_ai_msg, pending_approval, auto_denied, session_key)
+            return {**spent, **self._fallback_auto_deny(last_ai_msg, pending_approval, auto_denied, session_key)}
 
         batch_response = interrupt(payload)
         decisions = self._normalize_batch_decisions(
@@ -286,16 +182,16 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
             auto_denied,
             pending_approval,
             interrupt_indices,
-            args_hashes,
+            target.args_hashes,
             config=config,
         )
 
         # Fire APPROVAL_CORRECTION hook for edit decisions so user-defined hooks can react
         await self._fire_correction_hook(decisions, pending_approval, session_key)
 
-        answered_ids |= {message.tool_call_id for message in artificial_tool_messages}
+        answered_ids = set(target.answered_ids) | {message.tool_call_id for message in artificial_tool_messages}
         source_msg.tool_calls = kept_tool_calls(source_msg.tool_calls, revised_tool_calls, answered_ids)
-        return {"messages": [source_msg, *artificial_tool_messages, *guidance_messages]}
+        return {**spent, "messages": [source_msg, *artificial_tool_messages, *guidance_messages]}
 
     @staticmethod
     def _normalize_batch_decisions(

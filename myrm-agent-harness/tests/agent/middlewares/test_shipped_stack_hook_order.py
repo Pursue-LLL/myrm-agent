@@ -2,7 +2,8 @@
 
 LangChain runs the ``after_model`` hooks from the last middleware to the first. The completion guard and the
 clarification guard hold back or strip tool calls, so both must run before tool approval: the user is never asked
-to approve a call that is not going to run.
+to approve a call that is not going to run. The calls are judged in a node of their own, right before the node that
+asks the user, because resuming an approval pause runs the asking node again from its first line.
 """
 
 from __future__ import annotations
@@ -79,11 +80,12 @@ def _session(tmp_path: Path) -> Iterator[None]:
     set_workspace_root("")
 
 
-def test_a_model_response_meets_the_completion_guard_then_the_clarification_guard_then_approval() -> None:
+def test_a_model_response_meets_the_guards_then_the_evaluation_then_the_approval_that_asks_the_user() -> None:
     edges = {(edge.source, edge.target) for edge in _shipped_agent([AIMessage(content="ok")]).get_graph().edges}
 
     assert ("CompletionGuard.after_model", "ClarificationGuardMiddleware.after_model") in edges
-    assert ("ClarificationGuardMiddleware.after_model", "ToolApprovalMiddleware.after_model") in edges
+    assert ("ClarificationGuardMiddleware.after_model", "ApprovalEvaluationMiddleware.after_model") in edges
+    assert ("ApprovalEvaluationMiddleware.after_model", "ToolApprovalMiddleware.after_model") in edges
 
 
 async def test_a_tool_the_clarification_guard_strips_is_never_put_to_the_user_for_approval() -> None:

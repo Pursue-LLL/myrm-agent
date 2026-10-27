@@ -55,6 +55,7 @@ BEFORE_MODEL_NODES = {
 }
 AFTER_MODEL_NODES = {
     "ClarificationGuardMiddleware",
+    "ApprovalEvaluationMiddleware",
     "ToolApprovalMiddleware",
     "CompletionGuard",
     "BudgetBoundaryMiddleware",
