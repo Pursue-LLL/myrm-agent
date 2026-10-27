@@ -10,9 +10,11 @@ Standalone benchmark probes for validating runtime and agent performance charact
 | bench_startup_performance.py | Diagnostic | Agent/toolkit import and startup latency regression gate | Yes |
 | bench_boundary_detection.py | Diagnostic | Harness/business boundary detection performance + regression vs `baseline_boundary.json` (scan cost compared per file, so tree growth is not read as a slowdown) | Yes |
 | context_archive_benchmark.py | Diagnostic | Context archive hash, gzip, atomic write, schema-v2 restore-map costs | No |
+| bench_tracing_overhead.py | Diagnostic | Instrumentation cost of one logical model call with the NoOp default and with the SDK pipeline of `setup_tracing` writing to in-memory sinks (each scenario in its own process); reports, does not gate; the figures in `infra/tracing/TRACE_STORAGE_SYSTEM.md` come from it | No |
 | baseline_boundary.json | Baseline | Saved boundary-detection baseline for `--check-regression` | Yes |
 
 ## Key Dependencies
 
 - `myrm_agent_harness.infra`
+- `myrm_agent_harness.observability`
 - `myrm_agent_harness.agent.context_management`
