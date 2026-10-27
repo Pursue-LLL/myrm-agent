@@ -48,7 +48,7 @@ class BranchForkResult(NamedTuple):
 
 
 def _resolve_snapshot_path(session_id: str, snapshot_path: str) -> Path:
-    from myrm_agent_harness.core.paths import get_context_root, get_persistent_root
+    from myrm_agent_harness.runtime.paths.execution_paths import get_context_root, get_persistent_root
 
     normalized = snapshot_path.strip()
     if not normalized:
