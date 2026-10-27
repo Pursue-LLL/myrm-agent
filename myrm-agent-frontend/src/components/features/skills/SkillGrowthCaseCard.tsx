@@ -45,7 +45,7 @@ export default function SkillGrowthCaseCard({
   onRevise,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -57,7 +57,7 @@ export default function SkillGrowthCaseCard({
   const modifiedEditorRef = useRef<{ getValue: () => string } | null>(null);
   const isSimple = viewMode === 'simple';
 
-  const isDark = theme === 'dark';
+  const isDark = resolvedTheme === 'dark';
   const isMobile = useIsMobile();
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';

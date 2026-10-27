@@ -45,7 +45,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('next-themes', () => ({
-  useTheme: () => ({ theme: 'light' }),
+  useTheme: () => ({ theme: 'light', resolvedTheme: 'light' }),
 }));
 
 vi.mock('next/link', () => ({

@@ -225,7 +225,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
   ({ diff, filePath, onClose, defaultViewMode = 'unified', className, embedded = false, maxHeight }) => {
     const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
     const [copied, setCopied] = useState(false);
-    const { theme } = useTheme();
+    const { resolvedTheme } = useTheme();
 
     const parsed = useDiffParser(diff);
     const displayPath = filePath || parsed.filePath || 'Unknown file';
@@ -233,8 +233,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
     const language = Prism.languages[rawLanguage] ? rawLanguage : 'text';
 
     const prismTheme = useMemo(() => {
-      return theme === 'dark' ? themes.oneDark : themes.oneLight;
-    }, [theme]);
+      return resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight;
+    }, [resolvedTheme]);
 
     const handleCopy = useCallback(async () => {
       try {

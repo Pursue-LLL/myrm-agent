@@ -27,7 +27,7 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
   const [renderFullContent, setRenderFullContent] = useState(false);
   const [copied, setCopied] = useState(false);
   const t = useTranslations('progressSteps');
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   const lines = useMemo(() => code.split('\n'), [code]);
   const isLongCode = lines.length > maxCollapsedLines;
@@ -42,7 +42,7 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const codeTheme = theme === 'dark' ? themes.oneDark : themes.oneLight;
+  const codeTheme = resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight;
 
   // 【性能高亮熔断机制】代码超过 50000 字符，降级为纯文本，彻底防冻结主线程
   const isTooLongToHighlight = code.length > 50000;

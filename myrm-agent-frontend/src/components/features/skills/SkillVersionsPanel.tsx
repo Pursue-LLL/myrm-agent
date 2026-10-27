@@ -38,7 +38,7 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
   const t = useTranslations('settings.skillOptimization.versions');
   const tSkills = useTranslations('settings.skills');
   const appLocale = useLocale();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   const [versions, setVersions] = useState<SkillVersionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -208,7 +208,7 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
                 <DiffEditor
                   original={diffContent.original}
                   modified={diffContent.modified}
-                  theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                  theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
                   options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }}
                 />
               </div>

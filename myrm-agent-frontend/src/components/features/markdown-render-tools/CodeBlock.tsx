@@ -69,7 +69,7 @@ const CodeBlock: React.FC<{
 }> = ({ language, value, className, isStreaming = false }) => {
   const t = useTranslations('codeBlock');
   const [copied, setCopied] = useState(false);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const { addTab, updateTabContent, updateTabLoading } = useArtifactPortalStore();
 
   // 流式输出时的 debounced value
@@ -158,7 +158,7 @@ const CodeBlock: React.FC<{
 
   // 根据当前主题选择代码高亮主题
   const getTheme = useCallback(() => {
-    switch (theme) {
+    switch (resolvedTheme) {
       case 'light':
         return themes.oneLight;
       case 'dark':
@@ -166,10 +166,10 @@ const CodeBlock: React.FC<{
       default:
         return themes.oneLight;
     }
-  }, [theme]);
+  }, [resolvedTheme]);
 
   // 使用缓存机制优化高亮性能
-  const cacheKey = `${safeLanguage}:${theme}:${displayValue}`;
+  const cacheKey = `${safeLanguage}:${resolvedTheme}:${displayValue}`;
 
   // 渲染高亮代码，使用缓存避免重复计算
   const highlightedCode = useMemo(() => {

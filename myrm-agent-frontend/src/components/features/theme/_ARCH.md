@@ -23,6 +23,7 @@ Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Reci
 | `__tests__/ThemeProfileProvider.petOverlay.test.tsx`    | Regression: `/pet-overlay` skips `WorkspaceArtLayer` + missing-asset banner                                                                                                                                                                                                              | ✅    |
 | `__tests__/ThemeProfileProvider.reactiveMedia.test.tsx` | Regression: a mid-session reduced-motion flip swaps the video art layer for its still poster                                                                                                                                                                                             | ✅    |
 | `__tests__/restoreOfficialTheme.test.ts`                | Official restore executes ConfigSync patch + draft/preview cleanup                                                                                                                                                                                                                       | ✅    |
+| `__tests__/syntaxThemeFollowsOs.test.tsx`               | Regression: code block, diff viewer and tool-output highlighter pick their palette from `resolvedTheme` (a `system` setting on a dark OS is dark); source guard bans the `const { theme } = useTheme()` pattern                                                                          |
 
 ## Dependencies
 

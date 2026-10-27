@@ -45,7 +45,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState<string | null>(null);
   const [pendingRollback, setPendingRollback] = useState<{ id: string; name: string } | null>(null);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const appLocale = useLocale();
 
   const fetchHistory = useCallback(async () => {
@@ -186,7 +186,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                         height="300px"
                         original={record.original_content}
                         modified={record.evolved_content}
-                        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                        theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
                         options={{
                           readOnly: true,
                           renderSideBySide: false,
