@@ -15,7 +15,7 @@
 |------|------|------|-------|
 | `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测 | ✅ |
 | `encryption.py` | 核心 | 业务层加密策略：密钥注入、敏感配置判定、encrypt/decrypt 委托到 harness ConfigCrypto | ✅ |
-| `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级（启动时执行） | ✅ |
+| `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级；`seal_stored_configs` 是启动时的整体入口（一个会话里先封配置行、再封审计历史） | ✅ |
 | `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
 | `onboarding.py` | 核心 | 首次配置 onboarding：检查状态、标记完成、推荐 provider、probe 本地模型与搜索（SearXNG/DuckDuckGo） | ✅ |
 | `searxng_setup.py` | 辅助 | 本地 SearXNG 启动（Docker Compose，local/tauri deploy only）+ 启动后轮询探测可用性 | ✅ |
@@ -51,15 +51,17 @@
 
 **敏感配置范围**：
 ```
-providers, retrieval, searchServices, mcpServers, backupSync, externalAgents, egress_proxy, llm_proxy,
+providers, retrieval, searchServices, mcpServers, backupSync, voice, externalAgents, egress_proxy, llm_proxy,
 feishuCredentials, dingtalkCredentials, slackCredentials, ...
 ```
+
+名单是手写的：`tests/services/config/test_config_key_classification.py` 要求每个 `ConfigKey` 要么在名单里、要么在该测试的「不含密钥」清单里，新增配置键而不表态会让测试失败。`personalSettings` 是唯一的例外行：偏好与一个可选的本地模型端点密钥（`privacyRouting.localApiKey`）在同一份文档里读写，整行封存会让不带口令的归档丢掉偏好，所以它仍以普通数据携带。
 
 ### 3. 配置迁移 (`migration.py`)
 
 **职责**：自动迁移明文配置到加密格式。
 
-**执行时机**：应用启动时（仅 Local 模式）。幂等操作。
+**执行时机**：应用启动时，`lifespan` 在 Local、Tauri、沙箱模式下都调用 `seal_stored_configs`（沙箱写入时就用控制平面提供的密钥封存，此前保存的明文行同样需要这一遍；不加密配置的模式没有可封存的行）。幂等操作；失败只记警告，不阻塞启动。
 
 **审计历史同样封存**：`config_audit_logs` 逐次重复保存过的值（`ConfigService.set` 写入时与主行同形，敏感键为 `{"_cipher": ...}`）。键在被列为敏感之前留下的明文旧值，由 `migrate_config_history_to_encrypted` 在同一时机补封；已封的值与非敏感键的历史原样保留，第二次运行不改任何行。
 

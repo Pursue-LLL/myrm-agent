@@ -5,18 +5,21 @@ app.lifecycle.schedulers::start_remote_backup_scheduler/_remote_backup_auto_sync
 app.services.memory.backup.remote_sync::sync_tick
 
 [OUTPUT]
-That the hourly check is registered a few minutes after boot (not at once) and that the job feeds the stored settings,
-the memory manager factory and the state store to the tick without ever raising.
+That the hourly check is registered a few minutes after boot (not at once), that the job feeds the stored settings,
+the memory manager factory and the state store to the tick without ever raising, and that settings sealed by a key that
+is gone reach the tick as unreadable.
 
 [POS]
 The real lifecycle functions with a recording ``AsyncScheduler``; the tick itself is covered in
-``services/memory/backup/remote_sync/``.
+``services/memory/backup/remote_sync/``. The unreadable-settings case reads a real sealed row through the real
+``ConfigService`` on an in-memory database.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Iterator, Mapping
+import os
+from collections.abc import AsyncGenerator, Callable, Iterator, Mapping
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace, TracebackType
 from typing import Self
@@ -24,9 +27,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 from apscheduler.triggers.interval import IntervalTrigger
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.database.models import UserConfig
 from app.lifecycle import schedulers
 from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
+from app.services.config import service as config_service_module
+from app.services.config.encryption import ConfigEncryptionService
 from app.services.memory.backup.remote_sync.state import RemoteSyncStore
 
 
@@ -133,3 +140,45 @@ async def test_a_failure_anywhere_in_the_job_never_escapes_to_the_scheduler(monk
     monkeypatch.setattr("app.services.config.service.config_service.get", AsyncMock(side_effect=RuntimeError("database locked")))
 
     await schedulers._remote_backup_auto_sync_job()
+
+
+@pytest.fixture
+async def stored_rows(monkeypatch: pytest.MonkeyPatch) -> AsyncGenerator[async_sessionmaker[AsyncSession]]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(UserConfig.__table__.create)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(config_service_module, "get_session_factory", lambda: sessions)
+    yield sessions
+    await engine.dispose()
+
+
+async def test_settings_sealed_by_a_key_that_is_gone_reach_the_tick_as_unreadable(
+    stored_rows: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lost = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=False, is_local=True)
+    current = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=False, is_local=True)
+    sealed, encrypted = lost.encrypt_if_needed("backupSync", {"enabled": True, "autoSync": True, "provider": "webdav"})
+    assert encrypted
+    async with stored_rows() as db:
+        db.add(
+            UserConfig(
+                id="id-backupSync",
+                config_key="backupSync",
+                config_value=sealed,
+                is_encrypted=True,
+                version="1_0",
+                last_device_id="device",
+                updated_at=datetime.now(UTC),
+            )
+        )
+        await db.commit()
+    monkeypatch.setattr(config_service_module, "get_encryption_service", lambda: current)
+    tick = AsyncMock()
+    monkeypatch.setattr("app.services.memory.backup.remote_sync.sync_tick", tick)
+
+    await schedulers._remote_backup_auto_sync_job()
+
+    tick.assert_awaited_once()
+    assert tick.await_args.args[0] == {}
+    assert tick.await_args.kwargs["settings_unreadable"] is True

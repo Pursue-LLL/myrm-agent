@@ -31,7 +31,6 @@ from myrm_agent_harness.runtime.survival.startup import StartupTimer
 if TYPE_CHECKING:
     from myrm_agent_harness.runtime.context.cleanup_task import ContextCleanupScheduler
 
-from app.config.deploy_mode import is_local_mode
 from app.config.settings import settings
 from app.core.memory.adapters.setup import shutdown_cached_memory_managers
 from app.database.connection import init_database
@@ -459,20 +458,12 @@ async def _phase_1a_sequential() -> None:
         logger.error("[Startup] Feature flags initialization failed: %s", e)
         raise
 
-    if is_local_mode():
-        try:
-            from app.database.connection import get_session
-            from app.services.config.migration import migrate_config_history_to_encrypted, migrate_configs_to_encrypted
+    try:
+        from app.services.config.migration import seal_stored_configs
 
-            async with get_session() as db:
-                stats = await migrate_configs_to_encrypted(db)
-                if stats["migrated"] > 0:
-                    logger.info(f"[Startup] Config encryption migration complete: {stats}")
-                else:
-                    logger.debug(f"[Startup] No configs to migrate: {stats}")
-                await migrate_config_history_to_encrypted(db)
-        except Exception as e:
-            logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
+        await seal_stored_configs()
+    except Exception as e:
+        logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
 
     try:
         from app.services.config.key_consolidation import (

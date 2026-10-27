@@ -58,10 +58,10 @@ EPHEMERAL_TABLES: frozenset[str] = frozenset({"artifact_share_records", "interru
 # Rows keyed by user identity: carried only when the importing identity equals the exporting one.
 IDENTITY_TABLES: frozenset[str] = frozenset({"commitments", "skill_permission_usage_logs", "artifact_audit_logs"})
 
-# Sensitive user_configs rows that are portable across machines (provider keys, MCP, search, remote backup storage).
-# Every other sensitive row (channel logins, proxies, org-managed servers) stays with its host.
+# Sensitive user_configs rows that are portable across machines (provider keys, MCP, search, remote backup storage,
+# speech keys). Every other sensitive row (channel logins, proxies, org-managed servers) stays with its host.
 CARRIED_SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
-    {"providers", "retrieval", "searchServices", "mcpServers", "externalAgents", "mcpOAuthTokens", "backupSync"}
+    {"providers", "retrieval", "searchServices", "mcpServers", "externalAgents", "mcpOAuthTokens", "backupSync", "voice"}
 )
 
 # Non-sensitive config rows that still describe this host (paths, outbound sync, security posture).

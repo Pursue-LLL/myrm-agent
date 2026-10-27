@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import sqlite3
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -58,6 +59,8 @@ def test_export_carries_no_plaintext_secret_and_leaves_machine_state_behind(sour
         b"sk-source-provider",
         b"tg-secret",
         b"external-agent-secret",
+        b"voice-stt-secret",
+        b"voice-tts-secret",
         b"source-secret",
         b"source-agent-secret",
         b"fp-123",
@@ -87,9 +90,32 @@ def test_export_without_passphrase_drops_every_sensitive_config(source_state: Pa
     assert read_config(extracted, "providers") is None
     assert read_config(extracted, "mcpServers") is None
     assert read_config(extracted, "externalAgents") is None
+    assert read_config(extracted, "voice") is None
     assert read_config(extracted, "onboarding") == {"done": True}
     assert "config:providers" in metadata["reentry"]
     assert "config:externalAgents" in metadata["reentry"]
+    assert "config:voice" in metadata["reentry"]
+
+
+def test_a_voice_row_still_saved_in_plaintext_never_travels(source_state: Path, tmp_path: Path) -> None:
+    conn = sqlite3.connect(source_state / "data.db")
+    conn.execute(
+        "UPDATE user_configs SET config_value = ?, is_encrypted = 0 WHERE config_key = 'voice'",
+        (json.dumps({"sttApiKey": "voice-plain-secret"}),),
+    )
+    conn.commit()
+    conn.close()
+
+    archive = export_archive(source_state, tmp_path / "out.zip")
+
+    extracted = tmp_path / "data.db"
+    with zipfile.ZipFile(archive) as zf:
+        extracted.write_bytes(zf.read("payload/data.db"))
+        blob = b"".join(zf.read(n) for n in zf.namelist())
+        metadata = json.loads(zf.read("manifest.json"))["metadata"]
+    assert b"voice-plain-secret" not in blob
+    assert read_config(extracted, "voice") is None
+    assert "config:voice" in metadata["reentry"]
 
 
 def test_export_cancel_leaves_no_partial_file(source_state: Path, tmp_path: Path) -> None:
@@ -156,6 +182,11 @@ def test_stage_grafts_target_posture_rekeys_secrets_and_neutralizes(
     }
     with pytest.raises(DecryptionError):
         ConfigCrypto.decrypt_value(external_agents, SOURCE_KEY)
+    voice = read_config(staged, "voice")
+    assert isinstance(voice, str)
+    assert ConfigCrypto.decrypt_value(voice, TARGET_KEY)["sttApiKey"] == "voice-stt-secret"
+    with pytest.raises(DecryptionError):
+        ConfigCrypto.decrypt_value(voice, SOURCE_KEY)
     assert read_config(staged, "onboarding") == {"done": True}
 
     # Share links, whitelisted keys and in-flight state never arrive.

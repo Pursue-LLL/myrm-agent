@@ -120,9 +120,13 @@ def source_state(tmp_path: Path) -> Path:
     put_config(
         conn,
         "externalAgents",
-        seal_config(
-            {"agents": [{"name": "claude", "env": {"HTTPS_PROXY": "http://u:external-agent-secret@proxy"}}]}, SOURCE_KEY
-        ),
+        seal_config({"agents": [{"name": "claude", "env": {"HTTPS_PROXY": "http://u:external-agent-secret@proxy"}}]}, SOURCE_KEY),
+        encrypted=True,
+    )
+    put_config(
+        conn,
+        "voice",
+        seal_config({"sttApiKey": "voice-stt-secret", "ttsApiKey": "voice-tts-secret", "ttsVoice": "alloy"}, SOURCE_KEY),
         encrypted=True,
     )
     put_config(conn, "telegramCredentials", seal_config({"bot": "tg-secret"}, SOURCE_KEY), encrypted=True)

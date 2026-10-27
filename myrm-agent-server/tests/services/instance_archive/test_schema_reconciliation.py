@@ -86,11 +86,16 @@ def test_carried_sensitive_keys_are_really_sensitive() -> None:
     assert all(is_sensitive_config(key) for key in CARRIED_SENSITIVE_CONFIG_KEYS)
 
 
-def test_the_remote_backup_row_travels_as_a_portable_secret() -> None:
-    assert table_policy.config_row_policy("backupSync") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
 def test_the_external_agents_row_travels_as_a_portable_secret() -> None:
     assert table_policy.config_row_policy("externalAgents") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
     assert table_policy.config_needs_reentry("externalAgents")
 
 
+def test_the_voice_row_travels_as_a_portable_secret() -> None:
+    assert table_policy.config_row_policy("voice") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
+    assert table_policy.config_needs_reentry("voice")
+
+
+def test_the_remote_backup_row_travels_as_a_portable_secret() -> None:
+    assert table_policy.config_row_policy("backupSync") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
     assert table_policy.config_needs_reentry("backupSync")
