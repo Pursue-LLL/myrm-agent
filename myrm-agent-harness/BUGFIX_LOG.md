@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-049 · 卡死的 ACP 代理被强制结束时，它启动的工具进程留在原地（开发服务器仍占着端口），还把停止拖慢到 10 秒以上
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness `toolkits/acp`；用假代理加真实系统进程验证，没有用真实模型驱动的代理验证，见「仍然存在」）。补全 047 的有界停止：047 超时后只结束代理这一个进程。 |
+| **发现时间** | 2026-10-27（对着 047 的强杀分支问「代理带着工具进程时会怎样」，写了一个会起工具进程的假代理，发现工具进程没有被带走） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：用户点停止、空闲回收或删会话时，一个已经不读 stdin 的 ACP 代理被强制结束，它在跑的工具（开发服务器、测试、爬虫）继续活着，占端口和 CPU；沙箱是每个用户一台持久云电脑，没有关机清场，孤儿会一直累积。同类事故在 Claude Code、Cursor、Codex 的公开 issue 与论坛里都有（Claude Code issue 43944、79902，Cursor 论坛 171517、172697，Codex issue 15379）。触发要同时满足：ACP 后端、代理已不读 stdin、代理身上带着工具进程；真实频率没统计。 |
+| **关联产品** | harness `toolkits/acp/runtime/stalled_agent.py` |
+| **根因** | ① 047 的两处超时分支只对代理的 PID 做 `process.kill()`。ACP SDK 的 `spawn_stdio_transport` 不给代理单独的会话，代理与宿主在同一个进程组里，不能按组发信号；它启动的工具进程因此留在原地。② 047 记下的前提「结束代理进程，没读完的写入就会失败」只在没有别的进程握着代理 stdin 的读端时成立：工具进程继承了 stdin 时，代理死后写入仍不失败，SDK 的传输退出一直不返回，停止要等满两个界限（`close` 10.5 秒，`cancel` 加 `close` 15.5 秒，比服务端给整池关闭的 10 秒上限还长）。 |
+| **修复** | `toolkits/acp/runtime/stalled_agent.py` 新增 `end_agent`：复用 `toolkits/code_execution/session/process_tree.py` 里已有的 `kill_process_tree`（共享进程组分支：先快照后代，SIGTERM，0.5 秒宽限后 SIGKILL，再补杀幸存者；shield 保证调用方被取消时也跑完），取消超时与传输退出超时两处都改用它；已被回收的代理不再按 PID 发信号；`process_tree` 在这条停止路径上才懒导入，因为 session 包会加载整套 shell。测试：`tests/toolkits/acp/runtime/test_acp_runtime_images.py` 的 `TestStalledAgent` 新增「取消后」「关闭后」工具进程都已结束两条，假代理 `tests/toolkits/acp/_stalled_acp_agent.py` 增加起一个继承 stdin、stdout 的工具进程的选项；原来的 `returncode == -SIGKILL` 断言改成 SIGTERM 或 SIGKILL（先发 SIGTERM）。 |
+| **反复次数** | 第 1 次（接着 047） |
+| **踩坑** | ① 我先推断「关闭分支要在 SDK 升级杀代理之前对后代拍快照」，实测推翻：代理卡死时 SDK 的退出在 5 秒界限处还在等、代理还活着，直接结束进程树就够，不需要快照。② 我先以为是工具进程握着 stdout 拖慢停止，用「工具进程不继承 stdin」的对照证明是 stdin 读端：继承时 `close` 10.5 秒，不继承时 5.5 秒。③ 一组对照靠环境变量把开关传给假代理，但 SDK 的 `default_environment()` 会过滤环境，开关没生效，那组结果作废，改用命令行参数重做。④ 基线探针有 2 次耗时 0.0 秒，是取消早于代理的会话建立，剔除。 |
+| **回归** | `tests/toolkits/acp` 默认口径 751 条通过（56 条 integration、e2e、performance 未选）。变异检查：把 `end_agent` 改回 `process.kill()`，新增的两条失败，改回后通过。实测（假代理起一个继承 stdin、stdout 的工具进程，界限 5 秒，各 3 次）：`cancel` 加 `close` 5.5 到 5.6 秒、只 `close` 5.5 秒、监听端口的工具进程 5.5 到 5.7 秒，工具进程都已结束、端口都已释放；无工具进程的基线 5.0 到 5.1 秒。对照（047 的实现，同一探针）：工具进程仍活着、端口仍可连接，`close` 10.5 秒、`cancel` 加 `close` 15.5 秒；工具进程不继承 stdin 时 5.5 秒，工具进程仍活着。 |
+| **仍然存在** | ① 没有用真实模型驱动的代理验证：本机 `opencode` 的管理服务端口被占用（我没有动它），`cursor-agent` 未登录；真实代理的工具进程是否继承 stdin 因代理而异，没有逐个核对。② Windows 走 `taskkill /T`，没验证。③ 已经双重 fork、脱离代理树的守护进程抓不到（与 `toolkits/code_execution/session/process_tree.py` 现有限制相同）。④ 代理自己正常退出时留下的后台进程不处理，是刻意的：分辨不出哪些是故意留下的。⑤ 整池关闭在服务端有 10 秒上限，修复后的 5.5 秒在它之内，但没有在服务端实测。⑥ 这类孤儿的真实发生频率没统计。 |
+| **代码位置** | `toolkits/acp/runtime/stalled_agent.py`（`end_agent`、`cancel_session`、`leave_transport`）· `toolkits/code_execution/session/process_tree.py`（复用，未改）· 测试 `tests/toolkits/acp/runtime/test_acp_runtime_images.py`、`tests/toolkits/acp/_stalled_acp_agent.py` |
+
 ### BUG-HARNESS-2026-10-27-048 · 完成门禁把「已做完且验证过」的运行当成没验证拦下重做（失败后修好重跑通过、写入之前的探索性失败、被 20 条窗口挤掉的证据），反过来也放过窗口之外的未验证写入；独立复跑能越过无关的拦截；PPT 大纲门禁是写在框架里的业务规则
 
 | 字段 | 内容 |

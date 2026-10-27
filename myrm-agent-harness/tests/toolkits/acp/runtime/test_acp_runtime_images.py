@@ -12,6 +12,7 @@ import time
 from asyncio.subprocess import Process
 from pathlib import Path
 
+import psutil
 import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime import stalled_agent
@@ -134,15 +135,20 @@ class TestImagePrompts:
         assert _not_sent_notices(events) == []
 
 
-async def _stalled_turn(directory: Path) -> tuple[AcpRuntime, asyncio.Task[None], Process]:
-    """A turn whose 5 MiB prompt sits half written in the pipe of an agent that no longer reads it."""
+async def _stalled_turn(
+    directory: Path, tool_pid_file: Path | None = None
+) -> tuple[AcpRuntime, asyncio.Task[None], Process]:
+    """A turn whose 5 MiB prompt sits half written in the pipe of an agent that no longer reads it.
+
+    With ``tool_pid_file`` the agent has started a tool process that holds the same pipes and records its PID there.
+    """
     image, _ = _png(directory, "big.png", 5 * 1024 * 1024)
     runtime = AcpRuntime(
         "stalled",
         RuntimeConfig(
             backend_type="acp",
             command=sys.executable,
-            args=[str(_STALLED_AGENT), _STALL_SECONDS],
+            args=[str(_STALLED_AGENT), _STALL_SECONDS, *([str(tool_pid_file)] if tool_pid_file else [])],
             cwd=str(directory),
             timeout_seconds=120,
         ),
@@ -161,6 +167,28 @@ async def _stalled_turn(directory: Path) -> tuple[AcpRuntime, asyncio.Task[None]
     process = getattr(runtime, "_process", None)
     assert process is not None
     return runtime, turn, process
+
+
+def _tool_running(pid: int) -> bool:
+    """Whether the tool process still runs; one that was killed and not yet reaped does not count."""
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+async def _tool_ended(pid: int, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while _tool_running(pid):
+        if time.monotonic() > deadline:
+            return False
+        await asyncio.sleep(0.05)
+    return True
+
+
+def _end_tool(pid: int) -> None:
+    with contextlib.suppress(psutil.NoSuchProcess):
+        psutil.Process(pid).kill()
 
 
 async def _finish(runtime: AcpRuntime, turn: asyncio.Task[None], process: Process) -> None:
@@ -186,8 +214,44 @@ class TestStalledAgent:
             await asyncio.wait_for(process.wait(), timeout=10)
 
             assert time.monotonic() - started < 10
-            assert process.returncode == -signal.SIGKILL
+            assert process.returncode in (-signal.SIGTERM, -signal.SIGKILL)
         finally:
+            await _finish(runtime, turn, process)
+
+    @pytest.mark.asyncio
+    async def test_cancel_ends_the_tool_process_the_agent_started(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        pid_file = tmp_path / "tool.pid"
+        runtime, turn, process = await _stalled_turn(tmp_path, pid_file)
+        tool = int(pid_file.read_text())
+        try:
+            await asyncio.wait_for(runtime.cancel("chat-1"), timeout=20)
+
+            assert await _tool_ended(tool)
+        finally:
+            _end_tool(tool)
+            await _finish(runtime, turn, process)
+
+    @pytest.mark.asyncio
+    async def test_close_ends_the_tool_process_the_agent_started(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        pid_file = tmp_path / "tool.pid"
+        runtime, turn, process = await _stalled_turn(tmp_path, pid_file)
+        tool = int(pid_file.read_text())
+        try:
+            turn.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.wait_for(turn, timeout=20)
+            await asyncio.wait_for(runtime.close(), timeout=20)
+
+            assert process.returncode is not None
+            assert await _tool_ended(tool)
+        finally:
+            _end_tool(tool)
             await _finish(runtime, turn, process)
 
     @pytest.mark.asyncio
