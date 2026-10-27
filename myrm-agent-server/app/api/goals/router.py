@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
 - app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, wait_for_session_idle (POS: Goal control rules shared with IM)
+- app.api.goals.schemas (POS: request/response bodies of the endpoints)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
@@ -21,7 +22,6 @@ from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.api.hooks import GOAL_WAIT_KIND_KEY, GOAL_WAIT_KIND_USAGE_LIMIT
 from myrm_agent_harness.core.features import get_features
-from pydantic import BaseModel
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.services.agent.goals.goal_controls import (
@@ -44,6 +44,13 @@ from .constraints import (
 )
 from .plan import get_goal_dag, get_goal_plan, plan_router
 from .queue import QueueReorderRequest, get_goal_queue, queue_router
+from .schemas import (
+    GoalBudgetUpdateRequest,
+    GoalDraftRequest,
+    GoalDraftResponse,
+    GoalStatusUpdateRequest,
+    SubgoalAddRequest,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.types import Goal
@@ -94,31 +101,6 @@ async def list_active_goals() -> dict[str, object]:
             logger.debug("Failed to get goal for session %s: %s", sid, e)
 
     return {"goals": results, "count": len(results)}
-
-
-class GoalStatusUpdateRequest(BaseModel):
-    action: str  # "pause", "resume", "cancel", "approve", "reject", "wait", "unwait"
-    note: str | None = None
-    wait_reason: str | None = None
-
-
-class GoalDraftRequest(BaseModel):
-    objective: str
-    locale: str | None = None
-
-
-class GoalDraftResponse(BaseModel):
-    constraints: list[str]
-    acceptance_criteria: list[dict[str, object]]
-    ui_summary: str
-
-
-class GoalBudgetUpdateRequest(BaseModel):
-    additional_tokens: int
-
-
-class SubgoalAddRequest(BaseModel):
-    text: str
 
 
 @router.post("/{session_id}/subgoals")
