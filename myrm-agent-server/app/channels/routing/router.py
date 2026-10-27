@@ -728,7 +728,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     reply = OutboundMessage(
                         channel=msg.channel,
                         recipient_id=chat_id,
-                        content="⚠️ 请在委派指令后附带具体任务内容，例如：`/delegate 调研行业竞品并生成PPT`",
+                        content=get_text(msg, "delegation_task_missing"),
                         user_id=msg.user_id or "",
                         thread_id=msg.thread_id,
                     )
@@ -758,7 +758,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 reply = OutboundMessage(
                     channel=msg.channel,
                     recipient_id=chat_id,
-                    content=f"🎯 已将补充指引动态注入后台任务 `[{active_del.task_id}]`",
+                    content=get_text(msg, "delegation_steering_injected", task_id=active_del.task_id),
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
                 )
@@ -780,7 +780,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             reject_msg = OutboundMessage(
                 channel=msg.channel,
                 recipient_id=chat_id,
-                content="⚠️ 当前已有 2 个后台长任务正在执行中，请等待上一任务完成后再提交委派。",
+                content=get_text(msg, "delegation_quota_reached", limit=self._delegation_guard.max_active),
                 user_id=user_id,
                 thread_id=msg.thread_id,
             )
@@ -797,16 +797,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._delegation_coordinator.register_task(task)
         self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
 
-        receipt_text = (
-            f"📋 **已收到异步任务委派** `[{task.task_id}]`\n\n"
-            f"💡 **任务内容**：{clean_prompt[:120]}\n"
-            f"⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动推送成果卡片。\n"
-            f"*(提示：中途可直接发送消息为任务补充指引)*"
-        )
         receipt_outbound = OutboundMessage(
             channel=msg.channel,
             recipient_id=chat_id,
-            content=receipt_text,
+            content=get_text(msg, "delegation_receipt", task_id=task.task_id, prompt=clean_prompt[:120]),
             user_id=user_id,
             thread_id=msg.thread_id,
             metadata={"delegation_task_id": task.task_id, "is_receipt": True},

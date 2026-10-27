@@ -18,6 +18,15 @@ steering_applied = 指示を適用しました：_{ $preview }_
 usage_queue = 使い方：`/queue <タスクの説明>`
 queue_queued = キューに追加しました。現在のタスク完了後に実行されます。
 queue_immediate = アクティブなタスクなし — 直ちに実行します。
+delegation_task_missing = ⚠️ 委任コマンドの後に具体的なタスク内容を付けてください。例：`/delegate 業界の競合を調査してスライドを作成`
+delegation_steering_injected = 🎯 追加の指示をバックグラウンドタスク `[{ $task_id }]` に反映しました
+delegation_quota_reached = ⚠️ バックグラウンドタスクがすでに { $limit } 件実行中です。いずれかの完了を待ってから再度委任してください。
+delegation_receipt =
+    📋 **非同期タスクの委任を受け付けました** `[{ $task_id }]`
+
+    💡 **タスク内容**：{ $prompt }
+    ⏳ **状況**：バックグラウンドのサンドボックスが自律的に実行中です。チャットを閉じても構いません。完了すると結果カードがここに届きます。
+    { "*" }(ヒント：実行中でもメッセージを送ると、タスクに追加の指示を渡せます)*
 goal_system_not_configured =  この環境ではゴールシステムが設定されていません。
 goal_management_not_available = ゴール管理は利用できません。
 agent_is_running_goal = Agent は実行中です — 実行中は /goal status、/goal pause、/goal clear をご利用ください。新しいゴールを設定する前に /stop で Agent を停止してください。
@@ -326,6 +335,10 @@ cmd_background = 現在の会話をブロックせずに別のバックグラウ
 cmd_status = 現在のセッション状態を表示（トークン、コスト、モデル、Agent 状態）
 cmd_quota = 本日の会話上限と利用状況を確認
 cmd_help = 利用可能なコマンドを表示
+cmd_btw = 会話の文脈を汚さずに、一時的なサイド質問をする
+cmd_memo = 音声メモや会議の文字起こしを、議事録・タスク・記憶に分解する
+cmd_review-week = 今週の音声メモ・会議ノート・カンバンの阻害要因を経営層向けダイジェストにまとめる
+cmd_design-image = 構造化された Prompt-as-Code の原子的ビジュアルスキーマで商用品質の画像を生成する
 cat_Session = セッション
 cat_Configuration = 設定
 cat_Topic = トピック
@@ -377,6 +390,8 @@ cmd_memory = 保留中のメモリ書き込みを確認（承認/拒否）
 cmd_learn = URL、ファイル、または会話から Agent に新しいスキルを学習させる
 cat_Memory = メモリ
 cat_Skills = スキル
+cat_Creation = クリエイション
+cat_Productivity = 生産性
 learn_not_configured = ℹ この環境ではスキル学習が設定されていません。
 learn_failed = ❌ 学習プロンプトの構築に失敗しました。再試行してください。
 reassurance_still_running = ⏳ 作業中 — { $elapsed } 分（{ $steps } ステップ{ $stage }）

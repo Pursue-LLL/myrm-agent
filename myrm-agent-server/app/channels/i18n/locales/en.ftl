@@ -18,6 +18,15 @@ steering_applied = Steering applied: _{ $preview }_
 usage_queue = Usage: `/queue <task description>`
 queue_queued = Queued. Will execute after the current task completes.
 queue_immediate = No active task — executing immediately.
+delegation_task_missing = ⚠️ Add the task after the delegate command, for example: `/delegate research competitors and build a slide deck`
+delegation_steering_injected = 🎯 Your extra guidance was passed to background task `[{ $task_id }]`
+delegation_quota_reached = ⚠️ { $limit } background tasks are already running. Wait for one to finish before delegating another.
+delegation_receipt =
+    📋 **Delegated task received** `[{ $task_id }]`
+
+    💡 **Task**: { $prompt }
+    ⏳ **Status**: A background sandbox is working on it. You can leave the chat; a result card is pushed here when it finishes.
+    { "*" }(Tip: send a message at any time to add guidance to the running task)*
 goal_system_not_configured =  Goal system is not configured in this environment.
 goal_management_not_available = Goal management is not available.
 agent_is_running_goal = Agent is running — use /goal status, /goal pause, or /goal clear mid-run. Stop the agent first with /stop before setting a new goal.
@@ -326,6 +335,10 @@ cmd_background = Run a task in a separate background session without blocking th
 cmd_status = Show current session status (tokens, cost, model, agent state)
 cmd_quota = Show your daily message quota and usage status
 cmd_help = Show available commands
+cmd_btw = Ask an ephemeral side-channel question without polluting conversation context
+cmd_memo = Deconstruct voice memo or meeting transcript into minutes, tasks, and memory
+cmd_review-week = Synthesize weekly voice memos, meeting notes, and kanban blockers into an executive digest
+cmd_design-image = Synthesize commercial-grade images using structured Prompt-as-Code atomic visual schemas
 cat_Session = Session
 cat_Configuration = Configuration
 cat_Topic = Topic
@@ -377,6 +390,8 @@ cmd_memory = Review pending memory writes (approve/reject)
 cmd_learn = Teach the agent a new skill from a URL, file, or conversation
 cat_Memory = Memory
 cat_Skills = Skills
+cat_Creation = Creation
+cat_Productivity = Productivity
 learn_not_configured = ℹ Skill learning is not configured in this environment.
 learn_failed = ❌ Failed to build the learning prompt. Please try again.
 reassurance_still_running = ⏳ Working — { $elapsed } min ({ $steps } steps{ $stage })

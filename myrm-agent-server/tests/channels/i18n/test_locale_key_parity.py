@@ -285,6 +285,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "position": 1,
     "preview": "prev",
     "progress": " [###---]",
+    "prompt": "do the task",
     "quota": 100,
     "reason": "why",
     "reject_count": 0,

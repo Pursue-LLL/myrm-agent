@@ -18,6 +18,15 @@ steering_applied = 指令已应用：_{ $preview }_
 usage_queue = 用法：`/queue <任务描述>`
 queue_queued = 已排队，将在当前任务完成后执行。
 queue_immediate = 当前没有运行中的任务 — 立即执行。
+delegation_task_missing = ⚠️ 请在委派指令后附带具体任务内容，例如：`/delegate 调研行业竞品并生成PPT`
+delegation_steering_injected = 🎯 已将补充指引动态注入后台任务 `[{ $task_id }]`
+delegation_quota_reached = ⚠️ 当前已有 { $limit } 个后台长任务正在执行中，请等待上一任务完成后再提交委派。
+delegation_receipt =
+    📋 **已收到异步任务委派** `[{ $task_id }]`
+
+    💡 **任务内容**：{ $prompt }
+    ⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动推送成果卡片。
+    { "*" }(提示：中途可直接发送消息为任务补充指引)*
 goal_system_not_configured =  当前环境未配置目标系统。
 goal_management_not_available = 目标管理不可用。
 agent_is_running_goal = Agent 正在运行 — 请在运行中使用 /goal status、/goal pause 或 /goal clear。设置新目标前请先使用 /stop 停止 Agent。
@@ -326,6 +335,10 @@ cmd_background = 在独立后台会话中运行任务，不阻塞当前对话
 cmd_status = 显示当前会话状态（token、费用、模型、Agent 状态）
 cmd_quota = 查看当前每日对话额度与使用状态
 cmd_help = 显示可用命令
+cmd_btw = 提一个临时旁路问题，不污染对话上下文
+cmd_memo = 把语音备忘或会议记录拆解为纪要、待办与记忆
+cmd_review-week = 把本周语音备忘、会议笔记与看板阻塞项综合成管理层周报
+cmd_design-image = 用结构化的 Prompt-as-Code 原子视觉模式合成商业级图片
 cat_Session = 会话
 cat_Configuration = 配置
 cat_Topic = 话题
@@ -377,6 +390,8 @@ cmd_memory = 查看并审批待确认的记忆写入
 cmd_learn = 从 URL、文件或对话中教 Agent 学习新技能
 cat_Memory = 记忆
 cat_Skills = 技能
+cat_Creation = 创作
+cat_Productivity = 效率
 learn_not_configured = ℹ 当前环境未配置技能学习功能。
 learn_failed = ❌ 构建学习提示失败，请重试。
 reassurance_still_running = ⏳ 工作中 — { $elapsed } 分钟（{ $steps } 步{ $stage }）
