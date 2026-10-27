@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSyncManager, getConfigSyncManager, resetConfigSyncManager } from '@/services/config/ConfigSyncManager';
+import type { ConfigChangeListener } from '@/services/config/configListeners';
 import type { ConfigKey, SyncResult } from '@/services/config/types';
 
 const KEY: ConfigKey = 'chatSettings';
@@ -52,7 +53,7 @@ describe('ConfigSyncManager version conflicts', () => {
   let manager: ConfigSyncManager;
   let sync: ReturnType<typeof vi.fn>;
   let get: ReturnType<typeof vi.fn>;
-  let listener: ReturnType<typeof vi.fn>;
+  let listener: ReturnType<typeof vi.fn<ConfigChangeListener<typeof KEY>>>;
 
   /** A manager that already holds `base` as the confirmed server value of KEY, then edits it locally to `local`. */
   const editLocally = (base: Doc, local: Doc) => {
@@ -75,7 +76,7 @@ describe('ConfigSyncManager version conflicts', () => {
     manager = getConfigSyncManager();
     sync = vi.fn();
     get = vi.fn();
-    listener = vi.fn();
+    listener = vi.fn<ConfigChangeListener<typeof KEY>>();
   });
 
   afterEach(() => {
