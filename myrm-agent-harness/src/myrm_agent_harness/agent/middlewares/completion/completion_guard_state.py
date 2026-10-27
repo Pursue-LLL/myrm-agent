@@ -25,15 +25,18 @@ and inline deliverables stay clean).
 
 [OUTPUT]
 - current_run_state / reset_run_state: 当前回合的拦截预算与强制收尾闩锁
+- isolated_run_state: 嵌套运行（子 agent）期间与调用方回合隔离，结束时不留痕
 - publish_disclosure / pop_run_disclosure / publish_tier_disclosure: 每轮披露载荷的写入与取用
 - attach_disclosure_to_event(): 把披露载荷挂到 message_end 事件
 
 [POS]
-完成门禁的回合级状态与披露登记处。状态按 runtime 绑定的消息 id 分桶（LRU 128），并发回合互不影响；披露载荷供 post-run 事件一次性消费。
+完成门禁的回合级状态与披露登记处。状态按 runtime 绑定的消息 id 分桶（LRU 128），并发回合互不影响；嵌套运行不触碰调用方的回合状态；披露载荷供 post-run 事件一次性消费。
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
@@ -44,6 +47,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 
 RUN_STATE_LIMIT = 128
 UNBOUND_RUN_KEY = ""
+_NESTED_RUN_KEY_PREFIX = "nested:"
 
 
 @dataclass(slots=True)
@@ -105,6 +109,27 @@ def reset_run_state() -> None:
     key = run_key()
     _run_states.pop(key, None)
     _run_disclosures.pop(key, None)
+
+
+@contextmanager
+def isolated_run_state(scope_key: str) -> Iterator[None]:
+    """Run a nested run (a child agent) without touching its caller's turn state, leaving none of its own behind.
+
+    A run resets the turn state under the message id it finds before it binds its own, so a nested run
+    that began under its caller's id would wipe the caller's refusal budget, forced-finish latch, evidence
+    and disclosure. Under a temporary id that reset lands on an empty entry. When the block ends, the id
+    still bound (the nested run's own, or the temporary one if it never bound one) loses its entry, then
+    the caller's id is back.
+    """
+    from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+        scoped_message_id,
+    )
+
+    with scoped_message_id(f"{_NESTED_RUN_KEY_PREFIX}{scope_key}"):
+        try:
+            yield
+        finally:
+            reset_run_state()
 
 
 def _trim_registry[RegistryValue](registry: dict[str, RegistryValue]) -> None:

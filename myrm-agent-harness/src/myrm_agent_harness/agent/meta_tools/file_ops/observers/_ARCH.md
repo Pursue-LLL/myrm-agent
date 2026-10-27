@@ -14,7 +14,7 @@ Observers module.
 | format_observer.py | Core | Auto-format observer — runs code formatters after AI file edits; skips `.md` under Obsidian vault roots (`.obsidian/`). | ✅ |
 | layout_qa_observer.py | Core | Optional soffice headless PDF conversion gate for DOCX layout QA; skips silently when soffice unavailable | ✅ |
 | observer_manager.py | Core | Provides ObserverManager. | ✅ |
-| snapshot_observer.py | Core | File snapshot observer — captures pre-modification content for revert; oversized/store-full skips record metadata-only (`skip_reason`, `revertible=false`) for honest UX. | ✅ |
+| snapshot_observer.py | Core | File snapshot observer — captures pre-modification content for revert; oversized/store-full skips record metadata-only (`skip_reason`, `revertible=false`) for honest UX. `scoped_message_id` binds the turn's message id for a `with` block. | ✅ |
 | tracker_observer.py | Core | Provides TrackerObserver. | ✅ |
 | activity_observer.py | Core | File activity observer. Records file writes to FileActivityTracker for conflict detection. | ✅ |
 

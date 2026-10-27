@@ -160,9 +160,9 @@ def child_run_scope(task_id: str) -> Iterator[None]:
 
     A child runs inside its parent's delegating tool call and shares the context the parent's guards live in.
     Every run starts by resetting those guards in place, so a child that shared them would erase the parent's
-    tool-call history, call window, turn and context budgets and terminal errors. Inside this scope the child
-    has guards of its own; when it ends the parent's are back as they were, with the session and subagent
-    markers the child's run rebinds.
+    tool-call history, call window, turn and context budgets, terminal errors and the completion guard's
+    turn state. Inside this scope the child has guards of its own; when it ends the parent's are back as
+    they were, with the session, turn and subagent markers the child's run rebinds.
 
     Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated counterpart here.
     """
@@ -173,6 +173,7 @@ def child_run_scope(task_id: str) -> Iterator[None]:
         set_is_subagent,
         set_subagent_task_id,
     )
+    from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import isolated_run_state
     from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import child_loop_guard
     from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
     from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard
@@ -187,6 +188,7 @@ def child_run_scope(task_id: str) -> Iterator[None]:
         scope.enter_context(isolated_tool_turn_budget_guard())
         scope.enter_context(isolated_context_budget_guard())
         scope.enter_context(isolated_terminal_errors())
+        scope.enter_context(isolated_run_state(task_id))
         set_is_subagent(True)
         set_subagent_task_id(task_id)
         try:

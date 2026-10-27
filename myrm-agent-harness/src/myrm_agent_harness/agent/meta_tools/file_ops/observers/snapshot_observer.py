@@ -20,6 +20,7 @@ Design choices:
 - SnapshotStore: class — Snapshot Store (record + record_skipped).
 - SnapshotObserver: class — Snapshot Observer
 - set_current_message_id: Captures pre-modification file content for undo support.
+- scoped_message_id: Binds the turn's message id for a ``with`` block and restores the previous binding.
 
 [POS]
 File snapshot observer — captures pre-modification content for revert support.
@@ -32,9 +33,12 @@ import contextvars
 import json
 import logging
 import time
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+
+from myrm_agent_harness.core.context_vars import scoped_value
 
 from .base import FileOperationObserver
 
@@ -337,6 +341,11 @@ def get_current_message_id() -> str:
 def get_bound_message_id() -> str | None:
     """Return the assistant turn message id when explicitly bound; no auto-generation."""
     return _current_message_id.get()
+
+
+def scoped_message_id(msg_id: str | None) -> AbstractContextManager[str | None]:
+    """Bind the turn's message id for the ``with`` block; the binding it replaced comes back when it ends."""
+    return scoped_value(_current_message_id, msg_id)
 
 
 class SnapshotObserver(FileOperationObserver):
