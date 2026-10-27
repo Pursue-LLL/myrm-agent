@@ -8,8 +8,8 @@
  *   called for assistive technology, and where typing goes
  *
  * [OUTPUT]
- * - LineNumberedCode: read-only code view, one row per line, syntax-coloured up to MAX_HIGHLIGHTED_ROWS rows when the
- *   language has a grammar; the numbers are drawn by `numbered-code.css`
+ * - LineNumberedCode: read-only code view, one row per line; coloured with Prism when its language has a grammar and the
+ *   file is within MAX_HIGHLIGHTED_ROWS, _CHARS and _TOKENS; the numbers are drawn by `numbered-code.css`
  * - LineNumberedEditor: textarea editor whose line-number gutter follows its scrolling
  * - formatBytes: human-readable file size; empty when the size is unknown
  *
@@ -74,11 +74,16 @@ const MAX_NUMBERED_ROWS = 100_000;
 const LAZY_ROWS_FROM = 2_000;
 
 /**
- * Colouring tokenizes the whole file and adds an element per token, so only files up to this many rows get it. At
- * 2,000 rows it takes 87 ms to render in Chromium (plain: 7 ms; 379 ms against 35 ms on a 4x slower CPU) and puts
- * about 15,000 elements in the page instead of 2,000; past that the file opens plain.
+ * Colouring adds an element per token, and what it costs follows the tokens, not the rows: 2,000 rows of code (about
+ * 12,500 tokens) take 87 ms to render in Chromium (plain: 7 ms; 379 ms against 35 ms on a 4x slower CPU), while 100,000
+ * characters of dense text (`a,a,a,`) make 100,000 elements and take 550 ms (2.4 s at 4x). So a file is coloured only
+ * within all three limits, and past any of them it opens plain: the rows keep the lazy-rendering threshold, the
+ * characters keep Prism from reading a megabyte of minified code, and the tokens bound the elements that reach the page
+ * (tokenizing 100,000 characters takes 8 to 27 ms, so that last check costs little).
  */
 const MAX_HIGHLIGHTED_ROWS = LAZY_ROWS_FROM;
+const MAX_HIGHLIGHTED_CHARS = 100_000;
+const MAX_HIGHLIGHTED_TOKENS = 20_000;
 
 /** The rows of a file: every line with the line break that ends it, so the rows read back exactly as the file. */
 function splitRows(content: string): string[] {
@@ -91,6 +96,12 @@ function splitRows(content: string): string[] {
   return rows;
 }
 
+const PlainRow: React.FC<{ row: string }> = ({ row }) => <span className="numbered-code-line">{row}</span>;
+
+/** Rows have no identity beyond their position: the list is replaced as a whole when the file changes. */
+const PlainRows: React.FC<{ rows: string[] }> = ({ rows }) =>
+  rows.map((row, index) => <PlainRow key={index} row={row} />);
+
 /** What may follow a row's text in the file: its line break (CRLF included), or nothing on the last row. */
 const ROW_END = /^\r?\n?$/;
 
@@ -98,7 +109,7 @@ const ROW_END = /^\r?\n?$/;
  * The rows coloured by Prism, which reads the whole file so a comment or string that spans lines keeps its colour on
  * every row. Prism's lines and the rows are two splits of the same text, so a row takes its colours only while the
  * tokens of its line spell exactly the row's text (the line break aside); any other row stays plain, which keeps the
- * text a copy yields identical to the file.
+ * text a copy yields identical to the file. A file with more tokens than MAX_HIGHLIGHTED_TOKENS stays plain as a whole.
  */
 const HighlightedRows: React.FC<{ content: string; rows: string[]; language: string }> = ({
   content,
@@ -108,17 +119,16 @@ const HighlightedRows: React.FC<{ content: string; rows: string[]; language: str
   const { resolvedTheme } = useTheme();
   return (
     <Highlight theme={resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight} code={content} language={language}>
-      {({ tokens, getTokenProps }) =>
-        rows.map((row, index) => {
+      {({ tokens, getTokenProps }) => {
+        if (tokens.reduce((count, line) => count + line.length, 0) > MAX_HIGHLIGHTED_TOKENS) {
+          return <PlainRows rows={rows} />;
+        }
+        return rows.map((row, index) => {
           const pieces = (tokens[index] ?? []).map((token) => ({ token, text: token.content.replace(/\n$/, '') }));
           const spelled = pieces.map((piece) => piece.text).join('');
           const ending = row.startsWith(spelled) ? row.slice(spelled.length) : null;
           if (ending === null || !ROW_END.test(ending)) {
-            return (
-              <span key={index} className="numbered-code-line">
-                {row}
-              </span>
-            );
+            return <PlainRow key={index} row={row} />;
           }
           return (
             <span key={index} className="numbered-code-line">
@@ -133,8 +143,8 @@ const HighlightedRows: React.FC<{ content: string; rows: string[]; language: str
               {ending}
             </span>
           );
-        })
-      }
+        });
+      }}
     </Highlight>
   );
 };
@@ -157,15 +167,10 @@ export const LineNumberedCode: React.FC<{ content: string; language?: string }> 
       className={cn('numbered-code font-mono text-foreground', rows.length > LAZY_ROWS_FROM && 'numbered-code-lazy')}
       style={{ '--numbered-code-digits': String(rows.length).length } as React.CSSProperties}
     >
-      {rows.length <= MAX_HIGHLIGHTED_ROWS && hasGrammar(language) ? (
+      {rows.length <= MAX_HIGHLIGHTED_ROWS && content.length <= MAX_HIGHLIGHTED_CHARS && hasGrammar(language) ? (
         <HighlightedRows content={content} rows={rows} language={language} />
       ) : (
-        rows.map((row, index) => (
-          // Rows have no identity beyond their position: the list is replaced as a whole when the file changes.
-          <span key={index} className="numbered-code-line">
-            {row}
-          </span>
-        ))
+        <PlainRows rows={rows} />
       )}
     </pre>
   );

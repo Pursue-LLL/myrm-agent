@@ -222,6 +222,32 @@ describe('LineNumberedCode syntax highlighting', () => {
     expect(beyond.container.textContent).toBe(content);
   });
 
+  it('highlights up to 100,000 characters and stays plain beyond them, since one long line costs as much as many short ones', () => {
+    const comment = (length: number): string => `//${'x'.repeat(length - 2)}`;
+
+    const atLimit = render(<LineNumberedCode content={comment(100_000)} language="typescript" />);
+    expect(colouredSpans(atLimit.container)).toHaveLength(1);
+    atLimit.unmount();
+
+    const beyond = render(<LineNumberedCode content={comment(100_001)} language="typescript" />);
+    expect(colouredSpans(beyond.container)).toHaveLength(0);
+    expect(beyond.container.textContent).toBe(comment(100_001));
+  });
+
+  it('stays plain when the file has more tokens than the page takes cheaply, however few its rows and characters', () => {
+    const dense = '1,'.repeat(15_000);
+    const { container } = render(<LineNumberedCode content={dense} language="javascript" />);
+
+    expect(colouredSpans(container)).toHaveLength(0);
+    expect(container.textContent).toBe(dense);
+  });
+
+  it('still colours a short line made of many tokens', () => {
+    const { container } = render(<LineNumberedCode content={'1,'.repeat(1_000)} language="javascript" />);
+
+    expect(colouredSpans(container).length).toBeGreaterThan(1_000);
+  });
+
   it.each([undefined, 'text', 'no-such-language'])('stays plain without a grammar for it (%s)', (language) => {
     const { container } = render(<LineNumberedCode content={'const a = 1;\n'} language={language} />);
 
