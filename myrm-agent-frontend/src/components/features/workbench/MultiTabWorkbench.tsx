@@ -20,18 +20,11 @@
 import React, { useRef, useCallback, useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FolderTree, Terminal, X, PanelRight, PanelBottom, GripVertical, GripHorizontal } from 'lucide-react';
+import { isTextEntry } from '@/lib/utils/textEntry';
 import useChatStore from '@/store/useChatStore';
 import { useWorkbenchStore, type WorkbenchTabId } from '@/store/useWorkbenchStore';
 import { WorkbenchFiles } from './tabs/WorkbenchFiles';
 import { WorkbenchTerminal } from './tabs/WorkbenchTerminal';
-
-/** A text field (rename, search, terminal prompt, file editor) owns the keys typed into it. */
-function isTextEntry(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  );
-}
 
 export function MultiTabWorkbench() {
   const t = useTranslations('workbench');

@@ -1,0 +1,10 @@
+/* The workspace code editor (WorkspaceCodeEditor) sits in the panel like the text around it, in both themes.
+
+   Monaco paints its surface from --vscode-* variables, which a stylesheet it injects declares on `.monaco-editor`
+   without a cascade layer. A rule inside `@layer` loses to unlayered rules whatever its specificity, so this one is
+   deliberately unlayered. Only the surface is pointed at the app's token: the colours of the code itself stay the
+   theme's, as in every other Monaco editor of the product. */
+.workspace-code-editor .monaco-editor {
+  --vscode-editor-background: var(--background);
+  --vscode-editorGutter-background: var(--background);
+}

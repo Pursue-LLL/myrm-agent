@@ -15,6 +15,8 @@
  * 逐点加守卫必然在新增输入面上再漏；`installImeKeyGuard` 因此在 window 捕获阶段统一拦下这两个键，各处理器天然收不到。
  */
 
+import { SELF_MANAGED_EDITOR_SELECTOR } from './textEntry';
+
 /**
  * Structural subset shared by React synthetic events, native DOM events and test doubles.
  * Declared as a single interface so field access stays type-safe for every caller shape.
@@ -115,15 +117,13 @@ export function isImeComposing(event: KeyboardEventLike): boolean {
   return false;
 }
 
-/** 自己处理输入法组合的编辑器：它们的按键事件必须原样送达，守卫不介入。 */
-const SELF_MANAGED_EDITOR_SELECTOR = '.monaco-editor, .cm-editor';
-
 let keyGuardInstalled = false;
 
 function swallowImeOwnedKey(event: KeyboardEvent): void {
   if (!IME_OWNED_KEYS.has(event.key) || !isImeComposing(event)) {
     return;
   }
+  // 自己处理输入法组合的编辑器：它们的按键事件必须原样送达，守卫不介入。
   if (event.target instanceof Element && event.target.closest(SELF_MANAGED_EDITOR_SELECTOR)) {
     return;
   }

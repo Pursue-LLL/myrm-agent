@@ -203,6 +203,20 @@ describe('MultiTabWorkbench component', () => {
     field.remove();
   });
 
+  it('keeps the workbench open when Escape is pressed inside a code editor', () => {
+    render(<MultiTabWorkbench />);
+    // Monaco focuses a plain div (its EditContext surface), so it is neither a field nor contenteditable.
+    const editor = document.body.appendChild(document.createElement('div'));
+    editor.className = 'monaco-editor';
+    const surface = editor.appendChild(document.createElement('div'));
+    surface.className = 'native-edit-context';
+
+    fireEvent.keyDown(surface, { key: 'Escape' });
+
+    expect(useWorkbenchStore.getState().isOpen).toBe(true);
+    editor.remove();
+  });
+
   it('keeps the workbench open when something else already used the Escape key', () => {
     const consume = (event: KeyboardEvent) => event.preventDefault();
     window.addEventListener('keydown', consume);

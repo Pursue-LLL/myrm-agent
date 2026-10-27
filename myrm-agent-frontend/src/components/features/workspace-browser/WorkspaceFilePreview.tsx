@@ -10,6 +10,7 @@
  * - chooseAction from @/lib/app-dialog (POS: asks what to do with unsaved edits before they are left behind)
  * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
  * - RenderedTextPreview (POS: the rendered view of markdown / CSV files and the Preview / Source switch)
+ * - WorkspaceCodeEditor / useSupportsCodeEditor (POS: the Monaco editor and the media query that decides where it is used)
  *
  * [OUTPUT]
  * - WorkspaceFilePreview: Full-height panel showing file content with line numbers, edit mode toggle, and
@@ -21,6 +22,8 @@
  *   A file that cannot be read gets a localized notice; the server's reason is never shown.
  *   A markdown or CSV file opens rendered, or as source above RENDER_BY_DEFAULT_MAX_BYTES or when it was cut short;
  *   the header switch changes the view and editing is always on the source.
+ *   Editing happens in Monaco on a wide screen with a precise pointer and in a plain numbered textarea elsewhere;
+ *   the code behind the editor is preloaded when the Edit button is hovered or focused.
  *
  * [POS]
  * File content preview/editor for the workspace browser. Text is read together with its version, so a save can
@@ -45,7 +48,9 @@ import {
   ViewSwitch,
   type TextView,
 } from './RenderedTextPreview';
+import { preloadCodeEditor, useSupportsCodeEditor } from './codeEditorSupport';
 import { ConflictNotice, DraftRestoredNotice, ReadonlyNotice } from './WorkspaceTextNotices';
+import { WorkspaceCodeEditor } from './WorkspaceCodeEditor';
 import { formatBytes, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
 import { useWorkspaceTextEditor } from './useWorkspaceTextEditor';
 
@@ -73,6 +78,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const needsText = listedKind === null || previewKind === 'svg';
 
     const editor = useWorkspaceTextEditor(workspace, file.path, needsText);
+    const codeEditor = useSupportsCodeEditor();
     const { snapshot, dirty, conflict, save, discard } = editor;
     const loading = editor.phase === 'loading';
     const loadFailed = editor.phase === 'failed';
@@ -188,6 +194,8 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
                 )}
                 <button
                   onClick={() => void toggleEdit()}
+                  onPointerEnter={preloadCodeEditor}
+                  onFocus={preloadCodeEditor}
                   className={cn('p-1 rounded hover:bg-muted transition-colors', editing && 'bg-muted')}
                   title={editing ? t('viewMode') : t('editMode')}
                 >
@@ -276,7 +284,16 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             ) : null
           ) : snapshot !== null ? (
             editing && canEdit ? (
-              <LineNumberedEditor content={editor.draft} label={file.name} onChange={editor.setDraft} />
+              codeEditor ? (
+                <WorkspaceCodeEditor
+                  key={`${workspace}\0${file.path}`}
+                  value={editor.draft}
+                  label={file.name}
+                  onChange={editor.setDraft}
+                />
+              ) : (
+                <LineNumberedEditor content={editor.draft} label={file.name} onChange={editor.setDraft} />
+              )
             ) : showRendered && renderedKind !== null ? (
               <RenderedTextPreview
                 kind={renderedKind}

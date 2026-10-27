@@ -25,6 +25,7 @@ import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import { compactChat } from '@/services/chat';
 import { toast } from '@/lib/utils/toast';
+import { isTextEntry } from '@/lib/utils/textEntry';
 import { useQuotaGuard } from '@/hooks/billing/useQuotaGuard';
 import { useDraftPersistence } from '@/hooks/shared/useDraftPersistence';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
@@ -622,14 +623,7 @@ export const useMessageInput = () => {
    */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-
-      const isInputFocused =
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA' ||
-        activeElement?.hasAttribute('contenteditable');
-
-      if (e.key === '/' && !isInputFocused) {
+      if (e.key === '/' && !isTextEntry(document.activeElement)) {
         e.preventDefault();
         inputRef.current?.focus();
       }

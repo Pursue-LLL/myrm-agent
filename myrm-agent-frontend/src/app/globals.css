@@ -3,6 +3,7 @@
 @import './mermaid.css';
 @import './focus-ring.css';
 @import './numbered-code.css';
+@import './workspace-code-editor.css';
 
 /* Tailwind CSS v4 dark mode 配置 */
 @custom-variant dark (&:where(.dark, .dark *));
