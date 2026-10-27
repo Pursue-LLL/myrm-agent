@@ -10,6 +10,8 @@
 - file_read.outline::extract_file_outline (POS: structure-mode outline)
 - streaming::read_file_chunked, read_file_preview (POS: large-file streaming reader)
 - utils.vault_read::path_base (POS: strips the ``:range`` suffix from a path)
+- validators.path_validator::PathValidator (POS: traversal, symlink, dangerous- and device-path gate the file service applies)
+- core.security.ocap.guard::enforce_capability_access (POS: capability scope of the running spawn)
 
 [OUTPUT]
 - process_text_paths: streaming/preview/all text path reads
@@ -17,6 +19,8 @@
 
 [POS]
 Text read execution for file_read_tool; multimodal.py delegates its text paths and structure outlines here.
+``preview`` and ``stream`` open files themselves, so they pass the service's path gate and the spawn's capability
+scope first; a refused path is read through the service, which words the refusal exactly as it does for ``all``.
 """
 
 from __future__ import annotations
@@ -29,9 +33,12 @@ from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
 from myrm_agent_harness.agent.context_management.context import AgentContext, extract_context_from_runnable_config
+from myrm_agent_harness.core.security.ocap.guard import enforce_capability_access
+from myrm_agent_harness.core.security.ocap.types import CapabilityAction
 
 from ...streaming import read_file_chunked, read_file_preview
 from ...utils.vault_read import path_base
+from ...validators.path_validator import PathValidator
 from ..file_integrity_guard import get_file_integrity_guard
 from ..file_operation_service import FileOperationService
 from ..operation_context import OperationContext, OperationType
@@ -123,6 +130,39 @@ async def _read_via_service(
     return truncated_text
 
 
+async def _direct_read_admitted(
+    opened: Path,
+    executor: CodeExecutor,
+    skills: list[SkillMetadata] | None,
+    reason: str | None,
+) -> bool:
+    """Whether ``preview``/``stream`` may open ``opened`` themselves.
+
+    They skip the file service, so they answer to the gates it applies to a read: the path validator (traversal,
+    symlinks, dangerous and device paths) and the capability scope of a sub-agent. The workspace boundary is not
+    one of them: a directory the user granted lies outside it and stays readable here.
+    """
+    try:
+        root = Path(executor.workspace_path)
+        # A symlink above the workspace is the user's own layout; only links below it are judged.
+        judged = root.resolve() / opened.relative_to(root) if opened.is_relative_to(root) else opened
+        enforce_capability_access(CapabilityAction.READ, str(opened))
+        await PathValidator().validate(
+            OperationContext(
+                operation=OperationType.VIEW,
+                executor=executor,
+                skills=skills or [],
+                paths=[str(judged)],
+                reason=reason,
+            ),
+            str(judged),
+        )
+    except (PermissionError, ValueError, RuntimeError) as exc:
+        logger.warning("Direct read of %s refused: %s", opened, exc)
+        return False
+    return True
+
+
 async def read_structure_outline(
     path_str: str,
     executor: CodeExecutor | None,
@@ -204,6 +244,9 @@ async def process_text_paths(
                     base_path_str,
                     file_size_mb,
                 )
+
+            if effective_mode != "all" and not await _direct_read_admitted(workspace_path, executor, skills, reason):
+                effective_mode = "all"
 
             if effective_mode == "preview":
                 guard = get_file_integrity_guard(executor)
