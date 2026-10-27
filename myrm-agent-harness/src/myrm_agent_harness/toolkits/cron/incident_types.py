@@ -124,14 +124,10 @@ def dict_to_incident(d: dict[str, str | None]) -> CronIncident:
         raise ValueError("first_seen_at and last_seen_at are mandatory")
 
     state_raw = d.get("state", "detected")
-    state: IncidentState = (
-        state_raw if state_raw in VALID_INCIDENT_STATES else "detected"  # type: ignore[assignment]
-    )
+    state: IncidentState = state_raw if state_raw in VALID_INCIDENT_STATES else "detected"
 
     ftype_raw = d.get("failure_type", "unknown")
-    failure_type: FailureType = (
-        ftype_raw if ftype_raw in VALID_FAILURE_TYPES else "unknown"  # type: ignore[assignment]
-    )
+    failure_type: FailureType = ftype_raw if ftype_raw in VALID_FAILURE_TYPES else "unknown"
 
     return CronIncident(
         id=str(d.get("id", "")),

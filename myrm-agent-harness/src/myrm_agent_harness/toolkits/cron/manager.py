@@ -241,7 +241,7 @@ class CronManager(CronValidationMixin):
                 skill_ids=skill_ids,
                 delivery=delivery or DeliveryConfig(),
                 failure_delivery=failure_delivery,
-                failure_alert=failure_alert,
+                failure_alert=None if failure_alert is True else failure_alert,
                 active_hours=active_hours,
                 max_retries=max_retries,
                 retry_backoff_ms=retry_backoff_ms,

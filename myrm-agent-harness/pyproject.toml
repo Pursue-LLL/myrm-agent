@@ -266,6 +266,11 @@ ignore_missing_imports = true
 module = "colorama"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# croniter 无类型 stubs（未带 py.typed）；仅在 toolkits/cron/engine/parser.py 导入。
+module = "croniter"
+ignore_missing_imports = true
+
 [tool.pyright]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"

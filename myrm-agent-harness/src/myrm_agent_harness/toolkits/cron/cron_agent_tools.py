@@ -26,11 +26,11 @@ from collections.abc import Callable
 from contextvars import ContextVar, Token
 from datetime import UTC, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 from langchain_core.tools import BaseTool, tool
 
-from myrm_agent_harness.infra.incremental.types import MonitorConfig
+from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorType
 from myrm_agent_harness.toolkits.cron._cron_tool_description import (
     resolve_cron_tool_description,
 )
@@ -215,11 +215,12 @@ def create_cron_tools(
             bp_skill_ids = filled_skills or ()
 
             sched_kind = sched_dict.get("kind", "")
+            sched_interval_ms = sched_dict.get("interval_ms")
             if sched_kind == "cron" and sched_dict.get("expr"):
                 bp_cron_expr = str(sched_dict["expr"])
                 bp_tz = str(sched_dict.get("tz") or tz or "")
-            elif sched_kind == "interval" and sched_dict.get("interval_ms"):
-                bp_every_minutes = int(sched_dict["interval_ms"]) // 60_000
+            elif sched_kind == "interval" and sched_interval_ms:
+                bp_every_minutes = int(sched_interval_ms) // 60_000
 
         effective_required_capabilities = (
             _parse_csv_tuple(required_capabilities) if required_capabilities.strip() else bp_required_capabilities
@@ -377,7 +378,7 @@ def _build_active_hours(start: str, end: str, active_tz: str) -> ActiveHours | N
 
 _MIN_POLL_INTERVAL_SECONDS = 60
 _VALID_STREAM_PROTOCOLS = {"ws", "sse"}
-_VALID_MONITOR_TYPES = {"set", "hash"}
+_MONITOR_TYPES: dict[str, MonitorType] = {kind: kind for kind in get_args(MonitorType)}
 
 
 def _build_monitor_config(
@@ -397,10 +398,11 @@ def _build_monitor_config(
     if not monitor_enabled:
         return "Set monitor_enabled=true to enable monitoring.", None, False
     mt = mt or "set"
-    if mt not in _VALID_MONITOR_TYPES:
-        valid = ", ".join(sorted(_VALID_MONITOR_TYPES))
+    monitor_kind = _MONITOR_TYPES.get(mt)
+    if monitor_kind is None:
+        valid = ", ".join(sorted(_MONITOR_TYPES))
         return f"Invalid monitor_type '{monitor_type}'. Must be one of: {valid}.", None, False
-    return None, MonitorConfig(monitor_type=mt, enabled=True), False
+    return None, MonitorConfig(monitor_type=monitor_kind, enabled=True), False
 
 
 def _parse_csv_tuple(raw: str) -> tuple[str, ...]:
@@ -675,7 +677,7 @@ async def _do_add(
         JobType.REMINDER: "Reminder",
     }.get(job_type, "Agent")
 
-    result: dict[str, str | int | None] = {
+    result: dict[str, str | int | list[str] | None] = {
         "status": "success",
         "action": "add",
         "job_id": job.id,
@@ -805,7 +807,7 @@ async def _do_update(
         JobType.REMINDER: "Reminder",
     }.get(job.job_type, "Agent")
 
-    result: dict[str, str | int | None] = {
+    result: dict[str, str | int | list[str] | None] = {
         "status": "success",
         "action": "update",
         "job_id": job.id,

@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     Schedule,
     ScheduleKind,
     SessionTarget,
+    failure_alert_to_dict,
 )
 
 
@@ -99,6 +100,25 @@ class TestCreateJobNewFields:
         assert job.session_target == SessionTarget.MAIN
         assert job.run_retention_days == 90
         assert job.failure_alert == fa
+
+    @pytest.mark.asyncio
+    async def test_failure_alert_true_is_stored_as_the_global_default(self):
+        """``True`` has no per-job config to keep; a stored bool would break serialisation."""
+        mgr = _make_manager()
+        job = await mgr.create_job(
+            "user-1", "Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=True
+        )
+        assert job.failure_alert is None
+        assert failure_alert_to_dict(job.failure_alert) is None
+
+    @pytest.mark.asyncio
+    async def test_failure_alert_false_stays_disabled(self):
+        mgr = _make_manager()
+        job = await mgr.create_job(
+            "user-1", "Test", JobType.AGENT, _make_schedule(), prompt="hello", failure_alert=False
+        )
+        assert job.failure_alert is False
+        assert failure_alert_to_dict(job.failure_alert) is False
 
 
 # ---------------------------------------------------------------------------

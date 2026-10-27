@@ -32,6 +32,7 @@ import re
 import socket
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import cast
 from urllib.parse import urlparse
 
 
@@ -212,7 +213,7 @@ def dict_to_trigger_config(d: dict[str, list[dict[str, object]]] | None) -> Trig
         EventTrigger(
             pattern=str(e["pattern"]),
             channel=str(e["channel"]) if e.get("channel") else None,
-            max_pattern_bytes=int(e.get("max_pattern_bytes", 65_536)),  # type: ignore[arg-type]
+            max_pattern_bytes=int(cast("int | str", e.get("max_pattern_bytes", 65_536))),
         )
         for e in d.get("events", [])
     )
@@ -220,7 +221,7 @@ def dict_to_trigger_config(d: dict[str, list[dict[str, object]]] | None) -> Trig
         SystemEventTrigger(
             source=str(s["source"]),
             event_type=str(s["event_type"]),
-            filters=dict(s.get("filters", {})),  # type: ignore[arg-type]
+            filters=dict(cast("dict[str, str]", s.get("filters", {}))),
         )
         for s in d.get("system_events", [])
     )
@@ -228,7 +229,7 @@ def dict_to_trigger_config(d: dict[str, list[dict[str, object]]] | None) -> Trig
         PollTrigger(
             url=str(p["url"]),
             json_path=str(p["json_path"]) if p.get("json_path") else None,
-            interval_seconds=int(p.get("interval_seconds", 300)),  # type: ignore[arg-type]
+            interval_seconds=int(cast("int | str", p.get("interval_seconds", 300))),
             change_detection=bool(p.get("change_detection", True)),
         )
         for p in d.get("polls", [])
@@ -239,7 +240,7 @@ def dict_to_trigger_config(d: dict[str, list[dict[str, object]]] | None) -> Trig
             protocol=StreamProtocol(str(st.get("protocol", "ws"))),
             filter_json_path=str(st["filter_json_path"]) if st.get("filter_json_path") else None,
             filter_regex=str(st["filter_regex"]) if st.get("filter_regex") else None,
-            headers=dict(st.get("headers", {})) if st.get("headers") else {},  # type: ignore[arg-type]
+            headers=dict(cast("dict[str, str]", st.get("headers", {}))) if st.get("headers") else {},
         )
         for st in d.get("streams", [])
     )

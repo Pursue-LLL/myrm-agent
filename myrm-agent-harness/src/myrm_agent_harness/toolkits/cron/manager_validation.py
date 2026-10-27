@@ -82,7 +82,7 @@ class CronValidationMixin:
     @staticmethod
     def _validate_schedule(schedule: Schedule) -> None:
         """Validate schedule cron expression and timezone."""
-        if schedule.kind == ScheduleKind.CRON and not validate_cron_expr(schedule.expr):
+        if schedule.kind == ScheduleKind.CRON and not validate_cron_expr(schedule.expr or ""):
             raise ValueError(f"invalid cron expression: {schedule.expr!r}")
         if schedule.tz and not validate_timezone(schedule.tz):
             raise ValueError(f"unknown timezone: {schedule.tz!r}")
