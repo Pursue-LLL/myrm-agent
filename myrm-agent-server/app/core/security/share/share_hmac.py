@@ -23,7 +23,7 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Any
+from collections.abc import Mapping
 
 from app.config.settings import settings
 
@@ -83,7 +83,7 @@ def _derive_key(salt: str, password: str | None) -> bytes:
 
 
 def sign_share_token(
-    payload: dict[str, Any],
+    payload: Mapping[str, object],
     *,
     salt: str,
     exp: int,
@@ -94,7 +94,7 @@ def sign_share_token(
     Mirrors ``create_share_token`` but pins ``exp`` instead of deriving it from
     ``time.time()``, so a link can be reconstructed from registry fields.
     """
-    token_payload: dict[str, Any] = {"v": _TOKEN_VERSION, **payload, "exp": exp}
+    token_payload: dict[str, object] = {"v": _TOKEN_VERSION, **payload, "exp": exp}
     if password and password.strip():
         token_payload["p"] = 1
 
@@ -105,7 +105,7 @@ def sign_share_token(
 
 
 def create_share_token(
-    payload: dict[str, Any],
+    payload: Mapping[str, object],
     *,
     salt: str,
     ttl_seconds: int,
@@ -118,7 +118,7 @@ def create_share_token(
     return sign_share_token(payload, salt=salt, exp=exp, password=password), exp
 
 
-def decode_unverified_payload(token: str) -> dict[str, Any] | None:
+def decode_unverified_payload(token: str) -> dict[str, object] | None:
     """Decode a token's payload without checking its signature.
 
     Anonymous callers choose the token text, so anything but a JSON object yields ``None``.
@@ -137,7 +137,7 @@ def parse_share_token(
     *,
     salt: str,
     password: str | None = None,
-) -> dict[str, Any] | None:
+) -> dict[str, object] | None:
     """Verify signature, version, and expiry. Returns raw payload dict or ``None``."""
     if not token or "." not in token:
         return None
