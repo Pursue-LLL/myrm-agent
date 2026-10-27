@@ -1,4 +1,4 @@
-"""ima wire parsers and the client method table, against recorded payload shapes."""
+"""ima wire parsers and the client method table, against hand-built payloads."""
 
 from __future__ import annotations
 

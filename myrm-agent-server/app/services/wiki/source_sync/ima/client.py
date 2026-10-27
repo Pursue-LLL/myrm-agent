@@ -47,8 +47,9 @@ class ImaClient:
     async def list_knowledge_bases(self) -> list[ImaKnowledgeBase]:
         """Every knowledge base the credentials can reach.
 
-        ``get_addable_knowledge_base_list`` and ``search_knowledge_base`` each have been observed to miss
-        libraries the other returns, so the result is their union.
+        The ima reference documents ``search_knowledge_base`` with an empty query as the listing of all of the
+        user's libraries and ``get_addable_knowledge_base_list`` as the libraries the user may add content to;
+        the result is their union, so a library either endpoint returns stays listed.
         """
         found: dict[str, ImaKnowledgeBase] = {}
         for method, array_key, limit, body_extra in (

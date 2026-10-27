@@ -157,8 +157,8 @@ def parse_knowledge_bases(data: Mapping[str, object], *keys: str) -> tuple[list[
 def parse_list_page(data: Mapping[str, object]) -> ImaListPage:
     """Split a ``get_knowledge_list`` page into documents and folders.
 
-    A folder is an entry typed ``99`` (its ``media_id`` is the folder id) or one that carries a ``folder_id``
-    and no ``media_id``; either spelling has been observed.
+    A folder is an entry typed ``99`` (its ``media_id`` is the folder id); an entry that carries a ``folder_id``
+    and no ``media_id`` is read as a folder too.
     """
     items: list[ImaEntry] = []
     folders: list[ImaFolder] = []
