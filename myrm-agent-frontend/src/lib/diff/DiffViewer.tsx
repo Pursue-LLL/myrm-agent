@@ -5,7 +5,8 @@
  * - hooks/shared/useDiffParser::useDiffParser (POS: diff 解析 Hook)
  * - lib/diff/parseUnifiedDiff::buildSplitPairs (POS: Split 视图配对算法)
  * - lib/diff/parseUnifiedDiff::inferLanguage (POS: 文件路径语言推断)
- * - prism-react-renderer::Highlight, Prism (POS: 语法高亮引擎与运行时语言校验)
+ * - prism-react-renderer::Highlight (POS: 语法高亮引擎)
+ * - lib/syntax/prism::resolveLanguage (POS: 已注册全部语法的 Prism 与语言校验)
  * - features/files/FileTypeIcon (POS: 文件图标组件)
  *
  * [OUTPUT]
@@ -26,7 +27,8 @@ import React, { memo, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes, Prism } from 'prism-react-renderer';
+import { Highlight, themes } from 'prism-react-renderer';
+import { resolveLanguage } from '@/lib/syntax/prism';
 import { useTheme } from 'next-themes';
 import { useDiffParser } from '@/hooks/shared/useDiffParser';
 import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
@@ -90,12 +92,13 @@ const HighlightedContent: React.FC<{
   language: string;
   prismTheme: typeof themes.oneLight;
 }> = memo(({ content, language, prismTheme }) => {
-  if (language === 'text' || !content.trim()) {
+  const grammar = resolveLanguage(language, content);
+  if (grammar === 'text' || !content.trim()) {
     return <code className="flex-1 py-0.5 pr-4 whitespace-pre overflow-x-auto">{content}</code>;
   }
 
   return (
-    <Highlight theme={prismTheme} code={content} language={language}>
+    <Highlight theme={prismTheme} code={content} language={grammar}>
       {({ tokens, getTokenProps }) => (
         <code className="flex-1 py-0.5 pr-4 whitespace-pre overflow-x-auto">
           {tokens[0]?.map((token, k) => {
@@ -231,8 +234,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
 
     const parsed = useDiffParser(diff);
     const displayPath = filePath || parsed.filePath || 'Unknown file';
-    const rawLanguage = useMemo(() => inferLanguage(displayPath), [displayPath]);
-    const language = Prism.languages[rawLanguage] ? rawLanguage : 'text';
+    const language = useMemo(() => resolveLanguage(inferLanguage(displayPath)), [displayPath]);
 
     const prismTheme = useMemo(() => {
       return resolvedTheme === 'dark' ? themes.oneDark : themes.oneLight;

@@ -7,6 +7,7 @@
  * - parseUnifiedDiff: 解析为结构化 ParsedDiff
  * - buildSplitPairs: 将 DiffLine[] 转为 Split 视图配对数组
  * - inferLanguage: 从文件路径推断 Prism 语言标识符
+ * - EXT_TO_LANGUAGE: 扩展名到 Prism 语言标识符的映射表
  * - DiffLine / DiffHunk / ParsedDiff / SplitPair 类型
  *
  * [POS]
@@ -274,7 +275,7 @@ export function buildSplitPairs(lines: DiffLine[]): SplitPair[] {
 
 // --------------- 语言推断 ---------------
 
-const EXT_TO_LANGUAGE: Record<string, string> = {
+export const EXT_TO_LANGUAGE: Record<string, string> = {
   ts: 'typescript',
   tsx: 'tsx',
   js: 'javascript',
@@ -286,7 +287,6 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   kt: 'kotlin',
   rb: 'ruby',
   css: 'css',
-  scss: 'scss',
   html: 'markup',
   xml: 'markup',
   json: 'json',

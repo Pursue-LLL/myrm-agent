@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { MAX_HIGHLIGHT_LINE_CHARS } from '@/lib/syntax/prism';
 import { LineNumberedCode, LineNumberedEditor } from '../WorkspaceTextViews';
 
 const appTheme = vi.hoisted(() => ({ resolved: 'light' }));
@@ -222,24 +223,32 @@ describe('LineNumberedCode syntax highlighting', () => {
     expect(beyond.container.textContent).toBe(content);
   });
 
-  it('highlights up to 100,000 characters and stays plain beyond them, since one long line costs as much as many short ones', () => {
-    const comment = (length: number): string => `//${'x'.repeat(length - 2)}`;
+  it('highlights up to 100,000 characters and stays plain beyond them', () => {
+    const hundredCharComments = `//${'x'.repeat(97)}\n`.repeat(1_000);
 
-    const atLimit = render(<LineNumberedCode content={comment(100_000)} language="typescript" />);
-    expect(colouredSpans(atLimit.container)).toHaveLength(1);
+    const atLimit = render(<LineNumberedCode content={hundredCharComments} language="typescript" />);
+    expect(colouredSpans(atLimit.container)).toHaveLength(1_000);
     atLimit.unmount();
 
-    const beyond = render(<LineNumberedCode content={comment(100_001)} language="typescript" />);
+    const beyond = render(<LineNumberedCode content={`${hundredCharComments}y`} language="typescript" />);
     expect(colouredSpans(beyond.container)).toHaveLength(0);
-    expect(beyond.container.textContent).toBe(comment(100_001));
+    expect(beyond.container.textContent).toBe(`${hundredCharComments}y`);
   });
 
   it('stays plain when the file has more tokens than the page takes cheaply, however few its rows and characters', () => {
-    const dense = '1,'.repeat(15_000);
+    const dense = `${'1,'.repeat(1_000)}\n`.repeat(15);
     const { container } = render(<LineNumberedCode content={dense} language="javascript" />);
 
     expect(colouredSpans(container)).toHaveLength(0);
     expect(container.textContent).toBe(dense);
+  });
+
+  it('stays plain when a line is past the length Prism handles in bounded time, whatever the rest of the file is', () => {
+    const content = `const a = 1;\n// ${'x'.repeat(MAX_HIGHLIGHT_LINE_CHARS)}\n`;
+    const { container } = render(<LineNumberedCode content={content} language="typescript" />);
+
+    expect(colouredSpans(container)).toHaveLength(0);
+    expect(container.textContent).toBe(content);
   });
 
   it('still colours a short line made of many tokens', () => {

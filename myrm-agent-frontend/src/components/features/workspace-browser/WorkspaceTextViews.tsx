@@ -8,8 +8,9 @@
  *   called for assistive technology, and where typing goes
  *
  * [OUTPUT]
- * - LineNumberedCode: read-only code view, one row per line; coloured with Prism when its language has a grammar and the
- *   file is within MAX_HIGHLIGHTED_ROWS, _CHARS and _TOKENS; the numbers are drawn by `numbered-code.css`
+ * - LineNumberedCode: read-only code view, one row per line; coloured with Prism when its language has a grammar, no
+ *   line is past `MAX_HIGHLIGHT_LINE_CHARS` (`lib/syntax/prism`) and the file is within MAX_HIGHLIGHTED_ROWS, _CHARS
+ *   and _TOKENS; the numbers are drawn by `numbered-code.css`
  * - LineNumberedEditor: textarea editor whose line-number gutter follows its scrolling
  * - formatBytes: human-readable file size; empty when the size is unknown
  *
@@ -18,8 +19,9 @@
  */
 
 import { useTheme } from 'next-themes';
-import { Highlight, Prism, themes } from 'prism-react-renderer';
+import { Highlight, themes } from 'prism-react-renderer';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
+import { resolveLanguage } from '@/lib/syntax/prism';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export function formatBytes(bytes: number | null): string {
@@ -79,7 +81,9 @@ const LAZY_ROWS_FROM = 2_000;
  * characters of dense text (`a,a,a,`) make 100,000 elements and take 550 ms (2.4 s at 4x). So a file is coloured only
  * within all three limits, and past any of them it opens plain: the rows keep the lazy-rendering threshold, the
  * characters keep Prism from reading a megabyte of minified code, and the tokens bound the elements that reach the page
- * (tokenizing 100,000 characters takes 8 to 27 ms, so that last check costs little).
+ * (tokenizing 100,000 characters takes 8 to 27 ms, so that last check costs little). One more guard lives in
+ * `resolveLanguage`: a line longer than MAX_HIGHLIGHT_LINE_CHARS (a data URI, a minified bundle) keeps the whole file
+ * plain, because a few grammars take seconds on such a line.
  */
 const MAX_HIGHLIGHTED_ROWS = LAZY_ROWS_FROM;
 const MAX_HIGHLIGHTED_CHARS = 100_000;
@@ -149,13 +153,12 @@ const HighlightedRows: React.FC<{ content: string; rows: string[]; language: str
   );
 };
 
-/** Whether Prism can colour the language; `text` is its name for "nothing to colour". */
-function hasGrammar(language: string | undefined): language is string {
-  return language !== undefined && language !== 'text' && Boolean(Prism.languages[language]);
-}
-
 export const LineNumberedCode: React.FC<{ content: string; language?: string }> = memo(({ content, language }) => {
   const rows = useMemo(() => splitRows(content), [content]);
+  const grammar =
+    rows.length <= MAX_HIGHLIGHTED_ROWS && content.length <= MAX_HIGHLIGHTED_CHARS
+      ? resolveLanguage(language, content)
+      : 'text';
 
   if (rows.length > MAX_NUMBERED_ROWS) {
     return (
@@ -167,8 +170,8 @@ export const LineNumberedCode: React.FC<{ content: string; language?: string }> 
       className={cn('numbered-code font-mono text-foreground', rows.length > LAZY_ROWS_FROM && 'numbered-code-lazy')}
       style={{ '--numbered-code-digits': String(rows.length).length } as React.CSSProperties}
     >
-      {rows.length <= MAX_HIGHLIGHTED_ROWS && content.length <= MAX_HIGHLIGHTED_CHARS && hasGrammar(language) ? (
-        <HighlightedRows content={content} rows={rows} language={language} />
+      {grammar !== 'text' ? (
+        <HighlightedRows content={content} rows={rows} language={grammar} />
       ) : (
         <PlainRows rows={rows} />
       )}

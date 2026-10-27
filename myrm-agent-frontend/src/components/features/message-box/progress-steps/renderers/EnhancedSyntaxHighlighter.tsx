@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { Highlight, themes } from 'prism-react-renderer';
+import { resolveLanguage } from '@/lib/syntax/prism';
 import { useTheme } from 'next-themes';
 import { IconChevronDown, IconChevronUp, IconCopy, IconCheck } from '@/components/features/icons/PremiumIcons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,7 +47,7 @@ export const EnhancedSyntaxHighlighter: React.FC<EnhancedSyntaxHighlighterProps>
 
   // 【性能高亮熔断机制】代码超过 50000 字符，降级为纯文本，彻底防冻结主线程
   const isTooLongToHighlight = code.length > 50000;
-  const safeLanguage = isTooLongToHighlight ? 'text' : language;
+  const safeLanguage = isTooLongToHighlight ? 'text' : resolveLanguage(language, code);
 
   return (
     <div className="relative mt-2">

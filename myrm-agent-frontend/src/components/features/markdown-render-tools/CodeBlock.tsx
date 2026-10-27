@@ -13,6 +13,7 @@
  *
  * [依赖]
  * - prism-react-renderer: 语法高亮引擎
+ * - lib/syntax/prism: 已注册全部语法的 Prism 与语言校验（`diff` 语法使 diff 行底色分支生效）
  * - MarkdownContent: 父组件，传递 isStreaming prop
  *
  * [优化收益]
@@ -24,7 +25,8 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Check, Copy, Play } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes, Prism } from 'prism-react-renderer';
+import { Highlight, themes } from 'prism-react-renderer';
+import { resolveLanguage } from '@/lib/syntax/prism';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -34,6 +36,9 @@ import { CODE_BLOCK_THEME, CODE_BLOCK_CONTAINER, CODE_BLOCK_TOOLBAR } from '@/li
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 const HTML_PREVIEW_LANGUAGES = new Set(['html', 'svg']);
+
+// diff 语法下主题会给删除行加删除线、给新增行加下划线；行底色已经标明增删，带删除线的代码又难以阅读，所以 diff 块只保留颜色
+const NO_TEXT_DECORATION: React.CSSProperties = { textDecorationLine: 'none' };
 
 // 全局高亮结果缓存，避免重复高亮相同代码 (限制 100 条，FIFO 策略)
 const highlightCache = new Map<string, React.ReactNode>();
@@ -154,7 +159,7 @@ const CodeBlock: React.FC<{
   }, [language, value, addTab, updateTabContent, updateTabLoading]);
 
   // 确保语言是被支持的
-  const safeLanguage = language && Prism.languages[language] ? language : 'text';
+  const safeLanguage = resolveLanguage(language, displayValue);
 
   // 根据当前主题选择代码高亮主题
   const getTheme = useCallback(() => {
@@ -224,8 +229,14 @@ const CodeBlock: React.FC<{
                   </span>
                   {line.map((token, k) => {
                     const tokenProps = getTokenProps({ token, key: k });
-                    const { key: _tokenKey, ...restTokenProps } = tokenProps;
-                    return <span key={k} {...restTokenProps} />;
+                    const { key: _tokenKey, style, ...restTokenProps } = tokenProps;
+                    return (
+                      <span
+                        key={k}
+                        {...restTokenProps}
+                        style={safeLanguage === 'diff' ? { ...style, ...NO_TEXT_DECORATION } : style}
+                      />
+                    );
                   })}
                 </div>
               );

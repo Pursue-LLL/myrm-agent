@@ -8,7 +8,7 @@ Markdown 渲染扩展与工具块展示。
 
 | 文件                             | 地位 | 职责                                                                                                                           | I/O/P |
 | -------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| `CodeBlock.tsx`                  | 核心 | fenced code block：语法高亮、复制按钮、语言标签                                                                                | ✅    |
+| `CodeBlock.tsx`                  | 核心 | fenced code block：语法高亮（语法来自 `lib/syntax/prism`，含 bash 与 diff；diff 块按行加增删底色，并去掉主题给删除行加的删除线、给新增行加的下划线）、复制按钮、语言标签                                                                                | ✅    |
 | `InlineDiffViewer.tsx`           | 核心 | 行内 unified diff 预览（薄包装 `lib/diff/DiffViewer`）                                                                         | ✅    |
 | `InlineHtmlWidget.tsx`           | 核心 | 沙箱化 inline HTML widget iframe 渲染                                                                                          | ✅    |
 | `LinkPopover.tsx`                | 辅助 | 链接 hover 预览卡片（HTTP/HTTPS 白名单防御/标题/摘要/favicon/siteName/authority badge/相对时间/Agent浏览入口）                 | ✅    |
