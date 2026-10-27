@@ -1,4 +1,4 @@
-"""The follow-up suggestion call: a fixed cost envelope (bounded model output and conversation input) and a trace of the replies it cannot use."""
+"""The follow-up suggestion call: a fixed cost envelope (bounded model output and conversation input), what the model is told, and a trace of the replies it cannot use."""
 
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ from app.core.types import ModelConfig
 from tests.support.privacy_wire import wire_llm
 
 _REPLY = ["Why Rust?", "Rust vs Go?", "Is Rust hard?"]
+_DRAFT = "1. Why Rust?\n2. Rust vs Go?\n3. Is Rust hard?"
+_CLOSING = [["human", "Thanks, that's all."], ["assistant", "You're welcome!"]]
 _PHONE = "13812345678"
 
 
@@ -35,13 +37,14 @@ async def _call(
     history: list[list[str]],
     *,
     reply: str,
+    reasoning: str | None = None,
     model: ModelConfig | None = None,
     personal_settings: dict[str, object] | None = None,
 ) -> tuple[list[str], ModelConfig, str]:
     """Run the endpoint; return its suggestions, the config the model was built from and the text that reached the provider."""
     settings = personal_settings or {"privacyEnabled": False}
     sync_privacy_policy(settings)
-    llm, sent = wire_llm(reply)
+    llm, sent = wire_llm(reply, reasoning=reasoning)
     build_llm = AsyncMock(return_value=llm)
     configs = SimpleNamespace(providers_dict={"providers": []}, model_cfg=None, personal_settings_dict=settings)
     lite = model or ModelConfig(model="test-model", api_key="test-key")
@@ -116,7 +119,8 @@ async def test_a_long_message_keeps_its_opening_and_its_ending() -> None:
     assert "OPENING" in wire
     assert "ENDING" in wire
     assert "MIDDLE" not in wire
-    assert len(wire) < 2000
+    conversation = wire.split("Conversation:", 1)[1]
+    assert len(conversation) < 1600, "the answer's 4000 characters are cut to about the 1500 the window allows"
 
 
 @pytest.mark.asyncio
@@ -166,3 +170,48 @@ async def test_a_clean_reply_leaves_no_trace(caplog: pytest.LogCaptureFixture) -
         await _suggest([["human", "Hi"], ["assistant", "Hello"]])
 
     assert [record for record in caplog.records if record.name == "app.api.agents.suggestions"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_offers_nothing_leaves_no_trace(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.api.agents.suggestions"):
+        suggestions, _, _ = await _call(_CLOSING, reply="[]")
+
+    assert suggestions == []
+    assert [record for record in caplog.records if record.name == "app.api.agents.suggestions"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_thinking_models_draft_is_not_taken_for_its_answer(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.api.agents.suggestions"):
+        suggestions, _, _ = await _call([["human", "Hi"], ["assistant", "Hello"]], reply="", reasoning=_DRAFT)
+
+    assert suggestions == []
+    ours = [record.getMessage() for record in caplog.records if record.name == "app.api.agents.suggestions"]
+    assert ours == [f"suggestions_reply_unusable reply_chars={len(_DRAFT)}"]
+
+
+@pytest.mark.asyncio
+async def test_an_answer_that_only_the_reasoning_trace_carries_is_still_used() -> None:
+    suggestions, _, _ = await _call([["human", "Hi"], ["assistant", "Hello"]], reply="", reasoning=json.dumps(_REPLY))
+
+    assert suggestions == _REPLY
+
+
+@pytest.mark.asyncio
+async def test_the_answer_wins_over_the_reasoning_trace() -> None:
+    suggestions, _, _ = await _call([["human", "Hi"], ["assistant", "Hello"]], reply=json.dumps(_REPLY), reasoning=_DRAFT)
+
+    assert suggestions == _REPLY
+
+
+@pytest.mark.asyncio
+async def test_the_model_treats_the_conversation_as_data_and_may_offer_nothing() -> None:
+    """The load-bearing instructions reach the provider ahead of the conversation they govern."""
+    _, wire = await _suggest(_CLOSING)
+
+    instructions, conversation = wire.split("Conversation:", 1)
+    assert "untrusted data" in instructions
+    assert "approving actions" in instructions
+    assert "return []" in instructions
+    assert "human: Thanks, that's all." in conversation
