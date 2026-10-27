@@ -71,7 +71,7 @@
 │  ├── core/          核心基础设施 - 安全/Cron/检索/监控/工具/infra│
 │  ├── adapters/      适配器层 - 框架 Protocol 的业务实现          │
 │  ├── database/      数据层 - ORM/DTO/连接池 + Repository 仓储隔离层 │
-│  ├── middleware/     中间件层 - 认证/安全/限流/文本清洗           │
+│  ├── middleware/     中间件层 - 认证/安全/文本清洗                │
 │  ├── platform_utils/ 平台抽象层 - 本地/沙箱模式差异化实现       │
 │  ├── tasks/         后台任务 - 异步任务执行器与调度              │
 │  └── config/        配置层 - 环境变量、设置、部署模式            │

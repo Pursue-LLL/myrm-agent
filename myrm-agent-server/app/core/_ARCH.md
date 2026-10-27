@@ -25,7 +25,7 @@
 | `cron/` | 核心 | 定时任务引擎（调度器、执行器、cron 解析） | [_ARCH.md](cron/_ARCH.md) |
 | `storage/` | 核心 | 存储服务 | [_ARCH.md](storage/_ARCH.md) |
 | `eval/` | 核心 | 评估引擎（桥接 Harness 的 AgentExecutor，提供异步服务） | [_ARCH.md](eval/_ARCH.md) |
-| `infra/` | 辅助 | 基础设施（限流器、端口管理、CORS验证、前端启动、服务器全局状态） | [_ARCH.md](infra/_ARCH.md) |
+| `infra/` | 辅助 | 基础设施（端口管理、CORS验证、前端启动、服务器全局状态） | [_ARCH.md](infra/_ARCH.md) |
 | `artifacts/` | 辅助 | 产物处理 | [_ARCH.md](artifacts/_ARCH.md) |
 | `utils/` | 辅助 | 工具函数（错误处理、文件工具、响应工具等） | [_ARCH.md](utils/_ARCH.md) |
 | `monitoring/` | 辅助 | 监控与可观测性（Prometheus 指标、LLM/Slack 指标导出、OpenTelemetry 追踪初始化） | [_ARCH.md](monitoring/_ARCH.md) |
