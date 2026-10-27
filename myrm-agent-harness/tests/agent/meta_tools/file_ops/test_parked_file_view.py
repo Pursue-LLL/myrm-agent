@@ -15,8 +15,10 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core import parked_file_view
 from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.truncation import truncate_file_output
 from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
 from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
+    MIN_PAGE_TOKEN_BUDGET,
     PAGE_TOKEN_BUDGET,
     is_parked_path,
+    page_token_budget,
     parked_page_chars,
     wrap_long_lines,
     wrapped_rows_notice,
@@ -26,10 +28,17 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 
 _PARKED = ".myrm/pastes/payload_0123456789abcdef.md"
 _ROW_NUMBER = re.compile(r"^\s*(\d+)\|", re.MULTILINE)
-# A page may overshoot its budget by a tenth, and carries a continuation hint of a few dozen tokens.
-_PAGE_CEILING = PAGE_TOKEN_BUDGET * 110 // 100 + 300
-# A page that is not the last one is cut a line or two short of the budget at most.
-_PAGE_FLOOR = PAGE_TOKEN_BUDGET * 85 // 100
+_PAGE_BUDGETS = [PAGE_TOKEN_BUDGET, 6_400, MIN_PAGE_TOKEN_BUDGET]
+
+
+def _ceiling(page_tokens: int) -> int:
+    """A page may overshoot its budget by a tenth, and carries a continuation hint of a few dozen tokens."""
+    return page_tokens * 110 // 100 + 300
+
+
+def _floor(page_tokens: int) -> int:
+    """A page that is not the last one is cut a line or two short of the budget at most."""
+    return page_tokens * 85 // 100
 
 
 @pytest.mark.parametrize(
@@ -134,17 +143,19 @@ def _render(lines: list[str], *, path: str, start: int = 1, max_line_length: int
     return ResultFormatter.format_file_content(content, max_line_length=max_line_length)
 
 
-def _cut_page(rendered: str) -> tuple[str, bool, dict[str, object]]:
+def _cut_page(rendered: str, page_tokens: int = PAGE_TOKEN_BUDGET) -> tuple[str, bool, dict[str, object]]:
     """One page of a parked file's rendered output, cut the way ``text_paths`` cuts it."""
-    return truncate_file_output(rendered, max_chars=parked_page_chars(rendered), path_str=_PARKED, max_lines=None)
+    return truncate_file_output(
+        rendered, max_chars=parked_page_chars(rendered, page_tokens), path_str=_PARKED, max_lines=None
+    )
 
 
-def _read_pages(lines: list[str]) -> list[tuple[str, dict[str, object]]]:
+def _read_pages(lines: list[str], page_tokens: int = PAGE_TOKEN_BUDGET) -> list[tuple[str, dict[str, object]]]:
     """Read a parked file page by page the way the model does: follow ``next_offset`` until the end."""
     pages: list[tuple[str, dict[str, object]]] = []
     start = 1
     while True:
-        text, truncated, meta = _cut_page(_render(lines, path=_PARKED, start=start))
+        text, truncated, meta = _cut_page(_render(lines, path=_PARKED, start=start), page_tokens)
         pages.append((text, meta))
         if not truncated:
             return pages
@@ -178,17 +189,43 @@ def test_a_text_that_fits_one_page_is_not_cut() -> None:
         ("dense head, prose tail", _dense(1500) + _prose(8000)),
     ],
 )
-def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(name: str, lines: list[str]) -> None:
-    pages = _read_pages(lines)
+@pytest.mark.parametrize("page_tokens", _PAGE_BUDGETS)
+def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(
+    name: str, lines: list[str], page_tokens: int
+) -> None:
+    pages = _read_pages(lines, page_tokens)
     assert len(pages) > 1, name
     shown: list[int] = []
     for index, (text, _meta) in enumerate(pages):
         tokens = get_token_count(text)
-        assert tokens <= _PAGE_CEILING, name
+        assert tokens <= _ceiling(page_tokens), (name, page_tokens)
         if index < len(pages) - 1:
-            assert tokens >= _PAGE_FLOOR, name
+            assert tokens >= _floor(page_tokens), (name, page_tokens)
         shown.extend(int(number) for number in _ROW_NUMBER.findall(text))
     assert shown == list(range(1, len(lines) + 1)), name
+
+
+@pytest.mark.parametrize(
+    ("window", "budget"),
+    [
+        (None, PAGE_TOKEN_BUDGET),
+        (0, PAGE_TOKEN_BUDGET),
+        (-1, PAGE_TOKEN_BUDGET),
+        (4_096, MIN_PAGE_TOKEN_BUDGET),
+        (16_384, MIN_PAGE_TOKEN_BUDGET),
+        (20_000, MIN_PAGE_TOKEN_BUDGET),
+        (32_000, 3_200),
+        (64_000, 6_400),
+        (65_536, 6_553),
+        (65_537, PAGE_TOKEN_BUDGET),
+        (131_072, PAGE_TOKEN_BUDGET),
+        (1_000_000, PAGE_TOKEN_BUDGET),
+    ],
+)
+def test_a_window_within_the_medium_tier_gets_a_tenth_of_it_and_any_other_window_the_full_page(
+    window: int | None, budget: int
+) -> None:
+    assert page_token_budget(window) == budget
 
 
 def test_a_page_is_cut_the_same_way_every_time() -> None:

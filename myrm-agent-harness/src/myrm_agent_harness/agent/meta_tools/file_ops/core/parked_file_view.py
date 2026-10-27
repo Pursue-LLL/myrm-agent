@@ -5,21 +5,23 @@ pasted without line breaks), and it runs to several times the size of an ordinar
 sized for code files: they hand the model a page of 10,000 characters, so a large paste costs one model call per
 10,000 characters, and they cut a line at 2,000 characters, so the rest of a long line cannot be read at all.
 Files in the two parked directories get their own view instead: a long line is split into rows rather than cut,
-and a page holds a fixed number of o200k tokens whatever the density of the text.
+and a page holds a number of o200k tokens that follows the model's window, not the density of the text.
 
 [INPUT]
 - agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: the directories the guard writes to)
 - agent.security.redact::redact_sensitive_text (POS: tool output redaction)
+- core.config.model_tier::ModelTier, infer_model_tier (POS: the window tiers)
 - utils.text_utils::get_token_count (POS: tiktoken count, o200k)
 
 [OUTPUT]
 - is_parked_path: whether a path names a file the context guard parked
 - wrap_long_lines: split lines over a width into rows, after redacting the lines it splits
 - wrapped_rows_notice: the one-line note that row numbers no longer match the file's line numbers
-- parked_page_chars: how many characters of a parked file's rendered output make up one page of o200k tokens
+- page_token_budget: how many o200k tokens one page holds for a model with a given window
+- parked_page_chars: how many characters of a parked file's rendered output make up one page of that many tokens
 
 [POS]
-View rules for parked-text files; result_formatter splits the rows, file_read_handlers sizes the page.
+View rules for parked-text files; result_formatter splits the rows, file_read.text_paths sizes the page.
 """
 
 from __future__ import annotations
@@ -28,16 +30,21 @@ import posixpath
 
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 from myrm_agent_harness.utils.text_utils import get_token_count
 
-# A page is 20,000 o200k tokens, counted as the result budget guard counts them: a sixth of a 128k window, and four
-# pages fit the 100,000-token per-run result budget, so a long paste is read in a few calls without one page
-# crowding the window out. A model with another tokenizer sees more tokens in the same page (CJK, for one).
+# A page is 20,000 o200k tokens (16% of a 128k window), so a long paste is read in a few calls. A model with another
+# tokenizer sees more tokens in the same page (CJK, for one).
 PAGE_TOKEN_BUDGET = 20_000
+# A model whose window is within the MEDIUM tier gets a page of a tenth of its window instead: the context pruner keeps
+# the five most recent tool results in full, so five pages stay within half the window, where compression starts.
+_SMALL_WINDOW_PAGE_DIVISOR = 10
+# Smaller pages would cost one model call per page without keeping more of the window free.
+MIN_PAGE_TOKEN_BUDGET = 2_000
 # A page may overshoot by a tenth rather than cut a text a few lines short of fitting.
 _PAGE_TOLERANCE_PERCENT = 10
 # First window to measure: 4 characters per token, which prose stays under and dense text overshoots.
-_FIRST_GUESS_CHARS = PAGE_TOKEN_BUDGET * 4
+_FIRST_GUESS_CHARS_PER_TOKEN = 4
 _REFINE_ROUNDS = 5
 # Each refinement aims a little under the budget so the next measurement lands inside the tolerance.
 _REFINE_AIM_PERCENT = 97
@@ -86,14 +93,25 @@ def wrapped_rows_notice(width: int, first_split_line: int) -> str:
     )
 
 
-def parked_page_chars(output: str) -> int:
-    """Characters from the start of *output* that make up one page of ``PAGE_TOKEN_BUDGET`` o200k tokens.
+def page_token_budget(window_tokens: int | None) -> int:
+    """o200k tokens in one page for a model whose context window is *window_tokens* (``None``: not reported).
+
+    A window in the MEDIUM tier or below gets a tenth of it, at least ``MIN_PAGE_TOKEN_BUDGET``. A larger or unknown
+    window, and a value that is not a window (zero, negative), gets ``PAGE_TOKEN_BUDGET``.
+    """
+    if window_tokens is None or window_tokens <= 0 or infer_model_tier("", None, window_tokens) is ModelTier.STRONG:
+        return PAGE_TOKEN_BUDGET
+    return max(window_tokens // _SMALL_WINDOW_PAGE_DIVISOR, MIN_PAGE_TOKEN_BUDGET)
+
+
+def parked_page_chars(output: str, page_tokens: int = PAGE_TOKEN_BUDGET) -> int:
+    """Characters from the start of *output* that make up one page of *page_tokens* o200k tokens.
 
     Only the window that becomes the page is measured, so the cost does not grow with the size of the file.
     """
-    ceiling = PAGE_TOKEN_BUDGET * (100 + _PAGE_TOLERANCE_PERCENT) // 100
-    floor = PAGE_TOKEN_BUDGET * (100 - _PAGE_TOLERANCE_PERCENT) // 100
-    chars = min(len(output), _FIRST_GUESS_CHARS)
+    ceiling = page_tokens * (100 + _PAGE_TOLERANCE_PERCENT) // 100
+    floor = page_tokens * (100 - _PAGE_TOLERANCE_PERCENT) // 100
+    chars = min(len(output), page_tokens * _FIRST_GUESS_CHARS_PER_TOKEN)
     fitting = 0
     for _ in range(_REFINE_ROUNDS):
         tokens = get_token_count(output[:chars])
@@ -101,7 +119,7 @@ def parked_page_chars(output: str) -> int:
             fitting = max(fitting, chars)
             if chars == len(output) or tokens >= floor:
                 return chars
-        chars = min(len(output), max(1, chars * PAGE_TOKEN_BUDGET * _REFINE_AIM_PERCENT // (max(tokens, 1) * 100)))
+        chars = min(len(output), max(1, chars * page_tokens * _REFINE_AIM_PERCENT // (max(tokens, 1) * 100)))
     # The density kept jumping between windows: halve until a window is known to fit.
     while not fitting:
         chars = max(1, chars // 2)

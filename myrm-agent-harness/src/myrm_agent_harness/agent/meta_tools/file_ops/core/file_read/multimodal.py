@@ -1,7 +1,8 @@
 """Multimodal reads for file_read_tool: image, PDF, document and video blocks, and their text-mode fallbacks.
 
 [INPUT]
-- core.file_operation_service::FileOperationService, core.operation_context::OperationContext, OperationType (POS: 文件操作服务)
+- core.file_operation_service::FileOperationService (POS: 文件操作服务)
+- core.operation_context::OperationContext, OperationType (POS: 文件操作上下文)
 - file_read.text_paths::read_structure_outline (POS: structure-mode outline of a text path)
 - utils.*_reader (POS: image/pdf/video/document readers)
 - utils.vault_read::read_vault_paths_to_parts (POS: vault URI batch reader)

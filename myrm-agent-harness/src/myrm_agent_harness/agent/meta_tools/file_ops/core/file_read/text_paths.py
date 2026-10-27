@@ -1,8 +1,10 @@
 """Text-path reads for file_read_tool: preview, stream and paged full reads, plus the structure outline.
 
 [INPUT]
-- core.file_operation_service::FileOperationService, core.operation_context::OperationContext, OperationType (POS: file operation service)
-- core.parked_file_view::is_parked_path, parked_page_chars (POS: page size of context-guard parked text)
+- core.file_operation_service::FileOperationService (POS: file operation service)
+- core.operation_context::OperationContext, OperationType (POS: file operation context)
+- core.parked_file_view::is_parked_path, page_token_budget, parked_page_chars (POS: page size of parked text)
+- agent.context_management.context::AgentContext, extract_context_from_runnable_config (POS: the run's window)
 - core.result_formatter::clamp_line (POS: per-line clamp)
 - file_read.truncation::truncate_file_output (POS: output truncation)
 - file_read.outline::extract_file_outline (POS: structure-mode outline)
@@ -26,13 +28,14 @@ from typing import TYPE_CHECKING
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
+from myrm_agent_harness.agent.context_management.context import AgentContext, extract_context_from_runnable_config
 
 from ...streaming import read_file_chunked, read_file_preview
 from ...utils.vault_read import path_base
 from ..file_integrity_guard import get_file_integrity_guard
 from ..file_operation_service import FileOperationService
 from ..operation_context import OperationContext, OperationType
-from ..parked_file_view import is_parked_path, parked_page_chars
+from ..parked_file_view import is_parked_path, page_token_budget, parked_page_chars
 from ..result_formatter import clamp_line
 from .outline import extract_file_outline
 from .truncation import truncate_file_output
@@ -76,6 +79,11 @@ def _clamp_multiline(text: str, max_line_length: int | None) -> str:
     return "\n".join(clamp_line(line, max_line_length) for line in lines)
 
 
+def _context_window_tokens(config: RunnableConfig) -> int | None:
+    """The model's context window as the run reports it, ``None`` when it reports none."""
+    return AgentContext.from_dict(extract_context_from_runnable_config(config)).max_context_tokens
+
+
 async def _read_via_service(
     path_str: str,
     executor: CodeExecutor | None,
@@ -97,13 +105,15 @@ async def _read_via_service(
     raw_out = await service.execute()
     if max_lines is None:
         max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
-    # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
+    # The hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
     hint_path = path_str if is_dir else path_base(path_str)
-    # Text the context guard parked is read in pages sized in o200k tokens, not the code-file character cap.
-    parked = not is_dir and is_parked_path(hint_path)
+    max_chars = DEFAULT_FILE_IO_CONFIG.max_read_chars
+    # Text the context guard parked is read in pages sized in o200k tokens by the model's window, not the char cap.
+    if not is_dir and is_parked_path(hint_path):
+        max_chars = parked_page_chars(raw_out, page_token_budget(_context_window_tokens(config)))
     truncated_text, was_truncated, meta = truncate_file_output(
         raw_out,
-        max_chars=parked_page_chars(raw_out) if parked else DEFAULT_FILE_IO_CONFIG.max_read_chars,
+        max_chars=max_chars,
         is_dir=is_dir,
         path_str=hint_path,
         max_lines=max_lines,

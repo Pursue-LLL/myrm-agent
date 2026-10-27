@@ -21,7 +21,10 @@ from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, ContextGuardConfig, SpilloverEngine
-from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import PAGE_TOKEN_BUDGET
+from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
+    MIN_PAGE_TOKEN_BUDGET,
+    PAGE_TOKEN_BUDGET,
+)
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import create_file_read_tool
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from myrm_agent_harness.toolkits.code_execution import ExecutionConfig
@@ -32,9 +35,16 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 
 _CHAT_ID = "chat-parked-view"
 _CONTINUE_HINT = re.compile(r"Use (\S+?:\d+-) to continue")
+_ROW_NUMBER = re.compile(r"^\s*(\d+)\|", re.MULTILINE)
 _END_MARKER = "END_OF_THE_PASTE"
-# A page may overshoot its budget by a tenth, and carries a continuation hint of a few dozen tokens.
-_PAGE_CEILING = PAGE_TOKEN_BUDGET * 110 // 100 + 300
+
+
+def _ceiling(page_tokens: int) -> int:
+    """A page may overshoot its budget by a tenth, and carries a continuation hint of a few dozen tokens."""
+    return page_tokens * 110 // 100 + 300
+
+
+_PAGE_CEILING = _ceiling(PAGE_TOKEN_BUDGET)
 _CLAUSE = (
     "Section {n}. The supplier shall deliver the goods within thirty days of the purchase order. Late delivery "
     "incurs a penalty of 0.5% per day, capped at 10% of the order value.\n"
@@ -73,10 +83,16 @@ def _park(ws: str, text: str) -> str:
     return parked.payload.relative_path
 
 
-async def _read_pages(path: str, *, mode: str = "all") -> list[str]:
-    """Read *path* with the Fast-track tool, following the continuation hint until the text ends."""
+async def _read_pages(path: str, *, mode: str = "all", window: int | None = None) -> list[str]:
+    """Read *path* with the Fast-track tool, following the continuation hint until the text ends.
+
+    *window* is the model's context window as the run context reports it (``None``: the run reports none).
+    """
     tool = create_file_read_tool(path_policy="evicted_uploaded")
-    config = RunnableConfig(configurable={"context": {"chat_id": _CHAT_ID}})
+    context: dict[str, object] = {"chat_id": _CHAT_ID}
+    if window is not None:
+        context["max_context_tokens"] = window
+    config = RunnableConfig(configurable={"context": context})
     pages: list[str] = []
     target = path
     while len(pages) < 40:
@@ -119,6 +135,44 @@ async def test_a_paste_of_several_pages_is_read_back_in_filled_pages(workspace: 
     assert 2 <= len(pages) <= 5
     assert _END_MARKER in pages[-1]
     assert all(get_token_count(page) <= _PAGE_CEILING for page in pages)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize("window", [None, 0, -1, 65_537, 131_072])
+async def test_an_unknown_or_large_window_keeps_the_full_page(workspace: str, window: int | None) -> None:
+    path = _park(workspace, _prose(120_000))
+    with _session(workspace):
+        pages = await _read_pages(path, window=window)
+    assert len(pages) == 2
+    assert _END_MARKER in pages[-1]
+    assert all(get_token_count(page) <= _PAGE_CEILING for page in pages)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize("window", [8_192, 32_000, 65_536])
+async def test_a_small_window_model_reads_pages_a_tenth_of_its_window(workspace: str, window: int) -> None:
+    budget = max(window // 10, MIN_PAGE_TOKEN_BUDGET)
+    path = _park(workspace, _prose(120_000))
+    with _session(workspace):
+        pages = await _read_pages(path, window=window)
+    assert len(pages) > 2
+    assert _END_MARKER in pages[-1]
+    assert all(get_token_count(page) <= _ceiling(budget) for page in pages)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_a_small_window_model_reads_a_paste_without_a_line_break_to_its_last_character(workspace: str) -> None:
+    path = _park(workspace, _one_line_json(64_500))
+    with _session(workspace):
+        pages = await _read_pages(path, window=32_000)
+    assert len(pages) > 1
+    assert _END_MARKER in pages[-1]
+    rows = [int(number) for page in pages for number in _ROW_NUMBER.findall(page)]
+    assert rows == list(range(1, rows[-1] + 1)), "every row of the paste is shown once, in order"
+    assert all(get_token_count(page) <= _ceiling(3_200) for page in pages)
 
 
 @pytest.mark.integration
