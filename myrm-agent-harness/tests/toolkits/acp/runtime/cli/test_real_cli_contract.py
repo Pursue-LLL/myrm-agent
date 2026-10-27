@@ -112,11 +112,6 @@ async def test_codex_refuses_an_unknown_thread_before_announcing_anything(tmp_pa
     assert "no rollout found" in stderr
 
 
-@needs_claude
-def test_claude_still_takes_extra_directories_as_a_flag() -> None:
-    assert "--add-dir" in _help(str(_CLAUDE), "--help")
-
-
 @needs_codex
 def test_codex_still_takes_image_files_as_a_flag_on_a_fresh_and_on_a_resumed_turn() -> None:
     assert "--image" in _help(str(_CODEX), "exec", "--help")
@@ -153,7 +148,7 @@ async def test_codex_resume_accepts_an_image_flag_between_its_options_and_the_se
     image = _write_png(tmp_path / "red.png")
     # The command line of a real safe-mode turn: the permission flags come before ``exec``.
     base = [str(_CODEX), "--sandbox", "read-only", "exec", "--json", "--skip-git-repo-check"]
-    args = dialect.with_resume(dialect.with_images(base, [str(image)], None), _UNKNOWN_ID)
+    args = dialect.with_resume(dialect.with_images(base, [str(image)]), _UNKNOWN_ID)
     assert args is not None
     (tmp_path / "codex-home").mkdir()
     env = {**os.environ, "CODEX_HOME": str(tmp_path / "codex-home")}

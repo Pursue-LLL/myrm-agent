@@ -176,6 +176,8 @@ class CliRuntime(BaseRuntime):
             )
         env = {**(dialect.env_defaults if dialect is not None else {}), **build_safe_env(self._config)}
         args = self._launch_args(command, dialect, images or ())
+        if dialect is not None:
+            prompt = dialect.with_image_references(prompt, images or ())
 
         resume_args, notice = await self._resume_args(session_id, cwd, dialect, args)
         if notice is not None:
@@ -218,7 +220,7 @@ class CliRuntime(BaseRuntime):
         if dialect is not None:
             args = dialect.with_partial_messages(args)
             args = dialect.with_max_turns(args, self._config.max_turns)
-            args = dialect.with_images(args, images, self._config.image_dir)
+            args = dialect.with_images(args, images)
         return args
 
     async def _resume_args(

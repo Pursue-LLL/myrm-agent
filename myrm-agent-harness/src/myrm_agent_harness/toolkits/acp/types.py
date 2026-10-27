@@ -177,9 +177,6 @@ class RuntimeConfig:
     max_response_chars: int = 50_000
     max_turns: int = 25
     description: str = ""
-    # A directory the CLI may read attached images from. It stays the same on every turn: a CLI that names its
-    # working directories in its own system prompt would otherwise change that prompt (and lose its cache) per turn.
-    image_dir: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

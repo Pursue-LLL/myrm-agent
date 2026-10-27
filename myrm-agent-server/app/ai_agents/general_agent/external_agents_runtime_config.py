@@ -252,9 +252,6 @@ async def _resolve_external_agent_cfgs(
 def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, object]]) -> None:
     from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
-    from app.services.external_agents.delegation import staging_dir
-
-    image_dir = str(staging_dir())
     for cfg in agent_cfgs:
         if not cfg.get("enabled", True):
             continue
@@ -285,7 +282,6 @@ def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, obj
             auth_mode=normalized_cfg.auth_mode,
             max_turns=normalized_cfg.max_turns,
             description=normalized_cfg.description,
-            image_dir=image_dir,
         )
         pool.register(normalized_cfg.name, runtime_cfg)
         logger.info("Registered external agent: %s (%s)", normalized_cfg.name, backend_type)

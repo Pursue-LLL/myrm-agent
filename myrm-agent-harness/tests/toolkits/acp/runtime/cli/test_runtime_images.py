@@ -1,4 +1,4 @@
-"""Image files reach a CLI the way its dialect wants: Claude a readable directory, Codex ``--image=`` files."""
+"""Image files reach a CLI the way its dialect wants: Claude quoted ``@`` mentions in the prompt, Codex ``--image=`` files."""
 
 from __future__ import annotations
 
@@ -38,41 +38,33 @@ class TestCapability:
 
 class TestClaude:
     @pytest.mark.asyncio
-    async def test_the_image_directory_is_on_the_command_line_of_every_turn_with_or_without_images(
+    async def test_each_image_is_a_quoted_mention_after_the_prompt_and_no_directory_is_granted(
         self, fake_cli: FakeCli, tmp_path: Path
     ) -> None:
-        image_dir = tmp_path / "images"
-        image_dir.mkdir()
-        runtime = make_runtime(fake_cli, "claude", image_dir=str(image_dir))
+        image = tmp_path / "Application Support" / "a.png"
+        runtime = make_runtime(fake_cli, "claude")
 
-        await _turn(runtime, "no image here")
-        await _turn(runtime, "look at this", [str(image_dir / "a.png")])
+        await _turn(runtime, "describe [Image: /x.png]", [str(image)])
 
-        flag = f"--add-dir={image_dir}"
-        first, second = _argv(fake_cli, "claude", 0), _argv(fake_cli, "claude", 1)
-        assert [first.count(flag), second.count(flag)] == [1, 1]
-        # The second turn is the first one plus the resume flag: the CLI's own system prompt is the same on both.
-        assert second[: len(first)] == first
-        assert second[len(first) :][0] == "--resume"
+        assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == f'describe [Image: /x.png]\n\n@"{image}"'
+        assert not any(a.startswith("--add-dir") for a in _argv(fake_cli, "claude"))
 
     @pytest.mark.asyncio
-    async def test_the_prompt_is_unchanged_and_the_flag_cannot_swallow_it(
-        self, fake_cli: FakeCli, tmp_path: Path
-    ) -> None:
-        runtime = make_runtime(fake_cli, "claude", image_dir=str(tmp_path / "images"))
+    async def test_a_resumed_turn_names_its_images_too(self, fake_cli: FakeCli) -> None:
+        runtime = make_runtime(fake_cli, "claude")
 
-        await _turn(runtime, "describe [Image: /x.png]", [str(tmp_path / "images" / "a.png")])
+        await _turn(runtime, "first")
+        events = await _turn(runtime, "second", ["/img/a.png"])
 
-        assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == "describe [Image: /x.png]"
-        assert "--add-dir" not in _argv(fake_cli, "claude")
+        assert str(fake_cli.calls("claude")[1]["prompt"]).strip() == 'second\n\n@"/img/a.png"'
+        assert "--resume" in _argv(fake_cli, "claude", 1)
+        assert RuntimeEventType.DONE in types_of(events)
 
     @pytest.mark.asyncio
-    async def test_without_an_image_directory_or_images_the_command_line_has_no_directory_flag(
-        self, fake_cli: FakeCli
-    ) -> None:
+    async def test_a_turn_without_images_sends_the_prompt_as_it_is(self, fake_cli: FakeCli) -> None:
         await _turn(make_runtime(fake_cli, "claude"), "plain")
 
-        assert not any(a.startswith("--add-dir") for a in _argv(fake_cli, "claude"))
+        assert str(fake_cli.calls("claude")[0]["prompt"]).strip() == "plain"
 
 
 class TestCodex:

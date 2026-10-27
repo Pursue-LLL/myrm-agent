@@ -6,17 +6,17 @@
 - app.services.external_agents.delegation.prompt::image_url, is_video (POS: 图片内容块的 URL 取法与视频判别)
 
 [OUTPUT]
-- staging_dir: 暂存目录（固定路径，同时是 RuntimeConfig.image_dir 的值）
+- staging_dir: 暂存目录（状态目录下的固定路径）
 - stage_images: 用户回合里的图片 → 暂存目录里的本地文件，回合结束后删除
 - StagedImages: 图片块已指向暂存文件的用户回合，与暂存文件的路径
 
 [POS]
 外部 CLI 只收文本与本地文件。Web 模式里图片是本服务的存储 URL（CLI 读不到：Claude 的 `Read` 一个 http 地址得到
-File does not exist），Tauri 里是任意位置的 `file://`（Claude 默认权限只到工作目录与 `--add-dir` 目录）。这里把存储
-URL、`file://`、data URL 三种来源的图片校验后落成固定目录里的一个私有文件，并把图片块改指向它，提示词里的路径一行
-与交给 CLI 的文件因此是同一个。固定目录不随回合变化：Claude 把额外目录写进自己的系统提示词，目录一变它的提示词缓存
-就失效。文件在回合之后删除（调用方在上下文里以 `aclosing` 跑回合流，上下文退出时 CLI 已停止）；服务中途退出遗留的
-文件由之后的暂存清掉。任何一张图落盘失败都只记一条 WARNING 并保持原样，不让回合失败；外部 http(s) 地址从不被抓取。
+File does not exist），Tauri 里是任意位置的 `file://`。这里把存储 URL、`file://`、data URL 三种来源的图片校验后落成
+状态目录下的一个私有文件，并把图片块改指向它，提示词里的路径一行与交给 CLI 的文件因此是同一个：能收图的 CLI
+（Claude、Codex）由 harness 按各自的方式附上这个文件，收不了图的后端仍有这一行路径。文件在回合之后删除（调用方在
+上下文里以 `aclosing` 跑回合流，上下文退出时 CLI 已停止）；服务中途退出遗留的文件由之后的暂存清掉。任何一张图落盘
+失败都只记一条 WARNING 并保持原样，不让回合失败；外部 http(s) 地址从不被抓取。
 """
 
 from __future__ import annotations

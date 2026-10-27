@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - delegation_prompt: 用户回合 → 外部 CLI 只收文本的提示词
-- stage_images, StagedImages, staging_dir: 回合里的图片 → CLI 读得到的本地文件（回合后删除）与其固定目录
+- stage_images, StagedImages: 回合里的图片 → CLI 读得到的本地文件（回合后删除）
 - stream_direct_delegate, SseEvent: harness RuntimeEvent 流 → 前端 SSE 事件流
 - delegate_error_event, agent_unavailable_event, delegate_denied_event, delegate_failed_event: 直连委托失败的用户指引
 
@@ -20,7 +20,7 @@ from app.services.external_agents.delegation.errors import (
     delegate_error_event,
     delegate_failed_event,
 )
-from app.services.external_agents.delegation.images import StagedImages, stage_images, staging_dir
+from app.services.external_agents.delegation.images import StagedImages, stage_images
 from app.services.external_agents.delegation.prompt import delegation_prompt
 from app.services.external_agents.delegation.stream import SseEvent, stream_direct_delegate
 
@@ -33,6 +33,5 @@ __all__ = [
     "delegate_failed_event",
     "delegation_prompt",
     "stage_images",
-    "staging_dir",
     "stream_direct_delegate",
 ]

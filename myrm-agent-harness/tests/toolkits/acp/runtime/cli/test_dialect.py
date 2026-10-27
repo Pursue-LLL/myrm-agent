@@ -151,59 +151,52 @@ class TestImages:
         args = ["gemini", "--output-format", "stream-json"]
 
         assert CliDialect.takes_images is False
-        assert CliDialect().with_images(args, ["/img/a.png"], "/img") == args
+        assert CliDialect().with_images(args, ["/img/a.png"]) == args
+        assert CliDialect().with_image_references("look", ["/img/a.png"]) == "look"
 
-    def test_claude_gets_the_image_directory_in_the_equals_form_whether_or_not_there_are_images(self) -> None:
+    def test_claude_names_each_image_as_a_quoted_mention_after_the_text(self) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
-        args = ["claude", "-p", "--output-format", "stream-json"]
 
         assert dialect.takes_images
-        assert dialect.with_images(args, [], "/state/images") == [*args, "--add-dir=/state/images"]
-        assert dialect.with_images(args, ["/state/images/a.png"], "/state/images") == [*args, "--add-dir=/state/images"]
-        # A file in a subdirectory is already readable: no directory that would change with the turn is named.
-        assert dialect.with_images(args, ["/state/images/turn-1/a.png"], "/state/images") == [
-            *args,
-            "--add-dir=/state/images",
-        ]
+        assert dialect.with_image_references("what is wrong?", ["/s/a.png"]) == 'what is wrong?\n\n@"/s/a.png"'
+        assert dialect.with_image_references("two", ["/s/a.png", "/s/b.jpg"]) == 'two\n\n@"/s/a.png"\n@"/s/b.jpg"'
 
-    def test_claude_with_nothing_to_read_is_left_alone(self) -> None:
+    def test_the_quotes_are_what_carries_a_path_with_a_space_or_non_ascii_characters(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+        path = "/Users/张 三/Library/Application Support/Myrm (dev)/delegation-images/a1.png"
+
+        assert dialect.with_image_references("look", [path]).endswith(f'\n\n@"{path}"')
+
+    def test_claude_puts_the_mentions_after_the_text_whatever_the_text_ends_with(self) -> None:
+        dialect = dialect_for("claude")
+        assert dialect is not None
+
+        assert dialect.with_image_references("look  \n\n", ["/a.png"]) == 'look\n\n@"/a.png"'
+        assert dialect.with_image_references("", ["/a.png"]) == '@"/a.png"'
+        assert dialect.with_image_references("  \n", ["/a.png"]) == '@"/a.png"'
+
+    def test_claude_without_images_leaves_the_prompt_and_the_command_line_alone(self) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
         args = ["claude", "-p"]
 
-        assert dialect.with_images(args, [], None) == args
+        assert dialect.with_image_references("look  ", []) == "look  "
+        assert dialect.with_images(args, ["/a.png"]) == args
 
-    def test_an_image_outside_the_image_directory_gets_a_directory_of_its_own_once(self) -> None:
+    def test_a_path_that_cannot_be_quoted_is_left_out_and_logged_without_the_path(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         dialect = dialect_for("claude")
         assert dialect is not None
 
-        result = dialect.with_images(
-            ["claude", "-p"], ["/elsewhere/a.png", "/elsewhere/b.png", "/state/images/c.png"], "/state/images"
-        )
+        with caplog.at_level("WARNING", logger="myrm_agent_harness.toolkits.acp.runtime.cli.dialect"):
+            result = dialect.with_image_references("look", ['/odd"dir/a.png', "/ok/b.png"])
 
-        assert result == ["claude", "-p", "--add-dir=/state/images", "--add-dir=/elsewhere"]
-
-    def test_claude_without_an_image_directory_adds_the_directory_of_each_image(self) -> None:
-        dialect = dialect_for("claude")
-        assert dialect is not None
-
-        assert dialect.with_images(["claude", "-p"], ["/x/a.png"], None) == ["claude", "-p", "--add-dir=/x"]
-
-    def test_a_directory_the_args_already_name_is_not_added_twice(self) -> None:
-        dialect = dialect_for("claude")
-        assert dialect is not None
-        args = ["claude", "-p", "--add-dir=/state/images"]
-
-        assert dialect.with_images(args, ["/state/images/a.png"], "/state/images") == args
-
-    def test_a_sibling_directory_sharing_a_name_prefix_is_not_inside_the_image_directory(self) -> None:
-        dialect = dialect_for("claude")
-        assert dialect is not None
-
-        result = dialect.with_images(["claude"], ["/state/images-old/a.png"], "/state/images")
-
-        assert result == ["claude", "--add-dir=/state/images", "--add-dir=/state/images-old"]
+        assert result == 'look\n\n@"/ok/b.png"'
+        assert [r.message for r in caplog.records] == ["cli_image_not_attached reason=quote_in_path"]
+        assert dialect.with_image_references("look", ['/odd"dir/a.png']) == "look"
 
     def test_codex_attaches_each_image_as_an_image_flag_in_the_equals_form(self) -> None:
         dialect = dialect_for("codex")
@@ -211,18 +204,15 @@ class TestImages:
         args = ["codex", "exec", "--json"]
 
         assert dialect.takes_images
-        assert dialect.with_images(args, ["/a b.png", "/c.png"], "/state/images") == [
-            *args,
-            "--image=/a b.png",
-            "--image=/c.png",
-        ]
-        assert dialect.with_images(args, [], "/state/images") == args
+        assert dialect.with_images(args, ["/a b.png", "/c.png"]) == [*args, "--image=/a b.png", "--image=/c.png"]
+        assert dialect.with_images(args, []) == args
+        assert dialect.with_image_references("look", ["/a.png"]) == "look"
 
     def test_a_resumed_codex_turn_keeps_the_images_before_the_session_id_and_the_prompt(self) -> None:
         dialect = dialect_for("codex")
         assert dialect is not None
         base = ["codex", "exec", "--json", "--skip-git-repo-check"]
 
-        resumed = dialect.with_resume(dialect.with_images(base, ["/a.png"], None), _ID)
+        resumed = dialect.with_resume(dialect.with_images(base, ["/a.png"]), _ID)
 
         assert resumed == ["codex", "exec", "resume", "--json", "--skip-git-repo-check", "--image=/a.png", _ID]

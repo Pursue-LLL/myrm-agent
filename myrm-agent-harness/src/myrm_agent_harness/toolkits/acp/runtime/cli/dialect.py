@@ -2,7 +2,7 @@
 
 The CLIs share the NDJSON event vocabulary (``parser``) but not their command lines: Claude resumes with a
 ``--resume <id>`` flag, Codex with an ``exec resume <id>`` subcommand, only Claude has a native turn limit, and
-an attached image reaches Claude as a directory it may read and Codex as an ``--image`` file.
+an attached image reaches Claude as an ``@"<file>"`` mention in the prompt and Codex as an ``--image`` file.
 Keeping those differences in one place leaves the runtime free of per-CLI branching.
 
 [INPUT]
@@ -20,13 +20,14 @@ Per-CLI launch knowledge of CliRuntime. A CLI without a dialect is spawned as co
 
 from __future__ import annotations
 
-import os
+import logging
 import re
 from collections.abc import Mapping, Sequence
-from pathlib import PurePath
 from types import MappingProxyType
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
+
+logger = logging.getLogger(__name__)
 
 # Claude and Codex both identify a conversation by a canonical hyphenated UUID. A resume id comes from a store
 # the CLI did not write, and Codex starts a brand-new thread (instead of failing) on a malformed one, so an id
@@ -47,7 +48,8 @@ class CliDialect:
     partial_messages_flag: str | None = None
     # Environment the CLI needs when a program, not a person, runs it; the host's and the configured env win.
     env_defaults: Mapping[str, str] = MappingProxyType({})
-    # Whether ``with_images`` makes an attached image file readable to the CLI.
+    # Whether the CLI is handed an attached image file: on its command line (``with_images``) or in its prompt
+    # (``with_image_references``).
     takes_images = False
 
     def is_resuming(self, args: list[str]) -> bool:
@@ -71,12 +73,13 @@ class CliDialect:
             return args
         return [*args, flag]
 
-    def with_images(self, args: list[str], images: Sequence[str], image_dir: str | None) -> list[str]:
-        """``args`` letting the CLI read this turn's image files and what is in ``image_dir``.
-
-        Unchanged for a CLI that cannot take images.
-        """
+    def with_images(self, args: list[str], images: Sequence[str]) -> list[str]:
+        """``args`` attaching this turn's image files; unchanged for a CLI that takes none or takes them in the prompt."""
         return args
+
+    def with_image_references(self, prompt: str, images: Sequence[str]) -> str:
+        """``prompt`` naming this turn's image files the way the CLI attaches them; unchanged for a CLI that takes none."""
+        return prompt
 
     def _resume(self, args: list[str], cli_session_id: str) -> list[str] | None:
         return None
@@ -94,20 +97,24 @@ class _ClaudeDialect(CliDialect):
     def is_resuming(self, args: list[str]) -> bool:
         return "--resume" in args
 
-    def with_images(self, args: list[str], images: Sequence[str], image_dir: str | None) -> list[str]:
-        """Claude reads an image with its Read tool, which reaches only the working directory and ``--add-dir`` ones.
+    def with_image_references(self, prompt: str, images: Sequence[str]) -> str:
+        """Claude attaches a file named as ``@"<path>"`` in the prompt: the CLI reads it into the turn's first request.
 
-        ``image_dir`` is added on every turn, with or without images: Claude names its extra directories in its
-        own system prompt, so a directory that came and went with the images would change that prompt, and the
-        CLI's cache of it, from turn to turn. An image outside it gets its own directory (the equals form, so the
-        variadic flag cannot take the arguments after it).
+        A bare path in the prompt is only text, and the image would reach the model only if the model chose to open
+        it with a tool. The quotes carry a path with a space through (macOS keeps application data in
+        ``Application Support``); unquoted, the mention is silently left as text. A path holding a double quote
+        cannot be quoted, so that image is left out.
         """
-        directories = [image_dir] if image_dir else []
-        directories += [
-            os.path.dirname(image) for image in images if not (image_dir and PurePath(image).is_relative_to(image_dir))
-        ]
-        added = [f"--add-dir={directory}" for directory in dict.fromkeys(directories)]
-        return [*args, *(flag for flag in added if flag not in args)]
+        mentions = []
+        for image in images:
+            if '"' in image:
+                logger.warning("cli_image_not_attached reason=quote_in_path")
+                continue
+            mentions.append(f'@"{image}"')
+        if not mentions:
+            return prompt
+        block = "\n".join(mentions)
+        return f"{prompt.rstrip()}\n\n{block}" if prompt.strip() else block
 
     def _resume(self, args: list[str], cli_session_id: str) -> list[str] | None:
         return [*args, "--resume", cli_session_id]
@@ -120,7 +127,7 @@ class _CodexDialect(CliDialect):
     def is_resuming(self, args: list[str]) -> bool:
         return "exec" in args and "resume" in args[args.index("exec") + 1 :]
 
-    def with_images(self, args: list[str], images: Sequence[str], image_dir: str | None) -> list[str]:
+    def with_images(self, args: list[str], images: Sequence[str]) -> list[str]:
         """Codex attaches an image with ``--image=<file>``.
 
         The ``=`` form is required: ``-i <file>`` takes the prompt that follows as one more file.

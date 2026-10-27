@@ -172,22 +172,6 @@ def test_register_backends_on_pool_skips_invalid_and_registers_valid() -> None:
     assert pool.register.call_args[0][0] == "ok-cli"
 
 
-def test_register_backends_on_pool_gives_every_backend_the_fixed_image_directory() -> None:
-    from app.services.external_agents.delegation import staging_dir
-
-    pool = MagicMock()
-    _register_backends_on_pool(
-        pool,
-        [
-            {"name": "claude", "command": "claude", "type": "cli"},
-            {"name": "gemini", "command": "gemini", "type": "acp"},
-        ],
-    )
-
-    configs = [call.args[1] for call in pool.register.call_args_list]
-    assert [config.image_dir for config in configs] == [str(staging_dir())] * 2
-
-
 @pytest.mark.asyncio
 async def test_resolve_external_agent_cfgs_auto_detect_failure_returns_none() -> None:
     with (
