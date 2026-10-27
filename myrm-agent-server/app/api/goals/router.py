@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
-- app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal (POS: Goal control rules shared with IM)
+- app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, wait_for_session_idle (POS: Goal control rules shared with IM)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
@@ -29,6 +29,7 @@ from app.services.agent.goals.goal_controls import (
     continue_resumed_goal,
     select_cancellable_goal,
     stop_goal_turn,
+    wait_for_session_idle,
 )
 from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.risk.refusal import reject_if_risky
@@ -265,6 +266,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
                 await provider.update_metadata(goal.goal_id, {"pause_reason": request.note.strip()})
             stop_goal_turn(session_id, goal)
         elif request.action == "resume":
+            await wait_for_session_idle(session_id)
             if hasattr(provider, "resume_goal"):
                 await provider.resume_goal(goal.goal_id, reset_turns=True)
             else:

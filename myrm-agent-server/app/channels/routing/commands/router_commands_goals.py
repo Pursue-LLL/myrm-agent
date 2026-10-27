@@ -106,10 +106,13 @@ class RouterCommandsGoalsMixin:
         )
         await self._bus.publish_outbound(reply)
 
+        kickoff_msg: InboundMessage | None = None
         if subcommand == GoalSubcommand.SET:
             kickoff_msg = await self._goal_handler.get_kickoff_message(msg, sub_args)
-            if kickoff_msg:
-                self._gate.submit(kickoff_msg)
+        elif subcommand == GoalSubcommand.RESUME:
+            kickoff_msg = await self._goal_handler.get_resume_kickoff_message(msg)
+        if kickoff_msg:
+            self._gate.submit(kickoff_msg)
 
     async def _handle_subgoal_command(
         self: RouterCommandsHost,

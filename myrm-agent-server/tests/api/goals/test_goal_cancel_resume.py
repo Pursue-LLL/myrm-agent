@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.agent.goals.types import GoalStatus
 
+from app.services.agent.goals import goal_controls
 from app.services.agent.goals.goal_registry import GoalRegistry
 
 
@@ -69,6 +70,7 @@ async def test_resume_puts_the_goal_back_to_work(
     assert response.status_code == 200
     assert response.json()["new_status"] == "active"
     goal_stream_trigger.assert_awaited_once()
+    assert goal_stream_trigger.await_args is not None
     started_session, started_goal, _provider = goal_stream_trigger.await_args.args
     assert started_session == session_id
     assert started_goal.goal_id == goal_id
@@ -88,12 +90,33 @@ async def test_resume_does_not_start_a_second_turn_when_the_session_cannot_take_
 ) -> None:
     await _goal_in_status(session_id, GoalStatus.PAUSED)
 
-    with patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=gateway):
+    with (
+        patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=gateway),
+        patch.object(goal_controls, "_IDLE_WAIT_SECONDS", 0.05),
+    ):
         response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "resume"})
 
     assert response.status_code == 200
     assert response.json()["new_status"] == "active"
     goal_stream_trigger.assert_not_awaited()
+
+
+async def test_resume_waits_for_the_stopped_turn_before_starting_the_next(
+    client: TestClient, goal_stream_trigger: AsyncMock, session_id: str
+) -> None:
+    await _goal_in_status(session_id, GoalStatus.PAUSED)
+    polls = iter([True, True])
+    gateway = SimpleNamespace(is_draining=False, is_session_active=lambda _sid: next(polls, False))
+
+    with (
+        patch("app.services.agent.goals.goal_controls.get_agent_gateway", return_value=gateway),
+        patch.object(goal_controls, "_IDLE_POLL_SECONDS", 0.001),
+    ):
+        response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "resume"})
+
+    assert response.status_code == 200
+    assert response.json()["new_status"] == "active"
+    goal_stream_trigger.assert_awaited_once()
 
 
 async def test_resume_succeeds_even_when_the_turn_could_not_be_started(

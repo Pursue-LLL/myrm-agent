@@ -10,6 +10,8 @@
 - NON_TERMINAL_GOAL_STATUSES: statuses a goal can still leave
 - select_cancellable_goal: the goal a "cancel" / "clear" control acts on
 - stop_goal_turn: stop the turn a goal was working on after it was paused or cancelled
+- wait_for_session_idle: let a stopped turn finish winding down before the goal is resumed
+- can_start_goal_turn: whether the session can take a new turn now
 - continue_resumed_goal: start the turn that carries a just-resumed goal forward
 
 [POS]
@@ -19,6 +21,8 @@ cancel stops the work in flight, and a resume actually puts the goal back to wor
 
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.types import GoalStatus
@@ -42,6 +46,9 @@ NON_TERMINAL_GOAL_STATUSES: frozenset[GoalStatus] = frozenset(
         GoalStatus.WAIT,
     }
 )
+
+_IDLE_WAIT_SECONDS = 3.0
+_IDLE_POLL_SECONDS = 0.05
 
 
 async def select_cancellable_goal(provider: GoalProvider, session_id: str) -> Goal | None:
@@ -72,14 +79,32 @@ def stop_goal_turn(session_id: str, goal_before_change: Goal) -> bool:
     return interrupted or cancelled
 
 
+def can_start_goal_turn(session_id: str) -> bool:
+    """A new turn may start when the app is not draining and the session has no turn in flight."""
+    gateway = get_agent_gateway()
+    return not gateway.is_draining and not gateway.is_session_active(session_id)
+
+
+async def wait_for_session_idle(session_id: str) -> None:
+    """Wait, bounded, until the session has no turn in flight.
+
+    A turn stopped by a pause keeps running for a moment. If the goal turned active in that gap, the stopped
+    turn's continuation guard would see an active goal and a cancelled token and pause it again, so a resume
+    first lets that turn finish.
+    """
+    gateway = get_agent_gateway()
+    deadline = time.monotonic() + _IDLE_WAIT_SECONDS
+    while gateway.is_session_active(session_id) and time.monotonic() < deadline:
+        await asyncio.sleep(_IDLE_POLL_SECONDS)
+
+
 async def continue_resumed_goal(session_id: str, provider: GoalProvider, goal_id: str) -> bool:
     """Start the unattended turn for a goal that was just resumed.
 
     False when nothing was started: the session is busy or the app is draining (the running turn or the
     next message carries the goal on), or the goal is not active.
     """
-    gateway = get_agent_gateway()
-    if gateway.is_draining or gateway.is_session_active(session_id):
+    if not can_start_goal_turn(session_id):
         return False
     goal = await provider.get_goal(goal_id)
     if goal is None or goal.status is not GoalStatus.ACTIVE:

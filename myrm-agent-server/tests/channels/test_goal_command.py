@@ -75,12 +75,12 @@ class TestGoalSubcommand:
             assert hasattr(GoalSubcommand, name)
 
     def test_subcommand_values(self) -> None:
-        assert GoalSubcommand.SET == "set"
-        assert GoalSubcommand.STATUS == "status"
-        assert GoalSubcommand.PAUSE == "pause"
-        assert GoalSubcommand.RESUME == "resume"
-        assert GoalSubcommand.CLEAR == "clear"
-        assert GoalSubcommand.BUDGET == "budget"
+        assert GoalSubcommand.SET.value == "set"
+        assert GoalSubcommand.STATUS.value == "status"
+        assert GoalSubcommand.PAUSE.value == "pause"
+        assert GoalSubcommand.RESUME.value == "resume"
+        assert GoalSubcommand.CLEAR.value == "clear"
+        assert GoalSubcommand.BUDGET.value == "budget"
 
 
 # ---- GoalCommandHandler Protocol tests ----
@@ -98,6 +98,9 @@ class TestGoalCommandHandlerProtocol:
                 return "ok"
 
             async def get_kickoff_message(self, msg: InboundMessage, goal_text: str) -> InboundMessage | None:
+                return None
+
+            async def get_resume_kickoff_message(self, msg: InboundMessage) -> InboundMessage | None:
                 return None
 
         handler = MockHandler()
@@ -332,6 +335,36 @@ class TestHandleGoalCommand:
         host._gate.submit.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_resume_submits_the_kickoff_that_puts_the_goal_back_to_work(self) -> None:
+        from app.channels.routing.commands import (
+            RouterCommandsMixin,
+        )
+
+        kickoff_msg = _make_msg("goal text")
+        handler = MagicMock()
+        handler.handle_goal = AsyncMock(return_value="Goal resumed")
+        handler.get_resume_kickoff_message = AsyncMock(return_value=kickoff_msg)
+        host = self._make_host(goal_handler=handler)
+        await RouterCommandsMixin._handle_goal_command(host, _make_msg(), "resume")
+
+        host._gate.submit.assert_called_once_with(kickoff_msg)
+        handler.get_kickoff_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_resume_without_kickoff_submits_nothing(self) -> None:
+        from app.channels.routing.commands import (
+            RouterCommandsMixin,
+        )
+
+        handler = MagicMock()
+        handler.handle_goal = AsyncMock(return_value="Goal resumed")
+        handler.get_resume_kickoff_message = AsyncMock(return_value=None)
+        host = self._make_host(goal_handler=handler)
+        await RouterCommandsMixin._handle_goal_command(host, _make_msg(), "resume")
+
+        host._gate.submit.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_pause_does_not_trigger_kickoff(self) -> None:
         from app.channels.routing.commands import (
             RouterCommandsMixin,
@@ -491,6 +524,7 @@ class TestGoalEdgeCases:
 
         handler = MagicMock()
         handler.handle_goal = AsyncMock(return_value="ok")
+        handler.get_resume_kickoff_message = AsyncMock(return_value=None)
 
         host = MagicMock()
         host._goal_handler = handler
