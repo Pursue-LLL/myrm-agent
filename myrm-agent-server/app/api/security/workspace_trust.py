@@ -5,8 +5,9 @@
 - myrm_agent_harness.agent.security.workspace_trust::manifest_hash (POS: audit hash helper)
 
 [OUTPUT]
-- POST /manifest: pre-bind disclosure payload
-- POST /decide: persist TRUSTED / RESTRICTED decision
+- POST /manifest: pre-bind disclosure payload, including the hash a TRUSTED decision must echo and the declared
+  command prefixes still waiting for the user's approval
+- POST /decide: persist TRUSTED / RESTRICTED decision; TRUSTED must carry the hash of the manifest the user saw
 - GET /: list trusted folders
 - DELETE /: revoke or remove entry
 
@@ -20,6 +21,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.security.workspace_trust.manifest import manifest_hash
 from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustLevel
 from pydantic import BaseModel, Field
 
@@ -60,9 +62,11 @@ def _manifest_to_dict(manifest: object) -> dict[str, object]:
         "mcp_count": manifest.mcp_count,
         "plugin_count": manifest.plugin_count,
         "repo_command_prefixes": list(manifest.repo_command_prefixes),
+        "pending_command_prefixes": list(manifest.pending_command_prefixes),
         "has_myrm_config": manifest.has_myrm_config,
         "current_level": manifest.current_level.value if manifest.current_level else None,
         "requires_trust": requires_trust,
+        "manifest_hash": manifest_hash(manifest),
     }
 
 
@@ -110,13 +114,9 @@ async def decide_trust(body: DecideRequest) -> JSONResponse:
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
 
-    from myrm_agent_harness.agent.security.workspace_trust.manifest import manifest_hash
-
-    expected_hash = manifest_hash(manifest)
-    if body.manifest_hash and body.manifest_hash != expected_hash:
-        raise validation_error("Folder contents changed since preview. Review again before trusting.")
-
     level = WorkspaceTrustLevel(body.level)
+    if level == WorkspaceTrustLevel.TRUSTED and body.manifest_hash != manifest_hash(manifest):
+        raise validation_error("Folder preview is missing or out of date. Review the folder again before trusting it.")
     entry = await store.decide(body.path, level, manifest=manifest)
     return success_response(data=_entry_to_dict(entry))
 

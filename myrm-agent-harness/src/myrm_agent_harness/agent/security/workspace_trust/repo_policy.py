@@ -8,11 +8,14 @@
 [OUTPUT]
 - load_repo_command_prefixes: declared shell command prefixes as tuple[str, ...],
   or () when the config is absent, unreadable, or declares none
+- partition_command_prefixes: split declared prefixes into the ones the user approved and the ones still pending
 
 [POS]
 Repo-policy reader of the workspace_trust gate. Read-only and fail-soft: a malformed or
 missing `.myrm/config.toml` yields no prefixes rather than an error, because these
 prefixes only widen what a TRUSTED workspace may run and must never block startup.
+The file sits inside the workspace, so whoever can write the workspace can write it:
+a declared prefix takes effect only once the user has seen it (see `partition_command_prefixes`).
 """
 
 from __future__ import annotations
@@ -64,3 +67,14 @@ def load_repo_command_prefixes(workspace_root: str | Path) -> tuple[str, ...]:
             seen.add(prefix)
             ordered.append(prefix)
     return tuple(ordered)
+
+
+def partition_command_prefixes(
+    declared: tuple[str, ...],
+    disclosed: tuple[str, ...],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Split *declared* into ``(approved, pending)``: approved are exactly the prefixes the user was shown."""
+    shown = frozenset(disclosed)
+    approved = tuple(prefix for prefix in declared if prefix in shown)
+    pending = tuple(prefix for prefix in declared if prefix not in shown)
+    return approved, pending

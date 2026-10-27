@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.security.workspace_trust.manifest import manifest_hash
 from myrm_agent_harness.agent.security.workspace_trust.types import (
     WorkspaceTrustEntry,
     WorkspaceTrustLevel,
@@ -30,6 +31,7 @@ def _sample_manifest() -> WorkspaceTrustManifest:
         skill_count=2,
         rule_count=1,
         repo_command_prefixes=("npm run test",),
+        pending_command_prefixes=("npm run test",),
         has_myrm_config=True,
         current_level=None,
     )
@@ -54,6 +56,8 @@ def test_manifest_preview(client: TestClient) -> None:
     assert body["data"]["skill_count"] == 2
     assert body["data"]["rule_count"] == 1
     assert body["data"]["requires_trust"] is True
+    assert body["data"]["pending_command_prefixes"] == ["npm run test"]
+    assert body["data"]["manifest_hash"] == manifest_hash(manifest)
 
 
 def test_clean_workspace_manifest_auto_trusts(client: TestClient) -> None:
@@ -114,7 +118,7 @@ def test_decide_trust_persists(client: TestClient) -> None:
     ):
         response = client.post(
             "/api/v1/security/workspace-trust/decide",
-            json={"path": "/tmp/demo", "level": "TRUSTED"},
+            json={"path": "/tmp/demo", "level": "TRUSTED", "manifest_hash": manifest_hash(manifest)},
         )
 
     assert response.status_code == 200
@@ -122,6 +126,37 @@ def test_decide_trust_persists(client: TestClient) -> None:
     assert body["success"] is True
     assert body["data"]["level"] == "TRUSTED"
     mock_store.decide.assert_awaited_once()
+
+
+def _decide(client: TestClient, manifest: WorkspaceTrustManifest, payload: dict[str, str]) -> tuple[int, AsyncMock]:
+    mock_store = AsyncMock()
+    mock_store.loaded = True
+    mock_store.load = AsyncMock()
+    mock_store.build_manifest = AsyncMock(return_value=manifest)
+    with patch("app.api.security.workspace_trust.get_workspace_trust_store", return_value=mock_store):
+        response = client.post("/api/v1/security/workspace-trust/decide", json={"path": "/tmp/demo", **payload})
+    return response.status_code, mock_store.decide
+
+
+def test_trusting_without_the_previewed_hash_is_refused(client: TestClient) -> None:
+    status_code, decide = _decide(client, _sample_manifest(), {"level": "TRUSTED"})
+
+    assert status_code == 400
+    decide.assert_not_awaited()
+
+
+def test_trusting_a_folder_that_changed_since_the_preview_is_refused(client: TestClient) -> None:
+    status_code, decide = _decide(client, _sample_manifest(), {"level": "TRUSTED", "manifest_hash": "from-an-old-preview"})
+
+    assert status_code == 400
+    decide.assert_not_awaited()
+
+
+def test_restricting_needs_no_hash(client: TestClient) -> None:
+    status_code, decide = _decide(client, _sample_manifest(), {"level": "RESTRICTED"})
+
+    assert status_code == 200
+    decide.assert_awaited_once()
 
 
 def test_list_trusted_folders(client: TestClient) -> None:

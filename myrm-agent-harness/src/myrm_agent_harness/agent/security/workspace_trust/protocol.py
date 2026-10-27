@@ -6,7 +6,7 @@
   (POS: 工作区信任级别类型)
 
 [OUTPUT]
-- WorkspaceTrustLookup: typing.Protocol declaring normalize_path and get_level
+- WorkspaceTrustLookup: typing.Protocol declaring normalize_path, get_level and get_disclosed_command_prefixes
 
 [POS]
 Dependency-inversion seam of the workspace_trust gate. The harness declares only the
@@ -30,4 +30,8 @@ class WorkspaceTrustLookup(Protocol):
 
     def get_level(self, canonical_path: str) -> WorkspaceTrustLevel | None:
         """Return stored level or None when the path has no decision yet."""
+        ...
+
+    def get_disclosed_command_prefixes(self, canonical_path: str) -> tuple[str, ...]:
+        """Return the repo command prefixes the user saw when trusting the path; empty when none were approved."""
         ...

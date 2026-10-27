@@ -6,6 +6,7 @@
 [OUTPUT]
 - set_workspace_trust_lookup / get_workspace_trust_lookup: register server store
 - resolve_workspace_trust_level: fail-closed when lookup missing or path undecided
+- resolve_disclosed_command_prefixes: the repo command prefixes the user approved; empty when unknown
 
 [POS]
 Harness-side indirection so agent runs resolve trust without importing server code.
@@ -42,3 +43,14 @@ def resolve_workspace_trust_level(workspace_root: str) -> WorkspaceTrustLevel:
     if stored is None:
         return WorkspaceTrustLevel.RESTRICTED
     return stored
+
+
+def resolve_disclosed_command_prefixes(workspace_root: str) -> tuple[str, ...]:
+    """Repo command prefixes the user approved for *workspace_root* (unknown → none)."""
+    lookup = _lookup
+    if lookup is None:
+        return ()
+    canonical = lookup.normalize_path(workspace_root)
+    if not canonical:
+        return ()
+    return lookup.get_disclosed_command_prefixes(canonical)

@@ -14,10 +14,10 @@
 - agent.security.workspace_trust.protocol::WorkspaceTrustLookup
   (POS: 服务端注册表注入协议)
 - agent.security.workspace_trust.provider::get_workspace_trust_lookup,
-  resolve_workspace_trust_level, set_workspace_trust_lookup
+  resolve_disclosed_command_prefixes, resolve_workspace_trust_level, set_workspace_trust_lookup
   (POS: 查找注册表解析层)
-- agent.security.workspace_trust.repo_policy::load_repo_command_prefixes
-  (POS: 仓库声明命令前缀读取层)
+- agent.security.workspace_trust.repo_policy::load_repo_command_prefixes, partition_command_prefixes
+  (POS: 仓库声明命令前缀读取与批准划分层)
 - agent.security.workspace_trust.runtime::apply_workspace_trust_for_root,
   clear_workspace_trust_runtime (POS: 运行生命周期绑定层)
 - agent.security.workspace_trust.types::WorkspaceTrustEntry, WorkspaceTrustLevel,
@@ -28,7 +28,8 @@
   is_path_within_workspace, matches_repo_command_prefix
 - Lifecycle API: apply_workspace_trust_for_root, clear_workspace_trust_runtime
 - Lookup seam: WorkspaceTrustLookup, set/get_workspace_trust_lookup,
-  resolve_workspace_trust_level
+  resolve_workspace_trust_level, resolve_disclosed_command_prefixes
+- Repo prefixes: load_repo_command_prefixes, partition_command_prefixes
 - Types: WorkspaceTrustLevel, WorkspaceTrustManifest, WorkspaceTrustEntry
 
 [POS]
@@ -60,10 +61,11 @@ from .manifest import build_workspace_trust_manifest, canonicalize_workspace_pat
 from .protocol import WorkspaceTrustLookup
 from .provider import (
     get_workspace_trust_lookup,
+    resolve_disclosed_command_prefixes,
     resolve_workspace_trust_level,
     set_workspace_trust_lookup,
 )
-from .repo_policy import load_repo_command_prefixes
+from .repo_policy import load_repo_command_prefixes, partition_command_prefixes
 from .runtime import apply_workspace_trust_for_root, clear_workspace_trust_runtime
 from .types import WorkspaceTrustEntry, WorkspaceTrustLevel, WorkspaceTrustManifest
 
@@ -88,6 +90,8 @@ __all__ = [
     "load_repo_command_prefixes",
     "manifest_hash",
     "matches_repo_command_prefix",
+    "partition_command_prefixes",
+    "resolve_disclosed_command_prefixes",
     "resolve_workspace_trust_level",
     "set_repo_command_prefixes",
     "set_workspace_root",

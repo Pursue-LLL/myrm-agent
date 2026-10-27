@@ -10,6 +10,8 @@
 
 [POS]
 Server-side registry for folder trust decisions. Harness reads via lookup at run start.
+A TRUSTED entry also records the repo command prefixes the user was shown when trusting; an entry saved before that
+was recorded has none, so such a folder asks once more before its declared prefixes take effect.
 """
 
 from __future__ import annotations
@@ -32,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_TRUST_CONFIG_KEY = "workspaceTrust.v1"
 _DEVICE_ID = "server"
+
+
+def _strings(raw: object) -> tuple[str, ...]:
+    """The string items of a stored list; anything else (including a missing field) reads as empty."""
+    return tuple(item for item in raw if isinstance(item, str)) if isinstance(raw, list) else ()
 
 
 class WorkspaceTrustStore:
@@ -79,6 +86,7 @@ class WorkspaceTrustStore:
                 level=level,
                 decided_at=decided_at,
                 manifest_hash=str(manifest_hash_val) if manifest_hash_val else "",
+                disclosed_command_prefixes=_strings(payload.get("disclosed_command_prefixes")),
             )
         self._loaded = True
 
@@ -91,6 +99,7 @@ class WorkspaceTrustStore:
                     "level": entry.level.value,
                     "decided_at": entry.decided_at,
                     "manifest_hash": entry.manifest_hash,
+                    "disclosed_command_prefixes": list(entry.disclosed_command_prefixes),
                 }
                 for path, entry in self._entries.items()
             }
@@ -113,6 +122,12 @@ class WorkspaceTrustStore:
         entry = self._entries.get(canonical_path)
         return entry.level if entry else None
 
+    def get_disclosed_command_prefixes(self, canonical_path: str) -> tuple[str, ...]:
+        entry = self._entries.get(canonical_path)
+        if entry is None or entry.level != WorkspaceTrustLevel.TRUSTED:
+            return ()
+        return entry.disclosed_command_prefixes
+
     def get_entry(self, canonical_path: str) -> WorkspaceTrustEntry | None:
         return self._entries.get(canonical_path)
 
@@ -123,8 +138,11 @@ class WorkspaceTrustStore:
         canonical = self.normalize_path(raw_path)
         if not canonical:
             raise ValueError("workspace path must be absolute")
-        current = self.get_level(canonical)
-        return build_workspace_trust_manifest(raw_path, current_level=current)
+        return build_workspace_trust_manifest(
+            raw_path,
+            current_level=self.get_level(canonical),
+            disclosed_command_prefixes=self.get_disclosed_command_prefixes(canonical),
+        )
 
     async def decide(
         self,
@@ -142,11 +160,13 @@ class WorkspaceTrustStore:
 
         decided_at = datetime.now(UTC).isoformat()
         hash_value = manifest_hash(manifest) if manifest else ""
+        shown = manifest.repo_command_prefixes if manifest and level == WorkspaceTrustLevel.TRUSTED else ()
         entry = WorkspaceTrustEntry(
             path=canonical,
             level=level,
             decided_at=decided_at,
             manifest_hash=hash_value,
+            disclosed_command_prefixes=shown,
         )
         self._entries[canonical] = entry
         await self._persist()
@@ -207,6 +227,9 @@ class ConfigWorkspaceTrustLookup:
 
     def get_level(self, canonical_path: str) -> WorkspaceTrustLevel | None:
         return self._store.get_level(canonical_path)
+
+    def get_disclosed_command_prefixes(self, canonical_path: str) -> tuple[str, ...]:
+        return self._store.get_disclosed_command_prefixes(canonical_path)
 
 
 async def init_workspace_trust_store() -> None:

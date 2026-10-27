@@ -6,8 +6,10 @@
 
 [OUTPUT]
 - WorkspaceTrustLevel: TRUSTED / RESTRICTED / REVOKED user decision
-- WorkspaceTrustManifest: pre-bind disclosure payload
-- WorkspaceTrustEntry: persisted registry row for one canonical root
+- WorkspaceTrustManifest: pre-bind disclosure payload; ``pending_command_prefixes`` are the declared command
+  prefixes the user has not approved yet
+- WorkspaceTrustEntry: persisted registry row for one canonical root; ``disclosed_command_prefixes`` are the
+  command prefixes the user saw when trusting it
 
 [POS]
 Leaf type module of the workspace_trust gate. Frozen dataclasses and one str-Enum, so the
@@ -40,6 +42,7 @@ class WorkspaceTrustManifest:
     mcp_count: int = 0
     plugin_count: int = 0
     repo_command_prefixes: tuple[str, ...] = ()
+    pending_command_prefixes: tuple[str, ...] = ()
     has_myrm_config: bool = False
     current_level: WorkspaceTrustLevel | None = None
 
@@ -52,3 +55,4 @@ class WorkspaceTrustEntry:
     level: WorkspaceTrustLevel
     decided_at: str
     manifest_hash: str = ""
+    disclosed_command_prefixes: tuple[str, ...] = ()

@@ -6,14 +6,14 @@
 - logging::logging (POS: Python 标准日志库)
 - os::os (POS: Python 路径与文件系统标准库)
 - pathlib::Path (POS: Python 面向对象路径标准库)
-- agent.security.workspace_trust.repo_policy::load_repo_command_prefixes
-  (POS: 仓库声明命令前缀读取层)
+- agent.security.workspace_trust.repo_policy::load_repo_command_prefixes, partition_command_prefixes
+  (POS: 仓库声明命令前缀读取与批准划分层)
 - agent.security.workspace_trust.types::WorkspaceTrustLevel, WorkspaceTrustManifest
   (POS: 工作区信任级别与披露载荷类型)
 
 [OUTPUT]
 - canonicalize_workspace_path: resolved absolute path, or "" for blank input
-- build_workspace_trust_manifest: disclosure payload with skill/rule counts and prefixes
+- build_workspace_trust_manifest: disclosure payload with skill/rule counts, declared prefixes and the pending ones
 - manifest_hash: stable hash identifying the disclosed payload
 
 [POS]
@@ -30,7 +30,7 @@ import logging
 import os
 from pathlib import Path
 
-from .repo_policy import load_repo_command_prefixes
+from .repo_policy import load_repo_command_prefixes, partition_command_prefixes
 from .types import WorkspaceTrustLevel, WorkspaceTrustManifest
 
 logger = logging.getLogger(__name__)
@@ -116,10 +116,16 @@ def build_workspace_trust_manifest(
     raw_path: str,
     *,
     current_level: WorkspaceTrustLevel | None = None,
+    disclosed_command_prefixes: tuple[str, ...] = (),
 ) -> WorkspaceTrustManifest:
-    """Scan a workspace and build the FolderGate disclosure payload."""
+    """Scan a workspace and build the FolderGate disclosure payload.
+
+    ``disclosed_command_prefixes`` are the prefixes the user already approved; the declared ones outside it
+    come back as ``pending_command_prefixes``.
+    """
     canonical = canonicalize_workspace_path(raw_path)
     repo_prefixes = load_repo_command_prefixes(canonical)
+    _, pending_prefixes = partition_command_prefixes(repo_prefixes, disclosed_command_prefixes)
     config_path = Path(canonical) / ".myrm" / "config.toml"
 
     return WorkspaceTrustManifest(
@@ -130,6 +136,7 @@ def build_workspace_trust_manifest(
         mcp_count=_count_workspace_mcps(canonical),
         plugin_count=_count_workspace_plugins(canonical),
         repo_command_prefixes=repo_prefixes,
+        pending_command_prefixes=pending_prefixes,
         has_myrm_config=config_path.is_file(),
         current_level=current_level,
     )
