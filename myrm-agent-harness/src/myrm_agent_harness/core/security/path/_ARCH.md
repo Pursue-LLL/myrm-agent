@@ -37,6 +37,23 @@ Both protection layers resolve patterns through `pattern.py`, so the pre-write g
 the post-hoc integrity check return the same verdict for the same file. A rule that
 matches nothing is logged by `invariant_snapshot.py` instead of being counted as coverage.
 
+## Known limits of the shell-channel guard
+
+`agent/meta_tools/bash/_security/path_guard.py` decides from the text of the command: it unwraps
+`sh -c`, strips `echo`/`printf` literals and matches protected names and operands. It does not
+resolve what the command will actually open. A probe of 16 spellings that read `~/.ssh/id_rsa`
+(`$HOME`, `./` segments, globs in the directory and file name, split quoting, a variable-assembled
+name, `cd` then glob, command substitution, `printf` hex, `tar`, an env-passed segment) was refused
+in 12 cases. The 4 that were allowed never put the path in the text: a pre-existing symlink to
+the key, a path built from string pieces inside an interpreter (`python -c`), a base64-decoded
+command piped to `sh`, and a `find -exec` walk selected by name pattern.
+
+So the guard stops plainly spelled access, which is the case a prompt-injected or careless
+command produces; it is not a boundary against a command written to evade it. Containing an
+untrusted command is the execution sandbox's job (`toolkits/code_execution/EXECUTION_SYSTEM.md`),
+and in LOCAL mode the OS permissions of the process. A rule added here must not be described as
+protecting a file from the shell channel without that qualifier.
+
 Every guard in this package — `is_sensitive_file`, `is_protected_instruction_file`
 and `is_evidence_readonly_file` — inherits the matcher's case-insensitive default. That
 default is the security invariant, not a convenience: APFS and NTFS resolve `Key.Pem`
