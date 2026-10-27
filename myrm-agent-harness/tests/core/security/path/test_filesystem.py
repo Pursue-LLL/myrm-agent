@@ -37,6 +37,7 @@ class TestCoerceFilesystemPath:
         assert coerce_filesystem_path(123) is None
         assert coerce_filesystem_path(["/tmp/ws"]) is None
 
+
 class TestDangerousPaths:
     """Verify DANGEROUS_PATHS contains expected entries."""
 
@@ -72,6 +73,7 @@ class TestDangerousPaths:
                 real = os.path.realpath(wp)
                 assert real in result, f"{wp} should be in dangerous paths on Windows"
 
+
 class TestIsDangerousPath:
     """Test is_dangerous_path() function."""
 
@@ -100,6 +102,14 @@ class TestIsDangerousPath:
 
     def test_tilde_expansion(self) -> None:
         assert is_dangerous_path("~/.aws/credentials") is True
+
+    def test_another_spelling_is_dangerous_where_the_volume_ignores_case(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", True)
+
+        assert is_dangerous_path("/ETC/passwd") is True
+        assert is_dangerous_path(os.path.expanduser("~/.SSH/id_rsa")) is True
+        assert is_dangerous_path("/ETCETERA/something") is False
+
 
 class TestCoversDangerousPath:
     """covers_dangerous_path() refuses a path that equals or contains a dangerous root."""
@@ -141,6 +151,21 @@ class TestCoversDangerousPath:
         assert covers_dangerous_path("   ") is False
         assert covers_dangerous_path("line one\nline two") is False
 
+    def test_another_spelling_is_covered_where_the_volume_ignores_case(
+        self, fake_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", True)
+
+        assert covers_dangerous_path(str(fake_home).upper()) is True
+        assert covers_dangerous_path(str(fake_home / "PROJ")) is False
+
+    def test_case_is_significant_where_the_volume_tells_it_apart(
+        self, fake_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", False)
+
+        assert covers_dangerous_path(str(fake_home).upper()) is False
+
     def test_real_roots_filesystem_root_and_home(self) -> None:
         assert covers_dangerous_path("/") is True
         assert covers_dangerous_path("~") is True
@@ -164,7 +189,6 @@ class TestSafeJoinPathAndBoundary:
         assert is_within_boundary("/etc/passwd", "/safe/workspace") is False
 
     def test_safe_join_path_safe(self) -> None:
-
 
         result = safe_join_path("/safe/workspace", "subdir/file.txt")
         assert str(result).endswith("subdir/file.txt")
@@ -212,6 +236,7 @@ class TestSafeJoinPathAndBoundary:
 
         with pytest.raises(ValueError, match="Path traversal detected"):
             safe_join_path(base_dir, "link")
+
 
 class TestBlockedDevicePath:
     """Test is_blocked_device_path() and BLOCKED_DEVICE_NAMES."""
