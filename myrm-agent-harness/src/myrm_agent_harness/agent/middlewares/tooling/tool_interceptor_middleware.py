@@ -36,7 +36,7 @@ POST-CALL:
 - reset_loop_guard(): Reset loop guard state; `is_resume=True` preserves CallRecord window and error signatures
 - child_loop_guard(): A LoopGuard of its own for a nested child run, filed under its own key, restored to the parent's afterwards
 - discard_session_loop_guard(): Forget the guard kept for a session that is over
-- notify_loop_guard_compaction(): Reset iteration budget after context compaction
+- notify_loop_guard_compaction(): Restart the guard's call window and counts after context compaction
 
 [POS]
 Single interception point for all tool calls. This module is a thin
@@ -154,8 +154,8 @@ def clear_all_session_loop_guards_for_tests() -> None:
 
     The cache is a module global keyed by session id, and the bound guard lives in a
     ContextVar that outlives a test inside the same event loop. A guard that spent its
-    iteration budget in one test is otherwise handed to the next test, which then fails
-    with a stuck-tool interrupt instead of its own run.
+    call window and error signatures in one test are otherwise handed to the next test, which
+    then fails on a loop verdict instead of its own run.
     """
     _session_loop_guards.clear()
     _loop_guard_var.set(None)
@@ -171,9 +171,9 @@ def reset_loop_guard(
 
     Called at the start of each agent run and at each Goal continuation turn.
     When *is_resume* is True, error signatures are preserved so that the same
-    class of failures still counts toward the budget.  *round_budget* is forwarded
-    to ``LoopGuard._configure_budget`` so the budget thresholds follow the number
-    of model rounds the run may take.
+    class of failures keeps counting.  *round_budget* is forwarded to
+    ``LoopGuard._configure_budget`` so the budget nudges follow the number of
+    model rounds the run may take.  Every run segment starts its rounds from zero.
     """
     guard = _loop_guard_var.get()
     if guard is None:
@@ -216,9 +216,10 @@ def discard_session_loop_guard(session_key: str) -> None:
 def notify_loop_guard_compaction() -> None:
     """Notify the loop guard that context compaction occurred.
 
-    Resets the iteration budget counter so the agent is not prematurely
-    terminated after compaction.  Error signatures are preserved so that
-    recurring failures are still tracked across compaction boundaries.
+    The call window and call count start over with the compacted context; the
+    rounds used keep counting, because compaction does not refill the graph's
+    step limit the budget nudges count down to.  Error signatures are preserved
+    so that recurring failures are still tracked across compaction boundaries.
     """
     try:
         guard = _loop_guard_var.get()

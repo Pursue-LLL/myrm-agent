@@ -37,6 +37,7 @@ from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategor
 from myrm_agent_harness.agent.middlewares._session_context import (
     get_terminal_errors,
 )
+from myrm_agent_harness.agent.middlewares.tooling._model_round import model_round_id
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     apply_validation_result,
     build_hook_failure_result,
@@ -208,7 +209,7 @@ async def run_pre_call_guards(
         )
 
     try:
-        loop_verdict = loop_guard.pre_check(tool_name, tool_args)
+        loop_verdict = loop_guard.pre_check(tool_name, tool_args, round_id=model_round_id(request.state, tool_call_id))
     except Exception as pre_check_exc:
         from myrm_agent_harness.agent.errors.agent_errors import (
             RunawayCircuitBreakException,
@@ -228,11 +229,7 @@ async def run_pre_call_guards(
         if isinstance(pre_check_exc, ToolStuckException):
             from langgraph.types import interrupt
 
-            logger.warning(
-                "ToolStuckException → GraphInterrupt [%s]: %s",
-                tool_name,
-                str(pre_check_exc)[:200],
-            )
+            logger.warning("ToolStuckException → GraphInterrupt [%s]: %s", tool_name, str(pre_check_exc)[:200])
             interrupt(
                 {
                     "action_type": "tool_stuck",
@@ -246,7 +243,7 @@ async def run_pre_call_guards(
                 tool_call_id,
                 f"Error: {pre_check_exc}",
                 error_category=ToolErrorCategory.LOOP_GUARD,
-                loop_kind="iteration_budget",
+                loop_kind="tool_stuck",
             )
         raise pre_check_exc
 

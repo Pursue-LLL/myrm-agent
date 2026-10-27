@@ -15,7 +15,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
     PreCallResult,
@@ -265,6 +265,55 @@ class TestPreCallGuardsEmitEvent:
             "warning",
         )
         assert isinstance(result, PreCallResult)
+
+
+class TestPreCallGuardsModelRound:
+    """The loop guard is told which model response issued the call it is about to check."""
+
+    @pytest.mark.asyncio
+    async def test_calls_one_response_issued_reach_the_guard_as_one_round(self) -> None:
+        response = AIMessage(
+            content="",
+            id="resp_1",
+            tool_calls=[
+                {"name": "bash_code_execute_tool", "args": {"command": "ls"}, "id": "call_a"},
+                {"name": "bash_code_execute_tool", "args": {"command": "pwd"}, "id": "call_b"},
+            ],
+        )
+        stopping = MagicMock(action=LoopAction.BREAK, reason="stop", backoff_hint="", loop_kind="repetition")
+        loop_guard = MagicMock()
+        loop_guard.pre_check.return_value = stopping
+        loop_guard.get_metrics.return_value = MagicMock(total_calls=1)
+        request = MagicMock()
+        request.state = {"messages": [HumanMessage("go"), response]}
+
+        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import run_pre_call_guards
+
+        with (
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event", AsyncMock()),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop", return_value=None),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker", return_value=None),
+            patch(
+                "myrm_agent_harness.agent.hooks.executor.fire_hook",
+                new_callable=AsyncMock,
+                return_value=MagicMock(blocked=False, updated_input=None),
+            ),
+            patch(
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker", return_value=None
+            ),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision"),
+        ):
+            for call_id, command in (("call_b", "pwd"), ("call_a", "ls")):
+                request.tool_call = {"args": {"command": command}, "id": call_id}
+                await run_pre_call_guards(
+                    request,
+                    "bash_code_execute_tool",
+                    call_id,
+                    {"command": command},
+                    get_loop_guard_fn=lambda: loop_guard,
+                )
+
+        assert [call.kwargs["round_id"] for call in loop_guard.pre_check.call_args_list] == ["resp_1", "resp_1"]
 
 
 # ---------------------------------------------------------------------------

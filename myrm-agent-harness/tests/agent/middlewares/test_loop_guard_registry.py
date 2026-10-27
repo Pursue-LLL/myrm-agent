@@ -108,7 +108,7 @@ def test_a_run_tunes_its_guard_to_the_rounds_it_is_given() -> None:
 
     guard = _in_fresh_context("chat_budget", start)
 
-    assert guard._budget_stuck == 19
+    assert (guard._budget_warn, guard._budget_critical) == (14, 18)
 
 
 def test_a_resumed_run_retunes_the_guard_it_keeps() -> None:
@@ -116,7 +116,20 @@ def test_a_resumed_run_retunes_the_guard_it_keeps() -> None:
     resumed = _in_fresh_context("chat_retune", lambda: _start_run_with_budget(60, is_resume=True))
 
     assert resumed is first
-    assert resumed._budget_stuck == 59
+    assert (resumed._budget_warn, resumed._budget_critical) == (42, 54)
+
+
+def test_a_run_does_not_inherit_the_rounds_an_earlier_run_used() -> None:
+    """A run resets the guard it finds at its start, and the rounds it has used are part of that."""
+
+    def run() -> int:
+        reset_loop_guard(round_budget=20)
+        guard = get_loop_guard()
+        for index in range(10):
+            guard.pre_check(f"tool_{index}", {"index": index}, round_id=f"response_{index}")
+        return guard._rounds
+
+    assert [_in_fresh_context("chat_rounds", run) for _ in range(3)] == [10, 10, 10]
 
 
 def _start_run_with_budget(round_budget: int, *, is_resume: bool = False) -> LoopGuard:

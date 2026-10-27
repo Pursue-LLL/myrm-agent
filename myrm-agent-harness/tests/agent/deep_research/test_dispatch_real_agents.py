@@ -4,8 +4,9 @@ Researchers on one topic often fetch the same URL. Sharing one loop guard, their
 to a single loop and the guard broke agents that had each fetched only a few times. Each agent has its own
 budget: it is allowed `_BREAK_AT - 1` fetches of the page and broken on the next, whatever the others do.
 
-A researcher is also given the turns it is configured with: every turn is a model round that may call a tool,
-however many middlewares the agent's graph has.
+A researcher is also given the turns it is configured with: every turn is a model round that may call tools,
+however many middlewares the agent's graph has and however many tools it calls at once. It spends all of them
+and then reports what it found.
 
 The dispatch, the agents' runs, the tool interceptor and its loop guard are real; only the model is scripted.
 """
@@ -34,13 +35,15 @@ _ENDLESS = 1000
 
 
 class _FetchSamePageModel(BaseChatModel):
-    """Asks for a page again after every result, until it has asked `fetches` times.
+    """Asks for pages again after every result, until it has asked `fetches` times.
 
     With `same_page` it asks for one URL every time; otherwise each request is a page of its own.
+    Each round asks for `calls_per_round` pages at once.
     """
 
     fetches: int = _FETCHES_PER_AGENT
     same_page: bool = True
+    calls_per_round: int = 1
 
     @property
     def _llm_type(self) -> str:
@@ -54,9 +57,15 @@ class _FetchSamePageModel(BaseChatModel):
     ) -> ChatResult:
         asked = sum(isinstance(message, ToolMessage) for message in messages)
         if asked < self.fetches:
-            url = "https://shared.test/page" if self.same_page else f"https://shared.test/page/{asked}"
-            call = {"name": "web_fetch_tool", "args": {"url": url}, "id": f"call_{asked}"}
-            reply = AIMessage(content="", tool_calls=[call])
+            calls = [
+                {
+                    "name": "web_fetch_tool",
+                    "args": {"url": "https://shared.test/page" if self.same_page else f"https://shared.test/page/{n}"},
+                    "id": f"call_{n}",
+                }
+                for n in range(asked, asked + self.calls_per_round)
+            ]
+            reply = AIMessage(content="", tool_calls=calls)
         else:
             reply = AIMessage(content="findings")
         return ChatResult(generations=[ChatGeneration(message=reply)])
@@ -92,20 +101,24 @@ async def test_research_agents_fetching_the_same_page_each_get_their_own_loop_bu
     assert guard_state() == parent
 
 
+@pytest.mark.parametrize(("turns", "calls_per_round"), [(16, 1), (8, 3)])
 @pytest.mark.asyncio
-async def test_a_research_agent_can_use_the_turns_it_is_configured_with(tmp_path: Path) -> None:
-    """Every turn is a tool call, not graph bookkeeping; its loop guard, tuned to the same turns, stops it first."""
+async def test_a_research_agent_spends_the_turns_it_is_configured_with_and_reports(
+    tmp_path: Path, turns: int, calls_per_round: int
+) -> None:
+    """Every turn is a round of tool calls, not graph bookkeeping; the run ends on its turn limit, not before."""
     fetched_under: Counter[int] = Counter()
-    config = DeepResearchConfig()
     orchestrator = DeepResearchOrchestrator(
-        llm=_FetchSamePageModel(fetches=_ENDLESS, same_page=False),
-        config=config,
+        llm=_FetchSamePageModel(fetches=_ENDLESS, same_page=False, calls_per_round=calls_per_round),
+        config=DeepResearchConfig(max_research_agent_turns=turns),
         parent_tools=[_fetch_tool(fetched_under)],
         context={"session_id": "chat_parent", "workspaces_storage_root": str(tmp_path)},
     )
     orchestrator._start_time = 1.0
 
-    await orchestrator._dispatch_research_agents(tasks=[{"task": "look into a", "tc_id": "tc_a"}], message_id="msg")
+    findings = await orchestrator._dispatch_research_agents(
+        tasks=[{"task": "look into a", "tc_id": "tc_a"}], message_id="msg"
+    )
 
-    turns = config.max_research_agent_turns
-    assert turns - 2 <= sum(fetched_under.values()) < turns
+    assert sum(fetched_under.values()) == turns * calls_per_round
+    assert findings and findings[0] != "[No findings]"

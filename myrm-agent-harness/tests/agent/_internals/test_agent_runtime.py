@@ -421,12 +421,14 @@ class TestRunAgentLoopCatalogWiring:
         assert resume_idx < source.index("await resolve_turn_history(")
 
     def test_history_mode_declaration_is_consumed_before_the_context_reaches_middleware(self) -> None:
+        import ast
         from pathlib import Path
 
         source = (
             Path(__file__).resolve().parents[3] / "src/myrm_agent_harness/agent/_internals/agent_runtime.py"
         ).read_text(encoding="utf-8")
-        assert "merged_context.pop(HISTORY_MODE_CONTEXT_KEY, None)" in source
+        calls = {ast.unparse(node) for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)}
+        assert "merged_context.pop(HISTORY_MODE_CONTEXT_KEY, None)" in calls
 
 
 class TestPopCheckpointIncompatibleMergedContext:
@@ -599,4 +601,4 @@ class TestEffectiveRoundBudget:
 
         rounds = effective_round_budget(MagicMock(recursion_limit=100))
         guard = LoopGuard(round_budget=rounds)
-        assert rounds - 1 <= guard._budget_stuck <= rounds
+        assert guard._budget_critical == rounds * 9 // 10

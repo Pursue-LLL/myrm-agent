@@ -85,7 +85,7 @@ def effective_round_budget(config: object) -> int:
     configuration that never chose one.
 
     ``graph_recursion_limit`` turns the rounds into the graph's step limit and ``LoopGuard`` derives
-    its warn/critical/stuck thresholds from the same rounds, so both must come from this number.
+    its warn/critical nudge rounds from the same rounds, so both must come from this number.
     """
     configured = getattr(config, "recursion_limit", None)
     if isinstance(configured, int) and configured > 0:

@@ -67,7 +67,7 @@ def _build_long_conversation(rounds: int = 12) -> list:
 
 
 def _simulate_tool_calls(guard: LoopGuard, count: int) -> None:
-    """Simulate accumulated budget usage without triggering budget-exhaustion.
+    """Simulate accumulated tool calls without running them.
 
     Directly sets total_calls and populates the window with synthetic records
     so that notify_compaction()'s clearing behavior can be verified.

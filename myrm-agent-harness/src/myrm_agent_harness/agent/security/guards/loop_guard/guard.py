@@ -12,8 +12,10 @@ context-aware, priority-sorted suggestions to help the LLM self-correct:
    indicating the model has little substantive work left
 
 Iteration budget:
-- Budget thresholds (warn / critical / stuck) are derived from the run's round
-  budget via ``_configure_budget``: one round is one tool call.
+- The run's round budget sets two nudges (warn / critical, via ``_configure_budget``)
+  that ask the model to wrap up as its rounds run out.  A round is one model
+  response, however many tool calls it issues (``pre_check(round_id=...)``).
+  Ending the run is the graph's step limit, never this guard.
 
 Response levels:
 - WARN (streak 3-4): append warning + smart suggestion to ToolMessage
@@ -67,6 +69,10 @@ except ImportError:
 
 # Rounds a run is given when nothing says otherwise.
 DEFAULT_ROUND_BUDGET = 50
+
+# How far the iteration budget nudges have got: none, warn given, critical given.
+_NUDGED_WARN = 1
+_NUDGED_CRITICAL = 2
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +166,8 @@ class LoopGuard(LoopDetectorMixin):
     error_signature_threshold:
         Cross-tool same-error repetitions before ToolStuckException.
     round_budget:
-        Model rounds the run may take; used to derive iteration budget
-        thresholds (warn / critical / stuck) via ``_configure_budget``.
+        Model rounds the run may take; used to derive the iteration budget
+        nudges (warn / critical) via ``_configure_budget``.
     poll_tools:
         Tool names with relaxed thresholds (2x normal).
     stats_db:
@@ -213,6 +219,9 @@ class LoopGuard(LoopDetectorMixin):
         self._output_history: deque[int] = deque(maxlen=window_size)
         self._last_recorded_call_index: int = -1
         self._error_signatures: dict[str, int] = {}
+        self._rounds: int = 0
+        self._round_id: str | None = None
+        self._nudged: int = 0
         self._sandbox_boundary_flag: bool = False
         self._stats_db = stats_db if enable_stats else None
         if enable_stats and stats_db is None and LoopGuardStatsDB is not None:
@@ -221,18 +230,14 @@ class LoopGuard(LoopDetectorMixin):
         self._configure_budget(round_budget)
 
     def _configure_budget(self, round_budget: int) -> None:
-        """Compute tool-call budget thresholds from the run's round budget.
+        """Compute the nudge rounds from the run's round budget.
 
-        Guarantees the strict ordering ``warn < critical < stuck <= tool_budget``
-        even for very small recursion limits.
+        Guarantees the strict ordering ``warn < critical < round_budget``
+        even for very small budgets.
         """
-        tool_budget = round_budget
-        stuck = min(max(tool_budget - 1, 3), tool_budget)
-        critical = min(max(tool_budget * 9 // 10, 2), stuck - 1)
-        warn = min(max(tool_budget * 7 // 10, 1), critical - 1)
-        self._budget_warn = warn
-        self._budget_critical = critical
-        self._budget_stuck = stuck
+        self._round_budget = max(round_budget, 1)
+        self._budget_critical = min(max(self._round_budget * 9 // 10, 2), self._round_budget - 1)
+        self._budget_warn = min(max(self._round_budget * 7 // 10, 1), self._budget_critical - 1)
 
     @property
     def unattended_mode(self) -> bool:
@@ -279,9 +284,16 @@ class LoopGuard(LoopDetectorMixin):
         if not has_tool_call:
             self._output_history.append(tokens)
 
-    def pre_check(self, tool_name: str, args: dict[str, object]) -> LoopVerdict:
-        """Check for inefficiency patterns before executing a tool call."""
+    def pre_check(self, tool_name: str, args: dict[str, object], *, round_id: str | None = None) -> LoopVerdict:
+        """Check for inefficiency patterns before executing a tool call.
+
+        ``round_id`` names the model response that issued the call: calls sharing it are one
+        round of the run's budget.  Without it every call counts as a round of its own.
+        """
         self._metrics.total_calls += 1
+        if round_id is None or round_id != self._round_id:
+            self._rounds += 1
+        self._round_id = round_id
         args_hash = _stable_hash(args)
 
         if self._last_warning_tool is not None:
@@ -319,42 +331,43 @@ class LoopGuard(LoopDetectorMixin):
         if verdict.action != LoopAction.ALLOW:
             return verdict
 
-        tc = self._metrics.total_calls
-        if tc == self._budget_warn:
-            pct = tc * 100 // self._budget_stuck if self._budget_stuck else 70
+        verdict = self._check_round_budget()
+        if verdict.action != LoopAction.ALLOW:
+            return verdict
+
+        return self._check_output_diminishing()
+
+    def _check_round_budget(self) -> LoopVerdict:
+        """Nudge the model to wrap up as its rounds run out.
+
+        Each nudge is given once, to the first call that is free to carry it.  The run itself
+        ends at the graph's step limit, which leaves the model its closing answer.
+        """
+        rounds, budget = self._rounds, self._round_budget
+        used = f"{rounds * 100 // budget}% of your iteration budget ({rounds} of {budget} rounds)"
+        if self._rounds >= self._budget_critical and self._nudged < _NUDGED_CRITICAL:
+            self._nudged = _NUDGED_CRITICAL
             return LoopVerdict(
                 action=LoopAction.WARN,
                 reason=(
-                    f"WARNING: You have used {pct}% of your iteration budget "
-                    f"({tc} tool calls). Please review your original goal, "
-                    f"re-evaluate your priorities, and focus on completing "
-                    f"the most critical remaining tasks."
-                ),
-                backoff_hint="Review original goal and prioritize critical tasks. Avoid getting stuck in details.",
-            )
-        elif tc == self._budget_critical:
-            pct = tc * 100 // self._budget_stuck if self._budget_stuck else 90
-            return LoopVerdict(
-                action=LoopAction.WARN,
-                reason=(
-                    f"CRITICAL WARNING: You have used {pct}% of your iteration "
-                    f"budget ({tc} tool calls). You are about to run out of "
+                    f"CRITICAL WARNING: You have used {used}. You are about to run out of "
                     f"resources. You MUST finalize your work and provide a "
                     f"final answer immediately."
                 ),
                 backoff_hint="Finalize work immediately. Stop exploring.",
             )
-        elif tc >= self._budget_stuck:
-            from myrm_agent_harness.agent.errors.agent_errors import ToolStuckException
-
-            self._record_detection(tool_name, LoopKind.CONSECUTIVE_FAILURES, tc)
-            raise ToolStuckException(
-                f"TOOL_STUCK_EXCEPTION: Iteration budget exhausted "
-                f"({tc} tool calls). Provide your final answer now "
-                f"with whatever results you have."
+        if self._rounds >= self._budget_warn and self._nudged < _NUDGED_WARN:
+            self._nudged = _NUDGED_WARN
+            return LoopVerdict(
+                action=LoopAction.WARN,
+                reason=(
+                    f"WARNING: You have used {used}. Please review your original goal, "
+                    f"re-evaluate your priorities, and focus on completing "
+                    f"the most critical remaining tasks."
+                ),
+                backoff_hint="Review original goal and prioritize critical tasks. Avoid getting stuck in details.",
             )
-
-        return self._check_output_diminishing()
+        return VERDICT_ALLOW
 
     def record_result(self, tool_name: str, args: dict[str, object], result_text: str) -> LoopVerdict:
         """Record a completed tool call and check for no-progress loops."""
@@ -421,18 +434,22 @@ class LoopGuard(LoopDetectorMixin):
         self._last_detection_kind = None
         self._output_history.clear()
         self._last_recorded_call_index = -1
+        self._rounds = 0
+        self._round_id = None
+        self._nudged = 0
         self._sandbox_boundary_flag = False
         if not preserve_error_signatures:
             self._error_signatures.clear()
 
     def notify_compaction(self) -> None:
-        """Reset iteration-budget-sensitive state after context compaction.
+        """Restart per-context state after context compaction.
 
         Context compaction discards older messages, effectively giving the
-        agent a fresh working context.  The iteration budget counter
-        (``total_calls``) must be reset so the agent is not prematurely
-        terminated.  Error signatures are preserved so that recurring
-        failures are still tracked across compaction boundaries.
+        agent a fresh working context: the call window, output history and
+        call count start over.  The rounds used keep counting, because
+        compaction does not refill the graph's step limit that the budget
+        nudges count down to.  Error signatures are preserved so that
+        recurring failures are still tracked across compaction boundaries.
         """
         self._window.clear()
         self._metrics.total_calls = 0

@@ -21,6 +21,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard import (
     LoopAction,
     LoopGuard,
     LoopKind,
+    LoopVerdict,
     SuccessLevel,
     VerificationCategory,
 )
@@ -427,64 +428,97 @@ class TestDivergence:
 # ---------------------------------------------------------------------------
 
 
-class TestIterationBudget:
-    """Budget thresholds are derived from the run's round budget.
+def _rounds(
+    guard: LoopGuard, rounds: int, *, calls_per_round: int = 1, first: int = 1, say_rounds: bool = True
+) -> list[tuple[int, LoopVerdict]]:
+    """Run rounds `first`..`first + rounds - 1` of tool calls; return the budget nudges as (round, verdict).
 
-    Default 50 rounds → warn=35, critical=45, stuck=49.
+    The calls of a round carry the id of the response that issued them unless `say_rounds` is off.
+    """
+    nudges = []
+    for number in range(first, first + rounds):
+        for call in range(calls_per_round):
+            name, args = f"tool_{number}_{call}", {"arg": f"{number}-{call}"}
+            verdict = guard.pre_check(name, args, round_id=f"resp_{number}" if say_rounds else None)
+            guard.record_result(name, args, f"result {number}-{call}")
+            if verdict.action == LoopAction.WARN and "iteration budget" in verdict.reason:
+                nudges.append((number, verdict))
+    return nudges
+
+
+class TestIterationBudget:
+    """The guard nudges the model as the rounds it was given run out; the graph's step limit is the only hard stop.
+
+    Default 50 rounds → warn at round 35, critical at round 45.
     """
 
-    def test_warn_at_budget_warn(self) -> None:
-        """At _budget_warn total calls, emit budget warning with actual percentage."""
-        guard = LoopGuard(warn_threshold=50, break_threshold=100)
-        target = guard._budget_warn
-        expected_pct = target * 100 // guard._budget_stuck
+    def test_nudges_at_seventy_and_ninety_percent_of_the_rounds(self) -> None:
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=50)
 
-        for i in range(target - 1):
-            guard.pre_check(f"tool_{i}", {"arg": i})
-            guard.record_result(f"tool_{i}", {"arg": i}, f"result_{i}")
+        nudges = _rounds(guard, 50)
 
-        verdict = guard.pre_check(f"tool_{target}", {"arg": target})
-        assert verdict.action == LoopAction.WARN
-        assert f"{expected_pct}%" in verdict.reason
+        assert [number for number, _ in nudges] == [35, 45]
+        warn, critical = (verdict.reason for _, verdict in nudges)
+        assert "70%" in warn
+        assert "35 of 50 rounds" in warn
+        assert "CRITICAL" in critical
+        assert "90%" in critical
 
-    def test_critical_warn_at_budget_critical(self) -> None:
-        """At _budget_critical total calls, emit critical warning with actual percentage."""
-        guard = LoopGuard(warn_threshold=50, break_threshold=100)
-        target = guard._budget_critical
-        expected_pct = target * 100 // guard._budget_stuck
+    def test_running_past_the_budget_stops_nothing(self) -> None:
+        """Ending the run is the graph's job: it ends with its own limit event, not with a guard exception."""
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=10)
 
-        for i in range(target - 1):
-            guard.pre_check(f"tool_{i}", {"arg": i})
-            guard.record_result(f"tool_{i}", {"arg": i}, f"result_{i}")
+        nudges = _rounds(guard, 25)
 
-        verdict = guard.pre_check(f"tool_{target}", {"arg": target})
-        assert verdict.action == LoopAction.WARN
-        assert f"{expected_pct}%" in verdict.reason
+        assert [number for number, _ in nudges] == [guard._budget_warn, guard._budget_critical]
 
-    def test_budget_exhausted_raises_tool_stuck(self) -> None:
-        """At _budget_stuck total calls, raise ToolStuckException."""
-        guard = LoopGuard(warn_threshold=50, break_threshold=100)
-        target = guard._budget_stuck
+    def test_calls_issued_together_are_one_round(self) -> None:
+        """A model that calls three tools at once uses one round, not three."""
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=20)
 
-        for i in range(target - 1):
-            guard.pre_check(f"tool_{i}", {"arg": i})
-            guard.record_result(f"tool_{i}", {"arg": i}, f"result_{i}")
+        nudges = _rounds(guard, 20, calls_per_round=3)
 
-        with pytest.raises(ToolStuckException) as exc_info:
-            guard.pre_check(f"tool_{target}", {"arg": target})
+        assert [number for number, _ in nudges] == [14, 18]
 
-        assert "Iteration budget exhausted" in str(exc_info.value)
-        assert f"{target} tool calls" in str(exc_info.value)
+    def test_each_call_is_a_round_when_the_caller_does_not_say_otherwise(self) -> None:
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=20)
 
-    def test_custom_round_budget_changes_budget(self) -> None:
-        """Custom round_budget shifts all budget thresholds."""
-        guard = LoopGuard(
-            warn_threshold=50,
-            break_threshold=100,
-            round_budget=75,
-        )
-        assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 75
+        nudges = _rounds(guard, 20, calls_per_round=2, say_rounds=False)
+
+        assert [number for number, _ in nudges] == [7, 9]
+
+    def test_a_nudge_crowded_out_by_another_verdict_still_arrives(self) -> None:
+        """The call of the warn round may be flagged for something else; the next call free to carry it does."""
+        guard = LoopGuard(warn_threshold=3, break_threshold=50, round_budget=20)
+        _rounds(guard, 11)
+        for number in (12, 13):
+            guard.pre_check("tool_same", {"arg": "same"}, round_id=f"resp_{number}")
+            guard.record_result("tool_same", {"arg": "same"}, "same")
+
+        crowded = guard.pre_check("tool_same", {"arg": "same"}, round_id="resp_14")
+        carrier = guard.pre_check("tool_other", {"arg": "other"}, round_id="resp_15")
+
+        assert crowded.action == LoopAction.WARN
+        assert "iteration budget" not in crowded.reason
+        assert carrier.action == LoopAction.WARN
+        assert "iteration budget" in carrier.reason
+
+    @pytest.mark.parametrize("resume", [False, True], ids=["new-run", "resumed-run"])
+    def test_a_run_starts_its_rounds_from_zero(self, resume: bool) -> None:
+        """The graph's step limit restarts with every run segment, so the rounds used and the nudges given do too."""
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=20)
+        _rounds(guard, 20)
+
+        guard.reset(preserve_error_signatures=resume, preserve_call_window=resume)
+        nudges = _rounds(guard, 20, first=21)
+
+        assert [number - 20 for number, _ in nudges] == [14, 18]
+
+    @pytest.mark.parametrize("round_budget", [1, 2, 3, 5, 10, 75, 150])
+    def test_thresholds_stay_ordered_below_the_budget(self, round_budget: int) -> None:
+        guard = LoopGuard(round_budget=round_budget)
+
+        assert guard._budget_warn < guard._budget_critical < round_budget
 
     def test_reconfigure_budget_updates_thresholds(self) -> None:
         """_configure_budget recalculates thresholds in-place."""
@@ -492,18 +526,9 @@ class TestIterationBudget:
         old_warn = guard._budget_warn
 
         guard._configure_budget(150)
-        assert guard._budget_warn != old_warn
-        assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
 
-    def test_small_round_budget_still_ordered(self) -> None:
-        """Even with a very small round budget, thresholds stay ordered."""
-        guard = LoopGuard(
-            warn_threshold=50,
-            break_threshold=100,
-            round_budget=10,
-        )
-        assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 10
+        assert guard._budget_warn != old_warn
+        assert guard._budget_warn < guard._budget_critical < 150
 
 
 # ---------------------------------------------------------------------------
@@ -895,15 +920,14 @@ class TestNotifyCompaction:
     """Verify that notify_compaction resets iteration budget while preserving error signatures."""
 
     def test_total_calls_reset_after_compaction(self) -> None:
-        """After compaction, total_calls resets to 0 so the agent can continue."""
+        """After compaction the call count restarts with the call window."""
         guard = LoopGuard(round_budget=15)
-        budget_stuck = guard._budget_stuck
 
-        for i in range(budget_stuck - 1):
+        for i in range(14):
             guard.pre_check(f"tool_{i}", {"x": i})
             guard.record_result(f"tool_{i}", {"x": i}, f"result_{i}")
 
-        assert guard._metrics.total_calls == budget_stuck - 1
+        assert guard._metrics.total_calls == 14
 
         guard.notify_compaction()
         assert guard._metrics.total_calls == 0
@@ -911,23 +935,15 @@ class TestNotifyCompaction:
         verdict = guard.pre_check("new_tool", {"y": 1})
         assert verdict.action == LoopAction.ALLOW
 
-    def test_compaction_prevents_premature_stuck_exception(self) -> None:
-        """Without compaction the agent would be terminated; with it, it continues."""
-        guard = LoopGuard(round_budget=15)
-        budget_stuck = guard._budget_stuck
-
-        for i in range(budget_stuck - 1):
-            guard.pre_check(f"tool_{i}", {"x": i})
-            guard.record_result(f"tool_{i}", {"x": i}, f"result_{i}")
+    def test_rounds_keep_counting_across_compaction(self) -> None:
+        """Compaction does not refill the graph's step limit, so the budget nudges must not restart with it."""
+        guard = LoopGuard(warn_threshold=50, break_threshold=100, round_budget=20)
+        _rounds(guard, 10)
 
         guard.notify_compaction()
+        nudges = _rounds(guard, 10, first=11)
 
-        for i in range(budget_stuck - 1):
-            v = guard.pre_check(f"post_{i}", {"z": i})
-            guard.record_result(f"post_{i}", {"z": i}, f"post_result_{i}")
-            if v.action == LoopAction.WARN:
-                continue
-        assert guard._metrics.total_calls == budget_stuck - 1
+        assert [number for number, _ in nudges] == [14, 18]
 
     def test_error_signatures_preserved_across_compaction(self) -> None:
         """Error signatures survive compaction so recurring failures are still tracked."""
@@ -1008,4 +1024,3 @@ class TestUnattendedCircuitBreaker:
         guard.pre_check("tool_2", {"arg": 2})
         verdict = guard.record_result("tool_2", {"arg": 2}, "Error: connection refused 127.0.0.1:8080")
         assert verdict.action != LoopAction.BREAK or verdict.loop_kind != "circuit_break"
-

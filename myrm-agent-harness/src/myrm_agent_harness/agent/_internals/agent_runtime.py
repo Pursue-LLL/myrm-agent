@@ -169,7 +169,7 @@ async def run_agent_loop(
     round_budget = effective_round_budget(getattr(agent_state, "config", None))
     reset_all_guards(
         is_resume=is_resume,
-        # Guards derive their stuck thresholds from the same budget the graph's step limit is made from.
+        # Guards derive their nudge rounds from the same budget the graph's step limit is made from.
         round_budget=round_budget,
         unattended_mode=unattended,
     )
