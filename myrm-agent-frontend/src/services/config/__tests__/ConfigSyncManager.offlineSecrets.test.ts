@@ -56,6 +56,11 @@ const queuedKeys = () => {
   return stored ? (JSON.parse(stored) as { key: string }[]).map((change) => change.key) : [];
 };
 
+const lastRequestBody = () => {
+  const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit | undefined;
+  return String(init?.body);
+};
+
 describe('ConfigSyncManager offline queue keeps secrets out of browser storage', () => {
   let manager: ConfigSyncManager;
 
@@ -87,8 +92,7 @@ describe('ConfigSyncManager offline queue keeps secrets out of browser storage',
     const retried = await manager.forceSync();
 
     expect(retried.success).toBe(true);
-    const retryBody = String((mockFetch.mock.calls.at(-1)?.[1] as RequestInit).body);
-    expect(retryBody).toContain(SECRET);
+    expect(lastRequestBody()).toContain(SECRET);
   });
 
   it('still persists a non-sensitive change for replay after a reload', async () => {
@@ -113,7 +117,7 @@ describe('ConfigSyncManager offline queue keeps secrets out of browser storage',
       'personalSettings',
     ]);
     expect(everythingWritten()).not.toContain(SECRET);
-    expect(String((mockFetch.mock.calls.at(-1)?.[1] as RequestInit).body)).toContain(SECRET);
+    expect(lastRequestBody()).toContain(SECRET);
   });
 
   it('only allowlists keys that exist', () => {
