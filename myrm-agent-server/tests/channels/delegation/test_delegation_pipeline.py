@@ -12,7 +12,6 @@ from app.channels.delegation import (
     DelegationCoordinator,
     DelegationIngressGuard,
     DelegationStatus,
-    RiskLevel,
     build_delegation_task,
     build_delivery_card_content,
     format_file_size,
@@ -74,7 +73,7 @@ def test_delegation_ingress_guard_concurrency() -> None:
 
 @pytest.mark.asyncio
 async def test_coordinator_lifecycle_and_steering() -> None:
-    """Test registration, status transition, steering, and approval relay."""
+    """Test registration, status transition and in-flight steering."""
     coordinator = DelegationCoordinator()
     task = build_delegation_task(
         origin_channel="telegram",
@@ -98,32 +97,9 @@ async def test_coordinator_lifecycle_and_steering() -> None:
     # Steering injection
     steered = coordinator.inject_steering(task.task_id, "重点分析内存开销", "user_456")
     assert steered is True
-
-    # Remote approval flow
-    approval_task = asyncio.create_task(
-        coordinator.request_remote_approval(
-            task.task_id,
-            action_name="execute_terminal",
-            action_summary="执行 rm -rf /tmp/build",
-            risk_level=RiskLevel.HIGH,
-            timeout_seconds=5.0,
-        )
-    )
-
-    pending_req = None
-    for _ in range(20):
-        pending_req = coordinator.get_pending_approval_by_task(task.task_id)
-        if pending_req is not None:
-            break
-        await asyncio.sleep(0.05)
-    assert pending_req is not None
-
-    resolved = coordinator.resolve_approval(pending_req.request_id, "approve", "user_456")
-    assert resolved is True
-
-    resp = await approval_task
-    assert resp.decision == "approve"
-    assert resp.responder_id == "user_456"
+    steering_token = coordinator.get_steering_token(task.task_id)
+    assert steering_token is not None
+    assert steering_token.has_pending
 
 
 def test_coordinator_reap_stale_tasks() -> None:

@@ -1,17 +1,16 @@
-"""Asynchronous delegation coordinator, in-flight steering pipeline, and approval relay state machine.
+"""Asynchronous delegation coordinator and in-flight steering pipeline.
 
-Coordinates execution lifecycle of delegated tasks, bridges in-flight prompt
-injections to running Agent sandboxes via SteeringToken, and coordinates
-remote interactive human-in-the-loop authorization from mobile clients.
+Coordinates execution lifecycle of delegated tasks and bridges in-flight prompt
+injections to running Agent sandboxes via SteeringToken.
 
 [INPUT]
-- .delegation_models::DelegationTask, DelegationStatus, SteeringMessage, ApprovalRequest, ApprovalResponse, ProgressBeacon, RiskLevel
+- .delegation_models::DelegationTask, DelegationStatus
 - app.channels.routing.friendly_errors::friendly_error_message, is_error_reply (POS: member-safe failure wording and failed-turn flag)
 - myrm_agent_harness.utils.runtime.steering::SteeringToken
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken
 
 [OUTPUT]
-- DelegationCoordinator: Central coordinator managing task state machines, steering, and remote approvals.
+- DelegationCoordinator: Central coordinator managing task state machines, steering, and the background execution lifecycle.
 
 [POS]
 Execution lifecycle and coordination engine for app/channels/delegation/.
@@ -19,12 +18,10 @@ Execution lifecycle and coordination engine for app/channels/delegation/.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -33,15 +30,7 @@ from app.channels.routing.friendly_errors import friendly_error_message, is_erro
 from app.channels.types import OutboundMessage, StreamingText
 
 from .delegation_delivery import build_delivery_card_content, scan_workspace_artifacts
-from .delegation_models import (
-    ApprovalRequest,
-    ApprovalResponse,
-    DelegationStatus,
-    DelegationTask,
-    ProgressBeacon,
-    RiskLevel,
-    SteeringMessage,
-)
+from .delegation_models import DelegationStatus, DelegationTask
 
 if TYPE_CHECKING:
     from app.channels.core.bus import MessageBus
@@ -50,26 +39,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("myrm.channels.delegation.coordinator")
 
-_TERMINAL_STATUSES = (DelegationStatus.COMPLETED, DelegationStatus.FAILED, DelegationStatus.CANCELLED)
+_TERMINAL_STATUSES = (DelegationStatus.COMPLETED, DelegationStatus.FAILED)
 
 
 class DelegationCoordinator:
-    """Coordinates task execution, in-flight prompt steering, and remote mobile approvals."""
+    """Coordinates task execution and in-flight prompt steering."""
 
     def __init__(self) -> None:
         self._tasks: dict[str, DelegationTask] = {}
         self._cancellation_tokens: dict[str, CancellationToken] = {}
         self._steering_tokens: dict[str, SteeringToken] = {}
-        self._steering_history: dict[str, list[SteeringMessage]] = {}
-        self._pending_approvals: dict[str, tuple[ApprovalRequest, asyncio.Future[ApprovalResponse]]] = {}
-        self._beacon_listeners: list[Callable[[ProgressBeacon], None]] = []
 
     def register_task(self, task: DelegationTask) -> None:
         """Register a newly created delegated task."""
         self._tasks[task.task_id] = task
         self._cancellation_tokens[task.task_id] = CancellationToken()
         self._steering_tokens[task.task_id] = SteeringToken()
-        self._steering_history[task.task_id] = []
         logger.info("DelegationCoordinator: Registered task %s for user %s", task.task_id, task.origin_user_id)
 
     def get_task(self, task_id: str) -> DelegationTask | None:
@@ -124,141 +109,8 @@ class DelegationCoordinator:
         steering_token = self._steering_tokens.get(task_id)
         if steering_token:
             steering_token.steer(content)
-
-        msg = SteeringMessage(
-            task_id=task_id,
-            content=content,
-            sender_id=sender_id,
-        )
-        self._steering_history.setdefault(task_id, []).append(msg)
         logger.info("DelegationCoordinator: Injected in-flight steering to task %s by %s", task_id, sender_id)
         return True
-
-    def cancel_task(self, task_id: str, reason: str = "User cancelled") -> bool:
-        """Cancel an active task."""
-        task = self._tasks.get(task_id)
-        if not task or task.status in _TERMINAL_STATUSES:
-            return False
-
-        cancel_token = self._cancellation_tokens.get(task_id)
-        if cancel_token:
-            cancel_token.cancel()
-
-        self.update_task_status(task_id, DelegationStatus.CANCELLED, error_message=reason)
-        return True
-
-    def emit_beacon(self, task_id: str, phase: str, percent: int, milestone_message: str) -> None:
-        """Broadcast progress milestone beacon."""
-        beacon = ProgressBeacon(
-            task_id=task_id,
-            phase=phase,
-            percent=max(0, min(100, percent)),
-            milestone_message=milestone_message,
-        )
-        for listener in self._beacon_listeners:
-            try:
-                listener(beacon)
-            except Exception as e:
-                logger.error("DelegationCoordinator: Beacon listener error: %s", e)
-
-    def add_beacon_listener(self, listener: Callable[[ProgressBeacon], None]) -> None:
-        """Add a progress beacon subscriber."""
-        self._beacon_listeners.append(listener)
-
-    async def request_remote_approval(
-        self,
-        task_id: str,
-        action_name: str,
-        action_summary: str,
-        *,
-        risk_level: RiskLevel = RiskLevel.MEDIUM,
-        options: list[str] | None = None,
-        timeout_seconds: float = 300.0,
-    ) -> ApprovalResponse:
-        """Suspend task and await remote mobile user authorization.
-
-        Args:
-            task_id: Target task ID.
-            action_name: Name of the high-risk action/tool.
-            action_summary: Compact description of the action.
-            risk_level: Risk severity.
-            options: Allowed decision choices.
-            timeout_seconds: Maximum wait duration before auto-rejecting.
-
-        Returns:
-            ApprovalResponse with user's decision.
-        """
-        request_id = f"appr_{uuid.uuid4().hex[:8]}"
-        req = ApprovalRequest(
-            request_id=request_id,
-            task_id=task_id,
-            action_name=action_name,
-            action_summary=action_summary,
-            risk_level=risk_level,
-            options=options or ["approve", "reject"],
-            timeout_seconds=timeout_seconds,
-        )
-
-        loop = asyncio.get_running_loop()
-        fut: asyncio.Future[ApprovalResponse] = loop.create_future()
-        self._pending_approvals[request_id] = (req, fut)
-
-        # Transition task to suspended
-        task = self._tasks.get(task_id)
-        prev_status = task.status if task else DelegationStatus.RUNNING
-        self.update_task_status(task_id, DelegationStatus.SUSPENDED_FOR_APPROVAL)
-
-        try:
-            resp = await asyncio.wait_for(fut, timeout=timeout_seconds)
-            return resp
-        except asyncio.TimeoutError:
-            logger.warning("DelegationCoordinator: Approval request %s timed out after %ss", request_id, timeout_seconds)
-            return ApprovalResponse(
-                request_id=request_id,
-                task_id=task_id,
-                decision="reject",
-                responder_id="system",
-                note=f"Approval timed out after {timeout_seconds}s",
-            )
-        finally:
-            self._pending_approvals.pop(request_id, None)
-            if self._tasks.get(task_id) and self._tasks[task_id].status == DelegationStatus.SUSPENDED_FOR_APPROVAL:
-                self.update_task_status(task_id, prev_status)
-
-    def resolve_approval(
-        self,
-        request_id: str,
-        decision: Literal["approve", "reject"],
-        responder_id: str,
-        *,
-        note: str = "",
-    ) -> bool:
-        """Resolve a pending approval request with mobile user response."""
-        item = self._pending_approvals.get(request_id)
-        if not item:
-            return False
-
-        _, fut = item
-        if fut.done():
-            return False
-
-        resp = ApprovalResponse(
-            request_id=request_id,
-            task_id=item[0].task_id,
-            decision=decision,
-            responder_id=responder_id,
-            note=note,
-        )
-        fut.set_result(resp)
-        logger.info("DelegationCoordinator: Resolved approval %s with decision %s by %s", request_id, decision, responder_id)
-        return True
-
-    def get_pending_approval_by_task(self, task_id: str) -> ApprovalRequest | None:
-        """Get currently active pending approval request for a task."""
-        for req, _ in self._pending_approvals.values():
-            if req.task_id == task_id:
-                return req
-        return None
 
     def find_active_task(self, channel: str, user_id: str) -> DelegationTask | None:
         """Find the currently active or running task for a user in a channel."""
@@ -266,7 +118,7 @@ class DelegationCoordinator:
             if (
                 task.origin_channel == channel
                 and task.origin_user_id == user_id
-                and task.status in (DelegationStatus.PENDING, DelegationStatus.RUNNING, DelegationStatus.SUSPENDED_FOR_APPROVAL)
+                and task.status in (DelegationStatus.PENDING, DelegationStatus.RUNNING)
             ):
                 return task
         return None

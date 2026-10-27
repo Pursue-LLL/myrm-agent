@@ -168,17 +168,3 @@ async def test_a_task_failed_while_running_stays_failed() -> None:
     assert "❌" in card
     assert "执行失败" in card
     assert "Task timed out after 3601 seconds" in card
-
-
-@pytest.mark.asyncio
-async def test_a_cancelled_task_stays_cancelled() -> None:
-    async def stream(coordinator: DelegationCoordinator, task: DelegationTask) -> AsyncGenerator[object, None]:
-        assert coordinator.cancel_task(task.task_id)
-        yield _reply("partial answer")
-
-    task, card = await _run(stream)
-
-    assert task.status == DelegationStatus.CANCELLED
-    assert task.result_summary == ""
-    assert "已取消" in card
-    assert "执行完成" not in card

@@ -5,13 +5,12 @@ within the task sandbox workspace, computes checksums, applies 20MB channel
 bandwidth safety caps with deep-link fallback, and formats delivery cards.
 
 [INPUT]
-- .delegation_models::DelegationTask, DeliveryArtifact, ApprovalRequest
+- .delegation_models::DelegationTask, DeliveryArtifact
 - Local sandbox workspace path strings.
 
 [OUTPUT]
 - scan_workspace_artifacts: Discover deliverables within workspace folder.
 - build_delivery_card_content: Render structured completion report for mobile IM.
-- build_approval_card_content: Render structured authorization prompt with options.
 - format_file_size: Human-readable byte formatting helper.
 
 [POS]
@@ -25,7 +24,7 @@ import mimetypes
 import os
 from pathlib import Path
 
-from .delegation_models import ApprovalRequest, DelegationStatus, DelegationTask, DeliveryArtifact
+from .delegation_models import DelegationStatus, DelegationTask, DeliveryArtifact
 
 # Standard channel direct attachment threshold (20MB)
 DEFAULT_MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
@@ -33,7 +32,6 @@ DEFAULT_MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 _CARD_OUTCOME_TITLES: dict[DelegationStatus, str] = {
     DelegationStatus.COMPLETED: "后台委派任务执行完成",
     DelegationStatus.FAILED: "后台委派任务执行失败",
-    DelegationStatus.CANCELLED: "后台委派任务已取消",
 }
 
 _SUPPORTED_DELIVERABLE_EXTS: frozenset[str] = frozenset(
@@ -215,38 +213,5 @@ def build_delivery_card_content(
 
     if tracking_deep_link:
         lines.extend(["", f"🔗 [在桌面端/WebUI打开完整工作区]({tracking_deep_link})"])
-
-    return "\n".join(lines)
-
-
-def build_approval_card_content(req: ApprovalRequest) -> str:
-    """Render interactive authorization prompt for high-risk operations.
-
-    Args:
-        req: Active ApprovalRequest payload.
-
-    Returns:
-        Formatted Markdown card text.
-    """
-    risk_icons = {
-        "low": "🟢 低风险",
-        "medium": "🟡 中风险",
-        "high": "🟠 高风险",
-        "critical": "🔴 极高风险",
-    }
-    risk_tag = risk_icons.get(req.risk_level.value, "⚠️ 待审批")
-
-    lines = [
-        f"🛡️ **后台沙箱请求远程授权审批** `[{risk_tag}]`",
-        f"• **任务编号**：`{req.task_id}`",
-        f"• **审批单号**：`{req.request_id}`",
-        f"• **待执行操作**：`{req.action_name}`",
-        f"• **操作详情**：{req.action_summary}",
-        "",
-        "👉 **请在移动端直接点击按钮或回复编号确认：**",
-    ]
-    for idx, opt in enumerate(req.options, start=1):
-        opt_label = "允许执行" if opt == "approve" else "拒绝并跳过"
-        lines.append(f"`[{idx}]` {opt_label}")
 
     return "\n".join(lines)

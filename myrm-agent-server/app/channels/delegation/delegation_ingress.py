@@ -1,18 +1,17 @@
-"""Ingress parsing, intent detection, and immediate receipt generation for mobile task delegation.
+"""Ingress parsing and intent detection for mobile task delegation.
 
 Inspects inbound messages from mobile IM channels (WeChat, Feishu, DingTalk,
-Telegram, Slack, Discord) to identify long-running offline delegation intents,
-guarantees sub-second receipt generation, and prevents duplicate active delegations.
+Telegram, Slack, Discord) to identify long-running offline delegation intents
+and caps the number of delegations a user can have running at once.
 
 [INPUT]
-- InboundMessage or raw text strings, channel identifiers, and user metadata.
-- .delegation_models::DelegationTask, DelegationReceipt, DelegationStatus
+- Raw message text strings, channel identifiers, and user ids.
+- .delegation_models::DelegationTask, DelegationStatus
 
 [OUTPUT]
 - is_delegation_intent: Heuristic and explicit classifier for long-running tasks.
 - build_delegation_task: Factory initializing persistent DelegationTask entity.
-- build_receipt_card_content: Render structured acknowledgement for mobile chat.
-- DelegationIngressGuard: Session-scoped concurrency and anti-duplicate manager.
+- DelegationIngressGuard: Per-user cap on concurrently running delegations.
 
 [POS]
 Channel ingress gateway for asynchronous cross-platform task delegation.
@@ -21,12 +20,8 @@ Channel ingress gateway for asynchronous cross-platform task delegation.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
 
-from .delegation_models import DelegationReceipt, DelegationStatus, DelegationTask
-
-if TYPE_CHECKING:
-    pass
+from .delegation_models import DelegationStatus, DelegationTask
 
 _EXPLICIT_DELEGATION_PREFIXES: tuple[str, ...] = (
     "/delegate",
@@ -155,30 +150,6 @@ def build_delegation_task(
     )
 
 
-def build_receipt_card_content(receipt: DelegationReceipt, *, platform: str = "default") -> str:
-    """Build user-facing immediate acknowledgment text or Markdown card.
-
-    Args:
-        receipt: Generated DelegationReceipt.
-        platform: Target channel identifier for platform-specific rendering.
-
-    Returns:
-        Structured user-friendly acknowledgement string.
-    """
-    est_mins = max(1, receipt.estimated_duration_seconds // 60)
-    lines = [
-        "🤖 **任务已委派至后台沙箱自主接管**",
-        f"• **任务编号**：`{receipt.task_id}`",
-        f"• **当前状态**：{receipt.status.value}",
-        f"• **预估耗时**：约 {est_mins} 分钟",
-        "• **执行说明**：您可以锁屏或处理其他事务。执行完毕后，生成的交付物（PPT/报表/文档）将自动在此向您推送。",
-    ]
-    if receipt.tracking_deep_link:
-        lines.append(f"• **实时看板**：[点击查看执行轨迹]({receipt.tracking_deep_link})")
-
-    return "\n".join(lines)
-
-
 class DelegationIngressGuard:
     """Manages active delegation concurrency per (channel, user_id) tuple."""
 
@@ -187,12 +158,12 @@ class DelegationIngressGuard:
         # (channel, user_id) -> list of active task_ids
         self._user_active_tasks: dict[tuple[str, str], list[str]] = {}
 
-    def can_delegate(self, channel: str, user_id: str) -> bool:
+    def can_accept(self, channel: str, user_id: str) -> bool:
         """Check whether the user is within concurrent active task quota."""
         active = self._user_active_tasks.get((channel, user_id), [])
         return len(active) < self.max_active
 
-    def register_active_task(self, channel: str, user_id: str, task_id: str) -> None:
+    def acquire(self, channel: str, user_id: str, task_id: str) -> None:
         """Register a new active task for the user."""
         key = (channel, user_id)
         if key not in self._user_active_tasks:
@@ -200,20 +171,10 @@ class DelegationIngressGuard:
         if task_id not in self._user_active_tasks[key]:
             self._user_active_tasks[key].append(task_id)
 
-    def release_task(self, channel: str, user_id: str, task_id: str) -> None:
+    def release(self, channel: str, user_id: str, task_id: str) -> None:
         """Release completed or failed task from active tracker."""
         key = (channel, user_id)
         if key in self._user_active_tasks:
             self._user_active_tasks[key] = [tid for tid in self._user_active_tasks[key] if tid != task_id]
             if not self._user_active_tasks[key]:
                 self._user_active_tasks.pop(key, None)
-
-    # Idiomatic aliases
-    can_accept = can_delegate
-    acquire = register_active_task
-    release = release_task
-
-    def get_latest_active_task(self, channel: str, user_id: str) -> str | None:
-        """Get the most recent active task_id for in-flight steering."""
-        active = self._user_active_tasks.get((channel, user_id), [])
-        return active[-1] if active else None
