@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import yaml
+from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 from myrm_agent_harness.toolkits.web_fetch.extractors import WEIXIN_BODY_TRUNCATED_MARKER
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
@@ -15,6 +17,7 @@ from app.services.wiki.source_sync.ima.content import (
     ImaContent,
     ImaDuplicate,
     ImaUnsupported,
+    ResolvedItem,
     render_document,
     resolve_kb_item,
     resolve_note,
@@ -53,7 +56,9 @@ async def covered(_note_id: str) -> bool:
     return False
 
 
-async def _resolve(fake: FakeIma, tmp_path: Path, *, item: LedgerRow | None = None, note_covered=covered):
+async def _resolve(
+    fake: FakeIma, tmp_path: Path, *, item: LedgerRow | None = None, note_covered: Callable[[str], Awaitable[bool]] = covered
+) -> ResolvedItem:
     return await resolve_kb_item(
         as_client(fake),
         item or row(),
@@ -136,7 +141,7 @@ async def test_saved_web_page_goes_through_web_fetch_and_flags_truncation(
         fetched.append((url, allow_escalation))
         return SimpleNamespace(page_content=f"article body\n\n{WEIXIN_BODY_TRUNCATED_MARKER}")
 
-    monkeypatch.setattr(content_module.web_fetch_tools, "crawl", crawl)
+    monkeypatch.setattr(web_fetch_tools, "crawl", crawl)
     fake = FakeIma(media={"m1": ImaMediaInfo(media_type=6, url=WEB_URL, headers={}, note_id="")})
 
     resolved = await _resolve(fake, tmp_path, item=row(media_type=6))
@@ -150,7 +155,7 @@ async def test_unreachable_web_page_is_retryable_not_unsupported(tmp_path: Path,
     async def crawl(url: str, *, allow_escalation: bool) -> None:
         return None
 
-    monkeypatch.setattr(content_module.web_fetch_tools, "crawl", crawl)
+    monkeypatch.setattr(web_fetch_tools, "crawl", crawl)
     fake = FakeIma(media={"m1": ImaMediaInfo(media_type=2, url=WEB_URL, headers={}, note_id="")})
 
     with pytest.raises(ImaPageUnavailableError):
