@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { INLINE_CODE_CHIP } from '@/lib/constants/codeblock-theme';
 import type { DeliverableReference } from '@/lib/deliverable-link/parseDeliverableReference';
 import { openArtifactDeliverable, openWorkspaceDeliverable } from '@/services/deliverable/openWorkspaceDeliverable';
 import type { Artifact } from '@/store/chat/types';
@@ -91,8 +92,8 @@ export default function DeliverableReferenceLink({
       data-testid="deliverable-reference-link"
       data-deliverable-kind={reference.kind}
       className={cn(
-        'inline font-mono text-sm text-[#ED6037] dark:text-orange-400',
-        'bg-[#f6f6f1] dark:bg-gray-800 px-1 py-0.5 rounded',
+        'inline font-mono',
+        INLINE_CODE_CHIP,
         'underline decoration-dotted decoration-[#ED6037]/40 hover:decoration-[#ED6037]',
         'cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
         className,

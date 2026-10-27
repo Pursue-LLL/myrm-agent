@@ -33,6 +33,14 @@ export const CODE_BLOCK_THEME = {
 /** 行号颜色：用主题的次要文字色，明暗两套主题以及 diff 行底色上对比度都不低于 4.5:1 */
 export const CODE_BLOCK_LINE_NUMBER = 'text-muted-foreground';
 
+/**
+ * 单行代码芯片（聊天里的行内代码、交付物引用链接）：底色与代码块一致，文字用橙色，
+ * 浅色 `text-orange-700`、深色 `text-orange-400`，在各自底色上对比度都不低于 4.5:1。
+ * 类名必须是完整的字面量，Tailwind 才扫得到。
+ */
+export const INLINE_CODE_CHIP =
+  'bg-[#f6f6f1] text-orange-700 dark:bg-gray-800 dark:text-orange-400 px-1 py-0.5 rounded text-sm';
+
 /** 代码块容器样式 */
 export const CODE_BLOCK_CONTAINER = {
   /** 外边距（上下） */

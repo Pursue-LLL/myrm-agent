@@ -14,6 +14,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { INLINE_CODE_CHIP } from '@/lib/constants/codeblock-theme';
 import { useSmoothStream } from '@/hooks/message-input/useSmoothStream';
 import useConfigStore from '@/store/useConfigStore';
 import ReactMarkdown from 'react-markdown';
@@ -270,10 +271,7 @@ const MarkdownContent = React.memo(
           }
           if (isInlineCode) {
             return (
-              <code
-                className="bg-[#f6f6f1] font-normal text-[#ED6037] dark:bg-gray-800 px-1 py-0.5 rounded text-sm"
-                {...props}
-              >
+              <code className={cn(INLINE_CODE_CHIP, 'font-normal')} {...props}>
                 {value}
               </code>
             );
@@ -442,10 +440,7 @@ const MarkdownContent = React.memo(
             'max-w-none break-words text-black dark:text-white',
           )}
         >
-          <IncrementalStreamingMarkdownRenderer
-            content={displayContent}
-            isStreaming={true}
-          />
+          <IncrementalStreamingMarkdownRenderer content={displayContent} isStreaming={true} />
         </div>
       );
     }
