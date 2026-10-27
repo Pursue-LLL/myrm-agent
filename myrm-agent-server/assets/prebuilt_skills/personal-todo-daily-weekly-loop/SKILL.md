@@ -30,7 +30,7 @@ A dedicated skill for maintaining a continuous, zero-loss productivity lifecycle
 
 ```
 [Phase 1: Dynamic Task Tracking (待办登记与流转)]
-  - Capture tasks into workspace todos (`.myrm/progress/todos.json` via todo_write)
+  - Capture tasks into workspace todos (`.myrm/progress/<chat>/todos.json` via todo_write)
   - Prioritize tasks via Eisenhower quadrant (Urgent/Important)
   - Maintain atomic statuses: pending -> in_progress -> completed / blocked / cancelled
          ↓
