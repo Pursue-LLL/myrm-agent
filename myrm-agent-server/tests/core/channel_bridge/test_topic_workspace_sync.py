@@ -101,7 +101,7 @@ async def test_sync_channel_chat_workspace_authorized_path() -> None:
 
     with (
         patch(
-            "app.services.workspace.file_watch_service.resolve_watchable_workspace_path",
+            "app.services.workspace.workspace_path_policy.resolve_workspace_path",
             return_value="/resolved/vault",
         ),
         patch(

@@ -378,6 +378,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_effective_workspace_ssot.py` | 模块 | SSOT：GET chat / suggest / browse(chat_id) / PATCH 409 — project.workspace_path 优先于 stale chat.workspace_dir |
 | `api/chats/test_user_markup_api.py` | 模块 | 用户文字保留标记（真实 `TextSanitizerMiddleware` + 聊天路由 + 真 DB）：会话标题里的 `<think>` / `<function_calls>` / `<tool_call>` 原样存入，只去掉控制字符 |
 | `api/chats/test_rewind_api.py` | 模块 | POST `/chats/{id}/rewind`（真实路由 + 真 DB）：输入框文本逐字取回（含用户写的标签，仅去首尾空白）、助手消息被拒、对话/文件回退范围、检查点清除与失败传播、回退前快照与回滚补偿、会话忙 409、无可回退 400、失败 500 |
+| `services/workspace/test_workspace_path_policy.py` | 单元 | 工作区路径闸门：绝对路径 / 家目录与 `/` 过宽 / 凭据目录危险 / symlink 按目标判定 / 非目录；`allow_broad` 只豁免范围检查；读侧 `is_workspace_root_grantable`；400 带 `field` + `issue` |
+| `api/chats/test_workspace_path_policy_api.py` | 模块 | 项目 create/adopt/update、会话工作区 PATCH、转录导入各入口拒绝过宽目录（真实路由 + 真 DB）；已存储的家目录工作区读侧回退到会话沙箱并落库自愈 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
 | `api/files/test_workspace_text_read.py` | 模块 | 文本编辑 API 读取（真实路由 + `TextSanitizerMiddleware`）：内容/版本/只读原因、绝对路径、404 与目录拒绝，与其他工作区接口一致的路径守卫（越界/遍历/符号链接/敏感文件/危险工作区）、`if_version` 条件读取（未变不带正文、已变全量、体积差、超大文件总是全量、格式校验、同样的路径守卫） |

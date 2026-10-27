@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.project.project_service::ProjectService
-- app.services.workspace.file_watch_service::resolve_watchable_workspace_path
+- app.services.workspace.workspace_path_policy::resolve_workspace_path
 
 [OUTPUT]
 - assert_project_workspace: validate project vault exists
@@ -26,6 +26,6 @@ async def assert_project_workspace(project_id: str) -> None:
 
 
 def validate_authorized_path(raw_path: str) -> str:
-    from app.services.workspace.file_watch_service import resolve_watchable_workspace_path
+    from app.services.workspace.workspace_path_policy import resolve_workspace_path
 
-    return resolve_watchable_workspace_path(raw_path)
+    return resolve_workspace_path(raw_path, require_directory=True)

@@ -4,6 +4,7 @@
 - app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: JIT sandbox bind)
 - app.services.agent.params.workspace_resolve::default_chat_workspace_path (POS: pure JIT sandbox path)
 - app.platform_utils.workspace_root::get_workspace_root (POS: process workspace root)
+- app.services.workspace.workspace_path_policy::is_workspace_root_grantable (POS: stored workspace still safe to grant)
 
 [OUTPUT]
 - resolve_effective_chat_workspace: SSOT workspace path for Agent + UI
@@ -12,14 +13,29 @@
 
 [POS]
 Single resolution order for chat workspace directories: project bind path,
-then chat.workspace_dir, then optional JIT chat_{id} sandbox.
+then chat.workspace_dir, then optional JIT chat_{id} sandbox. A stored path that is or contains a
+protected root (home, ``/``) is skipped, so data bound before the workspace path policy existed
+cannot hand the sandbox write access to it.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from app.database.dto import ChatDTO
+from app.services.workspace.workspace_path_policy import is_workspace_root_grantable
+
+logger = logging.getLogger(__name__)
+
+
+def _grantable_workspace(path: str | None, *, owner: str) -> str | None:
+    if not path:
+        return None
+    if is_workspace_root_grantable(path):
+        return path
+    logger.warning("Ignoring the %s workspace %r: it contains protected locations and is too broad", owner, path)
+    return None
 
 
 async def resolve_effective_chat_workspace(
@@ -34,11 +50,11 @@ async def resolve_effective_chat_workspace(
         from app.services.project.project_service import ProjectService
 
         project = await ProjectService.get_project(project_id)
-        if project and project.workspace_path:
-            return project.workspace_path
+        if project and (bound := _grantable_workspace(project.workspace_path, owner="project")):
+            return bound
 
-    if chat.workspace_dir:
-        return chat.workspace_dir
+    if chat_dir := _grantable_workspace(chat.workspace_dir, owner="chat"):
+        return chat_dir
 
     if not jit_fallback:
         return None

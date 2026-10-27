@@ -115,10 +115,8 @@ def candidates_from_metadata(raw: object) -> list[WorkspaceBindCandidate]:
 def _candidates_from_codex_payload(
     loaded_payload: dict[str, object],
 ) -> list[WorkspaceBindCandidate]:
-    from app.services.project.workspace_path_resolve import (
-        WorkspacePathValidationError,
-        normalize_project_workspace_path,
-    )
+    from app.services.project.workspace_path_resolve import normalize_project_workspace_path
+    from app.services.workspace.workspace_path_policy import WorkspacePathValidationError
 
     raw_hints = loaded_payload.get("obsidian_vault_hints")
     hint_paths: list[str] = []
@@ -158,10 +156,8 @@ def _codex_vault_label(normalized_path: str) -> str:
 
 
 def _candidates_from_openclaw_root(root: Path) -> list[WorkspaceBindCandidate]:
-    from app.services.project.workspace_path_resolve import (
-        WorkspacePathValidationError,
-        normalize_project_workspace_path,
-    )
+    from app.services.project.workspace_path_resolve import normalize_project_workspace_path
+    from app.services.workspace.workspace_path_policy import WorkspacePathValidationError
 
     seen: set[str] = set()
     candidates: list[WorkspaceBindCandidate] = []

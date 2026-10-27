@@ -2,7 +2,7 @@
 
 [INPUT]
 - watchdog.observers::Observer (POS: cross-platform recursive directory watch)
-- myrm_agent_harness.agent.security.path_security::is_dangerous_path
+- app.services.workspace.workspace_path_policy::resolve_workspace_path
 - app.services.event.app_event_bus::get_event_bus, AppEvent, AppEventType
 
 [OUTPUT]
@@ -29,6 +29,7 @@ from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver, ObservedWatch
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+from app.services.workspace.workspace_path_policy import resolve_workspace_path
 
 logger = logging.getLogger(__name__)
 
@@ -64,19 +65,12 @@ def _path_has_ignored_dir_component(path: str) -> bool:
 
 
 def resolve_watchable_workspace_path(raw: str) -> str:
-    """Expand, validate, and canonicalize a workspace path for watching."""
-    from myrm_agent_harness.agent.security.path_security import is_dangerous_path
+    """Expand, validate, and canonicalize a folder for watching.
 
-    trimmed = raw.strip()
-    if not trimmed:
-        raise ValueError("workspace path is required")
-
-    resolved = os.path.realpath(os.path.expanduser(trimmed))
-    if is_dangerous_path(resolved):
-        raise ValueError(f"Access denied for path: {raw}")
-    if not os.path.isdir(resolved):
-        raise ValueError(f"Path is not a directory: {raw}")
-    return resolved
+    Watching only observes the folder, so a broad one (home) is fine here; binding it as a workspace
+    is gated separately by the workspace path policy.
+    """
+    return resolve_workspace_path(raw, require_directory=True, allow_broad=True)
 
 
 class _DebouncedWorkspaceHandler(FileSystemEventHandler):

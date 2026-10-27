@@ -16,6 +16,7 @@ from app.core.utils.errors import internal_error, not_found_error, validation_er
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.project.project_service import ProjectService
+from app.services.workspace.workspace_path_policy import WorkspacePathValidationError, workspace_path_http_error
 
 router = APIRouter()
 
@@ -78,6 +79,8 @@ async def create_project(req: ProjectCreateRequest) -> JSONResponse:
             workspace_path=req.workspace_path,
         )
         return success_response(data={"project": project})
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="workspace_path") from exc
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
     except Exception as e:
@@ -107,6 +110,8 @@ async def adopt_project_workspace(req: ProjectAdoptRequest) -> JSONResponse:
             workspace_path=raw_path,
         )
         return success_response(data={"project": project})
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="workspace_path") from exc
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
     except Exception as e:
@@ -148,6 +153,8 @@ async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResp
         if not project:
             raise not_found_error("Project")
         return success_response(data={"project": project})
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="workspace_path") from exc
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
     except HTTPException:

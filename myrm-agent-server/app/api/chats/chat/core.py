@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from math import ceil
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,6 +29,11 @@ from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
 from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
+)
+from app.services.workspace.workspace_path_policy import (
+    WorkspacePathValidationError,
+    resolve_workspace_path,
+    workspace_path_http_error,
 )
 
 router = APIRouter()
@@ -377,19 +381,12 @@ async def update_chat_workspace_dir(
             if not workspace_dir:
                 workspace_dir = None
             else:
-                from myrm_agent_harness.agent.security.path_security import (
-                    is_dangerous_path,
-                )
-
-                resolved = os.path.realpath(os.path.expanduser(workspace_dir))
-                if is_dangerous_path(resolved):
-                    raise validation_error(f"Path is not allowed as workspace: {workspace_dir}")
-                if not os.path.isdir(resolved):
-                    raise validation_error(f"Path does not exist or is not a directory: {workspace_dir}")
-                workspace_dir = resolved
+                workspace_dir = resolve_workspace_path(workspace_dir, require_directory=True)
 
         await ChatService.update_chat_fields(chat_id, {"workspace_dir": workspace_dir})
         return success_response(data={"workspace_dir": workspace_dir})
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="workspace_dir") from exc
     except HTTPException:
         raise
     except Exception as e:
@@ -690,4 +687,3 @@ async def update_chat_tags_endpoint(
         raise
     except Exception as e:
         raise internal_error(operation="Update chat tags", exception=e) from e
-

@@ -4,7 +4,7 @@
 - app.channels.types::TopicContext
 - app.database.dto::ChatDTO
 - app.services.chat.effective_workspace::resolve_effective_chat_workspace
-- app.services.workspace.file_watch_service::resolve_watchable_workspace_path
+- app.services.workspace.workspace_path_policy::resolve_workspace_path
 
 [OUTPUT]
 - sync_channel_chat_workspace: apply or clear topic project/path on chat.project_id or workspace_dir
@@ -79,10 +79,10 @@ async def sync_channel_chat_workspace(
         updates["project_id"] = topic_context.project_id
         updates["workspace_dir"] = None
     elif topic_context.authorized_path:
-        from app.services.workspace.file_watch_service import resolve_watchable_workspace_path
+        from app.services.workspace.workspace_path_policy import resolve_workspace_path
 
         try:
-            resolved_path = resolve_watchable_workspace_path(topic_context.authorized_path)
+            resolved_path = resolve_workspace_path(topic_context.authorized_path, require_directory=True)
         except ValueError as exc:
             raise ChannelWorkspaceSyncError(str(exc)) from exc
         updates["project_id"] = None

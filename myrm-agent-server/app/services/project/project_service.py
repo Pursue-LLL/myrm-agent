@@ -80,15 +80,9 @@ class ProjectService:
 
             normalized_path: str | None = None
             if workspace_path is not None and workspace_path.strip():
-                from app.services.project.workspace_path_resolve import (
-                    WorkspacePathValidationError,
-                    normalize_project_workspace_path,
-                )
+                from app.services.project.workspace_path_resolve import normalize_project_workspace_path
 
-                try:
-                    normalized_path = normalize_project_workspace_path(workspace_path) or None
-                except WorkspacePathValidationError as exc:
-                    raise ValueError(str(exc)) from exc
+                normalized_path = normalize_project_workspace_path(workspace_path) or None
 
             project = Project(
                 id=project_id,
@@ -137,16 +131,9 @@ class ProjectService:
             if color is not None:
                 project.color = color
             if workspace_path is not None:
-                from app.services.project.workspace_path_resolve import (
-                    WorkspacePathValidationError,
-                    normalize_project_workspace_path,
-                )
+                from app.services.project.workspace_path_resolve import normalize_project_workspace_path
 
-                try:
-                    normalized = normalize_project_workspace_path(workspace_path)
-                except WorkspacePathValidationError as exc:
-                    raise ValueError(str(exc)) from exc
-                project.workspace_path = normalized or None
+                project.workspace_path = normalize_project_workspace_path(workspace_path) or None
             if description is not None:
                 project.description = description.strip()
             if goal_summary is not None:

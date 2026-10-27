@@ -15,6 +15,7 @@ directly from chat sidebar or creation dialog with strict Prompt Cache affinity.
 
 from __future__ import annotations
 
+import io
 import logging
 from datetime import UTC, datetime
 from typing import Annotated
@@ -33,6 +34,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_db
 from app.database.models import Chat, Message
+from app.services.workspace.workspace_path_policy import (
+    WorkspacePathValidationError,
+    resolve_workspace_path,
+    workspace_path_http_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +79,7 @@ def _detect_and_parse_high_fidelity(
 
     if hint in {"claude", "claude_code"} or "tool_use" in raw_stripped or "<thinking>" in raw_stripped:
         try:
-            import io
-            parser = ClaudeTranscriptParser()
-            res = parser.parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
+            res = ClaudeTranscriptParser().parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
             if res.turns:
                 return res
         except Exception as e:
@@ -83,9 +87,7 @@ def _detect_and_parse_high_fidelity(
 
     if hint in {"codex", "codex_cli"} or '"role": "developer"' in raw_stripped:
         try:
-            import io
-            parser = CodexTranscriptParser()
-            res = parser.parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
+            res = CodexTranscriptParser().parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
             if res.turns:
                 return res
         except Exception as e:
@@ -93,9 +95,7 @@ def _detect_and_parse_high_fidelity(
 
     if hint in {"hermes"} or "hermes" in raw_stripped[:200].lower():
         try:
-            import io
-            parser = HermesTranscriptParser()
-            res = parser.parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
+            res = HermesTranscriptParser().parse_stream(io.StringIO(raw_content), default_session_id=default_session_id)
             if res.turns:
                 return res
         except Exception as e:
@@ -154,6 +154,29 @@ async def import_transcript_file(
     )
 
 
+def _import_workspace_dir(target_workspace: str | None, transcript_cwd: str | None) -> str | None:
+    """Workspace for the imported chat; None leaves it to the chat's own sandbox workspace.
+
+    An explicit target is refused loudly when it cannot be a workspace. The cwd a transcript records is
+    untrusted input, so an unusable one is dropped instead of becoming the sandbox write root.
+    """
+    explicit = (target_workspace or "").strip()
+    if explicit:
+        try:
+            return resolve_workspace_path(explicit, require_directory=True)
+        except WorkspacePathValidationError as exc:
+            raise workspace_path_http_error(exc, field="target_workspace") from exc
+
+    recorded = (transcript_cwd or "").strip()
+    if not recorded:
+        return None
+    try:
+        return resolve_workspace_path(recorded, require_directory=True)
+    except WorkspacePathValidationError as exc:
+        logger.warning("Ignoring transcript cwd as workspace (%s): %s", exc.issue.value, recorded)
+        return None
+
+
 async def _process_import(
     raw_content: str,
     source_hint: str | None,
@@ -178,7 +201,7 @@ async def _process_import(
         if title_override and title_override.strip()
         else (clean_res.session_title or "Imported Conversation")[:60]
     )
-    workspace_dir = target_workspace or clean_res.cwd or "/workspace"
+    workspace_dir = _import_workspace_dir(target_workspace, clean_res.cwd)
     now_utc = datetime.now(tz=UTC)
 
     first_msg = clean_res.turns[0].user_content if clean_res.turns else ""

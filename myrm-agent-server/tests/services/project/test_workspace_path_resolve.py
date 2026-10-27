@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 
-from app.services.project.workspace_path_resolve import (
-    WorkspacePathValidationError,
-    normalize_project_workspace_path,
-)
+from app.services.project.workspace_path_resolve import normalize_project_workspace_path
+from app.services.workspace.workspace_path_policy import WorkspacePathIssue, WorkspacePathValidationError
 
 
 def test_empty_clears_bind() -> None:
@@ -36,3 +37,15 @@ def test_rejects_relative_path() -> None:
 def test_rejects_dot_relative_path() -> None:
     with pytest.raises(WorkspacePathValidationError, match="absolute"):
         normalize_project_workspace_path("./local/dir")
+
+
+def test_rejects_home_directory_as_too_broad() -> None:
+    with pytest.raises(WorkspacePathValidationError) as excinfo:
+        normalize_project_workspace_path(str(Path.home()))
+    assert excinfo.value.issue is WorkspacePathIssue.TOO_BROAD
+
+
+def test_rejects_credential_directory_as_dangerous() -> None:
+    with pytest.raises(WorkspacePathValidationError) as excinfo:
+        normalize_project_workspace_path(os.path.join(Path.home(), ".ssh"))
+    assert excinfo.value.issue is WorkspacePathIssue.DANGEROUS
