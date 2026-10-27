@@ -1,4 +1,4 @@
-"""An ACP agent that goes quiet is reported as working; a missing ACP SDK is named instead of crashing the turn."""
+"""An ACP agent that goes quiet is reported as working; a missing ACP SDK ends the turn with a named error."""
 
 from __future__ import annotations
 

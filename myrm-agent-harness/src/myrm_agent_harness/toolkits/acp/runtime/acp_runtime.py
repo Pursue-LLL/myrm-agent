@@ -17,7 +17,7 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 ACP protocol runtime backend. Sends `session/close` only when the agent advertises it (ACP capability
 negotiation) and bounds it, so a silent agent cannot skip the transport teardown that terminates its process.
 A silent agent (one long tool call) is reported as still working at a fixed interval, as ``CliRuntime`` does, and a
-missing ACP SDK (the optional ``acp`` extra) is a named ``BACKEND_NOT_FOUND`` error instead of an import traceback.
+missing ACP SDK (the optional ``acp`` extra) ends the turn with a ``BACKEND_NOT_FOUND`` error that says how to install it.
 """
 
 from __future__ import annotations
