@@ -167,6 +167,8 @@ async def run_agent_loop(
         or getattr(getattr(agent_state, "config", None), "unattended_mode", False)
     )
     round_budget = effective_round_budget(getattr(agent_state, "config", None))
+    session_key = str(context.get("approval_session_key") or context.get("session_id") or "") if context else ""
+    set_approval_session(session_key)  # the guards reset below are looked up by this session
     reset_all_guards(
         is_resume=is_resume,
         # Guards derive their nudge rounds from the same budget the graph's step limit is made from.
@@ -230,8 +232,6 @@ async def run_agent_loop(
         set_agent_primary_model_slug(primary_model_slug)
         set_managed_approval_policy(get_process_managed_approval_policy())
         set_active_message_id(message_id)
-        session_key = str(context.get("approval_session_key") or context.get("session_id") or "") if context else ""
-        set_approval_session(session_key)
         # UECD spill paths and /files/evicted API use raw chat_id (context["chat_id"]),
         # not approval session_key (often "chat_{id}").
         if context:

@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - LoopAction, LoopVerdict: verdict types for loop detection with optional pattern kind
+- ITERATION_BUDGET_KIND: the ``loop_kind`` of the iteration-budget nudges
 - LoopKind, AgentPhase, SuccessLevel, SuggestionPriority: detection enums
 - WarningLevel, ErrorPattern, ToolGroup: analysis enums
 - VerificationCategory: verification evidence classification
@@ -47,6 +48,10 @@ class LoopVerdict:
 
 
 VERDICT_ALLOW = LoopVerdict(action=LoopAction.ALLOW, reason="", backoff_hint="")
+
+# The ``loop_kind`` of the iteration-budget nudges: they warn about the rounds a run has left, not about a
+# loop pattern, so the kind is not a ``LoopKind``.
+ITERATION_BUDGET_KIND = "iteration_budget"
 
 
 # ---------------------------------------------------------------------------

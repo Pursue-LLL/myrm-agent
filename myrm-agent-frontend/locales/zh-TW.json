@@ -3365,8 +3365,14 @@
       "closeButton": "關閉"
     },
     "spillover": {
-      "notice": "偵測到長文字（{chars} 字元），已自動轉存至工作區檔案以保持上下文整潔。",
-      "optimized": "已保護"
+      "notice": "長文字（{chars} 字元）：會隨此對話一併儲存，助理將從中讀取全文。"
+    },
+    "pastedText": {
+      "title": "貼上的長文字",
+      "meta": "{chars} 字元",
+      "viewFull": "檢視全文",
+      "expand": "展開全文",
+      "collapse": "收合"
     },
     "updateNudge": {
       "title": "有可用更新：{version}",
@@ -4241,6 +4247,11 @@
     "workflow_stage": "工作流階段更新",
     "waiting_for_turn": "正在等待專案中其他智慧體完成...",
     "iteration_limit_reached": "已達到迭代次數上限",
+    "loop_guard_warn": "進展似乎停滯，正在調整方向",
+    "loop_guard_warn_budget": "步數即將用盡，正在收尾",
+    "loop_guard_warn_repeat": "操作出現重複，正在換一種思路",
+    "loop_guard_break": "已中止重複循環",
+    "loop_guard_break_toast": "智慧體陷入重複操作，已自動停止。",
     "subagent_running": "子智慧體正在執行中",
     "swarm_fission": "並行裂變 ({count} 路任務)",
     "swarm_fission_running": "並行裂變執行中",

@@ -2,6 +2,7 @@ import type { StreamCtx } from '../streamContext';
 import { AgentEventType } from '../../types/agentStream/part1';
 import type { StatusStreamEvent } from '../../types/agentStream/part2';
 import * as H from './handlerDeps';
+import { LOOP_GUARD_BREAK_TOAST_KEY, isLoopGuardStep, loopGuardProgressStepKey } from './loopGuardStepKey';
 
 function requireStatusStreamEvent(event: StreamCtx['data']): StatusStreamEvent {
   if (event.type !== AgentEventType.STATUS) {
@@ -152,6 +153,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         : 'default';
     displayKey = `workflow_stage:${category}`;
   }
+  if (isLoopGuardStep(stepKey)) {
+    displayKey = loopGuardProgressStepKey(stepKey, data.data?.loop_kind);
+  }
   const itemText =
     (stepKey === 'model_failover' || stepKey === 'safety_fallback_active') && data.fallback_model
       ? data.fallback_model
@@ -249,7 +253,8 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       const progressStep: H.ProgressItem = {
         step_key: displayKey,
         items: data.items ?? (itemText ? [{ text: itemText }] : []),
-        tool_name: stepKey === 'archive_checkpoint' ? undefined : (data.tool_name ?? undefined),
+        tool_name:
+          stepKey === 'archive_checkpoint' || isLoopGuardStep(stepKey) ? undefined : (data.tool_name ?? undefined),
         status:
           stepKey === 'waiting_for_turn'
             ? undefined
@@ -436,13 +441,8 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
   }
 
   if (stepKey === 'loop_guard_break') {
-    const firstItem = data.items?.[0];
-    const breakMsg =
-      firstItem && typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem
-        ? String((firstItem as { text: string }).text)
-        : 'Agent loop detected and stopped.';
-    const { toast } = await import('@/lib/utils/toast');
-    toast.error(breakMsg, { duration: 8000 });
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    showI18nToast(LOOP_GUARD_BREAK_TOAST_KEY, undefined, { type: 'error', duration: 8000 });
   }
 
   if (stepKey === 'ux_warning_truncated') {

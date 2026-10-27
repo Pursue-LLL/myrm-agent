@@ -3374,8 +3374,14 @@
       "closeButton": "关闭"
     },
     "spillover": {
-      "notice": "检测到长文本（{chars} 字符），已自动转存至工作区文件以保持上下文整洁。",
-      "optimized": "已保护"
+      "notice": "长文本（{chars} 字符）：会随此会话一并保存，助手将从中读取全文。"
+    },
+    "pastedText": {
+      "title": "粘贴的长文本",
+      "meta": "{chars} 字符",
+      "viewFull": "查看全文",
+      "expand": "展开全文",
+      "collapse": "收起"
     },
     "updateNudge": {
       "title": "有可用更新：{version}",
@@ -4256,6 +4262,11 @@
     "workflow_stage": "工作流阶段更新",
     "waiting_for_turn": "正在等待项目中其他智能体完成...",
     "iteration_limit_reached": "已达到迭代次数上限",
+    "loop_guard_warn": "进展似乎停滞，正在调整方向",
+    "loop_guard_warn_budget": "步数即将用尽，正在收尾",
+    "loop_guard_warn_repeat": "操作出现重复，正在换一种思路",
+    "loop_guard_break": "已中止重复循环",
+    "loop_guard_break_toast": "智能体陷入重复操作，已自动停止。",
     "subagent_running": "子智能体正在运行中",
     "swarm_fission": "并行裂变 ({count} 路任务)",
     "swarm_fission_running": "并行裂变执行中",

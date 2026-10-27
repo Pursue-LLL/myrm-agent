@@ -51,6 +51,7 @@ from collections import deque
 from .detectors import LoopDetectorMixin
 from .suggestions import evaluate_success_level
 from .types import (
+    ITERATION_BUDGET_KIND,
     VERDICT_ALLOW,
     AgentPhase,
     CallRecord,
@@ -345,7 +346,7 @@ class LoopGuard(LoopDetectorMixin):
         """
         rounds, budget = self._rounds, self._round_budget
         used = f"{rounds * 100 // budget}% of your iteration budget ({rounds} of {budget} rounds)"
-        if self._rounds >= self._budget_critical and self._nudged < _NUDGED_CRITICAL:
+        if rounds >= self._budget_critical and self._nudged < _NUDGED_CRITICAL:
             self._nudged = _NUDGED_CRITICAL
             return LoopVerdict(
                 action=LoopAction.WARN,
@@ -355,8 +356,9 @@ class LoopGuard(LoopDetectorMixin):
                     f"final answer immediately."
                 ),
                 backoff_hint="Finalize work immediately. Stop exploring.",
+                loop_kind=ITERATION_BUDGET_KIND,
             )
-        if self._rounds >= self._budget_warn and self._nudged < _NUDGED_WARN:
+        if rounds >= self._budget_warn and self._nudged < _NUDGED_WARN:
             self._nudged = _NUDGED_WARN
             return LoopVerdict(
                 action=LoopAction.WARN,
@@ -366,6 +368,7 @@ class LoopGuard(LoopDetectorMixin):
                     f"the most critical remaining tasks."
                 ),
                 backoff_hint="Review original goal and prioritize critical tasks. Avoid getting stuck in details.",
+                loop_kind=ITERATION_BUDGET_KIND,
             )
         return VERDICT_ALLOW
 

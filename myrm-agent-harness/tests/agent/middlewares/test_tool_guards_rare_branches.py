@@ -390,7 +390,7 @@ class TestPreCallRareBranches:
                 {},
                 get_loop_guard_fn=lambda: _loop_guard(verdict),
             )
-        mock_emit.assert_called_once_with("sandbox_boundary", "bash_code_execute_tool", "Escaped sandbox", "error")
+        mock_emit.assert_called_once_with("sandbox_boundary", "bash_code_execute_tool", "sandbox_boundary", "error")
         assert isinstance(result, ToolMessage)
 
     @pytest.mark.asyncio
@@ -853,7 +853,7 @@ class TestPostCallRareBranches:
                 freq_verdict=_freq_allow(),
                 steering_token=None,
             )
-        mock_emit.assert_called_once_with("sandbox_boundary", "t", "boundary", "error")
+        mock_emit.assert_called_once_with("sandbox_boundary", "t", "sandbox_boundary", "error")
 
     @pytest.mark.asyncio
     async def test_freq_warn_warning_assembled(self) -> None:
@@ -913,6 +913,7 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.WARN
         post_verdict.reason = "repeated identical calls"
         post_verdict.backoff_hint = post_hint
+        post_verdict.loop_kind = "repetition"
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
         mock_emit = AsyncMock()
@@ -938,7 +939,7 @@ class TestPostCallRareBranches:
                 steering_token=None,
             )
         assert result.content == f"o\n\nLoop detected: {expected_hint}"
-        mock_emit.assert_called_once_with("loop_guard_warn", "t", "repeated identical calls", "warning")
+        mock_emit.assert_called_once_with("loop_guard_warn", "t", "repetition", "warning")
 
     @pytest.mark.asyncio
     async def test_loop_warn_without_hint_leaves_tool_message_untouched(self) -> None:

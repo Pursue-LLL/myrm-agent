@@ -3365,8 +3365,14 @@
       "closeButton": "閉じる"
     },
     "spillover": {
-      "notice": "長文テキスト（{chars} 文字）を検出しました。コンテキストを維持するため自動的にワークスペースファイルへ退避します。",
-      "optimized": "保護済み"
+      "notice": "長文テキスト（{chars} 文字）：このチャットに保存され、アシスタントはそこから全文を読み取ります。"
+    },
+    "pastedText": {
+      "title": "貼り付けた長文",
+      "meta": "{chars} 文字",
+      "viewFull": "全文を表示",
+      "expand": "すべて表示",
+      "collapse": "折りたたむ"
     },
     "updateNudge": {
       "title": "更新あり：{version}",
@@ -4241,6 +4247,11 @@
     "workflow_stage": "ワークフローステージを更新中",
     "waiting_for_turn": "プロジェクト内の他のエージェントの完了を待機中...",
     "iteration_limit_reached": "イテレーション制限に達しました",
+    "loop_guard_warn": "進行が止まっているようです。方針を調整しています",
+    "loop_guard_warn_budget": "ステップが残りわずかです。まとめに入ります",
+    "loop_guard_warn_repeat": "同じ操作を繰り返しています。別の方法を試します",
+    "loop_guard_break": "繰り返しループを停止しました",
+    "loop_guard_break_toast": "エージェントが同じ操作を繰り返したため停止しました。",
     "subagent_running": "サブエージェント実行中",
     "swarm_fission": "並列フィッション ({count} タスク)",
     "swarm_fission_running": "並列フィッション実行中",

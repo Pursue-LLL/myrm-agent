@@ -3374,8 +3374,14 @@
       "closeButton": "Close"
     },
     "spillover": {
-      "notice": "Large text detected ({chars} chars). Will automatically spill to workspace file to keep context clean.",
-      "optimized": "Protected"
+      "notice": "Long text ({chars} characters). It is saved with this chat and the assistant reads it from there."
+    },
+    "pastedText": {
+      "title": "Pasted text",
+      "meta": "{chars} characters",
+      "viewFull": "View full text",
+      "expand": "Show all",
+      "collapse": "Collapse"
     },
     "updateNudge": {
       "title": "Update available: {version}",
@@ -4256,6 +4262,11 @@
     "workflow_stage": "Workflow stage update",
     "waiting_for_turn": "Waiting for other agents in the project to finish...",
     "iteration_limit_reached": "Iteration limit reached",
+    "loop_guard_warn": "Progress looks stuck, adjusting course",
+    "loop_guard_warn_budget": "Running low on steps, wrapping up",
+    "loop_guard_warn_repeat": "Repeating the same steps, trying another approach",
+    "loop_guard_break": "Stopped a repeating loop",
+    "loop_guard_break_toast": "The agent kept repeating itself and was stopped.",
     "subagent_running": "Subagent running",
     "swarm_fission": "Parallel swarm fission ({count} tasks)",
     "swarm_fission_running": "Running parallel fission",

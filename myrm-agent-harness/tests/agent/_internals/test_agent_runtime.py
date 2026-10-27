@@ -534,6 +534,29 @@ class TestRunAgentLoopRoundBudget:
         assert "round_budget=round_budget" in keywords("reset_all_guards")
         assert "round_budget=round_budget" in keywords("StreamContext")
 
+    def test_the_session_is_bound_before_the_guards_are_reset(self) -> None:
+        """A run finds its own session's guard, and a resume finds its own window, only if the session is bound first."""
+        import ast
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[3] / "src/myrm_agent_harness/agent/_internals/agent_runtime.py"
+        ).read_text(encoding="utf-8")
+        run_agent_loop = next(
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "run_agent_loop"
+        )
+
+        def first_call_line(callee: str) -> int:
+            return min(
+                node.lineno
+                for node in ast.walk(run_agent_loop)
+                if isinstance(node, ast.Call) and ast.unparse(node.func) == callee
+            )
+
+        assert first_call_line("set_approval_session") < first_call_line("reset_all_guards")
+
 
 class TestRunAgentLoopOuterErrorFaultSide:
     """Regression: the outer-loop error_event must carry deterministic fault

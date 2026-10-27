@@ -3365,8 +3365,14 @@
       "closeButton": "Schließen"
     },
     "spillover": {
-      "notice": "Großer Text erkannt ({chars} Zeichen). Wird automatisch in die Workspace-Datei ausgelagert, um den Kontext sauber zu halten.",
-      "optimized": "Geschützt"
+      "notice": "Langer Text ({chars} Zeichen): Er wird mit diesem Chat gespeichert, und der Assistent liest ihn von dort."
+    },
+    "pastedText": {
+      "title": "Eingefügter Text",
+      "meta": "{chars} Zeichen",
+      "viewFull": "Volltext anzeigen",
+      "expand": "Alles anzeigen",
+      "collapse": "Einklappen"
     },
     "updateNudge": {
       "title": "Update verfügbar: {version}",
@@ -4241,6 +4247,11 @@
     "workflow_stage": "Workflow-Phasenaktualisierung",
     "waiting_for_turn": "Warten auf Abschluss anderer Agenten im Projekt...",
     "iteration_limit_reached": "Iterationslimit erreicht",
+    "loop_guard_warn": "Fortschritt stockt – Kurs wird angepasst",
+    "loop_guard_warn_budget": "Nur noch wenige Schritte übrig – Abschluss wird vorbereitet",
+    "loop_guard_warn_repeat": "Gleiche Schritte wiederholen sich – anderer Ansatz wird versucht",
+    "loop_guard_break": "Wiederholungsschleife gestoppt",
+    "loop_guard_break_toast": "Der Agent hat sich ständig wiederholt und wurde gestoppt.",
     "subagent_running": "Subagent läuft",
     "swarm_fission": "Parallele Swarm-Fission ({count} Aufgaben)",
     "swarm_fission_running": "Parallele Fission läuft",

@@ -85,8 +85,8 @@ logger = get_agent_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
-async def _emit_loop_guard_event(step_key: str, tool_name: str, reason: str, status: str) -> None:
-    """Emit a STATUS event to the frontend when LoopGuard triggers WARN/BREAK."""
+async def _emit_loop_guard_event(step_key: str, tool_name: str, loop_kind: str | None, status: str) -> None:
+    """Emit a STATUS event to the frontend when LoopGuard triggers WARN/BREAK; it names the kind, not the reason."""
     try:
         from myrm_agent_harness.utils.event_utils import dispatch_custom_event
 
@@ -96,7 +96,7 @@ async def _emit_loop_guard_event(step_key: str, tool_name: str, reason: str, sta
                 "step_key": step_key,
                 "tool_name": tool_name,
                 "status": status,
-                "items": [{"text": reason}],
+                "loop_kind": loop_kind,
             },
         )
     except Exception:
@@ -266,7 +266,7 @@ async def run_pre_call_guards(
         if loop_kind == "sandbox_boundary":
             record_decision(tool_name, "SANDBOX_BOUNDARY_ESCALATE", loop_verdict.reason, tool_call_id=tool_call_id)
             logger.warning("Sandbox boundary escalation: %s -- %s", tool_name, loop_verdict.reason)
-            await _emit_loop_guard_event("sandbox_boundary", tool_name, loop_verdict.reason, "error")
+            await _emit_loop_guard_event("sandbox_boundary", tool_name, loop_kind, "error")
             return make_error_msg(
                 tool_name,
                 tool_call_id,
@@ -277,7 +277,7 @@ async def run_pre_call_guards(
 
         record_decision(tool_name, "LOOP_BREAK", loop_verdict.reason, tool_call_id=tool_call_id)
         logger.warning("Loop break: %s -- %s", tool_name, loop_verdict.reason)
-        await _emit_loop_guard_event("loop_guard_break", tool_name, loop_verdict.reason, "error")
+        await _emit_loop_guard_event("loop_guard_break", tool_name, loop_kind, "error")
         return make_error_msg(
             tool_name,
             tool_call_id,
@@ -288,7 +288,7 @@ async def run_pre_call_guards(
     if loop_verdict.action == LoopAction.WARN:
         record_decision(tool_name, "LOOP_WARN", loop_verdict.reason, tool_call_id=tool_call_id)
         logger.warning("Loop warning: %s -- %s", tool_name, loop_verdict.reason)
-        await _emit_loop_guard_event("loop_guard_warn", tool_name, loop_verdict.reason, "warning")
+        await _emit_loop_guard_event("loop_guard_warn", tool_name, loop_verdict.loop_kind, "warning")
 
     turn_budget_guard = get_tool_turn_budget_guard()
     turn_budget_units = resolve_turn_budget_units(tool_name, tool_args)
@@ -623,15 +623,15 @@ async def run_post_call_guards(
         if post_loop_kind == "sandbox_boundary":
             record_decision(tool_name, "SANDBOX_BOUNDARY_ESCALATE", post_verdict.reason, tool_call_id=tool_call_id)
             logger.warning("Sandbox boundary (post-call): %s -- %s", tool_name, post_verdict.reason)
-            await _emit_loop_guard_event("sandbox_boundary", tool_name, post_verdict.reason, "error")
+            await _emit_loop_guard_event("sandbox_boundary", tool_name, post_loop_kind, "error")
         else:
             record_decision(tool_name, "LOOP_BREAK", post_verdict.reason, tool_call_id=tool_call_id)
             logger.warning("Loop output break: %s -- %s", tool_name, post_verdict.reason)
-            await _emit_loop_guard_event("loop_guard_break", tool_name, post_verdict.reason, "error")
+            await _emit_loop_guard_event("loop_guard_break", tool_name, post_loop_kind, "error")
     elif post_verdict.action == LoopAction.WARN:
         record_decision(tool_name, "LOOP_WARN", post_verdict.reason, tool_call_id=tool_call_id)
         logger.warning("Loop output warning: %s -- %s", tool_name, post_verdict.reason)
-        await _emit_loop_guard_event("loop_guard_warn", tool_name, post_verdict.reason, "warning")
+        await _emit_loop_guard_event("loop_guard_warn", tool_name, post_verdict.loop_kind, "warning")
 
     freq_guard.record(tool_name)
 

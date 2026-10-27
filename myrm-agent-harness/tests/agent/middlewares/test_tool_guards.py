@@ -39,7 +39,7 @@ class TestEmitLoopGuardEvent:
             "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
             mock_dispatch,
         ):
-            await _emit_loop_guard_event("loop_guard_warn", "bash_code_execute_tool", "Repetition detected", "warning")
+            await _emit_loop_guard_event("loop_guard_warn", "bash_code_execute_tool", "repetition", "warning")
 
         mock_dispatch.assert_called_once_with(
             "agent_status",
@@ -47,7 +47,7 @@ class TestEmitLoopGuardEvent:
                 "step_key": "loop_guard_warn",
                 "tool_name": "bash_code_execute_tool",
                 "status": "warning",
-                "items": [{"text": "Repetition detected"}],
+                "loop_kind": "repetition",
             },
         )
 
@@ -59,7 +59,7 @@ class TestEmitLoopGuardEvent:
             "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
             mock_dispatch,
         ):
-            await _emit_loop_guard_event("loop_guard_break", "file_write", "No-progress polling", "error")
+            await _emit_loop_guard_event("loop_guard_break", "file_write", "no_progress", "error")
 
         mock_dispatch.assert_called_once_with(
             "agent_status",
@@ -67,7 +67,7 @@ class TestEmitLoopGuardEvent:
                 "step_key": "loop_guard_break",
                 "tool_name": "file_write",
                 "status": "error",
-                "items": [{"text": "No-progress polling"}],
+                "loop_kind": "no_progress",
             },
         )
 
@@ -79,7 +79,7 @@ class TestEmitLoopGuardEvent:
             "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
             mock_dispatch,
         ):
-            await _emit_loop_guard_event("loop_guard_break", "bash_code_execute_tool", "reason", "error")
+            await _emit_loop_guard_event("loop_guard_break", "bash_code_execute_tool", "repetition", "error")
 
     @pytest.mark.asyncio
     async def test_swallows_import_error(self) -> None:
@@ -88,7 +88,7 @@ class TestEmitLoopGuardEvent:
             "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
             side_effect=ImportError("module not found"),
         ):
-            await _emit_loop_guard_event("loop_guard_warn", "tool", "reason", "warning")
+            await _emit_loop_guard_event("loop_guard_warn", "tool", "repetition", "warning")
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ class TestPreCallGuardsEmitEvent:
         mock_emit.assert_called_once_with(
             "loop_guard_break",
             "bash_code_execute_tool",
-            "Repetition pattern on bash_tool",
+            "repetition",
             "error",
         )
         assert isinstance(result, ToolMessage)
@@ -179,6 +179,7 @@ class TestPreCallGuardsEmitEvent:
         mock_verdict.action = LoopAction.WARN
         mock_verdict.reason = "Ping-pong oscillation detected"
         mock_verdict.backoff_hint = "Vary your approach"
+        mock_verdict.loop_kind = "ping_pong"
 
         mock_loop_guard = MagicMock()
         mock_loop_guard.pre_check.return_value = mock_verdict
@@ -261,7 +262,7 @@ class TestPreCallGuardsEmitEvent:
         mock_emit.assert_called_once_with(
             "loop_guard_warn",
             "bash_code_execute_tool",
-            "Ping-pong oscillation detected",
+            "ping_pong",
             "warning",
         )
         assert isinstance(result, PreCallResult)
@@ -333,6 +334,7 @@ class TestPostCallGuardsEmitEvent:
         post_verdict.action = LoopAction.BREAK
         post_verdict.reason = "Output diminishing pattern"
         post_verdict.backoff_hint = "Check output"
+        post_verdict.loop_kind = "output_diminishing"
 
         mock_loop_guard = MagicMock()
         mock_loop_guard.record_result.return_value = post_verdict
@@ -417,7 +419,7 @@ class TestPostCallGuardsEmitEvent:
         mock_emit.assert_called_once_with(
             "loop_guard_break",
             "bash_code_execute_tool",
-            "Output diminishing pattern",
+            "output_diminishing",
             "error",
         )
 
@@ -430,6 +432,7 @@ class TestPostCallGuardsEmitEvent:
         post_verdict.action = LoopAction.WARN
         post_verdict.reason = "Consecutive failures detected"
         post_verdict.backoff_hint = "Check error patterns"
+        post_verdict.loop_kind = "consecutive_failures"
 
         mock_loop_guard = MagicMock()
         mock_loop_guard.record_result.return_value = post_verdict
@@ -514,7 +517,7 @@ class TestPostCallGuardsEmitEvent:
         mock_emit.assert_called_once_with(
             "loop_guard_warn",
             "file_write",
-            "Consecutive failures detected",
+            "consecutive_failures",
             "warning",
         )
 

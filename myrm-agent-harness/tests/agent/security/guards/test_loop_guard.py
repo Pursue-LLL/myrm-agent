@@ -463,6 +463,7 @@ class TestIterationBudget:
         assert "35 of 50 rounds" in warn
         assert "CRITICAL" in critical
         assert "90%" in critical
+        assert {verdict.loop_kind for _, verdict in nudges} == {"iteration_budget"}
 
     def test_running_past_the_budget_stops_nothing(self) -> None:
         """Ending the run is the graph's job: it ends with its own limit event, not with a guard exception."""
@@ -500,8 +501,10 @@ class TestIterationBudget:
 
         assert crowded.action == LoopAction.WARN
         assert "iteration budget" not in crowded.reason
+        assert crowded.loop_kind != "iteration_budget"
         assert carrier.action == LoopAction.WARN
         assert "iteration budget" in carrier.reason
+        assert carrier.loop_kind == "iteration_budget"
 
     @pytest.mark.parametrize("resume", [False, True], ids=["new-run", "resumed-run"])
     def test_a_run_starts_its_rounds_from_zero(self, resume: bool) -> None:
