@@ -100,7 +100,10 @@ def _classify_response(response: httpx.Response) -> JsonObject:
         raise ImaAuthError(f"ima rejected the credentials (HTTP {status})")
     if status == 429:
         retry_after = response.headers.get("retry-after", "")
-        pause = float(retry_after) if retry_after.isdigit() else _DEFAULT_RATE_LIMIT_PAUSE_S
+        # ``str.isdigit`` also accepts digits ``float`` rejects (superscripts), so only plain ASCII seconds count;
+        # an HTTP-date or anything else falls back to the default pause.
+        is_seconds = retry_after.isascii() and retry_after.isdigit()
+        pause = float(retry_after) if is_seconds else _DEFAULT_RATE_LIMIT_PAUSE_S
         raise ImaRateLimitError("ima rate limit reached", retry_after_s=pause)
     if status >= 500 or status == 408:
         raise ImaTransientError(f"ima server error (HTTP {status})")

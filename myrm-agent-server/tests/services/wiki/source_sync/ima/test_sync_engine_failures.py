@@ -6,10 +6,10 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
-from app.services.wiki.source_sync.ima import content as content_module
 from app.services.wiki.source_sync.ima import engine
 from app.services.wiki.source_sync.ima.engine import run_slice
 from app.services.wiki.source_sync.ima.errors import (
@@ -59,8 +59,13 @@ async def test_auth_failure_stops_without_a_retry_and_a_later_clean_pass_clears_
     assert state.needs_reauth is False and state.last_error_kind == ""
 
 
-@pytest.mark.parametrize(("server_hint", "expected"), [(5.0, 30.0), (300.0, 300.0), (None, 30.0)])
-async def test_rate_limit_pauses_for_the_longer_of_the_hint_and_the_floor(
+# 120000 is a hint of 120 s sent in milliseconds: the pause may not grow with it past the cap.
+@pytest.mark.parametrize(
+    ("server_hint", "expected"),
+    [(5.0, 30.0), (300.0, 300.0), (None, 30.0), (120_000.0, 3600.0), (float("inf"), 3600.0)],
+    ids=["below-floor", "in-range", "no-hint", "milliseconds-in-a-seconds-header", "infinite"],
+)
+async def test_rate_limit_pause_follows_the_hint_between_the_floor_and_the_cap(
     tmp_path: Path, downloads: Downloads, server_hint: float | None, expected: float
 ) -> None:
     fake, state = library(), ImaSyncState()
@@ -111,7 +116,7 @@ async def test_dead_web_pages_are_item_failures_and_do_not_stall_the_pass(
     async def crawl(url: str, *, allow_escalation: bool) -> None:
         return None
 
-    monkeypatch.setattr(content_module.web_fetch_tools, "crawl", crawl)
+    monkeypatch.setattr(web_fetch_tools, "crawl", crawl)
     fake, state = FakeIma(), ImaSyncState()
     ids = [f"w{i}" for i in range(8)]
     fake.pages[("kb1", "")] = page(*(entry(media_id, f"Page {media_id}", media_type=2) for media_id in ids))

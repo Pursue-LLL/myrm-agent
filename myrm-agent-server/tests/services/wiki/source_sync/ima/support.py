@@ -166,7 +166,9 @@ def library() -> FakeIma:
     )
 
 
-async def run_pass(fake: FakeIma, root: Path, state: ImaSyncState, config=None, *, max_slices: int = 8) -> SliceOutcome:
+async def run_pass(
+    fake: FakeIma, root: Path, state: ImaSyncState, config: ImaSyncConfig | None = None, *, max_slices: int = 8
+) -> SliceOutcome:
     config = config or library_config()
     outcome = await run_slice(make_ctx(fake, root, config=config, state=state))
     for _ in range(max_slices):

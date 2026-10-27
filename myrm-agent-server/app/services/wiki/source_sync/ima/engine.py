@@ -33,7 +33,9 @@ SLICE_BUDGET_S = 300.0
 _SLICE_GAP_S = 5.0
 _MIN_RATE_LIMIT_PAUSE_S = 30.0
 _BACKOFF_BASE_S = 120.0
-_BACKOFF_CAP_S = 3600.0
+# The longest pause the engine ever asks the scheduler for, whether it comes from a failure backoff or from
+# the hint in a rate-limit answer: the hint is remote input, and an unbounded one would park the job.
+_MAX_PAUSE_S = 3600.0
 # Pauses that a later clean slice resolves; per-library failures recorded during inventory stay until the next pass.
 _RECOVERABLE_KINDS = frozenset({"auth", "rate_limit", "transient", "page_unavailable", "internal"})
 
@@ -50,7 +52,7 @@ class SliceOutcome:
 
 
 def _backoff_s(streak: int) -> float:
-    return min(_BACKOFF_CAP_S, _BACKOFF_BASE_S * float(2 ** min(streak, 5)))
+    return min(_MAX_PAUSE_S, _BACKOFF_BASE_S * float(2 ** min(streak, 5)))
 
 
 def _note_clean_progress(ctx: SyncContext) -> None:
@@ -102,7 +104,7 @@ async def run_slice(ctx: SyncContext) -> SliceOutcome:
         return outcome(retry_after_s=None, error_kind="auth")
     except ImaRateLimitError as exc:
         state.last_error_kind = exc.kind
-        pause_s = max(exc.retry_after_s or 0.0, _MIN_RATE_LIMIT_PAUSE_S)
+        pause_s = min(max(exc.retry_after_s or 0.0, _MIN_RATE_LIMIT_PAUSE_S), _MAX_PAUSE_S)
         logger.warning("ima sync paused %.0fs by a rate limit: %s", pause_s, exc)
         await ctx.persist_state(force=True)
         return outcome(retry_after_s=pause_s, error_kind=exc.kind)
