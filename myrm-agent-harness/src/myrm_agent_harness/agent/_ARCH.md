@@ -81,7 +81,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `creator_mode/` | 自然语言创造模式预设合成器、沙盒防御校验与多端漫游网关 (Item 39) | - |
 | `dynamic_workflow/` | LLM-generated PTC orchestration scripts | [DYNAMIC_WORKFLOW_SYSTEM.md](dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) |
 | `deep_research/` | Multi-phase deep research orchestrator | [DEEP_RESEARCH_SYSTEM.md](deep_research/DEEP_RESEARCH_SYSTEM.md) |
-| `orchestration/` | Control-plane signals + runtime hooks (not Action Tools) | [orchestration/_ARCH.md](orchestration/_ARCH.md) |
+| `orchestration/` | Control-plane signals (not Action Tools) | [orchestration/_ARCH.md](orchestration/_ARCH.md) |
 | `errors/` | Execution errors + diagnostics | [ERROR_SYSTEM.md](errors/ERROR_SYSTEM.md) |
 | `event_log/` | Full event history (complements checkpointer) | [EVENT_LOG_SYSTEM.md](event_log/EVENT_LOG_SYSTEM.md) |
 | `extensions/` | Harness `AgentExtension` Protocol | [extensions/_ARCH.md](extensions/_ARCH.md) |

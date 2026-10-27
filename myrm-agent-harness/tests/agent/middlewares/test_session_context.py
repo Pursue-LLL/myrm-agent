@@ -117,7 +117,7 @@ class TestActiveToolRegistrySessionFallback:
     run_agent_loop publishes the agent ToolRegistry via ContextVar, but LangGraph
     executes graph nodes in copied contexts where that ContextVar is None.
     The session-key fallback (mirroring the loop-guard pattern) must still
-    resolve runtime-only hooks such as ``_completion_check``.
+    resolve runtime-only tools a middleware injects.
     """
 
     @pytest.fixture(autouse=True)

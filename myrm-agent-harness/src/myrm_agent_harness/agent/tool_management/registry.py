@@ -8,7 +8,7 @@
 - .tool_layers::ToolLayer (POS: CORE HIGH_PRIORITY EXTENDED EXTERNAL cache ordering)
 
 [OUTPUT]
-- ToolRegistry: register / register_runtime_hook → resolve / snapshot pipeline
+- ToolRegistry: register → resolve / snapshot pipeline
 
 [POS]
 Replaces scattered ``_deduplicate_tools()`` + ``sort_tools()`` in BaseAgent/SkillAgent.
@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from myrm_agent_harness.agent.orchestration.hooks import is_runtime_hook
 from myrm_agent_harness.agent.tool_management.tool_catalog import get_tool_product_id
 from myrm_agent_harness.agent.tool_management.tool_layers import (
     _TOOL_LAYERS,
@@ -116,8 +115,8 @@ class ToolRegistry:
             built-in tools.
         bind_mode:
             ``TURN1``: bound on first model turn.
-            ``RUNTIME_ONLY``: internal hooks (e.g. ``_completion_check``);
-            excluded from Turn1; executable when middleware injects tool_calls.
+            ``RUNTIME_ONLY``: internal tools a middleware injects as tool_calls;
+            excluded from Turn1 and from the layer registry.
         replay_safety:
             ReplaySafety classification (SAFE / NEVER). Defaults to lookup in
             SSOT _TOOL_REPLAY_SAFETY, falling back to NEVER.
@@ -125,7 +124,12 @@ class ToolRegistry:
         resolved_layer = layer if layer is not None else get_tool_layer(tool.name)
         resolved_safety = replay_safety if replay_safety is not None else get_tool_replay_safety(tool.name)
 
-        if tool.name not in _TOOL_LAYERS and layer is None and provider is None and not is_runtime_hook(tool.name):
+        if (
+            tool.name not in _TOOL_LAYERS
+            and layer is None
+            and provider is None
+            and bind_mode is not ToolBindMode.RUNTIME_ONLY
+        ):
             logger.warning(
                 "Tool '%s' (source=%s) not in harness _TOOL_LAYERS registry, "
                 "defaulting to EXTERNAL. Register harness tools in tool_layers.py "
@@ -145,18 +149,6 @@ class ToolRegistry:
                 replay_safety=resolved_safety,
             )
         )
-
-    def register_runtime_hook(
-        self,
-        tool: BaseTool,
-        *,
-        source: ToolSource = ToolSource.MIDDLEWARE,
-    ) -> None:
-        """Register a middleware runtime hook (RUNTIME_ONLY, excluded from action-tool layers)."""
-        if not is_runtime_hook(tool.name):
-            msg = f"register_runtime_hook: '{tool.name}' is not in RUNTIME_HOOK_NAMES SSOT"
-            raise ValueError(msg)
-        self.register(tool, source=source, bind_mode=ToolBindMode.RUNTIME_ONLY)
 
     def register_many(
         self,

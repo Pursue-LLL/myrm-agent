@@ -124,10 +124,6 @@ class TestShouldApplyValidation:
         assert not should_apply_validation("file_write_tool")
         assert not should_apply_validation("file_edit_tool")
 
-    def test_runtime_hook_skipped(self):
-        """The completion guard's own directive is harness text, not tool output."""
-        assert not should_apply_validation("_completion_check")
-
 
 class TestValidationResult:
     """Tests for ValidationResult dataclass."""

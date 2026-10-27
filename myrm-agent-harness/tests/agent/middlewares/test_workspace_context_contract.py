@@ -26,6 +26,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     reset_completion_guard,
 )
 from myrm_agent_harness.agent.middlewares.progress_middleware import progress_middleware
+from tests.support.completion_guard_harness import reasons_of
 from tests.support.run_context import real_run_context
 
 _LOOP_GUARD = "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard"
@@ -75,7 +76,7 @@ async def test_completion_guard_stages_unwritten_deliverables_in_the_run_workspa
         await guard.aafter_model(state, runtime)
         forced = await guard.aafter_model(state, runtime)
 
-    args = forced["messages"][0].tool_calls[0]["args"]
-    assert args["force_fail"] is True
-    assert args["workspace_root"] == str(tmp_path)
+    held = reasons_of(forced)
+    assert held.forced_finish
+    assert len(held.staged_artifacts) == 1
     assert list((tmp_path / ".myrm" / "staged_artifacts").glob("*draft_worker.py"))

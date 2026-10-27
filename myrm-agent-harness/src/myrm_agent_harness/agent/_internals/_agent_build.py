@@ -71,15 +71,24 @@ def build_middlewares(
     """Build the full middleware chain for a BaseAgent.
 
     The ordering matters: dedup -> dangling -> subagent-limit -> interceptor ->
-    clarification-guard -> approval -> completion -> progress -> goal-focus -> replan ->
-    call-limits -> budget -> security -> user -> safety -> skill-attenuation -> debug.
-    SkillAttenuationMiddleware is last so its awrap_tool_call can resolve dynamic tools.
+    approval -> clarification-guard -> completion -> progress -> goal-focus -> replan ->
+    call-limits -> budget -> security -> user -> completion-directive -> safety ->
+    skill-attenuation -> debug.
+    LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
+    response meets the completion guard first, the clarification guard next and tool approval
+    last: a call the guards hold back or strip is never put to the user for approval.
+    SkillAttenuationMiddleware sits after the safety dispatcher so its awrap_tool_call can resolve
+    dynamic tools; the completion directive sits innermost of the middlewares that rewrite the
+    request, so the others append to the user's own message.
     """
     from myrm_agent_harness.agent.middlewares.approval.guidance_delivery import (
         approval_guidance_delivery,
     )
     from myrm_agent_harness.agent.middlewares.clarification_guard_middleware import (
         ClarificationGuardMiddleware,
+    )
+    from myrm_agent_harness.agent.middlewares.completion.completion_directive_middleware import (
+        CompletionDirectiveMiddleware,
     )
     from myrm_agent_harness.agent.middlewares.goal_focus_middleware import (
         goal_focus_middleware,
@@ -106,8 +115,8 @@ def build_middlewares(
         subagent_limit_middleware,
         tool_interceptor_middleware,
         approval_guidance_delivery,
-        ClarificationGuardMiddleware(),
         ToolApprovalMiddleware(),
+        ClarificationGuardMiddleware(),
         CompletionGuard(capabilities=capabilities),
     ]
 
@@ -150,6 +159,7 @@ def build_middlewares(
     )
 
     middlewares.extend(user_middlewares)
+    middlewares.append(CompletionDirectiveMiddleware())
     middlewares.append(create_safety_dispatcher())
     middlewares.append(SkillAttenuationMiddleware(registry))
     middlewares.append(debug_logger_middleware)

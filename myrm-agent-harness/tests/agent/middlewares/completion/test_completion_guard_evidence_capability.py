@@ -17,7 +17,10 @@ from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
-from myrm_agent_harness.agent.middlewares.completion.completion_check_tool import _completion_check_tool
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
+    BlockReasons,
+    render_completion_directive,
+)
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     CompletionGuard,
     reset_completion_guard,
@@ -26,8 +29,8 @@ from myrm_agent_harness.agent.tool_management import ToolSource
 from tests.support.completion_guard_harness import (
     CountingModel,
     built_guard,
-    hook_args,
     named_tool,
+    reasons_of,
     registry_of,
     run_agent,
     runtime,
@@ -58,9 +61,9 @@ class TestGuardDecision:
         guard = CompletionGuard(capabilities=CompletionCapabilities(can_gather_evidence=lambda: False))
         messages = state(_REQUEST, _FROM_MEMORY)
 
-        first = hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert first["evidence_unreachable"] is True
-        assert "今天最新的 AI 新闻" in str(first["evidence_reason"])
+        first = reasons_of(await verdict(guard, messages, runtime(tmp_path)))
+        assert first.evidence_unreachable is True
+        assert "今天最新的 AI 新闻" in first.evidence
         assert await verdict(guard, messages, runtime(tmp_path)) is None
 
     @pytest.mark.asyncio
@@ -70,29 +73,31 @@ class TestGuardDecision:
         guard = CompletionGuard(max_rejections=2)
         messages = state(_REQUEST, _FROM_MEMORY)
 
-        assert "evidence_unreachable" not in hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert "evidence_unreachable" not in hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert hook_args(await verdict(guard, messages, runtime(tmp_path)))["force_fail"] is True
+        assert not reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
+        assert not reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
+        assert reasons_of(await verdict(guard, messages, runtime(tmp_path))).forced_finish is True
 
     @pytest.mark.asyncio
     async def test_the_evidence_demand_is_dropped_but_another_critical_error_still_blocks(self, tmp_path: Path) -> None:
         guard = CompletionGuard(capabilities=CompletionCapabilities(can_gather_evidence=lambda: False))
         messages = state(_REQUEST, "我已经运行了测试，全部通过。今天的新闻如下。")
 
-        first = hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        second = hook_args(await verdict(guard, messages, runtime(tmp_path)))
+        first = reasons_of(await verdict(guard, messages, runtime(tmp_path)))
+        second = reasons_of(await verdict(guard, messages, runtime(tmp_path)))
 
-        assert first["evidence_unreachable"] is True
-        assert "evidence_reason" not in second
-        assert "execution_claim_reason" in second
+        assert first.evidence_unreachable is True
+        assert second.evidence == ""
+        assert second.execution_claim != ""
 
 
-class TestHookText:
+class TestDirectiveText:
     """What the model reads when the evidence demand cannot be met."""
 
     def test_it_is_asked_to_say_plainly_it_could_not_look_this_up(self) -> None:
-        text = _completion_check_tool.invoke(
-            {"evidence_reason": "latest user request hints external/freshness need: 'x'", "evidence_unreachable": True}
+        text = render_completion_directive(
+            BlockReasons(evidence="latest user request hints external/freshness need: 'x'", evidence_unreachable=True),
+            records=[],
+            workspace_root=None,
         )
 
         assert "no tool" in text
@@ -100,8 +105,10 @@ class TestHookText:
         assert "run at least one successful evidence step" not in text
 
     def test_a_run_that_can_gather_evidence_is_still_told_to_gather_it(self) -> None:
-        text = _completion_check_tool.invoke(
-            {"evidence_reason": "latest user request hints external/freshness need: 'x'"}
+        text = render_completion_directive(
+            BlockReasons(evidence="latest user request hints external/freshness need: 'x'"),
+            records=[],
+            workspace_root=None,
         )
 
         assert "run at least one successful evidence step" in text
@@ -118,7 +125,7 @@ class TestBuiltChainProbe:
         guard = built_guard(registry_of([named_tool(name) for name in _FILE_TOOLS]))
         messages = state(_REQUEST, _FROM_MEMORY)
 
-        assert hook_args(await verdict(guard, messages, runtime(tmp_path)))["evidence_unreachable"] is True
+        assert reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable is True
         assert await verdict(guard, messages, runtime(tmp_path)) is None
 
     @pytest.mark.asyncio
@@ -129,10 +136,10 @@ class TestBuiltChainProbe:
         guard = built_guard(registry_of([named_tool("file_read_tool"), named_tool(evidence_tool)]))
         messages = state(_REQUEST, _FROM_MEMORY)
 
-        assert "evidence_reason" in hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        second = hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert "evidence_reason" in second
-        assert "evidence_unreachable" not in second
+        assert reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence
+        second = reasons_of(await verdict(guard, messages, runtime(tmp_path)))
+        assert second.evidence
+        assert not second.evidence_unreachable
 
     @pytest.mark.asyncio
     async def test_a_run_with_a_shell_keeps_being_asked_because_it_may_reach_an_mcp_server(
@@ -141,8 +148,8 @@ class TestBuiltChainProbe:
         guard = built_guard(registry_of([named_tool("bash_code_execute_tool")]))
         messages = state(_REQUEST, _FROM_MEMORY)
 
-        assert "evidence_unreachable" not in hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert "evidence_unreachable" not in hook_args(await verdict(guard, messages, runtime(tmp_path)))
+        assert not reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
+        assert not reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
 
     @pytest.mark.asyncio
     async def test_the_tools_are_read_at_call_time_because_the_registry_is_filled_after_the_chain_is_built(
@@ -151,11 +158,11 @@ class TestBuiltChainProbe:
         registry = registry_of([])
         guard = built_guard(registry)
         messages = state(_REQUEST, _FROM_MEMORY)
-        assert "evidence_unreachable" in hook_args(await verdict(guard, messages, runtime(tmp_path)))
+        assert reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
 
         registry.register(named_tool("web_search_tool"), source=ToolSource.META)
 
-        assert "evidence_unreachable" not in hook_args(await verdict(guard, messages, runtime(tmp_path)))
+        assert not reasons_of(await verdict(guard, messages, runtime(tmp_path))).evidence_unreachable
 
     @pytest.mark.asyncio
     async def test_a_question_without_a_freshness_hint_is_not_held_to_evidence(self, tmp_path: Path) -> None:

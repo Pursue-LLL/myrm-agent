@@ -24,7 +24,8 @@ and inline deliverables stay clean).
 - agent.security.guards.loop_guard::CallRecord (POS: 工具调用记录)
 
 [OUTPUT]
-- current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁与"已请求如实声明无法核实"标记
+- current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁、"已请求如实声明无法核实"标记与待交付的拦截指令
+- PendingDirective: 拦截后欠模型的一条指令，仅在被拦草稿仍是最后一条消息时交付
 - isolated_run_state: 嵌套运行（子 agent）期间与调用方回合隔离，结束时不留痕
 - publish_disclosure / pop_run_disclosure / publish_tier_disclosure: 每轮披露载荷的写入与取用
 - attach_disclosure_to_event(): 把披露载荷挂到 message_end 事件
@@ -39,6 +40,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
     resolve_deliverable_tier,
     should_disclose_tier,
@@ -50,9 +52,22 @@ UNBOUND_RUN_KEY = ""
 _NESTED_RUN_KEY_PREFIX = "nested:"
 
 
+@dataclass(frozen=True, slots=True)
+class PendingDirective:
+    """The instruction owed to the model after the guard held a draft back, with the reasons it answers.
+
+    It is delivered with the next model request only while the held-back draft is still the last message, so a
+    later request never carries a stale instruction; it is never stored in the conversation.
+    """
+
+    draft_id: str | None
+    text: str
+    reasons: BlockReasons
+
+
 @dataclass(slots=True)
 class RunGuardState:
-    """Rejection budget, forced-finish latch, evidence-disclosure request and evidence ledger for one turn.
+    """Rejection budget, pending directive, forced-finish latch, disclosure request and evidence ledger for one turn.
 
     A turn can run in several segments (HITL resume, retry, continuation). The
     disclosure must describe what the *turn* produced, so the evidence recorded
@@ -61,6 +76,7 @@ class RunGuardState:
     """
 
     rejections: int = 0
+    pending_directive: PendingDirective | None = None
     forced_finish: bool = False
     evidence_disclosure_requested: bool = False
     evidence: list[CallRecord] = field(default_factory=list)
@@ -191,6 +207,7 @@ def attach_disclosure_to_event(event: dict[str, object], message_id: str) -> Non
 __all__ = [
     "RUN_STATE_LIMIT",
     "UNBOUND_RUN_KEY",
+    "PendingDirective",
     "RunGuardState",
     "attach_disclosure_to_event",
     "current_run_state",

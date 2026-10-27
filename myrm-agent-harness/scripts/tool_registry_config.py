@@ -3,8 +3,7 @@
 Centralizes scan roots, whitelists, and exemption rules used by
 `tool_registry_engine` and `validate_tool_registry` CLI.
 
-Must stay aligned with ``agent/orchestration/signals/catalog.py`` and
-``agent/orchestration/hooks.py`` (orchestration signals + runtime hooks).
+Must stay aligned with ``agent/orchestration/signals/catalog.py`` (orchestration signals).
 """
 
 from __future__ import annotations
@@ -40,10 +39,9 @@ PTC_RUNTIME_TOOL_NAMES: frozenset[str] = frozenset(
 
 INTERNAL_TOOL_PREFIXES: tuple[str, ...] = ("_",)
 
-# Orchestration signals + runtime hooks — excluded from _TOOL_LAYERS (see agent/orchestration/).
+# Orchestration signals — excluded from _TOOL_LAYERS (see agent/orchestration/).
 INTERNAL_TOOL_NAMES: frozenset[str] = frozenset(
     {
-        "_completion_check",
         "submit_verdict",
     }
 )

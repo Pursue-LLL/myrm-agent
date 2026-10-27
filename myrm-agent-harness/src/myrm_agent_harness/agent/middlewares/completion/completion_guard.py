@@ -28,8 +28,12 @@ evidence (freshness/citation) and no successful evidence exists yet, the
 tool_calls are kept so the agent gathers real data instead of letting
 unverified content reach the user.
 
-Internal tool CallRecords (``_``-prefixed names like ``_completion_check``)
-are excluded from the checklist to prevent self-feedback loops.
+Internal tool CallRecords (``_``-prefixed names) are excluded from the checklist to prevent self-feedback loops.
+
+A held-back answer is never turned into a tool call: the guard routes the run back to the model
+(``jump_to="model"``) and records the instruction in the turn's guard state; ``CompletionDirectiveMiddleware``
+appends it to the next model request only. Nothing the guard says to the model is stored in the conversation, shown
+as a task step, approved, counted by the loop guard or scanned as tool output.
 
 A demand is made only of a run that could meet it (``CompletionCapabilities``): a deliverable code block is held to
 being saved (and staged into the workspace on a forced finish) only when the run can save a file, an unfinished
@@ -42,10 +46,11 @@ executes nodes in copied contexts, which prevents ContextVar state from
 persisting across ReAct cycles.
 
 [INPUT]
-- langchain.agents.middleware::AgentMiddleware (POS: LangChain middleware base)
-- langchain_core.tools::tool (POS: tool decorator)
+- langchain.agents.middleware::AgentMiddleware, hook_config (POS: LangChain middleware base and the declaration that a hook may route back to the model)
 - agent.middlewares.tooling.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
 - agent.middlewares.completion.completion_guard_checklist::build_checklist, classify_verification, find_last_successful_verification_command (POS: Verification command classification, checklist generation, and temporal-order verification command extraction for CompletionGuard.)
+- agent.middlewares.completion.completion_directive::BlockReasons, render_completion_directive (POS: what the model reads for each held-back answer)
+- agent.middlewares.completion.completion_guard_events::log_guard_decision, announce_superseded_draft (POS: records each held-back answer in the session event log and tells the stream its draft is superseded)
 - agent.middlewares.completion.completion_capabilities::CompletionCapabilities (POS: what the run can do, so a demand is made only of a run that could meet it)
 - agent.middlewares.completion.completion_guard_external_evidence::build_external_evidence_reason (POS: Freshness-sensitive external evidence gate including MCP PTC bash via skills.mcp_* and Direct FC via mcp__{server}__{tool})
 - agent.middlewares.completion.deliverable_write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
@@ -55,7 +60,7 @@ persisting across ReAct cycles.
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 
 [OUTPUT]
-- CompletionGuard: after_model middleware for critical completion verification + independent re-run
+- CompletionGuard: after_model middleware for critical completion verification + independent re-run; a held-back answer routes the run back to the model with the instruction pending in the turn state
 - classify_verification(): re-export from completion_guard_checklist
 - reset_completion_guard(): reset this run's guard state
 - is_mutating_tool(): re-export from completion_guard_safety
@@ -73,19 +78,19 @@ a complete answer.
 from __future__ import annotations
 
 import logging
-import uuid
 from collections.abc import Sequence
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any
 
-from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage
-from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
-from myrm_agent_harness.agent.middlewares.completion.completion_check_tool import (
-    _completion_check_tool,
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
+    BlockReasons,
+    render_completion_directive,
 )
 from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist import (
     _CODE_EXTENSIONS,
@@ -94,6 +99,10 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard_checklist 
     build_checklist,
     classify_verification,
     find_last_successful_verification_command,
+)
+from myrm_agent_harness.agent.middlewares.completion.completion_guard_events import (
+    announce_superseded_draft,
+    log_guard_decision,
 )
 from myrm_agent_harness.agent.middlewares.completion.completion_guard_external_evidence import (
     build_external_evidence_reason,
@@ -105,6 +114,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard_safety imp
     is_substantive_final_response,
 )
 from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
+    PendingDirective,
     RunGuardState,
     current_run_state,
     publish_disclosure,
@@ -130,8 +140,8 @@ from myrm_agent_harness.agent.middlewares.completion.ppt_outline_verifier import
 from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier import (
     check_query_grounding_claim,
 )
-from myrm_agent_harness.agent.orchestration.hooks import COMPLETION_CHECK_TOOL_NAME
 from myrm_agent_harness.agent.security.guards.loop_guard import (
+    CallRecord,
     ToolGroup,
     get_tool_group,
 )
@@ -219,10 +229,6 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         self._max_rejections = max_rejections
         self._capabilities = capabilities or CompletionCapabilities()
 
-    def get_tools(self) -> list[BaseTool]:
-        """Expose the internal ``_completion_check`` tool for registration."""
-        return [_completion_check_tool]
-
     def _evidence_demand(
         self, run_state: RunGuardState, messages: list[object], records: Sequence[object]
     ) -> tuple[str | None, bool]:
@@ -238,8 +244,9 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             return None, False
         return reason, True
 
+    @hook_config(can_jump_to=["model"])
     async def aafter_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
-        """Intercept completion attempts and inject verification when critical errors exist."""
+        """Hold back a completion attempt that fails a check: route the run back to the model with the instruction pending."""
         run_state = current_run_state()
         if not self._enabled or run_state.forced_finish:
             return None
@@ -413,6 +420,14 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
                         return None
 
         # --- CRITICAL BLOCKING MODE ---
+        reasons = BlockReasons(
+            evidence=evidence_reason or "",
+            evidence_unreachable=evidence_unreachable,
+            deliverable_write=deliverable_write_reason or "",
+            execution_claim=execution_claim_reason or "",
+            query_grounding=query_grounding_reason or "",
+            ppt_outline=ppt_outline_reason or "",
+        )
         current_rejections = run_state.rejections
 
         if current_rejections >= self._max_rejections:
@@ -425,35 +440,10 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             if unwritten_deliverables and workspace_root:
                 staged = stage_unwritten_deliverables(str(workspace_root), unwritten_deliverables)
                 staged_metas_dict = [dict(m.to_dict()) for m in staged]
-
-            tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
-            forced_args: dict[str, object] = {
-                "workspace_root": todo_workspace or "",
-                "force_fail": True,
-            }
-            if evidence_reason is not None:
-                forced_args["evidence_reason"] = evidence_reason
-            if deliverable_write_reason is not None:
-                forced_args["deliverable_write_reason"] = deliverable_write_reason
-            if execution_claim_reason is not None:
-                forced_args["execution_claim_reason"] = execution_claim_reason
-            if query_grounding_reason is not None:
-                forced_args["query_grounding_reason"] = query_grounding_reason
-            if ppt_outline_reason is not None:
-                forced_args["ppt_outline_reason"] = ppt_outline_reason
-            if staged_metas_dict:
-                forced_args["staged_artifacts"] = staged_metas_dict
-                publish_disclosure(staged_artifacts=staged_metas_dict)
-            patched = deepcopy(last_ai_msg)
-            patched.tool_calls = [
-                {
-                    "name": COMPLETION_CHECK_TOOL_NAME,
-                    "args": forced_args,
-                    "id": tool_call_id,
-                    "type": "tool_call",
-                }
-            ]
-            return {"messages": [patched]}
+                if staged_metas_dict:
+                    publish_disclosure(staged_artifacts=staged_metas_dict)
+            reasons = replace(reasons, forced_finish=True, staged_artifacts=tuple(staged_metas_dict))
+            return await self._hold_back(run_state, last_ai_msg, reasons, records, todo_workspace, current_rejections)
 
         run_state.rejections = current_rejections + 1
         logger.warning(
@@ -461,36 +451,40 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             current_rejections + 1,
             self._max_rejections,
         )
+        if evidence_unreachable:
+            run_state.evidence_disclosure_requested = True
+        return await self._hold_back(run_state, last_ai_msg, reasons, records, todo_workspace, current_rejections + 1)
 
-        tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
-        tool_args: dict[str, object] = {"workspace_root": todo_workspace or ""}
-        if evidence_reason is not None:
-            tool_args["evidence_reason"] = evidence_reason
-            if evidence_unreachable:
-                tool_args["evidence_unreachable"] = True
-                run_state.evidence_disclosure_requested = True
-        if deliverable_write_reason is not None:
-            tool_args["deliverable_write_reason"] = deliverable_write_reason
-        if execution_claim_reason is not None:
-            tool_args["execution_claim_reason"] = execution_claim_reason
-        if query_grounding_reason is not None:
-            tool_args["query_grounding_reason"] = query_grounding_reason
-        if ppt_outline_reason is not None:
-            tool_args["ppt_outline_reason"] = ppt_outline_reason
-        patched = deepcopy(last_ai_msg)
-        patched.tool_calls = [
-            {
-                "name": COMPLETION_CHECK_TOOL_NAME,
-                "args": tool_args,
-                "id": tool_call_id,
-                "type": "tool_call",
-            }
-        ]
-        return {"messages": [patched]}
+    async def _hold_back(
+        self,
+        run_state: RunGuardState,
+        draft: AIMessage,
+        reasons: BlockReasons,
+        records: Sequence[CallRecord],
+        workspace_root: str | None,
+        rejection: int,
+    ) -> dict[str, Any]:
+        """Route the run back to the model, with the instruction owed to it pending for the next request.
+
+        A draft that still carries tool calls (a finish tool) loses them: the model is asked again, so a call that
+        never runs must not stay in the conversation unanswered.
+        """
+        await log_guard_decision(reasons, rejection=rejection, max_rejections=self._max_rejections)
+        await announce_superseded_draft()
+        run_state.pending_directive = PendingDirective(
+            draft_id=draft.id,
+            text=render_completion_directive(reasons, records=records, workspace_root=workspace_root),
+            reasons=reasons,
+        )
+        update: dict[str, Any] = {"jump_to": "model"}
+        if draft.tool_calls:
+            stripped = deepcopy(draft)
+            stripped.tool_calls = []
+            update["messages"] = [stripped]
+        return update
 
 
 __all__ = [
-    "COMPLETION_CHECK_TOOL_NAME",
     "CompletionGuard",
     "classify_verification",
     "is_mutating_tool",

@@ -185,7 +185,6 @@ TOOL_SEMANTIC_MAP: dict[str, ToolGroup] = {
     "skill_select_tool": ToolGroup.SEARCH,
     "skill_search_tool": ToolGroup.SEARCH,
     "skill_market_tool": ToolGroup.SEARCH,
-    "_completion_check": ToolGroup.OTHER,
 }
 
 

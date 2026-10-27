@@ -252,7 +252,7 @@ class TestEmitToolsSnapshot:
         registry = create_registry()
         registry.register(visible_turn1_tool, source=ToolSource.META)
         hook = MagicMock()
-        hook.name = "_completion_check"
+        hook.name = "_middleware_injected"
         hook.description = "Internal completion hook"
         registry.register(
             hook,

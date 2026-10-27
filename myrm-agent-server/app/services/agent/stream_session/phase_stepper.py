@@ -138,9 +138,7 @@ class PhaseTransitionTracker:
             )
 
         # 4. Verification and reflect gate
-        if event_type in ("verification_verdict", "query_grounding_blocked") or (
-            event_type == "tool_start" and "_completion_check" in str(chunk.get("name", ""))
-        ):
+        if event_type in ("verification_verdict", "query_grounding_blocked"):
             return self._transition_to(
                 phase="verifying",
                 phase_index=3,

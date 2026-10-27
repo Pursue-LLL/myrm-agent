@@ -614,7 +614,6 @@ def _layer_counts(report: ScanReport) -> dict[str, int]:
 def _build_doc_block(report: ScanReport) -> str:
     counts = _layer_counts(report)
     action_total = sum(counts.values())
-    from myrm_agent_harness.agent.orchestration.hooks import RUNTIME_HOOK_NAMES
     from myrm_agent_harness.agent.orchestration.signals.catalog import (
         ORCHESTRATION_SIGNAL_NAMES,
     )
@@ -628,7 +627,6 @@ def _build_doc_block(report: ScanReport) -> str:
         f"(Harness {harness_total}: CORE {counts['CORE']} + HIGH_PRIORITY {counts['HIGH_PRIORITY']} + "
         f"EXTENDED {counts['EXTENDED']}; External {counts['EXTERNAL']}: server vendor). "
         f"Orchestration signals: **{len(ORCHESTRATION_SIGNAL_NAMES)}**. "
-        f"Runtime hooks: **{len(RUNTIME_HOOK_NAMES)}**. "
         f"PTC runtime tools: **{len(PTC_RUNTIME_TOOL_NAMES)}** ({ptc_names}). "
         "LLM-tool SSOT: `tool_layers.py` + `_tool_layer_bootstrap.py`. "
         "PTC SSOT: `agent/dynamic_workflow/tools.py` + `PTC_RUNTIME_TOOL_NAMES`. "
@@ -651,7 +649,7 @@ def _build_catalog_block() -> str:
         f"{_CATALOG_BEGIN}\n"
         "### LLM Tool Catalog (auto-generated)\n\n"
         "Only **LLM tools** (`_TOOL_LAYERS` + ToolRegistry) appear here. "
-        "Orchestration signals, runtime hooks, and PTC runtime tools "
+        "Orchestration signals and PTC runtime tools "
         "(`spawn_subagent`, `notify`) are documented in §内部分类 above.\n\n"
         f"{table}\n"
         f"{_CATALOG_END}"
@@ -877,7 +875,7 @@ def main() -> int:
                     display = path
                 print(f"  - {display}:{line_no}: {line}")
             print(
-                "  Fix: use Turn1 registration + get_runtime_tools() for RUNTIME_ONLY hooks."
+                "  Fix: use Turn1 registration + get_runtime_tools() for RUNTIME_ONLY tools."
             )
         if catalog_invoke_violations:
             print(

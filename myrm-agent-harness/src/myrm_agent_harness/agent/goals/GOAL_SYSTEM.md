@@ -37,15 +37,15 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
 - 多步进度由主 Agent 在运行中通过 `todo_write` 维护（SSOT：`.myrm/progress/<chat>/todos.json`，每个 chat 一份）。
 
 ### 3. CompletionGuard (基于客观证据的严格完工护栏)
-- 在 Agent 试图输出最终答案（结束任务）时，拦截请求。
-- **强制进度校验**：读取本 chat 的 workspace todos；若仍有未完成项，且本 run 里用过 `file_write_tool` 或 `file_edit_tool`（写类工具），阻断完工并提示 `todo_write(merge=true)` 更新状态；没有用过写类工具的 run（只搜索、读取、执行命令或浏览）只在清单里带一条 WARNING（模型调用 `_completion_check` 时才看到），收尾不因未完成 todo 被拦下。
+- 在 Agent 试图输出最终答案（结束任务）时，拦截请求：草稿被留在会话里，运行回到模型，复核指令只随下一次模型请求送达（不写入会话与检查点）；前端收到 `answer_recheck` 状态后丢弃正在流出的旧草稿，决策以 `completion_guard` 事件记入会话事件日志（只含原因名与次数）。
+- **强制进度校验**：读取本 chat 的 workspace todos；若仍有未完成项，且本 run 里用过 `file_write_tool` 或 `file_edit_tool`（写类工具），阻断完工并提示 `todo_write(merge=true)` 更新状态；没有用过写类工具的 run（只搜索、读取、执行命令或浏览）只在清单里带一条 WARNING（仅在守卫因验证失败拦下收尾时，随复核清单送达模型），收尾不因未完成 todo 被拦下。
 - **强制物理证据校验 (TDD-like) 与智能模态感知**：分析 Agent 的历史工具调用记录（CallRecords）。
-  - **代码任务严防死守**：如果发现 Agent 修改了代码文件（如 `.py`, `.js` 等）但没有运行任何测试/验证命令（如 `pytest`, `python script.py` 等），或者运行了但报错了，护栏将拦截完工请求，并抛出 Tool Error 逼迫 Agent 去沙箱里跑测试并修复问题。
+  - **代码任务严防死守**：如果发现 Agent 修改了代码文件（如 `.py`, `.js` 等）但没有运行任何测试/验证命令（如 `pytest`, `python script.py` 等），或者运行了但报错了，护栏将拦截完工请求，并向模型送达复核指令，逼迫 Agent 去沙箱里跑测试并修复问题。
   - **前端视觉验证提醒**：如果修改了前端渲染文件（`.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.less/.html`，通过路径片段匹配智能排除 test/store/utils/hooks/types 等非渲染目录及 `.test.`/`.spec.`/`.config.`/`.stories.` 等非渲染文件）且未使用浏览器工具验证，追加 WARNING 提示 Agent 进行视觉确认。
   - **文本任务包容放行**：如果修改的仅仅是文本文件（如 `.md`, `.txt`），则只给出普通警告，允许正常完工，避免非代码任务陷入死循环。
   - **执行断言接地**：最终回复中的承重断言与本轮工具记录对齐——"测试/lint/类型/构建已通过"要求真实测试运行器且真实执行（collect-only 与零用例不算），"已发送/已发布/已部署/已提交"要求发送语义的 MCP / 外发命令 / 外发工具名，用户本轮要求改代码时的"已修复/已实现"要求成功写操作；命中即要求取证或如实改写。
   - **每轮披露**：收尾计算证据档（已验证 / 有工件 / 有来源 / 计划）与自动暂存的草案清单，经 `message_end` 事件持久化到消息元数据，供回答头部的证据档徽章与末尾的暂存草案横幅渲染；`PLAN` 档仅在回答含完成式断言时披露。
-- **优雅降级 (Graceful Degradation)**：当连续拦截次数达到 `max_rejections`（默认 3 次）时，不再粗暴地触发 `interrupt()` 导致前端假死，而是注入一个带有 `force_fail=True` 的特殊指令。该指令允许 Agent 完工，但**强制要求 Agent 在最终回复中向用户输出明确的 Markdown 警告**，说明其未能成功验证代码，请用户人工审查。拦截预算按轮次消息 id 分桶，并发回合互不干扰。
+- **优雅降级 (Graceful Degradation)**：当连续拦截次数达到 `max_rejections`（默认 3 次）时，不再粗暴地触发 `interrupt()` 导致前端假死，而是送达一条强制收尾指令（`forced_finish`）。该指令允许 Agent 完工，但**强制要求 Agent 在最终回复中向用户输出明确的 Markdown 警告**，说明其未能成功验证代码，请用户人工审查。拦截预算按轮次消息 id 分桶，并发回合互不干扰。
 - 物理层面彻底杜绝了 AI 的"幻觉式完工"和"偷懒早退"，同时保证了系统的健壮性和用户体验。
 
 ### 4. ProgressMiddleware (活跃 todo 焦点注入)

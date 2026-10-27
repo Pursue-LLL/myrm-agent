@@ -48,7 +48,7 @@ class ToolBindMode(StrEnum):
 
     Internal mode (invisible to the model — NOT an LLM Action Tool):
         RUNTIME_ONLY: excluded from Turn1; only executable when middleware injects
-            tool_calls. Used for framework hooks (e.g. ``_completion_check``).
+            tool_calls. Middleware tools whose name starts with ``_`` bind this way.
     """
 
     TURN1 = "turn1"

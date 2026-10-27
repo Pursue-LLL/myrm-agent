@@ -7,14 +7,12 @@ allowing completion. MCP evidence covers both PTC bash imports
 Intercepted calls (``success_level is None``) never count as evidence —
 an unexecuted tool provides no external data.
 
-Local code-work requests (e.g. "analyze the latest code changes") are
-exempted from the freshness gate: their "latest" phrasing refers to the
-user's own repository, not external data, so forcing a web search would
-be meaningless. An explicit external hint (links/sources/web) suppresses
-the exemption.
+Whether a request needs external data at all is decided by
+``completion_guard_freshness``; this module checks the run's records against it.
 
 [INPUT]
 - langchain_core.messages::HumanMessage (POS: human turn content extraction)
+- completion.completion_guard_freshness::demands_external_evidence (POS: does the request need fresh external data)
 - agent.security.guards.loop_guard::CallRecord (POS: loop guard types)
 - toolkits.mcp.config::is_mcp_tool_name (POS: Direct FC MCP tool-name recognition)
 
@@ -31,11 +29,11 @@ separation — keeps completion_guard.py focused on orchestration and mixed-mess
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Sequence
 
 from langchain_core.messages import HumanMessage
 
+from myrm_agent_harness.agent.middlewares.completion.completion_guard_freshness import demands_external_evidence
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 
 _BASH_TOOL_NAME = "bash_code_execute_tool"
@@ -50,92 +48,6 @@ _EXTERNAL_EVIDENCE_TOOLS: frozenset[str] = frozenset(
         "browser_snapshot_tool",
         "browser_inspect_tool",
     }
-)
-
-_EXTERNAL_FRESHNESS_KEYWORDS: tuple[str, ...] = (
-    "latest",
-    "today",
-    "current",
-    "real-time",
-    "realtime",
-    "live",
-    "news",
-    "price",
-    "stock",
-    "最新",
-    "今天",
-    "当前",
-    "实时",
-    "新闻",
-    "价格",
-    "行情",
-    "刚刚",
-)
-
-_EXTERNAL_CITATION_KEYWORDS: tuple[str, ...] = (
-    "source",
-    "sources",
-    "citation",
-    "citations",
-    "reference",
-    "references",
-    "来源",
-    "出处",
-    "链接",
-    "官网",
-)
-
-_EXTERNAL_WEB_HINT_KEYWORDS: tuple[str, ...] = (
-    "web",
-    "internet",
-    "online",
-    "search",
-    "website",
-    "网址",
-    "网页",
-    "网站",
-    "搜索",
-    "联网",
-)
-
-# 本地代码工作线索：命中表示用户要的是自己代码库/项目内的"最新"状态，
-# 而非外部新鲜数据——此时不应触发外部证据门（否则本地任务会被逼着联网）。
-_EXTERNAL_LOCAL_WORK_KEYWORDS: tuple[str, ...] = (
-    "代码",
-    "项目",
-    "文件",
-    "仓库",
-    "提交",
-    "模块",
-    "接口",
-    "改动",
-    "重构",
-    "函数",
-    "逻辑",
-    "分支",
-    "测试",
-    "脚本",
-    "日志",
-    "code",
-    "project",
-    "file",
-    "repo",
-    "repository",
-    "git",
-    "commit",
-    "module",
-    "interface",
-    "refactor",
-    "function",
-    "logic",
-    "branch",
-    "test",
-    "tests",
-    "testing",
-    "script",
-    "scripts",
-    "log",
-    "logs",
 )
 
 
@@ -164,40 +76,6 @@ def extract_latest_human_text(messages: list[object]) -> str | None:
             if parts:
                 return " ".join(parts)
     return None
-
-
-def _has_external_hint(text: str) -> bool:
-    """True when the request explicitly asks for external material (links/sources/web)."""
-    return _contains_keyword(text, _EXTERNAL_CITATION_KEYWORDS + _EXTERNAL_WEB_HINT_KEYWORDS)
-
-
-def _requires_external_evidence(user_text: str) -> bool:
-    lowered = user_text.lower()
-    if _contains_keyword(lowered, _EXTERNAL_FRESHNESS_KEYWORDS):
-        # 本地代码工作上下文豁免：用户问的是自己代码库里的"最新"状态
-        # （如"最新改动的代码逻辑"），并非要外部新鲜数据——要求联网只会
-        # 让 Agent 执行无意义的搜索。只要用户明确要求外部材料（链接/来源/
-        # 搜索/网站），豁免即被抑制，仍强制外部证据。
-        return not _contains_keyword(lowered, _EXTERNAL_LOCAL_WORK_KEYWORDS) or _has_external_hint(lowered)
-    has_citation = _contains_keyword(lowered, _EXTERNAL_CITATION_KEYWORDS)
-    has_web_hint = _contains_keyword(lowered, _EXTERNAL_WEB_HINT_KEYWORDS)
-    return has_citation and has_web_hint
-
-
-def _contains_keyword(text: str, keywords: tuple[str, ...]) -> bool:
-    for keyword in keywords:
-        normalized = keyword.lower()
-        if _is_ascii_word(normalized):
-            if re.search(rf"\b{re.escape(normalized)}\b", text):
-                return True
-            continue
-        if normalized in text:
-            return True
-    return False
-
-
-def _is_ascii_word(keyword: str) -> bool:
-    return keyword.isascii() and keyword.isalpha()
 
 
 def _bash_command_text(args: object) -> str:
@@ -280,7 +158,7 @@ def build_external_evidence_reason(
     records: Sequence[object],
 ) -> str | None:
     latest_human = extract_latest_human_text(messages)
-    if not latest_human or not _requires_external_evidence(latest_human):
+    if not latest_human or not demands_external_evidence(latest_human):
         return None
     if has_external_evidence(records):
         return None

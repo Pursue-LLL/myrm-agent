@@ -24,7 +24,7 @@ Detailed design: [EVENT_LOG_SYSTEM.md](EVENT_LOG_SYSTEM.md)
 | _context_doctor.py | Core | Pure function token breakdown (system, chat, tool, file) and hotspot analyzer for execution traces. | ✅ |
 | llm_observability.py | Core | Passive llm_request event recording with truncated prompt preview for replay. | ✅ |
 | trace_types.py | Config | TraceAnomaly data structure for heuristic diagnosis. LLMCallRecord includes attempt and retry_count. ToolCallRecord carries fault_side + tool_call_id/message_id; ExecutionTrace carries anomalies, custom_states, custom_messages, and first_irrecoverable_index/timestamp. | ✅ |
-| types.py | Config | Single source of truth for event log data structures, including CustomStatePayload and CustomMessagePayload. | ✅ |
+| types.py | Config | Single source of truth for event log data structures, including CustomStatePayload and CustomMessagePayload, and the allowlist of persisted event types (the completion guard's `completion_guard` decisions among them: reason names and counts only). | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

@@ -55,10 +55,8 @@ from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier im
     has_successful_query_evidence,
     is_honest_negative_or_clarification,
 )
-from myrm_agent_harness.agent.orchestration.hooks import COMPLETION_CHECK_TOOL_NAME
 
 __all__ = [
-    "COMPLETION_CHECK_TOOL_NAME",
     "CompletionGuard",
     "DeliverableConfidenceTier",
     "DeliverableTierEvidence",

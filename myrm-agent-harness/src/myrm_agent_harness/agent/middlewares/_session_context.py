@@ -290,8 +290,8 @@ _active_tool_registry_var: ContextVar[ToolRegistry | None] = ContextVar("active_
 _active_resolved_tools_var: ContextVar[list[BaseTool] | None] = ContextVar("active_resolved_tools", default=None)
 # LangGraph executes graph nodes in copied contexts, so ContextVar state set in
 # run_agent_loop does not survive into ToolNode execution. Mirror the loop-guard
-# pattern (ContextVar + session-key fallback) so runtime-only hooks such as
-# `_completion_check` can still be resolved by resolve_dynamic_tool.
+# pattern (ContextVar + session-key fallback) so runtime-only tools injected by
+# middleware can still be resolved by resolve_dynamic_tool.
 _session_tool_registries: dict[str, ToolRegistry] = {}
 _session_resolved_tools: dict[str, list[BaseTool]] = {}
 

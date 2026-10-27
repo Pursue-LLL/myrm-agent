@@ -11,7 +11,6 @@ assembly and run loop with only the model scripted.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -19,17 +18,16 @@ from langchain_core.messages import AIMessage
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.middlewares._session_context import set_security_config
 from myrm_agent_harness.agent.middlewares.completion.completion_capabilities import CompletionCapabilities
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
-    COMPLETION_CHECK_TOOL_NAME,
     CompletionGuard,
     reset_completion_guard,
 )
 from tests.support.completion_guard_harness import (
     CountingModel,
     built_guard,
-    hook_args,
-    hook_call,
     named_tool,
+    reasons_of,
     registry_of,
     run_agent,
     runtime,
@@ -74,8 +72,7 @@ class TestGuardDecision:
     async def test_a_run_that_can_save_files_is_asked_to_save_the_file(self, tmp_path: Path) -> None:
         result = await verdict(_saving(True), _asked(), runtime(tmp_path))
 
-        assert hook_call(result)["name"] == COMPLETION_CHECK_TOOL_NAME
-        assert "Substantial unpersisted deliverables" in str(hook_args(result)["deliverable_write_reason"])
+        assert "Substantial unpersisted deliverables" in reasons_of(result).deliverable_write
 
     @pytest.mark.asyncio
     async def test_a_run_that_cannot_save_files_is_not_asked(self, tmp_path: Path) -> None:
@@ -104,7 +101,7 @@ class TestGuardDecision:
 
         result = await verdict(_saving(False), messages, runtime(tmp_path))
 
-        assert "no successful file_write_tool" in str(hook_args(result)["deliverable_write_reason"])
+        assert "no successful file_write_tool" in reasons_of(result).deliverable_write
 
 
 class TestForcedFinishStaging:
@@ -113,26 +110,26 @@ class TestForcedFinishStaging:
     def setup_method(self) -> None:
         reset_completion_guard()
 
-    async def _forced_finish_args(self, guard: CompletionGuard, tmp_path: Path) -> dict[str, object]:
+    async def _forced_finish_reasons(self, guard: CompletionGuard, tmp_path: Path) -> BlockReasons:
         messages = _asked(_REPLY_WITH_UNBACKED_CLAIM)
         first = await verdict(guard, messages, runtime(tmp_path))
         assert first is not None
-        args = hook_args(await verdict(guard, messages, runtime(tmp_path)))
-        assert args["force_fail"] is True
-        return args
+        reasons = reasons_of(await verdict(guard, messages, runtime(tmp_path)))
+        assert reasons.forced_finish is True
+        return reasons
 
     @pytest.mark.asyncio
     async def test_a_run_that_can_save_files_stages_the_draft(self, tmp_path: Path) -> None:
-        args = await self._forced_finish_args(_saving(True, max_rejections=1), tmp_path)
+        reasons = await self._forced_finish_reasons(_saving(True, max_rejections=1), tmp_path)
 
-        assert len(cast(list[object], args["staged_artifacts"])) == 1
+        assert len(reasons.staged_artifacts) == 1
         assert len(list((tmp_path / _STAGED_DIR).glob("*_draft_worker.py"))) == 1
 
     @pytest.mark.asyncio
     async def test_a_run_that_cannot_save_files_stages_nothing(self, tmp_path: Path) -> None:
-        args = await self._forced_finish_args(_saving(False, max_rejections=1), tmp_path)
+        reasons = await self._forced_finish_reasons(_saving(False, max_rejections=1), tmp_path)
 
-        assert "staged_artifacts" not in args
+        assert reasons.staged_artifacts == ()
         assert not (tmp_path / ".myrm").exists()
 
 

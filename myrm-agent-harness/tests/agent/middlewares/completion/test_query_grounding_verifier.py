@@ -25,6 +25,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard.types import (
     CallRecord,
     SuccessLevel,
 )
+from tests.support.completion_guard_harness import reasons_of
 
 
 def _record(
@@ -114,7 +115,7 @@ class TestQueryCallRecords:
             is True
         )
         assert is_query_call_record(_record("file_write_tool")) is False
-        assert is_query_call_record(_record("_completion_check")) is False
+        assert is_query_call_record(_record("_internal_probe")) is False
 
     def test_has_successful_query_evidence(self) -> None:
         assert has_successful_query_evidence([]) is False
@@ -271,15 +272,7 @@ async def test_completion_guard_blocks_ungrounded_entity_query() -> None:
     state = {"messages": messages}
     result = await guard.aafter_model(state, runtime={})
 
-    assert result is not None
-    assert "messages" in result
-    patched_msg = result["messages"][0]
-    assert isinstance(patched_msg, AIMessage)
-    assert len(patched_msg.tool_calls) == 1
-    tc = patched_msg.tool_calls[0]
-    assert tc["name"] == "_completion_check"
-    assert "query_grounding_reason" in tc["args"]
-    assert "no query or MCP tool was executed" in str(tc["args"]["query_grounding_reason"])
+    assert "no query or MCP tool was executed" in reasons_of(result).query_grounding
 
 
 @pytest.mark.asyncio
@@ -303,14 +296,6 @@ async def test_completion_guard_blocks_multi_entity_missing_one_query() -> None:
         state = {"messages": messages}
         result = await guard.aafter_model(state, runtime={})
 
-    assert result is not None
-    assert "messages" in result
-    patched_msg = result["messages"][0]
-    assert isinstance(patched_msg, AIMessage)
-    assert len(patched_msg.tool_calls) == 1
-    tc = patched_msg.tool_calls[0]
-    assert tc["name"] == "_completion_check"
-    assert "query_grounding_reason" in tc["args"]
-    reason_str = str(tc["args"]["query_grounding_reason"])
+    reason_str = reasons_of(result).query_grounding
     assert "TK-8802" in reason_str
     assert "multiple business entities" in reason_str

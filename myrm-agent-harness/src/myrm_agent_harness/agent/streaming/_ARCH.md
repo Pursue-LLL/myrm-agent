@@ -14,7 +14,7 @@
 | `channel_output_hints.py` | 核心 | 交付渠道输出格式提示词生成（Channel-Aware Output Guidance）与前置提示保障 |
 | `citation_audit.py` | 核心 | 流式回复引用标记审计（【N】序号与信息源对照验证） |
 | `escalation_scrubber.py` | 核心 | 模型自主升级标记（`<<<NEEDS_PRO>>>`）流式拦截与重试恢复触发 |
-| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束。运行时钩子（`is_runtime_hook`，如完成门禁的 `_completion_check`）的调用与结果不产出 `tasks_steps`：它是 harness 对模型说话而非用户要求的工作，作为任务步骤只会给用户一行带内部原因（强制收尾时是整段英文指令）的未命名步骤；执行轨迹由 `tool_start`/`tool_end` 记录；调用仍计入 `tool_call_count` |
+| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束 |
 | `interrupt_events.py` | 核心 | LangGraph `__interrupt__` 分片 → 流事件：每个中断一个事件，顶层带卡片 id `interruptId`（并行子 agent 各自挂起时，每张审批卡片可单独作答；resume 侧见 `_internals/resume_addressing.py`） |
 | `interrupt_identity.py` | 核心 | 卡片 id = `<LangGraph 中断 id>.<轮次>`：LangGraph 的中断 id 只标识挂起的任务，同一任务连续多次 `interrupt()`（委派在每一步前都要审批）共用一个 id，轮次 = 该任务已消费的答复数，使每次挂起各有各的卡片 id；`AddressedResume` 是携带各待决中断轮次的 resume 指令，由 resume 咽喉在运行开始前读检查点得出、经 `announced_rounds` 交给分发器盖章，运行中不读检查点 |
 | `message_builder.py` | 核心 | 原始用户输入向 LangChain 消息结构转换与时间戳就地注入 |
@@ -26,7 +26,7 @@
 | `step_builder.py` | 核心 | 智能体步骤执行数据格式化（面向 WebUI 的多类型工具状态渲染契约） |
 | `stream_buffer.py` | 核心 | 内存滑动窗口流式重放缓冲与 Last-Event-ID 重连恢复 |
 | `stream_compactor.py` | 核心 | 高频文本片段流式合并压实器（降低前端事件风暴与渲染开销） |
-| `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`） |
+| `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`） |
 | `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截） |
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |
 | `utils.py` | 辅助 | 时间戳规则、时区管理上下文变量及工具名称规范化等通用辅助函数 |

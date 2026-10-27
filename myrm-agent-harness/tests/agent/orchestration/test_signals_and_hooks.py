@@ -1,14 +1,7 @@
-"""Unit tests for agent.orchestration signals, hooks, and registry integration."""
+"""Unit tests for agent.orchestration signals and the registry's runtime-only tools."""
 
 from __future__ import annotations
 
-import pytest
-
-from myrm_agent_harness.agent.orchestration.hooks import (
-    COMPLETION_CHECK_TOOL_NAME,
-    RUNTIME_HOOK_NAMES,
-    is_runtime_hook,
-)
 from myrm_agent_harness.agent.orchestration.signals.catalog import (
     DEEP_RESEARCH_SIGNAL_NAMES,
     ORCHESTRATION_SIGNAL_NAMES,
@@ -27,22 +20,10 @@ from myrm_agent_harness.agent.orchestration.signals.verifier import (
     create_submit_verdict_tool,
 )
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
-from myrm_agent_harness.agent.tool_management.types import ToolSource
+from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 
 
-def test_runtime_hook_ssot() -> None:
-    assert COMPLETION_CHECK_TOOL_NAME == "_completion_check"
-    assert frozenset({COMPLETION_CHECK_TOOL_NAME}) == RUNTIME_HOOK_NAMES
-
-
-def test_is_runtime_hook_membership() -> None:
-    assert is_runtime_hook(COMPLETION_CHECK_TOOL_NAME) is True
-    assert is_runtime_hook("dispatch_research") is False
-    assert is_runtime_hook("web_search_tool") is False
-
-
-def test_orchestration_signal_names_disjoint_from_hooks() -> None:
-    assert not ORCHESTRATION_SIGNAL_NAMES & RUNTIME_HOOK_NAMES
+def test_orchestration_signal_names_are_the_union_of_their_groups() -> None:
     assert DEEP_RESEARCH_SIGNAL_NAMES | VERIFIER_SIGNAL_NAMES == ORCHESTRATION_SIGNAL_NAMES
 
 
@@ -94,27 +75,17 @@ def test_create_submit_verdict_tool_writes_context() -> None:
     assert verdict.confidence == "HIGH"
 
 
-class TestRegisterRuntimeHook:
-    def test_register_runtime_hook_success(self) -> None:
+class TestRuntimeOnlyTool:
+    def test_a_runtime_only_tool_is_executable_but_never_bound_on_the_first_turn(self) -> None:
         from langchain_core.tools import tool
 
-        @tool(COMPLETION_CHECK_TOOL_NAME)
-        def _completion_check(reason: str = "") -> str:
-            """Middleware completion guard hook."""
+        @tool("_middleware_injected")
+        def _middleware_injected(reason: str = "") -> str:
+            """A tool a middleware injects as a tool call."""
             return reason or "ok"
 
         reg = ToolRegistry()
-        reg.register_runtime_hook(_completion_check, source=ToolSource.MIDDLEWARE)
-        assert reg.has_tool(COMPLETION_CHECK_TOOL_NAME)
-        runtime_names = {tool.name for tool in reg.get_runtime_tools()}
-        assert COMPLETION_CHECK_TOOL_NAME in runtime_names
-        assert COMPLETION_CHECK_TOOL_NAME not in {tool.name for tool in reg.resolve()}
-
-    def test_register_runtime_hook_rejects_non_ssot_name(self) -> None:
-        from unittest.mock import MagicMock
-
-        reg = ToolRegistry()
-        bad_tool = MagicMock()
-        bad_tool.name = "dispatch_research"
-        with pytest.raises(ValueError, match="RUNTIME_HOOK_NAMES"):
-            reg.register_runtime_hook(bad_tool)
+        reg.register(_middleware_injected, source=ToolSource.MIDDLEWARE, bind_mode=ToolBindMode.RUNTIME_ONLY)
+        assert reg.has_tool("_middleware_injected")
+        assert "_middleware_injected" in {tool.name for tool in reg.get_runtime_tools()}
+        assert "_middleware_injected" not in {tool.name for tool in reg.resolve()}

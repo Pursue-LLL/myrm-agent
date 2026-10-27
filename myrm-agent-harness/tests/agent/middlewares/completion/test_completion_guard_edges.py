@@ -1,4 +1,4 @@
-"""Edge-path tests for CompletionGuard middleware and its completion check tool."""
+"""Edge-path tests for CompletionGuard middleware and the directive it leaves for the model."""
 
 from __future__ import annotations
 
@@ -6,10 +6,11 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.middlewares.completion import is_mutating_tool
-from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
-    _completion_check_tool,
-    reset_completion_guard,
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
+    BlockReasons,
+    render_completion_directive,
 )
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import reset_completion_guard
 
 
 class TestIsMutatingTool:
@@ -20,17 +21,21 @@ class TestIsMutatingTool:
         assert is_mutating_tool("file_read_tool") is False
 
 
-class TestCompletionCheckToolBranches:
+class TestDirectiveBranches:
     def setup_method(self) -> None:
         reset_completion_guard()
 
     def test_evidence_reason_branch(self) -> None:
-        result = _completion_check_tool.invoke({"evidence_reason": "freshness query without evidence tools"})
+        result = render_completion_directive(
+            BlockReasons(evidence="freshness query without evidence tools"), records=[], workspace_root=None
+        )
         assert "CRITICAL COMPLETION CHECK" in result
         assert "freshness query without evidence tools" in result
 
     def test_deliverable_write_reason_branch(self) -> None:
-        result = _completion_check_tool.invoke({"deliverable_write_reason": "claimed file write without tool call"})
+        result = render_completion_directive(
+            BlockReasons(deliverable_write="claimed file write without tool call"), records=[], workspace_root=None
+        )
         assert "CRITICAL COMPLETION CHECK" in result
         assert "claimed file write without tool call" in result
 

@@ -6,13 +6,13 @@
 - myrm_agent_harness.agent._factory.builder::create_skill_agent (POS: the real tool assembly and run loop)
 
 [OUTPUT]
-- CHECK_MARK: the text every guard rejection starts with in the transcript the model reads
+- CHECK_MARK: the text every guard rejection starts with in the request the model reads
 - state / runtime / verdict: one ``aafter_model`` call for a request and a scripted answer
-- hook_call / hook_args: the ``_completion_check`` call a rejecting verdict carries, and its arguments
+- pending / reasons_of / directive_of: the instruction a rejecting verdict leaves for the model, the reasons it answers, and its text
 - registry_of / named_tool / built_guard: the guard of the chain ``build_middlewares`` assembles over a registry of mounted tools
 - writes_allowed / writes_denied: a policy that lets a run write files, and one with the Read Only profile's deny set on top
-- CountingModel: scripted model that counts its calls and can answer differently once the guard has spoken
-- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model, and the tools it mounted
+- CountingModel: scripted model that counts its calls, keeps what each call was shown, and can answer differently once the guard has spoken
+- run_agent / tool_names: a ``create_skill_agent`` run over a scripted model (optionally collecting its events), and the tools it mounted
 
 [POS]
 Harness pytest-only helper shared by the completion-guard capability tests, so each one states its case
@@ -24,7 +24,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import cast
 from unittest.mock import patch
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -39,7 +38,9 @@ from myrm_agent_harness.agent._factory.builder import create_skill_agent
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.middlewares._session_context import EFFECTIVE_SECURITY_CONFIG_CONTEXT_KEY
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import CompletionGuard
+from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import PendingDirective, current_run_state
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
 from myrm_agent_harness.agent.types import WorkspaceBinding
@@ -85,15 +86,21 @@ async def verdict(guard: CompletionGuard, messages: dict[str, object], at: Runti
         return await guard.aafter_model(messages, at)
 
 
-def hook_call(result: dict[str, object] | None) -> dict[str, object]:
-    """The ``_completion_check`` call that a rejecting verdict carries."""
+def pending(result: dict[str, object] | None) -> PendingDirective:
+    """The instruction a rejecting verdict leaves for the model: the verdict routes the run back to the model."""
     assert result is not None
-    messages = cast(list[AIMessage], result["messages"])
-    return cast(dict[str, object], messages[0].tool_calls[0])
+    assert result.get("jump_to") == "model"
+    owed = current_run_state().pending_directive
+    assert owed is not None
+    return owed
 
 
-def hook_args(result: dict[str, object] | None) -> dict[str, object]:
-    return cast(dict[str, object], hook_call(result)["args"])
+def reasons_of(result: dict[str, object] | None) -> BlockReasons:
+    return pending(result).reasons
+
+
+def directive_of(result: dict[str, object] | None) -> str:
+    return pending(result).text
 
 
 def named_tool(name: str) -> BaseTool:
@@ -120,11 +127,12 @@ def built_guard(registry: ToolRegistry) -> CompletionGuard:
 class CountingModel(FakeMessagesListChatModel):
     """Repeats one scripted answer and counts the calls it serves.
 
-    With ``answer_after_check`` it answers that instead once the transcript carries a guard rejection, which is
-    what a model that does as the guard asks does.
+    With ``answer_after_check`` it answers that instead once the request carries a guard rejection, which is
+    what a model that does as the guard asks does. ``transcripts`` keeps the messages of every request.
     """
 
     requests: list[int] = Field(default_factory=list)
+    transcripts: list[list[BaseMessage]] = Field(default_factory=list)
     answer_after_check: str | None = None
 
     def bind_tools(self, tools: object, **kwargs: object) -> CountingModel:
@@ -138,6 +146,7 @@ class CountingModel(FakeMessagesListChatModel):
         **kwargs: object,
     ) -> ChatResult:
         self.requests.append(len(messages))
+        self.transcripts.append(list(messages))
         if self.answer_after_check is not None and any(CHECK_MARK in str(m.content) for m in messages):
             return ChatResult(generations=[ChatGeneration(message=AIMessage(content=self.answer_after_check))])
         return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
@@ -151,8 +160,12 @@ async def run_agent(
     request: str,
     file_access_mode: FileAccessMode,
     enable_shell_tools: bool,
+    events: list[dict[str, object]] | None = None,
 ) -> tuple[SkillAgent, Path]:
-    """Run ``request`` through a real agent whose only scripted part is the model; returns it and its workspace."""
+    """Run ``request`` through a real agent whose only scripted part is the model; returns it and its workspace.
+
+    The events the run streams are appended to ``events`` when given.
+    """
     workspace = (tmp_path / "project").resolve()
     workspace.mkdir()
     chat = "chat_completion_capability"
@@ -179,8 +192,9 @@ async def run_agent(
         "workspaces_storage_root": str(tmp_path / "workspaces"),
         "session_id": chat,
     }
-    async for _ in agent.run(query=request, context=context):
-        pass
+    async for event in agent.run(query=request, context=context):
+        if events is not None:
+            events.append(event)
     return agent, workspace
 
 

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from myrm_agent_harness.agent.streaming.answer_draft import is_answer_restart
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,
@@ -153,6 +154,21 @@ async def test_dispatch_custom_agent_status(ctx):
 
     events = executor._compactor.events
     assert any(isinstance(e, AgentStreamEvent) and e.type == AgentEventType.STATUS for e in events)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_custom_agent_status_keeps_the_restart_signal_at_the_top_level(ctx):
+    """A status step that supersedes the streamed draft reaches consumers as ``restart`` on the event itself."""
+    executor = _make_executor(ctx)
+    data = {"name": "agent_status", "data": {"step_key": "answer_recheck", "restart": True}}
+
+    await executor._dispatch_chunk(("custom", data), ctx, [])
+
+    events = [e for e in executor._compactor.events if isinstance(e, AgentStreamEvent)]
+    assert len(events) == 1
+    assert events[0].type == AgentEventType.STATUS
+    assert events[0].to_dict()["restart"] is True
+    assert is_answer_restart(events[0].to_dict())
 
 
 @pytest.mark.asyncio

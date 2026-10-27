@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.orchestration.hooks import RUNTIME_HOOK_NAMES
 from myrm_agent_harness.agent.orchestration.signals.catalog import (
     ORCHESTRATION_SIGNAL_NAMES,
 )
@@ -21,7 +20,7 @@ from myrm_agent_harness.agent.tool_management.tool_layers import _TOOL_LAYERS, T
 
 
 def test_action_tools_only_in_tool_layers() -> None:
-    overlap = set(_TOOL_LAYERS) & (ORCHESTRATION_SIGNAL_NAMES | RUNTIME_HOOK_NAMES)
+    overlap = set(_TOOL_LAYERS) & ORCHESTRATION_SIGNAL_NAMES
     assert not overlap
 
 

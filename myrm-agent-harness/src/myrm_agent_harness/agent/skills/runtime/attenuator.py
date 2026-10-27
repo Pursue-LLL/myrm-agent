@@ -40,7 +40,6 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "skill_list_tool",
         "skill_search_tool",
         "skill_select_tool",
-        "_completion_check",
     }
 )
 

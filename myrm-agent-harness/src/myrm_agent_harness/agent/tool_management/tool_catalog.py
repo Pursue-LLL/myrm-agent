@@ -17,7 +17,7 @@
 
 [POS]
 Catalog metadata for Action Tools only (``_TOOL_LAYERS`` entries).
-Orchestration signals and runtime hooks live under ``agent/orchestration/``.
+Orchestration signals live under ``agent/orchestration/``.
 """
 
 from __future__ import annotations

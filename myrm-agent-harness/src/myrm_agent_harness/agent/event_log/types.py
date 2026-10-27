@@ -169,7 +169,9 @@ def _build_persistent_types() -> frozenset[str]:
 
     Excludes high-frequency streaming chunks (MESSAGE, REASONING)
     and ephemeral UI events (UI_UPDATE, ARTIFACT_CONTENT) to
-    keep ~60-70% of event volume out of the log.
+    keep ~60-70% of event volume out of the log. Adds the internal record
+    types that are never streamed: ``llm_request``, ``takeover_trace``,
+    ``fork_point`` and ``completion_guard`` (a held-back answer).
     """
 
     exclude: set[str] = {
@@ -179,7 +181,7 @@ def _build_persistent_types() -> frozenset[str]:
         AgentEventType.ARTIFACT_CONTENT.value,
     }
     return frozenset(e.value for e in AgentEventType if e.value not in exclude) | frozenset(
-        {"llm_request", "takeover_trace", "fork_point"}
+        {"llm_request", "takeover_trace", "fork_point", "completion_guard"}
     )
 
 

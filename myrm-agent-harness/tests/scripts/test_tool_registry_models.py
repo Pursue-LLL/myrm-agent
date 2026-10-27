@@ -34,7 +34,7 @@ def test_missing_registrations_excludes_internal_prefix_and_explicit() -> None:
         declarations=[
             _decl("real_tool"),
             _decl("_internal_helper"),
-            _decl("_completion_check"),
+            _decl("_internal_probe"),
         ],
         registered_names=set(),
     )
@@ -122,8 +122,8 @@ def test_duplicate_declarations_ignores_internal_names() -> None:
     """Internal tool name collisions are not flagged as duplicates."""
     report = ScanReport(
         declarations=[
-            _decl("_completion_check", file="/a.py"),
-            _decl("_completion_check", file="/b.py"),
+            _decl("_internal_probe", file="/a.py"),
+            _decl("_internal_probe", file="/b.py"),
         ]
     )
     assert report.duplicate_declarations() == {}

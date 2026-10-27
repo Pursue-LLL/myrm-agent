@@ -300,6 +300,7 @@ class StreamDispatcherMixin:
                     "metadata",
                     "error_kind",
                     "fallback_model",
+                    "restart",
                 ):
                     if field in event_data:
                         event_dict_2[field] = event_data[field]
@@ -379,7 +380,6 @@ class StreamDispatcherMixin:
                     },
                     ctx,
                 )
-
 
     def _restore_pseudonyms(self, text: str) -> str:
         """Restore pseudonymized placeholders in streamed text chunks.

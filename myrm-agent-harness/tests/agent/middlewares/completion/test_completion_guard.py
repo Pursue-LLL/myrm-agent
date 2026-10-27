@@ -9,11 +9,13 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
-import myrm_agent_harness.agent.middlewares.completion.completion_guard as _cg_mod
 import myrm_agent_harness.agent.middlewares.completion.completion_guard_state as _cg_state
 from myrm_agent_harness.agent.meta_tools.progress.storage import todos_path
+from myrm_agent_harness.agent.middlewares.completion.completion_directive import (
+    BlockReasons,
+    render_completion_directive,
+)
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
-    COMPLETION_CHECK_TOOL_NAME,
     CompletionGuard,
     classify_verification,
     reset_completion_guard,
@@ -31,6 +33,7 @@ from myrm_agent_harness.core.security.tool_registry import (
     SafetyMetadata,
     register_ptc_safety_metadata,
 )
+from tests.support.completion_guard_harness import directive_of, pending, reasons_of
 
 LOOP_GUARD_PATCH = "myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard"
 
@@ -95,8 +98,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value._window = [code_write_record]
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        assert COMPLETION_CHECK_TOOL_NAME in str(result)
+        assert pending(result).draft_id is None
 
     @pytest.mark.asyncio
     async def test_skips_when_no_critical_errors(self) -> None:
@@ -120,10 +122,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        tool_calls = result["messages"][0].tool_calls
-        assert tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
-        assert "evidence_reason" in tool_calls[0]["args"]
+        assert reasons_of(result).evidence
 
     @pytest.mark.asyncio
     async def test_allows_when_external_evidence_exists(self) -> None:
@@ -171,11 +170,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        tool_calls = result["messages"][0].tool_calls
-        assert tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
-        assert "deliverable_write_reason" in tool_calls[0]["args"]
-        assert "Substantial unpersisted deliverables" in tool_calls[0]["args"]["deliverable_write_reason"]
+        assert "Substantial unpersisted deliverables" in reasons_of(result).deliverable_write
 
     @pytest.mark.asyncio
     async def test_unwritten_deliverable_auto_staged_at_max_rejections(self) -> None:
@@ -211,11 +206,9 @@ class TestCompletionGuardTriggerConditions:
 
                 # Second attempt hits max_rejections -> forced finish with auto-staging
                 r2 = await guard.aafter_model(state, runtime)
-                assert r2 is not None
-                tool_calls = r2["messages"][0].tool_calls
-                assert tool_calls[0]["args"]["force_fail"] is True
-                assert "staged_artifacts" in tool_calls[0]["args"]
-                staged = tool_calls[0]["args"]["staged_artifacts"]
+                forced = reasons_of(r2)
+                assert forced.forced_finish is True
+                staged = forced.staged_artifacts
                 assert len(staged) == 1
                 assert staged[0]["original_hint"] == "draft_worker.py"
 
@@ -239,11 +232,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        tool_calls = result["messages"][0].tool_calls
-        assert tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
-        assert "deliverable_write_reason" in tool_calls[0]["args"]
-        assert "Substantial unpersisted deliverables detected" in str(tool_calls[0]["args"]["deliverable_write_reason"])
+        assert "Substantial unpersisted deliverables detected" in reasons_of(result).deliverable_write
 
     @pytest.mark.asyncio
     async def test_allows_when_mcp_ptc_bash_evidence_exists(self) -> None:
@@ -336,13 +325,12 @@ class TestCompletionGuardTriggerConditions:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
+        assert reasons_of(result).forced_finish is False
         assert _cg_state.current_run_state().rejections == 1
-        assert result["messages"][0].tool_calls[0]["args"].get("force_fail") is not True
 
     @pytest.mark.asyncio
     async def test_max_rejections_graceful_degradation(self) -> None:
-        """Should inject force_fail=True when max rejections are reached."""
+        """Should let the model finish with a warning once max rejections are reached."""
         self.guard._max_rejections = 2
         _cg_state.current_run_state().rejections = 2
         state = _make_state([AIMessage(content="All done!")])
@@ -357,9 +345,8 @@ class TestCompletionGuardTriggerConditions:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
         assert _cg_state.current_run_state().forced_finish is True
-        assert result["messages"][0].tool_calls[0]["args"].get("force_fail") is True
+        assert reasons_of(result).forced_finish is True
 
     @pytest.mark.asyncio
     async def test_after_forced_finish_guard_releases(self) -> None:
@@ -427,10 +414,11 @@ class TestCompletionGuardTriggerConditions:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        injected = result["messages"][0]
-        assert injected is not original_ai
-        assert injected.tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
+        assert pending(result).draft_id == original_ai.id
+        stripped = result["messages"][0]
+        assert stripped is not original_ai
+        assert stripped.id == original_ai.id
+        assert stripped.tool_calls == []
         assert original_ai.tool_calls[0]["name"] == "request_answer_user_tool"
 
 
@@ -699,86 +687,78 @@ class TestBuildChecklist:
         assert "incomplete todos" in checklist
 
 
-class TestCompletionGuardGetTools:
-    """Test CompletionGuard exposes internal tool via get_tools."""
+class TestCompletionDirective:
+    """What the model reads for a held-back answer."""
 
-    def test_returns_completion_check_tool(self) -> None:
-        guard = CompletionGuard()
-        tools = guard.get_tools()
-        assert len(tools) == 1
-        assert tools[0].name == COMPLETION_CHECK_TOOL_NAME
+    def test_directive_returns_checklist(self) -> None:
+        records = [
+            CallRecord(
+                tool_name="file_write_tool",
+                args_hash="abc",
+                args={"path": "/tmp/out.py"},
+                success_level=SuccessLevel.FULL_SUCCESS,
+            ),
+        ]
 
-
-class TestCompletionCheckTool:
-    """Test the _completion_check tool function."""
-
-    def test_tool_returns_checklist(self) -> None:
-        from collections import deque
-
-        from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
-            _completion_check_tool,
-        )
-
-        mock_window: deque[CallRecord] = deque(
-            [
-                CallRecord(
-                    tool_name="file_write_tool",
-                    args_hash="abc",
-                    args={"path": "/tmp/out.py"},
-                    success_level=SuccessLevel.FULL_SUCCESS,
-                ),
-            ]
-        )
-
-        with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = mock_window
-            result = _completion_check_tool.invoke({})
+        result = render_completion_directive(BlockReasons(), records=records, workspace_root=None)
 
         assert "file_write_tool" in result
 
-    def test_force_fail(self) -> None:
-        from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
-            _completion_check_tool,
-        )
-
-        result = _completion_check_tool.invoke({"force_fail": True})
+    def test_forced_finish_directive(self) -> None:
+        result = render_completion_directive(BlockReasons(forced_finish=True), records=[], workspace_root=None)
         assert "CRITICAL SYSTEM DIRECTIVE" in result
 
-    def test_force_fail_includes_staged_deliverable_notice(self) -> None:
-        result = _cg_mod._completion_check_tool.invoke(
-            {
-                "force_fail": True,
-                "staged_artifacts": [{"filename": "draft_worker.py"}],
-                "execution_claim_reason": "unbacked claim",
-            }
+    def test_forced_finish_includes_staged_deliverable_notice(self) -> None:
+        result = render_completion_directive(
+            BlockReasons(
+                forced_finish=True,
+                staged_artifacts=({"filename": "draft_worker.py"},),
+                execution_claim="unbacked claim",
+            ),
+            records=[],
+            workspace_root=None,
         )
         assert "draft_worker.py" in result
         assert "claimed work" in result
 
     @pytest.mark.parametrize(
-        ("args", "marker"),
+        "reason",
+        ["evidence", "deliverable_write", "query_grounding", "ppt_outline"],
+    )
+    def test_forced_finish_states_what_is_still_unresolved(self, reason: str) -> None:
+        result = render_completion_directive(
+            BlockReasons(forced_finish=True, **{reason: "the unresolved point"}), records=[], workspace_root=None
+        )
+        assert "Still unresolved (the unresolved point)" in result
+
+    @pytest.mark.parametrize(
+        ("reasons", "marker"),
         [
             (
-                {"deliverable_write_reason": "claim without write"},
+                BlockReasons(deliverable_write="claim without write"),
                 "Deliverable write claim without tool evidence",
             ),
             (
-                {"execution_claim_reason": "claim without execution"},
+                BlockReasons(execution_claim="claim without execution"),
                 "Completion claim without executed evidence",
             ),
             (
-                {"query_grounding_reason": "ungrounded entity query"},
+                BlockReasons(query_grounding="ungrounded entity query"),
                 "Entity query observation ungrounded",
             ),
             (
-                {"ppt_outline_reason": "weak outline"},
+                BlockReasons(ppt_outline="weak outline"),
                 "PPT Reporting Plan Outline Quality Gate Failed",
             ),
         ],
     )
-    def test_tool_reports_each_block_reason(self, args: dict[str, str], marker: str) -> None:
-        result = _cg_mod._completion_check_tool.invoke(args)
+    def test_directive_reports_each_block_reason(self, reasons: BlockReasons, marker: str) -> None:
+        result = render_completion_directive(reasons, records=[], workspace_root=None)
         assert marker in result
+
+    def test_a_directive_is_not_padded_with_a_leading_space(self) -> None:
+        result = render_completion_directive(BlockReasons(evidence="x"), records=[], workspace_root=None)
+        assert result.startswith("CRITICAL COMPLETION CHECK")
 
 
 class TestClassifyVerification:
@@ -1109,7 +1089,7 @@ class TestFrontendBrowserVerificationWarning:
         """CallRecords from internal tools (starting with _) are excluded."""
         records = [
             CallRecord(
-                tool_name="_completion_check",
+                tool_name="_internal_probe",
                 args_hash="ic1",
                 args={"workspace_root": "/tmp"},
                 success_level=SuccessLevel.FAILURE,
@@ -1117,7 +1097,7 @@ class TestFrontendBrowserVerificationWarning:
         ]
         checklist, has_critical = build_checklist(records)
         assert not has_critical
-        assert "_completion_check" not in checklist
+        assert "_internal_probe" not in checklist
         assert "Confirm the response fully addresses" in checklist
 
 
@@ -1389,8 +1369,8 @@ class TestMixedMessageGuard:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        assert result["messages"][0].tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
+        assert pending(result).reasons == BlockReasons()
+        assert pending(result).text
 
     @pytest.mark.asyncio
     async def test_bash_tool_is_mutation(self) -> None:
@@ -1833,8 +1813,7 @@ class TestIndependentRerun:
             mock_guard.return_value._window = records
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        assert COMPLETION_CHECK_TOOL_NAME in str(result)
+        assert pending(result).text
 
     @pytest.mark.asyncio
     async def test_failed_verification_not_bypassed_by_rerun(self) -> None:
@@ -1870,8 +1849,7 @@ class TestIndependentRerun:
             mock_guard.return_value._window = records
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        assert COMPLETION_CHECK_TOOL_NAME in str(result)
+        assert pending(result).text
 
     @pytest.mark.asyncio
     async def test_no_executor_falls_back_to_blocking(self) -> None:
@@ -1909,8 +1887,7 @@ class TestIndependentRerun:
             mock_guard.return_value._window = records
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        assert COMPLETION_CHECK_TOOL_NAME in str(result)
+        assert pending(result).text
 
 
 class TestExtractLatestHumanText:
@@ -2489,12 +2466,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
 
-        assert res is not None
-        patched_msg = res["messages"][0]
-        assert len(patched_msg.tool_calls) == 1
-        tc = patched_msg.tool_calls[0]
-        assert tc["name"] == COMPLETION_CHECK_TOOL_NAME
-        assert "Substantial unpersisted deliverables detected" in str(tc["args"].get("deliverable_write_reason", ""))
+        assert "Substantial unpersisted deliverables detected" in reasons_of(res).deliverable_write
 
     @pytest.mark.asyncio
     async def test_forced_finish_triggers_auto_staging(self, tmp_path: Path) -> None:
@@ -2530,11 +2502,9 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
 
             # Third attempt triggers max_rejections (max_rejections=2) -> forced finish
             res3 = await self.guard.aafter_model(state, runtime)
-            assert res3 is not None
-            final_msg = res3["messages"][0]
-            assert final_msg.tool_calls[0]["args"].get("force_fail") is True
-            staged = final_msg.tool_calls[0]["args"].get("staged_artifacts")
-            assert staged is not None
+            forced = reasons_of(res3)
+            assert forced.forced_finish is True
+            staged = forced.staged_artifacts
             assert len(staged) == 1
             assert staged[0]["original_hint"] == "app/calc.py"
 
@@ -2597,12 +2567,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
 
-        assert res is not None
-        final_msg = res["messages"][0]
-        assert final_msg.tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
-        reason = final_msg.tool_calls[0]["args"].get("query_grounding_reason")
-        assert reason is not None
-        assert "no query or MCP tool was executed" in str(reason)
+        assert "no query or MCP tool was executed" in reasons_of(res).query_grounding
 
     @pytest.mark.asyncio
     async def test_multi_entity_query_missing_one_entity_blocks_in_guard(self, tmp_path: Path) -> None:
@@ -2626,12 +2591,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
 
-        assert res is not None
-        final_msg = res["messages"][0]
-        assert final_msg.tool_calls[0]["name"] == COMPLETION_CHECK_TOOL_NAME
-        reason = final_msg.tool_calls[0]["args"].get("query_grounding_reason")
-        assert reason is not None
-        assert "TK-8802" in str(reason)
+        assert "TK-8802" in reasons_of(res).query_grounding
 
     @pytest.mark.asyncio
     async def test_multi_entity_query_missing_one_with_honest_negative_passes_guard(self, tmp_path: Path) -> None:
@@ -2715,10 +2675,9 @@ class TestExecutionClaimGate:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        args = result["messages"][0].tool_calls[0]["args"]
-        assert "execution_claim_reason" in args
-        assert args.get("force_fail") is not True
+        reasons = reasons_of(result)
+        assert reasons.execution_claim
+        assert reasons.forced_finish is False
 
     @pytest.mark.asyncio
     async def test_allows_claim_backed_by_verification_record(self) -> None:
@@ -2756,15 +2715,10 @@ class TestExecutionClaimGate:
             mock_guard.return_value._window = []
             result = await self.guard.aafter_model(state, None)
 
-        assert result is not None
-        args = result["messages"][0].tool_calls[0]["args"]
-        assert args.get("force_fail") is True
-        assert "execution_claim_reason" in args
-
-        notice = _cg_mod._completion_check_tool.invoke(
-            {"force_fail": True, "execution_claim_reason": args["execution_claim_reason"]}
-        )
-        assert "claimed work" in notice
+        reasons = reasons_of(result)
+        assert reasons.forced_finish is True
+        assert reasons.execution_claim
+        assert "claimed work" in directive_of(result)
 
     @pytest.mark.asyncio
     async def test_mixed_message_path_keeps_tool_calls_for_unbacked_claim(self) -> None:

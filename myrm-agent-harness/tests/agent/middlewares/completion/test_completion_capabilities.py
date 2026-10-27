@@ -37,7 +37,7 @@ _EVIDENCE_TOOLS = (
     "mcp__news__latest",
     "bash_code_execute_tool",
 )
-_NOT_EVIDENCE_TOOLS = ("file_read_tool", "file_write_tool", "glob_tool", "grep_tool", "todo_write", "_completion_check")
+_NOT_EVIDENCE_TOOLS = ("file_read_tool", "file_write_tool", "glob_tool", "grep_tool", "todo_write", "_internal_tool")
 
 
 def test_a_run_with_no_declared_limits_is_held_to_every_demand(tmp_path: Path) -> None:
