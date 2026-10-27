@@ -4,7 +4,8 @@
  * Text views of the workspace file preview: the read-only code view and the editor, both with line numbers.
  *
  * [INPUT]
- * - content / language / onChange: what to show, how it is labelled, and where typing goes
+ * - content / language / label / onChange: what to show, how it is labelled, what the editor is called for
+ *   assistive technology, and where typing goes
  *
  * [OUTPUT]
  * - LineNumberedCode: read-only code view
@@ -114,8 +115,10 @@ LineNumberedCode.displayName = 'LineNumberedCode';
 
 export const LineNumberedEditor: React.FC<{
   content: string;
+  /** What assistive technology announces for the textarea: the name of the file being edited. */
+  label: string;
   onChange: (value: string) => void;
-}> = memo(({ content, onChange }) => {
+}> = memo(({ content, label, onChange }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineCountRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +135,7 @@ export const LineNumberedEditor: React.FC<{
       <LineNumbers ref={lineCountRef} count={countLines(content)} className="overflow-x-scroll overflow-y-hidden" />
       <textarea
         ref={textareaRef}
+        aria-label={label}
         value={content}
         onChange={(e) => onChange(e.target.value)}
         onScroll={syncScroll}

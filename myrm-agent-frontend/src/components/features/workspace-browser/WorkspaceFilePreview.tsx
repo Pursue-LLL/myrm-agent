@@ -259,7 +259,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             ) : null
           ) : snapshot !== null ? (
             editing && canEdit ? (
-              <LineNumberedEditor content={editor.draft} onChange={editor.setDraft} />
+              <LineNumberedEditor content={editor.draft} label={file.name} onChange={editor.setDraft} />
             ) : (
               <LineNumberedCode content={snapshot.content} language={language} />
             )

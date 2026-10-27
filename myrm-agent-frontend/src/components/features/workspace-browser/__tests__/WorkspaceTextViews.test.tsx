@@ -6,7 +6,7 @@ import { LineNumberedCode, LineNumberedEditor } from '../WorkspaceTextViews';
 
 function Editor({ initial }: { initial: string }) {
   const [content, setContent] = useState(initial);
-  return <LineNumberedEditor content={content} onChange={setContent} />;
+  return <LineNumberedEditor content={content} label="notes.txt" onChange={setContent} />;
 }
 
 const gutterOf = (container: HTMLElement): HTMLElement => {
@@ -47,6 +47,11 @@ describe('LineNumberedEditor', () => {
     const { container } = render(<Editor initial={'a\nb\nc'} />);
     expect(gutterOf(container).getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByRole('textbox')).toBeTruthy();
+  });
+
+  it('names the textbox after the file, so a screen reader says which file is being edited', () => {
+    render(<Editor initial="alpha" />);
+    expect(screen.getByRole('textbox', { name: 'notes.txt' })).toBeTruthy();
   });
 
   it('scrolls the numbers together with the text', () => {
