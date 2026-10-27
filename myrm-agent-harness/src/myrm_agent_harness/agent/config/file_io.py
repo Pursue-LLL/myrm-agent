@@ -38,9 +38,9 @@ class FileIOConfig:
     max_concurrent_reads: int = 10
     """Maximum number of concurrent file read operations."""
 
-    # Compiler-grade read output caps (SSOT for file_read_tool truncation).
-    # Aligned with openclaw (128 KB) / hermes-agent (100 K chars, 2000 lines,
-    # 2000 ch/line). All three are injectable so server/plane can tune them.
+    # Read output caps for a code or text file (SSOT for file_read_tool truncation). The file_read
+    # handlers read them from DEFAULT_FILE_IO_CONFIG, not from a config passed to the tool. A long
+    # text the context guard parked is paged by real tokens instead (core/parked_file_view.py).
     max_read_chars: int = 10000
     """Maximum characters admitted into context for a single file read output.
     When exceeded, the output is head-truncated on a complete-line boundary and

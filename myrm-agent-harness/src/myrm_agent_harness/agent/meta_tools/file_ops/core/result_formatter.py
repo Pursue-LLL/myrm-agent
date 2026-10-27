@@ -3,7 +3,7 @@
 负责格式化文件操作的输出结果。
 
 [INPUT]
-- (none)
+- parked_file_view::is_parked_path, wrap_long_lines, wrapped_rows_notice (POS: rows of a parked paste)
 
 [OUTPUT]
 - FileContent: class — File Content
@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from ..constants import LINE_NUMBER_WIDTH, SEPARATOR_WIDTH
 from ..utils.line_endings import strip_utf8_bom
 from .operation_context import ViewRange
+from .parked_file_view import is_parked_path, wrap_long_lines, wrapped_rows_notice
 
 # 类型别名
 type DirectoryEntry = tuple[str, bool, int]  # (name, is_dir, size)
@@ -95,14 +96,22 @@ class ResultFormatter:
         Args:
             content: 文件内容数据
             max_line_length: 每行长度上限，超长行 clamp + 截断标记。None 不限制。
+                上下文守卫落盘的长文本（``.myrm/pastes``、``.myrm/spillover``）例外：超长行按此宽度拆成多行，不截断。
 
         Returns:
             格式化后的字符串
         """
-        total_lines = len(content.lines)
         lines = list(content.lines)
         if lines:
             lines[0] = strip_utf8_bom(lines[0])
+
+        # A parked paste keeps every character of a long line: the line is split into rows instead of cut.
+        notice = ""
+        if max_line_length is not None and is_parked_path(content.path):
+            lines, first_split = wrap_long_lines(lines, max_line_length)
+            if first_split is not None:
+                notice = f"{wrapped_rows_notice(max_line_length, first_split)}\n"
+        total_lines = len(lines)
 
         if content.view_range:
             start_idx, end_idx = content.view_range.to_slice(total_lines)
@@ -115,7 +124,9 @@ class ResultFormatter:
             ]
             result_content = "\n".join(numbered_lines)
 
-            formatted = f" {content.display_path} (lines {start_idx + 1}-{end_idx} of {total_lines}):\n{result_content}"
+            formatted = (
+                f" {content.display_path} (lines {start_idx + 1}-{end_idx} of {total_lines}):\n{notice}{result_content}"
+            )
         else:
             # 添加行号（超长行按 max_line_length clamp）
             numbered_lines = [
@@ -123,7 +134,7 @@ class ResultFormatter:
             ]
             result_content = "\n".join(numbered_lines)
 
-            formatted = f" {content.display_path} ({total_lines} lines):\n{result_content}"
+            formatted = f" {content.display_path} ({total_lines} lines):\n{notice}{result_content}"
 
         # 判断是否是技能指令文档
         if ResultFormatter._is_skill_instruction_document(content.path):

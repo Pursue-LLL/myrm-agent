@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-056 · 上下文守卫落盘的长文本按「源码文件」的读取上限读回：每页 1 万字符，7 万字符英文要读 8 次；一行到底的粘贴（压缩 JSON、base64、无换行长文）只读得到前 2,000 字符，其余在 Web 快速通道里读不到
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness `agent/meta_tools/file_ops/core/` 一个新模块加两处接线；产品侧限额、占位块、前端、工具 schema 都不动）。 |
+| **发现时间** | 2026-10-27（评审 roadmap topic_06 #444 时，用真实 `file_read_tool` 读落盘文件，按工具给的 `Use path:N- to continue` 一页页续读） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：不崩溃。读回成本高：7 万字符英文要 8 次读取、9 次模型调用，账单约为内联的 2.0 倍（算术估算，见「仍然存在」①）；一行 64,515 字符的 JSON 只给出约 2,000 字符（3%），没有续读提示，Web 快速通道没有 shell，尾部没有任何途径读到，是静默丢失。 |
+| **关联产品** | `myrm-agent/BUGFIX_LOG.md` 同日「用户粘贴的落盘线太低……」（该条把读回写成「多一次往返」，已改正）；roadmap topic_06 #444 |
+| **根因** | ① 落盘文件走通用读取上限：每页 10,000 字符（`agent/config/file_io.py:44`）、每行 2,000 字符（`:53`），这组数是为源码文件定的，粘贴文本的体量与形状不同。② 单行超过页上限时 `_head_truncate_on_line_boundary` 退化成截断这一行（`file_read_truncation.py:49`），续读偏移指向下一行，被截掉的部分没有入口；`clamp_line` 同样只截断（`result_formatter.py:33-42`）。③ `preview` / `stream` 模式绕过页上限，按行截断（`file_read_handlers.py` 的 `_clamp_multiline`）。④ `file_io.py` 的注释写「与 openclaw 128 KB、hermes 100K 字符对齐」「三个上限都可注入」，两句都不符：`max_read_chars` 是 10,000，读取处理器直接取模块级 `DEFAULT_FILE_IO_CONFIG`。 |
+| **修复** | 新增 `agent/meta_tools/file_ops/core/parked_file_view.py`，只对 `.myrm/pastes`、`.myrm/spillover` 下的文件生效（`is_parked_path`，`:48`，按规范化后的路径判断，`..`、子目录、`pastes_old` 等相似目录不命中）：① 页按 20,000 个真实词元切（`truncate_parked_page`，`:108`；`_page_chars`，`:84`，只度量将成为页面的窗口，最多 5 轮按比例修正，容差 10%，仍未收敛就对半缩小到确认放得下），不再按字符。② 超长行不截断：`ResultFormatter.format_file_content`（`result_formatter.py:110`）按 `max_read_line_length` 把它拆成多行（`wrap_long_lines`，`:58`，按码点切，逐字可还原），有拆行时头部加一行说明（`wrapped_rows_notice`，`:76`）：行号按拆行后计数，只到第一个拆行为止与文件行号一致。③ `file_read_handlers.py:357` 对停放文件走 `truncate_parked_page`，`:438` 把停放文件的 `preview` / `stream` 改走 `all`。④ 纠正 `file_io.py` 的注释。其它文件的读取上限一字不动，`truncate_file_output` 的签名不变（vault 读共用）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 先想用 `estimate_token_pressure` 定页大小：下游预算守卫与读取路径用的都是真实词元，估算器对中文高估 2.25 倍，改用 `get_token_count`。② 先按整个文件的平均密度定页的字符数：前半稠密、后半散文的文件第一页 35,203 词元（目标 20,000），改成只度量实际成为页面的窗口并收敛。③ 路径判断第一版用 `lstrip("./")`，把 `.myrm` 的点一并剥掉，相对路径判错，改成按段比较并把 12 个路径用例固化成测试。④ 拆行后行号不再等于文件原行号（有 shell 的入口里 `grep -n` 的行号会错位），所以加了头部说明。 |
+| **回归** | 新增 `tests/agent/meta_tools/file_ops/test_parked_file_view.py` 32 例（路径判断 18 例、拆行逐字还原与边界、页预算对散文/十六进制/前稠后散三种文本逐页不超过预算 1.1 倍加提示、各页覆盖全部行且不重复、确定性、其它文件仍截断且无说明、范围读取与整读的行号一致）与 `test_file_read_parked_view_integration.py` 8 例（真实 `file_read_tool` + 真实落盘引擎 + 真实 `LocalExecutor`，按续读提示一页页读：7 万字符英文 1 次读完，30 万字符 4 次，一行 JSON 末尾可达，绝对路径、`preview`、`stream`、范围读取，以及普通文件仍是 10,000 字符一页与 `... [truncated]`）。修前真实工具实测：7 万字符英文 8 次读取、1.2 万字中文 2 次、一行 JSON 1 次且末尾不可达；修后：7 万字符英文 1 次、5.8 万字符英文 1 次、1.2 万字中文 1 次、3 万字中文 2 次、30 万字符英文 4 次（每页 19,435～19,443 词元，末页 9,166）、一行 JSON 1 次且末尾可达。变异检验 14 例（路径判断恒真、少一个目录、不规范化 `..`、拆行宽度差一、丢拆行序号、页预算失效、不修正、容差放大、格式化器不拆行、格式化器对所有文件拆行、说明丢失、处理器不走新页、处理器对所有文件走新页、`preview` 不转 `all`）全部变红，字节还原。`tests/agent/meta_tools` 与 `tests/agent/context_guard` 合计 2,382 例通过、3 例跳过（不含另一位开发者尚未完成的 `bash/test_read_exit_code.py` 与两个基准脚本）；服务端 `test_context_bomb_guard.py`、`test_context_guard_service.py`、`test_chat_message_spill_workspace.py`、`test_execute_preamble_context_document.py` 65 例通过。`ruff`、`pyright`（用 `.venv` 解释器）对改动与新文件 0 错。`tests/architecture` 有 4 例红：`uv.lock` 源、`uv` 缺失、`windows.py` 行数、`BUGFIX_LOG.md` 里已删除的 `proxy_server.py` 引用，均不是这次的文件。 |
+| **仍然存在** | ① 没有用真实模型验证（没有 key）：模型是否读完所有页、延迟、真实账单。算术估算（页数为真实工具实测、词元为真实分词、价格是假设：缓存输入 0.1 倍、输出 5 倍、系统提示 10k 词元已缓存）：5.8 万～7 万字符英文单轮读完整段，停放相对内联的账单约 2.0 倍（现状）→ 1.14～1.16 倍；1.2 万字中文 1.39 → 1.21 倍。停放在单轮里仍比内联贵，它的价值在于超大输入能进来（网关 `orchestrator.py:59,183` 对超过 360,000 字符的内联输入直接返回 400）、不挤爆窗口，而不是省钱。② 页大小固定 20,000 词元，不随模型窗口变化（openclaw 按窗口 10% 自适应，`agent-tools.read.ts:81-84,132-140`）；窗口小于约 32k 的模型由预算守卫第三层兜底：单次 run 10 万词元（`context_budget.py:102`），实测第 5 页被裁剪 57%，是裁剪不是静默丢弃。③ 有拆行的文件，`grep -n` 报的行号与读取工具的行号只到第一个拆行为止一致，已在输出头部说明。④ 同一个页预算只对停放文件生效，普通文件的读取上限没有改，是有意取舍。⑤ 没有线上粘贴大小分布的数据（没有遥测、本机日志 `ContextGuard mitigated large prompt` 命中 0 次）。 |
+| **代码位置** | `agent/meta_tools/file_ops/core/parked_file_view.py:36,48,58,76,84,108`（页预算、路径判断、拆行、说明、页窗口、截页）· `agent/meta_tools/file_ops/core/result_formatter.py:110`（对停放文件拆行）· `agent/meta_tools/file_ops/core/file_read_handlers.py:357,438`（停放文件的页与读取模式）· `agent/config/file_io.py:41-43`（注释）· `agent/meta_tools/file_ops/core/_ARCH.md`（文件表）· `tests/agent/meta_tools/file_ops/test_parked_file_view.py` · `test_file_read_parked_view_integration.py` |
+
 ### BUG-HARNESS-2026-10-27-055 · 词元压力估算对稠密文本（base64、十六进制、日志、压缩 JSON、泰文）低估 1.7～2.7 倍，落盘线抬高后这类文本在线内原样进提示词
 
 | 字段 | 内容 |

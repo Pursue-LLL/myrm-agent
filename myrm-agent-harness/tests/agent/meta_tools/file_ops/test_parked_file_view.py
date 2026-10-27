@@ -1,0 +1,206 @@
+"""Unit tests for the view of a long text the context guard parked in the workspace.
+
+A parked paste is read in pages of real tokens and a line over the per-line cap is split into rows, so no
+character of it is out of reach; every other file keeps the code-file read caps.
+"""
+
+from __future__ import annotations
+
+import re
+
+import pytest
+
+from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
+from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
+    PAGE_TOKEN_BUDGET,
+    is_parked_path,
+    truncate_parked_page,
+    wrap_long_lines,
+    wrapped_rows_notice,
+)
+from myrm_agent_harness.agent.meta_tools.file_ops.core.result_formatter import FileContent, ResultFormatter
+from myrm_agent_harness.utils.text_utils import get_token_count
+
+_PARKED = ".myrm/pastes/payload_0123456789abcdef.md"
+_ROW_NUMBER = re.compile(r"^\s*(\d+)\|", re.MULTILINE)
+# A page may overshoot its budget by a tenth, and carries a continuation hint of a few dozen tokens.
+_PAGE_CEILING = PAGE_TOKEN_BUDGET * 110 // 100 + 300
+# A page that is not the last one is cut a line or two short of the budget at most.
+_PAGE_FLOOR = PAGE_TOKEN_BUDGET * 85 // 100
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".myrm/pastes/payload_0123456789abcdef.md",
+        "./.myrm/pastes/payload_0123456789abcdef.md",
+        ".myrm/spillover/payload_0123456789.md",
+        "/work/chat-1/.myrm/pastes/payload_0123456789abcdef.md",
+        ".myrm\\pastes\\payload_0123456789abcdef.md",
+        "~/.myrm/pastes/payload_0123456789abcdef.md",
+        ".myrm//pastes/payload_0123456789abcdef.md",
+    ],
+)
+def test_a_file_in_a_directory_the_guard_writes_is_parked(path: str) -> None:
+    assert is_parked_path(path)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "",
+        "notes.md",
+        ".myrm/pastes",
+        ".myrm/pastes/",
+        ".myrm/pastes/../secret.md",
+        ".myrm/pastes/sub/payload_0123456789abcdef.md",
+        ".myrm/pastes_old/payload_0123456789abcdef.md",
+        "pastes/payload_0123456789abcdef.md",
+        "_uploaded/report.md",
+        ".myrm/config.json",
+        ".myrm/checkpoints/state.sqlite",
+    ],
+)
+def test_a_lookalike_or_neighbouring_path_is_not_parked(path: str) -> None:
+    assert not is_parked_path(path)
+
+
+def test_lines_that_fit_are_returned_as_they_are() -> None:
+    lines = ["short", "x" * 2000, ""]
+    rows, first_split = wrap_long_lines(lines, 2000)
+    assert rows is lines
+    assert first_split is None
+
+
+def test_a_long_line_is_split_without_losing_a_character() -> None:
+    long_line = "界" * 4500 + "🙂" * 10 + "tail"
+    rows, first_split = wrap_long_lines(["head", long_line, "after"], 2000)
+    assert first_split == 2
+    assert rows[0] == "head"
+    assert rows[-1] == "after"
+    pieces = rows[1:-1]
+    assert [len(piece) for piece in pieces] == [2000, 2000, 514]
+    assert "".join(pieces) == long_line
+
+
+def test_a_line_of_exactly_the_width_is_not_split() -> None:
+    rows, first_split = wrap_long_lines(["a" * 2000, "b" * 2001], 2000)
+    assert first_split == 2
+    assert [len(row) for row in rows] == [2000, 2000, 1]
+
+
+def test_the_notice_names_the_width_and_the_last_line_whose_number_still_matches() -> None:
+    notice = wrapped_rows_notice(2000, 7)
+    assert "2,000 characters" in notice
+    assert "up to line 7" in notice
+
+
+def _render(lines: list[str], *, path: str, start: int = 1, max_line_length: int | None = 2000) -> str:
+    content = FileContent(
+        path=path,
+        display_path=path,
+        lines=lines,
+        view_range=ViewRange(start=start, end=-1) if start > 1 else None,
+    )
+    return ResultFormatter.format_file_content(content, max_line_length=max_line_length)
+
+
+def _read_pages(lines: list[str]) -> list[tuple[str, dict[str, object]]]:
+    """Read a parked file page by page the way the model does: follow ``next_offset`` until the end."""
+    pages: list[tuple[str, dict[str, object]]] = []
+    start = 1
+    while True:
+        text, truncated, meta = truncate_parked_page(
+            _render(lines, path=_PARKED, start=start), path_str=_PARKED, max_lines=None
+        )
+        pages.append((text, meta))
+        if not truncated:
+            return pages
+        next_offset = meta["next_offset"]
+        assert isinstance(next_offset, int)
+        assert next_offset > start
+        start = next_offset
+
+
+def _prose(count: int) -> list[str]:
+    return [
+        f"Clause {n}. The supplier delivers within thirty days; late delivery incurs a penalty." for n in range(count)
+    ]
+
+
+def _dense(count: int) -> list[str]:
+    return [f"{n:08x}" + "9f3a7c01e5b2d684" * 6 for n in range(count)]
+
+
+def test_a_text_that_fits_one_page_is_not_cut() -> None:
+    rendered = _render(_prose(300), path=_PARKED)
+    text, truncated, meta = truncate_parked_page(rendered, path_str=_PARKED, max_lines=None)
+    assert (text, truncated, meta) == (rendered, False, {})
+
+
+@pytest.mark.parametrize(
+    ("name", "lines"),
+    [
+        ("prose", _prose(9000)),
+        ("dense hex", _dense(3500)),
+        ("dense head, prose tail", _dense(1500) + _prose(8000)),
+    ],
+)
+def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(name: str, lines: list[str]) -> None:
+    pages = _read_pages(lines)
+    assert len(pages) > 1, name
+    shown: list[int] = []
+    for index, (text, _meta) in enumerate(pages):
+        tokens = get_token_count(text)
+        assert tokens <= _PAGE_CEILING, name
+        if index < len(pages) - 1:
+            assert tokens >= _PAGE_FLOOR, name
+        shown.extend(int(number) for number in _ROW_NUMBER.findall(text))
+    assert shown == list(range(1, len(lines) + 1)), name
+
+
+def test_a_page_is_cut_the_same_way_every_time() -> None:
+    rendered = _render(_prose(9000), path=_PARKED)
+    first = truncate_parked_page(rendered, path_str=_PARKED, max_lines=None)
+    assert truncate_parked_page(rendered, path_str=_PARKED, max_lines=None) == first
+
+
+def test_the_other_files_keep_the_clamped_line_and_no_notice() -> None:
+    rendered = _render(["head", "x" * 5000, "tail"], path="src/app.py")
+    assert "... [truncated]" in rendered
+    assert "split into rows" not in rendered
+    assert "(3 lines)" in rendered
+    assert "x" * 2001 not in rendered
+
+
+def test_a_parked_long_line_becomes_rows_with_a_notice() -> None:
+    rendered = _render(["head", "x" * 4500, "tail"], path=_PARKED)
+    assert "... [truncated]" not in rendered
+    assert "(5 lines)" in rendered
+    assert wrapped_rows_notice(2000, 2) in rendered
+    assert rendered.count("x") == 4500
+    assert [int(number) for number in _ROW_NUMBER.findall(rendered)] == [1, 2, 3, 4, 5]
+
+
+def test_a_parked_text_without_a_long_line_has_no_notice() -> None:
+    rendered = _render(["head", "short", "tail"], path=_PARKED)
+    assert "split into rows" not in rendered
+    assert "(3 lines)" in rendered
+
+
+def test_without_a_line_cap_a_parked_line_is_left_whole() -> None:
+    rendered = _render(["x" * 4500], path=_PARKED, max_line_length=None)
+    assert "split into rows" not in rendered
+    assert "x" * 4500 in rendered
+
+
+def test_a_range_over_a_parked_text_counts_the_same_rows_as_the_whole_read() -> None:
+    lines = ["head", "x" * 4500, "tail"]
+    whole = _render(lines, path=_PARKED)
+    ranged = _render(lines, path=_PARKED, start=3)
+    assert wrapped_rows_notice(2000, 2) in ranged
+    ranged_rows = [row for row in ranged.splitlines() if _ROW_NUMBER.match(row)]
+    assert ranged_rows
+    assert all(row in whole.splitlines() for row in ranged_rows)
+    assert ranged_rows[-1].endswith("|tail")
+    assert ranged_rows[0].startswith("     3|")

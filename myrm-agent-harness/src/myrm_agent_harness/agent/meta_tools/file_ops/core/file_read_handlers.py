@@ -6,6 +6,7 @@
 - utils.*_reader (POS: image/pdf/video/document readers)
 - utils.vault_read::read_vault_paths_to_parts (POS: vault URI batch reader)
 - file_read_truncation::truncate_file_output (POS: output truncation)
+- parked_file_view::is_parked_path, truncate_parked_page (POS: page size of context-guard parked text)
 - agent.security.redact::redact_sensitive_text (POS: tool output redaction)
 - backends.skills.types::SkillMetadata (POS: MCP skill metadata)
 
@@ -40,6 +41,7 @@ from .file_integrity_guard import get_file_integrity_guard
 from .file_operation_service import FileOperationService
 from .file_read_truncation import truncate_file_output
 from .operation_context import OperationContext, OperationType
+from .parked_file_view import is_parked_path, truncate_parked_page
 from .result_formatter import clamp_line
 
 if TYPE_CHECKING:
@@ -350,14 +352,19 @@ async def _read_via_service(
     raw_out = await service.execute()
     if max_lines is None:
         max_lines = DEFAULT_FILE_IO_CONFIG.max_read_lines
-    truncated_text, was_truncated, meta = truncate_file_output(
-        raw_out,
-        max_chars=DEFAULT_FILE_IO_CONFIG.max_read_chars,
-        is_dir=is_dir,
-        # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
-        path_str=path_str if is_dir else path_base(path_str),
-        max_lines=max_lines,
-    )
+    # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
+    hint_path = path_str if is_dir else path_base(path_str)
+    if not is_dir and is_parked_path(hint_path):
+        # Text the context guard parked is read in pages sized in real tokens, not the code-file character cap.
+        truncated_text, was_truncated, meta = truncate_parked_page(raw_out, path_str=hint_path, max_lines=max_lines)
+    else:
+        truncated_text, was_truncated, meta = truncate_file_output(
+            raw_out,
+            max_chars=DEFAULT_FILE_IO_CONFIG.max_read_chars,
+            is_dir=is_dir,
+            path_str=hint_path,
+            max_lines=max_lines,
+        )
     if was_truncated:
         await _dispatch_truncation_event(meta, tool="file_read" if not is_dir else "list_dir", config=config)
     return truncated_text
@@ -427,8 +434,9 @@ async def process_text_paths(
                 continue
 
             file_size_mb = workspace_path.stat().st_size / (1024 * 1024)
-            effective_mode = mode
-            if file_size_mb > 100 and mode == "all":
+            # preview and stream bypass the page cap and clamp long lines: a parked paste is always read as pages.
+            effective_mode = "all" if is_parked_path(base_path_str) else mode
+            if file_size_mb > 100 and effective_mode == "all":
                 effective_mode = "preview"
                 logger.warning(
                     "File %s is %.1fMB (>100MB). Auto-fallback to preview mode to prevent OOM.",
