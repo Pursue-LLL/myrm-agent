@@ -4,9 +4,9 @@ Spawns an external ACP-compatible agent process (Claude Code, Codex CLI, etc.)
 and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 
 [INPUT]
-- toolkits.acp.types::BackendCapabilities, BackendStatus, McpServerConfig (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
+- toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, BackendStatus, McpServerConfig (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer. Provides decoupled event dispatch mechanism for the Runtime system with session isolation and type filtering.)
-- toolkits.acp.runtime._base::BaseRuntime, build_safe_env (POS: Base class for RuntimeBackend implementations.)
+- toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations.)
 - toolkits.acp.runtime.acp_callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
@@ -16,20 +16,30 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 [POS]
 ACP protocol runtime backend. Sends `session/close` only when the agent advertises it (ACP capability
 negotiation) and bounds it, so a silent agent cannot skip the transport teardown that terminates its process.
+A silent agent (one long tool call) is reported as still working at a fixed interval, as ``CliRuntime`` does, and a
+missing ACP SDK (the optional ``acp`` extra) is a named ``BACKEND_NOT_FOUND`` error instead of an import traceback.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.acp.core.event_bus import EventBus
-from myrm_agent_harness.toolkits.acp.runtime._base import BaseRuntime, build_safe_env
+from myrm_agent_harness.toolkits.acp.runtime._base import (
+    KEEPALIVE_SECONDS,
+    BaseRuntime,
+    build_safe_env,
+    working_status,
+)
 from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.types import (
+    AcpError,
+    AcpErrorCode,
     BackendCapabilities,
     BackendStatus,
     McpServerConfig,
@@ -49,6 +59,20 @@ logger = logging.getLogger(__name__)
 # `session/close` is advisory. Bounded so an agent that advertises it but never answers still reaches the
 # transport teardown (SDK-bounded terminate/kill) that actually stops the process.
 _CLOSE_SESSION_TIMEOUT_SECONDS = 4.0
+
+
+class _AcpSdkMissingError(Exception):
+    """The ACP SDK (the optional ``acp`` extra of the harness) is not installed."""
+
+
+def _require_acp_sdk() -> None:
+    try:
+        import acp  # noqa: F401
+    except ModuleNotFoundError as exc:
+        if exc.name != "acp":
+            raise
+        msg = "The ACP SDK is not installed; install it with: pip install 'myrm-agent-harness[acp]'"
+        raise _AcpSdkMissingError(msg) from exc
 
 
 class AcpRuntime(BaseRuntime):
@@ -103,7 +127,16 @@ class AcpRuntime(BaseRuntime):
                 status="starting",
                 message="Spawning ACP agent process",
             )
-            await self._ensure_connection()
+            try:
+                await self._ensure_connection()
+            except _AcpSdkMissingError as exc:
+                logger.warning("acp_sdk_missing name=%s", self._name)
+                yield create_event(
+                    RuntimeEventType.ERROR,
+                    session_id,
+                    error=AcpError(AcpErrorCode.BACKEND_NOT_FOUND, str(exc)),
+                )
+                return
 
         if self._session_id is None:
             await self._create_session(mcp_servers=mcp_servers)
@@ -117,7 +150,7 @@ class AcpRuntime(BaseRuntime):
         prompt_task = asyncio.create_task(self._run_prompt(prompt, handler))
 
         try:
-            async for event in self._consume_events(handler):
+            async for event in self._consume_events(handler, session_id):
                 yield event
         finally:
             if not prompt_task.done():
@@ -150,10 +183,22 @@ class AcpRuntime(BaseRuntime):
     @staticmethod
     async def _consume_events(
         handler: AcpCallbackHandler,
+        session_id: str,
+        *,
+        silence_seconds: float = KEEPALIVE_SECONDS,
     ) -> AsyncGenerator[RuntimeEvent]:
-        """Consume RuntimeEvents from the handler's queue in real-time."""
+        """Consume RuntimeEvents from the handler's queue in real-time.
+
+        An agent that says nothing for ``silence_seconds`` (one long tool call) is reported as still working, so a
+        host that watches for activity does not take the quiet for a hang.
+        """
+        started = time.monotonic()
         while True:
-            event = await handler.event_queue.get()
+            try:
+                event = await asyncio.wait_for(handler.event_queue.get(), timeout=silence_seconds)
+            except TimeoutError:
+                yield working_status(session_id, time.monotonic() - started)
+                continue
             if event is None:
                 break
             yield event
@@ -202,6 +247,7 @@ class AcpRuntime(BaseRuntime):
 
     async def _ensure_connection(self) -> None:
         """Spawn the external agent process and establish ACP connection."""
+        _require_acp_sdk()
         await self._do_close()
 
         from acp import PROTOCOL_VERSION, spawn_agent_process

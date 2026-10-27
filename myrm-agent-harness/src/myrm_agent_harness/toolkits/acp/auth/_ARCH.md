@@ -24,7 +24,7 @@ business layer drives GUI/SaaS login, status badges, and credential persistence.
   prompt prefix cache is unaffected.
 - **No runtime hard pre-check**: file-based detection cannot see alternative stores
   (e.g. macOS Keychain), so the runtime never blocks on it pre-emptively. The CLI's
-  own not-logged-in error surfaces via `PROCESS_CRASHED`; visibility is delivered by
+  own not-logged-in error surfaces as `AUTH_FAILED` carrying the CLI's own words; visibility is delivered by
   status badges (`CredentialStore.state`, `BackendDetector.detect_with_auth`).
 - **Import is the universal fallback**: where scripted login is unavailable
   (`scriptable_login` is False) or inconvenient, the user pastes a credential blob
@@ -34,6 +34,10 @@ business layer drives GUI/SaaS login, status badges, and credential persistence.
   sole writer of permission flags, so an explicit flag in a stored config (a sandbox
   mode, a `--approval-mode=plan` from initial setup, or a `--yolo` alias) is stripped
   rather than duplicated — both the spaced and the `--flag=value` spellings.
+  The merge works on options (a flag with the values after it), not on single
+  tokens: a config restating a baseline option (a preset's `exec --json`) adds
+  nothing, while the config's own repeated options all stay (`-c a=1 -c b=2` is two
+  settings; dropping the second `-c` as a duplicate token would lose one of them).
   This matters because these parsers are last-wins (clap `ArgAction::Set` for codex,
   non-array yargs for gemini/qwen), so a duplicate would silently override the mode
   the user selected instead of failing loudly. Stripping is scoped per backend: `-s` is

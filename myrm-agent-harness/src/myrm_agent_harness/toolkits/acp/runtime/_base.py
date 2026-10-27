@@ -12,6 +12,7 @@ environment variable sanitization, timeout control, and response truncation.
 - BaseRuntime: Abstract base for RuntimeBackend implementations.
 - build_safe_env: Build the environment of a delegated child process: core variables only, plus the configured env.
 - truncate_response: Truncate response text if it exceeds the configured limit.
+- KEEPALIVE_SECONDS / working_status: how long a turn may be silent, and the ``working`` status it reports then.
 
 [POS]
 Base class for RuntimeBackend implementations.
@@ -41,6 +42,21 @@ from myrm_agent_harness.toolkits.acp.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+# An agent is silent while one tool call runs (a build, a long test run). Every this many seconds of silence the
+# turn says it is still working, so a host that watches for activity does not take the quiet for a hang.
+KEEPALIVE_SECONDS = 15.0
+
+
+def working_status(session_id: str, elapsed_seconds: float) -> RuntimeEvent:
+    """The status of a silent turn: still ``working``, with how long it has been running.
+
+    Not ``warning``: the tool path counts that as an error.
+    """
+    minutes, seconds = divmod(int(elapsed_seconds), 60)
+    running = f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
+    return create_event(RuntimeEventType.STATUS_UPDATE, session_id, status="working", message=running)
+
 
 # Provider-secret env prefixes, for the ``config.env`` of a subscription-mode backend: an injected provider key
 # would make the CLI bill an API key instead of the user's own login session.

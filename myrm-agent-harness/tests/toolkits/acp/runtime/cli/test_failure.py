@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from myrm_agent_harness.toolkits.acp.runtime.cli.failure import classify_failure
+from myrm_agent_harness.toolkits.acp.runtime.cli.parser import FAILURE_TEXT_CHARS
 from myrm_agent_harness.toolkits.acp.runtime.cli.turn_parser import CliResult
 from myrm_agent_harness.toolkits.acp.types import AcpErrorCode
 
@@ -27,8 +28,16 @@ def _classify(
     stderr: str = "",
     killed: bool = False,
     notice: str = "",
+    auth_rejection: str = "",
 ):
-    return classify_failure(result=result, returncode=returncode, stderr=stderr, killed=killed, notice=notice)
+    return classify_failure(
+        result=result,
+        returncode=returncode,
+        stderr=stderr,
+        killed=killed,
+        notice=notice,
+        auth_rejection=auth_rejection,
+    )
 
 
 def test_a_clean_exit_without_an_error_result_succeeded() -> None:
@@ -54,12 +63,41 @@ def test_the_turn_limit_is_named_with_the_cli_own_text() -> None:
     assert by_reason.code is AcpErrorCode.MAX_TURNS
 
 
+def test_a_run_stopped_for_a_rejected_login_is_an_auth_failure_not_a_cancellation() -> None:
+    error = _classify(None, returncode=-15, killed=True, auth_rejection="API request rejected with HTTP 401")
+
+    assert error is not None
+    assert error.code is AcpErrorCode.AUTH_FAILED
+    assert error.message == "API request rejected with HTTP 401"
+    assert error.retryable is False
+
+
 def test_an_unauthorized_api_error_needs_the_user_not_a_retry() -> None:
-    for status in (401, 403):
-        error = _classify(_result(message="API Error: 401", api_error_status=status))
+    error = _classify(_result(message="API Error: 401", api_error_status=401))
+
+    assert error is not None
+    assert error.code is AcpErrorCode.AUTH_FAILED
+    assert error.retryable is False
+
+
+def test_a_rejected_login_is_one_whatever_category_the_cli_gave_it() -> None:
+    error = _classify(_result(message="API Error: 401", api_error_status=401, assistant_error="invalid_request"))
+
+    assert error is not None
+    assert error.code is AcpErrorCode.AUTH_FAILED
+
+
+def test_a_forbidden_api_error_is_not_a_login_problem_even_under_the_auth_category() -> None:
+    # A blocked region or an organization policy answers 403 with the same category as a rejected login; telling that
+    # user to sign in again would send them the wrong way, so they get the CLI's own words.
+    for category in ("", "authentication_failed"):
+        error = _classify(
+            _result(message="API Error: 403 Request not allowed", api_error_status=403, assistant_error=category)
+        )
 
         assert error is not None
-        assert error.code is AcpErrorCode.AUTH_FAILED
+        assert error.code is AcpErrorCode.UNKNOWN
+        assert error.message == "API Error: 403 Request not allowed"
         assert error.retryable is False
 
 
@@ -150,7 +188,17 @@ def test_the_stderr_excerpt_is_bounded() -> None:
     error = _classify(None, returncode=1, stderr="e" * 5000)
 
     assert error is not None
-    assert len(error.message) < 600
+    assert len(error.message) == len("CLI process exited with code 1: ") + FAILURE_TEXT_CHARS
+    assert error.message.endswith("\u2026")
+
+
+def test_a_web_page_in_the_stderr_is_not_the_excerpt() -> None:
+    page = "<html>\n<head><title>Access denied</title></head>\n<body>" + "<p>blocked</p>" * 400 + "</body>\n</html>"
+
+    error = _classify(None, returncode=1, stderr="error: " + page)
+
+    assert error is not None
+    assert error.message == "CLI process exited with code 1: error: [web page: Access denied]"
 
 
 def test_a_success_result_with_a_nonzero_exit_is_still_a_crash() -> None:

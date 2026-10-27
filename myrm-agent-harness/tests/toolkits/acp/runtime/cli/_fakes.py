@@ -120,6 +120,12 @@ if name == "claude":
     emit({"type": "system", "subtype": "init", "session_id": session_id, "cwd": cwd})
     hang_if("hang_after_init")
     time.sleep(scenario.get("silent_seconds", 0))
+    for number, status in enumerate(scenario.get("retry_statuses", [])):
+        # Claude reports every retry of a failed request with the status the API answered; the turn can go on after.
+        error = "authentication_failed" if status == 401 else "server_error"
+        emit({"type": "system", "subtype": "api_retry", "attempt": number + 1, "max_retries": 10,
+              "retry_delay_ms": 500.0, "error_status": status, "error": error, "session_id": session_id})
+    hang_if("hang_after_retries")
     text = scenario.get("text", session_id)
     for number in range(scenario.get("tools", 0)):
         call = {"type": "tool_use", "id": "toolu_%d" % number, "name": "Bash", "input": {"command": "echo %d" % number}}
@@ -175,6 +181,10 @@ elif name == "codex":
     for number in range(scenario.get("retry_notices", 0)):
         # Codex reports every retry of a request as an error line; the turn can still succeed afterwards.
         emit({"type": "error", "message": "Reconnecting... %d/5 (stream disconnected)" % (number + 1)})
+    for number in range(scenario.get("unauthorized_notices", 0)):
+        denied = "unexpected status 401 Unauthorized: Missing bearer or basic authentication in header"
+        emit({"type": "error", "message": "Reconnecting... %d/5 (%s)" % (number + 2, denied)})
+    hang_if("hang_after_retries")
     fail = scenario.get("fail")
     if fail == "auth":
         denied = "unexpected status 401 Unauthorized: Missing bearer or basic authentication in header"

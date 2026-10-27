@@ -4,6 +4,8 @@ A local stub API answers every request with one canned failure, so nothing here 
 (and no model is billed). These guard against drift in the failure frames the classifier reads: Claude's
 ``authentication_failed`` category and HTTP status, Codex's ``turn.failed`` text and the retry notices it prints
 before giving up. The CLIs run through the production runtime with the production argv and environment rules.
+Most tests turn the CLIs' own retries off so a failure comes back at once; the ones about a rejected key leave them at
+their defaults, which is what a user's CLI does (it retries a 401 for minutes unless the runtime stops it).
 Run with ``-m integration``; a CLI that is not installed skips its tests.
 """
 
@@ -12,6 +14,7 @@ from __future__ import annotations
 import json
 import shutil
 import threading
+import time
 from collections.abc import Callable, Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -83,19 +86,23 @@ def serve_failure() -> Iterator[ServeFailure]:
         server.server_close()
 
 
-def _claude(tmp_path: Path, base_url: str, *, api_key: str | None = "sk-ant-api03-dummy") -> CliRuntime:
+def _claude(
+    tmp_path: Path, base_url: str, *, api_key: str | None = "sk-ant-api03-dummy", retries: str | None = "0"
+) -> CliRuntime:
+    """A claude pointed at the stub; ``retries`` is its ``CLAUDE_CODE_MAX_RETRIES`` (None leaves the CLI's default)."""
     home = tmp_path / "home"
     home.mkdir()
     env = {
         "HOME": str(home),
         "CLAUDE_CONFIG_DIR": str(home / ".claude"),
         "ANTHROPIC_BASE_URL": base_url,
-        "CLAUDE_CODE_MAX_RETRIES": "0",
         "API_TIMEOUT_MS": "8000",
         "DISABLE_AUTOUPDATER": "1",
         "DISABLE_TELEMETRY": "1",
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     }
+    if retries is not None:
+        env["CLAUDE_CODE_MAX_RETRIES"] = retries
     if api_key is not None:
         env["ANTHROPIC_API_KEY"] = api_key
     config = RuntimeConfig(
@@ -111,12 +118,16 @@ def _claude(tmp_path: Path, base_url: str, *, api_key: str | None = "sk-ant-api0
     return CliRuntime("claude", config)
 
 
-def _codex(tmp_path: Path, base_url: str, *, retries: int = 0) -> CliRuntime:
-    """A codex whose only model provider is the stub (set in its own ``config.toml``, as a user would)."""
+def _codex(tmp_path: Path, base_url: str, *, retries: int | None = 0) -> CliRuntime:
+    """A codex whose only model provider is the stub (set in its own ``config.toml``, as a user would).
+
+    ``retries`` is the provider's request and stream retry count; None leaves the CLI's defaults.
+    """
     home = tmp_path / "home"
     home.mkdir()
     codex_home = home / ".codex"
     codex_home.mkdir()
+    retry_settings = "" if retries is None else f"request_max_retries = {retries}\nstream_max_retries = {retries}\n"
     (codex_home / "config.toml").write_text(
         f"""model_provider = "stub"
 
@@ -125,9 +136,7 @@ name = "stub"
 base_url = "{base_url}/v1"
 env_key = "STUB_KEY"
 wire_api = "responses"
-request_max_retries = {retries}
-stream_max_retries = {retries}
-"""
+{retry_settings}"""
     )
     config = RuntimeConfig(
         backend_type="cli",
@@ -154,7 +163,8 @@ async def _errors_of(runtime: CliRuntime) -> tuple[list[RuntimeEvent], list[AcpE
     ("status", "body", "code"),
     [
         (401, _AUTH_BODY, AcpErrorCode.AUTH_FAILED),
-        (403, _FORBIDDEN_BODY, AcpErrorCode.AUTH_FAILED),
+        # Claude files a 403 under the same category as a rejected key, but it is a blocked region or a policy.
+        (403, _FORBIDDEN_BODY, AcpErrorCode.UNKNOWN),
         (429, _RATE_LIMIT_BODY, AcpErrorCode.RATE_LIMITED),
     ],
     ids=["unauthorized", "forbidden", "rate-limited"],
@@ -174,6 +184,37 @@ async def test_claude_without_any_credentials_is_an_auth_failure(serve_failure: 
     _, errors = await _errors_of(_claude(tmp_path, serve_failure(401, _AUTH_BODY), api_key=None))
 
     assert [error.code for error in errors] == [AcpErrorCode.AUTH_FAILED]
+
+
+# What a user waits for when the CLI is left to retry a rejected key by itself (measured: claude 183 s, codex 30-58 s).
+_REJECTED_KEY_SECONDS = 40
+
+
+@needs_claude
+async def test_claude_rejected_key_is_reported_within_seconds_although_the_cli_retries_for_minutes(
+    serve_failure: ServeFailure, tmp_path: Path
+) -> None:
+    started = time.monotonic()
+
+    _, errors = await _errors_of(_claude(tmp_path, serve_failure(401, _AUTH_BODY), retries=None))
+
+    assert [error.code for error in errors] == [AcpErrorCode.AUTH_FAILED]
+    assert "401" in errors[0].message
+    assert time.monotonic() - started < _REJECTED_KEY_SECONDS
+
+
+@needs_codex
+async def test_codex_rejected_key_is_reported_within_seconds_although_the_cli_retries_for_minutes(
+    serve_failure: ServeFailure, tmp_path: Path
+) -> None:
+    started = time.monotonic()
+
+    # The built-in provider retries a 401 over two transports for up to a minute; a patient stub provider does the same.
+    _, errors = await _errors_of(_codex(tmp_path, serve_failure(401, _OPENAI_ERROR), retries=10))
+
+    assert [error.code for error in errors] == [AcpErrorCode.AUTH_FAILED]
+    assert "401" in errors[0].message
+    assert time.monotonic() - started < _REJECTED_KEY_SECONDS
 
 
 @needs_codex

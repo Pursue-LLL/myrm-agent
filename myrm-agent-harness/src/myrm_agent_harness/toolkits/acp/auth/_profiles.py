@@ -306,9 +306,11 @@ def resolve_cli_args(
     """Merge baseline launch args with config args and the permission-mode args.
 
     Deterministic order: permission args, then baseline args, then configured args
-    minus anything the permission mapping owns. The mapping is the sole owner of the
-    permission flags, so a config carrying an explicit (often stale) flag can never
-    contradict the mode the user selected.
+    minus anything the permission mapping owns or the baseline already says. The mapping
+    is the sole owner of the permission flags, so a config carrying an explicit (often
+    stale) flag can never contradict the mode the user selected. A config that restates a
+    baseline option (a preset's ``exec --json``) adds nothing; the config's own repeated
+    options all stay, since ``-c a=1 -c b=2`` is two settings and not a duplicate.
     """
     profile = profile_for(backend_or_command)
     if profile is None:
@@ -323,17 +325,33 @@ def resolve_cli_args(
     merged: list[str] = []
     merged.extend(_PERMISSION_MODE_ARGS[profile.backend].get(permission_mode, ()))
     merged.extend(profile.cli_launch_args)
-    merged.extend(_strip_permission_flags(profile.backend, configured_args))
-    return _dedupe_preserving_order(merged)
+    owned = _strip_permission_flags(profile.backend, configured_args)
+    merged.extend(_without_restated(owned, profile.cli_launch_args))
+    return merged
 
 
-def _dedupe_preserving_order(args: list[str]) -> list[str]:
-    """Remove exact duplicates without disturbing the resolved ordering."""
-    seen: set[str] = set()
-    unique: list[str] = []
+def _option_units(args: tuple[str, ...]) -> list[tuple[str, ...]]:
+    """Split launch args into options: a flag with the values that follow it, or a lone leading word (a subcommand)."""
+    units: list[list[str]] = []
     for arg in args:
-        if arg in seen:
-            continue
-        seen.add(arg)
-        unique.append(arg)
-    return unique
+        if arg.startswith("-") or not units:
+            units.append([arg])
+        else:
+            units[-1].append(arg)
+    return [tuple(unit) for unit in units]
+
+
+def _without_restated(args: list[str], baseline: tuple[str, ...]) -> list[str]:
+    """``args`` minus every baseline option it restates (the flag together with its value, wherever it stands)."""
+    kept = list(args)
+    for unit in _option_units(baseline):
+        remaining: list[str] = []
+        index = 0
+        while index < len(kept):
+            if tuple(kept[index : index + len(unit)]) == unit:
+                index += len(unit)
+            else:
+                remaining.append(kept[index])
+                index += 1
+        kept = remaining
+    return kept

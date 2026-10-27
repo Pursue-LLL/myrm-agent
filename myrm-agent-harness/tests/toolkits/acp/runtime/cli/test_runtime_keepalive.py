@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the CLI stand-i
 async def test_a_silent_cli_keeps_reporting_how_long_it_has_been_working(
     fake_cli: FakeCli, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(runtime_module, "_KEEPALIVE_SECONDS", 0.1)
+    monkeypatch.setattr(runtime_module, "KEEPALIVE_SECONDS", 0.1)
     fake_cli.set_scenario({"silent_seconds": 0.6, "text": "done"})
 
     events = await run_turn(make_runtime(fake_cli))
@@ -39,10 +39,3 @@ async def test_a_cli_that_keeps_talking_is_never_reported_as_waiting(fake_cli: F
     events = await run_turn(make_runtime(fake_cli))
 
     assert "working" not in statuses_of(events)
-
-
-@pytest.mark.parametrize(
-    ("seconds", "label"), [(0, "0s"), (5.9, "5s"), (60, "1m 00s"), (125, "2m 05s"), (3600, "60m 00s")]
-)
-def test_the_running_time_is_told_in_minutes_once_it_is_long(seconds: float, label: str) -> None:
-    assert runtime_module._elapsed(seconds) == label

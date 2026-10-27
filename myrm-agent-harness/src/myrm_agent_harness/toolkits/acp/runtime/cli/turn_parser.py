@@ -5,7 +5,8 @@ It is stateful because four things only exist across lines: the session the CLI 
 ``result`` line that says whether the turn failed, the ``error`` lines printed on the way (Codex reports every
 retry of a request that way, so they say nothing about the turn until it ends without a verdict), and which
 messages already went out as streamed text deltas (``--include-partial-messages`` repeats each message in full
-afterwards).
+afterwards). Retries are also where a hopeless turn shows early: both CLIs keep retrying a request the API
+answers 401 for minutes, and an unbroken run of those retries is reported as ``auth_rejection``.
 
 [INPUT]
 - toolkits.acp.runtime.cli.parser::event builders (POS: Shared event builders of the CLI runtime's output parsing)
@@ -14,7 +15,7 @@ afterwards).
 
 [OUTPUT]
 - CliResult: the CLI's own verdict on a finished turn
-- TurnParser: stateful per-turn parser (``feed`` a line, read ``announced`` / ``result`` / ``notice``)
+- TurnParser: stateful per-turn parser (``feed`` a line, read ``announced`` / ``result`` / ``notice`` / ``auth_rejection``)
 
 [POS]
 Output parsing of CliRuntime. Pure: no I/O, so every CLI output shape is testable from its text alone.
@@ -25,8 +26,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
-    error_message,
+    condense_failure_text,
+    error_text,
     extract_text_from_event,
+    is_http_401,
     parse_codex_item_event,
     parse_json_line,
     parse_thinking,
@@ -37,6 +40,11 @@ from myrm_agent_harness.toolkits.acp.runtime.cli.parser import (
     unwrap_codex_envelope,
 )
 from myrm_agent_harness.toolkits.acp.types import RuntimeEvent, RuntimeEventType, create_event
+
+# Consecutive retries of a request answered 401 after which the turn is given up: a rejected login does not heal by
+# retrying, while a token the CLI refreshes on its own needs one retry.
+_UNAUTHORIZED_RETRIES_LIMIT = 3
+_UNAUTHORIZED = 401
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +73,7 @@ def _parse_result(data: dict[str, object], assistant_error: str) -> CliResult:
         message = "; ".join(str(error) for error in errors if error)
     else:
         message = _text(data.get("result"))
+    message = condense_failure_text(message)
     status = data.get("api_error_status")
     return CliResult(
         is_error=data.get("is_error") is True,
@@ -89,6 +98,9 @@ class TurnParser:
         self.result: CliResult | None = None
         # The text of the last ``error`` line; the cause of a failure that comes with no verdict of its own.
         self.notice = ""
+        # Set once the CLI keeps retrying a request the API answers 401 for: the CLI's own words about it.
+        self.auth_rejection = ""
+        self._unauthorized_retries = 0
 
     def take_announced(self) -> str | None:
         """The CLI session id announced since the last call (Claude ``system/init``, Codex ``thread.started``)."""
@@ -97,6 +109,13 @@ class TurnParser:
 
     def feed(self, line: str) -> list[RuntimeEvent]:
         """Events carried by one stdout line; most lines carry none or one."""
+        events = self._events(line)
+        if events:
+            # The CLI got on with the turn, so the 401 retries before it were not an unbroken run.
+            self._unauthorized_retries = 0
+        return events
+
+    def _events(self, line: str) -> list[RuntimeEvent]:
         data = parse_json_line(line)
         if data is None:
             return self._plain_text(line)
@@ -104,8 +123,11 @@ class TurnParser:
         data = unwrap_codex_envelope(data)
         kind = data.get("type", "")
         if kind == "system":
-            if data.get("subtype") == "init":
+            subtype = data.get("subtype")
+            if subtype == "init":
                 self._announce(data.get("session_id"))
+            elif subtype == "api_retry":
+                self._api_retry(data)
             return []
         if kind == "thread.started":
             self._announce(data.get("thread_id"))
@@ -125,6 +147,20 @@ class TurnParser:
     def _announce(self, cli_session_id: object) -> None:
         if isinstance(cli_session_id, str) and cli_session_id:
             self._announced = cli_session_id
+
+    def _api_retry(self, data: dict[str, object]) -> None:
+        """Claude reports each retry of a failed request (``system/api_retry``) with the status the API answered."""
+        if data.get("error_status") != _UNAUTHORIZED:
+            self._unauthorized_retries = 0
+            return
+        reason = _text(data.get("error"))
+        suffix = f" ({reason})" if reason else ""
+        self._unauthorized_retry(f"API request rejected with HTTP 401{suffix}")
+
+    def _unauthorized_retry(self, said: str) -> None:
+        self._unauthorized_retries += 1
+        if self._unauthorized_retries >= _UNAUTHORIZED_RETRIES_LIMIT and not self.auth_rejection:
+            self.auth_rejection = condense_failure_text(said)
 
     def _text_event(self, text: str) -> RuntimeEvent:
         return create_event(RuntimeEventType.TEXT_DELTA, self._session_id, content=text)
@@ -247,5 +283,10 @@ class TurnParser:
             return parse_usage(info if isinstance(info, dict) else data, session_id)
 
         if kind in ("error", "stream_error"):
-            self.notice = error_message(data, "Unknown error")
+            said = error_text(data)
+            self.notice = condense_failure_text(said) or "Unknown error"
+            if is_http_401(said):
+                self._unauthorized_retry(said)
+            else:
+                self._unauthorized_retries = 0
         return None

@@ -11,7 +11,8 @@ a whole turn; formats that nest several events in one line (Claude content block
 - parse_json_line: Parse a JSON line, returning None for non-dict values.
 - parse_tool_use / parse_tool_result: tool call and result events with a one-line summary / bounded output
 - parse_usage / parse_thinking: usage and reasoning events
-- error_message / parse_turn_failed: the text of an ``error`` line, and the error event of Codex's ``turn.failed``
+- condense_failure_text / FAILURE_TEXT_CHARS: a CLI's failure text as one bounded line (a quoted web page shrinks to its title)
+- error_text / error_message / is_http_401 / parse_turn_failed: the raw and the condensed text of an ``error`` line, whether a text reports HTTP 401, and the error event of Codex's ``turn.failed``
 - unwrap_codex_envelope / parse_codex_item_event: the Codex legacy envelope and ``item.*`` events
 - extract_text_from_event: text of a flat or nested assistant/text event
 - tool_summary: one short line telling what a tool call works on
@@ -112,28 +113,65 @@ def parse_usage(data: dict[str, object], session_id: str) -> RuntimeEvent:
     )
 
 
-def error_message(data: dict[str, object], default: str) -> str:
-    """The text of an ``error`` / ``turn.failed`` line: its ``error`` object or string, else its own ``message``.
+FAILURE_TEXT_CHARS = 500
 
-    Claude and generic CLIs nest the text under ``error``; Codex puts it at the top level of the line.
+# When a proxy, a firewall or a region block answers instead of the model API, the CLI quotes the whole web page.
+_WEB_PAGE = re.compile(r"<(?:!doctype\s+html|html)\b.*?(?:</html>|\Z)", re.IGNORECASE | re.DOTALL)
+_WEB_PAGE_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_WHITESPACE = re.compile(r"\s+")
+
+
+def _web_page_marker(page: re.Match[str]) -> str:
+    title = _WEB_PAGE_TITLE.search(page.group())
+    name = _WHITESPACE.sub(" ", title.group(1)).strip() if title else ""
+    return f"[web page: {name}]" if name else "[web page]"
+
+
+def condense_failure_text(text: str) -> str:
+    """A CLI's failure text as one bounded line: a quoted web page shrinks to its title, whitespace collapses.
+
+    Failure text is shown to a person and logged, so the full page or stack a CLI may print has no place in it;
+    ordinary one-line messages pass through unchanged.
+    """
+    condensed = _WHITESPACE.sub(" ", _WEB_PAGE.sub(_web_page_marker, text)).strip()
+    if len(condensed) <= FAILURE_TEXT_CHARS:
+        return condensed
+    return condensed[: FAILURE_TEXT_CHARS - 1] + "…"
+
+
+def error_text(data: dict[str, object]) -> str:
+    """The text of an ``error`` / ``turn.failed`` line as the CLI wrote it; empty when the line carries none.
+
+    It is the line's ``error`` object or string, else its own ``message``: Claude and generic CLIs nest the text
+    under ``error``, Codex puts it at the top level of the line.
     """
     error = data.get("error")
     if isinstance(error, dict) and error:
         text = error.get("message") or str(error)
     else:
         text = error or data.get("message")
-    return str(text) if text else default
+    return str(text) if text else ""
+
+
+def error_message(data: dict[str, object], default: str) -> str:
+    """The condensed text of an ``error`` / ``turn.failed`` line, ``default`` when it has none."""
+    return condense_failure_text(error_text(data)) or default
 
 
 # Codex words an HTTP failure of its model API as "unexpected status <code> <reason>: <body>". Only 401 is a
 # login problem: 403 is also what a blocked region or an organization policy answers.
-_CODEX_UNAUTHORIZED = re.compile(r"\bunexpected status 401\b")
+_HTTP_401 = re.compile(r"\bunexpected status 401\b")
+
+
+def is_http_401(message: str) -> bool:
+    """Whether a Codex failure or retry notice says its model API answered 401."""
+    return _HTTP_401.search(message) is not None
 
 
 def parse_turn_failed(data: dict[str, object], session_id: str) -> RuntimeEvent:
     """The error event of Codex's ``turn.failed`` — the CLI's verdict that the turn did not finish."""
+    code = AcpErrorCode.AUTH_FAILED if is_http_401(error_text(data)) else AcpErrorCode.UNKNOWN
     message = error_message(data, "Turn failed")
-    code = AcpErrorCode.AUTH_FAILED if _CODEX_UNAUTHORIZED.search(message) else AcpErrorCode.UNKNOWN
     return create_event(RuntimeEventType.ERROR, session_id, error=AcpError(code=code, message=message))
 
 
@@ -228,7 +266,7 @@ def parse_codex_item_event(data: dict[str, object], session_id: str) -> RuntimeE
             RuntimeEventType.STATUS_UPDATE,
             session_id,
             status="warning",
-            message=str(msg),
+            message=condense_failure_text(str(msg)),
             is_error=False,
         )
 

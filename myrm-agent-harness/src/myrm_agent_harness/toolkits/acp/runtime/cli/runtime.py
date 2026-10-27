@@ -6,7 +6,7 @@ it is stored the moment the CLI announces it and replayed through the CLI's resu
 
 [INPUT]
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, CliSessionRecord, CliSessionStore, ContinuityStatus (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
-- toolkits.acp.runtime._base::BaseRuntime, build_safe_env (POS: Base class for RuntimeBackend implementations)
+- toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations)
 - toolkits.acp.runtime.cli.dialect::dialect_for, is_session_id (POS: Per-CLI launch knowledge of CliRuntime)
 - toolkits.acp.runtime.cli.failure::classify_failure (POS: Error vocabulary of CliRuntime)
 - toolkits.acp.runtime.cli.process::CliLaunchError, CliProcess, spawn_cli_process (POS: Process ownership of CliRuntime)
@@ -31,7 +31,12 @@ from contextlib import aclosing
 from dataclasses import dataclass
 
 from myrm_agent_harness.toolkits.acp.auth._profiles import resolve_cli_args
-from myrm_agent_harness.toolkits.acp.runtime._base import BaseRuntime, build_safe_env
+from myrm_agent_harness.toolkits.acp.runtime._base import (
+    KEEPALIVE_SECONDS,
+    BaseRuntime,
+    build_safe_env,
+    working_status,
+)
 from myrm_agent_harness.toolkits.acp.runtime.cli.dialect import CliDialect, dialect_for, is_session_id
 from myrm_agent_harness.toolkits.acp.runtime.cli.failure import classify_failure
 from myrm_agent_harness.toolkits.acp.runtime.cli.process import CliLaunchError, CliProcess, spawn_cli_process
@@ -54,10 +59,6 @@ from myrm_agent_harness.toolkits.acp.types import (
 
 logger = logging.getLogger(__name__)
 
-# A CLI is silent while one tool call runs (a build, a long test run). Every this many seconds of silence the turn
-# says it is still working, so the host does not take the quiet for a hang.
-_KEEPALIVE_SECONDS = 15.0
-
 _ACTIVITY_EVENTS = frozenset(
     {
         RuntimeEventType.TEXT_DELTA,
@@ -66,11 +67,6 @@ _ACTIVITY_EVENTS = frozenset(
         RuntimeEventType.TOOL_RESULT,
     }
 )
-
-
-def _elapsed(seconds: float) -> str:
-    minutes, rest = divmod(int(seconds), 60)
-    return f"{minutes}m {rest:02d}s" if minutes else f"{rest}s"
 
 
 @dataclass(slots=True)
@@ -85,6 +81,8 @@ class _Attempt:
     killed: bool = False
     stderr: str = ""
     notice: str = ""
+    # What the CLI said when this runtime ended the run for retrying a request the API answers 401 for.
+    auth_rejection: str = ""
     result: CliResult | None = None
 
     def note(self, event: RuntimeEvent) -> None:
@@ -266,14 +264,11 @@ class CliRuntime(BaseRuntime):
             self._process = process
             if self._stop_requested:
                 await process.terminate()
-            async for line in process.lines(idle_tick=_KEEPALIVE_SECONDS):
+            async for line in process.lines(idle_tick=KEEPALIVE_SECONDS):
+                if attempt.auth_rejection:
+                    continue
                 if line is None:
-                    yield create_event(
-                        RuntimeEventType.STATUS_UPDATE,
-                        session_id,
-                        status="working",
-                        message=_elapsed(time.monotonic() - started),
-                    )
+                    yield working_status(session_id, time.monotonic() - started)
                     continue
                 for event in parser.feed(line):
                     attempt.note(event)
@@ -282,6 +277,11 @@ class CliRuntime(BaseRuntime):
                 if announced is not None:
                     attempt.announced = True
                     await self._record_session(session_id, announced, cwd, dialect)
+                if parser.auth_rejection:
+                    # The CLI would keep retrying for minutes and then fail with these same words.
+                    logger.warning("cli_auth_rejected name=%s session=%s", self._name, session_id)
+                    attempt.auth_rejection = parser.auth_rejection
+                    await process.terminate()
             attempt.returncode = await process.wait()
             attempt.killed = process.killed_by_us
             attempt.stderr = process.stderr_text
@@ -307,6 +307,7 @@ class CliRuntime(BaseRuntime):
             stderr=attempt.stderr,
             killed=attempt.killed,
             notice=attempt.notice,
+            auth_rejection=attempt.auth_rejection,
         )
         done = create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
         if error is None:
