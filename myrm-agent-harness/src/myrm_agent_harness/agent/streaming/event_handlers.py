@@ -4,12 +4,13 @@
 - langchain_core.messages::AIMessage, ToolMessage (POS: LangChain core message types)
 - agent.streaming.step_builder::build_step_data, get_step_key (POS: Agent step data builder. Constructs frontend display data from tool names and arguments with per-tool-type customization.)
 - agent.streaming.source_tracker::SourceTracker (POS: Source reference forwarding capability for BaseAgent.)
+- agent.orchestration.hooks::is_runtime_hook (POS: Runtime hook names — middleware-injected pseudo tool_calls.)
 - agent.types::AgentRunStatistics (POS: Agent core runtime type definitions.)
 - agent.streaming.types::AgentEventType (POS: Streaming module core type definitions.)
 - toolkits.llms.adapters.tool_recovery::has_withheld_tool_calls (POS: Detects messages that only record withheld tool calls.)
 
 [OUTPUT]
-- process_updates_chunk(): 处理 LangGraph updates 流 → 业务事件（含自动 sources 转发，空 AIMessage 过滤；仅记录被扣留工具调用的消息不算空消息）
+- process_updates_chunk(): 处理 LangGraph updates 流 → 业务事件（含自动 sources 转发，空 AIMessage 过滤；仅记录被扣留工具调用的消息不算空消息；运行时钩子的调用与结果不产出 tasks_steps）
 - process_messages_chunk(): 处理 LangGraph messages 流 → 消息块事件（含 message/reasoning 统一清洗、工具调用文本抑制）
 
 [POS]
@@ -32,6 +33,7 @@ from myrm_agent_harness.agent.errors.fault_side import (
     FaultSide,
     classify_tool_fault_side,
 )
+from myrm_agent_harness.agent.orchestration.hooks import is_runtime_hook
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     scrub_sensitive_info,
@@ -147,6 +149,11 @@ async def _handle_tool_calls(
         tool_name = tc.get("name", "")
         tool_args = tc.get("args", {})
         logger.debug(" Tool call: %s", tool_name)
+        if is_runtime_hook(tool_name):
+            # A hook call is the harness speaking to the model, not work the user asked for: a task step would
+            # show an unlabeled step carrying the guard's internal reason. The trace still records the call
+            # through its tool_start/tool_end pair.
+            continue
 
         args_str = str(tool_args)[:200]
         if len(str(tool_args)) > 200:
@@ -180,6 +187,8 @@ async def _handle_tool_result(
     2. sources 事件（引用栏，去重后的增量来源）
     """
     tool_name = getattr(msg, "name", "unknown")
+    if is_runtime_hook(tool_name):
+        return
     status = getattr(msg, "status", "success")
 
     if status == "error":

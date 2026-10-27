@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-033 · 完成门禁的内部钩子被当成任务步骤发给用户（强制收尾时是一整段英文指令的错误步骤），指令还被自家的注入检测判成「疑似 prompt injection」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（用户侧不再收到钩子步骤；服务端验证阶段不可达的问题见「仍然存在 ①」，未修） |
+| **发现时间** | 2026-10-27（BUG-HARNESS-2026-10-27-032 的红灯运行日志里：`Detected potential prompt injection in _completion_check: you are now`、`Tool execution failed [_completion_check]: CRITICAL SYSTEM DIRECTIVE …`） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：只要完成门禁拒绝过一次就会触发。① 用户的任务列表多出一行没有标题、没有翻译、带着门禁内部原因的「Completion Check」步骤（`streaming/event_handlers.py` 对每个工具调用都发 `tasks_steps`，包括钩子；前端没有该工具的过滤，也没有翻译键）。② 门禁用尽拒绝额度后的强制收尾：指令文本「You are now permitted to finish …」命中注入检测的 `you are now`（`security/detection/tool_result_validator.py:86`），工具消息被改成 `error`（`error_category=CONTEXT_VALIDATION`），于是用户收到一条错误步骤，`error` 字段是指令的前 500 字符，`fault_side=HARNESS_TOOL`，执行轨迹把这次钩子记成一次 harness 工具失败（按 `event_log/_tasks_steps.py` 对 `_error` 步骤的合并逻辑读出，没有单独跑）；模型看到的是自家指令后面紧跟一句「Warning: Content contains suspicious prompt injection pattern」。 |
+| **关联产品** | harness `agent/streaming/event_handlers.py`（`_handle_tool_calls`、`_handle_tool_result`）、`agent/security/detection/tool_result_validator.py`（`should_apply_validation`） |
+| **根因** | 运行时钩子（`is_runtime_hook`）在注册表、工具分层、能力索引处都被排除，流处理却对它一视同仁，既发调用步骤也发失败步骤；结果校验只豁免了写文件工具，把钩子文本当外部工具输出扫描。 |
+| **修复** | ① `event_handlers.py`：钩子的调用与结果都不再产出 `tasks_steps`；调用仍计入 `tool_call_count`，执行轨迹照旧由 `tool_start`/`tool_end` 记录（PRE/POST_TOOL_USE 钩子对 `_completion_check` 照常触发，真实运行实测）。② `should_apply_validation` 豁免运行时钩子：钩子文本由 harness 自己写成，不是工具输出。没有把豁免放进 `_tool_helpers.run_content_validation`：该文件已在行数基线（599 行）上，再加行会让行数门禁失败。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 起初以为服务端会把钩子呈现为本地化的「验证」阶段（`phase_stepper.py` 里按 `_completion_check` 匹配的分支）。读代码发现这条分支不可达：`tool_start` 先被通用分支处理并直接返回（`phase_stepper.py:99-113`），之后的 `tool_start and "_completion_check"` 判断（`:141-142`）永远走不到；而且 harness 发出的 `tool_start` 块不带工具名（`event_handlers.py:411-417`）。所以过滤之后，用户在门禁复核期间什么都看不到，不是看到一个本地化阶段。② 只过滤调用步骤不够：强制收尾的错误步骤来自结果一侧。 |
+| **回归** | 新增 8 例：`tests/agent/streaming/test_event_handlers_runtime_hook_steps.py` 5 例（钩子调用不发步骤、仍计入调用数、与真实工具并排时真实工具的步骤仍在、钩子失败结果不发错误步骤、真实工具失败仍发错误步骤）、`tests/agent/event_log/test_trace_runtime_hook_record.py` 1 例（只有 `tool_start`/`tool_end` 时轨迹里仍有这次钩子调用）、`test_tool_helpers.py` 1 例（强制收尾指令不被扫描，同一段文本换成别的工具名仍会被扫描）、`test_tool_result_validator.py` 1 例。红灯：在未改代码的提交版上，流处理 3 例与 `test_tool_helpers.py` 的 1 例失败，流处理的两个对照用例通过；`test_tool_result_validator.py` 的 1 例是在把豁免挪进 `should_apply_validation` 之后补的，没有单独跑过红灯。脚本化模型、真实 `create_skill_agent` 与真实中间件链的前后对比（挂了 shell 且模型从不照做的运行，被拒 3 次后强制收尾）：钩子的任务步骤 5 → 0，错误步骤 1 → 0，用户可见的步骤里含指令原文 是 → 否，模型看到注入警告 是 → 否，模型调用数不变（5）。`ruff check` / `ruff format --check` 在改动文件上 0 错误，改动源文件 `mypy` 0 错误；`validate_arch_inventory --md-refs` 通过；相关套件 6484 例通过。 |
+| **仍然存在** | ① 服务端 `phase_stepper.py` 的验证阶段分支不可达（见踩坑 ①），没有改（不在 harness），所以用户看不到「验证中」的提示；这是否值得补，由服务端一侧决定。② 没有在真实前端里看过渲染结果：「未命名、未翻译的步骤」来自对前端代码和 `getStepTitle` 返回值的阅读。③ 门禁同参数拒绝 3 次后，LoopGuard 会在钩子的工具输出里追加「unproductive — consider a different approach」的警告（日志里可见），这次没有改，对模型行为的影响没有验证。④ 没有用真实模型验证：模型看到注入警告之后是否会无视强制收尾指令，没有实测。 |
+| **代码位置** | `agent/streaming/event_handlers.py`（`is_runtime_hook` 跳过）· `agent/security/detection/tool_result_validator.py`（`should_apply_validation`） |
+
 ### BUG-HARNESS-2026-10-27-032 · 完成门禁要求没有任何取证工具的运行「先联网取证」：模型被拒 3 次、每次原样重复回答，哪怕它已经如实说了「我无法联网核实」
 
 | 字段 | 内容 |

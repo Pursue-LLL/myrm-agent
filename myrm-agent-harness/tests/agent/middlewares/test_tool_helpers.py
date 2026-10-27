@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import ToolMessage
 
+from myrm_agent_harness.agent.middlewares.completion.completion_check_tool import _completion_check_tool
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     apply_validation_result,
     check_tool_params_pii,
@@ -20,6 +21,7 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     run_content_validation,
     smart_truncate_output,
 )
+from myrm_agent_harness.agent.orchestration.hooks import COMPLETION_CHECK_TOOL_NAME
 from myrm_agent_harness.utils.errors import ToolError
 
 
@@ -493,6 +495,13 @@ class TestRunContentValidation:
         invalid = MagicMock(is_valid=False)
         mock_validate.return_value = invalid
         assert run_content_validation("suspicious", "tool") is invalid
+
+    def test_a_runtime_hook_result_is_not_scanned_for_injection(self) -> None:
+        """The forced-finish directive says "You are now permitted to finish" - harness text, not tool output."""
+        directive = _completion_check_tool.invoke({"force_fail": True})
+
+        assert run_content_validation(directive, COMPLETION_CHECK_TOOL_NAME) is None
+        assert run_content_validation(directive, "web_fetch_tool") is not None
 
 
 def _make_hook_result(*, blocked: bool = True, success: bool = False, output: str = "", reason: str = "") -> MagicMock:

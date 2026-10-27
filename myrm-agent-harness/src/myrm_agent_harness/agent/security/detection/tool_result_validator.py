@@ -9,7 +9,7 @@
 使用纯规则检测，无需额外的模型调用。
 
 [INPUT]
-- (none)
+- agent.orchestration.hooks::is_runtime_hook (POS: Runtime hook names — middleware-injected pseudo tool_calls.)
 
 [OUTPUT]
 - ValidationResult: Validation result.
@@ -22,6 +22,8 @@ Provides ValidationResult, validate_tool_result, should_apply_validation.
 
 import logging
 from dataclasses import dataclass
+
+from myrm_agent_harness.agent.orchestration.hooks import is_runtime_hook
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +162,9 @@ def validate_tool_result(content: str, tool_name: str) -> ValidationResult:
 def should_apply_validation(tool_name: str) -> bool:
     """检查是否应对此工具应用验证
 
-    某些工具（如文件系统工具）可能不需要验证。
+    某些工具（如文件系统工具）可能不需要验证。运行时钩子（如完成门禁的 ``_completion_check``）的文本由
+    harness 自己写成而非工具输出，其强制收尾指令含 "You are now permitted to finish"，
+    扫描只会把它连同"疑似 prompt injection"的警告一起交给模型。
 
     Args:
         tool_name: 工具名称
@@ -170,4 +174,4 @@ def should_apply_validation(tool_name: str) -> bool:
     """
     # Skip validation for certain internal tools
     skip_tools = {"file_write_tool", "file_edit_tool"}
-    return tool_name not in skip_tools
+    return tool_name not in skip_tools and not is_runtime_hook(tool_name)
