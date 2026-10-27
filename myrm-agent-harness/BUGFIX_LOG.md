@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-050 · 在卡死的 ACP 代理上点停止，委派流抛 `RuntimeError: async generator ignored GeneratorExit`，收不到「已取消」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness `toolkits/acp`；用假代理、真实系统进程和服务端的真实委派流 `stream_direct_delegate` 验证，没有用真实模型驱动的代理验证，见「仍然存在」）。补全 047、049：它们的测试和实测只调用 `runtime.cancel()`、`runtime.close()`，没有走服务端关闭委派流的那一段。 |
+| **发现时间** | 2026-10-27（把 049 的停止放到用户的真实路径上跑：`stream_direct_delegate` + `RuntimePool` + 卡死且带工具进程的假代理 + 取消令牌） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：用户在卡死的 ACP 代理上点停止，工具进程被结束了，但委派流不以 `CANCELLED` 收尾，而是抛 `RuntimeError`；`forced_delegate.py` 的 `except Exception` 接住后记一条带堆栈的 ERROR，并发出 `delegate_failed_event`。前端在停止之后是否还会把这条失败事件画出来，没有验证。触发要同时满足：ACP 后端、代理已不读 stdin、用户点停止；代理在回合中崩溃后消费方关流走的是同一段代码，没有单独复现。真实频率没统计。 |
+| **关联产品** | harness `toolkits/acp/runtime/acp_runtime.py`；服务端 `services/external_agents/delegation/stream.py` 是触发它的调用方，没有改 |
+| **根因** | ① 代理被结束后，挂着的 `session/prompt` 以 BrokenPipe 失败，`mark_done` 先入队一个带 `error:` 停止原因的 DONE 事件（`acp_callback.py` 的 `mark_done`）。② 服务端的流循环（`stream.py` 的 `async for`）在令牌已取消时，于下一个事件处 `break` 并关闭生成器链。③ 关闭把 `GeneratorExit` 抛到 `_do_run_turn` 的 `yield event` 处，进入 `finally`：`prompt_task` 已失败，`except Exception` 里的 `raise` 把 `GeneratorExit` 替换成了 BrokenPipeError。④ `_base.py` 的 `except Exception` 把它当成普通失败接住，记 `runtime_error`，再 yield 一个 ERROR 事件——在一个正在被关闭的异步生成器里再次 yield，抛出 `RuntimeError: async generator ignored GeneratorExit`，一路冒出 `aclosing`，`stream.py` 末尾的 `yield CANCELLED` 永远执行不到。这段 `finally ... raise` 早就有（2026-06 到 08），在用户停止路径上只有「回合进行中结束代理」才会触发它，也就是 047 之后的路径。 |
+| **修复** | `acp_runtime.py` 的 `_do_run_turn` 记下事件是否被消费到底（`drained`）。消费到底之后 prompt 失败：照旧记 ERROR 并 `raise`，由 `run_turn` 转为 ERROR 事件。消费方先关闭了回合（或回合被取消）：只记 INFO `acp_prompt_task_failed_after_close`，不抛，让关闭（`GeneratorExit` 或 `CancelledError`）原样向上走。测试：`tests/toolkits/acp/runtime/test_acp_runtime_images.py` 新增「消费方在代理被结束后的第一个事件处停下并关闭回合」：断言消费者干净结束、代理已死、运行时自己的 logger 没有 ERROR；测试辅助 `_stalled_turn` 拆成 `_stalled_runtime`、`_wait_until_stalled` 两个小函数供它复用。 |
+| **反复次数** | 第 2 次（接着 047、049） |
+| **踩坑** | ① 047、049 全绿的 751 条测试没有一条走用户的关流路径，所以用户点停止必抛异常的缺陷一直没被发现：测的是 `runtime.cancel()`，不是用户看到的结局。② 第一个探针取 `__anext__` 的第一个事件，拿到的是 `starting` 状态而不是终局事件，等会话的循环一直空转，看上去像挂起；改成像服务端一样 `async for` 并在停止后的第一个事件处关流。③ 服务端探针第一次没设 `PYTHONPATH`，`import app` 失败，不是产品问题。 |
+| **回归** | 新测试在修复前失败（`RuntimeError: async generator ignored GeneratorExit`），修复后通过；`tests/toolkits/acp` 默认口径 752 条通过（56 条 integration、e2e、performance 未选）；服务端 `tests/services/external_agents` 218 条通过。服务端探针（卡死且带工具进程的假代理，界限 5 秒，各测）：修复后 3 次，令牌取消到流结束 5.15、5.24、5.25 秒，流以 `cancelled` 结束，工具进程已死，随后 `pool.close_all` 0.00 到 0.02 秒；修复前同一探针 1 次，5.70 秒后流抛 `RuntimeError`，没有 `cancelled`。 |
+| **仍然存在** | ① ACP SDK 在每次强制停止时仍在 root logger 记一条 `Send loop failed` 的 ERROR 堆栈，不是我们的 logger，没处理。② 前端在停止之后是否画出失败事件，没有验证。③ 代理在回合中崩溃后消费方关流的路径没有单独复现。④ `CliRuntime` 的关流路径没有单独测（它没有同样的 `finally ... raise` 结构）。⑤ 服务端探针只有修复前 1 个样本；Windows 与真实模型驱动的代理仍未验证（见 049）。⑥ 停止后的耗时由 0.25 秒的轮询加 5 秒界限构成，没有真实代理慢响应的分布数据，所以不调这个界限。 |
+| **代码位置** | `toolkits/acp/runtime/acp_runtime.py`（`_do_run_turn` 的 `finally`）· 测试 `tests/toolkits/acp/runtime/test_acp_runtime_images.py`（`TestStalledAgent`） |
+
 ### BUG-HARNESS-2026-10-27-049 · 卡死的 ACP 代理被强制结束时，它启动的工具进程留在原地（开发服务器仍占着端口），还把停止拖慢到 10 秒以上
 
 | 字段 | 内容 |
@@ -16,7 +33,7 @@
 | **反复次数** | 第 1 次（接着 047） |
 | **踩坑** | ① 我先推断「关闭分支要在 SDK 升级杀代理之前对后代拍快照」，实测推翻：代理卡死时 SDK 的退出在 5 秒界限处还在等、代理还活着，直接结束进程树就够，不需要快照。② 我先以为是工具进程握着 stdout 拖慢停止，用「工具进程不继承 stdin」的对照证明是 stdin 读端：继承时 `close` 10.5 秒，不继承时 5.5 秒。③ 一组对照靠环境变量把开关传给假代理，但 SDK 的 `default_environment()` 会过滤环境，开关没生效，那组结果作废，改用命令行参数重做。④ 基线探针有 2 次耗时 0.0 秒，是取消早于代理的会话建立，剔除。 |
 | **回归** | `tests/toolkits/acp` 默认口径 751 条通过（56 条 integration、e2e、performance 未选）。变异检查：把 `end_agent` 改回 `process.kill()`，新增的两条失败，改回后通过。实测（假代理起一个继承 stdin、stdout 的工具进程，界限 5 秒，各 3 次）：`cancel` 加 `close` 5.5 到 5.6 秒、只 `close` 5.5 秒、监听端口的工具进程 5.5 到 5.7 秒，工具进程都已结束、端口都已释放；无工具进程的基线 5.0 到 5.1 秒。对照（047 的实现，同一探针）：工具进程仍活着、端口仍可连接，`close` 10.5 秒、`cancel` 加 `close` 15.5 秒；工具进程不继承 stdin 时 5.5 秒，工具进程仍活着。 |
-| **仍然存在** | ① 没有用真实模型驱动的代理验证：本机 `opencode` 的管理服务端口被占用（我没有动它），`cursor-agent` 未登录；真实代理的工具进程是否继承 stdin 因代理而异，没有逐个核对。② Windows 走 `taskkill /T`，没验证。③ 已经双重 fork、脱离代理树的守护进程抓不到（与 `toolkits/code_execution/session/process_tree.py` 现有限制相同）。④ 代理自己正常退出时留下的后台进程不处理，是刻意的：分辨不出哪些是故意留下的。⑤ 整池关闭在服务端有 10 秒上限，修复后的 5.5 秒在它之内，但没有在服务端实测。⑥ 这类孤儿的真实发生频率没统计。 |
+| **仍然存在** | ① 没有用真实模型驱动的代理验证：本机 `opencode` 的管理服务端口被占用（我没有动它），`cursor-agent` 未登录；真实代理的工具进程是否继承 stdin 因代理而异，没有逐个核对。② Windows 走 `taskkill /T`，没验证。③ 已经双重 fork、脱离代理树的守护进程抓不到（与 `toolkits/code_execution/session/process_tree.py` 现有限制相同）。④ 代理自己正常退出时留下的后台进程不处理，是刻意的：分辨不出哪些是故意留下的。⑤ 整池关闭在服务端有 10 秒上限，修复后的 5.5 秒在它之内；服务端委派流的实测见 050。⑥ 这类孤儿的真实发生频率没统计。 |
 | **代码位置** | `toolkits/acp/runtime/stalled_agent.py`（`end_agent`、`cancel_session`、`leave_transport`）· `toolkits/code_execution/session/process_tree.py`（复用，未改）· 测试 `tests/toolkits/acp/runtime/test_acp_runtime_images.py`、`tests/toolkits/acp/_stalled_acp_agent.py` |
 
 ### BUG-HARNESS-2026-10-27-048 · 完成门禁把「已做完且验证过」的运行当成没验证拦下重做（失败后修好重跑通过、写入之前的探索性失败、被 20 条窗口挤掉的证据），反过来也放过窗口之外的未验证写入；独立复跑能越过无关的拦截；PPT 大纲门禁是写在框架里的业务规则

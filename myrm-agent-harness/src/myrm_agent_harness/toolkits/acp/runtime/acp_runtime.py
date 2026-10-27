@@ -24,7 +24,9 @@ missing ACP SDK (the optional ``acp`` extra) ends the turn with a ``BACKEND_NOT_
 The images of a turn travel as image content blocks after the text, only to an agent that advertised
 ``promptCapabilities.image`` in ``initialize``; for any other agent the turn opens with an ``images_not_sent`` status
 update and carries the text alone. Cancel and transport exit are bounded (``stalled_agent``), so an agent that has
-stopped reading a prompt of several MiB cannot hold up a stop.
+stopped reading a prompt of several MiB cannot hold up a stop. A prompt failure surfaces as an error event only
+once the events have been consumed to the end; when the consumer closed the turn first (the stop ended the agent) it
+is logged at INFO, so closing is never replaced by that failure.
 """
 
 from __future__ import annotations
@@ -172,9 +174,11 @@ class AcpRuntime(BaseRuntime):
             yield images_not_sent_event(session_id, len(images))
         prompt_task = asyncio.create_task(self._run_prompt(prompt, blocks, handler))
 
+        drained = False
         try:
             async for event in self._consume_events(handler, session_id):
                 yield event
+            drained = True
         finally:
             if not prompt_task.done():
                 prompt_task.cancel()
@@ -182,12 +186,18 @@ class AcpRuntime(BaseRuntime):
                 await prompt_task
             except asyncio.CancelledError:
                 pass
-            except Exception:
-                logger.error("acp_prompt_task_failed name=%s", self._name, exc_info=True)
-                # Re-raise so the failure surfaces as an ERROR event and the
-                # BaseRuntime cleans up the process, matching CliRuntime
-                # behavior instead of degrading to a silent DONE.
-                raise
+            except Exception as exc:
+                if not drained:
+                    # The turn is closed or cancelled while events still flow (a stop that ended the agent): the
+                    # caller is gone, and raising here would replace that close, so the base runtime would yield
+                    # an error event from a generator that is being closed.
+                    logger.info("acp_prompt_task_failed_after_close name=%s error=%s", self._name, exc)
+                else:
+                    logger.error("acp_prompt_task_failed name=%s", self._name, exc_info=True)
+                    # Re-raise so the failure surfaces as an ERROR event and the
+                    # BaseRuntime cleans up the process, matching CliRuntime
+                    # behavior instead of degrading to a silent DONE.
+                    raise
 
     async def _run_prompt(self, prompt: str, blocks: list[ImageBlock], handler: AcpCallbackHandler) -> None:
         """Run the ACP prompt (the text, then its images) and signal completion via the handler's queue."""

@@ -6,6 +6,7 @@ import asyncio
 import base64
 import contextlib
 import hashlib
+import logging
 import signal
 import sys
 import time
@@ -28,6 +29,8 @@ _STALLED_AGENT = _AGENTS / "_stalled_acp_agent.py"
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # Far longer than any wait below: an agent still asleep proves the stop did not wait for it.
 _STALL_SECONDS = "60"
+# The runtime's own loggers; the ACP SDK logs its failed send loop on the root logger, which is not ours to quiet.
+_RUNTIME_LOGGERS = "myrm_agent_harness.toolkits.acp.runtime"
 
 
 def _png(directory: Path, name: str, size: int) -> tuple[Path, bytes]:
@@ -135,12 +138,10 @@ class TestImagePrompts:
         assert _not_sent_notices(events) == []
 
 
-async def _stalled_turn(
-    directory: Path, tool_pid_file: Path | None = None
-) -> tuple[AcpRuntime, asyncio.Task[None], Process]:
-    """A turn whose 5 MiB prompt sits half written in the pipe of an agent that no longer reads it.
+def _stalled_runtime(directory: Path, tool_pid_file: Path | None = None) -> tuple[AcpRuntime, str]:
+    """A runtime over the stalled agent, and the 5 MiB image its turn carries.
 
-    With ``tool_pid_file`` the agent has started a tool process that holds the same pipes and records its PID there.
+    With ``tool_pid_file`` the agent starts a tool process that holds the same pipes and records its PID there.
     """
     image, _ = _png(directory, "big.png", 5 * 1024 * 1024)
     runtime = AcpRuntime(
@@ -153,12 +154,11 @@ async def _stalled_turn(
             timeout_seconds=120,
         ),
     )
+    return runtime, str(image)
 
-    async def consume() -> None:
-        async for _ in runtime.run_turn("look", "chat-1", images=[str(image)]):
-            pass
 
-    turn = asyncio.create_task(consume())
+async def _wait_until_stalled(runtime: AcpRuntime) -> Process:
+    """The agent process, once its session exists and the 5 MiB prompt sits half written in its pipe."""
     deadline = time.monotonic() + 20
     while getattr(runtime, "_session_id", None) is None:
         assert time.monotonic() < deadline, "the agent never created a session"
@@ -166,7 +166,21 @@ async def _stalled_turn(
     await asyncio.sleep(1.0)
     process = getattr(runtime, "_process", None)
     assert process is not None
-    return runtime, turn, process
+    return process
+
+
+async def _stalled_turn(
+    directory: Path, tool_pid_file: Path | None = None
+) -> tuple[AcpRuntime, asyncio.Task[None], Process]:
+    """A turn whose prompt sits half written in the pipe of an agent that no longer reads it."""
+    runtime, image = _stalled_runtime(directory, tool_pid_file)
+
+    async def consume() -> None:
+        async for _ in runtime.run_turn("look", "chat-1", images=[image]):
+            pass
+
+    turn = asyncio.create_task(consume())
+    return runtime, turn, await _wait_until_stalled(runtime)
 
 
 def _tool_running(pid: int) -> bool:
@@ -252,6 +266,34 @@ class TestStalledAgent:
             assert await _tool_ended(tool)
         finally:
             _end_tool(tool)
+            await _finish(runtime, turn, process)
+
+    @pytest.mark.asyncio
+    async def test_a_consumer_that_stops_at_the_first_event_after_the_agent_was_ended_closes_the_turn_cleanly(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(stalled_agent, "STALLED_AGENT_TIMEOUT_SECONDS", 1.0)
+        runtime, image = _stalled_runtime(tmp_path)
+        stopped = asyncio.Event()
+
+        async def consume() -> None:
+            # The delegation stream's loop: once the stop token has tripped, the next event ends it and closes the turn.
+            async with contextlib.aclosing(runtime.run_turn("look", "chat-1", images=[image])) as events:
+                async for _ in events:
+                    if stopped.is_set():
+                        break
+
+        turn = asyncio.create_task(consume())
+        process = await _wait_until_stalled(runtime)
+        try:
+            stopped.set()
+            with caplog.at_level(logging.ERROR):
+                await asyncio.wait_for(runtime.cancel("chat-1"), timeout=20)
+                await asyncio.wait_for(turn, timeout=20)
+
+            assert process.returncode is not None
+            assert [r.getMessage() for r in caplog.records if r.name.startswith(_RUNTIME_LOGGERS)] == []
+        finally:
             await _finish(runtime, turn, process)
 
     @pytest.mark.asyncio
