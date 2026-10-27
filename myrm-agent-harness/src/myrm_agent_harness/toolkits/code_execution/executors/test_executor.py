@@ -149,14 +149,11 @@ class SubprocessCodeExecutor:
             ]
 
             from myrm_agent_harness.toolkits.code_execution.sandbox import detect_sandbox_provider
-            from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxPolicy
+            from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import build_workspace_sandbox_policy
 
             provider, sandbox_status = detect_sandbox_provider()
             if sandbox_status.enabled:
-                policy = SandboxPolicy(
-                    writable_paths=(str(workspace),),
-                    allow_network=self._allow_network,
-                )
+                policy = build_workspace_sandbox_policy(str(workspace), allow_network=self._allow_network)
                 wrapped_cmd, wrapped_args = provider.wrap_command(
                     sys.executable,
                     tuple(pytest_cmd_args),

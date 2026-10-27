@@ -95,8 +95,8 @@ async def run_python_subprocess(
         from myrm_agent_harness.toolkits.code_execution.sandbox import (
             detect_sandbox_provider,
         )
-        from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
-            SandboxPolicy,
+        from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
+            build_workspace_sandbox_policy,
         )
         from myrm_agent_harness.toolkits.code_execution.security.validator import (
             sanitize_env,
@@ -152,8 +152,9 @@ async def run_python_subprocess(
         provider, sandbox_status = detect_sandbox_provider()
 
         if sandbox_status.enabled:
-            policy = SandboxPolicy(
-                writable_paths=(() if context and context.readonly_workspace else (work_dir_str,)),
+            policy = build_workspace_sandbox_policy(
+                work_dir_str,
+                readonly=bool(context and context.readonly_workspace),
                 allow_network=allow_network,
             )
             wrapped_cmd, wrapped_args = provider.wrap_command(

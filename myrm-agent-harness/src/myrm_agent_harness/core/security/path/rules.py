@@ -14,6 +14,7 @@ them, which keeps a caller from matching a half-remembered pattern list.
 - SENSITIVE_FILE_PATTERNS: tuple[str, ...] — credentials and secrets
 - PROTECTED_INSTRUCTION_PATTERNS: tuple[str, ...] — persona/guardrail instruction files
 - EVIDENCE_READONLY_PATTERNS: tuple[str, ...] — read-only session evidence and user inputs
+- EXECUTABLE_GIT_METADATA: tuple[str, ...] — repo-relative entries a git client executes or trusts
 - is_sensitive_file(path) -> bool
 - is_protected_instruction_file(path) -> bool
 - is_evidence_readonly_file(path) -> bool
@@ -31,6 +32,7 @@ from myrm_agent_harness.core.security.path.pattern import first_matching_pattern
 
 __all__ = (
     "EVIDENCE_READONLY_PATTERNS",
+    "EXECUTABLE_GIT_METADATA",
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
     "is_evidence_readonly_file",
@@ -122,6 +124,18 @@ EVIDENCE_READONLY_PATTERNS: tuple[str, ...] = (
     "**/.evidence/*",
 )
 
+
+# ---------------------------------------------------------------------------
+# Executable git metadata (what the OS sandbox keeps read-only inside a writable workspace)
+# ---------------------------------------------------------------------------
+
+# A write to either entry turns the next git call the host makes in that repository into code execution:
+# ``core.fsmonitor`` / ``core.hooksPath`` / filter and textconv drivers live in the config, scripts under hooks/
+# run on commit and merge. They are repo-relative, so the sandbox applies them to every repository it finds.
+EXECUTABLE_GIT_METADATA: tuple[str, ...] = (
+    ".git/config",
+    ".git/hooks",
+)
 
 # ---------------------------------------------------------------------------
 # Predicates

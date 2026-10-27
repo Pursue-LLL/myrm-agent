@@ -35,12 +35,17 @@ class SandboxPolicy:
                     areas such as ``/tmp``. Everything else, including the working directory unless
                     it is listed here, is read-only or inaccessible.
     readable_paths: additional read-only bind-mounts (beyond default / ro-bind).
+    read_only_subpaths: paths below a writable path that stay read-only. The process can neither modify,
+                    replace nor remove them, and the directory entry that holds each one cannot be renamed
+                    or recreated either, so a protected path cannot be shadowed. Enforced by seatbelt and
+                    bwrap; AppContainer does not enforce it.
     allow_network:  whether outbound network is permitted.
     env_passthrough: env var names forwarded into the sandbox.
     """
 
     writable_paths: tuple[str, ...] = ()
     readable_paths: tuple[str, ...] = ()
+    read_only_subpaths: tuple[str, ...] = ()
     allow_network: bool = True
     env_passthrough: tuple[str, ...] = (
         "PATH",

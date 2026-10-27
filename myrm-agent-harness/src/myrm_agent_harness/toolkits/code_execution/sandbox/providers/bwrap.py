@@ -26,6 +26,7 @@ Linux bubblewrap (bwrap) sandbox provider.
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
@@ -110,6 +111,12 @@ class BwrapProvider:
         if work_dir not in seen:
             seen.add(work_dir)
             args.extend(["--bind" if policy.is_writable(work_dir) else "--ro-bind", work_dir, work_dir])
+
+        # Read-only overlays go after every writable bind, a later mount covers an earlier one. A mount point
+        # cannot be renamed or removed, so a protected path is pinned in its parent without extra rules.
+        for path in policy.read_only_subpaths:
+            if os.path.lexists(path):
+                args.extend(["--ro-bind", path, path])
 
         for path in policy.readable_paths:
             if path not in seen:

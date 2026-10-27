@@ -102,8 +102,8 @@ async def spawn_background_process(
     from myrm_agent_harness.toolkits.code_execution.sandbox import (
         detect_sandbox_provider,
     )
-    from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
-        SandboxPolicy,
+    from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
+        build_workspace_sandbox_policy,
     )
     from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
         DEFAULT_CHILD_SAFE_ENV_KEYS,
@@ -164,8 +164,9 @@ async def spawn_background_process(
     preexec_fn: Callable[[], None] | None = None
 
     if sandbox_status.enabled:
-        policy = SandboxPolicy(
-            writable_paths=() if context.readonly_workspace else (work_dir_str,),
+        policy = build_workspace_sandbox_policy(
+            work_dir_str,
+            readonly=context.readonly_workspace,
             allow_network=context.allow_network,
         )
         wrapped_cmd, wrapped_args = provider.wrap_command(cmd, tuple(args), work_dir_str, policy)

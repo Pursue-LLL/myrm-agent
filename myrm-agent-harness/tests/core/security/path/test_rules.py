@@ -4,6 +4,7 @@ Mirrors `core.security.path.rules`.
 """
 
 from myrm_agent_harness.core.security.path import (
+    EXECUTABLE_GIT_METADATA,
     SENSITIVE_FILE_PATTERNS,
     is_evidence_readonly_file,
     is_protected_instruction_file,
@@ -142,3 +143,13 @@ class TestSensitiveFilePatterns:
     def test_all_strings(self) -> None:
         for p in SENSITIVE_FILE_PATTERNS:
             assert isinstance(p, str)
+
+
+class TestExecutableGitMetadata:
+    """EXECUTABLE_GIT_METADATA names what a git client runs, relative to a repository root."""
+
+    def test_config_and_hooks_are_listed(self) -> None:
+        assert EXECUTABLE_GIT_METADATA == (".git/config", ".git/hooks")
+
+    def test_entries_are_repo_relative(self) -> None:
+        assert all(not entry.startswith("/") and entry.startswith(".git/") for entry in EXECUTABLE_GIT_METADATA)

@@ -3,6 +3,7 @@
 [INPUT]
 session.persistent_session::PersistentSession (POS: Abstract persistent shell session base)
 sandbox::detect_sandbox_provider (POS: Sandbox detection and provider selection)
+sandbox.policy_bridge::build_workspace_sandbox_policy (POS: The one place a workspace root becomes a writable sandbox tree)
 
 [OUTPUT]
 LocalPersistentSession: Concrete local shell session with OS-level sandbox support.
@@ -48,14 +49,20 @@ class LocalPersistentSession(PersistentSession):
     def _init_sandbox(self) -> None:
         from myrm_agent_harness.toolkits.code_execution.sandbox import (
             SandboxMode,
-            SandboxPolicy,
             detect_sandbox_provider,
+        )
+        from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
+            build_workspace_sandbox_policy,
         )
 
         mode = SandboxMode(self.config.sandbox_mode)
         self._sandbox_provider, self._sandbox_status = detect_sandbox_provider(mode=mode, platform_info=self._platform)
-        if self._sandbox_policy is None:
-            self._sandbox_policy = SandboxPolicy(writable_paths=(self.config.work_dir,))
+        if self._sandbox_policy is None and self._sandbox_status.enabled:
+            self._sandbox_policy = build_workspace_sandbox_policy(
+                self.config.work_dir,
+                readonly=self.config.readonly_workspace,
+                allow_network=self.config.allow_network,
+            )
 
     @property
     def sandbox_status(self) -> SandboxStatus:

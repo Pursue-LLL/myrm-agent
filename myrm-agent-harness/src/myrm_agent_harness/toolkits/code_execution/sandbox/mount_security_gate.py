@@ -243,6 +243,7 @@ def validate_mount_spec(
     allowed_boundaries: tuple[str, ...] = (),
     require_write: bool | None = None,
     allow_dangerous_override: bool = False,
+    allow_dangerous_descendants: bool = False,
 ) -> MountValidationResult:
     """Validate a single mount spec against all sandbox mount security rules.
 
@@ -255,7 +256,12 @@ def validate_mount_spec(
     5. Physical canonical path resolution & boundary enclosure check.
     6. In-sandbox target path validation (prevent container system file overwrite).
     7. Read-Only vs Read-Write least privilege enforcement.
+
+    ``allow_dangerous_override`` skips every dangerous-root check. ``allow_dangerous_descendants``
+    skips only the one that refuses a source *inside* a dangerous root, for a caller that grants
+    just that subtree: a writable source that equals or contains such a root is still refused.
     """
+    check_inside_dangerous_root = not (allow_dangerous_override or allow_dangerous_descendants)
     raw_src = spec.source_path
     if "\0" in raw_src:
         return MountValidationResult(
@@ -289,7 +295,7 @@ def validate_mount_spec(
         )
 
     # 4. Dangerous system path check
-    if not allow_dangerous_override and is_dangerous_path(trimmed):
+    if check_inside_dangerous_root and is_dangerous_path(trimmed):
         return MountValidationResult(
             is_valid=False,
             violation_type=MountViolationType.DANGEROUS_PATH,
@@ -306,7 +312,7 @@ def validate_mount_spec(
             error_message=f"Path resolution failed for {trimmed}: {e}",
         )
 
-    if not allow_dangerous_override and is_dangerous_path(resolved_src):
+    if check_inside_dangerous_root and is_dangerous_path(resolved_src):
         return MountValidationResult(
             is_valid=False,
             violation_type=MountViolationType.DANGEROUS_PATH,

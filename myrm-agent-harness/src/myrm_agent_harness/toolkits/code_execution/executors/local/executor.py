@@ -487,9 +487,6 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         A shell's sandbox is fixed when it starts, so a read-only run keeps its own shell and never
         reuses the writable run's under the same session id.
         """
-        from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
-            SandboxPolicy,
-        )
         from myrm_agent_harness.toolkits.code_execution.session import (
             LocalPersistentSession,
             SessionConfig,
@@ -538,14 +535,11 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
             timeout=context.timeout or 300,
             env=env,
             max_memory_mb=self.config.local.max_memory_mb,
-        )
-
-        sandbox_policy = SandboxPolicy(
-            writable_paths=() if context.readonly_workspace else (workspace_path,),
+            readonly_workspace=context.readonly_workspace,
             allow_network=context.allow_network,
         )
 
-        session = LocalPersistentSession(config, sandbox_policy=sandbox_policy)
+        session = LocalPersistentSession(config)
         await session.start()
         self._bash_sessions[session_key] = session
         return session

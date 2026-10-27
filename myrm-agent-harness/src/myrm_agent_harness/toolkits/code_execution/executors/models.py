@@ -254,6 +254,7 @@ def classify_execution_error(result: ExecutionResult) -> str | None:
 _MODULE_NAME_RE = re.compile(r"No module named ['\"]?([a-zA-Z0-9_]+)")
 _COMMAND_NOT_FOUND_RE = re.compile(r"(\S+): (?:command not found|not found)")
 _PERMISSION_PATH_RE = re.compile(r"Permission denied[:\s]+['\"]?([^\s'\"]+)")
+_PROTECTED_GIT_RE = re.compile(r"\.git/(?:config|hooks)\b")
 
 _IMPORT_TO_PYPI: dict[str, str] = {
     "PIL": "Pillow",
@@ -327,6 +328,12 @@ def generate_error_hint(result: ExecutionResult) -> str | None:
                 return f"Command '{command}' not found. Try: {install_cmd}"
             return f"Command '{command}' not found. Install it or check the PATH."
         return "A command was not found. Verify spelling and PATH."
+
+    if category in {"permission_denied", "sandbox_ro"} and _PROTECTED_GIT_RE.search(combined):
+        return (
+            "[SYSTEM_ENFORCED] This repository's .git/config and .git/hooks are read-only in the sandbox. "
+            "Do NOT retry or look for a way around it; ask the user to run that command themselves."
+        )
 
     if category == "permission_denied":
         match = _PERMISSION_PATH_RE.search(combined)

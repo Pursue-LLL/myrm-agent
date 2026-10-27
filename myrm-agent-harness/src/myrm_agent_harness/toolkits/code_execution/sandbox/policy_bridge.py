@@ -5,10 +5,13 @@ before injecting them into OS-level SandboxPolicy writable/readable paths.
 
 [INPUT]
 - myrm_agent_harness.core.security.types::AccessRoot (POS: Permission engine access root)
-- myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate::validate_and_sanitize_mounts (POS: Sandbox mount security gate)
+- myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate::validate_and_sanitize_mounts, validate_mount_spec (POS: Sandbox mount security gate)
+- myrm_agent_harness.toolkits.code_execution.sandbox.protected_subpaths::discover_protected_subpaths (POS: Discovery of the git metadata kept read-only in a workspace)
 - myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types::SandboxPolicy (POS: Sandbox security policy DTO)
 
 [OUTPUT]
+- build_workspace_sandbox_policy: The one place a workspace root becomes a writable sandbox tree; refuses a root that contains a dangerous root
+- UnsafeWorkspaceError: Raised when a workspace root cannot be granted as writable
 - build_sandbox_policy_from_path_policy: Converts access roots into sanitized SandboxPolicy
 
 [POS]
@@ -22,10 +25,49 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate impo
     MountMode,
     MountSpec,
     validate_and_sanitize_mounts,
+    validate_mount_spec,
+)
+from myrm_agent_harness.toolkits.code_execution.sandbox.protected_subpaths import (
+    discover_protected_subpaths,
 )
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
     SandboxPolicy,
 )
+
+
+class UnsafeWorkspaceError(ValueError):
+    """The workspace root cannot be granted to the OS sandbox as a writable tree."""
+
+
+def build_workspace_sandbox_policy(
+    work_dir: str,
+    *,
+    readonly: bool = False,
+    allow_network: bool = True,
+) -> SandboxPolicy:
+    """Build the OS sandbox policy for one workspace run.
+
+    The sandbox grants write access to the whole tree below ``work_dir``, so a root that equals or
+    contains a dangerous system or user root (a home directory, a drive root) would hand those over
+    too; it is refused with ``UnsafeWorkspaceError`` instead of silently dropped, so the caller
+    never runs a command in a workspace it believes is protected. A workspace *inside* such a root
+    is allowed: the grant reaches only its own subtree. The git config and hooks of every repository found
+    in the workspace stay read-only. A read-only run grants nothing.
+    """
+    if readonly:
+        return SandboxPolicy(writable_paths=(), allow_network=allow_network)
+    result = validate_mount_spec(
+        MountSpec(source_path=work_dir, mode=MountMode.RW, label="work_dir"),
+        allow_dangerous_descendants=True,
+    )
+    if not result.is_valid or result.sanitized_spec is None:
+        raise UnsafeWorkspaceError(f"Workspace root cannot be granted write access: {result.error_message}")
+    root = result.sanitized_spec.source_path
+    return SandboxPolicy(
+        writable_paths=(root,),
+        read_only_subpaths=discover_protected_subpaths(root),
+        allow_network=allow_network,
+    )
 
 
 def build_sandbox_policy_from_path_policy(

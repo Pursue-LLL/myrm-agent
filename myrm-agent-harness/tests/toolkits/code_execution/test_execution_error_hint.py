@@ -153,6 +153,30 @@ class TestPermissionHint:
         assert "chmod" in hint or "permission" in hint.lower()
 
 
+class TestProtectedGitMetadataHint:
+    """A refused write to the repository's config or hooks is not a chmod problem."""
+
+    @pytest.mark.parametrize(
+        ("category", "stderr"),
+        [
+            ("permission_denied", "error: could not lock config file .git/config: Operation not permitted"),
+            ("permission_denied", "bash: .git/hooks/pre-commit: Operation not permitted"),
+            ("sandbox_ro", "fatal: could not write config file .git/config: Read-only file system"),
+        ],
+    )
+    def test_names_the_protection_instead_of_suggesting_chmod(self, category: str, stderr: str) -> None:
+        hint = generate_error_hint(ExecutionResult(success=False, stderr=stderr, error_category=category))
+
+        assert hint is not None
+        assert "read-only in the sandbox" in hint
+        assert "chmod" not in hint
+
+    def test_other_permission_errors_keep_the_generic_hint(self) -> None:
+        result = ExecutionResult(success=False, stderr="bash: ./run.sh: Permission denied", error_category="permission_denied")
+
+        assert "chmod" in (generate_error_hint(result) or "")
+
+
 # ============================================================================
 # generate_error_hint — timeout / oom
 # ============================================================================

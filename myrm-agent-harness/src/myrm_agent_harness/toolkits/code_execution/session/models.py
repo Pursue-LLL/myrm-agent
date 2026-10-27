@@ -67,3 +67,5 @@ class SessionConfig:
     env: dict[str, str] = field(default_factory=dict)
     sandbox_mode: str = "auto"
     max_memory_mb: int = 2048
+    readonly_workspace: bool = False
+    allow_network: bool = True

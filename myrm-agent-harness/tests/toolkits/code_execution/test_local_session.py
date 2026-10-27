@@ -15,6 +15,8 @@ provider cleanup, public factory).
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -22,6 +24,8 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.sandbox import (
     SandboxStatus,
 )
+from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import UnsafeWorkspaceError
+from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxPolicy
 from myrm_agent_harness.toolkits.code_execution.session.local_session import (
     LocalPersistentSession,
     create_persistent_session,
@@ -61,6 +65,47 @@ def _enable_fake_provider(monkeypatch: pytest.MonkeyPatch, provider: _FakeSandbo
         "myrm_agent_harness.toolkits.code_execution.sandbox.detect_sandbox_provider",
         lambda mode, platform_info: (provider, status),
     )
+
+
+def test_default_policy_follows_the_session_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The shell's sandbox policy is built from its config, not from a caller-assembled copy."""
+    _enable_fake_provider(monkeypatch, _FakeSandboxProvider())
+
+    writable = LocalPersistentSession(SessionConfig(session_id="w", work_dir=str(tmp_path), allow_network=False))
+    readonly = LocalPersistentSession(SessionConfig(session_id="r", work_dir=str(tmp_path), readonly_workspace=True))
+
+    assert writable._sandbox_policy is not None
+    assert writable._sandbox_policy.writable_paths == (str(tmp_path),)
+    assert writable._sandbox_policy.allow_network is False
+    assert readonly._sandbox_policy is not None
+    assert readonly._sandbox_policy.writable_paths == ()
+
+
+def test_sandboxed_session_refuses_a_workspace_that_contains_a_dangerous_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _enable_fake_provider(monkeypatch, _FakeSandboxProvider())
+
+    with pytest.raises(UnsafeWorkspaceError):
+        LocalPersistentSession(SessionConfig(session_id="home", work_dir=os.path.expanduser("~")))
+
+
+def test_unsandboxed_session_does_not_judge_the_workspace() -> None:
+    """With no OS sandbox there is no grant to refuse; the policy is simply not built."""
+    session = LocalPersistentSession(
+        SessionConfig(session_id="off", work_dir=os.path.expanduser("~"), sandbox_mode="disable")
+    )
+
+    assert session._sandbox_policy is None
+
+
+def test_explicit_policy_is_kept(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _enable_fake_provider(monkeypatch, _FakeSandboxProvider())
+    explicit = SandboxPolicy(writable_paths=(str(tmp_path / "x"),))
+
+    session = LocalPersistentSession(SessionConfig(session_id="e", work_dir=str(tmp_path)), sandbox_policy=explicit)
+
+    assert session._sandbox_policy is explicit
 
 
 @pytest.mark.asyncio

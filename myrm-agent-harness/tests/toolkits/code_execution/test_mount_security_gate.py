@@ -129,6 +129,20 @@ class TestMountValidationRules:
         result = validate_mount_spec(MountSpec(source_path=str(fake_home)), allow_dangerous_override=True)
         assert result.is_valid is True
 
+    def test_allow_dangerous_descendants_admits_a_subtree_but_not_its_root_or_ancestor(self, fake_home: Path) -> None:
+        inside = fake_home / ".ssh" / "backup"
+        inside.mkdir()
+
+        def verdict(source: Path) -> MountViolationType | None:
+            result = validate_mount_spec(MountSpec(source_path=str(source)), allow_dangerous_descendants=True)
+            return result.violation_type
+
+        assert verdict(inside) is None
+        assert verdict(fake_home / ".ssh") == MountViolationType.OVERBROAD_WRITE_ROOT
+        assert verdict(fake_home) == MountViolationType.OVERBROAD_WRITE_ROOT
+        # Without the flag the same subtree is refused as lying inside the dangerous root.
+        assert validate_mount_spec(MountSpec(source_path=str(inside))).violation_type == MountViolationType.DANGEROUS_PATH
+
     def test_real_home_and_filesystem_root_rejected_as_writable(self) -> None:
         for source in ("~", "/"):
             result = validate_mount_spec(MountSpec(source_path=source, mode=MountMode.RW))
