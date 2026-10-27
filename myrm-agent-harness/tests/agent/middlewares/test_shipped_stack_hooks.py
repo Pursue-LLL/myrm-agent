@@ -7,13 +7,16 @@ These tests compile that stack with ``create_agent`` and read what the model is 
 
 from __future__ import annotations
 
+import inspect
 import time
-from collections.abc import Iterator, Sequence
+from collections import Counter
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from langchain.agents import create_agent
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -25,6 +28,7 @@ from pydantic import Field
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares, create_registry
 from myrm_agent_harness.agent.middlewares._session_context import (
     reset_terminal_errors,
+    set_canary_token,
     set_pseudonym_store,
     set_security_config,
     set_workspace_root,
@@ -40,6 +44,7 @@ from myrm_agent_harness.utils.token_economics.budget_guard import BudgetStatus
 PHONE = "13812345678"
 KEY = "sk-ant-abcdefghijklmnopqrstuvwxyz0123456789"
 DANGEROUS = "drop database production;"
+CANARY = "canary-0123456789abcdef"
 
 # The hooks the shipped graph runs: the nodes whose middleware defines a before_model or an after_model hook.
 BEFORE_MODEL_NODES = {
@@ -79,6 +84,12 @@ def leak() -> str:
     return f"the key is {KEY}"
 
 
+@tool
+def ask_question_tool(questions: str) -> str:
+    """Answer for the user."""
+    return "asked"
+
+
 def _tool_call(call_id: str, name: str = "ping", **args: int) -> AIMessage:
     return AIMessage(content="", tool_calls=[{"id": call_id, "name": name, "args": args}])
 
@@ -114,7 +125,9 @@ def _shipped_agent(
     """The agent's own middleware stack in a graph, minus the middlewares named in *without*."""
     model = ScriptedModel(script=script)
     middlewares = [m for m in build_middlewares(create_registry(), [], engine) if m.name not in without]
-    return model, create_agent(model, tools=[ping, leak, step], middleware=middlewares, checkpointer=checkpointer)
+    return model, create_agent(
+        model, tools=[ping, leak, step, ask_question_tool], middleware=middlewares, checkpointer=checkpointer
+    )
 
 
 def _config(policy: PrivacyPolicy | None = None) -> SecurityConfig:
@@ -128,6 +141,13 @@ def _config(policy: PrivacyPolicy | None = None) -> SecurityConfig:
 
 def _redacting() -> SecurityConfig:
     return _config(PrivacyPolicy(enabled=True, s2_action=PIIAction.REDACT, s3_action=PIIAction.REDACT))
+
+
+def _budget_status(monkeypatch: pytest.MonkeyPatch, status: BudgetStatus, remaining: float) -> None:
+    tracker = SimpleNamespace(
+        last_budget_status=status, budget_checker=SimpleNamespace(get_remaining_budget=lambda: remaining)
+    )
+    monkeypatch.setattr("myrm_agent_harness.utils.token_economics.tracker.get_token_tracker", lambda: tracker)
 
 
 def _texts(call: list[tuple[str, str]], kind: type[BaseMessage]) -> list[str]:
@@ -144,6 +164,7 @@ def _clean_session(tmp_path: Path) -> Iterator[None]:
     set_workspace_root(str(tmp_path))
     yield
     set_security_config(None)
+    set_canary_token("")
     set_pseudonym_store(None)
     set_workspace_root("")
     reset_terminal_errors()
@@ -208,11 +229,7 @@ async def test_a_credential_in_a_tool_result_never_reaches_the_model() -> None:
 async def test_the_budget_hint_is_the_runtimes_and_is_not_screened_as_the_users_input(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tracker = SimpleNamespace(
-        last_budget_status=BudgetStatus.WARNING,
-        budget_checker=SimpleNamespace(get_remaining_budget=lambda: 0.5),
-    )
-    monkeypatch.setattr("myrm_agent_harness.utils.token_economics.tracker.get_token_tracker", lambda: tracker)
+    _budget_status(monkeypatch, BudgetStatus.WARNING, 0.5)
     model, agent = _shipped_agent([AIMessage(content="noted")])
 
     await agent.ainvoke({"messages": [HumanMessage(content=DANGEROUS)]})
@@ -281,11 +298,7 @@ async def test_a_tool_call_cap_applies_only_when_it_is_configured(
 
 
 async def test_the_budget_hint_is_added_once_per_run_not_every_round(monkeypatch: pytest.MonkeyPatch) -> None:
-    tracker = SimpleNamespace(
-        last_budget_status=BudgetStatus.WARNING,
-        budget_checker=SimpleNamespace(get_remaining_budget=lambda: 0.5),
-    )
-    monkeypatch.setattr("myrm_agent_harness.utils.token_economics.tracker.get_token_tracker", lambda: tracker)
+    _budget_status(monkeypatch, BudgetStatus.WARNING, 0.5)
     script = [_tool_call(f"c{n}", "step", n=n) for n in range(1, 9)] + [AIMessage(content="done")]
     _, agent = _shipped_agent(script)
 
@@ -293,3 +306,92 @@ async def test_the_budget_hint_is_added_once_per_run_not_every_round(monkeypatch
 
     hints = [m for m in result["messages"] if isinstance(m, HumanMessage) and "[BUDGET_HINT]" in str(m.content)]
     assert len(hints) == 1
+
+
+def _defined_hooks(middlewares: Sequence[AgentMiddleware]) -> Iterator[tuple[AgentMiddleware, str, str]]:
+    """``(middleware, node, method)`` for each before/after_model method a middleware overrides, as create_agent reads it."""
+    for m in middlewares:
+        for node in ("before_model", "after_model"):
+            for method in (node, f"a{node}"):
+                if getattr(type(m), method) is not getattr(AgentMiddleware, method):
+                    yield m, node, method
+
+
+def _counted(method: Callable[..., object], node: str, calls: Counter[str]) -> Callable[..., object]:
+    if inspect.iscoroutinefunction(method):
+
+        async def acounted(state: dict[str, object], runtime: object) -> object:
+            calls[node] += 1
+            return await method(state, runtime)
+
+        return acounted
+
+    def counted(state: dict[str, object], runtime: object) -> object:
+        calls[node] += 1
+        return method(state, runtime)
+
+    return counted
+
+
+async def test_every_hook_the_shipped_stack_defines_runs_once_per_model_round() -> None:
+    """A middleware that joins the stack with a hook is covered here without a line changed in this file."""
+    middlewares = build_middlewares(create_registry(), [], None)
+    declared = {f"{m.name}.{node}" for m, node, _ in _defined_hooks(middlewares)}
+    calls: Counter[str] = Counter()
+    # create_agent takes the nodes from the class and binds the callables from the instance: counting wraps the latter.
+    for m, node, method in _defined_hooks(middlewares):
+        setattr(m, method, _counted(getattr(m, method), f"{m.name}.{node}", calls))
+    model = ScriptedModel(script=[_tool_call("c1"), AIMessage(content="done")])
+    agent = create_agent(model, tools=[ping, leak, step], middleware=middlewares)
+
+    await agent.ainvoke({"messages": [HumanMessage(content="call ping")]})
+
+    assert {name for name in agent.get_graph().nodes if name.endswith((".before_model", ".after_model"))} == declared
+    assert len(model.calls) == 2
+    assert dict(calls) == dict.fromkeys(declared, 2)
+
+
+async def test_a_tool_call_that_needs_approval_stops_at_the_approval_hook() -> None:
+    set_security_config(SecurityConfig(yolo_mode_enabled=False, privacy_policy=PrivacyPolicy(enabled=False)))
+    _, agent = _shipped_agent([_tool_call("c1", "step", n=1), AIMessage(content="done")], checkpointer=InMemorySaver())
+
+    result = await agent.ainvoke(
+        {"messages": [HumanMessage(content="step once")]}, {"configurable": {"thread_id": "t"}}
+    )
+
+    assert result["__interrupt__"]
+    assert RAN == []
+
+
+async def test_a_canary_token_the_model_repeats_is_scrubbed_from_its_reply() -> None:
+    set_canary_token(CANARY)
+    _, agent = _shipped_agent([AIMessage(content=f"the secret is {CANARY}")])
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="hello")]})
+
+    assert CANARY not in str(result["messages"][-1].content)
+
+
+async def test_a_tool_call_made_once_the_budget_is_spent_is_stripped(monkeypatch: pytest.MonkeyPatch) -> None:
+    _budget_status(monkeypatch, BudgetStatus.FINALIZATION, 0.0)
+    model, agent = _shipped_agent([_tool_call("c1", "step", n=1), AIMessage(content="not reached")])
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="step once")]})
+
+    assert RAN == []
+    assert len(model.calls) == 1
+    assert not result["messages"][-1].tool_calls
+
+
+async def test_a_tool_called_next_to_ask_question_tool_is_blocked() -> None:
+    calls = [
+        {"id": "q1", "name": "ask_question_tool", "args": {"questions": "which?"}},
+        {"id": "s1", "name": "step", "args": {"n": 1}},
+    ]
+    _, agent = _shipped_agent([AIMessage(content="", tool_calls=calls), AIMessage(content="done")])
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="ask and step")]})
+
+    blocked = [m for m in result["messages"] if isinstance(m, ToolMessage) and m.status == "error"]
+    assert RAN == []
+    assert [m.tool_call_id for m in blocked] == ["s1"]
