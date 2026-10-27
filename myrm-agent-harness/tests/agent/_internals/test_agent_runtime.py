@@ -507,6 +507,32 @@ class TestRunAgentLoopModelSlugSource:
         assert "agent_state.config.llm" not in attributes
 
 
+class TestRunAgentLoopRoundBudget:
+    """One round budget feeds the graph's step limit, the guards, and the goal continuation of a run."""
+
+    def test_graph_guards_and_stream_context_share_the_runs_round_budget(self) -> None:
+        import ast
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[3] / "src/myrm_agent_harness/agent/_internals/agent_runtime.py"
+        ).read_text(encoding="utf-8")
+        calls = {ast.unparse(node) for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)}
+
+        def keywords(callee: str) -> set[str]:
+            return {
+                f"{kw.arg}={ast.unparse(kw.value)}"
+                for node in ast.walk(ast.parse(source))
+                if isinstance(node, ast.Call) and ast.unparse(node.func) == callee
+                for kw in node.keywords
+            }
+
+        assert "effective_round_budget(getattr(agent_state, 'config', None))" in calls
+        assert "graph_recursion_limit(round_budget, agent_state._agent)" in calls
+        assert "round_budget=round_budget" in keywords("reset_all_guards")
+        assert "round_budget=round_budget" in keywords("StreamContext")
+
+
 class TestRunAgentLoopOuterErrorFaultSide:
     """Regression: the outer-loop error_event must carry deterministic fault
     side + recovery actions so the GUI's trace timeline shows who owns the
@@ -542,36 +568,35 @@ class TestRunAgentLoopOuterErrorFaultSide:
         assert "persisted.pop('type', None)" in signatures
         assert "persisted.pop('messageId', None)" in signatures
 
-class TestEffectiveRecursionLimit:
+
+class TestEffectiveRoundBudget:
     """The graph and its guards read one budget, and an explicit setting is honoured."""
 
-    def test_explicit_budget_is_used_as_is(self) -> None:
+    def test_explicit_budget_is_counted_two_steps_a_round(self) -> None:
         """Raising a configured budget would override what the operator asked for.
 
-        ``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto it and the builder maps
-        ``max_iterations * 2``; both are already step budgets (two steps per tool round, measured),
-        so a positive value passes through untouched.
+        ``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto ``recursion_limit`` and the builders map
+        ``max_iterations * 2`` and ``max_turns * 2``: the steps of a bare model/tools loop, two a round.
         """
-        from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
+        from myrm_agent_harness.agent._internals._agent_helpers import effective_round_budget
 
-        for configured in (20, 50, 100, 300, 400, 1000):
-            assert effective_recursion_limit(MagicMock(recursion_limit=configured)) == configured
+        for configured, rounds in ((2, 1), (3, 1), (20, 10), (50, 25), (100, 50), (300, 150), (1000, 500)):
+            assert effective_round_budget(MagicMock(recursion_limit=configured)) == rounds
 
     def test_missing_budget_falls_back_to_a_workable_default(self) -> None:
-        from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
+        from myrm_agent_harness.agent._internals._agent_helpers import effective_round_budget
 
-        assert effective_recursion_limit(MagicMock(recursion_limit=None)) == 300
-        assert effective_recursion_limit(MagicMock(recursion_limit=0)) == 300
-        assert effective_recursion_limit(MagicMock(recursion_limit=-5)) == 300
-        assert effective_recursion_limit(None) == 300
-        assert effective_recursion_limit(MagicMock()) == 300
+        assert effective_round_budget(MagicMock(recursion_limit=None)) == 150
+        assert effective_round_budget(MagicMock(recursion_limit=0)) == 150
+        assert effective_round_budget(MagicMock(recursion_limit=-5)) == 150
+        assert effective_round_budget(None) == 150
+        assert effective_round_budget(MagicMock()) == 150
 
-    def test_guards_receive_the_limit_the_graph_runs_with(self) -> None:
+    def test_guards_are_tuned_to_the_rounds_the_graph_is_given(self) -> None:
         """A guard tuned to a smaller number would fire its thresholds proportionally early."""
-        from myrm_agent_harness.agent._internals._agent_helpers import effective_recursion_limit
+        from myrm_agent_harness.agent._internals._agent_helpers import effective_round_budget
         from myrm_agent_harness.agent.security.guards.loop_guard.guard import LoopGuard
 
-        limit = effective_recursion_limit(MagicMock(recursion_limit=100))
-        guard = LoopGuard(graph_recursion_limit=limit)
-        capacity = limit // LoopGuard._NODES_PER_TOOL_CALL
-        assert capacity - 1 <= guard._budget_stuck <= capacity
+        rounds = effective_round_budget(MagicMock(recursion_limit=100))
+        guard = LoopGuard(round_budget=rounds)
+        assert rounds - 1 <= guard._budget_stuck <= rounds

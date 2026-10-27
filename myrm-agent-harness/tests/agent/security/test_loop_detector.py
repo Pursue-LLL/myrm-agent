@@ -362,7 +362,7 @@ class TestInferPhase:
                 g.record_result("tool", {"x": i}, "Error: something failed")
         # Since it raises, we can't test the phase easily without bypassing the check.
         # Let's bypass the check to test the phase logic.
-        g = LoopGuard(graph_recursion_limit=300)
+        g = LoopGuard(round_budget=150)
         g._metrics.total_calls = 25
         from myrm_agent_harness.agent.security.guards.loop_guard import VERDICT_ALLOW
 

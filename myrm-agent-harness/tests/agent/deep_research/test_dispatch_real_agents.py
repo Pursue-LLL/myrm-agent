@@ -4,6 +4,9 @@ Researchers on one topic often fetch the same URL. Sharing one loop guard, their
 to a single loop and the guard broke agents that had each fetched only a few times. Each agent has its own
 budget: it is allowed `_BREAK_AT - 1` fetches of the page and broken on the next, whatever the others do.
 
+A researcher is also given the turns it is configured with: every turn is a model round that may call a tool,
+however many middlewares the agent's graph has.
+
 The dispatch, the agents' runs, the tool interceptor and its loop guard are real; only the model is scripted.
 """
 
@@ -27,10 +30,17 @@ pytestmark = pytest.mark.usefixtures("parent_run")
 
 _FETCHES_PER_AGENT = 14
 _BREAK_AT = 10  # identical calls a LoopGuard allows before it breaks the loop
+_ENDLESS = 1000
 
 
 class _FetchSamePageModel(BaseChatModel):
-    """Asks for the same page again after every result, until it has asked `_FETCHES_PER_AGENT` times."""
+    """Asks for a page again after every result, until it has asked `fetches` times.
+
+    With `same_page` it asks for one URL every time; otherwise each request is a page of its own.
+    """
+
+    fetches: int = _FETCHES_PER_AGENT
+    same_page: bool = True
 
     @property
     def _llm_type(self) -> str:
@@ -43,8 +53,9 @@ class _FetchSamePageModel(BaseChatModel):
         self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: object = None, **kwargs: object
     ) -> ChatResult:
         asked = sum(isinstance(message, ToolMessage) for message in messages)
-        if asked < _FETCHES_PER_AGENT:
-            call = {"name": "web_fetch_tool", "args": {"url": "https://shared.test/page"}, "id": f"call_{asked}"}
+        if asked < self.fetches:
+            url = "https://shared.test/page" if self.same_page else f"https://shared.test/page/{asked}"
+            call = {"name": "web_fetch_tool", "args": {"url": url}, "id": f"call_{asked}"}
             reply = AIMessage(content="", tool_calls=[call])
         else:
             reply = AIMessage(content="findings")
@@ -65,7 +76,7 @@ async def test_research_agents_fetching_the_same_page_each_get_their_own_loop_bu
     fetched_under: Counter[int] = Counter()
     orchestrator = DeepResearchOrchestrator(
         llm=_FetchSamePageModel(),
-        config=DeepResearchConfig(max_research_agent_turns=100),
+        config=DeepResearchConfig(),
         parent_tools=[_fetch_tool(fetched_under)],
         context={"session_id": "chat_parent", "workspaces_storage_root": str(tmp_path)},
     )
@@ -79,3 +90,22 @@ async def test_research_agents_fetching_the_same_page_each_get_their_own_loop_bu
     assert id(parent_guard) not in fetched_under
     assert sorted(fetched_under.values()) == [_BREAK_AT - 1] * 3
     assert guard_state() == parent
+
+
+@pytest.mark.asyncio
+async def test_a_research_agent_can_use_the_turns_it_is_configured_with(tmp_path: Path) -> None:
+    """Every turn is a tool call, not graph bookkeeping; its loop guard, tuned to the same turns, stops it first."""
+    fetched_under: Counter[int] = Counter()
+    config = DeepResearchConfig()
+    orchestrator = DeepResearchOrchestrator(
+        llm=_FetchSamePageModel(fetches=_ENDLESS, same_page=False),
+        config=config,
+        parent_tools=[_fetch_tool(fetched_under)],
+        context={"session_id": "chat_parent", "workspaces_storage_root": str(tmp_path)},
+    )
+    orchestrator._start_time = 1.0
+
+    await orchestrator._dispatch_research_agents(tasks=[{"task": "look into a", "tc_id": "tc_a"}], message_id="msg")
+
+    turns = config.max_research_agent_turns
+    assert turns - 2 <= sum(fetched_under.values()) < turns

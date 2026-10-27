@@ -778,6 +778,24 @@ async def test_execute_iteration_limit_in_goal_mode(fire_hook_mock, base_ctx):
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
+async def test_execute_goal_continuation_keeps_the_guards_on_the_runs_round_budget(fire_hook_mock, base_ctx):
+    """A goal that carries the run on resets its guards to the rounds the run was given, not a default."""
+    base_ctx.round_budget = 25
+    base_ctx.agent.astream = _mock_astream_normal
+    executor = _make_executor(base_ctx)
+
+    with (
+        patch.object(executor, "_dispatch_chunk", new_callable=AsyncMock),
+        patch.object(executor, "_handle_goal_continuation", new_callable=AsyncMock, side_effect=[True, False]),
+        patch("myrm_agent_harness.agent.streaming.stream_executor.reset_loop_guard") as reset_loop_guard,
+    ):
+        await executor.execute()
+
+    reset_loop_guard.assert_called_once_with(is_resume=True, round_budget=25)
+
+
+@pytest.mark.asyncio
+@patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
 async def test_execute_teammate_messages_triggers_continue(fire_hook_mock, base_ctx):
     """_handle_teammate_messages returning True triggers loop continuation."""
     executor = _make_executor(base_ctx)

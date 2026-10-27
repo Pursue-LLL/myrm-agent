@@ -85,7 +85,12 @@ class AgentConfig(BaseModel):
 
     # Agent 配置
     system_prompt: str | None = Field(default=None, description="Custom system prompt")
-    recursion_limit: int = Field(default=50, description="Maximum recursion depth", ge=1, le=1000)
+    recursion_limit: int = Field(
+        default=50,
+        description="Run budget in model/tools loop steps, two per round (50 allows 25 rounds of tool calls)",
+        ge=1,
+        le=1000,
+    )
     timeout_seconds: int | None = Field(default=None, description="Global timeout in seconds", gt=0)
     parallel_tool_calls: bool | None = Field(
         default=None, description="Enable parallel tool calls (None=use LLM default)"

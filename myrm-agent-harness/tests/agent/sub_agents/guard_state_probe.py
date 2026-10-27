@@ -87,7 +87,7 @@ def use_every_guard(*, error: str) -> None:
 
 def start_run(*, turn: str, is_resume: bool = False) -> None:
     """What ``run_agent_loop`` opens a run with: reset the guards it finds, then bind the run's own turn."""
-    reset_all_guards(is_resume=is_resume, graph_recursion_limit=100, unattended_mode=False)
+    reset_all_guards(is_resume=is_resume, round_budget=50, unattended_mode=False)
     set_current_message_id(turn)
 
 

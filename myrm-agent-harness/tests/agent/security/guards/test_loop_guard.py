@@ -428,10 +428,9 @@ class TestDivergence:
 
 
 class TestIterationBudget:
-    """Budget thresholds are derived from graph_recursion_limit.
+    """Budget thresholds are derived from the run's round budget.
 
-    Default limit=100 → tool_budget=100//3=33 →
-      warn=23, critical=29, stuck=32.
+    Default 50 rounds → warn=35, critical=45, stuck=49.
     """
 
     def test_warn_at_budget_warn(self) -> None:
@@ -477,34 +476,34 @@ class TestIterationBudget:
         assert "Iteration budget exhausted" in str(exc_info.value)
         assert f"{target} tool calls" in str(exc_info.value)
 
-    def test_custom_recursion_limit_changes_budget(self) -> None:
-        """Custom graph_recursion_limit shifts all budget thresholds."""
+    def test_custom_round_budget_changes_budget(self) -> None:
+        """Custom round_budget shifts all budget thresholds."""
         guard = LoopGuard(
             warn_threshold=50,
             break_threshold=100,
-            graph_recursion_limit=150,
+            round_budget=75,
         )
         assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 150 // LoopGuard._NODES_PER_TOOL_CALL
+        assert guard._budget_stuck <= 75
 
     def test_reconfigure_budget_updates_thresholds(self) -> None:
         """_configure_budget recalculates thresholds in-place."""
         guard = LoopGuard(warn_threshold=50, break_threshold=100)
         old_warn = guard._budget_warn
 
-        guard._configure_budget(300)
+        guard._configure_budget(150)
         assert guard._budget_warn != old_warn
         assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
 
-    def test_small_recursion_limit_still_ordered(self) -> None:
-        """Even with a very small recursion_limit, thresholds stay ordered."""
+    def test_small_round_budget_still_ordered(self) -> None:
+        """Even with a very small round budget, thresholds stay ordered."""
         guard = LoopGuard(
             warn_threshold=50,
             break_threshold=100,
-            graph_recursion_limit=20,
+            round_budget=10,
         )
         assert guard._budget_warn < guard._budget_critical < guard._budget_stuck
-        assert guard._budget_stuck <= 20 // LoopGuard._NODES_PER_TOOL_CALL
+        assert guard._budget_stuck <= 10
 
 
 # ---------------------------------------------------------------------------
@@ -897,7 +896,7 @@ class TestNotifyCompaction:
 
     def test_total_calls_reset_after_compaction(self) -> None:
         """After compaction, total_calls resets to 0 so the agent can continue."""
-        guard = LoopGuard(graph_recursion_limit=30)
+        guard = LoopGuard(round_budget=15)
         budget_stuck = guard._budget_stuck
 
         for i in range(budget_stuck - 1):
@@ -914,7 +913,7 @@ class TestNotifyCompaction:
 
     def test_compaction_prevents_premature_stuck_exception(self) -> None:
         """Without compaction the agent would be terminated; with it, it continues."""
-        guard = LoopGuard(graph_recursion_limit=30)
+        guard = LoopGuard(round_budget=15)
         budget_stuck = guard._budget_stuck
 
         for i in range(budget_stuck - 1):
@@ -932,7 +931,7 @@ class TestNotifyCompaction:
 
     def test_error_signatures_preserved_across_compaction(self) -> None:
         """Error signatures survive compaction so recurring failures are still tracked."""
-        guard = LoopGuard(graph_recursion_limit=60, error_signature_threshold=5)
+        guard = LoopGuard(round_budget=30, error_signature_threshold=5)
 
         guard.pre_check("bash_a", {"cmd": "bad"})
         guard.record_result("bash_a", {"cmd": "bad"}, "ToolExecutionError: SyntaxError in script")

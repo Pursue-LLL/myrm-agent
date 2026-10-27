@@ -5,12 +5,14 @@ usage ledger initialization.
 
 [INPUT]
 - agent.middlewares (POS: guard/state reset functions)
-- agent.security (POS: security guard reset functions)
+- agent.security (POS: security guard reset functions, loop guard default round budget)
 - core.context_vars (POS: scoped_value, approval_session_var)
 - agent.background_worker (POS: idle task scheduling)
 - utils.token_economics (POS: UsageLedger)
 
 [OUTPUT]
+- effective_round_budget: How many model rounds a run may take, from its configured recursion_limit.
+- graph_recursion_limit: The step limit that lets a compiled graph run a given number of model rounds.
 - reset_all_guards: Reset all per-request guard state before a new agent run.
 - isolated_run_guards: Run a nested agent on per-run guards of its own, handing the caller's back untouched afterwards.
 - child_run_scope: Run a child agent inline as a sub-agent under its own session, on isolated guards.
@@ -22,7 +24,7 @@ usage ledger initialization.
 - pop_checkpoint_incompatible_merged_context: Strip non-serializable callbacks from merged_context before LangGraph checkpoint.
 
 [POS]
-Agent runtime helper functions — guard resets, child-run guard isolation, query extraction, idle tasks, usage ledger, checkpoint-safe context stripping.
+Agent runtime helper functions — round budget and graph step limit, guard resets, child-run guard isolation, query extraction, idle tasks, usage ledger, checkpoint-safe context stripping.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ import asyncio
 from collections.abc import Coroutine, Iterator
 from contextlib import ExitStack, contextmanager
 
+from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET
 from myrm_agent_harness.core.context_vars import approval_session_var, scoped_value
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_economics.tracker import set_usage_ledger
@@ -39,8 +42,10 @@ logger = get_agent_logger(__name__)
 
 __all__ = [
     "child_run_scope",
+    "effective_round_budget",
     "ephemeral_run_scope",
     "extract_query_text",
+    "graph_recursion_limit",
     "init_usage_ledger",
     "isolated_run_guards",
     "pop_checkpoint_incompatible_merged_context",
@@ -59,35 +64,53 @@ def _fire_and_forget(coro: Coroutine[object, object, object]) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
-# LangGraph counts Pregel steps, and one tool round costs two of them: one step executes the model,
-# one executes the tool node. Measured on a real graph — bisecting `recursion_limit` against tool
-# call counts 0-5 yielded 2, 4, 6, 8, 10, 12 — so the builder's `max_iterations * 2` turn budget is
-# already an exact step budget for plain bind-tools turns.
-_MIN_RECURSION_NODES = 300
+# LangGraph counts Pregel steps. A bare model/tools loop spends two on a round, one for the model node and
+# one for the tools node; every middleware hook that runs before or after the model call is a node of its
+# own and spends one more. A run's budget is counted in rounds and turned into a step limit for the graph
+# it actually runs on: the default middleware chain spends 22 steps a round, so a budget of 16 rounds
+# written as 32 steps allowed one.
+_BARE_LOOP_STEPS = 2
+_UNCONFIGURED_ROUNDS = 150
+_ROUND_HOOK_NODES = (".before_model", ".after_model")
+_RUN_HOOK_NODES = (".before_agent", ".after_agent")
 
 
-def effective_recursion_limit(config: object) -> int:
-    """The ``recursion_limit`` the graph actually runs with.
+def effective_round_budget(config: object) -> int:
+    """How many model rounds a run may take.
 
-    ``LoopGuard`` derives its warn/critical/stuck thresholds from this same number, so the graph
-    and its guards must read it from one place: a graph that runs wider than the guards assume
-    delays every safety threshold by the same factor.
+    The configured ``recursion_limit`` states the budget as the steps of a bare model/tools loop,
+    two a round (``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto it, and the builders map
+    ``max_iterations * 2`` and ``max_turns * 2``), so a positive value is read as that many rounds
+    halved: raising it would silently override what the operator set. The default covers only a
+    configuration that never chose one.
 
-    The configured value is already a step budget (``AgentConfig.from_env`` maps
-    ``MYRM_RECURSION_LIMIT`` onto it, and the builder maps ``max_iterations * 2``), so a positive
-    value is used as-is: raising it would silently override what the operator set, and 50 steps
-    already buys 24 tool rounds. The default rescues only a configuration that never chose one.
+    ``graph_recursion_limit`` turns the rounds into the graph's step limit and ``LoopGuard`` derives
+    its warn/critical/stuck thresholds from the same rounds, so both must come from this number.
     """
     configured = getattr(config, "recursion_limit", None)
     if isinstance(configured, int) and configured > 0:
-        return configured
-    return _MIN_RECURSION_NODES
+        return max(1, configured // _BARE_LOOP_STEPS)
+    return _UNCONFIGURED_ROUNDS
+
+
+def graph_recursion_limit(round_budget: int, graph: object) -> int:
+    """The step limit that lets ``graph`` run ``round_budget`` model rounds.
+
+    A round costs the graph's model and tools nodes plus every ``before_model`` / ``after_model`` hook
+    node LangChain made for its middlewares; the ``before_agent`` / ``after_agent`` hook nodes run once
+    per run. Those are counted from the compiled graph, so the budget holds whatever chain the agent
+    was built with.
+    """
+    names = [name for name in getattr(graph, "nodes", ()) if isinstance(name, str)]
+    per_round = _BARE_LOOP_STEPS + sum(name.endswith(_ROUND_HOOK_NODES) for name in names)
+    per_run = sum(name.endswith(_RUN_HOOK_NODES) for name in names)
+    return round_budget * per_round + per_run
 
 
 def reset_all_guards(
     *,
     is_resume: bool = False,
-    graph_recursion_limit: int = 100,
+    round_budget: int = DEFAULT_ROUND_BUDGET,
     unattended_mode: bool = False,
 ) -> None:
     """Reset all per-request guard state before a new agent run.
@@ -96,7 +119,7 @@ def reset_all_guards(
         is_resume: When ``True`` (approval-resume flow), preserve error
             signature counters in LoopGuard so that cross-resume loops
             are still detected.
-        graph_recursion_limit: LangGraph recursion limit, forwarded to
+        round_budget: Model rounds the run may take, forwarded to
             LoopGuard for dynamic budget threshold calculation.
         unattended_mode: When ``True``, enables strict runaway loop circuit breaker
             for background/unattended agent executions.
@@ -136,7 +159,7 @@ def reset_all_guards(
 
     reset_loop_guard(
         is_resume=is_resume,
-        graph_recursion_limit=graph_recursion_limit,
+        round_budget=round_budget,
         unattended_mode=unattended_mode,
     )
     reset_frequency_guard()

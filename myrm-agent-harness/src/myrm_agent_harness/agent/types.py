@@ -194,6 +194,8 @@ class EngineParams:
 class AgentRuntimeConfig:
     """Agent runtime configuration (distinct from config.llm.AgentConfig which is the full config bundle)."""
 
+    # Model rounds the run may take, two a round (a bare model/tools loop's steps); the runtime scales the
+    # graph's own step limit to the middleware chain it was built with.
     recursion_limit: int = field(default=50)
     timeout_seconds: int | None = field(default=None)
     parallel_tool_calls: bool | None = field(default=None)

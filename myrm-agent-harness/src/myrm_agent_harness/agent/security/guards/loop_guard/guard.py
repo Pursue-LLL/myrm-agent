@@ -12,9 +12,8 @@ context-aware, priority-sorted suggestions to help the LLM self-correct:
    indicating the model has little substantive work left
 
 Iteration budget:
-- Budget thresholds (warn / critical / stuck) are dynamically derived from
-  ``graph_recursion_limit`` via ``_configure_budget``, converting graph nodes
-  to tool calls using ``_NODES_PER_TOOL_CALL``.
+- Budget thresholds (warn / critical / stuck) are derived from the run's round
+  budget via ``_configure_budget``: one round is one tool call.
 
 Response levels:
 - WARN (streak 3-4): append warning + smart suggestion to ToolMessage
@@ -65,6 +64,9 @@ try:
     from .stats import LoopGuardStatsDB
 except ImportError:
     LoopGuardStatsDB = None  # type: ignore[assignment, misc]
+
+# Rounds a run is given when nothing says otherwise.
+DEFAULT_ROUND_BUDGET = 50
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +159,8 @@ class LoopGuard(LoopDetectorMixin):
         Consecutive brief outputs to trigger BREAK.
     error_signature_threshold:
         Cross-tool same-error repetitions before ToolStuckException.
-    graph_recursion_limit:
-        LangGraph ``recursion_limit``; used to derive iteration budget
+    round_budget:
+        Model rounds the run may take; used to derive iteration budget
         thresholds (warn / critical / stuck) via ``_configure_budget``.
     poll_tools:
         Tool names with relaxed thresholds (2x normal).
@@ -167,11 +169,6 @@ class LoopGuard(LoopDetectorMixin):
     enable_stats:
         Whether to enable persistent statistics collection.
     """
-
-    # Measured against a real graph, not assumed: a turn costs one step for the model and one for
-    # the tool node, so each tool call advances the Pregel counter by two. Every `recursion_limit`
-    # from 2 to 12 was bisected against tool-call counts 0-5 and this held exactly.
-    _NODES_PER_TOOL_CALL = 2
 
     def __init__(
         self,
@@ -186,7 +183,7 @@ class LoopGuard(LoopDetectorMixin):
         diminishing_warn_streak: int = 2,
         diminishing_break_streak: int = 3,
         error_signature_threshold: int = 5,
-        graph_recursion_limit: int = 100,
+        round_budget: int = DEFAULT_ROUND_BUDGET,
         poll_tools: frozenset[str] = frozenset(),
         stats_db: LoopGuardStatsDB | None = None,
         enable_stats: bool = False,
@@ -221,15 +218,15 @@ class LoopGuard(LoopDetectorMixin):
         if enable_stats and stats_db is None and LoopGuardStatsDB is not None:
             self._stats_db = LoopGuardStatsDB()
 
-        self._configure_budget(graph_recursion_limit)
+        self._configure_budget(round_budget)
 
-    def _configure_budget(self, graph_recursion_limit: int) -> None:
-        """Compute tool-call budget thresholds from the graph recursion limit.
+    def _configure_budget(self, round_budget: int) -> None:
+        """Compute tool-call budget thresholds from the run's round budget.
 
         Guarantees the strict ordering ``warn < critical < stuck <= tool_budget``
         even for very small recursion limits.
         """
-        tool_budget = graph_recursion_limit // self._NODES_PER_TOOL_CALL
+        tool_budget = round_budget
         stuck = min(max(tool_budget - 1, 3), tool_budget)
         critical = min(max(tool_budget * 9 // 10, 2), stuck - 1)
         warn = min(max(tool_budget * 7 // 10, 1), critical - 1)

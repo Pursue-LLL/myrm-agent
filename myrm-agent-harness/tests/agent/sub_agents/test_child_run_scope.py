@@ -201,7 +201,7 @@ def test_a_child_cannot_reach_its_parents_turn_before_it_has_bound_its_own() -> 
     parent = guard_state()
 
     with child_run_scope("task_child_1"):
-        reset_all_guards(is_resume=False, graph_recursion_limit=100, unattended_mode=False)
+        reset_all_guards(is_resume=False, round_budget=50, unattended_mode=False)
 
     assert guard_state() == parent
     assert get_bound_message_id() == PARENT_TURN

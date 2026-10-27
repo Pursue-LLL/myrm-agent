@@ -35,6 +35,7 @@ from myrm_agent_harness.agent.errors.fault_side import classify_fault_side
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
     reset_loop_guard,
 )
+from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
 from myrm_agent_harness.toolkits.llms.errors import (
@@ -101,6 +102,8 @@ class StreamContext:
     steering_token: SteeringToken | None
     source_tracker: SourceTracker
     output_queue: asyncio.Queue[dict[str, object] | object]
+    # Rounds the guards are tuned to, kept for a goal that continues the run.
+    round_budget: int = DEFAULT_ROUND_BUDGET
     event_logger: EventLogger | None = None
     drain_subagent_notifications: Callable[[], str | None] | None = None
     drain_teammate_messages: Callable[[], str | None] | None = None
@@ -430,10 +433,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     cost_this_turn=cost_this_turn,
                     time_this_turn_seconds=time_this_turn_seconds,
                 ):
-                    reset_loop_guard(
-                        is_resume=True,
-                        graph_recursion_limit=ctx.run_config.get("recursion_limit", 100),
-                    )
+                    reset_loop_guard(is_resume=True, round_budget=ctx.round_budget)
                     continue
 
                 await self._flush_turn_memory()

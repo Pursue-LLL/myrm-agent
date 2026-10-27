@@ -166,7 +166,7 @@ def test_reset_all_guards_forwards_resume_and_budget_arguments():
         ) as loop_guard,
         patch("myrm_agent_harness.agent.security.guards.context_budget.reset_context_budget_guard") as budget_guard,
     ):
-        reset_all_guards(is_resume=True, graph_recursion_limit=50, unattended_mode=True)
+        reset_all_guards(is_resume=True, round_budget=25, unattended_mode=True)
 
-    loop_guard.assert_called_once_with(is_resume=True, graph_recursion_limit=50, unattended_mode=True)
+    loop_guard.assert_called_once_with(is_resume=True, round_budget=25, unattended_mode=True)
     budget_guard.assert_called_once_with(is_resume=True)

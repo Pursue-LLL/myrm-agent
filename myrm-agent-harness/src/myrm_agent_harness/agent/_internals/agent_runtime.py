@@ -91,8 +91,9 @@ from ._agent_build import (
 )
 from ._agent_helpers import (
     _fire_and_forget,
-    effective_recursion_limit,
+    effective_round_budget,
     extract_query_text,
+    graph_recursion_limit,
     init_usage_ledger,
     pop_checkpoint_incompatible_merged_context,
     reset_all_guards,
@@ -165,11 +166,11 @@ async def run_agent_loop(
         or getattr(agent_state, "unattended_mode", False)
         or getattr(getattr(agent_state, "config", None), "unattended_mode", False)
     )
-    recursion_limit = effective_recursion_limit(getattr(agent_state, "config", None))
+    round_budget = effective_round_budget(getattr(agent_state, "config", None))
     reset_all_guards(
         is_resume=is_resume,
-        # Guards derive their stuck thresholds from this number, so it must match the graph's.
-        graph_recursion_limit=recursion_limit,
+        # Guards derive their stuck thresholds from the same budget the graph's step limit is made from.
+        round_budget=round_budget,
         unattended_mode=unattended,
     )
 
@@ -524,7 +525,7 @@ async def run_agent_loop(
                 logger.warning(f"Goal session setup failed: {e}")
 
         run_config: RunnableConfig = {
-            "recursion_limit": recursion_limit,
+            "recursion_limit": graph_recursion_limit(round_budget, agent_state._agent),
             "configurable": {"context": merged_context, "thread_id": thread_id},
         }
 
@@ -589,6 +590,7 @@ async def run_agent_loop(
             agent_input=agent_input,
             merged_context=merged_context,
             run_config=run_config,
+            round_budget=round_budget,
             stats=stats,
             message_id=message_id,
             cancel_token=cancel_token,

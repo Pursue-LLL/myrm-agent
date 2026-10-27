@@ -9,11 +9,12 @@ and emits verdicts to interrupt or redirect the session.
 
 [OUTPUT]
 - LoopGuard: 循环守卫
+- DEFAULT_ROUND_BUDGET: 未指定时一次运行的模型轮数
 - _stable_hash: 状态指纹哈希
 - VERDICT_ALLOW 等裁决常量
 """
 
-from .guard import LoopGuard, _stable_hash  # noqa: F401
+from .guard import DEFAULT_ROUND_BUDGET, LoopGuard, _stable_hash  # noqa: F401
 from .types import (
     VERDICT_ALLOW,
     AgentPhase,
@@ -32,6 +33,7 @@ from .types import (
 )
 
 __all__ = [
+    "DEFAULT_ROUND_BUDGET",
     "VERDICT_ALLOW",
     "AgentPhase",
     "CallRecord",

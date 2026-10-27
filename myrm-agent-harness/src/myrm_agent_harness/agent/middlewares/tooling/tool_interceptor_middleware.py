@@ -77,7 +77,7 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
     run_pre_call_guards,
 )
 from myrm_agent_harness.agent.middlewares.tooling.tool_executor import execute_with_retry
-from myrm_agent_harness.agent.security.guards.loop_guard import LoopGuard
+from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET, LoopGuard
 from myrm_agent_harness.core.context_vars import scoped_value
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_economics.tracker import (
@@ -128,12 +128,12 @@ def _get_session_loop_guard() -> LoopGuard | None:
 
 def _create_loop_guard(
     *,
-    graph_recursion_limit: int = 100,
+    round_budget: int = DEFAULT_ROUND_BUDGET,
     unattended_mode: bool = False,
 ) -> LoopGuard:
     return LoopGuard(
         poll_tools=_BASH_POLL_TOOLS,
-        graph_recursion_limit=graph_recursion_limit,
+        round_budget=round_budget,
         unattended_mode=unattended_mode,
     )
 
@@ -164,31 +164,29 @@ def clear_all_session_loop_guards_for_tests() -> None:
 def reset_loop_guard(
     *,
     is_resume: bool = False,
-    graph_recursion_limit: int = 100,
+    round_budget: int = DEFAULT_ROUND_BUDGET,
     unattended_mode: bool = False,
 ) -> None:
     """Reset the session-scoped loop guard state.
 
     Called at the start of each agent run and at each Goal continuation turn.
     When *is_resume* is True, error signatures are preserved so that the same
-    class of failures still counts toward the budget.  *graph_recursion_limit*
-    is forwarded to ``LoopGuard._configure_budget`` to keep budget thresholds
-    aligned with the actual LangGraph recursion limit.
+    class of failures still counts toward the budget.  *round_budget* is forwarded
+    to ``LoopGuard._configure_budget`` so the budget thresholds follow the number
+    of model rounds the run may take.
     """
     guard = _loop_guard_var.get()
     if guard is None:
         guard = _get_session_loop_guard()
     if guard is None:
-        _bind_loop_guard(
-            _create_loop_guard(graph_recursion_limit=graph_recursion_limit, unattended_mode=unattended_mode)
-        )
+        _bind_loop_guard(_create_loop_guard(round_budget=round_budget, unattended_mode=unattended_mode))
         return
     guard.reset(
         preserve_error_signatures=is_resume,
         preserve_call_window=is_resume,
     )
     guard.unattended_mode = unattended_mode
-    guard._configure_budget(graph_recursion_limit)
+    guard._configure_budget(round_budget)
     _bind_loop_guard(guard)
 
 
