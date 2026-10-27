@@ -41,6 +41,31 @@ class TestMatchesRepoCommandPrefix:
     def test_empty_prefixes(self) -> None:
         assert matches_repo_command_prefix("npm run test", ()) is False
 
+    def test_prefix_covers_the_command_with_more_arguments(self) -> None:
+        assert matches_repo_command_prefix("npm run test -w api", ("npm run test",)) is True
+        assert matches_repo_command_prefix("npm run test\t-w api", ("npm run test",)) is True
+
+    @pytest.mark.parametrize(
+        ("command", "prefix"),
+        [
+            ("npm run testing", "npm run test"),
+            ("git status-all", "git status"),
+            ("lsof -i", "ls"),
+            ("gitk", "git"),
+        ],
+    )
+    def test_prefix_must_end_at_a_word_boundary(self, command: str, prefix: str) -> None:
+        assert matches_repo_command_prefix(command, (prefix,)) is False
+
+    def test_any_declared_prefix_may_match(self) -> None:
+        assert matches_repo_command_prefix("make lint", ("npm run test", "make lint")) is True
+
+    def test_surrounding_whitespace_of_command_and_prefix_is_ignored(self) -> None:
+        assert matches_repo_command_prefix("  npm run test -w api  ", (" npm run test ",)) is True
+
+    def test_blank_prefix_matches_nothing(self) -> None:
+        assert matches_repo_command_prefix("npm run test", ("", "  ")) is False
+
 
 class TestAssertMcpSpawnAllowed:
     def test_blocks_untrusted_workspace_scoped_spawn(self) -> None:
@@ -120,4 +145,3 @@ class TestWorkspaceTrustManifestScan:
 
         rich_h = manifest_hash(manifest)
         assert rich_h != clean_h
-

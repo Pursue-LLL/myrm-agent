@@ -2,6 +2,7 @@
 
 [INPUT]
 - logging::logging (POS: Python 标准日志库)
+- tomllib::tomllib (POS: Python TOML 解析标准库)
 - pathlib::Path (POS: Python 面向对象路径标准库)
 
 [OUTPUT]
@@ -17,6 +18,7 @@ prefixes only widen what a TRUSTED workspace may run and must never block startu
 from __future__ import annotations
 
 import logging
+import tomllib
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -35,15 +37,6 @@ def load_repo_command_prefixes(workspace_root: str | Path) -> tuple[str, ...]:
     config_path = root / _CONFIG_RELATIVE
     if not config_path.is_file():
         return ()
-
-    try:
-        import tomllib
-    except ModuleNotFoundError:  # pragma: no cover - py311+
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            logger.debug("tomllib/tomli unavailable; skipping repo command prefixes")
-            return ()
 
     try:
         data = tomllib.loads(config_path.read_text(encoding="utf-8"))

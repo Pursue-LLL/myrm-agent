@@ -10,7 +10,7 @@
 - blocks_workspace_side_channels: bool (True when repo-local channels must stay off)
 - is_path_within_workspace: bool (symlink-resolved containment check)
 - assert_mcp_spawn_allowed: raises WorkspaceTrustBlockedError on a blocked spawn
-- matches_repo_command_prefix: bool (command allowed by repo-declared prefixes)
+- matches_repo_command_prefix: bool (one plain command whose leading words are a repo-declared prefix)
 
 [POS]
 Pure predicate layer of the workspace_trust gate; no persistence and no server calls.
@@ -64,8 +64,19 @@ def assert_mcp_spawn_allowed(
             )
 
 
+def _starts_with_command_words(command: str, prefix: str) -> bool:
+    """Whether *prefix* covers whole leading words of *command*.
+
+    ``npm run test`` covers ``npm run test -w a`` but not ``npm run testing``.
+    """
+    prefix = prefix.strip()
+    if not prefix or not command.startswith(prefix):
+        return False
+    return len(command) == len(prefix) or command[len(prefix)].isspace()
+
+
 def matches_repo_command_prefix(command: str, prefixes: tuple[str, ...]) -> bool:
-    """Return True when *command* starts with a trusted repo-declared prefix."""
+    """Return True when *command* is one plain command whose leading words are a trusted repo-declared prefix."""
     from myrm_agent_harness.agent.security.command_allowlist_pattern import (
         is_compound_shell_command,
     )
@@ -73,4 +84,4 @@ def matches_repo_command_prefix(command: str, prefixes: tuple[str, ...]) -> bool
     normalized = command.strip()
     if not normalized or not prefixes or is_compound_shell_command(normalized):
         return False
-    return any(normalized.startswith(prefix) for prefix in prefixes)
+    return any(_starts_with_command_words(normalized, prefix) for prefix in prefixes)
