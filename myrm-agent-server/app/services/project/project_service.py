@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 import logging
+from types import EllipsisType
 from uuid import uuid4
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import CursorResult, delete, func, select, update
 
 from app.database.connection import get_session
 from app.database.models.chat import Chat
@@ -117,7 +118,7 @@ class ProjectService:
         workspace_path: str | None = None,
         description: str | None = None,
         goal_summary: str | None = None,
-        default_agent_id: str | None = ...,
+        default_agent_id: str | None | EllipsisType = ...,
     ) -> dict[str, object] | None:
         async with get_session() as db:
             stmt = select(Project).where(Project.id == project_id)
@@ -207,4 +208,4 @@ class ProjectService:
             stmt = update(Chat).where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None)).values(project_id=project_id)
             result = await db.execute(stmt)
             await db.commit()
-            return result.rowcount  # type: ignore[return-value]
+            return result.rowcount if isinstance(result, CursorResult) else 0
