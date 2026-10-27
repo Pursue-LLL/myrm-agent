@@ -4,7 +4,8 @@ A sandbox that makes a workspace writable also makes its ``.git/config`` and ``.
 next git call the host makes in that repository then runs whatever the sandboxed command put there
 (``core.fsmonitor``, ``core.hooksPath``, hook scripts). The repositories are found when the policy is built:
 the workspace itself and its direct child directories, following a ``.git`` pointer file or link to a git
-directory that lies inside the workspace (worktrees, submodules).
+directory that lies inside the workspace (worktrees, submodules). The submodules of each repository, at any
+depth, are protected with it: their git directories and the ``.git`` pointer of their working trees.
 
 [INPUT]
 - core.security.path::EXECUTABLE_GIT_METADATA, is_within_boundary
@@ -18,19 +19,17 @@ Discovery half of the read-only subpath protection; the providers enforce what i
 
 from __future__ import annotations
 
-import logging
 import os
+import re
 
 from myrm_agent_harness.core.security.path import EXECUTABLE_GIT_METADATA, is_within_boundary
 
-logger = logging.getLogger(__name__)
-
-# Child directories examined for a repository: a workspace holding more is not a collection of checkouts.
-_MAX_CHILD_DIRS = 256
 _POINTER_READ_BYTES = 4096
+_CONFIG_READ_BYTES = 65536
 _DOT_GIT = ".git"
 # Entries inside a git directory, e.g. ("config", "hooks").
 _GIT_DIR_ENTRIES = tuple(entry.removeprefix(f"{_DOT_GIT}/") for entry in EXECUTABLE_GIT_METADATA)
+_WORKTREE_SETTING = re.compile(r"^\s*worktree\s*=\s*(.+?)\s*$", re.MULTILINE)
 
 
 def discover_protected_subpaths(work_dir: str) -> tuple[str, ...]:
@@ -44,19 +43,15 @@ def discover_protected_subpaths(work_dir: str) -> tuple[str, ...]:
 
 
 def _candidate_repos(root: str) -> list[str]:
+    # Every child is examined: a cap would let a sandboxed command push a repository out of the examined set
+    # by creating empty directories before the next policy is built.
     repos = [root]
     try:
         with os.scandir(root) as entries:
-            children = [e.path for e in entries if e.is_dir(follow_symlinks=False)]
+            repos.extend(e.path for e in entries if e.is_dir(follow_symlinks=False))
     except OSError:
-        return repos
-    if len(children) > _MAX_CHILD_DIRS:
-        logger.warning(
-            "Workspace has %d child directories; only the first %d are checked for git metadata",
-            len(children),
-            _MAX_CHILD_DIRS,
-        )
-    return repos + children[:_MAX_CHILD_DIRS]
+        pass
+    return repos
 
 
 def _repo_paths(repo: str, root: str) -> list[str]:
@@ -73,11 +68,18 @@ def _repo_paths(repo: str, root: str) -> list[str]:
     for directory in _git_dirs(git_dir):
         if not is_within_boundary(directory, root):
             continue
-        for name in _GIT_DIR_ENTRIES:
-            entry = os.path.join(directory, name)
-            if os.path.lexists(entry):
-                paths.append(entry)
+        paths.extend(_metadata_entries(directory))
+        for module_dir in _module_git_dirs(directory):
+            paths.extend(_metadata_entries(module_dir))
+            pointer = _module_worktree_pointer(module_dir)
+            if pointer is not None and is_within_boundary(pointer, root) and os.path.lexists(pointer):
+                paths.append(pointer)
     return paths
+
+
+def _metadata_entries(git_dir: str) -> list[str]:
+    entries = (os.path.join(git_dir, name) for name in _GIT_DIR_ENTRIES)
+    return [entry for entry in entries if os.path.lexists(entry)]
 
 
 def _pointer_target(dot_git: str, repo: str) -> str | None:
@@ -108,3 +110,38 @@ def _git_dirs(git_dir: str | None) -> list[str]:
     if common:
         directories.append(os.path.normpath(os.path.join(git_dir, common)))
     return directories
+
+
+def _module_git_dirs(git_dir: str) -> list[str]:
+    """The git directories of the submodules below ``git_dir/modules``, nested submodules included.
+
+    A module named ``third_party/foo`` lives in ``modules/third_party/foo``, so a directory without ``HEAD``
+    is a segment of a module name, not a git directory.
+    """
+    modules: list[str] = []
+    pending = [os.path.join(git_dir, "modules")]
+    while pending:
+        try:
+            with os.scandir(pending.pop()) as entries:
+                children = [e.path for e in entries if e.is_dir(follow_symlinks=False)]
+        except OSError:
+            continue
+        for child in children:
+            if os.path.isfile(os.path.join(child, "HEAD")):
+                modules.append(child)
+                pending.append(os.path.join(child, "modules"))
+            else:
+                pending.append(child)
+    return modules
+
+
+def _module_worktree_pointer(module_dir: str) -> str | None:
+    """The ``.git`` pointer file of the working tree a submodule's git directory names in ``core.worktree``."""
+    try:
+        with open(os.path.join(module_dir, "config"), encoding="utf-8", errors="replace") as handle:
+            setting = _WORKTREE_SETTING.search(handle.read(_CONFIG_READ_BYTES))
+    except OSError:
+        return None
+    if setting is None:
+        return None
+    return os.path.join(os.path.normpath(os.path.join(module_dir, setting.group(1).strip('"'))), _DOT_GIT)

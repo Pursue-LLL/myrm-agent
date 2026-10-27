@@ -5,7 +5,8 @@
 - code_execution.sandbox.policy_bridge (POS: The one place a workspace root becomes a writable sandbox tree)
 
 [OUTPUT]
-- Profile text checks plus real ``sandbox-exec`` runs: blocked config/hook/pointer writes, working git, quoted paths.
+- Profile text checks plus real ``sandbox-exec`` runs: blocked config/hook/pointer writes, blocked renames of
+  the directories that hold them, working git, quoted paths.
 
 [POS]
 Enforcement tests for ``SandboxPolicy.read_only_subpaths`` and the profile string escaping.
@@ -52,6 +53,19 @@ def repo(tmp_path: Path) -> Path:
     return workspace
 
 
+def _workspace_with_nested_submodule(tmp_path: Path) -> tuple[Path, Path]:
+    """A repository whose submodule sits two levels down, plus the submodule's git config."""
+    upstream = tmp_path / "upstream"
+    upstream.mkdir()
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    for repo in (upstream, workspace):
+        _git(repo, "init", "-q")
+        _git(repo, "-c", "user.email=a@b", "-c", "user.name=n", "commit", "-q", "--allow-empty", "-m", "init")
+    _git(workspace, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(upstream), "third_party/foo")
+    return workspace, workspace / ".git" / "modules" / "third_party" / "foo" / "config"
+
+
 def _sandboxed(workspace: Path, script: str, policy: SandboxPolicy) -> subprocess.CompletedProcess[str]:
     profile = _generate_sbpl_profile(policy, str(workspace))
     env = {**os.environ, "HOME": str(workspace.parent)}
@@ -92,6 +106,31 @@ class TestProfileText:
 
         assert f'(deny file-write* (literal "{ws}"))' not in _generate_sbpl_profile(policy, ws)
 
+    def test_every_directory_between_the_writable_root_and_a_protected_path_is_pinned(self, tmp_path: Path) -> None:
+        ws = os.path.realpath(tmp_path)
+        policy = SandboxPolicy(
+            writable_paths=(ws,),
+            read_only_subpaths=(f"{ws}/a/child/.git/config", f"{ws}/a/other/.git/config"),
+        )
+
+        profile = _generate_sbpl_profile(policy, ws)
+
+        for pinned in ("a", "a/child", "a/child/.git", "a/other", "a/other/.git"):
+            assert f'(deny file-write* (literal "{ws}/{pinned}"))' in profile
+        assert profile.count(f'(deny file-write* (literal "{ws}/a"))') == 1
+        assert f'(deny file-write* (literal "{ws}"))' not in profile
+
+    def test_a_workspace_inside_the_scratch_area_is_pinned_up_to_the_scratch_root(self) -> None:
+        scratch = os.path.realpath("/tmp")
+        ws = f"{scratch}/outer/ws"
+        policy = SandboxPolicy(writable_paths=(ws,), read_only_subpaths=(f"{ws}/.git/config",))
+
+        profile = _generate_sbpl_profile(policy, ws)
+
+        for pinned in (f"{scratch}/outer", ws, f"{ws}/.git"):
+            assert f'(deny file-write* (literal "{pinned}"))' in profile
+        assert f'(deny file-write* (literal "{scratch}"))' not in profile
+
 
 @_requires_seatbelt
 class TestEnforcement:
@@ -125,6 +164,56 @@ class TestEnforcement:
 
         assert result.returncode != 0
         assert (repo / ".git").is_dir()
+
+    def test_a_directory_holding_a_protected_repository_cannot_be_moved_away_and_back(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "ws"
+        child = workspace / "child"
+        child.mkdir(parents=True)
+        _git(child, "init", "-q")
+        config = child / ".git" / "config"
+        before = config.read_text()
+        policy = build_workspace_sandbox_policy(str(workspace))
+
+        script = "mv child moved && printf '[core]\\n\\tfsmonitor = true\\n' >> moved/.git/config; mv moved child"
+        result = _sandboxed(workspace, script, policy)
+
+        assert result.returncode != 0
+        assert config.read_text() == before
+        assert not (workspace / "moved").exists()
+
+    def test_nested_submodule_cannot_be_redirected_or_reconfigured(self, tmp_path: Path) -> None:
+        workspace, module_config = _workspace_with_nested_submodule(tmp_path)
+        policy = build_workspace_sandbox_policy(str(workspace))
+        before = module_config.read_text()
+        attempts = {
+            "module_config": f"printf '[core]\\n\\tfsmonitor = true\\n' >> '{module_config}'",
+            "modules_dir_moved": "mv .git/modules/third_party .git/modules/moved",
+            "working_tree_moved": "mv third_party moved",
+            "pointer_rewritten": "printf 'gitdir: ../../evil\\n' > third_party/foo/.git",
+        }
+
+        for name, script in attempts.items():
+            assert _sandboxed(workspace, script, policy).returncode != 0, name
+
+        assert module_config.read_text() == before
+        assert (workspace / "third_party" / "foo" / ".git").read_text().startswith("gitdir: ../../.git/modules/")
+
+    def test_git_inside_a_child_repository_and_a_submodule_still_works(self, tmp_path: Path) -> None:
+        workspace, _ = _workspace_with_nested_submodule(tmp_path)
+        _git(workspace, "init", "-q", "child")
+        policy = build_workspace_sandbox_policy(str(workspace))
+        script = " && ".join(
+            [
+                "cd child && echo a > a.txt && git add a.txt && git -c user.email=a@b -c user.name=n commit -q -m a",
+                "cd ../third_party/foo && echo b > b.txt && git add b.txt",
+                "git -c user.email=a@b -c user.name=n commit -q -m b && git status --porcelain",
+                "cd ../.. && git init -q fresh && cd fresh && git config user.name z",
+            ]
+        )
+
+        result = _sandboxed(workspace, script, policy)
+
+        assert result.returncode == 0, result.stderr
 
     def test_day_to_day_git_and_file_work_still_succeeds(self, repo: Path) -> None:
         policy = build_workspace_sandbox_policy(str(repo))

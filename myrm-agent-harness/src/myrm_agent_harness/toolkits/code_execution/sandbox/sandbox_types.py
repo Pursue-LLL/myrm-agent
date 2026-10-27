@@ -1,13 +1,15 @@
 """Core types for OS-level process sandboxing.
 
 [INPUT]  (none — pure type definitions)
-[OUTPUT] SandboxPolicy, SandboxMode, SandboxProvider protocol, SandboxStatus
+[OUTPUT] SandboxPolicy, SandboxMode, SandboxProvider protocol, SandboxStatus, movable_ancestors
 [POS]    Foundation layer — all sandbox modules import from here.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePath
@@ -36,9 +38,10 @@ class SandboxPolicy:
                     it is listed here, is read-only or inaccessible.
     readable_paths: additional read-only bind-mounts (beyond default / ro-bind).
     read_only_subpaths: paths below a writable path that stay read-only. The process can neither modify,
-                    replace nor remove them, and the directory entry that holds each one cannot be renamed
-                    or recreated either, so a protected path cannot be shadowed. Enforced by seatbelt and
-                    bwrap; AppContainer does not enforce it.
+                    replace nor remove them, and no directory above one of them (below the writable path)
+                    can be renamed or recreated either, so a protected path cannot be moved away, edited
+                    and moved back, or shadowed. Enforced by seatbelt and bwrap; AppContainer does not
+                    enforce it.
     allow_network:  whether outbound network is permitted.
     env_passthrough: env var names forwarded into the sandbox.
     """
@@ -61,6 +64,23 @@ class SandboxPolicy:
         """Whether ``path`` lies inside one of ``writable_paths``."""
         target = PurePath(path)
         return any(target.is_relative_to(root) for root in self.writable_paths)
+
+
+def movable_ancestors(path: str, writable_areas: Iterable[str]) -> list[str]:
+    """Directories above ``path`` that lie strictly inside one of ``writable_areas``, nearest first.
+
+    The process can rename each of them: it moves one away, changes what it held under the new name and moves it
+    back, which defeats a rule that protects ``path`` only by name. An area root itself is not listed, it sits
+    in a parent the process cannot write.
+    """
+    areas = tuple(area.rstrip(os.sep) + os.sep for area in writable_areas)
+    movable: list[str] = []
+    directory = os.path.dirname(path)
+    while directory != os.path.dirname(directory):
+        if any(directory.startswith(area) for area in areas):
+            movable.append(directory)
+        directory = os.path.dirname(directory)
+    return movable
 
 
 @dataclass(frozen=True, slots=True)

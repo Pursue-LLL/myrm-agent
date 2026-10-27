@@ -4,7 +4,7 @@
 - code_execution.sandbox.protected_subpaths (POS: Discovery of the git metadata kept read-only in a workspace)
 
 [OUTPUT]
-- Which paths are protected for plain repos, child repos, pointer files, links and non-repos.
+- Which paths are protected for plain repos, child repos, submodules, pointer files, links and non-repos.
 
 [POS]
 Guards what the providers are asked to enforce; the enforcement itself is tested per provider.
@@ -12,13 +12,9 @@ Guards what the providers are asked to enforce; the enforcement itself is tested
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
-import pytest
-
-from myrm_agent_harness.toolkits.code_execution.sandbox import protected_subpaths
 from myrm_agent_harness.toolkits.code_execution.sandbox.protected_subpaths import discover_protected_subpaths
 
 
@@ -33,6 +29,16 @@ def _repo(path: Path, *, hooks: bool = True) -> Path:
 
 def _real(*paths: Path) -> tuple[str, ...]:
     return tuple(os.path.join(os.path.realpath(p.parent), p.name) for p in paths)
+
+
+def _module(git_dir: Path, name: str, worktree: str | None) -> Path:
+    """A submodule git directory the way ``git submodule add`` lays it out below ``git_dir/modules``."""
+    module = git_dir / "modules" / name
+    (module / "hooks").mkdir(parents=True)
+    (module / "HEAD").write_text("ref: refs/heads/main\n")
+    setting = "" if worktree is None else f"\tworktree = {worktree}\n"
+    (module / "config").write_text(f'[core]\n\tbare = false\n{setting}[remote "origin"]\n\turl = x\n')
+    return module
 
 
 def test_workspace_repo_config_and_hooks_are_protected(tmp_path: Path) -> None:
@@ -72,6 +78,47 @@ def test_pointer_file_protects_itself_and_the_git_dir_inside_the_workspace(tmp_p
     found = discover_protected_subpaths(str(tmp_path / "main"))
 
     assert set(_real(sub_repo / ".git", modules / "config", git_dir / "config")) <= set(found)
+
+
+def test_nested_submodule_protects_its_git_dir_and_its_working_tree_pointer(tmp_path: Path) -> None:
+    git_dir = _repo(tmp_path)
+    module = _module(git_dir, "third_party/foo", "../../../../third_party/foo")
+    pointer = tmp_path / "third_party" / "foo" / ".git"
+    pointer.parent.mkdir(parents=True)
+    pointer.write_text("gitdir: ../../.git/modules/third_party/foo\n")
+
+    found = discover_protected_subpaths(str(tmp_path))
+
+    assert set(_real(module / "config", module / "hooks", pointer)) <= set(found)
+
+
+def test_submodule_of_a_submodule_is_protected_too(tmp_path: Path) -> None:
+    git_dir = _repo(tmp_path)
+    outer = _module(git_dir, "outer", "../../outer")
+    inner = _module(outer, "inner", "../../../../outer/inner")
+
+    found = discover_protected_subpaths(str(tmp_path))
+
+    assert set(_real(outer / "config", inner / "config", inner / "hooks")) <= set(found)
+
+
+def test_submodule_without_a_working_tree_setting_protects_only_the_git_dir(tmp_path: Path) -> None:
+    git_dir = _repo(tmp_path)
+    module = _module(git_dir, "sub", None)
+
+    assert discover_protected_subpaths(str(tmp_path)) == _real(
+        git_dir / "config", git_dir / "hooks", module / "config", module / "hooks"
+    )
+
+
+def test_submodule_working_tree_outside_the_workspace_is_not_protected(tmp_path: Path) -> None:
+    workspace = tmp_path / "ws"
+    git_dir = _repo(workspace)
+    _module(git_dir, "sub", "../../../../elsewhere")
+    (tmp_path / "elsewhere").mkdir()
+    (tmp_path / "elsewhere" / ".git").write_text("gitdir: x\n")
+
+    assert _real(tmp_path / "elsewhere" / ".git")[0] not in discover_protected_subpaths(str(workspace))
 
 
 def test_linked_worktree_protects_the_shared_config_it_names(tmp_path: Path) -> None:
@@ -114,17 +161,12 @@ def test_unreadable_pointer_target_is_skipped(tmp_path: Path) -> None:
     assert discover_protected_subpaths(str(tmp_path)) == _real(tmp_path / ".git")
 
 
-def test_child_scan_is_bounded_and_says_so(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    monkeypatch.setattr(protected_subpaths, "_MAX_CHILD_DIRS", 2)
-    for name in ("a", "b", "c"):
-        (tmp_path / name).mkdir()
+def test_empty_directories_cannot_push_a_repository_out_of_the_examined_children(tmp_path: Path) -> None:
+    for index in range(300):
+        (tmp_path / f"empty_{index:03d}").mkdir()
+    child = _repo(tmp_path / "zzz_repo")
 
-    with caplog.at_level(logging.WARNING, logger=protected_subpaths.logger.name):
-        discover_protected_subpaths(str(tmp_path))
-
-    assert "only the first 2" in caplog.text
+    assert discover_protected_subpaths(str(tmp_path)) == _real(child / "config", child / "hooks")
 
 
 def test_missing_workspace_has_nothing_protected(tmp_path: Path) -> None:

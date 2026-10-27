@@ -31,6 +31,7 @@ import shutil
 
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
     SandboxPolicy,
+    movable_ancestors,
 )
 
 _BWRAP_BIN = "bwrap"
@@ -113,10 +114,17 @@ class BwrapProvider:
             args.extend(["--bind" if policy.is_writable(work_dir) else "--ro-bind", work_dir, work_dir])
 
         # Read-only overlays go after every writable bind, a later mount covers an earlier one. A mount point
-        # cannot be renamed or removed, so a protected path is pinned in its parent without extra rules.
-        for path in policy.read_only_subpaths:
-            if os.path.lexists(path):
-                args.extend(["--ro-bind", path, path])
+        # cannot be renamed or removed, so a protected path is pinned as it is. The directories above it are
+        # not: one could be renamed away and replaced, so each is bound onto itself (still writable) to become
+        # a mount point too. Outer mounts come first, an inner mount has to land on top of them.
+        existing = [path for path in policy.read_only_subpaths if os.path.lexists(path)]
+        pinned = dict.fromkeys(
+            d for path in existing for d in movable_ancestors(path, policy.writable_paths) if not os.path.islink(d)
+        )
+        for directory in sorted(pinned, key=lambda d: d.count(os.sep)):
+            args.extend(["--bind", directory, directory])
+        for path in existing:
+            args.extend(["--ro-bind", path, path])
 
         for path in policy.readable_paths:
             if path not in seen:

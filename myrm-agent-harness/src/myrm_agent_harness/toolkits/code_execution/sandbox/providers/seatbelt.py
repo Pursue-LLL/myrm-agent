@@ -24,6 +24,7 @@ import os
 
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
     SandboxPolicy,
+    movable_ancestors,
 )
 
 _SANDBOX_EXEC = "/usr/bin/sandbox-exec"
@@ -55,16 +56,15 @@ def _resolve_entry(path: str) -> str:
 
 def _read_only_rules(policy: SandboxPolicy) -> list[str]:
     """Deny rules for ``policy.read_only_subpaths``; they must follow the writable allows, the later rule wins."""
-    writable_roots = {_resolve(p) for p in policy.writable_paths}
+    writable_areas = [*(_resolve(p) for p in policy.writable_paths), _resolve("/tmp")]
     rules: list[str] = []
+    pinned: dict[str, None] = {}
     for path in policy.read_only_subpaths:
         entry = _resolve_entry(path)
         for target in dict.fromkeys((entry, _resolve(path))):
             rules.append(f"(deny file-write* (subpath {_sbpl_string(target)}))")
-        # Pin the entry that holds the path: otherwise it can be renamed away and recreated with other content.
-        holder = os.path.dirname(entry)
-        if holder not in writable_roots:
-            rules.append(f"(deny file-write* (literal {_sbpl_string(holder)}))")
+        pinned.update(dict.fromkeys(movable_ancestors(entry, writable_areas)))
+    rules.extend(f"(deny file-write* (literal {_sbpl_string(directory)}))" for directory in pinned)
     return rules
 
 
@@ -154,7 +154,7 @@ def _generate_sbpl_profile(policy: SandboxPolicy, work_dir: str) -> str:
                 ";   1. (deny default) alone does NOT block outbound connections — an allow-list of",
                 ";      local/loopback rules leaves every external destination reachable.",
                 ";   2. A later deny wins over an earlier allow, so a blanket",
-                ";      (deny network* (remote ip \"*:*\")) also severs loopback. Re-allowing",
+                ';      (deny network* (remote ip "*:*")) also severs loopback. Re-allowing',
                 ";      loopback AFTER the blanket deny is what keeps localhost working while",
                 ";      closing egress.",
                 "; AF_UNIX is not covered by (local tcp)/(local udp): PTC reaches the host over a",

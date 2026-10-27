@@ -168,9 +168,7 @@ def _is_path_enclosed_in_boundary(target_path: str, boundary_path: str) -> bool:
 
         # Enclosure check
         return bool(
-            t_cmp == b_cmp
-            or t_cmp.startswith(b_cmp + os.sep)
-            or (b_cmp.endswith(os.sep) and t_cmp.startswith(b_cmp))
+            t_cmp == b_cmp or t_cmp.startswith(b_cmp + os.sep) or (b_cmp.endswith(os.sep) and t_cmp.startswith(b_cmp))
         )
     except Exception:
         return False
