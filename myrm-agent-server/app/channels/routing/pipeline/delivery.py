@@ -11,7 +11,7 @@
 - channels.i18n::channel_t, get_text, resolve_message_locale (POS: localized channel copy)
 
 [OUTPUT]
-- RouterDeliveryMixin: ``_setup_message_effects`` (reaction, deferred placeholder, typing, cleanup registration), ``_deliver_agent_result`` (silent filter, web handoff button, TTS, draft review hold, placeholder edit or new message, data-plane record), ``_create_outbound_draft`` (held reply as an approval), ``_cleanup_effects``, ``_register_cleanup`` (TTL janitor closure), ``_resolve_live_placeholder_id`` and ``_attach_web_handoff``
+- RouterDeliveryMixin: ``_setup_message_effects`` (deferred placeholder, typing, cleanup registration), ``_deliver_agent_result`` (silent filter, web handoff button, TTS, draft review hold, placeholder edit or new message, data-plane record), ``_create_outbound_draft`` (held reply as an approval), ``_cleanup_effects``, ``_register_cleanup`` (TTL janitor closure), ``_resolve_live_placeholder_id`` and ``_attach_web_handoff``
 
 [POS]
 Delivery segment of ``AgentRouter``. A reply that draft review holds is never sent unreviewed: when it cannot be held it is withheld.
@@ -58,16 +58,13 @@ class RouterDeliveryMixin:
         message_id: str | None,
         is_resume: bool,
     ) -> DeferredPlaceholder | None:
-        """Setup message effects: typing/reaction/placeholder, register cleanup.
+        """Setup message effects: typing/placeholder, register cleanup (the processing reaction is set by the turn).
 
         Returns:
             DeferredPlaceholder handle or None when placeholder is skipped/disabled
         """
         if not is_resume:
             rp = self._reaction_policy
-            if rp.should_processing:
-                await self._fx.set_reaction(msg.channel, chat_id, message_id, rp.processing_emoji)
-
             deferred: DeferredPlaceholder | None = None
             if rp.level != ReactionLevel.OFF:
 

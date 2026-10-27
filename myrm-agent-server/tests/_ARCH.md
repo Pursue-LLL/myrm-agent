@@ -125,6 +125,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
 | `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
 | `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、处理中 / 完成反应与策略、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
+| `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |
 | `channels/types/test_context_document.py` | 单元 | 参考文档契约：每种状态经元数据往返不变、元数据是纯 JSON 数据、非元数据形态的输入不当作文档、`clamped` 截断正文并保留原始长度、不超限原样返回 |
 | `channels/routing/test_context_document_enrichment.py` | 单元 | 路由器的晚读：渠道给的文档放进新的元数据字典（到达消息不变）、超长正文截断并保留全文长度、无文档或无渠道原样返回、渠道读取故障只丢文档不丢回合、渠道默认没有文档；真实 `RouterExecutionMixin` 回合里 agent 流拿到文档而到达消息没有、续跑回合不询问渠道 |
 | `channels/providers/feishu/comment/test_document.py` | 单元 | 飞书评论回合的文档读取：docx 按 Markdown 读取、没有 Markdown 导出的类型不读、拒绝码映射成告知模型的原因、读取失败不抛出、慢文档超时放弃、运营日志说明原因但不带正文、评论回合拿到所评文档的正文、普通聊天消息没有文档也不调接口；应用没有读文档权限时改读纯文本并在日志点名权限、纯文本也失败时按原因映射 |
