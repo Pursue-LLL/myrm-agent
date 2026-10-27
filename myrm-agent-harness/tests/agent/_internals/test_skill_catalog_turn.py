@@ -29,6 +29,7 @@ from myrm_agent_harness.agent._internals.turn_history import TurnHistory, resolv
 from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.skill_agent.context import get_bound_skills_receipt, reset_bound_skills_receipt
+from myrm_agent_harness.agent.skills.runtime.registry import L1_CATALOG_MAX_TOKENS, estimate_skill_entry_tokens
 from myrm_agent_harness.agent.streaming.message_builder import build_messages
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.runtime.checkpointing.factory import create_checkpointer
@@ -64,6 +65,19 @@ def _skill(name: str) -> SkillMetadata:
 
 def _skills(count: int) -> list[SkillMetadata]:
     return [_skill(f"bound_{index:02d}_skill") for index in range(count)]
+
+
+def _bulky_skills(count: int) -> list[SkillMetadata]:
+    """Skills whose rendered entries are heavy enough that a couple of dozen overflow the inline token budget."""
+    return [
+        SkillMetadata(
+            name=f"bound_{index:02d}_skill",
+            description="detailed capability description " * 40,
+            model_invocable=True,
+            available=True,
+        )
+        for index in range(count)
+    ]
 
 
 @pytest.fixture(autouse=True)
@@ -452,7 +466,8 @@ class TestSkillSearchIndexSync:
         history = TurnHistory(mode="append")
         first = await deliver_bound_skills_catalog([HumanMessage(content="q")], agent, history)
 
-        backend.skills = _skills(25)
+        backend.skills = _bulky_skills(25)
+        assert sum(estimate_skill_entry_tokens(skill) for skill in backend.skills) > L1_CATALOG_MAX_TOKENS
         grown = await deliver_bound_skills_catalog([HumanMessage(content="q")], agent, history)
         steady = await deliver_bound_skills_catalog([HumanMessage(content="q")], agent, history)
 

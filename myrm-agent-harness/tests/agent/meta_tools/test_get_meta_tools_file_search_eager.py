@@ -15,6 +15,7 @@ from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability
     sync_discover_capability_tool,
 )
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.agent.skills.runtime.registry import L1_CATALOG_MAX_TOKENS, estimate_skill_entry_tokens
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
@@ -94,13 +95,14 @@ class TestFileSearchEager:
         many_skills = [
             SkillMetadata(
                 name=f"bound_skill_{index:02d}",
-                description=f"desc {index}",
+                description=f"desc {index} " + "detailed capability description " * 40,
                 model_invocable=True,
                 available=True,
             )
             for index in range(21)
         ]
         many_skills[0] = sample_skill
+        assert sum(estimate_skill_entry_tokens(skill) for skill in many_skills) > L1_CATALOG_MAX_TOKENS
         registry = ToolRegistry()
         get_meta_tools(
             many_skills,

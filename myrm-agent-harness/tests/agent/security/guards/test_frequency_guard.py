@@ -21,6 +21,7 @@ from myrm_agent_harness.agent.security.guards.frequency_guard import (
     FrequencyGuard,
     FrequencyVerdict,
     get_frequency_guard,
+    isolated_frequency_guard,
     reset_frequency_guard,
 )
 
@@ -256,30 +257,32 @@ class TestResetFunctionality:
 
     def test_get_frequency_guard_contextvar(self):
         """Test ContextVar-based guard retrieval."""
-        # Should create new guard if none exists
-        guard1 = get_frequency_guard()
-        assert isinstance(guard1, FrequencyGuard)
+        # A sync test runs in the shared main context, so keep its guard out of the tests that follow.
+        with isolated_frequency_guard():
+            guard1 = get_frequency_guard()
+            assert isinstance(guard1, FrequencyGuard)
 
-        # Should return same instance
-        guard2 = get_frequency_guard()
-        assert guard1 is guard2
+            # Should return same instance
+            guard2 = get_frequency_guard()
+            assert guard1 is guard2
 
     def test_reset_frequency_guard_contextvar(self):
         """Test ContextVar-based guard reset."""
-        guard = get_frequency_guard()
+        with isolated_frequency_guard():
+            guard = get_frequency_guard()
 
-        # Record some calls
-        for _i in range(3):
-            guard.check("test_tool")
-            guard.record("test_tool")
+            # Record some calls
+            for _i in range(3):
+                guard.check("test_tool")
+                guard.record("test_tool")
 
-        assert guard.get_stats()["total_checks"] == 3
+            assert guard.get_stats()["total_checks"] == 3
 
-        # Reset via function
-        reset_frequency_guard()
+            # Reset via function
+            reset_frequency_guard()
 
-        # Guard should be reset
-        assert guard.get_stats()["total_checks"] == 0
+            # Guard should be reset
+            assert guard.get_stats()["total_checks"] == 0
 
 
 class TestStatistics:
