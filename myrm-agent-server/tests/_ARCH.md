@@ -42,7 +42,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_chrome_skill_undo_probes.py` | 单元 | `recently_edited_frontend_files`：只列起点之后保存的前端文件且最新在前，恰在起点保存的不算，`limit` 保留最新的，前端目录不存在时返回空 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry 导出卡片（端点、协议、采样器、内容外发声明）渲染与刷新端到端测试；接口须返回实测字段且不得再带写死的能力标志 |
 | `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，资源 `service.version` 为产品版本，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
-| `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不再叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
+| `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
@@ -76,7 +76,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_command_center_actions.py` | 单元 | 记忆指挥中心治理动作分发器：待审批批准/拒绝/编辑、共享提案动作、冲突仲裁委托，以及纠正/置顶/遗忘等通用动作 |
 | `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
-| `channels/routing/test_stream_reply_tracing.py` | 单元 | 一次流式回复就是一条 trace：真实路由器消费真实事件序列，agent 运行与每次编辑都挂在唯一的 `stream_reply` 根 span 下（每个流式文本事件不再单开 span），会话统计（更新判定数、编辑数、失败编辑数）落在该 span 上，失败只记录异常类名（消息可能回显发送者原文），取消不算错误，连续 3 次编辑失败只在第 3 次留下一次回退事件，日志里的 `trace_id` 就是该 span 的 trace id，无记录型 tracer 时回复照常流式 |
+| `channels/routing/test_stream_reply_tracing.py` | 单元 | 一次流式回复就是一条 trace：真实路由器消费真实事件序列，agent 运行与每次编辑都挂在唯一的 `stream_reply` 根 span 下（流式文本事件自己不单开 span），会话统计（更新判定数、编辑数、失败编辑数）落在该 span 上，失败只记录异常类名（消息可能回显发送者原文），取消不算错误，连续 3 次编辑失败只在第 3 次留下一次回退事件，日志里的 `trace_id` 就是该 span 的 trace id，无记录型 tracer 时回复照常流式 |
 | `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；渠道不能编辑或编辑失败时改发新消息；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
