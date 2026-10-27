@@ -15,16 +15,30 @@ from app.channels.routing.router import AgentRouter
 # Methods the routing loop calls on a live turn. Names come from the composed agent router,
 # which is what production instantiates.
 _REQUIRED_ROUTER_METHODS = (
+    # pipeline/lifecycle.py
+    "start",
+    "stop",
+    "_consume_loop",
+    "_janitor_sweep",
+    # pipeline/inbound.py
+    "_dispatch_inbound_message",
+    "_is_duplicate",
+    # pipeline/command_dispatch.py
+    "_dispatch_resolved",
+    "_dispatch_system_command",
+    # pipeline/turn.py
+    "_handle_merged",
     # router_execution.py
     "_resolve_topic",
     "_prepare_execution_context",
     "_execute_prepared_context",
+    # pipeline/delivery.py
     "_deliver_agent_result",
     "_attach_web_handoff",
     "_register_cleanup",
+    "_resolve_live_placeholder_id",
     # router_stream.py
     "_mark_deferred_placeholder_activity",
-    "_resolve_live_placeholder_id",
     # commands/
     "_cancel_active_task",
     "_abort_session_task",

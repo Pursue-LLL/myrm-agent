@@ -225,7 +225,7 @@ components: []
 | `i18n/locales/*.ftl` | 渠道静态消息 catalog（slash 命令、风险门禁、预算拦截等） |
 | `i18n/__init__.py` | `channel_t` / `get_text` / `resolve_message_locale` / `add_locale_root` 导出 |
 | `protocols/locale.py` | `LocaleProvider` 协议（业务层注入） |
-| `routing/router.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
+| `routing/pipeline/inbound.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
 
 **Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`。
 

@@ -1,7 +1,7 @@
 """Internal datatypes for AgentRouter task registry and per-turn execution context.
 
 [POS]
-Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask type annotation).
+Data models referenced by AgentRouter in router.py, the pipeline mixins and router_commands (_ActiveTask type annotation).
 """
 
 from __future__ import annotations

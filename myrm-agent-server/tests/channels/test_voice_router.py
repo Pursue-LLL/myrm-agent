@@ -449,7 +449,7 @@ class TestRouterHandleMergedExecForError:
         router._fx.send_error_reply = capture_reply
 
         with patch(
-            "app.channels.routing.router.transcribe_inbound",
+            "app.channels.routing.pipeline.turn.transcribe_inbound",
             new=fake_transcribe,
         ):
             await router._handle_merged(original)

@@ -66,7 +66,7 @@ async def test_normal_message_dispatches_cron_once(router: AgentRouter) -> None:
     dispatch = AsyncMock(return_value=0)
     with (
         patch(
-            "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+            "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
             dispatch,
         ),
         patch.object(router._gate, "submit"),
@@ -90,7 +90,7 @@ async def test_stop_command_skips_cron_dispatch(router: AgentRouter) -> None:
     dispatch = AsyncMock(return_value=0)
     with (
         patch(
-            "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+            "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
             dispatch,
         ),
         patch.object(router, "_cancel_active_task", new_callable=AsyncMock),
@@ -109,7 +109,7 @@ async def test_pending_approval_skips_cron_dispatch(router: AgentRouter) -> None
     dispatch = AsyncMock(return_value=0)
     with (
         patch(
-            "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+            "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
             dispatch,
         ),
         patch.object(router, "_has_pending_approval", return_value=True),
@@ -137,7 +137,7 @@ async def test_reaction_skips_cron_dispatch(router: AgentRouter) -> None:
         user_id="owner-1",
     )
     with patch(
-        "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+        "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
         dispatch,
     ):
         await router.start()
@@ -154,7 +154,7 @@ async def test_slash_new_skips_cron_dispatch(router: AgentRouter) -> None:
     dispatch = AsyncMock(return_value=0)
     with (
         patch(
-            "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+            "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
             dispatch,
         ),
         patch.object(router, "_handle_new_session", new_callable=AsyncMock, return_value=None),
@@ -174,7 +174,7 @@ async def test_duplicate_message_dispatches_cron_once(router: AgentRouter) -> No
     msg = _msg("server alert", message_id="dup-1")
     with (
         patch(
-            "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+            "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
             dispatch,
         ),
         patch.object(router._gate, "submit"),
@@ -225,7 +225,7 @@ async def _deliver(router: AgentRouter, *messages: InboundMessage) -> AsyncMock:
     """Route the messages through the real consume loop and return the patched event dispatch."""
     dispatch = AsyncMock(return_value=0)
     with (
-        patch("app.channels.routing.router.dispatch_cron_event_for_inbound_message", dispatch),
+        patch("app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message", dispatch),
         patch.object(router._gate, "submit"),
     ):
         await router.start()

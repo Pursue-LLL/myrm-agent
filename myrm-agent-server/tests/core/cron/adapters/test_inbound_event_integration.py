@@ -145,7 +145,7 @@ async def test_channel_ingress_queues_single_router_dispatch(
     gateway = SimpleNamespace(bus=bus, _router=router)
     monkeypatch.setattr(channels_module, "channel_gateway", gateway)
     monkeypatch.setattr(
-        "app.channels.routing.router.dispatch_cron_event_for_inbound_message",
+        "app.channels.routing.pipeline.inbound.dispatch_cron_event_for_inbound_message",
         _record_dispatch,
     )
 

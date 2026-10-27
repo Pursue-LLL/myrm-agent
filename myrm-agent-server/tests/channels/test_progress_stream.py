@@ -41,7 +41,7 @@ _PATCH_STREAM_INTERVAL = patch(
     0.0,
 )
 _PATCH_EXEC_INTERVAL = patch(
-    "app.channels.routing.router_execution._MIN_PROGRESS_INTERVAL",
+    "app.channels.routing.pipeline.delivery._MIN_PROGRESS_INTERVAL",
     0.0,
 )
 
@@ -266,7 +266,7 @@ async def test_progress_throttling(bus: MessageBus, channel: _RecordingChannel) 
 
     with (
         patch("app.channels.routing.router_stream._MIN_PROGRESS_INTERVAL", 0.1),
-        patch("app.channels.routing.router_execution._MIN_PROGRESS_INTERVAL", 0.1),
+        patch("app.channels.routing.pipeline.delivery._MIN_PROGRESS_INTERVAL", 0.1),
     ):
         await _run_scenario(bus, channel, executor)
 

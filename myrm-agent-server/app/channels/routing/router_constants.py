@@ -1,7 +1,7 @@
 """Numeric limits and intervals shared by AgentRouter routing modules.
 
 [POS]
-Constants read by router.py, router_stream, and janitor/dedup logic. Includes silence reassurance
+Constants read by router.py, the pipeline mixins, router_stream, and janitor/dedup logic. Includes silence reassurance
 thresholds and outbound silent content detection. Unit tests can import directly.
 """
 

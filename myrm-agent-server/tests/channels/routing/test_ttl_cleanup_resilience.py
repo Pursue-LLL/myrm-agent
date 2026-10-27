@@ -76,7 +76,7 @@ class TestJanitorResilience:
     async def test_failing_sweep_does_not_end_the_janitor(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        monkeypatch.setattr("app.channels.routing.router._JANITOR_INTERVAL", 0.01)
+        monkeypatch.setattr("app.channels.routing.pipeline.lifecycle._JANITOR_INTERVAL", 0.01)
         router = _make_router()
         sweeps = 0
 

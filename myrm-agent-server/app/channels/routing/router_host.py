@@ -53,9 +53,7 @@ if TYPE_CHECKING:
     from app.channels.routing.policy_resolver import PolicyResolver
     from app.channels.routing.retry_policy import RetryPolicy
     from app.channels.routing.router_models import (
-        ReactionPolicy,
         _ActiveTask,
-        _CleanupEntry,
     )
     from app.channels.routing.session_gate import SessionGate
     from app.channels.routing.session_rate_limiter import SessionRateLimiter
@@ -69,7 +67,6 @@ if TYPE_CHECKING:
         OutboundMessage,
         ProgressUpdate,
         TopicContext,
-        VoiceConfig,
     )
 
 
@@ -211,18 +208,14 @@ class RouterCommandsHost(Protocol):
 
 
 class RouterExecutionHost(Protocol):
-    """Structural contract for `RouterExecutionMixin` (prepare, effects, stream, deliver, cleanup)."""
+    """Structural contract for `RouterExecutionMixin` (prepare the context, run the turn)."""
 
     _bus: MessageBus
     _fx: MessageEffects
     _resolver: PolicyResolver
     _active_tasks: dict[str, _ActiveTask]
-    _cleanups: dict[str, _CleanupEntry]
-    _pending_approvals: PendingApprovals
     _new_session_peers: dict[str, float]
     _topic_resolver: TopicManager | None
-    _voice: VoiceConfig | None
-    _reaction_policy: ReactionPolicy
 
     async def _consume_executor_stream(
         self,
@@ -261,15 +254,6 @@ class RouterExecutionHost(Protocol):
         topic_ctx: TopicContext | None = None,
     ) -> bool: ...
 
-    async def _create_outbound_draft(
-        self,
-        result: OutboundMessage,
-        original_msg: InboundMessage,
-        chat_id: str,
-        topic_ctx: TopicContext,
-        placeholder_id: str | None,
-    ) -> None: ...
-
     async def _cleanup_effects(
         self,
         state_key: str,
@@ -278,20 +262,3 @@ class RouterExecutionHost(Protocol):
         message_id: str | None,
         placeholder_id: str | None,
     ) -> None: ...
-
-    def _register_cleanup(
-        self,
-        key: str,
-        channel: str,
-        chat_id: str,
-        message_id: object,
-        placeholder_id: str | None = None,
-        *,
-        msg: InboundMessage | None = None,
-    ) -> None: ...
-
-    async def _attach_web_handoff(
-        self,
-        result: OutboundMessage,
-        msg: InboundMessage,
-    ) -> OutboundMessage: ...
