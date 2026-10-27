@@ -16027,7 +16027,6 @@
         "contentMetadataOnly": "送信しない (メタデータのみ)",
         "contentIncluded": "スパンに含める (オプトイン)",
         "metrics": "メトリクス",
-        "metricsExporting": "エクスポート中",
         "metricsOff": "オフ",
         "environment": "VCS 環境",
         "noVcsTag": "Git リポジトリなし",
@@ -16056,6 +16055,7 @@
           "localOnly": "ローカル限定モードが有効なため、リモートの OTLP エンドポイントは拒否されます。",
           "missingSdk": "このビルドには OpenTelemetry SDK がインストールされていません。",
           "failing": "直近のエクスポートに失敗しました。コレクターのアドレス、認証情報、ネットワークを確認してください。",
+          "metricsFailing": "コレクターが直近のメトリクスバッチを拒否しました。Jaeger のようにトレースのみ受け付けるバックエンドで起こります。メトリクスの送信を止めるには OTEL_METRICS_EXPORTER=none を設定してください。",
           "degraded": "設定どおりにエクスポートを開始できませんでした: {reason}",
           "error": "エクスポート状態を取得できませんでした。"
         }

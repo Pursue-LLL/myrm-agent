@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TelemetryPostureCard from '../TelemetryPostureCard';
 import { systemService, type TelemetryPosture } from '@/services/system';
@@ -11,7 +11,7 @@ const translations: Record<string, string> = {
   none: 'None',
   contentMetadataOnly: 'Never exported (metadata only)',
   contentIncluded: 'Included in spans (opt-in)',
-  metricsExporting: 'Exporting',
+  metrics: 'Metrics',
   metricsOff: 'Off',
   delivery: 'Delivery',
   exportedSpans: 'Spans exported',
@@ -29,6 +29,7 @@ const translations: Record<string, string> = {
   'notice.noop': 'Export is off.',
   'notice.disabled': 'Export is switched off by OTEL_SDK_DISABLED.',
   'notice.failing': 'The last export attempt failed.',
+  'notice.metricsFailing': 'The collector refused the latest metrics batch.',
   'notice.degraded': 'Export could not start as configured: {reason}',
   'notice.error': 'The export status could not be read.',
 };
@@ -61,7 +62,7 @@ const posture = (overrides: Partial<TelemetryPosture>): TelemetryPosture => ({
   degraded_reason: null,
   sampler: 'ParentBased(ALWAYS_ON)',
   content_capture: false,
-  metrics_exporting: true,
+  metrics_status: 'off',
   exported_spans: 128,
   failed_batches: 0,
   withheld_spans: 0,
@@ -69,8 +70,11 @@ const posture = (overrides: Partial<TelemetryPosture>): TelemetryPosture => ({
   last_failure_at: null,
   git_branch: null,
   git_commit: null,
+  managed: false,
   ...overrides,
 });
+
+const metricsValue = () => within(screen.getByText('Metrics').parentElement as HTMLElement);
 
 const mockPosture = (value: TelemetryPosture) =>
   (systemService.getTelemetryPosture as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(value);
@@ -91,17 +95,17 @@ describe('TelemetryPostureCard', () => {
   });
 
   it('shows the measured delivery of an active exporter', async () => {
-    mockPosture(posture({}));
+    mockPosture(posture({ metrics_status: 'active' }));
 
     const { container } = render(<TelemetryPostureCard />);
 
     await waitFor(() => {
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('Active')).toHaveLength(2);
       expect(screen.getByText('http://apm.internal:4318/v1/traces')).toBeInTheDocument();
       expect(screen.getByText('HTTP/PROTOBUF')).toBeInTheDocument();
       expect(screen.getByText('ParentBased(ALWAYS_ON)')).toBeInTheDocument();
       expect(screen.getByText('Never exported (metadata only)')).toBeInTheDocument();
-      expect(screen.getByText('Exporting')).toBeInTheDocument();
+      expect(metricsValue().getByText('Active')).toBeInTheDocument();
       expect(screen.getByText('128')).toBeInTheDocument();
       expect(screen.getByText('2 minutes ago')).toBeInTheDocument();
       expect(screen.getByText('Never')).toBeInTheDocument();
@@ -133,7 +137,7 @@ describe('TelemetryPostureCard', () => {
         endpoint: null,
         exporter_type: 'none',
         sampler: null,
-        metrics_exporting: false,
+        metrics_status: 'off',
         headers_configured: false,
         last_success_at: null,
       }),
@@ -192,6 +196,58 @@ describe('TelemetryPostureCard', () => {
       );
     });
     expect(screen.queryByText('Delivery')).toBeNull();
+  });
+
+  it.each([
+    ['off', 'Off'],
+    ['ready', 'Ready'],
+    ['active', 'Active'],
+  ] as const)('reads the metric pipeline as %s without alarming the user', async (metricsStatus, label) => {
+    mockPosture(posture({ status: 'noop', initialized: false, exporter_type: 'none', metrics_status: metricsStatus }));
+
+    render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(metricsValue().getByText(label)).toBeInTheDocument();
+    });
+    expect(metricsValue().getByText(label)).not.toHaveClass('text-destructive');
+    expect(screen.queryByText('The collector refused the latest metrics batch.')).toBeNull();
+  });
+
+  it('names a collector that refuses metrics even while traces are delivered', async () => {
+    mockPosture(posture({ status: 'active', metrics_status: 'failing' }));
+
+    render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('The collector refused the latest metrics batch.');
+    });
+    expect(metricsValue().getByText('Failing')).toHaveClass('text-destructive');
+    expect(screen.getAllByText('Active')).toHaveLength(1);
+  });
+
+  it('keeps the trace and metric problems apart when both pipelines fail', async () => {
+    mockPosture(posture({ status: 'failing', metrics_status: 'failing', failed_batches: 2 }));
+
+    render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('status').map((notice) => notice.textContent)).toEqual([
+        'The last export attempt failed.',
+        'The collector refused the latest metrics batch.',
+      ]);
+    });
+  });
+
+  it('renders nothing on a platform-managed instance, which has no collector for the user to set up', async () => {
+    mockPosture(posture({ managed: true, endpoint: null }));
+
+    const { container } = render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(container).toBeEmptyDOMElement();
+    });
+    expect(systemService.getTelemetryPosture).toHaveBeenCalledTimes(1);
   });
 
   it('discloses when prompt and reply content is part of the exported spans', async () => {

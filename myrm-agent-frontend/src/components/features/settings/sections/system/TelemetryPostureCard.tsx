@@ -8,10 +8,11 @@
  *
  * [OUTPUT]
  * - TelemetryPostureCard: Developer-settings card for OTLP trace and metric export: what is configured,
- *   what the exporter actually delivered, and what is never sent
+ *   what each pipeline actually delivered, and what is never sent. Renders nothing on a platform-managed instance.
  *
  * [POS]
  * Every value is read from the running exporter (counters, sampler, content switch), never asserted by the UI.
+ * A managed instance exports to the operator's collector, so there is nothing for the user to read or set up.
  */
 
 import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -75,6 +76,13 @@ const STATUS_VIEW: Record<TelemetryPosture['status'], StatusView> = {
   error: { tone: 'danger', labelKey: 'error', noticeKey: 'error' },
 };
 
+const METRICS_LABEL_KEY: Record<TelemetryPosture['metrics_status'], string> = {
+  off: 'metricsOff',
+  ready: 'status.ready',
+  active: 'status.active',
+  failing: 'status.failing',
+};
+
 const UNREADABLE_POSTURE: TelemetryPosture = {
   status: 'error',
   initialized: false,
@@ -87,7 +95,7 @@ const UNREADABLE_POSTURE: TelemetryPosture = {
   degraded_reason: null,
   sampler: null,
   content_capture: false,
-  metrics_exporting: false,
+  metrics_status: 'off',
   exported_spans: 0,
   failed_batches: 0,
   withheld_spans: 0,
@@ -95,6 +103,7 @@ const UNREADABLE_POSTURE: TelemetryPosture = {
   last_failure_at: null,
   git_branch: null,
   git_commit: null,
+  managed: false,
 };
 
 const ENV_EXAMPLE = [
@@ -132,27 +141,33 @@ function Counter({ label, value, tone }: { label: string; value: number; tone?: 
   );
 }
 
+function Notice({ tone, children }: { tone: Tone; children: ReactNode }) {
+  const classes = TONE_CLASSES[tone];
+  const NoticeIcon = tone === 'idle' ? IconAlertCircle : IconAlertTriangle;
+  return (
+    <output className={cn('mt-3 flex items-start gap-2 rounded-lg border p-3 text-xs text-foreground', classes.notice)}>
+      <NoticeIcon className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', classes.icon)} />
+      <span className="min-w-0 break-words">{children}</span>
+    </output>
+  );
+}
+
 function PostureBody({ posture, view }: { posture: TelemetryPosture; view: StatusView }) {
   const t = useTranslations('settings.developer.telemetry');
   const locale = useLocale();
-  const tone = TONE_CLASSES[view.tone];
-  const NoticeIcon = view.tone === 'idle' ? IconAlertCircle : IconAlertTriangle;
   const exporting = posture.initialized && posture.exporter_type !== 'none';
+  const metricsFailing = posture.metrics_status === 'failing';
   const lastSeen = (seconds: number | null) =>
     seconds === null ? t('never') : formatRelativeTime(new Date(seconds * 1000).toISOString(), locale);
 
   return (
     <>
       {view.noticeKey && (
-        <output
-          className={cn('mt-3 flex items-start gap-2 rounded-lg border p-3 text-xs text-foreground', tone.notice)}
-        >
-          <NoticeIcon className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', tone.icon)} />
-          <span className="min-w-0 break-words">
-            {t(`notice.${view.noticeKey}`, { reason: posture.degraded_reason ?? posture.error ?? '' })}
-          </span>
-        </output>
+        <Notice tone={view.tone}>
+          {t(`notice.${view.noticeKey}`, { reason: posture.degraded_reason ?? posture.error ?? '' })}
+        </Notice>
       )}
+      {metricsFailing && <Notice tone="danger">{t('notice.metricsFailing')}</Notice>}
 
       <div className="grid grid-cols-2 gap-3 pt-3.5 lg:grid-cols-4">
         <Field label={t('endpoint')} className="col-span-2">
@@ -182,7 +197,11 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
             )}
           </span>
         </Field>
-        <Field label={t('metrics')}>{posture.metrics_exporting ? t('metricsExporting') : t('metricsOff')}</Field>
+        <Field label={t('metrics')}>
+          <span className={cn(metricsFailing && 'text-destructive dark:text-red-400')}>
+            {t(METRICS_LABEL_KEY[posture.metrics_status] ?? METRICS_LABEL_KEY.off)}
+          </span>
+        </Field>
 
         <Field label={t('environment')} className="lg:col-span-4">
           {posture.git_branch ? (
@@ -257,6 +276,10 @@ export const TelemetryPostureCard = memo(() => {
 
   // A status this UI cannot interpret is reported as unreadable rather than guessed at.
   const view = posture ? (STATUS_VIEW[posture.status] ?? STATUS_VIEW.error) : null;
+
+  if (posture?.managed) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-border/50 bg-card/60 p-4 backdrop-blur-sm transition-all sm:p-5">

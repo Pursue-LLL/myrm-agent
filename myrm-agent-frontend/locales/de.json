@@ -16027,7 +16027,6 @@
         "contentMetadataOnly": "Wird nie exportiert (nur Metadaten)",
         "contentIncluded": "In Spans enthalten (Opt-in)",
         "metrics": "Metriken",
-        "metricsExporting": "Wird exportiert",
         "metricsOff": "Aus",
         "environment": "VCS-Umgebung",
         "noVcsTag": "Kein Git-Repository",
@@ -16056,6 +16055,7 @@
           "localOnly": "Der Nur-lokal-Modus ist aktiv, daher werden entfernte OTLP-Endpunkte abgelehnt.",
           "missingSdk": "Das OpenTelemetry-SDK ist in diesem Build nicht installiert.",
           "failing": "Der letzte Exportversuch ist fehlgeschlagen. Prüfen Sie Collector-Adresse, Zugangsdaten und Netzwerk.",
+          "metricsFailing": "Der Collector hat den letzten Metrik-Batch abgelehnt. Das passiert bei Backends, die nur Traces annehmen (zum Beispiel Jaeger); mit OTEL_METRICS_EXPORTER=none werden keine Metriken mehr gesendet.",
           "degraded": "Der Export konnte nicht wie konfiguriert starten: {reason}",
           "error": "Der Exportstatus konnte nicht gelesen werden."
         }

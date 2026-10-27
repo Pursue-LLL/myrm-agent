@@ -176,7 +176,8 @@ export interface TelemetryPosture {
   degraded_reason: string | null;
   sampler: string | null;
   content_capture: boolean;
-  metrics_exporting: boolean;
+  /** `off` without a metric pipeline; otherwise by the latest delivery, like `status`. */
+  metrics_status: 'off' | 'ready' | 'active' | 'failing';
   exported_spans: number;
   failed_batches: number;
   withheld_spans: number;
@@ -186,6 +187,8 @@ export interface TelemetryPosture {
   git_branch: string | null;
   git_commit: string | null;
   error?: string | null;
+  /** True on a platform-operated instance: the collector belongs to the operator, so the endpoint is withheld. */
+  managed: boolean;
 }
 
 export interface StorageOptimizePreflightResponse {

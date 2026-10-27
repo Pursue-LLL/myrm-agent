@@ -167,7 +167,7 @@
 | 文件                              | 职责           |
 | --------------------------------- | -------------- |
 | `DeveloperSection.tsx`            | 开发者选项入口 |
-| `TelemetryPostureCard.tsx`        | OpenTelemetry 导出卡片：端点/协议/采样器、内容外发声明、已导出 Span、失败批次与被隐私守卫拦截的 Span 计数与最近成功/失败时间，全部取自 `/system/telemetry-posture` 的实测值；仅 `active` 状态点才有呼吸动画 |
+| `TelemetryPostureCard.tsx`        | OpenTelemetry 导出卡片：端点/协议/采样器、内容外发声明、指标管线状态（关闭/就绪/活跃/失败，按最近一次投递实测；被采集端拒绝时单独提示）、已导出 Span、失败批次与被隐私守卫拦截的 Span 计数与最近成功/失败时间，全部取自 `/system/telemetry-posture` 的实测值；仅 `active` 状态点才有呼吸动画；平台托管实例（`managed`）不渲染该卡片（采集端归运营者，用户无从配置） |
 | `DeveloperCenterSection.tsx`      | 开发者中心     |
 | `DatasetExportCard.tsx`           | 数据集导出     |
 | `ExperimentalFeaturesSection.tsx` | 实验性功能开关 |

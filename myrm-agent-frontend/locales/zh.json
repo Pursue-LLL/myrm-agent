@@ -16027,7 +16027,6 @@
         "contentMetadataOnly": "不导出（仅元数据）",
         "contentIncluded": "已写入链路（需主动开启）",
         "metrics": "指标",
-        "metricsExporting": "导出中",
         "metricsOff": "未开启",
         "environment": "代码环境 (VCS)",
         "noVcsTag": "非 Git 仓库",
@@ -16056,6 +16055,7 @@
           "localOnly": "已启用仅限本地模式，远程 OTLP 端点会被拒绝。",
           "missingSdk": "当前构建未安装 OpenTelemetry SDK。",
           "failing": "最近一次导出失败。请检查收集器地址、凭据与网络连通性。",
+          "metricsFailing": "收集器拒绝了最近一批指标。只接收链路的后端（例如 Jaeger）会这样；设置 OTEL_METRICS_EXPORTER=none 可停止发送指标。",
           "degraded": "导出未能按配置启动：{reason}",
           "error": "无法读取遥测导出状态。"
         }
