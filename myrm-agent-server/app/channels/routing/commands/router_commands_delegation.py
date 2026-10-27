@@ -101,9 +101,8 @@ class RouterCommandsDelegationMixin:
         self._approval_msg_ids[state_key] = approval_message_id or ""
 
         entry = self._active_tasks.get(state_key)
-        if entry is None or entry.task.done():
-            runner = asyncio.current_task()
-            assert runner is not None
+        runner = asyncio.current_task()
+        if runner is not None and (entry is None or entry.task.done()):
             self._active_tasks[state_key] = _ActiveTask(
                 task=runner,
                 cancel_token=CancellationToken(),

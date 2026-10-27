@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator, Callable
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -154,6 +155,38 @@ async def test_a_newer_delegated_approval_replaces_the_entry_of_a_finished_turn(
 
     assert router._active_tasks[_STATE_KEY] is not stale
     assert router._active_tasks[_STATE_KEY].requester_id == "u1"
+
+
+@pytest.mark.asyncio
+async def test_in_a_group_only_the_delegating_member_can_answer_the_delegated_approval() -> None:
+    async def stream(*_a: object, **_k: object) -> AsyncGenerator[object, None]:
+        yield _APPROVE
+
+    router, bus = _router(stream)
+    group_request = replace(_inbound(), is_group=True)
+    await router._handle_delegation_inbound(group_request, "x")
+    await _until(lambda: bus.send_tracked.call_count == 1)
+
+    assert router._is_reaction_approval_valid(replace(group_request, content="")) is True
+    assert router._is_reaction_approval_valid(replace(group_request, sender_id="u2", user_id="u2", content="")) is False
+
+
+@pytest.mark.asyncio
+async def test_stop_abandons_a_delegated_approval_that_is_waiting_for_an_answer() -> None:
+    async def stream(*_a: object, **_k: object) -> AsyncGenerator[object, None]:
+        yield _APPROVE
+
+    router, bus = _router(stream)
+    await _delegate(router)
+    await _until(lambda: bus.send_tracked.call_count == 1)
+
+    await router._cancel_active_task(_inbound("/stop"))
+
+    assert _said(bus)[-1] == get_text(_inbound(), "execution_stopped")
+    assert router._active_tasks == {} and router._approval_msg_ids == {}
+    await router._handle_approval_command(_inbound("/approve"), "allow_once")
+    assert _said(bus)[-1] == get_text(_inbound(), "no_pending_approval")
+    router._gate.submit.assert_not_called()  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
