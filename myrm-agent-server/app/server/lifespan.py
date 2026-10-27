@@ -462,7 +462,7 @@ async def _phase_1a_sequential() -> None:
     if is_local_mode():
         try:
             from app.database.connection import get_session
-            from app.services.config.migration import migrate_configs_to_encrypted
+            from app.services.config.migration import migrate_config_history_to_encrypted, migrate_configs_to_encrypted
 
             async with get_session() as db:
                 stats = await migrate_configs_to_encrypted(db)
@@ -470,6 +470,7 @@ async def _phase_1a_sequential() -> None:
                     logger.info(f"[Startup] Config encryption migration complete: {stats}")
                 else:
                     logger.debug(f"[Startup] No configs to migrate: {stats}")
+                await migrate_config_history_to_encrypted(db)
         except Exception as e:
             logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
 

@@ -46,17 +46,8 @@ def test_local_mode_encryption_service():
     assert is_sensitive_config("egressProxy") is True
     assert is_sensitive_config("llm_proxy") is True
     assert is_sensitive_config("llmProxy") is True
+    assert is_sensitive_config("backupSync") is True
     assert is_sensitive_config("chatSettings") is False
-
-    from app.core.security.config_crypto import (
-        is_sensitive_config as is_sensitive_crypto_config,
-    )
-
-    assert is_sensitive_crypto_config("egress_proxy") is True
-    assert is_sensitive_crypto_config("egressProxy") is True
-    assert is_sensitive_crypto_config("llm_proxy") is True
-    assert is_sensitive_crypto_config("llmProxy") is True
-
 
 
 def test_local_mode_encrypt_decrypt():

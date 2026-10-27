@@ -16,7 +16,8 @@
 [POS]
 Settings, clock, memory manager, storage and alert are all handed in, so the orchestration is exercised without a
 scheduler. A tick never raises into the scheduler for a backup problem: a settings error, a memory store that cannot be
-opened and a failed cycle are recorded as failures (retried at the next tick), a cycle that finds another one running
+opened and a failed cycle are recorded as failures (retried at the next tick), stored settings that cannot be decrypted are a
+failure once a backup has protected the instance (they would stop the backups unseen), a cycle that finds another one running
 is neither a success nor a failure. The alert goes out on the event loop that runs the tick, once per failure streak.
 Manual backups never start a streak: the user is looking at the result.
 """
@@ -107,8 +108,16 @@ async def sync_tick(
     now: datetime,
     strategy_factory: Callable[[Mapping[str, object]], RemoteBackupStrategy] = strategy_from_config,
     alert: Callable[[str], None] = publish_failure_alert,
+    settings_unreadable: bool = False,
 ) -> None:
-    """Run a backup when ``value`` (the stored ``backupSync`` settings) enables the sync and the interval has passed."""
+    """Run a backup when ``value`` (the stored ``backupSync`` settings) enables the sync and the interval has passed.
+
+    ``settings_unreadable`` says the settings exist but could not be decrypted: ``value`` is then empty, which must not pass
+    for "never configured".
+    """
+    if settings_unreadable:
+        _record_unreadable_settings(store, now, alert)
+        return
     if value is None or value.get("enabled") is not True or value.get("autoSync") is not True:
         return
     interval = interval_minutes(value.get("syncInterval"))
@@ -144,6 +153,18 @@ async def sync_tick(
     else:
         logger.warning("Scheduled remote memory backup failed (%s): %s", result.error_code, result.error)
         _record_failure(store, result.error_code or "internal", now, interval, alert)
+
+
+def _record_unreadable_settings(store: RemoteSyncStore, now: datetime, alert: Callable[[str], None]) -> None:
+    """Settings that cannot be decrypted (their key is gone) would stop every backup without a trace.
+
+    An instance that has never been backed up loses nothing and is left alone; one that was protected before takes the
+    stop as a failure of its settings, so the usual failure streak ends in the usual alert.
+    """
+    if store.load().last_success_at is None:
+        return
+    logger.warning("Scheduled remote memory backup is stopped: its stored settings cannot be decrypted")
+    _record_failure(store, "config", now, interval_minutes(None), alert)
 
 
 def record_manual_success(store: RemoteSyncStore, now: datetime) -> None:

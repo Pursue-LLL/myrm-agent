@@ -32,7 +32,6 @@ from app.api.config.pricing import pricing_router
 from app.api.config.privacy_preview import privacy_preview_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
-from app.core.security.config_crypto import is_sensitive_config
 from app.schemas.config import (
     OMNI_CONFIG_MODELS,
     AllConfigsResponse,
@@ -468,16 +467,11 @@ async def get_config_schema(key: str) -> dict[str, object]:
 
 @router.get("", response_model=AllConfigsResponse)
 async def get_all_configs(
-    sensitive: bool | None = Query(None, description="过滤敏感/非敏感配置"),
     keys: str | None = Query(None, description="按需加载，逗号分隔的配置键，如 providers,chatSettings"),
 ) -> AllConfigsResponse:
     """获取配置
 
     Args:
-        sensitive: 可选过滤器
-            - None: 返回所有配置
-            - True: 只返回敏感配置
-            - False: 只返回非敏感配置
         keys: 可选，只返回指定键的配置，减少传输量
     """
     try:
@@ -489,14 +483,6 @@ async def get_all_configs(
                 raise HTTPException(status_code=400, detail=f"Invalid config keys: {invalid}")
 
         all_configs = await config_service.get_all(keys=key_list)
-
-        if sensitive is not None:
-            filtered = {}
-            for key, record in all_configs.items():
-                if sensitive == is_sensitive_config(key):
-                    filtered[key] = record
-            return AllConfigsResponse(configs=filtered)
-
         return AllConfigsResponse(configs=all_configs)
     except HTTPException:
         raise

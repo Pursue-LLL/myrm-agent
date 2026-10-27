@@ -26,9 +26,10 @@
 | HOST_BOUND | 目标主机保留自己的（归档不会放宽目标安全姿态） | 工具白名单、风险规则、审批、配对、API key、`channelInstances` 等配置行 |
 | EPHEMERAL | 清空 | 分享链接、离线持久任务、中断回合标记 |
 | 网页无痕会话 | 不进归档：整条会话连同消息、全文索引、回忆索引、只按会话 id 记录的普通表行（`CHAT_BOUND_TABLES`）一并删除（`source = 'web'` 且 `is_incognito = 1`），`checkpoints.db` 里该会话的 checkpoint 线程（含两个别名）同样删除；工具在无痕会话里不受限，它在 `harness/workspaces/chat_<id>/`（含其产物保险库）下写的文件同样不进导出，会话取自导出当下的在线库；无痕会话绑定的上传（sidecar 的 `source_chat_id`）及其 PDF 页图、其会话尚无行或已不存在的绑定上传同样不进导出（判据是会话的实际状态：绑定的会话是归档保留的会话时照常携带；前端切换无痕必然开新会话，绑定不会落在可被关掉的旧会话上）；会话转写导入（`source` 非 web）借用无痕标记只为不进侧栏，是真实数据，照常携带 | 导出、定时备份、导入暂存共用 `scrub_sensitive_surface` 与 `checkpoint_scrub`；工作区文件与绑定上传只在导出端由 `incognito_workspaces` / `incognito_uploads` 筛掉 |
+| 配置审计历史 | 不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行随行删除，其余照常携带 | `config_audit_logs` 重复保存过的每个值，键被加密之前写下的明文也在其中；导出、定时备份、导入暂存共用 `scrub_sensitive_surface`，来自旧版本归档的明文历史在导入暂存时同样被删 |
 | IDENTITY | 仅当导入身份 = 导出身份时携带 | `commitments`、技能权限使用日志、产物审计日志 |
 | DERIVED / RUNTIME / LOCAL_HISTORY | 不进归档 | `skill_scans`、locks、cache、logs、snapshots、`subagent_checkpoints.sqlite`（按文件名识别：目录由部署决定，内容按任务而非按会话记录，线程重启后不可恢复） |
-| PORTABLE_SECRET | 仅在口令信封下以**原密文**携带（`providers`、`retrieval`、`searchServices`、`mcpServers`、`mcpOAuthTokens`） | 导出时用户设置口令；信封只包裹 32 字节配置密钥，归档内无明文 |
+| PORTABLE_SECRET | 仅在口令信封下以**原密文**携带（`providers`、`retrieval`、`searchServices`、`mcpServers`、`mcpOAuthTokens`、`backupSync`） | 导出时用户设置口令；信封只包裹 32 字节配置密钥，归档内无明文；`backupSync` 存的是远程备份的 WebDAV 密码 / S3 密钥 |
 
 导入后：计划任务一律以暂停态进入；携带的密钥重新加密到目标主机；含可执行内容（定时命令、MCP stdio、技能脚本）须用户显式确认信任。
 

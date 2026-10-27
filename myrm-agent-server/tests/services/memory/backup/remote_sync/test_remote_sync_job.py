@@ -71,6 +71,7 @@ class _Rig:
         now: datetime = NOW,
         strategy_factory: Callable[[Mapping[str, object]], RemoteBackupStrategy] | None = None,
         manager_factory: Callable[[], Awaitable[MemoryManager]] | None = None,
+        settings_unreadable: bool = False,
     ) -> None:
         async def new_manager() -> MemoryManager:
             self.managers += 1
@@ -83,6 +84,7 @@ class _Rig:
             now=now,
             strategy_factory=strategy_factory or (lambda _value: InMemoryBackupStrategy()),
             alert=self.alerts.append,
+            settings_unreadable=settings_unreadable,
         )
 
 
@@ -217,6 +219,47 @@ async def test_a_provider_that_cannot_be_built_is_recorded_as_a_settings_failure
     state = rig.store.load()
     assert (state.consecutive_failures, state.last_error_code) == (1, "config")
     assert (rig.runs, rig.managers) == ([], 0)
+
+
+async def test_settings_that_cannot_be_read_are_a_failure_once_a_backup_has_protected_this_instance(rig: _Rig) -> None:
+    rig.store.save(RemoteSyncState(last_success_at=NOW - timedelta(days=3)))
+
+    for hours in range(4):
+        await rig.tick({}, now=NOW + hours * HOUR, settings_unreadable=True)
+
+    state = rig.store.load()
+    assert (state.consecutive_failures, state.last_error_code, state.alerted) == (4, "config", True)
+    assert rig.alerts == ["config"]  # once per streak
+    assert (rig.runs, rig.managers) == ([], 0)
+
+
+async def test_settings_that_cannot_be_read_stay_quiet_while_a_recent_backup_still_protects_the_memories(rig: _Rig) -> None:
+    rig.store.save(RemoteSyncState(last_success_at=NOW - timedelta(hours=25)))
+
+    for hours in range(3):
+        await rig.tick({}, now=NOW + hours * HOUR, settings_unreadable=True)
+
+    assert rig.store.load().consecutive_failures == 3
+    assert rig.alerts == []
+
+
+async def test_settings_that_cannot_be_read_cost_nothing_when_no_backup_was_ever_made(rig: _Rig) -> None:
+    for hours in range(3):
+        await rig.tick({}, now=NOW + hours * HOUR, settings_unreadable=True)
+
+    assert rig.store.load() == RemoteSyncState()
+    assert rig.alerts == []
+
+
+async def test_a_backup_after_the_settings_were_entered_again_ends_the_streak(rig: _Rig) -> None:
+    rig.store.save(RemoteSyncState(last_success_at=NOW - timedelta(days=3)))
+    for hours in range(3):
+        await rig.tick({}, now=NOW + hours * HOUR, settings_unreadable=True)
+
+    await rig.tick(now=NOW + 3 * HOUR)
+
+    assert rig.store.load() == RemoteSyncState(last_success_at=NOW + 3 * HOUR, last_attempt_at=NOW + 3 * HOUR)
+    assert len(rig.runs) == 1
 
 
 async def test_a_memory_manager_that_cannot_be_created_is_recorded_as_an_internal_failure(rig: _Rig) -> None:

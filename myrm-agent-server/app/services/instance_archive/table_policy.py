@@ -8,7 +8,9 @@
 [OUTPUT]
 - HOST_BOUND_TABLES / SECRET_TABLES / EPHEMERAL_TABLES / IDENTITY_TABLES
 - CARRIED_SENSITIVE_CONFIG_KEYS / HOST_BOUND_CONFIG_KEYS / config_row_policy / config_needs_reentry
-- scrub_sensitive_surface: web incognito chats, share links, whitelist keys, in-flight work (shared by export and staging)
+- CONFIG_HISTORY_TABLE: the audit table whose rows repeat the values of config rows
+- scrub_sensitive_surface: web incognito chats, share links, whitelist keys, in-flight work, the history of config rows that do
+  not travel as plain data (shared by export and staging)
 - web_incognito_chat_ids: the chats scrub_sensitive_surface removes, for the stores outside data.db that key by chat
 - live_web_incognito_chat_ids: the same chats read from the running instance's database (checkpoints, workspace files)
 - surviving_chat_ids / live_surviving_chat_ids: the chats an archive keeps (all but the web incognito ones), for the file store
@@ -56,16 +58,19 @@ EPHEMERAL_TABLES: frozenset[str] = frozenset({"artifact_share_records", "interru
 # Rows keyed by user identity: carried only when the importing identity equals the exporting one.
 IDENTITY_TABLES: frozenset[str] = frozenset({"commitments", "skill_permission_usage_logs", "artifact_audit_logs"})
 
-# Sensitive user_configs rows that are portable across machines (provider keys, MCP, search).
+# Sensitive user_configs rows that are portable across machines (provider keys, MCP, search, remote backup storage).
 # Every other sensitive row (channel logins, proxies, org-managed servers) stays with its host.
 CARRIED_SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
-    {"providers", "retrieval", "searchServices", "mcpServers", "mcpOAuthTokens"}
+    {"providers", "retrieval", "searchServices", "mcpServers", "mcpOAuthTokens", "backupSync"}
 )
 
 # Non-sensitive config rows that still describe this host (paths, outbound sync, security posture).
 HOST_BOUND_CONFIG_KEYS: frozenset[str] = frozenset(
     {"channelInstances", "securityDashboardSettings", "obsidian_vault_binding", "wikiSourceSync"}
 )
+
+# One row per saved value of a config row, in plaintext when it was written before the key was encrypted.
+CONFIG_HISTORY_TABLE = "config_audit_logs"
 
 _CHAT_SHARE_COLUMNS = ("share_token_fingerprint", "share_token_expires_at")
 
@@ -187,8 +192,22 @@ def _drop_web_incognito_chats(conn: sqlite3.Connection, existing: set[str], colu
         conn.execute(f"PRAGMA foreign_keys = {previous}")
 
 
+def _drop_history_of_rows_that_do_not_travel(conn: sqlite3.Connection, existing: set[str]) -> None:
+    """Delete the saved values of every config row that does not travel as plain data.
+
+    The history repeats what the row held, so a secret that was saved before its key was encrypted (or an older archive
+    that still carries such history) would otherwise travel in plaintext next to the sealed row it belongs to.
+    """
+    if CONFIG_HISTORY_TABLE not in existing:
+        return
+    keys = [row[0] for row in conn.execute(f'SELECT DISTINCT config_key FROM "{CONFIG_HISTORY_TABLE}"')]
+    for key in keys:
+        if config_row_policy(key) is not ConfigRowPolicy.DATA:
+            conn.execute(f'DELETE FROM "{CONFIG_HISTORY_TABLE}" WHERE config_key = ?', (key,))
+
+
 def scrub_sensitive_surface(conn: sqlite3.Connection) -> None:
-    """Remove web incognito chats, share links, whitelisted API keys and in-flight work from the archived copy."""
+    """Remove incognito chats, share links, whitelist keys, in-flight work and secret config history from the archived copy."""
     existing = table_names(conn)
     if "chats" in existing:
         columns = set(column_names(conn, "chats"))
@@ -202,3 +221,4 @@ def scrub_sensitive_surface(conn: sqlite3.Connection) -> None:
     if "message_filter_config" in existing:
         conn.execute("UPDATE message_filter_config SET whitelist_api_keys = '[]'")
     delete_all_rows(conn, EPHEMERAL_TABLES)
+    _drop_history_of_rows_that_do_not_travel(conn, existing)

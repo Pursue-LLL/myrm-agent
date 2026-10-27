@@ -40,6 +40,7 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "searchServices",
         "mcpServers",
         "mcpOAuthTokens",
+        "backupSync",
         "orgMcpServers",
         "oauthCredentials",
         "feishuCredentials",

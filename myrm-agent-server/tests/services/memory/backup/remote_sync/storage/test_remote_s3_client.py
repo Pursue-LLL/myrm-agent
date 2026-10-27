@@ -4,10 +4,11 @@
 app.services.memory.backup.remote_sync.storage.s3::S3BackupStrategy/S3BackupConfig
 
 [OUTPUT]
-What each S3 operation sends, how a listing is read, and that every operation closes the client it opened.
+What each S3 operation sends, how a listing is read (every page, never a part), and that every operation closes the client
+it opened.
 
 [POS]
-The real strategy with a fake ``aioboto3`` module standing in for the network.
+The real strategy with a fake ``aioboto3`` module standing in for the network; the fake pages its listings the way S3 does.
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ from typing import BinaryIO
 
 import pytest
 
-from app.services.memory.backup.remote_sync.storage import S3BackupConfig, S3BackupStrategy
+from app.services.memory.backup.remote_sync.storage import RemoteStorageError, S3BackupConfig, S3BackupStrategy
+from app.services.memory.backup.remote_sync.storage import s3 as s3_module
 
 _DEFAULT_MODIFIED = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -34,6 +36,10 @@ class _FakeS3:
         self.opened: list[dict[str, object]] = []
         self.closed = 0
         self.failing = False
+        self.page_size = 1000  # S3 returns at most 1000 keys per request
+        self.list_requests: list[dict[str, object]] = []
+        self.fail_on_list_request: int | None = None  # 1-based: that request and every later one raises
+        self.drop_continuation_token = False  # a misbehaving server: truncated, yet no token to continue with
 
 
 class _FakeClient:
@@ -55,14 +61,23 @@ class _FakeClient:
         self._reach()
         fileobj.write(self._s3.objects[key])
 
-    async def list_objects_v2(self, *, Bucket: str, Prefix: str) -> dict[str, list[dict[str, object]]]:
+    async def list_objects_v2(self, *, Bucket: str, Prefix: str, **extra: str) -> dict[str, object]:
         self._reach()
-        contents = [
-            {"Key": key, "LastModified": self._s3.modified.get(key, _DEFAULT_MODIFIED), "Size": len(data)}
-            for key, data in self._s3.objects.items()
-            if key.startswith(Prefix)
-        ]
-        return {"Contents": contents} if contents else {}
+        self._s3.list_requests.append({"Prefix": Prefix, **extra})
+        if self._s3.fail_on_list_request is not None and len(self._s3.list_requests) >= self._s3.fail_on_list_request:
+            raise ConnectionError("endpoint unreachable")
+        keys = sorted(key for key in self._s3.objects if key.startswith(Prefix))  # S3 lists in ascending key order
+        start = int(extra["ContinuationToken"]) if "ContinuationToken" in extra else 0
+        page = keys[start : start + self._s3.page_size]
+        response: dict[str, object] = {"IsTruncated": start + len(page) < len(keys)}
+        if page:
+            response["Contents"] = [
+                {"Key": key, "LastModified": self._s3.modified.get(key, _DEFAULT_MODIFIED), "Size": len(self._s3.objects[key])}
+                for key in page
+            ]
+        if response["IsTruncated"] and not self._s3.drop_continuation_token:
+            response["NextContinuationToken"] = str(start + len(page))
+        return response
 
     async def delete_object(self, *, Bucket: str, Key: str) -> None:
         self._reach()
@@ -146,6 +161,68 @@ async def test_a_listing_names_files_without_the_prefix_and_skips_folder_placeho
 
 async def test_an_empty_bucket_lists_nothing(s3: _FakeS3) -> None:
     assert await _strategy().list_files() == []
+
+
+async def test_a_listing_follows_every_page_so_a_backup_behind_a_thousand_other_keys_is_found(s3: _FakeS3) -> None:
+    # S3 lists in key order: a folder with many files that sort before "myrm." would hide every backup on page one.
+    s3.objects = {f"myrm-backups/a-{n:04d}.txt": b"x" for n in range(2500)}
+    s3.objects["myrm-backups/myrm.20261026120000.laptop.1a2b3c4d.linux.json.gz"] = b"backup"
+
+    files = await _strategy().list_files()
+
+    assert len(files) == 2501
+    assert "myrm.20261026120000.laptop.1a2b3c4d.linux.json.gz" in {f.file_name for f in files}
+    assert [request.get("ContinuationToken") for request in s3.list_requests] == [None, "1000", "2000"]
+    assert s3.closed == 1  # one client serves every page
+
+
+async def test_a_listing_that_fills_exactly_one_page_is_not_followed_by_another_request(s3: _FakeS3) -> None:
+    s3.objects = {f"myrm-backups/b-{n:04d}.json.gz": b"x" for n in range(1000)}
+
+    assert len(await _strategy().list_files()) == 1000
+    assert len(s3.list_requests) == 1
+
+
+async def test_a_listing_longer_than_the_page_limit_raises_instead_of_returning_a_part(
+    s3: _FakeS3, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(s3_module, "_LIST_PAGE_LIMIT", 3)
+    s3.page_size = 1
+    s3.objects = {f"myrm-backups/c-{n}.json.gz": b"x" for n in range(5)}
+
+    with pytest.raises(RemoteStorageError, match="refusing to read a partial listing"):
+        await _strategy().list_files()
+    assert len(s3.list_requests) == 3
+    assert s3.closed == 1
+
+
+async def test_a_listing_that_ends_exactly_at_the_page_limit_is_complete_and_does_not_raise(
+    s3: _FakeS3, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(s3_module, "_LIST_PAGE_LIMIT", 3)
+    s3.page_size = 1
+    s3.objects = {f"myrm-backups/d-{n}.json.gz": b"x" for n in range(3)}
+
+    assert len(await _strategy().list_files()) == 3
+
+
+async def test_a_truncated_page_without_a_continuation_token_raises(s3: _FakeS3) -> None:
+    s3.page_size = 1
+    s3.drop_continuation_token = True
+    s3.objects = {"myrm-backups/e-1.json.gz": b"x", "myrm-backups/e-2.json.gz": b"x"}
+
+    with pytest.raises(RemoteStorageError, match="continuation token"):
+        await _strategy().list_files()
+
+
+async def test_a_later_page_that_cannot_be_read_fails_the_whole_listing_and_closes_the_client(s3: _FakeS3) -> None:
+    s3.page_size = 1
+    s3.fail_on_list_request = 2
+    s3.objects = {"myrm-backups/f-1.json.gz": b"x", "myrm-backups/f-2.json.gz": b"x"}
+
+    with pytest.raises(ConnectionError):
+        await _strategy().list_files()  # the first page alone must not pass for the whole listing
+    assert s3.closed == 1
 
 
 async def test_every_operation_opens_one_client_with_the_configured_endpoint_and_closes_it(tmp_path: Path, s3: _FakeS3) -> None:

@@ -71,6 +71,7 @@ def test_columns_the_scrub_and_graft_rely_on_exist() -> None:
     assert table_policy._INCOGNITO_COLUMNS <= columns("chats")
     assert stage_db._LISTED_CHAT_COLUMNS <= columns("chats")
     assert {"config_key", "config_value", "is_encrypted"} <= columns("user_configs")
+    assert {"config_key", "previous_value", "new_value"} <= columns(table_policy.CONFIG_HISTORY_TABLE)
     assert {"status", "command"} <= columns("cron_jobs")
     assert all("user_id" in columns(table) for table in IDENTITY_TABLES)
     for table, column in stage_db._PATH_COLUMNS:
@@ -83,3 +84,8 @@ def test_carried_sensitive_keys_are_really_sensitive() -> None:
     from app.services.config.encryption import is_sensitive_config
 
     assert all(is_sensitive_config(key) for key in CARRIED_SENSITIVE_CONFIG_KEYS)
+
+
+def test_the_remote_backup_row_travels_as_a_portable_secret() -> None:
+    assert table_policy.config_row_policy("backupSync") is table_policy.ConfigRowPolicy.PORTABLE_SECRET
+    assert table_policy.config_needs_reentry("backupSync")

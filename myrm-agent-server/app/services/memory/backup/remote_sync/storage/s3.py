@@ -2,14 +2,16 @@
 
 [INPUT]
 aioboto3 / botocore (POS: S3 client, imported on first use)
-app.services.memory.backup.remote_sync.storage.base::RemoteBackupStrategy/RemoteBackupFile (POS: provider contract)
+app.services.memory.backup.remote_sync.storage.base::RemoteBackupStrategy/RemoteBackupFile/RemoteStorageError (POS: provider contract)
 
 [OUTPUT]
 S3BackupConfig / S3BackupStrategy: the S3 implementation of the storage contract
 
 [POS]
-Lists a single page (up to 1000 objects); a listing the bucket refuses raises the transport error instead of reading as
-an empty bucket.
+A listing follows every page (S3 returns at most 1000 keys per request, in key order, so a folder that holds many files
+ahead of the backups would otherwise hide them). It never returns a part: a page that cannot be read raises the transport
+error, and a listing that is longer than ``_LIST_PAGE_LIMIT`` pages or loses its continuation token raises
+``RemoteStorageError``, so neither reads as a bucket without backups.
 """
 
 from __future__ import annotations
@@ -17,16 +19,28 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
-from app.services.memory.backup.remote_sync.storage.base import RemoteBackupFile, RemoteBackupStrategy
+from app.services.memory.backup.remote_sync.storage.base import RemoteBackupFile, RemoteBackupStrategy, RemoteStorageError
 
 if TYPE_CHECKING:
     from botocore.config import Config as BotoConfig
 
 logger = logging.getLogger(__name__)
+
+# 100 pages of up to 1000 keys: a prefix with more objects than that is a bucket used for something else, and reading it
+# all would hold the request for minutes. The user is told to narrow the prefix.
+_LIST_PAGE_LIMIT = 100
+
+
+class _ListedObject(TypedDict):
+    """The fields of a ``list_objects_v2`` entry this module reads."""
+
+    Key: str
+    LastModified: datetime
+    Size: int
 
 
 class _SessionKwargs(TypedDict):
@@ -181,27 +195,32 @@ class _S3Client:
     async def list_files(self) -> list[RemoteBackupFile]:
         results: list[RemoteBackupFile] = []
         async with self._client() as client:
-            response = await client.list_objects_v2(
-                Bucket=self._bucket,
-                Prefix=self._prefix,
-            )
-            for obj in response.get("Contents", []):
-                key = obj["Key"]
-                name = key[len(self._prefix) :] if self._prefix and key.startswith(self._prefix) else key
-                if not name or name.endswith("/"):
-                    continue
-                mod_time = obj["LastModified"]
-                if mod_time.tzinfo is None:
-                    mod_time = mod_time.replace(tzinfo=UTC)
-                results.append(
-                    RemoteBackupFile(
-                        file_name=name,
-                        modified_time=mod_time,
-                        size_bytes=obj["Size"],
-                    )
-                )
-        results.sort(key=lambda f: f.modified_time, reverse=True)
-        return results
+            request = {"Bucket": self._bucket, "Prefix": self._prefix}
+            for _ in range(_LIST_PAGE_LIMIT):
+                response = await client.list_objects_v2(**request)
+                results.extend(file for obj in response.get("Contents", []) if (file := self._listed(obj)) is not None)
+                if not response.get("IsTruncated"):
+                    results.sort(key=lambda f: f.modified_time, reverse=True)
+                    return results
+                token = response.get("NextContinuationToken")
+                if not token:
+                    raise RemoteStorageError("S3 listing was truncated without a continuation token")
+                request["ContinuationToken"] = token
+        raise RemoteStorageError(
+            f"More than {_LIST_PAGE_LIMIT * 1000} objects under the backup prefix, refusing to read a partial listing: "
+            "use a more specific prefix"
+        )
+
+    def _listed(self, obj: _ListedObject) -> RemoteBackupFile | None:
+        """One listed object as a backup file; folder placeholders are not files."""
+        key = obj["Key"]
+        name = key[len(self._prefix) :] if self._prefix and key.startswith(self._prefix) else key
+        if not name or name.endswith("/"):
+            return None
+        mod_time = obj["LastModified"]
+        if mod_time.tzinfo is None:
+            mod_time = mod_time.replace(tzinfo=UTC)
+        return RemoteBackupFile(file_name=name, modified_time=mod_time, size_bytes=obj["Size"])
 
     async def delete_file(self, remote_name: str) -> bool:
         try:

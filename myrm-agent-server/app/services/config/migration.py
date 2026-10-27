@@ -9,6 +9,7 @@ Local mode encryption is first enabled.
 
 [OUTPUT]
 - migrate_configs_to_encrypted: async function to perform migration
+- migrate_config_history_to_encrypted: seals the plaintext values the audit history kept of sensitive configs
 
 [POS]
 One-time migration logic. Runs on server startup to transparently upgrade
@@ -21,9 +22,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.services.config.encryption import get_encryption_service, is_sensitive_config
+from app.services.config.service import _extract_cipher
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.services.config.encryption import ConfigEncryptionService
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +77,8 @@ async def migrate_configs_to_encrypted(db: "AsyncSession") -> dict[str, int]:
                 continue
 
             config.config_value = encrypted_value  # type: ignore
+            # Reads go by this flag, not by the shape of the value: without it the ciphertext is returned as {}.
+            config.is_encrypted = True
             stats["migrated"] += 1
 
             logger.info(f"Migrated config to encrypted: config_key={config.config_key}, version={config.version}")
@@ -88,6 +94,51 @@ async def migrate_configs_to_encrypted(db: "AsyncSession") -> dict[str, int]:
         logger.debug(f"No configs to migrate: {stats}")
 
     return stats
+
+
+def _sealed_history_value(
+    encryption_service: ConfigEncryptionService, config_key: str, value: object
+) -> dict[str, object] | None:
+    """The cipher envelope for a plaintext history value; None when there is nothing to seal."""
+    if not isinstance(value, dict) or _extract_cipher(value) is not None:
+        return None
+    ciphertext, is_encrypted = encryption_service.encrypt_if_needed(config_key, {str(k): v for k, v in value.items()})
+    return {"_cipher": ciphertext} if is_encrypted else None
+
+
+async def migrate_config_history_to_encrypted(db: "AsyncSession") -> int:
+    """Seal the plaintext values the audit history kept of sensitive configs; returns how many values were sealed.
+
+    The audit log repeats every value a config row ever had, so a row saved before its key became sensitive still sits in
+    plaintext there. Values that are already sealed and the history of keys that are not secret stay as they are, which
+    makes a second run a no-op.
+    """
+    from sqlalchemy import select
+
+    from app.database.models import ConfigAuditLog
+
+    encryption_service = get_encryption_service()
+    keys = (await db.execute(select(ConfigAuditLog.config_key).distinct())).scalars().all()
+    sensitive_keys = [key for key in keys if encryption_service.should_encrypt(key)]
+    if not sensitive_keys:
+        return 0
+
+    rows = (await db.execute(select(ConfigAuditLog).where(ConfigAuditLog.config_key.in_(sensitive_keys)))).scalars().all()
+    sealed = 0
+    for row in rows:
+        previous = _sealed_history_value(encryption_service, row.config_key, row.previous_value)
+        if previous is not None:
+            row.previous_value = previous
+            sealed += 1
+        current = _sealed_history_value(encryption_service, row.config_key, row.new_value)
+        if current is not None:
+            row.new_value = current
+            sealed += 1
+
+    if sealed:
+        await db.commit()
+        logger.info("Sealed %d plaintext config history values", sealed)
+    return sealed
 
 
 async def migrate_configs_with_recovery_key(db: "AsyncSession", recovery_key: bytes) -> dict[str, int]:

@@ -79,7 +79,8 @@ async def test_the_hourly_check_is_registered_a_few_minutes_after_boot(recording
 
 async def test_the_job_hands_the_stored_settings_to_the_tick(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = {"enabled": True, "autoSync": True, "provider": "webdav"}
-    monkeypatch.setattr("app.services.config.service.config_service.get", AsyncMock(return_value=SimpleNamespace(value=settings)))
+    record = SimpleNamespace(value=settings, encrypted=True)
+    monkeypatch.setattr("app.services.config.service.config_service.get", AsyncMock(return_value=record))
     tick = AsyncMock()
     monkeypatch.setattr("app.services.memory.backup.remote_sync.sync_tick", tick)
 
@@ -89,9 +90,32 @@ async def test_the_job_hands_the_stored_settings_to_the_tick(monkeypatch: pytest
     value = tick.await_args.args[0]
     options = tick.await_args.kwargs
     assert value == settings
+    assert options["settings_unreadable"] is False
     assert isinstance(options["store"], RemoteSyncStore)
     assert options["manager_factory"] is create_guardian_memory_manager
     assert isinstance(options["now"], datetime) and options["now"].tzinfo is not None
+
+
+@pytest.mark.parametrize(
+    ("record", "unreadable"),
+    [
+        (SimpleNamespace(value={}, encrypted=True), True),  # sealed, but the key that sealed it no longer opens it
+        (SimpleNamespace(value={}, encrypted=False), False),  # an empty row that was never secret
+        (SimpleNamespace(value={"enabled": False}, encrypted=True), False),
+        (None, False),
+    ],
+    ids=["undecryptable", "plain-empty", "readable", "never-saved"],
+)
+async def test_stored_settings_that_cannot_be_decrypted_are_told_apart_from_settings_that_were_never_saved(
+    monkeypatch: pytest.MonkeyPatch, record: SimpleNamespace | None, unreadable: bool
+) -> None:
+    monkeypatch.setattr("app.services.config.service.config_service.get", AsyncMock(return_value=record))
+    tick = AsyncMock()
+    monkeypatch.setattr("app.services.memory.backup.remote_sync.sync_tick", tick)
+
+    await schedulers._remote_backup_auto_sync_job()
+
+    assert tick.await_args.kwargs["settings_unreadable"] is unreadable
 
 
 async def test_a_sync_that_was_never_configured_still_reaches_the_tick_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
