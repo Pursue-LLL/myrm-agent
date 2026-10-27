@@ -21,9 +21,13 @@ export interface WorkspaceTrustManifest {
   mcp_count?: number;
   plugin_count?: number;
   repo_command_prefixes: string[];
+  /** Declared command prefixes the user has not been shown yet; they stay inert until a TRUSTED decision covers them. */
+  pending_command_prefixes: string[];
   has_myrm_config: boolean;
   current_level: WorkspaceTrustLevel | null;
   requires_trust?: boolean;
+  /** Identifies the folder state this preview describes; a TRUSTED decision must send it back. */
+  manifest_hash: string;
 }
 
 export interface WorkspaceTrustEntry {
@@ -53,11 +57,12 @@ export async function previewWorkspaceTrustManifest(path: string): Promise<Works
 export async function decideWorkspaceTrust(
   path: string,
   level: 'TRUSTED' | 'RESTRICTED',
+  manifestHash: string,
 ): Promise<WorkspaceTrustEntry> {
   const response = await fetchWithTimeout('/security/workspace-trust/decide', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, level }),
+    body: JSON.stringify({ path, level, manifest_hash: manifestHash }),
   });
   return parseResponse(response);
 }

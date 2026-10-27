@@ -84,22 +84,24 @@ const WorkspaceTrustFolderGate = memo(
 
     const handleDecide = useCallback(
       async (level: 'TRUSTED' | 'RESTRICTED') => {
-        if (!folderPath) {
+        if (!folderPath || !manifest) {
           return;
         }
         setDeciding(true);
         try {
-          await decideWorkspaceTrust(folderPath, level);
+          await decideWorkspaceTrust(folderPath, level, manifest.manifest_hash);
           await onDecided(folderPath, level);
           onOpenChange(false);
           setManifest(null);
         } catch {
+          // Re-scan so a retry carries the hash of what the user sees now, not of the folder as it was.
+          await loadManifest();
           setError(t('decideFailed'));
         } finally {
           setDeciding(false);
         }
       },
-      [folderPath, onDecided, onOpenChange, t],
+      [folderPath, loadManifest, manifest, onDecided, onOpenChange, t],
     );
 
     return (
@@ -134,13 +136,13 @@ const WorkspaceTrustFolderGate = memo(
                       </li>
                       {Boolean(manifest.mcp_count) && (
                         <li className="flex items-center justify-between gap-2">
-                          <span>Local MCP Servers</span>
+                          <span>{t('mcpServers')}</span>
                           <Badge variant="secondary">{manifest.mcp_count}</Badge>
                         </li>
                       )}
                       {Boolean(manifest.plugin_count) && (
                         <li className="flex items-center justify-between gap-2">
-                          <span>Local Plugins</span>
+                          <span>{t('plugins')}</span>
                           <Badge variant="secondary">{manifest.plugin_count}</Badge>
                         </li>
                       )}

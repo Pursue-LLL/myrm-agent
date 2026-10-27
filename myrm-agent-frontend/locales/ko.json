@@ -12778,12 +12778,32 @@
         "restrictedHint": "「신뢰하지 않고 연결」을 선택하면 이 폴더의 로컬 스킬·규칙·MCP 서비스는 비활성 상태로 유지되며, 설정에서 나중에 신뢰로 변경할 수 있습니다",
         "cancel": "취소",
         "restrict": "신뢰하지 않고 연결",
-        "trust": "신뢰하고 연결"
+        "trust": "신뢰하고 연결",
+        "mcpServers": "로컬 MCP 서버",
+        "plugins": "로컬 플러그인"
       }
     },
     "workspaceTrust": {
       "trusted": "작업 공간을 신뢰합니다. 모든 확장 기능과 도구가 활성화되었습니다.",
-      "trustFailed": "작업 공간을 신뢰하지 못했습니다"
+      "trustFailed": "작업 공간을 신뢰하지 못했습니다",
+      "bannerLabel": "폴더 신뢰 알림",
+      "restrictedTitle": "제한 모드",
+      "restrictedMessage": "{path}은(는) 신뢰되지 않았습니다. 이 폴더의 스킬, 규칙, 로컬 도구는 꺼져 있습니다.",
+      "pendingTitle": "명령 바로가기 승인 대기",
+      "pendingMessage": "{path}에 아직 확인하지 않은 명령 바로가기가 추가되었습니다. 허용하기 전에는 작동하지 않습니다.",
+      "pendingList": "승인 대기 중",
+      "shortcutsOnTrust": "이 폴더를 신뢰하면 다음 명령 바로가기도 허용됩니다",
+      "turnedOffTitle": "이 폴더를 신뢰하기 전까지 꺼짐",
+      "itemSkills": "로컬 스킬 {count}개",
+      "itemRules": "워크스페이스 규칙 {count}개",
+      "itemMcp": "로컬 MCP 서버 {count}개",
+      "itemPlugins": "로컬 플러그인 {count}개",
+      "detailsToggle": "자세히",
+      "trustAction": "폴더 신뢰",
+      "trusting": "신뢰하는 중…",
+      "allowAction": "바로가기 허용",
+      "allowing": "허용하는 중…",
+      "shortcutsAllowed": "명령 바로가기를 허용했습니다."
     }
   },
   "milestone": {

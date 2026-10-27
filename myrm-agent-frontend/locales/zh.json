@@ -12778,12 +12778,32 @@
         "restrictedHint": "若选择「不信任并关联」，该文件夹内的本地技能、规则与 MCP 服务将保持禁用，可在设置中稍后改为信任。",
         "cancel": "取消",
         "restrict": "不信任并关联",
-        "trust": "信任并关联"
+        "trust": "信任并关联",
+        "mcpServers": "本地 MCP 服务",
+        "plugins": "本地插件"
       }
     },
     "workspaceTrust": {
       "trusted": "已信任此工作区，扩展与工具已完全启用。",
-      "trustFailed": "信任工作区失败"
+      "trustFailed": "信任工作区失败",
+      "bannerLabel": "文件夹信任提示",
+      "restrictedTitle": "受限模式",
+      "restrictedMessage": "{path} 尚未受信任，其中的技能、规则和本地工具已被关闭。",
+      "pendingTitle": "命令快捷方式待确认",
+      "pendingMessage": "{path} 新增了你还没看过的命令快捷方式，允许之前它们不会生效。",
+      "pendingList": "等待你确认",
+      "shortcutsOnTrust": "信任此文件夹也会允许以下命令快捷方式",
+      "turnedOffTitle": "信任此文件夹之前保持关闭",
+      "itemSkills": "{count} 个本地技能",
+      "itemRules": "{count} 条工作区规则",
+      "itemMcp": "{count} 个本地 MCP 服务",
+      "itemPlugins": "{count} 个本地插件",
+      "detailsToggle": "详情",
+      "trustAction": "信任此文件夹",
+      "trusting": "正在信任…",
+      "allowAction": "允许这些快捷方式",
+      "allowing": "正在允许…",
+      "shortcutsAllowed": "已允许命令快捷方式。"
     }
   },
   "milestone": {

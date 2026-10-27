@@ -12778,12 +12778,32 @@
         "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
         "cancel": "Cancel",
         "restrict": "Link without trusting",
-        "trust": "Trust and link"
+        "trust": "Trust and link",
+        "mcpServers": "Local MCP servers",
+        "plugins": "Local plugins"
       }
     },
     "workspaceTrust": {
       "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
-      "trustFailed": "Failed to trust workspace"
+      "trustFailed": "Failed to trust workspace",
+      "bannerLabel": "Folder trust notice",
+      "restrictedTitle": "Restricted mode",
+      "restrictedMessage": "{path} is not trusted. Its skills, rules and local tools are turned off.",
+      "pendingTitle": "Command shortcuts need approval",
+      "pendingMessage": "{path} added command shortcuts you haven't reviewed. They stay off until you allow them.",
+      "pendingList": "Waiting for your approval",
+      "shortcutsOnTrust": "Trusting this folder also allows these command shortcuts",
+      "turnedOffTitle": "Turned off until you trust this folder",
+      "itemSkills": "{count, plural, one {# local skill} other {# local skills}}",
+      "itemRules": "{count, plural, one {# workspace rule} other {# workspace rules}}",
+      "itemMcp": "{count, plural, one {# local MCP server} other {# local MCP servers}}",
+      "itemPlugins": "{count, plural, one {# local plugin} other {# local plugins}}",
+      "detailsToggle": "Details",
+      "trustAction": "Trust folder",
+      "trusting": "Trusting…",
+      "allowAction": "Allow shortcuts",
+      "allowing": "Allowing…",
+      "shortcutsAllowed": "Command shortcuts allowed."
     }
   },
   "milestone": {

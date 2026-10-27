@@ -12778,12 +12778,32 @@
         "restrictedHint": "「信頼せずに関連付け」を選ぶと、このフォルダ内のローカルスキル・ルール・MCP サービスは無効のままになり、設定で後から信頼に変更できます",
         "cancel": "キャンセル",
         "restrict": "信頼せずに関連付け",
-        "trust": "信頼して関連付け"
+        "trust": "信頼して関連付け",
+        "mcpServers": "ローカル MCP サーバー",
+        "plugins": "ローカルプラグイン"
       }
     },
     "workspaceTrust": {
       "trusted": "ワークスペースを信頼しました。拡張機能とツールがすべて有効になりました。",
-      "trustFailed": "ワークスペースを信頼できませんでした"
+      "trustFailed": "ワークスペースを信頼できませんでした",
+      "bannerLabel": "フォルダの信頼に関する通知",
+      "restrictedTitle": "制限モード",
+      "restrictedMessage": "{path} は信頼されていません。このフォルダのスキル、ルール、ローカルツールはオフになっています。",
+      "pendingTitle": "コマンドショートカットの承認待ち",
+      "pendingMessage": "{path} に未確認のコマンドショートカットが追加されました。許可するまで有効になりません。",
+      "pendingList": "承認待ち",
+      "shortcutsOnTrust": "このフォルダを信頼すると、次のコマンドショートカットも許可されます",
+      "turnedOffTitle": "このフォルダを信頼するまでオフ",
+      "itemSkills": "ローカルスキル {count} 件",
+      "itemRules": "ワークスペースルール {count} 件",
+      "itemMcp": "ローカル MCP サーバー {count} 件",
+      "itemPlugins": "ローカルプラグイン {count} 件",
+      "detailsToggle": "詳細",
+      "trustAction": "フォルダを信頼",
+      "trusting": "信頼しています…",
+      "allowAction": "ショートカットを許可",
+      "allowing": "許可しています…",
+      "shortcutsAllowed": "コマンドショートカットを許可しました。"
     }
   },
   "milestone": {

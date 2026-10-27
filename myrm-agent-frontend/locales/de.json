@@ -12778,12 +12778,32 @@
         "restrictedHint": "Bei „Nicht vertrauen und verknüpfen“ bleiben lokale Skills, Regeln und MCP-Dienste in diesem Ordner deaktiviert; später in den Einstellungen änderbar",
         "cancel": "Abbrechen",
         "restrict": "Nicht vertrauen und verknüpfen",
-        "trust": "Vertrauen und verknüpfen"
+        "trust": "Vertrauen und verknüpfen",
+        "mcpServers": "Lokale MCP-Server",
+        "plugins": "Lokale Plugins"
       }
     },
     "workspaceTrust": {
       "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
-      "trustFailed": "Arbeitsbereich konnte nicht als vertrauenswürdig markiert werden"
+      "trustFailed": "Arbeitsbereich konnte nicht als vertrauenswürdig markiert werden",
+      "bannerLabel": "Hinweis zum Ordnervertrauen",
+      "restrictedTitle": "Eingeschränkter Modus",
+      "restrictedMessage": "{path} ist nicht vertrauenswürdig. Skills, Regeln und lokale Tools daraus sind ausgeschaltet.",
+      "pendingTitle": "Befehlsverknüpfungen warten auf Freigabe",
+      "pendingMessage": "{path} enthält neue Befehlsverknüpfungen, die Sie noch nicht geprüft haben. Sie bleiben aus, bis Sie sie erlauben.",
+      "pendingList": "Warten auf Ihre Freigabe",
+      "shortcutsOnTrust": "Wenn Sie diesem Ordner vertrauen, werden auch diese Befehlsverknüpfungen erlaubt",
+      "turnedOffTitle": "Ausgeschaltet, bis Sie diesem Ordner vertrauen",
+      "itemSkills": "{count, plural, one {# lokaler Skill} other {# lokale Skills}}",
+      "itemRules": "{count, plural, one {# Workspace-Regel} other {# Workspace-Regeln}}",
+      "itemMcp": "{count, plural, one {# lokaler MCP-Server} other {# lokale MCP-Server}}",
+      "itemPlugins": "{count, plural, one {# lokales Plugin} other {# lokale Plugins}}",
+      "detailsToggle": "Einzelheiten",
+      "trustAction": "Ordner vertrauen",
+      "trusting": "Wird vertraut…",
+      "allowAction": "Verknüpfungen erlauben",
+      "allowing": "Wird erlaubt…",
+      "shortcutsAllowed": "Befehlsverknüpfungen erlaubt."
     }
   },
   "milestone": {
