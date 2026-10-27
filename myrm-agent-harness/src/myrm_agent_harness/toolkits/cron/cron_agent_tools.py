@@ -215,12 +215,11 @@ def create_cron_tools(
             bp_skill_ids = filled_skills or ()
 
             sched_kind = sched_dict.get("kind", "")
-            sched_interval_ms = sched_dict.get("interval_ms")
             if sched_kind == "cron" and sched_dict.get("expr"):
                 bp_cron_expr = str(sched_dict["expr"])
                 bp_tz = str(sched_dict.get("tz") or tz or "")
-            elif sched_kind == "interval" and sched_interval_ms:
-                bp_every_minutes = int(sched_interval_ms) // 60_000
+            elif sched_kind == "interval" and (interval_ms := sched_dict.get("interval_ms")):
+                bp_every_minutes = int(interval_ms) // 60_000
 
         effective_required_capabilities = (
             _parse_csv_tuple(required_capabilities) if required_capabilities.strip() else bp_required_capabilities
@@ -398,8 +397,7 @@ def _build_monitor_config(
     if not monitor_enabled:
         return "Set monitor_enabled=true to enable monitoring.", None, False
     mt = mt or "set"
-    monitor_kind = _MONITOR_TYPES.get(mt)
-    if monitor_kind is None:
+    if (monitor_kind := _MONITOR_TYPES.get(mt)) is None:
         valid = ", ".join(sorted(_MONITOR_TYPES))
         return f"Invalid monitor_type '{monitor_type}'. Must be one of: {valid}.", None, False
     return None, MonitorConfig(monitor_type=monitor_kind, enabled=True), False
