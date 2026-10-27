@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-022 · 子 Agent 的 run 抹掉父的完成门禁回合状态：父每被拒一次就委派一次，拒绝预算每次重新给满，永远走不到「拒绝 3 次后放行」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（BUG-HARNESS-2026-10-27-014 补完子 run 的守卫隔离后复核：它隔离了 5 个就地重置的守卫，完成门禁自己的回合状态没有人查） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：父 run 被完成门禁拒绝收尾后，若每一轮都再委派一次子 Agent，门禁在父名下记的拒绝次数、强制收尾闩锁、证据账本、披露载荷每次都被子 run 清空，`rejection 1/3` 一直是第 1 次，父停不下来，直到撞上迭代上限。要触发需要「被拒后又委派」这个行为序列，线上多久出现一次没有埋点，未测 |
+| **关联产品** | harness `agent/_internals/_agent_helpers.py`（`child_run_scope`）、`agent/middlewares/completion/completion_guard_state.py`（`isolated_run_state`）、`agent/meta_tools/file_ops/observers/snapshot_observer.py`（`scoped_message_id`） |
+| **根因** | 回合状态按消息 id 分桶存在模块级字典里。`run_agent_loop` 先 `reset_all_guards` 弹出「当前 context 里绑定的消息 id」那一桶，之后才绑定自己的 id。子 Agent 的 run 不带 `message_id`，重置发生时 context 里绑的还是父的 id，于是弹掉父的整桶，随后子 run 绑自己的 uuid，并在字典里留下一桶再也没人读的状态。BUG-HARNESS-2026-10-27-014 的隔离清单与 `test_child_run_scope.py` 里的状态快照由同一个人手工列出，漏掉的是同一项，所以测试没有机会发现。把「重置」和「绑定」的顺序对调不行：顶层 run 的后续分段（审批恢复等）在新 context 里以未绑定的 id 启动，重置落在空桶上，这正是回合账本和预算能跨分段保留的原因 |
+| **修复** | ① `snapshot_observer` 公开 `scoped_message_id`（作用域内绑定消息 id，结束时还原）。② `completion_guard_state.isolated_run_state(scope_key)`：进入时绑定临时 id，子 run 开头的重置落在空桶上；结束时丢弃当前仍绑定的 id 下的状态与披露（子自己的 uuid，或子没来得及绑定时的临时 id），再还原父的 id。子 run 自己的事件与披露照旧按它自己的 id 走。③ `child_run_scope` 把它与另外 5 个隔离守卫一起放进同一个 `ExitStack`。④ 新增契约测试：从 `reset_all_guards` 的语法树读出它调用的每个 `reset_*`，必须归为「就地清除」或「重新绑定」，就地清除的必须在 `child_run_scope` 里有对应的隔离守卫，新增一个重置却没分类会直接失败 |
+| **反复次数** | 第 2 次（BUG-HARNESS-2026-10-27-014 同一类：子 run 就地重置父正在用的状态；那次漏掉的是守卫本身之外的回合状态） |
+| **踩坑** | 隔离清单和检验它的测试快照出自同一人之手，会共享同一个盲区；清单必须从被隔离的函数里读出来，而不是再手抄一遍。修一个「先重置、后绑定」的竞态，先查有没有别的调用方依赖这个顺序，这里就有：顶层分段。 |
+| **回归** | 真实 `BaseAgent.run` 加真实执行器（只有模型是脚本）：父写 `app.py`，之后每次被拒就委派一个新任务。修复前：7 次 `rejection 1/3`、委派 7 次，在迭代上限 300 处结束；修复后：`rejection 1/3`、`2/3`、`3/3`，随后 `Max rejections (3) reached` 放行，委派 4 次，父共 10 次模型请求。新增 `test_child_run_scope.py`（回合状态随子 run 的完成、失败、取消都不留痕，子 run 在绑定自己的 id 之前也碰不到父，128 个子 run 挤不掉父，孙 run 不动子）、`test_manager_child_run_state.py`（真实 `SubagentManager`：完成、取消、待审批后恢复、两个子 run 并发；恢复时取回同一个 LoopGuard 且保留第一段的调用记录，终态后释放）、`test_child_run_scope_contract.py`、`test_delegation_keeps_completion_guard.py`。把隔离关掉（只让 `isolated_run_state` 变成空操作）后这 4 个文件里 15 例失败、10 例通过；放到修改后的代码上 27 例全部通过。`ruff check` 在改动文件上 0 错误，`mypy` 在 3 个改动源文件上 0 错误；`tests/agent/sub_agents`、`tests/agent/middlewares/completion`、`tests/agent/meta_tools/file_ops` 共 2577 例通过；整个 `tests/agent` 16310 例通过、3 例失败，这 3 例（`skill_search_tool` 挂载相关）在未修改的提交版上同样失败，与本次无关。`tests/architecture` 有 3 例失败（`windows.py` 行数上限、`uv.lock` 解析、BUGFIX_LOG 里他人条目对 acp 运行时 _base.py 的引用），都不在本次改动的文件里 |
+| **仍然存在** | ① 没有用真实模型验证：真实 LLM 被拒后是否真的会再委派一次，没有测过，上面的序列是脚本化的。② 线上的迭代上限由构建器按 `max_iterations * 2` 设置（`max_iterations` 默认 50，即 100 个节点），测试里用的是 300：线上这种循环会更早停在迭代上限，修复的差别是「拒绝 3 次后放行」对「撞上迭代上限」。③ 子 run 自己的回合状态现在在 run 结束时丢弃；审批暂停后恢复的子 run 本来就用新的 uuid、不读旧的一桶，所以行为不变，但待审批子 run 的证据账本不会跨恢复保留，这也和修复前一致。④ 「重新绑定型」的 6 个重置（replan、plan-confirm、denial、taint、audit、privacy）的分类是对着代码人工判定的，契约测试只钉分类和对应关系，不钉「它们确实只重绑」这件事。⑤ 回合状态注册表仍是按插入顺序、容量 128 的淘汰，不刷新访问顺序；顶层并发超过 128 个回合时最老的一桶仍会被挤出，这次没有改。⑥ `snapshot_observer.py` 现在 407 行，超过 400 行的建议值、低于门禁的 500 行；消息 id 绑定 API 被 25 个文件引用，拆出去的改动面大于这次修复，没有拆。 |
+| **代码位置** | `agent/_internals/_agent_helpers.py`（`child_run_scope`）· `agent/middlewares/completion/completion_guard_state.py`（`isolated_run_state`）· `agent/meta_tools/file_ops/observers/snapshot_observer.py`（`scoped_message_id`） |
+
 ### BUG-HARNESS-2026-10-27-021 · 定时任务按「到点时读出的快照」走完整个流程：错峰、排队等并发槽位期间被暂停或删除的任务照样执行一次，收尾写回把用户的暂停改回启用，被删除的任务还会先写运行记录而因外键失败
 
 | 字段 | 内容 |
