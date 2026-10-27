@@ -16,7 +16,6 @@ class TestStreamConfig:
         assert config.max_interval_seconds == 3.0
         assert config.progress_session_ttl_seconds == 3600.0
         assert config.coordinator_session_ttl_seconds == 3600.0
-        assert config.min_first_send_size == 50
         assert config.max_retries == 3
         assert config.base_retry_delay_seconds == 0.5
         assert config.enable_compression is False

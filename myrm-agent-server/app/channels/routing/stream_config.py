@@ -41,7 +41,6 @@ class StreamConfig:
 
     progress_session_ttl_seconds: float = 3600.0
     coordinator_session_ttl_seconds: float = 3600.0
-    min_first_send_size: int = 50
 
     max_retries: int = 3
     base_retry_delay_seconds: float = 0.5

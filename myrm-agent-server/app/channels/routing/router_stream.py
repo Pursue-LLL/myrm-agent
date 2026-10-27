@@ -168,10 +168,8 @@ class RouterStreamMixin:
 
                         cleaned_text, is_thinking = scrub_thinking_content(event.text)
                         if is_thinking and not cleaned_text:
-                            # LLM is producing thinking tokens; keep a clean thinking placeholder stage
-                            display_text = "💭 深度思考中..."
-                        else:
-                            display_text = cleaned_text or event.text
+                            continue  # only reasoning so far: nothing the reader should see yet
+                        display_text = cleaned_text or event.text
 
                         decision = self._stream_coordinator.should_send_update(metrics_key, display_text, is_final=False)
                         self._stream_metrics.record_decision(metrics_key, decision.reason)
