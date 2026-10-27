@@ -43,6 +43,20 @@ def test_cancel_by_request_id():
     assert token.cancel_reason == CancelReason.USER_CANCELLED
 
 
+def test_is_cancelled_follows_the_registered_token():
+    """A registered request is cancelled only after a stop; a finished or unknown request never is."""
+    token = CancellationToken(request_id="test-request-state")
+    CancellationRegistry.register(token)
+    assert not CancellationRegistry.is_cancelled("test-request-state")
+
+    CancellationRegistry.cancel("test-request-state", CancelReason.USER_CANCELLED)
+    assert CancellationRegistry.is_cancelled("test-request-state")
+
+    CancellationRegistry.unregister("test-request-state")
+    assert not CancellationRegistry.is_cancelled("test-request-state")
+    assert not CancellationRegistry.is_cancelled("nonexistent")
+
+
 def test_cancel_nonexistent_request():
     """Test cancelling a non-existent request returns False."""
     success = CancellationRegistry.cancel("nonexistent", CancelReason.USER_CANCELLED)

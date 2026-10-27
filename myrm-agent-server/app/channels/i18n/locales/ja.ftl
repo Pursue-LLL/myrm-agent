@@ -48,6 +48,7 @@ goal_wait_not_supported = この環境では待機モードはサポートされ
 goal_resumed = ゴールを再開しました：**{ $objective }**
 goal_cleared = ゴールをクリアしました：**{ $objective }**
 goal_cannot_resume = 「{ $status }」状態のゴールは再開できません。
+goal_resume_stopping = ゴールの前のターンがまだ停止中です。少し待ってからもう一度 `/goal resume` を送信してください。
 goal_budget_set = 現在のゴールの予算を **{ $max_turns } ターン** に設定しました。
 goal_status_queued = キュー待ち
 goal_status_label = 実行中

@@ -407,17 +407,23 @@ export function buildBuiltinActions(): SlashAction[] {
         const goalSubcommands = new Set(['status', 'pause', 'resume', 'clear', 'cancel']);
 
         const postGoalAction = async (action: string) => {
-          await fetchWithTimeout(`/goals/${chatId}/status`, {
+          const res = await fetchWithTimeout(`/goals/${chatId}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action }),
           });
+          if (!res.ok) {
+            throw new Error(`Goal ${action} failed with HTTP ${res.status}`);
+          }
         };
 
         try {
           if (goalSubcommands.has(firstToken)) {
             if (firstToken === 'status') {
               const res = await fetchWithTimeout(`/goals/${chatId}/status`);
+              if (!res.ok) {
+                throw new Error(`Goal status failed with HTTP ${res.status}`);
+              }
               const data = (await res.json()) as { goal?: { status?: string } | null };
               if (!data.goal?.status) {
                 showI18nToast('commands.builtin.goalNoActive', undefined, { type: 'info' });

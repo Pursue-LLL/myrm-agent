@@ -10,7 +10,7 @@
 - NON_TERMINAL_GOAL_STATUSES: statuses a goal can still leave
 - select_cancellable_goal: the goal a "cancel" / "clear" control acts on
 - stop_goal_turn: stop the turn a goal was working on after it was paused or cancelled
-- wait_for_session_idle: let a stopped turn finish winding down before the goal is resumed
+- wait_for_stopped_turn: let a turn that was told to stop finish winding down before the goal is resumed
 - can_start_goal_turn: whether the session can take a new turn now
 - continue_resumed_goal: start the turn that carries a just-resumed goal forward
 
@@ -47,8 +47,8 @@ NON_TERMINAL_GOAL_STATUSES: frozenset[GoalStatus] = frozenset(
     }
 )
 
-_IDLE_WAIT_SECONDS = 3.0
-_IDLE_POLL_SECONDS = 0.05
+_STOP_WAIT_SECONDS = 3.0
+_STOP_POLL_SECONDS = 0.05
 
 
 async def select_cancellable_goal(provider: GoalProvider, session_id: str) -> Goal | None:
@@ -85,17 +85,26 @@ def can_start_goal_turn(session_id: str) -> bool:
     return not gateway.is_draining and not gateway.is_session_active(session_id)
 
 
-async def wait_for_session_idle(session_id: str) -> None:
-    """Wait, bounded, until the session has no turn in flight.
+def is_turn_stopping(session_id: str) -> bool:
+    """Whether the turn running in the session was told to stop and has not wound down yet."""
+    message_id = get_agent_gateway().get_active_message_id(session_id)
+    return message_id is not None and CancellationRegistry.is_cancelled(message_id)
+
+
+async def wait_for_stopped_turn(session_id: str) -> bool:
+    """Wait, bounded, while the session's turn winds down after a stop; False if it is still winding down.
 
     A turn stopped by a pause keeps running for a moment. If the goal turned active in that gap, the stopped
     turn's continuation guard would see an active goal and a cancelled token and pause it again, so a resume
-    first lets that turn finish.
+    first lets that turn finish, and is refused when it does not. A turn that was not told to stop (a message
+    the user sent meanwhile) does not hold a resume back: it carries the resumed goal on.
     """
-    gateway = get_agent_gateway()
-    deadline = time.monotonic() + _IDLE_WAIT_SECONDS
-    while gateway.is_session_active(session_id) and time.monotonic() < deadline:
-        await asyncio.sleep(_IDLE_POLL_SECONDS)
+    deadline = time.monotonic() + _STOP_WAIT_SECONDS
+    while is_turn_stopping(session_id):
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(_STOP_POLL_SECONDS)
+    return True
 
 
 async def continue_resumed_goal(session_id: str, provider: GoalProvider, goal_id: str) -> bool:

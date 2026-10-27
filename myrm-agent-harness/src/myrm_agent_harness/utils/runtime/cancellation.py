@@ -15,7 +15,7 @@
 - CancelReason: 取消原因枚举（DISCONNECT/USER_CANCELLED/TIMEOUT/ERROR/ESTOP）
 - CancellationToken: 取消令牌类，用于在异步操作中传递取消状态
 - CancellationMonitor: 取消监控器，定期检查客户端连接状态 + 监控指标
-- CancellationRegistry: 全局取消令牌注册表，支持单条 cancel、cancel_all（E-Stop）+ TTL清理
+- CancellationRegistry: 全局取消令牌注册表，支持单条 cancel、is_cancelled 查询、cancel_all（E-Stop）+ TTL清理
 - CancellationMetrics: 监控数据结构（re-export）
 - create_cancellation_context(): 创建取消上下文（令牌 + 监控器工厂）
 - get_cancel_token() / set_cancel_token(): ContextVar 访问器，供工具层隐式获取/注入取消令牌
@@ -243,6 +243,16 @@ class CancellationRegistry:
                 logger.info(f"Manually cancelled request: {request_id}, reason={reason}")
                 return True
             return False
+
+    @classmethod
+    def is_cancelled(cls, request_id: str) -> bool:
+        """Whether the request is registered and has been asked to stop.
+
+        A request that finished (unregistered) or never existed is not cancelled.
+        """
+        with cls._lock:
+            token = cls._tokens.get(request_id)
+            return token is not None and token.is_cancelled
 
     @classmethod
     def cancel_all(cls, reason: CancelReason | str = CancelReason.ESTOP) -> int:

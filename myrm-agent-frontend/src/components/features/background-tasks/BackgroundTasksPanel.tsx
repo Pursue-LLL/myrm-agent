@@ -26,7 +26,13 @@ import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
 import { BackgroundTaskRow } from './BackgroundTaskRow';
 import { MediaTaskRow } from './MediaTaskRow';
-import { type ActiveGoal, IDLE_STOP_THRESHOLD, POLL_FAST_MS, POLL_SLOW_MS } from './backgroundTasksPanel.constants';
+import {
+  type ActiveGoal,
+  type GoalPanelAction,
+  IDLE_STOP_THRESHOLD,
+  POLL_FAST_MS,
+  POLL_SLOW_MS,
+} from './backgroundTasksPanel.constants';
 import EvictedDrawerSuspenseFallback from '@/components/features/message-box/progress-steps/renderers/EvictedDrawerSuspenseFallback';
 
 const EvictedOutputDrawer = lazy(
@@ -44,6 +50,7 @@ interface BackgroundTasksPanelProps {
 
 export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelProps) {
   const t = useTranslations('backgroundTasks');
+  const tGoal = useTranslations('Goal');
   const router = useRouter();
   useGlobalMediaTaskNotifications();
   const { mediaTasks, recentTerminalMediaTasks, refetchMediaTasks } = useMediaBackgroundTasks();
@@ -216,7 +223,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     });
   }, [tasks, normalizedQuery]);
 
-  const handleGoalAction = async (sessionId: string, action: string) => {
+  const handleGoalAction = async (sessionId: string, action: GoalPanelAction) => {
     try {
       const res = await fetchWithTimeout(`/goals/${sessionId}/status`, {
         method: 'POST',
@@ -229,7 +236,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       toast.success(t('goalActionSuccess'));
       fetchActiveGoals();
     } catch {
-      toast.error(t('cancelFailed'));
+      toast.error(tGoal(`goalActionFailed_${action}`));
     }
   };
 

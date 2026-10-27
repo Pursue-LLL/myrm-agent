@@ -48,6 +48,7 @@ goal_wait_not_supported = Wait is not supported in this environment.
 goal_resumed = Goal resumed: **{ $objective }**
 goal_cleared = Goal cleared: **{ $objective }**
 goal_cannot_resume = Cannot resume goal in '{ $status }' state.
+goal_resume_stopping = The goal's previous turn is still stopping. Send `/goal resume` again in a moment.
 goal_budget_set = Budget set to **{ $max_turns } turns** for current goal.
 goal_status_queued = Queued
 goal_status_label = Active

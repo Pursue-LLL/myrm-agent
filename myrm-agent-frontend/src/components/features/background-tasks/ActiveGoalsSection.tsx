@@ -6,12 +6,12 @@ import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import { type ActiveGoal, GOAL_STATUS_STYLES } from './backgroundTasksPanel.constants';
+import { type ActiveGoal, type GoalPanelAction, GOAL_STATUS_STYLES } from './backgroundTasksPanel.constants';
 
 interface ActiveGoalsSectionProps {
   goals: ActiveGoal[];
   onNavigateChat: (sessionId: string) => void;
-  onGoalAction: (sessionId: string, action: string) => void;
+  onGoalAction: (sessionId: string, action: GoalPanelAction) => void;
 }
 
 export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: ActiveGoalsSectionProps) {

@@ -48,6 +48,7 @@ goal_wait_not_supported = 當前環境不支援等待模式。
 goal_resumed = 目標已恢復：**{ $objective }**
 goal_cleared = 目標已清除：**{ $objective }**
 goal_cannot_resume = 無法恢復處於「{ $status }」狀態的目標。
+goal_resume_stopping = 目標的上一輪仍在停止中，請稍後再發送 `/goal resume`。
 goal_budget_set = 當前目標預算已設為 **{ $max_turns } 輪**。
 goal_status_queued = 排隊中
 goal_status_label = 執行中

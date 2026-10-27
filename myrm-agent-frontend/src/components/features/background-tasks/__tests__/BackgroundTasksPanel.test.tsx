@@ -117,8 +117,13 @@ vi.mock('@/hooks/tasks/useGlobalMediaTaskNotifications', () => ({
   useGlobalMediaTaskNotifications: vi.fn(),
 }));
 
+let goalActionHttpStatus = 200;
+
 vi.mock('@/lib/api', () => ({
   fetchWithTimeout: vi.fn(async (url: string) => {
+    if (url === '/goals/chat-g1/status') {
+      return { ok: goalActionHttpStatus < 400, status: goalActionHttpStatus };
+    }
     if (url === '/goals/active') {
       return {
         ok: true,
@@ -140,11 +145,13 @@ vi.mock('@/lib/api', () => ({
   }),
 }));
 
+import { fetchWithTimeout } from '@/lib/api';
 import BackgroundTasksPanel from '../BackgroundTasksPanel';
 
 describe('BackgroundTasksPanel with Search and Filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    goalActionHttpStatus = 200;
     mockListBackgroundTasks.mockResolvedValue({
       tasks: [
         {
@@ -302,6 +309,34 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
       expect((screen.getByPlaceholderText('steerPlaceholder') as HTMLInputElement).value).toBe(
         'use key sk-AAAAAABBBBBBCCCCCCDDDD-0',
       );
+    });
+  });
+
+  describe('goal controls', () => {
+    async function pressPauseWhenServerAnswers(status: number) {
+      goalActionHttpStatus = status;
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+      await screen.findByText('Refactor database models');
+      fireEvent.click(screen.getByRole('button', { name: 'goalPause' }));
+      await waitFor(() =>
+        expect(vi.mocked(fetchWithTimeout)).toHaveBeenCalledWith('/goals/chat-g1/status', expect.anything()),
+      );
+    }
+
+    it('names the goal action that failed, not a task cancel', async () => {
+      await pressPauseWhenServerAnswers(409);
+
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('goalActionFailed_pause'));
+      expect(toastMock.error).not.toHaveBeenCalledWith('cancelFailed');
+      expect(toastMock.success).not.toHaveBeenCalledWith('goalActionSuccess');
+    });
+
+    it('confirms the action once the server took it', async () => {
+      await pressPauseWhenServerAnswers(200);
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('goalActionSuccess'));
+      expect(toastMock.error).not.toHaveBeenCalled();
     });
   });
 });

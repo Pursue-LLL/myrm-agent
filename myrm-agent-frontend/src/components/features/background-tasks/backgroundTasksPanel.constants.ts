@@ -9,6 +9,9 @@ export interface ActiveGoal {
   created_at: string;
 }
 
+/** The goal controls the panel offers; each has a `Goal.goalActionFailed_*` message. */
+export type GoalPanelAction = 'pause' | 'resume' | 'cancel';
+
 export const POLL_FAST_MS = 3_000;
 export const POLL_SLOW_MS = 30_000;
 export const IDLE_STOP_THRESHOLD = 3;
