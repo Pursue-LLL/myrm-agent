@@ -53,4 +53,22 @@ describe('MediaTaskRow', () => {
 
     expect(screen.getByText('Provider unreachable')).toBeInTheDocument();
   });
+
+  it('strips local paths and secrets from the server message', () => {
+    render(
+      <MediaTaskRow
+        task={failedTask({
+          error_type: 'ConnectionError',
+          message: 'Failed at /Users/john_doe/projects/secret/index.js with token=supersecret123',
+          recoverable: 'transient',
+        })}
+        variant="terminal"
+        onNavigateChat={vi.fn()}
+      />,
+    );
+
+    const text = screen.getByText(/Failed at/).textContent ?? '';
+    expect(text).not.toContain('john_doe');
+    expect(text).not.toContain('supersecret123');
+  });
 });

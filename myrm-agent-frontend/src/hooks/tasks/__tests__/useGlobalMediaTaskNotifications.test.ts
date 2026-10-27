@@ -133,6 +133,38 @@ describe('useGlobalMediaTaskNotifications', () => {
     expect(mockPush).toHaveBeenCalledWith('/chat/chat-99');
   });
 
+  it('strips local paths and secrets from the failure text shown in the notification body', async () => {
+    mockFetchMediaTask.mockResolvedValue({
+      task_id: 'img-2',
+      task_type: 'image_generate',
+      status: 'failed',
+      payload: { prompt: 'A cat', chat_id: 'chat-99' },
+      error: {
+        error_type: 'ConnectionError',
+        message: 'Failed at /Users/john_doe/projects/secret/index.js with token=supersecret123',
+        recoverable: 'transient',
+      },
+      priority: 5,
+      progress: 0,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:10Z',
+    });
+
+    const { useGlobalMediaTaskNotifications } = await import('../useGlobalMediaTaskNotifications');
+    renderHook(() => useGlobalMediaTaskNotifications());
+
+    await act(async () => {
+      listeners[0]?.({ task_id: 'img-2', status: 'failed', task_type: 'image_generate' });
+      await Promise.resolve();
+    });
+
+    expect(mockNotify).toHaveBeenCalledTimes(1);
+    const [, options] = mockNotify.mock.calls[0] as [string, { body?: string }];
+    expect(options.body).toContain('Failed at');
+    expect(options.body).not.toContain('john_doe');
+    expect(options.body).not.toContain('supersecret123');
+  });
+
   it('uses Tauri native notification when desktop window is hidden', async () => {
     mockIsTauriRuntime.mockReturnValue(true);
     Object.defineProperty(document, 'visibilityState', {

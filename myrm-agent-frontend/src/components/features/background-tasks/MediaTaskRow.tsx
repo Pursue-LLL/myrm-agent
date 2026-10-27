@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - @/services/mediaTasks::{getMediaTaskChatId,getMediaTaskPrompt} (POS: media task payload helpers)
+ * - @/lib/utils/error-handling::redactErrorMessage (POS: strips paths and secrets from server error text)
  *
  * [OUTPUT]
  * - MediaTaskRow: media task row for active or recent terminal jobs in BackgroundTasksPanel
@@ -17,6 +18,7 @@ import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconCheckCircle, IconLoader, IconStop, IconXCircle } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
+import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { getMediaTaskChatId, getMediaTaskPrompt } from '@/services/mediaTasks';
 import type { Task } from '@/store/tasks/types';
 import { activateOnKey } from '@/lib/utils/a11y';
@@ -107,7 +109,7 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
 
           {isTerminal && task.status === 'failed' && task.error?.message && (
             <p className="mt-1 line-clamp-2 text-xs text-destructive/80">
-              {task.error.error_type === 'interrupted' ? tCard('interrupted') : task.error.message}
+              {task.error.error_type === 'interrupted' ? tCard('interrupted') : redactErrorMessage(task.error.message)}
             </p>
           )}
 

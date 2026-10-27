@@ -6,6 +6,7 @@
  * - @/services/tauriNativeNotification::sendTauriNativeNotification (POS: Tauri desktop native notification helper)
  * - @tauri-apps/api/window::getCurrentWindow (POS: Tauri dock bounce when native notify denied)
  * - @/store/useConfigStore::enableWebNotifications (POS: personal notification preference gate)
+ * - @/lib/utils/error-handling::redactErrorMessage (POS: strips paths and secrets from server error text)
  *
  * [OUTPUT]
  * - useGlobalMediaTaskNotifications: terminal media task browser notifications with chat deep links
@@ -19,6 +20,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { fetchMediaTask, getMediaTaskChatId, getMediaTaskPrompt, isMediaTaskType } from '@/services/mediaTasks';
 import { subscribeTaskUpdateEvents } from '@/services/taskEventStream';
 import { notificationService } from '@/services/notification';
@@ -78,7 +80,10 @@ export function useGlobalMediaTaskNotifications() {
       const title =
         task.status === 'succeeded' ? t('completedTitle', { type: typeLabel }) : t('failedTitle', { type: typeLabel });
       const prompt = getMediaTaskPrompt(task.payload);
-      const body = task.status === 'failed' ? task.error?.message || prompt || t('unknownError') : prompt || undefined;
+      const body =
+        task.status === 'failed'
+          ? (task.error?.message && redactErrorMessage(task.error.message)) || prompt || t('unknownError')
+          : prompt || undefined;
       const chatId = getMediaTaskChatId(task.payload);
 
       void (async () => {
