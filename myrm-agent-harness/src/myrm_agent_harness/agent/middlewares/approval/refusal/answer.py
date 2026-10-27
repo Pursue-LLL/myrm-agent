@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - refusal_answer: the error ToolMessage that answers a refused call
+- is_refusal_answer: whether a message is such an answer, as opposed to a tool that ran and failed
 - rejection_cause: who refused a call whose approval was settled with a rejection
 
 [POS]
@@ -16,8 +17,9 @@ attributes the failure to the built-in tool, and a person who declined a command
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import TypeGuard
 
-from langchain_core.messages import ToolCall, ToolMessage
+from langchain_core.messages import BaseMessage, ToolCall, ToolMessage
 
 from myrm_agent_harness.utils.errors import ToolErrorCategory
 
@@ -28,6 +30,7 @@ _CATEGORY_OF_CAUSE: Mapping[DenialCause, ToolErrorCategory] = {
     DenialCause.USER: ToolErrorCategory.USER_DECLINED,
     DenialCause.TIMEOUT: ToolErrorCategory.APPROVAL_TIMEOUT,
 }
+_REFUSAL_CATEGORIES = frozenset(category.value for category in _CATEGORY_OF_CAUSE.values())
 
 
 def refusal_answer(tool_call: ToolCall, content: str, cause: DenialCause) -> ToolMessage:
@@ -39,6 +42,11 @@ def refusal_answer(tool_call: ToolCall, content: str, cause: DenialCause) -> Too
         status="error",
         additional_kwargs={"error_category": _CATEGORY_OF_CAUSE[cause].value},
     )
+
+
+def is_refusal_answer(message: BaseMessage) -> TypeGuard[ToolMessage]:
+    """Whether *message* answers a call that was refused and never ran, not a call that ran and failed."""
+    return isinstance(message, ToolMessage) and message.additional_kwargs.get("error_category") in _REFUSAL_CATEGORIES
 
 
 def rejection_cause(decision: Mapping[str, object]) -> DenialCause:

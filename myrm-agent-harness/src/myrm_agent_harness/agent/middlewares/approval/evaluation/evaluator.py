@@ -4,6 +4,7 @@
 - ..batch_processor::evaluate_tool_batch (POS: Orchestrates allowlist, YOLO and auto mode, path and taint checks, the read-only lease, cron declarations and the LLM security review into one verdict per call.)
 - ..intent_ledger::extract_user_intent_ledger (POS: User intent ledger preserving task anchors and directives for reasoning-blind approval classification.)
 - ..rate_limiter::get_approval_rate_limiter (POS: Sliding-window rate limiter for approval requests.)
+- ..refusal::is_refusal_answer (POS: Tells the answer to a refused call from a tool result.)
 - agent.security::audit.record_decision, guards.taint_tracker.get_taint_tracker, types.RecentToolCall (POS: The audit trail, the session taint labels and the compact record of a recent call the reviewer reads.)
 - .record, .target
 
@@ -31,6 +32,7 @@ from myrm_agent_harness.agent.security.types import RecentToolCall, SecurityConf
 from ..batch_processor import evaluate_tool_batch
 from ..intent_ledger import extract_user_intent_ledger
 from ..rate_limiter import get_approval_rate_limiter
+from ..refusal import is_refusal_answer
 from .record import ApprovalEvaluation, build_evaluation
 from .target import ApprovalTarget
 
@@ -44,15 +46,22 @@ type _Refused = tuple[int, ToolCall, str]
 
 
 def _recent_tool_calls(messages: Sequence[BaseMessage], config: SecurityConfig) -> tuple[RecentToolCall, ...]:
-    """The latest tool calls of the conversation, for the reviewer's cross-tool context (Reasoning-Blind)."""
+    """The latest tool calls of the conversation, for the reviewer's cross-tool context (Reasoning-Blind).
+
+    A refused call never ran, so listing it would show the reviewer an action that did not happen. That the model
+    keeps trying refused calls is counted by the denial counters, not by this window.
+    """
     if not config.auto_mode_enabled:
         return ()
     window_size = config.transcript_window_size
+    window = messages[-(window_size * 2) :]
+    refused_ids = {message.tool_call_id for message in window if is_refusal_answer(message)}
     calls = [
         RecentToolCall(tool_name=call.get("name", "unknown"), args=call.get("args", {}))
-        for message in messages[-(window_size * 2) :]
+        for message in window
         if isinstance(message, AIMessage)
         for call in message.tool_calls
+        if call.get("id") not in refused_ids
     ]
     return tuple(calls[-window_size:])
 

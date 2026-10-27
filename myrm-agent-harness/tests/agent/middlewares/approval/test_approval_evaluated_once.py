@@ -70,11 +70,12 @@ class ScriptedModel(BaseChatModel):
 
 
 class SequencedReviewer:
-    """Gives its verdicts in order and repeats the last one, counting how often it was asked."""
+    """Gives its verdicts in order and repeats the last one, counting how often it was asked and what it was shown."""
 
     def __init__(self, *verdicts: ReviewDecision) -> None:
         self.verdicts = verdicts
         self.asked = 0
+        self.shown: list[tuple[RecentToolCall, ...]] = []
 
     async def review(
         self,
@@ -89,6 +90,7 @@ class SequencedReviewer:
     ) -> ReviewResult:
         verdict = self.verdicts[min(self.asked, len(self.verdicts) - 1)]
         self.asked += 1
+        self.shown.append(recent_tool_calls)
         return ReviewResult(decision=verdict, reason="scripted verdict")
 
 
@@ -211,3 +213,42 @@ async def test_the_stored_verdicts_are_kept_for_the_pause_and_gone_once_the_batc
 
     assert APPROVAL_EVALUATION_KEY not in settled
     assert (await agent.aget_state(config)).values.get(APPROVAL_EVALUATION_KEY) is None
+
+
+NEXT_COMMAND = "python3 setup.py build"
+CALL_THE_NEXT_COMMAND = AIMessage(
+    content="", tool_calls=[{"id": "c2", "name": "bash_code_execute_tool", "args": {"command": NEXT_COMMAND}}]
+)
+
+
+async def _second_review_after(first_decision: dict[str, str]) -> SequencedReviewer:
+    """Answer the first card, let the model ask for a second command, and return the reviewer once it is asked again."""
+    reviewer = SequencedReviewer(ReviewDecision.UNCERTAIN)
+    register_security_reviewer(reviewer)
+    agent = _agent(script=[CALL_THE_COMMAND, CALL_THE_NEXT_COMMAND, AIMessage(content="done")])
+    config = {"configurable": {"thread_id": "t"}}
+
+    await agent.ainvoke({"messages": [HumanMessage(content="install")]}, config)
+    second_card = await agent.ainvoke(Command(resume={"decisions": [first_decision]}), config)
+
+    assert second_card["__interrupt__"], "the second command should wait for the user too"
+    assert reviewer.asked == 2
+    return reviewer
+
+
+def _commands(shown: tuple[RecentToolCall, ...]) -> list[object]:
+    return [call.args["command"] for call in shown]
+
+
+async def test_a_call_the_user_refused_is_not_shown_to_the_reviewer_as_a_recent_action() -> None:
+    reviewer = await _second_review_after({"type": "reject", "feedback": "not now"})
+
+    assert RAN == []
+    assert _commands(reviewer.shown[1]) == [NEXT_COMMAND]
+
+
+async def test_a_call_that_ran_is_shown_to_the_reviewer_as_a_recent_action() -> None:
+    reviewer = await _second_review_after({"type": "approve"})
+
+    assert RAN == [COMMAND]
+    assert _commands(reviewer.shown[1]) == [COMMAND, NEXT_COMMAND]
