@@ -6,12 +6,12 @@ import tempfile
 import time
 from pathlib import Path
 
-from myrm_agent_harness.agent.middlewares.completion.deliverable_auto_staging import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.auto_staging import (
     STAGED_ARTIFACTS_DIR,
     _prune_old_staged_artifacts,
     stage_unwritten_deliverables,
 )
-from myrm_agent_harness.agent.middlewares.completion.deliverable_write_verifier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.write_verifier import (
     UnwrittenDeliverable,
 )
 
@@ -117,7 +117,7 @@ def test_stage_unwritten_deliverables_handles_os_errors() -> None:
 
 
 def test_ensure_git_hygiene_creates_and_updates_gitignore() -> None:
-    from myrm_agent_harness.agent.middlewares.completion.deliverable_auto_staging import (
+    from myrm_agent_harness.agent.middlewares.completion.deliverable.auto_staging import (
         _ensure_git_hygiene,
     )
 

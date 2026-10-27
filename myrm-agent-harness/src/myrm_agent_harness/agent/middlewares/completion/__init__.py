@@ -2,10 +2,8 @@
 
 [INPUT]
 - .completion_guard::CompletionGuard, classify_verification, reset_completion_guard, build_checklist, is_mutating_tool, attach_disclosure_to_event (POS: the finish gate package: gate, checklist, verification classifier, tool safety, per-turn disclosure)
-- .deliverable_auto_staging::stage_unwritten_deliverables, StagedArtifactMeta (POS: deliverable auto staging)
-- .deliverable_confidence_tier::DeliverableConfidenceTier, resolve_deliverable_tier (POS: tier resolver)
-- .deliverable_write_verifier::check_deliverable_write_claim, check_unwritten_deliverables, UnwrittenDeliverable (POS: deliverable write verification)
-- .execution_claim_verifier::check_execution_claim (POS: completion-claim grounding against this run's tool records)
+- .deliverable::stage_unwritten_deliverables, StagedArtifactMeta, DeliverableConfidenceTier, DeliverableTierEvidence, DeliverableTierMetadata, resolve_deliverable_tier, UnwrittenDeliverable, check_deliverable_write_claim, check_unwritten_deliverables (POS: deliverables: staging, evidence tier, unwritten-deliverable checks)
+- .execution_claim::check_execution_claim (POS: completion-claim grounding against this run's tool records)
 - .query_grounding_verifier::check_query_grounding_claim, detect_entity_query_intent, has_successful_query_evidence (POS: query grounding verification)
 
 [OUTPUT]
@@ -23,24 +21,18 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     is_mutating_tool,
     reset_completion_guard,
 )
-from myrm_agent_harness.agent.middlewares.completion.deliverable_auto_staging import (
-    StagedArtifactMeta,
-    stage_unwritten_deliverables,
-)
-from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable import (
     DeliverableConfidenceTier,
     DeliverableTierEvidence,
     DeliverableTierMetadata,
-    resolve_deliverable_tier,
-)
-from myrm_agent_harness.agent.middlewares.completion.deliverable_write_verifier import (
+    StagedArtifactMeta,
     UnwrittenDeliverable,
     check_deliverable_write_claim,
     check_unwritten_deliverables,
+    resolve_deliverable_tier,
+    stage_unwritten_deliverables,
 )
-from myrm_agent_harness.agent.middlewares.completion.execution_claim_verifier import (
-    check_execution_claim,
-)
+from myrm_agent_harness.agent.middlewares.completion.execution_claim import check_execution_claim
 from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier import (
     check_query_grounding_claim,
     detect_entity_query_intent,

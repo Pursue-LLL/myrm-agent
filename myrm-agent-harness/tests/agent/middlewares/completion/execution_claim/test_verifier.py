@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.agent.middlewares.completion.execution_claim_verifier import (
+from myrm_agent_harness.agent.middlewares.completion.execution_claim.verifier import (
     check_execution_claim,
     has_completion_claim,
 )

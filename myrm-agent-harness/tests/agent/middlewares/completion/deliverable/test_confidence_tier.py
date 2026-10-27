@@ -4,7 +4,7 @@ from myrm_agent_harness.agent.goals.verification.base import (
     AggregatedVerificationResult,
     VerificationResult,
 )
-from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.confidence_tier import (
     DeliverableConfidenceTier,
     resolve_deliverable_tier,
 )
@@ -108,7 +108,7 @@ def test_resolve_deliverable_tier_precedence_verified_over_artifact():
 
 
 def test_write_record_with_file_path_key_still_counts_as_an_artifact():
-    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+    from myrm_agent_harness.agent.middlewares.completion.deliverable.confidence_tier import (
         DeliverableConfidenceTier,
         resolve_deliverable_tier,
     )
@@ -129,7 +129,7 @@ def test_write_record_with_file_path_key_still_counts_as_an_artifact():
 
 
 def test_should_disclose_evidence_tiers_always():
-    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+    from myrm_agent_harness.agent.middlewares.completion.deliverable.confidence_tier import (
         should_disclose_tier,
     )
 
@@ -149,7 +149,7 @@ def test_should_disclose_evidence_tiers_always():
 
 
 def test_plan_tier_is_disclosed_only_for_completion_claims():
-    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+    from myrm_agent_harness.agent.middlewares.completion.deliverable.confidence_tier import (
         should_disclose_tier,
     )
 

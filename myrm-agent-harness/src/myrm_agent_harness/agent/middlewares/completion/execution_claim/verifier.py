@@ -62,7 +62,7 @@ from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 
-from myrm_agent_harness.agent.middlewares.completion.execution_claim_lexicon import (
+from myrm_agent_harness.agent.middlewares.completion.execution_claim.lexicon import (
     _ACTION_INTENT,
     _ATTRIBUTION,
     _BASH_MUTATION,

@@ -36,4 +36,4 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../../MIDDLEWARE_SYSTEM.md)
 - `agent.middlewares.tooling.tool_interceptor_middleware` — LoopGuard CallRecord window
 - `agent.security.guards.loop_guard` — CallRecord, ToolGroup, VerificationCategory
 - `toolkits.code_execution` — independent verification re-run sandbox
-- `agent.middlewares.completion` (parent) — the deliverable, execution-claim and query-grounding verifiers the guard consults; they are not part of this package
+- `agent.middlewares.completion.deliverable`, `.execution_claim` and the query-grounding and PPT-outline verifiers in the parent — the checks the guard consults; they are not part of this package

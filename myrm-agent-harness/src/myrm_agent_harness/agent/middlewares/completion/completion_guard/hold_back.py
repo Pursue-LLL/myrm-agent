@@ -23,7 +23,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
 
@@ -51,7 +50,7 @@ async def hold_back(
     *,
     rejection: int,
     max_rejections: int,
-) -> dict[str, Any] | None:
+) -> dict[str, object] | None:
     """Route the run back to the model, with the instruction owed to it pending for the next request.
 
     The instruction follows the last message the model will see again. A draft that says something stays in the
@@ -75,7 +74,7 @@ async def hold_back(
         anchor_id=anchor.id,
         text=render_completion_directive(reasons, records=records, workspace_root=workspace_root),
     )
-    update: dict[str, Any] = {"jump_to": "model"}
+    update: dict[str, object] = {"jump_to": "model"}
     if removes_draft:
         update["messages"] = [RemoveMessage(id=draft.id)]
     elif draft.tool_calls:

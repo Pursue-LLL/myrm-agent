@@ -14,12 +14,12 @@ Two concerns live here, both scoped to a single assistant turn:
    delivery is backed by.
 
 The tier publisher applies the disclosure policy from
-``deliverable_confidence_tier``: evidence-bearing tiers always go out, the PLAN
+``deliverable.confidence_tier``: evidence-bearing tiers always go out, the PLAN
 tier only when the answer itself makes a completion claim (casual conversation
 and inline deliverables stay clean).
 
 [INPUT]
-- agent.middlewares.completion.deliverable_confidence_tier::resolve_deliverable_tier, should_disclose_tier (POS: 交付置信档解析与披露策略)
+- agent.middlewares.completion.deliverable.confidence_tier::resolve_deliverable_tier, should_disclose_tier (POS: 交付置信档解析与披露策略)
 - agent.meta_tools.file_ops.observers.snapshot_observer::get_bound_message_id (POS: 本轮 assistant 消息 id)
 - agent.security.guards.loop_guard::CallRecord (POS: 工具调用记录)
 
@@ -40,7 +40,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.confidence_tier import (
     resolve_deliverable_tier,
     should_disclose_tier,
 )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.middlewares.completion.deliverable_write_verifier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.write_verifier import (
     check_deliverable_write_claim,
     check_unwritten_deliverable,
     check_unwritten_deliverables,

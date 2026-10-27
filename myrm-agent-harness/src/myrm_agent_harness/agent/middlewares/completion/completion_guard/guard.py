@@ -34,9 +34,8 @@ todo blocks only a run that keeps a todo list, and a freshness question is held 
 run holds a tool that can produce it. A run that holds none is asked once to say plainly it could not check, and
 the answer then passes: no further attempt could change what it holds.
 
-State is stored as module-level variables (not ContextVar) because LangGraph
-executes nodes in copied contexts, which prevents ContextVar state from
-persisting across ReAct cycles.
+State lives in the per-turn registry of ``state`` (keyed by the bound message id), not in a ContextVar, because
+LangGraph executes nodes in copied contexts, which prevents ContextVar state from persisting across ReAct cycles.
 
 [INPUT]
 - langchain.agents.middleware::AgentMiddleware, hook_config (POS: LangChain middleware base and the declaration that a hook may route back to the model)
@@ -49,8 +48,8 @@ persisting across ReAct cycles.
 - agent.middlewares.completion.completion_guard.external_evidence::build_external_evidence_reason, extract_latest_human_text (POS: Freshness-sensitive external evidence gate including MCP PTC bash via skills.mcp_* and Direct FC via mcp__{server}__{tool})
 - agent.middlewares.completion.completion_guard.rerun::rerun_verification_in_sandbox (POS: independent sandbox re-run of the last verification command)
 - agent.middlewares.completion.completion_guard.safety::FINISH_TOOL_NAMES (POS: which tool call is a completion attempt)
-- agent.middlewares.completion.deliverable_write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
-- agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
+- agent.middlewares.completion.deliverable.write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
+- agent.middlewares.completion.execution_claim.verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
 
 [OUTPUT]
@@ -105,15 +104,15 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.state impo
     record_evidence,
     reset_run_state,
 )
-from myrm_agent_harness.agent.middlewares.completion.deliverable_auto_staging import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.auto_staging import (
     stage_unwritten_deliverables,
 )
-from myrm_agent_harness.agent.middlewares.completion.deliverable_write_verifier import (
+from myrm_agent_harness.agent.middlewares.completion.deliverable.write_verifier import (
     UnwrittenDeliverable,
     check_deliverable_write_claim,
     check_unwritten_deliverables,
 )
-from myrm_agent_harness.agent.middlewares.completion.execution_claim_verifier import (
+from myrm_agent_harness.agent.middlewares.completion.execution_claim.verifier import (
     check_execution_claim,
     has_completion_claim,
 )

@@ -10,7 +10,7 @@ agent gathers real data instead of letting unverified content reach the user.
 [INPUT]
 - agent.middlewares.completion.completion_guard.external_evidence::build_external_evidence_reason (POS: whether the request needs outside evidence this run lacks)
 - agent.middlewares.completion.completion_guard.safety::INTERACTION_UI_TOOLS, is_mutating_tool, is_substantive_final_response (POS: which calls must be kept and whether the content is a finished answer)
-- agent.middlewares.completion.execution_claim_verifier::check_execution_claim (POS: completion-claim grounding against this run's tool records)
+- agent.middlewares.completion.execution_claim.verifier::check_execution_claim (POS: completion-claim grounding against this run's tool records)
 - agent.middlewares.completion.query_grounding_verifier::check_query_grounding_claim (POS: entity query grounding)
 - agent.security.guards.loop_guard::CallRecord (POS: one recorded tool call)
 
@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
-from typing import Any
 
 from langchain_core.messages import AIMessage
 
@@ -38,7 +37,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.safety imp
     is_mutating_tool,
     is_substantive_final_response,
 )
-from myrm_agent_harness.agent.middlewares.completion.execution_claim_verifier import check_execution_claim
+from myrm_agent_harness.agent.middlewares.completion.execution_claim.verifier import check_execution_claim
 from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier import check_query_grounding_claim
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 
@@ -51,7 +50,7 @@ def strip_readonly_calls_beside_answer(
     messages: list[object],
     records: list[CallRecord],
     user_text: str | None,
-) -> dict[str, Any] | None:
+) -> dict[str, list[AIMessage]] | None:
     """Replace ``message`` with a copy that has no tool calls when it already is a complete answer."""
     if not (message.content and message.tool_calls):
         return None

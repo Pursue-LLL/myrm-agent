@@ -23,8 +23,8 @@ Whether a request needs external data at all is decided by
 - extract_latest_human_text(): latest non-empty human message text
 
 [POS]
-CompletionGuard external-evidence policy module. Mirrors deliverable_write_verifier
-separation — keeps completion_guard.py focused on orchestration and mixed-message guard.
+CompletionGuard external-evidence policy module. Like ``deliverable.write_verifier``, it holds a check on its own so
+``guard`` stays on orchestration.
 """
 
 from __future__ import annotations
