@@ -34,6 +34,7 @@ def _array(*items: object) -> str:
         pytest.param(json.dumps({"suggestions": _THREE}), _THREE, id="array wrapped in an object"),
         pytest.param("1. Why Rust?\n2. Rust vs Go?\n3. Is Rust hard?", _THREE, id="numbered list"),
         pytest.param("1) Why Rust?\n2) Rust vs Go?\n3) Is Rust hard?", _THREE, id="parenthesis numbering"),
+        pytest.param("1、Why Rust?\n2、Rust vs Go?\n3、Is Rust hard?", _THREE, id="enumeration comma numbering"),
         pytest.param(
             "Here are some questions:\n- Why Rust?\n- Rust vs Go?\n- Is Rust hard?",
             _THREE,

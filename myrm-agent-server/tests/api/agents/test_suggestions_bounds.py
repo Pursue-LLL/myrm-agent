@@ -1,9 +1,10 @@
-"""The follow-up suggestion call has a fixed cost envelope: bounded model output and bounded conversation input."""
+"""The follow-up suggestion call: a fixed cost envelope (bounded model output and conversation input) and a trace of the replies it cannot use."""
 
 from __future__ import annotations
 
 import inspect
 import json
+import logging
 from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,16 +31,17 @@ def _clean_process_policy() -> Iterator[None]:
     set_outbound_message_guard(None)
 
 
-async def _suggest(
+async def _call(
     history: list[list[str]],
     *,
+    reply: str,
     model: ModelConfig | None = None,
     personal_settings: dict[str, object] | None = None,
-) -> tuple[ModelConfig, str]:
-    """Run the endpoint; return the config the model was built from and the text that reached the provider."""
+) -> tuple[list[str], ModelConfig, str]:
+    """Run the endpoint; return its suggestions, the config the model was built from and the text that reached the provider."""
     settings = personal_settings or {"privacyEnabled": False}
     sync_privacy_policy(settings)
-    llm, sent = wire_llm(json.dumps(_REPLY))
+    llm, sent = wire_llm(reply)
     build_llm = AsyncMock(return_value=llm)
     configs = SimpleNamespace(providers_dict={"providers": []}, model_cfg=None, personal_settings_dict=settings)
     lite = model or ModelConfig(model="test-model", api_key="test-key")
@@ -54,9 +56,22 @@ async def _suggest(
             http_request=MagicMock(),
         )
 
-    assert json.loads(response.body)["data"]["suggestions"] == _REPLY
     assert build_llm.await_args is not None
-    return build_llm.await_args.args[0], "\n".join(sent)
+    return json.loads(response.body)["data"]["suggestions"], build_llm.await_args.args[0], "\n".join(sent)
+
+
+async def _suggest(
+    history: list[list[str]],
+    *,
+    model: ModelConfig | None = None,
+    personal_settings: dict[str, object] | None = None,
+) -> tuple[ModelConfig, str]:
+    """Run the endpoint against a clean reply; return the config the model was built from and the text that reached the provider."""
+    suggestions, built_from, wire = await _call(
+        history, reply=json.dumps(_REPLY), model=model, personal_settings=personal_settings
+    )
+    assert suggestions == _REPLY
+    return built_from, wire
 
 
 @pytest.mark.asyncio
@@ -81,7 +96,7 @@ async def test_a_model_without_extra_kwargs_gets_the_same_envelope() -> None:
 
 
 @pytest.mark.asyncio
-async def test_only_the_last_six_turns_are_sent() -> None:
+async def test_only_the_last_six_messages_are_sent() -> None:
     history = [[role, f"{role} turn {number}"] for number in range(4) for role in ("human", "assistant")]
 
     _, wire = await _suggest(history)
@@ -93,7 +108,7 @@ async def test_only_the_last_six_turns_are_sent() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_long_turn_keeps_its_opening_and_its_ending() -> None:
+async def test_a_long_message_keeps_its_opening_and_its_ending() -> None:
     answer = "OPENING " + "a" * 2000 + " MIDDLE " + "b" * 2000 + " ENDING"
 
     _, wire = await _suggest([["human", "Hi"], ["assistant", answer]])
@@ -105,7 +120,7 @@ async def test_a_long_turn_keeps_its_opening_and_its_ending() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_turn_at_the_limit_is_sent_whole() -> None:
+async def test_a_message_at_the_limit_is_sent_whole() -> None:
     answer = "x" * 1500
 
     _, wire = await _suggest([["human", "Hi"], ["assistant", answer]])
@@ -126,3 +141,28 @@ async def test_a_number_straddling_the_cut_is_masked_before_the_cut() -> None:
 
     assert _PHONE not in wire
     assert _PHONE[:7] not in wire
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reply",
+    [
+        pytest.param("I cannot help with that, but my secret marker is ZEBRA-4821.", id="prose"),
+        pytest.param("", id="empty"),
+    ],
+)
+async def test_a_reply_without_a_usable_label_is_logged_by_its_length_only(reply: str, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.api.agents.suggestions"):
+        suggestions, _, _ = await _call([["human", "Hi"], ["assistant", "Hello"]], reply=reply)
+
+    assert suggestions == []
+    ours = [record.getMessage() for record in caplog.records if record.name == "app.api.agents.suggestions"]
+    assert ours == [f"suggestions_reply_unusable reply_chars={len(reply)}"]
+
+
+@pytest.mark.asyncio
+async def test_a_clean_reply_leaves_no_trace(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.api.agents.suggestions"):
+        await _suggest([["human", "Hi"], ["assistant", "Hello"]])
+
+    assert [record for record in caplog.records if record.name == "app.api.agents.suggestions"] == []

@@ -6,7 +6,7 @@
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
 - myrm_agent_harness.api.security::sanitize_outbound_text (POS: mask a message before it is cut to the prompt window)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
-- utils.json_parsing::parse_llm_json_list (POS: 容错 JSON 数组解析 SSOT)
+- myrm_agent_harness.utils.json_parsing::parse_llm_json_list (POS: 容错 JSON 数组解析 SSOT)
 
 [OUTPUT]
 - POST /agents/suggestions: JSON array of up to 3 concise follow-up questions
@@ -56,7 +56,7 @@ _MESSAGE_TAIL_CHARS = 500
 # Format characters real text needs: joiners (Persian, Indic scripts, emoji sequences) and directional marks.
 _KEPT_FORMAT_CHARS = frozenset("\u200c\u200d\u200e\u200f\u061c")
 _REJECTED_CATEGORIES = frozenset({"Cc", "Co", "Cs"})
-_MARKED_LINE = re.compile(r"^\s*(?:\d{1,2}[.)]|[-*\u2022])\s+(\S.*)$")
+_MARKED_LINE = re.compile(r"^\s*(?:\d{1,2}(?:[.)]\s+|\u3001\s*)|[-*\u2022]\s+)(\S.*)$")
 _MIN_MARKED_LINE_SHARE = 0.6
 
 _SUGGESTIONS_PROMPT = (
@@ -120,6 +120,8 @@ async def get_suggestions(
         content = extract_answer_text(result)
 
         suggestions = _parse_suggestions(content)
+        if not suggestions:
+            logger.warning("suggestions_reply_unusable reply_chars=%d", len(content))
         return success_response(data={"suggestions": suggestions})
     except TimeoutError:
         logger.warning("suggestions_generation_timed_out")
