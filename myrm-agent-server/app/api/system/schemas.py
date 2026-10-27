@@ -125,7 +125,12 @@ class SnapshotActionResponse(BaseModel):
 
 
 class TelemetryPostureResponse(BaseModel):
-    """Measured OpenTelemetry posture. Every field is read from live state; none is asserted."""
+    """Measured OpenTelemetry posture. Every field is read from live state; none is asserted.
+
+    ``metrics_status`` is ``off`` without a metric pipeline, otherwise ``ready`` / ``active`` / ``failing``
+    by the latest delivery. ``managed`` marks a platform-operated sandbox: its collector belongs to the
+    operator, so ``endpoint`` is withheld and a client has nothing to configure.
+    """
 
     status: str
     initialized: bool
@@ -138,7 +143,7 @@ class TelemetryPostureResponse(BaseModel):
     degraded_reason: str | None = None
     sampler: str | None = None
     content_capture: bool = False
-    metrics_exporting: bool = False
+    metrics_status: str = "off"
     exported_spans: int = 0
     failed_batches: int = 0
     withheld_spans: int = 0
@@ -147,3 +152,4 @@ class TelemetryPostureResponse(BaseModel):
     git_branch: str | None = None
     git_commit: str | None = None
     error: str | None = None
+    managed: bool = False

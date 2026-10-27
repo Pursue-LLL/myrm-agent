@@ -5,9 +5,10 @@
 - app.services.system.storage_service (POS: Storage Diagnostics Service)
 - app.services.system.storage_layout::build_storage_layout (POS: where each storage category lives)
 - myrm_agent_harness.infra.tracing::get_telemetry_posture (POS: OpenTelemetry Posture Probe)
+- app.config.deploy_mode::is_sandbox (POS: platform-managed instance detection)
 
 [OUTPUT]
-- get_system_telemetry_posture: GET /telemetry-posture SRE OpenTelemetry Posture Probe
+- get_system_telemetry_posture: GET /telemetry-posture SRE OpenTelemetry Posture Probe (collector address withheld in a managed sandbox)
 - get_storage_info: GET /storage
 - get_storage_governance_report: GET /storage/governance (space ledger of the whole data directory)
 - optimize_storage: POST /storage/optimize
@@ -25,7 +26,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from myrm_agent_harness.utils import get_local_ip
+from myrm_agent_harness.utils.network import get_local_ip
 
 from app.api.system.sandbox_recreate import router as sandbox_recreate_router
 from app.api.system.schemas import (
@@ -42,6 +43,7 @@ from app.api.system.schemas import (
     StorageOptimizeResponse,
     TelemetryPostureResponse,
 )
+from app.config.deploy_mode import is_sandbox
 from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
@@ -354,12 +356,16 @@ def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
 
 @router.get("/telemetry-posture", response_model=TelemetryPostureResponse)
 def get_system_telemetry_posture() -> TelemetryPostureResponse:
-    """Return OpenTelemetry posture and active status for SRE diagnostics and Settings card."""
+    """Return OpenTelemetry posture and active status for SRE diagnostics and Settings card.
+
+    In a platform-managed sandbox the collector is the operator's infrastructure, so its address is never
+    disclosed to the tenant and the response says ``managed`` instead.
+    """
+    managed = is_sandbox()
     try:
         from myrm_agent_harness.infra.tracing import get_telemetry_posture
 
-        data = get_telemetry_posture()
-        return TelemetryPostureResponse.model_validate(data)
+        posture = TelemetryPostureResponse.model_validate({**get_telemetry_posture(), "managed": managed})
     except Exception as exc:
         logger.warning("Failed to retrieve telemetry posture: %s", exc)
         return TelemetryPostureResponse(
@@ -370,7 +376,9 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
             protocol="unknown",
             headers_configured=False,
             local_trace_only=False,
+            managed=managed,
         )
+    return posture.model_copy(update={"endpoint": None}) if managed else posture
 
 
 @router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)

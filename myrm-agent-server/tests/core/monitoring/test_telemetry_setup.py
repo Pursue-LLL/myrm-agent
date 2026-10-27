@@ -96,7 +96,7 @@ def test_standard_endpoint_alone_exports_traces_with_the_server_identity() -> No
     assert posture["exporter_type"] == "otlp_http"
     assert posture["exported_spans"] == 1
     assert posture["failed_batches"] == 0
-    assert posture["metrics_exporting"] is True
+    assert posture["metrics_status"] == "active"
     assert posture["content_capture"] is False
 
 
@@ -127,7 +127,7 @@ def test_without_an_endpoint_nothing_is_exported_or_printed() -> None:
     assert posture["status"] == "noop"
     assert posture["initialized"] is False
     assert posture["exported_spans"] == 0
-    assert posture["metrics_exporting"] is False
+    assert posture["metrics_status"] == "off"
     assert "startup.probe" not in stdout
 
 
