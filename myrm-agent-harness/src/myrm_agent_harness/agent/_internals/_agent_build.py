@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.middlewares (POS: Various middleware implementations)
+- agent.security.engine::file_write_disabled (POS: whether the policy denies file_write, for the completion guard's can-save-files probe)
 - agent.tool_management (POS: ToolRegistry, ToolSource)
 
 [OUTPUT]

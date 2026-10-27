@@ -181,7 +181,7 @@ async def _rerun_verification_in_sandbox(command: str) -> bool:
         return False
 
 
-class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
+class CompletionGuard(AgentMiddleware[Any, Any, Any]):
     """Critical completion verification guard.
 
     Only blocks the Agent when code files were modified without verification
@@ -414,7 +414,7 @@ class CompletionGuard(AgentMiddleware):  # type: ignore[type-arg]
             staged_metas_dict: list[dict[str, object]] = []
             if unwritten_deliverables and workspace_root:
                 staged = stage_unwritten_deliverables(str(workspace_root), unwritten_deliverables)
-                staged_metas_dict = [m.to_dict() for m in staged]
+                staged_metas_dict = [dict(m.to_dict()) for m in staged]
 
             tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
             forced_args: dict[str, object] = {

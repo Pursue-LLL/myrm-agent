@@ -31,6 +31,7 @@ separation — keeps completion_guard.py focused on orchestration and mixed-mess
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from langchain_core.messages import HumanMessage
 
@@ -153,9 +154,9 @@ def extract_latest_human_text(messages: list[object]) -> str | None:
             parts: list[str] = []
             for item in message.content:
                 if isinstance(item, dict):
-                    text = item.get("text")
-                    if isinstance(text, str) and text.strip():
-                        cleaned = strip_catalog_blocks(text).strip()
+                    block_text = item.get("text")
+                    if isinstance(block_text, str) and block_text.strip():
+                        cleaned = strip_catalog_blocks(block_text).strip()
                         if cleaned:
                             parts.append(cleaned)
             if parts:
@@ -243,7 +244,7 @@ def _mcp_direct_evidence_succeeded(record: object) -> bool:
     return getattr(success_level, "name", "") != "FAILURE"
 
 
-def has_external_evidence(records: list[object]) -> bool:
+def has_external_evidence(records: Sequence[object]) -> bool:
     for record in records:
         if _bash_mcp_ptc_evidence_succeeded(record):
             return True
@@ -264,7 +265,7 @@ def has_external_evidence(records: list[object]) -> bool:
 def build_external_evidence_reason(
     *,
     messages: list[object],
-    records: list[object],
+    records: Sequence[object],
 ) -> str | None:
     latest_human = extract_latest_human_text(messages)
     if not latest_human or not _requires_external_evidence(latest_human):

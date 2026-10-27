@@ -22,8 +22,9 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from typing import Any
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import AgentMiddleware, wrap_tool_call
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
@@ -57,7 +58,7 @@ def _get_batch_id(request: ToolCallRequest) -> int | None:
     return None
 
 
-def create_safety_dispatcher():
+def create_safety_dispatcher() -> AgentMiddleware[Any, Any, Any]:
     """Create safety dispatcher middleware for tool concurrency control.
 
     Safe tools (``is_concurrent_safe=True``) execute concurrently via ToolNode's
@@ -74,12 +75,12 @@ def create_safety_dispatcher():
     unsafe_lock = asyncio.Lock()
     batch_failures: dict[int, float] = {}
 
-    @wrap_tool_call  # type: ignore[arg-type]
+    @wrap_tool_call
     async def safety_dispatcher_middleware(
         request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
-    ) -> ToolMessage | Command:
-        tool_name: str = request.tool_call.get("name", "")  # type: ignore[assignment]
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
+    ) -> ToolMessage | Command[Any]:
+        tool_name = request.tool_call.get("name", "")
         metadata = resolve_safety_metadata(tool_name)
 
         if metadata.is_concurrent_safe or request.tool_call.get("__smart_concurrent_safe__"):

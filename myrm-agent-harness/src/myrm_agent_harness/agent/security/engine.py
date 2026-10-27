@@ -52,9 +52,7 @@ def _wildcard_match(value: str, pattern: str) -> bool:
     return fnmatch(value, pattern)
 
 
-def evaluate(
-    permission: str, target: str, *rulesets: PermissionRuleset
-) -> PermissionRule:
+def evaluate(permission: str, target: str, *rulesets: PermissionRuleset) -> PermissionRule:
     """Resolve the effective rule for a (permission, target) pair.
 
     Uses **last-match-wins** semantics: later rulesets override earlier ones,
@@ -66,9 +64,7 @@ def evaluate(
     merged = merge(*rulesets)
     match: PermissionRule | None = None
     for rule in merged:
-        if _wildcard_match(permission, rule.permission) and _wildcard_match(
-            target, rule.pattern
-        ):
+        if _wildcard_match(permission, rule.permission) and _wildcard_match(target, rule.pattern):
             match = rule
     return match or PermissionRule(permission, "*", PermissionAction.ASK)
 
@@ -103,9 +99,7 @@ _TARGET_EXTRACTORS: dict[str, str] = {
     "file_write": "path",
 }
 
-_URL_BEARING_PERMISSIONS: frozenset[str] = frozenset(
-    {"web_fetch", "net_fetch", "browser_navigate"}
-)
+_URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
 _PATH_CHECKED_PERMISSIONS: frozenset[str] = frozenset({"file_read", "file_write"})
 
 
@@ -175,9 +169,7 @@ def _check_domain_policy(
     return PermissionAction.ASK, f"Domain '{hostname}' requires approval"
 
 
-def _resolve_target(
-    permission: str, tool_input: dict[str, object], *, tool_name: str | None = None
-) -> str:
+def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name: str | None = None) -> str:
     """Extract the target resource from tool_input for pattern matching.
 
     For URL-bearing permissions (``browser_navigate``, ``web_fetch``),
@@ -206,9 +198,7 @@ def _resolve_target(
     return raw
 
 
-def _governing_rule(
-    permission: str, target: str, ruleset: PermissionRuleset, tool_name: str | None
-) -> PermissionRule:
+def _governing_rule(permission: str, target: str, ruleset: PermissionRuleset, tool_name: str | None) -> PermissionRule:
     """The rule that decides *target*: the last matching rule of the tool's own name, else the last for the permission."""
     if tool_name and tool_name != permission:
         specific: PermissionRule | None = None
@@ -224,15 +214,11 @@ def _governing_rule(
     return evaluate(permission, target, ruleset)
 
 
-def _has_pattern_rules(
-    ruleset: PermissionRuleset, permission: str, tool_name: str | None
-) -> bool:
+def _has_pattern_rules(ruleset: PermissionRuleset, permission: str, tool_name: str | None) -> bool:
     """Whether a rule other than a blanket ``*`` could govern this call, so that the target text matters."""
     names = (permission, tool_name) if tool_name else (permission,)
     return any(
-        rule.pattern != "*"
-        and any(_wildcard_match(name, rule.permission) for name in names)
-        for rule in ruleset
+        rule.pattern != "*" and any(_wildcard_match(name, rule.permission) for name in names) for rule in ruleset
     )
 
 
@@ -248,9 +234,7 @@ def _rule_decision(
     def resolve(text: str) -> PermissionRule:
         return _governing_rule(permission, text, ruleset, tool_name)
 
-    if permission in COMMAND_BEARING_PERMISSIONS and _has_pattern_rules(
-        ruleset, permission, tool_name
-    ):
+    if permission in COMMAND_BEARING_PERMISSIONS and _has_pattern_rules(ruleset, permission, tool_name):
         return judge_command(target, resolve)
     return resolve(target).action, True
 
@@ -324,9 +308,7 @@ def evaluate_tool_call(
     if threat_action is not None:
         return threat_action, threat_reason
 
-    deny_action, deny_reason = check_command_denylist(
-        permission, tool_input, config.command_denylist
-    )
+    deny_action, deny_reason = check_command_denylist(permission, tool_input, config.command_denylist)
     if deny_action is not None:
         return deny_action, deny_reason
 
@@ -334,16 +316,12 @@ def evaluate_tool_call(
     if scheme_action is not None:
         return scheme_action, scheme_reason
 
-    block_action, block_reason = _check_domain_blocklist(
-        permission, tool_input, config.network_blocklist
-    )
+    block_action, block_reason = _check_domain_blocklist(permission, tool_input, config.network_blocklist)
     if block_action is not None:
         return block_action, block_reason
 
     target = _resolve_target(permission, tool_input, tool_name=tool_name)
-    result_action, classifier_may_allow = _rule_decision(
-        permission, target, config.ruleset, tool_name
-    )
+    result_action, classifier_may_allow = _rule_decision(permission, target, config.ruleset, tool_name)
 
     # Hardline rule: An explicit DENY from user/policy ruleset must never be weakened to ASK
     if result_action == PermissionAction.DENY:
@@ -353,26 +331,18 @@ def evaluate_tool_call(
         )
 
     if config.domain_hitl_enabled:
-        domain_action, domain_reason = _check_domain_policy(
-            permission, tool_input, config.network_allowlist
-        )
+        domain_action, domain_reason = _check_domain_policy(permission, tool_input, config.network_allowlist)
         if domain_action is not None:
             return domain_action, domain_reason
 
-    path_verdict = check_tool_path_policy(
-        permission, tool_input, config, workspace_root
-    )
+    path_verdict = check_tool_path_policy(permission, tool_input, config, workspace_root)
     if path_verdict is not None and path_verdict[0] in (
         PermissionAction.DENY,
         PermissionAction.ASK,
     ):
         return path_verdict
 
-    if (
-        result_action == PermissionAction.ASK
-        and classifier_may_allow
-        and permission in COMMAND_BEARING_PERMISSIONS
-    ):
+    if result_action == PermissionAction.ASK and classifier_may_allow and permission in COMMAND_BEARING_PERMISSIONS:
         from myrm_agent_harness.toolkits.code_execution.security.risk_classifier import (
             CommandRiskLevel,
             classify_command_risk,
@@ -433,9 +403,7 @@ def file_write_disabled(config: SecurityConfig | None) -> bool:
     return "file_write" in disabled_permissions(["file_write"], config.ruleset, config.capabilities)
 
 
-def extract_url_domains(
-    permission: str, tool_input: dict[str, object]
-) -> tuple[str, ...]:
+def extract_url_domains(permission: str, tool_input: dict[str, object]) -> tuple[str, ...]:
     """Extract hostnames from URL-bearing tool arguments.
 
     Returns a tuple of lowercased hostnames found in the tool's URL parameters.
