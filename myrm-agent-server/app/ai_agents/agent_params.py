@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.retriever.embedding.factory::EmbeddingConfig
 - myrm_agent_harness.toolkits.retriever.reranker.factory::RerankerConfig
 - myrm_agent_harness.toolkits.web_search::SearchServiceConfig
+- app.core.security.session_overlay::SecurityOverlaySpec
 - app.core.types::ChatHistoryReq, MCPServerConfig, ModelConfig
 
 [OUTPUT]
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfi
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 from pydantic import BaseModel, Field
 
+from app.core.security.session_overlay import SecurityOverlaySpec
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 
 
@@ -169,6 +171,7 @@ class GeneralAgentParams(BaseAgentParams):
     agent_skill_ids: list[str] = []
     agent_skill_configs: dict[str, dict] | None = None
     security_config_raw: dict[str, object] | None = None
+    security_overlay: SecurityOverlaySpec | None = None
     agent_security_raw: dict[str, object] | None = None
     channel_name: str = "web_chat"
     memory_channel_id: str | None = None

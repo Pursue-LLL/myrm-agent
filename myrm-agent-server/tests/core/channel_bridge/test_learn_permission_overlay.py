@@ -6,14 +6,14 @@ from app.core.channel_bridge.learn_handler import (
     apply_learn_skill_manage_permission_overlay,
     learn_authoring_prompt_text,
 )
-from app.services.agent.params.converter import _apply_session_preset
+from app.core.security.session_overlay import apply_session_preset
 
 _LEARN_PROMPT = '[/learn] The user wants you to learn a reusable skill\n3. Save it with the `skill_manage_tool` (action="save").'
 
 
 def test_learn_overlay_elevates_skill_manage_over_explore_preset() -> None:
     base: dict[str, object] = {"permissions": {"*": "allow", "skill_manage": "ask"}}
-    explore = _apply_session_preset(base, "explore")
+    explore = apply_session_preset(base, "explore")
     assert isinstance(explore, dict)
     permissions = explore.get("permissions")
     assert isinstance(permissions, dict)

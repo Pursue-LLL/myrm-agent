@@ -11,7 +11,7 @@ existing `skill_manage_tool` tool.
 [OUTPUT]
 - ChannelLearnCommandHandler: LearnCommandHandler protocol implementation
 - parse_learn_slash_args / rewrite_learn_query_if_needed: raw `/learn` detection and SSOT prompt rewrite (WebUI + channel)
-- apply_learn_skill_manage_permission_overlay: per-turn skill_manage ASK elevation for learn authoring
+- apply_learn_skill_manage_permission_overlay / elevate_skill_manage_permission: per-turn skill_manage ASK elevation for learn authoring
 - learn_authoring_prompt_text / is_learn_skill_authoring_prompt: force_skill_manage gate helpers
 
 [POS]
@@ -207,6 +207,11 @@ def apply_learn_skill_manage_permission_overlay(
     """
     if learn_authoring_prompt_text(query) is None:
         return security_config
+    return elevate_skill_manage_permission(security_config)
+
+
+def elevate_skill_manage_permission(security_config: dict[str, object] | None) -> dict[str, object]:
+    """Return *security_config* with ``skill_manage`` set to ASK."""
     merged = dict(security_config) if security_config else {}
     raw_permissions = merged.get("permissions")
     permissions: dict[str, object] = (

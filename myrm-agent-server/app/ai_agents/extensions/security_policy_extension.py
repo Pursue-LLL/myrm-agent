@@ -134,14 +134,20 @@ class SecurityPolicyExtension(AgentExtension):
 
 
 async def sync_wrapper_security_from_store(agent_wrapper: "GeneralAgent") -> None:
-    """Reload persisted securityConfig onto the wrapper before each stream turn."""
+    """Reload persisted securityConfig onto the wrapper before each stream turn.
+
+    The request's own overlays (session preset, remote admission, /learn authoring) are layered back on top,
+    so a saved config takes effect mid-session without loosening them.
+    """
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.core.channel_bridge.config_loader import load_user_configs
 
     invalidate_user_configs_cache()
     configs = await load_user_configs()
     if configs and configs.security_config_dict is not None:
-        agent_wrapper.security_config_raw = dict(configs.security_config_dict)
+        stored = dict(configs.security_config_dict)
+        overlay = agent_wrapper.security_overlay
+        agent_wrapper.security_config_raw = overlay.apply(stored) if overlay is not None else stored
 
 
 def refresh_wrapper_security_config(agent_wrapper: "GeneralAgent") -> None:

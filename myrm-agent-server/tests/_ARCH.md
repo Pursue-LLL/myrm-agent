@@ -334,6 +334,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
 | `api/agent/test_workspace_rules_e2e.py` | 模块 | Workspace rules First-Match-Wins 真实 LLM E2E（`@pytest.mark.e2e` + `asyncio`：AGENTS.md > .cursorrules；规则注入 harness workspace 真实路径；async SSE 收集 + auto-approve resume 循环；断言依赖规则遵守 → 使用更强 LITE_MODEL；默认套件 deselect） |
 | `api/agent/test_workspace_boundary_approval_e2e.py` | 模块 | Workspace 边界确定性路径策略（`PathPolicy` 外部写文件 → ASK，无 LLM）+ 越界文件访问审批 LLM E2E（`@pytest.mark.e2e`；LLM 类默认 skip：flaky + PathPolicy 已由确定性用例覆盖） |
+| `core/security/test_session_overlay.py` | 模块 | 请求级安全覆盖：会话预设（accept_edits / explore 逐权限合并、hitl 与未知预设原样返回）· `SecurityOverlaySpec`（空规格为恒等、预设拒绝已保存配置放行的工具、远程暴露拒绝并关闭 YOLO、本地可信请求不改配置、/learn 授权抬升被预设拒绝的 skill_manage、三层覆盖顺序、JSON 往返、不可变） |
 | `core/security/test_workspace_boundary_batch_approval.py` | 模块 | 确定性 workspace 边界批量审批（`evaluate_tool_batch`：越界 `file_write` → pending 不自动执行，无 LLM） |
 | `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
 | `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + `turn-lock-status` 只读查询（锁定/解锁/释放后 + 400/404 门控）+ 边界校验（400/404 门控） |
@@ -379,6 +380,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/params/test_converter_retry_ladder.py` | 模块 | converter 经真实路由验证重试（complaint-up）每次爬升都换一个不同模型：廉价主模型跳过与自身相同的 light 档、昂贵主模型首次重试仍从 light 升到主模型、无更强档位时不谎称升级（`retry_floor_held`）且不降档、同模型更高 reasoning_effort 算真实升级、非重试回合的动量与档位记录不受影响、被重试的回答未记档位（fast 模式 / 固定模型）时以主模型为基线而非更早的路由回合 |
 | `api/agent/test_last_turn_routing_tier.py` | 模块 | 真实消息表上重试基线的取值：被重试回合最新一条记了档位的回答（回合末尾的后台完成 / 语音任务通知、无 `extra_data` 行不遮蔽它、早先回合的档位不顶替未记档位的回答、已被重试置为非活跃的回答照常读取、非字符串值忽略、specialty 值原样返回）· 与 `deactivate_last_assistant_siblings` 在时间戳相同时选中同一批行 · 重试不碰系统通知行（保持活跃、不入版本组、版本数只数回答、交给 agent 的历史仍含通知、只有标记为 true 才豁免）· `load_retry_baseline` 到 `complaint_floor` 的端到端爬升 |
 | `services/agent/params/test_converter_deep_research_routing.py` | 模块 | 深度研究的路由：SIMPLE / STANDARD 判定被丢弃（规划/报告保持默认模型及其 fallback，不记档位与原因）；REASONING 升档照常并记录档位；同一 query 在其他模式仍走 light；对该次运行重试会升到 reasoning 模型 |
+| `services/agent/params/test_agent_request_security_preset.py` | 模块 | `AgentRequest.security_preset` 字段校验：合法预设被接受、非法预设被拒、缺省为 None |
 | `services/agent/params/test_resolvers_secret_logging.py` | 模块 | 模型配置解析日志不含 provider 密钥，且仍记录解析动作（防空断言） |
 | `services/statistics/test_usage_aggregation_savings.py` | 模块 | 路由省钱估算：按 token 加权的金标准值、路由更贵/标准档样本不足/无标准档 token 时隐藏、`aggregate_usage` 端到端 |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |

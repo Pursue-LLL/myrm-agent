@@ -163,6 +163,7 @@ class AgentFactory:
             skill_configs=params.agent_skill_configs,
             fetch_raw_webpage=params.fetch_raw_webpage,
             security_config_raw=params.security_config_raw,
+            security_overlay=params.security_overlay,
             agent_security_raw=params.agent_security_raw,
             channel_name=params.channel_name,
             memory_channel_id=params.memory_channel_id,

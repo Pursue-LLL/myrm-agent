@@ -1,6 +1,16 @@
-"""Tests for SecurityPolicyExtension — custom PII fields passthrough."""
+"""Tests for SecurityPolicyExtension — custom PII fields passthrough and per-turn store sync."""
 
-from app.ai_agents.extensions.security_policy_extension import SecurityPolicyExtension
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
+from myrm_agent_harness.agent.security.engine import evaluate_tool_call
+from myrm_agent_harness.agent.security.types import PermissionAction
+
+from app.ai_agents.extensions.security_policy_extension import (
+    SecurityPolicyExtension,
+    sync_wrapper_security_from_store,
+)
+from app.core.security.session_overlay import SecurityOverlaySpec
 
 
 class TestCustomPiiFieldsInit:
@@ -163,3 +173,71 @@ class TestAgentYoloSecurityMerge:
         )
         built = ext._build_security_config()
         assert built.yolo_mode_enabled is True
+
+
+_SAVED_PERMISSIVE: dict[str, object] = {
+    "yoloModeEnabled": False,
+    "permissions": {"*": "allow", "file_edit": "allow", "invoke_external_agent": "allow"},
+}
+
+
+def _enforced_action(raw: dict[str, object] | None, tool: str, tool_input: dict[str, object]) -> PermissionAction:
+    ext = SecurityPolicyExtension(
+        privacy_enabled=False,
+        privacy_s2_action="warn",
+        privacy_s3_action="redact",
+        channel_name="web_chat",
+        security_config_raw=raw or {},
+        agent_security_raw={},
+        declared_capabilities=[],
+        declared_allowed_roots=[],
+    )
+    action, _ = evaluate_tool_call(tool, tool_input, ext._build_security_config())
+    return action
+
+
+async def _sync(wrapper: SimpleNamespace, stored: dict[str, object] | None) -> None:
+    loaded = SimpleNamespace(security_config_dict=stored)
+    with patch("app.core.channel_bridge.config_loader.load_user_configs", new=AsyncMock(return_value=loaded)):
+        await sync_wrapper_security_from_store(wrapper)  # type: ignore[arg-type]
+
+
+class TestPerTurnStoreSyncKeepsRequestOverlays:
+    """A saved securityConfig is reloaded every turn; it must not loosen the request's own overlays."""
+
+    _EDIT = {"path": "/tmp/probe.txt", "old_string": "a", "new_string": "b"}
+
+    async def test_explore_preset_still_denies_edits_after_sync(self) -> None:
+        wrapper = SimpleNamespace(security_config_raw=None, security_overlay=SecurityOverlaySpec(preset="explore"))
+        await _sync(wrapper, _SAVED_PERMISSIVE)
+        assert _enforced_action(wrapper.security_config_raw, "file_edit", self._EDIT) is PermissionAction.DENY
+
+    async def test_remote_exposed_request_still_denies_external_agents_after_sync(self) -> None:
+        overlay = SecurityOverlaySpec(trust_zone="remote_exposed", admission_path="tunnel")
+        wrapper = SimpleNamespace(security_config_raw=None, security_overlay=overlay)
+        await _sync(wrapper, _SAVED_PERMISSIVE)
+        assert _enforced_action(wrapper.security_config_raw, "invoke_external_agent", {}) is PermissionAction.DENY
+
+    async def test_remote_exposed_request_keeps_yolo_off_when_settings_turn_it_on_mid_session(self) -> None:
+        overlay = SecurityOverlaySpec(trust_zone="remote_exposed", admission_path="tunnel")
+        wrapper = SimpleNamespace(security_config_raw=None, security_overlay=overlay)
+        await _sync(wrapper, {"yoloModeEnabled": True})
+        assert wrapper.security_config_raw is not None
+        assert wrapper.security_config_raw["yoloModeEnabled"] is False
+
+    async def test_settings_change_still_applies_mid_session(self) -> None:
+        wrapper = SimpleNamespace(security_config_raw=None, security_overlay=SecurityOverlaySpec(preset="accept_edits"))
+        await _sync(wrapper, {"yoloModeEnabled": True, "permissions": {"shell_exec": "deny"}})
+        assert wrapper.security_config_raw is not None
+        assert wrapper.security_config_raw["yoloModeEnabled"] is True
+
+    async def test_wrapper_without_overlay_takes_the_stored_config_as_is(self) -> None:
+        wrapper = SimpleNamespace(security_config_raw=None, security_overlay=None)
+        await _sync(wrapper, _SAVED_PERMISSIVE)
+        assert wrapper.security_config_raw == _SAVED_PERMISSIVE
+
+    async def test_nothing_saved_leaves_the_build_time_config_untouched(self) -> None:
+        built: dict[str, object] = {"permissions": {"file_edit": "deny"}}
+        wrapper = SimpleNamespace(security_config_raw=built, security_overlay=SecurityOverlaySpec(preset="explore"))
+        await _sync(wrapper, None)
+        assert wrapper.security_config_raw is built

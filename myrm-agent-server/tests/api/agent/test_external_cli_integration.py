@@ -95,7 +95,7 @@ def test_agent_stream_external_cli_on_mounts_delegate_when_backends_exist(
 @pytest.mark.e2e
 def test_explore_security_preset_denies_invoke_external_in_merged_config() -> None:
     """Lane-C regression: explore preset must deny invoke_external_agent (readonly-class bug)."""
-    from app.services.agent.params.converter import _apply_session_preset
+    from app.core.security.session_overlay import apply_session_preset
 
     base: dict[str, object] = {
         "permissions": {
@@ -103,7 +103,7 @@ def test_explore_security_preset_denies_invoke_external_in_merged_config() -> No
             "invoke_external_agent": "allow",
         }
     }
-    merged = _apply_session_preset(base, "explore")
+    merged = apply_session_preset(base, "explore")
     assert isinstance(merged, dict)
     permissions = merged.get("permissions")
     assert isinstance(permissions, dict)

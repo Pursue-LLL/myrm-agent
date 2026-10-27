@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 from app.core.memory.adapters.setup import resolve_context_binding
 from app.core.memory.adapters.types import ResolvedContextBinding
+from app.core.security.session_overlay import SecurityOverlaySpec
 from app.core.types import MCPServerConfig, ModelConfig
 
 from .compression_intent import build_compression_intent
@@ -121,6 +122,7 @@ class GeneralAgent(ToolSetupMixin):
         fetch_raw_webpage: bool = False,
         enable_memory: bool = True,
         security_config_raw: dict[str, object] | None = None,
+        security_overlay: SecurityOverlaySpec | None = None,
         agent_security_raw: dict[str, object] | None = None,
         channel_name: str = "web_chat",
         providers_dict: dict[str, object] | None = None,
@@ -237,6 +239,7 @@ class GeneralAgent(ToolSetupMixin):
         self.fetch_raw_webpage = fetch_raw_webpage
         self.enable_memory = enable_memory
         self.security_config_raw = security_config_raw
+        self.security_overlay = security_overlay
         self.agent_security_raw = agent_security_raw
         self.channel_name = channel_name
         self.memory_channel_id = memory_channel_id

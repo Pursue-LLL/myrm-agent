@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryW
 from app.ai_agents import GeneralAgentParams
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.security.privacy_settings import resolve_privacy_params
+from app.core.security.session_overlay import SecurityOverlaySpec
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.services.agent.moa_preset_resolver import (
     apply_moa_preset_activation,
@@ -66,78 +67,6 @@ __all__ = [
     "convert_to_general_agent_params",
     "prevalidate_archive_restore_actions",
 ]
-
-
-_PRESET_OVERLAYS: dict[str, dict[str, object]] = {
-    "accept_edits": {
-        "permissions": {
-            "*": "allow",
-            "shell_exec": "ask",
-            "code_interpreter": "ask",
-            "browser_evaluate": "deny",
-            "browser_upload": "ask",
-            "browser_download": "ask",
-            "browser_fill": "ask",
-            "skill_manage": "ask",
-            "cron_manage": "ask",
-            "mcp_invoke": "ask",
-            "spawn_subagent": "allow",
-            "invoke_external_agent": "ask",
-        },
-        "autoModeEnabled": True,
-    },
-    "explore": {
-        "permissions": {
-            "*": "allow",
-            "file_write": "deny",
-            "file_edit": "deny",
-            "file_delete": "deny",
-            "shell_exec": "deny",
-            "code_interpreter": "deny",
-            "browser_evaluate": "deny",
-            "browser_fill": "deny",
-            "browser_upload": "deny",
-            "browser_download": "deny",
-            "skill_manage": "deny",
-            "cron_manage": "deny",
-            "mcp_invoke": "ask",
-            "spawn_subagent": "allow",
-            "invoke_external_agent": "deny",
-        },
-    },
-}
-
-
-def _apply_session_preset(
-    base: dict[str, object] | None,
-    preset: str | None,
-) -> dict[str, object] | None:
-    """Merge a chat-session security preset overlay onto the base config dict.
-
-    When *preset* is ``None`` or ``"hitl"``, the base config is returned
-    unchanged (HITL is the default — every tool call requires approval).
-
-    The ``permissions`` key is merged at the individual permission level
-    (not replaced wholesale) so that base deny rules are preserved unless
-    the preset explicitly overrides them.
-    """
-    if not preset or preset == "hitl":
-        return base
-    overlay = _PRESET_OVERLAYS.get(preset)
-    if overlay is None:
-        return base
-    if base is None:
-        return dict(overlay)
-    merged = dict(base)
-    for key, value in overlay.items():
-        if key == "permissions" and isinstance(value, dict):
-            base_perms = merged.get("permissions")
-            merged_perms = dict(base_perms) if isinstance(base_perms, dict) else {}
-            merged_perms.update(value)
-            merged["permissions"] = merged_perms
-        else:
-            merged[key] = value
-    return merged
 
 
 async def convert_to_general_agent_params(
@@ -681,17 +610,12 @@ async def convert_to_general_agent_params(
     )
 
     security_config_dict = configs.security_config_dict if configs else None
-
-    security_config_dict = _apply_session_preset(security_config_dict, request.security_preset)
-
-    if http_request is not None:
-        from app.remote_access.tool_policy import merge_remote_security_overlay
-
-        security_config_dict = merge_remote_security_overlay(
-            security_config_dict,
-            trust_zone=getattr(http_request.state, "trust_zone", None),
-            admission_path=getattr(http_request.state, "admission_path", None),
-        )
+    request_state = http_request.state if http_request is not None else None
+    security_overlay = SecurityOverlaySpec(
+        preset=request.security_preset,
+        trust_zone=getattr(request_state, "trust_zone", None),
+        admission_path=getattr(request_state, "admission_path", None),
+    )
 
     external_agents_config = None
     if configs and configs.external_agents_dict:
@@ -1037,7 +961,7 @@ async def convert_to_general_agent_params(
             logger.warning("Failed to inject mentioned agents directive: %s", e)
 
     from app.core.channel_bridge.learn_handler import (
-        apply_learn_skill_manage_permission_overlay,
+        learn_authoring_prompt_text,
         rewrite_learn_query_if_needed,
     )
 
@@ -1067,10 +991,10 @@ async def convert_to_general_agent_params(
     except Exception:
         pass
 
-    security_config_dict = apply_learn_skill_manage_permission_overlay(
-        security_config_dict,
-        query=final_query,
+    security_overlay = security_overlay.model_copy(
+        update={"learn_authoring": learn_authoring_prompt_text(final_query) is not None}
     )
+    security_config_dict = security_overlay.apply(security_config_dict)
 
     declared_caps = _declared_capabilities(security_config_dict, agent_security_raw)
 
@@ -1221,6 +1145,7 @@ async def convert_to_general_agent_params(
         agent_skill_configs=agent_skill_configs,
         subagent_ids=agent_subagent_ids,
         security_config_raw=security_config_dict,
+        security_overlay=security_overlay,
         agent_security_raw=agent_security_raw,
         timezone=request.timezone,
         reasoning_display_mode=reasoning_display_mode,
