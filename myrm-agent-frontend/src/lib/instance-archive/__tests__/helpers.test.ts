@@ -29,6 +29,11 @@ describe('reentryGroups', () => {
     expect(reentryGroups(['config:externalAgents'])).toEqual(['modelKeys']);
   });
 
+  it('files the speech keys with the model keys and the remote backup password with the saved secrets', () => {
+    expect(reentryGroups(['config:voice'])).toEqual(['modelKeys']);
+    expect(reentryGroups(['config:backupSync'])).toEqual(['savedSecrets']);
+  });
+
   it('sends unknown credential rows to connected accounts and never leaks identifiers', () => {
     expect(reentryGroups(['config:telegramCredentials', 'table:something_new'])).toEqual(['connectedAccounts']);
     expect(reentryGroups(['path:.myrm/credentials.json'])).toEqual(['savedSecrets']);
