@@ -1977,7 +1977,8 @@
       "readPermissionRemember": "You will not be asked again once you allow it.",
       "readPermissionAllow": "Allow",
       "readPermissionDeny": "Deny"
-    }
+    },
+    "diffTooLarge": "This change is too large to compare line by line. Before: {oldLines, plural, one {# line} other {# lines}}, after: {newLines, plural, one {# line} other {# lines}}."
   },
   "chat": {
     "specialtyRouting": {

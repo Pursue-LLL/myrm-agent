@@ -241,7 +241,6 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
           ) : showDiff && snapshot !== null ? (
             <InlineWorkspaceDiff
               file={file}
-              workspace={workspace}
               originalContent={snapshot.content}
               modifiedContent={editor.draft}
               onClose={() => setShowDiff(false)}

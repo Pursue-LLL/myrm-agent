@@ -68,13 +68,94 @@ export function parseUnifiedDiff(diff: string): ParsedDiff {
   }
 
   const lines = diff.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  // The newline that ends a diff leaves one empty piece behind; it is not a line of the diff.
+  if (lines[lines.length - 1] === '') {
+    lines.pop();
+  }
   const result = createEmptyParsedDiff();
 
   let currentHunk: DiffHunk | null = null;
   let oldLineNumber = 0;
   let newLineNumber = 0;
+  // Lines the hunk header still promises on each side. While any are left every line is content, whatever it
+  // starts with: a removed `---` or an added `++i;` must not be taken for a file header.
+  let oldLeft = 0;
+  let newLeft = 0;
+
+  const addHunkLine = (hunk: DiffHunk, line: string): void => {
+    if (line.startsWith('+')) {
+      hunk.lines.push({
+        type: 'addition',
+        content: line.slice(1),
+        oldLineNumber: null,
+        newLineNumber: newLineNumber++,
+      });
+      result.additions++;
+      newLeft--;
+    } else if (line.startsWith('-')) {
+      hunk.lines.push({
+        type: 'deletion',
+        content: line.slice(1),
+        oldLineNumber: oldLineNumber++,
+        newLineNumber: null,
+      });
+      result.deletions++;
+      oldLeft--;
+    } else if (line.startsWith(' ') || line === '') {
+      hunk.lines.push({
+        type: 'context',
+        content: line.slice(1) || '',
+        oldLineNumber: oldLineNumber++,
+        newLineNumber: newLineNumber++,
+      });
+      oldLeft--;
+      newLeft--;
+    }
+    // Anything else, such as "\ No newline at end of file", is not a line of the file.
+  };
 
   for (const line of lines) {
+    // A new file always starts with `diff --git`, which no content line can (they all carry a prefix).
+    if (line.startsWith('diff --git')) {
+      oldLeft = 0;
+      newLeft = 0;
+    }
+
+    if (line.startsWith('@@')) {
+      if (currentHunk) {
+        result.hunks.push(currentHunk);
+        currentHunk = null;
+      }
+
+      const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+      if (match) {
+        currentHunk = {
+          oldStart: parseInt(match[1], 10),
+          oldLines: parseInt(match[2] || '1', 10),
+          newStart: parseInt(match[3], 10),
+          newLines: parseInt(match[4] || '1', 10),
+          lines: [],
+        };
+        oldLineNumber = currentHunk.oldStart;
+        newLineNumber = currentHunk.newStart;
+        oldLeft = currentHunk.oldLines;
+        newLeft = currentHunk.newLines;
+
+        currentHunk.lines.push({
+          type: 'header',
+          content: line,
+          oldLineNumber: null,
+          newLineNumber: null,
+        });
+      }
+      continue;
+    }
+
+    if (currentHunk && (oldLeft > 0 || newLeft > 0)) {
+      addHunkLine(currentHunk, line);
+      continue;
+    }
+
     if (line.startsWith('diff --git')) {
       const match = line.match(/diff --git a\/(.+) b\/(.+)/);
       if (match) {
@@ -118,58 +199,9 @@ export function parseUnifiedDiff(diff: string): ParsedDiff {
       continue;
     }
 
-    if (line.startsWith('@@')) {
-      if (currentHunk) {
-        result.hunks.push(currentHunk);
-      }
-
-      const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
-      if (match) {
-        currentHunk = {
-          oldStart: parseInt(match[1], 10),
-          oldLines: parseInt(match[2] || '1', 10),
-          newStart: parseInt(match[3], 10),
-          newLines: parseInt(match[4] || '1', 10),
-          lines: [],
-        };
-        oldLineNumber = currentHunk.oldStart;
-        newLineNumber = currentHunk.newStart;
-
-        currentHunk.lines.push({
-          type: 'header',
-          content: line,
-          oldLineNumber: null,
-          newLineNumber: null,
-        });
-      }
-      continue;
-    }
-
+    // Past the counts the header gave: diffs whose counts are wrong still show every line they carry.
     if (currentHunk) {
-      if (line.startsWith('+')) {
-        currentHunk.lines.push({
-          type: 'addition',
-          content: line.slice(1),
-          oldLineNumber: null,
-          newLineNumber: newLineNumber++,
-        });
-        result.additions++;
-      } else if (line.startsWith('-')) {
-        currentHunk.lines.push({
-          type: 'deletion',
-          content: line.slice(1),
-          oldLineNumber: oldLineNumber++,
-          newLineNumber: null,
-        });
-        result.deletions++;
-      } else if (line.startsWith(' ') || line === '') {
-        currentHunk.lines.push({
-          type: 'context',
-          content: line.slice(1) || '',
-          oldLineNumber: oldLineNumber++,
-          newLineNumber: newLineNumber++,
-        });
-      }
+      addHunkLine(currentHunk, line);
     }
   }
 

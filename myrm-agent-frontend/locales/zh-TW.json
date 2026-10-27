@@ -1977,7 +1977,8 @@
       "readPermissionRemember": "允許後將不再提示。",
       "readPermissionAllow": "允許",
       "readPermissionDeny": "拒絕"
-    }
+    },
+    "diffTooLarge": "變更太大，無法逐行比對。修改前 {oldLines, number} 行，修改後 {newLines, number} 行。"
   },
   "chat": {
     "specialtyRouting": {

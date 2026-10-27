@@ -1977,7 +1977,8 @@
       "readPermissionRemember": "Nach der Zustimmung werden Sie nicht erneut gefragt.",
       "readPermissionAllow": "Zulassen",
       "readPermissionDeny": "Ablehnen"
-    }
+    },
+    "diffTooLarge": "Die Änderung ist zu groß für einen zeilenweisen Vergleich. Vorher: {oldLines, plural, one {# Zeile} other {# Zeilen}}, nachher: {newLines, plural, one {# Zeile} other {# Zeilen}}."
   },
   "chat": {
     "specialtyRouting": {

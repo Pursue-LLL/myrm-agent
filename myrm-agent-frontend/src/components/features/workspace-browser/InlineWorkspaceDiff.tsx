@@ -5,71 +5,37 @@
  *
  * [INPUT]
  * - file: FileEntry
- * - workspace: string (workspace root)
- * - originalContent: string | null (基线内容，如原始或上一个已存版本)
- * - modifiedContent: string | null (当前改动内容)
+ * - originalContent: string (基线内容，即磁盘上已存的版本)
+ * - modifiedContent: string (当前改动内容，即编辑中的草稿)
  * - onClose: () => void
+ * - lib/diff/TextDiffViewer (POS: 文本 old/new 对比，带耗时上限)
  *
  * [OUTPUT]
- * - InlineWorkspaceDiff: 使用 DiffViewer 渲染的内嵌 Diff 面板
+ * - InlineWorkspaceDiff: 带文件名标题与关闭按钮的内嵌 Diff 面板
  *
  * [POS]
- * workspace-browser 模块的内嵌代码变更审查组件。
+ * workspace-browser 模块的内嵌代码变更审查组件；对比本身交给共享的 TextDiffViewer。
  */
 
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, GitCommit } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { DiffViewer } from '@/lib/diff/DiffViewer';
+import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import type { FileEntry } from '@/services/chat';
 import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 
 interface InlineWorkspaceDiffProps {
   file: FileEntry;
-  workspace: string;
   originalContent: string;
   modifiedContent: string;
   onClose: () => void;
   className?: string;
 }
 
-function createUnifiedDiffText(filename: string, oldText: string, newText: string): string {
-  const oldLines = oldText.split('\n');
-  const newLines = newText.split('\n');
-
-  const diffHeader = [`--- a/${filename}`, `+++ b/${filename}`, `@@ -1,${oldLines.length} +1,${newLines.length} @@`];
-
-  const body: string[] = [];
-  const max = Math.max(oldLines.length, newLines.length);
-
-  for (let i = 0; i < max; i++) {
-    const o = oldLines[i];
-    const n = newLines[i];
-    if (o === n) {
-      if (o !== undefined) {
-        body.push(` ${o}`);
-      }
-    } else {
-      if (o !== undefined) {
-        body.push(`-${o}`);
-      }
-      if (n !== undefined) {
-        body.push(`+${n}`);
-      }
-    }
-  }
-
-  return [...diffHeader, ...body].join('\n');
-}
-
 export const InlineWorkspaceDiff: React.FC<InlineWorkspaceDiffProps> = memo(
   ({ file, originalContent, modifiedContent, onClose, className }) => {
     const t = useTranslations('workspace');
-
-    const generatedDiff = useMemo(() => {
-      return createUnifiedDiffText(file.name, originalContent, modifiedContent);
-    }, [file.name, originalContent, modifiedContent]);
 
     return (
       <div
@@ -93,7 +59,7 @@ export const InlineWorkspaceDiff: React.FC<InlineWorkspaceDiffProps> = memo(
         </div>
 
         <div className="flex-1 overflow-auto p-2">
-          <DiffViewer diff={generatedDiff} filePath={file.path} defaultViewMode="unified" embedded />
+          <TextDiffViewer oldValue={originalContent} newValue={modifiedContent} filePath={file.path} maxHeight="none" />
         </div>
       </div>
     );

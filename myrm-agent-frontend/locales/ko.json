@@ -1977,7 +1977,8 @@
       "readPermissionRemember": "허용하면 다시 묻지 않습니다.",
       "readPermissionAllow": "허용",
       "readPermissionDeny": "거부"
-    }
+    },
+    "diffTooLarge": "변경 내용이 너무 커서 줄 단위로 비교할 수 없습니다. 변경 전 {oldLines, number}줄, 변경 후 {newLines, number}줄."
   },
   "chat": {
     "specialtyRouting": {

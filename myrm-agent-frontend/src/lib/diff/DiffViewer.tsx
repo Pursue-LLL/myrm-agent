@@ -121,7 +121,9 @@ const UnifiedDiffLine: React.FC<{
   if (line.type === 'header') {
     return (
       <div className={cn('flex font-mono text-xs', bgClass)}>
-        <span className="w-16 text-center py-0.5 text-blue-600 dark:text-blue-400 font-medium">{line.content}</span>
+        <span className="px-2 py-0.5 whitespace-nowrap text-blue-600 dark:text-blue-400 font-medium">
+          {line.content}
+        </span>
       </div>
     );
   }

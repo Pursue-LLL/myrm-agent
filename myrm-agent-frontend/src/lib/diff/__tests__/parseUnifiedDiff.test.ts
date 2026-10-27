@@ -118,6 +118,98 @@ describe('parseUnifiedDiff', () => {
     expect(parsed.newFilePath).toBe('new.py');
     expect(parsed.filePath).toBe('new.py');
   });
+
+  describe('hunk bodies', () => {
+    const rows = (diff: string) => parseUnifiedDiff(diff).hunks[0]?.lines.map((line) => [line.type, line.content]);
+
+    it('does not turn the newline that ends the diff into a context row', () => {
+      const diff = ['--- a/a.txt', '+++ b/a.txt', '@@ -1,2 +1,2 @@', '-old', '+new', ' same', ''].join('\n');
+
+      expect(rows(diff)).toEqual([
+        ['header', '@@ -1,2 +1,2 @@'],
+        ['deletion', 'old'],
+        ['addition', 'new'],
+        ['context', 'same'],
+      ]);
+    });
+
+    it('keeps a removed "---" line, which reads like a file header but is content', () => {
+      const diff = ['--- a/doc.md', '+++ b/doc.md', '@@ -1,3 +1,2 @@', ' intro', '----', ' outro', ''].join('\n');
+
+      expect(parseUnifiedDiff(diff).deletions).toBe(1);
+      expect(rows(diff)).toContainEqual(['deletion', '---']);
+    });
+
+    it('keeps an added "++i;" line, which reads like a file header but is content', () => {
+      const diff = ['--- a/a.c', '+++ b/a.c', '@@ -1,1 +1,2 @@', ' a', '+++i;', ''].join('\n');
+
+      expect(parseUnifiedDiff(diff).additions).toBe(1);
+      expect(rows(diff)).toContainEqual(['addition', '++i;']);
+    });
+
+    it('keeps a context line that merely mentions binary files', () => {
+      const diff = [
+        '--- a/notes.md',
+        '+++ b/notes.md',
+        '@@ -1,2 +1,2 @@',
+        ' Binary files differ',
+        '-old',
+        '+new',
+        '',
+      ].join('\n');
+
+      const parsed = parseUnifiedDiff(diff);
+
+      expect(parsed.isBinary).toBe(false);
+      expect(rows(diff)).toContainEqual(['context', 'Binary files differ']);
+    });
+
+    it('still reads the file headers of a second file once the first hunk is complete', () => {
+      const diff = [
+        'diff --git a/a.txt b/a.txt',
+        '--- a/a.txt',
+        '+++ b/a.txt',
+        '@@ -1 +1 @@',
+        '-a',
+        '+b',
+        'diff --git a/c.txt b/c.txt',
+        '--- a/c.txt',
+        '+++ b/c.txt',
+        '@@ -1 +1 @@',
+        '-c',
+        '+d',
+        '',
+      ].join('\n');
+
+      const parsed = parseUnifiedDiff(diff);
+
+      expect(parsed.hunks).toHaveLength(2);
+      expect(parsed.deletions).toBe(2);
+      expect(parsed.additions).toBe(2);
+      expect(parsed.filePath).toBe('c.txt');
+    });
+
+    it('does not count a "no newline" marker as a line of the hunk', () => {
+      const diff = ['--- a/a.txt', '+++ b/a.txt', '@@ -1 +1 @@', '-a', '\\ No newline at end of file', '+b', ''].join(
+        '\n',
+      );
+
+      expect(rows(diff)).toEqual([
+        ['header', '@@ -1 +1 @@'],
+        ['deletion', 'a'],
+        ['addition', 'b'],
+      ]);
+    });
+
+    it('keeps every line of a hunk whose header counts fewer lines than the body has', () => {
+      const diff = ['--- a/a.txt', '+++ b/a.txt', '@@ -1,1 +1,1 @@', '-a', '+b', '-c', '+d', ''].join('\n');
+
+      const parsed = parseUnifiedDiff(diff);
+
+      expect(parsed.deletions).toBe(2);
+      expect(parsed.additions).toBe(2);
+    });
+  });
 });
 
 describe('buildSplitPairs', () => {

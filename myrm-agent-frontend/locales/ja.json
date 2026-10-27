@@ -1977,7 +1977,8 @@
       "readPermissionRemember": "許可すると、次回からは確認されません。",
       "readPermissionAllow": "許可",
       "readPermissionDeny": "拒否"
-    }
+    },
+    "diffTooLarge": "変更が大きすぎるため、行ごとの比較はできません。変更前 {oldLines, number} 行、変更後 {newLines, number} 行。"
   },
   "chat": {
     "specialtyRouting": {
