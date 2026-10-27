@@ -20,6 +20,13 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
+if TYPE_CHECKING:
+    from pathspec import PathSpec
+    from pathspec.pattern import Pattern
 
 # Directories skipped while assembling search candidates. A skip here costs
 # search recall only, so this list may be broader than a security sweep's.
@@ -86,18 +93,10 @@ def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> 
         pathspec = "." if str(relative_root) in {"", "."} else relative_root.as_posix()
 
         ls_files = subprocess.run(
-            [
-                "git",
-                "-C",
-                str(repo_root),
-                "ls-files",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-                "-z",
-                "--",
-                pathspec,
-            ],
+            hardened_git_argv(
+                ("ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", pathspec),
+                repo_dir=repo_root,
+            ),
             capture_output=True,
             timeout=timeout_seconds,
             check=False,
@@ -118,7 +117,7 @@ def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> 
         return None
 
 
-def _load_root_ignore_spec(search_root: Path):
+def _load_root_ignore_spec(search_root: Path) -> PathSpec[Pattern] | None:
     """Load root ignore patterns for non-git fallback, or None."""
     try:
         import pathspec

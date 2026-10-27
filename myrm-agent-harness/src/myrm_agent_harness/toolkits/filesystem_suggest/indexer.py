@@ -19,6 +19,8 @@ import threading
 import time
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL_SECONDS = 5.0
@@ -104,16 +106,10 @@ class WorkspacePathIndexer:
 
             repo_top = Path(top_result.stdout.decode("utf-8", "replace").strip()).resolve()
             list_result = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(repo_top),
-                    "ls-files",
-                    "-z",
-                    "--cached",
-                    "--others",
-                    "--exclude-standard",
-                ],
+                hardened_git_argv(
+                    ("ls-files", "-z", "--cached", "--others", "--exclude-standard"),
+                    repo_dir=repo_top,
+                ),
                 capture_output=True,
                 timeout=_GIT_TIMEOUT_SECONDS,
                 check=False,

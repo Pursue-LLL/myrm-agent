@@ -36,6 +36,7 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     create_workspace_snapshot,
     is_git_repo,
@@ -246,7 +247,7 @@ async def get_task_airbag_diff(manifest: TaskAirbagManifest) -> TaskAirbagDiffSu
         try:
             # Query git diff status between baseline commit and current working tree
             diff_res = subprocess.run(
-                ["git", "diff", "--name-status", manifest.base_snapshot_id],
+                hardened_git_argv(("diff", "--name-status", manifest.base_snapshot_id), repo_dir=wpath),
                 cwd=str(wpath),
                 capture_output=True,
                 text=True,
@@ -271,7 +272,7 @@ async def get_task_airbag_diff(manifest: TaskAirbagManifest) -> TaskAirbagDiffSu
 
             # Untracked new files
             untracked_res = subprocess.run(
-                ["git", "status", "--porcelain"],
+                hardened_git_argv(("status", "--porcelain"), repo_dir=wpath),
                 cwd=str(wpath),
                 capture_output=True,
                 text=True,

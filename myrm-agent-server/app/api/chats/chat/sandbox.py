@@ -22,6 +22,7 @@ import weakref
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
 from pydantic import BaseModel
 
 from app.core.utils.response_utils import success_response
@@ -214,7 +215,7 @@ async def sandbox_diff(chat_id: str):
 
         stat_result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "diff", "--stat", base_ref],
+            await hardened_git_argv_async(("diff", "--stat", base_ref), repo_dir=sandbox_path),
             cwd=sandbox_path,
             capture_output=True,
             text=True,
@@ -223,7 +224,7 @@ async def sandbox_diff(chat_id: str):
 
         diff_result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "diff", base_ref],
+            await hardened_git_argv_async(("diff", base_ref), repo_dir=sandbox_path),
             cwd=sandbox_path,
             capture_output=True,
             text=True,

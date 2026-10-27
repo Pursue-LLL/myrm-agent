@@ -35,6 +35,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
+
 logger = logging.getLogger(__name__)
 
 # C-locale environment so git output stays byte-stable regardless of the
@@ -61,7 +63,7 @@ async def _worktree_is_dirty(path: str) -> bool:
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "status", "--porcelain"],
+            await hardened_git_argv_async(("status", "--porcelain"), repo_dir=path),
             cwd=path,
             capture_output=True,
             text=True,

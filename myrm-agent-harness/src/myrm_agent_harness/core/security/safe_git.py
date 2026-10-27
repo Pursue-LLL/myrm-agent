@@ -20,7 +20,8 @@ Fixed keys are blanked with ``-c``; the repository-named ``filter.<name>`` drive
 External diff and textconv cannot be blanked (git then fails with "cannot run"), so the patch-producing
 subcommands carry ``--no-ext-diff --no-textconv`` instead. ``status`` and ``diff`` also stop descending into
 submodules' working trees: git runs a child ``status`` there that honours the submodule's own, separately stored
-configuration, which no override of the parent's listing can reach.
+configuration, which no override of the parent's listing can reach. The listing is one extra git process, so
+subcommands that only read objects (``rev-parse``, ``log``, ``show``…) skip it.
 """
 
 from __future__ import annotations
@@ -48,6 +49,9 @@ HARDENED_GIT_CONFIG: tuple[str, ...] = (
 
 # Per-driver program keys: the driver names are chosen by the repository, so they are listed, not hard-coded.
 _FILTER_KEY_PATTERN = r"^filter\..+\.(clean|smudge|process)$"
+# Subcommands that only read objects, never hash a working-tree file, so no ``filter.<name>`` driver can run and the
+# per-repository listing (one extra git process) is skipped. Anything not listed here pays for the listing.
+_FILTER_FREE_SUBCOMMANDS = frozenset({"rev-parse", "rev-list", "log", "show", "cat-file", "diff-tree", "ls-tree"})
 _NO_DIFF_PROGRAMS = ("--no-ext-diff", "--no-textconv")
 # Flags placed ahead of the caller's own arguments, per subcommand. ``dirty`` keeps reporting a submodule whose
 # recorded commit changed and skips only its working-tree inspection.
@@ -127,13 +131,14 @@ def hardened_git_argv(
     """Full ``git`` argv running *args* (a subcommand and its arguments) in *repo_dir* with every repository-selected
     program switched off.
 
-    Costs one short ``git config`` query. Raises ``GitHardeningError`` (an ``OSError``) when the repository's
+    Costs one short ``git config`` query unless the subcommand only reads objects. Raises ``GitHardeningError`` (an ``OSError``) when the repository's
     configuration cannot be neutralised, which callers already treat as "git unavailable".
     """
     if not args or args[0].startswith("-"):
         raise ValueError("args must start with a git subcommand")
     directory = os.path.realpath(os.fspath(repo_dir))
-    overrides = (*HARDENED_GIT_CONFIG, *_repository_filter_overrides(directory, env))
+    filter_overrides = [] if args[0] in _FILTER_FREE_SUBCOMMANDS else _repository_filter_overrides(directory, env)
+    overrides = (*HARDENED_GIT_CONFIG, *filter_overrides)
     argv = ["git"]
     for override in overrides:
         argv.extend(("-c", override))

@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,7 +62,7 @@ def _run_git_cmd(args: list[str], cwd: Path, timeout: float = 2.0) -> tuple[int,
     """Execute git subcommands safely with tight timeout."""
     try:
         proc = subprocess.run(
-            ["git", "-C", str(cwd), *args],
+            hardened_git_argv(args, repo_dir=cwd),
             capture_output=True,
             text=True,
             timeout=timeout,

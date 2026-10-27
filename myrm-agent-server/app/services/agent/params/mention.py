@@ -31,6 +31,8 @@ import tempfile
 from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
 from .models import MentionReferenceRequest, MultimodalQuery
 
 logger = logging.getLogger(__name__)
@@ -155,7 +157,7 @@ def _get_git_staged_diff(workspace_dir: str) -> str:
     """
     try:
         result = subprocess.run(
-            ["git", "diff", "--cached"],
+            hardened_git_argv(("diff", "--cached"), repo_dir=workspace_dir),
             cwd=workspace_dir,
             capture_output=True,
             text=True,
@@ -282,7 +284,7 @@ async def _build_mention_reference_context(
         if ref.type == "git_diff":
             try:
                 result = subprocess.run(
-                    ["git", "diff"],
+                    hardened_git_argv(("diff",), repo_dir=workspace_real),
                     cwd=workspace_real,
                     capture_output=True,
                     text=True,

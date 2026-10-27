@@ -15,6 +15,7 @@ branch, so a regression that turns a refusal into an exception (or a silent drop
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -596,6 +597,11 @@ def _context_refs(*refs: MentionReferenceRequest) -> list[MentionReferenceReques
     return list(refs)
 
 
+def _plain_git_argv(args: Sequence[str], *, repo_dir: str) -> list[str]:
+    """Stands in for the hardening query, which would otherwise consume the stubbed ``subprocess.run``."""
+    return ["git", *args]
+
+
 @pytest.mark.asyncio
 async def test_context_reports_a_staged_diff_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(mention, "_get_git_staged_diff", lambda workspace: "x" * 32)
@@ -610,6 +616,7 @@ async def test_context_reports_a_staged_diff_too_large(monkeypatch: pytest.Monke
 
 @pytest.mark.asyncio
 async def test_context_inlines_an_unstaged_diff(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(mention, "hardened_git_argv", _plain_git_argv)
     monkeypatch.setattr(
         mention.subprocess,
         "run",
@@ -626,6 +633,7 @@ async def test_context_inlines_an_unstaged_diff(monkeypatch: pytest.MonkeyPatch,
 
 @pytest.mark.asyncio
 async def test_context_reports_an_unstaged_diff_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(mention, "hardened_git_argv", _plain_git_argv)
     monkeypatch.setattr(
         mention.subprocess,
         "run",

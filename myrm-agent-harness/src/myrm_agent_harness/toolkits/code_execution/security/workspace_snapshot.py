@@ -24,6 +24,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,7 +88,7 @@ def create_workspace_snapshot(workspace_path: Path | str) -> WorkspaceSnapshotRe
         # Use git stash create to create a dangling commit representing the exact dirty state
         # without altering the working tree or index reflog.
         stash_res = subprocess.run(
-            ["git", "stash", "create", f"destructive_snapshot_{now_epoch_ms}"],
+            hardened_git_argv(("stash", "create", f"destructive_snapshot_{now_epoch_ms}"), repo_dir=wpath),
             cwd=str(wpath),
             capture_output=True,
             text=True,

@@ -31,6 +31,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+
 logger = logging.getLogger(__name__)
 
 # Common build/cache/vcs directories to skip or compact
@@ -117,7 +119,11 @@ def _probe_git_state(workspace: Path) -> tuple[str | None, bool | None]:
     if rc_branch != 0 or not branch_out:
         branch_out = "HEAD"
 
-    rc_status, status_out = _run_quick_command(["git", "-C", str(workspace), "status", "--porcelain"], timeout=1.0)
+    try:
+        status_cmd = hardened_git_argv(("status", "--porcelain"), repo_dir=workspace)
+    except OSError:
+        return branch_out, None
+    rc_status, status_out = _run_quick_command(status_cmd, timeout=1.0)
     is_dirty = bool(status_out) if rc_status == 0 else None
 
     return branch_out, is_dirty

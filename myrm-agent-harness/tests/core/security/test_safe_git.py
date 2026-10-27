@@ -246,6 +246,25 @@ class TestArgvShape:
         with pytest.raises(GitHardeningError):
             hardened_git_argv(("status",), repo_dir=repo)
 
+    @pytest.mark.parametrize(
+        "args",
+        [("rev-parse", "HEAD"), ("log", "-1"), ("show", "HEAD"), ("diff-tree", "-r", "HEAD"), ("ls-tree", "HEAD")],
+    )
+    def test_object_only_subcommands_skip_the_repository_listing(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch, args: tuple[str, ...]
+    ) -> None:
+        """No working-tree file is hashed, so no filter can run; the extra git process is not worth paying for."""
+        _git(repo, "config", "filter.evil.clean", "true")
+
+        def _no_query(*_args: object, **_kwargs: object) -> None:
+            raise AssertionError("the repository listing ran")
+
+        monkeypatch.setattr(subprocess, "run", _no_query)
+
+        argv = hardened_git_argv(args, repo_dir=repo)
+
+        assert not any(item.startswith("filter.") for item in argv)
+
     @pytest.mark.parametrize("args", [(), ("--version",), ("-c", "a=b", "status")])
     def test_arguments_must_start_with_a_subcommand(self, repo: Path, args: tuple[str, ...]) -> None:
         with pytest.raises(ValueError, match="subcommand"):
