@@ -64,6 +64,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'workflow_stage',
   'loop_guard_warn',
   'loop_guard_break',
+  'answer_recheck',
   'waiting_for_turn',
 ]);
 
@@ -332,6 +333,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'context_compaction' ||
         stepKey === 'loop_guard_warn' ||
         stepKey === 'loop_guard_break' ||
+        stepKey === 'answer_recheck' ||
         stepKey === 'workflow_stage' ||
         stepKey === 'model_failover' ||
         stepKey === 'safety_fallback_active' ||

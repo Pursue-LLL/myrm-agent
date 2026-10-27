@@ -4206,6 +4206,7 @@
     "thinking_budget_exhausted": "모델이 모든 토큰을 추론에 사용하여 응답을 생성하지 못했습니다",
     "tool_call_truncated": "도구 호출이 중단되어 실행되지 않았습니다",
     "tool_call_retry": "도구 호출이 중단되어 재시도 중",
+    "answer_recheck": "답변을 다시 확인하는 중",
     "empty_response_recovery": "빈 응답이 감지되어 재시도 중",
     "analyzing_image": "이미지 분석 중...",
     "analyzing_video": "비디오 분석 중...",

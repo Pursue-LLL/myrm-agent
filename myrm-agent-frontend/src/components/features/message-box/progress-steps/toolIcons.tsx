@@ -261,6 +261,7 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   transient_retry: 'safety',
   empty_response_recovery: 'safety',
   tool_call_retry: 'safety',
+  answer_recheck: 'thinking',
 };
 
 // 默认类别

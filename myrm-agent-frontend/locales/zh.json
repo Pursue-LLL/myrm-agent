@@ -4221,6 +4221,7 @@
     "thinking_budget_exhausted": "模型将所有 token 用于推理，未产生实际回复",
     "tool_call_truncated": "工具调用被截断，未执行",
     "tool_call_retry": "工具调用被截断，正在重试",
+    "answer_recheck": "正在复核回答",
     "empty_response_recovery": "检测到空响应，正在重试",
     "analyzing_image": "分析图片中...",
     "analyzing_video": "分析视频中...",

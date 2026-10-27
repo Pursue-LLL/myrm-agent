@@ -4221,6 +4221,7 @@
     "thinking_budget_exhausted": "Model used all tokens for reasoning, no response produced",
     "tool_call_truncated": "Tool call was cut off and not run",
     "tool_call_retry": "Tool call was cut off — retrying",
+    "answer_recheck": "Double-checking the answer",
     "empty_response_recovery": "Empty response detected — retrying",
     "analyzing_image": "Analyzing image...",
     "analyzing_video": "Analyzing video...",

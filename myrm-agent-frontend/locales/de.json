@@ -4206,6 +4206,7 @@
     "thinking_budget_exhausted": "Modell hat alle Token für Schlussfolgerung verwendet, keine Antwort erzeugt",
     "tool_call_truncated": "Werkzeugaufruf unterbrochen und nicht ausgeführt",
     "tool_call_retry": "Werkzeugaufruf unterbrochen — Wiederholung läuft",
+    "answer_recheck": "Antwort wird noch einmal geprüft",
     "empty_response_recovery": "Leere Antwort erkannt — Wiederholung läuft",
     "analyzing_image": "Bild wird analysiert...",
     "analyzing_video": "Video wird analysiert...",
