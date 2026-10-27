@@ -11,14 +11,13 @@ from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLo
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.statistics.timezone_helper import resolve_user_timezone, to_user_local_dt
-
 from app.api.statistics.learning_loop import router as learning_loop_router
 from app.api.statistics.learning_timeline import router as learning_timeline_router
 from app.api.statistics.prompt_cache_radar import router as prompt_cache_radar_router
 from app.api.statistics.session_analytics import router as session_router
 from app.api.statistics.session_model_sessions import router as model_sessions_router
 from app.api.statistics.session_trace import router as session_trace_router
+from app.api.statistics.timezone_helper import resolve_user_timezone, to_user_local_dt
 from app.api.statistics.usage_aggregation import (
     DayAccumulator,
     aggregate_usage,
@@ -488,7 +487,7 @@ async def get_nav_badges() -> JSONResponse:
             return result or 0
 
     async def count_active_goals() -> int:
-        from app.api.goals.router import _NON_TERMINAL_STATUSES
+        from app.services.agent.goals.goal_controls import NON_TERMINAL_GOAL_STATUSES
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         count = 0
@@ -500,7 +499,7 @@ async def get_nav_badges() -> JSONResponse:
                 continue
             try:
                 goal = await provider.get_latest_goal(sid)
-                if goal and goal.status in _NON_TERMINAL_STATUSES:
+                if goal and goal.status in NON_TERMINAL_GOAL_STATUSES:
                     count += 1
             except Exception:
                 pass

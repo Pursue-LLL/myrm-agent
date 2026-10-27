@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, app.channels.protocols.goal_command (POS)
-- app.services.agent.goals.goal_registry::GoalRegistry, app.services.chat.chat_service::ChatService (POS)
+- app.services.agent.goals.goal_registry::GoalRegistry, app.services.agent.goals.goal_controls::select_cancellable_goal, app.services.chat.chat_service::ChatService (POS)
 
 [OUTPUT]
 - ChannelGoalCommandHandler: GoalCommandHandler protocol implementation
@@ -366,22 +366,16 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_to_clear")
 
+        from app.services.agent.goals.goal_controls import select_cancellable_goal
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
             return get_text(msg, "no_goal_to_clear")
 
-        goal = await provider.get_active_goal(chat_id)
+        goal = await select_cancellable_goal(provider, chat_id)
         if not goal:
-            latest = await provider.get_latest_goal(chat_id)
-            if latest and latest.status in {
-                GoalStatus.PAUSED,
-                GoalStatus.BUDGET_LIMITED,
-            }:
-                goal = latest
-            else:
-                return get_text(msg, "no_active_goal_to_clear")
+            return get_text(msg, "no_active_goal_to_clear")
 
         await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)
         return get_text(msg, "goal_cleared", objective=goal.objective[:60])

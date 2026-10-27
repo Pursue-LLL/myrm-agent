@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
+- app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal (POS: Goal control rules shared with IM)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
@@ -9,7 +10,7 @@
 - router: APIRouter for goal endpoints.
 
 [POS]
-Provides HTTP endpoints for the frontend to pause, resume, and clear goals.
+Provides HTTP endpoints for the frontend to pause, resume, and clear goals. Resume puts the goal back to work.
 """
 
 import logging
@@ -23,6 +24,11 @@ from myrm_agent_harness.core.features import get_features
 from pydantic import BaseModel
 
 from app.api.dependencies import get_optional_llm_for_user
+from app.services.agent.goals.goal_controls import (
+    NON_TERMINAL_GOAL_STATUSES,
+    continue_resumed_goal,
+    select_cancellable_goal,
+)
 from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.risk.refusal import reject_if_risky
 
@@ -55,19 +61,6 @@ router.include_router(queue_router)
 router.include_router(constraints_router)
 
 
-_NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset(
-    {
-        GoalStatus.ACTIVE,
-        GoalStatus.PAUSED,
-        GoalStatus.PENDING_APPROVAL,
-        GoalStatus.BUDGET_LIMITED,
-        GoalStatus.NEEDS_HUMAN_REVIEW,
-        GoalStatus.QUEUED,
-        GoalStatus.WAIT,
-    }
-)
-
-
 def _serialize_goal(goal: "Goal") -> dict[str, object]:
     return {
         "goal_id": goal.goal_id,
@@ -93,7 +86,7 @@ async def list_active_goals() -> dict[str, object]:
             continue
         try:
             goal = await provider.get_latest_goal(sid)
-            if goal and goal.status in _NON_TERMINAL_STATUSES:
+            if goal and goal.status in NON_TERMINAL_GOAL_STATUSES:
                 results.append(_serialize_goal(goal))
         except Exception as e:
             logger.debug("Failed to get goal for session %s: %s", sid, e)
@@ -246,6 +239,8 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
     # When resuming, approving, rejecting, or unwaiting, use latest goal (may be WAIT/PAUSED)
     if request.action in ("resume", "approve", "reject", "unwait"):
         goal = await provider.get_latest_goal(session_id)
+    elif request.action == "cancel":
+        goal = await select_cancellable_goal(provider, session_id)
     elif request.action == "wait":
         goal = await provider.get_active_goal(session_id)
     else:
@@ -272,6 +267,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
                 await provider.resume_goal(goal.goal_id, reset_turns=True)
             else:
                 await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
+            await continue_resumed_goal(session_id, provider, goal.goal_id)
         elif request.action == "cancel":
             await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)
         elif request.action == "approve":

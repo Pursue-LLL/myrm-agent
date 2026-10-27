@@ -14,6 +14,7 @@ Goal 业务域：会话级 Goal 句柄注册、draft 生成、unattended headles
 | `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 `wait_on_background_job_id` → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card | ✅ |
 | `goal_wait_orphan_recovery.py` | ✅ 核心 | 启动时在 Store reconcile 之后：WAIT + orphaned background pid → NEEDS_HUMAN_REVIEW + goal_needs_review SSE（对称 `pause_orphaned_active_goals`） | ✅ |
 | `usage_limit_resume/` | ✅ 核心 | 提供方额度上限后的宿主闭环：`on_goal_hold` 回调（打所有权标记 + arm + 通知）、挂钟轮询唤醒守护进程（启动重建、忙/排空延后、>24h 暂停）、手动「立即重试」。详见子目录 `_ARCH.md` | ✅ |
+| `goal_controls.py` | ✅ 核心 | Web 卡片与 IM 指令共用的 Goal 控制规则：`NON_TERMINAL_GOAL_STATUSES`、`select_cancellable_goal`（运行中的目标，否则仍未结束的最新目标，作为取消/清除的对象）、`continue_resumed_goal`（恢复后启动无人值守继续回合；会话忙或应用排空时不启动） | ✅ |
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `split_session_goal_service.py` | ✅ 核心 | 交付（Ship）与规划（Plan）双会话窗口 Goal 模版服务：实现内置模版编目、双窗口实例状态推进、验收产物核验、上下文重置指标核算与下阶段 Goal 衔接。 | ✅ |
 

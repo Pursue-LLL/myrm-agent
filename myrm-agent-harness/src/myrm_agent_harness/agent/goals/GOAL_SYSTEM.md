@@ -119,7 +119,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
   - 发送 SystemNotification 通知用户。
 - 前端 GoalStatusCard 在 chatId 变化时主动 fetch `GET /goals/{chatId}/status`，确保页面加载即可展示 paused goal。
 - SSE 流的 `message_end` 事件携带 `goal_status.reason`，保证流式更新中 reason 不丢失。
-- 用户在前端看到 GoalStatusCard 的 PAUSED 状态及 reason 提示，可一键 Resume。
+- 用户在前端看到 GoalStatusCard 的 PAUSED 状态及 reason 提示，可一键 Resume：Server 把 Goal 置回 ACTIVE 后立即经 `trigger_goal_stream_with_failure_policy` 启动继续运行的无人值守回合（会话正忙或应用排空时不启动，由运行中的回合或下一条消息接力；启动失败走 `needs_human_review` 策略）。同一接口的 cancel 作用于运行中的 Goal，或任一仍未结束（暂停/预算受限/待复核/等待/排队）的最新 Goal，与 IM `/goal clear` 共用 `select_cancellable_goal`。
 - 设计优势：不自动 Resume（避免 token 浪费和意图漂移），比 Hermes 的 `resume_pending` 懒恢复更透明，比 OpenClaw 的前端 reconcile 更可靠（后端保证数据一致性）。
 
 ### 10. 优先级队列与自动串行执行 (Priority Queue)

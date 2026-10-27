@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -11,7 +11,17 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> Iterator[TestClient]:
+def goal_stream_trigger() -> Iterator[AsyncMock]:
+    """The unattended goal stream a resume starts: replaced so no test launches a real agent turn."""
+    with patch(
+        "app.services.agent.goals.goal_controls.trigger_goal_stream_with_failure_policy",
+        new=AsyncMock(return_value=True),
+    ) as trigger:
+        yield trigger
+
+
+@pytest.fixture
+def client(tmp_path: Path, goal_stream_trigger: AsyncMock) -> Iterator[TestClient]:
     """A bare app that mounts only the goals router, backed by throwaway local storage."""
     from app.api.goals.router import router as goals_router
 
