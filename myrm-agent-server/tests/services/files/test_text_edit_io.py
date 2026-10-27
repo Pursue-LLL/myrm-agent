@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 from pathlib import Path
 
 import pytest
@@ -96,26 +97,17 @@ def test_oversized_file_is_a_read_only_prefix_and_is_not_hashed(tmp_path: Path) 
     assert len(snapshot.content) == EDITABLE_MAX_BYTES
 
 
-class _ReadSpy:
-    """File handle wrapper recording how many bytes each ``read`` asked for."""
+class _ReadSpy(io.BufferedReader):
+    """Binary reader recording how many bytes each ``read`` asked for."""
 
     sizes: list[int | None] = []
 
     def __init__(self, path: str, mode: str) -> None:
-        self._handle = open(path, mode)  # noqa: SIM115 - closed by __exit__
+        super().__init__(io.FileIO(path, mode))
 
     def read(self, size: int | None = -1) -> bytes:
         self.sizes.append(size)
-        return self._handle.read(size)
-
-    def fileno(self) -> int:
-        return self._handle.fileno()
-
-    def __enter__(self) -> _ReadSpy:
-        return self
-
-    def __exit__(self, *_exc: object) -> None:
-        self._handle.close()
+        return super().read(size)
 
 
 def _spy_on_reads(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
