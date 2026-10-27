@@ -20,7 +20,7 @@ import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 /**
  * - `done`: the server took the action.
  * - `busy`: the server refused to put the goal back to work because its previous turn is still finishing; the goal is
- *   as it was and the same action works a few seconds later.
+ *   as it was and the same action works once that turn has finished.
  * - `held`: a risk rule holds the note; its notice is shown and the goal is as it was.
  * - `failed`: anything else; the goal is as it was.
  */
