@@ -68,13 +68,16 @@ async def _terminate_own_group(process: asyncio.subprocess.Process, pgid: int, g
     """Stop a shell that leads its own group with one group signal, then sweep the descendants that left the group."""
     # A descendant that called setsid is no longer in ``pgid`` and would outlive the group signal.
     descendants = await asyncio.to_thread(_descendants, process.pid)
-    os.killpg(pgid, signal.SIGTERM)
+    # The group may be gone since the snapshot; the descendants that left it still have to be reaped below.
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pgid, signal.SIGTERM)
     for child in descendants:
         _signal(child.terminate)
     try:
         await asyncio.wait_for(process.wait(), timeout=grace_period)
     except TimeoutError:
-        os.killpg(pgid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(pgid, signal.SIGKILL)
     await _reap_survivors(descendants, grace_period)
 
 

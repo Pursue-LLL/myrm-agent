@@ -2,12 +2,11 @@
 
 A scripted model issues a real browser tool call (a navigation to a server that never answers, a
 snapshot of a wedged renderer) inside a real LangGraph agent driven by the production
-`StreamExecutor` with the production tool interceptor. Without the cancel boundary the stop flag is
-never looked at and the run is released only by that backstop; with it the run ends at once, the browser tab is healthy and
-the model is not asked again. Without the boundary the tool gate is the backstop: it cancels the call when its
-grace period after the stop is over, so no call outlives a stopped run. A run ended from outside (the executor's own timeout, the stuck-task
-watchdog) must leave a healthy tab and a whole permit pool as well, and a Stop during the cold start
-must not leak the permit it was acquiring.
+`StreamExecutor` with the production tool interceptor. With the cancel boundary the run ends at
+once, the browser tab is healthy and the model is not asked again; without it only the tool gate
+ends the run, by cancelling the call once its grace period after the stop is over. A run ended from
+outside (the executor's own timeout, the stuck-task watchdog) must leave a healthy tab and a whole
+permit pool as well, and a Stop during the cold start must not leak the permit it was acquiring.
 
 Run with: `pytest -m integration tests/agent/streaming/test_stop_during_browser_tool_e2e.py`.
 """
@@ -17,18 +16,20 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, HumanMessage
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, StructuredTool
 from patchright.async_api import Page
 
 from myrm_agent_harness.agent.middlewares.tooling import tool_executor
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import tool_interceptor_middleware
+from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
 from myrm_agent_harness.agent.streaming.stream_executor import STREAM_DONE, StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
@@ -123,7 +124,7 @@ class _Run:
             ctx=self.ctx, fallback_llm=None, safety_fallback_llm=None, rebuild_agent_fn=MagicMock()
         )
         self.compactor = _FakeCompactor()
-        self.executor._compactor = self.compactor
+        self.executor._compactor = cast(StreamCompactor, self.compactor)
 
     def start(self) -> asyncio.Task[None]:
         set_cancel_token(self.token)  # as the agent runtime does before it spawns the executor task
@@ -191,8 +192,9 @@ async def _wedged_renderer(session: BrowserSession) -> AsyncIterator[Page]:
 
 def _recorded_snapshot_tool(session: BrowserSession) -> tuple[BaseTool, list[str]]:
     """The guarded snapshot tool plus every text result that actually reached the caller."""
-    snapshot = next(t for t in create_browser_tools(session) if t.name == "browser_snapshot_tool")
+    snapshot = cast(StructuredTool, next(t for t in create_browser_tools(session) if t.name == "browser_snapshot_tool"))
     guarded = snapshot.coroutine
+    assert guarded is not None
     delivered: list[str] = []
 
     async def record(*args: object, **kwargs: object) -> object:
@@ -209,7 +211,7 @@ async def test_stop_during_cold_start_returns_the_permit_it_was_acquiring(
 ) -> None:
     pool = session._browser_pool
     launched = asyncio.Event()
-    real_create_context = pool._context_factory.create_context
+    real_create_context = cast(Callable[..., Awaitable[object]], pool._context_factory.create_context)
 
     async def stall_after_launch(*args: object, **kwargs: object) -> object:
         launched.set()  # the browser is up; the context (and so the page) does not exist yet

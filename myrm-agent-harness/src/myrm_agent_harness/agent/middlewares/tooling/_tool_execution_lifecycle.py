@@ -8,6 +8,7 @@ executions, and structured error / cancellation handling.
 - agent.errors.tool_error_category::ToolErrorCategory (POS: Canonical tool error categories for structured error classification.)
 - agent.middlewares._session_context (POS: active tool registry + terminal error registry)
 - agent.middlewares.tooling._tool_helpers (POS: error formatting + terminal error classification)
+- core.security.model_directed_notes::SYSTEM_NOTE_OPEN (POS: the opening every model-directed note shares, so a person is shown only what precedes it)
 - utils.runtime.cancellation::reraise_if_cancelled (POS: keep a stop aimed at this task from being absorbed as an SDK cancel-scope leak)
 
 [OUTPUT]
@@ -36,6 +37,7 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     format_tool_error,
     make_error_msg,
 )
+from myrm_agent_harness.core.security.model_directed_notes import SYSTEM_NOTE_OPEN
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.runtime.cancellation import reraise_if_cancelled
 
@@ -170,8 +172,8 @@ async def report_tool_cancelled(
 ) -> ToolMessage:
     """Announce a cancelled tool call (hook, stream event) and build the result the model sees.
 
-    The result says the outcome is unknown: a call cut off mid-flight may have done part or all of its work, so the
-    model must look at the current state before repeating it.
+    The first line is what a person is shown. The note after it is for the model: a call cut off mid-flight may have
+    done part or all of its work, so the model must look at the current state before repeating it.
     """
     from myrm_agent_harness.agent.hooks.executor import fire_hook
     from myrm_agent_harness.agent.hooks.types import HookEvent
@@ -213,8 +215,8 @@ async def report_tool_cancelled(
     return make_error_msg(
         tool_name,
         tool_call_id,
-        f"{tool_name} was cancelled ({cancel_reason}) before it finished. Whether it took effect is unknown: "
-        "check the current state before repeating it.",
+        f"{tool_name} was cancelled ({cancel_reason})\n\n{SYSTEM_NOTE_OPEN}The call was cut off before it finished, so "
+        "whether it took effect is unknown. Check the current state before repeating it.]",
         error_category=ToolErrorCategory.TOOL_CANCELLED,
     )
 

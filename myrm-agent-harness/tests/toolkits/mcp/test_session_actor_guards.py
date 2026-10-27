@@ -138,7 +138,7 @@ def test_prefixed_tool_name_that_is_not_registered_resolves_to_nothing() -> None
     known = SimpleNamespace(name=f"{prefix}known")
     actor._tools = {known.name: known}  # type: ignore[dict-item]
 
-    assert resolve_actor_tool(actor, "known") is known
+    assert resolve_actor_tool(actor, "known") is actor._tools[known.name]
     assert resolve_actor_tool(actor, f"{prefix}missing") is None  # already prefixed: no second prefix attempt
 
 

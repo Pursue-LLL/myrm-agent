@@ -17,6 +17,7 @@ from langchain_core.messages import ToolMessage
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
 from myrm_agent_harness.agent.middlewares.tooling import tool_executor
 from myrm_agent_harness.agent.middlewares.tooling.tool_executor import execute_with_retry
+from myrm_agent_harness.agent.streaming.event_handlers import _handle_tool_result
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason, set_cancel_token
 from myrm_agent_harness.utils.runtime.progress_sink import set_tool_progress_sink
@@ -172,7 +173,11 @@ async def test_a_stop_cancels_a_call_that_never_looks_at_it_and_reports_an_unkno
     assert isinstance(result, ToolMessage)
     assert result.status == "error"
     assert result.additional_kwargs["error_category"] == ToolErrorCategory.TOOL_CANCELLED
-    assert "unknown" in str(result.content)
+    assert "unknown" in str(result.content), "the model is told the outcome is unknown"
+
+    # The person watching the run is shown what was cancelled and why, not the note that instructs the model.
+    events = [event async for event in _handle_tool_result(result, "msg_1", None)]
+    assert [event["error"] for event in events] == ["mcp_probe was cancelled (user_cancelled)"]
 
 
 @pytest.mark.asyncio
@@ -214,6 +219,7 @@ async def test_a_cleanup_that_takes_seconds_is_not_cut_off_by_the_production_gra
     await stopper
 
     assert cleaned_up
+    assert isinstance(result, ToolMessage)
     assert result.content == "partial output"
 
 
@@ -247,4 +253,5 @@ async def test_a_call_without_a_request_token_is_not_cut_by_anything_but_its_dea
 
     result = await execute_with_retry(_request(), quick, "mcp_probe", "tc_1", allowed_domains=None)
 
+    assert isinstance(result, ToolMessage)
     assert result.content == "ok"

@@ -21,6 +21,11 @@ def _make_config(timeout: int = 10) -> SessionConfig:
     return SessionConfig(session_id="test", work_dir="/tmp", timeout=timeout, sandbox_mode="disable")
 
 
+def _state_of(session: LocalPersistentSession) -> SessionState:
+    """The state as it is now: mypy keeps narrowing ``session.state`` across awaits that change it."""
+    return session.state
+
+
 def _pid_exists(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -86,7 +91,7 @@ class TestSessionWedgeRecovery:
             recovered = await session.execute("echo ok", timeout=5)
             assert recovered.success
             assert recovered.stdout == "ok"
-            assert session.state == SessionState.ACTIVE
+            assert _state_of(session) == SessionState.ACTIVE
         finally:
             await session.close()
 
@@ -175,7 +180,7 @@ class TestRealUserFlow:
             result = await session.execute("printf '%s' \"$APP_TOKEN\"")
             assert result.success
             assert result.stdout == 'sk-x"y$HOME`id`\txyz'
-            assert session.state == SessionState.ACTIVE
+            assert _state_of(session) == SessionState.ACTIVE
 
             # 5. exit N is intercepted; shell survives.
             result = await session.execute("exit 3")
@@ -494,6 +499,7 @@ class TestCoverageEdgeCases:
             assert is_healthy is True
 
             # Kill process and check health again
+            assert session.process is not None
             session.process.kill()
             await session.process.wait()
 
@@ -524,8 +530,8 @@ class TestCoverageEdgeCases:
         await session.start()
         try:
             # Kill process during execute stream
-            async def run_and_collect():
-                chunks = []
+            async def run_and_collect() -> str:
+                chunks: list[str] = []
                 async for chunk in session.execute_stream("sleep 10"):
                     chunks.append(chunk)
                 return "".join(chunks)
@@ -538,6 +544,7 @@ class TestCoverageEdgeCases:
             import os
             import signal
 
+            assert session.process is not None
             os.killpg(os.getpgid(session.process.pid), signal.SIGKILL)
             output = await task
 
@@ -553,8 +560,8 @@ class TestCoverageEdgeCases:
         await session.start()
         try:
 
-            async def run_and_collect():
-                chunks = []
+            async def run_and_collect() -> str:
+                chunks: list[str] = []
                 async for chunk in session.execute_stream("sleep 10"):
                     chunks.append(chunk)
                 return "".join(chunks)
@@ -564,6 +571,7 @@ class TestCoverageEdgeCases:
             import os
             import signal
 
+            assert session.process is not None
             os.killpg(os.getpgid(session.process.pid), signal.SIGTERM)
             output = await task
 
@@ -989,6 +997,7 @@ class TestStateMachine:
         session = LocalPersistentSession(_make_config())
         await session.start()
         try:
+            assert session.process is not None
             pid_before = session.process.pid
             await session.start()
             assert session.process.pid == pid_before
@@ -1072,6 +1081,7 @@ class TestRecoveryPath:
             ):
                 result = await session._recover_and_retry("echo x", timeout=5)
                 assert not result.success
+                assert result.error is not None
                 assert "Recovery failed" in result.error
                 assert session.state == SessionState.TERMINATED
         finally:
@@ -1150,7 +1160,7 @@ class TestEnsureActiveEdge:
         assert session.state == SessionState.IDLE
         await session._ensure_active()
         try:
-            assert session.state == SessionState.ACTIVE
+            assert _state_of(session) == SessionState.ACTIVE
             assert session.is_alive
         finally:
             await session.close()
@@ -1164,7 +1174,7 @@ class TestEnsureActiveEdge:
         assert session.state == SessionState.TERMINATED
         await session._ensure_active()
         try:
-            assert session.state == SessionState.ACTIVE
+            assert _state_of(session) == SessionState.ACTIVE
         finally:
             await session.close()
 

@@ -86,3 +86,21 @@ async def test_a_shell_that_is_already_reaped_never_signals_the_group_its_pid_no
     finally:
         bystander.kill()
         bystander.wait()
+
+
+@pytest.mark.asyncio
+async def test_an_escaped_descendant_is_still_stopped_when_the_group_is_already_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The shell exiting between the snapshot and the group signal must not skip the sweep of what left the group."""
+
+    def _group_is_gone(_pgid: int, _sig: int) -> None:
+        raise ProcessLookupError
+
+    marker = "4721.04"
+    async with _shell_with_escapee(marker, ignore_terminate=True) as process:
+        monkeypatch.setattr(os, "killpg", _group_is_gone)
+
+        await kill_process_tree(process, is_windows=False, grace_period=0.3)
+
+        assert not process_alive(marker)
