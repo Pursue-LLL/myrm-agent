@@ -41,10 +41,11 @@ Bridges the Permission Engine with the LangGraph tool pipeline.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolCall, ToolMessage
 from langgraph.types import interrupt
 
 from myrm_agent_harness.agent.middlewares._session_context import (
@@ -59,6 +60,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
 from myrm_agent_harness.agent.security.tool_registry import compute_canonical_args_hash
 from myrm_agent_harness.agent.security.types import RecentToolCall
 
+from ._answered_calls import answered_call_ids, keep_answered_calls
 from .batch_processor import (
     apply_approval_decisions,
     build_interrupt_payload,
@@ -67,6 +69,16 @@ from .batch_processor import (
 from .helpers import reset_denial_counter
 
 logger = logging.getLogger(__name__)
+
+
+def _error_answer(tool_call: ToolCall, content: str) -> ToolMessage:
+    """The error result that answers a refused call, so the model reads the refusal as the call's own result."""
+    return ToolMessage(
+        content=content,
+        name=tool_call.get("name", "unknown"),
+        tool_call_id=tool_call.get("id", ""),
+        status="error",
+    )
 
 
 class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
@@ -107,6 +119,16 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         last_ai_msg = next((msg for msg in reversed(messages) if isinstance(msg, AIMessage)), None)
         if not last_ai_msg or not last_ai_msg.tool_calls:
             return None
+
+        # A guard that ran before this one may already have answered some calls; those never reach the user.
+        source_msg = last_ai_msg
+        answered_ids = answered_call_ids(messages, source_msg)
+        if answered_ids:
+            last_ai_msg = source_msg.model_copy(
+                update={"tool_calls": [tc for tc in source_msg.tool_calls if tc.get("id") not in answered_ids]}
+            )
+            if not last_ai_msg.tool_calls:
+                return None
 
         session_key = get_approval_session()
         workspace_root = get_workspace_root() or None
@@ -191,7 +213,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
                             (
                                 idx,
                                 tool_call,
-                                " Too many approval requests. Rate limit exceeded. Please try again later.",
+                                "Too many approval requests. Rate limit exceeded. Please try again later.",
                             )
                         )
                         record_decision(
@@ -204,29 +226,8 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
 
         if not pending_approval:
             if auto_denied:
-                revised_tool_calls = []
-                artificial_tool_messages = []
-
-                for idx, tool_call in enumerate(last_ai_msg.tool_calls):
-                    denied = next(
-                        ((d_idx, tc, msg) for d_idx, tc, msg in auto_denied if d_idx == idx),
-                        None,
-                    )
-                    if denied:
-                        _, _, error_msg = denied
-                        artificial_tool_messages.append(
-                            ToolMessage(
-                                content=error_msg,
-                                name=tool_call.get("name", "unknown"),
-                                tool_call_id=tool_call.get("id", ""),
-                                status="error",
-                            )
-                        )
-                    else:
-                        revised_tool_calls.append(tool_call)
-
-                last_ai_msg.tool_calls = revised_tool_calls
-                return {"messages": [last_ai_msg, *artificial_tool_messages]}
+                refusals = sorted(auto_denied, key=lambda denied: denied[0])
+                return {"messages": [_error_answer(tool_call, content) for _, tool_call, content in refusals]}
             return None
 
         # We use LangGraph's native interrupt() mechanism for ALL agents, including subagents.
@@ -292,11 +293,9 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         # Fire APPROVAL_CORRECTION hook for edit decisions so user-defined hooks can react
         await self._fire_correction_hook(decisions, pending_approval, session_key)
 
-        last_ai_msg.tool_calls = revised_tool_calls
-        result_messages: list = [last_ai_msg, *artificial_tool_messages]
-        if guidance_messages:
-            result_messages.extend(guidance_messages)
-        return {"messages": result_messages}
+        answered_ids |= {message.tool_call_id for message in artificial_tool_messages}
+        source_msg.tool_calls = keep_answered_calls(source_msg.tool_calls, revised_tool_calls, answered_ids)
+        return {"messages": [source_msg, *artificial_tool_messages, *guidance_messages]}
 
     @staticmethod
     def _normalize_batch_decisions(
@@ -316,7 +315,11 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         if "decision" in batch_response and "decisions" not in batch_response:
             global_decision = batch_response["decision"]
             global_feedback = batch_response.get("feedback")
-            normalized = [{"type": global_decision, "feedback": global_feedback} for _ in range(expected_count)]
+            timed_out = bool(batch_response.get("timed_out"))
+            normalized = [
+                {"type": global_decision, "feedback": global_feedback, "timed_out": timed_out}
+                for _ in range(expected_count)
+            ]
         else:
             raw = batch_response.get("decisions", [])
             normalized = raw if isinstance(raw, list) else []
@@ -334,7 +337,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
     @staticmethod
     async def _fire_correction_hook(
         decisions: list[dict[str, Any]],
-        pending_approval: list,
+        pending_approval: Sequence[tuple[int, ToolCall, str, str, Mapping[str, object] | None]],
         session_key: str,
     ) -> None:
         """Fire APPROVAL_CORRECTION hook for decisions where the user edited tool arguments.
@@ -379,8 +382,8 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
     def _fallback_auto_deny(
         self,
         last_ai_msg: AIMessage,
-        pending_approval: list,
-        auto_denied: list,
+        pending_approval: Sequence[tuple[int, ToolCall, str, str, Mapping[str, object] | None]],
+        auto_denied: Sequence[tuple[int, ToolCall, str]],
         session_key: str,
     ) -> dict[str, Any]:
         """Auto-deny tools when task_id is missing to prevent deadlock."""
@@ -405,51 +408,33 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         except ImportError:
             pass
 
-        revised_tool_calls = []
         artificial_tool_messages = []
 
         for idx, tool_call in enumerate(last_ai_msg.tool_calls):
-            is_pending = any(p_idx == idx for p_idx, _, _, _, _ in pending_approval)
+            if not any(p_idx == idx for p_idx, _, _, _, _ in pending_approval):
+                continue
 
-            if is_pending:
-                error_msg = (
+            artificial_tool_messages.append(
+                _error_answer(
+                    tool_call,
                     "[SYSTEM_ENFORCED] High-risk operations requiring user UI approval "
                     "are strictly forbidden for autonomous Subagents when task_id is missing. "
                     "This safeguard prevents deadlocks since Subagents have no frontend channel. "
-                    "Please use a safe alternative or delegate this operation to the parent agent."
-                )
-                artificial_tool_messages.append(
-                    ToolMessage(
-                        content=error_msg,
-                        name=tool_call.get("name", "unknown"),
-                        tool_call_id=tool_call.get("id", ""),
-                        status="error",
-                    )
-                )
-
-                from myrm_agent_harness.agent.security.audit import record_decision
-
-                record_decision(
-                    tool_call.get("name", "unknown"),
-                    "SUBAGENT_AUTO_DENY",
-                    "Autonomous subagent blocked from triggering UI approval flow (missing task_id)",
-                    tool_call_id=tool_call.get("id", ""),
-                )
-            else:
-                revised_tool_calls.append(tool_call)
-
-        for _d_idx, tool_call, error_msg in auto_denied:
-            artificial_tool_messages.append(
-                ToolMessage(
-                    content=error_msg,
-                    name=tool_call.get("name", "unknown"),
-                    tool_call_id=tool_call.get("id", ""),
-                    status="error",
+                    "Please use a safe alternative or delegate this operation to the parent agent.",
                 )
             )
 
-        last_ai_msg.tool_calls = revised_tool_calls
-        return {"messages": [last_ai_msg, *artificial_tool_messages]}
+            from myrm_agent_harness.agent.security.audit import record_decision
+
+            record_decision(
+                tool_call.get("name", "unknown"),
+                "SUBAGENT_AUTO_DENY",
+                "Autonomous subagent blocked from triggering UI approval flow (missing task_id)",
+                tool_call_id=tool_call.get("id", ""),
+            )
+
+        artificial_tool_messages.extend(_error_answer(tool_call, content) for _, tool_call, content in auto_denied)
+        return {"messages": artificial_tool_messages}
 
 
 __all__ = [

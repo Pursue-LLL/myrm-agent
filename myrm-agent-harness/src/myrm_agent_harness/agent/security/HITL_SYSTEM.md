@@ -29,7 +29,7 @@
 - 在工具执行前批量评估所有`tool_calls`
 - 分类为：auto_approved、auto_denied、pending_approval
 - 对pending_approval列表一次性调用`interrupt()`（同步）
-- Resume时按顺序处理decisions数组，修改AIMessage.tool_calls
+- Resume时按顺序处理decisions数组：批准的调用以批准（或编辑后）的形态留在AIMessage.tool_calls；被拒绝的调用也留着，由一条ToolMessage(error)回答（带用户的理由；审批超时则写明无人回答），模型因此读得到拒绝的原因
 
 **用户体验**：
 - 单工具：1次interrupt → 1次决策
@@ -229,7 +229,7 @@ class ToolApprovalMiddleware(AgentMiddleware):
     
     async def _apply_approval_decisions(...):
         """应用决策+allowlist更新+审计（93行）"""
-        # approve→保留tool_call / edit→修改args / reject→ToolMessage(error)
+        # approve→保留tool_call / edit→修改args / reject→保留tool_call并以ToolMessage(error)回答
 ```
 
 **设计特性**：

@@ -35,6 +35,7 @@ import {
   type ChatState,
 } from '@/store/chat/types';
 import useConfigStore from '../useConfigStore';
+import { buildPrivacyRoutingRequest } from '@/store/config/privacyRoutingSecret';
 import useProviderStore from '../useProviderStore';
 import useChatStore from '../useChatStore';
 import { useScopedArtifactStore } from '../useScopedArtifactStore';
@@ -668,6 +669,11 @@ export const createMessageRequest = async (
   const pendingWorkflowTemplateArgs = useChatStore.getState().pendingWorkflowTemplateArgs;
   const useWorkflowLane = state.isWorkflowMode || Boolean(pendingWorkflowTemplateId);
 
+  const privacyRoutingRequest =
+    isStreamingMode && useConfigStore.getState().privacyEnabled
+      ? await buildPrivacyRoutingRequest(useConfigStore.getState().privacyRouting)
+      : undefined;
+
   const requestBody = {
     query,
     message_id: messageId,
@@ -792,9 +798,7 @@ export const createMessageRequest = async (
         privacy_enabled: true,
         privacy_s2_action: useConfigStore.getState().privacyS2Action,
         privacy_s3_action: useConfigStore.getState().privacyS3Action,
-        ...(useConfigStore.getState().privacyRouting?.localModel && {
-          privacy_routing: useConfigStore.getState().privacyRouting,
-        }),
+        ...(privacyRoutingRequest && { privacy_routing: privacyRoutingRequest }),
         ...(useConfigStore.getState().privacyCustomKeywordsS2?.length && {
           privacy_custom_keywords_s2: useConfigStore.getState().privacyCustomKeywordsS2,
         }),

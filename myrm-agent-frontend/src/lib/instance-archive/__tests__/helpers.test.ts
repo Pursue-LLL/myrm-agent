@@ -34,6 +34,10 @@ describe('reentryGroups', () => {
     expect(reentryGroups(['config:backupSync'])).toEqual(['savedSecrets']);
   });
 
+  it('files the key of the own model endpoint with the other model keys', () => {
+    expect(reentryGroups(['config:privacyRoutingSecret'])).toEqual(['modelKeys']);
+  });
+
   it('sends unknown credential rows to connected accounts and never leaks identifiers', () => {
     expect(reentryGroups(['config:telegramCredentials', 'table:something_new'])).toEqual(['connectedAccounts']);
     expect(reentryGroups(['path:.myrm/credentials.json'])).toEqual(['savedSecrets']);

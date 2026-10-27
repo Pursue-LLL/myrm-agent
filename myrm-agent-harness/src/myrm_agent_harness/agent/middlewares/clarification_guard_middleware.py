@@ -1,8 +1,9 @@
 """Clarification guard — enforces ask_question_tool single-call semantics.
 
 When the model emits ``ask_question_tool`` in a turn:
-- Only the first call is kept (batch all questions in one call).
-- All other tool calls in the same turn receive synthetic error ToolMessages.
+- Only the first call runs (batch all questions in one call).
+- Every other tool call in the same turn stays in the AI message and is answered by an error ToolMessage, so the
+  model reads why it did not run.
 
 [INPUT]
 - langchain_core.messages::AIMessage, ToolMessage (POS: LangGraph message types)
@@ -13,7 +14,8 @@ When the model emits ``ask_question_tool`` in a turn:
 
 [POS]
 Pre-execution guard aligned with Hermes ``NEVER_PARALLEL`` clarify semantics.
-Runs before ToolApprovalMiddleware so blocked tools never reach approval/HITL.
+Runs before ToolApprovalMiddleware, which skips a call that already has an answer, so blocked tools never reach
+approval/HITL.
 """
 
 from __future__ import annotations
@@ -60,7 +62,6 @@ class ClarificationGuardMiddleware(AgentMiddleware[Any, Any, Any]):
             return None
 
         primary_index = ask_indices[0]
-        revised_tool_calls: list[dict[str, Any]] = []
         artificial_tool_messages: list[ToolMessage] = []
 
         for idx, tool_call in enumerate(last_ai_msg.tool_calls):
@@ -68,7 +69,6 @@ class ClarificationGuardMiddleware(AgentMiddleware[Any, Any, Any]):
             tool_call_id = tool_call.get("id", "")
 
             if idx == primary_index:
-                revised_tool_calls.append(tool_call)
                 continue
 
             if tool_name == ASK_QUESTION_TOOL_NAME:
@@ -93,15 +93,14 @@ class ClarificationGuardMiddleware(AgentMiddleware[Any, Any, Any]):
                 "Duplicate or coexisting ask_question_tool call blocked",
             )
 
-        if len(revised_tool_calls) == len(last_ai_msg.tool_calls):
+        if not artificial_tool_messages:
             return None
 
         logger.info(
             "ClarificationGuard: kept 1 ask_question_tool call, blocked %d other tool call(s)",
-            len(last_ai_msg.tool_calls) - 1,
+            len(artificial_tool_messages),
         )
-        last_ai_msg.tool_calls = revised_tool_calls
-        return {"messages": [last_ai_msg, *artificial_tool_messages]}
+        return {"messages": artificial_tool_messages}
 
 
 __all__ = [

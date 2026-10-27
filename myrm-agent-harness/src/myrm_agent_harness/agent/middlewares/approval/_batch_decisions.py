@@ -34,7 +34,7 @@ from myrm_agent_harness.agent.security.types import SecurityConfig
 from myrm_agent_harness.core.security.redact import redact_for_display
 
 from .guidance_delivery import bounded_note
-from .helpers import add_to_allowlist_if_needed, record_approval, record_denial
+from .helpers import add_to_allowlist_if_needed, record_approval, record_denial, record_rejection
 
 logger = logging.getLogger(__name__)
 
@@ -667,13 +667,12 @@ async def apply_approval_decisions(
                     )
 
             else:
-                feedback = str(decision.get("feedback") or "").strip() or "User rejected this action."
+                feedback, content = record_rejection(decision, tool_name, session_key)
                 logger.warning("[SECURITY] Tool %s REJECTED by user: %s", tool_name, feedback)
                 record_decision(tool_name, "USER_REJECTED", feedback)
-                hint = record_denial(tool_name, session_key)
                 artificial_tool_messages.append(
                     ToolMessage(
-                        content=f"Action rejected by user: {feedback}{hint}",
+                        content=content,
                         name=tool_name,
                         tool_call_id=tool_call_id,
                         status="error",

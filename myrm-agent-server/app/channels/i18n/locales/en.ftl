@@ -26,7 +26,7 @@ delegation_receipt =
 
     💡 **Task**: { $prompt }
     ⏳ **Status**: A background sandbox is working on it. You can leave the chat; the result is sent here when it finishes.
-    { "*" }(Tip: send a message at any time to add guidance to the running task)*
+    { "*" }(Tip: send a message at any time to add guidance to the running task, or /stop to cancel it)*
 delegation_done = ✅ **Background task finished** `[{ $task_id }]` · took { $duration }
 delegation_failed = ❌ **Background task failed** `[{ $task_id }]` · after { $duration }
 delegation_timed_out = ⏱ **Background task stopped** `[{ $task_id }]` · it ran past the { $minutes }-minute limit.

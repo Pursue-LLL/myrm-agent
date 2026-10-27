@@ -129,6 +129,12 @@ def source_state(tmp_path: Path) -> Path:
         seal_config({"sttApiKey": "voice-stt-secret", "ttsApiKey": "voice-tts-secret", "ttsVoice": "alloy"}, SOURCE_KEY),
         encrypted=True,
     )
+    put_config(
+        conn,
+        "privacyRoutingSecret",
+        seal_config({"localApiKey": "local-model-secret"}, SOURCE_KEY),
+        encrypted=True,
+    )
     put_config(conn, "telegramCredentials", seal_config({"bot": "tg-secret"}, SOURCE_KEY), encrypted=True)
     put_config(conn, "channelInstances", {"telegram": ["a"]})
     put_config(conn, "onboarding", {"done": True})

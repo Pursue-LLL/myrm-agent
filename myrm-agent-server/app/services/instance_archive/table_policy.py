@@ -3,11 +3,13 @@
 [INPUT]
 - sqlite3: operates on a detached copy, never on the live database
 - app.services.config.encryption::is_sensitive_config (POS: which user_configs rows are encrypted)
+- app.services.config.service::extract_cipher (POS: the ciphertext inside a stored row, bare or in its envelope)
 - app.services.chat.chat_bound_rows::CHAT_BOUND_TABLES (POS: plain tables whose rows belong to one chat)
 
 [OUTPUT]
 - HOST_BOUND_TABLES / SECRET_TABLES / EPHEMERAL_TABLES / IDENTITY_TABLES
 - CARRIED_SENSITIVE_CONFIG_KEYS / HOST_BOUND_CONFIG_KEYS / config_row_policy / config_needs_reentry
+- open_sealed_config: the plain value of a sealed config row, in whichever shape the config service stored it
 - CONFIG_HISTORY_TABLE: the audit table whose rows repeat the values of config rows
 - scrub_sensitive_surface: web incognito chats, share links, whitelist keys, in-flight work, the history of config rows that do
   not travel as plain data (shared by export and staging)
@@ -26,12 +28,16 @@ to the live schema so renames cannot silently void the policy.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from enum import StrEnum
 from pathlib import Path
 
+from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError
+
 from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES
 from app.services.config.encryption import is_sensitive_config
+from app.services.config.service import extract_cipher
 
 # Rows describing the security posture / integrations of the host: the target keeps its own.
 HOST_BOUND_TABLES: frozenset[str] = frozenset(
@@ -59,9 +65,20 @@ EPHEMERAL_TABLES: frozenset[str] = frozenset({"artifact_share_records", "interru
 IDENTITY_TABLES: frozenset[str] = frozenset({"commitments", "skill_permission_usage_logs", "artifact_audit_logs"})
 
 # Sensitive user_configs rows that are portable across machines (provider keys, MCP, search, remote backup storage,
-# speech keys). Every other sensitive row (channel logins, proxies, org-managed servers) stays with its host.
+# speech keys, the key of the user's own model endpoint). Every other sensitive row (channel logins, proxies,
+# org-managed servers) stays with its host.
 CARRIED_SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
-    {"providers", "retrieval", "searchServices", "mcpServers", "externalAgents", "mcpOAuthTokens", "backupSync", "voice"}
+    {
+        "providers",
+        "retrieval",
+        "searchServices",
+        "mcpServers",
+        "externalAgents",
+        "mcpOAuthTokens",
+        "backupSync",
+        "voice",
+        "privacyRoutingSecret",
+    }
 )
 
 # Non-sensitive config rows that still describe this host (paths, outbound sync, security posture).
@@ -97,6 +114,24 @@ def config_row_policy(key: str) -> ConfigRowPolicy:
 def config_needs_reentry(key: str) -> bool:
     """Credential rows the user has to enter again when they do not travel."""
     return key in CARRIED_SENSITIVE_CONFIG_KEYS or key.endswith("Credentials")
+
+
+def open_sealed_config(raw_value: str, key: bytes) -> dict[str, object] | None:
+    """The plain value of a stored config row that is sealed under ``key``; None when it is not, or does not open.
+
+    The config service stores the ciphertext inside ``{"_cipher": ...}``, a bare string is the other shape, and a row
+    swept by an older startup holds an envelope sealed once more under the same key. All three open here, so what is
+    carried or re-keyed is exactly one layer.
+    """
+    try:
+        cipher = extract_cipher(json.loads(raw_value))
+        if cipher is None:
+            return None
+        plain = ConfigCrypto.decrypt_value(cipher, key)
+        inner = extract_cipher(plain) if len(plain) == 1 else None
+        return ConfigCrypto.decrypt_value(inner, key) if inner is not None else plain
+    except (ValueError, DecryptionError):
+        return None
 
 
 def table_names(conn: sqlite3.Connection, schema: str = "main") -> set[str]:

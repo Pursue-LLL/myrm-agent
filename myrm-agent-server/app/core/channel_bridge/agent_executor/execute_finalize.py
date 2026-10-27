@@ -175,7 +175,8 @@ async def finalize_channel_stream_reply(
             content, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)
         else:
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
-            content = "[No response generated]"
+            content = str(channel_t(resolve_message_locale(msg), "placeholder_no_response")).strip()
+            error_type = "empty_response"
     elif acc.error_message:
         # The stream broke after text had gone out: keep that text, but say it is incomplete.
         notice, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)

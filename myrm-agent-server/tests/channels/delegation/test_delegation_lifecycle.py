@@ -42,6 +42,19 @@ class _Bus:
         self.published.append(message)
 
 
+class _HandOver:
+    """The router's approval hand-over: records what the coordinator hands to the chat."""
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.requests: list[ProgressUpdate] = []
+        self._error = error
+
+    async def __call__(self, request: ProgressUpdate) -> None:
+        if self._error is not None:
+            raise self._error
+        self.requests.append(request)
+
+
 class _Executor:
     def __init__(self, stream: StreamFactory, coordinator: DelegationCoordinator, task: DelegationTask) -> None:
         self._stream = stream
@@ -83,7 +96,12 @@ def _inbound(locale: str, thread_id: str | None) -> InboundMessage:
 
 
 async def _run_lifecycle(
-    stream: StreamFactory, *, locale: str = "en", thread_id: str | None = None, timeout_seconds: float = 3600.0
+    stream: StreamFactory,
+    *,
+    locale: str = "en",
+    thread_id: str | None = None,
+    timeout_seconds: float = 3600.0,
+    hand_over: _HandOver | None = None,
 ) -> tuple[DelegationCoordinator, DelegationTask, list[OutboundMessage]]:
     coordinator = DelegationCoordinator()
     task = build_delegation_task(
@@ -101,15 +119,21 @@ async def _run_lifecycle(
         _Executor(stream, coordinator, task),  # type: ignore[arg-type]
         bus,  # type: ignore[arg-type]
         _inbound(locale, thread_id),
+        hand_over_approval=hand_over if hand_over is not None else _HandOver(),
     )
     return coordinator, task, bus.published
 
 
 async def _run(
-    stream: StreamFactory, *, locale: str = "en", thread_id: str | None = None, timeout_seconds: float = 3600.0
+    stream: StreamFactory,
+    *,
+    locale: str = "en",
+    thread_id: str | None = None,
+    timeout_seconds: float = 3600.0,
+    hand_over: _HandOver | None = None,
 ) -> tuple[DelegationTask, OutboundMessage]:
     _coordinator, task, published = await _run_lifecycle(
-        stream, locale=locale, thread_id=thread_id, timeout_seconds=timeout_seconds
+        stream, locale=locale, thread_id=thread_id, timeout_seconds=timeout_seconds, hand_over=hand_over
     )
     assert len(published) == 1
     return task, published[0]
@@ -315,17 +339,31 @@ _APPROVE = ProgressUpdate(
 
 
 @pytest.mark.asyncio
-async def test_a_run_that_stops_at_a_tool_approval_is_not_announced_as_finished() -> None:
+async def test_a_run_that_stops_at_a_tool_approval_is_handed_to_the_chat_not_announced_as_finished() -> None:
     """The executor ends the stream at the approval request; its leftover reply is not a result."""
 
     async def stream(_c: DelegationCoordinator, _t: DelegationTask) -> AsyncGenerator[object, None]:
         yield _APPROVE
-        yield _reply("[No response generated]")
+        yield _reply("No response generated.")
 
-    _coordinator, task, published = await _run_lifecycle(stream)
+    hand_over = _HandOver()
+    _coordinator, task, published = await _run_lifecycle(stream, hand_over=hand_over)
 
+    assert hand_over.requests == [_APPROVE]
     assert published == []
     assert task.status == DelegationStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_an_approval_that_cannot_reach_the_chat_fails_the_task_and_says_so() -> None:
+    async def stream(_c: DelegationCoordinator, _t: DelegationTask) -> AsyncGenerator[object, None]:
+        yield _APPROVE
+
+    task, delivered = await _run(stream, hand_over=_HandOver(RuntimeError(_RAW_ERROR)))
+
+    assert task.status == DelegationStatus.FAILED
+    assert delivered.content.startswith(f"❌ **Background task failed** `[{task.task_id}]`")
+    assert "secret-token-42" not in delivered.content
 
 
 @pytest.mark.asyncio
@@ -334,8 +372,10 @@ async def test_a_task_timed_out_at_an_approval_still_gets_its_stopped_notice() -
         yield _APPROVE
         coordinator.update_task_status(task.task_id, DelegationStatus.TIMED_OUT)
 
-    _coordinator, task, published = await _run_lifecycle(stream)
+    hand_over = _HandOver()
+    _coordinator, task, published = await _run_lifecycle(stream, hand_over=hand_over)
 
+    assert hand_over.requests == []
     assert len(published) == 1
     assert published[0].content.startswith(f"⏱ **Background task stopped** `[{task.task_id}]`")
 

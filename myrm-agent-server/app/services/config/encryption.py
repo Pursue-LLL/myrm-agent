@@ -43,6 +43,7 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "mcpOAuthTokens",
         "backupSync",
         "voice",
+        "privacyRoutingSecret",
         "orgMcpServers",
         "oauthCredentials",
         "feishuCredentials",

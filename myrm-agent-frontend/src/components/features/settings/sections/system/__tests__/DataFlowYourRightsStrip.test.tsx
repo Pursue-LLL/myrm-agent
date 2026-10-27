@@ -7,7 +7,6 @@ import {
   buildConnectorEgressSnapshot,
   buildOAuthEgressSnapshot,
   DataFlowYourRightsStrip,
-  redactPrivacyRoutingSnapshot,
 } from '../DataFlowYourRightsStrip';
 import useConfigStore from '@/store/useConfigStore';
 
@@ -43,25 +42,7 @@ vi.mock('@/lib/utils/toast', () => ({
 }));
 
 describe('DataFlowYourRightsStrip export helpers', () => {
-  it('redacts localApiKey in privacy routing snapshot', () => {
-    const redacted = redactPrivacyRoutingSnapshot({
-      localModel: 'llama3:8b',
-      localApiKey: 'sk-secret-key',
-    });
-
-    expect(redacted).toEqual({
-      localModel: 'llama3:8b',
-      localApiKey: '[REDACTED]',
-    });
-  });
-
-  it('preserves routing snapshot when localApiKey is absent', () => {
-    const routing = { localModel: 'llama3:8b' };
-    expect(redactPrivacyRoutingSnapshot(routing)).toEqual(routing);
-    expect(redactPrivacyRoutingSnapshot(null)).toBeNull();
-  });
-
-  it('buildComplianceExportBundle never includes raw localApiKey', () => {
+  it('buildComplianceExportBundle carries the routing preferences as they are', () => {
     const bundle = buildComplianceExportBundle(
       { version: 1, total_count: 0, data: [] },
       {
@@ -69,7 +50,7 @@ describe('DataFlowYourRightsStrip export helpers', () => {
         s2_action: 'mask',
         s3_action: 'block',
         deep_scan: false,
-        routing: { localModel: 'llama3:8b', localApiKey: 'sk-leak-me' },
+        routing: { localModel: 'llama3:8b', s3Strategy: 'local' },
       },
       {
         providers: [],
@@ -81,8 +62,7 @@ describe('DataFlowYourRightsStrip export helpers', () => {
       '2026-08-31T12:00:00.000Z',
     );
 
-    expect(bundle.privacy_settings.routing?.localApiKey).toBe('[REDACTED]');
-    expect(JSON.stringify(bundle)).not.toContain('sk-leak-me');
+    expect(bundle.privacy_settings.routing).toEqual({ localModel: 'llama3:8b', s3Strategy: 'local' });
   });
 
   it('buildChannelEgressSnapshot includes only connected channels', () => {
@@ -213,7 +193,7 @@ describe('DataFlowYourRightsStrip component', () => {
       privacyS2Action: 'redact',
       privacyS3Action: 'block',
       privacyDeepScan: false,
-      privacyRouting: { localModel: 'llama3:8b', localApiKey: 'sk-secret' },
+      privacyRouting: { localModel: 'llama3:8b' },
     });
   });
 
@@ -241,7 +221,8 @@ describe('DataFlowYourRightsStrip component', () => {
     const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
     expect(blob).toBeInstanceOf(Blob);
     const downloaded = JSON.parse(await blob.text());
-    expect(downloaded.privacy_settings.routing.localApiKey).toBe('[REDACTED]');
+    expect(downloaded.privacy_settings.routing).toEqual({ localModel: 'llama3:8b' });
+    expect(JSON.stringify(downloaded)).not.toContain('localApiKey');
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();

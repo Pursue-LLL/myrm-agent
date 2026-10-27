@@ -56,6 +56,7 @@ async def test_schedule_fires_deny_callback() -> None:
     assert len(received) == 1
     assert received[0]["decision"] == "reject"
     assert "feedback" in received[0]
+    assert received[0]["timed_out"] is True
 
 
 @pytest.mark.asyncio
@@ -71,6 +72,7 @@ async def test_schedule_fires_allow_callback() -> None:
     assert len(received) == 1
     assert received[0]["decision"] == "approve"
     assert "feedback" in received[0]
+    assert received[0]["timed_out"] is True
 
 
 @pytest.mark.asyncio

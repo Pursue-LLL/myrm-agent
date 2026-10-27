@@ -86,6 +86,25 @@ async def test_rows_already_encrypted_and_rows_that_are_not_secret_are_left_as_t
     assert service._decrypt_if_needed(await _stored(sessions, "externalAgents")) == _AGENTS
 
 
+async def test_a_row_saved_by_the_config_service_is_not_sealed_a_second_time(
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    sealed, flagged = service._encrypt_if_sensitive("providers", {"openai": "sk-kept"})
+    assert flagged
+    envelope = {"_cipher": sealed}
+    async with sessions() as db:
+        db.add(_row("providers", envelope, encrypted=True))
+        await db.commit()
+
+    async with sessions() as db:
+        stats = await migration.migrate_configs_to_encrypted(db)
+
+    stored = await _stored(sessions, "providers")
+    assert stats == {"migrated": 0, "skipped": 1, "errors": 0}
+    assert stored.config_value == envelope
+    assert service._decrypt_if_needed(stored) == {"openai": "sk-kept"}
+
+
 async def test_a_second_run_changes_nothing(sessions: async_sessionmaker[AsyncSession]) -> None:
     async with sessions() as db:
         db.add(_row("externalAgents", _AGENTS))

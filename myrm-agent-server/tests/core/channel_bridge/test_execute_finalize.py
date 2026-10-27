@@ -236,9 +236,16 @@ async def test_screenshot_url_attachment() -> None:
 
 @pytest.mark.asyncio
 async def test_empty_response_fallback() -> None:
+    """An empty turn says so in the sender's language and is flagged, so a delegated task is not reported as done."""
     acc = StreamAccumulator()
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
-    assert reply.content == "[No response generated]"
+    assert reply.content == "No response generated."
+    assert reply.metadata["error_type"] == "empty_response"
+
+    message = _make_message()
+    message.metadata["locale"] = "zh-CN"
+    _persist_mock, reply = await _finalize(StreamAccumulator(), ((), frozenset()), message=message)
+    assert reply.content == "未生成回复。"
 
 
 @pytest.mark.asyncio

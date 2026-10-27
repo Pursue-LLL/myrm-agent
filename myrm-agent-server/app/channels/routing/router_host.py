@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
     from app.channels.core.bus import MessageBus
+    from app.channels.delegation import DelegationCoordinator, DelegationIngressGuard
     from app.channels.protocols.agent import AgentExecutor
     from app.channels.protocols.background_task import BackgroundTaskHandler
     from app.channels.protocols.compact import CompactHandler
@@ -133,6 +134,9 @@ class RouterCommandsHost(Protocol):
     """Structural contract for `RouterCommandsMixin` (/stop, approvals, session/topic/retry/undo commands)."""
 
     _bus: MessageBus
+    _executor: AgentExecutor
+    _delegation_coordinator: DelegationCoordinator
+    _delegation_guard: DelegationIngressGuard
     _fx: MessageEffects
     _active_tasks: dict[str, _ActiveTask]
     _gate: SessionGate
@@ -161,6 +165,15 @@ class RouterCommandsHost(Protocol):
     ) -> bool: ...
 
     async def _check_admin_permission(self, msg: InboundMessage) -> bool: ...
+
+    async def _send_interactive_progress(
+        self,
+        msg: InboundMessage,
+        chat_id: str,
+        progress: ProgressUpdate,
+    ) -> str | None: ...
+
+    async def _hand_over_delegated_approval(self, msg: InboundMessage, progress: ProgressUpdate) -> None: ...
 
     @staticmethod
     def _build_decision_entry(

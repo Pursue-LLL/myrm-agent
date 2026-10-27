@@ -7,6 +7,7 @@
 - channels.routing.commands.router_commands_goals::RouterCommandsGoalsMixin (POS: /goal, /subgoal, /background, /handoff)
 - channels.routing.commands.router_commands_memory::RouterCommandsMemoryMixin (POS: /status, /kanban, /learn, /memory)
 - channels.routing.commands.router_commands_draft::RouterCommandsDraftMixin (POS: /draft decisions on replies held for review)
+- channels.routing.commands.router_commands_delegation::RouterCommandsDelegationMixin (POS: /delegate launch and approval hand-over of delegated runs)
 - channels.routing.commands.router_commands_quota::RouterCommandsQuotaMixin (POS: /quota usage inspection)
 
 [OUTPUT]
@@ -21,6 +22,7 @@ router_keys.routing_session_key. Logger name is consistent with the router packa
 from __future__ import annotations
 
 from .router_commands_approval import RouterCommandsApprovalMixin
+from .router_commands_delegation import RouterCommandsDelegationMixin
 from .router_commands_draft import RouterCommandsDraftMixin
 from .router_commands_goals import RouterCommandsGoalsMixin
 from .router_commands_memory import RouterCommandsMemoryMixin
@@ -36,6 +38,7 @@ class RouterCommandsMixin(
     RouterCommandsGoalsMixin,
     RouterCommandsMemoryMixin,
     RouterCommandsDraftMixin,
+    RouterCommandsDelegationMixin,
     RouterCommandsQuotaMixin,
 ):
     """Mixin: task cancellation and slash-command handlers from the consume loop."""

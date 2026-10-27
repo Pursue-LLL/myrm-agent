@@ -20,6 +20,7 @@ const CONFIG_GROUPS: Readonly<Record<string, ReentryGroup>> = {
   searchServices: 'modelKeys',
   externalAgents: 'modelKeys',
   voice: 'modelKeys',
+  privacyRoutingSecret: 'modelKeys',
   backupSync: 'savedSecrets',
   mcpServers: 'mcpConnections',
   mcpOAuthTokens: 'mcpConnections',

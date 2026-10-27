@@ -295,6 +295,7 @@ async def test_build_agent_returns_search_unreachable_when_service_down() -> Non
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
     assert "search" in outcome.early_reply.content.lower() or "搜索" in outcome.early_reply.content
+    assert outcome.early_reply.metadata["error_type"] == "search_unreachable"
 
 
 @pytest.mark.asyncio
@@ -314,6 +315,7 @@ async def test_build_agent_returns_search_not_configured_when_missing_service() 
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
     assert "搜索" in outcome.early_reply.content
+    assert outcome.early_reply.metadata["error_type"] == "search_not_configured"
 
 
 @pytest.mark.asyncio

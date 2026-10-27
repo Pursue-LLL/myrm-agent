@@ -73,11 +73,10 @@ async def test_duplicate_ask_question_calls_blocked() -> None:
     result = await middleware.aafter_model(state, None)
     assert result is not None
     messages = result["messages"]
-    assert len(messages) == 2
-    assert len(ai_msg.tool_calls) == 1
-    assert ai_msg.tool_calls[0]["id"] == "call_1"
+    assert len(messages) == 1
+    assert [call["id"] for call in ai_msg.tool_calls] == ["call_1", "call_2"], "the blocked call stays and is answered"
 
-    blocked = messages[1]
+    blocked = messages[0]
     assert isinstance(blocked, ToolMessage)
     assert blocked.tool_call_id == "call_2"
     assert blocked.status == "error"
@@ -108,10 +107,10 @@ async def test_ask_question_blocks_coexisting_tools() -> None:
     result = await middleware.aafter_model(state, None)
     assert result is not None
     messages = result["messages"]
-    assert len(ai_msg.tool_calls) == 1
-    assert ai_msg.tool_calls[0]["name"] == ASK_QUESTION_TOOL_NAME
+    assert [call["id"] for call in ai_msg.tool_calls] == ["call_clarify", "call_search"]
+    assert len(messages) == 1
 
-    blocked = messages[1]
+    blocked = messages[0]
     assert isinstance(blocked, ToolMessage)
     assert blocked.tool_call_id == "call_search"
     assert blocked.status == "error"

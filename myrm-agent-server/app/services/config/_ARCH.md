@@ -15,7 +15,7 @@
 |------|------|------|-------|
 | `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测 | ✅ |
 | `encryption.py` | 核心 | 业务层加密策略：密钥注入、敏感配置判定、encrypt/decrypt 委托到 harness ConfigCrypto | ✅ |
-| `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级；`seal_stored_configs` 是启动时的整体入口（一个会话里先封配置行、再封审计历史） | ✅ |
+| `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级；`seal_stored_configs` 是启动时的整体入口（一个会话里先封配置行、再封审计历史、最后迁移本地模型密钥） | ✅ |
 | `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
 | `onboarding.py` | 核心 | 首次配置 onboarding：检查状态、标记完成、推荐 provider、probe 本地模型与搜索（SearXNG/DuckDuckGo） | ✅ |
 | `searxng_setup.py` | 辅助 | 本地 SearXNG 启动（Docker Compose，local/tauri deploy only）+ 启动后轮询探测可用性 | ✅ |
@@ -51,11 +51,11 @@
 
 **敏感配置范围**：
 ```
-providers, retrieval, searchServices, mcpServers, backupSync, voice, externalAgents, egress_proxy, llm_proxy,
+providers, retrieval, searchServices, mcpServers, backupSync, voice, privacyRoutingSecret, externalAgents, egress_proxy, llm_proxy,
 feishuCredentials, dingtalkCredentials, slackCredentials, ...
 ```
 
-名单是手写的：`tests/services/config/test_config_key_classification.py` 要求每个 `ConfigKey` 要么在名单里、要么在该测试的「不含密钥」清单里，新增配置键而不表态会让测试失败。`personalSettings` 是唯一的例外行：偏好与一个可选的本地模型端点密钥（`privacyRouting.localApiKey`）在同一份文档里读写，整行封存会让不带口令的归档丢掉偏好，所以它仍以普通数据携带。
+名单是手写的：`tests/services/config/test_config_key_classification.py` 要求每个 `ConfigKey` 要么在名单里、要么在该测试的「不含密钥」清单里，新增配置键而不表态会让测试失败。用户自己的本地模型端点的密钥单独存放在 `privacyRoutingSecret` 行（`{localApiKey}`，封存，口令归档下携带），不放进 `personalSettings`：偏好行因此不含任何密钥，是普通数据，它的审计历史与不带口令的归档都不会带出密钥。
 
 ### 3. 配置迁移 (`migration.py`)
 
@@ -65,7 +65,11 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 
 **审计历史同样封存**：`config_audit_logs` 逐次重复保存过的值（`ConfigService.set` 写入时与主行同形，敏感键为 `{"_cipher": ...}`）。键在被列为敏感之前留下的明文旧值，由 `migrate_config_history_to_encrypted` 在同一时机补封；已封的值与非敏感键的历史原样保留，第二次运行不改任何行。
 
-**不变量**：`migrate_configs_to_encrypted` 写入密文的同时置 `is_encrypted`——读取按这个标志而不是按值的形状判断是否解密，漏置时读回的是 `{}`。
+**本地模型密钥迁移**：`move_privacy_routing_key` 把仍存在 `personalSettings.privacyRouting.localApiKey` 的密钥搬进封存的 `privacyRoutingSecret` 行（该行已存在时以它为准），并从当前偏好与每条 `personalSettings` 审计快照里移除该字段。偏好行换新版本号，仍持有旧值的客户端会走冲突解决而不是把密钥写回。整个迁移是一个事务：失败不改任何行，第二次运行无事可做。
+
+**不变量**：
+- `migrate_configs_to_encrypted` 写入密文的同时置 `is_encrypted`——读取按这个标志而不是按值的形状判断是否解密，漏置时读回的是 `{}`。
+- 已封的行不再封第二次：裸密文字符串与 `ConfigService` 写入的 `{"_cipher": ...}` 信封都原样跳过，否则值会被埋进第二层（读取侧仍能解开，但整实例归档按单层处理）。
 
 ### 4. Onboarding (`onboarding.py`)
 

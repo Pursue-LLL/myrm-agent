@@ -22,10 +22,12 @@ _TABLES: dict[str, Table] = dict(Base.metadata.tables)
 _SECRET_LOOKING = re.compile(r"secret|token|password|passwd|api_key|credential|private_key|cookie|webhook", re.I)
 
 # Secret-looking columns outside the host-bound / secret / ephemeral tables, reviewed one by one:
-# usage counters carry no secret; share-link columns are scrubbed by scrub_sensitive_surface.
+# usage counters carry no secret; the history sync token only fingerprints which messages the agent thread mirrors;
+# share-link columns are scrubbed by scrub_sensitive_surface.
 _REVIEWED_COLUMNS = {
     ("chats", "compacted_tokens_saved"),
     ("chats", "total_tokens"),
+    ("chats", "history_sync_token"),
     ("chats", "share_token_fingerprint"),
     ("chats", "share_token_expires_at"),
     ("chats", "share_token_protected"),

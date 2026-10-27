@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from langchain_core.messages import AIMessage, ToolCall
+from langchain_core.messages import AIMessage, ToolCall, ToolMessage
 
 import myrm_agent_harness.agent.security.approval_flow as approval_flow
 from myrm_agent_harness.agent.middlewares.approval import (
@@ -207,7 +207,7 @@ async def _denials(tool_name: str, args: dict[str, object]) -> list[str]:
     result = await ToolApprovalMiddleware().aafter_model(state, MockRuntime())
     if result is None:
         return []
-    return [str(m.content) for m in result["messages"][1:] if hasattr(m, "tool_call_id")]
+    return [str(m.content) for m in result["messages"] if isinstance(m, ToolMessage)]
 
 
 @pytest.fixture

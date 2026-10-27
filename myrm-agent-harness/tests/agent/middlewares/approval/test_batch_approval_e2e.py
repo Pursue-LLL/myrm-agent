@@ -118,12 +118,11 @@ async def test_batch_approval_single_interrupt(mock_security_config, monkeypatch
     modified_ai_msg = messages[0]
     assert isinstance(modified_ai_msg, AIMessage)
 
-    assert len(modified_ai_msg.tool_calls) == 2, (
-        "Should have 2 approved/edited tool calls (call_1 approved, call_3 edited)"
+    assert [call["id"] for call in modified_ai_msg.tool_calls] == ["call_1", "call_2", "call_3"], (
+        "the rejected call_2 stays in the AI message, answered by its error ToolMessage"
     )
-    assert modified_ai_msg.tool_calls[0]["id"] == "call_1"
-    assert modified_ai_msg.tool_calls[1]["id"] == "call_3"
-    assert modified_ai_msg.tool_calls[1]["args"]["command"] == "ls -l", "call_3 should be edited"
+    assert modified_ai_msg.tool_calls[0]["args"]["command"] == "python3 setup.py install"
+    assert modified_ai_msg.tool_calls[2]["args"]["command"] == "ls -l", "call_3 should be edited"
 
     tool_messages = [msg for msg in messages[1:] if hasattr(msg, "tool_call_id")]
     rejected = [msg for msg in tool_messages if "rejected" in msg.content.lower()]

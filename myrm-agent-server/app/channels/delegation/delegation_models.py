@@ -29,6 +29,7 @@ class DelegationStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     TIMED_OUT = "timed_out"
+    CANCELLED = "cancelled"
 
 
 @dataclass

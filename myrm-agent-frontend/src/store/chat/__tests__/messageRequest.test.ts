@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setGlobalTranslator } from '@/services/i18nToastService';
 import * as api from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
+import { getConfigSyncManager } from '@/services/config';
 import { expectDefined } from '@/test-utils/expectDefined';
 import { normalizeLocaleForBackend } from '@/lib/utils/locale';
 import type { AgentConfig } from '@/store/chat/types';
@@ -423,6 +424,123 @@ describe('messageRequest - memory settings contract', () => {
     expect(requestBody.enable_conversation_search).toBe(true);
 
     useConfigStore.setState({ memoryEnableConversationSearch: originalMemoryEnableConversationSearch });
+  });
+});
+
+describe('messageRequest - privacy routing contract', () => {
+  const makeState = () =>
+    ({
+      chatId: 'chat-privacy-routing',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+    }) as unknown as ChatActionsState;
+
+  const manager = getConfigSyncManager();
+  const originalGet = manager.get.bind(manager);
+  const preferences = {
+    privacyEnabled: true,
+    privacyRouting: { localModel: 'llama3:8b', s3Strategy: 'local' as const },
+  };
+  let savedKey: string | null = null;
+
+  const sentRequest = async (): Promise<Record<string, unknown>> => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    await createMessageRequest('private question', 'msg-privacy-routing', makeState(), null);
+    return (createAISearchStreamMock.mock.calls[0] ?? [])[0] as Record<string, unknown>;
+  };
+
+  beforeEach(() => {
+    savedKey = null;
+    vi.spyOn(manager, 'ensureKeyLoaded').mockResolvedValue(undefined);
+    vi.spyOn(manager, 'get').mockImplementation(((key: string) =>
+      key === 'privacyRoutingSecret' && savedKey ? { localApiKey: savedKey } : originalGet(key as never)) as never);
+    useConfigStore.setState(preferences);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useConfigStore.setState({ privacyEnabled: false, privacyRouting: {} });
+  });
+
+  it('sends the saved local model key together with the routing preferences', async () => {
+    savedKey = 'sk-local-endpoint';
+
+    const body = await sentRequest();
+
+    expect(body.privacy_routing).toEqual({
+      localModel: 'llama3:8b',
+      s3Strategy: 'local',
+      localApiKey: 'sk-local-endpoint',
+    });
+  });
+
+  it('keeps the key out of the persisted routing preferences', async () => {
+    savedKey = 'sk-local-endpoint';
+
+    await sentRequest();
+
+    expect(JSON.stringify(useConfigStore.getState().privacyRouting)).not.toContain('sk-local-endpoint');
+  });
+
+  it('sends the routing preferences alone when no key was saved', async () => {
+    const body = await sentRequest();
+
+    expect(body.privacy_routing).toEqual({ localModel: 'llama3:8b', s3Strategy: 'local' });
+  });
+
+  it('sends no routing without a local model, and never sends the key then', async () => {
+    savedKey = 'sk-local-endpoint';
+    useConfigStore.setState({ privacyRouting: { s3Strategy: 'block' } });
+
+    const body = await sentRequest();
+
+    expect(body).not.toHaveProperty('privacy_routing');
+    expect(JSON.stringify(body)).not.toContain('sk-local-endpoint');
+  });
+
+  it('sends no routing and no key when privacy mode is off', async () => {
+    savedKey = 'sk-local-endpoint';
+    useConfigStore.setState({ privacyEnabled: false });
+
+    const body = await sentRequest();
+
+    expect(body).not.toHaveProperty('privacy_routing');
+    expect(JSON.stringify(body)).not.toContain('sk-local-endpoint');
   });
 });
 

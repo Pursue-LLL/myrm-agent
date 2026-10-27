@@ -30,6 +30,7 @@ from app.core.channel_bridge.executor_helpers import (
 from app.core.channel_bridge.executor_helpers.topic_workspace_sync import ChannelWorkspaceSyncError
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
+from ..execute_errors import build_early_failure_reply
 from ..session import resolve_session_key
 from .backfill import maybe_backfill_channel_history
 
@@ -121,8 +122,10 @@ async def resolve_channel_session_context(
         except ChannelWorkspaceSyncError as exc:
             logger.warning("Workspace sync failed for channel session: %s", exc)
             pre_events.append(
-                msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
+                build_early_failure_reply(
+                    msg,
+                    get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
+                    "workspace_unavailable",
                 )
             )
             return ChannelSessionContext(
@@ -149,8 +152,10 @@ async def resolve_channel_session_context(
         except ChannelWorkspaceSyncError as exc:
             logger.warning("Workspace sync failed for channel session: %s", exc)
             pre_events.append(
-                msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
+                build_early_failure_reply(
+                    msg,
+                    get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
+                    "workspace_unavailable",
                 )
             )
             return ChannelSessionContext(

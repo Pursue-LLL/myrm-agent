@@ -43,6 +43,12 @@ def test_extension_clip_agent_config_key_present() -> None:
     assert "extensionClipAgent" in config_keys
 
 
+def test_privacy_routing_secret_config_key_present() -> None:
+    """privacyRoutingSecret must be a valid ConfigKey so the web UI can save the local model key in its own row."""
+    config_keys = typing.get_args(ConfigKey)
+    assert "privacyRoutingSecret" in config_keys
+
+
 # ---------------------------------------------------------------------------
 # PersonalSettingsConfigValue — suggestWorkflowMode defaults & schema metadata
 # ---------------------------------------------------------------------------

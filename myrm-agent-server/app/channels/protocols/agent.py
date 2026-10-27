@@ -13,7 +13,8 @@ an Agent with the user's configuration.
 [POS]
 Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates
 inbound messages to business-layer Agents via this protocol. execute_stream returns
-AsyncGenerator yielding ProgressUpdate (progress) and OutboundMessage (final result).
+AsyncGenerator yielding ProgressUpdate (progress), StreamingText (reply text so far) and
+OutboundMessage (final result).
 External cancellation (e.g. user /stop command)。
 """
 
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
         InboundMessage,
         OutboundMessage,
         ProgressUpdate,
+        StreamingText,
         TopicContext,
     )
 
@@ -56,7 +58,7 @@ class AgentExecutor(Protocol):
         cancel_token: CancellationToken | None = None,
         steering_token: SteeringToken | None = None,
         topic_context: TopicContext | None = None,
-    ) -> AsyncGenerator[ProgressUpdate | FissionTopologyUpdate | OutboundMessage]:
+    ) -> AsyncGenerator[ProgressUpdate | StreamingText | FissionTopologyUpdate | OutboundMessage]:
         """Stream agent execution progress and final result.
 
         Args:
@@ -73,6 +75,7 @@ class AgentExecutor(Protocol):
 
         Yields:
             ProgressUpdate — zero or more progress labels during execution.
+            StreamingText — zero or more snapshots of the reply text so far.
             OutboundMessage — exactly one, as the final yielded value.
         """
         ...

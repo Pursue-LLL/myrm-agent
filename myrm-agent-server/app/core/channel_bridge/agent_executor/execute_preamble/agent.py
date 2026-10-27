@@ -37,6 +37,7 @@ from app.core.types import MCPServerConfig
 from app.core.types.business import ModelConfig
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
+from ..execute_errors import build_early_failure_reply
 from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 from .context_document import attach_context_document
 from .types import (
@@ -176,12 +177,9 @@ async def build_channel_execution_agent(
         agent_wants_search and configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg)
     )
     if agent_wants_search and not search_available:
-        if not configs.search_is_user_configured:
-            err_msg = get_text(msg, "search_not_configured")
-        else:
-            err_msg = get_text(msg, "search_unreachable")
+        search_failure = "search_not_configured" if not configs.search_is_user_configured else "search_unreachable"
         return ChannelAgentBuildOutcome(
-            early_reply=msg.get_or_create_correlation_context().create_reply(content=err_msg),
+            early_reply=build_early_failure_reply(msg, get_text(msg, search_failure), search_failure),
         )
 
     from app.ai_agents.general_agent.context import (

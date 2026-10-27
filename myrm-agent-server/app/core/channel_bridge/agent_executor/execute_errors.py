@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - build_config_incomplete_reply / build_llm_error_reply / build_generic_error_reply
+- build_early_failure_reply: the flagged reply of a turn that ended before the agent ran
 
 [POS]
 Maps harness and config exceptions to channel-friendly OutboundMessage replies.
@@ -26,6 +27,15 @@ from app.channels.routing.friendly_errors import ERROR_TYPE_METADATA_KEY, friend
 from app.channels.types import ActionButton, ComponentRow, InboundMessage, OutboundMessage
 
 logger = logging.getLogger(__name__)
+
+
+def build_early_failure_reply(msg: InboundMessage, content: str, error_type: str) -> OutboundMessage:
+    """Reply that ends a turn before the agent ran, flagged as a failed turn.
+
+    The flag lets a host that runs the turn for someone else (a delegated task) report it as failed
+    instead of as an answer.
+    """
+    return msg.get_or_create_correlation_context().create_reply(content=content, metadata={ERROR_TYPE_METADATA_KEY: error_type})
 
 
 def build_config_incomplete_reply(msg: InboundMessage, exc: ConfigIncompleteError) -> OutboundMessage:

@@ -56,18 +56,6 @@ export interface ComplianceExportBundle {
   egress_snapshot: ComplianceEgressSnapshot;
 }
 
-export function redactPrivacyRoutingSnapshot(
-  routing: PrivacyRoutingSnapshot | null | undefined,
-): PrivacyRoutingSnapshot | null {
-  if (!routing) {
-    return null;
-  }
-  if (!routing.localApiKey) {
-    return routing;
-  }
-  return { ...routing, localApiKey: '[REDACTED]' };
-}
-
 export function buildComplianceExportBundle(
   memories: { version: string | number; total_count: number; data: unknown },
   privacySettings: ComplianceExportPrivacySettings,
@@ -82,10 +70,7 @@ export function buildComplianceExportBundle(
       total_count: memories.total_count,
       data: memories.data,
     },
-    privacy_settings: {
-      ...privacySettings,
-      routing: redactPrivacyRoutingSnapshot(privacySettings.routing),
-    },
+    privacy_settings: privacySettings,
     egress_snapshot: egressSnapshot,
   };
 }

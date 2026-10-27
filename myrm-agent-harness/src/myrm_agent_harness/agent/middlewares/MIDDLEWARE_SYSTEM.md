@@ -49,7 +49,7 @@
 
 实际顺序以 `_factory/builder.py` 与 Server `factory.py` 装配为准；上图为逻辑分层。
 
-模型响应后的守卫（`after_model`）由 LangChain 按装配列表**倒序**执行：响应先过 CompletionGuard，再过 ClarificationGuard，最后才到工具审批。被守卫拦下或剥离的调用不会再弹给用户审批。CompletionGuard 拦下草稿时返回 `jump_to="model"`，复核指令由 `completion_directive_middleware` 只在下一次模型请求末尾追加（仅当它所跟随的那条消息仍是请求的最后一条：有文字的被拦草稿，或不带文字的结束工具草稿被 `RemoveMessage` 移出会话后它前面的那条消息），不写入会话与检查点；同时记录 `completion_guard` 事件，并发出 `answer_recheck` 重启状态让前端丢弃正在流出的旧草稿。
+模型响应后的守卫（`after_model`）由 LangChain 按装配列表**倒序**执行：响应先过 CompletionGuard，再过 ClarificationGuard，最后才到工具审批。被 ClarificationGuard 拦下的调用由它用 error ToolMessage 回答，审批跳过已有回答的调用，所以不会再弹给用户审批。被拒绝的调用（策略拒绝、用户拒绝、审批超时、定时任务无人可批）同样留在 AI 消息里、由 error ToolMessage 回答，模型读到的是对自己调用的拒绝结果与原因（用户填写的理由原样带上；超时写明无人回答）；删掉调用会让这条结果变成孤儿，下一次模型请求前被悬空调用修复丢掉。CompletionGuard 拦下草稿时返回 `jump_to="model"`，复核指令由 `completion_directive_middleware` 只在下一次模型请求末尾追加（仅当它所跟随的那条消息仍是请求的最后一条：有文字的被拦草稿，或不带文字的结束工具草稿被 `RemoveMessage` 移出会话后它前面的那条消息），不写入会话与检查点；同时记录 `completion_guard` 事件，并发出 `answer_recheck` 重启状态让前端丢弃正在流出的旧草稿。
 
 ---
 

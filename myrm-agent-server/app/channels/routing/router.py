@@ -87,7 +87,6 @@ from app.channels.core.outbound_prepare import set_correlation_context
 from app.channels.delegation import (
     DelegationCoordinator,
     DelegationIngressGuard,
-    build_delegation_task,
     is_delegation_intent,
 )
 from app.channels.i18n import get_text, resolve_message_locale
@@ -771,54 +770,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
     def delegation_coordinator(self) -> DelegationCoordinator:
         """Access the delegation coordinator instance."""
         return self._delegation_coordinator
-
-    async def _handle_delegation_inbound(self, msg: InboundMessage, clean_prompt: str) -> bool:
-        """Handle mobile task delegation: issue sub-second receipt and launch background task."""
-        chat_id = msg.chat_id or msg.sender_id
-        user_id = msg.user_id or chat_id
-        if not self._delegation_guard.can_accept(msg.channel, user_id):
-            reject_msg = OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=get_text(msg, "delegation_quota_reached", limit=self._delegation_guard.max_active),
-                user_id=user_id,
-                thread_id=msg.thread_id,
-            )
-            await self._bus.publish_outbound(reject_msg)
-            return True
-
-        task = build_delegation_task(
-            origin_channel=msg.channel,
-            origin_user_id=user_id,
-            origin_chat_id=chat_id,
-            prompt=clean_prompt,
-        )
-        self._delegation_coordinator.register_task(task)
-        self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
-
-        receipt_outbound = OutboundMessage(
-            channel=msg.channel,
-            recipient_id=chat_id,
-            content=get_text(msg, "delegation_receipt", task_id=task.task_id, prompt=clean_prompt[:120]),
-            user_id=user_id,
-            thread_id=msg.thread_id,
-            metadata={"delegation_task_id": task.task_id, "is_receipt": True},
-        )
-        await self._bus.publish_outbound(receipt_outbound)
-
-        async def _run_bg() -> None:
-            try:
-                await self._delegation_coordinator.execute_task_lifecycle(
-                    task,
-                    self._executor,
-                    self._bus,
-                    msg,
-                )
-            finally:
-                self._delegation_guard.release(msg.channel, user_id, task.task_id)
-
-        asyncio.create_task(_run_bg())
-        return True
 
     async def _enrich_message_locale(self, msg: InboundMessage) -> InboundMessage:
         """Inject resolved locale into inbound message metadata."""

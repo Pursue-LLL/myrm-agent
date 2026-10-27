@@ -81,7 +81,11 @@ class RouterCommandsApprovalMixin:
         return True
 
     async def _cancel_active_task(self: RouterCommandsHost, msg: InboundMessage) -> None:
-        """Cancel the active agent task for the sender's chat session."""
+        """Cancel the active agent task for the sender's chat session.
+
+        A turn of the chat is stopped first. Only when none is running does ``/stop`` reach the background tasks the
+        sender delegated from this chat, so one command never ends both a conversation turn and a long task.
+        """
         chat_id = msg.chat_id or msg.sender_id
         state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
 
@@ -90,6 +94,8 @@ class RouterCommandsApprovalMixin:
             reason="User /stop command",
             placeholder_text=get_text(msg, "placeholder_stopped"),
         )
+        if not cancelled:
+            cancelled = bool(self._delegation_coordinator.cancel_for_chat(msg.channel, chat_id, msg.user_id or chat_id))
 
         if not cancelled:
             reply = OutboundMessage(

@@ -21,6 +21,7 @@ import { Switch } from '@/components/primitives/switch';
 import { toast } from '@/lib/utils/toast';
 import { fetchWithTimeout } from '@/lib/api';
 import useConfigStore from '@/store/useConfigStore';
+import { usePrivacyRoutingSecret } from '@/hooks/settings/usePrivacyRoutingSecret';
 import type { PIIAction, PrivacyS2Strategy, PrivacyS3Strategy, PrivacyLocalFallback } from '@/services/config/types';
 import SettingsSection from '../SettingsSection';
 import { AdvancedPiiConfig } from './AdvancedPiiConfig';
@@ -30,6 +31,7 @@ import { PrivacyRuleTester } from './PrivacyRuleTester';
 const SecurityPrivacyPanel = memo(() => {
   const t = useTranslations('settings.securityPolicy');
   const [testingLocalModel, setTestingLocalModel] = useState(false);
+  const [localApiKey, setLocalApiKey] = usePrivacyRoutingSecret();
 
   const {
     privacyEnabled,
@@ -65,7 +67,7 @@ const SecurityPrivacyPanel = memo(() => {
           body: JSON.stringify({
             model: privacyRouting.localModel,
             base_url: privacyRouting.localBaseUrl || null,
-            api_key: privacyRouting.localApiKey || null,
+            api_key: localApiKey || null,
           }),
         },
         15000,
@@ -81,7 +83,7 @@ const SecurityPrivacyPanel = memo(() => {
     } finally {
       setTestingLocalModel(false);
     }
-  }, [privacyRouting, t]);
+  }, [privacyRouting, localApiKey, t]);
 
   return (
     <SettingsSection title={t('privacy.title')} description={t('privacy.description')}>
@@ -194,8 +196,8 @@ const SecurityPrivacyPanel = memo(() => {
                     <label className="text-xs font-medium text-foreground">{t('privacy.routing.localApiKey')}</label>
                     <Input
                       type="password"
-                      value={privacyRouting?.localApiKey ?? ''}
-                      onChange={(e) => updateRoutingField('localApiKey', e.target.value || undefined)}
+                      value={localApiKey}
+                      onChange={(e) => setLocalApiKey(e.target.value)}
                       placeholder={t('privacy.routing.localApiKeyPlaceholder')}
                       className="text-sm"
                     />

@@ -36,6 +36,7 @@ from app.services.agent.profile.profile_resolver import (
     get_agent_profile_resolver,
 )
 
+from ..execute_errors import build_early_failure_reply
 from ..helpers import build_channel_inbound_query
 from ..session import build_channel_budget_key
 from .agent import build_channel_execution_agent
@@ -80,9 +81,7 @@ async def prepare_channel_execution(
         return PrepareChannelExecutionResult(
             pre_events=(
                 *pre_events,
-                msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "daily_budget_blocked"),
-                ),
+                build_early_failure_reply(msg, get_text(msg, "daily_budget_blocked"), "daily_budget_blocked"),
             ),
         )
 
@@ -99,9 +98,7 @@ async def prepare_channel_execution(
         return PrepareChannelExecutionResult(
             pre_events=(
                 *pre_events,
-                msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "channel_budget_blocked"),
-                ),
+                build_early_failure_reply(msg, get_text(msg, "channel_budget_blocked"), "channel_budget_blocked"),
             ),
         )
 

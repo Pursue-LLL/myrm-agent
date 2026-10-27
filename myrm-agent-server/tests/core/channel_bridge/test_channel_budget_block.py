@@ -39,6 +39,7 @@ async def test_execute_stream_replies_with_daily_budget_blocked_message() -> Non
     assert len(events) == 1
     reply = events[0]
     assert "budget" in reply.content.lower()
+    assert reply.metadata["error_type"] == "daily_budget_blocked"
 
 
 @pytest.mark.asyncio
@@ -82,6 +83,7 @@ async def test_channel_budget_block_returns_channel_specific_message() -> None:
     assert len(events) == 1
     reply = events[0]
     assert "channel" in reply.content.lower() or "频道" in reply.content
+    assert reply.metadata["error_type"] == "channel_budget_blocked"
 
 
 @pytest.mark.asyncio

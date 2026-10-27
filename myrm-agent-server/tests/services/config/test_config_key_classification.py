@@ -20,6 +20,7 @@ from typing import get_args
 
 from app.schemas.config import ConfigKey
 from app.services.config.encryption import is_sensitive_config
+from app.services.instance_archive.table_policy import ConfigRowPolicy, config_needs_reentry, config_row_policy
 
 # Preferences, model choices, schedules and feature switches: nothing in these rows opens an account or costs money.
 _PLAIN_ROWS: frozenset[str] = frozenset(
@@ -40,19 +41,14 @@ _PLAIN_ROWS: frozenset[str] = frozenset(
         "orgModelPolicy",
         "extensionClipAgent",
         "user_progression",
+        "personalSettings",
     }
 )
-
-# Preferences plus one optional key (``privacyRouting.localApiKey``, the key of a model endpoint the user runs): the row
-# is read and written as one document, so sealing it whole would make archives without a passphrase drop the preferences.
-_PLAIN_ROWS_WITH_AN_OPTIONAL_KEY: frozenset[str] = frozenset({"personalSettings"})
 
 
 def test_every_config_key_is_sealed_or_listed_as_holding_no_secret() -> None:
     unsealed = {key for key in get_args(ConfigKey) if not is_sensitive_config(key)}
-    expected = _PLAIN_ROWS | _PLAIN_ROWS_WITH_AN_OPTIONAL_KEY
-
-    unclassified, stale = sorted(unsealed - expected), sorted(expected - unsealed)
+    unclassified, stale = sorted(unsealed - _PLAIN_ROWS), sorted(_PLAIN_ROWS - unsealed)
 
     assert not unclassified, (
         f"Stored in plaintext and not classified: {unclassified}. Add each to SENSITIVE_CONFIG_KEYS (and to "
@@ -60,3 +56,9 @@ def test_every_config_key_is_sealed_or_listed_as_holding_no_secret() -> None:
         "can hold a credential, otherwise to _PLAIN_ROWS in this test."
     )
     assert not stale, f"Listed here but sealed, or not a config key: {stale}. Remove them from this test."
+
+
+def test_the_key_of_the_users_own_model_endpoint_has_a_sealed_row_that_travels_in_a_protected_archive() -> None:
+    assert is_sensitive_config("privacyRoutingSecret")
+    assert config_row_policy("privacyRoutingSecret") is ConfigRowPolicy.PORTABLE_SECRET
+    assert config_needs_reentry("privacyRoutingSecret")

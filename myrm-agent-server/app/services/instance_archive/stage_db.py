@@ -28,7 +28,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError, EncryptionError
+from myrm_agent_harness.utils.crypto import ConfigCrypto, EncryptionError
 
 from app.services.instance_archive.checkpoint_scrub import CHECKPOINTS_DB_NAME, scrub_checkpoint_threads
 from app.services.instance_archive.table_policy import (
@@ -41,6 +41,7 @@ from app.services.instance_archive.table_policy import (
     config_row_policy,
     count_rows,
     delete_all_rows,
+    open_sealed_config,
     scrub_sensitive_surface,
     table_names,
     web_incognito_chat_ids,
@@ -154,15 +155,15 @@ def _rekey_configs(conn: sqlite3.Connection, ctx: StageContext) -> tuple[list[st
             continue
         rekeyed: str | None = None
         if policy is ConfigRowPolicy.PORTABLE_SECRET and is_encrypted and ctx.source_key and ctx.target_key:
-            try:
-                ciphertext = json.loads(raw_value)
-                plain = ConfigCrypto.decrypt_value(ciphertext, ctx.source_key) if isinstance(ciphertext, str) else None
-                if plain is not None:
+            plain = open_sealed_config(raw_value, ctx.source_key)
+            if plain is not None:
+                try:
                     rekeyed = json.dumps(ConfigCrypto.encrypt_value(plain, ctx.target_key))
+                except EncryptionError:
+                    rekeyed = None
+                else:
                     if key == "mcpServers":
                         mcp_commands = _count_commands(plain)
-            except (ValueError, DecryptionError, EncryptionError):
-                rekeyed = None
         if rekeyed is not None:
             conn.execute("UPDATE user_configs SET config_value = ? WHERE config_key = ?", (rekeyed, key))
             carried = True

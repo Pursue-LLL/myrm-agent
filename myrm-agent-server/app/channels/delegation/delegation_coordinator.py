@@ -10,7 +10,8 @@ injections to running Agent sandboxes via SteeringToken.
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken
 
 [OUTPUT]
-- DelegationCoordinator: Central coordinator managing task state machines, steering, and the background execution lifecycle.
+- ApprovalHandOver: callback through which a run that stopped at a tool approval is handed to the chat it came from.
+- DelegationCoordinator: Central coordinator managing task state machines, steering, stopping, and the background execution lifecycle.
 
 [POS]
 Execution lifecycle and coordination engine for app/channels/delegation/.
@@ -18,8 +19,10 @@ Execution lifecycle and coordination engine for app/channels/delegation/.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -39,7 +42,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("myrm.channels.delegation.coordinator")
 
-_TERMINAL_STATUSES = (DelegationStatus.COMPLETED, DelegationStatus.FAILED, DelegationStatus.TIMED_OUT)
+_TERMINAL_STATUSES = (
+    DelegationStatus.COMPLETED,
+    DelegationStatus.FAILED,
+    DelegationStatus.TIMED_OUT,
+    DelegationStatus.CANCELLED,
+)
+
+ApprovalHandOver = Callable[[ProgressUpdate], Awaitable[None]]
+"""Puts the approval request in front of the chat so the user's answer resumes the run there."""
 
 
 class DelegationCoordinator:
@@ -49,6 +60,7 @@ class DelegationCoordinator:
         self._tasks: dict[str, DelegationTask] = {}
         self._cancellation_tokens: dict[str, CancellationToken] = {}
         self._steering_tokens: dict[str, SteeringToken] = {}
+        self._runners: dict[str, asyncio.Task[object]] = {}
 
     def register_task(self, task: DelegationTask) -> None:
         """Register a newly created delegated task."""
@@ -66,6 +78,7 @@ class DelegationCoordinator:
         self._tasks.pop(task_id, None)
         self._cancellation_tokens.pop(task_id, None)
         self._steering_tokens.pop(task_id, None)
+        self._runners.pop(task_id, None)
 
     def update_task_status(
         self,
@@ -134,8 +147,36 @@ class DelegationCoordinator:
         """Retrieve the cancellation token for a task."""
         return self._cancellation_tokens.get(task_id)
 
+    def _interrupt(self, task_id: str, reason: str) -> None:
+        """Stop a run the way the router stops a foreground turn: the token for a cooperative exit, the task for a run that never checks it."""
+        cancel_token = self._cancellation_tokens.get(task_id)
+        if cancel_token:
+            cancel_token.cancel(reason)
+        runner = self._runners.get(task_id)
+        if runner and not runner.done():
+            runner.cancel()
+
+    def cancel_for_chat(self, channel: str, chat_id: str, user_id: str) -> list[str]:
+        """Stop the running tasks the user delegated from this chat.
+
+        Returns:
+            IDs of the tasks that were stopped; the caller tells the user.
+        """
+        stopped = [
+            task.task_id
+            for task in self._tasks.values()
+            if task.origin_channel == channel
+            and task.origin_chat_id == chat_id
+            and task.origin_user_id == user_id
+            and task.status is DelegationStatus.RUNNING
+        ]
+        for task_id in stopped:
+            self.update_task_status(task_id, DelegationStatus.CANCELLED)
+            self._interrupt(task_id, "User /stop command")
+        return stopped
+
     def reap_stale_tasks(self, max_age_seconds: float = 7200.0) -> list[str]:
-        """Reap tasks that have exceeded their timeout or run past max age.
+        """Time out and stop the tasks that have run past their limit.
 
         Returns:
             List of reaped task IDs.
@@ -149,15 +190,13 @@ class DelegationCoordinator:
             timeout = task.timeout_seconds or max_age_seconds
             if now - started > timeout:
                 self.update_task_status(task_id, DelegationStatus.TIMED_OUT)
-                cancel_token = self._cancellation_tokens.get(task_id)
-                if cancel_token:
-                    cancel_token.cancel()
+                self._interrupt(task_id, "Delegated task exceeded its time limit")
                 reaped.append(task_id)
                 logger.warning("DelegationCoordinator: Reaped stale task %s", task_id)
         return reaped
 
     def _settle_finished_stream(self, task: DelegationTask, final_reply: OutboundMessage | None) -> None:
-        """Record how a finished stream ended, unless the reaper already timed the task out while it ran.
+        """Record how a finished stream ended, unless the task was already timed out or stopped while it ran.
 
         A failed turn arrives as an ordinary reply flagged as an error; its text is already member-safe.
         """
@@ -168,14 +207,37 @@ class DelegationCoordinator:
         else:
             self.update_task_status(task.task_id, DelegationStatus.COMPLETED)
 
+    async def _settle_interrupted(self, task: DelegationTask, bus: MessageBus, original_msg: InboundMessage) -> None:
+        """Close a run whose task was cancelled: a timed-out run tells its chat why; a stopped one was already answered by /stop."""
+        try:
+            if task.status is DelegationStatus.TIMED_OUT:
+                await bus.publish_outbound(build_delivery_message(task, original_msg, None, ""))
+            elif task.status not in _TERMINAL_STATUSES:
+                self.update_task_status(task.task_id, DelegationStatus.CANCELLED)
+        except Exception:
+            logger.warning(
+                "DelegationCoordinator: Task %s ended as %s without its notice", task.task_id, task.status.value, exc_info=True
+            )
+        finally:
+            self._forget(task.task_id)
+
     async def execute_task_lifecycle(
         self,
         task: DelegationTask,
         executor: AgentExecutor,
         bus: MessageBus,
         original_msg: InboundMessage,
+        *,
+        hand_over_approval: ApprovalHandOver,
     ) -> None:
-        """Run the delegated task in the background, then deliver its outcome to the chat it came from."""
+        """Run the delegated task in the background, then deliver its outcome to the chat it came from.
+
+        A run that stops at a tool approval has not finished: the request is handed to the chat through
+        ``hand_over_approval`` and the user's answer resumes the run there as an ordinary turn.
+        """
+        runner = asyncio.current_task()
+        if runner is not None:
+            self._runners[task.task_id] = runner
         self.update_task_status(task.task_id, DelegationStatus.RUNNING)
         cancel_token = self.get_cancellation_token(task.task_id)
         steering_token = self.get_steering_token(task.task_id)
@@ -183,7 +245,8 @@ class DelegationCoordinator:
         # StreamingText events are cumulative snapshots; the last OutboundMessage is the authoritative reply.
         snapshot = ""
         final_reply: OutboundMessage | None = None
-        awaiting_approval = False
+        approval_request: ProgressUpdate | None = None
+        stopped_at_approval = False
         try:
             task_msg = replace(original_msg, content=task.prompt)
             async for event in executor.execute_stream(
@@ -197,17 +260,22 @@ class DelegationCoordinator:
                 elif isinstance(event, StreamingText):
                     snapshot = event.text
                 elif isinstance(event, ProgressUpdate) and event.quick_replies:
-                    awaiting_approval = True
+                    approval_request = event
             self._settle_finished_stream(task, final_reply)
+            if approval_request is not None and task.status is DelegationStatus.COMPLETED:
+                await hand_over_approval(approval_request)
+                stopped_at_approval = True
+        except asyncio.CancelledError:
+            await self._settle_interrupted(task, bus, original_msg)
+            raise
         except Exception as exc:
             safe_text, ref_id = friendly_error_message(exc, original_msg)
             logger.exception("DelegationCoordinator: Task %s failed [ref: %s]: %s", task.task_id, ref_id, exc)
             snapshot, final_reply = "", None
-            if task.status not in _TERMINAL_STATUSES:
+            # A task the reaper or /stop already ended keeps that outcome; a failed hand-over undoes COMPLETED.
+            if task.status in (DelegationStatus.RUNNING, DelegationStatus.COMPLETED):
                 self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=safe_text)
 
-        # A stream that stopped at a tool approval has not finished the work; the approval timeout reports its outcome.
-        stopped_at_approval = awaiting_approval and task.status is DelegationStatus.COMPLETED
         try:
             if not stopped_at_approval:
                 await bus.publish_outbound(build_delivery_message(task, original_msg, final_reply, snapshot))
@@ -217,5 +285,5 @@ class DelegationCoordinator:
             "DelegationCoordinator: Task %s ended as %s; %s",
             task.task_id,
             task.status.value,
-            "stopped at a tool approval, nothing delivered" if stopped_at_approval else f"delivered to {task.origin_chat_id}",
+            "handed to the chat at a tool approval" if stopped_at_approval else f"delivered to {task.origin_chat_id}",
         )

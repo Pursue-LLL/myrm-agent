@@ -34,6 +34,7 @@ import type {
  * - providers: 模型服务商配置（敏感）
  * - chatSettings: 聊天设置
  * - personalSettings: 个人偏好设置
+ * - privacyRoutingSecret: 本地模型端点的密钥（敏感，不放进 personalSettings）
  * - mcpServers: MCP 服务器配置（敏感）
  * - searchServices: 搜索服务配置（敏感）
  * - commands: 用户自定义命令
@@ -47,6 +48,7 @@ export type ConfigKey =
   | 'providers'
   | 'chatSettings'
   | 'personalSettings'
+  | 'privacyRoutingSecret'
   | 'mcpServers'
   | 'searchServices'
   | 'commands'
@@ -79,6 +81,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'providers',
   'chatSettings',
   'personalSettings',
+  'privacyRoutingSecret',
   'mcpServers',
   'searchServices',
   'commands',
@@ -151,10 +154,14 @@ export type PrivacyLocalFallback = 'block' | 'force_redact_cloud';
 export interface PrivacyRoutingConfig {
   localModel?: string;
   localBaseUrl?: string;
-  localApiKey?: string;
   s2Strategy?: PrivacyS2Strategy;
   s3Strategy?: PrivacyS3Strategy;
   localFallback?: PrivacyLocalFallback;
+}
+
+/** 本地模型端点的密钥：独立的加密配置行，不随偏好、审计历史或默认导出出现。 */
+export interface PrivacyRoutingSecretConfigValue {
+  localApiKey: string;
 }
 
 export type ImageGenerationProvider = 'openai' | 'gemini' | 'stability';
@@ -473,6 +480,7 @@ export interface ConfigValueMap {
   customModelInfo: Record<string, CustomModelInfo>;
   chatSettings: ChatSettingsConfigValue;
   personalSettings: PersonalSettingsConfigValue;
+  privacyRoutingSecret: PrivacyRoutingSecretConfigValue;
   mcpServers: MCPServersConfigValue;
   searchServices: SearchServicesConfigValue;
   commands: CommandsConfigValue;

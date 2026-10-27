@@ -163,6 +163,7 @@ class ApprovalTimeoutScheduler:
                 resume_value = {
                     "decision": decision,
                     "feedback": f"Auto-{'approved' if approved else 'rejected'}: approval timeout ({timeout:.0f}s)",
+                    "timed_out": True,
                 }
                 logger.warning("Approval timeout fired: key=%s, auto-%s after %ss", key, decision, timeout)
                 _record_timeout_audit(key, decision, timeout)

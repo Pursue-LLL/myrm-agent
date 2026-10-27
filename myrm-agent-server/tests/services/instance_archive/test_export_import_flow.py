@@ -61,6 +61,7 @@ def test_export_carries_no_plaintext_secret_and_leaves_machine_state_behind(sour
         b"external-agent-secret",
         b"voice-stt-secret",
         b"voice-tts-secret",
+        b"local-model-secret",
         b"source-secret",
         b"source-agent-secret",
         b"fp-123",
@@ -91,10 +92,12 @@ def test_export_without_passphrase_drops_every_sensitive_config(source_state: Pa
     assert read_config(extracted, "mcpServers") is None
     assert read_config(extracted, "externalAgents") is None
     assert read_config(extracted, "voice") is None
+    assert read_config(extracted, "privacyRoutingSecret") is None
     assert read_config(extracted, "onboarding") == {"done": True}
     assert "config:providers" in metadata["reentry"]
     assert "config:externalAgents" in metadata["reentry"]
     assert "config:voice" in metadata["reentry"]
+    assert "config:privacyRoutingSecret" in metadata["reentry"]
 
 
 def test_a_voice_row_still_saved_in_plaintext_never_travels(source_state: Path, tmp_path: Path) -> None:
@@ -187,6 +190,11 @@ def test_stage_grafts_target_posture_rekeys_secrets_and_neutralizes(
     assert ConfigCrypto.decrypt_value(voice, TARGET_KEY)["sttApiKey"] == "voice-stt-secret"
     with pytest.raises(DecryptionError):
         ConfigCrypto.decrypt_value(voice, SOURCE_KEY)
+    local_model = read_config(staged, "privacyRoutingSecret")
+    assert isinstance(local_model, str)
+    assert ConfigCrypto.decrypt_value(local_model, TARGET_KEY) == {"localApiKey": "local-model-secret"}
+    with pytest.raises(DecryptionError):
+        ConfigCrypto.decrypt_value(local_model, SOURCE_KEY)
     assert read_config(staged, "onboarding") == {"done": True}
 
     # Share links, whitelisted keys and in-flight state never arrive.

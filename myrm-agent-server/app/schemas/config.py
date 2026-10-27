@@ -21,6 +21,7 @@ ConfigKey = Literal[
     "customModelInfo",
     "chatSettings",
     "personalSettings",
+    "privacyRoutingSecret",
     "mcpServers",
     "orgMcpServers",
     "searchServices",

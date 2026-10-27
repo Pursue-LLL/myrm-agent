@@ -22,7 +22,6 @@ VACUUM INTO so deleted-row residue never reaches the archive, then scrubbed.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sqlite3
@@ -33,7 +32,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from myrm_agent_harness.infra.state_archive import ArchiveWriter, SkippedEntry, ensure_free_space
-from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError
 
 from app.services.instance_archive.checkpoint_scrub import CHECKPOINTS_DB_NAME, live_checkpoint_scrubber
 from app.services.instance_archive.envelope import seal_key
@@ -49,6 +47,7 @@ from app.services.instance_archive.table_policy import (
     delete_all_rows,
     live_surviving_chat_ids,
     live_web_incognito_chat_ids,
+    open_sealed_config,
     scrub_sensitive_surface,
     table_names,
 )
@@ -127,16 +126,7 @@ class DataDbScrubber:
 
     def _opens(self, raw_value: str, is_encrypted: object) -> bool:
         """Only rows that are real ciphertext under the source key may travel."""
-        if not is_encrypted or self._source_key is None:
-            return False
-        try:
-            ciphertext = json.loads(raw_value)
-            if not isinstance(ciphertext, str):
-                return False
-            ConfigCrypto.decrypt_value(ciphertext, self._source_key)
-        except (ValueError, DecryptionError):
-            return False
-        return True
+        return bool(is_encrypted) and self._source_key is not None and open_sealed_config(raw_value, self._source_key) is not None
 
 
 def build_export(

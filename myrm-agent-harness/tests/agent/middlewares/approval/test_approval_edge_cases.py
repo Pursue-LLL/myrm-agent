@@ -389,8 +389,9 @@ async def test_cron_fail_closed_policy(monkeypatch):
 
     assert result is not None
     messages = result["messages"]
-    tool_messages = [msg for msg in messages[1:] if hasattr(msg, "tool_call_id")]
-    assert len(tool_messages) == 1, "Should auto-deny tool"
+    tool_messages = list(messages)
+    assert [msg.tool_call_id for msg in tool_messages] == ["call_1"], "the denied call is answered, not deleted"
+    assert state["messages"][0].tool_calls[0]["id"] == "call_1"
     assert "cron fail-closed" in tool_messages[0].content.lower()
 
 
@@ -469,8 +470,8 @@ async def test_rate_limit_exceeded(monkeypatch):
 
     assert result is not None
     messages = result["messages"]
-    tool_messages = [msg for msg in messages[1:] if hasattr(msg, "tool_call_id")]
-    assert len(tool_messages) == 1, "Should auto-deny due to rate limit"
+    tool_messages = list(messages)
+    assert [msg.tool_call_id for msg in tool_messages] == ["call_1"], "the denied call is answered, not deleted"
     assert "Too many approval requests" in tool_messages[0].content
 
 
@@ -604,11 +605,9 @@ async def test_deny_action_auto_rejected():
 
     assert result is not None
     messages = result["messages"]
-    modified_ai_msg = messages[0]
-    assert len(modified_ai_msg.tool_calls) == 0, "Tool should be removed from tool_calls"
-
-    tool_messages = [msg for msg in messages[1:] if hasattr(msg, "tool_call_id")]
-    assert len(tool_messages) == 1
+    tool_messages = list(messages)
+    assert [msg.tool_call_id for msg in tool_messages] == ["call_1"], "the denied call is answered, not deleted"
+    assert len(state["messages"][0].tool_calls) == 1
     assert "denied by security policy" in tool_messages[0].content.lower()
 
 
@@ -752,11 +751,9 @@ async def test_all_auto_denied_branch(monkeypatch):
 
     assert result is not None
     messages = result["messages"]
-    modified_ai_msg = messages[0]
-    assert len(modified_ai_msg.tool_calls) == 0, "All tools should be removed"
-
-    tool_messages = [msg for msg in messages[1:] if hasattr(msg, "tool_call_id")]
-    assert len(tool_messages) == 2, "Should have 2 artificial ToolMessages for denied tools"
+    tool_messages = list(messages)
+    assert [msg.tool_call_id for msg in tool_messages] == ["call_1", "call_2"], "every denied call is answered"
+    assert len(state["messages"][0].tool_calls) == 2, "the denied calls stay in the AI message"
 
 
 @pytest.mark.asyncio
@@ -1023,11 +1020,13 @@ async def test_middleware_mixed_deny_and_allow():
 
     assert result is not None
     msgs = result["messages"]
-    ai_msg = msgs[0]
-    assert len(ai_msg.tool_calls) == 1
-    assert ai_msg.tool_calls[0]["name"] == "file_read_tool"
-    error_msgs = [m for m in msgs[1:] if hasattr(m, "status") and m.status == "error"]
-    assert len(error_msgs) == 1
+    assert [m.tool_call_id for m in msgs] == ["c1"], "only the denied call is answered; c2 is left for the tool node"
+    assert msgs[0].status == "error"
+    assert [c["id"] for c in state["messages"][0].tool_calls] == ["c1", "c2"]
+
+
+@pytest.mark.asyncio
+async def test_middleware_passes_taint_labels_to_reviewer():
     """Middleware extracts taint labels when auto_mode_enabled and session is tainted."""
     from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
         register_security_reviewer,
@@ -1298,11 +1297,7 @@ async def test_time_bound_allow_always_integration_with_middleware(monkeypatch):
 
     from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
-    config = SecurityConfig(
-        ruleset=(
-            PermissionRule("file_write", "*", PermissionAction.ASK),
-        )
-    )
+    config = SecurityConfig(ruleset=(PermissionRule("file_write", "*", PermissionAction.ASK),))
     set_security_config(config)
     set_workspace_root("/tmp")
     set_approval_session("timebound-session")
@@ -1363,6 +1358,7 @@ async def test_time_bound_allow_always_integration_with_middleware(monkeypatch):
     new_entries = {}
     for k, entry in user_entries.items():
         from dataclasses import replace
+
         new_entries[k] = replace(entry, expires_at=time.time() - 1.0)
     allowlist._entries["user_tb_1"] = new_entries
 
@@ -1458,11 +1454,7 @@ async def test_toctou_script_content_alteration_blocked(tmp_path, monkeypatch: p
     def mock_interrupt(payload):
         # Malicious modification right when human is approving!
         script_file.write_text("#!/bin/bash\nrm -rf /tmp/data\necho 'malicious'", encoding="utf-8")
-        return {
-            "decisions": [
-                {"type": "approve", "allow_always": False}
-            ]
-        }
+        return {"decisions": [{"type": "approve", "allow_always": False}]}
 
     monkeypatch.setattr(
         "myrm_agent_harness.agent.middlewares.approval.middleware.interrupt",
@@ -1487,6 +1479,7 @@ async def test_toctou_script_content_alteration_blocked(tmp_path, monkeypatch: p
 
     result = await middleware.aafter_model(state, MockRuntime())
     from langchain_core.messages import ToolMessage
+
     assert "messages" in result
     tool_msgs = [m for m in result["messages"] if isinstance(m, ToolMessage)]
     assert len(tool_msgs) == 1
@@ -1496,7 +1489,6 @@ async def test_toctou_script_content_alteration_blocked(tmp_path, monkeypatch: p
 
 @pytest.mark.asyncio
 async def test_irreversible_social_action_blocks_allowlist_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
-
     """Test that git push and channel notifications cannot bypass approval via allowlist."""
     from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 
@@ -1514,11 +1506,7 @@ async def test_irreversible_social_action_blocks_allowlist_bypass(monkeypatch: p
 
     def mock_interrupt(payload):
         interrupt_calls.append(payload)
-        return {
-            "decisions": [
-                {"type": "deny", "allow_always": False}
-            ]
-        }
+        return {"decisions": [{"type": "deny", "allow_always": False}]}
 
     monkeypatch.setattr(
         "myrm_agent_harness.agent.middlewares.approval.middleware.interrupt",
@@ -1568,7 +1556,6 @@ async def test_irreversible_social_action_blocks_allowlist_bypass(monkeypatch: p
     assert interrupt_calls[1]["reviewConfigs"][0]["sociallyIrreversible"] is True
 
 
-
 @pytest.mark.asyncio
 async def test_session_scoped_allowlist_duration_negative_one_not_permanent() -> None:
     """Verify that duration='session' or ttl_seconds=-1 creates an in-memory session grant, not permanent."""
@@ -1598,7 +1585,3 @@ async def test_session_scoped_allowlist_duration_negative_one_not_permanent() ->
     # 3. Explicit clear_session purges it
     await al.clear_session(user_id, session_id)
     assert al.check(user_id, "shell_exec", "pytest_tool", session_id=session_id) is False
-
-
-
-

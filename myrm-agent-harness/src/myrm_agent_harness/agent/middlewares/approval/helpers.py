@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - reset_denial_counter: Reset session-scoped or per-run denial counters.
-- record_denial: Increment denial counter and return guidance + threshold status.
+- record_denial: Increment denial counter and return the cause-specific guidance + threshold status.
+- record_rejection: Count a person's refusal and return its reason and the ToolMessage text for the model.
 - record_approval: Reset consecutive denial counter on successful operation.
 - is_threshold_breached: Check if denial thresholds have been breached.
 - add_to_allowlist_if_needed: Add permission to user's allowlist if requested.
@@ -20,12 +21,15 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import StrEnum
 
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 from myrm_agent_harness.agent.security.command_allowlist_pattern import derive_command_pattern
+
+from ._denial_wording import DenialCause, denial_hint, rejection_message
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +118,11 @@ def clear_all_session_denials_for_tests() -> None:
     _denial_state_var.set(DenialState())
 
 
-def record_denial(tool_name: str, session_key: str | None = None) -> str:
+def record_denial(tool_name: str, session_key: str | None = None, *, cause: DenialCause = DenialCause.POLICY) -> str:
     """Increment denial counters and return proactive guidance hint.
 
-    Every denial gets a guidance message telling the agent to find a
-    safer alternative.  When a threshold is breached, the message
-    escalates to indicate that auto-mode will be suspended.
+    Every denial gets a guidance message for the model, worded by who refused (*cause*).
+    When a threshold is breached, the message escalates to indicate that auto-mode will be suspended.
 
     Returns a hint string to append to the denial ToolMessage.
     """
@@ -130,7 +133,25 @@ def record_denial(tool_name: str, session_key: str | None = None) -> str:
     state.consecutive_approvals = 0
 
     breach = _check_breach(state)
-    return _build_hint(state, breach)
+    count, threshold = (
+        (state.total, _TOTAL_THRESHOLD)
+        if breach is ThresholdBreach.TOTAL
+        else (state.consecutive, _CONSECUTIVE_THRESHOLD)
+    )
+    unattended = (session_key or _get_active_session_key()).startswith("cron:")
+    return denial_hint(cause, breach, count, threshold, unattended=unattended)
+
+
+def record_rejection(decision: Mapping[str, object], tool_name: str, session_key: str | None = None) -> tuple[str, str]:
+    """Count a refusal a person (or the approval timer) gave and word it for the model.
+
+    Returns ``(feedback, tool_message_text)``. A decision the timer resolved (``timed_out``) tells the model that
+    nobody answered; any other reads as the person's own refusal with their reason.
+    """
+    feedback = str(decision.get("feedback") or "").strip() or "User rejected this action."
+    timed_out = bool(decision.get("timed_out"))
+    hint = record_denial(tool_name, session_key, cause=DenialCause.TIMEOUT if timed_out else DenialCause.USER)
+    return feedback, rejection_message(feedback, timed_out=timed_out) + hint
 
 
 def record_approval(session_key: str | None = None) -> None:
@@ -164,34 +185,8 @@ def _check_breach(state: DenialState) -> ThresholdBreach:
     return ThresholdBreach.NONE
 
 
-def _build_hint(state: DenialState, breach: ThresholdBreach) -> str:
-    base_guidance = (
-        "\n\n[System: This action was denied. "
-        "Find a safer alternative approach to achieve the user's goal. "
-        "Do NOT attempt to circumvent or route around the security block.]"
-    )
-
-    if breach == ThresholdBreach.TOTAL:
-        return (
-            f"\n\n[System: {state.total} total denials in this session "
-            f"(threshold: {_TOTAL_THRESHOLD}). Auto-mode is being suspended — "
-            "all subsequent actions will require explicit human approval. "
-            "Explain to the user what happened and ask for guidance.]"
-        )
-
-    if breach == ThresholdBreach.CONSECUTIVE:
-        return (
-            f"\n\n[System: {state.consecutive} consecutive denials "
-            f"(threshold: {_CONSECUTIVE_THRESHOLD}). Auto-mode is being suspended — "
-            "all subsequent actions will require explicit human approval. "
-            "Stop and explain to the user what you were trying to do.]"
-        )
-
-    return base_guidance
-
-
 async def add_to_allowlist_if_needed(
-    allow_always: bool | dict,
+    allow_always: bool | Mapping[str, object],
     user_id: str,
     permission_type: str,
     tool_name: str,
@@ -232,13 +227,13 @@ async def add_to_allowlist_if_needed(
     is_session_duration = False
     bound_session_id = session_id
 
-    if isinstance(allow_always, dict):
+    if isinstance(allow_always, Mapping):
         if "duration" in allow_always and allow_always["duration"] == "session":
             is_session_duration = True
         if "ttl_seconds" in allow_always and effective_ttl is None:
             try:
                 raw_ttl = allow_always["ttl_seconds"]
-                if raw_ttl is not None:
+                if isinstance(raw_ttl, int | float | str):
                     effective_ttl = float(raw_ttl)
             except (ValueError, TypeError):
                 effective_ttl = None

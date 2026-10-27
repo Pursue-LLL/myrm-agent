@@ -40,7 +40,7 @@
 | **Agent personas** | Configure custom agents with their own system prompts, tools, skills, and memory — switch instantly in the GUI. |
 | **Multi-channel access** | WhatsApp, Telegram, Discord, WeChat, DingTalk, Feishu, Slack, and more — 26 built-in channels. One agent, everywhere you work. |
 | **Scheduled automation** | Natural-language cron — set up recurring tasks with self-healing and heartbeat monitoring. 24/7 unattended. |
-| **Multi-agent orchestration** | Parallel sub-agents with COW workspace isolation and line-level file conflict detection. |
+| **Multi-agent orchestration** | Parallel sub-agents sharing one workspace, with line-level file conflict detection. |
 | **Multi-modal content** | Image generation (20+ models), video creation (4 engines), voice interaction (3 modes + 5 STT providers), document writing. |
 | **6-layer security** | Tool guard · file access control · PII detection · skill scanning · sandbox isolation · audit logging. |
 
