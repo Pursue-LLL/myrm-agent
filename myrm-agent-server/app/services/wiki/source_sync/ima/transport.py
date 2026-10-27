@@ -104,7 +104,8 @@ def _classify_response(response: httpx.Response) -> JsonObject:
         # an HTTP-date or anything else falls back to the default pause.
         is_seconds = retry_after.isascii() and retry_after.isdigit()
         pause = float(retry_after) if is_seconds else _DEFAULT_RATE_LIMIT_PAUSE_S
-        raise ImaRateLimitError("ima rate limit reached", retry_after_s=pause)
+        # The raw hint (bounded: it is remote input) lets the engine's pause log show what the server really sent.
+        raise ImaRateLimitError(f"ima rate limit reached (HTTP 429, Retry-After {retry_after[:32]!r})", retry_after_s=pause)
     if status >= 500 or status == 408:
         raise ImaTransientError(f"ima server error (HTTP {status})")
     if not response.is_success:

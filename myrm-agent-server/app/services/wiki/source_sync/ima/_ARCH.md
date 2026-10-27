@@ -19,7 +19,7 @@
 | `__init__.py` | 门面 | 对外导出 cron 入口、用户操作、状态读取与错误类 | ✅ |
 | `errors.py` | 类型 | `ImaError` 层级；`kind` 是持久化与 UI 文案映射的稳定键，引擎仅凭 `kind` 决定重试/暂停/放弃。`ImaAuthError` 只代表「这次请求被拒」（ima 对密钥失效与「密钥有效但无权读这一项」同样答复）；`ImaPermissionError`（`kind="permission"`，`ImaPermanentError` 子类）是 ima 文档化的「密钥有效但不能读这条」业务码 | ✅ |
 | `models.py` | 类型 | ima 松散响应的类型化视图与解析器（唯一知道字段拼写的位置）；媒体类型常量；笔记条目两种拼写都读（嵌套 `basic_info.docid` 与扁平 `note_id` + `note_ext_info`）；笔记页里一条都读不出来时抛 `ImaPermanentError`（形状变了，不当成「账号没有笔记」） | ✅ |
-| `transport.py` | 传输 | `POST https://ima.qq.com/<prefix>/<method>`、凭证头、信封解包、错误分类、瞬时失败退避；origin 为常量。业务码分类：20004/200002/110030 → auth；20002/110021/200001/20005 → rate_limit（后两个来自第三方客户端的实测，厂商文档未列）；110010/100003/210003 → transient；100005/210005/210011/210034 → permission；其余 → permanent。`Retry-After` 只认 ASCII 数字秒数，日期等其余形态回落默认 60 秒。错误消息始终带数字码，日志里能定位未知故障 | ✅ |
+| `transport.py` | 传输 | `POST https://ima.qq.com/<prefix>/<method>`、凭证头、信封解包、错误分类、瞬时失败退避；origin 为常量。业务码分类：20004/200002/110030 → auth；20002/110021/200001/20005 → rate_limit（后两个来自第三方客户端的实测，厂商文档未列）；110010/100003/210003 → transient；100005/210005/210011/210034 → permission；其余 → permanent。`Retry-After` 只认 ASCII 数字秒数，日期等其余形态回落默认 60 秒；HTTP 429 的错误消息带状态码和截断到 32 字符的原始 `Retry-After`，引擎的暂停日志据此看到服务端真正发了什么。错误消息始终带状态码或数字码，日志里能定位未知故障 | ✅ |
 | `client.py` | 客户端 | 知识库/笔记方法表（只读）：`verify`/`list_knowledge_bases`/`list_knowledge_page`/`get_media_info`/`get_note_text`/`list_notes_page`（笔记走 `list_note_by_folder_id` 游标列表，空 `folder_id` = 全部笔记，每页 ≤20；`get_note_text` 的请求同时带 `note_id` 与 `doc_id`，因为 ima 笔记接口文档新旧两版的字段名不同） | ✅ |
 | `media.py` | 下载 | 签名 COS URL 的受限下载：仅 https + 腾讯域白名单（`myqcloud.com` 及其子域，加 ima 自有资源主机 `res-pkb` / `res-skb` 的精确匹配）、禁重定向、不带 ima 凭证、流式字节上限 | ✅ |
 | `identity.py` | 标识 | 条目 key（`(kb, 父目录, 标题)`，`media_id` 仅作版本信号；同目录同标题的后到条目改用含 `media_id` 的 fallback key）与 `raw/ima/...` 路径（受 raw gate 路径预算约束；Windows 设备名如 `CON`/`NUL` 的目录段加 `_` 前缀） | ✅ |
@@ -46,7 +46,7 @@
 | `conftest.py` | 夹具 | 隔离的文件库（不用 `:memory:`：导入器并发 worker 各开短会话，内存库会让它们共用一个连接而互相回滚）；cron 入口的 `harness` 夹具 |
 | `support.py` | 替身 | 脚本化的 ima API、脚本化下载，以及引擎级测试的构造器 |
 | `job_runner_support.py` | 替身 | cron 入口测试用的替身：切片运行器接线到什么、它们记录了什么 |
-| `test_transport.py` | 测试 | 信封的各种拼写、业务码分类与消息带数字码、重试策略、固定 origin 与凭证头、非纯秒数的 `Retry-After` 回落默认暂停 |
+| `test_transport.py` | 测试 | 信封的各种拼写、业务码分类与消息带数字码、重试策略、固定 origin 与凭证头、非纯秒数的 `Retry-After` 回落默认暂停、429 消息带状态码与截断后的原始 `Retry-After` |
 | `test_models_and_client.py` | 测试 | 对照录制的载荷形状：列表页里目录与文档的各种拼写、缺 id 或名称的库被跳过、笔记页跳过已删笔记并剥掉任意层嵌套、扁平形状从扩展块读笔记 id 与笔记本、没有任何一条能读时抛错而不是当作空页、媒体信息、两个端点的库合并去重并排序、游标重复即停、笔记列表与纯文本正文的请求形状（正文请求同时带 `doc_id` 与 `note_id`） |
 | `test_media_and_identity.py` | 测试 | 下载：不可信 URL 拒绝、可信放行、只转发安全头、不跟随重定向、状态码分类、上限按声明长度与流式累计两处执行；标识：条目 key 确定且按范围区分、改名或移动换 key、不同目录同名不冲突、路径在门禁预算内（超长 CJK 标题与深目录）、Windows 设备名不成目录名、已知文档后缀从标题里去掉 |
 | `test_content.py` | 测试 | 条目解析：渲染确定且带出处、不重复已有标题、远端标题留在 frontmatter 字段内；未知类型、音视频、无下载地址、空笔记、转换后为空都判不支持；已被笔记通道覆盖的是重复；网页走 web fetch 并标注截断，不可达是可重试而非不支持；带签名头的网页快照按 HTML 下载；PDF 标注排版被展平 |

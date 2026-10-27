@@ -166,6 +166,27 @@ async def test_a_retry_after_that_is_not_plain_seconds_falls_back_to_the_default
     assert caught.value.retry_after_s == transport_module._DEFAULT_RATE_LIMIT_PAUSE_S
 
 
+@pytest.mark.parametrize(
+    ("raw", "shown"),
+    [
+        (b"120", "'120'"),
+        (b"", "''"),
+        (b"\xb2", "'\u00b2'"),
+        (b"Wed, 21 Oct 2026 07:28:00 GMT", "'Wed, 21 Oct 2026 07:28:00 GMT'"),
+        (b"9" * 5000, "'" + "9" * 32 + "'"),
+    ],
+    ids=["seconds", "empty", "superscript", "http-date", "over-long-is-cut"],
+)
+async def test_the_rate_limit_message_shows_the_status_and_the_bounded_raw_hint(raw: bytes, shown: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, headers=[(b"retry-after", raw)])
+
+    async with _transport(httpx.MockTransport(handler)) as ima:
+        with pytest.raises(ImaRateLimitError) as caught:
+            await ima.post(WIKI_PREFIX, "m", {})
+    assert str(caught.value) == f"ima rate limit reached (HTTP 429, Retry-After {shown})"
+
+
 async def test_non_json_body_is_a_permanent_failure() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, text="<html>gateway</html>")
