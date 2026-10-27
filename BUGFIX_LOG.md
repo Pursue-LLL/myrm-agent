@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 委派任务的结果只剩前 200 个字、没有附件、不在原话题、固定是中文；超时提示是英文硬编码；一批没有调用方的委派代码被写进对外文档；遥测页的「指标」提示断言了收集器拒绝
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server、frontend；brand 仓文档站三种语言与根仓私有素材库、路线图的失实表述已订正）。接着 `BUG-AGENT-2026-10-16-001` 局限 3 与局限 10。没有在真实 IM 平台上看过话题投递与长文分段，见「仍然存在」。 |
+| **症状** | ① 委派任务结束后推回的是一张写死中文的卡片：正文只有最终回复的前 200 个字（`result_text[:200]`），附件丢掉，消息不在发起请求的话题里，英文与日文用户看到中文；任务被超时清理后，失败卡片里是英文硬编码的 `Task timed out after N seconds`。② `execute_task_lifecycle` 的 `workspace_dir`、`server_base_url` 路由器从不传，工作区工件扫描与卡片里的下载链接在生产里从未运行；远程审批中继、进度信标、`cancel_task`、周报 SOP 与轨迹聚合器、回执卡与审批卡构建函数、三个从不读取的任务字段都没有生产调用方，却被写进文档站（英、中、韩）、素材库（`MULTICHANNEL_ADVANTAGE.md` 里的周报与聊天沉淀 Wiki 两节引用的 `app/services/trajectory/*` 在仓库里根本不存在）与路线图。③ 设置页遥测卡片在指标管道失败时写「收集器拒绝了最近一批指标，只接收链路的后端会这样」，但失败状态分不清收集器返回 404 与连接被拒（实测），对只是地址写错的用户给出了错误的处理建议。 |
+| **根因** | ① 协调器把「结果」当成要自己渲染的东西：自己造卡片、自己截断、不经过执行器已经构造好的最终回复（它带着话题、语言与附件）。② 功能先写了、从没接到路由器，文档按「代码里有这个符号」就写成了「已交付」。③ 提示文案写成了对一个原因的断言，而状态本身不携带原因。 |
+| **修复** | server：`delegation_delivery.py` 只剩 `build_delivery_message`：完成时把执行器的最终回复（全文、附件、话题）原样推回，前面加一行按发送者语言渲染的状态页眉（任务编号与耗时）；失败只给成员安全文案（原始错误只进日志，参考编号不变）；没有最终回复时用最后一个流式快照，仍没有则写「没有产出文字结果」；兜底消息走 `CorrelationContext.create_reply`。新增 `DelegationStatus.TIMED_OUT`：超时清理不再把任务写成 FAILED 加英文句子，投递的只是一句停止通知，不转发被取消的运行留下的半截回答。渠道目录 en、zh-CN、zh-TW、ja 四个 `.ftl` 各加六条（`delegation_done`、`delegation_failed`、`delegation_timed_out`、`delegation_no_output`、`delegation_duration_minutes`、`delegation_duration_seconds`）。删除：远程审批中继与信标监听、`cancel_task` 与 `CANCELLED`、`SUSPENDED_FOR_APPROVAL`、周报 SOP 与轨迹聚合器及其测试、回执卡与审批卡构建函数、工作区工件扫描与卡片、`DeliveryArtifact`、`result_summary`、`artifacts`、`origin_session_id`、`user_prompt`、`quiet_hours_scheduled_push`、`metadata`、`get_latest_active_task`、写入后从不读取的转向历史、守卫上重复的方法名（只保留调用方在用的 `can_accept`、`acquire`、`release`）。frontend：六种语言的 `metricsFailing` 改成条件句（「最近一批指标没有送达；如果后端只接收链路（例如 Jaeger），设置 OTEL_METRICS_EXPORTER=none；否则检查地址、凭据与网络」）。文档：brand 仓三种语言的竞品对比快照去掉远程审批与工件卡片两条并写明现状；素材库删掉周报与聊天沉淀 Wiki 两节及相关句子、订正委派两段；路线图 topic_13 #20、#56、topic_16 #311 的引用订正。 |
+| **回归证据** | ① 真实协调器加桩执行器、真实目录渲染（不是桩的返回值）：长回答 `len=1263`（英）与 `745`（中）整段送达，附件与 `topic-7` 话题保留，页眉随语言；修复前同样输入只送出前 200 个字、无附件、无话题。② `tests/channels/delegation` 36 条通过（生命周期 16 条：最终回复不重复拼接、长文与附件与话题、只有附件无文字、快照兜底与话题、静默运行、en/zh-CN/ja 页眉、耗时 45 秒/2 分 5 秒/0.4 秒、失败回合、异常不泄露原文且参考编号对得上日志、被超时清理的任务不被改回完成且不转发半截回答、超时通知本地化）。③ `tests/channels` 与 `tests/core/channel_bridge` 7751 通过、6 失败；这 6 条（`onebot` 脱敏、`/btw` 命令定义两条、前缀触发、`btw` 通知、冷却提示）在我动手之前的提交上同样失败（临时检出验证后已移除），与本条无关。④ `test_locale_key_parity.py` 通过：新增六个键四种语言一致、占位符一致、都能渲染、都有生产代码引用。⑤ 前端 `TelemetryPostureCard` 16 条通过，`verify:i18n`、`verify:icu-syntax`、`verify:theme-colors`、prettier、oxlint 通过。⑥ brand 仓 `validate:ko-translation`、`validate:symbols`、`validate:links` 通过。⑦ `ruff` 与 `mypy`：委派包与新增测试没有报错。 |
+| **仍然存在** | ① 没有在真实 IM 平台（Telegram 话题、各家长文分段）上端到端看过，只在进程内验证了消息对象；文档里已如实写明。② 消息语言解析把 `zh-TW` 并成 `zh-CN`（`resolve_locale`），所以 `zh-TW.ftl` 里新加的六条只有直接按语言码调用才会用到，繁体用户看到简体；韩语、德语回退英文。这是已有的解析行为，没有动。③ 超时通知要等被取消的运行真的停下来才发（清理只置状态并取消令牌）；执行器若不响应取消，用户收不到通知，名额也一直占着。没有验证真实执行器对取消的响应。④ 协调器的任务表与令牌表从不清理已结束的任务（已有行为，每次委派留下几 KB，`find_active_task` 线性扫描）；个人单机量级不值得动。⑤ `raw_prompt` 现在只写不读，留作任务记录；`build_delegation_task` 上并存的别名参数（`prompt`、`channel`、`user_id`、`chat_id`）没动。⑥ 回执文案里仍写「成果卡片」，实际送达的是一条普通消息；回执有逐字断言的测试，没有改。⑦ 路线图编辑工具把三个条目的标题行重排成它的规范格式。 |
+
 ## 2026-10-27 · 外部 Agent 直连委托：消息里的图片到不了 Claude 与 Codex（模型看不到图）；API Key 被拒的提示没有点名该检查哪个环境变量；委托的三个模块平铺在 `external_agents/` 里
 
 | 字段 | 内容 |
