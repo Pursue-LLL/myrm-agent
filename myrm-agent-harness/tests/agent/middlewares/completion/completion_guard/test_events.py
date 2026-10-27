@@ -49,9 +49,9 @@ def test_the_event_type_is_one_the_event_log_persists() -> None:
 
 class TestBlockReasonNames:
     def test_names_the_checks_that_fired_in_reading_order(self) -> None:
-        reasons = BlockReasons(execution_claim="x", evidence="y", ppt_outline="z")
+        reasons = BlockReasons(execution_claim="x", evidence="y", query_grounding="z")
 
-        assert reasons.names() == ("evidence", "execution_claim", "ppt_outline")
+        assert reasons.names() == ("evidence", "execution_claim", "query_grounding")
 
     def test_an_unreachable_evidence_demand_is_named_apart_from_a_plain_one(self) -> None:
         assert BlockReasons(evidence="x", evidence_unreachable=True).names() == ("evidence_unreachable",)

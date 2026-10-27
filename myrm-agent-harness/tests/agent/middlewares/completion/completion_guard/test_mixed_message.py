@@ -299,7 +299,7 @@ class TestMixedMessageGuard:
             ]
             result = await self.guard.aafter_model(state, None)
 
-        assert reasons_of(result) == BlockReasons()
+        assert reasons_of(result) == BlockReasons(verification=True)
         assert pending(result).text
 
     @pytest.mark.asyncio

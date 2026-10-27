@@ -14,8 +14,13 @@ Task-type-aware strictness:
   - **Other query/non-code tasks**: no intervention — the Agent finishes immediately.
 
 Temporal ordering enforcement: when code is modified AFTER the last successful
-verification, the guard independently re-runs the verification command in the
-sandbox before allowing completion — zero LLM cost, no agent trust required.
+verification and that is the only thing wrong, the guard independently re-runs the verification command in the
+sandbox before allowing completion — zero LLM cost, no agent trust required. A re-run answers nothing else
+(never verified, failed or empty verification, a failure that still stands, an unfinished todo, an unsupported claim).
+
+Every check reads the turn's call ledger (``state.record_evidence``), not the loop guard's window of the last calls:
+an answer is judged against everything the turn did, so a long run neither loses the code it never verified nor
+the evidence it gathered early.
 
 A message that is not a completion attempt but already holds a finished answer next to read-only tool calls goes to
 the Mixed Message Guard (``mixed_message``).
@@ -40,7 +45,7 @@ LangGraph executes nodes in copied contexts, which prevents ContextVar state fro
 [INPUT]
 - langchain.agents.middleware::AgentMiddleware, hook_config (POS: LangChain middleware base and the declaration that a hook may route back to the model)
 - agent.middlewares.tooling.tool_interceptor_middleware::get_loop_guard (POS: LoopGuard accessor)
-- agent.middlewares.completion.completion_guard.checklist::build_checklist, find_last_successful_verification_command, CODE_EXTENSIONS, is_code_file, has_post_verification_code_write (POS: task-aware verification checklist and temporal-order analysis)
+- agent.middlewares.completion.completion_guard.checklist::assess_checklist, CriticalCause, VERIFICATION_CAUSES, find_last_successful_verification_command (POS: task-aware verification checklist and the causes that hold an answer back)
 - agent.middlewares.completion.completion_guard.directive::BlockReasons (POS: why one completion attempt was held back)
 - agent.middlewares.completion.completion_guard.hold_back::hold_back (POS: what happens to the draft and where the instruction follows)
 - agent.middlewares.completion.completion_guard.mixed_message::strip_readonly_calls_beside_answer (POS: early termination of a finished answer that still carries read-only calls)
@@ -61,7 +66,7 @@ Fills the "Agent finishing" gap in the guard chain. Existing guards cover
 tool-call loops (LoopGuard), context overflow (ContextBudgetGuard), and
 emergency stops (EStop). CompletionGuard ensures code modifications are
 verified before delivery via temporal ordering analysis and independent
-sandbox re-run when code changes occur after the last successful verification.
+sandbox re-run when code changes occur after the last successful verification and nothing else is wrong.
 The Mixed Message Guard prevents wasted token/time when LLM already produced
 a complete answer.
 """
@@ -79,11 +84,10 @@ from langgraph.runtime import Runtime
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import CompletionCapabilities
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist import (
-    CODE_EXTENSIONS,
-    build_checklist,
+    VERIFICATION_CAUSES,
+    CriticalCause,
+    assess_checklist,
     find_last_successful_verification_command,
-    has_post_verification_code_write,
-    is_code_file,
 )
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.directive import BlockReasons
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.external_evidence import (
@@ -116,15 +120,8 @@ from myrm_agent_harness.agent.middlewares.completion.execution_claim.verifier im
     check_execution_claim,
     has_completion_claim,
 )
-from myrm_agent_harness.agent.middlewares.completion.ppt_outline_verifier import (
-    check_ppt_outline_quality,
-)
 from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier import (
     check_query_grounding_claim,
-)
-from myrm_agent_harness.agent.security.guards.loop_guard import (
-    ToolGroup,
-    get_tool_group,
 )
 
 logger = logging.getLogger(__name__)
@@ -202,13 +199,11 @@ class CompletionGuard(AgentMiddleware):
             get_loop_guard,
         )
 
-        guard = get_loop_guard()
-        records = list(guard._window)
-        filtered_records = [r for r in records if not r.tool_name.startswith("_")]
+        window = [r for r in get_loop_guard()._window if not r.tool_name.startswith("_")]
+        records = record_evidence(window)
         latest_user_text = extract_latest_human_text(messages)
         content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content or "")
-        turn_evidence = record_evidence(filtered_records)
-        publish_tier_disclosure(content_str, turn_evidence, has_claim=has_completion_claim(content_str))
+        publish_tier_disclosure(content_str, records, has_claim=has_completion_claim(content_str))
 
         is_attempting_completion = False
 
@@ -223,30 +218,29 @@ class CompletionGuard(AgentMiddleware):
 
         if not is_attempting_completion:
             return strip_readonly_calls_beside_answer(
-                last_ai_msg, messages=messages, records=filtered_records, user_text=latest_user_text
+                last_ai_msg, messages=messages, records=records, user_text=latest_user_text
             )
 
         workspace_root = run_workspace(runtime)
         todo_workspace = workspace_root if self._capabilities.keeps_todo_list() else None
 
-        _, has_critical_errors = build_checklist(records, workspace_root=todo_workspace)
-        evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, filtered_records)
+        checklist = assess_checklist(records, workspace_root=todo_workspace)
+        evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, records)
         deliverable_write_reason: str | None = None
         unwritten_deliverables: list[UnwrittenDeliverable] = []
         latest_human_for_grounding = latest_user_text
         execution_claim_reason = check_execution_claim(
             user_text=latest_human_for_grounding,
             assistant_text=content_str,
-            records=filtered_records,
+            records=records,
         )
         query_grounding_reason = None
         if last_ai_msg.content:
-            content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content)
-            deliverable_write_reason = check_deliverable_write_claim(content_str, filtered_records)
+            deliverable_write_reason = check_deliverable_write_claim(content_str, records)
             if deliverable_write_reason is None and self._capabilities.can_save_files(runtime):
                 unwritten_reason, unwritten_deliverables = check_unwritten_deliverables(
                     content=content_str,
-                    records=filtered_records,
+                    records=records,
                     latest_user_text=latest_human_for_grounding,
                 )
                 if unwritten_reason is not None:
@@ -254,62 +248,30 @@ class CompletionGuard(AgentMiddleware):
             query_grounding_reason = check_query_grounding_claim(
                 user_text=latest_human_for_grounding,
                 assistant_text=content_str,
-                records=filtered_records,
+                records=records,
             )
         else:
             query_grounding_reason = check_query_grounding_claim(
                 user_text=latest_human_for_grounding,
                 assistant_text="",
-                records=filtered_records,
+                records=records,
             )
 
-        ppt_outline_reason: str | None = None
-        if last_ai_msg.content:
-            content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content)
-            ppt_outline_reason = check_ppt_outline_quality(
-                user_text=latest_human_for_grounding,
-                assistant_text=content_str,
-            )
-
-        if evidence_reason is not None:
-            has_critical_errors = True
-        if deliverable_write_reason is not None:
-            has_critical_errors = True
-        if execution_claim_reason is not None:
-            has_critical_errors = True
-        if query_grounding_reason is not None:
-            has_critical_errors = True
-        if ppt_outline_reason is not None:
-            has_critical_errors = True
-
-        if not has_critical_errors:
+        blocking_reasons = (evidence_reason, deliverable_write_reason, execution_claim_reason, query_grounding_reason)
+        if not checklist.critical and all(reason is None for reason in blocking_reasons):
             return None
 
-        # --- INDEPENDENT RE-RUN (temporal violation only) ---
-        # Only triggered when the critical error is a temporal violation: code was
-        # modified AFTER the last successful verification. Other critical errors
-        # (no verification, failed verification, empty tests, execution failures)
-        # must NOT be bypassed by independent re-run.
-        if (
-            evidence_reason is None
-            and execution_claim_reason is None
-            and query_grounding_reason is None
-            and ppt_outline_reason is None
+        # --- INDEPENDENT RE-RUN ---
+        # Clears exactly one cause: code was modified after the last passing verification. Any other critical
+        # finding (no verification, failed or empty verification, a failure that still stands, an unfinished
+        # todo, an unsupported claim) is not something a green re-run can answer.
+        if checklist.causes == {CriticalCause.STALE_VERIFICATION} and all(
+            reason is None for reason in blocking_reasons
         ):
-            has_code_writes = any(
-                get_tool_group(r.tool_name) == ToolGroup.WRITE and is_code_file(str(r.args.get("path", "")))
-                for r in filtered_records
-            )
-            if has_code_writes and has_post_verification_code_write(filtered_records, CODE_EXTENSIONS):
-                rerun_cmd = find_last_successful_verification_command(filtered_records)
-                if rerun_cmd:
-                    rerun_passed = await rerun_verification_in_sandbox(rerun_cmd)
-                    if rerun_passed:
-                        logger.info(
-                            "[CompletionGuard] Independent re-run of '%s' passed — allowing completion.",
-                            rerun_cmd,
-                        )
-                        return None
+            rerun_cmd = find_last_successful_verification_command(records)
+            if rerun_cmd and await rerun_verification_in_sandbox(rerun_cmd):
+                logger.info("[CompletionGuard] Independent re-run of '%s' passed — allowing completion.", rerun_cmd)
+                return None
 
         # --- CRITICAL BLOCKING MODE ---
         reasons = BlockReasons(
@@ -318,7 +280,7 @@ class CompletionGuard(AgentMiddleware):
             deliverable_write=deliverable_write_reason or "",
             execution_claim=execution_claim_reason or "",
             query_grounding=query_grounding_reason or "",
-            ppt_outline=ppt_outline_reason or "",
+            verification=bool(checklist.causes & VERIFICATION_CAUSES),
         )
         current_rejections = run_state.rejections
 

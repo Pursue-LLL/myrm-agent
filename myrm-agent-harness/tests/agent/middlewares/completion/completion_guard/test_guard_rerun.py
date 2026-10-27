@@ -11,15 +11,23 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     CompletionGuard,
     reset_completion_guard,
 )
+from myrm_agent_harness.agent.middlewares.completion.completion_guard import guard as guard_module
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,
     VerificationCategory,
 )
+from tests.support.call_records import (
+    FAIL,
+    shell,
+    unit_tests,
+    write,
+)
 from tests.support.completion_guard_harness import (
     LOOP_GUARD_PATCH,
     make_state,
     pending,
+    reasons_of,
 )
 
 
@@ -187,3 +195,43 @@ class TestIndependentRerun:
             result = await self.guard.aafter_model(state, None)
 
         assert pending(result).text
+
+
+class TestRerunClearsOnlyAStaleVerification:
+    """A green re-run answers one question: does the code written after the last pass still pass."""
+
+    def setup_method(self) -> None:
+        self.guard = CompletionGuard()
+        reset_completion_guard()
+
+    async def attempt_to_finish(self, records: list[CallRecord], *, rerun_passes: bool) -> tuple[object, AsyncMock]:
+        rerun = AsyncMock(return_value=rerun_passes)
+        with (
+            patch(LOOP_GUARD_PATCH) as mock_guard,
+            patch.object(guard_module, "rerun_verification_in_sandbox", rerun),
+        ):
+            mock_guard.return_value._window = records
+            return await self.guard.aafter_model(make_state([AIMessage(content="Done.")]), None), rerun
+
+    @pytest.mark.asyncio
+    async def test_a_green_rerun_clears_code_written_after_the_last_pass(self) -> None:
+        result, rerun = await self.attempt_to_finish([unit_tests(), write("/w/app.py")], rerun_passes=True)
+
+        assert result is None
+        rerun.assert_awaited_once_with("pytest")
+
+    @pytest.mark.asyncio
+    async def test_a_script_that_crashed_after_the_write_is_not_cleared_by_a_green_rerun(self) -> None:
+        records = [unit_tests(), write("/w/app.py"), shell("python app.py", FAIL)]
+
+        result, rerun = await self.attempt_to_finish(records, rerun_passes=True)
+
+        assert reasons_of(result).verification
+        rerun.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_failed_rerun_still_holds_the_answer_back(self) -> None:
+        result, rerun = await self.attempt_to_finish([unit_tests(), write("/w/app.py")], rerun_passes=False)
+
+        assert reasons_of(result).verification
+        rerun.assert_awaited_once()

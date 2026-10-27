@@ -50,13 +50,34 @@ class TestCompletionDirective:
 
     @pytest.mark.parametrize(
         "reason",
-        ["evidence", "deliverable_write", "query_grounding", "ppt_outline"],
+        ["evidence", "deliverable_write", "query_grounding"],
     )
     def test_forced_finish_states_what_is_still_unresolved(self, reason: str) -> None:
         result = render_completion_directive(
             BlockReasons(forced_finish=True, **{reason: "the unresolved point"}), records=[], workspace_root=None
         )
         assert "Still unresolved (the unresolved point)" in result
+
+    def test_forced_finish_after_a_verification_hold_asks_for_a_warning_about_verification(self) -> None:
+        result = render_completion_directive(
+            BlockReasons(forced_finish=True, verification=True), records=[], workspace_root=None
+        )
+        assert "failed to verify your work" in result
+        assert "tests failed or were not run" in result
+
+    @pytest.mark.parametrize(
+        "reasons",
+        [
+            BlockReasons(forced_finish=True, execution_claim="claim without execution"),
+            BlockReasons(forced_finish=True, evidence="needs fresh data"),
+            BlockReasons(forced_finish=True),
+        ],
+    )
+    def test_forced_finish_for_any_other_hold_does_not_say_the_verification_failed(self, reasons: BlockReasons) -> None:
+        result = render_completion_directive(reasons, records=[], workspace_root=None)
+        assert "failed to verify" not in result
+        assert "tests failed" not in result
+        assert "what you could not complete or confirm" in result
 
     @pytest.mark.parametrize(
         ("reasons", "marker"),
@@ -72,10 +93,6 @@ class TestCompletionDirective:
             (
                 BlockReasons(query_grounding="ungrounded entity query"),
                 "Entity query observation ungrounded",
-            ),
-            (
-                BlockReasons(ppt_outline="weak outline"),
-                "PPT Reporting Plan Outline Quality Gate Failed",
             ),
         ],
     )

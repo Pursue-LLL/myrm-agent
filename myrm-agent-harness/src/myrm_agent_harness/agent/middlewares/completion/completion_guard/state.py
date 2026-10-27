@@ -65,12 +65,11 @@ class PendingDirective:
 
 @dataclass(slots=True)
 class RunGuardState:
-    """Rejection budget, pending directive, forced-finish latch, disclosure request and evidence ledger for one turn.
+    """Rejection budget, pending directive, forced-finish latch, disclosure request and call ledger for one turn.
 
-    A turn can run in several segments (HITL resume, retry, continuation). The
-    disclosure must describe what the *turn* produced, so the evidence recorded
-    by earlier segments stays here while the guard's own checks keep reading the
-    current segment's window.
+    A turn can run in several segments (HITL resume, retry, continuation). The ledger keeps every call the turn
+    made, in call order, so the guard judges the answer against the whole turn rather than the few calls the loop
+    guard's window still holds, and the disclosure describes what the turn produced.
     """
 
     rejections: int = 0
@@ -105,15 +104,27 @@ def current_run_state() -> RunGuardState:
 
 
 def record_evidence(records: list[CallRecord]) -> list[CallRecord]:
-    """Merge the current segment's records into the turn ledger (idempotent)."""
-    seen = {(record.tool_name, record.args_hash, record.result_hash) for record in current_run_state().evidence}
+    """Merge the loop guard's window into the turn's call ledger, in call order (idempotent).
+
+    The window keeps the same record objects from one model turn to the next, so a call is known by identity:
+    the same lint run passing twice is two entries, which the order of the ledger depends on.
+    """
+    ledger = current_run_state().evidence
+    known = {id(record) for record in ledger}
+    ledger.extend(record for record in records if id(record) not in known)
+    return ledger
+
+
+def _distinct_calls(records: list[CallRecord]) -> list[CallRecord]:
+    """The first of each identical call (same tool, arguments and result), so a repeat is not counted twice."""
+    seen: set[tuple[str, str, str]] = set()
+    distinct: list[CallRecord] = []
     for record in records:
         key = (record.tool_name, record.args_hash, record.result_hash)
-        if key in seen:
-            continue
-        seen.add(key)
-        current_run_state().evidence.append(record)
-    return current_run_state().evidence
+        if key not in seen:
+            seen.add(key)
+            distinct.append(record)
+    return distinct
 
 
 def reset_run_state() -> None:
@@ -174,10 +185,10 @@ def publish_tier_disclosure(
     *,
     has_claim: bool,
 ) -> None:
-    """Publish the evidence tier the UI may show for this turn."""
+    """Publish the evidence tier the UI may show for this turn; a repeated identical call counts once."""
     if not content.strip():
         return
-    metadata = resolve_deliverable_tier(records, content=content)
+    metadata = resolve_deliverable_tier(_distinct_calls(records), content=content)
     if not should_disclose_tier(metadata, has_claim=has_claim):
         return
     publish_disclosure(deliverable_tier=metadata.to_dict())

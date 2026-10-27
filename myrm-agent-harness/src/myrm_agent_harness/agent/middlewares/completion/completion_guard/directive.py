@@ -29,14 +29,18 @@ from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 
 @dataclass(frozen=True, slots=True)
 class BlockReasons:
-    """Why the guard held one completion attempt back; an empty field means that check did not fire."""
+    """Why the guard held one completion attempt back; an empty field means that check did not fire.
+
+    ``verification`` is set when the verification checklist found the run's work unproven (never verified, failed,
+    empty or stale verification), as opposed to a failure that still stands or an unfinished todo.
+    """
 
     evidence: str = ""
     evidence_unreachable: bool = False
     deliverable_write: str = ""
     execution_claim: str = ""
     query_grounding: str = ""
-    ppt_outline: str = ""
+    verification: bool = False
     staged_artifacts: tuple[Mapping[str, object], ...] = ()
     forced_finish: bool = False
 
@@ -47,19 +51,26 @@ class BlockReasons:
             ("deliverable_write", self.deliverable_write),
             ("execution_claim", self.execution_claim),
             ("query_grounding", self.query_grounding),
-            ("ppt_outline", self.ppt_outline),
         )
         return tuple(name for name, reason in fired if reason) or ("checklist",)
 
 
 def _forced_finish_directive(reasons: BlockReasons) -> str:
-    text = (
-        "CRITICAL SYSTEM DIRECTIVE: You have failed to verify your work multiple times. "
-        "You are now permitted to finish the task, but you MUST include a clear warning "
-        "in your final response to the user stating that you were unable to successfully "
-        "verify the changes (e.g., tests failed or were not run) and that they should "
-        "manually review the work."
-    )
+    if reasons.verification:
+        text = (
+            "CRITICAL SYSTEM DIRECTIVE: You have failed to verify your work multiple times. "
+            "You are now permitted to finish the task, but you MUST include a clear warning "
+            "in your final response to the user stating that you were unable to successfully "
+            "verify the changes (e.g., tests failed or were not run) and that they should "
+            "manually review the work."
+        )
+    else:
+        text = (
+            "CRITICAL SYSTEM DIRECTIVE: Your answer was held back several times and its checks still do not pass. "
+            "You are now permitted to finish the task, but you MUST include a clear warning "
+            "in your final response to the user stating exactly what you could not complete or confirm "
+            "and that they should manually review the work."
+        )
     if reasons.staged_artifacts:
         staged_names = ", ".join(str(item.get("filename", "")) for item in reasons.staged_artifacts)
         text += (
@@ -70,7 +81,7 @@ def _forced_finish_directive(reasons: BlockReasons) -> str:
             "\nNOTICE: Your draft claimed work that this run's execution record does not support. "
             "The warning in your final response must state that explicitly."
         )
-    for unresolved in (reasons.evidence, reasons.deliverable_write, reasons.query_grounding, reasons.ppt_outline):
+    for unresolved in (reasons.evidence, reasons.deliverable_write, reasons.query_grounding):
         if unresolved.strip():
             text += (
                 f"\nNOTICE: Still unresolved ({unresolved.strip()}). The warning in your final response must state it."
@@ -129,14 +140,6 @@ def render_completion_directive(
             f"Reason: {reasons.query_grounding}\n"
             "Before finishing, execute the appropriate query or MCP tool to retrieve verified data, "
             "or revise the response to honestly state the missing status or tool failure to the user."
-        )
-
-    if reasons.ppt_outline.strip():
-        return (
-            "CRITICAL COMPLETION CHECK: PPT Reporting Plan Outline Quality Gate Failed.\n"
-            f"Reason: {reasons.ppt_outline}\n"
-            "Before delivering the final outline or executing slide generation, refine the presentation structure: "
-            "ensure each slide has a punchy headline (max 6-8 words), an explicit takeaway statement, and concrete visual/data anchors."
         )
 
     checklist, _ = build_checklist(list(records), workspace_root=workspace_root)

@@ -147,7 +147,28 @@ def test_attach_falls_back_to_the_unbound_slot_when_keys_diverge() -> None:
     assert state_mod.pop_run_disclosure("msg-known-to-the-emitter") is None
 
 
-def test_record_evidence_accumulates_and_dedupes_within_a_turn() -> None:
+def test_a_repeated_identical_call_is_a_second_ledger_entry() -> None:
+    """Order is what the guard's rules read, so the same lint run passing twice must not collapse into one entry."""
+    first_run, second_run = _test_record(), _test_record()
+
+    ledger = state_mod.record_evidence([first_run])
+    state_mod.record_evidence([first_run, second_run])
+
+    assert ledger == [first_run, second_run]
+    assert ledger[0] is first_run
+    assert ledger[1] is second_run
+
+
+def test_the_tier_counts_a_repeated_identical_call_once() -> None:
+    state_mod.publish_tier_disclosure("一切就绪。", [_test_record(), _test_record()], has_claim=True)
+
+    entry = state_mod.pop_run_disclosure("")
+
+    assert entry is not None
+    assert entry["deliverable_tier"]["evidence"]["verification_count"] == 1
+
+
+def test_record_evidence_accumulates_and_is_idempotent_within_a_turn() -> None:
     record = _test_record()
 
     first = state_mod.record_evidence([record])
