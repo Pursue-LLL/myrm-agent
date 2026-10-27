@@ -59,4 +59,4 @@ def test_every_config_key_is_sealed_or_listed_as_holding_no_secret() -> None:
         "table_policy.CARRIED_SENSITIVE_CONFIG_KEYS when it should travel in a passphrase-protected archive) if its value "
         "can hold a credential, otherwise to _PLAIN_ROWS in this test."
     )
-    assert not stale, f"Listed here but sealed, or no longer a config key: {stale}. Remove them from this test."
+    assert not stale, f"Listed here but sealed, or not a config key: {stale}. Remove them from this test."

@@ -61,7 +61,7 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 
 **职责**：自动迁移明文配置到加密格式。
 
-**执行时机**：应用启动时，`lifespan` 在 Local、Tauri、沙箱模式下都调用 `seal_stored_configs`（沙箱写入时就用控制平面提供的密钥封存，此前保存的明文行同样需要这一遍；不加密配置的模式没有可封存的行）。幂等操作；失败只记警告，不阻塞启动。
+**执行时机**：应用启动时，`lifespan` 在 Local、Tauri、沙箱模式下都调用 `seal_stored_configs`（沙箱写入同样封存，库里仍是明文的行也要过这一遍；不加密配置的模式没有可封存的行）。幂等操作；失败只记警告，不阻塞启动。
 
 **审计历史同样封存**：`config_audit_logs` 逐次重复保存过的值（`ConfigService.set` 写入时与主行同形，敏感键为 `{"_cipher": ...}`）。键在被列为敏感之前留下的明文旧值，由 `migrate_config_history_to_encrypted` 在同一时机补封；已封的值与非敏感键的历史原样保留，第二次运行不改任何行。
 

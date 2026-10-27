@@ -45,7 +45,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_telemetry_setup.py` | 模块 | 服务启动装配（子进程 + 进程内 OTLP 接收端）：启用即导出追踪与指标，生产指标（含装配前创建的）真实送达，运维 `OTEL_RESOURCE_ATTRIBUTES` 优先，资源 `service.version` 为产品版本，未配置端点不外发，`OTEL_SDK_DISABLED` 关闭 |
 | `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
-| `server/test_lifespan_config_migration.py` | 单元 | 本地模式启动阶段确实调用配置迁移与配置审计历史迁移（读启动函数源码，删掉调用即红） |
+| `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -70,9 +70,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
 | `services/instance_archive/test_restore_points.py` | 模块 | 恢复点：一致性快照、staging 校验、下次启动换入、拒绝更新版 schema 与被篡改快照 |
-| `services/instance_archive/test_schema_reconciliation.py` | 模块 | 把归档策略钉到真实 ORM schema，表/列改名（含配置审计历史表的列）或新增密钥列不会悄悄使策略失效；远程备份设置按 PORTABLE_SECRET 携带 |
+| `services/instance_archive/test_schema_reconciliation.py` | 模块 | 把归档策略钉到真实 ORM schema，表/列改名（含配置审计历史表的列）或新增密钥列不会悄悄使策略失效；远程备份设置与语音设置按 PORTABLE_SECRET 携带 |
 | `services/instance_archive/test_config_history_scrub.py` | 模块 | 配置审计历史不比主行活得久：导出与导入暂存两条共用 scrub 之后，不随主行走的配置行（PORTABLE_SECRET / HOST_BOUND）的历史行全部消失、普通配置的历史保留，明文旧值连同空闲页都不在导出文件字节里，没有审计表的库照常处理；完整往返：远程备份设置只在口令下携带、导入后重新加密到目标密钥且不带来历史 |
 | `services/config/test_backup_sync_encryption.py` | 模块 | 远程备份设置按敏感配置落盘加密；加密之前保存的明文行迁移后读回原值；审计历史里敏感键的明文旧值被封存且仍可解密，已封与非敏感的历史不动、重复运行不改任何行、不加密的模式不动历史；需要加密却没有密钥时抛带配置名的 `EncryptionError` |
+| `services/config/test_config_key_classification.py` | 单元 | 每个公开 `ConfigKey` 要么在敏感名单里、要么在测试里明列的「不含密钥」清单里，新增配置键不表态即红；清单里不能混进已封存的键；`personalSettings` 是记下原因的唯一混合行例外 |
+| `services/config/test_voice_encryption.py` | 模块 | 语音设置（识别与朗读密钥）落盘加密且读回原值；明文保存的语音行与它的审计历史被封存后仍可读 |
+| `services/config/test_seal_stored_configs.py` | 模块 | 沙箱模式的服务把语音与远程备份设置的明文行及其审计历史封存、非敏感配置不动；不加密的模式里每一行都原样不动 |
 | `services/instance_archive/test_uploads.py` | 模块 | 分块上传会话：块几何、续传、校验与路径安全 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
@@ -171,7 +174,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
-| `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付）；任务内任何失败都不逃逸给调度器 |
+| `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付，被已丢失密钥封存的设置经真实 `ConfigService.get` 按「不可读」交付并暂停同步）；任务内任何失败都不逃逸给调度器 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
