@@ -10,11 +10,18 @@ import { type ActiveGoal, type GoalPanelAction, GOAL_STATUS_STYLES } from './bac
 
 interface ActiveGoalsSectionProps {
   goals: ActiveGoal[];
+  /** Goals whose previous control is still out; their controls wait for the server. */
+  pendingSessionIds: ReadonlySet<string>;
   onNavigateChat: (sessionId: string) => void;
   onGoalAction: (sessionId: string, action: GoalPanelAction) => void;
 }
 
-export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: ActiveGoalsSectionProps) {
+export function ActiveGoalsSection({
+  goals,
+  pendingSessionIds,
+  onNavigateChat,
+  onGoalAction,
+}: ActiveGoalsSectionProps) {
   const t = useTranslations('backgroundTasks');
   const locale = useLocale();
 
@@ -31,6 +38,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
       <div className="divide-y divide-border/20">
         {goals.map((goal) => {
           const style = GOAL_STATUS_STYLES[goal.status] ?? GOAL_STATUS_STYLES.active;
+          const isPending = pendingSessionIds.has(goal.session_id);
           return (
             <div key={goal.goal_id} className="px-4 py-2.5 transition-colors hover:bg-muted/30">
               <div className="flex items-start gap-2.5">
@@ -67,6 +75,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
                         variant="ghost"
                         size="sm"
                         className="h-6 px-2 text-xs text-amber-600 dark:text-amber-400"
+                        disabled={isPending}
                         onClick={() => onGoalAction(goal.session_id, 'pause')}
                       >
                         {t('goalPause')}
@@ -77,6 +86,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
                         variant="ghost"
                         size="sm"
                         className="h-6 px-2 text-xs text-emerald-600 dark:text-emerald-400"
+                        disabled={isPending}
                         onClick={() => onGoalAction(goal.session_id, 'resume')}
                       >
                         {t('goalResume')}
@@ -86,6 +96,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                      disabled={isPending}
                       onClick={() => onGoalAction(goal.session_id, 'cancel')}
                     >
                       <IconStop className="mr-1 h-3 w-3" />

@@ -20,6 +20,7 @@ export function GoalStatusHeader({
   queueCount,
   onToggleExpand,
   onPause,
+  pendingAction,
   onAction,
   t,
 }: {
@@ -34,11 +35,14 @@ export function GoalStatusHeader({
   queueCount: number;
   onToggleExpand: () => void;
   onPause: () => void;
+  /** The control that is still out; every control waits for it, so a press is never sent twice. */
+  pendingAction: GoalAction | null;
   onAction: (action: GoalAction, note?: string) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
   const statusIcon = getStatusIcon(goal);
   const statusText = getStatusText(goal, t);
+  const isActionPending = pendingAction !== null;
 
   return (
     <div
@@ -143,20 +147,22 @@ export function GoalStatusHeader({
                   size="icon"
                   className="h-8 w-8"
                   aria-label={t('usageLimitResume')}
+                  disabled={isActionPending}
                   onClick={() => onAction('unwait')}
                 >
                   <PlayIcon className="h-4 w-4" />
                 </Button>
-                <GoalPauseButton label={t('pauseDialogTitle')} onPause={onPause} />
+                <GoalPauseButton label={t('pauseDialogTitle')} disabled={isActionPending} onPause={onPause} />
               </>
             ) : goal.status === 'active' ? (
-              <GoalPauseButton label={t('pauseDialogTitle')} onPause={onPause} />
+              <GoalPauseButton label={t('pauseDialogTitle')} disabled={isActionPending} onPause={onPause} />
             ) : (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 aria-label={t('usageLimitResume')}
+                disabled={isActionPending}
                 onClick={() => onAction('resume')}
               >
                 <PlayIcon className="h-4 w-4" />
@@ -167,6 +173,7 @@ export function GoalStatusHeader({
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
               aria-label={t('cancel')}
+              disabled={isActionPending}
               onClick={() => onAction('cancel')}
             >
               <XCircleIcon className="h-4 w-4" />
@@ -178,7 +185,7 @@ export function GoalStatusHeader({
   );
 }
 
-function GoalPauseButton({ label, onPause }: { label: string; onPause: () => void }) {
+function GoalPauseButton({ label, disabled, onPause }: { label: string; disabled: boolean; onPause: () => void }) {
   return (
     <Button
       variant="ghost"
@@ -186,6 +193,7 @@ function GoalPauseButton({ label, onPause }: { label: string; onPause: () => voi
       className="h-8 w-8"
       aria-label={label}
       data-testid="goal-pause-trigger"
+      disabled={disabled}
       onClick={onPause}
     >
       <PauseIcon className="h-4 w-4" />

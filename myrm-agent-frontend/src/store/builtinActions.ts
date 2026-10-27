@@ -1,4 +1,4 @@
-import type { SlashAction } from '@/types/command';
+import type { ActionResult, SlashAction } from '@/types/command';
 import { compactChat, focusFlushChat } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
@@ -406,15 +406,24 @@ export function buildBuiltinActions(): SlashAction[] {
         const firstToken = args.split(/\s+/)[0]?.toLowerCase() ?? '';
         const goalSubcommands = new Set(['status', 'pause', 'resume', 'clear', 'cancel']);
 
-        const postGoalAction = async (action: string) => {
-          const res = await fetchWithTimeout(`/goals/${chatId}/status`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action }),
-          });
-          if (!res.ok) {
-            throw new Error(`Goal ${action} failed with HTTP ${res.status}`);
+        /** Sends a goal control; a goal still finishing its last step gets its own notice, not "command failed". */
+        const controlGoal = async (action: 'pause' | 'resume' | 'cancel', doneKey: string): Promise<ActionResult> => {
+          const { postGoalAction } = await import('@/store/chat/goals/goalActionClient');
+          const outcome = await postGoalAction(chatId, action);
+          if (outcome === 'done') {
+            showI18nToast(doneKey, undefined, { type: 'success' });
+            return { success: true, newInputValue: '' };
           }
+          if (outcome !== 'held') {
+            showI18nToast(
+              outcome === 'busy' ? 'commands.builtin.goalActionBusy' : 'commands.builtin.goalActionFailed',
+              undefined,
+              {
+                type: 'error',
+              },
+            );
+          }
+          return { success: false, error: 'Goal command failed' };
         };
 
         try {
@@ -433,19 +442,13 @@ export function buildBuiltinActions(): SlashAction[] {
               return { success: true, newInputValue: '' };
             }
             if (firstToken === 'pause') {
-              await postGoalAction('pause');
-              showI18nToast('commands.builtin.goalPaused', undefined, { type: 'success' });
-              return { success: true, newInputValue: '' };
+              return await controlGoal('pause', 'commands.builtin.goalPaused');
             }
             if (firstToken === 'resume') {
-              await postGoalAction('resume');
-              showI18nToast('commands.builtin.goalResumed', undefined, { type: 'success' });
-              return { success: true, newInputValue: '' };
+              return await controlGoal('resume', 'commands.builtin.goalResumed');
             }
             if (firstToken === 'clear' || firstToken === 'cancel') {
-              await postGoalAction('cancel');
-              showI18nToast('commands.builtin.goalCleared', undefined, { type: 'success' });
-              return { success: true, newInputValue: '' };
+              return await controlGoal('cancel', 'commands.builtin.goalCleared');
             }
           }
 

@@ -21,8 +21,8 @@ import { isRiskHeldError, riskHeldErrorFromResponse } from '@/services/riskHeldT
 import { GoalStatusHeader } from './GoalStatusHeader';
 import { GoalStatusExpanded } from './GoalStatusExpanded';
 import { GoalUsageLimitRow } from './GoalUsageLimitRow';
-import type { GoalAction, GoalStatus } from './goalStatusTypes';
 import { translateGoalReason, computeEtaSeconds } from './goalStatusUtils';
+import { useGoalAction } from './useGoalAction';
 import { useGoalSync } from './useGoalSync';
 
 export function GoalStatusCard() {
@@ -41,6 +41,7 @@ export function GoalStatusCard() {
   const chatId = useChatStore((state) => state.chatId);
 
   useGoalSync(chatId);
+  const { run: handleAction, pendingAction } = useGoalAction(chatId);
 
   useEffect(() => {
     setNotificationPermission(notificationService.permission);
@@ -108,46 +109,6 @@ export function GoalStatusCard() {
       console.error('Failed to update objective:', err);
     } finally {
       setIsSavingObjective(false);
-    }
-  };
-
-  /** Resolves whether the server took the action; a held note or a failure leaves the goal as it was. */
-  const handleAction = async (action: GoalAction, note?: string): Promise<boolean> => {
-    try {
-      const payload: { action: string; note?: string } = { action };
-      if (note?.trim()) {
-        payload.note = note.trim();
-      }
-      const res = await fetchWithTimeout(`/goals/${chatId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        if (!(await riskHeldErrorFromResponse(res))) {
-          toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
-        }
-        return false;
-      }
-      toast.success(t(`goalActionSuccess_${action}` as 'goalActionSuccess_pause'));
-
-      const statusMap: Record<string, GoalStatus> = {
-        pause: 'paused',
-        resume: 'active',
-        reject: 'active',
-        unwait: 'active',
-        cancel: 'cancelled',
-        approve: 'complete',
-      };
-      // Only a pause note is a status reason; the note of a rejected review is the agent's next message.
-      const reason = action === 'pause' ? note?.trim() || undefined : undefined;
-      // A chat opened while the request was out is not this chat: the store drops a status that is no longer its own.
-      useGoalStore.getState().updateGoalStatus(chatId, statusMap[action] ?? goal.status, reason);
-      return true;
-    } catch (e) {
-      console.error(`Network error: failed to ${action} goal`, e);
-      toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
-      return false;
     }
   };
 
@@ -229,6 +190,7 @@ export function GoalStatusCard() {
             queueCount={queueCount}
             onToggleExpand={() => setIsExpanded(!isExpanded)}
             onPause={() => setPauseDialogOpen(true)}
+            pendingAction={pendingAction}
             onAction={handleAction}
             t={t}
           />

@@ -6,11 +6,12 @@
 
 ## 文件清单
 
-| 文件              | 职责                                                                                                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useGoalStore.ts` | 活跃 goal、队列、git 分支、预算/目标更新；`refreshActiveGoal` 供 bg finish / goal_needs_review / goal_usage_limit 通知同步 Card；`GoalState.usageLimit`（来自 `metadata.wait_kind | pause_kind=usage_limit`+`wait_resume_at`）驱动额度等待行，手动改状态时清除 |
-| `usePlanStore.ts` | Plan 步骤树、加载与步骤状态 PATCH                                                                                                                                                 |
-| `__tests__/`      | goal/plan store 回归                                                                                                                                                              |
+| 文件                  | 职责                                                                                                                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useGoalStore.ts`     | 活跃 goal、队列、git 分支、预算/目标更新；`refreshActiveGoal` 供 bg finish / goal_needs_review / goal_usage_limit 通知同步 Card；`GoalState.usageLimit`（来自 `metadata.wait_kind                                                                                         | pause_kind=usage_limit`+`wait_resume_at`）驱动额度等待行，手动改状态时清除 |
+| `goalActionClient.ts` | 目标控制（暂停/恢复/取消/批准/驳回/结束等待）的唯一请求：`postGoalAction` 返回 `done` / `busy`（恢复或结束等待遇 409：上一回合还在收尾，目标保持原状）/ `held`（备注被风控拦下，提示已展示）/ `failed`，从不抛错；卡片、后台任务面板与 `/goal` 命令共用，各自按结果出文案 |
+| `usePlanStore.ts`     | Plan 步骤树、加载与步骤状态 PATCH                                                                                                                                                                                                                                         |
+| `__tests__/`          | goal/plan store 与目标控制请求回归                                                                                                                                                                                                                                        |
 
 ## 依赖
 

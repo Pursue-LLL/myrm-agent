@@ -9,7 +9,6 @@ import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { toast } from '@/lib/utils/toast';
-import { fetchWithTimeout } from '@/lib/api';
 import {
   listBackgroundTasks,
   cancelBackgroundTask,
@@ -24,15 +23,11 @@ import { isRiskHeldError } from '@/services/riskHeldToast';
 import { useGlobalMediaTaskNotifications } from '@/hooks/tasks/useGlobalMediaTaskNotifications';
 import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
+import { useActiveGoals } from './useActiveGoals';
+import { useBackgroundTasksSearch } from './useBackgroundTasksSearch';
 import { BackgroundTaskRow } from './BackgroundTaskRow';
 import { MediaTaskRow } from './MediaTaskRow';
-import {
-  type ActiveGoal,
-  type GoalPanelAction,
-  IDLE_STOP_THRESHOLD,
-  POLL_FAST_MS,
-  POLL_SLOW_MS,
-} from './backgroundTasksPanel.constants';
+import { IDLE_STOP_THRESHOLD, POLL_FAST_MS, POLL_SLOW_MS } from './backgroundTasksPanel.constants';
 import EvictedDrawerSuspenseFallback from '@/components/features/message-box/progress-steps/renderers/EvictedDrawerSuspenseFallback';
 
 const EvictedOutputDrawer = lazy(
@@ -50,13 +45,12 @@ interface BackgroundTasksPanelProps {
 
 export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelProps) {
   const t = useTranslations('backgroundTasks');
-  const tGoal = useTranslations('Goal');
   const router = useRouter();
   useGlobalMediaTaskNotifications();
   const { mediaTasks, recentTerminalMediaTasks, refetchMediaTasks } = useMediaBackgroundTasks();
+  const { activeGoals, fetchActiveGoals, pendingSessionIds, handleGoalAction } = useActiveGoals();
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
   const [registryEphemeral, setRegistryEphemeral] = useState(false);
-  const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [recentMediaExpanded, setRecentMediaExpanded] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
@@ -76,19 +70,6 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       idleCountRef.current = hasRunning ? 0 : idleCountRef.current + 1;
     } catch {
       // silent - panel is non-critical UI
-    }
-  }, []);
-
-  const fetchActiveGoals = useCallback(async () => {
-    try {
-      const res = await fetchWithTimeout('/goals/active');
-      if (!res.ok) {
-        return;
-      }
-      const data = await res.json();
-      setActiveGoals(data.goals || []);
-    } catch {
-      // silent - non-critical
     }
   }, []);
 
@@ -134,111 +115,8 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  const filteredActiveGoals = useMemo(() => {
-    if (!normalizedQuery) {
-      return activeGoals;
-    }
-    return activeGoals.filter((goal) => {
-      return (
-        goal.objective.toLowerCase().includes(normalizedQuery) ||
-        goal.status.toLowerCase().includes(normalizedQuery) ||
-        goal.session_id.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [activeGoals, normalizedQuery]);
-
-  const filteredMediaTasks = useMemo(() => {
-    if (!normalizedQuery) {
-      return mediaTasks;
-    }
-    return mediaTasks.filter((task) => {
-      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
-      const taskType = (task.task_type ?? '').toLowerCase();
-      const status = (task.status ?? '').toLowerCase();
-      const taskId = (task.task_id ?? '').toLowerCase();
-      return (
-        prompt.includes(normalizedQuery) ||
-        taskType.includes(normalizedQuery) ||
-        status.includes(normalizedQuery) ||
-        taskId.includes(normalizedQuery)
-      );
-    });
-  }, [mediaTasks, normalizedQuery]);
-
-  const filteredRecentTerminalMediaTasks = useMemo(() => {
-    if (!normalizedQuery) {
-      return recentTerminalMediaTasks;
-    }
-    return recentTerminalMediaTasks.filter((task) => {
-      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
-      const taskType = (task.task_type ?? '').toLowerCase();
-      const status = (task.status ?? '').toLowerCase();
-      const taskId = (task.task_id ?? '').toLowerCase();
-      return (
-        prompt.includes(normalizedQuery) ||
-        taskType.includes(normalizedQuery) ||
-        status.includes(normalizedQuery) ||
-        taskId.includes(normalizedQuery)
-      );
-    });
-  }, [recentTerminalMediaTasks, normalizedQuery]);
-
-  const agentTasks = useMemo(() => {
-    const list = tasks.filter((task) => (task.kind ?? 'agent') !== 'shell');
-    if (!normalizedQuery) {
-      return list;
-    }
-    return list.filter((task) => {
-      const prompt = (task.prompt ?? '').toLowerCase();
-      const status = (task.status ?? '').toLowerCase();
-      const taskId = (task.task_id ?? '').toLowerCase();
-      const resultPreview = (task.result_preview ?? '').toLowerCase();
-      return (
-        prompt.includes(normalizedQuery) ||
-        status.includes(normalizedQuery) ||
-        taskId.includes(normalizedQuery) ||
-        resultPreview.includes(normalizedQuery)
-      );
-    });
-  }, [tasks, normalizedQuery]);
-
-  const shellTasks = useMemo(() => {
-    const list = tasks.filter((task) => task.kind === 'shell');
-    if (!normalizedQuery) {
-      return list;
-    }
-    return list.filter((task) => {
-      const prompt = (task.prompt ?? '').toLowerCase();
-      const status = (task.status ?? '').toLowerCase();
-      const taskId = (task.task_id ?? '').toLowerCase();
-      const resultPreview = (task.result_preview ?? '').toLowerCase();
-      return (
-        prompt.includes(normalizedQuery) ||
-        status.includes(normalizedQuery) ||
-        taskId.includes(normalizedQuery) ||
-        resultPreview.includes(normalizedQuery)
-      );
-    });
-  }, [tasks, normalizedQuery]);
-
-  const handleGoalAction = async (sessionId: string, action: GoalPanelAction) => {
-    try {
-      const res = await fetchWithTimeout(`/goals/${sessionId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (!res.ok) {
-        throw new Error('Failed');
-      }
-      toast.success(t('goalActionSuccess'));
-      fetchActiveGoals();
-    } catch {
-      toast.error(tGoal(`goalActionFailed_${action}`));
-    }
-  };
+  const { filteredActiveGoals, filteredMediaTasks, filteredRecentTerminalMediaTasks, agentTasks, shellTasks } =
+    useBackgroundTasksSearch(searchQuery, { activeGoals, mediaTasks, recentTerminalMediaTasks, tasks });
 
   const handleCancel = async (taskId: string) => {
     try {
@@ -396,6 +274,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
             <ActiveGoalsSection
               goals={filteredActiveGoals}
               onNavigateChat={handleNavigateChat}
+              pendingSessionIds={pendingSessionIds}
               onGoalAction={handleGoalAction}
             />
 

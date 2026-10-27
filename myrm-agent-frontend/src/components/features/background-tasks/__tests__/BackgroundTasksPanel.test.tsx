@@ -118,10 +118,14 @@ vi.mock('@/hooks/tasks/useGlobalMediaTaskNotifications', () => ({
 }));
 
 let goalActionHttpStatus = 200;
+let goalStatus = 'active';
+/** While set, the server has not answered the goal control yet. */
+let goalActionGate: Promise<void> | null = null;
 
 vi.mock('@/lib/api', () => ({
   fetchWithTimeout: vi.fn(async (url: string) => {
     if (url === '/goals/chat-g1/status') {
+      await goalActionGate;
       return { ok: goalActionHttpStatus < 400, status: goalActionHttpStatus };
     }
     if (url === '/goals/active') {
@@ -132,7 +136,7 @@ vi.mock('@/lib/api', () => ({
             {
               goal_id: 'goal-1',
               objective: 'Refactor database models',
-              status: 'active',
+              status: goalStatus,
               session_id: 'chat-g1',
               created_at: new Date().toISOString(),
               tokens_used: 1200,
@@ -152,6 +156,8 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     goalActionHttpStatus = 200;
+    goalStatus = 'active';
+    goalActionGate = null;
     mockListBackgroundTasks.mockResolvedValue({
       tasks: [
         {
@@ -337,6 +343,49 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
 
       await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('goalActionSuccess'));
       expect(toastMock.error).not.toHaveBeenCalled();
+    });
+
+    const goalStatusPosts = () =>
+      vi.mocked(fetchWithTimeout).mock.calls.filter(([url]) => url === '/goals/chat-g1/status');
+
+    it('says the goal is still finishing its last step when the server refuses the resume', async () => {
+      goalStatus = 'paused';
+      goalActionHttpStatus = 409;
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+      await screen.findByText('Refactor database models');
+
+      fireEvent.click(screen.getByRole('button', { name: 'goalResume' }));
+
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('goalActionBusy'));
+      expect(toastMock.error).not.toHaveBeenCalledWith('goalActionFailed_resume');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'goalResume' })).toBeEnabled());
+    });
+
+    it('asks the server once when a control is pressed twice, and holds the goal controls until it answered', async () => {
+      let release: () => void = () => undefined;
+      goalActionGate = new Promise<void>((resolve) => (release = resolve));
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+      await screen.findByText('Refactor database models');
+
+      fireEvent.click(screen.getByRole('button', { name: 'goalPause' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'goalPause' })).toBeDisabled());
+      fireEvent.click(screen.getByRole('button', { name: 'goalPause' }));
+      expect(goalStatusPosts()).toHaveLength(1);
+      // The goals section comes first; the other cancel buttons belong to tasks, which a goal control does not hold.
+      const [goalCancel, ...taskCancels] = screen.getAllByRole('button', { name: 'cancel' });
+      expect(goalCancel).toBeDisabled();
+      expect(taskCancels.length).toBeGreaterThan(0);
+      for (const taskCancel of taskCancels) {
+        expect(taskCancel).toBeEnabled();
+      }
+      expect(screen.getAllByRole('button', { name: 'navigate' })[0]).toBeEnabled();
+
+      release();
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'goalPause' })).toBeEnabled());
+      expect(goalStatusPosts()).toHaveLength(1);
     });
   });
 });

@@ -25,6 +25,7 @@ function renderHeader(status: GoalState['status'], overrides: Partial<ComponentP
       queueCount={0}
       onToggleExpand={vi.fn()}
       onPause={onPause}
+      pendingAction={null}
       onAction={onAction}
       t={t}
       {...overrides}
@@ -71,4 +72,23 @@ describe('GoalStatusHeader pause control', () => {
 
     expect(screen.queryByTestId('goal-pause-trigger')).toBeNull();
   });
+});
+
+describe('GoalStatusHeader while a control is still out', () => {
+  it.each(['active', 'wait', 'paused'] as const)(
+    'holds every control of a %s goal until the server answered',
+    (status) => {
+      const { onPause, onAction } = renderHeader(status, { pendingAction: 'resume' });
+
+      const controls = screen.getAllByRole('button').filter((button) => button.getAttribute('aria-label'));
+      expect(controls.length).toBeGreaterThanOrEqual(2);
+      for (const control of controls) {
+        expect(control).toBeDisabled();
+        fireEvent.click(control);
+      }
+
+      expect(onPause).not.toHaveBeenCalled();
+      expect(onAction).not.toHaveBeenCalled();
+    },
+  );
 });

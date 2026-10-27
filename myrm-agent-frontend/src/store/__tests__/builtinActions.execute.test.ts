@@ -470,7 +470,31 @@ describe('builtin action execute functions', () => {
       expect(showI18nToastMock).toHaveBeenCalledWith(`commands.builtin.${toastKey}`, undefined, { type: 'success' });
     });
 
-    it.each([404, 409, 500])('/goal resume fails when the server answers HTTP %i', async (status) => {
+    it('/goal resume tells the user to try again in a moment when the goal is still finishing its last step', async () => {
+      serverAnswers(409, { detail: 'The goal previous turn is still stopping' });
+
+      const result = await goalAction().execute('/goal resume');
+
+      expect(result.success).toBe(false);
+      expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.goalActionBusy', undefined, { type: 'error' });
+      expect(showI18nToastMock).not.toHaveBeenCalledWith('commands.builtin.goalActionFailed', undefined, {
+        type: 'error',
+      });
+      expect(showI18nToastMock).not.toHaveBeenCalledWith('commands.builtin.goalResumed', undefined, {
+        type: 'success',
+      });
+    });
+
+    it.each(['pause', 'clear'])('/goal %s keeps a conflict an ordinary failure', async (subcommand) => {
+      serverAnswers(409, { detail: 'refused' });
+
+      const result = await goalAction().execute(`/goal ${subcommand}`);
+
+      expect(result.success).toBe(false);
+      expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.goalActionFailed', undefined, { type: 'error' });
+    });
+
+    it.each([404, 500])('/goal resume fails when the server answers HTTP %i', async (status) => {
       serverAnswers(status, { detail: 'refused' });
 
       const result = await goalAction().execute('/goal resume');
