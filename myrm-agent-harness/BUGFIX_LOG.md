@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-046 · 出口代理里挂着一套从未启用的「暗桩诱饵」：约 200 行模块、请求头与请求体共 4 处扫描分支、每个带请求体的请求多构造一个扫描器，文档站还把它写成「需宿主启用」的能力
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（删除；顺带发现的另一个出口代理缺陷未修，见「仍然存在」①） |
+| **发现时间** | 2026-10-27（条目 040 已证明暗桩从未挂载；本条按用户决定删除，而不是启用） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：没有运行时错误。死代码加一处文档与代码的偏差：文档站和内部材料把暗桩写成「宿主可启用的能力」，而启用它会把假凭证写进沙箱环境变量，可能盖掉用户真实的 `OPENAI_API_KEY`、`GITHUB_TOKEN`（条目 040 记过，没有评估）。 |
+| **关联产品** | harness `core/security/egress/`；品牌仓文档站 en/zh `security-architecture.mdx`；内部材料 `SECURITY_ADVANTAGE.md`、`topic_03` 路线图 |
+| **根因** | 2026-10-27 复核时，`HoneytokenTrap.register_token` 与 `generate_sandbox_canaries` 在 harness、server、frontend 里没有任何调用方（`git grep` 只命中模块自身、它的测试和文档），全局 trap 永远是空的，`has_tokens()` 恒为假，代理里的 4 处扫描分支从不执行。 |
+| **修复** | 删除 honeytoken.py（`HoneytokenTrap`、`StreamingHoneytokenScanner`、`HoneytokenExfiltrationBlockedError`、`get_global_honeytoken_trap`、`generate_sandbox_canaries`）及其 11 例测试；`proxy_server.py` 去掉导入、构造参数 `honeytoken_trap`、TLS 与明文 HTTP 两条路径上各 2 处（请求头、请求体）的扫描，以及每个带请求体的请求构造的流式扫描器，顺手删掉内容为空的 `TYPE_CHECKING` 块；`egress/__init__.py` 去掉 5 个导出；`egress/_ARCH.md` 删除文件行与第 6 条不变量；`file_line_baseline.txt` 里 `proxy_server.py` 的上限 724 收紧到 635（现为 635 行）；文档站 en/zh 的章节改成「会话金丝雀与出网代理」两节；`SECURITY_ADVANTAGE.md` ⑳ 与第 17 条、`topic_03` 路线图 3 处加更正。`TaintedEgressGateway` 保留（它仍没有被产品接入：本地执行器启动代理时不传 `gateway`）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 条目 040、`SECURITY_ADVANTAGE.md` 与 `topic_03` 里的旧引用指向已删文件，改成不带反引号的历史说明，避免被当成现存路径。② `SECURITY_ADVANTAGE.md` 第 17 条的「暗桩 94%」合计数字随模块作废，只保留熔断器那一半，并标注其余数字是当日记录、未复测。③ 文档站章节标题改了，用 `rg` 查过没有锚点链接引用旧标题。 |
+| **回归** | 没有新增行为，所以没有新增用例；被删的 4 处分支删除前被 `has_tokens()` 挡住，没有调用方会让它为真。删除后 `tests/core/security` 全部通过（1434 例，工作区内运行），`ruff check`、`ruff format` 通过；`mypy` 对 egress 目录报 1 处，是本条之前就存在的（见「仍然存在」①）。 |
+| **仍然存在** | ① **出口代理的 TLS 拦截在 Python 3.13 上不工作**：`proxy_server.py` 的 `writer.start_tls(server_ssl_ctx, server_side=True)` 传了 `StreamWriter.start_tls` 不接受的参数（该方法的签名是 `(sslcontext, *, server_hostname, ssl_handshake_timeout, ssl_shutdown_timeout)`，是否为服务端由连接是怎么建立的决定），抛 `TypeError`，被外层 `except Exception` 吞掉后只在 DEBUG 日志里写一行 `TLS interception fallback to blind tunnel`，再退成盲转发。实测：起一个 `enable_tls_interception=True` 的代理，对 `api.example.test:443` 发 CONNECT，代理回 200 后日志出现 `StreamWriter.start_tls() got an unexpected keyword argument 'server_side'`。盲转发不解密，所以 HTTPS 请求里的哨兵凭据不会被替换成真实密钥；`test_sentinel_egress.py` 的代理用例只测了启动与环境变量，没有走过握手。**没有修**：删掉这个参数就会第一次启用一条从没跑过的中间人路径（`_forward_tls_http_stream` 只处理带 `Content-Length` 的请求体，处理完一个请求就退出循环），需要带真实 TLS 上游的端到端用例先行，不适合夹在删死代码里。没有测量产品里有多少调用会走到这条路径。② `TaintedEgressGateway` 仍未接入产品，文档站已如实写「闸门处于关闭状态」。 |
+| **代码位置** | `core/security/egress/proxy_server.py`、`core/security/egress/__init__.py`、`core/security/egress/_ARCH.md` · `scripts/file_line_baseline.txt` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx` · 根仓内部材料 SECURITY_ADVANTAGE.md 与 topic_03 路线图 |
+
 ### BUG-HARNESS-2026-10-27-045 · 安全审查员的「最近工具调用」里混进了被拒绝、根本没执行过的调用，审查员看到的是没发生过的动作
 
 | 字段 | 内容 |
@@ -97,12 +114,12 @@
 | **严重程度** | P2：没有运行时行为错误；但文档站、官网和内部材料宣称了产品不具备的安全与缓存能力。 |
 | **关联产品** | harness `agent/security/detection/canary_guard.py`、`core/security/egress/`；品牌仓文档站与官网 |
 | **根因** | ① `inject_canary_environment_variables` 全仓没有调用方，`MYRM_CANARY_TOKEN` 没有任何地方设置，函数文档却写成「保留 100% 提示缓存」；`build_canary_instruction` 的文档说「追加到系统提示词会击穿缓存，请用环境变量」，而 `agent/base_agent.py:169-182` 正是这样追加的。② `HoneytokenTrap.generate_sandbox_canaries` 全仓（含控制平面）只有定义，全局 trap 一直是空的，代理里的扫描因 `has_tokens()` 为假不执行。③ `LoopbackEgressProxy` 只在跟踪到凭证占位符时由本地执行器启动（`executor.py:593-599`），而且不传 `gateway`，403 握手阻断不生效。④ 命中后是 `writer.close()`，没有设置 SO_LINGER，代码里没有 TCP RST。⑤ 材料里写的前端 `IndirectInjectionAlertCard` 在仓库里没有这个文件。 |
-| **修复** | 删除死函数 `inject_canary_environment_variables` 及其 2 个测试；改正 `build_canary_instruction`、`honeytoken.py`、`egress/_ARCH.md` 的说明。文档站 en/zh 该章节重写为「会话金丝雀默认开启，暗桩与污点网关需宿主启用」，去掉未经验证的 350ms、85% 与竞品对比；官网 en/zh/ko 各删除一条；内部材料 `SECURITY_ADVANTAGE.md` 删除对比行、改写 ⑳ 并列出不得对外宣称项。Intake 路由器的「<0.15ms」改为实测说法（短提示词远低于 1 毫秒，8 KB 粘贴约 2 毫秒）。 |
+| **修复** | 删除死函数 `inject_canary_environment_variables` 及其 2 个测试；改正 `build_canary_instruction`、honeytoken.py（已于条目 046 删除）、`egress/_ARCH.md` 的说明。文档站 en/zh 该章节重写为「会话金丝雀默认开启，暗桩与污点网关需宿主启用」，去掉未经验证的 350ms、85% 与竞品对比；官网 en/zh/ko 各删除一条；内部材料 `SECURITY_ADVANTAGE.md` 删除对比行、改写 ⑳ 并列出不得对外宣称项。Intake 路由器的「<0.15ms」改为实测说法（短提示词远低于 1 毫秒，8 KB 粘贴约 2 毫秒）。 |
 | **反复次数** | 第 1 次 |
 | **踩坑** | 最初只把「金丝雀不拼接系统提示词」当成问题，范围是 3 处文档；追查 `generate_sandbox_canaries` 的调用方后才发现暗桩、403 闸门、TCP RST、前端卡片都不成立，范围扩到官网与内部材料。 |
-| **回归** | `test_canary_guard.py` 41 例、`test_honeytoken.py` 11 例通过（删除 2 个死函数测试）；没有新增行为，所以没有新增用例。 |
-| **仍然存在** | ① 没有测量金丝雀令牌对跨会话提示缓存命中的影响，文档只陈述「每会话不同」。② 暗桩诱饵没有接入产品：接入会把假凭证写进沙箱环境变量，可能覆盖用户真实的 `OPENAI_API_KEY`、`GITHUB_TOKEN`，这一点没有评估。③ `SECURITY_ADVANTAGE.md` 里其他处的「Prompt Cache 100% 命中」（执行内核、洋葱圈过滤）没有逐条核对；其中 2026-09-28 的「2347 项测试」「94% 覆盖率」是历史记录，没有复测。④ 文档站与官网其余安全数字没有逐条验证。 |
-| **代码位置** | `agent/security/detection/canary_guard.py` · `agent/middlewares/security/security_guardrail_middleware.py:_guard_canary` · `core/security/egress/honeytoken.py`、`proxy_server.py`、`_ARCH.md` · `toolkits/code_execution/executors/local/executor.py:_ensure_egress_proxy` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx`、`myrm-website/locales/*.json` |
+| **回归** | `test_canary_guard.py` 41 例、test_honeytoken.py（已于条目 046 删除）11 例通过（删除 2 个死函数测试）；没有新增行为，所以没有新增用例。 |
+| **仍然存在** | ① 没有测量金丝雀令牌对跨会话提示缓存命中的影响，文档只陈述「每会话不同」。② 暗桩诱饵没有接入产品：接入会把假凭证写进沙箱环境变量，可能覆盖用户真实的 `OPENAI_API_KEY`、`GITHUB_TOKEN`，这一点没有评估（条目 046 起该模块已删除）。③ `SECURITY_ADVANTAGE.md` 里其他处的「Prompt Cache 100% 命中」（执行内核、洋葱圈过滤）没有逐条核对；其中 2026-09-28 的「2347 项测试」「94% 覆盖率」是历史记录，没有复测。④ 文档站与官网其余安全数字没有逐条验证。 |
+| **代码位置** | `agent/security/detection/canary_guard.py` · `agent/middlewares/security/security_guardrail_middleware.py:_guard_canary` · `core/security/egress/proxy_server.py`、`core/security/egress/_ARCH.md`、honeytoken.py（已于条目 046 删除） · `toolkits/code_execution/executors/local/executor.py:_ensure_egress_proxy` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx`、`myrm-website/locales/*.json` |
 
 ### BUG-HARNESS-2026-10-27-039 · 委托给 Claude 或 Codex 命令行的回合带不了图片（运行时协议没有这一项）；`agent` 门面里 44 个导出名一用就 AttributeError，`LatencyStats` 指向了错的模块；9 个惰性导出的包对类型检查器是 `object`
 

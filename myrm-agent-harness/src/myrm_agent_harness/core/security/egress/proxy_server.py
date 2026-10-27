@@ -26,19 +26,9 @@ import logging
 import os
 import ssl
 import tempfile
-from typing import TYPE_CHECKING
 
-from .honeytoken import (
-    HoneytokenExfiltrationBlockedError,
-    HoneytokenTrap,
-    StreamingHoneytokenScanner,
-    get_global_honeytoken_trap,
-)
 from .sentinel import SentinelManager, StreamingSentinelScanner, get_global_sentinel_manager
 from .tainted_gateway import TaintedEgressDecision, TaintedEgressGateway
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -178,13 +168,9 @@ class LoopbackEgressProxy:
         port: int = 0,
         enable_tls_interception: bool = True,
         gateway: TaintedEgressGateway | None = None,
-        honeytoken_trap: HoneytokenTrap | None = None,
     ) -> None:
         self._manager: SentinelManager = sentinel_manager or get_global_sentinel_manager()
         self._gateway: TaintedEgressGateway | None = gateway
-        self._honeytoken_trap: HoneytokenTrap = (
-            honeytoken_trap if honeytoken_trap is not None else get_global_honeytoken_trap()
-        )
         self._host: str = host
         self._requested_port: int = port
         self._enable_tls: bool = enable_tls_interception
@@ -411,27 +397,6 @@ class LoopbackEgressProxy:
                         except ValueError:
                             content_length = 0
 
-                # Honeytoken egress check on request path and headers
-                if self._honeytoken_trap.has_tokens():
-                    token_hit = self._honeytoken_trap.scan_text(path)
-                    if not token_hit:
-                        for h in raw_headers:
-                            token_hit = self._honeytoken_trap.scan_bytes(h)
-                            if token_hit:
-                                break
-                    if token_hit:
-                        logger.critical(
-                            "[EGRESS_PROXY] CRITICAL: Honeytoken '%s' detected in TLS headers to %s! Terminating socket.",
-                            token_hit,
-                            target_host,
-                        )
-                        remote_writer.close()
-                        writer.close()
-                        await writer.wait_closed()
-                        raise HoneytokenExfiltrationBlockedError(
-                            token_hit, target_host, 443, "Honeytoken detected in outbound HTTP headers"
-                        )
-
                 sub_path = self._manager.substitute_text(path)
                 remote_writer.write(f"{method} {sub_path} HTTP/1.1\r\n".encode("latin1"))
                 for h in raw_headers:
@@ -445,28 +410,12 @@ class LoopbackEgressProxy:
 
                 if content_length > 0:
                     scanner = StreamingSentinelScanner(self._manager)
-                    honey_scanner = StreamingHoneytokenScanner(self._honeytoken_trap)
                     bytes_left = content_length
                     while bytes_left > 0:
                         chunk = await reader.read(min(bytes_left, 16384))
                         if not chunk:
                             break
                         bytes_left -= len(chunk)
-
-                        if self._honeytoken_trap.has_tokens():
-                            token_hit = honey_scanner.feed(chunk)
-                            if token_hit:
-                                logger.critical(
-                                    "[EGRESS_PROXY] CRITICAL: Honeytoken '%s' detected in TLS body stream to %s! Terminating socket.",
-                                    token_hit,
-                                    target_host,
-                                )
-                                remote_writer.close()
-                                writer.close()
-                                await writer.wait_closed()
-                                raise HoneytokenExfiltrationBlockedError(
-                                    token_hit, target_host, 443, "Honeytoken detected in outbound HTTP body stream"
-                                )
 
                         ready = scanner.feed(chunk)
                         if ready:
@@ -570,27 +519,6 @@ class LoopbackEgressProxy:
                 await writer.wait_closed()
                 return
 
-        # Honeytoken egress check on request path and headers
-        if self._honeytoken_trap.has_tokens():
-            token_hit = self._honeytoken_trap.scan_text(path)
-            if not token_hit:
-                for h in raw_headers:
-                    token_hit = self._honeytoken_trap.scan_bytes(h)
-                    if token_hit:
-                        break
-            if token_hit:
-                logger.critical(
-                    "[EGRESS_PROXY] CRITICAL: Honeytoken '%s' detected in HTTP headers to %s:%d! Terminating socket.",
-                    token_hit,
-                    host,
-                    port,
-                )
-                writer.close()
-                await writer.wait_closed()
-                raise HoneytokenExfiltrationBlockedError(
-                    token_hit, host, port, "Honeytoken detected in outbound HTTP headers"
-                )
-
         # Connect to remote HTTP target
         try:
             remote_reader, remote_writer = await asyncio.open_connection(host, port)
@@ -618,32 +546,15 @@ class LoopbackEgressProxy:
         remote_writer.write(b"\r\n")
         await remote_writer.drain()
 
-        # Stream body with sliding-window substitution and honeytoken detection
+        # Stream body with sliding-window substitution
         if content_length > 0:
             scanner = StreamingSentinelScanner(self._manager)
-            honey_scanner = StreamingHoneytokenScanner(self._honeytoken_trap)
             bytes_left = content_length
             while bytes_left > 0:
                 chunk = await reader.read(min(bytes_left, 16384))
                 if not chunk:
                     break
                 bytes_left -= len(chunk)
-
-                if self._honeytoken_trap.has_tokens():
-                    token_hit = honey_scanner.feed(chunk)
-                    if token_hit:
-                        logger.critical(
-                            "[EGRESS_PROXY] CRITICAL: Honeytoken '%s' detected in HTTP body stream to %s:%d! Terminating socket.",
-                            token_hit,
-                            host,
-                            port,
-                        )
-                        remote_writer.close()
-                        writer.close()
-                        await writer.wait_closed()
-                        raise HoneytokenExfiltrationBlockedError(
-                            token_hit, host, port, "Honeytoken detected in outbound HTTP body stream"
-                        )
 
                 ready_chunk = scanner.feed(chunk)
                 if ready_chunk:

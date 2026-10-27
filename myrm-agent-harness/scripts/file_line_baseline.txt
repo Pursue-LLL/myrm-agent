@@ -41,7 +41,7 @@ myrm_agent_harness/agent/sub_agents/types.py	532
 myrm_agent_harness/backends/skills/_utils.py	839
 myrm_agent_harness/backends/skills/scanning/patterns.py	875
 myrm_agent_harness/backends/skills/scanning/scanner.py	555
-myrm_agent_harness/core/security/egress/proxy_server.py	724
+myrm_agent_harness/core/security/egress/proxy_server.py	635
 myrm_agent_harness/core/security/types.py	646
 myrm_agent_harness/eval/assertions.py	693
 myrm_agent_harness/eval/protocols.py	635
