@@ -10,6 +10,7 @@
 - NON_TERMINAL_GOAL_STATUSES: statuses a goal can still leave
 - select_cancellable_goal: the goal a "cancel" / "clear" control acts on
 - stop_goal_turn: stop the turn a goal was working on after it was paused or cancelled
+- is_turn_stopping: whether the session's turn was told to stop and has not wound down yet
 - wait_for_stopped_turn: let a turn that was told to stop finish winding down before the goal is resumed
 - can_start_goal_turn: whether the session can take a new turn now
 - continue_resumed_goal: start the turn that carries a just-resumed goal forward

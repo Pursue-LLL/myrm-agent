@@ -1,7 +1,7 @@
 """GoalTerminalNotifier — pushes Goal completion results back to the originating IM channel.
 
 Subscribes to the global ServerEventBus and filters for GOAL_TERMINAL events
-that carry source channel metadata (injected by goal_handler._set_goal).
+that carry source channel metadata (injected by ChannelGoalCommandHandler._set_goal).
 For each matching event it sends a localised summary to the channel/chat_id/thread_id
 stored in the Goal metadata through ``MessageBus.send_now`` (best-effort: failures are logged).
 

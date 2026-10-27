@@ -154,9 +154,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `api/agent/test_steer_risk_gate.py` | 模块 | steer / redirect 接口的风险闸门：命中规则的指令返回 `success:false` 且不送达回合，干净指令照常送达，对 Agent 提问的回复同样过闸 |
 | `api/goals/test_goal_stops_running_turn.py` | 模块 | 通过 HTTP 暂停/取消目标：正在干活的目标中断会话在途回合（网关中断信号 + 取消注册表令牌），等待中/待复核/预算受限/已暂停的目标不碰会话回合，没有在途回合时照常成功 |
-| `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前等待被暂停的回合收尾（等不到也不卡住）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
+| `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则 409 且目标保持暂停）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
-| `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume`：恢复前等待被暂停的回合收尾（等不到也不卡住）；恢复后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
+| `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则回复稍后再发且目标保持暂停）；恢复后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
+| `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |
 | `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |
 | `api/agent/test_ai_build.py` | 模块 | AI 创建智能体接口：空意图与未配置模型的拒绝、SSE 流式产出；可用资源目录用真实 `Skill` 对象，只列 `available` 的技能 |
