@@ -38,6 +38,7 @@ async def test_run_turn_forwards_config_mcp_servers_to_backend() -> None:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ):
         assert mcp_servers is not None
         assert len(mcp_servers) == 1
@@ -65,6 +66,7 @@ async def test_run_turn_explicit_mcp_overrides_config() -> None:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ):
         captured.append(mcp_servers)
         yield create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
@@ -105,6 +107,7 @@ async def test_run_turn_serializes_same_backend_concurrent_turns() -> None:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ):
         nonlocal active, peak_active
         active += 1
@@ -146,6 +149,7 @@ async def test_run_turn_allows_parallel_different_backends() -> None:
             session_id: str,
             *,
             mcp_servers: list[McpServerConfig] | None = None,
+            images: list[str] | None = None,
         ):
             nonlocal active, peak_active
             active += 1
@@ -186,6 +190,7 @@ async def test_run_turn_skips_mcp_for_unsupported_backend() -> None:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ):
         captured.append(mcp_servers)
         yield create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
@@ -228,6 +233,7 @@ async def test_run_turn_skips_config_mcp_for_unsupported_backend() -> None:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ):
         captured.append(mcp_servers)
         yield create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")

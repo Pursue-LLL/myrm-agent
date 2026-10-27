@@ -181,6 +181,7 @@ class BaseRuntime:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         """Execute a turn with timeout control and streaming truncation.
 
@@ -196,7 +197,7 @@ class BaseRuntime:
             # ``aclosing`` ends the turn generator (and so its process) the moment this stream stops, not at GC.
             async with (
                 asyncio.timeout(self._config.timeout_seconds),
-                aclosing(self._do_run_turn(prompt, session_id, mcp_servers=mcp_servers)) as events,
+                aclosing(self._do_run_turn(prompt, session_id, mcp_servers=mcp_servers, images=images)) as events,
             ):
                 async for event in events:
                     if truncated:
@@ -286,6 +287,7 @@ class BaseRuntime:
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         raise NotImplementedError
         yield  # pragma: no cover — makes this an async generator

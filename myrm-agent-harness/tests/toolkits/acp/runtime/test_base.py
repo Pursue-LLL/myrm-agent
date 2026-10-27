@@ -148,7 +148,7 @@ class TestBaseRuntimeTimeout:
     @pytest.mark.asyncio
     async def test_timeout_yields_error_event(self) -> None:
         class _SlowRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 await asyncio.sleep(100)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="never")
@@ -172,7 +172,7 @@ class TestBaseRuntimeTimeout:
     @pytest.mark.asyncio
     async def test_runtime_exception_yields_error_event(self) -> None:
         class _BrokenRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="before")
                 raise RuntimeError("kaboom")
 
@@ -195,7 +195,7 @@ class TestBaseRuntimeTimeout:
                 super().__init__(*args, **kwargs)
                 self.cancel_calls: list[str] = []
 
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 await asyncio.sleep(100)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="never")
@@ -219,7 +219,7 @@ class TestBaseRuntimeTimeout:
                 super().__init__(*args, **kwargs)
                 self.cancel_calls: list[str] = []
 
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="before")
                 raise RuntimeError("kaboom")
 
@@ -238,7 +238,7 @@ class TestBaseRuntimeStreamTruncation:
     @pytest.mark.asyncio
     async def test_truncation_stops_text_but_passes_non_text(self) -> None:
         class _VerboseRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="x" * 30_000)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="x" * 30_000)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="should be dropped")
@@ -262,7 +262,7 @@ class TestBaseRuntimeStreamTruncation:
     @pytest.mark.asyncio
     async def test_cancelled_error_propagated(self) -> None:
         class _CancelledRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 raise asyncio.CancelledError
 

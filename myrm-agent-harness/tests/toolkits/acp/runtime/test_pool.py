@@ -38,7 +38,7 @@ class TestRuntimePool:
         def is_alive(self) -> bool:
             return not self.closed
 
-        async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None):
+        async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None, images=None):
             yield create_event(RuntimeEventType.STATUS_UPDATE, session_id, status="starting")
             yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content=prompt)
             yield create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
@@ -187,7 +187,7 @@ class TestRuntimePoolConcurrency:
         def is_alive(self) -> bool:
             return True
 
-        async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None):
+        async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None, images=None):
             self.concurrent_count += 1
             self.max_concurrent = max(self.max_concurrent, self.concurrent_count)
             await asyncio.sleep(self._delay)
@@ -314,7 +314,7 @@ class TestRuntimePoolRunTurnWithoutBus:
             def is_alive(self) -> bool:
                 return True
 
-            async def run_turn(self, prompt, session_id, *, mcp_servers=None):
+            async def run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="hi")
                 yield create_event(RuntimeEventType.DONE, session_id, stop_reason="end_turn")
 

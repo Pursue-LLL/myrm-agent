@@ -134,6 +134,8 @@ class BackendCapabilities:
     supports_mcp: bool = False
     supports_streaming: bool = True
     supports_tools: bool = True
+    # Image files can be attached to a turn (``run_turn(images=...)``); a backend without it is told nothing about them.
+    supports_images: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,6 +177,9 @@ class RuntimeConfig:
     max_response_chars: int = 50_000
     max_turns: int = 25
     description: str = ""
+    # A directory the CLI may read attached images from. It stays the same on every turn: a CLI that names its
+    # working directories in its own system prompt would otherwise change that prompt (and lose its cache) per turn.
+    image_dir: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,6 +232,7 @@ class RuntimeBackend(Protocol):
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]: ...
 
     async def cancel(self, session_id: str) -> None: ...
@@ -258,6 +264,7 @@ class DelegationPool(Protocol):
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]: ...
 
     async def cancel(self, name: str, session_id: str) -> None: ...

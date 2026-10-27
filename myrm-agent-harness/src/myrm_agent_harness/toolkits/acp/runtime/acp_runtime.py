@@ -119,7 +119,13 @@ class AcpRuntime(BaseRuntime):
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
+        if images:
+            # The prompt travels as text only; the pool already withholds images from a backend without the capability.
+            logger.warning(
+                "acp_runtime_images_ignored backend=%s images=%d reason=unsupported", self._name, len(images)
+            )
         if not self.is_alive:
             yield create_event(
                 RuntimeEventType.STATUS_UPDATE,

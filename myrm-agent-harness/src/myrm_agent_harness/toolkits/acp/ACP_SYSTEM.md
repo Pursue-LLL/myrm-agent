@@ -62,6 +62,7 @@ RuntimeBackend (Protocol)
 - `supports_mcp`：是否支持 MCP Server 注入
 - `supports_streaming`：是否支持流式传输
 - `supports_tools`：是否支持原生工具调用
+- `supports_images`：是否接收随回合附带的图片文件（`run_turn(images=…)`；`CliRuntime` 对 Claude / Codex 为真，`AcpRuntime` 与其余 CLI 为假）
 
 **2 种实现**：
 
@@ -224,6 +225,7 @@ RuntimePool(*, max_concurrent: int = 4, event_bus: EventBus | None = None, cli_s
 - **进程生命周期**：不做周期性存活巡检。`CliRuntime` 每回合一个进程，回合之间没有进程是正常空闲态；`AcpRuntime` 常驻进程退出后，下一次 `run_turn` 发现 `is_alive` 为假就重新拉起进程（`_ensure_connection`）。进程是否卡住不属于存活检测，由 `timeout_seconds` 兜底；CLI / ACP 回合静默期间 `CliRuntime` 与 `AcpRuntime` 每 15 s 发一个 `working` 状态（见 §6 “静默心跳”），宿主的空闲看门狗据此知道它还活着
 - **委托窄协议 `DelegationPool`（`types.py`）**：委托调用方只依赖 `available_backends` / `get_config` / `run_turn` / `cancel`；`RuntimePool` 与宿主侧包装器（如按会话串行化回合的 facade）都满足它，`create_invoke_acp_agent_tool` 接受它
 - **MCP 注入能力守卫**：`run_turn()` 在转发 `mcp_servers` 前检查 `backend.capabilities.supports_mcp`，不支持的 backends（如 `CliRuntime`）收到 `None` 而非原始配置，杜绝向不支持 MCP 注入的后端传递配置引发会话崩溃；跳过时记录 `pool_mcp_skipped` WARNING 便于观测
+- **图片能力守卫**：`run_turn(images=[本地图片文件…])` 与 MCP 同形——只有声明 `supports_images` 的后端才收到文件列表，其余收到 `None`（记 `pool_images_skipped` INFO，不是告警：宿主提示词里仍有图片路径一行作为兜底）；直接调用 `CliRuntime` / `AcpRuntime` 传入它们不接收的图片会记 `*_images_ignored` WARNING
 
 ### 3.8 RuntimeConfig（统一配置）
 
@@ -241,7 +243,8 @@ RuntimeConfig (frozen dataclass)
 ├── mcp_servers: list[McpServerConfig]   # MCP Server 配置
 ├── max_response_chars: int = 50_000     # 响应截断限制
 ├── max_turns: int = 25                  # 轮次上限：有原生上限的 CLI（Claude）经 --max-turns 自行停止，其余后端由 delegate 按工具调用数兜底
-└── description: str = ""                # Agent 能力描述（注入 tool description）
+├── description: str = ""                # Agent 能力描述（注入 tool description）
+└── image_dir: str | None = None         # CLI 可读取附带图片的固定目录：Claude 每回合都以 --add-dir=<目录> 授权（见 3.9 图片传递）
 ```
 
 **环境变量管理 + 鉴权模式（`auth_mode`）**：
@@ -329,7 +332,7 @@ acp/
 │   ├── pool.py             # RuntimePool
 │   └── cli/                # CLI 后端子包
 │       ├── __init__.py
-│       ├── dialect.py      # 各 CLI 的命令行差异（续接语法、原生轮次上限、增量文本、默认环境变量 env_defaults）与会话 id 形态校验
+│       ├── dialect.py      # 各 CLI 的命令行差异（续接语法、原生轮次上限、增量文本、图片传递、默认环境变量 env_defaults）与会话 id 形态校验
 │       ├── failure.py      # 失败分类：用 CLI 自己的话（result 行 / turn.failed / 退出码）给出错误码
 │       ├── parser.py       # 各输出格式共享的事件构造（工具调用/结果、usage、turn.failed、thinking、Codex item.*）与失败文本整理 condense_failure_text
 │       ├── process.py      # CLI 进程：逐行 stdout（静默满一个周期产出 None 供心跳）、有界 stderr 尾部、唯一的停止入口（SIGTERM → SIGKILL）；程序不存在抛 CliLaunchError
@@ -415,13 +418,14 @@ acp/
 - **Host 会话级 MCP 忽略诊断**：ACP Server 侧（`new_session` / `load_session` / `fork_session` / `resume_session`）若收到 host 传入的 `mcp_servers`，记录 `acp_host_mcp_ignored` WARNING —— Myrm 内部 agent 管线自行管理 MCP，host 提供的会话级 MCP 注入不被透传，显式告警避免静默丢失
 - **失败分类**：`runtime/cli/failure.classify_failure` 按 CLI 自己的话归类——Claude `result` 行的 `error_max_turns` → `MAX_TURNS`；`result` 带 `api_error_status` 时只有 401 → `AUTH_FAILED`（403 是地区封锁或组织策略，Claude 把它和没登录归在同一个 `authentication_failed` 类别，但叫用户重新登录会把人指向错误的方向，所以归 `UNKNOWN`），没有状态码时 `assistant` 行的 `error: authentication_failed`（根本没发出 API 请求，即没登录）→ `AUTH_FAILED`；429 → 可重试的 `RATE_LIMITED`、5xx → 可重试的 `UNKNOWN`；Codex 的 `turn.failed`：文本含 `unexpected status 401` → `AUTH_FAILED`，其余（含 403 区域/套餐限制、429 配额）→ `UNKNOWN`，原文原样保留；没有上述判决时非零退出码才是 `PROCESS_CRASHED`（带最后一条顶层 `error` 通知，没有则取 stderr 摘录）；本运行时自己停掉的进程一律是 `CANCELLED`（唯一的例外是下一条的 401 快速失败）。拉起进程时程序不存在（`CliLaunchError`）→ 单个 `BACKEND_NOT_FOUND` 错误事件，不做续接失效重试。顶层 `error` / `stream_error` 行不是失败：Codex 每次请求重试都会打印一条（`Reconnecting... n/5 (…)`），它们只作为通知被记住，判决只来自 `turn.failed` / `result` / 退出码。消息是 CLI 的原话，经 `parser.condense_failure_text` 整理成一行有界文本——引用的整页 HTML（代理、防火墙、地区封锁页）缩成 `[web page: <标题>]`，空白折叠，超过 `FAILURE_TEXT_CHARS`（500）字符截断，普通单行消息原样通过；不夹带产品设置建议（给用户的处置指引由宿主按 `AcpErrorCode` 另行组织）
 - **401 快速失败**：登录被拒时两个 CLI 都会连续重试数分钟才报错。实测（真实二进制、没有登录、本机假 401 服务）：Claude Code 2.1.199 与 2.1.310 都发出 11 次请求（首次加 10 次重试），分别在 183.5 s 与 184.9 s 后才以 `result`（401）结束；Codex 0.142.2 与 0.164.0 在 WebSocket 与 HTTPS 两段各重试 5 次，28.9 s 后才 `turn.failed`。`TurnParser` 数连续的 401 重试信号——Claude 的 `system/api_retry`（`error_status == 401`）与 Codex 的 `Reconnecting… unexpected status 401` 通知——满 3 次（`_UNAUTHORIZED_RETRIES_LIMIT`）就置位 `auth_rejection`（CLI 自己的原话）——第 3 个信号在 Claude 里出现在 2.7 s，在 Codex 里出现在 8.2 s（0.142.2）与 9.3 s（0.164.0），修复后回合分别在 3.6 s（Claude）与 1.4 s（Codex 本机桩）内结束；`CliRuntime` 记一条 `cli_auth_rejected` WARNING、终止进程，回合以 `AUTH_FAILED` 结束，这个判决优先于「自己停掉的进程是取消」。重试之间出现任何正常输出，或一次非 401 的重试，计数清零；一次 401 重试（CLI 自己刷新令牌）不会触发。令牌自动刷新场景下是否误判，没有用真实令牌验证
+- **图片传递**：宿主把图片落成本地文件，经 `run_turn(images=[路径…])` 交给能收图的 CLI，由 `CliDialect.with_images(args, images, image_dir)` 写成各 CLI 自己的形式。**Claude**：它用 `Read` 工具读图，而 `Read` 在默认权限模式下只到工作目录与 `--add-dir` 目录（实测 2.1.199：工作目录外的图片被拒，加 `--add-dir` 或放进工作目录可读，`bypassPermissions` 也可读；`Read` 一个 http 地址得到 File does not exist）。`--add-dir` 的目录会写进 Claude 自己的系统提示词的环境段（实测：带与不带该参数的系统提示词从约第 4640 个字符起分叉），所以必须是固定目录 `RuntimeConfig.image_dir`、每回合都带（有图无图一致），不能随回合变；图片落在它之内时不再追加目录，落在它之外的才追加该图片所在目录。参数用等号形式 `--add-dir=<目录>`（变长标志不会吞掉后面的参数；等号、空格后接别的标志、重复多次三种写法实测都能读到图）。**Codex**：`--image=<文件>`（实测 0.142.2：`debug prompt-input` 渲染出 `input_image` 数据 URL，工作目录外的文件也行；`exec` 与 `exec resume` 的帮助里都列有 `-i, --image`）。必须是等号形式：`-i <文件> <提示词>` 会把提示词当成第二个图片路径（`Codex could not read the local image at \`<提示词>\``）；提示词仍是最后一个位置参数，续接时 `--image=` 落在 `resume` 的选项与会话 id 之间。stdin 只收文本，所以图片只能走文件路径。ACP 后端不变（只发文本块）。
 - **启动参数合并**：`auth.resolve_cli_args` 按「选项单元」（标志加其后的值，或开头的子命令）合并预设的基线参数与配置里的参数：配置里复述的基线选项（预设的 `exec --json`）只出现一次，配置自己重复写的选项全部保留（`-c a=1 -c b=2` 是两个设置，不是重复）；权限模式的参数仍由映射独占
 - **静默心跳**：CLI 回合里 stdout 静默满 15 s（`runtime._base.KEEPALIVE_SECONDS`），`CliRuntime` 每 15 s 发一个 `STATUS_UPDATE(status="working", message="<已运行时长>")`（`_base.working_status` 构造，不用 `warning`：工具路径把 `warning` 当错误计数）；`AcpRuntime` 的事件队列静默满同样的时长，也发同一个状态；有输出的回合不发。宿主若有“静默多久算卡死”的看门狗（Server Gateway 的 `execution_timeout`，默认 300 s），这个状态让一次长时间无输出的编码回合不被它误杀；整个回合仍受 `timeout_seconds` 约束
 - **ACP SDK 缺失**：`acp` 是可选 extra（`myrm-agent-harness[acp]`）。`AcpRuntime` 在拉起进程之前先确认 SDK 已安装，缺失时回合以单个 `BACKEND_NOT_FOUND` 错误结束，消息带安装方式，并记一条 `acp_sdk_missing` WARNING；调用方拿到的是这个错误，而不是 `ModuleNotFoundError` 的调用栈
 - **跨平台进程组清理**：每个 CLI 回合都在独立进程组里运行（POSIX `start_new_session`，Windows `CREATE_NEW_PROCESS_GROUP`），停止时整组终止（POSIX `killpg`，Windows `taskkill /T /F`），子进程随之清理；回合以任何方式结束（正常、异常、取消、超时、消费方提前放弃生成器）都经同一个 `spawn_cli_process` 上下文停掉仍在跑的进程
 - **委派取消传播**：通过 ContextVar 传递 `CancellationToken`；用户停止（或请求被取消）时，`invoke_acp_agent_tool` 借 `cancel_hook.on_token_cancelled` 在令牌被取消的一个轮询周期（0.25 s）内调用 `pool.cancel()` → `backend.cancel()`，外部 Agent 此刻没有任何输出也会停下（例外：回合开头把超过管道缓冲的提示词写进一个不再读 stdin 的 CLI 时，进程在写入完成前还没有交给运行时，停止要等写入结束才生效，上限是 `timeout_seconds`）。`CliRuntime` 对整个进程组 SIGTERM（5 s 宽限后 SIGKILL），清理在调用方再次被取消时也会跑完（shield）；停止落在进程尚未创建的瞬间（正在加载会话）时，会在进程创建后立即生效；被本运行时停掉的进程按 `CANCELLED` 处理而不是崩溃（真实 claude 被 SIGTERM 后以 143 退出，不能当作续接失败或崩溃）。宿主进程自身被强杀不在保证范围内
 - **直连路由模式**：`force_external_agent` 参数允许前端绕过 LangChain Agent，直接将请求路由到指定外部 Agent，零 LLM 开销、零延迟的流式响应；**Server `stream_pipeline` 在 RuntimePool 之前评估 `invoke_external_agent`**——仅 `PermissionAction.ALLOW` 可继续直连，`DENY`/`ASK` 立即 SSE error（无审批 UI，不可绕过 Permission Engine）
-- **流式文本推送**：Server 的 `services/external_agents/direct_delegate_stream.stream_direct_delegate`（由 `ExternalAgentMixin._direct_delegate_stream` 调用）把 `pool.run_turn` 的 RuntimeEvent 实时转换为前端 SSE 事件：TEXT_DELTA → MESSAGE、REASONING_DELTA → REASONING、TOOL_START / TOOL_RESULT → TASKS_STEPS、USAGE_UPDATE → TOKEN_USAGE、其余见下。连接前发送 connecting 状态，结束时发送 completed / stopped / failed 状态步骤与 MESSAGE_END，提供全生命周期进度反馈；翻译层只依赖 harness 的 `DelegationPool` 协议
+- **流式文本推送**：Server 的 `services/external_agents/delegation/stream.stream_direct_delegate`（由 `ExternalAgentMixin._direct_delegate_stream` 调用）把 `pool.run_turn` 的 RuntimeEvent 实时转换为前端 SSE 事件：TEXT_DELTA → MESSAGE、REASONING_DELTA → REASONING、TOOL_START / TOOL_RESULT → TASKS_STEPS、USAGE_UPDATE → TOKEN_USAGE、其余见下。连接前发送 connecting 状态，结束时发送 completed / stopped / failed 状态步骤与 MESSAGE_END，提供全生命周期进度反馈；翻译层只依赖 harness 的 `DelegationPool` 协议
 - **REASONING_DELTA 前端传递**：`invoke_acp_agent_tool` 工具将外部 Agent 的思维链（REASONING_DELTA）通过 `ToolProgressSink` 实时推送至前端，用户可看到外部 Agent 的推理过程
 - **CLI Session 复用**：CLI 回合最先输出的一行 announce 会话（Claude `system/init` 的 `session_id`、Codex `thread.started` 的 `thread_id`），`CliRuntime` 在收到 announce 的那一刻就记录（连同创建它的工作目录，`CliSessionRecord`）并写穿到宿主 `CliSessionStore`，所以回合中途被停止的会话照样能续接；记录只看 announce，不看回合结果。续接由 `CliDialect` 按各 CLI 的语法完成：Claude 追加 `--resume <id>`，Codex 把 `exec` 改写为 `exec resume <选项> <id>`（`codex exec resume` 只认自己的选项，`--sandbox` 这类根级选项仍在 `exec` 之前，prompt 跟在 id 之后）；id 必须是规范 UUID 形态才会被重放（Codex 对格式不对的 id 会静默开新线程）。Claude Code 按工作目录存放会话（v2.1.223 之前 `--resume <id>` 只在当前项目目录里查找 id），所以记录目录与本回合启动目录不同就不续接，改开新会话并发出 `session_workspace_changed`。**失效自愈**：续接的判据是 CLI 在 announce 之前、没有任何输出、以正退出码退出（它自己在说「不认识这个会话」），此时发出 `session_expired`，同一回合内改开新会话重跑一次；旧 id 在新会话 announce 之后才被替换，重试也失败则旧记录原样保留。被本运行时取消或超时杀掉的进程说明不了会话是否存在，记录保留。Claude / Codex 之外的 CLI 没有方言，按配置原样启动、不续接
 - **Per-backend 并发串行化**：`RuntimePool.run_turn` 在全局 Semaphore 之外对同一 backend 增 per-backend `asyncio.Lock`，保证单后端实例（如 CliRuntime 的可变进程句柄）同时只跑一个 turn；`cancel()` 不取该锁（调用方在 turn 循环内取消，无死锁），不同 backend 仍可并行

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import aclosing
 from dataclasses import dataclass
 
@@ -128,11 +128,13 @@ class CliRuntime(BaseRuntime):
 
     @property
     def capabilities(self) -> BackendCapabilities:
+        dialect = dialect_for(self._config.command)
         return BackendCapabilities(
-            supports_resume=dialect_for(self._config.command) is not None,
+            supports_resume=dialect is not None,
             supports_mcp=False,
             supports_streaming=True,
             supports_tools=False,
+            supports_images=dialect is not None and dialect.takes_images,
         )
 
     @property
@@ -145,6 +147,7 @@ class CliRuntime(BaseRuntime):
         session_id: str,
         *,
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         if mcp_servers:
             # CliRuntime 不支持 session-level MCP 注入；pool.run_turn 已拦截，
@@ -166,8 +169,13 @@ class CliRuntime(BaseRuntime):
 
         cwd = self._config.cwd or str(WorkspacePathResolver.resolve_workspace_root())
         dialect = dialect_for(command)
+        if images and (dialect is None or not dialect.takes_images):
+            # Same as MCP above: the pool already withholds what a backend did not declare it takes.
+            logger.warning(
+                "cli_runtime_images_ignored backend=%s images=%d reason=unsupported", self._name, len(images)
+            )
         env = {**(dialect.env_defaults if dialect is not None else {}), **build_safe_env(self._config)}
-        args = self._launch_args(command, dialect)
+        args = self._launch_args(command, dialect, images or ())
 
         resume_args, notice = await self._resume_args(session_id, cwd, dialect, args)
         if notice is not None:
@@ -202,7 +210,7 @@ class CliRuntime(BaseRuntime):
         for event in self._closing_events(attempt, session_id):
             yield event
 
-    def _launch_args(self, command: str, dialect: CliDialect | None) -> list[str]:
+    def _launch_args(self, command: str, dialect: CliDialect | None, images: Sequence[str] = ()) -> list[str]:
         """The command line of a fresh turn: the CLI's launch and permission args, plus what its dialect adds."""
         args = [command, *resolve_cli_args(command, self._config.args, self._config.permission_mode)]
         if "--output-format" in args and "stream-json" in args and "--verbose" not in args:
@@ -210,6 +218,7 @@ class CliRuntime(BaseRuntime):
         if dialect is not None:
             args = dialect.with_partial_messages(args)
             args = dialect.with_max_turns(args, self._config.max_turns)
+            args = dialect.with_images(args, images, self._config.image_dir)
         return args
 
     async def _resume_args(

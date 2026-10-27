@@ -170,6 +170,7 @@ class RuntimePool:
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         """Stream events from a backend turn with concurrency control.
 
@@ -178,6 +179,9 @@ class RuntimePool:
         ``persistent`` turns share one backend per name, so the session carries over between turns.
         A ``oneshot`` turn runs on a private backend that is closed when the turn ends: it always
         starts a fresh session and never touches the persistent backend's session or process.
+
+        ``images`` are local image files for this turn; only a backend that declares ``supports_images`` gets them
+        (the others are told nothing, so a host keeps the file path in its prompt as the fallback).
         """
         if mode not in {"persistent", "oneshot"}:
             msg = f"Invalid mode: {mode}"
@@ -201,6 +205,14 @@ class RuntimePool:
                     len(effective_mcp),
                 )
                 effective_mcp = None
+            if images and not backend.capabilities.supports_images:
+                logger.info(
+                    "pool_images_skipped backend=%s type=%s images=%d reason=unsupported",
+                    name,
+                    type(backend).__name__,
+                    len(images),
+                )
+                images = None
             # Serialize turns per backend: a backend instance (e.g. CliRuntime)
             # holds mutable per-turn state (active process handle) that cannot
             # be safely shared across concurrent turns.
@@ -210,7 +222,7 @@ class RuntimePool:
                     self._oneshot_backends[(name, session_id)] = backend
                 try:
                     async with aclosing(
-                        backend.run_turn(prompt, session_id, mcp_servers=effective_mcp or None)
+                        backend.run_turn(prompt, session_id, mcp_servers=effective_mcp or None, images=images or None)
                     ) as events:
                         async for event in events:
                             if self._event_bus is not None:

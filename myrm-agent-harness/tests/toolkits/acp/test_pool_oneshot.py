@@ -43,7 +43,9 @@ class _FakeBackend:
         self.cancelled: list[str] = []
         self.closed = False
 
-    async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None) -> AsyncIterator[RuntimeEvent]:
+    async def run_turn(
+        self, prompt: str, session_id: str, *, mcp_servers=None, images=None
+    ) -> AsyncIterator[RuntimeEvent]:
         self.started.set()
         if self.fail:
             raise RuntimeError("boom")

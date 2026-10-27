@@ -31,7 +31,9 @@ class _FakeBackend:
         self.closed = False
         self._close_error = close_error
 
-    async def run_turn(self, prompt: str, session_id: str, *, mcp_servers=None) -> AsyncIterator[RuntimeEvent]:
+    async def run_turn(
+        self, prompt: str, session_id: str, *, mcp_servers=None, images=None
+    ) -> AsyncIterator[RuntimeEvent]:
         return
         yield  # pragma: no cover - makes this an async generator
 
