@@ -1,7 +1,8 @@
 """Shared HMAC signing primitives for stateless share tokens.
 
 [INPUT]
-- app.config.settings::settings (POS: signing key material)
+- app.config.settings::settings (POS: deployment-provided signing key material)
+- app.services.config.encryption::get_encryption_service (POS: persisted per-installation key when nothing is provisioned)
 
 [OUTPUT]
 - create_share_token / sign_share_token / parse_share_token / is_password_protected
@@ -44,9 +45,22 @@ def _signing_secret(salt: str) -> bytes:
             base_key = candidate.strip().encode("utf-8")
             break
     if base_key is None:
-        seed = (settings.database.state_dir or "myrm-local").encode("utf-8")
-        base_key = hashlib.sha256(seed).digest()
+        base_key = _installation_key()
     return hmac.new(base_key, salt.encode("utf-8"), hashlib.sha256).digest()
+
+
+def _installation_key() -> bytes:
+    """The persisted random key of this installation.
+
+    A password is mixed into the signature, so anyone holding a link can test password guesses offline; the key
+    therefore must not be derivable from public facts such as the data directory path.
+    """
+    from app.services.config.encryption import get_encryption_service
+
+    raw_key = get_encryption_service().raw_key
+    if raw_key is None:
+        raise RuntimeError("Share signing key unavailable: no encryption key is provisioned for this deployment mode")
+    return raw_key
 
 
 def b64url_encode(raw: bytes) -> str:
@@ -145,9 +159,9 @@ def is_password_protected(token: str) -> bool:
     body = token.rsplit(".", 1)[0]
     try:
         raw = json.loads(b64url_decode(body))
-        return raw.get("p") == 1
     except (json.JSONDecodeError, ValueError):
         return False
+    return isinstance(raw, dict) and raw.get("p") == 1
 
 
 def token_fingerprint(token: str) -> str:
