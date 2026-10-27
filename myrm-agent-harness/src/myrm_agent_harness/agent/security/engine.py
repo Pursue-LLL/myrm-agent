@@ -10,7 +10,7 @@
    → domain HITL → path_policy → target-aware ruleset → risk_classifier fallback).
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
-- check_tool_path_policy(): path-zone verdict for a file tool's ``path`` (engine and cron policy share it)
+- check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
@@ -43,6 +43,7 @@ from myrm_agent_harness.agent.security.types import (
     PermissionRuleset,
     SecurityConfig,
 )
+from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -95,12 +96,15 @@ _TARGET_EXTRACTORS: dict[str, str] = {
     "browser_navigate": "url",
     "web_fetch": "url",
     "net_fetch": "url",
-    "file_read": "path",
-    "file_write": "path",
 }
 
 _URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
 _PATH_CHECKED_PERMISSIONS: frozenset[str] = frozenset({"file_read", "file_write"})
+_ACTION_SEVERITY: dict[PermissionAction, int] = {
+    PermissionAction.ALLOW: 0,
+    PermissionAction.ASK: 1,
+    PermissionAction.DENY: 2,
+}
 
 
 def _domain_in_allowlist(hostname: str, allowlist: tuple[str, ...]) -> bool:
@@ -198,6 +202,15 @@ def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name
     return raw
 
 
+def _resolve_targets(
+    permission: str, tool_input: dict[str, object], *, tool_name: str | None = None
+) -> tuple[str, ...]:
+    """Every resource a call touches: each host file of a file tool, else the single ``_resolve_target`` target."""
+    if permission in _PATH_CHECKED_PERMISSIONS:
+        return tuple(host_file_paths(tool_input)) or ("*",)
+    return (_resolve_target(permission, tool_input, tool_name=tool_name),)
+
+
 def _governing_rule(permission: str, target: str, ruleset: PermissionRuleset, tool_name: str | None) -> PermissionRule:
     """The rule that decides *target*: the last matching rule of the tool's own name, else the last for the permission."""
     if tool_name and tool_name != permission:
@@ -245,9 +258,9 @@ def check_tool_path_policy(
     config: SecurityConfig,
     workspace_root: str | None,
 ) -> tuple[PermissionAction, str] | None:
-    """Path-zone verdict (session grants included) for a file tool's ``path``; ``None`` if there is none to check."""
-    raw_path = str(tool_input.get("path", ""))
-    if permission not in _PATH_CHECKED_PERMISSIONS or not raw_path:
+    """Strictest path-zone verdict (session grants included) over the host files a file tool names; ``None`` if it names none."""
+    paths = host_file_paths(tool_input) if permission in _PATH_CHECKED_PERMISSIONS else []
+    if not paths:
         return None
 
     from myrm_agent_harness.agent.security.checks import check_path_policy
@@ -255,12 +268,11 @@ def check_tool_path_policy(
         merge_path_policy_with_session_access,
     )
 
-    return check_path_policy(
-        raw_path,
-        merge_path_policy_with_session_access(config.path_policy),
-        workspace_root,
-        require_write=permission == "file_write",
-    )
+    policy = merge_path_policy_with_session_access(config.path_policy)
+    verdicts = [
+        check_path_policy(path, policy, workspace_root, require_write=permission == "file_write") for path in paths
+    ]
+    return max(verdicts, key=lambda verdict: _ACTION_SEVERITY[verdict[0]])
 
 
 def evaluate_tool_call(
@@ -320,8 +332,11 @@ def evaluate_tool_call(
     if block_action is not None:
         return block_action, block_reason
 
-    target = _resolve_target(permission, tool_input, tool_name=tool_name)
-    result_action, classifier_may_allow = _rule_decision(permission, target, config.ruleset, tool_name)
+    decisions = [
+        _rule_decision(permission, target, config.ruleset, tool_name)
+        for target in _resolve_targets(permission, tool_input, tool_name=tool_name)
+    ]
+    result_action, classifier_may_allow = max(decisions, key=lambda decision: _ACTION_SEVERITY[decision[0]])
 
     # Hardline rule: An explicit DENY from user/policy ruleset must never be weakened to ASK
     if result_action == PermissionAction.DENY:

@@ -53,26 +53,49 @@ interface BuildToolApprovalRequestParams {
   interruptId?: string;
 }
 
-function resolvePathGrantMeta(action: ApprovalActionPayload): { eligible: boolean; path?: string; writable: boolean } {
+const ABSOLUTE_PATH_PATTERN = /^(?:\/|~|[A-Za-z]:\/)/;
+
+function isInsideRoot(path: string, root: string): boolean {
+  const base = root.replace(/\\/g, '/').replace(/\/+$/, '');
+  return Boolean(base) && (path === base || path.startsWith(`${base}/`));
+}
+
+/**
+ * The file the approval asks about. A `paths` call lists several files; the one worth granting is the first
+ * that sits outside the workspace, because that is what raised the card.
+ */
+function resolveGrantSourcePath(args: Record<string, unknown>, workspaceRoot?: string): string {
+  const named = [args.path, args.file_path, args.target_path].filter(
+    (value): value is string => typeof value === 'string' && value.trim() !== '',
+  );
+  const listed = Array.isArray(args.paths)
+    ? args.paths.filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+    : [];
+  const candidates = [...named, ...listed].map((value) => value.trim().replace(/\\/g, '/'));
+  const outside = candidates.find(
+    (value) => ABSOLUTE_PATH_PATTERN.test(value) && !(workspaceRoot && isInsideRoot(value, workspaceRoot)),
+  );
+  return outside ?? candidates[0] ?? '';
+}
+
+function resolvePathGrantMeta(
+  action: ApprovalActionPayload,
+  workspaceRoot?: string,
+): { eligible: boolean; path?: string; writable: boolean } {
   const reason = action.description || action.reviewerReason || '';
   if (!reason.includes('Path outside allowed zones')) {
     return { eligible: false, writable: false };
   }
-  const rawPath =
-    (typeof action.args.path === 'string' && action.args.path) ||
-    (typeof action.args.file_path === 'string' && action.args.file_path) ||
-    (typeof action.args.target_path === 'string' && action.args.target_path) ||
-    '';
-  if (!rawPath.trim()) {
+  const normalized = resolveGrantSourcePath(action.args, workspaceRoot);
+  if (!normalized) {
     return { eligible: true, writable: false };
   }
-  const normalized = rawPath.replace(/\\/g, '/');
   const slash = normalized.lastIndexOf('/');
   const grantPath = slash > 0 ? normalized.slice(0, slash) : normalized;
   const writeTools = new Set(['file_write_tool', 'file_edit_tool', 'file_delete_tool']);
   return {
     eligible: true,
-    path: grantPath || rawPath.trim(),
+    path: grantPath || normalized,
     writable: writeTools.has(action.action),
   };
 }
@@ -98,7 +121,7 @@ export function buildToolApprovalRequest({
         : '';
 
   const commandSpans = parseCommandSpans(action.command_spans, shellCommand.length);
-  const pathGrant = resolvePathGrantMeta(action);
+  const pathGrant = resolvePathGrantMeta(action, extensions.workspaceRoot);
   const diff =
     typeof action.args.patch === 'string' && action.args.patch.trim()
       ? action.args.patch.trim()

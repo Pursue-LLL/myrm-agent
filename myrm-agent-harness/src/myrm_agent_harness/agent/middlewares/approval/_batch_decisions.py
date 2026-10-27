@@ -523,49 +523,16 @@ async def apply_approval_decisions(
                     from myrm_agent_harness.agent.middlewares._session_context import (
                         get_workspace_root,
                     )
-                    from myrm_agent_harness.agent.security.session_access import (
-                        get_session_access_roots,
-                        grant_session_access_root,
-                        resolve_grant_directory_path,
-                    )
-                    from myrm_agent_harness.agent.security.types import (
-                        AccessRoot,
-                        _default_path_policy,
-                    )
+                    from myrm_agent_harness.agent.security.session_access import grant_directories_for_call
+                    from myrm_agent_harness.agent.security.types import _default_path_policy
 
-                    tool_input_grant: dict[str, object] = tool_call.get("args", {})
-                    raw_path = str(
-                        tool_input_grant.get("path")
-                        or tool_input_grant.get("file_path")
-                        or tool_input_grant.get("target_path")
-                        or ""
-                    ).strip()
-                    if raw_path:
-                        workspace_root = get_workspace_root() or None
-                        policy = config.path_policy if config else _default_path_policy()
-                        grant_path = resolve_grant_directory_path(raw_path, workspace_root)
-                        if grant_path:
-                            requires_write = permission_type in (
-                                "file_write",
-                                "file_edit",
-                                "file_delete",
-                            )
-                            roots_before = get_session_access_roots()
-                            grant_session_access_root(
-                                AccessRoot(
-                                    path=grant_path,
-                                    writable=requires_write,
-                                    source="path_ask_grant",
-                                ),
-                                policy=policy,
-                                workspace_root=workspace_root,
-                            )
-                            if len(get_session_access_roots()) > len(roots_before):
-                                record_decision(
-                                    tool_name,
-                                    "DIRECTORY_GRANTED",
-                                    f"path: {grant_path}",
-                                )
+                    for granted_path in grant_directories_for_call(
+                        tool_call.get("args", {}),
+                        policy=config.path_policy if config else _default_path_policy(),
+                        workspace_root=get_workspace_root() or None,
+                        writable=permission_type in ("file_write", "file_edit", "file_delete"),
+                    ):
+                        record_decision(tool_name, "DIRECTORY_GRANTED", f"path: {granted_path}")
 
                 if allow_domain and config and config.domain_hitl_enabled:
                     tool_input: dict[str, object] = tool_call.get("args", {})

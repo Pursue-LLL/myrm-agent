@@ -1,7 +1,7 @@
 """Taint-label extractors for tool arguments (URL, secret file, secret command).
 
 [INPUT]
-- (none — pure functions over tool-call argument dicts)
+- core.security.tool_registry.file_args::file_arg_values, strip_read_range (POS: the file-tool path arguments, one definition shared with the engine)
 
 [OUTPUT]
 - sanitize_url_for_taint / taint_url_from_args: scheme+host+path only, never query or fragment
@@ -16,7 +16,8 @@ context taint tracker labels where a tool result came from without storing secre
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+
+from .file_args import file_arg_values, strip_read_range
 
 
 def sanitize_url_for_taint(url: str | None) -> str | None:
@@ -64,40 +65,10 @@ _SECRET_CMD_POSITIVE_RE = re.compile(
 )
 
 
-# Argument names a file tool receives its files under: ``file_read_tool`` batches them in a ``paths``
-# list and accepts every single-path spelling below as an alias, so models send any of them.
-_FILE_ARG_KEYS = (
-    "path",
-    "paths",
-    "file_path",
-    "filePath",
-    "filepath",
-    "file",
-    "files",
-    "filename",
-    "target",
-    "target_file",
-    "source_file",
-    "path_list",
-)
-
-# ``path:START-END`` line-range selector that file_read_tool accepts after the file name.
-_READ_RANGE_SUFFIX_RE = re.compile(r":\d+-\d*$")
-
-
-def _file_arg_values(args: dict[str, object]) -> Iterator[str]:
-    """Yield every non-empty path string in the arguments, whether passed as a string or a list."""
-    for key in _FILE_ARG_KEYS:
-        value = args.get(key)
-        for item in value if isinstance(value, list) else (value,):
-            if isinstance(item, str) and item.strip():
-                yield item.strip()
-
-
 def taint_secret_file_from_args(args: dict[str, object]) -> str | None:
     """Extract the first secret credential path among the tool's file arguments, if any."""
-    for raw in _file_arg_values(args):
-        path_str = _READ_RANGE_SUFFIX_RE.sub("", raw)
+    for raw in file_arg_values(args):
+        path_str = strip_read_range(raw)
         # Template markers are judged on the file name: a "spec"/"mock" project folder must not
         # exempt the real .env inside it.
         file_name = re.split(r"[/\\]", path_str)[-1]

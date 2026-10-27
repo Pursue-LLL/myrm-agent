@@ -81,6 +81,7 @@ from __future__ import annotations
 import threading
 from typing import TypedDict
 
+from .file_args import FILE_ARG_KEYS
 from .governance import (
     AUTO_APPROVE_REASONS as AUTO_APPROVE_REASONS,
 )
@@ -290,7 +291,7 @@ _MANAGE_ACTION_MAP: dict[str, str] = {
 TOOL_CANONICAL_PARAMS: dict[str, list[str]] = {
     "bash_code_execute_tool": ["command"],
     "bash_process_tool": ["action", "pid", "data"],
-    "file_read_tool": ["path"],
+    "file_read_tool": list(FILE_ARG_KEYS),
     "file_write_tool": ["path", "content"],
     "file_edit_tool": ["path", "edits"],
     "browser_navigate_tool": ["url"],
@@ -300,7 +301,7 @@ TOOL_CANONICAL_PARAMS: dict[str, list[str]] = {
     "browser_snapshot_tool": [],
     "browser_extract_tool": ["selector"],
     "grep_tool": ["pattern", "path"],
-    "glob_tool": ["pattern"],
+    "glob_tool": ["pattern", "path"],
     "web_fetch_tool": ["url"],
     "web_search_tool": ["query"],
     "memory_save_tool": ["content", "tags"],

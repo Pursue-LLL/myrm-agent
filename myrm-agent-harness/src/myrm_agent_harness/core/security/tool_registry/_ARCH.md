@@ -4,8 +4,9 @@
 
 Tool metadata registry domain — the SSOT for built-in tool names, permission-type
 mapping, canonical params, safety metadata, and canonical tool-group mapping.
-Four files by concern: `registry.py` holds permission/group/governance SSOTs and PTC dynamic
-registration; `safety_table.py` holds the `SafetyMetadata` model and the `TOOL_SAFETY_METADATA`
+Five files by concern: `registry.py` holds permission/group/governance SSOTs and PTC dynamic
+registration; `file_args.py` is the one definition of which arguments carry a file tool's files;
+`safety_table.py` holds the `SafetyMetadata` model and the `TOOL_SAFETY_METADATA`
 table; `taint_extractors.py` holds the pure argument extractors that label taint sources;
 `safety.py` is the module-load coverage gate warning when built-in
 tools lack explicit safety declarations. `__init__.py` is the aggregation facade
@@ -18,6 +19,7 @@ preserving the flat-module import surface for all consumers.
 | __init__.py | Package | Aggregation facade — re-exports registry + safety public/internal symbols. | ✅ |
 | registry.py | Core | Tool safety SSOT — TOOL_PERMISSION_MAP, BUILTIN_TOOL_NAMES, TOOL_GROUP_MAP/TOOL_TO_GROUP/TOOL_GROUP_NAMES, PARENT_BOUND_WRITER_TOOLS (writers over the running agent's own todo file, goal and kanban board, derived from the groups and safety metadata), TOOL_CANONICAL_PARAMS, AUTO_APPROVED_BUILTIN_TOOLS/AUTO_APPROVE_REASONS/RULESET_COVERAGE_WHITELIST/EXPLICIT_MCP_FALLBACK_TOOLS/DYNAMICALLY_RESOLVED_TOOL_NAMES (governance audit declarations), MCPAnnotations, resolve_safety_metadata/resolve_permission_type/compute_canonical_args_hash, PTC dynamic registration & thread-safe eviction (`unregister_ptc_safety_metadata` / `evict_skill_safety_metadata`), module-load safety gate. | ✅ |
 | safety_table.py | Core | `SafetyMetadata` dataclass, `_FAIL_CLOSED_DEFAULTS` and the `TOOL_SAFETY_METADATA` opt-in whitelist (re-exported by `registry.py`); taint extractors are imported from `taint_extractors.py`. | ✅ |
+| file_args.py | Core | `FILE_ARG_KEYS` (every argument name a file tool receives its files under), `file_arg_values` (string or list), `strip_read_range`, `is_url`, `host_file_paths` (the host files a call may open: URLs and the `/mcp/` and `vault://` namespaces left out, each path in the form with and without its range / cut at the first colon). Shared by the engine's path-zone verdict and rule targets, the session directory grant, the approval-hash canonical params of `file_read_tool` and the taint extractors. | ✅ |
 | taint_extractors.py | Core | Pure taint-label extractors for tool arguments — `sanitize_url_for_taint` / `taint_url_from_args` (scheme+host+path only), `taint_secret_file_from_args` (credential files named by any file-tool argument spelling, including the `paths` list `file_read_tool` actually sends and its `path:START-END` selector; template markers are judged on the file name only), `taint_secret_command_from_args`; wired into `TOOL_SAFETY_METADATA` as `taint_extractor` callbacks. | ✅ |
 | safety.py | Core | `check_safety_coverage()` — module-load warning when built-in tools (BUILTIN_TOOL_NAMES ∪ EXPLICIT_MCP_FALLBACK_TOOLS) lack TOOL_SAFETY_METADATA entries. Scope mirrors the CI governance gate. | ✅ |
 | `governance.py` | Core | Governance coverage declarations for built-in tools. — AUTO_APPROVE_REASONS: valid governance reason categories; AUTO_APPROVED_BUILTIN_TOOLS: built-in tool → governance approval reason; EXPLICIT_MCP_FALLBACK_TOOLS: tools that intentionally keep the mcp_invoke ASK baseline; DYNAMICALLY_RESOLVED_TOOL_NAMES: tools resolved by sub-action inside resolve_permission_type() (+1 more) | ✅ |

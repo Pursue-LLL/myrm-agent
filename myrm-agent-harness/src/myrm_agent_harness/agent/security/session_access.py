@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - get_session_access_roots / set_session_access_roots / grant_session_access_root
+- grant_directories_for_call
 - revoke_session_access_root
 - resolve_grant_directory_path
 - merge_path_policy_with_session_access
@@ -28,6 +29,7 @@ from myrm_agent_harness.agent.security.types import (
     PathPolicy,
     PermissionAction,
 )
+from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +118,37 @@ def grant_session_access_root(
     updated = (*current, replace(root, path=normalized))
     set_session_access_roots(updated)
     return updated
+
+
+def grant_directories_for_call(
+    tool_input: dict[str, object],
+    *,
+    policy: PathPolicy,
+    workspace_root: str | None,
+    writable: bool,
+) -> list[str]:
+    """Grant the directory of every file the call names outside the allowed zones; return the directories granted.
+
+    Files inside the workspace or an allowed root need no grant, so a batched call does not spend the
+    per-session grant limit on them.
+    """
+    granted: list[str] = []
+    for raw_path in host_file_paths(tool_input):
+        action, _ = check_path_policy(raw_path, policy, workspace_root, require_write=writable)
+        if action != PermissionAction.ASK:
+            continue
+        grant_path = resolve_grant_directory_path(raw_path, workspace_root)
+        if not grant_path:
+            continue
+        roots_before = get_session_access_roots()
+        grant_session_access_root(
+            AccessRoot(path=grant_path, writable=writable, source="path_ask_grant"),
+            policy=policy,
+            workspace_root=workspace_root,
+        )
+        if len(get_session_access_roots()) > len(roots_before):
+            granted.append(grant_path)
+    return granted
 
 
 def revoke_session_access_root(

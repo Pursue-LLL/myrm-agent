@@ -204,4 +204,79 @@ describe('buildToolApprovalRequest', () => {
     });
     expect(diffRequest.diff).toBe('@@ -1 +1 @@\n-1\n+2');
   });
+
+  describe('directory grant for file reads', () => {
+    const OUTSIDE = 'Path outside allowed zones: /Users/me/Downloads/bill.csv';
+
+    function grantFor(args: Record<string, unknown>, workspaceRoot?: string, action = 'file_read_tool') {
+      return buildToolApprovalRequest({
+        action: { action, args, description: OUTSIDE },
+        requestId: 'req-grant',
+        messageId: 'msg-grant',
+        chatId: 'chat-grant',
+        actionMode: 'agent',
+        extensions: {
+          timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+          displayMode: 'approval',
+          workspaceRoot,
+        },
+      });
+    }
+
+    it('offers the directory of a single path', () => {
+      const request = grantFor({ path: '/Users/me/Downloads/bill.csv' });
+
+      expect(request.pathGrantEligible).toBe(true);
+      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
+      expect(request.pathGrantWritable).toBe(false);
+    });
+
+    it('offers the directory of a file listed in paths', () => {
+      const request = grantFor({ paths: ['/Users/me/Downloads/bill.csv'], mode: 'preview' });
+
+      expect(request.pathGrantEligible).toBe(true);
+      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
+    });
+
+    it('offers the first listed file that sits outside the workspace', () => {
+      const request = grantFor(
+        { paths: ['/Users/me/ws/src/a.py', 'notes.md', '/Users/me/Downloads/bill.csv'] },
+        '/Users/me/ws',
+      );
+
+      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
+    });
+
+    it('falls back to the first listed file when none is absolute', () => {
+      const request = grantFor({ paths: ['../shared/a.csv'] });
+
+      expect(request.pathGrantPath).toBe('../shared');
+    });
+
+    it('marks write tools as writable grants', () => {
+      const request = grantFor({ path: '/Users/me/Downloads/out.csv' }, undefined, 'file_write_tool');
+
+      expect(request.pathGrantWritable).toBe(true);
+    });
+
+    it('stays eligible without a path when the call names no file', () => {
+      const request = grantFor({ pattern: '*.csv' }, undefined, 'glob_tool');
+
+      expect(request.pathGrantEligible).toBe(true);
+      expect(request.pathGrantPath).toBeUndefined();
+    });
+
+    it('offers nothing when the approval is not about a path outside the zones', () => {
+      const request = buildToolApprovalRequest({
+        action: { action: 'file_read_tool', args: { paths: ['/Users/me/Downloads/a'] }, description: 'needs approval' },
+        requestId: 'req-none',
+        messageId: 'msg-none',
+        chatId: 'chat-none',
+        actionMode: 'agent',
+        extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
+      });
+
+      expect(request.pathGrantEligible).toBeUndefined();
+    });
+  });
 });
