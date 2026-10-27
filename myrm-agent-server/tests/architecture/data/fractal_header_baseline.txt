@@ -140,7 +140,6 @@ app/core/monitoring/prometheus_setup.py
 app/core/retriever/graph/__init__.py
 app/core/retriever/graph/factory.py
 app/core/security/auth/public_paths.py
-app/core/security/config_crypto.py
 app/core/skills/__init__.py
 app/core/skills/config_version.py
 app/core/skills/loader.py
