@@ -10,6 +10,7 @@
 - file_search.skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: disabled skill 路径拦截)
 - core.security.path::is_blocked_device_path (POS: Pre-IO 设备路径安全阻断)
 - context_management.infra.evicted::normalize_delivery_chat_id (POS: UECD 会话 id 归一化，读写侧对称)
+- agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: 长文本落盘目录，与写入方同源)
 - utils.vault_read::is_vault_uri, path_base, read_vault_paths_to_parts (POS: vault:// URI 读取)
 - mcp_read_next_step_hint::append_mcp_docs_next_step_hint (POS: MCP 函数文档批量读取后的下一步操作提示)
 - utils.*_reader (POS: 多模态与文档读取)
@@ -21,8 +22,8 @@
 
 [POS]
 File read tool factory and orchestration. Supports full workspace reads or Fast-track
-evicted_uploaded scope (UECD spill + chat uploads only). Heavy read logic lives in
-core/file_read_handlers.py.
+evicted_uploaded scope (UECD spill, spilled long pastes and chat uploads only). Heavy read
+logic lives in core/file_read_handlers.py.
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from langchain_core.messages.content import create_text_block
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
 from myrm_agent_harness.agent.context_management.context import (
     extract_context_from_runnable_config,
 )
@@ -96,11 +98,17 @@ def _normalize_path_hint(raw_path: str) -> str:
     return normalized
 
 
+def _evicted_uploaded_scopes(chat_id: str) -> tuple[str, ...]:
+    """Workspace-relative directories the Fast track may read: UECD spill, chat uploads, spilled long pastes."""
+    return (f".context/{chat_id}/evicted", "_uploaded", KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR)
+
+
 def _path_hint_allowed_for_evicted_uploaded(raw_path: str, chat_id: str) -> bool:
     normalized = _normalize_path_hint(raw_path)
-    if normalized.startswith(f".context/{chat_id}/evicted/"):
-        return True
-    return normalized == "_uploaded" or normalized.startswith("_uploaded/")
+    # A ``..`` segment can leave a scope after its prefix matched: such a path is judged by where it resolves.
+    if ".." in normalized.split("/"):
+        return False
+    return any(normalized == scope or normalized.startswith(f"{scope}/") for scope in _evicted_uploaded_scopes(chat_id))
 
 
 async def _assert_evicted_uploaded_read_scope(
@@ -109,7 +117,7 @@ async def _assert_evicted_uploaded_read_scope(
     chat_id: str,
     executor: object | None,
 ) -> None:
-    """Restrict reads to UECD spill files and chat uploads (Fast / search track)."""
+    """Restrict reads to UECD spill files, spilled long pastes and chat uploads (Fast / search track)."""
     # Persist side normalizes chat_<id> session keys to <id> (infra/evicted/content.py);
     # mirror it here so saved paths match the read scope check.
     session_chat_id = normalize_delivery_chat_id(chat_id.strip() or chat_id_var.get().strip())
@@ -120,6 +128,8 @@ async def _assert_evicted_uploaded_read_scope(
         )
     workspace_root = workspace_root_var.get().strip()
     resolve_path = getattr(executor, "resolve_path", None) if executor else None
+    scopes = _evicted_uploaded_scopes(session_chat_id)
+    hint = f"Fast search mode only allows reading spill, pasted-text and upload files under: {', '.join(scopes)}."
     for raw in paths:
         if is_vault_uri(raw):
             continue
@@ -128,10 +138,7 @@ async def _assert_evicted_uploaded_read_scope(
         if not workspace_root or resolve_path is None:
             raise ToolError(
                 message=f"file_read_tool blocked: {raw}",
-                user_hint=(
-                    "Fast search mode only allows reading UECD spill files under "
-                    f".context/{session_chat_id}/evicted/ and uploads under _uploaded/."
-                ),
+                user_hint=hint,
             )
         base = path_base(raw)
         try:
@@ -139,18 +146,11 @@ async def _assert_evicted_uploaded_read_scope(
         except ValueError:
             resolved = base
         resolved_path = Path(str(resolved)).resolve()
-        allowed_roots = [
-            (Path(workspace_root) / ".context" / session_chat_id / "evicted").resolve(),
-            (Path(workspace_root) / "_uploaded").resolve(),
-        ]
+        allowed_roots = [(Path(workspace_root) / scope).resolve() for scope in scopes]
         if not any(resolved_path == root or root in resolved_path.parents for root in allowed_roots):
             raise ToolError(
                 message=f"file_read_tool blocked: {raw}",
-                user_hint=(
-                    "Fast search mode only allows reading UECD spill files under "
-                    f".context/{session_chat_id}/evicted/ and uploads under _uploaded/. "
-                    "Switch to Agent mode for full workspace file access."
-                ),
+                user_hint=f"{hint} Switch to Agent mode for full workspace file access.",
             )
 
 

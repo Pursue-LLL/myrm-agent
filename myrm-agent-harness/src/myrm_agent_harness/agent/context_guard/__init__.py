@@ -5,12 +5,13 @@
   (POS: 透明溢出引擎层)
 - agent.context_guard.sweeper::EphemeralTransientSweeper
   (POS: 过期溢出文件清理层)
-- agent.context_guard.types::ContextGuardConfig, SpilloverPayload, SpilloverResult,
-  estimate_token_pressure (POS: 上下文守卫数据模型与 token 压力估算层)
+- agent.context_guard.types::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR, ContextGuardConfig,
+  SpilloverPayload, SpilloverResult, estimate_token_pressure (POS: 上下文守卫数据模型与 token 压力估算层)
 
 [OUTPUT]
 - SpilloverEngine: atomic extraction of oversized payloads into referenced files
 - EphemeralTransientSweeper: TTL cleanup for ephemeral spillover files
+- KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR: the workspace-relative spill directories
 - ContextGuardConfig, SpilloverPayload, SpilloverResult, estimate_token_pressure
 
 [POS]
@@ -24,6 +25,8 @@ from __future__ import annotations
 from myrm_agent_harness.agent.context_guard.spillover_engine import SpilloverEngine
 from myrm_agent_harness.agent.context_guard.sweeper import EphemeralTransientSweeper
 from myrm_agent_harness.agent.context_guard.types import (
+    KEPT_SPILLOVER_DIR,
+    TRANSIENT_SPILLOVER_DIR,
     ContextGuardConfig,
     SpilloverPayload,
     SpilloverResult,
@@ -31,6 +34,8 @@ from myrm_agent_harness.agent.context_guard.types import (
 )
 
 __all__ = [
+    "KEPT_SPILLOVER_DIR",
+    "TRANSIENT_SPILLOVER_DIR",
     "ContextGuardConfig",
     "EphemeralTransientSweeper",
     "SpilloverEngine",

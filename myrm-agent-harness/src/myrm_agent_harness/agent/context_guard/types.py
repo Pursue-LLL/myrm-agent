@@ -5,6 +5,7 @@
 - unicodedata::unicodedata (POS: Python Unicode 东亚宽度标准库)
 
 [OUTPUT]
+- TRANSIENT_SPILLOVER_DIR / KEPT_SPILLOVER_DIR: workspace-relative directories of the two spill lifetimes
 - ContextGuardConfig: thresholds controlling when a payload is spilled
 - SpilloverPayload / SpilloverResult: spilled-file metadata and evaluation outcome
 - estimate_token_pressure: adaptive token estimate weighting CJK glyphs at ~1.8x
@@ -13,13 +14,19 @@
 Value-object and measurement layer of the context guard subsystem. Keeps the CJK-aware
 token estimate next to the config it feeds, since a naive chars/4 heuristic would
 under-count CJK text by roughly an order of magnitude and let oversized payloads slip
-past the guard. Pure computation: no filesystem access.
+past the guard. The directory names live here because the spill writer, the sweeper and
+the file read tool's path scope must agree on them. Pure computation: no filesystem access.
 """
 
 from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass, field
+
+# A spill nothing refers to after the turn: the sweeper removes it after the TTL.
+TRANSIENT_SPILLOVER_DIR = ".myrm/spillover"
+# A spill a stored conversation points at: no sweeper is configured for it, its owner removes it.
+KEPT_SPILLOVER_DIR = ".myrm/pastes"
 
 
 @dataclass(slots=True)
@@ -29,8 +36,9 @@ class ContextGuardConfig:
     max_message_chars: int = 16_000
     # Equivalent token threshold (e.g. 8,000 tokens)
     max_token_pressure: int = 8_000
+    # Characters of the start and of the end of a spilled text that stay in the prompt.
     preview_chars: int = 300
-    spillover_dir_name: str = ".myrm/spillover"
+    spillover_dir_name: str = TRANSIENT_SPILLOVER_DIR
     spillover_ttl_seconds: int = 86_400  # 24 hours
 
 
