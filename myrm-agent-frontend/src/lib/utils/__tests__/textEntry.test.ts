@@ -26,17 +26,39 @@ describe('isTextEntry', () => {
     expect(isTextEntry(editable)).toBe(true);
   });
 
-  it('is true for what a code editor focuses: Monaco focuses a plain div, not a textarea', () => {
+  /** What Monaco focuses: a plain div, whose `aria-autocomplete` is `both` while editable and `list` with the suggest list open. */
+  function monacoTypingSurface(autocomplete: string | null) {
     const monaco = element('div');
     monaco.className = 'monaco-editor';
     const typingSurface = element('div', monaco);
     typingSurface.className = 'native-edit-context';
+    if (autocomplete !== null) {
+      typingSurface.setAttribute('aria-autocomplete', autocomplete);
+    }
+    return { monaco, typingSurface };
+  }
+
+  it.each(['both', 'list'])('is true for what an editable Monaco focuses (aria-autocomplete="%s")', (autocomplete) => {
+    expect(isTextEntry(monacoTypingSurface(autocomplete).typingSurface)).toBe(true);
+  });
+
+  it('is true for a Monaco surface that does not say whether it is read-only', () => {
+    expect(isTextEntry(monacoTypingSurface(null).typingSurface)).toBe(true);
+  });
+
+  it('is false for what a read-only Monaco focuses: nothing can be typed, so the page shortcuts stay available', () => {
+    expect(isTextEntry(monacoTypingSurface('none').typingSurface)).toBe(false);
+  });
+
+  it('is true for the widgets of a code editor, read-only or not: the find box takes text and uses Escape itself', () => {
+    const { monaco } = monacoTypingSurface('none');
     const findToggle = element('div', monaco);
     findToggle.className = 'monaco-custom-toggle';
+    const findBox = element('textarea', monaco);
+    findBox.className = 'input';
 
-    expect(isTextEntry(typingSurface)).toBe(true);
-    // The find widget lives inside the editor and uses Escape for itself.
     expect(isTextEntry(findToggle)).toBe(true);
+    expect(isTextEntry(findBox)).toBe(true);
   });
 
   it('is true inside CodeMirror too', () => {
