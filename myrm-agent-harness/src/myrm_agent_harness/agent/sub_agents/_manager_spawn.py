@@ -41,7 +41,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
     SubAgentStatus,
     WorkspacePolicy,
 )
-from myrm_agent_harness.core.security.ocap import AttenuationError, capability_scope
+from myrm_agent_harness.core.security.ocap import AttenuationError, CapabilityHandle, capability_scope
 from myrm_agent_harness.runtime.events.system_events import (
     SubagentLifecycleData,
     to_json_object,
@@ -277,7 +277,7 @@ class SubagentSpawnMixin:
         effective_config = spawn_prep.config
         effective_context = spawn_prep.child_context
 
-        readonly_floor = None
+        readonly_floor: CapabilityHandle | None = None
         if effective_config.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX:
             try:
                 readonly_floor = readonly_spawn_floor(agent_type)

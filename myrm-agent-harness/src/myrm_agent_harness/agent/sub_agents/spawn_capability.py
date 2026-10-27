@@ -221,7 +221,7 @@ def readonly_spawn_floor(agent_type: str) -> CapabilityHandle | None:
     Raises:
         AttenuationError: if the delegating agent's handle has expired.
     """
-    held = get_current_capability()
+    held = parent_capability_handle()
     if held is not None and CapabilityAction.WRITE not in held.actions:
         return None
     return derive_readonly_capability(agent_type)
