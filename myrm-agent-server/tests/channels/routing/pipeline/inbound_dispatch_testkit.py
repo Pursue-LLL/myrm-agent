@@ -14,7 +14,7 @@ from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage, OutboundMessage
 
-from .risk_gate_testkit import make_router
+from ..risk_gate_testkit import make_router
 
 PIPELINE = "app.channels.routing.pipeline.inbound"
 

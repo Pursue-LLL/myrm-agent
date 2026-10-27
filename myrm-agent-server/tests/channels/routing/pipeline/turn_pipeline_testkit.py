@@ -12,7 +12,7 @@ from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage
 
-from .risk_gate_testkit import make_router
+from ..risk_gate_testkit import make_router
 
 TURN = "app.channels.routing.pipeline.turn"
 STATE_KEY = routing_state_key("telegram", "chat-1", None)
