@@ -8,12 +8,15 @@ completion even when the task awaiting it is cancelled again, so a stopped turn 
 - utils.os_compat::get_process_group_kwargs, kill_process_group (POS: Unified abstractions for POSIX/Windows differences (file locks, process groups))
 
 [OUTPUT]
-- CliProcess: a running CLI process with ``lines``, ``wait``, ``terminate`` and the facts a turn is judged by
+- CliProcess: a running CLI process with ``start_prompt``, ``lines``, ``wait``, ``terminate`` and the facts a turn is judged by
 - CliLaunchError: the CLI executable does not exist
 - spawn_cli_process: async context manager that spawns a CliProcess and stops it on exit
 
 [POS]
-Process ownership of CliRuntime. Knows nothing about the CLI's output format or sessions.
+Process ownership of CliRuntime. Knows nothing about the CLI's output format or sessions. The prompt is written to
+stdin beside the turn, not before it: a CLI reads stdin when it is ready (Claude's stream-json input is read only
+after its start hooks have run), and a prompt of several MB, an image, waits in the pipe until then. A turn that
+waited for the write could neither stream nor be stopped in the meantime.
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ class CliProcess:
         self._stderr_task = asyncio.create_task(self._drain_stderr())
         self._termination: asyncio.Future[None] | None = None
         self._killed_by_us = False
+        self._prompt_writer: asyncio.Task[None] | None = None
 
     @property
     def returncode(self) -> int | None:
@@ -76,18 +80,28 @@ class CliProcess:
         """The last few KiB the process wrote to stderr."""
         return self._stderr_tail.decode("utf-8", errors="replace").strip()
 
-    async def send_prompt(self, text: str) -> None:
-        """Write ``text`` to stdin and close it; a process that already left is not an error here."""
+    def start_prompt(self, text: str) -> None:
+        """Start writing ``text`` to stdin and return at once; stdin is closed once all of it is written.
+
+        The text is encoded here, so a prompt that cannot be encoded fails the caller. The write runs as a task
+        that ``close`` ends: a CLI that is not reading yet holds it in ``drain``, and a process that already left
+        is not an error.
+        """
         stdin = self._process.stdin
-        if stdin is None:
-            return
+        if stdin is not None:
+            self._prompt_writer = asyncio.create_task(self._write_prompt(stdin, text.encode("utf-8") + b"\n"))
+
+    async def _write_prompt(self, stdin: asyncio.StreamWriter, data: bytes) -> None:
         try:
-            stdin.write(text.encode("utf-8") + b"\n")
+            stdin.write(data)
             await stdin.drain()
             stdin.close()
             await stdin.wait_closed()
-        except (BrokenPipeError, ConnectionResetError):
+        except OSError:
             logger.debug("cli_process_left_before_prompt pid=%d", self._process.pid)
+        finally:
+            with contextlib.suppress(OSError, RuntimeError):
+                stdin.close()
 
     async def lines(self, idle_tick: float | None = None) -> AsyncIterator[str | None]:
         """Non-empty stdout lines until the process closes its stdout.
@@ -143,12 +157,16 @@ class CliProcess:
         await asyncio.shield(self._termination)
 
     async def close(self) -> None:
-        """Stop the process if it is still running and release the stderr drain."""
+        """Stop the process if it is still running and release the prompt writer and the stderr drain."""
         try:
             if self._process.returncode is None:
                 await self.terminate()
         finally:
             self._stderr_task.cancel()
+            writer = self._prompt_writer
+            if writer is not None and not writer.done():
+                writer.cancel()
+                await asyncio.wait({writer})
 
     async def _terminate(self) -> None:
         pid = self._process.pid
@@ -178,7 +196,7 @@ async def spawn_cli_process(
     cwd: str,
     stdin_text: str | None,
 ) -> AsyncIterator[CliProcess]:
-    """Spawn ``args`` as its own process group, feed ``stdin_text`` (the prompt) if given, stop it on exit."""
+    """Spawn ``args`` as its own process group, start feeding ``stdin_text`` (the prompt) if given, stop it on exit."""
     try:
         process = await asyncio.create_subprocess_exec(
             *args,
@@ -198,7 +216,7 @@ async def spawn_cli_process(
     cli_process = CliProcess(process)
     try:
         if stdin_text is not None:
-            await cli_process.send_prompt(stdin_text)
+            cli_process.start_prompt(stdin_text)
         yield cli_process
     finally:
         await cli_process.close()

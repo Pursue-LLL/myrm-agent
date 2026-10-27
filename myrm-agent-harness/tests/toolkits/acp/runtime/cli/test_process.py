@@ -8,6 +8,7 @@ import os
 import signal
 import sys
 import textwrap
+import time
 from pathlib import Path
 
 import pytest
@@ -138,6 +139,83 @@ class TestStderr:
         async with _spawn(code) as process:
             async with asyncio.timeout(5):
                 assert await process.wait() == 0
+
+
+class TestPrompt:
+    @pytest.mark.asyncio
+    async def test_a_cli_that_has_not_read_its_prompt_does_not_hold_the_turn_or_its_stop(self) -> None:
+        """A prompt of several MB sits in the pipe until the CLI reads stdin; the turn must not wait for that."""
+        started = time.monotonic()
+        async with asyncio.timeout(15):
+            async with _spawn("import time; time.sleep(60)", stdin_text="x" * 2_000_000) as process:
+                entered = time.monotonic() - started
+                pid = process._process.pid
+            left = time.monotonic() - started
+
+        assert entered < 2
+        assert left < 8
+        assert not _alive(pid)
+        assert process._prompt_writer is not None and process._prompt_writer.done()
+
+    @pytest.mark.asyncio
+    async def test_leaving_ends_a_prompt_write_that_a_leaked_stdin_keeps_blocked(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A tool process that left the group (own session) and kept stdin open outlives the CLI; the write must not."""
+        monkeypatch.setattr(process_module, "_TERMINATE_GRACE_SECONDS", 0.5)
+        pid_file = tmp_path / "grandchild.pid"
+        code = f"""
+            import subprocess, time
+            child = subprocess.Popen(["sleep", "60"], start_new_session=True)
+            open({str(pid_file)!r}, "w").write(str(child.pid))
+            time.sleep(60)
+        """
+        grandchild = 0
+        try:
+            async with asyncio.timeout(15):
+                async with _spawn(code, stdin_text="x" * 2_000_000) as process:
+                    while not pid_file.exists():
+                        await asyncio.sleep(0.05)
+                    grandchild = int(pid_file.read_text())
+
+            assert process._prompt_writer is not None and process._prompt_writer.done()
+        finally:
+            if grandchild:
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(grandchild, signal.SIGKILL)
+
+    @pytest.mark.asyncio
+    async def test_a_prompt_written_to_a_slow_reader_arrives_whole(self) -> None:
+        code = """
+            import sys, time
+            time.sleep(0.5)
+            print(len(sys.stdin.buffer.read()))
+        """
+        async with _spawn(code, stdin_text="é" * 1_000_000) as process:
+            lines = await _collect(process)
+
+        assert lines == ["2000001"]
+
+    @pytest.mark.asyncio
+    async def test_a_prompt_that_cannot_be_encoded_fails_the_caller_and_stops_the_process(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        spawned: list[asyncio.subprocess.Process] = []
+        create = asyncio.create_subprocess_exec
+
+        async def recording(*args: str, **kwargs: object) -> asyncio.subprocess.Process:
+            process = await create(*args, **kwargs)  # type: ignore[arg-type]
+            spawned.append(process)
+            return process
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", recording)
+
+        with pytest.raises(UnicodeEncodeError):
+            async with _spawn("import time; time.sleep(60)", stdin_text="lone surrogate \ud800"):
+                pass
+
+        assert len(spawned) == 1
+        assert spawned[0].returncode is not None
 
 
 class TestStopping:

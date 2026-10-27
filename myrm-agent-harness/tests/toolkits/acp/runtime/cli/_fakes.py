@@ -45,6 +45,7 @@ class RecordingStore:
 # is only found again from the directory that created it; resuming an unknown id fails fast without announcing
 # anything; one failing turn can end in a max-turns / API-error ``result`` line. Which command it plays is decided by
 # its own file name; scenario.json next to it picks what a turn does (one dict for every call, or a list by call index).
+# ``stall_before_stdin`` makes it start reading its stdin only after that many seconds, like a CLI still running its start hooks.
 _SCRIPT = """\
 #!__PYTHON__
 import json, os, signal, sys, time, uuid
@@ -65,6 +66,7 @@ scenario = read_json(os.path.join(here, "scenario.json"), {})
 if isinstance(scenario, list):
     scenario = scenario[min(index, len(scenario) - 1)]
 
+time.sleep(scenario.get("stall_before_stdin", 0))
 prompt = sys.stdin.read() if "-p" in argv else (argv[-1] if argv else "")
 with open(calls_path, "a") as handle:
     handle.write(json.dumps({"name": name, "argv": argv, "cwd": cwd, "prompt": prompt, "env": dict(os.environ)}) + "\\n")

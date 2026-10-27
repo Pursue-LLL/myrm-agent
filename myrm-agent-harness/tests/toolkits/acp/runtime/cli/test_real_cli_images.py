@@ -9,11 +9,13 @@ the production argv and permission rules. Run with ``-m integration``; a CLI tha
 
 from __future__ import annotations
 
+import asyncio
 import json
 import random
 import shutil
 import struct
 import threading
+import time
 import zlib
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,7 +25,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.acp.auth import cli_launch_args
 from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
-from myrm_agent_harness.toolkits.acp.types import RuntimeConfig, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, RuntimeConfig, RuntimeEvent, RuntimeEventType
 
 pytestmark = pytest.mark.integration
 
@@ -165,13 +167,13 @@ def stub_api() -> Iterator[_Recorder]:
     recorder.close()
 
 
-def _claude(tmp_path: Path, base_url: str, permission_mode: str) -> CliRuntime:
+def _claude(tmp_path: Path, base_url: str, permission_mode: str, extra_args: tuple[str, ...] = ()) -> CliRuntime:
     home = tmp_path / "home"
     home.mkdir()
     config = RuntimeConfig(
         backend_type="cli",
         command=str(_CLAUDE),
-        args=cli_launch_args("claude"),
+        args=[*cli_launch_args("claude"), *extra_args],
         env={
             "HOME": str(home),
             "CLAUDE_CONFIG_DIR": str(home / ".claude"),
@@ -258,3 +260,28 @@ async def test_a_turn_without_images_sends_no_image(tmp_path: Path, stub_api: _R
     await _run(_claude(tmp_path, stub_api.url, "safe"), "hello")
 
     assert stub_api.image_positions() == []
+
+
+@needs_claude
+@pytest.mark.asyncio
+async def test_a_stop_ends_a_turn_whose_cli_is_still_in_its_start_hook_with_a_large_image_unread(
+    tmp_path: Path, stub_api: _Recorder
+) -> None:
+    """Claude reads its stream-json stdin only after the SessionStart hooks have run, so a 4.7 MiB image waits in the pipe."""
+    image = _write_png(tmp_path / "big.png", 4800)
+    hook = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "sleep 12"}]}]}}
+    runtime = _claude(tmp_path, stub_api.url, "safe", extra_args=("--settings", json.dumps(hook)))
+
+    async def stream() -> list[RuntimeEvent]:
+        return [event async for event in runtime.run_turn("what is in this?", "s1", images=[str(image)])]
+
+    turn = asyncio.create_task(stream())
+    await asyncio.sleep(1.0)
+
+    started = time.monotonic()
+    await runtime.cancel("s1")
+    events = await asyncio.wait_for(turn, 30)
+
+    assert time.monotonic() - started < 5
+    errors = [event.data["error"].code for event in events if event.type == RuntimeEventType.ERROR]
+    assert errors == [AcpErrorCode.CANCELLED]
