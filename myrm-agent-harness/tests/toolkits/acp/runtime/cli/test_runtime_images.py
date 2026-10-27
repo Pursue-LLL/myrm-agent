@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
-from myrm_agent_harness.toolkits.acp.types import RuntimeConfig, RuntimeEvent, RuntimeEventType
+from myrm_agent_harness.toolkits.acp.types import CliSessionRecord, RuntimeConfig, RuntimeEvent, RuntimeEventType
 
-from ._fakes import FakeCli, make_runtime, types_of
+from ._fakes import FakeCli, RecordingStore, make_runtime, statuses_of, types_of
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the CLI stand-ins are POSIX shebang scripts")
 
@@ -90,6 +90,27 @@ class TestClaude:
         argv = _argv(fake_cli, "claude", 1)
         assert argv.index("--input-format") < argv.index("--resume")
         assert [block["type"] for block in _stdin_content(fake_cli, 1)] == ["image", "text"]
+        assert RuntimeEventType.DONE in types_of(events)
+
+    @pytest.mark.asyncio
+    async def test_a_forgotten_conversation_is_restarted_with_the_same_image_message(
+        self, fake_cli: FakeCli, tmp_path: Path
+    ) -> None:
+        dead = "99999999-0000-4000-8000-000000000000"
+        work = tmp_path / "work"
+        work.mkdir()
+        image = _png(tmp_path / "a.png")
+        store = RecordingStore()
+        store.records["s1"] = CliSessionRecord(dead, str(work))
+        runtime = make_runtime(fake_cli, "claude", store=store, cwd=str(work))
+
+        events = await _turn(runtime, "look", [str(image)])
+
+        first, retry = _argv(fake_cli, "claude", 0), _argv(fake_cli, "claude", 1)
+        assert statuses_of(events) == ["starting", "session_expired"]
+        assert "--resume" in first and "--resume" not in retry
+        assert "--input-format" in first and "--input-format" in retry
+        assert fake_cli.calls("claude")[0]["prompt"] == fake_cli.calls("claude")[1]["prompt"]
         assert RuntimeEventType.DONE in types_of(events)
 
     @pytest.mark.asyncio
