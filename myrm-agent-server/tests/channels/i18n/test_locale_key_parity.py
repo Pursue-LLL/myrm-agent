@@ -304,6 +304,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "style": "s",
     "target": "t",
     "task_id": "t1",
+    "task_ids": "[3f9a1c2e]",
     "text": "text",
     "timeout": 30,
     "title": "t",

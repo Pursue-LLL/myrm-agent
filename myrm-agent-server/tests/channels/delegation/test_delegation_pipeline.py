@@ -48,6 +48,14 @@ def test_is_delegation_intent_explicit_and_heuristics() -> None:
     assert conf == 0.0
 
 
+@pytest.mark.parametrize("text", ["/btw list", "/bg research rivals", "/background cancel abc123"])
+def test_the_background_commands_are_not_delegation_prefixes(text: str) -> None:
+    """``/btw``, ``/bg`` and ``/background`` start Kanban background tasks; only the delegation prefixes delegate."""
+    is_del, _, _ = is_delegation_intent(text, explicit_only=True)
+
+    assert is_del is False
+
+
 def test_delegation_ingress_guard_concurrency() -> None:
     """Test max 2 concurrent delegations per user/channel."""
     guard = DelegationIngressGuard(max_active_per_user=2)
@@ -81,7 +89,7 @@ async def test_coordinator_lifecycle_and_steering() -> None:
     coordinator.register_task(task)
     assert coordinator.get_task(task.task_id) is not None
 
-    active = coordinator.find_active_task("telegram", "user_456")
+    active = coordinator.find_active_task("telegram", "chat_789", "user_456")
     assert active is not None
     assert active.task_id == task.task_id
 
@@ -114,7 +122,7 @@ def test_coordinator_reap_stale_tasks() -> None:
     assert task.task_id in reaped
     assert task.status == DelegationStatus.TIMED_OUT
     assert task.completed_at is not None
-    assert coordinator.find_active_task("wechat", "user_timeout") is None
+    assert coordinator.find_active_task("wechat", "chat_timeout", "user_timeout") is None
 
 
 # ── AgentRouter Integration Tests ─────────────────────────────────────

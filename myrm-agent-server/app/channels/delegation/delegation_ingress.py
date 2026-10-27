@@ -10,7 +10,7 @@ and caps the number of delegations a user can have running at once.
 
 [OUTPUT]
 - is_delegation_intent: Heuristic and explicit classifier for long-running tasks.
-- build_delegation_task: Factory initializing persistent DelegationTask entity.
+- build_delegation_task: Factory initializing a DelegationTask.
 - DelegationIngressGuard: Per-user cap on concurrently running delegations.
 
 [POS]
@@ -26,9 +26,6 @@ from .delegation_models import DelegationStatus, DelegationTask
 _EXPLICIT_DELEGATION_PREFIXES: tuple[str, ...] = (
     "/delegate",
     "/async",
-    "/btw",
-    "/background",
-    "/bg",
     "【委派】",
     "【后台任务】",
     "【异步任务】",

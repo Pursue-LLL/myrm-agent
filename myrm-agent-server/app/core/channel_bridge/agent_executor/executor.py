@@ -37,6 +37,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.ai_agents.agents import GeneralAgentParams
+from app.channels.i18n import resolve_message_locale
 from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, StreamingText, TopicContext
 from app.core.agent.run_activity import track_background_agent_run
@@ -218,7 +219,9 @@ class ChannelAgentExecutor:
                 from myrm_agent_harness.agent.security import user_credentials_ctx
 
                 user_credentials_ctx.reset(token_ctx)
-            if stream_state.approval_timeout_info and chat_id and params is not None:
+            # A run the user stopped while it wound down after the approval request must not leave a timer behind.
+            stopped_by_user = cancel_token is not None and cancel_token.is_cancelled
+            if stream_state.approval_timeout_info and chat_id and params is not None and not stopped_by_user:
                 schedule_channel_approval_timeout(
                     channel=msg.channel,
                     peer=msg.chat_id or msg.sender_id,
@@ -226,6 +229,7 @@ class ChannelAgentExecutor:
                     timeout_info=stream_state.approval_timeout_info,
                     params=params,
                     user_id=msg.user_id or msg.sender_id or "",
+                    locale=resolve_message_locale(msg),
                 )
             if agent and params is not None:
                 await finalize_agent_session(

@@ -3,6 +3,8 @@ web_continue_chat = 在浏览器继续
 
 no_active_task_to_stop = ℹ 当前没有正在执行的任务。
 execution_stopped =  任务已停止。
+execution_stopped_background_running = 任务已停止。后台仍在运行：`{ $task_ids }`。再发送一次 /stop 可停止后台任务。
+delegation_stopped = 已停止后台任务 `{ $task_ids }`。
 placeholder_stopped =  任务已停止。
 no_pending_approval = ℹ 没有待审批的请求。
 approval_processing =  正在处理审批...
@@ -12,6 +14,8 @@ approval_denial_with_reason_processing =  正在处理拒绝，理由已转达�
 approval_batch_processing =  正在处理 { $approve_count } 个批准、{ $reject_count } 个拒绝...
 approval_batch_processing_always =  正在处理 { $approve_count } 个批准（含 { $always_count } 个永久）、{ $reject_count } 个拒绝...
 approval_already_handled = ℹ 该审批已超时或已在其他地方处理，无需操作。
+approval_timeout_approved = ⏱ 审批已超时，已自动批准。
+approval_timeout_denied = ⏱ 审批已超时，已自动拒绝。
 permission_denied =  权限不足：`/{ $cmd }` 需要管理员权限。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已应用：_{ $preview }_
@@ -25,7 +29,7 @@ delegation_receipt =
     📋 **已收到异步任务委派** `[{ $task_id }]`
 
     💡 **任务内容**：{ $prompt }
-    ⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动把结果发到这里。
+    ⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动把结果发到这里。如果某一步需要您批准，会在这里询问您。
     { "*" }(提示：中途可直接发送消息为任务补充指引，发送 /stop 可取消任务)*
 delegation_done = ✅ **后台任务已完成** `[{ $task_id }]` · 用时 { $duration }
 delegation_failed = ❌ **后台任务失败** `[{ $task_id }]` · 运行 { $duration } 后中止
@@ -341,7 +345,6 @@ cmd_background = 在独立后台会话中运行任务，不阻塞当前对话
 cmd_status = 显示当前会话状态（token、费用、模型、Agent 状态）
 cmd_quota = 查看当前每日对话额度与使用状态
 cmd_help = 显示可用命令
-cmd_btw = 提一个临时旁路问题，不污染对话上下文
 cmd_memo = 把语音备忘或会议记录拆解为纪要、待办与记忆
 cmd_review-week = 把本周语音备忘、会议笔记与看板阻塞项综合成管理层周报
 cmd_design-image = 用结构化的 Prompt-as-Code 原子视觉模式合成商业级图片
@@ -401,6 +404,7 @@ cat_Productivity = 效率
 learn_not_configured = ℹ 当前环境未配置技能学习功能。
 learn_failed = ❌ 构建学习提示失败，请重试。
 reassurance_still_running = ⏳ 工作中 — { $elapsed } 分钟（{ $steps } 步{ $stage }）
+delegation_still_running = ⏳ 后台任务 `[{ $task_id }]` 仍在运行 — { $elapsed } 分钟（{ $steps } 步{ $stage }）
 busy_ack_queued = ✅ 收到！Agent 正忙，您的消息已排队（第 { $position }/{ $max_pending } 条）。
 busy_ack_queue_full = ⚠️ 队列已满，消息未保存，请稍后重发。
 agent_picker_no_agents = 未配置任何智能体。

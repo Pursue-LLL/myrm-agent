@@ -48,6 +48,7 @@ _OWNER_ONLY_COMMANDS = {
     "/subgoal write the intro": "_handle_subgoal_command",
     "/background research rivals": "_handle_background_command",
     "/bg research rivals": "_handle_background_command",
+    "/btw research rivals": "_handle_background_command",
     "/kanban list": "_handle_kanban_command",
     "/kb list": "_handle_kanban_command",
     "/memory": "_handle_memory_command",
@@ -167,8 +168,7 @@ class TestSystemCommandGate:
         bus.publish_outbound.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_a_refused_btw_is_not_picked_up_by_the_delegation_prefix(self) -> None:
-        """``/btw`` is also a delegation prefix, so refusing it here is what keeps strangers out of that path."""
+    async def test_a_stranger_gets_btw_refused_like_the_background_command_it_aliases(self) -> None:
         router, bus = _make_router(None)
 
         assert await _dispatch(router, _msg("/btw what is this")) is True
@@ -252,6 +252,18 @@ class TestDelegationGate:
 
         router._handle_delegation_inbound.assert_not_called()
         router._gate.submit.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("text", ["/btw list", "/btw cancel abc123", "/bg list", "/background list"])
+    async def test_the_background_commands_never_start_a_delegation(self, text: str) -> None:
+        """A background task is listed or cancelled by its command; taking it for a delegation would bill a model run."""
+        router, bus = _delegation_router(_OWNER)
+        router._handle_background_command = AsyncMock()
+
+        await _consume(router, bus, _msg(text))
+
+        router._handle_background_command.assert_called_once()
+        router._handle_delegation_inbound.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_the_owner_can_delegate_a_task(self) -> None:

@@ -8,7 +8,7 @@ Defines the typed task entity and lifecycle status of an asynchronous delegation
 
 [OUTPUT]
 - DelegationStatus: Enum of asynchronous task execution states.
-- DelegationTask: Core persistent task entity.
+- DelegationTask: Core task entity (held in memory by the coordinator).
 
 [POS]
 Domain contract SSOT for app/channels/delegation/ subsystem.
@@ -34,7 +34,7 @@ class DelegationStatus(str, enum.Enum):
 
 @dataclass
 class DelegationTask:
-    """Persistent entity representing a delegated asynchronous background task."""
+    """A delegated asynchronous background task; the coordinator holds it in memory until its outcome is handled."""
 
     task_id: str
     origin_channel: str

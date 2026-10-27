@@ -151,7 +151,7 @@ async def test_the_chinese_receipt_names_the_task_and_what_happens_next(rig: _Ri
     assert receipt.content == (
         f"📋 **已收到异步任务委派** `[{task_id}]`\n\n"
         "💡 **任务内容**：做季度总结\n"
-        "⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动把结果发到这里。\n"
+        "⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动把结果发到这里。如果某一步需要您批准，会在这里询问您。\n"
         "*(提示：中途可直接发送消息为任务补充指引，发送 /stop 可取消任务)*"
     )
 

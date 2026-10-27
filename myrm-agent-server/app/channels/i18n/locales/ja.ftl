@@ -3,6 +3,8 @@ web_continue_chat = ブラウザで続ける
 
 no_active_task_to_stop = ℹ 停止するアクティブなタスクがありません。
 execution_stopped =  実行を停止しました。
+execution_stopped_background_running = 実行を停止しました。バックグラウンドで実行中: `{ $task_ids }`。もう一度 /stop を送ると停止します。
+delegation_stopped = バックグラウンドタスク `{ $task_ids }` を停止しました。
 placeholder_stopped =  実行を停止しました。
 no_pending_approval = ℹ 保留中の承認リクエストはありません。
 approval_processing =  承認を処理中...
@@ -12,6 +14,8 @@ approval_denial_with_reason_processing =  拒否を処理中：「{ $reason }」
 approval_batch_processing =  { $approve_count } 件の承認、{ $reject_count } 件の拒否を処理中...
 approval_batch_processing_always =  { $approve_count } 件の承認（{ $always_count } 件は常時許可）、{ $reject_count } 件の拒否を処理中...
 approval_already_handled = ℹ この承認はタイムアウトしたか、すでに別の場所で処理されました。操作不要です。
+approval_timeout_approved = ⏱ 承認がタイムアウトしたため、自動的に承認されました。
+approval_timeout_denied = ⏱ 承認がタイムアウトしたため、自動的に拒否されました。
 permission_denied =  権限不足：`/{ $cmd }` には管理者権限が必要です。
 usage_steer = 使い方：`/steer <新しい指示>`
 steering_applied = 指示を適用しました：_{ $preview }_
@@ -25,7 +29,7 @@ delegation_receipt =
     📋 **非同期タスクの委任を受け付けました** `[{ $task_id }]`
 
     💡 **タスク内容**：{ $prompt }
-    ⏳ **状況**：バックグラウンドのサンドボックスが自律的に実行中です。チャットを閉じても構いません。完了すると結果がここに届きます。
+    ⏳ **状況**：バックグラウンドのサンドボックスが自律的に実行中です。チャットを閉じても構いません。完了すると結果がここに届きます。操作に承認が必要な場合は、ここで確認します。
     { "*" }(ヒント：実行中でもメッセージを送ると、タスクに追加の指示を渡せます。/stop で中止できます)*
 delegation_done = ✅ **バックグラウンドタスクが完了しました** `[{ $task_id }]` · 所要時間 { $duration }
 delegation_failed = ❌ **バックグラウンドタスクが失敗しました** `[{ $task_id }]` · { $duration } で停止
@@ -341,7 +345,6 @@ cmd_background = 現在の会話をブロックせずに別のバックグラウ
 cmd_status = 現在のセッション状態を表示（トークン、コスト、モデル、Agent 状態）
 cmd_quota = 本日の会話上限と利用状況を確認
 cmd_help = 利用可能なコマンドを表示
-cmd_btw = 会話の文脈を汚さずに、一時的なサイド質問をする
 cmd_memo = 音声メモや会議の文字起こしを、議事録・タスク・記憶に分解する
 cmd_review-week = 今週の音声メモ・会議ノート・カンバンの阻害要因を経営層向けダイジェストにまとめる
 cmd_design-image = 構造化された Prompt-as-Code の原子的ビジュアルスキーマで商用品質の画像を生成する
@@ -401,6 +404,7 @@ cat_Productivity = 生産性
 learn_not_configured = ℹ この環境ではスキル学習が設定されていません。
 learn_failed = ❌ 学習プロンプトの構築に失敗しました。再試行してください。
 reassurance_still_running = ⏳ 作業中 — { $elapsed } 分（{ $steps } ステップ{ $stage }）
+delegation_still_running = ⏳ バックグラウンドタスク `[{ $task_id }]` は実行中です — { $elapsed } 分（{ $steps } ステップ{ $stage }）
 busy_ack_queued = ✅ 受信しました！Agent がビジーです — メッセージはキューに追加されました（{ $position }/{ $max_pending }）。
 busy_ack_queue_full = ⚠️ キューが満杯です — メッセージは保存されませんでした。後ほど再送してください。
 agent_picker_no_agents = エージェントが設定されていません。

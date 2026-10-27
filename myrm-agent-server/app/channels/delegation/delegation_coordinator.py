@@ -5,6 +5,7 @@ injections to running Agent sandboxes via SteeringToken.
 
 [INPUT]
 - .delegation_models::DelegationTask, DelegationStatus
+- .delegation_heartbeat::delegated_run_heartbeat (POS: tells the chat the run is still working)
 - app.channels.routing.friendly_errors::friendly_error_message, is_error_reply (POS: member-safe failure wording and failed-turn flag)
 - myrm_agent_harness.utils.runtime.steering::SteeringToken
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken
@@ -33,6 +34,7 @@ from app.channels.routing.friendly_errors import friendly_error_message, is_erro
 from app.channels.types import OutboundMessage, ProgressUpdate, StreamingText
 
 from .delegation_delivery import build_delivery_message
+from .delegation_heartbeat import delegated_run_heartbeat
 from .delegation_models import DelegationStatus, DelegationTask
 
 if TYPE_CHECKING:
@@ -128,11 +130,12 @@ class DelegationCoordinator:
         logger.info("DelegationCoordinator: Injected in-flight steering to task %s by %s", task_id, sender_id)
         return True
 
-    def find_active_task(self, channel: str, user_id: str) -> DelegationTask | None:
-        """Find the currently active or running task for a user in a channel."""
+    def find_active_task(self, channel: str, chat_id: str, user_id: str) -> DelegationTask | None:
+        """Find the pending or running task the user delegated from this chat."""
         for task in self._tasks.values():
             if (
                 task.origin_channel == channel
+                and task.origin_chat_id == chat_id
                 and task.origin_user_id == user_id
                 and task.status in (DelegationStatus.PENDING, DelegationStatus.RUNNING)
             ):
@@ -156,13 +159,9 @@ class DelegationCoordinator:
         if runner and not runner.done():
             runner.cancel()
 
-    def cancel_for_chat(self, channel: str, chat_id: str, user_id: str) -> list[str]:
-        """Stop the running tasks the user delegated from this chat.
-
-        Returns:
-            IDs of the tasks that were stopped; the caller tells the user.
-        """
-        stopped = [
+    def running_task_ids(self, channel: str, chat_id: str, user_id: str) -> list[str]:
+        """IDs of the running tasks the user delegated from this chat: the ones their next ``/stop`` ends."""
+        return [
             task.task_id
             for task in self._tasks.values()
             if task.origin_channel == channel
@@ -170,6 +169,14 @@ class DelegationCoordinator:
             and task.origin_user_id == user_id
             and task.status is DelegationStatus.RUNNING
         ]
+
+    def cancel_for_chat(self, channel: str, chat_id: str, user_id: str) -> list[str]:
+        """Stop the running tasks the user delegated from this chat.
+
+        Returns:
+            IDs of the tasks that were stopped; the caller tells the user.
+        """
+        stopped = self.running_task_ids(channel, chat_id, user_id)
         for task_id in stopped:
             self.update_task_status(task_id, DelegationStatus.CANCELLED)
             self._interrupt(task_id, "User /stop command")
@@ -249,18 +256,21 @@ class DelegationCoordinator:
         stopped_at_approval = False
         try:
             task_msg = replace(original_msg, content=task.prompt)
-            async for event in executor.execute_stream(
-                task_msg,
-                task.origin_user_id,
-                cancel_token=cancel_token,
-                steering_token=steering_token,
-            ):
-                if isinstance(event, OutboundMessage):
-                    final_reply = event
-                elif isinstance(event, StreamingText):
-                    snapshot = event.text
-                elif isinstance(event, ProgressUpdate) and event.quick_replies:
-                    approval_request = event
+            async with delegated_run_heartbeat(task, bus, original_msg) as note_progress:
+                async for event in executor.execute_stream(
+                    task_msg,
+                    task.origin_user_id,
+                    cancel_token=cancel_token,
+                    steering_token=steering_token,
+                ):
+                    if isinstance(event, OutboundMessage):
+                        final_reply = event
+                    elif isinstance(event, StreamingText):
+                        snapshot = event.text
+                    elif isinstance(event, ProgressUpdate):
+                        note_progress(event)
+                        if event.quick_replies:
+                            approval_request = event
             self._settle_finished_stream(task, final_reply)
             if approval_request is not None and task.status is DelegationStatus.COMPLETED:
                 await hand_over_approval(approval_request)

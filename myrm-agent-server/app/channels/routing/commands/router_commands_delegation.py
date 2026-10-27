@@ -37,7 +37,7 @@ class RouterCommandsDelegationMixin:
     async def _handle_delegation_inbound(self: RouterCommandsHost, msg: InboundMessage, clean_prompt: str) -> bool:
         """Handle mobile task delegation: issue sub-second receipt and launch background task."""
         chat_id = msg.chat_id or msg.sender_id
-        user_id = msg.user_id or chat_id
+        user_id = msg.user_id or msg.sender_id
         if not self._delegation_guard.can_accept(msg.channel, user_id):
             reject_msg = OutboundMessage(
                 channel=msg.channel,

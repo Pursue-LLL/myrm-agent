@@ -230,3 +230,40 @@ async def test_reassurance_no_channel_sends_once(mock_bus: AsyncMock) -> None:
 
     mock_bus.send_tracked.assert_called_once()
     mock_bus.edit_channel_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_the_pace_and_count_a_caller_passes_replace_the_foreground_defaults(mock_bus: AsyncMock) -> None:
+    """A delegated run paces its own heartbeat; the 120 s / 3 defaults would hang this test."""
+    channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=True))
+    mock_bus.get_channel = MagicMock(return_value=channel_obj)
+    mock_bus.send_tracked = AsyncMock(return_value="msg-42")
+    mock_bus.edit_channel_message = AsyncMock(return_value=True)
+
+    await asyncio.wait_for(run_reassurance_loop(mock_bus, _MSG, "chat-1", _stale_state(), interval=_SHORT / 3, max_count=4), 3)
+
+    mock_bus.send_tracked.assert_called_once()
+    assert mock_bus.edit_channel_message.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_a_caller_can_name_the_heartbeat_it_sends(mock_bus: AsyncMock) -> None:
+    mock_bus.send_tracked = AsyncMock(return_value="msg-42")
+
+    await asyncio.wait_for(
+        run_reassurance_loop(
+            mock_bus,
+            _MSG,
+            "chat-1",
+            _stale_state(),
+            interval=_SHORT / 3,
+            max_count=1,
+            text_key="delegation_still_running",
+            text_params={"task_id": "ab12cd34"},
+        ),
+        3,
+    )
+
+    sent: OutboundMessage = mock_bus.send_tracked.call_args[0][0]
+    assert "ab12cd34" in sent.content
+    assert "Background task" in sent.content

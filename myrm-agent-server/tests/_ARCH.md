@@ -87,9 +87,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
 | `channels/routing/test_stream_reply_tracing.py` | 单元 | 一次流式回复就是一条 trace：真实路由器消费真实事件序列，agent 运行与每次编辑都挂在唯一的 `stream_reply` 根 span 下（流式文本事件自己不单开 span），会话统计（更新判定数、编辑数、失败编辑数）落在该 span 上，失败只记录异常类名（消息可能回显发送者原文），取消不算错误，连续 3 次编辑失败只在第 3 次留下一次回退事件，日志里的 `trace_id` 就是该 span 的 trace id，无记录型 tracer 时回复照常流式 |
-| `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；渠道不能编辑或编辑失败时改发新消息；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
+| `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；编辑失败时改发新消息，渠道不能编辑时只发首条；调用方可自带间隔、次数与消息文案（间隔次数覆盖前台默认值）；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
+| `channels/delegation/test_delegation_heartbeat.py` | 单元 | 委托运行心跳：长运行原地更新同一条消息并带任务编号与步数，短于一个间隔不发，任务时限内的次数上限，随运行结束、被 `/stop`、停在审批处而结束（交接期间不再发） |
+| `core/channel_bridge/test_executor_approval_timeout_arming.py` | 单元 | 渠道执行器：停在审批处的运行带发送者 locale 布防审批超时；审批发出后、收尾期间被 `/stop` 的运行不布防 |
+| `channels/routing/test_stop_ends_pending_approval_timer.py` | 集成 | 真实 `AgentRouter` 加真实审批超时调度器：`/stop` 与 `/new` 结束会话正在等待的审批的超时计时（前台、委托交接两种，交接带或不带审批卡消息号），多话题时只有自己在等审批的话题才能结束该聊天的计时，没在等审批的回合被停时计时不动 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
 | `channels/test_goal_command_unwait.py` | 模块 | IM `/goal unwait`：路由器提交让目标回到工作的续跑消息（与 `/goal resume` 同一路径），没有续跑消息时什么也不提交 |
 | `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定；事件触发的发送者信任判定（`is_untrusted_event_sender`）：DM 与群聊每个会跑回合的用例都与聊天回合实际使用的围栏逐例一致且不改配对，只有 ACTIVE 的 ADMIN 配对算所有者（成员、待审批、已拉黑、陌生人一律不可信），控制面转发按其携带的身份判定（含访客回合标记），预置的 `user_id` 不能让陌生人变成所有者 |

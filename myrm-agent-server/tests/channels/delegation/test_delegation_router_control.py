@@ -32,9 +32,18 @@ _APPROVE = ProgressUpdate(
 Stream = Callable[..., AsyncGenerator[object, None]]
 
 
-def _inbound(content: str = "/delegate x", *, user: str = "u1") -> InboundMessage:
+def _inbound(
+    content: str = "/delegate x", *, sender: str = "u1", user_id: str | None = None, group: bool = False
+) -> InboundMessage:
+    """A message shaped like the ones the providers build: the sender and the chat, and no ``user_id`` unless given."""
     return InboundMessage(
-        channel="telegram", sender_id=user, chat_id="c1", content=content, user_id=user, metadata={"locale": "en"}
+        channel="telegram",
+        sender_id=sender,
+        chat_id="c1",
+        content=content,
+        user_id=user_id,
+        is_group=group,
+        metadata={"locale": "en"},
     )
 
 
@@ -72,6 +81,11 @@ async def _hang(*_args: object, **_kwargs: object) -> AsyncGenerator[object, Non
 
 async def _delegate(router: AgentRouter, prompt: str = "x") -> None:
     await router._handle_delegation_inbound(_inbound(), prompt)
+
+
+def _labels(router: AgentRouter) -> str:
+    """The ids of the delegated tasks as the chat is told them."""
+    return ", ".join(f"[{task_id}]" for task_id in router._delegation_coordinator._tasks)
 
 
 def _running(router: AgentRouter) -> int:
@@ -168,7 +182,7 @@ async def test_in_a_group_only_the_delegating_member_can_answer_the_delegated_ap
     await _until(lambda: bus.send_tracked.call_count == 1)
 
     assert router._is_reaction_approval_valid(replace(group_request, content="")) is True
-    assert router._is_reaction_approval_valid(replace(group_request, sender_id="u2", user_id="u2", content="")) is False
+    assert router._is_reaction_approval_valid(replace(group_request, sender_id="u2", content="")) is False
 
 
 @pytest.mark.asyncio
@@ -195,9 +209,11 @@ async def test_stop_ends_a_delegated_task_and_frees_its_quota() -> None:
     await _delegate(router)
     await _until(lambda: _running(router) == 1)
 
+    labels = _labels(router)
+
     await router._cancel_active_task(_inbound("/stop"))
 
-    assert _said(bus)[-1] == get_text(_inbound(), "execution_stopped")
+    assert _said(bus)[-1] == get_text(_inbound(), "delegation_stopped", task_ids=labels)
     await _until(lambda: router._delegation_guard.can_accept("telegram", "u1") and not router._delegation_coordinator._tasks)
     assert len(_said(bus)) == 2  # the receipt and the /stop answer; no completion or failure notice follows
 
@@ -219,26 +235,84 @@ async def test_stop_ends_the_chat_turn_first_and_the_background_task_with_the_ne
         requester_id="u1",
     )
 
+    labels = _labels(router)
+
     await router._cancel_active_task(_inbound("/stop"))
     await asyncio.sleep(0)
     assert token.is_cancelled and turn.cancelled()
     assert _running(router) == 1
+    assert _said(bus)[-1] == get_text(_inbound(), "execution_stopped_background_running", task_ids=labels)
 
     await router._cancel_active_task(_inbound("/stop"))
     await _until(lambda: _running(router) == 0)
+    assert _said(bus)[-1] == get_text(_inbound(), "delegation_stopped", task_ids=labels)
 
 
 @pytest.mark.asyncio
-async def test_stop_from_another_sender_does_not_end_the_task() -> None:
+async def test_the_receipt_says_where_the_task_will_ask_for_approval() -> None:
     router, bus = _router(_hang)
     await _delegate(router)
+
+    assert "approval" in _said(bus)[0].lower()
+    assert "here" in _said(bus)[0].lower()
+    router._delegation_coordinator.cancel_for_chat("telegram", "c1", "u1")
+
+
+@pytest.mark.asyncio
+async def test_stop_from_another_member_of_the_group_does_not_end_the_task() -> None:
+    router, bus = _router(_hang)
+    await router._handle_delegation_inbound(_inbound(group=True), "x")
     await _until(lambda: _running(router) == 1)
 
-    await router._cancel_active_task(_inbound("/stop", user="u2"))
+    await router._cancel_active_task(_inbound("/stop", sender="u2", group=True))
 
     assert _said(bus)[-1] == get_text(_inbound(), "no_active_task_to_stop")
     assert _running(router) == 1
     router._delegation_coordinator.cancel_for_chat("telegram", "c1", "u1")
+
+
+@pytest.mark.asyncio
+async def test_the_delegating_member_stops_their_own_task_in_a_group() -> None:
+    router, _bus = _router(_hang)
+    await router._handle_delegation_inbound(_inbound(group=True), "x")
+    await _until(lambda: _running(router) == 1)
+
+    await router._cancel_active_task(_inbound("/stop", group=True))
+
+    await _until(lambda: _running(router) == 0)
+
+
+@pytest.mark.asyncio
+async def test_a_channel_that_supplies_a_user_id_is_matched_by_it_and_not_by_the_sender() -> None:
+    router, _bus = _router(_hang)
+    await router._handle_delegation_inbound(_inbound(user_id="d1", group=True), "x")
+    await _until(lambda: _running(router) == 1)
+
+    await router._cancel_active_task(_inbound("/stop", sender="u1", user_id="d2", group=True))
+    assert _running(router) == 1
+
+    await router._cancel_active_task(_inbound("/stop", sender="u9", user_id="d1", group=True))
+    await _until(lambda: _running(router) == 0)
+
+
+@pytest.mark.asyncio
+async def test_stop_lets_the_delegated_run_clean_up_after_itself() -> None:
+    cleaned = asyncio.Event()
+
+    async def stream(*_a: object, **_k: object) -> AsyncGenerator[object, None]:
+        try:
+            yield StreamingText(text="working")
+            await asyncio.Event().wait()
+        finally:
+            cleaned.set()
+
+    router, _bus = _router(stream)
+    await _delegate(router)
+    await _until(lambda: _running(router) == 1)
+
+    await router._cancel_active_task(_inbound("/stop"))
+
+    await _until(cleaned.is_set)
 
 
 @pytest.mark.asyncio

@@ -38,6 +38,7 @@ async def test_notify_channel_timeout_result_publishes_with_user_id() -> None:
             "reject",
             "Done.",
             user_id="user-99",
+            locale="en",
         )
 
     mock_publish.assert_awaited_once()
@@ -63,6 +64,7 @@ async def test_notify_channel_timeout_result_swallows_publish_errors() -> None:
             "approve",
             None,
             user_id="user-99",
+            locale="en",
         )
 
 
@@ -81,6 +83,7 @@ def test_schedule_channel_approval_timeout_registers_scheduler() -> None:
             timeout_info={"seconds": 120, "behavior": "deny"},
             params=params,
             user_id="user-1",
+            locale="en",
         )
 
     mock_scheduler.schedule.assert_called_once()
@@ -128,7 +131,7 @@ def _patched_channel_resume(scheduler: ApprovalTimeoutScheduler | MagicMock, age
         yield notify
 
 
-def _schedule_channel_timeout(params: GeneralAgentParams, timeout_seconds: float = 120) -> None:
+def _schedule_channel_timeout(params: GeneralAgentParams, timeout_seconds: float = 120, locale: str = "en") -> None:
     schedule_channel_approval_timeout(
         channel="telegram",
         peer="chat-1",
@@ -136,6 +139,7 @@ def _schedule_channel_timeout(params: GeneralAgentParams, timeout_seconds: float
         timeout_info={"seconds": timeout_seconds, "behavior": "deny"},
         params=params,
         user_id="user-1",
+        locale=locale,
     )
 
 
@@ -158,6 +162,48 @@ async def test_channel_timeout_resume_runs_under_the_scheduler_key() -> None:
     assert agent.approval_session_key == "telegram:chat-1"
     assert agent.process_stream.call_args.kwargs["query"].resume == {"decision": "reject"}
     scheduler.reopen.assert_not_called()
+
+
+_TIMEOUT_NOTICES = [
+    ("en", "approve", "approved automatically"),
+    ("en", "reject", "denied automatically"),
+    ("zh-CN", "approve", "自动批准"),
+    ("zh-CN", "reject", "自动拒绝"),
+    ("zh-TW", "approve", "自動批准"),
+    ("zh-TW", "reject", "自動拒絕"),
+    ("ja", "approve", "自動的に承認"),
+    ("ja", "reject", "自動的に拒否"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("locale", "decision", "expected"), _TIMEOUT_NOTICES)
+async def test_the_timeout_notice_speaks_the_language_the_approval_was_asked_in(
+    locale: str, decision: str, expected: str
+) -> None:
+    with patch("app.core.channel_bridge.channel_gateway.publish", new_callable=AsyncMock) as mock_publish:
+        await notify_channel_timeout_result("telegram", "chat-42", decision, "Done.", user_id="u", locale=locale)
+
+    content = mock_publish.await_args.args[0].content
+    assert expected in content
+    assert content.endswith("Done.")
+
+
+@pytest.mark.asyncio
+async def test_the_timeout_resume_notifies_in_the_locale_captured_when_the_approval_was_asked() -> None:
+    scheduler = MagicMock()
+    agent = MagicMock()
+
+    async def stream(**_kwargs: object) -> AsyncIterator[dict[str, object]]:
+        yield {"type": "message", "data": "Done."}
+
+    agent.process_stream = MagicMock(side_effect=stream)
+
+    with _patched_channel_resume(scheduler, agent) as notify:
+        _schedule_channel_timeout(_channel_params(), locale="zh-CN")
+        await scheduler.schedule.call_args.kwargs["resume_callback"]({"decision": "reject"})
+
+    assert notify.await_args.kwargs["locale"] == "zh-CN"
 
 
 @pytest.mark.asyncio

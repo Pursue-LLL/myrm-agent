@@ -3,6 +3,8 @@ web_continue_chat = Continue in browser
 
 no_active_task_to_stop = ℹ No active task to stop.
 execution_stopped =  Execution stopped.
+execution_stopped_background_running = Execution stopped. Still running in the background: `{ $task_ids }`. Send /stop again to stop it.
+delegation_stopped = Stopped the background work `{ $task_ids }`.
 placeholder_stopped =  Execution stopped.
 no_pending_approval = ℹ No pending approval requests.
 approval_processing =  Processing approval...
@@ -12,6 +14,8 @@ approval_denial_with_reason_processing =  Processing denial: "{ $reason }"
 approval_batch_processing =  Processing { $approve_count } approvals, { $reject_count } rejections...
 approval_batch_processing_always =  Processing { $approve_count } approvals ({ $always_count } always), { $reject_count } rejections...
 approval_already_handled = ℹ This approval has already been handled (it timed out or was answered elsewhere). No action needed.
+approval_timeout_approved = ⏱ Approval timed out — approved automatically.
+approval_timeout_denied = ⏱ Approval timed out — denied automatically.
 permission_denied =  Permission denied: `/{ $cmd }` requires admin access.
 usage_steer = Usage: `/steer <new instruction>`
 steering_applied = Steering applied: _{ $preview }_
@@ -25,7 +29,7 @@ delegation_receipt =
     📋 **Delegated task received** `[{ $task_id }]`
 
     💡 **Task**: { $prompt }
-    ⏳ **Status**: A background sandbox is working on it. You can leave the chat; the result is sent here when it finishes.
+    ⏳ **Status**: A background sandbox is working on it. You can leave the chat; the result is sent here when it finishes. If it needs your approval for a step, it asks you here.
     { "*" }(Tip: send a message at any time to add guidance to the running task, or /stop to cancel it)*
 delegation_done = ✅ **Background task finished** `[{ $task_id }]` · took { $duration }
 delegation_failed = ❌ **Background task failed** `[{ $task_id }]` · after { $duration }
@@ -341,7 +345,6 @@ cmd_background = Run a task in a separate background session without blocking th
 cmd_status = Show current session status (tokens, cost, model, agent state)
 cmd_quota = Show your daily message quota and usage status
 cmd_help = Show available commands
-cmd_btw = Ask an ephemeral side-channel question without polluting conversation context
 cmd_memo = Deconstruct voice memo or meeting transcript into minutes, tasks, and memory
 cmd_review-week = Synthesize weekly voice memos, meeting notes, and kanban blockers into an executive digest
 cmd_design-image = Synthesize commercial-grade images using structured Prompt-as-Code atomic visual schemas
@@ -401,6 +404,7 @@ cat_Productivity = Productivity
 learn_not_configured = ℹ Skill learning is not configured in this environment.
 learn_failed = ❌ Failed to build the learning prompt. Please try again.
 reassurance_still_running = ⏳ Working — { $elapsed } min ({ $steps } steps{ $stage })
+delegation_still_running = ⏳ Background task `[{ $task_id }]` is still running — { $elapsed } min ({ $steps } steps{ $stage })
 busy_ack_queued = ✅ Received! Agent is busy — your message has been queued ({ $position }/{ $max_pending }).
 busy_ack_queue_full = ⚠️ Queue is full — message was not saved. Please resend later.
 agent_picker_no_agents = No agents configured.

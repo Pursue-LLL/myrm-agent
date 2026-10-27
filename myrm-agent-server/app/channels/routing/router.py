@@ -740,8 +740,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     return
 
         # In-flight steering for active delegation task
-        user_id = msg.user_id or chat_id
-        active_del = self._delegation_coordinator.find_active_task(msg.channel, user_id)
+        user_id = msg.user_id or msg.sender_id
+        active_del = self._delegation_coordinator.find_active_task(msg.channel, chat_id, user_id)
         if (
             active_del
             and msg.content

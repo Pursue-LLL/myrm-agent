@@ -3,6 +3,8 @@ web_continue_chat = 在瀏覽器繼續
 
 no_active_task_to_stop = ℹ 當前沒有正在執行的任務。
 execution_stopped =  任務已停止。
+execution_stopped_background_running = 任務已停止。後台仍在執行：`{ $task_ids }`。再傳送一次 /stop 可停止後台任務。
+delegation_stopped = 已停止後台任務 `{ $task_ids }`。
 placeholder_stopped =  任務已停止。
 no_pending_approval = ℹ 沒有待審批的請求。
 approval_processing =  正在處理審批...
@@ -12,6 +14,8 @@ approval_denial_with_reason_processing =  正在處理拒絕：「{ $reason }」
 approval_batch_processing =  正在處理 { $approve_count } 個批准、{ $reject_count } 個拒絕...
 approval_batch_processing_always =  正在處理 { $approve_count } 個批准（含 { $always_count } 個永久）、{ $reject_count } 個拒絕...
 approval_already_handled = ℹ 該審批已超時或已在其他地方處理，無需操作。
+approval_timeout_approved = ⏱ 審批已逾時，已自動批准。
+approval_timeout_denied = ⏱ 審批已逾時，已自動拒絕。
 permission_denied =  許可權不足：`/{ $cmd }` 需要管理員許可權。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已應用：_{ $preview }_
@@ -25,7 +29,7 @@ delegation_receipt =
     📋 **已收到非同步任務委派** `[{ $task_id }]`
 
     💡 **任務內容**：{ $prompt }
-    ⏳ **狀態**：後台沙箱自主接管中，您可以放心退出聊天，執行完成後將自動把結果發到這裡。
+    ⏳ **狀態**：後台沙箱自主接管中，您可以放心退出聊天，執行完成後將自動把結果發到這裡。如果某一步需要您批准，會在這裡詢問您。
     { "*" }(提示：中途可直接傳送訊息為任務補充指引，傳送 /stop 可取消任務)*
 delegation_done = ✅ **後台任務已完成** `[{ $task_id }]` · 耗時 { $duration }
 delegation_failed = ❌ **後台任務失敗** `[{ $task_id }]` · 執行 { $duration } 後中止
@@ -341,7 +345,6 @@ cmd_background = 在獨立後臺會話中執行任務，不阻塞當前對話
 cmd_status = 顯示當前會話狀態（token、費用、模型、Agent 狀態）
 cmd_quota = 檢視當前每日對話額度與使用狀態
 cmd_help = 顯示可用命令
-cmd_btw = 提出一個臨時旁路問題，不污染對話上下文
 cmd_memo = 把語音備忘或會議記錄拆解為紀要、待辦與記憶
 cmd_review-week = 把本週語音備忘、會議筆記與看板阻塞項綜合成管理層週報
 cmd_design-image = 用結構化的 Prompt-as-Code 原子視覺模式合成商業級圖片
@@ -401,6 +404,7 @@ cat_Productivity = 效率
 learn_not_configured = ℹ 當前環境未配置技能學習功能。
 learn_failed = ❌ 構建學習提示失敗，請重試。
 reassurance_still_running = ⏳ 工作中 — { $elapsed } 分鐘（{ $steps } 步{ $stage }）
+delegation_still_running = ⏳ 後台任務 `[{ $task_id }]` 仍在執行 — { $elapsed } 分鐘（{ $steps } 步{ $stage }）
 busy_ack_queued = ✅ 收到！Agent 正忙，您的訊息已排隊（第 { $position }/{ $max_pending } 則）。
 busy_ack_queue_full = ⚠️ 佇列已滿，訊息未儲存，請稍後重送。
 agent_picker_no_agents = 未配置任何智慧體。

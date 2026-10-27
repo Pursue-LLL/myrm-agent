@@ -104,7 +104,20 @@ async def test_stopping_cancels_a_run_that_ignores_its_token_and_leaves_nothing_
     assert token.is_cancelled
     assert bus.published == []  # /stop answers the user itself; the lifecycle adds no second message
     assert coordinator.get_task(task.task_id) is None
-    assert coordinator.find_active_task("telegram", "user-1") is None
+    assert coordinator.find_active_task("telegram", "chat-1", "user-1") is None
+
+
+@pytest.mark.asyncio
+async def test_a_task_is_found_only_from_the_chat_and_by_the_user_it_was_delegated_from() -> None:
+    coordinator, bus = DelegationCoordinator(), _Bus()
+    task, runner = await _start(coordinator, bus)
+
+    found = coordinator.find_active_task("telegram", "chat-1", "user-1")
+    assert found is not None and found.task_id == task.task_id
+    assert coordinator.find_active_task("telegram", "chat-2", "user-1") is None
+    assert coordinator.find_active_task("telegram", "chat-1", "user-2") is None
+    assert coordinator.find_active_task("whatsapp", "chat-1", "user-1") is None
+    runner.cancel()
 
 
 @pytest.mark.asyncio

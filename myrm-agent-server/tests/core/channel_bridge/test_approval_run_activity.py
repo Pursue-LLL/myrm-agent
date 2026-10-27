@@ -65,6 +65,7 @@ async def _resume(agent: _FakeAgent) -> None:
             {"seconds": 300, "behavior": "deny"},
             _FakeParams(),
             user_id="user-1",
+            locale="en",
         )
         resume_callback = scheduler.schedule.call_args.kwargs["resume_callback"]
         await resume_callback({"decision": "reject"})

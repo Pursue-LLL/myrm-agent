@@ -402,4 +402,4 @@ async def test_a_handled_task_leaves_nothing_behind_in_the_coordinator() -> None
     assert coordinator.get_task(task.task_id) is None
     assert coordinator.get_cancellation_token(task.task_id) is None
     assert coordinator.get_steering_token(task.task_id) is None
-    assert coordinator.find_active_task("telegram", "user-1") is None
+    assert coordinator.find_active_task("telegram", "chat-1", "user-1") is None

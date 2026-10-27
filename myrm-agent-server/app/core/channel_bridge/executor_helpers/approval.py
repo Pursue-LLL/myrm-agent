@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: Approval timeout scheduling)
+- channels.i18n::channel_t (POS: multi-language gateway command replies and system-generated channel messages.)
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 - executor_helpers.history (POS: Channel chat history persistence)
 - app.core.agent.run_activity::track_background_agent_run (POS: marks the timeout auto-resume run in flight)
@@ -22,6 +23,7 @@ from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.utils.coercion import parse_float
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
+from app.channels.i18n import channel_t
 from app.channels.types import OutboundMessage
 from app.core.agent.run_activity import track_background_agent_run
 
@@ -47,8 +49,12 @@ def schedule_channel_approval_timeout(
     params: object,
     *,
     user_id: str,
+    locale: str,
 ) -> None:
-    """Register a backend timeout guard for a channel approval request."""
+    """Register a backend timeout guard for a channel approval request.
+
+    ``locale`` is the language the approval was asked in; the timer reports its outcome in it.
+    """
     timeout_seconds = parse_float(timeout_info.get("seconds", 300), 300.0)
     behavior = str(timeout_info.get("behavior", "deny"))
     scheduler_key = f"{channel}:{peer}"
@@ -121,6 +127,7 @@ def schedule_channel_approval_timeout(
                 _timeout_decision(resume_value),
                 content.strip() or None,
                 user_id=user_id,
+                locale=locale,
             )
 
             if next_timeout:
@@ -131,6 +138,7 @@ def schedule_channel_approval_timeout(
                     timeout_info=next_timeout,
                     params=resume_params,
                     user_id=user_id,
+                    locale=locale,
                 )
             else:
                 logger.info(
@@ -163,12 +171,13 @@ async def notify_channel_timeout_result(
     agent_response: str | None,
     *,
     user_id: str,
+    locale: str,
 ) -> None:
     """Send a notification to the channel after an approval timeout auto-resume."""
     from app.core.channel_bridge import channel_gateway
 
-    action = "approved" if decision == "approve" else "denied"
-    parts = [f"⏱ Approval timed out — auto-{action}."]
+    outcome_key = "approval_timeout_approved" if decision == "approve" else "approval_timeout_denied"
+    parts = [str(channel_t(locale, outcome_key))]
     if agent_response:
         parts.append(agent_response)
     content = "\n\n".join(parts)
