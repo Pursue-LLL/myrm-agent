@@ -5,6 +5,7 @@
 - app.services.webui.session (POS: signed session cookies)
 - app.remote_access.pairing (POS: mobile pair token HMAC signing)
 - app.config.deploy_mode (POS: local vs remote WebUI flags)
+- app.core.security.auth.failed_attempt_guard (POS: login brute-force lockout)
 
 [OUTPUT]
 - WebuiAuthService: resolve_status, setup_admin, login, exchange_temp_token
@@ -16,13 +17,12 @@ WebUI 浏览器会话认证编排（本地/远程单机，非控制平面 Sandbo
 
 from __future__ import annotations
 
-import time
-from collections import defaultdict
 from dataclasses import dataclass
 
 from fastapi import Request, Response
 
 from app.config.deploy_mode import DeployMode, get_deploy_mode, is_webui_remote_mode
+from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
 from app.core.security.auth.identity import is_loopback_ip
 from app.remote_access.pairing import rotate_pairing_key
 from app.services.webui.access_policy import local_api_requires_session
@@ -41,8 +41,6 @@ from app.services.webui.session import (
 from app.services.webui.temp_token import temp_token_service
 
 _LOCAL_USER_ID = "local-user"
-_MAX_FAILED_ATTEMPTS = 5
-_LOCKOUT_SECONDS = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,28 +54,11 @@ class WebuiAuthStatus:
 
 class WebuiAuthService:
     def __init__(self) -> None:
-        self._failed_attempts: dict[str, list[float]] = defaultdict(list)
+        self._login_guard = FailedAttemptGuard()
 
-    def _client_key(self, request: Request) -> str:
-        client_ip = request.client.host if request.client else "unknown"
-        return client_ip
-
-    def _is_rate_limited(self, request: Request) -> int | None:
-        key = self._client_key(request)
-        now = time.time()
-        attempts = [ts for ts in self._failed_attempts[key] if now - ts < _LOCKOUT_SECONDS]
-        self._failed_attempts[key] = attempts
-        if len(attempts) >= _MAX_FAILED_ATTEMPTS:
-            oldest = min(attempts)
-            retry_after = max(1, int(_LOCKOUT_SECONDS - (now - oldest)))
-            return retry_after
-        return None
-
-    def _record_failed_attempt(self, request: Request) -> None:
-        self._failed_attempts[self._client_key(request)].append(time.time())
-
-    def _clear_failed_attempts(self, request: Request) -> None:
-        self._failed_attempts.pop(self._client_key(request), None)
+    @staticmethod
+    def _client_key(request: Request) -> str:
+        return request.client.host if request.client else "unknown"
 
     def _session_username(self, request: Request) -> str | None:
         cookie = request.cookies.get(SESSION_COOKIE_NAME)
@@ -198,12 +179,13 @@ class WebuiAuthService:
         username: str,
         password: str,
     ) -> str:
-        retry_after = self._is_rate_limited(request)
+        client = self._client_key(request)
+        retry_after = self._login_guard.retry_after(client)
         if retry_after is not None:
             raise PermissionError(f"Too many failed attempts. Retry after {retry_after} seconds.")
 
         if not self._password_required() and not admin_is_configured():
-            self._clear_failed_attempts(request)
+            self._login_guard.clear(client)
             return "Local User"
 
         admin = load_admin()
@@ -211,10 +193,10 @@ class WebuiAuthService:
             raise ValueError("Admin account is not configured")
 
         if username.strip() != admin.username or not verify_password(password, admin.password_hash):
-            self._record_failed_attempt(request)
+            self._login_guard.record_failure(client)
             raise ValueError("Invalid username or password")
 
-        self._clear_failed_attempts(request)
+        self._login_guard.clear(client)
         return admin.username
 
     def exchange_temp_token(self, request: Request, *, temp_token: str) -> str:
@@ -225,7 +207,7 @@ class WebuiAuthService:
         admin = load_admin()
         if admin is None:
             raise ValueError("Admin account is not configured")
-        self._clear_failed_attempts(request)
+        self._login_guard.clear(self._client_key(request))
         return admin.username
 
     def change_password(
