@@ -1,4 +1,4 @@
-"""The answer for a response body too long to read inline: its start, with the whole body kept in the vault.
+"""The answer for a response body too long to read inline: its start, and a masked copy kept in the vault.
 
 [INPUT]
 - core.security.redact::redact_sensitive_text (POS: credential masking, applied before a body is cut or stored)
@@ -14,9 +14,10 @@
 Keeps response-body shaping out of `intelligence.py`. A body that does not fit inline is masked as a whole first and cut
 afterwards (the preview) or wrapped into short lines (the vault copy), so a credential the cut would split leaves no
 fragment, and a minified body that is a single line can still be read by line range through `file_read`.
-The copy is bounded because masking costs about a microsecond per character (4 s per million characters in the slowest
-shape measured) and runs in a worker thread, so the page's own work and the CDP events are not held up. Without a vault,
-or when the vault refuses the write, the answer is the preview and the body's length.
+The copy is bounded because masking costs up to a few microseconds per character (4.6 s per million characters in the
+slowest of 20 adversarial shapes measured). It runs in a worker thread, which keeps the event loop's longest stall near
+0.2 s where an inline run would hold it for the whole masking time. Without a vault, or when the vault refuses the
+write, the answer is the preview and the body's length.
 """
 
 from __future__ import annotations

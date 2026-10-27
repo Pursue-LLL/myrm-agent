@@ -291,16 +291,17 @@ class NetworkIntelligence:
     async def get_response_body(self, index: int) -> str:
         """Get response body for a tracked request by its network_log number.
 
-        Uses CDP Network.getResponseBody for lazy retrieval from Chrome's cache.
-        Returns truncated body if it exceeds max chars to prevent token explosion.
+        Uses CDP Network.getResponseBody for lazy retrieval from Chrome's cache. A body longer than the inline
+        preview is answered by `long_body_answer`: its start here and a masked copy in the vault.
 
         Args:
             index: the number network_log showed for the request
 
         Returns:
-            Response body text, or what to read instead when the request has none: the request a redirect hop
-            continued as, the browser's error for a request that failed, or the reason there is no body (empty,
-            a status without one, not kept by Chrome); otherwise an error message
+            Response body text (a long one as its start and the vault pointer to the copy), or what to read instead
+            when the request has none: the request a redirect hop continued as, the browser's error for a request
+            that failed, or the reason there is no body (empty, a status without one, not kept by Chrome);
+            otherwise an error message
         """
         if self._cdp_session is None:
             return _NO_CDP_ERROR

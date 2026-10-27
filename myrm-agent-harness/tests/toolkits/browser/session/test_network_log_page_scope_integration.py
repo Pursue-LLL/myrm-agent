@@ -28,6 +28,9 @@ pytestmark = [
 
 _JSON = "application/json"
 _SETTLE_TIMEOUT_S = 10.0
+_SETTLE_TIMEOUT_MS = 10_000
+# The page reads the response and says so: the browser keeps a body for network_detail once the page has read it.
+_FETCH_API_TWO_AND_SIGNAL = "fetch('/api/two').then(r => r.text()).then(() => { window.bodyRead = true })"
 _EARLIER_PAGES = "(not listed: requests of earlier pages)"
 
 
@@ -56,7 +59,7 @@ async def _until_answered(session: BrowserSession, count: int) -> None:
 def _routes() -> dict[str, Reply]:
     return {
         "/one": _page("fetch('/api/one')"),
-        "/two": _page("fetch('/api/two')"),
+        "/two": _page(_FETCH_API_TWO_AND_SIGNAL),
         "/api/one": Reply(body=b'{"page":1}', content_type=_JSON),
         "/api/two": Reply(body=b'{"page":2}', content_type=_JSON),
         "/api/again": Reply(body=b'{"again":true}', content_type=_JSON),
@@ -71,6 +74,7 @@ async def test_a_new_page_lists_its_own_requests_and_refuses_the_number_of_the_p
             assert session.get_network_log().splitlines()[1] == f"  1. GET {site.url('/api/one')} [200]"
 
             await session.navigate(site.url("/two"))
+            await session.get_active_page().wait_for_function("window.bodyRead === true", timeout=_SETTLE_TIMEOUT_MS)
             await _until_answered(session, 1)
 
             assert session.get_network_log().splitlines() == [
