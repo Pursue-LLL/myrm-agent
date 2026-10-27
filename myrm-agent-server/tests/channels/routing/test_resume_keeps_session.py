@@ -129,3 +129,21 @@ def test_a_request_that_named_no_session_resumes_without_one() -> None:
     resume = answer_resume_message(inbound_message("/approve"), {"decisions": []}, _asked(""))
 
     assert METADATA_RESUME_SESSION_KEY not in resume.metadata
+
+
+@pytest.mark.parametrize("asked", [None, _asked("")], ids=["no-request-held", "request-named-no-session"])
+def test_a_session_key_the_answer_carries_is_never_honoured(asked: PendingApproval | None) -> None:
+    answer = dataclasses.replace(inbound_message("/approve"), metadata={METADATA_RESUME_SESSION_KEY: "telegram:dm:u2"})
+
+    resume = answer_resume_message(answer, {"decisions": []}, asked)
+
+    assert METADATA_RESUME_SESSION_KEY not in resume.metadata
+
+
+def test_a_session_key_the_asking_message_carries_is_not_copied_into_the_timeout_resume() -> None:
+    asking = dataclasses.replace(inbound_message("mail the report"), metadata={METADATA_RESUME_SESSION_KEY: "telegram:dm:u2"})
+    asked = PendingApproval(card_message_id="card-1", message=asking, user_id="u1", session_key="")
+
+    resume = asked.resume_message({"decisions": []})
+
+    assert METADATA_RESUME_SESSION_KEY not in resume.metadata

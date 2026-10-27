@@ -23,7 +23,8 @@ same way it resumes one a person answered, so the resumed run is visible to ``/s
 A resumed run goes back to the session of the turn that asked, and the agent is a dimension of that session's key: the
 message that resumes it, whoever answered, names the asking turn's agent route and agent session, and the router hands
 the run its topic context only when that context's agent is the asking turn's. It names the asking turn's channel
-session key as well, because a key worked out when the answer arrives can sit in another reset epoch.
+session key as well, because a key worked out when the answer arrives can sit in another reset epoch; only the open
+request can name it, so a key a message carries itself never reaches the resume.
 The timer's claim key is chat-wide (``channel:peer``), the key the manual resume claims under: one chat holds one
 timer at a time, so when two forum topics wait the later request's timer replaces the earlier one's, which then waits
 for an answer without a time limit.
@@ -46,6 +47,10 @@ METADATA_RESUME_AGENT_KEY = "resume_agent_id"
 
 # Set per message from the chat's session state when a turn starts; a copy from an earlier turn must not outlive it.
 _SESSION_SCOPED_METADATA = ("yolo_state", "personality_style", "force_new_epoch")
+
+# Only the open request names the session a resume continues; a copy on a message that is being turned into a resume
+# is dropped, so a message cannot point the run at another chat.
+_RESUME_TARGET_METADATA = (METADATA_RESUME_SESSION_KEY,)
 
 
 def session_agent_id(topic_context: TopicContext | None) -> str | None:
@@ -77,9 +82,11 @@ def answer_resume_message(
     """The message that resumes a run with a person's answer.
 
     ``asked`` is the request the answer ends, when the router held one. The answer names neither the agent route, the
-    agent session nor the channel session of the run it resumes, so they come from it.
+    agent session nor the channel session of the run it resumes, so they come from it; a session key the answer itself
+    carries is dropped whether or not the request names one.
     """
-    metadata = {**answer.metadata, "is_resume": True}
+    metadata = {k: v for k, v in answer.metadata.items() if k not in _RESUME_TARGET_METADATA}
+    metadata["is_resume"] = True
     if asked is not None:
         metadata.update(asked.run_context())
     return dataclasses.replace(answer, resume_value=resume_value, metadata=metadata)
@@ -118,7 +125,9 @@ class PendingApproval:
 
     def resume_message(self, resume_value: dict[str, object]) -> InboundMessage:
         """The message that resumes the asking turn's run with ``resume_value``, as the timeout's answer."""
-        metadata = {k: v for k, v in self.message.metadata.items() if k not in _SESSION_SCOPED_METADATA}
+        metadata = {
+            k: v for k, v in self.message.metadata.items() if k not in (*_SESSION_SCOPED_METADATA, *_RESUME_TARGET_METADATA)
+        }
         metadata["is_resume"] = True
         metadata[METADATA_APPROVAL_TIMED_OUT_KEY] = True
         metadata.update(self.run_context())
