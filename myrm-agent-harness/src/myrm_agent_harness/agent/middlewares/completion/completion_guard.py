@@ -445,8 +445,8 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
 
         A message the runtime stamped no id on cannot be addressed, so that answer is let through.
         """
-        leaves = bool(draft.tool_calls) and not draft.text.strip()
-        anchor = _message_before(messages, draft) if leaves else draft
+        removes_draft = bool(draft.tool_calls) and not draft.text.strip()
+        anchor = _message_before(messages, draft) if removes_draft else draft
         if draft.id is None or anchor is None or anchor.id is None:
             logger.warning(
                 "[CompletionGuard] Held-back answer cannot be addressed (message without id); letting it through."
@@ -459,7 +459,7 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
             text=render_completion_directive(reasons, records=records, workspace_root=workspace_root),
         )
         update: dict[str, Any] = {"jump_to": "model"}
-        if leaves:
+        if removes_draft:
             update["messages"] = [RemoveMessage(id=draft.id)]
         elif draft.tool_calls:
             kept = deepcopy(draft)
