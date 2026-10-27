@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - delegation_prompt: 用户回合 → 外部 CLI 只收文本的那一条提示词
+- image_url, is_video: 图片内容块指向的 URL，以及该块装的是不是视频（暂存模块与提示词共用的唯一判法）
 
 [POS]
 直连委托把用户回合交给只收文本的外部 CLI。多模态内容块拼成文本：文本块按原样连接；图片在 CLI 能读到的
@@ -22,15 +23,26 @@ _INLINE_IMAGE_NOTE = "[Image attached inline: its data was not forwarded to this
 _PART_SEPARATOR = "\n\n"
 
 
-def _image_reference(part: dict[str, object]) -> str | None:
-    """One line pointing the CLI at an attached image (or video), or None when the part names nothing."""
+def image_url(part: dict[str, object]) -> str | None:
+    """The URL an ``image_url`` content block points at, or None when it names nothing."""
     image = part.get("image_url")
     url = image.get("url") if isinstance(image, dict) else image
-    if not isinstance(url, str) or not url:
+    return url if isinstance(url, str) and url else None
+
+
+def is_video(part: dict[str, object]) -> bool:
+    """Whether an ``image_url`` content block carries a video (the frontend sends both through that block type)."""
+    return str(part.get("_mime_type", "")).startswith("video/")
+
+
+def _image_reference(part: dict[str, object]) -> str | None:
+    """One line pointing the CLI at an attached image (or video), or None when the part names nothing."""
+    url = image_url(part)
+    if url is None:
         return None
     if url.startswith("data:"):
         return _INLINE_IMAGE_NOTE
-    kind = "Video" if str(part.get("_mime_type", "")).startswith("video/") else "Image"
+    kind = "Video" if is_video(part) else "Image"
     location = url2pathname(urlparse(url).path) if url.startswith("file:") else url
     return f"[{kind}: {location}]"
 

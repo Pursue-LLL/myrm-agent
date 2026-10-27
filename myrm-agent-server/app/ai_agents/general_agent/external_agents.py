@@ -5,8 +5,7 @@
 - app.config.deploy_mode (POS: 部署模式检测)
 - .external_agents_runtime_config (POS: 外部 Agent 配置归一化层)
 - app.services.external_agents.cli_session_store::ChatCliSessionStore (POS: chat 行持久化的外部 CLI 会话 id，服务重启后续接同一外部对话) [lazy]
-- app.services.external_agents.direct_delegate_stream::stream_direct_delegate (POS: 外部 Agent 回合 → 前端 SSE 事件流) [lazy]
-- app.services.external_agents.delegation_prompt::delegation_prompt (POS: 用户回合（含多模态块与引用片段）→ 外部 CLI 只收文本的提示词) [lazy]
+- app.services.external_agents.delegation::delegation_prompt, stage_images, stream_direct_delegate (POS: 外部 Agent 直连委托：用户回合 → CLI 提示词与图片文件、CLI 回合 → 前端 SSE 事件流) [lazy]
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
@@ -27,6 +26,7 @@ ChatScopedRuntimePoolFacade 对 run_turn 做 per-chat single-flight 串行化。
 from __future__ import annotations
 
 import logging
+from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from . import external_agents_runtime_config as _runtime_cfg_helpers
@@ -217,7 +217,7 @@ class ExternalAgentsMixin:
         except Exception as e:
             logger.warning("RuntimePool init for direct delegate failed: %s", e)
 
-    def _direct_delegate_stream(
+    async def _direct_delegate_stream(
         self,
         agent_name: str,
         query: object,
@@ -225,16 +225,24 @@ class ExternalAgentsMixin:
         cancel_token: CancellationToken | None = None,
         chat_id: str | None = None,
     ) -> AsyncGenerator[dict[str, object]]:
-        """Stream one turn of an external agent straight to the frontend, bypassing the LangChain Agent."""
-        from app.services.external_agents.delegation_prompt import delegation_prompt
-        from app.services.external_agents.direct_delegate_stream import stream_direct_delegate
+        """Stream one turn of an external agent straight to the frontend, bypassing the LangChain Agent.
+
+        The turn's images are staged as files the CLI can read for the length of the turn; they are removed once
+        the turn stream is closed, which has stopped the external process by then.
+        """
+        from app.services.external_agents.delegation import delegation_prompt, stage_images, stream_direct_delegate
 
         assert self._runtime_pool is not None
-        return stream_direct_delegate(
-            self._runtime_pool,
-            agent_name,
-            delegation_prompt(query, self.quote),
-            session_id=f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default",
-            cancel_token=cancel_token,
-            locale=self.locale or "en",
-        )
+        async with stage_images(query) as staged:
+            turn = stream_direct_delegate(
+                self._runtime_pool,
+                agent_name,
+                delegation_prompt(staged.query, self.quote),
+                session_id=f"{agent_name}-{chat_id}" if chat_id else f"{agent_name}-default",
+                images=staged.paths,
+                cancel_token=cancel_token,
+                locale=self.locale or "en",
+            )
+            async with aclosing(turn) as events:
+                async for event in events:
+                    yield event

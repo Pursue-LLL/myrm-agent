@@ -13,7 +13,7 @@ from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.toolkits.acp.types import AcpErrorCode, ContinuityStatus, RuntimeEvent, RuntimeEventType
 from myrm_agent_harness.utils import CancellationToken
 
-from app.services.external_agents.direct_delegate_stream import stream_direct_delegate
+from app.services.external_agents.delegation.stream import stream_direct_delegate
 from tests.support.scripted_delegation import (
     CANCELLED,
     MESSAGE_END,

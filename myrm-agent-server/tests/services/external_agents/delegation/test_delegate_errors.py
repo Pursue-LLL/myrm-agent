@@ -18,13 +18,13 @@ from myrm_agent_harness.toolkits.acp.types import (
 )
 
 from app.schemas.streaming import SSEEnvelope
-from app.services.external_agents.delegate_errors import (
+from app.services.external_agents.delegation.errors import (
     agent_unavailable_event,
     delegate_denied_event,
     delegate_error_event,
     delegate_failed_event,
 )
-from app.services.external_agents.direct_delegate_stream import SseEvent, stream_direct_delegate
+from app.services.external_agents.delegation.stream import SseEvent, stream_direct_delegate
 
 _SETTINGS_URL = "/settings/developer"
 _SECURITY_URL = "/settings/security"
@@ -113,6 +113,38 @@ def test_a_fix_in_the_settings_comes_with_a_button_to_the_settings_page(
     assert ("install" in actions[0]["id"]) == (code is AcpErrorCode.BACKEND_NOT_FOUND)
 
 
+def _api_key_steps(locale: str, api_key_env: tuple[str, ...]) -> list[str]:
+    error = AcpError(code=AcpErrorCode.AUTH_FAILED, message="raw cli text")
+    event = delegate_error_event("claude", error, auth_mode="api_key", locale=locale, api_key_env=api_key_env)
+    assert event is not None
+    steps = _diagnostic(event)["resolution_steps"]
+    assert isinstance(steps, list)
+    return steps
+
+
+@pytest.mark.parametrize(("locale", "where"), [("en", "Environment variables"), ("zh", "环境变量")])
+def test_a_rejected_api_key_names_the_variables_the_agent_reads_it_from(locale: str, where: str) -> None:
+    steps = _api_key_steps(locale, ("GEMINI_API_KEY", "GOOGLE_API_KEY"))
+
+    assert "GEMINI_API_KEY / GOOGLE_API_KEY" in steps[0]
+    assert where in steps[0]
+    assert all("{" not in step and "}" not in step for step in steps)
+
+
+def test_a_rejected_api_key_without_known_variables_keeps_the_general_steps() -> None:
+    assert _api_key_steps("en", ()) == _diagnostic(_failure(AcpErrorCode.AUTH_FAILED, "api_key"))["resolution_steps"]
+    assert _api_key_steps("en", ())[0] == "Check the API key under Settings → Developer → External Agents."
+
+
+@pytest.mark.parametrize("code", [AcpErrorCode.AUTH_FAILED, AcpErrorCode.BACKEND_NOT_FOUND, AcpErrorCode.TIMEOUT])
+def test_variable_names_belong_only_to_the_api_key_guidance(code: AcpErrorCode) -> None:
+    error = AcpError(code=code, message="raw cli text")
+
+    named = delegate_error_event("claude", error, auth_mode="subscription", locale="en", api_key_env=("ANTHROPIC_API_KEY",))
+
+    assert named == _failure(code, "subscription")
+
+
 @pytest.mark.parametrize("code", _UNGUIDED, ids=lambda code: code.value)
 def test_other_failures_keep_the_words_of_the_cli(code: AcpErrorCode) -> None:
     error = AcpError(code=code, message="raw cli text")
@@ -190,15 +222,24 @@ class _FailingPool:
 
     available_backends = ["claude"]
 
-    def __init__(self, error: AcpError, auth_mode: str = "subscription") -> None:
+    def __init__(self, error: AcpError, auth_mode: str = "subscription", command: str | None = None) -> None:
         self._error = error
-        self._config = RuntimeConfig(backend_type="cli", auth_mode="api_key" if auth_mode == "api_key" else "subscription")
+        self._config = RuntimeConfig(
+            backend_type="cli", command=command, auth_mode="api_key" if auth_mode == "api_key" else "subscription"
+        )
 
     def get_config(self, name: str) -> RuntimeConfig:
         return self._config
 
     async def run_turn(
-        self, name: str, prompt: str, session_id: str, *, mode: str = "persistent", mcp_servers: object = None
+        self,
+        name: str,
+        prompt: str,
+        session_id: str,
+        *,
+        mode: str = "persistent",
+        mcp_servers: object = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         yield create_event(RuntimeEventType.ERROR, session_id, error=self._error)
 
@@ -206,8 +247,8 @@ class _FailingPool:
         return None
 
 
-async def _errors(pool: _FailingPool, locale: str = "en") -> tuple[list[SseEvent], list[SseEvent]]:
-    events = [event async for event in stream_direct_delegate(pool, "claude", "do it", session_id="claude-chat-1", locale=locale)]
+async def _errors(pool: _FailingPool, locale: str = "en", agent: str = "claude") -> tuple[list[SseEvent], list[SseEvent]]:
+    events = [event async for event in stream_direct_delegate(pool, agent, "do it", session_id=f"{agent}-chat-1", locale=locale)]
     return events, [event for event in events if event["type"] == AgentEventType.ERROR.value]
 
 
@@ -229,6 +270,33 @@ async def test_a_rejected_api_key_is_told_apart_from_a_signed_out_login() -> Non
     assert [_diagnostic(error)["error_type"] for error in errors] == ["external_agent_auth_api_key"]
 
 
+@pytest.mark.parametrize(
+    ("agent", "command", "variable"),
+    [
+        ("claude", None, "ANTHROPIC_API_KEY"),
+        ("reviewer", "/usr/local/bin/codex", "OPENAI_API_KEY"),
+    ],
+    ids=["by-agent-name", "by-command"],
+)
+async def test_a_rejected_api_key_names_the_variable_of_the_agent_that_ran(
+    agent: str, command: str | None, variable: str
+) -> None:
+    pool = _FailingPool(AcpError(code=AcpErrorCode.AUTH_FAILED, message="401"), auth_mode="api_key", command=command)
+
+    _, errors = await _errors(pool, agent=agent)
+
+    (steps,) = [_diagnostic(error)["resolution_steps"] for error in errors]
+    assert variable in steps[0]
+
+
+async def test_a_rejected_api_key_of_an_unknown_agent_gets_the_general_steps() -> None:
+    pool = _FailingPool(AcpError(code=AcpErrorCode.AUTH_FAILED, message="401"), auth_mode="api_key", command="/opt/my-agent")
+
+    _, errors = await _errors(pool, agent="my-agent")
+
+    assert [_diagnostic(error)["resolution_steps"] for error in errors] == [_api_key_steps("en", ())]
+
+
 async def test_a_failure_the_user_cannot_fix_still_shows_the_cli_text() -> None:
     pool = _FailingPool(AcpError(code=AcpErrorCode.PROCESS_CRASHED, message="claude exited with code 1"))
 
@@ -237,7 +305,7 @@ async def test_a_failure_the_user_cannot_fix_still_shows_the_cli_text() -> None:
     assert errors == [{"type": AgentEventType.ERROR.value, "data": "claude exited with code 1"}]
 
 
-_STREAM_LOGGER = "app.services.external_agents.direct_delegate_stream"
+_STREAM_LOGGER = "app.services.external_agents.delegation.stream"
 
 
 def _failure_logs(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:

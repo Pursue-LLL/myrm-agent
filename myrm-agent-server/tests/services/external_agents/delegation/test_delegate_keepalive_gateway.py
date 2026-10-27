@@ -18,7 +18,7 @@ from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
 from app.services.agent.gateway import AgentExecutionTimeout, AgentGateway, GatewayConfig
-from app.services.external_agents.direct_delegate_stream import stream_direct_delegate
+from app.services.external_agents.delegation.stream import stream_direct_delegate
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="requires bash")
 

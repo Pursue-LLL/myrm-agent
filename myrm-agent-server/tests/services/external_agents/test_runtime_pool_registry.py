@@ -193,6 +193,7 @@ async def test_facade_cancel_does_not_deadlock_during_run_turn() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: list | None = None,
+        images: list[str] | None = None,
     ):
         entered.set()
         await unblock.wait()
@@ -233,6 +234,7 @@ async def test_closing_a_facade_turn_closes_the_pool_turn_before_the_next_turn_s
         *,
         mode: str = "persistent",
         mcp_servers: list | None = None,
+        images: list[str] | None = None,
     ):
         try:
             while True:
@@ -363,7 +365,7 @@ async def test_close_external_agent_pool_for_chat_swallows_registry_errors() -> 
 def _build_turn_pool(label: str, ran_on: list[str]) -> MagicMock:
     """A pool whose run_turn records which pool served the turn."""
 
-    async def run_turn(name: str, prompt: str, session_id: str, *, mode: str = "persistent", mcp_servers=None):
+    async def run_turn(name: str, prompt: str, session_id: str, *, mode: str = "persistent", mcp_servers=None, images=None):
         ran_on.append(label)
         yield MagicMock()
 
@@ -470,6 +472,27 @@ async def test_facade_follows_the_registered_pool_for_turns_and_cancel() -> None
     assert ran_on == ["current"]
     current.cancel.assert_awaited_once_with("claude", "s1")
     stale.cancel.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_facade_hands_the_turn_images_to_the_pool() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+    seen: list[list[str] | None] = []
+    pool = _build_turn_pool("p", [])
+
+    async def run_turn(name: str, prompt: str, session_id: str, *, images: list[str] | None = None, **_: object):
+        seen.append(images)
+        yield MagicMock()
+
+    pool.run_turn = run_turn
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry, "fp-a")
+
+    async for _ in facade.run_turn("claude", "hi", "s1", images=["/state/a.png"]):
+        pass
+    async for _ in facade.run_turn("claude", "hi", "s1"):
+        pass
+
+    assert seen == [["/state/a.png"], None]
 
 
 @pytest.mark.asyncio

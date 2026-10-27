@@ -277,12 +277,15 @@ class ChatScopedRuntimePoolFacade:
         *,
         mode: str = "persistent",
         mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         async with self._registry.guard_turn(self._chat_scope_id):
             self._pool = await self._registry.ensure_tracked(self._chat_scope_id, self._config_fingerprint, self._pool)
             # Closing this generator closes the pool's turn before the lock is released, so the next turn of the
             # chat never starts while the previous external process is still being stopped.
-            async with aclosing(self._pool.run_turn(name, prompt, session_id, mode=mode, mcp_servers=mcp_servers)) as events:
+            async with aclosing(
+                self._pool.run_turn(name, prompt, session_id, mode=mode, mcp_servers=mcp_servers, images=images)
+            ) as events:
                 async for event in events:
                     yield event
 

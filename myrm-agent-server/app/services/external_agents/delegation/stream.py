@@ -3,7 +3,8 @@
 [INPUT]
 - myrm_agent_harness.api::AgentEventType (POS: 前端 SSE 事件类型), on_token_cancelled (POS: 令牌取消时从外部终止阻塞的流), redact_sensitive_text (POS: 写日志前的凭证脱敏)
 - myrm_agent_harness.toolkits.acp.types (POS: 外部 Agent 委托协议：运行时事件、错误码、委托池)
-- app.services.external_agents.delegate_errors::delegate_error_event (POS: 直连委托失败的用户指引)
+- myrm_agent_harness.toolkits.acp.auth::profile_for (POS: 外部 Agent 的认证档案；API Key 模式读取的环境变量名)
+- app.services.external_agents.delegation.errors::delegate_error_event (POS: 直连委托失败的用户指引)
 
 [OUTPUT]
 - stream_direct_delegate: harness RuntimeEvent 流 → 前端 SSE 事件流
@@ -13,7 +14,7 @@
 （开始与结果落在同一步）。状态步骤的措辞由前端按当前语言给出，这里只带 CLI 自己给的内容（已运行时长、CLI 的
 警告原文）；会话没有被续接、回合停在轮数上限，都是只有标题的已完成步骤。停止（令牌取消）经 pool.cancel
 终止外部进程，外部 Agent 静默时同样即时生效。失败时：用户能自己处置的（未登录、未安装、超时）给带处置步骤的
-错误事件，CLI 的原话改记 WARNING 日志（脱敏并截断）；其余保持 CLI 的原话。
+错误事件（API Key 被拒时点名该 Agent 读取的环境变量），CLI 的原话改记 WARNING 日志（脱敏并截断）；其余保持 CLI 的原话。
 """
 
 from __future__ import annotations
@@ -24,9 +25,10 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, TypeAlias
 
 from myrm_agent_harness.api import AgentEventType, on_token_cancelled, redact_sensitive_text
+from myrm_agent_harness.toolkits.acp.auth import profile_for
 from myrm_agent_harness.toolkits.acp.types import AcpError, AcpErrorCode, ContinuityStatus, RuntimeEventType
 
-from app.services.external_agents.delegate_errors import delegate_error_event
+from app.services.external_agents.delegation.errors import delegate_error_event
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping
@@ -71,8 +73,9 @@ class _TurnTranslator:
     step) and how the turn ended.
     """
 
-    def __init__(self, agent_name: str, auth_mode: str, locale: str) -> None:
+    def __init__(self, agent_name: str, auth_mode: str, locale: str, api_key_env: tuple[str, ...] = ()) -> None:
         self._agent = agent_name
+        self._api_key_env = api_key_env
         self._auth_mode = auth_mode
         self._locale = locale
         self._source = f"delegate:{agent_name}"
@@ -222,7 +225,9 @@ class _TurnTranslator:
             return []
         self.outcome = _Outcome.FAILED
         if isinstance(error, AcpError):
-            guidance = delegate_error_event(self._agent, error, auth_mode=self._auth_mode, locale=self._locale)
+            guidance = delegate_error_event(
+                self._agent, error, auth_mode=self._auth_mode, locale=self._locale, api_key_env=self._api_key_env
+            )
             if guidance is not None:
                 # The user is given steps instead of the CLI's words; keep the words for whoever debugs it.
                 logger.warning(
@@ -242,21 +247,30 @@ async def stream_direct_delegate(
     prompt: str,
     *,
     session_id: str,
+    images: list[str] | None = None,
     cancel_token: CancellationToken | None = None,
     locale: str = "en",
 ) -> AsyncGenerator[SseEvent]:
     """Run one turn of ``agent_name`` on ``pool`` and stream it as frontend events.
+
+    ``images`` are the local files of the images attached to ``prompt``, for a CLI that takes them natively.
 
     Closing the stream (a client that went away) closes the turn, which stops the external process. A tripped
     ``cancel_token`` does the same even while the external agent is silent, and ends the stream with a
     ``CANCELLED`` event.
     """
     config = pool.get_config(agent_name)
-    turn = _TurnTranslator(agent_name, config.auth_mode if config else "subscription", locale)
+    profile = profile_for(config.command or agent_name) if config else None
+    turn = _TurnTranslator(
+        agent_name,
+        config.auth_mode if config else "subscription",
+        locale,
+        api_key_env=profile.api_key_env if profile else (),
+    )
     yield turn.connecting()
 
     async with (
-        aclosing(pool.run_turn(agent_name, prompt, session_id=session_id)) as events,
+        aclosing(pool.run_turn(agent_name, prompt, session_id=session_id, images=images or None)) as events,
         on_token_cancelled(cancel_token, lambda: pool.cancel(agent_name, session_id)),
     ):
         async for event in events:

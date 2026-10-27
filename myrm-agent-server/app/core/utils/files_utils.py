@@ -11,16 +11,16 @@ import mimetypes
 logger = logging.getLogger(__name__)
 
 
-async def read_image_as_base64(url: str) -> tuple[str, str]:
-    """读取图片文件并转换为 base64 编码
+async def read_image_bytes(url: str) -> tuple[bytes, str]:
+    """读取图片文件的原始字节
 
-    从 URL 中提取 file_id，通过 FilesService 读取内容。
+    从 URL 中提取 file_id，通过 FilesService 读取内容；只读本地存储，不会按 URL 发起网络请求。
 
     Args:
         url: 文件内容 URL（包含 file_id）
 
     Returns:
-        (base64 编码的图片数据, MIME 类型)
+        (图片字节, MIME 类型)
 
     Raises:
         FileNotFoundError: 文件不存在
@@ -42,6 +42,20 @@ async def read_image_as_base64(url: str) -> tuple[str, str]:
         raise FileNotFoundError(f"File content not found: {file_id}")
 
     mime_type = file.content_type or mimetypes.guess_type(file.filename)[0] or "image/jpeg"
-    base64_data = base64.b64encode(content).decode("utf-8")
+    return content, mime_type
 
-    return base64_data, mime_type
+
+async def read_image_as_base64(url: str) -> tuple[str, str]:
+    """读取图片文件并转换为 base64 编码
+
+    Args:
+        url: 文件内容 URL（包含 file_id）
+
+    Returns:
+        (base64 编码的图片数据, MIME 类型)
+
+    Raises:
+        FileNotFoundError: 文件不存在
+    """
+    content, mime_type = await read_image_bytes(url)
+    return base64.b64encode(content).decode("utf-8"), mime_type

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.security.{config,engine,types} (POS: 权限策略评估) [lazy]
-- app.services.external_agents.delegate_errors::agent_unavailable_event, delegate_denied_event, delegate_failed_event (POS: 直连委托失败的用户指引)
+- app.services.external_agents.delegation::agent_unavailable_event, delegate_denied_event, delegate_failed_event (POS: 直连委托失败的用户指引)
 
 [OUTPUT]
 - stream_forced_delegate: 安全闸门 → 可用性检查 → 直连流式转发；每条失败路径都以带处置指引的错误事件结束
@@ -20,7 +20,7 @@ import logging
 from contextlib import aclosing
 from typing import TYPE_CHECKING
 
-from app.services.external_agents.delegate_errors import (
+from app.services.external_agents.delegation import (
     agent_unavailable_event,
     delegate_denied_event,
     delegate_failed_event,

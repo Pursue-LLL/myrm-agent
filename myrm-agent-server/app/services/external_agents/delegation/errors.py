@@ -5,7 +5,7 @@
 - myrm_agent_harness.toolkits.acp.types::AcpError, AcpErrorCode (POS: 外部 Agent 委托协议：运行时事件、错误码、委托池)
 
 [OUTPUT]
-- delegate_error_event: 未登录 / API Key 被拒 / 未安装 / 超时 → 带 diagnostic_result 与 recovery_actions 的错误事件；其余失败返回 None
+- delegate_error_event: 未登录 / API Key 被拒 / 未安装 / 超时 → 带 diagnostic_result 与 recovery_actions 的错误事件（API Key 被拒时点名该 Agent 读取的环境变量）；其余失败返回 None
 - agent_unavailable_event: 用户指定的外部 Agent 不在可用后端中 → 同形状的错误事件
 - delegate_denied_event: 安全策略不允许委托给外部 Agent → 指向「设置 → 安全策略」的错误事件
 - delegate_failed_event: 直连委托在到达 CLI 的结果之前就出了意外 → 同形状的错误事件
@@ -13,7 +13,7 @@
 [POS]
 外部 Agent 直连路径的失败文案层（Server 业务层，中英两套；ja/ko/de 回退英文，与 llm_errors 一致）。事件形状沿用
 前端 ErrorStreamEvent 契约（`diagnostic_result.resolution_steps` 必须是数组），步骤文案只说用户要做什么，
-不带异常名、路径或命令行。其余失败（限流、进程崩溃、CLI 自己报告的错误）保持 CLI 的原话，不在这里改写。
+不带异常名、路径或命令行；唯一点名的是 API Key 模式下该 Agent 读取的环境变量名（设置页「环境变量」里用户自己填的就是它）。其余失败（限流、进程崩溃、CLI 自己报告的错误）保持 CLI 的原话，不在这里改写。
 """
 
 from __future__ import annotations
@@ -45,6 +45,8 @@ class _Guidance:
     message: str
     steps: tuple[str, ...]
     action: _Action | None
+    # Used instead of ``steps`` when the environment variables the agent reads its key from are known (``{names}``).
+    steps_naming_env: tuple[str, ...] | None = None
 
 
 _GUIDANCE: Final[dict[str, dict[_Kind, _Guidance]]] = {
@@ -58,6 +60,10 @@ _GUIDANCE: Final[dict[str, dict[_Kind, _Guidance]]] = {
             "The API key for {agent} was rejected.",
             ("Check the API key under Settings → Developer → External Agents.", "Then send your message again."),
             _Action("open_external_agents", "Open Settings", _DEVELOPER_SETTINGS),
+            (
+                "Check {names} under Settings → Developer → External Agents → Environment variables.",
+                "Then send your message again.",
+            ),
         ),
         "not_installed": _Guidance(
             "{agent} isn't installed on this computer.",
@@ -101,6 +107,7 @@ _GUIDANCE: Final[dict[str, dict[_Kind, _Guidance]]] = {
             "{agent} 的 API Key 被拒绝。",
             ("在「设置 → 开发者 → 外部 Agent」中检查 API Key。", "修改后重新发送消息。"),
             _Action("open_external_agents", "打开设置", _DEVELOPER_SETTINGS),
+            ("在「设置 → 开发者 → 外部 Agent → 环境变量」中检查 {names}。", "修改后重新发送消息。"),
         ),
         "not_installed": _Guidance(
             "这台电脑上没有安装 {agent}。",
@@ -147,17 +154,19 @@ def _kind_of(error: AcpError, auth_mode: str) -> _Kind | None:
             return None
 
 
-def _guidance_event(kind: _Kind, agent: str, locale: str) -> dict[str, object]:
+def _guidance_event(kind: _Kind, agent: str, locale: str, api_key_env: tuple[str, ...] = ()) -> dict[str, object]:
     language = _language(locale)
     guidance = _GUIDANCE[language][kind]
     message = guidance.message.format(agent=agent)
+    steps = guidance.steps_naming_env if api_key_env and guidance.steps_naming_env else guidance.steps
+    names = " / ".join(api_key_env)
     event: dict[str, object] = {
         "type": AgentEventType.ERROR.value,
         "data": message,
         "diagnostic_result": {
             "error_type": f"external_agent_{kind}",
             "user_message": message,
-            "resolution_steps": [step.format(agent=agent) for step in guidance.steps],
+            "resolution_steps": [step.format(agent=agent, names=names) for step in steps],
             "locale": language,
         },
     }
@@ -167,10 +176,15 @@ def _guidance_event(kind: _Kind, agent: str, locale: str) -> dict[str, object]:
     return event
 
 
-def delegate_error_event(agent: str, error: AcpError, *, auth_mode: str, locale: str) -> dict[str, object] | None:
-    """The error event telling the user what to do about ``error``, or None when the CLI's own words say it best."""
+def delegate_error_event(
+    agent: str, error: AcpError, *, auth_mode: str, locale: str, api_key_env: tuple[str, ...] = ()
+) -> dict[str, object] | None:
+    """The error event telling the user what to do about ``error``, or None when the CLI's own words say it best.
+
+    ``api_key_env`` are the environment variables ``agent`` reads its API key from; a rejected key names them.
+    """
     kind = _kind_of(error, auth_mode)
-    return _guidance_event(kind, agent, locale) if kind is not None else None
+    return _guidance_event(kind, agent, locale, api_key_env) if kind is not None else None
 
 
 def agent_unavailable_event(agent: str, locale: str) -> dict[str, object]:

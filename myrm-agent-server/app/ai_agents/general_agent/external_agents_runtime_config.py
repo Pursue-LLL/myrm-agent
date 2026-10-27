@@ -10,7 +10,7 @@
 - _auth_mode / _permission_mode / _cfg_int / _turn_timeout: Config parsing helpers (an unknown permission mode fails closed to safe; the turn timeout defaults to 30 min and stays under the Gateway ceiling)
 - _config_fingerprint: Stable hash aligned with RuntimeConfig-relevant fields
 - _resolve_external_agent_cfgs: Resolve explicit config or local auto-detect
-- _register_backends_on_pool: Register normalized runtime configs into RuntimePool
+- _register_backends_on_pool: Register normalized runtime configs into RuntimePool (each with the fixed directory delegated images are staged in)
 
 [POS]
 GeneralAgent 外部 Agent 配置归一化与探测装配层。确保 RuntimePool 指纹与注册字段同源，
@@ -252,6 +252,9 @@ async def _resolve_external_agent_cfgs(
 def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, object]]) -> None:
     from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
+    from app.services.external_agents.delegation import staging_dir
+
+    image_dir = str(staging_dir())
     for cfg in agent_cfgs:
         if not cfg.get("enabled", True):
             continue
@@ -282,6 +285,7 @@ def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, obj
             auth_mode=normalized_cfg.auth_mode,
             max_turns=normalized_cfg.max_turns,
             description=normalized_cfg.description,
+            image_dir=image_dir,
         )
         pool.register(normalized_cfg.name, runtime_cfg)
         logger.info("Registered external agent: %s (%s)", normalized_cfg.name, backend_type)

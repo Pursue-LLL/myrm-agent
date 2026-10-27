@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.external_agents.delegation_prompt import delegation_prompt
+from app.services.external_agents.delegation.prompt import delegation_prompt
 
 _DATA_URL = "data:image/png;base64," + "iVBORw0KGgo" * 40
 

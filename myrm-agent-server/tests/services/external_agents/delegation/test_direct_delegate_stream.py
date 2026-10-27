@@ -6,7 +6,7 @@ import pytest
 from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.toolkits.acp.types import AuthMode, RuntimeEventType
 
-from app.services.external_agents.direct_delegate_stream import _token_count
+from app.services.external_agents.delegation.stream import _token_count
 from tests.support.scripted_delegation import (
     MESSAGE_END,
     STEPS,
@@ -26,6 +26,23 @@ async def test_the_turn_runs_the_prompt_on_the_given_session() -> None:
     await stream_turn(pool)
 
     assert pool.turns == [("claude", "do it", "claude-chat-1")]
+
+
+async def test_the_images_of_the_turn_reach_the_pool() -> None:
+    pool = ScriptedPool(playing())
+
+    await stream_turn(pool, images=["/state/a.png", "/state/b.jpg"])
+
+    assert pool.turn_images == [["/state/a.png", "/state/b.jpg"]]
+
+
+@pytest.mark.parametrize("images", [None, []], ids=["none", "empty"])
+async def test_a_turn_without_images_hands_the_pool_none(images: list[str] | None) -> None:
+    pool = ScriptedPool(playing())
+
+    await stream_turn(pool, images=images)
+
+    assert pool.turn_images == [None]
 
 
 async def test_a_turn_streams_its_text_and_reasoning_between_a_running_and_a_completed_status_step() -> None:

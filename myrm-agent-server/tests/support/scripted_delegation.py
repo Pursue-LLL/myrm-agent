@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.acp.types import (
 )
 from myrm_agent_harness.utils import CancellationToken
 
-from app.services.external_agents.direct_delegate_stream import SseEvent, stream_direct_delegate
+from app.services.external_agents.delegation.stream import SseEvent, stream_direct_delegate
 
 STEPS = AgentEventType.TASKS_STEPS.value
 CANCELLED = AgentEventType.CANCELLED.value
@@ -38,6 +38,7 @@ class ScriptedPool:
         self._turn = turn
         self._config = RuntimeConfig(backend_type="cli", auth_mode=auth_mode) if auth_mode else None
         self.turns: list[tuple[str, str, str]] = []
+        self.turn_images: list[list[str] | None] = []
         self.cancelled: list[tuple[str, str]] = []
         self.cancel_called = asyncio.Event()
 
@@ -49,9 +50,17 @@ class ScriptedPool:
         return self._config
 
     def run_turn(
-        self, name: str, prompt: str, session_id: str, *, mode: str = "persistent", mcp_servers: object = None
+        self,
+        name: str,
+        prompt: str,
+        session_id: str,
+        *,
+        mode: str = "persistent",
+        mcp_servers: object = None,
+        images: list[str] | None = None,
     ) -> AsyncGenerator[RuntimeEvent]:
         self.turns.append((name, prompt, session_id))
+        self.turn_images.append(images)
         return self._turn(self)
 
     async def cancel(self, name: str, session_id: str) -> None:
@@ -75,9 +84,14 @@ def playing(*events: RuntimeEvent) -> TurnScript:
     return turn
 
 
-async def stream_turn(pool: ScriptedPool, token: CancellationToken | None = None) -> list[SseEvent]:
+async def stream_turn(
+    pool: ScriptedPool, token: CancellationToken | None = None, *, images: list[str] | None = None
+) -> list[SseEvent]:
     return [
-        event async for event in stream_direct_delegate(pool, "claude", "do it", session_id="claude-chat-1", cancel_token=token)
+        event
+        async for event in stream_direct_delegate(
+            pool, "claude", "do it", session_id="claude-chat-1", images=images, cancel_token=token
+        )
     ]
 
 
