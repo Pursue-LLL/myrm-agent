@@ -49,14 +49,14 @@ class ContextGuardConfig:
 
 
 # What one character adds to the estimate, in hundredths of a token. Whole numbers keep the sum exact, so a
-# language that mirrors this estimate (the composer in the web UI) rounds it the same way.
+# port of this estimate to another language rounds it the same way.
 _PLAIN_WEIGHT = 25  # a lowercase letter or white space: prose is cheap
 _SYMBOL_WEIGHT = 40  # any other ASCII character: punctuation, operators, control codes
 _DIGIT_WEIGHT = 75
 _UPPER_WEIGHT = 100  # capitals are rare in prose and frequent in ids, hashes and base64
 _ALPHABET_WEIGHT = 50  # a non-ASCII narrow character: Cyrillic, Arabic, Indic, Thai, accented Latin
 # East Asian wide and fullwidth characters (CJK, kana, hangul, emoji). Above the 0.8-0.95 o200k_base measures for
-# Chinese and Japanese on purpose: other tokenizers split them finer, and a text parked early costs one file read.
+# Chinese and Japanese on purpose: cl100k_base measures 1.3-1.4, and a text parked early costs one file read.
 _WIDE_WEIGHT = 180
 
 
@@ -82,7 +82,8 @@ def estimate_token_pressure(text: str) -> int:
     about 0.35-0.5, and CJK about 0.8-1.0. Weighing every non-CJK character the same would let a dense text of
     twice the tokens pass a limit set for prose. The weights are fitted to tiktoken ``o200k_base``: against the
     recorded samples in ``tests/agent/context_guard/test_token_pressure.py`` the estimate stays within 0.4x-1.3x
-    of the real count. Other tokenizers split non-Latin text into more tokens than ``o200k_base`` does.
+    of the real count. ``cl100k_base`` splits the non-Latin scripts into 1.4-2.9 times the tokens ``o200k_base``
+    does, so for Hindi, Thai and Arabic the estimate falls to 0.4-0.7 of its count.
     """
     return sum(_centi_weight(char) * count for char, count in Counter(text).items()) // 100
 
