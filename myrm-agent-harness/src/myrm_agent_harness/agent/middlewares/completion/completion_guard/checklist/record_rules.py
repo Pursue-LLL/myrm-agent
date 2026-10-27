@@ -13,7 +13,7 @@ Every rule reads the records in call order and nothing else, so each is cheap to
 - unresolved_failures(): failures after the last successful write that no later identical call put right
 
 [POS]
-The rule layer of the verification checklist. ``checklist`` turns these facts into the text and the verdict the
+The rule layer of the verification checklist. ``assessment`` turns these facts into the text and the verdict the
 guard acts on; a failure that came before the work it was exploring for, or that a retry already put right, does not
 hold an answer back.
 """

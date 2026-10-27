@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.middlewares.completion.completion_guard.record_rules import (
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist.record_rules import (
     code_changed_since_proof,
     failed_verification_types,
     is_code_file,

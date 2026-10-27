@@ -1,13 +1,12 @@
 """Completion verification guard middleware.
 
-Intercepts the Agent's final answer attempt and enforces verification for
-code modification tasks. When the Agent modifies code files but skips
-verification (tests, lint, type-check), the guard blocks completion and
-forces the Agent to run checks first.
+Intercepts the Agent's final answer attempt and holds it back when the run's tool records do not support it,
+up to max_rejections before a forced finish.
 
 Task-type-aware strictness:
-  - **Code modification** (has_writes=True + code files): CRITICAL blocking
-    mode, up to max_rejections before forced finish.
+  - **Work that wrote files**: CRITICAL when code was written and nothing after the last such write proved it
+    (tests, lint, type-check), when a verification category's latest run failed, or when a failure after the
+    last write still stands (see ``checklist``).
   - **Freshness-sensitive query tasks**: when user asks for latest/current data
     but no successful web/search/browser evidence exists, block completion and
     request evidence collection before finishing.
@@ -25,7 +24,7 @@ the evidence it gathered early.
 A message that is not a completion attempt but already holds a finished answer next to read-only tool calls goes to
 the Mixed Message Guard (``mixed_message``).
 
-Internal tool CallRecords (``_``-prefixed names) are excluded from the checklist to prevent self-feedback loops.
+Internal tools (``_``-prefixed names) are no part of the run's work and are left out of every check.
 
 A held-back answer is never turned into a tool call: the guard routes the run back to the model
 (``jump_to="model"``) and records the instruction in the turn's guard state; ``CompletionDirectiveMiddleware``
@@ -135,8 +134,9 @@ def reset_completion_guard() -> None:
 class CompletionGuard(AgentMiddleware):
     """Critical completion verification guard.
 
-    Only blocks the Agent when code files were modified without verification
-    (tests, lint, type-check). Non-critical tasks pass through immediately.
+    Holds back a completion attempt that this run's tool records do not support: code changed without proof it
+    works, a freshness question without external evidence, a claim no call backs. Other answers pass through
+    immediately.
 
     Also implements the Mixed Message Guard to strip read-only tool_calls
     from messages that already contain a substantive final answer. Only tools
@@ -205,17 +205,9 @@ class CompletionGuard(AgentMiddleware):
         content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content or "")
         publish_tier_disclosure(content_str, records, has_claim=has_completion_claim(content_str))
 
-        is_attempting_completion = False
-
-        if not last_ai_msg.tool_calls:
-            is_attempting_completion = True
-        else:
-            has_finish_tool = any(
-                tc.get("name") in FINISH_TOOL_NAMES for tc in last_ai_msg.tool_calls if isinstance(tc, dict)
-            )
-            if has_finish_tool:
-                is_attempting_completion = True
-
+        is_attempting_completion = not last_ai_msg.tool_calls or any(
+            tc.get("name") in FINISH_TOOL_NAMES for tc in last_ai_msg.tool_calls if isinstance(tc, dict)
+        )
         if not is_attempting_completion:
             return strip_readonly_calls_beside_answer(
                 last_ai_msg, messages=messages, records=records, user_text=latest_user_text
@@ -228,46 +220,39 @@ class CompletionGuard(AgentMiddleware):
         evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, records)
         deliverable_write_reason: str | None = None
         unwritten_deliverables: list[UnwrittenDeliverable] = []
-        latest_human_for_grounding = latest_user_text
         execution_claim_reason = check_execution_claim(
-            user_text=latest_human_for_grounding,
+            user_text=latest_user_text,
             assistant_text=content_str,
             records=records,
         )
-        query_grounding_reason = None
         if last_ai_msg.content:
             deliverable_write_reason = check_deliverable_write_claim(content_str, records)
             if deliverable_write_reason is None and self._capabilities.can_save_files(runtime):
                 unwritten_reason, unwritten_deliverables = check_unwritten_deliverables(
                     content=content_str,
                     records=records,
-                    latest_user_text=latest_human_for_grounding,
+                    latest_user_text=latest_user_text,
                 )
                 if unwritten_reason is not None:
                     deliverable_write_reason = unwritten_reason
-            query_grounding_reason = check_query_grounding_claim(
-                user_text=latest_human_for_grounding,
-                assistant_text=content_str,
-                records=records,
-            )
-        else:
-            query_grounding_reason = check_query_grounding_claim(
-                user_text=latest_human_for_grounding,
-                assistant_text="",
-                records=records,
-            )
+        query_grounding_reason = check_query_grounding_claim(
+            user_text=latest_user_text,
+            assistant_text=content_str,
+            records=records,
+        )
 
-        blocking_reasons = (evidence_reason, deliverable_write_reason, execution_claim_reason, query_grounding_reason)
-        if not checklist.critical and all(reason is None for reason in blocking_reasons):
+        blocked_by_a_check = any(
+            reason is not None
+            for reason in (evidence_reason, deliverable_write_reason, execution_claim_reason, query_grounding_reason)
+        )
+        if not checklist.critical and not blocked_by_a_check:
             return None
 
         # --- INDEPENDENT RE-RUN ---
         # Clears exactly one cause: code was modified after the last passing verification. Any other critical
         # finding (no verification, failed or empty verification, a failure that still stands, an unfinished
         # todo, an unsupported claim) is not something a green re-run can answer.
-        if checklist.causes == {CriticalCause.STALE_VERIFICATION} and all(
-            reason is None for reason in blocking_reasons
-        ):
+        if checklist.causes == {CriticalCause.STALE_VERIFICATION} and not blocked_by_a_check:
             rerun_cmd = find_last_successful_verification_command(records)
             if rerun_cmd and await rerun_verification_in_sandbox(rerun_cmd):
                 logger.info("[CompletionGuard] Independent re-run of '%s' passed — allowing completion.", rerun_cmd)

@@ -2,12 +2,13 @@
 
 Two concerns live here, both scoped to a single assistant turn:
 
-1. **Guard state** — the rejection budget and forced-finish latch. Scoping the
-   budget per turn keeps concurrent runs (multi-session streams, background
-   reruns and cron jobs inside one server process) independent: one turn can
-   neither reset nor exhaust another turn's budget. Entries are keyed by the
-   bound message id the runtime stamps for the turn, with a small
-   insertion-order LRU cap so long-lived processes stay flat.
+1. **Guard state** — the rejection budget, the forced-finish latch and the
+   turn's call ledger. Scoping the budget per turn keeps concurrent runs
+   (multi-session streams, background reruns and cron jobs inside one server
+   process) independent: one turn can neither reset nor exhaust another
+   turn's budget. Entries are keyed by the bound message id the runtime
+   stamps for the turn, with a small insertion-order LRU cap so long-lived
+   processes stay flat.
 2. **Disclosure payload** — the evidence tier badge and the auto-staged
    deliverable drafts the post-run event emitter reads once for ``message_end``.
    The server persists them as message metadata so the UI can show what a
@@ -24,14 +25,15 @@ and inline deliverables stay clean).
 - agent.security.guards.loop_guard::CallRecord (POS: 工具调用记录)
 
 [OUTPUT]
-- current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁、"已请求如实声明无法核实"标记与待交付的拦截指令
+- current_run_state / reset_run_state: 当前回合的拦截预算、强制收尾闩锁、"已请求如实声明无法核实"标记、待交付的拦截指令与整轮调用账本
+- record_evidence(): 把 LoopGuard 窗口并入整轮调用账本（按调用顺序、按记录对象身份）并返回账本，拦截判定都读它
 - PendingDirective: 拦截后欠模型的一条指令，仅在它所跟随的那条消息仍是最后一条时交付
 - isolated_run_state: 嵌套运行（子 agent）期间与调用方回合隔离，结束时不留痕
 - publish_disclosure / pop_run_disclosure / publish_tier_disclosure: 每轮披露载荷的写入与取用
 - attach_disclosure_to_event(): 把披露载荷挂到 message_end 事件
 
 [POS]
-完成门禁的回合级状态与披露登记处。状态按 runtime 绑定的消息 id 分桶（LRU 128），并发回合互不影响；嵌套运行不触碰调用方的回合状态；披露载荷供 post-run 事件一次性消费。
+完成门禁的回合级状态与披露登记处，整轮调用账本也在这里：拦截判定针对本轮做过的全部调用，而不是 LoopGuard 只留的最近 20 条。状态按 runtime 绑定的消息 id 分桶（LRU 128），并发回合互不影响；嵌套运行不触碰调用方的回合状态；披露载荷供 post-run 事件一次性消费。
 """
 
 from __future__ import annotations
