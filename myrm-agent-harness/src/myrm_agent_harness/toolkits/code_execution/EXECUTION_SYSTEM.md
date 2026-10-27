@@ -150,7 +150,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 - 环境变量注入使用 **ANSI-C quoting**（`$'…'`）:值内 `$`、反引号、双引号保持字面（不二次展开），`\n`/`\t` 等控制字符转义为单行序列，注入命令永不破坏初始化批次（曾出现过 `"` 转义成 `\\"` 导致引号错配、长驻 Shell 卡死等续行的故障）
 - **卡死自愈**：阻塞型命令（`sleep 9999`/`tail -f`）超时、或 stdin 吞噬型命令（`cat`/`ssh`/`python -c input()`）把 marker 回显导致边界损坏时，直接 kill 进程树并置 TERMINATED，下一次 execute/stream 透明重建会话，避免永久毒化
 - **停止即终止**：`ExecutionContext.cancel_token`（仅面向 Agent 的工具调用设置；目标验证、清理等内部调用不设置）被取消时，正在跑的命令与它启动的子进程一并终止，结果带已产生的部分输出与退出码 130，随后与超时一样丢弃该 Shell、下一条命令拿到全新的 Shell（cwd 与已导出变量重置，结果文案已如实告知）。取消复用超时的同一个截止点（`asyncio.timeout` + `cut_deadline_on_cancel`），两条路径走同一个出口；已被取消的请求不会再启动命令。`tool_executor` 对已取消的请求不再重试（`TOOL_CANCELLED` 结果），退避等待也随取消立即结束。Python 脚本子进程同样随取消终止
-- **进程树终止**：沙箱 Shell 与服务端共用进程组，不能按组终止；`process_tree.kill_process_tree` 先快照后代（psutil）并终止，再终止 Shell，宽限期后补 kill 幸存者（macOS seatbelt 下实测：旧做法只终止 Shell，子进程成为孤儿；超时路径同样受益）。自行脱离的守护进程（`(cmd &)`）不在终止范围内
+- **进程树终止**：沙箱 Shell 与服务端共用进程组，不能按组终止；`process_tree.kill_process_tree` 先快照后代（psutil）并终止，再终止 Shell，宽限期后补 kill 幸存者（超时路径同样终止整棵进程树）。自行脱离的守护进程（`(cmd &)`）不在终止范围内
 - 进程意外退出时自动重启并重试
 - POSIX 进程组隔离 / Windows 进程树终止
 - `asyncio.shield()` 保护子进程清理，防止异步取消导致僵尸进程

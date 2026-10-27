@@ -1,23 +1,22 @@
 """A cancelled request stops the command its shell is running.
 
-Cancelling a request only flips a flag. The shell command the agent started never looks at it, so Pause/Stop used
-to leave the command running to the end of its own timeout. These tests drive real shells and real processes: the
-whole process tree dies, the partial output survives, the command is never run a second time, and the next
-command gets a working (fresh) shell.
+Cancelling a request only flips a flag, and the shell command the agent started has to notice it. These tests drive
+real shells and real processes: the whole process tree dies, the partial output survives, the command is never run
+a second time, and the next command gets a working (fresh) shell.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import subprocess
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession, SessionConfig
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
+from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _SETTLE_S = 10
 
@@ -28,16 +27,6 @@ def _config(work_dir: Path, *, sandbox_mode: str = "disable", timeout: int = 60)
     )
 
 
-def _alive(marker: str) -> bool:
-    return subprocess.run(["pgrep", "-f", marker], capture_output=True).returncode == 0
-
-
-async def _wait_until(condition: Callable[[], bool]) -> None:
-    async with asyncio.timeout(_SETTLE_S):
-        while not condition():
-            await asyncio.sleep(0.05)
-
-
 @contextlib.asynccontextmanager
 async def _session(work_dir: Path, marker: str, **config: object) -> AsyncIterator[LocalPersistentSession]:
     """A started session; whatever a failing test leaves behind is removed."""
@@ -46,7 +35,7 @@ async def _session(work_dir: Path, marker: str, **config: object) -> AsyncIterat
     try:
         yield session
     finally:
-        subprocess.run(["pkill", "-f", marker], capture_output=True)
+        kill_marked(marker)
         await session.close()
 
 
@@ -58,7 +47,7 @@ async def test_cancelling_the_token_stops_the_command_and_keeps_its_partial_outp
         running = asyncio.create_task(
             session.execute(f"echo started; bash -c '{marker}; echo never'", cancel_token=token)
         )
-        await _wait_until(lambda: _alive(marker))
+        await wait_until(lambda: process_alive(marker))
 
         token.cancel(CancelReason.USER_CANCELLED)
         async with asyncio.timeout(_SETTLE_S):
@@ -68,7 +57,7 @@ async def test_cancelling_the_token_stops_the_command_and_keeps_its_partial_outp
         assert result.error is not None and result.error.startswith("Cancelled")
         assert "started" in result.stdout
         assert "never" not in result.stdout
-        assert not _alive(marker)
+        assert not process_alive(marker)
 
 
 @pytest.mark.asyncio
@@ -78,7 +67,7 @@ async def test_the_next_command_runs_in_a_fresh_shell_after_a_cancel(tmp_path: P
     async with _session(tmp_path, marker) as session:
         assert (await session.execute("export KEEP=1")).success
         running = asyncio.create_task(session.execute(marker, cancel_token=token))
-        await _wait_until(lambda: _alive(marker))
+        await wait_until(lambda: process_alive(marker))
         token.cancel()
         await asyncio.wait_for(running, _SETTLE_S)
 
@@ -95,7 +84,7 @@ async def test_a_cancelled_command_is_never_run_a_second_time(tmp_path: Path) ->
     counter = tmp_path / "runs.txt"
     async with _session(tmp_path, marker) as session:
         running = asyncio.create_task(session.execute(f"echo run >> {counter}; {marker}", cancel_token=token))
-        await _wait_until(counter.exists)
+        await wait_until(counter.exists)
         token.cancel()
         await asyncio.wait_for(running, _SETTLE_S)
         await session.execute("true")
@@ -119,13 +108,13 @@ async def test_cancelling_the_task_running_a_command_stops_the_command_and_leave
     marker = "sleep 4711.5"
     async with _session(tmp_path, marker) as session:
         running = asyncio.create_task(session.execute(f"bash -c '{marker}'"))
-        await _wait_until(lambda: _alive(marker))
+        await wait_until(lambda: process_alive(marker))
 
         running.cancel()
         with pytest.raises(asyncio.CancelledError):
             await running
 
-        assert not _alive(marker)
+        assert not process_alive(marker)
         follow_up = await session.execute("echo usable")
         assert follow_up.success
         assert "usable" in follow_up.stdout
@@ -143,14 +132,14 @@ async def test_a_cancelled_stream_ends_with_a_cancelled_marker(tmp_path: Path) -
                 chunks.append(chunk)
 
         consuming = asyncio.create_task(consume())
-        await _wait_until(lambda: _alive(marker))
+        await wait_until(lambda: process_alive(marker))
         token.cancel()
         await asyncio.wait_for(consuming, _SETTLE_S)
 
         text = "".join(chunks)
         assert "started" in text
         assert "[ERROR] Cancelled" in text
-        assert not _alive(marker)
+        assert not process_alive(marker)
 
 
 @pytest.mark.asyncio
@@ -165,13 +154,13 @@ async def test_a_sandboxed_shell_leaves_no_orphaned_descendants(tmp_path: Path, 
         command = f"bash -c '{marker}; echo never'"
         if how == "cancel":
             running = asyncio.create_task(session.execute(command, cancel_token=token))
-            await _wait_until(lambda: _alive(marker))
+            await wait_until(lambda: process_alive(marker))
             token.cancel()
             result = await asyncio.wait_for(running, _SETTLE_S)
         else:
             result = await session.execute(command, timeout=2)
 
         assert result.success is False
-        assert not _alive(marker)
+        assert not process_alive(marker)
         follow_up = await session.execute("echo usable")
         assert follow_up.success

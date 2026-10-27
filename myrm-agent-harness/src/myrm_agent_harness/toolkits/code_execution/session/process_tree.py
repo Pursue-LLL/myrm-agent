@@ -43,11 +43,14 @@ async def _terminate_in_shared_group(process: asyncio.subprocess.Process, grace_
     # Children first: a shell blocked on a foreground command only handles its own SIGTERM after that command ends.
     for child in descendants:
         _signal(child.terminate)
-    process.terminate()
+    # The shell may have exited since the snapshot; its descendants still have to be reaped below.
+    with contextlib.suppress(ProcessLookupError):
+        process.terminate()
     try:
         await asyncio.wait_for(process.wait(), timeout=grace_period)
     except TimeoutError:
-        process.kill()
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
     _, survivors = await asyncio.to_thread(psutil.wait_procs, descendants, grace_period)
     for child in survivors:
         _signal(child.kill)

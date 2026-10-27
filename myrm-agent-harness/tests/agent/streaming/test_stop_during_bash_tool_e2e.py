@@ -2,9 +2,8 @@
 
 A scripted model issues a real ``bash_code_execute_tool`` call that sleeps, inside a real LangGraph agent driven by
 the production ``StreamExecutor`` with the production tool interceptor, on a real ``LocalExecutor`` and a real
-persistent shell. Stop only flips the run's cancel token; before the token reached the shell the command ran to the end
-of its own timeout and the run stayed blocked behind it. Now the command and everything it started are gone, the run
-ends, and the model is not asked again.
+persistent shell. Stop only flips the run's cancel token, and that alone must end the command and everything it
+started, end the run, and keep the model from being asked again.
 
 The assertions are about outcomes and ordering (the sleeper is gone, the run ended, the model was asked once), never
 about how long it took.
@@ -14,9 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import subprocess
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,6 +25,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import tool_interceptor_middleware
+from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
 from myrm_agent_harness.agent.streaming.stream_executor import STREAM_DONE, StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -36,6 +36,7 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
     release_workspace_storage_bind_token,
 )
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason, set_cancel_token
+from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _SETTLE_S = 30.0
 _MARKER = "sleep 4711.41"
@@ -57,22 +58,12 @@ class _FakeCompactor:
         pass
 
 
-def _alive() -> bool:
-    return subprocess.run(["pgrep", "-f", _MARKER], capture_output=True).returncode == 0
-
-
-async def _wait_until(condition: Callable[[], bool]) -> None:
-    async with asyncio.timeout(_SETTLE_S):
-        while not condition():
-            await asyncio.sleep(0.05)
-
-
 @pytest.fixture(autouse=True)
 def _clean_run_state() -> Iterator[None]:
     yield
     set_cancel_token(None)
     set_executor(None)
-    subprocess.run(["pkill", "-f", _MARKER], capture_output=True)
+    kill_marked(_MARKER)
 
 
 @pytest.fixture
@@ -132,7 +123,7 @@ class _Run:
         self.executor = StreamExecutor(
             ctx=ctx, fallback_llm=None, safety_fallback_llm=None, rebuild_agent_fn=MagicMock()
         )
-        self.executor._compactor = self.compactor
+        self.executor._compactor = cast(StreamCompactor, self.compactor)
 
     def start(self) -> asyncio.Task[None]:
         set_cancel_token(self.token)  # as the agent runtime does before it spawns the executor task
@@ -145,12 +136,12 @@ async def test_stop_ends_the_command_and_the_run_and_the_model_is_not_asked_agai
 ) -> None:
     run = _Run(tmp_path, f"echo started && {_MARKER} && echo never", CancellationToken("e2e_stop_bash"))
     executing = run.start()
-    await _wait_until(_alive)
+    await wait_until(lambda: process_alive(_MARKER), _SETTLE_S)
 
     run.token.cancel(CancelReason.USER_CANCELLED)
     await asyncio.wait_for(executing, timeout=_SETTLE_S)
 
-    assert not _alive(), "the command the stop interrupted must not outlive the run"
+    assert not process_alive(_MARKER), "the command the stop interrupted must not outlive the run"
     assert run.stats.was_cancelled
     assert run.compactor.events[-1] is STREAM_DONE
     assert run.model.i == 1, "no further model request may follow the stop"

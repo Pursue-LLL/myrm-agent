@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import subprocess
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,19 +14,10 @@ from myrm_agent_harness.toolkits.code_execution.executors.local._python_subproce
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxStatus
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
+from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _SETTLE_S = 10
 _SCRIPT = "hold_4711_8.py"
-
-
-def _alive(marker: str) -> bool:
-    return subprocess.run(["pgrep", "-f", marker], capture_output=True).returncode == 0
-
-
-async def _wait_until(condition: Callable[[], bool]) -> None:
-    async with asyncio.timeout(_SETTLE_S):
-        while not condition():
-            await asyncio.sleep(0.05)
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +28,7 @@ def _no_native_sandbox() -> Iterator[None]:
         return_value=(None, SandboxStatus(enabled=False, provider_name="null", reason="test")),
     ):
         yield
-    subprocess.run(["pkill", "-f", _SCRIPT], capture_output=True)
+    kill_marked(_SCRIPT)
 
 
 async def _run(script: Path, token: CancellationToken | None, timeout: int = 60) -> asyncio.Task[object]:
@@ -61,14 +51,14 @@ async def test_cancelling_the_token_stops_the_running_script(tmp_path: Path) -> 
     token = CancellationToken("req-1")
 
     running = await _run(script, token)
-    await _wait_until(lambda: _alive(_SCRIPT))
+    await wait_until(lambda: process_alive(_SCRIPT))
     token.cancel(CancelReason.USER_CANCELLED)
     async with asyncio.timeout(_SETTLE_S):
         result = await running
 
     assert result.success is False  # type: ignore[attr-defined]
     assert "cancelled" in (result.error or "").lower()  # type: ignore[attr-defined]
-    assert not _alive(_SCRIPT)
+    assert not process_alive(_SCRIPT)
 
 
 @pytest.mark.asyncio
@@ -93,4 +83,4 @@ async def test_a_script_that_times_out_is_still_reported_as_a_timeout(tmp_path: 
 
     assert result.success is False  # type: ignore[attr-defined]
     assert "timed out" in (result.error or "").lower()  # type: ignore[attr-defined]
-    assert not _alive(_SCRIPT)
+    assert not process_alive(_SCRIPT)
