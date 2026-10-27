@@ -32,13 +32,11 @@ PTC Sandbox (DW PTC · WorkflowRunGuard: max 50 spawns, concurrency 5)
        ↓
 SpawnSubagentTool / NotifyProgressTool (tools.py)
        ↓
-spawn_prep.py (shared with delegate) — readonly / memory / ISOLATED_COPY
+spawn_prep.py (shared with delegate) — readonly / memory isolation / spawn policy
        ↓
 notify_stream.py — 并发 drain queue，PTC 执行期间实时 yield workflow_stage
        ↓
 WorkflowEventStore (store.py) — L2 cache / replay（spawn_params_json 指纹）
-       ↓
-batch_merge (workspace_coordination) — 非 readonly spawn 执行后合并 workspace
        ↓
 Summarization LLM → 用户可读 Markdown
 ```
@@ -58,7 +56,7 @@ Summarization LLM → 用户可读 Markdown
 | `template_validation.py` | 模板脚本校验、占位符替换、trust_latch plan_confirm 跳过护栏 |
 | `paths.py` | `{harness_root}/.myrm/workflow_events.db` 路径 SSOT（与 background_jobs 同根） |
 | `spawn_cache.py` | `SpawnCacheParams` / fingerprint SSOT |
-| `tools.py` | `SpawnSubagentTool`（WorkflowRunGuard、cache 指纹、非 readonly ISOLATED_COPY、adversarial verify）/ `NotifyProgressTool` / `HumanAskTool`（Mid-run Human-in-the-loop Gate via PhaseWaiter / ask_gate） |
+| `tools.py` | `SpawnSubagentTool`（WorkflowRunGuard、cache 指纹、adversarial verify）/ `NotifyProgressTool` / `HumanAskTool`（Mid-run Human-in-the-loop Gate via PhaseWaiter / ask_gate） |
 
 ---
 
@@ -92,9 +90,9 @@ Summarization LLM → 用户可读 Markdown
 4. **Named Template Library (vMIN)**：用户将成功的 DW 编排脚本保存为命名模板；后续 run 通过 `workflow_template_id` 跳过 orchestrator LLM，仅替换 `{placeholder}` 参数（`validate_template_args` 硬拒绝缺失/非法值；Settings 库页条件表单 + summary `placeholders[]`）。`trust_latch` + 全 readonly spawn（`script_all_spawns_readonly` AST 校验 keyword）+ 低成本时可跳过 plan_confirm。Server 暴露 `/workflow-templates` CRUD + `from-run` + `validation.py`（bind + Cron 执行时 trust/args/readonly 复检）；Cron API 的 `workflow_template_display_name` 与 execution gate 同规则 enrich。WebUI Save CTA + Settings → Workflow Templates（只读 script 预览）；Cron job 绑 trusted readonly 模板（create + 详情 Editor PATCH + 列表 invalid amber Badge + 详情解绑）。
 5. **汇总层**：原始 stdout 经 SUMMARIZATION_PROMPT 转为 Markdown + 置信度前缀
 6. **Trust 层**：spawn ≥ 1 时 SSE `plan_confirm`（子任务数 + 并发上限 + 成本估算的产品化文案）+ PhaseWaiter；RunGuard 硬上限 50 spawn / 5 并发
-7. **Workspace 安全**：DW 非 readonly spawn 使用 `ISOLATED_COPY`；defer 时 child workspace 保留至 `batch_merge`；merge 后 sanitize 存 SQLite（`workspace_merge_status=merged`）；merge 经 `build_merge_snapshot_context` 登记 SnapshotStore（Revert 可用）并在摘要 append `_workspace_diff`；merge 失败时 SSE `workflow_execution: warning`、`WORKSPACE_MERGE_FAILED` 与 `completion_status: warning`，前端 `WorkspaceMergeWarning` 展示逐条错误
+7. **Workspace 安全**：DW 的 spawn 与 delegate 一样共享会话的同一个工作区（readonly spawn 为 `READ_ONLY_SANDBOX`），没有克隆、合并或回收步骤；摘要末尾 append `_workspace_diff`（脚本执行前后的工作区快照差异）
 8. **Spawn prep SSOT**：`agent/sub_agents/spawn_prep.py` 与 delegate 共用
-9. **Durable replay**：`SpawnCacheParams` 指纹命中复用 spawn 结果；`workspace_merge_status=merged` 跳过 re-spawn/re-merge；`pending` 行视为 incomplete 强制 re-spawn；工作区 `.workflow-journal.jsonl` sidecar 写盘前经 `coerce_filesystem_path` 校验（拒绝 unittest.mock 等非路径对象）
+9. **Durable replay**：`SpawnCacheParams` 指纹命中复用 spawn 结果；工作区 `.workflow-journal.jsonl` sidecar 写盘前经 `coerce_filesystem_path` 校验（拒绝 unittest.mock 等非路径对象）
 
 ---
 

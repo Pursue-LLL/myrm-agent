@@ -184,13 +184,13 @@ async def execute_batch_delegation(
     if tournament:
         wait = True
         race = False
-        for task in tasks:
+        for position, task in enumerate(tasks, start=1):
             task.objective = (
                 "【TOURNAMENT MODE ACTIVE】\n"
                 "You are competing against other agents. Your output will be judged.\n"
                 "CRITICAL: You MUST NOT perform any irreversible external actions (e.g., sending emails, calling external webhooks, making payments). "
-                "Your execution is speculative and your sandbox may be discarded if you lose the tournament. "
-                "Confine all your work to the local sandbox files.\n\n"
+                "Your execution is speculative and only the winning result is kept. "
+                f"The competitors share this workspace and run at the same time, so write files only inside the folder contestant_{position}/.\n\n"
                 f"Original Objective:\n{task.objective}"
             )
 
@@ -301,7 +301,6 @@ async def execute_batch_delegation(
         tasks=tasks,
         wait=wait,
         race=race,
-        skip_merge=tournament,
         max_concurrent=max_concurrent,
         budget_admission=budget_admission,
     )
@@ -374,18 +373,4 @@ async def _run_tournament_bracket(
                 current_round = next_round
             winner = current_round[0]
 
-    # Merge the winner's workspace if it has one
-    from myrm_agent_harness.agent.workspace_coordination.merge.batch_merge import (
-        merge_batch_workspace_sync_backs,
-    )
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_snapshots import (
-        build_merge_snapshot_context,
-    )
-
-    merge_snapshot_ctx = build_merge_snapshot_context(parent_agent=parent_agent)
-    merge_info = await merge_batch_workspace_sync_backs(
-        [winner],
-        snapshot_context=merge_snapshot_ctx,
-    )
-
-    return {"success": True, "status": "completed", "tournament_winner": True, "result": winner, **merge_info}
+    return {"success": True, "status": "completed", "tournament_winner": True, "result": winner}

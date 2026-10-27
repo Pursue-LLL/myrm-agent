@@ -338,62 +338,9 @@ class TestPostRunEvents:
         assert "model_usage" in end_event["usage"]
 
     @pytest.mark.asyncio
-    async def test_workspace_merge_warning_sets_completion_status(self) -> None:
-        from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-            record_workspace_merge_failure,
-            reset_workspace_merge_warning,
-        )
-
-        reset_workspace_merge_warning()
-        record_workspace_merge_failure("task_a: disk full")
-        stats = AgentRunStatistics()
-
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.format_mutation_failures",
-                return_value=None,
-            ),
-        ):
-            events = [e async for e in post_run_events(stats, "msg1", {}, False, None)]
-
-        end_event = events[-1]
-        assert end_event["completion_status"] == "warning"
-
-    @pytest.mark.asyncio
-    async def test_workspace_merge_failed_sse_emitted(self) -> None:
-        from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-            record_workspace_merge_failure,
-            reset_workspace_merge_warning,
-        )
-
-        reset_workspace_merge_warning()
-        record_workspace_merge_failure("task_a: disk full")
-        stats = AgentRunStatistics()
-
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.format_mutation_failures",
-                return_value=None,
-            ),
-        ):
-            events = [e async for e in post_run_events(stats, "msg1", {}, False, None)]
-
-        merge_events = [e for e in events if e.get("type") == "workspace_merge_failed"]
-        assert len(merge_events) == 1
-        payload = merge_events[0]["data"]
-        assert payload["failed_count"] == 1
-        assert payload["errors"] == [{"message": "task_a: disk full"}]
-
-    @pytest.mark.asyncio
-    async def test_workspace_merge_warning_does_not_override_truncated(self) -> None:
+    async def test_message_end_carries_the_completion_status_of_the_run(self) -> None:
         from myrm_agent_harness.agent.types import CompletionStatus
-        from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-            record_workspace_merge_failure,
-            reset_workspace_merge_warning,
-        )
 
-        reset_workspace_merge_warning()
-        record_workspace_merge_failure("task_a: disk full")
         stats = AgentRunStatistics(completion_status=CompletionStatus.TRUNCATED)
 
         with (
@@ -404,8 +351,7 @@ class TestPostRunEvents:
         ):
             events = [e async for e in post_run_events(stats, "msg1", {}, False, None)]
 
-        end_event = events[-1]
-        assert end_event["completion_status"] == CompletionStatus.TRUNCATED.value
+        assert events[-1]["completion_status"] == CompletionStatus.TRUNCATED.value
 
     @pytest.mark.asyncio
     async def test_message_end_includes_context_budget_breakdown(self) -> None:
@@ -636,9 +582,7 @@ class TestResolveContextBudgetBreakdown:
         # mock must mirror that shape: an attribute-style double would re-encode
         # the very mistake this test exists to catch.
         checkpointer = AsyncMock()
-        checkpointer.aget = AsyncMock(
-            return_value={"channel_values": {"messages": messages}}
-        )
+        checkpointer.aget = AsyncMock(return_value={"channel_values": {"messages": messages}})
 
         tool = MagicMock()
         tool.description = "read files"
@@ -669,9 +613,7 @@ class TestResolveContextBudgetBreakdown:
             HumanMessage(content="third"),
         ]
         checkpointer = AsyncMock()
-        checkpointer.aget = AsyncMock(
-            return_value={"channel_values": {"messages": messages}}
-        )
+        checkpointer.aget = AsyncMock(return_value={"channel_values": {"messages": messages}})
 
         result = await resolve_context_budget_breakdown(
             checkpointer=checkpointer,
@@ -705,9 +647,7 @@ class TestResolveContextBudgetBreakdown:
 
         messages = [HumanMessage(content="test prompt")]
         checkpointer = AsyncMock()
-        checkpointer.aget = AsyncMock(
-            return_value={"channel_values": {"messages": messages}}
-        )
+        checkpointer.aget = AsyncMock(return_value={"channel_values": {"messages": messages}})
 
         mcp_tool = MagicMock()
         mcp_tool.name = "mcp__github__create_issue"
@@ -779,9 +719,7 @@ class TestExtractCheckpointState:
             ),
         ]
         checkpointer = AsyncMock()
-        checkpointer.aget = AsyncMock(
-            return_value={"channel_values": {"messages": messages}}
-        )
+        checkpointer.aget = AsyncMock(return_value={"channel_values": {"messages": messages}})
 
         state = await extract_checkpoint_state(
             checkpointer=checkpointer,

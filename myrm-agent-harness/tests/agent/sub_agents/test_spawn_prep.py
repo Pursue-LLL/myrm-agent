@@ -12,11 +12,9 @@ from myrm_agent_harness.agent.skill_agent.context import get_memory_manager, set
 from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_spawn_capability
 from myrm_agent_harness.agent.sub_agents.spawn_prep import (
     apply_readonly_to_config,
-    apply_spawn_workspace_isolation,
     coerce_spawn_readonly,
     enforce_spawn_policy_on_config,
     memory_isolation_scope,
-    merge_candidate_from_spawn_dict,
 )
 from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
@@ -93,15 +91,6 @@ def test_build_spawn_child_context_takes_parent_fields_and_payload_hashes() -> N
     assert child == {"workspace_path": "/tmp/ws", "session_id": "s1", "subagent_payload_hashes": ["h1"]}
 
 
-def test_resolve_delegate_parallel_write_batch() -> None:
-    from myrm_agent_harness.agent.sub_agents.spawn_prep import (
-        resolve_delegate_parallel_write_batch,
-    )
-
-    assert resolve_delegate_parallel_write_batch(SimpleNamespace()) is False
-    assert resolve_delegate_parallel_write_batch(SimpleNamespace(_parallel_write_batch_active=True)) is True
-
-
 def test_build_child_context_from_parent_agent_copies_keys() -> None:
     from myrm_agent_harness.agent.sub_agents.spawn_prep import (
         build_child_context_from_parent_agent,
@@ -111,10 +100,6 @@ def test_build_child_context_from_parent_agent_copies_keys() -> None:
     child = build_child_context_from_parent_agent(parent)
     assert child["workspace_path"] == "/tmp/ws"
     assert child["session_id"] == "s1"
-
-
-def test_merge_candidate_false_on_failed_spawn() -> None:
-    assert not merge_candidate_from_spawn_dict({"success": False, "result": {}})
 
 
 def _memory_manager() -> MemoryManager:
@@ -158,22 +143,6 @@ def test_memory_isolation_scope_leaves_an_agent_without_memory_alone() -> None:
         assert get_memory_manager() is None
 
 
-def test_spawn_result_for_store_after_merge() -> None:
-    from myrm_agent_harness.agent.sub_agents.spawn_prep import (
-        spawn_result_for_store_after_merge,
-    )
-
-    payload = spawn_result_for_store_after_merge(
-        {
-            "success": True,
-            "workspace_merge_status": "merged",
-            "result": {"text": "ok", "_isolated_child_workspace": "/tmp/c"},
-        }
-    )
-    assert payload["workspace_merge_status"] == "merged"
-    assert "_isolated_child_workspace" not in payload["result"]
-
-
 def test_enforce_spawn_policy_caps_leaf_spawn_depth_and_leaves_the_rest_alone() -> None:
     config = SubagentConfig(
         system_prompt="leaf",
@@ -189,51 +158,3 @@ def test_enforce_spawn_policy_caps_leaf_spawn_depth_and_leaves_the_rest_alone() 
 def test_enforce_spawn_policy_keeps_an_orchestrators_spawn_depth() -> None:
     config = SubagentConfig(system_prompt="orchestrate", control_scope=ControlScope.ORCHESTRATOR, max_spawn_depth=2)
     assert enforce_spawn_policy_on_config(config) is config
-
-
-def test_parallel_write_isolation_via_spawn_prep() -> None:
-    config = SubagentConfig(system_prompt="writer")
-    prep = apply_spawn_workspace_isolation(
-        config=config,
-        child_context={"workspace_path": "/tmp/ws"},
-        readonly=False,
-        parallel_write_batch=True,
-    )
-    assert prep.config.workspace_policy == WorkspacePolicy.ISOLATED_COPY
-    assert prep.child_context["_defer_workspace_merge"] is True
-
-
-def test_merge_candidate_detects_isolated_paths() -> None:
-    assert merge_candidate_from_spawn_dict(
-        {
-            "success": True,
-            "result": {
-                "_isolated_child_workspace": "/tmp/child",
-                "_isolated_parent_workspace": "/tmp/parent",
-            },
-        }
-    )
-    assert not merge_candidate_from_spawn_dict({"success": True, "result": "plain text"})
-
-
-def test_sanitize_spawn_result_for_store() -> None:
-    import json
-
-    from myrm_agent_harness.agent.sub_agents.spawn_prep import sanitize_spawn_result_for_store
-
-    def sync_back() -> None:
-        return None
-
-    payload = sanitize_spawn_result_for_store(
-        {
-            "success": True,
-            "result": {
-                "text": "x",
-                "_workspace_sync_back": sync_back,
-                "_isolated_child_workspace": "/tmp/c",
-                "_isolated_parent_workspace": "/tmp/p",
-            },
-        }
-    )
-    json.dumps(payload)
-    assert payload.get("workspace_merge_status") == "pending"

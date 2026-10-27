@@ -9,7 +9,7 @@
 - dynamic_workflow.store::WorkflowEventStore (POS: L2 persistent cache)
 - dynamic_workflow.spawn_cache::SpawnCacheParams (POS: Cache fingerprint)
 - agent.skills.mcp.progress_payload::build_workflow_stage_event (POS: Shared notify field SSOT)
-- sub_agents.types::SubagentCatalog, SubagentConfig, SubAgentResult (POS: Agent configuration, workspace isolation, and structured spawn result SSOT)
+- sub_agents.types::SubagentCatalog, SubagentConfig, SubAgentResult (POS: Agent configuration, workspace policy, and structured spawn result SSOT)
 - utils.runtime.cancellation::CancellationToken
 
 [OUTPUT]
@@ -17,7 +17,7 @@
 - NotifyProgressTool: PTC tool exposed as myrm_tools.notify — emits workflow stage events to the frontend
 - HumanAskTool: PTC tool exposed as myrm_tools.human_ask — suspends workflow for mid-run user input / decision
 - SteerChildTool: PTC tool exposed as myrm_tools.steer_child — dynamically injects corrective message into a running/warmed child subagent
-- WorkflowRunGuard: Per-workflow spawn counter, concurrency semaphore, parallel writer tracking
+- WorkflowRunGuard: Per-workflow spawn counter and concurrency semaphore
 
 [POS]
 Bridges the PTC Python script to the Harness delegate path. spawn_subagent() uses
@@ -48,13 +48,10 @@ from myrm_agent_harness.agent.skills.mcp.progress_payload import (
 )
 from myrm_agent_harness.agent.sub_agents.spawn_prep import (
     apply_readonly_to_config,
-    apply_spawn_workspace_isolation,
     build_child_context_from_parent_agent,
     coerce_spawn_readonly,
     enforce_spawn_policy_on_config,
     memory_isolation_scope,
-    merge_candidate_from_spawn_dict,
-    sanitize_spawn_result_for_store,
 )
 from myrm_agent_harness.agent.sub_agents.types import SubagentCatalog, SubAgentResult
 from myrm_agent_harness.core.security.path import coerce_filesystem_path
@@ -77,12 +74,11 @@ class DwVerificationMode(StrEnum):
 
 
 class WorkflowRunGuard:
-    """Hard cap on total spawns, concurrent in-flight sub-agents, and merge result collection."""
+    """Hard cap on total spawns and concurrent in-flight sub-agents."""
 
     __slots__ = (
         "_max_concurrent",
         "_max_spawns",
-        "_merge_results",
         "_semaphore",
         "_spawn_count",
     )
@@ -96,36 +92,21 @@ class WorkflowRunGuard:
         self._max_spawns = max_spawns
         self._max_concurrent = max_concurrent
         self._spawn_count = 0
-        self._merge_results: list[dict[str, object]] = []
         self._semaphore = asyncio.Semaphore(max_concurrent)
 
     @property
     def spawn_count(self) -> int:
         return self._spawn_count
 
-    @property
-    def merge_results(self) -> list[dict[str, object]]:
-        return list(self._merge_results)
-
-    async def acquire_spawn_slot(self, *, readonly: bool = False) -> str | None:
+    async def acquire_spawn_slot(self) -> str | None:
         if self._spawn_count >= self._max_spawns:
             return f"Workflow spawn limit reached ({self._max_spawns}). Reduce parallel tasks or split the workflow."
         self._spawn_count += 1
         await self._semaphore.acquire()
         return None
 
-    def release_spawn_slot(self, *, readonly: bool = False) -> None:
+    def release_spawn_slot(self) -> None:
         self._semaphore.release()
-
-    def record_merge_candidate(self, result: dict[str, object]) -> None:
-        if not merge_candidate_from_spawn_dict(result):
-            return
-        task_id = result.get("task_id")
-        if isinstance(task_id, str):
-            for existing in self._merge_results:
-                if existing.get("task_id") == task_id:
-                    return
-        self._merge_results.append(result)
 
 
 def _normalize_spawn_result(result: object, *, task_id: str, agent_type: str) -> dict[str, object]:
@@ -268,23 +249,14 @@ class SpawnSubagentTool(BaseTool):
                 task_id,
                 expected=cache_params,
             )
-            if cached and cached.get("workspace_merge_status") == "pending":
-                logger.info(
-                    "DW cache miss (pending merge): workflow=%s task=%s",
-                    self.workflow_id,
-                    task_id,
-                )
-                cached = None
             if cached:
                 logger.info("DW cache hit: workflow=%s task=%s", self.workflow_id, task_id)
                 await self._emit_spawn_stage(f"Using cached result for sub-agent `{task_id}`.")
-                if self.run_guard is not None and cached.get("workspace_merge_status") != "merged":
-                    self.run_guard.record_merge_candidate(cached)
                 return cached
 
         guard_error: str | None = None
         if self.run_guard is not None:
-            guard_error = await self.run_guard.acquire_spawn_slot(readonly=readonly)
+            guard_error = await self.run_guard.acquire_spawn_slot()
         if guard_error:
             await self._emit_spawn_stage(
                 f"Sub-agent `{task_id}` blocked: {guard_error}",
@@ -318,17 +290,7 @@ class SpawnSubagentTool(BaseTool):
         config = apply_readonly_to_config(config, readonly)
         config = enforce_spawn_policy_on_config(config)
 
-        # DW non-readonly spawns always use ISOLATED_COPY; batch_merge runs after PTC execution.
-        parallel_batch = not readonly and self.run_guard is not None
         child_context = build_child_context_from_parent_agent(self.parent_agent)
-        workspace_prep = apply_spawn_workspace_isolation(
-            config=config,
-            child_context=child_context,
-            readonly=readonly,
-            parallel_write_batch=parallel_batch,
-        )
-        config = workspace_prep.config
-        child_context = workspace_prep.child_context
 
         use_verification = verification_mode in {
             DwVerificationMode.ADVERSARIAL.value,
@@ -441,21 +403,17 @@ class SpawnSubagentTool(BaseTool):
                 }
         finally:
             if self.run_guard is not None:
-                self.run_guard.release_spawn_slot(readonly=readonly)
+                self.run_guard.release_spawn_slot()
 
         final_result = _normalize_spawn_result(result, task_id=task_id, agent_type=agent_type)
 
-        if self.run_guard is not None:
-            self.run_guard.record_merge_candidate(final_result)
-
         if self.store:
-            stored_result = sanitize_spawn_result_for_store(final_result)
             self.store.save_result(
                 workflow_id=self.workflow_id,
                 task_id=task_id,
                 agent_type=agent_type,
                 task_description=task_description,
-                result=stored_result,
+                result=final_result,
                 spawn_params=cache_params,
             )
             # Sidecar journal mirror (best-effort workspace snapshot)
@@ -473,7 +431,7 @@ class SpawnSubagentTool(BaseTool):
                     task_id=task_id,
                     agent_type=agent_type,
                     task_description=task_description,
-                    result=stored_result,
+                    result=final_result,
                     spawn_params=cache_params,
                 )
 

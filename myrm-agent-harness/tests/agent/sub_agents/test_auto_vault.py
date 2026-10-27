@@ -128,37 +128,6 @@ class TestAutoVaultOrTruncate:
         content = vault.get(match.group(1))
         assert content.decode("utf-8") == long_output
 
-    def test_isolated_workspace_vaults_to_parent(self, config_with_vault: SubagentConfig, tmp_path: Path) -> None:
-        """ISOLATED_COPY: vault must land in parent workspace, not child temp dir."""
-        import re
-
-        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-
-        parent_ws = tmp_path / "parent"
-        child_ws = tmp_path / "child"
-        parent_ws.mkdir()
-        child_ws.mkdir()
-
-        long_output = "isolated " * 50
-        result = _auto_vault_or_truncate(
-            long_output,
-            config_with_vault,
-            {
-                "workspace_path": str(child_ws),
-                "_isolated_parent_workspace": str(parent_ws),
-            },
-            "task-iso",
-            "test",
-        )
-        match = re.search(r"(vault://[a-f0-9-]+)", result)
-        assert match is not None
-
-        parent_vault = ArtifactVault(str(parent_ws))
-        assert parent_vault.get(match.group(1)).decode("utf-8") == long_output
-
-        child_objects = child_ws / ".agent" / "vault" / "objects"
-        assert not child_objects.exists() or not any(child_objects.iterdir())
-
     def test_summary_contains_head_and_tail(self, config_with_vault: SubagentConfig, workspace: str) -> None:
         """Summary should contain the beginning and end of the result."""
         head = "HEAD_MARKER_" + "a" * 50

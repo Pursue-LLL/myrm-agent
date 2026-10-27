@@ -1,19 +1,17 @@
-"""SubagentExecutor retry loop and workspace isolation.
+"""SubagentExecutor retry loop.
 
 [INPUT]
 - .executor_attempt_mixin::SubagentExecutorAttemptMixin (POS: One child-agent run attempt including fork context and result post-processing.)
 - .executor_helpers::_cascade_cancel_descendants, _compact_error_message, read_partial_output (POS: Pure helper functions for SubagentExecutor mixins and external callers.)
-- .types::SubagentBudgetExceededError, SubagentConfig, SubAgentResult, SubAgentStatus, WorkspacePolicy (POS: Subagent subsystem core type definitions.)
+- .types::SubagentBudgetExceededError, SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions.)
 - toolkits.llms.errors.exceptions::MyrmLLMError (POS: Standardized LLM Error thrown by the Harness framework.)
 - agent.hooks.executor::fire_hook (POS: Hook execution layer. Manages hook registration and execution with ContextVar-based session isolation.)
-- workspace_coordination.merge.merge_snapshots::apply_isolated_sync_back_with_snapshots (POS: Revert snapshot registration + immediate ISOLATED_COPY sync_back)
-- workspace_coordination.merge.merge_warning::record_workspace_merge_failure (POS: Per-turn tracker bridging batch_merge failures to post_run_events warning SSE)
 
 [OUTPUT]
-- SubagentExecutorRetryMixin.run_with_retry: immediate ISOLATED_COPY sync_back before return; merge failure records `{task_id}: {error}` turn warning + workspace_merge_status on result; every run (any attempt result status, timeout, LLM error, budget, other error, no attempt, cancellation) closes with SUBAGENT_STOP, paired with SUBAGENT_START; a single cancellation landing during STOP delivery sends a final STOP with status=cancelled, while a second cancellation landing inside the cancel path's own hook delivery ends the run with CancelledError and no STOP
+- SubagentExecutorRetryMixin.run_with_retry: every run (any attempt result status, timeout, LLM error, budget, other error, no attempt, cancellation) closes with SUBAGENT_STOP, paired with SUBAGENT_START; a single cancellation landing during STOP delivery sends a final STOP with status=cancelled, while a second cancellation landing inside the cancel path's own hook delivery ends the run with CancelledError and no STOP
 
 [POS]
-Retry loop with workspace isolation, hooks, and graceful cancellation.
+Retry loop with hooks and graceful cancellation.
 """
 
 from __future__ import annotations
@@ -21,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from langchain_core.tools import BaseTool
@@ -44,7 +41,6 @@ from .types import (
     SubagentConfig,
     SubAgentResult,
     SubAgentStatus,
-    WorkspacePolicy,
 )
 
 if TYPE_CHECKING:
@@ -54,55 +50,8 @@ if TYPE_CHECKING:
 logger = get_agent_logger(__name__)
 
 
-async def _apply_immediate_isolated_sync_back(
-    *,
-    result: SubAgentResult,
-    context: dict[str, object],
-    isolated_parent_ws: str | None,
-    pending_sync_back: Callable[[], object],
-    parent_agent: BaseAgent,
-) -> SubAgentResult:
-    """Run immediate ISOLATED_COPY sync_back; surface merge failure on result + turn warning."""
-    from dataclasses import replace as dc_replace
-
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_snapshots import (
-        apply_isolated_sync_back_with_snapshots,
-    )
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-        record_workspace_merge_failure,
-    )
-
-    child_path = Path(str(context.get("workspace_path", "")))
-    parent_path = Path(
-        str(isolated_parent_ws or context.get("_isolated_parent_workspace", ""))
-    )
-    try:
-        await apply_isolated_sync_back_with_snapshots(
-            child_workspace=child_path,
-            parent_workspace=parent_path,
-            sync_back=pending_sync_back,
-            parent_agent=parent_agent,
-        )
-        return result
-    except Exception as exc:
-        logger.error(
-            "[subagent:%s] Immediate ISOLATED_COPY sync_back failed: %s",
-            result.task_id,
-            exc,
-        )
-        record_workspace_merge_failure(f"{result.task_id}: {exc}")
-        extra: dict[str, object] = (
-            dict(result.result)
-            if isinstance(result.result, dict)
-            else {"text": result.result}
-        )
-        extra["workspace_merge_status"] = "error"
-        extra["workspace_merge_error"] = str(exc)
-        return dc_replace(result, result=extra)
-
-
 class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
-    """Run subagents with retries and workspace isolation."""
+    """Run subagents with retries."""
 
     async def run_with_retry(
         self,
@@ -126,7 +75,7 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
         on_running_token_usage: Callable[[dict[str, object]], None] | None = None,
         internal: bool = False,
     ) -> SubAgentResult:
-        """Execute subagent with retry logic and workspace isolation."""
+        """Execute subagent with retry logic."""
         retries_left = config.max_retries
         backoff_seconds = config.retry_backoff_seconds
         # A failed attempt's streamed text is the parent's tool result: twice the error budget at most.
@@ -138,30 +87,6 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
 
         context = await self._inherit_parent_context(context, task_id, parent_agent)
         context["trace_id"] = trace_id
-
-        # Workspace isolation: ISOLATED_COPY creates a COW clone via shutil.copytree
-
-        isolation_ctx = None
-        isolated_parent_ws: str | None = None
-        isolation_cleanup_policy: dict[str, bool] = {"on_exit": True}
-        if config.workspace_policy == WorkspacePolicy.ISOLATED_COPY:
-            parent_ws = context.get("workspace_path")
-            if parent_ws:
-                from myrm_agent_harness.agent.sub_agents.workspace_isolation import (
-                    isolated_workspace,
-                )
-
-                isolated_parent_ws = str(parent_ws)
-                if context.get("_defer_workspace_merge"):
-                    isolation_cleanup_policy["on_exit"] = False
-                isolation_ctx = isolated_workspace(
-                    isolated_parent_ws,
-                    cleanup_policy=isolation_cleanup_policy,
-                )
-                child_ws, sync_back = await isolation_ctx.__aenter__()
-                context["workspace_path"] = str(child_ws)
-                context["_workspace_sync_back"] = sync_back
-                context["_isolated_parent_workspace"] = isolated_parent_ws
 
         from myrm_agent_harness.agent.hooks.executor import fire_hook
         from myrm_agent_harness.agent.hooks.types import HookEvent
@@ -178,8 +103,6 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
 
         parent_tracker = get_token_tracker()
         parent_taint = get_taint_tracker()
-        isolation_succeeded = False
-        pending_sync_back: Callable[[], object] | None = None
 
         async def close_run(outcome: SubAgentResult) -> SubAgentResult:
             """Fire SUBAGENT_STOP for the run's outcome; every return goes through here.
@@ -204,9 +127,7 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
             await fire_hook(HookEvent.SUBAGENT_STOP, payload)
             return outcome
 
-        async def finish_failed(
-            status: SubAgentStatus, error: str, partial: str = ""
-        ) -> SubAgentResult:
+        async def finish_failed(status: SubAgentStatus, error: str, partial: str = "") -> SubAgentResult:
             """Close the run with an unsuccessful outcome: failure, timeout, budget or cancellation."""
             now = time.time()
             return await close_run(
@@ -250,42 +171,10 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
                         internal=internal,
                     )
                     await close_run(result)
-                    if isolation_ctx and result.success:
-                        isolation_succeeded = True
-                        sync_back_fn = context.get("_workspace_sync_back")
-                        if callable(sync_back_fn):
-                            pending_sync_back = sync_back_fn
-                            if context.get("_defer_workspace_merge"):
-                                from dataclasses import replace as dc_replace
-
-                                extra: dict[str, object] = (
-                                    dict(result.result)
-                                    if isinstance(result.result, dict)
-                                    else {"text": result.result}
-                                )
-                                extra["_workspace_sync_back"] = sync_back_fn
-                                extra["_isolated_child_workspace"] = str(
-                                    context.get("workspace_path", "")
-                                )
-                                if isolated_parent_ws:
-                                    extra["_isolated_parent_workspace"] = (
-                                        isolated_parent_ws
-                                    )
-                                result = dc_replace(result, result=extra)
-                            else:
-                                result = await _apply_immediate_isolated_sync_back(
-                                    result=result,
-                                    context=context,
-                                    isolated_parent_ws=isolated_parent_ws,
-                                    pending_sync_back=pending_sync_back,
-                                    parent_agent=parent_agent,
-                                )
                     return result
                 except TimeoutError as timeout_exc:
                     retries_left -= 1
-                    logger.warning(
-                        "[subagent:%s] Timeout, retries_left=%d", task_id, retries_left
-                    )
+                    logger.warning("[subagent:%s] Timeout, retries_left=%d", task_id, retries_left)
                     if retries_left > 0:
                         await asyncio.sleep(backoff_seconds)
                         backoff_seconds *= 2
@@ -336,9 +225,7 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
                         continue
                     return await finish_failed(
                         SubAgentStatus.FAILED,
-                        _compact_error_message(
-                            f"{type(error).__name__}: {error}", config.max_error_chars
-                        ),
+                        _compact_error_message(f"{type(error).__name__}: {error}", config.max_error_chars),
                         read_partial_output(error, partial_budget),
                     )
 
@@ -359,15 +246,4 @@ class SubagentExecutorRetryMixin(SubagentExecutorAttemptMixin):
             )
             return await finish_failed(SubAgentStatus.CANCELLED, "Cancelled")
         finally:
-            if isolation_ctx:
-                try:
-                    if not isolation_succeeded:
-                        isolation_cleanup_policy["on_exit"] = True
-                    await isolation_ctx.__aexit__(None, None, None)
-                except Exception as e:
-                    logger.warning(
-                        "[subagent:%s] Workspace isolation cleanup failed: %s",
-                        task_id,
-                        e,
-                    )
             logger.debug("[subagent:%s] Resource cleanup complete", task_id)

@@ -4,7 +4,7 @@ Compares pre/post file snapshots (mtime + size) to generate a concise
 human-readable diff summary for Verifier agents.
 
 [INPUT]
-- agent.sub_agents.workspace_isolation::_CLONE_IGNORE_DIRS (POS: Workspace isolation忽略目录集合)
+- (none)
 
 [OUTPUT]
 - take_workspace_snapshot: Collect {relative_path: (mtime, size)} mapping.
@@ -20,8 +20,21 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from myrm_agent_harness.agent.sub_agents.workspace_isolation import (
-    _CLONE_IGNORE_DIRS as _SNAPSHOT_IGNORE_DIRS,
+# Version-control metadata, dependency trees and build output change on their own, so a snapshot skips them.
+_SNAPSHOT_IGNORE_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".tox",
+        "dist",
+        "build",
+        ".next",
+    }
 )
 
 _MAX_SNAPSHOT_FILES = 5000

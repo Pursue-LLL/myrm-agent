@@ -69,16 +69,18 @@ async def test_delegate_task_batch_tournament(mock_estimate_cost, mock_run_tourn
     assert result["success"] is True
 
     mock_run_parallel.assert_called_once()
-    assert mock_run_parallel.call_args.kwargs["skip_merge"] is True
 
     mock_run_tournament.assert_called_once_with(parent, mock_payload["results"], "Best code")
 
     assert "【TOURNAMENT MODE ACTIVE】" in tasks[0].objective
+    assert "Original Objective:\nTask 1" in tasks[0].objective
+    # Contestants share one workspace and run at the same time: each is told its own folder.
+    assert "only inside the folder contestant_1/" in tasks[0].objective
+    assert "only inside the folder contestant_2/" in tasks[1].objective
 
 
 @pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-async def test_run_tournament_bracket(mock_merge):
+async def test_run_tournament_bracket():
     from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import _run_tournament_bracket
 
     parent = _make_mock_parent()
@@ -87,19 +89,16 @@ async def test_run_tournament_bracket(mock_merge):
         {"task_id": "task-2", "result": "Output B", "status": "COMPLETED", "success": True},
     ]
 
-    mock_merge.return_value = {"merged": True}
-
     final_result = await _run_tournament_bracket(parent, results, "Best code")
 
     assert final_result["success"] is True
     assert "tournament_winner" in final_result
     assert parent.llm.ainvoke.called
-    assert mock_merge.called
+    assert not [key for key in final_result if "merge" in key]
 
 
 @pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-async def test_run_tournament_bracket_judge_picks_b(mock_merge):
+async def test_run_tournament_bracket_judge_picks_b():
     """Judge returning 'B' must select the second candidate, not default to the first."""
     from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import _run_tournament_bracket
 
@@ -112,16 +111,13 @@ async def test_run_tournament_bracket_judge_picks_b(mock_merge):
         {"task_id": "task-1", "result": "Output A", "status": "COMPLETED", "success": True},
         {"task_id": "task-2", "result": "Output B", "status": "COMPLETED", "success": True},
     ]
-    mock_merge.return_value = {"merged": True}
-
     final_result = await _run_tournament_bracket(parent, results, "Best code")
 
     assert final_result["result"]["task_id"] == "task-2"
 
 
 @pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-async def test_run_tournament_bracket_reasoning_model_content_empty(mock_merge):
+async def test_run_tournament_bracket_reasoning_model_content_empty():
     """A reasoning model (content empty, answer in reasoning_content) must still pick the winner."""
     from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import _run_tournament_bracket
 
@@ -135,8 +131,6 @@ async def test_run_tournament_bracket_reasoning_model_content_empty(mock_merge):
         {"task_id": "task-1", "result": "Output A", "status": "COMPLETED", "success": True},
         {"task_id": "task-2", "result": "Output B", "status": "COMPLETED", "success": True},
     ]
-    mock_merge.return_value = {"merged": True}
-
     final_result = await _run_tournament_bracket(parent, results, "Best code")
 
     assert final_result["result"]["task_id"] == "task-2"

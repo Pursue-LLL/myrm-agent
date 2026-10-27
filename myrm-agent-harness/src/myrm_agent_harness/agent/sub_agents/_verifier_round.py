@@ -3,7 +3,6 @@
 [INPUT]
 - agent.sub_agents._verification_parsing::VerificationVerdict, _parse_verdict, _emit_verification_verdict (POS: Shared verification parsing for sub_agents verifier rounds and delegate verification.)
 - agent.sub_agents._workspace_diff::take_workspace_snapshot, diff_snapshots, revert_workspace_mutations (POS: Workspace diff for adversarial verification — stat-based, no git dependency.)
-- agent.sub_agents.result_output::answer_text (POS: Subagent result payload (answer text, or a dict carrying isolation merge metadata).)
 - agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus, WorkspacePolicy (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - agent.orchestration.signals.catalog::SUBMIT_VERDICT_SIGNAL (POS: SSOT for control-plane signal names)
 - agent.orchestration.signals.verifier::create_submit_verdict_tool (POS: Verifier sub-agents bind ``submit_verdict`` to emit a structured ``VerificationVerdict``.)
@@ -43,7 +42,6 @@ from myrm_agent_harness.agent.sub_agents._workspace_diff import (
     take_workspace_snapshot,
 )
 from myrm_agent_harness.agent.sub_agents.checkpointer import delete_subagent_checkpoint
-from myrm_agent_harness.agent.sub_agents.result_output import answer_text
 from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_verifier_capability
 from myrm_agent_harness.agent.sub_agents.types import (
     SubagentConfig,
@@ -264,7 +262,7 @@ async def _execute_verifier_round(
             verdict.summary,
         )
     else:
-        verdict = _parse_verdict(answer_text(verifier_result.result))
+        verdict = _parse_verdict(verifier_result.result)
         logger.info(
             "[verification] Round %d — Regex Verdict=%s confidence=%s summary=%s",
             round_num,

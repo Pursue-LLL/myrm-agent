@@ -51,7 +51,6 @@ from myrm_agent_harness.agent.sub_agents.handover import (
 from myrm_agent_harness.agent.sub_agents.hitl_tool_policy import (
     HITL_TOOL_POLICY,
 )
-from myrm_agent_harness.agent.sub_agents.result_output import SubAgentOutput
 from myrm_agent_harness.core.security.tool_registry import PARENT_BOUND_WRITER_TOOLS
 from myrm_agent_harness.utils.token_economics.tracker import TokenUsage
 
@@ -246,11 +245,9 @@ class ControlScope(StrEnum):
 
 
 class WorkspacePolicy(StrEnum):
-    """Subagent workspace isolation policy."""
+    """A child runs on its parent's executor, so it writes the parent's one workspace (INHERIT) or only reads it."""
 
     INHERIT = "inherit"
-    ISOLATED_COPY = "isolated_copy"
-    GIT_WORKTREE = "git_worktree"
     READ_ONLY_SANDBOX = "read_only_sandbox"
 
 
@@ -261,7 +258,7 @@ class SubAgentResult:
     success: bool
     task_id: str
     agent_type: str
-    result: SubAgentOutput = ""
+    result: str = ""
     error: str = ""
     token_usage: TokenUsage | None = None
     duration_seconds: float = 0.0

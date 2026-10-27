@@ -147,78 +147,6 @@ async def test_spawn_tool_magicmock_workspace_dir_writes_no_journal(
 
 
 @pytest.mark.asyncio
-async def test_spawn_tool_cache_miss_when_merge_still_pending(temp_store, mock_parent_agent):
-    params = _cache_params(task_description="write notes")
-    temp_store.save_result(
-        "wf_pending",
-        "task_1",
-        params.agent_type,
-        params.task_description,
-        {
-            "success": True,
-            "task_id": "task_1",
-            "workspace_merge_status": "pending",
-            "result": {"text": "partial"},
-        },
-        spawn_params=params,
-    )
-
-    mock_parent_agent._spawn_child.return_value = {
-        "success": True,
-        "task_id": "task_1",
-        "agent_type": "generalPurpose",
-        "result": "done",
-    }
-
-    tool = SpawnSubagentTool(
-        parent_agent=mock_parent_agent,
-        tool_registry_getter=lambda: [],
-        workflow_id="wf_pending",
-        store=temp_store,
-    )
-
-    result = await tool._arun("task_1", "generalPurpose", "write notes")
-    assert result["result"] == "done"
-    mock_parent_agent._spawn_child.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_spawn_tool_cache_hit_records_pending_merge(temp_store, mock_parent_agent):
-    params = _cache_params(task_description="write notes")
-    cached_payload = {
-        "success": True,
-        "task_id": "task_1",
-        "result": {
-            "_isolated_child_workspace": "/tmp/child",
-            "_isolated_parent_workspace": "/tmp/parent",
-        },
-    }
-    temp_store.save_result(
-        "wf_merge_cache",
-        "task_1",
-        params.agent_type,
-        params.task_description,
-        cached_payload,
-        spawn_params=params,
-    )
-
-    guard = WorkflowRunGuard(max_spawns=10, max_concurrent=2)
-    tool = SpawnSubagentTool(
-        parent_agent=mock_parent_agent,
-        tool_registry_getter=lambda: [],
-        workflow_id="wf_merge_cache",
-        store=temp_store,
-        run_guard=guard,
-    )
-
-    result = await tool._arun("task_1", "generalPurpose", "write notes")
-
-    assert result == cached_payload
-    assert len(guard.merge_results) == 1
-    mock_parent_agent._spawn_child.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_spawn_tool_cache_miss(temp_store, mock_parent_agent):
     class MockResult:
         success = True
@@ -1018,49 +946,6 @@ async def test_spawn_adversarial_refuses_a_verifier_that_cannot_run_commands(moc
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.sub_agents.orchestrator.run_with_verification")
-async def test_spawn_adversarial_writable_records_isolated_merge(mock_run_verify, mock_parent_agent):
-    from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
-
-    mock_parent_agent._subagent_manager = MagicMock()
-    mock_run_verify.return_value = SubAgentResult(
-        success=True,
-        task_id="verify-worker-1-generalPurpose",
-        agent_type="generalPurpose",
-        result={
-            "text": "implemented",
-            "_isolated_child_workspace": "/tmp/child",
-            "_isolated_parent_workspace": "/tmp/parent",
-            "_verification_summary": "[Verification: PASS]",
-        },
-        completed_at=0.0,
-        status=SubAgentStatus.COMPLETED,
-    )
-
-    guard = WorkflowRunGuard(max_spawns=10, max_concurrent=2)
-    tool = SpawnSubagentTool(
-        parent_agent=mock_parent_agent,
-        tool_registry_getter=_bash_registry,
-        workflow_id="wf_adv_merge",
-        run_guard=guard,
-    )
-
-    result = await tool._arun(
-        "task_impl",
-        "generalPurpose",
-        "Implement utils/price.py",
-        readonly=False,
-        verification_mode="adversarial",
-    )
-
-    assert result["success"] is True
-    assert len(guard.merge_results) == 1
-    inner = guard.merge_results[0]["result"]
-    assert isinstance(inner, dict)
-    assert inner["_isolated_child_workspace"] == "/tmp/child"
-
-
-@pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.sub_agents.orchestrator.run_with_verification")
 async def test_spawn_adversarial_no_manager_falls_back_to_spawn(mock_run_verify, mock_parent_agent):
     """Missing SubagentManager falls back to direct spawn."""
     parent = MagicMock(spec=["_spawn_child", "context"])
@@ -1087,11 +972,7 @@ async def test_spawn_adversarial_no_manager_falls_back_to_spawn(mock_run_verify,
 
 
 @pytest.mark.asyncio
-async def test_spawn_parallel_writers_use_isolated_copy(mock_parent_agent, monkeypatch):
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.workspace_coordination.git_worktree.create_subagent_worktree",
-        lambda _ws: None,
-    )
+async def test_spawn_parallel_writers_share_the_workspace(mock_parent_agent):
     mock_parent_agent._spawn_child = AsyncMock(return_value={"success": True, "result": "ok"})
     mock_parent_agent.context = {"workspace_path": "/tmp/ws"}
 
@@ -1099,7 +980,7 @@ async def test_spawn_parallel_writers_use_isolated_copy(mock_parent_agent, monke
     tool = SpawnSubagentTool(
         parent_agent=mock_parent_agent,
         tool_registry_getter=lambda: [],
-        workflow_id="wf_iso",
+        workflow_id="wf_shared",
         run_guard=guard,
     )
 
@@ -1108,9 +989,10 @@ async def test_spawn_parallel_writers_use_isolated_copy(mock_parent_agent, monke
         tool._arun("t2", "generalPurpose", "write b", readonly=False),
     )
 
-    configs = [call.kwargs["config"] for call in mock_parent_agent._spawn_child.await_args_list]
-    assert len(configs) == 2
-    assert all(cfg.workspace_policy == WorkspacePolicy.ISOLATED_COPY for cfg in configs)
+    calls = mock_parent_agent._spawn_child.await_args_list
+    assert len(calls) == 2
+    assert all(call.kwargs["config"].workspace_policy == WorkspacePolicy.INHERIT for call in calls)
+    assert all(call.kwargs["context"]["workspace_path"] == "/tmp/ws" for call in calls)
 
 
 @pytest.mark.asyncio

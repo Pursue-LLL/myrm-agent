@@ -180,23 +180,6 @@ class WorkflowEventStore:
 
         return None
 
-    def update_stored_result(
-        self,
-        workflow_id: str,
-        task_id: str,
-        result: dict[str, object],
-    ) -> None:
-        """Update cached spawn result JSON after post-execution merge."""
-        with self._connect() as conn:
-            conn.execute(
-                """
-                UPDATE subagent_events
-                SET result_json = ?
-                WHERE workflow_id = ? AND task_id = ?
-                """,
-                (json.dumps(result), workflow_id, task_id),
-            )
-
     @staticmethod
     def _params_match(
         *,

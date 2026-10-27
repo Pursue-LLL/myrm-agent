@@ -822,12 +822,7 @@ class TestBatchDelegateExecution:
 
         async def fast_spawn(*args, **kwargs):
             await asyncio.sleep(0.1)
-            return {
-                "success": True,
-                "result": "fast",
-                "task_id": "fast",
-                "_workspace_sync_back": AsyncMock(),
-            }
+            return {"success": True, "result": "fast", "task_id": "fast"}
 
         # Mock delegate tool coroutine directly to simulate different speeds
         delegate = create_delegate_task_tool(parent, lambda: [], catalog)
@@ -855,43 +850,7 @@ class TestBatchDelegateExecution:
         assert result["result"]["result"] == "fast"
 
     @pytest.mark.asyncio
-    async def test_batch_race_mode_syncs_workspace(self):
-        from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegate_task_tool import (
-            TaskRequest,
-            create_delegate_task_tool,
-        )
-
-        config = SubagentConfig(system_prompt="test")
-        catalog = AsyncMock()
-        catalog.resolve = AsyncMock(return_value=config)
-
-        parent = _make_mock_parent()
-        parent._last_context = {}
-
-        mock_sync_back = AsyncMock()
-
-        async def fast_spawn(*args, **kwargs):
-            return {
-                "success": True,
-                "result": "fast",
-                "task_id": "fast",
-                "_workspace_sync_back": mock_sync_back,
-            }
-
-        delegate = create_delegate_task_tool(parent, lambda: [], catalog)
-        delegate.coroutine = fast_spawn
-
-        batch = _create_batch_delegate_tasks_tool(parent, lambda: [], catalog, delegate_tool=delegate)
-
-        tasks = [
-            TaskRequest(agent_type="coder", objective="fast task"),
-        ]
-
-        # Run in race mode
-        result = await batch.coroutine(tasks=tasks, wait=True, race=True)
-
-        assert result["success"] is True
-        mock_sync_back.assert_awaited_once()
+    async def test_batch_reports_partial_success_when_one_task_raises(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegate_task_tool import (
             TaskRequest,
             create_delegate_task_tool,
@@ -2593,8 +2552,7 @@ class TestEstimateBatchCostBudgetTokensPath:
 
 class TestTournamentBracketEdgeCases:
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_no_successful_candidates(self, mock_merge):
+    async def test_no_successful_candidates(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
@@ -2609,16 +2567,13 @@ class TestTournamentBracketEdgeCases:
 
         assert result["success"] is False
         assert "No successful tasks" in result["error"]
-        mock_merge.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_single_successful_candidate_wins(self, mock_merge):
+    async def test_single_successful_candidate_wins(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
 
-        mock_merge.return_value = {}
         parent = _make_mock_parent()
         results = [
             {"task_id": "1", "result": "only winner", "success": True},
@@ -2633,13 +2588,11 @@ class TestTournamentBracketEdgeCases:
         parent.llm.ainvoke.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_judge_picks_candidate_b(self, mock_merge):
+    async def test_judge_picks_candidate_b(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
 
-        mock_merge.return_value = {}
         parent = _make_mock_parent()
         mock_response = MagicMock()
         mock_response.content = "B\nCandidate B is much better."
@@ -2656,13 +2609,11 @@ class TestTournamentBracketEdgeCases:
         assert result["result"]["result"] == "Output B"
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_judge_error_falls_back_to_candidate_a(self, mock_merge):
+    async def test_judge_error_falls_back_to_candidate_a(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
 
-        mock_merge.return_value = {}
         parent = _make_mock_parent()
         parent.llm.ainvoke = AsyncMock(side_effect=RuntimeError("LLM error"))
 
@@ -2677,13 +2628,11 @@ class TestTournamentBracketEdgeCases:
         assert result["result"]["result"] == "Output A"
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_no_llm_on_parent_falls_back_to_first(self, mock_merge):
+    async def test_no_llm_on_parent_falls_back_to_first(self):
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
 
-        mock_merge.return_value = {}
         parent = MagicMock(spec=[])
 
         results = [
@@ -2697,14 +2646,12 @@ class TestTournamentBracketEdgeCases:
         assert result["result"]["result"] == "Output A"
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs")
-    async def test_three_candidates_bracket(self, mock_merge):
+    async def test_three_candidates_bracket(self):
         """Odd number of candidates: one gets a bye to next round."""
         from myrm_agent_harness.agent.meta_tools.spawn_subagent._delegate_batch import (
             _run_tournament_bracket,
         )
 
-        mock_merge.return_value = {}
         parent = _make_mock_parent()
 
         call_count = 0

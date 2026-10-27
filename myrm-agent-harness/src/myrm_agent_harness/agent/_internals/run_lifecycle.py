@@ -7,18 +7,17 @@ post-processing event emission.
 [INPUT]
 - agent.streaming.types::ContextBudgetSnapshot (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - agent.types::AgentRunStatistics, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- workspace_coordination.merge.merge_warning::has_workspace_merge_warning (POS: Per-turn tracker bridging batch_merge failures to post_run_events warning SSE)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - toolkits.code_execution.workspace.storage_root_bind (POS: ContextVar binding for aggregate workspace filesystem roots during a single agent Task.)
 - utils.runtime.steering::SteeringToken (POS: Steering  Agent  Agent)
-- _internals.message_end_event::build_message_end_event, resolve_completion_status (POS: MESSAGE_END 事件负载与完成态仲裁)
+- _internals.message_end_event::build_message_end_event (POS: MESSAGE_END 事件负载)
 
 [OUTPUT]
 - setup_workspace: Create workspace under host ``workspaces_storage_root``, bind executor, set context vars. The storage-root ContextVar undo token is stashed in a ContextVar (not in ``merged_context``) so checkpoints/msgpack never serialize it.
 - cleanup_run: Run-end cleanup: cancel children, reset context vars, col...
 - _init_pseudonym_store: Initialize the context-local PseudonymStore and regex PII closure when the active PrivacyPolicy requires one (``needs_pseudonym_store``); consumed by skill-agent session-end privacy re-establishment.
 - compute_context_budget_snapshot: Compute a lightweight context budget snapshot from token ...
-- post_run_events: Yield post-processing events: artifacts, FILE_MUTATION_FAILED, WORKSPACE_MERGE_FAILED, and MESSAGE_END (payload assembly lives in ``message_end_event``).
+- post_run_events: Yield post-processing events: artifacts, FILE_MUTATION_FAILED, and MESSAGE_END (payload assembly lives in ``message_end_event``).
 
 [POS]
 Agent run lifecycle helpers — workspace setup, cleanup, and post-processing.
@@ -32,10 +31,7 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent._internals.message_end_event import (
-    build_message_end_event,
-    resolve_completion_status,
-)
+from myrm_agent_harness.agent._internals.message_end_event import build_message_end_event
 from myrm_agent_harness.agent.context_management.infra.cache_metrics_collector import (
     clear_pending_explicit_cache_snapshot,
     install_llm_response_hook,
@@ -510,21 +506,4 @@ async def post_run_events(
             "messageId": message_id,
         }
 
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-        format_workspace_merge_failures,
-    )
-
-    merge_payload = format_workspace_merge_failures()
-    if merge_payload:
-        yield {
-            "type": AgentEventType.WORKSPACE_MERGE_FAILED.value,
-            "data": merge_payload,
-            "messageId": message_id,
-        }
-
-    yield build_message_end_event(
-        stats,
-        message_id,
-        tracker=tracker,
-        completion_status=resolve_completion_status(stats),
-    )
+    yield build_message_end_event(stats, message_id, tracker=tracker)

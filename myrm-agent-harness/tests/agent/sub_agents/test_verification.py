@@ -11,7 +11,6 @@ import pytest
 from myrm_agent_harness.agent.sub_agents._orchestrator_verification import (
     VerificationVerdict,
     _append_verification_block,
-    _format_worker_output_for_verifier,
     _parse_verdict,
     _spawn_dict_to_subagent_result,
     run_with_verification,
@@ -266,20 +265,6 @@ class TestParseVerdict:
         """Whether a PASS is backed by execution is the verifier round's call, not a parsing heuristic."""
         v = _parse_verdict(_verdict_json("PASS", "looks right to me"))
         assert v.passed is True
-
-
-class TestVerificationResultShape:
-    def test_append_verification_preserves_isolation_dict(self):
-        payload = {
-            "text": "implemented",
-            "_isolated_child_workspace": "/tmp/child",
-            "_isolated_parent_workspace": "/tmp/parent",
-        }
-        updated = _append_verification_block(payload, "[Verification: PASS]")
-        assert isinstance(updated, dict)
-        assert updated["_isolated_child_workspace"] == "/tmp/child"
-        assert updated["_isolated_parent_workspace"] == "/tmp/parent"
-        assert "[Verification: PASS]" in updated["_verification_summary"]
 
 
 # ---------------------------------------------------------------------------
@@ -1096,41 +1081,12 @@ class TestInternalIdUniqueness:
 
 
 # ---------------------------------------------------------------------------
-# Rendering / dict helpers
+# Rendering helpers
 # ---------------------------------------------------------------------------
 
 
-class TestFormatWorkerOutput:
-    def test_dict_with_text_returns_text(self):
-        assert _format_worker_output_for_verifier({"text": "hello", "other": 1}) == "hello"
-
-    def test_dict_without_text_returns_filtered_json(self):
-        result = _format_worker_output_for_verifier(
-            {"a": 1, "_workspace_sync_back": "x", "_isolated_child_workspace": "y"}
-        )
-        assert '"a": 1' in result
-        assert "_workspace_sync_back" not in result
-        assert "_isolated_child_workspace" not in result
-
-    def test_dict_all_filtered_falls_back_to_str(self):
-        result = _format_worker_output_for_verifier({"_verification_summary": "s"})
-        assert "s" in result
-
-    def test_non_dict_returns_str(self):
-        assert _format_worker_output_for_verifier("plain") == "plain"
-
-
 class TestAppendVerificationBlock:
-    def test_dict_with_prior_summary_appends(self):
-        updated = _append_verification_block({"result": "r", "_verification_summary": "old"}, "block")
-        assert updated["_verification_summary"] == "old\n\nblock"
-
-    def test_dict_without_prior_sets_summary_and_append_text(self):
-        updated = _append_verification_block({"result": "r", "text": "t"}, "block")
-        assert updated["_verification_summary"] == "block"
-        assert updated["text"] == "t\n\nblock"
-
-    def test_non_dict_appends_as_string(self):
+    def test_the_evidence_follows_the_answer(self):
         assert _append_verification_block("plain", "block") == "plain\n\nblock"
 
 

@@ -11,7 +11,7 @@
 - _filter_fork_messages, _estimate_msg_tokens: fork context filtering
 - _cascade_cancel_descendants: cascade cancellation
 - attach_partial_output, read_partial_output: carry the text a failed attempt streamed from the attempt to the retry loop on the exception; the reader cuts an oversized text to a character budget
-- _compact_error_message, _auto_vault_or_truncate: oversized result vault (parent workspace under ISOLATED_COPY), inline artifact, file_read_tool recovery hint
+- _compact_error_message, _auto_vault_or_truncate: oversized result vault, inline artifact, file_read_tool recovery hint
 - _parse_handover_state: handover block parsing
 - clear_file_tracking: drop a finished child's file activity, integrity and read-dedup records
 
@@ -190,9 +190,6 @@ def _auto_vault_or_truncate(
     ``vault://`` pointer is returned so the parent agent (and frontend)
     can reference it without inflating context. Also queues an inline artifact
     event when ArtifactContext is active so the vault card appears in the UI.
-
-    For ``ISOLATED_COPY`` subagents, vault objects are stored under
-    ``_isolated_parent_workspace`` so the parent agent and GUI can read them.
     """
     threshold = config.auto_vault_threshold
     if threshold is None or len(raw_result) <= threshold:
@@ -203,13 +200,10 @@ def _auto_vault_or_truncate(
         logger.debug("[subagent:%s] No workspace_path - falling back to truncation", task_id)
         return truncate_result(raw_result, config.max_result_tokens)
 
-    parent_workspace = context.get("_isolated_parent_workspace")
-    vault_workspace = parent_workspace if isinstance(parent_workspace, str) and parent_workspace else workspace_path
-
     try:
         from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-        vault = ArtifactVault(vault_workspace)
+        vault = ArtifactVault(workspace_path)
         vault_filename = f"subagent_{task_id}.md"
         pointer = vault.put(
             raw_result,

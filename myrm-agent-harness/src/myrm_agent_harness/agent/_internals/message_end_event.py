@@ -24,24 +24,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.streaming.types import AgentEventType
-from myrm_agent_harness.agent.types import CompletionStatus
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.types import AgentRunStatistics
     from myrm_agent_harness.utils.token_economics.tracker import TokenTracker
-
-
-def _attach_usage(event: dict[str, object], stats: AgentRunStatistics) -> dict[str, object] | None:
-    """Attach the turn's token usage; return the tracker used for the later fields."""
-    from myrm_agent_harness.utils.token_economics.tracker import get_token_tracker
-
-    tracker = get_token_tracker()
-    try:
-        if tracker is not None:
-            event["token_economics"] = tracker.to_dict()
-    except Exception:
-        pass
-    return tracker
 
 
 def build_message_end_event(
@@ -49,7 +35,6 @@ def build_message_end_event(
     message_id: str,
     *,
     tracker: TokenTracker | None = None,
-    completion_status: str,
 ) -> dict[str, object]:
     """Return the MESSAGE_END event for a finished turn.
 
@@ -63,14 +48,14 @@ def build_message_end_event(
         "type": AgentEventType.MESSAGE_END.value,
         "data": "",
         "messageId": message_id,
-        "completion_status": completion_status,
+        "completion_status": stats.completion_status.value,
     }
 
     # Per-turn disclosure (evidence tier + staged drafts) published by the completion guard.
     attach_disclosure_to_event(event, message_id)
 
     if stats.token_usage:
-        usage_dict = stats.token_usage.to_dict()
+        usage_dict: dict[str, object] = dict(stats.token_usage.to_dict())
         if stats.model_usage:
             usage_dict["model_usage"] = stats.model_usage
         event["usage"] = usage_dict
@@ -116,15 +101,3 @@ def build_message_end_event(
         pass
 
     return event
-
-
-def resolve_completion_status(stats: AgentRunStatistics) -> str:
-    """Return the turn's completion status, downgraded to ``warning`` on a merge warning."""
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_warning import (
-        has_workspace_merge_warning,
-    )
-
-    completion_status = stats.completion_status.value
-    if has_workspace_merge_warning() and completion_status == CompletionStatus.COMPLETE.value:
-        return "warning"
-    return completion_status

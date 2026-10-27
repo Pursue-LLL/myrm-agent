@@ -510,9 +510,6 @@ async def run_dynamic_workflow_stream(
         diff_snapshots,
         take_workspace_snapshot,
     )
-    from myrm_agent_harness.agent.workspace_coordination.merge.merge_snapshots import (
-        build_merge_snapshot_context,
-    )
     from myrm_agent_harness.toolkits.code_execution.executors.models import (
         ExecutionContext,
     )
@@ -527,11 +524,6 @@ async def run_dynamic_workflow_stream(
     set_current_message_id(message_id)
     workspace_root = str(WorkspacePathResolver.resolve_workspace_root())
     pre_workspace_snapshot = take_workspace_snapshot(workspace_root)
-    merge_snapshot_ctx = build_merge_snapshot_context(
-        session_id=chat_id,
-        message_id=message_id,
-        workspace_root=workspace_root,
-    )
 
     context = ExecutionContext(
         code=script_code,
@@ -546,8 +538,6 @@ async def run_dynamic_workflow_stream(
 
     workflow_failed = False
     workflow_error: str | None = None
-    merge_summary: dict[str, object] | None = None
-    merge_error_note = ""
     result = None
 
     try:
@@ -586,36 +576,6 @@ async def run_dynamic_workflow_stream(
             yield notify_event
         logger.error("Dynamic Workflow execution failed: %s", e, exc_info=True)
     finally:
-        merge_results = run_guard.merge_results
-        if merge_results:
-            from myrm_agent_harness.agent.sub_agents.spawn_prep import (
-                spawn_result_for_store_after_merge,
-            )
-            from myrm_agent_harness.agent.workspace_coordination.merge.batch_merge import (
-                merge_batch_workspace_sync_backs,
-            )
-
-            merge_summary = await merge_batch_workspace_sync_backs(
-                merge_results,
-                snapshot_context=merge_snapshot_ctx,
-            )
-            logger.info(
-                "DW parallel workspace merge: workflow=%s summary=%s",
-                workflow_id,
-                merge_summary,
-            )
-            for item in merge_results:
-                task_id_val = item.get("task_id")
-                if isinstance(task_id_val, str) and item.get("workspace_merge_status") == "merged":
-                    store.update_stored_result(
-                        workflow_id,
-                        task_id_val,
-                        spawn_result_for_store_after_merge(item),
-                    )
-            if not merge_summary.get("workspace_merge_ok", True):
-                errors = merge_summary.get("workspace_merge_errors", [])
-                if isinstance(errors, list) and errors:
-                    merge_error_note = "Workspace merge errors:\n" + "\n".join(str(item) for item in errors)
         # Release the per-workflow executor (sandbox handles, Bash session). Without
         # this, every workflow run leaves resources bound for the process lifetime.
         close = getattr(executor, "close", None)
@@ -627,9 +587,6 @@ async def run_dynamic_workflow_stream(
 
     exec_status = "success"
     exec_message = "Workflow execution completed."
-    if merge_summary is not None and not merge_summary.get("workspace_merge_ok", True):
-        exec_status = "warning"
-        exec_message = "Workflow execution completed with workspace merge warnings."
     if workflow_failed:
         exec_status = "error"
         exec_message = f"Workflow execution failed: {workflow_error}"
@@ -642,13 +599,10 @@ async def run_dynamic_workflow_stream(
     }
 
     if workflow_failed:
-        failure_body = f"Dynamic Workflow `{workflow_id}` failed.\n\n**Error:** {workflow_error}"
-        if merge_error_note:
-            failure_body += f"\n\n{merge_error_note}"
         yield {
             "type": "message",
             "messageId": message_id,
-            "data": failure_body,
+            "data": f"Dynamic Workflow `{workflow_id}` failed.\n\n**Error:** {workflow_error}",
         }
         yield {
             "type": "message_end",
@@ -670,8 +624,6 @@ async def run_dynamic_workflow_stream(
 
     stdout = (result.stdout or "").strip() if result is not None else ""
     stderr = (result.stderr or "").strip() if result is not None else ""
-    if merge_error_note:
-        stderr = f"{stderr}\n\n{merge_error_note}".strip() if stderr else merge_error_note
 
     if stdout or stderr:
         truncated = stdout[-_MAX_STDOUT_FOR_SUMMARY:] if len(stdout) > _MAX_STDOUT_FOR_SUMMARY else stdout
@@ -711,16 +663,9 @@ async def run_dynamic_workflow_stream(
         "data": summary_text,
     }
 
-    if exec_status == "error":
-        completion_status = "error"
-    elif exec_status == "warning":
-        completion_status = "warning"
-    else:
-        completion_status = "success"
-
     yield {
         "type": "message_end",
         "messageId": message_id,
         "usage": {},
-        "completion_status": completion_status,
+        "completion_status": "success",
     }

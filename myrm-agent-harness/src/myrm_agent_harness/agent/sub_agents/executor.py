@@ -1,7 +1,7 @@
 """Subagent execution logic (aggregate root).
 
 [INPUT]
-- .executor_retry_mixin::SubagentExecutorRetryMixin (POS: Retry loop with workspace isolation, hooks, and graceful cancellation.)
+- .executor_retry_mixin::SubagentExecutorRetryMixin (POS: Retry loop with hooks and graceful cancellation.)
 - .executor_attempt_mixin::SubagentExecutorAttemptMixin (POS: One child-agent run attempt including fork context and result post-processing.)
 - .executor_delegation_mixin::SubagentExecutorDelegationMixin (POS: Orchestrator-role child agents receive scoped delegation meta-tools.)
 - .executor_helpers (POS: Pure helper functions for SubagentExecutor mixins and external callers.)
@@ -33,7 +33,7 @@ class SubagentExecutor(
     SubagentExecutorAttemptMixin,
     SubagentExecutorDelegationMixin,
 ):
-    """Execute subagent with retry, workspace isolation, and event forwarding."""
+    """Execute subagent with retry and event forwarding."""
 
 
 __all__ = [

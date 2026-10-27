@@ -18,7 +18,6 @@ from myrm_agent_harness.agent.sub_agents.orchestrator import (
     run_with_verification,
     wait_children,
 )
-from myrm_agent_harness.agent.sub_agents.result_output import answer_text
 from myrm_agent_harness.agent.sub_agents.types import (
     SubagentConfig,
     SubAgentResult,
@@ -96,29 +95,6 @@ class TestRunChain:
         result = await run_chain(mgr, cfgs, {}, lambda: [])
         assert result.success
         assert "step1-out" in result.result
-
-    @pytest.mark.asyncio
-    async def test_chain_hands_the_answer_text_of_an_isolated_step_to_the_next_step(self):
-        # An isolated-workspace step reports a dict (answer text plus merge metadata), not a string.
-        mgr = MagicMock()
-        briefs: list[str] = []
-
-        async def _spawn(**kwargs):
-            briefs.append(kwargs["task_description"])
-            if len(briefs) == 1:
-                step = _ok(kwargs["task_id"], kwargs["agent_type"])
-                step.result = {"text": "step1-out", "_isolated_child_workspace": "/tmp/iso"}
-                return step
-            return _ok(kwargs["task_id"], kwargs["agent_type"], "done")
-
-        mgr.spawn_child = _spawn
-        cfgs = [
-            ("a", SubagentConfig(system_prompt="s"), "start"),
-            ("b", SubagentConfig(system_prompt="s"), "prev={previous}"),
-        ]
-        result = await run_chain(mgr, cfgs, {}, lambda: [])
-        assert result.success
-        assert briefs == ["start", "prev=step1-out"]
 
     @pytest.mark.asyncio
     async def test_chain_aborts_on_failure(self):
@@ -313,17 +289,6 @@ class TestWaitChildren:
 # ---------------------------------------------------------------------------
 # Non-fatal timeout — SubAgentResult.still_running
 # ---------------------------------------------------------------------------
-
-
-class TestAnswerText:
-    def test_text_of_a_plain_result_is_the_result(self):
-        assert answer_text("answer") == "answer"
-
-    def test_text_of_a_dict_result_is_the_text_it_carries(self):
-        assert answer_text({"text": "answer", "_isolated_child_workspace": "/tmp/iso"}) == "answer"
-
-    def test_text_of_a_dict_result_without_text_is_empty(self):
-        assert answer_text({"note": 1}) == ""
 
 
 class TestSubAgentResultStillRunning:
@@ -968,18 +933,17 @@ class TestRunAlternatives:
         assert all(not r.success for r in results)
 
     @pytest.mark.asyncio
-    async def test_workspace_policy_forced_to_isolated_copy(self):
+    async def test_alternatives_are_spawned_read_only(self):
+        """Alternatives are candidate answers: parallel children share one workspace, so none may write to it."""
         from myrm_agent_harness.agent.sub_agents.types import WorkspacePolicy
 
         mgr = MagicMock()
         mgr.children = {}
         mgr.child_results = {}
         captured_configs: list[SubagentConfig] = []
-        captured_contexts: list[dict[str, object]] = []
 
         async def _spawn(**kwargs):
             captured_configs.append(kwargs["config"])
-            captured_contexts.append(kwargs["context"])
             tid = kwargs["task_id"]
             mgr.child_results[tid] = _ok(tid, kwargs["agent_type"])
             future: asyncio.Future[SubAgentResult] = asyncio.get_event_loop().create_future()
@@ -992,8 +956,8 @@ class TestRunAlternatives:
         config = SubagentConfig(system_prompt="s", workspace_policy=WorkspacePolicy.INHERIT)
         await run_alternatives(mgr, "task", [("w", config)], {}, lambda: [])
 
-        assert captured_configs[0].workspace_policy == WorkspacePolicy.ISOLATED_COPY
-        assert captured_contexts[0]["_defer_workspace_merge"] is True
+        assert captured_configs[0].workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX
+        assert {"file_write_tool", "file_edit_tool", "bash_code_execute_tool"} <= captured_configs[0].disallowed_tools
 
     @pytest.mark.asyncio
     async def test_unique_batch_ids_across_calls(self):
@@ -1100,48 +1064,3 @@ class TestRunAlternatives:
         assert results[0].result == "good"
         assert not results[1].success
         assert "runtime error" in results[1].error
-
-    @pytest.mark.asyncio
-    async def test_isolated_workspace_is_discarded_and_internal_keys_stripped(self, tmp_path):
-        mgr = MagicMock()
-        mgr.children = {}
-        mgr.child_results = {}
-
-        child_ws = tmp_path / "alt_child"
-        child_ws.mkdir()
-        (child_ws / "draft.txt").write_text("draft", encoding="utf-8")
-
-        async def _spawn(**kwargs):
-            tid = kwargs["task_id"]
-            r = SubAgentResult(
-                success=True,
-                task_id=tid,
-                agent_type=kwargs["agent_type"],
-                result={
-                    "text": "solution",
-                    "_workspace_sync_back": AsyncMock(),
-                    "_isolated_child_workspace": str(child_ws),
-                    "_isolated_parent_workspace": str(tmp_path / "parent"),
-                },
-                status=SubAgentStatus.COMPLETED,
-                completed_at=time.time(),
-            )
-            mgr.child_results[tid] = r
-            future: asyncio.Future[SubAgentResult] = asyncio.get_event_loop().create_future()
-            future.set_result(r)
-            mgr.children[tid] = future
-            return future
-
-        mgr.spawn_child = _spawn
-
-        config = SubagentConfig(system_prompt="s")
-        results = await run_alternatives(mgr, "task", [("w", config)], {}, lambda: [])
-
-        assert len(results) == 1
-        assert results[0].success
-        result_dict = results[0].result
-        assert isinstance(result_dict, dict)
-        assert "_workspace_sync_back" not in result_dict
-        assert "_isolated_child_workspace" not in result_dict
-        assert result_dict.get("text") == "solution"
-        assert not child_ws.exists()

@@ -4,7 +4,6 @@
 - types::SubagentConfig, SubAgentResult, SubAgentStatus
 - approval_journal::ApprovalJournal (POS: Replay-safe approval round-trips of one delegation)
 - checkpointer::discard_stale_subagent_thread (POS: Clears a subagent thread an earlier process left under a reused id)
-- spawn_prep::apply_spawn_workspace_isolation, resolve_delegate_parallel_write_batch (POS: Shared spawn prep SSOT)
 - spawn_capability::readonly_spawn_floor (POS: The handle a read-only spawn runs under when its caller bound none that withholds WRITE)
 - executor::SubagentExecutor (POS: Retry logic and actual agent execution)
 - streaming.types::AgentEventType (POS: SSE event types)
@@ -12,7 +11,7 @@
 
 [OUTPUT]
 - SubagentSpawnMixin: Mixin providing _run_subagent, _run_subagent_core,
-  spawn_child (SSOT workspace isolation and read-only capability floor) and the per-manager approval_journal
+  spawn_child (SSOT read-only capability floor) and the per-manager approval_journal
 
 [POS]
 Spawn and execution lifecycle for SubagentManager.
@@ -179,7 +178,7 @@ class SubagentSpawnMixin:
         parent_progress_sink: ToolProgressSink | None = None,
         complexity_tier: str | None = None,
     ) -> SubAgentResult:
-        """Execute subagent with retry logic and workspace isolation."""
+        """Execute subagent with retry logic."""
         completed_normally = False
         try:
             result = await self._executor.run_with_retry(
@@ -258,27 +257,8 @@ class SubagentSpawnMixin:
         trace_id = parent_trace or uuid.uuid4().hex[:16]
         parent_task_id = str(context.get("task_id", "")) if context else ""
 
-        # SSOT: ensure workspace isolation is evaluated if not already processed
-        from myrm_agent_harness.agent.sub_agents.spawn_prep import (
-            apply_spawn_workspace_isolation,
-            resolve_delegate_parallel_write_batch,
-        )
-
-        parallel_write_active = bool(
-            context.get("_parallel_write_batch", False)
-        ) or resolve_delegate_parallel_write_batch(self._parent_agent)
-        is_readonly = bool(context.get("readonly", False))
-        spawn_prep = apply_spawn_workspace_isolation(
-            config=config,
-            child_context=context,
-            readonly=is_readonly,
-            parallel_write_batch=parallel_write_active,
-        )
-        effective_config = spawn_prep.config
-        effective_context = spawn_prep.child_context
-
         readonly_floor: CapabilityHandle | None = None
-        if effective_config.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX:
+        if config.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX:
             try:
                 readonly_floor = readonly_spawn_floor(agent_type)
             except AttenuationError as exc:
@@ -306,8 +286,8 @@ class SubagentSpawnMixin:
                     task_id=task_id,
                     agent_type=agent_type,
                     task_description=task_description,
-                    config=effective_config,
-                    context=effective_context,
+                    config=config,
+                    context=context,
                     tool_registry_getter=tool_registry_getter,
                     trace_id=trace_id,
                     steering_token=steering_token,
@@ -320,10 +300,10 @@ class SubagentSpawnMixin:
         self._children[task_id] = task
         self._children_types[task_id] = agent_type
         self._children_descriptions[task_id] = task_description
-        self._children_configs[task_id] = effective_config
+        self._children_configs[task_id] = config
         self._children_internal[task_id] = internal
         self._children_detached[task_id] = not wait
-        self._children_observability[task_id] = self._build_observability_metadata(effective_config)
+        self._children_observability[task_id] = self._build_observability_metadata(config)
         task.add_done_callback(lambda t: self._cleanup_child(task_id, t))
 
         session_id = str(context.get("session_id", "")) if context else ""

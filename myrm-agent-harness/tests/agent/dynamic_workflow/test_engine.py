@@ -35,10 +35,7 @@ class TestOrchestratorPromptConsistency:
         assert "Pipeline Pattern" in ORCHESTRATOR_PROMPT
 
     def test_non_deterministic_api_names_are_valid_python(self) -> None:
-        assert (
-            "Do NOT use time.time(), datetime.now(), random.random()"
-            in ORCHESTRATOR_PROMPT
-        )
+        assert "Do NOT use time.time(), datetime.now(), random.random()" in ORCHESTRATOR_PROMPT
 
     def test_non_deterministic_constraint_rejects_bare_random(self) -> None:
         assert ", random()," not in ORCHESTRATOR_PROMPT
@@ -250,9 +247,7 @@ async def test_ptc_execution_failure(tmp_path, monkeypatch, mock_parent_agent):
     error_status = [
         c
         for c in chunks
-        if c.get("type") == "status"
-        and c.get("step_key") == "workflow_execution"
-        and c.get("status") == "error"
+        if c.get("type") == "status" and c.get("step_key") == "workflow_execution" and c.get("status") == "error"
     ]
     assert error_status
     msg_chunk = next(c for c in chunks if c.get("type") == "message")
@@ -344,9 +339,7 @@ async def test_override_allowed_passed_to_ptc(tmp_path, monkeypatch, mock_parent
 
 
 @pytest.mark.asyncio
-async def test_catalog_injects_types_into_orchestrator_prompt(
-    tmp_path, monkeypatch, mock_parent_agent
-):
+async def test_catalog_injects_types_into_orchestrator_prompt(tmp_path, monkeypatch, mock_parent_agent):
     """When catalog is provided, available types are injected into the orchestrator prompt."""
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)
@@ -466,9 +459,7 @@ async def test_non_string_llm_content(tmp_path, monkeypatch, mock_parent_agent):
 
 
 @pytest.mark.asyncio
-async def test_reasoning_model_content_none_recovers_script(
-    tmp_path, monkeypatch, mock_parent_agent
-):
+async def test_reasoning_model_content_none_recovers_script(tmp_path, monkeypatch, mock_parent_agent):
     """O: Reasoning models return empty content with the script in
     additional_kwargs['reasoning_content']; the engine must recover the
     orchestration script instead of executing an empty/"None" script."""
@@ -580,9 +571,7 @@ async def test_summarization_failure_fallback(tmp_path, monkeypatch, mock_parent
 
 
 @pytest.mark.asyncio
-async def test_summarization_reasoning_model_recovers_text(
-    tmp_path, monkeypatch, mock_parent_agent
-):
+async def test_summarization_reasoning_model_recovers_text(tmp_path, monkeypatch, mock_parent_agent):
     """O: Summarization with a reasoning model (empty content, reasoning in
     additional_kwargs) must produce the real summary, not a literal "None"."""
     db_path = tmp_path / "events.db"
@@ -737,10 +726,7 @@ async def test_empty_stdout_no_output_message(tmp_path, monkeypatch, mock_parent
 
     msg_chunks = [c for c in chunks if c.get("type") == "message"]
     assert msg_chunks
-    assert (
-        "no output" in msg_chunks[0]["data"].lower()
-        or "completed" in msg_chunks[0]["data"].lower()
-    )
+    assert "no output" in msg_chunks[0]["data"].lower() or "completed" in msg_chunks[0]["data"].lower()
 
 
 @pytest.mark.asyncio
@@ -800,9 +786,7 @@ async def test_stderr_included_in_summary(tmp_path, monkeypatch, mock_parent_age
 
 
 @pytest.mark.asyncio
-async def test_notify_events_yielded_during_ptc_execution(
-    tmp_path, monkeypatch, mock_parent_agent
-):
+async def test_notify_events_yielded_during_ptc_execution(tmp_path, monkeypatch, mock_parent_agent):
     """workflow_stage events must stream while inject_ptc runs, not only after it completes."""
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)
@@ -846,22 +830,17 @@ async def test_notify_events_yielded_during_ptc_execution(
     stage_idx = next(
         i
         for i, c in enumerate(chunks)
-        if c.get("step_key") == "workflow_stage"
-        and c.get("data", {}).get("message") == "mid-flight phase"
+        if c.get("step_key") == "workflow_stage" and c.get("data", {}).get("message") == "mid-flight phase"
     )
     exec_success_idx = next(
-        i
-        for i, c in enumerate(chunks)
-        if c.get("step_key") == "workflow_execution" and c.get("status") == "success"
+        i for i, c in enumerate(chunks) if c.get("step_key") == "workflow_execution" and c.get("status") == "success"
     )
     assert stage_idx < exec_success_idx
 
 
 @pytest.mark.asyncio
-async def test_post_exec_merge_called_when_guard_has_isolated_results(
-    tmp_path, monkeypatch, mock_parent_agent
-):
-    """O1: After PTC execution, engine must call batch_merge when run_guard recorded isolated spawns."""
+async def test_workflow_executor_is_released_when_ptc_raises(tmp_path, monkeypatch, mock_parent_agent):
+    """The per-workflow executor must be closed even when PTC execution blows up."""
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)
 
@@ -874,125 +853,14 @@ async def test_post_exec_merge_called_when_guard_has_isolated_results(
 
     monkeypatch.setattr(store_mod.WorkflowEventStore, "__init__", patched_init)
 
-    merge_calls: list[list[dict[str, object]]] = []
-
-    async def fake_merge(
-        results: list[dict[str, object]],
-        *,
-        snapshot_context: object | None = None,
-    ) -> dict[str, object]:
-        merge_calls.append(results)
-        return {
-            "workspace_merge_ok": True,
-            "workspace_merge_merged_count": len(results),
-        }
-
+    executor = MagicMock()
+    executor.close = AsyncMock()
     monkeypatch.setattr(
-        "myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs",
-        fake_merge,
-    )
-
-    child_ws = tmp_path / "child"
-    parent_ws = tmp_path / "parent"
-    child_ws.mkdir()
-    parent_ws.mkdir()
-
-    async def mock_ptc(context, executor, ptc_tools, override_allowed=frozenset()):
-        spawn_tool = next(
-            t for t in ptc_tools if getattr(t, "name", None) == "spawn_subagent"
-        )
-        assert spawn_tool.run_guard is not None
-        spawn_tool.run_guard.record_merge_candidate(
-            {
-                "success": True,
-                "result": {
-                    "_isolated_child_workspace": str(child_ws),
-                    "_isolated_parent_workspace": str(parent_ws),
-                },
-            }
-        )
-
-        class Result:
-            stdout = "ok"
-            stderr = ""
-
-        return Result()
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.code_execution.ptc.ptc_injection.inject_ptc_for_python_execution",
-        mock_ptc,
-    )
-
-    chunks = [
-        c
-        async for c in run_dynamic_workflow_stream(
-            parent_agent=mock_parent_agent,
-            query="parallel implement",
-            chat_history=[],
-            chat_id="merge_c",
-            message_id="merge_m",
-        )
-    ]
-
-    assert (
-        merge_calls
-    ), "merge_batch_workspace_sync_backs should run when merge_results non-empty"
-    assert merge_calls[0][0]["success"] is True
-    assert any(
-        c.get("step_key") == "workflow_execution" and c.get("status") == "success"
-        for c in chunks
-    )
-
-
-@pytest.mark.asyncio
-async def test_post_exec_merge_runs_when_ptc_raises(
-    tmp_path, monkeypatch, mock_parent_agent
-):
-    """Pending merge candidates must flush even when inject_ptc raises."""
-    db_path = tmp_path / "events.db"
-    monkeypatch.chdir(tmp_path)
-
-    from myrm_agent_harness.agent.dynamic_workflow import store as store_mod
-
-    original_init = store_mod.WorkflowEventStore.__init__
-
-    def patched_init(self, path):
-        original_init(self, str(db_path))
-
-    monkeypatch.setattr(store_mod.WorkflowEventStore, "__init__", patched_init)
-
-    merge_calls: list[list[dict[str, object]]] = []
-
-    async def fake_merge(
-        results: list[dict[str, object]],
-        *,
-        snapshot_context: object | None = None,
-    ) -> dict[str, object]:
-        merge_calls.append(results)
-        return {
-            "workspace_merge_ok": True,
-            "workspace_merge_merged_count": len(results),
-        }
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs",
-        fake_merge,
+        "myrm_agent_harness.toolkits.code_execution.factory.create_executor",
+        lambda: executor,
     )
 
     async def mock_ptc(context, executor, ptc_tools, override_allowed=frozenset()):
-        spawn_tool = next(
-            t for t in ptc_tools if getattr(t, "name", None) == "spawn_subagent"
-        )
-        assert spawn_tool.run_guard is not None
-        spawn_tool.run_guard.record_merge_candidate(
-            {
-                "success": True,
-                "result": {
-                    "_isolated_child_workspace": str(tmp_path / "child"),
-                    "_isolated_parent_workspace": str(tmp_path / "parent"),
-                },
-            }
-        )
         raise RuntimeError("PTC failed after spawn")
 
     monkeypatch.setattr(
@@ -1006,113 +874,20 @@ async def test_post_exec_merge_runs_when_ptc_raises(
             parent_agent=mock_parent_agent,
             query="parallel implement",
             chat_history=[],
-            chat_id="merge_exc_c",
-            message_id="merge_exc_m",
+            chat_id="close_exc_c",
+            message_id="close_exc_m",
         )
     ]
 
-    assert merge_calls, "merge must run in finally even when PTC raises"
-    assert any(
-        c.get("step_key") == "workflow_execution" and c.get("status") == "error"
-        for c in chunks
-    )
+    executor.close.assert_awaited_once()
+    assert any(c.get("step_key") == "workflow_execution" and c.get("status") == "error" for c in chunks)
 
 
 @pytest.mark.asyncio
-async def test_merge_failure_surfaces_warn_status(
-    tmp_path, monkeypatch, mock_parent_agent
-):
-    db_path = tmp_path / "events.db"
-    monkeypatch.chdir(tmp_path)
-
-    from myrm_agent_harness.agent.dynamic_workflow import store as store_mod
-
-    original_init = store_mod.WorkflowEventStore.__init__
-
-    def patched_init(self, path):
-        original_init(self, str(db_path))
-
-    monkeypatch.setattr(store_mod.WorkflowEventStore, "__init__", patched_init)
-
-    async def fake_merge(
-        results: list[dict[str, object]],
-        *,
-        snapshot_context: object | None = None,
-    ) -> dict[str, object]:
-        return {
-            "workspace_merge_ok": False,
-            "workspace_merge_merged_count": 0,
-            "workspace_merge_errors": ["task_index=0: merge failed"],
-        }
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.workspace_coordination.merge.batch_merge.merge_batch_workspace_sync_backs",
-        fake_merge,
-    )
-
-    async def mock_ptc(context, executor, ptc_tools, override_allowed=frozenset()):
-        spawn_tool = next(
-            t for t in ptc_tools if getattr(t, "name", None) == "spawn_subagent"
-        )
-        assert spawn_tool.run_guard is not None
-        spawn_tool.run_guard.record_merge_candidate(
-            {
-                "success": True,
-                "result": {
-                    "_isolated_child_workspace": str(tmp_path / "child"),
-                    "_isolated_parent_workspace": str(tmp_path / "parent"),
-                },
-            }
-        )
-
-        class Result:
-            stdout = "ok"
-            stderr = ""
-
-        return Result()
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.code_execution.ptc.ptc_injection.inject_ptc_for_python_execution",
-        mock_ptc,
-    )
-
-    captured_summary: list[str] = []
-
-    class TrackSummarizationLLM:
-        async def ainvoke(self, messages, config=None):
-            captured_summary.append(messages[1].content)
-            from langchain_core.messages import AIMessage
-
-            return AIMessage(content="Summary")
-
-    mock_parent_agent.llm = TrackSummarizationLLM()
-
-    chunks = [
-        c
-        async for c in run_dynamic_workflow_stream(
-            parent_agent=mock_parent_agent,
-            query="test merge warn",
-            chat_history=[],
-            chat_id="merge_warn_c",
-            message_id="merge_warn_m",
-        )
-    ]
-
-    assert any(
-        c.get("step_key") == "workflow_execution" and c.get("status") == "warning"
-        for c in chunks
-    )
-    end_chunks = [c for c in chunks if c.get("type") == "message_end"]
-    assert end_chunks
-    assert end_chunks[-1].get("completion_status") == "warning"
-    assert any("Workspace merge errors" in item for item in captured_summary)
-
-
-@pytest.mark.asyncio
-async def test_summary_includes_workspace_changes_after_merge(
+async def test_summary_includes_workspace_changes_made_by_the_workflow(
     tmp_path, monkeypatch, mock_parent_agent
 ) -> None:
-    """G4: DW summary must append Workspace Changes when batch merge writes files."""
+    """G4: DW summary must append Workspace Changes when the workflow's sub-agents write files."""
     from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
         SnapshotStore,
     )
@@ -1130,32 +905,16 @@ async def test_summary_includes_workspace_changes_after_merge(
 
     monkeypatch.setattr(store_mod.WorkflowEventStore, "__init__", patched_init)
 
-    parent_ws = tmp_path / "parent"
-    child_ws = tmp_path / "child"
-    parent_ws.mkdir()
-    child_ws.mkdir()
-    (child_ws / "output.txt").write_text("merged content", encoding="utf-8")
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
 
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.code_execution.utils.workspace_path.WorkspacePathResolver.resolve_workspace_root",
-        lambda: parent_ws,
+        lambda: workspace,
     )
 
     async def mock_ptc(context, executor, ptc_tools, override_allowed=frozenset()):
-        spawn_tool = next(
-            t for t in ptc_tools if getattr(t, "name", None) == "spawn_subagent"
-        )
-        assert spawn_tool.run_guard is not None
-        spawn_tool.run_guard.record_merge_candidate(
-            {
-                "success": True,
-                "task_id": "t1",
-                "result": {
-                    "_isolated_child_workspace": str(child_ws),
-                    "_isolated_parent_workspace": str(parent_ws),
-                },
-            }
-        )
+        (workspace / "output.txt").write_text("written by a sub-agent", encoding="utf-8")
 
         class Result:
             stdout = "ok"
@@ -1184,7 +943,6 @@ async def test_summary_includes_workspace_changes_after_merge(
     summary = str(messages[-1].get("data", ""))
     assert "## Workspace Changes" in summary
     assert "output.txt" in summary
-    assert (parent_ws / "output.txt").is_file()
 
 
 @pytest.mark.asyncio
@@ -1207,9 +965,7 @@ async def test_pinned_template_skips_llm_generation(tmp_path, monkeypatch):
         original_template_init(self, str(db_path))
 
     monkeypatch.setattr(store_mod.WorkflowEventStore, "__init__", patched_event_init)
-    monkeypatch.setattr(
-        template_store_mod.WorkflowTemplateStore, "__init__", patched_template_init
-    )
+    monkeypatch.setattr(template_store_mod.WorkflowTemplateStore, "__init__", patched_template_init)
 
     script = """
 import myrm_tools
@@ -1260,9 +1016,7 @@ print("done")
     orchestrator_calls = [
         call
         for call in parent.llm.ainvoke.call_args_list
-        if call.args
-        and call.args[0]
-        and "Dynamic Workflow Orchestrator" in str(call.args[0][0].content)
+        if call.args and call.args[0] and "Dynamic Workflow Orchestrator" in str(call.args[0][0].content)
     ]
     assert orchestrator_calls == []
     planning = next(c for c in chunks if c.get("step_key") == "workflow_planning")
@@ -1272,9 +1026,7 @@ print("done")
 
 
 @pytest.mark.asyncio
-async def test_engine_wires_human_ask_tool_to_ptc(
-    tmp_path, monkeypatch, mock_parent_agent
-) -> None:
+async def test_engine_wires_human_ask_tool_to_ptc(tmp_path, monkeypatch, mock_parent_agent) -> None:
     """Verify that run_dynamic_workflow_stream wires HumanAskTool into PTC tools and override_allowed."""
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)
@@ -1333,18 +1085,14 @@ async def test_engine_wires_human_ask_tool_to_ptc(
     tool_names = [getattr(t, "name", None) for t in captured_ptc_tools]
     assert "human_ask" in tool_names
     assert "human_ask" in captured_overrides
-    human_tool = next(
-        t for t in captured_ptc_tools if getattr(t, "name", None) == "human_ask"
-    )
+    human_tool = next(t for t in captured_ptc_tools if getattr(t, "name", None) == "human_ask")
     assert human_tool.ask_gate_callable is mock_ask_gate
     end = next(c for c in chunks if c.get("type") == "message_end")
     assert end["completion_status"] == "success"
 
 
 @pytest.mark.asyncio
-async def test_inject_ptc_failure_yields_error_completion(
-    tmp_path, monkeypatch, mock_parent_agent
-) -> None:
+async def test_inject_ptc_failure_yields_error_completion(tmp_path, monkeypatch, mock_parent_agent) -> None:
     """inject_ptc success=False must surface workflow_execution error, not success."""
     db_path = tmp_path / "events.db"
     monkeypatch.chdir(tmp_path)
@@ -1382,9 +1130,7 @@ async def test_inject_ptc_failure_yields_error_completion(
         )
     ]
 
-    exec_chunks = [
-        c for c in chunks if c.get("step_key") == "workflow_execution"
-    ]
+    exec_chunks = [c for c in chunks if c.get("step_key") == "workflow_execution"]
     assert exec_chunks[0]["status"] == "in_progress"
     error_chunk = next(c for c in exec_chunks if c.get("status") == "error")
     assert "PYTHONPATH blocked" in error_chunk["data"]["message"]
@@ -1437,10 +1183,6 @@ async def test_invalid_script_fails_before_plan_confirm(tmp_path, monkeypatch, m
     ]
 
     assert approval_calls == [], "approval gate must not be reached for an invalid script"
-    phases = [
-        chunk.get("data", {}).get("phase")
-        for chunk in chunks
-        if isinstance(chunk.get("data"), dict)
-    ]
+    phases = [chunk.get("data", {}).get("phase") for chunk in chunks if isinstance(chunk.get("data"), dict)]
     assert "plan_confirm" not in phases
     assert any("static verification failed" in str(chunk.get("data", "")) for chunk in chunks)

@@ -5,16 +5,11 @@
 - agent.security.engine::file_write_disabled (POS: global file_write deny probe for readonly floor)
 - sub_agents.spawn_capability::parent_capability_handle (POS: the handle the running (delegating) agent is bound to, if any)
 - core.security.ocap::CapabilityAction (POS: capability vocabulary: READ, WRITE, EXECUTE)
-- workspace_coordination.policy::apply_parallel_write_isolation
-- workspace_coordination.merge.merge_metadata::strip_merge_transient_inner_keys (POS: merge metadata key SSOT)
 
 [OUTPUT]
 - coerce_spawn_readonly: parent Security Profile file_write deny or a parent handle without WRITE → readonly floor
 - apply_readonly_to_config: READ_ONLY_SANDBOX policy + native mutating tool blocks (tools that escape the sandbox are dropped by builder.filter_tools)
 - build_spawn_child_context: the child's runtime context, taken only from the parent's workspace/session fields
-- apply_spawn_workspace_isolation: parallel writer ISOLATED_COPY promotion
-- sanitize_spawn_result_for_store / spawn_result_for_store_after_merge: JSON-safe durable cache rows
-- merge_candidate_from_spawn_dict: detect pending ISOLATED_COPY merge metadata
 - memory_isolation_scope: the ContextVar memory manager is a read-only view of the parent's for the spawn's lifetime
 
 [POS]
@@ -26,7 +21,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.sub_agents.spawn_capability import parent_capability_handle
@@ -34,12 +29,6 @@ from myrm_agent_harness.agent.sub_agents.types import (
     ControlScope,
     SubagentConfig,
     WorkspacePolicy,
-)
-from myrm_agent_harness.agent.workspace_coordination.merge.merge_metadata import (
-    strip_merge_transient_inner_keys,
-)
-from myrm_agent_harness.agent.workspace_coordination.policy import (
-    apply_parallel_write_isolation,
 )
 from myrm_agent_harness.core.security.ocap import CapabilityAction
 
@@ -67,14 +56,6 @@ _PARENT_CONTEXT_KEYS = (
     "user_id",
     "session_id",
 )
-
-
-@dataclass(frozen=True)
-class SpawnWorkspacePrep:
-    """Config + context after workspace isolation policy."""
-
-    config: SubagentConfig
-    child_context: dict[str, object]
 
 
 def coerce_spawn_readonly(parent_agent: object, readonly: bool) -> bool:
@@ -121,7 +102,7 @@ def build_spawn_child_context(
     """The child's runtime context: the parent's workspace/session fields and nothing the model supplied.
 
     Model-supplied ``context`` reaches the child as task text only. As runtime context it would let the
-    model pick the workspace the child's executor binds to and the internal keys the merge pipeline reads.
+    model pick the workspace the child's executor binds to.
     """
     child_context: dict[str, object] = {key: parent_ctx[key] for key in _PARENT_CONTEXT_KEYS if key in parent_ctx}
     if payload_hashes is not None:
@@ -135,28 +116,6 @@ def build_child_context_from_parent_agent(parent_agent: object) -> dict[str, obj
     if not isinstance(parent_ctx, dict):
         return {}
     return build_spawn_child_context(parent_ctx=parent_ctx)
-
-
-def resolve_delegate_parallel_write_batch(parent_agent: object) -> bool:
-    """True when delegate batch runner marked concurrent writers on parent."""
-    return bool(getattr(parent_agent, "_parallel_write_batch_active", False))
-
-
-def apply_spawn_workspace_isolation(
-    *,
-    config: SubagentConfig,
-    child_context: dict[str, object],
-    readonly: bool,
-    parallel_write_batch: bool,
-) -> SpawnWorkspacePrep:
-    """Promote to ISOLATED_COPY when multiple non-readonly spawns share a workspace."""
-    updated_config, updated_context = apply_parallel_write_isolation(
-        config=config,
-        child_context=child_context,
-        readonly=readonly,
-        parallel_write_batch=parallel_write_batch,
-    )
-    return SpawnWorkspacePrep(config=updated_config, child_context=updated_context)
 
 
 @contextmanager
@@ -188,31 +147,3 @@ def memory_isolation_scope() -> Iterator[None]:
                 _memory_manager_var.reset(reset_token)
             except Exception as exc:
                 logger.warning("Failed to reset memory manager context var: %s", exc)
-
-
-def merge_candidate_from_spawn_dict(result: dict[str, object]) -> bool:
-    """True when result carries deferred ISOLATED_COPY merge metadata."""
-    if not result.get("success"):
-        return False
-    inner = result.get("result")
-    return isinstance(inner, dict) and "_isolated_child_workspace" in inner
-
-
-def sanitize_spawn_result_for_store(result: dict[str, object]) -> dict[str, object]:
-    """Strip non-JSON merge metadata before SQLite persistence."""
-    had_pending_merge = merge_candidate_from_spawn_dict(result)
-    out = dict(result)
-    inner = out.get("result")
-    if isinstance(inner, dict):
-        out["result"] = strip_merge_transient_inner_keys(inner)
-    if had_pending_merge and out.get("workspace_merge_status") != "merged":
-        out["workspace_merge_status"] = "pending"
-    return out
-
-
-def spawn_result_for_store_after_merge(result: dict[str, object]) -> dict[str, object]:
-    """Persistable spawn result after batch_merge completes."""
-    out = sanitize_spawn_result_for_store(result)
-    if result.get("workspace_merge_status") == "merged":
-        out["workspace_merge_status"] = "merged"
-    return out

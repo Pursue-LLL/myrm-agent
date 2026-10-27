@@ -60,8 +60,8 @@ class TestWorkspacePolicy:
     def test_inherit_value(self):
         assert WorkspacePolicy.INHERIT == "inherit"
 
-    def test_isolated_copy_value(self):
-        assert WorkspacePolicy.ISOLATED_COPY == "isolated_copy"
+    def test_read_only_sandbox_value(self):
+        assert WorkspacePolicy.READ_ONLY_SANDBOX == "read_only_sandbox"
 
     def test_default_is_inherit(self):
         cfg = SubagentConfig(system_prompt="test", description="test")
@@ -75,11 +75,11 @@ class TestSubagentConfigWithPolicies:
             description="Data analyst",
             memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL,
             control_scope=ControlScope.LEAF,
-            workspace_policy=WorkspacePolicy.ISOLATED_COPY,
+            workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX,
         )
         assert cfg.memory_isolation == MemoryIsolationPolicy.READ_ONLY_GLOBAL
         assert cfg.control_scope == ControlScope.LEAF
-        assert cfg.workspace_policy == WorkspacePolicy.ISOLATED_COPY
+        assert cfg.workspace_policy == WorkspacePolicy.READ_ONLY_SANDBOX
 
     def test_replace_preserves_policies(self):
         cfg = SubagentConfig(system_prompt="Original", description="test", control_scope=ControlScope.LEAF)

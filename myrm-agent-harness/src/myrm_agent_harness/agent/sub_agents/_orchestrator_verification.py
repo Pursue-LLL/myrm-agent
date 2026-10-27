@@ -9,13 +9,12 @@ Worker -> Verifier -> Retry loop with structured verdict parsing.
 - agent.sub_agents._workspace_diff::take_workspace_snapshot (POS: Workspace diff for adversarial verification — stat-based, no git dependency.)
 - agent.sub_agents.approval_journal::ApprovalScope (POS: Replay-safe approval round-trips of one delegation.)
 - agent.sub_agents.checkpointer::delete_subagent_checkpoint (POS: Releases the checkpoint thread of a subagent abandoned while paused for approval.)
-- agent.sub_agents.result_output::SubAgentOutput (POS: Subagent result payload (answer text, or a dict carrying isolation merge metadata).)
 - agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus, VerificationSummary (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 
 [OUTPUT]
 - VerificationVerdict: Parsed verdict from a Verifier agent's structured JSON output.
 - VerificationSummary: Structured adversarial verification outcome attached to SubAgentResult.
-- run_with_verification: Execute a worker then verify via adversarial verifier with workspace diff injection. Preserves dict worker results (isolation merge metadata) while appending verification evidence to `_verification_summary`. A worker paused for approval is settled through the caller's ``approval_scope`` before it is verified; an unsettled pause ends the round BLOCKED.
+- run_with_verification: Execute a worker then verify via adversarial verifier with workspace diff injection. Appends the verification evidence to the worker's answer. A worker paused for approval is settled through the caller's ``approval_scope`` before it is verified; an unsettled pause ends the round BLOCKED.
 - verify_worker_output: Re-exported verifier-only entry (``None`` = inconclusive round).
 
 [POS]
@@ -24,7 +23,6 @@ Adversarial verification orchestration — Worker -> Verifier -> Retry loop with
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from collections.abc import Callable
@@ -45,7 +43,6 @@ from myrm_agent_harness.agent.sub_agents._verifier_round import (
 )
 from myrm_agent_harness.agent.sub_agents._workspace_diff import take_workspace_snapshot
 from myrm_agent_harness.agent.sub_agents.checkpointer import delete_subagent_checkpoint
-from myrm_agent_harness.agent.sub_agents.result_output import SubAgentOutput
 from myrm_agent_harness.agent.sub_agents.types import (
     SubagentConfig,
     SubAgentResult,
@@ -78,42 +75,8 @@ _SYNC_MANAGED_FIELDS = frozenset({"task_id", "agent_type", "internal"})
 _SYNC_FIELDS = tuple(field.name for field in fields(SubAgentResult) if field.name not in _SYNC_MANAGED_FIELDS)
 
 
-def _format_worker_output_for_verifier(result: object) -> str:
-    """Render worker output for the verifier prompt without dropping structured fields."""
-    if isinstance(result, dict):
-        text = result.get("text")
-        if isinstance(text, str):
-            return text
-        filtered = {
-            key: value
-            for key, value in result.items()
-            if key
-            not in (
-                "_workspace_sync_back",
-                "_isolated_child_workspace",
-                "_isolated_parent_workspace",
-                "_verification_summary",
-            )
-        }
-        if filtered:
-            return json.dumps(filtered, ensure_ascii=False)
-        return str(result)
-    return str(result)
-
-
-def _append_verification_block(result: SubAgentOutput, block: str) -> SubAgentOutput:
-    """Append verification evidence while preserving dict merge metadata."""
-    if isinstance(result, dict):
-        updated = dict(result)
-        prior = updated.get("_verification_summary")
-        if isinstance(prior, str) and prior:
-            updated["_verification_summary"] = f"{prior}\n\n{block}"
-        else:
-            updated["_verification_summary"] = block
-        text = updated.get("text")
-        if isinstance(text, str):
-            updated["text"] = f"{text}\n\n{block}"
-        return updated
+def _append_verification_block(result: str, block: str) -> str:
+    """Append verification evidence to a worker's answer."""
     return f"{result}\n\n{block}"
 
 
@@ -135,15 +98,13 @@ def _spawn_dict_to_subagent_result(
     agent_type: str,
 ) -> SubAgentResult:
     raw_result = payload.get("result", "")
-    if not isinstance(raw_result, (dict, str)):
-        raw_result = str(raw_result)
     status_raw = payload.get("status", SubAgentStatus.COMPLETED)
     status = status_raw if isinstance(status_raw, SubAgentStatus) else SubAgentStatus.COMPLETED
     return SubAgentResult(
         success=bool(payload.get("success", False)),
         task_id=task_id,
         agent_type=agent_type,
-        result=raw_result,
+        result=raw_result if isinstance(raw_result, str) else str(raw_result),
         error=str(payload["error"]) if payload.get("error") else "",
         completed_at=time.time(),
         status=status,
@@ -280,7 +241,7 @@ async def run_with_verification(
         if verification_mode == "multi_skeptic":
             verdict = await vote_with_skeptics(
                 manager,
-                worker_output=_format_worker_output_for_verifier(worker_result.result),
+                worker_output=worker_result.result,
                 worker_type=worker_type,
                 verifier_type=verifier_type,
                 verifier_config=verifier_config,
@@ -305,7 +266,7 @@ async def run_with_verification(
             try:
                 verdict = await _execute_verifier_round(
                     manager,
-                    worker_output=_format_worker_output_for_verifier(worker_result.result),
+                    worker_output=worker_result.result,
                     worker_type=worker_type,
                     verifier_type=verifier_type,
                     verifier_config=verifier_config,

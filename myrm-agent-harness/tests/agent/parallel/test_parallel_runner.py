@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -50,15 +51,18 @@ async def test_run_parallel_task_requests_preserves_agent_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_parallel_race_activates_write_isolation() -> None:
-    """Ensure race execution activates _parallel_write_batch_active when tasks are writers."""
+async def test_a_race_returns_the_first_success_and_cancels_the_rest() -> None:
+    """The first task to succeed wins; the slower contestants are cancelled and nothing is merged afterwards."""
     parent_agent = MagicMock()
-    parent_agent._parallel_write_batch_active = None
-    observed_active_states: list[bool] = []
+    cancelled: list[str] = []
 
     async def _delegate_coroutine(**kwargs: object) -> dict[str, object]:
         agent_type = str(kwargs.get("agent_type", ""))
-        observed_active_states.append(getattr(parent_agent, "_parallel_write_batch_active", False))
+        try:
+            await asyncio.sleep(0 if agent_type == "fast" else 30)
+        except asyncio.CancelledError:
+            cancelled.append(agent_type)
+            raise
         return {
             "success": True,
             "agent_type": agent_type,
@@ -70,8 +74,8 @@ async def test_run_parallel_race_activates_write_isolation() -> None:
     delegate_tool.coroutine = _delegate_coroutine
 
     tasks = [
-        TaskRequest(agent_type="code_a", objective="Implement A", readonly=False),
-        TaskRequest(agent_type="code_b", objective="Implement B", readonly=False),
+        TaskRequest(agent_type="slow", objective="Implement A", readonly=False),
+        TaskRequest(agent_type="fast", objective="Implement B", readonly=False),
     ]
 
     result = await run_parallel_task_requests(
@@ -82,11 +86,12 @@ async def test_run_parallel_race_activates_write_isolation() -> None:
         race=True,
         max_concurrent=2,
     )
+    await asyncio.sleep(0.05)
 
     assert result["success"] is True
     assert result.get("race_winner") is True
-    # Verify that while subtasks ran, write isolation flag was active
-    assert any(observed_active_states) is True
-    # Verify clean-up of attribute on parent
-    assert not hasattr(parent_agent, "_parallel_write_batch_active") or parent_agent._parallel_write_batch_active is None
-
+    winner = result["result"]
+    assert isinstance(winner, dict)
+    assert winner["agent_type"] == "fast"
+    assert cancelled == ["slow"]
+    assert not [key for key in [*result, *winner] if "merge" in key]

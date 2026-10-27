@@ -246,11 +246,9 @@ async def execute_single_delegation(
     from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_spawn_capability
     from myrm_agent_harness.agent.sub_agents.spawn_prep import (
         apply_readonly_to_config,
-        apply_spawn_workspace_isolation,
         build_spawn_child_context,
         enforce_spawn_policy_on_config,
         memory_isolation_scope,
-        resolve_delegate_parallel_write_batch,
     )
     from myrm_agent_harness.core.security.ocap import AttenuationError, capability_scope
 
@@ -260,14 +258,6 @@ async def execute_single_delegation(
     cancel_token = get_cancel_token()
 
     child_context = build_spawn_child_context(parent_ctx=parent_ctx, payload_hashes=history_hashes)
-    workspace_prep = apply_spawn_workspace_isolation(
-        config=config,
-        child_context=child_context,
-        readonly=effective_readonly,
-        parallel_write_batch=resolve_delegate_parallel_write_batch(parent_agent),
-    )
-    config = workspace_prep.config
-    child_context = workspace_prep.child_context
 
     try:
         spawn_capability = derive_spawn_capability(

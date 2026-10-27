@@ -4,15 +4,15 @@
 # Tighten caps with: check_file_line_limit.py --ratchet
 # Remove entries after splitting below 500 lines.
 myrm_agent_harness/agent/_internals/agent_runtime.py	768
-myrm_agent_harness/agent/_internals/run_lifecycle.py	530
+myrm_agent_harness/agent/_internals/run_lifecycle.py	509
 myrm_agent_harness/agent/base_agent.py	618
 myrm_agent_harness/agent/context_management/infra/schemas.py	715
 myrm_agent_harness/agent/context_management/pipeline/processors/cache_ttl_prune_processor.py	721
 myrm_agent_harness/agent/context_management/pipeline/processors/summarize_processor.py	845
 myrm_agent_harness/agent/context_management/strategies/summary/summarizer.py	915
 myrm_agent_harness/agent/context_management/tracking/task_metrics_model.py	570
-myrm_agent_harness/agent/dynamic_workflow/__init__.py	726
-myrm_agent_harness/agent/dynamic_workflow/tools.py	782
+myrm_agent_harness/agent/dynamic_workflow/__init__.py	671
+myrm_agent_harness/agent/dynamic_workflow/tools.py	740
 myrm_agent_harness/agent/event_log/analytics_queries.py	597
 myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	649
 myrm_agent_harness/agent/goals/continuation.py	656
@@ -37,7 +37,7 @@ myrm_agent_harness/agent/streaming/stream_executor.py	628
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622
 myrm_agent_harness/agent/sub_agents/manager.py	591
 myrm_agent_harness/agent/sub_agents/prompts.py	546
-myrm_agent_harness/agent/sub_agents/types.py	535
+myrm_agent_harness/agent/sub_agents/types.py	532
 myrm_agent_harness/backends/skills/_utils.py	839
 myrm_agent_harness/backends/skills/scanning/patterns.py	875
 myrm_agent_harness/backends/skills/scanning/scanner.py	555

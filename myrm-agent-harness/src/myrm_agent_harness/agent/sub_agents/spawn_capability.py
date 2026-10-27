@@ -142,10 +142,8 @@ def derive_spawn_capability(
 ) -> CapabilityHandle:
     """Mint the signed handle a child runs under.
 
-    The scope is the parent's real workspace plus the authorized ``context_files``; the child's own
-    context is not consulted because workspace isolation rewrites its ``workspace_path`` to a path the
-    child does not actually run in. A spawned parent's handle bounds the child through attenuation, so
-    a grandchild can never hold more than its parent.
+    The scope is the parent's workspace plus the authorized ``context_files``. A spawned parent's handle
+    bounds the child through attenuation, so a grandchild can never hold more than its parent.
 
     ``agent_type`` is the delegated target resolved by the caller. ``SubagentConfig`` carries the
     resolved settings but not the type id, so the subject must be passed in explicitly.

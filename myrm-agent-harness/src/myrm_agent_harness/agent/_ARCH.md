@@ -29,7 +29,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 │ L3 Tool & Orchestration Surface                              │
 │  meta_tools · skills · sub_agents · parallel · goals · plugins │
 │  dynamic_workflow · deep_research · tool_management          │
-│  coordination · workspace_coordination · background_worker     │
+│  coordination · background_worker                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,7 +49,6 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 |--------|--------|------------|
 | `api/hooks.py` | `agent/hooks/` | **Server integration facade** (session ContextVar, memory extract, bash registry re-exports) vs **lifecycle hooks** (built-in and SKILL.md-declared) |
 | `api/hooks.py` | `core/hooks/` | Integration callables for product code vs **HookEvent / HookResult type definitions** |
-| `coordination/` | `workspace_coordination/` | **P2P 邮箱** (TeammateMailbox, JSONL) vs **并行写隔离 + batch merge** |
 | `parallel/` | `sub_agents/` | **共享 spawn 路径** (batch/swarm semaphore) vs **子 Agent 生命周期全栈** |
 | `meta_tools/spawn_subagent/` | `dynamic_workflow/tools.py` | **LLM** `delegate_task_tool` 等 7 工具 vs **PTC** `myrm_tools.spawn_subagent()`（同名不同层，共用 `_spawn_child()`） |
 | `agent/artifacts/` | `core/artifacts/` | **运行时生命周期** (registry/vault/UI) vs **类型常量 + 路径 SSOT** |
@@ -99,7 +98,6 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `streaming/` | BaseAgent event pipeline + [broadcast/](streaming/broadcast/_ARCH.md) tool SSE | [STREAMING_SYSTEM.md](streaming/STREAMING_SYSTEM.md) |
 | `sub_agents/` | Sub-agent lifecycle | [SUB_AGENT_SYSTEM.md](sub_agents/SUB_AGENT_SYSTEM.md) |
 | `tool_management/` | Tool registry, layers, dedup | [TOOL_MANAGEMENT_SYSTEM.md](tool_management/TOOL_MANAGEMENT_SYSTEM.md) |
-| `workspace_coordination/` | Parallel write isolation + batch merge | [workspace_coordination/_ARCH.md](workspace_coordination/_ARCH.md) |
 | `workspace_rules/` | Project context file discovery, canonical scaffolding & zero-friction handover suite (Item 320) | [workspace_rules/_ARCH.md](workspace_rules/_ARCH.md) |
 
 ## Key Dependencies

@@ -7,7 +7,6 @@ Three-phase orchestration primitive:
       structured CouncilResult with consensus/divergence/action-items.
 
 [INPUT]
-- agent.sub_agents.result_output::answer_text (POS: Subagent result payload (answer text, or a dict carrying isolation merge metadata).)
 - agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus, CouncilOpinion, CouncilResult
 - agent.sub_agents.prompts::DEFAULT_COUNCIL_CROSS_REVIEW_PROMPT, DEFAULT_COUNCIL_CHAIR_PROMPT
 - core.events.types::AgentEventType (POS: Streaming event types — COUNCIL_PHASE)
@@ -35,7 +34,6 @@ from myrm_agent_harness.agent.sub_agents.prompts import (
     DEFAULT_COUNCIL_CHAIR_PROMPT,
     DEFAULT_COUNCIL_CROSS_REVIEW_PROMPT,
 )
-from myrm_agent_harness.agent.sub_agents.result_output import answer_text
 from myrm_agent_harness.agent.sub_agents.types import (
     CouncilOpinion,
     CouncilResult,
@@ -226,9 +224,7 @@ async def run_council(
         agent_type = expert_configs[idx][0]
         completed = manager.child_results.get(task_id)
         success = completed is not None and completed.success
-        content = (
-            answer_text(completed.result) if completed and completed.success else (completed.error if completed else "")
-        )
+        content = completed.result if completed and completed.success else (completed.error if completed else "")
         duration = completed.duration_seconds if completed else 0.0
         all_opinions.append(
             CouncilOpinion(
@@ -305,7 +301,7 @@ async def run_council(
             agent_type = expert_configs[idx][0]
             completed = manager.child_results.get(task_id)
             success = completed is not None and completed.success
-            content = answer_text(completed.result) if completed and completed.success else ""
+            content = completed.result if completed and completed.success else ""
             duration = completed.duration_seconds if completed else 0.0
             all_opinions.append(
                 CouncilOpinion(
@@ -379,7 +375,7 @@ async def run_council(
             error=f"Chair synthesis failed: {chair_result.error}",
         )
 
-    consensus, divergences, action_items = _parse_chair_sections(answer_text(chair_result.result))
+    consensus, divergences, action_items = _parse_chair_sections(chair_result.result)
 
     logger.info(
         "[council:%s] Complete — %d experts, %d rounds, %.1fs, %d consensus, %d divergences",
@@ -393,7 +389,7 @@ async def run_council(
 
     return CouncilResult(
         success=True,
-        synthesis=answer_text(chair_result.result),
+        synthesis=chair_result.result,
         consensus_points=consensus,
         divergences=divergences,
         action_items=action_items,

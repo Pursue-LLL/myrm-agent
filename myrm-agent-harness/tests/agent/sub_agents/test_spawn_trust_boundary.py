@@ -9,8 +9,6 @@ parent hands to `_spawn_child` and the handle the child run is bound to at that 
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 import time
 from collections.abc import Iterator
 from dataclasses import replace
@@ -65,12 +63,10 @@ def _make_parent(
     workspace: Path,
     *,
     path_policy: PathPolicy | None = None,
-    parallel_write_batch: bool = False,
 ) -> MagicMock:
     parent = MagicMock()
     parent.config = SimpleNamespace(security_config=SecurityConfig(path_policy=path_policy or PathPolicy()))
     parent.engine_params = {}
-    parent._parallel_write_batch_active = parallel_write_batch
     parent._last_context = {
         "workspace_path": str(workspace),
         "session_id": "chat_A",
@@ -111,28 +107,15 @@ def _allowed(handle: CapabilityHandle, action: CapabilityAction, target: Path | 
     return check_capability_access(action, str(target), handle=handle)
 
 
-def _init_git_repo(root: Path) -> None:
-    def git(*args: str) -> None:
-        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
-
-    git("init", "-q")
-    (root / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
-    git("add", "-A")
-    git("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "init")
-
-
-@pytest.mark.skipif(shutil.which("git") is None, reason="needs git for worktree isolation")
-async def test_parallel_writer_in_git_workspace_can_write_the_parent_workspace(workspace: Path) -> None:
-    _init_git_repo(workspace)
-    parent = _make_parent(workspace, parallel_write_batch=True)
+async def test_a_writer_can_write_the_parent_workspace_and_nothing_outside_it(workspace: Path) -> None:
+    parent = _make_parent(workspace)
 
     child_context = await _delegate(parent)
     handle = _spawned_handle(parent)
 
-    assert child_context["workspace_path"] != str(workspace), "the parallel batch must have been isolated"
+    assert child_context["workspace_path"] == str(workspace), "children share the parent's one workspace"
     assert _allowed(handle, _WRITE, workspace / "src" / "a.py")
     assert _allowed(handle, _EXECUTE, workspace)
-    assert _allowed(handle, _WRITE, Path(str(child_context["workspace_path"])) / "new.txt")
     assert not _allowed(handle, _WRITE, workspace.parent / "elsewhere.txt")
 
 
@@ -143,7 +126,6 @@ async def test_model_context_cannot_rebind_the_child_workspace(workspace: Path, 
         "session_id": "chat_B",
         "user_id": "user_2",
         "workspaces_storage_root": str(tmp_path / "other_storage"),
-        "_isolated_parent_workspace": "/tmp/elsewhere",
         "note": "free-form data the child may read in its task text",
     }
 
@@ -154,7 +136,6 @@ async def test_model_context_cannot_rebind_the_child_workspace(workspace: Path, 
     assert child_context["session_id"] == "chat_A"
     assert child_context["user_id"] == "user_1"
     assert child_context["workspaces_storage_root"] == str(workspace.parent / "storage")
-    assert "_isolated_parent_workspace" not in child_context
     assert "note" not in child_context
     assert not _allowed(handle, _WRITE, "/etc/hosts")
     task = parent._spawn_child.call_args.kwargs["task_description"]
@@ -323,7 +304,7 @@ async def test_council_and_alternatives_children_do_not_inherit_model_context(wo
             catalog=catalog,
             objective="compare designs",
             expert_agent_types=["a", "b"],
-            context={"session_id": "chat_B", "_isolated_parent_workspace": "/tmp/elsewhere", "note": "text only"},
+            context={"session_id": "chat_B", "note": "text only"},
             context_files=[],
             tool_registry_getter=lambda: [],
             readonly=False,
@@ -336,5 +317,4 @@ async def test_council_and_alternatives_children_do_not_inherit_model_context(wo
 
     child_context = run_alternatives.call_args.kwargs["context"]
     assert child_context["session_id"] == "chat_A"
-    assert "_isolated_parent_workspace" not in child_context
     assert "note" not in child_context

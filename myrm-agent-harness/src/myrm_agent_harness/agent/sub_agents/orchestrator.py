@@ -3,15 +3,14 @@
 Higher-level execution patterns built on top of SubagentManager.spawn_child.
 
 [INPUT]
-- agent.sub_agents.result_output::answer_text (POS: Subagent result payload (answer text, or a dict carrying isolation merge metadata).)
-- agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus, WorkspacePolicy (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
+- agent.sub_agents.types::SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - agent.sub_agents._orchestrator_council::run_council (POS: Council orchestration — multi-expert parallel analysis with cross-review debate and chair synthesis.)
 - agent.sub_agents._orchestrator_verification::VerificationVerdict, run_with_verification, verify_worker_output (POS: Adversarial verification orchestration — Worker -> Verifier -> Retry loop with workspace diff injection and a fail-closed BLOCKED outcome when no conclusive verdict exists.)
-- agent.workspace_coordination.merge.batch_merge::discard_deferred_isolated_workspaces (POS: Serial lifecycle for deferred ISOLATED_COPY workspaces after parallel batch delegation.)
+- agent.sub_agents.spawn_prep::apply_readonly_to_config (POS: Spawn preparation SSOT; read-only policy and mutating tool blocks)
 
 [OUTPUT]
 - run_chain: Execute subagents in chain: A -> B -> C, each receiving previous result.
-- run_alternatives: Spawn N subagents in parallel for the same task; return text results without merging isolated workspaces (discarded after completion).
+- run_alternatives: Spawn N read-only subagents in parallel for the same task; return each candidate's result.
 - run_council: Multi-expert council orchestration with cross-review rounds and chair synthesis.
 - wait_children: Wait for multiple child tasks to complete and aggregate results.
 - run_with_verification: Execute a worker then verify via an adversarial verifier, retrying on failure.
@@ -28,17 +27,15 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import replace as dc_replace
 from typing import TYPE_CHECKING
 
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.agent.sub_agents.result_output import answer_text
+from myrm_agent_harness.agent.sub_agents.spawn_prep import apply_readonly_to_config
 from myrm_agent_harness.agent.sub_agents.types import (
     SubagentConfig,
     SubAgentResult,
     SubAgentStatus,
-    WorkspacePolicy,
 )
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -65,11 +62,10 @@ async def run_alternatives(
     tool_registry_getter: Callable[[], list[BaseTool]],
     cancel_token: CancellationToken | None = None,
 ) -> list[SubAgentResult]:
-    """Spawn N subagents in parallel for the same task; return all results without auto-merging.
+    """Spawn N read-only subagents in parallel for the same task; return all results.
 
-    Each subagent runs in an isolated workspace copy (ISOLATED_COPY) with deferred
-    workspace cleanup. Outputs are compared as text in the tool response; isolated
-    child workspaces are discarded after completion (not merged into the parent).
+    The alternatives are candidate answers, not edits: parallel children share their parent's one
+    workspace, so each runs read-only and its output is compared as text in the tool response.
 
     Results are returned to the calling LLM as a tool call response containing all
     alternatives.  The LLM synthesises a comparative analysis and presents the best
@@ -81,13 +77,12 @@ async def run_alternatives(
         task_description: Common task description shared by all alternatives.
         configs: List of (agent_type, config) tuples — one per alternative.
             Each config may specify a different system_prompt/model to produce diverse results.
-        context: Shared execution context (workspace_path is required for isolation).
+        context: Shared execution context.
         tool_registry_getter: Tool provider.
         cancel_token: Propagated to each spawned child.
 
     Returns:
-        List of SubAgentResult in the same order as *configs*.  Merge metadata is
-        stripped; deferred isolated child workspaces are removed before return.
+        List of SubAgentResult in the same order as *configs*.
     """
     if not configs:
         return []
@@ -97,9 +92,6 @@ async def run_alternatives(
     early_failures: dict[str, SubAgentResult] = {}
 
     for idx, (agent_type, config) in enumerate(configs):
-        iso_config = dc_replace(config, workspace_policy=WorkspacePolicy.ISOLATED_COPY)
-        iso_context = {**context, "_defer_workspace_merge": True}
-
         task_id = f"alt-{batch_id}-{idx}-{agent_type}"
         task_ids.append(task_id)
 
@@ -107,8 +99,8 @@ async def run_alternatives(
             task_id=task_id,
             agent_type=agent_type,
             task_description=task_description,
-            config=iso_config,
-            context=iso_context,
+            config=apply_readonly_to_config(config, readonly=True),
+            context=context,
             tool_registry_getter=tool_registry_getter,
             wait=False,
             cancel_token=cancel_token,
@@ -122,8 +114,7 @@ async def run_alternatives(
     else:
         batch = {"results": [], "failures": []}
 
-    # Collect SubAgentResult from manager (wait_children returns to_dict() snapshots,
-    # but we need the original objects for deferred workspace cleanup).
+    # wait_children returns to_dict() snapshots; the caller needs the original SubAgentResult objects.
     results_map: dict[str, SubAgentResult] = dict(early_failures)
     batch_items: list[object] = []
     for key in ("results", "failures"):
@@ -148,14 +139,6 @@ async def run_alternatives(
         len(configs),
         success_count,
     )
-
-    from myrm_agent_harness.agent.workspace_coordination.merge.batch_merge import (
-        discard_deferred_isolated_workspaces,
-    )
-
-    discarded = discard_deferred_isolated_workspaces(ordered)
-    if discarded:
-        logger.info("[alternatives] Discarded %d deferred isolated workspace(s)", discarded)
 
     return ordered
 
@@ -241,7 +224,7 @@ async def run_chain(
             )
             return last_result
 
-        previous_result = answer_text(last_result.result)
+        previous_result = last_result.result
 
     return last_result
 

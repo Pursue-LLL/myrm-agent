@@ -68,7 +68,6 @@ myrm_agent_harness/agent/streaming/__init__.py
 myrm_agent_harness/agent/streaming/types.py
 myrm_agent_harness/agent/sub_agents/checkpoint/__init__.py
 myrm_agent_harness/agent/tool_management/__init__.py
-myrm_agent_harness/agent/workspace_coordination/policy.py
 myrm_agent_harness/api/__init__.py
 myrm_agent_harness/api/config.py
 myrm_agent_harness/api/factory.py
