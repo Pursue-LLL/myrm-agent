@@ -26,9 +26,7 @@ from myrm_agent_harness.toolkits.code_execution.session.local_session import (
     LocalPersistentSession,
     create_persistent_session,
 )
-from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-    SessionConfig,
-)
+from myrm_agent_harness.toolkits.code_execution.session.models import SessionConfig
 
 
 class _FakeSandboxProvider:

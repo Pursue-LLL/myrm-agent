@@ -372,7 +372,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
-        session_result = await session.execute(command, timeout)
+        session_result = await session.execute(command, timeout, cancel_token=context.cancel_token)
 
         execution_time = time.time() - start_time
 
@@ -462,7 +462,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
-        async for chunk in session.execute_stream(command, timeout):
+        async for chunk in session.execute_stream(command, timeout, cancel_token=context.cancel_token):
             yield chunk
 
     async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:

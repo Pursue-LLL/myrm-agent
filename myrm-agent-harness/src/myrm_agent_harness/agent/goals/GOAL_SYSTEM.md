@@ -119,7 +119,7 @@ Goal System 负责管理长期任务（Long-running Tasks）的生命周期、�
   - 发送 SystemNotification 通知用户。
 - 前端 GoalStatusCard 在 chatId 变化时主动 fetch `GET /goals/{chatId}/status`，确保页面加载即可展示 paused goal。
 - SSE 流的 `message_end` 事件携带 `goal_status.reason`，保证流式更新中 reason 不丢失。
-- 用户在前端看到 GoalStatusCard 的 PAUSED 状态及 reason 提示，可一键 Resume：框架只把 Goal 置回 ACTIVE（`resume_goal`），ACTIVE 目标的下一回合由宿主启动。宿主须先等已被要求停止的回合收尾（该回合的续跑守卫会看到 ACTIVE 目标与已取消令牌，把刚恢复的目标再次暂停），再启动继续运行的无人值守回合；会话正忙或应用排空时不启动，由运行中的回合或下一条消息接力。宿主的 pause / cancel 在目标正在干活时须同时中断它的回合，已产生的副作用保留；暂停不会杀死已在执行的工具调用，回合在下一个流事件处收尾，所以紧接着的恢复可能被拒绝、让用户稍后再试。cancel 作用于运行中的 Goal，或任一仍未结束（暂停/预算受限/待复核/等待/排队）的最新 Goal。参考宿主实现（Web `POST /goals/{chat}/status`、IM `/goal`）见 `myrm-agent-server` 的 `app/api/goals/_ARCH.md` 与 `app/services/agent/goals/_ARCH.md`。
+- 用户在前端看到 GoalStatusCard 的 PAUSED 状态及 reason 提示，可一键 Resume：框架只把 Goal 置回 ACTIVE（`resume_goal`），ACTIVE 目标的下一回合由宿主启动。宿主须先等已被要求停止的回合收尾（该回合的续跑守卫会看到 ACTIVE 目标与已取消令牌，把刚恢复的目标再次暂停），再启动继续运行的无人值守回合；会话正忙或应用排空时不启动，由运行中的回合或下一条消息接力。宿主的 pause / cancel 在目标正在干活时须同时中断它的回合，已产生的副作用保留；暂停经取消令牌终止正在执行的 shell 命令与脚本（连同它启动的子进程，已产生的部分输出保留，之后的命令拿到全新的 shell），其余在途工具调用在下一个流事件处收尾，所以紧接着的恢复仍可能被拒绝、让用户稍后再试。cancel 作用于运行中的 Goal，或任一仍未结束（暂停/预算受限/待复核/等待/排队）的最新 Goal。参考宿主实现（Web `POST /goals/{chat}/status`、IM `/goal`）见 `myrm-agent-server` 的 `app/api/goals/_ARCH.md` 与 `app/services/agent/goals/_ARCH.md`。
 - 设计优势：不自动 Resume（避免 token 浪费和意图漂移），比 Hermes 的 `resume_pending` 懒恢复更透明，比 OpenClaw 的前端 reconcile 更可靠（后端保证数据一致性）。
 
 ### 10. 优先级队列与自动串行执行 (Priority Queue)

@@ -8,6 +8,7 @@
 - agent.middlewares._session_context (POS: Middleware session context)
 - agent.streaming.types::AgentEventType (POS: Agent event type definitions)
 - utils.errors::ToolError (POS: Framework-level tool errors)
+- utils.runtime.cancellation::get_cancel_token (POS: request-level cancellation token; a stopped request is never retried)
 
 [OUTPUT]
 - execute_with_retry(): Execute a tool call with timeout, retry, and exponential backoff
@@ -15,6 +16,8 @@
 [POS]
 Tool execution engine. Encapsulates timeout/retry/backoff logic with event logging
 and stream emission. Called from tool_interceptor_middleware after pre-call guards pass.
+A request that was stopped meanwhile ends the backoff at once and gets no retry: a retry would run again a call
+the user already stopped.
 """
 
 from __future__ import annotations
@@ -41,19 +44,39 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     make_error_msg,
 )
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.utils.errors import ToolError
+from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
+from myrm_agent_harness.utils.runtime.cancellation import get_cancel_token
 
 logger = get_agent_logger(__name__)
+
+_STOP_POLL_S = 0.25
+
+
+def _request_stopped() -> bool:
+    token = get_cancel_token()
+    return token is not None and token.is_cancelled
+
+
+async def _backoff_sleep(seconds: float) -> None:
+    """Wait before a retry, ending early once the request is stopped (the caller then skips the retry)."""
+    if get_cancel_token() is None:
+        await asyncio.sleep(seconds)
+        return
+    remaining = seconds
+    while remaining > 0 and not _request_stopped():
+        step = min(_STOP_POLL_S, remaining)
+        await asyncio.sleep(step)
+        remaining -= step
 
 
 async def execute_with_retry(
     request: ToolCallRequest,
-    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
+    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[object]]],
     tool_name: str,
     tool_call_id: str,
     allowed_domains: list[str] | None,
-) -> ToolMessage | Command:
+) -> ToolMessage | Command[object]:
     """Execute a tool call with timeout, retry (max 2 attempts), and exponential backoff.
 
     Handles:
@@ -80,6 +103,13 @@ async def execute_with_retry(
     start_time = time.time()
 
     for attempt in range(2):
+        if attempt > 0 and _request_stopped():
+            return make_error_msg(
+                tool_name,
+                tool_call_id,
+                f"{tool_name} was cancelled (request stopped) and not retried.",
+                error_category=ToolErrorCategory.TOOL_CANCELLED,
+            )
         try:
             async with asyncio.timeout(timeout):
                 with URLAllowlistGuard.apply(allowed_domains):
@@ -124,7 +154,7 @@ async def execute_with_retry(
                             backoff,
                         )
                         await _emit_retry_event(tool_name, attempt, backoff)
-                        await asyncio.sleep(backoff)
+                        await _backoff_sleep(backoff)
                         continue
 
                 return result
@@ -165,7 +195,7 @@ async def execute_with_retry(
                 backoff = min(2**attempt + random.uniform(0, 1), 10.0)
                 logger.warning(f" Timeout [{tool_name}] attempt {attempt + 1}/2, retry in {backoff:.1f}s")
                 await _emit_retry_event(tool_name, attempt, backoff)
-                await asyncio.sleep(backoff)
+                await _backoff_sleep(backoff)
             else:
                 total_duration = time.time() - start_time
                 error_msg = f"{tool_name} execution timed out after {attempt + 1} attempts"
@@ -278,7 +308,7 @@ async def execute_with_retry(
                     f" Error [{tool_name}] {type(e).__name__}: {redact_sensitive_text(str(e)[:100])}, retry in {backoff:.1f}s"
                 )
 
-            await asyncio.sleep(backoff)
+            await _backoff_sleep(backoff)
 
     raise RuntimeError(f"Unexpected: execute_with_retry loop completed without return for {tool_name}")
 

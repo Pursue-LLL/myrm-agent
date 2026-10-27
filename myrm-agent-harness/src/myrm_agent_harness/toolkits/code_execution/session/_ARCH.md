@@ -9,7 +9,10 @@ state (env vars, cwd) across commands.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports all public API | — |
-| persistent_session.py | Core | Abstract `PersistentSession` base class: state machine, execute, stream, auto-recovery, shield-protected cleanup; per-command random markers + `bash -n` syntax gate + script materialization armor with `is_armored` metadata propagation; startup orphan GC via `sweep_stale_materialized_scripts`; wedge self-heal (timeout / corrupted boundary → kill group + TERMINATED) | ✅ |
+| models.py | Core | `SessionState`, `SessionExecutionResult`, `SessionConfig` — the session's value types | ✅ |
+| persistent_session.py | Core | Abstract `PersistentSession` base class (with `CommandStreamMixin`): state machine, `execute` (a request already stopped never starts its command), auto-recovery, shield-protected cleanup; startup orphan GC via `sweep_stale_materialized_scripts`; `_discard_shell()` (kill the process tree → TERMINATED, so the next command gets a fresh shell) | ✅ |
+| command_stream.py | Core | `CommandStreamMixin`: the streaming command run — per-command random markers + `bash -n` syntax gate + script materialization armor with `is_armored` metadata propagation; one deadline (`asyncio.timeout`) that a timeout and a stopped request (`cut_deadline_on_cancel`) share, so both end through the same exit; wedge self-heal (timeout / cancel / corrupted boundary → discard the shell); `CANCELLED_*` results keep partial output and carry exit code 130 | ✅ |
+| process_tree.py | Core | `kill_process_tree`: ends a shell and everything it started (descendants snapshotted via psutil and terminated before the shell, then killed after a grace period) — a sandboxed shell shares the server's process group, so killing the group is not an option there; own-group shells keep the SIGTERM→SIGKILL group kill; Windows uses `taskkill /T` | ✅ |
 | local_session.py | Core | `LocalPersistentSession` concrete implementation with bwrap sandbox support and strict child process credential token isolation via `sanitize_env` | ✅ |
 | shell_flavor.py | Core | Platform-specific shell drivers: `BashFlavor` (with `exit()` interceptor + block-rc wrapper + errexit `EXIT` trap + ANSI-C `$'…'` env quoting), `PowerShellFlavor` (with UTF-8 console I/O encoding, `$ProgressPreference='SilentlyContinue'`, `exit()` interceptor, dual exit code normalization), `WindowsFlavor` (legacy cmd.exe fallback) | ✅ |
 | stream_output_processor.py | Core | `StreamOutputProcessor` — unified tee writing, SSE throttle/valve, disk quota | ✅ |
@@ -23,3 +26,5 @@ state (env vars, cwd) across commands.
 - `executors.models.scrub_sensitive_info` — PII scrubbing for real-time SSE streams
 - `security.script_armor.prepare_armored_command` — Script materialization & subprocess invocation armor
 - `security.script_armor.sweep_stale_materialized_scripts` — Stale orphan temporary script cleanup on startup
+- `utils.runtime.cancel_hook::cut_deadline_on_cancel` — brings the command deadline forward when the request's cancel token fires
+- `psutil` (core dependency) — descendant discovery for `kill_process_tree`

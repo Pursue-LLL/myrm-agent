@@ -924,3 +924,25 @@ class _FakeBackgroundInfo:
     command: str
     status: str
     exit_code: int | None = None
+
+
+def test_build_execution_context_carries_the_request_cancel_token() -> None:
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, set_cancel_token
+
+    bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
+    token = CancellationToken("req-1")
+    set_cancel_token(token)
+    try:
+        ctx = bash_exec._build_execution_context(
+            prepared_code="sleep 1",
+            original_code="sleep 1",
+            mcp_config_items=None,
+            session_id="s1",
+            workspace=None,
+            env_paths=None,
+            working_dir="/workspace",
+        )
+    finally:
+        set_cancel_token(None)
+
+    assert ctx.cancel_token is token

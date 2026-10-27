@@ -4,6 +4,7 @@
 - toolkits.code_execution::ExecutionContext (POS: Code executor protocol and context)
 - .event_logging::log_bash_command_execution (POS: Event logging with redaction)
 - agent.artifacts.registry::register_generated_files (POS: Artifact registration)
+- utils.runtime.cancellation::get_cancel_token (POS: request-level cancellation token; the command stops when it is cancelled)
 
 [OUTPUT]
 - BashExecutorContextMixin: _build_execution_context, logging, artifact registration
@@ -19,10 +20,15 @@ import os
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.code_execution import ExecutionContext
+from myrm_agent_harness.utils.runtime.cancellation import get_cancel_token
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.code_execution import Workspace
+    from myrm_agent_harness.agent.meta_tools.bash._executor.workspace_manager import (
+        WorkspaceManager,
+    )
+    from myrm_agent_harness.toolkits.code_execution import ExecutionConfig, Workspace
     from myrm_agent_harness.toolkits.code_execution.executors.base import (
+        CodeExecutor,
         ExecutionResult,
     )
     from myrm_agent_harness.toolkits.code_execution.executors.models import (
@@ -34,6 +40,17 @@ logger = logging.getLogger(__name__)
 
 class BashExecutorContextMixin:
     """Build ExecutionContext and handle logging / artifact registration."""
+
+    # Provided by BashExecutor.__init__
+    _executor: CodeExecutor
+    _workspace_manager: WorkspaceManager
+    _global_env: dict[str, str] | None
+    _skill_oauth_issuers: dict[str, str] | None
+
+    if TYPE_CHECKING:
+        # Provided by BashExecutor.
+        @property
+        def config(self) -> ExecutionConfig: ...
 
     def _resolve_allowed_credential_issuers(self, skill_names: list[str] | None) -> list[str] | None:
         """Scope OAuth injection: all issuers for generic bash; filtered when a skill is active."""
@@ -101,6 +118,7 @@ class BashExecutorContextMixin:
             allow_network=network_config.allow_network,
             allowed_hosts=network_config.get_effective_allowed_hosts(),
             mcp_config=mcp_config_items,
+            cancel_token=get_cancel_token(),
         )
 
     def _get_timeout(self) -> int:

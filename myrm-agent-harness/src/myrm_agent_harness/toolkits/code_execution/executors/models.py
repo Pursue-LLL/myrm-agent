@@ -4,7 +4,7 @@ Defines execution context, results, MCP communication configuration,
 and execution metrics.
 
 [INPUT]
-- (none)
+- utils.runtime.cancellation::CancellationToken (POS: request-level cancellation flag; type only)
 
 [OUTPUT]
 - AsyncProcessProtocol: Subprocess handle exposed by CodeExecutor (stdio MCP and ...
@@ -23,9 +23,12 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 
 @runtime_checkable
@@ -138,6 +141,12 @@ class ExecutionContext:
     Used by post-episode graders (e.g. eval ``test_suite``) to mount external
     grading assets that live outside the agent workspace. Agent-runtime bash
     does not set this, so those assets stay unreachable during execution.
+    """
+    cancel_token: CancellationToken | None = None
+    """Token of the request that issued the command; cancelling it stops the command while it runs.
+
+    Only the agent-facing tools set it. Housekeeping commands (workspace cleanup, goal verification) leave it unset
+    so a stopped request never cuts them short.
     """
 
 

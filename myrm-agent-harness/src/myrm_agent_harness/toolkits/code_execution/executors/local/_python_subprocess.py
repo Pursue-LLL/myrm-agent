@@ -1,6 +1,7 @@
 """Python script subprocess execution with sandbox and timeout.
 
 [INPUT]
+utils.runtime.cancel_hook::DeadlineCut, cut_deadline_on_cancel (POS: end a timeout scope as soon as the request token is cancelled)
 executors.base::ExecutionContext (POS: Code executor base classes)
 executors.base::ExecutionResult (POS: Code executor base classes)
 executors.common::parse_execution_output (POS: Shared execution utilities)
@@ -12,7 +13,8 @@ run_python_subprocess: Execute a Python script in a sandboxed subprocess with ti
 
 [POS]
 Python subprocess execution. Handles environment preparation, sandbox wrapping,
-graceful timeout (SIGTERM → SIGKILL), and output parsing for Python code execution.
+graceful timeout (SIGTERM → SIGKILL), cancel-aware stop (a cancelled request ends the script like a timeout, but
+reports "cancelled"), and output parsing for Python code execution.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import (
 from myrm_agent_harness.toolkits.code_execution.executors.common import (
     parse_execution_output,
 )
+from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
 
 logger = logging.getLogger(__name__)
 
@@ -176,17 +179,28 @@ async def run_python_subprocess(
             **kwargs,
         )
 
+        cut = DeadlineCut()
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=timeout)
+            async with (
+                asyncio.timeout(timeout) as deadline,
+                cut_deadline_on_cancel(context.cancel_token if context else None, deadline, cut),
+            ):
+                stdout_bytes, stderr_bytes = await process.communicate()
         except TimeoutError:
             await _kill_process_tree(process, os_compat)
+            if cut.by_cancel:
+                return ExecutionResult(
+                    success=False,
+                    error="Cancelled: the run was stopped while this script was running, so the script was terminated.",
+                    stderr="Cancelled",
+                )
             return ExecutionResult(
                 success=False,
                 error=f"Execution timed out after {timeout}s",
                 stderr="Timeout",
             )
         except asyncio.CancelledError:
-            # Host task cancelled (user pressed Stop). Reap the process group before
+            # The host task was cancelled from outside (tool deadline, shutdown). Reap the process group before
             # propagating, otherwise the sandboxed child and its workers keep running.
             await _kill_process_tree(process, os_compat)
             raise

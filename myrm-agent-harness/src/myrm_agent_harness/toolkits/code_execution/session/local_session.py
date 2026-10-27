@@ -20,10 +20,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.code_execution.platform import PlatformInfo
-from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-    PersistentSession,
-    SessionConfig,
-)
+from myrm_agent_harness.toolkits.code_execution.session.models import SessionConfig
+from myrm_agent_harness.toolkits.code_execution.session.persistent_session import PersistentSession
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.sandbox import (

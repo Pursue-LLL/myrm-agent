@@ -12,7 +12,7 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `execute_mixin.py` | Core | 同步 ``execute()`` 编排；stdout/stderr 对称 eviction；失败路径双流落盘 + ``BashExecutionError`` 携带 eviction 引用。 | ✅ |
 | `background_mixin.py` | Core | ``spawn_background()`` 后台进程注册（后台作业默认受当前 agent 能力句柄约束）；剥离裸尾 ``&`` 防孤儿进程。 | ✅ |
 | `prepare_mixin.py` | Core | MCP proxy 启动、代码类型检测、技能 staging。 | ✅ |
-| `context_mixin.py` | Core | ExecutionContext 构建、OAuth issuer 作用域、事件日志。 | ✅ |
+| `context_mixin.py` | Core | ExecutionContext 构建（带当前请求的取消令牌，使停止能到达在跑的命令）、OAuth issuer 作用域、事件日志。 | ✅ |
 | `constants.py` | Internal | 共享常量（MCP 超时下限）。 | — |
 | `workspace_manager.py` | Core | 工作区薄委托（懒加载绑定存储根）。 | ✅ |
 | `skill_workspace_manager.py` | Core | 技能文件 staging 路径解析。 | ✅ |

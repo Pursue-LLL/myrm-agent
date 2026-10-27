@@ -14,9 +14,7 @@ from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
     SessionConfig,
 )
-from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-    SessionState,
-)
+from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
 
 
 def _make_config(timeout: int = 10) -> SessionConfig:
@@ -323,11 +321,11 @@ class TestProcessGroupKill:
 
     @pytest.mark.asyncio
     async def test_kill_posix_shared_pgid_falls_back(self) -> None:
-        """When child shares parent's pgid, _kill_process_tree terminates only the child."""
+        """When child shares parent's pgid, kill_process_tree terminates only the child."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -340,8 +338,13 @@ class TestProcessGroupKill:
         with (
             patch("os.getpgid", return_value=my_pgid),
             patch("os.killpg") as mock_killpg,
+            # The mock pid is made up: it must not be looked up in the real process table.
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.session.process_tree._descendants",
+                return_value=[],
+            ),
         ):
-            await _kill_process_tree(mock_process, is_windows=False, grace_period=1.0)
+            await kill_process_tree(mock_process, is_windows=False, grace_period=1.0)
             mock_process.terminate.assert_called_once()
             mock_killpg.assert_not_called()
 
@@ -351,8 +354,8 @@ class TestProcessGroupKill:
         import signal
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -368,7 +371,7 @@ class TestProcessGroupKill:
             ),
             patch("os.killpg") as mock_killpg,
         ):
-            await _kill_process_tree(mock_process, is_windows=False, grace_period=1.0)
+            await kill_process_tree(mock_process, is_windows=False, grace_period=1.0)
             mock_killpg.assert_any_call(fake_child_pgid, signal.SIGTERM)
 
 
@@ -837,24 +840,24 @@ exit 0
 class TestKillProcessTreeEdgeCases:
     @pytest.mark.asyncio
     async def test_pid_is_none(self) -> None:
-        """_kill_process_tree should return immediately if pid is None."""
+        """kill_process_tree should return immediately if pid is None."""
         from unittest.mock import MagicMock
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
         mock_process.pid = None
-        await _kill_process_tree(mock_process, is_windows=False)
+        await kill_process_tree(mock_process, is_windows=False)
 
     @pytest.mark.asyncio
     async def test_windows_taskkill(self) -> None:
         """Windows path uses taskkill /F /T /PID."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -868,7 +871,7 @@ class TestKillProcessTreeEdgeCases:
             new_callable=AsyncMock,
             return_value=mock_sub,
         ) as mock_exec:
-            await _kill_process_tree(mock_process, is_windows=True)
+            await kill_process_tree(mock_process, is_windows=True)
             mock_exec.assert_called_once()
             args = mock_exec.call_args[0]
             assert "taskkill" in args
@@ -880,8 +883,8 @@ class TestKillProcessTreeEdgeCases:
         """Windows path falls back to process.kill() on taskkill failure."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -893,7 +896,7 @@ class TestKillProcessTreeEdgeCases:
             new_callable=AsyncMock,
             side_effect=OSError("fail"),
         ):
-            await _kill_process_tree(mock_process, is_windows=True)
+            await kill_process_tree(mock_process, is_windows=True)
             mock_process.kill.assert_called_once()
 
     @pytest.mark.asyncio
@@ -901,8 +904,8 @@ class TestKillProcessTreeEdgeCases:
         """When shared pgid and SIGTERM times out, falls back to process.kill()."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -912,8 +915,14 @@ class TestKillProcessTreeEdgeCases:
         mock_process.wait = AsyncMock(side_effect=TimeoutError)
 
         my_pgid = os.getpgid(os.getpid())
-        with patch("os.getpgid", return_value=my_pgid):
-            await _kill_process_tree(mock_process, is_windows=False, grace_period=0.1)
+        with (
+            patch("os.getpgid", return_value=my_pgid),
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.session.process_tree._descendants",
+                return_value=[],
+            ),
+        ):
+            await kill_process_tree(mock_process, is_windows=False, grace_period=0.1)
             mock_process.terminate.assert_called_once()
             mock_process.kill.assert_called_once()
 
@@ -923,8 +932,8 @@ class TestKillProcessTreeEdgeCases:
         import signal
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
-            _kill_process_tree,
+        from myrm_agent_harness.toolkits.code_execution.session.process_tree import (
+            kill_process_tree,
         )
 
         mock_process = MagicMock()
@@ -940,7 +949,7 @@ class TestKillProcessTreeEdgeCases:
             ),
             patch("os.killpg") as mock_killpg,
         ):
-            await _kill_process_tree(mock_process, is_windows=False, grace_period=0.1)
+            await kill_process_tree(mock_process, is_windows=False, grace_period=0.1)
             mock_killpg.assert_any_call(fake_child_pgid, signal.SIGTERM)
             mock_killpg.assert_any_call(fake_child_pgid, signal.SIGKILL)
 
@@ -1198,7 +1207,7 @@ class TestLifecycleSafety:
     @pytest.mark.asyncio
     async def test_markers_are_random_per_command(self) -> None:
         """Each execution gets unique boundary markers."""
-        from myrm_agent_harness.toolkits.code_execution.session.persistent_session import (
+        from myrm_agent_harness.toolkits.code_execution.session.command_stream import (
             _generate_marker,
         )
 

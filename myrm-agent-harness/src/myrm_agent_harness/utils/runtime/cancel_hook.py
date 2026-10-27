@@ -9,10 +9,12 @@ a watcher fires the callback within one poll interval while the guarded block ke
 
 [OUTPUT]
 - on_token_cancelled: async context manager that calls ``callback`` once if the token is cancelled inside the block
+- DeadlineCut / cut_deadline_on_cancel: end an ``asyncio.timeout`` scope as soon as the token is cancelled and record that the token, not the clock, ended it
 
 [POS]
 Cancellation bridge for streams that must be stopped from outside; the counterpart of ``run_until_cancelled``, which
-aborts an awaited operation instead.
+aborts an awaited operation instead. ``cut_deadline_on_cancel`` suits work that already unwinds through its own
+timeout handling (kill the process, keep the partial output): the cancel takes the same exit as a timeout.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 
 from .cancellation import CancellationToken
 
@@ -55,3 +58,30 @@ async def on_token_cancelled(
         watcher.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await watcher
+
+
+@dataclass
+class DeadlineCut:
+    """Whether a timeout scope was ended early because the request was cancelled (and not because time ran out)."""
+
+    by_cancel: bool = False
+
+
+@asynccontextmanager
+async def cut_deadline_on_cancel(
+    token: CancellationToken | None,
+    deadline: asyncio.Timeout,
+    cut: DeadlineCut,
+) -> AsyncIterator[None]:
+    """End ``deadline`` now when ``token`` is cancelled inside the block, and record that in ``cut``.
+
+    The scope then fails with ``TimeoutError`` exactly as an expired deadline does; ``cut.by_cancel`` tells the
+    handler which of the two happened. A ``None`` token never cuts.
+    """
+
+    async def cut_now() -> None:
+        cut.by_cancel = True
+        deadline.reschedule(asyncio.get_running_loop().time())
+
+    async with on_token_cancelled(token, cut_now):
+        yield

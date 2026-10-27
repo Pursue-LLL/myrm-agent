@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from myrm_agent_harness.utils.runtime.cancel_hook import on_token_cancelled
+from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel, on_token_cancelled
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 
@@ -113,3 +113,38 @@ async def test_an_exception_in_the_block_still_stops_the_watcher() -> None:
     await asyncio.sleep(0.5)
 
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_token_cuts_the_deadline_short_and_says_why() -> None:
+    token = CancellationToken("req-1")
+    cut = DeadlineCut()
+
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(30) as deadline, cut_deadline_on_cancel(token, deadline, cut):
+            token.cancel()
+            await asyncio.sleep(5)
+
+    assert cut.by_cancel is True
+
+
+@pytest.mark.asyncio
+async def test_a_deadline_that_runs_out_by_itself_is_not_blamed_on_the_token() -> None:
+    token = CancellationToken("req-1")
+    cut = DeadlineCut()
+
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.1) as deadline, cut_deadline_on_cancel(token, deadline, cut):
+            await asyncio.sleep(5)
+
+    assert cut.by_cancel is False
+
+
+@pytest.mark.asyncio
+async def test_a_missing_token_leaves_the_deadline_alone() -> None:
+    cut = DeadlineCut()
+
+    async with asyncio.timeout(5) as deadline, cut_deadline_on_cancel(None, deadline, cut):
+        await asyncio.sleep(0)
+
+    assert cut.by_cancel is False
