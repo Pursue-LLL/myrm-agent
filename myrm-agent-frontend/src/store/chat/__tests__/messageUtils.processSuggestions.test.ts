@@ -171,14 +171,12 @@ describe('processSuggestions while the turn waits for the user', () => {
     [
       'a desktop control approval of another turn',
       () =>
-        useDesktopControlApprovalStore
-          .getState()
-          .requestApproval({
-            request_id: 'desktop-2',
-            reason: 'Open an app',
-            operation: 'click',
-            messageId: 'other-turn',
-          }),
+        useDesktopControlApprovalStore.getState().requestApproval({
+          request_id: 'desktop-2',
+          reason: 'Open an app',
+          operation: 'click',
+          messageId: 'other-turn',
+        }),
     ],
     [
       'a browser takeover of another turn',
