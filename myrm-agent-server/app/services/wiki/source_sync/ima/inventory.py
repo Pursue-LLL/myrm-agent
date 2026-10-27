@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 
 from .context import SyncContext
 from .errors import ImaAuthError, ImaPermanentError
@@ -50,6 +51,9 @@ async def begin_generation(ctx: SyncContext) -> None:
 
 async def _record(ctx: SyncContext, items: list[InventoryItem]) -> None:
     async with get_session() as db:
+        # The page's existing rows are read before they are inserted or updated; a writer committing in between would
+        # abort the unit with SQLITE_BUSY_SNAPSHOT and fail the whole slice.
+        await acquire_write_lock(db)
         await ctx.ledger.upsert_inventory(db, items, generation=ctx.state.generation, raw_exists=ctx.raw_exists)
         await db.commit()
 

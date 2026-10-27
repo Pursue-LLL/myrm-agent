@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 定时任务跑完后写回「下次触发时间」与监控基线会因 SQLite 快照冲突被静默丢弃（任务从此不再触发）；腾讯 ima 库存页写入同样会被并发提交打断，整片失败并退避
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：cron store 的 `save_job`、`save_monitor_state` 与 ima 库存页写入 `_record` 起手取写锁；没有界面、提示词、文案变化）。压测在高负载机器上进行（load avg 36 到 73），绝对失败率偏高，同进程 A/B 对照有效；没有用真实 ima 账号验证。 |
+| **症状** | ① 一个到期任务跑完后，列表里仍是「运行中」，却再也不会触发。日志只有一条 `Unhandled error in job …: (sqlite3.OperationalError) database is locked`，SQL 是 `UPDATE cron_jobs SET fire_count=?, next_run_at=?, last_run_at=?, last_status=? …`。我自己的 ima 暂停、删除、换选择探针（真实调度器、真实 cron manager、模拟的 ima 服务）里自然出现过 1 次，丢掉的是 ima 同步任务首轮的 `last_status=skipped` 写回。② 监控类任务（带 `monitor_config`）的 `save_monitor_state` 丢写时，执行器把这一轮算作监控失败，新基线没有存下来。③ ima 同步在盘点阶段整片按内部错误处理并进入退避（240、480、960、1920、3600 秒逐级，`engine.py` 的 `_backoff_s`）。 |
+| **根因** | ① 调度器认领到期任务时先把 `next_run_at` 清空（`claim_due`），此后只有任务跑完的 `save_job` 能把下次时间写回。`save_job` 先 SELECT 再写，而事务策略是 deferred BEGIN（读不加锁）：读完之后别的连接提交了写，升级为写入的这一步以 SQLITE_BUSY_SNAPSHOT 失败（`database is locked`，`busy_timeout` 不覆盖）。调度器只把异常记成 WARNING，到期查询只选 `next_run_at` 非空的任务，恢复只在启动时做，于是该任务永久停摆。② `save_monitor_state` 与 `ima/inventory.py::_record` 是同样的先读后写：前者读已有基线再更新，后者读该页已有台账行再插入或更新，被并发提交打断后异常分别进入执行器的监控失败分支与引擎的兜底分支。三处都没有遵守 `app/database/_ARCH.md` 的写锁策略：读后写的单元起手取写锁。 |
+| **修复** | `sqlalchemy_store.py` 的 `save_job`、`save_monitor_state` 与 `ima/inventory.py::_record` 在第一次读之前 `await acquire_write_lock(session)`。同一 store 的其余写方法已逐个核对：`claim_due`、`delete_job`、`delete_job_cascade`、`purge_old_runs`、`delete_monitor_state` 第一条语句就是写，`save_run` 只 add 后提交，其余纯读；`get_job` 的 legacy monitor_config 回写与启动批量清洗只在遇到旧格式时写一次，不为它们给每次读加写锁。新增测试支撑 `tests/support/policy_sqlite.py`（跑着生产事务策略的文件库，普通 `sqlite+aiosqlite` 夹具没有这套策略，复现不出这类丢写）和三条确定性测试：另一个写者持锁时被测单元先等锁再读，写者提交后写入落库。 |
+| **回归证据** | 对照方法：真实 `CronScheduler` + `CronManager` + `SqlAlchemyCronStore`，隔离的临时 SQLite（探针拒绝在临时目录之外运行），修复前后同一脚本。① 同一时刻到期 K 个任务，每格 10 轮，死亡任务数 / 运行任务数。修复前，无外部写者：K=1 为 0/10，K=2 为 3/20，K=4 为 12/40，K=8 为 27/80；3 个外部写者：3/10、13/20、29/40、33/80。修复后 12 个格子（K 取 1、2、4、8，外部写者取 0、1、3）全部为 0，包括最后一格 0/80。不需要外部压力，任务自己并发就会互撞。② 确定性测试：修复前分别以 `UPDATE cron_jobs …`、`UPDATE monitor_states …`、`INSERT INTO wiki_source_ledger …` 的 `database is locked` 失败，修复后通过；各自删掉锁行后对应测试变红（突变）。监控基线这一处只有确定性测试，没有跑并发扫描。③ ima 盘点页写入压测，每档 150 页：无写者 0%，1 个约 20 次每秒的写者 26.7%，3 个写者 44.0%，写锁先行三档都是 0%。④ 代价：无争用时 `save_job` 同进程交替 400 次，p50 6.29 毫秒对 5.12 毫秒，p95 16.71 对 13.77 毫秒；`save_job` 微基准里写者不停提交时，修复前 384/400（96.0%）丢写，修复后 0/400，代价是等锁，p50 20.9 毫秒、p95 223.5 毫秒、最长 1605 毫秒；写者约 20 次每秒时修复前 137/400（34.2%），修复后 0/400，p50 9.0 对 19.0 毫秒。等锁发生在后台协程。ima 盘点页无写者时 p50 13.4 毫秒到 21.9 毫秒，p95 59.2 毫秒到 189.0 毫秒（单次 150 页，机器负载 57，噪声大）。⑤ 回归套件：`tests/core/cron`、`tests/api/cron`、`tests/database` 共 729 个通过（另有 2 个按标记不跑）；ima 目录、ima 路由与 router job 共 257 个通过、1 个跳过（真机探针，需要用户自己的 ima 凭证）。 |
+| **仍然存在** | ① 真实频率未知：没有遥测，自然出现只在我自己的探针运行里见到 1 次。② 从未运行过的任务（`last_run_at` 为空）若被认领后写回丢了，重启也不会恢复：`engine/helpers.py:153-154` 的 `is_stale_run` 对 `last_run_at is None` 直接返回 False。有运行历史的任务会在启动时恢复（`recovery.py:117` 记「Recovered N stale runs on startup」，扫描里 5 个死任务重启后恢复了 5 个）；从未运行过的这一支没有样本，只有代码证据。完整方案（心跳、周期性清理、停止时收尾已认领任务）已在 `temp-docs/roadmap/topic_10_runtime_reliability_roadmap.md` 立项，不在这里打半截补丁。③ `save_scoped_userconfig`（ima 状态保存等）同样是读后写：空载 0%，1 个约 20 次每秒的写者 6.0%，3 个写者 38.7%（每档 150 次）。没有改：它不拥有会话，5 处调用点常常已在同一会话里读过，再取写锁会抛 `RuntimeError`；它自己先拿进程内的 `_save_lock`（`_userconfig_scoped.py:137`）再读（`:139`），写入在 `:174` 才提交，要改得同时重排这 5 处的会话边界与加锁顺序，风险大于收益。失败时走引擎兜底的内部退避，下一片重试。 |
+
 ## 2026-10-27 · 云端记忆备份：定时备份不按设置里的间隔运行，读不到云端被当成「没有备份」，共用文件夹的两个实例互删备份，连续失败无人知晓，失败时界面只显示英文原话
 
 | 字段 | 内容 |
