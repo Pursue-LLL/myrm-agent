@@ -36,7 +36,7 @@ import { getWorkspaceFileContentUrl, type FileEntry } from '@/services/chat';
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
 import { InlineWorkspaceDiff } from './InlineWorkspaceDiff';
 import { ConflictNotice, DraftRestoredNotice, ReadonlyNotice } from './WorkspaceTextNotices';
-import { formatBytes, getLanguage, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
+import { formatBytes, LineNumberedCode, LineNumberedEditor } from './WorkspaceTextViews';
 import { useWorkspaceTextEditor } from './useWorkspaceTextEditor';
 
 interface WorkspaceFilePreviewProps {
@@ -135,7 +135,6 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       }
     }, [dirty, resolveUnsaved, onClose]);
 
-    const language = getLanguage(file.name);
     const size = snapshot?.size ?? file.size;
 
     return (
@@ -260,7 +259,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             editing && canEdit ? (
               <LineNumberedEditor content={editor.draft} label={file.name} onChange={editor.setDraft} />
             ) : (
-              <LineNumberedCode content={snapshot.content} language={language} />
+              <LineNumberedCode content={snapshot.content} />
             )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

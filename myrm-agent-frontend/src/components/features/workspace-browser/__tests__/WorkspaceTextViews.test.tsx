@@ -66,10 +66,67 @@ describe('LineNumberedEditor', () => {
 });
 
 describe('LineNumberedCode', () => {
-  it('numbers the lines of the read-only view and shows the text as it is', () => {
-    const { container } = render(<LineNumberedCode content={'one\ntwo\nthree'} language="plaintext" />);
-    expect(gutterOf(container).textContent).toBe('1\n2\n3');
-    expect(container.querySelector('code')?.textContent).toBe('one\ntwo\nthree');
-    expect(container.querySelector('code')?.getAttribute('data-language')).toBe('plaintext');
+  const rowsOf = (container: HTMLElement): HTMLElement[] =>
+    Array.from(container.querySelectorAll<HTMLElement>('.numbered-code-line'));
+
+  it('renders one row per line, and copying the rows gives the file back byte for byte', () => {
+    const withFinalBreak = render(<LineNumberedCode content={'one\n\n  two\t \nthree\n'} />);
+    expect(rowsOf(withFinalBreak.container)).toHaveLength(4);
+    expect(withFinalBreak.container.textContent).toBe('one\n\n  two\t \nthree\n');
+    withFinalBreak.unmount();
+
+    const withoutFinalBreak = render(<LineNumberedCode content={'one\ntwo\nthree'} />);
+    expect(rowsOf(withoutFinalBreak.container)).toHaveLength(3);
+    expect(withoutFinalBreak.container.textContent).toBe('one\ntwo\nthree');
+  });
+
+  it('shows an empty file as one empty row, like the editor does', () => {
+    const { container } = render(<LineNumberedCode content="" />);
+    expect(rowsOf(container)).toHaveLength(1);
+    expect(container.textContent).toBe('');
+  });
+
+  it('leaves the numbers to CSS: nothing numeric is in the DOM, so they cannot be selected, copied or read aloud', () => {
+    const { container } = render(<LineNumberedCode content={'a\nb\nc'} />);
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(container.textContent).toBe('a\nb\nc');
+  });
+
+  it('tells the stylesheet how many digits the numbers have, so the text column stays aligned', () => {
+    const digitsOf = (lineCount: number): string => {
+      const { container, unmount } = render(<LineNumberedCode content={'x\n'.repeat(lineCount)} />);
+      const value = container
+        .querySelector<HTMLElement>('.numbered-code')
+        ?.style.getPropertyValue('--numbered-code-digits');
+      unmount();
+      return value ?? '';
+    };
+    expect(digitsOf(1)).toBe('1');
+    expect(digitsOf(9)).toBe('1');
+    expect(digitsOf(10)).toBe('2');
+    expect(digitsOf(1000)).toBe('4');
+  });
+
+  it('leaves font size and line height to the stylesheet: a text-size utility would override them and shift the rows off the numbers', () => {
+    const { container } = render(<LineNumberedCode content="a" />);
+    expect(container.querySelector('.numbered-code')?.className).not.toMatch(/\b(?:text-(?:xs|sm|base|lg)|leading-)/);
+  });
+
+  it('lets the browser skip off-screen rows only in long files, so a short file keeps an exact scrollbar', () => {
+    const lazyOf = (lineCount: number): boolean => {
+      const { container, unmount } = render(<LineNumberedCode content={'x\n'.repeat(lineCount)} />);
+      const lazy = container.querySelector('.numbered-code')?.classList.contains('numbered-code-lazy') ?? false;
+      unmount();
+      return lazy;
+    };
+    expect(lazyOf(2000)).toBe(false);
+    expect(lazyOf(2001)).toBe(true);
+  });
+
+  it('keeps showing a file with an extreme number of lines, as plain text without numbers', () => {
+    const content = '\n'.repeat(100_001);
+    const { container } = render(<LineNumberedCode content={content} />);
+    expect(rowsOf(container)).toHaveLength(0);
+    expect(container.querySelector('pre')?.textContent).toBe(content);
   });
 });

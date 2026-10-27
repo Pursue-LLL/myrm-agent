@@ -1,0 +1,60 @@
+/* Line numbers of the read-only code view (LineNumberedCode), drawn by CSS alone.
+
+   - Every line is one block row that carries its own line break. The number is a CSS counter on the row's ::before,
+     so it sits beside the first visual line of its row however many lines a long row wraps into, and cannot drift.
+   - The number is generated content, not DOM text: selecting and copying gives the file and nothing else. The empty
+     alternative text keeps screen readers from reading the numbers out; the first `content` is the fallback for
+     engines that do not know the `/ ''` form.
+   - --numbered-code-digits is the digit count of the last line number (set by the component); it sizes the gutter.
+   - Font size and line height are set here and must not be overridden by text-size utilities on the element: the row
+     height, the number and the gutter all derive from --numbered-code-line-height.
+   - .numbered-code-lazy (long files only): content-visibility lets the browser skip layout and paint of rows far off
+     screen, which keeps a panel resize cheap. The cost is that the scrollbar length is an estimate until the rows
+     have been seen, so the component adds it only where laying out every row would take longer than a frame.
+     `auto` in contain-intrinsic-size makes the browser remember a row's real height once seen. */
+@layer components {
+  .numbered-code {
+    --numbered-code-line-height: 1.25rem;
+    --numbered-code-gutter: calc(var(--numbered-code-digits, 1) * 1ch + 1.25rem);
+
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: var(--numbered-code-line-height);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    counter-reset: numbered-line;
+    background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--border) 30%, transparent) 1px,
+      transparent 1px
+    );
+    background-repeat: no-repeat;
+    background-size: 1px 100%;
+    background-position: var(--numbered-code-gutter) 0;
+  }
+
+  .numbered-code-line {
+    position: relative;
+    display: block;
+    min-height: var(--numbered-code-line-height);
+    padding-right: 0.75rem;
+    padding-left: calc(var(--numbered-code-gutter) + 0.75rem);
+    counter-increment: numbered-line;
+  }
+
+  .numbered-code-lazy > .numbered-code-line {
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--numbered-code-line-height);
+  }
+
+  .numbered-code-line::before {
+    content: counter(numbered-line);
+    content: counter(numbered-line) / '';
+    position: absolute;
+    left: 0.5rem;
+    width: calc(var(--numbered-code-digits, 1) * 1ch);
+    text-align: right;
+    user-select: none;
+    color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  }
+}

@@ -4,13 +4,12 @@
  * Text views of the workspace file preview: the read-only code view and the editor, both with line numbers.
  *
  * [INPUT]
- * - content / language / label / onChange: what to show, how it is labelled, what the editor is called for
- *   assistive technology, and where typing goes
+ * - content / label / onChange: what to show, what the editor is called for assistive technology, and where typing
+ *   goes
  *
  * [OUTPUT]
- * - LineNumberedCode: read-only code view
+ * - LineNumberedCode: read-only code view, one row per line; the numbers are drawn by `numbered-code.css`
  * - LineNumberedEditor: textarea editor whose line-number gutter follows its scrolling
- * - getLanguage: language label of a file name (a `data-language` hint, not highlighting)
  * - formatBytes: human-readable file size; empty when the size is unknown
  *
  * [POS]
@@ -18,49 +17,7 @@
  */
 
 import React, { memo, useCallback, useMemo, useRef } from 'react';
-
-export function getLanguage(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  const map: Record<string, string> = {
-    py: 'python',
-    js: 'javascript',
-    ts: 'typescript',
-    tsx: 'tsx',
-    jsx: 'jsx',
-    json: 'json',
-    yaml: 'yaml',
-    yml: 'yaml',
-    toml: 'toml',
-    xml: 'xml',
-    html: 'html',
-    htm: 'html',
-    css: 'css',
-    scss: 'scss',
-    less: 'less',
-    md: 'markdown',
-    sql: 'sql',
-    sh: 'bash',
-    bash: 'bash',
-    zsh: 'bash',
-    rs: 'rust',
-    go: 'go',
-    java: 'java',
-    kt: 'kotlin',
-    c: 'c',
-    cpp: 'cpp',
-    h: 'c',
-    hpp: 'cpp',
-    cs: 'csharp',
-    rb: 'ruby',
-    php: 'php',
-    swift: 'swift',
-    r: 'r',
-    lua: 'lua',
-    csv: 'csv',
-    svg: 'xml',
-  };
-  return map[ext] || 'plaintext';
-}
+import { cn } from '@/lib/utils/classnameUtils';
 
 export function formatBytes(bytes: number | null): string {
   if (bytes === null) {
@@ -103,14 +60,49 @@ const LineNumbers: React.FC<{ count: number; className: string; ref?: React.Ref<
 );
 LineNumbers.displayName = 'LineNumbers';
 
-export const LineNumberedCode: React.FC<{ content: string; language: string }> = memo(({ content, language }) => (
-  <div className="flex text-xs font-mono leading-5">
-    <LineNumbers count={countLines(content)} className="sticky left-0" />
-    <pre className="pl-3 pr-3 flex-1 whitespace-pre-wrap break-words text-foreground overflow-x-auto">
-      <code data-language={language}>{content}</code>
+/** Past this many lines one element per line stops paying off: the file is then shown as plain text, unnumbered. */
+const MAX_NUMBERED_ROWS = 100_000;
+
+/**
+ * Past this many rows laying out all of them takes about a frame or more when the panel is resized (measured: 2,000
+ * rows re-lay out in 5 ms in Chromium and 17 ms in WebKit, 5,000 rows in 12 ms and 43 ms), so the browser may skip the
+ * rows that are off screen. Below it every row is laid out and the scrollbar length stays exact.
+ */
+const LAZY_ROWS_FROM = 2_000;
+
+/** The rows of a file: every line with the line break that ends it, so the rows read back exactly as the file. */
+function splitRows(content: string): string[] {
+  const lines = content.split('\n');
+  const tail = lines.pop() ?? '';
+  const rows = lines.map((line) => `${line}\n`);
+  if (tail !== '' || rows.length === 0) {
+    rows.push(tail);
+  }
+  return rows;
+}
+
+export const LineNumberedCode: React.FC<{ content: string }> = memo(({ content }) => {
+  const rows = useMemo(() => splitRows(content), [content]);
+
+  if (rows.length > MAX_NUMBERED_ROWS) {
+    return (
+      <pre className="px-3 text-xs font-mono leading-5 whitespace-pre-wrap break-words text-foreground">{content}</pre>
+    );
+  }
+  return (
+    <pre
+      className={cn('numbered-code font-mono text-foreground', rows.length > LAZY_ROWS_FROM && 'numbered-code-lazy')}
+      style={{ '--numbered-code-digits': String(rows.length).length } as React.CSSProperties}
+    >
+      {rows.map((row, index) => (
+        // Rows have no identity beyond their position: the list is replaced as a whole when the file changes.
+        <span key={index} className="numbered-code-line">
+          {row}
+        </span>
+      ))}
     </pre>
-  </div>
-));
+  );
+});
 LineNumberedCode.displayName = 'LineNumberedCode';
 
 export const LineNumberedEditor: React.FC<{
