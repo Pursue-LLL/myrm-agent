@@ -857,7 +857,6 @@
     "workspacePolicyDesc": "親ワークスペースへのサブエージェントのアクセス権を制御",
     "workspacePolicyOption": {
       "INHERIT_REQUESTER": "親を継承",
-      "ISOLATED_COPY": "分離コピー",
       "READ_ONLY_SANDBOX": "読み取り専用サンドボックス"
     },
     "maxParallelFission": "最大並列フィッション数",
@@ -2814,12 +2813,8 @@
       "edit": "編集",
       "contentFiltered": "応答の一部がコンテンツポリシーによりフィルタリングされました。",
       "budgetBlocked": "日次予算上限に達したため実行がブロックされました。設定で予算上限を調整して続行してください。",
-      "workflowMergeWarning": "一部の workspace ファイルをマージできませんでした。ツール出力で詳細を確認してください。",
       "fileMutationFailed": "{count, plural, one {# 件のファイル変更に失敗しました} other {# 件のファイル変更に失敗しました}} — 変更は自動的にロールバックされました。",
       "fileMutationFailedTitle": "ファイル変更に失敗しました",
-      "workspaceMergeFailed": "{count, plural, one {# 件のマージエラー} other {# 件のマージエラー}}",
-      "workspaceMergeFailedTitle": "ワークスペースマージ失敗",
-      "workspaceMergeFailedMore": "{count, plural, one {他 # 件のエラーは非表示} other {他 # 件のエラーは非表示}}",
       "workflowTemplateSave": {
         "title": "ワークフローテンプレートとして保存",
         "description": "このオーケストレーションスクリプトを保存して、プランナーを再生成せずに決定的に再実行できるようにします。",
