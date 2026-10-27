@@ -12163,6 +12163,7 @@
   },
   "taskCard": {
     "failedTitle": "Task Failed",
+    "interrupted": "Generation was interrupted because the app closed. You can retry it.",
     "retryTask": "Retry Task",
     "retrying": "Retrying...",
     "cancelled": "Task cancelled",

@@ -1,7 +1,7 @@
 """Task management API routes.
 
 [INPUT]
-- app.lifecycle.task_worker::get_task_store (POS: TaskStore provider lifecycle entry)
+- app.lifecycle.task_worker::get_task_store, get_task_worker (POS: TaskStore / TaskWorker provider lifecycle entry)
 - app.tasks.events::task_event_bus (POS: SSE task status event hub)
 
 [OUTPUT]
@@ -10,19 +10,22 @@
 [POS]
 HTTP boundary for async task state query and lifecycle actions. It maps TaskStore
 state transitions into REST responses plus SSE notifications for frontend task cards.
+Cancel and retry are compare-and-set writes, so they never overwrite a concurrent terminal state.
 """
 
 import logging
-from typing import Literal, TypedDict
+from datetime import UTC, datetime
+from typing import Literal, NoReturn, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from myrm_agent_harness.toolkits.tasks import Task, TaskFilters, TaskStatus, TaskStore
 
-from app.api.tasks.deps import get_task_store
+from app.api.tasks.deps import get_task_store, get_task_worker
 from app.api.tasks.timeline_router import router as timeline_router
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.tasks.events import task_event_bus
+from app.tasks.worker import TaskWorker
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,8 @@ router.include_router(timeline_router)
 
 
 type TaskApiRecoverability = Literal["transient", "permanent"]
+
+_CANCELLABLE_STATUSES = (TaskStatus.PENDING, TaskStatus.QUEUED, TaskStatus.RUNNING)
 
 
 class TaskApiErrorDetail(TypedDict):
@@ -45,7 +50,7 @@ def _raise_task_api_error(
     code: str,
     message: str,
     recoverable: TaskApiRecoverability = "permanent",
-) -> None:
+) -> NoReturn:
     detail: TaskApiErrorDetail = {
         "code": code,
         "message": message,
@@ -156,8 +161,9 @@ async def get_task(
 async def cancel_task(
     task_id: str,
     store: TaskStore = Depends(get_task_store),
+    worker: TaskWorker | None = Depends(get_task_worker),
 ) -> dict[str, object]:
-    """Cancel task."""
+    """Cancel an active task and stop its in-flight execution."""
     task = await store.get_task(task_id)
     if not task:
         _raise_task_api_error(
@@ -166,25 +172,22 @@ async def cancel_task(
             message="Task not found",
         )
 
-    if task.is_terminal():
+    cancelled = await store.update_task_if_status(
+        task_id,
+        _CANCELLABLE_STATUSES,
+        status=TaskStatus.CANCELLED,
+        cancellation_reason="User cancelled",
+        completed_at=datetime.now(UTC),
+    )
+    if cancelled is None:
         _raise_task_api_error(
             status_code=400,
             code="TASK_ALREADY_COMPLETED",
             message="Only active tasks can be cancelled",
         )
 
-    if task.cancellation_event:
-        task.cancellation_event.set()
-
-    task.mark_cancelled(reason="User cancelled")
-    await store.update_task(
-        task_id,
-        status=TaskStatus.CANCELLED,
-        cancellation_reason=task.cancellation_reason,
-        completed_at=task.completed_at,
-        next_retry_at=None,
-    )
-
+    if worker is not None:
+        worker.abort(task_id)
     await task_event_bus.emit(task_id, TaskStatus.CANCELLED)
 
     return {"message": "Task cancelled", "task_id": task_id}
@@ -211,8 +214,9 @@ async def retry_task(
             message="Only failed tasks can be retried",
         )
 
-    await store.update_task(
+    requeued = await store.update_task_if_status(
         task_id,
+        (TaskStatus.FAILED,),
         status=TaskStatus.PENDING,
         result=None,
         error=None,
@@ -225,6 +229,12 @@ async def retry_task(
         worker_heartbeat_at=None,
         next_retry_at=None,
     )
+    if requeued is None:
+        _raise_task_api_error(
+            status_code=400,
+            code="TASK_NOT_RETRYABLE",
+            message="Only failed tasks can be retried",
+        )
     await task_event_bus.emit(
         task_id,
         TaskStatus.PENDING,

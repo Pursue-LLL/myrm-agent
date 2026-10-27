@@ -54,7 +54,6 @@ class ImageTaskExecutor:
             reference_image_urls=payload.get("reference_image_urls")
             if isinstance(payload.get("reference_image_urls"), list)
             else None,
-            cancellation_event=task.cancellation_event,
             allow_private_networks=allow_private,
         )
 
@@ -74,13 +73,6 @@ class ImageTaskExecutor:
             "model": result.model,
             "latency_ms": result.latency_ms,
         }
-
-    async def cancel(self, task: Task) -> bool:
-        """Cancel image generation task."""
-        if task.cancellation_event:
-            task.cancellation_event.set()
-            return True
-        return False
 
     def can_execute(self, task_type: str) -> bool:
         """Check if can execute task type."""

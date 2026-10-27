@@ -1,23 +1,24 @@
-"""Task worker for async task execution.
+"""Task worker for async media task execution.
 
 [INPUT]
-- myrm_agent_harness.toolkits.tasks::{Task, TaskStore, TaskStatus, TaskError} (POS: Queue protocol + persistence contract)
+- myrm_agent_harness.toolkits.tasks::{Task, TaskStore, TaskStatus, TaskError, TaskFilters} (POS: Queue protocol + compare-and-set persistence contract)
 - app/tasks/executors/*::TaskExecutor impl (POS: Task-type specific execution capability)
 - TaskEventCallback (POS: Task status propagation bridge to SSE/event bus layer)
 
 [OUTPUT]
-- TaskWorker: server-side async task consumer with retry, timeout, cancellation, and status callbacks.
+- TaskWorker: server-side async task consumer with a bounded in-flight set, timeout, abort, restart recovery and status callbacks.
 
 [POS]
-- Business orchestration runtime for the task queue. It executes pending media jobs,
-  persists lifecycle transitions, and emits state updates consumed by API/SSE surfaces.
+- Business orchestration runtime for the task queue. It claims pending media jobs in priority order,
+  settles each one exactly once (the first terminal write wins), and emits state updates consumed by API/SSE surfaces.
 """
 
 import asyncio
+import contextlib
 import logging
 import traceback
 from collections.abc import Callable, Coroutine
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Protocol
 
 from myrm_agent_harness.toolkits.tasks import (
@@ -30,11 +31,9 @@ from myrm_agent_harness.toolkits.tasks import (
 )
 
 from app.tasks.metrics import (
-    task_cache_hit_total,
     task_cancelled_total,
     task_duration_seconds,
     task_failed_total,
-    task_retry_total,
     task_succeeded_total,
     task_timeout_total,
 )
@@ -43,6 +42,13 @@ logger = logging.getLogger(__name__)
 
 type TaskEventCallback = Callable[[str, TaskStatus, dict[str, object] | None], Coroutine[object, object, None]]
 
+_POLL_INTERVAL_SECONDS = 1.0
+_STOP_GRACE_SECONDS = 5.0
+_SWEEP_BATCH_SIZE = 100
+_QUEUE_ORDER = "priority DESC, created_at ASC"
+
+_PERMANENT_ERROR_TYPES = frozenset({"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError"})
+
 
 class TaskExecutor(Protocol):
     def can_execute(self, task_type: str) -> bool: ...
@@ -50,8 +56,27 @@ class TaskExecutor(Protocol):
     async def execute(self, task: Task) -> object: ...
 
 
+def _interrupted_error() -> TaskError:
+    return TaskError(
+        error_type="interrupted",
+        message="The task was interrupted before it finished because the app stopped. It can be retried.",
+        recoverable=ErrorRecoverability.TRANSIENT,
+    )
+
+
+def _classify_error(exception: Exception) -> ErrorRecoverability:
+    """Classify an executor failure; anything not known to be permanent stays retryable by the user."""
+    if type(exception).__name__ in _PERMANENT_ERROR_TYPES:
+        return ErrorRecoverability.PERMANENT
+    return ErrorRecoverability.TRANSIENT
+
+
 class TaskWorker:
-    """Worker that consumes and executes tasks with retry/cache/timeout support."""
+    """Claims pending tasks into at most ``max_concurrency`` in-flight runs and settles each exactly once.
+
+    Every state change is a compare-and-set on the current status, so a user cancel and a finishing run
+    can never overwrite each other: whichever terminal write lands first stands.
+    """
 
     def __init__(
         self,
@@ -62,20 +87,19 @@ class TaskWorker:
         on_status_change: TaskEventCallback | None = None,
     ) -> None:
         self._store = store
-        self._executors: dict[TaskExecutor, TaskExecutor] = {e: e for e in executors}
-        self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._executors = tuple(executors)
+        self._max_concurrency = max_concurrency
         self._worker_id = worker_id
-        self._running = False
         self._on_status_change = on_status_change
+        self._running = False
+        self._in_flight: dict[str, asyncio.Task[None]] = {}
+        self._wake = asyncio.Event()
 
     @staticmethod
     def _safe_counter_inc(counter: object, **labels: str) -> None:
         """Best-effort metric increment that never blocks task execution."""
         try:
-            if labels:
-                counter.labels(**labels).inc()  # type: ignore[attr-defined, call-arg]
-            else:
-                counter.inc()  # type: ignore[attr-defined]
+            counter.labels(**labels).inc()  # type: ignore[attr-defined]
         except Exception as exc:  # pragma: no cover - defensive metrics guard
             logger.debug("Failed to increment task metric: %s", exc)
 
@@ -83,7 +107,7 @@ class TaskWorker:
     def _safe_histogram_observe(histogram: object, value: float, **labels: str) -> None:
         """Best-effort histogram observe that never blocks task execution."""
         try:
-            histogram.labels(**labels).observe(value)  # type: ignore[attr-defined, call-arg]
+            histogram.labels(**labels).observe(value)  # type: ignore[attr-defined]
         except Exception as exc:  # pragma: no cover - defensive metrics guard
             logger.debug("Failed to observe task metric: %s", exc)
 
@@ -119,276 +143,194 @@ class TaskWorker:
             logger.warning(f"Failed to emit task event: {e}")
 
     async def start(self) -> None:
-        """Start worker main loop."""
+        """Recover tasks orphaned by the previous process, then run the claim loop until ``stop()``."""
         self._running = True
         logger.info(f"TaskWorker {self._worker_id} starting...")
 
         try:
+            await self._fail_orphaned_running()
             await self._run_loop()
         except Exception as e:
             logger.error(f"TaskWorker {self._worker_id} crashed: {e}", exc_info=True)
             raise
 
     async def stop(self) -> None:
-        """Stop worker gracefully."""
+        """Stop claiming, then interrupt every in-flight run; each run marks its own task interrupted."""
         logger.info(f"TaskWorker {self._worker_id} stopping...")
         self._running = False
+        self._wake.set()
+
+        runs = list(self._in_flight.values())
+        for run in runs:
+            run.cancel()
+        if runs:
+            _, pending = await asyncio.wait(runs, timeout=_STOP_GRACE_SECONDS)
+            if pending:
+                logger.warning(f"TaskWorker {self._worker_id}: {len(pending)} run(s) did not stop within the grace period")
+
+    def abort(self, task_id: str) -> bool:
+        """Interrupt the in-flight run of *task_id*; the caller owns writing the CANCELLED row.
+
+        Returns False when the task is not currently executing here (queued, or already settled).
+        """
+        run = self._in_flight.get(task_id)
+        if run is None:
+            return False
+        run.cancel()
+        return True
 
     async def _run_loop(self) -> None:
-        """Main worker loop."""
+        """Refill free slots from the queue; wake early when a run finishes."""
         while self._running:
+            self._wake.clear()
             try:
-                # Query pending tasks (priority-based)
-                tasks = await self._store.list_tasks(
-                    TaskFilters(
-                        status=TaskStatus.PENDING,
-                        ready_before=datetime.now(UTC),
-                        limit=10,
-                        order_by="priority DESC, created_at ASC",
-                    )
-                )
-
-                if not tasks:
-                    await asyncio.sleep(1)
-                    continue
-
-                # Execute tasks concurrently (within semaphore limit)
-                await asyncio.gather(*[self._execute_task(task) for task in tasks], return_exceptions=True)
-
+                await self._claim_available()
             except Exception as e:
                 logger.error(f"Error in worker loop: {e}", exc_info=True)
-                await asyncio.sleep(1)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._wake.wait(), timeout=_POLL_INTERVAL_SECONDS)
 
-    async def _execute_task(self, task: Task) -> None:
-        """Execute single task with timeout and error handling."""
-        async with self._semaphore:
-            try:
-                # Check result cache
-                if task.cache_key:
-                    cached = await self._store.find_by_cache_key(task.cache_key)
-                    if cached and cached.status == TaskStatus.SUCCEEDED:
-                        logger.info(f"Task {task.task_id} cache hit: {task.cache_key}")
-                        self._safe_counter_inc(task_cache_hit_total, task_type=task.task_type)
-                        await self._reuse_cached_result(task, cached)
-                        return
-
-                # Find executor
-                executor = self._find_executor(task.task_type)
-                if not executor:
-                    logger.error(f"No executor for task type: {task.task_type}")
-                    await self._handle_no_executor(task)
-                    return
-
-                # Mark as running
-                task.mark_started(self._worker_id)
-                await self._store.update_task(
-                    task.task_id,
+    async def _claim_available(self) -> None:
+        """Claim pending tasks (priority, then FIFO) until every slot is busy or the queue is empty."""
+        while self._running and (free := self._max_concurrency - len(self._in_flight)) > 0:
+            pending = await self._store.list_tasks(TaskFilters(status=TaskStatus.PENDING, limit=free, order_by=_QUEUE_ORDER))
+            if not pending:
+                return
+            for candidate in pending:
+                now = datetime.now(UTC)
+                claimed = await self._store.update_task_if_status(
+                    candidate.task_id,
+                    (TaskStatus.PENDING,),
                     status=TaskStatus.RUNNING,
-                    started_at=task.started_at,
+                    started_at=now,
                     worker_id=self._worker_id,
-                    worker_heartbeat_at=task.worker_heartbeat_at,
+                    worker_heartbeat_at=now,
                 )
-                await self._emit_event(task, TaskStatus.RUNNING)
+                if claimed is not None:
+                    self._spawn(claimed)
 
-                logger.info(f"Task {task.task_id} started (priority={task.priority})")
+    def _spawn(self, task: Task) -> None:
+        run = asyncio.create_task(self._run(task), name=f"media-task-{task.task_id}")
+        self._in_flight[task.task_id] = run
+        run.add_done_callback(lambda finished: self._on_run_done(task.task_id, finished))
 
-                # Execute with timeout
-                result = await asyncio.wait_for(
-                    executor.execute(task),
-                    timeout=task.timeout,
-                )
+    def _on_run_done(self, task_id: str, run: asyncio.Task[None]) -> None:
+        self._in_flight.pop(task_id, None)
+        self._wake.set()
+        if not run.cancelled() and (error := run.exception()) is not None:
+            logger.error(f"Task {task_id} run crashed: {error}", exc_info=error)
 
-                # Mark as succeeded
-                task.mark_succeeded(result)
-                await self._store.update_task(
-                    task.task_id,
-                    status=TaskStatus.SUCCEEDED,
-                    result=result,
-                    progress=1.0,
-                    completed_at=task.completed_at,
-                )
-                await self._emit_event(task, TaskStatus.SUCCEEDED)
-                self._safe_counter_inc(task_succeeded_total, task_type=task.task_type)
-                self._observe_duration(task, TaskStatus.SUCCEEDED)
+    async def _run(self, task: Task) -> None:
+        """Execute one claimed task and settle it."""
+        executor = self._find_executor(task.task_type)
+        if executor is None:
+            logger.error(f"No executor for task type: {task.task_type}")
+            await self._settle_failed(
+                task,
+                TaskError(
+                    error_type="no_executor",
+                    message=f"No executor found for task type: {task.task_type}",
+                    recoverable=ErrorRecoverability.PERMANENT,
+                ),
+            )
+            return
 
-                logger.info(f"Task {task.task_id} succeeded")
+        await self._emit_event(task, TaskStatus.RUNNING)
+        logger.info(f"Task {task.task_id} started (priority={task.priority})")
 
-            except asyncio.TimeoutError:
-                logger.warning(f"Task {task.task_id} timeout after {task.timeout}s")
-                await self._handle_timeout(task)
+        try:
+            result = await asyncio.wait_for(executor.execute(task), timeout=task.timeout)
+        except TimeoutError:
+            logger.warning(f"Task {task.task_id} timeout after {task.timeout}s")
+            await self._settle_failed(
+                task,
+                TaskError(
+                    error_type="timeout",
+                    message=f"Task exceeded timeout of {task.timeout}s",
+                    recoverable=ErrorRecoverability.PERMANENT,
+                ),
+                timed_out=True,
+            )
+        except asyncio.CancelledError:
+            await self._settle_cancelled(task)
+            raise
+        except Exception as exc:
+            logger.error(f"Task {task.task_id} failed: {exc}", exc_info=True)
+            await self._settle_failed(
+                task,
+                TaskError(
+                    error_type=type(exc).__name__,
+                    message=str(exc),
+                    recoverable=_classify_error(exc),
+                    traceback="".join(traceback.format_exception(exc)),
+                ),
+            )
+        else:
+            await self._settle_succeeded(task, result)
 
-            except asyncio.CancelledError:
-                logger.info(f"Task {task.task_id} cancelled")
-                await self._handle_cancellation(task)
-
-            except Exception as e:
-                logger.error(f"Task {task.task_id} failed: {e}", exc_info=True)
-                await self._handle_failure(task, e)
-
-    async def _reuse_cached_result(self, task: Task, cached: Task) -> None:
-        """Reuse cached task result."""
-        await self._store.update_task(
+    async def _finish(self, task: Task, status: TaskStatus, **fields: object) -> Task | None:
+        """Write the terminal state only while the task is still RUNNING; None means someone else settled it first."""
+        settled = await self._store.update_task_if_status(
             task.task_id,
-            status=TaskStatus.SUCCEEDED,
-            result=cached.result,
-            progress=1.0,
+            (TaskStatus.RUNNING,),
+            status=status,
             completed_at=datetime.now(UTC),
+            **fields,
         )
-        task.progress = 1.0
-        await self._emit_event(task, TaskStatus.SUCCEEDED)
+        if settled is None:
+            logger.info(f"Task {task.task_id} was already settled; dropping its {status.value} outcome")
+        return settled
+
+    async def _settle_succeeded(self, task: Task, result: object) -> None:
+        settled = await self._finish(task, TaskStatus.SUCCEEDED, result=result, progress=1.0)
+        if settled is None:
+            return
+        await self._emit_event(settled, TaskStatus.SUCCEEDED)
         self._safe_counter_inc(task_succeeded_total, task_type=task.task_type)
+        self._observe_duration(task, TaskStatus.SUCCEEDED)
+        logger.info(f"Task {task.task_id} succeeded")
 
-    async def _handle_timeout(self, task: Task) -> None:
-        """Handle task timeout."""
-        error = TaskError(
-            error_type="timeout",
-            message=f"Task exceeded timeout of {task.timeout}s",
-            recoverable=ErrorRecoverability.PERMANENT,
-        )
-
-        await self._store.update_task(
-            task.task_id,
-            status=TaskStatus.FAILED,
-            error=error,
-            completed_at=datetime.now(UTC),
-        )
-        await self._emit_event(task, TaskStatus.FAILED, error)
-        self._safe_counter_inc(task_timeout_total, task_type=task.task_type)
+    async def _settle_failed(
+        self,
+        task: Task,
+        error: TaskError,
+        *,
+        timed_out: bool = False,
+        observe_duration: bool = True,
+    ) -> None:
+        settled = await self._finish(task, TaskStatus.FAILED, error=error)
+        if settled is None:
+            return
+        await self._emit_event(settled, TaskStatus.FAILED, error)
+        if timed_out:
+            self._safe_counter_inc(task_timeout_total, task_type=task.task_type)
         self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
-        self._observe_duration(task, TaskStatus.FAILED)
+        if observe_duration:
+            self._observe_duration(task, TaskStatus.FAILED)
 
-    async def _handle_cancellation(self, task: Task) -> None:
-        """Handle task cancellation."""
-        await self._store.update_task(
-            task.task_id,
-            status=TaskStatus.CANCELLED,
-            cancellation_reason=task.cancellation_reason or "User cancelled",
-            completed_at=datetime.now(UTC),
-        )
-        await self._emit_event(task, TaskStatus.CANCELLED)
+    async def _settle_cancelled(self, task: Task) -> None:
+        """A run was cancelled: on shutdown mark it interrupted; after ``abort`` the canceller already wrote CANCELLED."""
+        logger.info(f"Task {task.task_id} cancelled")
+        if not self._running:
+            await self._settle_failed(task, _interrupted_error())
+            return
         self._safe_counter_inc(task_cancelled_total, task_type=task.task_type)
         self._observe_duration(task, TaskStatus.CANCELLED)
 
-    async def _handle_failure(self, task: Task, exception: Exception) -> None:
-        """Handle task failure with retry logic."""
-        # Classify error recoverability
-        recoverable = self._classify_error(exception)
-
-        error = TaskError(
-            error_type=type(exception).__name__,
-            message=str(exception),
-            recoverable=recoverable,
-            traceback="".join(traceback.format_exception(exception)),
-        )
-
-        # Auto-retry runs while task is still in RUNNING state, so worker retry
-        # eligibility must not depend on Task.can_retry()'s FAILED-status guard.
-        if self._should_auto_retry(task, recoverable):
-            task.retry_count += 1
-            delay = task.retry_policy.get_delay(task.retry_count)
-            task.next_retry_at = datetime.now(UTC) + timedelta(seconds=delay)
-            task.metadata = {
-                **task.metadata,
-                "last_error": {
-                    "error_type": error.error_type,
-                    "message": error.message,
-                    "recoverable": error.recoverable.value,
-                    "captured_at": datetime.now(UTC).isoformat(),
-                },
-            }
-            task.status = TaskStatus.PENDING
-            task.error = None
-            task.result = None
-            task.progress = 0.0
-            task.progress_message = None
-            task.started_at = None
-            task.completed_at = None
-            task.cancellation_reason = None
-            task.worker_id = None
-            task.worker_heartbeat_at = None
-
-            logger.info(
-                f"Task {task.task_id} will retry in {delay}s (attempt {task.retry_count}/{task.retry_policy.max_retries})"
-            )
-
-            await self._store.update_task(
-                task.task_id,
-                status=TaskStatus.PENDING,  # Reset to pending for retry
-                error=None,
-                result=None,
-                progress=0.0,
-                progress_message=None,
-                started_at=None,
-                completed_at=None,
-                cancellation_reason=None,
-                worker_id=None,
-                worker_heartbeat_at=None,
-                retry_count=task.retry_count,
-                next_retry_at=task.next_retry_at,
-                metadata=task.metadata,
-            )
-            await self._emit_event(task, TaskStatus.PENDING)
-            self._safe_counter_inc(task_retry_total, task_type=task.task_type)
-        else:
-            # No more retries, mark as failed
-            await self._store.update_task(
-                task.task_id,
-                status=TaskStatus.FAILED,
-                error=error,
-                completed_at=datetime.now(UTC),
-            )
-            await self._emit_event(task, TaskStatus.FAILED, error)
-            self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
-            self._observe_duration(task, TaskStatus.FAILED)
-
-    def _should_auto_retry(self, task: Task, recoverable: ErrorRecoverability) -> bool:
-        """Check retry eligibility for worker-side failure handling."""
-        if recoverable != ErrorRecoverability.TRANSIENT:
-            return False
-        if not task.retry_policy:
-            return False
-        return task.retry_count < task.retry_policy.max_retries
-
-    async def _handle_no_executor(self, task: Task) -> None:
-        """Handle missing executor."""
-        error = TaskError(
-            error_type="no_executor",
-            message=f"No executor found for task type: {task.task_type}",
-            recoverable=ErrorRecoverability.PERMANENT,
-        )
-
-        await self._store.update_task(
-            task.task_id,
-            status=TaskStatus.FAILED,
-            error=error,
-            completed_at=datetime.now(UTC),
-        )
-        await self._emit_event(task, TaskStatus.FAILED, error)
-        self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
-        self._observe_duration(task, TaskStatus.FAILED)
+    async def _fail_orphaned_running(self) -> None:
+        """Fail tasks a previous process left RUNNING (nothing can be executing them before the first claim)."""
+        try:
+            while orphans := await self._store.list_tasks(TaskFilters(status=TaskStatus.RUNNING, limit=_SWEEP_BATCH_SIZE)):
+                for orphan in orphans:
+                    # The recorded start belongs to a dead process, so its age says nothing about run time.
+                    await self._settle_failed(orphan, _interrupted_error(), observe_duration=False)
+                logger.warning(f"Marked {len(orphans)} orphaned running task(s) as interrupted")
+        except Exception as e:
+            logger.error(f"Failed to recover orphaned running tasks: {e}", exc_info=True)
 
     def _find_executor(self, task_type: str) -> TaskExecutor | None:
         """Find executor that can handle task type."""
-        for executor in self._executors:
-            if executor.can_execute(task_type):
-                return executor
-        return None
-
-    def _classify_error(self, exception: Exception) -> ErrorRecoverability:
-        """Classify error as transient or permanent."""
-        transient_types = ("ConnectionError", "TimeoutError", "HTTPError", "RateLimitError", "ServiceUnavailable")
-
-        exc_name = type(exception).__name__
-        if exc_name in transient_types:
-            return ErrorRecoverability.TRANSIENT
-
-        permanent_types = ("ValidationError", "AuthenticationError", "PermissionError", "NotFoundError")
-
-        if exc_name in permanent_types:
-            return ErrorRecoverability.PERMANENT
-
-        # Default to transient (allow retry)
-        return ErrorRecoverability.TRANSIENT
+        return next((executor for executor in self._executors if executor.can_execute(task_type)), None)
 
 
 __all__ = ["TaskEventCallback", "TaskExecutor", "TaskWorker"]

@@ -40,18 +40,6 @@ task_timeout_total = create_counter(
     ("task_type",),
 )
 
-task_cache_hit_total = create_counter(
-    "task_cache_hit_total",
-    "Total number of task cache hits",
-    ("task_type",),
-)
-
-task_retry_total = create_counter(
-    "task_retry_total",
-    "Total number of task retries",
-    ("task_type",),
-)
-
 # Task event bus counters
 task_event_emitted_total = create_counter(
     "task_event_emitted_total",
@@ -105,8 +93,6 @@ __all__ = [
     "task_failed_total",
     "task_cancelled_total",
     "task_timeout_total",
-    "task_cache_hit_total",
-    "task_retry_total",
     "task_event_emitted_total",
     "task_event_dropped_total",
     "task_event_replaced_total",

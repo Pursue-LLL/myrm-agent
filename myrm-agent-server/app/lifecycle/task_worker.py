@@ -8,11 +8,13 @@
 [OUTPUT]
 - start_task_worker / stop_task_worker: 异步任务 worker 启停
 - get_task_store: API 依赖注入用 SQLite 任务存储
+- get_task_worker: API 依赖注入用运行中的 worker（未启动时为 None）
 
 [POS]
 运行时后台任务 worker 生命周期编排（含 Vault GC 定时清理）。
 """
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import cast
@@ -26,6 +28,7 @@ from app.tasks.worker import TaskExecutor
 logger = logging.getLogger(__name__)
 
 _task_worker_instance: TaskWorker | None = None
+_task_worker_loop: asyncio.Task[None] | None = None
 _task_store_instance: SQLiteTaskStore | None = None
 
 
@@ -37,9 +40,13 @@ def get_task_store() -> SQLiteTaskStore:
     return _task_store_instance
 
 
+def get_task_worker() -> TaskWorker | None:
+    """Get the running task worker (None before startup), used by the API to abort in-flight runs."""
+    return _task_worker_instance
+
+
 async def _start_vault_gc() -> None:
     """Background task to periodically clean up expired vault objects (>7 days)."""
-    import asyncio
     import time
 
     from myrm_agent_harness.core.artifacts.paths import resolve_workspace_artifact_vault_dir
@@ -74,7 +81,7 @@ async def _start_vault_gc() -> None:
 
 async def start_task_worker() -> TaskWorker:
     """Start task worker for async task execution."""
-    global _task_worker_instance, _task_store_instance
+    global _task_worker_instance, _task_worker_loop, _task_store_instance
 
     try:
         store_path = Path(settings.database.state_dir) / "tasks.db"
@@ -103,9 +110,7 @@ async def start_task_worker() -> TaskWorker:
             on_status_change=task_event_bus.emit,
         )
 
-        import asyncio
-
-        asyncio.create_task(worker.start())
+        _task_worker_loop = asyncio.create_task(worker.start(), name="media-task-worker")
         asyncio.create_task(_start_vault_gc())
 
         _task_worker_instance = worker
@@ -118,15 +123,20 @@ async def start_task_worker() -> TaskWorker:
 
 
 async def stop_task_worker() -> None:
-    """Stop task worker gracefully."""
-    global _task_worker_instance
+    """Stop task worker gracefully: in-flight runs are marked interrupted before the claim loop is awaited."""
+    global _task_worker_instance, _task_worker_loop
 
     if _task_worker_instance:
         try:
             await _task_worker_instance.stop()
+            if _task_worker_loop is not None:
+                await _task_worker_loop
             logger.info("[Shutdown] Task worker stopped")
         except Exception as e:
             logger.error(f"[Shutdown] Task worker stop failed: {e}", exc_info=True)
+        finally:
+            _task_worker_instance = None
+            _task_worker_loop = None
 
 
-__all__ = ["start_task_worker", "stop_task_worker", "get_task_store"]
+__all__ = ["start_task_worker", "stop_task_worker", "get_task_store", "get_task_worker"]

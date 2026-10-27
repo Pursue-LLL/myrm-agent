@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -89,22 +88,3 @@ async def test_image_task_executor_fallback_when_not_persisted() -> None:
     assert result["images"][0]["url"] == "https://external-s3.example/dog.png"
     assert result["images"][0]["mime_type"] == "image/jpeg"
     assert result["prompt"] == "a dog"
-
-
-@pytest.mark.asyncio
-async def test_image_task_executor_cancel() -> None:
-    task = Task(
-        task_id="img-exec-3",
-        task_type="image_generate",
-        user_id="user-1",
-        status=TaskStatus.RUNNING,
-        payload={"prompt": "a bird"},
-        cancellation_event=asyncio.Event(),
-    )
-    resolver = MagicMock()
-    executor = ImageTaskExecutor(resolver)
-
-    assert not task.cancellation_event.is_set()
-    cancelled = await executor.cancel(task)
-    assert cancelled is True
-    assert task.cancellation_event.is_set()

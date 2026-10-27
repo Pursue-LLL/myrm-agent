@@ -389,7 +389,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |
-| `tasks/test_task_worker_retry.py` | 模块 | TaskWorker 自动重试回归（transient 重入 pending + datetime `next_retry_at`、permanent 失败终止、retries exhausted 终止；`next_retry_at` 未到期不消费、到期后执行，终态清空 `next_retry_at` 语义） |
+| `tasks/test_task_worker.py` | 模块 | TaskWorker 行为（真实 store + 脚本化 executor）：失败分类且不重入队、超时、优先级再 FIFO、并发上限、补位不等最慢任务、`abort` 保持 `cancelled`、迟到结果不覆盖终态、启动/停止时遗留 `running` 置 `interrupted` |
+| `api/tasks/test_task_cancel_retry_api.py` | 模块 | 任务 REST 取消/重试（真实 store + worker）：取消运行中任务会中止执行且终态不被改写、取消排队任务不再被认领、已结束的任务取消返回 400 且不改状态、重试仅对仍为 `failed` 的任务生效（过期快照被拒） |
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
 | `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |
 | `e2e/test_pattern_digest_panel_chrome_e2e.py` | 模块 | /journey Pattern Digest 面板真实浏览器 Chrome E2E（SHARED+READ×1：`window.fetch` 页内拦截 pattern-discovery API，零后端污染）。T1 /journey 渲染 growth dashboard → 切 evolution tab；T2 seed 2 events 卡片渲染（title/confidence/durability/count，zh/en 双语断言）；T3 展开卡揭示 suggestion/evidence；T4 空态 LEDGER → 本地化空态引导 + 触发按钮；T5 点击「立即分析」捕获真实 POST `/trigger-pattern-discovery`（hook 返回 `pattern_count=0` 走 no-new-patterns 分支）。用 `pin_direct_blank_heal` 防 wait_for_state 把 /journey heal 回家 |

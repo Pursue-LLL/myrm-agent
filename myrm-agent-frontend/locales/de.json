@@ -12163,6 +12163,7 @@
   },
   "taskCard": {
     "failedTitle": "Aufgabe fehlgeschlagen",
+    "interrupted": "Die Erstellung wurde unterbrochen, weil die App beendet wurde. Sie können es erneut versuchen.",
     "retryTask": "Aufgabe wiederholen",
     "retrying": "Erneuter Versuch...",
     "cancelled": "Aufgabe abgebrochen",

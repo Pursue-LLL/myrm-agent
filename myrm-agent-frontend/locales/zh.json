@@ -12163,6 +12163,7 @@
   },
   "taskCard": {
     "failedTitle": "任务失败",
+    "interrupted": "生成因应用关闭而中断，可以重试。",
     "retryTask": "重试任务",
     "retrying": "重试中...",
     "cancelled": "任务已取消",

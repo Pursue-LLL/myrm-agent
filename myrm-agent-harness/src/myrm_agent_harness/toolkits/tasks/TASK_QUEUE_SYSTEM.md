@@ -111,7 +111,7 @@ result_json = await tools.generate_image(prompt="...", chat_id="...")
 
 1. `image_agent_tool` / `video_agent_tool` → `Async*GenerationTools.generate_*`
 2. `seal_task_payload_secrets` (server) before `SQLiteTaskStore.create_task`
-3. `TaskWorker` + media executors (`ImageTaskExecutor`, `VideoTaskExecutor`) consume queue (`next_retry_at` in future stays queued; only due tasks are consumed; terminal status persistence clears stale `next_retry_at`)
+3. `TaskWorker` + media executors (`ImageTaskExecutor`, `VideoTaskExecutor`) consume queue (priority then FIFO, at most `max_concurrency` runs in flight, a finished run refills its slot at once; terminal states are written once by compare-and-set)
 4. `TaskEventBus` → SSE `/api/v1/tasks/stream` → task cards (`ImageTaskCard` / `VideoTaskCard`)
 
 ## Concurrent writers
@@ -124,7 +124,9 @@ statement, so exactly one writer wins and the loser gets `None`.
 
 - Claim: `PENDING → RUNNING` with `expected={PENDING}`.
 - Finish: `RUNNING → SUCCEEDED | FAILED` with `expected={RUNNING}`.
-- Cancel: `PENDING | QUEUED | RUNNING → CANCELLED`; a terminal task is left alone.
+- Cancel: `PENDING | QUEUED | RUNNING → CANCELLED`; a terminal task is left alone. The cancel API writes the row, then asks the worker to `abort` the in-flight run.
+- Restart: tasks a previous process left `RUNNING` are failed as `interrupted` (transient, retryable) at worker start; a graceful stop does the same for in-flight runs.
+- Retry: `FAILED → PENDING` with `expected={FAILED}`.
 - `TaskFilters.order_by` is a comma-separated `column [ASC|DESC]` list over a column whitelist;
   anything else raises `ValueError` (a silently rewritten sort order once turned the priority queue into LIFO).
 

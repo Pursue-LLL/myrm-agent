@@ -93,19 +93,11 @@ class VideoTaskExecutor:
             reference_images=resolved_images,
             reference_videos=resolved_videos,
             extra_params=extra_params,
-            cancellation_event=task.cancellation_event,
         )
 
         result_dict = result.to_dict()
         result_dict["prompt"] = prompt_raw
         return result_dict
-
-    async def cancel(self, task: Task) -> bool:
-        """Cancel video generation task."""
-        if task.cancellation_event:
-            task.cancellation_event.set()
-            return True
-        return False
 
     def can_execute(self, task_type: str) -> bool:
         """Check if can execute task type."""

@@ -12163,6 +12163,7 @@
   },
   "taskCard": {
     "failedTitle": "タスクに失敗しました",
+    "interrupted": "アプリが終了したため生成が中断されました。再試行できます。",
     "retryTask": "タスクを再試行",
     "retrying": "再試行中…",
     "cancelled": "タスクをキャンセルしました",

@@ -36,6 +36,8 @@ export const TaskCardError: React.FC<TaskCardErrorProps> = ({
   className,
 }) => {
   const t = useTranslations('taskCard');
+  // The server records an app stop mid-run as `interrupted`; show localized copy instead of its English message.
+  const message = error.error_type === 'interrupted' ? t('interrupted') : redactErrorMessage(error.message);
 
   return (
     <div className={cn('rounded-lg border border-destructive/50 bg-destructive/5 p-4 space-y-3', className)}>
@@ -44,7 +46,7 @@ export const TaskCardError: React.FC<TaskCardErrorProps> = ({
         <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
         <div className="flex-1 space-y-1">
           <p className="text-sm font-medium text-foreground">{t('failedTitle')}</p>
-          <p className="text-sm text-foreground/70">{redactErrorMessage(error.message)}</p>
+          <p className="text-sm text-foreground/70">{message}</p>
         </div>
       </div>
 
