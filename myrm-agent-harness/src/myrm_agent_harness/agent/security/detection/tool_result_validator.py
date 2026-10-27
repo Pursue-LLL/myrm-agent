@@ -21,6 +21,7 @@ Provides ValidationResult, validate_tool_result, should_apply_validation.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent.orchestration.hooks import is_runtime_hook
@@ -84,9 +85,15 @@ INJECTION_PATTERNS: tuple[str, ...] = (
     "忽略之前的指令",
     "ignore previous instructions",
     "disregard all prior",
-    "你现在是",
-    "you are now",
     "new role:",
+)
+
+# A role assignment ("you are now a ...", "you are now in developer mode") reads like a status report in ordinary
+# prose ("you are now logged in", "you are now on branch main"), so only the assigning forms count.
+_ROLE_ASSIGNMENT = re.compile(
+    r"\byou are now (?:an? |my |the |no longer |in (?:developer|dan|god|admin|debug|unrestricted|jailbreak) mode)"
+    r"|你现在是(?:一个|一名|一位|我的)",
+    re.IGNORECASE,
 )
 
 
@@ -146,15 +153,18 @@ def validate_tool_result(content: str, tool_name: str) -> ValidationResult:
 
     # 4. Check Prompt Injection patterns
     # Search snippets are already UNTRUSTED_DATA-wrapped; hard-fail blocks sources/citations.
-    for pattern in INJECTION_PATTERNS:
-        if pattern.lower() in content_lower:
-            severity = "warning" if tool_name in SEARCH_TOOLS else "error"
-            logger.warning(f"Detected potential prompt injection in {tool_name}: {pattern}")
-            return ValidationResult(
-                is_valid=False,
-                reason=f"Content contains suspicious prompt injection pattern: {pattern}",
-                severity=severity,
-            )
+    role_assignment = _ROLE_ASSIGNMENT.search(content)
+    injection = next((p for p in INJECTION_PATTERNS if p.lower() in content_lower), None) or (
+        role_assignment.group(0) if role_assignment else None
+    )
+    if injection:
+        severity = "warning" if tool_name in SEARCH_TOOLS else "error"
+        logger.warning(f"Detected potential prompt injection in {tool_name}: {injection}")
+        return ValidationResult(
+            is_valid=False,
+            reason=f"Content contains suspicious prompt injection pattern: {injection}",
+            severity=severity,
+        )
 
     return ValidationResult(is_valid=True)
 
