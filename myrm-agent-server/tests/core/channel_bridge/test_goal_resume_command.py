@@ -27,7 +27,7 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
     cid = f"goal-resume-{uuid.uuid4().hex[:8]}"
     with (
         patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))),
-        patch("app.core.channel_bridge.goal_handler._resolve_chat_id", new=AsyncMock(return_value=cid)),
+        patch("app.core.channel_bridge.goal_handler.handler.resolve_chat_id", new=AsyncMock(return_value=cid)),
     ):
         yield cid
     GoalRegistry.unregister(cid)

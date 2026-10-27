@@ -6,7 +6,7 @@ Extracts ``- [ ]`` / ``- [x]`` checklist lines from LLM-generated task specs
 and goal-mode ``_setup_goal_provider``.
 
 The output schema mirrors the established text→criteria pattern in
-``app/core/channel_bridge/goal_handler._parse_im_goal_text`` (:56), keeping
+``app/core/channel_bridge/goal_handler/handler.py::_parse_im_goal_text``, keeping
 Kanban on the same ``{"type": "semantic", "criteria": ...}`` shape.
 
 [INPUT]

@@ -2,7 +2,8 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, app.channels.protocols.goal_command (POS)
-- app.services.agent.goals.goal_registry::GoalRegistry, app.services.agent.goals.goal_controls::select_cancellable_goal, stop_goal_turn, wait_for_stopped_turn, can_start_goal_turn, app.services.chat.chat_service::ChatService (POS)
+- app.services.agent.goals.goal_registry::GoalRegistry, app.services.agent.goals.goal_controls::select_cancellable_goal, stop_goal_turn, wait_for_stopped_turn, can_start_goal_turn (POS)
+- goal_handler.chat_resolution::resolve_chat_id, goal_handler.status_view::render_goal_status (POS)
 
 [OUTPUT]
 - ChannelGoalCommandHandler: GoalCommandHandler protocol implementation
@@ -14,7 +15,6 @@ Connects /goal slash commands from IM channels to the Goal engine via GoalRegist
 from __future__ import annotations
 
 import dataclasses
-import logging
 import time
 
 from myrm_agent_harness.agent.goals.types import GoalBudget, GoalStatus
@@ -26,19 +26,8 @@ from app.channels.protocols.goal_command import (
 )
 from app.channels.types import InboundMessage
 
-logger = logging.getLogger(__name__)
-
-_STATUS_KEYS: dict[GoalStatus, str] = {
-    GoalStatus.QUEUED: "goal_status_queued",
-    GoalStatus.ACTIVE: "goal_status_label",
-    GoalStatus.PAUSED: "goal_status_paused",
-    GoalStatus.PENDING_APPROVAL: "goal_status_pending_approval",
-    GoalStatus.BUDGET_LIMITED: "goal_status_budget_limited",
-    GoalStatus.WAIT: "goal_status_wait",
-    GoalStatus.COMPLETE: "goal_status_complete",
-    GoalStatus.CANCELLED: "goal_status_cancelled",
-    GoalStatus.NEEDS_HUMAN_REVIEW: "goal_status_needs_review",
-}
+from .chat_resolution import resolve_chat_id
+from .status_view import render_goal_status
 
 
 def _parse_im_goal_text(raw: str) -> tuple[str, list[dict[str, object]]]:
@@ -57,38 +46,6 @@ def _parse_im_goal_text(raw: str) -> tuple[str, list[dict[str, object]]]:
     return objective, criteria
 
 
-async def _resolve_chat_id(msg: InboundMessage) -> str | None:
-    """Resolve channel message to DB chat_id via ChatService.
-
-    Builds a SessionKey (matching agent executor convention) and queries the
-    Chat table to find the latest chat_id for this channel peer. Returns None
-    if no chat exists yet (first interaction).
-    """
-    from app.channels.types import SessionKey
-
-    peer_kind = "group" if msg.is_group else "dm"
-    peer_id = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
-    if not peer_id:
-        peer_id = f"channel-{msg.channel}"
-
-    sk = SessionKey(
-        channel=msg.channel,
-        peer_kind=peer_kind,
-        peer_id=peer_id,
-        thread_id=msg.thread_id,
-    )
-    base_key = sk.to_str()
-
-    from app.services.chat.chat_service import ChatService
-
-    chat = await ChatService.get_channel_chat_by_key(base_key)
-    if chat:
-        return chat.id
-
-    newest = await ChatService.get_newest_channel_chat_under(base_key)
-    return newest.id if newest is not None else None
-
-
 class ChannelGoalCommandHandler:
     """Handles /goal subcommands by delegating to the GoalProvider."""
 
@@ -98,7 +55,7 @@ class ChannelGoalCommandHandler:
         subcommand: GoalSubcommand,
         args: str,
     ) -> str:
-        chat_id = await _resolve_chat_id(msg)
+        chat_id = await resolve_chat_id(msg)
 
         match subcommand:
             case GoalSubcommand.SET:
@@ -135,7 +92,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_controls import can_start_goal_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        chat_id = await _resolve_chat_id(msg)
+        chat_id = await resolve_chat_id(msg)
         provider = GoalRegistry.get_provider(chat_id) if chat_id else None
         if chat_id is None or provider is None or not can_start_goal_turn(chat_id):
             return None
@@ -172,8 +129,6 @@ class ChannelGoalCommandHandler:
             metadata=source_meta,
         )
 
-        from myrm_agent_harness.agent.goals.types import GoalStatus
-
         if goal.status == GoalStatus.QUEUED:
             return get_text(msg, "goal_queued", goal=goal.objective)
         return get_text(msg, "goal_set", goal=goal.objective)
@@ -192,54 +147,7 @@ class ChannelGoalCommandHandler:
         if not goal:
             return get_text(msg, "no_goal_is_set")
 
-        status_key = _STATUS_KEYS.get(goal.status, "goal_status_label")
-        label = get_text(msg, status_key)
-        lines = [
-            get_text(msg, "goal_status_header", objective=goal.objective),
-            get_text(msg, "goal_status_line", status=label),
-        ]
-
-        if goal.budget:
-            budget = goal.budget
-            parts: list[str] = []
-            if budget.max_tokens:
-                parts.append(
-                    get_text(
-                        msg,
-                        "goal_budget_tokens",
-                        used=goal.tokens_used or 0,
-                        max=budget.max_tokens,
-                    )
-                )
-            if budget.max_turns:
-                parts.append(
-                    get_text(
-                        msg,
-                        "goal_budget_turns",
-                        used=goal.turns_used or 0,
-                        max=budget.max_turns,
-                    )
-                )
-            if parts:
-                lines.append(get_text(msg, "goal_budget_header", parts=" | ".join(parts)))
-
-        if goal.constraints:
-            lines.append(get_text(msg, "goal_status_constraints", items=" | ".join(goal.constraints)))
-
-        if goal.acceptance_criteria:
-            criteria_items: list[str] = []
-            for ac in goal.acceptance_criteria:
-                if ac.get("type") == "shell":
-                    criteria_items.append(f"[shell] {ac.get('command', '')}")
-                else:
-                    criteria_items.append(f"[semantic] {ac.get('criteria', '')}")
-            lines.append(get_text(msg, "goal_status_criteria", items=" | ".join(criteria_items)))
-
-        if goal.subgoals:
-            items = " | ".join(str(sg.get("text", "")) for sg in goal.subgoals)
-            lines.append(get_text(msg, "goal_status_subgoals", items=items))
-
-        return "\n".join(lines)
+        return render_goal_status(msg, goal)
 
     async def _pause_goal(self, msg: InboundMessage, chat_id: str | None, note: str = "") -> str:
         if not chat_id:
@@ -310,7 +218,7 @@ class ChannelGoalCommandHandler:
         subcommand: SubgoalSubcommand,
         args: str,
     ) -> str:
-        chat_id = await _resolve_chat_id(msg)
+        chat_id = await resolve_chat_id(msg)
         if not chat_id:
             return get_text(msg, "no_active_goal_session")
 
