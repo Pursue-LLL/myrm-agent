@@ -158,6 +158,18 @@ const parseDelegationStep = (stepKey: string | undefined): { agentName: string; 
 export const isDelegationToolLine = (step: ProgressItem): boolean =>
   parseDelegationStep(step.step_key)?.kind === 'tool' && isTextItems(step.items);
 
+// Refusals that are someone's decision (a person said no, or nobody answered in time), not a failure of the work.
+const DECISION_REFUSAL_CATEGORIES: ReadonlySet<string> = new Set(['user_declined', 'approval_timeout']);
+
+/**
+ * The status a step is shown with. The stream (and the stored history) keeps `error` for every refused call; a
+ * decision refusal reads as a warning, so live and reloaded chats look the same and a "No" never looks like a crash.
+ */
+export const getDisplayStatus = (step: Pick<ProgressItem, 'status' | 'error_category'>): ProgressItem['status'] =>
+  step.status === 'error' && step.error_category && DECISION_REFUSAL_CATEGORIES.has(step.error_category)
+    ? 'warning'
+    : step.status;
+
 /**
  * 根据 step_key 获取步骤标题
  * @param step 步骤信息

@@ -18,6 +18,7 @@
 import React, { memo, useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getDisplayStatus } from '@/components/features/message-box/progress-steps/utils';
 import type { ProgressItem } from '@/store/chat/types/progress';
 import {
   IconBrain,
@@ -78,8 +79,11 @@ export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
       const verifySteps = toolSteps.filter((s) => s.tool_name && VERIFY_TOOL_REGEX.test(s.tool_name));
 
       const totalDuration = steps.reduce((sum, s) => sum + (s.duration_ms || s.elapsed_ms || 0), 0);
-      const hasError = steps.some((s) => s.status === 'error' || s.error);
-      const hasWarning = steps.some((s) => s.status === 'warning' || s.fault_side);
+      const hasError = steps.some((s) => {
+        const status = getDisplayStatus(s);
+        return status === 'error' || (Boolean(s.error) && status !== 'warning');
+      });
+      const hasWarning = steps.some((s) => getDisplayStatus(s) === 'warning' || s.fault_side);
       const anyRunning = loading || steps.some((s) => s.status === undefined || s.status === 'complete');
 
       // 1. Prepared Stage
@@ -329,14 +333,16 @@ export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
                         <span
                           className={cn(
                             'px-1.5 py-0.2 rounded font-medium',
-                            step.status === 'success'
+                            getDisplayStatus(step) === 'success'
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : step.status === 'error'
+                              : getDisplayStatus(step) === 'error'
                                 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                                : 'bg-muted text-muted-foreground',
+                                : getDisplayStatus(step) === 'warning'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                  : 'bg-muted text-muted-foreground',
                           )}
                         >
-                          {step.status || (loading ? 'running' : 'done')}
+                          {getDisplayStatus(step) || (loading ? 'running' : 'done')}
                         </span>
                       </div>
                     </div>

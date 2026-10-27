@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { ProgressItem } from '@/store/chat/types';
+import { getDisplayStatus } from './utils';
 
 interface StepDetailModalProps {
   step: ProgressItem | null;
@@ -33,6 +34,8 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
   if (!step) {
     return null;
   }
+
+  const displayStatus = getDisplayStatus(step);
 
   const handleCopyRaw = async () => {
     try {
@@ -86,14 +89,14 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
                 <span className="text-xs font-mono">{durationText}</span>
               </div>
             )}
-            {step.status && (
+            {displayStatus && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{t('status')}:</span>
                 <Badge
-                  variant={step.status === 'error' ? 'destructive' : 'secondary'}
+                  variant={displayStatus === 'error' ? 'destructive' : 'secondary'}
                   className="text-[11px] font-mono capitalize"
                 >
-                  {step.status}
+                  {displayStatus}
                 </Badge>
               </div>
             )}

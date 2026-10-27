@@ -24,6 +24,7 @@ import { StepDetailModal } from './StepDetailModal';
 
 import { useScrollbarStyles } from './useScrollbarStyles';
 import {
+  getDisplayStatus,
   getStepTitle,
   isDelegationToolLine,
   isTextItems,
@@ -171,7 +172,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   })();
   const isCollapsedStepCurrent = loading;
   const isCollapsedCompleted = !collapsedStep.error && !isCollapsedStepCurrent;
-  const isCollapsedWarning = collapsedStep.status === 'warning';
+  const isCollapsedWarning = getDisplayStatus(collapsedStep) === 'warning';
   const isCollapsedBlocked = collapsedStep.status === 'blocked';
   const isCollapsedError = collapsedStep.error && !isCollapsedWarning && !isCollapsedBlocked;
 
@@ -179,7 +180,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
     const { step, originalIndex: index, children } = node;
     const isCurrentStep = index === steps.length - 1 && loading;
     const isCompletedStep = !step.error && !isCurrentStep;
-    const isWarningStep = step.status === 'warning';
+    const isWarningStep = getDisplayStatus(step) === 'warning';
     const isBlockedStep = step.status === 'blocked';
     const isErrorStep = step.error && !isWarningStep && !isBlockedStep;
     const systemStep = isSystemStep(step.tool_name);
@@ -282,8 +283,11 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             </h4>
             {step.error_category && (
               <Badge
-                variant="destructive"
-                className="ml-1 h-4 px-1.5 text-[9px] uppercase tracking-wider font-bold shrink-0"
+                variant={isWarningStep ? 'outline' : 'destructive'}
+                className={cn(
+                  'ml-1 h-4 px-1.5 text-[9px] uppercase tracking-wider font-bold shrink-0',
+                  isWarningStep && 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+                )}
               >
                 {t(`errorCategories.${step.error_category}`)}
               </Badge>
@@ -703,8 +707,11 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
             {collapsedStep.error_category && (
               <Badge
-                variant="destructive"
-                className="ml-1 h-4 px-1.2 text-[8px] uppercase tracking-wider font-bold shrink-0"
+                variant={isCollapsedWarning ? 'outline' : 'destructive'}
+                className={cn(
+                  'ml-1 h-4 px-1.2 text-[8px] uppercase tracking-wider font-bold shrink-0',
+                  isCollapsedWarning && 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+                )}
               >
                 {t(`errorCategories.${collapsedStep.error_category}`)}
               </Badge>

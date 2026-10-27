@@ -107,4 +107,24 @@ describe('EvidenceStageHUD Component', () => {
     expect(cards[0]).toHaveTextContent('pytest_runner');
     expect(cards[0]).toHaveTextContent('4 passed in 0.8s');
   });
+
+  it('reads a declined call as a warning stage, and a policy denial as an error stage', () => {
+    const refused = (error_category: string): ProgressItem[] => [
+      {
+        step_key: 'tool_bash_error',
+        tool_name: 'bash_code_execute_tool',
+        status: 'error',
+        error: 'The call was refused.',
+        error_category,
+      },
+    ];
+
+    const declined = render(<EvidenceStageHUD steps={refused('user_declined')} loading={false} />);
+    expect(screen.getByTestId('evidence-stage-executing').className).toContain('amber');
+    expect(screen.getByTestId('evidence-stage-executing').className).not.toContain('rose');
+    declined.unmount();
+
+    render(<EvidenceStageHUD steps={refused('policy_denied')} loading={false} />);
+    expect(screen.getByTestId('evidence-stage-executing').className).toContain('rose');
+  });
 });
