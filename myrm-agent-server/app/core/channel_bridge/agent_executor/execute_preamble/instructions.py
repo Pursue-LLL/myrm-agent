@@ -20,7 +20,7 @@ from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 async def enrich_channel_user_instructions(
     msg: InboundMessage,
     *,
-    user_instructions: str,
+    user_instructions: str | None,
     resolved_profile: ResolvedAgentProfile | None,
     agent_subagent_ids: list[str] | None,
     resolved_agent_id: str | None,
