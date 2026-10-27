@@ -7,7 +7,7 @@
 - channels.providers.feishu.models::FeishuWebhookPayload, FeishuCardEvent (POS: webhook payload models)
 - channels.providers.feishu.reactions::FEISHU_EMOJI_TO_UNICODE (POS: reaction emoji vocabulary)
 - channels.providers.feishu.user_resolver::FeishuUserResolver (POS: sender display-name resolution)
-- channels.providers.feishu.comment_document::read_comment_document (POS: body of the document a comment turn is about)
+- channels.providers.feishu.comment::read_comment_document (POS: body of the document a comment turn is about)
 
 [OUTPUT]
 - FeishuInboundMixin: handle_webhook_event, the reply-context / sender-name / inbound-media resolvers and the comment
@@ -165,7 +165,7 @@ class FeishuInboundMixin(BaseChannel):
             await self._handle_reaction_event(payload.event)
 
         elif event_type == "drive.notice.comment_add_v1":
-            from .comment_handler import CommentHandler
+            from .comment import CommentHandler
 
             handler = CommentHandler(self._client, self._client.bot_open_id)
             await handler.handle_comment_event(payload.event, self)
@@ -174,8 +174,7 @@ class FeishuInboundMixin(BaseChannel):
 
     async def read_context_document(self, msg: InboundMessage) -> ContextDocument | None:
         """The commented document's body for a document-comment turn; None for every other message."""
-        from .comment_document import read_comment_document
-        from .comment_handler import parse_comment_recipient
+        from .comment import parse_comment_recipient, read_comment_document
 
         route = parse_comment_recipient(msg.chat_id or "")
         if route is None:
@@ -255,10 +254,10 @@ class FeishuInboundMixin(BaseChannel):
 
             timestamp = None
             create_time = msg_obj.get("create_time")
-            if create_time:
+            if create_time and isinstance(create_time, str | int | float):
                 try:
                     timestamp = float(create_time) / 1000.0
-                except (ValueError, TypeError):
+                except ValueError:
                     pass
 
             return ReplyContext(

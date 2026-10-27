@@ -4,7 +4,7 @@
 
 飞书文档域 API 按领域拆成独立 Mixin，由 `__init__.py` 的 `FeishuDocumentsMixin` 门面组合后给 `FeishuClient` 继承。上级文档：[../_ARCH.md](../_ARCH.md)。
 
-各 Mixin 只依赖宿主 `FeishuClient` 提供的 `ensure_token` / `_get_http` / `_auth` / `_safe_json` / `api_base` / `_MEDIA_TIMEOUT`，这组契约在 `_host.py` 的 `FeishuHost` 里声明一次；宿主在自己的类体里定义真实实现，优先于这些占位声明。
+各 Mixin 只依赖宿主 `FeishuClient` 提供的 `ensure_token` / `_get_http` / `_auth` / `_safe_json` / `api_base` / `_MEDIA_TIMEOUT`，这组契约在 `_host.py` 的 `FeishuHost` 里声明一次；方法声明只对类型检查器可见（`if TYPE_CHECKING`），运行时不存在，不会遮蔽宿主的真实实现。
 
 ## 文件清单
 

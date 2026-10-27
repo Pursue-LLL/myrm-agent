@@ -11,7 +11,7 @@ import pytest
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.feishu import FeishuChannel
 from app.channels.providers.feishu.api import FeishuClient
-from app.channels.providers.feishu.comment_content import (
+from app.channels.providers.feishu.comment.content import (
     _extract_docs_links,
     _extract_reply_text,
     _extract_semantic_text,
@@ -24,7 +24,7 @@ from app.channels.providers.feishu.comment_content import (
     build_local_comment_prompt,
     build_whole_comment_prompt,
 )
-from app.channels.providers.feishu.comment_handler import (
+from app.channels.providers.feishu.comment.handler import (
     CommentHandler,
     CommentRouteInfo,
     chunk_text,

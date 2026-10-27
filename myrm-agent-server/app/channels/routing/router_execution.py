@@ -216,9 +216,8 @@ class RouterExecutionMixin:
             return deferred
         else:
             active = self._active_tasks.get(state_key)
-            if active and active.deferred_placeholder is not None:
-                return active.deferred_placeholder  # type: ignore[return-value]
-            return None
+            placeholder = active.deferred_placeholder if active else None
+            return placeholder if isinstance(placeholder, DeferredPlaceholder) else None
 
     def _resolve_live_placeholder_id(self: RouterExecutionHost, state_key: str) -> str | None:
         active = self._active_tasks.get(state_key)

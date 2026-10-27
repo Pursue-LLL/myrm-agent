@@ -13,11 +13,12 @@ enables zero-intrusion integration with the existing agent pipeline:
 [INPUT]
 - providers.feishu.api::FeishuClient (POS: Feishu OpenAPI client)
 - providers.feishu.models::FeishuCommentEvent (POS: comment event model)
-- providers.feishu.comment_content (POS: comment content extraction and prompt construction)
+- providers.feishu.comment.content (POS: comment content extraction and prompt construction)
 
 [OUTPUT]
 - CommentHandler: orchestrates comment event processing
 - COMMENT_DOC_PREFIX: routing prefix constant
+- NO_REPLY_SENTINEL: reply text by which the agent declines to answer a comment
 - parse_comment_recipient: extracts routing info from encoded recipient_id
 - deliver_comment_reply: sends text reply via comment API with chunking
 
@@ -35,7 +36,7 @@ import time as _time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.channels.providers.feishu.comment_content import (
+from app.channels.providers.feishu.comment.content import (
     _extract_docs_links,
     _extract_reply_text,
     _extract_semantic_text,
@@ -56,7 +57,7 @@ COMMENT_DOC_PREFIX = "comment-doc:"
 
 _ALLOWED_NOTICE_TYPES = frozenset({"add_comment", "add_reply"})
 _REPLY_CHUNK_SIZE = 4000
-_NO_REPLY_SENTINEL = "NO_REPLY"
+NO_REPLY_SENTINEL = "NO_REPLY"
 
 
 @dataclass(frozen=True, slots=True)

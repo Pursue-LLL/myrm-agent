@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from app.channels.providers.feishu import FeishuChannel, comment_document
+from app.channels.providers.feishu import FeishuChannel
 from app.channels.providers.feishu.api import FeishuClient
-from app.channels.providers.feishu.comment_document import read_comment_document
-from app.channels.providers.feishu.comment_handler import CommentRouteInfo, encode_comment_chat_id
+from app.channels.providers.feishu.comment import CommentRouteInfo, encode_comment_chat_id, read_comment_document
+from app.channels.providers.feishu.comment import document as comment_document
 from app.channels.providers.feishu.sdk import DocumentContent
 from app.channels.types import ContextDocument, ContextDocumentStatus, InboundMessage
 

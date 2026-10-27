@@ -5,7 +5,7 @@ was asked about. This module reads the body so the turn can answer questions abo
 
 [INPUT]
 - providers.feishu.api::FeishuClient (POS: Feishu OpenAPI client; ``get_document_content`` returns a docx as Markdown)
-- providers.feishu.comment_handler::CommentRouteInfo (POS: parsed comment routing info)
+- providers.feishu.comment.handler::CommentRouteInfo (POS: parsed comment routing info)
 - channels.types::ContextDocument, ContextDocumentStatus (POS: reference document contract)
 
 [OUTPUT]
@@ -26,7 +26,7 @@ from app.channels.types import ContextDocument, ContextDocumentStatus
 
 if TYPE_CHECKING:
     from app.channels.providers.feishu.api import FeishuClient
-    from app.channels.providers.feishu.comment_handler import CommentRouteInfo
+    from app.channels.providers.feishu.comment.handler import CommentRouteInfo
 
 logger = logging.getLogger(__name__)
 

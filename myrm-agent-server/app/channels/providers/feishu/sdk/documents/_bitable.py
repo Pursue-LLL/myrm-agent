@@ -121,7 +121,7 @@ class FeishuBitableMixin(FeishuHost):
             return app_info
 
         # Format records for Feishu batch_create API
-        records = [{"fields": row} for row in rows]
+        records: list[dict[str, object]] = [{"fields": row} for row in rows]
         success = await self.add_bitable_records(app_token, table_id, records)
         if not success:
             logger.warning("Created bitable app %s but failed to batch populate rows", app_token)

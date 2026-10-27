@@ -46,9 +46,8 @@ app/channels/providers/dingtalk/api.py
 app/channels/providers/discord/voice/manager.py
 app/channels/providers/feishu/cards.py
 app/channels/providers/feishu/channel.py
-app/channels/providers/feishu/comment_handler.py
+app/channels/providers/feishu/comment/handler.py
 app/channels/providers/feishu/parser.py
-app/channels/providers/feishu/sdk/_documents.py
 app/channels/providers/imessage/channel.py
 app/channels/providers/matrix/channel.py
 app/channels/providers/onebot/channel.py

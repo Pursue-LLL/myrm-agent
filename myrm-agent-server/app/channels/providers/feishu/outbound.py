@@ -76,7 +76,7 @@ class FeishuOutboundMixin(BaseChannel):
         if not chat_id:
             raise ChannelSendError("Feishu message has no recipient", channel=self.name, retriable=False)
 
-        from .comment_handler import COMMENT_DOC_PREFIX
+        from .comment import COMMENT_DOC_PREFIX
 
         try:
             if chat_id.startswith(COMMENT_DOC_PREFIX):
@@ -132,8 +132,8 @@ class FeishuOutboundMixin(BaseChannel):
 
     async def _send_comment_reply(self, recipient_id: str, msg: OutboundMessage) -> str | None:
         """Route outbound message to Feishu document comment API."""
-        from .comment_handler import (
-            _NO_REPLY_SENTINEL,
+        from .comment import (
+            NO_REPLY_SENTINEL,
             deliver_comment_reply,
             parse_comment_recipient,
         )
@@ -143,7 +143,7 @@ class FeishuOutboundMixin(BaseChannel):
             raise ChannelSendError(f"Feishu comment recipient is malformed: {recipient_id}", channel=self.name, retriable=False)
 
         content = (msg.content or "").strip()
-        if not content or _NO_REPLY_SENTINEL in content:
+        if not content or NO_REPLY_SENTINEL in content:
             # A deliberate NO_REPLY is a handled outcome: it reports the comment locator like a delivered
             # reply, because None would read as a lost delivery.
             logger.info("FeishuChannel: comment NO_REPLY, skipping delivery")
