@@ -14,7 +14,7 @@ IM 渠道斜杠命令解析与执行域：统一命令解析入口与各功能�
 | `router_commands_approval.py` | 模块 | 审批相关命令（approve/reject 等，含 reaction、按钮审批与决定恢复载荷）；`/deny <理由>` 的理由先过入站风险闸门，被拦时审批保持待决 | [OK] |
 | `router_commands_approval_end.py` | 模块 | 未决审批无人应答时的两种结局：到点后的续跑 `_resume_after_approval_timeout`（审批卡改写成结果，续跑作为路由器登记的普通回合）、同一智能体会话里开始新回合时的收口 `_retire_open_approval`（审批卡改写成「已取消」并结束计时）；两者经 `_show_on_approval_card` 改写审批卡，卡不可编辑或没有卡消息号时改发一条消息 | [OK] |
 | `router_commands_stop.py` | 模块 | `/stop` 与会话中止：`/stop` 先停前台回合（回复里写明仍在后台运行的委托任务编号），前台没有任务时再停该会话的后台委托任务（回复里写明已停止的任务编号）；`_abort_session_task`（`/stop` 与 `/new` 共用）在会话有待决审批时同时取消该聊天的审批超时计时器，停掉的会话不会被计时器之后又恢复 | [OK] |
-| `router_commands_delegation.py` | 模块 | `/delegate` 后台任务的启动（回执、后台 run、并发名额）与审批交接：后台任务停在工具审批时，把审批提示发到聊天并登记为待决审批，之后的 `/approve`、`/deny`、按钮和 reaction 与前台审批走同一条路径；该会话已有进行中的前台回合时不抢占它的位置；委托任务的所属用户取 `msg.user_id or msg.sender_id`（与 `/stop`、转向一致） | [OK] |
+| `router_commands_delegation.py` | 模块 | `/delegate` 后台任务的启动（先发回执，再登记任务并占并发名额、起后台 run；回执发不出去时不留任务和名额）与审批交接：后台任务停在工具审批时，把审批提示发到聊天并登记为待决审批，之后的 `/approve`、`/deny`、按钮和 reaction 与前台审批走同一条路径；该会话已有进行中的前台回合时不抢占它的位置；委托任务的所属用户取 `msg.user_id or msg.sender_id`（与 `/stop`、转向一致） | [OK] |
 | `router_commands_draft.py` | 模块 | 在聊天里决定被扣留的回复（`/draft approve` 或 `/draft reject` 加短码，含纯函数 `parse_draft_args`）；仅 owner 可用，经 `ApprovalRegistry.resolve_approval` 与 WebUI/按钮同一收口 | [OK] |
 | `router_commands_goals.py` | 模块 | 目标（goal）相关命令；`/goal` 设定与 `/goal resume` / `/goal unwait` 之后提交 kickoff 消息让目标开始干活 | [OK] |
 | `router_commands_memory.py` | 模块 | 会话状态诊断（/status）、看板与长期记忆交互（/kanban, /learn, /memory；待审批列表对纠正/遗忘提案附目标记忆摘要；目标已变化的提案以用户语言提示并保持待审，`approve all` 逐条审批并汇报未通过数量） | [OK] |

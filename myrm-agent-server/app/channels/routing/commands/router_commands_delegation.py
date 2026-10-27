@@ -56,8 +56,6 @@ class RouterCommandsDelegationMixin:
             origin_chat_id=chat_id,
             prompt=clean_prompt,
         )
-        self._delegation_coordinator.register_task(task)
-        self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
 
         receipt_outbound = OutboundMessage(
             channel=msg.channel,
@@ -68,6 +66,12 @@ class RouterCommandsDelegationMixin:
             metadata={"delegation_task_id": task.task_id, "is_receipt": True},
         )
         await self._bus.publish_outbound(receipt_outbound)
+
+        # Only the background run releases the quota slot, so nothing that can fail may sit between taking the
+        # slot and spawning that run. The inbound consumer dispatches one message at a time, which keeps the
+        # quota checked above valid until the slot is taken here.
+        self._delegation_coordinator.register_task(task)
+        self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
 
         async def _run_bg() -> None:
             try:

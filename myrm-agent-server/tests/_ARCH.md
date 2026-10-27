@@ -95,6 +95,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/core/test_outbound_drain.py` | 单元 | `MessageBus.drain_outbound`：等到排队与正在发送的消息都投递完才返回、队列为空与未启动时立即返回、发送永不返回时在时限处放弃、投递循环没在跑时不空等 |
 | `channels/core/test_gateway_shutdown.py` | 集成 | 真实 `ChannelGateway.stop()`：路由器在停止时发出的委托任务中断通知，在发送本身要花时间的渠道（0.3 秒）上也先于渠道关闭送达 |
 | `channels/delegation/test_delegation_interruption.py` | 集成 | 服务停止时的委托任务：真实路由器 `stop()` 让运行中的委托任务各自按发送者语言（en/ja/zh-CN）在原聊天与话题里收到「已中断、请重发」通知并释放配额，运行仍能收尾；用户刚 `/stop`、刚到时限、已完成的任务不会被重复通知；不肯停的运行不会拖住关停（有限宽限期）；通知发不出去也不让关停失败 |
+| `channels/delegation/test_delegation_launch_failure.py` | 集成 | `/delegate` 的回执发不出去时不留任务也不占并发名额：真实路由器下，回执发送抛错后协调器无任务、配额仍可用；连续失败超过配额上限后仍能正常委派；回执在登记任务与占名额之前发出 |
 | `channels/delegation/test_delegation_approval_window.py` | 集成 | 委托运行的审批等待取任务时限：运行从带时限的消息起步而请求者原消息不被改动，经真实渠道安全配置组装后 harness 的等待为任务时限（上限为 harness 上限 3600 秒），智能体档案显式设定的等待仍优先，前台回合沿用配置值，被聊天应答恢复的运行再次请求审批时沿用配置值（时限不随恢复消息带走） |
 | `core/channel_bridge/test_execute_preamble_security_config.py` | 单元 | 回合安全配置组装：回合审批等待覆盖配置值且不改动入参、无配置时也生效、非正数/布尔/非数值被忽略、与 YOLO 状态并存 |
 | `channels/delegation/test_delegation_heartbeat.py` | 单元 | 委托运行心跳：长运行原地更新同一条消息并带任务编号与步数，短于一个间隔不发，任务时限内的次数上限，随运行结束、被 `/stop`、停在审批处而结束（交接期间不发） |
