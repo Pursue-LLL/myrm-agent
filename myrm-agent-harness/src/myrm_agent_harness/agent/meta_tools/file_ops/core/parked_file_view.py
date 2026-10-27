@@ -9,14 +9,14 @@ and a page holds a fixed number of real tokens whatever the density of the text.
 
 [INPUT]
 - agent.context_guard::KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR (POS: the directories the guard writes to)
+- agent.security.redact::redact_sensitive_text (POS: tool output redaction)
 - utils.text_utils::get_token_count (POS: real token count)
-- file_read_truncation::truncate_file_output (POS: complete-line page cut with a continuation offset)
 
 [OUTPUT]
 - is_parked_path: whether a path names a file the context guard parked
-- wrap_long_lines: split lines over a width into rows, without losing a character
+- wrap_long_lines: split lines over a width into rows, after redacting the lines it splits
 - wrapped_rows_notice: the one-line note that row numbers no longer match the file's line numbers
-- truncate_parked_page: one page of a parked file's rendered output, sized in real tokens
+- parked_page_chars: how many characters of a parked file's rendered output make up one page of real tokens
 
 [POS]
 View rules for parked-text files; result_formatter splits the rows, file_read_handlers sizes the page.
@@ -27,12 +27,12 @@ from __future__ import annotations
 import posixpath
 
 from myrm_agent_harness.agent.context_guard import KEPT_SPILLOVER_DIR, TRANSIENT_SPILLOVER_DIR
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 from myrm_agent_harness.utils.text_utils import get_token_count
 
-from .file_read_truncation import truncate_file_output
-
-# A page is 20,000 real tokens: a sixth of a 128k window, and four pages fit the 100,000-token per-run result
-# budget, so a long paste is read in a few calls without one page crowding the window out.
+# A page is 20,000 o200k tokens, counted as the result budget guard counts them: a sixth of a 128k window, and four
+# pages fit the 100,000-token per-run result budget, so a long paste is read in a few calls without one page
+# crowding the window out. A model with another tokenizer sees more tokens in the same page (CJK, for one).
 PAGE_TOKEN_BUDGET = 20_000
 # A page may overshoot by a tenth rather than cut a text a few lines short of fitting.
 _PAGE_TOLERANCE_PERCENT = 10
@@ -58,6 +58,9 @@ def is_parked_path(path: str) -> bool:
 def wrap_long_lines(lines: list[str], width: int) -> tuple[list[str], int | None]:
     """Split every line longer than *width* characters into rows of at most *width*, on code-point boundaries.
 
+    A line is redacted before it is split: the tool output is redacted once it is laid out in rows, and a secret cut
+    in two by a row boundary, with a line number between the halves, no longer matches any pattern.
+
     Returns the rows and the 1-based number of the first line that was split (``None``, with *lines* itself,
     when no line was).
     """
@@ -67,9 +70,11 @@ def wrap_long_lines(lines: list[str], width: int) -> tuple[list[str], int | None
         if len(line) <= width:
             rows.append(line)
             continue
-        if first_split is None:
+        line = redact_sensitive_text(line)
+        pieces = [line[start : start + width] for start in range(0, len(line), width)]
+        if first_split is None and len(pieces) > 1:
             first_split = number
-        rows.extend(line[start : start + width] for start in range(0, len(line), width))
+        rows.extend(pieces)
     return (lines if first_split is None else rows), first_split
 
 
@@ -81,7 +86,7 @@ def wrapped_rows_notice(width: int, first_split_line: int) -> str:
     )
 
 
-def _page_chars(output: str) -> int:
+def parked_page_chars(output: str) -> int:
     """Characters from the start of *output* that make up one page of ``PAGE_TOKEN_BUDGET`` real tokens.
 
     Only the window that becomes the page is measured, so the cost does not grow with the size of the file.
@@ -103,12 +108,3 @@ def _page_chars(output: str) -> int:
         if chars == 1 or get_token_count(output[:chars]) <= ceiling:
             fitting = chars
     return fitting
-
-
-def truncate_parked_page(output: str, *, path_str: str, max_lines: int | None) -> tuple[str, bool, dict[str, object]]:
-    """Cut the rendered output of a parked file to one page, with the continuation offset of the next one.
-
-    Same contract as ``truncate_file_output``; the page size is ``PAGE_TOKEN_BUDGET`` real tokens instead of a
-    fixed number of characters.
-    """
-    return truncate_file_output(output, max_chars=_page_chars(output), path_str=path_str, max_lines=max_lines)

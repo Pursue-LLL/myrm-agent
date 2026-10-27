@@ -1,7 +1,8 @@
 """Unit tests for the view of a long text the context guard parked in the workspace.
 
 A parked paste is read in pages of real tokens and a line over the per-line cap is split into rows, so no
-character of it is out of reach; every other file keeps the code-file read caps.
+character of it is out of reach (a secret in it is masked before the split); every other file keeps the
+code-file read caps.
 """
 
 from __future__ import annotations
@@ -10,11 +11,13 @@ import re
 
 import pytest
 
+from myrm_agent_harness.agent.meta_tools.file_ops.core import parked_file_view
+from myrm_agent_harness.agent.meta_tools.file_ops.core.file_read_truncation import truncate_file_output
 from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import ViewRange
 from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
     PAGE_TOKEN_BUDGET,
     is_parked_path,
-    truncate_parked_page,
+    parked_page_chars,
     wrap_long_lines,
     wrapped_rows_notice,
 )
@@ -89,6 +92,32 @@ def test_a_line_of_exactly_the_width_is_not_split() -> None:
     assert [len(row) for row in rows] == [2000, 2000, 1]
 
 
+_SECRET = "ghp_Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6"
+_SECRET_MASKED = "ghp_Ab...3hJ6"
+
+
+@pytest.mark.parametrize("offset", [100, 1982, 1990, 1999, 2000, 3985])
+def test_a_secret_is_masked_wherever_a_row_boundary_falls_in_it(offset: int) -> None:
+    line = "a" * (offset - 1) + " " + _SECRET + " " + "b" * 3000
+    rows, first_split = wrap_long_lines([line], 2000)
+    assert first_split == 1
+    joined = "".join(rows)
+    assert _SECRET_MASKED in joined
+    assert _SECRET[8:30] not in joined
+    assert _SECRET[:20] not in joined
+
+
+def test_a_line_that_fits_is_left_to_the_redaction_of_the_tool_output() -> None:
+    line = "key " + _SECRET
+    assert wrap_long_lines([line], 2000) == ([line], None)
+
+
+def test_a_long_line_that_redaction_shrinks_under_the_width_is_not_a_split(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(parked_file_view, "redact_sensitive_text", lambda _line: "masked")
+    lines = ["head", "x" * 5000]
+    assert wrap_long_lines(lines, 2000) == (lines, None)
+
+
 def test_the_notice_names_the_width_and_the_last_line_whose_number_still_matches() -> None:
     notice = wrapped_rows_notice(2000, 7)
     assert "2,000 characters" in notice
@@ -105,14 +134,17 @@ def _render(lines: list[str], *, path: str, start: int = 1, max_line_length: int
     return ResultFormatter.format_file_content(content, max_line_length=max_line_length)
 
 
+def _cut_page(rendered: str) -> tuple[str, bool, dict[str, object]]:
+    """One page of a parked file's rendered output, cut the way ``file_read_handlers`` cuts it."""
+    return truncate_file_output(rendered, max_chars=parked_page_chars(rendered), path_str=_PARKED, max_lines=None)
+
+
 def _read_pages(lines: list[str]) -> list[tuple[str, dict[str, object]]]:
     """Read a parked file page by page the way the model does: follow ``next_offset`` until the end."""
     pages: list[tuple[str, dict[str, object]]] = []
     start = 1
     while True:
-        text, truncated, meta = truncate_parked_page(
-            _render(lines, path=_PARKED, start=start), path_str=_PARKED, max_lines=None
-        )
+        text, truncated, meta = _cut_page(_render(lines, path=_PARKED, start=start))
         pages.append((text, meta))
         if not truncated:
             return pages
@@ -134,7 +166,7 @@ def _dense(count: int) -> list[str]:
 
 def test_a_text_that_fits_one_page_is_not_cut() -> None:
     rendered = _render(_prose(300), path=_PARKED)
-    text, truncated, meta = truncate_parked_page(rendered, path_str=_PARKED, max_lines=None)
+    text, truncated, meta = _cut_page(rendered)
     assert (text, truncated, meta) == (rendered, False, {})
 
 
@@ -161,8 +193,8 @@ def test_every_page_is_filled_to_the_token_budget_and_the_pages_cover_the_text(n
 
 def test_a_page_is_cut_the_same_way_every_time() -> None:
     rendered = _render(_prose(9000), path=_PARKED)
-    first = truncate_parked_page(rendered, path_str=_PARKED, max_lines=None)
-    assert truncate_parked_page(rendered, path_str=_PARKED, max_lines=None) == first
+    first = _cut_page(rendered)
+    assert _cut_page(rendered) == first
 
 
 def test_the_other_files_keep_the_clamped_line_and_no_notice() -> None:

@@ -40,7 +40,7 @@ class FileIOConfig:
 
     # Read output caps for a code or text file (SSOT for file_read_tool truncation). The file_read
     # handlers read them from DEFAULT_FILE_IO_CONFIG, not from a config passed to the tool. A long
-    # text the context guard parked is paged by real tokens instead (core/parked_file_view.py).
+    # text the context guard parked is paged by o200k tokens instead (core/parked_file_view.py).
     max_read_chars: int = 10000
     """Maximum characters admitted into context for a single file read output.
     When exceeded, the output is head-truncated on a complete-line boundary and

@@ -43,6 +43,8 @@ by gracefully converting oversized payloads (>16,000 chars) into referenced file
   (the agent thread replays the stub of the first turn), so it goes to the kept directory, which has no sweeper: the owner of
   the workspace deletes it. The Fast-mode `file_read_tool` scope reads both names from `types.py`, so the writer and the
   reader cannot drift apart.
+  The same two names decide how `file_read_tool` shows a file back: `meta_tools/file_ops/core/parked_file_view.py` pages it
+  by o200k tokens and splits a long line into rows, where every other file keeps the code-file read caps.
 - **The stub is a pure function of the text.** The file is named after the content hash, the write is skipped when the same
   bytes are already there, and the stub carries no per-call data (no session id, no timestamp). A live turn and a stored
   conversation therefore render the same bytes and name the same file.

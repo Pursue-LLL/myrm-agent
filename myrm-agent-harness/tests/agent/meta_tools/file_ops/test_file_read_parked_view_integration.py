@@ -145,6 +145,21 @@ async def test_a_paste_without_a_line_break_is_read_back_to_its_last_character(w
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_a_secret_on_a_row_boundary_of_a_wrapped_paste_is_masked(workspace: str) -> None:
+    secret = "ghp_Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6"
+    text = "a" * 1981 + f" {secret} " + "b" * 63_000 + _END_MARKER
+    path = _park(workspace, text)
+    with _session(workspace):
+        pages = await _read_pages(path)
+    shown = "".join(pages)
+    assert _END_MARKER in pages[-1]
+    assert secret[8:30] not in shown
+    assert secret[:20] not in shown
+    assert "ghp_Ab...3hJ6" in re.sub(r"\n *\d+\|", "", shown)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_a_range_of_a_wrapped_paste_shows_the_rows_the_whole_read_numbers(workspace: str) -> None:
     path = _park(workspace, _one_line_json(64_500))
     with _session(workspace):
