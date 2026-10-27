@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { ConfigSyncManager, resetConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import { OFFLINE_PERSISTABLE_CONFIG_KEYS } from '@/services/config/offlinePersistableKeys';
 import { ALL_CONFIG_KEYS, DEFAULT_PERSONAL_SETTINGS } from '@/services/config/types';
+import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
 
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: vi.fn(() => true),
@@ -93,7 +94,7 @@ describe('ConfigSyncManager offline queue keeps secrets out of browser storage',
   it('still persists a non-sensitive change for replay after a reload', async () => {
     mockFetch.mockResolvedValueOnce(backendUnavailable());
 
-    manager.set('chatSettings', { ...(manager.get('chatSettings') ?? {}), marker: 'offline-edit' } as never);
+    manager.set('chatSettings', { defaultModelConfig: getInitialDefaultModelConfig(), customModelInfo: {} });
     await manager.forceSync();
 
     expect(queuedKeys()).toEqual(['chatSettings']);
