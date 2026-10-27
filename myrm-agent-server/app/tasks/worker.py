@@ -191,9 +191,11 @@ class TaskWorker:
                 await asyncio.wait_for(self._wake.wait(), timeout=_POLL_INTERVAL_SECONDS)
 
     async def _claim_available(self) -> None:
-        """Claim pending tasks (priority, then FIFO) until every slot is busy or the queue is empty."""
+        """Claim due pending tasks (priority, then FIFO) until every slot is busy or the queue is empty."""
         while self._running and (free := self._max_concurrency - len(self._in_flight)) > 0:
-            pending = await self._store.list_tasks(TaskFilters(status=TaskStatus.PENDING, limit=free, order_by=_QUEUE_ORDER))
+            pending = await self._store.list_tasks(
+                TaskFilters(status=TaskStatus.PENDING, ready_before=datetime.now(UTC), limit=free, order_by=_QUEUE_ORDER)
+            )
             if not pending:
                 return
             for candidate in pending:

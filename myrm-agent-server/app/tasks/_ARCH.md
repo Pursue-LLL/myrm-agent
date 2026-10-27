@@ -21,7 +21,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 任务类型和 worker 导出 | — |
-| `worker.py` | 核心 | 任务 worker：按 `priority DESC, created_at ASC` 认领 `pending` 任务，最多 `max_concurrency` 个在途 run（单个 `asyncio.Task` 注册表），任一 run 结束即唤醒补位而非等整批；认领、终态写入都是对当前状态的 compare-and-set（`update_task_if_status`），先到的终态为准——用户取消后迟到的结果不会覆盖 `cancelled`；`abort(task_id)` 取消在途 run（由取消方写 `cancelled` 行）；`start()` 先把上一进程遗留的 `running` 任务置 `failed`（`interrupted`，transient，可重试），`stop()` 取消在途 run 并同样标记 `interrupted`；超时/失败/成功/取消指标与 duration 指标；通过 `on_status_change` 回调发布 `running/failed/succeeded` 事件到 SSE 流 | ✅ |
+| `worker.py` | 核心 | 任务 worker：按 `priority DESC, created_at ASC` 认领已到期（`next_retry_at` 为空或已过）的 `pending` 任务，最多 `max_concurrency` 个在途 run（单个 `asyncio.Task` 注册表），任一 run 结束即唤醒补位而非等整批；认领、终态写入都是对当前状态的 compare-and-set（`update_task_if_status`），先到的终态为准——用户取消后迟到的结果不会覆盖 `cancelled`；`abort(task_id)` 取消在途 run（由取消方写 `cancelled` 行）；`start()` 先把上一进程遗留的 `running` 任务置 `failed`（`interrupted`，transient，可重试），`stop()` 取消在途 run 并同样标记 `interrupted`；超时/失败/成功/取消指标与 duration 指标；通过 `on_status_change` 回调发布 `running/failed/succeeded` 事件到 SSE 流 | ✅ |
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件；订阅队列满时有界淘汰最旧事件并投递 `sync_required` 最新事件，避免持续积压导致全量失真；`queue_full` warning 按时间窗节流并携带 suppressed 计数，避免日志风暴 | ✅ |
 | `metrics.py` | 辅助 | 任务指标采集（task lifecycle + event bus emitted/dropped/replaced） | — |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |

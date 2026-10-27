@@ -399,7 +399,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |
-| `tasks/test_task_worker.py` | 模块 | TaskWorker 行为（真实 store + 脚本化 executor）：失败分类且不重入队、超时、优先级再 FIFO、并发上限、补位不等最慢任务、`abort` 保持 `cancelled`、迟到结果不覆盖终态、启动/停止时遗留 `running` 置 `interrupted` |
+| `tasks/test_task_worker.py` | 模块 | TaskWorker 行为（真实 store + 脚本化 executor）：失败分类且不重入队、超时、优先级再 FIFO、并发上限、补位不等最慢任务、`abort` 保持 `cancelled`、迟到结果不覆盖终态、未到重试时间的任务不被认领、启动/停止时遗留 `running` 置 `interrupted` |
 | `api/tasks/test_task_cancel_retry_api.py` | 模块 | 任务 REST 取消/重试（真实 store + worker）：取消运行中任务会中止执行且终态不被改写、取消的排队任务不会被认领、已结束的任务取消返回 400 且不改状态、重试仅对仍为 `failed` 的任务生效（过期快照被拒） |
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
 | `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |

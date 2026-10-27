@@ -85,6 +85,7 @@ async def _enqueue(
     timeout: int = 300,
     status: TaskStatus = TaskStatus.PENDING,
     task_type: str = "image_generate",
+    next_retry_at: datetime | None = None,
 ) -> None:
     await store.create_task(
         Task(
@@ -96,6 +97,7 @@ async def _enqueue(
             priority=priority,
             timeout=timeout,
             created_at=_BASE_TIME + timedelta(seconds=order),
+            next_retry_at=next_retry_at,
         )
     )
 
@@ -372,6 +374,21 @@ async def test_cancelled_pending_task_is_never_claimed(tmp_path: Path) -> None:
         await _wait_for_status(store, "kept", TaskStatus.SUCCEEDED)
 
     assert executor.started == ["kept"]
+
+
+async def test_task_waiting_for_its_retry_time_is_not_claimed_early(tmp_path: Path) -> None:
+    store = await _new_store(tmp_path)
+    await _enqueue(store, "later", order=0, next_retry_at=datetime.now(UTC) + timedelta(hours=1))
+    await _enqueue(store, "due", order=1)
+    executor = _ScriptedExecutor(_succeed)
+
+    async with _running(_recording_worker(store, executor, [])):
+        await _wait_for_status(store, "due", TaskStatus.SUCCEEDED)
+
+    assert executor.started == ["due"]
+    waiting = await store.get_task("later")
+    assert waiting is not None
+    assert waiting.status == TaskStatus.PENDING
 
 
 async def test_start_fails_tasks_orphaned_by_the_previous_process_as_retryable(tmp_path: Path) -> None:
