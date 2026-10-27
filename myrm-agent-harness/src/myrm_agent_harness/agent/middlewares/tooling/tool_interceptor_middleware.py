@@ -31,6 +31,7 @@ POST-CALL:
 
 [OUTPUT]
 - tool_interceptor_middleware: unified tool interception middleware
+- SESSION_LOOP_GUARD_LIMIT: How many sessions keep a LoopGuard between run segments (least recently used dropped first)
 - get_loop_guard(): Get or create the session-scoped LoopGuard (ContextVar + session-key fallback)
 - reset_loop_guard(): Reset loop guard state; `is_resume=True` preserves CallRecord window and error signatures
 - child_loop_guard(): A LoopGuard of its own for a nested child run, restored to the parent's afterwards
@@ -87,6 +88,10 @@ from myrm_agent_harness.utils.token_economics.tracker import (
 
 logger = get_agent_logger(__name__)
 
+# How many sessions keep a guard between run segments; the completion guard bounds its per-turn state
+# registry at the same size (``RUN_STATE_LIMIT``).
+SESSION_LOOP_GUARD_LIMIT = 128
+
 _loop_guard_var: ContextVar[LoopGuard | None] = ContextVar("loop_guard", default=None)
 _session_loop_guards: dict[str, LoopGuard] = {}
 _BASH_POLL_TOOLS = frozenset({BASH_PROCESS_TOOL_NAME})
@@ -97,8 +102,20 @@ def _loop_guard_session_key() -> str:
     return session_key if session_key else "__default__"
 
 
+def _remember_loop_guard(session_key: str, guard: LoopGuard) -> None:
+    """Keep ``guard`` as the session's, newest last; past the limit the least recently used session is dropped.
+
+    Every write to the registry goes through here, so nothing can grow it past the limit. A dropped session
+    that resumes later finds no guard and starts a fresh one.
+    """
+    _session_loop_guards.pop(session_key, None)
+    _session_loop_guards[session_key] = guard
+    while len(_session_loop_guards) > SESSION_LOOP_GUARD_LIMIT:
+        del _session_loop_guards[next(iter(_session_loop_guards))]
+
+
 def _bind_loop_guard(guard: LoopGuard) -> LoopGuard:
-    _session_loop_guards[_loop_guard_session_key()] = guard
+    _remember_loop_guard(_loop_guard_session_key(), guard)
     _loop_guard_var.set(guard)
     return guard
 
@@ -184,7 +201,8 @@ def child_loop_guard(session_key: str) -> Iterator[LoopGuard]:
     """
     guard = _session_loop_guards.get(session_key)
     if guard is None:
-        guard = _session_loop_guards[session_key] = _create_loop_guard()
+        guard = _create_loop_guard()
+    _remember_loop_guard(session_key, guard)
     with scoped_value(_loop_guard_var, guard):
         yield guard
 
@@ -220,11 +238,11 @@ def notify_loop_guard_compaction() -> None:
 # ---------------------------------------------------------------------------
 
 
-@wrap_tool_call  # type: ignore[untyped-decorator]
+@wrap_tool_call
 async def tool_interceptor_middleware(
     request: ToolCallRequest,
-    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
-) -> ToolMessage | Command:
+    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[object]]],
+) -> ToolMessage | Command[object]:
     """Unified tool interception middleware with metrics collection."""
     tool_name = request.tool_call.get("name", "unknown")
     call_id = request.tool_call.get("id")
@@ -299,7 +317,7 @@ def _get_tool_args(request: ToolCallRequest) -> dict[str, object]:
 
 
 def _extract_failure_metadata(
-    result: ToolMessage | Command,
+    result: ToolMessage | Command[object],
 ) -> tuple[str | None, str | None]:
     if not isinstance(result, ToolMessage):
         return None, None
@@ -326,12 +344,12 @@ def _loop_kind_from_exception(exc: Exception) -> str | None:
 
 async def _tool_interceptor_middleware_inner(
     request: ToolCallRequest,
-    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
-) -> ToolMessage | Command:
+    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[object]]],
+) -> ToolMessage | Command[object]:
     """Core orchestration: pre-guards -> execute -> post-guards."""
     request = resolve_dynamic_tool(request)
     tool_name = request.tool_call.get("name", "unknown")
-    tool_call_id = request.tool_call.get("id", "")
+    tool_call_id = request.tool_call.get("id") or ""
     tool_args: dict[str, object] = request.tool_call.get("args") or {}
 
     pre_result = await run_pre_call_guards(request, tool_name, tool_call_id, tool_args, get_loop_guard)

@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-27-024 · 每个聊天会话的 LoopGuard 永远留在进程里：会话注册表没有上限，进程活多久，每个会话最近一批工具结果就占多久的内存
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（BUG-HARNESS-2026-10-27-014 给子 run 加了 `child_loop_guard` 之后复核：子 run 结束会 `discard_session_loop_guard`，聊天会话的那一份没有任何出口） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：`_session_loop_guards` 按会话 key 存 LoopGuard，供审批恢复在全新 context 里找回同一个守卫；只有子 run 结束时才删。聊天会话的守卫从不删，而守卫的调用窗口（`CallRecord.result_content`）保留最近一批工具结果的全文。合成负载（400 个会话，每个 20 次调用、每次 20 KB 结果，不是线上数据）修复前注册表 400 条、保留 157.6 MiB。线上每个会话实际保留多少没有埋点，未测：拦截器先在第 8 步按上下文预算截断、第 11 步才记入守卫，记入的是截断后的结果，但截断上限没有逐工具核对，真实占用与合成负载的差距未测 |
+| **关联产品** | harness `agent/middlewares/tooling/tool_interceptor_middleware.py`（`_session_loop_guards`、`child_loop_guard`） |
+| **根因** | 注册表有读、有写、有「子 run 结束时删」，没有「总量上限」。同一个仓库里完成门禁的回合状态注册表早就有 `RUN_STATE_LIMIT = 128` 加三行 `_trim_registry`，这一份没有照做。写入口还有两处：`_bind_loop_guard` 与 `child_loop_guard` 直接写字典，加上限只加在一处会留一个后门。 |
+| **修复** | `SESSION_LOOP_GUARD_LIMIT = 128` 与 `_remember_loop_guard(session_key, guard)`：先弹出再插入（最近使用的排最后），超限时丢最久没用的会话；`_bind_loop_guard` 与 `child_loop_guard` 都经它写，是注册表唯一的写入口。上限取与完成门禁的 `RUN_STATE_LIMIT` 相同的 128（两处的键不同，一个按会话、一个按回合，各自独立计数）。同一次改动把该文件的 12 个 mypy 错误清零：`Command` 补类型参数、去掉多余的 `type: ignore`，以及 `tool_call_id` 缺省时取空串。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 先在拟议的新模块里设计「`registry.py` 加访问器」，数过之后放弃：约 25 个测试文件直接 import 并 patch 这个模块的 `_session_loop_guards` 与 `_loop_guard_var`，搬走访问器要改完所有这些测试，收益只是文件少几十行。结果是该文件仍有 446 行（超过 400 行的约定），这是有意保留的偏差。`tool_call_id` 为 `None` 时，失败的工具走 `handle_execution_error` 会在构造 `ToolMessage` 时抛 pydantic `ValidationError`，模型看到的是校验错误而不是工具的失败；改成取空串后返回正常的错误 `ToolMessage`，这是随类型修复一并修好的真实行为差异。 |
+| **回归** | 新增 `test_loop_guard_registry.py` 5 例（不超过上限；最久没用的先丢；上限内恢复仍拿回自己的守卫与调用窗口；被上限丢掉的会话恢复时拿到新守卫；子 run 的守卫同样计入上限）与 `test_tool_interceptor_missing_call_id.py` 2 例。变异检验：运行时把上限改成 10 亿，前 4 例红、第 5 例（上限内行为不退化）保持绿；把 `tool_call_id` 的取空串改回原写法，缺 id 那例红。合成负载复测：400 个会话，注册表 128 条、保留 50.4 MiB（修复前 400 条、157.6 MiB）。registry 相关 slice（middlewares、sub_agents、security、goals、streaming、compaction 集成、deep_research 共 7590 例）全绿。 |
+| **仍然存在** | ① 被上限丢掉的会话若稍后恢复（包括停在待审批状态的子 run），拿到的是新守卫，调用窗口与错误签名丢失，等于这一段的循环检测从零开始（失败方向是放宽，不是误杀）。128 个并发活跃会话在单机单用户的部署里不常见，但没有线上数据。② 没有埋点统计注册表实际规模与被丢弃次数。③ 合成负载不是线上数据，节省的 107 MiB 是上限的量级说明，不是线上收益。④ `tool_interceptor_middleware.py` 446 行，超过 400 行约定（见踩坑）。 |
+| **代码位置** | `agent/middlewares/tooling/tool_interceptor_middleware.py`（`SESSION_LOOP_GUARD_LIMIT`、`_remember_loop_guard`、`_bind_loop_guard`、`child_loop_guard`）· `agent/middlewares/tooling/_ARCH.md` |
+
 ### BUG-HARNESS-2026-10-27-023 · 只读子 Agent 被摆上自己用不了的写文件与 shell 工具：模型照常调用，每次都被能力句柄拒绝，没有任何东西告诉它这条路走不通
 
 | 字段 | 内容 |
