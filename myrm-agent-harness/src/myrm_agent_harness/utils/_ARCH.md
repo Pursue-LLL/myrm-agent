@@ -29,7 +29,7 @@ Utility library exports. Public interface for the utils module providing commonl
 | response_locale.py | Core | Agent output locale/formality suffix from engine_params.response_locale_policy | ✅ |
 | lru_cache.py | Core | LRU cache utility. OrderedDict-based LRU cache implementation with TTL support. | ✅ |
 | markdown_frontmatter.py | Core | Markdown YAML frontmatter parse/preserve helpers shared by vault write guard and toolkits wiki | ✅ |
-| mime_types.py | Core | Centralized image MIME type utilities: extension ↔ MIME mappings and magic-bytes detection (detect_image_mime, extension_for_mime). | ✅ |
+| mime_types.py | Core | Centralized image MIME type utilities: extension ↔ MIME mappings and magic-bytes detection (detect_image_mime, extension_for_mime) and `VISION_IMAGE_MIME_TYPES`, the four formats a vision model takes (BMP is detected but not among them). | ✅ |
 | network.py | Core | Pure network utilities. Get local IP using UDP socket (no actual data sent). | ✅ |
 | rwlock.py | Core | General-purpose read-write lock concurrency primitive for multi-reader single-writer scenarios. | ✅ |
 | text_cleaner.py | Core | Text cleaning utilities. Removes noise and irrelevant information from content to improve quality. | ✅ |

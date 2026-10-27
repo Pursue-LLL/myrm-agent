@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock, load_image_blocks, media_type_of
+from myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks import ImageBlock, load_image_blocks
 
 _PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 _JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 8
@@ -18,9 +18,9 @@ _WAV = b"RIFF\x24\x00\x00\x00WAVEfmt "
 _LOGGER = "myrm_agent_harness.toolkits.acp.runtime.cli.image_blocks"
 
 
-class TestMediaType:
+class TestFormats:
     @pytest.mark.parametrize(
-        ("head", "media_type"),
+        ("data", "media_type"),
         [
             (_PNG, "image/png"),
             (_JPEG, "image/jpeg"),
@@ -29,15 +29,46 @@ class TestMediaType:
             (_WEBP, "image/webp"),
         ],
     )
-    def test_the_formats_the_claude_api_takes_are_told_by_their_first_bytes(self, head: bytes, media_type: str) -> None:
-        assert media_type_of(head) == media_type
+    def test_the_formats_the_claude_api_takes_are_told_by_their_first_bytes(
+        self, tmp_path: Path, data: bytes, media_type: str
+    ) -> None:
+        path = tmp_path / "image.bin"
+        path.write_bytes(data)
+
+        assert [block.media_type for block in load_image_blocks([str(path)])] == [media_type]
 
     @pytest.mark.parametrize(
-        "head",
-        [_WAV, b"%PDF-1.7\n%\xe2\xe3\xcf\xd3", b"<svg xmlns=", b"BM" + b"\x00" * 10, b"", b"\x89PNG", b"RIFF"],
+        "data",
+        [
+            _WAV,
+            b"%PDF-1.7\n%\xe2\xe3\xcf\xd3",
+            b"<svg xmlns=",
+            b"BM" + b"\x00" * 10,
+            b"BM25 results are in",
+            b"GIF90a" + b"\x00" * 8,
+            b"\xff\xd8\xff",
+            b"",
+            b"\x89PNG",
+            b"RIFF",
+        ],
+        ids=[
+            "wav",
+            "pdf",
+            "svg",
+            "bmp",
+            "text-that-starts-with-bm",
+            "gif-90a",
+            "three-byte-jpeg",
+            "empty",
+            "short-png",
+            "short-riff",
+        ],
     )
-    def test_anything_else_is_not_an_image(self, head: bytes) -> None:
-        assert media_type_of(head) is None
+    def test_anything_else_is_not_an_image(self, tmp_path: Path, data: bytes) -> None:
+        path = tmp_path / "other.png"
+        path.write_bytes(data)
+
+        assert load_image_blocks([str(path)]) == []
 
 
 class TestLoadImageBlocks:

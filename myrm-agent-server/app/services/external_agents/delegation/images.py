@@ -3,6 +3,7 @@
 [INPUT]
 - app.config.settings::settings (POS: 状态目录 settings.database.state_dir)
 - app.core.utils.files_utils::read_image_bytes (POS: 存储 URL → 图片原始字节，只读本地存储)
+- myrm_agent_harness.utils.mime_types::VISION_IMAGE_MIME_TYPES, detect_image_mime, extension_for_mime (POS: 图片魔数判别与扩展名映射)
 - app.services.external_agents.delegation.prompt::image_url, is_video (POS: 图片内容块的 URL 取法与视频判别)
 
 [OUTPUT]
@@ -36,6 +37,8 @@ from urllib.parse import urlparse
 from urllib.request import url2pathname
 from uuid import uuid4
 
+from myrm_agent_harness.utils.mime_types import VISION_IMAGE_MIME_TYPES, detect_image_mime, extension_for_mime
+
 from app.config.settings import settings
 from app.core.utils.files_utils import read_image_bytes
 from app.services.external_agents.delegation.prompt import image_url, is_video
@@ -67,19 +70,6 @@ class StagedImages:
 def staging_dir() -> Path:
     """The directory staged images live in: the same path for every turn and chat."""
     return Path(settings.database.state_dir) / _DIRECTORY_NAME
-
-
-def _extension(data: bytes) -> str | None:
-    """The file extension of the image formats the CLIs take, from the bytes themselves (a name proves nothing)."""
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "jpg"
-    if data.startswith((b"GIF87a", b"GIF89a")):
-        return "gif"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp"
-    return None
 
 
 def _is_stageable(part: object) -> TypeGuard[dict[str, object]]:
@@ -157,10 +147,11 @@ async def _stage(part: dict[str, object], directory: Path) -> Path:
     data = await _read(url)
     if len(data) > MAX_IMAGE_BYTES:
         raise _NotStaged("too_large")
-    extension = _extension(data)
-    if extension is None:
+    # The extension comes from the bytes themselves; a name proves nothing.
+    media_type = detect_image_mime(data, fallback="")
+    if media_type not in VISION_IMAGE_MIME_TYPES:
         raise _NotStaged("not_an_image")
-    return await asyncio.to_thread(_write, directory, data, extension)
+    return await asyncio.to_thread(_write, directory, data, extension_for_mime(media_type))
 
 
 async def _staged_part(part: dict[str, object], directory: Path, staged: list[Path]) -> dict[str, object]:

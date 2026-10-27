@@ -5,7 +5,7 @@ every image above 256 KiB, which is below most screenshots. A block carries the 
 the image reaches the model whatever its size, whatever directory it lives in and whatever the permission mode.
 
 [INPUT]
-- (none: standard library only)
+- utils.mime_types::VISION_IMAGE_MIME_TYPES, detect_image_mime (POS: Centralized image MIME type utilities.)
 
 [OUTPUT]
 - ImageBlock: one image as a media type plus base64 data
@@ -24,15 +24,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from myrm_agent_harness.utils.mime_types import VISION_IMAGE_MIME_TYPES, detect_image_mime
 
-# The formats the Claude API takes; the first bytes of a file say which one it is, a file name or extension does not.
-_SIGNATURES = (
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-    (b"GIF87a", "image/gif"),
-    (b"GIF89a", "image/gif"),
-)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,16 +35,6 @@ class ImageBlock:
 
     media_type: str
     data: str
-
-
-def media_type_of(head: bytes) -> str | None:
-    """The media type of an image whose file starts with ``head`` (at least 12 bytes), None for anything else."""
-    for signature, media_type in _SIGNATURES:
-        if head.startswith(signature):
-            return media_type
-    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
-        return "image/webp"
-    return None
 
 
 def load_image_blocks(paths: Sequence[str]) -> list[ImageBlock]:
@@ -66,8 +50,9 @@ def load_image_blocks(paths: Sequence[str]) -> list[ImageBlock]:
         except OSError as exc:
             logger.warning("cli_image_skipped reason=unreadable error=%s", type(exc).__name__)
             continue
-        media_type = media_type_of(raw[:12])
-        if media_type is None:
+        # The first bytes say what a file is, its name does not.
+        media_type = detect_image_mime(raw, fallback="")
+        if media_type not in VISION_IMAGE_MIME_TYPES:
             logger.warning("cli_image_skipped reason=unknown_format")
             continue
         blocks.append(ImageBlock(media_type, base64.b64encode(raw).decode("ascii")))

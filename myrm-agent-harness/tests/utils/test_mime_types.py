@@ -1,6 +1,11 @@
 """Tests for utils/mime_types.py — centralized file extension → MIME type mappings."""
 
-from myrm_agent_harness.utils.mime_types import IMAGE_EXTENSIONS, IMAGE_MIME_TYPES
+from myrm_agent_harness.utils.mime_types import (
+    IMAGE_EXTENSIONS,
+    IMAGE_MIME_TYPES,
+    VISION_IMAGE_MIME_TYPES,
+    detect_image_mime,
+)
 
 
 class TestImageMimeTypes:
@@ -30,6 +35,18 @@ class TestImageExtensions:
             assert False, "frozenset should not allow add"
         except AttributeError:
             pass
+
+
+class TestVisionImageMimeTypes:
+    def test_is_the_four_formats_a_vision_model_takes(self):
+        assert set(VISION_IMAGE_MIME_TYPES) == {"image/png", "image/jpeg", "image/gif", "image/webp"}
+
+    def test_is_part_of_the_known_image_types(self):
+        assert set(IMAGE_MIME_TYPES.values()) > VISION_IMAGE_MIME_TYPES
+
+    def test_bmp_is_detected_but_is_not_a_vision_format(self):
+        assert detect_image_mime(b"BM" + b"\x00" * 12, fallback="") == "image/bmp"
+        assert "image/bmp" not in VISION_IMAGE_MIME_TYPES
 
 
 class TestTypeIdentity:

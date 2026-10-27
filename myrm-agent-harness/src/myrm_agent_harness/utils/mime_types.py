@@ -1,7 +1,7 @@
 """Centralized image MIME type utilities.
 
 Provides extension ↔ MIME mappings and magic-bytes detection used by
-image generation, video generation, and channel media modules.
+image generation, video generation, channel media, and external-agent image delegation.
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ IMAGE_MIME_TYPES: dict[str, str] = {
 }
 
 IMAGE_EXTENSIONS: frozenset[str] = frozenset(IMAGE_MIME_TYPES)
+
+# The formats a vision model takes as input; BMP is in ``IMAGE_MIME_TYPES`` but no model behind a CLI accepts it.
+VISION_IMAGE_MIME_TYPES: frozenset[str] = frozenset({"image/png", "image/jpeg", "image/gif", "image/webp"})
 
 _MIME_TO_EXTENSION: dict[str, str] = {
     "image/png": "png",

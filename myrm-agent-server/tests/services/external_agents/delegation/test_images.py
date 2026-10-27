@@ -140,6 +140,28 @@ async def test_bytes_that_are_not_an_image_are_refused_whatever_the_name(directo
     assert not list(directory.iterdir())
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"BM" + b"\x00" * 32,
+        b"BM25 results are in",
+        b"RIFF\x00\x00\x00\x00WAVE" + b"\x00" * 32,
+        b"\xff\xd8\xff",
+        b"GIF90a" + b"\x00" * 32,
+    ],
+    ids=["bmp", "text-that-starts-with-bm", "wav", "three-byte-jpeg-signature", "unknown-gif-version"],
+)
+async def test_a_format_no_model_takes_is_refused_even_when_it_looks_like_a_file_type_we_know(
+    directory: Path, tmp_path: Path, data: bytes
+) -> None:
+    path = tmp_path / "picture.png"
+    path.write_bytes(data)
+
+    async with stage_images([_png_block(path.as_uri())], directory=directory) as staged:
+        assert staged.paths == []
+    assert not list(directory.iterdir())
+
+
 async def test_the_size_limit_is_inclusive(directory: Path, tmp_path: Path) -> None:
     at_limit = tmp_path / "at_limit.png"
     at_limit.write_bytes(PNG + b"\x00" * (MAX_IMAGE_BYTES - len(PNG)))
