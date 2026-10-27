@@ -59,7 +59,6 @@ class ContextGuardService:
         chat_id: str | None,
         raw_prompt: str,
         role: str = "user",
-        custom_prefix: str = "payload",
     ) -> SpilloverResult:
         """Evaluate raw prompt and transparently spill to the chat workspace if over threshold.
 
@@ -79,7 +78,6 @@ class ContextGuardService:
             raw_prompt,
             base_dir=base_dir,
             role=role,
-            custom_prefix=custom_prefix,
             session_id=chat_id,
         )
         if not result.spilled:

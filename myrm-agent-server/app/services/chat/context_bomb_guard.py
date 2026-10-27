@@ -121,7 +121,7 @@ def build_spillover_prompt_block(
         f"<instruction>\n"
         f"Notice: User provided a large document payload ({total_chars:,} characters{token_hint}) that exceeds direct context threshold.\n"
         f"It has been safely preserved at '{file_path}' (sha256: {sha256}).\n"
-        f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'read_file' tool to inspect this file.\n"
+        f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'file_read_tool' tool to inspect this file.\n"
         f"</instruction>\n"
         f"</file_spillover>"
     )

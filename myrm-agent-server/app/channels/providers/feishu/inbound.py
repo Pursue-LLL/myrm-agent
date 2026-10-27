@@ -7,9 +7,11 @@
 - channels.providers.feishu.models::FeishuWebhookPayload, FeishuCardEvent (POS: webhook payload models)
 - channels.providers.feishu.reactions::FEISHU_EMOJI_TO_UNICODE (POS: reaction emoji vocabulary)
 - channels.providers.feishu.user_resolver::FeishuUserResolver (POS: sender display-name resolution)
+- channels.providers.feishu.comment_document::read_comment_document (POS: body of the document a comment turn is about)
 
 [OUTPUT]
-- FeishuInboundMixin: handle_webhook_event and the reply-context / sender-name / inbound-media resolvers used by FeishuChannel
+- FeishuInboundMixin: handle_webhook_event, the reply-context / sender-name / inbound-media resolvers and the comment
+  turn's reference document (``read_context_document``) used by FeishuChannel
 
 [POS]
 Inbound half of FeishuChannel. The host owns the API client and the transport; the mixin only converts events into InboundMessage.
@@ -26,6 +28,8 @@ from pydantic import ValidationError
 
 from app.channels.core.base import BaseChannel
 from app.channels.types import (
+    ContextDocument,
+    InboundMessage,
     MediaAttachment,
     MediaType,
     ReplyContext,
@@ -167,6 +171,16 @@ class FeishuInboundMixin(BaseChannel):
             await handler.handle_comment_event(payload.event, self)
 
         return None
+
+    async def read_context_document(self, msg: InboundMessage) -> ContextDocument | None:
+        """The commented document's body for a document-comment turn; None for every other message."""
+        from .comment_document import read_comment_document
+        from .comment_handler import parse_comment_recipient
+
+        route = parse_comment_recipient(msg.chat_id or "")
+        if route is None:
+            return None
+        return await read_comment_document(self._client, route)
 
     async def _handle_reaction_event(self, event: dict[str, object]) -> None:
         """Convert a Feishu im.message.reaction_created_v1 event to InboundMessage."""

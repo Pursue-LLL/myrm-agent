@@ -15,6 +15,11 @@ from .components import (
     render_components_as_text,
     render_quick_replies_as_text,
 )
+from .context_document import (
+    METADATA_CONTEXT_DOCUMENT_KEY,
+    ContextDocument,
+    ContextDocumentStatus,
+)
 from .messages import (
     ContextEntry,
     CorrelationContext,
@@ -74,6 +79,7 @@ from .topics import (
 from .voice import STTResult, TTSMode, VoiceConfig
 
 __all__ = [
+    "METADATA_CONTEXT_DOCUMENT_KEY",
     "METADATA_EXPLICIT_MENTION_KEY",
     "METADATA_GUEST_TURN_KEY",
     "METADATA_NOTIFY_KEY",
@@ -86,6 +92,8 @@ __all__ = [
     "ChannelNotificationMode",
     "ChannelStatus",
     "ComponentRow",
+    "ContextDocument",
+    "ContextDocumentStatus",
     "ContextEntry",
     "CorrelationContext",
     "CronContext",

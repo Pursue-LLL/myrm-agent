@@ -76,13 +76,10 @@ async def test_topic_bind_command_is_acknowledged_in_the_journal(journal: Sqlite
 
 
 @pytest.mark.asyncio
-async def test_secret_in_a_paste_the_guard_would_spill_is_held_first(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A stub of 800 characters would hide the secret; the gate reads the paste before the context guard shortens it."""
-    from app.services.agent.context_guard_service import ContextGuardService
-
-    spill = AsyncMock()
-    monkeypatch.setattr(ContextGuardService, "guard_inbound_prompt", spill)
+async def test_secret_deep_in_a_long_paste_is_held_before_any_turn_starts() -> None:
+    """The gate reads the whole paste, however long: nothing of a held message reaches the turn."""
     router = make_router()
+    router._prepare_execution_context = AsyncMock()
     paste = "ordinary log line\n" * 1500 + f"key {SECRET}\n"
     assert len(paste) > 16_000
 
@@ -90,7 +87,28 @@ async def test_secret_in_a_paste_the_guard_would_spill_is_held_first(monkeypatch
         await router._handle_merged(InboundMessage(channel="slack", sender_id="u1", content=paste))
 
     router._bus.publish_outbound.assert_awaited_once()
-    spill.assert_not_awaited()
+    router._prepare_execution_context.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_long_clean_paste_reaches_the_turn_whole(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The router never shortens a paste: the turn persists it, parking it where the agent can read it back."""
+    from app.services.agent.context_guard_service import ContextGuardService
+
+    web_guard = AsyncMock()
+    monkeypatch.setattr(ContextGuardService, "guard_inbound_prompt", web_guard)
+    router = make_router()
+    router._prepare_execution_context = AsyncMock(return_value=None)
+    paste = "ordinary log line\n" * 1500
+    assert len(paste) > 16_000
+
+    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
+        await router._handle_merged(InboundMessage(channel="slack", sender_id="u1", content=paste))
+
+    web_guard.assert_not_awaited()
+    router._prepare_execution_context.assert_awaited_once()
+    assert router._prepare_execution_context.await_args.args[0].content == paste
+    router._bus.publish_outbound.assert_not_awaited()
 
 
 def _running_agent(router: AgentRouter, mode: str | None) -> SteeringToken:

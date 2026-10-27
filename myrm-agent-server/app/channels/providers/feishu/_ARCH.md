@@ -14,10 +14,11 @@
 | `cards.py` | 模块 | Feishu card builders, post format builders, streaming text utilities, and contact disambiguation / deliverable handoff cards. | ✅ |
 | `channel.py` | 模块 | Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging. Outbound `send()` uses `render()` multi-chunk delivery (Item 46). Default transport: **websocket** (outbound, no public IP). | ✅ |
 | `comment_content.py` | 模块 | Comment content extraction and prompt construction. Pure functions, zero I/O (except wiki link resolution which requires FeishuClient). | ✅ |
+| `comment_document.py` | 模块 | `read_comment_document()`: the commented docx's body as Markdown (`FeishuClient.get_document_content`, scope `docs:document.content:read`) as a `ContextDocument`; non-docx files are UNSUPPORTED without an API call; no-access / too-large / other failures map to a status, 15 s timeout, never raises (a comment reply must go out whether or not the body was read). | ✅ |
 | `comment_handler.py` | 模块 | Feishu drive document comment handler. Converts comment events to InboundMessage | ✅ |
 | `contact_fuzzy.py` | 模块 | High-precision phonetic & Levenshtein contact fuzzy matching and disambiguation engine. | ✅ |
 | `doctor.py` | 模块 | Feishu channel Doctor diagnostic suite (CardKit streaming permissions, tokens, transport reachability). | ✅ |
-| `inbound.py` | 模块 | Feishu inbound mixin. Webhook / websocket event handling for messages, card actions, reactions and comments; reply-context, sender-name and inbound-media resolution. | ✅ |
+| `inbound.py` | 模块 | Feishu inbound mixin. Webhook / websocket event handling for messages, card actions, reactions and comments; reply-context, sender-name and inbound-media resolution; `read_context_document()` hands a comment turn's document body to the router (None for chat messages). | ✅ |
 | `models.py` | 模块 | Pydantic models for Feishu/Lark event subscription webhook payloads. | ✅ |
 | `outbound.py` | 模块 | Feishu outbound mixin. Message send (text / post / card), media upload, CardKit streaming, placeholder edit and reactions. | ✅ |
 | `parser.py` | 模块 | Feishu inbound message parser. Converts Feishu event JSON to structured data. Supports post rich-text -> Markdown, @mention detection, and image/media key extra | ✅ |

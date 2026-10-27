@@ -38,10 +38,7 @@ def test_spillover_engine_over_threshold_creates_file(tmp_path: Path) -> None:
     assert isinstance(result.payload, SpilloverPayload)
     assert result.payload.char_count == len(long_content)
     assert result.payload.line_count == 3
-    assert (
-        result.payload.sha256_digest
-        == hashlib.sha256(long_content.encode("utf-8")).hexdigest()
-    )
+    assert result.payload.sha256_digest == hashlib.sha256(long_content.encode("utf-8")).hexdigest()
 
     # Check file existence and content
     target_path = Path(result.payload.file_path)
@@ -50,10 +47,9 @@ def test_spillover_engine_over_threshold_creates_file(tmp_path: Path) -> None:
 
     # Check sanitized prompt contains preview and path
     assert (
-        result.payload.file_path in result.sanitized_content
-        or result.payload.relative_path in result.sanitized_content
+        result.payload.file_path in result.sanitized_content or result.payload.relative_path in result.sanitized_content
     )
-    assert "read_file" in result.sanitized_content
+    assert "file_read_tool" in result.sanitized_content
     assert "Notice:" in result.sanitized_content
 
 

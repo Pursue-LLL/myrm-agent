@@ -354,7 +354,8 @@ async def _read_via_service(
         raw_out,
         max_chars=DEFAULT_FILE_IO_CONFIG.max_read_chars,
         is_dir=is_dir,
-        path_str=path_str,
+        # The continuation hint appends its own ``:<line>-``; the requested range must not ride along (``doc.md:254-:506-``).
+        path_str=path_str if is_dir else path_base(path_str),
         max_lines=max_lines,
     )
     if was_truncated:

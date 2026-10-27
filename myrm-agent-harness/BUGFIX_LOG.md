@@ -19,6 +19,23 @@
 | **仍然存在** | ① 没有用真实模型验证：不知道真实模型被拒后是改写回答还是原样重复，「省 4 次调用」是脚本化模型上的数，不是线上账单。② 线上触发频率没有埋点。③ 不能写文件的运行现在把代码块原样交给用户，不再强制暂存，所以这类运行没有「已自动暂存」的披露；这是取舍（策略禁止写，强行写就是绕过策略），没有另做提示。④ CRON 渠道预设里对写入的拒绝规则疑似不生效（`agent/security/channel_presets.py` 的 CRON 段），这次没有核实，也没有改。⑤ 门禁其余检查（外部证据、执行断言、PPT）没有变。⑥ 探针在本机开发库 `subagent_checkpoints.sqlite`（HOME 下 `.myrm/data`）里留下了会话号为 `chat_c` 的检查点记录（探针用了固定会话号），没有删除。 |
 | **代码位置** | `agent/security/engine.py`（`file_write_disabled`）· `agent/sub_agents/spawn_prep.py`（`coerce_spawn_readonly`）· `agent/middlewares/completion/completion_guard.py`（`can_save_files`）· `agent/_internals/_agent_build.py`（`can_save_files`）· `tests/agent/security/test_file_write_disabled.py` · `tests/agent/middlewares/completion/test_completion_guard_write_capability.py` |
 
+### BUG-HARNESS-2026-10-27-025 · 范围读取被截断时，续读提示把已读的范围拼进路径（`doc.md:254-:382-`），跟着提示读会去找一个叫 `doc.md:254-` 的文件；上下文落盘的提示还让模型去用一个不存在的 `read_file` 工具
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-27（给 IM 渠道的长文本落盘设计「Agent 怎么读回落盘文件」时，用真实的 `file_read` 处理器逐段往下翻） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：任何用范围读取（`path:N-`）读文件、读到单次 10,000 字符上限被截断的情形，提示里的续读路径都是错的。真实解析器 `parse_path_with_range` 把 `doc.md:254-:382-` 拆成文件 `doc.md:254-` 与范围 `382-`（本机探针输出：`('doc.md:254-', ViewRange(start=382, end=-1))`），文件不存在；而 `doc.md:382-` 才拆成 `('doc.md', ViewRange(start=382, end=-1))`。第一段（不带范围）的提示是对的，只测第一次读取看不出来。上下文落盘的提示（`<file_spillover>`）写的是 `read_file`，而文件读取工具的真实名字是 `file_read_tool`（`create_file_read_tool(...).name` 实测）。线上有多少次翻到第二段、模型有多少次照着错的路径或不存在的工具名调用，没有埋点，未测 |
+| **关联产品** | harness `agent/meta_tools/file_ops/core/file_read_handlers.py`（`_read_via_service`）、`agent/context_guard/spillover_engine.py`（落盘提示）；server 的 IM 与飞书评论长文本落盘依赖这条读回路径，见产品台账同日条目 |
+| **根因** | ① `_read_via_service` 把带范围的原路径（`doc.md:254-`）交给 `truncate_file_output`，后者生成续读提示时会再追加自己的 `:<下一行>-`，两段范围叠在一起。同一个仓库里 vault 对象的读取早已用 `path_base` 先去掉范围（BUG-HARNESS-2026-10-27-016），普通文件的读取没有照做。② 落盘提示里的工具名是手写字符串，没有跟着工具的真实名字走。 |
+| **修复** | `_read_via_service` 对文件传 `path_base(path_str)`（目录保持原样，目录没有范围）；`spillover_engine.py` 的提示改为 `file_read_tool`。 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 测试里不能直接喂「已经截断过的文本」：要让读取真的撞上 10,000 字符上限，行内容得足够长，否则提示根本不出现，断言会空过。所以测试里每行 60 个字符并断言 `shown[-1] < 最后一行`，保证这次读取确实被截断。 |
+| **回归** | 新增 `tests/agent/meta_tools/file_ops/test_file_read_range_hint.py` 3 例（带起始行的范围读取：提示是 `doc.md:<下一行>-` 且文本里没有 `doc.md:254-:`；整文件读取；带结束行的范围读取，两个边界都不重复）。变异检验：把 `path_base(path_str)` 改回 `path_str`，范围读取的 2 例红（断言信息 `'doc.md:254-:382-' == 'doc.md:382-'`），整文件读取那例保持绿（它本来就对）；恢复后 file_ops 套件 808 例通过。 |
+| **仍然存在** | ① 带结束行的范围读取（`:100-2300`）被截断时，提示仍是不带结束行的 `:N-`，会读到文件末尾而不是原来请求的结束行（与 BUG-HARNESS-2026-10-27-016 的「仍然存在」①同一行为，沿用）。② 提示文字没有埋点，无法统计线上模型是否照着提示读下去。③ 落盘提示里的工具名仍是手写字符串，没有从工具工厂取名；两处只靠测试与这条记录对齐。 |
+| **代码位置** | `agent/meta_tools/file_ops/core/file_read_handlers.py`（`_read_via_service`）· `agent/context_guard/spillover_engine.py`（落盘提示）· `tests/agent/meta_tools/file_ops/test_file_read_range_hint.py` |
+
 ### BUG-HARNESS-2026-10-27-026 · Deep Research 的并行 research agent 与分派它们的 run 共用同一批就地重置的守卫：三个 agent 抓同一个 URL，各抓几次就被当成同一个循环误断，任何一个 agent 启动还会清空其余 agent 与分派方的调用窗口
 
 | 字段 | 内容 |

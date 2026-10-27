@@ -96,6 +96,7 @@ class _TurnHost(RouterExecutionMixin):
 
     def __init__(self) -> None:
         self._active_tasks: dict[str, _ActiveTask] = {}
+        self._bus = MagicMock(get_channel=MagicMock(return_value=None))
         self.stream_kwargs: dict[str, object] = {}
         self.deliver_kwargs: dict[str, object] = {}
 

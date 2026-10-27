@@ -17,5 +17,6 @@
 | `components.py` | 核心 | 跨渠道交互组件（按钮、快捷回复等）类型 | ✅ |
 | `session.py` | 核心 | 会话标识与隔离策略 | ✅ |
 | `notification.py` | 核心 | 通知模式枚举与显式 @ 元数据 | ✅ |
+| `context_document.py` | 核心 | 渠道随一次 turn 附带的参考文档：`ContextDocument`（正文 Markdown + `ContextDocumentStatus`：READY/DENIED/TOO_LARGE/UNSUPPORTED/UNAVAILABLE；`clamped` 截断、`as_metadata`/`from_metadata` 经 `InboundMessage.metadata[METADATA_CONTEXT_DOCUMENT_KEY]` 往返）。生产方是能读取消息所指文档的 provider，消费方是智能体执行器 | ✅ |
 | `status.py` | 核心 | 渠道状态与诊断类型：`ChannelStatus`、`StartMode`、`ChannelHealth`（熔断）、`ChannelActivity`（最近出入站时间，供 status API 消费）、`ChannelIssue`、`ChannelCapabilities` | ✅ |
 | `thread_sharing.py` | 核心 | 话题级 thread 共享/隔离模式 | ✅ |

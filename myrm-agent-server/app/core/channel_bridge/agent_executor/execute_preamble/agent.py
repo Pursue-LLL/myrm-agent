@@ -6,9 +6,10 @@ app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 app.channels.routing.identity_scope::TurnMemoryScope (POS: 渠道 turn 记忆 compartment 解析)
 app.core.security.privacy_settings::privacy_agent_params (POS: 持久化隐私开关 → agent 隐私参数)
+context_document::attach_context_document (POS: 渠道随 turn 附带的参考文档并入本轮 query)
 
 [OUTPUT]
-build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键。
+build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键；非 resume turn 的 query_input 在用户文本后附带渠道的参考文档（`params.query` 不含）。
 
 [POS]
 preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
@@ -37,6 +38,7 @@ from app.core.types.business import ModelConfig
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
+from .context_document import attach_context_document
 from .types import (
     ChannelAgentBuildOutcome,
     ChannelAgentBuildResult,
@@ -294,7 +296,8 @@ async def build_channel_execution_agent(
     if is_resume:
         query_input = Command(resume=msg.resume_value)
     else:
-        query_input = query
+        # Only the live turn shows the reference document; ``params.query`` and the persisted history stay the user's text.
+        query_input = await attach_context_document(query, msg, chat_id=chat_id)
 
     from myrm_agent_harness.core.security.types import user_credentials_ctx
 

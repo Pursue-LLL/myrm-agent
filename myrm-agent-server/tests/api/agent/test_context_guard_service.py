@@ -37,8 +37,8 @@ async def test_context_guard_service_oversized_message() -> None:
             assert Path(res.payload.file_path).exists()
             assert Path(res.payload.file_path).read_text(encoding="utf-8") == oversized_text
             assert "<file_spillover" in res.sanitized_content
-            assert "chars=\"20000\"" in res.sanitized_content
-            assert "read_file" in res.sanitized_content
+            assert 'chars="20000"' in res.sanitized_content
+            assert "file_read_tool" in res.sanitized_content
 
 
 def test_context_guard_sweep_all_workspaces() -> None:

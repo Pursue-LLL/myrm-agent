@@ -9,7 +9,7 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.routing.identity_scope import TurnMemoryScope
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.types import METADATA_CONTEXT_DOCUMENT_KEY, ContextDocument, InboundMessage, OutboundMessage
 from app.core.channel_bridge.agent_executor.execute_preamble.agent import (
     build_channel_execution_agent,
 )
@@ -227,6 +227,50 @@ async def test_build_agent_accepts_multimodal_query(text: str, expect_force_skil
     assert outcome.result is not None
     assert outcome.result.query_input == query
     assert mock_create_agent.call_args.args[0].force_skill_manage is expect_force_skill_manage
+
+
+@pytest.mark.asyncio
+async def test_build_agent_shows_the_reference_document_on_the_live_turn_only() -> None:
+    msg = _inbound_message()
+    msg.metadata[METADATA_CONTEXT_DOCUMENT_KEY] = ContextDocument.ready("# Plan\nship it").as_metadata()
+    captured: dict[str, GeneralAgentParams] = {}
+
+    def _capture_create_agent(params: GeneralAgentParams) -> MagicMock:
+        captured["params"] = params
+        return MagicMock()
+
+    with (
+        patch(
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
+            side_effect=_capture_create_agent,
+        ),
+        patch(
+            "app.services.agent.session_credential_assembler.assemble_session_credentials",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        outcome = await build_channel_execution_agent(
+            **_agent_build_kwargs(
+                msg,
+                is_resume=False,
+                configs=_minimal_user_configs(),
+                enabled_builtin_tools=["code_execution"],
+            ),
+        )
+
+    assert outcome.result is not None
+    live_turn = outcome.result.query_input
+    assert isinstance(live_turn, str)
+    assert live_turn.startswith("test query\n\n")
+    assert "# Plan\nship it" in live_turn
+    # Retrieval, skill routing and the persisted history read ``params.query``: they see the user's text alone.
+    assert captured["params"].query == "test query"
 
 
 @pytest.mark.asyncio

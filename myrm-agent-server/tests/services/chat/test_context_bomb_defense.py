@@ -41,7 +41,7 @@ def test_process_incoming_content_over_threshold(tmp_path: Path) -> None:
     # Check structural prompt injection
     assert "<file_spillover path=" in res.processed_content
     assert res.content_sha256 in res.processed_content
-    assert "read_file" in res.processed_content
+    assert "file_read_tool" in res.processed_content
 
 
 def test_cleanup_transient_spillover_cache(tmp_path: Path) -> None:

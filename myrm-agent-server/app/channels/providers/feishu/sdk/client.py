@@ -6,13 +6,13 @@ via a shared httpx.AsyncClient.
 
 API methods are split across Mixins by domain:
 - ``_messaging.py``: IM messages, reactions, media upload/download, calendar
-- ``_documents.py``: Drive meta, comments, wiki, CardKit streaming, Bitable, Docx
+- ``documents/``: Drive meta and media, comments, wiki, CardKit streaming, Docx content
 - ``_contact.py``: user info lookup by open_id
 
 [INPUT]
 - .exceptions::FeishuAuthError (POS: Feishu-specific API error hierarchy.)
 - ._messaging::FeishuMessagingMixin (POS: IM messaging, media, and group operations.)
-- ._documents::FeishuDocumentsMixin (POS: Drive, comment, wiki, CardKit, Bitable, Docx operations.)
+- .documents::FeishuDocumentsMixin (POS: Drive, comment, wiki, CardKit, Docx operations.)
 - ._contact::FeishuContactMixin (POS: Contact-domain API methods: user info lookup by open_id.)
 - myrm_agent_harness.utils.coercion::parse_float (POS: Safe numeric parsing with bounds clamping.)
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-safe HTTP with manual redirect loop and size cap)
@@ -35,8 +35,8 @@ import httpx
 from myrm_agent_harness.utils.coercion import parse_float
 
 from app.channels.providers.feishu.sdk._contact import FeishuContactMixin
-from app.channels.providers.feishu.sdk._documents import FeishuDocumentsMixin
 from app.channels.providers.feishu.sdk._messaging import FeishuMessagingMixin
+from app.channels.providers.feishu.sdk.documents import FeishuDocumentsMixin
 from app.channels.providers.feishu.sdk.exceptions import FeishuAuthError
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin, FeishuContactMixi
 
     API methods are organized by domain via Mixins:
     - Messaging / Media: see ``_messaging.py``
-    - Documents / Comments / Wiki / CardKit / Bitable: see ``_documents.py``
+    - Documents / Comments / Wiki / CardKit / Docx: see ``documents/``
     """
 
     _MEDIA_TIMEOUT: float = _MEDIA_TIMEOUT

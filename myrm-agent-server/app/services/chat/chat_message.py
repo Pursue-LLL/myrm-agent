@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 from app.database.dto import ChatDTO, MessageDTO
@@ -99,7 +100,14 @@ class _ChatMessageMixin(_ChatServiceBase):
         message_id: str | None = None,
         extra_data: dict[str, object] | None = None,
         sibling_group_id: str | None = None,
+        *,
+        spill_workspace: Path | None = None,
     ) -> MessageDTO:
+        """Persist one message; an oversized user message is stored as a pointer to a spilled file.
+
+        ``spill_workspace`` is the workspace the chat's agent runs in. Without it the file goes to a
+        per-user directory outside every agent workspace, where the agent's file tools cannot read it back.
+        """
         if role not in ALLOWED_MESSAGE_ROLES:
             raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
 
@@ -111,6 +119,7 @@ class _ChatMessageMixin(_ChatServiceBase):
             spill_res = ContextBombDefenseService.process_incoming_content(
                 content,
                 chat_id=chat_id,
+                workspace_root=spill_workspace,
             )
             if spill_res.is_spilled:
                 final_content = spill_res.processed_content

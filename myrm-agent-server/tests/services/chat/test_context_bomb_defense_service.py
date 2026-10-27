@@ -34,7 +34,7 @@ def test_context_bomb_defense_over_limit_spills_file(tmp_path: Path) -> None:
     assert result.spillover_path is not None
     assert Path(result.spillover_path).exists()
     assert "<file_spillover" in result.processed_content
-    assert "read_file" in result.processed_content
+    assert "file_read_tool" in result.processed_content
 
     # Check content in spilled file
     saved_text = Path(result.spillover_path).read_text(encoding="utf-8")

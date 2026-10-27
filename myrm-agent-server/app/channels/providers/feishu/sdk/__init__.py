@@ -5,11 +5,13 @@ and media operations via Feishu's OpenAPI.
 
 [INPUT]
 - .client::FeishuClient (POS: Standalone Feishu OpenAPI client.)
+- .documents::DocumentContent (POS: result type of whole-document Markdown reads)
 - .exceptions::FeishuAPIError, FeishuAuthError, FeishuRateLimitError, FeishuSendError
   (POS: Feishu-specific API error hierarchy.)
 
 [OUTPUT]
 - FeishuClient: async API client for Feishu OpenAPI
+- DocumentContent: a document body as Markdown, or the reason it could not be read
 - FeishuAPIError, FeishuAuthError, FeishuRateLimitError, FeishuSendError: exception hierarchy
 
 [POS]
@@ -17,6 +19,7 @@ Package init for feishu SDK. Re-exports the public API surface.
 """
 
 from app.channels.providers.feishu.sdk.client import FeishuClient
+from app.channels.providers.feishu.sdk.documents import DocumentContent
 from app.channels.providers.feishu.sdk.exceptions import (
     FeishuAPIError,
     FeishuAuthError,
@@ -25,6 +28,7 @@ from app.channels.providers.feishu.sdk.exceptions import (
 )
 
 __all__ = [
+    "DocumentContent",
     "FeishuClient",
     "FeishuAPIError",
     "FeishuAuthError",

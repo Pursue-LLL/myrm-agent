@@ -131,7 +131,7 @@ class SpilloverEngine:
             f"Notice: The {role} provided a large document payload ({char_count:,} characters, ~{token_pressure:,} tokens) "
             f"that exceeds the direct context threshold.\n"
             f"It has been safely preserved at '{relative_path}'.\n"
-            f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'read_file' tool to inspect this file.\n"
+            f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'file_read_tool' tool to inspect this file.\n"
             f"</instruction>\n"
             f"</file_spillover>"
         )

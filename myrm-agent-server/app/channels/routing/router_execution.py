@@ -16,6 +16,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.i18n import channel_t, get_text, resolve_message_locale
+from app.channels.routing.context_document import enrich_context_document
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
 )
@@ -426,8 +427,10 @@ class RouterExecutionMixin:
         )
 
         try:
+            # Read now, not on arrival: the journal and the data-plane ledger snapshot the message before this point.
+            stream_msg = ctx.exec_msg if is_resume else await enrich_context_document(ctx.exec_msg, self._bus.get_channel)
             result, last_progress_at = await self._consume_executor_stream(
-                ctx.exec_msg,
+                stream_msg,
                 ctx.user_id,
                 ctx.state_key,
                 ctx.chat_id,

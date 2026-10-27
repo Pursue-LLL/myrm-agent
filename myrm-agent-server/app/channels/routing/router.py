@@ -1245,32 +1245,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             )
             exec_for_error = msg
 
-        if not is_resume and msg.content:
-            # The gate reads the text before the spill below shortens a long paste to a stub that hides its contents.
-            if await hold_risky_inbound(self._bus, msg, msg.content):
-                self._acknowledge_inbound(journal_entry_id)
-                return
-
-            # Inbound ContextGuard protection for IM channels
-            try:
-                from app.services.agent.context_guard_service import ContextGuardService
-
-                guard_res = await ContextGuardService.guard_inbound_prompt(
-                    chat_id=msg.chat_id or msg.sender_id,
-                    raw_prompt=msg.content,
-                    role="user",
-                    custom_prefix=f"im_{msg.channel}",
-                )
-                if guard_res.spilled:
-                    logger.info(
-                        "Inbound message on channel '%s' mitigated by ContextGuard (%d chars -> spilled file)",
-                        msg.channel,
-                        guard_res.original_char_count,
-                    )
-                    msg = dataclasses.replace(msg, content=guard_res.sanitized_content)
-                    exec_for_error = msg
-            except Exception as cg_err:
-                logger.warning("Channel ContextGuard check non-fatal error: %s", cg_err)
+        if not is_resume and msg.content and await hold_risky_inbound(self._bus, msg, msg.content):
+            self._acknowledge_inbound(journal_entry_id)
+            return
 
         agent_route_resolved = self._registry.resolve(msg.content)
         if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:

@@ -29,7 +29,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_disposal.py` | ✅ 核心 | 会话结束后的拆除步骤单一定义：`clear_conversation_state`（LangGraph checkpoint 线程 + 会话级时效授权 + 拒绝熔断计数；checkpoint 清不干净只返回 False，授权照清）、`reset_external_agent_sessions`（焦点刷新专用：只停该 chat 的外部 Agent 池，让内存里的 CLI 会话 id 失效，不动执行缓存与沙箱；落库的会话 id 由刷新事务置空）、`clear_runtime_caches`（外部 Agent 运行时池、执行缓存、ephemeral delta）、`remove_chat_event_log`（事件日志文件，含每轮完整提示词与工具结果；放在运行时停止之后）、`clear_extract_retry_queue`、`forget_chat_memories`（记忆级联删除 + 重试队列）、`remove_chat_files`（沙箱 worktree 逐个以 safe 模式移除：有未保存改动的 worktree 与含未合并提交的分支保留，返回 `ChatFilesRemoval(removed_worktrees, kept_worktrees)`；工作空间与 ArtifactVault 一次批量）、`dispose_permanently_deleted_chats`（先停生产者再抹状态）。永久删除、清空回收站与两个自动清除经 `dispose_permanently_deleted_chats` 走全部步骤，焦点刷新、软删除与安全清空只组合适用的步骤，每一步 fail-open | ✅ |
 | `chat_bound_rows.py` | ✅ 核心 | 只存聊天 id、没有外键指向 `chats` 的表的单一清单 `CHAT_BOUND_TABLES`（widget_kv / approvals / commitments / fission_task_records）与 `delete_trashed_chat_bound_rows`（每条 DELETE 自带回收站判断，过期的 id 列表不会误删已恢复会话的数据，500 个 id 一批）；永久删除、清空回收站、安全清空与网页无痕会话的归档 scrub（`instance_archive/table_policy.py`）共用这一份，遗留行会把已删对话的内容经主动承诺带进其它会话；守卫测试 `tests/services/chat/test_chat_bound_rows.py` 对完整 schema 校验：含聊天列的表要么在清单里，要么在带理由的例外表里 | ✅ |
 | `chat_retention.py` | ✅ 核心 | 时间型永久删除策略：回收站超过 30 天（`purge_expired_trash`）与无痕会话空闲超过 1 小时（`purge_idle_incognito_chats`：只取 `source == "web"` 的会话——外部转录借用无痕标记只为不进侧边栏，且其同步水位不会重新导入被清掉的内容；有回合在跑的会话顺延到下一轮）；同一轮里 `purge_incognito_uploads` 删除无痕会话绑定的上传（被清除会话的立即删，会话行始终不存在且创建超过 `INCOGNITO_UPLOAD_ORPHAN_GRACE`=24 小时的清扫，只看 UPLOAD；存储失败只记 warning，不影响会话清除，剩余由下一轮再选中；规则见 `core/storage/_ARCH.md`）；只决定哪些会话到期，会话删除委托 `ChatService`，与手动永久删除走同一套拆除 | ✅ |
-| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影）；`ensure_chat_and_append_user_message(mark_read=True)` 仅由人工发送路径传入，同事务把 `last_read_at` 盖为用户在场时刻（`datetime.utcnow()`，与 `Message.created_at` 同时钟域；幂等重试早退不盖章），系统注入（wakeup）保持默认 `False` | ✅ |
+| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加（超大 user 消息外溢为文件引用；`append_message(spill_workspace=)` 由调用方指定文件落点，缺省落在用户主目录下、智能体的文件工具读不到，IM 入站持久化传入该 chat 的智能体工作区）、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影）；`ensure_chat_and_append_user_message(mark_read=True)` 仅由人工发送路径传入，同事务把 `last_read_at` 盖为用户在场时刻（`datetime.utcnow()`，与 `Message.created_at` 同时钟域；幂等重试早退不盖章），系统注入（wakeup）保持默认 `False` | ✅ |
 | `catchup_brief.py` | ✅ 核心 | Catchup 收件箱的纯函数投影：`extract_catchup_brief` 把未读消息与 progress steps 压成有界 `CatchupBrief`（提示/回复预览、改动文件、工具计数、`needs_from_user` 编码 approval/error/question；wakeup 系统行不算用户提示）；状态与需求为封闭词表，由前端本地化 | ✅ |
 | `chat_usage_sync.py` | ✅ 核心 | `sync_chat_usage` + `ChatUsageCache` 实例：assistant 消息落库及轮次突变（retry/undo/truncate/rewind/regenerate/switch_sibling）后聚合该 chat 全部 active 消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`；进程内 TTL 缓存按「最后聚合消息 id」校验防重复全量聚合且不漏最新消息；源为 DB 消息级数据，不依赖 event-log 文件 | ✅ |
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
@@ -105,7 +105,7 @@ ChatService
 | 方法 | 职责 |
 |------|------|
 | `get_or_create_channel_chat()` | 幂等获取/创建频道会话（唯一约束 + IntegrityError 重试） |
-| `append_message()` | 增量追加单条消息，自动更新 Chat 元数据 |
+| `append_message()` | 增量追加单条消息，自动更新 Chat 元数据；超大 user 文本外溢到 `spill_workspace`（可选）下的 `.myrm/spillover/` |
 | `load_channel_history()` | 加载历史消息为 ChannelHistoryEntry 格式 |
 
 ---

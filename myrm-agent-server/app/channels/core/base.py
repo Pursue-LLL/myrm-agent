@@ -52,6 +52,7 @@ from app.channels.types import (
     ChannelHealth,
     ChannelIssue,
     ChannelStatus,
+    ContextDocument,
     GroupInfo,
     InboundMessage,
     IssueKind,
@@ -748,3 +749,12 @@ class BaseChannel(ABC, EventEmitter):
             A list of InboundMessage objects sorted in ascending chronological order.
         """
         return []
+
+    async def read_context_document(self, msg: InboundMessage) -> ContextDocument | None:
+        """The document ``msg`` is about, for turns that comment on a document; None for every other message.
+
+        Providers whose platform can read such a document (Feishu document comments) override this. The router calls
+        it just before the agent runs, so the body is never journaled or ledgered together with the inbound message.
+        An override reports a read it could not complete through ``ContextDocument.status`` instead of raising.
+        """
+        return None

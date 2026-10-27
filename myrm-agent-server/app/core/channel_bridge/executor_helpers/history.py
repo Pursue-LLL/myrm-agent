@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: Chat history persistence)
 - app.services.chat.stale_compact_gate::run_pre_reply_stale_compact_gate (POS: pre-reply idle stale compaction gate)
+- executor_helpers.agent_workspace::agent_workspace (POS: the workspace the channel agent runs in)
 
 [OUTPUT]
 - build_chat_history_with_metadata, persist_and_load_history, load_history_without_persist
@@ -20,6 +21,7 @@ from datetime import timezone as tz_module
 from typing import TYPE_CHECKING
 
 from app.channels.types import TopicContext
+from app.core.channel_bridge.executor_helpers.agent_workspace import agent_workspace
 
 if TYPE_CHECKING:
     from app.database.dto import ChatDTO
@@ -87,7 +89,14 @@ async def persist_and_load_history(
                 chat.id,
                 exc,
             )
-        await ChatService.append_message(chat.id, "user", content, sent_at, sent_timezone)
+        await ChatService.append_message(
+            chat.id,
+            "user",
+            content,
+            sent_at,
+            sent_timezone,
+            spill_workspace=agent_workspace(chat.id),
+        )
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
         logger.warning(
