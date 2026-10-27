@@ -5,7 +5,6 @@
  *
  * [OUTPUT]
  * - getDisplayUrl: Web/Tauri 文件展示 URL 解析。
- * - fetchFileAsBase64DataURL: 文件 URL → base64 data URL。
  * - partitionFilesByType / isXxxFile / getFileExtension / getMimeType: 扩展名分类与 MIME 推断。
  * - computeFileHash: Blob/File SHA-256 哈希。
  * - sanitizeFilename: 文件名非法字符清理（空名回退 Untitled）。
@@ -90,22 +89,6 @@ export const getDisplayUrl = (file: File): string => {
     }
   }
   return '';
-};
-
-/**
- * Fetch a file URL and return its base64 data URL via FileReader (native, efficient).
- * Works for both server-hosted URLs and blob: / asset: URLs.
- */
-export const fetchFileAsBase64DataURL = async (url: string, mimeType: string): Promise<string> => {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  const typedBlob = blob.type ? blob : new Blob([blob], { type: mimeType });
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error(`FileReader failed for ${url}`));
-    reader.readAsDataURL(typedBlob);
-  });
 };
 
 /**

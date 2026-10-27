@@ -10,7 +10,6 @@ import {
   getMimeType,
   getFileExtension,
   partitionFilesByType,
-  fetchFileAsBase64DataURL,
   computeFileHash,
   triggerDownload,
   buildZipFromFiles,
@@ -366,23 +365,6 @@ describe('fileUtils', () => {
       expect(result.pdfFiles).toHaveLength(0);
       expect(result.documentFiles).toHaveLength(0);
       expect(result.otherFiles).toHaveLength(0);
-    });
-  });
-
-  describe('fetchFileAsBase64DataURL', () => {
-    it('should convert file to base64 data URL', async () => {
-      const mockBlob = new Blob(['test content'], { type: 'text/plain' });
-      const mockResponse = {
-        ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      };
-
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockResponse as Response);
-
-      const result = await fetchFileAsBase64DataURL('http://example.com/file.txt', 'text/plain');
-
-      expect(result).toMatch(/^data:text\/plain;base64,/);
-      expect(fetch).toHaveBeenCalledWith('http://example.com/file.txt');
     });
   });
 

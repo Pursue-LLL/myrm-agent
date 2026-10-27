@@ -501,41 +501,6 @@ export interface ConfigValueMap {
   orgMcpServers: OrgMcpServersConfigValue;
 }
 
-/**
- * 敏感配置键
- *
- * 这些键包含 API Key、密钥或其他敏感数据。
- */
-export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
-  'providers',
-  'retrieval',
-  'mcpServers',
-  'externalAgents',
-  'searchServices',
-  'feishuCredentials',
-  'dingtalkCredentials',
-  'slackCredentials',
-  'discordCredentials',
-  'wecomCredentials',
-  'wechatCredentials',
-  'teamsCredentials',
-  'matrixCredentials',
-  'telegramCredentials',
-  'googlechatCredentials',
-  'backupSync',
-  'browserCloudProvider',
-  'browserProxy',
-  'captchaSolverConfig',
-  'webFetchEscalation',
-];
-
-/**
- * 判断配置是否敏感
- */
-export function isSensitiveConfig(key: string): boolean {
-  return SENSITIVE_CONFIG_KEYS.includes(key as ConfigKey);
-}
-
 // ============================================================================
 // 配置元数据
 // ============================================================================

@@ -1,7 +1,7 @@
 /**
  * 配置同步类型测试
  *
- * 测试版本号工具函数和敏感配置判断
+ * 测试版本号工具函数
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,8 +10,6 @@ import {
   incrementVersion,
   compareVersions,
   parseVersion,
-  isSensitiveConfig,
-  SENSITIVE_CONFIG_KEYS,
 } from '@/services/config/types';
 
 describe('Config Sync Types', () => {
@@ -93,52 +91,6 @@ describe('Config Sync Types', () => {
 
         expect(timestamp).toBe(1706000000000);
         expect(counter).toBe(5);
-      });
-    });
-  });
-
-  describe('Sensitive Config', () => {
-    describe('SENSITIVE_CONFIG_KEYS', () => {
-      it('应该包含 providers', () => {
-        expect(SENSITIVE_CONFIG_KEYS).toContain('providers');
-      });
-
-      it('应该包含 retrieval', () => {
-        expect(SENSITIVE_CONFIG_KEYS).toContain('retrieval');
-      });
-
-      it('应该包含 externalAgents（环境变量里存放外部 Agent 的密钥）', () => {
-        expect(SENSITIVE_CONFIG_KEYS).toContain('externalAgents');
-      });
-
-      it('不应该包含 personalSettings', () => {
-        expect(SENSITIVE_CONFIG_KEYS).not.toContain('personalSettings');
-      });
-    });
-
-    describe('isSensitiveConfig', () => {
-      it('应该对 providers 返回 true', () => {
-        expect(isSensitiveConfig('providers')).toBe(true);
-      });
-
-      it('应该对 retrieval 返回 true', () => {
-        expect(isSensitiveConfig('retrieval')).toBe(true);
-      });
-
-      it('应该对 personalSettings 返回 false', () => {
-        expect(isSensitiveConfig('personalSettings')).toBe(false);
-      });
-
-      it('应该对 commands 返回 false', () => {
-        expect(isSensitiveConfig('commands')).toBe(false);
-      });
-
-      it('应该对 mcpServers 返回 true', () => {
-        expect(isSensitiveConfig('mcpServers')).toBe(true);
-      });
-
-      it('应该对 searchServices 返回 true', () => {
-        expect(isSensitiveConfig('searchServices')).toBe(true);
       });
     });
   });
