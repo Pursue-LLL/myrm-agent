@@ -131,7 +131,7 @@ async def test_an_oversized_paste_is_parked_where_the_harness_runs_the_agent(db_
     workspace = await workspaces.get_or_create(session_id=f"chat_{chat_id}")
     agent_workspace = Path(workspaces.get_workspace_absolute_path(workspace)).resolve()
 
-    (parked,) = list((agent_workspace / ".myrm" / "spillover").glob("payload_*.md"))
+    (parked,) = list((agent_workspace / ".myrm" / "pastes").glob("payload_*.md"))
     assert parked.read_text(encoding="utf-8") == _OVERSIZED_PASTE
 
 

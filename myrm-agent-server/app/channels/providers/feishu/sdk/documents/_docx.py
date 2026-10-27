@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - DocumentContent: a document body as Markdown, or the reason it could not be read.
-- FeishuDocxMixin: Docx block listing (wiki source sync), block append, and whole-document Markdown (comment context).
+- FeishuDocxMixin: Docx block listing (wiki source sync), block append, whole-document Markdown and plain text (comment context).
 
 [POS]
 Docx API methods of FeishuClient.
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class DocumentContent:
-    """A document body as Markdown, or the reason it could not be read.
+    """A document body (Markdown, or plain text for ``get_document_plain_text``), or the reason it could not be read.
 
     ``code`` is 0 on success. Otherwise it is Feishu's error code from the response body, the HTTP status when
     the body carries none, and -1 when the reply was not a Feishu envelope at all.
@@ -73,9 +73,8 @@ class FeishuDocxMixin(FeishuHost):
     async def get_document_content(self, doc_token: str, doc_type: str = "docx") -> DocumentContent:
         """Fetch a whole document as Markdown in one call (``docs/v1/content``, scope ``docs:document.content:read``).
 
-        Unlike ``get_docx_blocks`` the platform renders the tree, so tables and nested lists arrive intact.
-        Feishu reports a failure with an HTTP error status and its own code in the body, so the body is read
-        whatever the status.
+        Unlike ``get_docx_blocks`` the platform renders the block tree itself. Feishu reports a failure with an
+        HTTP error status and its own code in the body, so the body is read whatever the status.
         """
         token = await self.ensure_token()
         http = self._get_http()
@@ -83,6 +82,22 @@ class FeishuDocxMixin(FeishuHost):
             f"{self.api_base}/docs/v1/content",
             headers=self._auth(token),
             params={"doc_token": doc_token, "doc_type": doc_type, "content_type": "markdown"},
+            timeout=self._MEDIA_TIMEOUT,
+        )
+        return _parse_content_response(resp)
+
+    async def get_document_plain_text(self, document_id: str) -> DocumentContent:
+        """Fetch a whole document as plain text (``docx/v1/documents/{id}/raw_content``).
+
+        Needs ``docx:document:readonly`` instead of ``docs:document.content:read``. Feishu's comment-bot setup
+        guide asks for the former only, so this is the body for an app set up by that guide. Plain text carries
+        no Markdown structure.
+        """
+        token = await self.ensure_token()
+        http = self._get_http()
+        resp = await http.get(
+            f"{self.api_base}/docx/v1/documents/{document_id}/raw_content",
+            headers=self._auth(token),
             timeout=self._MEDIA_TIMEOUT,
         )
         return _parse_content_response(resp)

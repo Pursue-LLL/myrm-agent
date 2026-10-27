@@ -195,3 +195,35 @@ def test_build_outline_from_messages_multi_turn() -> None:
     assert "memoization" in (outlines[1].reply_preview or "")
     assert outlines[1].message_count == 2
 
+
+def test_build_outline_lists_a_parked_paste_by_its_opening_lines() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stub = '<file_spillover path="/work/.myrm/pastes/payload_1.md" total_chars="48000">\n<preview>\nQ3 review\n</preview>\n</file_spillover>'
+    messages = [
+        MessageDTO(
+            id="msg-1",
+            chat_id="chat-123",
+            role="user",
+            content=stub,
+            extra_data={
+                "spillover": {"spillover_path": "/work/.myrm/pastes/payload_1.md", "preview": "Q3 review of the roadmap"}
+            },
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
+        ),
+        MessageDTO(
+            id="msg-2",
+            chat_id="chat-123",
+            role="user",
+            content="plain question",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
+        ),
+    ]
+
+    first, second = TurnOutlineProjectionService.build_outline_from_messages(messages)
+
+    assert first.prompt_preview == "Q3 review of the roadmap"
+    assert second.prompt_preview == "plain question"

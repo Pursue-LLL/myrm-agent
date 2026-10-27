@@ -9,6 +9,8 @@ filter_messages: Filter chat messages before model context construction.
 _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
 RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
 WAKEUP_MESSAGE_ID_PREFIX: Id prefix of the system-injected user rows that carry async task results back to a chat.
+SPILLOVER_EXTRA_KEY: Extra-data key of a user row whose pasted text was parked in a file.
+shown_user_text: The text a user row is listed by (turn outline, chat lists).
 
 [POS]
 聊天服务辅助层。集中放置消息过滤、snippet 清理和轻量结果类型，避免 ChatService 门面承载通用细节。
@@ -36,6 +38,20 @@ ChatHistoryPairs = list[list[str]]
 
 # System wakeups are stored as user rows; this prefix tells them apart from what a person typed.
 WAKEUP_MESSAGE_ID_PREFIX = "wakeup_"
+
+# A user row whose pasted text was parked in a file keeps its path, size, hash and opening lines under this key.
+SPILLOVER_EXTRA_KEY = "spillover"
+
+
+def shown_user_text(message: MessageDTO) -> str:
+    """The text a user row is listed by: the opening lines of a parked paste, else the row's content."""
+    spillover = (message.extra_data or {}).get(SPILLOVER_EXTRA_KEY)
+    if isinstance(spillover, dict):
+        preview = spillover.get("preview")
+        if isinstance(preview, str) and preview:
+            return preview
+    return message.content
+
 
 # Initialize message filter pipeline with harness framework capability
 _filter_config = FilterConfig(

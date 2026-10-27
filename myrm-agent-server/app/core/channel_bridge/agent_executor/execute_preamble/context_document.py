@@ -34,17 +34,22 @@ logger = logging.getLogger(__name__)
 
 _READ_FAILED = "reading it failed"
 _WHY_NOT_ATTACHED: dict[ContextDocumentStatus, str] = {
-    ContextDocumentStatus.DENIED: "no access to it",
+    ContextDocumentStatus.DENIED: "the app has not been added to this document",
+    ContextDocumentStatus.SCOPE_MISSING: "the app has no permission to read documents until an administrator grants it",
     ContextDocumentStatus.TOO_LARGE: "it is too large to read",
     ContextDocumentStatus.UNSUPPORTED: "this kind of file cannot be read",
     ContextDocumentStatus.UNAVAILABLE: _READ_FAILED,
 }
 
 
+# The platform export may leave out content that is not text; the model must not describe what it cannot see.
+_MAY_BE_MISSING = "tables, embedded sheets, whiteboards and images may be missing or flattened"
+
+
 def _not_attached(reason: str) -> str:
     return (
         f"The document's text is not attached ({reason}). Answer from the rest of this message; "
-        "if the question needs the document, say you cannot read it."
+        "if the question needs the document, say you cannot read it and give the reason."
     )
 
 
@@ -82,10 +87,10 @@ async def _render(document: ContextDocument, chat_id: str) -> str:
     if placed.is_spilled:
         # No preview of the text: it is third-party content, so it only ever reaches the model through a boundary.
         return (
-            f"The document's text ({_size(document)}) is saved at '{placed.spillover_path}', too long to show here. "
-            "Read what you need with file_read_tool."
+            f"The document's text ({_size(document)}; {_MAY_BE_MISSING}) is saved at '{placed.spillover_path}', "
+            "too long to show here. Read what you need with file_read_tool."
         )
-    return f"Text of the document (Markdown, {_size(document)}):\n{wrap_tool_output(document.markdown)}"
+    return f"Text of the document ({_size(document)}; {_MAY_BE_MISSING}):\n{wrap_tool_output(document.markdown)}"
 
 
 async def attach_context_document(

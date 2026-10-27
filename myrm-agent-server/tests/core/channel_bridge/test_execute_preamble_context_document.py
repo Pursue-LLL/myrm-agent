@@ -40,7 +40,7 @@ async def test_a_short_document_follows_the_query_inside_a_data_boundary() -> No
 
     assert result.startswith(f"{_QUERY}\n\n")
     assert result.index("# Plan") > result.index(_QUERY)
-    assert "Text of the document (Markdown, 14 characters):" in result
+    assert "Text of the document (14 characters; tables, embedded sheets, whiteboards and images may be missing" in result
     assert result.count("<<<TOOL_OUTPUT") == 1
     assert result.count("<<<END_TOOL_OUTPUT") == 1
     # The memory-context middleware treats any UNTRUSTED_DATA marker in the first messages as "memory already injected".
@@ -70,6 +70,7 @@ async def test_a_long_document_is_saved_in_the_agent_workspace_and_only_its_path
     assert saved.read_text(encoding="utf-8") == body
     assert f"'{saved}'" in result
     assert "file_read_tool" in result
+    assert "may be missing or flattened" in result
     assert "FIRST-LINE-OF-THE-DOCUMENT" not in result
     assert "TOOL_OUTPUT" not in result
 
@@ -83,7 +84,8 @@ async def test_a_shortened_document_says_how_much_of_it_is_shown() -> None:
 @pytest.mark.parametrize(
     ("status", "reason"),
     [
-        (ContextDocumentStatus.DENIED, "no access to it"),
+        (ContextDocumentStatus.DENIED, "app has not been added to this document"),
+        (ContextDocumentStatus.SCOPE_MISSING, "no permission to read documents until an administrator grants it"),
         (ContextDocumentStatus.TOO_LARGE, "too large to read"),
         (ContextDocumentStatus.UNSUPPORTED, "kind of file cannot be read"),
         (ContextDocumentStatus.UNAVAILABLE, "reading it failed"),
@@ -97,7 +99,7 @@ async def test_a_missing_document_is_said_to_be_missing_so_the_model_does_not_in
     assert result.startswith(f"{_QUERY}\n\n")
     assert "not attached" in result
     assert reason in result
-    assert "say you cannot read it" in result
+    assert "say you cannot read it and give the reason" in result
     assert "TOOL_OUTPUT" not in result
 
 

@@ -23,10 +23,15 @@ METADATA_CONTEXT_DOCUMENT_KEY = "context_document"
 
 
 class ContextDocumentStatus(StrEnum):
-    """Outcome of reading the document."""
+    """Outcome of reading the document.
+
+    ``DENIED``: the channel's app may read documents but not this one (the owner has to share it).
+    ``SCOPE_MISSING``: the channel's app may not read documents at all (an administrator has to grant it).
+    """
 
     READY = "ready"
     DENIED = "denied"
+    SCOPE_MISSING = "scope_missing"
     TOO_LARGE = "too_large"
     UNSUPPORTED = "unsupported"
     UNAVAILABLE = "unavailable"

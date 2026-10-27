@@ -1,7 +1,8 @@
 """Context Bomb Guard and Transparent File Spillover Engine.
 
 Detects oversized incoming user payloads (>16,000 characters or >8,000 token pressure), safely offloads them
-to POSIX-isolated sandbox workspace files (.myrm/spillover/payload_<sha256>.md),
+to POSIX-isolated sandbox workspace files (.myrm/spillover/payload_<sha256>.md, swept after 24 hours; or
+.myrm/pastes/payload_<sha256>.md for a persisted user message, which is never swept),
 and transparently injects structured XML file references into the agent prompt context.
 
 [INPUT]
@@ -47,6 +48,8 @@ MESSAGE_MAX_CHARS: Final[int] = 16_000
 MAX_TOKEN_PRESSURE: Final[int] = 8_000
 PREVIEW_MAX_CHARS: Final[int] = 300
 SPILLED_DIR_NAME: Final[str] = ".myrm/spillover"
+# The database keeps only a preview of a persisted paste, so its file lives as long as the workspace.
+KEPT_DIR_NAME: Final[str] = ".myrm/pastes"
 SPILLED_FILE_TTL_SECONDS: Final[float] = 86_400.0  # 24 hours
 DIR_PERMISSIONS: Final[int] = 0o700
 FILE_PERMISSIONS: Final[int] = 0o600
@@ -84,6 +87,7 @@ class SpilloverPayloadResult:
     spillover_path: str | None = None
     content_sha256: str | None = None
     estimated_tokens: int = 0
+    preview: str = ""
 
 
 def extract_text_from_query(query: MultimodalQuery | object) -> str:
@@ -152,17 +156,26 @@ class ContextBombDefenseService:
         self._harness_sweeper = EphemeralTransientSweeper(ContextGuardConfig(spillover_ttl_seconds=int(ttl_seconds)))
 
     @classmethod
-    def get_spillover_dir(cls, workspace_root: Path | str | None = None) -> Path:
-        """Resolve and initialize the transient spillover storage directory."""
-        if workspace_root is None:
-            base_dir = Path.home() / ".myrm" / "spillover"
-        else:
-            base_dir = Path(workspace_root) / ".myrm" / "spillover"
+    def get_spillover_dir(cls, workspace_root: Path | str | None = None, *, kept: bool = False) -> Path:
+        """Resolve and initialize the spillover storage directory (the never-swept one when ``kept``)."""
+        root = Path.home() if workspace_root is None else Path(workspace_root)
+        base_dir = root / (KEPT_DIR_NAME if kept else SPILLED_DIR_NAME)
 
         base_dir.mkdir(parents=True, exist_ok=True)
         with contextlib.suppress(OSError):
             os.chmod(base_dir, DIR_PERMISSIONS)
+        if kept:
+            # The workspace may be a project folder under version control: the directory ignores itself and its files.
+            ignore_file = base_dir / ".gitignore"
+            if not ignore_file.exists():
+                with contextlib.suppress(OSError):
+                    ignore_file.write_text("*\n", encoding="utf-8")
         return base_dir
+
+    @classmethod
+    def is_oversized(cls, content: str, max_chars: int = MESSAGE_MAX_CHARS) -> bool:
+        """Whether ``content`` is too long to go into a prompt as it is."""
+        return len(content) > max_chars or estimate_token_pressure(content) > MAX_TOKEN_PRESSURE
 
     @classmethod
     def process_incoming_content(
@@ -172,8 +185,12 @@ class ContextBombDefenseService:
         chat_id: str | None = None,
         workspace_root: Path | str | None = None,
         max_chars: int = MESSAGE_MAX_CHARS,
+        kept: bool = False,
     ) -> SpilloverPayloadResult:
-        """Inspect plain text message length and transparently spill to workspace file if exceeding cap."""
+        """Inspect plain text message length and transparently spill to workspace file if exceeding cap.
+
+        ``kept`` parks the original of a persisted user message, so the file stays out of the 24-hour sweep.
+        """
         char_count = len(content)
         token_pressure = estimate_token_pressure(content)
 
@@ -189,7 +206,7 @@ class ContextBombDefenseService:
         short_hash = sha256_hash[:16]
         preview = content[:PREVIEW_MAX_CHARS].strip()
 
-        target_dir = cls.get_spillover_dir(workspace_root)
+        target_dir = cls.get_spillover_dir(workspace_root, kept=kept)
         target_file = target_dir / f"payload_{short_hash}.md"
 
         # Security check: verify no path traversal
@@ -222,12 +239,12 @@ class ContextBombDefenseService:
                     with contextlib.suppress(OSError):
                         tmp_file.unlink(missing_ok=True)
 
-        rel_file_path = str(target_file.resolve())
+        saved_path = str(target_file.resolve())
         # A leading ``[use skill]`` tag only counts at the very start of the text: keep it in front of the reference.
         prompt_block = decorate_behind_skill_tag(
             content,
             lambda _user_text: build_spillover_prompt_block(
-                file_path=rel_file_path,
+                file_path=saved_path,
                 total_chars=char_count,
                 sha256=sha256_hash,
                 preview=preview,
@@ -239,16 +256,17 @@ class ContextBombDefenseService:
             char_count,
             token_pressure,
             short_hash,
-            rel_file_path,
+            saved_path,
             chat_id or "unknown",
         )
         return SpilloverPayloadResult(
             is_spilled=True,
             processed_content=prompt_block,
             original_char_count=char_count,
-            spillover_path=rel_file_path,
+            spillover_path=saved_path,
             content_sha256=sha256_hash,
             estimated_tokens=token_pressure,
+            preview=preview,
         )
 
     def guard_and_spill_query(

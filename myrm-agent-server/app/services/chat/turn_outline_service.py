@@ -24,6 +24,7 @@ from myrm_agent_harness.utils.text_sanitizer import (
 from app.database.dto import MessageDTO, TurnOutlineItem
 from app.database.repositories.uow import UnitOfWork
 from app.services.chat._base import _ChatServiceBase
+from app.services.chat.chat_helpers import shown_user_text
 
 _PROMPT_PREVIEW_LIMIT = 50
 _REPLY_PREVIEW_LIMIT = 120
@@ -68,7 +69,7 @@ class TurnOutlineProjectionService(_ChatServiceBase):
                 # Close previous turn if exists
                 if current_user_msg is not None:
                     turn_index += 1
-                    prompt_preview = _sanitize_preview_text(current_user_msg.content, _PROMPT_PREVIEW_LIMIT)
+                    prompt_preview = _sanitize_preview_text(shown_user_text(current_user_msg), _PROMPT_PREVIEW_LIMIT)
                     reply_preview: str | None = None
                     assistant_id: str | None = None
                     if current_assistant_msg is not None:
@@ -100,7 +101,7 @@ class TurnOutlineProjectionService(_ChatServiceBase):
         # Append final trailing turn
         if current_user_msg is not None:
             turn_index += 1
-            prompt_preview = _sanitize_preview_text(current_user_msg.content, _PROMPT_PREVIEW_LIMIT)
+            prompt_preview = _sanitize_preview_text(shown_user_text(current_user_msg), _PROMPT_PREVIEW_LIMIT)
             reply_preview = None
             assistant_id = None
             if current_assistant_msg is not None:

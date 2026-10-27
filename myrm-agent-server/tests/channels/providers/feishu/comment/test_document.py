@@ -19,12 +19,13 @@ from app.channels.types import ContextDocument, ContextDocumentStatus, InboundMe
 _ROUTE = CommentRouteInfo(file_type="docx", file_token="doxcnABC", comment_id="c1", is_whole=False)
 
 
-def _client(outcome: DocumentContent | Exception) -> AsyncMock:
+def _client(outcome: DocumentContent | Exception, plain_text: DocumentContent | Exception | None = None) -> AsyncMock:
     client = AsyncMock(spec=FeishuClient)
-    if isinstance(outcome, Exception):
-        client.get_document_content.side_effect = outcome
-    else:
-        client.get_document_content.return_value = outcome
+    for method, result in ((client.get_document_content, outcome), (client.get_document_plain_text, plain_text)):
+        if isinstance(result, Exception):
+            method.side_effect = result
+        elif result is not None:
+            method.return_value = result
     return client
 
 
@@ -50,9 +51,10 @@ async def test_a_file_without_a_markdown_export_is_not_read(file_type: str) -> N
     ("code", "status"),
     [
         (2889902, ContextDocumentStatus.DENIED),
-        (99991672, ContextDocumentStatus.DENIED),
+        (1770032, ContextDocumentStatus.DENIED),
         (403, ContextDocumentStatus.DENIED),
         (2889925, ContextDocumentStatus.TOO_LARGE),
+        (1770033, ContextDocumentStatus.TOO_LARGE),
         (2889906, ContextDocumentStatus.UNAVAILABLE),
         (2889914, ContextDocumentStatus.UNAVAILABLE),
         (2889980, ContextDocumentStatus.UNAVAILABLE),
@@ -65,6 +67,56 @@ async def test_a_refused_read_maps_to_the_reason_the_model_is_told(code: int, st
     document = await read_comment_document(_client(DocumentContent(code=code, message="refused")), _ROUTE)
 
     assert document == ContextDocument(status)
+
+
+_NO_SCOPE = DocumentContent(code=99991672, message="Access denied. One of the following scopes is required")
+
+
+async def test_without_the_markdown_scope_the_body_is_read_as_plain_text() -> None:
+    client = _client(_NO_SCOPE, DocumentContent(code=0, markdown="Plan\nship it"))
+
+    document = await read_comment_document(client, _ROUTE)
+
+    assert document == ContextDocument.ready("Plan\nship it")
+    client.get_document_content.assert_awaited_once_with("doxcnABC", "docx")
+    client.get_document_plain_text.assert_awaited_once_with("doxcnABC")
+
+
+@pytest.mark.parametrize(
+    ("plain_text", "status"),
+    [
+        (_NO_SCOPE, ContextDocumentStatus.SCOPE_MISSING),
+        (DocumentContent(code=1770032, message="forbidden"), ContextDocumentStatus.DENIED),
+        (DocumentContent(code=1770033, message="raw content size exceed limited"), ContextDocumentStatus.TOO_LARGE),
+        (DocumentContent(code=502, message="bad gateway"), ContextDocumentStatus.UNAVAILABLE),
+        (httpx.ConnectError("boom"), ContextDocumentStatus.UNAVAILABLE),
+    ],
+    ids=["no scope either", "not shared", "too large", "gateway", "network"],
+)
+async def test_when_plain_text_cannot_be_read_either_the_model_is_told_why(
+    plain_text: DocumentContent | Exception, status: ContextDocumentStatus
+) -> None:
+    assert await read_comment_document(_client(_NO_SCOPE, plain_text), _ROUTE) == ContextDocument(status)
+
+
+@pytest.mark.parametrize("code", [2889902, 2889925, 2889906, 403, 500])
+async def test_only_a_missing_scope_falls_back_to_plain_text(code: int) -> None:
+    client = _client(DocumentContent(code=code, message="refused"), DocumentContent(code=0, markdown="never read"))
+
+    await read_comment_document(client, _ROUTE)
+
+    client.get_document_plain_text.assert_not_awaited()
+
+
+async def test_the_fallback_tells_the_operator_which_scope_to_grant_and_never_logs_the_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    secret = "QUARTERLY-NUMBERS-DO-NOT-LOG"
+    with caplog.at_level(logging.INFO, logger=comment_document.logger.name):
+        await read_comment_document(_client(_NO_SCOPE, DocumentContent(code=0, markdown=secret)), _ROUTE)
+
+    assert "docs:document.content:read" in caplog.text
+    assert secret not in caplog.text
 
 
 @pytest.mark.parametrize("fault", [httpx.ConnectError("boom"), RuntimeError("bug")], ids=["network", "bug"])

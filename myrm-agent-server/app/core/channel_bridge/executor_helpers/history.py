@@ -99,7 +99,7 @@ async def persist_and_load_history(
         )
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
-        logger.warning(
+        logger.info(
             "Channel chat persisted: chat_id=%s, history_len=%d",
             chat.id,
             len(history),

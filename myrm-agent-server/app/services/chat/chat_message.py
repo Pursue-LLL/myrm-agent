@@ -28,7 +28,7 @@ from app.database.dto import ChatDTO, MessageDTO
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
-from .chat_helpers import ALLOWED_MESSAGE_ROLES
+from .chat_helpers import ALLOWED_MESSAGE_ROLES, SPILLOVER_EXTRA_KEY
 from .chat_memory_events import record_memory_influence_event
 from .chat_usage_sync import sync_chat_usage
 from .conversation_recall_index_service import ConversationRecallIndexService
@@ -36,6 +36,36 @@ from .conversation_recall_index_service import ConversationRecallIndexService
 logger = logging.getLogger(__name__)
 
 _RECALL_INDEX_TIMEOUT_SECONDS = 2.0
+
+
+async def _park_user_text(
+    content: str,
+    chat_id: str,
+    extra_data: dict[str, object] | None,
+    workspace: Path | None,
+) -> tuple[str, str, dict[str, object] | None]:
+    """What to persist for a user message: its text, the short form chat lists show, and its extra data.
+
+    An oversized message is stored as a pointer to a file in the chat's workspace (``workspace``, or the one
+    the chat's agent runs in when omitted): the database keeps only a preview, so the file lives as long as the
+    workspace does and the agent's file tools can read it back.
+    """
+    from app.services.chat.context_bomb_guard import ContextBombDefenseService
+
+    if workspace is None and ContextBombDefenseService.is_oversized(content):
+        from app.services.chat.effective_workspace import find_chat_workspace_root
+
+        workspace = await find_chat_workspace_root(chat_id)
+    parked = ContextBombDefenseService.process_incoming_content(content, chat_id=chat_id, workspace_root=workspace, kept=True)
+    if not parked.is_spilled:
+        return content, content, extra_data
+    spillover = {
+        "spillover_path": parked.spillover_path,
+        "original_char_count": parked.original_char_count,
+        "sha256": parked.content_sha256,
+        "preview": parked.preview,
+    }
+    return parked.processed_content, parked.preview, {**(extra_data or {}), SPILLOVER_EXTRA_KEY: spillover}
 
 
 class _ChatMessageMixin(_ChatServiceBase):
@@ -103,32 +133,18 @@ class _ChatMessageMixin(_ChatServiceBase):
         *,
         spill_workspace: Path | None = None,
     ) -> MessageDTO:
-        """Persist one message; an oversized user message is stored as a pointer to a spilled file.
+        """Persist one message; an oversized user message is stored as a pointer to a file kept in the workspace.
 
-        ``spill_workspace`` is the workspace the chat's agent runs in. Without it the file goes to a
-        per-user directory outside every agent workspace, where the agent's file tools cannot read it back.
+        ``spill_workspace`` is the workspace the chat's agent runs in; the chat's own workspace is looked up
+        when the caller has none to name.
         """
         if role not in ALLOWED_MESSAGE_ROLES:
             raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
 
         # Guard against incoming context bomb by transparently spilling over massive user text
-        final_content = content
+        final_content = shown_text = content
         if role == "user":
-            from app.services.chat.context_bomb_guard import ContextBombDefenseService
-
-            spill_res = ContextBombDefenseService.process_incoming_content(
-                content,
-                chat_id=chat_id,
-                workspace_root=spill_workspace,
-            )
-            if spill_res.is_spilled:
-                final_content = spill_res.processed_content
-                extra_data = dict(extra_data or {})
-                extra_data["spillover"] = {
-                    "spillover_path": spill_res.spillover_path,
-                    "original_char_count": spill_res.original_char_count,
-                    "sha256": spill_res.content_sha256,
-                }
+            final_content, shown_text, extra_data = await _park_user_text(content, chat_id, extra_data, spill_workspace)
 
         try:
             from app.core.eval.adaptive import mark_chat_activity
@@ -150,12 +166,12 @@ class _ChatMessageMixin(_ChatServiceBase):
                 created_at=datetime.utcnow(),
             )
             await _ChatServiceBase._cr(uow).add_message(msg)
-            msg_updates: dict[str, object] = {"last_message": final_content[:100]}
+            msg_updates: dict[str, object] = {"last_message": shown_text[:100]}
             if role == "user":
                 chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
                 if chat and (not chat.first_message):
-                    msg_updates["first_message"] = final_content
-                    msg_updates["title"] = final_content[:50]
+                    msg_updates["first_message"] = shown_text
+                    msg_updates["title"] = shown_text[:50]
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, msg_updates)
             sess = uow.session
             assert sess is not None
@@ -188,21 +204,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         mark_read: bool = False,
     ) -> MessageDTO:
         # Guard against incoming context bomb by transparently spilling over massive user text
-        final_content = content
-        from app.services.chat.context_bomb_guard import ContextBombDefenseService
-
-        spill_res = ContextBombDefenseService.process_incoming_content(
-            content,
-            chat_id=chat_id,
-        )
-        if spill_res.is_spilled:
-            final_content = spill_res.processed_content
-            extra_data = dict(extra_data or {})
-            extra_data["spillover"] = {
-                "spillover_path": spill_res.spillover_path,
-                "original_char_count": spill_res.original_char_count,
-                "sha256": spill_res.content_sha256,
-            }
+        final_content, shown_text, extra_data = await _park_user_text(content, chat_id, extra_data, None)
 
         try:
             from app.core.eval.adaptive import mark_chat_activity
@@ -275,9 +277,9 @@ class _ChatMessageMixin(_ChatServiceBase):
             )
             await _ChatServiceBase._cr(uow).add_message(msg)
             last_updates: dict[str, object] = {
-                "last_message": final_content[:100],
-                "first_message": final_content,
-                "title": final_content[:50],
+                "last_message": shown_text[:100],
+                "first_message": shown_text,
+                "title": shown_text[:50],
             }
             if chat and chat.first_message:  # already had first message
                 last_updates.pop("first_message")

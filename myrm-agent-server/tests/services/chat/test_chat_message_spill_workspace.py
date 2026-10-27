@@ -1,15 +1,24 @@
-"""``ChatService.append_message`` parks an oversized user message in the workspace the caller names."""
+"""An oversized user message is parked in a file that lives as long as the chat's workspace, and chat lists show its preview."""
 
 from __future__ import annotations
 
+import os
+import subprocess
+import time
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from myrm_agent_harness.agent.security.checks import check_path_policy
+from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dto import MessageDTO
+from app.services.agent.context_guard_service import ContextGuardService
+from app.services.agent.params.workspace_resolve import default_chat_workspace_path
 from app.services.chat.chat_service import ChatService
+from app.services.chat.context_bomb_guard import PREVIEW_MAX_CHARS, ContextBombDefenseService
 
 _PASTE = "meeting-line: the decision was to keep watching and review next week\n" * 400
 
@@ -39,8 +48,7 @@ async def test_oversized_user_message_is_parked_in_the_named_workspace(
     workspace = tmp_path / "agent-workspace"
     message = await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=workspace)
 
-    spill_dir = workspace / ".myrm" / "spillover"
-    (parked,) = list(spill_dir.glob("payload_*.md"))
+    (parked,) = list((workspace / ".myrm" / "pastes").glob("payload_*.md"))
     assert parked.read_text(encoding="utf-8") == _PASTE
     assert message.content.startswith("<file_spillover")
     assert str(parked.resolve()) in message.content
@@ -49,6 +57,9 @@ async def test_oversized_user_message_is_parked_in_the_named_workspace(
     spillover = message.extra_data["spillover"]
     assert isinstance(spillover, dict)
     assert spillover["spillover_path"] == str(parked.resolve())
+    assert spillover["original_char_count"] == len(_PASTE)
+    assert spillover["preview"] == _PASTE[: len(str(spillover["preview"]))]
+    assert 0 < len(str(spillover["preview"])) <= PREVIEW_MAX_CHARS
     assert not (fake_home / ".myrm").exists()
 
 
@@ -75,3 +86,119 @@ async def test_assistant_message_is_never_spilled(db_session: AsyncSession, tmp_
     assert message.content == _PASTE
     assert not workspace.exists()
     assert not (fake_home / ".myrm").exists()
+
+
+def _age(path: Path, days: int) -> None:
+    then = time.time() - days * 86_400
+    os.utime(path, (then, then))
+
+
+@pytest.mark.asyncio
+async def test_a_parked_paste_outlives_the_housekeeping_sweep_that_clears_transient_spill(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    """The database keeps only a preview of the paste, so the file is the only copy of it."""
+    del db_session
+    workspaces_root = tmp_path / "workspaces"
+    workspace = workspaces_root / "chat_parked"
+    await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=workspace)
+    transient = ContextBombDefenseService.process_incoming_content("ephemeral\n" * 3000, workspace_root=workspace)
+    (parked,) = list((workspace / ".myrm" / "pastes").glob("payload_*.md"))
+    assert transient.spillover_path is not None
+    _age(parked, 2)
+    _age(Path(transient.spillover_path), 2)
+
+    ContextGuardService.sweep_all_workspaces(workspaces_root)
+
+    assert parked.read_text(encoding="utf-8") == _PASTE
+    assert not Path(transient.spillover_path).exists()
+
+
+@pytest.mark.asyncio
+async def test_the_agent_reads_a_parked_paste_without_asking_for_approval(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    del db_session
+    workspace = tmp_path / "agent-workspace"
+    message = await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=workspace)
+    assert message.extra_data is not None
+    spillover = message.extra_data["spillover"]
+    assert isinstance(spillover, dict)
+
+    action, _ = check_path_policy(str(spillover["spillover_path"]), PathPolicy(), str(workspace))
+
+    assert action is PermissionAction.ALLOW
+
+
+@pytest.mark.asyncio
+async def test_chat_lists_show_the_start_of_the_paste_not_the_pointer(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    del db_session
+    chat_id = await _channel_chat_id()
+
+    await _append(chat_id, "user", _PASTE, spill_workspace=tmp_path / "agent-workspace")
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    assert chat is not None
+    assert chat.title == _PASTE[:50]
+    assert chat.last_message == _PASTE[:100]
+    assert chat.first_message is not None
+    assert chat.first_message.startswith("meeting-line: the decision")
+    assert "file_spillover" not in chat.first_message
+
+
+@pytest.mark.asyncio
+async def test_a_web_paste_is_parked_in_the_chat_workspace_not_the_home_directory(
+    db_session: AsyncSession, fake_home: Path
+) -> None:
+    """The Web path names no workspace: the chat's own one is looked up, new chat or not."""
+    del db_session
+    chat_id = str(uuid4())
+
+    message = await ChatService.ensure_chat_and_append_user_message(chat_id, _PASTE, datetime.now(UTC), "UTC")
+
+    (parked,) = list((default_chat_workspace_path(chat_id) / ".myrm" / "pastes").glob("payload_*.md"))
+    assert parked.read_text(encoding="utf-8") == _PASTE
+    assert message.content.startswith("<file_spillover")
+    assert not (fake_home / ".myrm").exists()
+    chat = await ChatService.get_chat_metadata(chat_id)
+    assert chat is not None
+    assert chat.title == _PASTE[:50]
+
+
+@pytest.mark.asyncio
+async def test_a_short_web_message_costs_no_workspace_lookup_and_writes_nothing(
+    db_session: AsyncSession, fake_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del db_session
+    from app.services.chat import effective_workspace
+
+    async def forbidden(_chat_id: str) -> Path | None:
+        raise AssertionError("a short message has no file to place")
+
+    monkeypatch.setattr(effective_workspace, "find_chat_workspace_root", forbidden)
+    chat_id = str(uuid4())
+
+    message = await ChatService.ensure_chat_and_append_user_message(chat_id, "short question", datetime.now(UTC), "UTC")
+
+    assert message.content == "short question"
+    assert not default_chat_workspace_path(chat_id).exists()
+    assert not (fake_home / ".myrm").exists()
+
+
+@pytest.mark.asyncio
+async def test_a_parked_paste_stays_out_of_the_version_control_of_a_project_workspace(
+    db_session: AsyncSession, tmp_path: Path, fake_home: Path
+) -> None:
+    """The workspace of a chat can be a git project; a parked paste must not show up in its status."""
+    del db_session, fake_home
+    project = tmp_path / "project"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q", str(project)], check=True)
+
+    await _append(await _channel_chat_id(), "user", _PASTE, spill_workspace=project)
+
+    assert (project / ".myrm" / "pastes").is_dir()
+    status = subprocess.run(["git", "-C", str(project), "status", "--porcelain"], check=True, capture_output=True, text=True)
+    assert status.stdout == ""

@@ -62,7 +62,7 @@ class TestDocxBlocks:
 
 class TestGetDocumentContent:
     @pytest.mark.asyncio
-    async def test_returns_the_markdown_with_tables_intact(self, client: FeishuClient) -> None:
+    async def test_returns_the_markdown_the_platform_rendered(self, client: FeishuClient) -> None:
         client._http.get = AsyncMock(return_value=mock_response(200, {"code": 0, "data": {"content": _TABLE_MARKDOWN}}))
 
         result = await client.get_document_content("doc_001")
@@ -163,6 +163,45 @@ class TestGetDocumentContent:
 
         with pytest.raises(httpx.ConnectTimeout):
             await client.get_document_content("doc_001")
+
+
+class TestGetDocumentPlainText:
+    @pytest.mark.asyncio
+    async def test_returns_the_plain_text_of_the_document(self, client: FeishuClient) -> None:
+        client._http.get = AsyncMock(return_value=mock_response(200, {"code": 0, "data": {"content": "Q3 plan\nAna 10-31"}}))
+
+        result = await client.get_document_plain_text("doc_001")
+
+        assert result == DocumentContent(code=0, markdown="Q3 plan\nAna 10-31")
+
+    @pytest.mark.asyncio
+    async def test_reads_raw_content_with_the_tenant_token(self, client: FeishuClient) -> None:
+        client._http.get = AsyncMock(return_value=mock_response(200, {"code": 0, "data": {"content": "x"}}))
+
+        await client.get_document_plain_text("doc_001")
+
+        call = client._http.get.await_args
+        assert call.args[0].endswith("/docx/v1/documents/doc_001/raw_content")
+        assert call.kwargs["headers"] == {"Authorization": "Bearer tok"}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status", "body", "code"),
+        [
+            (403, {"code": 1770032, "msg": "forbidden"}, 1770032),
+            (400, {"code": 1770033, "msg": "raw content size exceed limited"}, 1770033),
+            (400, {"code": 99991672, "msg": "Access denied"}, 99991672),
+            (502, {"msg": "bad gateway"}, 502),
+        ],
+    )
+    async def test_reports_the_code_of_a_refusal(self, client: FeishuClient, status: int, body: dict, code: int) -> None:
+        client._http.get = AsyncMock(return_value=mock_response(status, body))
+
+        result = await client.get_document_plain_text("doc_001")
+
+        assert result.code == code
+        assert not result.ok
+        assert result.markdown == ""
 
 
 class TestAppendDocxBlocks:
