@@ -109,7 +109,7 @@ def _normalize_draft(data: dict[str, object], objective: str) -> dict[str, objec
                     continue
                 timeout = item.get("timeout_seconds", 60)
                 try:
-                    timeout_int = int(timeout)  # type: ignore[arg-type]
+                    timeout_int = int(timeout)
                 except (TypeError, ValueError):
                     timeout_int = 60
                 acceptance_criteria.append(

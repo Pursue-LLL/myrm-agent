@@ -168,6 +168,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
 | `services/agent/goals/unattended/test_headless_goal_turn.py` | 模块 | 服务端自启的目标回合在构建 agent 之前预留会话并注册取消令牌（真实 `AgentGateway` 与 `CancellationRegistry`，仅 agent 流为替身）：暂停与 E-Stop 能取消该回合的令牌、回合以任何方式结束都归还会话与令牌、会话已被消息占用时不构建也不夺走对方的预留、二次启动不扰动首个回合、应用排空不算目标失败 |
+| `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：韩语正式体后缀、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案、`goal_provider` 与记忆开关注入 `GeneralAgentParams` |
 | `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |
 | `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |
