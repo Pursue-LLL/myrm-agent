@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - TopicContext: per-topic routing configuration carried with inbound messages
+- METADATA_ROUTE_AGENT_KEY: message metadata naming the agent an alias command routes the turn to
 - ReplyMode, DraftTimeoutAction: draft-review delivery policy
 - IdentityScopeMode: team-shared identity scope of a topic binding
 
@@ -19,6 +20,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from .thread_sharing import ThreadSharingMode
+
+METADATA_ROUTE_AGENT_KEY = "route_agent_id"
 
 
 class ReplyMode(StrEnum):

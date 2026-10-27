@@ -5,6 +5,7 @@
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format.)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it.)
+- channels.routing.pending_approvals::answer_resume_message (POS: the message that resumes the asking turn's run with a person's answer.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - channels.i18n::get_text (POS: multi-language gateway command replies and system-generated channel messages.)
 - services.approvals.registry::ApprovalRegistry (POS: unified approval flow scheduler that persists, pushes and resolves approvals.)
@@ -21,12 +22,12 @@ resumes. The ends of a request without an answer (the timeout, a new turn in its
 
 from __future__ import annotations
 
-import dataclasses
 import logging
 from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
+from app.channels.routing.pending_approvals import answer_resume_message
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
@@ -173,12 +174,6 @@ class RouterCommandsApprovalMixin:
 
         resume_value: dict[str, object] = {"decisions": decisions}
 
-        resume_msg = dataclasses.replace(
-            msg,
-            resume_value=resume_value,
-            metadata={**msg.metadata, "is_resume": True},
-        )
-
         answered = self._pending_approvals.pop(session_key)
         if answered is None:
             # The wait ended while the decision was being checked (the timeout resumed the run, or /stop ended it).
@@ -187,7 +182,7 @@ class RouterCommandsApprovalMixin:
         if answered.card_message_id:
             await self._bus.edit_channel_message(msg.channel, chat_id, answered.card_message_id, status_msg)
 
-        self._gate.submit(resume_msg)
+        self._gate.submit(answer_resume_message(msg, resume_value, answered))
 
     async def _handle_action_button_approval(
         self: RouterCommandsHost,
@@ -295,13 +290,8 @@ class RouterCommandsApprovalMixin:
             decision: ApprovalDecision = "allow_once" if action_raw == "approve" else "deny"
             entry = self._build_decision_entry(decision, msg.channel)
             resume_value: dict[str, object] = {"decisions": [entry]}
-            resume_msg = dataclasses.replace(
-                msg,
-                resume_value=resume_value,
-                metadata={**msg.metadata, "is_resume": True},
-            )
-            self._pending_approvals.pop(session_key)
-            self._gate.submit(resume_msg)
+            answered = self._pending_approvals.pop(session_key)
+            self._gate.submit(answer_resume_message(msg, resume_value, answered))
         else:
             # No active task in router (e.g. Agent resumed via WebUI concurrently).
             # DB is already resolved; publish event for any SSE listeners.

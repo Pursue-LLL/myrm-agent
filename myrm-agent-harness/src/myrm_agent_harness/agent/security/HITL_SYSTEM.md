@@ -179,7 +179,7 @@ Agent执行 → interrupt() → GraphInterrupt → stream结束
 → InboundMessage(resume_value=..., metadata 含 is_resume=True) 重新进入 SessionGate
 ```
 
-无人应答时，路由器的 `PendingApprovals` 到点（`ApprovalTimeoutScheduler`）把审批卡改写为超时结果，并以同样方式提交一条续跑消息（`resume_value` 为调度器构造的超时决定，metadata 额外带 `approval_timed_out`），所以续跑是路由器里的普通回合，`/stop` 可以取消。
+无人应答时，路由器的 `PendingApprovals` 到点（`ApprovalTimeoutScheduler`）把审批卡改写为超时结果，并以同样方式提交一条续跑消息（`resume_value` 为调度器构造的超时决定，metadata 额外带 `approval_timed_out`），所以续跑是路由器里的普通回合，`/stop` 可以取消。续跑消息（人的答复与超时都一样）带上提问回合的智能体路由与智能体会话，会话键里的智能体维度因此与提问回合一致，续跑找到的是提问时建立的那条聊天；路由器只在话题上下文的智能体就是提问回合的智能体时才把它交给续跑，委派任务（在聊天的无智能体会话里跑）的续跑不带，提问后聊天换绑到别的智能体的也不带。
 
 新输入到达同一智能体会话时，停在审批的那次运行被它接管（之后补发的答复不会被应用），所以路由器在这样的回合开始时同样结束该审批：卡改写为「已取消」的提示、计时结束，之后补发的答复只会被告知没有未决请求；同一聊天里其他智能体的审批不受影响。审批答复（`resume_value`）在 `SessionGate` 里不与文字合并，单独、先于同时排队的文字运行。
 

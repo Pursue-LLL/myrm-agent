@@ -222,6 +222,7 @@ from app.channels.types import (
     OutboundMessage,
     VoiceConfig,
 )
+from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
 from app.channels.voice.handler import (
     has_audio_attachment,
     has_video_with_audio,
@@ -1204,7 +1205,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
             if agent_route_resolved.raw_args:
                 msg = dataclasses.replace(msg, content=agent_route_resolved.raw_args)
-                msg.metadata["route_agent_id"] = agent_id
+                msg.metadata[METADATA_ROUTE_AGENT_KEY] = agent_id
             else:
                 topic_cmd = parse_topic_args("bind", agent_id)
                 asyncio.create_task(self._handle_topic_command(msg, topic_cmd))

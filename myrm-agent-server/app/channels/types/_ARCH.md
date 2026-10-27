@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | 类型包导出 | — |
 | `messages.py` | 核心 | 跨渠道消息数据结构（MediaType: IMAGE/DOCUMENT/AUDIO/VIDEO/CONTACT, MediaAttachment（`ephemeral`=临时文件由消息总线在送达终态后删除）, guess_media_type, RenderStyle 等；`OutboundMessage.to_dict/from_dict` 为持久化线格式，每个嵌套 dataclass 都带 `__type__` 标签） | ✅ |
 | `outbound_wire.py` | 核心 | `OutboundMessage` 线格式的 TypedDict 声明（`OutboundWire` 及嵌套 `ComponentWire`/`MediaWire` 等），让 `from_dict` 在类型层面可校验；字段集与 dataclass 的一致性由 `tests/channels/types/test_outbound_wire_shapes.py` 守卫 | ✅ |
-| `topics.py` | 核心 | 话题路由类型（TopicContext、ReplyMode、DraftTimeoutAction、IdentityScopeMode） | ✅ |
+| `topics.py` | 核心 | 话题路由类型（TopicContext、ReplyMode、DraftTimeoutAction、IdentityScopeMode）与 `METADATA_ROUTE_AGENT_KEY`（别名命令把回合路由到哪个智能体的消息元数据键） | ✅ |
 | `streaming.py` | 核心 | Agent 执行流事件（ProgressUpdate、StreamingText、FissionTopologyNode/Update）与 `ApprovalExpiry`（工具审批的等待时长与超时决定，经 `ProgressUpdate.expiry` 交给路由器起计时器）、`METADATA_APPROVAL_WINDOW_SECONDS_KEY`（入站消息 metadata 里设定该回合审批等待时长的键，委托运行用它把等待放宽到任务时限） | ✅ |
 | `voice.py` | 核心 | 语音 STT/TTS 配置与结果（VoiceConfig、TTSMode、STTResult） | ✅ |
 | `components.py` | 核心 | 跨渠道交互组件（按钮、快捷回复等）类型 | ✅ |

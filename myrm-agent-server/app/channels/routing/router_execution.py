@@ -17,7 +17,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.routing.context_document import enrich_context_document
-from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY
+from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY, resume_topic_context
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
 )
@@ -40,6 +40,7 @@ from app.channels.types import (
     TopicContext,
 )
 from app.channels.types.notification import with_final_notify
+from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
 from app.channels.voice.handler import maybe_tts
 
 logger = logging.getLogger("app.channels.routing.router")
@@ -137,7 +138,7 @@ class RouterExecutionMixin:
             )
             return None
 
-        route_agent_id = exec_msg.metadata.get("route_agent_id")
+        route_agent_id = exec_msg.metadata.get(METADATA_ROUTE_AGENT_KEY)
         if isinstance(route_agent_id, str):
             from app.core.channel_bridge.topic_config import SqlTopicManager
             from app.services.agent.agent_service import AgentService
@@ -438,7 +439,8 @@ class RouterExecutionMixin:
                 ctx.chat_id,
                 cancel_token=cancel_token,
                 steering_token=steering_token,
-                topic_context=ctx.topic_ctx if not is_resume else None,
+                # A resumed run keeps the session of the turn that asked, whose key carries the agent.
+                topic_context=resume_topic_context(ctx.topic_ctx, ctx.exec_msg) if is_resume else ctx.topic_ctx,
                 # Independent of ``is_resume``: a resumed turn streams the same held reply.
                 hold_reply=ctx.topic_ctx is not None and ctx.topic_ctx.holds_reply_for_review,
             )

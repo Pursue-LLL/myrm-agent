@@ -7,8 +7,11 @@
 
 [OUTPUT]
 - METADATA_APPROVAL_TIMED_OUT_KEY: marks a resume turn that the timeout, not a person, answered
-- PendingApproval: one open approval request of a chat
+- METADATA_RESUME_AGENT_KEY: names the agent session a resume turn belongs to
+- PendingApproval: one open approval request of a chat, and the timeout's message that resumes its run
 - session_agent_id: the agent whose session a turn runs in, the identity of the run an approval belongs to
+- answer_resume_message: the message that resumes a run with a person's answer
+- resume_topic_context: the topic context a resumed run executes with
 - PendingApprovals: the router's registry of them, owner of the timer of each
 
 [POS]
@@ -17,6 +20,9 @@ the janitor, the timeout, or a turn that starts in the session the request waits
 to away) goes through this registry, so the chat, the approval card and the timer never disagree about whether a
 request is open. The timeout reports through ``on_expire``; the router resumes the run then as an ordinary turn, the
 same way it resumes one a person answered, so the resumed run is visible to ``/stop``.
+A resumed run goes back to the session of the turn that asked, and the agent is a dimension of that session's key: the
+message that resumes it, whoever answered, names the asking turn's agent route and agent session, and the router hands
+the run its topic context only when that context's agent is the asking turn's.
 The timer's claim key is chat-wide (``channel:peer``), the key the manual resume claims under: one chat holds one
 timer at a time, so when two forum topics wait the later request's timer replaces the earlier one's, which then waits
 for an answer without a time limit.
@@ -31,8 +37,11 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import ApprovalExpiry, InboundMessage, TopicContext
+from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
 
 METADATA_APPROVAL_TIMED_OUT_KEY = "approval_timed_out"
+# The agent session ("" for the default agent) a resume turn belongs to: the answer message names none.
+METADATA_RESUME_AGENT_KEY = "resume_agent_id"
 
 # Set per message from the chat's session state when a turn starts; a copy from an earlier turn must not outlive it.
 _SESSION_SCOPED_METADATA = ("yolo_state", "personality_style", "force_new_epoch")
@@ -46,6 +55,33 @@ def session_agent_id(topic_context: TopicContext | None) -> str | None:
     if topic_context is None or topic_context.identity_revoked:
         return None
     return topic_context.agent_id
+
+
+def resume_topic_context(topic_context: TopicContext | None, resume: InboundMessage) -> TopicContext | None:
+    """The topic context a resumed run executes with.
+
+    The run keeps the session of the turn that asked, so the context's agent has to be that turn's. A run the asking
+    turn started without its chat's agent (a delegated task) stays without it however the chat is bound now, and a
+    binding changed since the ask stays out too.
+    """
+    agent_id = session_agent_id(topic_context)
+    if agent_id is None or resume.metadata.get(METADATA_RESUME_AGENT_KEY) != agent_id:
+        return None
+    return topic_context
+
+
+def answer_resume_message(
+    answer: InboundMessage, resume_value: dict[str, object], asked: "PendingApproval | None"
+) -> InboundMessage:
+    """The message that resumes a run with a person's answer.
+
+    ``asked`` is the request the answer ends, when the router held one. The answer names neither the agent route nor
+    the agent session of the run it resumes, so they come from it.
+    """
+    metadata = {**answer.metadata, "is_resume": True}
+    if asked is not None:
+        metadata.update(asked.run_context())
+    return dataclasses.replace(answer, resume_value=resume_value, metadata=metadata)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -67,11 +103,20 @@ class PendingApproval:
         """The chat-wide key the timeout and a manual resume claim the request under."""
         return routing_session_key(self.message.channel, self.message.chat_id or self.message.sender_id)
 
+    def run_context(self) -> dict[str, str]:
+        """What routes the resumed run to the asking turn's agent: its alias route and its agent session."""
+        context = {METADATA_RESUME_AGENT_KEY: self.agent_id or ""}
+        route = self.message.metadata.get(METADATA_ROUTE_AGENT_KEY)
+        if isinstance(route, str):
+            context[METADATA_ROUTE_AGENT_KEY] = route
+        return context
+
     def resume_message(self, resume_value: dict[str, object]) -> InboundMessage:
         """The message that resumes the asking turn's run with ``resume_value``, as the timeout's answer."""
         metadata = {k: v for k, v in self.message.metadata.items() if k not in _SESSION_SCOPED_METADATA}
         metadata["is_resume"] = True
         metadata[METADATA_APPROVAL_TIMED_OUT_KEY] = True
+        metadata.update(self.run_context())
         return dataclasses.replace(
             self.message,
             content="",
