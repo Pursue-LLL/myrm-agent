@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 from collections.abc import Iterator
 from types import SimpleNamespace
@@ -13,10 +14,12 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import 
 
 from app.api.agents.suggestions import SuggestionsRequest, get_suggestions
 from app.core.security.privacy_policy_sync import sync_privacy_policy
+from app.core.types import ModelConfig
 from tests.support.privacy_wire import wire_llm
 
 _PHONE = "13812345678"
 _PASSWORD = "Sup3rSecret99"
+_REPLY = ["Why Rust?", "Rust vs Go?", "Is Rust hard?"]
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +33,7 @@ def _clean_process_policy() -> Iterator[None]:
 
 async def _suggest(personal_settings: dict[str, object]) -> str:
     sync_privacy_policy(personal_settings)
-    llm, sent = wire_llm('["a", "b", "c"]')
+    llm, sent = wire_llm(json.dumps(_REPLY))
     configs = SimpleNamespace(
         providers_dict={"providers": []},
         model_cfg=None,
@@ -39,12 +42,15 @@ async def _suggest(personal_settings: dict[str, object]) -> str:
     request = SuggestionsRequest(chat_history=[["user", f"手机 {_PHONE}，password: {_PASSWORD}"], ["assistant", "好的"]])
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", new=AsyncMock(return_value=configs)),
-        patch("app.api.agents.suggestions._resolve_lite_model", new=lambda *_args: SimpleNamespace(api_keys=None)),
+        patch(
+            "app.api.agents.suggestions._resolve_lite_model",
+            new=lambda *_args: ModelConfig(model="test-model", api_key="test-key"),
+        ),
         patch("myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config", new=AsyncMock(return_value=llm)),
     ):
-        response = await get_suggestions.__wrapped__(request=request, http_request=MagicMock())
+        response = await inspect.unwrap(get_suggestions)(request=request, http_request=MagicMock())
 
-    assert json.loads(response.body)["data"]["suggestions"] == ["a", "b", "c"]
+    assert json.loads(response.body)["data"]["suggestions"] == _REPLY
     return "\n".join(sent)
 
 

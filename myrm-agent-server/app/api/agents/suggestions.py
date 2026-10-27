@@ -4,19 +4,25 @@
 - core.channel_bridge.config_loader::load_user_configs (POS: load merged user config bundles)
 - core.channel_bridge.config_parsers::extract_lite_model_config (POS: resolve lite/filter model)
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
+- myrm_agent_harness.api.security::sanitize_outbound_text (POS: mask a message before it is cut to the prompt window)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 - utils.json_parsing::parse_llm_json_list (POS: 容错 JSON 数组解析 SSOT)
 
 [OUTPUT]
-- POST /agents/suggestions: JSON array of 3 concise follow-up questions
+- POST /agents/suggestions: JSON array of up to 3 concise follow-up questions
 
 [POS]
 Generates follow-up question suggestions from recent chat history using the
 configured lite/filter model. Falls back to default model if no lite model set.
+A suggestion is sent as the user's own message when clicked, so the model's reply is validated like user
+input, and the call runs inside a fixed cost envelope: bounded output tokens, bounded conversation window.
 """
 
 import asyncio
 import logging
+import re
+import unicodedata
+from collections.abc import Iterable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -35,6 +41,23 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Suggestions endpoint
 # ---------------------------------------------------------------------------
+
+_MAX_SUGGESTIONS = 3
+_MIN_LABEL_CHARS = 3
+_MAX_LABEL_CHARS = 120
+# Three questions as a JSON array are ~40 tokens; the cap bounds what a thinking model may spend on this call.
+_MAX_OUTPUT_TOKENS = 1024
+_HISTORY_MESSAGES = 6
+# The opening and the ending of a long message stay, so the prompt does not grow with the answer's length.
+_MAX_MESSAGE_CHARS = 1500
+_MESSAGE_HEAD_CHARS = 1000
+_MESSAGE_TAIL_CHARS = 500
+
+# Format characters real text needs: joiners (Persian, Indic scripts, emoji sequences) and directional marks.
+_KEPT_FORMAT_CHARS = frozenset("\u200c\u200d\u200e\u200f\u061c")
+_REJECTED_CATEGORIES = frozenset({"Cc", "Co", "Cs"})
+_MARKED_LINE = re.compile(r"^\s*(?:\d{1,2}[.)]|[-*\u2022])\s+(\S.*)$")
+_MIN_MARKED_LINE_SHARE = 0.6
 
 _SUGGESTIONS_PROMPT = (
     "Based on the conversation below, generate exactly 3 concise follow-up questions "
@@ -75,11 +98,19 @@ async def get_suggestions(
         return success_response(data={"suggestions": []})
 
     try:
+        from myrm_agent_harness.api.security import sanitize_outbound_text
         from myrm_agent_harness.toolkits.llms import llm_manager
 
-        llm = await llm_manager.get_llm_from_config(filter_cfg, streaming=False, api_keys=getattr(filter_cfg, "api_keys", None))
+        model_kwargs = {**(filter_cfg.model_kwargs or {}), "max_tokens": _MAX_OUTPUT_TOKENS, "supports_reasoning": False}
+        invoke_cfg = filter_cfg.model_copy(update={"model_kwargs": model_kwargs})
+        llm = await llm_manager.get_llm_from_config(invoke_cfg, streaming=False, api_keys=getattr(invoke_cfg, "api_keys", None))
 
-        conversation_text = "\n".join(f"{pair[0]}: {pair[1]}" for pair in request.chat_history[-6:] if len(pair) >= 2)
+        # Masked before the cut: a PII span straddling the cut would otherwise reach the model as half a value no pattern matches.
+        conversation_text = "\n".join(
+            f"{pair[0]}: {_clip_message(sanitize_outbound_text(pair[1]))}"
+            for pair in request.chat_history[-_HISTORY_MESSAGES:]
+            if len(pair) >= 2
+        )
         prompt = _SUGGESTIONS_PROMPT.format(conversation=conversation_text)
 
         async with asyncio.timeout(15):
@@ -111,19 +142,53 @@ def _resolve_lite_model(
     return default_model_cfg
 
 
-def _parse_suggestions(content: str) -> list[str]:
-    """Extract a list of suggestion strings from LLM output.
+def _clip_message(text: str) -> str:
+    """Bound a message to its opening and ending; the middle is what grows with the answer's length."""
+    if len(text) <= _MAX_MESSAGE_CHARS:
+        return text
+    return f"{text[:_MESSAGE_HEAD_CHARS]}\n…\n{text[-_MESSAGE_TAIL_CHARS:]}"
 
-    Prefers a JSON array parsed by :func:`parse_llm_json_list`, which
-    tolerates fences, prose framing, unescaped newlines inside string
-    literals, and format examples preceding the real array. Falls back to
-    line-based extraction for non-JSON replies.
+
+def _parse_suggestions(content: str) -> list[str]:
+    """Extract the suggestion labels from a model reply; anything that is not a clean list yields nothing.
+
+    A JSON array of strings is the contract; :func:`parse_llm_json_list` tolerates fences, prose framing, unescaped
+    newlines inside string literals and format examples preceding the real array. Without an array only an
+    unmistakable list is accepted (marked lines making up most of the reply), so reasoning prose, refusals and error
+    text never become buttons.
     """
     parsed = parse_llm_json_list(content)
     if parsed is not None:
-        suggestions = [str(item).strip() for item in parsed[:5] if str(item).strip()]
-        if suggestions:
-            return suggestions
+        return _clean_labels(item for item in parsed if isinstance(item, str))
 
-    lines = [line.strip().lstrip("0123456789.-) ") for line in content.splitlines() if line.strip()]
-    return [line for line in lines if len(line) > 5][:5]
+    lines = [line for line in content.splitlines() if line.strip()]
+    marked = [match.group(1) for line in lines if (match := _MARKED_LINE.match(line))]
+    if len(marked) >= 2 and len(marked) / len(lines) >= _MIN_MARKED_LINE_SHARE:
+        return _clean_labels(marked)
+    return []
+
+
+def _clean_labels(candidates: Iterable[str]) -> list[str]:
+    """Normalize candidates into button labels: folded whitespace, bounded length, visible, distinct, at most three."""
+    labels: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        label = " ".join(candidate.split())
+        if not (_MIN_LABEL_CHARS <= len(label) <= _MAX_LABEL_CHARS) or any(map(_is_invisible, label)):
+            continue
+        key = label.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        labels.append(label)
+        if len(labels) == _MAX_SUGGESTIONS:
+            break
+    return labels
+
+
+def _is_invisible(char: str) -> bool:
+    """Whether a character renders as nothing, reorders text or cannot be encoded: a label must show what a click sends."""
+    category = unicodedata.category(char)
+    if category == "Cf":
+        return char not in _KEPT_FORMAT_CHARS
+    return category in _REJECTED_CATEGORIES or "\U000e0100" <= char <= "\U000e01ef"

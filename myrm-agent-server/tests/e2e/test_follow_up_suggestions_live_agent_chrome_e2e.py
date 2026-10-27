@@ -324,7 +324,7 @@ def test_finished_answer_offers_follow_ups_and_a_click_asks_one(tmp_path: Path, 
         except AssertionError as failure:
             pytest.fail(f"no follow-up question appeared under the answer: {failure}\n{_follow_up_report(client, page)}")
         texts = chips.get("texts")
-        assert isinstance(texts, list) and 1 <= len(texts) <= 5, chips
+        assert isinstance(texts, list) and 1 <= len(texts) <= 3, chips
         assert all(isinstance(text, str) and text.strip() for text in texts), chips
         print(f"E2E_FOLLOW_UPS: {json.dumps(texts, ensure_ascii=False)}", flush=True)
 
