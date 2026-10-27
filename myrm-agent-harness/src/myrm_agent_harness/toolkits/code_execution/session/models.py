@@ -7,6 +7,7 @@
 SessionState: Lifecycle states enum.
 SessionExecutionResult: Frozen dataclass for command execution results.
 SessionConfig: Configuration dataclass for session parameters.
+CommandEnv: Environment applied around one command (sticky settings, scoped credentials).
 
 [POS]
 Plain data shared by the session base, its command stream and the executors; no behaviour, no I/O.
@@ -14,6 +15,7 @@ Plain data shared by the session base, its command stream and the executors; no 
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
@@ -40,6 +42,19 @@ class SessionExecutionResult:
     error: str | None = None
     duration: float = 0.0
     is_armored: bool = False
+
+
+@dataclass(frozen=True)
+class CommandEnv:
+    """Environment applied around one command of a shell that outlives it.
+
+    ``sticky`` values (a skill's settings) are exported before every command and stay for the later ones.
+    ``scoped`` values (credentials) are exported before the command and unset right after it, so a later command
+    never reads what an earlier one was granted.
+    """
+
+    sticky: Mapping[str, str] = field(default_factory=dict)
+    scoped: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass

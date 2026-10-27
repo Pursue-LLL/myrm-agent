@@ -40,6 +40,7 @@ from myrm_agent_harness.toolkits.code_execution.session.command_stream import (
     CommandStreamMixin,
 )
 from myrm_agent_harness.toolkits.code_execution.session.models import (
+    CommandEnv,
     SessionConfig,
     SessionExecutionResult,
     SessionState,
@@ -163,11 +164,13 @@ class PersistentSession(CommandStreamMixin, ABC):
         command: str,
         timeout: int | None = None,
         cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
         """Execute a command with auto-recovery.
 
         When ``cancel_token`` is cancelled the command is stopped (see ``CommandStreamMixin``); a request that
-        was already cancelled never starts it.
+        was already cancelled never starts it. ``env`` is applied around this command only: it is the one way a
+        command's credentials reach a shell that was started before them.
         """
         timeout = timeout or self.config.timeout
         start_time = time.perf_counter()
@@ -176,11 +179,11 @@ class PersistentSession(CommandStreamMixin, ABC):
             return SessionExecutionResult(False, "", "", CANCELLED_EXIT_CODE, error=CANCELLED_BEFORE_START)
 
         await self._ensure_active_unlocked()
-        result = await self._execute_core(command, timeout, cancel_token)
+        result = await self._execute_core(command, timeout, cancel_token, env)
 
         # Auto-recovery logic
         if self._should_recover(result):
-            result = await self._recover_and_retry(command, timeout, cancel_token)
+            result = await self._recover_and_retry(command, timeout, cancel_token, env)
 
         return dataclasses.replace(result, duration=time.perf_counter() - start_time)
 
@@ -209,6 +212,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         command: str,
         timeout: int,
         cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
         await self._transit_state(SessionState.RECOVERING)
         logger.warning(f" Recovering session {self.config.session_id} after crash...")
@@ -218,7 +222,7 @@ class PersistentSession(CommandStreamMixin, ABC):
             await self._initialize_shell()
             self._consecutive_failures = 0
             await self._transit_state(SessionState.ACTIVE)
-            return await self._execute_core(command, timeout, cancel_token)
+            return await self._execute_core(command, timeout, cancel_token, env)
         except Exception as e:
             logger.error("Session recovery failed: %s", e)
             await self._transit_state(SessionState.TERMINATED)
@@ -261,6 +265,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         command: str,
         timeout: int,
         cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
         syntax_error = await self._precheck_bash_syntax(command)
         if syntax_error:
@@ -278,6 +283,7 @@ class PersistentSession(CommandStreamMixin, ABC):
                 timeout,
                 is_armored=is_armored,
                 cancel_token=cancel_token,
+                env=env,
             )
 
     async def _kill_process_group(self, grace_period: float = 2.0) -> None:

@@ -118,7 +118,7 @@ PTC（程序化工具调用）
 `CodeExecutor` 的本地实现，直接在当前进程环境中执行代码：
 
 - **Python 执行**：每次调用创建独立子进程，通过 wrapper script 注入模块黑名单。内置 **Actionable Diagnostic Hints** 机制，拦截 `ModuleNotFoundError` 并追加 `python -m pip install` 修复建议，引导大模型自主纠错。
-- **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程，环境变量和工作目录跨命令保持
+- **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程，`export` 的变量和工作目录跨命令保持（凭证除外：按命令注入并在命令后清除）
 - **文件操作**：直接使用 `pathlib` 本地 IO，零网络开销
 - **只读工作区**：当前运行绑定的 OCap 句柄不含 WRITE（如 Verifier 的 READ+EXECUTE 句柄）时，`LocalExecutor` 把该次执行视为 `readonly_workspace`：原生写/删/`mkdir` 被拒绝，Python 子进程的写入守卫与 Bash 会话的 OS 沙箱（`SandboxPolicy.writable_paths` 为空，`/tmp` 草稿目录仍可写）同时生效。只读运行使用独立的 Bash 会话（会话键带 `_readonly` 标记），不复用也不污染可写会话。Bash 工具的后台作业（`run_in_background`）同样如此：`_background_spawn.py` 默认按句柄收窄为只读并以空 `writable_paths` 生成沙箱策略。MCP 服务器等 harness 自有进程显式声明 `ExecutionContext.harness_owned=True`，不继承任何 agent 的句柄。容器内部署没有嵌套 OS 沙箱，Shell 写入不被 OS 阻止。
 - **执行证据**：每次真正启动进程前（Python、Bash、Bash 流式，以及非 harness 自有的后台作业），执行器向当前 `track_execution()` 作用域写入证据（`execution_evidence.py`，ContextVar）；Verifier 的 PASS 闸门读取该证据（无证据的 PASS 不构成结论），被命令校验器拒绝的命令不计入，MCP 服务器启动不计入。证据只证明“启动过进程”，不证明验证充分：Verifier 跑一条无关命令即可满足闸门，验证质量仍取决于 Verifier 的提示词与模型。
@@ -148,6 +148,8 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 - 包装命令前置 **`EXIT` trap**，当 `set -e` 等 errexit 崩溃导致 Shell 进程终止时仍输出完整标记对与真实退出码，使流式解析正常收尾而非误报「意外崩溃」触发无谓恢复；正常命令下 trap 静默，标记恰好输出一次
 - 实时输出（SSE）经 **PII 脱敏**（主机路径 + 凭证 token 掩码），`execute` 与 `execute_stream` 双路径一致；tee 日志保留原始供排查
 - 环境变量注入使用 **ANSI-C quoting**（`$'…'`）:值内 `$`、反引号、双引号保持字面（不二次展开），`\n`/`\t` 等控制字符转义为单行序列，注入命令永不破坏初始化批次（曾出现过 `"` 转义成 `\\"` 导致引号错配、长驻 Shell 卡死等续行的故障）
+- **凭证按命令生效（command-scoped）**：长驻 Shell 的寿命远长于单条命令，而凭证的授权范围按命令决定（`allowed_credential_issuers`：`None`=全部、`[]`=无、列表=仅所列）、临时凭证一次性且绑定命令摘要。因此凭证不写进 Shell 启动环境，而是随每条命令传入 `CommandEnv`：`sticky`（技能/全局的非敏感变量）每条命令前重新导出并保留；`scoped`（用户 OAuth 凭证与临时凭证）只在该命令前导出、该命令结束标记之后 `unset`/`Remove-Item Env:`。效果：Shell 启动之后才到位或刷新的凭证立即对下一条命令可见；一条命令的凭证不会漏给后面的命令（包括声明了更窄 issuer 的技能命令）；一次性临时凭证在该命令的摘要下才被消费。清理发生在结束标记之后，`exit N` 提前返回与退出码不受影响。限制：命令执行期间同一 Shell 里的子进程可读取这些变量，这是命令本身所需；`run_in_background` 启动的进程走独立的环境构造路径，不经此机制
+- PowerShell 的环境变量值一律写成带引号的字面量（`$env:K = '…'`），含 Unicode 弯引号时加倍转义，值不会被当作命令执行
 - **卡死自愈**：阻塞型命令（`sleep 9999`/`tail -f`）超时、或 stdin 吞噬型命令（`cat`/`ssh`/`python -c input()`）把 marker 回显导致边界损坏时，直接 kill 进程树并置 TERMINATED，下一次 execute/stream 透明重建会话，避免永久毒化
 - **停止即终止**：`ExecutionContext.cancel_token`（仅面向 Agent 的工具调用设置；目标验证、清理等内部调用不设置）被取消时，正在跑的命令与它启动的子进程一并终止，结果带已产生的部分输出与退出码 130，随后与超时一样丢弃该 Shell、下一条命令拿到全新的 Shell（cwd 与已导出变量重置，结果文案已如实告知）。取消复用超时的同一个截止点（`asyncio.timeout` + `cut_deadline_on_cancel`），两条路径走同一个出口；已被取消的请求不会再启动命令。`tool_executor` 对已取消的请求不再重试（`TOOL_CANCELLED` 结果），退避等待也随取消立即结束；其工具闸门对在途调用同样生效：会响应取消的工具（Shell、委托 Agent、浏览器）在 5 秒宽限期内自行返回结果，其余只盯着自身超时的调用（远程 MCP、网页请求等）在宽限期结束时被取消，并告知模型结果未知、重复前先确认当前状态。Python 脚本子进程同样随取消终止
 - **进程树终止**：沙箱 Shell 与服务端共用进程组，不能按组终止；`process_tree.kill_process_tree` 先快照后代（psutil）并终止，再终止 Shell，宽限期后补 kill 幸存者（超时路径同样终止整棵进程树）。独占进程组的 Shell 同样先快照后代：整组信号之后，对已脱离进程组的后代（`setsid`）逐个终止并在宽限期后补 kill；Shell 已被回收（`returncode` 非空）时不再按 PID 发信号，避免误杀复用该 PID 的无关进程组。已被重新挂到 init 的守护进程（如 `(cmd &)`）在快照里看不到：独占进程组的 Shell 仍由整组信号覆盖，共用服务端进程组的沙箱 Shell 以及既脱离进程组又被重新挂到 init 的进程则不在终止范围内

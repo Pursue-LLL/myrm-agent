@@ -34,7 +34,7 @@ from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadli
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.platform import PlatformInfo
-    from myrm_agent_harness.toolkits.code_execution.session.models import SessionConfig
+    from myrm_agent_harness.toolkits.code_execution.session.models import CommandEnv, SessionConfig
     from myrm_agent_harness.toolkits.code_execution.session.shell_flavor import ShellFlavor
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
@@ -83,13 +83,16 @@ class CommandStreamMixin:
         timeout: int,
         is_armored: bool = False,
         cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
         if not self.process or not self.process.stdin or not self.process.stdout:
             return SessionExecutionResult(False, "", "", 1, error="Process unavailable", is_armored=is_armored)
 
         end_marker = _generate_marker("END")
         exit_marker = _generate_marker("EXIT")
-        full_cmd = self._flavor.build_wrapped_command(cmd_to_run, exit_marker, end_marker, self._platform.exit_code_var)
+        full_cmd = self._flavor.build_wrapped_command(
+            cmd_to_run, exit_marker, end_marker, self._platform.exit_code_var, env
+        )
 
         try:
             self.process.stdin.write(full_cmd.encode("utf-8", errors="surrogateescape"))
@@ -221,8 +224,9 @@ class CommandStreamMixin:
         command: str,
         timeout: int | None = None,
         cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
     ) -> AsyncIterator[str]:
-        """Yield performance-optimized output stream."""
+        """Yield performance-optimized output stream; ``env`` is applied around this command only."""
         timeout = timeout or self.config.timeout
         if cancel_token is not None and cancel_token.is_cancelled:
             yield f"\n[ERROR] {CANCELLED_BEFORE_START}\n"
@@ -248,7 +252,7 @@ class CommandStreamMixin:
                 end_marker = _generate_marker("END")
                 exit_marker = _generate_marker("EXIT")
                 full_cmd = self._flavor.build_wrapped_command(
-                    cmd_to_run, exit_marker, end_marker, self._platform.exit_code_var
+                    cmd_to_run, exit_marker, end_marker, self._platform.exit_code_var, env
                 )
 
                 process.stdin.write(full_cmd.encode())

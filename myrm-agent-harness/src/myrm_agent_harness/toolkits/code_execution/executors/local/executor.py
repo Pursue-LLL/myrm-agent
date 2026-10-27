@@ -4,6 +4,7 @@
 local._file_ops::LocalFileOpsMixin (POS: Native file I/O via pathlib with read-only guard)
 local._python_subprocess::run_python_subprocess (POS: Python subprocess with sandbox and timeout)
 local._background_spawn::spawn_background_process (POS: Background process spawning with sandbox)
+local._command_env::build_command_env (POS: What one bash command may read: skill settings and its credentials)
 executors.common::CommandRewriter, VenvManager, ExecutionHelper (POS: Shared execution utilities)
 executors.base::CodeExecutor (POS: Code executor abstract base)
 code_execution.config::ExecutionConfig (POS: Execution configuration layer)
@@ -46,6 +47,10 @@ from myrm_agent_harness.toolkits.code_execution.executors.common import (
     handle_execution_error,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.execution_evidence import record_execution
+from myrm_agent_harness.toolkits.code_execution.executors.local._command_env import (
+    build_command_env,
+    scrubbed_user_env,
+)
 from myrm_agent_harness.toolkits.code_execution.executors.local._file_ops import (
     LocalFileOpsMixin,
 )
@@ -361,18 +366,13 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
 
         command = await self._prepare_bash_command(command)
 
-        # Build environment
-        env = self._build_bash_env(
-            context.env,
-            context.allowed_credential_issuers,
-            command=command,
-        )
-
+        env = self._build_bash_env(context.env)
         session = await self._get_or_create_bash_session(context, env)
+        command_env = build_command_env(context.env, context.allowed_credential_issuers, command)
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
-        session_result = await session.execute(command, timeout, cancel_token=context.cancel_token)
+        session_result = await session.execute(command, timeout, cancel_token=context.cancel_token, env=command_env)
 
         execution_time = time.time() - start_time
 
@@ -452,17 +452,13 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
 
         self._setup_workspace(str(effective_cwd) if effective_cwd else None)
         command = await self._prepare_bash_command(command)
-        env = self._build_bash_env(
-            context.env,
-            context.allowed_credential_issuers,
-            command=command,
-        )
-
+        env = self._build_bash_env(context.env)
         session = await self._get_or_create_bash_session(context, env)
+        command_env = build_command_env(context.env, context.allowed_credential_issuers, command)
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
-        async for chunk in session.execute_stream(command, timeout, cancel_token=context.cancel_token):
+        async for chunk in session.execute_stream(command, timeout, cancel_token=context.cancel_token, env=command_env):
             yield chunk
 
     async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
@@ -615,13 +611,12 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         command = self._command_rewriter.rewrite_search_commands(command)
         return await self._venv_manager.rewrite_pip_command(command)
 
-    def _build_bash_env(
-        self,
-        user_env: dict[str, str] | None,
-        allowed_credential_issuers: list[str] | None = None,
-        command: str | None = None,
-    ) -> dict[str, str]:
-        """Build sanitized environment with venv and user overrides."""
+    def _build_bash_env(self, user_env: dict[str, str] | None) -> dict[str, str]:
+        """Build the sanitized environment a bash shell starts with.
+
+        Credentials are not part of it: a shell outlives the commands it runs, so they travel with each command
+        (``build_command_env``) instead of being baked into the shell.
+        """
         from myrm_agent_harness.toolkits.code_execution.security.validator import (
             sanitize_env,
         )
@@ -635,7 +630,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
             env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
 
         if user_env:
-            env.update(sanitize_env(user_env))
+            env.update(scrubbed_user_env(user_env))
             logger.debug(f" User env vars: {list(user_env.keys())}")
 
         # Post-override scrubbing guarantee: strip any non-inheritable host secrets from base/user env (Codex #38941)
@@ -646,58 +641,6 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         for k in list(env.keys()):
             if is_non_inheritable_env_var(k, env.get(k)):
                 env.pop(k, None)
-
-        from myrm_agent_harness.core.security.safe_exec import credential_env_overrides
-        from myrm_agent_harness.core.security.types import user_credentials_ctx
-
-        try:
-            credentials = user_credentials_ctx.get()
-            if credentials:
-                env.update(
-                    credential_env_overrides(
-                        credentials,
-                        allowed_issuers=allowed_credential_issuers,
-                    )
-                )
-        except LookupError:
-            pass
-
-        # Ephemeral credential injection with zeroization guarantees & action digest validation
-        try:
-            import hashlib
-
-            from myrm_agent_harness.core.context_vars import approval_session_var
-            from myrm_agent_harness.core.security.ephemeral_credentials import (
-                get_ephemeral_credential_store,
-                validate_credential_key,
-            )
-
-            current_session = approval_session_var.get()
-            if current_session:
-                store = get_ephemeral_credential_store()
-                summaries = store.list_summaries(current_session)
-                current_action_digest = (
-                    hashlib.sha256(command.strip().encode("utf-8")).hexdigest() if command and command.strip() else None
-                )
-                for s in summaries:
-                    if not s.is_consumed and not s.is_expired:
-                        try:
-                            val = store.consume_credential(
-                                current_session,
-                                s.handle_id,
-                                action_digest=current_action_digest,
-                            )
-                            sanitized_key = validate_credential_key(s.key)
-                            env[f"MYRM_CREDENTIAL_{sanitized_key}"] = val
-                            env[sanitized_key] = val
-                        except ValueError as val_err:
-                            logger.warning(
-                                "[LOCAL_EXECUTOR] Ephemeral credential handle '%s' skipped: %s",
-                                s.handle_id,
-                                val_err,
-                            )
-        except Exception as e:
-            logger.debug("[LOCAL_EXECUTOR] Ephemeral credential injection skipped: %s", e)
 
         try:
             from myrm_agent_harness.core.context_vars import user_timezone_var
