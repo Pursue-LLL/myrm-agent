@@ -14,4 +14,3 @@ GeneralAgent 流式对话、重连与离线 durable 任务 HTTP 层。上级文�
 | `media_config.py` | 模块 | 媒体设置页凭证端点：`/test-media-config`（图像/视频/TTS 凭证与连通性探测）+ `/media-provider-status`（视频 Provider 密钥与健康状态）；配置读取失败降级为空配置，不返回 500 | ✅ |
 | `streaming.py` | 模块 | agent-stream / steer / redirect（指令文本先过风险闸门，命中返回 `success:false`，不送达回合）/ **chat cancel（interrupt + registry）** / message cancel（desktop）；pair auth 时校验 scoped chat 绑定 | ✅ |
 | `prewarm.py` | 模块 | `POST/DELETE /chats/{chat_id}/prewarm` — turn1 冷启动 proactive warm | ✅ |
-| `suggestions.py` | 模块 | General Agent 建议 API | ✅ |
