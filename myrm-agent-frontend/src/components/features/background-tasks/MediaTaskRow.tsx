@@ -36,6 +36,7 @@ const ACTIVE_STATUS_DOT: Record<'pending' | 'queued' | 'running', string> = {
 
 export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateChat }: MediaTaskRowProps) {
   const t = useTranslations('backgroundTasks.media');
+  const tCard = useTranslations('taskCard');
   const locale = useLocale();
   const prompt = getMediaTaskPrompt(task.payload);
   const chatId = getMediaTaskChatId(task.payload);
@@ -88,9 +89,7 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
             <span className="text-border">·</span>
             <span>{statusLabel}</span>
             <span className="text-border">·</span>
-            <span>
-              {formatRelativeTime(task.updated_at, locale)}
-            </span>
+            <span>{formatRelativeTime(task.updated_at, locale)}</span>
           </div>
 
           {!isTerminal && task.status === 'running' && task.progress > 0 && (
@@ -107,7 +106,9 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
           )}
 
           {isTerminal && task.status === 'failed' && task.error?.message && (
-            <p className="mt-1 line-clamp-2 text-xs text-destructive/80">{task.error.message}</p>
+            <p className="mt-1 line-clamp-2 text-xs text-destructive/80">
+              {task.error.error_type === 'interrupted' ? tCard('interrupted') : task.error.message}
+            </p>
           )}
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
