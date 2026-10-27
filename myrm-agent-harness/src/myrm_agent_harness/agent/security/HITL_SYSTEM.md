@@ -181,6 +181,8 @@ Agent执行 → interrupt() → GraphInterrupt → stream结束
 
 无人应答时，路由器的 `PendingApprovals` 到点（`ApprovalTimeoutScheduler`）把审批卡改写为超时结果，并以同样方式提交一条续跑消息（`resume_value` 为调度器构造的超时决定，metadata 额外带 `approval_timed_out`），所以续跑是路由器里的普通回合，`/stop` 可以取消。
 
+新输入到达同一智能体会话时，停在审批的那次运行被它接管（之后补发的答复不会被应用），所以路由器在这样的回合开始时同样结束该审批：卡改写为「已取消」的提示、计时结束，之后补发的答复只会被告知没有未决请求；同一聊天里其他智能体的审批不受影响。审批答复（`resume_value`）在 `SessionGate` 里不与文字合并，单独、先于同时排队的文字运行。
+
 ### Resume处理流程
 ```
 execute_stream()检测is_resume=True
