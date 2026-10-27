@@ -14,6 +14,7 @@ Outbound:
 [INPUT]
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name reactions.add accepts)
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
@@ -43,6 +44,7 @@ from app.channels.core.credentials import (
     credential_spec,
 )
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.providers._emoji_shortnames import to_shortname
 from app.channels.providers.slack.api import SlackClient
 from app.channels.providers.slack.thread_tracker import (
     ThreadTrackerMetrics,
@@ -361,7 +363,7 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         if not emoji:
             return
-        await self._api.add_reaction(chat_id, message_id, emoji.strip(":"))
+        await self._api.add_reaction(chat_id, message_id, to_shortname(emoji))
 
     async def _clear_assistant_status(self, chat_id: str) -> None:
         """Clear assistant thread status if one was set for this chat."""

@@ -17,6 +17,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Channel providers — concrete channel implementations. | ✅ |
 | `_http_timeout.py` | 模块 | app.channels.providers._http_timeout — Shared HTTP timeout resolution for channel API clients. | ✅ |
+| `_emoji_shortnames.py` | 模块 | Shared by Slack and Mattermost: `to_shortname` turns a unicode reaction emoji (or `:name:`) into the short name their reaction APIs accept, because both reject a raw glyph; unknown values pass through. | ✅ |
 | `_twilio_utils.py` | 模块 | Internal utility module. Shared by Twilio-based channels (SMS, Voice) to avoid duplicating signature verification logic. | ✅ |
 | `dingtalk/` | 包 | DingTalk channel via Stream API WebSocket + OpenAPI. Inbound mixin plus AI Card mixin (typewriter-style streaming replies). See `dingtalk/_ARCH.md`. | ✅ |
 | `discord/` | 包 | Discord channel via Gateway WebSocket + REST. Inbound / outbound / voice-control mixins around `channel.py`; `voice/` holds the voice subsystem. See `discord/_ARCH.md`. | ✅ |

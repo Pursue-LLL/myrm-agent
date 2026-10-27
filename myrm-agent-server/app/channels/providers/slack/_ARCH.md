@@ -10,7 +10,7 @@ Slack 渠道 Provider 实现（入站/出站、凭证、路由）。上级文档
 |------|------|------|-------|
 | `__init__.py` | 入口 | Slack channel provider package. | ✅ |
 | `api.py` | 模块 | Slack Web API client. Wraps HTTP calls and error handling, providing low-level API capabilities for SlackChannel. | ✅ |
-| `channel.py` | 模块 | Slack Bot channel implementation with AI Agent status indicator support. Supports DM/channel/thread messages, file upload, message edit/delete/reactions, Socket | ✅ |
+| `channel.py` | 模块 | Slack Bot channel implementation with AI Agent status indicator support. Supports DM/channel/thread messages, file upload, message edit/delete/reactions (the emoji is sent as a short name, via `providers/_emoji_shortnames.py`), Socket | ✅ |
 | `format_converter.py` | 模块 | Markdown → Slack mrkdwn converter. Escapes special chars (&, <, >), protects Slack angle-bracket tokens (<@mention>, <#channel>, <http://...>), converts Markdow | ✅ |
 | `helpers.py` | 模块 | app.channels.providers.slack.helpers — Slack pure-function helpers: Block Kit builder and inbound event parsing. | ✅ |
 | `context.py` | 模块 | Slack inbound context mixin. Thread-parent cache (TTL + LRU) and mention annotation for SlackChannel. | ✅ |

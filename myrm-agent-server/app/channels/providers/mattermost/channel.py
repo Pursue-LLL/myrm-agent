@@ -14,6 +14,7 @@ and inbound media attachment parsing.
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy.)
 - app.channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - app.channels.core.mixins::CachedGroupMixin (POS: Reusable channel capability mixin components.)
+- app.channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name the reactions API accepts)
 - app.channels.providers.mattermost.inbound::MattermostInboundMixin (POS: WebSocket event parsing and inbound media)
 
 [OUTPUT]
@@ -37,6 +38,7 @@ from app.channels.core.attachment_delivery import attempt_attachments
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
+from app.channels.providers._emoji_shortnames import to_shortname
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -262,7 +264,7 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         if not emoji or not self._bot_id:
             return
-        emoji_name = emoji.strip().strip(":").replace("", "")
+        emoji_name = to_shortname(emoji)
         if not emoji_name:
             return
         try:
