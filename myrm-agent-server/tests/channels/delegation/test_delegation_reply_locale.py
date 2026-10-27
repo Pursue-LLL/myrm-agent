@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - Tests that the four replies of the ``/delegate`` flow (missing task, quota reached, receipt, steering injected)
-  follow the message locale, and that the Chinese text is the one the router used to hard-code.
+  follow the message locale, with the zh-CN texts asserted verbatim.
 
 [POS]
 Server tests for the channel router's delegation branch.
