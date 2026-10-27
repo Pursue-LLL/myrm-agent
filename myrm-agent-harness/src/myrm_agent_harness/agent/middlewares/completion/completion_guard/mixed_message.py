@@ -25,6 +25,7 @@ a complete answer.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from copy import deepcopy
 
 from langchain_core.messages import AIMessage
@@ -47,10 +48,10 @@ logger = logging.getLogger(__name__)
 def strip_readonly_calls_beside_answer(
     message: AIMessage,
     *,
-    messages: list[object],
+    messages: Sequence[object],
     records: list[CallRecord],
     user_text: str | None,
-) -> dict[str, list[AIMessage]] | None:
+) -> dict[str, object] | None:
     """Replace ``message`` with a copy that has no tool calls when it already is a complete answer."""
     if not (message.content and message.tool_calls):
         return None

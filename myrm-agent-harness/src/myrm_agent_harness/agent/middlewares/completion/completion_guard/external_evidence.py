@@ -51,7 +51,7 @@ _EXTERNAL_EVIDENCE_TOOLS: frozenset[str] = frozenset(
 )
 
 
-def extract_latest_human_text(messages: list[object]) -> str | None:
+def extract_latest_human_text(messages: Sequence[object]) -> str | None:
     from myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery import (
         strip_catalog_blocks,
     )
@@ -154,7 +154,7 @@ def can_produce_external_evidence(tool_names: Iterable[str]) -> bool:
 
 def build_external_evidence_reason(
     *,
-    messages: list[object],
+    messages: Sequence[object],
     records: Sequence[object],
 ) -> str | None:
     latest_human = extract_latest_human_text(messages)

@@ -21,7 +21,6 @@ the last user message keep appending to the user's own message, not to the instr
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.messages import HumanMessage
@@ -29,7 +28,7 @@ from langchain_core.messages import HumanMessage
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import current_run_state
 
 
-class CompletionDirectiveMiddleware(AgentMiddleware[Any, Any, Any]):
+class CompletionDirectiveMiddleware(AgentMiddleware):
     """Appends the guard's pending instruction after the message it was written to follow."""
 
     async def awrap_model_call(

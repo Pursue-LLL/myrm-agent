@@ -71,10 +71,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import replace
-from typing import Any
 
-from langchain.agents.middleware import AgentMiddleware, hook_config
+from langchain.agents.middleware import AgentMiddleware, AgentState, hook_config
 from langchain_core.messages import AIMessage
+from langgraph.runtime import Runtime
 
 from myrm_agent_harness.agent.middlewares._run_workspace import run_workspace
 from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabilities import CompletionCapabilities
@@ -135,7 +135,7 @@ def reset_completion_guard() -> None:
     reset_run_state()
 
 
-class CompletionGuard(AgentMiddleware[Any, Any, Any]):
+class CompletionGuard(AgentMiddleware):
     """Critical completion verification guard.
 
     Only blocks the Agent when code files were modified without verification
@@ -169,7 +169,7 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         self._capabilities = capabilities or CompletionCapabilities()
 
     def _evidence_demand(
-        self, run_state: RunGuardState, messages: list[object], records: Sequence[object]
+        self, run_state: RunGuardState, messages: Sequence[object], records: Sequence[object]
     ) -> tuple[str | None, bool]:
         """The external-evidence demand on this answer, and whether the run is unable to meet it.
 
@@ -184,7 +184,7 @@ class CompletionGuard(AgentMiddleware[Any, Any, Any]):
         return reason, True
 
     @hook_config(can_jump_to=["model"])
-    async def aafter_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
+    async def aafter_model(self, state: AgentState, runtime: Runtime) -> dict[str, object] | None:
         """Hold back a completion attempt that fails a check: route the run back to the model with the instruction pending."""
         run_state = current_run_state()
         if not self._enabled or run_state.forced_finish:
