@@ -6,13 +6,14 @@
 - myrm_agent_harness.utils.coercion::parse_float (POS: tolerant numeric parsing)
 
 [OUTPUT]
-- build_approval_card: harness ``tool_approval_request`` payload + locale → ProgressUpdate
+- build_approval_card: harness ``tool_approval_request`` payload + locale + the run's session key → ProgressUpdate
 
 [POS]
 Turns the harness approval payload into the card the chat shows: what needs approval, how long the wait lasts and what
 the timeout decides, plus the answer buttons. The wording and the buttons come from the channel catalog in the sender's
 language; tool names and the harness-supplied reasons are shown as they are. The time limit also travels as
-``ProgressUpdate.expiry`` so the router times the wait out with the same number the card states.
+``ProgressUpdate.expiry`` so the router times the wait out with the same number the card states, and the session of the
+asking run as ``ProgressUpdate.session_key`` so the answer resumes that session's chat.
 """
 
 from __future__ import annotations
@@ -27,8 +28,8 @@ from app.channels.types import ApprovalExpiry, ProgressUpdate, QuickReply
 _DEFAULT_TIMEOUT_SECONDS = 300.0
 
 
-def build_approval_card(data: dict[str, object], *, locale: str) -> ProgressUpdate:
-    """The card for one approval request (a single tool or a batch), worded for ``locale``."""
+def build_approval_card(data: dict[str, object], *, locale: str, session_key: str) -> ProgressUpdate:
+    """The card for one approval request (a single tool or a batch), worded for ``locale``, of the run in ``session_key``."""
     action_requests = data.get("actionRequests", [])
     extensions = data.get("extensions", {})
     timeout_info = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
@@ -61,6 +62,7 @@ def build_approval_card(data: dict[str, object], *, locale: str) -> ProgressUpda
         label="\n".join(lines),
         quick_replies=_answer_buttons(locale, batch_size),
         expiry=ApprovalExpiry(seconds=seconds, behavior=behavior),
+        session_key=session_key,
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 
 import pytest
 
@@ -11,11 +12,11 @@ from app.core.channel_bridge.executor_helpers import StreamAccumulator
 
 
 async def _apply_stream_events(acc: StreamAccumulator, *events: dict[str, object]) -> None:
-    async def _gen():
+    async def _gen() -> AsyncIterator[dict[str, object]]:
         for event in events:
             yield event
 
-    async for _ in iter_channel_stream_progress(_gen(), acc, locale="en"):
+    async for _ in iter_channel_stream_progress(_gen(), acc, locale="en", session_key=""):
         pass
 
 
@@ -230,7 +231,7 @@ class TestCostMetadataInjection:
     def test_end_to_end_token_usage_to_metadata(self) -> None:
         """Full pipeline: token_usage events → accumulator → cost_metadata."""
         acc = StreamAccumulator()
-        events = [
+        events: list[dict[str, object]] = [
             {
                 "type": "token_usage",
                 "data": {"model_name": "claude-sonnet-4-20250514", "cost_usd": 0.001, "usage": {"total_tokens": 500}},
@@ -265,7 +266,7 @@ class TestOldEventTypeRegression:
     def test_old_event_type_not_processed(self) -> None:
         """'token_economics' must NOT accumulate anything — only 'token_usage' is valid."""
         acc = StreamAccumulator()
-        old_event = {
+        old_event: dict[str, object] = {
             "type": "token_economics",
             "data": {"cost_usd": 0.005, "model_name": "test", "usage": {"total_tokens": 999}},
         }

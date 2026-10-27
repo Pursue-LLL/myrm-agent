@@ -102,6 +102,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_executor_approval_card_locale.py` | 单元 | 真实 `ChannelAgentExecutor` 停在审批请求处：审批卡按发送者 locale 出并带 `expiry` |
 | `channels/routing/test_stop_ends_pending_approval_timer.py` | 集成 | 真实 `AgentRouter` 加真实审批超时调度器：`/stop` 与 `/new` 结束会话正在等待的审批及其超时计时（前台、委托交接两种，交接带或不带审批卡消息号；前台一例由真实 `_execute_prepared_context` 跑完一个停在审批请求处的回合，计时器由路由器按请求自带的等待时长布防），多话题时只有自己在等审批的话题才能结束该聊天的计时，没在等审批的回合被停时别的话题的计时不动 |
 | `channels/routing/test_pending_approvals.py` | 单元 | 路由器的待决审批登记簿 `PendingApprovals`（真实审批超时调度器）：到点只上报一次并关闭等待、按请求设定的决定上报批准或拒绝、应答结束等待与计时、无时限的请求把认领还给下一次应答、上报失败归还认领、计时器已认领后晚到的人工应答被拒、同一聊天的后一个请求接管唯一计时器、`clear` 结束全部；超时续跑消息沿用提问回合的发送者与身份且不带上一回合的会话态；`get` 只读不结束请求，请求记下提问时的智能体编号（与执行器给该回合用的编号一致） |
+| `channels/routing/test_resume_keeps_session.py` | 单元 | 真实路由器（真实会话闸门与审批超时调度器）配脚本化智能体：用户答复、审批超时与委托运行的续跑消息都带提问回合的渠道会话键（`METADATA_RESUME_SESSION_KEY`），答复自带的同名键被覆盖，卡片没写会话键的请求续跑时不带 |
 | `channels/routing/test_approval_timeout_resume.py` | 集成 | 审批无人应答时由路由器收口：真实 `AgentRouter` 经真实 `SessionGate` 走完「停在审批 → 到点 → 续跑」，续跑是登记在路由器里的普通回合因此 `/stop` 能取消它（批准与拒绝两种设定）；结果文案按提问时的语言（en/ja/zh-CN/zh-TW）改写审批卡，卡不可编辑或没有卡消息号时改发一条消息；过期的旧回合记录被续跑回合取代；应答先到则只续跑一次、计时不再触发，计时先到则晚到的应答被告知等待已结束且不再续跑；群聊续跑不重走准入，伪造标记或缺身份的消息仍走准入 |
 | `channels/routing/test_approval_superseded.py` | 集成 | 审批还在等待时来了新回合（真实 `AgentRouter` 加脚本化执行器）：同一智能体会话的新回合把审批卡改成「因收到新消息已取消」并结束计时与数字快捷应答，晚到的应答只被告知没有未决请求、不会续跑；卡不能编辑时改发一条消息；通知发不出去回合照常运行；委派运行的审批同样收口；只有同一智能体会话的回合才收口，同一聊天里其他智能体的审批保持开放；不开启回合的消息（命令）不动审批；四种语言各有这条文案 |
 | `channels/routing/test_new_input_ends_suspended_run.py` | 单元 | 审批收口所依赖的 LangGraph 约定，钉在已安装版本上：停在审批的线程，答复到来时执行该步；停着时来了新输入，该步不再续跑，之后晚到的答复什么也不改变（最小图，不含产品的智能体构建） |
@@ -206,6 +207,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `database/test_channel_key_match.py` | 模块 | 渠道会话键的边界匹配对真实 SQLite：续接匹配含自身与话题、智能体、纪元，纪元匹配只含自身与 `:e=` 键；更长的对端、相邻对端与 `_` 通配符都不被匹配；解析器与交接写出的各策略纪元键都被纪元匹配命中 |
 | `core/channel_bridge/test_idle_session_key.py` | 模块 | 空闲重置策略对真实 SQLite：窗口内续用本会话的聊天（含裸键），超时或首条消息开新纪元；更长对端、同对端的话题与智能体、`_` 通配符的聊天不被续用，且本会话的聊天优先于更新的邻居 |
+| `core/channel_bridge/test_execute_preamble_resume_session.py` | 模块 | 审批续跑对真实 SQLite：纪元已翻篇后仍接回提问回合的聊天、纪元内首条消息的续跑不被当成新对话（不播报 reset）、聊天已不存在时回一条标记失败的说明、工作区打不开时回失败回合；没有会话键的续跑仍按本条消息自己的会话解析 |
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |

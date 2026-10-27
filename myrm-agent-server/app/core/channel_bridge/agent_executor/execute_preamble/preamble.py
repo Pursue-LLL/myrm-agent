@@ -231,6 +231,7 @@ async def prepare_channel_execution(
             agent=agent_result.agent,
             token_ctx=agent_result.token_ctx,
             chat_id=session_ctx.chat_id,
+            session_key=session_ctx.session_key,
             chat_history=session_ctx.chat_history,
             query_input=agent_result.query_input,
             channel_budget_key=channel_budget_key,

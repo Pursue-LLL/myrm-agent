@@ -65,6 +65,7 @@ from .status import (
 )
 from .streaming import (
     METADATA_APPROVAL_WINDOW_SECONDS_KEY,
+    METADATA_RESUME_SESSION_KEY,
     ApprovalExpiry,
     FissionTopologyNode,
     FissionTopologyUpdate,
@@ -86,6 +87,7 @@ __all__ = [
     "METADATA_EXPLICIT_MENTION_KEY",
     "METADATA_GUEST_TURN_KEY",
     "METADATA_NOTIFY_KEY",
+    "METADATA_RESUME_SESSION_KEY",
     "ActionButton",
     "ApprovalExpiry",
     "ButtonStyle",

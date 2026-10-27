@@ -14,6 +14,7 @@ approval_denial_with_reason_processing =  拒否を処理中：「{ $reason }」
 approval_batch_processing =  { $approve_count } 件の承認、{ $reject_count } 件の拒否を処理中...
 approval_batch_processing_always =  { $approve_count } 件の承認（{ $always_count } 件は常時許可）、{ $reject_count } 件の拒否を処理中...
 approval_already_handled = ℹ この承認はタイムアウトしたか、すでに別の場所で処理されました。操作不要です。
+approval_session_gone = ℹ この承認は適用できません。属する会話がすでに存在しないため、中断したタスクを再開できませんでした。もう一度依頼してください。
 approval_timeout_approved = ⏱ 承認がタイムアウトしたため、自動的に承認されました。
 approval_timeout_denied = ⏱ 承認がタイムアウトしたため、自動的に拒否されました。
 approval_superseded = ℹ 新しいメッセージが届いたため、この承認リクエストは取り消されました。ツールは実行されていません。必要な場合は改めて依頼してください。

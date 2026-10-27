@@ -26,6 +26,7 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
             _events({"type": "message", "data": "Hello"}),
             acc,
             locale="en",
+            session_key="",
         )
     ]
     assert len(progress) == 2
@@ -37,7 +38,7 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
 
 
 @pytest.mark.asyncio
-async def test_tool_approval_request_carries_its_time_limit() -> None:
+async def test_tool_approval_request_carries_its_time_limit_and_the_session_of_the_run() -> None:
     acc = StreamAccumulator()
     event = {
         "type": "tool_approval_request",
@@ -46,10 +47,12 @@ async def test_tool_approval_request_carries_its_time_limit() -> None:
             "extensions": {"timeout": {"seconds": 120, "behavior": "allow"}},
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
+    session_key = "telegram:dm:u1:e=2026-10-26"
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en", session_key=session_key)]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].expiry == ApprovalExpiry(seconds=120, behavior="allow")
+    assert progress[0].session_key == session_key
 
 
 @pytest.mark.asyncio
@@ -68,7 +71,9 @@ async def test_tool_approval_request_defaults_to_denying_after_the_default_windo
         "type": "tool_approval_request",
         "data": {"actionRequests": [{"action": "bash", "description": "run ls"}], "extensions": extensions},
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), StreamAccumulator(), locale="en")]
+    progress = [
+        item async for item in iter_channel_stream_progress(_events(event), StreamAccumulator(), locale="en", session_key="")
+    ]
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].expiry == expected
 
@@ -85,7 +90,7 @@ async def test_capability_gap_web_search_not_configured_yields_progress_update()
             "display_message": "Web search is enabled but no search API is configured.",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en", session_key="")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].label == "Web search is enabled but no search API is configured."
@@ -102,7 +107,7 @@ async def test_capability_gap_web_search_unreachable_yields_progress_update() ->
             "display_message": "Web search provider is unreachable.",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en", session_key="")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert progress[0].label == "Web search provider is unreachable."
@@ -119,7 +124,7 @@ async def test_capability_gap_web_search_skipped_when_display_message_empty() ->
             "display_message": "",
         },
     }
-    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en")]
+    progress = [item async for item in iter_channel_stream_progress(_events(event), acc, locale="en", session_key="")]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
     assert "search API" in progress[0].label
@@ -137,6 +142,7 @@ async def test_fission_topology_update_is_passed_on_unchanged() -> None:
             _events({"type": "fission_topology", "data": update}),
             acc,
             locale="en",
+            session_key="",
         )
     ]
     assert progress == [update]
@@ -152,6 +158,7 @@ async def test_a_fission_topology_event_without_an_update_is_dropped(payload: ob
             _events({"type": "fission_topology", "data": payload}),
             acc,
             locale="en",
+            session_key="",
         )
     ]
     assert progress == []
@@ -159,7 +166,7 @@ async def test_a_fission_topology_event_without_an_update_is_dropped(payload: ob
 
 async def _consume(*events: dict[str, object]) -> StreamAccumulator:
     acc = StreamAccumulator()
-    async for _ in iter_channel_stream_progress(_events(*events), acc, locale="en"):
+    async for _ in iter_channel_stream_progress(_events(*events), acc, locale="en", session_key=""):
         pass
     return acc
 

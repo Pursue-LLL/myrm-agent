@@ -26,8 +26,7 @@ from myrm_agent_harness.core.security.types import EphemeralUserCredential
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.ai_agents.general_agent.agent import GeneralAgent
-from app.channels.types import METADATA_APPROVAL_WINDOW_SECONDS_KEY, OutboundMessage, ProgressUpdate
-from app.core.channel_bridge.config_parsers import SessionPolicy
+from app.channels.types import METADATA_APPROVAL_WINDOW_SECONDS_KEY, OutboundMessage, ProgressUpdate, SessionPolicy
 from app.core.channel_bridge.executor_helpers import ChannelChatHistory
 from app.core.types.business import ModelConfig
 
@@ -59,6 +58,7 @@ class ChannelExecutionPrep:
     agent: GeneralAgent
     token_ctx: Token[tuple[EphemeralUserCredential, ...]]
     chat_id: str
+    session_key: str
     chat_history: ChannelChatHistory
     query_input: str | list[dict[str, object]] | Command[object]
     channel_budget_key: str | None

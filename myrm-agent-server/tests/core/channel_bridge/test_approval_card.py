@@ -12,6 +12,7 @@ from app.channels.types import ApprovalExpiry
 from app.core.channel_bridge.agent_executor.approval_card import build_approval_card
 
 _LOCALES = ["en", "ja", "zh-CN", "zh-TW"]
+_SESSION = "telegram:dm:u1:e=2026-10-26"
 _ONE_TOOL: dict[str, object] = {
     "actionRequests": [{"action": "shell", "description": "run the build"}],
     "extensions": {"timeout": {"seconds": 120, "behavior": "deny"}},
@@ -23,7 +24,7 @@ def _two_tools() -> dict[str, object]:
 
 
 def test_the_english_card_names_the_tool_the_reason_and_the_time_limit() -> None:
-    card = build_approval_card(_ONE_TOOL, locale="en")
+    card = build_approval_card(_ONE_TOOL, locale="en", session_key=_SESSION)
 
     assert card.label == "shell needs approval: run the build\n⏱ Timeout: 120s (auto-deny)"
     assert [(q.label, q.text) for q in card.quick_replies] == [("✅ Approve", "/approve"), ("❌ Deny", "/deny")]
@@ -32,8 +33,8 @@ def test_the_english_card_names_the_tool_the_reason_and_the_time_limit() -> None
 
 @pytest.mark.parametrize("locale", _LOCALES)
 def test_every_part_of_the_card_comes_from_the_catalog_in_the_senders_language(locale: str) -> None:
-    card = build_approval_card({**_two_tools(), "reviewConfigs": [{"smartDenied": True}]}, locale=locale)
-    english = build_approval_card({**_two_tools(), "reviewConfigs": [{"smartDenied": True}]}, locale="en")
+    card = build_approval_card({**_two_tools(), "reviewConfigs": [{"smartDenied": True}]}, locale=locale, session_key=_SESSION)
+    english = build_approval_card({**_two_tools(), "reviewConfigs": [{"smartDenied": True}]}, locale="en", session_key=_SESSION)
 
     assert "shell, write_file" in card.label and "run the build" in card.label  # tool names and reasons are not translated
     assert "approval_" not in card.label and all("approval_" not in q.label for q in card.quick_replies)
@@ -47,16 +48,22 @@ def test_every_part_of_the_card_comes_from_the_catalog_in_the_senders_language(l
 
 @pytest.mark.parametrize("locale", _LOCALES)
 def test_the_security_reviewers_recommendation_leads_the_card_in_the_senders_language(locale: str) -> None:
-    plain = build_approval_card(_ONE_TOOL, locale=locale)
-    flagged = build_approval_card({**_ONE_TOOL, "reviewConfigs": [{"smartDenied": False}, {"smartDenied": True}]}, locale=locale)
+    plain = build_approval_card(_ONE_TOOL, locale=locale, session_key=_SESSION)
+    flagged = build_approval_card(
+        {**_ONE_TOOL, "reviewConfigs": [{"smartDenied": False}, {"smartDenied": True}]}, locale=locale, session_key=_SESSION
+    )
 
     assert flagged.label.endswith(plain.label)
     prefix = flagged.label.removesuffix(plain.label).strip()
     assert prefix and "approval_" not in prefix
 
 
+def test_the_card_names_the_session_of_the_run_that_asks() -> None:
+    assert build_approval_card(_ONE_TOOL, locale="en", session_key=_SESSION).session_key == _SESSION
+
+
 def test_a_batch_gets_the_answer_for_all_and_the_per_tool_answer() -> None:
-    card = build_approval_card(_two_tools(), locale="en")
+    card = build_approval_card(_two_tools(), locale="en", session_key=_SESSION)
 
     assert [(q.label, q.text) for q in card.quick_replies] == [
         ("✅ Approve All", "/approve"),
@@ -66,7 +73,7 @@ def test_a_batch_gets_the_answer_for_all_and_the_per_tool_answer() -> None:
 
 
 def test_a_request_without_a_reason_does_not_end_in_a_dangling_colon() -> None:
-    card = build_approval_card({"actionRequests": [{"action": "shell"}]}, locale="en")
+    card = build_approval_card({"actionRequests": [{"action": "shell"}]}, locale="en", session_key=_SESSION)
 
     assert card.label.split("\n")[0] == "shell needs approval"
 
@@ -75,7 +82,7 @@ def test_a_request_without_a_reason_does_not_end_in_a_dangling_colon() -> None:
 def test_the_card_states_what_the_timeout_decides(behavior: str, wording: str) -> None:
     data = {**_ONE_TOOL, "extensions": {"timeout": {"seconds": 90, "behavior": behavior}}}
 
-    card = build_approval_card(data, locale="en")
+    card = build_approval_card(data, locale="en", session_key=_SESSION)
 
     assert card.label.endswith(f"⏱ Timeout: 90s ({wording})")
     assert card.expiry == ApprovalExpiry(seconds=90, behavior="allow" if behavior == "allow" else "deny")
@@ -84,7 +91,7 @@ def test_the_card_states_what_the_timeout_decides(behavior: str, wording: str) -
 def test_a_long_time_limit_is_written_without_a_thousands_separator() -> None:
     data = {**_ONE_TOOL, "extensions": {"timeout": {"seconds": 3600.0}}}
 
-    card = build_approval_card(data, locale="en")
+    card = build_approval_card(data, locale="en", session_key=_SESSION)
 
     assert "3600s" in card.label
     assert card.expiry == ApprovalExpiry(seconds=3600.0, behavior="deny")
@@ -96,20 +103,20 @@ def test_a_long_time_limit_is_written_without_a_thousands_separator() -> None:
     ids=["empty", "text", "bad-seconds", "no-dict"],
 )
 def test_a_missing_or_unreadable_time_limit_falls_back_to_the_default_wait(extensions: object) -> None:
-    card = build_approval_card({**_ONE_TOOL, "extensions": extensions}, locale="en")
+    card = build_approval_card({**_ONE_TOOL, "extensions": extensions}, locale="en", session_key=_SESSION)
 
     assert card.expiry == ApprovalExpiry(seconds=300.0, behavior="deny")
     assert "⏱ Timeout: 300s (auto-deny)" in card.label
 
 
 def test_a_request_without_action_requests_uses_the_single_tool_fields() -> None:
-    card = build_approval_card({"tool_name": "browser", "reason": "open the page"}, locale="en")
+    card = build_approval_card({"tool_name": "browser", "reason": "open the page"}, locale="en", session_key=_SESSION)
 
     assert card.label.startswith("browser needs approval: open the page")
     assert len(card.quick_replies) == 2
 
 
 def test_a_language_without_a_catalog_reads_in_english() -> None:
-    card = build_approval_card(_ONE_TOOL, locale="xx")
+    card = build_approval_card(_ONE_TOOL, locale="xx", session_key=_SESSION)
 
-    assert card.label == build_approval_card(_ONE_TOOL, locale="en").label
+    assert card.label == build_approval_card(_ONE_TOOL, locale="en", session_key=_SESSION).label

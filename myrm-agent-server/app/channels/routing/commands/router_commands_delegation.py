@@ -101,7 +101,8 @@ class RouterCommandsDelegationMixin:
         state_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         card_message_id = await self._send_interactive_progress(msg, chat_id, progress)
         user_id = msg.user_id or msg.sender_id
-        self._pending_approvals.register(state_key, PendingApproval(card_message_id or "", msg, user_id), progress.expiry)
+        asked = PendingApproval(card_message_id or "", msg, user_id, session_key=progress.session_key)
+        self._pending_approvals.register(state_key, asked, progress.expiry)
 
         entry = self._active_tasks.get(state_key)
         runner = asyncio.current_task()

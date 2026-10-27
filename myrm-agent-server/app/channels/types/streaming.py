@@ -7,6 +7,7 @@
 - ProgressUpdate, StreamingText: placeholder-edit transport events
 - ApprovalExpiry: how long a tool approval waits and what the timeout decides
 - METADATA_APPROVAL_WINDOW_SECONDS_KEY: ``InboundMessage.metadata`` key that sets a turn's approval wait
+- METADATA_RESUME_SESSION_KEY: ``InboundMessage.metadata`` key naming the channel session a resume turn continues
 - FissionTopologyNode, FissionTopologyUpdate: swarm fission topology events
 
 [POS]
@@ -22,6 +23,8 @@ from typing import Literal
 from .components import QuickReply
 
 METADATA_APPROVAL_WINDOW_SECONDS_KEY = "approval_window_seconds"
+# The channel session key of the turn that asked for a tool approval: the run it resumes goes back to that session.
+METADATA_RESUME_SESSION_KEY = "resume_session_key"
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,12 +45,15 @@ class ProgressUpdate:
     When ``quick_replies`` is non-empty, the Router sends them alongside
     the progress text — enabling interactive prompts like tool approval
     buttons in IM channels. ``expiry`` is set on such a prompt when the wait has a
-    time limit; the Router then owns the timer that ends it.
+    time limit; the Router then owns the timer that ends it. ``session_key`` is set on it
+    too: the channel session the asking run belongs to, which the Router keeps with the open
+    request so the answer resumes that session's chat however the reset policy has moved on.
     """
 
     label: str
     quick_replies: tuple[QuickReply, ...] = ()
     expiry: ApprovalExpiry | None = None
+    session_key: str = ""
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,7 +9,7 @@
 
 [OUTPUT]
 - iter_channel_stream_progress: maps harness stream events to channel progress yields (a tool approval becomes the card
-  worded for ``locale``, carrying its time limit as ``ProgressUpdate.expiry``); answer text goes through
+  worded for ``locale``, carrying its time limit as ``ProgressUpdate.expiry`` and the run's ``session_key``); answer text goes through
   ``acc.draft`` so a recovery that replays the in-flight segment does not duplicate it;
   capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
   leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
@@ -38,6 +38,7 @@ async def iter_channel_stream_progress(
     acc: StreamAccumulator,
     *,
     locale: str,
+    session_key: str,
 ) -> AsyncGenerator[ProgressUpdate | StreamingText | FissionTopologyUpdate, None]:
     """Map harness stream events to channel progress updates and streaming text."""
     first_message_seen = False
@@ -82,7 +83,7 @@ async def iter_channel_stream_progress(
         elif event_type == "tool_approval_request":
             data = event.get("data", {})
             if isinstance(data, dict):
-                yield build_approval_card(data, locale=locale)
+                yield build_approval_card(data, locale=locale, session_key=session_key)
 
         elif event_type == "tool_image_output":
             img_data = event.get("data", {})

@@ -14,6 +14,7 @@ approval_denial_with_reason_processing =  正在处理拒绝，理由已转达�
 approval_batch_processing =  正在处理 { $approve_count } 个批准、{ $reject_count } 个拒绝...
 approval_batch_processing_always =  正在处理 { $approve_count } 个批准（含 { $always_count } 个永久）、{ $reject_count } 个拒绝...
 approval_already_handled = ℹ 该审批已超时或已在其他地方处理，无需操作。
+approval_session_gone = ℹ 该审批已无法生效：它所属的会话已不存在，暂停的任务无法继续。请重新发起。
 approval_timeout_approved = ⏱ 审批已超时，已自动批准。
 approval_timeout_denied = ⏱ 审批已超时，已自动拒绝。
 approval_superseded = ℹ 收到了新消息，这条审批请求已作废，工具没有执行。如仍需要，请重新发起。

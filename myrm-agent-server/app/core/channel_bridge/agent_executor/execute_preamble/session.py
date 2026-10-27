@@ -8,7 +8,8 @@ backfill (POS: 冷启动 backfill)
 resolve_channel_session_context(): session_key、历史、冷启动标记与 reset 预事件。
 
 [POS]
-preamble 子模块：会话键解析、backfill、历史加载与 auto-reset 通知。
+preamble 子模块：会话键解析、backfill、历史加载与 auto-reset 通知。审批续跑回合不重算会话键：沿用提问回合的会话
+（``METADATA_RESUME_SESSION_KEY``），不落库、不 backfill、不播报 reset；该会话的聊天已不存在时如实答复。
 """
 
 from __future__ import annotations
@@ -19,9 +20,17 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
-from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, SessionResetMode, TopicContext
+from app.channels.types import (
+    METADATA_RESUME_SESSION_KEY,
+    InboundMessage,
+    OutboundMessage,
+    ProgressUpdate,
+    SessionPolicy,
+    SessionResetMode,
+    TopicContext,
+)
 from app.channels.types.thread_sharing import ThreadSharingMode
-from app.core.channel_bridge.config_parsers import SessionPolicy, session_policy_from_agent_dict
+from app.core.channel_bridge.config_parsers import session_policy_from_agent_dict
 from app.core.channel_bridge.executor_helpers import (
     ChannelChatHistory,
     build_chat_history_with_metadata,
@@ -68,6 +77,12 @@ async def resolve_channel_session_context(
     session_policy = extract_session_policy_safe(personal_settings_dict)
     if resolved_profile and resolved_profile.session_policy and isinstance(resolved_profile.session_policy, dict):
         session_policy = session_policy_from_agent_dict(resolved_profile.session_policy)
+
+    asked_session_key = _asking_turn_session_key(msg) if is_resume else None
+    if asked_session_key is not None:
+        return await _continue_asking_session(
+            msg, asked_session_key, query=query, topic_context=topic_context, session_policy=session_policy
+        )
 
     force_new = bool(msg.metadata.get("force_new_epoch"))
     thread_sharing_mode = topic_context.thread_sharing_mode if topic_context else ThreadSharingMode.ISOLATED
@@ -122,13 +137,7 @@ async def resolve_channel_session_context(
             )
         except ChannelWorkspaceSyncError as exc:
             logger.warning("Workspace sync failed for channel session: %s", exc)
-            pre_events.append(
-                build_early_failure_reply(
-                    msg,
-                    get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
-                    "workspace_unavailable",
-                )
-            )
+            pre_events.append(_workspace_unavailable_reply(msg))
             return ChannelSessionContext(
                 session_key=session_key,
                 chat_id="",
@@ -152,13 +161,7 @@ async def resolve_channel_session_context(
             )
         except ChannelWorkspaceSyncError as exc:
             logger.warning("Workspace sync failed for channel session: %s", exc)
-            pre_events.append(
-                build_early_failure_reply(
-                    msg,
-                    get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
-                    "workspace_unavailable",
-                )
-            )
+            pre_events.append(_workspace_unavailable_reply(msg))
             return ChannelSessionContext(
                 session_key=session_key,
                 chat_id="",
@@ -178,6 +181,60 @@ async def resolve_channel_session_context(
         session_policy=session_policy,
         query=working_query,
         pre_events=tuple(pre_events),
+    )
+
+
+def _asking_turn_session_key(msg: InboundMessage) -> str | None:
+    """The channel session key of the turn that asked for the approval this message resumes; None when it named none."""
+    key = msg.metadata.get(METADATA_RESUME_SESSION_KEY)
+    return key if isinstance(key, str) and key else None
+
+
+def _workspace_unavailable_reply(msg: InboundMessage) -> OutboundMessage:
+    return build_early_failure_reply(
+        msg,
+        get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
+        "workspace_unavailable",
+    )
+
+
+async def _continue_asking_session(
+    msg: InboundMessage,
+    session_key: str,
+    *,
+    query: str | list[dict[str, object]],
+    topic_context: TopicContext | None,
+    session_policy: SessionPolicy,
+) -> ChannelSessionContext:
+    """The context of a resume turn: the session of the turn that asked, as that turn left it.
+
+    The asking turn stored the member's message and opened the session, so nothing is stored, backfilled or announced
+    as a reset here. A chat that no longer exists ends the turn with a reply that says so; the run cannot continue.
+    """
+    chat_id = ""
+    chat_history: ChannelChatHistory = []
+    pre_events: tuple[ProgressUpdate | OutboundMessage, ...] = ()
+    try:
+        chat_id, history_entries = await load_history_without_persist(
+            channel_session_key=session_key,
+            topic_context=topic_context,
+        )
+    except ChannelWorkspaceSyncError as exc:
+        logger.warning("Workspace sync failed for channel session: %s", exc)
+        pre_events = (_workspace_unavailable_reply(msg),)
+    else:
+        if chat_id:
+            chat_history = build_chat_history_with_metadata(history_entries)
+        else:
+            pre_events = (build_early_failure_reply(msg, get_text(msg, "approval_session_gone"), "approval_session_gone"),)
+    return ChannelSessionContext(
+        session_key=session_key,
+        chat_id=chat_id,
+        chat_history=chat_history,
+        session_was_auto_reset=False,
+        session_policy=session_policy,
+        query=query,
+        pre_events=pre_events,
     )
 
 

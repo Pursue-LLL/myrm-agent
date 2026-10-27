@@ -146,7 +146,9 @@ class RouterStreamMixin:
                             card_message_id = await self._send_interactive_progress(msg, chat_id, event)
                             self._pending_approvals.register(
                                 stream_state_key,
-                                PendingApproval(card_message_id or "", msg, user_id, session_agent_id(topic_context)),
+                                PendingApproval(
+                                    card_message_id or "", msg, user_id, session_agent_id(topic_context), event.session_key
+                                ),
                                 event.expiry,
                             )
                             has_pending_approval = True

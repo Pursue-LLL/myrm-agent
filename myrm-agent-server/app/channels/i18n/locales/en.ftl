@@ -14,6 +14,7 @@ approval_denial_with_reason_processing =  Processing denial: "{ $reason }"
 approval_batch_processing =  Processing { $approve_count } approvals, { $reject_count } rejections...
 approval_batch_processing_always =  Processing { $approve_count } approvals ({ $always_count } always), { $reject_count } rejections...
 approval_already_handled = ℹ This approval has already been handled (it timed out or was answered elsewhere). No action needed.
+approval_session_gone = ℹ This approval can no longer be applied: the conversation it belongs to no longer exists, so the paused task could not continue. Please ask again.
 approval_timeout_approved = ⏱ Approval timed out — approved automatically.
 approval_timeout_denied = ⏱ Approval timed out — denied automatically.
 approval_superseded = ℹ This approval request was cancelled because a new message arrived. The tool was not run. Ask again if you still need it.

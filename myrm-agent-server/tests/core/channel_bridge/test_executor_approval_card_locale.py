@@ -1,4 +1,7 @@
-"""A channel run that stops at a tool approval shows the card in the language of the member who asked."""
+"""A channel run that stops at a tool approval shows the card in the language of the member who asked.
+
+The card also names the channel session the run belongs to, so the answer resumes that session's chat.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +17,7 @@ from app.core.channel_bridge.agent_executor.approval_card import build_approval_
 from app.core.channel_bridge.agent_executor.executor import ChannelAgentExecutor
 
 _EXECUTOR = "app.core.channel_bridge.agent_executor.executor"
+_SESSION_KEY = "telegram:dm:user-1:e=2026-10-26"
 _APPROVAL_DATA: dict[str, object] = {
     "actionRequests": [{"action": "shell", "description": "run the build"}],
     "extensions": {"timeout": {"seconds": 120, "behavior": "deny"}},
@@ -47,6 +51,7 @@ def _prepared_run() -> SimpleNamespace:
         agent=_ApprovalAgent(),
         token_ctx=None,
         chat_id="chat-db",
+        session_key=_SESSION_KEY,
         chat_history=[],
         query_input="hi",
         channel_budget_key="",
@@ -78,7 +83,8 @@ async def test_the_approval_card_is_worded_for_the_sender(locale: str) -> None:
         ]
 
     (card,) = cards
-    expected = build_approval_card(_APPROVAL_DATA, locale=locale)
+    expected = build_approval_card(_APPROVAL_DATA, locale=locale, session_key=_SESSION_KEY)
     assert card.label == expected.label
     assert [q.label for q in card.quick_replies] == [q.label for q in expected.quick_replies]
     assert card.expiry == ApprovalExpiry(seconds=120, behavior="deny")
+    assert card.session_key == _SESSION_KEY

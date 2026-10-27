@@ -142,6 +142,7 @@ class ChannelAgentExecutor:
             agent = prep.agent
             token_ctx = prep.token_ctx
             chat_id = prep.chat_id
+            session_key = prep.session_key
             chat_history = prep.chat_history
             query_input = prep.query_input
             channel_budget_key = prep.channel_budget_key
@@ -188,6 +189,7 @@ class ChannelAgentExecutor:
                 ),
                 acc,
                 locale=resolve_message_locale(msg),
+                session_key=session_key,
             ):
                 yield progress
 

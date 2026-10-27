@@ -57,6 +57,7 @@ def _patched_executor(agent: _FakeAgent):
         agent=agent,
         token_ctx=None,
         chat_id="chat-1",
+        session_key="telegram:dm:user-1",
         chat_history=[],
         query_input="hi",
         channel_budget_key="",
