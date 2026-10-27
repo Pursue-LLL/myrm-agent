@@ -9,8 +9,8 @@ import sys
 import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime._base import KEEPALIVE_SECONDS, working_status
-from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
-from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
+from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,

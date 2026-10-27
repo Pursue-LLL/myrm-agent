@@ -54,7 +54,7 @@ def _create_runtime(
 ) -> RuntimeBackend:
     """Factory: create the appropriate RuntimeBackend based on config.backend_type."""
     if config.backend_type == "acp":
-        from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
+        from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
 
         return AcpRuntime(name, config, event_bus=event_bus)
 

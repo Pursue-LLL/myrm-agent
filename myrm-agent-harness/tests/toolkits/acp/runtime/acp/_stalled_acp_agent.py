@@ -1,6 +1,6 @@
 """ACP agent that stops reading its stdin once a session exists, like an agent hung in the middle of a task.
 
-Run as a subprocess: python tests/toolkits/acp/_stalled_acp_agent.py <seconds> [<tool pid file>]
+Run as a subprocess: python tests/toolkits/acp/runtime/acp/_stalled_acp_agent.py <seconds> [<tool pid file>]
 It answers ``initialize`` (advertising image prompts) and ``session/new``, then sleeps for ``<seconds>`` without
 reading anything, so a large ``session/prompt`` written after that stays half written in the pipe.
 With a ``<tool pid file>`` it first starts a tool process, like an agent running a long command, that inherits the

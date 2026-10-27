@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from acp.schema import AgentCapabilities, InitializeResponse, SessionCapabilities, SessionCloseCapabilities
 
-from myrm_agent_harness.toolkits.acp.runtime import acp_runtime
-from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
+from myrm_agent_harness.toolkits.acp.runtime.acp import runtime as acp_runtime
+from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
 from myrm_agent_harness.toolkits.acp.types import RuntimeConfig, RuntimeEventType
 
 

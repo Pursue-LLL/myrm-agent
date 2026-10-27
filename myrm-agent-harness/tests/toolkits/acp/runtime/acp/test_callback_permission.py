@@ -7,7 +7,7 @@ import asyncio
 import pytest
 
 from myrm_agent_harness.toolkits.acp.core.event_bus import EventBus
-from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.types import PermissionDecision, RuntimeConfig, RuntimeEvent
 
 

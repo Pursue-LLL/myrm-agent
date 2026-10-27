@@ -7,9 +7,9 @@ and communicates via the standard ACP JSON-RPC protocol over stdin/stdout.
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, BackendStatus, McpServerConfig, images_not_sent_event (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.core.event_bus::EventBus (POS: ACP event bus layer. Provides decoupled event dispatch mechanism for the Runtime system with session isolation and type filtering.)
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations.)
-- toolkits.acp.runtime.acp_callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
+- toolkits.acp.runtime.acp.callback::AcpCallbackHandler (POS: ACP callback handler for the AcpRuntime backend.)
 - toolkits.acp.runtime.image_blocks::ImageBlock, load_image_blocks (POS: Image input shared by CliRuntime and AcpRuntime)
-- toolkits.acp.runtime.stalled_agent::cancel_session, leave_transport (POS: Bounded stop of an ACP agent that has stopped reading its stdin)
+- toolkits.acp.runtime.acp.stalled_agent::cancel_session, leave_transport (POS: Bounded stop of an ACP agent that has stopped reading its stdin)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
@@ -45,9 +45,9 @@ from myrm_agent_harness.toolkits.acp.runtime._base import (
     build_safe_env,
     working_status,
 )
-from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.acp.stalled_agent import cancel_session, leave_transport
 from myrm_agent_harness.toolkits.acp.runtime.image_blocks import ImageBlock, load_image_blocks
-from myrm_agent_harness.toolkits.acp.runtime.stalled_agent import cancel_session, leave_transport
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
     AcpErrorCode,

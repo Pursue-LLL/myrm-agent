@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import _mcp_configs_to_acp_stdio
+from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import _mcp_configs_to_acp_stdio
 from myrm_agent_harness.toolkits.acp.types import McpServerConfig, RuntimeConfig
 
 
@@ -32,7 +32,7 @@ def test_mcp_configs_to_acp_stdio_converts_stdio_servers() -> None:
 async def test_create_session_passes_mcp_servers_when_configured() -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
+    from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
 
     config = RuntimeConfig(backend_type="acp", command="claude", cwd="/tmp/ws")
     runtime = AcpRuntime("claude", config)
@@ -55,7 +55,7 @@ async def test_create_session_passes_mcp_servers_when_configured() -> None:
 async def test_create_session_omits_mcp_when_not_configured() -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from myrm_agent_harness.toolkits.acp.runtime.acp_runtime import AcpRuntime
+    from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
 
     config = RuntimeConfig(backend_type="acp", command="claude", cwd="/tmp/ws")
     runtime = AcpRuntime("claude", config)

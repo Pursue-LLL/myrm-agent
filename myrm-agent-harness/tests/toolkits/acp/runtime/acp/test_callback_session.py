@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.acp.runtime.acp_callback import AcpCallbackHandler
+from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.types import PermissionDecision, RuntimeConfig
 
 
@@ -192,12 +192,12 @@ class TestAcpCallbackHelpers:
     """Pure helper boundaries: text extraction, safe-path resolution, option lookup."""
 
     def test_extract_text_content_none(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         assert mod._extract_text_content(None) is None
 
     def test_extract_text_content_non_text_type(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         class _Other:
             type = "image"
@@ -205,7 +205,7 @@ class TestAcpCallbackHelpers:
         assert mod._extract_text_content(_Other()) is None
 
     def test_extract_text_content_text_no_text_field(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         class _Text:
             type = "text"
@@ -213,20 +213,20 @@ class TestAcpCallbackHelpers:
         assert mod._extract_text_content(_Text()) is None
 
     def test_resolve_safe_path_inside_cwd(self, tmp_path: Path) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         resolved = mod._resolve_safe_path("sub/file.txt", str(tmp_path))
         assert resolved is not None
         assert str(resolved).startswith(str(tmp_path))
 
     def test_resolve_safe_path_escape_returns_none(self, tmp_path: Path) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         assert mod._resolve_safe_path("../evil.txt", str(tmp_path)) is None
         assert mod._resolve_safe_path("/etc/passwd", str(tmp_path)) is None
 
     def test_resolve_safe_path_oserror_returns_none(self, tmp_path: Path, monkeypatch) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         class _BoomPath(Path):
             def resolve(self, strict: bool = False) -> Path:
@@ -234,11 +234,11 @@ class TestAcpCallbackHelpers:
 
         with monkeypatch.context() as m:
             # Force Path(...) inside _resolve_safe_path to hit OSError via resolve.
-            m.setattr("myrm_agent_harness.toolkits.acp.runtime.acp_callback.Path", _BoomPath)
+            m.setattr("myrm_agent_harness.toolkits.acp.runtime.acp.callback.Path", _BoomPath)
             assert mod._resolve_safe_path("file.txt", str(tmp_path)) is None
 
     def test_find_option_non_dict_option(self) -> None:
-        from myrm_agent_harness.toolkits.acp.runtime import acp_callback as mod
+        from myrm_agent_harness.toolkits.acp.runtime.acp import callback as mod
 
         assert mod._find_option([object()], ("allow_once",)) is None
         assert mod._find_option([], ("allow_once",)) is None

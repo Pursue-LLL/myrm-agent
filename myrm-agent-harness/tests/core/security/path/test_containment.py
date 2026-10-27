@@ -143,8 +143,8 @@ class TestCanonicalPathContainmentGuard:
         assert _is_forbidden_path("/etc/passwd_not_real") is False
 
     def test_acp_callback_safe_path_containment(self, tmp_path: Path) -> None:
-        """Verify acp_callback._resolve_safe_path blocks traversal and symlink escapes."""
-        from myrm_agent_harness.toolkits.acp.runtime.acp_callback import _resolve_safe_path
+        """Verify acp.callback._resolve_safe_path blocks traversal and symlink escapes."""
+        from myrm_agent_harness.toolkits.acp.runtime.acp.callback import _resolve_safe_path
 
         cwd = tmp_path / "app"
         cwd.mkdir()
