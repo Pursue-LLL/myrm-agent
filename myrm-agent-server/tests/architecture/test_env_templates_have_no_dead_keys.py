@@ -38,9 +38,7 @@ _READER_FILES = (
     _SERVER_ROOT / "docker-compose.yaml",
 )
 
-_SKIP_DIRNAMES = frozenset(
-    {"node_modules", ".venv", "__pycache__", ".git", ".next", "dist", "build", "target"}
-)
+_SKIP_DIRNAMES = frozenset({"node_modules", ".venv", "__pycache__", ".git", ".next", "dist", "build", "target"})
 
 _KEY_LINE = re.compile(r"^\s*#?\s*([A-Z][A-Z0-9_]{2,})\s*=")
 

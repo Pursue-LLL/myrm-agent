@@ -253,6 +253,7 @@ async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, 
 
     if body.project_id:
         from app.services.project.project_service import ProjectService
+
         project = await ProjectService.get_project(body.project_id)
         if project:
             await ProjectService.move_chat_to_project(chat_id, body.project_id)
@@ -319,6 +320,7 @@ async def mobile_takeover_snapshot(
         BrowserSnapshotUnavailableError,
         collect_browser_snapshot_payload,
     )
+
     try:
         payload = await collect_browser_snapshot_payload(session_id=chat_id)
     except BrowserSnapshotUnavailableError as exc:
@@ -355,7 +357,6 @@ async def receive_node_event(body: NodeEventRequest, request: Request) -> dict[s
         triggered = 0
 
     return success_response(data={"triggered": triggered})
-
 
 
 __all__ = ["router"]
