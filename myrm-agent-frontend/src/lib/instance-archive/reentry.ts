@@ -18,6 +18,7 @@ const CONFIG_GROUPS: Readonly<Record<string, ReentryGroup>> = {
   providers: 'modelKeys',
   retrieval: 'modelKeys',
   searchServices: 'modelKeys',
+  externalAgents: 'modelKeys',
   mcpServers: 'mcpConnections',
   mcpOAuthTokens: 'mcpConnections',
 };

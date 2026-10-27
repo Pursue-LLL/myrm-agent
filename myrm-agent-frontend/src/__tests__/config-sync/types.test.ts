@@ -107,6 +107,10 @@ describe('Config Sync Types', () => {
         expect(SENSITIVE_CONFIG_KEYS).toContain('retrieval');
       });
 
+      it('应该包含 externalAgents（环境变量里存放外部 Agent 的密钥）', () => {
+        expect(SENSITIVE_CONFIG_KEYS).toContain('externalAgents');
+      });
+
       it('不应该包含 personalSettings', () => {
         expect(SENSITIVE_CONFIG_KEYS).not.toContain('personalSettings');
       });

@@ -45,24 +45,30 @@ describe('ProgressSteps delegated external agent steps', () => {
     expect(screen.getAllByText('claude: Bash — ls')).toHaveLength(1);
   });
 
-  it('still shows the status text of the delegation status line in the body', async () => {
+  it('shows what the agent itself reported, such as how long it has been working, in the status line body', async () => {
     await open([
       {
         step_key: 'delegation_claude_status',
         tool_name: 'delegate:claude',
-        items: [{ text: 'claude: completed' }],
+        items: [{ text: '1m 05s' }],
         status: 'complete',
       },
     ]);
-    expect(screen.getByText('claude: completed')).toBeInTheDocument();
+    expect(screen.getByText('1m 05s')).toBeInTheDocument();
     expect(screen.getByText('delegation')).toBeInTheDocument();
   });
 
-  it('renders a continuity notice as a title-only step', async () => {
+  it('words a status line without any text of its own by its title alone', async () => {
+    await open([{ step_key: 'delegation_claude_status', tool_name: 'delegate:claude', items: [], status: 'complete' }]);
+    expect(screen.getByText('delegation')).toBeInTheDocument();
+    expect(screen.queryByText(/claude:/)).not.toBeInTheDocument();
+  });
+
+  it.each(['session_expired', 'turn_limit'])('renders the %s notice as a title-only step', async (kind) => {
     await open([
-      { step_key: 'delegation_claude_session_expired', tool_name: 'delegate:claude', items: [], status: 'complete' },
+      { step_key: `delegation_claude_${kind}`, tool_name: 'delegate:claude', items: [], status: 'complete' },
     ]);
-    expect(screen.getByText('delegation_session_expired')).toBeInTheDocument();
+    expect(screen.getByText(`delegation_${kind}`)).toBeInTheDocument();
   });
 
   it('still shows the error of a failed delegated tool call', async () => {

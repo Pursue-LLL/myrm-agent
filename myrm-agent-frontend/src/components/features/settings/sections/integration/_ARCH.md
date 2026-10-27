@@ -14,7 +14,11 @@
 | `extension/`                                                 | 子模块                                                                         | 见 [`extension/_ARCH.md`](extension/_ARCH.md) | ✅    |
 | `CredentialsSection.tsx`                                     | re-export                                                                      | 凭证管理                                      | —     |
 | `credentials/`                                               | Vault / 文件 / OAuth 凭证子模块 · [credentials/_ARCH.md](credentials/_ARCH.md) |
-| `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置                                                            |
+| `ExternalAgentsConfig.tsx`                                   | 外部 Agent 列表：启停、删除、持久化（`externalAgents` 配置键）；保存前校验名称、命令与环境变量 |
+| `ExternalAgentForm.tsx`                                      | 外部 Agent 编辑表单（预设、类型、命令、权限、鉴权方式、环境变量、测试）                       |
+| `ExternalAgentEnvEditor.tsx`                                 | 环境变量逐行编辑：值默认掩码、可显示；行内提示名称缺失/非法/重复；随鉴权方式给出说明          |
+| `externalAgentModel.ts`                                      | 纯规则：预设、权限模式、`toDraft`/`cleanAgent`（环境变量 ↔ 编辑行）、`envRowProblems`         |
+| `ExternalAgentAuthControls.tsx`                              | 外部 Agent 登录 / 登出 / 导入凭据 / 安装对话框                                                |
 | `OpenAIApiSection.tsx`                                       | Agent API 设置（OpenAI 兼容端点，仅 Agent 执行）                               |
 | `CommunicationSection.tsx`                                   | 渠道 Tab 容器（聚合 `channels/`）                                              |
 | `integrations/`                                              | Integration Catalog、Lifecycle Webhooks、连接对话框、记忆绑定                  |

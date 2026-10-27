@@ -141,10 +141,10 @@ export const inferStageLabel = (step: ProgressItem, t: TranslateFn): string => {
 };
 
 // `delegation_<agent>_<kind>` steps of a delegation to an external agent: its status line, one of its tool calls,
-// or a notice that the conversation it had earlier did not continue.
-const DELEGATION_STEP_RE = /^delegation_(.+)_(status|tool|session_expired|session_workspace_changed)$/;
+// or a title-only notice (the conversation it had earlier did not continue, or the turn stopped at its turn limit).
+const DELEGATION_STEP_RE = /^delegation_(.+)_(status|tool|session_expired|session_workspace_changed|turn_limit)$/;
 
-type DelegationKind = 'status' | 'tool' | 'session_expired' | 'session_workspace_changed';
+type DelegationKind = 'status' | 'tool' | 'session_expired' | 'session_workspace_changed' | 'turn_limit';
 
 const parseDelegationStep = (stepKey: string | undefined): { agentName: string; kind: DelegationKind } | null => {
   const match = stepKey ? DELEGATION_STEP_RE.exec(stepKey) : null;

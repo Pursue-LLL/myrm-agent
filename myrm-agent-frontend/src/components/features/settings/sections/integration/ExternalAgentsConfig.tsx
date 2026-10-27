@@ -1,25 +1,20 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import {
   IconBot,
-  IconLoader,
   IconPencil,
   IconPlug,
   IconPlus,
   IconTerminal,
   IconTrash,
-  IconZap,
 } from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { toast } from 'sonner';
 
 import { Switch } from '@/components/primitives/switch';
-import { Input } from '@/components/primitives/input';
-import { Textarea } from '@/components/primitives/textarea';
 import { Button } from '@/components/primitives/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,105 +31,27 @@ import {
   getConfigSyncManager,
   type ExternalAgentConfig,
   type ExternalAgentType,
-  type ExternalAgentPermissionMode,
-  type ExternalAgentAuthMode,
   type ExternalAgentsConfigValue,
 } from '@/services/config';
 import { getExternalAgentAuthStatus, type ExternalAgentAuthStatus } from '@/services/external-agents';
 import ExternalAgentAuthControls from './ExternalAgentAuthControls';
+import ExternalAgentForm from './ExternalAgentForm';
+import {
+  DEFAULT_AGENT,
+  backendKeyFromCommand,
+  cleanAgent,
+  envRowProblems,
+  toDraft,
+  type ExternalAgentDraft,
+} from './externalAgentModel';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
-
-const DEFAULT_AGENT: ExternalAgentConfig = {
-  name: '',
-  type: 'cli',
-  command: '',
-  args: [],
-  enabled: true,
-  permissionMode: 'safe',
-  authMode: 'subscription',
-  description: '',
-  maxTurns: 25,
-};
-
-/** Map a CLI command to its known auth backend key (codex/claude/gemini/qwen). */
-const KNOWN_BACKENDS = ['codex', 'claude', 'gemini', 'qwen'] as const;
-function backendKeyFromCommand(command: string): string | null {
-  const base = (command.split(/[\\/]/).pop() ?? '').toLowerCase().split('.')[0];
-  if (KNOWN_BACKENDS.includes(base as (typeof KNOWN_BACKENDS)[number])) {
-    return base;
-  }
-  return KNOWN_BACKENDS.find((b) => base.includes(b)) ?? null;
-}
-
-const AGENT_PRESETS: { key: string; config: ExternalAgentConfig }[] = [
-  {
-    key: 'claude',
-    config: {
-      ...DEFAULT_AGENT,
-      name: 'claude-code',
-      command: 'claude',
-      args: ['-p', '--output-format', 'stream-json'],
-      description: 'Full-stack coding agent powered by Anthropic Claude',
-    },
-  },
-  {
-    key: 'codex',
-    config: {
-      ...DEFAULT_AGENT,
-      name: 'codex-cli',
-      command: 'codex',
-      args: ['exec', '--json'],
-      description: 'OpenAI Codex CLI coding agent (requires Responses API provider)',
-    },
-  },
-  {
-    key: 'gemini',
-    config: {
-      ...DEFAULT_AGENT,
-      name: 'gemini-cli',
-      command: 'gemini',
-      args: ['--output-format', 'stream-json'],
-      description: 'Google Gemini-powered coding agent',
-    },
-  },
-];
 
 const TYPE_ICONS: Record<ExternalAgentType, React.ElementType> = {
   cli: IconTerminal,
   acp: IconPlug,
 };
-
-/**
- * Permission modes each backend can actually honour. CLI backends receive fixed
- * command-line flags, while ACP backends get their permission requests answered by the
- * bridge on the user's behalf. Neither exposes an interactive prompt today, so no
- * backend may advertise one.
- */
-const PERMISSION_MODE_OPTIONS: Record<ExternalAgentType, { value: ExternalAgentPermissionMode; labelKey: string }[]> = {
-  cli: [
-    { value: 'allow_all', labelKey: 'permissionAllowAll' },
-    { value: 'safe', labelKey: 'permissionSafe' },
-  ],
-  acp: [
-    { value: 'allow_all', labelKey: 'permissionAllowAll' },
-    { value: 'safe', labelKey: 'permissionSafe' },
-  ],
-};
-
-const PERMISSION_MODE_HINTS: Record<ExternalAgentType, string> = {
-  cli: 'permissionHintCli',
-  acp: 'permissionHintAcp',
-};
-
-/** Coerce a stored mode to one the given backend type can honour (fallback: fail-closed). */
-function normalizePermissionMode(
-  type: ExternalAgentType,
-  mode: ExternalAgentPermissionMode,
-): ExternalAgentPermissionMode {
-  return PERMISSION_MODE_OPTIONS[type].some((option) => option.value === mode) ? mode : 'safe';
-}
 
 const syncManager = getConfigSyncManager();
 
@@ -142,7 +59,7 @@ const ExternalAgentsConfig = memo(() => {
   const t = useTranslations('settings.developer.externalAgents');
   const [agents, setAgents] = useState<ExternalAgentConfig[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState<ExternalAgentConfig>(DEFAULT_AGENT);
+  const [draft, setDraft] = useState<ExternalAgentDraft>(() => toDraft(DEFAULT_AGENT));
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
@@ -198,13 +115,13 @@ const ExternalAgentsConfig = memo(() => {
   );
 
   const handleStartAdd = useCallback(() => {
-    setDraft({ ...DEFAULT_AGENT });
+    setDraft(toDraft(DEFAULT_AGENT));
     setEditingIndex(-1);
   }, []);
 
   const handleStartEdit = useCallback(
     (index: number) => {
-      setDraft({ ...agents[index] });
+      setDraft(toDraft(agents[index]));
       setEditingIndex(index);
     },
     [agents],
@@ -226,16 +143,12 @@ const ExternalAgentsConfig = memo(() => {
       toast.error(t('nameDuplicate'));
       return;
     }
+    if (envRowProblems(draft.envRows).size > 0) {
+      toast.error(t('envFixBeforeSave'));
+      return;
+    }
 
-    const cleaned: ExternalAgentConfig = {
-      ...draft,
-      name: trimmedName,
-      command: draft.command.trim(),
-      args: (draft.args ?? []).filter((a) => a.trim() !== ''),
-      // Normalize on save so the stored mode always matches what the selected type
-      // can honour; otherwise switching type could persist a mode the UI never showed.
-      permissionMode: normalizePermissionMode(draft.type, draft.permissionMode),
-    };
+    const cleaned = cleanAgent(draft);
 
     let updated: ExternalAgentConfig[];
     if (editingIndex === -1) {
@@ -246,11 +159,6 @@ const ExternalAgentsConfig = memo(() => {
     persist(updated);
     setEditingIndex(null);
   }, [draft, editingIndex, agents, persist, t]);
-
-  const permissionModeValue: ExternalAgentPermissionMode = useMemo(
-    () => normalizePermissionMode(draft.type, draft.permissionMode),
-    [draft.type, draft.permissionMode],
-  );
 
   const handleDelete = useCallback(() => {
     if (deleteIndex === null) {
@@ -367,12 +275,14 @@ const ExternalAgentsConfig = memo(() => {
                     />
                     <button
                       onClick={() => handleStartEdit(index)}
+                      aria-label={t('edit')}
                       className={cn('p-1.5 hover:bg-muted rounded transition-all', REVEAL_ON_HOVER)}
                     >
                       <IconPencil className="w-3.5 h-3.5 text-muted-foreground" />
                     </button>
                     <button
                       onClick={() => setDeleteIndex(index)}
+                      aria-label={t('delete')}
                       className={cn('p-1.5 hover:bg-muted rounded transition-all', REVEAL_ON_HOVER)}
                     >
                       <IconTrash className="w-3.5 h-3.5 text-red-500" />
@@ -385,162 +295,15 @@ const ExternalAgentsConfig = memo(() => {
         )}
 
         {isEditing && (
-          <div className="border border-border rounded-lg p-4 space-y-4 bg-muted/20">
-            {editingIndex === -1 && (
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs text-muted-foreground self-center mr-1">{t('presets')}:</span>
-                {AGENT_PRESETS.map((preset) => (
-                  <button
-                    key={preset.key}
-                    onClick={() => setDraft({ ...preset.config })}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border hover:bg-muted transition-colors"
-                  >
-                    {t(`preset_${preset.key}` as Parameters<typeof t>[0])}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">{t('name')}</label>
-                <Input
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  placeholder={t('namePlaceholder')}
-                />
-              </div>
-              <div className="space-y-1.5" data-testid="external-agent-type">
-                <label className="text-xs font-medium text-muted-foreground">{t('type')}</label>
-                <Select value={draft.type} onValueChange={(v: ExternalAgentType) => setDraft({ ...draft, type: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cli" data-testid="external-agent-type-cli">
-                      {t('typeCli')}
-                    </SelectItem>
-                    <SelectItem value="acp" data-testid="external-agent-type-acp">
-                      {t('typeAcp')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('command')}</label>
-              <Input
-                value={draft.command}
-                onChange={(e) => setDraft({ ...draft, command: e.target.value })}
-                placeholder={t('commandPlaceholder')}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('args')}</label>
-              <Textarea
-                value={(draft.args ?? []).join('\n')}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    args: e.target.value ? e.target.value.split('\n') : [],
-                  })
-                }
-                placeholder={t('argsPlaceholder')}
-                rows={2}
-                className="resize-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
-              <Textarea
-                value={draft.description ?? ''}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                placeholder={t('descriptionPlaceholder')}
-                rows={2}
-                className="resize-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5" data-testid="external-agent-permission-mode">
-                <label className="text-xs font-medium text-muted-foreground">{t('permissionMode')}</label>
-                <Select
-                  value={permissionModeValue}
-                  onValueChange={(v: ExternalAgentPermissionMode) => setDraft({ ...draft, permissionMode: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERMISSION_MODE_OPTIONS[draft.type].map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        data-testid={`permission-option-${option.value}`}
-                      >
-                        {t(option.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground/60">{t(PERMISSION_MODE_HINTS[draft.type])}</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">{t('maxTurns')}</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={draft.maxTurns ?? 25}
-                  onChange={(e) => setDraft({ ...draft, maxTurns: parseInt(e.target.value, 10) || 25 })}
-                />
-                <p className="text-[11px] text-muted-foreground/60">{t('maxTurnsHint')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('authMode')}</label>
-              <Select
-                value={draft.authMode ?? 'subscription'}
-                onValueChange={(v: ExternalAgentAuthMode) => setDraft({ ...draft, authMode: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="subscription">{t('authModeSubscription')}</SelectItem>
-                  <SelectItem value="api_key">{t('authModeApiKey')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground/60">{t('authModeHint')}</p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Switch checked={draft.enabled} onCheckedChange={(checked) => setDraft({ ...draft, enabled: checked })} />
-              <span className="text-sm">{t('enabled')}</span>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              {isLocalMode() && (
-                <Button variant="ghost" size="sm" onClick={handleTest} disabled={isTesting || !draft.command.trim()}>
-                  {isTesting ? (
-                    <IconLoader className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <IconZap className="w-3.5 h-3.5 mr-1.5" />
-                  )}
-                  {t('testConnection')}
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                {t('cancel')}
-              </Button>
-              <Button size="sm" onClick={handleSave}>
-                {t('save')}
-              </Button>
-            </div>
-          </div>
+          <ExternalAgentForm
+            draft={draft}
+            isNew={editingIndex === -1}
+            isTesting={isTesting}
+            onChange={setDraft}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            onTest={handleTest}
+          />
         )}
       </SettingsSection>
 

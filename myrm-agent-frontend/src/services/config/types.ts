@@ -349,6 +349,8 @@ export interface ExternalAgentConfig {
   authMode?: ExternalAgentAuthMode;
   description?: string;
   maxTurns?: number;
+  /** Variables set when the agent starts, such as its API key; the values are secrets. */
+  env?: Record<string, string>;
 }
 
 /**
@@ -508,6 +510,7 @@ export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
   'providers',
   'retrieval',
   'mcpServers',
+  'externalAgents',
   'searchServices',
   'feishuCredentials',
   'dingtalkCredentials',

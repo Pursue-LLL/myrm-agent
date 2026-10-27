@@ -108,7 +108,6 @@ src/components/features/settings/sections/hosting/HostingTargetsPanel.tsx
 src/components/features/settings/sections/integration/ConnectSection.tsx
 src/components/features/settings/sections/integration/ExtensionBridgeSection.tsx
 src/components/features/settings/sections/integration/ExternalAgentAuthControls.tsx
-src/components/features/settings/sections/integration/ExternalAgentsConfig.tsx
 src/components/features/settings/sections/integration/channels/ChannelsSection.tsx
 src/components/features/settings/sections/integration/channels/PairingManager.tsx
 src/components/features/settings/sections/integration/channels/VoiceSection.tsx

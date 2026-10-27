@@ -25,6 +25,10 @@ describe('reentryGroups', () => {
     ).toEqual(['modelKeys', 'mcpConnections', 'savedSecrets']);
   });
 
+  it('files the keys handed to external coding agents with the other model keys', () => {
+    expect(reentryGroups(['config:externalAgents'])).toEqual(['modelKeys']);
+  });
+
   it('sends unknown credential rows to connected accounts and never leaks identifiers', () => {
     expect(reentryGroups(['config:telegramCredentials', 'table:something_new'])).toEqual(['connectedAccounts']);
     expect(reentryGroups(['path:.myrm/credentials.json'])).toEqual(['savedSecrets']);
