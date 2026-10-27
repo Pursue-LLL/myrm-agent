@@ -10,7 +10,7 @@ after 24 hours) once it passes the harness defaults, which are lower because tha
 - app.services.agent.params.models::MultimodalQuery (POS: agent query payload type)
 - app.core.utils.skill_invocation::decorate_behind_skill_tag (POS: keeps a leading ``[use skill]`` tag first)
 - app.services.chat.effective_workspace::find_chat_workspace_root (POS: workspace a chat's files live in)
-- myrm_agent_harness.agent.context_guard (POS: spillover engine, its two directories and CJK token pressure)
+- myrm_agent_harness.agent.context_guard (POS: spillover engine, its two directories and the token-pressure estimate weighted by kind of character)
 
 [OUTPUT]
 - USER_TEXT_LIMITS: The size from which the text of a person is parked instead of going into the prompt.

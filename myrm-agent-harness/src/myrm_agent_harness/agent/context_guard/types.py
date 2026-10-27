@@ -14,10 +14,13 @@
 [POS]
 Value-object and measurement layer of the context guard subsystem. Keeps the token
 estimate next to the config it feeds, since a naive chars/4 heuristic would under-count
-CJK text by roughly an order of magnitude and dense ASCII (hex, base64, logs, minified
-JSON) by up to a factor of three, and let oversized payloads slip past the guard. The
-directory names live here because the spill writer, the sweeper and the file read tool's
-path scope must agree on them. Pure computation: no filesystem access.
+CJK text by three to four times and dense ASCII (hex, base64, logs, minified JSON) by up
+to 2.7 times, and let oversized payloads slip past the guard. The estimate is a pure
+function of the text on purpose: ``utils.text_utils.get_token_count`` loads its BPE data
+on first use and falls back to a coarser estimate when that fails, so the same text could
+be parked by one entry point and kept by another. The directory names live here because
+the spill writer, the sweeper and the file read tool's path scope must agree on them. No
+filesystem access.
 """
 
 from __future__ import annotations
@@ -52,7 +55,9 @@ _SYMBOL_WEIGHT = 40  # any other ASCII character: punctuation, operators, contro
 _DIGIT_WEIGHT = 75
 _UPPER_WEIGHT = 100  # capitals are rare in prose and frequent in ids, hashes and base64
 _ALPHABET_WEIGHT = 50  # a non-ASCII narrow character: Cyrillic, Arabic, Indic, Thai, accented Latin
-_WIDE_WEIGHT = 180  # East Asian wide and fullwidth characters (CJK, kana, hangul, emoji)
+# East Asian wide and fullwidth characters (CJK, kana, hangul, emoji). Above the 0.8-0.95 o200k_base measures for
+# Chinese and Japanese on purpose: other tokenizers split them finer, and a text parked early costs one file read.
+_WIDE_WEIGHT = 180
 
 
 def _centi_weight(char: str) -> int:

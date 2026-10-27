@@ -25,7 +25,16 @@ by gracefully converting oversized payloads (>16,000 chars) into referenced file
   East Asian wide characters 1.8, as whole hundredths so the web composer (`spillover.ts`) sums to the same number. Against
   tiktoken `o200k_base` the recorded samples (prose, code, logs, URLs, minified JSON, hex, base64, seven scripts) stay within
   0.4x-1.3x of the real count (`tests/agent/context_guard/test_token_pressure.py`). The cost of the weights: ALL CAPS and
-  Title Case prose are over-estimated by 2-3x and park earlier than their token count calls for.
+  Title Case prose are over-estimated by 2-3x, Chinese by 2.25x and Japanese by 1.9x (1.8 per wide character against the
+  0.8-0.95 o200k measures, kept high because other tokenizers split CJK finer), so these park earlier than their token
+  count calls for. A text parked early costs one file read; a text that slips past costs its tokens on every replayed turn.
+- **The estimate is not `get_token_count`.** `utils.text_utils.get_token_count` is exact for o200k, but it downloads its BPE
+  data on first use and, when tiktoken fails, silently returns `estimate_tokens_fast` (50,000 characters of the log recipe in
+  the contract test: 23,837 with tiktoken, 14,285 without, across a 16,000 limit). The live turn and the stored message each
+  decide on their own, so a decision that depends on that state would park the text in one and keep it in the other, and the
+  stub would no longer be the same bytes in both. The estimate stays a pure function of the text. It is also 3-9x faster on
+  dense and adversarial input (64,000 base64 characters 1.6 ms against 5.2 ms, a million `a` 19.3 ms against 175.5 ms), and
+  the web composer has no tokenizer to call.
 - **Two lifetimes, one engine.** A spill nothing refers to after the turn (a document a messaging channel attached) goes to
   the transient directory and is swept. The text a person pasted is referred to by the conversation for as long as it lasts
   (the agent thread replays the stub of the first turn), so it goes to the kept directory, which has no sweeper: the owner of
