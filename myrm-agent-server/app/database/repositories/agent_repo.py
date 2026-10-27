@@ -27,6 +27,7 @@ from app.core.memory.adapters.policy import (
     memory_policy_from_dict,
     memory_policy_to_dict,
 )
+from app.database.dto import normalize_workspace_policy
 from app.database.models import Agent
 from app.services.agent.builtin_specs.builtin_tool_ids import (
     persist_enabled_builtin_tools,
@@ -112,7 +113,7 @@ class AgentRepository:
                 "responsibility_scope": getattr(agent, "responsibility_scope", None),
                 "owner_label": getattr(agent, "owner_label", None),
                 "acceptance_criteria": list(getattr(agent, "acceptance_criteria", None) or []),
-                "workspace_policy": agent.workspace_policy,
+                "workspace_policy": normalize_workspace_policy(agent.workspace_policy),
                 "allow_discovery": (bool(agent.allow_discovery) if agent.allow_discovery is not None else True),
                 "engine_params": agent.engine_params,
                 "openapi_services": agent.openapi_services or [],

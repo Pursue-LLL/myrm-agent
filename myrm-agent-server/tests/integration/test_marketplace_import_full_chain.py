@@ -35,10 +35,13 @@ from app.core.skills.creation.service import SkillCreationService
 from app.database.dto import AgentCreate
 from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Agent, AgentProfileSnapshot, Base
+from app.database.repositories.uow import UnitOfWork
 from app.services.agent.agent_service import AgentService
 from app.services.agent.marketplace import (
     build_marketplace_package,
+    export_agent_package,
     import_agent_package,
+    validate_marketplace_package,
 )
 from app.services.event.app_event_bus import AppEventType, get_event_bus
 
@@ -360,7 +363,7 @@ async def test_force_push_preserves_skill_bindings_with_real_db(
                 "system_prompt": "New prompt.",
                 "model": "gpt-4.1",
                 "memory_policy": {"write_policy": "inherit"},
-                "workspace_policy": "ISOLATED_COPY",
+                "workspace_policy": "READ_ONLY_SANDBOX",
                 "cron_post_run_verify": True,
                 "command_bindings": [
                     {
@@ -406,7 +409,7 @@ async def test_force_push_preserves_skill_bindings_with_real_db(
         assert updated.tools_allowed == ["web_search"]
 
         # Non-skill config fields landed on the real DB.
-        assert (updated.metadata or {}).get("workspace_policy") == "ISOLATED_COPY"
+        assert (updated.metadata or {}).get("workspace_policy") == "READ_ONLY_SANDBOX"
         assert (updated.metadata or {}).get("cron_post_run_verify") is True
         assert updated.command_bindings is not None
         assert updated.command_bindings[0].command_name == "daily-report"
@@ -516,6 +519,23 @@ async def test_discovery_defaults_on_when_not_set(agent_db) -> None:
     roster = await _resolve_roster([], dynamic_discovery=True)
     roster_ids = {entry.agent_id for entry in roster}
     assert profile.id in roster_ids
+
+
+@pytest.mark.asyncio
+async def test_agent_saved_with_the_retired_isolated_copy_policy_still_exports(agent_db) -> None:
+    """A row written while ISOLATED_COPY existed reads as inherit, so exporting it still builds a valid package."""
+    profile = await AgentService.create_agent(AgentCreate(name="Legacy", description="d", system_prompt="sys"))
+    async with agent_db() as session:
+        stored = await session.get(Agent, profile.id)
+        assert stored is not None
+        stored.workspace_policy = "ISOLATED_COPY"
+        await session.commit()
+
+    async with UnitOfWork() as uow:
+        package = await export_agent_package(uow, profile.id)
+
+    assert package["agent_profile"]["workspace_policy"] == "INHERIT_REQUESTER"
+    validate_marketplace_package(package)
 
 
 # ---------------------------------------------------------------------------

@@ -107,7 +107,7 @@ _FIELD_RULES: Final[dict[str, tuple[Disposition, str]]] = {
     "prompt_mode": (_X, "controls which safety/system sections are injected"),
     "memory_decay_profile": (_X, "personal memory tuning"),
     "memory_extraction_preset": (_X, "personal memory tuning"),
-    "workspace_policy": (_X, "isolation policy is the installing user's decision"),
+    "workspace_policy": (_X, "workspace policy is the installing user's decision"),
     "memory_policy": (_X, "personal memory tuning"),
     "session_policy": (_X, "channel session policy is environment-specific"),
     "auto_restore_domains": (_X, "persisted login state hosts"),

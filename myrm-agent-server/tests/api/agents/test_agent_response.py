@@ -1,5 +1,6 @@
 """Tests for _agent_response serialization helpers."""
 
+import pytest
 from myrm_agent_harness.backends.profiles.types import AgentProfile, CommandBinding
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
@@ -25,6 +26,20 @@ def _profile(*, metadata: dict | None) -> AgentProfile:
 def test_allow_discovery_false_is_serialized() -> None:
     response = _to_agent_response(_profile(metadata={"allow_discovery": False}))
     assert response.allow_discovery is False
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        ("READ_ONLY_SANDBOX", "READ_ONLY_SANDBOX"),
+        ("INHERIT_REQUESTER", "INHERIT_REQUESTER"),
+        ("ISOLATED_COPY", "INHERIT_REQUESTER"),
+        (None, "INHERIT_REQUESTER"),
+    ],
+)
+def test_workspace_policy_reads_back_as_a_current_value(stored: str | None, expected: str) -> None:
+    metadata = {} if stored is None else {"workspace_policy": stored}
+    assert _to_agent_response(_profile(metadata=metadata)).workspace_policy == expected
 
 
 def test_allow_discovery_true_is_serialized() -> None:
@@ -125,7 +140,7 @@ class TestSerializationHelpers:
                 "prompt_mode": "lean",
                 "agent_type": "team",
                 "subagent_ids": ["sub1"],
-                "workspace_policy": "ISOLATED_COPY",
+                "workspace_policy": "READ_ONLY_SANDBOX",
                 "session_policy": {"mode": "daily"},
                 "openapi_services": [{"url": "https://api.example.com/openapi.json"}],
                 "notify_targets": [{"channel": "im", "recipient_id": "u1", "label": "me"}],
@@ -140,7 +155,7 @@ class TestSerializationHelpers:
         assert response.allow_discovery is False
         assert response.personality_style == "friendly"
         assert response.agent_type == "team"
-        assert response.workspace_policy == "ISOLATED_COPY"
+        assert response.workspace_policy == "READ_ONLY_SANDBOX"
         assert response.session_policy is not None
         assert response.notify_targets is not None
         assert response.busy_input_mode == "steer"

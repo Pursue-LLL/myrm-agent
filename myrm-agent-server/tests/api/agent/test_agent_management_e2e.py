@@ -155,7 +155,7 @@ async def test_agent_runtime_contract_crud(async_client: AsyncClient, test_user_
             "capabilities": ["file_read"],
             "networkAllowlist": ["example.com"],
         },
-        "workspace_policy": "ISOLATED_COPY",
+        "workspace_policy": "READ_ONLY_SANDBOX",
         "memory_policy": {
             "read_scopes": ["global", "agent", "task"],
             "write_policy": "task",
@@ -168,7 +168,7 @@ async def test_agent_runtime_contract_crud(async_client: AsyncClient, test_user_
     agent_id = created["id"]
     assert created["subagent_ids"] == ["reviewer-agent", "writer-agent"]
     assert created["enabled_builtin_tools"] == ["web_search", "browser"]
-    assert created["workspace_policy"] == "ISOLATED_COPY"
+    assert created["workspace_policy"] == "READ_ONLY_SANDBOX"
     assert created["memory_policy"]["write_policy"] == "task"
     assert created["memory_policy"]["read_scopes"] == ["global", "agent", "task"]
     assert created["security_overrides"]["networkAllowlist"] == ["example.com"]

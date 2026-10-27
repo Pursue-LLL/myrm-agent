@@ -35,7 +35,6 @@ local-only Chrome E2E seed 路由子包。上级文档：[../_ARCH.md](../_ARCH.
 | `wechat_draft.py` | WeChat Official draft seed |
 | `wiki_dedup.py` | wiki corpus dedup seed（duplicate raw + sync scan） |
 | `wiki_provenance.py` | wiki provenance gap seed（compiled concept missing sources） |
-| `workspace_merge.py` | workspace merge seed（variant=batch_merge_fail） |
 
 ## 依赖
 

@@ -51,7 +51,6 @@ from .wechat_draft import router as wechat_draft_fixture_router
 from .wiki_dedup import router as wiki_dedup_fixture_router
 from .wiki_pending_drift import router as wiki_pending_drift_fixture_router
 from .wiki_provenance import router as wiki_provenance_fixture_router
-from .workspace_merge import router as workspace_merge_fixture_router
 
 router = APIRouter()
 
@@ -63,7 +62,6 @@ router.include_router(clarify_refresh_fixture_router)
 router.include_router(chat_share_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
 router.include_router(file_mutation_fixture_router)
-router.include_router(workspace_merge_fixture_router)
 router.include_router(evicted_fixture_router)
 router.include_router(revert_fixture_router)
 router.include_router(stream_retry_busy_fixture_router)

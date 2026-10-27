@@ -27,7 +27,7 @@ from app.database.dto import (
     CommandBindingConfig,
     ModelSelection,
     PersonalityStyleLiteral,
-    WorkspacePolicyLiteral,
+    normalize_workspace_policy,
 )
 from app.services.agent.agent_service import HIDDEN_SYSTEM_PROMPT
 
@@ -92,16 +92,6 @@ def _meta_list_or_none(meta: dict[str, object], key: str) -> list[dict[str, str]
     if isinstance(v, list) and v:
         return [item for item in v if isinstance(item, dict)]
     return None
-
-
-_WORKSPACE_POLICY_MAP: dict[str, WorkspacePolicyLiteral] = {
-    "ISOLATED_COPY": "ISOLATED_COPY",
-    "READ_ONLY_SANDBOX": "READ_ONLY_SANDBOX",
-}
-
-
-def _workspace_policy_from_metadata(raw: object) -> WorkspacePolicyLiteral:
-    return _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER") if raw else "INHERIT_REQUESTER"
 
 
 def _response_memory_policy(agent: AgentProfile) -> AgentMemoryPolicyConfig | None:
@@ -188,7 +178,7 @@ def _to_agent_response(
         personality_style=_safe_personality(metadata.get("personality_style")),
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),
         max_iterations=agent.max_iterations,
-        workspace_policy=_workspace_policy_from_metadata(metadata.get("workspace_policy", "INHERIT_REQUESTER")),
+        workspace_policy=normalize_workspace_policy(metadata.get("workspace_policy")),
         memory_policy=_response_memory_policy(agent),
         session_policy=_response_session_policy(metadata),
         engine_params=_meta_dict_or_none(metadata, "engine_params"),

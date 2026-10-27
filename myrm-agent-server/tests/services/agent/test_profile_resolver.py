@@ -79,7 +79,7 @@ class TestResolveFound:
                 security_overrides={"yolo_mode_enabled": True},
                 personality_style="creative",
                 max_iterations=10,
-                workspace_policy="ISOLATED_COPY",
+                workspace_policy="READ_ONLY_SANDBOX",
                 memory_policy=None,
                 memory_decay_profile=None,
                 enabled_builtin_tools=("web_search", "browser"),
@@ -98,7 +98,7 @@ class TestResolveFound:
             assert result.max_iterations == 10
             assert result.engine_params == {"max_tool_calls": 7}
             assert result.personality_style == "creative"
-            assert result.workspace_policy == "ISOLATED_COPY"
+            assert result.workspace_policy == "READ_ONLY_SANDBOX"
             mock_load.assert_awaited_once_with("agent-1")
 
 

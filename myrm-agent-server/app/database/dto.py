@@ -36,7 +36,14 @@ MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
 MemoryExtractionPresetLiteral = Literal["none", "auto", "persona", "work_assistant", "research"]
 PromptModeLiteral = Literal["full", "lean", "naked", "search"]
 SecurityPresetLiteral = Literal["hitl", "accept_edits", "explore"]
-WorkspacePolicyLiteral = Literal["INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"]
+WorkspacePolicyLiteral = Literal["INHERIT_REQUESTER", "READ_ONLY_SANDBOX"]
+
+
+def normalize_workspace_policy(stored: object) -> WorkspacePolicyLiteral:
+    """Read a stored policy: anything but READ_ONLY_SANDBOX (e.g. the retired ISOLATED_COPY) inherits."""
+    return "READ_ONLY_SANDBOX" if stored == "READ_ONLY_SANDBOX" else "INHERIT_REQUESTER"
+
+
 AgentTypeLiteral = Literal["individual", "team"]
 
 T = TypeVar("T")

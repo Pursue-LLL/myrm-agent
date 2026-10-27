@@ -230,7 +230,6 @@ myrm_agent_harness.agent.sub_agents.ralph_loop
 myrm_agent_harness.agent.sub_agents.registry
 myrm_agent_harness.agent.sub_agents.replay_dedup
 myrm_agent_harness.agent.sub_agents.report_fifo
-myrm_agent_harness.agent.sub_agents.result_output
 myrm_agent_harness.agent.sub_agents.review_loop
 myrm_agent_harness.agent.sub_agents.session_fork
 myrm_agent_harness.agent.sub_agents.session_tree

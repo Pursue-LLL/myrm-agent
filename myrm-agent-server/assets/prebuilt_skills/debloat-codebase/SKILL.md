@@ -14,14 +14,14 @@ When invoked via `/debloat-codebase` or when instructed to clean up and slim a r
 3. Assert that all public APIs in `__all__` or entrypoints are explicitly exempt from unreferenced deletion.
 
 ## Phase 2: Parallel Wave Subagent Delegation
-1. Call `delegate_task_tool` with `mode="batch"` and one task per module. Concurrent writing tasks run in isolated git worktrees (or isolated copies) and are merged back when the batch completes.
+1. Call `delegate_task_tool` with `mode="batch"` and one task per module. The tasks run at the same time in the same workspace.
 2. Each task prunes unused imports, dead functions, and redundant wrappers inside its own module only.
-3. Subagents must never cross module boundaries to avoid merge conflicts.
+3. Subagents must never cross module boundaries: they share one workspace, so two of them editing the same file would overwrite each other.
 
 ## Phase 3: Behavior Equivalence & Test Invariance Guard
-1. Each subagent runs the existing unit and regression tests (`pytest`, `bun run test`) for its module in its isolated workspace before reporting back.
+1. Each subagent runs the existing unit and regression tests (`pytest`, `bun run test`) for its module before reporting back.
 2. If any test fails, analyze whether the failure is due to dynamic introspection or legitimate usage; if legitimate, rollback that specific deletion.
-3. After the batch returns and the workspaces are merged, run the full test suite on the merged result and fix any integration failure.
+3. After the batch returns, run the full test suite and fix any integration failure.
 
 ## Phase 4: Slimming Ledger & PR Generation
 1. Calculate lines of code cut, file count reductions, and estimated token savings for future agent interactions.

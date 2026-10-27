@@ -19,6 +19,19 @@ from app.database.repositories.agent_repo import AgentRepository
 
 class TestGetProfile:
     @pytest.mark.asyncio
+    async def test_retired_workspace_policy_reads_as_inherit(self) -> None:
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = Agent(id="a1", name="Agent1", workspace_policy="ISOLATED_COPY")
+        db.execute.return_value = result
+
+        profile = await AgentRepository.get_profile(db, "a1")
+
+        assert profile is not None
+        assert profile.metadata is not None
+        assert profile.metadata["workspace_policy"] == "INHERIT_REQUESTER"
+
+    @pytest.mark.asyncio
     async def test_returns_profile(self) -> None:
         db = AsyncMock()
         agent = Agent(id="a1", name="Agent1")
@@ -180,7 +193,7 @@ class TestUpdateProfileCoreFields:
                     "max_iterations": 10,
                     "tools_allowed": [],
                     "memory_policy": None,
-                    "workspace_policy": "ISOLATED_COPY",
+                    "workspace_policy": "READ_ONLY_SANDBOX",
                     "built_in": True,
                 },
             )
@@ -191,7 +204,7 @@ class TestUpdateProfileCoreFields:
         assert agent.system_prompt == "SP"
         assert agent.skill_ids == ["s1"]
         assert agent.max_iterations == 10
-        assert agent.workspace_policy == "ISOLATED_COPY"
+        assert agent.workspace_policy == "READ_ONLY_SANDBOX"
         assert agent.is_public is True
         assert agent.is_built_in is True
 
@@ -418,7 +431,7 @@ class TestUpdateProfileMetadataBranches:
                         "mcp_tool_selections": {"mcp1": ["tool-a"]},
                         "security_overrides": {"danger": ["rm"]},
                         "default_security_preset": "strict",
-                        "workspace_policy": "ISOLATED_COPY",
+                        "workspace_policy": "READ_ONLY_SANDBOX",
                         "engine_params": {"marketplace_entry_id": "entry-1"},
                         "openapi_services": ["svc"],
                         "session_policy": {"max_turns": 5},
@@ -430,7 +443,7 @@ class TestUpdateProfileMetadataBranches:
         assert agent.mcp_tool_selections == {"mcp1": ["tool-a"]}
         assert agent.security_overrides == {"danger": ["rm"]}
         assert agent.default_security_preset == "strict"
-        assert agent.workspace_policy == "ISOLATED_COPY"
+        assert agent.workspace_policy == "READ_ONLY_SANDBOX"
         assert agent.engine_params == {"marketplace_entry_id": "entry-1"}
         assert agent.openapi_services == ["svc"]
         assert agent.session_policy == {"max_turns": 5}

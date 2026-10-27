@@ -86,6 +86,6 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 数据库中的自定义 Agent 被当作子 Agent 使用时，不是简单地把一段 prompt 塞进框架，而是走统一运行时映射：
 
 - 使用 `CustomAgentFactory` 构造完整 SkillAgent，保留技能、记忆、MCP 能力。
-- `workspace_policy="ISOLATED_COPY"` 时，映射为运行时 `WorkspacePolicy.ISOLATED_COPY`；否则默认继承父工作区。
+- `workspace_policy="READ_ONLY_SANDBOX"` 时，映射为运行时 `WorkspacePolicy.READ_ONLY_SANDBOX`（写/编辑/命令工具被剔除）；其余取值（含已下线的 `ISOLATED_COPY`）一律继承父工作区，父子共用同一个工作区。
 - 统一强制 `ControlScope.LEAF`，禁止递归再委派。
 - 记忆隔离统一为 `MemoryIsolationPolicy.READ_ONLY_GLOBAL`，避免父子 Agent 并发污染共享记忆；无痕对话用 `EPHEMERAL_SESSION`，子 Agent 不创建记忆管理器，对话不会经子 Agent 读写长期记忆。

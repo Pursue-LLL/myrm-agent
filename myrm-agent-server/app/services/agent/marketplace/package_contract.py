@@ -163,7 +163,7 @@ class MarketplaceAgentProfileContract(BaseModel):
     allow_discovery: bool | None = None
     personality_style: str = "professional"
     max_iterations: int | None = None
-    workspace_policy: Literal["INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"] | None = None
+    workspace_policy: Literal["INHERIT_REQUESTER", "READ_ONLY_SANDBOX"] | None = None
     memory_policy: dict[str, object] | None = None
     engine_params: dict[str, object] | None = None
     auto_restore_domains: list[str] | None = None
