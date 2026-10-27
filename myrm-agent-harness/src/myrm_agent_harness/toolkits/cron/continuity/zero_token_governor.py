@@ -22,15 +22,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_NOISE_KEYS: Set[str] = {
+_DEFAULT_NOISE_KEYS: set[str] = {
     "timestamp",
     "time",
     "trace_id",
@@ -58,15 +57,15 @@ class ZeroTokenMonitorGovernor:
 
     def __init__(
         self,
-        noise_keys: Optional[Set[str]] = None,
+        noise_keys: set[str] | None = None,
         max_payload_bytes: int = _MAX_CANONICAL_PAYLOAD_BYTES,
     ) -> None:
         self._noise_keys = noise_keys or set(_DEFAULT_NOISE_KEYS)
         self._max_payload_bytes = max_payload_bytes
 
-    def _strip_noise_dict(self, obj: Dict[str, object]) -> Dict[str, object]:
+    def _strip_noise_dict(self, obj: dict[str, object]) -> dict[str, object]:
         """递归清洗字典中的动态噪声键。"""
-        cleaned: Dict[str, object] = {}
+        cleaned: dict[str, object] = {}
         for k, v in obj.items():
             if k.lower() in self._noise_keys:
                 continue
@@ -78,9 +77,9 @@ class ZeroTokenMonitorGovernor:
                 cleaned[k] = v
         return cleaned
 
-    def _strip_noise_list(self, arr: List[object]) -> List[object]:
+    def _strip_noise_list(self, arr: list[object]) -> list[object]:
         """递归清洗列表中的动态噪声项。"""
-        cleaned: List[object] = []
+        cleaned: list[object] = []
         for item in arr:
             if isinstance(item, dict):
                 cleaned.append(self._strip_noise_dict(item))
@@ -130,7 +129,7 @@ class ZeroTokenMonitorGovernor:
     def evaluate(
         self,
         current_payload: str,
-        previous_hash: Optional[str] = None,
+        previous_hash: str | None = None,
         is_quiet_mode: bool = True,
     ) -> ZeroTokenDecision:
         """根据当前采集载荷与前次哈希评估是否应跳过大模型。"""

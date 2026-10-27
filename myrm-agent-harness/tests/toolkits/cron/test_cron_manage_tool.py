@@ -1765,4 +1765,3 @@ class TestCronPlatformV2:
         assert tools_zh[0].description == CRON_MANAGE_TOOL_DESCRIPTION_ZH
         assert "管理定时任务" in (tools_zh[0].description or "")
         assert "实时流/轮询事件任务" in (tools_zh[0].description or "")
-

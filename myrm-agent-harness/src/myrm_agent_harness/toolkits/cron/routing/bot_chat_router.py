@@ -22,10 +22,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
 import time
-from typing import Dict, List, Optional
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class RoutedBotMessage:
     content: str
     call_depth: int
     created_at_mono: float
-    extra_metadata: Dict[str, str] = field(default_factory=dict)
+    extra_metadata: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -50,7 +49,7 @@ class RoutingResult:
     """消息路由执行结果。"""
 
     success: bool
-    message_id: Optional[str]
+    message_id: str | None
     action: str
     reason: str
 
@@ -58,11 +57,9 @@ class RoutingResult:
 class BotChatRouter:
     """巡检告警智能体专属会话路由器。"""
 
-    def __init__(self, registered_bot_ids: Optional[List[str]] = None) -> None:
-        self._registered_bot_ids: List[str] = (
-            list(registered_bot_ids) if registered_bot_ids is not None else []
-        )
-        self._dispatched_messages: Dict[str, RoutedBotMessage] = {}
+    def __init__(self, registered_bot_ids: list[str] | None = None) -> None:
+        self._registered_bot_ids: list[str] = list(registered_bot_ids) if registered_bot_ids is not None else []
+        self._dispatched_messages: dict[str, RoutedBotMessage] = {}
 
     def register_bot(self, agent_id: str) -> None:
         """登记合法受管的智能体标识。"""
@@ -138,6 +135,6 @@ class BotChatRouter:
             reason=f"Alert successfully injected into bot {target_agent_id} context",
         )
 
-    def get_dispatched_message(self, message_id: str) -> Optional[RoutedBotMessage]:
+    def get_dispatched_message(self, message_id: str) -> RoutedBotMessage | None:
         """获取已派发的消息记录。"""
         return self._dispatched_messages.get(message_id)

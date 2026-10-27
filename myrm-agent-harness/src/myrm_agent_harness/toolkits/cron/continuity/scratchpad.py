@@ -25,9 +25,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-from pathlib import Path
 import re
-from typing import Dict, Optional
+from itertools import islice
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +51,10 @@ class BoundedScratchpad:
     def _resolve_path(self, job_id: str) -> Path:
         """安全解析记事本路径，杜绝路径遍历攻击。"""
         if not _VALID_JOB_ID_PATTERN.match(job_id):
-            raise InvalidJobIdError(
-                f"Invalid job_id '{job_id}': must match {_VALID_JOB_ID_PATTERN.pattern}"
-            )
+            raise InvalidJobIdError(f"Invalid job_id '{job_id}': must match {_VALID_JOB_ID_PATTERN.pattern}")
         return self._storage_dir / f"{job_id}.scratchpad.json"
 
-    def load(self, job_id: str) -> Dict[str, str]:
+    def load(self, job_id: str) -> dict[str, str]:
         """读取指定任务的记事本数据。
 
         若文件不存在、损坏或解析异常，则记录警告并自愈重置为空记事本。
@@ -75,7 +73,7 @@ class BoundedScratchpad:
                 )
                 return {}
             # 过滤非字符串值保证纯净
-            cleaned: Dict[str, str] = {}
+            cleaned: dict[str, str] = {}
             for k, v in data.items():
                 if isinstance(k, str) and isinstance(v, str):
                     cleaned[k] = v
@@ -91,24 +89,20 @@ class BoundedScratchpad:
     def save(
         self,
         job_id: str,
-        last_summary: Optional[str] = None,
-        last_metrics: Optional[Dict[str, str]] = None,
+        last_summary: str | None = None,
+        last_metrics: dict[str, str] | None = None,
     ) -> bool:
         """原子落盘保存记事本，严格限制在 1KB 预算内。"""
         file_path = self._resolve_path(job_id)
-        payload: Dict[str, str] = {}
+        payload: dict[str, str] = {}
 
         if last_summary is not None:
             # 截断摘要，防止上下文膨胀
             payload["last_summary"] = last_summary[:_MAX_SUMMARY_CHARS]
 
         if last_metrics is not None:
-            count = 0
-            for k, v in last_metrics.items():
-                if count >= _MAX_METRICS_COUNT:
-                    break
+            for k, v in islice(last_metrics.items(), _MAX_METRICS_COUNT):
                 payload[f"metric_{k[:32]}"] = str(v)[:64]
-                count += 1
 
         encoded = json.dumps(payload, ensure_ascii=False)
         if len(encoded.encode("utf-8")) > _MAX_SCRATCHPAD_BYTES:
@@ -132,7 +126,7 @@ class BoundedScratchpad:
                 tmp_path.unlink(missing_ok=True)
             return False
 
-    def format_continuity_context(self, job_id: str) -> Optional[str]:
+    def format_continuity_context(self, job_id: str) -> str | None:
         """提取并格式化跨轮记忆上下文提示语。"""
         data = self.load(job_id)
         if not data:
@@ -142,11 +136,7 @@ class BoundedScratchpad:
         if "last_summary" in data:
             lines.append(f"Last Summary: {data['last_summary']}")
 
-        metrics = [
-            f"{k.removeprefix('metric_')}: {v}"
-            for k, v in data.items()
-            if k.startswith("metric_")
-        ]
+        metrics = [f"{k.removeprefix('metric_')}: {v}" for k, v in data.items() if k.startswith("metric_")]
         if metrics:
             lines.append("Key Metrics from Last Run: " + ", ".join(metrics))
 

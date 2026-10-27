@@ -21,11 +21,10 @@ Cron 任务与不可摧毁作业系统桥接适配器。
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 
-class CronExecutionDecision(str, Enum):
+class CronExecutionDecision(StrEnum):
     """Cron 任务调度与对账裁决枚举。"""
 
     SUCCESS = "SUCCESS"
@@ -54,7 +53,7 @@ class CronJobAdapter:
         self,
         exit_code: int,
         has_side_effect: bool,
-        external_message_id: Optional[str] = None,
+        external_message_id: str | None = None,
         consecutive_failures: int = 0,
     ) -> CronJobEvaluationResult:
         """评估 Cron 执行结果并给出作业系统对齐处置决策。"""

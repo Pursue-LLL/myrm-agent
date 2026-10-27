@@ -62,9 +62,7 @@ _DURATION_RE: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
-_SENSITIVE_RE: re.Pattern[str] = re.compile(
-    r"(?i)(bearer\s+[a-z0-9_\-\.]+)|(sk-[a-z0-9]{20,})|(password[:=]\s*\S+)"
-)
+_SENSITIVE_RE: re.Pattern[str] = re.compile(r"(?i)(bearer\s+[a-z0-9_\-\.]+)|(sk-[a-z0-9]{20,})|(password[:=]\s*\S+)")
 
 _FAILURE_TYPE_ORDER: tuple[tuple[FailureType, tuple[str, ...]], ...] = (
     ("rate_limit", (r"\b429\b", "rate limit", "usage limit", "quota")),
@@ -217,9 +215,7 @@ class SqliteIncidentStore:
     ) -> tuple[CronIncident, bool]:
         """Record or refresh incident. Returns (incident, is_new_or_reopened)."""
         async with self._lock:
-            return self._sync_upsert_incident(
-                job_id, error, failure_type=failure_type, output_file=output_file
-            )
+            return self._sync_upsert_incident(job_id, error, failure_type=failure_type, output_file=output_file)
 
     def _sync_upsert_incident(
         self,
@@ -235,9 +231,7 @@ class SqliteIncidentStore:
         resolved_type = failure_type or classify_failure_type(error)
         now_str = datetime.now(UTC).isoformat()
 
-        row = self._conn.execute(
-            "SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)
-        ).fetchone()
+        row = self._conn.execute("SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)).fetchone()
 
         if row is not None:
             current_state: str = row["state"]
@@ -258,9 +252,7 @@ class SqliteIncidentStore:
                        WHERE id = ?""",
                     (now_str, sanitized_error, output_file, new_state, new_alerted, new_closed, incident_id),
                 )
-            updated_row = self._conn.execute(
-                "SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)
-            ).fetchone()
+            updated_row = self._conn.execute("SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)).fetchone()
             return self._row_to_incident(updated_row), reopen
 
         with self._conn:
@@ -271,9 +263,7 @@ class SqliteIncidentStore:
                    VALUES (?, ?, ?, 'detected', ?, ?, ?, NULL, NULL, NULL, ?, ?)""",
                 (incident_id, job_id, sig, resolved_type, now_str, now_str, sanitized_error, output_file),
             )
-        new_row = self._conn.execute(
-            "SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)
-        ).fetchone()
+        new_row = self._conn.execute("SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)).fetchone()
         return self._row_to_incident(new_row), True
 
     async def set_incident_state(self, incident_id: str, state: IncidentState) -> bool:
@@ -282,9 +272,7 @@ class SqliteIncidentStore:
             return False
         async with self._lock:
             now_str = datetime.now(UTC).isoformat()
-            row = self._conn.execute(
-                "SELECT state FROM cron_incidents WHERE id = ?", (incident_id,)
-            ).fetchone()
+            row = self._conn.execute("SELECT state FROM cron_incidents WHERE id = ?", (incident_id,)).fetchone()
             if row is None or row["state"] == "closed":
                 return False
             if state == "alerted":
@@ -349,10 +337,7 @@ class SqliteIncidentStore:
 
         where_sql = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         limit_sql = f" LIMIT {int(limit)}" if limit is not None and limit > 0 else ""
-        sql = (
-            f"SELECT * FROM cron_incidents{where_sql} "
-            f"ORDER BY julianday(last_seen_at) DESC, id DESC{limit_sql}"
-        )
+        sql = f"SELECT * FROM cron_incidents{where_sql} ORDER BY julianday(last_seen_at) DESC, id DESC{limit_sql}"
 
         async with self._lock:
             rows = self._conn.execute(sql, tuple(params)).fetchall()
@@ -361,9 +346,7 @@ class SqliteIncidentStore:
     async def get_incident(self, incident_id: str) -> CronIncident | None:
         """Fetch incident by identifier."""
         async with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)
-            ).fetchone()
+            row = self._conn.execute("SELECT * FROM cron_incidents WHERE id = ?", (incident_id,)).fetchone()
             return self._row_to_incident(row) if row is not None else None
 
     async def count_incidents(
@@ -390,4 +373,3 @@ class SqliteIncidentStore:
         async with self._lock:
             row = self._conn.execute(sql, tuple(params)).fetchone()
             return int(row["cnt"]) if row is not None else 0
-

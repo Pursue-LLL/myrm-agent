@@ -597,4 +597,3 @@ class CronManager(CronValidationMixin):
         await self._store.save_job(job)
         self._scheduler.notify_change()
         return True
-

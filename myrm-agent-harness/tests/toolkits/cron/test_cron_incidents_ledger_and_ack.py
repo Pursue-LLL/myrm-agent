@@ -155,9 +155,7 @@ async def test_incident_lifecycle_ack_and_silencing() -> None:
     assert alerted_inc.alerted_at is not None
 
     # 3. Same failure repeats next run -> refreshes last_seen_at, keeps 'alerted', is_new=False
-    inc_repeat, is_new_repeat = await store.upsert_incident(
-        job_id, "upstream server 504 Gateway Timeout after 45s"
-    )
+    inc_repeat, is_new_repeat = await store.upsert_incident(job_id, "upstream server 504 Gateway Timeout after 45s")
     assert not is_new_repeat
     assert inc_repeat.id == inc1.id
     assert inc_repeat.state == "alerted"
@@ -172,9 +170,7 @@ async def test_incident_lifecycle_ack_and_silencing() -> None:
     assert closed_inc.closed_at is not None
 
     # 5. Subsequent run with identical error -> stays 'closed', silenced!
-    inc_silenced, is_new_silenced = await store.upsert_incident(
-        job_id, "upstream server 504 Gateway Timeout after 59s"
-    )
+    inc_silenced, is_new_silenced = await store.upsert_incident(job_id, "upstream server 504 Gateway Timeout after 59s")
     assert not is_new_silenced
     assert inc_silenced.state == "closed"
 
