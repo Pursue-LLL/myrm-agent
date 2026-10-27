@@ -9,6 +9,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | 文件 | 职责 |
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
+| `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与字符权重必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
 | `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与六语言文案，都会失败）|
 | `test_privacy_entrypoints.py` | 每个构造 `GeneralAgentParams` 的服务端入口（IM、cron、语音、目标、看板）必须展开 `**privacy_agent_params(...)`，wakeup 复制路径必须调用它；否则设置页的隐私开关只覆盖 Web 对话（豁免：Web converter、eval executor）。AST 逐调用点检查，并自带正反例自检 |
@@ -49,6 +50,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_memory_search_declares_recall.py` | `app/**` 里每个 `manager.search(...)` 必须写明 `track_access`：检索默认把命中的记忆记为已使用（7 天内用过的记忆不被遗忘），取用类写 `True`，去重、诊断、存在性检查写 `False`；自带检测器正反例，接收者改名致扫描落空时失败 |
 | `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
 | `test_instance_archive_report_contract.py` | 整实例备份预览报告的计数键：服务端输出的键集 == 前端 `COUNT_KEYS`，且六种语言都有对应标签（前端缺标签或服务端改名都会失败） |
+| `test_offline_persistable_keys_parity.py` | 前端离线队列可明文落盘的键（`offlinePersistableKeys.ts`）== 前端全部配置键减去服务端 `SENSITIVE_CONFIG_KEYS`：被加密的键不会写进 `localStorage`，新增非敏感键也不会静默丢失离线持久化 |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_frontend_api_client_paths.py` | 前端 `src/**` 调用必须命中真实路由：apiRequest/apiClient 字面量（路径+方法，含 `/webui`）；任意形式写出的 `/api/v1/...` 字面量（raw fetch、展示给用户的 webhook URL）须命中路由或路由基路径；`/api/<root>` 字面量的 root 须由 Next route handler、控制平面或渠道入口提供；已知缺失显式登记，路由出现后条目必须删除 |
 | `test_api_route_consumers.py` | 每个 API 路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配；`/webui/**` 额外按去掉挂载前缀匹配 `getWebuiUrl` 调用），或登记在 `data/route_external_consumers.txt`（每条写明调用方 file:line）；存量无调用路由登记在 `data/route_consumer_baseline.txt`，只许缩小（路由已删除、已有调用方或已登记都会失败）；路由不得重复声明已挂载的 `/api/v1` 前缀。路由表、前端匹配与登记文件的读取在 `support/route_consumers.py`，风险闸门的用户文本入口扫描共用同一判定 |

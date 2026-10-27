@@ -9,7 +9,8 @@
 
 | 文件                           | 地位 | 职责                                                                                                                                                               | I/O/P |
 | ------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| `ConfigSyncManager.ts`         | 核心 | 乐观锁同步、离线队列、分级冲突消解、`commitIfDirty`、`runStartupNormalization`、`ensureKeyLoaded`（渐进加载下读取前确保目标 key 已同步）、后台预加载完成通知订阅者。**离线队列重放带过期闸门**：队列里的变更记录了它当初与服务端分叉的基准版本，重放前与服务端当前版本比对，服务端已前进则判为过期（默认保留服务端值，注册了冲突解决器时交由用户决定），避免陈旧快照覆盖服务端新配置；队列合并保留最早的基准版本，重放时携带该版本让服务端乐观锁能真正生效 | ✅    |
+| `ConfigSyncManager.ts`         | 核心 | 乐观锁同步、离线队列、分级冲突消解、`commitIfDirty`、`runStartupNormalization`、`ensureKeyLoaded`（渐进加载下读取前确保目标 key 已同步）、后台预加载完成通知订阅者。**离线队列重放带过期闸门**：队列里的变更记录了它当初与服务端分叉的基准版本，重放前与服务端当前版本比对，服务端已前进则判为过期（默认保留服务端值，注册了冲突解决器时交由用户决定），避免陈旧快照覆盖服务端新配置；队列合并保留最早的基准版本，重放时携带该版本让服务端乐观锁能真正生效。**落盘只收白名单键**：含密钥的键只在内存队列里重试，不写 `localStorage` | ✅    |
+| `offlinePersistableKeys.ts`    | 核心 | 离线队列允许明文落盘的配置键白名单（仅服务端也不加密存储的 7 个键）。白名单而非黑名单：新增键默认不落盘；服务端 `tests/architecture/test_offline_persistable_keys_parity.py` 保证它与 `SENSITIVE_CONFIG_KEYS` 不相交 | ✅    |
 | `configNormalizer.ts`          | 核心 | 启动归一化管道（providers / personalSettings）                                                                                                                     | ✅    |
 | `configFingerprint.ts`         | 辅助 | 稳定 fingerprint / deep equal，跳过 no-op 写入                                                                                                                     | ✅    |
 | `themePersonalSettingsSync.ts` | 辅助 | 检测 personalSettings 主题字段变更，触发 ConfigSync fast-path                                                                                                      | ✅    |

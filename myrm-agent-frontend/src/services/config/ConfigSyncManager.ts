@@ -19,6 +19,7 @@ import { withConfigInitLock } from './configInitLock';
 import { valuesEqual } from './configFingerprint';
 import { isNormalizedDirty, normalizeConfigValue, STARTUP_NORMALIZE_KEYS } from './configNormalizer';
 import { threeWayMerge } from './mergeUtils';
+import { OFFLINE_PERSISTABLE_CONFIG_KEYS } from './offlinePersistableKeys';
 import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
 import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
@@ -877,10 +878,16 @@ class ConfigSyncManager {
       return;
     }
 
+    // Secret-bearing keys are retried from memory only; writing them here would leave clear text in localStorage.
+    const persistable = changes.filter((change) => OFFLINE_PERSISTABLE_CONFIG_KEYS.has(change.key));
+    if (persistable.length === 0) {
+      return;
+    }
+
     try {
       // 合并现有队列和新变更
       const existing = this.loadOfflineQueue();
-      const merged = this.mergeOfflineChanges([...existing, ...changes]);
+      const merged = this.mergeOfflineChanges([...existing, ...persistable]);
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(merged));
     } catch (error) {
       console.warn('[ConfigSync] Failed to save offline queue:', error);
