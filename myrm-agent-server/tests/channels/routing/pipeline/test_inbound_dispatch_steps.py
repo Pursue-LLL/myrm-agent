@@ -241,3 +241,15 @@ async def test_a_failing_trust_check_fences_the_job_and_still_delivers_the_messa
 
     dispatch.assert_awaited_once_with("deploy now", "telegram", "", untrusted=True)
     assert len(gate_submissions(router)) == 1, "an error in the check must not end the dispatch before the gate"
+
+
+@pytest.mark.asyncio
+async def test_a_failing_owner_check_denies_the_delegation_but_not_the_message() -> None:
+    router = dispatch_router()
+    del router._check_admin_permission  # the real check, asking a pairing store that raises
+
+    with patch(f"{PIPELINE}.is_admin_sender", new=AsyncMock(side_effect=RuntimeError("store down"))):
+        await run_dispatch(router, inbound_msg("/delegate summarise the report"))
+
+    router._handle_delegation_inbound.assert_not_awaited()
+    assert len(gate_submissions(router)) == 1, "an error in the check must not end the dispatch before the gate"
