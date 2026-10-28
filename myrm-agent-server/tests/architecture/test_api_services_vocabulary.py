@@ -46,6 +46,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "instance_archive",
         "integrations",
         "kanban",
+        "machines",
         "memory",
         "migration",
         "ops",
@@ -53,6 +54,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "progression",
         "providers",
         "risk",
+        "runs",
         "security",
         "skill_optimization",
         "skills",
@@ -63,6 +65,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "webhook",
         "webui",
         "wiki",
+        "workflow",
         "workflow_templates",
         "workspace",
     }
@@ -89,7 +92,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "openai_compat",
         "presentation",
         "remote_access",
-        "runs",
         "self_evolution",
         "session_map",
         "spreadsheet",
@@ -101,15 +103,18 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "web_push",
         "widget_storage",
         "workbench",
+        "ws",
     }
 )
 
 SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
     {
         "agent",
+        "analytics",
         "artifacts",
         "auth",
         "background",
+        "backup",
         "bitable_copilot",
         "chat",
         "code_graph",
@@ -122,6 +127,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "loop",
         "mascot",
         "meeting_notes",
+        "models",
         "observability",
         "onboarding",
         "ops",
@@ -129,7 +135,9 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "project",
         "repair",
         "sandbox_wake",
+        "session_export",
         "ssh_bridge",
+        "swarm",
         "ui_interaction",
         "web_fetch",
     }

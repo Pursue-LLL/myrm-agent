@@ -127,7 +127,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `machines` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `runs` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -159,10 +159,8 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `voice/` · `stt/` · `tts/` · `media/` | `core/media/`, `services/agent/`, `app/tasks/` |
 | `tasks/` | `app/tasks/` executors |
 | `mcp/` | `services/connect/` MCP endpoint + `services/agent/` platform config |
-| `external_agents/` | harness ACP subscription auth (CLI login SSE) |
 | `memory/follow_ups/` | `core/memory/proactive/` |
 | `notifications/` | `core/channel_bridge/` (gateway push) |
-| `runs/` | Read-only Unified Runs Hub — aggregates `core/cron/`, `services/kanban/`, shell background tasks (see `api/runs/_ARCH.md`) |
 | `internal/` | Control Plane internal bridge (SaaS) |
 | `client_logs/` | ingest only — no business service |
 | `dev_ports/` | harness `toolkits/code_execution/utils/port_sniffer` (listening-port discovery, process control, preview tunnels) |
@@ -171,6 +169,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `session_map/` | direct DB aggregation over chat and project models |
 | `system_assistant/` | in-module natural-language system control routes |
 | `workbench/` | in-module workspace file tree, command and plugin routes |
+| `ws/` | in-module WebSocket heartbeat and reconnect controllers (adaptive heartbeat, jittered backoff) |
 
 ### `services/` only — no matching `api/<same-name>/`
 
@@ -179,6 +178,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `services/` | Typical caller |
 |-------------|----------------|
 | `auth/` | middleware, `api/webui/`, OAuth callbacks |
+| `analytics/` | `api/system/roi_analytics_api.py` — time-saved, token-cost and ROI summaries |
 | `compliance/` | WeChat official-account compliance scan (`api/channels/wechat_official`) |
 | `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
@@ -189,8 +189,12 @@ Called from other HTTP trees or lifecycle hooks:
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
+| `session_export/` | `api/chats/session_export_router.py` — single-file HTML export, credential redaction, share link |
+| `swarm/` | `api/chats/chat/swarm_hud.py` — swarm session config, recalled-rules HUD, owner-action checklist |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
+| `models/` | `api/config/model_overrides_router.py` — model capability, context configuration and pricing overrides |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
+| `backup/` | Disaster-recovery wizard, full-stack snapshot exporter, incremental backup engine — library only, exercised by `tests/unit/core/backup`, no HTTP route yet |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
