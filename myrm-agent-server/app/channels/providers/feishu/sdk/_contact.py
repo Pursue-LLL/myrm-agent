@@ -17,6 +17,8 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import httpx
 
 logger = logging.getLogger(__name__)
@@ -35,10 +37,10 @@ class FeishuContactMixin:
 
     api_base: str
 
-    async def ensure_token(self) -> str: ...
-    def _get_http(self) -> httpx.AsyncClient: ...
-    def _auth(self, token: str) -> dict[str, str]: ...
-    def _safe_json(self, resp: httpx.Response, operation: str) -> dict[str, object]: ...
+    ensure_token: Callable[[], Awaitable[str]]
+    _get_http: Callable[[], httpx.AsyncClient]
+    _auth: Callable[[str], dict[str, str]]
+    _safe_json: Callable[[httpx.Response, str], dict[str, object]]
 
     async def get_user(self, open_id: str) -> dict[str, object] | None:
         """Fetch a user's contact info by open_id.

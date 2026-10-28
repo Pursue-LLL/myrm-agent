@@ -365,6 +365,7 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         from app.channels.protocols.route_registrar import (
             HttpMethod,
             RouteMetadata,
+            RouteRegistrar,
         )
         from app.channels.security import (
             SecurityLimits,
@@ -372,6 +373,9 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
             WebhookResponseError,
             WebhookSecurityMiddleware,
         )
+
+        if not isinstance(registrar, RouteRegistrar):
+            return
 
         middleware = WebhookSecurityMiddleware(
             limits=SecurityLimits(

@@ -270,7 +270,8 @@ class IMessageChannel(BaseChannel):
         msg = self._parse_message(data)
         if msg:
             await self._emit_inbound(msg)
-            asyncio.create_task(self._mark_read(msg.chat_id))
+            if msg.chat_id:
+                asyncio.create_task(self._mark_read(msg.chat_id))
 
     def verify_webhook_password(self, body: dict[str, object]) -> bool:
         """Verify BlueBubbles webhook password (timing-safe comparison)."""
@@ -384,8 +385,8 @@ class IMessageChannel(BaseChannel):
             result = await downloader.download(att.url, config=config)
             if result.success and result.data:
                 name = att.filename or filename_from_url(att.url)
-                ct = att.mime_type or result.content_type
-                return result.data, name, ct
+                mime = att.mime_type or result.content_type or "application/octet-stream"
+                return result.data, name, mime
 
         if att.path:
             path = Path(att.path)

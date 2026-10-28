@@ -21,6 +21,8 @@ from app.channels.providers.feishu.sdk.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import httpx
 
 logger = logging.getLogger(__name__)
@@ -40,10 +42,10 @@ class FeishuMessagingMixin:
     api_base: str
     _MEDIA_TIMEOUT: float
 
-    async def ensure_token(self) -> str: ...
-    def _get_http(self) -> httpx.AsyncClient: ...
-    def _auth(self, token: str) -> dict[str, str]: ...
-    def _safe_json(self, resp: httpx.Response, operation: str) -> dict[str, object]: ...
+    ensure_token: Callable[[], Awaitable[str]]
+    _get_http: Callable[[], httpx.AsyncClient]
+    _auth: Callable[[str], dict[str, str]]
+    _safe_json: Callable[[httpx.Response, str], dict[str, object]]
 
     # ── Messages ─────────────────────────────────────────────────
 
@@ -347,7 +349,7 @@ class FeishuMessagingMixin:
         token = user_access_token if user_access_token else await self.ensure_token()
         http = self._get_http()
 
-        all_results = []
+        all_results: list[dict[str, object]] = []
         for uid in user_ids:
             resp = await http.post(
                 f"{self.api_base}/calendar/v4/freebusy/list?user_id_type={user_id_type}",
@@ -363,9 +365,9 @@ class FeishuMessagingMixin:
                 logger.warning("Feishu get_freebusy failed for %s: %s", uid, body.get("msg"))
                 continue
 
-            data = body.get("data", {})
-            fb_list = data.get("freebusy_list", [])
-            busy_slots = []
+            data = body.get("data")
+            fb_list = data.get("freebusy_list") if isinstance(data, dict) else None
+            busy_slots: list[dict[str, object]] = []
             if isinstance(fb_list, list):
                 for fb in fb_list:
                     bs = fb.get("start_time")

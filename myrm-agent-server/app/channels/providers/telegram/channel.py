@@ -44,6 +44,7 @@ from app.channels.core.credentials import (
     credential_spec as build_credential_spec,
 )
 from app.channels.providers.telegram.notification import (
+    NotificationKwargs,
     notification_kwargs,
 )
 from app.channels.reliability.retry import RetryConfig
@@ -216,11 +217,11 @@ class TelegramChannel(
                 chat_overrides=self.allow_policy.chat_overrides,
             )
 
-    def _silent_notification_kwargs(self) -> dict[str, bool]:
+    def _silent_notification_kwargs(self) -> NotificationKwargs:
         """Notification kwargs for progress/placeholder paths (silent in IMPORTANT mode)."""
         return notification_kwargs(self._notifications_mode, None)
 
-    def _outbound_notification_kwargs(self, msg: OutboundMessage) -> dict[str, bool]:
+    def _outbound_notification_kwargs(self, msg: OutboundMessage) -> NotificationKwargs:
         """Notification kwargs for final outbound replies."""
         return notification_kwargs(self._notifications_mode, msg)
 

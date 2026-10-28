@@ -109,7 +109,8 @@ class MattermostClient:
 
         resp = await self._get_http().post(f"{self.api_url}/posts", json=body)
         resp.raise_for_status()
-        return resp.json()
+        post: dict[str, object] = resp.json()
+        return post
 
     async def update_post(self, post_id: str, message: str) -> dict[str, object]:
         """PUT /posts/{post_id} — edit message content."""
@@ -118,7 +119,8 @@ class MattermostClient:
             json={"id": post_id, "message": message},
         )
         resp.raise_for_status()
-        return resp.json()
+        post: dict[str, object] = resp.json()
+        return post
 
     async def delete_post(self, post_id: str) -> None:
         """DELETE /posts/{post_id} — soft-delete a post."""

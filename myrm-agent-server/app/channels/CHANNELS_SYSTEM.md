@@ -253,7 +253,7 @@ components: []
 
 **状态表情（处理中 / 完成 / 失败）**：
 
-`MessageEffects` 是唯一出口（`routing/message_effects.py`）。每个渠道只接受自己的表情词表：固定词表的渠道在 `ChannelCapabilities.reaction_glyphs` 声明（Telegram 官方 73 个、Teams 6 种、iMessage 6 种 Tapback、飞书官方 emoji_type 子集），其余渠道（Slack / Mattermost / Discord / Matrix / Signal / WhatsApp / DingTalk）不设限。路由按角色取第一个被接受的表情：处理中 配置值→👀→🤔，成功 配置值→✅→👍→🎉，失败 配置值→❌→👎→😢，都不被接受就不发。传空串表示撤销自己加的那个：Slack / Discord / Mattermost / 飞书 / 钉钉 / iMessage 用 `core/reaction_ledger.py` 记住「加了什么」，空串只撤销它，没加过就不发请求。表情失败不影响回合；同一渠道同类错误 10 分钟内只告警一次，因此 Slack 缺 `reactions:write` 范围、飞书缺反应权限会在日志里可见。
+`MessageEffects` 是唯一出口（`routing/message_effects.py`）。每个渠道只接受自己的表情词表：固定词表的渠道在 `ChannelCapabilities.reaction_glyphs` 声明（Telegram 官方 73 个、Teams 6 种、iMessage 6 种 Tapback、飞书官方 emoji_type 子集），其余渠道（Slack / Mattermost / Discord / Matrix / Signal / WhatsApp / DingTalk）不设限。路由按角色取第一个被接受的表情：处理中 配置值→👀→🤔，成功 配置值→✅→👍→🎉，失败 配置值→❌→👎→😢，都不被接受就不发。传空串表示撤销自己加的那个：Slack / Discord / Mattermost / 飞书 / 钉钉 / iMessage 用 `core/reaction_ledger.py` 记住「加了什么」，空串只撤销它，没加过就不发请求；Telegram 与 WhatsApp 用平台自带的空值清除。Teams / Signal / Matrix 没有撤销实现：Teams 对空串不发请求，Signal 与 Matrix 把空串当作表情原样发出。表情失败不影响回合；同一渠道同类错误 10 分钟内只告警一次，因此 Slack 缺 `reactions:write` 范围、飞书缺反应权限会在日志里可见。
 
 **审批命令（emoji reaction）**：
 

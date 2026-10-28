@@ -1,8 +1,7 @@
 """iMessage reacts with one of six Tapbacks; anything else is skipped, and an empty emoji removes what was sent.
 
-BlueBubbles removes a Tapback by posting its code plus 1000. The old code answered every unknown
-glyph with a thumbs-up and always removed a thumbs-up, so a failed turn showed an approving
-Tapback and a removal could take down a Tapback the user had set themselves.
+BlueBubbles removes a Tapback by posting its code plus 1000. A glyph without a Tapback is never
+sent as a thumbs-up, and a removal takes down the Tapback this channel sent, never one the user set.
 """
 
 from __future__ import annotations

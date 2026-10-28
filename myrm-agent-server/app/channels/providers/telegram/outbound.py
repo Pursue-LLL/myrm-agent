@@ -36,7 +36,10 @@ from .html_converter import md_to_telegram_html, split_message
 from .outbound_rich import TelegramRichOutboundMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .api import TelegramClient
+    from .notification import NotificationKwargs
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,8 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
     _draft_available: bool | None
     _rich_send_available: bool | None
     _rich_draft_available: bool | None
+    _silent_notification_kwargs: Callable[[], NotificationKwargs]
+    _outbound_notification_kwargs: Callable[[OutboundMessage], NotificationKwargs]
 
     async def start_typing(self, chat_id: str) -> None:
         """Show 'typing...' indicator via sendChatAction."""
@@ -93,7 +98,7 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         self,
         chat_id: str,
         reply_to_id: str | None,
-        notify_kwargs: dict[str, bool],
+        notify_kwargs: NotificationKwargs,
         attachment: MediaAttachment,
     ) -> None:
         """Send one attachment; a Telegram rejection becomes a ``ChannelSendError`` classified by its error code."""
@@ -108,7 +113,7 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         except TelegramApiError as exc:
             raise ChannelSendError.from_http_status(self.name, exc.error_code, exc.description) from exc
 
-    async def _send_text(self, msg: OutboundMessage, chat_id: str, notify_kwargs: dict[str, bool]) -> str | None:
+    async def _send_text(self, msg: OutboundMessage, chat_id: str, notify_kwargs: NotificationKwargs) -> str | None:
         """Send the message text as Rich Messages when available, else as HTML chunks.
 
         Rich Messages (Bot API 10.1) render tables/math/headings natively and fall back transparently

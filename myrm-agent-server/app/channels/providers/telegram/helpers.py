@@ -30,6 +30,7 @@ from app.channels.types import (
 )
 
 from .api import TelegramClient
+from .notification import NotificationKwargs
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ async def send_media_attachment(
     attachment: MediaAttachment,
     reply_to_id: str | None,
     *,
-    notification_kwargs: dict[str, bool] | None = None,
+    notification_kwargs: NotificationKwargs | None = None,
 ) -> None:
     """Send a single media attachment via the appropriate Telegram Bot API method.
 

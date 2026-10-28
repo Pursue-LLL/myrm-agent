@@ -1,7 +1,7 @@
 """Teams has six reaction types; a glyph without a faithful type is skipped, never sent as a thumbs-up.
 
-The old map answered every unknown glyph (and the cross, the eyes, the check mark, the thinking
-face) with ``like``, so a failed turn showed a thumbs-up.
+The cross, the eyes, the check mark and the thinking face have no Teams type, so none of them is
+ever sent as ``like`` and a failed turn never shows a thumbs-up.
 """
 
 from __future__ import annotations

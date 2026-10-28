@@ -26,6 +26,7 @@ from .api import TelegramApiError
 
 if TYPE_CHECKING:
     from .api import TelegramClient
+    from .notification import NotificationKwargs
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class TelegramRichOutboundMixin:
         reply_to: int | None,
         thread_id: int | None,
         reply_markup: dict[str, object] | None,
-        notify_kwargs: dict[str, bool],
+        notify_kwargs: NotificationKwargs,
     ) -> str | None:
         """Attempt to send via ``sendRichMessage``. Returns message_id or None to fall back."""
         from .html_converter import split_markdown_rich

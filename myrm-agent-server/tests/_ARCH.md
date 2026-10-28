@@ -133,6 +133,20 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/test_emoji_shortnames.py` | 单元 | Slack / Mattermost 共用的反应表情短名转换：路由器默认的处理中 / 完成 / 失败表情都有短名，冒号与变体选择符不影响匹配，未知值原样透传，表中短名都满足平台的名字规则 |
 | `channels/providers/slack/test_slack_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Slack `reactions.add` 时是短名（eyes / white_check_mark / x）而不是 unicode 字形 |
 | `channels/providers/mattermost/test_mattermost_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Mattermost 反应接口时是短名而不是 unicode 字形 |
+| `channels/routing/test_reaction_vocabulary.py` | 单元 | 状态表情按渠道词表选字：未声明词表的渠道原样发送，声明了词表的渠道只收词表内的表情（变体选择符不影响），被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌👎😢），都不被接受就不发；失败绝不回退成成功表情；配置为空串表示关闭、不回退；候选全被拒时仍撤销已加的处理中表情 |
+| `channels/routing/test_reaction_failure_visibility.py` | 单元 | 表情请求失败不进入回合，但按「渠道 + 错误类型」每 10 分钟告警一次（其余只记 debug）：另一个渠道、同渠道另一类错误各自告警，窗口过后再次告警，成功时不记日志 |
+| `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
+| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情）；每个支持反应的渠道都在表里 |
+| `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束清理与完成表情都用空串清除处理中表情，第一次真撤销、第二次不发请求；结束的回合以结果表情替换处理中表情，被停止的回合不留处理中表情 |
+| `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
+| `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 六种反应类型：六个原生表情按各自类型发送，没有对应类型的表情不发送、绝不当作点赞；请求失败抛给调用方 |
+| `channels/providers/imessage/test_imessage_reactions.py` | 单元 | iMessage 六种 Tapback：按各自代码发送，非 Tapback 的表情不发送；空串撤销本渠道发出的那个（代码 +1000）且只撤销一次，没发过不发请求；被拒的 Tapback 抛出且不记账，传输错误上抛 |
+| `channels/providers/imessage/test_imessage_media_type.py` | 单元 | iMessage 附件类型：声明类型优先于下载类型，都没有时按二进制流发送；消息没有聊天时不标记已读 |
+| `channels/providers/slack/test_slack_reaction_lifecycle.py` | 单元 | Slack `reactions.remove`：空串撤销已加的反应且只撤一次，没加过不发请求；缺权限的错误带上所需范围抛出，失败的添加不记账，已处于目标状态不算错误 |
+| `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
+| `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
+| `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
+| `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
 | `core/channel_bridge/test_executor_helpers_agent_workspace.py` | 单元 | `agent_workspace`：就是会话的 JIT 工作区目录；不能当目录名的 id（`..`、`a/b`、`x\y` 等）没有工作区并记 WARNING |
 | `services/chat/test_chat_message_spill_workspace.py` | 集成 | `ChatService.append_message(spill_workspace=…)`：超长用户消息存进调用方指定工作区的 `.myrm/pastes/`（文件内容与原文一致、消息里是落盘提示与路径、`extra_data.spillover` 带路径/字数/预览、HOME 下什么都没写）；存下的粘贴躲过 24h 清扫而活跃回合的外溢被清掉、智能体路径策略放行；工作区是 git 项目时存下的粘贴不出现在 `git status`；chat 的 title/last_message/first_message 是预览而非指针；Web 路径同样落在聊天工作区；短消息原样入库不写文件也不查工作区；助手消息从不落盘；带附件发送的长粘贴，库里的行与历史回放都不含全文；工作区写不了文件时消息原样留在库里；首次运行建的沙箱接纳已存有粘贴的目录；不超过人写文本停车线的长消息原样入库、不写文件也不建工作区 |
 | `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由；所有者触发的作业不带围栏，已配对成员与开放策略下的访客触发的作业带围栏，信任判定失败时按带围栏处理并记 WARNING，路由不受影响 |

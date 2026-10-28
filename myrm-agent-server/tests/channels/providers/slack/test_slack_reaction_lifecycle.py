@@ -1,7 +1,7 @@
 """Slack removes a reaction through ``reactions.remove`` and says why a reaction call failed.
 
-``reactions.add`` / ``reactions.remove`` answer HTTP 200 with ``ok: false``; the old client logged
-that at debug and returned, so a missing ``reactions:write`` scope looked like a working bot.
+``reactions.add`` / ``reactions.remove`` answer HTTP 200 with ``ok: false``; the client raises with
+Slack's error code, so a missing ``reactions:write`` scope is visible instead of looking like a working bot.
 """
 
 from __future__ import annotations

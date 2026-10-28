@@ -22,4 +22,4 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `html_converter.py` | 模块 | Markdown to Telegram HTML converter. GFM table degradation, 4096-char HTML-aware splitting with bare CJK punctuation breakpoints (`CJK_BOUNDARY_CHARS` from splitter), Rich Message splitting (32768 UTF-8). | ✅ |
 | `inbound.py` | 模块 | Telegram inbound message parsing, polling loop, and media group aggregation mixin. Supports message/edited_message/callback_query (qr/act/sel/ag)/sticker/location/venue/contact/video_note. Sets metadata for downstream enrichment. | ✅ |
 | `models.py` | 模块 | Pydantic models for Telegram Bot API webhook payloads (TgUser, TgChat, TgMessage, TgVideoNote, TgContact, etc.). | ✅ |
-| `notification.py` | 模块 | Telegram disable_notification helpers (Hermes-compatible important/all modes). | ✅ |
+| `notification.py` | 模块 | Telegram disable_notification helpers (Hermes-compatible important/all modes) and the `NotificationKwargs` type every send call receives. | ✅ |

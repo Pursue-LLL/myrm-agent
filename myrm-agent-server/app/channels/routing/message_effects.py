@@ -61,6 +61,14 @@ _FAILURE_FALLBACKS = ("\u274c", "\U0001f44e", "\U0001f622")
 _REACTION_WARN_INTERVAL = 600.0
 
 
+def _reply_target(msg: InboundMessage) -> str | None:
+    """Platform message a reply quotes: the inbound id, else the one the channel carried in metadata."""
+    if msg.message_id:
+        return msg.message_id
+    carried = msg.metadata.get("message_id")
+    return str(carried) if carried else None
+
+
 class MessageEffects:
     """Stateless helper for message side-effects (typing, reactions, placeholders, replies).
 
@@ -418,7 +426,7 @@ class MessageEffects:
             recipient_id=recipient,
             content=content,
             user_id=msg.user_id or "",
-            reply_to_id=msg.message_id or (msg.metadata.get("message_id") if msg.metadata else None),
+            reply_to_id=_reply_target(msg),
             thread_id=msg.thread_id,
             priority=MessagePriority.SYSTEM,
         )
@@ -432,7 +440,7 @@ class MessageEffects:
             recipient_id=recipient,
             content=get_text(msg, "mute_confirm"),
             user_id=msg.user_id or "",
-            reply_to_id=msg.message_id or msg.metadata.get("message_id"),
+            reply_to_id=_reply_target(msg),
             thread_id=msg.thread_id,
             priority=MessagePriority.SYSTEM,
         )
@@ -456,7 +464,7 @@ class MessageEffects:
             recipient_id=recipient,
             content=content,
             user_id=msg.user_id or "",
-            reply_to_id=msg.message_id or msg.metadata.get("message_id"),
+            reply_to_id=_reply_target(msg),
             thread_id=msg.thread_id,
             priority=MessagePriority.SYSTEM,
         )
