@@ -4,6 +4,8 @@ Inbound: webhook callback → _parse_message → _emit_inbound
 Outbound: REST API (text + multipart attachment) with Tapback reactions
 
 [INPUT]
+- channels.providers.imessage.outbound (POS: text, attachment and Tapback requests to BlueBubbles)
+- channels.providers.imessage.diagnostics::collect_imessage_issues (POS: configuration and connection diagnosis)
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base)
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
@@ -21,10 +23,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import logging
-import mimetypes
-import uuid
 from functools import partial
-from pathlib import Path
 
 import httpx
 
@@ -39,25 +38,22 @@ from app.channels.types import (
     ChannelIssue,
     ChannelStatus,
     InboundMessage,
-    IssueKind,
-    IssueSeverity,
-    MediaAttachment,
     OutboundMessage,
     RenderStyle,
     ToolSummaryDisplay,
     reaction_key,
 )
 
+from .diagnostics import collect_imessage_issues
 from .helpers import (
+    CHANNEL_NAME,
     MAX_TEXT_LENGTH,
-    MEDIA_TIMEOUT,
-    SEND_TIMEOUT,
     TAPBACK_MAP,
     TAPBACK_REMOVE_PREFIX,
     compile_mention_patterns,
-    filename_from_url,
     quote_guid,
 )
+from .outbound import post_tapback, send_attachment, send_text
 from .parser import parse_message
 from .webhook import register_webhook, unregister_webhook
 
@@ -71,7 +67,7 @@ class IMessageChannel(BaseChannel):
     Outbound: REST API (text + multipart attachment + Tapback reactions)
     """
 
-    name = "imessage"
+    name = CHANNEL_NAME
     credential_spec = credential_spec(
         "imessageCredentials",
         api_url=credential_field("apiUrl", "IMESSAGE_API_URL"),
@@ -297,106 +293,21 @@ class IMessageChannel(BaseChannel):
             raise ChannelSendError("iMessage message has no recipient", channel=self.name, retriable=False)
 
         last_guid: str | None = None
-        reply_to_guid = msg.reply_to_id if msg.reply_to_id else None
+        # Quoting needs the Private API helper; without it a reply is sent as a plain message.
+        quote = msg.reply_to_id if msg.reply_to_id and self._private_api_available and self._helper_connected else None
 
         if msg.content:
-            first_chunk = True
             for chunk in render(msg, self.render_style):
-                quote_id = reply_to_guid if first_chunk else None
-                last_guid = await self._send_text(chat_guid, chunk, reply_to=quote_id) or last_guid
-                first_chunk = False
+                last_guid = await send_text(self._http, self._api_url, self._password, chat_guid, chunk, quote=quote) or last_guid
+                quote = None  # only the first chunk quotes the message
 
         attachment_guid = await deliver_attachments(
             self.name,
             msg.media,
-            partial(self._send_attachment, chat_guid),
+            partial(send_attachment, self._http, self._api_url, self._password, chat_guid),
             text_delivered=bool(msg.content),
         )
         return last_guid or attachment_guid
-
-    async def _send_text(self, chat_guid: str, text: str, *, reply_to: str | None = None) -> str | None:
-        """Send a text message; returns the message guid, raises ``ChannelSendError`` when BlueBubbles refuses it."""
-        payload: dict[str, object] = {
-            "chatGuid": chat_guid,
-            "tempGuid": f"temp-{uuid.uuid4()}",
-            "message": text,
-        }
-        if reply_to and self._private_api_available and self._helper_connected:
-            payload["method"] = "private-api"
-            payload["selectedMessageGuid"] = reply_to
-            payload["partIndex"] = 0
-        try:
-            resp = await self._http.post(
-                f"{self._api_url}/api/v1/message/text",
-                params={"password": self._password},
-                json=payload,
-                timeout=SEND_TIMEOUT,
-            )
-        except Exception as exc:
-            raise ChannelSendError(f"iMessage text send failed: {exc}", channel=self.name) from exc
-        if resp.status_code >= 400:
-            raise ChannelSendError.from_http_status(self.name, resp.status_code)
-        return self._reported_guid(resp)
-
-    async def _send_attachment(self, chat_guid: str, att: MediaAttachment) -> str | None:
-        """Send a media attachment via multipart upload; raises ``ChannelSendError`` when it does not arrive."""
-        data, filename, mime = await self._read_media(att)
-        try:
-            resp = await self._http.post(
-                f"{self._api_url}/api/v1/message/attachment",
-                params={"password": self._password},
-                data={
-                    "chatGuid": chat_guid,
-                    "tempGuid": f"temp-{uuid.uuid4()}",
-                    "name": filename,
-                },
-                files={"attachment": (filename, data, mime)},
-                timeout=MEDIA_TIMEOUT,
-            )
-        except Exception as exc:
-            raise ChannelSendError(f"iMessage attachment send failed: {exc}", channel=self.name) from exc
-        if resp.status_code >= 400:
-            raise ChannelSendError.from_http_status(self.name, resp.status_code)
-        return self._reported_guid(resp)
-
-    @staticmethod
-    def _reported_guid(resp: httpx.Response) -> str | None:
-        """Guid BlueBubbles reports for an accepted send; an unreadable body leaves delivery unconfirmed."""
-        try:
-            data = resp.json().get("data")
-        except ValueError:
-            return None
-        return (str(data.get("guid") or "") or None) if isinstance(data, dict) else None
-
-    async def _read_media(self, att: MediaAttachment) -> tuple[bytes, str, str]:
-        """Read media bytes from URL or local path; raises ``ChannelSendError`` when neither yields data."""
-        if att.url:
-            from app.channels.media import (
-                MAX_FORWARD_DOWNLOAD_BYTES,
-                MediaDownloadConfig,
-                MediaDownloader,
-            )
-
-            config = MediaDownloadConfig(
-                timeout_seconds=MEDIA_TIMEOUT,
-                max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
-            )
-            downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
-            result = await downloader.download(att.url, config=config)
-            if result.success and result.data:
-                name = att.filename or filename_from_url(att.url)
-                mime = att.mime_type or result.content_type or "application/octet-stream"
-                return result.data, name, mime
-
-        if att.path:
-            path = Path(att.path)
-            if path.is_file():
-                data = await asyncio.to_thread(path.read_bytes)
-                mime = att.mime_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-                return data, path.name, mime
-
-        # A failed download may work next time; a missing local file never will.
-        raise ChannelSendError(f"iMessage cannot read {att.display_name}", channel=self.name, retriable=bool(att.url))
 
     # ── Reactions ─────────────────────────────────────────────────────
 
@@ -407,80 +318,26 @@ class IMessageChannel(BaseChannel):
         emoji: str,
     ) -> None:
         """Send a Tapback via the BlueBubbles Private API; an empty emoji removes the one this channel sent."""
+        post = partial(post_tapback, self._http, self._api_url, self._password, chat_id, message_id)
         if emoji:
             tapback = TAPBACK_MAP.get(reaction_key(emoji))
             if tapback is None:
                 return
-            await self._post_tapback(chat_id, message_id, tapback)
+            await post(tapback)
             self._reactions.remember(chat_id, message_id, tapback)
             return
         sent = self._reactions.take(chat_id, message_id)
         if sent:
-            await self._post_tapback(chat_id, message_id, f"{TAPBACK_REMOVE_PREFIX}{sent}")
-
-    async def _post_tapback(self, chat_id: str, message_id: str, reaction: str) -> None:
-        resp = await self._http.post(
-            f"{self._api_url}/api/v1/message/react",
-            params={"password": self._password},
-            json={"chatGuid": chat_id, "selectedMessageGuid": message_id, "reaction": reaction},
-            timeout=SEND_TIMEOUT,
-        )
-        if resp.status_code >= 400:
-            raise ChannelSendError(
-                f"iMessage reaction failed: HTTP {resp.status_code}", channel=self.name, status_code=resp.status_code
-            )
+            await post(f"{TAPBACK_REMOVE_PREFIX}{sent}")
 
     # ── Diagnostics ───────────────────────────────────────────────────
 
     def collect_issues(self) -> list[ChannelIssue]:
-        issues: list[ChannelIssue] = []
-        if not self._api_url:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.ERROR,
-                    message="BlueBubbles API URL not configured",
-                )
-            )
-        if not self._password:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.WARNING,
-                    message="BlueBubbles password not set; webhook authentication disabled",
-                )
-            )
-        if self._status == ChannelStatus.ERROR:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.RUNTIME,
-                    severity=IssueSeverity.ERROR,
-                    message="Channel in ERROR state; check BlueBubbles server connectivity",
-                )
-            )
-        if self.health.last_error:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.RUNTIME,
-                    severity=IssueSeverity.WARNING,
-                    message=self.health.last_error,
-                )
-            )
-        if self._status == ChannelStatus.RUNNING:
-            if not self._private_api_available:
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.CONFIG,
-                        severity=IssueSeverity.WARNING,
-                        message="BlueBubbles Private API is disabled; reactions, typing, and read receipts are unavailable",
-                    )
-                )
-            elif not self._helper_connected:
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.RUNTIME,
-                        severity=IssueSeverity.WARNING,
-                        message="BlueBubbles Private API Helper is disconnected; advanced messaging features may be limited",
-                    )
-                )
-        return issues
+        return collect_imessage_issues(
+            api_url=self._api_url,
+            password=self._password,
+            status=self._status,
+            last_error=self.health.last_error,
+            private_api_available=self._private_api_available,
+            helper_connected=self._helper_connected,
+        )

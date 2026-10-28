@@ -48,7 +48,6 @@ app/channels/providers/feishu/cards.py
 app/channels/providers/feishu/channel.py
 app/channels/providers/feishu/comment/handler.py
 app/channels/providers/feishu/parser.py
-app/channels/providers/imessage/channel.py
 app/channels/providers/onebot/channel.py
 app/channels/providers/qq/channel.py
 app/channels/providers/slack/channel.py

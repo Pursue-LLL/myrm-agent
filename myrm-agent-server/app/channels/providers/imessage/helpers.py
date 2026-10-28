@@ -12,6 +12,7 @@ from urllib.parse import quote, urlparse
 
 from app.channels.types import MediaType
 
+CHANNEL_NAME = "imessage"
 SEND_TIMEOUT = 15.0
 MEDIA_TIMEOUT = 30.0
 MAX_TEXT_LENGTH = 10000
