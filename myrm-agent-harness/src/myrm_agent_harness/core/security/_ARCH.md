@@ -27,7 +27,7 @@ Foundational security primitives used across all layers. Zero dependency on agen
 | Submodule | Description |
 |-----------|-------------|
 | path/ | Path security domain — glob matcher engine (`pattern.py`), generic path safety (`filesystem.py`), protected-path policy (`rules.py`), aggregation facade (`__init__.py`). See [path/_ARCH.md](path/_ARCH.md). |
-| redact/ | Secret redaction domain — `patterns.py` (compiled regexes + shared replacers), `engine.py` (bounded-replace pipeline + public APIs), `__init__.py` (aggregation facade). |
+| redact/ | Secret redaction domain — `patterns.py` (compiled regexes + shared replacers), `structured_fields.py` (credential-named field masking in JSON, JSON inside a JSON string and Python repr diagnostics), `engine.py` (bounded-replace pipeline + public APIs), `__init__.py` (aggregation facade). See [redact/_ARCH.md](redact/_ARCH.md). |
 | tool_registry/ | Tool registry domain — `registry.py` (tool safety SSOT: permission mapping, canonical params, safety metadata, tool groups) + `safety.py` (module-load coverage gate), `__init__.py` (aggregation facade). |
 | detection/ | PII classification, content boundary marking, leak detection, prompt injection guard, pseudonymization. |
 | persistence/ | Pre-write content scan SSOT — profiles for Memory / Wiki raw / Wiki publish ([persistence/_ARCH.md](persistence/_ARCH.md)). |
