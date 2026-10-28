@@ -11,7 +11,12 @@ import random
 
 import pytest
 
-from myrm_agent_harness.toolkits.code_execution.session.value_masker import MASK, MIN_MASKED_LENGTH, ValueMasker
+from myrm_agent_harness.toolkits.code_execution.session.value_masker import (
+    MASK,
+    MIN_MASKED_LENGTH,
+    ValueMasker,
+    printed_forms,
+)
 
 
 def _one_piece(text: str, values: list[str]) -> str:
@@ -133,3 +138,46 @@ class TestEqualsMaskingInOnePiece:
             cuts = sorted(rng.sample(range(len(text) + 1), k=min(len(text) + 1, rng.randint(0, 5))))
             chunks = [text[a:b] for a, b in itertools.pairwise([0, *cuts, len(text)])]
             assert _streamed(chunks, values) == _one_piece(text, values), (text, chunks)
+
+
+_AWKWARD = 'p@ss w/rd%1&"x\\y'
+_AWKWARD_URL = "p%40ss%20w%2Frd%251%26%22x%5Cy"
+_AWKWARD_JSON = 'p@ss w/rd%1&\\"x\\\\y'
+
+
+class TestPrintedForms:
+    def test_a_plain_token_has_no_other_form(self) -> None:
+        assert printed_forms(["correct-horse-battery_staple.9"]) == ["correct-horse-battery_staple.9"]
+
+    def test_a_password_with_special_characters_also_has_its_url_and_json_forms(self) -> None:
+        assert set(printed_forms([_AWKWARD])) == {_AWKWARD, _AWKWARD_URL, _AWKWARD_JSON}
+
+    def test_a_multi_line_secret_has_the_forms_a_key_takes_in_a_url_or_a_json_string(self) -> None:
+        forms = printed_forms(["-----BEGIN KEY-----\nabc\n-----END KEY-----"])
+
+        assert "-----BEGIN%20KEY-----%0Aabc%0A-----END%20KEY-----" in forms
+        assert "-----BEGIN KEY-----\\nabc\\n-----END KEY-----" in forms
+
+    def test_non_ascii_is_percent_encoded_as_utf8_and_stays_readable_in_json(self) -> None:
+        assert set(printed_forms(["pässwort1"])) == {"pässwort1", "p%C3%A4sswort1"}
+
+    def test_url_encoders_that_leave_the_punctuation_bare_are_covered(self) -> None:
+        assert set(printed_forms(["p@ss!1(x)"])) == {"p@ss!1(x)", "p%40ss%211%28x%29", "p%40ss!1(x)"}
+
+    def test_a_value_under_the_minimum_has_no_forms_at_all(self) -> None:
+        assert printed_forms(["a@b"]) == []
+
+    def test_the_same_form_of_two_values_is_listed_once(self) -> None:
+        assert printed_forms(["abcd1234", "abcd1234"]) == ["abcd1234"]
+
+
+class TestMaskingTheForms:
+    _TEXT = f'curl https://u:{_AWKWARD_URL}@h/ -d \'{{"p":"{_AWKWARD_JSON}"}}\' raw={_AWKWARD}'
+    _MASKED = f'curl https://u:{MASK}@h/ -d \'{{"p":"{MASK}"}}\' raw={MASK}'
+
+    def test_every_form_is_hidden(self) -> None:
+        assert _streamed([self._TEXT], printed_forms([_AWKWARD])) == self._MASKED
+
+    @pytest.mark.parametrize("cut", range(len(_TEXT) + 1))
+    def test_every_form_is_hidden_wherever_the_read_was_cut(self, cut: int) -> None:
+        assert _streamed([self._TEXT[:cut], self._TEXT[cut:]], printed_forms([_AWKWARD])) == self._MASKED

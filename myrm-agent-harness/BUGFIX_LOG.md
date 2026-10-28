@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-072 · 送达给命令的凭据只按原值遮盖：命令把它写成 URL 百分号编码（`p%40ss%2Fw`）或 JSON 字符串（`p@ss/w\"rd`）输出时，遮盖认不出
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/code_execution/session/`：`value_masker.py` 新增 `printed_forms`，`command_stream.py` 用它构造遮盖器；`session/_ARCH.md`、`EXECUTION_SYSTEM.md` 同步；没有改任何提示词，前端、server 没有改动）。 |
+| **发现时间** | 2026-10-28（条目 068 的「遮盖认不出命令自己编码后的值」一栏逐项评估） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P3：被遮盖的凭据仍会出现在命令的输出里，需要命令自己把值编码后再打印（Python `requests` 的异常消息里带 `?key=p%40ss`、把请求体 `json.dumps` 后回显、客户端打印连接串）。这类输出出现的频率没有统计，是未知。 |
+| **关联产品** | harness `toolkits/code_execution/session/`（遮盖器构造点只有 `command_stream.py::_credential_masker` 一处）。 |
+| **根因** | `ValueMasker` 只按字面值替换。条目 068 的文档把「命令自己编码后输出的值认不出」列为限制。竞品 DeepSeek-Bot 的 `ds-bot/src/host/secrets.js` 对同一件事把 JSON 转义与 URL 编码形态也一起遮盖（`:41-48`、`encodeUrlComponent` `:31-34`）。 |
+| **修复** | 新增纯函数 `printed_forms(values)`：对每个不少于 4 个字符的值，返回它本身、URL 百分号编码（Python `quote(safe="")`）、不转义 `!'()*` 的 URL 百分号编码（JavaScript `encodeURIComponent` 的写法）、JSON 字符串转义（`json.dumps` 去掉两端引号，保留非 ASCII），仅在与原值不同时才多一项（用集合去重）。`command_stream._credential_masker` 改为 `ValueMasker(printed_forms(env.scoped.values()))`。`ValueMasker` 本身没有改：它仍是「精确遮盖给定字符串」，所以 068 的随机切分对参照实现的测试原样有效。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 起初想把展开写进 `ValueMasker.__init__`；那会改变 068 的参照实现所依据的语义，所以拆成独立函数。② 不足 4 个字符的值不展开：`@a` 的百分号形态 `%40a` 有 4 个字符，会遮盖一段本不该遮盖的文字。③ 一开始只写了 Python `quote` 的形态，核对 JavaScript 的 `encodeURIComponent` 不转义 `!'()*`，含 `!` 的口令很常见，所以补上不转义的那一种。 |
+| **回归** | [1] 变异验证：去掉 JSON 形态，106 例失败；去掉 URL 形态，107 例失败；去掉不转义 `!'()*` 的形态，1 例失败；`command_stream` 绕过 `printed_forms`，真实 bash 的用例失败（这一条同时是修复前行为的实测：同一条 `printf` 打印 URL 形态与 JSON 形态，输出里原样出现）。[2] `test_value_masker.py` 新增 `printed_forms` 的单元例与「每个形态在每个切点都被遮盖」的逐点例；`test_credential_output_masking.py` 新增一条真实 bash 用例（URL 形态、JSON 形态、原值同时输出）。[3] 吞吐（`ExecutionStreamBuffer.process_bytes` 端到端，26.8 MB 随机文本、每次读 8 KiB、5 次取最好；脚本未入库；机器同时有别的任务在跑）：令牌（只含字母数字与 `-_.`）没有额外形态，1 个 1111 → 1088 MB/s、3 个 716 → 694 MB/s，在噪声内；含 `!'()*` 的口令 1 个 1120 → 679 MB/s，3 个 688 → 322 MB/s；不含这些字符的口令 1 个 1187 → 782 MB/s，3 个 712 → 355 MB/s。随机文本不是真实命令输出，真实命令的输出速度没有测量。 |
+| **仍然存在** | ① base64（HTTP Basic 的 `Authorization` 头）、表单编码里空格写成 `+`、小写十六进制（`%2f`）、HTML 实体仍认不出。② 4 到 7 个字符的值在更长的词里也被遮盖（`root` 之于 `rooted`），文档已写明。③ 命令实际会把凭据编码输出的频率没有数据。 |
+| **代码位置** | `toolkits/code_execution/session/value_masker.py:printed_forms`、`command_stream.py:_credential_masker` · `session/_ARCH.md`、`EXECUTION_SYSTEM.md`（凭证按命令生效一节） · 测试 `tests/toolkits/code_execution/session/test_value_masker.py`、`test_credential_output_masking.py` |
+
 ### BUG-HARNESS-2026-10-28-071 · 一次性凭据可以用 `GIT_EXTERNAL_DIFF`、`GIT_SSH_COMMAND`、`PYTHONSTARTUP` 这类会让程序去运行变量值的名字暂存，再被一条判为只读的命令吃到
 
 | 字段 | 内容 |

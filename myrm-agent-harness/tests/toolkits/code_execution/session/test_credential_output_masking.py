@@ -66,6 +66,15 @@ class TestResult:
 
         assert (await session.execute(f"echo {_SECRET}")).stdout == _SECRET
 
+    async def test_the_url_and_json_forms_of_a_credential_are_masked_too(self, session: LocalPersistentSession) -> None:
+        env = CommandEnv(scoped={"DB_PASS": 'p@ss/w"rd1'})
+
+        result = await session.execute(
+            "printf 'url=%s json=%s raw=%s\\n' 'postgres://u:p%40ss%2Fw%22rd1@h' 'p@ss/w\\\"rd1' \"$DB_PASS\"", env=env
+        )
+
+        assert result.stdout == f"url=postgres://u:{MASK}@h json={MASK} raw={MASK}"
+
     @pytest.mark.parametrize("lead", [8180, 8188, 8190, 8191, 8192, 8193, 8200, 16380, 16384])
     async def test_a_value_that_straddles_a_read_is_masked(self, session: LocalPersistentSession, lead: int) -> None:
         result = await session.execute(f"head -c {lead} /dev/zero | tr '\\0' x && echo \"$DB_PASS tail\"", env=_ENV)
