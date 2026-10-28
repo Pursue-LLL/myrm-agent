@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.session_access import (
     get_session_access_roots,
@@ -380,3 +382,27 @@ class TestGrantUpgrade:
         assert granted == [os.path.realpath(docs)]
         assert [root.writable for root in get_session_access_roots()] == [True]
         set_session_access_roots(())
+
+
+@pytest.mark.parametrize("held", [None, False, True], ids=["nothing-held", "held-read-only", "held-writable"])
+@pytest.mark.parametrize("writable", [False, True], ids=["read-call", "write-call"])
+def test_every_folder_the_plan_offers_is_one_the_grant_changes(tmp_path, held: bool | None, writable: bool) -> None:
+    """The card never promises a folder the grant then leaves as it was, whatever the folder already held."""
+    set_session_access_roots(())
+    workspace = tmp_path / "ws"
+    docs = tmp_path / "docs"
+    for directory in (workspace, docs):
+        directory.mkdir()
+    if held is not None:
+        grant_session_access_root(AccessRoot(path=str(docs), writable=held), workspace_root=str(workspace))
+    policy = merge_path_policy_with_session_access(PathPolicy(forbidden_paths=frozenset(), access_roots=()))
+    call = {"file_path": f"{docs}/out.txt"}
+
+    offered = [
+        root.path
+        for root in plan_directory_grants(call, policy=policy, workspace_root=str(workspace), writable=writable)
+    ]
+    granted = grant_directories_for_call(call, policy=policy, workspace_root=str(workspace), writable=writable)
+
+    assert granted == offered
+    set_session_access_roots(())
