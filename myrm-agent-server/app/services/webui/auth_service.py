@@ -6,6 +6,7 @@
 - app.remote_access.pairing (POS: mobile pair token HMAC signing)
 - app.config.deploy_mode (POS: local vs remote WebUI flags)
 - app.core.security.auth.failed_attempt_guard (POS: login brute-force lockout)
+- app.services.audit.lockout_events (POS: lockout log/audit report)
 
 [OUTPUT]
 - WebuiAuthService: resolve_status, setup_admin, login, exchange_temp_token
@@ -25,6 +26,7 @@ from app.config.deploy_mode import DeployMode, get_deploy_mode, is_webui_remote_
 from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
 from app.core.security.auth.identity import is_loopback_ip
 from app.remote_access.pairing import rotate_pairing_key
+from app.services.audit.lockout_events import report_lockout
 from app.services.webui.access_policy import local_api_requires_session
 from app.services.webui.admin_store import admin_is_configured, load_admin, save_admin
 from app.services.webui.passwords import hash_password, verify_password
@@ -193,7 +195,8 @@ class WebuiAuthService:
             raise ValueError("Admin account is not configured")
 
         if username.strip() != admin.username or not verify_password(password, admin.password_hash):
-            self._login_guard.record_failure(client)
+            if self._login_guard.record_failure(client):
+                report_lockout("webui_login", client=client)
             raise ValueError("Invalid username or password")
 
         self._login_guard.clear(client)

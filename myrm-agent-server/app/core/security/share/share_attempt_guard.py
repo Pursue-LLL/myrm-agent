@@ -8,7 +8,8 @@
 
 [OUTPUT]
 - password_lockout_response: 429 gate page while a client is locked out of a share, else ``None``
-- record_password_failure / record_password_success: feed the lockout from the gate result
+- record_password_failure / record_password_success: feed the lockout from the gate result (a failure reports
+  whether it just engaged the lock)
 
 [POS]
 A password-protected share link is a self-contained signed token, so anyone holding it can try passwords at
@@ -62,8 +63,9 @@ def password_lockout_response(request: Request, token: str) -> HTMLResponse | No
     )
 
 
-def record_password_failure(request: Request, token: str) -> None:
-    _guard.record_failure(_attempt_key(request, token))
+def record_password_failure(request: Request, token: str) -> bool:
+    """Count a wrong password; ``True`` when this failure just locked the client out of *token*."""
+    return _guard.record_failure(_attempt_key(request, token))
 
 
 def record_password_success(request: Request, token: str) -> None:

@@ -7,7 +7,8 @@
 
 [POS]
 Brute-force throttle for credential checks that cannot rely on a verified identity (WebUI login, share passwords).
-Callers check ``retry_after`` before verifying a credential, ``record_failure`` on a wrong one and ``clear`` on success.
+Callers check ``retry_after`` before verifying a credential, ``record_failure`` on a wrong one (it reports the moment a
+key becomes locked, so a lockout can be surfaced exactly once) and ``clear`` on success.
 State is in-process and lost on restart; the key set is bounded because callers may derive keys from unauthenticated input.
 """
 
@@ -51,15 +52,18 @@ class FailedAttemptGuard:
                 return None
             return max(1, int(self._window - (now - recent[0])))
 
-    def record_failure(self, key: str) -> None:
+    def record_failure(self, key: str) -> bool:
+        """Count a failed attempt; ``True`` when this very failure locked *key* (the unlocked-to-locked transition)."""
         with self._lock:
             now = self._clock()
             recent = self._recent(key, now)
+            locks_now = len(recent) == self._max_failures - 1
             recent.append(now)
             self._failures.pop(key, None)
             self._failures[key] = recent[-self._max_failures :]
             while len(self._failures) > self._max_keys:
                 self._failures.popitem(last=False)
+            return locks_now
 
     def clear(self, key: str) -> None:
         with self._lock:

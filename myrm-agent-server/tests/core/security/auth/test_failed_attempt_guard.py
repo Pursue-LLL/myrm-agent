@@ -1,5 +1,7 @@
 """Tests for FailedAttemptGuard (brute-force lockout with a bounded key set)."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
@@ -26,6 +28,44 @@ def guard(clock: _Clock) -> FailedAttemptGuard:
 def _fail(guard: FailedAttemptGuard, key: str, times: int) -> None:
     for _ in range(times):
         guard.record_failure(key)
+
+
+def test_record_failure_reports_only_the_failure_that_engages_the_lock(guard: FailedAttemptGuard) -> None:
+    assert [guard.record_failure("k") for _ in range(7)] == [False, False, False, False, True, False, False]
+
+
+def test_a_lock_is_reported_again_when_it_engages_a_second_time(guard: FailedAttemptGuard, clock: _Clock) -> None:
+    _fail(guard, "k", 5)
+    clock.now += 60
+
+    assert [guard.record_failure("k") for _ in range(5)] == [False, False, False, False, True]
+
+
+def test_the_lock_is_reported_again_when_ageing_failures_drop_it_below_the_limit(
+    guard: FailedAttemptGuard, clock: _Clock
+) -> None:
+    _fail(guard, "k", 3)
+    clock.now += 40
+    _fail(guard, "k", 2)
+    clock.now += 20  # the first three failures leave the window; two remain
+
+    assert [guard.record_failure("k") for _ in range(3)] == [False, False, True]
+
+
+def test_threads_racing_on_one_key_see_exactly_one_lock_transition() -> None:
+    racing = FailedAttemptGuard(max_failures=5, window_seconds=60.0, clock=lambda: 0.0)
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        outcomes = list(pool.map(racing.record_failure, ["k"] * 400))
+
+    assert outcomes.count(True) == 1
+    assert racing.retry_after("k") == 60
+
+
+def test_a_single_failure_limit_locks_on_the_first_failure() -> None:
+    strict = FailedAttemptGuard(max_failures=1)
+
+    assert [strict.record_failure("k") for _ in range(2)] == [True, False]
 
 
 def test_unknown_key_is_not_locked(guard: FailedAttemptGuard) -> None:

@@ -16,7 +16,7 @@ WebUI 辅助服务：二维码/URL 组装、Open Graph 链接预览抓取，以�
 | `passwords.py` | scrypt 密码哈希 |
 | `temp_token.py` | 首次 setup 临时令牌（含 `WEBUI_SETUP_TOKEN`） |
 | `session.py` | 签名会话 Cookie `myrm_webui_session`；`rotate_session_signing_key` 改密后失效旧 Cookie |
-| `auth_service.py` | 认证状态解析、setup/login/logout；登录失败按客户端 IP 经 `FailedAttemptGuard` 节流（5 次/60 秒锁定）；`invalidate_all_sessions` 同步轮换 session 签名键与 `pairing.rotate_pairing_key` |
+| `auth_service.py` | 认证状态解析、setup/login/logout；登录失败按客户端 IP 经 `FailedAttemptGuard` 节流（5 次/60 秒锁定），锁定生效时经 `services/audit/lockout_events.py` 上报；`invalidate_all_sessions` 同步轮换 session 签名键与 `pairing.rotate_pairing_key` |
 | `access_policy.py` | API 是否要求 WebUI 会话 + Cookie 解析 |
 | `protection_store.py` | `require_password` GUI 开关持久化 |
 | `pending_setup_store.py` | setup token 磁盘 TTL |

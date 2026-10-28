@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import Request
@@ -23,7 +27,7 @@ _LOCK_MESSAGE = "Too many failed attempts. Retry after"
 
 
 @pytest.fixture(autouse=True)
-def _admin_account(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _admin_account(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.setenv("WEBUI_MODE", "false")
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "false")
@@ -54,6 +58,20 @@ def test_sixth_attempt_is_locked_even_with_the_correct_password() -> None:
 
     with pytest.raises(PermissionError, match=_LOCK_MESSAGE):
         service.login(_request("10.0.0.1"), username=_USERNAME, password=_PASSWORD)
+
+
+def test_the_lock_is_reported_once_when_it_engages() -> None:
+    service = WebuiAuthService()
+    with patch("app.services.webui.auth_service.report_lockout", new=MagicMock()) as report:
+        _fail_logins(service, "10.0.0.1", 4)
+        report.assert_not_called()
+
+        _fail_logins(service, "10.0.0.1", 1)
+        report.assert_called_once_with("webui_login", client="10.0.0.1")
+
+        with pytest.raises(PermissionError, match=_LOCK_MESSAGE):
+            service.login(_request("10.0.0.1"), username=_USERNAME, password="wrong")
+        report.assert_called_once()
 
 
 def test_lock_message_reports_the_remaining_seconds() -> None:
@@ -125,3 +143,19 @@ async def test_login_route_answers_429_with_retry_after(monkeypatch: pytest.Monk
 
     assert locked.status_code == 429
     assert 1 <= int(locked.headers["Retry-After"]) <= 60
+
+
+@pytest.mark.asyncio
+async def test_a_burst_of_concurrent_logins_gets_exactly_five_tries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.api.webui.auth_routes.webui_auth_service", WebuiAuthService())
+    transport = ASGITransport(app=build_minimal_app(webui=True))
+    with patch("app.services.webui.auth_service.report_lockout", new=MagicMock()) as report:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+            burst = await asyncio.gather(
+                *(client.post("/webui/auth/login", json={"username": _USERNAME, "password": f"wrong-{i}"}) for i in range(40))
+            )
+            correct = await client.post("/webui/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+
+    assert Counter(response.status_code for response in burst) == {401: 5, 429: 35}
+    assert correct.status_code == 429
+    report.assert_called_once()

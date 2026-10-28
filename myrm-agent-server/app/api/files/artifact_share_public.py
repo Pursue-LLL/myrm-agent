@@ -76,6 +76,7 @@ from app.services.artifacts.share.share_token import (
     ArtifactShareClaims,
     parse_artifact_share_token,
 )
+from app.services.audit.lockout_events import report_share_lockout
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +248,8 @@ def _auth_or_gate(
     claims = parse_artifact_share_token(token, password=password)
     if claims is None:
         if guessing:
-            record_password_failure(request, token)
+            if record_password_failure(request, token):
+                report_share_lockout(request, token)
             return password_gate_response(request, wrong_password=True)
         return share_not_found(
             request,

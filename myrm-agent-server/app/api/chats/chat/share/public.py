@@ -58,6 +58,7 @@ from app.core.security.share.share_unlock import (
 )
 from app.database.connection import get_db
 from app.database.dto import ChatDTO
+from app.services.audit.lockout_events import report_share_lockout
 from app.services.chat.chat_service import ChatService
 from app.services.chat.share_renderer import render_share_html
 from app.services.chat.share_token import ChatShareClaims, parse_chat_share_token
@@ -214,7 +215,8 @@ async def get_public_chat_share(
         claims = parse_chat_share_token(token, password=password)
         if claims is None:
             if guessing:
-                record_password_failure(request, token)
+                if record_password_failure(request, token):
+                    report_share_lockout(request, token)
                 return password_gate_response(request, wrong_password=True)
             return share_not_found(
                 request,
